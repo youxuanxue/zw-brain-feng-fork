@@ -1,0 +1,32 @@
+# ============================================================
+# zw-brain 仓库 .gitignore
+# ============================================================
+# 原则：本仓库只承载「政务大脑」自身的设计、代码、契约、测试；
+#       同 workspace 内的「外部参考文档」「历史素材」「IDE/OS 噪音」均不入库。
+# ============================================================
+
+# ── IDE / OS 噪音 ─────────────────────────────────────────────
+.DS_Store
+**/.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ── 外部参考文档（同 workspace 但不入 zw-brain 仓库）─────────
+# 合规 / 私有原因：跨产品研究档不对外公开。
+# 设计基线 docs/approved/zw-brain-architecture.md 中对它的引用
+# 是「workspace 内同级路径」，路径有效但不进版本控制。
+digital-clone-research.md
+
+# ── 历史素材（不进版本控制）──────────────────────────────────
+# 旧平台白皮书、会议讲解、思维导图、旧平台 README + 截图等原始素材
+# 保留在本地工作区，不随 zw-brain 仓库分发。如需归档，走独立的
+# 内部存储，不混入 git。
+# 注：old/integrated-bigdata-platform/ 自 2026-04-18 起从 docs/ 迁入此处
+# （含 README.md + 47 张界面截图，合规敏感不入库）。
+old/
+
+# ── 素材采集工具（本地脚本，依赖 old/ 下原始素材，不入库）────
+# scripts/extract_meeting_screenshots.sh 从会议录屏抽帧到 old/integrated-bigdata-platform/images，
+# 输入文件在 old/ 下、输出目录在 old/ 下，整个工具链对 git 仓库不产生交付物。
+scripts/extract_meeting_screenshots.sh
