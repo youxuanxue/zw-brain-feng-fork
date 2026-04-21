@@ -1,0 +1,18 @@
+{
+  "name": "zw-brain-dashboard",
+  "version": "0.0.0",
+  "private": true,
+  "description": "政务大脑可视化大屏 (Phase-0 placeholder, framework TBD per D19).",
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'Phase-0 placeholder — pick a dev server in Phase-0 PoC' && exit 0",
+    "build": "echo 'Phase-0 placeholder — pick a bundler in Phase-0 PoC' && exit 0",
+    "lint": "echo 'Phase-0 placeholder — wire up ESLint after framework choice' && exit 0",
+    "check:readonly": "../scripts/check_dashboard_readonly.py"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
