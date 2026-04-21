@@ -1,0 +1,107 @@
+/* ---------------------------------------------------------------------------
+   政务大脑 GATE-1 原型 · 自定义样式
+   原则：尽量复用 Tailwind utility，只在必须时落自定义样式
+   --------------------------------------------------------------------------- */
+
+/* 顶部导航 tab 选中态 */
+.nav-tab {
+  color: rgba(255, 255, 255, 0.85);
+}
+.nav-tab:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.nav-tab.active {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-weight: 500;
+}
+
+/* 卡片 hover 反馈（原型场景下手感很重要） */
+.card-hover {
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.card-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(26, 68, 128, 0.08);
+}
+
+/* 大屏专用：拉满高度 + 深色 + 等宽数字 */
+.dash-stage {
+  background: linear-gradient(180deg, #0b1e3f 0%, #0a1429 100%);
+  color: #e7eefc;
+  min-height: calc(100vh - 130px); /* nav + footer 之外全部 */
+  border-radius: 8px;
+  padding: 18px;
+}
+.dash-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 14px;
+}
+.dash-num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* 代码片段（场景 3 用） */
+pre.code {
+  background: #0f172a;
+  color: #d8e1ec;
+  padding: 12px 14px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  overflow-x: auto;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+}
+pre.code .k { color: #93c5fd; }
+pre.code .s { color: #fbbf24; }
+pre.code .c { color: #6b7280; font-style: italic; }
+
+/* NL 解析结果芯片 */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  margin: 2px 4px 2px 0;
+}
+.chip-ok::before { content: '✓ '; color: #16a34a; font-weight: 700; }
+
+/* 流程步骤指示 */
+.step-dot {
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px;
+  font-size: 11px; font-weight: 600;
+}
+.step-dot.done   { background: #dcfce7; color: #15803d; }
+.step-dot.now    { background: #1a4480; color: #fff; }
+.step-dot.todo   { background: #f1f5f9; color: #94a3b8; }
+
+/* 闪烁的 pending 状态点 */
+@keyframes pulse-anchor {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+.pending-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  background: #f59e0b;
+  border-radius: 50%;
+  margin-right: 6px;
+  animation: pulse-anchor 1.4s ease-in-out infinite;
+}
+
+/* 警示色统一 */
+.sev-low    { color: #15803d; background: #dcfce7; }
+.sev-mid    { color: #b45309; background: #fef3c7; }
+.sev-high   { color: #b91c1c; background: #fee2e2; }

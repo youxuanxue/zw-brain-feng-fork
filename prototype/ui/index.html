@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>政务大脑 · GATE-1 原型</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <link rel="stylesheet" href="css/app.css" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'zw-primary': '#1a4480',
+            'zw-accent':  '#e88c30',
+            'zw-bg':      '#f5f6f8',
+            'zw-card':    '#ffffff',
+            'zw-ink':     '#1f2937',
+            'zw-mute':    '#6b7280',
+            'zw-line':    '#e5e7eb',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-zw-bg text-zw-ink antialiased min-h-screen flex flex-col">
+
+  <!-- Top nav (always visible) -->
+  <header class="bg-zw-primary text-white shadow-sm sticky top-0 z-30">
+    <div class="max-w-screen-2xl mx-auto px-6 py-3 flex items-center gap-6">
+      <a href="#/" class="text-lg font-semibold tracking-wide flex items-center gap-2">
+        <span class="inline-block w-2 h-2 rounded-full bg-zw-accent"></span>
+        政务大脑
+        <span class="text-xs font-normal opacity-70 ml-2">GATE-1 原型 · 真 UI 无后端</span>
+      </a>
+      <nav class="flex items-center gap-1 text-sm">
+        <a href="#/"          data-nav="brain"     class="nav-tab px-3 py-1.5 rounded transition">主大脑</a>
+        <a href="#/dashboard" data-nav="dashboard" class="nav-tab px-3 py-1.5 rounded transition">大屏视图</a>
+        <a href="#/agent"     data-nav="agent"     class="nav-tab px-3 py-1.5 rounded transition">Agent 入口</a>
+      </nav>
+      <div class="ml-auto flex items-center gap-4 text-sm">
+        <div class="flex items-center gap-2 opacity-90">
+          <span class="text-xs opacity-70">当前角色</span>
+          <select id="role-switch" class="bg-white/10 text-white border border-white/20 rounded px-2 py-1 text-xs focus:outline-none">
+            <option value="op">提供方操作员（李娟）</option>
+            <option value="admin">提供方管理员</option>
+            <option value="leader">厅局领导（王副市长）</option>
+            <option value="platform">平台管理员</option>
+            <option value="agent-dev">外部 Agent 开发者（陈工）</option>
+          </select>
+        </div>
+        <div id="global-health" class="flex items-center gap-2 text-xs opacity-90" title="主大脑与大屏故障隔离演示位（§7.7.1）·在大屏页面可亲手切换故障">
+          <span>主大脑 <span id="health-brain" class="text-green-300">✓</span></span>
+          <span class="opacity-50">|</span>
+          <span>大屏 <span class="text-green-300">✓</span></span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- App container -->
+  <main id="app" class="flex-1 max-w-screen-2xl mx-auto w-full px-6 py-6">
+    <!-- pages.js renders here -->
+  </main>
+
+  <footer class="border-t border-zw-line bg-white/40">
+    <div class="max-w-screen-2xl mx-auto px-6 py-3 text-xs text-zw-mute flex items-center justify-between">
+      <span>方向验证原型 · mock 数据 · 不做后端 · 不做持久化 · 详见 <code class="bg-zw-bg px-1.5 py-0.5 rounded">prototype/README.md</code></span>
+      <span>对应设计基线 <code class="bg-zw-bg px-1.5 py-0.5 rounded">docs/approved/zw-brain-architecture.md</code></span>
+    </div>
+  </footer>
+
+  <!-- Mock data (global) -->
+  <script src="js/mocks.js"></script>
+  <!-- Page render functions (global) -->
+  <script src="js/pages.js"></script>
+  <!-- Router + bootstrap -->
+  <script src="js/app.js"></script>
+</body>
+</html>
