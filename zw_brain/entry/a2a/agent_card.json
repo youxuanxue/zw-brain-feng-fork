@@ -1,0 +1,11 @@
+{
+  "name": "zw-brain",
+  "description": "政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台 (Phase 0 placeholder agent card).",
+  "version": "0.0.0",
+  "endpoint": "https://zw-brain.example.invalid/a2a",
+  "capabilities": {
+    "streaming": false,
+    "tool_use": true
+  },
+  "skills": []
+}
