@@ -5,22 +5,18 @@ check_external_refs.py
 
 外部文档引用悬空检查（preflight 段 14）。
 
-规则来源（D22 retrofit）:
-    zw-brain 多处文档引用 `digital-clone-research.md §X`（workspace 同级路径，
-    .gitignore'd 不入库）。该文件曾被物理删除而所有引用悄无声息腐烂，且 stat
-    `hard-constraint-rows` 因 `|| true` 静默吞错被误报"OK"。本脚本机械化阻止
-    此类「引用了仓外文件但不验证文件存在 / 锚点存在」的反模式重发。
+规则来源（D22 retrofit + dev-rules 内聚）:
+    研究档现位于子模块 `dev-rules/digital-clone-research.md`。仓内 `docs/`、
+    `CLAUDE.md`、`.cursor/rules/` 若仍写 `digital-clone-research.md §X`，则 § 锚点
+    必须在该文件中真实存在，否则 exit 1。本检查在**零引用**时直接通过。
 
 判定逻辑：
-    扫描 zw-brain 仓内所有 *.md / *.mdc 文件（排除 dev-rules submodule、prototype
-    子模块状态目录、.git 目录、old/ 目录、.cursor/rules/ 同步产物镜像），抽取所有
-    `digital-clone-research.md §X` 形式的引用：
-      1. 仓库根 `../../digital-clone-research.md` 文件必须存在
-      2. 引用的 §X 标题（无论是 §六.½ §七 §九.1 还是 §11.3）必须在该文件中真实出现
-    缺任一条 → exit 1。
+    扫描上述目录中的 *.md / *.mdc（排除 dev-rules 子模块正文目录、old/ 等），抽取
+    `digital-clone-research.md §X` 形态引用，与
+    `dev-rules/digital-clone-research.md` 内 `## §…` 风格标题对齐。
 
 豁免：
-    无（外部引用必须验证；如果某引用无法验证，应当本地化为 zw-brain 内部引用 = B 路径）。
+    无（若重新引入此类引用，则必须恢复外部文件且锚点可解析，或改回本地化表述）。
 
 设计取舍（Jobs/OPC）：
     - **Jobs**: 只检查一种已知形态（`digital-clone-research.md §X`），不做通用「任何
@@ -37,7 +33,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-EXTERNAL_FILE = REPO_ROOT.parent.parent / "digital-clone-research.md"
+EXTERNAL_FILE = REPO_ROOT / "dev-rules" / "digital-clone-research.md"
 
 # zw-brain 仓内待扫描的目录
 SCAN_ROOTS = [
@@ -128,8 +124,8 @@ def main() -> int:
             f"[external-refs] FAIL: external file missing\n"
             f"  expected at: {EXTERNAL_FILE}\n"
             f"  but {sum(len(v) for v in refs.values())} reference(s) across {len({f for v in refs.values() for f, _ in v})} file(s) point to it.\n"
-            f"  fix: restore the file (see ~/Backups/zw-brain-pre-rewrite-2026-04-18.git for blob `2ea4f60:digital-clone-research.md`),\n"
-            f"       OR localize the references into zw-brain (see docs/approved/zw-brain-architecture.md 附录 B).",
+            f"  fix: run `git submodule update --init dev-rules`, or localize references to "
+            f"docs/approved/zw-brain-architecture.md 附录 D, or fix § anchors vs {EXTERNAL_FILE}.",
             file=sys.stderr,
         )
         return 1

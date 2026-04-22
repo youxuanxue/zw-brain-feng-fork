@@ -61,7 +61,7 @@
 
 修改 dev-rules 子模块前必须额外运行 `./dev-rules/verify-rules.sh`（<!-- stat:verify-rules-checks -->8<!-- /stat --> 段：frontmatter / README 双向引用 / 哲学映射覆盖 / 幽灵路径检测 / global 关键文件存在性 等）。
 
-完整软→硬约束映射：见 `docs/approved/zw-brain-architecture.md` **附录 D**（zw-brain 自包含权威；其通用层与 `digital-clone-research.md §六.½` 同源，项目特有层在此基础上追加）。
+完整软→硬约束映射：见 `docs/approved/zw-brain-architecture.md` **附录 D**（zw-brain 自包含权威；通用层 G1–G16 与 dev-rules 通用 preflight 映射一致，项目特有层在此基础上追加）。
 
 ## 当前迭代目标
 
@@ -82,7 +82,7 @@
 - [2026-04-15] 决策：规则单一事实来源放在独立仓库 ~/Codes/dev-rules/（不随公司项目删除），通过 sync.sh 分发
 - [2026-04-15] 决策：研发流程增加原型设计阶段和两个审批门禁（原型审批 + 合并审批）
 - [2026-04-15] 决策：所有项目通过 git submodule 引入 dev-rules，在项目内编辑提交，sync --local 分发到 .cursor/rules/
-- [2026-04-16] 决策：强约束实现层落地——每条软规则配套机械检查脚本（详见 digital-clone-research.md §六.½），git pre-commit hook 自动触发，禁止"靠自觉"
+- [2026-04-16] 决策：强约束实现层落地——每条软规则配套机械检查脚本（映射见设计基线附录 D），git pre-commit hook 自动触发，禁止"靠自觉"
 - [2026-04-17] 决策：`~/.claude/CLAUDE.md` 收编进 `dev-rules/global/CLAUDE.md`，由 `sync.sh` 维护 symlink，由 LaunchAgent 每小时 `git pull` 自动同步——消除最后一个手维护的孤儿配置文件
 
 ### [2026-04-18] GATE-1 通过：政务大脑 AI 原生重构设计基线
@@ -115,5 +115,5 @@ GATE-1 通过后立即收尾动作：
 - [2026-04-18] 决策（GATE-1 后清理）：history rewrite 完成 —— 用 `git filter-repo --invert-paths` 从 master 全量历史清除 `digital-clone-research.md` + `old/05-*.docx` + `old/系统简介-*.xlsx` 共 3 个 .gitignore 排除文件（30→26 commits，备份在 `~/Backups/zw-brain-pre-rewrite-2026-04-18.git`，PR #1 merge commit `6e6f844` 重写为 `2268366`，PR 页面 commit 链接已失效但 PR 内容 / review / merge 时间戳保留）
 - [2026-04-18] 决策：进入 Phase 0 ——「机械守卫脚手架」分支 `feature/phase-0-foundation`，按基线附录 A 13 项接入清单逐项落地（5 个 `check_*.py` + `export_agent_contract.py` + `skill.schema.json` + `verify_quality.py` + 数字漂移 stat 块 + `zw-brain-dashboard/` 骨架）
 - [2026-04-18] D21（PR #1 后审视触发）：**GATE-1 retrofit — 设计文档必须配套可运行原型 + 机械化反向防御**。PR #1 误将"工程骨架"当作`product-dev.mdc` 阶段 2 的「最小可运行原型」交付。补：① `prototype/`（11 页可点击 SPA + 3 storyboards + README 12 条验证 checklist）；② `scripts/check_gate1_prototype.py` 接入 preflight 段 13 强制每份 `status: approved` 文档配套原型，缺则 commit 拦下。详见基线 §十四 D21
-- [2026-04-18] D22（自检中触发）：**外部引用悬空 retrofit — 仓外 SoT 文件 + 锚点必须可解析 + 引用本地化**。`digital-clone-research.md` 在 history rewrite 之后被悄悄从 working tree 删除，15 处引用悬空、`hard-constraint-rows` stat 因 `|| true` 静默吞错假绿。补：① 从备份恢复物理文件到 workspace 同级；② `scripts/check_external_refs.py` 接入 preflight 段 14（验证文件 + 锚点）；③ 架构文档新增 **附录 D**（zw-brain 自包含的软→硬约束完整映射 = 16 通用 + 8 项目特有），关键 SoT 引用切换到附录 D，外部文件降级为「上游 + 深度延伸」。元规则：`|| true` 类静默吞错只能作为已通过 `[ -f ... ]` 守卫之后的 fallback，禁止用作主路径。详见基线 §十四 D22
+- [2026-04-18] D22（自检中触发）：**外部引用悬空 retrofit — 仓外 SoT 文件 + 锚点必须可解析 + 引用本地化**。history rewrite 之后仓外个人研究笔记从 working tree 消失，多处引用悬空、`hard-constraint-rows` stat 曾依赖该文件且因 `|| true` 静默吞错假绿。补：① 可选：从备份恢复物理文件到 workspace 同级；② `scripts/check_external_refs.py` 接入 preflight 段 14；③ 架构文档 **附录 D** 为 zw-brain 自包含软→硬映射（16 通用 + 8 项目特有），**B 路径**：仓内文档改为引用附录 D / 本文章节，`hard-constraint-rows` 改为从附录 D.1 计数。元规则：`|| true` 类静默吞错禁止用作主路径。详见基线 §十四 D22
 

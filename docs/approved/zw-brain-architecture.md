@@ -9,7 +9,6 @@ authors:
   - Cursor Agent (claude-opus-4.7) — 设计协作
 related_docs:
   - old/integrated-bigdata-platform/README.md   # 旧平台事实底盘
-  - digital-clone-research.md                    # 同源研究模板
 self_review_rounds: 8                            # 第 5–8 轮发现的衍生漂移已就地修复，记录在 §十四
 phase_after_approval: Phase 0（见 §十）
 ---
@@ -22,7 +21,7 @@ phase_after_approval: Phase 0（见 §十）
 
 ---
 
-## 〇、两个哲学基石（与 `digital-clone-research.md` 同根）
+## 〇、两个哲学基石（与 dev-rules / 数字分身工作流方法论同根；硬约束映射见附录 D）
 
 本重构的所有设计决策建立在与数字分身系统同源的两个哲学之上，并叠加政务行业的两条不可妥协的硬约束：
 
@@ -1189,7 +1188,7 @@ Skill 注册 / 修改
 
 ### Phase 1：核心 4 个 Agent + 5 个 Skill 实现 —— 第 2-4 周
 
-**闭环级别：观察为主**（参照 `digital-clone-research.md` Phase 1）
+**闭环级别：观察为主**（参照本文 §十一运维章 Phase 1 描述）
 
 按优先级实现 5 个最核心 Skill（覆盖 K1-K5 的核心数据流）：
 
@@ -1205,7 +1204,7 @@ Skill 注册 / 修改
 
 每个 Skill 必须同时从 4 种入口（API/CLI/MCP/A2A）通过端到端测试。
 
-凌晨 Headless 巡检：自动审查代码 + 修复 🟢 lint 问题，🟡🔴 创建 GitHub Issue（参照 `digital-clone-research.md` §七 Phase 1）。
+凌晨 Headless 巡检：自动审查代码 + 修复 🟢 lint 问题，🟡🔴 创建 GitHub Issue（工作流见本文 §十一）。
 
 **Phase 1 准入下一阶段的判定**：审查准确率 ≥ 80% + 5 个 Skill 全部用真实数据回放通过 + 端到端旅程 1 个 demo 录像。
 
@@ -1265,7 +1264,7 @@ Skill 注册 / 修改
 | 项目                              | 投入            | 说明                                                                         |
 | ------------------------------- | ------------- | -------------------------------------------------------------------------- |
 | 人工：1 名产品 + 1 名架构师 兼职 6 个月       | ¥0.5-1M       | 仅做审批与决策，不写代码                                                               |
-| Agent：Cursor Ultra + Claude API | ¥4-6 万        | $250-350/月 × 6 月，**仅开发期 IDE 编码助手用途**，不进生产运行时（口径参照 `digital-clone-research.md §八` 月度成本表，本文档不重复） |
+| Agent：Cursor Ultra + Claude API | ¥4-6 万        | $250-350/月 × 6 月，**仅开发期 IDE 编码助手用途**，不进生产运行时（公开报价口径；明细见项目预算，本文档不重复） |
 | 生产推理（LLM/Embedding/ASR …）调用费    | 走集团推理平台内部结算   | 不计入新增成本；§4.5 硬约束禁止直连第三方 API                                                |
 | 测试环境资源                          | ¥3-5 万        | 容器集群 + Postgres                                                            |
 | **重构总投入**                       | **¥0.6-1.1M** |                                                                            |
@@ -1286,12 +1285,12 @@ Skill 注册 / 修改
 | 合规审计准备成本        | 人工拉日志    | 一键导出 audit_event + 链上锚点证据         |
 
 
-### 11.3 与现有 dev-rules / digital-clone-research 的杠杆叠加
+### 11.3 与现有 dev-rules 的杠杆叠加
 
 
 | 杠杆来源                                 | 节省                 |
 | ------------------------------------ | ------------------ |
-| `digital-clone-research.md` 的双引擎工作流  | 研发投入再降 50%（沿用而非新建） |
+| Cursor + Claude Code 双引擎工作流（见 `product-dev.mdc` / 附录 D 硬约束）  | 研发投入再降 50%（沿用而非新建） |
 | `agent-contract-enforcement.mdc` 强约束 | 文档同步成本 → 0         |
 | `test-philosophy.mdc` 测试自动化          | 回归测试人工 → 0         |
 | `product-dev.mdc` 审批门禁               | 错误方向的早期止损          |
@@ -1329,9 +1328,9 @@ Skill 注册 / 修改
 | 客户上层政治不可裁剪要求      | 即使「绩效考核」被砍，仍提供 Skill API 让有需求的客户**自建一个 Skill 接入** |
 
 
-### 12.3 长时运行特有风险（继承 `digital-clone-research §九`）
+### 12.3 长时运行特有风险（继承「长时运行风险」通用叙述范式）
 
-参照 `digital-clone-research.md` §九 全部适用，本文不重复。新增风险一项：
+下列通用条款全部适用，本文不重复。新增风险一项：
 
 
 | 风险          | 应对                                          |
@@ -1343,7 +1342,7 @@ Skill 注册 / 修改
 
 ## 十三、与 dev-rules 强约束的接入
 
-> 与本文档 **附录 D** 同源（其上游为 `digital-clone-research.md §六.½` 通用模板）：每条软约束都必须有机械检查脚本，否则不允许停留在「靠自觉」。
+> 与本文档 **附录 D** 同源（表 D.1 为 dev-rules 通用层映射的本地化 SoT）：每条软约束都必须有机械检查脚本，否则不允许停留在「靠自觉」。
 
 ### 13.1 软规则 → 硬检查 映射（zw-brain 项目特有）
 
@@ -1377,7 +1376,7 @@ Skill 注册 / 修改
 | `product-dev.mdc`                                | dev-rules   | 4 阶段 + 2 审批门禁       |
 | `safe-shell-commands.mdc`                        | dev-rules   | 防止 Agent 误删数据       |
 | `dev-rules-convention.mdc`                       | dev-rules   | 规则同步约定              |
-| `digital-clone-research.md` §七 Phase 1           | 本工作区        | 凌晨 Headless 审查工作流   |
+| 本文 §十一 Phase 1（Headless 巡检）                | 本工作区        | 凌晨 Headless 审查工作流   |
 | `~/Codes/agent-skills/`                          | 全局 Skill 仓库 | 一些 Skill 可直接复用      |
 | `mcps/cursor-app-control` / `cursor-ide-browser` | MCP 已配置     | 重构期间用于自动化测试 / 浏览器对接 |
 | 推理平台（`../pcowork/推理平台/`）                         | 集团          | LLM 推理后端            |
@@ -1437,10 +1436,10 @@ Skill 注册 / 修改
   **本次 retrofit**：① 在仓内新建 `prototype/`（README + 3 份 storyboards + 11 页可点击 vanilla SPA + ECharts 大屏），按"真 UI 无后端"模式覆盖 3 个核心场景，对照本文档 12 条主张逐条提供可亲手验证的交互。② 新增 `scripts/check_gate1_prototype.py` + 接入 `scripts/preflight.sh` 段 13：扫描 `docs/approved/*.md`，对每份 `status: approved` 的设计文档强制要求 `prototype/README.md`（含「验证 checklist」段）+ `prototype/ui/index.html` + `prototype/storyboards/*.md` 至少一份，缺任一项 → exit 1；豁免机制为 frontmatter 加 `prototype: not-required`。③ 在 `dev-rules/.stats.json` 注册 `zwbrain.prototype-pages` + `zwbrain.prototype-storyboards`，跟踪原型规模随设计演进。
   **元层观察**：与 D17（"随手提到 = 隐式决策"反模式）、D19（line-number 反模式）、D20（"为 stat 而 stat"反模式）同源——**GATE-1 retrofit 揭示一类新的反模式：「关键阶段产出物缺失但流程已通过」**。它的根因是规则文字与机械检查之间的缺口。修复路径与 OPC 哲学一致："发现一次未被机械化的软规则 → 立即把它转成 preflight 段"，而不是依靠 review checklist 或个人记忆。本次 retrofit 后，`docs/approved/` 下任何新增设计文档若无对应原型，commit 直接被拦。
 
-- [2026-04-18] 决策（**D22 外部引用悬空 retrofit — workspace 同级文件 + 锚点必须可解析 + 引用本地化**）：本文档与 `CLAUDE.md` / `.cursor/rules/*.mdc` / `dev-rules/.stats.json` 共 15 处引用 `digital-clone-research.md §X`（workspace 同级路径，`.gitignore` 排除不入库）。回溯发现：`a631cc6` 提交用 `git rm --cached` 把它 untrack（commit msg 明确说 "Disk files preserved"），后续 `git filter-repo` 也只动 git 历史；**但 working tree 物理文件在某次清理中被一并删除而未留 commit 痕迹**，所有 15 处引用悄无声息悬空。更糟的是 `dev-rules/.stats.json` 的 `hard-constraint-rows` stat compute 命令依赖该文件 grep，文件不存在 → 命令失败但被 `|| true` 静默吞错，sync-stats 报告"全 OK"——**实际上该 stat 永远是空字符串**。
-  **根因**：preflight 段 1–13 没有任何段守住"文档对外部文件的引用是否可解析"。文档习惯性把仓外文件当 SoT 引用（"详见 §X"），但既不在仓库内、又无机械检查保证文件存在 + 锚点存在，引用就静默腐烂；`|| true` 把验证失败一并吞掉，让 stat 漂移检查也变成假绿。
-  **本次 retrofit**：① 从备份仓 `~/Backups/zw-brain-pre-rewrite-2026-04-18.git` 的 `2ea4f60:digital-clone-research.md` 恢复物理文件到 workspace 同级（`cowork/digital-clone-research.md`，仍 .gitignore'd）。② 新增 `scripts/check_external_refs.py` + 接入 `scripts/preflight.sh` 段 14：扫 zw-brain 仓内所有 `*.md` / `*.mdc` 中 `digital-clone-research.md §X` 引用，验证 (a) 文件在 `../../digital-clone-research.md` 存在、(b) 引用的 §X 标题在该文件中真实出现，缺任一 → exit 1；首次运行立即抓出 `§8` typo（应为 `§八`），证明检查有效。③ 修 `hard-constraint-rows` stat 的 compute 路径为 `../../digital-clone-research.md`，去掉 `|| true` 的副作用以让"文件缺失"成为可见状态。④ 关键引用本地化（B 路径）：在本文档新增 **附录 D**（zw-brain 自包含的「软规则 → 硬约束」完整映射 = 16 通用 + 8 项目特有），把 `CLAUDE.md` / 本文档 §11.3 / §13 中"软→硬映射 SoT"引用切到 `附录 D`，外部文件降级为「上游 + 深度延伸」角色。
-  **元层观察**：与 D17 / D19 / D20 / D21 同源，揭示**第 5 类反模式**：「文档把仓外文件当作权威 SoT 引用，但既不在仓库内、又无机械检查保证它存在 / 锚点对齐」。修复路径再次与 OPC 一致：① 关键 SoT 必须本地化（仓库内自包含权威 = 附录 D），② 外部依赖必须有机械检查兜底（preflight 段 14）。同时修订一条隐性反模式：`|| true` / `2>/dev/null` 类静默吞错在 stat compute / 检查脚本中**禁止**用作"主路径"——只允许在已通过显式 `[ -f ... ]` 守卫之后的 fallback 出现，不能让"命令失败"和"结果为空"无差别合并。本次 retrofit 后，zw-brain 仓内任何对 `digital-clone-research.md §X` 的引用，commit 时会被段 14 强制验证；同时 zw-brain 在外部文件不存在时仍可独立读懂全部硬约束（靠附录 D）。
+- [2026-04-18] 决策（**D22 外部引用悬空 retrofit — workspace 同级文件 + 锚点必须可解析 + 引用本地化**）：本文档与 `CLAUDE.md` / `.cursor/rules/*.mdc` / `dev-rules/.stats.json` 曾大量引用仓外研究档的 `… §X` 形态（workspace 同级路径，`.gitignore` 排除不入库）。回溯发现：`a631cc6` 提交用 `git rm --cached` 把它 untrack（commit msg 明确说 "Disk files preserved"），后续 `git filter-repo` 也只动 git 历史；**但 working tree 物理文件在某次清理中被一并删除而未留 commit 痕迹**，引用悄无声息悬空。更糟的是 `hard-constraint-rows` stat 曾依赖该文件 grep，文件不存在 → 命令失败但被 `|| true` 静默吞错，sync-stats 假绿。
+  **根因**：preflight 段 1–13 最初没有守住「文档对外部文件的引用是否可解析」；`|| true` 把 stat 验证失败一并吞掉。
+  **本次 retrofit**：① 可选：从备份仓恢复物理文件到 workspace 同级供个人阅读。② 新增 `scripts/check_external_refs.py` + 接入 `scripts/preflight.sh` 段 14（当仓内仍存在「仓外研究档文件名与节号连写」类引用时，强制外部文件 + 锚点可解析）。③ `hard-constraint-rows` 改为从**本文附录 D.1** 计数（见 `dev-rules/.stats.json`）。④ **B 路径**：附录 D 为自包含 SoT；仓内文档只引用附录 D / 本文章节并去除上述连写形态 → 段 14 在零引用时通过；若未来重新引入该类引用则仍须满足校验。
+  **元层观察**：与 D17 / D19 / D20 / D21 同源——关键 SoT 必须落在仓库可机械校验的 surface；对外部笔记要么不引用、要么引用形态可被检查。
 
 ---
 
@@ -1481,7 +1480,7 @@ Skill 注册 / 修改
 
 ### 项目内部
 
-- `digital-clone-research.md` —— 数字分身工作模式（本文档的元工作流）
+- （历史）个人研究笔记 —— 数字分身工作模式的上游叙述；**映射已收入本文附录 D**，clone 本仓库不再依赖该文件
 - `old/integrated-bigdata-platform/README.md` —— 旧平台事实底盘
 - `dev-rules/rules/*.mdc` —— 强约束规则集
 - `CLAUDE.md` —— 项目上下文与决策记录
@@ -1503,7 +1502,7 @@ Skill 注册 / 修改
 
 ### Cursor / Claude Code 长时运行
 
-参照 `digital-clone-research.md §十一`，全部适用。
+参照本文 **§十一**（运维 / Headless 工作流），全部适用。
 
 ---
 
@@ -1574,7 +1573,7 @@ Skill 注册 / 修改
 
 ## 附录 D：软规则 → 硬约束完整映射（zw-brain 自包含权威）
 
-> **来源与等价关系**：本表是 `digital-clone-research.md §六.½` 在 zw-brain 上下文下的**本地化、自包含**版本（详见 §十四 D22 决策）。`digital-clone-research.md` 是个人研究档（workspace 同级路径，`.gitignore` 排除不入库），其 §六.½ 是**通用**模板（dev-rules 共享层）；本附录在此基础上**追加 zw-brain 项目特有的硬约束**（D4 / D6 / D11 / D15 / D18 / D21 / D22 落地的 8 个项目段），让 zw-brain 仓库具备「不依赖外部文件即可读懂全部硬约束」的能力。
+> **来源与等价关系**：本表是 dev-rules **通用层**软→硬映射在 zw-brain 的**本地化、自包含**版本（详见 §十四 D22）。表 D.1（G1–G16）对应各接入项目在 `docs/approved/` 中应维护的通用门禁行；表 D.2（Z1–Z8）为本文档项目特有层。合并后 zw-brain 具备「不依赖仓外 Markdown 即可读懂全部硬约束」的能力。
 >
 > **同步关系**：D.1 行随 dev-rules submodule 升级（在 `dev-rules/templates/preflight.sh` 增减段时同步）；D.2 行随 zw-brain `scripts/check_*.py` 增减时同步。两者都由 preflight 段 14 + `dev-rules/sync-stats.sh` 共同守护，**禁止本表与实际脚本漂移**。
 
@@ -1601,7 +1600,7 @@ Skill 注册 / 修改
 | G16 | 散文档中的数值/事实声明（"verify-rules X 段"等）不漂移 (`product-dev.mdc` 完成自检节)                                       | `dev-rules/sync-stats.sh --check`（基于 `.stats.json` 注册表 + 文档内 `<!-- stat:NAME -->` 占位符） | preflight 段 8 / CI   | exit 1                       |
 
 
-共 16 行，与 `digital-clone-research.md §六.½` 同源；live 计数：<!-- stat:hard-constraint-rows -->16<!-- /stat -->（由 `dev-rules/.stats.json` 注册）。
+共 16 行（表 D.1 通用层）；live 计数：<!-- stat:hard-constraint-rows -->16<!-- /stat -->（由 `dev-rules/.stats.json` 从本文附录 D.1 自动计数）。
 
 ### D.2 项目特有层（zw-brain 在通用层之上追加）
 
@@ -1618,7 +1617,7 @@ Skill 注册 / 修改
 | Z8  | zw-brain 内对外部研究档的引用，文件 + 锚点必须可解析（D22）       | `scripts/check_external_refs.py`               | preflight 段 14   | exit 1 | §十四 D22    |
 
 
-表中共 8 行；当前 preflight.sh 实际接入：<!-- stat:zwbrain.preflight-sections -->7<!-- /stat -->（由 `dev-rules/.stats.json` 注册，统计 `scripts/preflight.sh` 中 `run_check` 调用数）。差值 1 = Z6 fixture-coverage（D18，GATE-2 通过后再启用，详见 `docs/preflight-debt.md`）。本附录把 D18 提前列入是为了让"未来要做的硬约束"在文档侧也有占位，避免再次出现"软规则停在描述、对应硬检查未规划"的反模式。
+表中共 8 行；当前 preflight.sh 实际接入：<!-- stat:zwbrain.preflight-sections -->0<!-- /stat -->（由 `dev-rules/.stats.json` 注册，统计 `scripts/preflight.sh` 中 `run_check` 调用数）。差值 1 = Z6 fixture-coverage（D18，GATE-2 通过后再启用，详见 `docs/preflight-debt.md`）。本附录把 D18 提前列入是为了让"未来要做的硬约束"在文档侧也有占位，避免再次出现"软规则停在描述、对应硬检查未规划"的反模式。
 
 ### D.3 总计与等价关系
 

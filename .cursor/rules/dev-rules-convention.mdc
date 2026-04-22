@@ -21,13 +21,18 @@ alwaysApply: true
 │   │   ├── install-hooks.sh         ←   一键安装 git pre-commit hook
 │   │   ├── launchagent.plist        ←   跨机器同步用 LaunchAgent 模板
 │   │   └── install-launchagent.sh   ←   渲染 plist + 注册到 launchctl
+│   ├── scripts/                     ← 跨项目共享检查脚本（被 templates/preflight.sh 调用）
+│   │   └── check_approved_docs.py   ←   docs/approved/*.md frontmatter R1-R4 不变量
 │   ├── sync.sh                      ← 分发脚本（--push/--pull/--local/--check）
 │   ├── sync-stats.sh                ← 散文档数值漂移机械检查
-│   └── verify-rules.sh              ← 规则仓库自身完整性检查（8 段）
+│   ├── verify-rules.sh              ← 规则仓库自身完整性检查（<!-- stat:verify-rules-checks -->8<!-- /stat --> 段）
+│   ├── .registered-projects         ← 跨机器项目注册表（git-tracked，TSV: name\tgit_url）
+│   └── .local-projects              ← 本机落地映射（gitignored，TSV: git_url\tabs_path）
 ├── .cursor/rules/*.mdc              ← sync 产物（禁止直接编辑）
 ├── scripts/
-│   └── preflight.sh                 ← 复制自 dev-rules/templates/preflight.sh
-└── .git/hooks/pre-commit            ← 由 install-hooks.sh 安装，调用 preflight.sh
+│   └── preflight.sh                 ← 可选：项目级 wrapper（仅当有项目特异检查时需要）
+└── .git/hooks/pre-commit            ← 由 install-hooks.sh 安装；按 fallback 链解析：
+                                       优先 scripts/preflight.sh，否则 dev-rules/templates/preflight.sh
 
 家目录消费端（symlink，由 sync.sh 维护）：
 ~/.cursor/rules/        → dev-rules/rules/
@@ -53,7 +58,7 @@ git clone git@github.com:youxuanxue/dev-rules.git ~/Codes/dev-rules
 bash ~/Codes/dev-rules/templates/install-launchagent.sh            # 注册跨机器同步 agent
 ```
 
-之后在任意项目里 `sync.sh --local` 就会自动 register 进 `~/Codes/dev-rules/.registered-projects`，下一次 `--push` / `--pull` / LaunchAgent 自动 fan-out 到该项目。
+之后在任意项目里 `sync.sh --local` 就会自动把项目 `(name, git remote URL)` 写进 `~/Codes/dev-rules/.registered-projects`（git-tracked，跨机器共享），并把 `(git URL, 本机绝对路径)` 写进 `.local-projects`（per-machine，gitignored）。下一次 `--push` / `--pull` / LaunchAgent 会按本机实际落地的项目自动 fan-out。换机器只需要重新 `--local` 一次，本机映射即重建。
 
 ## 编辑规则
 
@@ -83,7 +88,7 @@ bash ~/Codes/dev-rules/templates/install-launchagent.sh            # 注册跨�
 
 ### 跨机器同步（被动路径）
 
-不需要任何手工动作。本机 LaunchAgent `local.dev-rules.sync` 每 30 分钟跑 `sync.sh --pull`，把别的机器推上来的更新自动拉到 `~/Codes/dev-rules` 并 fan-out 到所有已注册项目。如果验证失败（`verify-rules.sh` 段 8）说明 LaunchAgent 没装，按提示运行 `templates/install-launchagent.sh`。
+不需要任何手工动作。本机 LaunchAgent `local.dev-rules.sync` 每 30 分钟跑 `sync.sh --pull`，把别的机器推上来的更新自动拉到 `~/Codes/dev-rules` 并 fan-out 到本机已落地的注册项目（注册了但本机没克隆的项目静默跳过——它们由其他机器各自负责落地）。如果 `verify-rules.sh` 的 LaunchAgent 实装段失败，说明 LaunchAgent 没装，按提示运行 `templates/install-launchagent.sh`。
 
 ## Git 提交顺序（强制）
 
@@ -100,16 +105,41 @@ bash ~/Codes/dev-rules/templates/install-launchagent.sh            # 注册跨�
 
 ## 强约束门禁（机械检查，禁止仅"靠自觉"）
 
-每条软规则都有对应的可执行脚本。**完整的「软规则 → 硬检查」映射表是单一事实来源**，定义在 `digital-clone-research.md §六.½`。本节只列接入步骤：
+每条软规则都有对应的可执行脚本。**完整的「软规则 → 硬检查」映射表是单一事实来源**，定义在 `dev-rules/digital-clone-research.md §六.½`。本节只列接入步骤：
 
-1. **复制模板**：`cp dev-rules/templates/preflight.sh scripts/preflight.sh`（如已存在则更新）
-2. **安装 git hook**：`bash dev-rules/templates/install-hooks.sh`，将 `preflight.sh` 接到 `.git/hooks/pre-commit`
-3. **CI 同步运行**：在 GitHub Actions / GitLab CI 中追加一步 `./scripts/preflight.sh`
-4. **dev-rules 子模块自身**：在子模块内提交前必须跑 `./dev-rules/verify-rules.sh`
+1. **项目级 wrapper（可选）**：仅当项目有「dev-rules 模板未覆盖的特异检查」时，`cp dev-rules/templates/preflight.sh scripts/preflight.sh` 并在 wrapper 里追加项目段。否则**不需要**新建 `scripts/preflight.sh`——`install-hooks.sh` 会自动 fallback 到 `dev-rules/templates/preflight.sh`。
+2. **安装 git hook**：`bash dev-rules/templates/install-hooks.sh`。Hook 在运行时按以下顺序解析 preflight：
+   ```
+   $REPO_ROOT/scripts/preflight.sh           ← 项目 wrapper（若存在）
+   $REPO_ROOT/dev-rules/templates/preflight.sh   ← 模板（fallback）
+   ```
+   增删项目 wrapper 后**无需**重装 hook。
+3. **CI 同步运行**：在 GitHub Actions / GitLab CI 中追加一步 `./scripts/preflight.sh`（若存在）或 `./dev-rules/templates/preflight.sh`。
+4. **dev-rules 子模块自身**：在子模块内提交前必须跑 `./dev-rules/verify-rules.sh`。
 
 接入完成后，违反任何一条强约束的提交都会被 hook 拦截，违反者的 CI 会 fail。`/user:calibrate` 在汇总指标前会用 `dev-rules/schemas/review.schema.json` 校验所有 `docs/review-*.json`。
 
 如果某项检查段在该项目尚不可自动化（例如还没有 API 时跳过 contract drift），必须把缺口记入 `docs/preflight-debt.md` 并设定截止日期，**禁止悄悄降级为"靠自觉"**。
+
+## approved-doc status 词汇（跨项目共享）
+
+`docs/approved/*.md` 的 frontmatter `status` 字段使用统一词汇表，由 `dev-rules/scripts/check_approved_docs.py` 强制（preflight § 7 R1-R4，任何分支）：
+
+| status     | 语义                                                                            |
+| ---------- | ----------------------------------------------------------------------------- |
+| `draft`    | 早期草稿，可自由修改                                                                    |
+| `pending`  | 设计已提出，等待人工审批                                                                  |
+| `approved` | 已审批基线，变更需走 GATE / PR review（zw-brain GATE 模型主用）                              |
+| `shipped`  | 实现已合并，状态从 pending/approved 翻转而来                                               |
+| `archived` | 被取代或不再权威                                                                      |
+
+附加不变量：
+
+- **R3** `pending + (related_prs OR related_commits)` → 拒绝（"shipped under pending" 烟雾）
+- **R4** `shipped` 必须列出 `related_prs` 或 `related_commits`（审计链不许断）
+- **R5** `approved_by: pending` 不许 land 到 `main` / `master`（preflight § 7 R5，仅在 main/master 触发；其它分支可临时持有 pending approver）
+
+项目特异的更细分类（如 zw-brain 的 `gate: GATE-1..GATE-5`）属于 wrapper 层职责，不进入此通用词汇表。
 
 ## 禁止事项
 
