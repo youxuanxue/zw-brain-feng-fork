@@ -59,9 +59,9 @@
 - `.cursor/rules/` 与 submodule 不漂移（`dev-rules/sync.sh --check`）
 - 其余段（contract / story / approved）在缺少对应基础设施时自动 skip
 
-修改 dev-rules 子模块前必须额外运行 `./dev-rules/verify-rules.sh`（<!-- stat:verify-rules-checks -->8<!-- /stat --> 段：frontmatter / README 双向引用 / 哲学映射覆盖 / 幽灵路径检测 / global 关键文件存在性 等）。
+修改 dev-rules 子模块前必须额外运行 `./dev-rules/verify-rules.sh`（覆盖 frontmatter、README 双向引用、哲学映射、幽灵路径、global 关键文件、LaunchAgent 实装等仓库完整性检查）。
 
-完整软→硬约束映射：见 `docs/approved/zw-brain-architecture.md` **附录 D**（zw-brain 自包含权威；通用层 G1–G16 与 dev-rules 通用 preflight 映射一致，项目特有层在此基础上追加）。
+完整软→硬约束映射：见 `docs/approved/zw-brain-architecture-v2.md` **附录 D**（v2 是当前权威基线；通用层 G1–G16 与 dev-rules 通用 preflight 映射一致，项目特有层 Z1–Z8 在此基础上追加）。
 
 ## 当前迭代目标
 

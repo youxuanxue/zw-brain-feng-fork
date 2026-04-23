@@ -104,4 +104,4 @@ GATE-1 评审需要确认 **方向**（desirability）—— 不是确认技术�
 ## 自检与质量
 
 - 全部 22 个路由（含错误路径）× 5 个角色 = **160 个组合 smoke 测试通过**：`node prototype/scripts/smoke.js`
-- 提交时 `scripts/preflight.sh` 14 段全过（分支命名 / submodule 顺序 / .cursor/rules drift / 契约 / Story / approved / sync-stats / 输入安全 / 状态文件原子写 / GATE-1 原型覆盖 等）
+- 提交时 `scripts/preflight.sh` 全绿（覆盖分支命名 / submodule 顺序 / `.cursor/rules` drift / 契约 / Story / approved / sync-stats / 输入安全 / 状态文件原子写 / GATE-1 原型覆盖 等模板段与项目段）

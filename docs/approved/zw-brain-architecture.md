@@ -1,20 +1,25 @@
 ---
 doc_id: design-zw-brain-architecture
-status: approved
+status: archived
 gate: GATE-1
 approved_by: xuejiao02
 approved_at: 2026-04-18
+archived_at: 2026-04-23
+superseded_by: design-zw-brain-architecture-v2
 authors:
   - 薛娇（产品研发负责人）
   - Cursor Agent (claude-opus-4.7) — 设计协作
 related_docs:
-  - old/integrated-bigdata-platform/README.md   # 旧平台事实底盘
+  - docs/approved/zw-brain-architecture-v2.md    # 当前权威基线
+  - old/integrated-bigdata-platform/README.md    # 旧平台事实底盘
 self_review_rounds: 8                            # 第 5–8 轮发现的衍生漂移已就地修复，记录在 §十四
 phase_after_approval: Phase 0（见 §十）
 ---
 
-# 政务大脑（zw-brain）AI 原生重构研究
+# 政务大脑（zw-brain）AI 原生重构研究 — v1（已归档，2026-04-23）
 
+> **本文已被 `zw-brain-architecture-v2.md` 取代**，仅作历史保留。当前权威基线见 v2；v2 frontmatter 声明「未在本文显式废止的 D1–D22 全部继承」，新决策从 D23 起编号。
+>
 > 调研日期：2026-04-18
 > 现状：旧平台介绍材料已沉淀于 `old/integrated-bigdata-platform/README.md`（21 章 + 47 张界面截图 + 转写时间戳交叉引用）
 > 目标：把现有「一体化大数据平台（政务）」重构为 AI 原生的「政务大脑」——AI Coding 写代码、Agent-friendly 对外提供能力（API/CLI/MCP/A2A）、用户以自然语言/Agent 协作的方式使用平台、新增功能通过外部技能平台注册即用
@@ -1583,7 +1588,7 @@ Skill 注册 / 修改
 | #   | 软规则（描述于）                                                                                              | 硬约束实现                                                                                  | 触发时机                 | 失败后果                         |
 | --- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------- | ---------------------------- |
 | G1  | `.cursor/rules/` 与 submodule 同步 (`dev-rules-convention.mdc`)                                          | `dev-rules/sync.sh --check`                                                            | pre-commit / CI      | exit 1，阻断提交                  |
-| G2  | dev-rules 仓库自身完整性（README / frontmatter / 哲学映射 / 幽灵路径 / global 关键文件 / LaunchAgent 实装） (`dev-rules-convention.mdc`) | `dev-rules/verify-rules.sh`（8 段检查） | 子模块提交前 | exit 1 |
+| G2  | dev-rules 仓库自身完整性（README / frontmatter / 哲学映射 / 幽灵路径 / global 关键文件 / LaunchAgent 实装） (`dev-rules-convention.mdc`) | `dev-rules/verify-rules.sh` | 子模块提交前 | exit 1 |
 | G3  | 先子模块后父仓库（submodule SHA 必须在 dev-rules 中真实存在） (`dev-rules-convention.mdc`)                              | `scripts/preflight.sh` 段 2                                                             | pre-commit / CI      | exit 1                       |
 | G4  | review JSON 输出格式合规 (`review.md`)                                                                      | `dev-rules/schemas/review.schema.json` + ajv/check-jsonschema                          | `/user:calibrate` 入口 | 该 JSON 排除出校准                 |
 | G5  | 契约文档不漂移 (`agent-contract-enforcement.mdc`)                                                            | `python scripts/export_agent_contract.py --check`                                      | preflight 段 4 / CI   | exit 1                       |
@@ -1599,9 +1604,6 @@ Skill 注册 / 修改
 | G15 | dev-rules 编辑后所有消费端及时更新（不依赖人记住 N 个 sync 命令）                                                            | `dev-rules/sync.sh --push`（push + ~/Codes pull + 所有项目 fan-out 原子动作）                    | 编辑者主动                | 不跑则下一次 LaunchAgent 兜底         |
 | G16 | 散文档中的数值/事实声明（"verify-rules X 段"等）不漂移 (`product-dev.mdc` 完成自检节)                                       | `dev-rules/sync-stats.sh --check`（基于 `.stats.json` 注册表 + 文档内 `<!-- stat:NAME -->` 占位符） | preflight 段 8 / CI   | exit 1                       |
 
-
-共 16 行（表 D.1 通用层）；live 计数：<!-- stat:hard-constraint-rows -->16<!-- /stat -->（由 `dev-rules/.stats.json` 从本文附录 D.1 自动计数）。
-
 ### D.2 项目特有层（zw-brain 在通用层之上追加）
 
 
@@ -1616,12 +1618,10 @@ Skill 注册 / 修改
 | Z7  | 每份 `status: approved` 设计文档必须配套可运行原型（D21）   | `scripts/check_gate1_prototype.py`             | preflight 段 13   | exit 1 | §十四 D21    |
 | Z8  | zw-brain 内对外部研究档的引用，文件 + 锚点必须可解析（D22）       | `scripts/check_external_refs.py`               | preflight 段 14   | exit 1 | §十四 D22    |
 
+> Z6 fixture-coverage（D18）按设计延后到 GATE-2 启用，已登记到 `docs/preflight-debt.md`；其余 Z 项均已 wired。
 
-表中共 8 行；当前 preflight.sh 实际接入：<!-- stat:zwbrain.preflight-sections -->0<!-- /stat -->（由 `dev-rules/.stats.json` 注册，统计 `scripts/preflight.sh` 中 `run_check` 调用数）。差值 1 = Z6 fixture-coverage（D18，GATE-2 通过后再启用，详见 `docs/preflight-debt.md`）。本附录把 D18 提前列入是为了让"未来要做的硬约束"在文档侧也有占位，避免再次出现"软规则停在描述、对应硬检查未规划"的反模式。
+### D.3 漂移防御
 
-### D.3 总计与等价关系
-
-- **D.1 + D.2 = 24 个软→硬对应关系**（通用 16 + 项目 8）；其中 23 个**当前已 wired**（D.1 的 16 全部 + D.2 的 7：Z1/Z2/Z3/Z4/Z5/Z7/Z8），1 个（Z6 fixture-coverage = D18）按设计延后到 GATE-2 启用，已登记到 `docs/preflight-debt.md`。
-- **当 D.1 / D.2 与实际脚本/文件漂移时**：preflight 段 14（external-refs）守护对外引用，preflight 段 8（sync-stats）守护数值漂移，**两者共同保证本附录不会静默腐烂**。
-- **与 §十三 接入清单的关系**：§十三 给出 dev-rules 接入步骤的「过程视角」，本附录给出「硬约束清单的对照视角」，**两者互为正反面**：§十三 告诉你「怎么做」，本附录告诉你「做完之后机械检查的全集」。
+- preflight 段 14（external-refs）守护对外引用；preflight 段 8（sync-stats）守护设计契约数值；两者共同保证本附录不会静默腐烂。
+- **与 §十三 接入清单的关系**：§十三 给出 dev-rules 接入步骤的「过程视角」，本附录给出「硬约束清单的对照视角」，互为正反面。
 - **升级原则（OPC 元规则）**：当 review 中反复发现某类「靠自觉」的问题时，**必须**新增一段检查到 `scripts/preflight.sh` 或 `dev-rules/verify-rules.sh`，把软约束硬化，并同步追加一行到本附录 D.1（通用）或 D.2（项目）。这条已写入 `product-dev.mdc` 的「完成自检」节末尾。

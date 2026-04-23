@@ -264,9 +264,7 @@ v1 已定 D10 砍 5 项低价值功能。v2 据 38 服务真实清单进一步�
 | J4 | **看大盘**（领导/督导）：运行情况 + 绩效 + 合规审计回放 | 数字化运营 + 运行监控 + 绩效考核 + 合规督导 | 1 个独立可视化大屏（K12）只读消费 `dashboard.*` Skill |
 | J5 | **接生态**（外部 Agent / 第三方）：发现能力 + 调用 + 拿审计回执 | （旧平台几乎不支持） | REST / MCP / A2A 入口 + AIHub 注册的能力清单 |
 
-### 5.2 ≤10 个 WebUI 核心场景页（硬上限）
-
-<!-- stat:zwbrain.webui-pages-cap -->10<!-- /stat -->
+### 5.2 ≤<!-- stat:zwbrain.webui-pages-cap -->10<!-- /stat --> 个 WebUI 核心场景页（硬上限）
 
 | # | 页面 | 服务的旅程 |
 |---|------|-----------|
@@ -555,9 +553,7 @@ zw-brain 推到 AIHub 的 Skill / Agent **必须**：
 | K11 | 共享专区（融合服务） | 融合服务（埋深 + 无订阅 → 升级为一等公民） | 融入 P1，作为「跨域专题包」 |
 | K12 | 可视化大屏（领导专用） | 数字化运营 + 运行监控 | 独立部署 `zw-brain-dashboard/` |
 
-<!-- stat:zwbrain.kept-functions -->12<!-- /stat -->
-
-### 10.2 不主动重构（N1–N5，触发条件再评估）
+### 10.2 不主动重构（触发条件再评估）
 
 继承 v1 D10：
 
@@ -632,7 +628,7 @@ zw-brain 推到 AIHub 的 Skill / Agent **必须**：
 - [ ] AIHub 客户端 `zw_brain/skills/aihub_client.py`（push / pull / list / import / version）
 - [ ] 第一条端到端链路：导入 1 个 AIHub Skill → 1 个 Core Agent 调用 → 审计落库
 - [ ] `zw-brain-dashboard/` 骨架 + 1 个 `dashboard.*` 只读 Skill
-- [ ] 全套 13 项 `scripts/check_*.py` 通过 + preflight.sh 14 段全绿
+- [ ] 项目特有 `scripts/check_*.py` 全套通过 + `scripts/preflight.sh` 全绿（含模板段与项目段，详见附录 D）
 
 ### Phase 1 — 四块核心业务重构（10–14 周）
 
@@ -747,16 +743,13 @@ zw-brain 推到 AIHub 的 Skill / Agent **必须**：
 
 ## 附录 A — 数字漂移防御层（stat 块清单）
 
-继承 v1 D17 / D20。本文已注册的 stat 块：
+继承 v1 D17 / D20，并按 dev-rules `digital-clone-research.md §三` 的「禁止虚荣计数」原则裁剪：只有真正的设计契约（cap / SLO / 预算）才进 `dev-rules/.stats.json` 注册表。当前已注册的 stat：
 
-| stat key | 当前值 | compute 命令（注册到 `dev-rules/.stats.json`） |
-|----------|-------|----------------------------------------------|
-| `zwbrain.webui-pages-cap` | 10 | echo 10（硬上限，§五.2） |
-| `zwbrain.kept-functions` | 12 | echo 12（K1–K12，§十.1） |
-| `zwbrain.not-doing` | 5 | echo 5（N1–N5，§十.2） |
-| `zwbrain.backend-services-legacy` | 38 | （来自 `old/代码信息抽取/` 抽取报告，待 Phase 0 注册） |
+| stat key | 当前值 | 角色 | compute（注册到 `dev-rules/.stats.json`） |
+|----------|-------|------|------------------------------------------|
+| `zwbrain.webui-pages-cap` | <!-- stat:zwbrain.webui-pages-cap -->10<!-- /stat --> | 设计上限 | awk §5.2 P-rows |
 
-> Phase 0 必须把 `zwbrain.backend-services-legacy` 注册到 `dev-rules/.stats.json`，并在抽取报告变化时自动 recompute。
+> K1–K12 / N1–N5 / 旧平台 38 服务等数字本身是描述性计数（非 cap/SLO），按反虚荣原则**不写为 stat 块**——表格行数自证，删掉数字段落仍完整传达意图。
 
 ---
 
