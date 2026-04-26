@@ -61,7 +61,7 @@
 
 修改 dev-rules 子模块前必须额外运行 `./dev-rules/verify-rules.sh`（覆盖 frontmatter、README 双向引用、哲学映射、幽灵路径、global 关键文件、LaunchAgent 实装等仓库完整性检查）。
 
-完整软→硬约束映射：见 `docs/approved/zw-brain-architecture-v2.md` **附录 D**（v2 是当前权威基线；通用层 G1–G16 与 dev-rules 通用 preflight 映射一致，项目特有层 Z1–Z8 在此基础上追加）。
+完整软→硬约束映射：见 `docs/approved/zw-brain-architecture-v2.md` **附录 D**（当前应将 v2 视为 pending 历史基线；通用层 G1–G16 与 dev-rules 通用 preflight 映射一致，项目特有层 Z1–Z8 在此基础上追加）。
 
 ## 当前迭代目标
 
@@ -90,7 +90,7 @@
 PR [#1](https://github.com/feng222666888/zw-brain/pull/1) merged at 2026-04-18 08:15:41Z by `feng222666888`；设计基线落盘 `docs/approved/zw-brain-architecture.md`（`status: approved`, `approved_by: xuejiao02`）。完整决策详见基线 §十四，以下为 D-编号摘要（D1–D20 为 GATE-1 通过时落定，D21/D22 为 GATE-1 后 retrofit）：
 
 - [2026-04-18] D1：政务大脑产品形态 = 精简 WebUI（≤10 核心场景页）+ 嵌入式 NL 加速器 + N 个核心 Agent + M 个可注册 Skill，**不复刻旧平台菜单导航形态，也不做"裸对话框"入口**
-- [2026-04-18] D2：4 入口（WebUI / REST / MCP / A2A）**共享同一套 Skill 契约**，由单一脚本生成，禁止 4 处手维护
+- [2026-04-18] D2：5 消费面（WebUI / REST / CLI / MCP / A2A）**共享同一套 Skill 契约**，由单一脚本生成，禁止 5 处手维护
 - [2026-04-18] D3：能力扩展**唯一路径是 Skill 注册**，禁止在 Agent / 编排层内嵌业务逻辑
 - [2026-04-18] D4：审计总线**强制同步落库**（写入失败必须熔断），区块链锚定通过**可插拔 adapter 异步执行**（外链 down 不阻塞业务，但需告警 + 重试）
 - [2026-04-18] D5：区块链对接采用轻量 adapter 模式，先实现接口骨架，外部链协议明确后再详设

@@ -1,107 +1,240 @@
-# 政务大脑 GATE-1 原型（方向验证）
+# 政务数据大脑 v4 高保真 Prototype
 
-> **这不是生产代码**。是用来在 GATE-1 评审中**验证产品方向**的可点击原型——真 UI、无后端、mock 数据。
-> 对应 `docs/approved/zw-brain-architecture.md`（设计基线）。
+> **这不是生产代码**。这是用于评审 `zw-brain` v4 方案的高保真可点击原型：保留 8+1 页面边界，用真实角色链路验证“先复用模板、再差异补录、结果回流共享、最后进入减负治理”的首条黄金旅程。
+> 交付形态：**真 UI、无后端、mock 数据、双击即开**。
 
 ## 怎么打开
 
-**1 步：双击 `prototype/ui/index.html`**
+直接双击 `prototype/ui/index.html`。
 
-不需要 `npm install`、不需要 `pip install`、不需要起服务器。任何现代浏览器（Chrome / Edge / Safari / Firefox）打开即用。
+不需要：
+- `npm install`
+- `pip install`
+- 启动本地服务
 
-如果浏览器打开后样式异常，是 CDN 加载失败（公司网络可能拦截 cdn.tailwindcss.com / cdn.jsdelivr.net）。换网或者临时挂 VPN 即可。
+## 这次评审要回答什么
 
-## 这个原型回答什么问题
+这版原型不是再讲一遍抽象平台，而是要现场回答 5 个问题：
 
-GATE-1 评审需要确认 **方向**（desirability）—— 不是确认技术能不能做，而是确认「**做出来对不对、用户用不用、覆盖场景对不对**」。
+1. **R1–R8 真实角色是否被正确表达**
+   - 不是抽象的“申请方 / 平台管理员”
+   - 而是要数的人、控准入的人、填差异的人、审异常的人、做模板治理的人、做减负治理的人
 
-下表是评审 checklist：每条对应架构基线中的一个核心主张，原型里有对应交互可以亲手验证。
+2. **首条黄金旅程是否真能走通**
+   - 主案例固定为“法人单位基础信息台账模板”
+   - 主链固定为：**发现模板 → 复用判断 → 受控准入 → 预填补录 → 审核汇总 → 回流共享 → 减负治理**
 
-| #  | 架构主张（出处） | 对应原型场景 / 页面 | 验证 |
-|----|---|---|---|
-| 1  | WebUI 收敛到 ≤10 个核心场景页（§7.1 / §7.3） | 主大脑域共 **10 页全部跑通**：工作台 / 检索申请 / 资源服务管理 / 审批 / 数据交换 / 异议处理 / 合规回溯 / Skill 市场 / 平台运营 / 共享专区 | ☐ 10 页是否真的够用、是否还有冗余 |
-| 2  | 5 个一级导航条目（§7.1 反对 20+ 子系统） | 任意 brain 页左侧 sidebar：工作台 / 数据 / 任务 / 治理 / 设置 5 个一级 + 12 个二级 | ☐ 一级数是否够稳、二级分组是否合理 |
-| 3  | NL 加速器：自然语言 → 自动填表 → 用户检视 → 提交（§7.2） | 检索页输入自然语言 → 申请页 4 字段自动填 + 解析弱置信回退 | ☐ AI 副驾这一交互是否被接受 |
-| 4  | 「字段精确 + 状态可见 + 操作可发现」是产品底线（§7.1） | 全部 10 页 + 审批页禁用按钮（角色 ACL 可见） | ☐ 用户能否找到关键操作 / 字段是否清晰 |
-| 5  | K1+K2+K3 在同一页（§7.3 #3 + 反对子系统化） | `/manage` 页 catalog/resource/service 三 tab 切换 | ☐ 三层资源在一页是否乱、tab 是否够用 |
-| 6  | K4 申请审批附「大脑辅助决策」（§6） | `/review/:id` 显示同部门历史通过率 + 公文号校验 + 按钮按角色禁用 + 不替你点 | ☐ AI 辅助是否到位、是否过度自动化 |
-| 7  | K5 数据交换任务全程审计（§7.5 / D4） | `/exchange` 列表 + `/exchange/:id` 运行历史含「audit_event 写入失败 → 终止」案例 | ☐ K4→K5 链是否清晰可证迹 |
-| 8  | K8 异议处理是带状态机的协作流（§3.1） | `/dispute` 列表 + `/dispute/:id` 时间线 + 升级到平台合规组 | ☐ 异议→升级→合规审计的链是否成立 |
-| 9  | 「§7.5 上周谁调用过 X 数据」即时可查（K8/K9） | `/compliance` 检索条件 + 28 条 audit_event + 上链一致性校验 + retry-ok 案例 | ☐ 合规追溯是否真的「即问即答」 |
-| 10 | Skill 市场 = §7.3 #8 + §6 入口公开（D11 契约稳定性） | `/skill-market` 12 个已发布 + 3 个注册申请（pending/approved/rejected）+ `/skill-market/propose` manifest 表单 | ☐ 注册流程是否对外部开发者友好 |
-| 11 | 平台运营面板与 K12 大屏受众分层（§7.7.3） | `/ops` KPI + 7 日趋势 + TOP Skill + 资源池利用率 + 平台管理员独有「调整配额」按钮 | ☐ 内部 KPI 是否区别于领导大屏 |
-| 12 | K11 共享专区 = 主题化目录 + 一键订阅（§3.1 / §7.3 #10） | `/zones` 4 个专区（健康 / 民生上线 + 营商 / 城市治理筹建）+ `/zone/:id` 一键订阅 | ☐ 专区分层是否合理、订阅口径是否清晰 |
-| 13 | K12 大屏 = 95% 纯展示 + 5% 一键钻取（§7.7） | `/dashboard` + `/dashboard/alert` 钻取详情 + N7 只读约束说明 | ☐ 大屏是否够「门面」、钻取流是否顺 |
-| 14 | T1 指挥中心 5 类必有看板（§7.7.3） | 大屏上排 5 张卡：①流通量 ②QPS ③Agent ④告警 ⑤国家通道（编号 ①-⑤ 一一对应） | ☐ 5 类看板是否覆盖领导真实关注点 |
-| 15 | 大屏与主大脑故障隔离（§7.7.1） | 大屏顶部「模拟主大脑故障」按钮 — 切换后大屏进入快照模式（数字变灰 / 时钟停 / 警告横幅）+ 全局头部联动 | ☐ 隔离是否对用户可见、可信 |
-| 16 | 「Agent 是一等公民」框架（§4 / §6 / §7.6） | `/agent` 4 入口对等 + Skill 详情页同一 manifest 4 种调用方式并列 + 大屏「大脑主动建议」 | ☐ 政府客户能否接受这个心智模型 |
-| 17 | Skill manifest 可发现、契约清晰（§5） | `/agent/skills` 12 个 Skill 按域分组（覆盖 K1/K3/K4/K5/K7/K8/K11/K12）+ `/agent/invoke/:id` 模拟调用 | ☐ 外部开发者能否凭 manifest 自助接入 |
-| 18 | 审计 + 上链是写操作的合规基线（K9 / D4） | 申请提交 / 审批 / Skill 注册 / 专区订阅 / 服务下线 / 异议处理 全部展示 audit_id + chain_anchor + retry-ok 案例 | ☐ 「合规可证迹」是否被用户感知 |
-| 19 | 「不做裸对话框入口」（§7.1 / N6） | 全部 10 页都是结构化界面，NL 是辅助不是主角；大屏「采纳建议」只 toast 不真扩容 | ☐ NL 副驾的边界是否清晰 |
-| 20 | 写操作绝不让 NL/Agent 自决（§7.5） | 申请理由必填且 NL 拒绝代填；审批 / 异议 / 服务下线 / 配额调整 全部按角色禁用并二次确认 | ☐ 边界是否清晰一致 |
+3. **AI 是否只减摩、不越权**
+   - AI 负责解析、解释、草拟、摘要、预填说明
+   - AI 不负责提交、审批、汇总确认、回流生效、能力包生效
 
-## 原型范围
+4. **页面之间是否有连续状态，而不是一组静态说明页**
+   - 关键动作必须真实改变状态
+   - 列表页、详情页、时间线、治理页和大屏指标必须同步变化
 
-**做了**（GATE-1 全量包，覆盖 baseline §7.3 全部 10 个 WebUI 核心场景页 + K12 大屏 + Agent 入口）：
+5. **负面流是否诚实表达失败与边界**
+   - 退回补正、驳回、审计阻断、回流未满足门槛、能力包越权都必须被明确展示
 
-- **22 个路由 / 19 类页面**（vanilla HTML + Tailwind CDN + 原生 JS hash 路由，0 build / 0 framework）
-  - §7.3 第 1 页：工作台（`/`）
-  - §7.3 第 2 页：数据检索 → 详情 → 申请 → 状态（`/search` `/dataset/:id` `/apply/:id` `/request/:id`）
-  - §7.3 第 3 页：资源 / 目录 / 服务管理（`/manage/{catalog,resource,service}`）
-  - §7.3 第 4 页：申请审批（`/review/:id`，含大脑辅助决策）
-  - §7.3 第 5 页：数据交换任务（`/exchange` + `/exchange/:id`）
-  - §7.3 第 6 页：异议处理（`/dispute` + `/dispute/:id`）
-  - §7.3 第 7 页：合规督导 + 审计回溯（`/compliance`）
-  - §7.3 第 8 页：Skill 市场（`/skill-market` + `/skill-market/propose`）
-  - §7.3 第 9 页：平台运营面板（`/ops`，区别于领导大屏）
-  - §7.3 第 10 页：共享专区（`/zones` + `/zone/:id`）
-  - §7.7 K12：指挥中心大屏（`/dashboard` + `/dashboard/alert`）
-  - §6 / §7.6：Agent 入口 4 入口对等（`/agent` + Skill 列表 / 详情 / 模拟调用）
-- **5 个 storyboard**（覆盖五类典型旅程）
-  - `01-cross-dept-search.md` 申请方跨厅局检索 → 申请 → 状态
-  - `02-leader-command.md` 领导日常用大屏 + 故障隔离演示
-  - `03-agent-mcp-call.md` 外部 Agent 通过 MCP 调用 Skill
-  - `04-provider-full-cycle.md` 提供方全周期：注册资源 → 发布服务 → 审批 → 交换 → 异议
-  - `05-platform-governance.md` 平台管理员：合规回溯 → Skill 审批 → 运营面板
-- **mock 数据全套**：4 数据集 + 5 资源 + 4 服务 + 3 交换任务 + 3 异议 + 28 audit_event + 12 Skill（覆盖 K1/K3/K4/K5/K7/K8/K11/K12）+ 3 Skill 注册申请 + 4 专区 + 平台 KPI + 24h 大屏指标
-- **5 个角色切换**（提供方操作员 / 提供方管理员 / 厅局领导 / 平台管理员 / 外部 Agent 开发者），不同角色看到的 sidebar 子项 / 按钮可用性 / 待办数 / 配额调整入口 都不同 — 验证 K10 ACL
-- **§7.2 NL 加速器**真实可点击演示：自然语言 → 自动填表 → 用户检视 → 提交；解析弱置信时显示警告并退化提示
-- **§7.7.1 故障隔离**亲手可验证：大屏顶部「模拟主大脑故障」按钮，切换后大屏进入快照模式（数字变灰、时钟停在 13:50、出现警告横幅），全局头部「主大脑 ✓ → ✗」联动
+## 页面范围
 
-**没做**（按原型边界，不在方向验证范围）：
+本版原型维持 **8 个主页面 + 1 个独立大屏**：
 
-- 任何真实后端 / 数据库 / LLM 调用
-- 移动端响应式（大屏部分本身就是 4K 拼接屏定位，不做手机版；N4 也明确不开发移动端 App）
-- 无障碍 / i18n / 完整错误处理
-- 视觉的「炫酷动效」（大屏只做静态图表，避免被「动效好不好看」带偏方向评审）
-- 任何写操作真实落地（提交按钮只更新 mock 状态，不持久化）
-- 「+ 新增 / + 注册」类弹窗表单的细节字段（manage / 异议提交 仅按钮 + toast，因 propose 表单已展示完整 manifest 写法）
+| 页面 | 作用 | 对应旅程 |
+|------|------|---------|
+| P1 工作台 | 不同角色的待办、提醒、推荐与异常摘要 | 主入口 |
+| P2 资源发现 | 先发现资源与模板，再决定是否新增采集 | Journey 1 / 2 |
+| P3 申请 / 审批 / 跟踪 | 复用申请、准入判断、预填补录、审核汇总 | Journey 3 / 4 / 5 |
+| P4 交付 / 交换 / 回流 | 任务下发、自动汇总、回流候选与回执 | Journey 6 |
+| P5 提供方管理 | 模板、目录、服务与版本治理 | Journey 6 |
+| P6 合规与运营 | 重复要数、绕行、争议、减负证据与审计回放 | Journey 7 |
+| P7 共享专区 / 专题包 | 将高价值模板以 zw-brain 前台专题资产形态组织出来 | Journey 1 / 2 / 6 |
+| P8 平台接入与扩展中心 | 仅 R7 使用；能力包审核、注册、暴露治理 | S2 |
+| K12 指挥中心大屏 | 只读消费主链路事实，查看减负与异常态势 | 独立部署面 |
 
-## 评审建议节奏（全量约 50 分钟）
+## 路由
 
-1. **5 分钟**：通读 5 个 storyboard 标题与首段，掌握 5 类用户旅程
-2. **8 分钟**：场景 1（申请方）— 工作台 → 检索（试输入「我要市卫健委 2024 接种数据，下周一前」）→ 自动填表 → 提交 → 状态页等 chain_anchor 完成
-3. **6 分钟**：把右上角角色切到「提供方管理员」→ 工作台看待办 → 点审批 → 看大脑辅助决策 → 通过 / 驳回 → 切回「数据交换任务」看到对应 EX-* 任务
-4. **6 分钟**：场景 4（提供方全链）— `/manage` 三 tab 切换 → 触发资源探活 / 服务下线 → `/exchange` 看运行历史失败案例 → `/dispute` 处理一条
-5. **8 分钟**：切到「平台管理员」→ `/compliance` 检索 audit + 触发上链一致性校验 + 看 retry-ok 事件 → `/skill-market` 批准一个待审 Skill → `/ops` 看 KPI 与配额调整按钮
-6. **5 分钟**：场景 2（领导）— 切「厅局领导」→ 顶部「大屏视图」→ 检查 5 类必有看板 → 钻取异常 → **点「模拟主大脑故障」**看快照模式
-7. **6 分钟**：场景 3（Agent 开发者）— 切「外部 Agent 开发者」→ 顶部「Agent 入口」→ Skill 列表 → 任选 Skill 看 4 入口对等 + 点模拟调用
-8. **6 分钟**：对照上面 20 条 checklist 逐条 ✅ / ❌ / 需调整，把意见直接写到本 PR 的 review 评论里
+- `#/p1-workbench`
+- `#/p2-discovery`
+- `#/p2-discovery/resource/:id`
+- `#/p3-request-flow`
+- `#/p3-request-flow/request/:id`
+- `#/p3-request-flow/review/:id`
+- `#/p4-delivery-exchange`
+- `#/p4-delivery-exchange/task/:id`
+- `#/p5-provider`
+- `#/p6-compliance-ops`
+- `#/p6-compliance-ops/dispute/:id`
+- `#/p7-zones-pack`
+- `#/p7-zones-pack/zone/:id`
+- `#/p8-integration-admin`
+- `#/p8-integration-admin/package/:id`
+- `#/dashboard`
+- `#/dashboard/alert/:id`
 
-## 关于 N1–N7「不做清单」的反向验证
+## 角色口径
 
-原型也演示了「**不做什么**」：
+- R1 上级业务需求发起人
+- R2 审批承接人员
+- R3 镇街填报人员
+- R4 村社区填报人员
+- R5 审核汇总人员
+- R6 台账管理员
+- R7 目录管理员
+- R8 合规与减负治理
 
-- 没有「裸对话框入口」（验证 N6：登录后看到的是结构化工作台 + 5 个一级导航，不是 ChatGPT 框）
-- 没有 20+ 子系统菜单（验证 §7.1：左侧 5 一级 12 二级，且二级里同类资源用 tab 而非新页）
-- 大屏没有部门排名功能（验证 §7.7.3 T3「默认关闭」教训继承）
-- 大屏没有写操作按钮（验证 N7：钻取页底部明确说明只读边界）
-- Skill 市场拒绝「裸的 bulk 写」Skill（PROP-2026-04-08-001 已被驳回，理由就是 N6 + 最小 API 表面）
-- 「采纳建议」只 toast 不真执行（验证 §7.5：写操作不让 NL / Agent 自决）
+## 推荐评审顺序（30–45 分钟）
 
-如果 reviewer 觉得这些「不做」**应该做**，请在 PR 评论里明确指出 + 给出客户证据，我们走 `product-dev.mdc` 的「重新激活机制」。
+### 0. 先读主线脚本
+- 打开 `prototype/storyboards/00-core-journey-e2e.md`
+- 先确认这次评审讲的是一条主链，而不是 8 个孤立页面
+
+### 1. R1：先发现模板，再发起复用申请
+- 角色切到 **R1**
+- 依次进入：
+  - `#/p1-workbench`
+  - `#/p2-discovery`
+  - `#/p2-discovery/resource/res-jbxx-ledger`
+  - `#/p3-request-flow`
+- 现场要看见：
+  - “法人单位基础信息台账模板”被排到前面
+  - 已识别“先复用模板、只补差异字段”
+  - 申请不是裸提新表，而是结构化复用申请
+
+### 2. R2：受控准入，不让重复要数直接过
+- 角色切到 **R2**
+- 进入：`#/p3-request-flow/review/REQ-2026-04-25-0011`
+- 先点：**通过并下发补录**
+- 现场要看见：
+  - 状态从待审批进入补录阶段
+  - P3 / P4 的状态与时间线同步变化
+  - AI 只给建议，不替人点击批准
+
+### 3. R3 / R4：只补差异字段，不再整表录入
+- 角色切到 **R3** 或 **R4**
+- 进入：`#/p3-request-flow/request/REQ-2026-04-25-0011`
+- 点：**提交差异补录**
+- 现场要看见：
+  - 已预填字段与待补录字段分离
+  - 提交后进入“待汇总确认”
+  - P4 任务状态同步进入汇总阶段
+
+### 4. R5：只处理异常与自动汇总确认
+- 角色切到 **R5**
+- 回到：`#/p3-request-flow/review/REQ-2026-04-25-0011`
+- 点：**确认自动汇总**
+- 现场要看见：
+  - 状态进入已汇总
+  - 回流候选从“待确认”变成供给侧待判断对象
+  - 时间线新增汇总确认节点
+
+### 5. R6 / R7：让本次补录变成下次默认复用能力
+- 先看：`#/p4-delivery-exchange/task/DLV-2026-04-25-0011`
+- 点：**确认回流共享**
+- 再看：
+  - `#/p5-provider`
+  - `#/p7-zones-pack/zone/business`
+- 现场要看见：
+  - 回流状态变为已确认
+  - 模板版本、供给侧摘要、专题入口信任信息同步变化
+  - 说明“这次补录沉淀成了下次可直接复用的模板能力”
+
+### 6. R8：看治理结果，而不是看后台日志
+- 角色切到 **R8**
+- 依次看：
+  - `#/p6-compliance-ops`
+  - `#/p6-compliance-ops/dispute/DSP-2026-04-25-0003`
+  - `#/dashboard`
+- 现场要看见：
+  - 重复要数率、补录字段数、自动汇总覆盖率
+  - 绕行告警、争议调查、审计回放和知识建议能串起来
+  - 大屏只读消费主链路事实，不进入办理态
+
+### 7. R7：审核外部能力包，但不把写权交出去
+- 角色切到 **R7**
+- 进入：
+  - `#/p8-integration-admin`
+  - `#/p8-integration-admin/package/PKG-2026-04-25-001`
+- 可分别点：**批准** / **退回补充** / **驳回**
+- 现场要看见：
+  - 状态变化真实反映在列表与详情
+  - 审核意见同步变化
+  - 平台坚持 capability 统一契约与写权边界
+
+### 8. 最后走负面流
+- 对照：`prototype/storyboards/08-negative-flows-and-guardrails.md`
+- 重点核查：
+  - 退回补正不会被伪装成成功
+  - 驳回会终止主链
+  - 未满足汇总确认前不能确认回流
+  - 越界能力包不能变成可注册态
+  - K12 故障切换只进入快照模式，不接管主办理
+
+## Storyboards
+
+- `prototype/storyboards/00-core-journey-e2e.md`
+- `prototype/storyboards/01-discovery-to-apply.md`
+- `prototype/storyboards/02-review-and-approval.md`
+- `prototype/storyboards/03-delivery-and-direct.md`
+- `prototype/storyboards/04-provider-lifecycle.md`
+- `prototype/storyboards/05-compliance-ops.md`
+- `prototype/storyboards/06-integration-admin.md`
+- `prototype/storyboards/07-leader-dashboard.md`
+- `prototype/storyboards/08-negative-flows-and-guardrails.md`
+
+## 能力边界与外部建设输入
+
+这里的能力文档描述的是 **领域面与能力边界**，不是把主状态机外包给外部辅助。
+
+`zw-brain` 自身的内建 WebUI / API 已经构成普通用户主旅程 baseline；管理员与运维侧可通过 API / CLI 完成交付、调查与注册治理；MCP 继续作为同一 Capability 契约的投影供 Agent 使用。外部能力包只负责在统一 Capability 契约下做解析、草拟、解释、摘要、预检查与适配，不得接管 `submit`、`review-and-decide`、`reconcile-receipt`、`register-version`、`apply-tenant-policy` 等责任写动作。
+
+阅读顺序建议：
+- 先看 `prototype/capability-sheets/README.md` 的平台内建 / 外部辅助边界
+- 再看每个领域面的平台必备能力
+- 最后看外部 ANP 适合建设的增益能力范围
+
+- 总览：`prototype/capability-sheets/README.md`
+- `prototype/capability-sheets/CP-01-discovery-and-intent-refinement.md`
+- `prototype/capability-sheets/CP-02-application-and-approval-flow.md`
+- `prototype/capability-sheets/CP-03-delivery-exchange-and-direct-link.md`
+- `prototype/capability-sheets/CP-04-provider-governance-and-publishing.md`
+- `prototype/capability-sheets/CP-05-compliance-evidence-and-ops.md`
+- `prototype/capability-sheets/CP-06-integration-admin-and-package-registry.md`
+
+## 现场验收 checklist
+
+| # | 要验证的主张 | 对应页面/场景 | 验证 |
+|---|-------------|--------------|------|
+| 1 | 页面仍收敛为 8 个主页面 + 1 个独立大屏 | P1–P8 + K12 | ☐ |
+| 2 | 前台角色已切换为 R1–R8，而不是抽象平台角色 | 全局 | ☐ |
+| 3 | P2 能把“法人单位基础信息台账模板”以前台可发现资产呈现出来 | P2 / P7 | ☐ |
+| 4 | P3 能表达“先复用模板，再进入受控准入” | P3 | ☐ |
+| 5 | P3 能表达“已预填字段 + 差异补录字段 + 退回修改” | P3 request detail | ☐ |
+| 6 | P3 审核详情能表达“异常项 + 自动汇总 + 人工确认边界” | P3 review detail | ☐ |
+| 7 | P4 能表达“补录结果如何回流共享资产池” | P4 | ☐ |
+| 8 | P5 能表达“模板版本、字段口径、服务治理”三者联动 | P5 | ☐ |
+| 9 | P6 能直接展示重复要数、绕行、减负指标与证据链 | P6 | ☐ |
+| 10 | P7 仍是前台专题资产入口，而不是后台标准管理页 | P7 | ☐ |
+| 11 | P8 只服务 R7 管理员，不扩张成普通用户主叙事 | P8 | ☐ |
+| 12 | 所有关键写动作仍保留人工确认边界 | P3 / P4 / P8 | ☐ |
+| 13 | 外部辅助全部失效时，主流程仍可通过结构化页面闭环 | 全局 / 负面流 | ☐ |
+| 14 | K12 体现减负治理与异常钻取，但保持只读投影 | `#/dashboard` | ☐ |
+| 15 | 全局始终符合“AI 只减摩，不越权” | 全局 | ☐ |
 
 ## 自检与质量
 
-- 全部 22 个路由（含错误路径）× 5 个角色 = **160 个组合 smoke 测试通过**：`node prototype/scripts/smoke.js`
-- 提交时 `scripts/preflight.sh` 全绿（覆盖分支命名 / submodule 顺序 / `.cursor/rules` drift / 契约 / Story / approved / sync-stats / 输入安全 / 状态文件原子写 / GATE-1 原型覆盖 等模板段与项目段）
+- 路由与多角色冒烟：`node prototype/scripts/smoke.js`
+- GATE-1 原型门禁：`python3 scripts/check_gate1_prototype.py`
+
+## 原型边界
+
+本原型**不做**：
+- 真实后端 / 数据库 / 推理调用
+- 持久化写入
+- 完整表单校验
+- 移动端适配
+
+本原型**重点回答**：
+- v4 的 8+1 IA 是否能承载真实角色链路
+- “先复用模板，再差异补录”是否成立
+- “审核汇总 → 回流共享 → 减负治理”是否被产品前台真正表达出来
+- 关键失败路径是否被诚实表达，而不是被 toast 掩盖
