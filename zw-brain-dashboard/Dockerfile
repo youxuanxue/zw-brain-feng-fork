@@ -15,4 +15,5 @@ COPY zw-brain-dashboard /app/zw-brain-dashboard
 RUN pip install --no-cache-dir "SQLAlchemy>=2.0" "alembic>=1.18"
 
 EXPOSE 8801
+ENV ZW_BRAIN_DASHBOARD_BFF_PORT=8801
 CMD ["python", "zw-brain-dashboard/bff/main.py"]

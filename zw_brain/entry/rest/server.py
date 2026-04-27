@@ -8,6 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 from zw_brain.command.brain import AccessDeniedError, BrainServiceError, ConfirmationRequiredError, InvalidStateError, NotFoundError, UnknownSkillError
 from zw_brain.shared.runtime import get_service
+from zw_brain.shared.runtime_config import get_rest_host, get_rest_port
 
 
 def _web_root() -> Path:
@@ -111,8 +112,8 @@ class RestHandler(BaseHTTPRequestHandler):
         return
 
 
-def main(host: str = "127.0.0.1", port: int = 8800) -> None:
-    HTTPServer((host, port), RestHandler).serve_forever()
+def main(host: str | None = None, port: int | None = None) -> None:
+    HTTPServer((host or get_rest_host(), port or get_rest_port()), RestHandler).serve_forever()
 
 
 if __name__ == "__main__":

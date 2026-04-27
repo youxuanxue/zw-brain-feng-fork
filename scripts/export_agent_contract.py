@@ -19,6 +19,11 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from zw_brain.shared.runtime_config import get_rest_api_skills_endpoint
+
 DOC_PATH = REPO_ROOT / "docs" / "agent_integration.md"
 
 ENTRY_REST = REPO_ROOT / "zw_brain" / "entry" / "rest"
@@ -35,7 +40,10 @@ A2A_RUNTIME_BINDINGS_PATH = ENTRY_A2A / "tools" / "runtime_bindings.json"
 A2A_NAME = "zw-brain"
 A2A_DESCRIPTION = "政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台."
 A2A_VERSION = "1.0.0"
-A2A_ENDPOINT = "http://127.0.0.1:8800/api/skills"
+
+
+def get_a2a_endpoint() -> str:
+    return get_rest_api_skills_endpoint()
 
 
 ERROR_RESPONSE_SCHEMA = {
@@ -315,7 +323,7 @@ def build_a2a_card(skills: list[dict[str, Any]]) -> dict[str, Any]:
         "name": A2A_NAME,
         "description": A2A_DESCRIPTION,
         "version": A2A_VERSION,
-        "endpoint": A2A_ENDPOINT,
+        "endpoint": get_a2a_endpoint(),
         "capabilities": {
             "streaming": False,
             "tool_use": True,
@@ -338,7 +346,7 @@ def build_runtime_bindings(skills: list[dict[str, Any]]) -> list[dict[str, Any]]
                 "tool_name": skill["skill_id"],
                 "description": skill.get("description") or skill.get("title", ""),
                 "protocol_type": "builtin_skill",
-                "endpoint": f"{A2A_ENDPOINT}/{skill['skill_id']}",
+                "endpoint": f"{get_a2a_endpoint()}/{skill['skill_id']}",
                 "parameters_schema": skill.get("input_schema", {}),
                 "config_json": {
                     "mode": "write" if skill.get("side_effects") else "read",

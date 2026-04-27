@@ -26,6 +26,11 @@ index.html         — K12 大屏入口页
 - 本目录不是通用前端脚手架，而是当前可运行的大屏交付物
 - 在仓库根目录运行：`python zw-brain-dashboard/bff/main.py`
 - 或进入本目录运行：`python bff/main.py`
+- 一键本地启动：`bash scripts/start-local.sh`
+- 可通过环境变量覆盖默认端口：
+  - `ZW_BRAIN_REST_PORT`（默认 `8800`）
+  - `ZW_BRAIN_DASHBOARD_BFF_PORT`（默认 `8801`）
+  - `ZW_BRAIN_REST_BASE_URL`（用于 A2A contract 投影，默认跟随 REST 端口）
 - Docker 镜像会一起带上 `zw_brain/`、迁移文件和静态资源，直接启动同一 BFF 入口
 - BFF 提供：
   - `/health`

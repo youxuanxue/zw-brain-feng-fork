@@ -116,3 +116,49 @@ def test_cli_mcp_and_a2a_share_runtime_contract() -> None:
         assert "AccessDeniedError" in denied_a2a.stderr
 
         runtime._service = None
+
+
+def test_rest_main_reads_host_and_port_from_env(monkeypatch) -> None:
+    captured = {}
+
+    class FakeServer:
+        def __init__(self, address, handler):
+            captured["address"] = address
+            captured["handler"] = handler
+
+        def serve_forever(self):
+            captured["served"] = True
+
+    monkeypatch.setenv("ZW_BRAIN_REST_HOST", "0.0.0.0")
+    monkeypatch.setenv("ZW_BRAIN_REST_PORT", "18800")
+
+    from zw_brain.entry.rest import server
+
+    monkeypatch.setattr(server, "HTTPServer", FakeServer)
+    server.main()
+
+    assert captured["address"] == ("0.0.0.0", 18800)
+    assert captured["served"] is True
+
+
+def test_dashboard_main_reads_host_and_port_from_env(monkeypatch) -> None:
+    captured = {}
+
+    class FakeServer:
+        def __init__(self, address, handler):
+            captured["address"] = address
+            captured["handler"] = handler
+
+        def serve_forever(self):
+            captured["served"] = True
+
+    monkeypatch.setenv("ZW_BRAIN_DASHBOARD_BFF_HOST", "0.0.0.0")
+    monkeypatch.setenv("ZW_BRAIN_DASHBOARD_BFF_PORT", "18801")
+
+    from zw_brain.entry import dashboard_bff
+
+    monkeypatch.setattr(dashboard_bff, "HTTPServer", FakeServer)
+    dashboard_bff.main()
+
+    assert captured["address"] == ("0.0.0.0", 18801)
+    assert captured["served"] is True

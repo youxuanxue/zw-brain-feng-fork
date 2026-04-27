@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 
 from zw_brain.command.brain import BrainServiceError, ConfirmationRequiredError, InvalidStateError, NotFoundError, UnknownSkillError
 from zw_brain.shared.runtime import get_service
+from zw_brain.shared.runtime_config import get_dashboard_bff_host, get_dashboard_bff_port
 
 
 def _dashboard_root() -> Path:
@@ -84,8 +85,8 @@ class DashboardBffHandler(BaseHTTPRequestHandler):
         return
 
 
-def main(host: str = "127.0.0.1", port: int = 8801) -> None:
-    HTTPServer((host, port), DashboardBffHandler).serve_forever()
+def main(host: str | None = None, port: int | None = None) -> None:
+    HTTPServer((host or get_dashboard_bff_host(), port or get_dashboard_bff_port()), DashboardBffHandler).serve_forever()
 
 
 __all__ = ["DashboardBffHandler", "main"]
