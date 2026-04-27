@@ -1,0 +1,19 @@
+{
+  "name": "governance.dispute_list",
+  "description": "查看重复要数、字段口径和补录异常相关争议，以及关联告警、工单与知识建议。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "governance.dispute_list.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

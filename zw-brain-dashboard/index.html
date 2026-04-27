@@ -4,14 +4,56 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>政务大脑 · 大屏</title>
-    <meta
-      name="description"
-      content="Phase-0 placeholder shell. Real entry mounts after framework choice (D19)."
-    />
+    <meta name="description" content="zw-brain read-only dashboard" />
+    <style>
+      :root { color-scheme: light; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: linear-gradient(180deg, #0e1b31 0%, #132544 100%);
+        color: #f8fbff;
+      }
+      .dashboard-shell { max-width: 1280px; margin: 0 auto; padding: 32px 24px 48px; }
+      .hero {
+        display: grid;
+        grid-template-columns: 1.6fr 1fr;
+        gap: 24px;
+        padding: 28px;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 24px;
+        background: rgba(255,255,255,0.06);
+        box-shadow: 0 16px 40px rgba(0,0,0,0.2);
+      }
+      .eyebrow { font-size: 12px; letter-spacing: .08em; opacity: .75; text-transform: uppercase; }
+      h1 { margin: 10px 0 12px; font-size: 38px; line-height: 1.2; }
+      p { margin: 0; color: rgba(248,251,255,0.8); line-height: 1.75; }
+      .hero-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      .hero-kpis div, .metric-card, .insight-card {
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 18px;
+        background: rgba(255,255,255,0.05);
+        padding: 18px;
+      }
+      .hero-kpis span, .metric-label { display: block; font-size: 13px; opacity: .72; }
+      .hero-kpis strong, .metric-value { display: block; margin-top: 10px; font-size: 30px; }
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 24px;
+      }
+      .metric-trend { margin-top: 8px; font-size: 13px; color: #9ad0ff; }
+      .insight-card { margin-top: 24px; }
+      .insight-card h2 { margin: 0 0 12px; font-size: 24px; }
+      .insight-card ul { margin: 18px 0; padding-left: 20px; line-height: 1.8; color: rgba(248,251,255,0.86); }
+      .next-action, .owner { margin-top: 12px; font-size: 14px; color: #cfe4ff; }
+      @media (max-width: 900px) {
+        .hero, .metrics-grid { grid-template-columns: 1fr; }
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>
-    <noscript>本页面需要启用 JavaScript 才能查看大屏数据。</noscript>
-    <!-- Bundler entry intentionally absent in Phase-0 — added once Phase-0 PoC picks Vite/Next/etc. -->
+    <script type="module" src="/src/dashboard.js"></script>
   </body>
 </html>

@@ -1,28 +1,76 @@
 {
   "skill_id": "data.search",
   "title": "数据资源检索",
-  "description": "按关键词 / 部门 / 主题域检索共享数据资源目录，返回命中清单 + 摘要。Phase-0 placeholder.",
-  "version": "0.1.0",
+  "description": "按关键词 / 部门 / 主题域检索共享数据资源目录，返回命中清单与结构化摘要。",
+  "version": "1.0.0",
   "input_schema": {
     "type": "object",
-    "required": ["query"],
+    "required": [
+      "query"
+    ],
     "properties": {
-      "query": { "type": "string", "minLength": 1 },
-      "page": { "type": "integer", "minimum": 1, "default": 1 }
+      "query": {
+        "type": "string",
+        "minLength": 1
+      },
+      "page": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 1
+      }
     }
   },
   "output_schema": {
     "type": "object",
-    "required": ["results", "total"],
+    "required": [
+      "results",
+      "total"
+    ],
     "properties": {
-      "results": { "type": "array", "items": { "type": "object" } },
-      "total": { "type": "integer", "minimum": 0 }
+      "results": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "total": {
+        "type": "integer",
+        "minimum": 0
+      }
     }
   },
   "side_effects": [],
   "audit_required": true,
-  "permissions": ["data.search.execute"],
-  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "permissions": [
+    "data.search.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
   "registry_source": "internal",
-  "tags": ["data-search", "core", "phase-0-placeholder"]
+  "tags": [
+    "data-search",
+    "core",
+    "discovery"
+  ],
+  "slug": "data.search",
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-default",
+  "execution_binding": "builtin",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "data.search"
+  },
+  "rollback_target": null
 }

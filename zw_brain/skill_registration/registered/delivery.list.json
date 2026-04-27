@@ -1,0 +1,58 @@
+{
+  "skill_id": "delivery.list",
+  "title": "查看交付任务列表",
+  "description": "查看预填下发、自动汇总、回流候选和异常交付任务列表。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {}
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "items"
+    ],
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "side_effects": [],
+  "audit_required": true,
+  "permissions": [
+    "delivery.list.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "delivery",
+    "read",
+    "list"
+  ],
+  "slug": "delivery.list",
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-default",
+  "execution_binding": "builtin",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "delivery.list"
+  },
+  "rollback_target": null
+}

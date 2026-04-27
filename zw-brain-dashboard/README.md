@@ -1,12 +1,12 @@
 # zw-brain-dashboard
 
-政务大脑可视化大屏——独立部署单元（Phase-0 骨架）。
+政务大脑可视化大屏——独立部署单元，当前实现为 **K12 指挥中心只读大屏**。
 
 ## 架构定位（design baseline §7.7 + D15）
 
 - **独立部署**：与主大脑（`zw_brain/`）分离，故障互不影响
 - **只读消费**：仅订阅 `dashboard.*` Skill 输出，禁止任何写操作
-- **三种内置模板**：指挥中心 / 部门版 / 资源池版（Phase-0 占位 ≤ 1 个组件壳子）
+- **当前实现范围**：交付 K12 指挥中心大屏；部门版 / 资源池版保留为后续扩展，而不是当前运行面承诺
 - **机械约束**：`scripts/check_dashboard_readonly.py`（preflight 段 11）扫描本目录，禁止
   HTTP `POST/PUT/PATCH/DELETE` / DB write / 含 `.create(` `.update(` `.delete(` `.submit(`
   `.approve(` `.reject(` 等动词的 Skill 调用
@@ -15,21 +15,28 @@
 
 ```
 src/
-  views/          — 路由级页面（command-center / department / resource-pool）
-  api/            — read-only HTTP client + dashboard.* Skill 调用封装
-  components/     — 复用图表/卡片/状态徽章
-bff/              — Backend-for-Frontend 网关（Phase-0 占位）
+  dashboard.js     — K12 指挥中心只读页面脚本
+  api/             — read-only HTTP client + dashboard.* Skill 调用封装
+bff/               — Python BFF：统一提供静态页面与 `dashboard.*` 只读代理
+index.html         — K12 大屏入口页
 ```
 
-## 技术选型
+## 当前运行方式
 
-❌ 暂未敲定。前端框架（Vue 3 vs React vs Svelte）+ 图表库（ECharts vs vega-lite）
-+ BFF 框架（FastAPI vs Hono vs Express）均延后到 Phase-0 PoC（与主大脑一致，
-设计基线 D19）。本骨架只声明目录结构与契约，不绑定具体框架。
+- 本目录不是通用前端脚手架，而是当前可运行的大屏交付物
+- 在仓库根目录运行：`python zw-brain-dashboard/bff/main.py`
+- 或进入本目录运行：`python bff/main.py`
+- Docker 镜像会一起带上 `zw_brain/`、迁移文件和静态资源，直接启动同一 BFF 入口
+- BFF 提供：
+  - `/health`
+  - `/api/skills/dashboard.*`
+  - `/index.html`
+  - `/src/*` 静态文件
 
-## Phase-0 阶段验收
+## 当前验收
 
-- [x] 目录骨架就位
-- [x] `package.json` + `bff/` 占位文件存在
-- [x] `scripts/check_dashboard_readonly.py` 能扫到本目录且通过（无写操作）
-- [ ] Phase-1 起：接通 `dashboard.render_command_center` Skill 端到端 demo
+- [x] 独立部署路径成立
+- [x] `dashboard.*` 只读约束通过机械检查
+- [x] Python BFF 提供静态页面与只读 skill 代理
+- [x] `dashboard.render_command_center` 端到端 demo 已接通
+- [x] 测试覆盖 `/health`、只读 skill、静态资源可达性

@@ -27,9 +27,10 @@ class AnchorReceipt:
 async def anchor(content_hash: str, *, chain_id: str = "mock-chain") -> AnchorReceipt:
     """Anchor `content_hash` to the configured chain.
 
-    Phase-0 mock returns a deterministic receipt without performing any I/O.
-    Failure of the real chain (Phase-1) MUST raise — workers handle retry +
-    alert; the business path is already insulated by the queue.
+    The current local adapter returns a deterministic receipt without
+    performing external I/O. Failure of the real chain integration MUST raise
+    — workers handle retry + alert; the business path is already insulated by
+    the queue.
     """
     return AnchorReceipt(
         tx_hash=f"mock:{content_hash[:16]}",

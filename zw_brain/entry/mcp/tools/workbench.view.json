@@ -1,0 +1,36 @@
+{
+  "name": "workbench.view",
+  "description": "按角色查看工作台待办、重点提示和副驾摘要。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "role"
+    ],
+    "properties": {
+      "role": {
+        "type": "string",
+        "enum": [
+          "r1",
+          "r2",
+          "r3",
+          "r4",
+          "r5",
+          "r6",
+          "r7",
+          "r8"
+        ]
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "workbench.view.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

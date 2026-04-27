@@ -1,0 +1,48 @@
+{
+  "name": "package.review_decide",
+  "description": "由管理员对能力注册包执行批准、退回补充或驳回。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "package_id",
+      "decision",
+      "confirmed"
+    ],
+    "properties": {
+      "package_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "decision": {
+        "type": "string",
+        "enum": [
+          "approve",
+          "return_for_fix",
+          "reject"
+        ]
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "write",
+    "humanConfirmationRequired": true,
+    "readOnlyHint": false
+  },
+  "x-zwbrain-side-effects": [
+    "audit",
+    "db_write",
+    "state_machine_transition",
+    "blockchain_anchor"
+  ],
+  "x-zwbrain-permissions": [
+    "package.review_decide.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

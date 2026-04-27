@@ -1,0 +1,19 @@
+{
+  "name": "zone.list",
+  "description": "查看共享专区与专题包列表。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "zone.list.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

@@ -1,11 +1,164 @@
 {
   "name": "zw-brain",
-  "description": "政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台 (Phase 0 placeholder agent card).",
-  "version": "0.0.0",
-  "endpoint": "https://zw-brain.example.invalid/a2a",
+  "description": "政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台.",
+  "version": "1.0.0",
+  "endpoint": "http://127.0.0.1:8800/api/skills",
   "capabilities": {
     "streaming": false,
     "tool_use": true
   },
-  "skills": []
+  "skills": [
+    {
+      "id": "approval.view",
+      "mode": "read"
+    },
+    {
+      "id": "audit.list",
+      "mode": "read"
+    },
+    {
+      "id": "audit.replay_evidence_chain",
+      "mode": "read"
+    },
+    {
+      "id": "catalog.resource_view",
+      "mode": "read"
+    },
+    {
+      "id": "dashboard.render_command_center",
+      "mode": "read"
+    },
+    {
+      "id": "data.search",
+      "mode": "read"
+    },
+    {
+      "id": "delivery.list",
+      "mode": "read"
+    },
+    {
+      "id": "delivery.view",
+      "mode": "read"
+    },
+    {
+      "id": "governance.dispute_list",
+      "mode": "read"
+    },
+    {
+      "id": "governance.dispute_view",
+      "mode": "read"
+    },
+    {
+      "id": "package.list",
+      "mode": "read"
+    },
+    {
+      "id": "package.view",
+      "mode": "read"
+    },
+    {
+      "id": "provider.view",
+      "mode": "read"
+    },
+    {
+      "id": "request.list",
+      "mode": "read"
+    },
+    {
+      "id": "request.view",
+      "mode": "read"
+    },
+    {
+      "id": "system.schema_info",
+      "mode": "read"
+    },
+    {
+      "id": "system.snapshot",
+      "mode": "read"
+    },
+    {
+      "id": "workbench.view",
+      "mode": "read"
+    },
+    {
+      "id": "zone.list",
+      "mode": "read"
+    },
+    {
+      "id": "zone.view",
+      "mode": "read"
+    },
+    {
+      "id": "approval.review_decide",
+      "mode": "write"
+    },
+    {
+      "id": "backflow.confirm",
+      "mode": "write"
+    },
+    {
+      "id": "catalog.manage_entry",
+      "mode": "write"
+    },
+    {
+      "id": "compliance.investigate_case",
+      "mode": "write"
+    },
+    {
+      "id": "delivery.reconcile_receipt",
+      "mode": "write"
+    },
+    {
+      "id": "delivery.trigger_recovery",
+      "mode": "write"
+    },
+    {
+      "id": "package.apply_tenant_policy",
+      "mode": "write"
+    },
+    {
+      "id": "package.configure_exposure",
+      "mode": "write"
+    },
+    {
+      "id": "package.register_version",
+      "mode": "write"
+    },
+    {
+      "id": "package.review_decide",
+      "mode": "write"
+    },
+    {
+      "id": "request.create",
+      "mode": "write"
+    },
+    {
+      "id": "request.submit",
+      "mode": "write"
+    },
+    {
+      "id": "resource.manage_asset",
+      "mode": "write"
+    },
+    {
+      "id": "service.publish_or_suspend",
+      "mode": "write"
+    },
+    {
+      "id": "summary.confirm",
+      "mode": "write"
+    },
+    {
+      "id": "supplement.submit",
+      "mode": "write"
+    },
+    {
+      "id": "system.toggle_outage",
+      "mode": "write"
+    },
+    {
+      "id": "zone.publish_topic_projection",
+      "mode": "write"
+    }
+  ]
 }

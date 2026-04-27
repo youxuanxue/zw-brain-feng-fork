@@ -6,8 +6,9 @@
  * helpers here is mechanically blocked by `scripts/check_dashboard_readonly.py`
  * (preflight section 11).
  *
- * Phase-0 implementation uses the global `fetch` API; framework choice is
- * still TBD (D19), so we keep zero external deps.
+ * Current implementation uses the global `fetch` API to keep the read-only
+ * dashboard dependency-free; framework choice may still evolve without
+ * changing the GET-only boundary here.
  */
 
 export interface DashboardQueryOptions {

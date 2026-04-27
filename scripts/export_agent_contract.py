@@ -2,30 +2,13 @@
 """
 export_agent_contract.py — preflight 段 4
 
-按 agent-contract-enforcement.mdc 强约束：
-    Each project must maintain its own scripts/export_agent_contract.py tailored
-    to that project's API surface (routes, CLI commands, MCP tools, etc.).
-
-zw-brain 的 4 入口（设计基线 §4.1 + §4.2）：
-    L1.1 WebUI         (前端 SPA — 不暴露 API；本脚本不扫)
-    L1.2 REST API      (zw_brain/entry/rest/ + OpenAPI spec)
-    L1.3 MCP Server    (zw_brain/entry/mcp/tools/*.json)
-    L1.4 A2A Server    (zw_brain/entry/a2a/agent_card.json)
-
-本脚本两种模式：
-    1. （默认）扫描 4 入口源代码 + 生成 docs/agent_integration.md
-    2. --check：扫描 + 对比当前 docs/agent_integration.md，发现 drift 退出 1
-
-设计原则（agent-contract-enforcement.mdc）：
-    - Treat docs/agent_integration.md as generated from live code; never edit by hand
-    - One canonical path per intent: don't generate multiple endpoints with same outcome
-    - Skill ↔ entry 对应关系也要写入文档（基线 D2：4 入口共享 Skill 契约）
-
-Phase 0 早期 zw_brain/ 不存在时：
-    - 生成空骨架 docs/agent_integration.md（带 "no entries discovered" 标记）
-    - --check 模式：若 doc 不存在 → 创建空骨架；若存在 → 与生成结果对比
-
-接入：scripts/preflight.sh 段 4（实际由 dev-rules 模板调用）
+zw-brain 的 canonical source 是 `zw_brain/skill_registration/registered/*.json`。
+本脚本负责：
+    1. 从 live code / canonical skill contract 生成 docs/agent_integration.md
+    2. 从同一 skill contract 生成 REST OpenAPI projection
+    3. 从同一 skill contract 生成 MCP tool descriptors
+    4. 从同一 skill contract 生成 A2A agent_card 与 runtime_bindings
+    5. --check 时校验上述产物无 drift
 """
 from __future__ import annotations
 
@@ -38,117 +21,402 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOC_PATH = REPO_ROOT / "docs" / "agent_integration.md"
 
-# 入口 schema 文件位置（基线 §4.4.5 工程布局）
 ENTRY_REST = REPO_ROOT / "zw_brain" / "entry" / "rest"
 ENTRY_MCP = REPO_ROOT / "zw_brain" / "entry" / "mcp"
+ENTRY_CLI = REPO_ROOT / "zw_brain" / "entry" / "cli"
 ENTRY_A2A = REPO_ROOT / "zw_brain" / "entry" / "a2a"
 SKILL_REGISTRY = REPO_ROOT / "zw_brain" / "skill_registration" / "registered"
 
+OPENAPI_PATH = ENTRY_REST / "openapi.json"
+MCP_TOOLS_DIR = ENTRY_MCP / "tools"
+A2A_CARD_PATH = ENTRY_A2A / "agent_card.json"
+A2A_RUNTIME_BINDINGS_PATH = ENTRY_A2A / "tools" / "runtime_bindings.json"
 
-def discover_rest() -> list[dict[str, Any]]:
-    """扫描 OpenAPI spec / FastAPI route decorators / Flask route decorators。
+A2A_NAME = "zw-brain"
+A2A_DESCRIPTION = "政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台."
+A2A_VERSION = "1.0.0"
+A2A_ENDPOINT = "http://127.0.0.1:8800/api/skills"
 
-    Phase 0 占位实现：找 zw_brain/entry/rest/openapi.{yaml,json} 或
-    zw_brain/entry/rest/routes/*.py，提取 path + method。
-    """
-    if not ENTRY_REST.exists():
+
+ERROR_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "error": {"type": "string"},
+        "detail": {"type": "string"},
+        "skill_id": {"type": "string"},
+    },
+}
+
+
+def dump_json(data: Any) -> str:
+    return json.dumps(data, ensure_ascii=False, indent=2) + "\n"
+
+
+def load_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def normalize_schema(schema: Any) -> dict[str, Any]:
+    if isinstance(schema, dict) and schema:
+        return schema
+    return {"type": "object", "properties": {}}
+
+
+def sort_skills_for_projection(skills: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(skills, key=lambda item: (bool(item.get("side_effects")), item.get("skill_id", "")))
+
+
+def discover_cli() -> list[dict[str, Any]]:
+    if not ENTRY_CLI.exists():
         return []
-    routes: list[dict[str, Any]] = []
-    # OpenAPI spec
-    for spec in ENTRY_REST.glob("openapi.*"):
-        try:
-            if spec.suffix in (".json",):
-                data = json.loads(spec.read_text(encoding="utf-8"))
-            else:
-                # YAML — 不引入 PyYAML 依赖，跳过解析仅记录存在
-                routes.append({"source": str(spec.relative_to(REPO_ROOT)), "note": "YAML spec found (parser not loaded)"})
-                continue
-            for path, ops in data.get("paths", {}).items():
-                for method, op in ops.items():
-                    if method.upper() in ("GET", "POST", "PUT", "PATCH", "DELETE"):
-                        routes.append({
-                            "method": method.upper(),
-                            "path": path,
-                            "summary": op.get("summary", ""),
-                            "operation_id": op.get("operationId", ""),
-                            "source": str(spec.relative_to(REPO_ROOT)),
-                        })
-        except (json.JSONDecodeError, OSError) as e:
-            routes.append({"source": str(spec.relative_to(REPO_ROOT)), "error": str(e)})
-    return routes
-
-
-def discover_mcp() -> list[dict[str, Any]]:
-    """扫描 MCP tool descriptors（zw_brain/entry/mcp/tools/*.json）。"""
-    if not ENTRY_MCP.exists():
+    main_path = ENTRY_CLI / "main.py"
+    if not main_path.exists():
         return []
-    tools: list[dict[str, Any]] = []
-    for spec in (ENTRY_MCP / "tools").glob("*.json") if (ENTRY_MCP / "tools").exists() else []:
-        try:
-            data = json.loads(spec.read_text(encoding="utf-8"))
-            tools.append({
-                "name": data.get("name", spec.stem),
-                "description": data.get("description", ""),
-                "input_schema": bool(data.get("inputSchema") or data.get("input_schema")),
-                "source": str(spec.relative_to(REPO_ROOT)),
-            })
-        except (json.JSONDecodeError, OSError) as e:
-            tools.append({"name": spec.stem, "error": str(e)})
-    return tools
-
-
-def discover_a2a() -> list[dict[str, Any]]:
-    """扫描 A2A agent card（zw_brain/entry/a2a/agent_card.json）。"""
-    if not ENTRY_A2A.exists():
-        return []
-    cards: list[dict[str, Any]] = []
-    for spec in ENTRY_A2A.glob("agent_card*.json"):
-        try:
-            data = json.loads(spec.read_text(encoding="utf-8"))
-            cards.append({
-                "name": data.get("name", spec.stem),
-                "description": data.get("description", ""),
-                "skills_exposed": len(data.get("skills", [])),
-                "source": str(spec.relative_to(REPO_ROOT)),
-            })
-        except (json.JSONDecodeError, OSError) as e:
-            cards.append({"name": spec.stem, "error": str(e)})
-    return cards
+    return [
+        {
+            "command": "zw-brain-cli <skill_id> --payload '<json>'",
+            "source": str(main_path.relative_to(REPO_ROOT)),
+        }
+    ]
 
 
 def discover_skills() -> list[dict[str, Any]]:
-    """扫描已注册的 Skill manifest（zw_brain/skill_registration/registered/*.json）。"""
     if not SKILL_REGISTRY.exists():
         return []
     skills: list[dict[str, Any]] = []
-    for spec in SKILL_REGISTRY.glob("*.json"):
+    for spec in sorted(SKILL_REGISTRY.glob("*.json")):
         try:
-            data = json.loads(spec.read_text(encoding="utf-8"))
-            skills.append({
-                "skill_id": data.get("skill_id", spec.stem),
-                "title": data.get("title", ""),
-                "version": data.get("version", ""),
-                "side_effects": data.get("side_effects", []),
-                "source": str(spec.relative_to(REPO_ROOT)),
-            })
-        except (json.JSONDecodeError, OSError) as e:
-            skills.append({"skill_id": spec.stem, "error": str(e)})
+            data = load_json(spec)
+            side_effects = list(data.get("side_effects", []))
+            skills.append(
+                {
+                    "skill_id": data.get("skill_id", spec.stem),
+                    "title": data.get("title", ""),
+                    "description": data.get("description", ""),
+                    "version": data.get("version", ""),
+                    "input_schema": normalize_schema(data.get("input_schema", {})),
+                    "output_schema": normalize_schema(data.get("output_schema", {})),
+                    "side_effects": side_effects,
+                    "human_confirmation_required": bool(data.get("human_confirmation_required", bool(side_effects))),
+                    "audit_required": bool(data.get("audit_required", False)),
+                    "permissions": data.get("permissions", []),
+                    "auth_policy": data.get("auth_policy", ""),
+                    "tenant_scope": data.get("tenant_scope", ""),
+                    "registry_source": data.get("registry_source", ""),
+                    "source": str(spec.relative_to(REPO_ROOT)),
+                }
+            )
+        except (json.JSONDecodeError, OSError) as exc:
+            skills.append({"skill_id": spec.stem, "error": str(exc), "source": str(spec.relative_to(REPO_ROOT))})
     return skills
 
 
-def render(rest: list, mcp: list, a2a: list, skills: list) -> str:
-    """生成 docs/agent_integration.md。"""
+def build_query_parameters(input_schema: dict[str, Any]) -> list[dict[str, Any]]:
+    properties = input_schema.get("properties", {}) if isinstance(input_schema, dict) else {}
+    required = set(input_schema.get("required", [])) if isinstance(input_schema, dict) else set()
+    parameters: list[dict[str, Any]] = []
+    for name in sorted(properties):
+        schema = properties[name] if isinstance(properties[name], dict) else {"type": "string"}
+        parameter = {
+            "name": name,
+            "in": "query",
+            "required": name in required,
+            "schema": schema,
+        }
+        if schema.get("description"):
+            parameter["description"] = schema["description"]
+        parameters.append(parameter)
+    return parameters
+
+
+def build_standard_responses(output_schema: dict[str, Any], *, write: bool, protected: bool) -> dict[str, Any]:
+    responses = {
+        "200": {
+            "description": "Successful response",
+            "content": {
+                "application/json": {
+                    "schema": output_schema,
+                }
+            },
+        },
+        "400": {
+            "description": "Brain service validation error",
+            "content": {"application/json": {"schema": ERROR_RESPONSE_SCHEMA}},
+        },
+        "404": {
+            "description": "Unknown skill or target not found",
+            "content": {"application/json": {"schema": ERROR_RESPONSE_SCHEMA}},
+        },
+    }
+    if protected:
+        responses["403"] = {
+            "description": "Access denied by role / tenant / permission policy",
+            "content": {"application/json": {"schema": ERROR_RESPONSE_SCHEMA}},
+        }
+    if write:
+        responses["409"] = {
+            "description": "Confirmation required or invalid state",
+            "content": {"application/json": {"schema": ERROR_RESPONSE_SCHEMA}},
+        }
+    return responses
+
+
+def build_rest_operation(skill: dict[str, Any], *, method: str) -> dict[str, Any]:
+    write = bool(skill.get("side_effects"))
+    operation = {
+        "summary": skill.get("title", ""),
+        "description": skill.get("description", ""),
+        "operationId": f"{method.lower()}_{skill['skill_id'].replace('.', '_')}",
+        "tags": ["Capability Projection"],
+        "x-zwbrain-skill-id": skill["skill_id"],
+        "x-zwbrain-side-effects": skill.get("side_effects", []),
+        "x-zwbrain-human-confirmation-required": bool(skill.get("human_confirmation_required", False)),
+        "x-zwbrain-permissions": skill.get("permissions", []),
+        "x-zwbrain-auth-policy": skill.get("auth_policy", ""),
+        "x-zwbrain-tenant-scope": skill.get("tenant_scope", ""),
+        "responses": build_standard_responses(
+            skill.get("output_schema", {}),
+            write=write,
+            protected=bool(skill.get("permissions")) or bool(skill.get("auth_policy")) or bool(skill.get("tenant_scope")),
+        ),
+    }
+    if method == "GET":
+        operation["parameters"] = build_query_parameters(skill.get("input_schema", {}))
+    else:
+        operation["requestBody"] = {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": skill.get("input_schema", {}),
+                }
+            },
+        }
+    return operation
+
+
+def build_rest_openapi(skills: list[dict[str, Any]]) -> dict[str, Any]:
+    valid_skills = [skill for skill in skills if "error" not in skill]
+    paths: dict[str, Any] = {
+        "/health": {
+            "get": {
+                "summary": "Health check",
+                "operationId": "healthCheck",
+                "responses": {
+                    "200": {
+                        "description": "Service health",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {"type": "string"},
+                                        "service": {"type": "string"},
+                                    },
+                                    "required": ["status", "service"],
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        },
+        "/openapi.json": {
+            "get": {
+                "summary": "Get generated OpenAPI spec",
+                "operationId": "getOpenAPISpec",
+                "responses": {
+                    "200": {
+                        "description": "Generated OpenAPI document",
+                        "content": {
+                            "application/json": {
+                                "schema": {"type": "object"}
+                            }
+                        },
+                    }
+                },
+            }
+        },
+        "/api/snapshot": {
+            "get": {
+                "summary": "Get system snapshot",
+                "operationId": "getSystemSnapshot",
+                "x-zwbrain-skill-id": "system.snapshot",
+                "responses": {
+                    "200": {
+                        "description": "Snapshot response",
+                        "content": {
+                            "application/json": {
+                                "schema": {"type": "object"}
+                            }
+                        },
+                    }
+                },
+            }
+        },
+    }
+
+    for skill in sort_skills_for_projection(valid_skills):
+        if skill["skill_id"] == "system.snapshot":
+            continue
+        path = f"/api/skills/{skill['skill_id']}"
+        if skill.get("side_effects"):
+            paths[path] = {"post": build_rest_operation(skill, method="POST")}
+        else:
+            paths[path] = {"get": build_rest_operation(skill, method="GET")}
+
+    return {
+        "openapi": "3.1.0",
+        "info": {
+            "title": "zw-brain REST API",
+            "version": "1.0.0",
+        },
+        "paths": paths,
+    }
+
+
+def rest_entries_from_openapi(openapi: dict[str, Any]) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    for path in sorted(openapi.get("paths", {})):
+        operations = openapi["paths"][path]
+        for method in sorted(operations):
+            operation = operations[method]
+            entries.append(
+                {
+                    "method": method.upper(),
+                    "path": path,
+                    "summary": operation.get("summary", ""),
+                    "operation_id": operation.get("operationId", ""),
+                    "source": str(OPENAPI_PATH.relative_to(REPO_ROOT)),
+                }
+            )
+    return entries
+
+
+def build_mcp_tool_descriptor(skill: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "name": skill["skill_id"],
+        "description": skill.get("description") or skill.get("title", ""),
+        "inputSchema": skill.get("input_schema", {}),
+        "annotations": {
+            "mode": "write" if skill.get("side_effects") else "read",
+            "humanConfirmationRequired": bool(skill.get("human_confirmation_required", False)),
+            "readOnlyHint": not bool(skill.get("side_effects")),
+        },
+        "x-zwbrain-side-effects": skill.get("side_effects", []),
+        "x-zwbrain-permissions": skill.get("permissions", []),
+        "x-zwbrain-auth-policy": skill.get("auth_policy", ""),
+        "x-zwbrain-tenant-scope": skill.get("tenant_scope", ""),
+    }
+
+
+def build_a2a_card(skills: list[dict[str, Any]]) -> dict[str, Any]:
+    ordered = sort_skills_for_projection(skills)
+    return {
+        "name": A2A_NAME,
+        "description": A2A_DESCRIPTION,
+        "version": A2A_VERSION,
+        "endpoint": A2A_ENDPOINT,
+        "capabilities": {
+            "streaming": False,
+            "tool_use": True,
+        },
+        "skills": [
+            {
+                "id": skill["skill_id"],
+                "mode": "write" if skill.get("side_effects") else "read",
+            }
+            for skill in ordered
+        ],
+    }
+
+
+def build_runtime_bindings(skills: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    bindings: list[dict[str, Any]] = []
+    for skill in sort_skills_for_projection(skills):
+        bindings.append(
+            {
+                "tool_name": skill["skill_id"],
+                "description": skill.get("description") or skill.get("title", ""),
+                "protocol_type": "builtin_skill",
+                "endpoint": f"{A2A_ENDPOINT}/{skill['skill_id']}",
+                "parameters_schema": skill.get("input_schema", {}),
+                "config_json": {
+                    "mode": "write" if skill.get("side_effects") else "read",
+                    "side_effects": skill.get("side_effects", []),
+                    "human_confirmation_required": bool(skill.get("human_confirmation_required", False)),
+                    "audit_required": bool(skill.get("audit_required", False)),
+                    "permissions": skill.get("permissions", []),
+                    "auth_policy": skill.get("auth_policy", ""),
+                    "tenant_scope": skill.get("tenant_scope", ""),
+                    "registry_source": skill.get("registry_source", ""),
+                },
+                "version": skill.get("version", ""),
+                "invocation_mode": "sync",
+                "auth_strategy": "human_confirmation" if skill.get("side_effects") else "none",
+            }
+        )
+    return bindings
+
+
+def expected_projection_files(
+    skills: list[dict[str, Any]],
+) -> tuple[dict[Path, str], set[Path], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    valid_skills = [skill for skill in skills if "error" not in skill]
+    files: dict[Path, str] = {}
+
+    openapi = build_rest_openapi(valid_skills)
+    files[OPENAPI_PATH] = dump_json(openapi)
+    rest_entries = rest_entries_from_openapi(openapi)
+
+    mcp_entries: list[dict[str, Any]] = []
+    expected_mcp_paths: set[Path] = set()
+    for skill in sort_skills_for_projection(valid_skills):
+        path = MCP_TOOLS_DIR / f"{skill['skill_id']}.json"
+        expected_mcp_paths.add(path)
+        files[path] = dump_json(build_mcp_tool_descriptor(skill))
+        mcp_entries.append(
+            {
+                "name": skill["skill_id"],
+                "description": skill.get("description") or skill.get("title", ""),
+                "mode": "write" if skill.get("side_effects") else "read",
+                "human_confirmation_required": bool(skill.get("human_confirmation_required", False)),
+                "input_schema": bool(skill.get("input_schema")),
+                "source": str(path.relative_to(REPO_ROOT)),
+            }
+        )
+
+    card = build_a2a_card(valid_skills)
+    files[A2A_CARD_PATH] = dump_json(card)
+    files[A2A_RUNTIME_BINDINGS_PATH] = dump_json(build_runtime_bindings(valid_skills))
+    a2a_entries = [
+        {
+            "name": card["name"],
+            "description": card["description"],
+            "skills_exposed": len(card.get("skills", [])),
+            "source": str(A2A_CARD_PATH.relative_to(REPO_ROOT)),
+        }
+    ]
+    return files, expected_mcp_paths, rest_entries, mcp_entries, a2a_entries
+
+
+def render(
+    rest: list[dict[str, Any]],
+    cli: list[dict[str, Any]],
+    mcp: list[dict[str, Any]],
+    a2a: list[dict[str, Any]],
+    skills: list[dict[str, Any]],
+) -> str:
     lines = [
         "<!-- AUTO-GENERATED by scripts/export_agent_contract.py — DO NOT EDIT BY HAND -->",
         "<!-- Edit the source code (zw_brain/entry/* + skill_registration/registered/*) instead. -->",
         "",
         "# Agent Integration Contract — zw-brain",
         "",
-        "> 由 `scripts/export_agent_contract.py` 从代码扫描生成；",
-        "> 修改请编辑 `zw_brain/entry/{rest,mcp,a2a}/` + `zw_brain/skill_registration/registered/`，",
+        "> 由 `scripts/export_agent_contract.py` 从代码扫描与 canonical skill contract 生成；",
+        "> 修改请编辑 `zw_brain/entry/{rest,cli}/` + `zw_brain/skill_registration/registered/`，",
         "> 然后运行 `python scripts/export_agent_contract.py` 重新生成。",
         ">",
-        "> 设计基线 D2：4 入口（WebUI / REST / MCP / A2A）共享同一套 Skill 契约。",
+        "> 设计基线 D2：5 消费面（WebUI / REST / CLI / MCP / A2A）共享同一套 Skill 契约。",
         "",
         "## L1.2 REST API",
         "",
@@ -156,32 +424,36 @@ def render(rest: list, mcp: list, a2a: list, skills: list) -> str:
     if rest:
         lines.append("| Method | Path | Summary | Operation ID | Source |")
         lines.append("| ------ | ---- | ------- | ------------ | ------ |")
-        for r in rest:
-            if "error" in r:
-                lines.append(f"| ! | (parse error) | {r.get('error', '')} | | `{r['source']}` |")
-            elif "method" not in r:
-                lines.append(f"| (note) | | {r.get('note', '')} | | `{r['source']}` |")
-            else:
-                lines.append(
-                    f"| {r['method']} | `{r['path']}` | {r['summary']} | "
-                    f"`{r['operation_id']}` | `{r['source']}` |"
-                )
+        for route in rest:
+            lines.append(
+                f"| {route['method']} | `{route['path']}` | {route['summary']} | `{route['operation_id']}` | `{route['source']}` |"
+            )
     else:
-        lines.append("_No REST endpoints discovered (Phase 0 — `zw_brain/entry/rest/` not yet present)._")
+        lines.append("_No REST endpoints discovered._")
+    lines.append("")
+
+    lines.append("## L1.2.5 CLI")
+    lines.append("")
+    if cli:
+        lines.append("| Command | Source |")
+        lines.append("| ------- | ------ |")
+        for command in cli:
+            lines.append(f"| `{command['command']}` | `{command['source']}` |")
+    else:
+        lines.append("_No CLI entries discovered._")
     lines.append("")
 
     lines.append("## L1.3 MCP Server")
     lines.append("")
     if mcp:
-        lines.append("| Tool Name | Description | Has Input Schema | Source |")
-        lines.append("| --------- | ----------- | ---------------- | ------ |")
-        for t in mcp:
-            if "error" in t:
-                lines.append(f"| {t['name']} | (parse error) {t['error']} | | |")
-            else:
-                lines.append(f"| `{t['name']}` | {t['description']} | {t['input_schema']} | `{t['source']}` |")
+        lines.append("| Tool Name | Mode | Human Confirmation | Description | Has Input Schema | Source |")
+        lines.append("| --------- | ---- | ------------------ | ----------- | ---------------- | ------ |")
+        for tool in mcp:
+            lines.append(
+                f"| `{tool['name']}` | {tool['mode']} | {tool['human_confirmation_required']} | {tool['description']} | {tool['input_schema']} | `{tool['source']}` |"
+            )
     else:
-        lines.append("_No MCP tools discovered (Phase 0 — `zw_brain/entry/mcp/tools/` not yet present)._")
+        lines.append("_No MCP tools discovered._")
     lines.append("")
 
     lines.append("## L1.4 A2A Server")
@@ -189,13 +461,10 @@ def render(rest: list, mcp: list, a2a: list, skills: list) -> str:
     if a2a:
         lines.append("| Agent Card | Description | Skills Exposed | Source |")
         lines.append("| ---------- | ----------- | -------------- | ------ |")
-        for c in a2a:
-            if "error" in c:
-                lines.append(f"| {c['name']} | (parse error) {c['error']} | | |")
-            else:
-                lines.append(f"| `{c['name']}` | {c['description']} | {c['skills_exposed']} | `{c['source']}` |")
+        for card in a2a:
+            lines.append(f"| `{card['name']}` | {card['description']} | {card['skills_exposed']} | `{card['source']}` |")
     else:
-        lines.append("_No A2A agent cards discovered (Phase 0 — `zw_brain/entry/a2a/` not yet present)._")
+        lines.append("_No A2A agent cards discovered._")
     lines.append("")
 
     lines.append("## Registered Skills (the canonical contract — D2)")
@@ -203,56 +472,98 @@ def render(rest: list, mcp: list, a2a: list, skills: list) -> str:
     if skills:
         lines.append("| Skill ID | Title | Version | Side Effects | Source |")
         lines.append("| -------- | ----- | ------- | ------------ | ------ |")
-        for s in skills:
-            if "error" in s:
-                lines.append(f"| {s['skill_id']} | (parse error) {s['error']} | | | |")
+        for skill in skills:
+            if "error" in skill:
+                lines.append(f"| {skill['skill_id']} | (parse error) {skill['error']} | | | `{skill['source']}` |")
             else:
-                effects = ", ".join(s["side_effects"]) if s["side_effects"] else "(read-only)"
-                lines.append(f"| `{s['skill_id']}` | {s['title']} | {s['version']} | {effects} | `{s['source']}` |")
+                effects = ", ".join(skill.get("side_effects", [])) if skill.get("side_effects") else "(read-only)"
+                lines.append(f"| `{skill['skill_id']}` | {skill['title']} | {skill['version']} | {effects} | `{skill['source']}` |")
     else:
-        lines.append("_No registered Skills discovered (Phase 0 — `zw_brain/skill_registration/registered/` not yet present)._")
+        lines.append("_No registered Skills discovered._")
     lines.append("")
 
+    valid_skill_count = len([skill for skill in skills if "error" not in skill])
     lines.append("## Statistics")
     lines.append("")
     lines.append(f"- REST endpoints: {len(rest)}")
+    lines.append(f"- CLI entries: {len(cli)}")
     lines.append(f"- MCP tools: {len(mcp)}")
     lines.append(f"- A2A agent cards: {len(a2a)}")
-    lines.append(f"- Registered Skills: {len(skills)}")
+    lines.append(f"- Registered Skills: {valid_skill_count}")
     lines.append("")
-
     return "\n".join(lines) + "\n"
+
+
+def write_text_if_changed(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() and path.read_text(encoding="utf-8") == content:
+        return
+    path.write_text(content, encoding="utf-8")
+
+
+def remove_extra_mcp_files(expected_mcp_paths: set[Path]) -> None:
+    if not MCP_TOOLS_DIR.exists():
+        return
+    for path in MCP_TOOLS_DIR.glob("*.json"):
+        if path not in expected_mcp_paths:
+            path.unlink()
+
+
+def check_projection_drift(expected_files: dict[Path, str], expected_mcp_paths: set[Path]) -> list[str]:
+    errors: list[str] = []
+    for path, expected in expected_files.items():
+        if not path.exists():
+            errors.append(f"missing generated projection: {path.relative_to(REPO_ROOT)}")
+            continue
+        current = path.read_text(encoding="utf-8")
+        if current != expected:
+            errors.append(f"projection drift: {path.relative_to(REPO_ROOT)}")
+    if MCP_TOOLS_DIR.exists():
+        for path in sorted(MCP_TOOLS_DIR.glob("*.json")):
+            if path not in expected_mcp_paths:
+                errors.append(f"unexpected MCP tool descriptor: {path.relative_to(REPO_ROOT)}")
+    return errors
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true",
-                        help="compare generated content with on-disk docs/agent_integration.md; exit 1 on drift")
+    parser.add_argument("--check", action="store_true", help="compare generated content with on-disk projections and docs; exit 1 on drift")
     args = parser.parse_args()
 
-    rest = discover_rest()
-    mcp = discover_mcp()
-    a2a = discover_a2a()
+    cli = discover_cli()
     skills = discover_skills()
-    new_content = render(rest, mcp, a2a, skills)
+    files, expected_mcp_paths, rest_entries, mcp_entries, a2a_entries = expected_projection_files(skills)
+    doc_content = render(rest_entries, cli, mcp_entries, a2a_entries, skills)
 
     if args.check:
+        projection_errors = check_projection_drift(files, expected_mcp_paths)
         if not DOC_PATH.exists():
-            print(f"[contract] FAIL: {DOC_PATH.relative_to(REPO_ROOT)} does not exist; run without --check to generate")
+            projection_errors.append(f"missing generated doc: {DOC_PATH.relative_to(REPO_ROOT)}")
+        elif DOC_PATH.read_text(encoding="utf-8") != doc_content:
+            projection_errors.append(f"doc drift: {DOC_PATH.relative_to(REPO_ROOT)}")
+        if projection_errors:
+            print("[contract] FAIL: projection drift detected")
+            for error in projection_errors:
+                print(f"  - {error}")
+            print("  Run: python scripts/export_agent_contract.py")
             return 1
-        existing = DOC_PATH.read_text(encoding="utf-8")
-        if existing == new_content:
-            print(f"[contract] OK: {DOC_PATH.relative_to(REPO_ROOT)} in sync with discovered entries "
-                  f"(REST={len(rest)} MCP={len(mcp)} A2A={len(a2a)} Skills={len(skills)})")
-            return 0
-        print(f"[contract] FAIL: {DOC_PATH.relative_to(REPO_ROOT)} drift detected")
-        print("  Run: python scripts/export_agent_contract.py")
-        return 1
+        valid_skill_count = len([skill for skill in skills if "error" not in skill])
+        print(
+            f"[contract] OK: {DOC_PATH.relative_to(REPO_ROOT)} in sync with discovered entries "
+            f"(REST={len(rest_entries)} CLI={len(cli)} MCP={len(mcp_entries)} A2A={len(a2a_entries)} Skills={valid_skill_count})"
+        )
+        return 0
 
+    for path, content in files.items():
+        write_text_if_changed(path, content)
+    remove_extra_mcp_files(expected_mcp_paths)
     DOC_PATH.parent.mkdir(parents=True, exist_ok=True)
-    DOC_PATH.write_text(new_content, encoding="utf-8")
-    print(f"[contract] generated: {DOC_PATH.relative_to(REPO_ROOT)} "
-          f"(REST={len(rest)} MCP={len(mcp)} A2A={len(a2a)} Skills={len(skills)})")
+    DOC_PATH.write_text(doc_content, encoding="utf-8")
+    valid_skill_count = len([skill for skill in skills if "error" not in skill])
+    print(
+        f"[contract] generated: {DOC_PATH.relative_to(REPO_ROOT)} "
+        f"(REST={len(rest_entries)} CLI={len(cli)} MCP={len(mcp_entries)} A2A={len(a2a_entries)} Skills={valid_skill_count})"
+    )
     return 0
 
 

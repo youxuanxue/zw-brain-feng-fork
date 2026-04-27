@@ -1,0 +1,40 @@
+{
+  "name": "summary.confirm",
+  "description": "由审核汇总人员确认自动汇总结果并推进到回流候选确认。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "request_id",
+      "confirmed"
+    ],
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "write",
+    "humanConfirmationRequired": true,
+    "readOnlyHint": false
+  },
+  "x-zwbrain-side-effects": [
+    "audit",
+    "db_write",
+    "state_machine_transition",
+    "task_dispatch",
+    "blockchain_anchor"
+  ],
+  "x-zwbrain-permissions": [
+    "summary.confirm.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

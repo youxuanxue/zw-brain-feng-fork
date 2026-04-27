@@ -1,0 +1,47 @@
+{
+  "skill_id": "system.snapshot",
+  "title": "导出系统快照",
+  "description": "导出当前运行时快照，供主 WebUI 使用统一事实源。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {}
+  },
+  "output_schema": {
+    "type": "object"
+  },
+  "side_effects": [],
+  "audit_required": true,
+  "permissions": [
+    "system.snapshot.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "system",
+    "read",
+    "snapshot"
+  ],
+  "slug": "system.snapshot",
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-default",
+  "execution_binding": "builtin",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "system.snapshot"
+  },
+  "rollback_target": null
+}

@@ -1,6 +1,5 @@
-"""L1.3 MCP Server entry. Phase-0 placeholder.
+"""L1.3 MCP Server entry.
 
-Each MCP tool is described by a JSON descriptor under `tools/`; the
-descriptor is the canonical handle that `scripts/export_agent_contract.py`
-ingests for `docs/agent_integration.md`.
+MCP tool descriptors under `tools/` are part of the active exported contract,
+and runtime handling is implemented by `zw_brain.entry.mcp.server`.
 """

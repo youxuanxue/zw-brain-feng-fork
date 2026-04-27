@@ -5,9 +5,9 @@ NOT be awaited on the business path. Skills enqueue the work here; workers in
 `zw_brain.background_tasks` drain and execute (with retry + alert on
 exhaustion).
 
-Phase-0 mock is a list-backed queue with `enqueue` returning a synthetic
-job_id. Phase-1 swaps to Redis Streams / NATS / RabbitMQ behind the same
-public surface.
+This in-memory queue provides fast handoff inside the current process.
+Durable recovery for blockchain anchoring comes from `anchor_outbox`, which
+workers also drain during recovery passes.
 """
 from __future__ import annotations
 

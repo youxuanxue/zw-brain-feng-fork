@@ -1,0 +1,27 @@
+{
+  "name": "governance.dispute_view",
+  "description": "查看单条治理争议的时间线和 AI 调查摘要。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "dispute_id"
+    ],
+    "properties": {
+      "dispute_id": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "governance.dispute_view.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

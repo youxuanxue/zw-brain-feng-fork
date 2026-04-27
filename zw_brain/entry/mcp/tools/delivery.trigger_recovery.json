@@ -1,0 +1,39 @@
+{
+  "name": "delivery.trigger_recovery",
+  "description": "对失败交付任务显式触发恢复流程。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "task_id",
+      "confirmed"
+    ],
+    "properties": {
+      "task_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "write",
+    "humanConfirmationRequired": true,
+    "readOnlyHint": false
+  },
+  "x-zwbrain-side-effects": [
+    "audit",
+    "db_write",
+    "state_machine_transition",
+    "blockchain_anchor"
+  ],
+  "x-zwbrain-permissions": [
+    "delivery.trigger_recovery.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

@@ -5,8 +5,10 @@ side-effect commits, and the emit MUST be synchronous. If the audit write
 fails the calling Skill MUST raise — silent swallow is mechanically blocked
 by `scripts/check_audit_must_block.py` (preflight section 7a).
 
-Phase-0 ships a no-op stub that records to an in-process buffer; Phase-1
-swaps to a real durable sink (PostgreSQL append-only table + WORM mirror).
+This module keeps a process-local mirror for assertions and local
+observability. Durable `audit_event` persistence happens on the
+command/state-store path before business writes complete, so audit failure
+still blocks the mutation.
 """
 from __future__ import annotations
 
@@ -36,8 +38,8 @@ class AuditEvent:
 def emit(event: AuditEvent) -> None:
     """Persist `event` synchronously. Raises `AuditWriteError` on failure.
 
-    Phase-0 mock just appends to a buffer; the buffer is intentionally
-    process-local so tests can assert on it.
+    The local mirror appends to a process-local buffer so tests can assert on
+    emitted events.
     """
     if not event.request_id or not event.actor or not event.skill_id:
         raise AuditWriteError("audit_event missing required fields (request_id/actor/skill_id)")

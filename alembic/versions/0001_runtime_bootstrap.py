@@ -1,0 +1,303 @@
+"""bootstrap runtime, audit, outbox, core aggregates, and capability registry tables
+
+Revision ID: 0001_runtime_bootstrap
+Revises:
+Create Date: 2026-04-27 00:00:00
+"""
+from __future__ import annotations
+
+from alembic import op
+import sqlalchemy as sa
+
+
+revision = "0001_runtime_bootstrap"
+down_revision = None
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    op.create_table(
+        "runtime_state",
+        sa.Column("id", sa.Integer(), primary_key=True),
+        sa.Column("snapshot_json", sa.JSON(), nullable=False),
+        sa.Column("ui_state_json", sa.JSON(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+    )
+    op.create_table(
+        "audit_event",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("request_id", sa.String(length=128), nullable=False),
+        sa.Column("actor", sa.String(length=128), nullable=False),
+        sa.Column("skill_id", sa.String(length=128), nullable=False),
+        sa.Column("phase", sa.String(length=32), nullable=False),
+        sa.Column("payload_json", sa.JSON(), nullable=False),
+        sa.Column("occurred_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_audit_event_request_id", "audit_event", ["request_id"])
+    op.create_index("ix_audit_event_skill_id", "audit_event", ["skill_id"])
+    op.create_index("ix_audit_event_occurred_at", "audit_event", ["occurred_at"])
+    op.create_table(
+        "anchor_outbox",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("request_id", sa.String(length=128), nullable=False),
+        sa.Column("skill_id", sa.String(length=128), nullable=False),
+        sa.Column("content_hash", sa.String(length=128), nullable=False, unique=True),
+        sa.Column("chain_id", sa.String(length=64), nullable=False),
+        sa.Column("delivered", sa.Boolean(), nullable=False, server_default=sa.text("0")),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_anchor_outbox_request_id", "anchor_outbox", ["request_id"])
+    op.create_index("ix_anchor_outbox_skill_id", "anchor_outbox", ["skill_id"])
+    op.create_index("ix_anchor_outbox_delivered", "anchor_outbox", ["delivered"])
+    op.create_table(
+        "capability_manifest",
+        sa.Column("skill_id", sa.String(length=128), primary_key=True),
+        sa.Column("title", sa.String(length=128), nullable=False),
+        sa.Column("version", sa.String(length=32), nullable=False),
+        sa.Column("registry_source", sa.String(length=64), nullable=False),
+        sa.Column("manifest_json", sa.JSON(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+    )
+    op.create_table(
+        "catalog_entry",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("tenant_id", sa.String(length=64), nullable=False),
+        sa.Column("catalog_code", sa.String(length=64), nullable=False),
+        sa.Column("title", sa.String(length=200), nullable=False),
+        sa.Column("lifecycle_status", sa.String(length=32), nullable=False),
+        sa.Column("owner_org_id", sa.String(length=64), nullable=True),
+        sa.Column("summary_json", sa.JSON(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_catalog_entry_tenant_id", "catalog_entry", ["tenant_id"])
+    op.create_index("ix_catalog_entry_catalog_code", "catalog_entry", ["catalog_code"])
+    op.create_index("ix_catalog_entry_lifecycle_status", "catalog_entry", ["lifecycle_status"])
+    op.create_table(
+        "application_record",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("tenant_id", sa.String(length=64), nullable=False),
+        sa.Column("application_code", sa.String(length=64), nullable=False),
+        sa.Column("status", sa.String(length=32), nullable=False),
+        sa.Column("applicant_name", sa.String(length=128), nullable=False),
+        sa.Column("applicant_org", sa.String(length=128), nullable=False),
+        sa.Column("payload_json", sa.JSON(), nullable=False),
+        sa.Column("submitted_at", sa.DateTime(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_application_record_tenant_id", "application_record", ["tenant_id"])
+    op.create_index("ix_application_record_application_code", "application_record", ["application_code"])
+    op.create_index("ix_application_record_status", "application_record", ["status"])
+    op.create_table(
+        "approval_case",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("tenant_id", sa.String(length=64), nullable=False),
+        sa.Column("application_code", sa.String(length=64), nullable=False),
+        sa.Column("current_status", sa.String(length=32), nullable=False),
+        sa.Column("current_step", sa.Integer(), nullable=False),
+        sa.Column("decision_payload_json", sa.JSON(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_approval_case_tenant_id", "approval_case", ["tenant_id"])
+    op.create_index("ix_approval_case_application_code", "approval_case", ["application_code"])
+    op.create_index("ix_approval_case_current_status", "approval_case", ["current_status"])
+    op.create_table(
+        "approval_step",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("approval_case_id", sa.String(length=36), nullable=False),
+        sa.Column("step_no", sa.Integer(), nullable=False),
+        sa.Column("step_name", sa.String(length=128), nullable=False),
+        sa.Column("decision_mode", sa.String(length=32), nullable=False),
+        sa.Column("status", sa.String(length=32), nullable=False),
+        sa.Column("approver_scope_json", sa.JSON(), nullable=False),
+        sa.Column("due_at", sa.DateTime(), nullable=True),
+        sa.Column("started_at", sa.DateTime(), nullable=True),
+        sa.Column("completed_at", sa.DateTime(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_approval_step_approval_case_id", "approval_step", ["approval_case_id"])
+    op.create_index("ix_approval_step_status", "approval_step", ["status"])
+    op.create_table(
+        "approval_decision",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("step_id", sa.String(length=36), nullable=False),
+        sa.Column("decision", sa.String(length=32), nullable=False),
+        sa.Column("decision_reason", sa.Text(), nullable=True),
+        sa.Column("actor_snapshot_json", sa.JSON(), nullable=False),
+        sa.Column("evidence_json", sa.JSON(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_approval_decision_step_id", "approval_decision", ["step_id"])
+    op.create_index("ix_approval_decision_decision", "approval_decision", ["decision"])
+    op.create_table(
+        "delivery_task",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("tenant_id", sa.String(length=64), nullable=False),
+        sa.Column("delivery_code", sa.String(length=64), nullable=False),
+        sa.Column("application_code", sa.String(length=64), nullable=False),
+        sa.Column("state", sa.String(length=32), nullable=False),
+        sa.Column("channel", sa.String(length=64), nullable=False),
+        sa.Column("payload_json", sa.JSON(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_delivery_task_tenant_id", "delivery_task", ["tenant_id"])
+    op.create_index("ix_delivery_task_delivery_code", "delivery_task", ["delivery_code"])
+    op.create_index("ix_delivery_task_application_code", "delivery_task", ["application_code"])
+    op.create_index("ix_delivery_task_state", "delivery_task", ["state"])
+    op.create_table(
+        "delivery_receipt",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("delivery_code", sa.String(length=64), nullable=False),
+        sa.Column("receipt_type", sa.String(length=32), nullable=False),
+        sa.Column("receipt_no", sa.String(length=128), nullable=True),
+        sa.Column("receipt_status", sa.String(length=32), nullable=False),
+        sa.Column("payload_json", sa.JSON(), nullable=False),
+        sa.Column("issued_at", sa.DateTime(), nullable=False),
+        sa.Column("acknowledged_at", sa.DateTime(), nullable=True),
+    )
+    op.create_index("ix_delivery_receipt_delivery_code", "delivery_receipt", ["delivery_code"])
+    op.create_index("ix_delivery_receipt_receipt_status", "delivery_receipt", ["receipt_status"])
+    op.create_table(
+        "capability_package",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("package_slug", sa.String(length=128), nullable=False),
+        sa.Column("review_status", sa.String(length=32), nullable=False),
+        sa.Column("source_org", sa.String(length=128), nullable=False),
+        sa.Column("manifest_json", sa.JSON(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_capability_package_package_slug", "capability_package", ["package_slug"])
+    op.create_index("ix_capability_package_review_status", "capability_package", ["review_status"])
+    op.create_table(
+        "tenant_capability_policy",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("tenant_id", sa.String(length=64), nullable=False),
+        sa.Column("package_slug", sa.String(length=128), nullable=False),
+        sa.Column("policy_status", sa.String(length=32), nullable=False),
+        sa.Column("policy_json", sa.JSON(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+    )
+    op.create_table(
+        "objection_case",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("tenant_id", sa.String(length=64), nullable=False),
+        sa.Column("objection_kind", sa.String(length=32), nullable=False),
+        sa.Column("target_type", sa.String(length=32), nullable=False),
+        sa.Column("target_id", sa.String(length=64), nullable=False),
+        sa.Column("related_application_id", sa.String(length=64), nullable=True),
+        sa.Column("title", sa.String(length=255), nullable=False),
+        sa.Column("complainant_org_id", sa.String(length=64), nullable=False),
+        sa.Column("complainant_org_snapshot_json", sa.JSON(), nullable=False),
+        sa.Column("provider_org_id", sa.String(length=64), nullable=False),
+        sa.Column("provider_org_snapshot_json", sa.JSON(), nullable=False),
+        sa.Column("basis_text", sa.Text(), nullable=True),
+        sa.Column("expected_result", sa.Text(), nullable=True),
+        sa.Column("status", sa.String(length=32), nullable=False),
+        sa.Column("resolved_summary", sa.Text(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.Column("closed_at", sa.DateTime(), nullable=True),
+        sa.Column("row_version", sa.Integer(), nullable=False),
+    )
+    op.create_index("ix_objection_case_tenant_id", "objection_case", ["tenant_id"])
+    op.create_index("ix_objection_case_status", "objection_case", ["status"])
+    op.create_index("ix_objection_case_target_type", "objection_case", ["target_type"])
+    op.create_table(
+        "objection_evidence",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("objection_id", sa.String(length=36), nullable=False),
+        sa.Column("evidence_type", sa.String(length=32), nullable=False),
+        sa.Column("content_json", sa.JSON(), nullable=False),
+        sa.Column("submitted_by_json", sa.JSON(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_objection_evidence_objection_id", "objection_evidence", ["objection_id"])
+    op.create_index("ix_objection_evidence_type", "objection_evidence", ["evidence_type"])
+    op.create_table(
+        "objection_process",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("objection_id", sa.String(length=36), nullable=False),
+        sa.Column("node_name", sa.String(length=128), nullable=False),
+        sa.Column("handler_org_id", sa.String(length=64), nullable=True),
+        sa.Column("handler_snapshot_json", sa.JSON(), nullable=False),
+        sa.Column("action_type", sa.String(length=32), nullable=False),
+        sa.Column("action_result", sa.String(length=32), nullable=False),
+        sa.Column("opinion", sa.Text(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_objection_process_objection_id", "objection_process", ["objection_id"])
+    op.create_table(
+        "objection_evaluation",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("objection_id", sa.String(length=36), nullable=False),
+        sa.Column("evaluator_snapshot_json", sa.JSON(), nullable=False),
+        sa.Column("solved_flag", sa.Boolean(), nullable=False),
+        sa.Column("overall_score", sa.Integer(), nullable=True),
+        sa.Column("timeliness_score", sa.Integer(), nullable=True),
+        sa.Column("result_score", sa.Integer(), nullable=True),
+        sa.Column("comment", sa.Text(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_objection_evaluation_objection_id", "objection_evaluation", ["objection_id"])
+
+def downgrade() -> None:
+    op.drop_index("ix_objection_evaluation_objection_id", table_name="objection_evaluation")
+    op.drop_table("objection_evaluation")
+    op.drop_index("ix_objection_process_objection_id", table_name="objection_process")
+    op.drop_table("objection_process")
+    op.drop_index("ix_objection_evidence_type", table_name="objection_evidence")
+    op.drop_index("ix_objection_evidence_objection_id", table_name="objection_evidence")
+    op.drop_table("objection_evidence")
+    op.drop_index("ix_objection_case_target_type", table_name="objection_case")
+    op.drop_index("ix_objection_case_status", table_name="objection_case")
+    op.drop_index("ix_objection_case_tenant_id", table_name="objection_case")
+    op.drop_table("objection_case")
+    op.drop_index("ix_tenant_capability_policy_policy_status", table_name="tenant_capability_policy")
+    op.drop_index("ix_tenant_capability_policy_package_slug", table_name="tenant_capability_policy")
+    op.drop_index("ix_tenant_capability_policy_tenant_id", table_name="tenant_capability_policy")
+    op.drop_table("tenant_capability_policy")
+    op.drop_index("ix_capability_package_review_status", table_name="capability_package")
+    op.drop_index("ix_capability_package_package_slug", table_name="capability_package")
+    op.drop_table("capability_package")
+    op.drop_index("ix_delivery_receipt_receipt_status", table_name="delivery_receipt")
+    op.drop_index("ix_delivery_receipt_delivery_code", table_name="delivery_receipt")
+    op.drop_table("delivery_receipt")
+    op.drop_index("ix_delivery_task_state", table_name="delivery_task")
+    op.drop_index("ix_delivery_task_application_code", table_name="delivery_task")
+    op.drop_index("ix_delivery_task_delivery_code", table_name="delivery_task")
+    op.drop_index("ix_delivery_task_tenant_id", table_name="delivery_task")
+    op.drop_table("delivery_task")
+    op.drop_index("ix_approval_decision_decision", table_name="approval_decision")
+    op.drop_index("ix_approval_decision_step_id", table_name="approval_decision")
+    op.drop_table("approval_decision")
+    op.drop_index("ix_approval_step_status", table_name="approval_step")
+    op.drop_index("ix_approval_step_approval_case_id", table_name="approval_step")
+    op.drop_table("approval_step")
+    op.drop_index("ix_approval_case_current_status", table_name="approval_case")
+    op.drop_index("ix_approval_case_application_code", table_name="approval_case")
+    op.drop_index("ix_approval_case_tenant_id", table_name="approval_case")
+    op.drop_table("approval_case")
+    op.drop_index("ix_application_record_status", table_name="application_record")
+    op.drop_index("ix_application_record_application_code", table_name="application_record")
+    op.drop_index("ix_application_record_tenant_id", table_name="application_record")
+    op.drop_table("application_record")
+    op.drop_index("ix_catalog_entry_lifecycle_status", table_name="catalog_entry")
+    op.drop_index("ix_catalog_entry_catalog_code", table_name="catalog_entry")
+    op.drop_index("ix_catalog_entry_tenant_id", table_name="catalog_entry")
+    op.drop_table("catalog_entry")
+    op.drop_table("capability_manifest")
+    op.drop_index("ix_anchor_outbox_delivered", table_name="anchor_outbox")
+    op.drop_index("ix_anchor_outbox_skill_id", table_name="anchor_outbox")
+    op.drop_index("ix_anchor_outbox_request_id", table_name="anchor_outbox")
+    op.drop_table("anchor_outbox")
+    op.drop_index("ix_audit_event_occurred_at", table_name="audit_event")
+    op.drop_index("ix_audit_event_skill_id", table_name="audit_event")
+    op.drop_index("ix_audit_event_request_id", table_name="audit_event")
+    op.drop_table("audit_event")
+    op.drop_table("runtime_state")

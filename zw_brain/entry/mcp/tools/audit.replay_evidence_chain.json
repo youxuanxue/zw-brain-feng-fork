@@ -1,0 +1,27 @@
+{
+  "name": "audit.replay_evidence_chain",
+  "description": "按争议标识回放原始证据、关联审计事件、工单与知识建议。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "dispute_id"
+    ],
+    "properties": {
+      "dispute_id": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "audit.replay_evidence_chain.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

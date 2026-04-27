@@ -1,0 +1,19 @@
+{
+  "name": "package.list",
+  "description": "查看待审核和已处理的能力注册包列表。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "package.list.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

@@ -1,8 +1,8 @@
 ---
 doc_id: design-zw-brain-data-standards-slice-candidates-v1
-status: pending
+status: approved
 gate: GATE-1
-approved_by: pending
+approved_by: xuejiao02
 authors:
   - 薛娇（产品研发负责人）
   - Claude Code (claude-opus-4-7) — 方案协作

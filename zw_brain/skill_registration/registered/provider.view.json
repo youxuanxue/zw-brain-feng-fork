@@ -1,0 +1,83 @@
+{
+  "skill_id": "provider.view",
+  "title": "查看供给侧治理",
+  "description": "查看模板版本、目录状态、资源与治理建议。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {}
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "overview",
+      "catalogs",
+      "resources",
+      "services",
+      "aiGovernance"
+    ],
+    "properties": {
+      "overview": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "catalogs": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "resources": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "services": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "aiGovernance": {
+        "type": "object"
+      }
+    }
+  },
+  "side_effects": [],
+  "audit_required": true,
+  "permissions": [
+    "provider.view.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "provider",
+    "read",
+    "governance"
+  ],
+  "slug": "provider.view",
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-default",
+  "execution_binding": "builtin",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "provider.view"
+  },
+  "rollback_target": null
+}

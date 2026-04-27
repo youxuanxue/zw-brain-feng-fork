@@ -9,7 +9,7 @@
 | 段号   | 检查                 | 当前状态 | 缺口原因                                                                                                | 截止 / 触发条件                                                                                                                                                    | 负责人       |
 | ---- | ------------------ | ---- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- |
 | 段 9  | `fixture-pii`      | skip | `.testing/fixtures/` 目录尚未创建（Phase 1 才会加载 fixture）                                                   | Phase 1 GATE-2 通过、首批 fixture 落盘当天必须激活（即创建首个 `*.json` 时该检查自动启用，无需改脚本）                                                                                         | xuejiao02 |
-| 段 12 | `fixture-coverage` | 未接入  | `scripts/check_fixture_coverage.py` 尚未实现（基线 §十四 D18 决策；其前置依赖 = 段 9 fixture-pii 先有 fixture 数据可统计覆盖率） | GATE-2 通过后第 1 周内：先建脚本（覆盖率统计逻辑），再在 `scripts/preflight.sh` 追加 `run_check "段 12" ...`；`docs/approved/zw-brain-architecture.md` 附录 D 中 Z6 行也应同步从「未接入」切回「已 wired」 | xuejiao02 |
+| 段 12 | `fixture-coverage` | 未接入  | `scripts/check_fixture_coverage.py` 尚未实现（基线 §十四 D18 决策；其前置依赖 = 段 9 fixture-pii 先有 fixture 数据可统计覆盖率） | GATE-2 通过后第 1 周内：先建脚本（覆盖率统计逻辑），再在 `scripts/preflight.sh` 追加 `run_check "段 12" ...`；`docs/approved/zw-brain-architecture-v4-gpt55.md` 附录 C 中相关映射也应同步更新 | xuejiao02 |
 
 
 ## 已自动启用的段（备查）

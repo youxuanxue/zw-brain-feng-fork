@@ -1,0 +1,27 @@
+{
+  "name": "catalog.resource_view",
+  "description": "查看模板或资源的覆盖率、字段和复用解释，用于 R1 先复用模板。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "resource_id"
+    ],
+    "properties": {
+      "resource_id": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "catalog.resource_view.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

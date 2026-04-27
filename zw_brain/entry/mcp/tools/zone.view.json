@@ -1,0 +1,27 @@
+{
+  "name": "zone.view",
+  "description": "查看单个共享专区或专题包的资产、信任信息和引导说明。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "zone_id"
+    ],
+    "properties": {
+      "zone_id": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "zone.view.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

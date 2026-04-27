@@ -1,5 +1,5 @@
-"""State-machine orchestrator — Phase-0 placeholder.
+"""State-machine orchestrator.
 
-Engine choice (LangGraph vs alternatives) is intentionally undecided per
-D19; Phase-0 PoC compares 5 dimensions before commitment.
+This package is reserved for the canonical orchestration layer that coordinates
+registered skills and durable runtime state.
 """

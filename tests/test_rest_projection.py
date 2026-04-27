@@ -1,0 +1,37 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from scripts.export_agent_contract import build_rest_openapi, discover_skills
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_generated_openapi_covers_registered_skills() -> None:
+    skills = [item for item in discover_skills() if "error" not in item]
+    openapi = build_rest_openapi(skills)
+    paths = openapi["paths"]
+
+    assert "/openapi.json" in paths
+    assert "/api/skills/request.create" in paths
+    assert "post" in paths["/api/skills/request.create"]
+    assert "/api/skills/data.search" in paths
+    assert "get" in paths["/api/skills/data.search"]
+
+    request_create = paths["/api/skills/request.create"]["post"]
+    assert request_create["x-zwbrain-skill-id"] == "request.create"
+    assert request_create["x-zwbrain-human-confirmation-required"] is True
+    assert request_create["x-zwbrain-auth-policy"] == "user"
+    assert request_create["x-zwbrain-tenant-scope"] == "tenant"
+    assert "403" in request_create["responses"]
+    assert request_create["requestBody"]["content"]["application/json"]["schema"]["required"] == ["resource_id", "confirmed"]
+
+
+def test_generated_openapi_file_is_valid_json() -> None:
+    path = REPO_ROOT / "zw_brain" / "entry" / "rest" / "openapi.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["openapi"] == "3.1.0"
+    assert "/api/skills/request.create" in data["paths"]
+    assert "/api/skills/dashboard.render_command_center" in data["paths"]

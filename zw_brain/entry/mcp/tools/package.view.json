@@ -1,0 +1,27 @@
+{
+  "name": "package.view",
+  "description": "查看单个能力包的暴露面、审核状态和 AI 评审结果。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "package_id"
+    ],
+    "properties": {
+      "package_id": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "package.view.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

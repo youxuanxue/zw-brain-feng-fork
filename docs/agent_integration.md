@@ -3,36 +3,160 @@
 
 # Agent Integration Contract — zw-brain
 
-> 由 `scripts/export_agent_contract.py` 从代码扫描生成；
-> 修改请编辑 `zw_brain/entry/{rest,mcp,a2a}/` + `zw_brain/skill_registration/registered/`，
+> 由 `scripts/export_agent_contract.py` 从代码扫描与 canonical skill contract 生成；
+> 修改请编辑 `zw_brain/entry/{rest,cli}/` + `zw_brain/skill_registration/registered/`，
 > 然后运行 `python scripts/export_agent_contract.py` 重新生成。
 >
-> 设计基线 D2：4 入口（WebUI / REST / MCP / A2A）共享同一套 Skill 契约。
+> 设计基线 D2：5 消费面（WebUI / REST / CLI / MCP / A2A）共享同一套 Skill 契约。
 
 ## L1.2 REST API
 
-_No REST endpoints discovered (Phase 0 — `zw_brain/entry/rest/` not yet present)._
+| Method | Path | Summary | Operation ID | Source |
+| ------ | ---- | ------- | ------------ | ------ |
+| POST | `/api/skills/approval.review_decide` | 审批并裁决申请 | `post_approval_review_decide` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/approval.view` | 查看审批详情 | `get_approval_view` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/audit.list` | 查看审计事件 | `get_audit_list` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/audit.replay_evidence_chain` | 回放证据链 | `get_audit_replay_evidence_chain` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/backflow.confirm` | 确认回流共享 | `post_backflow_confirm` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/catalog.manage_entry` | 治理目录条目 | `post_catalog_manage_entry` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/catalog.resource_view` | 查看资源详情 | `get_catalog_resource_view` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/compliance.investigate_case` | 调查或升级争议 | `post_compliance_investigate_case` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/dashboard.render_command_center` | 渲染指挥中心大屏 | `get_dashboard_render_command_center` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/data.search` | 数据资源检索 | `get_data_search` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/delivery.list` | 查看交付任务列表 | `get_delivery_list` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/delivery.reconcile_receipt` | 对账交付回执 | `post_delivery_reconcile_receipt` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/delivery.trigger_recovery` | 触发交付恢复 | `post_delivery_trigger_recovery` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/delivery.view` | 查看交付任务 | `get_delivery_view` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/governance.dispute_list` | 查看治理争议列表 | `get_governance_dispute_list` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/governance.dispute_view` | 查看治理争议详情 | `get_governance_dispute_view` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/package.apply_tenant_policy` | 生效租户策略 | `post_package_apply_tenant_policy` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/package.configure_exposure` | 配置能力包暴露面 | `post_package_configure_exposure` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/package.list` | 查看能力包列表 | `get_package_list` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/package.register_version` | 登记能力包版本 | `post_package_register_version` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/package.review_decide` | 审核能力包 | `post_package_review_decide` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/package.view` | 查看能力包详情 | `get_package_view` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/provider.view` | 查看供给侧治理 | `get_provider_view` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/request.create` | 发起标准复用申请 | `post_request_create` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/request.list` | 查看申请列表 | `get_request_list` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/request.submit` | 重新提交申请 | `post_request_submit` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/request.view` | 查看申请详情 | `get_request_view` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/resource.manage_asset` | 治理资源资产 | `post_resource_manage_asset` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/service.publish_or_suspend` | 发布或暂停供给服务 | `post_service_publish_or_suspend` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/summary.confirm` | 确认自动汇总 | `post_summary_confirm` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/supplement.submit` | 提交差异补录 | `post_supplement_submit` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/system.schema_info` | 查看 canonical schema 信息 | `get_system_schema_info` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/system.toggle_outage` | 切换主脑故障态 | `post_system_toggle_outage` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/workbench.view` | 查看工作台 | `get_workbench_view` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/zone.list` | 查看专区列表 | `get_zone_list` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/zone.publish_topic_projection` | 发布专区正式投影 | `post_zone_publish_topic_projection` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/zone.view` | 查看专区详情 | `get_zone_view` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/snapshot` | Get system snapshot | `getSystemSnapshot` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/health` | Health check | `healthCheck` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/openapi.json` | Get generated OpenAPI spec | `getOpenAPISpec` | `zw_brain/entry/rest/openapi.json` |
+
+## L1.2.5 CLI
+
+| Command | Source |
+| ------- | ------ |
+| `zw-brain-cli <skill_id> --payload '<json>'` | `zw_brain/entry/cli/main.py` |
 
 ## L1.3 MCP Server
 
-_No MCP tools discovered (Phase 0 — `zw_brain/entry/mcp/tools/` not yet present)._
+| Tool Name | Mode | Human Confirmation | Description | Has Input Schema | Source |
+| --------- | ---- | ------------------ | ----------- | ---------------- | ------ |
+| `approval.view` | read | False | 查看审批建议、风险、影响和异常项。 | True | `zw_brain/entry/mcp/tools/approval.view.json` |
+| `audit.list` | read | False | 查看主链路审计事件流与证据摘要。 | True | `zw_brain/entry/mcp/tools/audit.list.json` |
+| `audit.replay_evidence_chain` | read | False | 按争议标识回放原始证据、关联审计事件、工单与知识建议。 | True | `zw_brain/entry/mcp/tools/audit.replay_evidence_chain.json` |
+| `catalog.resource_view` | read | False | 查看模板或资源的覆盖率、字段和复用解释，用于 R1 先复用模板。 | True | `zw_brain/entry/mcp/tools/catalog.resource_view.json` |
+| `dashboard.render_command_center` | read | False | 只读返回 K12 指挥中心大屏摘要、减负指标与辅助结论。 | True | `zw_brain/entry/mcp/tools/dashboard.render_command_center.json` |
+| `data.search` | read | False | 按关键词 / 部门 / 主题域检索共享数据资源目录，返回命中清单与结构化摘要。 | True | `zw_brain/entry/mcp/tools/data.search.json` |
+| `delivery.list` | read | False | 查看预填下发、自动汇总、回流候选和异常交付任务列表。 | True | `zw_brain/entry/mcp/tools/delivery.list.json` |
+| `delivery.view` | read | False | 查看预填下发、自动汇总和回流候选的交付任务详情。 | True | `zw_brain/entry/mcp/tools/delivery.view.json` |
+| `governance.dispute_list` | read | False | 查看重复要数、字段口径和补录异常相关争议，以及关联告警、工单与知识建议。 | True | `zw_brain/entry/mcp/tools/governance.dispute_list.json` |
+| `governance.dispute_view` | read | False | 查看单条治理争议的时间线和 AI 调查摘要。 | True | `zw_brain/entry/mcp/tools/governance.dispute_view.json` |
+| `package.list` | read | False | 查看待审核和已处理的能力注册包列表。 | True | `zw_brain/entry/mcp/tools/package.list.json` |
+| `package.view` | read | False | 查看单个能力包的暴露面、审核状态和 AI 评审结果。 | True | `zw_brain/entry/mcp/tools/package.view.json` |
+| `provider.view` | read | False | 查看模板版本、目录状态、资源与治理建议。 | True | `zw_brain/entry/mcp/tools/provider.view.json` |
+| `request.list` | read | False | 查看黄金链路中的申请清单和当前状态。 | True | `zw_brain/entry/mcp/tools/request.list.json` |
+| `request.view` | read | False | 查看申请详情、差异字段、时间线与 AI 解释。 | True | `zw_brain/entry/mcp/tools/request.view.json` |
+| `system.schema_info` | read | False | 返回 brain_core / brain_audit / brain_registry 三个 canonical schema 的用途说明。 | True | `zw_brain/entry/mcp/tools/system.schema_info.json` |
+| `system.snapshot` | read | False | 导出当前运行时快照，供主 WebUI 使用统一事实源。 | True | `zw_brain/entry/mcp/tools/system.snapshot.json` |
+| `workbench.view` | read | False | 按角色查看工作台待办、重点提示和副驾摘要。 | True | `zw_brain/entry/mcp/tools/workbench.view.json` |
+| `zone.list` | read | False | 查看共享专区与专题包列表。 | True | `zw_brain/entry/mcp/tools/zone.list.json` |
+| `zone.view` | read | False | 查看单个共享专区或专题包的资产、信任信息和引导说明。 | True | `zw_brain/entry/mcp/tools/zone.view.json` |
+| `approval.review_decide` | write | True | 对申请执行通过、退回补正或驳回，保留人工确认边界。 | True | `zw_brain/entry/mcp/tools/approval.review_decide.json` |
+| `backflow.confirm` | write | True | 由供给侧确认回流候选正式纳入模板版本。 | True | `zw_brain/entry/mcp/tools/backflow.confirm.json` |
+| `catalog.manage_entry` | write | True | 对目录条目执行发布或说明修正治理动作。 | True | `zw_brain/entry/mcp/tools/catalog.manage_entry.json` |
+| `compliance.investigate_case` | write | True | 对合规争议执行推进调查或升级治理动作。 | True | `zw_brain/entry/mcp/tools/compliance.investigate_case.json` |
+| `delivery.reconcile_receipt` | write | True | 对交付任务回执执行人工确认后的对账动作。 | True | `zw_brain/entry/mcp/tools/delivery.reconcile_receipt.json` |
+| `delivery.trigger_recovery` | write | True | 对失败交付任务显式触发恢复流程。 | True | `zw_brain/entry/mcp/tools/delivery.trigger_recovery.json` |
+| `package.apply_tenant_policy` | write | True | 在版本登记后对指定租户生效能力包策略与暴露范围。 | True | `zw_brain/entry/mcp/tools/package.apply_tenant_policy.json` |
+| `package.configure_exposure` | write | True | 在版本登记后显式调整能力包暴露矩阵。 | True | `zw_brain/entry/mcp/tools/package.configure_exposure.json` |
+| `package.register_version` | write | True | 在审核通过后把能力包版本登记到统一 registry 事实源。 | True | `zw_brain/entry/mcp/tools/package.register_version.json` |
+| `package.review_decide` | write | True | 由管理员对能力注册包执行批准、退回补充或驳回。 | True | `zw_brain/entry/mcp/tools/package.review_decide.json` |
+| `request.create` | write | True | 从资源发现页基于已识别模板发起新的受控准入申请。 | True | `zw_brain/entry/mcp/tools/request.create.json` |
+| `request.submit` | write | True | 对补正后的申请重新提交，回到受控准入。 | True | `zw_brain/entry/mcp/tools/request.submit.json` |
+| `resource.manage_asset` | write | True | 对资源资产执行发布或暂停共享治理动作。 | True | `zw_brain/entry/mcp/tools/resource.manage_asset.json` |
+| `service.publish_or_suspend` | write | True | 对供给侧关键服务执行发布或暂停治理动作。 | True | `zw_brain/entry/mcp/tools/service.publish_or_suspend.json` |
+| `summary.confirm` | write | True | 由审核汇总人员确认自动汇总结果并推进到回流候选确认。 | True | `zw_brain/entry/mcp/tools/summary.confirm.json` |
+| `supplement.submit` | write | True | 由基层提交差异补录结果，进入自动汇总确认。 | True | `zw_brain/entry/mcp/tools/supplement.submit.json` |
+| `system.toggle_outage` | write | True | 切换主脑故障态演示，验证 K12 只读快照模式和故障隔离。 | True | `zw_brain/entry/mcp/tools/system.toggle_outage.json` |
+| `zone.publish_topic_projection` | write | True | 把已治理资产正式投影到共享专区前台入口。 | True | `zw_brain/entry/mcp/tools/zone.publish_topic_projection.json` |
 
 ## L1.4 A2A Server
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台 (Phase 0 placeholder agent card). | 0 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 38 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
 | Skill ID | Title | Version | Side Effects | Source |
 | -------- | ----- | ------- | ------------ | ------ |
-| `data.search` | 数据资源检索 | 0.1.0 | (read-only) | `zw_brain/skill_registration/registered/data.search.json` |
+| `approval.review_decide` | 审批并裁决申请 | 1.0.0 | audit, db_write, state_machine_transition, task_dispatch, blockchain_anchor | `zw_brain/skill_registration/registered/approval.review_decide.json` |
+| `approval.view` | 查看审批详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/approval.view.json` |
+| `audit.list` | 查看审计事件 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/audit.list.json` |
+| `audit.replay_evidence_chain` | 回放证据链 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/audit.replay_evidence_chain.json` |
+| `backflow.confirm` | 确认回流共享 | 1.0.0 | audit, db_write, state_machine_transition, task_dispatch, blockchain_anchor | `zw_brain/skill_registration/registered/backflow.confirm.json` |
+| `catalog.manage_entry` | 治理目录条目 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/catalog.manage_entry.json` |
+| `catalog.resource_view` | 查看资源详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/catalog.resource_view.json` |
+| `compliance.investigate_case` | 调查或升级争议 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/compliance.investigate_case.json` |
+| `dashboard.render_command_center` | 渲染指挥中心大屏 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/dashboard.render_command_center.json` |
+| `data.search` | 数据资源检索 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/data.search.json` |
+| `delivery.list` | 查看交付任务列表 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/delivery.list.json` |
+| `delivery.reconcile_receipt` | 对账交付回执 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/delivery.reconcile_receipt.json` |
+| `delivery.trigger_recovery` | 触发交付恢复 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/delivery.trigger_recovery.json` |
+| `delivery.view` | 查看交付任务 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/delivery.view.json` |
+| `governance.dispute_list` | 查看治理争议列表 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.dispute_list.json` |
+| `governance.dispute_view` | 查看治理争议详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.dispute_view.json` |
+| `package.apply_tenant_policy` | 生效租户策略 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/package.apply_tenant_policy.json` |
+| `package.configure_exposure` | 配置能力包暴露面 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/package.configure_exposure.json` |
+| `package.list` | 查看能力包列表 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/package.list.json` |
+| `package.register_version` | 登记能力包版本 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/package.register_version.json` |
+| `package.review_decide` | 审核能力包 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/package.review_decide.json` |
+| `package.view` | 查看能力包详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/package.view.json` |
+| `provider.view` | 查看供给侧治理 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/provider.view.json` |
+| `request.create` | 发起标准复用申请 | 1.0.0 | audit, db_write, state_machine_transition, task_dispatch, blockchain_anchor | `zw_brain/skill_registration/registered/request.create.json` |
+| `request.list` | 查看申请列表 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/request.list.json` |
+| `request.submit` | 重新提交申请 | 1.0.0 | audit, db_write, state_machine_transition, task_dispatch, blockchain_anchor | `zw_brain/skill_registration/registered/request.submit.json` |
+| `request.view` | 查看申请详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/request.view.json` |
+| `resource.manage_asset` | 治理资源资产 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/resource.manage_asset.json` |
+| `service.publish_or_suspend` | 发布或暂停供给服务 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/service.publish_or_suspend.json` |
+| `summary.confirm` | 确认自动汇总 | 1.0.0 | audit, db_write, state_machine_transition, task_dispatch, blockchain_anchor | `zw_brain/skill_registration/registered/summary.confirm.json` |
+| `supplement.submit` | 提交差异补录 | 1.0.0 | audit, db_write, state_machine_transition, task_dispatch, blockchain_anchor | `zw_brain/skill_registration/registered/supplement.submit.json` |
+| `system.schema_info` | 查看 canonical schema 信息 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/system.schema_info.json` |
+| `system.snapshot` | 导出系统快照 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/system.snapshot.json` |
+| `system.toggle_outage` | 切换主脑故障态 | 1.0.0 | audit, state_machine_transition | `zw_brain/skill_registration/registered/system.toggle_outage.json` |
+| `workbench.view` | 查看工作台 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/workbench.view.json` |
+| `zone.list` | 查看专区列表 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/zone.list.json` |
+| `zone.publish_topic_projection` | 发布专区正式投影 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/zone.publish_topic_projection.json` |
+| `zone.view` | 查看专区详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/zone.view.json` |
 
 ## Statistics
 
-- REST endpoints: 0
-- MCP tools: 0
+- REST endpoints: 40
+- CLI entries: 1
+- MCP tools: 38
 - A2A agent cards: 1
-- Registered Skills: 1
+- Registered Skills: 38
 

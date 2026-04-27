@@ -1,15 +1,22 @@
 [project]
 name = "zw-brain"
-version = "0.0.0"
+version = "1.0.0"
 description = "政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台"
 requires-python = ">=3.10"
 authors = [{ name = "Inspur Cloud — 海若产品部", email = "zw-brain@inspur.com" }]
 license = { text = "Proprietary" }
-readme = "README.md"
+readme = "prototype/README.md"
+dependencies = [
+  "SQLAlchemy>=2.0",
+  "alembic>=1.18",
+]
 
-# Phase-0 has zero runtime dependencies on purpose — web framework + orchestrator
-# choices are deferred to Phase-0 PoC per design baseline D19.
-dependencies = []
+[project.scripts]
+zw-brain-cli = "zw_brain.entry.cli.main:main"
+zw-brain-rest = "zw_brain.entry.rest.server:main"
+zw-brain-dashboard-bff = "zw_brain.entry.dashboard_bff:main"
+zw-brain-mcp = "zw_brain.entry.mcp.server:main"
+zw-brain-a2a = "zw_brain.entry.a2a.server:main"
 
 [project.optional-dependencies]
 dev = [
@@ -23,6 +30,20 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["zw_brain"]
+include = [
+  "zw_brain/entry/rest/openapi.json",
+  "zw_brain/entry/mcp/tools/*.json",
+  "zw_brain/entry/a2a/agent_card.json",
+  "zw_brain/entry/a2a/tools/*.json",
+  "zw_brain/skill_registration/registered/*.json",
+  "zw_brain/domain/seed_snapshot.json",
+]
+
+[tool.hatch.build.targets.wheel.force-include]
+"alembic" = "zw_brain/_assets/alembic"
+"alembic.ini" = "zw_brain/_assets/alembic.ini"
+"zw-brain-web" = "zw_brain/_assets/zw-brain-web"
+"zw-brain-dashboard" = "zw_brain/_assets/zw-brain-dashboard"
 
 [tool.ruff]
 line-length = 110

@@ -125,7 +125,7 @@ def main() -> int:
             f"  expected at: {EXTERNAL_FILE}\n"
             f"  but {sum(len(v) for v in refs.values())} reference(s) across {len({f for v in refs.values() for f, _ in v})} file(s) point to it.\n"
             f"  fix: run `git submodule update --init dev-rules`, or localize references to "
-            f"docs/approved/zw-brain-architecture.md 附录 D, or fix § anchors vs {EXTERNAL_FILE}.",
+            f"docs/approved/zw-brain-architecture-v4-gpt55.md 附录 C, or fix § anchors vs {EXTERNAL_FILE}.",
             file=sys.stderr,
         )
         return 1

@@ -1,6 +1,5 @@
-"""L1.4 A2A Server entry. Phase-0 placeholder.
+"""L1.4 A2A Server entry.
 
-The agent card (`agent_card.json`) declares which Skills the brain exposes
-to peer agents. External agent / Skill registration (D13) reuses the same
-Skill manifest contract — see `dev-rules/schemas/skill.schema.json`.
+The active agent card and runtime bridge are implemented under this package and
+share the same canonical skill contract as the other exposed surfaces.
 """

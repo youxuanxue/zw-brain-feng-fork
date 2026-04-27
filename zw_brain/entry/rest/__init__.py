@@ -1,5 +1,5 @@
-"""L1.2 REST API entry. Phase-0 placeholder.
+"""L1.2 REST API entry.
 
-Web framework (FastAPI vs alternatives) is intentionally undecided — see
-design baseline D19. Phase-0 PoC compares 5 dimensions before commitment.
+The current implementation serves the main WebUI shell and exposes canonical
+skill-backed REST reads/writes through `zw_brain.entry.rest.server`.
 """

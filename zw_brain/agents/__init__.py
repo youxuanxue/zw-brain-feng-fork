@@ -1,5 +1,5 @@
-"""Orchestrating agents — Phase-0 placeholder.
+"""Orchestrating agents.
 
-Per D3: agents may **only** call registered Skills; embedding business
-domain logic in agent code is forbidden.
+Per D3, any agent behavior in this package must route business actions through
+registered skills rather than embedding domain logic directly.
 """

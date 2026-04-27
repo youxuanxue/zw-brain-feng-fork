@@ -1,0 +1,19 @@
+{
+  "name": "system.schema_info",
+  "description": "返回 brain_core / brain_audit / brain_registry 三个 canonical schema 的用途说明。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "system.schema_info.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

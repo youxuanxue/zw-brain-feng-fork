@@ -1,0 +1,27 @@
+{
+  "name": "approval.view",
+  "description": "查看审批建议、风险、影响和异常项。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "request_id"
+    ],
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "approval.view.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

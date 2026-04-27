@@ -1,12 +1,15 @@
-"""Skill: data.search — placeholder.
+"""Skill: data.search.
 
-Demonstrates the Skill packaging convention: each skill lives in a directory
-named for its `skill_id` last segment, exports a callable `run(...)`, and
-ships a manifest under `zw_brain/skill_registration/registered/data.search.json`.
+The canonical runtime implementation is exposed through `BrainService.search_resources`
+and the registered manifest under `zw_brain/skill_registration/registered/data.search.json`.
+This module remains a lightweight compatibility shim for direct imports.
 """
 from __future__ import annotations
 
+from zw_brain.command.brain import BrainService
+from zw_brain.shared.state_store import StateStore
+
 
 def run(query: str, page: int = 1) -> dict:
-    """Phase-0 stub. Phase-1 will call the live data resource catalog Skill."""
-    return {"results": [], "total": 0, "query": query, "page": page}
+    service = BrainService(state_store=StateStore())
+    return service.search_resources(query=query, page=page)

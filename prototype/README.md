@@ -200,7 +200,7 @@
 - `prototype/capability-sheets/CP-05-compliance-evidence-and-ops.md`
 - `prototype/capability-sheets/CP-06-integration-admin-and-package-registry.md`
 
-## 现场验收 checklist
+## 验证 checklist
 
 | # | 要验证的主张 | 对应页面/场景 | 验证 |
 |---|-------------|--------------|------|

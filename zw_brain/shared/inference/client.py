@@ -1,11 +1,11 @@
-"""Inference client — Phase-0 mock.
+"""Inference client.
 
 This is the **only** allowed module-level egress for model service calls. The
 real implementation will wrap the Group Inference Platform SDK once the
 contract is finalized; the public surface declared here is intentionally
 minimal so swapping implementations later is mechanical.
 
-Public API (frozen for Phase 0):
+Public API:
 
     chat(messages, *, model, max_tokens=None, temperature=0.0, request_id=None) -> ChatResult
     embed(texts, *, model) -> list[list[float]]
@@ -65,17 +65,19 @@ class InferenceError(RuntimeError):
 
 
 class InferenceClient:
-    """Thin facade. Phase-0 implementation is a deterministic mock so unit
-    tests do not need network access; Phase-1 swaps in the Group SDK behind
-    the same surface.
+    """Thin facade.
 
-    The mock honors `request_id` as the audit correlation key but performs no
-    real I/O.
+    The current implementation is deterministic and local so tests do not need
+    network access. When the Group SDK lands, it should replace the internals
+    behind the same surface.
+
+    The local adapter honors `request_id` as the audit correlation key but
+    performs no real I/O.
     """
 
     def __init__(self, *, base_url: str | None = None, api_key: str | None = None) -> None:
-        # Real impl reads from env (`INSPUR_INFERENCE_BASE_URL`, `INSPUR_INFERENCE_API_KEY`).
-        # Mock simply records what was passed for assertion in tests.
+        # Real deployment reads from env (`INSPUR_INFERENCE_BASE_URL`, `INSPUR_INFERENCE_API_KEY`).
+        # The local adapter simply records what was passed for assertion in tests.
         self._base_url = base_url
         self._api_key = api_key
 
@@ -90,7 +92,7 @@ class InferenceClient:
     ) -> ChatResult:
         if not request_id:
             raise InferenceError("request_id is required (D4 audit trail)")
-        # Mock: echo back the last user message reversed, plus model tag.
+        # Local adapter: echo back the last user message reversed, plus model tag.
         last_user = next((m.content for m in reversed(messages) if m.role == "user"), "")
         return ChatResult(
             text=f"[mock:{model}] {last_user[::-1]}",

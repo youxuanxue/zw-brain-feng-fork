@@ -1,0 +1,47 @@
+{
+  "name": "service.publish_or_suspend",
+  "description": "对供给侧关键服务执行发布或暂停治理动作。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "service_id",
+      "action",
+      "confirmed"
+    ],
+    "properties": {
+      "service_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "action": {
+        "type": "string",
+        "enum": [
+          "publish",
+          "suspend"
+        ]
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "write",
+    "humanConfirmationRequired": true,
+    "readOnlyHint": false
+  },
+  "x-zwbrain-side-effects": [
+    "audit",
+    "db_write",
+    "state_machine_transition",
+    "blockchain_anchor"
+  ],
+  "x-zwbrain-permissions": [
+    "service.publish_or_suspend.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

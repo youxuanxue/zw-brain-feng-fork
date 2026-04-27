@@ -1,0 +1,39 @@
+{
+  "name": "package.apply_tenant_policy",
+  "description": "在版本登记后对指定租户生效能力包策略与暴露范围。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "package_id",
+      "confirmed"
+    ],
+    "properties": {
+      "package_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "write",
+    "humanConfirmationRequired": true,
+    "readOnlyHint": false
+  },
+  "x-zwbrain-side-effects": [
+    "audit",
+    "db_write",
+    "state_machine_transition",
+    "blockchain_anchor"
+  ],
+  "x-zwbrain-permissions": [
+    "package.apply_tenant_policy.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}
