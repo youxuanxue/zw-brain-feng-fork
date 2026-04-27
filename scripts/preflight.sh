@@ -55,7 +55,6 @@ done <<'CHECKS'
 段 9	scripts/check_fixture_pii.py	fixture-pii (D11)
 段 10	scripts/check_no_direct_llm.py	no-direct-llm (D6)
 段 11	scripts/check_dashboard_readonly.py	dashboard-readonly (D15)
-段 13	scripts/check_gate1_prototype.py	gate1-prototype (D21)
 段 14	scripts/check_external_refs.py	external-refs (D22)
 CHECKS
 

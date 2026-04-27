@@ -43,8 +43,8 @@ SCAN_ROOTS = [
 ]
 
 # 排除：dev-rules submodule（独立仓库，自有 verify-rules.sh）；old/（历史素材，不入库）；
-# prototype/（UI 资源没有外部引用）；.testing/（fixture）；node_modules / .git 自动跳过
-EXCLUDE_PATH_PARTS = {".git", "node_modules", "old", "dev-rules", "prototype", ".testing"}
+# .testing/（fixture）；node_modules / .git 自动跳过
+EXCLUDE_PATH_PARTS = {".git", "node_modules", "old", "dev-rules", ".testing"}
 
 # 引用模式：捕获 §X 标识符（中文 + 数字 + 罗马 + 半角点 + 斜杠等）
 # - 形态 1：digital-clone-research.md §六.½  / digital-clone-research §六.½
