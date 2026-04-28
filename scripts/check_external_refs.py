@@ -5,15 +5,18 @@ check_external_refs.py
 
 外部文档引用悬空检查（preflight 段 14）。
 
-规则来源（D22 retrofit + dev-rules 内聚）:
-    研究档现位于子模块 `dev-rules/digital-clone-research.md`。仓内 `docs/`、
-    `CLAUDE.md`、`.cursor/rules/` 若仍写 `digital-clone-research.md §X`，则 § 锚点
-    必须在该文件中真实存在，否则 exit 1。本检查在**零引用**时直接通过。
+规则来源（D22 retrofit）:
+    仓内 `docs/`、`CLAUDE.md`、`.cursor/rules/` 若写 `digital-clone-research.md §X`，
+    则 § 锚点必须在**权威对照文件**中真实存在，否则 exit 1。本检查在**零引用**时直接通过。
+
+权威对照文件（按优先级）:
+    1. 环境变量 `DIGITAL_CLONE_RESEARCH_PATH`（若指向可读文件）
+    2. `dev-rules/digital-clone-research.md`（本机可选 symlink / 克隆）
+    3. `docs/approved/zw-brain-architecture-v4-gpt55.md`（zw-brain 自包含基线，含 §一/二/三 等章节结构）
 
 判定逻辑：
-    扫描上述目录中的 *.md / *.mdc（排除 dev-rules 子模块正文目录、old/ 等），抽取
-    `digital-clone-research.md §X` 形态引用，与
-    `dev-rules/digital-clone-research.md` 内 `## §…` 风格标题对齐。
+    抽取 `digital-clone-research.md §X` 形态引用，与对照文件内 `## …` 风格标题中的
+    节号对齐（与既有锚点归一化规则一致）。
 
 豁免：
     无（若重新引入此类引用，则必须恢复外部文件且锚点可解析，或改回本地化表述）。
@@ -28,12 +31,29 @@ check_external_refs.py
 """
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-EXTERNAL_FILE = REPO_ROOT / "dev-rules" / "digital-clone-research.md"
+
+
+def resolve_external_file() -> Path:
+    """Prefer standalone research doc; fall back to shipped v4 baseline (no dev-rules required)."""
+    env = os.environ.get("DIGITAL_CLONE_RESEARCH_PATH", "").strip()
+    if env:
+        p = Path(env).expanduser()
+        if p.is_file():
+            return p
+    for rel in (
+        Path("dev-rules") / "digital-clone-research.md",
+        Path("docs") / "approved" / "zw-brain-architecture-v4-gpt55.md",
+    ):
+        p = REPO_ROOT / rel
+        if p.is_file():
+            return p
+    return REPO_ROOT / "dev-rules" / "digital-clone-research.md"
 
 # zw-brain 仓内待扫描的目录
 SCAN_ROOTS = [
@@ -90,11 +110,11 @@ def extract_refs(files: list[Path]) -> dict[str, list[tuple[Path, int]]]:
     return refs
 
 
-def collect_external_anchors() -> set[str] | None:
-    """Parse all '## §X' style headings from the external file. Return None if file missing."""
-    if not EXTERNAL_FILE.exists():
+def collect_external_anchors(path: Path) -> set[str] | None:
+    """Parse section ids from '## …' style headings. Return None if file missing."""
+    if not path.exists():
         return None
-    text = EXTERNAL_FILE.read_text(encoding="utf-8")
+    text = path.read_text(encoding="utf-8")
     anchors: set[str] = set()
     # Heading pattern: '## 六.½ ...', '### 9.1 ...', '## 七、...', '### 3.1 ...'
     head_pat = re.compile(r"^#{2,4}\s+([一二三四五六七八九十〇零\d]+(?:[.\u00bd\u00be\u00bc\d]\d*)*)")
@@ -118,14 +138,15 @@ def main() -> int:
         print("[external-refs] OK: no `digital-clone-research.md §X` references found in scanned scope")
         return 0
 
-    anchors = collect_external_anchors()
+    external_path = resolve_external_file()
+    anchors = collect_external_anchors(external_path)
     if anchors is None:
         print(
             f"[external-refs] FAIL: external file missing\n"
-            f"  expected at: {EXTERNAL_FILE}\n"
+            f"  tried: {external_path}\n"
             f"  but {sum(len(v) for v in refs.values())} reference(s) across {len({f for v in refs.values() for f, _ in v})} file(s) point to it.\n"
-            f"  fix: run `git submodule update --init dev-rules`, or localize references to "
-            f"docs/approved/zw-brain-architecture-v4-gpt55.md 附录 C, or fix § anchors vs {EXTERNAL_FILE}.",
+            f"  fix: add dev-rules mirror + digital-clone-research.md, set DIGITAL_CLONE_RESEARCH_PATH, "
+            f"or ensure docs/approved/zw-brain-architecture-v4-gpt55.md exists; align § anchors.",
             file=sys.stderr,
         )
         return 1
@@ -147,7 +168,7 @@ def main() -> int:
                 rel = f.relative_to(REPO_ROOT)
                 print(f"    - {rel}:{line}", file=sys.stderr)
         print(
-            f"  external file: {EXTERNAL_FILE}\n"
+            f"  external file: {external_path}\n"
             f"  available anchors: {sorted(norm_anchors)}\n"
             f"  fix: correct the §X label, or update the external file.",
             file=sys.stderr,

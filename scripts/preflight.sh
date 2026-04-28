@@ -1,26 +1,27 @@
 #!/usr/bin/env bash
 #
-# zw-brain 提交前门禁：先跑 dev-rules 通用模板（分支/子模块/sync/契约/story/stat 等），
-# 再跑本仓库产品硬约束脚本。段号与附录 A / 设计基线一致；段 12 等待 GATE-2 见 docs/preflight-debt.md。
+# zw-brain 提交前门禁：先跑 vendored 通用段（scripts/preflight_common.sh），
+# 再跑本仓库产品硬约束脚本。可选本机 dev-rules symlink 供 sync 段与 cloud-agent 段使用。
+# 段号与附录 A / 设计基线一致；段 12 等待 GATE-2 见 docs/preflight-debt.md。
 #
-# 用法：./scripts/preflight.sh [--fix]   （--fix 传给通用模板）
+# 用法：./scripts/preflight.sh [--fix]   （--fix 传给通用段）
 
 set -u
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-# ── 1) dev-rules 通用模板 ────────────────────────────────────────────
-"$REPO_ROOT/dev-rules/templates/preflight.sh" "$@"
+# ── 1) 通用段（approved / stat 等使用本仓库 scripts/，CI 不依赖 dev-rules 检出）──
+"$REPO_ROOT/scripts/preflight_common.sh" "$@"
 template_exit=$?
 
 if [ $template_exit -ne 0 ]; then
     echo ""
-    echo "=== preflight: FAIL (template stage exited $template_exit; project stages skipped) ==="
+    echo "=== preflight: FAIL (common stage exited $template_exit; project stages skipped) ==="
     exit $template_exit
 fi
 
-# ── 2) zw-brain 产品段（路径与策略绑定本仓库，不上提 dev-rules；理由见 docs/preflight-debt.md）──
+# ── 2) zw-brain 产品段（路径与策略绑定本仓库；理由见 docs/preflight-debt.md）──
 project_errors=0
 section() { echo ""; echo "=== $* ==="; }
 fail_proj() { echo "  FAIL: $*"; project_errors=$((project_errors + 1)); }
@@ -60,7 +61,7 @@ CHECKS
 
 echo ""
 if [ $project_errors -eq 0 ]; then
-    echo "=== preflight: PASS (template + project stages) ==="
+    echo "=== preflight: PASS (common + project stages) ==="
     exit 0
 else
     echo "=== preflight: FAIL ($project_errors project check(s) failed) ==="

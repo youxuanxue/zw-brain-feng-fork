@@ -44,22 +44,21 @@
 
 ## 规则体系
 
-本项目规则通过 git submodule `dev-rules/`（→ `github.com/youxuanxue/dev-rules`）统一管理。
+规则与通用门禁脚本来自独立的 **dev-rules** 规范仓库；本机习惯放在 `~/Codes/dev-rules`（可用 `DEV_RULES_HOME` 覆盖）。zw-brain **不**跟踪 dev-rules 为子模块、也不在 CI 中检出该仓库。
 
-- `.cursor/rules/*.mdc` 是 sync 产物，**禁止直接编辑**
-- 唯一编辑入口：`dev-rules/rules/*.mdc`
-- 修改流程：编辑 `dev-rules/rules/` → `dev-rules/sync.sh --local` → 提交 submodule + `.cursor/rules/`
+- **本机可选**：`bash scripts/link-dev-rules.sh` 创建 **`dev-rules/` → 本机 mirror 的 symlink**（`dev-rules/` 已 `.gitignore`），便于 `sync.sh --local`、`cloud-agent-bootstrap` 等与 mirror 一致。
+- **仓内自带**：`scripts/preflight_common.sh`、`scripts/check_approved_docs.py`、`scripts/sync-stats.sh` + `scripts/.stats.json`，保证 **preflight 与 CI 不依赖** 单独的 dev-rules 目录。
+- `.cursor/rules/*.mdc` 是 sync 产物，**禁止直接编辑**；更新规则内容仍在 **dev-rules 规范仓库** 的 `rules/` 中编辑，再同步到本仓库的 `.cursor/rules/`（若配置了 symlink，可用 `dev-rules/sync.sh --check` 做漂移检查）。
 
 ## 强约束门禁（机械检查，已生效）
 
 提交时 git pre-commit hook 自动运行 `scripts/preflight.sh`，违反硬约束的 commit 会被拦截。当前激活的检查段：
 
 - 分支命名（`master`/`main`/`prototype/`/`feature/`/`fix/`/`chore/`/`docs/`）
-- dev-rules submodule SHA 在远端可达（防"父先于子"提交）
-- `.cursor/rules/` 与 submodule 不漂移（`dev-rules/sync.sh --check`）
-- 其余段（contract / story / approved）在缺少对应基础设施时自动 skip
+- 未配置 dev-rules 子模块时段 2 skip；若存在 `dev-rules/sync.sh`，段 3 检查 `.cursor/rules/` 与 `dev-rules/rules` 是否一致
+- 其余段（contract / story / approved / stat / …）按 `scripts/preflight_common.sh` 与项目段执行
 
-修改 dev-rules 子模块前必须额外运行 `./dev-rules/verify-rules.sh`（覆盖 frontmatter、README 双向引用、哲学映射、幽灵路径、global 关键文件、LaunchAgent 实装等仓库完整性检查）。
+在 **dev-rules 规范仓库** 内修改共享规则工件时，仍应运行其自带的 `./verify-rules.sh`（该检查不随 zw-brain 分发）。
 
 完整软→硬约束映射：见 `docs/approved/zw-brain-architecture-v4-gpt55.md` **附录 C**（当前实现与通用 preflight 映射以 v4 基线为准；项目特有硬约束继续由 `scripts/preflight.sh` 追加）。
 
@@ -81,7 +80,7 @@
 - [2026-04-15] 决策：采用 Cursor Long-running Agent + Claude Code Headless 双引擎架构
 - [2026-04-15] 决策：规则单一事实来源放在独立仓库 ~/Codes/dev-rules/（不随公司项目删除），通过 sync.sh 分发
 - [2026-04-15] 决策：研发流程增加原型设计阶段和两个审批门禁（原型审批 + 合并审批）
-- [2026-04-15] 决策：所有项目通过 git submodule 引入 dev-rules，在项目内编辑提交，sync --local 分发到 .cursor/rules/
+- [2026-04-15] 决策：消费端通过 sync 分发 `.cursor/rules/`；zw-brain 自 [2026-04-28] 起不接 dev-rules 子模块，本机 symlink + CI 浅克隆（见上文「规则体系」）
 - [2026-04-16] 决策：强约束实现层落地——每条软规则配套机械检查脚本（映射见设计基线附录 D），git pre-commit hook 自动触发，禁止"靠自觉"
 - [2026-04-17] 决策：`~/.claude/CLAUDE.md` 收编进 `dev-rules/global/CLAUDE.md`，由 `sync.sh` 维护 symlink，由 LaunchAgent 每小时 `git pull` 自动同步——消除最后一个手维护的孤儿配置文件
 
@@ -117,4 +116,5 @@ GATE-1 通过后立即收尾动作：
 - [2026-04-18] D21（PR #1 后审视触发）：**GATE-1 retrofit — 设计文档必须配套可运行原型 + 机械化反向防御**。PR #1 误将"工程骨架"当作`product-dev.mdc` 阶段 2 的「最小可运行原型」交付。补：① `prototype/`（11 页可点击 SPA + 3 storyboards + README 12 条验证 checklist）；② `scripts/check_gate1_prototype.py` 接入 preflight 段 13 强制每份 `status: approved` 文档配套原型，缺则 commit 拦下。详见基线 §十四 D21
 - [2026-04-18] D22（自检中触发）：**外部引用悬空 retrofit — 仓外 SoT 文件 + 锚点必须可解析 + 引用本地化**。history rewrite 之后仓外个人研究笔记从 working tree 消失，多处引用悬空、`hard-constraint-rows` stat 曾依赖该文件且因 `|| true` 静默吞错假绿。补：① 可选：从备份恢复物理文件到 workspace 同级；② `scripts/check_external_refs.py` 接入 preflight 段 14；③ 架构文档 **附录 D** 为 zw-brain 自包含软→硬映射（16 通用 + 8 项目特有），**B 路径**：仓内文档改为引用附录 D / 本文章节，`hard-constraint-rows` 改为从附录 D.1 计数。元规则：`|| true` 类静默吞错禁止用作主路径。详见基线 §十四 D22
 - [2026-04-28] 决策：**退役 GATE-1 可点击 SPA 原型** —— 删除 `prototype/ui/`、`prototype/scripts/` 等可点击实现，移除 `scripts/check_gate1_prototype.py` 与 preflight 段 13；界面验证以正式 WebUI（`zw-brain-web/`）为准。**保留** `prototype/capability-sheets/` 与 `prototype/storyboards/` 作为持续演进的产品能力叙事与边界说明。D21 历史决策保留为档案；当前门禁不再要求可点击原型存在。
+- [2026-04-28] 决策：**dev-rules 方案 A** —— zw-brain 不接子模块、CI 不克隆规范仓库；本机可选 symlink；通用 preflight 段依赖的 approved / stat 检查迁入 `scripts/`。
 

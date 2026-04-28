@@ -1,7 +1,10 @@
 # zw-brain .gitignore
 #
 # 原则：只跟踪政务大脑自身的设计、代码、契约与测试；IDE/OS 噪音、本地目录、
-#       历史素材不入库。（长篇研究档见 dev-rules 子模块内 digital-clone-research.md。）
+#       历史素材不入库。dev-rules 为本地 symlink → ~/Codes/dev-rules（见 CLAUDE.md）。
+
+# Canonical dev-rules 镜像（本机 symlink，不入库；CI 浅克隆）
+dev-rules/
 
 # ── IDE / OS ─────────────────────────────────────────────────
 .DS_Store

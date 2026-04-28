@@ -1,0 +1,9 @@
+{
+  "_comment": "zw-brain design-contract stats only. sync-stats lives in scripts/ for CI without an external dev-rules checkout.",
+  "stats": {
+    "zwbrain.webui-pages-cap": {
+      "description": "zw-brain: WebUI core scenario page count cap (design contract). Computed from current authoritative baseline (v4 → v3 → v2 fallback).",
+      "compute": "if [ -f docs/approved/zw-brain-architecture-v4-gpt55.md ]; then awk '/^### 5\\.2 /{flag=1; next} /^### |^## /{flag=0} flag' docs/approved/zw-brain-architecture-v4-gpt55.md | grep -cE '^\\| P[0-9]+'; elif [ -f docs/approved/zw-brain-architecture-v3.md ]; then awk '/^### 5\\.2 /{flag=1; next} /^### |^## /{flag=0} flag' docs/approved/zw-brain-architecture-v3.md | grep -cE '^\\| P[0-9]+'; elif [ -f docs/approved/zw-brain-architecture-v2.md ]; then awk '/^### 5\\.2 /{flag=1; next} /^### |^## /{flag=0} flag' docs/approved/zw-brain-architecture-v2.md | grep -cE '^\\| P[0-9]+'; else echo 0; fi"
+    }
+  }
+}

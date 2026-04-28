@@ -19,14 +19,6 @@ jobs:
           submodules: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Rewrite dev-rules submodule URL to HTTPS
-        run: |
-          git config -f .gitmodules submodule.dev-rules.url https://github.com/youxuanxue/dev-rules.git
-          git submodule sync --recursive
-
-      - name: Init submodules
-        run: git submodule update --init --recursive
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
