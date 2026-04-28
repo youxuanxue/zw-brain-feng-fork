@@ -12,13 +12,13 @@
       theme: {
         extend: {
           colors: {
-            'zw-primary': '#163a70',
-            'zw-primary-2': '#234f93',
-            'zw-accent': '#b88a3b',
-            'zw-bg': '#f4f6fa',
-            'zw-bg-soft': '#eef3f9',
+            'zw-primary': '#12386f',
+            'zw-primary-2': '#1d5a9f',
+            'zw-accent': '#c79a4b',
+            'zw-bg': '#f4f7fb',
+            'zw-bg-soft': '#eef4fb',
             'zw-card': '#ffffff',
-            'zw-ink': '#1e2a3b',
+            'zw-ink': '#18263a',
             'zw-mute': '#66758a',
             'zw-line': '#d7e0ea',
             'zw-link': '#1d4f91',
@@ -26,8 +26,8 @@
             'zw-ai-soft': '#eef8fb'
           },
           boxShadow: {
-            'gov': '0 8px 24px rgba(15, 40, 72, 0.08)',
-            'gov-soft': '0 4px 14px rgba(15, 40, 72, 0.06)'
+            'gov': '0 18px 45px rgba(15, 40, 72, 0.10)',
+            'gov-soft': '0 8px 22px rgba(15, 40, 72, 0.07)'
           }
         }
       }
@@ -35,148 +35,43 @@
   </script>
 </head>
 <body class="bg-zw-bg text-zw-ink antialiased min-h-screen flex flex-col">
-  <header class="bg-zw-primary text-white shadow-sm sticky top-0 z-30 border-b border-white/10">
-    <div class="max-w-screen-2xl mx-auto px-6 py-3.5 flex items-center gap-6 flex-wrap xl:flex-nowrap">
-      <a href="#/p1-workbench" class="flex items-center gap-3 min-w-[280px]">
+  <header class="global-header text-white sticky top-0 z-30">
+    <div class="max-w-screen-2xl mx-auto px-8 py-5 flex items-center gap-8 flex-wrap 2xl:flex-nowrap">
+      <a href="#/p1-workbench" class="global-brand flex items-center gap-4 min-w-[320px]">
         <span class="gov-logo-mark"></span>
         <div>
-          <div class="text-lg font-semibold tracking-wide">政务数据大脑</div>
-          <div class="text-[11px] opacity-70 mt-0.5">v4 主应用 · 统一能力契约驱动</div>
+          <div class="brand-title">政务数据大脑</div>
+          <div class="brand-subtitle">数据资源一屏统览 · 共享交换一链办理 · 治理审计全程留痕</div>
         </div>
       </a>
-      <nav class="flex items-center gap-1.5 text-sm">
-        <a href="#/p1-workbench" data-nav="prototype" class="nav-tab px-3.5 py-1.5 rounded transition">主应用</a>
-        <a href="#/dashboard" data-nav="dashboard" class="nav-tab px-3.5 py-1.5 rounded transition">指挥大屏</a>
-      </nav>
-      <div class="ml-auto flex items-center gap-4 text-sm flex-wrap justify-end">
-        <div class="hidden xl:flex items-center gap-2">
-          <span class="px-2 py-1 rounded-full bg-white/10 border border-white/10 text-[11px] tracking-wide">统一契约</span>
-          <span id="schema-pill" class="px-2 py-1 rounded-full bg-white/10 border border-white/10 text-[11px] tracking-wide">brain_core · brain_audit · brain_registry</span>
-          <span class="px-2 py-1 rounded-full bg-white/10 border border-white/10 text-[11px] tracking-wide">结构化主链路</span>
-        </div>
-        <div class="flex items-center gap-2 opacity-90">
-          <span class="text-xs opacity-70">当前角色</span>
-          <select id="role-switch" class="bg-white/10 text-white border border-white/20 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-white/20">
-            <option value="r1">R1 上级业务需求发起人</option>
-            <option value="r2">R2 审批承接人员</option>
-            <option value="r3">R3 镇街填报人员</option>
-            <option value="r4">R4 村社区填报人员</option>
-            <option value="r5">R5 审核汇总人员</option>
-            <option value="r6">R6 台账管理员</option>
-            <option value="r7">R7 目录管理员</option>
-            <option value="r8">R8 合规与减负治理</option>
+      <div class="global-actions ml-auto flex items-center gap-4 flex-wrap justify-end">
+        <div class="role-control flex items-center gap-2 opacity-95">
+          <span>当前身份</span>
+          <select id="role-switch" class="role-select focus:outline-none focus:ring-2 focus:ring-white/20">
+            <option value="r1">上级业务需求发起人</option>
+            <option value="r2">审批承接人员</option>
+            <option value="r3">镇街填报人员</option>
+            <option value="r4">村社区填报人员</option>
+            <option value="r5">审核汇总人员</option>
+            <option value="r6">台账管理员</option>
+            <option value="r7">目录管理员</option>
+            <option value="r8">合规与减负治理</option>
           </select>
-        </div>
-        <div id="global-health" class="gov-health-bar" title="主大脑与大屏故障隔离演示位">
-          <span>主大脑 <span id="health-brain" class="text-emerald-300">✓</span></span>
-          <span class="opacity-40">|</span>
-          <span>大屏 <span id="health-dashboard" class="text-emerald-300">✓</span></span>
         </div>
       </div>
     </div>
   </header>
 
-  <main class="flex-1 max-w-screen-2xl mx-auto w-full px-6 py-6 space-y-6">
-    <section class="grid gap-4 xl:grid-cols-[minmax(0,1.8fr)_360px]">
-      <div class="rounded-3xl border border-zw-line bg-gradient-to-br from-white to-zw-bg-soft shadow-gov p-6 lg:p-7">
-        <div class="flex flex-wrap items-center gap-2 text-xs text-zw-mute">
-          <span class="px-2.5 py-1 rounded-full bg-zw-primary/5 text-zw-primary border border-zw-primary/10">主应用入口</span>
-          <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">R1–R8 真实角色</span>
-          <span class="px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-100">P1–P8 + K12</span>
-        </div>
-        <div class="mt-4 max-w-4xl">
-          <h1 class="text-2xl lg:text-[30px] leading-tight font-semibold text-zw-ink">zw-brain 以统一能力契约驱动主链路，不让前台体验和后台状态机分叉。</h1>
-          <p class="mt-3 text-sm lg:text-[15px] leading-7 text-zw-mute">从模板发现、受控准入、差异补录、自动汇总，到回流共享和减负治理，所有责任写动作都保留人工确认，所有读面都来自同一事实源投影。</p>
-        </div>
-        <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div class="rounded-2xl border border-zw-line bg-white p-4 shadow-gov-soft">
-            <div class="text-xs text-zw-mute">主链起点</div>
-            <div class="mt-1 text-sm font-semibold text-zw-ink">R1 先找模板，不直接重复要数</div>
-            <div class="mt-2 text-xs text-zw-mute">主 WebUI 与 `data.search` / `catalog.resource_view` 对齐。</div>
-          </div>
-          <div class="rounded-2xl border border-zw-line bg-white p-4 shadow-gov-soft">
-            <div class="text-xs text-zw-mute">责任边界</div>
-            <div class="mt-1 text-sm font-semibold text-zw-ink">AI 只做预填、草拟、解释与建议</div>
-            <div class="mt-2 text-xs text-zw-mute">正式通过、汇总、回流、上线都要求人工确认。</div>
-          </div>
-          <div class="rounded-2xl border border-zw-line bg-white p-4 shadow-gov-soft">
-            <div class="text-xs text-zw-mute">治理闭环</div>
-            <div class="mt-1 text-sm font-semibold text-zw-ink">本次补录要沉淀成下次默认复用</div>
-            <div class="mt-2 text-xs text-zw-mute">模板版本、专区入口和减负指标同步变化。</div>
-          </div>
-          <div class="rounded-2xl border border-zw-line bg-white p-4 shadow-gov-soft">
-            <div class="text-xs text-zw-mute">只读投影</div>
-            <div class="mt-1 text-sm font-semibold text-zw-ink">K12 只消费结果，不接管主办理</div>
-            <div class="mt-2 text-xs text-zw-mute">故障隔离后进入快照模式，仍不写主状态机。</div>
-          </div>
-        </div>
-      </div>
-
-      <aside class="rounded-3xl border border-zw-line bg-white shadow-gov p-5 lg:p-6">
-        <div class="text-sm font-semibold text-zw-ink">运行时口径</div>
-        <div class="mt-4 space-y-4 text-sm text-zw-mute">
-          <div>
-            <div class="font-medium text-zw-ink">统一事实源</div>
-            <div class="mt-1 leading-6">主应用页面和 K12 大屏都从同一运行时快照投影，避免前台与治理视图漂移。</div>
-          </div>
-          <div>
-            <div class="font-medium text-zw-ink">审计前置</div>
-            <div class="mt-1 leading-6">责任写动作必须先写审计，再推进状态，失败即熔断。</div>
-          </div>
-          <div>
-            <div class="font-medium text-zw-ink">异步上链</div>
-            <div class="mt-1 leading-6">主链路只入队，不同步等待区块链适配器，保留故障隔离。</div>
-          </div>
-          <div>
-            <div class="font-medium text-zw-ink">三 schema 口径</div>
-            <div class="mt-1 leading-6">canonical 结构保持 `brain_core` / `brain_audit` / `brain_registry`，与 v4 数据模型一致。</div>
-          </div>
-        </div>
-      </aside>
-    </section>
-
-    <section class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px] items-start">
-      <div class="rounded-3xl border border-zw-line bg-white/55 shadow-gov-soft p-3 sm:p-4">
-        <div class="flex items-center justify-between gap-3 px-2 pb-3 text-xs text-zw-mute flex-wrap">
-          <span>当前页面由后端快照驱动，写动作通过统一 Skill 契约回到主状态机。</span>
-          <span class="px-2.5 py-1 rounded-full bg-white border border-zw-line text-zw-ink">结构化主链路优先</span>
-        </div>
-        <div id="app" class="min-w-0"></div>
-      </div>
-
-      <aside class="space-y-4 xl:sticky xl:top-24 self-start">
-        <section class="rounded-3xl border border-zw-line bg-white shadow-gov p-5">
-          <div class="text-sm font-semibold text-zw-ink">优先验证四件事</div>
-          <ul class="mt-3 space-y-3 text-sm text-zw-mute leading-6">
-            <li><span class="font-medium text-zw-ink">模板复用：</span>R1 是否默认先看到法人模板，而不是新建整表。</li>
-            <li><span class="font-medium text-zw-ink">差异补录：</span>基层是否只补现场缺口，而不是重填基础字段。</li>
-            <li><span class="font-medium text-zw-ink">回流沉淀：</span>汇总后的高频差异字段是否进入模板治理视图。</li>
-            <li><span class="font-medium text-zw-ink">治理投影：</span>P6 与 K12 看到的是否是减负结果、异常责任链和证据。</li>
-          </ul>
-        </section>
-
-        <section class="rounded-3xl border border-zw-line bg-white shadow-gov p-5">
-          <div class="text-sm font-semibold text-zw-ink">关键守卫</div>
-          <div class="mt-3 space-y-3 text-sm text-zw-mute leading-6">
-            <div class="rounded-2xl bg-amber-50 border border-amber-100 px-3.5 py-3">
-              任何“批准 / 汇总确认 / 回流共享 / 能力上线”都必须保留人工确认动作。
-            </div>
-            <div class="rounded-2xl bg-sky-50 border border-sky-100 px-3.5 py-3">
-              指挥大屏是独立只读投影；主大脑异常时进入快照模式，而不是接管办理态。
-            </div>
-            <div class="rounded-2xl bg-rose-50 border border-rose-100 px-3.5 py-3">
-              被退回、驳回或熔断时，要在链路上留下清晰阻断语义与审计证据。
-            </div>
-          </div>
-        </section>
-      </aside>
+  <main class="flex-1 max-w-screen-2xl mx-auto w-full px-6 py-6">
+    <section class="app-frame app-frame-live">
+      <div id="app" class="min-w-0"></div>
     </section>
   </main>
 
-  <footer class="border-t border-zw-line bg-white/70 backdrop-blur-sm">
+  <footer class="border-t border-zw-line bg-white/75 backdrop-blur-sm">
     <div class="max-w-screen-2xl mx-auto px-6 py-3 text-xs text-zw-mute flex items-center justify-between gap-4 flex-wrap">
-      <span>v4 主应用 · 统一 Skill 契约 · 审计前置 · 回流治理闭环</span>
-      <span>判定标准：状态连续、失败诚实、治理前置、AI 不越权</span>
+      <span>政务数据大脑</span>
+      <span>数据共享、基层减负、治理审计一体化运行</span>
     </div>
   </footer>
 

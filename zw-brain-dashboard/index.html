@@ -3,52 +3,116 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>政务大脑 · 大屏</title>
+    <title>政务数据大脑 · 指挥大屏</title>
     <meta name="description" content="zw-brain read-only dashboard" />
     <style>
-      :root { color-scheme: light; }
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
       body {
         margin: 0;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: linear-gradient(180deg, #0e1b31 0%, #132544 100%);
+        background:
+          radial-gradient(circle at 16% 8%, rgba(80, 147, 255, .24), transparent 32%),
+          radial-gradient(circle at 78% 0%, rgba(205, 166, 83, .18), transparent 30%),
+          linear-gradient(180deg, #07152b 0%, #0b1832 52%, #08101f 100%);
         color: #f8fbff;
+        min-height: 100vh;
       }
-      .dashboard-shell { max-width: 1280px; margin: 0 auto; padding: 32px 24px 48px; }
+      .dashboard-shell { max-width: 1500px; margin: 0 auto; padding: 26px 28px 40px; }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 18px;
+      }
+      .brand { display: flex; align-items: center; gap: 14px; }
+      .mark {
+        width: 22px;
+        height: 22px;
+        border-radius: 7px;
+        background: linear-gradient(180deg, #e1b862, #b9812f);
+        box-shadow: 0 0 0 2px rgba(255,255,255,.12), 0 0 26px rgba(205,166,83,.28);
+      }
+      .brand strong { display: block; font-size: 22px; letter-spacing: .02em; }
+      .brand span { display: block; margin-top: 3px; font-size: 12px; color: rgba(235,244,255,.66); }
+      .readonly-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid rgba(130, 180, 255, .24);
+        background: rgba(255,255,255,.06);
+        border-radius: 999px;
+        padding: 9px 13px;
+        color: rgba(235,244,255,.86);
+        font-size: 13px;
+      }
       .hero {
         display: grid;
-        grid-template-columns: 1.6fr 1fr;
-        gap: 24px;
-        padding: 28px;
-        border: 1px solid rgba(255,255,255,0.12);
-        border-radius: 24px;
-        background: rgba(255,255,255,0.06);
-        box-shadow: 0 16px 40px rgba(0,0,0,0.2);
+        grid-template-columns: minmax(0, 1.55fr) minmax(420px, .95fr);
+        gap: 18px;
       }
-      .eyebrow { font-size: 12px; letter-spacing: .08em; opacity: .75; text-transform: uppercase; }
-      h1 { margin: 10px 0 12px; font-size: 38px; line-height: 1.2; }
-      p { margin: 0; color: rgba(248,251,255,0.8); line-height: 1.75; }
-      .hero-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-      .hero-kpis div, .metric-card, .insight-card {
-        border: 1px solid rgba(255,255,255,0.12);
+      .hero-main, .hero-side, .metric-card, .panel, .chain-node {
+        border: 1px solid rgba(165, 198, 238, .16);
+        background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.035));
+        box-shadow: 0 24px 60px rgba(0,0,0,.22);
+        backdrop-filter: blur(10px);
+      }
+      .hero-main, .hero-side { border-radius: 28px; padding: 28px; min-height: 318px; }
+      .eyebrow { font-size: 12px; letter-spacing: .12em; opacity: .72; text-transform: uppercase; }
+      h1 { margin: 12px 0 14px; max-width: 900px; font-size: 42px; line-height: 1.16; letter-spacing: -.04em; }
+      p { margin: 0; color: rgba(248,251,255,.78); line-height: 1.78; }
+      .hero-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 26px; }
+      .hero-kpis div {
+        border: 1px solid rgba(255,255,255,.12);
         border-radius: 18px;
-        background: rgba(255,255,255,0.05);
-        padding: 18px;
+        background: rgba(255,255,255,.055);
+        padding: 17px;
       }
-      .hero-kpis span, .metric-label { display: block; font-size: 13px; opacity: .72; }
-      .hero-kpis strong, .metric-value { display: block; margin-top: 10px; font-size: 30px; }
-      .metrics-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 16px;
-        margin-top: 24px;
+      .hero-kpis span, .metric-label, .chain-node span { display: block; font-size: 13px; color: rgba(235,244,255,.64); }
+      .hero-kpis strong, .metric-value { display: block; margin-top: 10px; font-size: 31px; line-height: 1; letter-spacing: -.03em; }
+      .hero-side h2, .panel h2 { margin: 0; font-size: 22px; }
+      .hero-side ul { margin: 18px 0 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+      .hero-side li {
+        padding: 13px 14px;
+        border-radius: 16px;
+        background: rgba(255,255,255,.055);
+        border: 1px solid rgba(255,255,255,.10);
+        line-height: 1.65;
+        color: rgba(248,251,255,.82);
       }
-      .metric-trend { margin-top: 8px; font-size: 13px; color: #9ad0ff; }
-      .insight-card { margin-top: 24px; }
-      .insight-card h2 { margin: 0 0 12px; font-size: 24px; }
-      .insight-card ul { margin: 18px 0; padding-left: 20px; line-height: 1.8; color: rgba(248,251,255,0.86); }
-      .next-action, .owner { margin-top: 12px; font-size: 14px; color: #cfe4ff; }
-      @media (max-width: 900px) {
-        .hero, .metrics-grid { grid-template-columns: 1fr; }
+      .metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+      .metric-card { border-radius: 20px; padding: 18px; }
+      .metric-card-static {
+        cursor: default;
+      }
+      .metric-trend { margin-top: 9px; font-size: 13px; color: #9ad0ff; }
+      .content-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 18px; margin-top: 18px; }
+      .panel { border-radius: 22px; padding: 22px; }
+      .chain-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+      .chain-node { border-radius: 18px; padding: 17px; min-height: 126px; }
+      .chain-node strong { display: block; margin-top: 14px; font-size: 16px; }
+      .chain-node em { display: block; margin-top: 8px; font-style: normal; color: rgba(235,244,255,.66); font-size: 12px; line-height: 1.55; }
+      .evidence-list { margin: 16px 0 0; padding-left: 19px; line-height: 1.8; color: rgba(248,251,255,.82); }
+      .next-action, .owner { margin-top: 13px; font-size: 14px; color: #cfe4ff; }
+      .snapshot-banner {
+        margin-top: 18px;
+        padding: 12px 15px;
+        border-radius: 16px;
+        background: rgba(212, 160, 72, .18);
+        border: 1px solid rgba(212, 160, 72, .36);
+        color: #f6dda5;
+      }
+      @media (max-width: 1100px) {
+        .hero, .content-grid { grid-template-columns: 1fr; }
+        .hero-side { min-height: auto; }
+        .hero-kpis, .metrics-grid, .chain-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 700px) {
+        .dashboard-shell { padding: 18px; }
+        .topbar { align-items: flex-start; flex-direction: column; }
+        h1 { font-size: 32px; }
+        .hero-kpis, .metrics-grid, .chain-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>

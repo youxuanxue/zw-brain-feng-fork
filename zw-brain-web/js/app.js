@@ -2,14 +2,14 @@
   'use strict';
 
   const ROLE_NAMES = {
-    r1: 'R1 上级业务需求发起人',
-    r2: 'R2 审批承接人员',
-    r3: 'R3 镇街填报人员',
-    r4: 'R4 村社区填报人员',
-    r5: 'R5 审核汇总人员',
-    r6: 'R6 台账管理员',
-    r7: 'R7 目录管理员',
-    r8: 'R8 合规与减负治理',
+    r1: '上级业务需求发起人',
+    r2: '审批承接人员',
+    r3: '镇街填报人员',
+    r4: '村社区填报人员',
+    r5: '审核汇总人员',
+    r6: '台账管理员',
+    r7: '目录管理员',
+    r8: '合规与减负治理',
   };
 
   let currentRole = 'r1';
@@ -17,24 +17,22 @@
   let currentSchemaInfo = null;
 
   const ROUTES = [
-    { test: /^#\/p1-workbench$/, page: 'workbench', nav: 'prototype' },
-    { test: /^#\/p2-discovery$/, page: 'discovery', nav: 'prototype' },
-    { test: /^#\/p2-discovery\/resource\/(.+)$/, page: 'resourceDetail', nav: 'prototype' },
-    { test: /^#\/p3-request-flow$/, page: 'requestFlow', nav: 'prototype' },
-    { test: /^#\/p3-request-flow\/request\/(.+)$/, page: 'requestDetail', nav: 'prototype' },
-    { test: /^#\/p3-request-flow\/review\/(.+)$/, page: 'reviewDetail', nav: 'prototype' },
-    { test: /^#\/p4-delivery-exchange$/, page: 'deliveryExchange', nav: 'prototype' },
-    { test: /^#\/p4-delivery-exchange\/task\/(.+)$/, page: 'deliveryTaskDetail', nav: 'prototype' },
-    { test: /^#\/p5-provider$/, page: 'provider', nav: 'prototype' },
-    { test: /^#\/p6-compliance-ops$/, page: 'complianceOps', nav: 'prototype' },
-    { test: /^#\/p6-compliance-ops\/dispute\/(.+)$/, page: 'disputeDetail', nav: 'prototype' },
-    { test: /^#\/p7-zones-pack$/, page: 'zonesPack', nav: 'prototype' },
-    { test: /^#\/p7-zones-pack\/zone\/(.+)$/, page: 'zoneDetail', nav: 'prototype' },
-    { test: /^#\/p8-integration-admin$/, page: 'integrationAdmin', nav: 'prototype' },
-    { test: /^#\/p8-integration-admin\/package\/(.+)$/, page: 'packageDetail', nav: 'prototype' },
-    { test: /^#\/dashboard$/, page: 'dashboard', nav: 'dashboard' },
-    { test: /^#\/dashboard\/alert\/(.+)$/, page: 'dashboardAlert', nav: 'dashboard' },
-    { test: /^#\/$/, page: 'workbench', nav: 'prototype' },
+    { test: /^#\/p1-workbench$/, page: 'workbench', nav: 'main' },
+    { test: /^#\/p2-discovery$/, page: 'discovery', nav: 'main' },
+    { test: /^#\/p2-discovery\/resource\/(.+)$/, page: 'resourceDetail', nav: 'main' },
+    { test: /^#\/p3-request-flow$/, page: 'requestFlow', nav: 'main' },
+    { test: /^#\/p3-request-flow\/request\/(.+)$/, page: 'requestDetail', nav: 'main' },
+    { test: /^#\/p3-request-flow\/review\/(.+)$/, page: 'reviewDetail', nav: 'main' },
+    { test: /^#\/p4-delivery-exchange$/, page: 'deliveryExchange', nav: 'main' },
+    { test: /^#\/p4-delivery-exchange\/task\/(.+)$/, page: 'deliveryTaskDetail', nav: 'main' },
+    { test: /^#\/p5-provider$/, page: 'provider', nav: 'main' },
+    { test: /^#\/p6-compliance-ops$/, page: 'complianceOps', nav: 'main' },
+    { test: /^#\/p6-compliance-ops\/dispute\/(.+)$/, page: 'disputeDetail', nav: 'main' },
+    { test: /^#\/p7-zones-pack$/, page: 'zonesPack', nav: 'main' },
+    { test: /^#\/p7-zones-pack\/zone\/(.+)$/, page: 'zoneDetail', nav: 'main' },
+    { test: /^#\/p8-integration-admin$/, page: 'integrationAdmin', nav: 'main' },
+    { test: /^#\/p8-integration-admin\/package\/(.+)$/, page: 'packageDetail', nav: 'main' },
+    { test: /^#\/$/, page: 'workbench', nav: 'main' },
   ];
 
   function encodeParams(params) {
@@ -106,10 +104,6 @@
 
   async function refreshSchemaInfo() {
     currentSchemaInfo = await invokeRead('system.schema_info', {});
-    const el = document.getElementById('schema-pill');
-    if (el && currentSchemaInfo && currentSchemaInfo.schemas) {
-      el.textContent = currentSchemaInfo.schemas.map(item => item.name).join(' · ');
-    }
   }
 
   async function syncRouteData(hash) {
@@ -182,17 +176,28 @@
       } else if (route === '#/p8-integration-admin') {
         const result = await invokeRead('package.list', {});
         window.RUNTIME_CAPABILITY_PACKAGES = result.items;
-      } else if (route === '#/dashboard') {
-        window.RUNTIME_DASHBOARD = await invokeRead('dashboard.render_command_center', {});
-      } else if (route.startsWith('#/dashboard/alert/')) {
-        const disputes = await invokeRead('governance.dispute_list', {});
-        window.RUNTIME_ALERTS = disputes.alerts || window.RUNTIME_ALERTS;
-        window.RUNTIME_TICKETS = disputes.tickets || window.RUNTIME_TICKETS;
-        window.RUNTIME_KNOWLEDGE_ARTICLES = disputes.knowledgeArticles || window.RUNTIME_KNOWLEDGE_ARTICLES;
       }
     } catch (err) {
       window.UI.toast(err.message || '页面数据刷新失败', 'error');
     }
+  }
+
+  /** 固定业务导航 top 与 #app 内容区顶对齐（避免纯 CSS 估算顶栏高度漂移） */
+  function syncProductShellNavTop() {
+    const grid = document.querySelector('.product-shell-grid');
+    const app = document.getElementById('app');
+    if (!grid || !app || grid.classList.contains('is-shell-nav-collapsed')) {
+      document.documentElement.style.removeProperty('--zw-nav-align-top');
+      return;
+    }
+    const topPx = Math.round(app.getBoundingClientRect().top);
+    document.documentElement.style.setProperty('--zw-nav-align-top', `${topPx}px`);
+  }
+
+  function scheduleSyncProductShellNavTop() {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => syncProductShellNavTop());
+    });
   }
 
   async function performWrite(skillId, payload, successMessage, after) {
@@ -224,25 +229,26 @@
     if (!matched) {
       document.getElementById('app').innerHTML = renderNotFound(hash);
       highlightNav(null);
-      updateHealth();
+      scheduleSyncProductShellNavTop();
       return;
     }
 
     const page = window.PAGES && window.PAGES[matched.page];
     if (typeof page !== 'function') {
       document.getElementById('app').innerHTML = renderError(`页面渲染函数缺失：${matched.page}`);
+      scheduleSyncProductShellNavTop();
       return;
     }
 
     document.getElementById('app').innerHTML = page.apply(null, captures);
     highlightNav(matched.nav);
-    updateHealth();
     window.scrollTo(0, 0);
 
     const onMount = window.PAGES && window.PAGES[matched.page + '_onMount'];
     if (typeof onMount === 'function') {
       onMount.apply(null, captures);
     }
+    scheduleSyncProductShellNavTop();
   }
 
   function highlightNav(navKey) {
@@ -252,25 +258,12 @@
     });
   }
 
-  function updateHealth() {
-    const brain = document.getElementById('health-brain');
-    const dash = document.getElementById('health-dashboard');
-    if (brain) {
-      brain.className = window.STATE && window.STATE.brainOutage ? 'text-amber-300' : 'text-green-300';
-      brain.textContent = window.STATE && window.STATE.brainOutage ? '△' : '✓';
-    }
-    if (dash) {
-      dash.className = 'text-green-300';
-      dash.textContent = '✓';
-    }
-  }
-
   function renderNotFound(hash) {
     return `
-      <div class="bg-white rounded-lg p-10 text-center border border-zw-line">
-        <div class="text-2xl mb-3">404</div>
-        <p class="text-zw-mute mb-4">没有匹配的路由：<code>${hash}</code></p>
-        <a href="#/p1-workbench" class="inline-block bg-zw-primary text-white px-4 py-2 rounded text-sm">回到工作台</a>
+      <div class="bg-white rounded-2xl p-10 text-center border border-zw-line shadow-gov-soft">
+        <div class="text-2xl mb-3">页面未找到</div>
+        <p class="text-zw-mute mb-4">没有匹配的业务入口：<code>${hash}</code></p>
+        <a href="#/p1-workbench" class="inline-block bg-zw-primary text-white px-4 py-2 rounded-xl text-sm">回到首页工作台</a>
       </div>`;
   }
 
@@ -286,6 +279,24 @@
       toast.textContent = message;
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 2200);
+    },
+    toggleBusinessNavCollapse() {
+      const grid = document.querySelector('.product-shell-grid');
+      if (!grid) return;
+      const nextCollapsed = !grid.classList.contains('is-shell-nav-collapsed');
+      grid.classList.toggle('is-shell-nav-collapsed', nextCollapsed);
+      try {
+        window.localStorage.setItem('zw-brain-nav-collapsed', nextCollapsed ? '1' : '0');
+      } catch (_) {}
+      const expanded = nextCollapsed ? 'false' : 'true';
+      document.querySelectorAll('[data-business-nav-toggle]').forEach(el => {
+        el.setAttribute('aria-expanded', expanded);
+      });
+      const rail = document.querySelector('.product-nav-collapsed-rail');
+      if (rail) rail.setAttribute('aria-hidden', nextCollapsed ? 'false' : 'true');
+      const wrap = document.getElementById('product-nav-panel-body-wrap');
+      if (wrap) wrap.setAttribute('aria-hidden', nextCollapsed ? 'true' : 'false');
+      scheduleSyncProductShellNavTop();
     },
     roleLabel(role) {
       return ROLE_NAMES[role] || role;
@@ -380,7 +391,7 @@
       performWrite('service.publish_or_suspend', { service_id: serviceId, action: 'suspend' }, '供给服务已暂停');
     },
     registerPackageVersion(packageId) {
-      performWrite('package.register_version', { package_id: packageId }, '能力包版本已登记到 registry');
+      performWrite('package.register_version', { package_id: packageId }, '能力包版本已登记');
     },
     applyPackageTenantPolicy(packageId) {
       performWrite('package.apply_tenant_policy', { package_id: packageId }, '租户策略已生效');
@@ -398,9 +409,15 @@
       performWrite('system.toggle_outage', {}, '已切换主脑故障态');
     },
     noop(message) {
-      window.UI.toast(message || '该操作在当前实现中只展示主链路边界', 'info');
+      window.UI.toast(message || '当前阶段暂无可办理动作', 'info');
     },
   };
+
+  let productShellNavTopResizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(productShellNavTopResizeTimer);
+    productShellNavTopResizeTimer = setTimeout(scheduleSyncProductShellNavTop, 120);
+  });
 
   window.addEventListener('hashchange', async () => {
     await syncRouteData(window.location.hash);

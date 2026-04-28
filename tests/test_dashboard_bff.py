@@ -64,7 +64,7 @@ def test_dashboard_bff_is_readonly_and_serves_dashboard_skill() -> None:
             status, content_type, html = request("GET", f"http://127.0.0.1:{port}/index.html")
             assert status == 200
             assert content_type.startswith("text/html")
-            assert "政务大脑 · 大屏" in html
+            assert "政务数据大脑 · 指挥大屏" in html
 
             status, content_type, js = request("GET", f"http://127.0.0.1:{port}/src/dashboard.js")
             assert status == 200
