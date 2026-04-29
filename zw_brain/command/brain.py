@@ -787,6 +787,21 @@ class BrainService:
                 record = store.resource_api_repo.transition_asset(resource_code, status)
                 if record is None:
                     raise NotFoundError(resource_code)
+                if status == "published" and record.catalog_code:
+                    store.catalog_repo.upsert_from_resource(
+                        {
+                            "id": record.catalog_code,
+                            "name": record.title,
+                            "status": "published",
+                            "provider": record.owner_org_id or "",
+                            "resource_code": record.resource_code,
+                            "source_ref": record.source_ref,
+                            "legacy_object_ref": record.resource_code,
+                            "desc": record.summary_json.get("desc") or record.summary_json.get("title") or record.title,
+                            "fields": record.summary_json.get("fields", []),
+                            "explain": record.summary_json.get("explain", []),
+                        }
+                    )
                 store.approval_repo.upsert_api_resource_lifecycle(
                     resource_code,
                     status,

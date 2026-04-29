@@ -5,7 +5,9 @@ from typing import Any
 from sqlalchemy import select
 
 from zw_brain.domain.models import CatalogEntryRecord
+from zw_brain.domain.repositories.legacy_mapping import upsert_legacy_mapping_in_session
 from zw_brain.shared.db import create_session_factory
+from zw_brain.shared.sanitization import safe_json
 
 
 class CatalogRepository:
@@ -60,12 +62,24 @@ class CatalogRepository:
                     title=resource["name"],
                     lifecycle_status=resource.get("status", "published"),
                     owner_org_id=resource.get("provider", ""),
-                    summary_json=resource,
+                    summary_json=safe_json(resource),
                 )
                 session.add(record)
             else:
                 record.title = resource["name"]
                 record.lifecycle_status = resource.get("status", "published")
                 record.owner_org_id = resource.get("provider", "")
-                record.summary_json = resource
+                record.summary_json = safe_json(resource)
+            if resource.get("source_ref"):
+                upsert_legacy_mapping_in_session(
+                    session,
+                    {
+                        "source_ref": resource["source_ref"],
+                        "legacy_object_ref": resource.get("legacy_object_ref") or resource["id"],
+                        "canonical_type": "catalog_entry",
+                        "canonical_ref": resource["id"],
+                        "evidence_json": {"title": record.title, "lifecycle_status": record.lifecycle_status},
+                    },
+                    tenant_id=tenant_id,
+                )
             session.commit()

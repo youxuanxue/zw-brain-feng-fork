@@ -12,6 +12,7 @@ def test_catalog_repository_upserts_resource() -> None:
 
         from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.domain.repositories.catalog import CatalogRepository
+        from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
 
         ensure_runtime_schema()
         repo = CatalogRepository()
@@ -20,10 +21,46 @@ def test_catalog_repository_upserts_resource() -> None:
             "name": "示例目录模板",
             "status": "published",
             "provider": "区政数局",
+            "source_ref": "dsp-dataservice:api_service_catalog:cat-demo",
+            "legacy_object_ref": "cat-demo",
+            "summary": {"secret": "should-not-persist"},
         }
         repo.upsert_from_resource(resource)
         records = repo.list_entries()
         assert any(item.catalog_code == "res-demo" for item in records)
+        mappings = LegacyObjectMappingRepository().list_mappings(canonical_type="catalog_entry")
+        assert any(item.legacy_object_ref == "cat-demo" for item in mappings)
+
+
+def test_application_repository_writes_legacy_mapping_and_sanitizes_payload() -> None:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "repo.db"
+        import os
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.domain.repositories.application import ApplicationRepository
+        from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
+
+        ensure_runtime_schema()
+        repo = ApplicationRepository()
+        repo.upsert_from_request(
+            {
+                "id": "REQ-api-app-1",
+                "status": "pending",
+                "applicant": "申请人",
+                "applicantDept": "申请部门",
+                "resourceId": "api-one",
+                "source_ref": "dsp-dataservice:api_service_app:app-1",
+                "legacy_object_ref": "app-1",
+                "access": {"secret": "should-not-persist"},
+            }
+        )
+
+        record = next(item for item in repo.list_records() if item.application_code == "REQ-api-app-1")
+        assert record.payload_json["access"] == {}
+        mappings = LegacyObjectMappingRepository().list_mappings(canonical_type="application_record")
+        assert any(item.legacy_object_ref == "app-1" for item in mappings)
 
 
 def test_runtime_sync_writes_aggregate_tables() -> None:

@@ -421,12 +421,13 @@ def test_api_resource_lifecycle_and_policy_filter_sensitive_fields() -> None:
                 "resource_code": "api-company-ledger",
                 "title": "法人单位基础信息 API",
                 "owner_org_id": "org-market-regulator",
-                "summary_json": {"domain": "法人基础信息", "secret": "should-not-persist"},
+                "catalog_code": "cat-api-company-ledger",
+                "summary_json": {"domain": "法人基础信息", "nested": {"token": "should-not-persist"}, "secret": "should-not-persist"},
                 "channel_binding": {
                     "binding_code": "bind-company-ledger",
                     "route_ref": "route-ref-company-ledger",
                     "auth_ref": "auth-ref-company-ledger",
-                    "gateway_policy_json": {"rate_limit": "1000/m", "token": "should-not-persist"},
+                    "gateway_policy_json": {"rate_limit": "1000/m", "nested": {"secret": "should-not-persist"}, "token": "should-not-persist"},
                 },
                 "role": "r6",
                 "confirmed": True,
@@ -434,6 +435,7 @@ def test_api_resource_lifecycle_and_policy_filter_sensitive_fields() -> None:
         )
         assert registered["result"]["lifecycle_status"] == "draft"
         assert "secret" not in registered["result"]["summary_json"]
+        assert registered["result"]["summary_json"]["nested"] == {}
 
         service.invoke_skill("resource.api.submit_review", {"resource_code": "api-company-ledger", "role": "r6", "confirmed": True})
         service.invoke_skill(
@@ -448,12 +450,13 @@ def test_api_resource_lifecycle_and_policy_filter_sensitive_fields() -> None:
             {
                 "resource_code": "api-company-ledger",
                 "binding_code": "bind-company-ledger",
-                "gateway_policy_json": {"rate_limit": "800/m", "password": "should-not-persist"},
+                "gateway_policy_json": {"rate_limit": "800/m", "rules": [{"name": "daily", "password": "should-not-persist"}]},
                 "role": "r6",
                 "confirmed": True,
             },
         )
-        assert policy_update["result"]["gateway_policy_json"] == {"rate_limit": "800/m"}
+        assert policy_update["result"]["gateway_policy_json"] == {"rate_limit": "800/m", "rules": [{"name": "daily"}]}
+        assert service.invoke_skill("data.search", {"query": "法人单位基础信息 API", "role": "r6"})["total"] >= 1
     finally:
         tmp.cleanup()
 
@@ -642,14 +645,14 @@ def test_gateway_log_anchor_writes_sanitized_outbox_request() -> None:
                 "gateway_log_ref": "gateway-log-20260429-001",
                 "resource_code": "api-trace-ledger",
                 "source_ref": "dsp-dataservice:apilog/deposit:001",
-                "evidence_json": {"failure_count": 1, "token": "should-not-persist"},
+                "evidence_json": {"failure_count": 1, "nested": {"password": "should-not-persist"}, "token": "should-not-persist"},
                 "role": "r6",
                 "confirmed": True,
             },
         )
 
         assert result["ok"] is True
-        assert result["result"]["evidence_json"] == {"failure_count": 1}
+        assert result["result"]["evidence_json"] == {"failure_count": 1, "nested": {}}
         pending = database_store.list_pending_anchor_outbox()
         assert any(item.request_id == result["audit_id"] and item.skill_id == "ops.gateway.log.anchor" for item in pending)
         events = [item for item in database_store.list_audit_events() if item.skill_id == "ops.gateway.log.anchor"]

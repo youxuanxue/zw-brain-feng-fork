@@ -6,10 +6,16 @@ from typing import Any
 SENSITIVE_JSON_KEYS = {"secret", "password", "token", "credential", "app_secret", "superior_app_secret"}
 
 
-def safe_json(value: dict[str, Any] | None) -> dict[str, Any]:
-    if not value:
-        return {}
-    return {key: item for key, item in copy.deepcopy(value).items() if key.lower() not in SENSITIVE_JSON_KEYS}
+def safe_json(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: safe_json(item)
+            for key, item in copy.deepcopy(value).items()
+            if key.lower() not in SENSITIVE_JSON_KEYS
+        }
+    if isinstance(value, list):
+        return [safe_json(item) for item in copy.deepcopy(value)]
+    return copy.deepcopy(value)
 
 
 def adapter_source_kind(source_ref: Any) -> str:
@@ -27,7 +33,10 @@ def adapter_source_kind(source_ref: Any) -> str:
 
 
 def summary_with_source_kind(value: dict[str, Any] | None, source_ref: Any) -> dict[str, Any]:
-    return safe_json(value) | {"source_kind": adapter_source_kind(source_ref)}
+    summary = safe_json(value)
+    if not isinstance(summary, dict):
+        summary = {}
+    return summary | {"source_kind": adapter_source_kind(source_ref)}
 
 
 def legacy_mapping_payload(payload: dict[str, Any], *, tenant_id: str = "default") -> dict[str, Any]:
