@@ -44,6 +44,10 @@
     return text ? `?${text}` : '';
   }
 
+  function roleCan(roles) {
+    return !roles || roles.includes(currentRole);
+  }
+
   async function invokeRead(skillId, params = {}) {
     const payload = Object.assign({ role: currentRole }, params);
     const resp = await fetch(`/api/skills/${skillId}${encodeParams(payload)}`, {
@@ -132,7 +136,7 @@
         if (requestIndex >= 0) window.RUNTIME_REQUESTS[requestIndex] = request; else window.RUNTIME_REQUESTS.unshift(request);
         const approvalIndex = window.RUNTIME_APPROVALS.findIndex(item => item.id === id);
         if (approvalIndex >= 0) window.RUNTIME_APPROVALS[approvalIndex] = approval; else window.RUNTIME_APPROVALS.unshift(approval);
-      } else if (route === '#/p4-delivery-exchange') {
+      } else if (route === '#/p4-delivery-exchange' && roleCan(['r3', 'r4', 'r5'])) {
         const result = await invokeRead('delivery.list', {});
         window.RUNTIME_DELIVERY_TASKS = result.items;
       } else if (route.startsWith('#/p4-delivery-exchange/task/')) {
@@ -140,9 +144,9 @@
         const task = await invokeRead('delivery.view', { task_id: id });
         const index = window.RUNTIME_DELIVERY_TASKS.findIndex(item => item.id === id);
         if (index >= 0) window.RUNTIME_DELIVERY_TASKS[index] = task; else window.RUNTIME_DELIVERY_TASKS.unshift(task);
-      } else if (route === '#/p5-provider') {
+      } else if (route === '#/p5-provider' && roleCan(['r6', 'r7'])) {
         window.RUNTIME_PROVIDER = await invokeRead('provider.view', {});
-      } else if (route === '#/p6-compliance-ops') {
+      } else if (route === '#/p6-compliance-ops' && roleCan(['r8'])) {
         const disputes = await invokeRead('governance.dispute_list', {});
         const audit = await invokeRead('audit.list', {});
         const dashboard = await invokeRead('dashboard.render_command_center', {});
@@ -168,12 +172,12 @@
       } else if (route === '#/p7-zones-pack') {
         const result = await invokeRead('zone.list', {});
         window.RUNTIME_ZONES = result.items;
-      } else if (route.startsWith('#/p8-integration-admin/package/')) {
+      } else if (route.startsWith('#/p8-integration-admin/package/') && roleCan(['r7'])) {
         const id = decodeURIComponent(route.split('/').pop());
         const pkg = await invokeRead('package.view', { package_id: id });
         const index = window.RUNTIME_CAPABILITY_PACKAGES.findIndex(item => item.id === id);
         if (index >= 0) window.RUNTIME_CAPABILITY_PACKAGES[index] = pkg; else window.RUNTIME_CAPABILITY_PACKAGES.unshift(pkg);
-      } else if (route === '#/p8-integration-admin') {
+      } else if (route === '#/p8-integration-admin' && roleCan(['r7'])) {
         const result = await invokeRead('package.list', {});
         window.RUNTIME_CAPABILITY_PACKAGES = result.items;
       }
@@ -260,22 +264,23 @@
 
   function renderNotFound(hash) {
     return `
-      <div class="bg-white rounded-2xl p-10 text-center border border-zw-line shadow-gov-soft">
-        <div class="text-2xl mb-3">页面未找到</div>
+      <div class="bg-white rounded-2xl p-10 text-center border-default shadow-soft">
+        <div class="text-display mb-3">页面未找到</div>
         <p class="text-zw-mute mb-4">没有匹配的业务入口：<code>${hash}</code></p>
-        <a href="#/p1-workbench" class="inline-block bg-zw-primary text-white px-4 py-2 rounded-xl text-sm">回到首页工作台</a>
+        <a href="#/p1-workbench" class="inline-block gov-btn gov-btn-primary px-4 py-2 rounded-lg text-caption">回到首页工作台</a>
       </div>`;
   }
 
   function renderError(message) {
-    return `<div class="bg-red-50 border border-red-200 text-red-700 p-4 rounded">${message}</div>`;
+    return `<div class="bg-red-50 border-error-thin text-red-700 p-4 rounded">${message}</div>`;
   }
 
   window.UI = {
     toast(message, type = 'info') {
       const toast = document.createElement('div');
-      const color = type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-green-600' : 'bg-zw-primary';
-      toast.className = `fixed top-20 right-6 ${color} text-white px-4 py-2 rounded shadow-lg z-50 text-sm`;
+      const color =
+        type === 'error' ? 'toast-error' : type === 'success' ? 'toast-success' : 'toast-info';
+      toast.className = `ui-toast ${color}`;
       toast.textContent = message;
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 2200);
@@ -302,7 +307,7 @@
       return ROLE_NAMES[role] || role;
     },
     can(roles) {
-      return !roles || roles.includes(currentRole);
+      return roleCan(roles);
     },
   };
 

@@ -57,6 +57,7 @@ done <<'CHECKS'
 段 10	scripts/check_no_direct_llm.py	no-direct-llm (D6)
 段 11	scripts/check_dashboard_readonly.py	dashboard-readonly (D15)
 段 14	scripts/check_external_refs.py	external-refs (D22)
+段 15	scripts/check_ui_spec_b.py	ui-spec-b (Spec B single theme)
 CHECKS
 
 echo ""

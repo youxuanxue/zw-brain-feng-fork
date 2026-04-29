@@ -24,20 +24,9 @@ function metricCard(item) {
 function render(data) {
   app.innerHTML = `
     <main class="dashboard-shell">
-      <header class="topbar">
-        <div class="brand">
-          <span class="mark"></span>
-          <div>
-            <strong>政务数据大脑 · 指挥大屏</strong>
-            <span>共享交换态势 · 减负治理 · 异常责任链</span>
-          </div>
-        </div>
-        <div class="runtime-badge">运行态势</div>
-      </header>
-
       <section class="hero">
         <div class="hero-main">
-          <div class="eyebrow">Command View</div>
+          <div class="eyebrow">运行态势</div>
           <h1>一屏看清数据共享是否畅通、基层负担是否下降、异常责任是否可追。</h1>
           <p>当前模式：<strong>${data.mode}</strong>${data.brainOutage ? ' · 主应用故障，已展示最近快照' : ' · 主应用运行正常'}。重点关注共享交换进展、基层减负变化和异常责任链。</p>
           ${data.brainOutage ? '<div class="snapshot-banner">当前为快照模式：主应用故障不影响大屏继续展示最近一次可用快照，但所有数字停止刷新。</div>' : ''}

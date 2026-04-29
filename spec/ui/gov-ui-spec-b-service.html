@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UI Spec B · 一网通办服务 — 细化稿（zw-brain）</title>
+    <style>
+      /* ── Design tokens (canonical for Spec B) ── */
+      :root {
+        --b-primary: #006be6;
+        --b-primary-hover: #0056c7;
+        --b-primary-active: #0048a8;
+        --b-secondary: #009688;
+        --b-secondary-hover: #00796b;
+        --b-neutral-text: #1a1d21;
+        --b-muted: #5c6370;
+        --b-disabled: #a8aeb8;
+        --b-bg-page: #f2f7fd;
+        --b-bg-card: #ffffff;
+        --b-bg-subtle: #e8f2fc;
+        --b-border: #d4e2f4;
+        --b-border-strong: #b8cce8;
+        --b-focus-ring: #006be6;
+        --b-danger: #c62828;
+        --b-success: #2e7d32;
+        --b-radius-sm: 6px;
+        --b-radius-md: 10px;
+        --b-radius-pill: 999px;
+        --b-shadow-card: 0 2px 8px rgba(0, 80, 180, 0.08);
+        --b-shadow-focus: 0 0 0 3px rgba(0, 107, 230, 0.35);
+        --font-sans: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+        --font-mono: ui-monospace, "SF Mono", Consolas, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--font-sans);
+        background: var(--b-bg-page);
+        color: var(--b-neutral-text);
+        line-height: 1.55;
+      }
+      .doc {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 28px 20px 64px;
+      }
+      .banner {
+        background: linear-gradient(135deg, #e8f4ff 0%, #fff 48%);
+        border: 1px solid var(--b-border);
+        border-radius: var(--b-radius-md);
+        padding: 16px 18px;
+        margin-bottom: 24px;
+      }
+      .banner strong {
+        color: var(--b-primary);
+      }
+      .banner a {
+        color: var(--b-primary);
+      }
+      h1 {
+        font-size: 1.45rem;
+        margin: 0 0 8px;
+        letter-spacing: 0.02em;
+      }
+      .sub {
+        margin: 0;
+        font-size: 0.92rem;
+        color: var(--b-muted);
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin: 32px 0 14px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid var(--b-border);
+      }
+      h3 {
+        font-size: 0.95rem;
+        margin: 20px 0 10px;
+        color: var(--b-neutral-text);
+      }
+      p.lead {
+        font-size: 0.95rem;
+        color: var(--b-muted);
+      }
+      table.spec {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+        background: var(--b-bg-card);
+        border: 1px solid var(--b-border);
+        border-radius: var(--b-radius-md);
+        overflow: hidden;
+      }
+      table.spec th,
+      table.spec td {
+        border: 1px solid var(--b-border);
+        padding: 10px 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+      table.spec th {
+        background: var(--b-bg-subtle);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      table.spec code {
+        font-family: var(--font-mono);
+        font-size: 0.82rem;
+        background: #f0f4f8;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      .swatch-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .swatch {
+        width: 120px;
+        border-radius: var(--b-radius-sm);
+        overflow: hidden;
+        border: 1px solid var(--b-border);
+        background: var(--b-bg-card);
+        font-size: 11px;
+      }
+      .swatch .chip {
+        height: 48px;
+      }
+      .swatch .meta {
+        padding: 6px 8px;
+        color: var(--b-muted);
+        line-height: 1.35;
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      @media (max-width: 720px) {
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+      .sample-box {
+        background: var(--b-bg-card);
+        border: 1px solid var(--b-border);
+        border-radius: var(--b-radius-md);
+        padding: 18px;
+        margin-top: 12px;
+      }
+      /* Reference composition (mini page) */
+      .ref-page {
+        background: linear-gradient(180deg, #f0f7ff 0%, #fff 28%);
+        border: 1px solid var(--b-border);
+        border-radius: var(--b-radius-md);
+        overflow: hidden;
+        margin-top: 12px;
+      }
+      .ref-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 12px 16px;
+        background: #fff;
+        border-bottom: 1px solid var(--b-border);
+      }
+      .ref-brand {
+        font-weight: 700;
+        font-size: 15px;
+        color: var(--b-primary);
+      }
+      .ref-links {
+        display: flex;
+        gap: 14px;
+        font-size: 13px;
+      }
+      .ref-links a {
+        color: var(--b-muted);
+        text-decoration: none;
+      }
+      .ref-links a:hover {
+        color: var(--b-primary);
+        text-decoration: underline;
+      }
+      .ref-hero {
+        padding: 20px 16px 12px;
+        text-align: center;
+      }
+      .ref-hero h4 {
+        margin: 0 0 12px;
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .ref-search {
+        display: flex;
+        max-width: 520px;
+        margin: 0 auto;
+        border: 2px solid var(--b-primary);
+        border-radius: var(--b-radius-pill);
+        overflow: hidden;
+        background: #fff;
+      }
+      .ref-search input {
+        flex: 1;
+        border: 0;
+        padding: 12px 16px;
+        font-size: 14px;
+        outline: none;
+      }
+      .ref-search button {
+        border: 0;
+        background: var(--b-primary);
+        color: #fff;
+        padding: 0 22px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .ref-search button:hover {
+        background: var(--b-primary-hover);
+      }
+      .ref-icons {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        padding: 12px 16px 8px;
+      }
+      @media (max-width: 520px) {
+        .ref-icons {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      .svc-cell {
+        background: #fff;
+        border: 1px solid var(--b-border);
+        border-radius: var(--b-radius-md);
+        padding: 12px 8px;
+        text-align: center;
+        box-shadow: var(--b-shadow-card);
+      }
+      .svc-cell .icon96 {
+        width: 72px;
+        height: 72px;
+        margin: 0 auto 8px;
+        border-radius: 50%;
+        background: var(--b-primary);
+        display: grid;
+        place-items: center;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .svc-cell:nth-child(2) .icon96 {
+        background: var(--b-secondary);
+      }
+      .svc-cell:nth-child(3) .icon96 {
+        background: #6b5cb3;
+      }
+      .svc-cell:nth-child(4) .icon96 {
+        background: #ef6c42;
+      }
+      .svc-cell span {
+        font-size: 12px;
+        color: var(--b-neutral-text);
+      }
+      .ref-tabs {
+        display: flex;
+        gap: 8px;
+        padding: 0 16px;
+        margin-bottom: 8px;
+      }
+      .ref-tabs button {
+        flex: 1;
+        padding: 8px;
+        border: 1px solid var(--b-border);
+        border-radius: var(--b-radius-sm);
+        background: #fff;
+        font-size: 13px;
+        color: var(--b-primary);
+        cursor: pointer;
+      }
+      .ref-tabs button.is-on {
+        background: var(--b-primary);
+        color: #fff;
+        border-color: var(--b-primary);
+      }
+      .ref-list {
+        padding: 0 16px 16px;
+        font-size: 13px;
+      }
+      .ref-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px dashed var(--b-border);
+      }
+      .ref-row:last-child {
+        border-bottom: 0;
+      }
+      .tag {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: var(--b-radius-sm);
+        background: var(--b-bg-subtle);
+        color: var(--b-primary);
+        white-space: nowrap;
+      }
+      .ref-footer {
+        padding: 12px 16px;
+        font-size: 11px;
+        color: var(--b-muted);
+        background: #eef4fb;
+        border-top: 1px solid var(--b-border);
+        line-height: 1.5;
+      }
+
+      /* Component primitives demo */
+      .btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-top: 10px;
+      }
+      .btn-pri {
+        padding: 10px 18px;
+        border-radius: var(--b-radius-sm);
+        border: 1px solid var(--b-primary);
+        background: var(--b-primary);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .btn-pri:hover {
+        background: var(--b-primary-hover);
+      }
+      .btn-pri:focus-visible {
+        outline: none;
+        box-shadow: var(--b-shadow-focus);
+      }
+      .btn-sec {
+        padding: 10px 18px;
+        border-radius: var(--b-radius-sm);
+        border: 1px solid var(--b-border-strong);
+        background: #fff;
+        color: var(--b-primary);
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .btn-sec:hover {
+        background: var(--b-bg-subtle);
+      }
+      .btn-ghost {
+        padding: 10px 14px;
+        border: 0;
+        background: transparent;
+        color: var(--b-primary);
+        font-size: 14px;
+        text-decoration: underline;
+        cursor: pointer;
+      }
+      .btn-dis {
+        opacity: 0.45;
+        pointer-events: none;
+      }
+
+      ul.compact {
+        margin: 8px 0;
+        padding-left: 1.15rem;
+        font-size: 0.9rem;
+        color: var(--b-muted);
+      }
+      footer.doc-foot {
+        margin-top: 40px;
+        padding-top: 16px;
+        border-top: 1px solid var(--b-border);
+        font-size: 0.82rem;
+        color: var(--b-muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="doc">
+      <div class="banner">
+        <strong>选型结论</strong>：zw-brain 公共服务 / 办事类 WebUI 采用 <strong>Spec B · 一网通办服务</strong>。
+        本文档为可实现的设计细化（色板、字号、间距、组件状态、版式骨架、合规对照），供设计与前端对齐。
+        对比页：<a href="gov-webui-spec-comparison.html">gov-webui-spec-comparison.html</a>
+      </div>
+
+      <h1>UI Spec B · 一网通办服务（细化稿）</h1>
+      <p class="sub">版本：2026-04-29 · 适用范围：一体化政务办事大厅、事项检索、服务聚合首页（H5 / Web 同源收敛）</p>
+
+      <h2>1. 设计原则</h2>
+      <ul class="compact">
+        <li><strong>检索优先</strong>：首屏核心动线是「搜事项 / 搜指南」，次要入口通过频道与服务图标承接。</li>
+        <li><strong>三色系收敛</strong>：主色服务蓝、辅色青绿（用于次级强调或分类区分）、中性灰阶；避免引入第四种色相。</li>
+        <li><strong>扁平服务图标</strong>：入口图标统一为圆形底 + 面性图形隐喻；逻辑尺寸 96×96（CSS 可按密度缩放，保持比例）。</li>
+        <li><strong>低干扰</strong>：禁用自动轮播首屏 banner；悬浮推广须可一键关闭；动效遵循用户系统「减少动态效果」偏好。</li>
+        <li><strong>与门户区分</strong>：本 Spec 侧重「办事」，长文政策阅读页可复用组件但倾向更宽正文栏与更强目录导航（不在本页展开）。</li>
+      </ul>
+
+      <h2>2. 色彩 Token</h2>
+      <p class="lead">下列为唯一命名来源；实现时使用 CSS 变量或设计 Token JSON 同名映射。</p>
+      <table class="spec">
+        <thead>
+          <tr>
+            <th>Token</th>
+            <th>色值</th>
+            <th>用途</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>--b-primary</code></td>
+            <td>#006BE6</td>
+            <td>主按钮、检索框描边、链接、选中 Tab、关键图标底</td>
+          </tr>
+          <tr>
+            <td><code>--b-primary-hover</code></td>
+            <td>#0056C7</td>
+            <td>主按钮悬停</td>
+          </tr>
+          <tr>
+            <td><code>--b-primary-active</code></td>
+            <td>#0048A8</td>
+            <td>主按钮按下</td>
+          </tr>
+          <tr>
+            <td><code>--b-secondary</code></td>
+            <td>#009688</td>
+            <td>次级分类、第二组服务图标底、成功补充语义（非必须）</td>
+          </tr>
+          <tr>
+            <td><code>--b-neutral-text</code></td>
+            <td>#1A1D21</td>
+            <td>主正文</td>
+          </tr>
+          <tr>
+            <td><code>--b-muted</code></td>
+            <td>#5C6370</td>
+            <td>次要说明、页脚、辅助标签</td>
+          </tr>
+          <tr>
+            <td><code>--b-bg-page</code></td>
+            <td>#F2F7FD</td>
+            <td>页面浅底（略偏蓝，与服务心智一致）</td>
+          </tr>
+          <tr>
+            <td><code>--b-bg-card</code></td>
+            <td>#FFFFFF</td>
+            <td>卡片、检索条背景</td>
+          </tr>
+          <tr>
+            <td><code>--b-border</code></td>
+            <td>#D4E2F4</td>
+            <td>默认描边、分割线</td>
+          </tr>
+          <tr>
+            <td><code>--b-danger</code></td>
+            <td>#C62828</td>
+            <td>表单错误、阻断提示（ sparingly ）</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="swatch-row" aria-hidden="true">
+        <div class="swatch">
+          <div class="chip" style="background: #006be6"></div>
+          <div class="meta">primary<br />#006BE6</div>
+        </div>
+        <div class="swatch">
+          <div class="chip" style="background: #009688"></div>
+          <div class="meta">secondary<br />#009688</div>
+        </div>
+        <div class="swatch">
+          <div class="chip" style="background: #f2f7fd; border-bottom: 1px solid #d4e2f4"></div>
+          <div class="meta">bg-page<br />#F2F7FD</div>
+        </div>
+        <div class="swatch">
+          <div class="chip" style="background: #1a1d21"></div>
+          <div class="meta">text<br />#1A1D21</div>
+        </div>
+      </div>
+
+      <h2>3. 语义字体与字号契约</h2>
+      <p class="lead">实现层必须使用下列语义类表达字号；业务页面不得直接散落 <code>text-sm</code>、<code>text-xs</code> 或任意裸字号。</p>
+      <table class="spec" data-spec-contract="typography">
+        <thead>
+          <tr>
+            <th>语义类 / 组件槽位</th>
+            <th>尺寸 / 字重 / 行高</th>
+            <th>用途</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>text-display</code></td>
+            <td>30px / 700 / 1.2</td>
+            <td>关键数字、强展示值；必须启用 <code>tabular-nums</code>。</td>
+          </tr>
+          <tr>
+            <td><code>page-hero-title</code></td>
+            <td>24px / 700 / 1.3</td>
+            <td>页面主标题；每页首屏只出现一次。</td>
+          </tr>
+          <tr>
+            <td><code>panel-title</code></td>
+            <td>18px / 700 / 1.4</td>
+            <td>卡片、模块、侧栏标题。</td>
+          </tr>
+          <tr>
+            <td><code>row-title</code></td>
+            <td>16px / 600 / 1.55</td>
+            <td>列表行主标题、表单字段值。</td>
+          </tr>
+          <tr>
+            <td><code>text-body</code></td>
+            <td>15px / 400 / 1.65</td>
+            <td>业务正文、说明文案、列表内容。</td>
+          </tr>
+          <tr>
+            <td><code>text-body-sm</code></td>
+            <td>14px / 400 / 1.65</td>
+            <td>面包屑、次级正文、卡片补充说明、meta 信息。</td>
+          </tr>
+          <tr>
+            <td><code>text-caption</code></td>
+            <td>13px / 400 / 1.5</td>
+            <td>短状态、时间、角标；不得用于面包屑主路径。</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="lead">字体栈固定为 <code>Microsoft YaHei, PingFang SC, Noto Sans SC, system-ui, sans-serif</code>。英文与代码混排时保持同一行高层级。</p>
+
+      <h2>4. 语义间距、圆角与层级契约</h2>
+      <table class="spec" data-spec-contract="spacing">
+        <thead>
+          <tr>
+            <th>语义对象</th>
+            <th>标准值</th>
+            <th>约束</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>页面容器</td>
+            <td>桌面左右 24px，内容最大宽 1500px</td>
+            <td>主 WebUI 与 dashboard 必须同宽对齐。</td>
+          </tr>
+          <tr>
+            <td>面包屑到首卡</td>
+            <td><code>mb-2</code> = 8px</td>
+            <td>不得使用 <code>mb-4</code> 造成首屏空洞。</td>
+          </tr>
+          <tr>
+            <td><code>page-hero</code> 内边距</td>
+            <td>8px 11px</td>
+            <td>服务型首卡保持紧凑，不做展示型大横幅。</td>
+          </tr>
+          <tr>
+            <td><code>panel-body</code></td>
+            <td>20px 22px</td>
+            <td>承载业务内容的普通卡片保持舒展。</td>
+          </tr>
+          <tr>
+            <td>模块间距</td>
+            <td>16px / 20px / 24px</td>
+            <td>优先使用现有 <code>gap-4</code>、<code>gap-5</code>、<code>space-y-5</code>，避免临时裸值。</td>
+          </tr>
+          <tr>
+            <td>圆角</td>
+            <td>6px / 10px / 16px / pill</td>
+            <td>控件、卡片、大卡、胶囊四级；同组件不得混用。</td>
+          </tr>
+          <tr>
+            <td>阴影</td>
+            <td><code>0 2px 8px rgba(0,80,180,.08)</code></td>
+            <td>禁止强投影和 dark cockpit 氛围。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>5. 语义组件契约</h2>
+      <p class="lead">实现层优先复用下列组件语义；新增组件必须先登记到本表，再进入 CSS 与页面模板。</p>
+      <table class="spec" data-spec-contract="components">
+        <thead>
+          <tr>
+            <th>组件 / 类名</th>
+            <th>用途</th>
+            <th>硬约束</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>crumbs</code></td>
+            <td>页面路径提示</td>
+            <td>使用 <code>text-body-sm</code> + <code>mb-2</code>；不得使用 caption 级字号。</td>
+          </tr>
+          <tr>
+            <td><code>page-hero</code></td>
+            <td>页面首卡，承载标题、说明、状态</td>
+            <td>白底浅蓝边框，紧凑内边距，禁止外层大框和深色背景。</td>
+          </tr>
+          <tr>
+            <td><code>panel</code></td>
+            <td>普通业务卡片</td>
+            <td>统一白底、浅蓝边、低阴影；标题使用 <code>panel-title</code>。</td>
+          </tr>
+          <tr>
+            <td><code>gov-stat-card</code></td>
+            <td>指标卡片</td>
+            <td>标题、数值、注释、动作分别使用 <code>gov-stat-label/value/note/action</code>。</td>
+          </tr>
+          <tr>
+            <td><code>gov-btn</code></td>
+            <td>按钮</td>
+            <td>主按钮每个局部任务区只保留最强动作；颜色必须来自 token。</td>
+          </tr>
+          <tr>
+            <td><code>status-pill</code> / <code>chip</code></td>
+            <td>状态与短标签</td>
+            <td>只表达状态，不承担正文说明；使用 success/warn/danger/neutral 语义色。</td>
+          </tr>
+          <tr>
+            <td><code>gov-list</code> / <code>gov-table</code></td>
+            <td>列表与表格</td>
+            <td>行标题用 <code>row-title</code>，元信息用 <code>row-meta</code>。</td>
+          </tr>
+          <tr>
+            <td><code>product-nav-link</code></td>
+            <td>左侧业务导航</td>
+            <td>标题、说明、状态右对齐；导航容器必须在文档流中与首卡对齐。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>6. 禁止项与扩展流程</h2>
+      <ul class="compact" data-spec-contract="forbidden">
+        <li>shipped WebUI 禁止出现 <code>Spec B</code>、<code>一网通办</code>、<code>Command View</code> 等规范或 cockpit 文案。</li>
+        <li>禁止 Tailwind CDN、inline theme、legacy navy（<code>#12386f</code> / <code>#1d5a9f</code>）与 dark cockpit palette。</li>
+        <li>页面模板禁止使用裸 <code>text-sm</code> / <code>text-xs</code> 表达业务字号。</li>
+        <li>新增颜色、字号、间距、组件前，必须先登记到本规范，再同步 CSS 与 preflight 门禁。</li>
+      </ul>
+
+      <h2>7. 参考组件细则</h2>
+
+      <h3>7.1 全局检索条</h3>
+      <ul class="compact">
+        <li>高度：触控友好 ≥44px（padding 计入）；桌面可适当收紧。</li>
+        <li>结构：左侧输入（占位提示「搜索办事指南 / 事项名称」），右侧主按钮「搜索」。</li>
+        <li>焦点：键盘聚焦时整条描边 + <code>box-shadow</code> 形成 3px 聚焦环（见按钮演示）。</li>
+        <li>清空：有输入时右侧显示文字按钮「清空」，不占用主色按钮位。</li>
+      </ul>
+
+      <h3>7.2 服务图标（入口矩阵）</h3>
+      <ul class="compact">
+        <li>形状：正圆外框 + 内嵌面性图标（线性点缀不超过图标面积 20%）。</li>
+        <li>尺寸：设计稿 96×96；栅格 4 列（桌面）→ 2 列（窄屏）。</li>
+        <li>配色：沿用主色 / 辅色 / 两组中性点缀色（如紫、橙）仅限图标底，<strong>不在页面大块背景使用</strong>。</li>
+        <li>文案：图标下 12–13px 单行标题；复杂入口加一行 11px 灰色说明（可选）。</li>
+      </ul>
+
+      <h3>7.3 分区 Tab（事项列表上方）</h3>
+      <ul class="compact">
+        <li>数量：同一层级 3～5 个；更多收纳进「更多」下拉或二级页。</li>
+        <li>状态：选中 = 主色填充白字；未选中 = 白底主色字 + 浅描边。</li>
+        <li>可访问性：使用 <code>role="tablist"</code> / <code>role="tab"</code> 或与路由同步的按钮组，保证箭头键与屏幕阅读器语义。</li>
+      </ul>
+
+      <h3>7.4 事项列表行</h3>
+      <ul class="compact">
+        <li>每行：左主标题（14px）+ 右办事类型标签（全程网办 / 预约制 / 指尖办等）。</li>
+        <li>交互：整行可点（<code>&lt;a&gt;</code> 或 button）；hover 背景 <code>rgba(0,107,230,0.06)</code>。</li>
+        <li>分隔：虚线 <code>1px dashed #d4e2f4</code>；最后一行无分割线。</li>
+      </ul>
+
+      <h3>7.5 按钮层级</h3>
+      <div class="sample-box">
+        <div class="btn-row">
+          <button type="button" class="btn-pri">主要操作</button>
+          <button type="button" class="btn-sec">次要操作</button>
+          <button type="button" class="btn-ghost">文字链</button>
+          <button type="button" class="btn-pri btn-dis" disabled>禁用</button>
+        </div>
+        <p class="lead" style="margin-top: 12px; margin-bottom: 0">
+          主按钮仅每屏 1 个「最强动作」（通常为检索或「在线办理」）；并列表格场景允许双主按钮需设计评审。
+        </p>
+      </div>
+
+      <h2>8. 典型首页骨架（参考组合）</h2>
+      <p class="lead">下列为符合 Spec B 的静态组合示意，非截屏真实站点。</p>
+      <div class="ref-page">
+        <div class="ref-header">
+          <div class="ref-brand">政务服务 · 办事大厅</div>
+          <nav class="ref-links" aria-label="顶部辅助">
+            <a href="#">无障碍</a>
+            <a href="#">长者版</a>
+            <a href="#">登录</a>
+          </nav>
+        </div>
+        <div class="ref-hero">
+          <h4>政务服务一件事</h4>
+          <div class="ref-search" role="search">
+            <input type="search" placeholder="搜索办事指南 / 事项名称" aria-label="搜索办事指南或事项名称" />
+            <button type="button">搜索</button>
+          </div>
+        </div>
+        <div class="ref-icons">
+          <div class="svc-cell">
+            <div class="icon96">社保</div>
+            <span>社会保障</span>
+          </div>
+          <div class="svc-cell">
+            <div class="icon96">医保</div>
+            <span>医疗保障</span>
+          </div>
+          <div class="svc-cell">
+            <div class="icon96">登记</div>
+            <span>不动产登记</span>
+          </div>
+          <div class="svc-cell">
+            <div class="icon96">公积金</div>
+            <span>住房公积金</span>
+          </div>
+        </div>
+        <div class="ref-tabs" role="tablist" aria-label="事项分区">
+          <button type="button" class="is-on" role="tab" aria-selected="true">热门事项</button>
+          <button type="button" role="tab" aria-selected="false">跨域通办</button>
+          <button type="button" role="tab" aria-selected="false">一件事一次办</button>
+        </div>
+        <div class="ref-list">
+          <div class="ref-row">
+            <span>企业职工参保登记</span>
+            <span class="tag">全程网办</span>
+          </div>
+          <div class="ref-row">
+            <span>不动产登记预约</span>
+            <span class="tag">预约制</span>
+          </div>
+          <div class="ref-row">
+            <span>居住证申领</span>
+            <span class="tag">指尖办</span>
+          </div>
+        </div>
+        <div class="ref-footer">
+          党政机关网站标识 · 「我为政府网站找错」· 网站标识码 · 主办单位及联系方式 · ICP 备案 · 公安备案 · 站点地图（要素以主管单位最新清单为准）
+        </div>
+      </div>
+
+      <h2>9. 无障碍与适老化衔接</h2>
+      <ul class="compact">
+        <li>对比度：主正文与背景对比建议 ≥ 4.5:1；主按钮蓝底白字需实测（不满足则加深 <code>--b-primary</code>）。</li>
+        <li>焦点可见：所有可交互元素保留浏览器默认或自定义 3px 聚焦环。</li>
+        <li>长者版：Spec B 可作为标准版；切换到长者版时采用更大字号与更低信息密度（可参考 Spec C 规则单独覆盖 Token）。</li>
+      </ul>
+
+      <h2>10. 与公开指引条款的对照（摘要）</h2>
+      <table class="spec">
+        <thead>
+          <tr>
+            <th>指引要点（摘要）</th>
+            <th>Spec B 落地</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>整体简洁、风格统一、符合 Web 标准取向</td>
+            <td>单一路径办事首页；组件 Token 化；避免多风格混拼</td>
+          </tr>
+          <tr>
+            <td>主色一种 + 辅色，全站色相不宜超过三种</td>
+            <td>蓝主 + 青绿辅 + 中性灰；图标点缀色限用于小面积图标底</td>
+          </tr>
+          <tr>
+            <td>头部标识区 / 中部内容区 / 底部功能区</td>
+            <td>顶栏品牌与辅助入口；中部检索 + 服务 + 列表；底栏法定要素</td>
+          </tr>
+          <tr>
+            <td>频道不宜过多（常见表述约 5～8 个）</td>
+            <td>首屏横向频道 ≤8；更多收纳至「全部服务」</td>
+          </tr>
+          <tr>
+            <td>避免悬浮闪烁干扰；悬浮窗须可关闭</td>
+            <td>无自动轮播；推广浮层须含关闭且默认不遮挡检索</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <footer class="doc-foot">
+        维护：产品与前端以本 HTML 为评审载体；落地到 zw-brain-web 时请将 Token 抽取为全局 CSS 变量或主题配置文件，并保持与本细化稿命名一致。
+      </footer>
+    </div>
+  </body>
+</html>

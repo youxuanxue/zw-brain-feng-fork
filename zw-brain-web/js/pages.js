@@ -70,17 +70,17 @@ function statusPill(status) {
 
 function crumbs(items) {
   return `
-    <nav class="text-xs text-zw-mute mb-4 flex items-center gap-1.5 flex-wrap">
+    <nav class="text-body-sm text-zw-mute mb-2 flex items-center gap-2 flex-wrap crumbs">
       ${items.map((it, i) => i === items.length - 1
         ? `<span class="text-zw-ink">${it.label}</span>`
-        : `<a href="${it.href}" class="hover:text-zw-link">${it.label}</a><span class="opacity-40">/</span>`
+        : `<a href="${it.href}">${it.label}</a><span class="crumb-sep">/</span>`
       ).join('')}
     </nav>`;
 }
 
 function stepBar(steps, activeIdx) {
   return `
-    <div class="flex items-center gap-2 mb-5 text-xs text-zw-mute flex-wrap">
+    <div class="flex items-center gap-2 text-caption text-zw-mute flex-wrap">
       ${steps.map((s, i) => `
         <span class="step-dot ${i < activeIdx ? 'done' : i === activeIdx ? 'now' : 'todo'}">${i < activeIdx ? '✓' : i + 1}</span>
         <span class="${i === activeIdx ? 'text-zw-ink font-medium' : ''}">${s}</span>
@@ -96,8 +96,8 @@ function statCards(items) {
         const inner = `
           <div class="gov-stat-label">${item.label}</div>
           <div class="gov-stat-value">${item.value}</div>
-          ${item.note ? `<div class="mt-2 text-xs text-zw-mute leading-5">${item.note}</div>` : ''}
-          ${item.href ? '<div class="mt-3 text-xs font-bold text-zw-link">查看</div>' : ''}`;
+          ${item.note ? `<div class="gov-stat-note">${item.note}</div>` : ''}
+          ${item.href ? '<div class="gov-stat-action">查看</div>' : ''}`;
         return item.href
           ? `<a href="${item.href}" class="gov-stat-card gov-stat-link">${inner}</a>`
           : `<div class="gov-stat-card">${inner}</div>`;
@@ -124,7 +124,7 @@ function renderInlineSummary(summary, actions) {
     <div class="panel" data-ai-surface="inline-summary">
       <div class="panel-body py-4">
         <div class="flex items-start justify-between gap-4 flex-wrap">
-          <div class="text-sm leading-7 text-zw-ink flex-1">${summary}</div>
+          <div class="text-body leading-7 text-zw-ink flex-1">${summary}</div>
           ${actions && actions.length ? `<div class="flex flex-wrap gap-2 justify-end">${actions.map(item => `<span class="ai-tag">${item}</span>`).join('')}</div>` : ''}
         </div>
       </div>
@@ -136,19 +136,19 @@ function renderDraftCard(title, lines, note) {
     <div class="draft-card" data-ai-surface="draft-card">
       <div class="draft-title">${title}</div>
       <div class="explain-list">${lines.map(line => `<div>${line}</div>`).join('')}</div>
-      ${note ? `<div class="mt-3 text-[13px] text-zw-mute leading-7">${note}</div>` : ''}
+      ${note ? `<div class="mt-3 text-body-sm text-zw-mute leading-7">${note}</div>` : ''}
     </div>`;
 }
 
 function renderFieldState(label, value, state, note) {
   const chip = state === '已预填' || state === '已识别' ? 'chip-ok' : 'chip-ask';
   return `
-    <div class="panel p-3 bg-zw-bg-soft border border-zw-line rounded-xl">
+    <div class="panel p-3 bg-zw-bg-soft rounded-lg">
       <div class="row-meta mb-1">${label}</div>
       <div class="row-title">${value}</div>
       <div class="mt-2 flex items-center gap-2 flex-wrap">
         <span class="chip ${chip}">${state}</span>
-        ${note ? `<span class="text-[13px] text-zw-mute">${note}</span>` : ''}
+        ${note ? `<span class="text-body-sm text-zw-mute">${note}</span>` : ''}
       </div>
     </div>`;
 }
@@ -455,8 +455,8 @@ PAGES.workbench = function () {
       </section>
       <aside class="col-span-5 space-y-5">
         ${panel('智能助手建议', '按证据给出待办排序和处置草稿，关键动作仍由经办人确认。', `
-          <div class="text-[14px] leading-7 text-zw-ink">${current.aiSummary.summary}</div>
-          <div class="mt-4 text-[13px] text-zw-mute leading-7">${current.aiSummary.basis.map(item => `• ${item}`).join('<br/>')}</div>
+          <div class="text-body leading-7 text-zw-ink">${current.aiSummary.summary}</div>
+          <div class="mt-4 text-body-sm text-zw-mute leading-7">${current.aiSummary.basis.map(item => `• ${item}`).join('<br/>')}</div>
         `)}
         ${panel('常用入口', '从今天要办的事进入。', `
           <div class="customer-entry-grid">
@@ -493,7 +493,7 @@ PAGES.discovery = function () {
         <div class="panel-title">搜索工作台</div>
         <div class="panel-subtitle">输入业务目标后，系统会重排可复用资源。</div>
         <form onsubmit="window.ACTIONS.setDiscoveryQuery(event)" class="flex gap-3 mt-4">
-          <input id="discovery-q" type="text" value="${query}" class="flex-1 px-4 py-3 rounded-xl border border-zw-line text-[14px] bg-white" placeholder="例如：我要为本周营商环境专题复用法人单位基础信息台账模板" />
+          <input id="discovery-q" type="text" value="${query}" class="flex-1 px-4 py-3 rounded-lg border-default text-body bg-white field-input" placeholder="例如：我要为本周营商环境专题复用法人单位基础信息台账模板" />
           <button class="gov-btn gov-btn-primary">重新解析</button>
         </form>
         <div class="mt-4 flex flex-wrap gap-2">
@@ -502,19 +502,19 @@ PAGES.discovery = function () {
           <span class="chip chip-ok">已识别：差异补录</span>
           ${ai.missingQuestions.map(item => `<span class="chip chip-ask">${item}</span>`).join('')}
         </div>
-        <div class="mt-4 text-[14px] leading-7 text-zw-ink">${ai.summary}</div>
+        <div class="mt-4 text-body leading-7 text-zw-ink">${ai.summary}</div>
       </div>
     </div>
 
     <div class="grid grid-cols-12 gap-5">
       <aside class="col-span-3 space-y-5">
         ${panel('目录树', '按对象和主题找，不按后台系统找', `
-          <div class="space-y-2 text-[14px]">
-            ${window.RUNTIME_DISCOVERY.catalogTree.map(item => `<div class="flex justify-between py-2 border-b border-zw-line/60"><span>${item.name}</span><span class="text-zw-mute">${item.count}</span></div>`).join('')}
+          <div class="space-y-2 text-body">
+            ${window.RUNTIME_DISCOVERY.catalogTree.map(item => `<div class="flex justify-between py-2 border-b border-b-muted"><span>${item.name}</span><span class="text-zw-mute">${item.count}</span></div>`).join('')}
           </div>
         `)}
         ${panel('当前缺口', '补齐这些问题后，可直接带入申请材料。', `
-          <div class="space-y-2 text-[14px] leading-7 text-zw-mute">
+          <div class="space-y-2 text-body leading-7 text-zw-mute">
             ${ai.missingQuestions.map(item => `<div>• ${item}</div>`).join('')}
           </div>
         `)}
@@ -529,16 +529,16 @@ PAGES.discovery = function () {
                     <div class="col-span-8">
                       <div class="flex items-center gap-2"><div class="panel-title">${item.name}</div>${statusPill(item.status)}</div>
                       <div class="row-meta mt-2">${item.provider} · ${item.zone} · 更新于 ${item.updatedAt} · 覆盖 ${item.coverage}</div>
-                      <p class="text-[14px] mt-3 leading-7">${item.desc}</p>
-                      <div class="mt-4 text-[13px] text-zw-mute leading-7" data-ai-surface="resource-reason">推荐理由：${item.explain.join('；')}</div>
+                      <p class="text-body mt-3 leading-7">${item.desc}</p>
+                      <div class="mt-4 text-body-sm text-zw-mute leading-7" data-ai-surface="resource-reason">推荐理由：${item.explain.join('；')}</div>
                     </div>
                     <div class="col-span-2 text-right">
-                      <div class="text-[13px] text-zw-mute">相关度</div>
-                      <div class="text-3xl font-bold text-zw-primary mt-1">${item.score}</div>
+                      <div class="text-body-sm text-zw-mute">相关度</div>
+                      <div class="text-display text-zw-primary mt-1">${item.score}</div>
                     </div>
                     <div class="col-span-2 text-right">
-                      <div class="text-[13px] text-zw-mute">下一步</div>
-                      <div class="text-[14px] text-zw-ink leading-7 mt-1">${item.nextHints[0] || '查看详情'}</div>
+                      <div class="text-body-sm text-zw-mute">下一步</div>
+                      <div class="text-body text-zw-ink leading-7 mt-1">${item.nextHints[0] || '查看详情'}</div>
                     </div>
                   </div>
                 </div>
@@ -571,7 +571,7 @@ PAGES.resourceDetail = function (id) {
     <div class="grid grid-cols-2 gap-5">
       ${panel('核心字段与覆盖', '查看可直接复用的字段、来源和覆盖情况', `<div class="gov-list">${item.fields.map(field => `<div class="gov-list-row"><div class="row-title">${field}</div><div class="row-meta">标准字段 / 可预填</div></div>`).join('')}</div>`)}
       ${panel('信任信息与动作', '把来源、覆盖和下一步说清楚，降低“我还要不要重新要数”的判断成本', `
-        <div class="space-y-3 text-[14px]">
+        <div class="space-y-3 text-body">
           <div>覆盖情况：<strong>${item.coverage}</strong></div>
           <div>历史审批通过率：<strong>${item.approvalRate}</strong></div>
           <div>订阅 / 使用部门：<strong>${item.subscribers}</strong></div>
@@ -605,7 +605,7 @@ PAGES.requestFlow = function () {
         </div>
         ${statusPill(statusLabel)}
       </div>
-      <div class="mt-5">${stepBar(['发现模板', '复用判断', '受控准入', '预填补录', '审核汇总', '回流共享'], requestStepIndex(request, role))}</div>
+      <div class="mt-4">${stepBar(['发现模板', '复用判断', '受控准入', '预填补录', '审核汇总', '回流共享'], requestStepIndex(request, role))}</div>
     </div>
 
     ${renderInlineSummary(draft.summary, ['查看已预填字段', '查看差异补录', '查看自动汇总预估'])}
@@ -613,17 +613,17 @@ PAGES.requestFlow = function () {
     <div class="grid grid-cols-12 gap-5">
       <section class="col-span-8 space-y-5">
         ${panel('标准复用申请', '按模板覆盖率、差异字段和责任说明生成申请材料', `
-          <div class="grid grid-cols-2 gap-4 text-[14px]" data-ai-surface="request-inline-ai">
+          <div class="grid grid-cols-2 gap-4 text-body" data-ai-surface="request-inline-ai">
             ${renderFieldState('复用模板', request.resourceName, '已识别', '作为涉企默认基础对象')}
             ${renderFieldState('模板覆盖率', request.templateCoverage, '已识别', '多数基础字段可自动带出')}
             <div class="col-span-2">${renderFieldState('业务目标', request.purpose, '已识别', '先复用模板，再补现场差异')}</div>
             <div class="col-span-2">${renderFieldState('差异字段责任说明', '经营状态 / 走访时间 / 现场备注', request.status === 'need-fix' ? '待补正' : '待确认', '需明确由镇街 / 社区补录，审核汇总人员只处理异常项')}</div>
           </div>
           <div class="mt-4 grid grid-cols-2 gap-4">
-            ${panel('已预填字段', '这些字段已由共享资源自动带出', `<div class="text-[14px] leading-7 text-zw-mute">${request.prefilledFields.map(item => `• ${item.label}：${item.value}（${item.source}）`).join('<br/>')}</div>`)}
-            ${panel('差异补录字段', '现场变化字段进入基层补录', `<div class="text-[14px] leading-7 text-zw-mute">${request.diffFields.map(item => `• ${item.label}：${item.reason}（${item.owner}）`).join('<br/>')}</div>`)}
+            ${panel('已预填字段', '这些字段已由共享资源自动带出', `<div class="text-body leading-7 text-zw-mute">${request.prefilledFields.map(item => `• ${item.label}：${item.value}（${item.source}）`).join('<br/>')}</div>`)}
+            ${panel('差异补录字段', '现场变化字段进入基层补录', `<div class="text-body leading-7 text-zw-mute">${request.diffFields.map(item => `• ${item.label}：${item.reason}（${item.owner}）`).join('<br/>')}</div>`)}
           </div>
-          <div class="mt-4 text-[14px] leading-7 text-zw-ink" data-ai-surface="request-summary-inline">可审摘要：${draft.summary}</div>
+          <div class="mt-4 text-body leading-7 text-zw-ink" data-ai-surface="request-summary-inline">可审摘要：${draft.summary}</div>
           <div class="mt-5 flex gap-3 flex-wrap">
             ${requestActionBar(request, role)}
           </div>
@@ -631,11 +631,11 @@ PAGES.requestFlow = function () {
       </section>
       <aside class="col-span-4 space-y-5">
         ${panel(isGrassroots ? '基层补录提示' : '准入 / 汇总侧栏', isGrassroots ? '镇街 / 社区核对已带出字段并补齐待补项。' : '审批承接人员处理准入，审核汇总人员处理异常项与汇总结果。', `
-          <div class="text-[14px] leading-7 text-zw-ink">${isGrassroots ? '本任务已自动带出企业基础字段，你只需核对经营状态、最近走访时间和现场备注。' : isReviewer ? '当前重点是确认差异字段、异常项和自动汇总结果。' : draft.risk}</div>
-          <div class="mt-4 text-[13px] text-zw-mute leading-7">${isReviewer ? request.summaryResult.note : '建议优先复用模板，并确认差异字段和回流要求。'}</div>
+          <div class="text-body leading-7 text-zw-ink">${isGrassroots ? '本任务已自动带出企业基础字段，你只需核对经营状态、最近走访时间和现场备注。' : isReviewer ? '当前重点是确认差异字段、异常项和自动汇总结果。' : draft.risk}</div>
+          <div class="mt-4 text-body-sm text-zw-mute leading-7">${isReviewer ? request.summaryResult.note : '建议优先复用模板，并确认差异字段和回流要求。'}</div>
         `)}
         ${panel('当前链路队列', '查看各申请当前进度和可处理入口', `
-          <div class="gov-list text-[14px]">
+          <div class="gov-list text-body">
             ${window.RUNTIME_REQUESTS.map(item => `
               <a href="${summaryRouteForRole(window.STATE.role, item.id)}" class="gov-list-row card-hover">
                 <div><div class="row-title">${item.id}</div><div class="row-meta mt-2">${item.resourceName}</div></div>
@@ -694,14 +694,14 @@ PAGES.requestDetail = function (id) {
       </section>
       <aside class="col-span-4 space-y-5">
         ${panel('回执与审计', '查看本次办理的审计编号、可信存证和依据', `
-          <div class="space-y-3 text-[14px]">
+          <div class="space-y-3 text-body">
             <div><span class="audit-chip">审计编号</span> <strong>${item.auditId}</strong></div>
             <div><span class="audit-chip">可信存证</span> <strong>${item.chainAnchor}</strong></div>
             <div class="text-zw-mute">依据：${item.aiStatus.evidence.join('；')}</div>
           </div>
         `)}
         ${panel('回流说明', '查看补录结果如何进入后续复用', `
-          <div class="text-[14px] leading-7 text-zw-ink">${item.returnFlow.map(line => `• ${line}`).join('<br/>')}</div>
+          <div class="text-body leading-7 text-zw-ink">${item.returnFlow.map(line => `• ${line}`).join('<br/>')}</div>
         `)}
         ${panel(isGrassroots ? '当前补录动作' : '当前链路动作', isGrassroots ? '基层当前处理补录，其他阶段查看进度。' : '申请方当前查看状态、证据和可处理动作。', `
           <div class="flex gap-3 flex-wrap">
@@ -761,7 +761,7 @@ PAGES.reviewDetail = function (id) {
           </table>
         `)}
         ${panel(isSummaryStage ? '自动汇总结果与异常项' : '准入判断与差异字段', isSummaryStage ? '审核汇总人员确认异常项和自动汇总结果。' : '审批承接人员确认是否下发基层补录。', `
-          <div data-ai-surface="review-summary" class="space-y-4 text-[14px] leading-7">
+          <div data-ai-surface="review-summary" class="space-y-4 text-body leading-7">
             <div><strong>${isSummaryStage ? '自动汇总结果' : '准入判断'}</strong><div class="mt-2 text-zw-mute">${request.summaryResult.note}</div></div>
             <div><strong>异常项</strong><div class="mt-2 text-zw-mute">${approval.exceptionItems.map(item => `• ${item}`).join('<br/>')}</div></div>
             <div><strong>回流候选</strong><div class="mt-2 text-zw-mute">${request.returnFlow.map(item => `• ${item}`).join('<br/>')}</div></div>
@@ -771,7 +771,7 @@ PAGES.reviewDetail = function (id) {
       </section>
       <aside class="col-span-5 space-y-5">
         ${panel('依据与风险', '动作前先看建议依据、风险和影响预估', `
-          <div data-ai-surface="approval-inline-ai" class="space-y-4 text-[14px] leading-7">
+          <div data-ai-surface="approval-inline-ai" class="space-y-4 text-body leading-7">
             <div><strong>建议依据</strong><div class="mt-2 text-zw-mute">${approval.reason.map(item => `• ${item}`).join('<br/>')}</div></div>
             <div><strong>风险提示</strong><div class="mt-2 text-zw-mute">${approval.risk.map(item => `• ${item}`).join('<br/>')}</div></div>
             <div><strong>影响预估</strong><div class="mt-2 text-zw-mute">${approval.impact}</div></div>
@@ -829,11 +829,11 @@ PAGES.deliveryExchange = function () {
                 <div>
                   <div class="flex items-center gap-2"><div class="panel-title">${task.name}</div>${statusPill(statusLabel)}</div>
                   <div class="row-meta mt-2">${task.id} · ${task.channel} · ${task.owner}</div>
-                  <p class="text-sm mt-3">${task.note}</p>
-                  <div class="mt-2 text-[13px] text-zw-mute leading-7">回流状态：${task.backflow.status} · ${actionHint}</div>
-                  <div class="mt-4 text-[13px] text-zw-mute leading-7" data-ai-surface="delivery-inline-ai">当前判断：${task.aiSummary.summary}</div>
+                  <p class="text-body mt-3 leading-7">${task.note}</p>
+                  <div class="mt-2 text-body-sm text-zw-mute leading-7">回流状态：${task.backflow.status} · ${actionHint}</div>
+                  <div class="mt-4 text-body-sm text-zw-mute leading-7" data-ai-surface="delivery-inline-ai">当前判断：${task.aiSummary.summary}</div>
                 </div>
-                <div class="text-right text-xs text-zw-mute">最近更新<br/><strong class="text-zw-ink">${task.updatedAt}</strong></div>
+                <div class="text-right text-caption text-zw-mute">最近更新<br/><strong class="text-zw-ink">${task.updatedAt}</strong></div>
               </div>
             </div>
           </a>`;
@@ -879,7 +879,7 @@ PAGES.deliveryTaskDetail = function (id) {
           </div>
         `)}
         ${panel('回流共享说明', '查看本次补录沉淀出的回流候选', `
-          <div class="grid grid-cols-2 gap-4 text-[14px] leading-7">
+          <div class="grid grid-cols-2 gap-4 text-body leading-7">
             <div><strong>回流候选对象</strong><div class="mt-2 text-zw-mute">${task.backflow.candidateObject}</div></div>
             <div><strong>回流状态</strong><div class="mt-2 text-zw-mute">${task.backflow.status}</div></div>
             <div class="col-span-2"><strong>候选字段</strong><div class="mt-2 text-zw-mute">${task.backflow.candidateFields.length ? task.backflow.candidateFields.join(' / ') : '—'}</div></div>
@@ -889,12 +889,12 @@ PAGES.deliveryTaskDetail = function (id) {
       </section>
       <aside class="col-span-4 space-y-5">
         ${panel('当前处置建议', '查看处置建议、原因和影响', `
-          <div data-ai-surface="delivery-detail-inline" class="text-[14px] leading-7 text-zw-ink">${ai.nextAction}</div>
-          <div class="mt-4 text-[13px] text-zw-mute">原因：${ai.cause}</div>
-          <div class="mt-2 text-[13px] text-zw-mute">影响：${ai.impact}</div>
+          <div data-ai-surface="delivery-detail-inline" class="text-body leading-7 text-zw-ink">${ai.nextAction}</div>
+          <div class="mt-4 text-body-sm text-zw-mute">原因：${ai.cause}</div>
+          <div class="mt-2 text-body-sm text-zw-mute">影响：${ai.impact}</div>
         `)}
         ${panel('当前链路动作', '只有在自动汇总已被确认后，台账管理员 / 目录管理员才能显式确认回流生效。', `
-          <div class="space-y-3 text-[13px] text-zw-mute leading-7">
+          <div class="space-y-3 text-body-sm text-zw-mute leading-7">
             <div>申请状态：${requestStatusLabel(request, window.STATE.role)}</div>
             <div>回流候选：${task.backflow.status}</div>
             <div>回执状态：${task.receiptStatus || '待对账'}</div>
@@ -938,19 +938,19 @@ PAGES.provider = function () {
 
     <div class="grid grid-cols-3 gap-5">
       ${panel('目录治理', '处理目录发布与说明修正', `
-        <div class="gov-list text-sm">${window.RUNTIME_PROVIDER.catalogs.map(item => `<div class="gov-list-row"><div><div class="row-title">${item.name}</div><div class="row-meta mt-2">${item.owner} · ${item.issue}</div></div><div class="flex items-center gap-2">${statusPill(item.status)}<button onclick="window.ACTIONS.manageCatalogEntry('${item.id}', '${item.status === '已发布' ? 'revise' : 'publish'}')" class="gov-btn gov-btn-secondary">${item.status === '已发布' ? '修正文案' : '发布'}</button></div></div>`).join('')}</div>
+        <div class="gov-list text-body">${window.RUNTIME_PROVIDER.catalogs.map(item => `<div class="gov-list-row"><div><div class="row-title">${item.name}</div><div class="row-meta mt-2">${item.owner} · ${item.issue}</div></div><div class="flex items-center gap-2">${statusPill(item.status)}<button onclick="window.ACTIONS.manageCatalogEntry('${item.id}', '${item.status === '已发布' ? 'revise' : 'publish'}')" class="gov-btn gov-btn-secondary">${item.status === '已发布' ? '修正文案' : '发布'}</button></div></div>`).join('')}</div>
       `)}
       ${panel('资源 / 模板治理', '处理资源发布、暂停共享和模板更新', `
-        <div class="gov-list text-sm">${window.RUNTIME_PROVIDER.resources.map(item => `<div class="gov-list-row"><div><div class="row-title">${item.name}</div><div class="row-meta mt-2">${item.type} · 更新于 ${item.updatedAt}</div></div><div class="flex items-center gap-2">${statusPill(item.status)}<button onclick="window.ACTIONS.manageResourceAsset('${item.id}', '${item.status === '可共享' ? 'suspend' : 'publish'}')" class="gov-btn gov-btn-secondary">${item.status === '可共享' ? '暂停共享' : '发布共享'}</button></div></div>`).join('')}</div>
+        <div class="gov-list text-body">${window.RUNTIME_PROVIDER.resources.map(item => `<div class="gov-list-row"><div><div class="row-title">${item.name}</div><div class="row-meta mt-2">${item.type} · 更新于 ${item.updatedAt}</div></div><div class="flex items-center gap-2">${statusPill(item.status)}<button onclick="window.ACTIONS.manageResourceAsset('${item.id}', '${item.status === '可共享' ? 'suspend' : 'publish'}')" class="gov-btn gov-btn-secondary">${item.status === '可共享' ? '暂停共享' : '发布共享'}</button></div></div>`).join('')}</div>
       `)}
       ${panel('服务治理', '查看预填、回流服务的在线状态和调用压力', `
-        <div class="gov-list text-sm">${window.RUNTIME_PROVIDER.services.map(item => `<div class="gov-list-row"><div><div class="row-title">${item.name}</div><div class="row-meta mt-2">实时调用 ${item.qps} 次 / 分钟 · ${item.note}</div></div><div class="flex items-center gap-2">${statusPill(item.status)}${item.status === '在线' ? `<button onclick="window.ACTIONS.suspendProviderService('${item.id}')" class="gov-btn gov-btn-secondary">暂停</button>` : `<button onclick="window.ACTIONS.publishProviderService('${item.id}')" class="gov-btn gov-btn-secondary">发布</button>`}</div></div>`).join('')}</div>
+        <div class="gov-list text-body">${window.RUNTIME_PROVIDER.services.map(item => `<div class="gov-list-row"><div><div class="row-title">${item.name}</div><div class="row-meta mt-2">实时调用 ${item.qps} 次 / 分钟 · ${item.note}</div></div><div class="flex items-center gap-2">${statusPill(item.status)}${item.status === '在线' ? `<button onclick="window.ACTIONS.suspendProviderService('${item.id}')" class="gov-btn gov-btn-secondary">暂停</button>` : `<button onclick="window.ACTIONS.publishProviderService('${item.id}')" class="gov-btn gov-btn-secondary">发布</button>`}</div></div>`).join('')}</div>
       `)}
     </div>
 
     ${panel('治理重点', '按影响面排序今日治理重点', `
-      <div data-ai-surface="provider-governance" class="text-[14px] leading-7 text-zw-ink">${ai.summary}</div>
-      <div class="mt-4 text-[13px] text-zw-mute leading-7">${ai.priorities.map(item => `• ${item}`).join('<br/>')}</div>
+      <div data-ai-surface="provider-governance" class="text-body leading-7 text-zw-ink">${ai.summary}</div>
+      <div class="mt-4 text-body-sm text-zw-mute leading-7">${ai.priorities.map(item => `• ${item}`).join('<br/>')}</div>
     `)}
   `;
   return shell('p5', main);
@@ -973,7 +973,7 @@ PAGES.complianceOps = function () {
 
     ${panel('减负指标', '先看减负结果，再钻取证据和工单链路', `
       <div class="grid grid-cols-4 gap-4">
-        ${metrics.map(item => `<a href="#/p6-compliance-ops" class="gov-stat-card gov-stat-link"><div class="gov-stat-label">${item.label}</div><div class="gov-stat-value">${item.value}</div><div class="mt-2 text-[12px] text-zw-mute">${item.trend}</div><div class="mt-3 text-xs font-bold text-zw-link">查看证据</div></a>`).join('')}
+        ${metrics.map(item => `<a href="#/p6-compliance-ops" class="gov-stat-card gov-stat-link"><div class="gov-stat-label">${item.label}</div><div class="gov-stat-value">${item.value}</div><div class="mt-2 text-caption text-zw-mute">${item.trend}</div><div class="mt-3 text-caption font-bold text-zw-link">查看证据</div></a>`).join('')}
       </div>
     `)}
 
@@ -982,16 +982,16 @@ PAGES.complianceOps = function () {
     <div class="grid grid-cols-12 gap-5">
       <section class="col-span-4 space-y-5">
         ${panel('争议与绕行', '先看哪些行为会增加基层负担，再进入证据核查', `
-          <div class="space-y-3 text-[14px]">
-            ${window.RUNTIME_DISPUTES.map(item => `<a href="#/p6-compliance-ops/dispute/${item.id}" class="panel card-hover block"><div class="panel-body"><div class="flex items-center justify-between"><div class="panel-title text-[16px]">${item.title}</div>${statusPill(item.status)}</div><div class="row-meta mt-2">${item.id} · ${item.owner}</div><div class="mt-3 text-[13px] text-zw-mute leading-7" data-ai-surface="dispute-inline-ai">初步判断：${item.aiSummary}</div></div></a>`).join('')}
+          <div class="space-y-3 text-body">
+            ${window.RUNTIME_DISPUTES.map(item => `<a href="#/p6-compliance-ops/dispute/${item.id}" class="panel card-hover block"><div class="panel-body"><div class="flex items-center justify-between"><div class="panel-title text-body">${item.title}</div>${statusPill(item.status)}</div><div class="row-meta mt-2">${item.id} · ${item.owner}</div><div class="mt-3 text-body-sm text-zw-mute leading-7" data-ai-surface="dispute-inline-ai">初步判断：${item.aiSummary}</div></div></a>`).join('')}
           </div>
         `)}
         ${panel('告警 → 工单 → 知识建议', '每个告警都关联工单、责任人和处置建议', `
-          <div class="space-y-3 text-[14px]">
+          <div class="space-y-3 text-body">
             ${window.RUNTIME_ALERTS.map(alert => {
               const ticket = window.RUNTIME_TICKETS.find(item => item.id === alert.linkedTicket);
               const kb = window.RUNTIME_KNOWLEDGE_ARTICLES.find(item => item.id === alert.knowledge);
-              return `<div class="panel"><div class="panel-body"><div class="flex items-center justify-between"><div class="panel-title text-[16px]">${alert.title}</div>${statusPill('处理中')}</div><div class="row-meta mt-2">责任人：${alert.owner}</div><div class="mt-3 leading-7">${alert.summary}</div><div class="mt-3 text-[13px] text-zw-mute">工单：${ticket ? ticket.title : '—'}</div><div class="mt-1 text-[13px] text-zw-mute">知识建议：${kb ? kb.title : '—'}</div><div class="mt-3 text-[13px] text-zw-mute leading-7" data-ai-surface="alert-inline-ai">研判：${alert.aiAdvice}</div></div></div>`;
+              return `<div class="panel"><div class="panel-body"><div class="flex items-center justify-between"><div class="panel-title text-body">${alert.title}</div>${statusPill('处理中')}</div><div class="row-meta mt-2">责任人：${alert.owner}</div><div class="mt-3 leading-7">${alert.summary}</div><div class="mt-3 text-body-sm text-zw-mute">工单：${ticket ? ticket.title : '—'}</div><div class="mt-1 text-body-sm text-zw-mute">知识建议：${kb ? kb.title : '—'}</div><div class="mt-3 text-body-sm text-zw-mute leading-7" data-ai-surface="alert-inline-ai">研判：${alert.aiAdvice}</div></div></div>`;
             }).join('')}
           </div>
         `)}
@@ -1006,8 +1006,8 @@ PAGES.complianceOps = function () {
           </table>
         `)}
         ${panel('当前治理判断', '结合证据判断是否需要制度或模板调整', `
-          <div data-ai-surface="compliance-inline-ai" class="text-[14px] leading-7 text-zw-ink">${window.RUNTIME_AUDIT_AI.summary}</div>
-          <div class="mt-4 text-[13px] text-zw-mute leading-7">${window.RUNTIME_AUDIT_AI.evidence.map(item => `• ${item}`).join('<br/>')}</div>
+          <div data-ai-surface="compliance-inline-ai" class="text-body leading-7 text-zw-ink">${window.RUNTIME_AUDIT_AI.summary}</div>
+          <div class="mt-4 text-body-sm text-zw-mute leading-7">${window.RUNTIME_AUDIT_AI.evidence.map(item => `• ${item}`).join('<br/>')}</div>
         `)}
       </section>
     </div>
@@ -1031,7 +1031,7 @@ PAGES.disputeDetail = function (id) {
 
     <div class="panel" data-ai-surface="dispute-inline-summary">
       <div class="panel-body py-4">
-        <div class="text-[14px] leading-7 text-zw-ink">${item.aiSummary}</div>
+        <div class="text-body leading-7 text-zw-ink">${item.aiSummary}</div>
       </div>
     </div>
 
@@ -1052,9 +1052,9 @@ PAGES.disputeDetail = function (id) {
       </div>
     `)}
     ${item.evidenceReplay ? panel('原始证据与关联链路', '回放原始证据、审计事件和关联链路。', `
-      <div class="space-y-3 text-[14px]">
-        ${(item.evidenceReplay.evidenceChain || []).map(step => `<div class="panel"><div class="panel-body"><div class="panel-title text-[15px]">${step.label}</div><div class="mt-2 text-zw-mute">${step.time}</div><div class="mt-2 leading-7">${step.detail}</div></div></div>`).join('')}
-        <div class="panel"><div class="panel-body"><div class="panel-title text-[15px]">关联审计事件</div><div class="mt-3 text-[13px] text-zw-mute leading-7">${(item.evidenceReplay.auditEvents || []).map(evt => `${evt.time} · ${evt.type} · ${evt.target}`).join('<br/>') || '—'}</div></div></div>
+      <div class="space-y-3 text-body">
+        ${(item.evidenceReplay.evidenceChain || []).map(step => `<div class="panel"><div class="panel-body"><div class="panel-title text-body">${step.label}</div><div class="mt-2 text-zw-mute">${step.time}</div><div class="mt-2 leading-7">${step.detail}</div></div></div>`).join('')}
+        <div class="panel"><div class="panel-body"><div class="panel-title text-body">关联审计事件</div><div class="mt-3 text-body-sm text-zw-mute leading-7">${(item.evidenceReplay.auditEvents || []).map(evt => `${evt.time} · ${evt.type} · ${evt.target}`).join('<br/>') || '—'}</div></div></div>
       </div>
     `) : ''}
   `;
@@ -1078,7 +1078,7 @@ PAGES.zonesPack = function () {
 
     ${panel('专题包列表', '选择今天要处理的专题场景', `
       <div class="grid grid-cols-3 gap-5">
-        ${window.RUNTIME_ZONES.map(zone => `<a href="#/p7-zones-pack/zone/${zone.id}" class="panel card-hover block"><div class="panel-body"><div class="flex items-center justify-between gap-2"><div class="panel-title text-[15px]">${zone.name}</div>${statusPill(zone.status)}</div><p class="text-sm mt-3 leading-7">${zone.desc}</p><div class="mt-4 text-xs text-zw-mute">资产 ${zone.assets.length} 项 · 订阅部门 ${zone.subscribers}</div><div class="mt-4 text-[13px] text-zw-mute leading-7">适用问题：${zone.aiGuide}</div></div></a>`).join('')}
+        ${window.RUNTIME_ZONES.map(zone => `<a href="#/p7-zones-pack/zone/${zone.id}" class="panel card-hover block"><div class="panel-body"><div class="flex items-center justify-between gap-2"><div class="panel-title text-body">${zone.name}</div>${statusPill(zone.status)}</div><p class="text-body mt-3 leading-7">${zone.desc}</p><div class="mt-4 row-meta">资产 ${zone.assets.length} 项 · 订阅部门 ${zone.subscribers}</div><div class="mt-4 text-body-sm text-zw-mute leading-7">适用问题：${zone.aiGuide}</div></div></a>`).join('')}
       </div>
     `)}
   `;
@@ -1102,9 +1102,9 @@ PAGES.zoneDetail = function (id) {
     ${renderInlineSummary('专题包已汇集常用资产、复用入口、订阅信息和可信记录。', zone.nextActions)}
 
     <div class="grid grid-cols-2 gap-5">
-      ${panel('包含资产', '让用户一眼看到这个专题包里有什么可以直接用', `<ul class="space-y-2 text-sm list-disc pl-5">${zone.assets.map(item => `<li>${item}</li>`).join('')}</ul>`)}
+      ${panel('包含资产', '让用户一眼看到这个专题包里有什么可以直接用', `<ul class="space-y-2 text-body leading-7 list-disc pl-5">${zone.assets.map(item => `<li>${item}</li>`).join('')}</ul>`)}
       ${panel('信任信息与价值', '查看订阅、来源、更新和可信记录', `
-        <ul class="space-y-2 text-sm list-disc pl-5">
+        <ul class="space-y-2 text-body leading-7 list-disc pl-5">
           ${zone.trust.map(item => `<li>${item}</li>`).join('')}
           <li>可用动作：查看详情、发起复用申请、订阅专区更新。</li>
         </ul>
@@ -1145,14 +1145,14 @@ PAGES.integrationAdmin = function () {
     <div class="grid grid-cols-12 gap-5">
       <section class="col-span-7">
         ${panel('能力包注册队列', '处理待上线、待补正和已驳回的外部能力', `
-          <div class="space-y-3 text-sm">
-            ${packages.map(item => `<a href="#/p8-integration-admin/package/${item.id}" class="panel card-hover block"><div class="panel-body"><div class="flex items-center justify-between gap-3"><div class="panel-title text-[15px]">${formatPackageName(item.slug)}</div>${statusPill(packageStatusLabel(item))}</div><div class="row-meta mt-2">${item.source}</div><div class="mt-3">${item.desc}</div><div class="mt-2 text-[13px] text-zw-mute leading-7">审核状态：${packageStatusLabel(item)} · 暴露面 ${formatExposure(item.exposure)}</div><div class="mt-3 text-[13px] text-zw-mute leading-7" data-ai-surface="package-inline-ai">系统审核意见：${item.aiReview.summary}</div></div></a>`).join('')}
+          <div class="space-y-3 text-body">
+            ${packages.map(item => `<a href="#/p8-integration-admin/package/${item.id}" class="panel card-hover block"><div class="panel-body"><div class="flex items-center justify-between gap-3"><div class="panel-title text-body">${formatPackageName(item.slug)}</div>${statusPill(packageStatusLabel(item))}</div><div class="row-meta mt-2">${item.source}</div><div class="mt-3">${item.desc}</div><div class="mt-2 text-body-sm text-zw-mute leading-7">审核状态：${packageStatusLabel(item)} · 暴露面 ${formatExposure(item.exposure)}</div><div class="mt-3 text-body-sm text-zw-mute leading-7" data-ai-surface="package-inline-ai">系统审核意见：${item.aiReview.summary}</div></div></a>`).join('')}
           </div>
         `)}
       </section>
       <aside class="col-span-5 space-y-5">
         ${panel('上线核对项', '上线前核对来源、范围、权限和回退方案', `
-          <ul class="space-y-2 text-sm list-disc pl-5">
+          <ul class="space-y-2 text-body leading-7 list-disc pl-5">
             <li>能力名称 / 版本 / 来源</li>
             <li>租户范围 / 权限策略 / 审计级别</li>
             <li>是否需要人工确认</li>
@@ -1161,7 +1161,7 @@ PAGES.integrationAdmin = function () {
           </ul>
         `)}
         ${panel('审核提示', '先确认它能帮助经办人提效，再确认不会越权办理。', `
-          <div data-ai-surface="integration-inline-ai" class="text-[14px] leading-7 text-zw-ink">可上线能力应帮助草拟、解释、汇总、推荐或适配；涉及提交、审批、回执对账、版本登记、租户策略生效的能力需要退回或驳回。</div>
+          <div data-ai-surface="integration-inline-ai" class="text-body leading-7 text-zw-ink">可上线能力应帮助草拟、解释、汇总、推荐或适配；涉及提交、审批、回执对账、版本登记、租户策略生效的能力需要退回或驳回。</div>
         `)}
       </aside>
     </div>
@@ -1205,9 +1205,9 @@ PAGES.packageDetail = function (id) {
           <tr><td>人工确认</td><td>${item.requiresHuman ? '需要' : '不需要'}</td></tr>
           <tr><td>描述</td><td>${item.desc}</td></tr>
         </tbody></table>
-        <div class="mt-4 text-[13px] text-zw-mute leading-7">缺失项：${ai.missing.length ? ai.missing.join('；') : '无'}</div>
-        <div class="mt-2 text-[13px] text-zw-mute leading-7">安全项：${ai.safe.length ? ai.safe.join('；') : '—'}</div>
-        <div class="mt-2 text-[13px] text-zw-mute leading-7">租户策略：${item.tenantPolicy ? `${item.tenantPolicy.tenantId} / ${item.tenantPolicy.policyStatus}` : '未生效'}</div>
+        <div class="mt-4 text-body-sm text-zw-mute leading-7">缺失项：${ai.missing.length ? ai.missing.join('；') : '无'}</div>
+        <div class="mt-2 text-body-sm text-zw-mute leading-7">安全项：${ai.safe.length ? ai.safe.join('；') : '—'}</div>
+        <div class="mt-2 text-body-sm text-zw-mute leading-7">租户策略：${item.tenantPolicy ? `${item.tenantPolicy.tenantId} / ${item.tenantPolicy.policyStatus}` : '未生效'}</div>
       `)}
       ${renderDraftCard('AI 草拟的审核意见', [ai.draft], '审核助手只给草案；批准、退回和驳回仍由管理员点击确认。')}
     </div>

@@ -10,15 +10,16 @@ from zw_brain.shared import runtime_config
 def test_runtime_config_uses_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("ZW_BRAIN_REST_HOST", raising=False)
     monkeypatch.delenv("ZW_BRAIN_REST_PORT", raising=False)
+    monkeypatch.delenv("PORT", raising=False)
     monkeypatch.delenv("ZW_BRAIN_REST_BASE_URL", raising=False)
     monkeypatch.delenv("ZW_BRAIN_DASHBOARD_BFF_HOST", raising=False)
     monkeypatch.delenv("ZW_BRAIN_DASHBOARD_BFF_PORT", raising=False)
 
-    assert runtime_config.get_rest_host() == "127.0.0.1"
+    assert runtime_config.get_rest_host() == "0.0.0.0"
     assert runtime_config.get_rest_port() == 8800
     assert runtime_config.get_rest_base_url() == "http://127.0.0.1:8800"
     assert runtime_config.get_rest_api_skills_endpoint() == "http://127.0.0.1:8800/api/skills"
-    assert runtime_config.get_dashboard_bff_host() == "127.0.0.1"
+    assert runtime_config.get_dashboard_bff_host() == "0.0.0.0"
     assert runtime_config.get_dashboard_bff_port() == 8801
 
 
@@ -42,6 +43,15 @@ def test_runtime_config_reads_explicit_base_url(monkeypatch: pytest.MonkeyPatch)
 
     assert runtime_config.get_rest_base_url() == "https://brain.example.internal:9443"
     assert runtime_config.get_rest_api_skills_endpoint() == "https://brain.example.internal:9443/api/skills"
+
+
+def test_runtime_config_port_env_maps_rest_and_dashboard(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("ZW_BRAIN_REST_PORT", raising=False)
+    monkeypatch.delenv("ZW_BRAIN_DASHBOARD_BFF_PORT", raising=False)
+    monkeypatch.setenv("PORT", "3000")
+
+    assert runtime_config.get_rest_port() == 3000
+    assert runtime_config.get_dashboard_bff_port() == 3001
 
 
 @pytest.mark.parametrize(
