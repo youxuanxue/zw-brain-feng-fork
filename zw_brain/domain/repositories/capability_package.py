@@ -53,6 +53,8 @@ class CapabilityPackageRepository:
                         "exposedSurfaces": package.get("exposure", []),
                         "requiresHuman": package.get("requiresHuman", False),
                         "auditClass": package.get("auditClass"),
+                        "tenantPolicy": package.get("tenantPolicy", {}),
+                        "failureWriteback": package.get("failureWriteback", {}),
                     },
                 )
             )

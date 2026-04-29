@@ -163,6 +163,32 @@ class ServiceInvocationMetricProjectionRecord(Base):
     generated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now, index=True)
 
 
+class LegacyObjectMappingRecord(Base):
+    __tablename__ = "legacy_object_mapping"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "legacy_system",
+            "legacy_object_type",
+            "legacy_object_ref",
+            "canonical_type",
+            "canonical_ref",
+            name="uq_legacy_object_mapping_identity",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    legacy_system: Mapped[str] = mapped_column(String(64), index=True)
+    legacy_object_type: Mapped[str] = mapped_column(String(128), index=True)
+    legacy_object_ref: Mapped[str] = mapped_column(String(255), index=True)
+    canonical_type: Mapped[str] = mapped_column(String(128), index=True)
+    canonical_ref: Mapped[str] = mapped_column(String(255), index=True)
+    source_ref: Mapped[str] = mapped_column(String(255), index=True)
+    evidence_json: Mapped[dict] = mapped_column(JSON)
+    mapped_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now, index=True)
+
+
 class ApplicationRecord(Base):
     __tablename__ = "application_record"
 

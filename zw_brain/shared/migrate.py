@@ -18,6 +18,7 @@ REQUIRED_TABLES = {
     "resource_channel_binding",
     "gateway_runtime_status_projection",
     "service_invocation_metric_projection",
+    "legacy_object_mapping",
     "application_record",
     "approval_case",
     "approval_step",

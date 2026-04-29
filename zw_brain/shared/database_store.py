@@ -18,6 +18,7 @@ from zw_brain.domain.repositories import (
     CatalogRepository,
     DeliveryRepository,
     GatewayRuntimeRepository,
+    LegacyObjectMappingRepository,
     ObjectionRepository,
     ResourceApiRepository,
     ServiceInvocationMetricRepository,
@@ -38,6 +39,7 @@ class DatabaseStore:
         self.delivery_repo = DeliveryRepository()
         self.capability_package_repo = CapabilityPackageRepository()
         self.gateway_runtime_repo = GatewayRuntimeRepository()
+        self.legacy_mapping_repo = LegacyObjectMappingRepository()
         self.objection_repo = ObjectionRepository()
         self.resource_api_repo = ResourceApiRepository()
         self.service_invocation_repo = ServiceInvocationMetricRepository()

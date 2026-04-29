@@ -5,8 +5,9 @@ from typing import Any
 
 from sqlalchemy import select
 
-from zw_brain.domain.models import ServiceInvocationMetricProjectionRecord
+from zw_brain.domain.models import LegacyObjectMappingRecord, ServiceInvocationMetricProjectionRecord
 from zw_brain.shared.db import create_session_factory
+from zw_brain.shared.sanitization import adapter_source_kind, legacy_mapping_payload, safe_json
 
 
 def _now() -> datetime:
@@ -65,6 +66,7 @@ class ServiceInvocationMetricRepository:
                     ServiceInvocationMetricProjectionRecord.time_bucket == time_bucket,
                 )
             ).scalar_one_or_none()
+            summary_json = safe_json(payload.get("summary_json") or {}) | {"source_kind": adapter_source_kind(payload.get("source_event_ref"))}
             if record is None:
                 record = ServiceInvocationMetricProjectionRecord(
                     tenant_id=tenant_id,
@@ -82,7 +84,7 @@ class ServiceInvocationMetricRepository:
                     error_count=int(payload.get("error_count", 0)),
                     avg_latency_ms=payload.get("avg_latency_ms"),
                     source_event_ref=payload.get("source_event_ref"),
-                    summary_json=payload.get("summary_json") or {},
+                    summary_json=summary_json,
                     generated_at=now,
                 )
                 session.add(record)
@@ -95,8 +97,48 @@ class ServiceInvocationMetricRepository:
                 record.error_count = int(payload.get("error_count", record.error_count))
                 record.avg_latency_ms = payload.get("avg_latency_ms", record.avg_latency_ms)
                 record.source_event_ref = payload.get("source_event_ref", record.source_event_ref)
-                record.summary_json = payload.get("summary_json") or record.summary_json
+                record.summary_json = summary_json or record.summary_json
                 record.generated_at = now
+            canonical_ref = ":".join(
+                [
+                    metric_scope,
+                    str(resource_code or capability_id or "aggregate"),
+                    str(provider_org_id or "provider-any"),
+                    str(consumer_org_id or "consumer-any"),
+                    time_bucket,
+                ]
+            )
+            self._upsert_legacy_mapping(
+                session,
+                {
+                    "source_ref": record.source_event_ref,
+                    "legacy_object_ref": payload.get("legacy_object_ref") or canonical_ref,
+                    "canonical_type": "service_invocation_metric_projection",
+                    "canonical_ref": canonical_ref,
+                    "evidence_json": {"invoke_count": record.invoke_count, "failure_count": record.failure_count},
+                },
+                tenant_id=tenant_id,
+            )
             session.commit()
             session.refresh(record)
             return record
+
+    def _upsert_legacy_mapping(self, session: Any, payload: dict[str, Any], *, tenant_id: str) -> None:
+        if not payload.get("source_ref"):
+            return
+        mapping = legacy_mapping_payload(payload, tenant_id=tenant_id)
+        record = session.execute(
+            select(LegacyObjectMappingRecord).where(
+                LegacyObjectMappingRecord.tenant_id == tenant_id,
+                LegacyObjectMappingRecord.legacy_system == mapping["legacy_system"],
+                LegacyObjectMappingRecord.legacy_object_type == mapping["legacy_object_type"],
+                LegacyObjectMappingRecord.legacy_object_ref == mapping["legacy_object_ref"],
+                LegacyObjectMappingRecord.canonical_type == mapping["canonical_type"],
+                LegacyObjectMappingRecord.canonical_ref == mapping["canonical_ref"],
+            )
+        ).scalar_one_or_none()
+        if record is None:
+            session.add(LegacyObjectMappingRecord(**mapping))
+        else:
+            record.source_ref = mapping["source_ref"]
+            record.evidence_json = mapping["evidence_json"]

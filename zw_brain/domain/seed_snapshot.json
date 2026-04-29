@@ -1200,6 +1200,29 @@
           "不替代平台审批与回流动作"
         ],
         "draft": "建议退回补充：请明确跨租户可见范围，并补充默认暴露面说明。"
+      },
+      "contract": {
+        "inputs": [
+          "request"
+        ],
+        "outputs": [
+          "response"
+        ]
+      },
+      "tenantPolicy": {
+        "scope": "tenant-bound",
+        "writeCanonicalState": false,
+        "allowedWritebacks": []
+      },
+      "failureWriteback": {
+        "target": "audit_event",
+        "mode": "failure_summary"
+      },
+      "runtimeBinding": {
+        "protocol": "anp",
+        "sideEffects": [
+          "audit_only"
+        ]
       }
     },
     {
@@ -1223,6 +1246,29 @@
           "不拥有 register-version 或 apply-tenant-policy 写权"
         ],
         "draft": "建议补充：明确该能力只输出推荐结果，正式模板升级仍由平台管理员控制面确认。"
+      },
+      "contract": {
+        "inputs": [
+          "request"
+        ],
+        "outputs": [
+          "response"
+        ]
+      },
+      "tenantPolicy": {
+        "scope": "tenant-bound",
+        "writeCanonicalState": false,
+        "allowedWritebacks": []
+      },
+      "failureWriteback": {
+        "target": "audit_event",
+        "mode": "failure_summary"
+      },
+      "runtimeBinding": {
+        "protocol": "anp",
+        "sideEffects": [
+          "audit_only"
+        ]
       }
     },
     {
@@ -1244,6 +1290,293 @@
         ],
         "safe": [],
         "draft": "建议重构为“只读推荐 + 结构化草稿”，不要直接声明批量提交或回流生效能力。"
+      },
+      "contract": {
+        "inputs": [
+          "request"
+        ],
+        "outputs": [
+          "response"
+        ]
+      },
+      "tenantPolicy": {
+        "scope": "tenant-bound",
+        "writeCanonicalState": false,
+        "allowedWritebacks": []
+      },
+      "failureWriteback": {
+        "target": "audit_event",
+        "mode": "failure_summary"
+      },
+      "runtimeBinding": {
+        "protocol": "anp",
+        "sideEffects": [
+          "audit_only"
+        ]
+      }
+    },
+    {
+      "id": "PKG-DSP-GATEWAY-RUNTIME",
+      "slug": "dsp.gateway.runtime.adapter",
+      "source": "外部 ANP / 网关运行时",
+      "status": "approved",
+      "exposure": [
+        "api",
+        "mcp"
+      ],
+      "auditClass": "runtime-high",
+      "requiresHuman": false,
+      "desc": "承接旧 Zuul 网关运行、路由刷新、心跳上报与网关日志采集，只写运行态投影和 outbox，不拥有 API 资源生命周期写权。",
+      "contract": {
+        "inputs": [
+          "gateway_instance_id",
+          "heartbeat",
+          "gateway_log_ref"
+        ],
+        "outputs": [
+          "gateway_runtime_status_projection",
+          "anchor_outbox_ref"
+        ]
+      },
+      "tenantPolicy": {
+        "scope": "tenant-bound",
+        "writeCanonicalState": false,
+        "allowedWritebacks": [
+          "gateway_runtime_status_projection",
+          "anchor_outbox"
+        ]
+      },
+      "failureWriteback": {
+        "target": "audit_event",
+        "mode": "runtime_warning"
+      },
+      "runtimeBinding": {
+        "protocol": "anp",
+        "taskKinds": [
+          "HTTP"
+        ],
+        "sideEffects": [
+          "runtime_projection",
+          "audit_anchor_outbox"
+        ]
+      },
+      "aiReview": {
+        "summary": "运行时能力可外化，但不得绕过资源生命周期状态机。",
+        "missing": [],
+        "safe": [
+          "无 canonical 生命周期写权",
+          "失败只回写审计告警"
+        ],
+        "draft": "允许作为外部运行时 adapter 注册。"
+      }
+    },
+    {
+      "id": "PKG-DSP-DIAGNOSTICS",
+      "slug": "dsp.environment.diagnostics.adapter",
+      "source": "外部 ANP / 运维诊断执行器",
+      "status": "approved",
+      "exposure": [
+        "api"
+      ],
+      "auditClass": "ops-sensitive",
+      "requiresHuman": true,
+      "desc": "执行环境诊断、缓存刷新、连通性排障等长尾动作，结果以脱敏摘要回写审计与处置建议，不写资源主状态。",
+      "contract": {
+        "inputs": [
+          "target_ref",
+          "diagnostic_kind"
+        ],
+        "outputs": [
+          "sanitized_findings",
+          "remediation_summary"
+        ]
+      },
+      "tenantPolicy": {
+        "scope": "tenant-bound",
+        "writeCanonicalState": false,
+        "allowedWritebacks": [
+          "audit_event"
+        ]
+      },
+      "failureWriteback": {
+        "target": "audit_event",
+        "mode": "ops_failure_summary"
+      },
+      "runtimeBinding": {
+        "protocol": "anp",
+        "taskKinds": [
+          "HTTP"
+        ],
+        "sideEffects": [
+          "audit_only"
+        ]
+      },
+      "aiReview": {
+        "summary": "诊断执行可外化，人类确认后执行，结果只作为证据摘要。",
+        "missing": [],
+        "safe": [
+          "脱敏摘要",
+          "审计留痕"
+        ],
+        "draft": "允许注册为外部运维诊断能力。"
+      }
+    },
+    {
+      "id": "PKG-DSP-TICKET-CMDB-WIKI",
+      "slug": "dsp.ticket.cmdb.wiki.adapter",
+      "source": "外部 ANP / 工单与知识系统 adapter",
+      "status": "approved",
+      "exposure": [
+        "api",
+        "mcp"
+      ],
+      "auditClass": "read-sensitive",
+      "requiresHuman": false,
+      "desc": "读取外部工单、监控、CMDB、Wiki 的脱敏主题、故障模式、证据引用和处置摘要，不沉淀原文、姓名、内部地址或密钥。",
+      "contract": {
+        "inputs": [
+          "evidence_ref",
+          "topic_filter"
+        ],
+        "outputs": [
+          "fault_type",
+          "evidence_ref",
+          "resolution_summary"
+        ]
+      },
+      "tenantPolicy": {
+        "scope": "tenant-bound",
+        "writeCanonicalState": false,
+        "allowedWritebacks": [
+          "audit_event"
+        ]
+      },
+      "failureWriteback": {
+        "target": "audit_event",
+        "mode": "adapter_unavailable"
+      },
+      "runtimeBinding": {
+        "protocol": "anp",
+        "taskKinds": [
+          "HTTP"
+        ],
+        "sideEffects": [
+          "audit_only"
+        ]
+      },
+      "aiReview": {
+        "summary": "外部证据只做脱敏引用，不成为 canonical 事实源。",
+        "missing": [],
+        "safe": [
+          "只读",
+          "脱敏",
+          "引用化"
+        ],
+        "draft": "允许作为外部证据 adapter 注册。"
+      }
+    },
+    {
+      "id": "PKG-DSP-WSDL-IMPORT",
+      "slug": "dsp.wsdl.import.adapter",
+      "source": "外部 ANP / 特殊协议导入器",
+      "status": "approved",
+      "exposure": [
+        "api"
+      ],
+      "auditClass": "write-reviewed",
+      "requiresHuman": true,
+      "desc": "将 WSDL 等特殊协议解析为 API 服务注册草稿，正式注册、审核、发布仍通过 resource.api.* 能力完成。",
+      "contract": {
+        "inputs": [
+          "wsdl_ref"
+        ],
+        "outputs": [
+          "resource_api_draft",
+          "channel_binding_draft"
+        ]
+      },
+      "tenantPolicy": {
+        "scope": "tenant-bound",
+        "writeCanonicalState": false,
+        "allowedWritebacks": [
+          "audit_event"
+        ]
+      },
+      "failureWriteback": {
+        "target": "audit_event",
+        "mode": "draft_parse_failed"
+      },
+      "runtimeBinding": {
+        "protocol": "anp",
+        "taskKinds": [
+          "HTTP"
+        ],
+        "sideEffects": [
+          "draft_only"
+        ]
+      },
+      "aiReview": {
+        "summary": "导入器只能产出草稿建议，不能直接发布服务。",
+        "missing": [],
+        "safe": [
+          "草稿输出",
+          "人工确认"
+        ],
+        "draft": "允许作为特殊协议导入能力。"
+      }
+    },
+    {
+      "id": "PKG-DSP-ORCHESTRATOR-HTTP-DATASERVICE",
+      "slug": "dsp.orchestrator.http.dataservice.adapter",
+      "source": "外部 ANP / 编排运行时",
+      "status": "approved",
+      "exposure": [
+        "api",
+        "mcp"
+      ],
+      "auditClass": "runtime-high",
+      "requiresHuman": true,
+      "desc": "承接 WorkflowDef / TaskDef 中有价值的 HTTP 与 DATA_SERVICE 任务语义，只作为外部运行时绑定，不在 zw-brain 新建流程编排中心。",
+      "contract": {
+        "inputs": [
+          "workflow_manifest_ref",
+          "task_payload"
+        ],
+        "outputs": [
+          "execution_summary",
+          "failure_writeback"
+        ]
+      },
+      "tenantPolicy": {
+        "scope": "tenant-bound",
+        "writeCanonicalState": false,
+        "allowedWritebacks": [
+          "audit_event",
+          "anchor_outbox"
+        ]
+      },
+      "failureWriteback": {
+        "target": "audit_event",
+        "mode": "orchestration_failure_summary"
+      },
+      "runtimeBinding": {
+        "protocol": "anp",
+        "taskKinds": [
+          "HTTP",
+          "DATA_SERVICE"
+        ],
+        "sideEffects": [
+          "audit_anchor_outbox"
+        ]
+      },
+      "aiReview": {
+        "summary": "保留任务语义，外部化运行，不复制旧编排中心。",
+        "missing": [],
+        "safe": [
+          "不写 canonical 状态",
+          "仅支持首批任务类型"
+        ],
+        "draft": "允许作为 Wave 3 外部编排绑定。"
       }
     }
   ],

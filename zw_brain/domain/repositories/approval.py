@@ -54,6 +54,72 @@ class ApprovalRepository:
                 ).scalars()
             )
 
+    def upsert_api_resource_lifecycle(
+        self,
+        resource_code: str,
+        status: str,
+        *,
+        actor: str,
+        skill_id: str,
+        audit_id: str,
+        decision: str | None = None,
+        tenant_id: str = "default",
+    ) -> None:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            case = session.execute(
+                select(ApprovalCaseRecord).where(
+                    ApprovalCaseRecord.tenant_id == tenant_id,
+                    ApprovalCaseRecord.application_code == resource_code,
+                )
+            ).scalar_one_or_none()
+            if case is None:
+                case = ApprovalCaseRecord(
+                    tenant_id=tenant_id,
+                    application_code=resource_code,
+                    current_status=status,
+                    current_step=self._api_step_no(status),
+                    decision_payload_json={
+                        "resource_code": resource_code,
+                        "status": status,
+                        "skill_id": skill_id,
+                        "audit_id": audit_id,
+                    },
+                )
+                session.add(case)
+                session.flush()
+            else:
+                case.current_status = status
+                case.current_step = self._api_step_no(status)
+                case.decision_payload_json = {
+                    **case.decision_payload_json,
+                    "resource_code": resource_code,
+                    "status": status,
+                    "skill_id": skill_id,
+                    "audit_id": audit_id,
+                }
+
+            step = ApprovalStepRecord(
+                approval_case_id=case.id,
+                step_no=self._api_step_no(status),
+                step_name=self._api_step_name(status),
+                decision_mode="single",
+                status=self._api_step_status(status),
+                approver_scope_json={"roles": self._api_approver_roles(status), "resource_code": resource_code},
+            )
+            session.add(step)
+            session.flush()
+            session.add(
+                ApprovalDecisionRecord(
+                    step_id=step.id,
+                    decision=decision or self._api_decision_value(status),
+                    decision_reason=f"{skill_id} via {audit_id}",
+                    actor_snapshot_json={"actor": actor, "roles": self._api_approver_roles(status)},
+                    evidence_json={"resource_code": resource_code, "status": status, "audit_id": audit_id},
+                )
+            )
+            session.commit()
+
     def upsert_from_request_and_approval(self, request: dict[str, Any], approval: dict[str, Any], *, tenant_id: str = "default") -> None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
@@ -105,6 +171,61 @@ class ApprovalRepository:
                     )
                 )
             session.commit()
+
+    def _api_step_no(self, status: str) -> int:
+        if status in {"draft", "review_pending"}:
+            return 1
+        if status == "approved":
+            return 2
+        if status == "published":
+            return 3
+        if status in {"withdrawn", "revoked"}:
+            return 4
+        if status == "test_failed":
+            return 2
+        return 1
+
+    def _api_step_name(self, status: str) -> str:
+        if status == "review_pending":
+            return "API 服务资源审核"
+        if status == "approved":
+            return "API 服务资源审核通过"
+        if status == "published":
+            return "API 服务资源发布"
+        if status == "withdrawn":
+            return "API 服务资源撤回"
+        if status == "revoked":
+            return "API 服务资源撤销授权"
+        if status == "test_failed":
+            return "API 服务连通性测试失败"
+        return "API 服务资源草稿"
+
+    def _api_step_status(self, status: str) -> str:
+        if status == "review_pending":
+            return "in_progress"
+        if status in {"approved", "published"}:
+            return "approved"
+        if status in {"withdrawn", "revoked"}:
+            return "closed"
+        if status == "test_failed":
+            return "returned"
+        return "pending"
+
+    def _api_approver_roles(self, status: str) -> list[str]:
+        if status in {"review_pending", "approved", "published", "withdrawn", "revoked", "test_failed"}:
+            return ["r7"]
+        return ["r6", "r7"]
+
+    def _api_decision_value(self, status: str) -> str:
+        if status in {"approved", "published"}:
+            return "approve"
+        if status in {"withdrawn", "revoked"}:
+            return "close"
+        if status == "test_failed":
+            return "return"
+        if status == "review_pending":
+            return "submit"
+        return "draft"
 
     def _current_step_no(self, request_status: str) -> int:
         if request_status in {"pending", "need-fix", "rejected"}:

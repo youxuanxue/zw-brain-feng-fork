@@ -174,6 +174,36 @@ def upgrade() -> None:
     op.create_index("ix_service_invocation_metric_projection_time_bucket", "service_invocation_metric_projection", ["time_bucket"])
     op.create_index("ix_service_invocation_metric_projection_generated_at", "service_invocation_metric_projection", ["generated_at"])
     op.create_table(
+        "legacy_object_mapping",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("tenant_id", sa.String(length=64), nullable=False),
+        sa.Column("legacy_system", sa.String(length=64), nullable=False),
+        sa.Column("legacy_object_type", sa.String(length=128), nullable=False),
+        sa.Column("legacy_object_ref", sa.String(length=255), nullable=False),
+        sa.Column("canonical_type", sa.String(length=128), nullable=False),
+        sa.Column("canonical_ref", sa.String(length=255), nullable=False),
+        sa.Column("source_ref", sa.String(length=255), nullable=False),
+        sa.Column("evidence_json", sa.JSON(), nullable=False),
+        sa.Column("mapped_at", sa.DateTime(), nullable=False),
+        sa.UniqueConstraint(
+            "tenant_id",
+            "legacy_system",
+            "legacy_object_type",
+            "legacy_object_ref",
+            "canonical_type",
+            "canonical_ref",
+            name="uq_legacy_object_mapping_identity",
+        ),
+    )
+    op.create_index("ix_legacy_object_mapping_tenant_id", "legacy_object_mapping", ["tenant_id"])
+    op.create_index("ix_legacy_object_mapping_legacy_system", "legacy_object_mapping", ["legacy_system"])
+    op.create_index("ix_legacy_object_mapping_legacy_object_type", "legacy_object_mapping", ["legacy_object_type"])
+    op.create_index("ix_legacy_object_mapping_legacy_object_ref", "legacy_object_mapping", ["legacy_object_ref"])
+    op.create_index("ix_legacy_object_mapping_canonical_type", "legacy_object_mapping", ["canonical_type"])
+    op.create_index("ix_legacy_object_mapping_canonical_ref", "legacy_object_mapping", ["canonical_ref"])
+    op.create_index("ix_legacy_object_mapping_source_ref", "legacy_object_mapping", ["source_ref"])
+    op.create_index("ix_legacy_object_mapping_mapped_at", "legacy_object_mapping", ["mapped_at"])
+    op.create_table(
         "application_record",
         sa.Column("id", sa.String(length=36), primary_key=True),
         sa.Column("tenant_id", sa.String(length=64), nullable=False),
@@ -412,6 +442,15 @@ def downgrade() -> None:
     op.drop_index("ix_resource_asset_resource_code", table_name="resource_asset")
     op.drop_index("ix_resource_asset_tenant_id", table_name="resource_asset")
     op.drop_table("resource_asset")
+    op.drop_index("ix_legacy_object_mapping_mapped_at", table_name="legacy_object_mapping")
+    op.drop_index("ix_legacy_object_mapping_source_ref", table_name="legacy_object_mapping")
+    op.drop_index("ix_legacy_object_mapping_canonical_ref", table_name="legacy_object_mapping")
+    op.drop_index("ix_legacy_object_mapping_canonical_type", table_name="legacy_object_mapping")
+    op.drop_index("ix_legacy_object_mapping_legacy_object_ref", table_name="legacy_object_mapping")
+    op.drop_index("ix_legacy_object_mapping_legacy_object_type", table_name="legacy_object_mapping")
+    op.drop_index("ix_legacy_object_mapping_legacy_system", table_name="legacy_object_mapping")
+    op.drop_index("ix_legacy_object_mapping_tenant_id", table_name="legacy_object_mapping")
+    op.drop_table("legacy_object_mapping")
     op.drop_index("ix_catalog_entry_catalog_code", table_name="catalog_entry")
     op.drop_index("ix_catalog_entry_tenant_id", table_name="catalog_entry")
     op.drop_table("catalog_entry")

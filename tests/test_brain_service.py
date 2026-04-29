@@ -457,6 +457,159 @@ def test_api_resource_lifecycle_and_policy_filter_sensitive_fields() -> None:
     finally:
         tmp.cleanup()
 
+
+
+def test_api_resource_lifecycle_updates_approval_case_with_database() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.database_store import DatabaseStore
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        service.invoke_skill(
+            "resource.api.register",
+            {
+                "resource_code": "api-approval-ledger",
+                "title": "审批 API",
+                "source_ref": "dsp-dataservice:api_service_info",
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        service.invoke_skill("resource.api.submit_review", {"resource_code": "api-approval-ledger", "role": "r6", "confirmed": True})
+        service.invoke_skill(
+            "resource.api.review",
+            {"resource_code": "api-approval-ledger", "decision": "approve", "role": "r7", "confirmed": True},
+        )
+        service.invoke_skill("resource.api.publish", {"resource_code": "api-approval-ledger", "role": "r7", "confirmed": True})
+
+        cases = [item for item in database_store.approval_repo.list_cases() if item.application_code == "api-approval-ledger"]
+        assert len(cases) == 1
+        assert cases[0].current_status == "published"
+        steps = database_store.approval_repo.list_steps("api-approval-ledger")
+        decisions = database_store.approval_repo.list_decisions("api-approval-ledger")
+        assert [step.step_name for step in steps] == [
+            "API 服务资源审核",
+            "API 服务资源审核通过",
+            "API 服务资源发布",
+        ]
+        assert [decision.decision for decision in decisions] == ["submit", "approve", "approve"]
+
+
+def test_dsp_dataservice_objects_write_legacy_mappings() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.database_store import DatabaseStore
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        service.invoke_skill(
+            "resource.api.register",
+            {
+                "resource_code": "api-trace-ledger",
+                "title": "追溯 API",
+                "source_ref": "dsp-dataservice:api_service_info",
+                "channel_binding": {
+                    "binding_code": "bind-trace-ledger",
+                    "source_ref": "dsp-dataservice:api_service_proxy",
+                },
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        service.invoke_skill(
+            "ops.gateway.heartbeat.ingest",
+            {
+                "gateway_instance_id": "gw-trace",
+                "source_ref": "dsp-dataservice:/openapi/report",
+                "status": "online",
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        database_store.service_invocation_repo.upsert_metric(
+            {
+                "metric_scope": "resource",
+                "resource_code": "api-trace-ledger",
+                "provider_org_id": "org-provider",
+                "consumer_org_id": "org-consumer",
+                "time_bucket": "2026-04-29",
+                "invoke_count": 9,
+                "success_count": 8,
+                "failure_count": 1,
+                "source_event_ref": "dsp-dataservice:api_service_times",
+            }
+        )
+
+        mappings = database_store.legacy_mapping_repo.list_mappings()
+        canonical_types = {item.canonical_type for item in mappings}
+        assert {
+            "resource_asset",
+            "resource_channel_binding",
+            "gateway_runtime_status_projection",
+            "service_invocation_metric_projection",
+        }.issubset(canonical_types)
+        assert {item.legacy_system for item in mappings} == {"dsp-dataservice"}
+        assert any(item.legacy_object_type == "api_service_info" for item in mappings)
+        assert any(item.legacy_object_type == "/openapi/report" for item in mappings)
+
+
+def test_service_projection_source_kind_and_external_packages() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.database_store import DatabaseStore
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        service = BrainService(state_store=StateStore(database_store=database_store))
+        database_store.service_invocation_repo.upsert_metric(
+            {
+                "metric_scope": "resource",
+                "resource_code": "api-source-kind",
+                "time_bucket": "2026-04-29",
+                "invoke_count": 3,
+                "source_event_ref": "dsp-dataservice:gateway_log:20260429",
+            }
+        )
+
+        metrics = service.invoke_skill("ops.service.invocation.query", {"resource_code": "api-source-kind", "role": "r6"})["items"]
+        assert metrics[0]["summary_json"]["source_kind"] == "gateway_adapter"
+
+        packages = {item["slug"]: item for item in service.invoke_skill("package.list", {"role": "r7"})["items"]}
+        for slug in {
+            "dsp.gateway.runtime.adapter",
+            "dsp.environment.diagnostics.adapter",
+            "dsp.ticket.cmdb.wiki.adapter",
+            "dsp.wsdl.import.adapter",
+            "dsp.orchestrator.http.dataservice.adapter",
+        }:
+            package = packages[slug]
+            assert package["contract"]["inputs"]
+            assert package["tenantPolicy"]["writeCanonicalState"] is False
+            assert package["failureWriteback"]["target"] == "audit_event"
+
+
 def test_audit_sink_failure_blocks_write_mutation() -> None:
     tmp, service = make_service()
     try:

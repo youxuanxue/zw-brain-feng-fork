@@ -287,7 +287,7 @@ class BrainService:
                 }
             policy = policies.get(item["slug"])
             if policy is not None:
-                item["tenantPolicy"] = {
+                item["repositoryPolicy"] = {
                     "tenantId": policy.tenant_id,
                     "policyStatus": policy.policy_status,
                     "policy": copy.deepcopy(policy.policy_json),
@@ -785,6 +785,14 @@ class BrainService:
                 record = store.resource_api_repo.transition_asset(resource_code, status)
                 if record is None:
                     raise NotFoundError(resource_code)
+                store.approval_repo.upsert_api_resource_lifecycle(
+                    resource_code,
+                    status,
+                    actor=actor,
+                    skill_id=skill_id,
+                    audit_id=audit_id,
+                    decision="return" if status in {"draft", "test_failed"} else None,
+                )
                 result = self._resource_asset_record_to_dict(record)
             self._append_audit_feed(skill_id, resource_code, "ok", actor)
             return result | {"audit_id": audit_id}
