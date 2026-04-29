@@ -21,7 +21,10 @@ async def run_once() -> int:
         if job.topic != "blockchain.anchor":
             continue
         content_hash = job.payload["content_hash"]
-        await _anchor(content_hash, chain_id=job.payload.get("chain_id", "mock-chain"))
+        receipt = await _anchor(content_hash, chain_id=job.payload.get("chain_id", "mock-chain"))
+        outbox = next((record for record in store.list_pending_anchor_outbox() if record.content_hash == content_hash), None)
+        if outbox is not None:
+            store.append_anchor_receipt(outbox, receipt)
         store.mark_anchor_delivered(content_hash)
         seen_hashes.add(content_hash)
         processed += 1
@@ -29,7 +32,8 @@ async def run_once() -> int:
     for record in store.list_pending_anchor_outbox():
         if record.content_hash in seen_hashes:
             continue
-        await _anchor(record.content_hash, chain_id=record.chain_id)
+        receipt = await _anchor(record.content_hash, chain_id=record.chain_id)
+        store.append_anchor_receipt(record, receipt)
         store.mark_anchor_delivered(record.content_hash)
         processed += 1
 

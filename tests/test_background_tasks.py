@@ -27,3 +27,5 @@ def test_background_worker_processes_durable_outbox() -> None:
         with engine.connect() as conn:
             delivered = conn.execute(text("select delivered from anchor_outbox where content_hash = 'hash-durable'"))
             assert delivered.scalar_one() == 1
+            receipt = conn.execute(text("select tx_hash from audit_receipt where content_hash = 'hash-durable'"))
+            assert receipt.scalar_one() == "mock:hash-durable"

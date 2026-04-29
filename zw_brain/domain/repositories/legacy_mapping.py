@@ -18,20 +18,33 @@ def upsert_legacy_mapping_in_session(session: Any, payload: dict[str, Any], *, t
     if not payload.get("source_ref"):
         return
     mapping = legacy_mapping_payload(payload, tenant_id=tenant_id)
-    record = session.execute(
-        select(LegacyObjectMappingRecord).where(
-            LegacyObjectMappingRecord.tenant_id == tenant_id,
-            LegacyObjectMappingRecord.legacy_system == mapping["legacy_system"],
-            LegacyObjectMappingRecord.legacy_object_type == mapping["legacy_object_type"],
-            LegacyObjectMappingRecord.legacy_object_ref == mapping["legacy_object_ref"],
-            LegacyObjectMappingRecord.canonical_type == mapping["canonical_type"],
-            LegacyObjectMappingRecord.canonical_ref == mapping["canonical_ref"],
-        )
-    ).scalar_one_or_none()
+    existing_for_legacy = list(
+        session.execute(
+            select(LegacyObjectMappingRecord).where(
+                LegacyObjectMappingRecord.tenant_id == tenant_id,
+                LegacyObjectMappingRecord.legacy_system == mapping["legacy_system"],
+                LegacyObjectMappingRecord.legacy_object_type == mapping["legacy_object_type"],
+                LegacyObjectMappingRecord.legacy_object_ref == mapping["legacy_object_ref"],
+            )
+        ).scalars()
+    )
+    record = next(
+        (
+            item
+            for item in existing_for_legacy
+            if item.canonical_type == mapping["canonical_type"] and item.canonical_ref == mapping["canonical_ref"]
+        ),
+        None,
+    )
     if record is None:
+        mapping["mapping_status"] = "conflicted" if existing_for_legacy else mapping["mapping_status"]
         session.add(LegacyObjectMappingRecord(**mapping))
+        for item in existing_for_legacy:
+            item.mapping_status = "conflicted"
+            item.mapped_at = _now()
     else:
         record.source_ref = mapping["source_ref"]
+        record.mapping_status = "conflicted" if len(existing_for_legacy) > 1 else mapping["mapping_status"]
         record.evidence_json = safe_json(mapping.get("evidence_json"))
         record.mapped_at = _now()
 

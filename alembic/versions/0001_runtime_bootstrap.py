@@ -51,6 +51,25 @@ def upgrade() -> None:
     op.create_index("ix_anchor_outbox_skill_id", "anchor_outbox", ["skill_id"])
     op.create_index("ix_anchor_outbox_delivered", "anchor_outbox", ["delivered"])
     op.create_table(
+        "audit_receipt",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("request_id", sa.String(length=128), nullable=False),
+        sa.Column("skill_id", sa.String(length=128), nullable=False),
+        sa.Column("content_hash", sa.String(length=128), nullable=False, unique=True),
+        sa.Column("chain_id", sa.String(length=64), nullable=False),
+        sa.Column("tx_hash", sa.String(length=128), nullable=False),
+        sa.Column("block_height", sa.Integer(), nullable=True),
+        sa.Column("receipt_json", sa.JSON(), nullable=False),
+        sa.Column("confirmed_at", sa.DateTime(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_audit_receipt_request_id", "audit_receipt", ["request_id"])
+    op.create_index("ix_audit_receipt_skill_id", "audit_receipt", ["skill_id"])
+    op.create_index("ix_audit_receipt_content_hash", "audit_receipt", ["content_hash"])
+    op.create_index("ix_audit_receipt_chain_id", "audit_receipt", ["chain_id"])
+    op.create_index("ix_audit_receipt_tx_hash", "audit_receipt", ["tx_hash"])
+    op.create_index("ix_audit_receipt_confirmed_at", "audit_receipt", ["confirmed_at"])
+    op.create_table(
         "capability_manifest",
         sa.Column("skill_id", sa.String(length=128), primary_key=True),
         sa.Column("title", sa.String(length=128), nullable=False),
@@ -183,6 +202,7 @@ def upgrade() -> None:
         sa.Column("canonical_type", sa.String(length=128), nullable=False),
         sa.Column("canonical_ref", sa.String(length=255), nullable=False),
         sa.Column("source_ref", sa.String(length=255), nullable=False),
+        sa.Column("mapping_status", sa.String(length=32), nullable=False, server_default="mapped"),
         sa.Column("evidence_json", sa.JSON(), nullable=False),
         sa.Column("mapped_at", sa.DateTime(), nullable=False),
         sa.UniqueConstraint(
@@ -202,6 +222,7 @@ def upgrade() -> None:
     op.create_index("ix_legacy_object_mapping_canonical_type", "legacy_object_mapping", ["canonical_type"])
     op.create_index("ix_legacy_object_mapping_canonical_ref", "legacy_object_mapping", ["canonical_ref"])
     op.create_index("ix_legacy_object_mapping_source_ref", "legacy_object_mapping", ["source_ref"])
+    op.create_index("ix_legacy_object_mapping_mapping_status", "legacy_object_mapping", ["mapping_status"])
     op.create_index("ix_legacy_object_mapping_mapped_at", "legacy_object_mapping", ["mapped_at"])
     op.create_table(
         "application_record",
@@ -443,6 +464,7 @@ def downgrade() -> None:
     op.drop_index("ix_resource_asset_tenant_id", table_name="resource_asset")
     op.drop_table("resource_asset")
     op.drop_index("ix_legacy_object_mapping_mapped_at", table_name="legacy_object_mapping")
+    op.drop_index("ix_legacy_object_mapping_mapping_status", table_name="legacy_object_mapping")
     op.drop_index("ix_legacy_object_mapping_source_ref", table_name="legacy_object_mapping")
     op.drop_index("ix_legacy_object_mapping_canonical_ref", table_name="legacy_object_mapping")
     op.drop_index("ix_legacy_object_mapping_canonical_type", table_name="legacy_object_mapping")
@@ -455,6 +477,13 @@ def downgrade() -> None:
     op.drop_index("ix_catalog_entry_tenant_id", table_name="catalog_entry")
     op.drop_table("catalog_entry")
     op.drop_table("capability_manifest")
+    op.drop_index("ix_audit_receipt_confirmed_at", table_name="audit_receipt")
+    op.drop_index("ix_audit_receipt_tx_hash", table_name="audit_receipt")
+    op.drop_index("ix_audit_receipt_chain_id", table_name="audit_receipt")
+    op.drop_index("ix_audit_receipt_content_hash", table_name="audit_receipt")
+    op.drop_index("ix_audit_receipt_skill_id", table_name="audit_receipt")
+    op.drop_index("ix_audit_receipt_request_id", table_name="audit_receipt")
+    op.drop_table("audit_receipt")
     op.drop_index("ix_anchor_outbox_delivered", table_name="anchor_outbox")
     op.drop_index("ix_anchor_outbox_skill_id", table_name="anchor_outbox")
     op.drop_index("ix_anchor_outbox_request_id", table_name="anchor_outbox")

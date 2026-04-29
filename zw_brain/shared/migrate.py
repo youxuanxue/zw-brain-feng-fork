@@ -12,6 +12,7 @@ REQUIRED_TABLES = {
     "runtime_state",
     "audit_event",
     "anchor_outbox",
+    "audit_receipt",
     "capability_manifest",
     "catalog_entry",
     "resource_asset",
@@ -31,6 +32,7 @@ REQUIRED_TABLES = {
     "tenant_capability_policy",
 }
 REQUIRED_COLUMNS = {
+    "legacy_object_mapping": {"mapping_status"},
     "approval_step": {"decision_mode", "started_at", "completed_at"},
     "approval_decision": {"decision_reason"},
     "delivery_receipt": {"receipt_no", "acknowledged_at"},

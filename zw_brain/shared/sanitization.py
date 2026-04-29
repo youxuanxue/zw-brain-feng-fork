@@ -45,5 +45,6 @@ def legacy_mapping_payload(payload: dict[str, Any], *, tenant_id: str = "default
         "canonical_type": str(payload["canonical_type"]),
         "canonical_ref": str(payload["canonical_ref"]),
         "source_ref": source_ref,
+        "mapping_status": str(payload.get("mapping_status", "mapped")),
         "evidence_json": safe_json(payload.get("evidence_json") or {}),
     }

@@ -30,6 +30,7 @@ def test_database_store_persists_runtime_state() -> None:
             "runtime_state",
             "audit_event",
             "anchor_outbox",
+            "audit_receipt",
             "capability_manifest",
             "catalog_entry",
             "resource_asset",
@@ -104,3 +105,36 @@ def test_database_store_lists_pending_anchor_outbox() -> None:
         store.mark_anchor_delivered("hash-1")
         remaining = store.list_pending_anchor_outbox()
         assert [item.content_hash for item in remaining] == ["hash-2"]
+
+
+def test_legacy_mapping_marks_conflicts_without_overwrite() -> None:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "zw_brain.db"
+        import os
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.database_store import DatabaseStore
+
+        ensure_runtime_schema()
+        store = DatabaseStore()
+        store.legacy_mapping_repo.upsert_mapping(
+            {
+                "source_ref": "dsp-dataservice:api_service_info:legacy-1",
+                "legacy_object_ref": "legacy-1",
+                "canonical_type": "resource_asset",
+                "canonical_ref": "api-one",
+            }
+        )
+        store.legacy_mapping_repo.upsert_mapping(
+            {
+                "source_ref": "dsp-dataservice:api_service_info:legacy-1",
+                "legacy_object_ref": "legacy-1",
+                "canonical_type": "resource_asset",
+                "canonical_ref": "api-two",
+            }
+        )
+
+        mappings = store.legacy_mapping_repo.list_mappings(canonical_type="resource_asset")
+        assert {item.canonical_ref for item in mappings} == {"api-one", "api-two"}
+        assert {item.mapping_status for item in mappings} == {"conflicted"}

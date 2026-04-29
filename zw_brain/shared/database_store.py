@@ -8,6 +8,7 @@ from sqlalchemy import delete, select
 from zw_brain.domain.models import (
     AnchorOutboxRecord,
     AuditEventRecord,
+    AuditReceiptRecord,
     CapabilityManifestRecord,
     RuntimeStateRecord,
 )
@@ -141,6 +142,46 @@ class DatabaseStore:
                     .order_by(AnchorOutboxRecord.created_at)
                 ).scalars()
             )
+
+    def append_anchor_receipt(self, outbox: AnchorOutboxRecord, receipt: Any) -> None:
+        SessionLocal = self._session_factory()
+        with SessionLocal() as session:
+            existing = session.execute(
+                select(AuditReceiptRecord).where(AuditReceiptRecord.content_hash == outbox.content_hash)
+            ).scalar_one_or_none()
+            receipt_json = {
+                "tx_hash": receipt.tx_hash,
+                "block_height": receipt.block_height,
+                "chain_id": receipt.chain_id,
+                "confirmed_at": receipt.confirmed_at.isoformat(),
+            }
+            if existing is None:
+                session.add(
+                    AuditReceiptRecord(
+                        request_id=outbox.request_id,
+                        skill_id=outbox.skill_id,
+                        content_hash=outbox.content_hash,
+                        chain_id=receipt.chain_id,
+                        tx_hash=receipt.tx_hash,
+                        block_height=receipt.block_height,
+                        receipt_json=receipt_json,
+                        confirmed_at=receipt.confirmed_at,
+                    )
+                )
+            else:
+                existing.request_id = outbox.request_id
+                existing.skill_id = outbox.skill_id
+                existing.chain_id = receipt.chain_id
+                existing.tx_hash = receipt.tx_hash
+                existing.block_height = receipt.block_height
+                existing.receipt_json = receipt_json
+                existing.confirmed_at = receipt.confirmed_at
+            session.commit()
+
+    def list_audit_receipts(self) -> list[AuditReceiptRecord]:
+        SessionLocal = self._session_factory()
+        with SessionLocal() as session:
+            return list(session.execute(select(AuditReceiptRecord).order_by(AuditReceiptRecord.confirmed_at)).scalars())
 
     def mark_anchor_delivered(self, content_hash: str) -> None:
         SessionLocal = self._session_factory()

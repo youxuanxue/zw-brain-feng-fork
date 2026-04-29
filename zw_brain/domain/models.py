@@ -50,6 +50,21 @@ class AnchorOutboxRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
 
+class AuditReceiptRecord(Base):
+    __tablename__ = "audit_receipt"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    request_id: Mapped[str] = mapped_column(String(128), index=True)
+    skill_id: Mapped[str] = mapped_column(String(128), index=True)
+    content_hash: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    chain_id: Mapped[str] = mapped_column(String(64), index=True)
+    tx_hash: Mapped[str] = mapped_column(String(128), index=True)
+    block_height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    receipt_json: Mapped[dict] = mapped_column(JSON)
+    confirmed_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
 class CapabilityManifestRecord(Base):
     __tablename__ = "capability_manifest"
 
@@ -185,6 +200,7 @@ class LegacyObjectMappingRecord(Base):
     canonical_type: Mapped[str] = mapped_column(String(128), index=True)
     canonical_ref: Mapped[str] = mapped_column(String(255), index=True)
     source_ref: Mapped[str] = mapped_column(String(255), index=True)
+    mapping_status: Mapped[str] = mapped_column(String(32), default="mapped", index=True)
     evidence_json: Mapped[dict] = mapped_column(JSON)
     mapped_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now, index=True)
 
