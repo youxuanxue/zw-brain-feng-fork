@@ -191,7 +191,13 @@ class DatabaseStore:
                 record.delivered = True
                 session.commit()
 
+    def sync_reference_tables(self, snapshot: dict[str, Any]) -> None:
+        for pkg in snapshot.get("capability_packages", []):
+            self.capability_package_repo.upsert_from_package(pkg)
+
     def sync_aggregate_tables(self, snapshot: dict[str, Any]) -> None:
+        self.sync_reference_tables(snapshot)
+
         for resource in snapshot.get("discovery", {}).get("resources", []):
             self.catalog_repo.upsert_from_resource(resource)
 
@@ -202,9 +208,6 @@ class DatabaseStore:
 
         for delivery in snapshot.get("delivery_tasks", []):
             self.delivery_repo.upsert_from_delivery(delivery)
-
-        for pkg in snapshot.get("capability_packages", []):
-            self.capability_package_repo.upsert_from_package(pkg)
 
         if not self.resource_api_repo.has_assets():
             for resource in snapshot.get("api_resources", []):

@@ -55,7 +55,7 @@ class BrainService:
         self._sync_state_views()
         self._persist()
         if self._state_store.database_store is not None:
-            self._sync_database_aggregates()
+            self._sync_reference_tables()
 
     def snapshot(self) -> dict[str, Any]:
         state = copy.deepcopy(self._snapshot)
@@ -1864,6 +1864,12 @@ class BrainService:
                 },
             )
         )
+
+    def _sync_reference_tables(self) -> None:
+        store = self._state_store.database_store
+        if store is None:
+            return
+        store.sync_reference_tables(self.snapshot())
 
     def _sync_database_aggregates(self) -> None:
         store = self._state_store.database_store
