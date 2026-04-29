@@ -14,15 +14,20 @@ def safe_json(value: dict[str, Any] | None) -> dict[str, Any]:
 
 def adapter_source_kind(source_ref: Any) -> str:
     source = str(source_ref or "")
-    if "audit" in source or "capability_call" in source:
+    source_norm = source.lower()
+    if "audit" in source_norm or "capability_call" in source_norm:
         return "audit_event"
-    if "gateway_log" in source or "gateway-log" in source or "/openapi/report" in source or "GATEWAY_REPORT" in source:
+    if "gateway_log" in source_norm or "gateway-log" in source_norm or "/openapi/report" in source_norm or "gateway_report" in source_norm:
         return "gateway_adapter"
-    if "api_service_times" in source or "api_service_statistic" in source:
+    if "api_service_times" in source_norm or "api_service_statistic" in source_norm:
         return "legacy_stat_snapshot"
-    if source.startswith("dsp-dataservice:"):
+    if source_norm.startswith("dsp-dataservice:"):
         return "legacy_adapter"
     return "runtime_projection"
+
+
+def summary_with_source_kind(value: dict[str, Any] | None, source_ref: Any) -> dict[str, Any]:
+    return safe_json(value) | {"source_kind": adapter_source_kind(source_ref)}
 
 
 def legacy_mapping_payload(payload: dict[str, Any], *, tenant_id: str = "default") -> dict[str, Any]:

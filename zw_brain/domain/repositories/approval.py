@@ -73,6 +73,9 @@ class ApprovalRepository:
                     ApprovalCaseRecord.application_code == resource_code,
                 )
             ).scalar_one_or_none()
+            if case is not None and case.decision_payload_json.get("audit_id") == audit_id:
+                return
+
             if case is None:
                 case = ApprovalCaseRecord(
                     tenant_id=tenant_id,

@@ -5,9 +5,10 @@ from typing import Any
 
 from sqlalchemy import select
 
-from zw_brain.domain.models import LegacyObjectMappingRecord, ResourceAssetRecord, ResourceChannelBindingRecord
+from zw_brain.domain.models import ResourceAssetRecord, ResourceChannelBindingRecord
+from zw_brain.domain.repositories.legacy_mapping import upsert_legacy_mapping_in_session
 from zw_brain.shared.db import create_session_factory
-from zw_brain.shared.sanitization import legacy_mapping_payload, safe_json
+from zw_brain.shared.sanitization import safe_json
 
 
 def _now() -> datetime:
@@ -77,7 +78,7 @@ class ResourceApiRepository:
                 record.source_ref = payload.get("source_ref", record.source_ref)
                 record.summary_json = safe_json(payload.get("summary_json") or {**record.summary_json, **payload})
                 record.updated_at = now
-            self._upsert_legacy_mapping(
+            upsert_legacy_mapping_in_session(
                 session,
                 {
                     "source_ref": record.source_ref,
@@ -166,7 +167,7 @@ class ResourceApiRepository:
                 record.lifecycle_status = str(payload.get("lifecycle_status", record.lifecycle_status))
                 record.source_ref = payload.get("source_ref", record.source_ref)
                 record.updated_at = now
-            self._upsert_legacy_mapping(
+            upsert_legacy_mapping_in_session(
                 session,
                 {
                     "source_ref": record.source_ref,
@@ -180,23 +181,3 @@ class ResourceApiRepository:
             session.commit()
             session.refresh(record)
             return record
-
-    def _upsert_legacy_mapping(self, session: Any, payload: dict[str, Any], *, tenant_id: str) -> None:
-        if not payload.get("source_ref"):
-            return
-        mapping = legacy_mapping_payload(payload, tenant_id=tenant_id)
-        record = session.execute(
-            select(LegacyObjectMappingRecord).where(
-                LegacyObjectMappingRecord.tenant_id == tenant_id,
-                LegacyObjectMappingRecord.legacy_system == mapping["legacy_system"],
-                LegacyObjectMappingRecord.legacy_object_type == mapping["legacy_object_type"],
-                LegacyObjectMappingRecord.legacy_object_ref == mapping["legacy_object_ref"],
-                LegacyObjectMappingRecord.canonical_type == mapping["canonical_type"],
-                LegacyObjectMappingRecord.canonical_ref == mapping["canonical_ref"],
-            )
-        ).scalar_one_or_none()
-        if record is None:
-            session.add(LegacyObjectMappingRecord(**mapping))
-        else:
-            record.source_ref = mapping["source_ref"]
-            record.evidence_json = mapping["evidence_json"]

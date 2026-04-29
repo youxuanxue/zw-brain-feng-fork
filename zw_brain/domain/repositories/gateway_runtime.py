@@ -5,9 +5,10 @@ from typing import Any
 
 from sqlalchemy import select
 
-from zw_brain.domain.models import GatewayRuntimeStatusProjectionRecord, LegacyObjectMappingRecord
+from zw_brain.domain.models import GatewayRuntimeStatusProjectionRecord
+from zw_brain.domain.repositories.legacy_mapping import upsert_legacy_mapping_in_session
 from zw_brain.shared.db import create_session_factory
-from zw_brain.shared.sanitization import adapter_source_kind, legacy_mapping_payload, safe_json
+from zw_brain.shared.sanitization import summary_with_source_kind
 
 
 def _now() -> datetime:
@@ -44,7 +45,7 @@ class GatewayRuntimeRepository:
         if reported_at is None:
             reported_at = _now()
         now = _now()
-        summary_json = safe_json(payload.get("summary_json") or {}) | {"source_kind": adapter_source_kind(payload.get("source_ref"))}
+        summary_json = summary_with_source_kind(payload.get("summary_json"), payload.get("source_ref"))
         with SessionLocal() as session:
             record = session.execute(
                 select(GatewayRuntimeStatusProjectionRecord).where(
@@ -71,7 +72,7 @@ class GatewayRuntimeRepository:
                 record.source_ref = payload.get("source_ref", record.source_ref)
                 record.summary_json = summary_json or record.summary_json
                 record.generated_at = now
-            self._upsert_legacy_mapping(
+            upsert_legacy_mapping_in_session(
                 session,
                 {
                     "source_ref": record.source_ref,
@@ -85,23 +86,3 @@ class GatewayRuntimeRepository:
             session.commit()
             session.refresh(record)
             return record
-
-    def _upsert_legacy_mapping(self, session: Any, payload: dict[str, Any], *, tenant_id: str) -> None:
-        if not payload.get("source_ref"):
-            return
-        mapping = legacy_mapping_payload(payload, tenant_id=tenant_id)
-        record = session.execute(
-            select(LegacyObjectMappingRecord).where(
-                LegacyObjectMappingRecord.tenant_id == tenant_id,
-                LegacyObjectMappingRecord.legacy_system == mapping["legacy_system"],
-                LegacyObjectMappingRecord.legacy_object_type == mapping["legacy_object_type"],
-                LegacyObjectMappingRecord.legacy_object_ref == mapping["legacy_object_ref"],
-                LegacyObjectMappingRecord.canonical_type == mapping["canonical_type"],
-                LegacyObjectMappingRecord.canonical_ref == mapping["canonical_ref"],
-            )
-        ).scalar_one_or_none()
-        if record is None:
-            session.add(LegacyObjectMappingRecord(**mapping))
-        else:
-            record.source_ref = mapping["source_ref"]
-            record.evidence_json = mapping["evidence_json"]
