@@ -62,6 +62,45 @@ def test_application_repository_writes_legacy_mapping_and_sanitizes_payload() ->
         mappings = LegacyObjectMappingRepository().list_mappings(canonical_type="application_record")
         assert any(item.legacy_object_ref == "app-1" for item in mappings)
 
+def test_delivery_repository_sanitizes_payload_and_keeps_access_grant_snapshot() -> None:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "repo.db"
+        import os
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.domain.repositories.delivery import DeliveryRepository
+
+        ensure_runtime_schema()
+        repo = DeliveryRepository()
+        repo.upsert_from_delivery(
+            {
+                "id": "DLV-api-app-1",
+                "requestId": "REQ-api-app-1",
+                "status": "completed",
+                "channel": "API 授权交付",
+                "resourceId": "api-one",
+                "access": {
+                    "auth_ref": "auth-ref-api-one",
+                    "policy_ref": "policy-ref-api-one",
+                    "secret": "should-not-persist",
+                    "superior_app_secret": "should-not-persist",
+                },
+                "backflow": {"token": "should-not-persist"},
+            }
+        )
+
+        record = next(item for item in repo.list_tasks() if item.delivery_code == "DLV-api-app-1")
+        assert record.payload_json["access"] == {"auth_ref": "auth-ref-api-one", "policy_ref": "policy-ref-api-one"}
+        assert record.payload_json["access_grant_snapshot"] == {
+            "resource_code": "api-one",
+            "application_code": "REQ-api-app-1",
+            "grant_ref": "auth-ref-api-one",
+            "policy_ref": "policy-ref-api-one",
+            "status": "completed",
+        }
+        assert record.payload_json["backflow"] == {}
+
 
 def test_runtime_sync_writes_aggregate_tables() -> None:
     with TemporaryDirectory() as tmp:
@@ -107,6 +146,9 @@ def test_greenfield_schema_contains_step_receipt_and_policy_tables() -> None:
 
         ensure_runtime_schema()
         engine = create_engine(f"sqlite:///{db_path}", future=True)
+        with engine.connect() as conn:
+            tables = set(inspect(conn).get_table_names())
+            assert "resource_api_test_projection" in tables
 
 
 def test_governance_schema_and_projection_are_persisted() -> None:

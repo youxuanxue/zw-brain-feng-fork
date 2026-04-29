@@ -17,6 +17,7 @@ REQUIRED_TABLES = {
     "catalog_entry",
     "resource_asset",
     "resource_channel_binding",
+    "resource_api_test_projection",
     "gateway_runtime_status_projection",
     "service_invocation_metric_projection",
     "legacy_object_mapping",

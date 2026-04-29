@@ -5,7 +5,7 @@ from typing import Any
 
 from sqlalchemy import select
 
-from zw_brain.domain.models import ResourceAssetRecord, ResourceChannelBindingRecord
+from zw_brain.domain.models import ResourceApiTestProjectionRecord, ResourceAssetRecord, ResourceChannelBindingRecord
 from zw_brain.domain.repositories.legacy_mapping import upsert_legacy_mapping_in_session
 from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.sanitization import safe_json
@@ -106,6 +106,66 @@ class ResourceApiRepository:
                 return None
             record.lifecycle_status = status
             record.updated_at = _now()
+            session.commit()
+            session.refresh(record)
+            return record
+
+    def list_test_projections(self, resource_code: str | None = None, *, tenant_id: str = "default") -> list[ResourceApiTestProjectionRecord]:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            statement = select(ResourceApiTestProjectionRecord).where(ResourceApiTestProjectionRecord.tenant_id == tenant_id)
+            if resource_code:
+                statement = statement.where(ResourceApiTestProjectionRecord.resource_code == resource_code)
+            return list(session.execute(statement.order_by(ResourceApiTestProjectionRecord.tested_at)).scalars())
+
+    def upsert_test_projection(self, payload: dict[str, Any], *, tenant_id: str = "default") -> ResourceApiTestProjectionRecord:
+        SessionLocal = create_session_factory()
+        now = _now()
+        resource_code = str(payload["resource_code"])
+        test_ref = str(payload.get("test_ref") or f"{resource_code}:{payload['test_result']}:{now.isoformat()}")
+        with SessionLocal() as session:
+            record = session.execute(
+                select(ResourceApiTestProjectionRecord).where(
+                    ResourceApiTestProjectionRecord.tenant_id == tenant_id,
+                    ResourceApiTestProjectionRecord.test_ref == test_ref,
+                )
+            ).scalar_one_or_none()
+            if record is None:
+                record = ResourceApiTestProjectionRecord(
+                    tenant_id=tenant_id,
+                    test_ref=test_ref,
+                    resource_code=resource_code,
+                    binding_code=payload.get("binding_code"),
+                    test_result=str(payload["test_result"]),
+                    lifecycle_status=str(payload["lifecycle_status"]),
+                    source_ref=payload.get("source_ref"),
+                    evidence_json=safe_json(payload.get("evidence_json") or {}),
+                    tested_by=payload.get("tested_by"),
+                    tested_at=now,
+                    created_at=now,
+                    updated_at=now,
+                )
+                session.add(record)
+            else:
+                record.binding_code = payload.get("binding_code", record.binding_code)
+                record.test_result = str(payload.get("test_result", record.test_result))
+                record.lifecycle_status = str(payload.get("lifecycle_status", record.lifecycle_status))
+                record.source_ref = payload.get("source_ref", record.source_ref)
+                record.evidence_json = safe_json(payload.get("evidence_json") or record.evidence_json)
+                record.tested_by = payload.get("tested_by", record.tested_by)
+                record.tested_at = now
+                record.updated_at = now
+            upsert_legacy_mapping_in_session(
+                session,
+                {
+                    "source_ref": record.source_ref or test_ref,
+                    "legacy_object_ref": payload.get("legacy_object_ref") or test_ref,
+                    "canonical_type": "resource_api_test_projection",
+                    "canonical_ref": test_ref,
+                    "evidence_json": {"resource_code": resource_code, "test_result": record.test_result},
+                },
+                tenant_id=tenant_id,
+            )
             session.commit()
             session.refresh(record)
             return record

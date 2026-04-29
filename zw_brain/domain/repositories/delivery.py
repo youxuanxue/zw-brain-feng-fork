@@ -6,6 +6,7 @@ from sqlalchemy import delete, select
 
 from zw_brain.domain.models import DeliveryReceiptRecord, DeliveryTaskRecord
 from zw_brain.shared.db import create_session_factory
+from zw_brain.shared.sanitization import safe_json
 
 
 class DeliveryRepository:
@@ -36,14 +37,14 @@ class DeliveryRepository:
                     application_code=delivery["requestId"],
                     state=delivery["status"],
                     channel=delivery["channel"],
-                    payload_json=delivery,
+                    payload_json=self._payload(delivery),
                 )
                 session.add(record)
             else:
                 record.application_code = delivery["requestId"]
                 record.state = delivery["status"]
                 record.channel = delivery["channel"]
-                record.payload_json = delivery
+                record.payload_json = self._payload(delivery)
 
             session.execute(delete(DeliveryReceiptRecord).where(DeliveryReceiptRecord.delivery_code == delivery["id"]))
             session.add(
@@ -52,14 +53,33 @@ class DeliveryRepository:
                     receipt_type=self._receipt_type(delivery),
                     receipt_no=delivery.get("receiptNo") or delivery.get("backflow", {}).get("candidateObject"),
                     receipt_status=self._receipt_status(delivery),
-                    payload_json={
-                        "note": delivery.get("note"),
-                        "backflow": delivery.get("backflow", {}),
-                        "history": delivery.get("history", []),
-                    },
+                    payload_json=safe_json(
+                        {
+                            "note": delivery.get("note"),
+                            "backflow": delivery.get("backflow", {}),
+                            "history": delivery.get("history", []),
+                        }
+                    ),
                 )
             )
             session.commit()
+
+    def _payload(self, delivery: dict[str, Any]) -> dict[str, Any]:
+        payload = safe_json(delivery)
+        if not isinstance(payload, dict):
+            return {}
+        access = delivery.get("access")
+        if isinstance(access, dict):
+            payload["access_grant_snapshot"] = safe_json(
+                {
+                    "resource_code": access.get("resource_code") or delivery.get("resourceId") or delivery.get("resource_code"),
+                    "application_code": delivery.get("requestId"),
+                    "grant_ref": access.get("grant_ref") or access.get("auth_ref"),
+                    "policy_ref": access.get("policy_ref"),
+                    "status": delivery.get("status"),
+                }
+            )
+        return payload
 
     def _receipt_type(self, delivery: dict[str, Any]) -> str:
         if delivery.get("backflow", {}).get("candidateObject") and delivery["channel"] == "预填下发 + 汇总回流":

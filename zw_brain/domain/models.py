@@ -128,6 +128,25 @@ class ResourceChannelBindingRecord(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 
 
+class ResourceApiTestProjectionRecord(Base):
+    __tablename__ = "resource_api_test_projection"
+    __table_args__ = (UniqueConstraint("tenant_id", "test_ref", name="uq_resource_api_test_tenant_ref"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    test_ref: Mapped[str] = mapped_column(String(128), index=True)
+    resource_code: Mapped[str] = mapped_column(String(64), index=True)
+    binding_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    test_result: Mapped[str] = mapped_column(String(32), index=True)
+    lifecycle_status: Mapped[str] = mapped_column(String(32), index=True)
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    evidence_json: Mapped[dict] = mapped_column(JSON)
+    tested_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    tested_at: Mapped[datetime] = mapped_column(DateTime, default=_now, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
 class GatewayRuntimeStatusProjectionRecord(Base):
     __tablename__ = "gateway_runtime_status_projection"
     __table_args__ = (UniqueConstraint("tenant_id", "gateway_instance_id", name="uq_gateway_runtime_tenant_instance"),)

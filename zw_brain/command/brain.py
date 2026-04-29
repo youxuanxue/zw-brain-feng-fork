@@ -144,7 +144,7 @@ class BrainService:
             case "resource.api.revoke":
                 return self.transition_api_resource(str(payload["resource_code"]), "revoked", "resource.api.revoke", str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
             case "resource.api.test":
-                return self.test_api_resource(str(payload["resource_code"]), str(payload["test_result"]), str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+                return self.test_api_resource(payload)
             case "resource.api.policy.update":
                 return self.update_api_resource_policy(payload)
             case "system.snapshot":
@@ -816,11 +816,55 @@ class BrainService:
 
         return self._mutate(skill_id, role, confirmed, {"resource_code": resource_code, "status": status}, mutation)
 
-    def test_api_resource(self, resource_code: str, test_result: str, role: str, confirmed: bool) -> dict[str, Any]:
+    def test_api_resource(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        resource_code = str(payload["resource_code"])
+        test_result = str(payload["test_result"])
         if test_result not in {"passed", "failed"}:
             raise BrainServiceError(f"unsupported api test result: {test_result}")
         next_status = "approved" if test_result == "passed" else "test_failed"
-        return self.transition_api_resource(resource_code, next_status, "resource.api.test", role, confirmed)
+        test_payload = {
+            "resource_code": resource_code,
+            "binding_code": payload.get("binding_code"),
+            "test_result": test_result,
+            "lifecycle_status": next_status,
+            "source_ref": payload.get("source_ref") or f"resource.api.test:{resource_code}",
+            "evidence_json": self._safe_json(payload.get("evidence_json") or {}),
+            "legacy_object_ref": payload.get("legacy_object_ref"),
+        }
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            store = self._state_store.database_store
+            if store is None:
+                resource = self._find_api_resource(resource_code)
+                if resource is None:
+                    raise NotFoundError(resource_code)
+                resource["lifecycle_status"] = next_status
+                resource["updated_at"] = self._now_datetime()
+                result = self._upsert_api_resource(resource)
+                tests = self._snapshot.setdefault("api_resource_tests", [])
+                test_record = test_payload | {"test_ref": audit_id, "tested_by": actor, "tested_at": self._now_datetime()}
+                tests.append(test_record)
+            else:
+                record = store.resource_api_repo.transition_asset(resource_code, next_status)
+                if record is None:
+                    raise NotFoundError(resource_code)
+                projection = store.resource_api_repo.upsert_test_projection(test_payload | {"test_ref": audit_id, "tested_by": actor})
+                store.approval_repo.upsert_api_resource_lifecycle(
+                    resource_code,
+                    next_status,
+                    actor=actor,
+                    skill_id="resource.api.test",
+                    audit_id=audit_id,
+                    decision="return" if next_status == "test_failed" else None,
+                )
+                result = self._resource_asset_record_to_dict(record)
+                test_record = self._api_test_projection_record_to_dict(projection)
+            self._append_audit_feed("resource.api.test", resource_code, "ok", actor)
+            return result | {"audit_id": audit_id, "test_projection": test_record}
+
+        return self._mutate("resource.api.test", role, confirmed, test_payload, mutation)
 
     def update_api_resource_policy(self, payload: dict[str, Any]) -> dict[str, Any]:
         role = str(payload.get("role", self._ui_state["role"]))
@@ -972,6 +1016,19 @@ class BrainService:
             "gateway_policy_json": copy.deepcopy(record.gateway_policy_json),
             "lifecycle_status": record.lifecycle_status,
             "source_ref": record.source_ref,
+        }
+
+    def _api_test_projection_record_to_dict(self, record: Any) -> dict[str, Any]:
+        return {
+            "test_ref": record.test_ref,
+            "resource_code": record.resource_code,
+            "binding_code": record.binding_code,
+            "test_result": record.test_result,
+            "lifecycle_status": record.lifecycle_status,
+            "source_ref": record.source_ref,
+            "evidence_json": copy.deepcopy(record.evidence_json),
+            "tested_by": record.tested_by,
+            "tested_at": record.tested_at.isoformat(),
         }
 
     def _gateway_record_to_dict(self, record: Any) -> dict[str, Any]:

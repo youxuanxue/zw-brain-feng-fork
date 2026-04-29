@@ -659,6 +659,50 @@ def test_gateway_log_anchor_writes_sanitized_outbox_request() -> None:
         assert [item.phase for item in events] == ["before", "after"]
 
 
+def test_api_resource_test_persists_sanitized_projection() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.database_store import DatabaseStore
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        service.invoke_skill(
+            "resource.api.register",
+            {
+                "resource_code": "api-test-ledger",
+                "title": "连通性测试 API",
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        result = service.invoke_skill(
+            "resource.api.test",
+            {
+                "resource_code": "api-test-ledger",
+                "test_result": "failed",
+                "binding_code": "bind-test-ledger",
+                "evidence_json": {"latency_ms": 20, "nested": {"secret": "should-not-persist"}, "token": "should-not-persist"},
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+
+        assert result["result"]["lifecycle_status"] == "test_failed"
+        assert result["result"]["test_projection"]["evidence_json"] == {"latency_ms": 20, "nested": {}}
+        projections = database_store.resource_api_repo.list_test_projections("api-test-ledger")
+        assert projections[0].test_ref == result["audit_id"]
+        assert projections[0].evidence_json == {"latency_ms": 20, "nested": {}}
+        assert any(item.canonical_type == "resource_api_test_projection" for item in database_store.legacy_mapping_repo.list_mappings())
+
+
 def test_audit_sink_failure_blocks_write_mutation() -> None:
     tmp, service = make_service()
     try:

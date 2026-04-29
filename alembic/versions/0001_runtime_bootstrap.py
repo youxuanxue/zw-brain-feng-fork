@@ -136,6 +136,30 @@ def upgrade() -> None:
     op.create_index("ix_resource_channel_binding_resource_code", "resource_channel_binding", ["resource_code"])
     op.create_index("ix_resource_channel_binding_lifecycle_status", "resource_channel_binding", ["lifecycle_status"])
     op.create_table(
+        "resource_api_test_projection",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("tenant_id", sa.String(length=64), nullable=False),
+        sa.Column("test_ref", sa.String(length=128), nullable=False),
+        sa.Column("resource_code", sa.String(length=64), nullable=False),
+        sa.Column("binding_code", sa.String(length=64), nullable=True),
+        sa.Column("test_result", sa.String(length=32), nullable=False),
+        sa.Column("lifecycle_status", sa.String(length=32), nullable=False),
+        sa.Column("source_ref", sa.String(length=128), nullable=True),
+        sa.Column("evidence_json", sa.JSON(), nullable=False),
+        sa.Column("tested_by", sa.String(length=128), nullable=True),
+        sa.Column("tested_at", sa.DateTime(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.UniqueConstraint("tenant_id", "test_ref", name="uq_resource_api_test_tenant_ref"),
+    )
+    op.create_index("ix_resource_api_test_projection_tenant_id", "resource_api_test_projection", ["tenant_id"])
+    op.create_index("ix_resource_api_test_projection_test_ref", "resource_api_test_projection", ["test_ref"])
+    op.create_index("ix_resource_api_test_projection_resource_code", "resource_api_test_projection", ["resource_code"])
+    op.create_index("ix_resource_api_test_projection_binding_code", "resource_api_test_projection", ["binding_code"])
+    op.create_index("ix_resource_api_test_projection_test_result", "resource_api_test_projection", ["test_result"])
+    op.create_index("ix_resource_api_test_projection_lifecycle_status", "resource_api_test_projection", ["lifecycle_status"])
+    op.create_index("ix_resource_api_test_projection_tested_at", "resource_api_test_projection", ["tested_at"])
+    op.create_table(
         "gateway_runtime_status_projection",
         sa.Column("id", sa.String(length=36), primary_key=True),
         sa.Column("tenant_id", sa.String(length=64), nullable=False),
@@ -458,6 +482,14 @@ def downgrade() -> None:
     op.drop_index("ix_resource_channel_binding_binding_code", table_name="resource_channel_binding")
     op.drop_index("ix_resource_channel_binding_tenant_id", table_name="resource_channel_binding")
     op.drop_table("resource_channel_binding")
+    op.drop_index("ix_resource_api_test_projection_tested_at", table_name="resource_api_test_projection")
+    op.drop_index("ix_resource_api_test_projection_lifecycle_status", table_name="resource_api_test_projection")
+    op.drop_index("ix_resource_api_test_projection_test_result", table_name="resource_api_test_projection")
+    op.drop_index("ix_resource_api_test_projection_binding_code", table_name="resource_api_test_projection")
+    op.drop_index("ix_resource_api_test_projection_resource_code", table_name="resource_api_test_projection")
+    op.drop_index("ix_resource_api_test_projection_test_ref", table_name="resource_api_test_projection")
+    op.drop_index("ix_resource_api_test_projection_tenant_id", table_name="resource_api_test_projection")
+    op.drop_table("resource_api_test_projection")
     op.drop_index("ix_resource_asset_lifecycle_status", table_name="resource_asset")
     op.drop_index("ix_resource_asset_resource_kind", table_name="resource_asset")
     op.drop_index("ix_resource_asset_resource_code", table_name="resource_asset")

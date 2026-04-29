@@ -1937,7 +1937,8 @@
       "required": [
         "resource_code",
         "test_result",
-        "confirmed"
+        "confirmed",
+        "evidence_json"
       ],
       "properties": {
         "resource_code": {
@@ -1960,6 +1961,9 @@
             "passed",
             "failed"
           ]
+        },
+        "evidence_json": {
+          "type": "object"
         },
         "binding_code": {
           "type": "string"
