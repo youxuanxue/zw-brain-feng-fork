@@ -1585,7 +1585,7 @@
       "resource_code": "api-company-ledger",
       "resource_kind": "api",
       "title": "法人单位基础信息 API",
-      "lifecycle_status": "published",
+      "lifecycle_status": "active",
       "owner_org_id": "org-market-regulator",
       "catalog_code": "res-jbxx-ledger",
       "source_ref": "dsp-dataservice:api_service_info",
@@ -1616,7 +1616,7 @@
             "circuit_breaker": "standard",
             "log_level": "audit"
           },
-          "lifecycle_status": "published",
+          "lifecycle_status": "active",
           "source_ref": "dsp-dataservice:api_service_proxy"
         }
       ]

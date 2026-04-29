@@ -176,26 +176,26 @@ class ApprovalRepository:
             session.commit()
 
     def _api_step_no(self, status: str) -> int:
-        if status in {"draft", "review_pending"}:
+        if status in {"draft", "pending_review"}:
             return 1
         if status == "approved":
             return 2
-        if status == "published":
+        if status == "active":
             return 3
-        if status in {"withdrawn", "revoked"}:
+        if status in {"retired", "revoked"}:
             return 4
         if status == "test_failed":
             return 2
         return 1
 
     def _api_step_name(self, status: str) -> str:
-        if status == "review_pending":
+        if status == "pending_review":
             return "API 服务资源审核"
         if status == "approved":
             return "API 服务资源审核通过"
-        if status == "published":
+        if status == "active":
             return "API 服务资源发布"
-        if status == "withdrawn":
+        if status == "retired":
             return "API 服务资源撤回"
         if status == "revoked":
             return "API 服务资源撤销授权"
@@ -204,29 +204,29 @@ class ApprovalRepository:
         return "API 服务资源草稿"
 
     def _api_step_status(self, status: str) -> str:
-        if status == "review_pending":
+        if status == "pending_review":
             return "in_progress"
-        if status in {"approved", "published"}:
+        if status in {"approved", "active"}:
             return "approved"
-        if status in {"withdrawn", "revoked"}:
+        if status in {"retired", "revoked"}:
             return "closed"
         if status == "test_failed":
             return "returned"
         return "pending"
 
     def _api_approver_roles(self, status: str) -> list[str]:
-        if status in {"review_pending", "approved", "published", "withdrawn", "revoked", "test_failed"}:
+        if status in {"pending_review", "approved", "active", "retired", "revoked", "test_failed"}:
             return ["r7"]
         return ["r6", "r7"]
 
     def _api_decision_value(self, status: str) -> str:
-        if status in {"approved", "published"}:
+        if status in {"approved", "active"}:
             return "approve"
-        if status in {"withdrawn", "revoked"}:
+        if status in {"retired", "revoked"}:
             return "close"
         if status == "test_failed":
             return "return"
-        if status == "review_pending":
+        if status == "pending_review":
             return "submit"
         return "draft"
 

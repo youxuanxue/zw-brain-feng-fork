@@ -138,9 +138,9 @@ class BrainService:
             case "resource.api.review":
                 return self.review_api_resource(str(payload["resource_code"]), str(payload["decision"]), str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
             case "resource.api.publish":
-                return self.transition_api_resource(str(payload["resource_code"]), "published", "resource.api.publish", str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+                return self.transition_api_resource(str(payload["resource_code"]), "active", "resource.api.publish", str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
             case "resource.api.withdraw":
-                return self.transition_api_resource(str(payload["resource_code"]), "withdrawn", "resource.api.withdraw", str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+                return self.transition_api_resource(str(payload["resource_code"]), "retired", "resource.api.withdraw", str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
             case "resource.api.revoke":
                 return self.transition_api_resource(str(payload["resource_code"]), "revoked", "resource.api.revoke", str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
             case "resource.api.test":
@@ -764,7 +764,7 @@ class BrainService:
         return self._mutate("resource.api.change", role, confirmed, resource, mutation)
 
     def submit_api_resource_review(self, resource_code: str, role: str, confirmed: bool) -> dict[str, Any]:
-        return self.transition_api_resource(resource_code, "review_pending", "resource.api.submit_review", role, confirmed)
+        return self.transition_api_resource(resource_code, "pending_review", "resource.api.submit_review", role, confirmed)
 
     def review_api_resource(self, resource_code: str, decision: str, role: str, confirmed: bool) -> dict[str, Any]:
         if decision == "approve":
@@ -787,12 +787,12 @@ class BrainService:
                 record = store.resource_api_repo.transition_asset(resource_code, status)
                 if record is None:
                     raise NotFoundError(resource_code)
-                if status == "published" and record.catalog_code:
+                if status == "active" and record.catalog_code:
                     store.catalog_repo.upsert_from_resource(
                         {
                             "id": record.catalog_code,
                             "name": record.title,
-                            "status": "published",
+                            "status": "active",
                             "provider": record.owner_org_id or "",
                             "resource_code": record.resource_code,
                             "source_ref": record.source_ref,

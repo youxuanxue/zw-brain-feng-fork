@@ -442,8 +442,8 @@ def test_api_resource_lifecycle_and_policy_filter_sensitive_fields() -> None:
             "resource.api.review",
             {"resource_code": "api-company-ledger", "decision": "approve", "role": "r7", "confirmed": True},
         )
-        published = service.invoke_skill("resource.api.publish", {"resource_code": "api-company-ledger", "role": "r7", "confirmed": True})
-        assert published["result"]["lifecycle_status"] == "published"
+        active = service.invoke_skill("resource.api.publish", {"resource_code": "api-company-ledger", "role": "r7", "confirmed": True})
+        assert active["result"]["lifecycle_status"] == "active"
 
         policy_update = service.invoke_skill(
             "resource.api.policy.update",
@@ -496,7 +496,7 @@ def test_api_resource_lifecycle_updates_approval_case_with_database() -> None:
 
         cases = [item for item in database_store.approval_repo.list_cases() if item.application_code == "api-approval-ledger"]
         assert len(cases) == 1
-        assert cases[0].current_status == "published"
+        assert cases[0].current_status == "active"
         steps = database_store.approval_repo.list_steps("api-approval-ledger")
         decisions = database_store.approval_repo.list_decisions("api-approval-ledger")
         assert [step.step_name for step in steps] == [
