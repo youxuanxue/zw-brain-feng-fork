@@ -30,6 +30,7 @@
 | GET | `/api/skills/governance.dispute_list` | 查看治理争议列表 | `get_governance_dispute_list` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/governance.dispute_view` | 查看治理争议详情 | `get_governance_dispute_view` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/ops.gateway.heartbeat.ingest` | 摄入网关心跳 | `post_ops_gateway_heartbeat_ingest` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/ops.gateway.log.anchor` | 登记网关日志存证 | `post_ops_gateway_log_anchor` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/ops.service.invocation.query` | 查询服务调用统计 | `get_ops_service_invocation_query` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/ops.service.report.query` | 查询服务运行态势 | `get_ops_service_report_query` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/package.apply_tenant_policy` | 生效租户策略 | `post_package_apply_tenant_policy` | `zw_brain/entry/rest/openapi.json` |
@@ -103,7 +104,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 50 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 51 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -126,6 +127,7 @@
 | `governance.dispute_list` | 查看治理争议列表 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.dispute_list.json` |
 | `governance.dispute_view` | 查看治理争议详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.dispute_view.json` |
 | `ops.gateway.heartbeat.ingest` | 摄入网关心跳 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/ops.gateway.heartbeat.ingest.json` |
+| `ops.gateway.log.anchor` | 登记网关日志存证 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/ops.gateway.log.anchor.json` |
 | `ops.service.invocation.query` | 查询服务调用统计 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/ops.service.invocation.query.json` |
 | `ops.service.report.query` | 查询服务运行态势 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/ops.service.report.query.json` |
 | `package.apply_tenant_policy` | 生效租户策略 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/package.apply_tenant_policy.json` |
@@ -162,9 +164,9 @@
 
 ## Statistics
 
-- REST endpoints: 52
+- REST endpoints: 53
 - CLI entries: 1
 - MCP tools: 22
 - A2A agent cards: 1
-- Registered Skills: 50
+- Registered Skills: 51
 

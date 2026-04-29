@@ -1019,6 +1019,59 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "ops.gateway.log.anchor",
+    "description": "把外部网关日志或旧上链结果登记为本地审计存证请求，异步进入 anchor outbox。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/ops.gateway.log.anchor",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "gateway_log_ref",
+        "confirmed"
+      ],
+      "properties": {
+        "gateway_log_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resource_code": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "evidence_json": {
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "ops.gateway.log.anchor.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "package.apply_tenant_policy",
     "description": "在版本登记后对指定租户生效能力包策略与暴露范围。",
     "protocol_type": "builtin_skill",

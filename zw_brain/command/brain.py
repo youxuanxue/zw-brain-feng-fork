@@ -127,6 +127,8 @@ class BrainService:
                 return self.query_service_report()
             case "ops.gateway.heartbeat.ingest":
                 return self.ingest_gateway_heartbeat(payload)
+            case "ops.gateway.log.anchor":
+                return self.anchor_gateway_log(payload)
             case "resource.api.register":
                 return self.register_api_resource(payload)
             case "resource.api.change":
@@ -824,6 +826,24 @@ class BrainService:
             return result | {"audit_id": audit_id}
 
         return self._mutate("resource.api.policy.update", role, confirmed, {"resource_code": resource_code, "binding_code": binding_code}, mutation)
+
+    def anchor_gateway_log(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        gateway_log_ref = str(payload["gateway_log_ref"])
+        evidence = self._safe_json(payload.get("evidence_json", {}))
+        anchor_payload = {
+            "gateway_log_ref": gateway_log_ref,
+            "resource_code": payload.get("resource_code"),
+            "source_ref": payload.get("source_ref") or gateway_log_ref,
+            "evidence_json": evidence,
+        }
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            self._append_audit_feed("ops.gateway.log.anchor", gateway_log_ref, "ok", actor)
+            return anchor_payload | {"anchor_outbox_ref": audit_id, "audit_id": audit_id}
+
+        return self._mutate("ops.gateway.log.anchor", role, confirmed, anchor_payload, mutation)
 
     def _api_payload(self, payload: dict[str, Any], *, default_status: str) -> dict[str, Any]:
         resource_code = str(payload["resource_code"])

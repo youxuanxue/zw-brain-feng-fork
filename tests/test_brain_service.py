@@ -610,6 +610,52 @@ def test_service_projection_source_kind_and_external_packages() -> None:
             assert package["failureWriteback"]["target"] == "audit_event"
 
 
+
+def test_gateway_log_anchor_writes_sanitized_outbox_request() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.database_store import DatabaseStore
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        try:
+            service.invoke_skill(
+                "ops.gateway.log.anchor",
+                {"gateway_log_ref": "gateway-log-20260429-001", "role": "r6"},
+            )
+        except ConfirmationRequiredError:
+            pass
+        else:
+            raise AssertionError("gateway log anchoring must require explicit confirmation")
+
+        result = service.invoke_skill(
+            "ops.gateway.log.anchor",
+            {
+                "gateway_log_ref": "gateway-log-20260429-001",
+                "resource_code": "api-trace-ledger",
+                "source_ref": "dsp-dataservice:apilog/deposit:001",
+                "evidence_json": {"failure_count": 1, "token": "should-not-persist"},
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+
+        assert result["ok"] is True
+        assert result["result"]["evidence_json"] == {"failure_count": 1}
+        pending = database_store.list_pending_anchor_outbox()
+        assert any(item.request_id == result["audit_id"] and item.skill_id == "ops.gateway.log.anchor" for item in pending)
+        events = [item for item in database_store.list_audit_events() if item.skill_id == "ops.gateway.log.anchor"]
+        assert [item.phase for item in events] == ["before", "after"]
+
+
 def test_audit_sink_failure_blocks_write_mutation() -> None:
     tmp, service = make_service()
     try:

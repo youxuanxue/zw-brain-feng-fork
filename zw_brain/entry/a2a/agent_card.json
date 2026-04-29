@@ -125,6 +125,10 @@
       "mode": "write"
     },
     {
+      "id": "ops.gateway.log.anchor",
+      "mode": "write"
+    },
+    {
       "id": "package.apply_tenant_policy",
       "mode": "write"
     },

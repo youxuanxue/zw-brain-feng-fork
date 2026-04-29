@@ -3854,6 +3854,167 @@
         }
       }
     },
+    "/api/skills/ops.gateway.log.anchor": {
+      "post": {
+        "summary": "登记网关日志存证",
+        "description": "把外部网关日志或旧上链结果登记为本地审计存证请求，异步进入 anchor outbox。",
+        "operationId": "post_ops_gateway_log_anchor",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "ops.gateway.log.anchor",
+        "x-zwbrain-side-effects": [
+          "audit",
+          "db_write",
+          "blockchain_anchor"
+        ],
+        "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-permissions": [
+          "ops.gateway.log.anchor.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill or target not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied by role / tenant / permission policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Confirmation required or invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "gateway_log_ref",
+                  "confirmed"
+                ],
+                "properties": {
+                  "gateway_log_ref": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "resource_code": {
+                    "type": "string"
+                  },
+                  "source_ref": {
+                    "type": "string"
+                  },
+                  "evidence_json": {
+                    "type": "object"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/skills/package.apply_tenant_policy": {
       "post": {
         "summary": "生效租户策略",

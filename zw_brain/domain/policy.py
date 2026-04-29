@@ -44,6 +44,7 @@ PERMISSION_ROLES = {
     "delivery.trigger_recovery.execute": {"r6"},
     "service.publish_or_suspend.execute": {"r6"},
     "ops.gateway.heartbeat.ingest.execute": {"r6", "r8"},
+    "ops.gateway.log.anchor.execute": {"r6", "r8"},
     "ops.service.invocation.query.execute": {"r2", "r5", "r6", "r7", "r8"},
     "ops.service.report.query.execute": {"r2", "r5", "r6", "r7", "r8"},
     "resource.api.register.execute": {"r6", "r7"},
