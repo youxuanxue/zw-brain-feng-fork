@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from scripts.export_agent_contract import build_a2a_card, build_mcp_tool_descriptor, build_runtime_bindings, discover_skills
+from zw_brain.skill_registration.runtime import is_surface_enabled
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -13,7 +14,7 @@ def test_generated_a2a_card_and_runtime_bindings_cover_registered_skills(monkeyp
     monkeypatch.delenv("ZW_BRAIN_REST_BASE_URL", raising=False)
     monkeypatch.delenv("ZW_BRAIN_REST_PORT", raising=False)
 
-    skills = [item for item in discover_skills() if "error" not in item]
+    skills = [item for item in discover_skills() if "error" not in item and is_surface_enabled(item, "a2a")]
     card = build_a2a_card(skills)
     bindings = build_runtime_bindings(skills)
 
@@ -32,7 +33,7 @@ def test_generated_a2a_card_and_runtime_bindings_cover_registered_skills(monkeyp
 def test_generated_a2a_endpoint_follows_rest_base_url_override(monkeypatch) -> None:
     monkeypatch.setenv("ZW_BRAIN_REST_BASE_URL", "https://brain.example.internal:9443/")
 
-    skills = [item for item in discover_skills() if "error" not in item]
+    skills = [item for item in discover_skills() if "error" not in item and is_surface_enabled(item, "a2a")]
     card = build_a2a_card(skills)
     bindings = build_runtime_bindings(skills)
 
@@ -40,14 +41,15 @@ def test_generated_a2a_endpoint_follows_rest_base_url_override(monkeypatch) -> N
     assert any(item["endpoint"] == "https://brain.example.internal:9443/api/skills/request.create" for item in bindings)
 
 
-def test_generated_mcp_descriptors_cover_registered_skills() -> None:
+def test_generated_mcp_descriptors_cover_mcp_compatible_skills() -> None:
     skills = [item for item in discover_skills() if "error" not in item]
-    descriptors = {item["skill_id"]: build_mcp_tool_descriptor(item) for item in skills}
+    mcp_skills = [item for item in skills if is_surface_enabled(item, "mcp")]
+    descriptors = {item["skill_id"]: build_mcp_tool_descriptor(item) for item in mcp_skills}
 
-    assert set(descriptors) == {item["skill_id"] for item in skills}
+    assert set(descriptors) == {item["skill_id"] for item in mcp_skills}
     assert descriptors["data.search"]["annotations"]["mode"] == "read"
-    assert descriptors["request.create"]["annotations"]["mode"] == "write"
-    assert descriptors["request.create"]["annotations"]["humanConfirmationRequired"] is True
+    assert "request.create" not in descriptors
+    assert "approval.review_decide" not in descriptors
 
 
 def test_generated_runtime_bindings_file_is_valid_json() -> None:
@@ -58,7 +60,7 @@ def test_generated_runtime_bindings_file_is_valid_json() -> None:
 
 
 def test_generated_mcp_tool_file_is_valid_json() -> None:
-    path = REPO_ROOT / "zw_brain" / "entry" / "mcp" / "tools" / "request.create.json"
+    path = REPO_ROOT / "zw_brain" / "entry" / "mcp" / "tools" / "data.search.json"
     data = json.loads(path.read_text(encoding="utf-8"))
-    assert data["name"] == "request.create"
-    assert data["annotations"]["mode"] == "write"
+    assert data["name"] == "data.search"
+    assert data["annotations"]["mode"] == "read"

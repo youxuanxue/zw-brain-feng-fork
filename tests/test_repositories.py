@@ -35,11 +35,13 @@ def test_runtime_sync_writes_aggregate_tables() -> None:
         from sqlalchemy import create_engine, text
         from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared import audit as audit_bus
         from zw_brain.shared.state_store import StateStore
         from zw_brain.command.brain import BrainService
 
         ensure_runtime_schema()
         store = DatabaseStore()
+        audit_bus.configure_sink(store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=store))
         service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True})
         store.sync_aggregate_tables(service.snapshot())
@@ -79,11 +81,13 @@ def test_governance_schema_and_projection_are_persisted() -> None:
         from sqlalchemy import create_engine, text
         from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared import audit as audit_bus
         from zw_brain.shared.state_store import StateStore
         from zw_brain.command.brain import BrainService
 
         ensure_runtime_schema()
         store = DatabaseStore()
+        audit_bus.configure_sink(store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=store))
         store.sync_aggregate_tables(service.snapshot())
 

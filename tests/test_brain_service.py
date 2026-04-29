@@ -5,13 +5,15 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from zw_brain.command.brain import AccessDeniedError, BrainService, ConfirmationRequiredError, InvalidStateError
-from zw_brain.shared.audit import drain as drain_audit
+from zw_brain.shared import audit as audit_bus
+from zw_brain.shared.audit import AuditWriteError, drain as drain_audit
 from zw_brain.shared.queue import drain as drain_queue
 from zw_brain.shared.state_store import StateStore
 
 
 def make_service() -> tuple[TemporaryDirectory[str], BrainService]:
     tmp = TemporaryDirectory()
+    audit_bus.configure_sink(lambda request_id, actor, skill_id, phase, payload: None)
     store = StateStore(Path(tmp.name) / "brain_state.json")
     return tmp, BrainService(state_store=store)
 
@@ -328,3 +330,24 @@ def test_full_golden_path_reaches_backflow_confirmed() -> None:
         assert "v1.3" in zone["trust"][1]
     finally:
         tmp.cleanup()
+
+
+def test_audit_sink_failure_blocks_write_mutation() -> None:
+    tmp, service = make_service()
+    try:
+        def fail_sink(request_id, actor, skill_id, phase, payload):
+            raise RuntimeError("audit database unavailable")
+
+        audit_bus.configure_sink(fail_sink)
+        try:
+            service.invoke_skill("request.create", {"resource_id": "res-market-activity", "role": "r1", "confirmed": True})
+        except AuditWriteError:
+            pass
+        else:
+            raise AssertionError("audit persistence failure must block mutation")
+
+        snapshot = service.snapshot()
+        assert not any(item["resourceId"] == "res-market-activity" and item["status"] == "pending" for item in snapshot["requests"])
+    finally:
+        tmp.cleanup()
+        audit_bus.clear_sink()

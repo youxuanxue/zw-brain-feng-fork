@@ -84,24 +84,6 @@
 | `workbench.view` | read | False | 按角色查看工作台待办、重点提示和副驾摘要。 | True | `zw_brain/entry/mcp/tools/workbench.view.json` |
 | `zone.list` | read | False | 查看共享专区与专题包列表。 | True | `zw_brain/entry/mcp/tools/zone.list.json` |
 | `zone.view` | read | False | 查看单个共享专区或专题包的资产、信任信息和引导说明。 | True | `zw_brain/entry/mcp/tools/zone.view.json` |
-| `approval.review_decide` | write | True | 对申请执行通过、退回补正或驳回，保留人工确认边界。 | True | `zw_brain/entry/mcp/tools/approval.review_decide.json` |
-| `backflow.confirm` | write | True | 由供给侧确认回流候选正式纳入模板版本。 | True | `zw_brain/entry/mcp/tools/backflow.confirm.json` |
-| `catalog.manage_entry` | write | True | 对目录条目执行发布或说明修正治理动作。 | True | `zw_brain/entry/mcp/tools/catalog.manage_entry.json` |
-| `compliance.investigate_case` | write | True | 对合规争议执行推进调查或升级治理动作。 | True | `zw_brain/entry/mcp/tools/compliance.investigate_case.json` |
-| `delivery.reconcile_receipt` | write | True | 对交付任务回执执行人工确认后的对账动作。 | True | `zw_brain/entry/mcp/tools/delivery.reconcile_receipt.json` |
-| `delivery.trigger_recovery` | write | True | 对失败交付任务显式触发恢复流程。 | True | `zw_brain/entry/mcp/tools/delivery.trigger_recovery.json` |
-| `package.apply_tenant_policy` | write | True | 在版本登记后对指定租户生效能力包策略与暴露范围。 | True | `zw_brain/entry/mcp/tools/package.apply_tenant_policy.json` |
-| `package.configure_exposure` | write | True | 在版本登记后显式调整能力包暴露矩阵。 | True | `zw_brain/entry/mcp/tools/package.configure_exposure.json` |
-| `package.register_version` | write | True | 在审核通过后把能力包版本登记到统一 registry 事实源。 | True | `zw_brain/entry/mcp/tools/package.register_version.json` |
-| `package.review_decide` | write | True | 由管理员对能力注册包执行批准、退回补充或驳回。 | True | `zw_brain/entry/mcp/tools/package.review_decide.json` |
-| `request.create` | write | True | 从资源发现页基于已识别模板发起新的受控准入申请。 | True | `zw_brain/entry/mcp/tools/request.create.json` |
-| `request.submit` | write | True | 对补正后的申请重新提交，回到受控准入。 | True | `zw_brain/entry/mcp/tools/request.submit.json` |
-| `resource.manage_asset` | write | True | 对资源资产执行发布或暂停共享治理动作。 | True | `zw_brain/entry/mcp/tools/resource.manage_asset.json` |
-| `service.publish_or_suspend` | write | True | 对供给侧关键服务执行发布或暂停治理动作。 | True | `zw_brain/entry/mcp/tools/service.publish_or_suspend.json` |
-| `summary.confirm` | write | True | 由审核汇总人员确认自动汇总结果并推进到回流候选确认。 | True | `zw_brain/entry/mcp/tools/summary.confirm.json` |
-| `supplement.submit` | write | True | 由基层提交差异补录结果，进入自动汇总确认。 | True | `zw_brain/entry/mcp/tools/supplement.submit.json` |
-| `system.toggle_outage` | write | True | 切换主脑故障态演示，验证 K12 只读快照模式和故障隔离。 | True | `zw_brain/entry/mcp/tools/system.toggle_outage.json` |
-| `zone.publish_topic_projection` | write | True | 把已治理资产正式投影到共享专区前台入口。 | True | `zw_brain/entry/mcp/tools/zone.publish_topic_projection.json` |
 
 ## L1.4 A2A Server
 
@@ -156,7 +138,7 @@
 
 - REST endpoints: 40
 - CLI entries: 1
-- MCP tools: 38
+- MCP tools: 20
 - A2A agent cards: 1
 - Registered Skills: 38
 

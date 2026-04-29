@@ -5,7 +5,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from zw_brain.shared.runtime import get_service
+from zw_brain.command.runtime import get_service
+from zw_brain.skill_registration.runtime import require_surface
 
 TOOLS_DIR = Path(__file__).with_name("tools")
 
@@ -18,6 +19,7 @@ def list_tools() -> list[dict[str, Any]]:
 
 
 def call_tool(name: str, payload: dict[str, Any]) -> dict[str, Any]:
+    require_surface(name, "mcp")
     result = get_service().invoke_skill(name, payload)
     return {"tool": name, "result": result}
 

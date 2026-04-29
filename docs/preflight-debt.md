@@ -17,7 +17,7 @@
 下列段在 GATE-1 已落盘并随每次 commit 实际运行，不属于「缺口」（来源：基线 §13.1 + 实际 `scripts/preflight.sh` 输出）：
 
 - **通用模板段**（`dev-rules/templates/preflight.sh`）：段 1（branch naming）、段 2（submodule pointer）、段 3（sync drift）、段 4（contract drift）、段 5（story / test alignment）、段 8（stat drift）。
-- **项目特有段**（`scripts/preflight.sh` 追加）：段 7a（audit-must-block）、段 7b（blockchain-async）、段 10（no-direct-llm）、段 11（dashboard-readonly）、段 14（external-refs，基线 §十四 D22 引入）。原段 13（gate1-prototype，D21）已下线（不再强制可点击 SPA）；`prototype/capability-sheets/` 与 `prototype/storyboards/` 仍保留为产品文档，与门禁无关。
+- **项目特有段**（`scripts/preflight.sh` 追加）：段 7a（audit-must-block）、段 7b（blockchain-async）、段 10（no-direct-llm）、段 11（dashboard-readonly）、段 14（external-refs，基线 §十四 D22 引入）。原段 13（gate1-prototype，D21）已下线（不再强制可点击 SPA）；`prototype/capability-sheets/` 与 `prototype/storyboards/` 仍保留为产品文档，与门禁无关。若 approved 附录 C 再出现“段 13 已 wired”当前态表述，视为文档漂移，应同步改为“已退役”。
 
 ## 与 dev-rules 分工（本仓库脚本是否「上提」共用）
 

@@ -7,8 +7,9 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from zw_brain.command.brain import BrainServiceError, ConfirmationRequiredError, InvalidStateError, NotFoundError, UnknownSkillError
-from zw_brain.shared.runtime import get_service
+from zw_brain.command.runtime import get_service
 from zw_brain.shared.runtime_config import get_dashboard_bff_host, get_dashboard_bff_port
+from zw_brain.skill_registration.runtime import SurfaceNotEnabledError, require_surface
 
 
 def _dashboard_root() -> Path:
@@ -33,6 +34,7 @@ class DashboardBffHandler(BaseHTTPRequestHandler):
         if parsed.path.startswith("/api/skills/dashboard."):
             skill_id = parsed.path[len("/api/skills/") :]
             try:
+                require_surface(skill_id, "webui")
                 result = get_service().invoke_skill(skill_id, {})
                 self._respond(200, result)
             except Exception as exc:  # noqa: BLE001
@@ -59,6 +61,9 @@ class DashboardBffHandler(BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
     def _handle_error(self, exc: Exception) -> None:
+        if isinstance(exc, SurfaceNotEnabledError):
+            self._respond(404, {"error": "surface_not_enabled", "detail": str(exc)})
+            return
         if isinstance(exc, ConfirmationRequiredError):
             self._respond(409, {"error": "confirmation_required", "detail": str(exc)})
             return

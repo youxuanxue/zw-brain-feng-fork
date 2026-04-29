@@ -5,7 +5,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from zw_brain.shared.runtime import get_service
+from zw_brain.command.runtime import get_service
+from zw_brain.skill_registration.runtime import require_surface
 
 CARD_PATH = Path(__file__).with_name("agent_card.json")
 
@@ -15,6 +16,7 @@ def get_agent_card() -> dict[str, Any]:
 
 
 def invoke(skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    require_surface(skill_id, "a2a")
     result = get_service().invoke_skill(skill_id, payload)
     return {"skill_id": skill_id, "result": result}
 

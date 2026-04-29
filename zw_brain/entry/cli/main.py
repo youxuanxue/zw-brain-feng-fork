@@ -3,7 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 
-from zw_brain.shared.runtime import get_service
+from zw_brain.command.runtime import get_service
+from zw_brain.skill_registration.runtime import require_surface
 
 
 def main() -> int:
@@ -12,6 +13,7 @@ def main() -> int:
     parser.add_argument("--payload", default="{}", help="JSON payload")
     args = parser.parse_args()
     payload = json.loads(args.payload)
+    require_surface(args.skill_id, "cli")
     result = get_service().invoke_skill(args.skill_id, payload)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0

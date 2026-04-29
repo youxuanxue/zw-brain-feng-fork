@@ -8,62 +8,12 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import zw_brain.shared.audit as audit_bus
+from zw_brain.domain import policy
+from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.domain.schemas import describe_schemas
 from zw_brain.shared import queue
 from zw_brain.shared.state_store import StateStore
 from zw_brain.skill_registration.runtime import get_manifest, load_manifests
-
-ACTOR_NAMES = {
-    "r1": "周处长",
-    "r2": "刘主任",
-    "r3": "陈经办",
-    "r4": "王网格员",
-    "r5": "赵科长",
-    "r6": "孙老师",
-    "r7": "高主任",
-    "r8": "林督查",
-}
-
-PERMISSION_ROLES = {
-    "workbench.view.execute": {"r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"},
-    "system.snapshot.execute": {"r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"},
-    "system.schema_info.execute": {"r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"},
-    "data.search.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "catalog.resource_view.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "request.list.execute": {"r1", "r2", "r3", "r4", "r5"},
-    "request.view.execute": {"r1", "r2", "r3", "r4", "r5"},
-    "approval.view.execute": {"r1", "r2", "r5"},
-    "delivery.list.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "delivery.view.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "provider.view.execute": {"r6", "r7"},
-    "governance.dispute_list.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "governance.dispute_view.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "audit.replay_evidence_chain.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "audit.list.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "zone.list.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "zone.view.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "package.list.execute": {"r7"},
-    "package.view.execute": {"r7"},
-    "dashboard.render_command_center.execute": {"r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"},
-    "request.create.execute": {"r1"},
-    "request.submit.execute": {"r1"},
-    "approval.review_decide.execute": {"r2"},
-    "supplement.submit.execute": {"r3", "r4"},
-    "summary.confirm.execute": {"r5"},
-    "backflow.confirm.execute": {"r6"},
-    "delivery.reconcile_receipt.execute": {"r6"},
-    "delivery.trigger_recovery.execute": {"r6"},
-    "service.publish_or_suspend.execute": {"r6"},
-    "catalog.manage_entry.execute": {"r6", "r7"},
-    "resource.manage_asset.execute": {"r6", "r7"},
-    "zone.publish_topic_projection.execute": {"r7"},
-    "package.review_decide.execute": {"r7"},
-    "package.register_version.execute": {"r7"},
-    "package.apply_tenant_policy.execute": {"r7"},
-    "package.configure_exposure.execute": {"r7"},
-    "compliance.investigate_case.execute": {"r8"},
-    "system.toggle_outage.execute": {"r8"},
-}
 
 DEFAULT_DISCOVERY_QUERY = "我要为本周营商环境专题复用法人单位基础信息台账模板，优先自动带出企业基础字段，只补现场差异字段。"
 
@@ -1396,39 +1346,16 @@ class BrainService:
         return self._mutate("approval.review_decide", role, confirmed, {"request_id": request_id, "decision": "reject"}, mutation)
 
     def _resolve_role(self, payload: dict[str, Any]) -> str:
-        role = str(payload.get("role", self._ui_state.get("role", "r1")))
-        if role not in ACTOR_NAMES:
-            raise AccessDeniedError(f"unknown role: {role}")
-        return role
+        try:
+            return policy.resolve_role(payload.get("role"), self._ui_state.get("role", "r1"))
+        except DomainAccessDeniedError as exc:
+            raise AccessDeniedError(str(exc)) from exc
 
     def _enforce_manifest_policy(self, skill_id: str, manifest: dict[str, Any], role: str, payload: dict[str, Any]) -> None:
-        if manifest.get("auth_policy") == "user" and role not in ACTOR_NAMES:
-            raise AccessDeniedError("authenticated user role is required")
-
-        if manifest.get("tenant_scope") == "tenant":
-            requested_tenant = str(payload.get("tenant_id", self._tenant_for_role(role)))
-            if requested_tenant != self._tenant_for_role(role):
-                raise AccessDeniedError(f"tenant scope violation for {skill_id}: {requested_tenant}")
-
-        if manifest.get("human_confirmation_required") and not bool(payload.get("confirmed")):
-            return
-
-        if not manifest.get("side_effects") and "role" not in payload:
-            return
-
-        required_permissions = set(manifest.get("permissions", []))
-        granted_permissions = self._permissions_for_role(role)
-        missing_permissions = sorted(required_permissions - granted_permissions)
-        if missing_permissions:
-            raise AccessDeniedError(f"role {role} lacks permissions for {skill_id}: {', '.join(missing_permissions)}")
-
-    def _tenant_for_role(self, role: str) -> str:
-        if role not in ACTOR_NAMES:
-            raise AccessDeniedError(f"unknown role: {role}")
-        return "default"
-
-    def _permissions_for_role(self, role: str) -> set[str]:
-        return {permission for permission, roles in PERMISSION_ROLES.items() if role in roles}
+        try:
+            policy.enforce_manifest_policy(skill_id, manifest, role, payload)
+        except DomainAccessDeniedError as exc:
+            raise AccessDeniedError(str(exc)) from exc
 
     def _mutate(self, skill_id: str, role: str, confirmed: bool, payload: dict[str, Any], mutation: Any) -> dict[str, Any]:
         manifest = get_manifest(skill_id)
@@ -1459,9 +1386,6 @@ class BrainService:
                 payload=copy.deepcopy(payload),
             )
         )
-        store = self._state_store.database_store
-        if store is not None:
-            store.append_audit_event(request_id, actor, skill_id, phase, copy.deepcopy(payload))
 
     def _enqueue_anchor(self, request_id: str, actor: str, skill_id: str, payload: dict[str, Any]) -> None:
         content_hash = hashlib.sha256(
@@ -1648,7 +1572,10 @@ class BrainService:
         return str(item["status"])
 
     def _actor_for_role(self, role: str) -> str:
-        return ACTOR_NAMES.get(role, role)
+        try:
+            return policy.actor_for_role(role)
+        except DomainAccessDeniedError as exc:
+            raise AccessDeniedError(str(exc)) from exc
 
     def _request_by_id(self, request_id: str) -> dict[str, Any]:
         for item in self._snapshot["requests"]:

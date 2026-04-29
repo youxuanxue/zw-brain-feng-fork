@@ -23,6 +23,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from zw_brain.shared.runtime_config import get_rest_api_skills_endpoint
+from zw_brain.skill_registration.runtime import is_surface_enabled, validate_manifest
 
 DOC_PATH = REPO_ROOT / "docs" / "agent_integration.md"
 
@@ -95,6 +96,7 @@ def discover_skills() -> list[dict[str, Any]]:
     for spec in sorted(SKILL_REGISTRY.glob("*.json")):
         try:
             data = load_json(spec)
+            validate_manifest(data)
             side_effects = list(data.get("side_effects", []))
             skills.append(
                 {
@@ -111,6 +113,9 @@ def discover_skills() -> list[dict[str, Any]]:
                     "auth_policy": data.get("auth_policy", ""),
                     "tenant_scope": data.get("tenant_scope", ""),
                     "registry_source": data.get("registry_source", ""),
+                    "compatibility": data.get("compatibility", []),
+                    "execution_binding": data.get("execution_binding", ""),
+                    "runtime_binding": data.get("runtime_binding", {}),
                     "source": str(spec.relative_to(REPO_ROOT)),
                 }
             )
@@ -203,7 +208,7 @@ def build_rest_operation(skill: dict[str, Any], *, method: str) -> dict[str, Any
 
 
 def build_rest_openapi(skills: list[dict[str, Any]]) -> dict[str, Any]:
-    valid_skills = [skill for skill in skills if "error" not in skill]
+    valid_skills = [skill for skill in skills if "error" not in skill and is_surface_enabled(skill, "api")]
     paths: dict[str, Any] = {
         "/health": {
             "get": {
@@ -376,9 +381,10 @@ def expected_projection_files(
     files[OPENAPI_PATH] = dump_json(openapi)
     rest_entries = rest_entries_from_openapi(openapi)
 
+    mcp_skills = [skill for skill in valid_skills if is_surface_enabled(skill, "mcp")]
     mcp_entries: list[dict[str, Any]] = []
     expected_mcp_paths: set[Path] = set()
-    for skill in sort_skills_for_projection(valid_skills):
+    for skill in sort_skills_for_projection(mcp_skills):
         path = MCP_TOOLS_DIR / f"{skill['skill_id']}.json"
         expected_mcp_paths.add(path)
         files[path] = dump_json(build_mcp_tool_descriptor(skill))
@@ -393,9 +399,10 @@ def expected_projection_files(
             }
         )
 
-    card = build_a2a_card(valid_skills)
+    a2a_skills = [skill for skill in valid_skills if is_surface_enabled(skill, "a2a")]
+    card = build_a2a_card(a2a_skills)
     files[A2A_CARD_PATH] = dump_json(card)
-    files[A2A_RUNTIME_BINDINGS_PATH] = dump_json(build_runtime_bindings(valid_skills))
+    files[A2A_RUNTIME_BINDINGS_PATH] = dump_json(build_runtime_bindings(a2a_skills))
     a2a_entries = [
         {
             "name": card["name"],

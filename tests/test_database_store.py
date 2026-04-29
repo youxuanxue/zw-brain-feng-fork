@@ -51,12 +51,14 @@ def test_runtime_service_uses_database_backing() -> None:
 
         from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared.state_store import StateStore
         from zw_brain.command.brain import BrainService
+        from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.state_store import StateStore
         from sqlalchemy import create_engine, text
 
         ensure_runtime_schema()
         database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=database_store))
         service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True})
         snapshot, _ = database_store.load_runtime_state()

@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import zw_brain.shared.runtime as runtime
+import zw_brain.command.runtime as runtime
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PYTHON = sys.executable
@@ -44,7 +44,7 @@ def test_cli_mcp_and_a2a_share_runtime_contract() -> None:
         mcp_tools = json.loads(mcp_list.stdout)
         assert any(item["name"] == "data.search" for item in mcp_tools)
         assert any(item["name"] == "audit.replay_evidence_chain" for item in mcp_tools)
-        assert any(item["name"] == "request.create" and item["annotations"]["mode"] == "write" for item in mcp_tools)
+        assert not any(item["name"] == "request.create" for item in mcp_tools)
 
         mcp_call = run_module(
             "-m",
@@ -89,6 +89,19 @@ def test_cli_mcp_and_a2a_share_runtime_contract() -> None:
         assert denied_cli.returncode != 0
         assert "AccessDeniedError" in denied_cli.stderr
 
+        denied_mcp_surface = run_module(
+            "-m",
+            "zw_brain.entry.mcp.server",
+            "call-tool",
+            "request.create",
+            "--payload",
+            '{"resource_id":"res-market-activity","role":"r1","confirmed":true}',
+            env=env,
+            check=False,
+        )
+        assert denied_mcp_surface.returncode != 0
+        assert "SurfaceNotEnabledError" in denied_mcp_surface.stderr
+
         denied_mcp = run_module(
             "-m",
             "zw_brain.entry.mcp.server",
@@ -100,7 +113,7 @@ def test_cli_mcp_and_a2a_share_runtime_contract() -> None:
             check=False,
         )
         assert denied_mcp.returncode != 0
-        assert "AccessDeniedError" in denied_mcp.stderr
+        assert "SurfaceNotEnabledError" in denied_mcp.stderr
 
         denied_a2a = run_module(
             "-m",

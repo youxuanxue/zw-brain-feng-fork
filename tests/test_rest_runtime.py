@@ -10,7 +10,7 @@ from urllib.request import Request, urlopen
 from zw_brain.domain.models import Base
 from zw_brain.entry.rest.server import RestHandler
 from zw_brain.shared.migrate import ensure_runtime_schema
-import zw_brain.shared.runtime as runtime
+import zw_brain.command.runtime as runtime
 from sqlalchemy import create_engine
 
 

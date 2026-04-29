@@ -7,8 +7,9 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from zw_brain.command.brain import AccessDeniedError, BrainServiceError, ConfirmationRequiredError, InvalidStateError, NotFoundError, UnknownSkillError
-from zw_brain.shared.runtime import get_service
+from zw_brain.command.runtime import get_service
 from zw_brain.shared.runtime_config import get_rest_host, get_rest_port
+from zw_brain.skill_registration.runtime import SurfaceNotEnabledError, require_surface
 
 
 def _web_root() -> Path:
@@ -41,6 +42,7 @@ class RestHandler(BaseHTTPRequestHandler):
             skill_id = parsed.path[len("/api/skills/"):]
             params = {k: v[-1] for k, v in parse_qs(parsed.query).items()}
             try:
+                require_surface(skill_id, "api")
                 self._json(200, get_service().invoke_skill(skill_id, params))
             except Exception as exc:  # noqa: BLE001
                 self._handle_error(exc)
@@ -59,6 +61,7 @@ class RestHandler(BaseHTTPRequestHandler):
             skill_id = parsed.path[len("/api/skills/"):]
             try:
                 payload = self._read_json_body()
+                require_surface(skill_id, "api")
                 self._json(200, get_service().invoke_skill(skill_id, payload))
             except Exception as exc:  # noqa: BLE001
                 self._handle_error(exc)
@@ -83,6 +86,9 @@ class RestHandler(BaseHTTPRequestHandler):
         return json.loads(raw or b"{}")
 
     def _handle_error(self, exc: Exception) -> None:
+        if isinstance(exc, SurfaceNotEnabledError):
+            self._json(404, {"error": "surface_not_enabled", "detail": str(exc)})
+            return
         if isinstance(exc, AccessDeniedError):
             self._json(403, {"error": "access_denied", "detail": str(exc)})
             return
