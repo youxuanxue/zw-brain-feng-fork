@@ -9,6 +9,7 @@ authors:
 related_docs:
   - docs/approved/zw-brain-architecture-v4-gpt55.md
   - docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md
+  - docs/reconstructs/dsp-catalog3-reconstruction-plan-v1.md
   - old/代码信息抽取/代码信息抽取-27newbranch/All-Project_数据库表结构文档.md
   - old/12-datastructure/dsp_catalog.xml
   - old/12-datastructure/dsp_connect.xml
@@ -180,6 +181,8 @@ phase_after_approval: Phase 0 / Wave 0（先打通 Catalog → Application → A
 | `TenantOrg` | `CapabilityRegistryAggregate` / shared substrate | `tenant_org_projection` | `sys_department`, `sys_region`, `portal_organization`, `block_org` |
 
 > 口径说明：`TenantOrg` 在概念上仍属于平台底座 / registry 相关治理上下文，而 `tenant_org_projection` 在物理上放入 `brain_core`，只是为了让主旅程查询、审批路由与历史回放获得稳定本地投影；它不是 IAM 权威源，也不改变 `TenantOrg` 的平台底座属性。
+>
+> `dsp-catalog3` 的旧表、旧接口、工单证据与专属迁移规则以 `docs/reconstructs/dsp-catalog3-reconstruction-plan-v1.md` 为单一事实源；本文只保留 canonical model 的通用结构。
 
 ### 3.2 必须保留为显式状态机的 legacy 语义
 
