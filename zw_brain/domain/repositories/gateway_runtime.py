@@ -14,6 +14,15 @@ def _now() -> datetime:
 
 
 class GatewayRuntimeRepository:
+    def has_statuses(self, *, tenant_id: str = "default") -> bool:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            return session.execute(
+                select(GatewayRuntimeStatusProjectionRecord.id)
+                .where(GatewayRuntimeStatusProjectionRecord.tenant_id == tenant_id)
+                .limit(1)
+            ).scalar_one_or_none() is not None
+
     def list_statuses(self, *, tenant_id: str = "default") -> list[GatewayRuntimeStatusProjectionRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:

@@ -12,6 +12,7 @@ from zw_brain.domain import policy
 from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.domain.schemas import describe_schemas
 from zw_brain.shared import queue
+from zw_brain.shared.sanitization import safe_json
 from zw_brain.shared.state_store import StateStore
 from zw_brain.skill_registration.runtime import get_manifest, load_manifests
 
@@ -697,10 +698,13 @@ class BrainService:
     def ingest_gateway_heartbeat(self, payload: dict[str, Any]) -> dict[str, Any]:
         role = str(payload.get("role", self._ui_state["role"]))
         confirmed = bool(payload.get("confirmed"))
+        status = str(payload.get("status", "online"))
+        if status not in {"online", "warning", "offline"}:
+            raise BrainServiceError(f"unsupported gateway status: {status}")
         gateway_payload = {
             "gateway_instance_id": str(payload["gateway_instance_id"]),
             "gateway_address_ref": payload.get("gateway_address_ref"),
-            "status": str(payload.get("status", "online")),
+            "status": status,
             "last_reported_at": payload.get("last_reported_at") or datetime.now().isoformat(),
             "source_ref": payload.get("source_ref") or "gateway-heartbeat",
             "summary_json": copy.deepcopy(payload.get("summary_json", {})),
@@ -769,12 +773,19 @@ class BrainService:
 
     def transition_api_resource(self, resource_code: str, status: str, skill_id: str, role: str, confirmed: bool) -> dict[str, Any]:
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-            resource = self._find_api_resource(resource_code)
-            if resource is None:
-                raise NotFoundError(resource_code)
-            resource["lifecycle_status"] = status
-            resource["updated_at"] = self._now_datetime()
-            result = self._upsert_api_resource(resource)
+            store = self._state_store.database_store
+            if store is None:
+                resource = self._find_api_resource(resource_code)
+                if resource is None:
+                    raise NotFoundError(resource_code)
+                resource["lifecycle_status"] = status
+                resource["updated_at"] = self._now_datetime()
+                result = self._upsert_api_resource(resource)
+            else:
+                record = store.resource_api_repo.transition_asset(resource_code, status)
+                if record is None:
+                    raise NotFoundError(resource_code)
+                result = self._resource_asset_record_to_dict(record)
             self._append_audit_feed(skill_id, resource_code, "ok", actor)
             return result | {"audit_id": audit_id}
 
@@ -797,15 +808,8 @@ class BrainService:
             if self._find_api_resource(resource_code) is None:
                 raise NotFoundError(resource_code)
             binding = self._find_api_binding(binding_code)
-            if binding is None:
-                binding = {
-                    "binding_code": binding_code,
-                    "resource_code": resource_code,
-                    "channel_kind": "api_gateway",
-                    "request_schema_json": {},
-                    "response_schema_json": {},
-                    "lifecycle_status": "draft",
-                }
+            if binding is None or binding.get("resource_code") != resource_code:
+                raise NotFoundError(binding_code)
             binding["gateway_policy_json"] = policy_payload
             result = self._upsert_api_binding(binding)
             self._append_audit_feed("resource.api.policy.update", resource_code, "ok", actor)
@@ -887,10 +891,8 @@ class BrainService:
                 if binding is not None:
                     return copy.deepcopy(binding)
             return None
-        for record in store.resource_api_repo.list_bindings():
-            if record.binding_code == binding_code:
-                return self._binding_record_to_dict(record)
-        return None
+        record = store.resource_api_repo.get_binding(binding_code)
+        return self._binding_record_to_dict(record) if record is not None else None
 
     def _metric_summary(self, metrics: list[dict[str, Any]]) -> dict[str, Any]:
         return {
@@ -901,8 +903,7 @@ class BrainService:
         }
 
     def _safe_json(self, value: dict[str, Any]) -> dict[str, Any]:
-        blocked = {"secret", "password", "token", "credential", "app_secret", "superior_app_secret"}
-        return {key: item for key, item in copy.deepcopy(value).items() if key.lower() not in blocked}
+        return safe_json(value)
 
     def _resource_asset_record_to_dict(self, record: Any) -> dict[str, Any]:
         return {

@@ -88,6 +88,7 @@ def upgrade() -> None:
         sa.Column("summary_json", sa.JSON(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.UniqueConstraint("tenant_id", "resource_code", name="uq_resource_asset_tenant_code"),
     )
     op.create_index("ix_resource_asset_tenant_id", "resource_asset", ["tenant_id"])
     op.create_index("ix_resource_asset_resource_code", "resource_asset", ["resource_code"])
@@ -109,6 +110,7 @@ def upgrade() -> None:
         sa.Column("source_ref", sa.String(length=128), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.UniqueConstraint("tenant_id", "binding_code", name="uq_resource_channel_binding_tenant_code"),
     )
     op.create_index("ix_resource_channel_binding_tenant_id", "resource_channel_binding", ["tenant_id"])
     op.create_index("ix_resource_channel_binding_binding_code", "resource_channel_binding", ["binding_code"])
@@ -125,6 +127,7 @@ def upgrade() -> None:
         sa.Column("source_ref", sa.String(length=128), nullable=True),
         sa.Column("summary_json", sa.JSON(), nullable=False),
         sa.Column("generated_at", sa.DateTime(), nullable=False),
+        sa.UniqueConstraint("tenant_id", "gateway_instance_id", name="uq_gateway_runtime_tenant_instance"),
     )
     op.create_index("ix_gateway_runtime_status_projection_tenant_id", "gateway_runtime_status_projection", ["tenant_id"])
     op.create_index("ix_gateway_runtime_status_projection_gateway_instance_id", "gateway_runtime_status_projection", ["gateway_instance_id"])
@@ -151,6 +154,16 @@ def upgrade() -> None:
         sa.Column("source_event_ref", sa.String(length=128), nullable=True),
         sa.Column("summary_json", sa.JSON(), nullable=False),
         sa.Column("generated_at", sa.DateTime(), nullable=False),
+        sa.UniqueConstraint(
+            "tenant_id",
+            "metric_scope",
+            "resource_code",
+            "capability_id",
+            "provider_org_id",
+            "consumer_org_id",
+            "time_bucket",
+            name="uq_service_invocation_metric_identity",
+        ),
     )
     op.create_index("ix_service_invocation_metric_projection_tenant_id", "service_invocation_metric_projection", ["tenant_id"])
     op.create_index("ix_service_invocation_metric_projection_metric_scope", "service_invocation_metric_projection", ["metric_scope"])

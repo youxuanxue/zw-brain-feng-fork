@@ -14,6 +14,15 @@ def _now() -> datetime:
 
 
 class ServiceInvocationMetricRepository:
+    def has_metrics(self, *, tenant_id: str = "default") -> bool:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            return session.execute(
+                select(ServiceInvocationMetricProjectionRecord.id)
+                .where(ServiceInvocationMetricProjectionRecord.tenant_id == tenant_id)
+                .limit(1)
+            ).scalar_one_or_none() is not None
+
     def list_metrics(
         self,
         *,

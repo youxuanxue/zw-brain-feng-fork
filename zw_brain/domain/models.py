@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 import uuid
 
-from sqlalchemy import JSON, Boolean, DateTime, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from zw_brain.shared.db import Base
@@ -77,6 +77,7 @@ class CatalogEntryRecord(Base):
 
 class ResourceAssetRecord(Base):
     __tablename__ = "resource_asset"
+    __table_args__ = (UniqueConstraint("tenant_id", "resource_code", name="uq_resource_asset_tenant_code"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     tenant_id: Mapped[str] = mapped_column(String(64), index=True)
@@ -94,6 +95,7 @@ class ResourceAssetRecord(Base):
 
 class ResourceChannelBindingRecord(Base):
     __tablename__ = "resource_channel_binding"
+    __table_args__ = (UniqueConstraint("tenant_id", "binding_code", name="uq_resource_channel_binding_tenant_code"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     tenant_id: Mapped[str] = mapped_column(String(64), index=True)
@@ -113,6 +115,7 @@ class ResourceChannelBindingRecord(Base):
 
 class GatewayRuntimeStatusProjectionRecord(Base):
     __tablename__ = "gateway_runtime_status_projection"
+    __table_args__ = (UniqueConstraint("tenant_id", "gateway_instance_id", name="uq_gateway_runtime_tenant_instance"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     tenant_id: Mapped[str] = mapped_column(String(64), index=True)
@@ -127,6 +130,18 @@ class GatewayRuntimeStatusProjectionRecord(Base):
 
 class ServiceInvocationMetricProjectionRecord(Base):
     __tablename__ = "service_invocation_metric_projection"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "metric_scope",
+            "resource_code",
+            "capability_id",
+            "provider_org_id",
+            "consumer_org_id",
+            "time_bucket",
+            name="uq_service_invocation_metric_identity",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     tenant_id: Mapped[str] = mapped_column(String(64), index=True)

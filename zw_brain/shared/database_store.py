@@ -163,17 +163,17 @@ class DatabaseStore:
         for pkg in snapshot.get("capability_packages", []):
             self.capability_package_repo.upsert_from_package(pkg)
 
-        if not self.resource_api_repo.list_assets():
+        if not self.resource_api_repo.has_assets():
             for resource in snapshot.get("api_resources", []):
                 self.resource_api_repo.upsert_asset(resource)
                 for binding in resource.get("channel_bindings", []):
                     self.resource_api_repo.upsert_binding({**binding, "resource_code": resource["resource_code"]})
 
-        if not self.gateway_runtime_repo.list_statuses():
+        if not self.gateway_runtime_repo.has_statuses():
             for gateway in snapshot.get("gateway_runtime_statuses", []):
                 self.gateway_runtime_repo.upsert_heartbeat(gateway)
 
-        if not self.service_invocation_repo.list_metrics():
+        if not self.service_invocation_repo.has_metrics():
             for metric in snapshot.get("service_invocation_metrics", []):
                 self.service_invocation_repo.upsert_metric(metric)
 

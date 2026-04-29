@@ -7,17 +7,11 @@ from sqlalchemy import select
 
 from zw_brain.domain.models import ResourceAssetRecord, ResourceChannelBindingRecord
 from zw_brain.shared.db import create_session_factory
+from zw_brain.shared.sanitization import safe_json
 
 
 def _now() -> datetime:
     return datetime.now(UTC)
-
-
-def _safe_json(value: dict[str, Any] | None) -> dict[str, Any]:
-    if not value:
-        return {}
-    blocked = {"secret", "password", "token", "credential", "app_secret", "superior_app_secret"}
-    return {key: item for key, item in value.items() if key.lower() not in blocked}
 
 
 class ResourceApiRepository:
@@ -31,6 +25,13 @@ class ResourceApiRepository:
                     .order_by(ResourceAssetRecord.resource_code)
                 ).scalars()
             )
+
+    def has_assets(self, *, tenant_id: str = "default") -> bool:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            return session.execute(
+                select(ResourceAssetRecord.id).where(ResourceAssetRecord.tenant_id == tenant_id).limit(1)
+            ).scalar_one_or_none() is not None
 
     def get_asset(self, resource_code: str, *, tenant_id: str = "default") -> ResourceAssetRecord | None:
         SessionLocal = create_session_factory()
@@ -63,7 +64,7 @@ class ResourceApiRepository:
                     owner_org_id=payload.get("owner_org_id"),
                     catalog_code=payload.get("catalog_code"),
                     source_ref=payload.get("source_ref"),
-                    summary_json=_safe_json(payload.get("summary_json") or payload),
+                    summary_json=safe_json(payload.get("summary_json") or payload),
                     created_at=now,
                     updated_at=now,
                 )
@@ -74,7 +75,7 @@ class ResourceApiRepository:
                 record.owner_org_id = payload.get("owner_org_id", record.owner_org_id)
                 record.catalog_code = payload.get("catalog_code", record.catalog_code)
                 record.source_ref = payload.get("source_ref", record.source_ref)
-                record.summary_json = _safe_json(payload.get("summary_json") or {**record.summary_json, **payload})
+                record.summary_json = safe_json(payload.get("summary_json") or {**record.summary_json, **payload})
                 record.updated_at = now
             session.commit()
             session.refresh(record)
@@ -105,6 +106,16 @@ class ResourceApiRepository:
                 statement = statement.where(ResourceChannelBindingRecord.resource_code == resource_code)
             return list(session.execute(statement.order_by(ResourceChannelBindingRecord.binding_code)).scalars())
 
+    def get_binding(self, binding_code: str, *, tenant_id: str = "default") -> ResourceChannelBindingRecord | None:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            return session.execute(
+                select(ResourceChannelBindingRecord).where(
+                    ResourceChannelBindingRecord.tenant_id == tenant_id,
+                    ResourceChannelBindingRecord.binding_code == binding_code,
+                )
+            ).scalar_one_or_none()
+
     def upsert_binding(self, payload: dict[str, Any], *, tenant_id: str = "default") -> ResourceChannelBindingRecord:
         SessionLocal = create_session_factory()
         now = _now()
@@ -124,9 +135,9 @@ class ResourceApiRepository:
                     channel_kind=str(payload.get("channel_kind", "api_gateway")),
                     route_ref=payload.get("route_ref"),
                     auth_ref=payload.get("auth_ref"),
-                    request_schema_json=_safe_json(payload.get("request_schema_json")),
-                    response_schema_json=_safe_json(payload.get("response_schema_json")),
-                    gateway_policy_json=_safe_json(payload.get("gateway_policy_json")),
+                    request_schema_json=safe_json(payload.get("request_schema_json")),
+                    response_schema_json=safe_json(payload.get("response_schema_json")),
+                    gateway_policy_json=safe_json(payload.get("gateway_policy_json")),
                     lifecycle_status=str(payload.get("lifecycle_status", "draft")),
                     source_ref=payload.get("source_ref"),
                     created_at=now,
@@ -138,9 +149,9 @@ class ResourceApiRepository:
                 record.channel_kind = str(payload.get("channel_kind", record.channel_kind))
                 record.route_ref = payload.get("route_ref", record.route_ref)
                 record.auth_ref = payload.get("auth_ref", record.auth_ref)
-                record.request_schema_json = _safe_json(payload.get("request_schema_json") or record.request_schema_json)
-                record.response_schema_json = _safe_json(payload.get("response_schema_json") or record.response_schema_json)
-                record.gateway_policy_json = _safe_json(payload.get("gateway_policy_json") or record.gateway_policy_json)
+                record.request_schema_json = safe_json(payload.get("request_schema_json") or record.request_schema_json)
+                record.response_schema_json = safe_json(payload.get("response_schema_json") or record.response_schema_json)
+                record.gateway_policy_json = safe_json(payload.get("gateway_policy_json") or record.gateway_policy_json)
                 record.lifecycle_status = str(payload.get("lifecycle_status", record.lifecycle_status))
                 record.source_ref = payload.get("source_ref", record.source_ref)
                 record.updated_at = now
