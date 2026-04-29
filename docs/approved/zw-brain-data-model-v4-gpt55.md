@@ -8,6 +8,7 @@ authors:
   - Claude Code (claude-opus-4-7) — 设计协作
 related_docs:
   - docs/approved/zw-brain-architecture-v4-gpt55.md
+  - docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md
   - old/代码信息抽取/代码信息抽取-27newbranch/All-Project_数据库表结构文档.md
   - old/12-datastructure/dsp_catalog.xml
   - old/12-datastructure/dsp_connect.xml
@@ -91,7 +92,7 @@ phase_after_approval: Phase 0 / Wave 0（先打通 Catalog → Application → A
 | J2 申请与审批 | P1 工作台、P3 申请/审批/跟踪 | `application_record`, `application_attachment`, `approval_case`, `approval_step`, `approval_decision`, `audit_receipt` | 申请、补件、审批、撤回、跟踪必须回到同一状态机与回执链 |
 | J3 交付与交换 | P4 交付/交换/直达、P1 工作台 | `delivery_task`, `delivery_attempt`, `delivery_receipt`, `delivery_subscription`, `delivery_notice_projection` | 交付状态、回执、异常解释分层清晰；通知不是事实源 |
 | J4 供给侧治理 | P5 提供方管理、P7 共享专区 | `catalog_model`, `catalog_entry`, `catalog_entry_version`, `resource_asset`, `objection_*`（Wave 2） | 提供方治理首先是目录/资源生命周期治理，不是后台岛堆叠 |
-| S1 合规与运营 | P6 合规与运营、P1 工作台 | `capability_call`, `audit_event`, `audit_receipt`, `anchor_outbox` | 面向审计、统计、异常、追责，读的是审计事实，不是消息通知 |
+| S1 合规与运营 | P6 合规与运营、P1 工作台 | `capability_call`, `audit_event`, `audit_receipt`, `anchor_outbox`, `service_invocation_metric_projection`, `gateway_runtime_status_projection` | 面向审计、统计、异常、追责，读的是审计事实和审计派生投影，不是消息通知 |
 | S2 平台接入与扩展 | P8 平台接入与扩展中心 | `capability_package`, `capability_version`, `capability_exposure`, `capability_review_record`, `tenant_capability_policy` | 面向管理员；属于后台支撑面，不进入普通用户主导航心智 |
 
 ### 2.2 五消费面 → 同一 capability 的数据依赖
@@ -175,7 +176,7 @@ phase_after_approval: Phase 0 / Wave 0（先打通 Catalog → Application → A
 | `DeliveryTask` | `DeliveryAggregate` | `delivery_task`, `delivery_attempt`, `delivery_receipt`, `delivery_subscription` | `dc_resource_apply_info`, `dc_subscribe`, `Pipelines`, `PipelinesSubscribe`, `SubscribeJob`, `data_cascade_*`, `block_apply` |
 | `ObjectionCase` | `ObjectionAggregate` | `objection_case`, `objection_evidence`, `objection_process`, `objection_evaluation` | `data_objection*`, `data_interact_feedback`, `CorrectionFeedBack` |
 | `AuditEvent` | `AuditAggregate` | `capability_call`, `audit_event`, `audit_receipt`, `anchor_outbox` | `user_operation_log`, `sys_log`, `data_cascade_record_log`, `data_cascade_interface_log`, `block_*_log` |
-| `CapabilityPackage` | `CapabilityRegistryAggregate` | `capability_package`, `capability_version`, `capability_exposure`, `capability_review_record`, `tenant_capability_policy` | `ApiServiceCatalog`, 外部 package manifest, hub-compatible package 元数据 |
+| `CapabilityPackage` | `CapabilityRegistryAggregate` | `capability_package`, `capability_version`, `capability_exposure`, `capability_review_record`, `tenant_capability_policy` | 外部 package manifest, hub-compatible package 元数据 |
 | `TenantOrg` | `CapabilityRegistryAggregate` / shared substrate | `tenant_org_projection` | `sys_department`, `sys_region`, `portal_organization`, `block_org` |
 
 > 口径说明：`TenantOrg` 在概念上仍属于平台底座 / registry 相关治理上下文，而 `tenant_org_projection` 在物理上放入 `brain_core`，只是为了让主旅程查询、审批路由与历史回放获得稳定本地投影；它不是 IAM 权威源，也不改变 `TenantOrg` 的平台底座属性。
@@ -555,6 +556,7 @@ legacy 对应：`data_resource`, `data_resource_table`, `data_resource_api`, `Rc
 | endpoint_ref | JSONB | NOT NULL | 终端地址 / 路由 / 对象路径引用 |
 | schema_ref | JSONB |  | 结构说明 |
 | auth_ref | JSONB |  | 鉴权引用 |
+| gateway_policy_json | JSONB |  | 网关策略快照或外部策略引用，包括限流、熔断、黑白名单、过滤与日志采集级别 |
 | delivery_capability_slug | VARCHAR(128) |  | 交付 capability |
 | created_at | TIMESTAMPTZ | NOT NULL | 创建时间 |
 | updated_at | TIMESTAMPTZ | NOT NULL | 更新时间 |
@@ -1045,6 +1047,18 @@ legacy 对应：审批结果、人工确认记录、调查结论、`block_succes
 
 legacy 对应：`block_apilog`, `block_err_log`, `block_success_log`
 
+#### 6.2.5 `gateway_runtime_status_projection`
+
+用途：支撑 P6 合规与运营、K12 大屏对外部网关运行状态的只读观察。它不是网关管理事实源，不承载路由、认证、限流等策略状态；这些策略仍回到 `resource_channel_binding.gateway_policy_json` 或外部网关策略系统。
+
+`dsp-dataservice` 的 `/openapi/report` 网关心跳迁移语义、字段建议、来源证据与验收规则，以 `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md` §3.3 为单一事实源。
+
+#### 6.2.6 `service_invocation_metric_projection`
+
+用途：支撑 P6 合规与运营、K12 大屏、REST / CLI 统计查询的服务调用指标读侧投影。它不是业务事实源，来源必须回指 `capability_call`、`audit_event` 或只读网关日志 adapter。
+
+`dsp-dataservice` 的服务调用统计迁移语义、字段建议、来源证据与验收规则，以 `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md` §3.4 为单一事实源。
+
 ---
 
 ### 6.3 `brain_registry`：Capability Registry 与 adapter 映射
@@ -1082,7 +1096,7 @@ legacy 对应：`block_apilog`, `block_err_log`, `block_success_log`
 - `UNIQUE (package_slug)`
 - `INDEX (review_status, updated_at DESC)`
 
-legacy 对应：`ApiServiceCatalog` 的目录语义 + 外部包 manifest 元信息
+legacy 对应：外部 package manifest 元信息
 
 #### 6.3.2 `capability_version`
 
@@ -1348,9 +1362,10 @@ resolved  → closed
 - 目录发现：
   - `catalog_entry (tenant_id, lifecycle_status, owner_org_id)`
   - `resource_asset (tenant_id, catalog_id, resource_kind, status)`
-- 审计回放：
+- 审计与运营回放：
   - `audit_event (aggregate_type, aggregate_id, occurred_at)`
   - `capability_call (tenant_id, capability_slug, started_at desc)`
+  - `gateway_runtime_status_projection` 与 `service_invocation_metric_projection` 的 dsp-dataservice 专属查询索引见 `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md` §3.3–§3.4。
 - 注册治理：
   - `capability_package (review_status, updated_at desc)`
   - `capability_exposure (surface, enabled)`
@@ -1425,7 +1440,18 @@ resolved  → closed
 | `block_success_log` / `block_err_log` / `block_apilog` | `audit_receipt` + `anchor_outbox` | 外链结果不再散落到业务表 |
 | `block_catalog` / `block_apply` / `block_resource` | `audit_receipt` 的 payload 来源 | 作为外链确认，不作为主业务状态机 |
 
-### 9.7 租户/组织/权限映射
+### 9.7 dsp-dataservice 服务治理补充映射
+
+`dsp-dataservice` 的服务治理迁移映射、旧结构数据证据、字段级规则和能力边界，以 `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md` 为单一事实源。本基线只约束它必须落入以下 canonical 聚合与投影边界：
+
+- API 服务本体进入 `resource_asset(resource_kind='api')`。
+- API 调用通道、路由、契约、鉴权引用和网关策略进入 `resource_channel_binding`。
+- 申请、审批、授权、发布、撤回进入 `application_record`、`approval_case`、`delivery_task` 与审计链。
+- 网关心跳与服务调用统计只作为 P6 / Dashboard 读侧投影，不成为业务事实源。
+- 日志上链按 `anchor_outbox` + `audit_receipt` 处理，外链结果不反向驱动业务状态。
+- 密钥、内部地址、工单个人信息不得明文进入 canonical DB、文档或日志。
+
+### 9.8 租户/组织/权限映射
 
 | legacy 表/模块 | 新表 | 说明 |
 |---------------|------|------|
@@ -1491,6 +1517,8 @@ resolved  → closed
 - `capability_call`
 - `audit_event`
 - `audit_receipt`
+- `gateway_runtime_status_projection`
+- `service_invocation_metric_projection`
 - `capability_package`
 - `capability_version`
 - `legacy_adapter_source`
