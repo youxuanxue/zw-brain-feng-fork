@@ -1,0 +1,32 @@
+{
+  "name": "ops.service.invocation.query",
+  "description": "只读查询 API 服务调用量、成功失败和错误归因摘要。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "resource_code": {
+        "type": "string"
+      },
+      "capability_id": {
+        "type": "string"
+      },
+      "metric_scope": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "ops.service.invocation.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

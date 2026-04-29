@@ -49,6 +49,14 @@
       "mode": "read"
     },
     {
+      "id": "ops.service.invocation.query",
+      "mode": "read"
+    },
+    {
+      "id": "ops.service.report.query",
+      "mode": "read"
+    },
+    {
       "id": "package.list",
       "mode": "read"
     },
@@ -113,6 +121,10 @@
       "mode": "write"
     },
     {
+      "id": "ops.gateway.heartbeat.ingest",
+      "mode": "write"
+    },
+    {
       "id": "package.apply_tenant_policy",
       "mode": "write"
     },
@@ -134,6 +146,42 @@
     },
     {
       "id": "request.submit",
+      "mode": "write"
+    },
+    {
+      "id": "resource.api.change",
+      "mode": "write"
+    },
+    {
+      "id": "resource.api.policy.update",
+      "mode": "write"
+    },
+    {
+      "id": "resource.api.publish",
+      "mode": "write"
+    },
+    {
+      "id": "resource.api.register",
+      "mode": "write"
+    },
+    {
+      "id": "resource.api.review",
+      "mode": "write"
+    },
+    {
+      "id": "resource.api.revoke",
+      "mode": "write"
+    },
+    {
+      "id": "resource.api.submit_review",
+      "mode": "write"
+    },
+    {
+      "id": "resource.api.test",
+      "mode": "write"
+    },
+    {
+      "id": "resource.api.withdraw",
       "mode": "write"
     },
     {

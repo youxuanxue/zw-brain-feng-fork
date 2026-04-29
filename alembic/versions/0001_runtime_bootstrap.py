@@ -75,6 +75,92 @@ def upgrade() -> None:
     op.create_index("ix_catalog_entry_catalog_code", "catalog_entry", ["catalog_code"])
     op.create_index("ix_catalog_entry_lifecycle_status", "catalog_entry", ["lifecycle_status"])
     op.create_table(
+        "resource_asset",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("tenant_id", sa.String(length=64), nullable=False),
+        sa.Column("resource_code", sa.String(length=64), nullable=False),
+        sa.Column("resource_kind", sa.String(length=32), nullable=False),
+        sa.Column("title", sa.String(length=200), nullable=False),
+        sa.Column("lifecycle_status", sa.String(length=32), nullable=False),
+        sa.Column("owner_org_id", sa.String(length=64), nullable=True),
+        sa.Column("catalog_code", sa.String(length=64), nullable=True),
+        sa.Column("source_ref", sa.String(length=128), nullable=True),
+        sa.Column("summary_json", sa.JSON(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_resource_asset_tenant_id", "resource_asset", ["tenant_id"])
+    op.create_index("ix_resource_asset_resource_code", "resource_asset", ["resource_code"])
+    op.create_index("ix_resource_asset_resource_kind", "resource_asset", ["resource_kind"])
+    op.create_index("ix_resource_asset_lifecycle_status", "resource_asset", ["lifecycle_status"])
+    op.create_table(
+        "resource_channel_binding",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("tenant_id", sa.String(length=64), nullable=False),
+        sa.Column("binding_code", sa.String(length=64), nullable=False),
+        sa.Column("resource_code", sa.String(length=64), nullable=False),
+        sa.Column("channel_kind", sa.String(length=64), nullable=False),
+        sa.Column("route_ref", sa.String(length=255), nullable=True),
+        sa.Column("auth_ref", sa.String(length=128), nullable=True),
+        sa.Column("request_schema_json", sa.JSON(), nullable=False),
+        sa.Column("response_schema_json", sa.JSON(), nullable=False),
+        sa.Column("gateway_policy_json", sa.JSON(), nullable=False),
+        sa.Column("lifecycle_status", sa.String(length=32), nullable=False),
+        sa.Column("source_ref", sa.String(length=128), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_resource_channel_binding_tenant_id", "resource_channel_binding", ["tenant_id"])
+    op.create_index("ix_resource_channel_binding_binding_code", "resource_channel_binding", ["binding_code"])
+    op.create_index("ix_resource_channel_binding_resource_code", "resource_channel_binding", ["resource_code"])
+    op.create_index("ix_resource_channel_binding_lifecycle_status", "resource_channel_binding", ["lifecycle_status"])
+    op.create_table(
+        "gateway_runtime_status_projection",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("tenant_id", sa.String(length=64), nullable=False),
+        sa.Column("gateway_instance_id", sa.String(length=128), nullable=False),
+        sa.Column("gateway_address_ref", sa.String(length=128), nullable=True),
+        sa.Column("status", sa.String(length=32), nullable=False),
+        sa.Column("last_reported_at", sa.DateTime(), nullable=False),
+        sa.Column("source_ref", sa.String(length=128), nullable=True),
+        sa.Column("summary_json", sa.JSON(), nullable=False),
+        sa.Column("generated_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_gateway_runtime_status_projection_tenant_id", "gateway_runtime_status_projection", ["tenant_id"])
+    op.create_index("ix_gateway_runtime_status_projection_gateway_instance_id", "gateway_runtime_status_projection", ["gateway_instance_id"])
+    op.create_index("ix_gateway_runtime_status_projection_status", "gateway_runtime_status_projection", ["status"])
+    op.create_index("ix_gateway_runtime_status_projection_last_reported_at", "gateway_runtime_status_projection", ["last_reported_at"])
+    op.create_index("ix_gateway_runtime_status_projection_generated_at", "gateway_runtime_status_projection", ["generated_at"])
+    op.create_table(
+        "service_invocation_metric_projection",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("tenant_id", sa.String(length=64), nullable=False),
+        sa.Column("metric_scope", sa.String(length=64), nullable=False),
+        sa.Column("resource_code", sa.String(length=64), nullable=True),
+        sa.Column("capability_id", sa.String(length=128), nullable=True),
+        sa.Column("provider_org_id", sa.String(length=64), nullable=True),
+        sa.Column("consumer_org_id", sa.String(length=64), nullable=True),
+        sa.Column("consumer_region", sa.String(length=64), nullable=True),
+        sa.Column("consumer_app_ref", sa.String(length=128), nullable=True),
+        sa.Column("time_bucket", sa.String(length=32), nullable=False),
+        sa.Column("invoke_count", sa.Integer(), nullable=False),
+        sa.Column("success_count", sa.Integer(), nullable=False),
+        sa.Column("failure_count", sa.Integer(), nullable=False),
+        sa.Column("error_count", sa.Integer(), nullable=False),
+        sa.Column("avg_latency_ms", sa.Integer(), nullable=True),
+        sa.Column("source_event_ref", sa.String(length=128), nullable=True),
+        sa.Column("summary_json", sa.JSON(), nullable=False),
+        sa.Column("generated_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_service_invocation_metric_projection_tenant_id", "service_invocation_metric_projection", ["tenant_id"])
+    op.create_index("ix_service_invocation_metric_projection_metric_scope", "service_invocation_metric_projection", ["metric_scope"])
+    op.create_index("ix_service_invocation_metric_projection_resource_code", "service_invocation_metric_projection", ["resource_code"])
+    op.create_index("ix_service_invocation_metric_projection_capability_id", "service_invocation_metric_projection", ["capability_id"])
+    op.create_index("ix_service_invocation_metric_projection_provider_org_id", "service_invocation_metric_projection", ["provider_org_id"])
+    op.create_index("ix_service_invocation_metric_projection_consumer_org_id", "service_invocation_metric_projection", ["consumer_org_id"])
+    op.create_index("ix_service_invocation_metric_projection_time_bucket", "service_invocation_metric_projection", ["time_bucket"])
+    op.create_index("ix_service_invocation_metric_projection_generated_at", "service_invocation_metric_projection", ["generated_at"])
+    op.create_table(
         "application_record",
         sa.Column("id", sa.String(length=36), primary_key=True),
         sa.Column("tenant_id", sa.String(length=64), nullable=False),
@@ -288,6 +374,31 @@ def downgrade() -> None:
     op.drop_index("ix_application_record_tenant_id", table_name="application_record")
     op.drop_table("application_record")
     op.drop_index("ix_catalog_entry_lifecycle_status", table_name="catalog_entry")
+    op.drop_index("ix_service_invocation_metric_projection_generated_at", table_name="service_invocation_metric_projection")
+    op.drop_index("ix_service_invocation_metric_projection_time_bucket", table_name="service_invocation_metric_projection")
+    op.drop_index("ix_service_invocation_metric_projection_consumer_org_id", table_name="service_invocation_metric_projection")
+    op.drop_index("ix_service_invocation_metric_projection_provider_org_id", table_name="service_invocation_metric_projection")
+    op.drop_index("ix_service_invocation_metric_projection_capability_id", table_name="service_invocation_metric_projection")
+    op.drop_index("ix_service_invocation_metric_projection_resource_code", table_name="service_invocation_metric_projection")
+    op.drop_index("ix_service_invocation_metric_projection_metric_scope", table_name="service_invocation_metric_projection")
+    op.drop_index("ix_service_invocation_metric_projection_tenant_id", table_name="service_invocation_metric_projection")
+    op.drop_table("service_invocation_metric_projection")
+    op.drop_index("ix_gateway_runtime_status_projection_generated_at", table_name="gateway_runtime_status_projection")
+    op.drop_index("ix_gateway_runtime_status_projection_last_reported_at", table_name="gateway_runtime_status_projection")
+    op.drop_index("ix_gateway_runtime_status_projection_status", table_name="gateway_runtime_status_projection")
+    op.drop_index("ix_gateway_runtime_status_projection_gateway_instance_id", table_name="gateway_runtime_status_projection")
+    op.drop_index("ix_gateway_runtime_status_projection_tenant_id", table_name="gateway_runtime_status_projection")
+    op.drop_table("gateway_runtime_status_projection")
+    op.drop_index("ix_resource_channel_binding_lifecycle_status", table_name="resource_channel_binding")
+    op.drop_index("ix_resource_channel_binding_resource_code", table_name="resource_channel_binding")
+    op.drop_index("ix_resource_channel_binding_binding_code", table_name="resource_channel_binding")
+    op.drop_index("ix_resource_channel_binding_tenant_id", table_name="resource_channel_binding")
+    op.drop_table("resource_channel_binding")
+    op.drop_index("ix_resource_asset_lifecycle_status", table_name="resource_asset")
+    op.drop_index("ix_resource_asset_resource_kind", table_name="resource_asset")
+    op.drop_index("ix_resource_asset_resource_code", table_name="resource_asset")
+    op.drop_index("ix_resource_asset_tenant_id", table_name="resource_asset")
+    op.drop_table("resource_asset")
     op.drop_index("ix_catalog_entry_catalog_code", table_name="catalog_entry")
     op.drop_index("ix_catalog_entry_tenant_id", table_name="catalog_entry")
     op.drop_table("catalog_entry")

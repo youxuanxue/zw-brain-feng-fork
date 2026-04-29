@@ -75,6 +75,79 @@ class CatalogEntryRecord(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 
 
+class ResourceAssetRecord(Base):
+    __tablename__ = "resource_asset"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    resource_code: Mapped[str] = mapped_column(String(64), index=True)
+    resource_kind: Mapped[str] = mapped_column(String(32), index=True, default="api")
+    title: Mapped[str] = mapped_column(String(200))
+    lifecycle_status: Mapped[str] = mapped_column(String(32), index=True)
+    owner_org_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    catalog_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    summary_json: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class ResourceChannelBindingRecord(Base):
+    __tablename__ = "resource_channel_binding"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    binding_code: Mapped[str] = mapped_column(String(64), index=True)
+    resource_code: Mapped[str] = mapped_column(String(64), index=True)
+    channel_kind: Mapped[str] = mapped_column(String(64))
+    route_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    auth_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    request_schema_json: Mapped[dict] = mapped_column(JSON)
+    response_schema_json: Mapped[dict] = mapped_column(JSON)
+    gateway_policy_json: Mapped[dict] = mapped_column(JSON)
+    lifecycle_status: Mapped[str] = mapped_column(String(32), index=True)
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class GatewayRuntimeStatusProjectionRecord(Base):
+    __tablename__ = "gateway_runtime_status_projection"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    gateway_instance_id: Mapped[str] = mapped_column(String(128), index=True)
+    gateway_address_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), index=True)
+    last_reported_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    summary_json: Mapped[dict] = mapped_column(JSON)
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now, index=True)
+
+
+class ServiceInvocationMetricProjectionRecord(Base):
+    __tablename__ = "service_invocation_metric_projection"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    metric_scope: Mapped[str] = mapped_column(String(64), index=True)
+    resource_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    capability_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    provider_org_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    consumer_org_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    consumer_region: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    consumer_app_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    time_bucket: Mapped[str] = mapped_column(String(32), index=True)
+    invoke_count: Mapped[int] = mapped_column(Integer, default=0)
+    success_count: Mapped[int] = mapped_column(Integer, default=0)
+    failure_count: Mapped[int] = mapped_column(Integer, default=0)
+    error_count: Mapped[int] = mapped_column(Integer, default=0)
+    avg_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source_event_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    summary_json: Mapped[dict] = mapped_column(JSON)
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now, index=True)
+
+
 class ApplicationRecord(Base):
     __tablename__ = "application_record"
 

@@ -1,0 +1,23 @@
+{
+  "name": "ops.service.report.query",
+  "description": "只读汇总网关心跳和服务调用统计，形成服务运行态势报告。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "ops.service.report.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

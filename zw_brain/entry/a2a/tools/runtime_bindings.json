@@ -303,6 +303,73 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "ops.service.invocation.query",
+    "description": "只读查询 API 服务调用量、成功失败和错误归因摘要。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/ops.service.invocation.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "resource_code": {
+          "type": "string"
+        },
+        "capability_id": {
+          "type": "string"
+        },
+        "metric_scope": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "ops.service.invocation.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "ops.service.report.query",
+    "description": "只读汇总网关心跳和服务调用统计，形成服务运行态势报告。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/ops.service.report.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "ops.service.report.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "package.list",
     "description": "查看待审核和已处理的能力注册包列表。",
     "protocol_type": "builtin_skill",
@@ -891,6 +958,67 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "ops.gateway.heartbeat.ingest",
+    "description": "把外部网关运行时心跳写入只读状态投影，不作为业务报表事实源。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/ops.gateway.heartbeat.ingest",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "gateway_instance_id",
+        "confirmed"
+      ],
+      "properties": {
+        "gateway_instance_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "gateway_address_ref": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "online",
+            "warning",
+            "offline"
+          ]
+        },
+        "last_reported_at": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "ops.gateway.heartbeat.ingest.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "package.apply_tenant_policy",
     "description": "在版本登记后对指定租户生效能力包策略与暴露范围。",
     "protocol_type": "builtin_skill",
@@ -1173,6 +1301,731 @@
       "audit_required": true,
       "permissions": [
         "request.submit.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "resource.api.change",
+    "description": "对 API 服务资源摘要或通道绑定执行受控变更。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/resource.api.change",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "resource_code",
+        "confirmed"
+      ],
+      "properties": {
+        "resource_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "return_for_fix"
+          ]
+        },
+        "test_result": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed"
+          ]
+        },
+        "binding_code": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "summary_json": {
+          "type": "object"
+        },
+        "channel_binding": {
+          "type": "object"
+        },
+        "gateway_policy_json": {
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "resource.api.change.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "resource.api.policy.update",
+    "description": "更新 API 通道限流、熔断、名单和日志级别等策略元数据。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/resource.api.policy.update",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "resource_code",
+        "binding_code",
+        "gateway_policy_json",
+        "confirmed"
+      ],
+      "properties": {
+        "resource_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "return_for_fix"
+          ]
+        },
+        "test_result": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed"
+          ]
+        },
+        "binding_code": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "summary_json": {
+          "type": "object"
+        },
+        "channel_binding": {
+          "type": "object"
+        },
+        "gateway_policy_json": {
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "resource.api.policy.update.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "resource.api.publish",
+    "description": "把审核通过的 API 服务发布到可共享状态。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/resource.api.publish",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "resource_code",
+        "confirmed"
+      ],
+      "properties": {
+        "resource_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "return_for_fix"
+          ]
+        },
+        "test_result": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed"
+          ]
+        },
+        "binding_code": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "summary_json": {
+          "type": "object"
+        },
+        "channel_binding": {
+          "type": "object"
+        },
+        "gateway_policy_json": {
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "resource.api.publish.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "resource.api.register",
+    "description": "把 API 服务登记为 zw-brain 原生资源资产。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/resource.api.register",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "resource_code",
+        "title",
+        "confirmed"
+      ],
+      "properties": {
+        "resource_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "return_for_fix"
+          ]
+        },
+        "test_result": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed"
+          ]
+        },
+        "binding_code": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "summary_json": {
+          "type": "object"
+        },
+        "channel_binding": {
+          "type": "object"
+        },
+        "gateway_policy_json": {
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "resource.api.register.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "resource.api.review",
+    "description": "对 API 服务资源审核通过或退回。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/resource.api.review",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "resource_code",
+        "decision",
+        "confirmed"
+      ],
+      "properties": {
+        "resource_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "return_for_fix"
+          ]
+        },
+        "test_result": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed"
+          ]
+        },
+        "binding_code": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "summary_json": {
+          "type": "object"
+        },
+        "channel_binding": {
+          "type": "object"
+        },
+        "gateway_policy_json": {
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "resource.api.review.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "resource.api.revoke",
+    "description": "撤销 API 服务授权并保留审计证据。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/resource.api.revoke",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "resource_code",
+        "confirmed"
+      ],
+      "properties": {
+        "resource_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "return_for_fix"
+          ]
+        },
+        "test_result": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed"
+          ]
+        },
+        "binding_code": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "summary_json": {
+          "type": "object"
+        },
+        "channel_binding": {
+          "type": "object"
+        },
+        "gateway_policy_json": {
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "resource.api.revoke.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "resource.api.submit_review",
+    "description": "把 API 服务资源从草稿推进到待审核。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/resource.api.submit_review",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "resource_code",
+        "confirmed"
+      ],
+      "properties": {
+        "resource_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "return_for_fix"
+          ]
+        },
+        "test_result": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed"
+          ]
+        },
+        "binding_code": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "summary_json": {
+          "type": "object"
+        },
+        "channel_binding": {
+          "type": "object"
+        },
+        "gateway_policy_json": {
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "resource.api.submit_review.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "resource.api.test",
+    "description": "登记 API 服务连通性测试结果，不直连旧网关。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/resource.api.test",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "resource_code",
+        "test_result",
+        "confirmed"
+      ],
+      "properties": {
+        "resource_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "return_for_fix"
+          ]
+        },
+        "test_result": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed"
+          ]
+        },
+        "binding_code": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "summary_json": {
+          "type": "object"
+        },
+        "channel_binding": {
+          "type": "object"
+        },
+        "gateway_policy_json": {
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "resource.api.test.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "resource.api.withdraw",
+    "description": "把 API 服务从发布态撤回到治理态。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/resource.api.withdraw",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "resource_code",
+        "confirmed"
+      ],
+      "properties": {
+        "resource_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "return_for_fix"
+          ]
+        },
+        "test_result": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed"
+          ]
+        },
+        "binding_code": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "summary_json": {
+          "type": "object"
+        },
+        "channel_binding": {
+          "type": "object"
+        },
+        "gateway_policy_json": {
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "resource.api.withdraw.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",

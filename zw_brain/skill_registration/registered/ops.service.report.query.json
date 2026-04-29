@@ -1,0 +1,23 @@
+{
+  "skill_id": "ops.service.report.query",
+  "slug": "ops.service.report.query",
+  "title": "查询服务运行态势",
+  "description": "只读汇总网关心跳和服务调用统计，形成服务运行态势报告。",
+  "version": "1.0.0",
+  "input_schema": { "type": "object", "properties": { "role": { "type": "string" } } },
+  "output_schema": { "type": "object", "required": ["gateways", "metrics", "summary"], "properties": { "gateways": { "type": "array", "items": { "type": "object" } }, "metrics": { "type": "array", "items": { "type": "object" } }, "summary": { "type": "object" } } },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-default",
+  "execution_binding": "builtin",
+  "compatibility": ["webui", "api", "cli", "mcp", "a2a"],
+  "runtime_binding": { "kind": "brain_service", "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill", "method": "ops.service.report.query" },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": ["ops.service.report.query.execute"],
+  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "registry_source": "internal",
+  "tags": ["ops", "service", "read", "report"]
+}

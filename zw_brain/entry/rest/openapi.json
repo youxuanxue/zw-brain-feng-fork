@@ -1315,6 +1315,273 @@
         ]
       }
     },
+    "/api/skills/ops.service.invocation.query": {
+      "get": {
+        "summary": "查询服务调用统计",
+        "description": "只读查询 API 服务调用量、成功失败和错误归因摘要。",
+        "operationId": "get_ops_service_invocation_query",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "ops.service.invocation.query",
+        "x-zwbrain-side-effects": [],
+        "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-permissions": [
+          "ops.service.invocation.query.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "summary"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "summary": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill or target not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied by role / tenant / permission policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "capability_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "metric_scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "resource_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/skills/ops.service.report.query": {
+      "get": {
+        "summary": "查询服务运行态势",
+        "description": "只读汇总网关心跳和服务调用统计，形成服务运行态势报告。",
+        "operationId": "get_ops_service_report_query",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "ops.service.report.query",
+        "x-zwbrain-side-effects": [],
+        "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-permissions": [
+          "ops.service.report.query.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "gateways",
+                    "metrics",
+                    "summary"
+                  ],
+                  "properties": {
+                    "gateways": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "metrics": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "summary": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill or target not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied by role / tenant / permission policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/skills/package.list": {
       "get": {
         "summary": "查看能力包列表",
@@ -3418,6 +3685,175 @@
         }
       }
     },
+    "/api/skills/ops.gateway.heartbeat.ingest": {
+      "post": {
+        "summary": "摄入网关心跳",
+        "description": "把外部网关运行时心跳写入只读状态投影，不作为业务报表事实源。",
+        "operationId": "post_ops_gateway_heartbeat_ingest",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "ops.gateway.heartbeat.ingest",
+        "x-zwbrain-side-effects": [
+          "audit",
+          "db_write",
+          "blockchain_anchor"
+        ],
+        "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-permissions": [
+          "ops.gateway.heartbeat.ingest.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill or target not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied by role / tenant / permission policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Confirmation required or invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "gateway_instance_id",
+                  "confirmed"
+                ],
+                "properties": {
+                  "gateway_instance_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "gateway_address_ref": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "online",
+                      "warning",
+                      "offline"
+                    ]
+                  },
+                  "last_reported_at": {
+                    "type": "string"
+                  },
+                  "source_ref": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/skills/package.apply_tenant_policy": {
       "post": {
         "summary": "生效租户策略",
@@ -4416,6 +4852,1703 @@
                   "request_id": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills/resource.api.change": {
+      "post": {
+        "summary": "变更 API 服务资源",
+        "description": "对 API 服务资源摘要或通道绑定执行受控变更。",
+        "operationId": "post_resource_api_change",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "resource.api.change",
+        "x-zwbrain-side-effects": [
+          "audit",
+          "db_write",
+          "state_machine_transition",
+          "blockchain_anchor"
+        ],
+        "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-permissions": [
+          "resource.api.change.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill or target not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied by role / tenant / permission policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Confirmation required or invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "resource_code",
+                  "confirmed"
+                ],
+                "properties": {
+                  "resource_code": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "approve",
+                      "return_for_fix"
+                    ]
+                  },
+                  "test_result": {
+                    "type": "string",
+                    "enum": [
+                      "passed",
+                      "failed"
+                    ]
+                  },
+                  "binding_code": {
+                    "type": "string"
+                  },
+                  "owner_org_id": {
+                    "type": "string"
+                  },
+                  "catalog_code": {
+                    "type": "string"
+                  },
+                  "summary_json": {
+                    "type": "object"
+                  },
+                  "channel_binding": {
+                    "type": "object"
+                  },
+                  "gateway_policy_json": {
+                    "type": "object"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills/resource.api.policy.update": {
+      "post": {
+        "summary": "更新 API 通道策略",
+        "description": "更新 API 通道限流、熔断、名单和日志级别等策略元数据。",
+        "operationId": "post_resource_api_policy_update",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "resource.api.policy.update",
+        "x-zwbrain-side-effects": [
+          "audit",
+          "db_write",
+          "state_machine_transition",
+          "blockchain_anchor"
+        ],
+        "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-permissions": [
+          "resource.api.policy.update.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill or target not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied by role / tenant / permission policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Confirmation required or invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "resource_code",
+                  "binding_code",
+                  "gateway_policy_json",
+                  "confirmed"
+                ],
+                "properties": {
+                  "resource_code": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "approve",
+                      "return_for_fix"
+                    ]
+                  },
+                  "test_result": {
+                    "type": "string",
+                    "enum": [
+                      "passed",
+                      "failed"
+                    ]
+                  },
+                  "binding_code": {
+                    "type": "string"
+                  },
+                  "owner_org_id": {
+                    "type": "string"
+                  },
+                  "catalog_code": {
+                    "type": "string"
+                  },
+                  "summary_json": {
+                    "type": "object"
+                  },
+                  "channel_binding": {
+                    "type": "object"
+                  },
+                  "gateway_policy_json": {
+                    "type": "object"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills/resource.api.publish": {
+      "post": {
+        "summary": "发布 API 服务",
+        "description": "把审核通过的 API 服务发布到可共享状态。",
+        "operationId": "post_resource_api_publish",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "resource.api.publish",
+        "x-zwbrain-side-effects": [
+          "audit",
+          "db_write",
+          "state_machine_transition",
+          "blockchain_anchor"
+        ],
+        "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-permissions": [
+          "resource.api.publish.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill or target not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied by role / tenant / permission policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Confirmation required or invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "resource_code",
+                  "confirmed"
+                ],
+                "properties": {
+                  "resource_code": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "approve",
+                      "return_for_fix"
+                    ]
+                  },
+                  "test_result": {
+                    "type": "string",
+                    "enum": [
+                      "passed",
+                      "failed"
+                    ]
+                  },
+                  "binding_code": {
+                    "type": "string"
+                  },
+                  "owner_org_id": {
+                    "type": "string"
+                  },
+                  "catalog_code": {
+                    "type": "string"
+                  },
+                  "summary_json": {
+                    "type": "object"
+                  },
+                  "channel_binding": {
+                    "type": "object"
+                  },
+                  "gateway_policy_json": {
+                    "type": "object"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills/resource.api.register": {
+      "post": {
+        "summary": "注册 API 服务资源",
+        "description": "把 API 服务登记为 zw-brain 原生资源资产。",
+        "operationId": "post_resource_api_register",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "resource.api.register",
+        "x-zwbrain-side-effects": [
+          "audit",
+          "db_write",
+          "state_machine_transition",
+          "blockchain_anchor"
+        ],
+        "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-permissions": [
+          "resource.api.register.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill or target not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied by role / tenant / permission policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Confirmation required or invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "resource_code",
+                  "title",
+                  "confirmed"
+                ],
+                "properties": {
+                  "resource_code": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "approve",
+                      "return_for_fix"
+                    ]
+                  },
+                  "test_result": {
+                    "type": "string",
+                    "enum": [
+                      "passed",
+                      "failed"
+                    ]
+                  },
+                  "binding_code": {
+                    "type": "string"
+                  },
+                  "owner_org_id": {
+                    "type": "string"
+                  },
+                  "catalog_code": {
+                    "type": "string"
+                  },
+                  "summary_json": {
+                    "type": "object"
+                  },
+                  "channel_binding": {
+                    "type": "object"
+                  },
+                  "gateway_policy_json": {
+                    "type": "object"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills/resource.api.review": {
+      "post": {
+        "summary": "审核 API 服务",
+        "description": "对 API 服务资源审核通过或退回。",
+        "operationId": "post_resource_api_review",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "resource.api.review",
+        "x-zwbrain-side-effects": [
+          "audit",
+          "db_write",
+          "state_machine_transition",
+          "blockchain_anchor"
+        ],
+        "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-permissions": [
+          "resource.api.review.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill or target not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied by role / tenant / permission policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Confirmation required or invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "resource_code",
+                  "decision",
+                  "confirmed"
+                ],
+                "properties": {
+                  "resource_code": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "approve",
+                      "return_for_fix"
+                    ]
+                  },
+                  "test_result": {
+                    "type": "string",
+                    "enum": [
+                      "passed",
+                      "failed"
+                    ]
+                  },
+                  "binding_code": {
+                    "type": "string"
+                  },
+                  "owner_org_id": {
+                    "type": "string"
+                  },
+                  "catalog_code": {
+                    "type": "string"
+                  },
+                  "summary_json": {
+                    "type": "object"
+                  },
+                  "channel_binding": {
+                    "type": "object"
+                  },
+                  "gateway_policy_json": {
+                    "type": "object"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills/resource.api.revoke": {
+      "post": {
+        "summary": "撤销 API 服务授权",
+        "description": "撤销 API 服务授权并保留审计证据。",
+        "operationId": "post_resource_api_revoke",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "resource.api.revoke",
+        "x-zwbrain-side-effects": [
+          "audit",
+          "db_write",
+          "state_machine_transition",
+          "blockchain_anchor"
+        ],
+        "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-permissions": [
+          "resource.api.revoke.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill or target not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied by role / tenant / permission policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Confirmation required or invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "resource_code",
+                  "confirmed"
+                ],
+                "properties": {
+                  "resource_code": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "approve",
+                      "return_for_fix"
+                    ]
+                  },
+                  "test_result": {
+                    "type": "string",
+                    "enum": [
+                      "passed",
+                      "failed"
+                    ]
+                  },
+                  "binding_code": {
+                    "type": "string"
+                  },
+                  "owner_org_id": {
+                    "type": "string"
+                  },
+                  "catalog_code": {
+                    "type": "string"
+                  },
+                  "summary_json": {
+                    "type": "object"
+                  },
+                  "channel_binding": {
+                    "type": "object"
+                  },
+                  "gateway_policy_json": {
+                    "type": "object"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills/resource.api.submit_review": {
+      "post": {
+        "summary": "提交 API 服务审核",
+        "description": "把 API 服务资源从草稿推进到待审核。",
+        "operationId": "post_resource_api_submit_review",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "resource.api.submit_review",
+        "x-zwbrain-side-effects": [
+          "audit",
+          "db_write",
+          "state_machine_transition",
+          "blockchain_anchor"
+        ],
+        "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-permissions": [
+          "resource.api.submit_review.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill or target not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied by role / tenant / permission policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Confirmation required or invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "resource_code",
+                  "confirmed"
+                ],
+                "properties": {
+                  "resource_code": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "approve",
+                      "return_for_fix"
+                    ]
+                  },
+                  "test_result": {
+                    "type": "string",
+                    "enum": [
+                      "passed",
+                      "failed"
+                    ]
+                  },
+                  "binding_code": {
+                    "type": "string"
+                  },
+                  "owner_org_id": {
+                    "type": "string"
+                  },
+                  "catalog_code": {
+                    "type": "string"
+                  },
+                  "summary_json": {
+                    "type": "object"
+                  },
+                  "channel_binding": {
+                    "type": "object"
+                  },
+                  "gateway_policy_json": {
+                    "type": "object"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills/resource.api.test": {
+      "post": {
+        "summary": "登记 API 服务连通性测试",
+        "description": "登记 API 服务连通性测试结果，不直连旧网关。",
+        "operationId": "post_resource_api_test",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "resource.api.test",
+        "x-zwbrain-side-effects": [
+          "audit",
+          "db_write",
+          "state_machine_transition",
+          "blockchain_anchor"
+        ],
+        "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-permissions": [
+          "resource.api.test.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill or target not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied by role / tenant / permission policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Confirmation required or invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "resource_code",
+                  "test_result",
+                  "confirmed"
+                ],
+                "properties": {
+                  "resource_code": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "approve",
+                      "return_for_fix"
+                    ]
+                  },
+                  "test_result": {
+                    "type": "string",
+                    "enum": [
+                      "passed",
+                      "failed"
+                    ]
+                  },
+                  "binding_code": {
+                    "type": "string"
+                  },
+                  "owner_org_id": {
+                    "type": "string"
+                  },
+                  "catalog_code": {
+                    "type": "string"
+                  },
+                  "summary_json": {
+                    "type": "object"
+                  },
+                  "channel_binding": {
+                    "type": "object"
+                  },
+                  "gateway_policy_json": {
+                    "type": "object"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills/resource.api.withdraw": {
+      "post": {
+        "summary": "撤回 API 服务",
+        "description": "把 API 服务从发布态撤回到治理态。",
+        "operationId": "post_resource_api_withdraw",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "resource.api.withdraw",
+        "x-zwbrain-side-effects": [
+          "audit",
+          "db_write",
+          "state_machine_transition",
+          "blockchain_anchor"
+        ],
+        "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-permissions": [
+          "resource.api.withdraw.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill or target not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied by role / tenant / permission policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Confirmation required or invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "resource_code",
+                  "confirmed"
+                ],
+                "properties": {
+                  "resource_code": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "approve",
+                      "return_for_fix"
+                    ]
+                  },
+                  "test_result": {
+                    "type": "string",
+                    "enum": [
+                      "passed",
+                      "failed"
+                    ]
+                  },
+                  "binding_code": {
+                    "type": "string"
+                  },
+                  "owner_org_id": {
+                    "type": "string"
+                  },
+                  "catalog_code": {
+                    "type": "string"
+                  },
+                  "summary_json": {
+                    "type": "object"
+                  },
+                  "channel_binding": {
+                    "type": "object"
+                  },
+                  "gateway_policy_json": {
+                    "type": "object"
                   },
                   "role": {
                     "type": "string"

@@ -1247,6 +1247,81 @@
       }
     }
   ],
+  "api_resources": [
+    {
+      "resource_code": "api-company-ledger",
+      "resource_kind": "api",
+      "title": "法人单位基础信息 API",
+      "lifecycle_status": "published",
+      "owner_org_id": "org-market-regulator",
+      "catalog_code": "res-jbxx-ledger",
+      "source_ref": "dsp-dataservice:api_service_info",
+      "summary_json": {
+        "domain": "法人基础信息",
+        "value": "为专题申请提供可审计、可授权、可回放的 API 资源入口"
+      },
+      "channel_bindings": [
+        {
+          "binding_code": "bind-company-ledger",
+          "channel_kind": "api_gateway",
+          "route_ref": "gateway-route-ref-company-ledger",
+          "auth_ref": "auth-policy-ref-company-ledger",
+          "request_schema_json": {
+            "required": [
+              "unified_social_credit_code"
+            ]
+          },
+          "response_schema_json": {
+            "fields": [
+              "entity_name",
+              "operation_status",
+              "last_visit_time"
+            ]
+          },
+          "gateway_policy_json": {
+            "rate_limit": "1000/m",
+            "circuit_breaker": "standard",
+            "log_level": "audit"
+          },
+          "lifecycle_status": "published",
+          "source_ref": "dsp-dataservice:api_service_proxy"
+        }
+      ]
+    }
+  ],
+  "gateway_runtime_statuses": [
+    {
+      "gateway_instance_id": "gw-api-main",
+      "gateway_address_ref": "gateway-address-ref-main",
+      "status": "online",
+      "last_reported_at": "2026-04-29T09:00:00+00:00",
+      "source_ref": "dsp-dataservice:/openapi/report",
+      "summary_json": {
+        "meaning": "外部网关心跳，不是业务报表"
+      }
+    }
+  ],
+  "service_invocation_metrics": [
+    {
+      "metric_scope": "resource",
+      "resource_code": "api-company-ledger",
+      "capability_id": "resource.api.publish",
+      "provider_org_id": "org-market-regulator",
+      "consumer_org_id": "org-business-env",
+      "consumer_region": "district-a",
+      "consumer_app_ref": "app-business-env-topic",
+      "time_bucket": "2026-04-29",
+      "invoke_count": 370,
+      "success_count": 362,
+      "failure_count": 8,
+      "error_count": 2,
+      "avg_latency_ms": 86,
+      "source_event_ref": "dsp-dataservice:api_service_times",
+      "summary_json": {
+        "failure_type": "调用失败证据链已归因，具体诊断由外部能力执行"
+      }
+    }
+  ],
   "dashboard": {
     "summary": {
       "flowToday": "28",

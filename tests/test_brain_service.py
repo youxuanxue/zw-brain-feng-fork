@@ -332,6 +332,131 @@ def test_full_golden_path_reaches_backflow_confirmed() -> None:
         tmp.cleanup()
 
 
+
+
+def test_gateway_heartbeat_ingest_is_idempotent_with_database() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.database_store import DatabaseStore
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        service.invoke_skill(
+            "ops.gateway.heartbeat.ingest",
+            {
+                "gateway_instance_id": "gw-api-main",
+                "gateway_address_ref": "gw-ref-main",
+                "status": "online",
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        service.invoke_skill(
+            "ops.gateway.heartbeat.ingest",
+            {
+                "gateway_instance_id": "gw-api-main",
+                "gateway_address_ref": "gw-ref-main",
+                "status": "warning",
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+
+        report = service.invoke_skill("ops.service.report.query", {"role": "r6"})
+        assert report["summary"]["gatewayCount"] == 1
+        assert report["gateways"][0]["status"] == "warning"
+        assert any(item.skill_id == "ops.gateway.heartbeat.ingest" for item in database_store.list_audit_events())
+
+
+def test_service_invocation_query_reads_projection_metrics() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.database_store import DatabaseStore
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        service = BrainService(state_store=StateStore(database_store=database_store))
+        database_store.service_invocation_repo.upsert_metric(
+            {
+                "metric_scope": "resource",
+                "resource_code": "api-custom-ledger",
+                "provider_org_id": "org-provider",
+                "consumer_org_id": "org-consumer",
+                "time_bucket": "2026-04-29",
+                "invoke_count": 42,
+                "success_count": 40,
+                "failure_count": 2,
+                "error_count": 1,
+                "avg_latency_ms": 83,
+                "source_event_ref": "metric-ref-1",
+            }
+        )
+
+        result = service.invoke_skill("ops.service.invocation.query", {"resource_code": "api-custom-ledger", "role": "r6"})
+
+        assert result["summary"]["invokeCount"] == 42
+        assert result["summary"]["failureCount"] == 2
+        assert result["items"][0]["source_event_ref"] == "metric-ref-1"
+
+
+def test_api_resource_lifecycle_and_policy_filter_sensitive_fields() -> None:
+    tmp, service = make_service()
+    try:
+        registered = service.invoke_skill(
+            "resource.api.register",
+            {
+                "resource_code": "api-company-ledger",
+                "title": "法人单位基础信息 API",
+                "owner_org_id": "org-market-regulator",
+                "summary_json": {"domain": "法人基础信息", "secret": "should-not-persist"},
+                "channel_binding": {
+                    "binding_code": "bind-company-ledger",
+                    "route_ref": "route-ref-company-ledger",
+                    "auth_ref": "auth-ref-company-ledger",
+                    "gateway_policy_json": {"rate_limit": "1000/m", "token": "should-not-persist"},
+                },
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        assert registered["result"]["lifecycle_status"] == "draft"
+        assert "secret" not in registered["result"]["summary_json"]
+
+        service.invoke_skill("resource.api.submit_review", {"resource_code": "api-company-ledger", "role": "r6", "confirmed": True})
+        service.invoke_skill(
+            "resource.api.review",
+            {"resource_code": "api-company-ledger", "decision": "approve", "role": "r7", "confirmed": True},
+        )
+        published = service.invoke_skill("resource.api.publish", {"resource_code": "api-company-ledger", "role": "r7", "confirmed": True})
+        assert published["result"]["lifecycle_status"] == "published"
+
+        policy_update = service.invoke_skill(
+            "resource.api.policy.update",
+            {
+                "resource_code": "api-company-ledger",
+                "binding_code": "bind-company-ledger",
+                "gateway_policy_json": {"rate_limit": "800/m", "password": "should-not-persist"},
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        assert policy_update["result"]["gateway_policy_json"] == {"rate_limit": "800/m"}
+    finally:
+        tmp.cleanup()
+
 def test_audit_sink_failure_blocks_write_mutation() -> None:
     tmp, service = make_service()
     try:

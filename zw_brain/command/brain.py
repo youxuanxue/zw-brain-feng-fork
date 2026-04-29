@@ -116,6 +116,34 @@ class BrainService:
                 }
             case "dashboard.render_command_center":
                 return self.get_dashboard()
+            case "ops.service.invocation.query":
+                return self.query_service_invocations(
+                    resource_code=payload.get("resource_code"),
+                    capability_id=payload.get("capability_id"),
+                    metric_scope=payload.get("metric_scope"),
+                )
+            case "ops.service.report.query":
+                return self.query_service_report()
+            case "ops.gateway.heartbeat.ingest":
+                return self.ingest_gateway_heartbeat(payload)
+            case "resource.api.register":
+                return self.register_api_resource(payload)
+            case "resource.api.change":
+                return self.change_api_resource(payload)
+            case "resource.api.submit_review":
+                return self.submit_api_resource_review(str(payload["resource_code"]), str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+            case "resource.api.review":
+                return self.review_api_resource(str(payload["resource_code"]), str(payload["decision"]), str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+            case "resource.api.publish":
+                return self.transition_api_resource(str(payload["resource_code"]), "published", "resource.api.publish", str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+            case "resource.api.withdraw":
+                return self.transition_api_resource(str(payload["resource_code"]), "withdrawn", "resource.api.withdraw", str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+            case "resource.api.revoke":
+                return self.transition_api_resource(str(payload["resource_code"]), "revoked", "resource.api.revoke", str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+            case "resource.api.test":
+                return self.test_api_resource(str(payload["resource_code"]), str(payload["test_result"]), str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+            case "resource.api.policy.update":
+                return self.update_api_resource_policy(payload)
             case "system.snapshot":
                 return self.snapshot()
             case "system.schema_info":
@@ -556,12 +584,18 @@ class BrainService:
         audit_items = self.list_audit_events()
         dashboard["brainOutage"] = self._ui_state["brainOutage"]
         dashboard["mode"] = "snapshot" if self._ui_state["brainOutage"] else "live-readonly"
-        dashboard["summary"]["alerts"] = str(sum(1 for item in requests if item["status"] in {"need-fix", "rejected"}))
+        service_report = self.query_service_report()
+        dashboard["summary"]["alerts"] = str(sum(1 for item in requests if item["status"] in {"need-fix", "rejected"}) + service_report["summary"]["gatewayWarnings"])
+        dashboard["summary"]["qps"] = str(service_report["summary"]["invokeCount"])
+        dashboard["summary"]["agentsOnline"] = str(service_report["summary"]["gatewayCount"])
         dashboard["repository"] = {
             "requestCount": len(requests),
             "packageCount": len(packages),
             "auditEventCount": len(audit_items),
             "providerResourceCatalogCode": provider.get("repository", {}).get("resourceCatalogCode"),
+            "gatewayCount": service_report["summary"]["gatewayCount"],
+            "serviceInvokeCount": service_report["summary"]["invokeCount"],
+            "serviceFailureCount": service_report["summary"]["failureCount"],
         }
         return dashboard
 
@@ -610,6 +644,320 @@ class BrainService:
             "results": resources[start:end],
             "total": len(resources),
             "summary": copy.deepcopy(self._snapshot["discovery"]["aiCopilot"]),
+        }
+
+    def query_service_invocations(
+        self,
+        resource_code: Any = None,
+        capability_id: Any = None,
+        metric_scope: Any = None,
+    ) -> dict[str, Any]:
+        store = self._state_store.database_store
+        if store is None:
+            metrics = copy.deepcopy(self._snapshot.get("service_invocation_metrics", []))
+            if resource_code:
+                metrics = [item for item in metrics if item.get("resource_code") == resource_code]
+            if capability_id:
+                metrics = [item for item in metrics if item.get("capability_id") == capability_id]
+            if metric_scope:
+                metrics = [item for item in metrics if item.get("metric_scope") == metric_scope]
+        else:
+            metrics = [
+                self._metric_record_to_dict(item)
+                for item in store.service_invocation_repo.list_metrics(
+                    resource_code=str(resource_code) if resource_code else None,
+                    capability_id=str(capability_id) if capability_id else None,
+                    metric_scope=str(metric_scope) if metric_scope else None,
+                )
+            ]
+        return {"items": metrics, "summary": self._metric_summary(metrics)}
+
+    def query_service_report(self) -> dict[str, Any]:
+        store = self._state_store.database_store
+        if store is None:
+            gateways = copy.deepcopy(self._snapshot.get("gateway_runtime_statuses", []))
+            metrics = copy.deepcopy(self._snapshot.get("service_invocation_metrics", []))
+        else:
+            gateways = [self._gateway_record_to_dict(item) for item in store.gateway_runtime_repo.list_statuses()]
+            metrics = [self._metric_record_to_dict(item) for item in store.service_invocation_repo.list_metrics()]
+        offline = sum(1 for item in gateways if item.get("status") != "online")
+        metric_summary = self._metric_summary(metrics)
+        return {
+            "gateways": gateways,
+            "metrics": metrics,
+            "summary": {
+                "gatewayCount": len(gateways),
+                "gatewayWarnings": offline,
+                "invokeCount": metric_summary["invokeCount"],
+                "failureCount": metric_summary["failureCount"],
+                "errorCount": metric_summary["errorCount"],
+            },
+        }
+
+    def ingest_gateway_heartbeat(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        gateway_payload = {
+            "gateway_instance_id": str(payload["gateway_instance_id"]),
+            "gateway_address_ref": payload.get("gateway_address_ref"),
+            "status": str(payload.get("status", "online")),
+            "last_reported_at": payload.get("last_reported_at") or datetime.now().isoformat(),
+            "source_ref": payload.get("source_ref") or "gateway-heartbeat",
+            "summary_json": copy.deepcopy(payload.get("summary_json", {})),
+        }
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            store = self._state_store.database_store
+            if store is None:
+                statuses = self._snapshot.setdefault("gateway_runtime_statuses", [])
+                current = next((item for item in statuses if item["gateway_instance_id"] == gateway_payload["gateway_instance_id"]), None)
+                if current is None:
+                    current = copy.deepcopy(gateway_payload)
+                    statuses.append(current)
+                else:
+                    current.update(copy.deepcopy(gateway_payload))
+                result = copy.deepcopy(current)
+            else:
+                result = self._gateway_record_to_dict(store.gateway_runtime_repo.upsert_heartbeat(gateway_payload))
+            self._append_audit_feed("ops.gateway.heartbeat", gateway_payload["gateway_instance_id"], "ok", actor)
+            return result | {"audit_id": audit_id}
+
+        return self._mutate("ops.gateway.heartbeat.ingest", role, confirmed, gateway_payload, mutation)
+
+    def register_api_resource(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        resource = self._api_payload(payload, default_status="draft")
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            result = self._upsert_api_resource(resource)
+            binding = payload.get("channel_binding")
+            if isinstance(binding, dict):
+                self._upsert_api_binding({**binding, "resource_code": resource["resource_code"]})
+            self._append_audit_feed("resource.api.register", resource["resource_code"], "ok", actor)
+            return result | {"audit_id": audit_id}
+
+        return self._mutate("resource.api.register", role, confirmed, resource, mutation)
+
+    def change_api_resource(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        resource = self._api_payload(payload, default_status="draft")
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            existing = self._find_api_resource(resource["resource_code"])
+            if existing is None:
+                raise NotFoundError(resource["resource_code"])
+            result = self._upsert_api_resource({**existing, **resource})
+            binding = payload.get("channel_binding")
+            if isinstance(binding, dict):
+                self._upsert_api_binding({**binding, "resource_code": resource["resource_code"]})
+            self._append_audit_feed("resource.api.change", resource["resource_code"], "ok", actor)
+            return result | {"audit_id": audit_id}
+
+        return self._mutate("resource.api.change", role, confirmed, resource, mutation)
+
+    def submit_api_resource_review(self, resource_code: str, role: str, confirmed: bool) -> dict[str, Any]:
+        return self.transition_api_resource(resource_code, "review_pending", "resource.api.submit_review", role, confirmed)
+
+    def review_api_resource(self, resource_code: str, decision: str, role: str, confirmed: bool) -> dict[str, Any]:
+        if decision == "approve":
+            return self.transition_api_resource(resource_code, "approved", "resource.api.review", role, confirmed)
+        if decision == "return_for_fix":
+            return self.transition_api_resource(resource_code, "draft", "resource.api.review", role, confirmed)
+        raise BrainServiceError(f"unsupported api resource review decision: {decision}")
+
+    def transition_api_resource(self, resource_code: str, status: str, skill_id: str, role: str, confirmed: bool) -> dict[str, Any]:
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            resource = self._find_api_resource(resource_code)
+            if resource is None:
+                raise NotFoundError(resource_code)
+            resource["lifecycle_status"] = status
+            resource["updated_at"] = self._now_datetime()
+            result = self._upsert_api_resource(resource)
+            self._append_audit_feed(skill_id, resource_code, "ok", actor)
+            return result | {"audit_id": audit_id}
+
+        return self._mutate(skill_id, role, confirmed, {"resource_code": resource_code, "status": status}, mutation)
+
+    def test_api_resource(self, resource_code: str, test_result: str, role: str, confirmed: bool) -> dict[str, Any]:
+        if test_result not in {"passed", "failed"}:
+            raise BrainServiceError(f"unsupported api test result: {test_result}")
+        next_status = "approved" if test_result == "passed" else "test_failed"
+        return self.transition_api_resource(resource_code, next_status, "resource.api.test", role, confirmed)
+
+    def update_api_resource_policy(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        resource_code = str(payload["resource_code"])
+        binding_code = str(payload["binding_code"])
+        policy_payload = self._safe_json(payload.get("gateway_policy_json", {}))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            if self._find_api_resource(resource_code) is None:
+                raise NotFoundError(resource_code)
+            binding = self._find_api_binding(binding_code)
+            if binding is None:
+                binding = {
+                    "binding_code": binding_code,
+                    "resource_code": resource_code,
+                    "channel_kind": "api_gateway",
+                    "request_schema_json": {},
+                    "response_schema_json": {},
+                    "lifecycle_status": "draft",
+                }
+            binding["gateway_policy_json"] = policy_payload
+            result = self._upsert_api_binding(binding)
+            self._append_audit_feed("resource.api.policy.update", resource_code, "ok", actor)
+            return result | {"audit_id": audit_id}
+
+        return self._mutate("resource.api.policy.update", role, confirmed, {"resource_code": resource_code, "binding_code": binding_code}, mutation)
+
+    def _api_payload(self, payload: dict[str, Any], *, default_status: str) -> dict[str, Any]:
+        resource_code = str(payload["resource_code"])
+        return {
+            "resource_code": resource_code,
+            "resource_kind": "api",
+            "title": str(payload.get("title", resource_code)),
+            "lifecycle_status": str(payload.get("lifecycle_status", default_status)),
+            "owner_org_id": payload.get("owner_org_id"),
+            "catalog_code": payload.get("catalog_code"),
+            "source_ref": payload.get("source_ref"),
+            "summary_json": self._safe_json(payload.get("summary_json") or {"title": payload.get("title", resource_code)}),
+        }
+
+    def _upsert_api_resource(self, resource: dict[str, Any]) -> dict[str, Any]:
+        store = self._state_store.database_store
+        if store is None:
+            resources = self._snapshot.setdefault("api_resources", [])
+            current = next((item for item in resources if item["resource_code"] == resource["resource_code"]), None)
+            if current is None:
+                current = copy.deepcopy(resource)
+                current.setdefault("channel_bindings", [])
+                resources.append(current)
+            else:
+                bindings = current.get("channel_bindings", [])
+                current.update(copy.deepcopy(resource))
+                current.setdefault("channel_bindings", bindings)
+            return copy.deepcopy(current)
+        return self._resource_asset_record_to_dict(store.resource_api_repo.upsert_asset(resource))
+
+    def _upsert_api_binding(self, binding: dict[str, Any]) -> dict[str, Any]:
+        payload = {
+            "binding_code": str(binding["binding_code"]),
+            "resource_code": str(binding["resource_code"]),
+            "channel_kind": str(binding.get("channel_kind", "api_gateway")),
+            "route_ref": binding.get("route_ref"),
+            "auth_ref": binding.get("auth_ref"),
+            "request_schema_json": self._safe_json(binding.get("request_schema_json", {})),
+            "response_schema_json": self._safe_json(binding.get("response_schema_json", {})),
+            "gateway_policy_json": self._safe_json(binding.get("gateway_policy_json", {})),
+            "lifecycle_status": str(binding.get("lifecycle_status", "draft")),
+            "source_ref": binding.get("source_ref"),
+        }
+        store = self._state_store.database_store
+        if store is None:
+            resources = self._snapshot.setdefault("api_resources", [])
+            resource = next((item for item in resources if item["resource_code"] == payload["resource_code"]), None)
+            if resource is None:
+                raise NotFoundError(payload["resource_code"])
+            bindings = resource.setdefault("channel_bindings", [])
+            current = next((item for item in bindings if item["binding_code"] == payload["binding_code"]), None)
+            if current is None:
+                current = copy.deepcopy(payload)
+                bindings.append(current)
+            else:
+                current.update(copy.deepcopy(payload))
+            return copy.deepcopy(current)
+        return self._binding_record_to_dict(store.resource_api_repo.upsert_binding(payload))
+
+    def _find_api_resource(self, resource_code: str) -> dict[str, Any] | None:
+        store = self._state_store.database_store
+        if store is None:
+            item = next((item for item in self._snapshot.get("api_resources", []) if item["resource_code"] == resource_code), None)
+            return copy.deepcopy(item) if item is not None else None
+        record = store.resource_api_repo.get_asset(resource_code)
+        return self._resource_asset_record_to_dict(record) if record is not None else None
+
+    def _find_api_binding(self, binding_code: str) -> dict[str, Any] | None:
+        store = self._state_store.database_store
+        if store is None:
+            for resource in self._snapshot.get("api_resources", []):
+                binding = next((item for item in resource.get("channel_bindings", []) if item["binding_code"] == binding_code), None)
+                if binding is not None:
+                    return copy.deepcopy(binding)
+            return None
+        for record in store.resource_api_repo.list_bindings():
+            if record.binding_code == binding_code:
+                return self._binding_record_to_dict(record)
+        return None
+
+    def _metric_summary(self, metrics: list[dict[str, Any]]) -> dict[str, Any]:
+        return {
+            "invokeCount": sum(int(item.get("invoke_count", 0)) for item in metrics),
+            "successCount": sum(int(item.get("success_count", 0)) for item in metrics),
+            "failureCount": sum(int(item.get("failure_count", 0)) for item in metrics),
+            "errorCount": sum(int(item.get("error_count", 0)) for item in metrics),
+        }
+
+    def _safe_json(self, value: dict[str, Any]) -> dict[str, Any]:
+        blocked = {"secret", "password", "token", "credential", "app_secret", "superior_app_secret"}
+        return {key: item for key, item in copy.deepcopy(value).items() if key.lower() not in blocked}
+
+    def _resource_asset_record_to_dict(self, record: Any) -> dict[str, Any]:
+        return {
+            "resource_code": record.resource_code,
+            "resource_kind": record.resource_kind,
+            "title": record.title,
+            "lifecycle_status": record.lifecycle_status,
+            "owner_org_id": record.owner_org_id,
+            "catalog_code": record.catalog_code,
+            "source_ref": record.source_ref,
+            "summary_json": copy.deepcopy(record.summary_json),
+        }
+
+    def _binding_record_to_dict(self, record: Any) -> dict[str, Any]:
+        return {
+            "binding_code": record.binding_code,
+            "resource_code": record.resource_code,
+            "channel_kind": record.channel_kind,
+            "route_ref": record.route_ref,
+            "auth_ref": record.auth_ref,
+            "request_schema_json": copy.deepcopy(record.request_schema_json),
+            "response_schema_json": copy.deepcopy(record.response_schema_json),
+            "gateway_policy_json": copy.deepcopy(record.gateway_policy_json),
+            "lifecycle_status": record.lifecycle_status,
+            "source_ref": record.source_ref,
+        }
+
+    def _gateway_record_to_dict(self, record: Any) -> dict[str, Any]:
+        return {
+            "gateway_instance_id": record.gateway_instance_id,
+            "gateway_address_ref": record.gateway_address_ref,
+            "status": record.status,
+            "last_reported_at": record.last_reported_at.isoformat(),
+            "source_ref": record.source_ref,
+            "summary_json": copy.deepcopy(record.summary_json),
+            "generated_at": record.generated_at.isoformat(),
+        }
+
+    def _metric_record_to_dict(self, record: Any) -> dict[str, Any]:
+        return {
+            "metric_scope": record.metric_scope,
+            "resource_code": record.resource_code,
+            "capability_id": record.capability_id,
+            "provider_org_id": record.provider_org_id,
+            "consumer_org_id": record.consumer_org_id,
+            "consumer_region": record.consumer_region,
+            "consumer_app_ref": record.consumer_app_ref,
+            "time_bucket": record.time_bucket,
+            "invoke_count": record.invoke_count,
+            "success_count": record.success_count,
+            "failure_count": record.failure_count,
+            "error_count": record.error_count,
+            "avg_latency_ms": record.avg_latency_ms,
+            "source_event_ref": record.source_event_ref,
+            "summary_json": copy.deepcopy(record.summary_json),
         }
 
     def create_request(self, resource_id: str, role: str, confirmed: bool, query: str = "") -> dict[str, Any]:

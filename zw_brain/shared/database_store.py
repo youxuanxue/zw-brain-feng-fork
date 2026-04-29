@@ -17,7 +17,10 @@ from zw_brain.domain.repositories import (
     CapabilityPackageRepository,
     CatalogRepository,
     DeliveryRepository,
+    GatewayRuntimeRepository,
     ObjectionRepository,
+    ResourceApiRepository,
+    ServiceInvocationMetricRepository,
 )
 from zw_brain.domain.seed import clone_seed_snapshot
 from zw_brain.shared.db import create_session_factory, ensure_parent_dir
@@ -34,7 +37,10 @@ class DatabaseStore:
         self.approval_repo = ApprovalRepository()
         self.delivery_repo = DeliveryRepository()
         self.capability_package_repo = CapabilityPackageRepository()
+        self.gateway_runtime_repo = GatewayRuntimeRepository()
         self.objection_repo = ObjectionRepository()
+        self.resource_api_repo = ResourceApiRepository()
+        self.service_invocation_repo = ServiceInvocationMetricRepository()
 
     def initialize(self) -> None:
         ensure_parent_dir()
@@ -156,6 +162,20 @@ class DatabaseStore:
 
         for pkg in snapshot.get("capability_packages", []):
             self.capability_package_repo.upsert_from_package(pkg)
+
+        if not self.resource_api_repo.list_assets():
+            for resource in snapshot.get("api_resources", []):
+                self.resource_api_repo.upsert_asset(resource)
+                for binding in resource.get("channel_bindings", []):
+                    self.resource_api_repo.upsert_binding({**binding, "resource_code": resource["resource_code"]})
+
+        if not self.gateway_runtime_repo.list_statuses():
+            for gateway in snapshot.get("gateway_runtime_statuses", []):
+                self.gateway_runtime_repo.upsert_heartbeat(gateway)
+
+        if not self.service_invocation_repo.list_metrics():
+            for metric in snapshot.get("service_invocation_metrics", []):
+                self.service_invocation_repo.upsert_metric(metric)
 
         for dispute in snapshot.get("disputes", []):
             self.objection_repo.upsert_from_dispute(dispute)
