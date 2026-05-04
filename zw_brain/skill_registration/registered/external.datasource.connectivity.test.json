@@ -1,0 +1,117 @@
+{
+  "skill_id": "external.datasource.connectivity.test",
+  "slug": "external.datasource.connectivity.test",
+  "title": "外部数据源连通性测试契约",
+  "description": "声明外部连通性测试器的输入输出边界；连通成败只能沉淀为 metadata.gather.evidence.upsert 或 resource.api.test 证据，不得写入明文地址、端口或密钥。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "connection_ref",
+      "resource_code",
+      "tenant_id"
+    ],
+    "properties": {
+      "connection_ref": {
+        "type": "string"
+      },
+      "resource_code": {
+        "type": "string"
+      },
+      "probe_profile_json": {
+        "type": "object"
+      },
+      "callback_skill_id": {
+        "type": "string",
+        "enum": [
+          "metadata.gather.evidence.upsert",
+          "resource.api.test"
+        ]
+      },
+      "tenant_id": {
+        "type": "string"
+      },
+      "actor_ref": {
+        "type": "string"
+      },
+      "idempotency_key": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "status",
+      "callback_skill_id"
+    ],
+    "properties": {
+      "connection_ref": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "latency_ms": {
+        "type": "integer"
+      },
+      "error_summary": {
+        "type": "string"
+      },
+      "evidence_json": {
+        "type": "object"
+      },
+      "callback_skill_id": {
+        "type": "string"
+      },
+      "failure_callback_json": {
+        "type": "object",
+        "properties": {
+          "callback_skill_id": {
+            "type": "string"
+          },
+          "error_summary": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "side_effects": [
+    "external_execution",
+    "audit",
+    "evidence_callback"
+  ],
+  "tenant_scope": "tenant",
+  "auth_policy": "service",
+  "human_confirmation_required": false,
+  "audit_class": "external-execution",
+  "execution_binding": "external_capability",
+  "compatibility": [],
+  "runtime_binding": {
+    "kind": "external_capability",
+    "surface_entry": "registered_external_executor",
+    "method": "external.datasource.connectivity.test",
+    "callback_skill_id": "metadata.gather.evidence.upsert",
+    "canonical_write_policy": "callback_only",
+    "failure_callback_required": true
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "external_contract",
+  "tags": [
+    "external",
+    "datasource",
+    "connectivity",
+    "contract"
+  ]
+}

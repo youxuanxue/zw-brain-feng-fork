@@ -1,0 +1,30 @@
+{
+  "name": "catalog.model.field.query",
+  "description": "查询目录/台账模板字段口径、敏感级别和策略摘要。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "model_code"
+    ],
+    "properties": {
+      "model_code": {
+        "type": "string",
+        "minLength": 1
+      },
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "catalog.model.field.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

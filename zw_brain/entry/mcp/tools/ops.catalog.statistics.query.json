@@ -1,0 +1,23 @@
+{
+  "name": "ops.catalog.statistics.query",
+  "description": "查询目录、资源、schema 映射和质量证据的治理统计摘要。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "ops.catalog.statistics.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

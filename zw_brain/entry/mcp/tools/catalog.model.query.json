@@ -1,0 +1,26 @@
+{
+  "name": "catalog.model.query",
+  "description": "查询目录/台账模板模型定义。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "model_code": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "catalog.model.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

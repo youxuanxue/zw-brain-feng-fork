@@ -65,12 +65,60 @@ class ApprovalRepository:
         decision: str | None = None,
         tenant_id: str = "default",
     ) -> None:
+        self._upsert_lifecycle(
+            resource_code,
+            status,
+            actor=actor,
+            skill_id=skill_id,
+            audit_id=audit_id,
+            decision=decision,
+            tenant_id=tenant_id,
+            evidence_key="resource_code",
+            step_name=self._api_step_name(status),
+        )
+
+    def upsert_catalog_entry_lifecycle(
+        self,
+        catalog_code: str,
+        status: str,
+        *,
+        actor: str,
+        skill_id: str,
+        audit_id: str,
+        decision: str | None = None,
+        tenant_id: str = "default",
+    ) -> None:
+        self._upsert_lifecycle(
+            catalog_code,
+            status,
+            actor=actor,
+            skill_id=skill_id,
+            audit_id=audit_id,
+            decision=decision,
+            tenant_id=tenant_id,
+            evidence_key="catalog_code",
+            step_name=self._catalog_step_name(status),
+        )
+
+    def _upsert_lifecycle(
+        self,
+        subject_code: str,
+        status: str,
+        *,
+        actor: str,
+        skill_id: str,
+        audit_id: str,
+        decision: str | None,
+        tenant_id: str,
+        evidence_key: str,
+        step_name: str,
+    ) -> None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             case = session.execute(
                 select(ApprovalCaseRecord).where(
                     ApprovalCaseRecord.tenant_id == tenant_id,
-                    ApprovalCaseRecord.application_code == resource_code,
+                    ApprovalCaseRecord.application_code == subject_code,
                 )
             ).scalar_one_or_none()
             if case is not None and case.decision_payload_json.get("audit_id") == audit_id:
@@ -79,11 +127,11 @@ class ApprovalRepository:
             if case is None:
                 case = ApprovalCaseRecord(
                     tenant_id=tenant_id,
-                    application_code=resource_code,
+                    application_code=subject_code,
                     current_status=status,
                     current_step=self._api_step_no(status),
                     decision_payload_json={
-                        "resource_code": resource_code,
+                        evidence_key: subject_code,
                         "status": status,
                         "skill_id": skill_id,
                         "audit_id": audit_id,
@@ -96,7 +144,7 @@ class ApprovalRepository:
                 case.current_step = self._api_step_no(status)
                 case.decision_payload_json = {
                     **case.decision_payload_json,
-                    "resource_code": resource_code,
+                    evidence_key: subject_code,
                     "status": status,
                     "skill_id": skill_id,
                     "audit_id": audit_id,
@@ -105,10 +153,10 @@ class ApprovalRepository:
             step = ApprovalStepRecord(
                 approval_case_id=case.id,
                 step_no=self._api_step_no(status),
-                step_name=self._api_step_name(status),
+                step_name=step_name,
                 decision_mode="single",
                 status=self._api_step_status(status),
-                approver_scope_json={"roles": self._api_approver_roles(status), "resource_code": resource_code},
+                approver_scope_json={"roles": self._api_approver_roles(status), evidence_key: subject_code},
             )
             session.add(step)
             session.flush()
@@ -118,7 +166,7 @@ class ApprovalRepository:
                     decision=decision or self._api_decision_value(status),
                     decision_reason=f"{skill_id} via {audit_id}",
                     actor_snapshot_json={"actor": actor, "roles": self._api_approver_roles(status)},
-                    evidence_json={"resource_code": resource_code, "status": status, "audit_id": audit_id},
+                    evidence_json={evidence_key: subject_code, "status": status, "audit_id": audit_id},
                 )
             )
             session.commit()
@@ -178,7 +226,7 @@ class ApprovalRepository:
     def _api_step_no(self, status: str) -> int:
         if status in {"draft", "pending_review"}:
             return 1
-        if status == "approved":
+        if status == "approved_pending_publish":
             return 2
         if status == "active":
             return 3
@@ -191,7 +239,7 @@ class ApprovalRepository:
     def _api_step_name(self, status: str) -> str:
         if status == "pending_review":
             return "API 服务资源审核"
-        if status == "approved":
+        if status == "approved_pending_publish":
             return "API 服务资源审核通过"
         if status == "active":
             return "API 服务资源发布"
@@ -203,10 +251,23 @@ class ApprovalRepository:
             return "API 服务连通性测试失败"
         return "API 服务资源草稿"
 
+    def _catalog_step_name(self, status: str) -> str:
+        if status == "pending_review":
+            return "目录资源审核"
+        if status == "approved_pending_publish":
+            return "目录资源审核通过"
+        if status == "active":
+            return "目录资源发布"
+        if status == "retired":
+            return "目录资源撤回"
+        if status == "rejected":
+            return "目录资源驳回"
+        return "目录资源草稿"
+
     def _api_step_status(self, status: str) -> str:
         if status == "pending_review":
             return "in_progress"
-        if status in {"approved", "active"}:
+        if status in {"approved_pending_publish", "active"}:
             return "approved"
         if status in {"retired", "revoked"}:
             return "closed"
@@ -215,12 +276,12 @@ class ApprovalRepository:
         return "pending"
 
     def _api_approver_roles(self, status: str) -> list[str]:
-        if status in {"pending_review", "approved", "active", "retired", "revoked", "test_failed"}:
+        if status in {"pending_review", "approved_pending_publish", "active", "retired", "revoked", "test_failed"}:
             return ["r7"]
         return ["r6", "r7"]
 
     def _api_decision_value(self, status: str) -> str:
-        if status in {"approved", "active"}:
+        if status in {"approved_pending_publish", "active"}:
             return "approve"
         if status in {"retired", "revoked"}:
             return "close"

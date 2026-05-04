@@ -9,6 +9,8 @@ from typing import Any
 
 import zw_brain.shared.audit as audit_bus
 from zw_brain.domain import policy
+from zw_brain.domain.repositories.catalog import CatalogRepository
+from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.domain.schemas import describe_schemas
 from zw_brain.shared import queue
@@ -117,6 +119,52 @@ class BrainService:
                 }
             case "dashboard.render_command_center":
                 return self.get_dashboard()
+            case "catalog.group.query":
+                return self.query_catalog_groups()
+            case "catalog.share_zone.query":
+                return self.query_catalog_share_zones()
+            case "catalog.model.query":
+                return self.query_catalog_models(model_code=payload.get("model_code"))
+            case "catalog.model.field.query":
+                return self.query_catalog_model_fields(str(payload["model_code"]))
+            case "catalog.entry.query":
+                return self.query_catalog_entries(query=payload.get("query"), catalog_code=payload.get("catalog_code"))
+            case "resource.asset.query":
+                return self.query_resource_assets(resource_code=payload.get("resource_code"))
+            case "application.resource.submit":
+                return self.create_request(
+                    str(payload["resource_id"]),
+                    str(payload.get("role", self._ui_state["role"])),
+                    bool(payload.get("confirmed")),
+                    str(payload.get("query", self._ui_state.get("discoveryQuery", ""))),
+                    "application.resource.submit",
+                )
+            case "application.resource.review":
+                return self.review_request(
+                    str(payload["request_id"]),
+                    str(payload["decision"]),
+                    str(payload.get("role", self._ui_state["role"])),
+                    bool(payload.get("confirmed")),
+                    "application.resource.review",
+                )
+            case "delivery.access.grant":
+                return self.grant_delivery_access(
+                    str(payload["task_id"]),
+                    str(payload.get("role", self._ui_state["role"])),
+                    bool(payload.get("confirmed")),
+                )
+            case "metadata.schema.query":
+                return self.query_metadata_schema(resource_code=payload.get("resource_code"), binding_code=payload.get("binding_code"))
+            case "metadata.catalog_item.query":
+                return self.query_metadata_catalog_items(resource_code=payload.get("resource_code"), catalog_code=payload.get("catalog_code"))
+            case "metadata.lineage.query":
+                return self.query_metadata_lineage(resource_code=payload.get("resource_code"), relation_scope=payload.get("relation_scope"))
+            case "metadata.gather.evidence.query":
+                return self.query_metadata_gather_evidence(resource_code=payload.get("resource_code"), status=payload.get("status"))
+            case "ops.catalog.quality.query":
+                return self.query_catalog_quality(target_type=payload.get("target_type"), target_ref=payload.get("target_ref"))
+            case "ops.catalog.statistics.query":
+                return self.query_catalog_statistics()
             case "ops.service.invocation.query":
                 return self.query_service_invocations(
                     resource_code=payload.get("resource_code"),
@@ -129,6 +177,36 @@ class BrainService:
                 return self.ingest_gateway_heartbeat(payload)
             case "ops.gateway.log.anchor":
                 return self.anchor_gateway_log(payload)
+            case "catalog.model.upsert":
+                return self.upsert_catalog_model(payload)
+            case "catalog.schema.mapping.upsert":
+                return self.upsert_catalog_schema_mapping(payload)
+            case "metadata.schema.snapshot.upsert":
+                return self.upsert_metadata_schema_snapshot(payload)
+            case "metadata.gather.evidence.upsert":
+                return self.upsert_metadata_gather_evidence(payload)
+            case "metadata.lineage.upsert":
+                return self.upsert_metadata_lineage(payload)
+            case "ops.catalog.quality.upsert":
+                return self.upsert_catalog_quality_evidence(payload)
+            case "catalog.entry.create_draft":
+                return self.create_catalog_entry_draft(payload)
+            case "catalog.entry.submit_review":
+                return self.submit_catalog_entry_review(str(payload["catalog_code"]), str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+            case "catalog.entry.review":
+                return self.review_catalog_entry(str(payload["catalog_code"]), str(payload["decision"]), str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+            case "catalog.entry.publish":
+                return self.transition_catalog_entry(str(payload["catalog_code"]), "active", "catalog.entry.publish", str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+            case "catalog.entry.withdraw":
+                return self.transition_catalog_entry(str(payload["catalog_code"]), "retired", "catalog.entry.withdraw", str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+            case "catalog.resource.bind":
+                return self.bind_catalog_resource(payload)
+            case "resource.asset.submit_review":
+                return self.submit_api_resource_review(str(payload["resource_code"]), str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")), "resource.asset.submit_review")
+            case "resource.asset.review":
+                return self.review_api_resource(str(payload["resource_code"]), str(payload["decision"]), str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")), "resource.asset.review")
+            case "resource.asset.publish":
+                return self.transition_api_resource(str(payload["resource_code"]), "active", "resource.asset.publish", str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
             case "resource.api.register":
                 return self.register_api_resource(payload)
             case "resource.api.change":
@@ -289,7 +367,8 @@ class BrainService:
                 }
             policy = policies.get(item["slug"])
             if policy is not None:
-                item["repositoryPolicy"] = {
+                item["tenantPolicy"] = {
+                    **copy.deepcopy(item.get("tenantPolicy", {})),
                     "tenantId": policy.tenant_id,
                     "policyStatus": policy.policy_status,
                     "policy": copy.deepcopy(policy.policy_json),
@@ -649,6 +728,162 @@ class BrainService:
             "summary": copy.deepcopy(self._snapshot["discovery"]["aiCopilot"]),
         }
 
+    def query_catalog_groups(self) -> dict[str, Any]:
+        catalogs = copy.deepcopy(self._snapshot.get("provider", {}).get("catalogs", []))
+        groups: dict[str, dict[str, Any]] = {}
+        for catalog in catalogs:
+            key = str(catalog.get("domain") or catalog.get("group") or "default")
+            group = groups.setdefault(key, {"group_code": key, "title": key, "catalog_count": 0})
+            group["catalog_count"] += 1
+        return {"items": list(groups.values()), "total": len(groups)}
+
+    def query_catalog_share_zones(self) -> dict[str, Any]:
+        zones = []
+        for zone in self._snapshot.get("zones", []):
+            zones.append(
+                {
+                    "zone_id": zone.get("id"),
+                    "title": zone.get("title") or zone.get("name"),
+                    "status": zone.get("status"),
+                    "trust": copy.deepcopy(zone.get("trust", [])),
+                    "next_actions": copy.deepcopy(zone.get("nextActions", [])),
+                }
+            )
+        return {"items": zones, "total": len(zones)}
+
+    def query_catalog_models(self, *, model_code: Any = None) -> dict[str, Any]:
+        store = self._state_store.database_store
+        repo = store.catalog_repo if store is not None else CatalogRepository()
+        models = [self._catalog_model_record_to_dict(item) for item in repo.list_models()]
+        if model_code:
+            models = [item for item in models if item["model_code"] == str(model_code)]
+        return {"items": models, "total": len(models)}
+
+    def query_catalog_model_fields(self, model_code: str) -> dict[str, Any]:
+        store = self._state_store.database_store
+        repo = store.catalog_repo if store is not None else CatalogRepository()
+        fields = [self._catalog_model_field_record_to_dict(item) for item in repo.list_model_fields(model_code)]
+        return {"items": fields, "total": len(fields)}
+
+    def query_catalog_entries(self, *, query: Any = None, catalog_code: Any = None) -> dict[str, Any]:
+        store = self._state_store.database_store
+        repo = store.catalog_repo if store is not None else CatalogRepository()
+        if query:
+            records = repo.search_entries(str(query))
+        else:
+            records = repo.list_entries()
+        entries = [self._catalog_entry_record_to_dict(item) for item in records]
+        if catalog_code:
+            entries = [item for item in entries if item["catalog_code"] == str(catalog_code)]
+        return {"items": entries, "total": len(entries)}
+
+    def query_resource_assets(self, *, resource_code: Any = None) -> dict[str, Any]:
+        store = self._state_store.database_store
+        if store is None:
+            resources = copy.deepcopy(self._snapshot.get("api_resources", []))
+            if resource_code:
+                resources = [item for item in resources if item.get("resource_code") == resource_code]
+        else:
+            resources = [self._resource_asset_record_to_dict(item) for item in store.resource_api_repo.list_assets()]
+            if resource_code:
+                resources = [item for item in resources if item["resource_code"] == str(resource_code)]
+        return {"items": resources, "total": len(resources)}
+
+    def query_metadata_schema(self, *, resource_code: Any = None, binding_code: Any = None) -> dict[str, Any]:
+        store = self._state_store.database_store
+        if store is None:
+            return {"items": [], "total": 0}
+        items = [
+            self._schema_snapshot_record_to_dict(item)
+            for item in store.metadata_evidence_repo.list_schema_snapshots(
+                resource_code=str(resource_code) if resource_code else None,
+                binding_code=str(binding_code) if binding_code else None,
+            )
+        ]
+        return {"items": items, "total": len(items)}
+
+    def query_metadata_catalog_items(self, *, resource_code: Any = None, catalog_code: Any = None) -> dict[str, Any]:
+        store = self._state_store.database_store
+        if store is None:
+            return {"items": [], "total": 0}
+        items = [
+            self._schema_mapping_record_to_dict(item)
+            for item in store.metadata_evidence_repo.list_schema_mappings(
+                resource_code=str(resource_code) if resource_code else None,
+                catalog_code=str(catalog_code) if catalog_code else None,
+            )
+        ]
+        return {"items": items, "total": len(items)}
+
+    def query_metadata_gather_evidence(self, *, resource_code: Any = None, status: Any = None) -> dict[str, Any]:
+        store = self._state_store.database_store
+        if store is None:
+            return {"items": [], "total": 0}
+        items = [
+            self._gather_evidence_record_to_dict(item)
+            for item in store.metadata_evidence_repo.list_gather_evidence(
+                resource_code=str(resource_code) if resource_code else None,
+                status=str(status) if status else None,
+            )
+        ]
+        return {"items": items, "total": len(items)}
+
+    def query_metadata_lineage(self, *, resource_code: Any = None, relation_scope: Any = None) -> dict[str, Any]:
+        store = self._state_store.database_store
+        if store is None:
+            return {"items": [], "total": 0}
+        items = [
+            self._lineage_record_to_dict(item)
+            for item in store.metadata_evidence_repo.list_lineage_relations(
+                resource_code=str(resource_code) if resource_code else None,
+                relation_scope=str(relation_scope) if relation_scope else None,
+            )
+        ]
+        return {"items": items, "total": len(items)}
+
+    def query_catalog_quality(self, *, target_type: Any = None, target_ref: Any = None) -> dict[str, Any]:
+        store = self._state_store.database_store
+        if store is None:
+            return {"items": [], "total": 0}
+        items = [
+            self._quality_record_to_dict(item)
+            for item in store.metadata_evidence_repo.list_quality_evidence(
+                target_type=str(target_type) if target_type else None,
+                target_ref=str(target_ref) if target_ref else None,
+            )
+        ]
+        return {"items": items, "total": len(items)}
+
+    def query_catalog_statistics(self) -> dict[str, Any]:
+        store = self._state_store.database_store
+        if store is None:
+            return {
+                "summary": {
+                    "catalogCount": len(self._snapshot.get("catalog_items", [])),
+                    "resourceCount": len(self._snapshot.get("api_resources", [])),
+                    "schemaMappingCount": 0,
+                    "qualityEvidenceCount": 0,
+                    "source_ref": "seed_snapshot",
+                    "generated_at": self._now_datetime(),
+                    "projection_only": True,
+                }
+            }
+        catalog_count = len(store.catalog_repo.list_entries())
+        resource_count = len(store.resource_api_repo.list_assets())
+        schema_mapping_count = len(store.metadata_evidence_repo.list_schema_mappings())
+        quality_count = len(store.metadata_evidence_repo.list_quality_evidence())
+        return {
+            "summary": {
+                "catalogCount": catalog_count,
+                "resourceCount": resource_count,
+                "schemaMappingCount": schema_mapping_count,
+                "qualityEvidenceCount": quality_count,
+                "source_ref": "canonical_projection",
+                "generated_at": self._now_datetime(),
+                "projection_only": True,
+            }
+        }
+
     def query_service_invocations(
         self,
         resource_code: Any = None,
@@ -730,6 +965,186 @@ class BrainService:
 
         return self._mutate("ops.gateway.heartbeat.ingest", role, confirmed, gateway_payload, mutation)
 
+    def upsert_catalog_model(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            store = self._state_store.database_store
+            repo = store.catalog_repo if store is not None else CatalogRepository()
+            model = repo.upsert_model(payload)
+            for field in payload.get("fields") or []:
+                repo.upsert_model_field({**field, "model_code": model.model_code})
+            self._append_audit_feed("catalog.model.upsert", model.model_code, "ok", actor)
+            return {"model_code": model.model_code, "status": model.status, "audit_id": audit_id}
+
+        return self._mutate("catalog.model.upsert", role, confirmed, payload, mutation)
+
+    def upsert_catalog_schema_mapping(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            store = self._state_store.database_store
+            repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
+            mapping = repo.upsert_schema_mapping({**payload, "confirmed_by": payload.get("confirmed_by") or actor})
+            self._append_audit_feed("catalog.schema.mapping.upsert", mapping.mapping_code, "ok", actor)
+            return {"mapping_code": mapping.mapping_code, "status": mapping.status, "audit_id": audit_id}
+
+        return self._mutate("catalog.schema.mapping.upsert", role, confirmed, payload, mutation)
+
+    def upsert_metadata_schema_snapshot(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            store = self._state_store.database_store
+            repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
+            snapshot = repo.upsert_schema_snapshot(payload)
+            self._append_audit_feed("metadata.schema.snapshot.upsert", snapshot.snapshot_ref, "ok", actor)
+            return {"snapshot_ref": snapshot.snapshot_ref, "schema_hash": snapshot.schema_hash, "audit_id": audit_id}
+
+        return self._mutate("metadata.schema.snapshot.upsert", role, confirmed, payload, mutation)
+
+    def upsert_metadata_gather_evidence(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            store = self._state_store.database_store
+            repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
+            evidence = repo.upsert_gather_evidence(payload)
+            self._append_audit_feed("metadata.gather.evidence.upsert", evidence.gather_task_ref, "ok", actor)
+            return {"gather_task_ref": evidence.gather_task_ref, "status": evidence.status, "audit_id": audit_id}
+
+        return self._mutate("metadata.gather.evidence.upsert", role, confirmed, payload, mutation)
+
+    def upsert_metadata_lineage(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            store = self._state_store.database_store
+            repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
+            relation = repo.upsert_lineage_relation(payload)
+            self._append_audit_feed("metadata.lineage.upsert", relation.relation_ref, "ok", actor)
+            return {"relation_ref": relation.relation_ref, "relation_type": relation.relation_type, "audit_id": audit_id}
+
+        return self._mutate("metadata.lineage.upsert", role, confirmed, payload, mutation)
+
+    def upsert_catalog_quality_evidence(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            store = self._state_store.database_store
+            repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
+            evidence = repo.upsert_quality_evidence(payload)
+            self._append_audit_feed("ops.catalog.quality.upsert", evidence.quality_ref, "ok", actor)
+            return {"quality_ref": evidence.quality_ref, "quality_status": evidence.quality_status, "audit_id": audit_id}
+
+        return self._mutate("ops.catalog.quality.upsert", role, confirmed, payload, mutation)
+
+    def create_catalog_entry_draft(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        catalog_code = str(payload["catalog_code"])
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            store = self._state_store.database_store
+            catalog_payload = {
+                "id": catalog_code,
+                "name": str(payload.get("title", catalog_code)),
+                "status": "draft",
+                "provider": payload.get("owner_org_id", ""),
+                "region_code": payload.get("region_code"),
+                "source_ref": payload.get("source_ref"),
+                "legacy_object_ref": payload.get("legacy_object_ref") or catalog_code,
+                "summary_json": self._safe_json(payload.get("summary_json") or {}),
+            }
+            repo = store.catalog_repo if store is not None else CatalogRepository()
+            repo.upsert_from_resource(catalog_payload)
+            for item in payload.get("items") or []:
+                repo.upsert_item({**item, "catalog_code": catalog_code})
+            self._append_audit_feed("catalog.entry.create_draft", catalog_code, "ok", actor)
+            return {"catalog_code": catalog_code, "lifecycle_status": "draft", "audit_id": audit_id}
+
+        return self._mutate("catalog.entry.create_draft", role, confirmed, payload, mutation)
+
+    def submit_catalog_entry_review(self, catalog_code: str, role: str, confirmed: bool) -> dict[str, Any]:
+        return self.transition_catalog_entry(catalog_code, "pending_review", "catalog.entry.submit_review", role, confirmed)
+
+    def review_catalog_entry(self, catalog_code: str, decision: str, role: str, confirmed: bool) -> dict[str, Any]:
+        if decision == "approve":
+            return self.transition_catalog_entry(catalog_code, "approved_pending_publish", "catalog.entry.review", role, confirmed)
+        if decision == "return_for_fix":
+            return self.transition_catalog_entry(catalog_code, "draft", "catalog.entry.review", role, confirmed)
+        if decision == "reject":
+            return self.transition_catalog_entry(catalog_code, "rejected", "catalog.entry.review", role, confirmed)
+        raise BrainServiceError(f"unsupported catalog entry review decision: {decision}")
+
+    def transition_catalog_entry(self, catalog_code: str, status: str, skill_id: str, role: str, confirmed: bool) -> dict[str, Any]:
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            store = self._state_store.database_store
+            repo = store.catalog_repo if store is not None else CatalogRepository()
+            existing = repo.get_entry(catalog_code)
+            if existing is None:
+                raise NotFoundError(catalog_code)
+            repo.upsert_from_resource(
+                {
+                    **copy.deepcopy(existing.summary_json),
+                    "id": existing.catalog_code,
+                    "name": existing.title,
+                    "status": status,
+                    "provider": existing.owner_org_id or "",
+                    "region_code": existing.region_code,
+                    "source_ref": existing.summary_json.get("source_ref"),
+                    "legacy_object_ref": existing.catalog_code,
+                }
+            )
+            if status in {"active", "retired"}:
+                repo.create_entry_version(
+                    {
+                        "catalog_code": existing.catalog_code,
+                        "version_no": f"{status}:{audit_id}",
+                        "version_status": status,
+                        "snapshot_json": {
+                            "catalog_code": existing.catalog_code,
+                            "title": existing.title,
+                            "lifecycle_status": status,
+                            "summary_json": copy.deepcopy(existing.summary_json),
+                        },
+                        "audit_ref": audit_id,
+                        "created_by": actor,
+                    }
+                )
+            if store is not None:
+                store.approval_repo.upsert_catalog_entry_lifecycle(
+                    catalog_code,
+                    status,
+                    actor=actor,
+                    skill_id=skill_id,
+                    audit_id=audit_id,
+                    decision="return" if status in {"draft", "rejected"} else None,
+                )
+            self._append_audit_feed(skill_id, catalog_code, "ok", actor)
+            return {"catalog_code": catalog_code, "lifecycle_status": status, "audit_id": audit_id}
+
+        return self._mutate(skill_id, role, confirmed, {"catalog_code": catalog_code, "status": status}, mutation)
+
+    def bind_catalog_resource(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            store = self._state_store.database_store
+            repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
+            mapping = repo.upsert_schema_mapping({**payload, "confirmed_by": payload.get("confirmed_by") or actor})
+            self._append_audit_feed("catalog.resource.bind", mapping.mapping_code, "ok", actor)
+            return {"mapping_code": mapping.mapping_code, "status": mapping.status, "audit_id": audit_id}
+
+        return self._mutate("catalog.resource.bind", role, confirmed, payload, mutation)
+
     def register_api_resource(self, payload: dict[str, Any]) -> dict[str, Any]:
         role = str(payload.get("role", self._ui_state["role"]))
         confirmed = bool(payload.get("confirmed"))
@@ -763,14 +1178,14 @@ class BrainService:
 
         return self._mutate("resource.api.change", role, confirmed, resource, mutation)
 
-    def submit_api_resource_review(self, resource_code: str, role: str, confirmed: bool) -> dict[str, Any]:
-        return self.transition_api_resource(resource_code, "pending_review", "resource.api.submit_review", role, confirmed)
+    def submit_api_resource_review(self, resource_code: str, role: str, confirmed: bool, skill_id: str = "resource.api.submit_review") -> dict[str, Any]:
+        return self.transition_api_resource(resource_code, "pending_review", skill_id, role, confirmed)
 
-    def review_api_resource(self, resource_code: str, decision: str, role: str, confirmed: bool) -> dict[str, Any]:
+    def review_api_resource(self, resource_code: str, decision: str, role: str, confirmed: bool, skill_id: str = "resource.api.review") -> dict[str, Any]:
         if decision == "approve":
-            return self.transition_api_resource(resource_code, "approved", "resource.api.review", role, confirmed)
+            return self.transition_api_resource(resource_code, "approved_pending_publish", skill_id, role, confirmed)
         if decision == "return_for_fix":
-            return self.transition_api_resource(resource_code, "draft", "resource.api.review", role, confirmed)
+            return self.transition_api_resource(resource_code, "draft", skill_id, role, confirmed)
         raise BrainServiceError(f"unsupported api resource review decision: {decision}")
 
     def transition_api_resource(self, resource_code: str, status: str, skill_id: str, role: str, confirmed: bool) -> dict[str, Any]:
@@ -798,6 +1213,7 @@ class BrainService:
                             "source_ref": record.source_ref,
                             "legacy_object_ref": record.resource_code,
                             "desc": record.summary_json.get("desc") or record.summary_json.get("title") or record.title,
+                            "region_code": record.region_code,
                             "fields": record.summary_json.get("fields", []),
                             "explain": record.summary_json.get("explain", []),
                         }
@@ -899,6 +1315,17 @@ class BrainService:
         }
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            store = self._state_store.database_store
+            if store is not None:
+                store.legacy_mapping_repo.upsert_mapping(
+                    {
+                        "source_ref": anchor_payload["source_ref"],
+                        "legacy_object_ref": gateway_log_ref,
+                        "canonical_type": "anchor_outbox",
+                        "canonical_ref": audit_id,
+                        "evidence_json": {"resource_code": anchor_payload.get("resource_code")},
+                    }
+                )
             self._append_audit_feed("ops.gateway.log.anchor", gateway_log_ref, "ok", actor)
             return anchor_payload | {"anchor_outbox_ref": audit_id, "audit_id": audit_id}
 
@@ -912,7 +1339,11 @@ class BrainService:
             "title": str(payload.get("title", resource_code)),
             "lifecycle_status": str(payload.get("lifecycle_status", default_status)),
             "owner_org_id": payload.get("owner_org_id"),
+            "owner_org_snapshot_json": self._safe_json(payload.get("owner_org_snapshot_json") or {}),
+            "region_code": payload.get("region_code"),
             "catalog_code": payload.get("catalog_code"),
+            "access_policy_json": self._safe_json(payload.get("access_policy_json") or {}),
+            "qos_policy_json": self._safe_json(payload.get("qos_policy_json") or {}),
             "source_ref": payload.get("source_ref"),
             "summary_json": self._safe_json(payload.get("summary_json") or {"title": payload.get("title", resource_code)}),
         }
@@ -939,6 +1370,8 @@ class BrainService:
             "resource_code": str(binding["resource_code"]),
             "channel_kind": str(binding.get("channel_kind", "api_gateway")),
             "route_ref": binding.get("route_ref"),
+            "endpoint_ref": self._safe_json(binding.get("endpoint_ref", {})),
+            "schema_ref": self._safe_json(binding.get("schema_ref", {})),
             "auth_ref": binding.get("auth_ref"),
             "request_schema_json": self._safe_json(binding.get("request_schema_json", {})),
             "response_schema_json": self._safe_json(binding.get("response_schema_json", {})),
@@ -992,6 +1425,110 @@ class BrainService:
     def _safe_json(self, value: dict[str, Any]) -> dict[str, Any]:
         return safe_json(value)
 
+    def _catalog_model_record_to_dict(self, record: Any) -> dict[str, Any]:
+        return {
+            "model_code": record.model_code,
+            "title": record.title,
+            "status": record.status,
+            "owner_org_id": record.owner_org_id,
+            "model_schema_json": copy.deepcopy(record.model_schema_json),
+            "source_ref": record.source_ref,
+        }
+
+    def _catalog_model_field_record_to_dict(self, record: Any) -> dict[str, Any]:
+        return {
+            "model_code": record.model_code,
+            "field_code": record.field_code,
+            "title": record.title,
+            "data_type": record.data_type,
+            "sensitive_level": record.sensitive_level,
+            "field_policy_json": copy.deepcopy(record.field_policy_json),
+            "display_order": record.display_order,
+            "source_ref": record.source_ref,
+        }
+
+    def _catalog_entry_record_to_dict(self, record: Any) -> dict[str, Any]:
+        return {
+            "catalog_code": record.catalog_code,
+            "title": record.title,
+            "lifecycle_status": record.lifecycle_status,
+            "owner_org_id": record.owner_org_id,
+            "region_code": record.region_code,
+            "summary_json": copy.deepcopy(record.summary_json),
+        }
+
+    def _schema_snapshot_record_to_dict(self, record: Any) -> dict[str, Any]:
+        return {
+            "snapshot_ref": record.snapshot_ref,
+            "resource_code": record.resource_code,
+            "binding_code": record.binding_code,
+            "schema_json": copy.deepcopy(record.schema_json),
+            "source_ref": record.source_ref,
+            "schema_hash": record.schema_hash,
+            "captured_at": record.captured_at.isoformat(),
+        }
+
+    def _schema_mapping_record_to_dict(self, record: Any) -> dict[str, Any]:
+        return {
+            "mapping_code": record.mapping_code,
+            "catalog_code": record.catalog_code,
+            "catalog_item_code": record.catalog_item_code,
+            "resource_code": record.resource_code,
+            "binding_code": record.binding_code,
+            "source_schema_ref": copy.deepcopy(record.source_schema_ref),
+            "mapping_rule_json": copy.deepcopy(record.mapping_rule_json),
+            "confidence_level": record.confidence_level,
+            "evidence_ref": record.evidence_ref,
+            "source_ref": record.evidence_ref,
+            "status": record.status,
+            "confirmed_by": record.confirmed_by,
+            "confirmed_at": record.confirmed_at.isoformat() if record.confirmed_at else None,
+            "generated_at": record.updated_at.isoformat(),
+        }
+
+    def _gather_evidence_record_to_dict(self, record: Any) -> dict[str, Any]:
+        return {
+            "gather_task_ref": record.gather_task_ref,
+            "resource_code": record.resource_code,
+            "source_system_ref": record.source_system_ref,
+            "source_ref": record.source_system_ref,
+            "schema_snapshot_ref": record.schema_snapshot_ref,
+            "status": record.status,
+            "error_summary": record.error_summary,
+            "evidence_json": copy.deepcopy(record.evidence_json),
+            "started_at": record.started_at,
+            "finished_at": record.finished_at,
+            "generated_at": record.generated_at.isoformat(),
+            "projection_only": True,
+        }
+
+    def _lineage_record_to_dict(self, record: Any) -> dict[str, Any]:
+        return {
+            "relation_ref": record.relation_ref,
+            "relation_scope": record.relation_scope,
+            "source_resource_code": record.source_resource_code,
+            "source_schema_ref": record.source_schema_ref,
+            "target_resource_code": record.target_resource_code,
+            "target_schema_ref": record.target_schema_ref,
+            "relation_type": record.relation_type,
+            "relation_rule_json": copy.deepcopy(record.relation_rule_json),
+            "source_evidence_ref": record.source_evidence_ref,
+            "source_ref": record.source_evidence_ref,
+            "generated_at": record.generated_at.isoformat(),
+        }
+
+    def _quality_record_to_dict(self, record: Any) -> dict[str, Any]:
+        return {
+            "quality_ref": record.quality_ref,
+            "target_type": record.target_type,
+            "target_ref": record.target_ref,
+            "quality_status": record.quality_status,
+            "score": record.score,
+            "evidence_json": copy.deepcopy(record.evidence_json),
+            "source_ref": record.source_ref,
+            "generated_at": record.generated_at.isoformat(),
+        }
+
     def _resource_asset_record_to_dict(self, record: Any) -> dict[str, Any]:
         return {
             "resource_code": record.resource_code,
@@ -999,7 +1536,11 @@ class BrainService:
             "title": record.title,
             "lifecycle_status": record.lifecycle_status,
             "owner_org_id": record.owner_org_id,
+            "owner_org_snapshot_json": copy.deepcopy(record.owner_org_snapshot_json),
+            "region_code": record.region_code,
             "catalog_code": record.catalog_code,
+            "access_policy_json": copy.deepcopy(record.access_policy_json),
+            "qos_policy_json": copy.deepcopy(record.qos_policy_json),
             "source_ref": record.source_ref,
             "summary_json": copy.deepcopy(record.summary_json),
         }
@@ -1010,6 +1551,8 @@ class BrainService:
             "resource_code": record.resource_code,
             "channel_kind": record.channel_kind,
             "route_ref": record.route_ref,
+            "endpoint_ref": copy.deepcopy(record.endpoint_ref),
+            "schema_ref": copy.deepcopy(record.schema_ref),
             "auth_ref": record.auth_ref,
             "request_schema_json": copy.deepcopy(record.request_schema_json),
             "response_schema_json": copy.deepcopy(record.response_schema_json),
@@ -1049,19 +1592,30 @@ class BrainService:
             "capability_id": record.capability_id,
             "provider_org_id": record.provider_org_id,
             "consumer_org_id": record.consumer_org_id,
+            "provider_region_code": record.provider_region_code,
+            "consumer_region_code": record.consumer_region_code,
             "consumer_region": record.consumer_region,
             "consumer_app_ref": record.consumer_app_ref,
+            "bucket_granularity": record.bucket_granularity,
             "time_bucket": record.time_bucket,
             "invoke_count": record.invoke_count,
             "success_count": record.success_count,
             "failure_count": record.failure_count,
+            "provider_error_count": record.provider_error_count,
+            "consumer_error_count": record.consumer_error_count,
+            "gateway_error_count": record.gateway_error_count,
+            "other_error_count": record.other_error_count,
             "error_count": record.error_count,
+            "apply_count": record.apply_count,
             "avg_latency_ms": record.avg_latency_ms,
+            "p95_latency_ms": record.p95_latency_ms,
+            "last_error_code": record.last_error_code,
+            "last_error_at": record.last_error_at.isoformat() if record.last_error_at else None,
             "source_event_ref": record.source_event_ref,
             "summary_json": copy.deepcopy(record.summary_json),
         }
 
-    def create_request(self, resource_id: str, role: str, confirmed: bool, query: str = "") -> dict[str, Any]:
+    def create_request(self, resource_id: str, role: str, confirmed: bool, query: str = "", skill_id: str = "request.create") -> dict[str, Any]:
         resource = self._resource_by_id(resource_id)
         existing = next((item for item in self._snapshot["requests"] if item.get("resourceId") == resource_id and item["status"] in {"pending", "supplementing", "summary-pending"}), None)
         if existing is not None:
@@ -1217,10 +1771,10 @@ class BrainService:
             self._snapshot["requests"].insert(0, request)
             self._snapshot["approvals"].insert(0, approval)
             self._snapshot["delivery_tasks"].insert(0, delivery)
-            self._append_audit_feed("request.create", request_id, "ok", actor)
+            self._append_audit_feed(skill_id, request_id, "ok", actor)
             return {"request_id": request_id, "status": request["status"]}
 
-        return self._mutate("request.create", role, confirmed, {"resource_id": resource_id, "query": query}, mutation)
+        return self._mutate(skill_id, role, confirmed, {"resource_id": resource_id, "query": query}, mutation)
 
     def submit_request(self, request_id: str, role: str, confirmed: bool) -> dict[str, Any]:
         request = self._request_by_id(request_id)
@@ -1260,13 +1814,13 @@ class BrainService:
 
         return self._mutate("request.submit", role, confirmed, {"request_id": request_id}, mutation)
 
-    def review_request(self, request_id: str, decision: str, role: str, confirmed: bool) -> dict[str, Any]:
+    def review_request(self, request_id: str, decision: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide") -> dict[str, Any]:
         if decision == "approve":
-            return self._approve_request(request_id, role, confirmed)
+            return self._approve_request(request_id, role, confirmed, skill_id)
         if decision == "return_for_fix":
-            return self._return_request_for_fix(request_id, role, confirmed)
+            return self._return_request_for_fix(request_id, role, confirmed, skill_id)
         if decision == "reject":
-            return self._reject_request(request_id, role, confirmed)
+            return self._reject_request(request_id, role, confirmed, skill_id)
         raise BrainServiceError(f"unsupported review decision: {decision}")
 
     def submit_supplement(self, request_id: str, role: str, confirmed: bool) -> dict[str, Any]:
@@ -1534,6 +2088,33 @@ class BrainService:
 
         return self._mutate("zone.publish_topic_projection", role, confirmed, {"zone_id": zone_id}, mutation)
 
+    def grant_delivery_access(self, task_id: str, role: str, confirmed: bool) -> dict[str, Any]:
+        task = self._delivery_by_id(task_id)
+        if task["status"] not in {"pending", "warning", "reconciling", "supplementing"}:
+            raise InvalidStateError("delivery task cannot grant access in current state")
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            task["status"] = "completed"
+            task["receiptStatus"] = task.get("receiptStatus") or "granted"
+            task["updatedAt"] = self._now_datetime()
+            task["note"] = "访问授权已生效，交付事实已写入可回放任务链。"
+            task.setdefault("access", {})
+            task["access"]["grant_ref"] = task["access"].get("grant_ref") or f"grant-{task_id}"
+            task["access"]["status"] = "effective"
+            task["history"].append(
+                {
+                    "time": self._now_short_time(),
+                    "state": "授权已生效",
+                    "detail": "核心审批后的授权交付已完成，并保留审计锚定。",
+                }
+            )
+            task["aiSummary"]["summary"] = "访问授权已生效，当前可进入使用监测、回执对账或模板回流确认。"
+            task["aiSummary"]["nextAction"] = "继续监测调用与回执，如存在高频差异字段再进入供给侧治理。"
+            self._append_audit_feed("delivery.access.grant", task_id, "ok", actor)
+            return {"task_id": task_id, "status": task["status"], "grant_ref": task["access"]["grant_ref"]}
+
+        return self._mutate("delivery.access.grant", role, confirmed, {"task_id": task_id}, mutation)
+
     def reconcile_delivery_receipt(self, task_id: str, role: str, confirmed: bool) -> dict[str, Any]:
         task = self._delivery_by_id(task_id)
         if task["status"] == "failed":
@@ -1674,7 +2255,7 @@ class BrainService:
 
         return self._mutate("system.toggle_outage", role, confirmed, {}, mutation)
 
-    def _approve_request(self, request_id: str, role: str, confirmed: bool) -> dict[str, Any]:
+    def _approve_request(self, request_id: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide") -> dict[str, Any]:
         request = self._request_by_id(request_id)
         approval = self._approval_by_id(request_id)
         delivery = self._delivery_by_request_id(request_id)
@@ -1715,9 +2296,9 @@ class BrainService:
             self._append_audit_feed("request.approve", request_id, "ok", actor)
             return {"request_id": request_id, "status": request["status"]}
 
-        return self._mutate("approval.review_decide", role, confirmed, {"request_id": request_id, "decision": "approve"}, mutation)
+        return self._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": "approve"}, mutation)
 
-    def _return_request_for_fix(self, request_id: str, role: str, confirmed: bool) -> dict[str, Any]:
+    def _return_request_for_fix(self, request_id: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide") -> dict[str, Any]:
         request = self._request_by_id(request_id)
         approval = self._approval_by_id(request_id)
         delivery = self._delivery_by_request_id(request_id)
@@ -1755,9 +2336,9 @@ class BrainService:
             self._append_audit_feed("request.return-for-fix", request_id, "warning", actor)
             return {"request_id": request_id, "status": request["status"]}
 
-        return self._mutate("approval.review_decide", role, confirmed, {"request_id": request_id, "decision": "return_for_fix"}, mutation)
+        return self._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": "return_for_fix"}, mutation)
 
-    def _reject_request(self, request_id: str, role: str, confirmed: bool) -> dict[str, Any]:
+    def _reject_request(self, request_id: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide") -> dict[str, Any]:
         request = self._request_by_id(request_id)
         delivery = self._delivery_by_request_id(request_id)
         if request["status"] not in {"pending", "summary-pending"}:
@@ -1792,7 +2373,7 @@ class BrainService:
             self._append_audit_feed("request.reject", request_id, "warning", actor)
             return {"request_id": request_id, "status": request["status"]}
 
-        return self._mutate("approval.review_decide", role, confirmed, {"request_id": request_id, "decision": "reject"}, mutation)
+        return self._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": "reject"}, mutation)
 
     def _resolve_role(self, payload: dict[str, Any]) -> str:
         try:

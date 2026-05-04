@@ -91,6 +91,138 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "catalog.entry.query",
+    "description": "查询已进入 canonical 聚合的目录条目详情和列表。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.entry.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "catalog.entry.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "catalog.group.query",
+    "description": "查询目录分组投影，仅服务发现、专题和权限解释。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.group.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "catalog.group.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "catalog.model.field.query",
+    "description": "查询目录/台账模板字段口径、敏感级别和策略摘要。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.model.field.query",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "model_code"
+      ],
+      "properties": {
+        "model_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "catalog.model.field.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "catalog.model.query",
+    "description": "查询目录/台账模板模型定义。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.model.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "model_code": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "catalog.model.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "catalog.resource_view",
     "description": "查看模板或资源的覆盖率、字段和复用解释，用于 R1 先复用模板。",
     "protocol_type": "builtin_skill",
@@ -114,6 +246,35 @@
       "audit_required": true,
       "permissions": [
         "catalog.resource_view.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "catalog.share_zone.query",
+    "description": "查询共享专区专题入口和信任说明，不创建第二套目录事实源。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.share_zone.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "catalog.share_zone.query.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -293,6 +454,210 @@
       "audit_required": true,
       "permissions": [
         "governance.dispute_view.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "metadata.catalog_item.query",
+    "description": "查询目录项与资源 schema 字段之间的映射证据。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/metadata.catalog_item.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "resource_code": {
+          "type": "string"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "metadata.catalog_item.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "metadata.gather.evidence.query",
+    "description": "查询外部元数据采集任务回执和生成证据；采集状态只作为 projection，不反向改变资源业务状态。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/metadata.gather.evidence.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "resource_code": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "metadata.gather.evidence.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "metadata.lineage.query",
+    "description": "查询资源或字段级血缘投影和影响分析依据。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/metadata.lineage.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "resource_code": {
+          "type": "string"
+        },
+        "relation_scope": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "metadata.lineage.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "metadata.schema.query",
+    "description": "查询资源 schema 快照证据和字段结构。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/metadata.schema.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "resource_code": {
+          "type": "string"
+        },
+        "binding_code": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "metadata.schema.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "ops.catalog.quality.query",
+    "description": "查询目录、目录项或资源质量检测结果和解释证据。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/ops.catalog.quality.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "target_type": {
+          "type": "string"
+        },
+        "target_ref": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "ops.catalog.quality.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "ops.catalog.statistics.query",
+    "description": "查询目录、资源、schema 映射和质量证据的治理统计摘要。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/ops.catalog.statistics.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "ops.catalog.statistics.query.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -511,6 +876,38 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "resource.asset.query",
+    "description": "查询资源资产详情、生命周期和策略快照。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/resource.asset.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "resource_code": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "resource.asset.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "system.schema_info",
     "description": "返回 brain_core / brain_audit / brain_registry 三个 canonical schema 的用途说明。",
     "protocol_type": "builtin_skill",
@@ -661,6 +1058,106 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "application.resource.review",
+    "description": "对资源申请执行通过、补正或驳回判定。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/application.resource.review",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "return_for_fix",
+            "reject"
+          ]
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "request_id",
+        "decision",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "application.resource.review.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "application.resource.submit",
+    "description": "围绕可复用资源提交受控准入申请。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/application.resource.submit",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "resource_id": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "resource_id",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "application.resource.submit.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "approval.review_decide",
     "description": "对申请执行通过、退回补正或驳回，保留人工确认边界。",
     "protocol_type": "builtin_skill",
@@ -762,6 +1259,259 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "catalog.entry.create_draft",
+    "description": "创建 canonical 目录草稿，未发布前不可默认申请。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.entry.create_draft",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "catalog_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "region_code": {
+          "type": "string"
+        },
+        "summary_json": {
+          "type": "object"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "legacy_object_ref": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "catalog_code",
+        "title",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "catalog.entry.create_draft.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "catalog.entry.publish",
+    "description": "发布目录版本并使目录进入可发现状态。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.entry.publish",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "catalog_code": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "catalog_code",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "catalog.entry.publish.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "catalog.entry.review",
+    "description": "对目录条目执行通过、退回或驳回判定。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.entry.review",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "catalog_code": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "return_for_fix",
+            "reject"
+          ]
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "catalog_code",
+        "decision",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "catalog.entry.review.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "catalog.entry.submit_review",
+    "description": "把目录草稿提交到统一审批责任链。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.entry.submit_review",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "catalog_code": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "catalog_code",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "catalog.entry.submit_review.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "catalog.entry.withdraw",
+    "description": "撤回或下线目录条目，监管场景不物理删除。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.entry.withdraw",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "catalog_code": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "catalog_code",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "catalog.entry.withdraw.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "catalog.manage_entry",
     "description": "对目录条目执行发布或说明修正治理动作。",
     "protocol_type": "builtin_skill",
@@ -815,6 +1565,231 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "catalog.model.upsert",
+    "description": "维护 zw-brain 原生目录模型与字段定义，承接目录模板的可审计建模语义。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.model.upsert",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "model_code",
+        "title",
+        "confirmed"
+      ],
+      "properties": {
+        "model_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "model_schema_json": {
+          "type": "object"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "legacy_object_ref": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "catalog.model.upsert.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "catalog.resource.bind",
+    "description": "确认目录项与资源字段绑定，写入 schema mapping 证据链。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.resource.bind",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "mapping_code": {
+          "type": "string"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "catalog_item_code": {
+          "type": "string"
+        },
+        "resource_code": {
+          "type": "string"
+        },
+        "binding_code": {
+          "type": "string"
+        },
+        "source_schema_ref": {
+          "type": "object"
+        },
+        "mapping_rule_json": {
+          "type": "object"
+        },
+        "evidence_ref": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "legacy_object_ref": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "catalog_code",
+        "catalog_item_code",
+        "resource_code",
+        "binding_code",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "catalog.resource.bind.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "catalog.schema.mapping.upsert",
+    "description": "记录目录项与资源 schema 字段之间的确认映射，形成可追溯的重构证据链。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.schema.mapping.upsert",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "catalog_code",
+        "catalog_item_code",
+        "resource_code",
+        "binding_code",
+        "confirmed"
+      ],
+      "properties": {
+        "mapping_code": {
+          "type": "string"
+        },
+        "catalog_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "catalog_item_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resource_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "binding_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_schema_ref": {
+          "type": "object"
+        },
+        "mapping_rule_json": {
+          "type": "object"
+        },
+        "confidence_level": {
+          "type": "string"
+        },
+        "evidence_ref": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "legacy_object_ref": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "catalog.schema.mapping.upsert.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "compliance.investigate_case",
     "description": "对合规争议执行推进调查或升级治理动作。",
     "protocol_type": "builtin_skill",
@@ -858,6 +1833,50 @@
       "audit_required": true,
       "permissions": [
         "compliance.investigate_case.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "delivery.access.grant",
+    "description": "在审批通过后写入访问授权交付事实和审计链。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/delivery.access.grant",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "task_id",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "delivery.access.grant.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -948,6 +1967,273 @@
       "audit_required": true,
       "permissions": [
         "delivery.trigger_recovery.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "metadata.gather.evidence.upsert",
+    "description": "记录外部元数据采集任务回执，采集成败不直接改变资源业务状态。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/metadata.gather.evidence.upsert",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "gather_task_ref",
+        "resource_code",
+        "confirmed"
+      ],
+      "properties": {
+        "gather_task_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resource_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_system_ref": {
+          "type": "string"
+        },
+        "schema_snapshot_ref": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "error_summary": {
+          "type": "string"
+        },
+        "evidence_json": {
+          "type": "object"
+        },
+        "started_at": {
+          "type": "string"
+        },
+        "finished_at": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "metadata.gather.evidence.upsert.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "metadata.lineage.upsert",
+    "description": "记录外部血缘构建结果的受控投影，用于审计解释而非替代核心业务事实。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/metadata.lineage.upsert",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "relation_ref",
+        "confirmed"
+      ],
+      "properties": {
+        "relation_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "relation_scope": {
+          "type": "string"
+        },
+        "source_resource_code": {
+          "type": "string"
+        },
+        "source_schema_ref": {
+          "type": "string"
+        },
+        "target_resource_code": {
+          "type": "string"
+        },
+        "target_schema_ref": {
+          "type": "string"
+        },
+        "relation_type": {
+          "type": "string"
+        },
+        "relation_rule_json": {
+          "type": "object"
+        },
+        "source_evidence_ref": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "metadata.lineage.upsert.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "metadata.schema.snapshot.upsert",
+    "description": "记录外部采集或资源绑定返回的 schema 快照，只作为受控证据进入 zw-brain。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/metadata.schema.snapshot.upsert",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "resource_code",
+        "schema_json",
+        "confirmed"
+      ],
+      "properties": {
+        "snapshot_ref": {
+          "type": "string"
+        },
+        "resource_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "binding_code": {
+          "type": "string"
+        },
+        "schema_json": {
+          "type": "object"
+        },
+        "schema_hash": {
+          "type": "string"
+        },
+        "captured_at": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "metadata.schema.snapshot.upsert.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "ops.catalog.quality.upsert",
+    "description": "记录目录、目录项或资源质量检测结果，作为治理解释与审计证据。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/ops.catalog.quality.upsert",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "quality_ref",
+        "target_type",
+        "target_ref",
+        "quality_status",
+        "confirmed"
+      ],
+      "properties": {
+        "quality_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_type": {
+          "type": "string"
+        },
+        "target_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "quality_status": {
+          "type": "string"
+        },
+        "score": {
+          "type": "number"
+        },
+        "evidence_json": {
+          "type": "object"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "ops.catalog.quality.upsert.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -1402,10 +2688,22 @@
         "owner_org_id": {
           "type": "string"
         },
+        "owner_org_snapshot_json": {
+          "type": "object"
+        },
+        "region_code": {
+          "type": "string"
+        },
         "catalog_code": {
           "type": "string"
         },
         "summary_json": {
+          "type": "object"
+        },
+        "access_policy_json": {
+          "type": "object"
+        },
+        "qos_policy_json": {
           "type": "object"
         },
         "channel_binding": {
@@ -1645,10 +2943,22 @@
         "owner_org_id": {
           "type": "string"
         },
+        "owner_org_snapshot_json": {
+          "type": "object"
+        },
+        "region_code": {
+          "type": "string"
+        },
         "catalog_code": {
           "type": "string"
         },
         "summary_json": {
+          "type": "object"
+        },
+        "access_policy_json": {
+          "type": "object"
+        },
+        "qos_policy_json": {
           "type": "object"
         },
         "channel_binding": {
@@ -2083,6 +3393,146 @@
       "audit_required": true,
       "permissions": [
         "resource.api.withdraw.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "resource.asset.publish",
+    "description": "发布资源资产，使其进入可发现、可申请状态。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/resource.asset.publish",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "resource_code": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "resource_code",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "resource.asset.publish.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "resource.asset.review",
+    "description": "对资源资产执行通过或退回判定。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/resource.asset.review",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "resource_code": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "return_for_fix"
+          ]
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "resource_code",
+        "decision",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "resource.asset.review.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "resource.asset.submit_review",
+    "description": "把资源资产提交到统一审核链路。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/resource.asset.submit_review",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "resource_code": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "resource_code",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "resource.asset.submit_review.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",

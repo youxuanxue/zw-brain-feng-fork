@@ -1,0 +1,115 @@
+{
+  "skill_id": "external.notification.workorder.dispatch",
+  "slug": "external.notification.workorder.dispatch",
+  "title": "外部通知工单分发契约",
+  "description": "声明外部通知/工单适配器的输入输出边界；工单内容只能使用脱敏摘要和引用，不得沉淀联系人、电话、附件链接或内部地址明文。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "workorder_ref",
+      "topic_type",
+      "summary_json",
+      "tenant_id"
+    ],
+    "properties": {
+      "workorder_ref": {
+        "type": "string"
+      },
+      "topic_type": {
+        "type": "string"
+      },
+      "summary_json": {
+        "type": "object"
+      },
+      "callback_skill_id": {
+        "type": "string",
+        "const": "metadata.gather.evidence.upsert"
+      },
+      "tenant_id": {
+        "type": "string"
+      },
+      "actor_ref": {
+        "type": "string"
+      },
+      "idempotency_key": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "status",
+      "callback_skill_id"
+    ],
+    "properties": {
+      "workorder_ref": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "receipt_ref": {
+        "type": "string"
+      },
+      "error_summary": {
+        "type": "string"
+      },
+      "evidence_json": {
+        "type": "object"
+      },
+      "callback_skill_id": {
+        "type": "string"
+      },
+      "failure_callback_json": {
+        "type": "object",
+        "properties": {
+          "callback_skill_id": {
+            "type": "string"
+          },
+          "error_summary": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "side_effects": [
+    "external_execution",
+    "audit",
+    "evidence_callback"
+  ],
+  "tenant_scope": "tenant",
+  "auth_policy": "service",
+  "human_confirmation_required": false,
+  "audit_class": "external-execution",
+  "execution_binding": "external_capability",
+  "compatibility": [],
+  "runtime_binding": {
+    "kind": "external_capability",
+    "surface_entry": "registered_external_executor",
+    "method": "external.notification.workorder.dispatch",
+    "callback_skill_id": "metadata.gather.evidence.upsert",
+    "canonical_write_policy": "callback_only",
+    "failure_callback_required": true
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "external_contract",
+  "tags": [
+    "external",
+    "notification",
+    "workorder",
+    "contract"
+  ]
+}

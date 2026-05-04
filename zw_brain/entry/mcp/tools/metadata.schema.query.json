@@ -1,0 +1,29 @@
+{
+  "name": "metadata.schema.query",
+  "description": "查询资源 schema 快照证据和字段结构。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "resource_code": {
+        "type": "string"
+      },
+      "binding_code": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "metadata.schema.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

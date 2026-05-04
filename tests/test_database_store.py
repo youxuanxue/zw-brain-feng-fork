@@ -33,6 +33,7 @@ def test_database_store_persists_runtime_state() -> None:
             "audit_receipt",
             "capability_manifest",
             "catalog_entry",
+            "catalog_item",
             "resource_asset",
             "resource_channel_binding",
             "gateway_runtime_status_projection",

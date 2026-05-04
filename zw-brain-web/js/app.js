@@ -332,7 +332,7 @@
       }
     },
     createRequest(resourceId) {
-      performWrite('request.create', { resource_id: resourceId, query: currentDiscoveryQuery || window.STATE?.discoveryQuery || '' }, '已发起标准复用申请并进入受控准入', async () => {
+      performWrite('application.resource.submit', { resource_id: resourceId, query: currentDiscoveryQuery || window.STATE?.discoveryQuery || '' }, '已发起标准复用申请并进入受控准入', async () => {
         await refreshSnapshot();
         const created = window.RUNTIME_REQUESTS.find(item => item.resourceId === resourceId && item.status === 'pending');
         if (created) {
@@ -348,13 +348,13 @@
       });
     },
     approveRequest(requestId) {
-      performWrite('approval.review_decide', { request_id: requestId, decision: 'approve' }, '已通过并下发基层补录任务');
+      performWrite('application.resource.review', { request_id: requestId, decision: 'approve' }, '已通过并下发基层补录任务');
     },
     returnForFix(requestId) {
-      performWrite('approval.review_decide', { request_id: requestId, decision: 'return_for_fix' }, '已退回补正');
+      performWrite('application.resource.review', { request_id: requestId, decision: 'return_for_fix' }, '已退回补正');
     },
     rejectRequest(requestId) {
-      performWrite('approval.review_decide', { request_id: requestId, decision: 'reject' }, '已驳回该申请');
+      performWrite('application.resource.review', { request_id: requestId, decision: 'reject' }, '已驳回该申请');
     },
     submitSupplement(requestId) {
       performWrite('supplement.submit', { request_id: requestId }, '差异补录已提交，进入汇总确认');
@@ -363,7 +363,7 @@
       performWrite('summary.confirm', { request_id: requestId }, '已确认自动汇总，进入回流确认');
     },
     confirmBackflow(taskId) {
-      performWrite('backflow.confirm', { task_id: taskId }, '已确认回流并同步模板治理视图');
+      performWrite('delivery.access.grant', { task_id: taskId }, '访问授权已生效并写入交付回执');
     },
     triggerDeliveryRecovery(taskId) {
       performWrite('delivery.trigger_recovery', { task_id: taskId }, '恢复流程已触发');
@@ -378,10 +378,18 @@
       performWrite('compliance.investigate_case', { dispute_id: disputeId, action: 'escalate' }, '争议已升级治理');
     },
     manageCatalogEntry(catalogId, action) {
-      performWrite('catalog.manage_entry', { catalog_id: catalogId, action }, action === 'publish' ? '目录条目已发布' : '目录说明已修正');
+      if (action === 'publish') {
+        performWrite('catalog.entry.publish', { catalog_code: catalogId }, '目录条目已发布');
+        return;
+      }
+      performWrite('catalog.manage_entry', { catalog_id: catalogId, action }, '目录说明已修正');
     },
     manageResourceAsset(resourceId, action) {
-      performWrite('resource.manage_asset', { resource_id: resourceId, action }, action === 'publish' ? '资源资产已发布' : '资源资产已暂停共享');
+      if (action === 'publish') {
+        performWrite('resource.asset.publish', { resource_code: resourceId }, '资源资产已发布');
+        return;
+      }
+      performWrite('resource.manage_asset', { resource_id: resourceId, action }, '资源资产已暂停共享');
     },
     publishZoneTopicProjection(zoneId) {
       performWrite('zone.publish_topic_projection', { zone_id: zoneId }, '专区正式投影已发布');

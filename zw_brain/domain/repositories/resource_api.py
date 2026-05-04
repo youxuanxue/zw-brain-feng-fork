@@ -63,7 +63,11 @@ class ResourceApiRepository:
                     title=str(payload.get("title", resource_code)),
                     lifecycle_status=str(payload.get("lifecycle_status", "draft")),
                     owner_org_id=payload.get("owner_org_id"),
+                    owner_org_snapshot_json=safe_json(payload.get("owner_org_snapshot_json") or {}),
+                    region_code=payload.get("region_code"),
                     catalog_code=payload.get("catalog_code"),
+                    access_policy_json=safe_json(payload.get("access_policy_json") or {}),
+                    qos_policy_json=safe_json(payload.get("qos_policy_json") or {}),
                     source_ref=payload.get("source_ref"),
                     summary_json=safe_json(payload.get("summary_json") or payload),
                     created_at=now,
@@ -74,7 +78,11 @@ class ResourceApiRepository:
                 record.title = str(payload.get("title", record.title))
                 record.lifecycle_status = str(payload.get("lifecycle_status", record.lifecycle_status))
                 record.owner_org_id = payload.get("owner_org_id", record.owner_org_id)
+                record.owner_org_snapshot_json = safe_json(payload.get("owner_org_snapshot_json") or record.owner_org_snapshot_json)
+                record.region_code = payload.get("region_code", record.region_code)
                 record.catalog_code = payload.get("catalog_code", record.catalog_code)
+                record.access_policy_json = safe_json(payload.get("access_policy_json") or record.access_policy_json)
+                record.qos_policy_json = safe_json(payload.get("qos_policy_json") or record.qos_policy_json)
                 record.source_ref = payload.get("source_ref", record.source_ref)
                 record.summary_json = safe_json(payload.get("summary_json") or {**record.summary_json, **payload})
                 record.updated_at = now
@@ -206,6 +214,8 @@ class ResourceApiRepository:
                     resource_code=str(payload["resource_code"]),
                     channel_kind=str(payload.get("channel_kind", "api_gateway")),
                     route_ref=payload.get("route_ref"),
+                    endpoint_ref=safe_json(payload.get("endpoint_ref") or {}),
+                    schema_ref=safe_json(payload.get("schema_ref") or {}),
                     auth_ref=payload.get("auth_ref"),
                     request_schema_json=safe_json(payload.get("request_schema_json")),
                     response_schema_json=safe_json(payload.get("response_schema_json")),
@@ -220,6 +230,8 @@ class ResourceApiRepository:
                 record.resource_code = str(payload.get("resource_code", record.resource_code))
                 record.channel_kind = str(payload.get("channel_kind", record.channel_kind))
                 record.route_ref = payload.get("route_ref", record.route_ref)
+                record.endpoint_ref = safe_json(payload.get("endpoint_ref") or record.endpoint_ref)
+                record.schema_ref = safe_json(payload.get("schema_ref") or record.schema_ref)
                 record.auth_ref = payload.get("auth_ref", record.auth_ref)
                 record.request_schema_json = safe_json(payload.get("request_schema_json") or record.request_schema_json)
                 record.response_schema_json = safe_json(payload.get("response_schema_json") or record.response_schema_json)

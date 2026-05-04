@@ -96,6 +96,9 @@ catalog3 与 metadata3 在旧平台中表面上是两个仓库，但在业务事
 | `dsp_metaresource.xml` | `meta_relation`、`meta_relation_column` | 血缘关系进入 lineage read model / evidence，不反向驱动业务状态。 |
 | `dsp_metaresource.xml` | `graphdb_node`、`graphdb_relation`、`graphdb_relation_attr`、`graphdb_relation_column` | 图谱结构是血缘/关系查询投影或外部图谱 adapter，不作为 Phase 1 核心写模型。 |
 | `dsp_metaresource.xml` | `meta_gather_task`、`meta_gather_task_log` | 采集任务进入外部执行器和审计证据；调度不进普通用户产品心智。 |
+| `dsp_metaresource.xml` | `audit_todo_task`、`resource_flow_log` | 资源审核待办与流转日志进入统一审批轨迹，不保留 metadata3 自有流程岛。 |
+| `dsp_metaresource.xml` | `rc_catalog_materialize` | 目录物化证明 catalog 与 metadata 共享同一资源交付链；物化执行外化，核心只保存映射、版本和回执。 |
+| `dsp_metaresource.xml` | `db_database_node`、`database_manage_history` | 数据源、前置库、建表执行和数据库操作日志是外部执行器证据；内部地址、端口、连接路径不得明文进入 canonical model。 |
 | `dsp_metaresource.xml` | `meta_log` | 元数据操作日志进入 `audit_event` 或迁移证据。 |
 | `old/12-datastructure/dsp_monitor.xml` | `matter_manage`、`matter_handle`、`warning_work_order_rules` 等工单/告警语义 | 告警与工单只作为 P6 运营投影和外部诊断 Capability 输入，不复制监控工单系统。 |
 | `old/12-datastructure/dsp_connect.xml` | 上级目录 ID、对接目录等同步语义 | 级联 / 上下级对接进入 adapter 与外部通道，不改变 canonical 主事实源。 |
@@ -135,7 +138,7 @@ catalog3 与 metadata3 在旧平台中表面上是两个仓库，但在业务事
 | 挂接资源不显示表列 | Excel 转库表、资源挂接后列不展示 | `rc_resource_catalog_item_link` 语义迁入目录项-字段挂接事实；表字段快照必须可追溯。 |
 | 物化资源结构调整报错 | 已物化多版本资源调整结构时报错 | 物化与结构调整是高副作用执行器；核心只管理资源版本、schema 快照、审批和回执。 |
 | 元数据中文注释缺失 | 模板文字字段显示未知，补充元数据中文注释后解决 | 字段中文名、说明、数据类型、敏感级别是 `catalog_item` / `schema_ref` 的基本质量要求。 |
-| job / 漏洞 / 中间件适配 | metadata job 报错、GBase / TongWeb / 漏洞修补 | 属于运行时和项目环境能力，通过 ANP 诊断/修复包外化。 |
+| job / 漏洞 / 中间件适配 | metadata job 报错、GBase / TongWeb / Elasticsearch / `dsp-catalog-console` / `dsp-metadata-job` 漏洞修补 | 属于运行时和项目环境能力，通过 ANP 诊断/修复包外化；新产品只沉淀脱敏故障模式、影响范围、处置回执。 |
 
 ### 3.3 工单对产品边界的校准
 
@@ -157,7 +160,7 @@ catalog3 与 metadata3 在旧平台中表面上是两个仓库，但在业务事
 | --- | --- | --- |
 | `CatalogRegisterController` | 目录注册、详情、版本、提交审批、删除/撤销 | `catalog_entry`、`catalog_entry_version`、`approval_case`，写动作走 Capability。 |
 | `CatalogApproveController` | 目录审批、审批日志、状态更新、版本对比 | `approval_case`、`approval_step`、`approval_decision`、`audit_receipt`。 |
-| `CatalogPublish` / `topublish` | 待发布、发布、退回发布 | `catalog.publish` / `catalog.withdraw` 等写 Capability。 |
+| `CatalogPublish` / `topublish` | 待发布、发布、退回发布 | `catalog.entry.publish` / `catalog.entry.withdraw` 等写 Capability。 |
 | `CatalogGroup*` / `CatalogGroupPermission*` | 目录分组、共享分组、用户/部门权限 | P7 共享专区 projection + `tenant_capability_policy`，不复刻权限后台。 |
 | `ResourcePushController` | 目录挂接资源、资源数据预览、推送 | `resource_asset`、`resource_channel_binding`、目录项-资源绑定。 |
 | `OpenApiController` | 对外目录统计、申请查询、资源查询 | 新 REST 由 Capability 投影，统计进入 read model。 |
@@ -182,6 +185,16 @@ catalog3 与 metadata3 在旧平台中表面上是两个仓库，但在业务事
 | `share_zone_catalog_link` / `catalog_share_group` | 共享专区、目录专题分组 | P7 topic projection，不单独成为事实源 |
 | `dockapply*` | 垂管/上级对接申请 | 外部通道 adapter + `delivery_task` / `approval_case` 摘要 |
 
+### 4.3 catalog3 源码校准
+
+| 源码事实 | 设计校准 |
+| --- | --- |
+| `StandardCatalogServiceImpl` 同时承接目录提交、审批通过/驳回、撤销和发布后变更逻辑，`StandardCatalogVersionServiceImpl` 基本为空 | 旧系统并没有一个干净的“版本子域”；zw-brain 必须把版本、审批和发布重新收敛到 `catalog_entry_version` + `approval_case`，不能照搬旧 service 分层。 |
+| `PushOpenCatalogServiceImpl` 在推送开放目录时读取目录关联资源，并组装 `catalogItemColumnLinks` | 目录对外可见、资源挂接和字段映射是一条链；`catalog.resource.bind` 必须是强审计写能力，而非展示层动作。 |
+| `CatalogModelServiceImpl` 会根据模板字段写 `data_catalog_column` 并执行动态扩展表创建/调整 | 模板字段是承重口径；动态建表属于高副作用执行器，不能进入普通 catalog capability 的直接写路径。 |
+| `CatalogCompileServiceImpl` 的反向编目会处理共享/开放字段映射并设置反向标识 | 反向编目只能生成草稿和建议；最终发布必须回到人工确认、核心状态机和审计链。 |
+| `CatalogQualityTaskServiceImpl`、`CatalogGroupServiceImpl`、`CatalogShareGroupServiceImpl` 主要围绕任务、分组、共享包装运行 | 质量、分组、共享专区保留产品价值，但应作为 projection / 外部执行器 / 策略解释，不独立成长为事实源。 |
+
 ## 五、旧 dsp-metadata3 能力理解
 
 ### 5.1 模块边界
@@ -192,7 +205,7 @@ catalog3 与 metadata3 在旧平台中表面上是两个仓库，但在业务事
 | `TableController` | 数据表资源注册、表列表、字段列表、数据源列表、结构变更 | 表资源 channel/schema 证据；结构变更写动作需审批。 |
 | `FileController` / `FolderController` | 文件/文件夹资源注册 | `resource_asset(resource_kind='file/folder')`。 |
 | `ReviewController` | 资源审核、批量审核、驳回 | `approval_case` 与审计回执。 |
-| `PublishController` | 资源发布、回调 | `resource.publish` / `resource.withdraw` Capability。 |
+| `PublishController` | 资源发布、回调 | `resource.asset.publish` / `resource.api.withdraw` Capability。 |
 | `DataBaseController` / `DataBaseManageController` | 数据源、前置库、连通性、表管理、建表 | 数据源 read projection + 外部执行器；不做数据库管理后台。 |
 | `MetaGatherTaskController` | 元数据采集任务列表、添加、触发、删除 | 外部采集 Capability + `metadata_gather_evidence_projection`。 |
 | `MetaRelationController` / `TableColumnRelationController` | 血缘、字段关系 | lineage projection / evidence。 |
@@ -215,6 +228,25 @@ catalog3 与 metadata3 在旧平台中表面上是两个仓库，但在业务事
 | `graphdb_node` / `graphdb_relation` | 图谱节点和关系 | 外部图谱 adapter 或 lineage projection |
 | `meta_gather_task` / `meta_gather_task_log` | 采集任务与执行日志 | `metadata_gather_evidence_projection` + `audit_event` |
 | `meta_log` | 元数据操作日志 | `audit_event` / `legacy_object_mapping` evidence |
+| `audit_todo_task` / `resource_flow_log` | 资源审核待办、节点、角色、意见、时间 | `approval_case`、`approval_step`、`approval_decision` |
+| `rc_catalog_materialize` | 目录物化资源、数据源、表名、库类型 | 外部物化执行器证据 + `resource_schema_mapping` / `delivery_receipt` |
+| 数据源 / 建表操作日志 | 连接节点、执行记录、结果、错误信息 | 外部诊断/执行 evidence；敏感连接信息只保存引用或脱敏摘要 |
+
+### 5.3 metadata3 源码校准
+
+| 源码事实 | 设计校准 |
+| --- | --- |
+| `ResourceReviewServiceImpl` 同时处理资源审核、发布/撤销状态推进、资源变更事件、开放事件和链路回写 | 资源审核不是 metadata3 后台的局部动作；它必须并入统一 `approval_case`、`resource_asset.status` 和审计事件。 |
+| `ResourceManageServiceImpl` 删除表资源时清理关联资源、目录项映射和物化记录 | 资源、目录项字段绑定和物化结果存在生命周期耦合；新系统必须保留 `resource_schema_mapping` 的状态与回执，而不是只存资源列表。 |
+| `DatabaseManageServiceImpl` 建表后触发元数据创建，连接测试、建表、元数据同步连成副作用链 | 建库建表和结构调整必须外化为受审批授权的执行器；核心只保存意图、审批、schema 快照和执行回执。 |
+| `MetaBaseinfoServiceImpl` 会拉取 DB schema、列、索引、外键并用摘要判断结构变化、生成历史版本 | 元数据采集是 evidence 生成过程；采集失败或结构变化不能绕过资源状态机直接改变业务发布状态。 |
+| `CatalogMaterialServiceImpl`、`RcCatalogMaterialize` 与 `ResourceManageServiceImpl` 共同证明物化记录会随资源生命周期清理 | 目录物化是目录项-字段映射后的交付执行结果，应进入外部执行器回执和 schema evidence，不成为第二套资源事实源。 |
+| `RcResourceCatalogItemLink`、`CatalogItemLinkServiceImpl` 和 `ResourceManageMapper.xml` 大量查询绑定关系 | 目录信息项到真实表字段的绑定是 metadata 侧最承重的事实，必须显式建模为 `resource_schema_mapping`。 |
+| metadata3 migration 长期给 `rc_resource_catalog_item_link`、资源字段精度、脱敏、默认值、标准引用补列 | 字段证据会随项目持续演化；zw-brain 应保存版本化 schema/mapping evidence，避免把字段结构固化进页面逻辑。 |
+
+### 5.4 catalog3 / metadata3 合流判断
+
+旧代码最强的信号不是“两个后台都很大”，而是二者不断互相调用和清理：catalog 推送需要资源与字段绑定，metadata 查询目录项，资源删除会清理物化和目录项链接，反向编目又从 metadata 证据生成 catalog 草稿。因此 zw-brain 的边界应按主旅程合流：目录定义、资源证据、字段映射、申请审批、交付回执进入同一 canonical 事实链；采集、建表、物化、质量、血缘作为外部执行器或 projection 回写证据。
 
 ## 六、zw-brain 数据模型设计
 
@@ -318,6 +350,9 @@ approved 数据模型已有 `catalog_entry`、`catalog_item`、`resource_asset`�
 | `meta_baseinfo.meta_id/meta_name/model_id/version` | `resource_schema_snapshot` / evidence | 元数据对象作为资源 schema 证据。 |
 | `meta_relation.source_meta_id/target_meta_id/relation_from` | `lineage_relation_projection` | 来源、目标、关系来源进入血缘投影。 |
 | `meta_gather_task.job_id/cron_exp/file_ip/file_path` | `metadata_gather_evidence_projection` / external task ref | 调度细节和内部地址不明文进入核心模型；只保存任务引用和脱敏证据。 |
+| `audit_todo_task.node_code/actor_code/status`、`resource_flow_log.check_status/check_note` | `approval_step` / `approval_decision` | metadata3 资源审核并入统一审批流；保留节点、角色、意见、时间，不保留旧流程后台。 |
+| `rc_catalog_materialize.cata_id/datasource_id/res_id/table_name/db_type` | `resource_schema_mapping` evidence / external materialize receipt | 物化是目录项-资源字段绑定后的执行结果，不改变目录事实源。 |
+| `db_database_node.*`、`database_manage_history.*` | external executor evidence | 连接地址、端口、路径、执行错误只存密钥引用或脱敏摘要，不能进入产品文案或审计明文。 |
 | `graphdb_node/relation.*` | `lineage_relation_projection` / external graph ref | 图谱运行时外部化。 |
 | 工单标题/描述/沟通记录 | `ops_issue_pattern_projection`（可选） | 只保留脱敏主题类型、故障模式、处置摘要和证据引用。 |
 
@@ -329,6 +364,7 @@ approved 数据模型已有 `catalog_entry`、`catalog_item`、`resource_asset`�
 
 | 新 Capability | 目标聚合 | 旧能力来源 | 审计等级 | 说明 |
 | --- | --- | --- | --- | --- |
+| `catalog.group.query` | P2 / P7 projection | `/dsp/catalog/group/queryCatalogGroupList`、`queryCatalogGroupTree` | `read-trace` | 目录分组只服务发现、专题和权限解释，不成为核心事实源。 |
 | `catalog.model.query` | `CatalogModel` | `/api/model/catalog-template-info` | `read-trace` | 查询目录/台账模板。 |
 | `catalog.model.field.query` | `CatalogModel` | `/api/model/history-column-info`、字段导入模板 | `read-trace` | 查询字段口径、历史字段和模板字段。 |
 | `catalog.entry.query` | `CatalogResourceAggregate` | `/dsp/catalog/register/getCatalog`、`/restapi/require/queryCatalogByPage` | `read-trace` | 目录详情与列表。 |
@@ -347,7 +383,8 @@ approved 数据模型已有 `catalog_entry`、`catalog_item`、`resource_asset`�
 | `application.resource.review` | `ApplicationApprovalAggregate` | `data_apply_course`、授权审批 | `write-critical` | 审批、补件、驳回、通过。 |
 | `delivery.access.grant` | `DeliveryAggregate` | `data_apply_authrization` | `write-critical` | 授权、续期、频次变更。 |
 | `metadata.schema.query` | schema projection | `/table/queryColumnList`、`meta_baseinfo` | `read-trace` | 查询表字段、中文注释、敏感级别。 |
-| `metadata.lineage.query` | lineage projection | `meta_relation`、graphdb | `read-trace` | 查询血缘和影响分析。 |
+| `metadata.catalog_item.query` | schema / mapping projection | metadata `/catalog/queryItemList`、`rc_resource_catalog_item_link` | `read-trace` | metadata3 对目录项的反向依赖只作为绑定证据。 |
+| `metadata.lineage.query` | lineage projection | `meta_relation`、graphdb、`/metadata/relation/*` | `read-trace` | 查询血缘和影响分析。 |
 | `ops.catalog.statistics.query` | P6 projection | catalog 统计 REST API | `read-trace` | 目录、资源、部门、区划统计。 |
 | `ops.catalog.quality.query` | quality projection | `catalog_quality_task_result` | `read-trace` | 质量结果查询与解释。 |
 
@@ -360,11 +397,12 @@ approved 数据模型已有 `catalog_entry`、`catalog_item`、`resource_asset`�
 | 元数据采集任务执行 | ANP 执行器 / metadata adapter | 可读外部数据源、生成 schema 快照和证据；不得直接发布资源。 |
 | 数据源连通测试 | 外部诊断 Capability | 返回脱敏连通性结果和错误摘要；密钥只走密钥引用。 |
 | 建库建表 / 结构调整 | 高风险外部执行器 | 必须由核心审批授权后执行；执行结果回写 `delivery_receipt` / evidence。 |
-| 目录物化 / 资源物化 | ANP 执行器 | 只执行已确认的目录项-字段映射，不成为事实源。 |
-| 反向编目 / 智能编目 | 外部编目 Capability | 只生成 catalog draft 和 mapping suggestion；人工确认后才能发布。 |
+| 目录物化 / 资源物化 | ANP 执行器 | 只执行已确认的目录项-字段映射；`checkColumns`、`submit`、`adjustStructure`、`adjustSubmit` 等动作必须由核心审批授权并回写回执，不成为事实源。 |
+| 反向编目 / 智能编目 | 外部编目 Capability | 只生成 catalog draft 和 mapping suggestion；`getDataCenterTree`、`getTableForCatalogList` 证明它依赖数据中心和表结构，但人工确认后才能发布。 |
 | 目录质量检测 | 外部质量检测包 | 输出质量证据，不直接改目录状态。 |
 | 血缘解析 / 图谱构建 | 外部 lineage adapter | 输出 lineage projection，不反向驱动业务流程。 |
 | 级联 / 上下级同步 | 外部 exchange adapter | 按 canonical 事件和投影同步，不创建第二套目录事实源。 |
+| 共享分组维护与共享专区授权 | P7 投影配置 / 外部治理包 | `sharegroup` 的新增、授权、挂接动作只影响专题可见性和策略解释，不创建第二套权限事实源。 |
 | 短信 / 通知 / 工单联动 | 外部通知/工单 adapter | 只发送通知或同步摘要，不承接审批事实。 |
 | 漏洞修补 / 中间件适配 | 运维安全执行器 | 处理环境问题，不进入产品主旅程。 |
 | 客户专属字段展示 | 配置 / 投影 / 外部包 | 后端不 per-tenant fork；字段先进入模型或投影配置。 |
@@ -375,7 +413,8 @@ approved 数据模型已有 `catalog_entry`、`catalog_item`、`resource_asset`�
 - 目录后台、元数据后台的页面层级和 controller URL。
 - 完整消息中心、监控工单系统、Zabbix/xxl-job 管理台。
 - graphdb 运行时管理页面。
-- 旧导入导出 Excel 模板页面作为一等产品能力。
+- 旧导入导出 Excel 模板页面作为一等产品能力；模板字段语义只进入 `catalog_model_field`。
+- 旧流程后台、待办表和审核日志页面；审批事实统一进入 `approval_case` 与审计回放。
 - 明文数据库地址、文件服务器地址、联系人、电话、内部附件链接。
 - 为单个客户临时新增的后端分支逻辑。
 
@@ -503,12 +542,19 @@ approved 数据模型已有 `catalog_entry`、`catalog_item`、`resource_asset`�
 | --- | --- |
 | catalog3 外部使用高频集中在统计、目录详情、模板、分组、资源挂接 | `old/old_codes_analyse/dsp-catalog3-apis.md` |
 | metadata3 外部使用高频集中在资源列表、审核日志、表结构、数据源、采集任务 | `old/old_codes_analyse/dsp-metadata3-apis.md` |
-| 目录注册、审批、发布是强状态写动作 | `dsp-catalog-console/src/main/java/com/inspur/dsp/catalog/console/catalog/CatalogRegisterController.java`、`CatalogApproveController.java` |
-| 目录和资源挂接是 catalog3 核心链路 | `dsp-catalog-console/src/main/java/com/inspur/dsp/catalog/console/resource/ResourcePushController.java` |
+| 目录注册、审批、发布是强状态写动作，且旧版本逻辑并未形成干净独立子域 | `dsp-catalog-service/src/main/java/com/inspur/dsp/catalog/service/impl/StandardCatalogServiceImpl.java` 承接提交、审批、撤销、发布后变更；`StandardCatalogVersionServiceImpl.java` 基本为空。 |
+| 目录分组、共享分组、反向编目和质量检测是投影/执行器语义，不是新事实源 | `CatalogGroupServiceImpl.java`、`CatalogShareGroupServiceImpl.java`、`CatalogCompileServiceImpl.java`、`CatalogQualityTaskServiceImpl.java`。 |
+| 目录和资源挂接是 catalog3 核心链路，且会携带目录项-字段映射 | `dsp-catalog-service/src/main/java/com/inspur/dsp/catalog/service/impl/PushOpenCatalogServiceImpl.java`，推送开放目录时读取目录关联资源并组装 `catalogItemColumnLinks`。 |
+| 目录模板字段会触发动态扩展表创建/调整，证明字段口径承重而建表副作用应外化 | `dsp-catalog-service/src/main/java/com/inspur/dsp/catalog/service/impl/catalogModel/CatalogModelServiceImpl.java`。 |
 | catalog3 对外 REST 主要服务统计、目录查询、申请查询 | `dsp-catalog-console/src/main/java/com/inspur/dsp/catalog/console/api/OpenApiController.java` |
-| metadata3 资源管理、表结构、资源审核、数据源、采集任务是核心入口 | `ManageContoller.java`、`TableController.java`、`ReviewController.java`、`DataBaseController.java`、`MetaGatherTaskController.java` |
-| catalog 结构数据证明目录、目录项、申请、授权、共享专区、质量检测是承重对象 | `old/12-datastructure/dsp_catalog.xml` 中 `data_catalog_column`、`data_apply*`、`share_zone_catalog_link`、`catalog_share_group`、`catalog_quality_task*` |
-| metadata 结构数据证明资源、元数据、字段映射、血缘、采集任务是承重对象 | `old/12-datastructure/dsp_metaresource.xml` 中 `rc_resource*`、`rc_resource_catalog_item_link`、`meta_baseinfo`、`meta_relation*`、`meta_gather_task*` |
+| metadata3 资源审核、发布、撤销、事件发布和链路回写是统一资源治理逻辑 | `dsp-metadata-service/src/main/java/com/inspur/dsp/metaresource/service/impl/resource/ResourceReviewServiceImpl.java`。 |
+| metadata3 资源管理证明资源删除会清理目录项映射和物化记录 | `dsp-metadata-service/src/main/java/com/inspur/dsp/metaresource/service/impl/resource/ResourceManageServiceImpl.java`。 |
+| metadata3 建表、连通性和元数据同步是高副作用执行链 | `DatabaseManageServiceImpl.java` 调用 `createTable` 后触发 `createTableMetaDate`。 |
+| metadata3 元数据采集会拉取 schema、列、索引、外键并生成结构变化历史 | `MetaBaseinfoServiceImpl.java`。 |
+| metadata3 结构数据证明资源、元数据、字段映射、血缘、采集任务是承重对象 | `old/12-datastructure/dsp_metaresource.xml` 中 `rc_resource*`、`rc_resource_catalog_item_link`、`meta_baseinfo`、`meta_relation*`、`meta_gather_task*` |
+| metadata3 代码证明目录物化和字段映射是执行器语义，不是独立事实源 | `CatalogMaterialController.java`、`CatalogMaterialServiceImpl.java`、`RcCatalogMaterialize.java`、`CatalogItemLinkServiceImpl.java`、`RcResourceCatalogItemLink.java`。 |
+| metadata3 代码证明血缘和目录项查询是解释性投影 | `MetaRelationController.java`、`TableColumnRelationController.java`、`CatalogController.java` |
+| metadata3 migration 证明资源字段、目录项绑定、标准、脱敏和开放状态长期演进 | `dsp-metadata-console/src/main/resources/db/migration/V1__base.sql`、`V202106151705__rc_resource_catalog_item_link_add_column.sql`、`V202111050949__resource_column_add_data_standard.sql`、`V20241025100000__rc_resource_change.sql`、`V20251203095000__rc_resource_add_open.sql` |
 | 工单事实证明目录展示、发布、授权、资源申请、挂接、元数据、漏洞和物化是主要真实问题 | `old/工单导出-列缩减.xlsx` 的 `工单导出` sheet |
 
 ## 十三、反上帝视角自检
@@ -519,6 +565,7 @@ approved 数据模型已有 `catalog_entry`、`catalog_item`、`resource_asset`�
 - 如果用户问“元数据采集失败是否影响资源状态”，本文能回答：采集是 evidence projection；只有经审批的资源状态变更才能改变业务状态。
 - 如果客户要求新增地区专属字段，本文能回答：先进入模型字段或投影配置，不允许 per-tenant 后端 fork。
 - 如果现场要求建库建表或物化，本文能回答：这是外部执行器，必须由核心 Capability 授权并回写回执。
-- 如果某个旧 controller 存在但没有高频使用、主旅程价值或审计责任，本文默认不迁入。
+- 如果旧表里有 `audit_todo_task`、`resource_flow_log`、`database_manage_history`，本文不会把它们升级成新后台；它们只证明审批、执行和故障必须可追责。
+- 如果旧表里有数据库节点、文件路径、端口、联系人或电话，本文不会把这些明文写进 canonical model；它们只允许成为密钥引用、脱敏证据或外部执行器上下文。
 
 结论：本方案经得起旧 API 调用量、旧 XML 表结构和真实工单三类事实推敲；它迁移的是承重语义，不是旧平台形状。

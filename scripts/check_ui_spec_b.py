@@ -280,6 +280,29 @@ def require_web_typography(path: Path, text: str, errors: list[str]) -> None:
         errors.append(f"{path.relative_to(REPO)} must use Spec B semantic typography classes, found raw size classes: {', '.join(sorted(set(raw_text_classes)))}")
 
 
+
+def require_catalog_metadata_capability_actions(app_js: str, errors: list[str]) -> None:
+    required = {
+        "performWrite('application.resource.submit'": "resource application must use canonical application.resource.submit Capability",
+        "performWrite('application.resource.review'": "resource approval must use canonical application.resource.review Capability",
+        "performWrite('delivery.access.grant'": "delivery authorization must use canonical delivery.access.grant Capability",
+        "performWrite('catalog.entry.publish'": "catalog publish must use canonical catalog.entry.publish Capability",
+        "performWrite('resource.asset.publish'": "resource publish must use canonical resource.asset.publish Capability",
+    }
+    for needle, message in required.items():
+        if needle not in app_js:
+            errors.append(f"zw-brain-web/js/app.js: {message}")
+
+    forbidden = {
+        "performWrite('request.create'": "resource application must not use legacy request.create from the catalog/metadata journey",
+        "performWrite('approval.review_decide'": "resource approval must not use legacy approval.review_decide from the catalog/metadata journey",
+        "performWrite('backflow.confirm'": "delivery authorization must not use backflow.confirm as the grant action",
+    }
+    for needle, message in forbidden.items():
+        if needle in app_js:
+            errors.append(f"zw-brain-web/js/app.js: {message}")
+
+
 def main() -> int:
     errors: list[str] = []
 
@@ -317,6 +340,7 @@ def main() -> int:
     if app_script:
         require_literal_routes_reachable(app_script, errors)
         require_visual_routes_guarded(app_script, errors)
+        require_catalog_metadata_capability_actions(app_script, errors)
 
     if pages_script:
         require_web_typography(pages_js, pages_script, errors)

@@ -1,0 +1,29 @@
+{
+  "name": "metadata.gather.evidence.query",
+  "description": "查询外部元数据采集任务回执和生成证据；采集状态只作为 projection，不反向改变资源业务状态。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "resource_code": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "metadata.gather.evidence.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

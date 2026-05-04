@@ -38,10 +38,22 @@
       "owner_org_id": {
         "type": "string"
       },
+      "owner_org_snapshot_json": {
+        "type": "object"
+      },
+      "region_code": {
+        "type": "string"
+      },
       "catalog_code": {
         "type": "string"
       },
       "summary_json": {
+        "type": "object"
+      },
+      "access_policy_json": {
+        "type": "object"
+      },
+      "qos_policy_json": {
         "type": "object"
       },
       "channel_binding": {

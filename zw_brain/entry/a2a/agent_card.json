@@ -21,7 +21,27 @@
       "mode": "read"
     },
     {
+      "id": "catalog.entry.query",
+      "mode": "read"
+    },
+    {
+      "id": "catalog.group.query",
+      "mode": "read"
+    },
+    {
+      "id": "catalog.model.field.query",
+      "mode": "read"
+    },
+    {
+      "id": "catalog.model.query",
+      "mode": "read"
+    },
+    {
       "id": "catalog.resource_view",
+      "mode": "read"
+    },
+    {
+      "id": "catalog.share_zone.query",
       "mode": "read"
     },
     {
@@ -46,6 +66,30 @@
     },
     {
       "id": "governance.dispute_view",
+      "mode": "read"
+    },
+    {
+      "id": "metadata.catalog_item.query",
+      "mode": "read"
+    },
+    {
+      "id": "metadata.gather.evidence.query",
+      "mode": "read"
+    },
+    {
+      "id": "metadata.lineage.query",
+      "mode": "read"
+    },
+    {
+      "id": "metadata.schema.query",
+      "mode": "read"
+    },
+    {
+      "id": "ops.catalog.quality.query",
+      "mode": "read"
+    },
+    {
+      "id": "ops.catalog.statistics.query",
       "mode": "read"
     },
     {
@@ -77,6 +121,10 @@
       "mode": "read"
     },
     {
+      "id": "resource.asset.query",
+      "mode": "read"
+    },
+    {
       "id": "system.schema_info",
       "mode": "read"
     },
@@ -97,6 +145,14 @@
       "mode": "read"
     },
     {
+      "id": "application.resource.review",
+      "mode": "write"
+    },
+    {
+      "id": "application.resource.submit",
+      "mode": "write"
+    },
+    {
       "id": "approval.review_decide",
       "mode": "write"
     },
@@ -105,11 +161,47 @@
       "mode": "write"
     },
     {
+      "id": "catalog.entry.create_draft",
+      "mode": "write"
+    },
+    {
+      "id": "catalog.entry.publish",
+      "mode": "write"
+    },
+    {
+      "id": "catalog.entry.review",
+      "mode": "write"
+    },
+    {
+      "id": "catalog.entry.submit_review",
+      "mode": "write"
+    },
+    {
+      "id": "catalog.entry.withdraw",
+      "mode": "write"
+    },
+    {
       "id": "catalog.manage_entry",
       "mode": "write"
     },
     {
+      "id": "catalog.model.upsert",
+      "mode": "write"
+    },
+    {
+      "id": "catalog.resource.bind",
+      "mode": "write"
+    },
+    {
+      "id": "catalog.schema.mapping.upsert",
+      "mode": "write"
+    },
+    {
       "id": "compliance.investigate_case",
+      "mode": "write"
+    },
+    {
+      "id": "delivery.access.grant",
       "mode": "write"
     },
     {
@@ -118,6 +210,22 @@
     },
     {
       "id": "delivery.trigger_recovery",
+      "mode": "write"
+    },
+    {
+      "id": "metadata.gather.evidence.upsert",
+      "mode": "write"
+    },
+    {
+      "id": "metadata.lineage.upsert",
+      "mode": "write"
+    },
+    {
+      "id": "metadata.schema.snapshot.upsert",
+      "mode": "write"
+    },
+    {
+      "id": "ops.catalog.quality.upsert",
       "mode": "write"
     },
     {
@@ -186,6 +294,18 @@
     },
     {
       "id": "resource.api.withdraw",
+      "mode": "write"
+    },
+    {
+      "id": "resource.asset.publish",
+      "mode": "write"
+    },
+    {
+      "id": "resource.asset.review",
+      "mode": "write"
+    },
+    {
+      "id": "resource.asset.submit_review",
       "mode": "write"
     },
     {

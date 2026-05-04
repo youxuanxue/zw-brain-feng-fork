@@ -1,0 +1,23 @@
+{
+  "skill_id": "catalog.model.field.query",
+  "slug": "catalog.model.field.query",
+  "title": "查询目录模型字段",
+  "description": "查询目录/台账模板字段口径、敏感级别和策略摘要。",
+  "version": "1.0.0",
+  "input_schema": { "type": "object", "required": ["model_code"], "properties": { "model_code": { "type": "string", "minLength": 1 }, "role": { "type": "string" } } },
+  "output_schema": { "type": "object", "properties": { "items": { "type": "array", "items": { "type": "object" } }, "total": { "type": "integer" } } },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-trace",
+  "execution_binding": "builtin",
+  "compatibility": ["webui", "api", "cli", "mcp", "a2a"],
+  "runtime_binding": { "kind": "brain_service", "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill", "method": "catalog.model.field.query" },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": ["catalog.model.field.query.execute"],
+  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "registry_source": "internal",
+  "tags": ["catalog", "model", "field", "read"]
+}

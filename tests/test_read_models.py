@@ -90,6 +90,7 @@ def test_repository_backed_discovery_reads_include_projected_data() -> None:
         store = DatabaseStore()
         audit_bus.configure_sink(store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=store))
+        store.sync_aggregate_tables(service.snapshot())
 
         results = service.invoke_skill("data.search", {"query": "法人"})
         resource = service.invoke_skill("catalog.resource_view", {"resource_id": "res-jbxx-ledger"})
@@ -218,6 +219,7 @@ def test_governance_list_exposes_alert_ticket_and_knowledge_payloads() -> None:
         store = DatabaseStore()
         audit_bus.configure_sink(store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=store))
+        store.sync_aggregate_tables(service.snapshot())
 
         disputes = service.invoke_skill("governance.dispute_list", {})
         dispute = next(item for item in disputes["items"] if item["id"] == "DSP-2026-04-25-0003")

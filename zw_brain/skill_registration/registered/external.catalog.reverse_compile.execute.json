@@ -1,0 +1,117 @@
+{
+  "skill_id": "external.catalog.reverse_compile.execute",
+  "slug": "external.catalog.reverse_compile.execute",
+  "title": "外部反向编目执行契约",
+  "description": "声明外部反向编目/智能编目执行器的输入输出边界；建议结果只能进入草稿、schema mapping 或人工确认证据，不能自动发布。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "compile_ref",
+      "source_system_ref",
+      "tenant_id"
+    ],
+    "properties": {
+      "compile_ref": {
+        "type": "string"
+      },
+      "source_system_ref": {
+        "type": "string"
+      },
+      "candidate_scope_json": {
+        "type": "object"
+      },
+      "callback_skill_id": {
+        "type": "string",
+        "enum": [
+          "catalog.entry.create_draft",
+          "catalog.resource.bind"
+        ]
+      },
+      "tenant_id": {
+        "type": "string"
+      },
+      "actor_ref": {
+        "type": "string"
+      },
+      "idempotency_key": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "status",
+      "callback_skill_id"
+    ],
+    "properties": {
+      "compile_ref": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "candidate_catalog_json": {
+        "type": "object"
+      },
+      "confidence_summary": {
+        "type": "string"
+      },
+      "evidence_json": {
+        "type": "object"
+      },
+      "callback_skill_id": {
+        "type": "string"
+      },
+      "failure_callback_json": {
+        "type": "object",
+        "properties": {
+          "callback_skill_id": {
+            "type": "string"
+          },
+          "error_summary": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "side_effects": [
+    "external_execution",
+    "audit",
+    "evidence_callback"
+  ],
+  "tenant_scope": "tenant",
+  "auth_policy": "service",
+  "human_confirmation_required": false,
+  "audit_class": "external-execution",
+  "execution_binding": "external_capability",
+  "compatibility": [],
+  "runtime_binding": {
+    "kind": "external_capability",
+    "surface_entry": "registered_external_executor",
+    "method": "external.catalog.reverse_compile.execute",
+    "callback_skill_id": "catalog.entry.create_draft",
+    "canonical_write_policy": "callback_only",
+    "failure_callback_required": true
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "external_contract",
+  "tags": [
+    "external",
+    "catalog",
+    "reverse",
+    "contract"
+  ]
+}

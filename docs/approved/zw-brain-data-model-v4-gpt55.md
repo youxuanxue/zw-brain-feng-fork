@@ -167,18 +167,18 @@ phase_after_approval: Phase 0 / Wave 0（先打通 Catalog → Application → A
 
 ### 3.1 概念层 → 聚合层 → 物理表组
 
-| 概念层 | Phase 1 聚合边界 | 主要新表 | 主要 legacy 来源 |
+| 概念层 | Phase 1 聚合边界 | 主要新表 | legacy 来源类别 |
 |------|----------------|---------|----------------|
-| `CatalogModel` | `CatalogResourceAggregate` | `catalog_model`, `catalog_model_step`, `catalog_model_field` | `model_catalog_template`, `model_catalog_step`, `model_properties`, `model_catalog_properties`, `model_catalog_column_properties` |
-| `Catalog` | `CatalogResourceAggregate` | `catalog_entry`, `catalog_entry_version`, `catalog_item` | `data_catalog`, `data_catalog_version`, `data_catalog_column`, `dc_catalog`, `dc_catalog_item`, `data_basic_elem_catalog*` |
-| `Resource` | `CatalogResourceAggregate` | `resource_asset`, `resource_channel_binding` | `data_resource*`, `ApiServiceInfo`, `ApiInputParam`, `base_system_info`, `RcResource` |
-| `Application` | `ApplicationApprovalAggregate` | `application_record`, `application_attachment` | `data_apply`, `supply_apply_info`, `resource_application_info`, `ResourceApplied` |
-| `ApprovalTask` | `ApplicationApprovalAggregate` | `approval_case`, `approval_step`, `approval_decision` | `data_catalog_approve`, `data_resource_approve`, `ReqApprove`, `app_audit_info`, 各类审批流表 |
-| `DeliveryTask` | `DeliveryAggregate` | `delivery_task`, `delivery_attempt`, `delivery_receipt`, `delivery_subscription` | `dc_resource_apply_info`, `dc_subscribe`, `Pipelines`, `PipelinesSubscribe`, `SubscribeJob`, `data_cascade_*`, `block_apply` |
-| `ObjectionCase` | `ObjectionAggregate` | `objection_case`, `objection_evidence`, `objection_process`, `objection_evaluation` | `data_objection*`, `data_interact_feedback`, `CorrectionFeedBack` |
-| `AuditEvent` | `AuditAggregate` | `capability_call`, `audit_event`, `audit_receipt`, `anchor_outbox` | `user_operation_log`, `sys_log`, `data_cascade_record_log`, `data_cascade_interface_log`, `block_*_log` |
+| `CatalogModel` | `CatalogResourceAggregate` | `catalog_model`, `catalog_model_step`, `catalog_model_field` | 目录模板、字段配置与标准业务表；catalog3 / metadata3 专题细节以 `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md` 为准 |
+| `Catalog` | `CatalogResourceAggregate` | `catalog_entry`, `catalog_entry_version`, `catalog_item` | 目录本体、目录版本、目录信息项与基本要素目录证据；专题细节以 reconstruction plan 为准 |
+| `Resource` | `CatalogResourceAggregate` | `resource_asset`, `resource_channel_binding` | 数据资源、API 服务、库表/文件/链接资源与通道绑定证据；dataservice 与 catalog/metadata 专题细节分别以 reconstructs 文档为准 |
+| `Application` | `ApplicationApprovalAggregate` | `application_record`, `application_attachment` | 资源申请、供需申请、附件与申请函证据；专题细节以 reconstructs 文档为准 |
+| `ApprovalTask` | `ApplicationApprovalAggregate` | `approval_case`, `approval_step`, `approval_decision` | 目录、资源、服务、应用和通用审批流证据；专题细节以 reconstructs 文档为准 |
+| `DeliveryTask` | `DeliveryAggregate` | `delivery_task`, `delivery_attempt`, `delivery_receipt`, `delivery_subscription` | 交换、订阅、级联、区块链与交付回执证据 |
+| `ObjectionCase` | `ObjectionAggregate` | `objection_case`, `objection_evidence`, `objection_process`, `objection_evaluation` | 异议、互动反馈与纠错证据 |
+| `AuditEvent` | `AuditAggregate` | `capability_call`, `audit_event`, `audit_receipt`, `anchor_outbox` | 操作日志、系统日志、级联日志、区块链日志证据 |
 | `CapabilityPackage` | `CapabilityRegistryAggregate` | `capability_package`, `capability_version`, `capability_exposure`, `capability_review_record`, `tenant_capability_policy` | 外部 package manifest, hub-compatible package 元数据 |
-| `TenantOrg` | `CapabilityRegistryAggregate` / shared substrate | `tenant_org_projection` | `sys_department`, `sys_region`, `portal_organization`, `block_org` |
+| `TenantOrg` | `CapabilityRegistryAggregate` / shared substrate | `tenant_org_projection` | 组织、区划与租户投影证据 |
 
 > 口径说明：`TenantOrg` 在概念上仍属于平台底座 / registry 相关治理上下文，而 `tenant_org_projection` 在物理上放入 `brain_core`，只是为了让主旅程查询、审批路由与历史回放获得稳定本地投影；它不是 IAM 权威源，也不改变 `TenantOrg` 的平台底座属性。
 
@@ -333,7 +333,7 @@ legacy 对应：`sys_department`, `sys_region`, `portal_organization`, `block_or
 - `UNIQUE (storage_provider, bucket, object_key)`
 - `INDEX (tenant_id, created_at)`
 
-legacy 对应：`attachment_info`, `sys_file`, `data_resource_file`, `file_store`
+legacy 对应：附件与对象存储类 legacy 证据；catalog / metadata / dataservice 专题字段映射以 `docs/reconstructs/*` 为准。
 
 ---
 
@@ -362,7 +362,7 @@ legacy 对应：`attachment_info`, `sys_file`, `data_resource_file`, `file_store
 - `UNIQUE (tenant_id, model_code)`
 - `INDEX (tenant_id, status)`
 
-legacy 对应：`model_catalog_template`, `data_catalog_category`, `data_basic_elem_catalog`
+legacy 对应：目录模型、目录分类与标准目录类证据；catalog3 / metadata3 专题字段映射以 `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md` 为准。
 
 #### 6.1.4 `catalog_model_step`
 
@@ -383,7 +383,7 @@ legacy 对应：`model_catalog_template`, `data_catalog_category`, `data_basic_e
 - `UNIQUE (model_id, step_key)`
 - `INDEX (model_id, sort_order)`
 
-legacy 对应：`model_catalog_step`
+legacy 对应：目录编制步骤类证据；catalog3 / metadata3 专题字段映射以 `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md` 为准。
 
 #### 6.1.5 `catalog_model_field`
 
@@ -414,7 +414,7 @@ legacy 对应：`model_catalog_step`
 - `UNIQUE (model_id, field_scope, field_code)`
 - `INDEX (model_id, step_id, display_order)`
 
-legacy 对应：`model_properties`, `model_catalog_properties`, `model_catalog_column_properties`, `model_dimension`
+legacy 对应：目录字段、维度和表单属性类证据；catalog3 / metadata3 专题字段映射以 `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md` 为准。
 
 ---
 
@@ -456,7 +456,7 @@ legacy 对应：`model_properties`, `model_catalog_properties`, `model_catalog_c
 - `INDEX (tenant_id, owner_org_id, lifecycle_status)`
 - `GIN (subject_tags)`
 
-legacy 对应：`data_catalog`, `dc_catalog`, `cata_catalog`, `StandardCatalog`, `Catalog`
+legacy 对应：目录本体类证据；catalog3 / metadata3 专题字段映射以 `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md` 为准。
 
 #### 6.1.7 `catalog_entry_version`
 
@@ -479,7 +479,7 @@ legacy 对应：`data_catalog`, `dc_catalog`, `cata_catalog`, `StandardCatalog`,
 - `UNIQUE (catalog_id, version_no)`
 - `INDEX (catalog_id, created_at DESC)`
 
-legacy 对应：`data_catalog_version`, `StandardCatalogVersion`, `CatalogVersion`, `data_catalog_column_version`
+legacy 对应：目录版本与信息项版本类证据；catalog3 / metadata3 专题字段映射以 `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md` 为准。
 
 #### 6.1.8 `catalog_item`
 
@@ -507,7 +507,7 @@ legacy 对应：`data_catalog_version`, `StandardCatalogVersion`, `CatalogVersio
 - `UNIQUE (catalog_id, item_code)`
 - `INDEX (catalog_id, display_order)`
 
-legacy 对应：`data_catalog_column`, `StandardCatalogColumn`, `CatalogColumn`, `dc_catalog_item`, `data_basic_elem_catalog_item`
+legacy 对应：目录信息项、字段口径与标准字段类证据；catalog3 / metadata3 专题字段映射以 `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md` 为准。
 
 ---
 
@@ -542,7 +542,7 @@ legacy 对应：`data_catalog_column`, `StandardCatalogColumn`, `CatalogColumn`,
 - `INDEX (tenant_id, catalog_id, status)`
 - `INDEX (tenant_id, owner_org_id, resource_kind, status)`
 
-legacy 对应：`data_resource`, `data_resource_table`, `data_resource_api`, `RcResource`, `ApiServiceInfo`
+legacy 对应：资源本体、库表/API/文件通道与服务资源类证据；dataservice 与 catalog3 / metadata3 专题字段映射分别以 `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md`、`docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md` 为准。
 
 #### 6.1.10 `resource_channel_binding`
 
@@ -607,7 +607,7 @@ legacy 对应：`ApiServiceNode`, `ApiInputParam`, `ApiServiceGeneral`, `base_sy
 - `INDEX (resource_id, status)`
 - `GIN (requested_items)`
 
-legacy 对应：`data_apply`, `supply_apply_info`, `resource_application_info`, `ResourceApplied`, `dc_resource_apply_info`
+legacy 对应：申请、资源申请和交换申请类证据；catalog3 / metadata3 与 dataservice 专题字段映射分别以对应 `docs/reconstructs/*` 文档为准。
 
 #### 6.1.12 `application_attachment`
 
@@ -657,7 +657,7 @@ legacy 对应：`attachment_info`, `official_file`, `supply_document`
 - `INDEX (tenant_id, current_status, submitted_at DESC)`
 - `INDEX (target_type, target_id)`
 
-legacy 对应：`data_catalog_approve`, `data_resource_approve`, `ReqApprove`, `app_audit_info`, `supply_review_info`
+legacy 对应：审批流程、审批节点、审批意见与待办流转类证据；catalog3 / metadata3 与 dataservice 专题字段映射分别以对应 `docs/reconstructs/*` 文档为准。
 
 #### 6.1.14 `approval_step`
 
@@ -1393,27 +1393,13 @@ resolved  → closed
 4. **状态机优先。** 凡旧表承载状态迁移语义，必须先映射到新状态机，再决定字段落点。
 5. **前台低频岛不进入 core。** 只在确有高频价值时进 read model 或外部 capability。
 
-### 9.2 目录/资源域映射
+### 9.2 dsp-catalog3 / dsp-metadata3 目录资源治理补充映射
 
-| legacy 表/模块 | 新表 | 说明 |
-|---------------|------|------|
-| `model_catalog_template` | `catalog_model` | 模板定义保留为一等实体 |
-| `model_catalog_step` | `catalog_model_step` | 步骤语义直接保留 |
-| `model_properties` + `model_catalog_properties` + `model_catalog_column_properties` | `catalog_model_field` | 收敛为统一字段模型 |
-| `data_catalog` / `dc_catalog` / `cata_catalog` | `catalog_entry` | 合并目录主实体 |
-| `data_catalog_version` | `catalog_entry_version` | 保留版本快照 |
-| `data_catalog_column` / `dc_catalog_item` | `catalog_item` | 统一信息项模型 |
-| `data_resource*` / `ApiServiceInfo` | `resource_asset` + `resource_channel_binding` | 资源本体与交付绑定拆开 |
+`dsp-catalog3` 与 `dsp-metadata3` 的专题迁移映射、旧结构数据证据、字段级规则、真实工单模式、原生能力边界和 ANP 外化边界，以 `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md` 为单一事实源。
 
-### 9.3 申请/审批域映射
+本基线只保留 canonical 约束：专题事实必须落入 `CatalogResourceAggregate`、`ApplicationApprovalAggregate`、`DeliveryAggregate`、`AuditAggregate` 以及受控 evidence / projection；不得把旧 catalog / metadata 后台、旧 URL、旧表结构或外部执行器升级为并列事实源。
 
-| legacy 表/模块 | 新表 | 说明 |
-|---------------|------|------|
-| `data_apply` / `supply_apply_info` / `resource_application_info` | `application_record` | 统一申请单 |
-| `attachment_info` / 申请函字段 | `application_attachment` + `blob_object` | 附件统一收口 |
-| `data_catalog_approve` / `data_resource_approve` / `app_audit_info` | `approval_case` + `approval_step` + `approval_decision` | 审批体系统一建模 |
-
-### 9.4 交付/交换域映射
+### 9.3 交付/交换域映射
 
 | legacy 表/模块 | 新表 | 说明 |
 |---------------|------|------|
@@ -1423,7 +1409,7 @@ resolved  → closed
 | 国家平台 / 级联接口回执字段 | `delivery_receipt` | 交付回执单独建模 |
 | `base_message_info` / `data_message_info` | `delivery_notice_projection` | 仅作为通知投影 legacy 来源，不作为交付事实源 |
 
-### 9.5 异议域映射
+### 9.4 异议域映射
 
 | legacy 表/模块 | 新表 | 说明 |
 |---------------|------|------|
@@ -1432,7 +1418,7 @@ resolved  → closed
 | `data_objection_process` | `objection_process` | 流程轨迹保留 |
 | `data_objection_evaluate` | `objection_evaluation` | 评价独立建模 |
 
-### 9.6 审计/区块链映射
+### 9.5 审计/区块链映射
 
 | legacy 表/模块 | 新表 | 说明 |
 |---------------|------|------|
@@ -1441,7 +1427,7 @@ resolved  → closed
 | `block_success_log` / `block_err_log` / `block_apilog` | `audit_receipt` + `anchor_outbox` | 外链结果不再散落到业务表 |
 | `block_catalog` / `block_apply` / `block_resource` | `audit_receipt` 的 payload 来源 | 作为外链确认，不作为主业务状态机 |
 
-### 9.7 dsp-dataservice 服务治理补充映射
+### 9.6 dsp-dataservice 服务治理补充映射
 
 `dsp-dataservice` 的服务治理迁移映射、旧结构数据证据、字段级规则和能力边界，以 `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md` 为单一事实源。本基线只约束它必须落入以下 canonical 聚合与投影边界：
 
@@ -1452,7 +1438,7 @@ resolved  → closed
 - 日志上链按 `anchor_outbox` + `audit_receipt` 处理，外链结果不反向驱动业务状态。
 - 密钥、内部地址、工单个人信息不得明文进入 canonical DB、文档或日志。
 
-### 9.8 租户/组织/权限映射
+### 9.7 租户/组织/权限映射
 
 | legacy 表/模块 | 新表 | 说明 |
 |---------------|------|------|
@@ -1477,7 +1463,7 @@ resolved  → closed
 
 | Capability | 目标聚合 | 主状态变化 | 审计事件 | 回执 |
 |-----------|---------|-----------|---------|------|
-| `catalog.publish` | `catalog_entry` | `draft → pending_review → published` | `catalog.publish.requested` / `catalog.published` | 审批回执 |
+| `catalog.entry.publish` | `catalog_entry` | `approved_pending_publish → active` | `catalog.entry.publish` | 审批回执 |
 | `resource.apply` | `application_record` | `draft → submitted` | `application.submitted` | 人工确认回执 |
 | `approval.decide` | `approval_case` + 目标实体 | `pending_decision → approved/rejected/returned_for_supplement` | `approval.decided` | 审批决策回执 |
 | `delivery.provision` | `delivery_task` | `pending → provisioning/running` | `delivery.provision.started` | 交付回执 |

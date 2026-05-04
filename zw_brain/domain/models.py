@@ -76,6 +76,40 @@ class CapabilityManifestRecord(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 
 
+class CatalogModelRecord(Base):
+    __tablename__ = "catalog_model"
+    __table_args__ = (UniqueConstraint("tenant_id", "model_code", name="uq_catalog_model_tenant_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    model_code: Mapped[str] = mapped_column(String(64), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(32), index=True, default="draft")
+    owner_org_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    model_schema_json: Mapped[dict] = mapped_column(JSON)
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class CatalogModelFieldRecord(Base):
+    __tablename__ = "catalog_model_field"
+    __table_args__ = (UniqueConstraint("tenant_id", "model_code", "field_code", name="uq_catalog_model_field_tenant_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    model_code: Mapped[str] = mapped_column(String(64), index=True)
+    field_code: Mapped[str] = mapped_column(String(64), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    data_type: Mapped[str] = mapped_column(String(64), default="string")
+    sensitive_level: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    field_policy_json: Mapped[dict] = mapped_column(JSON)
+    display_order: Mapped[int] = mapped_column(Integer, default=0)
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
 class CatalogEntryRecord(Base):
     __tablename__ = "catalog_entry"
 
@@ -85,7 +119,41 @@ class CatalogEntryRecord(Base):
     title: Mapped[str] = mapped_column(String(200))
     lifecycle_status: Mapped[str] = mapped_column(String(32), index=True)
     owner_org_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    region_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     summary_json: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class CatalogEntryVersionRecord(Base):
+    __tablename__ = "catalog_entry_version"
+    __table_args__ = (UniqueConstraint("tenant_id", "catalog_code", "version_no", name="uq_catalog_entry_version_tenant_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    catalog_code: Mapped[str] = mapped_column(String(64), index=True)
+    version_no: Mapped[str] = mapped_column(String(64))
+    version_status: Mapped[str] = mapped_column(String(32), index=True)
+    snapshot_json: Mapped[dict] = mapped_column(JSON)
+    audit_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class CatalogItemRecord(Base):
+    __tablename__ = "catalog_item"
+    __table_args__ = (UniqueConstraint("tenant_id", "item_code", name="uq_catalog_item_tenant_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    item_code: Mapped[str] = mapped_column(String(64), index=True)
+    catalog_code: Mapped[str] = mapped_column(String(64), index=True)
+    resource_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    item_kind: Mapped[str] = mapped_column(String(32), index=True)
+    display_order: Mapped[int] = mapped_column(Integer, default=0)
+    summary_json: Mapped[dict] = mapped_column(JSON)
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 
@@ -101,7 +169,11 @@ class ResourceAssetRecord(Base):
     title: Mapped[str] = mapped_column(String(200))
     lifecycle_status: Mapped[str] = mapped_column(String(32), index=True)
     owner_org_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    owner_org_snapshot_json: Mapped[dict] = mapped_column(JSON)
+    region_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     catalog_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    access_policy_json: Mapped[dict] = mapped_column(JSON)
+    qos_policy_json: Mapped[dict] = mapped_column(JSON)
     source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
     summary_json: Mapped[dict] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
@@ -118,6 +190,8 @@ class ResourceChannelBindingRecord(Base):
     resource_code: Mapped[str] = mapped_column(String(64), index=True)
     channel_kind: Mapped[str] = mapped_column(String(64))
     route_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    endpoint_ref: Mapped[dict] = mapped_column(JSON)
+    schema_ref: Mapped[dict] = mapped_column(JSON)
     auth_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
     request_schema_json: Mapped[dict] = mapped_column(JSON)
     response_schema_json: Mapped[dict] = mapped_column(JSON)
@@ -126,6 +200,105 @@ class ResourceChannelBindingRecord(Base):
     source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class ResourceSchemaMappingRecord(Base):
+    __tablename__ = "resource_schema_mapping"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "catalog_item_code",
+            "resource_code",
+            "binding_code",
+            "status",
+            name="uq_resource_schema_mapping_current",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    mapping_code: Mapped[str] = mapped_column(String(128), index=True)
+    catalog_code: Mapped[str] = mapped_column(String(64), index=True)
+    catalog_item_code: Mapped[str] = mapped_column(String(64), index=True)
+    resource_code: Mapped[str] = mapped_column(String(64), index=True)
+    binding_code: Mapped[str] = mapped_column(String(64), index=True)
+    source_schema_ref: Mapped[dict] = mapped_column(JSON)
+    mapping_rule_json: Mapped[dict] = mapped_column(JSON)
+    confidence_level: Mapped[str] = mapped_column(String(32), index=True, default="confirmed")
+    evidence_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), index=True, default="active")
+    confirmed_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class ResourceSchemaSnapshotRecord(Base):
+    __tablename__ = "resource_schema_snapshot"
+    __table_args__ = (UniqueConstraint("tenant_id", "snapshot_ref", name="uq_resource_schema_snapshot_tenant_ref"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    snapshot_ref: Mapped[str] = mapped_column(String(128), index=True)
+    resource_code: Mapped[str] = mapped_column(String(64), index=True)
+    binding_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    schema_json: Mapped[dict] = mapped_column(JSON)
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    schema_hash: Mapped[str] = mapped_column(String(128), index=True)
+    captured_at: Mapped[datetime] = mapped_column(DateTime, default=_now, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class MetadataGatherEvidenceProjectionRecord(Base):
+    __tablename__ = "metadata_gather_evidence_projection"
+    __table_args__ = (UniqueConstraint("tenant_id", "gather_task_ref", name="uq_metadata_gather_tenant_task"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    gather_task_ref: Mapped[str] = mapped_column(String(128), index=True)
+    resource_code: Mapped[str] = mapped_column(String(64), index=True)
+    source_system_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    schema_snapshot_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), index=True)
+    error_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    evidence_json: Mapped[dict] = mapped_column(JSON)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now, index=True)
+
+
+class LineageRelationProjectionRecord(Base):
+    __tablename__ = "lineage_relation_projection"
+    __table_args__ = (UniqueConstraint("tenant_id", "relation_ref", name="uq_lineage_relation_tenant_ref"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    relation_ref: Mapped[str] = mapped_column(String(128), index=True)
+    relation_scope: Mapped[str] = mapped_column(String(32), index=True)
+    source_resource_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    source_schema_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    target_resource_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    target_schema_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    relation_type: Mapped[str] = mapped_column(String(64), index=True)
+    relation_rule_json: Mapped[dict] = mapped_column(JSON)
+    source_evidence_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now, index=True)
+
+
+class QualityEvidenceProjectionRecord(Base):
+    __tablename__ = "quality_evidence_projection"
+    __table_args__ = (UniqueConstraint("tenant_id", "quality_ref", name="uq_quality_evidence_tenant_ref"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    quality_ref: Mapped[str] = mapped_column(String(128), index=True)
+    target_type: Mapped[str] = mapped_column(String(64), index=True)
+    target_ref: Mapped[str] = mapped_column(String(128), index=True)
+    quality_status: Mapped[str] = mapped_column(String(32), index=True)
+    score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    evidence_json: Mapped[dict] = mapped_column(JSON)
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now, index=True)
 
 
 class ResourceApiTestProjectionRecord(Base):
@@ -172,6 +345,9 @@ class ServiceInvocationMetricProjectionRecord(Base):
             "capability_id",
             "provider_org_id",
             "consumer_org_id",
+            "provider_region_code",
+            "consumer_region_code",
+            "bucket_granularity",
             "time_bucket",
             name="uq_service_invocation_metric_identity",
         ),
@@ -184,14 +360,25 @@ class ServiceInvocationMetricProjectionRecord(Base):
     capability_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     provider_org_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     consumer_org_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    provider_region_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    consumer_region_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     consumer_region: Mapped[str | None] = mapped_column(String(64), nullable=True)
     consumer_app_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    bucket_granularity: Mapped[str] = mapped_column(String(32), default="day", index=True)
     time_bucket: Mapped[str] = mapped_column(String(32), index=True)
     invoke_count: Mapped[int] = mapped_column(Integer, default=0)
     success_count: Mapped[int] = mapped_column(Integer, default=0)
     failure_count: Mapped[int] = mapped_column(Integer, default=0)
+    provider_error_count: Mapped[int] = mapped_column(Integer, default=0)
+    consumer_error_count: Mapped[int] = mapped_column(Integer, default=0)
+    gateway_error_count: Mapped[int] = mapped_column(Integer, default=0)
+    other_error_count: Mapped[int] = mapped_column(Integer, default=0)
     error_count: Mapped[int] = mapped_column(Integer, default=0)
+    apply_count: Mapped[int] = mapped_column(Integer, default=0)
     avg_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    p95_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_error_code: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    last_error_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     source_event_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
     summary_json: Mapped[dict] = mapped_column(JSON)
     generated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now, index=True)

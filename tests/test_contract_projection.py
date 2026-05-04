@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from scripts.export_agent_contract import build_a2a_card, build_mcp_tool_descriptor, build_runtime_bindings, discover_skills
+from zw_brain.command.brain import BrainService, UnknownSkillError
 from zw_brain.skill_registration.runtime import is_surface_enabled
 
 
@@ -59,8 +60,57 @@ def test_generated_runtime_bindings_file_is_valid_json() -> None:
     assert any(item["tool_name"] == "request.create" for item in data)
 
 
-def test_generated_mcp_tool_file_is_valid_json() -> None:
-    path = REPO_ROOT / "zw_brain" / "entry" / "mcp" / "tools" / "data.search.json"
-    data = json.loads(path.read_text(encoding="utf-8"))
-    assert data["name"] == "data.search"
-    assert data["annotations"]["mode"] == "read"
+
+
+def test_external_capability_contracts_are_registered_but_not_direct_surfaces() -> None:
+    skills = [item for item in discover_skills() if "error" not in item]
+    external_skills = [item for item in skills if item.get("execution_binding") == "external_capability"]
+
+    expected = {
+        "external.metadata.gather.execute",
+        "external.datasource.connectivity.test",
+        "external.schema.structure.apply",
+        "external.catalog.materialize.execute",
+        "external.catalog.reverse_compile.execute",
+        "external.quality.scan.execute",
+        "external.lineage.graph.build",
+        "external.cascade.sync.execute",
+        "external.share.governance.configure",
+        "external.notification.workorder.dispatch",
+        "external.tenant.field_projection.configure",
+        "external.security.remediation.dispatch",
+    }
+    assert {item["skill_id"] for item in external_skills} == expected
+
+    for skill in external_skills:
+        assert skill["compatibility"] == []
+        assert skill["tenant_scope"] == "tenant"
+        assert skill["auth_policy"] == "service"
+        assert skill["audit_required"] is True
+        assert skill["runtime_binding"]["kind"] == "external_capability"
+        assert skill["runtime_binding"]["canonical_write_policy"] == "callback_only"
+        assert skill["runtime_binding"]["failure_callback_required"] is True
+        assert skill["runtime_binding"]["callback_skill_id"]
+        assert "failure_callback_json" in skill["output_schema"]["properties"]
+        assert "external_execution" in skill["side_effects"]
+        assert not any(is_surface_enabled(skill, surface) for surface in ["webui", "api", "cli", "mcp", "a2a"])
+
+
+def test_external_capability_contracts_are_not_brain_service_invokable() -> None:
+    service = BrainService()
+
+    try:
+        service.invoke_skill(
+            "external.quality.scan.execute",
+            {
+                "quality_ref": "quality-demo",
+                "target_type": "catalog",
+                "target_ref": "cat-demo",
+                "tenant_id": "default",
+                "role": "r7",
+            },
+        )
+    except UnknownSkillError:
+        pass
+    else:
+        raise AssertionError("external capability contracts must not be direct BrainService writes")

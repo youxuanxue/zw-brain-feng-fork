@@ -111,6 +111,66 @@ def test_rest_runtime_exposes_openapi_and_capability_endpoints() -> None:
             runtime._service = None
 
 
+def test_rest_runtime_webui_canonical_catalog_metadata_actions_execute() -> None:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+        runtime._service = None
+        ensure_runtime_schema()
+        engine = create_engine(f"sqlite:///{db_path}", future=True)
+        Base.metadata.create_all(bind=engine)
+
+        from http.server import HTTPServer
+        from threading import Thread
+
+        server = HTTPServer(("127.0.0.1", 0), RestHandler)
+        port = server.server_address[1]
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            status, request_created = request_json(
+                "POST",
+                f"http://127.0.0.1:{port}/api/skills/application.resource.submit",
+                {
+                    "resource_id": "res-market-activity",
+                    "query": "我要发起市场主体活跃度复用申请",
+                    "role": "r1",
+                    "confirmed": True,
+                },
+            )
+            assert status == 200
+            assert request_created["result"]["status"] == "pending"
+
+            status, catalog_published = request_json(
+                "POST",
+                f"http://127.0.0.1:{port}/api/skills/catalog.entry.publish",
+                {"catalog_code": "cat-business", "role": "r7", "confirmed": True},
+            )
+            assert status == 200
+            assert catalog_published["result"]["lifecycle_status"] == "active"
+
+            status, resource_published = request_json(
+                "POST",
+                f"http://127.0.0.1:{port}/api/skills/resource.asset.publish",
+                {"resource_code": "res-company-visit", "role": "r7", "confirmed": True},
+            )
+            assert status == 200
+            assert resource_published["result"]["lifecycle_status"] == "active"
+
+            status, grant = request_json(
+                "POST",
+                f"http://127.0.0.1:{port}/api/skills/delivery.access.grant",
+                {"task_id": "DLV-2026-04-24-0008", "role": "r6", "confirmed": True},
+            )
+            assert status == 200
+            assert grant["result"]["status"] == "completed"
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+            runtime._service = None
+
+
 def test_rest_runtime_serves_main_webui_shell_and_enforces_access_denied() -> None:
     with TemporaryDirectory() as tmp:
         db_path = Path(tmp) / "zw_brain.db"

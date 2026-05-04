@@ -1,0 +1,72 @@
+{
+  "skill_id": "catalog.share_zone.query",
+  "slug": "catalog.share_zone.query",
+  "title": "查询共享专区投影",
+  "description": "查询共享专区专题入口和信任说明，不创建第二套目录事实源。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "total": {
+        "type": "integer"
+      },
+      "result": {
+        "type": "object"
+      },
+      "ok": {
+        "type": "boolean"
+      },
+      "summary": {
+        "type": "object"
+      }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-trace",
+  "execution_binding": "builtin",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "catalog.share_zone.query"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [
+    "catalog.share_zone.query.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "catalog",
+    "share_zone",
+    "query",
+    "read"
+  ]
+}

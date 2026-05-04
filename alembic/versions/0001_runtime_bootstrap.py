@@ -86,6 +86,7 @@ def upgrade() -> None:
         sa.Column("title", sa.String(length=200), nullable=False),
         sa.Column("lifecycle_status", sa.String(length=32), nullable=False),
         sa.Column("owner_org_id", sa.String(length=64), nullable=True),
+        sa.Column("region_code", sa.String(length=64), nullable=True),
         sa.Column("summary_json", sa.JSON(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
@@ -93,6 +94,28 @@ def upgrade() -> None:
     op.create_index("ix_catalog_entry_tenant_id", "catalog_entry", ["tenant_id"])
     op.create_index("ix_catalog_entry_catalog_code", "catalog_entry", ["catalog_code"])
     op.create_index("ix_catalog_entry_lifecycle_status", "catalog_entry", ["lifecycle_status"])
+    op.create_index("ix_catalog_entry_region_code", "catalog_entry", ["region_code"])
+    op.create_table(
+        "catalog_item",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("tenant_id", sa.String(length=64), nullable=False),
+        sa.Column("item_code", sa.String(length=64), nullable=False),
+        sa.Column("catalog_code", sa.String(length=64), nullable=False),
+        sa.Column("resource_code", sa.String(length=64), nullable=True),
+        sa.Column("title", sa.String(length=200), nullable=False),
+        sa.Column("item_kind", sa.String(length=32), nullable=False),
+        sa.Column("display_order", sa.Integer(), nullable=False),
+        sa.Column("summary_json", sa.JSON(), nullable=False),
+        sa.Column("source_ref", sa.String(length=128), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.UniqueConstraint("tenant_id", "item_code", name="uq_catalog_item_tenant_code"),
+    )
+    op.create_index("ix_catalog_item_tenant_id", "catalog_item", ["tenant_id"])
+    op.create_index("ix_catalog_item_item_code", "catalog_item", ["item_code"])
+    op.create_index("ix_catalog_item_catalog_code", "catalog_item", ["catalog_code"])
+    op.create_index("ix_catalog_item_resource_code", "catalog_item", ["resource_code"])
+    op.create_index("ix_catalog_item_item_kind", "catalog_item", ["item_kind"])
     op.create_table(
         "resource_asset",
         sa.Column("id", sa.String(length=36), primary_key=True),
@@ -102,7 +125,11 @@ def upgrade() -> None:
         sa.Column("title", sa.String(length=200), nullable=False),
         sa.Column("lifecycle_status", sa.String(length=32), nullable=False),
         sa.Column("owner_org_id", sa.String(length=64), nullable=True),
+        sa.Column("owner_org_snapshot_json", sa.JSON(), nullable=False),
+        sa.Column("region_code", sa.String(length=64), nullable=True),
         sa.Column("catalog_code", sa.String(length=64), nullable=True),
+        sa.Column("access_policy_json", sa.JSON(), nullable=False),
+        sa.Column("qos_policy_json", sa.JSON(), nullable=False),
         sa.Column("source_ref", sa.String(length=128), nullable=True),
         sa.Column("summary_json", sa.JSON(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
@@ -113,6 +140,7 @@ def upgrade() -> None:
     op.create_index("ix_resource_asset_resource_code", "resource_asset", ["resource_code"])
     op.create_index("ix_resource_asset_resource_kind", "resource_asset", ["resource_kind"])
     op.create_index("ix_resource_asset_lifecycle_status", "resource_asset", ["lifecycle_status"])
+    op.create_index("ix_resource_asset_region_code", "resource_asset", ["region_code"])
     op.create_table(
         "resource_channel_binding",
         sa.Column("id", sa.String(length=36), primary_key=True),
@@ -121,6 +149,8 @@ def upgrade() -> None:
         sa.Column("resource_code", sa.String(length=64), nullable=False),
         sa.Column("channel_kind", sa.String(length=64), nullable=False),
         sa.Column("route_ref", sa.String(length=255), nullable=True),
+        sa.Column("endpoint_ref", sa.JSON(), nullable=False),
+        sa.Column("schema_ref", sa.JSON(), nullable=False),
         sa.Column("auth_ref", sa.String(length=128), nullable=True),
         sa.Column("request_schema_json", sa.JSON(), nullable=False),
         sa.Column("response_schema_json", sa.JSON(), nullable=False),
@@ -186,14 +216,25 @@ def upgrade() -> None:
         sa.Column("capability_id", sa.String(length=128), nullable=True),
         sa.Column("provider_org_id", sa.String(length=64), nullable=True),
         sa.Column("consumer_org_id", sa.String(length=64), nullable=True),
+        sa.Column("provider_region_code", sa.String(length=64), nullable=True),
+        sa.Column("consumer_region_code", sa.String(length=64), nullable=True),
         sa.Column("consumer_region", sa.String(length=64), nullable=True),
         sa.Column("consumer_app_ref", sa.String(length=128), nullable=True),
+        sa.Column("bucket_granularity", sa.String(length=32), nullable=False),
         sa.Column("time_bucket", sa.String(length=32), nullable=False),
         sa.Column("invoke_count", sa.Integer(), nullable=False),
         sa.Column("success_count", sa.Integer(), nullable=False),
         sa.Column("failure_count", sa.Integer(), nullable=False),
+        sa.Column("provider_error_count", sa.Integer(), nullable=False),
+        sa.Column("consumer_error_count", sa.Integer(), nullable=False),
+        sa.Column("gateway_error_count", sa.Integer(), nullable=False),
+        sa.Column("other_error_count", sa.Integer(), nullable=False),
         sa.Column("error_count", sa.Integer(), nullable=False),
+        sa.Column("apply_count", sa.Integer(), nullable=False),
         sa.Column("avg_latency_ms", sa.Integer(), nullable=True),
+        sa.Column("p95_latency_ms", sa.Integer(), nullable=True),
+        sa.Column("last_error_code", sa.String(length=128), nullable=True),
+        sa.Column("last_error_at", sa.DateTime(), nullable=True),
         sa.Column("source_event_ref", sa.String(length=128), nullable=True),
         sa.Column("summary_json", sa.JSON(), nullable=False),
         sa.Column("generated_at", sa.DateTime(), nullable=False),
@@ -204,6 +245,9 @@ def upgrade() -> None:
             "capability_id",
             "provider_org_id",
             "consumer_org_id",
+            "provider_region_code",
+            "consumer_region_code",
+            "bucket_granularity",
             "time_bucket",
             name="uq_service_invocation_metric_identity",
         ),
@@ -214,6 +258,9 @@ def upgrade() -> None:
     op.create_index("ix_service_invocation_metric_projection_capability_id", "service_invocation_metric_projection", ["capability_id"])
     op.create_index("ix_service_invocation_metric_projection_provider_org_id", "service_invocation_metric_projection", ["provider_org_id"])
     op.create_index("ix_service_invocation_metric_projection_consumer_org_id", "service_invocation_metric_projection", ["consumer_org_id"])
+    op.create_index("ix_service_invocation_metric_projection_provider_region_code", "service_invocation_metric_projection", ["provider_region_code"])
+    op.create_index("ix_service_invocation_metric_projection_consumer_region_code", "service_invocation_metric_projection", ["consumer_region_code"])
+    op.create_index("ix_service_invocation_metric_projection_bucket_granularity", "service_invocation_metric_projection", ["bucket_granularity"])
     op.create_index("ix_service_invocation_metric_projection_time_bucket", "service_invocation_metric_projection", ["time_bucket"])
     op.create_index("ix_service_invocation_metric_projection_generated_at", "service_invocation_metric_projection", ["generated_at"])
     op.create_table(
@@ -461,8 +508,18 @@ def downgrade() -> None:
     op.drop_index("ix_application_record_application_code", table_name="application_record")
     op.drop_index("ix_application_record_tenant_id", table_name="application_record")
     op.drop_table("application_record")
+    op.drop_index("ix_catalog_entry_region_code", table_name="catalog_entry")
     op.drop_index("ix_catalog_entry_lifecycle_status", table_name="catalog_entry")
+    op.drop_index("ix_catalog_item_item_kind", table_name="catalog_item")
+    op.drop_index("ix_catalog_item_resource_code", table_name="catalog_item")
+    op.drop_index("ix_catalog_item_catalog_code", table_name="catalog_item")
+    op.drop_index("ix_catalog_item_item_code", table_name="catalog_item")
+    op.drop_index("ix_catalog_item_tenant_id", table_name="catalog_item")
+    op.drop_table("catalog_item")
     op.drop_index("ix_service_invocation_metric_projection_generated_at", table_name="service_invocation_metric_projection")
+    op.drop_index("ix_service_invocation_metric_projection_bucket_granularity", table_name="service_invocation_metric_projection")
+    op.drop_index("ix_service_invocation_metric_projection_consumer_region_code", table_name="service_invocation_metric_projection")
+    op.drop_index("ix_service_invocation_metric_projection_provider_region_code", table_name="service_invocation_metric_projection")
     op.drop_index("ix_service_invocation_metric_projection_time_bucket", table_name="service_invocation_metric_projection")
     op.drop_index("ix_service_invocation_metric_projection_consumer_org_id", table_name="service_invocation_metric_projection")
     op.drop_index("ix_service_invocation_metric_projection_provider_org_id", table_name="service_invocation_metric_projection")
@@ -490,6 +547,7 @@ def downgrade() -> None:
     op.drop_index("ix_resource_api_test_projection_test_ref", table_name="resource_api_test_projection")
     op.drop_index("ix_resource_api_test_projection_tenant_id", table_name="resource_api_test_projection")
     op.drop_table("resource_api_test_projection")
+    op.drop_index("ix_resource_asset_region_code", table_name="resource_asset")
     op.drop_index("ix_resource_asset_lifecycle_status", table_name="resource_asset")
     op.drop_index("ix_resource_asset_resource_kind", table_name="resource_asset")
     op.drop_index("ix_resource_asset_resource_code", table_name="resource_asset")

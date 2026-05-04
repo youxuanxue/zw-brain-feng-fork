@@ -20,6 +20,7 @@ from zw_brain.domain.repositories import (
     DeliveryRepository,
     GatewayRuntimeRepository,
     LegacyObjectMappingRepository,
+    MetadataEvidenceRepository,
     ObjectionRepository,
     ResourceApiRepository,
     ServiceInvocationMetricRepository,
@@ -41,6 +42,7 @@ class DatabaseStore:
         self.capability_package_repo = CapabilityPackageRepository()
         self.gateway_runtime_repo = GatewayRuntimeRepository()
         self.legacy_mapping_repo = LegacyObjectMappingRepository()
+        self.metadata_evidence_repo = MetadataEvidenceRepository()
         self.objection_repo = ObjectionRepository()
         self.resource_api_repo = ResourceApiRepository()
         self.service_invocation_repo = ServiceInvocationMetricRepository()
@@ -200,6 +202,33 @@ class DatabaseStore:
 
         for resource in snapshot.get("discovery", {}).get("resources", []):
             self.catalog_repo.upsert_from_resource(resource)
+        for catalog in snapshot.get("provider", {}).get("catalogs", []):
+            self.catalog_repo.upsert_from_resource(
+                {
+                    "id": catalog["id"],
+                    "name": catalog.get("name", catalog["id"]),
+                    "status": "approved_pending_publish" if catalog.get("status") != "已发布" else "active",
+                    "provider": catalog.get("owner", ""),
+                    "source_ref": catalog.get("source_ref") or f"provider:catalog:{catalog['id']}",
+                    "legacy_object_ref": catalog.get("legacy_object_ref") or catalog["id"],
+                    "summary_json": catalog,
+                }
+            )
+        for resource in snapshot.get("provider", {}).get("resources", []):
+            self.resource_api_repo.upsert_asset(
+                {
+                    "resource_code": resource["id"],
+                    "title": resource.get("name", resource["id"]),
+                    "resource_kind": "dataset",
+                    "lifecycle_status": "approved_pending_publish" if resource.get("status") != "可共享" else "active",
+                    "owner_org_id": resource.get("owner_org_id"),
+                    "source_ref": resource.get("source_ref") or f"provider:resource:{resource['id']}",
+                    "legacy_object_ref": resource.get("legacy_object_ref") or resource["id"],
+                    "summary_json": resource,
+                }
+            )
+        for item in snapshot.get("catalog_items", []) + snapshot.get("discovery", {}).get("catalog_items", []) + snapshot.get("provider", {}).get("catalog_items", []):
+            self.catalog_repo.upsert_item(item)
 
         approvals = {item["id"]: item for item in snapshot.get("approvals", [])}
         for request in snapshot.get("requests", []):

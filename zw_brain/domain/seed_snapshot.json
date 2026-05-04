@@ -881,6 +881,21 @@
         "updatedAt": "2026-04-23"
       }
     ],
+    "catalog_items": [
+      {
+        "item_code": "cat-jbxx-api-company-ledger",
+        "catalog_code": "res-jbxx-ledger",
+        "resource_code": "api-company-ledger",
+        "title": "法人单位基础信息 API 分组入口",
+        "item_kind": "api_group",
+        "display_order": 10,
+        "source_ref": "dsp-dataservice:api_group:company-ledger",
+        "legacy_object_ref": "api_group:company-ledger",
+        "summary_json": {
+          "purpose": "作为目录发现与搜索结构，不等同 API 服务本体"
+        }
+      }
+    ],
     "services": [
       {
         "id": "svc-ledger-prefill",
@@ -1587,7 +1602,21 @@
       "title": "法人单位基础信息 API",
       "lifecycle_status": "active",
       "owner_org_id": "org-market-regulator",
+      "owner_org_snapshot_json": {
+        "org_name": "区政数局",
+        "org_role": "API 服务提供方"
+      },
+      "region_code": "370100",
       "catalog_code": "res-jbxx-ledger",
+      "access_policy_json": {
+        "share_type": "conditional",
+        "open_type": "approved_request",
+        "privacy_data": "desensitized"
+      },
+      "qos_policy_json": {
+        "frequency_time": "minute",
+        "frequency_num": 1000
+      },
       "source_ref": "dsp-dataservice:api_service_info",
       "summary_json": {
         "domain": "法人基础信息",
@@ -1598,6 +1627,16 @@
           "binding_code": "bind-company-ledger",
           "channel_kind": "api_gateway",
           "route_ref": "gateway-route-ref-company-ledger",
+          "endpoint_ref": {
+            "rest_method": "POST",
+            "proxy_route_ref": "gateway-route-ref-company-ledger",
+            "version": "v1"
+          },
+          "schema_ref": {
+            "input_ref": "schema-ref-company-ledger-input",
+            "output_ref": "schema-ref-company-ledger-output",
+            "error_code_ref": "schema-ref-company-ledger-errors"
+          },
           "auth_ref": "auth-policy-ref-company-ledger",
           "request_schema_json": {
             "required": [
@@ -1641,14 +1680,24 @@
       "capability_id": "resource.api.publish",
       "provider_org_id": "org-market-regulator",
       "consumer_org_id": "org-business-env",
-      "consumer_region": "district-a",
+      "provider_region_code": "370100",
+      "consumer_region_code": "370100",
+      "consumer_region": "370100",
       "consumer_app_ref": "app-business-env-topic",
+      "bucket_granularity": "day",
       "time_bucket": "2026-04-29",
       "invoke_count": 370,
       "success_count": 362,
       "failure_count": 8,
-      "error_count": 2,
+      "provider_error_count": 3,
+      "consumer_error_count": 2,
+      "gateway_error_count": 2,
+      "other_error_count": 1,
+      "error_count": 8,
+      "apply_count": 6,
       "avg_latency_ms": 86,
+      "p95_latency_ms": 210,
+      "last_error_code": "GW_TIMEOUT",
       "source_event_ref": "dsp-dataservice:api_service_times",
       "summary_json": {
         "failure_type": "调用失败证据链已归因，具体诊断由外部能力执行"

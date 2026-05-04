@@ -1,0 +1,23 @@
+{
+  "skill_id": "metadata.lineage.query",
+  "slug": "metadata.lineage.query",
+  "title": "查询元数据血缘",
+  "description": "查询资源或字段级血缘投影和影响分析依据。",
+  "version": "1.0.0",
+  "input_schema": { "type": "object", "properties": { "resource_code": { "type": "string" }, "relation_scope": { "type": "string" }, "role": { "type": "string" } } },
+  "output_schema": { "type": "object", "properties": { "items": { "type": "array", "items": { "type": "object" } }, "total": { "type": "integer" } } },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-trace",
+  "execution_binding": "builtin",
+  "compatibility": ["webui", "api", "cli", "mcp", "a2a"],
+  "runtime_binding": { "kind": "brain_service", "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill", "method": "metadata.lineage.query" },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": ["metadata.lineage.query.execute"],
+  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "registry_source": "internal",
+  "tags": ["metadata", "lineage", "read"]
+}

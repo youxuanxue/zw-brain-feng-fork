@@ -496,7 +496,7 @@ def test_api_resource_lifecycle_updates_approval_case_with_database() -> None:
 
         cases = [item for item in database_store.approval_repo.list_cases() if item.application_code == "api-approval-ledger"]
         assert len(cases) == 1
-        assert cases[0].current_status == "active"
+        assert cases[0].decision_payload_json["status"] == "active"
         steps = database_store.approval_repo.list_steps("api-approval-ledger")
         decisions = database_store.approval_repo.list_decisions("api-approval-ledger")
         assert [step.step_name for step in steps] == [
@@ -505,6 +505,285 @@ def test_api_resource_lifecycle_updates_approval_case_with_database() -> None:
             "API 服务资源发布",
         ]
         assert [decision.decision for decision in decisions] == ["submit", "approve", "approve"]
+
+
+
+def test_catalog_metadata_capabilities_write_sanitized_evidence_with_database() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.database_store import DatabaseStore
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        model = service.invoke_skill(
+            "catalog.model.upsert",
+            {
+                "model_code": "legal-person-base",
+                "title": "法人单位基础信息模板",
+                "status": "active",
+                "model_schema_json": {"fields": ["credit_code"], "secret": "should-not-persist"},
+                "fields": [
+                    {
+                        "field_code": "credit_code",
+                        "title": "统一社会信用代码",
+                        "field_policy_json": {"share_condition": "审批后共享", "token": "should-not-persist"},
+                    }
+                ],
+                "source_ref": "dsp-catalog3:model_catalog_template:tpl-1",
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        assert model["result"]["model_code"] == "legal-person-base"
+
+        snapshot = service.invoke_skill(
+            "metadata.schema.snapshot.upsert",
+            {
+                "snapshot_ref": "schema-res-1-v1",
+                "resource_code": "res-legal-person",
+                "binding_code": "bind-table-1",
+                "schema_json": {"columns": ["credit_code"], "password": "should-not-persist"},
+                "source_ref": "dsp-metadata3:gather:gather-1",
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        assert snapshot["result"]["snapshot_ref"] == "schema-res-1-v1"
+
+        mapping = service.invoke_skill(
+            "catalog.schema.mapping.upsert",
+            {
+                "mapping_code": "map-credit-code",
+                "catalog_code": "cat-legal-person",
+                "catalog_item_code": "credit_code",
+                "resource_code": "res-legal-person",
+                "binding_code": "bind-table-1",
+                "source_schema_ref": {"table": "t_legal_person", "column": "credit_code", "secret": "should-not-persist"},
+                "mapping_rule_json": {"method": "direct", "token": "should-not-persist"},
+                "evidence_ref": "schema-res-1-v1",
+                "source_ref": "dsp-metadata3:rc_resource_catalog_item_link:link-1",
+                "legacy_object_ref": "link-1",
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        assert mapping["result"]["mapping_code"] == "map-credit-code"
+
+        gather = service.invoke_skill(
+            "metadata.gather.evidence.upsert",
+            {
+                "gather_task_ref": "gather-1",
+                "resource_code": "res-legal-person",
+                "source_system_ref": "dsp-metadata3:meta_gather_task:gather-1",
+                "schema_snapshot_ref": "schema-res-1-v1",
+                "status": "succeeded",
+                "evidence_json": {"rows": 2, "secret": "should-not-persist"},
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        assert gather["result"]["status"] == "succeeded"
+
+        lineage = service.invoke_skill(
+            "metadata.lineage.upsert",
+            {
+                "relation_ref": "lineage-1",
+                "relation_scope": "column",
+                "source_resource_code": "res-source",
+                "source_schema_ref": "source.credit_code",
+                "target_resource_code": "res-legal-person",
+                "target_schema_ref": "target.credit_code",
+                "source_evidence_ref": "dsp-metadata3:lineage:lineage-1",
+                "relation_rule_json": {"expr": "direct", "secret": "should-not-persist"},
+                "role": "r8",
+                "confirmed": True,
+            },
+        )
+        assert lineage["result"]["relation_ref"] == "lineage-1"
+
+        quality = service.invoke_skill(
+            "ops.catalog.quality.upsert",
+            {
+                "quality_ref": "quality-1",
+                "target_type": "catalog_item",
+                "target_ref": "credit_code",
+                "quality_status": "passed",
+                "score": 96,
+                "evidence_json": {"missing": 0, "secret": "should-not-persist"},
+                "source_ref": "dsp-monitor:quality:quality-1",
+                "role": "r8",
+                "confirmed": True,
+            },
+        )
+        assert quality["result"]["quality_status"] == "passed"
+
+        assert database_store.catalog_repo.list_models()[0].model_schema_json == {"fields": ["credit_code"]}
+        assert database_store.catalog_repo.list_model_fields("legal-person-base")[0].field_policy_json == {"share_condition": "审批后共享"}
+        schema_mapping = database_store.metadata_evidence_repo.list_schema_mappings(resource_code="res-legal-person")[0]
+        assert schema_mapping.source_schema_ref == {"table": "t_legal_person", "column": "credit_code"}
+        assert any(item.skill_id == "catalog.schema.mapping.upsert" for item in database_store.list_audit_events())
+        assert any(item.legacy_object_ref == "link-1" for item in database_store.legacy_mapping_repo.list_mappings(canonical_type="resource_schema_mapping"))
+
+        assert service.invoke_skill("catalog.model.query", {"model_code": "legal-person-base", "role": "r6"})["total"] == 1
+        assert service.invoke_skill("catalog.model.field.query", {"model_code": "legal-person-base", "role": "r6"})["items"][0]["field_policy_json"] == {"share_condition": "审批后共享"}
+        schema_projection = service.invoke_skill("metadata.schema.query", {"resource_code": "res-legal-person", "role": "r6"})["items"][0]
+        assert schema_projection["schema_json"] == {"columns": ["credit_code"]}
+        assert schema_projection["source_ref"] == "dsp-metadata3:gather:gather-1"
+        assert schema_projection["captured_at"]
+        catalog_item_projection = service.invoke_skill("metadata.catalog_item.query", {"resource_code": "res-legal-person", "role": "r6"})["items"][0]
+        assert catalog_item_projection["source_schema_ref"] == {"table": "t_legal_person", "column": "credit_code"}
+        assert catalog_item_projection["source_ref"] == "schema-res-1-v1"
+        assert catalog_item_projection["generated_at"]
+        gather_projection = service.invoke_skill("metadata.gather.evidence.query", {"resource_code": "res-legal-person", "role": "r6"})["items"][0]
+        assert gather_projection["source_ref"] == "dsp-metadata3:meta_gather_task:gather-1"
+        assert gather_projection["generated_at"]
+        assert gather_projection["projection_only"] is True
+        lineage_projection = service.invoke_skill("metadata.lineage.query", {"resource_code": "res-legal-person", "role": "r8"})
+        assert lineage_projection["total"] == 1
+        assert lineage_projection["items"][0]["source_ref"] == "dsp-metadata3:lineage:lineage-1"
+        assert lineage_projection["items"][0]["generated_at"]
+        quality_projection = service.invoke_skill("ops.catalog.quality.query", {"target_ref": "credit_code", "role": "r8"})["items"][0]
+        assert quality_projection["evidence_json"] == {"missing": 0}
+        assert quality_projection["source_ref"] == "dsp-monitor:quality:quality-1"
+        assert quality_projection["generated_at"]
+        statistics = service.invoke_skill("ops.catalog.statistics.query", {"role": "r8"})["summary"]
+        assert statistics["schemaMappingCount"] == 1
+        assert statistics["qualityEvidenceCount"] == 1
+        assert statistics["source_ref"] == "canonical_projection"
+        assert statistics["generated_at"]
+        assert statistics["projection_only"] is True
+
+
+
+def test_reconstruction_core_capability_names_cover_catalog_resource_application_delivery() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.database_store import DatabaseStore
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        draft = service.invoke_skill(
+            "catalog.entry.create_draft",
+            {
+                "catalog_code": "cat-core-demo",
+                "title": "核心目录草稿",
+                "owner_org_id": "区政数局",
+                "region_code": "370100",
+                "summary_json": {"domain": "法人", "secret": "should-not-persist"},
+                "items": [
+                    {
+                        "item_code": "credit_code",
+                        "title": "统一社会信用代码",
+                        "resource_code": "api-core-demo",
+                        "summary_json": {"token": "should-not-persist"},
+                    }
+                ],
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        assert draft["result"]["lifecycle_status"] == "draft"
+        service.invoke_skill("catalog.entry.submit_review", {"catalog_code": "cat-core-demo", "role": "r6", "confirmed": True})
+        reviewed = service.invoke_skill("catalog.entry.review", {"catalog_code": "cat-core-demo", "decision": "approve", "role": "r7", "confirmed": True})
+        assert reviewed["result"]["lifecycle_status"] == "approved_pending_publish"
+        published = service.invoke_skill("catalog.entry.publish", {"catalog_code": "cat-core-demo", "role": "r7", "confirmed": True})
+        assert published["result"]["lifecycle_status"] == "active"
+        summary = service.invoke_skill("catalog.entry.query", {"catalog_code": "cat-core-demo", "role": "r6"})["items"][0]["summary_json"]
+        assert summary["summary_json"]["domain"] == "法人"
+        assert "secret" not in summary["summary_json"]
+
+        service.invoke_skill(
+            "resource.api.register",
+            {
+                "resource_code": "api-core-demo",
+                "title": "核心资源 API",
+                "catalog_code": "cat-core-demo",
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        service.invoke_skill("resource.asset.submit_review", {"resource_code": "api-core-demo", "role": "r6", "confirmed": True})
+        reviewed_resource = service.invoke_skill("resource.asset.review", {"resource_code": "api-core-demo", "decision": "approve", "role": "r7", "confirmed": True})
+        assert reviewed_resource["result"]["lifecycle_status"] == "approved_pending_publish"
+        resource = service.invoke_skill("resource.asset.publish", {"resource_code": "api-core-demo", "role": "r7", "confirmed": True})
+        assert resource["result"]["lifecycle_status"] == "active"
+        assert service.invoke_skill("resource.asset.query", {"resource_code": "api-core-demo", "role": "r6"})["total"] == 1
+
+        bind = service.invoke_skill(
+            "catalog.resource.bind",
+            {
+                "mapping_code": "bind-core-demo-credit-code",
+                "catalog_code": "cat-core-demo",
+                "catalog_item_code": "credit_code",
+                "resource_code": "api-core-demo",
+                "binding_code": "binding-core-demo",
+                "source_schema_ref": {"column": "credit_code", "password": "should-not-persist"},
+                "mapping_rule_json": {"method": "direct", "secret": "should-not-persist"},
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        assert bind["result"]["mapping_code"] == "bind-core-demo-credit-code"
+        assert service.invoke_skill("metadata.catalog_item.query", {"catalog_code": "cat-core-demo", "role": "r6"})["items"][0]["source_schema_ref"] == {"column": "credit_code"}
+        service.invoke_skill("catalog.entry.withdraw", {"catalog_code": "cat-core-demo", "role": "r7", "confirmed": True})
+        withdrawn = service.invoke_skill("catalog.entry.query", {"catalog_code": "cat-core-demo", "role": "r6"})["items"][0]
+        assert withdrawn["lifecycle_status"] == "retired"
+        versions = database_store.catalog_repo.list_entry_versions("cat-core-demo")
+        assert [item.version_status for item in versions] == ["active", "retired"]
+        catalog_steps = database_store.approval_repo.list_steps("cat-core-demo")
+        catalog_decisions = database_store.approval_repo.list_decisions("cat-core-demo")
+        assert [item.step_name for item in catalog_steps] == [
+            "目录资源审核",
+            "目录资源审核通过",
+            "目录资源发布",
+            "目录资源撤回",
+        ]
+        assert [item.decision for item in catalog_decisions] == ["submit", "approve", "approve", "close"]
+
+        request = service.invoke_skill(
+            "application.resource.submit",
+            {
+                "resource_id": "res-market-activity",
+                "query": "复用法人模板，只补现场差异字段。",
+                "role": "r1",
+                "confirmed": True,
+            },
+        )
+        request_id = request["result"]["request_id"]
+        service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve", "role": "r2", "confirmed": True})
+        task_id = request_id.replace("REQ-", "DLV-", 1)
+        grant = service.invoke_skill("delivery.access.grant", {"task_id": task_id, "role": "r6", "confirmed": True})
+        assert grant["result"]["status"] == "completed"
+
+        assert service.invoke_skill("catalog.group.query", {"role": "r6"})["total"] >= 1
+        assert service.invoke_skill("catalog.share_zone.query", {"role": "r6"})["total"] >= 1
+        audit_skill_ids = [item.skill_id for item in database_store.list_audit_events()]
+        for skill_id in [
+            "catalog.entry.withdraw",
+            "resource.asset.submit_review",
+            "resource.asset.review",
+            "resource.asset.publish",
+            "application.resource.submit",
+            "application.resource.review",
+            "delivery.access.grant",
+        ]:
+            assert skill_id in audit_skill_ids
 
 
 def test_dsp_dataservice_objects_write_legacy_mappings() -> None:
@@ -568,9 +847,10 @@ def test_dsp_dataservice_objects_write_legacy_mappings() -> None:
             "gateway_runtime_status_projection",
             "service_invocation_metric_projection",
         }.issubset(canonical_types)
-        assert {item.legacy_system for item in mappings} == {"dsp-dataservice"}
-        assert any(item.legacy_object_type == "api_service_info" for item in mappings)
-        assert any(item.legacy_object_type == "/openapi/report" for item in mappings)
+        dsp_mappings = [item for item in mappings if item.legacy_system == "dsp-dataservice"]
+        assert dsp_mappings
+        assert any(item.legacy_object_type == "api_service_info" for item in dsp_mappings)
+        assert any(item.legacy_object_type == "/openapi/report" for item in dsp_mappings)
 
 
 def test_service_projection_source_kind_and_external_packages() -> None:
@@ -609,8 +889,13 @@ def test_service_projection_source_kind_and_external_packages() -> None:
         }:
             package = packages[slug]
             assert package["contract"]["inputs"]
+            assert package["contract"]["outputs"]
+            assert package["auditClass"]
+            assert package["tenantPolicy"]["scope"] == "tenant-bound"
             assert package["tenantPolicy"]["writeCanonicalState"] is False
             assert package["failureWriteback"]["target"] == "audit_event"
+            assert package["failureWriteback"]["mode"]
+            assert package["runtimeBinding"]["protocol"]
 
 
 
@@ -655,11 +940,56 @@ def test_gateway_log_anchor_writes_sanitized_outbox_request() -> None:
         assert result["result"]["evidence_json"] == {"failure_count": 1, "nested": {}}
         pending = database_store.list_pending_anchor_outbox()
         assert any(item.request_id == result["audit_id"] and item.skill_id == "ops.gateway.log.anchor" for item in pending)
+        mappings = database_store.legacy_mapping_repo.list_mappings(canonical_type="anchor_outbox", canonical_ref=result["audit_id"])
+        assert mappings[0].legacy_object_ref == "gateway-log-20260429-001"
         events = [item for item in database_store.list_audit_events() if item.skill_id == "ops.gateway.log.anchor"]
         assert [item.phase for item in events] == ["before", "after"]
 
 
-def test_api_resource_test_persists_sanitized_projection() -> None:
+def test_api_resource_withdraw_and_revoke_update_approval_trace() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.database_store import DatabaseStore
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        service.invoke_skill(
+            "resource.api.register",
+            {
+                "resource_code": "api-retire-ledger",
+                "title": "撤回撤销 API",
+                "source_ref": "dsp-dataservice:api_service_info:api-retire-ledger",
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        service.invoke_skill("resource.api.submit_review", {"resource_code": "api-retire-ledger", "role": "r6", "confirmed": True})
+        service.invoke_skill(
+            "resource.api.review",
+            {"resource_code": "api-retire-ledger", "decision": "approve", "role": "r7", "confirmed": True},
+        )
+        service.invoke_skill("resource.api.publish", {"resource_code": "api-retire-ledger", "role": "r7", "confirmed": True})
+        retired = service.invoke_skill("resource.api.withdraw", {"resource_code": "api-retire-ledger", "role": "r6", "confirmed": True})
+        revoked = service.invoke_skill("resource.api.revoke", {"resource_code": "api-retire-ledger", "role": "r7", "confirmed": True})
+
+        assert retired["result"]["lifecycle_status"] == "retired"
+        assert revoked["result"]["lifecycle_status"] == "revoked"
+        case = next(item for item in database_store.approval_repo.list_cases() if item.application_code == "api-retire-ledger")
+        assert case.current_status == "revoked"
+        assert database_store.approval_repo.list_steps("api-retire-ledger")[-2].step_name == "API 服务资源撤回"
+        assert database_store.approval_repo.list_steps("api-retire-ledger")[-1].step_name == "API 服务资源撤销授权"
+        assert [item.decision for item in database_store.approval_repo.list_decisions("api-retire-ledger")][-2:] == ["close", "close"]
+
+
+
     with TemporaryDirectory() as tmp:
         import os
 

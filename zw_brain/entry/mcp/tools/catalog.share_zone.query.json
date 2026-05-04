@@ -1,0 +1,23 @@
+{
+  "name": "catalog.share_zone.query",
+  "description": "查询共享专区专题入口和信任说明，不创建第二套目录事实源。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "catalog.share_zone.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

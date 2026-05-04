@@ -1,0 +1,23 @@
+{
+  "name": "catalog.group.query",
+  "description": "查询目录分组投影，仅服务发现、专题和权限解释。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "catalog.group.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}
