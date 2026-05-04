@@ -1,0 +1,33 @@
+{
+  "name": "ops.exchange.statistics.query",
+  "description": "只读查询交换、订阅和交付投影统计，不反向驱动业务状态。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "resource_code": {
+        "type": "string"
+      },
+      "delivery_code": {
+        "type": "string"
+      },
+      "metric_scope": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "ops.exchange.statistics.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

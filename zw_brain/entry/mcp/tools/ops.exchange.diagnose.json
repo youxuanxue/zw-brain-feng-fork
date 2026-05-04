@@ -1,0 +1,30 @@
+{
+  "name": "ops.exchange.diagnose",
+  "description": "基于回执、执行证据和投影解释交换失败原因，不直接改状态。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "task_id": {
+        "type": "string"
+      },
+      "attempt_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "ops.exchange.diagnose.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

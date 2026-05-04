@@ -668,6 +668,81 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "ops.exchange.diagnose",
+    "description": "基于回执、执行证据和投影解释交换失败原因，不直接改状态。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/ops.exchange.diagnose",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "attempt_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      },
+      "required": []
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "ops.exchange.diagnose.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "ops.exchange.statistics.query",
+    "description": "只读查询交换、订阅和交付投影统计，不反向驱动业务状态。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/ops.exchange.statistics.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "resource_code": {
+          "type": "string"
+        },
+        "delivery_code": {
+          "type": "string"
+        },
+        "metric_scope": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      },
+      "required": []
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "ops.exchange.statistics.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "ops.service.invocation.query",
     "description": "只读查询 API 服务调用量、成功失败和错误归因摘要。",
     "protocol_type": "builtin_skill",
@@ -1056,6 +1131,189 @@
     "version": "1.0.0",
     "invocation_mode": "sync",
     "auth_strategy": "none"
+  },
+  {
+    "tool_name": "adapter.legacy.exchange.ingest",
+    "description": "受控摄取旧交换对象映射、旧状态快照和脱敏证据，不兼容旧 URL。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/adapter.legacy.exchange.ingest",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "legacy_system": {
+          "type": "string"
+        },
+        "legacy_object_type": {
+          "type": "string"
+        },
+        "legacy_object_ref": {
+          "type": "string"
+        },
+        "canonical_type": {
+          "type": "string"
+        },
+        "canonical_ref": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "legacy_status_snapshot": {
+          "type": "object"
+        },
+        "evidence": {
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "legacy_system",
+        "legacy_object_type",
+        "legacy_object_ref",
+        "canonical_type",
+        "canonical_ref",
+        "source_ref",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "adapter.legacy.exchange.ingest.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "application.grant.approve",
+    "description": "审批授权、收回授权或频次变更，审批通过后才能形成授权快照。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/application.grant.approve",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "revoke",
+            "return_for_fix",
+            "reject"
+          ]
+        },
+        "grant_policy": {
+          "type": "object"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "task_id",
+        "decision",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "application.grant.approve.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "application.grant.renew",
+    "description": "发起或审批授权续期，更新持续交付关系但不静默延长授权。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/application.grant.renew",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "subscription_id": {
+          "type": "string"
+        },
+        "renew_until": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "task_id",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "application.grant.renew.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
   },
   {
     "tool_name": "application.resource.review",
@@ -1887,6 +2145,264 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "delivery.exchange.plan",
+    "description": "生成字段映射、源目标脱敏引用和交付计划快照。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/delivery.exchange.plan",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "resource_id": {
+          "type": "string"
+        },
+        "plan": {
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "task_id",
+        "plan",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "delivery.exchange.plan.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "delivery.exchange.publish",
+    "description": "发布已审批的交换计划，形成可执行交付任务状态。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/delivery.exchange.publish",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "task_id",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "delivery.exchange.publish.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "delivery.exchange.start",
+    "description": "启动单次或持续交换执行并生成 delivery_attempt。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/delivery.exchange.start",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "once",
+            "schedule"
+          ]
+        },
+        "executor_ref": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "task_id",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "delivery.exchange.start.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "delivery.exchange.stop",
+    "description": "暂停、停用或撤销交换任务，不删除历史回执。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/delivery.exchange.stop",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "task_id",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "delivery.exchange.stop.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "delivery.receipt.ingest",
+    "description": "摄取交换执行、下载、授权或订阅回执，只写回执、证据和投影。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/delivery.receipt.ingest",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "attempt_id": {
+          "type": "string"
+        },
+        "receipt_status": {
+          "type": "string",
+          "enum": [
+            "succeeded",
+            "failed",
+            "partial",
+            "unknown"
+          ]
+        },
+        "receipt": {
+          "type": "object"
+        },
+        "metrics": {
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "task_id",
+        "receipt_status",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "delivery.receipt.ingest.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "delivery.reconcile_receipt",
     "description": "对交付任务回执执行人工确认后的对账动作。",
     "protocol_type": "builtin_skill",
@@ -1922,6 +2438,69 @@
       "audit_required": true,
       "permissions": [
         "delivery.reconcile_receipt.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "delivery.subscription.manage",
+    "description": "创建、暂停、续期或取消资源订阅关系。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/delivery.subscription.manage",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "subscription_id": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "create",
+            "pause",
+            "renew",
+            "cancel"
+          ]
+        },
+        "schedule_ref": {
+          "type": "object"
+        },
+        "policy_snapshot": {
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "task_id",
+        "action",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "delivery.subscription.manage.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -2640,6 +3219,231 @@
       "audit_required": true,
       "permissions": [
         "request.submit.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "require.intent.refine",
+    "description": "把原始诉求结构化为数据项、资源候选和交付偏好。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/require.intent.refine",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "type": "string"
+        },
+        "requested_items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "delivery_preference": {
+          "type": "object"
+        },
+        "refine_note": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "request_id",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "require.intent.refine.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "require.intent.review",
+    "description": "对数据需求执行通过、补正或驳回判定。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/require.intent.review",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "return_for_fix",
+            "reject"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "request_id",
+        "decision",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "require.intent.review.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "require.intent.submit",
+    "description": "提交原始数据需求或上级下发需求，进入受控申请/审批链路。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/require.intent.submit",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "intent": {
+          "type": "string"
+        },
+        "resource_id": {
+          "type": "string"
+        },
+        "requested_items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "delivery_preference": {
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "intent",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "require.intent.submit.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "require.resource.match",
+    "description": "将需求与目录、资源或字段候选建立受控证据关系。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/require.resource.match",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "type": "string"
+        },
+        "resource_id": {
+          "type": "string"
+        },
+        "candidate_resources": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "match_note": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "request_id",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "require.resource.match.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",

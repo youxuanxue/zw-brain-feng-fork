@@ -93,6 +93,14 @@
       "mode": "read"
     },
     {
+      "id": "ops.exchange.diagnose",
+      "mode": "read"
+    },
+    {
+      "id": "ops.exchange.statistics.query",
+      "mode": "read"
+    },
+    {
       "id": "ops.service.invocation.query",
       "mode": "read"
     },
@@ -143,6 +151,18 @@
     {
       "id": "zone.view",
       "mode": "read"
+    },
+    {
+      "id": "adapter.legacy.exchange.ingest",
+      "mode": "write"
+    },
+    {
+      "id": "application.grant.approve",
+      "mode": "write"
+    },
+    {
+      "id": "application.grant.renew",
+      "mode": "write"
     },
     {
       "id": "application.resource.review",
@@ -205,7 +225,31 @@
       "mode": "write"
     },
     {
+      "id": "delivery.exchange.plan",
+      "mode": "write"
+    },
+    {
+      "id": "delivery.exchange.publish",
+      "mode": "write"
+    },
+    {
+      "id": "delivery.exchange.start",
+      "mode": "write"
+    },
+    {
+      "id": "delivery.exchange.stop",
+      "mode": "write"
+    },
+    {
+      "id": "delivery.receipt.ingest",
+      "mode": "write"
+    },
+    {
       "id": "delivery.reconcile_receipt",
+      "mode": "write"
+    },
+    {
+      "id": "delivery.subscription.manage",
       "mode": "write"
     },
     {
@@ -258,6 +302,22 @@
     },
     {
       "id": "request.submit",
+      "mode": "write"
+    },
+    {
+      "id": "require.intent.refine",
+      "mode": "write"
+    },
+    {
+      "id": "require.intent.review",
+      "mode": "write"
+    },
+    {
+      "id": "require.intent.submit",
+      "mode": "write"
+    },
+    {
+      "id": "require.resource.match",
       "mode": "write"
     },
     {

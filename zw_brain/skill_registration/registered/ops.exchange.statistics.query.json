@@ -1,0 +1,82 @@
+{
+  "skill_id": "ops.exchange.statistics.query",
+  "slug": "ops.exchange.statistics.query",
+  "title": "查询交换统计",
+  "description": "只读查询交换、订阅和交付投影统计，不反向驱动业务状态。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "resource_code": {
+        "type": "string"
+      },
+      "delivery_code": {
+        "type": "string"
+      },
+      "metric_scope": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "total": {
+        "type": "integer"
+      },
+      "result": {
+        "type": "object"
+      },
+      "ok": {
+        "type": "boolean"
+      },
+      "summary": {
+        "type": "object"
+      }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-trace",
+  "execution_binding": "builtin",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "ops.exchange.statistics.query"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [
+    "ops.exchange.statistics.query.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "ops",
+    "exchange",
+    "statistics",
+    "read"
+  ]
+}
