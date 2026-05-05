@@ -18,6 +18,21 @@ def make_service() -> tuple[TemporaryDirectory[str], BrainService]:
     return tmp, BrainService(state_store=store)
 
 
+def make_database_service() -> tuple[TemporaryDirectory[str], BrainService]:
+    import os
+
+    tmp = TemporaryDirectory()
+    os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp.name) / "zw_brain.db")
+
+    from zw_brain.shared.database_store import DatabaseStore
+    from zw_brain.shared.migrate import ensure_runtime_schema
+
+    ensure_runtime_schema()
+    database_store = DatabaseStore()
+    audit_bus.configure_sink(database_store.append_audit_event)
+    return tmp, BrainService(state_store=StateStore(database_store=database_store))
+
+
 def test_requires_confirmation_for_write_skill() -> None:
     tmp, service = make_service()
     try:
@@ -313,6 +328,140 @@ def test_dispute_investigation_and_escalation_update_timeline_and_owner() -> Non
         tmp.cleanup()
 
 
+
+def test_formal_governance_capability_aliases_use_canonical_paths() -> None:
+    tmp, service = make_database_service()
+    try:
+        package = service.invoke_skill(
+            "capability.package.register",
+            {
+                "slug": "sample.formal.capability",
+                "package_id": "PKG-FORMAL-001",
+                "source": "zw-brain registry",
+                "description": "只读辅助能力",
+                "role": "r7",
+                "confirmed": True,
+            },
+        )
+        assert package["ok"] is True
+
+        approve = service.invoke_skill(
+            "capability.version.review",
+            {"package_id": "PKG-FORMAL-001", "decision": "approve", "role": "r7", "confirmed": True},
+        )
+        assert approve["ok"] is True
+
+        register = service.invoke_skill(
+            "capability.version.submit",
+            {"package_id": "PKG-FORMAL-001", "role": "r7", "confirmed": True},
+        )
+        assert register["ok"] is True
+
+        exposure = service.invoke_skill(
+            "capability.exposure.configure",
+            {"package_id": "PKG-FORMAL-001", "mode": "expand", "role": "r7", "confirmed": True},
+        )
+        assert exposure["ok"] is True
+
+        enabled = service.invoke_skill(
+            "tenant.capability.enable",
+            {"package_id": "PKG-FORMAL-001", "role": "r7", "confirmed": True},
+        )
+        assert enabled["ok"] is True
+
+        disabled = service.invoke_skill(
+            "tenant.capability.disable",
+            {"package_id": "PKG-FORMAL-001", "role": "r7", "confirmed": True},
+        )
+        assert disabled["ok"] is True
+
+        created = service.invoke_skill(
+            "catalog.entry.create",
+            {"catalog_code": "cat-formal-001", "title": "正式目录", "role": "r6", "confirmed": True},
+        )
+        assert created["ok"] is True
+
+        updated = service.invoke_skill(
+            "catalog.entry.update",
+            {"catalog_code": "cat-formal-001", "title": "正式目录修订", "role": "r6", "confirmed": True},
+        )
+        assert updated["ok"] is True
+
+        exported = service.invoke_skill("registry.artifact.export", {"role": "r7"})
+        assert exported["total"] >= 1
+
+        snapshot = service.snapshot()
+        item = next(entry for entry in snapshot["capability_packages"] if entry["id"] == "PKG-FORMAL-001")
+        assert item["status"] == "approved"
+        assert item["versionStatus"] == "registered"
+        assert item["tenantPolicy"]["policyStatus"] == "disabled"
+    finally:
+        tmp.cleanup()
+
+
+def test_compliance_p6_minimal_closure_and_adapter_receipts() -> None:
+    tmp, service = make_database_service()
+    try:
+        signal = service.invoke_skill(
+            "compliance.signal.ingest",
+            {"adapter_slug": "compliance-center", "source_ref": "sig-001", "role": "r8", "confirmed": True},
+        )
+        assert signal["ok"] is True
+
+        security = service.invoke_skill(
+            "security.scan.result.sync",
+            {"adapter_slug": "security-center", "source_ref": "scan-001", "role": "r8", "confirmed": True},
+        )
+        assert security["ok"] is True
+
+        standard = service.invoke_skill(
+            "standard.asset.recommend",
+            {"adapter_slug": "standard-service", "source_ref": "std-001", "role": "r8", "confirmed": True},
+        )
+        assert standard["ok"] is True
+
+        rule = service.invoke_skill(
+            "compliance.rule.configure",
+            {"rule_id": "rule-001", "title": "重复采集合规规则", "role": "r8", "confirmed": True},
+        )
+        assert rule["ok"] is True
+
+        opened = service.invoke_skill(
+            "compliance.case.open",
+            {"case_id": "CMP-001", "title": "重复采集风险", "severity": "high", "role": "r8", "confirmed": True},
+        )
+        assert opened["ok"] is True
+        assert opened["result"]["status"] == "detected"
+
+        assigned = service.invoke_skill(
+            "compliance.case.assign",
+            {"case_id": "CMP-001", "owner": "区减负治理组", "role": "r8", "confirmed": True},
+        )
+        assert assigned["result"]["status"] == "assigned"
+
+        resolved = service.invoke_skill(
+            "compliance.case.resolve",
+            {"case_id": "CMP-001", "summary": "已完成处置", "role": "r8", "confirmed": True},
+        )
+        assert resolved["result"]["status"] == "resolved"
+
+        closed = service.invoke_skill(
+            "compliance.case.close",
+            {"case_id": "CMP-001", "role": "r8", "confirmed": True},
+        )
+        assert closed["result"]["status"] == "closed"
+
+        cases = service.invoke_skill("compliance.case.query", {"status": "closed", "role": "r8"})
+        metrics = service.invoke_skill("compliance.metric.query", {"role": "r8"})
+        dashboard = service.invoke_skill("dashboard.compliance.query", {"role": "r8"})
+
+        assert any(item["id"] == "CMP-001" for item in cases["items"])
+        assert metrics["by_status"]["closed"] >= 1
+        assert dashboard["summary"]["resolved_count"] >= 1
+    finally:
+        tmp.cleanup()
+
+
 def test_full_golden_path_reaches_backflow_confirmed() -> None:
     tmp, service = make_service()
     try:
@@ -334,6 +483,61 @@ def test_full_golden_path_reaches_backflow_confirmed() -> None:
 
 
 
+def test_delivery_exchange_records_execution_without_overwriting_canonical_delivery_status() -> None:
+    tmp, service = make_database_service()
+    try:
+        service.invoke_skill(
+            "approval.review_decide",
+            {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True},
+        )
+        service.invoke_skill("delivery.access.grant", {"task_id": "DLV-2026-04-25-0011", "role": "r6", "confirmed": True})
+        before = service.invoke_skill("delivery.view", {"task_id": "DLV-2026-04-25-0011", "role": "r6"})["status"]
+
+        stopped = service.invoke_skill(
+            "delivery.exchange.stop",
+            {"task_id": "DLV-2026-04-25-0011", "role": "r6", "confirmed": True, "reason": "executor paused"},
+        )
+        after = service.invoke_skill("delivery.view", {"task_id": "DLV-2026-04-25-0011", "role": "r6"})["status"]
+
+        assert stopped["result"]["state"] == "stopped"
+        assert before == "completed"
+        assert after == "completed"
+        store = service._state_store.database_store
+        assert store is not None
+        attempts = store.delivery_repo.list_attempts(delivery_code="DLV-2026-04-25-0011")
+        evidence = store.delivery_repo.list_execution_evidence(delivery_code="DLV-2026-04-25-0011")
+        metrics = store.delivery_repo.list_exchange_metrics(delivery_code="DLV-2026-04-25-0011")
+        assert any(item.state == "stopped" for item in attempts)
+        assert any(item.result_status == "stopped" for item in evidence)
+        assert any(item.failed_count == 1 for item in metrics)
+    finally:
+        tmp.cleanup()
+
+def test_audit_payloads_are_sanitized_and_failed_calls_are_recorded() -> None:
+    tmp, service = make_database_service()
+    try:
+        try:
+            service.invoke_skill(
+                "compliance.case.open",
+                {"case_id": "DSP-2026-04-25-0003", "title": "duplicate", "role": "r8", "confirmed": True, "password": "drop-me"},
+            )
+        except Exception:
+            pass
+        else:
+            raise AssertionError("missing resource should fail")
+
+        store = service._state_store.database_store
+        assert store is not None
+        audit_payloads = [event.payload_json for event in store.list_audit_events() if event.skill_id == "compliance.case.open"]
+        assert audit_payloads
+        assert all("password" not in payload for payload in audit_payloads)
+        failed_calls = [item for item in store.list_capability_calls() if item.skill_id == "compliance.case.open" and item.status == "failed"]
+        assert failed_calls
+        assert "password" not in failed_calls[0].input_json
+    finally:
+        tmp.cleanup()
+
+
 def test_gateway_heartbeat_ingest_is_idempotent_with_database() -> None:
     with TemporaryDirectory() as tmp:
         import os
@@ -353,7 +557,7 @@ def test_gateway_heartbeat_ingest_is_idempotent_with_database() -> None:
             "ops.gateway.heartbeat.ingest",
             {
                 "gateway_instance_id": "gw-api-main",
-                "gateway_address_ref": "gw-ref-main",
+                "runtime_profile": "active-active",
                 "status": "online",
                 "role": "r6",
                 "confirmed": True,
@@ -373,6 +577,7 @@ def test_gateway_heartbeat_ingest_is_idempotent_with_database() -> None:
         report = service.invoke_skill("ops.service.report.query", {"role": "r6"})
         assert report["summary"]["gatewayCount"] == 1
         assert report["gateways"][0]["status"] == "warning"
+        assert report["gateways"][0]["runtime_profile"] == "active-active"
         assert any(item.skill_id == "ops.gateway.heartbeat.ingest" for item in database_store.list_audit_events())
 
 
@@ -398,7 +603,7 @@ def test_service_invocation_query_reads_projection_metrics() -> None:
                 "time_bucket": "2026-04-29",
                 "invoke_count": 42,
                 "success_count": 40,
-                "failure_count": 2,
+                "failed_count": 2,
                 "error_count": 1,
                 "avg_latency_ms": 83,
                 "source_event_ref": "metric-ref-1",
@@ -408,7 +613,8 @@ def test_service_invocation_query_reads_projection_metrics() -> None:
         result = service.invoke_skill("ops.service.invocation.query", {"resource_code": "api-custom-ledger", "role": "r6"})
 
         assert result["summary"]["invokeCount"] == 42
-        assert result["summary"]["failureCount"] == 2
+        assert result["summary"]["failedCount"] == 2
+        assert result["items"][0]["failed_count"] == 2
         assert result["items"][0]["source_event_ref"] == "metric-ref-1"
 
 
@@ -1052,3 +1258,243 @@ def test_audit_sink_failure_blocks_write_mutation() -> None:
     finally:
         tmp.cleanup()
         audit_bus.clear_sink()
+
+
+def test_p0_objection_case_closes_with_audited_database_flow() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+        from sqlalchemy import create_engine, text
+        from zw_brain.shared.database_store import DatabaseStore
+
+        os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        created = service.invoke_skill(
+            "objection.case.create",
+            {
+                "target_type": "delivery",
+                "target_id": "DLV-2026-04-25-0011",
+                "title": "交付回执结果异议",
+                "basis_text": "回执与实际下载状态不一致",
+                "expected_result": "重新核查交付链路",
+                "role": "r1",
+                "confirmed": True,
+                "evidence": [{"evidence_type": "text", "content_json": {"token": "secret", "note": "用户截图"}}],
+            },
+        )
+        objection_id = created["result"]["id"]
+        assert created["result"]["status"] == "draft"
+
+        for skill_id, payload in [
+            ("objection.case.submit", {}),
+            ("objection.case.accept", {"role": "r2"}),
+            ("objection.case.assign", {"role": "r2", "target_status": "provider_investigating"}),
+            ("objection.case.escalate", {"role": "r2", "opinion": "超过 SLA，升级督办", "evidence": [{"evidence_type": "sla", "content_json": {"password": "drop", "days": 3}}]}),
+            ("objection.case.reply", {"role": "r6", "opinion": "已完成提供方核查"}),
+            ("objection.case.review", {"role": "r2", "decision": "resolve", "resolved_summary": "交付回执已修正"}),
+            ("objection.case.evaluate", {"role": "r1", "overall_score": 95, "comment": "处理及时"}),
+            ("objection.case.close", {"role": "r2"}),
+        ]:
+            result = service.invoke_skill(skill_id, {"objection_id": objection_id, "confirmed": True} | payload)
+            assert result["ok"] is True
+
+        cases = service.invoke_skill("objection.case.query", {"role": "r2"})
+        assert any(item["id"] == objection_id and item["status"] == "closed" for item in cases["items"])
+        process = service.invoke_skill("objection.process.query", {"objection_id": objection_id, "role": "r2"})
+        assert len(process["items"]) >= 6
+        assert any(item["action_type"] == "escalate" and item["action_result"] == "escalated" for item in process["items"])
+        assert any(item["content_json"] == {"days": 3} for item in process["evidence"])
+        metrics = service.invoke_skill("objection.metric.query", {"role": "r2"})
+        assert metrics["closed_count"] >= 1
+
+        engine = create_engine(f"sqlite:///{os.environ['ZW_BRAIN_DB_PATH']}", future=True)
+        with engine.connect() as conn:
+            assert conn.execute(text("select count(*) from audit_event where skill_id like 'objection.%'")).scalar_one() >= 16
+            assert conn.execute(text("select count(*) from anchor_outbox where skill_id like 'objection.%'")).scalar_one() >= 8
+
+
+def test_p0_objection_invalid_transition_is_rejected() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+        from zw_brain.shared.database_store import DatabaseStore
+
+        os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+        created = service.invoke_skill(
+            "objection.case.create",
+            {"target_type": "resource", "target_id": "res-jbxx-ledger", "title": "资源异议", "role": "r1", "confirmed": True},
+        )
+
+        try:
+            service.invoke_skill("objection.case.close", {"objection_id": created["result"]["id"], "role": "r2", "confirmed": True})
+        except InvalidStateError:
+            pass
+        else:
+            raise AssertionError("invalid objection transition must be rejected")
+
+
+def test_p0_adapter_records_idempotent_receipts_without_canonical_overwrite() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+        from sqlalchemy import create_engine, text
+        from zw_brain.shared.database_store import DatabaseStore
+
+        os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+        before = service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "r1"})["status"]
+
+        payload = {
+            "local_aggregate_type": "application",
+            "local_aggregate_id": "REQ-2026-04-25-0011",
+            "external_object_type": "national_application",
+            "external_object_id": "NAT-APP-0011",
+            "idempotency_key": "national-app-0011",
+            "receipt_json": {"status": "accepted", "api_key": "should-not-persist"},
+            "extra_json": {"certificate": "should-not-persist", "batch": "B001"},
+            "role": "r6",
+            "confirmed": True,
+        }
+        first = service.invoke_skill("adapter.national.application.receive", payload)
+        second = service.invoke_skill("adapter.national.application.receive", payload | {"status": "partial", "failure_count": 1})
+
+        assert first["ok"] is True
+        assert second["ok"] is True
+        assert first["result"]["run"]["id"] == second["result"]["run"]["id"]
+        assert second["result"]["run"]["status"] == "partial"
+        assert second["result"]["mapping"]["last_receipt_json"] == {"status": "accepted"}
+        after = service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "r1"})["status"]
+        assert after == before
+
+        mappings = service.invoke_skill("adapter.external.mapping.query", {"local_aggregate_id": "REQ-2026-04-25-0011", "role": "r6"})
+        assert mappings["total"] == 1
+        health = service.invoke_skill("adapter.cascade.health.query", {"role": "r6"})
+        assert health["summary"]["run_count"] == 1
+
+        engine = create_engine(f"sqlite:///{os.environ['ZW_BRAIN_DB_PATH']}", future=True)
+        with engine.connect() as conn:
+            assert conn.execute(text("select count(*) from adapter_run_record")).scalar_one() == 1
+            assert conn.execute(text("select count(*) from external_object_mapping")).scalar_one() == 1
+
+
+
+def test_p1_governance_and_topic_package_capabilities_with_database() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+        from sqlalchemy import create_engine, text
+        from zw_brain.shared.database_store import DatabaseStore
+
+        os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        org_sync = service.invoke_skill(
+            "org.projection.sync",
+            {
+                "tenant": {"tenant_id": "default", "tenant_name": "默认租户"},
+                "regions": [{"region_code": "370100", "region_name": "济南市"}],
+                "orgs": [{"org_code": "ORG-YBT", "org_name": "一表通专班", "region_code": "370100", "profile_json": {"secret": "drop", "kind": "taskforce"}}],
+                "roles": [{"role_code": "r7", "role_name": "能力治理员"}],
+                "role": "r7",
+                "confirmed": True,
+            },
+        )
+        assert org_sync["result"]["orgs"][0]["profile_json"] == {"kind": "taskforce"}
+
+        actor_sync = service.invoke_skill(
+            "actor.projection.sync",
+            {"external_actor_id": "u-ybt", "display_name": "专题治理员", "org_code": "ORG-YBT", "role_codes": ["r7"], "role": "r7", "confirmed": True},
+        )
+        assert actor_sync["result"]["items"][0]["role_codes_json"] == ["r7"]
+
+        candidate = service.invoke_skill(
+            "legacy.bsp.mapping.import",
+            {
+                "legacy_permission_ref": "dsp-bsp:sharezone:publish",
+                "legacy_role_ref": "ROLE_TOPIC_ADMIN",
+                "capability_id": "topic.package.publish",
+                "surface": "webui",
+                "evidence_json": {"token": "drop", "source": "old-bsp"},
+                "role": "r7",
+                "confirmed": True,
+            },
+        )
+        assert candidate["result"]["items"][0]["evidence_json"] == {"source": "old-bsp"}
+        policy_eval = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "topic.package.publish", "role_code": "r7", "role": "r7"})
+        assert policy_eval["allowed"] is True
+        assert policy_eval["legacy_candidates"][0]["legacy_permission_ref"] == "dsp-bsp:sharezone:publish"
+
+        service.invoke_skill(
+            "topic.package.create",
+            {"package_code": "tp-ybt", "title": "一表通 / 基层报表减负", "owner_org_id": "ORG-YBT", "display_snapshot_json": {"password": "drop", "headline": "基层只补差异"}, "role": "r7", "confirmed": True},
+        )
+        service.invoke_skill(
+            "topic.package.configure",
+            {
+                "package_code": "tp-ybt",
+                "items": [{"item_code": "cat-jbxx", "ref_type": "catalog", "ref_id": "cat-jbxx", "title": "法人基础信息", "summary_json": {"secret": "drop", "domain": "法人"}}],
+                "visibility": [{"visibility_code": "r7-web", "role_code": "r7", "policy_status": "approved", "condition_json": {"api_key": "drop", "scope": "governance"}}],
+                "role": "r7",
+                "confirmed": True,
+            },
+        )
+        service.invoke_skill("topic.package.submit", {"package_code": "tp-ybt", "role": "r7", "confirmed": True})
+        published = service.invoke_skill("topic.package.review", {"package_code": "tp-ybt", "decision": "approve", "role": "r7", "confirmed": True})
+        assert published["result"]["status"] == "published"
+        service.invoke_skill("topic.package.evidence.attach", {"package_code": "tp-ybt", "evidence_type": "case", "title": "减负证据", "content_json": {"certificate": "drop", "saving_hours": 12}, "role": "r7", "confirmed": True})
+        service.invoke_skill("topic.package.subscribe", {"package_code": "tp-ybt", "org_code": "ORG-YBT", "role_code": "r1", "role": "r7", "confirmed": True})
+        database_store.topic_package_repo.upsert_metric("tp-ybt", {"metric_key": "reuse_count", "metric_value": 2})
+
+        detail = service.invoke_skill("topic.package.query", {"package_code": "tp-ybt", "role": "r7"})["items"][0]
+        assert detail["display_snapshot_json"] == {"headline": "基层只补差异"}
+        assert detail["items"][0]["summary_json"] == {"domain": "法人"}
+        assert any(item["surface"] == "subscription" for item in detail["visibility"])
+        metrics = service.invoke_skill("topic.package.metric.query", {"package_code": "tp-ybt", "role": "r7"})
+        assert metrics["summary"]["published_count"] == 1
+        assert metrics["items"][0]["metric_value"] == 2
+
+        engine = create_engine(f"sqlite:///{os.environ['ZW_BRAIN_DB_PATH']}", future=True)
+        with engine.connect() as conn:
+            assert conn.execute(text("select count(*) from audit_event where skill_id like 'topic.package.%'")).scalar_one() >= 10
+            assert conn.execute(text("select count(*) from anchor_outbox where skill_id like 'topic.package.%'")).scalar_one() >= 5
+            assert conn.execute(text("select count(*) from legacy_policy_mapping_candidate")).scalar_one() == 1
+
+
+def test_p1_topic_package_publish_requires_approved_visibility() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+        from zw_brain.shared.database_store import DatabaseStore
+
+        os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+        service.invoke_skill("topic.package.create", {"package_code": "tp-blocked", "title": "未满足发布条件", "role": "r7", "confirmed": True})
+        service.invoke_skill("topic.package.submit", {"package_code": "tp-blocked", "role": "r7", "confirmed": True})
+        try:
+            service.invoke_skill("topic.package.publish", {"package_code": "tp-blocked", "role": "r7", "confirmed": True})
+        except InvalidStateError:
+            pass
+        else:
+            raise AssertionError("topic package must not publish without item and approved visibility")

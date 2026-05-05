@@ -1,0 +1,39 @@
+{
+  "name": "tenant.policy.evaluate",
+  "description": "基于 brain registry 和租户策略评估指定角色是否可使用能力；旧权限仅作为候选证据。",
+  "inputSchema": {
+    "type": "object",
+    "required": [],
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "capability_id": {
+        "type": "string"
+      },
+      "skill_id": {
+        "type": "string"
+      },
+      "surface": {
+        "type": "string"
+      },
+      "role_code": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "tenant.policy.evaluate.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

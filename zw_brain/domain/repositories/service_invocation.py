@@ -11,6 +11,10 @@ from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.sanitization import summary_with_source_kind
 
 
+def _failed_count(payload: dict[str, Any], fallback: int = 0) -> int:
+    return int(payload.get("failed_count", payload.get("failure_count", fallback)))
+
+
 def _now() -> datetime:
     return datetime.now(UTC)
 
@@ -90,7 +94,7 @@ class ServiceInvocationMetricRepository:
                     time_bucket=time_bucket,
                     invoke_count=int(payload.get("invoke_count", 0)),
                     success_count=int(payload.get("success_count", 0)),
-                    failure_count=int(payload.get("failure_count", 0)),
+                    failed_count=_failed_count(payload),
                     provider_error_count=int(payload.get("provider_error_count", 0)),
                     consumer_error_count=int(payload.get("consumer_error_count", 0)),
                     gateway_error_count=int(payload.get("gateway_error_count", 0)),
@@ -113,7 +117,7 @@ class ServiceInvocationMetricRepository:
                 record.consumer_app_ref = payload.get("consumer_app_ref", record.consumer_app_ref)
                 record.invoke_count = int(payload.get("invoke_count", record.invoke_count))
                 record.success_count = int(payload.get("success_count", record.success_count))
-                record.failure_count = int(payload.get("failure_count", record.failure_count))
+                record.failed_count = _failed_count(payload, record.failed_count)
                 record.provider_error_count = int(payload.get("provider_error_count", record.provider_error_count))
                 record.consumer_error_count = int(payload.get("consumer_error_count", record.consumer_error_count))
                 record.gateway_error_count = int(payload.get("gateway_error_count", record.gateway_error_count))
@@ -146,7 +150,7 @@ class ServiceInvocationMetricRepository:
                     "legacy_object_ref": payload.get("legacy_object_ref") or canonical_ref,
                     "canonical_type": "service_invocation_metric_projection",
                     "canonical_ref": canonical_ref,
-                    "evidence_json": {"invoke_count": record.invoke_count, "failure_count": record.failure_count},
+                    "evidence_json": {"invoke_count": record.invoke_count, "failed_count": record.failed_count},
                 },
                 tenant_id=tenant_id,
             )

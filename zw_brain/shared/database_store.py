@@ -9,6 +9,7 @@ from zw_brain.domain.models import (
     AnchorOutboxRecord,
     AuditEventRecord,
     AuditReceiptRecord,
+    CapabilityCallRecord,
     CapabilityManifestRecord,
     RuntimeStateRecord,
 )
@@ -18,15 +19,19 @@ from zw_brain.domain.repositories import (
     CapabilityPackageRepository,
     CatalogRepository,
     DeliveryRepository,
+    ExternalAdapterRepository,
     GatewayRuntimeRepository,
+    GovernanceProjectionRepository,
     LegacyObjectMappingRepository,
     MetadataEvidenceRepository,
     ObjectionRepository,
     ResourceApiRepository,
     ServiceInvocationMetricRepository,
+    TopicPackageRepository,
 )
 from zw_brain.domain.seed import clone_seed_snapshot
 from zw_brain.shared.db import create_session_factory, ensure_parent_dir
+from zw_brain.shared.sanitization import safe_json
 
 
 def _now() -> datetime:
@@ -40,12 +45,15 @@ class DatabaseStore:
         self.approval_repo = ApprovalRepository()
         self.delivery_repo = DeliveryRepository()
         self.capability_package_repo = CapabilityPackageRepository()
+        self.external_adapter_repo = ExternalAdapterRepository()
         self.gateway_runtime_repo = GatewayRuntimeRepository()
+        self.governance_projection_repo = GovernanceProjectionRepository()
         self.legacy_mapping_repo = LegacyObjectMappingRepository()
         self.metadata_evidence_repo = MetadataEvidenceRepository()
         self.objection_repo = ObjectionRepository()
         self.resource_api_repo = ResourceApiRepository()
         self.service_invocation_repo = ServiceInvocationMetricRepository()
+        self.topic_package_repo = TopicPackageRepository()
 
     def initialize(self) -> None:
         ensure_parent_dir()
@@ -90,7 +98,7 @@ class DatabaseStore:
                     actor=actor,
                     skill_id=skill_id,
                     phase=phase,
-                    payload_json=payload,
+                    payload_json=safe_json(payload),
                     occurred_at=_now(),
                 )
             )
@@ -100,6 +108,17 @@ class DatabaseStore:
         SessionLocal = self._session_factory()
         with SessionLocal() as session:
             return list(session.execute(select(AuditEventRecord).order_by(AuditEventRecord.occurred_at)).scalars())
+
+    def append_capability_call(self, payload: dict[str, Any]) -> None:
+        SessionLocal = self._session_factory()
+        with SessionLocal() as session:
+            session.add(CapabilityCallRecord(**payload))
+            session.commit()
+
+    def list_capability_calls(self) -> list[CapabilityCallRecord]:
+        SessionLocal = self._session_factory()
+        with SessionLocal() as session:
+            return list(session.execute(select(CapabilityCallRecord).order_by(CapabilityCallRecord.started_at)).scalars())
 
     def replace_capability_manifests(self, manifests: dict[str, dict[str, Any]]) -> None:
         SessionLocal = self._session_factory()

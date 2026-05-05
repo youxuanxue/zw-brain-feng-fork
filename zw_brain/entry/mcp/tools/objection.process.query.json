@@ -1,0 +1,35 @@
+{
+  "name": "objection.process.query",
+  "description": "查询异议处理过程、证据与评价链路。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      },
+      "objection_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "objection_id"
+    ]
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "objection.process.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

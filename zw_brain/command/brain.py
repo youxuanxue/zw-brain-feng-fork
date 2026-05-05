@@ -10,7 +10,11 @@ from typing import Any
 import zw_brain.shared.audit as audit_bus
 from zw_brain.domain import policy
 from zw_brain.domain.repositories.catalog import CatalogRepository
+from zw_brain.domain.repositories.delivery import DeliveryRepository
+from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
+from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
+from zw_brain.domain.repositories.topic_package import TopicPackageRepository, TopicPackageStateError
 from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.domain.schemas import describe_schemas
 from zw_brain.shared import queue
@@ -76,7 +80,11 @@ class BrainService:
         role = self._resolve_role(payload)
         self._ui_state["role"] = role
         self._enforce_manifest_policy(skill_id, manifest, role, payload)
+        if manifest.get("audit_required") and not manifest.get("side_effects"):
+            return self._invoke_traced_read(skill_id, role, payload, lambda: self._dispatch_skill(skill_id, payload))
+        return self._dispatch_skill(skill_id, payload)
 
+    def _dispatch_skill(self, skill_id: str, payload: dict[str, Any]) -> Any:
         match skill_id:
             case "data.search":
                 return self.search_resources(str(payload.get("query", "")), int(payload.get("page", 1)))
@@ -101,6 +109,144 @@ class BrainService:
                 return self.list_governance_disputes()
             case "governance.dispute_view":
                 return self.get_dispute(str(payload["dispute_id"]))
+            case "objection.case.create":
+                return self.create_objection_case(payload)
+            case "objection.case.submit":
+                return self.transition_objection_case(str(payload["objection_id"]), "submitted", "submit", "提交异议", payload)
+            case "objection.case.accept":
+                return self.transition_objection_case(str(payload["objection_id"]), "accepted", "accept", "受理异议", payload)
+            case "objection.case.reject":
+                return self.transition_objection_case(str(payload["objection_id"]), "rejected", "reject", "驳回异议", payload)
+            case "objection.case.assign":
+                target_status = str(payload.get("target_status", "provider_investigating"))
+                return self.transition_objection_case(str(payload["objection_id"]), target_status, "assign", "分发核查", payload)
+            case "objection.case.reply":
+                return self.reply_objection_case(payload)
+            case "objection.case.review":
+                decision = str(payload["decision"])
+                next_status = "resolved" if decision == "resolve" else "provider_investigating"
+                return self.transition_objection_case(str(payload["objection_id"]), next_status, "review", "复核异议", payload)
+            case "objection.case.evaluate":
+                return self.evaluate_objection_case(payload)
+            case "objection.case.escalate":
+                return self.transition_objection_case(str(payload["objection_id"]), "escalated", "escalate", "升级督办", {"action_result": "escalated"} | payload)
+            case "objection.case.close":
+                return self.transition_objection_case(str(payload["objection_id"]), "closed", "close", "关闭异议", payload)
+            case "objection.case.query":
+                return self.query_objection_cases(status=payload.get("status"), target_type=payload.get("target_type"))
+            case "objection.process.query":
+                return self.query_objection_process(str(payload["objection_id"]))
+            case "objection.metric.query":
+                return self.query_objection_metrics()
+            case (
+                "adapter.national.catalog.pull"
+                | "adapter.national.resource.pull"
+                | "adapter.national.catalog.report"
+                | "adapter.national.resource.report"
+                | "adapter.national.application.submit"
+                | "adapter.national.application.receive"
+                | "adapter.national.application.reconcile"
+                | "adapter.national.delivery.receipt.sync"
+                | "adapter.national.objection.sync"
+                | "adapter.national.topic.report"
+                | "adapter.cascade.consume"
+                | "adapter.cascade.replay"
+            ):
+                return self.record_adapter_operation(skill_id, payload)
+            case "adapter.legacy.exchange.ingest":
+                return self.ingest_legacy_exchange(payload)
+            case "delivery.receipt.ingest":
+                return self.ingest_delivery_receipt(payload)
+            case "ops.exchange.statistics.query":
+                return self.query_exchange_statistics(
+                    metric_scope=payload.get("metric_scope"),
+                    resource_code=payload.get("resource_code"),
+                    delivery_code=payload.get("delivery_code"),
+                )
+            case "ops.exchange.diagnose":
+                return self.diagnose_exchange(task_id=payload.get("task_id"), attempt_id=payload.get("attempt_id"))
+            case "delivery.exchange.plan":
+                return self.plan_delivery_exchange(payload)
+            case "delivery.exchange.start":
+                return self.start_delivery_exchange(payload)
+            case "delivery.exchange.publish":
+                return self.publish_delivery_exchange(payload)
+            case "delivery.exchange.stop":
+                return self.stop_delivery_exchange(payload)
+            case "application.grant.approve":
+                return self.approve_application_grant(payload)
+            case "application.grant.renew":
+                return self.renew_application_grant(payload)
+            case "require.intent.submit":
+                return self.submit_requirement_intent(payload)
+            case "require.intent.refine":
+                return self.refine_requirement_intent(payload)
+            case "require.intent.review":
+                return self.review_requirement_intent(payload)
+            case "require.resource.match":
+                return self.match_requirement_resource(payload)
+            case "delivery.subscription.manage":
+                return self.manage_delivery_subscription(payload)
+            case "adapter.health.probe":
+                return self.record_adapter_operation(skill_id, {"adapter_slug": payload.get("adapter_slug", "adapter-health"), "operation": "health_probe", "direction": "inbound"} | payload)
+            case "compliance.signal.ingest" | "risk.event.ingest" | "standard.asset.sync" | "standard.asset.recommend" | "security.scan.result.sync":
+                return self.record_adapter_operation(skill_id, payload)
+            case "compliance.rule.configure":
+                return self.configure_compliance_rule(payload)
+            case "compliance.case.open":
+                return self.open_compliance_case(payload)
+            case "compliance.case.assign":
+                return self.transition_compliance_case(str(payload["case_id"]), "assigned", "assign", payload)
+            case "compliance.case.resolve":
+                return self.transition_compliance_case(str(payload["case_id"]), "resolved", "resolve", payload)
+            case "compliance.case.close":
+                return self.transition_compliance_case(str(payload["case_id"]), "closed", "close", payload)
+            case "compliance.case.query":
+                return self.query_compliance_cases(status=payload.get("status"), severity=payload.get("severity"))
+            case "compliance.metric.query":
+                return self.query_compliance_metrics()
+            case "dashboard.compliance.query":
+                return self.query_compliance_dashboard()
+            case "adapter.cascade.health.query":
+                return self.query_adapter_health(adapter_slug=payload.get("adapter_slug"))
+            case "adapter.external.mapping.query":
+                return self.query_external_mappings(
+                    external_system=payload.get("external_system"),
+                    local_aggregate_type=payload.get("local_aggregate_type"),
+                    local_aggregate_id=payload.get("local_aggregate_id"),
+                    status=payload.get("status"),
+                )
+            case "tenant.policy.evaluate":
+                return self.evaluate_tenant_policy(payload)
+            case "org.projection.sync":
+                return self.sync_org_projection(payload)
+            case "actor.projection.sync":
+                return self.sync_actor_projection(payload)
+            case "legacy.bsp.mapping.import":
+                return self.import_legacy_bsp_mapping(payload)
+            case "topic.package.create":
+                return self.create_topic_package(payload)
+            case "topic.package.configure":
+                return self.configure_topic_package(payload)
+            case "topic.package.submit":
+                return self.transition_topic_package(str(payload["package_code"]), "submitted", "submit", payload)
+            case "topic.package.review":
+                decision = str(payload["decision"])
+                return self.transition_topic_package(str(payload["package_code"]), "published" if decision == "approve" else "rejected", "review", payload)
+            case "topic.package.publish":
+                return self.transition_topic_package(str(payload["package_code"]), "published", "publish", payload)
+            case "topic.package.policy.update":
+                return self.update_topic_package_policy(payload)
+            case "topic.package.subscribe":
+                return self.subscribe_topic_package(payload)
+            case "topic.package.evidence.attach":
+                return self.attach_topic_package_evidence(payload)
+            case "topic.package.query":
+                return self.query_topic_packages(package_code=payload.get("package_code"), status=payload.get("status"))
+            case "topic.package.metric.query":
+                return self.query_topic_package_metrics(package_code=payload.get("package_code"))
+            case "legacy.sharezone.mapping.import":
+                return self.import_legacy_sharezone_mapping(payload)
             case "audit.replay_evidence_chain":
                 return self.replay_evidence_chain(str(payload["dispute_id"]))
             case "zone.list":
@@ -189,6 +335,10 @@ class BrainService:
                 return self.upsert_metadata_lineage(payload)
             case "ops.catalog.quality.upsert":
                 return self.upsert_catalog_quality_evidence(payload)
+            case "catalog.entry.create":
+                return self.create_catalog_entry_draft(payload)
+            case "catalog.entry.update":
+                return self.update_catalog_entry(payload)
             case "catalog.entry.create_draft":
                 return self.create_catalog_entry_draft(payload)
             case "catalog.entry.submit_review":
@@ -240,6 +390,14 @@ class BrainService:
                 )
             case "request.submit":
                 return self.submit_request(str(payload["request_id"]), str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+            case "approval.case.decide":
+                return self.review_request(
+                    str(payload["request_id"]),
+                    str(payload["decision"]),
+                    str(payload.get("role", self._ui_state["role"])),
+                    bool(payload.get("confirmed")),
+                    "approval.case.decide",
+                )
             case "approval.review_decide":
                 return self.review_request(
                     str(payload["request_id"]),
@@ -266,6 +424,42 @@ class BrainService:
                     str(payload.get("role", self._ui_state["role"])),
                     bool(payload.get("confirmed")),
                 )
+            case "capability.package.register":
+                return self.register_capability_package(payload)
+            case "capability.version.submit":
+                return self.register_package_version(
+                    str(payload["package_id"]),
+                    str(payload.get("role", self._ui_state["role"])),
+                    bool(payload.get("confirmed")),
+                    "capability.version.submit",
+                )
+            case "capability.version.review":
+                return self.review_package(
+                    str(payload["package_id"]),
+                    str(payload["decision"]),
+                    str(payload.get("role", self._ui_state["role"])),
+                    bool(payload.get("confirmed")),
+                    "capability.version.review",
+                )
+            case "capability.exposure.configure":
+                return self.configure_package_exposure(
+                    str(payload["package_id"]),
+                    str(payload["mode"]),
+                    str(payload.get("role", self._ui_state["role"])),
+                    bool(payload.get("confirmed")),
+                    "capability.exposure.configure",
+                )
+            case "tenant.capability.enable":
+                return self.apply_package_tenant_policy(
+                    str(payload["package_id"]),
+                    str(payload.get("role", self._ui_state["role"])),
+                    bool(payload.get("confirmed")),
+                    "tenant.capability.enable",
+                )
+            case "tenant.capability.disable":
+                return self.disable_tenant_capability(str(payload["package_id"]), str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+            case "registry.artifact.export":
+                return self.export_registry_artifacts()
             case "package.register_version":
                 return self.register_package_version(
                     str(payload["package_id"]),
@@ -327,6 +521,713 @@ class BrainService:
                 )
             case _:
                 raise UnknownSkillError(skill_id)
+
+    def create_objection_case(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            repo = self._objection_repo()
+            record = repo.create_case(
+                payload
+                | {
+                    "actor_snapshot_json": {"actor": actor, "role": role},
+                    "status": str(payload.get("status", "draft")),
+                }
+            )
+            self._append_audit_feed("objection.case.create", record.id, "ok", actor)
+            return self._objection_record_to_dict(record) | {"audit_id": audit_id}
+
+        return self._mutate("objection.case.create", role, confirmed, payload, mutation)
+
+    def transition_objection_case(self, objection_id: str, next_status: str, action_type: str, node_name: str, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            repo = self._objection_repo()
+            try:
+                record = repo.transition_case(
+                    objection_id,
+                    next_status,
+                    action_type=action_type,
+                    node_name=node_name,
+                    action_result=str(payload.get("action_result", "pass")),
+                    handler_org_id=payload.get("handler_org_id"),
+                    handler_snapshot_json={"actor": actor, "role": role} | self._safe_json(payload.get("handler_snapshot_json") or {}),
+                    opinion=payload.get("opinion") or payload.get("decision_reason") or payload.get("resolved_summary"),
+                    resolved_summary=payload.get("resolved_summary"),
+                    evidence=payload.get("evidence") or [],
+                )
+            except KeyError as exc:
+                raise NotFoundError(objection_id) from exc
+            except ValueError as exc:
+                raise InvalidStateError(str(exc)) from exc
+            self._append_audit_feed(f"objection.case.{action_type}", objection_id, "ok", actor)
+            return self._objection_record_to_dict(record) | {"audit_id": audit_id}
+
+        return self._mutate(f"objection.case.{action_type}", role, confirmed, {"objection_id": objection_id, "next_status": next_status} | payload, mutation)
+
+    def reply_objection_case(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        objection_id = str(payload["objection_id"])
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            repo = self._objection_repo()
+            try:
+                record = repo.add_process(
+                    objection_id,
+                    node_name=str(payload.get("node_name", "提交核查回复")),
+                    action_type="reply",
+                    action_result=str(payload.get("action_result", "submitted")),
+                    handler_org_id=payload.get("handler_org_id"),
+                    handler_snapshot_json={"actor": actor, "role": role} | self._safe_json(payload.get("handler_snapshot_json") or {}),
+                    opinion=payload.get("opinion"),
+                    evidence=payload.get("evidence") or [],
+                )
+            except KeyError as exc:
+                raise NotFoundError(objection_id) from exc
+            self._append_audit_feed("objection.case.reply", objection_id, "ok", actor)
+            return self._objection_record_to_dict(record) | {"audit_id": audit_id}
+
+        return self._mutate("objection.case.reply", role, confirmed, payload, mutation)
+
+    def evaluate_objection_case(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        objection_id = str(payload["objection_id"])
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            repo = self._objection_repo()
+            try:
+                evaluation = repo.evaluate_case(
+                    objection_id,
+                    payload | {"evaluator_snapshot_json": {"actor": actor, "role": role} | self._safe_json(payload.get("evaluator_snapshot_json") or {})},
+                )
+            except KeyError as exc:
+                raise NotFoundError(objection_id) from exc
+            except ValueError as exc:
+                raise InvalidStateError(str(exc)) from exc
+            self._append_audit_feed("objection.case.evaluate", objection_id, "ok", actor)
+            return self._evaluation_record_to_dict(evaluation) | {"audit_id": audit_id}
+
+        return self._mutate("objection.case.evaluate", role, confirmed, payload, mutation)
+
+    def query_objection_cases(self, *, status: Any = None, target_type: Any = None) -> dict[str, Any]:
+        records = [self._objection_record_to_dict(item) for item in self._objection_repo().list_cases()]
+        if status:
+            records = [item for item in records if item["status"] == str(status)]
+        if target_type:
+            records = [item for item in records if item["target_type"] == str(target_type)]
+        return {"items": records, "total": len(records)}
+
+    def query_objection_process(self, objection_id: str) -> dict[str, Any]:
+        if self._objection_repo().get_case(objection_id) is None:
+            raise NotFoundError(objection_id)
+        return {
+            "items": [self._process_record_to_dict(item) for item in self._objection_repo().list_processes(objection_id)],
+            "evidence": [self._evidence_record_to_dict(item) for item in self._objection_repo().list_evidence(objection_id)],
+        }
+
+    def query_objection_metrics(self) -> dict[str, Any]:
+        cases = [self._objection_record_to_dict(item) for item in self._objection_repo().list_cases()]
+        by_status: dict[str, int] = {}
+        for item in cases:
+            by_status[item["status"]] = by_status.get(item["status"], 0) + 1
+        closed_count = by_status.get("closed", 0)
+        resolved_count = by_status.get("resolved", 0) + closed_count
+        return {
+            "total": len(cases),
+            "by_status": by_status,
+            "resolved_count": resolved_count,
+            "closed_count": closed_count,
+            "open_count": len(cases) - closed_count,
+        }
+
+    def record_adapter_operation(self, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            repo = self._external_adapter_repo()
+            adapter_slug, operation, direction = self._adapter_operation_from_skill(skill_id, payload)
+            idempotency_key = str(payload.get("idempotency_key") or self._adapter_idempotency_key(skill_id, payload))
+            run = repo.upsert_run_record(
+                {
+                    "adapter_slug": adapter_slug,
+                    "operation": operation,
+                    "direction": direction,
+                    "source_ref": payload.get("source_ref") or payload.get("external_object_id") or payload.get("local_aggregate_id"),
+                    "idempotency_key": idempotency_key,
+                    "status": payload.get("status", "succeeded"),
+                    "target_count": payload.get("target_count", 1),
+                    "success_count": payload.get("success_count"),
+                    "failure_count": payload.get("failure_count", 0),
+                    "receipt_json": payload.get("receipt_json") or payload.get("last_receipt_json") or {"skill_id": skill_id, "actor": actor},
+                    "error_summary": payload.get("error_summary"),
+                }
+            )
+            mapping = None
+            if payload.get("external_object_id") or payload.get("local_aggregate_id") or payload.get("legacy_id"):
+                mapping = repo.upsert_mapping(
+                    {
+                        "external_system": payload.get("external_system") or ("cascade_down" if skill_id.startswith("adapter.cascade") else "national_platform"),
+                        "direction": direction,
+                        "local_aggregate_type": payload.get("local_aggregate_type") or self._aggregate_type_from_skill(skill_id),
+                        "local_aggregate_id": payload.get("local_aggregate_id") or "",
+                        "legacy_table": payload.get("legacy_table"),
+                        "legacy_id": payload.get("legacy_id"),
+                        "external_object_type": payload.get("external_object_type") or self._aggregate_type_from_skill(skill_id),
+                        "external_object_id": payload.get("external_object_id") or payload.get("legacy_id") or idempotency_key,
+                        "protocol_version": payload.get("protocol_version", "v0.55"),
+                        "batch_no": payload.get("batch_no"),
+                        "status": payload.get("mapping_status", "mapped"),
+                        "last_receipt_json": payload.get("receipt_json") or {},
+                        "extra_json": payload.get("extra_json") or {},
+                    }
+                )
+            self._append_audit_feed(skill_id, idempotency_key, "ok", actor)
+            return {
+                "run": self._adapter_run_record_to_dict(run),
+                "mapping": self._external_mapping_record_to_dict(mapping) if mapping is not None else None,
+                "audit_id": audit_id,
+            }
+
+        return self._mutate(skill_id, role, confirmed, payload, mutation)
+
+    def configure_compliance_rule(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        rule_id = str(payload["rule_id"])
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            rules = self._snapshot.setdefault("compliance_rules", [])
+            rule = next((item for item in rules if item.get("id") == rule_id), None)
+            rule_payload = {
+                "id": rule_id,
+                "title": str(payload.get("title", rule_id)),
+                "status": str(payload.get("status", "active")),
+                "severity": str(payload.get("severity", "mid")),
+                "rule_json": self._safe_json(payload.get("rule_json") or {}),
+                "updatedAt": self._now_datetime(),
+            }
+            if rule is None:
+                rules.append(rule_payload)
+            else:
+                rule.update(rule_payload)
+            self._append_audit_feed("compliance.rule.configure", rule_id, "ok", actor)
+            return {"rule_id": rule_id, "status": rule_payload["status"], "audit_id": audit_id}
+
+        return self._mutate("compliance.rule.configure", role, confirmed, payload, mutation)
+
+    def open_compliance_case(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        case_id = str(payload.get("case_id") or payload.get("dispute_id") or f"CMP-{self._new_audit_id()}")
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            cases = self._snapshot.setdefault("disputes", [])
+            if any(item.get("id") == case_id for item in cases):
+                raise InvalidStateError("compliance case already exists")
+            cases.append(
+                {
+                    "id": case_id,
+                    "title": str(payload.get("title", case_id)),
+                    "severity": str(payload.get("severity", "mid")),
+                    "status": "detected",
+                    "owner": str(payload.get("owner", payload.get("owner_org_id", "合规治理组"))),
+                    "timeline": [
+                        {
+                            "time": self._now_datetime(),
+                            "label": "打开合规事件",
+                            "note": str(payload.get("summary", payload.get("note", "已登记合规信号并进入最小闭环。"))),
+                        }
+                    ],
+                    "aiSummary": str(payload.get("aiSummary", payload.get("summary", "合规事件已进入 zw-brain 最小闭环，后续只沉淀证据与处置结果。"))),
+                }
+            )
+            self._append_audit_feed("compliance.case.open", case_id, "ok", actor)
+            return {"case_id": case_id, "status": "detected", "audit_id": audit_id}
+
+        return self._mutate("compliance.case.open", role, confirmed, payload | {"case_id": case_id}, mutation)
+
+    def transition_compliance_case(self, case_id: str, status: str, action: str, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        case = next((item for item in self._snapshot.setdefault("disputes", []) if item.get("id") == case_id), None)
+        if case is None:
+            raise NotFoundError(case_id)
+        allowed = {
+            "detected": {"assigned", "resolved"},
+            "open": {"assigned", "resolved"},
+            "assigned": {"resolved"},
+            "escalated": {"assigned", "resolved"},
+            "resolved": {"closed"},
+            "closed": set(),
+        }
+        if status not in allowed.get(str(case.get("status", "open")), set()):
+            raise InvalidStateError(f"invalid compliance transition: {case.get('status')} -> {status}")
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            case["status"] = status
+            if payload.get("owner") or payload.get("owner_org_id"):
+                case["owner"] = str(payload.get("owner", payload.get("owner_org_id")))
+            label = {"assign": "分派合规处置", "resolve": "完成合规处置", "close": "关闭合规事件"}[action]
+            case.setdefault("timeline", []).append({"time": self._now_datetime(), "label": label, "note": str(payload.get("opinion", payload.get("summary", label)))})
+            case["aiSummary"] = str(payload.get("aiSummary", payload.get("summary", f"合规事件已{label}，证据链保留在统一审计与快照中。")))
+            self._append_audit_feed(f"compliance.case.{action}", case_id, "ok", actor)
+            return {"case_id": case_id, "status": case["status"], "audit_id": audit_id}
+
+        return self._mutate(f"compliance.case.{action}", role, confirmed, {"case_id": case_id, "status": status} | payload, mutation)
+
+    def query_compliance_cases(self, *, status: Any = None, severity: Any = None) -> dict[str, Any]:
+        cases = copy.deepcopy(self._snapshot.get("disputes", []))
+        if status:
+            cases = [item for item in cases if item.get("status") == str(status)]
+        if severity:
+            cases = [item for item in cases if item.get("severity") == str(severity)]
+        return {"items": cases, "total": len(cases)}
+
+    def query_compliance_metrics(self) -> dict[str, Any]:
+        cases = self._snapshot.get("disputes", [])
+        by_status: dict[str, int] = {}
+        by_severity: dict[str, int] = {}
+        for item in cases:
+            by_status[str(item.get("status", "unknown"))] = by_status.get(str(item.get("status", "unknown")), 0) + 1
+            by_severity[str(item.get("severity", "unknown"))] = by_severity.get(str(item.get("severity", "unknown")), 0) + 1
+        open_count = sum(count for status, count in by_status.items() if status not in {"resolved", "closed"})
+        return {"total": len(cases), "open_count": open_count, "resolved_count": by_status.get("resolved", 0) + by_status.get("closed", 0), "by_status": by_status, "by_severity": by_severity}
+
+    def query_compliance_dashboard(self) -> dict[str, Any]:
+        metrics = self.query_compliance_metrics()
+        return {"summary": metrics, "cases": self.query_compliance_cases()["items"], "adapterHealth": self.query_adapter_health()["summary"]}
+
+    def query_adapter_health(self, *, adapter_slug: Any = None) -> dict[str, Any]:
+        runs = [self._adapter_run_record_to_dict(item) for item in self._external_adapter_repo().list_run_records(adapter_slug=str(adapter_slug) if adapter_slug else None)]
+        failures = [item for item in runs if item["status"] in {"failed", "partial"}]
+        return {
+            "items": runs,
+            "summary": {
+                "run_count": len(runs),
+                "failure_count": len(failures),
+                "last_status": runs[-1]["status"] if runs else "unknown",
+            },
+        }
+
+    def query_external_mappings(self, **filters: Any) -> dict[str, Any]:
+        mappings = [
+            self._external_mapping_record_to_dict(item)
+            for item in self._external_adapter_repo().list_mappings(
+                external_system=str(filters["external_system"]) if filters.get("external_system") else None,
+                local_aggregate_type=str(filters["local_aggregate_type"]) if filters.get("local_aggregate_type") else None,
+                local_aggregate_id=str(filters["local_aggregate_id"]) if filters.get("local_aggregate_id") else None,
+                status=str(filters["status"]) if filters.get("status") else None,
+            )
+        ]
+        return {"items": mappings, "total": len(mappings)}
+
+    def _objection_repo(self):
+        store = self._state_store.database_store
+        return store.objection_repo if store is not None else __import__("zw_brain.domain.repositories.objection", fromlist=["ObjectionRepository"]).ObjectionRepository()
+
+    def _external_adapter_repo(self) -> ExternalAdapterRepository:
+        store = self._state_store.database_store
+        return store.external_adapter_repo if store is not None else ExternalAdapterRepository()
+
+    def _governance_projection_repo(self) -> GovernanceProjectionRepository:
+        store = self._state_store.database_store
+        return store.governance_projection_repo if store is not None else GovernanceProjectionRepository()
+
+    def _topic_package_repo(self) -> TopicPackageRepository:
+        store = self._state_store.database_store
+        return store.topic_package_repo if store is not None else TopicPackageRepository()
+
+    def _capability_package_repo(self):
+        store = self._state_store.database_store
+        if store is not None:
+            return store.capability_package_repo
+        return __import__("zw_brain.domain.repositories.capability_package", fromlist=["CapabilityPackageRepository"]).CapabilityPackageRepository()
+
+    def evaluate_tenant_policy(self, payload: dict[str, Any]) -> dict[str, Any]:
+        tenant_id = str(payload.get("tenant_id", "default"))
+        capability_id = str(payload.get("capability_id", payload.get("skill_id", "")))
+        surface = str(payload.get("surface", "webui"))
+        role_code = str(payload.get("role_code", payload.get("role", self._ui_state["role"])))
+        tenant_policy = None
+        if self._state_store.database_store is not None and capability_id:
+            tenant_policy = self._state_store.database_store.capability_package_repo.get_policy(capability_id, tenant_id=tenant_id)
+        enabled_permissions = policy.permissions_for_role(role_code)
+        registry_allowed = f"{capability_id}.execute" in enabled_permissions if capability_id else False
+        allowed = registry_allowed
+        source = "brain_registry"
+        policy_snapshot: dict[str, Any] | None = None
+        if tenant_policy is not None:
+            policy_snapshot = copy.deepcopy(tenant_policy.policy_json)
+            exposed_surfaces = set(policy_snapshot.get("exposedSurfaces") or [])
+            tenant_enabled = tenant_policy.policy_status == "enabled" and bool(policy_snapshot.get("enabled", False))
+            allowed = tenant_enabled and (not exposed_surfaces or surface in exposed_surfaces)
+            source = "tenant_capability_policy"
+        candidates = [
+            self._legacy_policy_candidate_record_to_dict(item)
+            for item in self._governance_projection_repo().list_policy_candidates(tenant_id=tenant_id)
+            if item.capability_id == capability_id and (item.surface is None or item.surface == surface)
+        ]
+        return {
+            "tenant_id": tenant_id,
+            "capability_id": capability_id,
+            "surface": surface,
+            "role_code": role_code,
+            "allowed": allowed,
+            "source": source,
+            "policy_status": tenant_policy.policy_status if tenant_policy is not None else None,
+            "policy": policy_snapshot,
+            "legacy_candidates": candidates,
+        }
+
+    def sync_org_projection(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            repo = self._governance_projection_repo()
+            tenant = repo.upsert_tenant(payload.get("tenant") or payload)
+            regions = [repo.upsert_region(item) for item in payload.get("regions") or []]
+            orgs_payload = payload.get("orgs") or ([payload] if payload.get("org_code") else [])
+            orgs = [repo.upsert_org(item) for item in orgs_payload]
+            roles = [repo.upsert_role(item) for item in payload.get("roles") or []]
+            self._append_audit_feed("org.projection.sync", tenant.tenant_id, "ok", actor)
+            return {
+                "tenant": self._tenant_projection_record_to_dict(tenant),
+                "orgs": [self._org_projection_record_to_dict(item) for item in orgs],
+                "regions": [self._region_projection_record_to_dict(item) for item in regions],
+                "roles": [self._role_projection_record_to_dict(item) for item in roles],
+                "audit_id": audit_id,
+            }
+
+        return self._mutate("org.projection.sync", role, confirmed, payload, mutation)
+
+    def sync_actor_projection(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            repo = self._governance_projection_repo()
+            actors_payload = payload.get("actors") or [payload]
+            actors = [repo.upsert_actor(item) for item in actors_payload]
+            self._append_audit_feed("actor.projection.sync", actors[0].external_actor_id if actors else "actor_projection", "ok", actor)
+            return {"items": [self._actor_projection_record_to_dict(item) for item in actors], "total": len(actors), "audit_id": audit_id}
+
+        return self._mutate("actor.projection.sync", role, confirmed, payload, mutation)
+
+    def import_legacy_bsp_mapping(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            repo = self._governance_projection_repo()
+            candidates_payload = payload.get("candidates") or [payload]
+            candidates = [repo.import_legacy_policy_candidate(item) for item in candidates_payload]
+            self._append_audit_feed("legacy.bsp.mapping.import", "legacy_policy_mapping_candidate", "ok", actor)
+            return {"items": [self._legacy_policy_candidate_record_to_dict(item) for item in candidates], "total": len(candidates), "audit_id": audit_id}
+
+        return self._mutate("legacy.bsp.mapping.import", role, confirmed, payload, mutation)
+
+    def create_topic_package(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            record = self._topic_package_repo().create_package(payload | {"actor_snapshot_json": {"actor": actor, "role": role}})
+            self._append_audit_feed("topic.package.create", record.package_code, "ok", actor)
+            return self._topic_package_record_to_dict(record) | {"audit_id": audit_id}
+
+        return self._mutate("topic.package.create", role, confirmed, payload, mutation)
+
+    def configure_topic_package(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        package_code = str(payload["package_code"])
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            try:
+                record = self._topic_package_repo().configure_package(package_code, payload | {"actor_snapshot_json": {"actor": actor, "role": role}})
+            except KeyError as exc:
+                raise NotFoundError(package_code) from exc
+            self._append_audit_feed("topic.package.configure", package_code, "ok", actor)
+            return self._topic_package_record_to_dict(record) | {"audit_id": audit_id}
+
+        return self._mutate("topic.package.configure", role, confirmed, payload, mutation)
+
+    def transition_topic_package(self, package_code: str, next_status: str, action_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            try:
+                record = self._topic_package_repo().transition_package(
+                    package_code,
+                    next_status,
+                    payload | {"action_type": action_type, "actor_snapshot_json": {"actor": actor, "role": role}},
+                )
+            except KeyError as exc:
+                raise NotFoundError(package_code) from exc
+            except TopicPackageStateError as exc:
+                raise InvalidStateError(str(exc)) from exc
+            self._append_audit_feed(f"topic.package.{action_type}", package_code, "ok", actor)
+            return self._topic_package_record_to_dict(record) | {"audit_id": audit_id}
+
+        return self._mutate(f"topic.package.{action_type}", role, confirmed, {"package_code": package_code, "next_status": next_status} | payload, mutation)
+
+    def update_topic_package_policy(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        package_code = str(payload["package_code"])
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            try:
+                records = self._topic_package_repo().update_policy(package_code, payload | {"actor_snapshot_json": {"actor": actor, "role": role}})
+            except KeyError as exc:
+                raise NotFoundError(package_code) from exc
+            self._append_audit_feed("topic.package.policy.update", package_code, "ok", actor)
+            return {"items": [self._topic_visibility_record_to_dict(item) for item in records], "total": len(records), "audit_id": audit_id}
+
+        return self._mutate("topic.package.policy.update", role, confirmed, payload, mutation)
+
+    def subscribe_topic_package(self, payload: dict[str, Any]) -> dict[str, Any]:
+        subscription = {
+            "visibility_code": str(payload.get("visibility_code") or f"{payload.get('org_code', '*')}:{payload.get('role_code', '*')}:subscription:use"),
+            "org_code": payload.get("org_code"),
+            "role_code": payload.get("role_code"),
+            "region_code": payload.get("region_code"),
+            "surface": "subscription",
+            "intent": "use",
+            "policy_status": str(payload.get("policy_status", "pending_review")),
+            "condition_json": payload.get("condition_json") or payload.get("condition") or {},
+        }
+        return self.update_topic_package_policy(payload | {"visibility": [subscription]})
+
+    def attach_topic_package_evidence(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        package_code = str(payload["package_code"])
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            try:
+                record = self._topic_package_repo().attach_evidence(package_code, payload | {"actor_snapshot_json": {"actor": actor, "role": role}})
+            except KeyError as exc:
+                raise NotFoundError(package_code) from exc
+            self._append_audit_feed("topic.package.evidence.attach", package_code, "ok", actor)
+            return self._topic_evidence_record_to_dict(record) | {"audit_id": audit_id}
+
+        return self._mutate("topic.package.evidence.attach", role, confirmed, payload, mutation)
+
+    def query_topic_packages(self, *, package_code: Any = None, status: Any = None) -> dict[str, Any]:
+        repo = self._topic_package_repo()
+        if package_code:
+            record = repo.get_package(str(package_code))
+            if record is None:
+                raise NotFoundError(str(package_code))
+            items = [self._topic_package_detail_to_dict(record)]
+        else:
+            items = [self._topic_package_record_to_dict(item) for item in repo.list_packages(status=str(status) if status else None)]
+        return {"items": items, "total": len(items)}
+
+    def query_topic_package_metrics(self, *, package_code: Any = None) -> dict[str, Any]:
+        repo = self._topic_package_repo()
+        packages = [repo.get_package(str(package_code))] if package_code else repo.list_packages()
+        packages = [item for item in packages if item is not None]
+        metrics = []
+        for package in packages:
+            metrics.extend(self._topic_metric_record_to_dict(item) for item in repo.list_metrics(package.package_code))
+        return {
+            "items": metrics,
+            "summary": {
+                "package_count": len(packages),
+                "published_count": sum(1 for item in packages if item.status == "published"),
+                "metric_count": len(metrics),
+            },
+        }
+
+    def import_legacy_sharezone_mapping(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            record = self._topic_package_repo().import_legacy_sharezone(payload | {"actor_snapshot_json": {"actor": actor, "role": role}})
+            self._append_audit_feed("legacy.sharezone.mapping.import", record.package_code, "ok", actor)
+            return self._topic_package_record_to_dict(record) | {"audit_id": audit_id}
+
+        return self._mutate("legacy.sharezone.mapping.import", role, confirmed, payload, mutation)
+
+    def _tenant_projection_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {"tenant_id": item.tenant_id, "tenant_name": item.tenant_name, "status": item.status, "source_ref": item.source_ref, "profile_json": copy.deepcopy(item.profile_json)}
+
+    def _org_projection_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {"org_code": item.org_code, "org_name": item.org_name, "parent_org_code": item.parent_org_code, "region_code": item.region_code, "status": item.status, "source_ref": item.source_ref, "profile_json": copy.deepcopy(item.profile_json)}
+
+    def _region_projection_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {"region_code": item.region_code, "region_name": item.region_name, "parent_region_code": item.parent_region_code, "region_level": item.region_level, "status": item.status, "source_ref": item.source_ref, "profile_json": copy.deepcopy(item.profile_json)}
+
+    def _role_projection_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {"role_code": item.role_code, "role_name": item.role_name, "status": item.status, "source_ref": item.source_ref, "profile_json": copy.deepcopy(item.profile_json)}
+
+    def _actor_projection_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {"external_actor_id": item.external_actor_id, "display_name": item.display_name, "org_code": item.org_code, "role_codes_json": copy.deepcopy(item.role_codes_json), "status": item.status, "source_ref": item.source_ref, "profile_json": copy.deepcopy(item.profile_json)}
+
+    def _legacy_policy_candidate_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {"legacy_system": item.legacy_system, "legacy_permission_ref": item.legacy_permission_ref, "legacy_role_ref": item.legacy_role_ref, "capability_id": item.capability_id, "surface": item.surface, "candidate_status": item.candidate_status, "evidence_json": copy.deepcopy(item.evidence_json)}
+
+    def _topic_package_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {"package_code": item.package_code, "title": item.title, "scenario": item.scenario, "owner_org_id": item.owner_org_id, "owner_org_snapshot_json": copy.deepcopy(item.owner_org_snapshot_json), "status": item.status, "display_snapshot_json": copy.deepcopy(item.display_snapshot_json), "metric_snapshot_json": copy.deepcopy(item.metric_snapshot_json), "source_ref": item.source_ref}
+
+    def _topic_package_detail_to_dict(self, item: Any) -> dict[str, Any]:
+        repo = self._topic_package_repo()
+        return self._topic_package_record_to_dict(item) | {
+            "items": [self._topic_item_record_to_dict(record) for record in repo.list_items(item.package_code)],
+            "visibility": [self._topic_visibility_record_to_dict(record) for record in repo.list_visibility(item.package_code)],
+            "reviews": [self._topic_review_record_to_dict(record) for record in repo.list_review_records(item.package_code)],
+            "evidence": [self._topic_evidence_record_to_dict(record) for record in repo.list_evidence(item.package_code)],
+            "metrics": [self._topic_metric_record_to_dict(record) for record in repo.list_metrics(item.package_code)],
+        }
+
+    def _topic_item_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {"item_code": item.item_code, "ref_type": item.ref_type, "ref_id": item.ref_id, "ref_status": item.ref_status, "title": item.title, "display_order": item.display_order, "summary_json": copy.deepcopy(item.summary_json)}
+
+    def _topic_visibility_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {"visibility_code": item.visibility_code, "org_code": item.org_code, "role_code": item.role_code, "region_code": item.region_code, "surface": item.surface, "intent": item.intent, "policy_status": item.policy_status, "condition_json": copy.deepcopy(item.condition_json)}
+
+    def _topic_review_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {"action_type": item.action_type, "action_result": item.action_result, "from_status": item.from_status, "to_status": item.to_status, "reviewer_snapshot_json": copy.deepcopy(item.reviewer_snapshot_json), "opinion": item.opinion, "evidence_json": copy.deepcopy(item.evidence_json), "created_at": item.created_at.isoformat()}
+
+    def _topic_evidence_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {"id": item.id, "evidence_type": item.evidence_type, "title": item.title, "related_ref_type": item.related_ref_type, "related_ref_id": item.related_ref_id, "content_json": copy.deepcopy(item.content_json), "submitted_by_json": copy.deepcopy(item.submitted_by_json), "created_at": item.created_at.isoformat()}
+
+    def _topic_metric_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {"metric_key": item.metric_key, "metric_value": item.metric_value, "metric_json": copy.deepcopy(item.metric_json)}
+
+    def _objection_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {
+            "id": item.id,
+            "tenant_id": item.tenant_id,
+            "objection_kind": item.objection_kind,
+            "target_type": item.target_type,
+            "target_id": item.target_id,
+            "related_application_id": item.related_application_id,
+            "title": item.title,
+            "complainant_org_id": item.complainant_org_id,
+            "provider_org_id": item.provider_org_id,
+            "basis_text": item.basis_text,
+            "expected_result": item.expected_result,
+            "status": item.status,
+            "resolved_summary": item.resolved_summary,
+            "closed_at": item.closed_at.isoformat() if item.closed_at else None,
+        }
+
+    def _process_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {
+            "id": item.id,
+            "objection_id": item.objection_id,
+            "node_name": item.node_name,
+            "handler_org_id": item.handler_org_id,
+            "handler_snapshot_json": copy.deepcopy(item.handler_snapshot_json),
+            "action_type": item.action_type,
+            "action_result": item.action_result,
+            "opinion": item.opinion,
+            "created_at": item.created_at.isoformat(),
+        }
+
+    def _evidence_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {
+            "id": item.id,
+            "objection_id": item.objection_id,
+            "evidence_type": item.evidence_type,
+            "content_json": copy.deepcopy(item.content_json),
+            "submitted_by_json": copy.deepcopy(item.submitted_by_json),
+            "created_at": item.created_at.isoformat(),
+        }
+
+    def _evaluation_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {
+            "id": item.id,
+            "objection_id": item.objection_id,
+            "evaluator_snapshot_json": copy.deepcopy(item.evaluator_snapshot_json),
+            "solved_flag": item.solved_flag,
+            "overall_score": item.overall_score,
+            "timeliness_score": item.timeliness_score,
+            "result_score": item.result_score,
+            "comment": item.comment,
+        }
+
+    def _adapter_run_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {
+            "id": item.id,
+            "adapter_slug": item.adapter_slug,
+            "operation": item.operation,
+            "direction": item.direction,
+            "source_ref": item.source_ref,
+            "idempotency_key": item.idempotency_key,
+            "status": item.status,
+            "target_count": item.target_count,
+            "success_count": item.success_count,
+            "failure_count": item.failure_count,
+            "receipt_json": copy.deepcopy(item.receipt_json),
+            "error_summary": item.error_summary,
+        }
+
+    def _external_mapping_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {
+            "id": item.id,
+            "external_system": item.external_system,
+            "direction": item.direction,
+            "local_aggregate_type": item.local_aggregate_type,
+            "local_aggregate_id": item.local_aggregate_id,
+            "external_object_type": item.external_object_type,
+            "external_object_id": item.external_object_id,
+            "protocol_version": item.protocol_version,
+            "batch_no": item.batch_no,
+            "status": item.status,
+            "last_receipt_json": copy.deepcopy(item.last_receipt_json),
+        }
+
+    def _adapter_operation_from_skill(self, skill_id: str, payload: dict[str, Any]) -> tuple[str, str, str]:
+        if payload.get("adapter_slug") or payload.get("operation"):
+            return str(payload.get("adapter_slug", skill_id.rsplit(".", 1)[0])), str(payload.get("operation", skill_id.rsplit(".", 1)[1])), str(payload.get("direction", "inbound"))
+        if skill_id.startswith("adapter.cascade"):
+            operation = "replay" if skill_id.endswith("replay") else "consume"
+            return "cascade", operation, str(payload.get("direction", "inbound"))
+        if skill_id.startswith("standard.asset"):
+            return "standard_asset", skill_id.rsplit(".", 1)[1], str(payload.get("direction", "inbound"))
+        if skill_id.startswith("security.scan"):
+            return "security_scan", "result_sync", str(payload.get("direction", "inbound"))
+        if skill_id.startswith("risk.event"):
+            return "risk_event", "ingest", str(payload.get("direction", "inbound"))
+        if skill_id.startswith("compliance.signal"):
+            return "compliance_signal", "ingest", str(payload.get("direction", "inbound"))
+        parts = skill_id.split(".")
+        operation = parts[-1]
+        if operation in {"pull", "receive", "reconcile", "sync"}:
+            direction = "inbound" if operation in {"pull", "receive"} else str(payload.get("direction", "inbound"))
+        else:
+            direction = str(payload.get("direction", "outbound"))
+        return "national", operation, direction
+
+    def _aggregate_type_from_skill(self, skill_id: str) -> str:
+        for value in ("catalog", "resource", "application", "delivery", "objection", "topic"):
+            if f".{value}." in skill_id:
+                return "topic_package" if value == "topic" else value
+        return "external"
+
+    def _adapter_idempotency_key(self, skill_id: str, payload: dict[str, Any]) -> str:
+        return ":".join(
+            [
+                skill_id,
+                str(payload.get("local_aggregate_type") or self._aggregate_type_from_skill(skill_id)),
+                str(payload.get("local_aggregate_id") or payload.get("external_object_id") or payload.get("source_ref") or "pending"),
+                str(payload.get("external_system") or "national_platform"),
+            ]
+        )
+
 
     def get_workbench(self, role: str) -> dict[str, Any]:
         if role not in self._snapshot["workbench"]:
@@ -622,6 +1523,234 @@ class BrainService:
             "knowledgeArticles": [item for item in self._snapshot["knowledge_articles"] if item["id"] in {"KB-REDUCE-BURDEN-02", "KB-TEMPLATE-BACKFLOW-01"}],
         }
 
+    def ingest_legacy_exchange(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            receipt = {
+                "canonical_type": payload["canonical_type"],
+                "canonical_ref": payload["canonical_ref"],
+                "legacy_status_snapshot": safe_json(payload.get("legacy_status_snapshot") or {}),
+                "evidence": safe_json(payload.get("evidence") or {}),
+            }
+            run = self._external_adapter_repo().upsert_run_record(
+                {
+                    "adapter_slug": "legacy_exchange",
+                    "operation": "ingest",
+                    "direction": "inbound",
+                    "source_ref": payload.get("source_ref"),
+                    "idempotency_key": str(payload.get("source_ref") or f"{payload['legacy_system']}:{payload['legacy_object_ref']}"),
+                    "status": "succeeded",
+                    "receipt_json": receipt,
+                }
+            )
+            mapping = self._external_adapter_repo().upsert_mapping(
+                {
+                    "external_system": str(payload.get("legacy_system", "legacy_exchange")),
+                    "direction": "inbound",
+                    "local_aggregate_type": str(payload["canonical_type"]),
+                    "local_aggregate_id": str(payload["canonical_ref"]),
+                    "legacy_table": payload.get("legacy_object_type"),
+                    "legacy_id": payload.get("legacy_object_ref"),
+                    "external_object_type": str(payload["legacy_object_type"]),
+                    "external_object_id": str(payload["legacy_object_ref"]),
+                    "status": "ingested",
+                    "last_receipt_json": receipt,
+                }
+            )
+            if payload.get("canonical_type") == "delivery_task":
+                self._delivery_repo().add_execution_evidence(
+                    {
+                        "evidence_ref": audit_id,
+                        "delivery_code": payload["canonical_ref"],
+                        "executor_kind": "legacy_exchange_adapter",
+                        "executor_ref": str(payload.get("legacy_system", "legacy_exchange")),
+                        "evidence_kind": "legacy_ingest",
+                        "result_status": "ingested",
+                        "payload_json": payload,
+                    }
+                )
+            self._append_audit_feed("adapter.legacy.exchange.ingest", str(payload["canonical_ref"]), "ok", actor)
+            return {"mapping_id": mapping.id, "adapter_run_id": run.id, "audit_id": audit_id}
+
+        return self._mutate("adapter.legacy.exchange.ingest", role, confirmed, payload, mutation)
+
+    def ingest_delivery_receipt(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        task_id = str(payload["task_id"])
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            task = self._maybe_delivery(task_id)
+            if task is not None:
+                task["receiptStatus"] = str(payload["receipt_status"])
+                task["receiptNo"] = payload.get("receipt", {}).get("receipt_no") or payload.get("receipt_no") or task.get("receiptNo")
+                task["updatedAt"] = self._now_datetime()
+                task.setdefault("history", []).append({"time": self._now_short_time(), "state": "回执已接收", "detail": f"交付回执状态：{payload['receipt_status']}。"})
+            receipt = self._delivery_repo().append_receipt(
+                {
+                    "delivery_code": task_id,
+                    "receipt_type": "exchange",
+                    "receipt_no": payload.get("receipt", {}).get("receipt_no") or payload.get("receipt_no"),
+                    "receipt_status": payload["receipt_status"],
+                    "payload_json": payload.get("receipt") or {},
+                }
+            )
+            if payload.get("attempt_id"):
+                self._delivery_repo().add_execution_evidence(
+                    {
+                        "evidence_ref": audit_id,
+                        "delivery_code": task_id,
+                        "attempt_code": payload.get("attempt_id"),
+                        "executor_kind": "exchange_receipt",
+                        "evidence_kind": "delivery_receipt",
+                        "result_status": payload["receipt_status"],
+                        "payload_json": payload.get("receipt") or payload,
+                    }
+                )
+            if isinstance(payload.get("metrics"), dict):
+                self._delivery_repo().upsert_exchange_metric(payload["metrics"] | {"delivery_code": task_id, "status": payload["receipt_status"]})
+            self._append_audit_feed("delivery.receipt.ingest", task_id, "ok", actor)
+            return {"task_id": task_id, "receipt_status": receipt.receipt_status, "receipt_id": receipt.id, "audit_id": audit_id}
+
+        return self._mutate("delivery.receipt.ingest", role, confirmed, payload, mutation)
+
+    def query_exchange_statistics(self, **filters: Any) -> dict[str, Any]:
+        metrics = [self._exchange_metric_record_to_dict(item) for item in self._delivery_repo().list_exchange_metrics(**filters)]
+        return {"items": metrics, "summary": self._exchange_metric_summary(metrics)}
+
+    def diagnose_exchange(self, *, task_id: Any = None, attempt_id: Any = None) -> dict[str, Any]:
+        delivery_code = str(task_id) if task_id else None
+        attempt_code = str(attempt_id) if attempt_id else None
+        attempts = [self._delivery_attempt_record_to_dict(item) for item in self._delivery_repo().list_attempts(delivery_code=delivery_code, attempt_code=attempt_code)]
+        evidence = [self._delivery_evidence_record_to_dict(item) for item in self._delivery_repo().list_execution_evidence(delivery_code=delivery_code, attempt_code=attempt_code)]
+        metrics = [self._exchange_metric_record_to_dict(item) for item in self._delivery_repo().list_exchange_metrics(delivery_code=delivery_code)]
+        return {"attempts": attempts, "evidence": evidence, "metrics": metrics, "diagnosis": {"state": "failed" if any(item["state"] in {"failed", "stopped"} for item in attempts) else "observable"}}
+
+    def plan_delivery_exchange(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._record_delivery_attempt(payload, "delivery.exchange.plan", "planned", "plan")
+
+    def start_delivery_exchange(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._record_delivery_attempt(payload, "delivery.exchange.start", "running", "exchange")
+
+    def publish_delivery_exchange(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._record_delivery_attempt(payload, "delivery.exchange.publish", "published", "publish")
+
+    def stop_delivery_exchange(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._record_delivery_attempt(payload, "delivery.exchange.stop", "stopped", "stop")
+
+    def approve_application_grant(self, payload: dict[str, Any]) -> dict[str, Any]:
+        decision = str(payload["decision"])
+        if decision == "approve":
+            return self.grant_delivery_access(str(payload["task_id"]), str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+        if decision in {"reject", "return_for_fix"}:
+            task_id = str(payload["task_id"])
+            role = str(payload.get("role", self._ui_state["role"]))
+            confirmed = bool(payload.get("confirmed"))
+
+            def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+                task = self._delivery_by_id(task_id)
+                task["status"] = "warning"
+                task["updatedAt"] = self._now_datetime()
+                task["note"] = str(payload.get("reason", "授权申请未通过。"))
+                task.setdefault("history", []).append({"time": self._now_short_time(), "state": "授权未通过", "detail": task["note"]})
+                self._append_audit_feed("application.grant.approve", task_id, "warning", actor)
+                return {"task_id": task_id, "decision": decision, "status": task["status"], "audit_id": audit_id}
+
+            return self._mutate("application.grant.approve", role, confirmed, payload, mutation)
+        raise BrainServiceError(f"unsupported grant decision: {decision}")
+
+    def renew_application_grant(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        task_id = str(payload["task_id"])
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            task = self._delivery_by_id(task_id)
+            task.setdefault("access", {})["renew_until"] = payload.get("renew_until")
+            task["updatedAt"] = self._now_datetime()
+            task.setdefault("history", []).append({"time": self._now_short_time(), "state": "授权已续期", "detail": str(payload.get("reason", "访问授权续期完成。"))})
+            self._delivery_repo().add_execution_evidence({"evidence_ref": audit_id, "delivery_code": task_id, "executor_kind": "grant_policy", "evidence_kind": "grant_renewal", "result_status": "renewed", "payload_json": payload})
+            self._append_audit_feed("application.grant.renew", task_id, "ok", actor)
+            return {"task_id": task_id, "renew_until": payload.get("renew_until"), "audit_id": audit_id}
+
+        return self._mutate("application.grant.renew", role, confirmed, payload, mutation)
+
+    def submit_requirement_intent(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self.create_request(str(payload.get("resource_id") or "res-jbxx-ledger"), str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")), str(payload.get("intent") or payload.get("title") or self._ui_state.get("discoveryQuery", "")), "require.intent.submit")
+
+    def refine_requirement_intent(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        request_id = str(payload["request_id"])
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            request = self._request_by_id(request_id)
+            request.setdefault("timeline", []).append({"label": "需求已细化", "time": self._now_datetime(), "note": str(payload.get("refine_note", "已补充需求意图与资源范围。"))})
+            request["purpose"] = str(payload.get("refine_note") or request.get("purpose"))
+            request["aiStatus"]["summary"] = "需求意图已细化，仍保持受控准入链路。"
+            self._append_audit_feed("require.intent.refine", request_id, "ok", actor)
+            return {"request_id": request_id, "status": request["status"], "audit_id": audit_id}
+
+        return self._mutate("require.intent.refine", role, confirmed, payload, mutation)
+
+    def review_requirement_intent(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self.review_request(str(payload["request_id"]), str(payload["decision"]), str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")), "require.intent.review")
+
+    def match_requirement_resource(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        request_id = str(payload["request_id"])
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            request = self._request_by_id(request_id)
+            candidates = payload.get("candidate_resources") or ([payload["resource_id"]] if payload.get("resource_id") else [])
+            request["matchedResources"] = safe_json(candidates)
+            request.setdefault("timeline", []).append({"label": "资源匹配完成", "time": self._now_datetime(), "note": str(payload.get("match_note", "已生成候选资源匹配结果。"))})
+            self._append_audit_feed("require.resource.match", request_id, "ok", actor)
+            return {"request_id": request_id, "candidate_count": len(candidates), "audit_id": audit_id}
+
+        return self._mutate("require.resource.match", role, confirmed, payload, mutation)
+
+    def manage_delivery_subscription(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        action = str(payload["action"])
+        if action not in {"create", "activate", "pause", "resume", "cancel"}:
+            raise InvalidStateError(f"unsupported subscription action: {action}")
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            task = self._delivery_by_id(str(payload["task_id"]))
+            status = {"create": "active", "activate": "active", "pause": "paused", "resume": "active", "cancel": "cancelled"}[action]
+            subscription = self._delivery_repo().upsert_subscription({"subscription_code": payload.get("subscription_id"), "delivery_code": task["id"], "resource_code": task.get("resourceId") or task.get("access", {}).get("resource_code"), "status": status, "schedule_ref": payload.get("schedule_ref") or {}, "policy_snapshot": payload.get("policy_snapshot") or {}, "legacy_status_snapshot": {"action": action, "task_status": task.get("status")}})
+            task.setdefault("history", []).append({"time": self._now_short_time(), "state": "订阅策略已更新", "detail": f"订阅状态：{status}"})
+            self._append_audit_feed("delivery.subscription.manage", task["id"], "ok", actor)
+            return {"subscription_code": subscription.subscription_code, "status": subscription.status, "audit_id": audit_id}
+
+        return self._mutate("delivery.subscription.manage", role, confirmed, payload, mutation)
+
+    def _record_delivery_attempt(self, payload: dict[str, Any], skill_id: str, state: str, attempt_kind: str) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        task_id = str(payload["task_id"])
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            task = self._delivery_by_id(task_id)
+            attempt = self._delivery_repo().upsert_attempt({"attempt_code": payload.get("attempt_id") or f"{task_id}:{attempt_kind}:{audit_id}", "delivery_code": task_id, "subscription_code": payload.get("subscription_id"), "attempt_kind": attempt_kind, "state": state, "executor_ref": payload.get("executor_ref"), "evidence_ref": audit_id, "payload_json": payload.get("plan") or payload})
+            task["updatedAt"] = self._now_datetime()
+            task.setdefault("history", []).append({"time": self._now_short_time(), "state": f"交换交付{state}", "detail": str(payload.get("reason") or payload.get("mode") or attempt_kind)})
+            self._delivery_repo().add_execution_evidence({"evidence_ref": audit_id, "delivery_code": task_id, "attempt_code": attempt.attempt_code, "executor_kind": "builtin_exchange", "executor_ref": payload.get("executor_ref"), "evidence_kind": attempt_kind, "result_status": state, "payload_json": payload})
+            self._delivery_repo().upsert_exchange_metric({"metric_scope": "delivery", "delivery_code": task_id, "resource_code": payload.get("resource_id") or task.get("resourceId"), "subscription_code": payload.get("subscription_id"), "status": state, "success_count": 1 if state in {"published", "running", "planned"} else 0, "failed_count": 1 if state == "stopped" else 0, "summary_json": {"skill_id": skill_id, "state": state}})
+            self._append_audit_feed(skill_id, task_id, "ok", actor)
+            return {"task_id": task_id, "attempt_code": attempt.attempt_code, "state": attempt.state, "audit_id": audit_id}
+
+        return self._mutate(skill_id, role, confirmed, payload, mutation)
+
+    def _delivery_repo(self) -> DeliveryRepository:
+        store = self._state_store.database_store
+        return store.delivery_repo if store is not None else DeliveryRepository()
+
     def get_zone(self, zone_id: str) -> dict[str, Any]:
         for item in self.list_zones():
             if item["id"] == zone_id:
@@ -677,7 +1806,7 @@ class BrainService:
             "providerResourceCatalogCode": provider.get("repository", {}).get("resourceCatalogCode"),
             "gatewayCount": service_report["summary"]["gatewayCount"],
             "serviceInvokeCount": service_report["summary"]["invokeCount"],
-            "serviceFailureCount": service_report["summary"]["failureCount"],
+            "serviceFailureCount": service_report["summary"]["failedCount"],
         }
         return dashboard
 
@@ -927,7 +2056,7 @@ class BrainService:
                 "gatewayCount": len(gateways),
                 "gatewayWarnings": offline,
                 "invokeCount": metric_summary["invokeCount"],
-                "failureCount": metric_summary["failureCount"],
+                "failedCount": metric_summary["failedCount"],
                 "errorCount": metric_summary["errorCount"],
             },
         }
@@ -941,6 +2070,7 @@ class BrainService:
         gateway_payload = {
             "gateway_instance_id": str(payload["gateway_instance_id"]),
             "gateway_address_ref": payload.get("gateway_address_ref"),
+            "runtime_profile": payload.get("runtime_profile"),
             "status": status,
             "last_reported_at": payload.get("last_reported_at") or datetime.now().isoformat(),
             "source_ref": payload.get("source_ref") or "gateway-heartbeat",
@@ -1131,6 +2261,37 @@ class BrainService:
             return {"catalog_code": catalog_code, "lifecycle_status": status, "audit_id": audit_id}
 
         return self._mutate(skill_id, role, confirmed, {"catalog_code": catalog_code, "status": status}, mutation)
+
+    def update_catalog_entry(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        catalog_code = str(payload["catalog_code"])
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            store = self._state_store.database_store
+            repo = store.catalog_repo if store is not None else CatalogRepository()
+            existing = repo.get_entry(catalog_code)
+            if existing is None:
+                raise NotFoundError(catalog_code)
+            repo.upsert_from_resource(
+                {
+                    **copy.deepcopy(existing.summary_json),
+                    **self._safe_json(payload.get("summary_json") or {}),
+                    "id": catalog_code,
+                    "name": str(payload.get("title", existing.title)),
+                    "status": existing.lifecycle_status,
+                    "provider": payload.get("owner_org_id", existing.owner_org_id or ""),
+                    "region_code": payload.get("region_code", existing.region_code),
+                    "source_ref": payload.get("source_ref") or existing.summary_json.get("source_ref"),
+                    "legacy_object_ref": payload.get("legacy_object_ref") or catalog_code,
+                }
+            )
+            for item in payload.get("items") or []:
+                repo.upsert_item({**item, "catalog_code": catalog_code})
+            self._append_audit_feed("catalog.entry.update", catalog_code, "ok", actor)
+            return {"catalog_code": catalog_code, "lifecycle_status": existing.lifecycle_status, "audit_id": audit_id}
+
+        return self._mutate("catalog.entry.update", role, confirmed, payload, mutation)
 
     def bind_catalog_resource(self, payload: dict[str, Any]) -> dict[str, Any]:
         role = str(payload.get("role", self._ui_state["role"]))
@@ -1418,8 +2579,60 @@ class BrainService:
         return {
             "invokeCount": sum(int(item.get("invoke_count", 0)) for item in metrics),
             "successCount": sum(int(item.get("success_count", 0)) for item in metrics),
-            "failureCount": sum(int(item.get("failure_count", 0)) for item in metrics),
+            "failedCount": sum(int(item.get("failed_count", item.get("failure_count", 0))) for item in metrics),
             "errorCount": sum(int(item.get("error_count", 0)) for item in metrics),
+        }
+
+    def _exchange_metric_summary(self, metrics: list[dict[str, Any]]) -> dict[str, Any]:
+        return {
+            "exchangeCount": sum(int(item.get("exchange_count", 0)) for item in metrics),
+            "successCount": sum(int(item.get("success_count", 0)) for item in metrics),
+            "failedCount": sum(int(item.get("failed_count", 0)) for item in metrics),
+            "recordCount": sum(int(item.get("record_count", 0)) for item in metrics),
+        }
+
+    def _delivery_attempt_record_to_dict(self, record: Any) -> dict[str, Any]:
+        return {
+            "attempt_code": record.attempt_code,
+            "delivery_code": record.delivery_code,
+            "subscription_code": record.subscription_code,
+            "attempt_kind": record.attempt_kind,
+            "state": record.state,
+            "executor_ref": record.executor_ref,
+            "evidence_ref": record.evidence_ref,
+            "payload_json": copy.deepcopy(record.payload_json),
+        }
+
+    def _delivery_evidence_record_to_dict(self, record: Any) -> dict[str, Any]:
+        return {
+            "evidence_ref": record.evidence_ref,
+            "delivery_code": record.delivery_code,
+            "attempt_code": record.attempt_code,
+            "executor_kind": record.executor_kind,
+            "executor_ref": record.executor_ref,
+            "evidence_kind": record.evidence_kind,
+            "result_status": record.result_status,
+            "sanitized_payload_json": copy.deepcopy(record.sanitized_payload_json),
+        }
+
+    def _exchange_metric_record_to_dict(self, record: Any) -> dict[str, Any]:
+        return {
+            "metric_scope": record.metric_scope,
+            "resource_code": record.resource_code,
+            "delivery_code": record.delivery_code,
+            "subscription_code": record.subscription_code,
+            "provider_org_id": record.provider_org_id,
+            "consumer_org_id": record.consumer_org_id,
+            "bucket_granularity": record.bucket_granularity,
+            "time_bucket": record.time_bucket,
+            "exchange_count": record.exchange_count,
+            "success_count": record.success_count,
+            "failed_count": record.failed_count,
+            "record_count": record.record_count,
+            "file_count": record.file_count,
+            "table_count": record.table_count,
+            "last_error_code": record.last_error_code,
+            "summary_json": copy.deepcopy(record.summary_json),
         }
 
     def _safe_json(self, value: dict[str, Any]) -> dict[str, Any]:
@@ -1577,7 +2790,7 @@ class BrainService:
     def _gateway_record_to_dict(self, record: Any) -> dict[str, Any]:
         return {
             "gateway_instance_id": record.gateway_instance_id,
-            "gateway_address_ref": record.gateway_address_ref,
+            "runtime_profile": record.runtime_profile,
             "status": record.status,
             "last_reported_at": record.last_reported_at.isoformat(),
             "source_ref": record.source_ref,
@@ -1600,7 +2813,7 @@ class BrainService:
             "time_bucket": record.time_bucket,
             "invoke_count": record.invoke_count,
             "success_count": record.success_count,
-            "failure_count": record.failure_count,
+            "failed_count": record.failed_count,
             "provider_error_count": record.provider_error_count,
             "consumer_error_count": record.consumer_error_count,
             "gateway_error_count": record.gateway_error_count,
@@ -1959,7 +3172,7 @@ class BrainService:
 
         return self._mutate("delivery.trigger_recovery", role, confirmed, {"task_id": task_id}, mutation)
 
-    def configure_package_exposure(self, package_id: str, mode: str, role: str, confirmed: bool) -> dict[str, Any]:
+    def configure_package_exposure(self, package_id: str, mode: str, role: str, confirmed: bool, skill_id: str = "package.configure_exposure") -> dict[str, Any]:
         item = self._package_by_id(package_id)
         if item.get("versionStatus") != "registered":
             raise InvalidStateError("package version must be registered before exposure configuration")
@@ -1976,10 +3189,10 @@ class BrainService:
             item["compatibility"] = next_exposure
             item["aiReview"]["summary"] = f"暴露矩阵已按 {mode} 策略更新，当前仍受统一 capability 契约与审计边界约束。"
             item["aiReview"]["draft"] = f"暴露配置结论：已将 capability surfaces 调整为 {' / '.join(next_exposure)}。"
-            self._append_audit_feed("package.configure-exposure", package_id, "ok", actor)
+            self._append_audit_feed(skill_id, package_id, "ok", actor)
             return {"package_id": package_id, "exposure": next_exposure}
 
-        return self._mutate("package.configure_exposure", role, confirmed, {"package_id": package_id, "mode": mode}, mutation)
+        return self._mutate(skill_id, role, confirmed, {"package_id": package_id, "mode": mode}, mutation)
 
     def investigate_dispute(self, dispute_id: str, action: str, role: str, confirmed: bool) -> dict[str, Any]:
         dispute = next((item for item in self._snapshot["disputes"] if item["id"] == dispute_id), None)
@@ -2025,21 +3238,34 @@ class BrainService:
         catalog = next((item for item in provider["catalogs"] if item["id"] == catalog_id), None)
         if catalog is None:
             raise NotFoundError(catalog_id)
+        if action == "publish":
+            store = self._state_store.database_store
+            if store is not None:
+                store.catalog_repo.upsert_from_resource(
+                    {
+                        "id": catalog["id"],
+                        "name": catalog.get("name", catalog["id"]),
+                        "status": "approved_pending_publish",
+                        "provider": catalog.get("owner", ""),
+                        "source_ref": catalog.get("source_ref") or f"provider:catalog:{catalog['id']}",
+                        "legacy_object_ref": catalog.get("legacy_object_ref") or catalog["id"],
+                        "summary_json": catalog,
+                    }
+                )
         if action not in {"publish", "revise"}:
-            raise BrainServiceError(f"unsupported catalog action: {action}")
+            raise InvalidStateError(f"unsupported catalog action: {action}")
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             if action == "publish":
                 catalog["status"] = "已发布"
                 catalog["issue"] = f"已由 {actor} 完成目录发布确认"
-                catalog["governanceLocked"] = True
                 result = "published"
                 event_type = "catalog.publish"
             else:
                 catalog["issue"] = f"已由 {actor} 修正目录说明与默认复用入口文案"
-                catalog["governanceLocked"] = True
                 result = "revised"
                 event_type = "catalog.revise"
+            catalog["governanceLocked"] = True
             provider["aiGovernance"]["summary"] = "目录治理动作已落账，当前可继续推进资源状态和专区正式投影。"
             self._append_audit_feed(event_type, catalog_id, "ok", actor)
             return {"catalog_id": catalog_id, "status": catalog["status"], "result": result}
@@ -2051,20 +3277,35 @@ class BrainService:
         resource = next((item for item in provider["resources"] if item["id"] == resource_id), None)
         if resource is None:
             raise NotFoundError(resource_id)
+        store = self._state_store.database_store
+        if action == "publish" and store is not None:
+            store.resource_api_repo.upsert_asset(
+                {
+                    "resource_code": resource["id"],
+                    "title": resource.get("name", resource["id"]),
+                    "resource_kind": "dataset",
+                    "lifecycle_status": "approved_pending_publish",
+                    "owner_org_id": resource.get("owner_org_id"),
+                    "source_ref": resource.get("source_ref") or f"provider:resource:{resource['id']}",
+                    "legacy_object_ref": resource.get("legacy_object_ref") or resource["id"],
+                    "summary_json": resource,
+                }
+            )
+        if action == "suspend" and store is not None:
+            store.resource_api_repo.transition_asset(resource_id, "suspended")
         if action not in {"publish", "suspend"}:
-            raise BrainServiceError(f"unsupported resource action: {action}")
+            raise InvalidStateError(f"unsupported resource action: {action}")
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             if action == "publish":
                 resource["status"] = "可共享"
-                resource["governanceLocked"] = True
                 result = "published"
                 event_type = "resource.publish"
             else:
                 resource["status"] = "暂停共享"
-                resource["governanceLocked"] = True
                 result = "suspended"
                 event_type = "resource.suspend"
+            resource["governanceLocked"] = True
             resource["updatedAt"] = self._now_date()
             provider["aiGovernance"]["summary"] = "资源治理状态已更新，当前应确认专区是否只消费可见资产。"
             self._append_audit_feed(event_type, resource_id, "ok", actor)
@@ -2168,7 +3409,7 @@ class BrainService:
 
         return self._mutate("service.publish_or_suspend", role, confirmed, {"service_id": service_id, "action": action}, mutation)
 
-    def register_package_version(self, package_id: str, role: str, confirmed: bool) -> dict[str, Any]:
+    def register_package_version(self, package_id: str, role: str, confirmed: bool, skill_id: str = "package.register_version") -> dict[str, Any]:
         item = self._package_by_id(package_id)
         if item["status"] != "approved":
             raise InvalidStateError("package must be approved before version registration")
@@ -2183,12 +3424,12 @@ class BrainService:
             item["runtimeBinding"] = item.get("runtimeBinding") or "builtin registry projection"
             item["aiReview"]["summary"] = "版本登记已完成，当前可继续执行租户策略生效，但仍不改变平台对责任写权的控制。"
             item["aiReview"]["draft"] = "登记结论：版本 v1.0.0 已进入 registry，可继续配置租户策略与暴露范围。"
-            self._append_audit_feed("package.register-version", package_id, "ok", actor)
+            self._append_audit_feed(skill_id, package_id, "ok", actor)
             return {"package_id": package_id, "registered_version": item["registeredVersion"]}
 
-        return self._mutate("package.register_version", role, confirmed, {"package_id": package_id}, mutation)
+        return self._mutate(skill_id, role, confirmed, {"package_id": package_id}, mutation)
 
-    def apply_package_tenant_policy(self, package_id: str, role: str, confirmed: bool) -> dict[str, Any]:
+    def apply_package_tenant_policy(self, package_id: str, role: str, confirmed: bool, skill_id: str = "package.apply_tenant_policy") -> dict[str, Any]:
         item = self._package_by_id(package_id)
         if item.get("versionStatus") != "registered":
             raise InvalidStateError("package version must be registered before tenant policy activation")
@@ -2205,14 +3446,22 @@ class BrainService:
                 },
             }
             item["status"] = "approved"
+            store = self._state_store.database_store
+            if store is not None:
+                policy_record = store.capability_package_repo.upsert_tenant_policy(item, tenant_id="default")
+                item["tenantPolicy"] = {
+                    "tenantId": policy_record.tenant_id,
+                    "policyStatus": policy_record.policy_status,
+                    "policy": copy.deepcopy(policy_record.policy_json),
+                }
             item["aiReview"]["summary"] = "租户策略已生效，能力包进入可控暴露状态；正式责任写动作仍然回到平台内建能力。"
             item["aiReview"]["draft"] = "策略结论：default 租户已启用该能力包，暴露面与审计级别沿用已审核结果。"
-            self._append_audit_feed("package.apply-tenant-policy", package_id, "ok", actor)
+            self._append_audit_feed(skill_id, package_id, "ok", actor)
             return {"package_id": package_id, "tenant_policy_status": item["tenantPolicy"]["policyStatus"]}
 
-        return self._mutate("package.apply_tenant_policy", role, confirmed, {"package_id": package_id}, mutation)
+        return self._mutate(skill_id, role, confirmed, {"package_id": package_id}, mutation)
 
-    def review_package(self, package_id: str, decision: str, role: str, confirmed: bool) -> dict[str, Any]:
+    def review_package(self, package_id: str, decision: str, role: str, confirmed: bool, skill_id: str = "package.review_decide") -> dict[str, Any]:
         item = self._package_by_id(package_id)
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
@@ -2240,7 +3489,87 @@ class BrainService:
                 raise BrainServiceError(f"unsupported package decision: {decision}")
             return {"package_id": package_id, "status": item["status"]}
 
-        return self._mutate("package.review_decide", role, confirmed, {"package_id": package_id, "decision": decision}, mutation)
+        return self._mutate(skill_id, role, confirmed, {"package_id": package_id, "decision": decision}, mutation)
+
+    def register_capability_package(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        package_id = str(payload.get("package_id") or payload.get("id") or f"PKG-{payload['slug']}")
+        slug = str(payload["slug"])
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            packages = self._snapshot.setdefault("capability_packages", [])
+            item = next((entry for entry in packages if entry.get("id") == package_id or entry.get("slug") == slug), None)
+            package_payload = {
+                "id": package_id,
+                "slug": slug,
+                "source": str(payload.get("source", payload.get("source_org", "zw-brain registry"))),
+                "status": str(payload.get("status", "pending")),
+                "exposure": list(payload.get("exposure") or payload.get("compatibility") or ["api"]),
+                "auditClass": str(payload.get("auditClass", payload.get("audit_class", "read-normal"))),
+                "requiresHuman": bool(payload.get("requiresHuman", payload.get("requires_human", False))),
+                "desc": str(payload.get("desc", payload.get("description", slug))),
+                "aiReview": {
+                    "summary": "能力包已进入统一 registry 候审，正式写权仍由平台 canonical skill 承接。",
+                    "missing": [],
+                    "safe": ["统一契约", "不直接改写主事实"],
+                    "draft": "登记结论：已收件，等待版本审核。",
+                },
+                "contract": self._safe_json(payload.get("contract") or {}),
+                "tenantPolicy": self._safe_json(payload.get("tenantPolicy") or {"scope": "tenant-bound", "writeCanonicalState": False, "allowedWritebacks": []}),
+                "failureWriteback": self._safe_json(payload.get("failureWriteback") or {"target": "audit_event", "mode": "failure_summary"}),
+                "runtimeBinding": self._safe_json(payload.get("runtimeBinding") or {"protocol": "brain_service", "sideEffects": ["audit_only"]}),
+            }
+            if item is None:
+                packages.append(package_payload)
+            else:
+                item.update(package_payload)
+            store = self._state_store.database_store
+            if store is not None:
+                store.capability_package_repo.upsert_from_package(package_payload)
+            self._append_audit_feed("capability.package.register", package_id, "ok", actor)
+            return {"package_id": package_id, "slug": slug, "status": package_payload["status"], "audit_id": audit_id}
+
+        return self._mutate("capability.package.register", role, confirmed, payload, mutation)
+
+    def disable_tenant_capability(self, package_id: str, role: str, confirmed: bool) -> dict[str, Any]:
+        item = self._package_by_id(package_id)
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            item["tenantPolicy"] = {
+                "tenantId": "default",
+                "policyStatus": "disabled",
+                "policy": {
+                    "enabled": False,
+                    "exposedSurfaces": [],
+                    "requiresHuman": item.get("requiresHuman", False),
+                    "auditClass": item.get("auditClass"),
+                },
+            }
+            store = self._state_store.database_store
+            if store is not None:
+                policy_record = store.capability_package_repo.set_tenant_policy_status(
+                    item,
+                    tenant_id="default",
+                    policy_status="disabled",
+                    enabled=False,
+                    exposed_surfaces=[],
+                )
+                item["tenantPolicy"] = {
+                    "tenantId": policy_record.tenant_id,
+                    "policyStatus": policy_record.policy_status,
+                    "policy": copy.deepcopy(policy_record.policy_json),
+                }
+            item["aiReview"]["summary"] = "租户策略已禁用，该能力包不再向当前租户暴露。"
+            self._append_audit_feed("tenant.capability.disable", package_id, "ok", actor)
+            return {"package_id": package_id, "tenant_policy_status": item["tenantPolicy"]["policyStatus"], "audit_id": audit_id}
+
+        return self._mutate("tenant.capability.disable", role, confirmed, {"package_id": package_id}, mutation)
+
+    def export_registry_artifacts(self) -> dict[str, Any]:
+        manifests = self.manifests()
+        packages = self.list_packages()
+        return {"items": list(manifests.values()), "packages": packages, "total": len(manifests), "summary": {"skill_count": len(manifests), "package_count": len(packages)}}
 
     def toggle_outage(self, role: str, confirmed: bool) -> dict[str, Any]:
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
@@ -2387,21 +3716,95 @@ class BrainService:
         except DomainAccessDeniedError as exc:
             raise AccessDeniedError(str(exc)) from exc
 
+    def _invoke_traced_read(self, skill_id: str, role: str, payload: dict[str, Any], operation: Any) -> Any:
+        store = self._state_store.database_store
+        if store is None:
+            return operation()
+        actor = self._actor_for_role(role)
+        audit_id = self._new_audit_id()
+        started_at = datetime.now()
+        self._emit_audit(audit_id, actor, skill_id, "before", payload)
+        try:
+            result = operation()
+        except Exception as exc:
+            self._emit_audit(audit_id, actor, skill_id, "error", {"error": exc.__class__.__name__, "message": str(exc)})
+            self._record_capability_call(
+                audit_id,
+                actor,
+                role,
+                skill_id,
+                payload,
+                {"error": exc.__class__.__name__, "message": str(exc)},
+                started_at,
+                status="failed",
+            )
+            raise
+        self._emit_audit(audit_id, actor, skill_id, "after", result if isinstance(result, dict) else {"result": result})
+        self._record_capability_call(audit_id, actor, role, skill_id, payload, result if isinstance(result, dict) else {"result": result}, started_at)
+        return result
+
     def _mutate(self, skill_id: str, role: str, confirmed: bool, payload: dict[str, Any], mutation: Any) -> dict[str, Any]:
         manifest = get_manifest(skill_id)
         if manifest.get("human_confirmation_required") and not confirmed:
             raise ConfirmationRequiredError(skill_id)
         actor = self._actor_for_role(role)
         audit_id = self._new_audit_id()
+        started_at = datetime.now()
         self._emit_audit(audit_id, actor, skill_id, "before", payload)
-        result = mutation(audit_id, actor)
+        try:
+            result = mutation(audit_id, actor)
+        except Exception as exc:
+            self._emit_audit(audit_id, actor, skill_id, "error", {"error": exc.__class__.__name__, "message": str(exc)})
+            self._record_capability_call(
+                audit_id,
+                actor,
+                role,
+                skill_id,
+                payload,
+                {"error": exc.__class__.__name__, "message": str(exc)},
+                started_at,
+                status="failed",
+            )
+            raise
         self._sync_state_views()
         self._persist()
         self._emit_audit(audit_id, actor, skill_id, "after", result)
+        self._record_capability_call(audit_id, actor, role, skill_id, payload, result, started_at)
         if manifest.get("side_effects"):
             self._sync_database_aggregates()
             self._enqueue_anchor(audit_id, actor, skill_id, payload | result)
         return {"ok": True, "skill_id": skill_id, "audit_id": audit_id, "result": result}
+
+    def _record_capability_call(
+        self,
+        audit_id: str,
+        actor: str,
+        role: str,
+        skill_id: str,
+        payload: dict[str, Any],
+        result: dict[str, Any],
+        started_at: datetime,
+        *,
+        status: str = "succeeded",
+    ) -> None:
+        store = self._state_store.database_store
+        if store is None:
+            return
+        store.append_capability_call(
+            {
+                "call_ref": audit_id,
+                "tenant_id": str(payload.get("tenant_id", "default")),
+                "skill_id": skill_id,
+                "actor": actor,
+                "role_code": role,
+                "status": status,
+                "request_ref": self._audit_target_from_payload(audit_id, payload),
+                "input_json": safe_json(payload),
+                "output_json": safe_json(result),
+                "started_at": started_at,
+                "completed_at": datetime.now(),
+            }
+        )
 
     def _persist(self) -> None:
         self._state_store.save(self._snapshot, self._ui_state)
@@ -2413,7 +3816,7 @@ class BrainService:
                 actor=actor,
                 skill_id=skill_id,
                 phase=phase,
-                payload=copy.deepcopy(payload),
+                payload=safe_json(payload),
             )
         )
 

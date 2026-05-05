@@ -1,0 +1,94 @@
+{
+  "skill_id": "adapter.cascade.health.query",
+  "slug": "adapter.cascade.health.query",
+  "title": "查询级联健康",
+  "description": "查询级联 adapter 运行记录和最近状态。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      },
+      "adapter_slug": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "total": {
+        "type": "integer"
+      },
+      "result": {
+        "type": "object"
+      },
+      "run": {
+        "type": "object"
+      },
+      "mapping": {
+        "type": [
+          "object",
+          "null"
+        ]
+      },
+      "summary": {
+        "type": "object"
+      },
+      "audit_id": {
+        "type": "string"
+      }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-default",
+  "execution_binding": "builtin",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "adapter.cascade.health.query"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [
+    "adapter.cascade.health.query.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "adapter",
+    "cascade",
+    "health",
+    "read"
+  ]
+}

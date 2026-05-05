@@ -1,0 +1,33 @@
+{
+  "name": "topic.package.query",
+  "description": "查询专题包列表和详情投影。",
+  "inputSchema": {
+    "type": "object",
+    "required": [],
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "package_code": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "topic.package.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

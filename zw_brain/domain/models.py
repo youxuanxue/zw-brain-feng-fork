@@ -38,6 +38,24 @@ class AuditEventRecord(Base):
     occurred_at: Mapped[datetime] = mapped_column(DateTime, default=_now, index=True)
 
 
+class CapabilityCallRecord(Base):
+    __tablename__ = "capability_call"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    call_ref: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    skill_id: Mapped[str] = mapped_column(String(128), index=True)
+    actor: Mapped[str] = mapped_column(String(128))
+    role_code: Mapped[str] = mapped_column(String(64), index=True)
+    status: Mapped[str] = mapped_column(String(32), index=True)
+    request_ref: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    input_json: Mapped[dict] = mapped_column(JSON)
+    output_json: Mapped[dict] = mapped_column(JSON)
+    error_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=_now, index=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
 class AnchorOutboxRecord(Base):
     __tablename__ = "anchor_outbox"
 
@@ -328,6 +346,7 @@ class GatewayRuntimeStatusProjectionRecord(Base):
     tenant_id: Mapped[str] = mapped_column(String(64), index=True)
     gateway_instance_id: Mapped[str] = mapped_column(String(128), index=True)
     gateway_address_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    runtime_profile: Mapped[str | None] = mapped_column(String(64), nullable=True)
     status: Mapped[str] = mapped_column(String(32), index=True)
     last_reported_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
@@ -368,7 +387,7 @@ class ServiceInvocationMetricProjectionRecord(Base):
     time_bucket: Mapped[str] = mapped_column(String(32), index=True)
     invoke_count: Mapped[int] = mapped_column(Integer, default=0)
     success_count: Mapped[int] = mapped_column(Integer, default=0)
-    failure_count: Mapped[int] = mapped_column(Integer, default=0)
+    failed_count: Mapped[int] = mapped_column(Integer, default=0)
     provider_error_count: Mapped[int] = mapped_column(Integer, default=0)
     consumer_error_count: Mapped[int] = mapped_column(Integer, default=0)
     gateway_error_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -409,6 +428,70 @@ class LegacyObjectMappingRecord(Base):
     mapping_status: Mapped[str] = mapped_column(String(32), default="mapped", index=True)
     evidence_json: Mapped[dict] = mapped_column(JSON)
     mapped_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now, index=True)
+
+
+class ExternalObjectMappingRecord(Base):
+    __tablename__ = "external_object_mapping"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "external_system",
+            "direction",
+            "local_aggregate_type",
+            "local_aggregate_id",
+            "external_object_type",
+            "external_object_id",
+            name="uq_external_object_mapping_identity",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    external_system: Mapped[str] = mapped_column(String(64), index=True)
+    direction: Mapped[str] = mapped_column(String(32), index=True)
+    local_aggregate_type: Mapped[str] = mapped_column(String(64), index=True)
+    local_aggregate_id: Mapped[str] = mapped_column(String(128), index=True, default="")
+    legacy_table: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    legacy_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    external_object_type: Mapped[str] = mapped_column(String(128), index=True)
+    external_object_id: Mapped[str] = mapped_column(String(128), index=True)
+    protocol_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    batch_no: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    last_receipt_json: Mapped[dict] = mapped_column(JSON)
+    extra_json: Mapped[dict] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now, index=True)
+
+
+class AdapterRunRecord(Base):
+    __tablename__ = "adapter_run_record"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "adapter_slug",
+            "operation",
+            "idempotency_key",
+            name="uq_adapter_run_idempotency",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    adapter_slug: Mapped[str] = mapped_column(String(128), index=True)
+    operation: Mapped[str] = mapped_column(String(64), index=True)
+    direction: Mapped[str] = mapped_column(String(32), index=True)
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    idempotency_key: Mapped[str] = mapped_column(String(255), index=True)
+    status: Mapped[str] = mapped_column(String(32), index=True)
+    target_count: Mapped[int] = mapped_column(Integer, default=0)
+    success_count: Mapped[int] = mapped_column(Integer, default=0)
+    failure_count: Mapped[int] = mapped_column(Integer, default=0)
+    receipt_json: Mapped[dict] = mapped_column(JSON)
+    error_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=_now, index=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 
 
 class ApplicationRecord(Base):
@@ -495,6 +578,100 @@ class DeliveryReceiptRecord(Base):
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
+class DeliverySubscriptionRecord(Base):
+    __tablename__ = "delivery_subscription"
+    __table_args__ = (UniqueConstraint("tenant_id", "subscription_code", name="uq_delivery_subscription_tenant_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    subscription_code: Mapped[str] = mapped_column(String(64), index=True)
+    delivery_code: Mapped[str] = mapped_column(String(64), index=True)
+    resource_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(32), index=True)
+    schedule_ref_json: Mapped[dict] = mapped_column(JSON)
+    policy_snapshot_json: Mapped[dict] = mapped_column(JSON)
+    legacy_status_snapshot_json: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class DeliveryAttemptRecord(Base):
+    __tablename__ = "delivery_attempt"
+    __table_args__ = (UniqueConstraint("tenant_id", "attempt_code", name="uq_delivery_attempt_tenant_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    attempt_code: Mapped[str] = mapped_column(String(96), index=True)
+    delivery_code: Mapped[str] = mapped_column(String(64), index=True)
+    subscription_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    attempt_kind: Mapped[str] = mapped_column(String(32), index=True)
+    state: Mapped[str] = mapped_column(String(32), index=True)
+    executor_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    evidence_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    payload_json: Mapped[dict] = mapped_column(JSON)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class DeliveryExecutionEvidenceRecord(Base):
+    __tablename__ = "delivery_execution_evidence"
+    __table_args__ = (UniqueConstraint("tenant_id", "evidence_ref", name="uq_delivery_execution_evidence_tenant_ref"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    evidence_ref: Mapped[str] = mapped_column(String(128), index=True)
+    delivery_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    attempt_code: Mapped[str | None] = mapped_column(String(96), nullable=True, index=True)
+    executor_kind: Mapped[str] = mapped_column(String(64), index=True)
+    executor_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    evidence_kind: Mapped[str] = mapped_column(String(64), index=True)
+    result_status: Mapped[str] = mapped_column(String(32), index=True)
+    sanitized_payload_json: Mapped[dict] = mapped_column(JSON)
+    captured_at: Mapped[datetime] = mapped_column(DateTime, default=_now, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class ExchangeMetricProjectionRecord(Base):
+    __tablename__ = "exchange_metric_projection"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "metric_scope",
+            "resource_code",
+            "delivery_code",
+            "subscription_code",
+            "provider_org_id",
+            "consumer_org_id",
+            "bucket_granularity",
+            "time_bucket",
+            name="uq_exchange_metric_identity",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    metric_scope: Mapped[str] = mapped_column(String(64), index=True)
+    resource_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    delivery_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    subscription_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    provider_org_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    consumer_org_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    bucket_granularity: Mapped[str] = mapped_column(String(32), index=True)
+    time_bucket: Mapped[str] = mapped_column(String(32), index=True)
+    exchange_count: Mapped[int] = mapped_column(Integer, default=0)
+    success_count: Mapped[int] = mapped_column(Integer, default=0)
+    failed_count: Mapped[int] = mapped_column(Integer, default=0)
+    record_count: Mapped[int] = mapped_column(Integer, default=0)
+    file_count: Mapped[int] = mapped_column(Integer, default=0)
+    table_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_error_code: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    last_error_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    summary_json: Mapped[dict] = mapped_column(JSON)
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, index=True)
+
+
 class CapabilityPackageRecord(Base):
     __tablename__ = "capability_package"
 
@@ -515,6 +692,195 @@ class TenantCapabilityPolicyRecord(Base):
     package_slug: Mapped[str] = mapped_column(String(128), index=True)
     policy_status: Mapped[str] = mapped_column(String(32), index=True)
     policy_json: Mapped[dict] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class TenantProjectionRecord(Base):
+    __tablename__ = "tenant_projection"
+    __table_args__ = (UniqueConstraint("tenant_id", name="uq_tenant_projection_tenant"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    tenant_name: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(32), index=True, default="active")
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    profile_json: Mapped[dict] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class OrgProjectionRecord(Base):
+    __tablename__ = "org_projection"
+    __table_args__ = (UniqueConstraint("tenant_id", "org_code", name="uq_org_projection_tenant_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    org_code: Mapped[str] = mapped_column(String(64), index=True)
+    org_name: Mapped[str] = mapped_column(String(200))
+    parent_org_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    region_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(32), index=True, default="active")
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    profile_json: Mapped[dict] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class RegionProjectionRecord(Base):
+    __tablename__ = "region_projection"
+    __table_args__ = (UniqueConstraint("tenant_id", "region_code", name="uq_region_projection_tenant_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    region_code: Mapped[str] = mapped_column(String(64), index=True)
+    region_name: Mapped[str] = mapped_column(String(200))
+    parent_region_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    region_level: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(32), index=True, default="active")
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    profile_json: Mapped[dict] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class RoleProjectionRecord(Base):
+    __tablename__ = "role_projection"
+    __table_args__ = (UniqueConstraint("tenant_id", "role_code", name="uq_role_projection_tenant_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    role_code: Mapped[str] = mapped_column(String(64), index=True)
+    role_name: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(32), index=True, default="active")
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    profile_json: Mapped[dict] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class ActorProjectionRecord(Base):
+    __tablename__ = "actor_projection"
+    __table_args__ = (UniqueConstraint("tenant_id", "external_actor_id", name="uq_actor_projection_tenant_external"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    external_actor_id: Mapped[str] = mapped_column(String(128), index=True)
+    display_name: Mapped[str] = mapped_column(String(200))
+    org_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    role_codes_json: Mapped[list] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(32), index=True, default="active")
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    profile_json: Mapped[dict] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class LegacyPolicyMappingCandidateRecord(Base):
+    __tablename__ = "legacy_policy_mapping_candidate"
+    __table_args__ = (UniqueConstraint("tenant_id", "legacy_system", "legacy_permission_ref", "capability_id", name="uq_legacy_policy_candidate_identity"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    legacy_system: Mapped[str] = mapped_column(String(64), index=True)
+    legacy_permission_ref: Mapped[str] = mapped_column(String(128), index=True)
+    legacy_role_ref: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    capability_id: Mapped[str] = mapped_column(String(128), index=True)
+    surface: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    candidate_status: Mapped[str] = mapped_column(String(32), index=True, default="pending_review")
+    evidence_json: Mapped[dict] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class TopicPackageRecord(Base):
+    __tablename__ = "topic_package"
+    __table_args__ = (UniqueConstraint("tenant_id", "package_code", name="uq_topic_package_tenant_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    package_code: Mapped[str] = mapped_column(String(128), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    scenario: Mapped[str] = mapped_column(String(200), index=True, default="一表通 / 基层报表减负")
+    owner_org_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    owner_org_snapshot_json: Mapped[dict] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(32), index=True, default="draft")
+    display_snapshot_json: Mapped[dict] = mapped_column(JSON)
+    metric_snapshot_json: Mapped[dict] = mapped_column(JSON)
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class TopicPackageItemRecord(Base):
+    __tablename__ = "topic_package_item"
+    __table_args__ = (UniqueConstraint("tenant_id", "package_code", "item_code", name="uq_topic_package_item_tenant_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    package_code: Mapped[str] = mapped_column(String(128), index=True)
+    item_code: Mapped[str] = mapped_column(String(128), index=True)
+    ref_type: Mapped[str] = mapped_column(String(64), index=True)
+    ref_id: Mapped[str] = mapped_column(String(128), index=True)
+    ref_status: Mapped[str] = mapped_column(String(32), index=True, default="active")
+    title: Mapped[str] = mapped_column(String(200))
+    display_order: Mapped[int] = mapped_column(Integer, default=0)
+    summary_json: Mapped[dict] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class TopicPackageVisibilityRecord(Base):
+    __tablename__ = "topic_package_visibility"
+    __table_args__ = (UniqueConstraint("tenant_id", "package_code", "visibility_code", name="uq_topic_visibility_tenant_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    package_code: Mapped[str] = mapped_column(String(128), index=True)
+    visibility_code: Mapped[str] = mapped_column(String(128), index=True)
+    org_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    role_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    region_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    surface: Mapped[str] = mapped_column(String(32), index=True, default="webui")
+    intent: Mapped[str] = mapped_column(String(64), index=True, default="view")
+    policy_status: Mapped[str] = mapped_column(String(32), index=True, default="pending_review")
+    condition_json: Mapped[dict] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class TopicPackageReviewRecord(Base):
+    __tablename__ = "topic_package_review_record"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    package_code: Mapped[str] = mapped_column(String(128), index=True)
+    action_type: Mapped[str] = mapped_column(String(64), index=True)
+    action_result: Mapped[str] = mapped_column(String(32), index=True)
+    from_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    to_status: Mapped[str] = mapped_column(String(32), index=True)
+    reviewer_snapshot_json: Mapped[dict] = mapped_column(JSON)
+    opinion: Mapped[str | None] = mapped_column(Text, nullable=True)
+    evidence_json: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class TopicPackageEvidenceRecord(Base):
+    __tablename__ = "topic_package_evidence"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    package_code: Mapped[str] = mapped_column(String(128), index=True)
+    evidence_type: Mapped[str] = mapped_column(String(64), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    related_ref_type: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    related_ref_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    content_json: Mapped[dict] = mapped_column(JSON)
+    submitted_by_json: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class TopicPackageMetricProjectionRecord(Base):
+    __tablename__ = "topic_package_metric_projection"
+    __table_args__ = (UniqueConstraint("tenant_id", "package_code", "metric_key", name="uq_topic_metric_tenant_key"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    package_code: Mapped[str] = mapped_column(String(128), index=True)
+    metric_key: Mapped[str] = mapped_column(String(128), index=True)
+    metric_value: Mapped[int] = mapped_column(Integer, default=0)
+    metric_json: Mapped[dict] = mapped_column(JSON)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 
 

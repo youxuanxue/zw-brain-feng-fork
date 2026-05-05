@@ -3,7 +3,38 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-SENSITIVE_JSON_KEYS = {"secret", "password", "token", "credential", "app_secret", "superior_app_secret"}
+SENSITIVE_JSON_KEYS = {
+    "secret",
+    "password",
+    "token",
+    "credential",
+    "app_secret",
+    "superior_app_secret",
+    "api_key",
+    "access_token",
+    "refresh_token",
+    "client_secret",
+    "authorization",
+    "cookie",
+    "session_key",
+    "secret_key",
+    "certificate",
+    "cert",
+    "private_key",
+}
+
+
+def _is_sensitive_json_key(key: object) -> bool:
+    lowered = str(key).lower()
+    return (
+        lowered in SENSITIVE_JSON_KEYS
+        or lowered.endswith("_token")
+        or lowered.endswith("_secret")
+        or lowered.endswith("_key")
+        or "password" in lowered
+        or "credential" in lowered
+        or "authorization" in lowered
+    )
 
 
 def safe_json(value: Any) -> Any:
@@ -11,7 +42,7 @@ def safe_json(value: Any) -> Any:
         return {
             key: safe_json(item)
             for key, item in copy.deepcopy(value).items()
-            if key.lower() not in SENSITIVE_JSON_KEYS
+            if not _is_sensitive_json_key(key)
         }
     if isinstance(value, list):
         return [safe_json(item) for item in copy.deepcopy(value)]

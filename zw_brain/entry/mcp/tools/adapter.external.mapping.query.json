@@ -1,0 +1,42 @@
+{
+  "name": "adapter.external.mapping.query",
+  "description": "查询国家平台或级联系统外部对象与本地聚合的映射。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      },
+      "external_system": {
+        "type": "string"
+      },
+      "local_aggregate_type": {
+        "type": "string"
+      },
+      "local_aggregate_id": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "adapter.external.mapping.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

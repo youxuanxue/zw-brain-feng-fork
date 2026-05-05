@@ -58,6 +58,7 @@ class GatewayRuntimeRepository:
                     tenant_id=tenant_id,
                     gateway_instance_id=instance_id,
                     gateway_address_ref=payload.get("gateway_address_ref"),
+                    runtime_profile=payload.get("runtime_profile"),
                     status=str(payload.get("status", "online")),
                     last_reported_at=reported_at,
                     source_ref=payload.get("source_ref"),
@@ -67,6 +68,8 @@ class GatewayRuntimeRepository:
                 session.add(record)
             else:
                 record.gateway_address_ref = payload.get("gateway_address_ref", record.gateway_address_ref)
+                if payload.get("runtime_profile") is not None:
+                    record.runtime_profile = payload["runtime_profile"]
                 record.status = str(payload.get("status", record.status))
                 record.last_reported_at = reported_at
                 record.source_ref = payload.get("source_ref", record.source_ref)

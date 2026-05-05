@@ -1,0 +1,36 @@
+{
+  "name": "objection.case.query",
+  "description": "查询异议案件列表，供 P0 闭环和 P6 指标投影读取。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "string"
+      },
+      "target_type": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "objection.case.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

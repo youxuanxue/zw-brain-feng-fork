@@ -69,11 +69,13 @@ def test_external_capability_contracts_are_registered_but_not_direct_surfaces() 
     expected = {
         "external.metadata.gather.execute",
         "external.datasource.connectivity.test",
+        "external.datasource.connectivity.probe",
         "external.schema.structure.apply",
         "external.catalog.materialize.execute",
         "external.catalog.reverse_compile.execute",
         "external.quality.scan.execute",
         "external.lineage.graph.build",
+        "external.exchange.executor.execute",
         "external.cascade.sync.execute",
         "external.share.governance.configure",
         "external.notification.workorder.dispatch",
@@ -94,6 +96,79 @@ def test_external_capability_contracts_are_registered_but_not_direct_surfaces() 
         assert "failure_callback_json" in skill["output_schema"]["properties"]
         assert "external_execution" in skill["side_effects"]
         assert not any(is_surface_enabled(skill, surface) for surface in ["webui", "api", "cli", "mcp", "a2a"])
+
+
+
+def test_registered_builtin_contracts_are_brain_service_routed() -> None:
+    from zw_brain.domain.policy import ACTOR_NAMES, permissions_for_role
+
+    service = BrainService()
+    missing: list[str] = []
+
+    for skill in discover_skills():
+        if "error" in skill or skill.get("execution_binding") != "builtin":
+            continue
+        required_permissions = set(skill.get("permissions") or [])
+        role = next(
+            (candidate for candidate in ACTOR_NAMES if required_permissions.issubset(permissions_for_role(candidate))),
+            "r8",
+        )
+        payload = {name: _sample_value(name, schema) for name, schema in skill.get("input_schema", {}).get("properties", {}).items()}
+        for name in skill.get("input_schema", {}).get("required", []):
+            payload.setdefault(name, _sample_value(name, {}))
+        payload["role"] = role
+        if skill.get("human_confirmation_required"):
+            payload["confirmed"] = True
+        try:
+            service.invoke_skill(skill["skill_id"], payload)
+        except UnknownSkillError:
+            missing.append(skill["skill_id"])
+        except Exception:
+            pass
+
+    assert missing == []
+
+
+def test_registered_skill_permissions_are_assigned_to_roles() -> None:
+    from zw_brain.domain.policy import ACTOR_NAMES, permissions_for_role
+
+    permissions_by_role = {role: permissions_for_role(role) for role in ACTOR_NAMES}
+    unassigned: list[tuple[str, str]] = []
+
+    for skill in discover_skills():
+        if "error" in skill:
+            continue
+        for permission in skill.get("permissions") or []:
+            if not any(permission in permissions for permissions in permissions_by_role.values()):
+                unassigned.append((skill["skill_id"], permission))
+
+    assert unassigned == []
+
+
+def _sample_value(name: str, schema: dict) -> object:
+    if name == "role":
+        return "r8"
+    if name == "confirmed":
+        return True
+    if name == "decision":
+        return "approve"
+    if name == "action":
+        return "publish"
+    if name == "mode":
+        return "expand"
+    if name == "task_id":
+        return "DLV-2026-04-25-0011"
+    if name == "request_id":
+        return "REQ-2026-04-25-0011"
+    if name == "resource_id":
+        return "res-jbxx-ledger"
+    if name.endswith("_json") or schema.get("type") == "object":
+        return {}
+    if schema.get("type") == "array":
+        return []
+    if schema.get("type") == "integer":
+        return 1
+    return f"sample-{name}"
 
 
 def test_external_capability_contracts_are_not_brain_service_invokable() -> None:

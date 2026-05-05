@@ -120,9 +120,22 @@ def test_delivery_repository_sanitizes_payload_and_keeps_access_grant_snapshot()
         }
         assert record.payload_json["backflow"] == {}
 
+def test_safe_json_removes_sensitive_key_variants() -> None:
+    from zw_brain.shared.sanitization import safe_json
+
+    assert safe_json(
+        {
+            "access_token": "x",
+            "refresh_token": "x",
+            "client_secret": "x",
+            "Authorization": "Bearer x",
+            "Cookie": "sid=x",
+            "session_key": "x",
+            "nested": [{"public": "ok", "db_password_hash": "x", "credentialRef": "x"}],
+        }
+    ) == {"nested": [{"public": "ok"}]}
 
 
-def test_resource_api_repository_preserves_field_level_mappings_without_secrets() -> None:
     with TemporaryDirectory() as tmp:
         db_path = Path(tmp) / "repo.db"
         import os
@@ -193,7 +206,7 @@ def test_service_invocation_metric_repository_keeps_region_granularity_and_error
                 "time_bucket": "2026-04-29T10",
                 "invoke_count": 10,
                 "success_count": 8,
-                "failure_count": 2,
+                "failed_count": 2,
                 "provider_error_count": 1,
                 "consumer_error_count": 1,
                 "gateway_error_count": 0,
@@ -217,7 +230,7 @@ def test_service_invocation_metric_repository_keeps_region_granularity_and_error
                 "time_bucket": "2026-04-29T10",
                 "invoke_count": 11,
                 "success_count": 9,
-                "failure_count": 2,
+                "failed_count": 2,
                 "provider_error_count": 2,
             }
         )
@@ -227,6 +240,7 @@ def test_service_invocation_metric_repository_keeps_region_granularity_and_error
         assert metric.consumer_region_code == "370200"
         assert metric.bucket_granularity == "hour"
         assert metric.invoke_count == 11
+        assert metric.failed_count == 2
         assert metric.provider_error_count == 2
         assert metric.consumer_error_count == 1
         assert metric.apply_count == 3
@@ -378,6 +392,37 @@ def test_runtime_sync_writes_aggregate_tables() -> None:
             assert conn.execute(text("select count(*) from tenant_capability_policy")).scalar_one() > 0
 
 
+def test_tenant_capability_disable_does_not_change_package_review_status() -> None:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "repo.db"
+        import os
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.domain.repositories.capability_package import CapabilityPackageRepository
+
+        ensure_runtime_schema()
+        repo = CapabilityPackageRepository()
+        package = {
+            "slug": "pkg-formal-test",
+            "status": "approved",
+            "source": "registry",
+            "exposure": ["webui", "mcp"],
+            "requiresHuman": True,
+            "auditClass": "high",
+            "tenantPolicy": {"maxDailyCalls": 10},
+        }
+        repo.upsert_from_package(package)
+
+        policy = repo.set_tenant_policy_status(package, policy_status="disabled", enabled=False, exposed_surfaces=[])
+        stored = next(item for item in repo.list_packages() if item.package_slug == "pkg-formal-test")
+
+        assert stored.review_status == "approved"
+        assert policy.policy_status == "disabled"
+        assert policy.policy_json["enabled"] is False
+        assert policy.policy_json["exposedSurfaces"] == []
+
+
 def test_greenfield_schema_contains_step_receipt_and_policy_tables() -> None:
     with TemporaryDirectory() as tmp:
         db_path = Path(tmp) / "repo.db"
@@ -426,3 +471,107 @@ def test_governance_schema_and_projection_are_persisted() -> None:
             assert conn.execute(text("select count(*) from objection_evidence")).scalar_one() > 0
             assert conn.execute(text("select count(*) from objection_process")).scalar_one() > 0
             assert conn.execute(text("select count(*) from objection_evaluation")).scalar_one() > 0
+
+
+def test_external_adapter_repository_idempotency_and_secret_sanitization() -> None:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "repo.db"
+        import os
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
+
+        ensure_runtime_schema()
+        repo = ExternalAdapterRepository()
+        first = repo.upsert_run_record(
+            {
+                "adapter_slug": "national",
+                "operation": "receive",
+                "direction": "inbound",
+                "idempotency_key": "idem-1",
+                "status": "succeeded",
+                "receipt_json": {"token": "should-not-persist", "receipt_no": "R1"},
+            }
+        )
+        second = repo.upsert_run_record(
+            {
+                "adapter_slug": "national",
+                "operation": "receive",
+                "direction": "inbound",
+                "idempotency_key": "idem-1",
+                "status": "failed",
+                "error_summary": "remote rejected",
+                "receipt_json": {"api_key": "should-not-persist", "receipt_no": "R2"},
+            }
+        )
+        assert first.id == second.id
+        assert second.status == "failed"
+        assert second.receipt_json == {"receipt_no": "R2"}
+
+        mapping = repo.upsert_mapping(
+            {
+                "external_system": "national_platform",
+                "direction": "inbound",
+                "local_aggregate_type": "application",
+                "local_aggregate_id": "REQ-1",
+                "external_object_type": "national_application",
+                "external_object_id": "NAT-1",
+                "last_receipt_json": {"certificate": "should-not-persist", "status": "accepted"},
+                "extra_json": {"private_key": "should-not-persist", "batch": "B1"},
+            }
+        )
+        assert mapping.last_receipt_json == {"status": "accepted"}
+        assert mapping.extra_json == {"batch": "B1"}
+        assert repo.list_mappings(local_aggregate_id="REQ-1")[0].id == mapping.id
+
+
+
+
+def test_p1_governance_projection_and_topic_package_repositories() -> None:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "repo.db"
+        import os
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
+        from zw_brain.domain.repositories.topic_package import TopicPackageRepository, TopicPackageStateError
+
+        ensure_runtime_schema()
+        governance = GovernanceProjectionRepository()
+        governance.upsert_org({"org_code": "ORG-1", "org_name": "区政数局", "profile_json": {"secret": "drop", "level": "district"}})
+        governance.upsert_actor({"external_actor_id": "u-1", "display_name": "治理员", "org_code": "ORG-1", "role_codes": ["r7"], "profile_json": {"token": "drop", "mobile_mask": "138****0000"}})
+        candidate = governance.import_legacy_policy_candidate({"legacy_permission_ref": "bsp:menu:sharezone", "legacy_role_ref": "ROLE_ADMIN", "capability_id": "topic.package.publish", "surface": "webui", "evidence_json": {"password": "drop", "source": "dsp-bsp"}})
+        assert governance.list_orgs()[0].profile_json == {"level": "district"}
+        assert governance.list_actors()[0].profile_json == {"mobile_mask": "138****0000"}
+        assert candidate.evidence_json == {"source": "dsp-bsp"}
+
+        topic = TopicPackageRepository()
+        topic.create_package({"package_code": "tp-ybt", "title": "一表通减负专题", "display_snapshot_json": {"secret": "drop", "hero": "基层只补差异"}})
+        topic.configure_package(
+            "tp-ybt",
+            {
+                "items": [{"item_code": "cat-jbxx", "ref_type": "catalog", "ref_id": "cat-jbxx", "summary_json": {"token": "drop", "domain": "法人"}}],
+                "visibility": [{"visibility_code": "r7-web", "role_code": "r7", "policy_status": "approved", "condition_json": {"api_key": "drop", "intent": "publish"}}],
+            },
+        )
+        topic.transition_package("tp-ybt", "submitted", {"opinion": "提交审核"})
+        published = topic.transition_package("tp-ybt", "published", {"action_type": "review", "opinion": "通过"})
+        topic.attach_evidence("tp-ybt", {"evidence_type": "case", "title": "基层减负案例", "content_json": {"certificate": "drop", "saving": 3}})
+        topic.upsert_metric("tp-ybt", {"metric_key": "reuse_count", "metric_value": 8, "metric_json": {"private_key": "drop", "unit": "org"}})
+
+        assert published.status == "published"
+        assert topic.list_items("tp-ybt")[0].summary_json == {"domain": "法人"}
+        assert topic.list_visibility("tp-ybt")[0].condition_json == {"intent": "publish"}
+        assert topic.list_evidence("tp-ybt")[0].content_json == {"saving": 3}
+        assert topic.list_metrics("tp-ybt")[0].metric_json == {"unit": "org"}
+
+        topic.create_package({"package_code": "tp-blocked", "title": "未满足发布条件"})
+        topic.transition_package("tp-blocked", "submitted", {})
+        try:
+            topic.transition_package("tp-blocked", "published", {})
+        except TopicPackageStateError:
+            pass
+        else:
+            raise AssertionError("topic package without item and approved visibility must not publish")

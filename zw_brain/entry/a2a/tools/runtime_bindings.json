@@ -1,5 +1,95 @@
 [
   {
+    "tool_name": "adapter.cascade.health.query",
+    "description": "查询级联 adapter 运行记录和最近状态。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/adapter.cascade.health.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "adapter_slug": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": []
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "adapter.cascade.health.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "adapter.external.mapping.query",
+    "description": "查询国家平台或级联系统外部对象与本地聚合的映射。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/adapter.external.mapping.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "external_system": {
+          "type": "string"
+        },
+        "local_aggregate_type": {
+          "type": "string"
+        },
+        "local_aggregate_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": []
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "adapter.external.mapping.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "approval.view",
     "description": "查看审批建议、风险、影响和异常项。",
     "protocol_type": "builtin_skill",
@@ -275,6 +365,120 @@
       "audit_required": true,
       "permissions": [
         "catalog.share_zone.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "compliance.case.query",
+    "description": "查询合规事件最小闭环快照。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/compliance.case.query",
+    "parameters_schema": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "compliance.case.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "compliance.metric.query",
+    "description": "查询合规事件状态和风险分布指标。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/compliance.metric.query",
+    "parameters_schema": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "compliance.metric.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "dashboard.compliance.query",
+    "description": "查询合规事件、指标和 adapter 健康概览。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/dashboard.compliance.query",
+    "parameters_schema": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "dashboard.compliance.query.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -604,6 +808,125 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "objection.case.query",
+    "description": "查询异议案件列表，供 P0 闭环和 P6 指标投影读取。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/objection.case.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string"
+        },
+        "target_type": {
+          "type": "string"
+        }
+      },
+      "required": []
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "objection.case.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "objection.metric.query",
+    "description": "查询异议状态分布和闭环指标投影。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/objection.metric.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": []
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "objection.metric.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "objection.process.query",
+    "description": "查询异议处理过程、证据与评价链路。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/objection.process.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "objection_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "objection_id"
+      ]
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "objection.process.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "ops.catalog.quality.query",
     "description": "查询目录、目录项或资源质量检测结果和解释证据。",
     "protocol_type": "builtin_skill",
@@ -893,6 +1216,42 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "registry.artifact.export",
+    "description": "只读导出 skill manifest 与能力包注册工件。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/registry.artifact.export",
+    "parameters_schema": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "registry.artifact.export.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "request.list",
     "description": "查看黄金链路中的申请清单和当前状态。",
     "protocol_type": "builtin_skill",
@@ -1033,6 +1392,126 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "tenant.policy.evaluate",
+    "description": "基于 brain registry 和租户策略评估指定角色是否可使用能力；旧权限仅作为候选证据。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/tenant.policy.evaluate",
+    "parameters_schema": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "capability_id": {
+          "type": "string"
+        },
+        "skill_id": {
+          "type": "string"
+        },
+        "surface": {
+          "type": "string"
+        },
+        "role_code": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "tenant.policy.evaluate.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "topic.package.metric.query",
+    "description": "查询专题包复用、发布和治理指标投影。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/topic.package.metric.query",
+    "parameters_schema": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "package_code": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "topic.package.metric.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "topic.package.query",
+    "description": "查询专题包列表和详情投影。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/topic.package.query",
+    "parameters_schema": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "package_code": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "topic.package.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "workbench.view",
     "description": "按角色查看工作台待办、重点提示和副驾摘要。",
     "protocol_type": "builtin_skill",
@@ -1133,6 +1612,330 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "actor.projection.sync",
+    "description": "同步外部用户与角色快照投影，仅用于展示、审计和策略评估上下文。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/actor.projection.sync",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "actors": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "external_actor_id": {
+          "type": "string"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "org_code": {
+          "type": "string"
+        },
+        "role_codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "actor.projection.sync.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "adapter.cascade.consume",
+    "description": "幂等记录上下级级联事件消费结果、失败摘要和证据回执。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/adapter.cascade.consume",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "external_system": {
+          "type": "string"
+        },
+        "local_aggregate_type": {
+          "type": "string"
+        },
+        "local_aggregate_id": {
+          "type": "string"
+        },
+        "legacy_table": {
+          "type": "string"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "external_object_type": {
+          "type": "string"
+        },
+        "external_object_id": {
+          "type": "string"
+        },
+        "protocol_version": {
+          "type": "string"
+        },
+        "batch_no": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "mapping_status": {
+          "type": "string"
+        },
+        "target_count": {
+          "type": "integer"
+        },
+        "success_count": {
+          "type": "integer"
+        },
+        "failure_count": {
+          "type": "integer"
+        },
+        "receipt_json": {
+          "type": "object"
+        },
+        "last_receipt_json": {
+          "type": "object"
+        },
+        "extra_json": {
+          "type": "object"
+        },
+        "error_summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "adapter.cascade.consume.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "adapter.cascade.replay",
+    "description": "按幂等键记录级联失败事件重放结果和回执。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/adapter.cascade.replay",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "external_system": {
+          "type": "string"
+        },
+        "local_aggregate_type": {
+          "type": "string"
+        },
+        "local_aggregate_id": {
+          "type": "string"
+        },
+        "legacy_table": {
+          "type": "string"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "external_object_type": {
+          "type": "string"
+        },
+        "external_object_id": {
+          "type": "string"
+        },
+        "protocol_version": {
+          "type": "string"
+        },
+        "batch_no": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "mapping_status": {
+          "type": "string"
+        },
+        "target_count": {
+          "type": "integer"
+        },
+        "success_count": {
+          "type": "integer"
+        },
+        "failure_count": {
+          "type": "integer"
+        },
+        "receipt_json": {
+          "type": "object"
+        },
+        "last_receipt_json": {
+          "type": "object"
+        },
+        "extra_json": {
+          "type": "object"
+        },
+        "error_summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "adapter.cascade.replay.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "adapter.health.probe",
+    "description": "记录 adapter 健康探测回执。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/adapter.health.probe",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "adapter_slug": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "receipt_json": {
+          "type": "object"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "adapter.health.probe.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "adapter.legacy.exchange.ingest",
     "description": "受控摄取旧交换对象映射、旧状态快照和脱敏证据，不兼容旧 URL。",
     "protocol_type": "builtin_skill",
@@ -1193,6 +1996,1056 @@
       "audit_required": true,
       "permissions": [
         "adapter.legacy.exchange.ingest.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "adapter.national.application.receive",
+    "description": "记录国家平台申请接收事件和外部对象映射，等待本地域能力决策。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/adapter.national.application.receive",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "external_system": {
+          "type": "string"
+        },
+        "local_aggregate_type": {
+          "type": "string"
+        },
+        "local_aggregate_id": {
+          "type": "string"
+        },
+        "legacy_table": {
+          "type": "string"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "external_object_type": {
+          "type": "string"
+        },
+        "external_object_id": {
+          "type": "string"
+        },
+        "protocol_version": {
+          "type": "string"
+        },
+        "batch_no": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "mapping_status": {
+          "type": "string"
+        },
+        "target_count": {
+          "type": "integer"
+        },
+        "success_count": {
+          "type": "integer"
+        },
+        "failure_count": {
+          "type": "integer"
+        },
+        "receipt_json": {
+          "type": "object"
+        },
+        "last_receipt_json": {
+          "type": "object"
+        },
+        "extra_json": {
+          "type": "object"
+        },
+        "error_summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "adapter.national.application.receive.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "adapter.national.application.reconcile",
+    "description": "记录国家平台申请对账结果，不绕过本地审批聚合。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/adapter.national.application.reconcile",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "external_system": {
+          "type": "string"
+        },
+        "local_aggregate_type": {
+          "type": "string"
+        },
+        "local_aggregate_id": {
+          "type": "string"
+        },
+        "legacy_table": {
+          "type": "string"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "external_object_type": {
+          "type": "string"
+        },
+        "external_object_id": {
+          "type": "string"
+        },
+        "protocol_version": {
+          "type": "string"
+        },
+        "batch_no": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "mapping_status": {
+          "type": "string"
+        },
+        "target_count": {
+          "type": "integer"
+        },
+        "success_count": {
+          "type": "integer"
+        },
+        "failure_count": {
+          "type": "integer"
+        },
+        "receipt_json": {
+          "type": "object"
+        },
+        "last_receipt_json": {
+          "type": "object"
+        },
+        "extra_json": {
+          "type": "object"
+        },
+        "error_summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "adapter.national.application.reconcile.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "adapter.national.application.submit",
+    "description": "记录向国家平台提交申请的运行记录、幂等键和回执。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/adapter.national.application.submit",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "external_system": {
+          "type": "string"
+        },
+        "local_aggregate_type": {
+          "type": "string"
+        },
+        "local_aggregate_id": {
+          "type": "string"
+        },
+        "legacy_table": {
+          "type": "string"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "external_object_type": {
+          "type": "string"
+        },
+        "external_object_id": {
+          "type": "string"
+        },
+        "protocol_version": {
+          "type": "string"
+        },
+        "batch_no": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "mapping_status": {
+          "type": "string"
+        },
+        "target_count": {
+          "type": "integer"
+        },
+        "success_count": {
+          "type": "integer"
+        },
+        "failure_count": {
+          "type": "integer"
+        },
+        "receipt_json": {
+          "type": "object"
+        },
+        "last_receipt_json": {
+          "type": "object"
+        },
+        "extra_json": {
+          "type": "object"
+        },
+        "error_summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "adapter.national.application.submit.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "adapter.national.catalog.pull",
+    "description": "记录国家平台目录拉取回执和外部对象映射，不直接覆盖本地目录主事实。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/adapter.national.catalog.pull",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "external_system": {
+          "type": "string"
+        },
+        "local_aggregate_type": {
+          "type": "string"
+        },
+        "local_aggregate_id": {
+          "type": "string"
+        },
+        "legacy_table": {
+          "type": "string"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "external_object_type": {
+          "type": "string"
+        },
+        "external_object_id": {
+          "type": "string"
+        },
+        "protocol_version": {
+          "type": "string"
+        },
+        "batch_no": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "mapping_status": {
+          "type": "string"
+        },
+        "target_count": {
+          "type": "integer"
+        },
+        "success_count": {
+          "type": "integer"
+        },
+        "failure_count": {
+          "type": "integer"
+        },
+        "receipt_json": {
+          "type": "object"
+        },
+        "last_receipt_json": {
+          "type": "object"
+        },
+        "extra_json": {
+          "type": "object"
+        },
+        "error_summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "adapter.national.catalog.pull.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "adapter.national.catalog.report",
+    "description": "记录目录上报国家平台的批次、协议版本、外部对象与回执。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/adapter.national.catalog.report",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "external_system": {
+          "type": "string"
+        },
+        "local_aggregate_type": {
+          "type": "string"
+        },
+        "local_aggregate_id": {
+          "type": "string"
+        },
+        "legacy_table": {
+          "type": "string"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "external_object_type": {
+          "type": "string"
+        },
+        "external_object_id": {
+          "type": "string"
+        },
+        "protocol_version": {
+          "type": "string"
+        },
+        "batch_no": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "mapping_status": {
+          "type": "string"
+        },
+        "target_count": {
+          "type": "integer"
+        },
+        "success_count": {
+          "type": "integer"
+        },
+        "failure_count": {
+          "type": "integer"
+        },
+        "receipt_json": {
+          "type": "object"
+        },
+        "last_receipt_json": {
+          "type": "object"
+        },
+        "extra_json": {
+          "type": "object"
+        },
+        "error_summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "adapter.national.catalog.report.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "adapter.national.delivery.receipt.sync",
+    "description": "记录国家平台交付回执，作为交付聚合处理的外部证据。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/adapter.national.delivery.receipt.sync",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "external_system": {
+          "type": "string"
+        },
+        "local_aggregate_type": {
+          "type": "string"
+        },
+        "local_aggregate_id": {
+          "type": "string"
+        },
+        "legacy_table": {
+          "type": "string"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "external_object_type": {
+          "type": "string"
+        },
+        "external_object_id": {
+          "type": "string"
+        },
+        "protocol_version": {
+          "type": "string"
+        },
+        "batch_no": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "mapping_status": {
+          "type": "string"
+        },
+        "target_count": {
+          "type": "integer"
+        },
+        "success_count": {
+          "type": "integer"
+        },
+        "failure_count": {
+          "type": "integer"
+        },
+        "receipt_json": {
+          "type": "object"
+        },
+        "last_receipt_json": {
+          "type": "object"
+        },
+        "extra_json": {
+          "type": "object"
+        },
+        "error_summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "adapter.national.delivery.receipt.sync.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "adapter.national.objection.sync",
+    "description": "记录国家平台异议同步回执，异议状态推进仍由本地异议聚合决定。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/adapter.national.objection.sync",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "external_system": {
+          "type": "string"
+        },
+        "local_aggregate_type": {
+          "type": "string"
+        },
+        "local_aggregate_id": {
+          "type": "string"
+        },
+        "legacy_table": {
+          "type": "string"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "external_object_type": {
+          "type": "string"
+        },
+        "external_object_id": {
+          "type": "string"
+        },
+        "protocol_version": {
+          "type": "string"
+        },
+        "batch_no": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "mapping_status": {
+          "type": "string"
+        },
+        "target_count": {
+          "type": "integer"
+        },
+        "success_count": {
+          "type": "integer"
+        },
+        "failure_count": {
+          "type": "integer"
+        },
+        "receipt_json": {
+          "type": "object"
+        },
+        "last_receipt_json": {
+          "type": "object"
+        },
+        "extra_json": {
+          "type": "object"
+        },
+        "error_summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "adapter.national.objection.sync.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "adapter.national.resource.pull",
+    "description": "记录国家平台资源拉取回执和外部对象映射，不直接覆盖本地资源主事实。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/adapter.national.resource.pull",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "external_system": {
+          "type": "string"
+        },
+        "local_aggregate_type": {
+          "type": "string"
+        },
+        "local_aggregate_id": {
+          "type": "string"
+        },
+        "legacy_table": {
+          "type": "string"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "external_object_type": {
+          "type": "string"
+        },
+        "external_object_id": {
+          "type": "string"
+        },
+        "protocol_version": {
+          "type": "string"
+        },
+        "batch_no": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "mapping_status": {
+          "type": "string"
+        },
+        "target_count": {
+          "type": "integer"
+        },
+        "success_count": {
+          "type": "integer"
+        },
+        "failure_count": {
+          "type": "integer"
+        },
+        "receipt_json": {
+          "type": "object"
+        },
+        "last_receipt_json": {
+          "type": "object"
+        },
+        "extra_json": {
+          "type": "object"
+        },
+        "error_summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "adapter.national.resource.pull.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "adapter.national.resource.report",
+    "description": "记录资源上报国家平台的批次、协议版本、外部对象与回执。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/adapter.national.resource.report",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "external_system": {
+          "type": "string"
+        },
+        "local_aggregate_type": {
+          "type": "string"
+        },
+        "local_aggregate_id": {
+          "type": "string"
+        },
+        "legacy_table": {
+          "type": "string"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "external_object_type": {
+          "type": "string"
+        },
+        "external_object_id": {
+          "type": "string"
+        },
+        "protocol_version": {
+          "type": "string"
+        },
+        "batch_no": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "mapping_status": {
+          "type": "string"
+        },
+        "target_count": {
+          "type": "integer"
+        },
+        "success_count": {
+          "type": "integer"
+        },
+        "failure_count": {
+          "type": "integer"
+        },
+        "receipt_json": {
+          "type": "object"
+        },
+        "last_receipt_json": {
+          "type": "object"
+        },
+        "extra_json": {
+          "type": "object"
+        },
+        "error_summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "adapter.national.resource.report.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "adapter.national.topic.report",
+    "description": "记录专题包上报国家平台的外部映射和批次回执。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/adapter.national.topic.report",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "external_system": {
+          "type": "string"
+        },
+        "local_aggregate_type": {
+          "type": "string"
+        },
+        "local_aggregate_id": {
+          "type": "string"
+        },
+        "legacy_table": {
+          "type": "string"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "external_object_type": {
+          "type": "string"
+        },
+        "external_object_id": {
+          "type": "string"
+        },
+        "protocol_version": {
+          "type": "string"
+        },
+        "batch_no": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "mapping_status": {
+          "type": "string"
+        },
+        "target_count": {
+          "type": "integer"
+        },
+        "success_count": {
+          "type": "integer"
+        },
+        "failure_count": {
+          "type": "integer"
+        },
+        "receipt_json": {
+          "type": "object"
+        },
+        "last_receipt_json": {
+          "type": "object"
+        },
+        "extra_json": {
+          "type": "object"
+        },
+        "error_summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "adapter.national.topic.report.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -1416,6 +3269,61 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "approval.case.decide",
+    "description": "对申请案件执行通过、退回或驳回，复用 canonical 审批状态机。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/approval.case.decide",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "request_id",
+        "decision",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "return_for_fix",
+            "reject"
+          ]
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "approval.case.decide.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "approval.review_decide",
     "description": "对申请执行通过、退回补正或驳回，保留人工确认边界。",
     "protocol_type": "builtin_skill",
@@ -1507,6 +3415,293 @@
       "audit_required": true,
       "permissions": [
         "backflow.confirm.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "capability.exposure.configure",
+    "description": "在版本登记后配置能力包 surfaces，不改变 canonical 写权。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/capability.exposure.configure",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "package_id",
+        "mode",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "package_id": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "tighten",
+            "expand"
+          ]
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "capability.exposure.configure.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "capability.package.register",
+    "description": "将能力包登记到统一 registry 候审，不授予主状态写权。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/capability.package.register",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "slug",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "package_id": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "exposure": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "contract": {
+          "type": "object"
+        },
+        "tenantPolicy": {
+          "type": "object"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "capability.package.register.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "capability.version.review",
+    "description": "复用能力包审核状态机裁决版本是否可进入登记。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/capability.version.review",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "package_id",
+        "decision",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "package_id": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "return_for_fix",
+            "reject"
+          ]
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "capability.version.review.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "capability.version.submit",
+    "description": "审核通过后把能力包版本登记到统一 registry。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/capability.version.submit",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "package_id",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "package_id": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "capability.version.submit.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "catalog.entry.create",
+    "description": "创建 canonical 目录条目草稿。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.entry.create",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "catalog_code",
+        "title",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "region_code": {
+          "type": "string"
+        },
+        "summary_json": {
+          "type": "object"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "catalog.entry.create.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -1716,6 +3911,70 @@
       "audit_required": true,
       "permissions": [
         "catalog.entry.submit_review.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "catalog.entry.update",
+    "description": "更新目录条目草稿内容，不绕过目录生命周期。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.entry.update",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "catalog_code",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "region_code": {
+          "type": "string"
+        },
+        "summary_json": {
+          "type": "object"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "catalog.entry.update.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -2048,6 +4307,217 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "compliance.case.assign",
+    "description": "将合规事件分派给处置责任方。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/compliance.case.assign",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "case_id",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "case_id": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "opinion": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "compliance.case.assign.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "compliance.case.close",
+    "description": "关闭已解决的合规事件。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/compliance.case.close",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "case_id",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "case_id": {
+          "type": "string"
+        },
+        "opinion": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "compliance.case.close.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "compliance.case.open",
+    "description": "打开合规事件最小处置闭环。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/compliance.case.open",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "title",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "case_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "compliance.case.open.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "compliance.case.resolve",
+    "description": "记录合规事件处置完成结果。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/compliance.case.resolve",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "case_id",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "case_id": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "opinion": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "compliance.case.resolve.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "compliance.investigate_case",
     "description": "对合规争议执行推进调查或升级治理动作。",
     "protocol_type": "builtin_skill",
@@ -2091,6 +4561,115 @@
       "audit_required": true,
       "permissions": [
         "compliance.investigate_case.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "compliance.rule.configure",
+    "description": "维护 zw-brain 最小合规规则快照。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/compliance.rule.configure",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "rule_id",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "rule_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "rule_json": {
+          "type": "object"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "compliance.rule.configure.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "compliance.signal.ingest",
+    "description": "接收外部合规信号并记录 adapter receipt。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/compliance.signal.ingest",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "adapter_slug": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "receipt_json": {
+          "type": "object"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "compliance.signal.ingest.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -2556,6 +5135,204 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "legacy.bsp.mapping.import",
+    "description": "把旧 BSP 权限与角色关系导入为待审核候选映射，不直接授予生产权限。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/legacy.bsp.mapping.import",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "legacy_system": {
+          "type": "string"
+        },
+        "legacy_permission_ref": {
+          "type": "string"
+        },
+        "legacy_role_ref": {
+          "type": "string"
+        },
+        "capability_id": {
+          "type": "string"
+        },
+        "surface": {
+          "type": "string"
+        },
+        "candidate_status": {
+          "type": "string"
+        },
+        "evidence_json": {
+          "type": "object"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "legacy.bsp.mapping.import.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "legacy.sharezone.mapping.import",
+    "description": "把旧共享专区配置导入为 TopicPackage 投影候选，不保留旧应用密钥、路径或页面引擎。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/legacy.sharezone.mapping.import",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "package_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "scenario": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "owner_org_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot": {
+          "type": "object"
+        },
+        "metric_snapshot_json": {
+          "type": "object"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibility": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibilities": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "evidence_json": {
+          "type": "object"
+        },
+        "decision": {
+          "type": "string"
+        },
+        "policy_status": {
+          "type": "string"
+        },
+        "org_code": {
+          "type": "string"
+        },
+        "role_code": {
+          "type": "string"
+        },
+        "region_code": {
+          "type": "string"
+        },
+        "condition_json": {
+          "type": "object"
+        },
+        "evidence_type": {
+          "type": "string"
+        },
+        "related_ref_type": {
+          "type": "string"
+        },
+        "related_ref_id": {
+          "type": "string"
+        },
+        "content_json": {
+          "type": "object"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "zone_id": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "legacy.sharezone.mapping.import.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "metadata.gather.evidence.upsert",
     "description": "记录外部元数据采集任务回执，采集成败不直接改变资源业务状态。",
     "protocol_type": "builtin_skill",
@@ -2757,6 +5534,684 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "objection.case.accept",
+    "description": "受理已提交异议并进入调查分发前置状态。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/objection.case.accept",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "objection_id": {
+          "type": "string"
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "handler_org_id": {
+          "type": "string"
+        },
+        "handler_snapshot_json": {
+          "type": "object"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "required": [
+        "objection_id",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "objection.case.accept.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "objection.case.assign",
+    "description": "将已受理或调查中的异议分发至平台或提供方核查节点。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/objection.case.assign",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "objection_id": {
+          "type": "string"
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "handler_org_id": {
+          "type": "string"
+        },
+        "handler_snapshot_json": {
+          "type": "object"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "target_status": {
+          "type": "string",
+          "enum": [
+            "platform_investigating",
+            "provider_investigating"
+          ]
+        }
+      },
+      "required": [
+        "objection_id",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "objection.case.assign.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "objection.case.close",
+    "description": "关闭已解决异议并固化闭环结果。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/objection.case.close",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "objection_id": {
+          "type": "string"
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "handler_org_id": {
+          "type": "string"
+        },
+        "handler_snapshot_json": {
+          "type": "object"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "required": [
+        "objection_id",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "objection.case.close.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "objection.case.create",
+    "description": "创建异议案件并写入首条过程和证据链，不触碰目录、资源、申请或交付主状态。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/objection.case.create",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "objection_kind": {
+          "type": "string"
+        },
+        "target_type": {
+          "type": "string"
+        },
+        "target_id": {
+          "type": "string"
+        },
+        "related_application_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "complainant_org_id": {
+          "type": "string"
+        },
+        "complainant_org_snapshot_json": {
+          "type": "object"
+        },
+        "provider_org_id": {
+          "type": "string"
+        },
+        "provider_org_snapshot_json": {
+          "type": "object"
+        },
+        "basis_text": {
+          "type": "string"
+        },
+        "expected_result": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "required": [
+        "target_type",
+        "target_id",
+        "title",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "objection.case.create.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "objection.case.escalate",
+    "description": "将异议升级为督办状态并记录督办证据，通知由外部 adapter 处理。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/objection.case.escalate",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "objection_id": {
+          "type": "string"
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "handler_org_id": {
+          "type": "string"
+        },
+        "handler_snapshot_json": {
+          "type": "object"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "escalation_level": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "objection_id",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "objection.case.escalate.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "objection.case.evaluate",
+    "description": "对已解决异议写入或更新评价记录。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/objection.case.evaluate",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "objection_id": {
+          "type": "string"
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "handler_org_id": {
+          "type": "string"
+        },
+        "handler_snapshot_json": {
+          "type": "object"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "solved_flag": {
+          "type": "boolean"
+        },
+        "overall_score": {
+          "type": "integer"
+        },
+        "timeliness_score": {
+          "type": "integer"
+        },
+        "result_score": {
+          "type": "integer"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "evaluator_snapshot_json": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "objection_id",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "objection.case.evaluate.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "objection.case.reject",
+    "description": "按状态机驳回异议并留存处理意见。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/objection.case.reject",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "objection_id": {
+          "type": "string"
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "handler_org_id": {
+          "type": "string"
+        },
+        "handler_snapshot_json": {
+          "type": "object"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "required": [
+        "objection_id",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "objection.case.reject.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "objection.case.reply",
+    "description": "追加核查回复、证据和处理过程，不直接改变其他聚合状态。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/objection.case.reply",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "objection_id": {
+          "type": "string"
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "handler_org_id": {
+          "type": "string"
+        },
+        "handler_snapshot_json": {
+          "type": "object"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "node_name": {
+          "type": "string"
+        },
+        "action_result": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "objection_id",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "objection.case.reply.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "objection.case.review",
+    "description": "复核核查结果，按结论推进为已解决或退回继续调查。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/objection.case.review",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "objection_id": {
+          "type": "string"
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "handler_org_id": {
+          "type": "string"
+        },
+        "handler_snapshot_json": {
+          "type": "object"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "resolve",
+            "return"
+          ]
+        },
+        "resolved_summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "objection_id",
+        "confirmed",
+        "decision"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "objection.case.review.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "objection.case.submit",
+    "description": "将草稿异议提交进入受理队列。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/objection.case.submit",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "objection_id": {
+          "type": "string"
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "handler_org_id": {
+          "type": "string"
+        },
+        "handler_snapshot_json": {
+          "type": "object"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "required": [
+        "objection_id",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "objection.case.submit.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "ops.catalog.quality.upsert",
     "description": "记录目录、目录项或资源质量检测结果，作为治理解释与审计证据。",
     "protocol_type": "builtin_skill",
@@ -2927,6 +6382,75 @@
       "audit_required": true,
       "permissions": [
         "ops.gateway.log.anchor.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "org.projection.sync",
+    "description": "同步租户、区域、组织和角色只读投影，不把旧 IAM 变成 zw-brain 权威身份源。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/org.projection.sync",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "tenant": {
+          "type": "object"
+        },
+        "regions": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "orgs": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "org_code": {
+          "type": "string"
+        },
+        "org_name": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "org.projection.sync.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -4400,6 +7924,108 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "risk.event.ingest",
+    "description": "接收风险事件并沉淀运行回执，不直接改写主事实。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/risk.event.ingest",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "adapter_slug": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "receipt_json": {
+          "type": "object"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "risk.event.ingest.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "security.scan.result.sync",
+    "description": "同步安全扫描结果回执，不直接执行修复动作。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/security.scan.result.sync",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "adapter_slug": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "receipt_json": {
+          "type": "object"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "security.scan.result.sync.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "service.publish_or_suspend",
     "description": "对供给侧关键服务执行发布或暂停治理动作。",
     "protocol_type": "builtin_skill",
@@ -4443,6 +8069,108 @@
       "audit_required": true,
       "permissions": [
         "service.publish_or_suspend.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "standard.asset.recommend",
+    "description": "接收标准资产推荐结果并记录 evidence receipt。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/standard.asset.recommend",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "adapter_slug": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "receipt_json": {
+          "type": "object"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "standard.asset.recommend.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "standard.asset.sync",
+    "description": "同步标准资产回执，作为标准服务资料投影证据。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/standard.asset.sync",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "adapter_slug": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "receipt_json": {
+          "type": "object"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "standard.asset.sync.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -4573,6 +8301,1139 @@
       "audit_required": true,
       "permissions": [
         "system.toggle_outage.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "tenant.capability.disable",
+    "description": "对当前租户禁用能力包暴露策略。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/tenant.capability.disable",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "package_id",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "package_id": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "tenant.capability.disable.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "tenant.capability.enable",
+    "description": "对当前租户启用已登记能力包策略。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/tenant.capability.enable",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "package_id",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "package_id": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "tenant.capability.enable.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "topic.package.configure",
+    "description": "配置专题包条目、展示快照和可见性策略候选。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/topic.package.configure",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "package_code",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "package_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "scenario": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "owner_org_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot": {
+          "type": "object"
+        },
+        "metric_snapshot_json": {
+          "type": "object"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibility": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibilities": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "evidence_json": {
+          "type": "object"
+        },
+        "decision": {
+          "type": "string"
+        },
+        "policy_status": {
+          "type": "string"
+        },
+        "org_code": {
+          "type": "string"
+        },
+        "role_code": {
+          "type": "string"
+        },
+        "region_code": {
+          "type": "string"
+        },
+        "condition_json": {
+          "type": "object"
+        },
+        "evidence_type": {
+          "type": "string"
+        },
+        "related_ref_type": {
+          "type": "string"
+        },
+        "related_ref_id": {
+          "type": "string"
+        },
+        "content_json": {
+          "type": "object"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "zone_id": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "topic.package.configure.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "topic.package.create",
+    "description": "创建一表通/基层减负专题包投影，只组合 canonical 资源引用和展示快照。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/topic.package.create",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "package_code",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "package_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "scenario": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "owner_org_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot": {
+          "type": "object"
+        },
+        "metric_snapshot_json": {
+          "type": "object"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibility": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibilities": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "evidence_json": {
+          "type": "object"
+        },
+        "decision": {
+          "type": "string"
+        },
+        "policy_status": {
+          "type": "string"
+        },
+        "org_code": {
+          "type": "string"
+        },
+        "role_code": {
+          "type": "string"
+        },
+        "region_code": {
+          "type": "string"
+        },
+        "condition_json": {
+          "type": "object"
+        },
+        "evidence_type": {
+          "type": "string"
+        },
+        "related_ref_type": {
+          "type": "string"
+        },
+        "related_ref_id": {
+          "type": "string"
+        },
+        "content_json": {
+          "type": "object"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "zone_id": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "topic.package.create.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "topic.package.evidence.attach",
+    "description": "为专题包追加案例、发布、复用或治理证据。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/topic.package.evidence.attach",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "package_code",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "package_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "scenario": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "owner_org_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot": {
+          "type": "object"
+        },
+        "metric_snapshot_json": {
+          "type": "object"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibility": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibilities": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "evidence_json": {
+          "type": "object"
+        },
+        "decision": {
+          "type": "string"
+        },
+        "policy_status": {
+          "type": "string"
+        },
+        "org_code": {
+          "type": "string"
+        },
+        "role_code": {
+          "type": "string"
+        },
+        "region_code": {
+          "type": "string"
+        },
+        "condition_json": {
+          "type": "object"
+        },
+        "evidence_type": {
+          "type": "string"
+        },
+        "related_ref_type": {
+          "type": "string"
+        },
+        "related_ref_id": {
+          "type": "string"
+        },
+        "content_json": {
+          "type": "object"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "zone_id": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "topic.package.evidence.attach.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "topic.package.policy.update",
+    "description": "更新专题包可见性策略候选和审批状态。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/topic.package.policy.update",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "package_code",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "package_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "scenario": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "owner_org_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot": {
+          "type": "object"
+        },
+        "metric_snapshot_json": {
+          "type": "object"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibility": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibilities": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "evidence_json": {
+          "type": "object"
+        },
+        "decision": {
+          "type": "string"
+        },
+        "policy_status": {
+          "type": "string"
+        },
+        "org_code": {
+          "type": "string"
+        },
+        "role_code": {
+          "type": "string"
+        },
+        "region_code": {
+          "type": "string"
+        },
+        "condition_json": {
+          "type": "object"
+        },
+        "evidence_type": {
+          "type": "string"
+        },
+        "related_ref_type": {
+          "type": "string"
+        },
+        "related_ref_id": {
+          "type": "string"
+        },
+        "content_json": {
+          "type": "object"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "zone_id": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "topic.package.policy.update.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "topic.package.publish",
+    "description": "发布满足治理约束的专题包投影。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/topic.package.publish",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "package_code",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "package_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "scenario": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "owner_org_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot": {
+          "type": "object"
+        },
+        "metric_snapshot_json": {
+          "type": "object"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibility": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibilities": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "evidence_json": {
+          "type": "object"
+        },
+        "decision": {
+          "type": "string"
+        },
+        "policy_status": {
+          "type": "string"
+        },
+        "org_code": {
+          "type": "string"
+        },
+        "role_code": {
+          "type": "string"
+        },
+        "region_code": {
+          "type": "string"
+        },
+        "condition_json": {
+          "type": "object"
+        },
+        "evidence_type": {
+          "type": "string"
+        },
+        "related_ref_type": {
+          "type": "string"
+        },
+        "related_ref_id": {
+          "type": "string"
+        },
+        "content_json": {
+          "type": "object"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "zone_id": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "topic.package.publish.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "topic.package.review",
+    "description": "审核专题包发布申请，通过后必须满足条目和已批准可见性约束。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/topic.package.review",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "package_code",
+        "decision",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "package_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "scenario": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "owner_org_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot": {
+          "type": "object"
+        },
+        "metric_snapshot_json": {
+          "type": "object"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibility": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibilities": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "evidence_json": {
+          "type": "object"
+        },
+        "decision": {
+          "type": "string"
+        },
+        "policy_status": {
+          "type": "string"
+        },
+        "org_code": {
+          "type": "string"
+        },
+        "role_code": {
+          "type": "string"
+        },
+        "region_code": {
+          "type": "string"
+        },
+        "condition_json": {
+          "type": "object"
+        },
+        "evidence_type": {
+          "type": "string"
+        },
+        "related_ref_type": {
+          "type": "string"
+        },
+        "related_ref_id": {
+          "type": "string"
+        },
+        "content_json": {
+          "type": "object"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "zone_id": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "topic.package.review.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "topic.package.submit",
+    "description": "把专题包提交到发布审核，不改变目录、资源、申请或交付事实。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/topic.package.submit",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "package_code",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "package_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "scenario": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "owner_org_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot": {
+          "type": "object"
+        },
+        "metric_snapshot_json": {
+          "type": "object"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibility": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibilities": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "evidence_json": {
+          "type": "object"
+        },
+        "decision": {
+          "type": "string"
+        },
+        "policy_status": {
+          "type": "string"
+        },
+        "org_code": {
+          "type": "string"
+        },
+        "role_code": {
+          "type": "string"
+        },
+        "region_code": {
+          "type": "string"
+        },
+        "condition_json": {
+          "type": "object"
+        },
+        "evidence_type": {
+          "type": "string"
+        },
+        "related_ref_type": {
+          "type": "string"
+        },
+        "related_ref_id": {
+          "type": "string"
+        },
+        "content_json": {
+          "type": "object"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "zone_id": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "topic.package.submit.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "topic.package.subscribe",
+    "description": "记录组织或角色对专题包的订阅意图，订阅仍受租户策略约束。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/topic.package.subscribe",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "package_code",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "package_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "scenario": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "owner_org_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot_json": {
+          "type": "object"
+        },
+        "display_snapshot": {
+          "type": "object"
+        },
+        "metric_snapshot_json": {
+          "type": "object"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibility": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "visibilities": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "opinion": {
+          "type": "string"
+        },
+        "evidence_json": {
+          "type": "object"
+        },
+        "decision": {
+          "type": "string"
+        },
+        "policy_status": {
+          "type": "string"
+        },
+        "org_code": {
+          "type": "string"
+        },
+        "role_code": {
+          "type": "string"
+        },
+        "region_code": {
+          "type": "string"
+        },
+        "condition_json": {
+          "type": "object"
+        },
+        "evidence_type": {
+          "type": "string"
+        },
+        "related_ref_type": {
+          "type": "string"
+        },
+        "related_ref_id": {
+          "type": "string"
+        },
+        "content_json": {
+          "type": "object"
+        },
+        "legacy_id": {
+          "type": "string"
+        },
+        "zone_id": {
+          "type": "string"
+        },
+        "source_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "permissions": [
+        "topic.package.subscribe.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",

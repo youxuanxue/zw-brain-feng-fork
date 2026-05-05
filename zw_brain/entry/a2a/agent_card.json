@@ -9,6 +9,14 @@
   },
   "skills": [
     {
+      "id": "adapter.cascade.health.query",
+      "mode": "read"
+    },
+    {
+      "id": "adapter.external.mapping.query",
+      "mode": "read"
+    },
+    {
       "id": "approval.view",
       "mode": "read"
     },
@@ -42,6 +50,18 @@
     },
     {
       "id": "catalog.share_zone.query",
+      "mode": "read"
+    },
+    {
+      "id": "compliance.case.query",
+      "mode": "read"
+    },
+    {
+      "id": "compliance.metric.query",
+      "mode": "read"
+    },
+    {
+      "id": "dashboard.compliance.query",
       "mode": "read"
     },
     {
@@ -85,6 +105,18 @@
       "mode": "read"
     },
     {
+      "id": "objection.case.query",
+      "mode": "read"
+    },
+    {
+      "id": "objection.metric.query",
+      "mode": "read"
+    },
+    {
+      "id": "objection.process.query",
+      "mode": "read"
+    },
+    {
       "id": "ops.catalog.quality.query",
       "mode": "read"
     },
@@ -121,6 +153,10 @@
       "mode": "read"
     },
     {
+      "id": "registry.artifact.export",
+      "mode": "read"
+    },
+    {
       "id": "request.list",
       "mode": "read"
     },
@@ -141,6 +177,18 @@
       "mode": "read"
     },
     {
+      "id": "tenant.policy.evaluate",
+      "mode": "read"
+    },
+    {
+      "id": "topic.package.metric.query",
+      "mode": "read"
+    },
+    {
+      "id": "topic.package.query",
+      "mode": "read"
+    },
+    {
       "id": "workbench.view",
       "mode": "read"
     },
@@ -153,7 +201,63 @@
       "mode": "read"
     },
     {
+      "id": "actor.projection.sync",
+      "mode": "write"
+    },
+    {
+      "id": "adapter.cascade.consume",
+      "mode": "write"
+    },
+    {
+      "id": "adapter.cascade.replay",
+      "mode": "write"
+    },
+    {
+      "id": "adapter.health.probe",
+      "mode": "write"
+    },
+    {
       "id": "adapter.legacy.exchange.ingest",
+      "mode": "write"
+    },
+    {
+      "id": "adapter.national.application.receive",
+      "mode": "write"
+    },
+    {
+      "id": "adapter.national.application.reconcile",
+      "mode": "write"
+    },
+    {
+      "id": "adapter.national.application.submit",
+      "mode": "write"
+    },
+    {
+      "id": "adapter.national.catalog.pull",
+      "mode": "write"
+    },
+    {
+      "id": "adapter.national.catalog.report",
+      "mode": "write"
+    },
+    {
+      "id": "adapter.national.delivery.receipt.sync",
+      "mode": "write"
+    },
+    {
+      "id": "adapter.national.objection.sync",
+      "mode": "write"
+    },
+    {
+      "id": "adapter.national.resource.pull",
+      "mode": "write"
+    },
+    {
+      "id": "adapter.national.resource.report",
+      "mode": "write"
+    },
+    {
+      "id": "adapter.national.topic.report",
       "mode": "write"
     },
     {
@@ -173,11 +277,35 @@
       "mode": "write"
     },
     {
+      "id": "approval.case.decide",
+      "mode": "write"
+    },
+    {
       "id": "approval.review_decide",
       "mode": "write"
     },
     {
       "id": "backflow.confirm",
+      "mode": "write"
+    },
+    {
+      "id": "capability.exposure.configure",
+      "mode": "write"
+    },
+    {
+      "id": "capability.package.register",
+      "mode": "write"
+    },
+    {
+      "id": "capability.version.review",
+      "mode": "write"
+    },
+    {
+      "id": "capability.version.submit",
+      "mode": "write"
+    },
+    {
+      "id": "catalog.entry.create",
       "mode": "write"
     },
     {
@@ -194,6 +322,10 @@
     },
     {
       "id": "catalog.entry.submit_review",
+      "mode": "write"
+    },
+    {
+      "id": "catalog.entry.update",
       "mode": "write"
     },
     {
@@ -217,7 +349,31 @@
       "mode": "write"
     },
     {
+      "id": "compliance.case.assign",
+      "mode": "write"
+    },
+    {
+      "id": "compliance.case.close",
+      "mode": "write"
+    },
+    {
+      "id": "compliance.case.open",
+      "mode": "write"
+    },
+    {
+      "id": "compliance.case.resolve",
+      "mode": "write"
+    },
+    {
       "id": "compliance.investigate_case",
+      "mode": "write"
+    },
+    {
+      "id": "compliance.rule.configure",
+      "mode": "write"
+    },
+    {
+      "id": "compliance.signal.ingest",
       "mode": "write"
     },
     {
@@ -257,6 +413,14 @@
       "mode": "write"
     },
     {
+      "id": "legacy.bsp.mapping.import",
+      "mode": "write"
+    },
+    {
+      "id": "legacy.sharezone.mapping.import",
+      "mode": "write"
+    },
+    {
       "id": "metadata.gather.evidence.upsert",
       "mode": "write"
     },
@@ -269,6 +433,46 @@
       "mode": "write"
     },
     {
+      "id": "objection.case.accept",
+      "mode": "write"
+    },
+    {
+      "id": "objection.case.assign",
+      "mode": "write"
+    },
+    {
+      "id": "objection.case.close",
+      "mode": "write"
+    },
+    {
+      "id": "objection.case.create",
+      "mode": "write"
+    },
+    {
+      "id": "objection.case.escalate",
+      "mode": "write"
+    },
+    {
+      "id": "objection.case.evaluate",
+      "mode": "write"
+    },
+    {
+      "id": "objection.case.reject",
+      "mode": "write"
+    },
+    {
+      "id": "objection.case.reply",
+      "mode": "write"
+    },
+    {
+      "id": "objection.case.review",
+      "mode": "write"
+    },
+    {
+      "id": "objection.case.submit",
+      "mode": "write"
+    },
+    {
       "id": "ops.catalog.quality.upsert",
       "mode": "write"
     },
@@ -278,6 +482,10 @@
     },
     {
       "id": "ops.gateway.log.anchor",
+      "mode": "write"
+    },
+    {
+      "id": "org.projection.sync",
       "mode": "write"
     },
     {
@@ -373,7 +581,23 @@
       "mode": "write"
     },
     {
+      "id": "risk.event.ingest",
+      "mode": "write"
+    },
+    {
+      "id": "security.scan.result.sync",
+      "mode": "write"
+    },
+    {
       "id": "service.publish_or_suspend",
+      "mode": "write"
+    },
+    {
+      "id": "standard.asset.recommend",
+      "mode": "write"
+    },
+    {
+      "id": "standard.asset.sync",
       "mode": "write"
     },
     {
@@ -386,6 +610,46 @@
     },
     {
       "id": "system.toggle_outage",
+      "mode": "write"
+    },
+    {
+      "id": "tenant.capability.disable",
+      "mode": "write"
+    },
+    {
+      "id": "tenant.capability.enable",
+      "mode": "write"
+    },
+    {
+      "id": "topic.package.configure",
+      "mode": "write"
+    },
+    {
+      "id": "topic.package.create",
+      "mode": "write"
+    },
+    {
+      "id": "topic.package.evidence.attach",
+      "mode": "write"
+    },
+    {
+      "id": "topic.package.policy.update",
+      "mode": "write"
+    },
+    {
+      "id": "topic.package.publish",
+      "mode": "write"
+    },
+    {
+      "id": "topic.package.review",
+      "mode": "write"
+    },
+    {
+      "id": "topic.package.submit",
+      "mode": "write"
+    },
+    {
+      "id": "topic.package.subscribe",
       "mode": "write"
     },
     {
