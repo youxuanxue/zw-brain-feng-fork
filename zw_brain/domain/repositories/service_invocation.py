@@ -19,6 +19,32 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
+def metric_canonical_ref(
+    *,
+    metric_scope: str,
+    resource_code: str | None,
+    capability_id: str | None,
+    provider_org_id: str | None,
+    consumer_org_id: str | None,
+    provider_region_code: str | None,
+    consumer_region_code: str | None,
+    bucket_granularity: str,
+    time_bucket: str,
+) -> str:
+    return ":".join(
+        [
+            metric_scope,
+            str(resource_code or capability_id or "aggregate"),
+            str(provider_org_id or "provider-any"),
+            str(consumer_org_id or "consumer-any"),
+            str(provider_region_code or "provider-region-any"),
+            str(consumer_region_code or "consumer-region-any"),
+            bucket_granularity,
+            time_bucket,
+        ]
+    )
+
+
 class ServiceInvocationMetricRepository:
     def has_metrics(self, *, tenant_id: str = "default") -> bool:
         SessionLocal = create_session_factory()
@@ -131,17 +157,16 @@ class ServiceInvocationMetricRepository:
                 record.source_event_ref = payload.get("source_event_ref", record.source_event_ref)
                 record.summary_json = summary_json or record.summary_json
                 record.generated_at = now
-            canonical_ref = ":".join(
-                [
-                    metric_scope,
-                    str(resource_code or capability_id or "aggregate"),
-                    str(provider_org_id or "provider-any"),
-                    str(consumer_org_id or "consumer-any"),
-                    str(provider_region_code or "provider-region-any"),
-                    str(consumer_region_code or "consumer-region-any"),
-                    bucket_granularity,
-                    time_bucket,
-                ]
+            canonical_ref = metric_canonical_ref(
+                metric_scope=metric_scope,
+                resource_code=resource_code,
+                capability_id=capability_id,
+                provider_org_id=provider_org_id,
+                consumer_org_id=consumer_org_id,
+                provider_region_code=provider_region_code,
+                consumer_region_code=consumer_region_code,
+                bucket_granularity=bucket_granularity,
+                time_bucket=time_bucket,
             )
             upsert_legacy_mapping_in_session(
                 session,

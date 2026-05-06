@@ -81,11 +81,17 @@ def cmd_verify(args: argparse.Namespace) -> int:
     from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
     from zw_brain.domain.repositories.objection import ObjectionRepository
     from zw_brain.domain.repositories.resource_api import ResourceApiRepository
+    from zw_brain.domain.repositories.service_invocation import (
+        ServiceInvocationMetricRepository,
+        metric_canonical_ref,
+    )
     from zw_brain.domain.repositories.topic_package import TopicPackageRepository
 
     tenant = args.tenant or "sd-default"
     gov = GovernanceProjectionRepository()
     compliance = ComplianceOpsRepository()
+    resource_api = ResourceApiRepository()
+    metric_repo = ServiceInvocationMetricRepository()
 
     # canonical_type → set of canonical_refs that exist in this DB
     resolvers: dict[str, set[str]] = {
@@ -95,7 +101,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
         "RoleProjectionRecord": {r.role_code for r in gov.list_roles(tenant_id=tenant)},
         "catalog_entry": {e.catalog_code for e in CatalogRepository().list_entries()},
         "catalog_item": {i.item_code for i in CatalogRepository().list_items()},
-        "resource_asset": {a.resource_code for a in ResourceApiRepository().list_assets(tenant_id=tenant)},
+        "resource_asset": {a.resource_code for a in resource_api.list_assets(tenant_id=tenant)},
+        "resource_channel_binding": {b.binding_code for b in resource_api.list_bindings(tenant_id=tenant)},
         "application_record": {a.application_code for a in ApplicationRepository().list_records()},
         "ObjectionCaseRecord": {c.id for c in ObjectionRepository().list_cases()},
         "TopicPackageRecord": {p.package_code for p in TopicPackageRepository().list_packages(tenant_id=tenant)},
@@ -104,6 +111,20 @@ def cmd_verify(args: argparse.Namespace) -> int:
         "ComplianceCaseRecord": {c.case_code for c in compliance.list_cases(tenant_id=tenant)},
         "ComplianceRuleRecord": {r.rule_code for r in compliance.list_rules(tenant_id=tenant)},
         "MetricDefinitionProjectionRecord": {m.metric_code for m in compliance.list_metric_definitions(tenant_id=tenant)},
+        "service_invocation_metric_projection": {
+            metric_canonical_ref(
+                metric_scope=m.metric_scope,
+                resource_code=m.resource_code,
+                capability_id=m.capability_id,
+                provider_org_id=m.provider_org_id,
+                consumer_org_id=m.consumer_org_id,
+                provider_region_code=m.provider_region_code,
+                consumer_region_code=m.consumer_region_code,
+                bucket_granularity=m.bucket_granularity,
+                time_bucket=m.time_bucket,
+            )
+            for m in metric_repo.list_metrics(tenant_id=tenant)
+        },
     }
     # Types we don't enumerate (registry-only / external mappings) — always treated as
     # "weak resolved" since the mapping itself is the canonical answer.
