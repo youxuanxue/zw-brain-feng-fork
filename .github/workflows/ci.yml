@@ -7,34 +7,113 @@ on:
       - main
   workflow_dispatch:
 
+# 同分支多次 push 取消未完成的旧 run（节省 CI 分钟数；main 分支不取消）
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  preflight-test-build:
-    name: preflight-test-build
+  lint:
+    name: lint (ruff)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR head
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: pip install -e '.[dev]'
+      - run: ruff check .
+
+  test:
+    name: test (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.11 = pyproject.toml's requires-python floor; 3.12 = stable;
+        # 3.13 = active branch. Covers both ends without paying for too many runs.
+        python: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python }}
           cache: 'pip'
-
-      - name: Install dependencies
+      - name: install
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e '.[dev]' build
-
-      - name: Run preflight
+          python -m pip install -e '.[dev]' build coverage
+      - name: preflight
         run: bash scripts/preflight.sh
-
-      - name: Run tests
-        run: python -m pytest -q
-
-      - name: Build wheel
+      - name: pytest with coverage
+        run: |
+          python -m coverage run -m pytest -q
+          python -m coverage xml -o coverage.xml
+          python -m coverage report --skip-covered --show-missing | tee coverage-summary.txt
+      - name: build wheel
         run: python -m build --wheel
+      - name: upload coverage artifact
+        if: matrix.python == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.python }}
+          path: |
+            coverage.xml
+            coverage-summary.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+  legacy-import-smoke:
+    # Spins up the import CLI on a synthetic dump produced inside the runner —
+    # catches drift in MysqldumpParser / mapper dispatch / verify subcommand
+    # without needing the real ~445 MB dump corpus in CI.
+    name: legacy-import-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: pip install -e '.[dev]'
+      - name: write tiny synthetic dump
+        run: |
+          mkdir -p .ci-dumps
+          cat > .ci-dumps/dump-dsp_example-202604000000.sql <<'SQL'
+          DROP TABLE IF EXISTS `data_example`;
+          CREATE TABLE `data_example` (
+            `id` varchar(36) NOT NULL,
+            `example_name` varchar(255) NOT NULL,
+            `org_code` varchar(64) NOT NULL,
+            `org_name` varchar(128) NOT NULL,
+            `region_code` varchar(36) NOT NULL,
+            `region_name` varchar(255) NOT NULL,
+            `field_type` varchar(255) NOT NULL,
+            `example_desc` text NOT NULL,
+            `process_desc` text,
+            `result_desc` text,
+            `visit_count` int(11) DEFAULT '0',
+            `status` tinyint(2) DEFAULT NULL,
+            `example_creator` varchar(32) NOT NULL,
+            `create_time` datetime NOT NULL,
+            `opinion` varchar(255) DEFAULT NULL,
+            `push_status` char(1) DEFAULT '0',
+            PRIMARY KEY (`id`)
+          ) ENGINE=InnoDB;
+          INSERT INTO `data_example` VALUES ('eg-1','测试案例','11370000MB284651XL','省大数据局','370000','山东省','01','smoke','do','done',1,4,'admin','2026-01-01 00:00:00','',NULL);
+          SQL
+      - name: parse-stats + import + verify
+        env:
+          ZW_BRAIN_LEGACY_DUMPS_DIR: ${{ github.workspace }}/.ci-dumps
+          ZW_BRAIN_DB_PATH: ${{ runner.temp }}/smoke.db
+          ZW_BRAIN_LEGACY_CACHE_DIR: ${{ runner.temp }}/legacy-cache
+        run: |
+          python scripts/import_legacy_dumps.py list
+          python scripts/import_legacy_dumps.py parse-stats --schema dsp_example
+          python scripts/import_legacy_dumps.py import dsp_example
+          python scripts/import_legacy_dumps.py verify --tenant sd-default --strict

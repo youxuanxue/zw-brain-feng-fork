@@ -10,9 +10,10 @@ def test_database_store_persists_runtime_state() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
         from sqlalchemy import create_engine, inspect
+
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         store = DatabaseStore()
@@ -87,12 +88,13 @@ def test_runtime_service_uses_database_backing() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
+        from sqlalchemy import create_engine, text
+
         from zw_brain.command.brain import BrainService
         from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.state_store import StateStore
-        from sqlalchemy import create_engine, text
 
         ensure_runtime_schema()
         database_store = DatabaseStore()
@@ -123,10 +125,10 @@ def test_database_store_records_capability_calls_and_tenant_policy_decisions() -
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
         from zw_brain.command.brain import BrainService
         from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.state_store import StateStore
 
         ensure_runtime_schema()
@@ -156,8 +158,8 @@ def test_database_store_records_capability_calls_and_tenant_policy_decisions() -
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         store = DatabaseStore()
@@ -179,8 +181,8 @@ def test_legacy_mapping_marks_conflicts_without_overwrite() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         store = DatabaseStore()

@@ -49,11 +49,11 @@ def test_repository_backed_list_views_include_projected_data() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared import audit as audit_bus
-        from zw_brain.shared.state_store import StateStore
         from zw_brain.command.brain import BrainService
+        from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.state_store import StateStore
 
         ensure_runtime_schema()
         store = DatabaseStore()
@@ -80,11 +80,11 @@ def test_repository_backed_discovery_reads_include_projected_data() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared import audit as audit_bus
-        from zw_brain.shared.state_store import StateStore
         from zw_brain.command.brain import BrainService
+        from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.state_store import StateStore
 
         ensure_runtime_schema()
         store = DatabaseStore()
@@ -107,11 +107,11 @@ def test_repository_backed_ops_views_include_projected_data() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared import audit as audit_bus
-        from zw_brain.shared.state_store import StateStore
         from zw_brain.command.brain import BrainService
+        from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.state_store import StateStore
 
         ensure_runtime_schema()
         store = DatabaseStore()
@@ -138,11 +138,11 @@ def test_backend_skills_cover_main_webui_detail_routes() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared import audit as audit_bus
-        from zw_brain.shared.state_store import StateStore
         from zw_brain.command.brain import BrainService
+        from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.state_store import StateStore
 
         ensure_runtime_schema()
         store = DatabaseStore()
@@ -173,11 +173,11 @@ def test_repository_backed_list_skills_cover_live_pages() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared import audit as audit_bus
-        from zw_brain.shared.state_store import StateStore
         from zw_brain.command.brain import BrainService
+        from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.state_store import StateStore
 
         ensure_runtime_schema()
         store = DatabaseStore()
@@ -209,11 +209,11 @@ def test_governance_list_exposes_alert_ticket_and_knowledge_payloads() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared import audit as audit_bus
-        from zw_brain.shared.state_store import StateStore
         from zw_brain.command.brain import BrainService
+        from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.state_store import StateStore
 
         ensure_runtime_schema()
         store = DatabaseStore()
@@ -237,11 +237,11 @@ def test_compliance_page_inputs_can_be_refreshed_from_live_skills() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared import audit as audit_bus
-        from zw_brain.shared.state_store import StateStore
         from zw_brain.command.brain import BrainService
+        from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.state_store import StateStore
 
         ensure_runtime_schema()
         store = DatabaseStore()
@@ -264,11 +264,11 @@ def test_recovery_and_exposure_controls_project_into_live_reads() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared import audit as audit_bus
-        from zw_brain.shared.state_store import StateStore
         from zw_brain.command.brain import BrainService
+        from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.state_store import StateStore
 
         ensure_runtime_schema()
         store = DatabaseStore()
@@ -294,11 +294,11 @@ def test_dispute_controls_project_into_live_reads() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared import audit as audit_bus
-        from zw_brain.shared.state_store import StateStore
         from zw_brain.command.brain import BrainService
+        from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.state_store import StateStore
 
         ensure_runtime_schema()
         store = DatabaseStore()
@@ -320,11 +320,11 @@ def test_evidence_replay_exposes_audit_and_evidence_chain() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared import audit as audit_bus
-        from zw_brain.shared.state_store import StateStore
         from zw_brain.command.brain import BrainService
+        from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.state_store import StateStore
 
         ensure_runtime_schema()
         store = DatabaseStore()
@@ -346,11 +346,11 @@ def test_package_detail_exposes_registry_and_tenant_policy_projection() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared import audit as audit_bus
-        from zw_brain.shared.state_store import StateStore
         from zw_brain.command.brain import BrainService
+        from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.state_store import StateStore
 
         ensure_runtime_schema()
         store = DatabaseStore()
@@ -373,11 +373,11 @@ def test_provider_publishing_controls_project_into_live_reads() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared import audit as audit_bus
-        from zw_brain.shared.state_store import StateStore
         from zw_brain.command.brain import BrainService
+        from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.state_store import StateStore
 
         ensure_runtime_schema()
         store = DatabaseStore()

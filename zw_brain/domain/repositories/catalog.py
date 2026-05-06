@@ -4,7 +4,13 @@ from typing import Any
 
 from sqlalchemy import select
 
-from zw_brain.domain.models import CatalogEntryRecord, CatalogEntryVersionRecord, CatalogItemRecord, CatalogModelFieldRecord, CatalogModelRecord
+from zw_brain.domain.models import (
+    CatalogEntryRecord,
+    CatalogEntryVersionRecord,
+    CatalogItemRecord,
+    CatalogModelFieldRecord,
+    CatalogModelRecord,
+)
 from zw_brain.domain.repositories.legacy_mapping import upsert_legacy_mapping_in_session
 from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.sanitization import safe_json

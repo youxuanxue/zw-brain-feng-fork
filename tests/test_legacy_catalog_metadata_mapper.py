@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-
 CATALOG_DUMP = """\
 DROP TABLE IF EXISTS `data_catalog`;
 CREATE TABLE `data_catalog` (

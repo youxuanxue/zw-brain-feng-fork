@@ -12,9 +12,13 @@ Contract:
 
 from zw_brain.adapters.legacy._common import ImportStats
 from zw_brain.adapters.legacy.parser import MysqldumpParser, parse_dump_rows
-from zw_brain.adapters.legacy.schema_index import LEGACY_DUMPS, dump_path_for, list_dumps
 from zw_brain.adapters.legacy.runner import LegacyImportRunner, ParseStats
-from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT, LEGACY_SYSTEM_BY_SCHEMA, legacy_system_for
+from zw_brain.adapters.legacy.schema_index import LEGACY_DUMPS, dump_path_for, list_dumps
+from zw_brain.adapters.legacy.tenant_normalizer import (
+    DEFAULT_TENANT,
+    LEGACY_SYSTEM_BY_SCHEMA,
+    legacy_system_for,
+)
 
 __all__ = [
     "DEFAULT_TENANT",

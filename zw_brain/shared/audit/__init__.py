@@ -1,11 +1,12 @@
 """Synchronous durable audit bus."""
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Callable
+from datetime import UTC, datetime
+from typing import Any
 
-_buffer: list["AuditEvent"] = []
+_buffer: list[AuditEvent] = []
 _sink: Callable[[str, str, str, str, dict[str, Any]], None] | None = None
 
 
@@ -20,7 +21,7 @@ class AuditEvent:
     skill_id: str
     phase: str
     payload: dict[str, Any] = field(default_factory=dict)
-    occurred_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    occurred_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 def configure_sink(sink: Callable[[str, str, str, str, dict[str, Any]], None]) -> None:

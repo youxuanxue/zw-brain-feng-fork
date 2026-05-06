@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-
 EXAMPLE_DUMP = """\
 DROP TABLE IF EXISTS `data_example`;
 CREATE TABLE `data_example` (

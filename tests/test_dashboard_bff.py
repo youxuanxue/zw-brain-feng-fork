@@ -7,10 +7,11 @@ from tempfile import TemporaryDirectory
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+from sqlalchemy import create_engine
+
+import zw_brain.command.runtime as runtime
 from zw_brain.domain.models import Base
 from zw_brain.shared.migrate import ensure_runtime_schema
-import zw_brain.command.runtime as runtime
-from sqlalchemy import create_engine
 
 
 def request(method: str, url: str) -> tuple[int, str, str]:
@@ -32,10 +33,10 @@ def test_dashboard_bff_is_readonly_and_serves_dashboard_skill() -> None:
         Base.metadata.create_all(bind=engine)
 
         from http.server import HTTPServer
+        from importlib.util import module_from_spec, spec_from_file_location
         from threading import Thread
 
         from zw_brain_dashboard_bff import main as _  # noqa: F401
-        from importlib.util import spec_from_file_location, module_from_spec
 
         module_path = Path(__file__).resolve().parents[1] / "zw-brain-dashboard" / "bff" / "main.py"
         spec = spec_from_file_location("zw_brain_dashboard_bff_impl", module_path)

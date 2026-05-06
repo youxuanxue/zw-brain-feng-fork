@@ -12,9 +12,10 @@ def test_background_worker_processes_durable_outbox() -> None:
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
         from sqlalchemy import create_engine, text
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
+
         from zw_brain.background_tasks import run_once
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         store = DatabaseStore()

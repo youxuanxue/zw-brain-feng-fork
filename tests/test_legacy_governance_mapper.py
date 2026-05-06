@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-
 GOVERNANCE_DUMP = """\
 DROP TABLE IF EXISTS `pub_organ`;
 CREATE TABLE `pub_organ` (

@@ -13,7 +13,7 @@ public `anchor(...)` signature is frozen.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 @dataclass(frozen=True)
@@ -36,5 +36,5 @@ async def anchor(content_hash: str, *, chain_id: str = "mock-chain") -> AnchorRe
         tx_hash=f"mock:{content_hash[:16]}",
         block_height=None,
         chain_id=chain_id,
-        confirmed_at=datetime.now(timezone.utc),
+        confirmed_at=datetime.now(UTC),
     )

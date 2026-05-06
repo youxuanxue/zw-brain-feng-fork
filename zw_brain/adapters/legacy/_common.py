@@ -60,6 +60,27 @@ def coerce_time(value: Any) -> str | None:
     return str(value)
 
 
+def coerce_datetime(value: Any) -> datetime | None:
+    """Parse legacy mysqldump time strings into a real datetime.
+
+    SQLite's DateTime column rejects raw strings; canonical / projection records
+    that have a typed datetime column (RiskEventProjection.detected_at,
+    HealthSignalProjection.last_observed_at, ComplianceCase.closed_at, …) need
+    a real datetime object. mysqldump emits 'YYYY-MM-DD HH:MM:SS', which becomes
+    ISO-8601 once the space is replaced with 'T'.
+    """
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace(" ", "T"))
+        except ValueError:
+            return None
+    return None
+
+
 def parse_json_blob(value: Any) -> dict[str, Any]:
     """Parse a mysqldump string-or-dict blob into a dict.
 

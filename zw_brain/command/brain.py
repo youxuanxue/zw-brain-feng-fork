@@ -4,22 +4,39 @@ import asyncio
 import copy
 import hashlib
 import json
+
+# Default read-side mask role. Per [2026-05-06] sensitive-field policy: business-
+# visible PII (name / phone / email / id / address) is ingested raw, masked on
+# read. Set ZW_BRAIN_MASK_ROLE=internal_admin to opt up (audit replay only).
+import os as _os
 from datetime import datetime, timedelta
 from typing import Any
 
 import zw_brain.shared.audit as audit_bus
 from zw_brain.domain import policy
+from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.repositories.delivery import DeliveryRepository
 from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
 from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.domain.repositories.topic_package import TopicPackageRepository, TopicPackageStateError
-from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.domain.schemas import describe_schemas
 from zw_brain.shared import queue
 from zw_brain.shared.sanitization import safe_json
+from zw_brain.shared.sensitive_mask import apply_field_masks
 from zw_brain.shared.state_store import StateStore
+
+_DEFAULT_MASK_ROLE = _os.environ.get("ZW_BRAIN_MASK_ROLE", "external")
+# Project tenant. Set ZW_BRAIN_TENANT_ID=sd-default in production / demo to
+# point read paths at the legacy-imported corpus. Tests keep the historical
+# "default" tenant so existing fixtures don't drift.
+_DEFAULT_TENANT_ID = _os.environ.get("ZW_BRAIN_TENANT_ID", "default")
+
+
+def _mask(payload: Any) -> Any:
+    """Apply default-role mask to a serializer's outgoing payload."""
+    return apply_field_masks(payload, role=_DEFAULT_MASK_ROLE)
 from zw_brain.skill_registration.runtime import get_manifest, load_manifests
 
 DEFAULT_DISCOVERY_QUERY = "我要为本周营商环境专题复用法人单位基础信息台账模板，优先自动带出企业基础字段，只补现场差异字段。"
@@ -850,7 +867,7 @@ class BrainService:
         return __import__("zw_brain.domain.repositories.capability_package", fromlist=["CapabilityPackageRepository"]).CapabilityPackageRepository()
 
     def evaluate_tenant_policy(self, payload: dict[str, Any]) -> dict[str, Any]:
-        tenant_id = str(payload.get("tenant_id", "default"))
+        tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
         capability_id = str(payload.get("capability_id", payload.get("skill_id", "")))
         surface = str(payload.get("surface", "webui"))
         role_code = str(payload.get("role_code", payload.get("role", self._ui_state["role"])))
@@ -1025,12 +1042,12 @@ class BrainService:
     def query_topic_packages(self, *, package_code: Any = None, status: Any = None) -> dict[str, Any]:
         repo = self._topic_package_repo()
         if package_code:
-            record = repo.get_package(str(package_code))
+            record = repo.get_package(str(package_code), tenant_id=_DEFAULT_TENANT_ID)
             if record is None:
                 raise NotFoundError(str(package_code))
             items = [self._topic_package_detail_to_dict(record)]
         else:
-            items = [self._topic_package_record_to_dict(item) for item in repo.list_packages(status=str(status) if status else None)]
+            items = [self._topic_package_record_to_dict(item) for item in repo.list_packages(tenant_id=_DEFAULT_TENANT_ID, status=str(status) if status else None)]
         return {"items": items, "total": len(items)}
 
     def query_topic_package_metrics(self, *, package_code: Any = None) -> dict[str, Any]:
@@ -1073,13 +1090,17 @@ class BrainService:
         return {"role_code": item.role_code, "role_name": item.role_name, "status": item.status, "source_ref": item.source_ref, "profile_json": copy.deepcopy(item.profile_json)}
 
     def _actor_projection_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {"external_actor_id": item.external_actor_id, "display_name": item.display_name, "org_code": item.org_code, "role_codes_json": copy.deepcopy(item.role_codes_json), "status": item.status, "source_ref": item.source_ref, "profile_json": copy.deepcopy(item.profile_json)}
+        # display_name + profile_json may carry person names / phone / email /
+        # id_card / address — mask before egress per [2026-05-06] policy.
+        return _mask({"external_actor_id": item.external_actor_id, "display_name": item.display_name, "org_code": item.org_code, "role_codes_json": copy.deepcopy(item.role_codes_json), "status": item.status, "source_ref": item.source_ref, "profile_json": copy.deepcopy(item.profile_json)})
 
     def _legacy_policy_candidate_record_to_dict(self, item: Any) -> dict[str, Any]:
         return {"legacy_system": item.legacy_system, "legacy_permission_ref": item.legacy_permission_ref, "legacy_role_ref": item.legacy_role_ref, "capability_id": item.capability_id, "surface": item.surface, "candidate_status": item.candidate_status, "evidence_json": copy.deepcopy(item.evidence_json)}
 
     def _topic_package_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {"package_code": item.package_code, "title": item.title, "scenario": item.scenario, "owner_org_id": item.owner_org_id, "owner_org_snapshot_json": copy.deepcopy(item.owner_org_snapshot_json), "status": item.status, "display_snapshot_json": copy.deepcopy(item.display_snapshot_json), "metric_snapshot_json": copy.deepcopy(item.metric_snapshot_json), "source_ref": item.source_ref}
+        # display_snapshot_json.contacts may carry contact_name + contact_phone
+        # for the case's personally-named contacts — mask before egress.
+        return _mask({"package_code": item.package_code, "title": item.title, "scenario": item.scenario, "owner_org_id": item.owner_org_id, "owner_org_snapshot_json": copy.deepcopy(item.owner_org_snapshot_json), "status": item.status, "display_snapshot_json": copy.deepcopy(item.display_snapshot_json), "metric_snapshot_json": copy.deepcopy(item.metric_snapshot_json), "source_ref": item.source_ref})
 
     def _topic_package_detail_to_dict(self, item: Any) -> dict[str, Any]:
         repo = self._topic_package_repo()
@@ -1125,7 +1146,8 @@ class BrainService:
         }
 
     def _process_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {
+        # handler_snapshot_json may carry handler_name + handler_phone — mask.
+        return _mask({
             "id": item.id,
             "objection_id": item.objection_id,
             "node_name": item.node_name,
@@ -1135,7 +1157,7 @@ class BrainService:
             "action_result": item.action_result,
             "opinion": item.opinion,
             "created_at": item.created_at.isoformat(),
-        }
+        })
 
     def _evidence_record_to_dict(self, item: Any) -> dict[str, Any]:
         return {

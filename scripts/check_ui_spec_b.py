@@ -142,7 +142,7 @@ def js_route_regexes(app_js: str) -> list[re.Pattern[str]]:
 
 def literal_hash_routes(text: str) -> set[str]:
     routes: set[str] = set()
-    for quote, route in re.findall(r"(['\"])(#/[A-Za-z0-9_./:-]+)\1", text):
+    for _quote, route in re.findall(r"(['\"])(#/[A-Za-z0-9_./:-]+)\1", text):
         if "${" not in route:
             routes.add(route)
     return routes

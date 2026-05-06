@@ -6,9 +6,9 @@ Create Date: 2026-05-05 00:00:00
 """
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision = "0005_p1_governance_topic_package"
 down_revision = "0004_p0_external_adapter_records"

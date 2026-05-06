@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
 
+from alembic import command
 from zw_brain.shared.db import get_database_url
 
 REQUIRED_TABLES = {

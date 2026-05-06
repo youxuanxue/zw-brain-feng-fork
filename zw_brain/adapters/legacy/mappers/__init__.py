@@ -22,16 +22,25 @@ Bridging order (legacy-import-mapping-v1.md §四.1):
 
 from zw_brain.adapters.legacy._common import ImportStats
 from zw_brain.adapters.legacy.mappers.catalog_metadata import CatalogMetadataMapper
+from zw_brain.adapters.legacy.mappers.connect import ConnectMapper
 from zw_brain.adapters.legacy.mappers.exchange import ExchangeMapper
 from zw_brain.adapters.legacy.mappers.governance import GovernanceMapper
 from zw_brain.adapters.legacy.mappers.objection import ObjectionMapper
+from zw_brain.adapters.legacy.mappers.pipelines import PipelinesMapper
+from zw_brain.adapters.legacy.mappers.projections import MonitorMapper, PerformMapper
+from zw_brain.adapters.legacy.mappers.service import ServiceMapper
 from zw_brain.adapters.legacy.mappers.topic_package import TopicPackageMapper
 
 __all__ = [
     "CatalogMetadataMapper",
+    "ConnectMapper",
     "ExchangeMapper",
     "GovernanceMapper",
     "ImportStats",
+    "MonitorMapper",
     "ObjectionMapper",
+    "PerformMapper",
+    "PipelinesMapper",
+    "ServiceMapper",
     "TopicPackageMapper",
 ]

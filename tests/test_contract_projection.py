@@ -3,10 +3,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from scripts.export_agent_contract import build_a2a_card, build_mcp_tool_descriptor, build_runtime_bindings, discover_skills
+from scripts.export_agent_contract import (
+    build_a2a_card,
+    build_mcp_tool_descriptor,
+    build_runtime_bindings,
+    discover_skills,
+)
 from zw_brain.command.brain import BrainService, UnknownSkillError
 from zw_brain.skill_registration.runtime import is_surface_enabled
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 

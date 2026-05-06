@@ -8,7 +8,6 @@ from tempfile import TemporaryDirectory
 from zw_brain.adapters.legacy import LegacyImportRunner, MysqldumpParser
 from zw_brain.adapters.legacy.parser import _iter_value_tuples
 
-
 SAMPLE_DUMP = """\
 -- MySQL dump 10.13
 --

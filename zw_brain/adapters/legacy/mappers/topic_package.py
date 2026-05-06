@@ -20,7 +20,13 @@ from typing import Any
 
 from sqlalchemy import delete
 
-from zw_brain.adapters.legacy._common import ImportStats, coerce_time, finish_run, parse_json_blob, schema_from_dump_name
+from zw_brain.adapters.legacy._common import (
+    ImportStats,
+    coerce_time,
+    finish_run,
+    parse_json_blob,
+    schema_from_dump_name,
+)
 from zw_brain.adapters.legacy.parser import MysqldumpParser
 from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT, legacy_system_for
 from zw_brain.domain.models import TopicPackageEvidenceRecord

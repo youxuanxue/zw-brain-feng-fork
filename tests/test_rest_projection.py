@@ -5,7 +5,6 @@ from pathlib import Path
 
 from scripts.export_agent_contract import build_rest_openapi, discover_skills
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 

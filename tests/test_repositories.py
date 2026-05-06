@@ -10,9 +10,9 @@ def test_catalog_repository_upserts_resource() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.domain.repositories.catalog import CatalogRepository
         from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         repo = CatalogRepository()
@@ -57,9 +57,9 @@ def test_application_repository_writes_legacy_mapping_and_sanitizes_payload() ->
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.domain.repositories.application import ApplicationRepository
         from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         repo = ApplicationRepository()
@@ -87,8 +87,8 @@ def test_delivery_repository_sanitizes_payload_and_keeps_access_grant_snapshot()
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.domain.repositories.delivery import DeliveryRepository
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         repo = DeliveryRepository()
@@ -141,8 +141,8 @@ def test_safe_json_removes_sensitive_key_variants() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.domain.repositories.resource_api import ResourceApiRepository
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         repo = ResourceApiRepository()
@@ -189,8 +189,8 @@ def test_service_invocation_metric_repository_keeps_region_granularity_and_error
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.domain.repositories.service_invocation import ServiceInvocationMetricRepository
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         repo = ServiceInvocationMetricRepository()
@@ -253,10 +253,10 @@ def test_catalog_metadata_core_repositories_persist_reconstruction_evidence() ->
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.domain.repositories.catalog import CatalogRepository
-        from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
         from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
+        from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         catalog_repo = CatalogRepository()
@@ -365,11 +365,12 @@ def test_runtime_sync_writes_aggregate_tables() -> None:
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
         from sqlalchemy import create_engine, text
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared import audit as audit_bus
-        from zw_brain.shared.state_store import StateStore
+
         from zw_brain.command.brain import BrainService
+        from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.state_store import StateStore
 
         ensure_runtime_schema()
         store = DatabaseStore()
@@ -398,8 +399,8 @@ def test_tenant_capability_disable_does_not_change_package_review_status() -> No
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.domain.repositories.capability_package import CapabilityPackageRepository
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         repo = CapabilityPackageRepository()
@@ -430,6 +431,7 @@ def test_greenfield_schema_contains_step_receipt_and_policy_tables() -> None:
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
         from sqlalchemy import create_engine, inspect
+
         from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
@@ -453,11 +455,12 @@ def test_governance_schema_and_projection_are_persisted() -> None:
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
         from sqlalchemy import create_engine, text
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared import audit as audit_bus
-        from zw_brain.shared.state_store import StateStore
+
         from zw_brain.command.brain import BrainService
+        from zw_brain.shared import audit as audit_bus
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.shared.state_store import StateStore
 
         ensure_runtime_schema()
         store = DatabaseStore()
@@ -479,8 +482,8 @@ def test_external_adapter_repository_idempotency_and_secret_sanitization() -> No
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         repo = ExternalAdapterRepository()
@@ -534,9 +537,9 @@ def test_p1_governance_projection_and_topic_package_repositories() -> None:
         import os
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
         from zw_brain.domain.repositories.topic_package import TopicPackageRepository, TopicPackageStateError
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         governance = GovernanceProjectionRepository()
@@ -585,8 +588,8 @@ def test_compliance_ops_repository_six_records_roundtrip() -> None:
 
         from datetime import UTC, datetime
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.domain.repositories.compliance_ops import ComplianceOpsRepository
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         repo = ComplianceOpsRepository()

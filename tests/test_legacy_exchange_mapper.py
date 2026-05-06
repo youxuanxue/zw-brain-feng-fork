@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-
 REQUIRE_DUMP = """\
 DROP TABLE IF EXISTS `data_require`;
 CREATE TABLE `data_require` (

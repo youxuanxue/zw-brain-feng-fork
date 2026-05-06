@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from zw_brain.domain.policy import DomainAccessDeniedError, actor_for_role, enforce_manifest_policy, permissions_for_role, resolve_role
+from zw_brain.domain.policy import (
+    DomainAccessDeniedError,
+    actor_for_role,
+    enforce_manifest_policy,
+    permissions_for_role,
+    resolve_role,
+)
 
 
 def test_resolve_role_rejects_unknown_role() -> None:

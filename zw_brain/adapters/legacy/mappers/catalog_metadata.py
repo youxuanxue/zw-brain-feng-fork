@@ -21,7 +21,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from zw_brain.adapters.legacy._common import ImportStats, coerce_int, coerce_time, finish_run, schema_from_dump_name
+from zw_brain.adapters.legacy._common import (
+    ImportStats,
+    coerce_int,
+    coerce_time,
+    finish_run,
+    schema_from_dump_name,
+)
 from zw_brain.adapters.legacy.parser import MysqldumpParser
 from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT, legacy_system_for
 from zw_brain.domain.repositories.catalog import CatalogRepository

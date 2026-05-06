@@ -82,6 +82,26 @@ class LegacyImportRunner:
             from zw_brain.adapters.legacy.mappers.objection import ObjectionMapper
 
             out.append(ObjectionMapper(tenant_id=self.tenant_id))
+        if schema == "dsp_pipelines":
+            from zw_brain.adapters.legacy.mappers.pipelines import PipelinesMapper
+
+            out.append(PipelinesMapper(tenant_id=self.tenant_id))
+        if schema == "dsp_service":
+            from zw_brain.adapters.legacy.mappers.service import ServiceMapper
+
+            out.append(ServiceMapper(tenant_id=self.tenant_id))
+        if schema == "dsp_connect":
+            from zw_brain.adapters.legacy.mappers.connect import ConnectMapper
+
+            out.append(ConnectMapper(tenant_id=self.tenant_id))
+        if schema == "dsp_monitor":
+            from zw_brain.adapters.legacy.mappers.projections import MonitorMapper
+
+            out.append(MonitorMapper(tenant_id=self.tenant_id))
+        if schema == "dsp_perform":
+            from zw_brain.adapters.legacy.mappers.projections import PerformMapper
+
+            out.append(PerformMapper(tenant_id=self.tenant_id))
         return out
 
     # Backwards-compat shim — returns the FIRST mapper, or None.

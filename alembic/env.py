@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from zw_brain.shared.db import Base, get_database_url
+from alembic import context
 from zw_brain.domain import models  # noqa: F401
+from zw_brain.shared.db import Base, get_database_url
 
 config = context.config
 config.set_main_option("sqlalchemy.url", get_database_url())

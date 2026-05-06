@@ -1,0 +1,64 @@
+name: security
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    # Mondays 02:30 UTC = 10:30 北京时间。Catches new CVE in deps even when
+    # there's no PR activity; keeps the PR-side gate fast.
+    - cron: '30 2 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  secret-scan:
+    # [2026-05-06] sensitive-field policy override allows business PII into the
+    # DB but explicitly forbids real secrets (password / token / connstr) at
+    # the mapper boundary. A leaked GitHub token / API key in a commit would
+    # invalidate the whole audit story — this job is the mechanical guard.
+    name: secret-scan (gitleaks)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read   # gitleaks-action lists PR commits via the GitHub API
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # gitleaks needs full history to scan the diff
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          # No license token needed for individual / OSS users (the action
+          # auto-detects feng222666888 as an individual). Set GITLEAKS_LICENSE
+          # only if the org switches to a commercial plan.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dep-vulnerabilities:
+    # pip-audit checks installed dependencies against the PyPI Advisory DB.
+    # Runs on PR + scheduled weekly to catch CVEs published after merge.
+    name: dep-vulnerabilities (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: install project + pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]' pip-audit
+      - name: pip-audit
+        # We only care about third-party dependencies. zw-brain itself is the
+        # editable install; in --strict mode, pip-audit logs the editable marker
+        # as ERROR (not WARNING) and fails the run even with --skip-editable.
+        # Workaround: freeze deps excluding the editable install, audit that file.
+        # Use --ignore-vuln GHSA-... with a tracking issue link for unfixable advisories.
+        run: |
+          pip freeze --exclude-editable > deps-frozen.txt
+          pip-audit --strict -r deps-frozen.txt

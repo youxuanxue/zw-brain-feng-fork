@@ -214,7 +214,7 @@ def main() -> int:
     else:
         print(f"[no-direct-llm] FAIL: {total_violations} violation(s) across {files_with_violations} file(s)")
         print(f"  policy (D6): all model calls MUST go through {ALLOWED_LLM_GATEWAY}")
-        print(f"  fix: replace direct SDK / API host usage with the unified inference client")
+        print("  fix: replace direct SDK / API host usage with the unified inference client")
         return 1
 
 

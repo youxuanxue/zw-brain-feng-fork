@@ -4,9 +4,15 @@ import asyncio
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from zw_brain.command.brain import AccessDeniedError, BrainService, ConfirmationRequiredError, InvalidStateError
+from zw_brain.command.brain import (
+    AccessDeniedError,
+    BrainService,
+    ConfirmationRequiredError,
+    InvalidStateError,
+)
 from zw_brain.shared import audit as audit_bus
-from zw_brain.shared.audit import AuditWriteError, drain as drain_audit
+from zw_brain.shared.audit import AuditWriteError
+from zw_brain.shared.audit import drain as drain_audit
 from zw_brain.shared.queue import drain as drain_queue
 from zw_brain.shared.state_store import StateStore
 
@@ -545,8 +551,8 @@ def test_gateway_heartbeat_ingest_is_idempotent_with_database() -> None:
         db_path = Path(tmp) / "zw_brain.db"
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         database_store = DatabaseStore()
@@ -588,8 +594,8 @@ def test_service_invocation_query_reads_projection_metrics() -> None:
         db_path = Path(tmp) / "zw_brain.db"
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         database_store = DatabaseStore()
@@ -675,8 +681,8 @@ def test_api_resource_lifecycle_updates_approval_case_with_database() -> None:
         db_path = Path(tmp) / "zw_brain.db"
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         database_store = DatabaseStore()
@@ -721,8 +727,8 @@ def test_catalog_metadata_capabilities_write_sanitized_evidence_with_database() 
         db_path = Path(tmp) / "zw_brain.db"
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         database_store = DatabaseStore()
@@ -876,8 +882,8 @@ def test_reconstruction_core_capability_names_cover_catalog_resource_application
         db_path = Path(tmp) / "zw_brain.db"
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         database_store = DatabaseStore()
@@ -999,8 +1005,8 @@ def test_dsp_dataservice_objects_write_legacy_mappings() -> None:
         db_path = Path(tmp) / "zw_brain.db"
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         database_store = DatabaseStore()
@@ -1066,8 +1072,8 @@ def test_service_projection_source_kind_and_external_packages() -> None:
         db_path = Path(tmp) / "zw_brain.db"
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         database_store = DatabaseStore()
@@ -1112,8 +1118,8 @@ def test_gateway_log_anchor_writes_sanitized_outbox_request() -> None:
         db_path = Path(tmp) / "zw_brain.db"
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         database_store = DatabaseStore()
@@ -1159,8 +1165,8 @@ def test_api_resource_withdraw_and_revoke_update_approval_trace() -> None:
         db_path = Path(tmp) / "zw_brain.db"
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         database_store = DatabaseStore()
@@ -1202,8 +1208,8 @@ def test_api_resource_withdraw_and_revoke_update_approval_trace() -> None:
         db_path = Path(tmp) / "zw_brain.db"
         os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
 
-        from zw_brain.shared.migrate import ensure_runtime_schema
         from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
         database_store = DatabaseStore()
@@ -1263,7 +1269,9 @@ def test_audit_sink_failure_blocks_write_mutation() -> None:
 def test_p0_objection_case_closes_with_audited_database_flow() -> None:
     with TemporaryDirectory() as tmp:
         import os
+
         from sqlalchemy import create_engine, text
+
         from zw_brain.shared.database_store import DatabaseStore
 
         os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
@@ -1321,6 +1329,7 @@ def test_p0_objection_case_closes_with_audited_database_flow() -> None:
 def test_p0_objection_invalid_transition_is_rejected() -> None:
     with TemporaryDirectory() as tmp:
         import os
+
         from zw_brain.shared.database_store import DatabaseStore
 
         os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
@@ -1346,7 +1355,9 @@ def test_p0_objection_invalid_transition_is_rejected() -> None:
 def test_p0_adapter_records_idempotent_receipts_without_canonical_overwrite() -> None:
     with TemporaryDirectory() as tmp:
         import os
+
         from sqlalchemy import create_engine, text
+
         from zw_brain.shared.database_store import DatabaseStore
 
         os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
@@ -1395,7 +1406,9 @@ def test_p0_adapter_records_idempotent_receipts_without_canonical_overwrite() ->
 def test_p1_governance_and_topic_package_capabilities_with_database() -> None:
     with TemporaryDirectory() as tmp:
         import os
+
         from sqlalchemy import create_engine, text
+
         from zw_brain.shared.database_store import DatabaseStore
 
         os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
@@ -1481,6 +1494,7 @@ def test_p1_governance_and_topic_package_capabilities_with_database() -> None:
 def test_p1_topic_package_publish_requires_approved_visibility() -> None:
     with TemporaryDirectory() as tmp:
         import os
+
         from zw_brain.shared.database_store import DatabaseStore
 
         os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
@@ -1498,3 +1512,75 @@ def test_p1_topic_package_publish_requires_approved_visibility() -> None:
             pass
         else:
             raise AssertionError("topic package must not publish without item and approved visibility")
+
+
+def test_mask_layer_applied_to_actor_and_topic_serializers() -> None:
+    """The read-side mask must catch every PII-bearing serializer in BrainService.
+
+    Regression for [2026-05-06] sensitive-field policy: any payload returned to a
+    REST/CLI/Skill caller must run through apply_field_masks at default role
+    (external) so phones / names / emails / id_cards / addresses are masked.
+    """
+    from types import SimpleNamespace
+
+    from zw_brain.command.brain import BrainService
+    from zw_brain.shared.state_store import StateStore
+
+    service = BrainService(state_store=StateStore())
+
+    actor = SimpleNamespace(
+        external_actor_id="uid-1",
+        display_name="高大量",
+        org_code="11370000MB284651XL",
+        role_codes_json=["r-admin"],
+        status="active",
+        source_ref="dsp-bsp:pub_user:uid-1",
+        profile_json={
+            "phone": "13800001111",
+            "mobile": "13800001112",
+            "email": "high@sd.gov.cn",
+            "identity_num": "370101199001011234",
+            "address": "山东省济南市某街 1 号",
+            "org_name": "省大数据局",
+        },
+    )
+    out = service._actor_projection_record_to_dict(actor)
+    assert out["display_name"] == "高**"
+    assert out["profile_json"]["phone"] == "138****1111"
+    assert out["profile_json"]["mobile"] == "138****1112"
+    assert out["profile_json"]["email"] == "h***@***"
+    assert out["profile_json"]["identity_num"] == "*" * 18
+    assert out["profile_json"]["address"] == "***"
+    assert out["profile_json"]["org_name"] == "省大数据局"  # not masked
+
+    package = SimpleNamespace(
+        package_code="eg-1",
+        title="婚姻登记",
+        scenario="一表通",
+        owner_org_id="11370000MB284651XL",
+        owner_org_snapshot_json={"org_name": "省大数据局"},
+        status="published",
+        display_snapshot_json={"contacts": [{"contact_name": "韩岩", "contact_phone": "15585294353"}]},
+        metric_snapshot_json={},
+        source_ref="dsp-sharezone:data_example:eg-1",
+    )
+    out = service._topic_package_record_to_dict(package)
+    contact = out["display_snapshot_json"]["contacts"][0]
+    assert contact["contact_name"] == "韩*"
+    assert contact["contact_phone"] == "155****4353"
+
+    # process record handler_snapshot_json (objection process) — handler_phone must mask
+    process = SimpleNamespace(
+        id="proc-1",
+        objection_id="obj-1",
+        node_name="核查",
+        handler_org_id="org-1",
+        handler_snapshot_json={"handler_name": "李明", "handler_phone": "17887990701"},
+        action_type="investigate",
+        action_result="pass",
+        opinion="处理意见",
+        created_at=__import__("datetime").datetime(2026, 1, 1),
+    )
+    out = service._process_record_to_dict(process)
+    assert out["handler_snapshot_json"]["handler_name"] == "李*"
+    assert out["handler_snapshot_json"]["handler_phone"] == "178****0701"

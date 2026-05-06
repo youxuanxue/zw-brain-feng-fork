@@ -6,7 +6,14 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from zw_brain.command.brain import AccessDeniedError, BrainServiceError, ConfirmationRequiredError, InvalidStateError, NotFoundError, UnknownSkillError
+from zw_brain.command.brain import (
+    AccessDeniedError,
+    BrainServiceError,
+    ConfirmationRequiredError,
+    InvalidStateError,
+    NotFoundError,
+    UnknownSkillError,
+)
 from zw_brain.command.runtime import get_service
 from zw_brain.shared.runtime_config import get_rest_host, get_rest_port
 from zw_brain.skill_registration.runtime import SurfaceNotEnabledError, require_surface
