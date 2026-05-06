@@ -1584,3 +1584,25 @@ def test_mask_layer_applied_to_actor_and_topic_serializers() -> None:
     out = service._process_record_to_dict(process)
     assert out["handler_snapshot_json"]["handler_name"] == "李*"
     assert out["handler_snapshot_json"]["handler_phone"] == "178****0701"
+
+
+def test_data_search_recalls_real_catalog_dictionary_titles() -> None:
+    """A2 closure: data.search must surface real-catalog candidates from the
+    discovery.recallDictionary even when no discovery card matches.
+
+    "教师资格" never appears in the 12 demo cards, but does appear in a real
+    dsp_metaresource title that the importer wired into recallDictionary. The
+    search result must include it as a `recall_dictionary` candidate so the NL
+    accelerator has a real surface to point at.
+    """
+    tmp, service = make_service()
+    try:
+        result = service.invoke_skill("data.search", {"query": "教师资格", "role": "r1"})
+        recall_hits = [it for it in result["results"] if it.get("kind") == "recall_dictionary"]
+        assert recall_hits, "recallDictionary must surface 教师资格 candidate"
+        assert any("教师资格" in it["name"] for it in recall_hits)
+        # Empty query must NOT spam recall (would dump 25 thin cards on every page load)
+        empty_result = service.invoke_skill("data.search", {"query": "", "role": "r1"})
+        assert not any(it.get("kind") == "recall_dictionary" for it in empty_result["results"])
+    finally:
+        tmp.cleanup()

@@ -1877,6 +1877,32 @@ class BrainService:
                             "resource_kind": api_res.get("resource_kind"),
                         }
                     )
+            # NL recall — append real-catalog candidates from the recall dictionary
+            # when the query matches a dictionary title. Only fires when query is
+            # non-empty (would otherwise add 25 thin cards to every page load).
+            if haystack:
+                seen_ids = {r["id"] for r in resources}
+                recall = self._snapshot.get("discovery", {}).get("recallDictionary", {})
+                for entry in recall.get("sample_titles", []):
+                    title = entry.get("title", "")
+                    if not title or haystack not in title.lower():
+                        continue
+                    cand_id = f"recall:{title}"
+                    if cand_id in seen_ids:
+                        continue
+                    seen_ids.add(cand_id)
+                    resources.append(
+                        {
+                            "id": cand_id,
+                            "name": title,
+                            "provider": entry.get("owner_org_id", "") or "—",
+                            "zone": "真目录召回",
+                            "status": entry.get("lifecycle_status", "active"),
+                            "desc": f"NL 召回字典命中（来自 dsp_catalog 真数据，{entry.get('lifecycle_status','active')}）。",
+                            "kind": "recall_dictionary",
+                            "score": 60,
+                        }
+                    )
         else:
             records = store.catalog_repo.search_entries(query)
             resources = []
