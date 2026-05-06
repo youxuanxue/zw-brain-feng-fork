@@ -575,3 +575,107 @@ def test_p1_governance_projection_and_topic_package_repositories() -> None:
             pass
         else:
             raise AssertionError("topic package without item and approved visibility must not publish")
+
+
+def test_compliance_ops_repository_six_records_roundtrip() -> None:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "repo.db"
+        import os
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from datetime import UTC, datetime
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.domain.repositories.compliance_ops import ComplianceOpsRepository
+
+        ensure_runtime_schema()
+        repo = ComplianceOpsRepository()
+        tenant = "sd-default"
+
+        case = repo.upsert_case(
+            {
+                "case_code": "CASE-2026-0001",
+                "case_kind": "timeout",
+                "target_type": "application",
+                "target_ref": "APP-001",
+                "severity": "high",
+                "detected_summary": "申请审批超期 3 天",
+                "evidence_json": {"secret": "drop", "rule_ref": "RULE-TO-1"},
+                "source_ref": "dsp-esupervision:apply/timeLimitHandle",
+            },
+            tenant_id=tenant,
+        )
+        assert case.status == "detected" and case.evidence_json == {"rule_ref": "RULE-TO-1"}
+
+        rule = repo.upsert_rule(
+            {
+                "rule_code": "RULE-TO-1",
+                "rule_kind": "timeout",
+                "target_scope": "application",
+                "title": "申请审批超期阈值",
+                "threshold_json": {"days": 3, "private_key": "drop"},
+            },
+            tenant_id=tenant,
+        )
+        assert rule.review_status == "pending_review" and rule.threshold_json == {"days": 3}
+
+        risk = repo.upsert_risk_event(
+            {
+                "event_kind": "abnormal",
+                "severity": "high",
+                "source_system": "dsp-monitor",
+                "source_ref": "warning:abc-1",
+                "target_type": "delivery",
+                "target_ref": "DLV-9",
+                "detected_at": datetime.now(UTC),
+                "summary_json": {"token": "drop", "rate": 0.42},
+            },
+            tenant_id=tenant,
+        )
+        assert risk.summary_json == {"rate": 0.42}
+
+        health = repo.upsert_health_signal(
+            {
+                "subject_kind": "service",
+                "subject_ref": "api-service-info:63",
+                "status": "degraded",
+                "metric_json": {"password": "drop", "p99_ms": 820},
+            },
+            tenant_id=tenant,
+        )
+        assert health.metric_json == {"p99_ms": 820}
+
+        asset = repo.upsert_standard_asset(
+            {
+                "asset_kind": "element",
+                "asset_ref": "elem:GB/T-XXXX-2014",
+                "title": "公民身份号码",
+                "source_system": "standardservice",
+                "evidence_json": {"api_key": "drop", "version": "2014"},
+            },
+            tenant_id=tenant,
+        )
+        assert asset.status == "candidate" and asset.evidence_json == {"version": "2014"}
+
+        metric = repo.upsert_metric_definition(
+            {
+                "metric_code": "metric.application.timeout.rate",
+                "title": "申请超期率",
+                "metric_kind": "rate",
+                "target_aggregate": "ApplicationRecord",
+                "dimension_json": {"certificate": "drop", "by": "owner_org"},
+            },
+            tenant_id=tenant,
+        )
+        assert metric.dimension_json == {"by": "owner_org"}
+
+        # idempotent upsert (same UNIQUE keys returns single row)
+        repo.upsert_case({**{"case_code": "CASE-2026-0001"}, "status": "acknowledged", "detected_summary": case.detected_summary, "target_type": case.target_type, "target_ref": case.target_ref}, tenant_id=tenant)
+        cases = repo.list_cases(tenant_id=tenant)
+        assert len(cases) == 1 and cases[0].status == "acknowledged"
+
+        assert len(repo.list_rules(tenant_id=tenant)) == 1
+        assert len(repo.list_risk_events(tenant_id=tenant)) == 1
+        assert len(repo.list_health_signals(tenant_id=tenant)) == 1
+        assert len(repo.list_standard_assets(tenant_id=tenant)) == 1
+        assert len(repo.list_metric_definitions(tenant_id=tenant)) == 1

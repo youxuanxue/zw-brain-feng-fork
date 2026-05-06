@@ -21,6 +21,7 @@ __pycache__/
 
 # ── Local runtime state ──────────────────────────────────────
 .data/
+.legacy_cache/
 dist/
 
 # ── Claude local session state ───────────────────────────────

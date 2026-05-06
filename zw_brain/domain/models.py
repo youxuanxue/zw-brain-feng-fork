@@ -945,3 +945,129 @@ class ObjectionEvaluationRecord(Base):
     result_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class ComplianceCaseRecord(Base):
+    __tablename__ = "compliance_case"
+    __table_args__ = (UniqueConstraint("tenant_id", "case_code", name="uq_compliance_case_tenant_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    case_code: Mapped[str] = mapped_column(String(64), index=True)
+    case_kind: Mapped[str] = mapped_column(String(32), index=True)
+    target_type: Mapped[str] = mapped_column(String(32), index=True)
+    target_ref: Mapped[str] = mapped_column(String(128), index=True)
+    severity: Mapped[str] = mapped_column(String(16), index=True, default="medium")
+    status: Mapped[str] = mapped_column(String(32), index=True, default="detected")
+    assignee_org_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    assignee_snapshot_json: Mapped[dict] = mapped_column(JSON)
+    detected_summary: Mapped[str] = mapped_column(Text)
+    resolved_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    evidence_json: Mapped[dict] = mapped_column(JSON)
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class ComplianceRuleRecord(Base):
+    __tablename__ = "compliance_rule"
+    __table_args__ = (UniqueConstraint("tenant_id", "rule_code", name="uq_compliance_rule_tenant_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    rule_code: Mapped[str] = mapped_column(String(64), index=True)
+    rule_kind: Mapped[str] = mapped_column(String(32), index=True)
+    target_scope: Mapped[str] = mapped_column(String(32), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    threshold_json: Mapped[dict] = mapped_column(JSON)
+    review_status: Mapped[str] = mapped_column(String(32), index=True, default="pending_review")
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class RiskEventProjectionRecord(Base):
+    __tablename__ = "risk_event_projection"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "source_system",
+            "source_ref",
+            name="uq_risk_event_source",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    event_kind: Mapped[str] = mapped_column(String(32), index=True)
+    severity: Mapped[str] = mapped_column(String(16), index=True, default="medium")
+    source_system: Mapped[str] = mapped_column(String(64), index=True)
+    source_ref: Mapped[str] = mapped_column(String(128), index=True)
+    target_type: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    target_ref: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    detected_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    summary_json: Mapped[dict] = mapped_column(JSON)
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class HealthSignalProjectionRecord(Base):
+    __tablename__ = "health_signal_projection"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "subject_kind",
+            "subject_ref",
+            name="uq_health_signal_subject",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    subject_kind: Mapped[str] = mapped_column(String(32), index=True)
+    subject_ref: Mapped[str] = mapped_column(String(128), index=True)
+    status: Mapped[str] = mapped_column(String(32), index=True, default="unknown")
+    metric_json: Mapped[dict] = mapped_column(JSON)
+    last_observed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class StandardAssetProjectionRecord(Base):
+    __tablename__ = "standard_asset_projection"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "asset_kind",
+            "asset_ref",
+            name="uq_standard_asset_kind_ref",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    asset_kind: Mapped[str] = mapped_column(String(32), index=True)
+    asset_ref: Mapped[str] = mapped_column(String(128), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(32), index=True, default="candidate")
+    source_system: Mapped[str] = mapped_column(String(64), index=True)
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    evidence_json: Mapped[dict] = mapped_column(JSON)
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class MetricDefinitionProjectionRecord(Base):
+    __tablename__ = "metric_definition_projection"
+    __table_args__ = (UniqueConstraint("tenant_id", "metric_code", name="uq_metric_definition_tenant_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    metric_code: Mapped[str] = mapped_column(String(64), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    metric_kind: Mapped[str] = mapped_column(String(32), index=True)
+    target_aggregate: Mapped[str] = mapped_column(String(64), index=True)
+    dimension_json: Mapped[dict] = mapped_column(JSON)
+    formula_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    owner_org_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
