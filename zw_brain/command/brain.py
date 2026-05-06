@@ -1849,8 +1849,34 @@ class BrainService:
                         " ".join(item.get("explain", [])),
                     ]
                 ).lower()
-                if not haystack or haystack in text or any(token in query for token in ["法人", "企业", "模板", "复用"]):
+                if not haystack or haystack in text:
                     resources.append(copy.deepcopy(item))
+            for api_res in self._snapshot.get("api_resources", []):
+                if api_res.get("lifecycle_status") in {"draft", "revoked"}:
+                    continue
+                summary = api_res.get("summary_json") or {}
+                text = " ".join(
+                    [
+                        api_res.get("title", ""),
+                        api_res.get("resource_code", ""),
+                        api_res.get("owner_org_id", ""),
+                        str(summary.get("domain", "")),
+                        str(summary.get("desc", "")),
+                    ]
+                ).lower()
+                if not haystack or haystack in text:
+                    resources.append(
+                        {
+                            "id": api_res["resource_code"],
+                            "name": api_res.get("title", api_res["resource_code"]),
+                            "provider": api_res.get("owner_org_id", ""),
+                            "zone": "API 资源",
+                            "status": api_res.get("lifecycle_status", "active"),
+                            "desc": str(summary.get("desc") or summary.get("domain") or api_res.get("title", "")),
+                            "kind": "api",
+                            "resource_kind": api_res.get("resource_kind"),
+                        }
+                    )
         else:
             records = store.catalog_repo.search_entries(query)
             resources = []

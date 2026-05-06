@@ -514,6 +514,17 @@ dsp_require.data_require (67 条)
 
 → 选 3 条端到端 happy path + 1 条异议路径作为 demo seed，跑通 R1/R3/R5 黄金链路。
 
+### 5.5 落地状态（2026-05-06）
+
+A1–A4 已通过 `scripts/build_true_data_seed.py` 一次性生成，从 `.data/zw_brain.db`（10 个 mapper × 真 dump 已灌满）读取 canonical 记录，幂等改写 `zw_brain/domain/seed_snapshot.json` 的下列字段：
+
+- **A1** — `discovery.resources` 12 张卡：2 张停车场（`res-jbxx-ledger` + `res-parking-chengdu`，保留旧 id 给测试 fixture）+ 8 张来自 `dsp_example.data_example`（公司变更登记 / 不动产 / 出生一件事 / 中小学一件事 / 婚姻登记 / 小微企业补贴 / 数据查询创新 / 行政审批帮办代办）+ 2 张 legacy 占位（`res-market-activity` + `res-company-visit`，测试 fixture 占位）
+- **A2** — `discovery.catalogTree` 用真分布（10 / 1185 / 18750 / 16731；dump 快照 @2026-05-06，按附录 A 规则不入 stat-wrap）；`discovery.recallDictionary` 提供 8 类 basesubject + 25 个真目录标题样本（仅 `active` + `approved_pending_publish` 入选，过滤 retired），供 NL skill 召回字典使用
+- **A3** — `audit_events` 8 条全部使用真组织 actor（省大数据局 / 省公安厅 / 省人社厅 / 济南市大数据局 / platform）；`workbench.r1/r3/r5.greeting` 注入真组织上下文
+- **A4** — 在保留原 2 个停车场链路（`REQ-2026-04-25-0011` / `REQ-2026-04-24-0007` / `DLV-2026-04-25-0011` 等）之外，追加 3 条 happy chain（婚姻登记 / 出生一件事 / 小微企业补贴）+ 1 条异议路径（`DSP-2026-04-26-OBJ-PUBSEC` 来自真 `objection_case` 中省公安厅发起的"信息项中缺少抽检时间字段"）
+
+`scripts/build_true_data_seed.py` 是幂等的：可以在每次重新 import 真 dump 后再跑一次以同步 demo seed；preflight 段 8（sync-stats `--check`）依然全绿，因为 A1–A4 落点都是 prose-snapshot 数字而非契约 stat。
+
 ---
 
 ## 六、阶段 1 准入清单（已闭环，2026-05-06）

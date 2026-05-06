@@ -1,8 +1,8 @@
 {
   "workbench": {
     "r1": {
-      "greeting": "周处长，上午好",
-      "subtitle": "你有 1 条 zw-brain 前台专题复用申请待看进度，1 条专题资产订阅建议，1 条减负提示。",
+      "greeting": "周处长，上午好（省大数据局 · 山东省）",
+      "subtitle": "你有 1 条停车场信息复用申请待看进度；本周共有 10 条来自 dsp_example 的真政务案例可被订阅；1 条减负提示来自约 1.8 万条 pub_organ projection。",
       "todos": [
         {
           "id": "REQ-2026-04-25-0011",
@@ -73,8 +73,8 @@
       }
     },
     "r3": {
-      "greeting": "陈经办，上午好",
-      "subtitle": "你有 1 条镇街预填任务待补差异字段，1 条退回补充待复核。",
+      "greeting": "区县协同员，上午好（济南市大数据局 · 区县代办）",
+      "subtitle": "本周 2 条由省大数据局发起的婚姻登记/出生一件事流转任务等你确认；停车场信息已通过基础目录审核。",
       "todos": [
         {
           "id": "REQ-2026-04-25-0011",
@@ -138,8 +138,8 @@
       }
     },
     "r5": {
-      "greeting": "赵科长，上午好",
-      "subtitle": "你有 1 条汇总确认待处理，系统已自动汇总，只剩 2 项差异异常待你确认。",
+      "greeting": "审计员，上午好（省纪检审计联络办）",
+      "subtitle": "本周 8 条审计事件已锚定（2 条 anchored / 6 pending）；其中 1 条与省公安厅发起的目录异议相关。",
       "todos": [
         {
           "id": "REQ-2026-04-25-0011",
@@ -292,57 +292,456 @@
       }
     ],
     "aiCopilot": {
-      "summary": "已把你的问题识别为“涉企专题 + 优先复用法人单位基础信息模板 + 只补现场差异字段”。当前最合适的下一步，是先查看法人单位基础信息台账模板的覆盖率和差异字段。",
+      "summary": "已把你的问题识别为“城市治理/交通运行 + 优先复用停车场信息目录 + 只补本地泊位状态差异”。当前最合适的下一步，是先查看省级“停车场信息”目录及其库表/文件资源，再带入共享申请。",
       "missingQuestions": [
-        "是否限定镇街 / 社区范围？",
-        "是否需要附带现场经营状态与走访备注？"
+        "是否限定区县 / 街道范围？",
+        "是否需要实时泊位状态，还是只需要静态停车场基础信息？"
       ],
       "nextActions": [
-        "查看模板详情",
+        "查看停车场信息目录",
         "直接发起复用申请",
         "先进入营商环境专区"
       ],
       "evidence": [
-        "输入文本明确出现“复用法人单位基础信息台账模板”",
-        "命中涉企基础对象高频字段",
-        "该模板是营商环境专题的默认起点"
+        "输入文本命中真目录“停车场信息”",
+        "dump 中已解析省级目录 370000308004000000/000001",
+        "该目录已关联库表资源与文件资源，适合做客户级演示主线"
       ]
     },
     "resources": [
       {
         "id": "res-jbxx-ledger",
-        "name": "法人单位基础信息台账模板",
-        "provider": "区政数局 / 市场监管局联合维护",
+        "legacyId": "370000308004000000/000001",
+        "name": "停车场信息共享目录",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
         "zone": "营商环境专区",
         "status": "可复用",
-        "score": 98,
-        "updatedAt": "2026-04-25",
+        "score": 99,
+        "updatedAt": "2026-04-27",
         "subscribers": 31,
         "approvalRate": "97%",
-        "desc": "面向涉企场景的默认基础信息复用对象，已覆盖统一社会信用代码、企业名称、法定代表人、行业代码、登记机关等高频字段。",
+        "coverage": "真目录：2 个资源",
+        "desc": "来自旧平台 dsp_catalog 的真实目录“停车场信息”（370000308004000000/000001），已关联库表资源与文件资源，可作为城市治理、交通运行和一网通办场景的默认复用入口。",
+        "fields": [
+          "停车场编号",
+          "停车场名称",
+          "所属区域",
+          "泊位总数",
+          "开放状态",
+          "更新时间",
+          "资源类型",
+          "责任单位"
+        ],
+        "explain": [
+          "命中真目录：停车场信息",
+          "已从 dump 验证库表/文件两类资源存在",
+          "适合作为“先复用目录资源，再补本地差异”的客户级演示主线"
+        ],
+        "nextHints": [
+          "发起停车场信息复用申请",
+          "查看目录与资源来源",
+          "进入营商环境专区"
+        ],
+        "trueData": {
+          "source_schema": "dsp_catalog",
+          "catalog_code": "370000308004000000/000001",
+          "catalog_title": "停车场信息",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "resource_codes": [
+            "39a41e4b4e80439187e0f86218bae5d9",
+            "486fad4640fb44589c05f72df23650d7"
+          ],
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-parking-chengdu",
+        "legacyId": "370000307001040000/000003",
+        "name": "停车场信息表（市级目录样本）",
+        "provider": "市交通运输局",
+        "providerOrgCode": "00510103",
+        "zone": "营商环境专区",
+        "status": "可申请",
+        "score": 92,
+        "updatedAt": "2026-04-27",
+        "subscribers": 7,
+        "approvalRate": "—",
+        "coverage": "真目录：市级表",
+        "desc": "来自真 dump 的“停车场信息表”（370000307001040000/000003），可作为跨地区目录对齐和上级汇聚演示的候选资源。",
+        "fields": [
+          "停车场名称",
+          "区县",
+          "泊位数",
+          "运营状态",
+          "更新时间"
+        ],
+        "explain": [
+          "与省级停车场信息目录同名同域",
+          "适合演示跨层级目录汇聚",
+          "需在申请前确认责任部门与字段口径"
+        ],
+        "nextHints": [
+          "查看跨地区口径",
+          "作为候选资源匹配"
+        ],
+        "trueData": {
+          "source_schema": "dsp_catalog",
+          "catalog_code": "370000307001040000/000003",
+          "catalog_title": "停车场信息表",
+          "owner_org_id": "00510103",
+          "owner_org_name": "市交通运输局",
+          "region_code": "005101",
+          "region_name": "成都市",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-不动产交易登记一体化平台",
+        "legacyId": "5e0d5a3012a9421b9b1e7c0a084ee36c",
+        "name": "不动产交易登记一体化平台",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "民生保障专区",
+        "status": "已驳回",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/5e0d5a30",
+        "desc": "以数据共享为攻坚重点，以“一窗通办”为主要抓手，推动不动产交易、登记线上线下深度融合、一步到位，切实以“数据跑”代替“群众跑”",
+        "fields": [
+          "不动产单元编号",
+          "交易当事人",
+          "登记类型",
+          "办理结果",
+          "回流时间"
+        ],
+        "explain": [
+          "真政务案例：不动产交易登记一体化平台（status=rejected）",
+          "field_type=04（不动产/房屋），适合做拒批回流路径演示",
+          "已被旧平台明确拒绝，可作为反面教材展示制度执行边界"
+        ],
+        "nextHints": [
+          "查看驳回原因与改进路径",
+          "进入民生保障专区",
+          "查看不动产相关目录"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "5e0d5a3012a9421b9b1e7c0a084ee36c",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "topic_status": "rejected",
+          "field_type": "04",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-中小学新生入学yjs-yco",
+        "legacyId": "aaa0ad8738544b1a915712c6c0836d5a",
+        "name": "中小学新生入学“一件事一次办”",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "民生保障专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/aaa0ad87",
+        "desc": "坚持人民至上　全面推行中小学新生入学“一件事一次办”",
+        "fields": [
+          "学籍编号",
+          "入学年份",
+          "户籍信息",
+          "学区编码",
+          "家长联系方式"
+        ],
+        "explain": [
+          "真政务案例：中小学新生入学“一件事一次办”（published, opinion=通过）",
+          "field_type=05（教育），落地教育条线减负典型",
+          "可作为基层报表减负示范专题包"
+        ],
+        "nextHints": [
+          "进入教育条线专题包",
+          "对齐学籍/户籍口径",
+          "查看减负看板"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "aaa0ad8738544b1a915712c6c0836d5a",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "topic_status": "published",
+          "field_type": "05",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-公司变更登记",
+        "legacyId": "4c26565172614fa7906df573facf2747",
+        "name": "公司变更登记",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "营商环境专区",
+        "status": "已提交",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/4c265651",
+        "desc": "公司变更登记",
         "fields": [
           "统一社会信用代码",
           "企业名称",
-          "法定代表人",
-          "行业代码",
-          "成立日期",
-          "登记机关",
-          "经营场所",
-          "注册资本",
-          "经营状态",
-          "最近走访时间"
+          "变更类型",
+          "登记时间",
+          "登记机关"
         ],
         "explain": [
-          "当前需求首先应复用该模板，而不是重新发起整表采集",
-          "模板已覆盖多数企业基础字段",
-          "仅需补少量现场差异字段即可形成任务"
+          "命中 dsp_example.data_example 真政务案例：公司变更登记",
+          "field_type=01（涉企登记），适合做企业开办/变更链路演示",
+          "已通过 verify --strict（resolved）"
         ],
         "nextHints": [
-          "查看覆盖率与差异字段",
-          "作为预填底座发起申请",
-          "查看模板版本与来源"
+          "发起涉企登记复用申请",
+          "查看营商环境专区",
+          "对齐上级一表通口径"
         ],
-        "coverage": "82%"
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "4c26565172614fa7906df573facf2747",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "topic_status": "submitted",
+          "field_type": "01",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-出生yjs",
+        "legacyId": "a1264ad84745455db58c52a9fd30f21f",
+        "name": "出生一件事",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "民生保障专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/a1264ad8",
+        "desc": "出生一件事",
+        "fields": [
+          "新生儿编号",
+          "出生时间",
+          "出生医学证明",
+          "户籍登记",
+          "母婴档案"
+        ],
+        "explain": [
+          "真政务案例：出生一件事（status=published, opinion=通过）",
+          "field_type=11,16（人口与教育跨域），跨部门一表通典型",
+          "可作为 R1 个人专题“一件事”链路标杆"
+        ],
+        "nextHints": [
+          "进入“一件事”专题包",
+          "查看跨部门字段对齐",
+          "申请人口基础信息复用"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "a1264ad84745455db58c52a9fd30f21f",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "topic_status": "published",
+          "field_type": "11,16",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-婚姻登记qstb",
+        "legacyId": "e3e35d4d1b96477baf9f1255a0ce7ea3",
+        "name": "婚姻登记“全省通办”",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "民生保障专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/e3e35d4d",
+        "desc": "让数据为爱“多跑腿”,实现婚姻登记“全省通办”更惠民",
+        "fields": [
+          "婚姻状态",
+          "登记机关",
+          "登记时间",
+          "户籍同步状态",
+          "异地办理标识"
+        ],
+        "explain": [
+          "真政务案例：婚姻登记“全省通办”（published）",
+          "field_type=11（婚育），强同步、跨地区协同典型",
+          "适合做“数据替群众跑”的演示主线"
+        ],
+        "nextHints": [
+          "查看跨地区同步链路",
+          "进入民生保障专区",
+          "对齐民政/公安数据口径"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "e3e35d4d1b96477baf9f1255a0ce7ea3",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "topic_status": "published",
+          "field_type": "11",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-小微企业一次性创业岗位开发补贴申领",
+        "legacyId": "a82e0ea6fffa4f3895cad681a0f5f14b",
+        "name": "小微企业一次性创业岗位开发补贴申领",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "营商环境专区",
+        "status": "已提交",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/a82e0ea6",
+        "desc": "小微企业一次性创业岗位开发补贴申领",
+        "fields": [
+          "企业名称",
+          "统一社会信用代码",
+          "新增岗位数",
+          "补贴金额",
+          "申领时间"
+        ],
+        "explain": [
+          "真政务案例：小微企业一次性创业岗位开发补贴申领（submitted）",
+          "field_type=05（创业就业），适合做小微企业惠企政策链演示",
+          "已沉淀进真共享专区，可做 R1→R3 联审标杆"
+        ],
+        "nextHints": [
+          "发起补贴复用申请",
+          "查看小微企业惠企专题",
+          "对齐人社部门数据口径"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "a82e0ea6fffa4f3895cad681a0f5f14b",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "topic_status": "submitted",
+          "field_type": "05",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-数据查询创新应用",
+        "legacyId": "aab211c83d674a56b8c75fbd25bb5584",
+        "name": "数据查询创新应用",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "治理减负专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/aab211c8",
+        "desc": "针对民政部门所提出的共享数据需求，尽管当前面临政务服务事项缺失及业务系统支撑不足的挑战，我们致力于研发一款高效的政务数据查询系统。此系统旨在全面满足政务部门对于政务数据接口的多元化需求，实现批量查询与精准核验服务。通过创新技术手段，打…",
+        "fields": [
+          "业务系统名称",
+          "目录覆盖范围",
+          "查询频次",
+          "命中率",
+          "字段缺口"
+        ],
+        "explain": [
+          "真政务案例：数据查询创新应用（published, opinion=通过）",
+          "field_type=03,11,15,16（民政/人口/民生/教育跨域），跨域共享治理示范",
+          "适合作为“先复用后补差异”治理减负主线演示"
+        ],
+        "nextHints": [
+          "查看跨域字段缺口报告",
+          "进入治理减负专区",
+          "对齐民政/人社查询口径"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "aab211c83d674a56b8c75fbd25bb5584",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "topic_status": "published",
+          "field_type": "03,11,15,16",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-行政审批服务帮办代办",
+        "legacyId": "eecbc772cd8d408da4407f22b370f033",
+        "name": "行政审批服务帮办代办",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/eecbc772",
+        "desc": "行政审批服务帮办代办制,解决德化县农村大量劳动力进城务工、农村空心化、老龄化造成办事不便等问题，结合推进“党建+”邻里中心建设，积极探索推行行政审批服务帮办代办制，打通服务企业和群众的“最后一公里”。",
+        "fields": [
+          "事项名称",
+          "代办人员",
+          "受理状态",
+          "办结时限",
+          "群众反馈"
+        ],
+        "explain": [
+          "真政务案例：行政审批服务帮办代办（published, opinion=同意）",
+          "field_type=01（涉企/审批），适合做帮办代办链路演示",
+          "可作为基层帮办代办看板素材"
+        ],
+        "nextHints": [
+          "进入营商环境专区",
+          "查看帮办代办专题包",
+          "对齐审批口径"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "eecbc772cd8d408da4407f22b370f033",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "topic_status": "published",
+          "field_type": "01",
+          "legacy_mapping_status": "resolved"
+        }
       },
       {
         "id": "res-market-activity",
@@ -399,81 +798,246 @@
     ],
     "catalogTree": [
       {
-        "name": "涉企基础对象",
-        "count": 6
+        "name": "真政务案例（dsp_example）",
+        "count": 10
       },
       {
-        "name": "营商环境专题",
-        "count": 9
+        "name": "共享目录条目（dsp_catalog）",
+        "count": 1200
       },
       {
-        "name": "共享目录资源",
-        "count": 18
+        "name": "组织 projection（dsp_bsp.pub_organ）",
+        "count": 18750
       },
       {
-        "name": "治理减负视图",
-        "count": 4
+        "name": "区划 projection（dsp_bsp.pub_region）",
+        "count": 16731
       }
-    ]
+    ],
+    "recallDictionary": {
+      "categories": [
+        {
+          "code": "01",
+          "name": "涉企登记许可"
+        },
+        {
+          "code": "03",
+          "name": "民政民生"
+        },
+        {
+          "code": "04",
+          "name": "不动产/房屋"
+        },
+        {
+          "code": "05",
+          "name": "教育就业创业"
+        },
+        {
+          "code": "11",
+          "name": "婚育人口"
+        },
+        {
+          "code": "15",
+          "name": "民生保障"
+        },
+        {
+          "code": "16",
+          "name": "教育条线"
+        },
+        {
+          "code": "17",
+          "name": "其他"
+        }
+      ],
+      "sample_titles": [
+        {
+          "title": "师资培训（乡村教师支持计划_师范生实习支教）经费预算指标分配",
+          "owner_org_id": "36010000876",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "山东省基层群众性自治组织特别法人统一社会信用代码信息",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "省各级教育生均公共财政预算公用经费支出增长情况",
+          "owner_org_id": "11360000014501340W",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "2024年普通中小学学籍学历数据信息",
+          "owner_org_id": "11360000014501340W",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "开展高等学历继续教育的高校和专业目录",
+          "owner_org_id": "11360000014501340W",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "规范化、示范性及优质特色中职学校名录",
+          "owner_org_id": "36010000876",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "高校重点实验室、工程技术研发中心名录",
+          "owner_org_id": "11360000014501340W",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "区县域医疗机构院主要业务情况统计表",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "国家、省级社区教育示范区（县）名单",
+          "owner_org_id": "11360000014501340W",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "已取得高等学校教师资格人员基本信息",
+          "owner_org_id": "11360000014501340W",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "企业环境安全隐患排查整改情况数据",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "全省规模以上工业经济效益主要指标",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "山东省统一社会信用代码数据库信息",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "生态环境严重失信名单修复记录信息",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "approved_pending_publish"
+        },
+        {
+          "title": "山东法院宣告失踪或死亡案件信息",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "山东省宗教活动场所法人登记证书",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "山东省社会保险参保人员基本信息",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "中华人民共和国交通部共享信息",
+          "owner_org_id": "platform",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "全省各设区城市AQI实时信息",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "approved_pending_publish"
+        },
+        {
+          "title": "山东省个体工商户登记基本信息",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "设立内资演出场所经营单位备案",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "非煤矿矿山企业安全生产许可证",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "2023年物业管理维修资金",
+          "owner_org_id": "00510104",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "学前教育幼儿基本信息-人口",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "山东省社会组织注册登记信息",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        }
+      ],
+      "source": "dsp_catalog.data_catalog (via importer.catalog_entry)",
+      "purpose": "NL skill 召回字典：用户搜“人口/不动产/停车场/婚姻/小微企业”等关键词时，召回真目录候选"
+    }
   },
   "requests": [
     {
       "id": "REQ-2026-04-25-0011",
       "resourceId": "res-jbxx-ledger",
-      "resourceName": "法人单位基础信息台账模板",
-      "applicant": "周处长（市营商环境专班）",
-      "applicantDept": "市营商环境专班",
-      "purpose": "为本周营商环境专题复用法人单位基础字段，只补现场差异字段。",
-      "range": "营商环境专题 · 镇街 / 社区协同",
+      "resourceName": "停车场信息共享目录",
+      "applicant": "周处长（市城市运行专班）",
+      "applicantDept": "市城市运行专班",
+      "purpose": "为本周城市运行专题复用省级停车场信息目录，只补本地泊位状态与开放时间差异字段。",
+      "range": "城市运行专题 · 区县 / 街道协同",
       "expectedBy": "2026-04-27",
       "status": "pending",
       "submittedAt": "2026-04-25 09:14",
       "auditId": "AE-2026-04-25-0914",
       "chainAnchor": "pending",
-      "templateCoverage": "82%",
+      "templateCoverage": "真目录：2 个资源",
       "prefilledFields": [
         {
-          "label": "统一社会信用代码",
-          "value": "91370000MA3XXXXXX1",
-          "source": "共享资源池 / 市场监管登记",
+          "label": "目录名称",
+          "value": "停车场信息",
+          "source": "dsp_catalog.data_catalog / 370000308004000000/000001",
           "state": "已预填"
         },
         {
-          "label": "企业名称",
-          "value": "山东云启科技有限公司",
-          "source": "法人模板 v1.2",
+          "label": "责任单位",
+          "value": "省大数据局",
+          "source": "org_projection / 11370000MB284651XL",
           "state": "已预填"
         },
         {
-          "label": "法定代表人",
-          "value": "李某某",
-          "source": "法人模板 v1.2",
+          "label": "行政区划",
+          "value": "山东省",
+          "source": "region_projection / 370000000000",
           "state": "已预填"
         },
         {
-          "label": "行业代码",
-          "value": "I6510",
-          "source": "法人模板 v1.2",
+          "label": "库表资源",
+          "value": "停车场信息_库表资源",
+          "source": "resource_asset / 39a41e4b4e80439187e0f86218bae5d9",
           "state": "已预填"
         },
         {
-          "label": "登记机关",
-          "value": "市市场监管局",
-          "source": "共享资源池",
+          "label": "文件资源",
+          "value": "停车场信息_文件资源",
+          "source": "resource_asset / 486fad4640fb44589c05f72df23650d7",
           "state": "已预填"
         }
       ],
       "diffFields": [
         {
-          "label": "经营状态",
-          "value": "待镇街确认",
-          "reason": "现场状态变化快",
+          "label": "本地泊位开放状态",
+          "value": "待区县确认",
+          "reason": "实时运营状态变化快",
           "owner": "R3/R4 补录"
         },
         {
-          "label": "最近走访时间",
+          "label": "最新开放时间",
           "value": "待补录",
-          "reason": "共享池无现场时间",
+          "reason": "共享目录只提供基础信息，现场时间需本地确认",
           "owner": "R4 补录"
         },
         {
@@ -484,26 +1048,26 @@
         }
       ],
       "reviewFocus": [
-        "是否允许按模板先复用后补录",
-        "差异字段责任边界是否清楚",
-        "补录结果是否要求回流模板候选"
+        "是否允许按真目录先复用后补录",
+        "泊位状态与开放时间责任边界是否清楚",
+        "补录结果是否要求回流停车场信息目录候选"
       ],
       "summaryResult": {
         "totalEntities": 28,
         "autoMerged": 26,
         "exceptions": 2,
-        "note": "自动汇总已形成区县上报草稿，只剩异常项待审核汇总人员确认。"
+        "note": "自动汇总已形成区县停车场共享上报草稿，只剩异常项待审核汇总人员确认。"
       },
       "returnFlow": [
-        "通过后自动创建镇街 / 社区预填任务",
-        "补录完成后自动生成汇总结果",
-        "高频差异字段进入回流候选池"
+        "通过后自动创建区县 / 街道预填任务",
+        "补录完成后自动生成停车场信息汇总结果",
+        "高频差异字段进入停车场目录回流候选池"
       ],
       "timeline": [
         {
-          "label": "已发现可复用模板",
+          "label": "已发现可复用真目录",
           "time": "2026-04-25 09:02",
-          "note": "系统识别涉企需求，优先命中法人单位基础信息模板"
+          "note": "系统识别城市运行需求，优先命中 dsp_catalog 中的“停车场信息”目录"
         },
         {
           "label": "已生成标准复用申请",
@@ -513,12 +1077,12 @@
         {
           "label": "待审批承接人员判定",
           "time": "2026-04-25 09:20",
-          "note": "重点确认差异字段责任边界和回流要求"
+          "note": "重点确认泊位状态、开放时间的补录责任边界和回流要求"
         },
         {
           "label": "待基层补录",
           "time": "—",
-          "note": "审批通过后自动下发预填任务"
+          "note": "审批通过后自动下发停车场信息预填任务"
         },
         {
           "label": "待审核汇总",
@@ -528,31 +1092,31 @@
       ],
       "aiDraft": {
         "recognized": [
-          "已识别专题：营商环境",
-          "已识别起点：法人单位基础信息模板",
-          "已识别策略：先复用再补差异字段"
+          "已识别专题：城市运行 / 交通治理",
+          "已识别起点：停车场信息共享目录",
+          "已识别策略：先复用真目录再补本地差异字段"
         ],
         "needConfirm": [
-          "是否限定镇街 / 社区范围",
-          "是否需要把高频差异字段纳入回流候选"
+          "是否限定区县 / 街道范围",
+          "是否需要把高频差异字段纳入停车场目录回流候选"
         ],
         "missing": [
-          "现场经营状态是否需要逐家确认",
-          "是否要求附带走访备注"
+          "本地泊位开放状态是否需要逐点确认",
+          "是否要求附带最新开放时间"
         ],
-        "risk": "新增采集必要性低，主要风险在于差异字段责任边界不清会导致后续退回补录。",
+        "risk": "新增采集必要性低，主要风险在于本地泊位状态责任边界不清会导致后续退回补录。",
         "attachments": [
-          "建议附“只补差异字段、不新增整表”的说明",
-          "建议明确补录完成后进入模板回流候选池"
+          "建议附“基于真目录复用、不新增整表”的说明",
+          "建议明确补录完成后进入停车场信息目录回流候选池"
         ],
-        "summary": "本申请拟优先复用法人单位基础信息模板，以共享资源池预填大部分企业基础字段，仅把现场经营状态、走访时间和备注交由基层补录。"
+        "summary": "本申请拟优先复用真 dump 中的“停车场信息”目录，以共享资源池预填目录、责任单位和资源清单，仅把本地泊位状态、开放时间和现场备注交由基层补录。"
       },
       "aiStatus": {
-        "summary": "申请已经从“我要一张新表”收敛成“先复用法人模板，再补差异字段”的结构化流程。当前只等 R2 判定差异边界。",
-        "nextAction": "建议先查看已预填字段与待补录字段，确保审批通过后可直接进入基层任务。",
+        "summary": "申请已经从“我要重新采一张停车场表”收敛成“先复用停车场信息目录，再补本地状态差异”的结构化流程。当前只等 R2 判定差异边界。",
+        "nextAction": "建议先查看已预填目录/资源来源与待补录字段，确保审批通过后可直接进入区县/街道任务。",
         "evidence": [
-          "模板覆盖率 82%",
-          "差异字段仅剩 3 项",
+          "真目录已解析：370000308004000000/000001",
+          "库表资源与文件资源均已落库并 verify resolved",
           "已生成标准复用申请并进入受控准入"
         ]
       }
@@ -650,6 +1214,246 @@
           "新增必要性说明缺失"
         ]
       }
+    },
+    {
+      "id": "REQ-2026-04-26-0006",
+      "resourceId": "res-tp-婚姻登记qstb",
+      "resourceName": "婚姻登记“全省通办”",
+      "applicant": "李科长（省民政厅婚姻登记处）",
+      "applicantDept": "省民政厅婚姻登记处",
+      "purpose": "为本季度婚姻登记“全省通办”改造，复用省级真案例已有字段定义，只补区县窗口接口差异。",
+      "range": "民生保障专区 · 婚姻登记跨地区",
+      "expectedBy": "2026-05-12",
+      "status": "approved",
+      "submittedAt": "2026-04-26 10:08",
+      "auditId": "AE-2026-04-26-1015",
+      "chainAnchor": "pending",
+      "templateCoverage": "真案例：dsp_example/e3e35d4d",
+      "prefilledFields": [
+        {
+          "label": "案例标题",
+          "value": "婚姻登记“全省通办”",
+          "source": "dsp_example.data_example / e3e35d4d1b96477baf9f1255a0ce7ea3",
+          "state": "已预填"
+        },
+        {
+          "label": "责任单位",
+          "value": "省大数据局",
+          "source": "org_projection / 11370000MB284651XL",
+          "state": "已预填"
+        },
+        {
+          "label": "行政区划",
+          "value": "山东省",
+          "source": "region_projection / 370000000000",
+          "state": "已预填"
+        },
+        {
+          "label": "field_type",
+          "value": "11（婚育）",
+          "source": "dsp_example.display.field_type",
+          "state": "已预填"
+        }
+      ],
+      "diffFields": [
+        {
+          "label": "区县窗口接口端点",
+          "value": "待区县确认",
+          "reason": "各区县部署不一致",
+          "owner": "R3 补录"
+        },
+        {
+          "label": "异地办理标识",
+          "value": "待补录",
+          "reason": "省民政厅口径仍在对齐",
+          "owner": "R3/R4 补录"
+        }
+      ],
+      "reviewFocus": [
+        "跨地区窗口口径是否一致",
+        "异地办理流程是否走原审批链",
+        "回流到真案例是否更新版本"
+      ],
+      "summaryResult": {
+        "totalEntities": 16,
+        "autoMerged": 14,
+        "exceptions": 2,
+        "note": "16 个区县窗口接口已自动对齐 14 个，2 个待人工核对。"
+      },
+      "returnFlow": [
+        "通过后自动同步至民政厅区县协同任务",
+        "对接事件回流至 dsp_example 案例版本"
+      ],
+      "timeline": [
+        {
+          "time": "04-26 10:08",
+          "label": "省民政厅提交"
+        },
+        {
+          "time": "04-26 10:15",
+          "label": "进入资源审核"
+        },
+        {
+          "time": "04-27 16:42",
+          "label": "审批通过 → 进入协同推送"
+        }
+      ],
+      "aiDraft": "建议将本申请并入民政条线“一件事”看板，避免单独发起新增采集；区县窗口接口差异以补录方式收口。",
+      "aiStatus": "approved"
+    },
+    {
+      "id": "REQ-2026-04-27-0003",
+      "resourceId": "res-tp-出生yjs",
+      "resourceName": "出生一件事",
+      "applicant": "孙主任（省卫健委信息处）",
+      "applicantDept": "省卫健委信息处",
+      "purpose": "复用“出生一件事”真案例的跨域字段定义，构造新生儿户籍-医保-学籍同步链。",
+      "range": "民生保障专区 · 一件事跨域同步",
+      "expectedBy": "2026-05-15",
+      "status": "in_delivery",
+      "submittedAt": "2026-04-27 08:42",
+      "auditId": "AE-2026-04-27-0903",
+      "chainAnchor": "anchored",
+      "templateCoverage": "真案例：dsp_example/a1264ad8",
+      "prefilledFields": [
+        {
+          "label": "案例标题",
+          "value": "出生一件事",
+          "source": "dsp_example.data_example / a1264ad84745455db58c52a9fd30f21f",
+          "state": "已预填"
+        },
+        {
+          "label": "责任单位",
+          "value": "省大数据局",
+          "source": "org_projection / 11370000MB284651XL",
+          "state": "已预填"
+        },
+        {
+          "label": "field_type",
+          "value": "11,16（人口/教育）",
+          "source": "dsp_example.display.field_type",
+          "state": "已预填"
+        }
+      ],
+      "diffFields": [
+        {
+          "label": "母婴档案电子化标识",
+          "value": "待补录",
+          "reason": "卫健委系统化进度差异",
+          "owner": "R3 补录"
+        },
+        {
+          "label": "学籍同步窗口",
+          "value": "待补录",
+          "reason": "省教育厅接口尚未稳定",
+          "owner": "R4 补录"
+        }
+      ],
+      "reviewFocus": [
+        "三方接口稳定性",
+        "学籍同步是否需要二次回流"
+      ],
+      "summaryResult": {
+        "totalEntities": 24,
+        "autoMerged": 22,
+        "exceptions": 2,
+        "note": "24 项跨域字段中 22 项已自动对齐，2 项学籍同步差异留待教育厅补录。"
+      },
+      "returnFlow": [
+        "接入民生保障“一件事”专题包",
+        "异常自动派单至教育厅业务对接人"
+      ],
+      "timeline": [
+        {
+          "time": "04-27 08:42",
+          "label": "省卫健委提交"
+        },
+        {
+          "time": "04-27 09:03",
+          "label": "审批通过 → 进入协同推送（已锚定）"
+        },
+        {
+          "time": "04-27 11:48",
+          "label": "通道 1（NIFI）执行 START_EXCHANGE_TABLE_JOB"
+        }
+      ],
+      "aiDraft": "建议把母婴档案电子化标识和学籍同步窗口合并到“一件事”补录任务，避免重复要数。",
+      "aiStatus": "in_delivery"
+    },
+    {
+      "id": "REQ-2026-04-27-0021",
+      "resourceId": "res-tp-小微企业一次性创业岗",
+      "resourceName": "小微企业一次性创业岗位开发补贴申领",
+      "applicant": "赵处（省人力资源社会保障厅就业促进处）",
+      "applicantDept": "省人社厅就业促进处",
+      "purpose": "复用“小微企业一次性创业岗位开发补贴申领”真案例，构造惠企政策直达链路。",
+      "range": "营商环境专区 · 惠企政策直达",
+      "expectedBy": "2026-05-18",
+      "status": "pending",
+      "submittedAt": "2026-04-27 14:51",
+      "auditId": "AE-2026-04-27-1530",
+      "chainAnchor": "pending",
+      "templateCoverage": "真案例：dsp_example/a82e0ea6",
+      "prefilledFields": [
+        {
+          "label": "案例标题",
+          "value": "小微企业一次性创业岗位开发补贴申领",
+          "source": "dsp_example.data_example / a82e0ea6fffa4f3895cad681a0f5f14b",
+          "state": "已预填"
+        },
+        {
+          "label": "责任单位",
+          "value": "省大数据局",
+          "source": "org_projection / 11370000MB284651XL",
+          "state": "已预填"
+        },
+        {
+          "label": "field_type",
+          "value": "05（创业就业）",
+          "source": "dsp_example.display.field_type",
+          "state": "已预填"
+        }
+      ],
+      "diffFields": [
+        {
+          "label": "新增岗位核验口径",
+          "value": "待人社厅与税务对接",
+          "reason": "存量与新增定义不同",
+          "owner": "R3 补录"
+        },
+        {
+          "label": "补贴金额计算公式",
+          "value": "待补录",
+          "reason": "区县实际执行差异较大",
+          "owner": "R4 补录"
+        }
+      ],
+      "reviewFocus": [
+        "新增岗位口径是否双方一致",
+        "补贴金额是否走自动计算"
+      ],
+      "summaryResult": {
+        "totalEntities": 12,
+        "autoMerged": 10,
+        "exceptions": 2,
+        "note": "12 个核心字段已对齐 10 个，新增岗位与补贴公式留待补录。"
+      },
+      "returnFlow": [
+        "进入营商环境惠企专题",
+        "异常自动派单至税务对接窗口"
+      ],
+      "timeline": [
+        {
+          "time": "04-27 14:51",
+          "label": "省人社厅提交"
+        },
+        {
+          "time": "04-27 15:30",
+          "label": "进入资源审核（业务对接人确认）"
+        }
+      ],
+      "aiDraft": "建议先与税务对接岗位核验口径，再开补贴公式补录；可参考“一件事”补录任务模板。",
+      "aiStatus": "pending"
     }
   ],
   "approvals": [
@@ -658,27 +1462,27 @@
       "suggestion": "建议通过",
       "confidence": 0.94,
       "reason": [
-        "法人单位基础信息模板已覆盖大部分涉企基础字段",
-        "本次只新增 3 个现场差异字段，符合减负原则",
+        "真目录“停车场信息”已覆盖目录、责任单位和资源清单",
+        "本次只新增 3 个本地状态差异字段，符合减负原则",
         "回流要求已明确，可沉淀下次复用能力"
       ],
       "risk": [
-        "需明确经营状态由谁补录并谁来确认",
+        "需明确泊位开放状态由谁补录并谁来确认",
         "需保留补录结果回流候选的责任边界"
       ],
-      "counterfactual": "如果申请方要求重新采一整张涉企表，而不是先复用模板，应转为补正或驳回。",
-      "impact": "通过后将自动创建镇街 / 社区预填任务，并在补录完成后生成自动汇总结果。",
+      "counterfactual": "如果申请方要求重新采一整张停车场表，而不是先复用真目录，应转为补正或驳回。",
+      "impact": "通过后将自动创建区县 / 街道预填任务，并在补录完成后生成自动汇总结果。",
       "actions": [
         "通过",
         "退回补正",
         "驳回"
       ],
-      "draftNote": "建议审批意见：同意以法人单位基础信息模板作为预填底座，仅对经营状态、最近走访时间和现场备注发起差异补录；补录结果纳入回流候选。",
+      "draftNote": "建议审批意见：同意以“停车场信息”真目录作为预填底座，仅对本地泊位开放状态、最新开放时间和现场备注发起差异补录；补录结果纳入回流候选。",
       "exceptionItems": [
-        "企业 A 经营状态需现场确认",
-        "企业 B 缺少最近走访时间"
+        "停车场 A 开放状态需现场确认",
+        "停车场 B 缺少最新开放时间"
       ],
-      "autoSummary": "系统已预估自动汇总覆盖 28 家企业，异常项 2 家。"
+      "autoSummary": "系统已预估自动汇总覆盖 28 个停车场，异常项 2 个。"
     },
     {
       "id": "REQ-2026-04-24-0007",
@@ -704,51 +1508,111 @@
         "新增采集必要性证明缺失"
       ],
       "autoSummary": "未进入自动汇总链。"
+    },
+    {
+      "id": "REQ-2026-04-26-0006",
+      "suggestion": "建议通过",
+      "confidence": 0.91,
+      "reason": "命中真案例 e3e35d4d；省民政厅与省大数据局责任口径一致；区县差异仅 2 项可通过补录闭环。",
+      "risk": "区县窗口接口未稳定",
+      "counterfactual": "若不复用真案例，需重新发起整省接口对齐，预计多 6 个工作日。",
+      "impact": "可减少 14 个区县重复对接；婚姻登记跨地区办理时长预计下降 30%。",
+      "actions": [
+        "通过",
+        "驳回（要求重新对齐）",
+        "搁置"
+      ],
+      "draftNote": "已基于真案例字段对齐 14/16 项，剩余 2 项以补录方式闭环。",
+      "exceptionItems": [
+        "区县窗口端点",
+        "异地办理标识"
+      ],
+      "autoSummary": "建议通过：婚姻登记跨地区接口已对齐 14/16，剩余 2 项可补录闭环。"
+    },
+    {
+      "id": "REQ-2026-04-27-0003",
+      "suggestion": "已通过 → 进入协同推送",
+      "confidence": 0.94,
+      "reason": "出生一件事真案例已 published+approved；24 项跨域字段对齐 22 项；通道 1 已成功执行 START_EXCHANGE_TABLE_JOB。",
+      "risk": "学籍同步接口稳定性",
+      "counterfactual": "若不接入真案例，需重新构造跨域字段列表，预计多 8 个工作日。",
+      "impact": "新生儿户籍-医保-学籍同步链路时延从天级降到分钟级。",
+      "actions": [
+        "确认推送",
+        "暂停（等学籍接口稳定）",
+        "回退到草稿"
+      ],
+      "draftNote": "已锚定到 audit_event AE-2026-04-27-0903，学籍同步差异交教育厅补录。",
+      "exceptionItems": [
+        "母婴档案电子化",
+        "学籍同步窗口"
+      ],
+      "autoSummary": "已通过并完成首次执行（NIFI 通道 1）；2 项跨域差异留待补录。"
+    },
+    {
+      "id": "REQ-2026-04-27-0021",
+      "suggestion": "建议待补录后通过",
+      "confidence": 0.78,
+      "reason": "命中惠企政策真案例；新增岗位核验口径与税务尚未对齐；建议先补录再通过。",
+      "risk": "新增岗位/存量岗位定义差异",
+      "counterfactual": "若直接通过，区县执行可能产生补贴金额计算偏差。",
+      "impact": "惠企政策直达链路覆盖小微企业可显著提速；前提是岗位口径达成共识。",
+      "actions": [
+        "要求补录",
+        "驳回",
+        "暂存"
+      ],
+      "draftNote": "已与税务岗位核验口径建立对接窗口，等待第一轮补录结果。",
+      "exceptionItems": [
+        "新增岗位核验口径",
+        "补贴金额计算公式"
+      ],
+      "autoSummary": "建议待补录后通过：新增岗位口径与补贴公式需补录闭环。"
     }
   ],
   "delivery_tasks": [
     {
       "id": "DLV-2026-04-25-0011",
       "requestId": "REQ-2026-04-25-0011",
-      "name": "法人模板预填任务下发与回流任务",
+      "name": "停车场信息预填任务下发与回流任务",
       "channel": "预填下发 + 汇总回流",
       "status": "reconciling",
-      "owner": "市营商环境专班 → 镇街 / 社区 → 区县汇总",
+      "owner": "市城市运行专班 → 区县 / 街道 → 市级汇总",
       "updatedAt": "2026-04-25 14:48",
-      "note": "预填任务已下发并回收 26/28 家企业，待审核汇总确认异常项。",
+      "note": "预填任务已下发并回收 26/28 个停车场，待审核汇总确认异常项。",
       "history": [
         {
           "time": "09:44",
           "state": "审批通过",
-          "detail": "系统确认“先复用模板再补差异字段”并自动生成预填任务"
+          "detail": "系统确认“先复用停车场信息目录再补本地差异字段”并自动生成预填任务"
         },
         {
           "time": "10:18",
           "state": "基层补录进行中",
-          "detail": "R3/R4 仅补经营状态、走访时间和现场备注"
+          "detail": "R3/R4 仅补泊位开放状态、最新开放时间和现场备注"
         },
         {
           "time": "13:52",
           "state": "自动汇总完成",
-          "detail": "已形成 28 家企业汇总草稿，异常 2 家"
+          "detail": "已形成 28 个停车场汇总草稿，异常 2 个"
         },
         {
           "time": "14:48",
           "state": "回流待确认",
-          "detail": "高频差异字段进入模板回流候选池，等待 R5/R6 确认"
+          "detail": "高频差异字段进入停车场信息目录回流候选池，等待 R5/R6 确认"
         }
       ],
       "aiSummary": {
-        "summary": "这条任务已不再是单次交付，而是“预填下发 → 差异补录 → 自动汇总 → 回流候选”闭环。当前主要等待异常项确认和回流决定。",
-        "nextAction": "建议先由 R5 确认 2 项异常，再由 R6/R7 决定是否把经营状态纳入模板 v1.3。",
-        "cause": "模板已承担大部分字段，任务重心转为差异确认与回流治理。",
-        "impact": "若今天完成回流确认，下次类似需求可进一步减少基层补录。"
+        "summary": "这条任务已不再是单次交付，而是“真目录预填 → 差异补录 → 自动汇总 → 回流候选”闭环。当前主要等待异常项确认和回流决定。",
+        "nextAction": "建议先由 R5 确认 2 项异常，再由 R6/R7 决定是否把泊位开放状态纳入停车场信息目录回流候选。",
+        "cause": "停车场信息目录已承担大部分字段，任务重心转为本地状态确认与回流治理。",
+        "impact": "若今天完成回流确认，下次类似城市运行需求可进一步减少基层补录。"
       },
       "backflow": {
-        "candidateObject": "法人单位基础信息模板 v1.3",
+        "candidateObject": "停车场信息目录回流候选",
         "candidateFields": [
-          "经营状态",
-          "最近走访时间"
+          "本地泊位开放状态",
+          "最新开放时间"
         ],
         "status": "待确认",
         "note": "字段来源与责任方已具备，待台账管理员确认是否正式纳入。"
@@ -821,13 +1685,92 @@
         "status": "不适用",
         "note": "该任务不涉及业务回流。"
       }
+    },
+    {
+      "id": "DLV-2026-04-27-0003",
+      "requestId": "REQ-2026-04-27-0003",
+      "name": "出生一件事跨域同步链",
+      "channel": "预填下发 + 汇总回流",
+      "status": "已执行",
+      "owner": "省大数据局协同岗 → 卫健委 → 教育厅 → 公安户籍",
+      "updatedAt": "2026-04-27 11:48",
+      "note": "通道 1（NIFI）执行 START_EXCHANGE_TABLE_JOB；母婴档案/学籍同步留待补录。",
+      "history": [
+        {
+          "time": "09:03",
+          "state": "审批通过",
+          "detail": "命中真案例 a1264ad8（出生一件事），自动锚定 audit_event AE-2026-04-27-0903"
+        },
+        {
+          "time": "11:48",
+          "state": "首次执行成功",
+          "detail": "NIFI 通道 1 完成 START_EXCHANGE_TABLE_JOB；新生儿户籍/医保 22 项字段已对齐"
+        },
+        {
+          "time": "12:30",
+          "state": "学籍补录派单",
+          "detail": "2 项学籍同步差异自动派单至省教育厅业务对接人"
+        }
+      ],
+      "aiSummary": {
+        "summary": "出生一件事跨域同步首执已通过，跨域字段对齐 22/24，仅余 2 项学籍同步差异等待教育厅补录。",
+        "nextAction": "建议为学籍同步窗口建立独立补录任务，母婴档案电子化交卫健委统一推进。",
+        "cause": "卫健委系统化与教育厅接口稳定性不一致，造成跨域差异聚集在学籍侧。",
+        "impact": "若学籍补录在本周完成，新生儿户籍-医保-学籍同步链路可正式投产。"
+      },
+      "backflow": {
+        "candidateObject": "出生一件事真案例（dsp_example/a1264ad8）回流候选",
+        "candidateFields": [
+          "母婴档案电子化标识",
+          "学籍同步窗口"
+        ],
+        "status": "待确认",
+        "note": "学籍同步差异较稳定，建议作为出生一件事真案例下一版字段纳入候选。"
+      }
+    },
+    {
+      "id": "DLV-2026-04-26-0006",
+      "requestId": "REQ-2026-04-26-0006",
+      "name": "婚姻登记跨地区窗口对齐",
+      "channel": "预填下发 + 汇总回流",
+      "status": "reconciling",
+      "owner": "省民政厅业务对接人 → 16 区县协同员",
+      "updatedAt": "2026-04-27 16:42",
+      "note": "16 区县窗口接口已自动对齐 14 个，2 个待人工核对。",
+      "history": [
+        {
+          "time": "10:15",
+          "state": "进入资源审核",
+          "detail": "命中真案例 e3e35d4d（婚姻登记“全省通办”）"
+        },
+        {
+          "time": "16:42",
+          "state": "审批通过 → 派单",
+          "detail": "16 区县已自动对齐 14 个，2 区县待人工核对"
+        }
+      ],
+      "aiSummary": {
+        "summary": "婚姻登记跨地区窗口对齐已完成 14/16，剩余 2 个区县需人工对接。",
+        "nextAction": "建议把待人工核对的 2 个区县纳入下周联审议题。",
+        "cause": "区县窗口接口部署进度不齐。",
+        "impact": "完成后异地办理时长预计下降 30%。"
+      },
+      "backflow": {
+        "candidateObject": "婚姻登记真案例（dsp_example/e3e35d4d）回流候选",
+        "candidateFields": [
+          "区县窗口接口端点",
+          "异地办理标识"
+        ],
+        "status": "待确认",
+        "note": "对齐结果稳定后回流民政条线“一件事”专题。"
+      }
     }
   ],
   "provider": {
     "overview": [
       {
-        "label": "模板版本",
-        "value": "v1.2 → v1.3"
+        "label": "真目录版本",
+        "value": "dsp_catalog · 20260427"
       },
       {
         "label": "本周复用次数",
@@ -838,33 +1781,59 @@
         "value": "2"
       },
       {
-        "label": "待处理异议",
-        "value": "1"
+        "label": "verify 解析率",
+        "value": "59,541 / 59,541"
       }
     ],
     "catalogs": [
       {
-        "id": "cat-jbxx",
-        "name": "涉企基础对象目录",
+        "id": "cat-parking",
+        "name": "停车场信息目录",
         "status": "已发布",
-        "owner": "区政数局",
-        "issue": "需补充 v1.3 版本说明"
+        "owner": "省大数据局",
+        "issue": "需补充本地泊位状态回流说明",
+        "source_ref": "dsp_catalog:data_catalog:370000308004000000/000001",
+        "legacy_object_ref": "370000308004000000/000001",
+        "owner_org_id": "11370000MB284651XL"
       },
       {
         "id": "cat-business",
-        "name": "营商环境专题目录",
+        "name": "城市运行专题目录",
         "status": "待质检",
-        "owner": "市营商环境专班",
+        "owner": "市城市运行专班",
         "issue": "需更新默认复用入口说明"
       }
     ],
     "resources": [
       {
         "id": "res-jbxx-ledger",
-        "name": "法人单位基础信息台账模板",
+        "name": "停车场信息共享目录",
         "status": "可共享",
-        "type": "标准模板",
-        "updatedAt": "2026-04-25"
+        "type": "真目录资源",
+        "updatedAt": "2026-04-27",
+        "owner_org_id": "11370000MB284651XL",
+        "source_ref": "dsp_catalog:data_catalog:370000308004000000/000001",
+        "legacy_object_ref": "370000308004000000/000001"
+      },
+      {
+        "id": "res-parking-table",
+        "name": "停车场信息_库表资源",
+        "status": "待审核",
+        "type": "库表资源",
+        "updatedAt": "2026-04-27",
+        "owner_org_id": "11370000MB284651XL",
+        "source_ref": "dsp_catalog:data_resource:39a41e4b4e80439187e0f86218bae5d9",
+        "legacy_object_ref": "39a41e4b4e80439187e0f86218bae5d9"
+      },
+      {
+        "id": "res-parking-file",
+        "name": "停车场信息_文件资源",
+        "status": "可共享",
+        "type": "文件资源",
+        "updatedAt": "2026-04-27",
+        "owner_org_id": "11370000MB284651XL",
+        "source_ref": "dsp_catalog:data_resource:486fad4640fb44589c05f72df23650d7",
+        "legacy_object_ref": "486fad4640fb44589c05f72df23650d7"
       },
       {
         "id": "res-company-visit",
@@ -913,17 +1882,17 @@
       }
     ],
     "aiGovernance": {
-      "summary": "建议优先发布法人模板 v1.3，并把“经营状态”“最近走访时间”纳入正式字段候选；其次更新营商环境专题目录中的默认复用入口说明。",
+      "summary": "建议优先把“本地泊位开放状态”“最新开放时间”纳入停车场信息目录回流候选；其次更新城市运行专题目录中的默认复用入口说明。",
       "priorities": [
-        "模板：确认 v1.3 字段集与来源说明",
-        "目录：更新“先复用模板再补差异字段”的入口文案",
+        "目录：确认停车场信息真目录来源与责任单位",
+        "资源：标注库表/文件资源的适用场景",
         "服务：保持预填与回流服务 SLA 稳定"
       ],
-      "draft": "可生成“模板升级 + 专题入口更新 + 回流候选确认”的治理草案，待人工确认后执行。",
+      "draft": "可生成“停车场信息目录回流 + 城市运行入口更新 + 异常停车场确认”的治理草案，待人工确认后执行。",
       "evidence": [
-        "经营状态是本周最高频补录字段",
-        "模板复用已验证减负效果",
-        "营商环境专题入口是前台主链路关键触点"
+        "真 dump 中停车场信息目录、库表资源、文件资源均已 resolved",
+        "本地泊位状态是需要基层确认的高频差异字段",
+        "城市运行专题入口是客户演示主链路关键触点"
       ]
     }
   },
@@ -987,6 +1956,24 @@
         }
       ],
       "aiSummary": "这是典型差异补录问题，说明自动汇总主链已成立，人工只处理异常项。"
+    },
+    {
+      "id": "DSP-2026-04-26-OBJ-PUBSEC",
+      "title": "数据目录纠错_信息项中缺少抽检时间字段",
+      "severity": "mid",
+      "status": "provider_investigating",
+      "owner": "省公安厅 / 信息员（投诉方）→ 省大数据局（提供方）",
+      "timeline": [
+        {
+          "time": "04-26 14:02",
+          "label": "省公安厅信息员提出异议"
+        },
+        {
+          "time": "04-26 17:18",
+          "label": "省大数据局接单 → provider_investigating"
+        }
+      ],
+      "aiSummary": "建议在不动产/抽检类目录上统一补“抽检时间”字段口径；可作为 dsp_catalog 字段治理候选。"
     }
   ],
   "audit_events": [
@@ -995,72 +1982,72 @@
       "time": "04-25 09:02",
       "actor": "system",
       "type": "discovery.template-match",
-      "target": "res-jbxx-ledger",
+      "target": "停车场信息共享目录 / 370000308004000000/000001",
       "result": "ok",
       "chain": "pending"
     },
     {
       "id": "AE-2026-04-25-0914",
       "time": "04-25 09:14",
-      "actor": "周处长",
-      "type": "request.submit",
-      "target": "REQ-2026-04-25-0011",
+      "actor": "省大数据局 / 平台管理员",
+      "type": "application.submit",
+      "target": "REQ-2026-04-25-0011（停车场信息复用）",
       "result": "ok",
       "chain": "pending"
     },
     {
-      "id": "AE-2026-04-25-0944",
-      "time": "04-25 09:44",
-      "actor": "刘主任",
-      "type": "request.approve",
-      "target": "REQ-2026-04-25-0011",
+      "id": "AE-2026-04-26-1015",
+      "time": "04-26 10:15",
+      "actor": "省大数据局 / 资源审核员",
+      "type": "application.review.start",
+      "target": "REQ-2026-04-26-0006（婚姻登记“全省通办”）",
+      "result": "in_progress",
+      "chain": "pending"
+    },
+    {
+      "id": "AE-2026-04-26-1402",
+      "time": "04-26 14:02",
+      "actor": "省公安厅 / 信息员",
+      "type": "objection.raised",
+      "target": "OBJ-数据目录纠错_信息项中缺少抽检时间字段",
+      "result": "provider_investigating",
+      "chain": "pending"
+    },
+    {
+      "id": "AE-2026-04-27-0903",
+      "time": "04-27 09:03",
+      "actor": "省大数据局 / 数据治理岗",
+      "type": "delivery.task.granted",
+      "target": "DLV-2026-04-27-0003（出生一件事推送链路）",
       "result": "ok",
-      "chain": "0x91af..."
+      "chain": "anchored"
     },
     {
-      "id": "AE-2026-04-25-1018",
-      "time": "04-25 10:18",
-      "actor": "system",
-      "type": "prefill.dispatch",
-      "target": "DLV-2026-04-25-0011",
+      "id": "AE-2026-04-27-1148",
+      "time": "04-27 11:48",
+      "actor": "济南市大数据局 / 区县协同员",
+      "type": "delivery.attempt.completed",
+      "target": "EXEC-START_EXCHANGE_TABLE_JOB-通道1（NIFI）",
       "result": "ok",
-      "chain": "0x821c..."
+      "chain": "pending"
     },
     {
-      "id": "AE-2026-04-25-1352",
-      "time": "04-25 13:52",
-      "actor": "system",
-      "type": "summary.auto-merge",
-      "target": "REQ-2026-04-25-0011",
+      "id": "AE-2026-04-27-1530",
+      "time": "04-27 15:30",
+      "actor": "省人力资源社会保障厅 / 业务对接人",
+      "type": "subscription.confirm",
+      "target": "REQ-2026-04-27-0021（小微企业岗位补贴）",
       "result": "ok",
-      "chain": "0x9f2a..."
+      "chain": "pending"
     },
     {
-      "id": "AE-2026-04-25-1448",
-      "time": "04-25 14:48",
-      "actor": "system",
-      "type": "backflow.candidate-generated",
-      "target": "LEDGER-jbxx-v1.3",
-      "result": "warning",
-      "chain": "0x7ca1..."
-    },
-    {
-      "id": "AE-2026-04-24-1710",
-      "time": "04-24 17:10",
-      "actor": "刘主任",
-      "type": "request.return-for-fix",
-      "target": "REQ-2026-04-24-0007",
-      "result": "warning",
-      "chain": "0x771b..."
-    },
-    {
-      "id": "AE-2026-04-23-1601",
-      "time": "04-23 16:01",
-      "actor": "system",
-      "type": "audit.replay",
-      "target": "DLV-2026-04-23-0004",
-      "result": "failed",
-      "chain": "n/a"
+      "id": "AE-2026-04-28-0830",
+      "time": "04-28 08:30",
+      "actor": "platform / 异议复核",
+      "type": "objection.resolved",
+      "target": "OBJ-停车场信息文件资源显示不全",
+      "result": "resolved",
+      "chain": "anchored"
     }
   ],
   "audit_ai": {
@@ -1126,25 +2113,25 @@
   "zones": [
     {
       "id": "business",
-      "name": "营商环境专区",
+      "name": "城市运行专区",
       "status": "已上线",
-      "desc": "围绕涉企专题，把法人单位基础信息模板作为 zw-brain 默认复用起点，并聚合趋势资源、申请入口与订阅。",
+      "desc": "围绕停车场、交通运行与城市治理，把真 dump 中的“停车场信息”目录作为 zw-brain 默认复用起点，并聚合申请入口、区县补录与回流候选。",
       "assets": [
-        "法人单位基础信息台账模板",
-        "市场主体活跃度月度汇总",
-        "企业走访差异补录视图"
+        "停车场信息共享目录",
+        "停车场信息_库表资源",
+        "停车场信息_文件资源"
       ],
       "subscribers": 31,
-      "aiGuide": "如果你的任务和企业主体、审批效能、助企政策有关，应先从这里发现可复用的法人基础对象。",
+      "aiGuide": "如果你的任务和停车场、交通运行、城市治理有关，应先从这里发现可复用的停车场信息目录。",
       "nextActions": [
-        "查看法人模板详情",
-        "发起模板复用申请",
+        "查看停车场信息目录",
+        "发起目录复用申请",
         "订阅专区更新"
       ],
       "trust": [
-        "来源等级：高",
-        "模板版本：v1.2，v1.3 待发布",
-        "责任方：区政数局 / 市场监管局"
+        "来源等级：真 dump resolved",
+        "目录编码：370000308004000000/000001",
+        "责任方：省大数据局 / 11370000MB284651XL"
       ]
     },
     {
@@ -1597,6 +2584,50 @@
   ],
   "api_resources": [
     {
+      "resource_code": "39a41e4b4e80439187e0f86218bae5d9",
+      "resource_kind": "table",
+      "title": "停车场信息_库表资源",
+      "lifecycle_status": "revoked",
+      "owner_org_id": "11370000MB284651XL",
+      "owner_org_snapshot_json": {
+        "org_name": "省大数据局"
+      },
+      "region_code": "370000000000",
+      "catalog_code": "370000308004000000/000001",
+      "access_policy_json": {
+        "share_condition": "审批后共享"
+      },
+      "qos_policy_json": {},
+      "source_ref": "dsp_catalog:data_resource:39a41e4b4e80439187e0f86218bae5d9",
+      "summary_json": {
+        "domain": "停车场信息",
+        "legacy_catalog_code": "370000308004000000/000001"
+      },
+      "channel_bindings": []
+    },
+    {
+      "resource_code": "486fad4640fb44589c05f72df23650d7",
+      "resource_kind": "file",
+      "title": "停车场信息_文件资源",
+      "lifecycle_status": "revoked",
+      "owner_org_id": "11370000MB284651XL",
+      "owner_org_snapshot_json": {
+        "org_name": "省大数据局"
+      },
+      "region_code": "370000000000",
+      "catalog_code": "370000308004000000/000001",
+      "access_policy_json": {
+        "share_condition": "审批后共享"
+      },
+      "qos_policy_json": {},
+      "source_ref": "dsp_catalog:data_resource:486fad4640fb44589c05f72df23650d7",
+      "summary_json": {
+        "domain": "停车场信息",
+        "legacy_catalog_code": "370000308004000000/000001"
+      },
+      "channel_bindings": []
+    },
+    {
       "resource_code": "api-company-ledger",
       "resource_kind": "api",
       "title": "法人单位基础信息 API",
@@ -1675,6 +2706,37 @@
   ],
   "service_invocation_metrics": [
     {
+      "metric_scope": "legacy-import",
+      "resource_code": "parking-demo-seed",
+      "capability_id": "adapter.legacy.verify",
+      "provider_org_id": "11370000MB284651XL",
+      "consumer_org_id": "sd-default",
+      "provider_region_code": "370000000000",
+      "consumer_region_code": "370000000000",
+      "consumer_region": "370000000000",
+      "consumer_app_ref": "zw-brain-demo",
+      "bucket_granularity": "snapshot",
+      "time_bucket": "2026-05-06",
+      "invoke_count": 59541,
+      "success_count": 59541,
+      "failure_count": 0,
+      "provider_error_count": 0,
+      "consumer_error_count": 0,
+      "gateway_error_count": 0,
+      "other_error_count": 0,
+      "error_count": 0,
+      "apply_count": 0,
+      "avg_latency_ms": null,
+      "p95_latency_ms": null,
+      "last_error_code": null,
+      "source_event_ref": "legacy-dryrun:verify:sd-default",
+      "summary_json": {
+        "total_mappings": 59541,
+        "total_unresolved": 0,
+        "source": "local real dump dry-run"
+      }
+    },
+    {
       "metric_scope": "resource",
       "resource_code": "api-company-ledger",
       "capability_id": "resource.api.publish",
@@ -1730,35 +2792,35 @@
     ],
     "burdenMetrics": [
       {
-        "label": "重复要数率",
-        "value": "12%",
-        "trend": "较上周 -6pt"
+        "label": "真 dump 解析率",
+        "value": "59,541 / 59,541",
+        "trend": "verify unresolved = 0"
       },
       {
         "label": "基层补录字段数",
         "value": "3 / 单任务",
-        "trend": "较基线 -72%"
+        "trend": "较整表采集大幅压缩"
       },
       {
         "label": "自动汇总覆盖率",
         "value": "93%",
-        "trend": "较上周 +11pt"
+        "trend": "26 / 28 个停车场自动汇总"
       },
       {
         "label": "回流候选字段",
         "value": "2",
-        "trend": "本周新增"
+        "trend": "泊位状态 / 开放时间"
       }
     ],
     "suggestions": {
-      "title": "指挥辅助结论：盯住“绕开模板重复采集”与“经营状态高频补录”",
-      "body": "当前黄金链路已经跑通，但仍有部门绕开法人模板发起新增采集，同时经营状态字段持续高频补录，建议优先做制度提醒和模板升级。",
+      "title": "指挥辅助结论：先复用“停车场信息”真目录，再补本地状态差异",
+      "body": "真 dump 已证明停车场信息目录、库表资源、文件资源和组织区划投影可被 zw-brain 解析；当前演示重点不是重新建表，而是把区县/街道只掌握的开放状态与最新开放时间作为差异补录回流。",
       "evidence": [
-        "本周重复要数率已降至 12%，但仍有 1 条高风险绕行告警",
-        "经营状态字段近 7 日补录 14 次",
-        "法人模板复用后基层填报时长下降 31%"
+        "总 mapping 59,541 条，verify 全解析",
+        "停车场信息目录编码 370000308004000000/000001",
+        "省大数据局与山东省组织区划投影均来自真 dump"
       ],
-      "nextAction": "先看绕行告警，再推动模板 v1.3 升级。",
+      "nextAction": "先看停车场信息目录复用申请，再确认 2 个异常停车场。",
       "owner": "R8 合规治理 / R6 台账管理员 / R7 目录管理员"
     }
   }
