@@ -1,7 +1,7 @@
 # 旧平台样例数据 → zw-brain 数据模型一键导入映射 v1
 
 > **日期 / 状态**：2026-05-06 / draft（待评审；review 通过后进入阶段 1）
-> **范围**：`old/10示例数据/*.sql`（17 个 mysqldump，~735 张旧表，~445 MB）→ `zw_brain/domain/models.py`（52 个 Record 类）。
+> **范围**：`old/10示例数据/*.sql`（<!-- stat:legacy.import.schemas -->17<!-- /stat --> 个 mysqldump，<!-- stat:legacy.import.tables-total -->740<!-- /stat --> 张旧表，~445 MB）→ `zw_brain/domain/models.py`（<!-- stat:legacy.import.record-classes -->58<!-- /stat --> 个 Record 类）。
 > **单一事实源**：本文是"哪张旧表去哪、哪些字段缺位、哪些不导入、跨 schema 桥接顺序"的单一事实源。专题方案 `dsp-*-reconstruction-plan-v1.md` 是设计依据，本文是执行结论。
 > **不在本文范围**：旧 URL/旧 controller/旧菜单兼容（按 GATE-1 D-全新项目口径明确不兼容）。
 
@@ -9,7 +9,7 @@
 
 - **要写 mapper** → 找你那个 schema 在 §一 的小节 + 读 §四桥接顺序，就能动工。
 - **要审 mapper PR** → §〇 关键政策 + §六 准入清单 是 review 检查项。
-- **要补 record** → §二 缺位清单 12 项；M1–M6 必须先于 P2 mapper 落地。
+- **要补 record** → §二 缺位清单 <!-- stat:legacy.import.missing-records -->12<!-- /stat --> 项；M1–M6（<!-- stat:legacy.import.missing-resolved -->6<!-- /stat -->/6 已落地）。
 - **要决定导入边界** → §三 不导入清单 + §五 加速上线素材。
 - **不要**把本文当设计文档读：设计在 `docs/approved/*` 与 `docs/reconstructs/dsp-*-plan-v1.md`，本文只产出执行结论。
 
@@ -346,7 +346,7 @@
 | **M11** | **archive template / case archive evidence** | `dsp_basesubject.archive_template` / `archive_column` | sharezone plan §2.4 归外部档案 adapter | **可选**：在 `TopicPackageEvidenceRecord.payload_json` 内承载；或新增 `ArchiveTemplateProjectionRecord` |
 | **M13** | **审批 opinion type 字典** | `dsp_catalog.data_apply_course_opiniontype` | 当前 `ApprovalDecisionRecord` 无字典关联 | **建议**：领域字典进 `CapabilityManifestRecord.manifest_json`，不单独建表 |
 
-> **阻塞结论**：M1–M6 是 compliance plan 反复提到但未在 models.py 承接的核心类型。**P2 mapper（dsp_monitor / dsp_pipelines / dsp_perform / dsp_block）阻塞依赖这 6 个 record**——必须在阶段 1 与阶段 2 之间统一新增（建议作为单独迁移 0007_compliance_projection.py）。M7–M11 / M13 是 nice-to-have，可在阶段 2 末期视情况增补。
+> **阻塞结论**：M1–M6 是 compliance plan 反复提到但未在 models.py 承接的核心类型，**P2 mapper（dsp_monitor / dsp_pipelines / dsp_perform / dsp_block）阻塞依赖这 6 个 record**。**已于阶段 1.5 通过 alembic 0007_compliance_projection.py 一并落地**（<!-- stat:legacy.import.missing-resolved -->6<!-- /stat -->/6 解除）；P2 mapper 已在 PR #12 落库。M7–M11 / M13 是 nice-to-have，可在阶段 2 末期视情况增补。
 
 ---
 
@@ -516,26 +516,30 @@ dsp_require.data_require (67 条)
 
 ---
 
-## 六、阶段 1 准入清单
+## 六、阶段 1 准入清单（已闭环，2026-05-06）
 
-阶段 0 关闭、阶段 1 开始之前，下列必须就位：
+阶段 0 关闭、阶段 1 + 阶段 1.5 落地状态：
 
-- [ ] **本文档评审通过**（用户/产品负责人签字确认 §一映射 + §三不导入边界）
-- [ ] **新增 6 个 compliance/ops record**（M1–M6）：`ComplianceCaseRecord` / `ComplianceRuleRecord` / `RiskEventProjectionRecord` / `HealthSignalProjectionRecord` / `StandardAssetProjectionRecord` / `MetricDefinitionProjectionRecord` —— alembic 迁移 0007
-- [ ] **敏感字段掩码层就位**：domain repository 出口或 Skill 响应序列化层统一封装；手机号前 3 后 4、姓名姓+⼈、按 `field_policy_json.sensitive_level` 决策
-- [ ] **`zw_brain/adapters/legacy/` 包结构创建**（parser / schema_index / runner / mappers/ 子模块占位）
-- [ ] **`scripts/import_legacy_dumps.py` CLI 入口**：`parse-dumps` / `map-to-canonical` / `verify` 三子命令
-- [ ] **每条 mapper 默认行为**：写 `LegacyObjectMappingRecord` + `AdapterRunRecord` + `audit_event`；机密字段不入 canonical；冲突落 `mapping_status='conflicted'` 不自动覆盖
-- [ ] **导入次序硬约束**：按 §四.1 八步链；`projects/runner.py` 串行调度，跨步引用未解析时记 `unresolved` 等下一轮回扫
+- [ ] **本文档评审通过**（用户 / 产品负责人签字确认 §一映射 + §三不导入边界） — pending review，进入阶段 2 前补
+- [x] **新增 6 个 compliance/ops record**（M1–M6） — alembic `0007_compliance_projection.py` @ PR #11
+- [x] **敏感字段掩码层就位** — `zw_brain/shared/sensitive_mask.py` @ PR #11，BrainService 读侧注入 @ PR #12，按 `ZW_BRAIN_MASK_ROLE` (`internal_admin`/`internal_viewer`/`external`) 决策
+- [x] **`zw_brain/adapters/legacy/` 包结构** — parser / runner / 10 mapper 全在位 @ PR #11+#12
+- [x] **`scripts/import_legacy_dumps.py` CLI 入口** — `list` / `parse-stats` / `cache` / `import` / `verify --strict` 五子命令 @ PR #11+#12
+- [x] **mapper 默认行为** — 每条都写 `LegacyObjectMappingRecord` + `AdapterRunRecord` + `audit_event`；机密字段在 §〇.2 边界丢弃；冲突落 `mapping_status='conflicted'` 不自动覆盖（preflight 段 16 强制）
+- [x] **导入次序硬约束** — §四.1 八步链，`runner.py` 串行调度；跨 schema 未解析引用走 `unresolved`，由 `verify --strict` 在 tenant 维度统一回扫
 
 ---
 
-## 附录 A. 数字漂移防御 TODO
+## 附录 A. 数字漂移防御（已落地）
 
-本文涉及关键数字 17 schema / 735 表 / 52 record / 12 缺位 / 6 阻塞 / 18752 organ / 16731 region / 710 user / 2683 meta_baseinfo。当前未包 stat-wrap，由阶段 1 PR 一并完成：
+阶段 1.5 完成后（M1-M6 落地、PR #12 闭环），下列结构性数字已在 `scripts/.stats.json` 注册并在本文 prose 中 stat-wrap，由 preflight §8 `scripts/sync-stats.sh --check` 自动校验：
 
-1. 在 `scripts/.stats.json` 注册 `legacy.import.schemas` / `legacy.import.tables-total` / `legacy.import.missing-records` / `legacy.import.missing-blocking` 等键，每个键给出可重算的 `compute` shell 命令（参考现有 `zwbrain.webui-pages-cap` 的写法）。
-2. 在本文散文中出现这些数字的位置用 `<!-- stat:NAME -->VALUE<!-- /stat -->` 包裹（例如 `<!-- stat:legacy.import.tables-total -->735<!-- /stat -->`）。
-3. preflight §8 `scripts/sync-stats.sh` 自动校验。
+| stat key | 当前值 | 出现位置 | compute 来源 |
+| --- | ---: | --- | --- |
+| `legacy.import.schemas` | <!-- stat:legacy.import.schemas -->17<!-- /stat --> | §范围 | `ls old/10示例数据/*.sql \| wc -l` |
+| `legacy.import.tables-total` | <!-- stat:legacy.import.tables-total -->740<!-- /stat --> | §范围 | sum of `grep -ac '^CREATE TABLE'` over dumps |
+| `legacy.import.record-classes` | <!-- stat:legacy.import.record-classes -->58<!-- /stat --> | §范围 | `grep -cE '^class .*Record' zw_brain/domain/models.py` |
+| `legacy.import.missing-records` | <!-- stat:legacy.import.missing-records -->12<!-- /stat --> | §如何使用 | count of `M[N]` rows in §二 |
+| `legacy.import.missing-resolved` | <!-- stat:legacy.import.missing-resolved -->6<!-- /stat --> | §如何使用 / §二 阻塞结论 | count of M1–M6 classes present in models.py |
 
-> 当前 v1 不强行 stat-wrap 的理由（OPC）：M1-M6 阻塞数会随阶段 1.5（compliance record 补建）从 6 落到 0，过早 wrap 反而触发 churn。等阶段 1.5 完成后一次性 wrap 稳定后的数字。
+不进入 stat-wrap 的"行级"快照数（e.g. 18752 organ / 16731 region / 710 user / 2683 meta_baseinfo）来自 dump 的具体内容，不同时点 dump 取值不同；它们只是 v1 评估时的快照值，不作为契约。当真实 dump 数据集变化时，prose 中如需新增此类数字应直接标注"快照 @YYYY-MM-DD"，不强行 stat-wrap。

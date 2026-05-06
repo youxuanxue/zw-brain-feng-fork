@@ -4,6 +4,26 @@
     "zwbrain.webui-pages-cap": {
       "description": "zw-brain: WebUI core scenario page count cap (design contract). Computed from current authoritative baseline (v4 → v3 → v2 fallback).",
       "compute": "if [ -f docs/approved/zw-brain-architecture-v4-gpt55.md ]; then awk '/^### 5\\.2 /{flag=1; next} /^### |^## /{flag=0} flag' docs/approved/zw-brain-architecture-v4-gpt55.md | grep -cE '^\\| P[0-9]+'; elif [ -f docs/approved/zw-brain-architecture-v3.md ]; then awk '/^### 5\\.2 /{flag=1; next} /^### |^## /{flag=0} flag' docs/approved/zw-brain-architecture-v3.md | grep -cE '^\\| P[0-9]+'; elif [ -f docs/approved/zw-brain-architecture-v2.md ]; then awk '/^### 5\\.2 /{flag=1; next} /^### |^## /{flag=0} flag' docs/approved/zw-brain-architecture-v2.md | grep -cE '^\\| P[0-9]+'; else echo 0; fi"
+    },
+    "legacy.import.schemas": {
+      "description": "Number of mysqldump schemas under old/10示例数据/ (each *.sql = one schema dump). Dumps are .gitignored — when absent (e.g. CI runner), compute outputs empty and sync-stats skips this key with a WARN, preserving local drift-detection without false-positive in CI.",
+      "compute": "if ls 'old/10示例数据/'*.sql >/dev/null 2>&1; then ls 'old/10示例数据/'*.sql | wc -l | tr -d ' '; fi"
+    },
+    "legacy.import.tables-total": {
+      "description": "Total CREATE TABLE count across all dump files (raw — includes shadow/copy tables; the importer filters at mapper level). grep -a forces text mode because some dumps contain stray bytes that trip grep's binary heuristic. Empty when dumps absent (see schemas).",
+      "compute": "if ls 'old/10示例数据/'*.sql >/dev/null 2>&1; then for f in 'old/10示例数据/'*.sql; do grep -ac '^CREATE TABLE' \"$f\"; done | awk '{s+=$1} END {print s+0}'; fi"
+    },
+    "legacy.import.record-classes": {
+      "description": "Count of SQLAlchemy Record classes in zw_brain/domain/models.py (the canonical model surface).",
+      "compute": "grep -cE '^class [A-Za-z0-9_]+Record' zw_brain/domain/models.py | tr -d ' '"
+    },
+    "legacy.import.missing-records": {
+      "description": "Count of M-numbered rows in legacy-import-mapping §二 missing-record table (M1, M2, ... — items the mapping doc flags as not yet covered by a Record class).",
+      "compute": "awk '/^## 二/{flag=1; next} /^## /{flag=0} flag' docs/reconstructs/legacy-import-mapping-v1.md | grep -cE '^\\| \\*\\*M[0-9]+\\*\\* '"
+    },
+    "legacy.import.missing-resolved": {
+      "description": "Count of M1–M6 records (the §二 'P2 blocking' subset) actually present in domain/models.py — once this hits 6, the mapping doc's blocking note is fully discharged.",
+      "compute": "grep -cE '^class (ComplianceCase|ComplianceRule|RiskEventProjection|HealthSignalProjection|StandardAssetProjection|MetricDefinitionProjection)Record\\b' zw_brain/domain/models.py | tr -d ' '"
     }
   }
 }
