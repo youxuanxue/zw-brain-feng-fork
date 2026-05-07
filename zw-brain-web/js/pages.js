@@ -430,26 +430,90 @@ function shell(activeKey, mainHtml) {
     </div>`;
 }
 
+/** 与侧栏 `shell` 内 `nav[].roles` 一致；服务端预加载裁剪见 `zw_brain/domain/web_snapshot_redaction.py` */
+window.ZW_PAGE_ACCESS = {
+  workbench: ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8'],
+  discovery: ['r1', 'r2', 'r6', 'r7', 'r8'],
+  catalogBrowse: ['r1', 'r2', 'r6', 'r7', 'r8'],
+  resourceDetail: ['r1', 'r2', 'r6', 'r7', 'r8'],
+  requestFlow: ['r1', 'r2', 'r3', 'r4', 'r5'],
+  requestDetail: ['r1', 'r2', 'r3', 'r4', 'r5'],
+  reviewDetail: ['r1', 'r2', 'r3', 'r4', 'r5'],
+  deliveryExchange: ['r2', 'r5', 'r6', 'r7', 'r8'],
+  deliveryTaskDetail: ['r2', 'r5', 'r6', 'r7', 'r8'],
+  provider: ['r6', 'r7'],
+  complianceOps: ['r2', 'r5', 'r6', 'r7', 'r8'],
+  disputeDetail: ['r2', 'r5', 'r6', 'r7', 'r8'],
+  zonesPack: ['r1', 'r2', 'r6', 'r7', 'r8'],
+  zoneDetail: ['r1', 'r2', 'r6', 'r7', 'r8'],
+  integrationAdmin: ['r7'],
+  packageDetail: ['r7'],
+};
+
+window.ZW_PAGE_SHELL = {
+  workbench: 'p1',
+  discovery: 'p2',
+  catalogBrowse: 'p2',
+  resourceDetail: 'p2',
+  requestFlow: 'p3',
+  requestDetail: 'p3',
+  reviewDetail: 'p3',
+  deliveryExchange: 'p4',
+  deliveryTaskDetail: 'p4',
+  provider: 'p5',
+  complianceOps: 'p6',
+  disputeDetail: 'p6',
+  zonesPack: 'p7',
+  zoneDetail: 'p7',
+  integrationAdmin: 'p8',
+  packageDetail: 'p8',
+};
+
+function entityNotFoundShell(activeKey, entityLabel, rawId, backHref, backLabel) {
+  const id = escapeHtml(String(rawId || ''));
+  const label = escapeHtml(entityLabel);
+  const safeBack = backHref ? escapeHtml(backHref) : '#/p1-workbench';
+  const backText = escapeHtml(backLabel || '回到首页工作台');
+  const main = `
+    <div class="bg-white rounded-2xl p-10 text-center border-default shadow-soft">
+      <div class="text-display mb-3">未找到${label}</div>
+      <p class="text-zw-mute mb-4">不存在或当前身份不可访问：<code>${id}</code></p>
+      <a href="${safeBack}" class="inline-block gov-btn gov-btn-primary px-4 py-2 rounded-lg text-caption">${backText}</a>
+    </div>`;
+  return shell(activeKey, main);
+}
+
+window.renderAccessDeniedShell = function (pageKey) {
+  const sk = window.ZW_PAGE_SHELL[pageKey] || 'p1';
+  const main = `
+    <div class="bg-white rounded-2xl p-10 text-center border-default shadow-soft">
+      <div class="text-display mb-3">当前身份无权访问此页面</div>
+      <p class="text-zw-mute mb-4">请通过业务导航进入你有权限办理的场景，或联系管理员调整岗位授权。</p>
+      <a href="#/p1-workbench" class="inline-block gov-btn gov-btn-primary px-4 py-2 rounded-lg text-caption">回到首页工作台</a>
+    </div>`;
+  return shell(sk, main);
+};
+
 function resourceById(id) {
-  return window.RUNTIME_DISCOVERY.resources.find(item => item.id === id) || window.RUNTIME_DISCOVERY.resources[0];
+  return window.RUNTIME_DISCOVERY.resources.find(item => item.id === id);
 }
 function requestById(id) {
-  return window.RUNTIME_REQUESTS.find(item => item.id === id) || window.RUNTIME_REQUESTS[0];
+  return window.RUNTIME_REQUESTS.find(item => item.id === id);
 }
 function approvalById(id) {
-  return window.RUNTIME_APPROVALS.find(item => item.id === id) || window.RUNTIME_APPROVALS[0];
+  return window.RUNTIME_APPROVALS.find(item => item.id === id);
 }
 function deliveryById(id) {
-  return window.RUNTIME_DELIVERY_TASKS.find(item => item.id === id) || window.RUNTIME_DELIVERY_TASKS[0];
+  return window.RUNTIME_DELIVERY_TASKS.find(item => item.id === id);
 }
 function disputeById(id) {
-  return window.RUNTIME_DISPUTES.find(item => item.id === id) || window.RUNTIME_DISPUTES[0];
+  return window.RUNTIME_DISPUTES.find(item => item.id === id);
 }
 function zoneById(id) {
-  return window.RUNTIME_ZONES.find(item => item.id === id) || window.RUNTIME_ZONES[0];
+  return window.RUNTIME_ZONES.find(item => item.id === id);
 }
 function packageById(id) {
-  return window.RUNTIME_CAPABILITY_PACKAGES.find(item => item.id === id) || window.RUNTIME_CAPABILITY_PACKAGES[0];
+  return window.RUNTIME_CAPABILITY_PACKAGES.find(item => item.id === id);
 }
 
 PAGES.workbench = function () {
@@ -685,6 +749,7 @@ PAGES.catalogBrowse = function () {
 
 PAGES.resourceDetail = function (id) {
   const item = resourceById(id);
+  if (!item) return entityNotFoundShell('p2', '数据资源', id, '#/p2-discovery', '返回数据资源发现');
   const approvalRate = item.approvalRate || '—';
   const subscribers = item.subscribers ?? '—';
   const fields = item.fields || [];
@@ -786,6 +851,7 @@ PAGES.requestFlow = function () {
 
 PAGES.requestDetail = function (id) {
   const item = requestById(id);
+  if (!item) return entityNotFoundShell('p3', '共享申请', id, '#/p3-request-flow', '返回共享申请与审批');
   const role = window.STATE.role;
   const isGrassroots = role === 'r3' || role === 'r4';
   const diffState = item.status === 'supplementing' ? '待补录' : item.status === 'summary-pending' || item.status === 'completed' ? '已补录' : item.status === 'need-fix' ? '待补正' : '待确认';
@@ -852,6 +918,7 @@ PAGES.requestDetail = function (id) {
 PAGES.reviewDetail = function (id) {
   const request = requestById(id);
   const approval = approvalById(id);
+  if (!request || !approval) return entityNotFoundShell('p3', '申请或审批记录', id, '#/p3-request-flow', '返回共享申请与审批');
   const isSummaryStage = request.status === 'summary-pending' || request.status === 'completed';
   const statusLabel = requestStatusLabel(request, window.STATE.role);
   const actionTitle = isSummaryStage ? '汇总确认动作' : '准入判定动作';
@@ -982,7 +1049,9 @@ PAGES.deliveryExchange = function () {
 
 PAGES.deliveryTaskDetail = function (id) {
   const task = deliveryById(id);
+  if (!task) return entityNotFoundShell('p4', '交付任务', id, '#/p4-delivery-exchange', '返回交付交换与回流');
   const request = requestById(task.requestId);
+  if (!request) return entityNotFoundShell('p4', '关联共享申请', task.requestId, '#/p4-delivery-exchange', '返回交付交换与回流');
   const ai = task.aiSummary;
   const statusLabel = deliveryStatusLabel(task, request);
   const backflowKey = backflowStatusKey(task.backflow.status);
@@ -1156,6 +1225,7 @@ PAGES.complianceOps = function () {
 
 PAGES.disputeDetail = function (id) {
   const item = disputeById(id);
+  if (!item) return entityNotFoundShell('p6', '争议事项', id, '#/p6-compliance-ops', '返回合规运营与减负');
   const main = `
     ${crumbs([{ label: '合规运营与减负', href: '#/p6-compliance-ops' }, { label: item.id }])}
     <div class="page-hero">
@@ -1238,6 +1308,7 @@ PAGES.zonesPack = function () {
 
 PAGES.zoneDetail = function (id) {
   const zone = zoneById(id);
+  if (!zone) return entityNotFoundShell('p7', '专题包', id, '#/p7-zones-pack', '返回共享专区 / 专题包');
   const main = `
     ${crumbs([{ label: '共享专区 / 专题包', href: '#/p7-zones-pack' }, { label: zone.name }])}
     <div class="page-hero">
@@ -1322,6 +1393,7 @@ PAGES.integrationAdmin = function () {
 
 PAGES.packageDetail = function (id) {
   const item = packageById(id);
+  if (!item) return entityNotFoundShell('p8', '能力包', id, '#/p8-integration-admin', '返回平台接入管理');
   const ai = item.aiReview;
   const statusLabel = packageStatusLabel(item);
   const canApprove = item.status !== 'approved' && item.status !== 'rejected';

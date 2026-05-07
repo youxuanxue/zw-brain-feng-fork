@@ -43,7 +43,9 @@ class RestHandler(BaseHTTPRequestHandler):
             self._serve_file(OPENAPI_PATH)
             return
         if parsed.path == "/api/snapshot":
-            self._json(200, get_service().invoke_skill("system.snapshot", {}))
+            qs = parse_qs(parsed.query)
+            role = (qs.get("role") or ["r1"])[-1]
+            self._json(200, get_service().invoke_skill("system.snapshot", {"role": role}))
             return
         if parsed.path.startswith("/api/skills/"):
             skill_id = parsed.path[len("/api/skills/"):]

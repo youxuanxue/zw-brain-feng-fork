@@ -22,6 +22,7 @@ from zw_brain.domain.repositories.governance_projection import GovernanceProject
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.domain.repositories.topic_package import TopicPackageRepository, TopicPackageStateError
 from zw_brain.domain.schemas import describe_schemas
+from zw_brain.domain.web_snapshot_redaction import redact_webui_snapshot
 from zw_brain.shared import queue
 from zw_brain.shared.sanitization import safe_json
 from zw_brain.shared.sensitive_mask import apply_field_masks
@@ -419,7 +420,7 @@ class BrainService:
             case "resource.api.policy.update":
                 return self.update_api_resource_policy(payload)
             case "system.snapshot":
-                return self.snapshot()
+                return redact_webui_snapshot(self.snapshot(), str(self._ui_state.get("role", "r1")))
             case "system.schema_info":
                 return {"schemas": describe_schemas()}
             case "system.toggle_outage":

@@ -3,7 +3,12 @@
   "description": "导出当前运行时快照，供主 WebUI 使用统一事实源。",
   "inputSchema": {
     "type": "object",
-    "properties": {}
+    "properties": {
+      "role": {
+        "type": "string",
+        "description": "Web UI 岗位（r1–r8）；决定返回的快照是否按页面权限预裁剪。缺省使用会话当前岗位。"
+      }
+    }
   },
   "annotations": {
     "mode": "read",

@@ -254,6 +254,15 @@ def build_rest_openapi(skills: list[dict[str, Any]]) -> dict[str, Any]:
                 "summary": "Get system snapshot",
                 "operationId": "getSystemSnapshot",
                 "x-zwbrain-skill-id": "system.snapshot",
+                "parameters": [
+                    {
+                        "name": "role",
+                        "in": "query",
+                        "required": False,
+                        "schema": {"type": "string", "enum": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"]},
+                        "description": "Web UI role; snapshot lists are redacted server-side to match page access.",
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Snapshot response",

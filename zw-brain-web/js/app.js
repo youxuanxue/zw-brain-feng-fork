@@ -37,6 +37,15 @@
     { test: /^#\/$/, page: 'workbench', nav: 'main' },
   ];
 
+  (function assertRouteAccessParity() {
+    if (typeof window.ZW_PAGE_ACCESS === 'undefined') return;
+    const routePages = new Set(ROUTES.map(r => r.page));
+    const missing = [...routePages].filter(p => !Object.prototype.hasOwnProperty.call(window.ZW_PAGE_ACCESS, p));
+    if (missing.length) {
+      throw new Error(`[zw-brain] ZW_PAGE_ACCESS missing keys for ROUTES: ${missing.join(', ')}`);
+    }
+  })();
+
   function encodeParams(params) {
     const url = new URLSearchParams();
     Object.entries(params || {}).forEach(([k, v]) => {
@@ -106,7 +115,9 @@
   }
 
   async function refreshSnapshot() {
-    const snapshot = await fetch('/api/snapshot', { headers: { Accept: 'application/json' } }).then(handleResponse);
+    const snapshot = await fetch(`/api/snapshot${encodeParams({ role: currentRole })}`, {
+      headers: { Accept: 'application/json' },
+    }).then(handleResponse);
     hydrateSnapshot(snapshot);
     snapshotReady = true;
   }
@@ -121,7 +132,7 @@
     try {
       if (route === '#/p1-workbench') {
         window.RUNTIME_WORKBENCH[currentRole] = await invokeRead('workbench.view', { role: currentRole });
-      } else if (route === '#/p2-discovery') {
+      } else if (route === '#/p2-discovery' && roleCan(['r1', 'r2', 'r6', 'r7', 'r8'])) {
         const query = currentDiscoveryQuery || window.STATE?.discoveryQuery || '';
         const params = query ? { query, page: 1 } : { page: 1 };
         const result = await invokeRead('data.search', params);
@@ -129,7 +140,7 @@
         window.RUNTIME_DISCOVERY.aiCopilot = result.summary;
         currentDiscoveryQuery = result.query || query;
         window.STATE.discoveryQuery = currentDiscoveryQuery;
-      } else if (route === '#/p2-discovery/catalog-browse') {
+      } else if (route === '#/p2-discovery/catalog-browse' && roleCan(['r1', 'r2', 'r6', 'r7', 'r8'])) {
         const filters = window.CATALOG_BROWSE_FILTERS || {};
         const result = await invokeRead('catalog.browse', {
           page: filters.page || 1,
@@ -138,15 +149,18 @@
           kind: filters.kind || 'real',
         });
         window.RUNTIME_CATALOG_BROWSE = result;
-      } else if (route.startsWith('#/p2-discovery/resource/')) {
+      } else if (route.startsWith('#/p2-discovery/resource/') && roleCan(['r1', 'r2', 'r6', 'r7', 'r8'])) {
         const id = decodeURIComponent(route.split('/').pop());
         const resource = await invokeRead('catalog.resource_view', { resource_id: id });
         const index = window.RUNTIME_DISCOVERY.resources.findIndex(item => item.id === id);
         if (index >= 0) window.RUNTIME_DISCOVERY.resources[index] = resource; else window.RUNTIME_DISCOVERY.resources.unshift(resource);
-      } else if (route === '#/p3-request-flow') {
+      } else if (route === '#/p3-request-flow' && roleCan(['r1', 'r2', 'r3', 'r4', 'r5'])) {
         const result = await invokeRead('request.list', {});
         window.RUNTIME_REQUESTS = result.items;
-      } else if (route.startsWith('#/p3-request-flow/request/')) {
+      } else if (
+        (route.startsWith('#/p3-request-flow/request/') || route.startsWith('#/p3-request-flow/review/')) &&
+        roleCan(['r1', 'r2', 'r3', 'r4', 'r5'])
+      ) {
         const id = decodeURIComponent(route.split('/').pop());
         const request = await invokeRead('request.view', { request_id: id });
         const approval = await invokeRead('approval.view', { request_id: id });
@@ -157,14 +171,14 @@
       } else if (route === '#/p4-delivery-exchange' && roleCan(['r2', 'r5', 'r6', 'r7', 'r8'])) {
         const result = await invokeRead('delivery.list', {});
         window.RUNTIME_DELIVERY_TASKS = result.items;
-      } else if (route.startsWith('#/p4-delivery-exchange/task/')) {
+      } else if (route.startsWith('#/p4-delivery-exchange/task/') && roleCan(['r2', 'r5', 'r6', 'r7', 'r8'])) {
         const id = decodeURIComponent(route.split('/').pop());
         const task = await invokeRead('delivery.view', { task_id: id });
         const index = window.RUNTIME_DELIVERY_TASKS.findIndex(item => item.id === id);
         if (index >= 0) window.RUNTIME_DELIVERY_TASKS[index] = task; else window.RUNTIME_DELIVERY_TASKS.unshift(task);
       } else if (route === '#/p5-provider' && roleCan(['r6', 'r7'])) {
         window.RUNTIME_PROVIDER = await invokeRead('provider.view', {});
-      } else if (route === '#/p6-compliance-ops' && roleCan(['r8'])) {
+      } else if (route === '#/p6-compliance-ops' && roleCan(['r2', 'r5', 'r6', 'r7', 'r8'])) {
         const disputes = await invokeRead('governance.dispute_list', {});
         const audit = await invokeRead('audit.list', {});
         const dashboard = await invokeRead('dashboard.render_command_center', {});
@@ -175,19 +189,19 @@
         window.RUNTIME_AUDIT_EVENTS = audit.items;
         window.RUNTIME_AUDIT_AI = audit.summary;
         window.RUNTIME_DASHBOARD = dashboard;
-      } else if (route.startsWith('#/p6-compliance-ops/dispute/')) {
+      } else if (route.startsWith('#/p6-compliance-ops/dispute/') && roleCan(['r2', 'r5', 'r6', 'r7', 'r8'])) {
         const id = decodeURIComponent(route.split('/').pop());
         const dispute = await invokeRead('governance.dispute_view', { dispute_id: id });
         const evidence = await invokeRead('audit.replay_evidence_chain', { dispute_id: id });
         dispute.evidenceReplay = evidence;
         const index = window.RUNTIME_DISPUTES.findIndex(item => item.id === id);
         if (index >= 0) window.RUNTIME_DISPUTES[index] = dispute; else window.RUNTIME_DISPUTES.unshift(dispute);
-      } else if (route.startsWith('#/p7-zones-pack/zone/')) {
+      } else if (route.startsWith('#/p7-zones-pack/zone/') && roleCan(['r1', 'r2', 'r6', 'r7', 'r8'])) {
         const id = decodeURIComponent(route.split('/').pop());
         const zone = await invokeRead('zone.view', { zone_id: id });
         const index = window.RUNTIME_ZONES.findIndex(item => item.id === id);
         if (index >= 0) window.RUNTIME_ZONES[index] = zone; else window.RUNTIME_ZONES.unshift(zone);
-      } else if (route === '#/p7-zones-pack') {
+      } else if (route === '#/p7-zones-pack' && roleCan(['r1', 'r2', 'r6', 'r7', 'r8'])) {
         const result = await invokeRead('zone.list', {});
         window.RUNTIME_ZONES = result.items;
       } else if (route.startsWith('#/p8-integration-admin/package/') && roleCan(['r7'])) {
@@ -251,6 +265,18 @@
 
     if (!matched) {
       document.getElementById('app').innerHTML = renderNotFound(hash);
+      highlightNav(null);
+      scheduleSyncProductShellNavTop();
+      return;
+    }
+
+    const access = window.ZW_PAGE_ACCESS && window.ZW_PAGE_ACCESS[matched.page];
+    if (access && !roleCan(access)) {
+      if (typeof window.renderAccessDeniedShell === 'function') {
+        document.getElementById('app').innerHTML = window.renderAccessDeniedShell(matched.page);
+      } else {
+        document.getElementById('app').innerHTML = renderError('权限检查模块未加载');
+      }
       highlightNav(null);
       scheduleSyncProductShellNavTop();
       return;
@@ -378,7 +404,11 @@
         }
       });
     },
-    submitRequest(requestId = 'REQ-2026-04-25-0011') {
+    submitRequest(requestId) {
+      if (!requestId) {
+        window.UI.toast('缺少申请编号', 'error');
+        return;
+      }
       performWrite('request.submit', { request_id: requestId }, '已重新提交并进入受控准入', () => {
         window.location.hash = `#/p3-request-flow/request/${requestId}`;
       });
@@ -478,6 +508,7 @@
       switcher.addEventListener('change', async event => {
         currentRole = event.target.value;
         if (window.STATE) window.STATE.role = currentRole;
+        await refreshSnapshot();
         await syncRouteData(window.location.hash || '#/p1-workbench');
         dispatch();
       });

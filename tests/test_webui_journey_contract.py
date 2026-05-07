@@ -50,3 +50,43 @@ def test_status_tokens_have_display_labels() -> None:
         assert f"{token}: '{label}'" in pages_js
     assert "待回流确认" in pages_js
     assert "backflowStatusKey" in pages_js
+
+
+def test_entity_lookup_does_not_silent_fallback_to_first_row() -> None:
+    pages_js = PAGES_JS.read_text(encoding="utf-8")
+    assert "|| window.RUNTIME_REQUESTS[0]" not in pages_js
+    assert "|| window.RUNTIME_APPROVALS[0]" not in pages_js
+    assert "|| window.RUNTIME_DISCOVERY.resources[0]" not in pages_js
+    assert "|| window.RUNTIME_DELIVERY_TASKS[0]" not in pages_js
+    assert "|| window.RUNTIME_DISPUTES[0]" not in pages_js
+    assert "|| window.RUNTIME_ZONES[0]" not in pages_js
+    assert "|| window.RUNTIME_CAPABILITY_PACKAGES[0]" not in pages_js
+
+
+def test_sync_route_refreshes_review_detail_same_as_request() -> None:
+    app_js = APP_JS.read_text(encoding="utf-8")
+    assert "route.startsWith('#/p3-request-flow/review/')" in app_js
+    review_idx = app_js.index("p3-request-flow/review/")
+    view_idx = app_js.index("'request.view'", review_idx)
+    approval_idx = app_js.index("'approval.view'", review_idx)
+    assert view_idx < approval_idx
+
+
+def test_dispatch_enforces_page_access_map() -> None:
+    app_js = APP_JS.read_text(encoding="utf-8")
+    assert "window.ZW_PAGE_ACCESS" in app_js
+    assert "renderAccessDeniedShell" in app_js
+    assert "assertRouteAccessParity" in app_js
+
+
+def test_role_switch_refetches_snapshot() -> None:
+    app_js = APP_JS.read_text(encoding="utf-8")
+    start = app_js.index("switcher.addEventListener('change'")
+    block = app_js[start : start + 900]
+    assert "await refreshSnapshot()" in block
+
+
+def test_pages_expose_access_map_for_app_router() -> None:
+    pages_js = PAGES_JS.read_text(encoding="utf-8")
+    assert "window.ZW_PAGE_ACCESS" in pages_js
+    assert "window.renderAccessDeniedShell" in pages_js
