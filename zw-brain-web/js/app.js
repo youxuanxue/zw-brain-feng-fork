@@ -15,6 +15,7 @@
   let currentRole = 'r1';
   let currentDiscoveryQuery = '';
   let currentSchemaInfo = null;
+  let snapshotReady = false;
 
   const ROUTES = [
     { test: /^#\/p1-workbench$/, page: 'workbench', nav: 'main' },
@@ -107,6 +108,7 @@
   async function refreshSnapshot() {
     const snapshot = await fetch('/api/snapshot', { headers: { Accept: 'application/json' } }).then(handleResponse);
     hydrateSnapshot(snapshot);
+    snapshotReady = true;
   }
 
   async function refreshSchemaInfo() {
@@ -114,15 +116,19 @@
   }
 
   async function syncRouteData(hash) {
+    if (!snapshotReady) return;
     const route = hash || window.location.hash || '';
     try {
       if (route === '#/p1-workbench') {
         window.RUNTIME_WORKBENCH[currentRole] = await invokeRead('workbench.view', { role: currentRole });
       } else if (route === '#/p2-discovery') {
         const query = currentDiscoveryQuery || window.STATE?.discoveryQuery || '';
-        const result = await invokeRead('data.search', { query, page: 1 });
+        const params = query ? { query, page: 1 } : { page: 1 };
+        const result = await invokeRead('data.search', params);
         window.RUNTIME_DISCOVERY.resources = result.results;
         window.RUNTIME_DISCOVERY.aiCopilot = result.summary;
+        currentDiscoveryQuery = result.query || query;
+        window.STATE.discoveryQuery = currentDiscoveryQuery;
       } else if (route === '#/p2-discovery/catalog-browse') {
         const filters = window.CATALOG_BROWSE_FILTERS || {};
         const result = await invokeRead('catalog.browse', {
@@ -148,7 +154,7 @@
         if (requestIndex >= 0) window.RUNTIME_REQUESTS[requestIndex] = request; else window.RUNTIME_REQUESTS.unshift(request);
         const approvalIndex = window.RUNTIME_APPROVALS.findIndex(item => item.id === id);
         if (approvalIndex >= 0) window.RUNTIME_APPROVALS[approvalIndex] = approval; else window.RUNTIME_APPROVALS.unshift(approval);
-      } else if (route === '#/p4-delivery-exchange' && roleCan(['r3', 'r4', 'r5'])) {
+      } else if (route === '#/p4-delivery-exchange' && roleCan(['r2', 'r5', 'r6', 'r7', 'r8'])) {
         const result = await invokeRead('delivery.list', {});
         window.RUNTIME_DELIVERY_TASKS = result.items;
       } else if (route.startsWith('#/p4-delivery-exchange/task/')) {
@@ -218,10 +224,10 @@
 
   async function performWrite(skillId, payload, successMessage, after) {
     try {
-      await invokeWrite(skillId, Object.assign({ role: currentRole, confirmed: true }, payload));
+      const result = await invokeWrite(skillId, Object.assign({ role: currentRole, confirmed: true }, payload));
       await refreshSnapshot();
       await syncRouteData(window.location.hash);
-      if (after) after(); else dispatch();
+      if (after) after(result); else dispatch();
       if (successMessage) window.UI.toast(successMessage, 'success');
     } catch (err) {
       window.UI.toast(err.message || '操作失败', 'error');
@@ -229,6 +235,7 @@
   }
 
   function dispatch() {
+    if (!snapshotReady) return;
     const hash = window.location.hash || '#/p1-workbench';
     let matched = null;
     let captures = [];
@@ -355,11 +362,17 @@
       }
     },
     createRequest(resourceId) {
-      performWrite('application.resource.submit', { resource_id: resourceId, query: currentDiscoveryQuery || window.STATE?.discoveryQuery || '' }, '已发起标准复用申请并进入受控准入', async () => {
+      const existing = (window.RUNTIME_REQUESTS || []).find(item => item.resourceId === resourceId && ['pending', 'supplementing', 'summary-pending'].includes(item.status));
+      if (existing) {
+        window.location.hash = `#/p3-request-flow/request/${existing.id}`;
+        window.UI.toast('已续接当前未完成申请', 'info');
+        return;
+      }
+      performWrite('application.resource.submit', { resource_id: resourceId, query: currentDiscoveryQuery || window.STATE?.discoveryQuery || '' }, '已发起标准复用申请并进入受控准入', async result => {
         await refreshSnapshot();
-        const created = window.RUNTIME_REQUESTS.find(item => item.resourceId === resourceId && item.status === 'pending');
-        if (created) {
-          window.location.hash = `#/p3-request-flow/request/${created.id}`;
+        const requestId = result?.result?.request_id || result?.request_id;
+        if (requestId) {
+          window.location.hash = `#/p3-request-flow/request/${requestId}`;
         } else {
           window.location.hash = '#/p3-request-flow';
         }
@@ -386,7 +399,7 @@
       performWrite('summary.confirm', { request_id: requestId }, '已确认自动汇总，进入回流确认');
     },
     confirmBackflow(taskId) {
-      performWrite('delivery.access.grant', { task_id: taskId }, '访问授权已生效并写入交付回执');
+      performWrite('backflow.confirm', { task_id: taskId }, '回流确认已生效，模板治理链路已更新');
     },
     triggerDeliveryRecovery(taskId) {
       performWrite('delivery.trigger_recovery', { task_id: taskId }, '恢复流程已触发');
@@ -475,6 +488,7 @@
       if (switcher) switcher.value = currentRole;
       if (!window.location.hash) {
         window.location.hash = '#/p1-workbench';
+        dispatch();
       } else {
         await syncRouteData(window.location.hash);
         dispatch();

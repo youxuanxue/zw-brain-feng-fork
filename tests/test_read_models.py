@@ -120,6 +120,7 @@ def test_repository_backed_ops_views_include_projected_data() -> None:
         service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True})
         service.invoke_skill("supplement.submit", {"request_id": "REQ-2026-04-25-0011", "role": "r3", "confirmed": True})
         service.invoke_skill("summary.confirm", {"request_id": "REQ-2026-04-25-0011", "role": "r5", "confirmed": True})
+        service.invoke_skill("delivery.reconcile_receipt", {"task_id": "DLV-2026-04-25-0011", "role": "r6", "confirmed": True})
         service.invoke_skill("backflow.confirm", {"task_id": "DLV-2026-04-25-0011", "role": "r6", "confirmed": True})
 
         provider = service.invoke_skill("provider.view", {})

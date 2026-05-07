@@ -474,6 +474,7 @@ def test_full_golden_path_reaches_backflow_confirmed() -> None:
         service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True})
         service.invoke_skill("supplement.submit", {"request_id": "REQ-2026-04-25-0011", "role": "r3", "confirmed": True})
         service.invoke_skill("summary.confirm", {"request_id": "REQ-2026-04-25-0011", "role": "r5", "confirmed": True})
+        service.invoke_skill("delivery.reconcile_receipt", {"task_id": "DLV-2026-04-25-0011", "role": "r6", "confirmed": True})
         service.invoke_skill("backflow.confirm", {"task_id": "DLV-2026-04-25-0011", "role": "r6", "confirmed": True})
 
         snapshot = service.snapshot()
@@ -487,6 +488,48 @@ def test_full_golden_path_reaches_backflow_confirmed() -> None:
         tmp.cleanup()
 
 
+def test_generated_request_journey_reaches_backflow_confirmed() -> None:
+    tmp, service = make_service()
+    try:
+        created = service.invoke_skill(
+            "application.resource.submit",
+            {"resource_id": "res-market-activity", "query": "市场主体活跃度", "role": "r1", "confirmed": True},
+        )
+        request_id = created["result"]["request_id"]
+        task_id = request_id.replace("REQ-", "DLV-", 1)
+
+        service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve", "role": "r2", "confirmed": True})
+        service.invoke_skill("supplement.submit", {"request_id": request_id, "role": "r3", "confirmed": True})
+        service.invoke_skill("summary.confirm", {"request_id": request_id, "role": "r5", "confirmed": True})
+        service.invoke_skill("delivery.reconcile_receipt", {"task_id": task_id, "role": "r6", "confirmed": True})
+        service.invoke_skill("backflow.confirm", {"task_id": task_id, "role": "r6", "confirmed": True})
+
+        snapshot = service.snapshot()
+        request = next(item for item in snapshot["requests"] if item["id"] == request_id)
+        delivery = next(item for item in snapshot["delivery_tasks"] if item["id"] == task_id)
+        assert request["status"] == "completed"
+        assert delivery["status"] == "completed"
+        assert delivery["backflow"]["status"] == "已确认"
+        assert any(item["type"] == "backflow.confirm" for item in snapshot["audit_events"])
+    finally:
+        tmp.cleanup()
+
+
+def test_backflow_confirm_requires_reconciled_receipt() -> None:
+    tmp, service = make_service()
+    try:
+        service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True})
+        service.invoke_skill("supplement.submit", {"request_id": "REQ-2026-04-25-0011", "role": "r3", "confirmed": True})
+        service.invoke_skill("summary.confirm", {"request_id": "REQ-2026-04-25-0011", "role": "r5", "confirmed": True})
+
+        try:
+            service.invoke_skill("backflow.confirm", {"task_id": "DLV-2026-04-25-0011", "role": "r6", "confirmed": True})
+        except InvalidStateError:
+            pass
+        else:
+            raise AssertionError("backflow.confirm must require a reconciled receipt")
+    finally:
+        tmp.cleanup()
 
 
 def test_delivery_exchange_records_execution_without_overwriting_canonical_delivery_status() -> None:
@@ -1601,6 +1644,8 @@ def test_data_search_recalls_real_catalog_dictionary_titles() -> None:
         recall_hits = [it for it in result["results"] if it.get("kind") == "recall_dictionary"]
         assert recall_hits, "recallDictionary must surface 教师资格 candidate"
         assert any("教师资格" in it["name"] for it in recall_hits)
+        default_result = service.invoke_skill("data.search", {"query": "停车场信息", "role": "r1"})
+        assert default_result["results"][0]["id"] == "res-jbxx-ledger"
         # Empty query must NOT spam recall (would dump 25 thin cards on every page load)
         empty_result = service.invoke_skill("data.search", {"query": "", "role": "r1"})
         assert not any(it.get("kind") == "recall_dictionary" for it in empty_result["results"])

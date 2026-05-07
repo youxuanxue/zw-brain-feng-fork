@@ -22,6 +22,37 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+const STATUS_LABELS = {
+  open: '待核查',
+  escalated: '已升级',
+  resolved: '已解决',
+  provider_investigating: '提供方核查中',
+  ok: '成功',
+  warning: '待处理',
+  failed: '失败',
+  reconciling: '待汇总确认',
+  supplementing: '待补录',
+  'summary-pending': '待汇总确认',
+  completed: '已完成',
+  approved: '已上线',
+  pending: '待审批',
+  'pending-fix': '待补正',
+  rejected: '已驳回',
+};
+
+function statusLabel(status) {
+  return STATUS_LABELS[status] || status;
+}
+
+function backflowStatusKey(status) {
+  return {
+    '待补录完成': 'pending_supplement',
+    '待确认': 'pending_confirmation',
+    '已确认': 'confirmed',
+    '不适用': 'not_applicable',
+  }[status] || status;
+}
+
 function statusPill(status) {
   const map = {
     '可复用': 'status-ok',
@@ -35,6 +66,7 @@ function statusPill(status) {
     '补录中': 'status-warn',
     '待修改': 'status-warn',
     '待汇总确认': 'status-warn',
+    '待回流确认': 'status-warn',
     '待发布': 'status-warn',
     '待核查': 'status-warn',
     '待更新': 'status-warn',
@@ -48,24 +80,26 @@ function statusPill(status) {
     '待质检': 'status-warn',
     '待审核': 'status-warn',
     '在线': 'status-ok',
-    'open': 'status-warn',
-    'escalated': 'status-danger',
-    'resolved': 'status-ok',
-    'warning': 'status-warn',
-    'failed': 'status-danger',
-    'reconciling': 'status-warn',
-    'supplementing': 'status-warn',
+    open: 'status-warn',
+    escalated: 'status-danger',
+    resolved: 'status-ok',
+    provider_investigating: 'status-warn',
+    ok: 'status-ok',
+    warning: 'status-warn',
+    failed: 'status-danger',
+    reconciling: 'status-warn',
+    supplementing: 'status-warn',
     'summary-pending': 'status-warn',
-    'completed': 'status-ok',
-    'approved': 'status-ok',
-    'pending': 'status-warn',
+    completed: 'status-ok',
+    approved: 'status-ok',
+    pending: 'status-warn',
     'pending-fix': 'status-warn',
-    'rejected': 'status-danger',
+    rejected: 'status-danger',
     '已派单': 'status-neutral',
     '筹建中': 'status-neutral',
     '不适用': 'status-neutral',
   };
-  return `<span class="status-pill ${map[status] || 'status-neutral'}">${status}</span>`;
+  return `<span class="status-pill ${map[status] || 'status-neutral'}">${statusLabel(status)}</span>`;
 }
 
 function crumbs(items) {
@@ -172,6 +206,19 @@ function summaryRouteForRole(role, requestId) {
   return role === 'r2' || role === 'r5' ? `#/p3-request-flow/review/${requestId}` : `#/p3-request-flow/request/${requestId}`;
 }
 
+function deliveryByRequestId(requestId) {
+  return (window.RUNTIME_DELIVERY_TASKS || []).find(item => item.requestId === requestId);
+}
+
+function activeRequest() {
+  return (window.RUNTIME_REQUESTS || [])[0];
+}
+
+function activeDelivery() {
+  const request = activeRequest();
+  return request ? deliveryByRequestId(request.id) || (window.RUNTIME_DELIVERY_TASKS || [])[0] : (window.RUNTIME_DELIVERY_TASKS || [])[0];
+}
+
 function requestStatusLabel(item, role = window.STATE.role) {
   if (!item) return '—';
   if (item.status === 'pending') return role === 'r1' ? '审批中' : '待审批';
@@ -183,10 +230,13 @@ function requestStatusLabel(item, role = window.STATE.role) {
   return item.status;
 }
 
-function deliveryStatusLabel(task) {
+function deliveryStatusLabel(task, request) {
   if (!task) return '—';
+  if (backflowStatusKey(task.backflow?.status) === 'confirmed') return '已完成';
   if (task.status === 'supplementing') return '待补录';
-  if (task.status === 'reconciling') return '待汇总确认';
+  if (task.status === 'reconciling') {
+    return request?.status === 'completed' ? '待回流确认' : '待汇总确认';
+  }
   if (task.status === 'completed') return '已完成';
   if (task.status === 'warning') return '待处理';
   return task.status;
@@ -235,8 +285,9 @@ function requestActionBar(item, role = window.STATE.role) {
       ${actionNotice('当前链路已进入自动汇总确认，等待审核汇总人员处理异常项')}`;
   }
   if (item.status === 'completed') {
+    const delivery = deliveryByRequestId(item.id);
     return `
-      <a href="#/p4-delivery-exchange/task/DLV-2026-04-25-0011" class="gov-btn gov-btn-primary">查看回流确认</a>
+      <a href="#/p4-delivery-exchange${delivery ? `/task/${delivery.id}` : ''}" class="gov-btn gov-btn-primary">查看回流确认</a>
       ${actionNotice('自动汇总已经确认完成，下一步是供给侧确认回流候选')}`;
   }
   if (item.status === 'rejected') {
@@ -406,8 +457,8 @@ PAGES.workbench = function () {
   const metrics = window.RUNTIME_DASHBOARD.burdenMetrics || [];
   const requests = window.RUNTIME_REQUESTS || [];
   const deliveryTasks = window.RUNTIME_DELIVERY_TASKS || [];
-  const primaryRequest = requests[0];
-  const primaryDelivery = deliveryTasks[0];
+  const primaryRequest = activeRequest();
+  const primaryDelivery = activeDelivery();
   const main = `
     <div class="page-hero workbench-hero">
       <div class="page-toolbar">
@@ -424,7 +475,7 @@ PAGES.workbench = function () {
     ${statCards([
       { label: '目录资源', value: window.RUNTIME_DISCOVERY.resources.length, note: '围绕涉企基础对象与专题资源', href: '#/p2-discovery' },
       { label: '共享申请', value: requests.length, note: primaryRequest ? requestStatusLabel(primaryRequest, window.STATE.role) : '暂无申请', href: '#/p3-request-flow' },
-      { label: '交付任务', value: deliveryTasks.length, note: primaryDelivery ? deliveryStatusLabel(primaryDelivery) : '暂无任务', href: '#/p4-delivery-exchange' },
+      { label: '交付任务', value: deliveryTasks.length, note: primaryDelivery ? deliveryStatusLabel(primaryDelivery, primaryRequest) : '暂无任务', href: '#/p4-delivery-exchange' },
       { label: '治理告警', value: window.RUNTIME_ALERTS.length, note: metrics[0] ? `${metrics[0].label} ${metrics[0].value}` : '暂无异常', href: '#/p6-compliance-ops' },
     ])}
 
@@ -440,8 +491,8 @@ PAGES.workbench = function () {
         <div class="chain-rail mt-5">
           <a href="#/p2-discovery"><span>1</span><strong>发现资源</strong><em>先找模板与专题包</em></a>
           <a href="#/p3-request-flow"><span>2</span><strong>申请审批</strong><em>准入判断重复要数</em></a>
-          <a href="#/p3-request-flow/request/REQ-2026-04-25-0011"><span>3</span><strong>基层补录</strong><em>只补现场差异</em></a>
-          <a href="#/p4-delivery-exchange"><span>4</span><strong>交付回流</strong><em>形成回执与候选字段</em></a>
+          <a href="${primaryRequest ? `#/p3-request-flow/request/${primaryRequest.id}` : '#/p3-request-flow'}"><span>3</span><strong>基层补录</strong><em>只补现场差异</em></a>
+          <a href="${primaryDelivery ? `#/p4-delivery-exchange/task/${primaryDelivery.id}` : '#/p4-delivery-exchange'}"><span>4</span><strong>交付回流</strong><em>形成回执与候选字段</em></a>
           <a href="#/p6-compliance-ops"><span>5</span><strong>治理审计</strong><em>减负指标与证据回放</em></a>
         </div>
       </div>
@@ -493,7 +544,7 @@ PAGES.discovery = function () {
         <div class="panel-title">搜索工作台</div>
         <div class="panel-subtitle">输入业务目标后，系统会重排可复用资源。</div>
         <form onsubmit="window.ACTIONS.setDiscoveryQuery(event)" class="flex gap-3 mt-4">
-          <input id="discovery-q" type="text" value="${query}" class="flex-1 px-4 py-3 rounded-lg border-default text-body bg-white field-input" placeholder="例如：我要为本周营商环境专题复用法人单位基础信息台账模板" />
+          <input id="discovery-q" type="text" value="${query}" class="flex-1 px-4 py-3 rounded-lg border-default text-body bg-white field-input" placeholder="例如：停车场信息" />
           <button class="gov-btn gov-btn-primary">重新解析</button>
         </form>
         <div class="mt-4 flex flex-wrap gap-2">
@@ -672,7 +723,7 @@ PAGES.resourceDetail = function (id) {
 };
 
 PAGES.requestFlow = function () {
-  const request = requestById('REQ-2026-04-25-0011');
+  const request = activeRequest();
   const draft = request.aiDraft;
   const role = window.STATE.role;
   const isGrassroots = role === 'r3' || role === 'r4';
@@ -895,13 +946,14 @@ PAGES.deliveryExchange = function () {
         ${window.RUNTIME_DELIVERY_TASKS.map(task => {
           const request = requestById(task.requestId);
           const requestReady = request && request.status === 'completed';
-          const backflowReady = requestReady && task.backflow.status !== '已确认';
-          const statusLabel = deliveryStatusLabel(task);
+          const backflowKey = backflowStatusKey(task.backflow.status);
+          const backflowReady = requestReady && backflowKey !== 'confirmed';
+          const statusLabel = deliveryStatusLabel(task, request);
           const actionHint = task.status === 'supplementing'
             ? '当前等待基层完成差异补录。'
             : task.status === 'reconciling' && backflowReady
               ? '汇总已完成，当前等待供给侧确认是否纳入模板。'
-              : task.backflow.status === '已确认'
+              : backflowKey === 'confirmed'
                 ? '回流已确认，模板与专题入口应已同步。'
                 : task.status === 'warning'
                   ? '当前链路被退回、驳回或存在异常，需要先处理阻断。'
@@ -932,8 +984,9 @@ PAGES.deliveryTaskDetail = function (id) {
   const task = deliveryById(id);
   const request = requestById(task.requestId);
   const ai = task.aiSummary;
-  const statusLabel = deliveryStatusLabel(task);
-  const canConfirmBackflow = request && request.status === 'completed' && task.backflow.status !== '已确认';
+  const statusLabel = deliveryStatusLabel(task, request);
+  const backflowKey = backflowStatusKey(task.backflow.status);
+  const canConfirmBackflow = request && request.status === 'completed' && task.receiptStatus === 'reconciled' && backflowKey !== 'confirmed';
   const main = `
     ${crumbs([{ label: '交付交换与回流', href: '#/p4-delivery-exchange' }, { label: task.id }])}
     <div class="page-hero">
@@ -992,7 +1045,9 @@ PAGES.deliveryTaskDetail = function (id) {
               : ''}
             ${canConfirmBackflow
               ? `<button onclick="window.ACTIONS.confirmBackflow('${task.id}')" class="gov-btn gov-btn-primary">确认回流共享</button>`
-              : `${actionNotice('当前还未满足回流确认条件：需先完成汇总确认，且不能重复确认已生效回流')}`}
+              : backflowKey === 'confirmed'
+                ? `${actionNotice('回流确认已生效')}`
+                : `${actionNotice('当前还未满足回流确认条件：需先完成汇总确认和交付回执对账，且不能重复确认已生效回流')}`}
             <a href="#/p5-provider" class="gov-btn gov-btn-secondary">查看模板治理</a>
           </div>
         `)}
