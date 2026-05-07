@@ -9,9 +9,6 @@ Public API:
 
     chat(messages, *, model, max_tokens=None, temperature=0.0, request_id=None) -> ChatResult
     embed(texts, *, model) -> list[list[float]]
-    rerank(query, documents, *, model, top_n=None) -> list[RerankHit]
-    asr(audio_bytes, *, model, language=None) -> AsrResult
-    ocr(image_bytes, *, model) -> OcrResult
 
 All callers MUST pass `request_id` so the audit bus can correlate the
 inference call with the originating Skill invocation (D4 audit trail).
@@ -21,7 +18,6 @@ catch incompatible upgrades when the Group SDK lands.
 """
 from __future__ import annotations
 
-import base64
 import json
 import os
 from dataclasses import dataclass, field
@@ -44,26 +40,6 @@ class ChatResult:
     model: str
     usage: dict[str, int] = field(default_factory=dict)
     finish_reason: str = "stop"
-
-
-@dataclass(frozen=True)
-class RerankHit:
-    index: int
-    score: float
-    document: str
-
-
-@dataclass(frozen=True)
-class AsrResult:
-    text: str
-    language: str
-    duration_seconds: float
-
-
-@dataclass(frozen=True)
-class OcrResult:
-    text: str
-    blocks: list[dict[str, Any]] = field(default_factory=list)
 
 
 class InferenceError(RuntimeError):
@@ -175,6 +151,8 @@ class InferenceClient:
         )
 
     def embed(self, texts: list[str], *, model: str) -> list[list[float]]:
+        # Legacy evidence: standardservice `/syncModel2Vector` writes vectors via RecommendAgentService
+        # (`/add` and `/query`) to an external Python vector service.
         resolved_model = self._resolve_model(model)
         response = self._post_json("/v1/embeddings", {"model": resolved_model, "input": texts})
         rows = response.get("data")
@@ -187,83 +165,6 @@ class InferenceClient:
                 raise InferenceError("inference embeddings response has invalid embedding")
             vectors.append([float(v) for v in embedding])
         return vectors
-
-    def rerank(
-        self,
-        query: str,
-        documents: list[str],
-        *,
-        model: str,
-        top_n: int | None = None,
-    ) -> list[RerankHit]:
-        embeddings = self.embed([query, *documents], model=model)
-        if len(embeddings) < 2:
-            return []
-        query_vec = embeddings[0]
-
-        def _score(vec: list[float]) -> float:
-            return float(sum(a * b for a, b in zip(query_vec, vec, strict=False)))
-
-        hits = [RerankHit(index=i, score=_score(vec), document=documents[i]) for i, vec in enumerate(embeddings[1:])]
-        hits.sort(key=lambda h: h.score, reverse=True)
-        return hits[: top_n or len(hits)]
-
-    def asr(self, audio_bytes: bytes, *, model: str, language: str | None = None) -> AsrResult:
-        resolved_model = self._resolve_model(model)
-        payload: dict[str, Any] = {
-            "model": resolved_model,
-            "audio_base64": base64.b64encode(audio_bytes).decode("ascii"),
-        }
-        if language:
-            payload["language"] = language
-        response = self._post_json("/v1/audio/transcriptions", payload)
-        text = response.get("text")
-        if not isinstance(text, str):
-            raise InferenceError("inference asr response missing text")
-        language_value = response.get("language")
-        duration_value = response.get("duration_seconds")
-        return AsrResult(
-            text=text,
-            language=language_value if isinstance(language_value, str) and language_value else (language or "zh-CN"),
-            duration_seconds=float(duration_value) if isinstance(duration_value, (int, float)) else 0.0,
-        )
-
-    def ocr(self, image_bytes: bytes, *, model: str) -> OcrResult:
-        resolved_model = self._resolve_model(model)
-        response = self._post_json(
-            "/v1/chat/completions",
-            {
-                "model": resolved_model,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": "Extract all visible text from this image."},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/png;base64,{base64.b64encode(image_bytes).decode('ascii')}"
-                                },
-                            },
-                        ],
-                    }
-                ],
-                "temperature": 0.0,
-            },
-        )
-        choices = response.get("choices")
-        if not isinstance(choices, list) or not choices:
-            raise InferenceError("inference ocr response missing choices")
-        first = choices[0] if isinstance(choices[0], dict) else {}
-        message = first.get("message") if isinstance(first, dict) else {}
-        content = message.get("content") if isinstance(message, dict) else ""
-        if isinstance(content, list):
-            text = "\n".join(
-                str(part.get("text") or "") for part in content if isinstance(part, dict) and part.get("type") == "text"
-            ).strip()
-        else:
-            text = str(content or "")
-        return OcrResult(text=text, blocks=[])
 
 
 _default_client: InferenceClient | None = None
@@ -284,13 +185,3 @@ def embed(texts: list[str], **kwargs: Any) -> list[list[float]]:
     return get_client().embed(texts, **kwargs)
 
 
-def rerank(query: str, documents: list[str], **kwargs: Any) -> list[RerankHit]:
-    return get_client().rerank(query, documents, **kwargs)
-
-
-def asr(audio_bytes: bytes, **kwargs: Any) -> AsrResult:
-    return get_client().asr(audio_bytes, **kwargs)
-
-
-def ocr(image_bytes: bytes, **kwargs: Any) -> OcrResult:
-    return get_client().ocr(image_bytes, **kwargs)
