@@ -90,11 +90,14 @@ class BrainService:
 
     @staticmethod
     def _validate_required_input(skill_id: str, manifest: dict[str, Any], payload: dict[str, Any]) -> None:
-        # JSON Schema "required" semantics: key must be present (any value, including null
-        # or empty string). Value-shape constraints belong to skill bodies or future schema
-        # validators (minLength, pattern, etc.). Keeping this strict to "key presence"
-        # avoids surprising clients that pass deliberate empty values.
-        required = (manifest.get("input_schema") or {}).get("required") or []
+        # JSON Schema "required" = key presence; value-shape constraints belong elsewhere.
+        # `confirmed` is intentionally skipped: it's a control signal whose absence is handled
+        # by _enforce_manifest_policy (human_confirmation_required → ConfirmationRequiredError
+        # → HTTP 409), not a 400 missing-field error.
+        required = [
+            k for k in ((manifest.get("input_schema") or {}).get("required") or [])
+            if k != "confirmed"
+        ]
         missing = [k for k in required if k not in payload]
         if missing:
             raise BrainServiceError(
