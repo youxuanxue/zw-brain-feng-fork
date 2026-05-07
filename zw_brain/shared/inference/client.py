@@ -21,13 +21,12 @@ catch incompatible upgrades when the Group SDK lands.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import base64
 import json
 import os
+from dataclasses import dataclass, field
 from typing import Any
 from urllib import error, request
-
 
 DEFAULT_INFERENCE_MODEL = "claude-sonnet-4-7"
 
@@ -113,7 +112,11 @@ class InferenceClient:
             with request.urlopen(req, timeout=self._timeout_seconds) as resp:
                 body = resp.read().decode("utf-8")
         except error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="ignore")
+            detail = ""
+            try:
+                detail = exc.read().decode("utf-8", errors="ignore")
+            except Exception:
+                detail = ""
             raise InferenceError(f"inference http {exc.code}: {detail or exc.reason}") from exc
         except error.URLError as exc:
             raise InferenceError(f"inference network error: {exc.reason}") from exc
