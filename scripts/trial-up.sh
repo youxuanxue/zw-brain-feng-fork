@@ -28,6 +28,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PYTHON="$REPO_ROOT/.venv/bin/python"
 DB_PATH="$REPO_ROOT/.data/zw_brain.db"
+STATE_PATH="$REPO_ROOT/.data/brain_state.json"
 REPORT_PATH="$REPO_ROOT/.data/trial-up-report.json"
 REST_LOG="$REPO_ROOT/.data/trial-up-rest.log"
 REST_HOST="${ZW_BRAIN_REST_HOST:-127.0.0.1}"
@@ -95,8 +96,8 @@ step "step 1/6 clean DB"
 if [[ "$DO_IMPORT" == 0 ]]; then
     warn "--skip-import: leaving DB as-is (clean step skipped to avoid empty DB)"
 elif [[ "$DO_RESET" == 1 ]]; then
-    rm -f "$DB_PATH"
-    ok "removed $DB_PATH"
+    rm -f "$DB_PATH" "$STATE_PATH"
+    ok "removed $DB_PATH and $STATE_PATH"
 else
     warn "--no-reset: keeping existing DB (probes mapper idempotency)"
 fi
@@ -150,12 +151,23 @@ fi
 # ---------------------------------------------------------------------------
 
 step "step 4/6 start REST in background"
+REST_HOST="$REST_HOST" REST_PORT="$REST_PORT" "$PYTHON" - <<'PY' >/dev/null 2>&1 \
+    || fail "REST port $REST_HOST:$REST_PORT is already in use"
+import os, socket
+with socket.socket() as s:
+    s.bind((os.environ["REST_HOST"], int(os.environ["REST_PORT"])))
+PY
 ( cd "$REPO_ROOT" && exec "$PYTHON" -m zw_brain.entry.rest.server ) \
     > "$REST_LOG" 2>&1 &
 REST_PID=$!
 
 i=0
 while (( i < 60 )); do
+    if ! kill -0 "$REST_PID" 2>/dev/null; then
+        echo "--- last 40 lines of $REST_LOG ---" >&2
+        tail -n 40 "$REST_LOG" >&2 || true
+        fail "REST process exited before becoming healthy"
+    fi
     if "$PYTHON" - <<PY >/dev/null 2>&1
 import urllib.request
 urllib.request.urlopen('http://$REST_HOST:$REST_PORT/health', timeout=1).read()
@@ -207,6 +219,48 @@ json.loads(body)
 PY
     ok "smoke $skill"
 done
+
+# J3 depth smoke: approve → supplement → summary → receipt → backflow → evidence replay.
+# REQ/DLV-2026-04-25-0011 is the stable true-data golden chain in the seed.
+REST_BASE="http://$REST_HOST:$REST_PORT" "$PYTHON" - <<'PY' >/dev/null 2>&1 \
+    || fail "J3 depth smoke failed"
+import json, os, urllib.request
+base = os.environ["REST_BASE"]
+
+def post(skill_id, payload):
+    req = urllib.request.Request(
+        f"{base}/api/skills/{skill_id}",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"content-type": "application/json"},
+        method="POST",
+    )
+    resp = urllib.request.urlopen(req, timeout=10)
+    body = json.loads(resp.read())
+    assert resp.status == 200, (skill_id, resp.status, body)
+    return body
+
+request_id = "REQ-2026-04-25-0011"
+task_id = "DLV-2026-04-25-0011"
+assert post("request.view", {"request_id": request_id})["status"] == "pending"
+assert post("delivery.view", {"task_id": task_id})["requestId"] == request_id
+approved = post("approval.review_decide", {"request_id": request_id, "decision": "approve", "role": "r2", "confirmed": True})
+assert approved["result"]["status"] == "supplementing"
+supplemented = post("supplement.submit", {"request_id": request_id, "role": "r3", "confirmed": True})
+assert supplemented["result"]["status"] == "summary-pending"
+summarized = post("summary.confirm", {"request_id": request_id, "role": "r5", "confirmed": True})
+assert summarized["result"]["status"] == "completed"
+reconciled = post("delivery.reconcile_receipt", {"task_id": task_id, "role": "r6", "confirmed": True})
+assert reconciled["result"]["receipt_status"] == "reconciled"
+confirmed = post("backflow.confirm", {"task_id": task_id, "role": "r6", "confirmed": True})
+assert confirmed["result"]["status"] == "completed"
+after = post("delivery.view", {"task_id": task_id})
+assert after["receiptStatus"] == "reconciled"
+assert after["backflow"]["status"] == "已确认"
+evidence = post("audit.replay_evidence_chain", {"dispute_id": "DSP-2026-04-25-0003"})
+assert evidence["evidenceChain"], "empty evidence chain"
+assert evidence["auditEvents"], "empty audit events"
+PY
+ok "smoke J3 approve → supplement → summary → receipt → backflow → evidence replay"
 
 # ---------------------------------------------------------------------------
 # step 6/6 all-skill health check

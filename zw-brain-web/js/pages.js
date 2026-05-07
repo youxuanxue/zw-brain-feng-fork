@@ -1135,10 +1135,22 @@ PAGES.disputeDetail = function (id) {
         <button onclick="window.ACTIONS.escalateDispute('${item.id}')" class="gov-btn gov-btn-secondary">升级治理</button>
       </div>
     `)}
-    ${item.evidenceReplay ? panel('原始证据与关联链路', '回放原始证据、审计事件和关联链路。', `
-      <div class="space-y-3 text-body">
-        ${(item.evidenceReplay.evidenceChain || []).map(step => `<div class="panel"><div class="panel-body"><div class="panel-title text-body">${step.label}</div><div class="mt-2 text-zw-mute">${step.time}</div><div class="mt-2 leading-7">${step.detail}</div></div></div>`).join('')}
-        <div class="panel"><div class="panel-body"><div class="panel-title text-body">关联审计事件</div><div class="mt-3 text-body-sm text-zw-mute leading-7">${(item.evidenceReplay.auditEvents || []).map(evt => `${evt.time} · ${evt.type} · ${evt.target}`).join('<br/>') || '—'}</div></div></div>
+    ${item.evidenceReplay ? panel('原始证据与关联链路', '回放原始证据、审计事件、工单和知识建议。', `
+      <div class="grid grid-cols-2 gap-4 text-body">
+        <div class="panel"><div class="panel-body"><div class="panel-title text-body">证据时间线</div><div class="timeline mt-4">
+          ${(item.evidenceReplay.evidenceChain || []).map(step => `<div class="timeline-item"><div class="timeline-time">${step.time}</div><div class="timeline-body"><div class="timeline-title">${step.label}</div><div class="timeline-note">${step.detail}</div></div></div>`).join('') || '<div class="text-zw-mute">暂无原始证据</div>'}
+        </div></div></div>
+        <div class="panel"><div class="panel-body"><div class="panel-title text-body">关联审计事件</div><div class="mt-4 space-y-3">
+          ${(item.evidenceReplay.auditEvents || []).map(evt => `<div><div class="flex items-center gap-2 flex-wrap"><span class="audit-chip">${evt.result}</span><span>${evt.time} · ${evt.type}</span></div><div class="mt-1 text-body-sm text-zw-mute leading-7">${evt.actor} → ${evt.target}</div></div>`).join('') || '<div class="text-zw-mute">暂无审计事件</div>'}
+        </div></div></div>
+      </div>
+      <div class="grid grid-cols-2 gap-4 text-body mt-4">
+        <div class="panel"><div class="panel-body"><div class="panel-title text-body">处置工单</div><div class="mt-3 space-y-3">
+          ${(item.evidenceReplay.tickets || []).map(ticket => `<div><div class="flex items-center justify-between gap-3"><strong>${ticket.title}</strong>${statusPill(ticket.status)}</div><div class="row-meta mt-1">${ticket.id} · ${ticket.owner}</div><div class="mt-2 text-body-sm text-zw-mute leading-7">${ticket.note}</div></div>`).join('') || '<div class="text-zw-mute">暂无处置工单</div>'}
+        </div></div></div>
+        <div class="panel"><div class="panel-body"><div class="panel-title text-body">知识建议</div><div class="mt-3 space-y-3">
+          ${(item.evidenceReplay.knowledgeArticles || []).map(article => `<div><strong>${article.title}</strong><div class="row-meta mt-1">${article.id}</div><div class="mt-2 text-body-sm text-zw-mute leading-7">${article.summary}</div></div>`).join('') || '<div class="text-zw-mute">暂无知识建议</div>'}
+        </div></div></div>
       </div>
     `) : ''}
   `;
