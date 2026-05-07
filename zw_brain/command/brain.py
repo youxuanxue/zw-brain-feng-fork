@@ -88,12 +88,29 @@ class BrainService:
     def manifests(self) -> dict[str, dict[str, Any]]:
         return load_manifests()
 
+    @staticmethod
+    def _validate_required_input(skill_id: str, manifest: dict[str, Any], payload: dict[str, Any]) -> None:
+        # JSON Schema "required" = key presence; value-shape constraints belong elsewhere.
+        # `confirmed` is intentionally skipped: it's a control signal whose absence is handled
+        # by _enforce_manifest_policy (human_confirmation_required → ConfirmationRequiredError
+        # → HTTP 409), not a 400 missing-field error.
+        required = [
+            k for k in ((manifest.get("input_schema") or {}).get("required") or [])
+            if k != "confirmed"
+        ]
+        missing = [k for k in required if k not in payload]
+        if missing:
+            raise BrainServiceError(
+                f"missing required input field(s): {', '.join(missing)} (skill: {skill_id})"
+            )
+
     def invoke_skill(self, skill_id: str, payload: dict[str, Any] | None = None) -> Any:
         payload = payload or {}
         try:
             manifest = get_manifest(skill_id)
         except KeyError as exc:
             raise UnknownSkillError(skill_id) from exc
+        self._validate_required_input(skill_id, manifest, payload)
         role = self._resolve_role(payload)
         self._ui_state["role"] = role
         self._enforce_manifest_policy(skill_id, manifest, role, payload)
