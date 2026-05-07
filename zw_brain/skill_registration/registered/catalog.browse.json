@@ -1,0 +1,55 @@
+{
+  "skill_id": "catalog.browse",
+  "slug": "catalog.browse",
+  "title": "浏览真目录条目",
+  "description": "按 lifecycle / kind / owner / 关键词分页浏览 canonical catalog_entry。默认过滤 retired 噪声和 api-group 节点，给 WebUI 提供客户级浏览入口。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "page": { "type": "integer", "minimum": 1, "default": 1 },
+      "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 },
+      "lifecycle": {
+        "type": "string",
+        "enum": ["active", "approved_pending_publish", "draft", "pending_review", "rejected", "all"],
+        "default": "active"
+      },
+      "kind": {
+        "type": "string",
+        "enum": ["real", "api-group", "all"],
+        "default": "real"
+      },
+      "owner_org_id": { "type": "string" },
+      "query": { "type": "string" },
+      "role": { "type": "string" }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["items", "total", "page", "limit"],
+    "properties": {
+      "items": { "type": "array", "items": { "type": "object" } },
+      "total": { "type": "integer", "minimum": 0 },
+      "page": { "type": "integer", "minimum": 1 },
+      "limit": { "type": "integer", "minimum": 1 }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-default",
+  "execution_binding": "builtin",
+  "compatibility": ["webui", "api", "cli", "mcp", "a2a"],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "catalog.browse"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": ["catalog.browse.execute"],
+  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "registry_source": "internal",
+  "tags": ["catalog", "browse", "read"]
+}

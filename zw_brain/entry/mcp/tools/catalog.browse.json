@@ -1,0 +1,61 @@
+{
+  "name": "catalog.browse",
+  "description": "按 lifecycle / kind / owner / 关键词分页浏览 canonical catalog_entry。默认过滤 retired 噪声和 api-group 节点，给 WebUI 提供客户级浏览入口。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "page": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 1
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100,
+        "default": 20
+      },
+      "lifecycle": {
+        "type": "string",
+        "enum": [
+          "active",
+          "approved_pending_publish",
+          "draft",
+          "pending_review",
+          "rejected",
+          "all"
+        ],
+        "default": "active"
+      },
+      "kind": {
+        "type": "string",
+        "enum": [
+          "real",
+          "api-group",
+          "all"
+        ],
+        "default": "real"
+      },
+      "owner_org_id": {
+        "type": "string"
+      },
+      "query": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "catalog.browse.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

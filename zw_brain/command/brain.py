@@ -292,6 +292,15 @@ class BrainService:
                 return self.query_catalog_model_fields(str(payload["model_code"]))
             case "catalog.entry.query":
                 return self.query_catalog_entries(query=payload.get("query"), catalog_code=payload.get("catalog_code"))
+            case "catalog.browse":
+                return self.browse_catalog_entries(
+                    page=payload.get("page"),
+                    limit=payload.get("limit"),
+                    lifecycle=payload.get("lifecycle"),
+                    kind=payload.get("kind"),
+                    owner_org_id=payload.get("owner_org_id"),
+                    query=payload.get("query"),
+                )
             case "resource.asset.query":
                 return self.query_resource_assets(resource_code=payload.get("resource_code"))
             case "application.resource.submit":
@@ -1394,23 +1403,22 @@ class BrainService:
         return provider
 
     def get_resource(self, resource_id: str) -> dict[str, Any]:
-        resource = copy.deepcopy(self._resource_by_id(resource_id))
         store = self._state_store.database_store
+        snapshot_miss = False
+        try:
+            resource = copy.deepcopy(self._resource_by_id(resource_id))
+        except NotFoundError:
+            if store is None:
+                raise
+            snapshot_miss = True
+            resource = {}
         if store is None:
             return resource
         record = store.catalog_repo.get_entry(resource_id)
         if record is not None:
-            resource = copy.deepcopy(record.summary_json)
-            resource["id"] = record.catalog_code
-            resource["name"] = record.title
-            resource["status"] = record.lifecycle_status
-            if record.owner_org_id:
-                resource["provider"] = record.owner_org_id
-            resource["repository"] = {
-                "catalogCode": record.catalog_code,
-                "lifecycleStatus": record.lifecycle_status,
-                "ownerOrgId": record.owner_org_id,
-            }
+            return self._catalog_record_to_card_dict(record)
+        if snapshot_miss:
+            raise NotFoundError(resource_id)
         return resource
 
     def get_request(self, request_id: str) -> dict[str, Any]:
@@ -1904,21 +1912,11 @@ class BrainService:
                         }
                     )
         else:
-            records = store.catalog_repo.search_entries(query)
-            resources = []
-            for record in records:
-                item = copy.deepcopy(record.summary_json)
-                item["id"] = record.catalog_code
-                item["name"] = record.title
-                item["status"] = record.lifecycle_status
-                if record.owner_org_id:
-                    item["provider"] = record.owner_org_id
-                item["repository"] = {
-                    "catalogCode": record.catalog_code,
-                    "lifecycleStatus": record.lifecycle_status,
-                    "ownerOrgId": record.owner_org_id,
-                }
-                resources.append(item)
+            if not query:
+                resources = [copy.deepcopy(item) for item in self._snapshot["discovery"]["resources"]]
+            else:
+                records = store.catalog_repo.search_entries(query)
+                resources = [self._catalog_record_to_card_dict(record) for record in records]
         page = max(page, 1)
         page_size = 20
         start = (page - 1) * page_size
@@ -1979,6 +1977,47 @@ class BrainService:
         if catalog_code:
             entries = [item for item in entries if item["catalog_code"] == str(catalog_code)]
         return {"items": entries, "total": len(entries)}
+
+    def browse_catalog_entries(
+        self,
+        *,
+        page: Any = None,
+        limit: Any = None,
+        lifecycle: Any = None,
+        kind: Any = None,
+        owner_org_id: Any = None,
+        query: Any = None,
+    ) -> dict[str, Any]:
+        """Paginated browse of catalog_entry. Defaults filter out retired/draft
+        noise and api-group nodes so the WebUI surface stays customer-grade.
+
+        Filters:
+          - lifecycle: 'active' (default) | 'approved_pending_publish' | 'draft' | 'pending_review' | 'rejected' | 'all'
+          - kind: 'real' (default; excludes catalog_code starting with 'api-group:') | 'api-group' | 'all'
+        """
+        page = max(int(page or 1), 1)
+        limit = max(min(int(limit or 20), 100), 1)
+        lifecycle = str(lifecycle or "active")
+        kind = str(kind or "real")
+
+        store = self._state_store.database_store
+        repo = store.catalog_repo if store is not None else CatalogRepository()
+        records = repo.search_entries(str(query)) if query else repo.list_entries()
+
+        if lifecycle != "all":
+            records = [r for r in records if r.lifecycle_status == lifecycle]
+        if kind == "real":
+            records = [r for r in records if not r.catalog_code.startswith("api-group:")]
+        elif kind == "api-group":
+            records = [r for r in records if r.catalog_code.startswith("api-group:")]
+        if owner_org_id:
+            records = [r for r in records if r.owner_org_id == str(owner_org_id)]
+
+        total = len(records)
+        start = (page - 1) * limit
+        end = start + limit
+        items = [self._catalog_entry_record_to_dict(r) for r in records[start:end]]
+        return {"items": items, "total": total, "page": page, "limit": limit}
 
     def query_resource_assets(self, *, resource_code: Any = None) -> dict[str, Any]:
         store = self._state_store.database_store
@@ -2742,6 +2781,31 @@ class BrainService:
             "owner_org_id": record.owner_org_id,
             "region_code": record.region_code,
             "summary_json": copy.deepcopy(record.summary_json),
+        }
+
+    def _catalog_record_to_card_dict(self, record: Any) -> dict[str, Any]:
+        # Single source of truth for catalog_entry → discovery card shape.
+        # Used by get_resource (detail) and search_resources (list); diverging copies caused R-001.
+        summary = copy.deepcopy(record.summary_json or {})
+        return {
+            "id": record.catalog_code,
+            "name": record.title,
+            "status": record.lifecycle_status,
+            "provider": record.owner_org_id or summary.get("provider", "—"),
+            "zone": summary.get("zone", "真目录召回"),
+            "updatedAt": str(summary.get("updatedAt") or summary.get("updated_at") or record.updated_at.date().isoformat()),
+            "coverage": summary.get("coverage", "真目录"),
+            "score": int(summary.get("score", 70)),
+            "desc": str(summary.get("desc") or summary.get("summary") or record.title),
+            "fields": list(summary.get("fields", [])),
+            "explain": list(summary.get("explain", ["命中 canonical catalog_entry 真目录", f"生命周期：{record.lifecycle_status}"])),
+            "nextHints": list(summary.get("nextHints", ["查看目录详情"])),
+            "kind": summary.get("kind", "catalog_entry"),
+            "repository": {
+                "catalogCode": record.catalog_code,
+                "lifecycleStatus": record.lifecycle_status,
+                "ownerOrgId": record.owner_org_id,
+            },
         }
 
     def _schema_snapshot_record_to_dict(self, record: Any) -> dict[str, Any]:

@@ -62,6 +62,7 @@ PERMISSION_ROLES = {
     "catalog.model.query.execute": {"r1", "r2", "r6", "r7", "r8"},
     "catalog.model.field.query.execute": {"r1", "r2", "r6", "r7", "r8"},
     "catalog.entry.query.execute": {"r1", "r2", "r6", "r7", "r8"},
+    "catalog.browse.execute": {"r1", "r2", "r6", "r7", "r8"},
     "catalog.entry.create.execute": {"r6", "r7"},
     "catalog.entry.update.execute": {"r6", "r7"},
     "catalog.entry.create_draft.execute": {"r6", "r7"},

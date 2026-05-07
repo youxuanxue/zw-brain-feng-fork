@@ -44,6 +44,7 @@
 | POST | `/api/skills/capability.package.register` | 登记能力包 | `post_capability_package_register` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/capability.version.review` | 审核能力版本 | `post_capability_version_review` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/capability.version.submit` | 提交能力版本登记 | `post_capability_version_submit` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/catalog.browse` | 浏览真目录条目 | `get_catalog_browse` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/catalog.entry.create` | 创建目录条目 | `post_catalog_entry_create` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/catalog.entry.create_draft` | 创建目录草稿 | `post_catalog_entry_create_draft` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/catalog.entry.publish` | 发布目录条目 | `post_catalog_entry_publish` | `zw_brain/entry/rest/openapi.json` |
@@ -193,6 +194,7 @@
 | `approval.view` | read | False | 查看审批建议、风险、影响和异常项。 | True | `zw_brain/entry/mcp/tools/approval.view.json` |
 | `audit.list` | read | False | 查看主链路审计事件流与证据摘要。 | True | `zw_brain/entry/mcp/tools/audit.list.json` |
 | `audit.replay_evidence_chain` | read | False | 按争议标识回放原始证据、关联审计事件、工单与知识建议。 | True | `zw_brain/entry/mcp/tools/audit.replay_evidence_chain.json` |
+| `catalog.browse` | read | False | 按 lifecycle / kind / owner / 关键词分页浏览 canonical catalog_entry。默认过滤 retired 噪声和 api-group 节点，给 WebUI 提供客户级浏览入口。 | True | `zw_brain/entry/mcp/tools/catalog.browse.json` |
 | `catalog.entry.query` | read | False | 查询已进入 canonical 聚合的目录条目详情和列表。 | True | `zw_brain/entry/mcp/tools/catalog.entry.query.json` |
 | `catalog.group.query` | read | False | 查询目录分组投影，仅服务发现、专题和权限解释。 | True | `zw_brain/entry/mcp/tools/catalog.group.query.json` |
 | `catalog.model.field.query` | read | False | 查询目录/台账模板字段口径、敏感级别和策略摘要。 | True | `zw_brain/entry/mcp/tools/catalog.model.field.query.json` |
@@ -237,7 +239,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 162 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 163 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -274,6 +276,7 @@
 | `capability.package.register` | 登记能力包 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/capability.package.register.json` |
 | `capability.version.review` | 审核能力版本 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/capability.version.review.json` |
 | `capability.version.submit` | 提交能力版本登记 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/capability.version.submit.json` |
+| `catalog.browse` | 浏览真目录条目 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/catalog.browse.json` |
 | `catalog.entry.create` | 创建目录条目 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/catalog.entry.create.json` |
 | `catalog.entry.create_draft` | 创建目录草稿 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/catalog.entry.create_draft.json` |
 | `catalog.entry.publish` | 发布目录条目 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/catalog.entry.publish.json` |
@@ -422,9 +425,9 @@
 
 ## Statistics
 
-- REST endpoints: 164
+- REST endpoints: 165
 - CLI entries: 1
-- MCP tools: 44
+- MCP tools: 45
 - A2A agent cards: 1
-- Registered Skills: 176
+- Registered Skills: 177
 

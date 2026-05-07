@@ -1606,3 +1606,147 @@ def test_data_search_recalls_real_catalog_dictionary_titles() -> None:
         assert not any(it.get("kind") == "recall_dictionary" for it in empty_result["results"])
     finally:
         tmp.cleanup()
+
+
+def test_catalog_browse_paginates_active_real_entries() -> None:
+    """A new browse skill must paginate canonical catalog_entry rows with
+    sensible defaults: lifecycle=active filters out retired/draft noise, and
+    kind=real excludes the api-group:* nodes that bulk-import from
+    dsp_service.api_group inflates the table with."""
+    with TemporaryDirectory() as tmp:
+        import os
+
+        os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        ds = DatabaseStore()
+        audit_bus.configure_sink(ds.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=ds))
+
+        # Seed a few catalog entries spanning lifecycle + kind axes.
+        ds.catalog_repo.upsert_from_resource(
+            {"id": "cat-real-A", "name": "真业务目录 A", "status": "active", "provider": "org-x"}
+        )
+        ds.catalog_repo.upsert_from_resource(
+            {"id": "cat-real-B", "name": "真业务目录 B", "status": "active", "provider": "org-y"}
+        )
+        ds.catalog_repo.upsert_from_resource(
+            {"id": "cat-retired-X", "name": "废弃目录 X", "status": "retired", "provider": "org-x"}
+        )
+        ds.catalog_repo.upsert_from_resource(
+            {"id": "api-group:1", "name": "API 分组 1", "status": "active", "provider": "org-x"}
+        )
+
+        # Default call: lifecycle=active, kind=real, page=1, limit=20
+        result = service.invoke_skill("catalog.browse", {"role": "r1"})
+        assert result["page"] == 1
+        assert result["limit"] == 20
+        assert result["total"] >= 2
+        assert all(it["lifecycle_status"] == "active" for it in result["items"])
+        assert all(not it["catalog_code"].startswith("api-group:") for it in result["items"])
+        assert {"cat-real-A", "cat-real-B"}.issubset({it["catalog_code"] for it in result["items"]})
+        assert "cat-retired-X" not in {it["catalog_code"] for it in result["items"]}
+
+        # Pagination caps page size correctly.
+        page1 = service.invoke_skill("catalog.browse", {"role": "r1", "limit": 1})
+        assert page1["page"] == 1
+        assert page1["limit"] == 1
+        assert len(page1["items"]) == 1
+        page2 = service.invoke_skill("catalog.browse", {"role": "r1", "limit": 1, "page": 2})
+        assert page2["page"] == 2
+        assert page2["items"][0]["catalog_code"] != page1["items"][0]["catalog_code"]
+
+        # limit clamps to 100 (defends against client passing absurd values).
+        clamped = service.invoke_skill("catalog.browse", {"role": "r1", "limit": 999})
+        assert clamped["limit"] == 100
+        # Negative limit clamps up to 1.
+        floor = service.invoke_skill("catalog.browse", {"role": "r1", "limit": -5})
+        assert floor["limit"] == 1
+
+        # kind=api-group surfaces only the api-group:* node
+        api_only = service.invoke_skill("catalog.browse", {"role": "r1", "kind": "api-group"})
+        assert all(it["catalog_code"].startswith("api-group:") for it in api_only["items"])
+        assert api_only["total"] >= 1
+
+        # lifecycle=retired surfaces the retired entry
+        retired_only = service.invoke_skill("catalog.browse", {"role": "r1", "lifecycle": "retired"})
+        assert "cat-retired-X" in {it["catalog_code"] for it in retired_only["items"]}
+
+
+def test_catalog_resource_view_opens_catalog_entry_not_in_curated_cards() -> None:
+    """Browse rows are catalog_entry records, not necessarily one of the 12 curated cards.
+    Detail links must resolve through the repository instead of falling back to the first card.
+    """
+    tmp, service = make_database_service()
+    try:
+        store = service._state_store.database_store
+        assert store is not None
+        store.catalog_repo.upsert_from_resource(
+            {"id": "api-group:detail", "name": "浏览详情测试分组", "status": "active", "provider": "platform"}
+        )
+
+        detail = service.invoke_skill("catalog.resource_view", {"resource_id": "api-group:detail", "role": "r1"})
+        assert detail["id"] == "api-group:detail"
+        assert detail["name"] == "浏览详情测试分组"
+        assert detail["explain"]
+        assert detail["nextHints"]
+        assert detail["repository"]["catalogCode"] == "api-group:detail"
+    finally:
+        tmp.cleanup()
+
+
+def test_catalog_resource_view_raises_when_neither_snapshot_nor_db_has_id() -> None:
+    """R-002: Snapshot AND DB double-miss must surface as NotFoundError, not silently
+    return {}. Otherwise the WebUI's resourceById fallback masquerades the failure as
+    'first curated card', and detail page renders ${item.name} as undefined."""
+    from zw_brain.command.brain import NotFoundError
+
+    tmp, service = make_database_service()
+    try:
+        raised = False
+        try:
+            service.invoke_skill(
+                "catalog.resource_view",
+                {"resource_id": "does-not-exist-anywhere", "role": "r1"},
+            )
+        except NotFoundError:
+            raised = True
+        assert raised, "expected NotFoundError when resource is missing in both snapshot and DB"
+    finally:
+        tmp.cleanup()
+
+
+def test_data_search_empty_query_keeps_curated_cards_in_database_mode() -> None:
+    """P2 discovery first render passes an empty query. In DB mode it must keep
+    the curated 12-card homepage, not dump every catalog_entry into the card
+    renderer (catalog_entry rows lack explain/nextHints/score and would white-screen).
+    """
+    tmp, service = make_database_service()
+    try:
+        result = service.invoke_skill("data.search", {"query": "", "role": "r1"})
+        assert result["total"] == 12
+        assert all({"explain", "nextHints", "score", "coverage", "updatedAt"} <= set(item) for item in result["results"])
+        assert any(item["id"] == "res-jbxx-ledger" for item in result["results"])
+    finally:
+        tmp.cleanup()
+
+
+def test_data_search_database_results_are_card_shaped() -> None:
+    tmp, service = make_database_service()
+    try:
+        store = service._state_store.database_store
+        assert store is not None
+        store.catalog_repo.upsert_from_resource(
+            {"id": "cat-search-demo", "name": "教师资格目录", "status": "active", "provider": "org-teacher"}
+        )
+
+        result = service.invoke_skill("data.search", {"query": "教师资格", "role": "r1"})
+        hit = next(item for item in result["results"] if item["id"] == "cat-search-demo")
+        assert hit["name"] == "教师资格目录"
+        assert hit["explain"]
+        assert hit["nextHints"]
+        assert hit["score"] >= 1
+    finally:
+        tmp.cleanup()

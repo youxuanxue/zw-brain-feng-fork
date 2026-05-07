@@ -181,6 +181,73 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "catalog.browse",
+    "description": "按 lifecycle / kind / owner / 关键词分页浏览 canonical catalog_entry。默认过滤 retired 噪声和 api-group 节点，给 WebUI 提供客户级浏览入口。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.browse",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        },
+        "lifecycle": {
+          "type": "string",
+          "enum": [
+            "active",
+            "approved_pending_publish",
+            "draft",
+            "pending_review",
+            "rejected",
+            "all"
+          ],
+          "default": "active"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "real",
+            "api-group",
+            "all"
+          ],
+          "default": "real"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "catalog.browse.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "catalog.entry.query",
     "description": "查询已进入 canonical 聚合的目录条目详情和列表。",
     "protocol_type": "builtin_skill",

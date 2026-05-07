@@ -510,7 +510,13 @@ PAGES.discovery = function () {
       <aside class="col-span-3 space-y-5">
         ${panel('目录树', '按对象和主题找，不按后台系统找', `
           <div class="space-y-2 text-body">
-            ${window.RUNTIME_DISCOVERY.catalogTree.map(item => `<div class="flex justify-between py-2 border-b border-b-muted"><span>${item.name}</span><span class="text-zw-mute">${item.count}</span></div>`).join('')}
+            ${window.RUNTIME_DISCOVERY.catalogTree.map(item => {
+              const isCatalogEntries = (item.name || '').includes('共享目录条目');
+              const inner = `<span>${item.name}</span><span class="text-zw-mute">${item.count}</span>`;
+              return isCatalogEntries
+                ? `<a href="#/p2-discovery/catalog-browse" class="flex justify-between py-2 border-b border-b-muted hover:bg-zw-tint">${inner}</a>`
+                : `<div class="flex justify-between py-2 border-b border-b-muted">${inner}</div>`;
+            }).join('')}
           </div>
         `)}
         ${panel('当前缺口', '补齐这些问题后，可直接带入申请材料。', `
@@ -551,8 +557,86 @@ PAGES.discovery = function () {
   return shell('p2', main);
 };
 
+PAGES.catalogBrowse = function () {
+  const data = window.RUNTIME_CATALOG_BROWSE || { items: [], total: 0, page: 1, limit: 20 };
+  const filters = window.CATALOG_BROWSE_FILTERS || { page: 1, limit: 20, lifecycle: 'active', kind: 'real' };
+  const totalPages = Math.max(1, Math.ceil((data.total || 0) / (data.limit || 20)));
+
+  const lifecycleChip = (key, label) => `
+    <button onclick="window.ACTIONS.setCatalogBrowseFilter('lifecycle','${key}')"
+      class="chip ${filters.lifecycle === key ? 'chip-ok' : 'chip-default'}">${label}</button>`;
+  const kindChip = (key, label) => `
+    <button onclick="window.ACTIONS.setCatalogBrowseFilter('kind','${key}')"
+      class="chip ${filters.kind === key ? 'chip-ok' : 'chip-default'}">${label}</button>`;
+
+  const rows = (data.items || []).map(item => `
+    <div class="gov-list-row">
+      <div class="flex-1">
+        <div class="row-title">${escapeHtml(item.title || '(未命名)')}</div>
+        <div class="row-meta mt-1">${escapeHtml(item.catalog_code)} · ${escapeHtml(item.owner_org_id || '—')} · ${escapeHtml(item.lifecycle_status || '—')}</div>
+      </div>
+      <a href="#/p2-discovery/resource/${encodeURIComponent(item.catalog_code)}" class="row-actions">查看详情</a>
+    </div>`).join('');
+
+  const empty = data.total === 0 ? `<div class="text-body text-zw-mute py-6 text-center">当前筛选条件下无目录条目。试试切换 lifecycle 或 kind。</div>` : '';
+
+  const main = `
+    <div class="page-hero">
+      <div class="page-hero-eyebrow">P2 / 真目录浏览</div>
+      <h1 class="page-hero-title">真目录浏览（catalog_entry）</h1>
+      <div class="page-hero-subtitle">从 importer 灌入 zw-brain 的真业务目录中按 lifecycle 与 kind 分页浏览。当前 ${data.total || 0} 条命中（第 ${data.page || 1} / ${totalPages} 页）。</div>
+    </div>
+
+    <div class="panel mt-4">
+      <div class="panel-body">
+        <div class="panel-title">筛选</div>
+        <div class="panel-subtitle">默认显示 active 真业务目录；切换到 api-group 可看接口分组节点。</div>
+        <div class="mt-3 text-body-sm text-zw-mute">生命周期</div>
+        <div class="mt-2 flex flex-wrap gap-2">
+          ${lifecycleChip('active', '活跃')}
+          ${lifecycleChip('approved_pending_publish', '待发布')}
+          ${lifecycleChip('draft', '草稿')}
+          ${lifecycleChip('pending_review', '审核中')}
+          ${lifecycleChip('rejected', '已驳回')}
+          ${lifecycleChip('all', '全部')}
+        </div>
+        <div class="mt-4 text-body-sm text-zw-mute">类型</div>
+        <div class="mt-2 flex flex-wrap gap-2">
+          ${kindChip('real', '真业务目录')}
+          ${kindChip('api-group', 'API 分组')}
+          ${kindChip('all', '全部')}
+        </div>
+      </div>
+    </div>
+
+    <div class="panel mt-4">
+      <div class="panel-body">
+        <div class="panel-title">条目列表</div>
+        <div class="gov-list mt-3">${rows}</div>
+        ${empty}
+      </div>
+    </div>
+
+    <div class="panel mt-4">
+      <div class="panel-body flex items-center justify-between">
+        <div class="text-body-sm text-zw-mute">第 ${data.page || 1} / ${totalPages} 页 · 共 ${data.total || 0} 项</div>
+        <div class="flex gap-2">
+          <button onclick="window.ACTIONS.setCatalogBrowseFilter('page', Math.max(1, ${data.page || 1} - 1))"
+            class="gov-btn gov-btn-secondary" ${(data.page || 1) <= 1 ? 'disabled' : ''}>上一页</button>
+          <button onclick="window.ACTIONS.setCatalogBrowseFilter('page', Math.min(${totalPages}, ${data.page || 1} + 1))"
+            class="gov-btn gov-btn-secondary" ${(data.page || 1) >= totalPages ? 'disabled' : ''}>下一页</button>
+        </div>
+      </div>
+    </div>
+  `;
+  return shell('p2', main);
+};
+
 PAGES.resourceDetail = function (id) {
   const item = resourceById(id);
+  const approvalRate = item.approvalRate || '—';
+  const subscribers = item.subscribers ?? '—';
+  const fields = item.fields || [];
   const zoneId = item.zone === '营商环境专区' ? 'business' : item.zone === '治理减负专区' ? 'governance' : 'livelihood';
   const main = `
     ${crumbs([{ label: '数据资源发现', href: '#/p2-discovery' }, { label: item.name }])}
@@ -569,12 +653,12 @@ PAGES.resourceDetail = function (id) {
     ${renderInlineSummary('建议从法人模板发起复用申请，基层只补经营状态、走访时间和现场备注。', item.nextHints)}
 
     <div class="grid grid-cols-2 gap-5">
-      ${panel('核心字段与覆盖', '查看可直接复用的字段、来源和覆盖情况', `<div class="gov-list">${item.fields.map(field => `<div class="gov-list-row"><div class="row-title">${field}</div><div class="row-meta">标准字段 / 可预填</div></div>`).join('')}</div>`)}
+      ${panel('核心字段与覆盖', '查看可直接复用的字段、来源和覆盖情况', `<div class="gov-list">${fields.length ? fields.map(field => `<div class="gov-list-row"><div class="row-title">${field}</div><div class="row-meta">标准字段 / 可预填</div></div>`).join('') : '<div class="text-body text-zw-mute py-4">该真目录暂未抽取字段清单，可先查看目录元数据与来源。</div>'}</div>`)}
       ${panel('信任信息与动作', '把来源、覆盖和下一步说清楚，降低“我还要不要重新要数”的判断成本', `
         <div class="space-y-3 text-body">
           <div>覆盖情况：<strong>${item.coverage}</strong></div>
-          <div>历史审批通过率：<strong>${item.approvalRate}</strong></div>
-          <div>订阅 / 使用部门：<strong>${item.subscribers}</strong></div>
+          <div>历史审批通过率：<strong>${approvalRate}</strong></div>
+          <div>订阅 / 使用部门：<strong>${subscribers}</strong></div>
           <div class="text-zw-mute">推荐动作：先查看差异字段，再发起标准复用申请。</div>
         </div>
         <div class="mt-5 flex gap-3">

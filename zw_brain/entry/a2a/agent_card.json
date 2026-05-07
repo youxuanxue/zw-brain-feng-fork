@@ -29,6 +29,10 @@
       "mode": "read"
     },
     {
+      "id": "catalog.browse",
+      "mode": "read"
+    },
+    {
       "id": "catalog.entry.query",
       "mode": "read"
     },

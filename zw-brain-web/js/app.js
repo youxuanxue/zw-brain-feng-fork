@@ -19,6 +19,7 @@
   const ROUTES = [
     { test: /^#\/p1-workbench$/, page: 'workbench', nav: 'main' },
     { test: /^#\/p2-discovery$/, page: 'discovery', nav: 'main' },
+    { test: /^#\/p2-discovery\/catalog-browse$/, page: 'catalogBrowse', nav: 'main' },
     { test: /^#\/p2-discovery\/resource\/(.+)$/, page: 'resourceDetail', nav: 'main' },
     { test: /^#\/p3-request-flow$/, page: 'requestFlow', nav: 'main' },
     { test: /^#\/p3-request-flow\/request\/(.+)$/, page: 'requestDetail', nav: 'main' },
@@ -93,6 +94,8 @@
     window.RUNTIME_ZONES = snapshot.zones;
     window.RUNTIME_CAPABILITY_PACKAGES = snapshot.capability_packages;
     window.RUNTIME_DASHBOARD = snapshot.dashboard;
+    window.CATALOG_BROWSE_FILTERS = window.CATALOG_BROWSE_FILTERS || { page: 1, limit: 20, lifecycle: 'active', kind: 'real' };
+    window.RUNTIME_CATALOG_BROWSE = window.RUNTIME_CATALOG_BROWSE || { items: [], total: 0, page: 1, limit: 20 };
     const state = Object.assign({}, snapshot.state || {});
     currentRole = currentRole || state.role || 'r1';
     currentDiscoveryQuery = currentDiscoveryQuery || state.discoveryQuery || '';
@@ -120,6 +123,15 @@
         const result = await invokeRead('data.search', { query, page: 1 });
         window.RUNTIME_DISCOVERY.resources = result.results;
         window.RUNTIME_DISCOVERY.aiCopilot = result.summary;
+      } else if (route === '#/p2-discovery/catalog-browse') {
+        const filters = window.CATALOG_BROWSE_FILTERS || {};
+        const result = await invokeRead('catalog.browse', {
+          page: filters.page || 1,
+          limit: filters.limit || 20,
+          lifecycle: filters.lifecycle || 'active',
+          kind: filters.kind || 'real',
+        });
+        window.RUNTIME_CATALOG_BROWSE = result;
       } else if (route.startsWith('#/p2-discovery/resource/')) {
         const id = decodeURIComponent(route.split('/').pop());
         const resource = await invokeRead('catalog.resource_view', { resource_id: id });
@@ -329,6 +341,17 @@
         window.UI.toast('已按真实业务语义重排复用建议', 'success');
       } catch (err) {
         window.UI.toast(err.message || '检索失败', 'error');
+      }
+    },
+    async setCatalogBrowseFilter(key, value) {
+      const filters = window.CATALOG_BROWSE_FILTERS || (window.CATALOG_BROWSE_FILTERS = { page: 1, limit: 20, lifecycle: 'active', kind: 'real' });
+      filters[key] = value;
+      if (key !== 'page') filters.page = 1;
+      try {
+        window.RUNTIME_CATALOG_BROWSE = await invokeRead('catalog.browse', filters);
+        dispatch();
+      } catch (err) {
+        window.UI.toast(err.message || '浏览刷新失败', 'error');
       }
     },
     createRequest(resourceId) {
