@@ -88,12 +88,26 @@ class BrainService:
     def manifests(self) -> dict[str, dict[str, Any]]:
         return load_manifests()
 
+    @staticmethod
+    def _validate_required_input(skill_id: str, manifest: dict[str, Any], payload: dict[str, Any]) -> None:
+        # JSON Schema "required" semantics: key must be present (any value, including null
+        # or empty string). Value-shape constraints belong to skill bodies or future schema
+        # validators (minLength, pattern, etc.). Keeping this strict to "key presence"
+        # avoids surprising clients that pass deliberate empty values.
+        required = (manifest.get("input_schema") or {}).get("required") or []
+        missing = [k for k in required if k not in payload]
+        if missing:
+            raise BrainServiceError(
+                f"missing required input field(s): {', '.join(missing)} (skill: {skill_id})"
+            )
+
     def invoke_skill(self, skill_id: str, payload: dict[str, Any] | None = None) -> Any:
         payload = payload or {}
         try:
             manifest = get_manifest(skill_id)
         except KeyError as exc:
             raise UnknownSkillError(skill_id) from exc
+        self._validate_required_input(skill_id, manifest, payload)
         role = self._resolve_role(payload)
         self._ui_state["role"] = role
         self._enforce_manifest_policy(skill_id, manifest, role, payload)

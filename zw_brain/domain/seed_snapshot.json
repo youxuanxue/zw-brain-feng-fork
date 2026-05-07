@@ -803,7 +803,7 @@
       },
       {
         "name": "共享目录条目（dsp_catalog）",
-        "count": 1200
+        "count": 203
       },
       {
         "name": "组织 projection（dsp_bsp.pub_organ）",
@@ -936,11 +936,6 @@
           "lifecycle_status": "active"
         },
         {
-          "title": "中华人民共和国交通部共享信息",
-          "owner_org_id": "platform",
-          "lifecycle_status": "active"
-        },
-        {
           "title": "全省各设区城市AQI实时信息",
           "owner_org_id": "11370000MB284651XL",
           "lifecycle_status": "approved_pending_publish"
@@ -973,6 +968,11 @@
         {
           "title": "山东省社会组织注册登记信息",
           "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "普通中小学学籍学历数据信息",
+          "owner_org_id": "11360000014501340W",
           "lifecycle_status": "active"
         }
       ],
