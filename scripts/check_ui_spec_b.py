@@ -285,7 +285,7 @@ def require_catalog_metadata_capability_actions(app_js: str, errors: list[str]) 
     required = {
         "performWrite('application.resource.submit'": "resource application must use canonical application.resource.submit Capability",
         "performWrite('application.resource.review'": "resource approval must use canonical application.resource.review Capability",
-        "performWrite('delivery.access.grant'": "delivery authorization must use canonical delivery.access.grant Capability",
+        "performWrite('backflow.confirm'": "backflow confirmation must use canonical backflow.confirm Capability",
         "performWrite('catalog.entry.publish'": "catalog publish must use canonical catalog.entry.publish Capability",
         "performWrite('resource.asset.publish'": "resource publish must use canonical resource.asset.publish Capability",
     }
@@ -296,7 +296,6 @@ def require_catalog_metadata_capability_actions(app_js: str, errors: list[str]) 
     forbidden = {
         "performWrite('request.create'": "resource application must not use legacy request.create from the catalog/metadata journey",
         "performWrite('approval.review_decide'": "resource approval must not use legacy approval.review_decide from the catalog/metadata journey",
-        "performWrite('backflow.confirm'": "delivery authorization must not use backflow.confirm as the grant action",
     }
     for needle, message in forbidden.items():
         if needle in app_js:

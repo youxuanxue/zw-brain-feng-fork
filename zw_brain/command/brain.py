@@ -39,7 +39,7 @@ def _mask(payload: Any) -> Any:
     return apply_field_masks(payload, role=_DEFAULT_MASK_ROLE)
 from zw_brain.skill_registration.runtime import get_manifest, load_manifests
 
-DEFAULT_DISCOVERY_QUERY = "我要为本周营商环境专题复用法人单位基础信息台账模板，优先自动带出企业基础字段，只补现场差异字段。"
+DEFAULT_DISCOVERY_QUERY = "停车场信息"
 
 
 class BrainServiceError(RuntimeError):
@@ -3279,7 +3279,7 @@ class BrainService:
     def confirm_backflow(self, task_id: str, role: str, confirmed: bool) -> dict[str, Any]:
         task = self._delivery_by_id(task_id)
         request = self._request_by_id(task["requestId"])
-        if request["status"] != "completed" or task["backflow"]["status"] == "已确认":
+        if request["status"] != "completed" or task.get("receiptStatus") != "reconciled" or task["backflow"]["status"] == "已确认":
             raise InvalidStateError("delivery task is not ready for backflow confirmation")
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
