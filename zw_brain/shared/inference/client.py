@@ -9,9 +9,6 @@ Public API:
 
     chat(messages, *, model, max_tokens=None, temperature=0.0, request_id=None) -> ChatResult
     embed(texts, *, model) -> list[list[float]]
-    rerank(query, documents, *, model, top_n=None) -> list[RerankHit]
-    asr(audio_bytes, *, model, language=None) -> AsrResult
-    ocr(image_bytes, *, model) -> OcrResult
 
 All callers MUST pass `request_id` so the audit bus can correlate the
 inference call with the originating Skill invocation (D4 audit trail).
@@ -21,8 +18,13 @@ catch incompatible upgrades when the Group SDK lands.
 """
 from __future__ import annotations
 
+import json
+import os
 from dataclasses import dataclass, field
 from typing import Any
+from urllib import error, request
+
+DEFAULT_INFERENCE_MODEL = "claude-sonnet-4-7"
 
 
 @dataclass(frozen=True)
@@ -40,46 +42,68 @@ class ChatResult:
     finish_reason: str = "stop"
 
 
-@dataclass(frozen=True)
-class RerankHit:
-    index: int
-    score: float
-    document: str
-
-
-@dataclass(frozen=True)
-class AsrResult:
-    text: str
-    language: str
-    duration_seconds: float
-
-
-@dataclass(frozen=True)
-class OcrResult:
-    text: str
-    blocks: list[dict[str, Any]] = field(default_factory=list)
-
-
 class InferenceError(RuntimeError):
     """Raised when the inference platform refuses the call (auth / quota / model unknown)."""
 
 
 class InferenceClient:
-    """Thin facade.
+    def __init__(
+        self,
+        *,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        model: str | None = None,
+        timeout_seconds: float = 30.0,
+    ) -> None:
+        self._base_url = (base_url or os.getenv("INSPUR_INFERENCE_BASE_URL") or os.getenv("BASE_URL") or "").rstrip("/")
+        self._api_key = api_key or os.getenv("INSPUR_INFERENCE_API_KEY") or os.getenv("AUTH_TOKEN")
+        self._model = model or os.getenv("INSPUR_INFERENCE_MODEL") or os.getenv("MODEL") or DEFAULT_INFERENCE_MODEL
+        self._timeout_seconds = timeout_seconds
 
-    The current implementation is deterministic and local so tests do not need
-    network access. When the Group SDK lands, it should replace the internals
-    behind the same surface.
+    def _require_platform_config(self) -> None:
+        if not self._base_url:
+            raise InferenceError("inference base_url is required")
+        if not self._api_key:
+            raise InferenceError("inference auth token is required")
 
-    The local adapter honors `request_id` as the audit correlation key but
-    performs no real I/O.
-    """
+    def _resolve_model(self, model: str | None) -> str:
+        resolved = model or self._model
+        if not resolved:
+            raise InferenceError("inference model is required")
+        return resolved
 
-    def __init__(self, *, base_url: str | None = None, api_key: str | None = None) -> None:
-        # Real deployment reads from env (`INSPUR_INFERENCE_BASE_URL`, `INSPUR_INFERENCE_API_KEY`).
-        # The local adapter simply records what was passed for assertion in tests.
-        self._base_url = base_url
-        self._api_key = api_key
+    def _post_json(self, path: str, payload: dict[str, Any], *, request_id: str | None = None) -> dict[str, Any]:
+        self._require_platform_config()
+        req = request.Request(
+            f"{self._base_url}{path}",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self._api_key}",
+                **({"X-Request-ID": request_id} if request_id else {}),
+            },
+            method="POST",
+        )
+        try:
+            with request.urlopen(req, timeout=self._timeout_seconds) as resp:
+                body = resp.read().decode("utf-8")
+        except error.HTTPError as exc:
+            detail = ""
+            try:
+                detail = exc.read().decode("utf-8", errors="ignore")
+            except Exception:
+                detail = ""
+            raise InferenceError(f"inference http {exc.code}: {detail or exc.reason}") from exc
+        except error.URLError as exc:
+            raise InferenceError(f"inference network error: {exc.reason}") from exc
+
+        try:
+            parsed = json.loads(body) if body else {}
+        except json.JSONDecodeError as exc:
+            raise InferenceError("inference response is not valid json") from exc
+        if not isinstance(parsed, dict):
+            raise InferenceError("inference response must be a json object")
+        return parsed
 
     def chat(
         self,
@@ -92,46 +116,61 @@ class InferenceClient:
     ) -> ChatResult:
         if not request_id:
             raise InferenceError("request_id is required (D4 audit trail)")
-        # Local adapter: echo back the last user message reversed, plus model tag.
-        last_user = next((m.content for m in reversed(messages) if m.role == "user"), "")
+        resolved_model = self._resolve_model(model)
+        payload: dict[str, Any] = {
+            "model": resolved_model,
+            "messages": [{"role": m.role, "content": m.content} for m in messages],
+            "temperature": temperature,
+        }
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
+
+        response = self._post_json("/v1/chat/completions", payload, request_id=request_id)
+        choices = response.get("choices")
+        if not isinstance(choices, list) or not choices:
+            raise InferenceError("inference response missing choices")
+        first = choices[0] if isinstance(choices[0], dict) else {}
+        message = first.get("message") if isinstance(first, dict) else {}
+        content = message.get("content") if isinstance(message, dict) else ""
+        if not isinstance(content, str):
+            content = str(content)
+        usage_raw = response.get("usage")
+        usage: dict[str, int] = {}
+        if isinstance(usage_raw, dict):
+            for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
+                value = usage_raw.get(key)
+                if isinstance(value, int):
+                    usage[key] = value
+
+        finish_reason = first.get("finish_reason") if isinstance(first, dict) else None
         return ChatResult(
-            text=f"[mock:{model}] {last_user[::-1]}",
-            model=model,
-            usage={"prompt_tokens": sum(len(m.content) for m in messages), "completion_tokens": len(last_user)},
+            text=content,
+            model=str(response.get("model") or resolved_model),
+            usage=usage,
+            finish_reason=finish_reason if isinstance(finish_reason, str) and finish_reason else "stop",
         )
 
     def embed(self, texts: list[str], *, model: str) -> list[list[float]]:
-        return [[float(len(t) % 7) / 7.0] * 8 for t in texts]
-
-    def rerank(
-        self,
-        query: str,
-        documents: list[str],
-        *,
-        model: str,
-        top_n: int | None = None,
-    ) -> list[RerankHit]:
-        scored = sorted(
-            (RerankHit(index=i, score=1.0 / (1 + abs(len(d) - len(query))), document=d) for i, d in enumerate(documents)),
-            key=lambda h: h.score,
-            reverse=True,
-        )
-        return scored[: top_n or len(scored)]
-
-    def asr(self, audio_bytes: bytes, *, model: str, language: str | None = None) -> AsrResult:
-        return AsrResult(text="[mock asr]", language=language or "zh-CN", duration_seconds=float(len(audio_bytes)) / 16000.0)
-
-    def ocr(self, image_bytes: bytes, *, model: str) -> OcrResult:
-        return OcrResult(text="[mock ocr]", blocks=[])
+        # Legacy evidence: standardservice `/syncModel2Vector` writes vectors via RecommendAgentService
+        # (`/add` and `/query`) to an external Python vector service.
+        resolved_model = self._resolve_model(model)
+        response = self._post_json("/v1/embeddings", {"model": resolved_model, "input": texts})
+        rows = response.get("data")
+        if not isinstance(rows, list):
+            raise InferenceError("inference embeddings response missing data")
+        vectors: list[list[float]] = []
+        for row in rows:
+            embedding = row.get("embedding") if isinstance(row, dict) else None
+            if not isinstance(embedding, list) or not all(isinstance(v, (int, float)) for v in embedding):
+                raise InferenceError("inference embeddings response has invalid embedding")
+            vectors.append([float(v) for v in embedding])
+        return vectors
 
 
 _default_client: InferenceClient | None = None
 
 
 def get_client() -> InferenceClient:
-    """Process-wide singleton accessor. Tests can monkeypatch
-    `zw_brain.shared.inference.client._default_client` to inject a fixture.
-    """
     global _default_client
     if _default_client is None:
         _default_client = InferenceClient()
@@ -146,13 +185,3 @@ def embed(texts: list[str], **kwargs: Any) -> list[list[float]]:
     return get_client().embed(texts, **kwargs)
 
 
-def rerank(query: str, documents: list[str], **kwargs: Any) -> list[RerankHit]:
-    return get_client().rerank(query, documents, **kwargs)
-
-
-def asr(audio_bytes: bytes, **kwargs: Any) -> AsrResult:
-    return get_client().asr(audio_bytes, **kwargs)
-
-
-def ocr(image_bytes: bytes, **kwargs: Any) -> OcrResult:
-    return get_client().ocr(image_bytes, **kwargs)
