@@ -131,6 +131,119 @@ def test_cli_mcp_and_a2a_share_runtime_contract() -> None:
         runtime._service = None
 
 
+def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "zw_brain.db"
+        env = os.environ.copy()
+        env["ZW_BRAIN_DB_PATH"] = str(db_path)
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+        runtime._service = None
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+
+        run_module(
+            "-m",
+            "zw_brain.entry.cli.main",
+            "package.review_decide",
+            "--payload",
+            '{"package_id":"PKG-2026-04-25-001","decision":"approve","role":"r7","confirmed":true}',
+            env=env,
+        )
+        run_module(
+            "-m",
+            "zw_brain.entry.cli.main",
+            "package.register_version",
+            "--payload",
+            '{"package_id":"PKG-2026-04-25-001","role":"r7","confirmed":true}',
+            env=env,
+        )
+        run_module(
+            "-m",
+            "zw_brain.entry.cli.main",
+            "package.apply_tenant_policy",
+            "--payload",
+            '{"package_id":"PKG-2026-04-25-001","role":"r7","confirmed":true}',
+            env=env,
+        )
+
+        cli_allowed = run_module(
+            "-m",
+            "zw_brain.entry.cli.main",
+            "tenant.policy.evaluate",
+            "--payload",
+            '{"capability_id":"ledger.entity.base.read","surface":"api","role":"r7"}',
+            env=env,
+        )
+        cli_blocked = run_module(
+            "-m",
+            "zw_brain.entry.cli.main",
+            "tenant.policy.evaluate",
+            "--payload",
+            '{"capability_id":"ledger.entity.base.read","surface":"cli","role":"r7"}',
+            env=env,
+        )
+        cli_allowed_data = json.loads(cli_allowed.stdout)
+        cli_blocked_data = json.loads(cli_blocked.stdout)
+        assert cli_allowed_data["allowed"] is True
+        assert cli_allowed_data["decision_reason"] == "allowed_by_tenant_policy"
+        assert cli_blocked_data["allowed"] is False
+        assert cli_blocked_data["decision_reason"] == "surface_not_exposed"
+
+        mcp_allowed = run_module(
+            "-m",
+            "zw_brain.entry.mcp.server",
+            "call-tool",
+            "tenant.policy.evaluate",
+            "--payload",
+            '{"capability_id":"ledger.entity.base.read","surface":"api","role":"r7"}',
+            env=env,
+        )
+        mcp_blocked = run_module(
+            "-m",
+            "zw_brain.entry.mcp.server",
+            "call-tool",
+            "tenant.policy.evaluate",
+            "--payload",
+            '{"capability_id":"ledger.entity.base.read","surface":"mcp","role":"r7"}',
+            env=env,
+        )
+        mcp_allowed_data = json.loads(mcp_allowed.stdout)["result"]
+        mcp_blocked_data = json.loads(mcp_blocked.stdout)["result"]
+        assert mcp_allowed_data["allowed"] is True
+        assert mcp_allowed_data["decision_reason"] == "allowed_by_tenant_policy"
+        assert mcp_blocked_data["allowed"] is False
+        assert mcp_blocked_data["decision_reason"] == "surface_not_exposed"
+
+        a2a_allowed = run_module(
+            "-m",
+            "zw_brain.entry.a2a.server",
+            "invoke",
+            "tenant.policy.evaluate",
+            "--payload",
+            '{"capability_id":"ledger.entity.base.read","surface":"api","role":"r7"}',
+            env=env,
+        )
+        a2a_blocked = run_module(
+            "-m",
+            "zw_brain.entry.a2a.server",
+            "invoke",
+            "tenant.policy.evaluate",
+            "--payload",
+            '{"capability_id":"ledger.entity.base.read","surface":"a2a","role":"r7"}',
+            env=env,
+        )
+        a2a_allowed_data = json.loads(a2a_allowed.stdout)["result"]
+        a2a_blocked_data = json.loads(a2a_blocked.stdout)["result"]
+        assert a2a_allowed_data["allowed"] is True
+        assert a2a_allowed_data["decision_reason"] == "allowed_by_tenant_policy"
+        assert a2a_blocked_data["allowed"] is False
+        assert a2a_blocked_data["decision_reason"] == "surface_not_exposed"
+
+        runtime._service = None
+
+
 def test_rest_main_reads_host_and_port_from_env(monkeypatch) -> None:
     captured = {}
 

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -10,6 +13,7 @@ from zw_brain.command.brain import (
     BrainServiceError,
     ConfirmationRequiredError,
     InvalidStateError,
+    InvalidTokenError,
 )
 from zw_brain.shared import audit as audit_bus
 from zw_brain.shared.audit import AuditWriteError
@@ -38,6 +42,15 @@ def make_database_service() -> tuple[TemporaryDirectory[str], BrainService]:
     database_store = DatabaseStore()
     audit_bus.configure_sink(database_store.append_audit_event)
     return tmp, BrainService(state_store=StateStore(database_store=database_store))
+
+
+def _encode_mock_jwt(payload: dict[str, object]) -> str:
+    def _b64(data: dict[str, object]) -> str:
+        return base64.urlsafe_b64encode(json.dumps(data, separators=(",", ":")).encode("utf-8")).decode("utf-8").rstrip("=")
+
+    header = _b64({"alg": "none", "typ": "JWT"})
+    body = _b64(payload)
+    return f"{header}.{body}.sig"
 
 
 def test_requires_confirmation_for_write_skill() -> None:
@@ -1582,6 +1595,232 @@ def test_p1_governance_and_topic_package_capabilities_with_database() -> None:
             assert conn.execute(text("select count(*) from audit_event where skill_id like 'topic.package.%'")).scalar_one() >= 10
             assert conn.execute(text("select count(*) from anchor_outbox where skill_id like 'topic.package.%'")).scalar_one() >= 5
             assert conn.execute(text("select count(*) from legacy_policy_mapping_candidate")).scalar_one() == 1
+
+
+def test_p1_governance_actor_projection_accepts_mock_iaf_claims() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        from zw_brain.shared.database_store import DatabaseStore
+
+        os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
+        os.environ["ZW_BRAIN_IAF_ISSUER"] = "https://iaf.example/realms/picp"
+        os.environ["ZW_BRAIN_IAF_AUDIENCE"] = "zw-brain"
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        claims = {
+            "sub": "iaf-user-001",
+            "iss": "https://iaf.example/realms/picp",
+            "aud": ["zw-brain"],
+            "exp": int((datetime.now(UTC) + timedelta(minutes=10)).timestamp()),
+            "state": "s-1",
+            "nonce": "n-1",
+            "preferred_username": "zhangsan",
+            "project_id": "sd-default",
+            "project": "shandong",
+            "realm_access": {"roles": ["ACCOUNT_ADMIN", "r7"]},
+            "resource_access": {"zw-brain": {"roles": ["r7"]}},
+        }
+        token = _encode_mock_jwt(claims)
+
+        result = service.invoke_skill(
+            "actor.projection.sync",
+            {
+                "iaf_claims": token,
+                "expected_state": "s-1",
+                "expected_nonce": "n-1",
+                "tenant_id": "default",
+                "org_code": "ORG-YBT",
+                "role": "r7",
+                "confirmed": True,
+            },
+        )
+
+        item = result["result"]["items"][0]
+        snapshot = result["result"]["actor_snapshots"][0]
+        assert item["external_actor_id"] == "iaf-user-001"
+        assert "r7" in item["role_codes_json"]
+        assert snapshot["subject"] == "iaf-user-001"
+        assert snapshot["account_flags"]["account_admin"] is True
+
+
+def test_p1_governance_actor_projection_rejects_nonce_mismatch() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        from zw_brain.shared.database_store import DatabaseStore
+
+        os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
+        os.environ["ZW_BRAIN_IAF_ISSUER"] = "https://iaf.example/realms/picp"
+        os.environ["ZW_BRAIN_IAF_AUDIENCE"] = "zw-brain"
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        token = _encode_mock_jwt(
+            {
+                "sub": "iaf-user-002",
+                "iss": "https://iaf.example/realms/picp",
+                "aud": ["zw-brain"],
+                "exp": int((datetime.now(UTC) + timedelta(minutes=10)).timestamp()),
+                "state": "s-2",
+                "nonce": "n-2",
+            }
+        )
+
+        try:
+            service.invoke_skill(
+                "actor.projection.sync",
+                {
+                    "iaf_claims": token,
+                    "expected_state": "s-2",
+                    "expected_nonce": "bad",
+                    "tenant_id": "default",
+                    "role": "r7",
+                    "confirmed": True,
+                },
+            )
+        except InvalidTokenError:
+            pass
+        else:
+            raise AssertionError("nonce mismatch must be rejected")
+
+
+def test_p1_governance_legacy_import_supports_dry_run_and_idempotent_apply() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        from zw_brain.shared.database_store import DatabaseStore
+
+        os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        payload = {
+            "mode": "dry-run",
+            "rows": [
+                {
+                    "legacy_permission_ref": "dsp-bsp:sharezone:publish",
+                    "legacy_role_ref": "ROLE_TOPIC_ADMIN",
+                    "capability_id": "topic.package.publish",
+                    "surface": "webui",
+                    "source_ref": "dsp-bsp:permission:sharezone:publish",
+                    "evidence_json": {"token": "drop", "source": "legacy-bsp"},
+                },
+                {
+                    "legacy_permission_ref": "dsp-bsp:unknown",
+                    "legacy_role_ref": "ROLE_UNKNOWN",
+                    "capability_id": "unknown.capability",
+                    "surface": "webui",
+                },
+                {
+                    "legacy_permission_ref": "dsp-bsp:iam-missing",
+                    "legacy_role_ref": "ROLE_X",
+                    "capability_id": "topic.package.publish",
+                    "candidate_status": "iam_account_missing",
+                },
+            ],
+            "role": "r7",
+            "confirmed": True,
+        }
+
+        dry_run = service.invoke_skill("legacy.bsp.mapping.import", payload)
+        assert dry_run["result"]["mode"] == "dry-run"
+        assert dry_run["result"]["summary"]["source_count"] == 3
+        assert dry_run["result"]["summary"]["projection_count"] == 1
+        assert dry_run["result"]["summary"]["mapping_count"] == 1
+        assert dry_run["result"]["summary"]["skip_count"] == 1
+        assert dry_run["result"]["summary"]["failure_count"] == 1
+        assert dry_run["result"]["summary"]["blockers"]["iam_account_missing"] == 1
+        assert dry_run["result"]["summary"]["blockers"]["unmapped_permission"] == 1
+
+        apply_payload = dict(payload)
+        apply_payload["mode"] = "apply"
+        applied_first = service.invoke_skill("legacy.bsp.mapping.import", apply_payload)
+        applied_second = service.invoke_skill("legacy.bsp.mapping.import", apply_payload)
+        assert applied_first["result"]["summary"]["projection_count"] == applied_second["result"]["summary"]["projection_count"]
+
+        mappings = database_store.legacy_mapping_repo.list_mappings(canonical_type="capability")
+        assert len(mappings) == 1
+        assert mappings[0].canonical_ref == "topic.package.publish"
+        assert mappings[0].evidence_json == {"source": "legacy-bsp"}
+
+
+def test_p1_governance_tenant_policy_evaluate_fail_closed_surface_matrix() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        from zw_brain.shared.database_store import DatabaseStore
+
+        os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        service.invoke_skill(
+            "package.review_decide",
+            {
+                "package_id": "PKG-2026-04-25-001",
+                "decision": "approve",
+                "role": "r7",
+                "confirmed": True,
+            },
+        )
+        service.invoke_skill(
+            "package.register_version",
+            {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True},
+        )
+        service.invoke_skill(
+            "package.apply_tenant_policy",
+            {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True},
+        )
+
+        by_surface = {
+            surface: service.invoke_skill(
+                "tenant.policy.evaluate",
+                {
+                    "capability_id": "ledger.entity.base.read",
+                    "surface": surface,
+                    "role": "r7",
+                },
+            )
+            for surface in ["webui", "api", "cli", "mcp", "a2a"]
+        }
+
+        assert by_surface["api"]["allowed"] is True
+        assert by_surface["api"]["source"] == "tenant_capability_policy"
+        assert by_surface["api"]["decision_reason"] == "allowed_by_tenant_policy"
+        for surface in ["webui", "cli", "mcp", "a2a"]:
+            assert by_surface[surface]["allowed"] is False
+            assert by_surface[surface]["source"] == "tenant_capability_policy"
+            assert by_surface[surface]["decision_reason"] == "surface_not_exposed"
+
+        no_policy = service.invoke_skill(
+            "tenant.policy.evaluate",
+            {
+                "capability_id": "topic.package.publish",
+                "surface": "webui",
+                "role": "r7",
+            },
+        )
+        assert no_policy["allowed"] is False
+        assert no_policy["source"] == "fail_closed"
+        assert no_policy["decision_reason"] == "missing_tenant_policy"
 
 
 def test_p1_topic_package_publish_requires_approved_visibility() -> None:

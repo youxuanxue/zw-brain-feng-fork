@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import copy
 import hashlib
 import json
@@ -9,7 +10,7 @@ import json
 # visible PII (name / phone / email / id / address) is ingested raw, masked on
 # read. Set ZW_BRAIN_MASK_ROLE=internal_admin to opt up (audit replay only).
 import os as _os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import zw_brain.shared.audit as audit_bus
@@ -35,6 +36,8 @@ _DEFAULT_MASK_ROLE = _os.environ.get("ZW_BRAIN_MASK_ROLE", "external")
 # point read paths at the legacy-imported corpus. Tests keep the historical
 # "default" tenant so existing fixtures don't drift.
 _DEFAULT_TENANT_ID = _os.environ.get("ZW_BRAIN_TENANT_ID", "default")
+_IAF_EXPECTED_ISSUER = _os.environ.get("ZW_BRAIN_IAF_ISSUER", "")
+_IAF_EXPECTED_AUDIENCE = _os.environ.get("ZW_BRAIN_IAF_AUDIENCE", _os.environ.get("ZW_BRAIN_IAF_CLIENT_ID", "zw-brain"))
 
 
 def _mask(payload: Any) -> Any:
@@ -66,6 +69,10 @@ class InvalidStateError(BrainServiceError):
 
 
 class NotFoundError(BrainServiceError):
+    pass
+
+
+class InvalidTokenError(BrainServiceError):
     pass
 
 
@@ -901,38 +908,102 @@ class BrainService:
 
     def evaluate_tenant_policy(self, payload: dict[str, Any]) -> dict[str, Any]:
         tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
-        capability_id = str(payload.get("capability_id", payload.get("skill_id", "")))
+        capability_id = str(payload.get("capability_id", payload.get("skill_id", payload.get("capability_slug", ""))))
         surface = str(payload.get("surface", "webui"))
         role_code = str(payload.get("role_code", payload.get("role", self._ui_state["role"])))
+        actor_snapshot = self._safe_json(payload.get("actor_snapshot") or {})
+        org_snapshot = self._safe_json(payload.get("org_snapshot") or {})
+        risk_context = self._safe_json(payload.get("risk_context") or {})
+        requested_role_codes = [str(item) for item in payload.get("role_codes") or []]
+
+        role_codes = sorted({role_code, *requested_role_codes, *[str(item) for item in actor_snapshot.get("role_codes") or []]})
+        if not capability_id:
+            return {
+                "tenant_id": tenant_id,
+                "capability_id": capability_id,
+                "surface": surface,
+                "role_code": role_code,
+                "role_codes": role_codes,
+                "allowed": False,
+                "source": "fail_closed",
+                "decision_reason": "missing_capability_id",
+                "policy_status": None,
+                "policy": None,
+                "legacy_candidates": [],
+                "actor_snapshot": actor_snapshot,
+                "org_snapshot": org_snapshot,
+                "risk_context": risk_context,
+            }
+
         tenant_policy = None
-        if self._state_store.database_store is not None and capability_id:
+        if self._state_store.database_store is not None:
             tenant_policy = self._state_store.database_store.capability_package_repo.get_policy(capability_id, tenant_id=tenant_id)
-        enabled_permissions = policy.permissions_for_role(role_code)
-        registry_allowed = f"{capability_id}.execute" in enabled_permissions if capability_id else False
+
+        registry_roles: list[str] = []
+        for candidate_role in role_codes:
+            try:
+                if f"{capability_id}.execute" in policy.permissions_for_role(candidate_role):
+                    registry_roles.append(candidate_role)
+            except DomainAccessDeniedError:
+                continue
+        registry_allowed = bool(registry_roles)
+
         allowed = registry_allowed
         source = "brain_registry"
+        decision_reason = "allowed_by_registry" if registry_allowed else "missing_registry_permission"
         policy_snapshot: dict[str, Any] | None = None
+
         if tenant_policy is not None:
             policy_snapshot = copy.deepcopy(tenant_policy.policy_json)
-            exposed_surfaces = set(policy_snapshot.get("exposedSurfaces") or [])
+            exposed_surfaces = {str(item) for item in (policy_snapshot.get("exposedSurfaces") or [])}
             tenant_enabled = tenant_policy.policy_status == "enabled" and bool(policy_snapshot.get("enabled", False))
-            allowed = tenant_enabled and (not exposed_surfaces or surface in exposed_surfaces)
-            source = "tenant_capability_policy"
+            if not tenant_enabled:
+                allowed = False
+                source = "tenant_capability_policy"
+                decision_reason = "tenant_policy_disabled"
+            elif exposed_surfaces and surface not in exposed_surfaces:
+                allowed = False
+                source = "tenant_capability_policy"
+                decision_reason = "surface_not_exposed"
+            elif not registry_allowed:
+                allowed = False
+                source = "tenant_capability_policy"
+                decision_reason = "missing_registry_permission"
+            else:
+                allowed = True
+                source = "tenant_capability_policy"
+                decision_reason = "allowed_by_tenant_policy"
+        else:
+            allowed = False
+            source = "fail_closed"
+            decision_reason = "missing_tenant_policy"
+
+        if risk_context.get("cross_tenant") and tenant_id != str(actor_snapshot.get("tenant_id") or tenant_id):
+            allowed = False
+            source = "fail_closed"
+            decision_reason = "cross_tenant_denied"
+
         candidates = [
             self._legacy_policy_candidate_record_to_dict(item)
             for item in self._governance_projection_repo().list_policy_candidates(tenant_id=tenant_id)
             if item.capability_id == capability_id and (item.surface is None or item.surface == surface)
         ]
+
         return {
             "tenant_id": tenant_id,
             "capability_id": capability_id,
             "surface": surface,
             "role_code": role_code,
+            "role_codes": role_codes,
             "allowed": allowed,
             "source": source,
+            "decision_reason": decision_reason,
             "policy_status": tenant_policy.policy_status if tenant_policy is not None else None,
             "policy": policy_snapshot,
             "legacy_candidates": candidates,
+            "actor_snapshot": actor_snapshot,
+            "org_snapshot": org_snapshot,
+            "risk_context": risk_context,
         }
 
     def sync_org_projection(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -964,9 +1035,31 @@ class BrainService:
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             repo = self._governance_projection_repo()
             actors_payload = payload.get("actors") or [payload]
-            actors = [repo.upsert_actor(item) for item in actors_payload]
+            actors: list[Any] = []
+            actor_snapshots: list[dict[str, Any]] = []
+            for item in actors_payload:
+                actor_payload = dict(item)
+                claims = actor_payload.get("iaf_claims")
+                if claims:
+                    actor_payload = self._build_actor_projection_from_claims(
+                        claims=claims,
+                        expected_state=actor_payload.get("expected_state"),
+                        expected_nonce=actor_payload.get("expected_nonce"),
+                        tenant_id=str(actor_payload.get("tenant_id", _DEFAULT_TENANT_ID)),
+                        org_code=actor_payload.get("org_code"),
+                        fallback_roles=actor_payload.get("role_codes") or actor_payload.get("iam_role_codes") or [],
+                        display_name=actor_payload.get("display_name"),
+                    ) | actor_payload
+                actor_record = repo.upsert_actor(actor_payload, tenant_id=str(actor_payload.get("tenant_id", _DEFAULT_TENANT_ID)))
+                actors.append(actor_record)
+                actor_snapshots.append(self._actor_snapshot_from_projection(actor_record, claims=actor_payload.get("iaf_claims") or {}))
             self._append_audit_feed("actor.projection.sync", actors[0].external_actor_id if actors else "actor_projection", "ok", actor)
-            return {"items": [self._actor_projection_record_to_dict(item) for item in actors], "total": len(actors), "audit_id": audit_id}
+            return {
+                "items": [self._actor_projection_record_to_dict(item) for item in actors],
+                "actor_snapshots": actor_snapshots,
+                "total": len(actors),
+                "audit_id": audit_id,
+            }
 
         return self._mutate("actor.projection.sync", role, confirmed, payload, mutation)
 
@@ -974,12 +1067,118 @@ class BrainService:
         role = str(payload.get("role", self._ui_state["role"]))
         confirmed = bool(payload.get("confirmed"))
 
+        def _normalize_candidates(input_payload: dict[str, Any]) -> list[dict[str, Any]]:
+            if input_payload.get("candidates"):
+                return [dict(item) for item in input_payload.get("candidates") or []]
+            if input_payload.get("legacy_permission_ref"):
+                return [dict(input_payload)]
+            return [
+                {
+                    "legacy_permission_ref": str(item.get("legacy_permission_ref") or ""),
+                    "legacy_role_ref": item.get("legacy_role_ref"),
+                    "capability_id": str(item.get("capability_id") or ""),
+                    "surface": item.get("surface"),
+                    "evidence_json": item.get("evidence_json") or {},
+                    "candidate_status": item.get("candidate_status") or "pending_review",
+                    "mapping_status": item.get("mapping_status") or "mapped",
+                    "source_ref": item.get("source_ref") or f"legacy:bsp:{item.get('legacy_permission_ref') or 'unknown'}",
+                    "legacy_object_ref": item.get("legacy_object_ref") or str(item.get("legacy_permission_ref") or ""),
+                }
+                for item in input_payload.get("rows") or []
+            ]
+
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            mode = str(payload.get("mode", payload.get("operation", "apply"))).lower()
+            if mode not in {"dry-run", "dry_run", "apply"}:
+                raise BrainServiceError(f"unsupported import mode: {mode}")
+            dry_run = mode in {"dry-run", "dry_run"}
+            tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
             repo = self._governance_projection_repo()
-            candidates_payload = payload.get("candidates") or [payload]
-            candidates = [repo.import_legacy_policy_candidate(item) for item in candidates_payload]
-            self._append_audit_feed("legacy.bsp.mapping.import", "legacy_policy_mapping_candidate", "ok", actor)
-            return {"items": [self._legacy_policy_candidate_record_to_dict(item) for item in candidates], "total": len(candidates), "audit_id": audit_id}
+            capability_manifests = self.manifests()
+
+            candidates_payload = _normalize_candidates(payload)
+            block_issues = {"iam_account_missing": 0, "unmatched": 0, "unmapped_permission": 0}
+            counters = {
+                "source_count": len(candidates_payload),
+                "projection_count": 0,
+                "mapping_count": 0,
+                "skip_count": 0,
+                "failure_count": 0,
+            }
+            preview_items: list[dict[str, Any]] = []
+
+            for item in candidates_payload:
+                evidence = self._safe_json(item.get("evidence_json") or {})
+                status = str(item.get("candidate_status") or "pending_review")
+                capability_id = str(item.get("capability_id") or "")
+                legacy_permission_ref = str(item.get("legacy_permission_ref") or "")
+                source_ref = str(item.get("source_ref") or f"legacy:bsp:{legacy_permission_ref or 'unknown'}")
+                mapping_status = str(item.get("mapping_status") or "mapped")
+                skip_reason = None
+
+                if status in {"iam_account_missing", "unmatched", "disabled"}:
+                    if status == "iam_account_missing":
+                        block_issues["iam_account_missing"] += 1
+                    else:
+                        block_issues["unmatched"] += 1
+                    counters["skip_count"] += 1
+                    skip_reason = status
+                elif not capability_id or capability_id not in capability_manifests:
+                    block_issues["unmapped_permission"] += 1
+                    counters["failure_count"] += 1
+                    skip_reason = "unmapped_permission"
+                else:
+                    counters["projection_count"] += 1
+                    counters["mapping_count"] += 1
+                    if not dry_run:
+                        repo.import_legacy_policy_candidate(
+                            {
+                                "legacy_system": item.get("legacy_system") or "dsp-bsp",
+                                "legacy_permission_ref": legacy_permission_ref,
+                                "legacy_role_ref": item.get("legacy_role_ref"),
+                                "capability_id": capability_id,
+                                "surface": item.get("surface"),
+                                "candidate_status": status,
+                                "evidence_json": evidence,
+                            },
+                            tenant_id=tenant_id,
+                        )
+                        repo.upsert_legacy_object_mapping(
+                            {
+                                "source_ref": source_ref,
+                                "legacy_object_ref": item.get("legacy_object_ref") or legacy_permission_ref,
+                                "legacy_system": item.get("legacy_system") or "dsp-bsp",
+                                "legacy_object_type": item.get("legacy_object_type") or "permission",
+                                "canonical_type": "capability",
+                                "canonical_ref": capability_id,
+                                "mapping_status": mapping_status,
+                                "evidence_json": evidence,
+                            },
+                            tenant_id=tenant_id,
+                        )
+
+                preview_items.append(
+                    {
+                        "legacy_permission_ref": legacy_permission_ref,
+                        "legacy_role_ref": item.get("legacy_role_ref"),
+                        "capability_id": capability_id,
+                        "surface": item.get("surface"),
+                        "candidate_status": status,
+                        "source_ref": source_ref,
+                        "result": "skipped" if skip_reason else ("planned" if dry_run else "applied"),
+                        "reason": skip_reason,
+                    }
+                )
+
+            self._append_audit_feed("legacy.bsp.mapping.import", "legacy_policy_mapping_candidate", "warning" if counters["failure_count"] else "ok", actor)
+            return {
+                "mode": "dry-run" if dry_run else "apply",
+                "tenant_id": tenant_id,
+                "items": preview_items,
+                "total": len(preview_items),
+                "audit_id": audit_id,
+                "summary": counters | {"blockers": block_issues},
+            }
 
         return self._mutate("legacy.bsp.mapping.import", role, confirmed, payload, mutation)
 
@@ -2774,6 +2973,112 @@ class BrainService:
 
     def _safe_json(self, value: dict[str, Any]) -> dict[str, Any]:
         return safe_json(value)
+
+    def _decode_iaf_claims(self, iaf_claims: Any) -> dict[str, Any]:
+        if isinstance(iaf_claims, dict):
+            return self._safe_json(iaf_claims)
+        token = str(iaf_claims or "")
+        if not token:
+            raise InvalidTokenError("missing token claims")
+        if token.count(".") != 2:
+            raise InvalidTokenError("invalid jwt format")
+        payload_part = token.split(".")[1]
+        payload_part += "=" * ((4 - len(payload_part) % 4) % 4)
+        try:
+            raw = base64.urlsafe_b64decode(payload_part.encode("utf-8")).decode("utf-8")
+            payload = json.loads(raw)
+        except Exception as exc:
+            raise InvalidTokenError("invalid jwt payload") from exc
+        if not isinstance(payload, dict):
+            raise InvalidTokenError("invalid jwt claims type")
+        return self._safe_json(payload)
+
+    def _validate_iaf_claims(self, claims: dict[str, Any], *, expected_state: Any = None, expected_nonce: Any = None) -> None:
+        now_ts = int(datetime.now(UTC).timestamp())
+        exp = int(claims.get("exp") or 0)
+        if exp <= now_ts:
+            raise InvalidTokenError("token expired")
+        if _IAF_EXPECTED_ISSUER and str(claims.get("iss") or "") != _IAF_EXPECTED_ISSUER:
+            raise InvalidTokenError("issuer mismatch")
+
+        audience = claims.get("aud")
+        if isinstance(audience, str):
+            audience_set = {audience}
+        elif isinstance(audience, list):
+            audience_set = {str(item) for item in audience}
+        else:
+            audience_set = set()
+        if _IAF_EXPECTED_AUDIENCE and _IAF_EXPECTED_AUDIENCE not in audience_set:
+            raise InvalidTokenError("audience mismatch")
+
+        if expected_state is not None and str(claims.get("state") or "") != str(expected_state):
+            raise InvalidTokenError("state mismatch")
+        if expected_nonce is not None and str(claims.get("nonce") or "") != str(expected_nonce):
+            raise InvalidTokenError("nonce mismatch")
+
+    def _build_actor_projection_from_claims(
+        self,
+        *,
+        claims: Any,
+        expected_state: Any = None,
+        expected_nonce: Any = None,
+        tenant_id: str,
+        org_code: Any = None,
+        fallback_roles: list[Any] | tuple[Any, ...] | None = None,
+        display_name: Any = None,
+    ) -> dict[str, Any]:
+        claim_payload = self._decode_iaf_claims(claims)
+        self._validate_iaf_claims(claim_payload, expected_state=expected_state, expected_nonce=expected_nonce)
+
+        subject = str(claim_payload.get("sub") or "")
+        if not subject:
+            raise InvalidTokenError("missing sub")
+
+        resource_roles = claim_payload.get("resource_access") or {}
+        service_roles = resource_roles.get(_IAF_EXPECTED_AUDIENCE, {}) if isinstance(resource_roles, dict) else {}
+        iam_roles = [str(item) for item in (service_roles.get("roles") if isinstance(service_roles, dict) else []) or []]
+        realm_roles = [str(item) for item in ((claim_payload.get("realm_access") or {}).get("roles") or [])]
+        merged_roles = sorted({*iam_roles, *realm_roles, *[str(item) for item in (fallback_roles or [])]})
+
+        return {
+            "tenant_id": tenant_id,
+            "external_actor_id": subject,
+            "display_name": str(display_name or claim_payload.get("preferred_username") or subject),
+            "org_code": org_code,
+            "role_codes": merged_roles,
+            "status": "active",
+            "source_ref": "iaf:claims",
+            "profile_json": {
+                "username": claim_payload.get("preferred_username"),
+                "project_id": claim_payload.get("project_id"),
+                "project": claim_payload.get("project"),
+                "iam_role_codes": iam_roles,
+                "realm_roles": realm_roles,
+                "account_admin": "ACCOUNT_ADMIN" in realm_roles,
+                "email": claim_payload.get("email"),
+                "phone": claim_payload.get("phone"),
+            },
+            "iaf_claims": claim_payload,
+        }
+
+    def _actor_snapshot_from_projection(self, item: Any, *, claims: dict[str, Any]) -> dict[str, Any]:
+        profile = item.profile_json if isinstance(item.profile_json, dict) else {}
+        role_codes = [str(role) for role in item.role_codes_json or []]
+        return {
+            "subject": item.external_actor_id,
+            "actor": f"user:iaf:{item.external_actor_id}",
+            "tenant_id": item.tenant_id,
+            "display_name": item.display_name,
+            "org_code": item.org_code,
+            "role_codes": role_codes,
+            "iam_role_codes": [str(role) for role in profile.get("iam_role_codes") or []],
+            "account_flags": {"account_admin": bool(profile.get("account_admin"))},
+            "issuer": claims.get("iss"),
+            "audience": claims.get("aud"),
+            "project_id": claims.get("project_id") or profile.get("project_id"),
+            "project": claims.get("project") or profile.get("project"),
+            "issued_at": datetime.now(UTC).isoformat(),
+        }
 
     def _catalog_model_record_to_dict(self, record: Any) -> dict[str, Any]:
         return {

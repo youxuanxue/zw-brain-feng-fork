@@ -146,8 +146,10 @@ def test_database_store_records_capability_calls_and_tenant_policy_decisions() -
 
         assert decision["source"] == "tenant_capability_policy"
         assert decision["allowed"] is True
+        assert decision["decision_reason"] == "allowed_by_tenant_policy"
         assert blocked["source"] == "tenant_capability_policy"
         assert blocked["allowed"] is False
+        assert blocked["decision_reason"] == "surface_not_exposed"
         assert any(item.skill_id == "package.apply_tenant_policy" and item.status == "succeeded" for item in calls)
         assert any(item.skill_id == "tenant.policy.evaluate" and item.output_json["source"] == "tenant_capability_policy" for item in calls)
         assert any(item.skill_id == "request.view" and item.input_json["request_id"] == "REQ-2026-04-25-0011" for item in calls)

@@ -429,6 +429,61 @@ client secret 不进入代码仓库、文档正文、配置样例、导入报告
 
 本文不声明 IAF 在线联调已通过。
 
+### 8.5 一键导入报告样例（脱敏）
+
+```json
+{
+  "skill_id": "legacy.bsp.mapping.import",
+  "result": {
+    "mode": "dry-run",
+    "tenant_id": "default",
+    "summary": {
+      "source_count": 3,
+      "projection_count": 1,
+      "mapping_count": 1,
+      "skip_count": 1,
+      "failure_count": 1,
+      "blockers": {
+        "iam_account_missing": 1,
+        "unmatched": 0,
+        "unmapped_permission": 1
+      }
+    },
+    "items": [
+      {
+        "legacy_permission_ref": "dsp-bsp:sharezone:publish",
+        "legacy_role_ref": "ROLE_TOPIC_ADMIN",
+        "capability_id": "topic.package.publish",
+        "surface": "webui",
+        "source_ref": "dsp-bsp:permission:sharezone:publish",
+        "result": "planned",
+        "reason": null
+      },
+      {
+        "legacy_permission_ref": "dsp-bsp:unknown",
+        "legacy_role_ref": "ROLE_UNKNOWN",
+        "capability_id": "unknown.capability",
+        "surface": "webui",
+        "source_ref": "legacy:bsp:dsp-bsp:unknown",
+        "result": "skipped",
+        "reason": "unmapped_permission"
+      },
+      {
+        "legacy_permission_ref": "dsp-bsp:iam-missing",
+        "legacy_role_ref": "ROLE_X",
+        "capability_id": "topic.package.publish",
+        "surface": "webui",
+        "source_ref": "legacy:bsp:dsp-bsp:iam-missing",
+        "result": "skipped",
+        "reason": "iam_account_missing"
+      }
+    ]
+  }
+}
+```
+
+报告约束：样例与真实导入日志都必须经过 `safe_json`，禁止输出 `secret` / `password` / `token` / `client_secret` 等敏感字段。
+
 ## 九、不做清单
 
 1. 不复刻旧 `dsp-bsp`、`dsp-ucenter` 的用户 / 角色 / 权限 / 菜单后台。
