@@ -4,6 +4,7 @@
 #       历史素材不入库。dev-rules 为本地 symlink → ~/Codes/dev-rules（见 CLAUDE.md）。
 
 # Canonical dev-rules 镜像（本机 symlink，不入库；CI 浅克隆）
+dev-rules
 dev-rules/
 
 # ── IDE / OS ─────────────────────────────────────────────────
