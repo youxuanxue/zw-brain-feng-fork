@@ -16,8 +16,7 @@ from zw_brain.domain.models import (
     TenantProjectionRecord,
 )
 from zw_brain.shared.db import create_session_factory
-from zw_brain.shared.sanitization import legacy_mapping_payload
-from zw_brain.shared.sanitization import safe_json
+from zw_brain.shared.sanitization import legacy_mapping_payload, safe_json
 
 
 def _now() -> datetime:

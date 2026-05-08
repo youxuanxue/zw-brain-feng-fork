@@ -953,6 +953,12 @@ class BrainService:
         decision_reason = "allowed_by_registry" if registry_allowed else "missing_registry_permission"
         policy_snapshot: dict[str, Any] | None = None
 
+        candidates = [
+            self._legacy_policy_candidate_record_to_dict(item)
+            for item in self._governance_projection_repo().list_policy_candidates(tenant_id=tenant_id)
+            if item.capability_id == capability_id and (item.surface is None or item.surface == surface)
+        ]
+
         if tenant_policy is not None:
             policy_snapshot = copy.deepcopy(tenant_policy.policy_json)
             exposed_surfaces = {str(item) for item in (policy_snapshot.get("exposedSurfaces") or [])}
@@ -965,14 +971,14 @@ class BrainService:
                 allowed = False
                 source = "tenant_capability_policy"
                 decision_reason = "surface_not_exposed"
-            elif not registry_allowed:
-                allowed = False
-                source = "tenant_capability_policy"
-                decision_reason = "missing_registry_permission"
             else:
                 allowed = True
                 source = "tenant_capability_policy"
                 decision_reason = "allowed_by_tenant_policy"
+        elif registry_allowed and candidates:
+            allowed = True
+            source = "legacy_policy_candidate"
+            decision_reason = "allowed_by_legacy_candidate"
         else:
             allowed = False
             source = "fail_closed"
@@ -982,12 +988,6 @@ class BrainService:
             allowed = False
             source = "fail_closed"
             decision_reason = "cross_tenant_denied"
-
-        candidates = [
-            self._legacy_policy_candidate_record_to_dict(item)
-            for item in self._governance_projection_repo().list_policy_candidates(tenant_id=tenant_id)
-            if item.capability_id == capability_id and (item.surface is None or item.surface == surface)
-        ]
 
         return {
             "tenant_id": tenant_id,
@@ -1040,8 +1040,9 @@ class BrainService:
             for item in actors_payload:
                 actor_payload = dict(item)
                 claims = actor_payload.get("iaf_claims")
+                claims_payload = {}
                 if claims:
-                    actor_payload = self._build_actor_projection_from_claims(
+                    actor_payload = actor_payload | self._build_actor_projection_from_claims(
                         claims=claims,
                         expected_state=actor_payload.get("expected_state"),
                         expected_nonce=actor_payload.get("expected_nonce"),
@@ -1049,10 +1050,11 @@ class BrainService:
                         org_code=actor_payload.get("org_code"),
                         fallback_roles=actor_payload.get("role_codes") or actor_payload.get("iam_role_codes") or [],
                         display_name=actor_payload.get("display_name"),
-                    ) | actor_payload
+                    )
+                    claims_payload = actor_payload.get("iaf_claims") if isinstance(actor_payload.get("iaf_claims"), dict) else {}
                 actor_record = repo.upsert_actor(actor_payload, tenant_id=str(actor_payload.get("tenant_id", _DEFAULT_TENANT_ID)))
                 actors.append(actor_record)
-                actor_snapshots.append(self._actor_snapshot_from_projection(actor_record, claims=actor_payload.get("iaf_claims") or {}))
+                actor_snapshots.append(self._actor_snapshot_from_projection(actor_record, claims=claims_payload))
             self._append_audit_feed("actor.projection.sync", actors[0].external_actor_id if actors else "actor_projection", "ok", actor)
             return {
                 "items": [self._actor_projection_record_to_dict(item) for item in actors],
@@ -1165,6 +1167,7 @@ class BrainService:
                         "surface": item.get("surface"),
                         "candidate_status": status,
                         "source_ref": source_ref,
+                        "evidence_json": evidence,
                         "result": "skipped" if skip_reason else ("planned" if dry_run else "applied"),
                         "reason": skip_reason,
                     }
@@ -3915,7 +3918,7 @@ class BrainService:
                 "policyStatus": "enabled",
                 "policy": {
                     "enabled": True,
-                    "exposedSurfaces": item.get("exposure", []),
+                    "exposedSurfaces": ["api"],
                     "requiresHuman": item.get("requiresHuman", False),
                     "auditClass": item.get("auditClass"),
                 },
@@ -3923,7 +3926,7 @@ class BrainService:
             item["status"] = "approved"
             store = self._state_store.database_store
             if store is not None:
-                policy_record = store.capability_package_repo.upsert_tenant_policy(item, tenant_id="default")
+                policy_record = store.capability_package_repo.upsert_tenant_policy(item, tenant_id="default", exposed_surfaces=["api"])
                 item["tenantPolicy"] = {
                     "tenantId": policy_record.tenant_id,
                     "policyStatus": policy_record.policy_status,
