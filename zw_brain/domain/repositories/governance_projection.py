@@ -4,9 +4,11 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from zw_brain.domain.models import (
     ActorProjectionRecord,
+    LegacyObjectMappingRecord,
     LegacyPolicyMappingCandidateRecord,
     OrgProjectionRecord,
     RegionProjectionRecord,
@@ -14,7 +16,7 @@ from zw_brain.domain.models import (
     TenantProjectionRecord,
 )
 from zw_brain.shared.db import create_session_factory
-from zw_brain.shared.sanitization import safe_json
+from zw_brain.shared.sanitization import legacy_mapping_payload, safe_json
 
 
 def _now() -> datetime:
@@ -124,6 +126,51 @@ class GovernanceProjectionRepository:
         if candidate_status:
             statement = statement.where(LegacyPolicyMappingCandidateRecord.candidate_status == candidate_status)
         return self._list(statement.order_by(LegacyPolicyMappingCandidateRecord.legacy_permission_ref))
+
+    def upsert_legacy_object_mapping(self, payload: dict[str, Any], *, tenant_id: str = "default") -> LegacyObjectMappingRecord | None:
+        if not payload.get("source_ref"):
+            return None
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            record = self._upsert_legacy_object_mapping_in_session(session, payload, tenant_id=tenant_id)
+            session.commit()
+            return record
+
+    def _upsert_legacy_object_mapping_in_session(self, session: Session, payload: dict[str, Any], *, tenant_id: str = "default") -> LegacyObjectMappingRecord:
+        mapping = legacy_mapping_payload(payload, tenant_id=tenant_id)
+        existing_for_legacy = list(
+            session.execute(
+                select(LegacyObjectMappingRecord).where(
+                    LegacyObjectMappingRecord.tenant_id == tenant_id,
+                    LegacyObjectMappingRecord.legacy_system == mapping["legacy_system"],
+                    LegacyObjectMappingRecord.legacy_object_type == mapping["legacy_object_type"],
+                    LegacyObjectMappingRecord.legacy_object_ref == mapping["legacy_object_ref"],
+                )
+            ).scalars()
+        )
+        record = next(
+            (
+                item
+                for item in existing_for_legacy
+                if item.canonical_type == mapping["canonical_type"] and item.canonical_ref == mapping["canonical_ref"]
+            ),
+            None,
+        )
+        if record is None:
+            mapping["mapping_status"] = "conflicted" if existing_for_legacy else mapping["mapping_status"]
+            record = LegacyObjectMappingRecord(**mapping)
+            session.add(record)
+            session.flush()
+            for item in existing_for_legacy:
+                item.mapping_status = "conflicted"
+                item.mapped_at = _now()
+            return record
+        record.source_ref = mapping["source_ref"]
+        record.mapping_status = "conflicted" if len(existing_for_legacy) > 1 else mapping["mapping_status"]
+        record.evidence_json = safe_json(mapping.get("evidence_json"))
+        record.mapped_at = _now()
+        session.flush()
+        return record
 
     def _upsert(self, model: Any, where: list[Any], data: dict[str, Any]) -> Any:
         SessionLocal = create_session_factory()

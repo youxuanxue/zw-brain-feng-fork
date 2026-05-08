@@ -53,22 +53,53 @@ class CapabilityPackageRepository:
                 record.source_org = package["source"]
                 record.manifest_json = safe_json(package)
 
-            session.execute(delete(TenantCapabilityPolicyRecord).where(TenantCapabilityPolicyRecord.tenant_id == tenant_id, TenantCapabilityPolicyRecord.package_slug == package["slug"]))
+            policy_record = session.execute(
+                select(TenantCapabilityPolicyRecord).where(
+                    TenantCapabilityPolicyRecord.tenant_id == tenant_id,
+                    TenantCapabilityPolicyRecord.package_slug == package["slug"],
+                )
+            ).scalar_one_or_none()
+            if policy_record is None:
+                session.add(
+                    TenantCapabilityPolicyRecord(
+                        tenant_id=tenant_id,
+                        package_slug=package["slug"],
+                        policy_status=self._policy_status(package),
+                        policy_json=self._policy_json(package),
+                    )
+                )
+            session.commit()
+
+    def upsert_tenant_policy(self, package: dict[str, Any], *, tenant_id: str = "default", exposed_surfaces: list[str] | None = None) -> TenantCapabilityPolicyRecord:
+        package_payload = package | {"exposure": exposed_surfaces if exposed_surfaces is not None else package.get("exposure", [])}
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            record = session.execute(select(CapabilityPackageRecord).where(CapabilityPackageRecord.package_slug == package_payload["slug"])).scalar_one_or_none()
+            if record is None:
+                record = CapabilityPackageRecord(
+                    package_slug=package_payload["slug"],
+                    review_status=package_payload["status"],
+                    source_org=package_payload["source"],
+                    manifest_json=safe_json(package_payload),
+                )
+                session.add(record)
+            else:
+                record.review_status = package_payload["status"]
+                record.source_org = package_payload["source"]
+                record.manifest_json = safe_json(package_payload)
+            session.execute(delete(TenantCapabilityPolicyRecord).where(TenantCapabilityPolicyRecord.tenant_id == tenant_id, TenantCapabilityPolicyRecord.package_slug == package_payload["slug"]))
             session.add(
                 TenantCapabilityPolicyRecord(
                     tenant_id=tenant_id,
-                    package_slug=package["slug"],
-                    policy_status=self._policy_status(package),
-                    policy_json=self._policy_json(package),
+                    package_slug=package_payload["slug"],
+                    policy_status=self._policy_status(package_payload),
+                    policy_json=self._policy_json(package_payload),
                 )
             )
             session.commit()
-
-    def upsert_tenant_policy(self, package: dict[str, Any], *, tenant_id: str = "default") -> TenantCapabilityPolicyRecord:
-        self.upsert_from_package(package, tenant_id=tenant_id)
-        policy = self.get_policy(str(package["slug"]), tenant_id=tenant_id)
+        policy = self.get_policy(str(package_payload["slug"]), tenant_id=tenant_id)
         if policy is None:
-            raise KeyError(package["slug"])
+            raise KeyError(package_payload["slug"])
         return policy
 
     def set_tenant_policy_status(

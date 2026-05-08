@@ -4,6 +4,7 @@
 #       历史素材不入库。dev-rules 为本地 symlink → ~/Codes/dev-rules（见 CLAUDE.md）。
 
 # Canonical dev-rules 镜像（本机 symlink，不入库；CI 浅克隆）
+dev-rules
 dev-rules/
 
 # ── IDE / OS ─────────────────────────────────────────────────
@@ -33,3 +34,5 @@ hub/
 # ── 历史素材（本地保留，不随仓库分发）────────────────────────
 # old/：旧平台白皮书、会议素材、截图等；integrated-bigdata-platform 等于 2026-04-18 自 docs/ 迁入。
 old/
+
+.xuejiao-twin*
