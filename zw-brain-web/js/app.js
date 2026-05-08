@@ -104,6 +104,7 @@
     window.RUNTIME_ZONES = snapshot.zones;
     window.RUNTIME_CAPABILITY_PACKAGES = snapshot.capability_packages;
     window.RUNTIME_DASHBOARD = snapshot.dashboard;
+    window.ZW_WEBUI = snapshot.webui || {};
     window.CATALOG_BROWSE_FILTERS = window.CATALOG_BROWSE_FILTERS || { page: 1, limit: 20, lifecycle: 'active', kind: 'real' };
     window.RUNTIME_CATALOG_BROWSE = window.RUNTIME_CATALOG_BROWSE || { items: [], total: 0, page: 1, limit: 20 };
     const state = Object.assign({}, snapshot.state || {});
@@ -112,6 +113,20 @@
     state.role = currentRole;
     state.discoveryQuery = currentDiscoveryQuery || state.discoveryQuery || '';
     window.STATE = state;
+    syncDeploymentChip();
+  }
+
+  function syncDeploymentChip() {
+    const el = document.getElementById('deployment-label');
+    if (!el) return;
+    const label = window.ZW_WEBUI && window.ZW_WEBUI.deploymentLabel;
+    if (label) {
+      el.textContent = label;
+      el.hidden = false;
+    } else {
+      el.textContent = '';
+      el.hidden = true;
+    }
   }
 
   async function refreshSnapshot() {

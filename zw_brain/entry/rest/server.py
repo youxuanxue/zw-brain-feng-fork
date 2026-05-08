@@ -104,7 +104,10 @@ class RestHandler(BaseHTTPRequestHandler):
         if isinstance(exc, ConfirmationRequiredError):
             self._json(409, {"error": "confirmation_required", "skill_id": str(exc)})
             return
-        if isinstance(exc, (NotFoundError, UnknownSkillError)):
+        if isinstance(exc, NotFoundError):
+            self._json(422, {"error": "entity_not_found", "detail": str(exc)})
+            return
+        if isinstance(exc, UnknownSkillError):
             self._json(404, {"error": exc.__class__.__name__, "detail": str(exc)})
             return
         if isinstance(exc, InvalidStateError):

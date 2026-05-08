@@ -66,3 +66,29 @@ def test_runtime_config_rejects_invalid_ports(monkeypatch: pytest.MonkeyPatch, n
     getter = runtime_config.get_rest_port if name == "ZW_BRAIN_REST_PORT" else runtime_config.get_dashboard_bff_port
     with pytest.raises(ValueError):
         getter()
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("", "/dashboard/"),
+        ("/dashboard", "/dashboard/"),
+        ("/dashboard/", "/dashboard/"),
+        ("https://brain.example.internal/dashboard", "https://brain.example.internal/dashboard/"),
+        ("http://127.0.0.1:8801", "http://127.0.0.1:8801/"),
+        ("none", None),
+        ("off", None),
+        ("false", None),
+        ("javascript:alert(1)", None),
+        ("data:text/html,boom", None),
+        ("file:///tmp/x", None),
+        ("ftp://example.com/x", None),
+        ("dashboard", None),
+    ],
+)
+def test_runtime_config_dashboard_href_policy(monkeypatch: pytest.MonkeyPatch, raw: str, expected: str | None) -> None:
+    if raw == "":
+        monkeypatch.delenv("ZW_BRAIN_WEBUI_DASHBOARD_URL", raising=False)
+    else:
+        monkeypatch.setenv("ZW_BRAIN_WEBUI_DASHBOARD_URL", raw)
+    assert runtime_config.get_webui_dashboard_href() == expected

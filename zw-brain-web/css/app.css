@@ -448,6 +448,18 @@ a:hover {
   line-height: 1.45;
   color: var(--b-muted);
 }
+.deployment-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--b-muted);
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background: rgba(0, 107, 230, 0.06);
+  border: 1px solid rgba(0, 107, 230, 0.12);
+  max-width: min(440px, 100%);
+}
 .global-actions {
   margin-left: auto;
   display: flex;

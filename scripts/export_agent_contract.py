@@ -157,7 +157,11 @@ def build_standard_responses(output_schema: dict[str, Any], *, write: bool, prot
             "content": {"application/json": {"schema": ERROR_RESPONSE_SCHEMA}},
         },
         "404": {
-            "description": "Unknown skill or target not found",
+            "description": "Unknown skill id, skill surface disabled, or HTTP route not found",
+            "content": {"application/json": {"schema": ERROR_RESPONSE_SCHEMA}},
+        },
+        "422": {
+            "description": "Referenced domain entity missing (error=entity_not_found); distinct from route/skill 404",
             "content": {"application/json": {"schema": ERROR_RESPONSE_SCHEMA}},
         },
     }

@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 from zw_brain.command.brain import (
     AccessDeniedError,
     BrainService,
+    BrainServiceError,
     ConfirmationRequiredError,
     InvalidStateError,
 )
@@ -330,6 +331,55 @@ def test_dispute_investigation_and_escalation_update_timeline_and_owner() -> Non
         assert dispute["owner"] == "区台账治理组"
         assert any(step["label"] == "推进调查" for step in dispute["timeline"])
         assert any(step["label"] == "升级治理" for step in dispute["timeline"])
+    finally:
+        tmp.cleanup()
+
+
+def test_ambiguous_legacy_mapping_raises_without_canonical_resource_id() -> None:
+    """When multiple discovery.resources share the same legacy code, submit must not pick arbitrarily."""
+    import copy as copy_mod
+
+    tmp, service = make_database_service()
+    try:
+        base = next(r for r in service._snapshot["discovery"]["resources"] if r["id"] == "res-jbxx-ledger")
+        dup = copy_mod.deepcopy(base)
+        dup["id"] = "res-legacy-shadow-dup"
+        service._snapshot["discovery"]["resources"].append(dup)
+        service._snapshot["provider"]["catalogs"].append(
+            {
+                "id": "cat-ambiguous-no-canonical",
+                "name": "Ambiguous catalog (test fixture)",
+                "legacy_object_ref": "370000308004000000/000001",
+            }
+        )
+        try:
+            service.invoke_skill(
+                "application.resource.submit",
+                {"resource_id": "cat-ambiguous-no-canonical", "role": "r1", "confirmed": True},
+            )
+        except BrainServiceError as exc:
+            assert "ambiguous" in str(exc).lower()
+        else:
+            raise AssertionError("expected BrainServiceError when legacy matches multiple resources without canonical_resource_id")
+    finally:
+        tmp.cleanup()
+
+
+def test_application_resource_submit_resolves_provider_catalog_alias() -> None:
+    """Default discovery surfaces catalog codes (cat-parking); submit resolves to canonical template id."""
+    tmp, service = make_database_service()
+    try:
+        try:
+            service.invoke_skill(
+                "application.resource.submit",
+                {"resource_id": "cat-parking", "role": "r1", "confirmed": True},
+            )
+        except InvalidStateError as exc:
+            assert "res-jbxx-ledger" in str(exc)
+        else:
+            raise AssertionError("expected duplicate guard once alias maps to res-jbxx-ledger")
+        snap = service.snapshot()
+        assert snap["webui"]["dashboardHref"] == "/dashboard/"
     finally:
         tmp.cleanup()
 

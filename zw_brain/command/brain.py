@@ -24,9 +24,11 @@ from zw_brain.domain.repositories.topic_package import TopicPackageRepository, T
 from zw_brain.domain.schemas import describe_schemas
 from zw_brain.domain.web_snapshot_redaction import redact_webui_snapshot
 from zw_brain.shared import queue
+from zw_brain.shared.runtime_config import get_webui_dashboard_href
 from zw_brain.shared.sanitization import safe_json
 from zw_brain.shared.sensitive_mask import apply_field_masks
 from zw_brain.shared.state_store import StateStore
+from zw_brain.skill_registration.runtime import get_manifest, load_manifests
 
 _DEFAULT_MASK_ROLE = _os.environ.get("ZW_BRAIN_MASK_ROLE", "external")
 # Project tenant. Set ZW_BRAIN_TENANT_ID=sd-default in production / demo to
@@ -38,7 +40,7 @@ _DEFAULT_TENANT_ID = _os.environ.get("ZW_BRAIN_TENANT_ID", "default")
 def _mask(payload: Any) -> Any:
     """Apply default-role mask to a serializer's outgoing payload."""
     return apply_field_masks(payload, role=_DEFAULT_MASK_ROLE)
-from zw_brain.skill_registration.runtime import get_manifest, load_manifests
+
 
 DEFAULT_DISCOVERY_QUERY = "停车场信息"
 
@@ -84,6 +86,10 @@ class BrainService:
     def snapshot(self) -> dict[str, Any]:
         state = copy.deepcopy(self._snapshot)
         state["state"] = copy.deepcopy(self._ui_state)
+        state["webui"] = {
+            "dashboardHref": get_webui_dashboard_href(),
+            "deploymentLabel": _os.environ.get("ZW_BRAIN_DEPLOYMENT_LABEL", "").strip(),
+        }
         return state
 
     def manifests(self) -> dict[str, dict[str, Any]]:
@@ -2816,7 +2822,7 @@ class BrainService:
             "score": int(summary.get("score", 70)),
             "desc": str(summary.get("desc") or summary.get("summary") or record.title),
             "fields": list(summary.get("fields", [])),
-            "explain": list(summary.get("explain", ["命中 canonical catalog_entry 真目录", f"生命周期：{record.lifecycle_status}"])),
+            "explain": list(summary.get("explain", ["已匹配共享目录登记信息", f"目录状态：{record.lifecycle_status}"])),
             "nextHints": list(summary.get("nextHints", ["查看目录详情"])),
             "kind": summary.get("kind", "catalog_entry"),
             "repository": {
@@ -2985,10 +2991,18 @@ class BrainService:
         }
 
     def create_request(self, resource_id: str, role: str, confirmed: bool, query: str = "", skill_id: str = "request.create") -> dict[str, Any]:
-        resource = self._resource_by_id(resource_id)
-        existing = next((item for item in self._snapshot["requests"] if item.get("resourceId") == resource_id and item["status"] in {"pending", "supplementing", "summary-pending"}), None)
+        resource = self._resolve_resource_for_application(resource_id)
+        canonical_id = resource["id"]
+        existing = next(
+            (
+                item
+                for item in self._snapshot["requests"]
+                if item.get("resourceId") == canonical_id and item["status"] in {"pending", "supplementing", "summary-pending"}
+            ),
+            None,
+        )
         if existing is not None:
-            raise InvalidStateError(f"active request already exists for resource {resource_id}: {existing['id']}")
+            raise InvalidStateError(f"active request already exists for resource {canonical_id}: {existing['id']}")
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             request_id = self._new_request_id()
@@ -2998,7 +3012,7 @@ class BrainService:
             review_note = f"围绕 {resource['name']} 发起标准复用申请，待确认差异字段责任边界与回流要求。"
             request = {
                 "id": request_id,
-                "resourceId": resource_id,
+                "resourceId": canonical_id,
                 "resourceName": resource["name"],
                 "applicant": f"{actor}（市营商环境专班）" if role == "r1" else actor,
                 "applicantDept": "市营商环境专班",
@@ -4212,6 +4226,75 @@ class BrainService:
         for item in self._snapshot["discovery"]["resources"]:
             if item["id"] == resource_id:
                 return item
+        raise NotFoundError(resource_id)
+
+    def _resolve_resource_for_application(self, resource_id: str) -> dict[str, Any]:
+        """Resolve catalog/provider aliases (e.g. cat-parking) to canonical discovery.resources rows."""
+        try:
+            return copy.deepcopy(self._resource_by_id(resource_id))
+        except NotFoundError:
+            pass
+
+        store = self._state_store.database_store
+        catalog_record = store.catalog_repo.get_entry(resource_id) if store is not None else None
+
+        summary: dict[str, Any] = {}
+        if catalog_record is not None:
+            sr = catalog_record.summary_json
+            summary = sr if isinstance(sr, dict) else {}
+
+        provider_cat = next(
+            (c for c in self._snapshot.get("provider", {}).get("catalogs", []) if c.get("id") == resource_id),
+            None,
+        )
+
+        canonical_id = (
+            summary.get("canonical_resource_id")
+            or summary.get("application_resource_id")
+            or (provider_cat or {}).get("canonical_resource_id")
+            or (provider_cat or {}).get("application_resource_id")
+        )
+        if canonical_id:
+            try:
+                return copy.deepcopy(self._resource_by_id(str(canonical_id)))
+            except NotFoundError as exc:
+                raise BrainServiceError(
+                    f"catalog {resource_id!r} declares canonical_resource_id {canonical_id!r} but no matching discovery.resources entry exists"
+                ) from exc
+
+        legacy_ref = summary.get("legacy_object_ref") or summary.get("legacyId")
+        if provider_cat:
+            legacy_ref = legacy_ref or provider_cat.get("legacy_object_ref")
+
+        if legacy_ref:
+            matches = [
+                item
+                for item in self._snapshot["discovery"]["resources"]
+                if (item.get("trueData") or {}).get("catalog_code") == legacy_ref or item.get("legacyId") == legacy_ref
+            ]
+            if len(matches) == 1:
+                return copy.deepcopy(matches[0])
+            if len(matches) > 1:
+                raise BrainServiceError(
+                    f"ambiguous legacy mapping for catalog or alias {resource_id!r}: {len(matches)} discovery.resources "
+                    f"match legacy_object_ref {legacy_ref!r}; set canonical_resource_id on the catalog entry to a single discovery.resources id"
+                )
+
+        if catalog_record is not None:
+            cc = catalog_record.catalog_code
+            matches = [
+                item
+                for item in self._snapshot["discovery"]["resources"]
+                if (item.get("trueData") or {}).get("catalog_code") == cc
+            ]
+            if len(matches) == 1:
+                return copy.deepcopy(matches[0])
+            if len(matches) > 1:
+                raise BrainServiceError(
+                    f"ambiguous catalog_code mapping for {resource_id!r}: {len(matches)} resources share catalog_code {cc!r}; "
+                    f"set canonical_resource_id on the catalog entry"
+                )
+
         raise NotFoundError(resource_id)
 
     def _package_by_id(self, package_id: str) -> dict[str, Any]:

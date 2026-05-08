@@ -1818,6 +1818,7 @@
         "issue": "需补充本地泊位状态回流说明",
         "source_ref": "dsp_catalog:data_catalog:370000308004000000/000001",
         "legacy_object_ref": "370000308004000000/000001",
+        "canonical_resource_id": "res-jbxx-ledger",
         "owner_org_id": "11370000MB284651XL"
       },
       {

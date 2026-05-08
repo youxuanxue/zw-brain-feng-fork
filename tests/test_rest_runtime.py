@@ -172,6 +172,68 @@ def test_rest_runtime_webui_canonical_catalog_metadata_actions_execute() -> None
             runtime._service = None
 
 
+def test_rest_runtime_returns_422_for_missing_domain_entity() -> None:
+    """Business missing refs use HTTP 422 (entity_not_found), distinct from route 404."""
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+        runtime._service = None
+        ensure_runtime_schema()
+        engine = create_engine(f"sqlite:///{db_path}", future=True)
+        Base.metadata.create_all(bind=engine)
+
+        from http.server import HTTPServer
+        from threading import Thread
+
+        server = HTTPServer(("127.0.0.1", 0), RestHandler)
+        port = server.server_address[1]
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            status, body = request_json(
+                "POST",
+                f"http://127.0.0.1:{port}/api/skills/application.resource.submit",
+                {"resource_id": "does-not-exist-anywhere", "role": "r1", "confirmed": True},
+            )
+            assert status == 422
+            assert body["error"] == "entity_not_found"
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+            runtime._service = None
+
+
+def test_rest_runtime_get_skill_returns_422_for_missing_domain_entity() -> None:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+        runtime._service = None
+        ensure_runtime_schema()
+        engine = create_engine(f"sqlite:///{db_path}", future=True)
+        Base.metadata.create_all(bind=engine)
+
+        from http.server import HTTPServer
+        from threading import Thread
+
+        server = HTTPServer(("127.0.0.1", 0), RestHandler)
+        port = server.server_address[1]
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            status, body = request_json(
+                "GET",
+                f"http://127.0.0.1:{port}/api/skills/request.view?request_id=REQ-never-exists&role=r1",
+            )
+            assert status == 422
+            assert body["error"] == "entity_not_found"
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+            runtime._service = None
+
+
 def test_rest_runtime_serves_main_webui_shell_and_enforces_access_denied() -> None:
     with TemporaryDirectory() as tmp:
         db_path = Path(tmp) / "zw_brain.db"

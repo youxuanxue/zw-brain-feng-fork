@@ -22,6 +22,38 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+/** Count items likely needing human attention on the main chain (best-effort from snapshot). */
+function pendingHumanConfirmCount(role) {
+  const wb = window.RUNTIME_WORKBENCH && window.RUNTIME_WORKBENCH[role];
+  const todos = (wb && wb.todos) || [];
+  const busy = todos.filter(t => {
+    const s = String((t && t.status) || '');
+    return /待|审批|补录|核查|确认|处理中|预警|告警|拦截|异常/.test(s);
+  }).length;
+  const listLen = (window.RUNTIME_ALERTS || []).length;
+  let dashN = 0;
+  if (window.RUNTIME_DASHBOARD && window.RUNTIME_DASHBOARD.summary) {
+    const p = parseInt(String(window.RUNTIME_DASHBOARD.summary.alerts || '0'), 10);
+    if (Number.isFinite(p) && p >= 0) dashN = p;
+  }
+  const alertBucket = Math.max(listLen, dashN);
+  return busy + alertBucket;
+}
+
+function humanConfirmPillText(role) {
+  const n = pendingHumanConfirmCount(role);
+  return n > 0 ? `今日需人工确认 ${n} 项` : '当前暂无待人工确认项（仍以经办人现场核实为准）';
+}
+
+function renderDashboardShortcutLink() {
+  const href = window.ZW_WEBUI && window.ZW_WEBUI.dashboardHref;
+  if (!href) {
+    return '<span class="text-body-sm text-zw-mute leading-7">独立大屏入口未配置（运维侧设置 ZW_BRAIN_WEBUI_DASHBOARD_URL）</span>';
+  }
+  const safe = escapeHtml(href);
+  return `<a href="${safe}" target="_blank" rel="noopener noreferrer">我要看独立大屏</a>`;
+}
+
 const STATUS_LABELS = {
   open: '待核查',
   escalated: '已升级',
@@ -550,7 +582,7 @@ PAGES.workbench = function () {
             <div class="panel-title">政务数据共享主链路</div>
             <div class="panel-subtitle">从发现模板到申请审批、基层补录、审核汇总、交付回流，状态和证据在同一条链上连续呈现。</div>
           </div>
-          <span class="guardrail-pill">今日需人工确认 3 项</span>
+          <span class="guardrail-pill">${humanConfirmPillText(window.STATE.role)}</span>
         </div>
         <div class="chain-rail mt-5">
           <a href="#/p2-discovery"><span>1</span><strong>发现资源</strong><em>先找模板与专题包</em></a>
@@ -578,7 +610,7 @@ PAGES.workbench = function () {
             <a href="#/p2-discovery">我要找可复用数据</a>
             <a href="#/p3-request-flow">我要看申请进度</a>
             <a href="#/p7-zones-pack">我要进入专题包</a>
-            <a href="http://127.0.0.1:8801/" target="_blank" rel="noopener">我要看独立大屏</a>
+            ${renderDashboardShortcutLink()}
           </div>
         `)}
       </aside>
@@ -697,15 +729,15 @@ PAGES.catalogBrowse = function () {
 
   const main = `
     <div class="page-hero">
-      <div class="page-hero-eyebrow">P2 / 真目录浏览</div>
-      <h1 class="page-hero-title">真目录浏览（catalog_entry）</h1>
-      <div class="page-hero-subtitle">从 importer 灌入 zw-brain 的真业务目录中按 lifecycle 与 kind 分页浏览。当前 ${data.total || 0} 条命中（第 ${data.page || 1} / ${totalPages} 页）。</div>
+      <div class="page-hero-eyebrow">数据资源发现 · 目录检索</div>
+      <h1 class="page-hero-title">共享目录条目浏览</h1>
+      <div class="page-hero-subtitle">按生命周期与目录类型分页查看已纳入平台的目录条目，可直接跳转到资源详情。当前 ${data.total || 0} 条命中（第 ${data.page || 1} / ${totalPages} 页）。</div>
     </div>
 
     <div class="panel mt-4">
       <div class="panel-body">
         <div class="panel-title">筛选</div>
-        <div class="panel-subtitle">默认显示 active 真业务目录；切换到 api-group 可看接口分组节点。</div>
+        <div class="panel-subtitle">默认展示已生效目录；可按生命周期筛选草稿与待发布条目；类型中的「接口分组」用于查看接口汇聚节点。</div>
         <div class="mt-3 text-body-sm text-zw-mute">生命周期</div>
         <div class="mt-2 flex flex-wrap gap-2">
           ${lifecycleChip('active', '活跃')}
