@@ -151,9 +151,17 @@ def test_database_store_records_capability_calls_and_tenant_policy_decisions() -
         assert blocked["allowed"] is False
         assert blocked["decision_reason"] == "surface_not_exposed"
         assert any(item.skill_id == "package.apply_tenant_policy" and item.status == "succeeded" for item in calls)
-        assert any(item.skill_id == "tenant.policy.evaluate" and item.output_json["source"] == "tenant_capability_policy" for item in calls)
+        policy_calls = [item for item in calls if item.skill_id == "tenant.policy.evaluate"]
+        assert any(item.output_json["source"] == "tenant_capability_policy" for item in policy_calls)
+        assert any(item.output_json["decision_reason"] == "allowed_by_tenant_policy" for item in policy_calls)
+        assert any(item.output_json["decision_reason"] == "surface_not_exposed" for item in policy_calls)
+        assert all("password" not in item.input_json and "token" not in item.input_json for item in policy_calls)
         assert any(item.skill_id == "request.view" and item.input_json["request_id"] == "REQ-2026-04-25-0011" for item in calls)
         assert any(item.input_json.get("package_id") == "PKG-2026-04-25-001" for item in calls)
+        audit_events = database_store.list_audit_events()
+        policy_after_events = [item for item in audit_events if item.skill_id == "tenant.policy.evaluate" and item.phase == "after"]
+        assert any(item.payload_json["decision_reason"] == "allowed_by_tenant_policy" for item in policy_after_events)
+        assert any(item.payload_json["decision_reason"] == "surface_not_exposed" for item in policy_after_events)
 
     with TemporaryDirectory() as tmp:
         db_path = Path(tmp) / "zw_brain.db"

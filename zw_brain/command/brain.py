@@ -36,8 +36,14 @@ _DEFAULT_MASK_ROLE = _os.environ.get("ZW_BRAIN_MASK_ROLE", "external")
 # point read paths at the legacy-imported corpus. Tests keep the historical
 # "default" tenant so existing fixtures don't drift.
 _DEFAULT_TENANT_ID = _os.environ.get("ZW_BRAIN_TENANT_ID", "default")
-_IAF_EXPECTED_ISSUER = _os.environ.get("ZW_BRAIN_IAF_ISSUER", "")
-_IAF_EXPECTED_AUDIENCE = _os.environ.get("ZW_BRAIN_IAF_AUDIENCE", _os.environ.get("ZW_BRAIN_IAF_CLIENT_ID", "zw-brain"))
+
+
+def _expected_iaf_issuer() -> str:
+    return _os.environ.get("ZW_BRAIN_IAF_ISSUER", "")
+
+
+def _expected_iaf_audience() -> str:
+    return _os.environ.get("ZW_BRAIN_IAF_AUDIENCE", _os.environ.get("ZW_BRAIN_IAF_CLIENT_ID", "zw-brain"))
 
 
 def _mask(payload: Any) -> Any:
@@ -512,9 +518,15 @@ class BrainService:
                     str(payload.get("role", self._ui_state["role"])),
                     bool(payload.get("confirmed")),
                     "tenant.capability.enable",
+                    str(payload.get("tenant_id", _DEFAULT_TENANT_ID)),
                 )
             case "tenant.capability.disable":
-                return self.disable_tenant_capability(str(payload["package_id"]), str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")))
+                return self.disable_tenant_capability(
+                    str(payload["package_id"]),
+                    str(payload.get("role", self._ui_state["role"])),
+                    bool(payload.get("confirmed")),
+                    str(payload.get("tenant_id", _DEFAULT_TENANT_ID)),
+                )
             case "registry.artifact.export":
                 return self.export_registry_artifacts()
             case "package.register_version":
@@ -528,6 +540,7 @@ class BrainService:
                     str(payload["package_id"]),
                     str(payload.get("role", self._ui_state["role"])),
                     bool(payload.get("confirmed")),
+                    tenant_id=str(payload.get("tenant_id", _DEFAULT_TENANT_ID)),
                 )
             case "package.review_decide":
                 return self.review_package(
@@ -946,11 +959,11 @@ class BrainService:
                     registry_roles.append(candidate_role)
             except DomainAccessDeniedError:
                 continue
-        registry_allowed = bool(registry_roles)
+        _registry_allowed = bool(registry_roles)
 
-        allowed = registry_allowed
-        source = "brain_registry"
-        decision_reason = "allowed_by_registry" if registry_allowed else "missing_registry_permission"
+        allowed = False
+        source = "fail_closed"
+        decision_reason = "missing_tenant_policy"
         policy_snapshot: dict[str, Any] | None = None
 
         candidates = [
@@ -975,16 +988,51 @@ class BrainService:
                 allowed = True
                 source = "tenant_capability_policy"
                 decision_reason = "allowed_by_tenant_policy"
-        elif registry_allowed and candidates:
-            allowed = True
-            source = "legacy_policy_candidate"
-            decision_reason = "allowed_by_legacy_candidate"
         else:
             allowed = False
             source = "fail_closed"
             decision_reason = "missing_tenant_policy"
 
-        if risk_context.get("cross_tenant") and tenant_id != str(actor_snapshot.get("tenant_id") or tenant_id):
+        actor_role_codes = {str(item) for item in actor_snapshot.get("role_codes") or []}
+        requested_role_set = {role_code, *requested_role_codes}
+        actor_status = str(
+            actor_snapshot.get("status")
+            or actor_snapshot.get("binding_status")
+            or actor_snapshot.get("iam_binding_status")
+            or ""
+        ).lower()
+        blocked_actor_reasons = {
+            "disabled": "actor_disabled",
+            "inactive": "actor_disabled",
+            "unmatched": "actor_unmatched",
+            "iam_account_missing": "iam_account_missing",
+        }
+        actor_tenant_id = str(actor_snapshot.get("tenant_id") or "")
+        org_tenant_id = str(org_snapshot.get("tenant_id") or "")
+        actor_org_code = str(actor_snapshot.get("org_code") or "")
+        org_code = str(org_snapshot.get("org_code") or "")
+
+        if actor_status in blocked_actor_reasons:
+            allowed = False
+            source = "fail_closed"
+            decision_reason = blocked_actor_reasons[actor_status]
+        elif actor_tenant_id and actor_tenant_id != tenant_id:
+            allowed = False
+            source = "fail_closed"
+            decision_reason = "cross_tenant_denied"
+        elif org_tenant_id and org_tenant_id != tenant_id:
+            allowed = False
+            source = "fail_closed"
+            decision_reason = "org_tenant_mismatch"
+        elif actor_org_code and org_code and actor_org_code != org_code:
+            allowed = False
+            source = "fail_closed"
+            decision_reason = "org_binding_mismatch"
+        elif actor_role_codes and not requested_role_set.issubset(actor_role_codes):
+            allowed = False
+            source = "fail_closed"
+            decision_reason = "role_binding_mismatch"
+        elif risk_context.get("cross_tenant") and tenant_id != str(actor_snapshot.get("tenant_id") or tenant_id):
             allowed = False
             source = "fail_closed"
             decision_reason = "cross_tenant_denied"
@@ -1013,10 +1061,11 @@ class BrainService:
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             repo = self._governance_projection_repo()
             tenant = repo.upsert_tenant(payload.get("tenant") or payload)
-            regions = [repo.upsert_region(item) for item in payload.get("regions") or []]
+            tenant_id = tenant.tenant_id
+            regions = [repo.upsert_region(item, tenant_id=tenant_id) for item in payload.get("regions") or []]
             orgs_payload = payload.get("orgs") or ([payload] if payload.get("org_code") else [])
-            orgs = [repo.upsert_org(item) for item in orgs_payload]
-            roles = [repo.upsert_role(item) for item in payload.get("roles") or []]
+            orgs = [repo.upsert_org(item, tenant_id=tenant_id) for item in orgs_payload]
+            roles = [repo.upsert_role(item, tenant_id=tenant_id) for item in payload.get("roles") or []]
             self._append_audit_feed("org.projection.sync", tenant.tenant_id, "ok", actor)
             return {
                 "tenant": self._tenant_projection_record_to_dict(tenant),
@@ -1070,24 +1119,30 @@ class BrainService:
         confirmed = bool(payload.get("confirmed"))
 
         def _normalize_candidates(input_payload: dict[str, Any]) -> list[dict[str, Any]]:
-            if input_payload.get("candidates"):
-                return [dict(item) for item in input_payload.get("candidates") or []]
-            if input_payload.get("legacy_permission_ref"):
-                return [dict(input_payload)]
-            return [
-                {
-                    "legacy_permission_ref": str(item.get("legacy_permission_ref") or ""),
-                    "legacy_role_ref": item.get("legacy_role_ref"),
-                    "capability_id": str(item.get("capability_id") or ""),
-                    "surface": item.get("surface"),
-                    "evidence_json": item.get("evidence_json") or {},
-                    "candidate_status": item.get("candidate_status") or "pending_review",
-                    "mapping_status": item.get("mapping_status") or "mapped",
-                    "source_ref": item.get("source_ref") or f"legacy:bsp:{item.get('legacy_permission_ref') or 'unknown'}",
-                    "legacy_object_ref": item.get("legacy_object_ref") or str(item.get("legacy_permission_ref") or ""),
-                }
-                for item in input_payload.get("rows") or []
-            ]
+            manifest = input_payload.get("mapping_manifest") if isinstance(input_payload.get("mapping_manifest"), dict) else {}
+            manifest_version = input_payload.get("manifest_version") or manifest.get("manifest_version") or manifest.get("version") or "inline-v1"
+            manifest_source_ref = input_payload.get("manifest_source_ref") or manifest.get("source_ref") or "legacy:bsp:mapping-manifest:inline-v1"
+            manifest_rows = manifest.get("rows") if isinstance(manifest.get("rows"), list) else None
+            source_rows = input_payload.get("candidates") or ([input_payload] if input_payload.get("legacy_permission_ref") else (manifest_rows or input_payload.get("rows") or []))
+            normalized = []
+            for item in source_rows:
+                row = dict(item)
+                normalized.append(
+                    {
+                        "legacy_permission_ref": str(row.get("legacy_permission_ref") or ""),
+                        "legacy_role_ref": row.get("legacy_role_ref"),
+                        "capability_id": str(row.get("capability_id") or ""),
+                        "surface": row.get("surface"),
+                        "evidence_json": row.get("evidence_json") or row.get("manifest_evidence_json") or {},
+                        "candidate_status": row.get("candidate_status") or "pending_review",
+                        "mapping_status": row.get("mapping_status") or "mapped",
+                        "source_ref": row.get("source_ref") or f"legacy:bsp:{row.get('legacy_permission_ref') or 'unknown'}",
+                        "legacy_object_ref": row.get("legacy_object_ref") or str(row.get("legacy_permission_ref") or ""),
+                        "manifest_version": row.get("manifest_version") or manifest_version,
+                        "manifest_source_ref": row.get("manifest_source_ref") or manifest_source_ref,
+                    }
+                )
+            return normalized
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             mode = str(payload.get("mode", payload.get("operation", "apply"))).lower()
@@ -1110,7 +1165,18 @@ class BrainService:
             preview_items: list[dict[str, Any]] = []
 
             for item in candidates_payload:
-                evidence = self._safe_json(item.get("evidence_json") or {})
+                manifest_version = str(item.get("manifest_version") or "inline-v1")
+                manifest_source_ref = str(item.get("manifest_source_ref") or "legacy:bsp:mapping-manifest:inline-v1")
+                raw_evidence = self._safe_json(item.get("evidence_json") or {})
+                reviewable_evidence = {
+                    key: value
+                    for key, value in raw_evidence.items()
+                    if key not in {"menu_tree", "button_permission_tree", "permission_sql", "sql", "legacy_menu", "legacy_url", "route_component"}
+                }
+                evidence = reviewable_evidence | {
+                    "manifest_version": manifest_version,
+                    "manifest_source_ref": manifest_source_ref,
+                }
                 status = str(item.get("candidate_status") or "pending_review")
                 capability_id = str(item.get("capability_id") or "")
                 legacy_permission_ref = str(item.get("legacy_permission_ref") or "")
@@ -1167,6 +1233,8 @@ class BrainService:
                         "surface": item.get("surface"),
                         "candidate_status": status,
                         "source_ref": source_ref,
+                        "manifest_version": manifest_version,
+                        "manifest_source_ref": manifest_source_ref,
                         "evidence_json": evidence,
                         "result": "skipped" if skip_reason else ("planned" if dry_run else "applied"),
                         "reason": skip_reason,
@@ -3001,7 +3069,8 @@ class BrainService:
         exp = int(claims.get("exp") or 0)
         if exp <= now_ts:
             raise InvalidTokenError("token expired")
-        if _IAF_EXPECTED_ISSUER and str(claims.get("iss") or "") != _IAF_EXPECTED_ISSUER:
+        expected_issuer = _expected_iaf_issuer()
+        if expected_issuer and str(claims.get("iss") or "") != expected_issuer:
             raise InvalidTokenError("issuer mismatch")
 
         audience = claims.get("aud")
@@ -3011,7 +3080,9 @@ class BrainService:
             audience_set = {str(item) for item in audience}
         else:
             audience_set = set()
-        if _IAF_EXPECTED_AUDIENCE and _IAF_EXPECTED_AUDIENCE not in audience_set:
+        expected_audience = _expected_iaf_audience()
+        client_id = str(claims.get("client_id") or claims.get("azp") or "")
+        if expected_audience and expected_audience not in audience_set and client_id != expected_audience:
             raise InvalidTokenError("audience mismatch")
 
         if expected_state is not None and str(claims.get("state") or "") != str(expected_state):
@@ -3038,7 +3109,7 @@ class BrainService:
             raise InvalidTokenError("missing sub")
 
         resource_roles = claim_payload.get("resource_access") or {}
-        service_roles = resource_roles.get(_IAF_EXPECTED_AUDIENCE, {}) if isinstance(resource_roles, dict) else {}
+        service_roles = resource_roles.get(_expected_iaf_audience(), {}) if isinstance(resource_roles, dict) else {}
         iam_roles = [str(item) for item in (service_roles.get("roles") if isinstance(service_roles, dict) else []) or []]
         realm_roles = [str(item) for item in ((claim_payload.get("realm_access") or {}).get("roles") or [])]
         merged_roles = sorted({*iam_roles, *realm_roles, *[str(item) for item in (fallback_roles or [])]})
@@ -3073,6 +3144,7 @@ class BrainService:
             "tenant_id": item.tenant_id,
             "display_name": item.display_name,
             "org_code": item.org_code,
+            "status": item.status,
             "role_codes": role_codes,
             "iam_role_codes": [str(role) for role in profile.get("iam_role_codes") or []],
             "account_flags": {"account_admin": bool(profile.get("account_admin"))},
@@ -3907,14 +3979,14 @@ class BrainService:
 
         return self._mutate(skill_id, role, confirmed, {"package_id": package_id}, mutation)
 
-    def apply_package_tenant_policy(self, package_id: str, role: str, confirmed: bool, skill_id: str = "package.apply_tenant_policy") -> dict[str, Any]:
+    def apply_package_tenant_policy(self, package_id: str, role: str, confirmed: bool, skill_id: str = "package.apply_tenant_policy", tenant_id: str = _DEFAULT_TENANT_ID) -> dict[str, Any]:
         item = self._package_by_id(package_id)
         if item.get("versionStatus") != "registered":
             raise InvalidStateError("package version must be registered before tenant policy activation")
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             item["tenantPolicy"] = {
-                "tenantId": "default",
+                "tenantId": tenant_id,
                 "policyStatus": "enabled",
                 "policy": {
                     "enabled": True,
@@ -3926,18 +3998,18 @@ class BrainService:
             item["status"] = "approved"
             store = self._state_store.database_store
             if store is not None:
-                policy_record = store.capability_package_repo.upsert_tenant_policy(item, tenant_id="default", exposed_surfaces=["api"])
+                policy_record = store.capability_package_repo.upsert_tenant_policy(item, tenant_id=tenant_id, exposed_surfaces=["api"])
                 item["tenantPolicy"] = {
                     "tenantId": policy_record.tenant_id,
                     "policyStatus": policy_record.policy_status,
                     "policy": copy.deepcopy(policy_record.policy_json),
                 }
             item["aiReview"]["summary"] = "租户策略已生效，能力包进入可控暴露状态；正式责任写动作仍然回到平台内建能力。"
-            item["aiReview"]["draft"] = "策略结论：default 租户已启用该能力包，暴露面与审计级别沿用已审核结果。"
+            item["aiReview"]["draft"] = f"策略结论：{tenant_id} 租户已启用该能力包，暴露面与审计级别沿用已审核结果。"
             self._append_audit_feed(skill_id, package_id, "ok", actor)
-            return {"package_id": package_id, "tenant_policy_status": item["tenantPolicy"]["policyStatus"]}
+            return {"package_id": package_id, "tenant_policy_status": item["tenantPolicy"]["policyStatus"], "tenant_id": tenant_id}
 
-        return self._mutate(skill_id, role, confirmed, {"package_id": package_id}, mutation)
+        return self._mutate(skill_id, role, confirmed, {"package_id": package_id, "tenant_id": tenant_id}, mutation)
 
     def review_package(self, package_id: str, decision: str, role: str, confirmed: bool, skill_id: str = "package.review_decide") -> dict[str, Any]:
         item = self._package_by_id(package_id)
@@ -4010,12 +4082,12 @@ class BrainService:
 
         return self._mutate("capability.package.register", role, confirmed, payload, mutation)
 
-    def disable_tenant_capability(self, package_id: str, role: str, confirmed: bool) -> dict[str, Any]:
+    def disable_tenant_capability(self, package_id: str, role: str, confirmed: bool, tenant_id: str = _DEFAULT_TENANT_ID) -> dict[str, Any]:
         item = self._package_by_id(package_id)
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             item["tenantPolicy"] = {
-                "tenantId": "default",
+                "tenantId": tenant_id,
                 "policyStatus": "disabled",
                 "policy": {
                     "enabled": False,
@@ -4028,7 +4100,7 @@ class BrainService:
             if store is not None:
                 policy_record = store.capability_package_repo.set_tenant_policy_status(
                     item,
-                    tenant_id="default",
+                    tenant_id=tenant_id,
                     policy_status="disabled",
                     enabled=False,
                     exposed_surfaces=[],
@@ -4040,9 +4112,9 @@ class BrainService:
                 }
             item["aiReview"]["summary"] = "租户策略已禁用，该能力包不再向当前租户暴露。"
             self._append_audit_feed("tenant.capability.disable", package_id, "ok", actor)
-            return {"package_id": package_id, "tenant_policy_status": item["tenantPolicy"]["policyStatus"], "audit_id": audit_id}
+            return {"package_id": package_id, "tenant_policy_status": item["tenantPolicy"]["policyStatus"], "tenant_id": tenant_id, "audit_id": audit_id}
 
-        return self._mutate("tenant.capability.disable", role, confirmed, {"package_id": package_id}, mutation)
+        return self._mutate("tenant.capability.disable", role, confirmed, {"package_id": package_id, "tenant_id": tenant_id}, mutation)
 
     def export_registry_artifacts(self) -> dict[str, Any]:
         manifests = self.manifests()

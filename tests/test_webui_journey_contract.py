@@ -90,3 +90,16 @@ def test_pages_expose_access_map_for_app_router() -> None:
     pages_js = PAGES_JS.read_text(encoding="utf-8")
     assert "window.ZW_PAGE_ACCESS" in pages_js
     assert "window.renderAccessDeniedShell" in pages_js
+
+
+def test_webui_routes_and_actions_use_shared_skill_policy_gateways() -> None:
+    app_js = APP_JS.read_text(encoding="utf-8")
+    pages_js = PAGES_JS.read_text(encoding="utf-8")
+    assert "const access = window.ZW_PAGE_ACCESS && window.ZW_PAGE_ACCESS[matched.page]" in app_js
+    assert "renderAccessDeniedShell" in app_js
+    assert "fetch(`/api/skills/${skillId}${encodeParams(payload)}`" in app_js
+    assert "fetch(`/api/skills/${skillId}`" in app_js
+    assert "Object.assign({ role: currentRole, confirmed: true }, payload)" in app_js
+    assert "window.ZW_PAGE_ACCESS" in pages_js
+    assert "integrationAdmin: ['r7']" in pages_js
+    assert "packageDetail: ['r7']" in pages_js
