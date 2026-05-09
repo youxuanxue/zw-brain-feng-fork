@@ -16,7 +16,7 @@ def _now() -> datetime:
 
 
 class GatewayRuntimeRepository:
-    def has_statuses(self, *, tenant_id: str = "default") -> bool:
+    def has_statuses(self, *, tenant_id: str = "sd-default") -> bool:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return session.execute(
@@ -25,7 +25,7 @@ class GatewayRuntimeRepository:
                 .limit(1)
             ).scalar_one_or_none() is not None
 
-    def list_statuses(self, *, tenant_id: str = "default") -> list[GatewayRuntimeStatusProjectionRecord]:
+    def list_statuses(self, *, tenant_id: str = "sd-default") -> list[GatewayRuntimeStatusProjectionRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(
@@ -36,7 +36,7 @@ class GatewayRuntimeRepository:
                 ).scalars()
             )
 
-    def upsert_heartbeat(self, payload: dict[str, Any], *, tenant_id: str = "default") -> GatewayRuntimeStatusProjectionRecord:
+    def upsert_heartbeat(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> GatewayRuntimeStatusProjectionRecord:
         SessionLocal = create_session_factory()
         instance_id = str(payload["gateway_instance_id"])
         reported_at = payload.get("last_reported_at")

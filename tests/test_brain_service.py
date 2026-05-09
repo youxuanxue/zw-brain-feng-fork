@@ -1529,7 +1529,7 @@ def test_p1_governance_and_topic_package_capabilities_with_database() -> None:
         org_sync = service.invoke_skill(
             "org.projection.sync",
             {
-                "tenant": {"tenant_id": "default", "tenant_name": "默认租户"},
+                "tenant": {"tenant_id": "sd-default", "tenant_name": "默认租户"},
                 "regions": [{"region_code": "370100", "region_name": "济南市"}],
                 "orgs": [{"org_code": "ORG-YBT", "org_name": "一表通专班", "region_code": "370100", "profile_json": {"secret": "drop", "kind": "taskforce"}}],
                 "roles": [{"role_code": "r7", "role_name": "能力治理员"}],
@@ -1637,7 +1637,7 @@ def test_p1_governance_actor_projection_accepts_mock_iaf_claims() -> None:
                 "iaf_claims": token,
                 "expected_state": "s-1",
                 "expected_nonce": "n-1",
-                "tenant_id": "default",
+                "tenant_id": "sd-default",
                 "org_code": "ORG-YBT",
                 "role": "r7",
                 "confirmed": True,
@@ -1656,7 +1656,7 @@ def test_p1_governance_actor_projection_accepts_mock_iaf_claims() -> None:
         assert item["profile_json"]["realm_roles"] == ["ACCOUNT_ADMIN", "r7"]
         assert item["profile_json"]["account_admin"] is True
         assert snapshot["subject"] == "iaf-user-001"
-        assert snapshot["tenant_id"] == "default"
+        assert snapshot["tenant_id"] == "sd-default"
         assert snapshot["org_code"] == "ORG-YBT"
         assert set(snapshot["role_codes"]) == {"ACCOUNT_ADMIN", "r7"}
         assert snapshot["iam_role_codes"] == ["r7"]
@@ -1701,7 +1701,7 @@ def test_p1_governance_actor_projection_accepts_client_id_when_audience_claim_is
                 "iaf_claims": token,
                 "expected_state": "s-client-id",
                 "expected_nonce": "n-client-id",
-                "tenant_id": "default",
+                "tenant_id": "sd-default",
                 "role": "r7",
                 "confirmed": True,
             },
@@ -1736,7 +1736,7 @@ def _assert_actor_projection_rejects_claims(claims: dict[str, object], *, expect
                     "iaf_claims": token,
                     "expected_state": expected_state,
                     "expected_nonce": expected_nonce,
-                    "tenant_id": "default",
+                    "tenant_id": "sd-default",
                     "role": "r7",
                     "confirmed": True,
                 },
@@ -1811,7 +1811,7 @@ def test_p1_governance_org_and_actor_projection_context_is_complete() -> None:
         org_result = service.invoke_skill(
             "org.projection.sync",
             {
-                "tenant": {"tenant_id": "default", "tenant_name": "山东省", "profile_json": {"project_id": "sd-default"}},
+                "tenant": {"tenant_id": "sd-default", "tenant_name": "山东省", "profile_json": {"project_id": "sd-default"}},
                 "regions": [{"region_code": "370100", "region_name": "济南市", "parent_region_code": "370000", "region_level": "2"}],
                 "orgs": [{"org_code": "ORG-YBT", "org_name": "省大数据局", "region_code": "370100"}],
                 "roles": [{"role_code": "r7", "role_name": "平台运营"}],
@@ -1819,7 +1819,7 @@ def test_p1_governance_org_and_actor_projection_context_is_complete() -> None:
                 "confirmed": True,
             },
         )
-        assert org_result["result"]["tenant"]["tenant_id"] == "default"
+        assert org_result["result"]["tenant"]["tenant_id"] == "sd-default"
         assert org_result["result"]["orgs"][0]["org_code"] == "ORG-YBT"
         assert org_result["result"]["regions"][0]["region_code"] == "370100"
         assert org_result["result"]["roles"][0]["role_code"] == "r7"
@@ -1845,14 +1845,14 @@ def test_p1_governance_org_and_actor_projection_context_is_complete() -> None:
                 "iaf_claims": token,
                 "expected_state": "s-3",
                 "expected_nonce": "n-3",
-                "tenant_id": "default",
+                "tenant_id": "sd-default",
                 "org_code": "ORG-YBT",
                 "role": "r7",
                 "confirmed": True,
             },
         )
         snapshot = actor_result["result"]["actor_snapshots"][0]
-        assert snapshot["tenant_id"] == "default"
+        assert snapshot["tenant_id"] == "sd-default"
         assert snapshot["org_code"] == "ORG-YBT"
         assert snapshot["status"] == "active"
         assert set(snapshot["role_codes"]) == {"ACCOUNT_ADMIN", "r7"}
@@ -1862,11 +1862,11 @@ def test_p1_governance_org_and_actor_projection_context_is_complete() -> None:
         assert snapshot["account_flags"]["account_admin"] is True
 
         repo = database_store.governance_projection_repo
-        assert [item.tenant_id for item in repo.list_tenants()] == ["default"]
-        assert repo.list_orgs(tenant_id="default")[0].org_code == "ORG-YBT"
-        assert repo.list_regions(tenant_id="default")[0].region_code == "370100"
-        assert repo.list_roles(tenant_id="default")[0].role_code == "r7"
-        assert repo.list_actors(tenant_id="default")[0].external_actor_id == "iaf-user-003"
+        assert [item.tenant_id for item in repo.list_tenants()] == ["sd-default"]
+        assert repo.list_orgs(tenant_id="sd-default")[0].org_code == "ORG-YBT"
+        assert repo.list_regions(tenant_id="sd-default")[0].region_code == "370100"
+        assert repo.list_roles(tenant_id="sd-default")[0].role_code == "r7"
+        assert repo.list_actors(tenant_id="sd-default")[0].external_actor_id == "iaf-user-003"
 
 
 def test_p1_governance_policy_fail_closed_for_unbound_or_inconsistent_actor_context() -> None:
@@ -1887,12 +1887,12 @@ def test_p1_governance_policy_fail_closed_for_unbound_or_inconsistent_actor_cont
         service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
 
         base_payload = {
-            "tenant_id": "default",
+            "tenant_id": "sd-default",
             "capability_id": "ledger.entity.base.read",
             "surface": "api",
             "role": "r7",
-            "actor_snapshot": {"tenant_id": "default", "org_code": "ORG-YBT", "role_codes": ["r7"], "status": "active"},
-            "org_snapshot": {"tenant_id": "default", "org_code": "ORG-YBT"},
+            "actor_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT", "role_codes": ["r7"], "status": "active"},
+            "org_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT"},
         }
         allowed = service.invoke_skill("tenant.policy.evaluate", base_payload)
         assert allowed["allowed"] is True
@@ -2216,7 +2216,7 @@ def test_p1_governance_policy_decision_and_import_receipts_are_auditable_and_san
         service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
         actor_snapshot = {
             "subject": "iaf-user-audit",
-            "tenant_id": "default",
+            "tenant_id": "sd-default",
             "org_code": "ORG-YBT",
             "role_codes": ["r7"],
             "iam_role_codes": ["r7"],
@@ -2225,12 +2225,12 @@ def test_p1_governance_policy_decision_and_import_receipts_are_auditable_and_san
         decision = service.invoke_skill(
             "tenant.policy.evaluate",
             {
-                "tenant_id": "default",
+                "tenant_id": "sd-default",
                 "capability_id": "ledger.entity.base.read",
                 "surface": "api",
                 "role": "r7",
                 "actor_snapshot": actor_snapshot,
-                "org_snapshot": {"tenant_id": "default", "org_code": "ORG-YBT"},
+                "org_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT"},
                 "risk_context": {"password": "drop", "token": "drop", "client_secret": "drop", "certificate": "drop", "safe": "keep"},
             },
         )
@@ -2418,7 +2418,7 @@ def test_p1_governance_account_admin_cannot_bypass_policy_denies_or_confirmation
 
         account_admin_actor = {
             "subject": "iaf-account-admin",
-            "tenant_id": "default",
+            "tenant_id": "sd-default",
             "org_code": "ORG-YBT",
             "status": "active",
             "role_codes": ["r7", "ACCOUNT_ADMIN"],
@@ -2426,12 +2426,12 @@ def test_p1_governance_account_admin_cannot_bypass_policy_denies_or_confirmation
             "account_flags": {"account_admin": True},
         }
         base_payload = {
-            "tenant_id": "default",
+            "tenant_id": "sd-default",
             "capability_id": "ledger.entity.base.read",
             "surface": "api",
             "role": "r7",
             "actor_snapshot": account_admin_actor,
-            "org_snapshot": {"tenant_id": "default", "org_code": "ORG-YBT"},
+            "org_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT"},
         }
 
         missing_policy_payload = copy.deepcopy(base_payload)
@@ -2552,7 +2552,7 @@ def test_p1_governance_cold_start_runtime_does_not_call_legacy_bsp_online_servic
         from zw_brain.shared.database_store import DatabaseStore
 
         os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
-        os.environ["ZW_BRAIN_TENANT_ID"] = "default"
+        os.environ["ZW_BRAIN_TENANT_ID"] = "sd-default"
         os.environ.pop("ZW_BRAIN_LEGACY_BSP_BASE_URL", None)
         os.environ.pop("ZW_BRAIN_UCENTER_BASE_URL", None)
         from zw_brain.shared.migrate import ensure_runtime_schema
@@ -2570,8 +2570,8 @@ def test_p1_governance_cold_start_runtime_does_not_call_legacy_bsp_online_servic
         org_result = service.invoke_skill(
             "org.projection.sync",
             {
-                "tenant_id": "default",
-                "tenant": {"tenant_id": "default", "tenant_name": "山东省", "source_ref": "dsp-bsp:tenant:default"},
+                "tenant_id": "sd-default",
+                "tenant": {"tenant_id": "sd-default", "tenant_name": "山东省", "source_ref": "dsp-bsp:tenant:default"},
                 "regions": [{"region_code": "370100", "region_name": "济南市", "parent_region_code": "370000", "region_level": "2", "source_ref": "dsp-bsp:pub_region:370100"}],
                 "orgs": [{"org_code": "11370000MB284651XL", "org_name": "省大数据局", "region_code": "370100", "source_ref": "dsp-bsp:pub_organ:11370000MB284651XL"}],
                 "roles": [{"role_code": "r7", "role_name": "平台治理员", "source_ref": "dsp-bsp:pub_role:r7"}],
@@ -2579,7 +2579,7 @@ def test_p1_governance_cold_start_runtime_does_not_call_legacy_bsp_online_servic
                 "confirmed": True,
             },
         )
-        assert org_result["result"]["tenant"]["tenant_id"] == "default"
+        assert org_result["result"]["tenant"]["tenant_id"] == "sd-default"
 
         claims = _encode_mock_jwt(
             {
@@ -2602,14 +2602,14 @@ def test_p1_governance_cold_start_runtime_does_not_call_legacy_bsp_online_servic
                 "iaf_claims": claims,
                 "expected_state": "state-cold",
                 "expected_nonce": "nonce-cold",
-                "tenant_id": "default",
+                "tenant_id": "sd-default",
                 "org_code": "11370000MB284651XL",
                 "role": "r7",
                 "confirmed": True,
             },
         )
         actor_snapshot = actor_result["result"]["actor_snapshots"][0]
-        assert actor_snapshot["tenant_id"] == "default"
+        assert actor_snapshot["tenant_id"] == "sd-default"
         assert actor_snapshot["org_code"] == "11370000MB284651XL"
         assert actor_snapshot["iam_role_codes"] == ["r7"]
         assert actor_snapshot["account_flags"]["account_admin"] is True
@@ -2617,7 +2617,7 @@ def test_p1_governance_cold_start_runtime_does_not_call_legacy_bsp_online_servic
         import_result = service.invoke_skill(
             "legacy.bsp.mapping.import",
             {
-                "tenant_id": "default",
+                "tenant_id": "sd-default",
                 "mode": "apply",
                 "mapping_manifest": {
                     "manifest_version": "cold-start-v1",
@@ -2648,7 +2648,7 @@ def test_p1_governance_cold_start_runtime_does_not_call_legacy_bsp_online_servic
         service.invoke_skill(
             "capability.package.register",
             {
-                "tenant_id": "default",
+                "tenant_id": "sd-default",
                 "package_id": "PKG-topic-package-publish-cold",
                 "slug": "topic.package.publish",
                 "source": "zw-brain registry",
@@ -2660,18 +2660,18 @@ def test_p1_governance_cold_start_runtime_does_not_call_legacy_bsp_online_servic
         )
         service.invoke_skill("capability.version.review", {"package_id": "PKG-topic-package-publish-cold", "decision": "approve", "role": "r7", "confirmed": True})
         service.invoke_skill("package.register_version", {"package_id": "PKG-topic-package-publish-cold", "role": "r7", "confirmed": True})
-        enable_result = service.invoke_skill("tenant.capability.enable", {"tenant_id": "default", "package_id": "PKG-topic-package-publish-cold", "role": "r7", "confirmed": True})
-        assert enable_result["result"]["tenant_id"] == "default"
+        enable_result = service.invoke_skill("tenant.capability.enable", {"tenant_id": "sd-default", "package_id": "PKG-topic-package-publish-cold", "role": "r7", "confirmed": True})
+        assert enable_result["result"]["tenant_id"] == "sd-default"
 
         policy_eval = service.invoke_skill(
             "tenant.policy.evaluate",
             {
-                "tenant_id": "default",
+                "tenant_id": "sd-default",
                 "capability_id": "topic.package.publish",
                 "surface": "api",
                 "role": "r7",
                 "actor_snapshot": actor_snapshot,
-                "org_snapshot": {"tenant_id": "default", "org_code": "11370000MB284651XL"},
+                "org_snapshot": {"tenant_id": "sd-default", "org_code": "11370000MB284651XL"},
             },
         )
         assert policy_eval["allowed"] is True
@@ -2684,15 +2684,15 @@ def test_p1_governance_cold_start_runtime_does_not_call_legacy_bsp_online_servic
         registry_view = service.invoke_skill("registry.artifact.export", {"role": "r7"})
         assert business_view["id"] == "REQ-2026-04-25-0011"
         assert any(item["skill_id"] == "topic.package.publish" for item in registry_view["items"])
-        assert any(package["slug"] == "topic.package.publish" and package["tenantPolicy"]["tenantId"] == "default" for package in registry_view["packages"])
+        assert any(package["slug"] == "topic.package.publish" and package["tenantPolicy"]["tenantId"] == "sd-default" for package in registry_view["packages"])
 
         repo = database_store.governance_projection_repo
-        assert repo.list_tenants()[0].tenant_id == "default"
-        assert repo.list_regions(tenant_id="default")[0].source_ref == "dsp-bsp:pub_region:370100"
-        assert repo.list_orgs(tenant_id="default")[0].source_ref == "dsp-bsp:pub_organ:11370000MB284651XL"
-        assert repo.list_roles(tenant_id="default")[0].source_ref == "dsp-bsp:pub_role:r7"
-        assert repo.list_actors(tenant_id="default")[0].source_ref == "iaf:claims"
-        assert database_store.capability_package_repo.get_policy("topic.package.publish", tenant_id="default") is not None
+        assert repo.list_tenants()[0].tenant_id == "sd-default"
+        assert repo.list_regions(tenant_id="sd-default")[0].source_ref == "dsp-bsp:pub_region:370100"
+        assert repo.list_orgs(tenant_id="sd-default")[0].source_ref == "dsp-bsp:pub_organ:11370000MB284651XL"
+        assert repo.list_roles(tenant_id="sd-default")[0].source_ref == "dsp-bsp:pub_role:r7"
+        assert repo.list_actors(tenant_id="sd-default")[0].source_ref == "iaf:claims"
+        assert database_store.capability_package_repo.get_policy("topic.package.publish", tenant_id="sd-default") is not None
 
         calls = database_store.list_capability_calls()
         assert any(item.skill_id == "request.view" and item.status == "succeeded" for item in calls)

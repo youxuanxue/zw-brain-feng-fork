@@ -69,7 +69,7 @@ def test_repository_backed_list_views_include_projected_data() -> None:
         package = next(item for item in packages if item["id"] == "PKG-2026-04-25-001")
 
         assert request["repository"]["application_code"] == "REQ-2026-04-25-0011"
-        assert package["tenantPolicy"]["tenantId"] == "default"
+        assert package["tenantPolicy"]["tenantId"] == "sd-default"
         assert any(item["type"] == "approval.review_decide.before" for item in audit_items)
         assert any(item["type"] == "approval.review_decide.after" for item in audit_items)
 
@@ -365,7 +365,7 @@ def test_package_detail_exposes_registry_and_tenant_policy_projection() -> None:
         assert package["registeredVersion"] == "v1.0.0"
         assert package["versionStatus"] == "registered"
         assert package["tenantPolicy"]["policyStatus"] == "enabled"
-        assert package["tenantScope"] == "default"
+        assert package["tenantScope"] == "sd-default"
 
 
 def test_provider_publishing_controls_project_into_live_reads() -> None:

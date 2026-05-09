@@ -15,7 +15,7 @@ class CapabilityPackageRepository:
         with SessionLocal() as session:
             return list(session.execute(select(CapabilityPackageRecord).order_by(CapabilityPackageRecord.package_slug)).scalars())
 
-    def list_policies(self, tenant_id: str = "default") -> list[TenantCapabilityPolicyRecord]:
+    def list_policies(self, tenant_id: str = "sd-default") -> list[TenantCapabilityPolicyRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(
@@ -26,7 +26,7 @@ class CapabilityPackageRepository:
                 ).scalars()
             )
 
-    def get_policy(self, package_slug: str, tenant_id: str = "default") -> TenantCapabilityPolicyRecord | None:
+    def get_policy(self, package_slug: str, tenant_id: str = "sd-default") -> TenantCapabilityPolicyRecord | None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return session.execute(
@@ -36,7 +36,7 @@ class CapabilityPackageRepository:
                 )
             ).scalar_one_or_none()
 
-    def upsert_from_package(self, package: dict[str, Any], *, tenant_id: str = "default") -> None:
+    def upsert_from_package(self, package: dict[str, Any], *, tenant_id: str = "sd-default") -> None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             record = session.execute(select(CapabilityPackageRecord).where(CapabilityPackageRecord.package_slug == package["slug"])).scalar_one_or_none()
@@ -70,7 +70,7 @@ class CapabilityPackageRepository:
                 )
             session.commit()
 
-    def upsert_tenant_policy(self, package: dict[str, Any], *, tenant_id: str = "default", exposed_surfaces: list[str] | None = None) -> TenantCapabilityPolicyRecord:
+    def upsert_tenant_policy(self, package: dict[str, Any], *, tenant_id: str = "sd-default", exposed_surfaces: list[str] | None = None) -> TenantCapabilityPolicyRecord:
         package_payload = package | {"exposure": exposed_surfaces if exposed_surfaces is not None else package.get("exposure", [])}
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
@@ -106,7 +106,7 @@ class CapabilityPackageRepository:
         self,
         package: dict[str, Any],
         *,
-        tenant_id: str = "default",
+        tenant_id: str = "sd-default",
         policy_status: str,
         enabled: bool,
         exposed_surfaces: list[str] | None = None,

@@ -17,6 +17,7 @@ zw-brain-rest = "zw_brain.entry.rest.server:main"
 zw-brain-dashboard-bff = "zw_brain.entry.dashboard_bff:main"
 zw-brain-mcp = "zw_brain.entry.mcp.server:main"
 zw-brain-a2a = "zw_brain.entry.a2a.server:main"
+zw-brain-migrate-legacy = "zw_brain.entry.legacy_migration.main:main"
 
 [project.optional-dependencies]
 dev = [

@@ -70,7 +70,7 @@ def summary_with_source_kind(value: dict[str, Any] | None, source_ref: Any) -> d
     return summary | {"source_kind": adapter_source_kind(source_ref)}
 
 
-def legacy_mapping_payload(payload: dict[str, Any], *, tenant_id: str = "default") -> dict[str, Any]:
+def legacy_mapping_payload(payload: dict[str, Any], *, tenant_id: str = "sd-default") -> dict[str, Any]:
     source_ref = str(payload["source_ref"])
     legacy_system, _, legacy_object_type = source_ref.partition(":")
     if not legacy_system or not legacy_object_type:

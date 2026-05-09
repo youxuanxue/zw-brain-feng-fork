@@ -68,3 +68,13 @@ def test_wheel_build_and_install_smoke() -> None:
         assert (site_root / "zw_brain" / "_assets" / "zw-brain-web" / "index.html").exists()
         assert (site_root / "zw_brain" / "_assets" / "alembic" / "env.py").exists()
         assert (site_root / "zw_brain" / "_assets" / "alembic.ini").exists()
+
+        migrate = subprocess.run(
+            [str(bin_dir / "zw-brain-migrate-legacy"), "--help"],
+            cwd=tmp,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        assert "One-shot legacy dump migration" in migrate.stdout

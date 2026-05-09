@@ -32,9 +32,9 @@ def dumps_dir() -> Path:
     return root / DEFAULT_DUMPS_DIR_CANDIDATES[0]
 
 
-def list_dumps() -> dict[str, Path]:
-    """Return {schema_name: dump_path} discovered under the dumps directory."""
-    out: dict[str, Path] = {}
+def list_dump_candidates() -> dict[str, list[Path]]:
+    """Return all discovered dump candidates grouped by schema name."""
+    out: dict[str, list[Path]] = {}
     base = dumps_dir()
     if not base.is_dir():
         return out
@@ -45,8 +45,13 @@ def list_dumps() -> dict[str, Path]:
         if not match:
             continue
         schema = match.group(1)
-        out[schema] = entry
+        out.setdefault(schema, []).append(entry)
     return out
+
+
+def list_dumps() -> dict[str, Path]:
+    """Return {schema_name: dump_path} discovered under the dumps directory."""
+    return {schema: paths[-1] for schema, paths in list_dump_candidates().items()}
 
 
 def dump_path_for(schema: str) -> Path:

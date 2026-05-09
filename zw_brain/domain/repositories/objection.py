@@ -36,15 +36,26 @@ class ObjectionRepository:
         "closed": set(),
     }
 
-    def list_cases(self) -> list[ObjectionCaseRecord]:
+    def list_cases(self, *, tenant_id: str = "sd-default") -> list[ObjectionCaseRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            return list(session.execute(select(ObjectionCaseRecord).order_by(ObjectionCaseRecord.created_at)).scalars())
+            return list(
+                session.execute(
+                    select(ObjectionCaseRecord)
+                    .where(ObjectionCaseRecord.tenant_id == tenant_id)
+                    .order_by(ObjectionCaseRecord.created_at)
+                ).scalars()
+            )
 
-    def get_case(self, objection_id: str) -> ObjectionCaseRecord | None:
+    def get_case(self, objection_id: str, *, tenant_id: str = "sd-default") -> ObjectionCaseRecord | None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            return session.execute(select(ObjectionCaseRecord).where(ObjectionCaseRecord.id == objection_id)).scalar_one_or_none()
+            return session.execute(
+                select(ObjectionCaseRecord).where(
+                    ObjectionCaseRecord.tenant_id == tenant_id,
+                    ObjectionCaseRecord.id == objection_id,
+                )
+            ).scalar_one_or_none()
 
     def list_processes(self, objection_id: str) -> list[ObjectionProcessRecord]:
         SessionLocal = create_session_factory()
@@ -75,7 +86,7 @@ class ObjectionRepository:
                 select(ObjectionEvaluationRecord).where(ObjectionEvaluationRecord.objection_id == objection_id)
             ).scalar_one_or_none()
 
-    def create_case(self, payload: dict[str, Any], *, tenant_id: str = "default") -> ObjectionCaseRecord:
+    def create_case(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> ObjectionCaseRecord:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             record = ObjectionCaseRecord(
@@ -235,10 +246,15 @@ class ObjectionRepository:
                 select(ObjectionEvaluationRecord).where(ObjectionEvaluationRecord.objection_id == objection_id)
             ).scalar_one()
 
-    def upsert_from_dispute(self, dispute: dict[str, Any], *, tenant_id: str = "default") -> None:
+    def upsert_from_dispute(self, dispute: dict[str, Any], *, tenant_id: str = "sd-default") -> None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            record = session.execute(select(ObjectionCaseRecord).where(ObjectionCaseRecord.id == dispute["id"])).scalar_one_or_none()
+            record = session.execute(
+                select(ObjectionCaseRecord).where(
+                    ObjectionCaseRecord.tenant_id == tenant_id,
+                    ObjectionCaseRecord.id == dispute["id"],
+                )
+            ).scalar_one_or_none()
             if record is None:
                 record = ObjectionCaseRecord(
                     id=dispute["id"],

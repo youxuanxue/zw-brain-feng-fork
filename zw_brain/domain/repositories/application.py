@@ -11,15 +11,26 @@ from zw_brain.shared.sanitization import safe_json
 
 
 class ApplicationRepository:
-    def list_records(self) -> list[ApplicationRecord]:
+    def list_records(self, *, tenant_id: str = "sd-default") -> list[ApplicationRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            return list(session.execute(select(ApplicationRecord).order_by(ApplicationRecord.application_code)).scalars())
+            return list(
+                session.execute(
+                    select(ApplicationRecord)
+                    .where(ApplicationRecord.tenant_id == tenant_id)
+                    .order_by(ApplicationRecord.application_code)
+                ).scalars()
+            )
 
-    def upsert_from_request(self, request: dict[str, Any], *, tenant_id: str = "default") -> None:
+    def upsert_from_request(self, request: dict[str, Any], *, tenant_id: str = "sd-default") -> None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            record = session.execute(select(ApplicationRecord).where(ApplicationRecord.application_code == request["id"])).scalar_one_or_none()
+            record = session.execute(
+                select(ApplicationRecord).where(
+                    ApplicationRecord.tenant_id == tenant_id,
+                    ApplicationRecord.application_code == request["id"],
+                )
+            ).scalar_one_or_none()
             if record is None:
                 record = ApplicationRecord(
                     tenant_id=tenant_id,

@@ -15,7 +15,7 @@ def _now() -> datetime:
 
 
 class ExternalAdapterRepository:
-    def upsert_mapping(self, payload: dict[str, Any], *, tenant_id: str = "default") -> ExternalObjectMappingRecord:
+    def upsert_mapping(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> ExternalObjectMappingRecord:
         mapping = self._mapping_payload(payload, tenant_id=tenant_id)
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
@@ -49,7 +49,7 @@ class ExternalAdapterRepository:
     def list_mappings(
         self,
         *,
-        tenant_id: str = "default",
+        tenant_id: str = "sd-default",
         external_system: str | None = None,
         local_aggregate_type: str | None = None,
         local_aggregate_id: str | None = None,
@@ -68,7 +68,7 @@ class ExternalAdapterRepository:
                 statement = statement.where(ExternalObjectMappingRecord.status == status)
             return list(session.execute(statement.order_by(ExternalObjectMappingRecord.updated_at)).scalars())
 
-    def upsert_run_record(self, payload: dict[str, Any], *, tenant_id: str = "default") -> AdapterRunRecord:
+    def upsert_run_record(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> AdapterRunRecord:
         record_payload = self._run_payload(payload, tenant_id=tenant_id)
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
@@ -101,7 +101,7 @@ class ExternalAdapterRepository:
     def list_run_records(
         self,
         *,
-        tenant_id: str = "default",
+        tenant_id: str = "sd-default",
         adapter_slug: str | None = None,
         operation: str | None = None,
         status: str | None = None,

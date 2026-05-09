@@ -31,6 +31,7 @@ from zw_brain.domain.repositories import (
 )
 from zw_brain.domain.seed import clone_seed_snapshot
 from zw_brain.shared.db import create_session_factory, ensure_parent_dir
+from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.shared.sanitization import safe_json
 
 
@@ -218,9 +219,12 @@ class DatabaseStore:
 
     def sync_aggregate_tables(self, snapshot: dict[str, Any]) -> None:
         self.sync_reference_tables(snapshot)
+        tenant_id = get_runtime_tenant_id()
+        if self.resource_api_repo.has_assets(tenant_id=tenant_id) or self.catalog_repo.list_entries(tenant_id=tenant_id):
+            return
 
         for resource in snapshot.get("discovery", {}).get("resources", []):
-            self.catalog_repo.upsert_from_resource(resource)
+            self.catalog_repo.upsert_from_resource(resource, tenant_id=tenant_id)
         for catalog in snapshot.get("provider", {}).get("catalogs", []):
             self.catalog_repo.upsert_from_resource(
                 {
@@ -231,7 +235,8 @@ class DatabaseStore:
                     "source_ref": catalog.get("source_ref") or f"provider:catalog:{catalog['id']}",
                     "legacy_object_ref": catalog.get("legacy_object_ref") or catalog["id"],
                     "summary_json": catalog,
-                }
+                },
+                tenant_id=tenant_id,
             )
         for resource in snapshot.get("provider", {}).get("resources", []):
             self.resource_api_repo.upsert_asset(
@@ -244,32 +249,32 @@ class DatabaseStore:
                     "source_ref": resource.get("source_ref") or f"provider:resource:{resource['id']}",
                     "legacy_object_ref": resource.get("legacy_object_ref") or resource["id"],
                     "summary_json": resource,
-                }
+                },
+                tenant_id=tenant_id,
             )
         for item in snapshot.get("catalog_items", []) + snapshot.get("discovery", {}).get("catalog_items", []) + snapshot.get("provider", {}).get("catalog_items", []):
-            self.catalog_repo.upsert_item(item)
+            self.catalog_repo.upsert_item(item, tenant_id=tenant_id)
 
         approvals = {item["id"]: item for item in snapshot.get("approvals", [])}
         for request in snapshot.get("requests", []):
-            self.application_repo.upsert_from_request(request)
-            self.approval_repo.upsert_from_request_and_approval(request, approvals.get(request["id"], {}))
+            self.application_repo.upsert_from_request(request, tenant_id=tenant_id)
+            self.approval_repo.upsert_from_request_and_approval(request, approvals.get(request["id"], {}), tenant_id=tenant_id)
 
         for delivery in snapshot.get("delivery_tasks", []):
-            self.delivery_repo.upsert_from_delivery(delivery)
+            self.delivery_repo.upsert_from_delivery(delivery, tenant_id=tenant_id)
 
-        if not self.resource_api_repo.has_assets():
-            for resource in snapshot.get("api_resources", []):
-                self.resource_api_repo.upsert_asset(resource)
-                for binding in resource.get("channel_bindings", []):
-                    self.resource_api_repo.upsert_binding({**binding, "resource_code": resource["resource_code"]})
+        for resource in snapshot.get("api_resources", []):
+            self.resource_api_repo.upsert_asset(resource, tenant_id=tenant_id)
+            for binding in resource.get("channel_bindings", []):
+                self.resource_api_repo.upsert_binding({**binding, "resource_code": resource["resource_code"]}, tenant_id=tenant_id)
 
-        if not self.gateway_runtime_repo.has_statuses():
+        if not self.gateway_runtime_repo.has_statuses(tenant_id=tenant_id):
             for gateway in snapshot.get("gateway_runtime_statuses", []):
-                self.gateway_runtime_repo.upsert_heartbeat(gateway)
+                self.gateway_runtime_repo.upsert_heartbeat(gateway, tenant_id=tenant_id)
 
-        if not self.service_invocation_repo.has_metrics():
+        if not self.service_invocation_repo.has_metrics(tenant_id=tenant_id):
             for metric in snapshot.get("service_invocation_metrics", []):
-                self.service_invocation_repo.upsert_metric(metric)
+                self.service_invocation_repo.upsert_metric(metric, tenant_id=tenant_id)
 
         for dispute in snapshot.get("disputes", []):
-            self.objection_repo.upsert_from_dispute(dispute)
+            self.objection_repo.upsert_from_dispute(dispute, tenant_id=tenant_id)

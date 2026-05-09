@@ -24,7 +24,7 @@ def _now() -> datetime:
 
 
 class GovernanceProjectionRepository:
-    def upsert_tenant(self, payload: dict[str, Any], *, tenant_id: str = "default") -> TenantProjectionRecord:
+    def upsert_tenant(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> TenantProjectionRecord:
         data = {
             "tenant_id": str(payload.get("tenant_id", tenant_id)),
             "tenant_name": str(payload.get("tenant_name", payload.get("name", payload.get("tenant_id", tenant_id)))),
@@ -34,7 +34,7 @@ class GovernanceProjectionRepository:
         }
         return self._upsert(TenantProjectionRecord, [TenantProjectionRecord.tenant_id == data["tenant_id"]], data)
 
-    def upsert_org(self, payload: dict[str, Any], *, tenant_id: str = "default") -> OrgProjectionRecord:
+    def upsert_org(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> OrgProjectionRecord:
         data = {
             "tenant_id": tenant_id,
             "org_code": str(payload["org_code"]),
@@ -47,7 +47,7 @@ class GovernanceProjectionRepository:
         }
         return self._upsert(OrgProjectionRecord, [OrgProjectionRecord.tenant_id == tenant_id, OrgProjectionRecord.org_code == data["org_code"]], data)
 
-    def upsert_region(self, payload: dict[str, Any], *, tenant_id: str = "default") -> RegionProjectionRecord:
+    def upsert_region(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> RegionProjectionRecord:
         data = {
             "tenant_id": tenant_id,
             "region_code": str(payload["region_code"]),
@@ -60,7 +60,7 @@ class GovernanceProjectionRepository:
         }
         return self._upsert(RegionProjectionRecord, [RegionProjectionRecord.tenant_id == tenant_id, RegionProjectionRecord.region_code == data["region_code"]], data)
 
-    def upsert_role(self, payload: dict[str, Any], *, tenant_id: str = "default") -> RoleProjectionRecord:
+    def upsert_role(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> RoleProjectionRecord:
         data = {
             "tenant_id": tenant_id,
             "role_code": str(payload["role_code"]),
@@ -71,7 +71,7 @@ class GovernanceProjectionRepository:
         }
         return self._upsert(RoleProjectionRecord, [RoleProjectionRecord.tenant_id == tenant_id, RoleProjectionRecord.role_code == data["role_code"]], data)
 
-    def upsert_actor(self, payload: dict[str, Any], *, tenant_id: str = "default") -> ActorProjectionRecord:
+    def upsert_actor(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> ActorProjectionRecord:
         data = {
             "tenant_id": tenant_id,
             "external_actor_id": str(payload["external_actor_id"]),
@@ -84,7 +84,7 @@ class GovernanceProjectionRepository:
         }
         return self._upsert(ActorProjectionRecord, [ActorProjectionRecord.tenant_id == tenant_id, ActorProjectionRecord.external_actor_id == data["external_actor_id"]], data)
 
-    def import_legacy_policy_candidate(self, payload: dict[str, Any], *, tenant_id: str = "default") -> LegacyPolicyMappingCandidateRecord:
+    def import_legacy_policy_candidate(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> LegacyPolicyMappingCandidateRecord:
         data = {
             "tenant_id": tenant_id,
             "legacy_system": str(payload.get("legacy_system", "dsp-bsp")),
@@ -109,25 +109,25 @@ class GovernanceProjectionRepository:
     def list_tenants(self) -> list[TenantProjectionRecord]:
         return self._list(select(TenantProjectionRecord).order_by(TenantProjectionRecord.tenant_id))
 
-    def list_orgs(self, *, tenant_id: str = "default") -> list[OrgProjectionRecord]:
+    def list_orgs(self, *, tenant_id: str = "sd-default") -> list[OrgProjectionRecord]:
         return self._list(select(OrgProjectionRecord).where(OrgProjectionRecord.tenant_id == tenant_id).order_by(OrgProjectionRecord.org_code))
 
-    def list_regions(self, *, tenant_id: str = "default") -> list[RegionProjectionRecord]:
+    def list_regions(self, *, tenant_id: str = "sd-default") -> list[RegionProjectionRecord]:
         return self._list(select(RegionProjectionRecord).where(RegionProjectionRecord.tenant_id == tenant_id).order_by(RegionProjectionRecord.region_code))
 
-    def list_roles(self, *, tenant_id: str = "default") -> list[RoleProjectionRecord]:
+    def list_roles(self, *, tenant_id: str = "sd-default") -> list[RoleProjectionRecord]:
         return self._list(select(RoleProjectionRecord).where(RoleProjectionRecord.tenant_id == tenant_id).order_by(RoleProjectionRecord.role_code))
 
-    def list_actors(self, *, tenant_id: str = "default") -> list[ActorProjectionRecord]:
+    def list_actors(self, *, tenant_id: str = "sd-default") -> list[ActorProjectionRecord]:
         return self._list(select(ActorProjectionRecord).where(ActorProjectionRecord.tenant_id == tenant_id).order_by(ActorProjectionRecord.external_actor_id))
 
-    def list_policy_candidates(self, *, tenant_id: str = "default", candidate_status: str | None = None) -> list[LegacyPolicyMappingCandidateRecord]:
+    def list_policy_candidates(self, *, tenant_id: str = "sd-default", candidate_status: str | None = None) -> list[LegacyPolicyMappingCandidateRecord]:
         statement = select(LegacyPolicyMappingCandidateRecord).where(LegacyPolicyMappingCandidateRecord.tenant_id == tenant_id)
         if candidate_status:
             statement = statement.where(LegacyPolicyMappingCandidateRecord.candidate_status == candidate_status)
         return self._list(statement.order_by(LegacyPolicyMappingCandidateRecord.legacy_permission_ref))
 
-    def upsert_legacy_object_mapping(self, payload: dict[str, Any], *, tenant_id: str = "default") -> LegacyObjectMappingRecord | None:
+    def upsert_legacy_object_mapping(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> LegacyObjectMappingRecord | None:
         if not payload.get("source_ref"):
             return None
         SessionLocal = create_session_factory()
@@ -136,7 +136,7 @@ class GovernanceProjectionRepository:
             session.commit()
             return record
 
-    def _upsert_legacy_object_mapping_in_session(self, session: Session, payload: dict[str, Any], *, tenant_id: str = "default") -> LegacyObjectMappingRecord:
+    def _upsert_legacy_object_mapping_in_session(self, session: Session, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> LegacyObjectMappingRecord:
         mapping = legacy_mapping_payload(payload, tenant_id=tenant_id)
         existing_for_legacy = list(
             session.execute(

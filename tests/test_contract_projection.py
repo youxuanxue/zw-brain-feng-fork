@@ -185,7 +185,7 @@ def test_external_capability_contracts_are_not_brain_service_invokable() -> None
                 "quality_ref": "quality-demo",
                 "target_type": "catalog",
                 "target_ref": "cat-demo",
-                "tenant_id": "default",
+                "tenant_id": "sd-default",
                 "role": "r7",
             },
         )

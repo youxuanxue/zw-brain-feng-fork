@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
+
 ACTOR_NAMES = {
     "r1": "周处长",
     "r2": "刘主任",
@@ -161,7 +163,6 @@ PERMISSION_ROLES = {
     "topic.package.evidence.attach.execute": {"r2", "r5", "r6", "r7", "r8"},
     "topic.package.query.execute": {"r1", "r2", "r6", "r7", "r8"},
     "topic.package.metric.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "adapter.legacy.exchange.ingest.execute": {"r6", "r7", "r8"},
     "delivery.receipt.ingest.execute": {"r6", "r7", "r8"},
     "ops.exchange.statistics.query.execute": {"r2", "r5", "r6", "r7", "r8"},
     "ops.exchange.diagnose.execute": {"r2", "r5", "r6", "r7", "r8"},
@@ -200,7 +201,7 @@ def actor_for_role(role: str) -> str:
 def tenant_for_role(role: str) -> str:
     if role not in ACTOR_NAMES:
         raise DomainAccessDeniedError(f"unknown role: {role}")
-    return "default"
+    return get_runtime_tenant_id()
 
 
 def permissions_for_role(role: str) -> set[str]:

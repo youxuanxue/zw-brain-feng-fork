@@ -20,7 +20,7 @@ def _now() -> datetime:
 
 
 class ResourceApiRepository:
-    def list_assets(self, *, tenant_id: str = "default") -> list[ResourceAssetRecord]:
+    def list_assets(self, *, tenant_id: str = "sd-default") -> list[ResourceAssetRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(
@@ -31,14 +31,14 @@ class ResourceApiRepository:
                 ).scalars()
             )
 
-    def has_assets(self, *, tenant_id: str = "default") -> bool:
+    def has_assets(self, *, tenant_id: str = "sd-default") -> bool:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return session.execute(
                 select(ResourceAssetRecord.id).where(ResourceAssetRecord.tenant_id == tenant_id).limit(1)
             ).scalar_one_or_none() is not None
 
-    def get_asset(self, resource_code: str, *, tenant_id: str = "default") -> ResourceAssetRecord | None:
+    def get_asset(self, resource_code: str, *, tenant_id: str = "sd-default") -> ResourceAssetRecord | None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return session.execute(
@@ -48,7 +48,7 @@ class ResourceApiRepository:
                 )
             ).scalar_one_or_none()
 
-    def upsert_asset(self, payload: dict[str, Any], *, tenant_id: str = "default") -> ResourceAssetRecord:
+    def upsert_asset(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> ResourceAssetRecord:
         SessionLocal = create_session_factory()
         now = _now()
         resource_code = str(payload["resource_code"])
@@ -105,7 +105,7 @@ class ResourceApiRepository:
             session.refresh(record)
             return record
 
-    def transition_asset(self, resource_code: str, status: str, *, tenant_id: str = "default") -> ResourceAssetRecord | None:
+    def transition_asset(self, resource_code: str, status: str, *, tenant_id: str = "sd-default") -> ResourceAssetRecord | None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             record = session.execute(
@@ -122,7 +122,7 @@ class ResourceApiRepository:
             session.refresh(record)
             return record
 
-    def list_test_projections(self, resource_code: str | None = None, *, tenant_id: str = "default") -> list[ResourceApiTestProjectionRecord]:
+    def list_test_projections(self, resource_code: str | None = None, *, tenant_id: str = "sd-default") -> list[ResourceApiTestProjectionRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(ResourceApiTestProjectionRecord).where(ResourceApiTestProjectionRecord.tenant_id == tenant_id)
@@ -130,7 +130,7 @@ class ResourceApiRepository:
                 statement = statement.where(ResourceApiTestProjectionRecord.resource_code == resource_code)
             return list(session.execute(statement.order_by(ResourceApiTestProjectionRecord.tested_at)).scalars())
 
-    def upsert_test_projection(self, payload: dict[str, Any], *, tenant_id: str = "default") -> ResourceApiTestProjectionRecord:
+    def upsert_test_projection(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> ResourceApiTestProjectionRecord:
         SessionLocal = create_session_factory()
         now = _now()
         resource_code = str(payload["resource_code"])
@@ -182,7 +182,7 @@ class ResourceApiRepository:
             session.refresh(record)
             return record
 
-    def list_bindings(self, resource_code: str | None = None, *, tenant_id: str = "default") -> list[ResourceChannelBindingRecord]:
+    def list_bindings(self, resource_code: str | None = None, *, tenant_id: str = "sd-default") -> list[ResourceChannelBindingRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(ResourceChannelBindingRecord).where(ResourceChannelBindingRecord.tenant_id == tenant_id)
@@ -190,7 +190,7 @@ class ResourceApiRepository:
                 statement = statement.where(ResourceChannelBindingRecord.resource_code == resource_code)
             return list(session.execute(statement.order_by(ResourceChannelBindingRecord.binding_code)).scalars())
 
-    def get_binding(self, binding_code: str, *, tenant_id: str = "default") -> ResourceChannelBindingRecord | None:
+    def get_binding(self, binding_code: str, *, tenant_id: str = "sd-default") -> ResourceChannelBindingRecord | None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return session.execute(
@@ -200,7 +200,7 @@ class ResourceApiRepository:
                 )
             ).scalar_one_or_none()
 
-    def upsert_binding(self, payload: dict[str, Any], *, tenant_id: str = "default") -> ResourceChannelBindingRecord:
+    def upsert_binding(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> ResourceChannelBindingRecord:
         SessionLocal = create_session_factory()
         now = _now()
         binding_code = str(payload["binding_code"])

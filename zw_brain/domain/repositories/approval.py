@@ -9,10 +9,16 @@ from zw_brain.shared.db import create_session_factory
 
 
 class ApprovalRepository:
-    def list_cases(self) -> list[ApprovalCaseRecord]:
+    def list_cases(self, *, tenant_id: str = "sd-default") -> list[ApprovalCaseRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            return list(session.execute(select(ApprovalCaseRecord).order_by(ApprovalCaseRecord.application_code)).scalars())
+            return list(
+                session.execute(
+                    select(ApprovalCaseRecord)
+                    .where(ApprovalCaseRecord.tenant_id == tenant_id)
+                    .order_by(ApprovalCaseRecord.application_code)
+                ).scalars()
+            )
 
     def list_steps(self, application_code: str) -> list[ApprovalStepRecord]:
         SessionLocal = create_session_factory()
@@ -63,7 +69,7 @@ class ApprovalRepository:
         skill_id: str,
         audit_id: str,
         decision: str | None = None,
-        tenant_id: str = "default",
+        tenant_id: str = "sd-default",
     ) -> None:
         self._upsert_lifecycle(
             resource_code,
@@ -86,7 +92,7 @@ class ApprovalRepository:
         skill_id: str,
         audit_id: str,
         decision: str | None = None,
-        tenant_id: str = "default",
+        tenant_id: str = "sd-default",
     ) -> None:
         self._upsert_lifecycle(
             catalog_code,
@@ -171,10 +177,15 @@ class ApprovalRepository:
             )
             session.commit()
 
-    def upsert_from_request_and_approval(self, request: dict[str, Any], approval: dict[str, Any], *, tenant_id: str = "default") -> None:
+    def upsert_from_request_and_approval(self, request: dict[str, Any], approval: dict[str, Any], *, tenant_id: str = "sd-default") -> None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            record = session.execute(select(ApprovalCaseRecord).where(ApprovalCaseRecord.application_code == request["id"])).scalar_one_or_none()
+            record = session.execute(
+                select(ApprovalCaseRecord).where(
+                    ApprovalCaseRecord.tenant_id == tenant_id,
+                    ApprovalCaseRecord.application_code == request["id"],
+                )
+            ).scalar_one_or_none()
             if record is None:
                 record = ApprovalCaseRecord(
                     tenant_id=tenant_id,

@@ -14,7 +14,7 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-def upsert_legacy_mapping_in_session(session: Any, payload: dict[str, Any], *, tenant_id: str = "default") -> None:
+def upsert_legacy_mapping_in_session(session: Any, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> None:
     if not payload.get("source_ref"):
         return
     mapping = legacy_mapping_payload(payload, tenant_id=tenant_id)
@@ -53,7 +53,7 @@ class LegacyObjectMappingRepository:
     def list_mappings(
         self,
         *,
-        tenant_id: str = "default",
+        tenant_id: str = "sd-default",
         canonical_type: str | None = None,
         canonical_ref: str | None = None,
     ) -> list[LegacyObjectMappingRecord]:
@@ -70,7 +70,7 @@ class LegacyObjectMappingRepository:
         self,
         payload: dict[str, Any],
         *,
-        tenant_id: str = "default",
+        tenant_id: str = "sd-default",
     ) -> LegacyObjectMappingRecord | None:
         if not payload.get("source_ref"):
             return None

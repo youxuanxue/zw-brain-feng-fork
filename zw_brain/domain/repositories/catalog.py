@@ -17,7 +17,7 @@ from zw_brain.shared.sanitization import safe_json
 
 
 class CatalogRepository:
-    def list_models(self, *, tenant_id: str = "default") -> list[CatalogModelRecord]:
+    def list_models(self, *, tenant_id: str = "sd-default") -> list[CatalogModelRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(
@@ -28,7 +28,7 @@ class CatalogRepository:
                 ).scalars()
             )
 
-    def upsert_model(self, payload: dict[str, Any], *, tenant_id: str = "default") -> CatalogModelRecord:
+    def upsert_model(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> CatalogModelRecord:
         SessionLocal = create_session_factory()
         model_code = str(payload["model_code"])
         with SessionLocal() as session:
@@ -71,7 +71,7 @@ class CatalogRepository:
             session.refresh(record)
             return record
 
-    def upsert_model_field(self, payload: dict[str, Any], *, tenant_id: str = "default") -> CatalogModelFieldRecord:
+    def upsert_model_field(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> CatalogModelFieldRecord:
         SessionLocal = create_session_factory()
         model_code = str(payload["model_code"])
         field_code = str(payload["field_code"])
@@ -119,7 +119,7 @@ class CatalogRepository:
             session.refresh(record)
             return record
 
-    def list_model_fields(self, model_code: str, *, tenant_id: str = "default") -> list[CatalogModelFieldRecord]:
+    def list_model_fields(self, model_code: str, *, tenant_id: str = "sd-default") -> list[CatalogModelFieldRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(
@@ -130,7 +130,7 @@ class CatalogRepository:
                 ).scalars()
             )
 
-    def create_entry_version(self, payload: dict[str, Any], *, tenant_id: str = "default") -> CatalogEntryVersionRecord:
+    def create_entry_version(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> CatalogEntryVersionRecord:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             record = CatalogEntryVersionRecord(
@@ -147,7 +147,7 @@ class CatalogRepository:
             session.refresh(record)
             return record
 
-    def list_entry_versions(self, catalog_code: str, *, tenant_id: str = "default") -> list[CatalogEntryVersionRecord]:
+    def list_entry_versions(self, catalog_code: str, *, tenant_id: str = "sd-default") -> list[CatalogEntryVersionRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(
@@ -158,22 +158,37 @@ class CatalogRepository:
                 ).scalars()
             )
 
-    def list_entries(self) -> list[CatalogEntryRecord]:
+    def list_entries(self, *, tenant_id: str = "sd-default") -> list[CatalogEntryRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            return list(session.execute(select(CatalogEntryRecord).order_by(CatalogEntryRecord.catalog_code)).scalars())
+            return list(
+                session.execute(
+                    select(CatalogEntryRecord)
+                    .where(CatalogEntryRecord.tenant_id == tenant_id)
+                    .order_by(CatalogEntryRecord.catalog_code)
+                ).scalars()
+            )
 
-    def get_entry(self, catalog_code: str) -> CatalogEntryRecord | None:
+    def get_entry(self, catalog_code: str, *, tenant_id: str = "sd-default") -> CatalogEntryRecord | None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return session.execute(
-                select(CatalogEntryRecord).where(CatalogEntryRecord.catalog_code == catalog_code)
+                select(CatalogEntryRecord).where(
+                    CatalogEntryRecord.tenant_id == tenant_id,
+                    CatalogEntryRecord.catalog_code == catalog_code,
+                )
             ).scalar_one_or_none()
 
-    def search_entries(self, query: str) -> list[CatalogEntryRecord]:
+    def search_entries(self, query: str, *, tenant_id: str = "sd-default") -> list[CatalogEntryRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            records = list(session.execute(select(CatalogEntryRecord).order_by(CatalogEntryRecord.catalog_code)).scalars())
+            records = list(
+                session.execute(
+                    select(CatalogEntryRecord)
+                    .where(CatalogEntryRecord.tenant_id == tenant_id)
+                    .order_by(CatalogEntryRecord.catalog_code)
+                ).scalars()
+            )
             query = query.strip()
             if not query:
                 return records
@@ -198,15 +213,26 @@ class CatalogRepository:
                     matched.append(record)
             return matched
 
-    def list_items(self, catalog_code: str | None = None) -> list[CatalogItemRecord]:
+    def list_items(self, catalog_code: str | None = None, *, tenant_id: str = "sd-default") -> list[CatalogItemRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            statement = select(CatalogItemRecord)
+            statement = select(CatalogItemRecord).where(CatalogItemRecord.tenant_id == tenant_id)
             if catalog_code:
                 statement = statement.where(CatalogItemRecord.catalog_code == catalog_code)
             return list(session.execute(statement.order_by(CatalogItemRecord.catalog_code, CatalogItemRecord.display_order, CatalogItemRecord.item_code)).scalars())
 
-    def upsert_item(self, item: dict[str, Any], *, tenant_id: str = "default") -> CatalogItemRecord:
+    def list_model_fields_all(self, *, tenant_id: str = "sd-default") -> list[CatalogModelFieldRecord]:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            return list(
+                session.execute(
+                    select(CatalogModelFieldRecord)
+                    .where(CatalogModelFieldRecord.tenant_id == tenant_id)
+                    .order_by(CatalogModelFieldRecord.model_code, CatalogModelFieldRecord.display_order, CatalogModelFieldRecord.field_code)
+                ).scalars()
+            )
+
+    def upsert_item(self, item: dict[str, Any], *, tenant_id: str = "sd-default") -> CatalogItemRecord:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             item_code = str(item["item_code"])
@@ -253,10 +279,15 @@ class CatalogRepository:
             session.refresh(record)
             return record
 
-    def upsert_from_resource(self, resource: dict[str, Any], *, tenant_id: str = "default") -> None:
+    def upsert_from_resource(self, resource: dict[str, Any], *, tenant_id: str = "sd-default") -> None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            record = session.execute(select(CatalogEntryRecord).where(CatalogEntryRecord.catalog_code == resource["id"])).scalar_one_or_none()
+            record = session.execute(
+                select(CatalogEntryRecord).where(
+                    CatalogEntryRecord.tenant_id == tenant_id,
+                    CatalogEntryRecord.catalog_code == resource["id"],
+                )
+            ).scalar_one_or_none()
             if record is None:
                 record = CatalogEntryRecord(
                     tenant_id=tenant_id,

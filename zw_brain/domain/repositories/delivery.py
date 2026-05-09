@@ -22,10 +22,16 @@ def _now() -> datetime:
 
 
 class DeliveryRepository:
-    def list_tasks(self) -> list[DeliveryTaskRecord]:
+    def list_tasks(self, *, tenant_id: str = "sd-default") -> list[DeliveryTaskRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            return list(session.execute(select(DeliveryTaskRecord).order_by(DeliveryTaskRecord.delivery_code)).scalars())
+            return list(
+                session.execute(
+                    select(DeliveryTaskRecord)
+                    .where(DeliveryTaskRecord.tenant_id == tenant_id)
+                    .order_by(DeliveryTaskRecord.delivery_code)
+                ).scalars()
+            )
 
     def list_receipts(self, delivery_code: str) -> list[DeliveryReceiptRecord]:
         SessionLocal = create_session_factory()
@@ -38,28 +44,28 @@ class DeliveryRepository:
                 ).scalars()
             )
 
-    def list_subscriptions(self, delivery_code: str | None = None) -> list[DeliverySubscriptionRecord]:
+    def list_subscriptions(self, delivery_code: str | None = None, *, tenant_id: str = "sd-default") -> list[DeliverySubscriptionRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            statement = select(DeliverySubscriptionRecord)
+            statement = select(DeliverySubscriptionRecord).where(DeliverySubscriptionRecord.tenant_id == tenant_id)
             if delivery_code:
                 statement = statement.where(DeliverySubscriptionRecord.delivery_code == delivery_code)
             return list(session.execute(statement.order_by(DeliverySubscriptionRecord.updated_at)).scalars())
 
-    def list_attempts(self, delivery_code: str | None = None, attempt_code: str | None = None) -> list[DeliveryAttemptRecord]:
+    def list_attempts(self, delivery_code: str | None = None, attempt_code: str | None = None, *, tenant_id: str = "sd-default") -> list[DeliveryAttemptRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            statement = select(DeliveryAttemptRecord)
+            statement = select(DeliveryAttemptRecord).where(DeliveryAttemptRecord.tenant_id == tenant_id)
             if delivery_code:
                 statement = statement.where(DeliveryAttemptRecord.delivery_code == delivery_code)
             if attempt_code:
                 statement = statement.where(DeliveryAttemptRecord.attempt_code == attempt_code)
             return list(session.execute(statement.order_by(DeliveryAttemptRecord.updated_at)).scalars())
 
-    def list_execution_evidence(self, delivery_code: str | None = None, attempt_code: str | None = None) -> list[DeliveryExecutionEvidenceRecord]:
+    def list_execution_evidence(self, delivery_code: str | None = None, attempt_code: str | None = None, *, tenant_id: str = "sd-default") -> list[DeliveryExecutionEvidenceRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            statement = select(DeliveryExecutionEvidenceRecord)
+            statement = select(DeliveryExecutionEvidenceRecord).where(DeliveryExecutionEvidenceRecord.tenant_id == tenant_id)
             if delivery_code:
                 statement = statement.where(DeliveryExecutionEvidenceRecord.delivery_code == delivery_code)
             if attempt_code:
@@ -72,10 +78,11 @@ class DeliveryRepository:
         metric_scope: str | None = None,
         resource_code: str | None = None,
         delivery_code: str | None = None,
+        tenant_id: str = "sd-default",
     ) -> list[ExchangeMetricProjectionRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            statement = select(ExchangeMetricProjectionRecord)
+            statement = select(ExchangeMetricProjectionRecord).where(ExchangeMetricProjectionRecord.tenant_id == tenant_id)
             if metric_scope:
                 statement = statement.where(ExchangeMetricProjectionRecord.metric_scope == metric_scope)
             if resource_code:
@@ -84,7 +91,7 @@ class DeliveryRepository:
                 statement = statement.where(ExchangeMetricProjectionRecord.delivery_code == delivery_code)
             return list(session.execute(statement.order_by(ExchangeMetricProjectionRecord.generated_at)).scalars())
 
-    def upsert_subscription(self, payload: dict[str, Any], *, tenant_id: str = "default") -> DeliverySubscriptionRecord:
+    def upsert_subscription(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> DeliverySubscriptionRecord:
         subscription_code = str(payload.get("subscription_code") or payload.get("subscription_id") or f"SUB-{payload['delivery_code']}")
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
@@ -118,7 +125,7 @@ class DeliveryRepository:
             session.refresh(record)
             return record
 
-    def upsert_attempt(self, payload: dict[str, Any], *, tenant_id: str = "default") -> DeliveryAttemptRecord:
+    def upsert_attempt(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> DeliveryAttemptRecord:
         attempt_code = str(payload.get("attempt_code") or payload.get("attempt_id") or f"ATT-{payload['delivery_code']}-{payload.get('attempt_kind', 'exchange')}")
         started_at = payload.get("started_at")
         finished_at = payload.get("finished_at")
@@ -160,7 +167,7 @@ class DeliveryRepository:
             session.refresh(record)
             return record
 
-    def add_execution_evidence(self, payload: dict[str, Any], *, tenant_id: str = "default") -> DeliveryExecutionEvidenceRecord:
+    def add_execution_evidence(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> DeliveryExecutionEvidenceRecord:
         evidence_ref = str(payload.get("evidence_ref") or payload.get("evidence_id") or f"EVD-{payload.get('attempt_code') or payload.get('delivery_code')}")
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
@@ -198,7 +205,7 @@ class DeliveryRepository:
             session.refresh(record)
             return record
 
-    def upsert_exchange_metric(self, payload: dict[str, Any], *, tenant_id: str = "default") -> ExchangeMetricProjectionRecord:
+    def upsert_exchange_metric(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> ExchangeMetricProjectionRecord:
         values = {
             "tenant_id": tenant_id,
             "metric_scope": str(payload.get("metric_scope", "delivery")),
@@ -269,10 +276,15 @@ class DeliveryRepository:
             session.refresh(record)
             return record
 
-    def upsert_from_delivery(self, delivery: dict[str, Any], *, tenant_id: str = "default") -> None:
+    def upsert_from_delivery(self, delivery: dict[str, Any], *, tenant_id: str = "sd-default") -> None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            record = session.execute(select(DeliveryTaskRecord).where(DeliveryTaskRecord.delivery_code == delivery["id"])).scalar_one_or_none()
+            record = session.execute(
+                select(DeliveryTaskRecord).where(
+                    DeliveryTaskRecord.tenant_id == tenant_id,
+                    DeliveryTaskRecord.delivery_code == delivery["id"],
+                )
+            ).scalar_one_or_none()
             if record is None:
                 record = DeliveryTaskRecord(
                     tenant_id=tenant_id,

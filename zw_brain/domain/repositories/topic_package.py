@@ -37,7 +37,7 @@ class TopicPackageRepository:
         "offline": {"configuring"},
     }
 
-    def create_package(self, payload: dict[str, Any], *, tenant_id: str = "default") -> TopicPackageRecord:
+    def create_package(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> TopicPackageRecord:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             package_code = str(payload["package_code"])
@@ -78,7 +78,7 @@ class TopicPackageRepository:
             session.commit()
             return session.execute(select(TopicPackageRecord).where(TopicPackageRecord.id == existing.id)).scalar_one()
 
-    def configure_package(self, package_code: str, payload: dict[str, Any], *, tenant_id: str = "default") -> TopicPackageRecord:
+    def configure_package(self, package_code: str, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> TopicPackageRecord:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             record = self._get_package_in_session(session, tenant_id, package_code)
@@ -111,7 +111,7 @@ class TopicPackageRepository:
             session.commit()
             return session.execute(select(TopicPackageRecord).where(TopicPackageRecord.id == record.id)).scalar_one()
 
-    def transition_package(self, package_code: str, next_status: str, payload: dict[str, Any], *, tenant_id: str = "default") -> TopicPackageRecord:
+    def transition_package(self, package_code: str, next_status: str, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> TopicPackageRecord:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             record = self._get_package_in_session(session, tenant_id, package_code)
@@ -139,7 +139,7 @@ class TopicPackageRepository:
             session.commit()
             return session.execute(select(TopicPackageRecord).where(TopicPackageRecord.id == record.id)).scalar_one()
 
-    def update_policy(self, package_code: str, payload: dict[str, Any], *, tenant_id: str = "default") -> list[TopicPackageVisibilityRecord]:
+    def update_policy(self, package_code: str, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> list[TopicPackageVisibilityRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             if self._get_package_in_session(session, tenant_id, package_code) is None:
@@ -160,7 +160,7 @@ class TopicPackageRepository:
             session.commit()
             return [session.execute(select(TopicPackageVisibilityRecord).where(TopicPackageVisibilityRecord.id == item.id)).scalar_one() for item in records]
 
-    def attach_evidence(self, package_code: str, payload: dict[str, Any], *, tenant_id: str = "default") -> TopicPackageEvidenceRecord:
+    def attach_evidence(self, package_code: str, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> TopicPackageEvidenceRecord:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             if self._get_package_in_session(session, tenant_id, package_code) is None:
@@ -179,7 +179,7 @@ class TopicPackageRepository:
             session.commit()
             return session.execute(select(TopicPackageEvidenceRecord).where(TopicPackageEvidenceRecord.id == record.id)).scalar_one()
 
-    def upsert_metric(self, package_code: str, payload: dict[str, Any], *, tenant_id: str = "default") -> TopicPackageMetricProjectionRecord:
+    def upsert_metric(self, package_code: str, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> TopicPackageMetricProjectionRecord:
         metric_key = str(payload["metric_key"])
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
@@ -208,7 +208,7 @@ class TopicPackageRepository:
             session.commit()
             return session.execute(select(TopicPackageMetricProjectionRecord).where(TopicPackageMetricProjectionRecord.id == record.id)).scalar_one()
 
-    def list_packages(self, *, tenant_id: str = "default", status: str | None = None) -> list[TopicPackageRecord]:
+    def list_packages(self, *, tenant_id: str = "sd-default", status: str | None = None) -> list[TopicPackageRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(TopicPackageRecord).where(TopicPackageRecord.tenant_id == tenant_id)
@@ -216,37 +216,37 @@ class TopicPackageRepository:
                 statement = statement.where(TopicPackageRecord.status == status)
             return list(session.execute(statement.order_by(TopicPackageRecord.updated_at)).scalars())
 
-    def get_package(self, package_code: str, *, tenant_id: str = "default") -> TopicPackageRecord | None:
+    def get_package(self, package_code: str, *, tenant_id: str = "sd-default") -> TopicPackageRecord | None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return session.execute(select(TopicPackageRecord).where(TopicPackageRecord.tenant_id == tenant_id, TopicPackageRecord.package_code == package_code)).scalar_one_or_none()
 
-    def list_items(self, package_code: str, *, tenant_id: str = "default") -> list[TopicPackageItemRecord]:
+    def list_items(self, package_code: str, *, tenant_id: str = "sd-default") -> list[TopicPackageItemRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(session.execute(select(TopicPackageItemRecord).where(TopicPackageItemRecord.tenant_id == tenant_id, TopicPackageItemRecord.package_code == package_code).order_by(TopicPackageItemRecord.display_order)).scalars())
 
-    def list_visibility(self, package_code: str, *, tenant_id: str = "default") -> list[TopicPackageVisibilityRecord]:
+    def list_visibility(self, package_code: str, *, tenant_id: str = "sd-default") -> list[TopicPackageVisibilityRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(session.execute(select(TopicPackageVisibilityRecord).where(TopicPackageVisibilityRecord.tenant_id == tenant_id, TopicPackageVisibilityRecord.package_code == package_code).order_by(TopicPackageVisibilityRecord.visibility_code)).scalars())
 
-    def list_review_records(self, package_code: str, *, tenant_id: str = "default") -> list[TopicPackageReviewRecord]:
+    def list_review_records(self, package_code: str, *, tenant_id: str = "sd-default") -> list[TopicPackageReviewRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(session.execute(select(TopicPackageReviewRecord).where(TopicPackageReviewRecord.tenant_id == tenant_id, TopicPackageReviewRecord.package_code == package_code).order_by(TopicPackageReviewRecord.created_at)).scalars())
 
-    def list_evidence(self, package_code: str, *, tenant_id: str = "default") -> list[TopicPackageEvidenceRecord]:
+    def list_evidence(self, package_code: str, *, tenant_id: str = "sd-default") -> list[TopicPackageEvidenceRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(session.execute(select(TopicPackageEvidenceRecord).where(TopicPackageEvidenceRecord.tenant_id == tenant_id, TopicPackageEvidenceRecord.package_code == package_code).order_by(TopicPackageEvidenceRecord.created_at)).scalars())
 
-    def list_metrics(self, package_code: str, *, tenant_id: str = "default") -> list[TopicPackageMetricProjectionRecord]:
+    def list_metrics(self, package_code: str, *, tenant_id: str = "sd-default") -> list[TopicPackageMetricProjectionRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(session.execute(select(TopicPackageMetricProjectionRecord).where(TopicPackageMetricProjectionRecord.tenant_id == tenant_id, TopicPackageMetricProjectionRecord.package_code == package_code).order_by(TopicPackageMetricProjectionRecord.metric_key)).scalars())
 
-    def import_legacy_sharezone(self, payload: dict[str, Any], *, tenant_id: str = "default") -> TopicPackageRecord:
+    def import_legacy_sharezone(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> TopicPackageRecord:
         status_map = {"0": "draft", "1": "configuring", "2": "configured", "3": "submitted", "4": "published", "6": "rejected", "-1": "offline"}
         package = self.create_package(
             {

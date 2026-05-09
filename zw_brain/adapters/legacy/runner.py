@@ -51,7 +51,6 @@ class LegacyImportRunner:
     def __init__(self, *, tenant_id: str = DEFAULT_TENANT, cache_dir: Path | None = None):
         self.tenant_id = tenant_id
         self.cache_dir = (cache_dir or _cache_root()).resolve()
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def mappers_for(self, schema: str) -> list[object]:
         """Return all mappers that should run on `schema`.

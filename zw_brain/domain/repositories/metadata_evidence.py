@@ -29,7 +29,7 @@ def _stable_hash(payload: dict[str, Any]) -> str:
 
 
 class MetadataEvidenceRepository:
-    def upsert_schema_mapping(self, payload: dict[str, Any], *, tenant_id: str = "default") -> ResourceSchemaMappingRecord:
+    def upsert_schema_mapping(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> ResourceSchemaMappingRecord:
         SessionLocal = create_session_factory()
         now = _now()
         mapping_code = str(
@@ -94,7 +94,7 @@ class MetadataEvidenceRepository:
             session.refresh(record)
             return record
 
-    def list_schema_mappings(self, *, resource_code: str | None = None, catalog_code: str | None = None, tenant_id: str = "default") -> list[ResourceSchemaMappingRecord]:
+    def list_schema_mappings(self, *, resource_code: str | None = None, catalog_code: str | None = None, tenant_id: str = "sd-default") -> list[ResourceSchemaMappingRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(ResourceSchemaMappingRecord).where(ResourceSchemaMappingRecord.tenant_id == tenant_id)
@@ -104,7 +104,7 @@ class MetadataEvidenceRepository:
                 statement = statement.where(ResourceSchemaMappingRecord.catalog_code == catalog_code)
             return list(session.execute(statement.order_by(ResourceSchemaMappingRecord.mapping_code)).scalars())
 
-    def list_schema_snapshots(self, *, resource_code: str | None = None, binding_code: str | None = None, tenant_id: str = "default") -> list[ResourceSchemaSnapshotRecord]:
+    def list_schema_snapshots(self, *, resource_code: str | None = None, binding_code: str | None = None, tenant_id: str = "sd-default") -> list[ResourceSchemaSnapshotRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(ResourceSchemaSnapshotRecord).where(ResourceSchemaSnapshotRecord.tenant_id == tenant_id)
@@ -114,7 +114,7 @@ class MetadataEvidenceRepository:
                 statement = statement.where(ResourceSchemaSnapshotRecord.binding_code == binding_code)
             return list(session.execute(statement.order_by(ResourceSchemaSnapshotRecord.captured_at)).scalars())
 
-    def list_gather_evidence(self, *, resource_code: str | None = None, status: str | None = None, tenant_id: str = "default") -> list[MetadataGatherEvidenceProjectionRecord]:
+    def list_gather_evidence(self, *, resource_code: str | None = None, status: str | None = None, tenant_id: str = "sd-default") -> list[MetadataGatherEvidenceProjectionRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(MetadataGatherEvidenceProjectionRecord).where(MetadataGatherEvidenceProjectionRecord.tenant_id == tenant_id)
@@ -124,7 +124,7 @@ class MetadataEvidenceRepository:
                 statement = statement.where(MetadataGatherEvidenceProjectionRecord.status == status)
             return list(session.execute(statement.order_by(MetadataGatherEvidenceProjectionRecord.generated_at)).scalars())
 
-    def upsert_schema_snapshot(self, payload: dict[str, Any], *, tenant_id: str = "default") -> ResourceSchemaSnapshotRecord:
+    def upsert_schema_snapshot(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> ResourceSchemaSnapshotRecord:
         SessionLocal = create_session_factory()
         now = _now()
         schema_json = safe_json(payload.get("schema_json") or {})
@@ -156,11 +156,23 @@ class MetadataEvidenceRepository:
                 record.source_ref = payload.get("source_ref", record.source_ref)
                 record.schema_hash = str(payload.get("schema_hash") or _stable_hash(schema_json))
                 record.captured_at = payload.get("captured_at", record.captured_at)
+            if record.source_ref:
+                upsert_legacy_mapping_in_session(
+                    session,
+                    {
+                        "source_ref": record.source_ref,
+                        "legacy_object_ref": payload.get("legacy_object_ref") or snapshot_ref,
+                        "canonical_type": "resource_schema_snapshot",
+                        "canonical_ref": snapshot_ref,
+                        "evidence_json": {"resource_code": record.resource_code, "binding_code": record.binding_code},
+                    },
+                    tenant_id=tenant_id,
+                )
             session.commit()
             session.refresh(record)
             return record
 
-    def upsert_gather_evidence(self, payload: dict[str, Any], *, tenant_id: str = "default") -> MetadataGatherEvidenceProjectionRecord:
+    def upsert_gather_evidence(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> MetadataGatherEvidenceProjectionRecord:
         SessionLocal = create_session_factory()
         now = _now()
         gather_task_ref = str(payload["gather_task_ref"])
@@ -196,11 +208,22 @@ class MetadataEvidenceRepository:
                 record.started_at = payload.get("started_at", record.started_at)
                 record.finished_at = payload.get("finished_at", record.finished_at)
                 record.generated_at = now
+            upsert_legacy_mapping_in_session(
+                session,
+                {
+                    "source_ref": payload.get("source_ref") or record.source_system_ref or gather_task_ref,
+                    "legacy_object_ref": payload.get("legacy_object_ref") or gather_task_ref,
+                    "canonical_type": "metadata_gather_evidence_projection",
+                    "canonical_ref": gather_task_ref,
+                    "evidence_json": {"resource_code": record.resource_code, "status": record.status},
+                },
+                tenant_id=tenant_id,
+            )
             session.commit()
             session.refresh(record)
             return record
 
-    def upsert_lineage_relation(self, payload: dict[str, Any], *, tenant_id: str = "default") -> LineageRelationProjectionRecord:
+    def upsert_lineage_relation(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> LineageRelationProjectionRecord:
         SessionLocal = create_session_factory()
         now = _now()
         relation_ref = str(payload["relation_ref"])
@@ -236,11 +259,22 @@ class MetadataEvidenceRepository:
                 record.relation_rule_json = safe_json(payload.get("relation_rule_json") or record.relation_rule_json)
                 record.source_evidence_ref = payload.get("source_evidence_ref", record.source_evidence_ref)
                 record.generated_at = now
+            upsert_legacy_mapping_in_session(
+                session,
+                {
+                    "source_ref": payload.get("source_ref") or record.source_evidence_ref or relation_ref,
+                    "legacy_object_ref": payload.get("legacy_object_ref") or relation_ref,
+                    "canonical_type": "lineage_relation_projection",
+                    "canonical_ref": relation_ref,
+                    "evidence_json": {"relation_scope": record.relation_scope, "relation_type": record.relation_type},
+                },
+                tenant_id=tenant_id,
+            )
             session.commit()
             session.refresh(record)
             return record
 
-    def list_lineage_relations(self, *, resource_code: str | None = None, relation_scope: str | None = None, tenant_id: str = "default") -> list[LineageRelationProjectionRecord]:
+    def list_lineage_relations(self, *, resource_code: str | None = None, relation_scope: str | None = None, tenant_id: str = "sd-default") -> list[LineageRelationProjectionRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(LineageRelationProjectionRecord).where(LineageRelationProjectionRecord.tenant_id == tenant_id)
@@ -253,7 +287,7 @@ class MetadataEvidenceRepository:
                 statement = statement.where(LineageRelationProjectionRecord.relation_scope == relation_scope)
             return list(session.execute(statement.order_by(LineageRelationProjectionRecord.relation_ref)).scalars())
 
-    def list_quality_evidence(self, *, target_type: str | None = None, target_ref: str | None = None, tenant_id: str = "default") -> list[QualityEvidenceProjectionRecord]:
+    def list_quality_evidence(self, *, target_type: str | None = None, target_ref: str | None = None, tenant_id: str = "sd-default") -> list[QualityEvidenceProjectionRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(QualityEvidenceProjectionRecord).where(QualityEvidenceProjectionRecord.tenant_id == tenant_id)
@@ -263,7 +297,7 @@ class MetadataEvidenceRepository:
                 statement = statement.where(QualityEvidenceProjectionRecord.target_ref == target_ref)
             return list(session.execute(statement.order_by(QualityEvidenceProjectionRecord.generated_at)).scalars())
 
-    def upsert_quality_evidence(self, payload: dict[str, Any], *, tenant_id: str = "default") -> QualityEvidenceProjectionRecord:
+    def upsert_quality_evidence(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> QualityEvidenceProjectionRecord:
         SessionLocal = create_session_factory()
         now = _now()
         quality_ref = str(payload["quality_ref"])
@@ -295,6 +329,18 @@ class MetadataEvidenceRepository:
                 record.evidence_json = safe_json(payload.get("evidence_json") or record.evidence_json)
                 record.source_ref = payload.get("source_ref", record.source_ref)
                 record.generated_at = now
+            if record.source_ref:
+                upsert_legacy_mapping_in_session(
+                    session,
+                    {
+                        "source_ref": record.source_ref,
+                        "legacy_object_ref": payload.get("legacy_object_ref") or quality_ref,
+                        "canonical_type": "quality_evidence_projection",
+                        "canonical_ref": quality_ref,
+                        "evidence_json": {"target_type": record.target_type, "target_ref": record.target_ref, "quality_status": record.quality_status},
+                    },
+                    tenant_id=tenant_id,
+                )
             session.commit()
             session.refresh(record)
             return record

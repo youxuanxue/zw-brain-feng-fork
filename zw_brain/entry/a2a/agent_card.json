@@ -221,10 +221,6 @@
       "mode": "write"
     },
     {
-      "id": "adapter.legacy.exchange.ingest",
-      "mode": "write"
-    },
-    {
       "id": "adapter.national.application.receive",
       "mode": "write"
     },

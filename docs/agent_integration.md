@@ -19,7 +19,6 @@
 | POST | `/api/skills/adapter.cascade.replay` | 重放级联事件 | `post_adapter_cascade_replay` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/adapter.external.mapping.query` | 查询外部对象映射 | `get_adapter_external_mapping_query` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/adapter.health.probe` | 探测适配器健康 | `post_adapter_health_probe` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/adapter.legacy.exchange.ingest` | 摄取旧交换证据 | `post_adapter_legacy_exchange_ingest` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/adapter.national.application.receive` | 接收国家申请回执 | `post_adapter_national_application_receive` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/adapter.national.application.reconcile` | 对账国家申请回执 | `post_adapter_national_application_reconcile` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/adapter.national.application.submit` | 提交国家申请回执 | `post_adapter_national_application_submit` | `zw_brain/entry/rest/openapi.json` |
@@ -239,7 +238,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 163 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 162 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -251,7 +250,6 @@
 | `adapter.cascade.replay` | 重放级联事件 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.cascade.replay.json` |
 | `adapter.external.mapping.query` | 查询外部对象映射 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/adapter.external.mapping.query.json` |
 | `adapter.health.probe` | 探测适配器健康 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/adapter.health.probe.json` |
-| `adapter.legacy.exchange.ingest` | 摄取旧交换证据 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/adapter.legacy.exchange.ingest.json` |
 | `adapter.national.application.receive` | 接收国家申请回执 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.national.application.receive.json` |
 | `adapter.national.application.reconcile` | 对账国家申请回执 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.national.application.reconcile.json` |
 | `adapter.national.application.submit` | 提交国家申请回执 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.national.application.submit.json` |
@@ -425,9 +423,9 @@
 
 ## Statistics
 
-- REST endpoints: 165
+- REST endpoints: 164
 - CLI entries: 1
 - MCP tools: 45
 - A2A agent cards: 1
-- Registered Skills: 177
+- Registered Skills: 176
 

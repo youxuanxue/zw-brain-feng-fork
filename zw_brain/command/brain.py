@@ -26,16 +26,14 @@ from zw_brain.domain.schemas import describe_schemas
 from zw_brain.domain.web_snapshot_redaction import redact_webui_snapshot
 from zw_brain.shared import queue
 from zw_brain.shared.runtime_config import get_webui_dashboard_href
+from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.shared.sanitization import safe_json
 from zw_brain.shared.sensitive_mask import apply_field_masks
 from zw_brain.shared.state_store import StateStore
 from zw_brain.skill_registration.runtime import get_manifest, load_manifests
 
 _DEFAULT_MASK_ROLE = _os.environ.get("ZW_BRAIN_MASK_ROLE", "external")
-# Project tenant. Set ZW_BRAIN_TENANT_ID=sd-default in production / demo to
-# point read paths at the legacy-imported corpus. Tests keep the historical
-# "default" tenant so existing fixtures don't drift.
-_DEFAULT_TENANT_ID = _os.environ.get("ZW_BRAIN_TENANT_ID", "default")
+_DEFAULT_TENANT_ID = get_runtime_tenant_id()
 
 
 def _expected_iaf_issuer() -> str:
@@ -207,8 +205,6 @@ class BrainService:
                 | "adapter.cascade.replay"
             ):
                 return self.record_adapter_operation(skill_id, payload)
-            case "adapter.legacy.exchange.ingest":
-                return self.ingest_legacy_exchange(payload)
             case "delivery.receipt.ingest":
                 return self.ingest_delivery_receipt(payload)
             case "ops.exchange.statistics.query":
@@ -603,7 +599,8 @@ class BrainService:
                 | {
                     "actor_snapshot_json": {"actor": actor, "role": role},
                     "status": str(payload.get("status", "draft")),
-                }
+                },
+                tenant_id=_DEFAULT_TENANT_ID,
             )
             self._append_audit_feed("objection.case.create", record.id, "ok", actor)
             return self._objection_record_to_dict(record) | {"audit_id": audit_id}
@@ -685,7 +682,7 @@ class BrainService:
         return self._mutate("objection.case.evaluate", role, confirmed, payload, mutation)
 
     def query_objection_cases(self, *, status: Any = None, target_type: Any = None) -> dict[str, Any]:
-        records = [self._objection_record_to_dict(item) for item in self._objection_repo().list_cases()]
+        records = [self._objection_record_to_dict(item) for item in self._objection_repo().list_cases(tenant_id=_DEFAULT_TENANT_ID)]
         if status:
             records = [item for item in records if item["status"] == str(status)]
         if target_type:
@@ -693,7 +690,7 @@ class BrainService:
         return {"items": records, "total": len(records)}
 
     def query_objection_process(self, objection_id: str) -> dict[str, Any]:
-        if self._objection_repo().get_case(objection_id) is None:
+        if self._objection_repo().get_case(objection_id, tenant_id=_DEFAULT_TENANT_ID) is None:
             raise NotFoundError(objection_id)
         return {
             "items": [self._process_record_to_dict(item) for item in self._objection_repo().list_processes(objection_id)],
@@ -701,7 +698,7 @@ class BrainService:
         }
 
     def query_objection_metrics(self) -> dict[str, Any]:
-        cases = [self._objection_record_to_dict(item) for item in self._objection_repo().list_cases()]
+        cases = [self._objection_record_to_dict(item) for item in self._objection_repo().list_cases(tenant_id=_DEFAULT_TENANT_ID)]
         by_status: dict[str, int] = {}
         for item in cases:
             by_status[item["status"]] = by_status.get(item["status"], 0) + 1
@@ -874,7 +871,7 @@ class BrainService:
         return {"summary": metrics, "cases": self.query_compliance_cases()["items"], "adapterHealth": self.query_adapter_health()["summary"]}
 
     def query_adapter_health(self, *, adapter_slug: Any = None) -> dict[str, Any]:
-        runs = [self._adapter_run_record_to_dict(item) for item in self._external_adapter_repo().list_run_records(adapter_slug=str(adapter_slug) if adapter_slug else None)]
+        runs = [self._adapter_run_record_to_dict(item) for item in self._external_adapter_repo().list_run_records(tenant_id=_DEFAULT_TENANT_ID, adapter_slug=str(adapter_slug) if adapter_slug else None)]
         failures = [item for item in runs if item["status"] in {"failed", "partial"}]
         return {
             "items": runs,
@@ -893,6 +890,7 @@ class BrainService:
                 local_aggregate_type=str(filters["local_aggregate_type"]) if filters.get("local_aggregate_type") else None,
                 local_aggregate_id=str(filters["local_aggregate_id"]) if filters.get("local_aggregate_id") else None,
                 status=str(filters["status"]) if filters.get("status") else None,
+                tenant_id=_DEFAULT_TENANT_ID,
             )
         ]
         return {"items": mappings, "total": len(mappings)}
@@ -1408,7 +1406,7 @@ class BrainService:
     def _topic_package_detail_to_dict(self, item: Any) -> dict[str, Any]:
         repo = self._topic_package_repo()
         return self._topic_package_record_to_dict(item) | {
-            "items": [self._topic_item_record_to_dict(record) for record in repo.list_items(item.package_code)],
+            "items": [self._topic_item_record_to_dict(record) for record in repo.list_items(item.package_code, tenant_id=_DEFAULT_TENANT_ID)],
             "visibility": [self._topic_visibility_record_to_dict(record) for record in repo.list_visibility(item.package_code)],
             "reviews": [self._topic_review_record_to_dict(record) for record in repo.list_review_records(item.package_code)],
             "evidence": [self._topic_evidence_record_to_dict(record) for record in repo.list_evidence(item.package_code)],
@@ -1564,7 +1562,7 @@ class BrainService:
         store = self._state_store.database_store
         if store is None:
             return items
-        records = {record.application_code: record for record in store.application_repo.list_records()}
+        records = {record.application_code: record for record in store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID)}
         for item in items:
             record = records.get(item["id"])
             if record is not None:
@@ -1623,7 +1621,7 @@ class BrainService:
         store = self._state_store.database_store
         if store is None:
             return tasks
-        records = {record.delivery_code: record for record in store.delivery_repo.list_tasks()}
+        records = {record.delivery_code: record for record in store.delivery_repo.list_tasks(tenant_id=_DEFAULT_TENANT_ID)}
         receipts = {
             task_id: self.get_delivery_task(task_id).get("receipts", [])
             for task_id in [item["id"] for item in tasks]
@@ -1655,7 +1653,7 @@ class BrainService:
         items = copy.deepcopy(self._snapshot["disputes"])
         store = self._state_store.database_store
         if store is not None:
-            records = {record.id: record for record in store.objection_repo.list_cases()}
+            records = {record.id: record for record in store.objection_repo.list_cases(tenant_id=_DEFAULT_TENANT_ID)}
             for item in items:
                 record = records.get(item["id"])
                 if record is not None:
@@ -1708,7 +1706,7 @@ class BrainService:
             resource = {}
         if store is None:
             return resource
-        record = store.catalog_repo.get_entry(resource_id)
+        record = store.catalog_repo.get_entry(resource_id, tenant_id=_DEFAULT_TENANT_ID)
         if record is not None:
             return self._catalog_record_to_card_dict(record)
         if snapshot_miss:
@@ -1720,7 +1718,7 @@ class BrainService:
         store = self._state_store.database_store
         if store is None:
             return request
-        for record in store.application_repo.list_records():
+        for record in store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID):
             if record.application_code == request_id:
                 request["status"] = record.status
                 request["repository"] = {
@@ -1736,7 +1734,7 @@ class BrainService:
         store = self._state_store.database_store
         if store is None:
             return approval
-        case = next((item for item in store.approval_repo.list_cases() if item.application_code == request_id), None)
+        case = next((item for item in store.approval_repo.list_cases(tenant_id=_DEFAULT_TENANT_ID) if item.application_code == request_id), None)
         if case is not None:
             approval["case"] = {
                 "currentStatus": case.current_status,
@@ -1768,7 +1766,7 @@ class BrainService:
         store = self._state_store.database_store
         if store is None:
             return task
-        record = next((item for item in store.delivery_repo.list_tasks() if item.delivery_code == task_id), None)
+        record = next((item for item in store.delivery_repo.list_tasks(tenant_id=_DEFAULT_TENANT_ID) if item.delivery_code == task_id), None)
         if record is not None:
             task["status"] = record.state
             task["repository"] = {
@@ -1847,59 +1845,6 @@ class BrainService:
             "knowledgeArticles": [item for item in self._snapshot["knowledge_articles"] if item["id"] in {"KB-REDUCE-BURDEN-02", "KB-TEMPLATE-BACKFLOW-01"}],
         }
 
-    def ingest_legacy_exchange(self, payload: dict[str, Any]) -> dict[str, Any]:
-        role = str(payload.get("role", self._ui_state["role"]))
-        confirmed = bool(payload.get("confirmed"))
-
-        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-            receipt = {
-                "canonical_type": payload["canonical_type"],
-                "canonical_ref": payload["canonical_ref"],
-                "legacy_status_snapshot": safe_json(payload.get("legacy_status_snapshot") or {}),
-                "evidence": safe_json(payload.get("evidence") or {}),
-            }
-            run = self._external_adapter_repo().upsert_run_record(
-                {
-                    "adapter_slug": "legacy_exchange",
-                    "operation": "ingest",
-                    "direction": "inbound",
-                    "source_ref": payload.get("source_ref"),
-                    "idempotency_key": str(payload.get("source_ref") or f"{payload['legacy_system']}:{payload['legacy_object_ref']}"),
-                    "status": "succeeded",
-                    "receipt_json": receipt,
-                }
-            )
-            mapping = self._external_adapter_repo().upsert_mapping(
-                {
-                    "external_system": str(payload.get("legacy_system", "legacy_exchange")),
-                    "direction": "inbound",
-                    "local_aggregate_type": str(payload["canonical_type"]),
-                    "local_aggregate_id": str(payload["canonical_ref"]),
-                    "legacy_table": payload.get("legacy_object_type"),
-                    "legacy_id": payload.get("legacy_object_ref"),
-                    "external_object_type": str(payload["legacy_object_type"]),
-                    "external_object_id": str(payload["legacy_object_ref"]),
-                    "status": "ingested",
-                    "last_receipt_json": receipt,
-                }
-            )
-            if payload.get("canonical_type") == "delivery_task":
-                self._delivery_repo().add_execution_evidence(
-                    {
-                        "evidence_ref": audit_id,
-                        "delivery_code": payload["canonical_ref"],
-                        "executor_kind": "legacy_exchange_adapter",
-                        "executor_ref": str(payload.get("legacy_system", "legacy_exchange")),
-                        "evidence_kind": "legacy_ingest",
-                        "result_status": "ingested",
-                        "payload_json": payload,
-                    }
-                )
-            self._append_audit_feed("adapter.legacy.exchange.ingest", str(payload["canonical_ref"]), "ok", actor)
-            return {"mapping_id": mapping.id, "adapter_run_id": run.id, "audit_id": audit_id}
-
-        return self._mutate("adapter.legacy.exchange.ingest", role, confirmed, payload, mutation)
-
     def ingest_delivery_receipt(self, payload: dict[str, Any]) -> dict[str, Any]:
         role = str(payload.get("role", self._ui_state["role"]))
         confirmed = bool(payload.get("confirmed"))
@@ -1941,15 +1886,15 @@ class BrainService:
         return self._mutate("delivery.receipt.ingest", role, confirmed, payload, mutation)
 
     def query_exchange_statistics(self, **filters: Any) -> dict[str, Any]:
-        metrics = [self._exchange_metric_record_to_dict(item) for item in self._delivery_repo().list_exchange_metrics(**filters)]
+        metrics = [self._exchange_metric_record_to_dict(item) for item in self._delivery_repo().list_exchange_metrics(**filters, tenant_id=_DEFAULT_TENANT_ID)]
         return {"items": metrics, "summary": self._exchange_metric_summary(metrics)}
 
     def diagnose_exchange(self, *, task_id: Any = None, attempt_id: Any = None) -> dict[str, Any]:
         delivery_code = str(task_id) if task_id else None
         attempt_code = str(attempt_id) if attempt_id else None
         attempts = [self._delivery_attempt_record_to_dict(item) for item in self._delivery_repo().list_attempts(delivery_code=delivery_code, attempt_code=attempt_code)]
-        evidence = [self._delivery_evidence_record_to_dict(item) for item in self._delivery_repo().list_execution_evidence(delivery_code=delivery_code, attempt_code=attempt_code)]
-        metrics = [self._exchange_metric_record_to_dict(item) for item in self._delivery_repo().list_exchange_metrics(delivery_code=delivery_code)]
+        evidence = [self._delivery_evidence_record_to_dict(item) for item in self._delivery_repo().list_execution_evidence(delivery_code=delivery_code, attempt_code=attempt_code, tenant_id=_DEFAULT_TENANT_ID)]
+        metrics = [self._exchange_metric_record_to_dict(item) for item in self._delivery_repo().list_exchange_metrics(delivery_code=delivery_code, tenant_id=_DEFAULT_TENANT_ID)]
         return {"attempts": attempts, "evidence": evidence, "metrics": metrics, "diagnosis": {"state": "failed" if any(item["state"] in {"failed", "stopped"} for item in attempts) else "observable"}}
 
     def plan_delivery_exchange(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -2102,8 +2047,9 @@ class BrainService:
                 "policyStatus": policy.policy_status,
                 "policy": copy.deepcopy(policy.policy_json),
             }
+            package["tenantScope"] = policy.tenant_id
         package.setdefault("compatibility", package.get("exposure", []))
-        package.setdefault("tenantScope", "default")
+        package.setdefault("tenantScope", _DEFAULT_TENANT_ID)
         package.setdefault("authPolicy", "tenant-admin")
         package.setdefault("versionStatus", "pending-registration" if package.get("status") == "approved" else "draft")
         package.setdefault("registeredVersion", "—")
@@ -2209,7 +2155,7 @@ class BrainService:
             if not query:
                 resources = [copy.deepcopy(item) for item in self._snapshot["discovery"]["resources"]]
             else:
-                records = store.catalog_repo.search_entries(query)
+                records = store.catalog_repo.search_entries(query, tenant_id=_DEFAULT_TENANT_ID)
                 resources = [self._catalog_record_to_card_dict(record) for record in records]
         page = max(page, 1)
         page_size = 20
@@ -2249,7 +2195,7 @@ class BrainService:
     def query_catalog_models(self, *, model_code: Any = None) -> dict[str, Any]:
         store = self._state_store.database_store
         repo = store.catalog_repo if store is not None else CatalogRepository()
-        models = [self._catalog_model_record_to_dict(item) for item in repo.list_models()]
+        models = [self._catalog_model_record_to_dict(item) for item in repo.list_models(tenant_id=_DEFAULT_TENANT_ID)]
         if model_code:
             models = [item for item in models if item["model_code"] == str(model_code)]
         return {"items": models, "total": len(models)}
@@ -2257,16 +2203,16 @@ class BrainService:
     def query_catalog_model_fields(self, model_code: str) -> dict[str, Any]:
         store = self._state_store.database_store
         repo = store.catalog_repo if store is not None else CatalogRepository()
-        fields = [self._catalog_model_field_record_to_dict(item) for item in repo.list_model_fields(model_code)]
+        fields = [self._catalog_model_field_record_to_dict(item) for item in repo.list_model_fields(model_code, tenant_id=_DEFAULT_TENANT_ID)]
         return {"items": fields, "total": len(fields)}
 
     def query_catalog_entries(self, *, query: Any = None, catalog_code: Any = None) -> dict[str, Any]:
         store = self._state_store.database_store
         repo = store.catalog_repo if store is not None else CatalogRepository()
         if query:
-            records = repo.search_entries(str(query))
+            records = repo.search_entries(str(query), tenant_id=_DEFAULT_TENANT_ID)
         else:
-            records = repo.list_entries()
+            records = repo.list_entries(tenant_id=_DEFAULT_TENANT_ID)
         entries = [self._catalog_entry_record_to_dict(item) for item in records]
         if catalog_code:
             entries = [item for item in entries if item["catalog_code"] == str(catalog_code)]
@@ -2296,7 +2242,7 @@ class BrainService:
 
         store = self._state_store.database_store
         repo = store.catalog_repo if store is not None else CatalogRepository()
-        records = repo.search_entries(str(query)) if query else repo.list_entries()
+        records = repo.search_entries(str(query), tenant_id=_DEFAULT_TENANT_ID) if query else repo.list_entries(tenant_id=_DEFAULT_TENANT_ID)
 
         if lifecycle != "all":
             records = [r for r in records if r.lifecycle_status == lifecycle]
@@ -2320,7 +2266,7 @@ class BrainService:
             if resource_code:
                 resources = [item for item in resources if item.get("resource_code") == resource_code]
         else:
-            resources = [self._resource_asset_record_to_dict(item) for item in store.resource_api_repo.list_assets()]
+            resources = [self._resource_asset_record_to_dict(item) for item in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID)]
             if resource_code:
                 resources = [item for item in resources if item["resource_code"] == str(resource_code)]
         return {"items": resources, "total": len(resources)}
@@ -2334,6 +2280,7 @@ class BrainService:
             for item in store.metadata_evidence_repo.list_schema_snapshots(
                 resource_code=str(resource_code) if resource_code else None,
                 binding_code=str(binding_code) if binding_code else None,
+                tenant_id=_DEFAULT_TENANT_ID,
             )
         ]
         return {"items": items, "total": len(items)}
@@ -2347,6 +2294,7 @@ class BrainService:
             for item in store.metadata_evidence_repo.list_schema_mappings(
                 resource_code=str(resource_code) if resource_code else None,
                 catalog_code=str(catalog_code) if catalog_code else None,
+                tenant_id=_DEFAULT_TENANT_ID,
             )
         ]
         return {"items": items, "total": len(items)}
@@ -2360,6 +2308,7 @@ class BrainService:
             for item in store.metadata_evidence_repo.list_gather_evidence(
                 resource_code=str(resource_code) if resource_code else None,
                 status=str(status) if status else None,
+                tenant_id=_DEFAULT_TENANT_ID,
             )
         ]
         return {"items": items, "total": len(items)}
@@ -2373,6 +2322,7 @@ class BrainService:
             for item in store.metadata_evidence_repo.list_lineage_relations(
                 resource_code=str(resource_code) if resource_code else None,
                 relation_scope=str(relation_scope) if relation_scope else None,
+                tenant_id=_DEFAULT_TENANT_ID,
             )
         ]
         return {"items": items, "total": len(items)}
@@ -2386,6 +2336,7 @@ class BrainService:
             for item in store.metadata_evidence_repo.list_quality_evidence(
                 target_type=str(target_type) if target_type else None,
                 target_ref=str(target_ref) if target_ref else None,
+                tenant_id=_DEFAULT_TENANT_ID,
             )
         ]
         return {"items": items, "total": len(items)}
@@ -2404,10 +2355,10 @@ class BrainService:
                     "projection_only": True,
                 }
             }
-        catalog_count = len(store.catalog_repo.list_entries())
-        resource_count = len(store.resource_api_repo.list_assets())
-        schema_mapping_count = len(store.metadata_evidence_repo.list_schema_mappings())
-        quality_count = len(store.metadata_evidence_repo.list_quality_evidence())
+        catalog_count = len(store.catalog_repo.list_entries(tenant_id=_DEFAULT_TENANT_ID))
+        resource_count = len(store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID))
+        schema_mapping_count = len(store.metadata_evidence_repo.list_schema_mappings(tenant_id=_DEFAULT_TENANT_ID))
+        quality_count = len(store.metadata_evidence_repo.list_quality_evidence(tenant_id=_DEFAULT_TENANT_ID))
         return {
             "summary": {
                 "catalogCount": catalog_count,
@@ -2600,9 +2551,9 @@ class BrainService:
                 "summary_json": self._safe_json(payload.get("summary_json") or {}),
             }
             repo = store.catalog_repo if store is not None else CatalogRepository()
-            repo.upsert_from_resource(catalog_payload)
+            repo.upsert_from_resource(catalog_payload, tenant_id=_DEFAULT_TENANT_ID)
             for item in payload.get("items") or []:
-                repo.upsert_item({**item, "catalog_code": catalog_code})
+                repo.upsert_item({**item, "catalog_code": catalog_code}, tenant_id=_DEFAULT_TENANT_ID)
             self._append_audit_feed("catalog.entry.create_draft", catalog_code, "ok", actor)
             return {"catalog_code": catalog_code, "lifecycle_status": "draft", "audit_id": audit_id}
 
@@ -2624,7 +2575,7 @@ class BrainService:
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             store = self._state_store.database_store
             repo = store.catalog_repo if store is not None else CatalogRepository()
-            existing = repo.get_entry(catalog_code)
+            existing = repo.get_entry(catalog_code, tenant_id=_DEFAULT_TENANT_ID)
             if existing is None:
                 raise NotFoundError(catalog_code)
             repo.upsert_from_resource(
@@ -2637,7 +2588,8 @@ class BrainService:
                     "region_code": existing.region_code,
                     "source_ref": existing.summary_json.get("source_ref"),
                     "legacy_object_ref": existing.catalog_code,
-                }
+                },
+                tenant_id=_DEFAULT_TENANT_ID,
             )
             if status in {"active", "retired"}:
                 repo.create_entry_version(
@@ -2663,6 +2615,7 @@ class BrainService:
                     skill_id=skill_id,
                     audit_id=audit_id,
                     decision="return" if status in {"draft", "rejected"} else None,
+                    tenant_id=_DEFAULT_TENANT_ID,
                 )
             self._append_audit_feed(skill_id, catalog_code, "ok", actor)
             return {"catalog_code": catalog_code, "lifecycle_status": status, "audit_id": audit_id}
@@ -2677,7 +2630,7 @@ class BrainService:
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             store = self._state_store.database_store
             repo = store.catalog_repo if store is not None else CatalogRepository()
-            existing = repo.get_entry(catalog_code)
+            existing = repo.get_entry(catalog_code, tenant_id=_DEFAULT_TENANT_ID)
             if existing is None:
                 raise NotFoundError(catalog_code)
             repo.upsert_from_resource(
@@ -2691,10 +2644,11 @@ class BrainService:
                     "region_code": payload.get("region_code", existing.region_code),
                     "source_ref": payload.get("source_ref") or existing.summary_json.get("source_ref"),
                     "legacy_object_ref": payload.get("legacy_object_ref") or catalog_code,
-                }
+                },
+                tenant_id=_DEFAULT_TENANT_ID,
             )
             for item in payload.get("items") or []:
-                repo.upsert_item({**item, "catalog_code": catalog_code})
+                repo.upsert_item({**item, "catalog_code": catalog_code}, tenant_id=_DEFAULT_TENANT_ID)
             self._append_audit_feed("catalog.entry.update", catalog_code, "ok", actor)
             return {"catalog_code": catalog_code, "lifecycle_status": existing.lifecycle_status, "audit_id": audit_id}
 
@@ -3184,13 +3138,11 @@ class BrainService:
             "lifecycle_status": record.lifecycle_status,
             "owner_org_id": record.owner_org_id,
             "region_code": record.region_code,
-            "summary_json": copy.deepcopy(record.summary_json),
+            "summary_json": _mask(copy.deepcopy(record.summary_json)),
         }
 
     def _catalog_record_to_card_dict(self, record: Any) -> dict[str, Any]:
-        # Single source of truth for catalog_entry → discovery card shape.
-        # Used by get_resource (detail) and search_resources (list); diverging copies caused R-001.
-        summary = copy.deepcopy(record.summary_json or {})
+        summary = _mask(copy.deepcopy(record.summary_json or {}))
         return {
             "id": record.catalog_code,
             "name": record.title,
@@ -3291,13 +3243,13 @@ class BrainService:
             "title": record.title,
             "lifecycle_status": record.lifecycle_status,
             "owner_org_id": record.owner_org_id,
-            "owner_org_snapshot_json": copy.deepcopy(record.owner_org_snapshot_json),
+            "owner_org_snapshot_json": _mask(copy.deepcopy(record.owner_org_snapshot_json)),
             "region_code": record.region_code,
             "catalog_code": record.catalog_code,
-            "access_policy_json": copy.deepcopy(record.access_policy_json),
+            "access_policy_json": _mask(copy.deepcopy(record.access_policy_json)),
             "qos_policy_json": copy.deepcopy(record.qos_policy_json),
             "source_ref": record.source_ref,
-            "summary_json": copy.deepcopy(record.summary_json),
+            "summary_json": _mask(copy.deepcopy(record.summary_json)),
         }
 
     def _binding_record_to_dict(self, record: Any) -> dict[str, Any]:
@@ -3901,6 +3853,9 @@ class BrainService:
             )
             task["aiSummary"]["summary"] = "访问授权已生效，当前可进入使用监测、回执对账或模板回流确认。"
             task["aiSummary"]["nextAction"] = "继续监测调用与回执，如存在高频差异字段再进入供给侧治理。"
+            store = self._state_store.database_store
+            if store is not None:
+                store.delivery_repo.upsert_from_delivery(task, tenant_id=_DEFAULT_TENANT_ID)
             self._append_audit_feed("delivery.access.grant", task_id, "ok", actor)
             return {"task_id": task_id, "status": task["status"], "grant_ref": task["access"]["grant_ref"]}
 
@@ -4343,7 +4298,7 @@ class BrainService:
         store.append_capability_call(
             {
                 "call_ref": audit_id,
-                "tenant_id": str(payload.get("tenant_id", "default")),
+                "tenant_id": str(payload.get("tenant_id", _DEFAULT_TENANT_ID)),
                 "skill_id": skill_id,
                 "actor": actor,
                 "role_code": role,
@@ -4616,7 +4571,7 @@ class BrainService:
             pass
 
         store = self._state_store.database_store
-        catalog_record = store.catalog_repo.get_entry(resource_id) if store is not None else None
+        catalog_record = store.catalog_repo.get_entry(resource_id, tenant_id=_DEFAULT_TENANT_ID) if store is not None else None
 
         summary: dict[str, Any] = {}
         if catalog_record is not None:

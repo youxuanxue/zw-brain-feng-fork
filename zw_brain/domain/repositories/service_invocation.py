@@ -46,7 +46,7 @@ def metric_canonical_ref(
 
 
 class ServiceInvocationMetricRepository:
-    def has_metrics(self, *, tenant_id: str = "default") -> bool:
+    def has_metrics(self, *, tenant_id: str = "sd-default") -> bool:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return session.execute(
@@ -58,7 +58,7 @@ class ServiceInvocationMetricRepository:
     def list_metrics(
         self,
         *,
-        tenant_id: str = "default",
+        tenant_id: str = "sd-default",
         resource_code: str | None = None,
         capability_id: str | None = None,
         metric_scope: str | None = None,
@@ -76,7 +76,7 @@ class ServiceInvocationMetricRepository:
                 statement = statement.where(ServiceInvocationMetricProjectionRecord.metric_scope == metric_scope)
             return list(session.execute(statement.order_by(ServiceInvocationMetricProjectionRecord.time_bucket)).scalars())
 
-    def upsert_metric(self, payload: dict[str, Any], *, tenant_id: str = "default") -> ServiceInvocationMetricProjectionRecord:
+    def upsert_metric(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> ServiceInvocationMetricProjectionRecord:
         SessionLocal = create_session_factory()
         now = _now()
         metric_scope = str(payload.get("metric_scope", "resource"))

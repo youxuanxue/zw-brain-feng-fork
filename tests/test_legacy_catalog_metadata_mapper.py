@@ -108,6 +108,88 @@ CREATE TABLE `rc_resource` (
 
 INSERT INTO `rc_resource` VALUES \
 ('mr-1',1,'停车场信息_库表资源','停车场列表','table','cata-3','停车场目录','11370000004504927A','370000','省公安厅',1,1,1,'admin','管理员','2025-04-01 10:00:00','2025-04-15 10:00:00',4);
+
+DROP TABLE IF EXISTS `rc_resource_table`;
+CREATE TABLE `rc_resource_table` (
+  `id` varchar(36) NOT NULL,
+  `resource_id` varchar(36) NOT NULL,
+  `table_id` varchar(36) NOT NULL,
+  `table_name` varchar(128) NOT NULL,
+  `database_id` varchar(36) DEFAULT NULL,
+  `exchange_type` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB;
+
+INSERT INTO `rc_resource_table` VALUES \
+('bind-1','mr-1','table-1','t_parking','db-1','table');
+
+DROP TABLE IF EXISTS `rc_resource_catalog_item_link`;
+CREATE TABLE `rc_resource_catalog_item_link` (
+  `id` varchar(36) NOT NULL,
+  `catalog_id` varchar(36) NOT NULL,
+  `catalog_item_id` varchar(36) NOT NULL,
+  `resource_id` varchar(36) NOT NULL,
+  `table_id` varchar(36) NOT NULL,
+  `table_column_id` varchar(36) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB;
+
+INSERT INTO `rc_resource_catalog_item_link` VALUES \
+('map-1','cata-1','col-1','mr-1','bind-1','field-name');
+
+DROP TABLE IF EXISTS `meta_baseinfo`;
+CREATE TABLE `meta_baseinfo` (
+  `meta_id` varchar(36) NOT NULL,
+  `resource_id` varchar(36) NOT NULL,
+  `meta_name` varchar(128) NOT NULL,
+  `model_id` varchar(36) DEFAULT NULL,
+  `version` varchar(16) DEFAULT NULL,
+  `table_name` varchar(128) DEFAULT NULL,
+  `create_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`meta_id`)
+) ENGINE=InnoDB;
+
+INSERT INTO `meta_baseinfo` VALUES \
+('meta-1','mr-1','停车场表','model-1','1','t_parking','2025-04-11 11:21:07');
+
+DROP TABLE IF EXISTS `meta_gather_task`;
+CREATE TABLE `meta_gather_task` (
+  `task_id` varchar(36) NOT NULL,
+  `resource_id` varchar(36) NOT NULL,
+  `job_id` varchar(36) DEFAULT NULL,
+  `status` varchar(32) DEFAULT NULL,
+  `create_time` datetime DEFAULT NULL,
+  `finish_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`task_id`)
+) ENGINE=InnoDB;
+
+INSERT INTO `meta_gather_task` VALUES \
+('gather-1','mr-1','job-1','success','2025-04-11 11:21:07','2025-04-11 11:22:07');
+
+DROP TABLE IF EXISTS `meta_relation`;
+CREATE TABLE `meta_relation` (
+  `id` varchar(36) NOT NULL,
+  `source_meta_id` varchar(36) DEFAULT NULL,
+  `target_meta_id` varchar(36) DEFAULT NULL,
+  `relation_from` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB;
+
+INSERT INTO `meta_relation` VALUES \
+('rel-1','meta-1','meta-2','imported');
+
+DROP TABLE IF EXISTS `catalog_quality_result`;
+CREATE TABLE `catalog_quality_result` (
+  `id` varchar(36) NOT NULL,
+  `cata_id` varchar(36) DEFAULT NULL,
+  `status` varchar(32) DEFAULT NULL,
+  `score` int DEFAULT NULL,
+  `summary` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB;
+
+INSERT INTO `catalog_quality_result` VALUES \
+('quality-1','cata-1','pass',95,'字段挂接完整');
 """
 
 
@@ -126,6 +208,7 @@ def test_catalog_metadata_mapper_imports_catalog_resource_and_items() -> None:
         from zw_brain.domain.repositories.catalog import CatalogRepository
         from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
         from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
+        from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
         from zw_brain.domain.repositories.resource_api import ResourceApiRepository
         from zw_brain.shared.migrate import ensure_runtime_schema
 
@@ -134,7 +217,15 @@ def test_catalog_metadata_mapper_imports_catalog_resource_and_items() -> None:
 
         # Step 2: rc_resource first (resources before catalogs)
         meta_stats = runner.import_schema("dsp_metaresource")
-        assert meta_stats.to_dict()["counts"] == {"rc_resource.imported": 1}
+        assert meta_stats.to_dict()["counts"] == {
+            "catalog_quality_result.imported": 1,
+            "meta_baseinfo.imported": 1,
+            "meta_gather_task.imported": 1,
+            "meta_relation.imported": 1,
+            "rc_resource.imported": 1,
+            "rc_resource_catalog_item_link.imported": 1,
+            "rc_resource_table.imported": 1,
+        }
 
         # Step 3+4: data_catalog + data_catalog_column + data_resource
         # dsp_catalog runs both catalog_metadata and exchange mappers; the test dump
@@ -149,7 +240,7 @@ def test_catalog_metadata_mapper_imports_catalog_resource_and_items() -> None:
 
         # CatalogEntry uses cata_code as catalog_code; lifecycle mapped from numeric status
         catalog_repo = CatalogRepository()
-        entries = {e.catalog_code: e for e in catalog_repo.list_entries()}
+        entries = {e.catalog_code: e for e in catalog_repo.list_entries(tenant_id="sd-default")}
         assert "BASE-POP-001" in entries
         assert entries["BASE-POP-001"].title == "人口基本信息"
         assert entries["BASE-POP-001"].lifecycle_status == "active"  # 4 → active
@@ -160,7 +251,7 @@ def test_catalog_metadata_mapper_imports_catalog_resource_and_items() -> None:
         assert entries["BASE-POP-001"].summary_json["summary"]["contact"]["contact_phone"] == "13800001111"
 
         # CatalogItem rows
-        items = {i.item_code: i for i in catalog_repo.list_items("cata-1")}
+        items = {i.item_code: i for i in catalog_repo.list_items("cata-1", tenant_id="sd-default")}
         assert {"col-1", "col-2"} == set(items.keys())
         assert items["col-1"].title == "姓名"
         assert items["col-1"].summary_json["sensitive_level"] == "3"
@@ -176,6 +267,19 @@ def test_catalog_metadata_mapper_imports_catalog_resource_and_items() -> None:
         assert "mr-1" in assets
         assert assets["mr-1"].owner_org_id == "11370000004504927A"  # 省公安厅
         assert assets["mr-1"].lifecycle_status == "active"  # 4 → active
+        bindings = {b.binding_code: b for b in resource_repo.list_bindings(tenant_id="sd-default")}
+        assert bindings["table-1"].resource_code == "mr-1"
+        assert bindings["table-1"].schema_ref["table_name"] == "t_parking"
+
+        metadata = MetadataEvidenceRepository()
+        mappings = metadata.list_schema_mappings(tenant_id="sd-default")
+        assert len(mappings) == 1
+        assert mappings[0].catalog_item_code == "col-1"
+        assert mappings[0].resource_code == "mr-1"
+        assert metadata.list_schema_snapshots(tenant_id="sd-default")[0].resource_code == "mr-1"
+        assert metadata.list_gather_evidence(tenant_id="sd-default")[0].status == "succeeded"
+        assert metadata.list_lineage_relations(tenant_id="sd-default")[0].relation_ref == "rel-1"
+        assert metadata.list_quality_evidence(tenant_id="sd-default")[0].quality_status == "passed"
 
         # Legacy mappings recorded
         legacy = LegacyObjectMappingRepository()
