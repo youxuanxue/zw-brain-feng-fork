@@ -13,6 +13,16 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PYTHON = sys.executable
 
 
+def rest_policy_eval(capability_id: str, surface: str) -> str:
+    return (
+        "import json; "
+        "from zw_brain.entry.rest.server import require_surface, get_service; "
+        "require_surface('tenant.policy.evaluate', 'api'); "
+        "print(json.dumps(get_service().invoke_skill('tenant.policy.evaluate', "
+        f"{{'capability_id':{capability_id!r},'surface':{surface!r},'role':'r7'}}), ensure_ascii=False))"
+    )
+
+
 def run_module(*args: str, env: dict[str, str], check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [PYTHON, *args],
@@ -176,7 +186,7 @@ def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
             '{"capability_id":"ledger.entity.base.read","surface":"api","role":"r7"}',
             env=env,
         )
-        cli_blocked = run_module(
+        cli_surface_blocked = run_module(
             "-m",
             "zw_brain.entry.cli.main",
             "tenant.policy.evaluate",
@@ -185,11 +195,42 @@ def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
             env=env,
         )
         cli_allowed_data = json.loads(cli_allowed.stdout)
-        cli_blocked_data = json.loads(cli_blocked.stdout)
+        cli_surface_blocked_data = json.loads(cli_surface_blocked.stdout)
         assert cli_allowed_data["allowed"] is True
+        assert cli_allowed_data["source"] == "tenant_capability_policy"
         assert cli_allowed_data["decision_reason"] == "allowed_by_tenant_policy"
-        assert cli_blocked_data["allowed"] is False
-        assert cli_blocked_data["decision_reason"] == "surface_not_exposed"
+        assert cli_surface_blocked_data["allowed"] is False
+        assert cli_surface_blocked_data["source"] == "tenant_capability_policy"
+        assert cli_surface_blocked_data["decision_reason"] == "surface_not_exposed"
+
+        rest_allowed = run_module(
+            "-c",
+            rest_policy_eval('ledger.entity.base.read', 'api'),
+            env=env,
+        )
+        rest_surface_blocked = run_module(
+            "-c",
+            rest_policy_eval('ledger.entity.base.read', 'webui'),
+            env=env,
+        )
+        rest_allowed_data = json.loads(rest_allowed.stdout)
+        rest_surface_blocked_data = json.loads(rest_surface_blocked.stdout)
+        assert rest_allowed_data["allowed"] is True
+        assert rest_allowed_data["source"] == "tenant_capability_policy"
+        assert rest_allowed_data["decision_reason"] == "allowed_by_tenant_policy"
+        assert rest_surface_blocked_data["allowed"] is False
+        assert rest_surface_blocked_data["source"] == "tenant_capability_policy"
+        assert rest_surface_blocked_data["decision_reason"] == "surface_not_exposed"
+
+        webui_surface_blocked = run_module(
+            "-c",
+            rest_policy_eval('ledger.entity.base.read', 'webui'),
+            env=env,
+        )
+        webui_surface_blocked_data = json.loads(webui_surface_blocked.stdout)
+        assert webui_surface_blocked_data["allowed"] is False
+        assert webui_surface_blocked_data["source"] == "tenant_capability_policy"
+        assert webui_surface_blocked_data["decision_reason"] == "surface_not_exposed"
 
         mcp_allowed = run_module(
             "-m",
@@ -200,7 +241,7 @@ def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
             '{"capability_id":"ledger.entity.base.read","surface":"api","role":"r7"}',
             env=env,
         )
-        mcp_blocked = run_module(
+        mcp_surface_blocked = run_module(
             "-m",
             "zw_brain.entry.mcp.server",
             "call-tool",
@@ -210,11 +251,13 @@ def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
             env=env,
         )
         mcp_allowed_data = json.loads(mcp_allowed.stdout)["result"]
-        mcp_blocked_data = json.loads(mcp_blocked.stdout)["result"]
+        mcp_surface_blocked_data = json.loads(mcp_surface_blocked.stdout)["result"]
         assert mcp_allowed_data["allowed"] is True
+        assert mcp_allowed_data["source"] == "tenant_capability_policy"
         assert mcp_allowed_data["decision_reason"] == "allowed_by_tenant_policy"
-        assert mcp_blocked_data["allowed"] is False
-        assert mcp_blocked_data["decision_reason"] == "surface_not_exposed"
+        assert mcp_surface_blocked_data["allowed"] is False
+        assert mcp_surface_blocked_data["source"] == "tenant_capability_policy"
+        assert mcp_surface_blocked_data["decision_reason"] == "surface_not_exposed"
 
         a2a_allowed = run_module(
             "-m",
@@ -225,7 +268,7 @@ def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
             '{"capability_id":"ledger.entity.base.read","surface":"api","role":"r7"}',
             env=env,
         )
-        a2a_blocked = run_module(
+        a2a_surface_blocked = run_module(
             "-m",
             "zw_brain.entry.a2a.server",
             "invoke",
@@ -235,11 +278,34 @@ def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
             env=env,
         )
         a2a_allowed_data = json.loads(a2a_allowed.stdout)["result"]
-        a2a_blocked_data = json.loads(a2a_blocked.stdout)["result"]
+        a2a_surface_blocked_data = json.loads(a2a_surface_blocked.stdout)["result"]
         assert a2a_allowed_data["allowed"] is True
+        assert a2a_allowed_data["source"] == "tenant_capability_policy"
         assert a2a_allowed_data["decision_reason"] == "allowed_by_tenant_policy"
-        assert a2a_blocked_data["allowed"] is False
-        assert a2a_blocked_data["decision_reason"] == "surface_not_exposed"
+        assert a2a_surface_blocked_data["allowed"] is False
+        assert a2a_surface_blocked_data["source"] == "tenant_capability_policy"
+        assert a2a_surface_blocked_data["decision_reason"] == "surface_not_exposed"
+
+        run_module(
+            "-m",
+            "zw_brain.entry.cli.main",
+            "tenant.capability.disable",
+            "--payload",
+            '{"package_id":"PKG-2026-04-25-001","role":"r7","confirmed":true}',
+            env=env,
+        )
+        disabled_results = {
+            "webui": json.loads(run_module("-c", rest_policy_eval('ledger.entity.base.read', 'webui'), env=env).stdout),
+            "api": json.loads(run_module("-m", "zw_brain.entry.cli.main", "tenant.policy.evaluate", "--payload", '{"capability_id":"ledger.entity.base.read","surface":"api","role":"r7"}', env=env).stdout),
+            "cli": json.loads(run_module("-m", "zw_brain.entry.cli.main", "tenant.policy.evaluate", "--payload", '{"capability_id":"ledger.entity.base.read","surface":"cli","role":"r7"}', env=env).stdout),
+            "mcp": json.loads(run_module("-m", "zw_brain.entry.mcp.server", "call-tool", "tenant.policy.evaluate", "--payload", '{"capability_id":"ledger.entity.base.read","surface":"mcp","role":"r7"}', env=env).stdout)["result"],
+            "a2a": json.loads(run_module("-m", "zw_brain.entry.a2a.server", "invoke", "tenant.policy.evaluate", "--payload", '{"capability_id":"ledger.entity.base.read","surface":"a2a","role":"r7"}', env=env).stdout)["result"],
+        }
+        assert set(disabled_results) == {"webui", "api", "cli", "mcp", "a2a"}
+        for decision in disabled_results.values():
+            assert decision["allowed"] is False
+            assert decision["source"] == "tenant_capability_policy"
+            assert decision["decision_reason"] == "tenant_policy_disabled"
 
         runtime._service = None
 
