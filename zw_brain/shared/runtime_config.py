@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 from urllib.parse import urlparse
+
+from zw_brain.shared.iaf_oidc import IafIamConfig
 
 # Bind all interfaces so Cursor Cloud / container previews can reach the dev server
 # (127.0.0.1-only rejects forwarded connections from the preview proxy).
@@ -76,3 +79,11 @@ def get_webui_dashboard_href() -> str | None:
         url = raw.rstrip("/")
         return url + "/"
     return None
+
+
+def get_iaf_iam_config() -> IafIamConfig:
+    return IafIamConfig.from_env()
+
+
+def get_iaf_iam_public_config() -> dict[str, Any]:
+    return get_iaf_iam_config().public_dict()

@@ -141,6 +141,29 @@ def test_cli_mcp_and_a2a_share_runtime_contract() -> None:
         runtime._service = None
 
 
+def test_governance_iam_overview_shared_across_cli_mcp_a2a() -> None:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "zw_brain.db"
+        env = os.environ.copy()
+        env["ZW_BRAIN_DB_PATH"] = str(db_path)
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+        runtime._service = None
+
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        cli = json.loads(run_module("-m", "zw_brain.entry.cli.main", "governance.iam_overview", "--payload", '{"role":"r7"}', env=env).stdout)
+        mcp = json.loads(run_module("-m", "zw_brain.entry.mcp.server", "call-tool", "governance.iam_overview", "--payload", '{"role":"r7"}', env=env).stdout)["result"]
+        a2a = json.loads(run_module("-m", "zw_brain.entry.a2a.server", "invoke", "governance.iam_overview", "--payload", '{"role":"r7"}', env=env).stdout)["result"]
+        for payload in [cli, mcp, a2a]:
+            assert payload["tenant_id"] == "sd-default"
+            assert "summary" in payload
+            assert "actors" in payload
+            assert "tenant_policies" in payload
+            assert "import_issues" in payload
+        runtime._service = None
+
+
 def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
     with TemporaryDirectory() as tmp:
         db_path = Path(tmp) / "zw_brain.db"

@@ -1,13 +1,4 @@
-"""Governance mapper: dsp_bsp.pub_organ / pub_region / pub_user / pub_role → projections.
-
-Step 1 of the 8-step bridging chain. Every downstream mapper references org_code,
-region_code, actor display, or role_code — so this must run first or those references
-fall back to bare legacy IDs.
-
-Real-secret fields (password / token / key / hmac / OTP / ukey / IP whitelist / longblob
-seal) are dropped at the row boundary; business-visible sensitive fields (姓名/手机号/
-邮箱/身份证/地址) flow through and are masked at the read layer per [2026-05-06] policy.
-"""
+"""Governance mapper: BSP governance tables → zw-brain projections."""
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -20,24 +11,55 @@ from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT, legacy_sy
 from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
 from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
+from zw_brain.shared.sanitization import safe_json
 
-# Real secrets — not allowed under [2026-05-06] sensitive policy override.
-PUB_USER_DROP_FIELDS = {
-    "PASSWORD",
-    "OTP_KEY",
-    "SENSITIVE_HMAC",
-    "UKEY",
-    "IP_LIST",
-    "IP_ACCESS_STATUS",
-    "ELEC_IMG",
-    "PWD_LASTUPDATE",
-    "PWD_CHANGED",
+REAL_SECRET_FIELDS = {
+    "password",
+    "pwd",
+    "passwd",
+    "password_hash",
+    "password_salt",
+    "token",
+    "access_token",
+    "refresh_token",
+    "verification_code",
+    "sms_status",
+    "session",
+    "session_id",
+    "cookie",
+    "client_secret",
+    "secret",
+    "otp_key",
+    "sensitive_hmac",
+    "ukey",
+    "ip_list",
+    "ip_access_status",
+    "elec_img",
+    "pwd_lastupdate",
+    "pwd_changed",
+    "hmac",
 }
+PUB_USER_DROP_FIELDS = {item.upper() for item in REAL_SECRET_FIELDS}
 PUB_ROLE_DROP_FIELDS = {"HMAC"}
 
 
 class GovernanceMapper:
-    HANDLED_TABLES = {"pub_organ", "pub_region", "pub_user", "pub_role"}
+    HANDLED_TABLES = {
+        "pub_organ",
+        "pub_region",
+        "pub_user",
+        "pub_role",
+        "sys_department",
+        "sys_region",
+        "sys_user",
+        "sys_role",
+        "sys_user_role",
+        "sys_role_permission",
+        "sys_user_department",
+        "sys_permission",
+        "iaf_binding_manifest",
+        "capability_mapping_manifest",
+    }
     ADAPTER_SLUG = "legacy.bsp.governance"
 
     def __init__(self, *, tenant_id: str = DEFAULT_TENANT):
@@ -46,52 +68,59 @@ class GovernanceMapper:
         self.legacy_repo = LegacyObjectMappingRepository()
         self.adapter_repo = ExternalAdapterRepository()
 
-    def import_dump(self, dump_path: Path) -> ImportStats:
+    def import_dump(self, dump_path: Path, *, dry_run: bool = False) -> ImportStats:
         schema = schema_from_dump_name(dump_path.name)
         legacy_system = legacy_system_for(schema)
-        stats = ImportStats(schema=schema, dump_path=dump_path)
+        stats = ImportStats(schema=schema, dump_path=dump_path, mode="dry-run" if dry_run else "apply")
         started_at = datetime.now(UTC)
+        rows_by_table: dict[str, list[dict[str, Any]]] = {}
 
         for table, row in MysqldumpParser(dump_path).iter_rows():
-            if table not in self.HANDLED_TABLES:
+            table_name = table.lower()
+            if table_name not in self.HANDLED_TABLES:
                 stats.skip(table)
                 continue
-            handler = getattr(self, f"_map_{table[len('pub_'):]}")
-            try:
-                handler(row, stats, legacy_system)
-            except KeyError as exc:
-                stats.bump(table, "errors")
-                stats.skipped.setdefault(f"{table}.missing_field:{exc.args[0]}", 0)
-                stats.skipped[f"{table}.missing_field:{exc.args[0]}"] += 1
+            stats.bump_source(table_name)
+            rows_by_table.setdefault(table_name, []).append(row)
 
-        finish_run(self.adapter_repo, stats, adapter_slug=self.ADAPTER_SLUG, dump_path=dump_path, started_at=started_at, tenant_id=self.tenant_id)
+        for table_name, rows in rows_by_table.items():
+            if table_name.startswith("pub_"):
+                handler = getattr(self, f"_map_{table_name[len('pub_'):]}")
+                for row in rows:
+                    try:
+                        handler(row, stats, legacy_system, dry_run=dry_run)
+                    except KeyError as exc:
+                        stats.bump(table_name, "errors")
+                        stats.skipped.setdefault(f"{table_name}.missing_field:{exc.args[0]}", 0)
+                        stats.skipped[f"{table_name}.missing_field:{exc.args[0]}"] += 1
+
+        if any(table_name.startswith("sys_") or table_name.endswith("_manifest") for table_name in rows_by_table):
+            self._map_sys_governance(rows_by_table, stats, legacy_system, dry_run=dry_run)
+        stats.issues.sort(key=lambda item: (str(item.get("type")), str(item.get("table")), str(item.get("legacy_ref"))))
+
+        if not dry_run:
+            finish_run(self.adapter_repo, stats, adapter_slug=self.ADAPTER_SLUG, dump_path=dump_path, started_at=started_at, tenant_id=self.tenant_id)
         return stats
 
-    # ------------------------------------------------------------------
-    # per-table handlers
-    # ------------------------------------------------------------------
-
-    def _map_organ(self, row: dict[str, Any], stats: ImportStats, legacy_system: str) -> None:
-        code = row["CODE"]
-        self.governance_repo.upsert_org(
-            {
-                "org_code": code,
-                "org_name": row.get("NAME") or code,
-                "parent_org_code": _parent_from_trace(row.get("TRACE_CODE"), code),
-                "region_code": row.get("REGION_CODE"),
-                "status": _status_flag(row.get("STATUS")),
-                "source_ref": f"{legacy_system}:pub_organ:{code}",
-                "profile_json": {
-                    "short_name": row.get("SHORT_NAME"),
-                    "region_name": row.get("REGION_NAME"),
-                    "organ_type": row.get("ORGAN_TYPE"),
-                    "organ_level": row.get("ORGAN_LEVEL"),
-                    "society_code": row.get("SOCIETY_CODE"),
-                    "org_num": row.get("ORG_NUM"),
-                },
+    def _map_organ(self, row: dict[str, Any], stats: ImportStats, legacy_system: str, *, dry_run: bool = False) -> None:
+        code = str(row["CODE"])
+        payload = {
+            "org_code": code,
+            "org_name": row.get("NAME") or code,
+            "parent_org_code": _parent_from_trace(row.get("TRACE_CODE"), code),
+            "region_code": row.get("REGION_CODE"),
+            "status": _status_flag(row.get("STATUS")),
+            "source_ref": f"{legacy_system}:pub_organ:{code}",
+            "profile_json": {
+                "short_name": row.get("SHORT_NAME"),
+                "region_name": row.get("REGION_NAME"),
+                "organ_type": row.get("ORGAN_TYPE"),
+                "organ_level": row.get("ORGAN_LEVEL"),
+                "society_code": row.get("SOCIETY_CODE"),
+                "org_num": row.get("ORG_NUM"),
             },
-            tenant_id=self.tenant_id,
-        )
+        }
+        self._write_projection("org_projection", dry_run, lambda: self.governance_repo.upsert_org(payload, tenant_id=self.tenant_id), stats)
         self._write_legacy_mapping(
             legacy_system=legacy_system,
             legacy_object_type="pub_organ",
@@ -99,26 +128,23 @@ class GovernanceMapper:
             canonical_type="OrgProjectionRecord",
             canonical_ref=code,
             evidence={"name": row.get("NAME"), "region_code": row.get("REGION_CODE")},
+            dry_run=dry_run,
+            stats=stats,
         )
         stats.bump("pub_organ")
 
-    def _map_region(self, row: dict[str, Any], stats: ImportStats, legacy_system: str) -> None:
-        code = row["CODE"]
-        self.governance_repo.upsert_region(
-            {
-                "region_code": code,
-                "region_name": row.get("NAME") or code,
-                "parent_region_code": row.get("PARENT_CODE"),
-                "region_level": row.get("GRADE"),
-                "status": _status_flag(row.get("STATUS")),
-                "source_ref": f"{legacy_system}:pub_region:{code}",
-                "profile_json": {
-                    "short_code": row.get("SHORT_CODE"),
-                    "tree_code": row.get("TREE_CODE"),
-                },
-            },
-            tenant_id=self.tenant_id,
-        )
+    def _map_region(self, row: dict[str, Any], stats: ImportStats, legacy_system: str, *, dry_run: bool = False) -> None:
+        code = str(row["CODE"])
+        payload = {
+            "region_code": code,
+            "region_name": row.get("NAME") or code,
+            "parent_region_code": row.get("PARENT_CODE"),
+            "region_level": row.get("GRADE"),
+            "status": _status_flag(row.get("STATUS")),
+            "source_ref": f"{legacy_system}:pub_region:{code}",
+            "profile_json": {"short_code": row.get("SHORT_CODE"), "tree_code": row.get("TREE_CODE")},
+        }
+        self._write_projection("region_projection", dry_run, lambda: self.governance_repo.upsert_region(payload, tenant_id=self.tenant_id), stats)
         self._write_legacy_mapping(
             legacy_system=legacy_system,
             legacy_object_type="pub_region",
@@ -126,24 +152,25 @@ class GovernanceMapper:
             canonical_type="RegionProjectionRecord",
             canonical_ref=code,
             evidence={"name": row.get("NAME"), "grade": row.get("GRADE")},
+            dry_run=dry_run,
+            stats=stats,
         )
         stats.bump("pub_region")
 
-    def _map_user(self, row: dict[str, Any], stats: ImportStats, legacy_system: str) -> None:
-        external_id = row["ID"]
-        scrubbed = {k: v for k, v in row.items() if k not in PUB_USER_DROP_FIELDS}
+    def _map_user(self, row: dict[str, Any], stats: ImportStats, legacy_system: str, *, dry_run: bool = False) -> None:
+        external_id = str(row["ID"])
+        scrubbed = _scrub_row(row, PUB_USER_DROP_FIELDS)
         role_codes = _split_role_codes(scrubbed.get("ROLE_VALUE") or scrubbed.get("ROLE_CODE"))
-        self.governance_repo.upsert_actor(
-            {
-                "external_actor_id": external_id,
-                "display_name": scrubbed.get("NAME") or scrubbed.get("ACCOUNT") or external_id,
-                "org_code": scrubbed.get("ORG_CODE"),
-                "role_codes": role_codes,
-                "status": _status_flag(scrubbed.get("STATUS")),
-                "source_ref": f"{legacy_system}:pub_user:{external_id}",
-                "profile_json": {
+        payload = {
+            "external_actor_id": external_id,
+            "display_name": scrubbed.get("NAME") or scrubbed.get("ACCOUNT") or external_id,
+            "org_code": scrubbed.get("ORG_CODE"),
+            "role_codes": role_codes,
+            "status": _status_flag(scrubbed.get("STATUS")),
+            "source_ref": f"{legacy_system}:pub_user:{external_id}",
+            "profile_json": _scrub_profile(
+                {
                     "account": scrubbed.get("ACCOUNT"),
-                    # business-visible sensitive — read layer must mask
                     "phone": scrubbed.get("PHONE"),
                     "mobile": scrubbed.get("MOBILE"),
                     "email": scrubbed.get("EMAIL"),
@@ -154,10 +181,10 @@ class GovernanceMapper:
                     "org_name": scrubbed.get("ORG_NAME"),
                     "user_type": scrubbed.get("USER_TYPE"),
                     "is_admin": scrubbed.get("IS_ADMIN"),
-                },
-            },
-            tenant_id=self.tenant_id,
-        )
+                }
+            ),
+        }
+        self._write_projection("actor_projection", dry_run, lambda: self.governance_repo.upsert_actor(payload, tenant_id=self.tenant_id), stats)
         self._write_legacy_mapping(
             legacy_system=legacy_system,
             legacy_object_type="pub_user",
@@ -165,29 +192,28 @@ class GovernanceMapper:
             canonical_type="ActorProjectionRecord",
             canonical_ref=external_id,
             evidence={"account": scrubbed.get("ACCOUNT"), "org_code": scrubbed.get("ORG_CODE")},
+            dry_run=dry_run,
+            stats=stats,
         )
         stats.bump("pub_user")
 
-    def _map_role(self, row: dict[str, Any], stats: ImportStats, legacy_system: str) -> None:
-        scrubbed = {k: v for k, v in row.items() if k not in PUB_ROLE_DROP_FIELDS}
-        # `VALUE` is the unique business code (per UNIQUE KEY PUB_ROLE_VALUE_UK); fall back to ID.
-        code = scrubbed.get("VALUE") or scrubbed["ID"]
-        self.governance_repo.upsert_role(
-            {
-                "role_code": code,
-                "role_name": scrubbed.get("NAME") or code,
-                "status": _status_flag(scrubbed.get("STATUS")),
-                "source_ref": f"{legacy_system}:pub_role:{code}",
-                "profile_json": {
-                    "internal_id": scrubbed.get("ID"),
-                    "type": scrubbed.get("TYPE"),
-                    "weight": scrubbed.get("WEIGHT"),
-                    "parent_id": scrubbed.get("PARENT_ID"),
-                    "app_code": scrubbed.get("APP_CODE"),
-                },
+    def _map_role(self, row: dict[str, Any], stats: ImportStats, legacy_system: str, *, dry_run: bool = False) -> None:
+        scrubbed = _scrub_row(row, PUB_ROLE_DROP_FIELDS)
+        code = str(scrubbed.get("VALUE") or scrubbed["ID"])
+        payload = {
+            "role_code": code,
+            "role_name": scrubbed.get("NAME") or code,
+            "status": _status_flag(scrubbed.get("STATUS")),
+            "source_ref": f"{legacy_system}:pub_role:{code}",
+            "profile_json": {
+                "internal_id": scrubbed.get("ID"),
+                "type": scrubbed.get("TYPE"),
+                "weight": scrubbed.get("WEIGHT"),
+                "parent_id": scrubbed.get("PARENT_ID"),
+                "app_code": scrubbed.get("APP_CODE"),
             },
-            tenant_id=self.tenant_id,
-        )
+        }
+        self._write_projection("role_projection", dry_run, lambda: self.governance_repo.upsert_role(payload, tenant_id=self.tenant_id), stats)
         self._write_legacy_mapping(
             legacy_system=legacy_system,
             legacy_object_type="pub_role",
@@ -195,12 +221,277 @@ class GovernanceMapper:
             canonical_type="RoleProjectionRecord",
             canonical_ref=code,
             evidence={"name": scrubbed.get("NAME"), "internal_id": scrubbed.get("ID")},
+            dry_run=dry_run,
+            stats=stats,
         )
         stats.bump("pub_role")
 
-    # ------------------------------------------------------------------
-    # helpers
-    # ------------------------------------------------------------------
+    def _map_sys_governance(self, rows_by_table: dict[str, list[dict[str, Any]]], stats: ImportStats, legacy_system: str, *, dry_run: bool) -> None:
+        tenant_payload = {
+            "tenant_id": self.tenant_id,
+            "tenant_name": "山东省默认租户" if self.tenant_id == DEFAULT_TENANT else self.tenant_id,
+            "status": "active",
+            "source_ref": f"{legacy_system}:tenant:{self.tenant_id}",
+            "profile_json": {"import_source": "bsp_governance"},
+        }
+        if rows_by_table.get("sys_user") or rows_by_table.get("sys_department") or rows_by_table.get("sys_role") or rows_by_table.get("sys_region"):
+            self._write_projection("tenant_projection", dry_run, lambda: self.governance_repo.upsert_tenant(tenant_payload, tenant_id=self.tenant_id), stats)
+        departments = self._import_sys_departments(rows_by_table.get("sys_department", []), stats, legacy_system, dry_run=dry_run)
+        self._import_sys_regions(rows_by_table.get("sys_region", []), stats, legacy_system, dry_run=dry_run)
+        roles = self._import_sys_roles(rows_by_table.get("sys_role", []), stats, legacy_system, dry_run=dry_run)
+        users = rows_by_table.get("sys_user", [])
+        user_roles = _group_values(rows_by_table.get("sys_user_role", []), ("USER_ID", "USERID", "SYS_USER_ID"), ("ROLE_ID", "ROLEID", "SYS_ROLE_ID"))
+        user_departments = _group_values(rows_by_table.get("sys_user_department", []), ("USER_ID", "USERID", "SYS_USER_ID"), ("DEPT_ID", "DEPARTMENT_ID", "ORG_ID", "DEPT_CODE"))
+        binding_index = _binding_index(rows_by_table.get("iaf_binding_manifest", []))
+        permission_index = _permission_index(rows_by_table.get("sys_permission", []), stats)
+        capability_index = _capability_mapping_index(rows_by_table.get("capability_mapping_manifest", []), stats)
+
+        for _row in rows_by_table.get("sys_user_role", []):
+            stats.bump("sys_user_role")
+        for _row in rows_by_table.get("sys_user_department", []):
+            stats.bump("sys_user_department")
+
+        for row in users:
+            user_id = _string_value(row, "ID", "USER_ID", "USERID", "SYS_USER_ID")
+            account = _string_value(row, "ACCOUNT", "USERNAME", "LOGIN_NAME", "USER_NAME")
+            if not user_id:
+                stats.add_issue("missing_actor_ref", "sys_user", account, {"reason": "missing_user_id"})
+                stats.bump("sys_user")
+                continue
+            role_codes = [roles[role_id]["role_code"] for role_id in user_roles.get(user_id, []) if role_id in roles]
+            org_codes = _org_codes_for_user(row, user_departments.get(user_id, []), departments)
+            binding = binding_index.get(f"id:{user_id}") or binding_index.get(f"account:{account}")
+            iaf_sub = _string_value(binding or {}, "IAF_SUB", "SUB", "IAM_SUB", "USER_SUB")
+            status = _status_flag(_row_value(row, "STATUS", "ENABLED", "STATE"))
+            issue_status = None
+            if not iaf_sub:
+                issue_status = "iam_account_missing"
+                status = "iam_account_missing"
+                role_codes = []
+                stats.add_issue("iam_account_missing", "sys_user", user_id, {"account": account})
+            elif not org_codes:
+                issue_status = "unmatched"
+                status = "unmatched"
+                role_codes = []
+                stats.add_issue("missing_org_relationship", "sys_user", user_id, {"account": account})
+            actor_ref = iaf_sub or user_id
+            payload = {
+                "external_actor_id": actor_ref,
+                "iaf_sub": iaf_sub,
+                "legacy_actor_ref": user_id,
+                "display_name": _row_value(row, "DISPLAY_NAME", "REAL_NAME", "NAME", "NICK_NAME") or account or user_id,
+                "org_code": org_codes[0] if org_codes else None,
+                "role_codes": role_codes,
+                "status": status,
+                "source_ref": f"{legacy_system}:sys_user:{user_id}",
+                "profile_json": _scrub_profile(
+                    {
+                        "legacy_actor_ref": user_id,
+                        "account": account,
+                        "preferred_username": _row_value(binding or {}, "PREFERRED_USERNAME", "USERNAME") or account,
+                        "phone": _row_value(row, "PHONE", "TEL"),
+                        "mobile": _row_value(row, "MOBILE", "PHONE_NUMBER"),
+                        "email": _row_value(row, "EMAIL", "MAIL"),
+                        "org_codes": org_codes,
+                        "region_code": _row_value(row, "REGION_CODE", "REGION_ID"),
+                        "binding_status": issue_status or "bound",
+                    }
+                ),
+            }
+            self._write_projection("actor_projection", dry_run, lambda payload=payload: self.governance_repo.upsert_actor(payload, tenant_id=self.tenant_id), stats)
+            if org_codes and role_codes:
+                stats.target_counts["actor_org_role_binding"] = stats.target_counts.get("actor_org_role_binding", 0) + len(role_codes)
+            self._write_legacy_mapping(
+                legacy_system=legacy_system,
+                legacy_object_type="sys_user",
+                legacy_object_ref=user_id,
+                canonical_type="ActorProjectionRecord",
+                canonical_ref=actor_ref,
+                evidence={"account": account, "binding_status": payload["profile_json"]["binding_status"]},
+                dry_run=dry_run,
+                stats=stats,
+            )
+            stats.bump("sys_user")
+
+        self._import_role_permission_candidates(
+            rows_by_table.get("sys_role_permission", []),
+            roles,
+            permission_index,
+            capability_index,
+            stats,
+            legacy_system,
+            dry_run=dry_run,
+        )
+        _account_relation_tables(rows_by_table, stats)
+        _account_manifest_tables(rows_by_table, stats)
+
+    def _import_sys_departments(self, rows: list[dict[str, Any]], stats: ImportStats, legacy_system: str, *, dry_run: bool) -> dict[str, dict[str, str]]:
+        departments: dict[str, dict[str, str]] = {}
+        pending: list[tuple[dict[str, Any], str, str, str | None]] = []
+        for row in rows:
+            department_id = _string_value(row, "ID", "DEPT_ID", "DEPARTMENT_ID", "ORG_ID")
+            org_code = _string_value(row, "CODE", "ORG_CODE", "DEPT_CODE", "DEPARTMENT_CODE") or department_id
+            if not department_id or not org_code:
+                stats.add_issue("missing_org_relationship", "sys_department", department_id or org_code, {"reason": "missing_department_id_or_code"})
+                stats.bump("sys_department")
+                continue
+            parent_ref = _string_value(row, "PARENT_CODE", "PARENT_ORG_CODE", "PARENT_ID", "PARENT_DEPT_ID")
+            departments[department_id] = {"org_code": org_code, "department_id": department_id}
+            pending.append((row, department_id, org_code, parent_ref))
+        for row, department_id, org_code, parent_ref in pending:
+            parent_org_code = departments.get(parent_ref or "", {}).get("org_code", parent_ref) if parent_ref else None
+            payload = {
+                "org_code": org_code,
+                "org_name": _row_value(row, "NAME", "DEPT_NAME", "ORG_NAME") or org_code,
+                "parent_org_code": parent_org_code,
+                "region_code": _row_value(row, "REGION_CODE", "REGION_ID"),
+                "status": _status_flag(_row_value(row, "STATUS", "ENABLED", "STATE")),
+                "source_ref": f"{legacy_system}:sys_department:{department_id}",
+                "profile_json": _scrub_profile({"legacy_department_id": department_id, "department_code": org_code}),
+            }
+            self._write_projection("org_projection", dry_run, lambda payload=payload: self.governance_repo.upsert_org(payload, tenant_id=self.tenant_id), stats)
+            self._write_legacy_mapping(
+                legacy_system=legacy_system,
+                legacy_object_type="sys_department",
+                legacy_object_ref=department_id,
+                canonical_type="OrgProjectionRecord",
+                canonical_ref=org_code,
+                evidence={"org_code": org_code},
+                dry_run=dry_run,
+                stats=stats,
+            )
+            stats.bump("sys_department")
+        return departments
+
+    def _import_sys_regions(self, rows: list[dict[str, Any]], stats: ImportStats, legacy_system: str, *, dry_run: bool) -> dict[str, str]:
+        regions: dict[str, str] = {}
+        for row in rows:
+            region_id = _string_value(row, "ID", "REGION_ID", "CODE", "REGION_CODE")
+            region_code = _string_value(row, "CODE", "REGION_CODE") or region_id
+            if not region_id or not region_code:
+                stats.add_issue("missing_region_ref", "sys_region", region_id or region_code, {"reason": "missing_region_id_or_code"})
+                stats.bump("sys_region")
+                continue
+            regions[region_id] = region_code
+            payload = {
+                "region_code": region_code,
+                "region_name": _row_value(row, "NAME", "REGION_NAME") or region_code,
+                "parent_region_code": _row_value(row, "PARENT_CODE", "PARENT_REGION_CODE", "PARENT_ID"),
+                "region_level": _row_value(row, "GRADE", "LEVEL", "REGION_LEVEL"),
+                "status": _status_flag(_row_value(row, "STATUS", "ENABLED", "STATE")),
+                "source_ref": f"{legacy_system}:sys_region:{region_id}",
+                "profile_json": _scrub_profile({"legacy_region_id": region_id}),
+            }
+            self._write_projection("region_projection", dry_run, lambda payload=payload: self.governance_repo.upsert_region(payload, tenant_id=self.tenant_id), stats)
+            self._write_legacy_mapping(
+                legacy_system=legacy_system,
+                legacy_object_type="sys_region",
+                legacy_object_ref=region_id,
+                canonical_type="RegionProjectionRecord",
+                canonical_ref=region_code,
+                evidence={"region_code": region_code},
+                dry_run=dry_run,
+                stats=stats,
+            )
+            stats.bump("sys_region")
+        return regions
+
+    def _import_sys_roles(self, rows: list[dict[str, Any]], stats: ImportStats, legacy_system: str, *, dry_run: bool) -> dict[str, dict[str, str]]:
+        roles: dict[str, dict[str, str]] = {}
+        for row in rows:
+            role_id = _string_value(row, "ID", "ROLE_ID", "SYS_ROLE_ID")
+            role_code = _string_value(row, "ROLE_CODE", "CODE", "VALUE", "ROLE_KEY") or role_id
+            if not role_id or not role_code:
+                stats.add_issue("missing_role_ref", "sys_role", role_id or role_code, {"reason": "missing_role_id_or_code"})
+                stats.bump("sys_role")
+                continue
+            roles[role_id] = {"role_code": role_code, "role_id": role_id}
+            payload = {
+                "role_code": role_code,
+                "role_name": _row_value(row, "NAME", "ROLE_NAME") or role_code,
+                "status": _status_flag(_row_value(row, "STATUS", "ENABLED", "STATE")),
+                "source_ref": f"{legacy_system}:sys_role:{role_id}",
+                "profile_json": _scrub_profile({"legacy_role_id": role_id}),
+            }
+            self._write_projection("role_projection", dry_run, lambda payload=payload: self.governance_repo.upsert_role(payload, tenant_id=self.tenant_id), stats)
+            self._write_legacy_mapping(
+                legacy_system=legacy_system,
+                legacy_object_type="sys_role",
+                legacy_object_ref=role_id,
+                canonical_type="RoleProjectionRecord",
+                canonical_ref=role_code,
+                evidence={"role_code": role_code},
+                dry_run=dry_run,
+                stats=stats,
+            )
+            stats.bump("sys_role")
+        return roles
+
+    def _import_role_permission_candidates(
+        self,
+        rows: list[dict[str, Any]],
+        roles: dict[str, dict[str, str]],
+        permissions: dict[str, dict[str, Any]],
+        capability_index: dict[str, dict[str, Any]],
+        stats: ImportStats,
+        legacy_system: str,
+        *,
+        dry_run: bool,
+    ) -> None:
+        for row in rows:
+            role_id = _string_value(row, "ROLE_ID", "SYS_ROLE_ID")
+            permission_id = _string_value(row, "PERMISSION_ID", "PERM_ID", "AUTHORITY_ID")
+            role_code = roles.get(role_id, {}).get("role_code", role_id)
+            permission = permissions.get(permission_id) or {"permission_ref": permission_id, "permission_id": permission_id}
+            permission_ref = str(permission.get("permission_ref") or permission_id)
+            capability = capability_index.get(permission_ref) or capability_index.get(permission_id)
+            if not capability or not capability.get("capability_id"):
+                stats.add_issue("unmapped_permission", "sys_role_permission", f"{role_id}:{permission_id}", {"role_ref": role_code, "permission_ref": permission_ref})
+                stats.bump("sys_role_permission")
+                continue
+            capability_id = str(capability["capability_id"])
+            evidence = _scrub_profile(
+                {
+                    "role_ref": role_code,
+                    "permission_ref": permission_ref,
+                    "permission_name": permission.get("permission_name"),
+                    "manifest_version": capability.get("manifest_version"),
+                    "manifest_source_ref": capability.get("manifest_source_ref"),
+                }
+            )
+            self._write_projection(
+                "legacy_policy_mapping_candidate",
+                dry_run,
+                lambda capability=capability, evidence=evidence, permission_ref=permission_ref, role_code=role_code: self.governance_repo.import_legacy_policy_candidate(
+                    {
+                        "legacy_system": legacy_system,
+                        "legacy_permission_ref": permission_ref,
+                        "legacy_role_ref": role_code,
+                        "capability_id": capability["capability_id"],
+                        "surface": capability.get("surface"),
+                        "candidate_status": capability.get("candidate_status") or "pending_review",
+                        "evidence_json": evidence,
+                    },
+                    tenant_id=self.tenant_id,
+                ),
+                stats,
+            )
+            self._write_legacy_mapping(
+                legacy_system=legacy_system,
+                legacy_object_type="sys_permission",
+                legacy_object_ref=permission_ref,
+                canonical_type="capability",
+                canonical_ref=capability_id,
+                evidence=evidence,
+                dry_run=dry_run,
+                stats=stats,
+            )
+            stats.bump("sys_role_permission")
+
+    def _write_projection(self, target: str, dry_run: bool, writer: Any, stats: ImportStats) -> None:
+        stats.bump_target(target)
+        if not dry_run:
+            writer()
 
     def _write_legacy_mapping(
         self,
@@ -211,7 +502,13 @@ class GovernanceMapper:
         canonical_type: str,
         canonical_ref: str,
         evidence: dict[str, Any] | None = None,
+        dry_run: bool = False,
+        stats: ImportStats | None = None,
     ) -> None:
+        if stats is not None:
+            stats.bump_target("legacy_object_mapping")
+        if dry_run:
+            return
         self.legacy_repo.upsert_mapping(
             {
                 "source_ref": f"{legacy_system}:{legacy_object_type}:{legacy_object_ref}",
@@ -220,16 +517,17 @@ class GovernanceMapper:
                 "legacy_object_ref": legacy_object_ref,
                 "canonical_type": canonical_type,
                 "canonical_ref": canonical_ref,
-                "evidence_json": evidence or {},
+                "evidence_json": _scrub_profile(evidence or {}),
             },
             tenant_id=self.tenant_id,
         )
 
 
 def _status_flag(raw: Any) -> str:
-    if raw in ("1", 1, True, "active"):
+    normalized = str(raw).lower() if raw is not None else ""
+    if raw in ("1", 1, True) or normalized in {"active", "enabled", "enable", "y", "yes"}:
         return "active"
-    if raw in ("0", 0, False, "inactive", "disabled"):
+    if raw in ("0", 0, False) or normalized in {"inactive", "disabled", "disable", "n", "no"}:
         return "inactive"
     return "unknown"
 
@@ -251,3 +549,132 @@ def _split_role_codes(raw: Any) -> list[str]:
     if isinstance(raw, list):
         return [str(item) for item in raw if item]
     return [piece.strip() for piece in str(raw).split(",") if piece.strip()]
+
+
+def _lower_keys(row: dict[str, Any]) -> dict[str, Any]:
+    return {str(key).lower(): value for key, value in row.items()}
+
+
+def _row_value(row: dict[str, Any], *names: str) -> Any:
+    if not row:
+        return None
+    lowered = _lower_keys(row)
+    for name in names:
+        if name in row:
+            return row[name]
+        value = lowered.get(name.lower())
+        if value not in (None, ""):
+            return value
+    return None
+
+
+def _string_value(row: dict[str, Any], *names: str) -> str:
+    value = _row_value(row, *names)
+    return str(value) if value not in (None, "") else ""
+
+
+def _scrub_row(row: dict[str, Any], denylist: set[str] | None = None) -> dict[str, Any]:
+    deny = {item.lower() for item in (denylist or set())} | REAL_SECRET_FIELDS
+    return {key: value for key, value in row.items() if not _is_real_secret_key(key, deny)}
+
+
+def _scrub_profile(profile: dict[str, Any]) -> dict[str, Any]:
+    scrubbed = {key: value for key, value in profile.items() if not _is_real_secret_key(key, REAL_SECRET_FIELDS)}
+    return safe_json(scrubbed)
+
+
+def _is_real_secret_key(key: Any, denylist: set[str]) -> bool:
+    lowered = str(key).lower()
+    return lowered in denylist or any(part in lowered for part in ("password", "token", "client_secret", "verification_code", "session", "cookie"))
+
+
+def _group_values(rows: list[dict[str, Any]], key_fields: tuple[str, ...], value_fields: tuple[str, ...]) -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {}
+    for row in rows:
+        key = _string_value(row, *key_fields)
+        value = _string_value(row, *value_fields)
+        if key and value:
+            out.setdefault(key, []).append(value)
+    return out
+
+
+def _org_codes_for_user(row: dict[str, Any], department_refs: list[str], departments: dict[str, dict[str, str]]) -> list[str]:
+    direct = _string_value(row, "ORG_CODE", "DEPT_CODE", "DEPARTMENT_CODE")
+    direct_id = _string_value(row, "ORG_ID", "DEPT_ID", "DEPARTMENT_ID")
+    refs = [*department_refs, direct_id, direct]
+    out: list[str] = []
+    for ref in refs:
+        if not ref:
+            continue
+        code = departments.get(ref, {}).get("org_code", ref if direct and ref == direct else "")
+        if code and code not in out:
+            out.append(code)
+    return out
+
+
+def _binding_index(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        legacy_user_id = _string_value(row, "LEGACY_USER_ID", "USER_ID", "SYS_USER_ID")
+        account = _string_value(row, "ACCOUNT", "USERNAME", "PREFERRED_USERNAME")
+        if legacy_user_id:
+            out[f"id:{legacy_user_id}"] = row
+        if account:
+            out[f"account:{account}"] = row
+    return out
+
+
+def _permission_index(rows: list[dict[str, Any]], stats: ImportStats) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        permission_id = _string_value(row, "ID", "PERMISSION_ID", "PERM_ID", "AUTHORITY_ID")
+        permission_ref = _string_value(row, "PERMISSION_CODE", "PERM_CODE", "CODE", "AUTHORITY", "VALUE") or permission_id
+        payload = {"permission_id": permission_id, "permission_ref": permission_ref, "permission_name": _row_value(row, "NAME", "PERMISSION_NAME", "TITLE")}
+        if not permission_id and not permission_ref:
+            stats.add_issue("missing_permission_ref", "sys_permission", "", {"reason": "missing_permission_id_or_code"})
+            stats.bump("sys_permission")
+            continue
+        if permission_id:
+            out[permission_id] = payload
+        if permission_ref:
+            out[permission_ref] = payload
+        stats.bump("sys_permission")
+    return out
+
+
+def _capability_mapping_index(rows: list[dict[str, Any]], stats: ImportStats) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        permission_refs = {
+            _string_value(row, "LEGACY_PERMISSION_REF", "PERMISSION_REF", "PERMISSION_CODE", "PERM_CODE", "CODE"),
+            _string_value(row, "PERMISSION_ID", "PERM_ID", "LEGACY_PERMISSION_ID"),
+        }
+        capability_id = _string_value(row, "CAPABILITY_ID", "CAPABILITY_SLUG", "SKILL_ID")
+        if not capability_id:
+            stats.add_issue("unmapped_permission", "capability_mapping_manifest", next((item for item in permission_refs if item), ""), {"reason": "missing_capability_id"})
+        payload = {
+            "capability_id": capability_id,
+            "surface": _row_value(row, "SURFACE"),
+            "candidate_status": _row_value(row, "CANDIDATE_STATUS"),
+            "manifest_version": _row_value(row, "MANIFEST_VERSION", "VERSION"),
+            "manifest_source_ref": _row_value(row, "MANIFEST_SOURCE_REF", "SOURCE_REF"),
+        }
+        for permission_ref in permission_refs:
+            if permission_ref:
+                out[str(permission_ref)] = payload
+        stats.bump("capability_mapping_manifest")
+    return out
+
+
+def _account_relation_tables(rows_by_table: dict[str, list[dict[str, Any]]], stats: ImportStats) -> None:
+    for table_name in ("sys_user_role", "sys_user_department"):
+        accounted = stats.counts.get(f"{table_name}.imported", 0)
+        missing = len(rows_by_table.get(table_name, [])) - accounted
+        for _ in range(max(missing, 0)):
+            stats.bump(table_name)
+
+
+def _account_manifest_tables(rows_by_table: dict[str, list[dict[str, Any]]], stats: ImportStats) -> None:
+    accounted = stats.counts.get("iaf_binding_manifest.imported", 0)
+    for _ in range(max(len(rows_by_table.get("iaf_binding_manifest", [])) - accounted, 0)):
+        stats.bump("iaf_binding_manifest")

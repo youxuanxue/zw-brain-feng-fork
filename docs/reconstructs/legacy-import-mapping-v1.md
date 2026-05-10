@@ -1,7 +1,7 @@
 # 旧平台样例数据 → zw-brain 数据模型一键导入映射 v1
 
 > **日期 / 状态**：2026-05-06 / draft（待评审；review 通过后进入阶段 1）
-> **范围**：`old/10示例数据/*.sql`（<!-- stat:legacy.import.schemas -->17<!-- /stat --> 个 mysqldump，<!-- stat:legacy.import.tables-total -->740<!-- /stat --> 张旧表，~445 MB）→ `zw_brain/domain/models.py`（<!-- stat:legacy.import.record-classes -->58<!-- /stat --> 个 Record 类）。
+> **范围**：`old/10示例数据/*.sql`（<!-- stat:legacy.import.schemas -->17<!-- /stat --> 个 mysqldump，<!-- stat:legacy.import.tables-total -->740<!-- /stat --> 张旧表，~445 MB）→ `zw_brain/domain/models.py`（<!-- stat:legacy.import.record-classes -->59<!-- /stat --> 个 Record 类）。
 > **单一事实源**：本文是"哪张旧表去哪、哪些字段缺位、哪些不导入、跨 schema 桥接顺序"的单一事实源。专题方案 `dsp-*-reconstruction-plan-v1.md` 是设计依据，本文是执行结论。
 > **不在本文范围**：旧 URL/旧 controller/旧菜单兼容（按 GATE-1 D-全新项目口径明确不兼容）。
 
@@ -549,7 +549,7 @@ A1–A4 已通过 `scripts/build_true_data_seed.py` 一次性生成，从 `.data
 | --- | ---: | --- | --- |
 | `legacy.import.schemas` | <!-- stat:legacy.import.schemas -->17<!-- /stat --> | §范围 | `ls old/10示例数据/*.sql \| wc -l` |
 | `legacy.import.tables-total` | <!-- stat:legacy.import.tables-total -->740<!-- /stat --> | §范围 | sum of `grep -ac '^CREATE TABLE'` over dumps |
-| `legacy.import.record-classes` | <!-- stat:legacy.import.record-classes -->58<!-- /stat --> | §范围 | `grep -cE '^class .*Record' zw_brain/domain/models.py` |
+| `legacy.import.record-classes` | <!-- stat:legacy.import.record-classes -->59<!-- /stat --> | §范围 | `grep -cE '^class .*Record' zw_brain/domain/models.py` |
 | `legacy.import.missing-records` | <!-- stat:legacy.import.missing-records -->12<!-- /stat --> | §如何使用 | count of `M[N]` rows in §二 |
 | `legacy.import.missing-resolved` | <!-- stat:legacy.import.missing-resolved -->6<!-- /stat --> | §如何使用 / §二 阻塞结论 | count of M1–M6 classes present in models.py |
 

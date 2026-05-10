@@ -33,6 +33,7 @@
     { test: /^#\/p7-zones-pack$/, page: 'zonesPack', nav: 'main' },
     { test: /^#\/p7-zones-pack\/zone\/(.+)$/, page: 'zoneDetail', nav: 'main' },
     { test: /^#\/p8-integration-admin$/, page: 'integrationAdmin', nav: 'main' },
+    { test: /^#\/p8-integration-admin\/iam-governance$/, page: 'iamGovernance', nav: 'main' },
     { test: /^#\/p8-integration-admin\/package\/(.+)$/, page: 'packageDetail', nav: 'main' },
     { test: /^#\/$/, page: 'workbench', nav: 'main' },
   ];
@@ -224,9 +225,12 @@
         const pkg = await invokeRead('package.view', { package_id: id });
         const index = window.RUNTIME_CAPABILITY_PACKAGES.findIndex(item => item.id === id);
         if (index >= 0) window.RUNTIME_CAPABILITY_PACKAGES[index] = pkg; else window.RUNTIME_CAPABILITY_PACKAGES.unshift(pkg);
+      } else if (route === '#/p8-integration-admin/iam-governance' && roleCan(['r7'])) {
+        window.RUNTIME_IAM_GOVERNANCE = await invokeRead('governance.iam_overview', {});
       } else if (route === '#/p8-integration-admin' && roleCan(['r7'])) {
         const result = await invokeRead('package.list', {});
         window.RUNTIME_CAPABILITY_PACKAGES = result.items;
+        window.RUNTIME_IAM_GOVERNANCE = await invokeRead('governance.iam_overview', {});
       }
     } catch (err) {
       window.UI.toast(err.message || '页面数据刷新失败', 'error');

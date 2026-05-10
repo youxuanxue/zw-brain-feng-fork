@@ -86,6 +86,7 @@
 | GET | `/api/skills/delivery.view` | 查看交付任务 | `get_delivery_view` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/governance.dispute_list` | 查看治理争议列表 | `get_governance_dispute_list` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/governance.dispute_view` | 查看治理争议详情 | `get_governance_dispute_view` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/governance.iam_overview` | 查看 IAM 治理总览 | `get_governance_iam_overview` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/legacy.bsp.mapping.import` | 导入旧权限候选映射 | `post_legacy_bsp_mapping_import` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/legacy.sharezone.mapping.import` | 导入旧共享专区专题候选 | `post_legacy_sharezone_mapping_import` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/metadata.catalog_item.query` | 查询目录项字段映射 | `get_metadata_catalog_item_query` | `zw_brain/entry/rest/openapi.json` |
@@ -206,6 +207,7 @@
 | `delivery.view` | read | False | 查看预填下发、自动汇总和回流候选的交付任务详情。 | True | `zw_brain/entry/mcp/tools/delivery.view.json` |
 | `governance.dispute_list` | read | False | 查看重复要数、字段口径和补录异常相关争议，以及关联告警、工单与知识建议。 | True | `zw_brain/entry/mcp/tools/governance.dispute_list.json` |
 | `governance.dispute_view` | read | False | 查看单条治理争议的时间线和 AI 调查摘要。 | True | `zw_brain/entry/mcp/tools/governance.dispute_view.json` |
+| `governance.iam_overview` | read | False | 查看 IAF 绑定状态、投影、租户能力策略、旧 BSP 导入问题、审计证据和策略裁决结果。 | True | `zw_brain/entry/mcp/tools/governance.iam_overview.json` |
 | `metadata.catalog_item.query` | read | False | 查询目录项与资源 schema 字段之间的映射证据。 | True | `zw_brain/entry/mcp/tools/metadata.catalog_item.query.json` |
 | `metadata.gather.evidence.query` | read | False | 查询外部元数据采集任务回执和生成证据；采集状态只作为 projection，不反向改变资源业务状态。 | True | `zw_brain/entry/mcp/tools/metadata.gather.evidence.query.json` |
 | `metadata.lineage.query` | read | False | 查询资源或字段级血缘投影和影响分析依据。 | True | `zw_brain/entry/mcp/tools/metadata.lineage.query.json` |
@@ -238,7 +240,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 162 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 163 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -331,6 +333,7 @@
 | `external.tenant.field_projection.configure` | 外部客户字段投影配置契约 | 1.0.0 | external_execution, audit, evidence_callback | `zw_brain/skill_registration/registered/external.tenant.field_projection.configure.json` |
 | `governance.dispute_list` | 查看治理争议列表 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.dispute_list.json` |
 | `governance.dispute_view` | 查看治理争议详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.dispute_view.json` |
+| `governance.iam_overview` | 查看 IAM 治理总览 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.iam_overview.json` |
 | `legacy.bsp.mapping.import` | 导入旧权限候选映射 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/legacy.bsp.mapping.import.json` |
 | `legacy.sharezone.mapping.import` | 导入旧共享专区专题候选 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/legacy.sharezone.mapping.import.json` |
 | `metadata.catalog_item.query` | 查询目录项字段映射 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/metadata.catalog_item.query.json` |
@@ -423,9 +426,9 @@
 
 ## Statistics
 
-- REST endpoints: 164
+- REST endpoints: 165
 - CLI entries: 1
-- MCP tools: 45
+- MCP tools: 46
 - A2A agent cards: 1
-- Registered Skills: 176
+- Registered Skills: 177
 

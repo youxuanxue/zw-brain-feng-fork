@@ -46,6 +46,32 @@ def test_generated_a2a_endpoint_follows_rest_base_url_override(monkeypatch) -> N
     assert any(item["endpoint"] == "https://brain.example.internal:9443/api/skills/request.create" for item in bindings)
 
 
+def test_tenant_policy_evaluate_contract_is_shared_across_five_surfaces() -> None:
+    skills = {item["skill_id"]: item for item in discover_skills() if "error" not in item}
+    skill = skills["tenant.policy.evaluate"]
+
+    assert set(skill["compatibility"]) == {"webui", "api", "cli", "mcp", "a2a"}
+    props = skill["input_schema"]["properties"]
+    for name in ["actor_snapshot", "org_snapshot", "role_codes", "capability_slug", "surface", "target_ref", "risk_context"]:
+        assert name in props
+    result_props = skill["output_schema"]["properties"]["result"]["properties"]
+    for name in ["allowed", "decision_reason", "human_confirmation_required", "audit_class", "policy_version", "actor_snapshot"]:
+        assert name in result_props
+
+
+def test_governance_iam_overview_contract_is_shared_across_five_surfaces() -> None:
+    skills = {item["skill_id"]: item for item in discover_skills() if "error" not in item}
+    skill = skills["governance.iam_overview"]
+
+    assert set(skill["compatibility"]) == {"webui", "api", "cli", "mcp", "a2a"}
+    props = skill["input_schema"]["properties"]
+    for name in ["tenant_id", "binding_status", "role_code", "actor_id", "capability_id", "issue_type"]:
+        assert name in props
+    output_props = skill["output_schema"]["properties"]
+    for name in ["actors", "roles", "tenant_policies", "import_issues", "audit_events", "policy_probe"]:
+        assert name in output_props
+
+
 def test_generated_mcp_descriptors_cover_mcp_compatible_skills() -> None:
     skills = [item for item in discover_skills() if "error" not in item]
     mcp_skills = [item for item in skills if is_surface_enabled(item, "mcp")]

@@ -44,6 +44,14 @@ def _expected_iaf_audience() -> str:
     return _os.environ.get("ZW_BRAIN_IAF_AUDIENCE", _os.environ.get("ZW_BRAIN_IAF_CLIENT_ID", "zw-brain"))
 
 
+def _count_by(items: list[dict[str, Any]], key: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in items:
+        value = str(item.get(key) or "unknown")
+        counts[value] = counts.get(value, 0) + 1
+    return dict(sorted(counts.items()))
+
+
 def _mask(payload: Any) -> Any:
     """Apply default-role mask to a serializer's outgoing payload."""
     return apply_field_masks(payload, role=_DEFAULT_MASK_ROLE)
@@ -266,6 +274,8 @@ class BrainService:
                     local_aggregate_id=payload.get("local_aggregate_id"),
                     status=payload.get("status"),
                 )
+            case "governance.iam_overview":
+                return self.get_governance_iam_overview(payload)
             case "tenant.policy.evaluate":
                 return self.evaluate_tenant_policy(payload)
             case "org.projection.sync":
@@ -917,10 +927,86 @@ class BrainService:
             return store.capability_package_repo
         return __import__("zw_brain.domain.repositories.capability_package", fromlist=["CapabilityPackageRepository"]).CapabilityPackageRepository()
 
+    def get_governance_iam_overview(self, payload: dict[str, Any]) -> dict[str, Any]:
+        tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
+        status_filter = str(payload.get("binding_status", payload.get("status", "")) or "")
+        capability_filter = str(payload.get("capability_id", payload.get("capability_slug", "")) or "")
+        issue_filter = str(payload.get("issue_type", "") or "")
+        repo = self._governance_projection_repo()
+        store = self._state_store.database_store
+        tenants = [self._tenant_projection_record_to_dict(item) for item in repo.list_tenants() if not tenant_id or item.tenant_id == tenant_id]
+        orgs = [self._org_projection_record_to_dict(item) for item in repo.list_orgs(tenant_id=tenant_id)]
+        regions = [self._region_projection_record_to_dict(item) for item in repo.list_regions(tenant_id=tenant_id)]
+        roles = [self._role_projection_record_to_dict(item) for item in repo.list_roles(tenant_id=tenant_id)]
+        raw_actors = repo.list_actors(tenant_id=tenant_id)
+        actors = [self._actor_projection_record_to_dict(item) | {"actor_snapshot": self._actor_snapshot_from_projection(item, claims={})} for item in raw_actors]
+        role_filter = str(payload.get("role_code", "") or "")
+        actor_filter = str(payload.get("actor_id", payload.get("external_actor_id", "")) or "")
+        if role_filter:
+            roles = [item for item in roles if item.get("role_code") == role_filter]
+        actors = [item for item in actors if self._filter_governance_actor(item, status_filter=status_filter, role_filter=role_filter, actor_filter=actor_filter)]
+        policies = [self._tenant_policy_record_to_dict(item) for item in store.capability_package_repo.list_policies(tenant_id=tenant_id)] if store is not None else []
+        if capability_filter:
+            policies = [item for item in policies if item.get("package_slug") == capability_filter]
+        candidates = [self._legacy_policy_candidate_record_to_dict(item) for item in repo.list_policy_candidates(tenant_id=tenant_id)]
+        if capability_filter:
+            candidates = [item for item in candidates if item.get("capability_id") == capability_filter]
+        adapter_runs = [self._adapter_run_record_to_dict(item) for item in self._external_adapter_repo().list_run_records(tenant_id=tenant_id, adapter_slug="legacy.bsp.governance")]
+        issues = self._governance_import_issues(adapter_runs)
+        if issue_filter:
+            issues = [item for item in issues if item.get("type") == issue_filter]
+        audit_events = self._governance_audit_events(tenant_id=tenant_id, capability_filter=capability_filter, actor_filter=actor_filter)
+        sample_actor = actors[0] if actors else None
+        sample_policy = policies[0] if policies else None
+        sample_org = next((item for item in orgs if sample_actor and item.get("org_code") == sample_actor.get("org_code")), orgs[0] if orgs else None)
+        policy_probe = None
+        if sample_policy is not None:
+            actor_snapshot = copy.deepcopy(sample_actor.get("actor_snapshot")) if sample_actor else {}
+            if actor_snapshot and not actor_snapshot.get("role_codes"):
+                actor_snapshot["role_codes"] = list(sample_actor.get("role_codes_json") or [])
+            policy_probe = self.evaluate_tenant_policy(
+                {
+                    "tenant_id": tenant_id,
+                    "capability_id": sample_policy["package_slug"],
+                    "surface": str(payload.get("surface", "api")),
+                    "role": str(payload.get("role", (actor_snapshot.get("role_codes") or [self._ui_state["role"]])[0])),
+                    "actor_snapshot": actor_snapshot,
+                    "org_snapshot": copy.deepcopy(sample_org or {}),
+                    "risk_context": self._safe_json(payload.get("risk_context") or {}),
+                }
+            )
+        return {
+            "tenant_id": tenant_id,
+            "filters": {"binding_status": status_filter or None, "role_code": role_filter or None, "actor_id": actor_filter or None, "capability_id": capability_filter or None, "issue_type": issue_filter or None},
+            "summary": {
+                "tenant_count": len(tenants),
+                "org_count": len(orgs),
+                "region_count": len(regions),
+                "actor_count": len(actors),
+                "role_count": len(roles),
+                "policy_count": len(policies),
+                "issue_count": len(issues),
+                "audit_count": len(audit_events),
+                "binding_status_counts": _count_by(actors, "status"),
+            },
+            "tenants": tenants,
+            "orgs": orgs,
+            "regions": regions,
+            "actors": actors,
+            "roles": roles,
+            "tenant_policies": policies,
+            "legacy_policy_candidates": candidates,
+            "import_issues": issues,
+            "adapter_runs": adapter_runs,
+            "audit_events": audit_events,
+            "policy_probe": policy_probe,
+        }
+
     def evaluate_tenant_policy(self, payload: dict[str, Any]) -> dict[str, Any]:
         tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
         capability_id = str(payload.get("capability_id", payload.get("skill_id", payload.get("capability_slug", ""))))
         surface = str(payload.get("surface", "webui"))
+        target_ref = payload.get("target_ref")
         role_code = str(payload.get("role_code", payload.get("role", self._ui_state["role"])))
         actor_snapshot = self._safe_json(payload.get("actor_snapshot") or {})
         org_snapshot = self._safe_json(payload.get("org_snapshot") or {})
@@ -928,6 +1014,9 @@ class BrainService:
         requested_role_codes = [str(item) for item in payload.get("role_codes") or []]
 
         role_codes = sorted({role_code, *requested_role_codes, *[str(item) for item in actor_snapshot.get("role_codes") or []]})
+        policy_version = "tenant-policy:v1"
+        audit_class = "read-trace"
+        human_confirmation_required = False
         if not capability_id:
             return {
                 "tenant_id": tenant_id,
@@ -935,9 +1024,13 @@ class BrainService:
                 "surface": surface,
                 "role_code": role_code,
                 "role_codes": role_codes,
+                "target_ref": target_ref,
                 "allowed": False,
                 "source": "fail_closed",
                 "decision_reason": "missing_capability_id",
+                "human_confirmation_required": False,
+                "audit_class": audit_class,
+                "policy_version": policy_version,
                 "policy_status": None,
                 "policy": None,
                 "legacy_candidates": [],
@@ -957,7 +1050,6 @@ class BrainService:
                     registry_roles.append(candidate_role)
             except DomainAccessDeniedError:
                 continue
-        _registry_allowed = bool(registry_roles)
 
         allowed = False
         source = "fail_closed"
@@ -972,7 +1064,15 @@ class BrainService:
 
         if tenant_policy is not None:
             policy_snapshot = copy.deepcopy(tenant_policy.policy_json)
+            policy_version = str(policy_snapshot.get("policyVersion") or policy_snapshot.get("version") or policy_version)
+            audit_class = str(policy_snapshot.get("auditClass") or audit_class)
+            human_confirmation_required = bool(policy_snapshot.get("requiresHuman", False))
             exposed_surfaces = {str(item) for item in (policy_snapshot.get("exposedSurfaces") or [])}
+            tenant_policy_json = policy_snapshot.get("tenantPolicy") if isinstance(policy_snapshot.get("tenantPolicy"), dict) else {}
+            allowed_policy_roles = {str(item) for item in (tenant_policy_json.get("role_codes") or tenant_policy_json.get("roles") or [])}
+            effective_role_codes = set(role_codes) - {"ACCOUNT_ADMIN"}
+            policy_role_matched = bool(allowed_policy_roles & effective_role_codes) if allowed_policy_roles else role_code in effective_role_codes
+            registry_or_policy_roles = set(registry_roles) | ({role_code} if policy_role_matched else set())
             tenant_enabled = tenant_policy.policy_status == "enabled" and bool(policy_snapshot.get("enabled", False))
             if not tenant_enabled:
                 allowed = False
@@ -982,6 +1082,10 @@ class BrainService:
                 allowed = False
                 source = "tenant_capability_policy"
                 decision_reason = "surface_not_exposed"
+            elif not registry_or_policy_roles:
+                allowed = False
+                source = "brain_registry"
+                decision_reason = "role_not_allowed_by_registry"
             else:
                 allowed = True
                 source = "tenant_capability_policy"
@@ -1026,14 +1130,22 @@ class BrainService:
             allowed = False
             source = "fail_closed"
             decision_reason = "org_binding_mismatch"
-        elif actor_role_codes and not requested_role_set.issubset(actor_role_codes):
+        elif allowed and actor_role_codes and role_code not in actor_role_codes:
             allowed = False
             source = "fail_closed"
             decision_reason = "role_binding_mismatch"
+        elif allowed and actor_role_codes and not requested_role_set.issubset(actor_role_codes):
+            non_registry_roles = requested_role_set - {role_code}
+            if non_registry_roles and not non_registry_roles.issubset(actor_role_codes):
+                allowed = False
+                source = "fail_closed"
+                decision_reason = "role_binding_mismatch"
         elif risk_context.get("cross_tenant") and tenant_id != str(actor_snapshot.get("tenant_id") or tenant_id):
             allowed = False
             source = "fail_closed"
             decision_reason = "cross_tenant_denied"
+        elif risk_context.get("high_risk") or risk_context.get("requires_human") or risk_context.get("human_confirmation_required"):
+            human_confirmation_required = True
 
         return {
             "tenant_id": tenant_id,
@@ -1041,9 +1153,13 @@ class BrainService:
             "surface": surface,
             "role_code": role_code,
             "role_codes": role_codes,
+            "target_ref": target_ref,
             "allowed": allowed,
             "source": source,
             "decision_reason": decision_reason,
+            "human_confirmation_required": human_confirmation_required,
+            "audit_class": audit_class,
+            "policy_version": policy_version,
             "policy_status": tenant_policy.policy_status if tenant_policy is not None else None,
             "policy": policy_snapshot,
             "legacy_candidates": candidates,
@@ -1378,6 +1494,16 @@ class BrainService:
 
         return self._mutate("legacy.sharezone.mapping.import", role, confirmed, payload, mutation)
 
+    def _filter_governance_actor(self, item: dict[str, Any], *, status_filter: str, role_filter: str, actor_filter: str) -> bool:
+        profile = item.get("profile_json") if isinstance(item.get("profile_json"), dict) else {}
+        if status_filter and item.get("status") != status_filter and profile.get("binding_status") != status_filter:
+            return False
+        if role_filter and role_filter not in (item.get("role_codes_json") or []):
+            return False
+        if actor_filter and item.get("external_actor_id") != actor_filter:
+            return False
+        return True
+
     def _tenant_projection_record_to_dict(self, item: Any) -> dict[str, Any]:
         return {"tenant_id": item.tenant_id, "tenant_name": item.tenant_name, "status": item.status, "source_ref": item.source_ref, "profile_json": copy.deepcopy(item.profile_json)}
 
@@ -1397,6 +1523,44 @@ class BrainService:
 
     def _legacy_policy_candidate_record_to_dict(self, item: Any) -> dict[str, Any]:
         return {"legacy_system": item.legacy_system, "legacy_permission_ref": item.legacy_permission_ref, "legacy_role_ref": item.legacy_role_ref, "capability_id": item.capability_id, "surface": item.surface, "candidate_status": item.candidate_status, "evidence_json": copy.deepcopy(item.evidence_json)}
+
+    def _tenant_policy_record_to_dict(self, item: Any) -> dict[str, Any]:
+        return {"tenant_id": item.tenant_id, "package_slug": item.package_slug, "policy_status": item.policy_status, "policy_json": copy.deepcopy(item.policy_json)}
+
+    def _governance_import_issues(self, adapter_runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        issues: list[dict[str, Any]] = []
+        for run in adapter_runs:
+            receipt = run.get("receipt_json") if isinstance(run.get("receipt_json"), dict) else {}
+            for issue in receipt.get("issues") or []:
+                if not isinstance(issue, dict):
+                    continue
+                issues.append(copy.deepcopy(issue) | {"adapter_run_id": run.get("id"), "adapter_status": run.get("status"), "source_ref": run.get("source_ref")})
+        store = self._state_store.database_store
+        if store is not None:
+            for call in store.list_capability_calls():
+                if call.skill_id != "legacy.bsp.mapping.import":
+                    continue
+                for item in call.output_json.get("items") or []:
+                    if isinstance(item, dict) and item.get("reason"):
+                        issues.append({"type": item["reason"], "table": "legacy.bsp.mapping.import", "legacy_ref": item.get("legacy_permission_ref"), "detail": {"legacy_role_ref": item.get("legacy_role_ref"), "capability_id": item.get("capability_id")}, "capability_call_ref": call.call_ref})
+        return issues
+
+    def _governance_audit_events(self, *, tenant_id: str, capability_filter: str = "", actor_filter: str = "") -> list[dict[str, Any]]:
+        store = self._state_store.database_store
+        if store is None:
+            return []
+        events = []
+        for item in store.list_audit_events():
+            payload = item.payload_json if isinstance(item.payload_json, dict) else {}
+            if payload.get("tenant_id") not in {None, "", tenant_id}:
+                continue
+            if capability_filter and payload.get("capability_id") != capability_filter and payload.get("capability_slug") != capability_filter:
+                continue
+            if actor_filter and actor_filter not in {str(payload.get("external_actor_id", "")), str(payload.get("actor_id", "")), str(payload.get("actor_snapshot", {}).get("subject", "")) if isinstance(payload.get("actor_snapshot"), dict) else ""}:
+                continue
+            if item.skill_id in {"tenant.policy.evaluate", "legacy.bsp.mapping.import", "org.projection.sync", "actor.projection.sync", "governance.iam_overview"}:
+                events.append({"id": item.request_id, "skill_id": item.skill_id, "phase": item.phase, "actor": item.actor, "occurred_at": item.occurred_at.isoformat(), "payload_json": copy.deepcopy(payload)})
+        return events
 
     def _topic_package_record_to_dict(self, item: Any) -> dict[str, Any]:
         # display_snapshot_json.contacts may carry contact_name + contact_phone
@@ -3943,17 +4107,19 @@ class BrainService:
             item["tenantPolicy"] = {
                 "tenantId": tenant_id,
                 "policyStatus": "enabled",
+                "role_codes": [role],
                 "policy": {
                     "enabled": True,
                     "exposedSurfaces": ["api"],
                     "requiresHuman": item.get("requiresHuman", False),
                     "auditClass": item.get("auditClass"),
+                    "tenantPolicy": {"role_codes": [role]},
                 },
             }
             item["status"] = "approved"
             store = self._state_store.database_store
             if store is not None:
-                policy_record = store.capability_package_repo.upsert_tenant_policy(item, tenant_id=tenant_id, exposed_surfaces=["api"])
+                policy_record = store.capability_package_repo.upsert_tenant_policy(item | {"tenantPolicy": {"role_codes": [role]}}, tenant_id=tenant_id, exposed_surfaces=["api"])
                 item["tenantPolicy"] = {
                     "tenantId": policy_record.tenant_id,
                     "policyStatus": policy_record.policy_status,

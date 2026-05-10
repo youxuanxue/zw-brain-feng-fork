@@ -735,6 +735,68 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "governance.iam_overview",
+    "description": "查看 IAF 绑定状态、投影、租户能力策略、旧 BSP 导入问题、审计证据和策略裁决结果。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/governance.iam_overview",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "binding_status": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "role_code": {
+          "type": "string"
+        },
+        "actor_id": {
+          "type": "string"
+        },
+        "external_actor_id": {
+          "type": "string"
+        },
+        "capability_id": {
+          "type": "string"
+        },
+        "capability_slug": {
+          "type": "string"
+        },
+        "issue_type": {
+          "type": "string"
+        },
+        "surface": {
+          "type": "string"
+        },
+        "risk_context": {
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "permissions": [
+        "governance.iam_overview.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "metadata.catalog_item.query",
     "description": "查询目录项与资源 schema 字段之间的映射证据。",
     "protocol_type": "builtin_skill",
@@ -1481,14 +1543,42 @@
         "capability_id": {
           "type": "string"
         },
+        "capability_slug": {
+          "type": "string"
+        },
         "skill_id": {
           "type": "string"
         },
         "surface": {
+          "type": "string",
+          "enum": [
+            "webui",
+            "api",
+            "cli",
+            "mcp",
+            "a2a"
+          ]
+        },
+        "target_ref": {
           "type": "string"
         },
         "role_code": {
           "type": "string"
+        },
+        "role_codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "actor_snapshot": {
+          "type": "object"
+        },
+        "org_snapshot": {
+          "type": "object"
+        },
+        "risk_context": {
+          "type": "object"
         }
       }
     },

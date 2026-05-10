@@ -108,7 +108,7 @@ class LegacyImportRunner:
         mappers = self.mappers_for(schema)
         return mappers[0] if mappers else None
 
-    def import_schema(self, schema: str) -> list[object] | object | None:
+    def import_schema(self, schema: str, *, dry_run: bool = False) -> list[object] | object | None:
         """Run all mappers registered for `schema`.
 
         Returns a list of stats (one per mapper) when 2+ mappers exist; falls back to
@@ -119,7 +119,7 @@ class LegacyImportRunner:
         if not mappers:
             return None
         path = dump_path_for(schema)
-        results = [m.import_dump(path) for m in mappers]
+        results = [m.import_dump(path, dry_run=dry_run) if dry_run else m.import_dump(path) for m in mappers]
         return results[0] if len(results) == 1 else results
 
     # ------------------------------------------------------------------

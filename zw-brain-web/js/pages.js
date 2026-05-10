@@ -365,6 +365,7 @@ function workbenchDrillHintFromHref(href) {
   if (path.includes('/p7-zones-pack/zone/')) return '打开专区详情';
   if (path.includes('/p7-zones-pack')) return '打开共享专区';
   if (path.includes('/p8-integration-admin/package/')) return '打开能力包审核';
+  if (path.includes('/p8-integration-admin/iam-governance')) return '打开身份与权限治理';
   if (path.includes('/p8-integration-admin')) return '打开平台接入管理';
   if (path.includes('/dashboard/')) return '打开关联告警视图';
   if (path.includes('/p2-discovery')) return '打开数据资源发现';
@@ -479,6 +480,7 @@ window.ZW_PAGE_ACCESS = {
   zonesPack: ['r1', 'r2', 'r6', 'r7', 'r8'],
   zoneDetail: ['r1', 'r2', 'r6', 'r7', 'r8'],
   integrationAdmin: ['r7'],
+  iamGovernance: ['r7'],
   packageDetail: ['r7'],
 };
 
@@ -498,6 +500,7 @@ window.ZW_PAGE_SHELL = {
   zonesPack: 'p7',
   zoneDetail: 'p7',
   integrationAdmin: 'p8',
+  iamGovernance: 'p8',
   packageDetail: 'p8',
 };
 
@@ -1405,6 +1408,10 @@ PAGES.integrationAdmin = function () {
         `)}
       </section>
       <aside class="col-span-5 space-y-5">
+        ${panel('身份与权限治理', '查看 IAF 绑定、投影、租户策略、导入问题和裁决证据', `
+          <div class="text-body leading-7 text-zw-ink">从统一 Skill 契约读取治理总览，不进入旧 BSP 菜单后台。</div>
+          <a href="#/p8-integration-admin/iam-governance" class="gov-btn gov-btn-secondary mt-4 inline-block">打开治理总览</a>
+        `)}
         ${panel('上线核对项', '上线前核对来源、范围、权限和回退方案', `
           <ul class="space-y-2 text-body leading-7 list-disc pl-5">
             <li>能力名称 / 版本 / 来源</li>
@@ -1416,6 +1423,68 @@ PAGES.integrationAdmin = function () {
         `)}
         ${panel('审核提示', '先确认它能帮助经办人提效，再确认不会越权办理。', `
           <div data-ai-surface="integration-inline-ai" class="text-body leading-7 text-zw-ink">可上线能力应帮助草拟、解释、汇总、推荐或适配；涉及提交、审批、回执对账、版本登记、租户策略生效的能力需要退回或驳回。</div>
+        `)}
+      </aside>
+    </div>
+  `;
+  return shell('p8', main);
+};
+
+PAGES.iamGovernance = function () {
+  const data = window.RUNTIME_IAM_GOVERNANCE || { summary: {}, actors: [], roles: [], orgs: [], tenant_policies: [], import_issues: [], audit_events: [], policy_probe: null };
+  const summary = data.summary || {};
+  const actors = data.actors || [];
+  const policies = data.tenant_policies || [];
+  const issues = data.import_issues || [];
+  const audit = data.audit_events || [];
+  const probe = data.policy_probe;
+  const main = `
+    ${crumbs([{ label: '平台接入管理', href: '#/p8-integration-admin' }, { label: '身份与权限治理' }])}
+    <div class="page-hero">
+      <div class="page-toolbar">
+        <div>
+          <div class="page-kicker">IAF IAM 治理</div>
+          <div class="page-hero-title">查看本地投影、租户策略与裁决证据。</div>
+          <div class="page-hero-subtitle">这里只读展示 zw-brain 授权事实，不复刻旧 BSP 菜单、按钮或权限树。</div>
+        </div>
+        <div class="page-meta">${escapeHtml(data.tenant_id || 'sd-default')}</div>
+      </div>
+    </div>
+
+    ${statCards([
+      { label: '用户投影', value: summary.actor_count || 0, note: `绑定状态 ${JSON.stringify(summary.binding_status_counts || {})}` },
+      { label: '组织 / 区划', value: `${summary.org_count || 0} / ${summary.region_count || 0}`, note: '本地只读投影' },
+      { label: '角色 / 策略', value: `${summary.role_count || 0} / ${summary.policy_count || 0}`, note: 'Capability policy' },
+      { label: '导入问题', value: summary.issue_count || 0, note: 'fail-closed 报告' },
+    ])}
+
+    <div class="grid grid-cols-12 gap-5">
+      <section class="col-span-7 space-y-5">
+        ${panel('IAF 绑定与 Actor 投影', '查看 bound / disabled / unmatched / iam_account_missing', `
+          <div class="space-y-3 text-body">
+            ${actors.map(item => `<div class="panel"><div class="panel-body"><div class="flex items-center justify-between gap-3"><div class="panel-title text-body">${escapeHtml(item.display_name || item.external_actor_id)}</div>${statusPill(item.status)}</div><div class="row-meta mt-2">${escapeHtml(item.external_actor_id)} · 组织 ${escapeHtml(item.org_code || '—')}</div><div class="mt-2 text-body-sm text-zw-mute leading-7">角色：${(item.role_codes_json || []).map(escapeHtml).join('、') || '无'} · 绑定：${escapeHtml((item.profile_json && item.profile_json.binding_status) || item.status)}</div></div></div>`).join('') || '<div class="text-body text-zw-mute">暂无 Actor 投影</div>'}
+          </div>
+        `)}
+        ${panel('租户 Capability Policy', '查看当前租户能力策略', `
+          <table class="gov-table"><tbody>
+            ${policies.map(item => `<tr><td>${escapeHtml(item.package_slug)}</td><td>${statusPill(item.policy_status)}</td><td>${escapeHtml((item.policy_json && (item.policy_json.exposedSurfaces || []).join('、')) || '—')}</td></tr>`).join('') || '<tr><td colspan="3">暂无租户策略</td></tr>'}
+          </tbody></table>
+        `)}
+      </section>
+      <aside class="col-span-5 space-y-5">
+        ${panel('Policy 裁决探针', '基于当前样本 actor 与租户策略调用 tenant.policy.evaluate', probe ? `
+          <div class="text-body leading-7">裁决：${probe.allowed ? '允许' : '拒绝'} · ${escapeHtml(probe.decision_reason || '—')}</div>
+          <div class="text-body-sm text-zw-mute leading-7 mt-2">能力：${escapeHtml(probe.capability_id || '—')} · 暴露面：${escapeHtml(probe.surface || '—')} · 审计：${escapeHtml(probe.audit_class || '—')}</div>
+        ` : '<div class="text-body text-zw-mute">暂无可探测策略</div>')}
+        ${panel('导入问题', '未绑定 IAM、权限未映射、组织关系缺失均 fail-closed', `
+          <div class="space-y-2 text-body-sm leading-7">
+            ${issues.map(item => `<div>${statusPill('warning')} ${escapeHtml(item.type)} · ${escapeHtml(item.table || '—')} · ${escapeHtml(item.legacy_ref || '—')}</div>`).join('') || '<div class="text-zw-mute">暂无导入问题</div>'}
+          </div>
+        `)}
+        ${panel('审计证据', '策略裁决与导入操作均进入审计总线', `
+          <div class="space-y-2 text-body-sm leading-7">
+            ${audit.slice(-6).map(item => `<div>${escapeHtml(item.skill_id)}.${escapeHtml(item.phase)} · ${escapeHtml(item.actor || '—')}</div>`).join('') || '<div class="text-zw-mute">暂无治理审计事件</div>'}
+          </div>
         `)}
       </aside>
     </div>

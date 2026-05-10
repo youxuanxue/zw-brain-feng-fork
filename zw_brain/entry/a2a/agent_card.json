@@ -93,6 +93,10 @@
       "mode": "read"
     },
     {
+      "id": "governance.iam_overview",
+      "mode": "read"
+    },
+    {
       "id": "metadata.catalog_item.query",
       "mode": "read"
     },

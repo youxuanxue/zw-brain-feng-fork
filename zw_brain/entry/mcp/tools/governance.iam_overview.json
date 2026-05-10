@@ -1,0 +1,56 @@
+{
+  "name": "governance.iam_overview",
+  "description": "查看 IAF 绑定状态、投影、租户能力策略、旧 BSP 导入问题、审计证据和策略裁决结果。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "binding_status": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "role_code": {
+        "type": "string"
+      },
+      "actor_id": {
+        "type": "string"
+      },
+      "external_actor_id": {
+        "type": "string"
+      },
+      "capability_id": {
+        "type": "string"
+      },
+      "capability_slug": {
+        "type": "string"
+      },
+      "issue_type": {
+        "type": "string"
+      },
+      "surface": {
+        "type": "string"
+      },
+      "risk_context": {
+        "type": "object"
+      },
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-permissions": [
+    "governance.iam_overview.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

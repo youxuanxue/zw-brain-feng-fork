@@ -547,7 +547,10 @@ def test_p1_governance_projection_and_topic_package_repositories() -> None:
         governance.upsert_actor({"external_actor_id": "u-1", "display_name": "治理员", "org_code": "ORG-1", "role_codes": ["r7"], "profile_json": {"token": "drop", "mobile_mask": "138****0000"}})
         candidate = governance.import_legacy_policy_candidate({"legacy_permission_ref": "bsp:menu:sharezone", "legacy_role_ref": "ROLE_ADMIN", "capability_id": "topic.package.publish", "surface": "webui", "evidence_json": {"password": "drop", "source": "dsp-bsp"}})
         assert governance.list_orgs()[0].profile_json == {"level": "district"}
-        assert governance.list_actors()[0].profile_json == {"mobile_mask": "138****0000"}
+        legacy_actor = governance.list_actors()[0]
+        assert legacy_actor.status == "iam_account_missing"
+        assert legacy_actor.profile_json["mobile_mask"] == "138****0000"
+        assert legacy_actor.profile_json["binding_status"] == "iam_account_missing"
         assert candidate.evidence_json == {"source": "dsp-bsp"}
 
         topic = TopicPackageRepository()
@@ -578,6 +581,127 @@ def test_p1_governance_projection_and_topic_package_repositories() -> None:
             pass
         else:
             raise AssertionError("topic package without item and approved visibility must not publish")
+
+
+def test_f2_governance_projection_binds_actor_by_iaf_sub_and_syncs_org_role_binding() -> None:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "repo.db"
+        import os
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        repo = GovernanceProjectionRepository()
+        repo.upsert_org({"org_code": "ORG-1", "org_name": "区政数局"})
+        repo.upsert_role({"role_code": "r7", "role_name": "治理员"})
+        actor = repo.upsert_actor(
+            {
+                "iaf_sub": "iaf-sub-001",
+                "display_name": "张三",
+                "org_code": "ORG-1",
+                "role_codes": ["r7"],
+                "source_ref": "iaf:claims",
+                "profile_json": {"preferred_username": "zhangsan", "password": "drop", "client_secret": "drop"},
+            }
+        )
+
+        assert actor.external_actor_id == "iaf-sub-001"
+        assert actor.status == "active"
+        assert actor.profile_json["iaf_sub"] == "iaf-sub-001"
+        assert actor.profile_json["binding_status"] == "bound"
+        assert "password" not in actor.profile_json
+        assert "client_secret" not in actor.profile_json
+        bindings = repo.list_actor_org_role_bindings(external_actor_id="iaf-sub-001")
+        assert [(item.org_code, item.role_code, item.binding_status) for item in bindings] == [("ORG-1", "r7", "active")]
+
+
+def test_f2_governance_projection_auxiliary_match_binds_to_iaf_sub_without_authorizing_ambiguous_or_missing() -> None:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "repo.db"
+        import os
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.domain.repositories.governance_projection import ActorMatchError, GovernanceProjectionRepository
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        repo = GovernanceProjectionRepository()
+        legacy = repo.upsert_actor(
+            {
+                "external_actor_id": "legacy-u-1",
+                "display_name": "张三",
+                "org_code": "ORG-1",
+                "role_codes": ["r7"],
+                "status": "unmatched",
+                "profile_json": {"account": "zhangsan", "phone": "13800001111", "email": "zhangsan@sd.gov.cn", "token": "drop"},
+            }
+        )
+        assert legacy.status == "unmatched"
+        assert repo.list_actor_org_role_bindings(external_actor_id="legacy-u-1") == []
+
+        bound = repo.bind_actor_to_iaf_claims({"sub": "iaf-sub-001", "preferred_username": "zhangsan", "phone": "13800001111", "email": "zhangsan@sd.gov.cn"})
+        assert bound.external_actor_id == "iaf-sub-001"
+        assert bound.status == "active"
+        assert bound.profile_json["legacy_actor_ref"] == "legacy-u-1"
+        assert bound.profile_json["match_evidence"]["preferred_username_matched"] is True
+        assert repo.find_actor_for_iaf_claims({"sub": "iaf-sub-001"}).external_actor_id == "iaf-sub-001"
+
+        missing = repo.bind_actor_to_iaf_claims({"sub": "iaf-missing", "preferred_username": "missing"})
+        assert missing.status == "iam_account_missing"
+        assert repo.list_actor_org_role_bindings(external_actor_id="iaf-missing") == []
+
+        repo.upsert_actor({"iaf_sub": "iaf-a", "display_name": "A", "profile_json": {"account": "dup"}})
+        repo.upsert_actor({"iaf_sub": "iaf-b", "display_name": "B", "profile_json": {"account": "dup"}})
+        try:
+            repo.find_actor_for_iaf_claims({"sub": "new-sub", "preferred_username": "dup"})
+        except ActorMatchError:
+            pass
+        else:
+            raise AssertionError("ambiguous auxiliary match must fail closed")
+
+
+def test_f2_governance_projection_marks_legacy_missing_iam_fail_closed_and_sanitizes_report_fields() -> None:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "repo.db"
+        import os
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        repo = GovernanceProjectionRepository()
+        actor = repo.mark_legacy_actor_unmatched(
+            {
+                "legacy_actor_ref": "legacy-u-2",
+                "display_name": "未绑定用户",
+                "status": "iam_account_missing",
+                "profile_json": {
+                    "account": "missing-iam",
+                    "password": "drop",
+                    "refresh_token": "drop",
+                    "verification_code": "drop",
+                    "sms_status": "drop",
+                    "session": "drop",
+                    "cookie": "drop",
+                    "client_secret": "drop",
+                    "match_hint": "manual_review",
+                },
+                "match_evidence": {"phone": "13800001111", "client_secret": "drop"},
+            }
+        )
+
+        assert actor.external_actor_id == "legacy-u-2"
+        assert actor.status == "iam_account_missing"
+        assert actor.role_codes_json == []
+        assert repo.list_actor_org_role_bindings(external_actor_id="legacy-u-2") == []
+        serialized = str(actor.profile_json).lower()
+        for forbidden in ["password", "refresh_token", "verification_code", "sms_status", "session", "cookie", "client_secret"]:
+            assert forbidden not in serialized
+        assert actor.profile_json["match_hint"] == "manual_review"
+        assert actor.profile_json["match_evidence"] == {"phone": "13800001111"}
 
 
 def test_compliance_ops_repository_six_records_roundtrip() -> None:

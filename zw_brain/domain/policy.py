@@ -29,6 +29,7 @@ PERMISSION_ROLES = {
     "provider.view.execute": {"r6", "r7"},
     "governance.dispute_list.execute": {"r2", "r5", "r6", "r7", "r8"},
     "governance.dispute_view.execute": {"r2", "r5", "r6", "r7", "r8"},
+    "governance.iam_overview.execute": {"r7", "r8"},
     "audit.replay_evidence_chain.execute": {"r2", "r5", "r6", "r7", "r8"},
     "audit.list.execute": {"r2", "r5", "r6", "r7", "r8"},
     "zone.list.execute": {"r1", "r2", "r6", "r7", "r8"},

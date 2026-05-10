@@ -14,14 +14,42 @@
       "capability_id": {
         "type": "string"
       },
+      "capability_slug": {
+        "type": "string"
+      },
       "skill_id": {
         "type": "string"
       },
       "surface": {
+        "type": "string",
+        "enum": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ]
+      },
+      "target_ref": {
         "type": "string"
       },
       "role_code": {
         "type": "string"
+      },
+      "role_codes": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "actor_snapshot": {
+        "type": "object"
+      },
+      "org_snapshot": {
+        "type": "object"
+      },
+      "risk_context": {
+        "type": "object"
       }
     }
   },

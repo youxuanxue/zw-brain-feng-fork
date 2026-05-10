@@ -18,6 +18,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--reset-db", action="store_true", help="Drop and recreate the target DB before importing")
     parser.add_argument("--strict", action="store_true", help="Fail on missing required dumps, import failures, or unresolved mappings")
     parser.add_argument("--require-zero-conflicts", action="store_true", help="Treat conflicted legacy mappings as failures")
+    parser.add_argument("--dry-run", action="store_true", help="Parse and report planned target changes without writing projection tables")
     parser.add_argument("--report", required=True, help="Path to write migration report JSON")
     args = parser.parse_args(argv)
 
@@ -29,6 +30,7 @@ def main(argv: list[str] | None = None) -> int:
         reset_db=args.reset_db,
         strict=args.strict,
         require_zero_conflicts=args.require_zero_conflicts,
+        dry_run=args.dry_run,
     )
     report_path = Path(args.report)
     try:

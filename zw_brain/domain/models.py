@@ -770,6 +770,21 @@ class ActorProjectionRecord(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 
 
+class ActorOrgRoleBindingRecord(Base):
+    __tablename__ = "actor_org_role_binding"
+    __table_args__ = (UniqueConstraint("tenant_id", "external_actor_id", "org_code", "role_code", name="uq_actor_org_role_binding_identity"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    external_actor_id: Mapped[str] = mapped_column(String(128), index=True)
+    org_code: Mapped[str] = mapped_column(String(64), index=True)
+    role_code: Mapped[str] = mapped_column(String(64), index=True)
+    binding_status: Mapped[str] = mapped_column(String(32), index=True, default="active")
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    evidence_json: Mapped[dict] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
 class LegacyPolicyMappingCandidateRecord(Base):
     __tablename__ = "legacy_policy_mapping_candidate"
     __table_args__ = (UniqueConstraint("tenant_id", "legacy_system", "legacy_permission_ref", "capability_id", name="uq_legacy_policy_candidate_identity"),)

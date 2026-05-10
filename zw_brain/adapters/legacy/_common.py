@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
+from zw_brain.shared.sanitization import safe_json
 
 
 @dataclass
@@ -19,9 +20,31 @@ class ImportStats:
     dump_path: Path
     counts: dict[str, int] = field(default_factory=dict)
     skipped: dict[str, int] = field(default_factory=dict)
+    source_counts: dict[str, int] = field(default_factory=dict)
+    target_counts: dict[str, int] = field(default_factory=dict)
+    issues: list[dict[str, Any]] = field(default_factory=list)
+    mode: str = "apply"
 
     def bump(self, table: str, key: str = "imported") -> None:
         self.counts[f"{table}.{key}"] = self.counts.get(f"{table}.{key}", 0) + 1
+
+    def bump_source(self, table: str) -> None:
+        self.source_counts[table] = self.source_counts.get(table, 0) + 1
+
+    def bump_target(self, target: str) -> None:
+        self.target_counts[target] = self.target_counts.get(target, 0) + 1
+
+    def add_issue(self, issue_type: str, table: str, legacy_ref: Any, detail: dict[str, Any] | None = None) -> None:
+        self.issues.append(
+            safe_json(
+                {
+                    "type": issue_type,
+                    "table": table,
+                    "legacy_ref": str(legacy_ref or ""),
+                    "detail": detail or {},
+                }
+            )
+        )
 
     def skip(self, table: str) -> None:
         self.skipped[table] = self.skipped.get(table, 0) + 1
@@ -30,7 +53,11 @@ class ImportStats:
         return {
             "schema": self.schema,
             "dump_path": str(self.dump_path),
+            "mode": self.mode,
             "counts": dict(self.counts),
+            "source_counts": dict(self.source_counts),
+            "target_counts": dict(self.target_counts),
+            "issues": safe_json(self.issues),
             "skipped": dict(self.skipped),
         }
 
@@ -113,7 +140,7 @@ def finish_run(
     """
     schema = schema_from_dump_name(dump_path.name)
     finished_at = datetime.now(UTC)
-    failure_count = sum(v for k, v in stats.counts.items() if k.endswith(".errors"))
+    failure_count = sum(v for k, v in stats.counts.items() if k.endswith(".errors")) + len(stats.issues)
     imported_count = sum(v for k, v in stats.counts.items() if k.endswith(".imported"))
     adapter_repo.upsert_run_record(
         {

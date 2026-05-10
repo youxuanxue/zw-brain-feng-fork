@@ -28,6 +28,7 @@ class MigrationOptions:
     reset_db: bool = False
     strict: bool = False
     require_zero_conflicts: bool = False
+    dry_run: bool = False
 
 
 class MigrationError(RuntimeError):
@@ -58,11 +59,12 @@ def run_migration(options: MigrationOptions) -> dict[str, Any]:
         report["errors"].append(f"duplicate required dump(s): {', '.join(duplicates)}")
         raise MigrationError(report)
 
-    ensure_parent_dir()
-    if options.reset_db:
-        reset_and_upgrade()
-    else:
-        ensure_runtime_schema()
+    if not options.dry_run:
+        ensure_parent_dir()
+        if options.reset_db:
+            reset_and_upgrade()
+        else:
+            ensure_runtime_schema()
 
     runner = LegacyImportRunner(tenant_id=options.tenant_id)
     imports: list[dict[str, Any]] = []
@@ -72,7 +74,7 @@ def run_migration(options: MigrationOptions) -> dict[str, Any]:
             imports.append({"schema": schema, "status": "skipped", "reason": "missing_dump", "handled_tables": handled_tables})
             continue
         try:
-            result = runner.import_schema(schema)
+            result = runner.import_schema(schema, dry_run=True) if options.dry_run else runner.import_schema(schema)
         except Exception as exc:  # noqa: BLE001
             imports.append({"schema": schema, "status": "failed", "error": f"{exc.__class__.__name__}: {exc}"})
             report["errors"].append(f"import failed for {schema}: {exc}")
@@ -89,9 +91,9 @@ def run_migration(options: MigrationOptions) -> dict[str, Any]:
             }
         )
     report["imports"] = imports
-    report["adapter_runs"] = _adapter_run_report(options.tenant_id)
+    report["adapter_runs"] = [] if options.dry_run else _adapter_run_report(options.tenant_id)
     report["table_accounting"] = _table_accounting(report["dumps"], imports)
-    report["verification"] = verify_legacy_migration(
+    report["verification"] = {"skipped": True, "reason": "dry_run_no_db_writes"} if options.dry_run else verify_legacy_migration(
         tenant_id=options.tenant_id,
         require_zero_conflicts=options.require_zero_conflicts,
     )
@@ -115,7 +117,7 @@ def run_migration(options: MigrationOptions) -> dict[str, Any]:
     if unaccounted_tables:
         table_refs = ", ".join(f"{item['schema']}.{item['table']}" for item in unaccounted_tables[:10])
         report["errors"].append(f"unaccounted source row table(s): {table_refs}")
-    if report["verification"]["failed"]:
+    if report["verification"].get("failed"):
         report["errors"].append("legacy mapping verification failed")
     if options.strict and report["errors"]:
         report["status"] = "failed"
@@ -139,6 +141,7 @@ def _base_report(options: MigrationOptions) -> dict[str, Any]:
         "reset_db": options.reset_db,
         "strict": options.strict,
         "require_zero_conflicts": options.require_zero_conflicts,
+        "dry_run": options.dry_run,
         "status": "pending",
         "errors": [],
     }

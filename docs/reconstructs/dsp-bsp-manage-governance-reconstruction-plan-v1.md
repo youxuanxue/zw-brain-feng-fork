@@ -87,6 +87,8 @@ zw-brain 已获取 IAF IAM 统一认证 client 分配信息：
 | `confidential-port` | `0` |
 | 当前网络状态 | 该地址为内网测试环境，当前不可访问；本文只记录分配信息和离线设计约束，不声明在线联调已通过。 |
 
+运行时配置由环境变量注入：`ZW_BRAIN_IAF_REALM`、`ZW_BRAIN_IAF_AUTH_SERVER_URL`、`ZW_BRAIN_IAF_SSL_REQUIRED`、`ZW_BRAIN_IAF_CLIENT_ID` / `ZW_BRAIN_IAF_RESOURCE`、`ZW_BRAIN_IAF_CLIENT_SECRET_ENV`。默认 secret 读取环境变量名为 `ZW_BRAIN_IAF_CLIENT_SECRET`，配置导出、日志、报告和审计只允许出现这个变量名，不允许出现变量值；当前内网地址不可达时，用离线 discovery / JWKS fixture 验证端点推导和 token 校验边界。
+
 ### 2.3 IAF OIDC 手册约束
 
 IAF 对接手册给出的关键约束：

@@ -1929,6 +1929,198 @@ def test_p1_governance_policy_fail_closed_for_unbound_or_inconsistent_actor_cont
         assert denied["decision_reason"] == "role_binding_mismatch"
 
 
+def test_f3_tenant_policy_evaluate_outputs_policy_fields_and_audit_evidence() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        from zw_brain.shared.database_store import DatabaseStore
+
+        os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+
+        payload = {
+            "tenant_id": "sd-default",
+            "capability_slug": "ledger.entity.base.read",
+            "surface": "api",
+            "role": "r7",
+            "role_codes": ["ACCOUNT_ADMIN", "r7"],
+            "target_ref": "catalog:legal-person-base",
+            "actor_snapshot": {
+                "tenant_id": "sd-default",
+                "subject": "iaf-user-001",
+                "org_code": "ORG-YBT",
+                "role_codes": ["ACCOUNT_ADMIN", "r7"],
+                "status": "active",
+                "phone": "13800001111",
+                "token": "drop",
+            },
+            "org_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT"},
+            "risk_context": {"purpose": "read"},
+        }
+
+        result = service.invoke_skill("tenant.policy.evaluate", payload)
+        assert result["allowed"] is True
+        assert result["decision_reason"] == "allowed_by_tenant_policy"
+        assert result["human_confirmation_required"] is False
+        assert result["audit_class"] == "read-sensitive"
+        assert result["policy_version"] == "tenant-policy:v1"
+        assert result["target_ref"] == "catalog:legal-person-base"
+        assert result["actor_snapshot"]["phone"] == "13800001111"
+        assert "token" not in result["actor_snapshot"]
+
+        calls = database_store.list_capability_calls()
+        latest = calls[-1]
+        assert latest.skill_id == "tenant.policy.evaluate"
+        assert latest.output_json["decision_reason"] == "allowed_by_tenant_policy"
+        assert latest.output_json["policy_version"] == "tenant-policy:v1"
+        assert latest.output_json["actor_snapshot"]["subject"] == "iaf-user-001"
+        assert "token" not in str(latest.output_json).lower()
+
+
+def test_f3_tenant_policy_evaluate_denies_account_admin_without_registry_or_tenant_policy_bypass() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        from zw_brain.shared.database_store import DatabaseStore
+
+        os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+
+        payload = {
+            "tenant_id": "sd-default",
+            "capability_id": "ledger.entity.base.read",
+            "surface": "api",
+            "role": "r2",
+            "role_codes": ["ACCOUNT_ADMIN"],
+            "actor_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT", "role_codes": ["ACCOUNT_ADMIN"], "status": "active", "account_flags": {"account_admin": True}},
+            "org_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT"},
+        }
+        denied = service.invoke_skill("tenant.policy.evaluate", payload)
+        assert denied["allowed"] is False
+        assert denied["decision_reason"] == "role_not_allowed_by_registry"
+
+        database_store.capability_package_repo.set_tenant_policy_status(service._package_by_id("PKG-2026-04-25-001"), tenant_id="sd-default", policy_status="disabled", enabled=False, exposed_surfaces=["api"])
+        payload["role"] = "r7"
+        payload["role_codes"] = ["ACCOUNT_ADMIN", "r7"]
+        payload["actor_snapshot"]["role_codes"] = ["ACCOUNT_ADMIN", "r7"]
+        disabled = service.invoke_skill("tenant.policy.evaluate", payload)
+        assert disabled["allowed"] is False
+        assert disabled["decision_reason"] == "tenant_policy_disabled"
+
+
+def test_f3_tenant_policy_evaluate_surfaces_and_high_risk_are_consistent() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        from zw_brain.shared.database_store import DatabaseStore
+
+        os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+
+        base_payload = {
+            "tenant_id": "sd-default",
+            "capability_id": "ledger.entity.base.read",
+            "role": "r7",
+            "actor_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT", "role_codes": ["r7"], "status": "active"},
+            "org_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT"},
+        }
+        decisions = {surface: service.invoke_skill("tenant.policy.evaluate", base_payload | {"surface": surface}) for surface in ["webui", "api", "cli", "mcp", "a2a"]}
+        assert decisions["api"]["allowed"] is True
+        for surface in ["webui", "cli", "mcp", "a2a"]:
+            assert decisions[surface]["allowed"] is False
+            assert decisions[surface]["decision_reason"] == "surface_not_exposed"
+            assert decisions[surface]["policy_version"] == "tenant-policy:v1"
+
+        high_risk = service.invoke_skill("tenant.policy.evaluate", base_payload | {"surface": "api", "risk_context": {"high_risk": True}})
+        assert high_risk["allowed"] is True
+        assert high_risk["human_confirmation_required"] is True
+
+
+def test_f5_governance_iam_overview_lists_filters_and_policy_evidence() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        from zw_brain.shared.database_store import DatabaseStore
+
+        os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+        service.invoke_skill("org.projection.sync", {"tenant": {"tenant_id": "sd-default", "tenant_name": "山东省"}, "orgs": [{"org_code": "ORG-YBT", "org_name": "一表通专班"}], "roles": [{"role_code": "r7", "role_name": "目录管理员"}], "role": "r7", "confirmed": True})
+        service.invoke_skill("actor.projection.sync", {"external_actor_id": "iaf-user-001", "iaf_sub": "iaf-user-001", "display_name": "治理员", "org_code": "ORG-YBT", "role_codes": ["r7"], "status": "active", "profile_json": {"binding_status": "bound", "phone": "13800001111"}, "role": "r7", "confirmed": True})
+        service.invoke_skill("actor.projection.sync", {"external_actor_id": "legacy-missing", "display_name": "未绑定用户", "org_code": "ORG-YBT", "role_codes": ["r7"], "status": "iam_account_missing", "profile_json": {"password": "drop", "binding_status": "iam_account_missing"}, "role": "r7", "confirmed": True})
+        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+        service.invoke_skill(
+            "legacy.bsp.mapping.import",
+            {
+                "mode": "apply",
+                "rows": [
+                    {"legacy_permission_ref": "legacy.unmapped.permission", "legacy_role_ref": "ROLE_X", "capability_id": "unknown.capability", "surface": "api"},
+                    {"legacy_permission_ref": "topic.package.publish", "legacy_role_ref": "r7", "capability_id": "topic.package.publish", "surface": "webui", "evidence_json": {"client_secret": "drop", "source": "legacy-bsp"}},
+                ],
+                "role": "r7",
+                "confirmed": True,
+            },
+        )
+        decision = service.invoke_skill(
+            "tenant.policy.evaluate",
+            {
+                "tenant_id": "sd-default",
+                "capability_id": "ledger.entity.base.read",
+                "surface": "api",
+                "role": "r7",
+                "actor_snapshot": {"tenant_id": "sd-default", "subject": "iaf-user-001", "org_code": "ORG-YBT", "role_codes": ["r7"], "status": "active"},
+                "org_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT"},
+            },
+        )
+        assert decision["allowed"] is True
+
+        overview = service.invoke_skill("governance.iam_overview", {"tenant_id": "sd-default", "role": "r7"})
+        assert overview["summary"]["actor_count"] == 2
+        assert overview["summary"]["binding_status_counts"] == {"active": 1, "iam_account_missing": 1}
+        assert any(item["package_slug"] == "ledger.entity.base.read" for item in overview["tenant_policies"])
+        assert any(item["legacy_permission_ref"] == "topic.package.publish" for item in overview["legacy_policy_candidates"])
+        assert any(item["skill_id"] == "tenant.policy.evaluate" and item["phase"] == "after" for item in overview["audit_events"])
+        assert overview["policy_probe"]["decision_reason"] == "allowed_by_tenant_policy"
+        assert "client_secret" not in json.dumps(overview, ensure_ascii=False).lower()
+        assert "password" not in json.dumps(overview, ensure_ascii=False).lower()
+        assert overview["actors"][0]["profile_json"]["phone"] == "138****1111"
+
+        missing = service.invoke_skill("governance.iam_overview", {"tenant_id": "sd-default", "role": "r7", "binding_status": "iam_account_missing"})
+        assert [item["status"] for item in missing["actors"]] == ["iam_account_missing"]
+        issues = service.invoke_skill("governance.iam_overview", {"tenant_id": "sd-default", "role": "r7", "issue_type": "unmapped_permission"})
+        assert any(item["type"] == "unmapped_permission" for item in issues["import_issues"])
+
+
 def test_p1_governance_legacy_import_supports_dry_run_and_idempotent_apply() -> None:
     with TemporaryDirectory() as tmp:
         import os
@@ -2716,7 +2908,8 @@ def test_p1_governance_no_legacy_runtime_compat_or_dual_read_write_contracts() -
     assert "/api/skills/" in server_source
     forbidden_runtime_fragments = {
         "/bsp/",
-        "/login",
+        'parsed.path == "/login"',
+        'parsed.path.startswith("/login")',
         "/oauth2Login",
         "/SAML2/",
         "/cas/",

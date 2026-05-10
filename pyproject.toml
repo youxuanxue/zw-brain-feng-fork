@@ -9,6 +9,7 @@ readme = "prototype/README.md"
 dependencies = [
   "SQLAlchemy>=2.0",
   "alembic>=1.18",
+  "PyJWT[crypto]>=2.10",
 ]
 
 [project.scripts]
