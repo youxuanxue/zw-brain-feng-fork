@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.error import HTTPError
-from urllib.request import Request, urlopen
+from urllib.request import ProxyHandler, Request, build_opener
 
 from sqlalchemy import create_engine
 
@@ -22,8 +22,9 @@ def request_json(method: str, url: str, body: dict | None = None) -> tuple[int, 
         data = json.dumps(body, ensure_ascii=False).encode("utf-8")
         headers["Content-Type"] = "application/json"
     req = Request(url, data=data, method=method, headers=headers)
+    opener = build_opener(ProxyHandler({}))
     try:
-        with urlopen(req) as resp:
+        with opener.open(req) as resp:
             content_type = resp.headers.get("Content-Type", "")
             raw = resp.read().decode("utf-8")
             if content_type.startswith("application/json"):
@@ -55,7 +56,7 @@ def test_rest_runtime_exposes_openapi_and_capability_endpoints() -> None:
             assert status == 200
             assert health == {"status": "ok", "service": "zw-brain-rest"}
 
-            with urlopen(f"http://127.0.0.1:{port}/openapi.json") as resp:
+            with build_opener(ProxyHandler({})).open(f"http://127.0.0.1:{port}/openapi.json") as resp:
                 assert resp.status == 200
                 openapi = json.loads(resp.read().decode("utf-8"))
             assert "/api/skills/request.create" in openapi["paths"]

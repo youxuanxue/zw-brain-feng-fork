@@ -6,6 +6,7 @@ from typing import Any
 SENSITIVE_JSON_KEYS = {
     "secret",
     "password",
+    "passwd",
     "token",
     "credential",
     "app_secret",
@@ -16,11 +17,15 @@ SENSITIVE_JSON_KEYS = {
     "client_secret",
     "authorization",
     "cookie",
+    "session",
+    "session_id",
     "session_key",
     "secret_key",
     "certificate",
     "cert",
     "private_key",
+    "permission_sql",
+    "service_sql",
 }
 
 
@@ -34,6 +39,8 @@ def _is_sensitive_json_key(key: object) -> bool:
         or "password" in lowered
         or "credential" in lowered
         or "authorization" in lowered
+        or lowered.endswith("_sql")
+        or lowered in {"session", "passwd"}
     )
 
 

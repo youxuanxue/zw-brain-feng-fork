@@ -30,6 +30,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "adapter.cascade.health.query.execute"
       ],
@@ -78,6 +86,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "adapter.external.mapping.query.execute"
       ],
@@ -111,6 +127,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "approval.view.execute"
       ],
@@ -136,6 +160,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "audit.list.execute"
       ],
@@ -169,6 +201,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "audit.replay_evidence_chain.execute"
       ],
@@ -236,6 +276,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "catalog.browse.execute"
       ],
@@ -271,6 +319,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "catalog.entry.query.execute"
       ],
@@ -300,6 +356,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "catalog.group.query.execute"
       ],
@@ -336,6 +400,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "catalog.model.field.query.execute"
       ],
@@ -368,6 +440,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "catalog.model.query.execute"
       ],
@@ -401,6 +481,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "catalog.resource_view.execute"
       ],
@@ -430,6 +518,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "catalog.share_zone.query.execute"
       ],
@@ -472,6 +568,13 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "compliance.case.query.execute"
       ],
@@ -508,6 +611,13 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "compliance.metric.query.execute"
       ],
@@ -544,6 +654,13 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "dashboard.compliance.query.execute"
       ],
@@ -569,6 +686,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "dashboard.render_command_center.execute"
       ],
@@ -607,6 +732,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "data.search.execute"
       ],
@@ -632,6 +765,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "delivery.list.execute"
       ],
@@ -665,6 +806,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "delivery.view.execute"
       ],
@@ -690,6 +839,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "governance.dispute_list.execute"
       ],
@@ -723,6 +880,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "governance.dispute_view.execute"
       ],
@@ -785,6 +950,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "governance.iam_overview.execute"
       ],
@@ -820,6 +993,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "metadata.catalog_item.query.execute"
       ],
@@ -855,6 +1036,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "metadata.gather.evidence.query.execute"
       ],
@@ -890,6 +1079,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "metadata.lineage.query.execute"
       ],
@@ -925,6 +1122,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "metadata.schema.query.execute"
       ],
@@ -967,6 +1172,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "objection.case.query.execute"
       ],
@@ -1003,6 +1216,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "objection.metric.query.execute"
       ],
@@ -1044,6 +1265,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "objection.process.query.execute"
       ],
@@ -1079,6 +1308,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "ops.catalog.quality.query.execute"
       ],
@@ -1108,6 +1345,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "ops.catalog.statistics.query.execute"
       ],
@@ -1144,6 +1389,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "ops.exchange.diagnose.execute"
       ],
@@ -1183,6 +1436,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "ops.exchange.statistics.query.execute"
       ],
@@ -1221,6 +1482,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "ops.service.invocation.query.execute"
       ],
@@ -1250,6 +1519,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "ops.service.report.query.execute"
       ],
@@ -1275,6 +1552,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "package.list.execute"
       ],
@@ -1308,6 +1593,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "package.view.execute"
       ],
@@ -1333,6 +1626,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "provider.view.execute"
       ],
@@ -1369,6 +1670,13 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "registry.artifact.export.execute"
       ],
@@ -1394,6 +1702,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "request.list.execute"
       ],
@@ -1427,6 +1743,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "request.view.execute"
       ],
@@ -1459,6 +1783,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "resource.asset.query.execute"
       ],
@@ -1484,6 +1816,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "system.schema_info.execute"
       ],
@@ -1514,6 +1854,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "system.snapshot.execute"
       ],
@@ -1587,6 +1935,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "tenant.policy.evaluate.execute"
       ],
@@ -1623,6 +1979,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "topic.package.metric.query.execute"
       ],
@@ -1662,6 +2026,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "topic.package.query.execute"
       ],
@@ -1704,6 +2076,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "workbench.view.execute"
       ],
@@ -1729,6 +2109,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "zone.list.execute"
       ],
@@ -1762,6 +2150,14 @@
       "side_effects": [],
       "human_confirmation_required": false,
       "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
       "permissions": [
         "zone.view.execute"
       ],
@@ -1825,6 +2221,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "actor.projection.sync.execute"
       ],
@@ -1930,6 +2333,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "adapter.cascade.consume.execute"
       ],
@@ -2035,6 +2445,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "adapter.cascade.replay.execute"
       ],
@@ -2086,6 +2503,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "adapter.health.probe.execute"
       ],
@@ -2191,6 +2615,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "adapter.national.application.receive.execute"
       ],
@@ -2296,6 +2727,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "adapter.national.application.reconcile.execute"
       ],
@@ -2401,6 +2839,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "adapter.national.application.submit.execute"
       ],
@@ -2506,6 +2951,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "adapter.national.catalog.pull.execute"
       ],
@@ -2611,6 +3063,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "adapter.national.catalog.report.execute"
       ],
@@ -2716,6 +3175,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "adapter.national.delivery.receipt.sync.execute"
       ],
@@ -2821,6 +3287,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "adapter.national.objection.sync.execute"
       ],
@@ -2926,6 +3399,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "adapter.national.resource.pull.execute"
       ],
@@ -3031,6 +3511,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "adapter.national.resource.report.execute"
       ],
@@ -3136,6 +3623,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "adapter.national.topic.report.execute"
       ],
@@ -3196,6 +3690,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "application.grant.approve.execute"
       ],
@@ -3249,6 +3750,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "application.grant.renew.execute"
       ],
@@ -3302,6 +3810,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "application.resource.review.execute"
       ],
@@ -3349,6 +3864,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "application.resource.submit.execute"
       ],
@@ -3404,6 +3926,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "approval.case.decide.execute"
       ],
@@ -3459,6 +3988,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "approval.review_decide.execute"
       ],
@@ -3505,6 +4041,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "backflow.confirm.execute"
       ],
@@ -3559,6 +4102,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "capability.exposure.configure.execute"
       ],
@@ -3626,6 +4176,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "capability.package.register.execute"
       ],
@@ -3681,6 +4238,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "capability.version.review.execute"
       ],
@@ -3727,6 +4291,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "capability.version.submit.execute"
       ],
@@ -3792,6 +4363,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "catalog.entry.create.execute"
       ],
@@ -3860,6 +4438,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "catalog.entry.create_draft.execute"
       ],
@@ -3904,6 +4489,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "catalog.entry.publish.execute"
       ],
@@ -3957,6 +4549,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "catalog.entry.review.execute"
       ],
@@ -4001,6 +4600,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "catalog.entry.submit_review.execute"
       ],
@@ -4065,6 +4671,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "catalog.entry.update.execute"
       ],
@@ -4109,6 +4722,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "catalog.entry.withdraw.execute"
       ],
@@ -4162,6 +4782,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "catalog.manage_entry.execute"
       ],
@@ -4231,6 +4858,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "catalog.model.upsert.execute"
       ],
@@ -4304,6 +4938,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "catalog.resource.bind.execute"
       ],
@@ -4387,6 +5028,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "catalog.schema.mapping.upsert.execute"
       ],
@@ -4439,6 +5087,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "compliance.case.assign.execute"
       ],
@@ -4488,6 +5143,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "compliance.case.close.execute"
       ],
@@ -4546,6 +5208,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "compliance.case.open.execute"
       ],
@@ -4598,6 +5267,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "compliance.case.resolve.execute"
       ],
@@ -4651,6 +5327,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "compliance.investigate_case.execute"
       ],
@@ -4709,6 +5392,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "compliance.rule.configure.execute"
       ],
@@ -4760,6 +5450,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "compliance.signal.ingest.execute"
       ],
@@ -4804,6 +5501,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "delivery.access.grant.execute"
       ],
@@ -4855,6 +5559,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "delivery.exchange.plan.execute"
       ],
@@ -4899,6 +5610,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "delivery.exchange.publish.execute"
       ],
@@ -4953,6 +5671,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "delivery.exchange.start.execute"
       ],
@@ -5000,6 +5725,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "delivery.exchange.stop.execute"
       ],
@@ -5062,6 +5794,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "delivery.receipt.ingest.execute"
       ],
@@ -5107,6 +5846,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "delivery.reconcile_receipt.execute"
       ],
@@ -5170,6 +5916,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "delivery.subscription.manage.execute"
       ],
@@ -5215,6 +5968,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "delivery.trigger_recovery.execute"
       ],
@@ -5284,6 +6044,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "legacy.bsp.mapping.import.execute"
       ],
@@ -5413,6 +6180,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "legacy.sharezone.mapping.import.execute"
       ],
@@ -5483,6 +6257,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "metadata.gather.evidence.upsert.execute"
       ],
@@ -5551,6 +6332,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "metadata.lineage.upsert.execute"
       ],
@@ -5614,6 +6402,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "metadata.schema.snapshot.upsert.execute"
       ],
@@ -5675,6 +6470,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "objection.case.accept.execute"
       ],
@@ -5743,6 +6545,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "objection.case.assign.execute"
       ],
@@ -5804,6 +6613,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "objection.case.close.execute"
       ],
@@ -5888,6 +6704,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "objection.case.create.execute"
       ],
@@ -5952,6 +6775,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "objection.case.escalate.execute"
       ],
@@ -6031,6 +6861,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "objection.case.evaluate.execute"
       ],
@@ -6092,6 +6929,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "objection.case.reject.execute"
       ],
@@ -6159,6 +7003,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "objection.case.reply.execute"
       ],
@@ -6231,6 +7082,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "objection.case.review.execute"
       ],
@@ -6292,6 +7150,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "objection.case.submit.execute"
       ],
@@ -6358,6 +7223,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "ops.catalog.quality.upsert.execute"
       ],
@@ -6419,6 +7291,12 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "ops.gateway.heartbeat.ingest.execute"
       ],
@@ -6472,6 +7350,12 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "ops.gateway.log.anchor.execute"
       ],
@@ -6541,6 +7425,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "org.projection.sync.execute"
       ],
@@ -6586,6 +7477,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "package.apply_tenant_policy.execute"
       ],
@@ -6639,6 +7537,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "package.configure_exposure.execute"
       ],
@@ -6684,6 +7589,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "package.register_version.execute"
       ],
@@ -6738,6 +7650,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "package.review_decide.execute"
       ],
@@ -6787,6 +7706,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "request.create.execute"
       ],
@@ -6833,6 +7759,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "request.submit.execute"
       ],
@@ -6888,6 +7821,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "require.intent.refine.execute"
       ],
@@ -6944,6 +7884,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "require.intent.review.execute"
       ],
@@ -7003,6 +7950,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "require.intent.submit.execute"
       ],
@@ -7058,6 +8012,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "require.resource.match.execute"
       ],
@@ -7150,6 +8111,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "resource.api.change.execute"
       ],
@@ -7232,6 +8200,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "resource.api.policy.update.execute"
       ],
@@ -7312,6 +8287,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "resource.api.publish.execute"
       ],
@@ -7405,6 +8387,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "resource.api.register.execute"
       ],
@@ -7486,6 +8475,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "resource.api.review.execute"
       ],
@@ -7566,6 +8562,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "resource.api.revoke.execute"
       ],
@@ -7646,6 +8649,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "resource.api.submit_review.execute"
       ],
@@ -7731,6 +8741,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "resource.api.test.execute"
       ],
@@ -7811,6 +8828,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "resource.api.withdraw.execute"
       ],
@@ -7855,6 +8879,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "resource.asset.publish.execute"
       ],
@@ -7907,6 +8938,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "resource.asset.review.execute"
       ],
@@ -7951,6 +8989,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "resource.asset.submit_review.execute"
       ],
@@ -8004,6 +9049,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "resource.manage_asset.execute"
       ],
@@ -8055,6 +9107,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "risk.event.ingest.execute"
       ],
@@ -8106,6 +9165,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "security.scan.result.sync.execute"
       ],
@@ -8159,6 +9225,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "service.publish_or_suspend.execute"
       ],
@@ -8210,6 +9283,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "standard.asset.recommend.execute"
       ],
@@ -8261,6 +9341,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "standard.asset.sync.execute"
       ],
@@ -8307,6 +9394,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "summary.confirm.execute"
       ],
@@ -8353,6 +9447,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "supplement.submit.execute"
       ],
@@ -8391,6 +9492,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "system.toggle_outage.execute"
       ],
@@ -8437,6 +9545,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "tenant.capability.disable.execute"
       ],
@@ -8483,6 +9598,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "tenant.capability.enable.execute"
       ],
@@ -8613,6 +9735,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "topic.package.configure.execute"
       ],
@@ -8743,6 +9872,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "topic.package.create.execute"
       ],
@@ -8873,6 +10009,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "topic.package.evidence.attach.execute"
       ],
@@ -9003,6 +10146,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "topic.package.policy.update.execute"
       ],
@@ -9133,6 +10283,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "topic.package.publish.execute"
       ],
@@ -9264,6 +10421,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "topic.package.review.execute"
       ],
@@ -9394,6 +10558,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "topic.package.submit.execute"
       ],
@@ -9524,6 +10695,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "topic.package.subscribe.execute"
       ],
@@ -9569,6 +10747,13 @@
       ],
       "human_confirmation_required": true,
       "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
       "permissions": [
         "zone.publish_topic_projection.execute"
       ],

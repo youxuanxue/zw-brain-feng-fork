@@ -10,655 +10,2668 @@
   "skills": [
     {
       "id": "adapter.cascade.health.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "adapter.external.mapping.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "approval.view",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "audit.list",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "audit.replay_evidence_chain",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "catalog.browse",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "catalog.entry.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "catalog.group.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "catalog.model.field.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "catalog.model.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "catalog.resource_view",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "catalog.share_zone.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "compliance.case.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "compliance.metric.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "dashboard.compliance.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "dashboard.render_command_center",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "data.search",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "delivery.list",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "delivery.view",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "governance.dispute_list",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "governance.dispute_view",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "governance.iam_overview",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "metadata.catalog_item.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "metadata.gather.evidence.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "metadata.lineage.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "metadata.schema.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "objection.case.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "objection.metric.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "objection.process.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "ops.catalog.quality.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "ops.catalog.statistics.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "ops.exchange.diagnose",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "ops.exchange.statistics.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "ops.service.invocation.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "ops.service.report.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "package.list",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "package.view",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "provider.view",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "registry.artifact.export",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "request.list",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "request.view",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "resource.asset.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "system.schema_info",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "system.snapshot",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "tenant.policy.evaluate",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "topic.package.metric.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "topic.package.query",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "workbench.view",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "zone.list",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "zone.view",
-      "mode": "read"
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
     },
     {
       "id": "actor.projection.sync",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "adapter.cascade.consume",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ]
     },
     {
       "id": "adapter.cascade.replay",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ]
     },
     {
       "id": "adapter.health.probe",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "adapter.national.application.receive",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ]
     },
     {
       "id": "adapter.national.application.reconcile",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ]
     },
     {
       "id": "adapter.national.application.submit",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ]
     },
     {
       "id": "adapter.national.catalog.pull",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ]
     },
     {
       "id": "adapter.national.catalog.report",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ]
     },
     {
       "id": "adapter.national.delivery.receipt.sync",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ]
     },
     {
       "id": "adapter.national.objection.sync",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ]
     },
     {
       "id": "adapter.national.resource.pull",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ]
     },
     {
       "id": "adapter.national.resource.report",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ]
     },
     {
       "id": "adapter.national.topic.report",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "adapter_receipt"
+      ]
     },
     {
       "id": "application.grant.approve",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "application.grant.renew",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "application.resource.review",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "application.resource.submit",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "approval.case.decide",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "approval.review_decide",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "task_dispatch",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "backflow.confirm",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "task_dispatch",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "capability.exposure.configure",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "capability.package.register",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "capability.version.review",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "capability.version.submit",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "catalog.entry.create",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "catalog.entry.create_draft",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "catalog.entry.publish",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "catalog.entry.review",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "catalog.entry.submit_review",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "catalog.entry.update",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "catalog.entry.withdraw",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "catalog.manage_entry",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "catalog.model.upsert",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "catalog.resource.bind",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "catalog.schema.mapping.upsert",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "compliance.case.assign",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "compliance.case.close",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "compliance.case.open",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "compliance.case.resolve",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "compliance.investigate_case",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "compliance.rule.configure",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "compliance.signal.ingest",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "delivery.access.grant",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "delivery.exchange.plan",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "delivery.exchange.publish",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "delivery.exchange.start",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "delivery.exchange.stop",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "delivery.receipt.ingest",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "delivery.reconcile_receipt",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "delivery.subscription.manage",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "delivery.trigger_recovery",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "legacy.bsp.mapping.import",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "legacy.sharezone.mapping.import",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "metadata.gather.evidence.upsert",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "metadata.lineage.upsert",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "metadata.schema.snapshot.upsert",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "objection.case.accept",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "objection.case.assign",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "objection.case.close",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "objection.case.create",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "objection.case.escalate",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "objection.case.evaluate",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "objection.case.reject",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "objection.case.reply",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "objection.case.review",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "objection.case.submit",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "ops.catalog.quality.upsert",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "ops.gateway.heartbeat.ingest",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "ops.gateway.log.anchor",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "org.projection.sync",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "package.apply_tenant_policy",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "package.configure_exposure",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "package.register_version",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "package.review_decide",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "request.create",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "task_dispatch",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "request.submit",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "task_dispatch",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "require.intent.refine",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "require.intent.review",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "require.intent.submit",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "require.resource.match",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "resource.api.change",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "resource.api.policy.update",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "resource.api.publish",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "resource.api.register",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "resource.api.review",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "resource.api.revoke",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "resource.api.submit_review",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "resource.api.test",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "resource.api.withdraw",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "resource.asset.publish",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "resource.asset.review",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "resource.asset.submit_review",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "resource.manage_asset",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "risk.event.ingest",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "security.scan.result.sync",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "service.publish_or_suspend",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "standard.asset.recommend",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "standard.asset.sync",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "summary.confirm",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "task_dispatch",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "supplement.submit",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "task_dispatch",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "system.toggle_outage",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "state_machine_transition"
+      ]
     },
     {
       "id": "tenant.capability.disable",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "tenant.capability.enable",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "topic.package.configure",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "topic.package.create",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "topic.package.evidence.attach",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "topic.package.policy.update",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "topic.package.publish",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "topic.package.review",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "topic.package.submit",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "topic.package.subscribe",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ]
     },
     {
       "id": "zone.publish_topic_projection",
-      "mode": "write"
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
     }
   ]
 }

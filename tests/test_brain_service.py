@@ -1373,6 +1373,201 @@ def test_audit_sink_failure_blocks_write_mutation() -> None:
         audit_bus.clear_sink()
 
 
+def test_f6_core_aggregates_keep_state_and_audit_evidence() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
+
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+        from zw_brain.skill_registration.runtime import get_manifest
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        created = service.invoke_skill(
+            "application.resource.submit",
+            {"resource_id": "res-market-activity", "query": "复用法人模板，只补现场差异字段。", "role": "r1", "confirmed": True},
+        )
+        request_id = created["result"]["request_id"]
+        task_id = request_id.replace("REQ-", "DLV-", 1)
+        try:
+            service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve", "role": "r1", "confirmed": True})
+        except AccessDeniedError:
+            pass
+        else:
+            raise AssertionError("unauthorized approval must fail closed")
+        assert service.invoke_skill("request.view", {"request_id": request_id, "role": "r1"})["status"] == "pending"
+
+        approved = service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve", "role": "r2", "confirmed": True})
+        assert approved["result"]["status"] == "supplementing"
+        try:
+            service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve", "role": "r2", "confirmed": True})
+        except InvalidStateError:
+            pass
+        else:
+            raise AssertionError("application approval must reject duplicate approval transition")
+        assert service.invoke_skill("request.view", {"request_id": request_id, "role": "r1"})["status"] == "supplementing"
+
+        service.invoke_skill("supplement.submit", {"request_id": request_id, "role": "r3", "confirmed": True})
+        service.invoke_skill("summary.confirm", {"request_id": request_id, "role": "r5", "confirmed": True})
+        receipt = service.invoke_skill(
+            "delivery.receipt.ingest",
+            {
+                "task_id": task_id,
+                "attempt_id": f"attempt-{request_id}",
+                "receipt_status": "succeeded",
+                "receipt": {"receipt_no": "RCPT-F6-001", "secret": "should-not-persist"},
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        assert receipt["result"]["receipt_status"] == "succeeded"
+        stored_receipt = next(item for item in database_store.delivery_repo.list_receipts(task_id) if item.receipt_no == "RCPT-F6-001")
+        assert stored_receipt.payload_json == {"receipt_no": "RCPT-F6-001"}
+        service.invoke_skill("delivery.reconcile_receipt", {"task_id": task_id, "role": "r6", "confirmed": True})
+        backflow = service.invoke_skill("backflow.confirm", {"task_id": task_id, "role": "r6", "confirmed": True})
+        assert backflow["result"]["status"] == "completed"
+        assert service.invoke_skill("delivery.view", {"task_id": task_id, "role": "r6"})["backflow"]["status"] == "已确认"
+
+        objection = service.invoke_skill(
+            "objection.case.create",
+            {"target_type": "delivery", "target_id": task_id, "title": "F6 交付回执异议", "role": "r1", "confirmed": True},
+        )
+        objection_id = objection["result"]["id"]
+        try:
+            service.invoke_skill("objection.case.close", {"objection_id": objection_id, "role": "r2", "confirmed": True})
+        except InvalidStateError:
+            pass
+        else:
+            raise AssertionError("objection state machine must reject draft -> closed")
+        for skill_id, payload, expected in [
+            ("objection.case.submit", {"role": "r1"}, "submitted"),
+            ("objection.case.accept", {"role": "r2"}, "accepted"),
+            ("objection.case.assign", {"role": "r2", "target_status": "provider_investigating"}, "provider_investigating"),
+            ("objection.case.review", {"role": "r2", "decision": "resolve", "resolved_summary": "回执已核正"}, "resolved"),
+            ("objection.case.close", {"role": "r2"}, "closed"),
+        ]:
+            result = service.invoke_skill(skill_id, {"objection_id": objection_id, "confirmed": True} | payload)
+            assert result["result"]["status"] == expected
+
+        service.invoke_skill("catalog.entry.create_draft", {"catalog_code": "cat-f6-state", "title": "F6 状态目录", "role": "r6", "confirmed": True})
+        service.invoke_skill("catalog.entry.submit_review", {"catalog_code": "cat-f6-state", "role": "r6", "confirmed": True})
+        service.invoke_skill("catalog.entry.review", {"catalog_code": "cat-f6-state", "decision": "approve", "role": "r7", "confirmed": True})
+        service.invoke_skill("catalog.entry.publish", {"catalog_code": "cat-f6-state", "role": "r7", "confirmed": True})
+        assert database_store.catalog_repo.get_entry("cat-f6-state").lifecycle_status == "active"
+        assert database_store.catalog_repo.list_entry_versions("cat-f6-state")[-1].audit_ref
+
+        service.invoke_skill("resource.api.register", {"resource_code": "api-f6-state", "title": "F6 状态资源", "role": "r6", "confirmed": True})
+        service.invoke_skill("resource.asset.submit_review", {"resource_code": "api-f6-state", "role": "r6", "confirmed": True})
+        service.invoke_skill("resource.asset.review", {"resource_code": "api-f6-state", "decision": "approve", "role": "r7", "confirmed": True})
+        service.invoke_skill("resource.asset.publish", {"resource_code": "api-f6-state", "role": "r7", "confirmed": True})
+        assert database_store.resource_api_repo.get_asset("api-f6-state").lifecycle_status == "active"
+
+        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+        policy = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "ledger.entity.base.read", "surface": "api", "role": "r7", "target_ref": "PKG-2026-04-25-001"})
+        assert policy["allowed"] is True
+        assert policy["decision_reason"] == "allowed_by_tenant_policy"
+        assert policy["policy_version"] == "tenant-policy:v1"
+        assert database_store.capability_package_repo.get_policy("ledger.entity.base.read").policy_status == "enabled"
+
+        audit_events = database_store.list_audit_events()
+        for skill_id, target_ref in {
+            "application.resource.review": request_id,
+            "delivery.receipt.ingest": task_id,
+            "backflow.confirm": task_id,
+            "objection.case.close": objection_id,
+            "catalog.entry.publish": "cat-f6-state",
+            "resource.asset.publish": "api-f6-state",
+            "package.apply_tenant_policy": "PKG-2026-04-25-001",
+            "tenant.policy.evaluate": "PKG-2026-04-25-001",
+        }.items():
+            event = next(item for item in audit_events if item.skill_id == skill_id and item.phase == "after")
+            payload = event.payload_json
+            assert payload["skill_id"] == skill_id
+            expected_audit_class = policy["audit_class"] if skill_id == "tenant.policy.evaluate" else get_manifest(skill_id)["audit_class"]
+            assert payload["audit_class"] == expected_audit_class
+            assert payload["actor_snapshot"]["actor"] == event.actor
+            assert payload["actor_snapshot"]["role_code"]
+            assert payload["policy_version"]
+            assert payload["decision_reason"]
+            assert payload["target_ref"] == target_ref
+
+        calls = database_store.list_capability_calls()
+        successful_review = next(item for item in calls if item.skill_id == "application.resource.review" and item.status == "succeeded")
+        assert successful_review.actor.startswith("user:gov:r2:")
+        assert successful_review.role_code == "r2"
+        assert successful_review.request_ref == request_id
+        policy_call = next(item for item in calls if item.skill_id == "tenant.policy.evaluate")
+        assert policy_call.output_json["decision_reason"] == "allowed_by_tenant_policy"
+        assert policy_call.output_json["policy_version"] == "tenant-policy:v1"
+        assert policy_call.output_json["target_ref"] == "PKG-2026-04-25-001"
+
+
+def test_f6_write_gate_requires_confirmation_policy_and_durable_audit() -> None:
+    tmp, service = make_service()
+    try:
+        try:
+            service.invoke_skill("application.resource.review", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2"})
+        except ConfirmationRequiredError:
+            pass
+        else:
+            raise AssertionError("write must require human confirmation")
+        assert service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "r1"})["status"] == "pending"
+
+        try:
+            service.invoke_skill("application.resource.review", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r1", "confirmed": True})
+        except AccessDeniedError:
+            pass
+        else:
+            raise AssertionError("write must require manifest permission")
+        assert service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "r1"})["status"] == "pending"
+
+        def fail_sink(request_id, actor, skill_id, phase, payload):
+            raise RuntimeError("audit database unavailable")
+
+        audit_bus.configure_sink(fail_sink)
+        try:
+            service.invoke_skill("application.resource.review", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True})
+        except AuditWriteError:
+            pass
+        else:
+            raise AssertionError("audit write failure must block mutation")
+        assert service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "r1"})["status"] == "pending"
+    finally:
+        tmp.cleanup()
+        audit_bus.clear_sink()
+
+
+def test_f6_entry_web_and_adapters_do_not_bypass_command_policy_audit() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    forbidden_runtime_write_fragments = ["zw_brain.domain.repositories", "DatabaseStore", ".upsert_", "save_runtime_state", "append_audit_event", "create_engine(", ".execute("]
+    for path in (repo_root / "zw_brain" / "entry").rglob("*.py"):
+        if "legacy_migration" in path.parts:
+            continue
+        text = path.read_text(encoding="utf-8")
+        assert not any(fragment in text for fragment in forbidden_runtime_write_fragments), path
+        assert "get_service().invoke_skill" in text or "runtime.invoke" in text or path.name == "__init__.py"
+
+    app_source = "\n".join(path.read_text(encoding="utf-8") for path in (repo_root / "zw-brain-web").glob("js/*.js"))
+    assert "fetch(`/api/skills/${skillId}" in app_source
+    assert "Object.assign({ role: currentRole, confirmed: true }, payload)" in app_source
+    for fragment in ["/api/repositories", "/api/db", "sqlite", "upsert", "DatabaseStore", "legacy.bsp.mapping.import"]:
+        assert fragment not in app_source
+
+    adapter_root = repo_root / "zw_brain" / "adapters"
+    for path in adapter_root.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        if any(fragment in text for fragment in ["zw_brain.domain.repositories", ".upsert_"]):
+            assert path.relative_to(adapter_root).parts[0] == "legacy", path
+            assert "BrainService" not in text and "invoke_skill" not in text
+
+
 def test_p0_objection_case_closes_with_audited_database_flow() -> None:
     with TemporaryDirectory() as tmp:
         import os

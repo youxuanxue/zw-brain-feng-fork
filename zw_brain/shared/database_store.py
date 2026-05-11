@@ -220,40 +220,40 @@ class DatabaseStore:
     def sync_aggregate_tables(self, snapshot: dict[str, Any]) -> None:
         self.sync_reference_tables(snapshot)
         tenant_id = get_runtime_tenant_id()
-        if self.resource_api_repo.has_assets(tenant_id=tenant_id) or self.catalog_repo.list_entries(tenant_id=tenant_id):
-            return
+        should_seed_static_projection = not (self.resource_api_repo.has_assets(tenant_id=tenant_id) or self.catalog_repo.list_entries(tenant_id=tenant_id))
 
-        for resource in snapshot.get("discovery", {}).get("resources", []):
-            self.catalog_repo.upsert_from_resource(resource, tenant_id=tenant_id)
-        for catalog in snapshot.get("provider", {}).get("catalogs", []):
-            self.catalog_repo.upsert_from_resource(
-                {
-                    "id": catalog["id"],
-                    "name": catalog.get("name", catalog["id"]),
-                    "status": "approved_pending_publish" if catalog.get("status") != "已发布" else "active",
-                    "provider": catalog.get("owner", ""),
-                    "source_ref": catalog.get("source_ref") or f"provider:catalog:{catalog['id']}",
-                    "legacy_object_ref": catalog.get("legacy_object_ref") or catalog["id"],
-                    "summary_json": catalog,
-                },
-                tenant_id=tenant_id,
-            )
-        for resource in snapshot.get("provider", {}).get("resources", []):
-            self.resource_api_repo.upsert_asset(
-                {
-                    "resource_code": resource["id"],
-                    "title": resource.get("name", resource["id"]),
-                    "resource_kind": "dataset",
-                    "lifecycle_status": "approved_pending_publish" if resource.get("status") != "可共享" else "active",
-                    "owner_org_id": resource.get("owner_org_id"),
-                    "source_ref": resource.get("source_ref") or f"provider:resource:{resource['id']}",
-                    "legacy_object_ref": resource.get("legacy_object_ref") or resource["id"],
-                    "summary_json": resource,
-                },
-                tenant_id=tenant_id,
-            )
-        for item in snapshot.get("catalog_items", []) + snapshot.get("discovery", {}).get("catalog_items", []) + snapshot.get("provider", {}).get("catalog_items", []):
-            self.catalog_repo.upsert_item(item, tenant_id=tenant_id)
+        if should_seed_static_projection:
+            for resource in snapshot.get("discovery", {}).get("resources", []):
+                self.catalog_repo.upsert_from_resource(resource, tenant_id=tenant_id)
+            for catalog in snapshot.get("provider", {}).get("catalogs", []):
+                self.catalog_repo.upsert_from_resource(
+                    {
+                        "id": catalog["id"],
+                        "name": catalog.get("name", catalog["id"]),
+                        "status": "approved_pending_publish" if catalog.get("status") != "已发布" else "active",
+                        "provider": catalog.get("owner", ""),
+                        "source_ref": catalog.get("source_ref") or f"provider:catalog:{catalog['id']}",
+                        "legacy_object_ref": catalog.get("legacy_object_ref") or catalog["id"],
+                        "summary_json": catalog,
+                    },
+                    tenant_id=tenant_id,
+                )
+            for resource in snapshot.get("provider", {}).get("resources", []):
+                self.resource_api_repo.upsert_asset(
+                    {
+                        "resource_code": resource["id"],
+                        "title": resource.get("name", resource["id"]),
+                        "resource_kind": "dataset",
+                        "lifecycle_status": "approved_pending_publish" if resource.get("status") != "可共享" else "active",
+                        "owner_org_id": resource.get("owner_org_id"),
+                        "source_ref": resource.get("source_ref") or f"provider:resource:{resource['id']}",
+                        "legacy_object_ref": resource.get("legacy_object_ref") or resource["id"],
+                        "summary_json": resource,
+                    },
+                    tenant_id=tenant_id,
+                )
+            for item in snapshot.get("catalog_items", []) + snapshot.get("discovery", {}).get("catalog_items", []) + snapshot.get("provider", {}).get("catalog_items", []):
+                self.catalog_repo.upsert_item(item, tenant_id=tenant_id)
 
         approvals = {item["id"]: item for item in snapshot.get("approvals", [])}
         for request in snapshot.get("requests", []):

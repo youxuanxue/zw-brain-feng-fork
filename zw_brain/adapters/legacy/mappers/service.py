@@ -188,7 +188,6 @@ class ServiceMapper:
             schema_ref = {
                 "rule_param": row.get("RULE_PARAM"),
                 "rule_str": row.get("RULE_STR"),
-                "service_sql": row.get("SERVICE_SQL"),
             }
             gateway_policy: dict[str, Any] = {}
         else:  # proxy

@@ -4416,6 +4416,7 @@ class BrainService:
 
     def _mutate(self, skill_id: str, role: str, confirmed: bool, payload: dict[str, Any], mutation: Any) -> dict[str, Any]:
         manifest = get_manifest(skill_id)
+        self._enforce_manifest_policy(skill_id, manifest, role, payload | {"confirmed": confirmed})
         if manifest.get("human_confirmation_required") and not confirmed:
             raise ConfirmationRequiredError(skill_id)
         actor = self._actor_for_role(role)
@@ -4481,15 +4482,34 @@ class BrainService:
         self._state_store.save(self._snapshot, self._ui_state)
 
     def _emit_audit(self, request_id: str, actor: str, skill_id: str, phase: str, payload: dict[str, Any]) -> None:
+        manifest = get_manifest(skill_id)
+        actor_parts = actor.split(":", 3)
+        payload_with_evidence = safe_json(payload)
+        if isinstance(payload_with_evidence.get("actor_snapshot"), dict) and payload_with_evidence["actor_snapshot"]:
+            actor_snapshot = copy.deepcopy(payload_with_evidence["actor_snapshot"])
+        else:
+            actor_snapshot = {"actor": actor}
+            if len(actor_parts) >= 3 and actor_parts[:2] == ["user", "gov"]:
+                actor_snapshot["role_code"] = actor_parts[2]
+        payload_with_evidence["skill_id"] = skill_id
+        payload_with_evidence["audit_class"] = payload_with_evidence.get("audit_class") or manifest.get("audit_class")
+        payload_with_evidence["actor_snapshot"] = actor_snapshot
+        payload_with_evidence["policy_version"] = payload_with_evidence.get("policy_version") or manifest.get("version")
+        payload_with_evidence["decision_reason"] = payload_with_evidence.get("decision_reason") or self._audit_decision_reason(phase, payload)
+        payload_with_evidence["target_ref"] = payload_with_evidence.get("target_ref") or self._audit_target_from_payload(request_id, payload)
         audit_bus.emit(
             audit_bus.AuditEvent(
                 request_id=request_id,
                 actor=actor,
                 skill_id=skill_id,
                 phase=phase,
-                payload=safe_json(payload),
+                payload=payload_with_evidence,
             )
         )
+
+    def _audit_decision_reason(self, phase: str, payload: dict[str, Any]) -> str:
+        value = payload.get("decision_reason") or payload.get("decision") or payload.get("error") or phase
+        return str(value)
 
     def _enqueue_anchor(self, request_id: str, actor: str, skill_id: str, payload: dict[str, Any]) -> None:
         content_hash = hashlib.sha256(
@@ -4553,8 +4573,12 @@ class BrainService:
             "package_id",
             "resource_id",
             "catalog_id",
+            "catalog_code",
+            "resource_code",
             "service_id",
             "zone_id",
+            "target_ref",
+            "id",
         ):
             value = payload.get(field)
             if value:

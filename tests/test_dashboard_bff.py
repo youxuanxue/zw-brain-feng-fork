@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.error import HTTPError
-from urllib.request import Request, urlopen
+from urllib.request import ProxyHandler, Request, build_opener
 
 from sqlalchemy import create_engine
 
@@ -16,8 +16,9 @@ from zw_brain.shared.migrate import ensure_runtime_schema
 
 def request(method: str, url: str) -> tuple[int, str, str]:
     req = Request(url, method=method, headers={"Accept": "application/json"})
+    opener = build_opener(ProxyHandler({}))
     try:
-        with urlopen(req) as resp:
+        with opener.open(req) as resp:
             return resp.status, resp.headers.get("Content-Type", ""), resp.read().decode("utf-8")
     except HTTPError as exc:
         return exc.code, exc.headers.get("Content-Type", ""), exc.read().decode("utf-8")
