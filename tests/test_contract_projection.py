@@ -6,11 +6,12 @@ from pathlib import Path
 from scripts.export_agent_contract import (
     build_a2a_card,
     build_mcp_tool_descriptor,
+    build_rest_openapi,
     build_runtime_bindings,
     discover_skills,
 )
 from zw_brain.command.brain import BrainService, UnknownSkillError
-from zw_brain.skill_registration.runtime import is_surface_enabled
+from zw_brain.skill_registration.runtime import SURFACES, is_surface_enabled
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -90,6 +91,78 @@ def test_generated_runtime_bindings_file_is_valid_json() -> None:
     assert any(item["tool_name"] == "request.create" for item in data)
 
 
+def test_registry_projection_metadata_matches_openapi_mcp_and_a2a() -> None:
+    skills = {item["skill_id"]: item for item in discover_skills() if "error" not in item}
+    openapi = build_rest_openapi(list(skills.values()))
+    mcp_tools_dir = REPO_ROOT / "zw_brain" / "entry" / "mcp" / "tools"
+    a2a_bindings = {
+        item["tool_name"]: item
+        for item in json.loads((REPO_ROOT / "zw_brain" / "entry" / "a2a" / "tools" / "runtime_bindings.json").read_text(encoding="utf-8"))
+    }
+    a2a_card = {item["id"]: item for item in json.loads((REPO_ROOT / "zw_brain" / "entry" / "a2a" / "agent_card.json").read_text(encoding="utf-8"))["skills"]}
+
+    for skill_id, skill in skills.items():
+        surfaces = set(skill.get("compatibility") or [])
+        assert surfaces <= SURFACES
+        for surface in SURFACES - surfaces:
+            if skill.get("execution_binding") != "external_capability":
+                assert not is_surface_enabled(skill, surface)
+
+        if "api" in surfaces:
+            path = f"/api/skills/{skill_id}"
+            if skill_id == "system.snapshot":
+                assert openapi["paths"]["/api/snapshot"]["get"]["x-zwbrain-skill-id"] == skill_id
+            else:
+                assert path in openapi["paths"], skill_id
+                method = "post" if skill.get("side_effects") else "get"
+                operation = openapi["paths"][path][method]
+                assert operation["x-zwbrain-skill-id"] == skill_id
+                assert operation["x-zwbrain-human-confirmation-required"] == skill["human_confirmation_required"]
+                assert operation["x-zwbrain-audit-class"] == skill.get("audit_class", "")
+                assert set(operation["x-zwbrain-surfaces"]) == surfaces
+                assert operation["x-zwbrain-side-effects"] == skill.get("side_effects", [])
+        else:
+            assert f"/api/skills/{skill_id}" not in openapi["paths"]
+
+        mcp_path = mcp_tools_dir / f"{skill_id}.json"
+        if "mcp" in surfaces:
+            descriptor = json.loads(mcp_path.read_text(encoding="utf-8"))
+            assert descriptor["annotations"]["humanConfirmationRequired"] == skill["human_confirmation_required"]
+            assert descriptor["annotations"]["readOnlyHint"] is (not bool(skill.get("side_effects")))
+            assert descriptor["x-zwbrain-audit-class"] == skill.get("audit_class", "")
+            assert set(descriptor["x-zwbrain-surfaces"]) == surfaces
+        else:
+            assert not mcp_path.exists()
+
+        if "a2a" in surfaces:
+            assert skill_id in a2a_card
+            assert skill_id in a2a_bindings
+            assert a2a_card[skill_id]["humanConfirmationRequired"] == skill["human_confirmation_required"]
+            assert a2a_card[skill_id]["auditClass"] == skill.get("audit_class", "")
+            assert set(a2a_card[skill_id]["surfaces"]) == surfaces
+            assert a2a_bindings[skill_id]["config_json"]["human_confirmation_required"] == skill["human_confirmation_required"]
+            assert a2a_bindings[skill_id]["config_json"]["audit_class"] == skill.get("audit_class", "")
+            assert set(a2a_bindings[skill_id]["config_json"]["surfaces"]) == surfaces
+        else:
+            assert skill_id not in a2a_card
+            assert skill_id not in a2a_bindings
+
+
+def test_dashboard_and_webui_use_registry_gateways_only() -> None:
+    dashboard_bff = (REPO_ROOT / "zw_brain" / "entry" / "dashboard_bff.py").read_text(encoding="utf-8")
+    app_js = (REPO_ROOT / "zw-brain-web" / "js" / "app.js").read_text(encoding="utf-8")
+
+    assert "parsed.path.startswith(\"/api/skills/dashboard.\")" in dashboard_bff
+    assert "require_surface(skill_id, \"webui\")" in dashboard_bff
+    assert "do_POST" not in dashboard_bff
+    assert "get_service().invoke_skill(skill_id, {})" in dashboard_bff
+    assert "parsed.path.startswith(\"/api/skills/\")" not in dashboard_bff
+
+    assert "fetch(`/api/skills/${skillId}${encodeParams(payload)}`" in app_js
+    assert "fetch(`/api/skills/${skillId}`" in app_js
+    assert "Object.assign({ role: currentRole, confirmed: true }, payload)" in app_js
+    assert "get_service" not in app_js
+    assert "invoke_skill" not in app_js
 
 
 def test_external_capability_contracts_are_registered_but_not_direct_surfaces() -> None:

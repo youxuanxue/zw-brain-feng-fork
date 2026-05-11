@@ -104,6 +104,14 @@
         "x-zwbrain-skill-id": "adapter.cascade.health.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "adapter.cascade.health.query.execute"
         ],
@@ -289,6 +297,14 @@
         "x-zwbrain-skill-id": "adapter.external.mapping.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "adapter.external.mapping.query.execute"
         ],
@@ -490,6 +506,14 @@
         "x-zwbrain-skill-id": "approval.view",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "approval.view.execute"
         ],
@@ -634,6 +658,14 @@
         "x-zwbrain-skill-id": "audit.list",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "audit.list.execute"
         ],
@@ -764,6 +796,14 @@
         "x-zwbrain-skill-id": "audit.replay_evidence_chain",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-sensitive",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "audit.replay_evidence_chain.execute"
         ],
@@ -929,6 +969,14 @@
         "x-zwbrain-skill-id": "catalog.browse",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.browse.execute"
         ],
@@ -1147,6 +1195,14 @@
         "x-zwbrain-skill-id": "catalog.entry.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.entry.query.execute"
         ],
@@ -1298,6 +1354,14 @@
         "x-zwbrain-skill-id": "catalog.group.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.group.query.execute"
         ],
@@ -1442,6 +1506,14 @@
         "x-zwbrain-skill-id": "catalog.model.field.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.model.field.query.execute"
         ],
@@ -1586,6 +1658,14 @@
         "x-zwbrain-skill-id": "catalog.model.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.model.query.execute"
         ],
@@ -1729,6 +1809,14 @@
         "x-zwbrain-skill-id": "catalog.resource_view",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.resource_view.execute"
         ],
@@ -1881,6 +1969,14 @@
         "x-zwbrain-skill-id": "catalog.share_zone.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.share_zone.query.execute"
         ],
@@ -2025,6 +2121,13 @@
         "x-zwbrain-skill-id": "compliance.case.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "compliance.case.query.execute"
         ],
@@ -2201,6 +2304,13 @@
         "x-zwbrain-skill-id": "compliance.metric.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "compliance.metric.query.execute"
         ],
@@ -2361,6 +2471,13 @@
         "x-zwbrain-skill-id": "dashboard.compliance.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "dashboard.compliance.query.execute"
         ],
@@ -2521,6 +2638,14 @@
         "x-zwbrain-skill-id": "dashboard.render_command_center",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "dashboard.render_command_center.execute"
         ],
@@ -2663,6 +2788,14 @@
         "x-zwbrain-skill-id": "data.search",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "data.search.execute"
         ],
@@ -2814,6 +2947,14 @@
         "x-zwbrain-skill-id": "delivery.list",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "delivery.list.execute"
         ],
@@ -2940,6 +3081,14 @@
         "x-zwbrain-skill-id": "delivery.view",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "delivery.view.execute"
         ],
@@ -3088,6 +3237,14 @@
         "x-zwbrain-skill-id": "governance.dispute_list",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "governance.dispute_list.execute"
         ],
@@ -3235,6 +3392,14 @@
         "x-zwbrain-skill-id": "governance.dispute_view",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "governance.dispute_view.execute"
         ],
@@ -3383,6 +3548,14 @@
         "x-zwbrain-skill-id": "governance.iam_overview",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-sensitive",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "governance.iam_overview.execute"
         ],
@@ -3680,6 +3853,14 @@
         "x-zwbrain-skill-id": "metadata.catalog_item.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "metadata.catalog_item.query.execute"
         ],
@@ -3831,6 +4012,14 @@
         "x-zwbrain-skill-id": "metadata.gather.evidence.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "metadata.gather.evidence.query.execute"
         ],
@@ -3982,6 +4171,14 @@
         "x-zwbrain-skill-id": "metadata.lineage.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "metadata.lineage.query.execute"
         ],
@@ -4133,6 +4330,14 @@
         "x-zwbrain-skill-id": "metadata.schema.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "metadata.schema.query.execute"
         ],
@@ -4284,6 +4489,14 @@
         "x-zwbrain-skill-id": "objection.case.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "objection.case.query.execute"
         ],
@@ -4469,6 +4682,14 @@
         "x-zwbrain-skill-id": "objection.metric.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "objection.metric.query.execute"
         ],
@@ -4638,6 +4859,14 @@
         "x-zwbrain-skill-id": "objection.process.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "objection.process.query.execute"
         ],
@@ -4815,6 +5044,14 @@
         "x-zwbrain-skill-id": "ops.catalog.quality.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "ops.catalog.quality.query.execute"
         ],
@@ -4966,6 +5203,14 @@
         "x-zwbrain-skill-id": "ops.catalog.statistics.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "ops.catalog.statistics.query.execute"
         ],
@@ -5095,6 +5340,14 @@
         "x-zwbrain-skill-id": "ops.exchange.diagnose",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "ops.exchange.diagnose.execute"
         ],
@@ -5255,6 +5508,14 @@
         "x-zwbrain-skill-id": "ops.exchange.statistics.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "ops.exchange.statistics.query.execute"
         ],
@@ -5423,6 +5684,14 @@
         "x-zwbrain-skill-id": "ops.service.invocation.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "ops.service.invocation.query.execute"
         ],
@@ -5586,6 +5855,14 @@
         "x-zwbrain-skill-id": "ops.service.report.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "ops.service.report.query.execute"
         ],
@@ -5732,6 +6009,14 @@
         "x-zwbrain-skill-id": "package.list",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "package.list.execute"
         ],
@@ -5858,6 +6143,14 @@
         "x-zwbrain-skill-id": "package.view",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "package.view.execute"
         ],
@@ -6003,6 +6296,14 @@
         "x-zwbrain-skill-id": "provider.view",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "provider.view.execute"
         ],
@@ -6154,6 +6455,13 @@
         "x-zwbrain-skill-id": "registry.artifact.export",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "registry.artifact.export.execute"
         ],
@@ -6314,6 +6622,14 @@
         "x-zwbrain-skill-id": "request.list",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "request.list.execute"
         ],
@@ -6440,6 +6756,14 @@
         "x-zwbrain-skill-id": "request.view",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "request.view.execute"
         ],
@@ -6588,6 +6912,14 @@
         "x-zwbrain-skill-id": "resource.asset.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "resource.asset.query.execute"
         ],
@@ -6731,6 +7063,14 @@
         "x-zwbrain-skill-id": "system.schema_info",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "system.schema_info.execute"
         ],
@@ -6869,6 +7209,14 @@
         "x-zwbrain-skill-id": "tenant.policy.evaluate",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "tenant.policy.evaluate.execute"
         ],
@@ -7143,6 +7491,14 @@
         "x-zwbrain-skill-id": "topic.package.metric.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "topic.package.metric.query.execute"
         ],
@@ -7309,6 +7665,14 @@
         "x-zwbrain-skill-id": "topic.package.query",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-trace",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "topic.package.query.execute"
         ],
@@ -7483,6 +7847,14 @@
         "x-zwbrain-skill-id": "workbench.view",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "workbench.view.execute"
         ],
@@ -7647,6 +8019,14 @@
         "x-zwbrain-skill-id": "zone.list",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "zone.list.execute"
         ],
@@ -7773,6 +8153,14 @@
         "x-zwbrain-skill-id": "zone.view",
         "x-zwbrain-side-effects": [],
         "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "zone.view.execute"
         ],
@@ -7928,6 +8316,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "actor.projection.sync.execute"
         ],
@@ -8138,6 +8533,13 @@
           "adapter_receipt"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "adapter-write",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "adapter.cascade.consume.execute"
         ],
@@ -8393,6 +8795,13 @@
           "adapter_receipt"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "adapter-write",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "adapter.cascade.replay.execute"
         ],
@@ -8648,6 +9057,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "adapter.health.probe.execute"
         ],
@@ -8840,6 +9256,13 @@
           "adapter_receipt"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "adapter-write",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "adapter.national.application.receive.execute"
         ],
@@ -9095,6 +9518,13 @@
           "adapter_receipt"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "adapter-write",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "adapter.national.application.reconcile.execute"
         ],
@@ -9350,6 +9780,13 @@
           "adapter_receipt"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "adapter-write",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "adapter.national.application.submit.execute"
         ],
@@ -9605,6 +10042,13 @@
           "adapter_receipt"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "adapter-write",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "adapter.national.catalog.pull.execute"
         ],
@@ -9860,6 +10304,13 @@
           "adapter_receipt"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "adapter-write",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "adapter.national.catalog.report.execute"
         ],
@@ -10115,6 +10566,13 @@
           "adapter_receipt"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "adapter-write",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "adapter.national.delivery.receipt.sync.execute"
         ],
@@ -10370,6 +10828,13 @@
           "adapter_receipt"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "adapter-write",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "adapter.national.objection.sync.execute"
         ],
@@ -10625,6 +11090,13 @@
           "adapter_receipt"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "adapter-write",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "adapter.national.resource.pull.execute"
         ],
@@ -10880,6 +11352,13 @@
           "adapter_receipt"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "adapter-write",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "adapter.national.resource.report.execute"
         ],
@@ -11135,6 +11614,13 @@
           "adapter_receipt"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "adapter-write",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "adapter.national.topic.report.execute"
         ],
@@ -11391,6 +11877,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "application.grant.approve.execute"
         ],
@@ -11592,6 +12085,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "application.grant.renew.execute"
         ],
@@ -11786,6 +12286,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "application.resource.review.execute"
         ],
@@ -11980,6 +12487,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "application.resource.submit.execute"
         ],
@@ -12167,6 +12681,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "approval.case.decide.execute"
         ],
@@ -12365,6 +12886,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "approval.review_decide.execute"
         ],
@@ -12561,6 +13089,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "backflow.confirm.execute"
         ],
@@ -12746,6 +13281,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "capability.exposure.configure.execute"
         ],
@@ -12941,6 +13483,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "capability.package.register.execute"
         ],
@@ -13149,6 +13698,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "capability.version.review.execute"
         ],
@@ -13345,6 +13901,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "capability.version.submit.execute"
         ],
@@ -13532,6 +14095,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.entry.create.execute"
         ],
@@ -13738,6 +14308,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.entry.create_draft.execute"
         ],
@@ -13948,6 +14525,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.entry.publish.execute"
         ],
@@ -14133,6 +14717,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.entry.review.execute"
         ],
@@ -14327,6 +14918,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.entry.submit_review.execute"
         ],
@@ -14511,6 +15109,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.entry.update.execute"
         ],
@@ -14717,6 +15322,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.entry.withdraw.execute"
         ],
@@ -14902,6 +15514,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.manage_entry.execute"
         ],
@@ -15095,6 +15714,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.model.upsert.execute"
         ],
@@ -15293,6 +15919,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.resource.bind.execute"
         ],
@@ -15507,6 +16140,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "catalog.schema.mapping.upsert.execute"
         ],
@@ -15719,6 +16359,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "compliance.case.assign.execute"
         ],
@@ -15912,6 +16559,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "compliance.case.close.execute"
         ],
@@ -16102,6 +16756,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "compliance.case.open.execute"
         ],
@@ -16301,6 +16962,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "compliance.case.resolve.execute"
         ],
@@ -16495,6 +17163,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "compliance.investigate_case.execute"
         ],
@@ -16688,6 +17363,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "compliance.rule.configure.execute"
         ],
@@ -16887,6 +17569,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "compliance.signal.ingest.execute"
         ],
@@ -17080,6 +17769,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "delivery.access.grant.execute"
         ],
@@ -17265,6 +17961,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "delivery.exchange.plan.execute"
         ],
@@ -17457,6 +18160,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "delivery.exchange.publish.execute"
         ],
@@ -17642,6 +18352,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "delivery.exchange.start.execute"
         ],
@@ -17837,6 +18554,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "delivery.exchange.stop.execute"
         ],
@@ -18024,6 +18748,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "delivery.receipt.ingest.execute"
         ],
@@ -18228,6 +18959,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "delivery.reconcile_receipt.execute"
         ],
@@ -18414,6 +19152,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "delivery.subscription.manage.execute"
         ],
@@ -18618,6 +19363,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "delivery.trigger_recovery.execute"
         ],
@@ -18803,6 +19555,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "legacy.bsp.mapping.import.execute"
         ],
@@ -19019,6 +19778,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "legacy.sharezone.mapping.import.execute"
         ],
@@ -19295,6 +20061,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "metadata.gather.evidence.upsert.execute"
         ],
@@ -19494,6 +20267,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "metadata.lineage.upsert.execute"
         ],
@@ -19691,6 +20471,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "metadata.schema.snapshot.upsert.execute"
         ],
@@ -19883,6 +20670,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "objection.case.accept.execute"
         ],
@@ -20094,6 +20888,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "objection.case.assign.execute"
         ],
@@ -20312,6 +21113,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "objection.case.close.execute"
         ],
@@ -20523,6 +21331,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "objection.case.create.execute"
         ],
@@ -20757,6 +21572,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "objection.case.escalate.execute"
         ],
@@ -20971,6 +21793,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "objection.case.evaluate.execute"
         ],
@@ -21200,6 +22029,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "objection.case.reject.execute"
         ],
@@ -21411,6 +22247,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "objection.case.reply.execute"
         ],
@@ -21628,6 +22471,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "objection.case.review.execute"
         ],
@@ -21850,6 +22700,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "objection.case.submit.execute"
         ],
@@ -22061,6 +22918,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "ops.catalog.quality.upsert.execute"
         ],
@@ -22256,6 +23120,12 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "ops.gateway.heartbeat.ingest.execute"
         ],
@@ -22446,6 +23316,12 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "ops.gateway.log.anchor.execute"
         ],
@@ -22628,6 +23504,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "org.projection.sync.execute"
         ],
@@ -22845,6 +23728,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "package.apply_tenant_policy.execute"
         ],
@@ -23031,6 +23921,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "package.configure_exposure.execute"
         ],
@@ -23225,6 +24122,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "package.register_version.execute"
         ],
@@ -23411,6 +24315,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "package.review_decide.execute"
         ],
@@ -23607,6 +24518,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "request.create.execute"
         ],
@@ -23797,6 +24715,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "request.submit.execute"
         ],
@@ -23982,6 +24907,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "require.intent.refine.execute"
         ],
@@ -24179,6 +25111,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "require.intent.review.execute"
         ],
@@ -24376,6 +25315,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "require.intent.submit.execute"
         ],
@@ -24575,6 +25521,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "require.resource.match.execute"
         ],
@@ -24772,6 +25725,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "resource.api.change.execute"
         ],
@@ -24993,6 +25953,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "resource.api.policy.update.execute"
         ],
@@ -25204,6 +26171,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "resource.api.publish.execute"
         ],
@@ -25413,6 +26387,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "resource.api.register.execute"
         ],
@@ -25635,6 +26616,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "resource.api.review.execute"
         ],
@@ -25845,6 +26833,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "resource.api.revoke.execute"
         ],
@@ -26054,6 +27049,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "resource.api.submit_review.execute"
         ],
@@ -26263,6 +27265,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "resource.api.test.execute"
         ],
@@ -26477,6 +27486,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "resource.api.withdraw.execute"
         ],
@@ -26686,6 +27702,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "resource.asset.publish.execute"
         ],
@@ -26871,6 +27894,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "resource.asset.review.execute"
         ],
@@ -27064,6 +28094,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "resource.asset.submit_review.execute"
         ],
@@ -27249,6 +28286,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "resource.manage_asset.execute"
         ],
@@ -27442,6 +28486,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "risk.event.ingest.execute"
         ],
@@ -27634,6 +28685,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "security.scan.result.sync.execute"
         ],
@@ -27827,6 +28885,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "service.publish_or_suspend.execute"
         ],
@@ -28020,6 +29085,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "standard.asset.recommend.execute"
         ],
@@ -28212,6 +29284,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "standard.asset.sync.execute"
         ],
@@ -28406,6 +29485,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "summary.confirm.execute"
         ],
@@ -28593,6 +29679,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "supplement.submit.execute"
         ],
@@ -28777,6 +29870,13 @@
           "state_machine_transition"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "system.toggle_outage.execute"
         ],
@@ -28945,6 +30045,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "tenant.capability.disable.execute"
         ],
@@ -29132,6 +30239,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "tenant.capability.enable.execute"
         ],
@@ -29319,6 +30433,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "topic.package.configure.execute"
         ],
@@ -29596,6 +30717,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "topic.package.create.execute"
         ],
@@ -29873,6 +31001,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "topic.package.evidence.attach.execute"
         ],
@@ -30150,6 +31285,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "topic.package.policy.update.execute"
         ],
@@ -30427,6 +31569,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "topic.package.publish.execute"
         ],
@@ -30704,6 +31853,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "topic.package.review.execute"
         ],
@@ -30982,6 +32138,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "topic.package.submit.execute"
         ],
@@ -31259,6 +32422,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "topic.package.subscribe.execute"
         ],
@@ -31537,6 +32707,13 @@
           "blockchain_anchor"
         ],
         "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
         "x-zwbrain-permissions": [
           "zone.publish_topic_projection.execute"
         ],

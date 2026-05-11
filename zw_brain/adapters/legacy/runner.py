@@ -6,12 +6,14 @@ catalog, exchange, …) is added in subsequent commits and registered into
 """
 from __future__ import annotations
 
+import inspect
 import json
 import os
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from zw_brain.adapters.legacy._common import schema_from_dump_name
 from zw_brain.adapters.legacy.parser import MysqldumpParser
 from zw_brain.adapters.legacy.schema_index import dump_path_for, list_dumps
 from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT
@@ -119,8 +121,26 @@ class LegacyImportRunner:
         if not mappers:
             return None
         path = dump_path_for(schema)
-        results = [m.import_dump(path, dry_run=dry_run) if dry_run else m.import_dump(path) for m in mappers]
+        results = [self._import_with_optional_dry_run(mapper, path, dry_run=dry_run) for mapper in mappers]
         return results[0] if len(results) == 1 else results
+
+    def _import_with_optional_dry_run(self, mapper: object, path: Path, *, dry_run: bool) -> object:
+        import_dump = getattr(mapper, "import_dump")
+        if not dry_run:
+            return import_dump(path)
+        if "dry_run" in inspect.signature(import_dump).parameters:
+            return import_dump(path, dry_run=True)
+        from zw_brain.adapters.legacy._common import ImportStats
+
+        stats = ImportStats(schema=schema_from_dump_name(path.name), dump_path=path, mode="dry-run")
+        handled_tables = {str(item) for item in getattr(mapper, "HANDLED_TABLES", set())}
+        for table, _row in MysqldumpParser(path).iter_rows():
+            if table in handled_tables:
+                stats.bump_source(table)
+                stats.bump(table)
+            else:
+                stats.skip(table)
+        return stats
 
     # ------------------------------------------------------------------
     # parse

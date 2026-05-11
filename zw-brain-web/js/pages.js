@@ -601,7 +601,7 @@ PAGES.workbench = function () {
 
     <div class="grid grid-cols-12 gap-5">
       <section class="col-span-7 space-y-5">
-        ${panel('今日待办', '按身份展示可执行事项，避免把用户推回旧平台菜单。', infoList(current.todos))}
+        ${panel('今日待办', '按身份展示可执行事项，直接进入当日业务办理。', infoList(current.todos))}
       </section>
       <aside class="col-span-5 space-y-5">
         ${panel('智能助手建议', '按证据给出待办排序和处置草稿，关键动作仍由经办人确认。', `
@@ -1409,7 +1409,7 @@ PAGES.integrationAdmin = function () {
       </section>
       <aside class="col-span-5 space-y-5">
         ${panel('身份与权限治理', '查看 IAF 绑定、投影、租户策略、导入问题和裁决证据', `
-          <div class="text-body leading-7 text-zw-ink">从统一 Skill 契约读取治理总览，不进入旧 BSP 菜单后台。</div>
+          <div class="text-body leading-7 text-zw-ink">从统一能力契约读取治理总览，直接查看身份、授权与策略证据。</div>
           <a href="#/p8-integration-admin/iam-governance" class="gov-btn gov-btn-secondary mt-4 inline-block">打开治理总览</a>
         `)}
         ${panel('上线核对项', '上线前核对来源、范围、权限和回退方案', `

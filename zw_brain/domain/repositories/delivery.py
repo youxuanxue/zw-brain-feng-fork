@@ -301,23 +301,42 @@ class DeliveryRepository:
                 record.channel = delivery["channel"]
                 record.payload_json = self._payload(delivery)
 
-            session.execute(delete(DeliveryReceiptRecord).where(DeliveryReceiptRecord.delivery_code == delivery["id"]))
-            session.add(
-                DeliveryReceiptRecord(
-                    delivery_code=delivery["id"],
-                    receipt_type=self._receipt_type(delivery),
-                    receipt_no=delivery.get("receiptNo") or delivery.get("backflow", {}).get("candidateObject"),
-                    receipt_status=self._receipt_status(delivery),
-                    payload_json=safe_json(
-                        {
-                            "note": delivery.get("note"),
-                            "backflow": delivery.get("backflow", {}),
-                            "history": delivery.get("history", []),
-                        }
-                    ),
-                )
+            receipt_no = delivery.get("receiptNo") or delivery.get("backflow", {}).get("candidateObject")
+            receipt_payload = safe_json(
+                {
+                    "note": delivery.get("note"),
+                    "backflow": delivery.get("backflow", {}),
+                    "history": delivery.get("history", []),
+                }
             )
+            existing_receipt = session.execute(
+                select(DeliveryReceiptRecord).where(
+                    DeliveryReceiptRecord.delivery_code == delivery["id"],
+                    DeliveryReceiptRecord.receipt_no == receipt_no,
+                )
+            ).scalar_one_or_none()
+            if existing_receipt is None:
+                session.add(
+                    DeliveryReceiptRecord(
+                        delivery_code=delivery["id"],
+                        receipt_type=self._receipt_type(delivery),
+                        receipt_no=receipt_no,
+                        receipt_status=self._receipt_status(delivery),
+                        payload_json=receipt_payload,
+                    )
+                )
+            else:
+                if self._is_delivery_projection_receipt(existing_receipt):
+                    receipt_status = self._receipt_status(delivery)
+                    existing_receipt.receipt_type = self._receipt_type(delivery)
+                    existing_receipt.receipt_status = receipt_status
+                    existing_receipt.payload_json = receipt_payload
+                    existing_receipt.acknowledged_at = _now() if receipt_status in {"acknowledged", "reconciled"} else existing_receipt.acknowledged_at
             session.commit()
+
+    def _is_delivery_projection_receipt(self, receipt: DeliveryReceiptRecord) -> bool:
+        payload = receipt.payload_json if isinstance(receipt.payload_json, dict) else {}
+        return bool({"note", "backflow", "history"} & set(payload))
 
     def _payload(self, delivery: dict[str, Any]) -> dict[str, Any]:
         payload = safe_json(delivery)

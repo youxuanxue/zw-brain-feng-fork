@@ -120,6 +120,58 @@ def test_delivery_repository_sanitizes_payload_and_keeps_access_grant_snapshot()
         }
         assert record.payload_json["backflow"] == {}
 
+        repo.upsert_from_delivery(
+            {
+                "id": "DLV-api-app-1",
+                "requestId": "REQ-api-app-1",
+                "status": "completed",
+                "channel": "预填下发 + 汇总回流",
+                "receiptNo": "RCPT-001",
+                "backflow": {"candidateObject": "RCPT-001", "status": "待确认", "token": "should-not-persist"},
+                "history": [{"state": "回执待确认"}],
+            }
+        )
+        repo.upsert_from_delivery(
+            {
+                "id": "DLV-api-app-1",
+                "requestId": "REQ-api-app-1",
+                "status": "completed",
+                "channel": "预填下发 + 汇总回流",
+                "receiptNo": "RCPT-001",
+                "backflow": {"candidateObject": "RCPT-001", "status": "已确认", "token": "should-not-persist"},
+                "history": [{"state": "回执已确认"}],
+            }
+        )
+        receipt = next(item for item in repo.list_receipts("DLV-api-app-1") if item.receipt_no == "RCPT-001")
+        assert receipt.receipt_type == "subscription_ack"
+        assert receipt.receipt_status == "acknowledged"
+        assert receipt.payload_json["backflow"] == {"candidateObject": "RCPT-001", "status": "已确认"}
+        assert receipt.payload_json["history"] == [{"state": "回执已确认"}]
+
+        repo.append_receipt(
+            {
+                "delivery_code": "DLV-api-app-1",
+                "receipt_type": "exchange",
+                "receipt_no": "RCPT-REAL-001",
+                "receipt_status": "succeeded",
+                "payload_json": {"receipt_no": "RCPT-REAL-001"},
+            }
+        )
+        repo.upsert_from_delivery(
+            {
+                "id": "DLV-api-app-1",
+                "requestId": "REQ-api-app-1",
+                "status": "completed",
+                "channel": "预填下发 + 汇总回流",
+                "receiptNo": "RCPT-REAL-001",
+                "backflow": {"candidateObject": "RCPT-REAL-001", "status": "已确认"},
+                "history": [{"state": "不应覆盖真实回执"}],
+            }
+        )
+        real_receipt = next(item for item in repo.list_receipts("DLV-api-app-1") if item.receipt_no == "RCPT-REAL-001")
+        assert real_receipt.receipt_status == "succeeded"
+        assert real_receipt.payload_json == {"receipt_no": "RCPT-REAL-001"}
+
 def test_safe_json_removes_sensitive_key_variants() -> None:
     from zw_brain.shared.sanitization import safe_json
 
@@ -130,7 +182,10 @@ def test_safe_json_removes_sensitive_key_variants() -> None:
             "client_secret": "x",
             "Authorization": "Bearer x",
             "Cookie": "sid=x",
+            "session": "x",
             "session_key": "x",
+            "service_sql": "select * from user_secret",
+            "permission_sql": "select role from user_secret",
             "nested": [{"public": "ok", "db_password_hash": "x", "credentialRef": "x"}],
         }
     ) == {"nested": [{"public": "ok"}]}
@@ -163,7 +218,7 @@ def test_safe_json_removes_sensitive_key_variants() -> None:
                 "binding_code": "bind-field-map",
                 "resource_code": "api-field-map",
                 "endpoint_ref": {"rest_method": "POST", "proxy_url": "gateway-route-ref", "secret": "should-not-persist"},
-                "schema_ref": {"input": ["id"], "output": ["ok"], "token": "should-not-persist"},
+                "schema_ref": {"input": ["id"], "output": ["ok"], "token": "should-not-persist", "service_sql": "select * from user_secret"},
                 "auth_ref": "auth-ref-api-field-map",
                 "gateway_policy_json": {"frequency_num": 100, "app_secret": "should-not-persist"},
                 "source_ref": "dsp-dataservice:api_service_proxy:bind-field-map",

@@ -5,7 +5,7 @@ import json
 import sys
 from pathlib import Path
 
-from zw_brain.adapters.legacy.migration_batch import MigrationError, MigrationOptions, run_migration, write_report
+from zw_brain.adapters.legacy.migration_batch import MigrationError, MigrationOptions, run_acceptance_migration, run_migration, write_report
 from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT
 
 
@@ -19,6 +19,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--strict", action="store_true", help="Fail on missing required dumps, import failures, or unresolved mappings")
     parser.add_argument("--require-zero-conflicts", action="store_true", help="Treat conflicted legacy mappings as failures")
     parser.add_argument("--dry-run", action="store_true", help="Parse and report planned target changes without writing projection tables")
+    parser.add_argument("--acceptance", action="store_true", help="Run dry-run, apply, repeat apply, and write one acceptance report")
     parser.add_argument("--report", required=True, help="Path to write migration report JSON")
     args = parser.parse_args(argv)
 
@@ -34,7 +35,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     report_path = Path(args.report)
     try:
-        report = run_migration(options)
+        report = run_acceptance_migration(options) if args.acceptance else run_migration(options)
     except MigrationError as exc:
         write_report(exc.report, report_path)
         print(json.dumps(exc.report, ensure_ascii=False, indent=2), file=sys.stderr)

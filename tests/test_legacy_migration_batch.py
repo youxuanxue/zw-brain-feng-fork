@@ -8,7 +8,7 @@ from textwrap import dedent
 
 import pytest
 
-from zw_brain.adapters.legacy.migration_batch import MigrationError, MigrationOptions, run_migration
+from zw_brain.adapters.legacy.migration_batch import MigrationError, MigrationOptions, run_acceptance_migration, run_migration
 
 
 def _write_core_dumps(dumps_dir: Path) -> None:
@@ -223,7 +223,7 @@ def _write_core_dumps(dumps_dir: Path) -> None:
         ).strip(),
         encoding="utf-8",
     )
-    for schema in ("dsp_require", "dsp_handling", "dsp_example"):
+    for schema in ("dsp_require", "dsp_handling", "dsp_example", "dsp_connect", "dsp_service", "dsp_pipelines", "dsp_monitor", "dsp_perform"):
         (dumps_dir / f"dump-{schema}-202604000000.sql").write_text("", encoding="utf-8")
 
 
@@ -269,6 +269,87 @@ def test_legacy_migration_batch_strict_report_and_no_legacy_runtime() -> None:
         metadata = service.invoke_skill("metadata.catalog_item.query", {})
         assert metadata["total"] == 1
         reset_service()
+
+
+def test_legacy_acceptance_runs_dry_apply_repeat_and_reports_idempotency() -> None:
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        dumps_dir = root / "dumps"
+        db_path = root / "customer.db"
+        _write_core_dumps(dumps_dir)
+        report = run_acceptance_migration(MigrationOptions(dumps_dir=dumps_dir, db_path=db_path, strict=True))
+        assert report["status"] == "succeeded"
+        assert report["acceptance"]["flow"] == ["dry_run", "apply", "repeat_apply"]
+        assert report["acceptance"]["stage_statuses"] == {"dry_run": "succeeded", "apply": "succeeded", "repeat_apply": "succeeded"}
+        assert report["stages"]["dry_run"]["dry_run"] is True
+        assert report["stages"]["apply"]["reset_db"] is False
+        assert report["stages"]["repeat_apply"]["reset_db"] is False
+        reset_report = run_acceptance_migration(MigrationOptions(dumps_dir=dumps_dir, db_path=db_path, reset_db=True, strict=True))
+        assert reset_report["stages"]["apply"]["reset_db"] is True
+        assert reset_report["status"] == "succeeded"
+        assert report["acceptance"]["idempotency"]["verified"] is True
+        assert report["acceptance"]["missing_dumps"] == []
+        assert report["acceptance"]["unmapped_tables"] == []
+        assert report["acceptance"]["sensitive_policy"]["report_sanitized"] is True
+        assert "13800001111" not in json.dumps(report, ensure_ascii=False)
+
+
+def test_legacy_service_sql_never_enters_canonical_bindings() -> None:
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        dumps_dir = root / "dumps"
+        db_path = root / "customer.db"
+        _write_core_dumps(dumps_dir)
+        (dumps_dir / "dump-dsp_service-202604000000.sql").write_text(
+            dedent(
+                """
+                DROP TABLE IF EXISTS `api_service_info`;
+                CREATE TABLE `api_service_info` (
+                  `ID` varchar(36),
+                  `NAME` varchar(128),
+                  `IS_PUBLIC` varchar(4),
+                  PRIMARY KEY (`ID`)
+                ) ENGINE=InnoDB;
+                INSERT INTO `api_service_info` VALUES ('svc-1','人口查询 API','1');
+                DROP TABLE IF EXISTS `api_service_data`;
+                CREATE TABLE `api_service_data` (
+                  `API_ID` varchar(36),
+                  `SERVICE_ID` varchar(36),
+                  `SERVICE_SQL` text,
+                  `RULE_PARAM` text,
+                  `RULE_STR` text,
+                  PRIMARY KEY (`API_ID`)
+                ) ENGINE=InnoDB;
+                INSERT INTO `api_service_data` VALUES ('data-1','svc-1','select name, id_card from citizen','{"id":"string"}','公开字段');
+                """
+            ).strip(),
+            encoding="utf-8",
+        )
+        report = run_migration(MigrationOptions(dumps_dir=dumps_dir, db_path=db_path, reset_db=True, strict=True))
+        assert report["status"] == "succeeded"
+
+        from zw_brain.domain.repositories.resource_api import ResourceApiRepository
+
+        binding = ResourceApiRepository().get_binding("svc-1:data:data-1")
+        assert binding is not None
+        assert binding.schema_ref == {"rule_param": '{"id":"string"}', "rule_str": "公开字段"}
+        assert "SERVICE_SQL" not in json.dumps(binding.schema_ref, ensure_ascii=False)
+        assert "select name" not in json.dumps(binding.schema_ref, ensure_ascii=False)
+
+
+def test_legacy_acceptance_fail_closed_missing_dump_without_apply() -> None:
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        dumps_dir = root / "dumps"
+        _write_core_dumps(dumps_dir)
+        (dumps_dir / "dump-dsp_connect-202604000000.sql").unlink()
+        with pytest.raises(MigrationError) as exc_info:
+            run_acceptance_migration(MigrationOptions(dumps_dir=dumps_dir, db_path=root / "customer.db", strict=True))
+        report = exc_info.value.report
+        assert report["status"] == "failed"
+        assert report["stages"]["dry_run"]["status"] == "failed"
+        assert report["stages"]["apply"] == {"stage": "apply", "status": "skipped", "reason": "dry_run_failed", "errors": ["dry_run_failed"]}
+        assert "dsp_connect" in report["stages"]["dry_run"]["fail_closed"]["missing_dumps"]
 
 
 def test_legacy_migration_strict_rejects_duplicate_required_dumps() -> None:
