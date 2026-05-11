@@ -4,8 +4,10 @@ import json
 import os
 import subprocess
 import sys
+from http.server import HTTPServer
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from threading import Thread
 
 import pytest
 
@@ -85,8 +87,6 @@ def test_runtime_service_cli_and_rest_work_after_legacy_source_offline(monkeypat
         assert any(item["catalog_code"] == "BASE-POP-001" for item in cli_payload["items"])
         assert "13800001111" not in cli.stdout
 
-        from http.server import HTTPServer
-        from threading import Thread
         from zw_brain.entry.rest.server import RestHandler
 
         runtime._service = None

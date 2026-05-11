@@ -125,7 +125,7 @@ class LegacyImportRunner:
         return results[0] if len(results) == 1 else results
 
     def _import_with_optional_dry_run(self, mapper: object, path: Path, *, dry_run: bool) -> object:
-        import_dump = getattr(mapper, "import_dump")
+        import_dump = mapper.import_dump
         if not dry_run:
             return import_dump(path)
         if "dry_run" in inspect.signature(import_dump).parameters:
