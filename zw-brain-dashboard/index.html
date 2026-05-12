@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>政务数据大脑 · 指挥大屏</title>
     <meta name="description" content="zw-brain read-only dashboard" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23006be6'/%3E%3Cpath d='M19 18h26v6L29 42h17v6H19v-6l16-18H19z' fill='white'/%3E%3C/svg%3E" />
+    <link rel="icon" href="/assets/zw-brain-mark.svg" type="image/svg+xml" />
     <style>
       :root {
         --b-primary: #006be6;
@@ -54,11 +54,11 @@
         gap: 12px;
       }
       .dash-mark {
+        display: block;
         width: 22px;
         height: 22px;
-        border-radius: 7px;
-        background: linear-gradient(145deg, var(--b-primary), #0048a8);
-        box-shadow: 0 0 0 2px rgba(0, 107, 230, 0.15);
+        flex-shrink: 0;
+        box-shadow: 0 0 0 2px rgba(0, 107, 230, 0.12);
       }
       .dash-brand strong {
         display: block;
@@ -314,7 +314,34 @@
     <div class="dash-chrome">
       <div class="dash-chrome-inner">
         <div class="dash-brand">
-          <span class="dash-mark" aria-hidden="true"></span>
+          <svg
+            class="dash-mark"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 32 32"
+            width="22"
+            height="22"
+            fill="none"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <defs>
+              <linearGradient id="dashLogoGrad" x1="5" y1="4" x2="27" y2="28" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#006be6"/>
+                <stop offset="1" stop-color="#0048a8"/>
+              </linearGradient>
+            </defs>
+            <rect width="32" height="32" rx="7" fill="url(#dashLogoGrad)"/>
+            <circle cx="16" cy="16" r="11.85" stroke="rgba(255,255,255,0.32)" stroke-width="1" stroke-dasharray="2.2 2.8" fill="none"/>
+            <g stroke="#fff" stroke-opacity="0.92" stroke-width="1.85" stroke-linecap="round">
+              <path d="M16 5.8v20.4M5.8 16h20.4"/>
+            </g>
+            <circle cx="16" cy="16" r="3.8" fill="#fff" fill-opacity="0.96"/>
+            <circle cx="16" cy="7.5" r="2.65" fill="#fff" fill-opacity="0.96"/>
+            <circle cx="24.5" cy="16" r="2.65" fill="#fff" fill-opacity="0.96"/>
+            <circle cx="16" cy="24.5" r="2.65" fill="#fff" fill-opacity="0.96"/>
+            <circle cx="7.5" cy="16" r="2.65" fill="#fff" fill-opacity="0.96"/>
+            <circle cx="16" cy="16" r="1.69" fill="#009688"/>
+          </svg>
           <div>
             <strong>政务数据大脑 · 指挥大屏</strong>
             <span>只读态势 · 与办事系统独立运行</span>

@@ -163,7 +163,7 @@ class RestHandler(BaseHTTPRequestHandler):
         if parsed.path in {"/", "/index.html"}:
             self._serve_file(WEB_ROOT / "index.html")
             return
-        if parsed.path.startswith("/css/") or parsed.path.startswith("/js/"):
+        if parsed.path.startswith("/css/") or parsed.path.startswith("/js/") or parsed.path.startswith("/assets/"):
             self._serve_file(WEB_ROOT / parsed.path.lstrip("/"), enforce_web_root=True)
             return
         self._json(404, {"error": "not_found", "path": parsed.path})

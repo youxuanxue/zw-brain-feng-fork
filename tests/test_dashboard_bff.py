@@ -67,6 +67,12 @@ def test_dashboard_bff_is_readonly_and_serves_dashboard_skill() -> None:
             assert status == 200
             assert content_type.startswith("text/html")
             assert "政务数据大脑 · 指挥大屏" in html
+            assert "dashLogoGrad" in html
+
+            status, content_type, mark_svg = request("GET", f"http://127.0.0.1:{port}/assets/zw-brain-mark.svg")
+            assert status == 200
+            assert content_type.startswith("image/svg+xml") or "svg" in content_type
+            assert "<svg" in mark_svg and "zwLogoGrad" in mark_svg
 
             status, content_type, favicon_raw = request("GET", f"http://127.0.0.1:{port}/favicon.ico")
             assert status == 204
