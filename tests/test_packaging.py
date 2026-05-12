@@ -15,6 +15,14 @@ def test_wheel_build_and_install_smoke() -> None:
         dist_dir = Path(tmp) / "dist"
         wheel_env = os.environ.copy()
         subprocess.run(
+            [PYTHON, "-m", "ensurepip", "--upgrade"],
+            cwd=REPO_ROOT,
+            env=wheel_env,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        subprocess.run(
             [PYTHON, "-m", "pip", "install", "build"],
             cwd=REPO_ROOT,
             env=wheel_env,

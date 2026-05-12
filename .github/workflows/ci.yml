@@ -18,11 +18,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: pip install -e '.[dev]'
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+      - run: uv pip install -e '.[dev]'
       - run: ruff check .
 
   test:
@@ -38,17 +39,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          # preflight (py3.12) needs full history for git diff origin/main;
+          # py3.11 only runs tests so shallow clone is enough.
+          fetch-depth: ${{ matrix.python == '3.12' && 0 || 1 }}
           submodules: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python }}
-          cache: 'pip'
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
       - name: install
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e '.[dev]' build coverage
+        run: uv pip install -e '.[dev]' build coverage
       - name: preflight
         if: matrix.python == '3.12'
         run: bash scripts/preflight.sh
@@ -83,11 +85,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: pip install -e '.[dev]'
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+      - run: uv pip install -e '.[dev]'
       - name: write tiny synthetic dump
         run: |
           mkdir -p .ci-dumps
