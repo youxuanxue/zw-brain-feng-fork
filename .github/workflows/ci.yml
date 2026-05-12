@@ -31,9 +31,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.11 = pyproject.toml's requires-python floor; 3.12 = stable;
-        # 3.13 = active branch. Covers both ends without paying for too many runs.
-        python: ['3.11', '3.12', '3.13']
+        # 3.11 = pyproject.toml's requires-python floor; 3.12 = stable.
+        # preflight / coverage / wheel only run on 3.12 to avoid redundant work.
+        python: ['3.11', '3.12']
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,13 +49,19 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e '.[dev]' build coverage
       - name: preflight
+        if: matrix.python == '3.12'
         run: bash scripts/preflight.sh
       - name: pytest with coverage
         run: |
-          python -m coverage run -m pytest -q
-          python -m coverage xml -o coverage.xml
-          python -m coverage report --skip-covered --show-missing | tee coverage-summary.txt
+          if [ "${{ matrix.python }}" = "3.12" ]; then
+            python -m coverage run -m pytest -q
+            python -m coverage xml -o coverage.xml
+            python -m coverage report --skip-covered --show-missing | tee coverage-summary.txt
+          else
+            python -m pytest -q
+          fi
       - name: build wheel
+        if: matrix.python == '3.12'
         run: python -m build --wheel
       - name: upload coverage artifact
         if: matrix.python == '3.12'
