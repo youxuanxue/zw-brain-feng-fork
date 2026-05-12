@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>政务数据大脑 · zw-brain</title>
+  <title>政务数据大脑</title>
   <link rel="stylesheet" href="/css/app.css" />
 </head>
 <body class="ui-spec-b">
@@ -13,13 +13,17 @@
         <span class="gov-logo-mark" aria-hidden="true"></span>
         <div>
           <div class="brand-title">政务数据大脑</div>
-          <div class="brand-subtitle">数据资源检索 · 共享办事 · 治理审计</div>
+          <div class="brand-subtitle">让数据共享少填、快办、可追溯</div>
         </div>
       </a>
       <div id="deployment-label" class="deployment-label" hidden></div>
+      <nav class="helper-links" aria-label="顶部辅助入口">
+        <a id="zw-login-nav-link" href="#/login" title="前往统一身份登录" aria-label="前往统一身份登录">登录</a>
+      </nav>
       <div class="global-actions">
-        <div class="role-control">
-          <span>当前身份</span>
+        <div id="identity-label" class="identity-label" aria-live="polite">当前账号</div>
+        <div id="role-control" class="role-control" hidden>
+          <span>当前岗位</span>
           <label class="sr-only" for="role-switch">切换岗位身份</label>
           <select id="role-switch" class="role-select">
             <option value="r1">上级业务需求发起人</option>
@@ -45,7 +49,7 @@
   <footer class="site-footer">
     <div class="site-footer-inner">
       <span>政务数据大脑</span>
-      <span>网站标识、备案与监督入口以主管单位及本地政务公开要求为准；要素变更请由运维在门户侧更新。</span>
+      <span id="legal-notice" hidden></span>
     </div>
   </footer>
 

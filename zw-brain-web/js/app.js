@@ -18,6 +18,7 @@
   let snapshotReady = false;
 
   const ROUTES = [
+    { test: /^#\/login$/, page: 'login', nav: null },
     { test: /^#\/p1-workbench$/, page: 'workbench', nav: 'main' },
     { test: /^#\/p2-discovery$/, page: 'discovery', nav: 'main' },
     { test: /^#\/p2-discovery\/catalog-browse$/, page: 'catalogBrowse', nav: 'main' },
@@ -115,6 +116,7 @@
     state.discoveryQuery = currentDiscoveryQuery || state.discoveryQuery || '';
     window.STATE = state;
     syncDeploymentChip();
+    syncHeaderIdentityAndLegal();
   }
 
   function syncDeploymentChip() {
@@ -130,6 +132,24 @@
     }
   }
 
+  function syncHeaderIdentityAndLegal() {
+    const cfg = window.ZW_WEBUI || {};
+    const identityEl = document.getElementById('identity-label');
+    if (identityEl) {
+      identityEl.textContent = cfg.identityLabel || '当前账号';
+    }
+    const legalEl = document.getElementById('legal-notice');
+    if (legalEl) {
+      const text = String(cfg.legalNotice || '').trim();
+      legalEl.textContent = text;
+      legalEl.hidden = !text;
+    }
+    const roleControl = document.getElementById('role-control');
+    if (roleControl) {
+      roleControl.hidden = !cfg.allowRoleSwitch;
+    }
+  }
+
   async function refreshSnapshot() {
     const snapshot = await fetch(`/api/snapshot${encodeParams({ role: currentRole })}`, {
       headers: { Accept: 'application/json' },
@@ -140,6 +160,31 @@
 
   async function refreshSchemaInfo() {
     currentSchemaInfo = await invokeRead('system.schema_info', {});
+  }
+
+  function customerSafeError(err, fallback) {
+    const raw = String((err && err.message) || err || '');
+    if (/lacks permissions|permission|forbidden|403|skill|capability|execute|traceback|stack|http/i.test(raw)) {
+      return fallback || '当前账号暂不能完成该操作，请回到可办理入口继续。';
+    }
+    if (/network|timeout|unavailable|refused|failed|error|500|502|503|504/i.test(raw)) {
+      return fallback || '当前服务暂不可用，请稍后重试。';
+    }
+    return fallback || '操作未完成，请稍后重试。';
+  }
+
+  function consumeIafLoginQueryToastFlag() {
+    try {
+      const u = new URL(window.location.href);
+      if (String(u.searchParams.get('iaf_login') || '') !== 'done') return;
+      u.searchParams.delete('iaf_login');
+      const qs = u.searchParams.toString();
+      const nextPath = qs ? `${u.pathname}?${qs}` : u.pathname;
+      window.history.replaceState(null, '', `${nextPath}${window.location.hash || ''}`);
+      window.UI.toast('统一身份登录成功，账号权限已同步。', 'success');
+    } catch (_) {
+      /* non-fatal */
+    }
   }
 
   async function syncRouteData(hash) {
@@ -173,10 +218,12 @@
       } else if (route === '#/p3-request-flow' && roleCan(['r1', 'r2', 'r3', 'r4', 'r5'])) {
         const result = await invokeRead('request.list', {});
         window.RUNTIME_REQUESTS = result.items;
-      } else if (
-        (route.startsWith('#/p3-request-flow/request/') || route.startsWith('#/p3-request-flow/review/')) &&
-        roleCan(['r1', 'r2', 'r3', 'r4', 'r5'])
-      ) {
+      } else if (route.startsWith('#/p3-request-flow/request/') && roleCan(['r1', 'r2', 'r3', 'r4', 'r5'])) {
+        const id = decodeURIComponent(route.split('/').pop());
+        const request = await invokeRead('request.view', { request_id: id });
+        const requestIndex = window.RUNTIME_REQUESTS.findIndex(item => item.id === id);
+        if (requestIndex >= 0) window.RUNTIME_REQUESTS[requestIndex] = request; else window.RUNTIME_REQUESTS.unshift(request);
+      } else if (route.startsWith('#/p3-request-flow/review/') && roleCan(['r2', 'r5'])) {
         const id = decodeURIComponent(route.split('/').pop());
         const request = await invokeRead('request.view', { request_id: id });
         const approval = await invokeRead('approval.view', { request_id: id });
@@ -233,7 +280,7 @@
         window.RUNTIME_IAM_GOVERNANCE = await invokeRead('governance.iam_overview', {});
       }
     } catch (err) {
-      window.UI.toast(err.message || '页面数据刷新失败', 'error');
+      window.UI.toast(customerSafeError(err, '当前页面数据暂未准备好，请返回可办理入口重试。'), 'error');
     }
   }
 
@@ -263,7 +310,7 @@
       if (after) after(result); else dispatch();
       if (successMessage) window.UI.toast(successMessage, 'success');
     } catch (err) {
-      window.UI.toast(err.message || '操作失败', 'error');
+      window.UI.toast(customerSafeError(err, '当前操作未完成，请确认身份范围或稍后重试。'), 'error');
     }
   }
 
@@ -294,7 +341,7 @@
       if (typeof window.renderAccessDeniedShell === 'function') {
         document.getElementById('app').innerHTML = window.renderAccessDeniedShell(matched.page);
       } else {
-        document.getElementById('app').innerHTML = renderError('权限检查模块未加载');
+        document.getElementById('app').innerHTML = renderError('当前身份范围暂未确认，请回到数据共享工作台重新选择办理入口。');
       }
       highlightNav(null);
       scheduleSyncProductShellNavTop();
@@ -303,7 +350,7 @@
 
     const page = window.PAGES && window.PAGES[matched.page];
     if (typeof page !== 'function') {
-      document.getElementById('app').innerHTML = renderError(`页面渲染函数缺失：${matched.page}`);
+      document.getElementById('app').innerHTML = renderError('当前办理入口暂未开放，请返回数据共享工作台选择其他事项。');
       scheduleSyncProductShellNavTop();
       return;
     }
@@ -327,16 +374,32 @@
   }
 
   function renderNotFound(hash) {
+    const unsafe = String(hash || '');
+    const escapedHash = unsafe
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
     return `
       <div class="bg-white rounded-2xl p-10 text-center border-default shadow-soft">
         <div class="text-display mb-3">页面未找到</div>
-        <p class="text-zw-mute mb-4">没有匹配的业务入口：<code>${hash}</code></p>
-        <a href="#/p1-workbench" class="inline-block gov-btn gov-btn-primary px-4 py-2 rounded-lg text-caption">回到首页工作台</a>
+        <p class="text-zw-mute mb-4">没有匹配的业务入口：<code>${escapedHash}</code></p>
+        <a href="#/p1-workbench" class="inline-block gov-btn gov-btn-primary px-4 py-2 rounded-lg text-caption">回到数据共享工作台</a>
       </div>`;
   }
 
   function renderError(message) {
-    return `<div class="bg-red-50 border-error-thin text-red-700 p-4 rounded">${message}</div>`;
+    return `
+      <div class="state-card">
+        <div class="page-kicker">页面暂未准备好</div>
+        <div class="page-hero-title">当前服务没有完成加载。</div>
+        <p class="page-hero-subtitle">${message}</p>
+        <div class="mt-5 flex gap-3 flex-wrap">
+          <a href="#/p1-workbench" class="gov-btn gov-btn-primary">回到数据共享工作台</a>
+          <button type="button" class="gov-btn gov-btn-secondary" onclick="window.location.reload()">刷新重试</button>
+        </div>
+      </div>`;
   }
 
   window.UI = {
@@ -376,12 +439,23 @@
   };
 
   window.ACTIONS = {
+    searchFromHome(event) {
+      event.preventDefault();
+      const input = document.getElementById('home-service-q');
+      currentDiscoveryQuery = input ? input.value.trim() : '';
+      if (!currentDiscoveryQuery) {
+        window.UI.toast('请输入要查找的业务或数据需求', 'error');
+        return;
+      }
+      if (window.STATE) window.STATE.discoveryQuery = currentDiscoveryQuery;
+      window.location.hash = '#/p2-discovery';
+    },
     async setDiscoveryQuery(event) {
       event.preventDefault();
       const input = document.getElementById('discovery-q');
       currentDiscoveryQuery = input ? input.value.trim() : '';
       if (!currentDiscoveryQuery) {
-        window.UI.toast('请输入要检索的涉企需求', 'error');
+        window.UI.toast('请输入要查找的业务或数据需求', 'error');
         return;
       }
       try {
@@ -390,9 +464,9 @@
         window.RUNTIME_DISCOVERY.aiCopilot = result.summary;
         window.STATE.discoveryQuery = currentDiscoveryQuery;
         dispatch();
-        window.UI.toast('已按真实业务语义重排复用建议', 'success');
+        window.UI.toast('已按业务需求更新可复用资源建议', 'success');
       } catch (err) {
-        window.UI.toast(err.message || '检索失败', 'error');
+        window.UI.toast(customerSafeError(err, '检索暂未完成，请稍后重试。'), 'error');
       }
     },
     async setCatalogBrowseFilter(key, value) {
@@ -403,7 +477,7 @@
         window.RUNTIME_CATALOG_BROWSE = await invokeRead('catalog.browse', filters);
         dispatch();
       } catch (err) {
-        window.UI.toast(err.message || '浏览刷新失败', 'error');
+        window.UI.toast(customerSafeError(err, '目录刷新暂未完成，请稍后重试。'), 'error');
       }
     },
     createRequest(resourceId) {
@@ -477,6 +551,10 @@
       performWrite('resource.manage_asset', { resource_id: resourceId, action }, '资源资产已暂停共享');
     },
     publishZoneTopicProjection(zoneId) {
+      if (currentRole !== 'r7') {
+        window.UI.toast('当前身份暂无发布正式投影权限', 'error');
+        return;
+      }
       performWrite('zone.publish_topic_projection', { zone_id: zoneId }, '专区正式投影已发布');
     },
     reconcileDeliveryReceipt(taskId) {
@@ -506,6 +584,25 @@
     toggleOutage() {
       performWrite('system.toggle_outage', {}, '已切换主脑故障态');
     },
+    async startIafLogin(event) {
+      if (event) event.preventDefault();
+      try {
+        const redirectUri = `${window.location.origin}/auth/iaf/callback`;
+        const resp = await fetch(`/auth/iaf/login?redirect_uri=${encodeURIComponent(redirectUri)}`, {
+          headers: { Accept: 'application/json' },
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data.detail || data.error || `HTTP ${resp.status}`);
+        }
+        if (!data.authorization_url) {
+          throw new Error('当前服务未返回授权地址');
+        }
+        window.location.href = String(data.authorization_url);
+      } catch (err) {
+        window.UI.toast(customerSafeError(err, '无法启动统一身份登录，请联系系统管理员检查服务状态。'), 'error');
+      }
+    },
     noop(message) {
       window.UI.toast(message || '当前阶段暂无可办理动作', 'info');
     },
@@ -517,12 +614,32 @@
     productShellNavTopResizeTimer = setTimeout(scheduleSyncProductShellNavTop, 120);
   });
 
+  function wireLoginNavLink() {
+    const el = document.getElementById('zw-login-nav-link');
+    if (!el) return;
+    el.addEventListener('click', () => {
+      window.setTimeout(async () => {
+        if ((window.location.hash || '') !== '#/login') return;
+        if (!snapshotReady) return;
+        try {
+          await syncRouteData('#/login');
+          dispatch();
+        } catch (err) {
+          const app = document.getElementById('app');
+          if (app) app.innerHTML = renderError(customerSafeError(err, '路由数据暂未完成加载。'));
+        }
+      }, 0);
+    });
+  }
+
   window.addEventListener('hashchange', async () => {
     await syncRouteData(window.location.hash);
     dispatch();
   });
+
   window.addEventListener('DOMContentLoaded', async () => {
     const switcher = document.getElementById('role-switch');
+    wireLoginNavLink();
     if (switcher) {
       switcher.addEventListener('change', async event => {
         currentRole = event.target.value;
@@ -534,6 +651,7 @@
     }
     try {
       await refreshSnapshot();
+      consumeIafLoginQueryToastFlag();
       await refreshSchemaInfo();
       if (switcher) switcher.value = currentRole;
       if (!window.location.hash) {
@@ -544,7 +662,7 @@
         dispatch();
       }
     } catch (err) {
-      document.getElementById('app').innerHTML = renderError(err.message || '初始化失败');
+      document.getElementById('app').innerHTML = renderError(customerSafeError(err, '初始化暂未完成，请刷新或稍后再试。'));
     }
   });
 })();

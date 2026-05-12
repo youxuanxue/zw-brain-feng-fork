@@ -12,12 +12,29 @@ async function loadDashboard() {
   return data;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function normalizeMetricLabel(label) {
+  return {
+    '实时查询压力': '查询响应',
+    '在线协同单元': '协同岗位',
+    '异常告警': '待处置异常',
+  }[label] || label;
+}
+
 function metricCard(item) {
   return `
     <article class="metric-card metric-card-static">
-      <div class="metric-label">${item.label}</div>
-      <div class="metric-value">${item.value}</div>
-      <div class="metric-trend">${item.trend}</div>
+      <div class="metric-label">${escapeHtml(normalizeMetricLabel(item.label))}</div>
+      <div class="metric-value">${escapeHtml(item.value)}</div>
+      <div class="metric-trend">${escapeHtml(item.trend)}</div>
     </article>`;
 }
 
@@ -27,21 +44,21 @@ function render(data) {
       <section class="hero">
         <div class="hero-main">
           <div class="eyebrow">运行态势</div>
-          <h1>一屏看清数据共享是否畅通、基层负担是否下降、异常责任是否可追。</h1>
-          <p>当前模式：<strong>${data.mode}</strong>${data.brainOutage ? ' · 主应用故障，已展示最近快照' : ' · 主应用运行正常'}。重点关注共享交换进展、基层减负变化和异常责任链。</p>
-          ${data.brainOutage ? '<div class="snapshot-banner">当前为快照模式：主应用故障不影响大屏继续展示最近一次可用快照，但所有数字停止刷新。</div>' : ''}
+          <h1>一屏看清共享进展、基层减负和异常处置。</h1>
+          <p>当前模式：<strong>${escapeHtml(data.mode)}</strong>${data.brainOutage ? ' · 主办事服务维护中，当前展示最近一次核验快照' : ' · 主办事服务运行正常'}。</p>
+          ${data.brainOutage ? `<div class="snapshot-banner">快照模式已启用：展示最近一次核验数据，更新时点 ${escapeHtml(data.snapshotAt || '待同步')}。</div>` : ''}
           <div class="hero-kpis">
-            <div><span>今日闭环任务</span><strong>${data.summary.flowToday}</strong></div>
-            <div><span>实时查询压力</span><strong>${data.summary.qps}</strong></div>
-            <div><span>在线协同单元</span><strong>${data.summary.agentsOnline}</strong></div>
-            <div><span>异常告警</span><strong>${data.summary.alerts}</strong></div>
+            <div><span>今日闭环任务</span><strong>${escapeHtml(data.summary.flowToday)}</strong></div>
+            <div><span>查询响应</span><strong>${escapeHtml(data.summary.qps)}</strong></div>
+            <div><span>协同岗位</span><strong>${escapeHtml(data.summary.agentsOnline)}</strong></div>
+            <div><span>待处置异常</span><strong>${escapeHtml(data.summary.alerts)}</strong></div>
           </div>
         </div>
         <aside class="hero-side">
           <h2>指挥辅助结论</h2>
-          <p style="margin-top:12px">${data.suggestions.body}</p>
+          <p style="margin-top:12px">${escapeHtml(data.suggestions.body)}</p>
           <ul>
-            ${data.suggestions.evidence.map(item => `<li>${item}</li>`).join('')}
+            ${data.suggestions.evidence.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
           </ul>
         </aside>
       </section>
@@ -63,17 +80,17 @@ function render(data) {
           </div>
         </div>
         <aside class="panel">
-          <h2>${data.suggestions.title}</h2>
+          <h2>${escapeHtml(data.suggestions.title)}</h2>
           <ul class="evidence-list">
-            ${data.suggestions.evidence.map(item => `<li>${item}</li>`).join('')}
+            ${data.suggestions.evidence.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
           </ul>
-          <div class="next-action">建议动作：${data.suggestions.nextAction}</div>
-          <div class="owner">责任人：${data.suggestions.owner}</div>
+          <div class="next-action"><span class="hint-label">建议动作</span>${escapeHtml(data.suggestions.nextAction)}</div>
+          <div class="owner"><span class="hint-label">责任人</span>${escapeHtml(data.suggestions.owner)}</div>
         </aside>
       </section>
     </main>`;
 }
 
-loadDashboard().then(render).catch((err) => {
-  app.innerHTML = `<main class="dashboard-shell"><section class="panel"><h1>加载失败</h1><p>${err.message}</p></section></main>`;
+loadDashboard().then(render).catch(() => {
+  app.innerHTML = '<main class="dashboard-shell"><section class="panel"><h1>加载失败</h1><p>当前大屏数据暂不可用，请稍后重试。</p></section></main>';
 });

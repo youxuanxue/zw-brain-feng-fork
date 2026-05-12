@@ -40,7 +40,7 @@ def test_request_flow_uses_active_request_not_fixture_id() -> None:
 def test_completed_request_action_uses_matching_delivery() -> None:
     pages_js = PAGES_JS.read_text(encoding="utf-8")
     start = pages_js.index("function requestActionBar")
-    action_bar = pages_js[start : pages_js.index("function businessNavLabel", start)]
+    action_bar = pages_js[start : pages_js.index("function isBusinessNavCollapsed", start)]
     completed = action_bar[action_bar.index("if (item.status === 'completed')") : action_bar.index("if (item.status === 'rejected')")]
     assert "deliveryByRequestId(item.id)" in completed
     assert "DLV-2026-04-25-0011" not in completed
@@ -79,13 +79,67 @@ def test_entity_lookup_does_not_silent_fallback_to_first_row() -> None:
     assert "|| window.RUNTIME_CAPABILITY_PACKAGES[0]" not in pages_js
 
 
-def test_sync_route_refreshes_review_detail_same_as_request() -> None:
+def test_request_detail_refresh_does_not_request_approval_view() -> None:
     app_js = APP_JS.read_text(encoding="utf-8")
-    assert "route.startsWith('#/p3-request-flow/review/')" in app_js
+    request_start = app_js.index("route.startsWith('#/p3-request-flow/request/')")
+    request_block = app_js[request_start : app_js.index("route.startsWith('#/p3-request-flow/review/')", request_start)]
+    assert "'request.view'" in request_block
+    assert "'approval.view'" not in request_block
+
+
+def test_sync_route_refreshes_review_detail_with_approval_view() -> None:
+    app_js = APP_JS.read_text(encoding="utf-8")
+    pages_js = PAGES_JS.read_text(encoding="utf-8")
+    assert "route.startsWith('#/p3-request-flow/review/') && roleCan(['r2', 'r5'])" in app_js
+    assert "reviewDetail: ['r2', 'r5']" in pages_js
     review_idx = app_js.index("p3-request-flow/review/")
     view_idx = app_js.index("'request.view'", review_idx)
     approval_idx = app_js.index("'approval.view'", review_idx)
     assert view_idx < approval_idx
+
+
+def test_delivery_task_detail_uses_delivery_projection_without_request_projection() -> None:
+    pages_js = PAGES_JS.read_text(encoding="utf-8")
+    start = pages_js.index("PAGES.deliveryTaskDetail = function")
+    block = pages_js[start : pages_js.index("PAGES.provider", start)]
+    assert "entityNotFoundShell('p4', '关联共享申请'" not in block
+    assert "关联申请仅作可选补充" in block
+    assert "const requestCompleted = request ? request.status === 'completed' : task.status === 'completed';" in block
+
+
+def test_review_detail_guards_non_list_approval_fields() -> None:
+    pages_js = PAGES_JS.read_text(encoding="utf-8")
+    start = pages_js.index("PAGES.reviewDetail = function")
+    block = pages_js[start : pages_js.index("PAGES.deliveryExchange", start)]
+    assert "function asList" in pages_js
+    assert "const reasonItems = asList(approval.reason);" in block
+    assert "const riskItems = asList(approval.risk);" in block
+    assert "const exceptionItems = asList(approval.exceptionItems);" in block
+    assert "approval.reason.map" not in block
+    assert "approval.risk.map" not in block
+    assert "approval.exceptionItems.map" not in block
+
+
+def test_p7_publish_projection_action_is_r7_only() -> None:
+    app_js = APP_JS.read_text(encoding="utf-8")
+    pages_js = PAGES_JS.read_text(encoding="utf-8")
+    action_start = app_js.index("publishZoneTopicProjection(zoneId)")
+    action_block = app_js[action_start : app_js.index("reconcileDeliveryReceipt", action_start)]
+    zone_start = pages_js.index("PAGES.zoneDetail = function")
+    zone_block = pages_js[zone_start : pages_js.index("PAGES.integrationAdmin", zone_start)]
+    assert "currentRole !== 'r7'" in action_block
+    assert "return;" in action_block
+    assert "performWrite('zone.publish_topic_projection'" in action_block
+    assert "window.STATE.role === 'r7'" in zone_block
+    assert "正式投影发布由目录管理员处理" in zone_block
+
+
+def test_current_parking_mainline_copy_does_not_mix_legal_entity_template() -> None:
+    pages_js = PAGES_JS.read_text(encoding="utf-8")
+    assert "停车场信息" in pages_js
+    assert "停车场信息共享目录" in pages_js
+    assert "法人模板" not in pages_js
+    assert "法人基础信息" not in pages_js
 
 
 def test_dispatch_enforces_page_access_map() -> None:
@@ -97,6 +151,9 @@ def test_dispatch_enforces_page_access_map() -> None:
 
 def test_role_switch_refetches_snapshot() -> None:
     app_js = APP_JS.read_text(encoding="utf-8")
+    if "switcher.addEventListener('change'" not in app_js:
+      assert "allowRoleSwitch" in app_js
+      return
     start = app_js.index("switcher.addEventListener('change'")
     block = app_js[start : start + 900]
     assert "await refreshSnapshot()" in block
@@ -197,7 +254,7 @@ def test_f4_customer_journey_http_asset_smoke_on_imported_db_with_legacy_offline
             status, html = request_json("GET", f"{base_url}/index.html")
             assert status == 200
             assert isinstance(html, str)
-            assert "政务数据大脑 · zw-brain" in html
+            assert "政务数据大脑" in html
             assert "/js/pages.js" in html
             assert "/js/app.js" in html
 

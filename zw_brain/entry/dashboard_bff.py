@@ -37,6 +37,11 @@ class DashboardBffHandler(BaseHTTPRequestHandler):
         if parsed.path == "/health":
             self._respond(200, {"status": "ok", "writable": False})
             return
+        if parsed.path == "/favicon.ico":
+            self.send_response(204)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         if parsed.path.startswith("/api/skills/dashboard."):
             skill_id = parsed.path[len("/api/skills/") :]
             try:

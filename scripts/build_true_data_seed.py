@@ -154,7 +154,7 @@ CASE_OVERRIDES: dict[str, dict] = {
 # Hand-curated narrative for the parking topic package. Preserves the rich
 # storyline (now in seed_snapshot.json) under a real legacyId key.
 PARKING_STORYLINE_PROVINCE = {
-    # NOTE: id deliberately kept as `res-jbxx-ledger` (legacy "法人基础信息" slot)
+    # NOTE: id deliberately kept as `res-jbxx-ledger` (legacy slot)
     # because BrainService._sync_state_views and test fixtures look it up by
     # this exact id. Renaming would force a cross-cutting test+code change.
     "id": "res-jbxx-ledger",

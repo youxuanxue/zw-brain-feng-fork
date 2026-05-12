@@ -109,6 +109,22 @@ def _request_json(method: str, url: str, body: dict[str, object] | None = None) 
         conn.close()
 
 
+def _request_raw(method: str, url: str, headers: dict[str, str]) -> tuple[int, str, dict[str, str]]:
+    parsed = urlparse(url)
+    conn = http.client.HTTPConnection(parsed.hostname or "127.0.0.1", parsed.port or 80, timeout=5)
+    try:
+        path = parsed.path or "/"
+        if parsed.query:
+            path = f"{path}?{parsed.query}"
+        conn.request(method, path, body=None, headers=headers)
+        response = conn.getresponse()
+        raw = response.read().decode("utf-8")
+        hdrs = {k.lower(): v for k, v in response.getheaders()}
+        return response.status, raw, hdrs
+    finally:
+        conn.close()
+
+
 def _run_rest_server() -> tuple[HTTPServer, Thread, int]:
     server = HTTPServer(("127.0.0.1", 0), RestHandler)
     port = server.server_address[1]
@@ -292,6 +308,49 @@ def test_iaf_oidc_rest_login_callback_logout_uses_rs256_jwks_path() -> None:
             status, bad_logout_redirect = _request_json("GET", f"http://127.0.0.1:{port}/auth/iaf/logout?post_logout_redirect_uri=https://evil.example/")
             assert status == 400
             assert bad_logout_redirect["detail"] == "redirect origin mismatch"
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+            runtime._service = None
+            configure_iaf_auth_runtime(transport=None, jwks=None)
+
+
+def test_iaf_oidc_rest_callback_browser_navigation_returns_html_reload_spa() -> None:
+    """Browser-document OAuth callback returns HTML so the SPA can strip iaf_login=done after actor sync."""
+    with TemporaryDirectory() as tmp:
+        _new_database_service(tmp)
+        keys = _KeyFixture()
+        captured: dict[str, Any] = {}
+
+        def transport(request: HttpRequest) -> HttpResponse:
+            if request.method == "POST":
+                token = keys.encode(_valid_claims(nonce=captured["nonce"]))
+                return HttpResponse(status_code=200, body=json.dumps({"id_token": token, "token_type": "Bearer"}).encode("utf-8"), headers={})
+            return HttpResponse(status_code=200, body=json.dumps(keys.jwks).encode("utf-8"), headers={})
+
+        configure_iaf_auth_runtime(transport=transport, jwks=keys.jwks)
+        server, thread, port = _run_rest_server()
+        try:
+            status, login = _request_json(
+                "GET",
+                f"http://127.0.0.1:{port}/auth/iaf/login?redirect_uri=http://127.0.0.1:{port}/auth/iaf/callback",
+            )
+            assert status == 200
+            captured["nonce"] = login["nonce"]
+            st, body, hdrs = _request_raw(
+                "GET",
+                f"http://127.0.0.1:{port}/auth/iaf/callback?code=auth-code&state={login['state']}",
+                {
+                    "Host": f"127.0.0.1:{port}",
+                    "Accept": "text/html,application/xhtml+xml",
+                    "Sec-Fetch-Dest": "document",
+                },
+            )
+            assert st == 200
+            assert "text/html" in (hdrs.get("content-type") or "").lower()
+            assert "location.replace" in body
+            assert "/?iaf_login=done" in body.replace("\\", "")
         finally:
             server.shutdown()
             server.server_close()

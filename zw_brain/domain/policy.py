@@ -23,7 +23,7 @@ PERMISSION_ROLES = {
     "catalog.resource_view.execute": {"r1", "r2", "r6", "r7", "r8"},
     "request.list.execute": {"r1", "r2", "r3", "r4", "r5"},
     "request.view.execute": {"r1", "r2", "r3", "r4", "r5"},
-    "approval.view.execute": {"r1", "r2", "r5"},
+    "approval.view.execute": {"r2", "r5"},
     "delivery.list.execute": {"r2", "r5", "r6", "r7", "r8"},
     "delivery.view.execute": {"r2", "r5", "r6", "r7", "r8"},
     "provider.view.execute": {"r6", "r7"},

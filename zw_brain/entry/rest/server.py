@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import json
 import mimetypes
 from collections.abc import Callable
@@ -89,6 +90,42 @@ def _default_jwks(client: IafOidcClient) -> dict[str, Any]:
 
 
 class RestHandler(BaseHTTPRequestHandler):
+    def _prefer_iaf_callback_html_document(self, qs: dict[str, list[str]]) -> bool:
+        """Browser top-level OAuth redirects send Sec-Fetch-Dest: document / text/html; APIs use format=json / application/json."""
+        fmt = str((qs.get("format") or [""])[-1]).strip().lower()
+        if fmt == "json":
+            return False
+        dest = (self.headers.get("Sec-Fetch-Dest") or "").strip().lower()
+        if dest == "document":
+            return True
+        accept_all = self.headers.get("Accept") or ""
+        parts = [p.strip() for p in accept_all.split(",") if p.strip()]
+        first_mt = parts[0].split(";")[0].strip().lower() if parts else ""
+        if first_mt == "application/json":
+            return False
+        if "text/html" in accept_all.lower():
+            return True
+        return False
+
+    def _html_iaf_login_complete_reload(self, *, spa_path: str = "/") -> None:
+        target_js = json.dumps(spa_path, ensure_ascii=False)
+        escaped_href = html.escape(spa_path, quote=True)
+        doc = (
+            "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"/>"
+            f"<meta http-equiv=\"refresh\" content=\"0;url={escaped_href}\"/>"
+            "<title>IAF IAM 登录</title></head><body>"
+            "<p>授权已完成，正在返回政务数据大脑…</p>"
+            f"<script>location.replace({target_js});</script>"
+            f"<noscript><a href=\"{escaped_href}\">点击进入应用</a></noscript>"
+            "</body></html>"
+        )
+        payload = doc.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         if parsed.path == "/auth/iaf/login":
@@ -127,7 +164,7 @@ class RestHandler(BaseHTTPRequestHandler):
             self._serve_file(WEB_ROOT / "index.html")
             return
         if parsed.path.startswith("/css/") or parsed.path.startswith("/js/"):
-            self._serve_file(WEB_ROOT / parsed.path.lstrip("/"))
+            self._serve_file(WEB_ROOT / parsed.path.lstrip("/"), enforce_web_root=True)
             return
         self._json(404, {"error": "not_found", "path": parsed.path})
 
@@ -175,6 +212,9 @@ class RestHandler(BaseHTTPRequestHandler):
                     "confirmed": True,
                 },
             )
+            if self._prefer_iaf_callback_html_document(qs):
+                self._html_iaf_login_complete_reload(spa_path="/?iaf_login=done")
+                return
             self._json(
                 200,
                 {
@@ -221,7 +261,13 @@ class RestHandler(BaseHTTPRequestHandler):
             raise IafOidcStateError("redirect path invalid")
         return urlunparse((current.scheme, current.netloc, path, "", parsed.query, parsed.fragment))
 
-    def _serve_file(self, path: Path) -> None:
+    def _serve_file(self, path: Path, *, enforce_web_root: bool = False) -> None:
+        if enforce_web_root:
+            try:
+                path.resolve().relative_to(WEB_ROOT.resolve())
+            except (ValueError, FileNotFoundError):
+                self._json(404, {"error": "not_found", "path": str(path)})
+                return
         if not path.exists() or not path.is_file():
             self._json(404, {"error": "not_found", "path": str(path)})
             return
@@ -229,6 +275,14 @@ class RestHandler(BaseHTTPRequestHandler):
         content_type, _ = mimetypes.guess_type(path.name)
         self.send_response(200)
         self.send_header("Content-Type", content_type or "application/octet-stream")
+        try:
+            _ = path.resolve().relative_to(WEB_ROOT.resolve())
+        except ValueError:
+            pass
+        else:
+            suf = path.suffix.lower()
+            if suf in {".js", ".css"} or path.name.lower() == "index.html":
+                self.send_header("Cache-Control", "no-cache")
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)

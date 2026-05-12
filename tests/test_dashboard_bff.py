@@ -68,6 +68,10 @@ def test_dashboard_bff_is_readonly_and_serves_dashboard_skill() -> None:
             assert content_type.startswith("text/html")
             assert "政务数据大脑 · 指挥大屏" in html
 
+            status, content_type, favicon_raw = request("GET", f"http://127.0.0.1:{port}/favicon.ico")
+            assert status == 204
+            assert favicon_raw == ""
+
             status, content_type, js = request("GET", f"http://127.0.0.1:{port}/src/dashboard.js")
             assert status == 200
             assert "loadDashboard" in js

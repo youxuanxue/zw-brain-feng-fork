@@ -105,9 +105,14 @@ class BrainService:
     def snapshot(self) -> dict[str, Any]:
         state = copy.deepcopy(self._snapshot)
         state["state"] = copy.deepcopy(self._ui_state)
+        _iaf_url = (_os.environ.get("ZW_BRAIN_IAF_AUTH_SERVER_URL") or "").strip()
         state["webui"] = {
             "dashboardHref": get_webui_dashboard_href(),
             "deploymentLabel": _os.environ.get("ZW_BRAIN_DEPLOYMENT_LABEL", "").strip(),
+            "legalNotice": _os.environ.get("ZW_BRAIN_WEBUI_LEGAL_NOTICE", "").strip(),
+            "identityLabel": _os.environ.get("ZW_BRAIN_WEBUI_IDENTITY_LABEL", "当前账号").strip() or "当前账号",
+            "allowRoleSwitch": (_os.environ.get("ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH", "").strip() == "1"),
+            "iafIam": {"configured": bool(_iaf_url)},
         }
         return state
 
@@ -2313,14 +2318,95 @@ class BrainService:
                             "desc": f"NL 召回字典命中（来自 dsp_catalog 真数据，{entry.get('lifecycle_status','active')}）。",
                             "kind": "recall_dictionary",
                             "score": 60,
+                            "repository": {
+                                "catalogCode": cand_id,
+                                "lifecycleStatus": entry.get("lifecycle_status", "active"),
+                                "ownerOrgId": entry.get("owner_org_id") or "",
+                            },
                         }
                     )
         else:
             if not query:
                 resources = [copy.deepcopy(item) for item in self._snapshot["discovery"]["resources"]]
             else:
+                haystack = query.lower()
                 records = store.catalog_repo.search_entries(query, tenant_id=_DEFAULT_TENANT_ID)
                 resources = [self._catalog_record_to_card_dict(record) for record in records]
+                existing_ids = {r["id"] for r in resources}
+                for item in self._snapshot["discovery"]["resources"]:
+                    text = " ".join(
+                        [
+                            item["name"],
+                            item["desc"],
+                            item["provider"],
+                            item["zone"],
+                            " ".join(item.get("fields", [])),
+                            " ".join(item.get("explain", [])),
+                        ]
+                    ).lower()
+                    if haystack not in text:
+                        continue
+                    if item["id"] in existing_ids:
+                        continue
+                    existing_ids.add(item["id"])
+                    resources.append(copy.deepcopy(item))
+                for api_res in self._snapshot.get("api_resources", []):
+                    if api_res.get("lifecycle_status") in {"draft", "revoked"}:
+                        continue
+                    summary = api_res.get("summary_json") or {}
+                    text = " ".join(
+                        [
+                            api_res.get("title", ""),
+                            api_res.get("resource_code", ""),
+                            api_res.get("owner_org_id", ""),
+                            str(summary.get("domain", "")),
+                            str(summary.get("desc", "")),
+                        ]
+                    ).lower()
+                    if haystack not in text:
+                        continue
+                    rid = api_res["resource_code"]
+                    if rid in existing_ids:
+                        continue
+                    existing_ids.add(rid)
+                    resources.append(
+                        {
+                            "id": rid,
+                            "name": api_res.get("title", rid),
+                            "provider": api_res.get("owner_org_id", ""),
+                            "zone": "API 资源",
+                            "status": api_res.get("lifecycle_status", "active"),
+                            "desc": str(summary.get("desc") or summary.get("domain") or api_res.get("title", "")),
+                            "kind": "api",
+                            "resource_kind": api_res.get("resource_kind"),
+                        }
+                    )
+                recall = self._snapshot.get("discovery", {}).get("recallDictionary", {})
+                for entry in recall.get("sample_titles", []):
+                    title = entry.get("title", "")
+                    if not title or haystack not in title.lower():
+                        continue
+                    cand_id = f"recall:{title}"
+                    if cand_id in existing_ids:
+                        continue
+                    existing_ids.add(cand_id)
+                    resources.append(
+                        {
+                            "id": cand_id,
+                            "name": title,
+                            "provider": entry.get("owner_org_id", "") or "—",
+                            "zone": "真目录召回",
+                            "status": entry.get("lifecycle_status", "active"),
+                            "desc": f"NL 召回字典命中（来自 dsp_catalog 真数据，{entry.get('lifecycle_status','active')}）。",
+                            "kind": "recall_dictionary",
+                            "score": 60,
+                            "repository": {
+                                "catalogCode": cand_id,
+                                "lifecycleStatus": entry.get("lifecycle_status", "active"),
+                                "ownerOrgId": entry.get("owner_org_id") or "",
+                            },
+                        }
+                    )
         page = max(page, 1)
         page_size = 20
         start = (page - 1) * page_size
@@ -3641,8 +3727,8 @@ class BrainService:
                     "impact": "避免绕过受控准入直接把任务甩给基层。",
                 },
                 "backflow": {
-                    "candidateObject": "法人单位基础信息模板 v1.3",
-                    "candidateFields": ["经营状态", "最近走访时间"],
+                    "candidateObject": f"{resource['name']} 回流候选",
+                    "candidateFields": [field["label"] for field in request["diffFields"][:2]],
                     "status": "待补录完成",
                     "note": "待审批、补录和汇总完成后，再决定是否纳入模板。",
                 },
@@ -3777,7 +3863,7 @@ class BrainService:
                     }
                 )
                 delivery["aiSummary"]["summary"] = "业务汇总已经闭环，当前重心转到模板治理和回流生效。"
-                delivery["aiSummary"]["nextAction"] = "请确认是否把经营状态和最近走访时间纳入模板 v1.3。"
+                delivery["aiSummary"]["nextAction"] = "请确认是否把本地泊位开放状态和最新开放时间纳入停车场信息目录回流候选。"
                 delivery["aiSummary"]["cause"] = "自动汇总结果已被人工确认，可进入供给侧治理动作。"
                 delivery["aiSummary"]["impact"] = "回流确认后，下次类似需求的基层补录字段会进一步下降。"
                 delivery["backflow"]["status"] = "待确认"
@@ -3796,12 +3882,12 @@ class BrainService:
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             task["status"] = "completed"
             task["updatedAt"] = self._now_datetime()
-            task["note"] = "高频差异字段已确认纳入法人单位基础信息模板 v1.3。"
+            task["note"] = "高频差异字段已确认纳入停车场信息共享目录回流候选。"
             task["history"].append(
                 {
                     "time": self._now_short_time(),
                     "state": "回流确认完成",
-                    "detail": "经营状态与最近走访时间已正式纳入模板 v1.3。",
+                    "detail": "本地泊位开放状态与最新开放时间已正式纳入停车场信息目录回流候选。",
                 }
             )
             task["aiSummary"]["summary"] = "这条链路已经从一次性补录沉淀成下一次可直接复用的模板能力。"
@@ -3809,7 +3895,7 @@ class BrainService:
             task["aiSummary"]["cause"] = "高频差异字段已经过一次真实业务验证，并具备明确来源与责任方。"
             task["aiSummary"]["impact"] = "下次类似需求将进一步减少基层补录工作量。"
             task["backflow"]["status"] = "已确认"
-            task["backflow"]["note"] = "经营状态、最近走访时间已纳入法人单位基础信息模板 v1.3。"
+            task["backflow"]["note"] = "本地泊位开放状态、最新开放时间已纳入停车场信息目录回流候选。"
             self._append_audit_feed("backflow.confirm", task["backflow"]["candidateObject"], "ok", actor)
             return {"task_id": task_id, "status": task["status"]}
 
@@ -4604,7 +4690,7 @@ class BrainService:
 
         if task0011:
             confirmed = task0011["backflow"]["status"] == "已确认"
-            self._set_todo_status("r6", "LEDGER-jbxx-v1.3", "已发布" if confirmed else "待发布")
+            self._set_todo_status("r6", "LEDGER-parking-v1.3", "已发布" if confirmed else "待发布")
             self._set_todo_status("r7", "ZONE-business-ledger", "已上线" if confirmed else "待更新")
             provider = self._snapshot["provider"]
             provider["overview"][0]["value"] = "v1.3" if confirmed else "v1.2 → v1.3"
@@ -4617,9 +4703,9 @@ class BrainService:
             if not provider["resources"][1].get("governanceLocked"):
                 provider["resources"][1]["status"] = "可共享" if confirmed else "待审核"
             provider["aiGovernance"]["summary"] = (
-                "法人模板 v1.3 已确认吸收高频差异字段，下一步重点转为持续监测补录热区和维护专题入口一致性。"
+                "停车场信息共享目录已确认吸收高频差异字段，下一步重点转为持续监测补录热区和维护专题入口一致性。"
                 if confirmed
-                else "建议优先发布法人模板 v1.3，并把“经营状态”“最近走访时间”纳入正式字段候选；其次更新营商环境专题目录中的默认复用入口说明。"
+                else "建议优先发布停车场信息共享目录回流候选，并把“本地泊位开放状态”“最新开放时间”纳入目录说明；其次更新城市运行专题目录中的默认复用入口说明。"
             )
             discovery = self._resource_by_id("res-jbxx-ledger")
             discovery["coverage"] = "89%" if confirmed else "82%"
@@ -4654,18 +4740,18 @@ class BrainService:
             dashboard["suggestions"]["body"] = (
                 "当前黄金链路已经闭环到模板升级，基层补录字段明显收缩。下一步重点盯住仍绕开模板发起采集的部门。"
                 if confirmed
-                else "当前黄金链路已经跑通，但仍有部门绕开法人模板发起新增采集，同时经营状态字段持续高频补录，建议优先做制度提醒和模板升级。"
+                else "当前黄金链路已经跑通，但仍有部门绕开停车场信息共享目录发起新增采集，同时泊位开放状态字段持续高频补录，建议优先做制度提醒和目录回流。"
             )
             dashboard["suggestions"]["evidence"] = [
-                "经营状态与最近走访时间已并入模板 v1.3",
+                "本地泊位开放状态与最新开放时间已并入停车场信息目录回流候选",
                 "基层补录字段数已下降到 1 / 单任务",
                 "仍有 1 条绕行类告警需要制度治理",
             ] if confirmed else [
                 "本周重复要数率已降至 12%，但仍有 1 条高风险绕行告警",
-                "经营状态字段近 7 日补录 14 次",
-                "法人模板复用后基层填报时长下降 31%",
+                "本地泊位开放状态字段近 7 日补录 14 次",
+                "停车场信息目录复用后基层填报时长下降 31%",
             ]
-            dashboard["suggestions"]["nextAction"] = "继续盯住绕行告警并复盘专题入口执行情况。" if confirmed else "先看绕行告警，再推动模板 v1.3 升级。"
+            dashboard["suggestions"]["nextAction"] = "继续盯住绕行告警并复盘专题入口执行情况。" if confirmed else "先看绕行告警，再推动停车场信息目录回流候选发布。"
 
         if package001:
             self._set_todo_status("r7", "PKG-2026-04-25-001", self._package_status_text(package001))

@@ -76,6 +76,8 @@ wait_for_health() {
         if "$PYTHON_BIN" - <<'PY' "$url" >/dev/null 2>&1
 import sys
 import urllib.request
+
+urllib.request.install_opener(urllib.request.build_opener(urllib.request.ProxyHandler({})))
 urllib.request.urlopen(sys.argv[1], timeout=1).read()
 PY
         then

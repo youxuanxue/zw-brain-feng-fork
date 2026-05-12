@@ -3,9 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>UI Spec B · 一网通办服务 — 细化稿（zw-brain）</title>
+    <title>数据共享服务 UI 规范（细化稿）</title>
     <style>
-      /* ── Design tokens (canonical for Spec B) ── */
+      /* ── Design tokens (canonical for data-sharing service UI) ──
       :root {
         --b-primary: #006be6;
         --b-primary-hover: #0056c7;
@@ -390,21 +390,21 @@
   <body>
     <div class="doc">
       <div class="banner">
-        <strong>选型结论</strong>：zw-brain 公共服务 / 办事类 WebUI 采用 <strong>Spec B · 一网通办服务</strong>。
-        本文档为可实现的设计细化（色板、字号、间距、组件状态、版式骨架、合规对照），供设计与前端对齐。
+        <strong>选型结论</strong>：zw-brain 数据共享服务 WebUI 采用本规范作为客户交付基线。
+        本文档为可实现的设计细化（色板、字号、间距、组件状态、版式骨架、合规对照），供产品、设计与前端对齐。
         对比页：<a href="gov-webui-spec-comparison.html">gov-webui-spec-comparison.html</a>
       </div>
 
-      <h1>UI Spec B · 一网通办服务（细化稿）</h1>
-      <p class="sub">版本：2026-04-29 · 适用范围：一体化政务办事大厅、事项检索、服务聚合首页（H5 / Web 同源收敛）</p>
+      <h1>数据共享服务 UI 规范（细化稿）</h1>
+      <p class="sub">版本：2026-04-29 · 适用范围：政务数据共享服务首页、资源发现、共享申请、交付回执与治理审计（H5 / Web 同源收敛）</p>
 
       <h2>1. 设计原则</h2>
       <ul class="compact">
-        <li><strong>检索优先</strong>：首屏核心动线是「搜事项 / 搜指南」，次要入口通过频道与服务图标承接。</li>
+        <li><strong>检索优先</strong>：首屏核心动线是「搜业务 / 搜数据需求」，次要入口通过办理卡片承接。</li>
         <li><strong>三色系收敛</strong>：主色服务蓝、辅色青绿（用于次级强调或分类区分）、中性灰阶；避免引入第四种色相。</li>
-        <li><strong>扁平服务图标</strong>：入口图标统一为圆形底 + 面性图形隐喻；逻辑尺寸 96×96（CSS 可按密度缩放，保持比例）。</li>
+        <li><strong>服务动作直达</strong>：入口动作围绕「找可复用数据 / 办共享申请 / 看交付回执 / 查审计证据」。</li>
         <li><strong>低干扰</strong>：禁用自动轮播首屏 banner；悬浮推广须可一键关闭；动效遵循用户系统「减少动态效果」偏好。</li>
-        <li><strong>与门户区分</strong>：本 Spec 侧重「办事」，长文政策阅读页可复用组件但倾向更宽正文栏与更强目录导航（不在本页展开）。</li>
+        <li><strong>客户语言</strong>：客户可见界面禁止出现内部决策号、环境变量、协议缩写、演示标记和后台术语。</li>
       </ul>
 
       <h2>2. 色彩 Token</h2>
@@ -644,6 +644,7 @@
       <h2>6. 禁止项与扩展流程</h2>
       <ul class="compact" data-spec-contract="forbidden">
         <li>shipped WebUI 禁止出现 <code>Spec B</code>、<code>一网通办</code>、<code>Command View</code> 等规范或 cockpit 文案。</li>
+        <li>shipped WebUI 禁止出现客户不可见内部术语：<code>D\d+</code>、<code>Actor 投影</code>、<code>Capability Policy</code>、<code>fail-closed</code>、<code>OIDC</code>、<code>OpenID Connect</code>、<code>ZW_BRAIN_</code>、<code>演示环境</code>、<code>占位</code>、<code>/auth/</code> 技术路径。</li>
         <li>禁止 Tailwind CDN、inline theme、legacy navy（<code>#12386f</code> / <code>#1d5a9f</code>）与 dark cockpit palette。</li>
         <li>页面模板禁止使用裸 <code>text-sm</code> / <code>text-xs</code> 表达业务字号。</li>
         <li>新增颜色、字号、间距、组件前，必须先登记到本规范，再同步 CSS 与 preflight 门禁。</li>

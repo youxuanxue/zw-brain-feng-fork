@@ -208,7 +208,7 @@ def test_installed_rest_and_dashboard_bff_serve_packaged_assets() -> None:
             status, content_type, html = _request("GET", f"http://127.0.0.1:{rest_port}/index.html")
             assert status == 200
             assert content_type.startswith("text/html")
-            assert "政务数据大脑 · zw-brain" in html
+            assert "<title>政务数据大脑</title>" in html
             status, _, openapi_raw = _request("GET", f"http://127.0.0.1:{rest_port}/openapi.json")
             assert status == 200
             assert "/api/skills/catalog.browse" in json.loads(openapi_raw)["paths"]

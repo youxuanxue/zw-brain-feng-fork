@@ -254,7 +254,7 @@ def test_rest_runtime_serves_main_webui_shell_and_enforces_access_denied() -> No
         try:
             status, html = request_json("GET", f"http://127.0.0.1:{port}/index.html")
             assert status == 200
-            assert "政务数据大脑 · zw-brain" in html
+            assert "<title>政务数据大脑</title>" in html
             assert "<div id=\"app\"" in html
             assert "政务客户交付态" not in html
             assert "8 个主应用页面 + 1 个独立只读大屏" not in html

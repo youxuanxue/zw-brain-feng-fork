@@ -22,7 +22,36 @@ echo "preflight: repo root = $REPO_ROOT"
 FIX_MODE=0
 [ "${1:-}" = "--fix" ] && FIX_MODE=1
 
-PYTHON_BIN="${PYTHON_BIN:-$(command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)}"
+# Python for scripts that import zw_brain (needs project deps). Override with PYTHON_BIN.
+repo_python() {
+    if [ -n "${PYTHON_BIN:-}" ]; then
+        "$PYTHON_BIN" "$@"
+        return $?
+    fi
+    if [ -x "$REPO_ROOT/.venv/bin/python" ]; then
+        "$REPO_ROOT/.venv/bin/python" "$@"
+        return $?
+    fi
+    if command -v uv >/dev/null 2>&1 && [ -f "$REPO_ROOT/pyproject.toml" ]; then
+        (cd "$REPO_ROOT" && uv run python "$@")
+        return $?
+    fi
+    local py
+    py="$(command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)"
+    "$py" "$@"
+}
+
+contract_regen_hint() {
+    if [ -n "${PYTHON_BIN:-}" ]; then
+        printf '%s' "$PYTHON_BIN scripts/export_agent_contract.py"
+    elif [ -x "$REPO_ROOT/.venv/bin/python" ]; then
+        printf '%s' "$REPO_ROOT/.venv/bin/python scripts/export_agent_contract.py"
+    elif command -v uv >/dev/null 2>&1 && [ -f "$REPO_ROOT/pyproject.toml" ]; then
+        printf '%s' "uv run python scripts/export_agent_contract.py"
+    else
+        printf '%s' "python3 scripts/export_agent_contract.py"
+    fi
+}
 
 errors=0
 section() { echo ""; echo "=== $* ==="; }
@@ -88,11 +117,11 @@ fi
 
 section "agent contract drift"
 if [ -f scripts/export_agent_contract.py ]; then
-    if "$PYTHON_BIN" scripts/export_agent_contract.py --check > /tmp/preflight-contract.log 2>&1; then
+    if repo_python scripts/export_agent_contract.py --check > /tmp/preflight-contract.log 2>&1; then
         ok "contract docs in sync with code"
     else
         cat /tmp/preflight-contract.log | sed 's/^/    /'
-        fail "contract docs have drifted (regenerate via '$PYTHON_BIN scripts/export_agent_contract.py')"
+        fail "contract docs have drifted — run $(contract_regen_hint)"
     fi
 else
     skip "scripts/export_agent_contract.py not present (enable for contract-bearing projects)"
@@ -100,7 +129,7 @@ fi
 
 section "user story / test alignment"
 if [ -f .testing/user-stories/verify_quality.py ]; then
-    if "$PYTHON_BIN" .testing/user-stories/verify_quality.py > /tmp/preflight-stories.log 2>&1; then
+    if repo_python .testing/user-stories/verify_quality.py > /tmp/preflight-stories.log 2>&1; then
         ok "stories aligned with tests"
     else
         cat /tmp/preflight-stories.log | sed 's/^/    /'
@@ -139,7 +168,7 @@ fi
 section "approved-doc invariants (R1-R4 universal + R5 main/master only)"
 if [ -d docs/approved ]; then
     if [ -f scripts/check_approved_docs.py ]; then
-        if "$PYTHON_BIN" scripts/check_approved_docs.py 2> /tmp/preflight-approved.log; then
+        if repo_python scripts/check_approved_docs.py 2> /tmp/preflight-approved.log; then
             ok "R1-R4: all approved-doc frontmatter invariants hold"
         else
             cat /tmp/preflight-approved.log | sed 's/^/    /'

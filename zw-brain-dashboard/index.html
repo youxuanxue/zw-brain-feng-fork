@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>政务数据大脑 · 指挥大屏</title>
     <meta name="description" content="zw-brain read-only dashboard" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23006be6'/%3E%3Cpath d='M19 18h26v6L29 42h17v6H19v-6l16-18H19z' fill='white'/%3E%3C/svg%3E" />
     <style>
       :root {
         --b-primary: #006be6;
@@ -259,8 +260,13 @@
       .next-action,
       .owner {
         margin-top: 12px;
-        font-size: 14px;
-        color: var(--b-primary);
+        font-size: 13px;
+        color: var(--b-muted);
+      }
+      .hint-label {
+        font-weight: 700;
+        color: var(--b-secondary);
+        margin-right: 6px;
       }
       .snapshot-banner {
         margin-top: 16px;
@@ -311,7 +317,7 @@
           <span class="dash-mark" aria-hidden="true"></span>
           <div>
             <strong>政务数据大脑 · 指挥大屏</strong>
-            <span>只读态势 · 与办事主应用故障隔离（D15）</span>
+            <span>只读态势 · 与办事系统独立运行</span>
           </div>
         </div>
         <div class="readonly-badge" role="status">运行态势 · 只读</div>
