@@ -255,6 +255,9 @@ def test_rest_runtime_serves_main_webui_shell_and_enforces_access_denied() -> No
             status, html = request_json("GET", f"http://127.0.0.1:{port}/index.html")
             assert status == 200
             assert "<title>政务数据大脑</title>" in html
+            assert 'class="gov-logo-mark"' in html
+            assert "<svg" in html and "zwLogoGrad" in html
+            assert "/assets/zw-brain-mark.svg" in html
             assert "<div id=\"app\"" in html
             assert "政务客户交付态" not in html
             assert "8 个主应用页面 + 1 个独立只读大屏" not in html
@@ -266,6 +269,39 @@ def test_rest_runtime_serves_main_webui_shell_and_enforces_access_denied() -> No
             )
             assert status == 403
             assert denied["error"] == "access_denied"
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+            runtime._service = None
+
+
+def test_rest_runtime_serves_product_mark_svg() -> None:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+        runtime._service = None
+        ensure_runtime_schema()
+        engine = create_engine(f"sqlite:///{db_path}", future=True)
+        Base.metadata.create_all(bind=engine)
+
+        from http.server import HTTPServer
+        from threading import Thread
+
+        server = HTTPServer(("127.0.0.1", 0), RestHandler)
+        port = server.server_address[1]
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            opener = build_opener(ProxyHandler({}))
+            req = Request(f"http://127.0.0.1:{port}/assets/zw-brain-mark.svg", method="GET")
+            with opener.open(req) as resp:
+                assert resp.status == 200
+                assert "image/svg+xml" in resp.headers.get("Content-Type", "")
+                body = resp.read().decode("utf-8")
+            assert "<svg" in body
+            assert "zwLogoGrad" in body
+            assert "#006be6" in body
         finally:
             server.shutdown()
             server.server_close()

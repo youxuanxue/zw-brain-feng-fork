@@ -57,6 +57,15 @@ class DashboardBffHandler(BaseHTTPRequestHandler):
         if parsed.path.startswith("/src/"):
             self._serve_file(DASHBOARD_ROOT / parsed.path.lstrip("/"))
             return
+        if parsed.path.startswith("/assets/"):
+            asset_path = (DASHBOARD_ROOT / parsed.path.lstrip("/")).resolve()
+            try:
+                asset_path.relative_to(DASHBOARD_ROOT.resolve())
+            except ValueError:
+                self._respond(404, {"error": "not_found", "path": parsed.path})
+                return
+            self._serve_file(asset_path)
+            return
         self._respond(404, {"error": "not_found", "path": parsed.path})
 
     def _serve_file(self, path: Path) -> None:

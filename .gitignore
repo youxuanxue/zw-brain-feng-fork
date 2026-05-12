@@ -19,22 +19,41 @@ __pycache__/
 *.pyc
 .venv/
 .ruff_cache/
-
-# ── Local runtime state ──────────────────────────────────────
-.data/
-.legacy_cache/
+*.egg-info/
+build/
+.mypy_cache/
 dist/
 
-# ── Claude local session state ───────────────────────────────
+# ── Test / coverage artifacts ─────────────────────────────────
+.coverage
+.coverage.*
+coverage/
+htmlcov/
+
+# ── Secrets / local env overrides ─────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Node (e.g. zw-brain-dashboard tooling) ─────────────────────
+node_modules/
+
+# ── Local runtime state ────────────────────────────────────────
+.data/
+.legacy_cache/
+
+# ── Claude local session state ─────────────────────────────────
 .claude/
 
-# ── 本地工作区目录（每人不同，不入库）────────────────────────
+# ── Cursor local secrets (示例见 dev-rules templates) ───────────
+.cursor/cloud-agent.env
+
+# ── 本地 PR / review 草稿（含 markdown / JSON；不入库）──────────
+.reviews/
+
+# ── 本地工作区目录（每人不同，不入库）──────────────────────────
 hub/
 
-# ── 历史素材（本地保留，不随仓库分发）────────────────────────
+# ── 历史素材（本地保留，不随仓库分发）──────────────────────────
 # old/：旧平台白皮书、会议素材、截图等；integrated-bigdata-platform 等于 2026-04-18 自 docs/ 迁入。
 old/
-
-.xuejiao-twin*
-
-docs/bugs/*
