@@ -173,10 +173,11 @@ class IafOidcClient:
     def __init__(self, config: IafIamConfig | None = None) -> None:
         self.config = config or IafIamConfig.from_env()
 
-    def authorization_request(self, *, redirect_uri: str, login_state: IafOidcLoginState, scope: str = "openid profile email") -> AuthorizationRequest:
+    def authorization_request(self, *, redirect_uri: str, login_state: IafOidcLoginState, scope: str = "openid") -> AuthorizationRequest:
         params = {
             "client_id": self.config.client_id,
             "redirect_uri": redirect_uri,
+            "response_mode": "query",
             "response_type": "code",
             "scope": scope,
             "state": login_state.state,
@@ -203,8 +204,8 @@ class IafOidcClient:
         request = HttpRequest(
             method="POST",
             url=self.config.endpoints.token_endpoint,
-            headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"},
-            body=urlencode(form).encode("utf-8"),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            body=urlencode(form).encode("utf-8")
         )
         response = transport(request)
         if response.status_code < 200 or response.status_code >= 300:

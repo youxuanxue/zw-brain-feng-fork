@@ -5,7 +5,6 @@ import http.client
 import json
 import os
 from datetime import UTC, datetime, timedelta
-from http.server import HTTPServer
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Thread
@@ -19,7 +18,7 @@ from jwt.algorithms import RSAAlgorithm
 
 import zw_brain.command.runtime as runtime
 from zw_brain.command.brain import BrainService
-from zw_brain.entry.rest.server import RestHandler, configure_iaf_auth_runtime
+from zw_brain.entry.rest.server import RestHandler, ThreadingRestServer, configure_iaf_auth_runtime
 from zw_brain.shared import audit as audit_bus
 from zw_brain.shared.database_store import DatabaseStore
 from zw_brain.shared.iaf_oidc import HttpRequest, HttpResponse
@@ -90,10 +89,16 @@ def _assert_no_secrets(payload: object) -> None:
         assert forbidden not in text
 
 
-def _request_json(method: str, url: str, body: dict[str, object] | None = None) -> tuple[int, dict[str, Any]]:
+def _request(
+    method: str,
+    url: str,
+    body: dict[str, object] | None = None,
+    *,
+    accept: str = "application/json",
+) -> tuple[int, dict[str, str], str]:
     parsed = urlparse(url)
     payload = json.dumps(body, ensure_ascii=False).encode("utf-8") if body is not None else None
-    headers = {"Accept": "application/json", "Host": parsed.netloc}
+    headers = {"Accept": accept, "Host": parsed.netloc}
     if payload is not None:
         headers["Content-Type"] = "application/json"
     conn = http.client.HTTPConnection(parsed.hostname or "127.0.0.1", parsed.port or 80, timeout=5)
@@ -104,7 +109,7 @@ def _request_json(method: str, url: str, body: dict[str, object] | None = None) 
         conn.request(method, path, body=payload, headers=headers)
         response = conn.getresponse()
         raw = response.read().decode("utf-8")
-        return response.status, json.loads(raw or "{}")
+        return response.status, {key.lower(): value for key, value in response.getheaders()}, raw
     finally:
         conn.close()
 
@@ -125,8 +130,13 @@ def _request_raw(method: str, url: str, headers: dict[str, str]) -> tuple[int, s
         conn.close()
 
 
-def _run_rest_server() -> tuple[HTTPServer, Thread, int]:
-    server = HTTPServer(("127.0.0.1", 0), RestHandler)
+def _request_json(method: str, url: str, body: dict[str, object] | None = None) -> tuple[int, dict[str, Any]]:
+    status, _headers, raw = _request(method, url, body)
+    return status, json.loads(raw or "{}")
+
+
+def _run_rest_server() -> tuple[ThreadingRestServer, Thread, int]:
+    server = ThreadingRestServer(("127.0.0.1", 0), RestHandler)
     port = server.server_address[1]
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -276,15 +286,28 @@ def test_iaf_oidc_rest_login_callback_logout_uses_rs256_jwks_path() -> None:
         configure_iaf_auth_runtime(transport=transport, jwks=keys.jwks)
         server, thread, port = _run_rest_server()
         try:
-            status, login = _request_json("GET", f"http://127.0.0.1:{port}/auth/iaf/login?redirect_uri=http://127.0.0.1:{port}/auth/iaf/callback")
-            assert status == 200
-            auth_params = parse_qs(urlparse(login["authorization_url"]).query)
+            login_url = f"http://127.0.0.1:{port}/auth/iaf/login?redirect_uri=http://127.0.0.1:{port}/auth/iaf/callback"
+            status, headers, body = _request("GET", login_url, accept="text/html")
+            assert status == 302
+            assert body == ""
+            auth_params = parse_qs(urlparse(headers["location"]).query)
             assert auth_params["client_id"] == ["zw-brain"]
-            assert auth_params["state"] == [login["state"]]
-            assert auth_params["nonce"] == [login["nonce"]]
-            captured["nonce"] = login["nonce"]
+            assert auth_params["redirect_uri"] == [f"http://127.0.0.1:{port}/auth/iaf/callback"]
+            assert auth_params["response_mode"] == ["query"]
+            assert auth_params["response_type"] == ["code"]
+            assert auth_params["scope"] == ["openid"]
+            login_state = auth_params["state"][0]
+            captured["nonce"] = auth_params["nonce"][0]
 
-            status, callback = _request_json("GET", f"http://127.0.0.1:{port}/auth/iaf/callback?code=auth-code&state={login['state']}")
+            status, login = _request_json("GET", f"{login_url}&format=json")
+            assert status == 200
+            json_auth_params = parse_qs(urlparse(login["authorization_url"]).query)
+            assert json_auth_params["response_mode"] == ["query"]
+            assert json_auth_params["scope"] == ["openid"]
+            assert json_auth_params["state"] == [login["state"]]
+            assert json_auth_params["nonce"] == [login["nonce"]]
+
+            status, callback = _request_json("GET", f"http://127.0.0.1:{port}/auth/iaf/callback?code=auth-code&state={login_state}")
             assert status == 200
             assert callback["authenticated"] is True
             assert callback["actor_snapshot"]["subject"] == "iaf-bound-user"
@@ -391,7 +414,7 @@ def test_iaf_oidc_rest_callback_fails_closed_for_invalid_rs256_boundaries(token_
         configure_iaf_auth_runtime(transport=transport, jwks=good_keys.jwks)
         server, thread, port = _run_rest_server()
         try:
-            status, login = _request_json("GET", f"http://127.0.0.1:{port}/auth/iaf/login")
+            status, login = _request_json("GET", f"http://127.0.0.1:{port}/auth/iaf/login?format=json")
             assert status == 200
             captured["nonce"] = login["nonce"]
 

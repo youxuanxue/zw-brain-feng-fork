@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from threading import Thread
 from urllib.error import HTTPError
 from urllib.request import ProxyHandler, Request, build_opener
 
@@ -11,7 +13,7 @@ from sqlalchemy import create_engine
 
 import zw_brain.command.runtime as runtime
 from zw_brain.domain.models import Base
-from zw_brain.entry.rest.server import RestHandler
+from zw_brain.entry.rest.server import RestHandler, ThreadingRestServer
 from zw_brain.shared.migrate import ensure_runtime_schema
 
 
@@ -35,6 +37,35 @@ def request_json(method: str, url: str, body: dict | None = None) -> tuple[int, 
         return exc.code, payload
 
 
+def test_rest_runtime_health_survives_slow_client_connection() -> None:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+        runtime._service = None
+        ensure_runtime_schema()
+        engine = create_engine(f"sqlite:///{db_path}", future=True)
+        Base.metadata.create_all(bind=engine)
+
+        server = ThreadingRestServer(("127.0.0.1", 0), RestHandler)
+        port = server.server_address[1]
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        slow_socket = socket.create_connection(("127.0.0.1", port), timeout=2)
+        try:
+            slow_socket.sendall(b"GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\n")
+
+            status, health = request_json("GET", f"http://127.0.0.1:{port}/health")
+
+            assert status == 200
+            assert health == {"status": "ok", "service": "zw-brain-rest"}
+        finally:
+            slow_socket.close()
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+            runtime._service = None
+
+
 def test_rest_runtime_exposes_openapi_and_capability_endpoints() -> None:
     with TemporaryDirectory() as tmp:
         db_path = Path(tmp) / "zw_brain.db"
@@ -44,10 +75,7 @@ def test_rest_runtime_exposes_openapi_and_capability_endpoints() -> None:
         engine = create_engine(f"sqlite:///{db_path}", future=True)
         Base.metadata.create_all(bind=engine)
 
-        from http.server import HTTPServer
-        from threading import Thread
-
-        server = HTTPServer(("127.0.0.1", 0), RestHandler)
+        server = ThreadingRestServer(("127.0.0.1", 0), RestHandler)
         port = server.server_address[1]
         thread = Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -122,10 +150,7 @@ def test_rest_runtime_webui_canonical_catalog_metadata_actions_execute() -> None
         engine = create_engine(f"sqlite:///{db_path}", future=True)
         Base.metadata.create_all(bind=engine)
 
-        from http.server import HTTPServer
-        from threading import Thread
-
-        server = HTTPServer(("127.0.0.1", 0), RestHandler)
+        server = ThreadingRestServer(("127.0.0.1", 0), RestHandler)
         port = server.server_address[1]
         thread = Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -183,10 +208,7 @@ def test_rest_runtime_returns_422_for_missing_domain_entity() -> None:
         engine = create_engine(f"sqlite:///{db_path}", future=True)
         Base.metadata.create_all(bind=engine)
 
-        from http.server import HTTPServer
-        from threading import Thread
-
-        server = HTTPServer(("127.0.0.1", 0), RestHandler)
+        server = ThreadingRestServer(("127.0.0.1", 0), RestHandler)
         port = server.server_address[1]
         thread = Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -214,10 +236,7 @@ def test_rest_runtime_get_skill_returns_422_for_missing_domain_entity() -> None:
         engine = create_engine(f"sqlite:///{db_path}", future=True)
         Base.metadata.create_all(bind=engine)
 
-        from http.server import HTTPServer
-        from threading import Thread
-
-        server = HTTPServer(("127.0.0.1", 0), RestHandler)
+        server = ThreadingRestServer(("127.0.0.1", 0), RestHandler)
         port = server.server_address[1]
         thread = Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -244,10 +263,7 @@ def test_rest_runtime_serves_main_webui_shell_and_enforces_access_denied() -> No
         engine = create_engine(f"sqlite:///{db_path}", future=True)
         Base.metadata.create_all(bind=engine)
 
-        from http.server import HTTPServer
-        from threading import Thread
-
-        server = HTTPServer(("127.0.0.1", 0), RestHandler)
+        server = ThreadingRestServer(("127.0.0.1", 0), RestHandler)
         port = server.server_address[1]
         thread = Thread(target=server.serve_forever, daemon=True)
         thread.start()

@@ -3,9 +3,12 @@ from __future__ import annotations
 import html
 import json
 import mimetypes
+import os
+import ssl
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from socketserver import ThreadingMixIn
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
@@ -64,10 +67,20 @@ def configure_iaf_auth_runtime(
         _IAF_STATE_STORE = state_store
 
 
+def _iaf_ssl_context() -> ssl.SSLContext:
+    if os.environ.get("ZW_BRAIN_IAF_VERIFY_SSL", "true").lower() == "false":
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+    cafile = os.environ.get("ZW_BRAIN_IAF_CA_FILE") or None
+    return ssl.create_default_context(cafile=cafile)
+
+
 def _default_transport(request: HttpRequest) -> HttpResponse:
     url_request = UrlRequest(request.url, data=request.body, headers=request.headers, method=request.method)
     try:
-        with urlopen(url_request, timeout=5) as response:
+        with urlopen(url_request, timeout=5, context=_iaf_ssl_context()) as response:
             return HttpResponse(status_code=response.status, body=response.read(), headers=dict(response.headers.items()))
     except HTTPError as exc:
         return HttpResponse(status_code=exc.code, body=exc.read(), headers=dict(exc.headers.items()))
@@ -89,6 +102,11 @@ def _default_jwks(client: IafOidcClient) -> dict[str, Any]:
     return payload
 
 
+class ThreadingRestServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
+    block_on_close = False
+
+
 class RestHandler(BaseHTTPRequestHandler):
     def _prefer_iaf_callback_html_document(self, qs: dict[str, list[str]]) -> bool:
         """Browser top-level OAuth redirects send Sec-Fetch-Dest: document / text/html; APIs use format=json / application/json."""
@@ -106,6 +124,16 @@ class RestHandler(BaseHTTPRequestHandler):
         if "text/html" in accept_all.lower():
             return True
         return False
+
+    def _iaf_login_returns_json_envelope(self, qs: dict[str, list[str]]) -> bool:
+        """SPA/API expect JSON (authorization_url…); top-level browser navigations use redirects."""
+        fmt = str((qs.get("format") or [""])[-1]).strip().lower()
+        if fmt == "json":
+            return True
+        accept_all = self.headers.get("Accept") or ""
+        parts = [p.strip() for p in accept_all.split(",") if p.strip()]
+        first_mt = parts[0].split(";")[0].strip().lower() if parts else ""
+        return first_mt == "application/json"
 
     def _html_iaf_login_complete_reload(self, *, spa_path: str = "/") -> None:
         target_js = json.dumps(spa_path, ensure_ascii=False)
@@ -187,7 +215,10 @@ class RestHandler(BaseHTTPRequestHandler):
             redirect_uri = self._same_origin_url((qs.get("redirect_uri") or [""])[-1], default_path="/auth/iaf/callback")
             login_state = _IAF_STATE_STORE.issue(redirect_uri=redirect_uri)
             auth = IafOidcClient().authorization_request(redirect_uri=redirect_uri, login_state=login_state)
-            self._json(200, {"authorization_url": auth.url, "state": auth.state, "nonce": auth.nonce})
+            if self._iaf_login_returns_json_envelope(qs):
+                self._json(200, {"authorization_url": auth.url, "state": auth.state, "nonce": auth.nonce})
+                return
+            self._redirect(auth.url)
         except Exception as exc:  # noqa: BLE001
             self._handle_error(exc)
 
@@ -334,6 +365,12 @@ class RestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(payload)
 
+    def _redirect(self, location: str) -> None:
+        self.send_response(302)
+        self.send_header("Location", location)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def _empty(self, status: int, content_type: str) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
@@ -345,7 +382,7 @@ class RestHandler(BaseHTTPRequestHandler):
 
 
 def main(host: str | None = None, port: int | None = None) -> None:
-    HTTPServer((host or get_rest_host(), port or get_rest_port()), RestHandler).serve_forever()
+    ThreadingRestServer((host or get_rest_host(), port or get_rest_port()), RestHandler).serve_forever()
 
 
 if __name__ == "__main__":

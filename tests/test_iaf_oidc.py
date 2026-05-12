@@ -123,10 +123,11 @@ def test_authorization_request_contains_state_nonce_and_client() -> None:
     assert request.url.startswith(config.endpoints.authorization_endpoint)
     assert params["client_id"] == ["zw-brain"]
     assert params["response_type"] == ["code"]
+    assert params["response_mode"] == ["query"]
     assert params["redirect_uri"] == ["https://brain.example/callback"]
     assert params["state"] == [state.state]
     assert params["nonce"] == [state.nonce]
-    assert params["scope"] == ["openid profile email"]
+    assert params["scope"] == ["openid"]
 
 
 def test_token_exchange_uses_injected_transport_and_keeps_secret_out_of_result(monkeypatch: pytest.MonkeyPatch) -> None:

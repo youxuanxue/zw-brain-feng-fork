@@ -349,7 +349,7 @@ def test_rest_main_reads_host_and_port_from_env(monkeypatch) -> None:
 
     from zw_brain.entry.rest import server
 
-    monkeypatch.setattr(server, "HTTPServer", FakeServer)
+    monkeypatch.setattr(server, "ThreadingRestServer", FakeServer)
     server.main()
 
     assert captured["address"] == ("0.0.0.0", 18800)

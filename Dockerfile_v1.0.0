@@ -1,0 +1,9 @@
+# 开发辅助镜像：在已有 1.0.0 基础镜像上直接覆盖当前源码，跳过完整构建流程。
+# 仅用于内网快速验证，不用于生产部署（CI 使用根目录 Dockerfile）。
+# 前提：docker.harbor.com:8086 内网可达且 zw-brain:1.0.0 已推送。
+FROM docker.harbor.com:8086/library/zw-brain:1.0.0
+
+WORKDIR /src
+ENV PYTHONPATH=/src
+
+COPY . .
