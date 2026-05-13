@@ -232,6 +232,24 @@ class CatalogRepository:
                 ).scalars()
             )
 
+    def rebind_catalog_code(self, legacy_catalog_code: str, catalog_code: str, *, tenant_id: str = "sd-default") -> int:
+        if legacy_catalog_code == catalog_code:
+            return 0
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            records = list(
+                session.execute(
+                    select(CatalogItemRecord).where(
+                        CatalogItemRecord.tenant_id == tenant_id,
+                        CatalogItemRecord.catalog_code == legacy_catalog_code,
+                    )
+                ).scalars()
+            )
+            for record in records:
+                record.catalog_code = catalog_code
+            session.commit()
+            return len(records)
+
     def upsert_item(self, item: dict[str, Any], *, tenant_id: str = "sd-default") -> CatalogItemRecord:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:

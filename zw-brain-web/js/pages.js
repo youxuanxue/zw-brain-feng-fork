@@ -225,6 +225,28 @@ function renderFieldState(label, value, state, note) {
     </div>`;
 }
 
+function renderFieldBindingEvidence(item) {
+  const summary = item.fieldBindingSummary;
+  const bindings = item.fieldBindings || [];
+  if (!summary && !bindings.length) return '';
+  const diagnosis = summary ? summary.diagnosis || 'attention_required' : 'attention_required';
+  const rows = bindings.length ? bindings.map(binding => {
+    const replay = (binding.replay && binding.replay.steps) || [];
+    const sourceColumn = binding.explain && binding.explain.source_column ? binding.explain.source_column : '—';
+    return `
+      <div class="gov-list-row">
+        <div>
+          <div class="row-title">${escapeHtml(binding.catalog_item_code || binding.mapping_code)} → ${escapeHtml(sourceColumn)}</div>
+          <div class="row-meta mt-2">${escapeHtml(binding.mapping_code)} · ${escapeHtml(binding.evidence_ref || binding.source_ref || '无证据编号')} · 置信度 ${escapeHtml(binding.confidence_level || '—')}</div>
+          <div class="mt-2 text-body-sm text-zw-mute leading-7">解释：${escapeHtml((binding.explain && binding.explain.summary) || '已建立目录项到资源字段的绑定。')}</div>
+          <div class="mt-2 text-body-sm text-zw-mute leading-7">回放：${replay.map(step => `${step.step}:${step.ref || step.status}`).map(escapeHtml).join(' → ')}</div>
+        </div>
+        ${statusPill(binding.diagnosis && binding.diagnosis.ok ? 'ok' : 'warning')}
+      </div>`;
+  }).join('') : '<div class="text-body text-zw-mute py-4">当前目录还没有可回放的字段绑定记录。</div>';
+  return panel('字段绑定解释', `诊断：${diagnosis} · 活跃 ${summary ? summary.active : 0} / 共 ${summary ? summary.total : bindings.length} 条`, `<div class="gov-list">${rows}</div>`);
+}
+
 function actionNotice(message) {
   return `<span class="action-note">提示：${escapeHtml(message)}</span>`;
 }
@@ -1008,6 +1030,9 @@ PAGES.resourceDetail = function (id) {
         </div>
       `)}
     </div>
+    <div class="mt-5">
+      ${renderFieldBindingEvidence(item)}
+    </div>
   `;
   return shell('p2', main);
 };
@@ -1283,7 +1308,7 @@ PAGES.deliveryTaskDetail = function (id) {
   const ai = task.aiSummary;
   const statusLabel = deliveryStatusLabel(task, request);
   const backflowKey = backflowStatusKey(task.backflow.status);
-  const requestCompleted = request ? request.status === 'completed' : task.status === 'completed';
+  const requestCompleted = request ? request.status === 'completed' : task.status === 'completed' || task.summaryConfirmed === true;
   const canConfirmBackflow = requestCompleted && task.receiptStatus === 'reconciled' && backflowKey !== 'confirmed';
   const main = `
     ${crumbs([{ label: '交付交换与回流', href: '#/p4-delivery-exchange' }, { label: task.id }])}

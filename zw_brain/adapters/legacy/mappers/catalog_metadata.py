@@ -33,6 +33,7 @@ from zw_brain.adapters.legacy.parser import MysqldumpParser
 from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT, legacy_system_for
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
+from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 
@@ -89,6 +90,7 @@ class CatalogMetadataMapper:
         self.resource_repo = ResourceApiRepository()
         self.metadata_repo = MetadataEvidenceRepository()
         self.adapter_repo = ExternalAdapterRepository()
+        self.legacy_mapping_repo = LegacyObjectMappingRepository()
 
     def import_dump(self, dump_path: Path) -> ImportStats:
         # Schema is encoded in the dump filename: dump-<schema>-<ts>.sql
@@ -136,6 +138,26 @@ class CatalogMetadataMapper:
     # per-table handlers
     # ------------------------------------------------------------------
 
+    def _catalog_code_for(self, legacy_catalog_ref: Any, legacy_system: str) -> str | None:
+        if legacy_catalog_ref is None or legacy_catalog_ref == "":
+            return None
+        text = str(legacy_catalog_ref)
+        return self.legacy_mapping_repo.resolve_canonical_ref(
+            legacy_system=legacy_system,
+            legacy_object_type="data_catalog",
+            legacy_object_ref=text,
+            canonical_type="catalog_entry",
+            tenant_id=self.tenant_id,
+        ) or text
+
+    def _rebind_catalog_code(self, legacy_catalog_ref: Any, catalog_code: str) -> None:
+        if legacy_catalog_ref is None or legacy_catalog_ref == "":
+            return
+        legacy_catalog_code = str(legacy_catalog_ref)
+        self.catalog_repo.rebind_catalog_code(legacy_catalog_code, catalog_code, tenant_id=self.tenant_id)
+        self.resource_repo.rebind_catalog_code(legacy_catalog_code, catalog_code, tenant_id=self.tenant_id)
+        self.metadata_repo.rebind_catalog_code(legacy_catalog_code, catalog_code, tenant_id=self.tenant_id)
+
     def _map_data_catalog(self, row: dict[str, Any], legacy_system: str) -> None:
         cata_id = row["cata_id"]
         cata_code = row.get("cata_code") or cata_id
@@ -182,18 +204,16 @@ class CatalogMetadataMapper:
             },
             tenant_id=self.tenant_id,
         )
+        self._rebind_catalog_code(cata_id, catalog_code)
 
     def _map_data_catalog_column(self, row: dict[str, Any], legacy_system: str) -> None:
         cata_id = row["cata_id"]
         column_id = row["column_id"]
-        # CatalogItemRecord.catalog_code expects the new catalog_code (== old cata_code).
-        # We don't have cata_code here, so we use cata_id as the code, matching the
-        # convention chosen in _map_data_catalog (which falls back to cata_id when
-        # cata_code is empty). Mappers downstream can re-bind via legacy_object_mapping.
+        catalog_code = self._catalog_code_for(cata_id, legacy_system) or str(cata_id)
         self.catalog_repo.upsert_item(
             {
                 "item_code": column_id,
-                "catalog_code": cata_id,
+                "catalog_code": catalog_code,
                 "title": row.get("name_cn") or column_id,
                 "item_kind": "field",
                 "display_order": coerce_int(row.get("order_id"), 0),
@@ -226,6 +246,7 @@ class CatalogMetadataMapper:
         resource_code = str(row.get("res_code") or res_id)
         lifecycle = RESOURCE_STATUS_TO_LIFECYCLE.get(coerce_int(row.get("status")), "draft")
         resource_kind = _normalize_resource_kind(row.get("res_type"))
+        catalog_code = self._catalog_code_for(row.get("cata_id"), legacy_system)
         self.resource_repo.upsert_asset(
             {
                 "resource_code": resource_code,
@@ -239,7 +260,7 @@ class CatalogMetadataMapper:
                     "owner_org_name": row.get("owner_org_name"),
                 },
                 "region_code": row.get("region_code"),
-                "catalog_code": row.get("cata_id"),
+                "catalog_code": catalog_code,
                 "access_policy_json": {
                     "share_type": row.get("share_type"),
                     "share_condition": row.get("share_condition"),
@@ -306,11 +327,12 @@ class CatalogMetadataMapper:
         catalog_item_code = str(_first(row, "catalog_item_id", "item_id", "column_id"))
         resource_code = str(_first(row, "resource_id", "res_id", "rc_resource_id"))
         binding_code = str(_first(row, "binding_id", "table_id", default=resource_code))
+        catalog_code = self._catalog_code_for(_first(row, "catalog_id", "cata_id"), legacy_system) or "unknown"
         source_column = _first(row, "table_column_id", "column_id", "field_name", "column_name")
         self.metadata_repo.upsert_schema_mapping(
             {
                 "mapping_code": str(_first(row, "mapping_code", "id", default=f"{catalog_item_code}:{resource_code}:{binding_code}")),
-                "catalog_code": str(_first(row, "catalog_id", "cata_id", default="unknown")),
+                "catalog_code": catalog_code,
                 "catalog_item_code": catalog_item_code,
                 "resource_code": resource_code,
                 "binding_code": binding_code,
@@ -402,6 +424,7 @@ class CatalogMetadataMapper:
         resource_code = resource_id
         lifecycle = RESOURCE_STATUS_TO_LIFECYCLE.get(coerce_int(row.get("status")), "draft")
         resource_kind = _normalize_resource_kind(row.get("res_type"))
+        catalog_code = self._catalog_code_for(row.get("cata_id"), legacy_system)
         self.resource_repo.upsert_asset(
             {
                 "resource_code": resource_code,
@@ -414,7 +437,7 @@ class CatalogMetadataMapper:
                     "org_name": row.get("org_name"),
                 },
                 "region_code": row.get("region_code"),
-                "catalog_code": row.get("cata_id"),
+                "catalog_code": catalog_code,
                 "access_policy_json": {
                     "share_type": row.get("share_type"),
                     "share_condition": row.get("share_condition"),

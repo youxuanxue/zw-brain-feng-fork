@@ -957,28 +957,274 @@ def test_catalog_metadata_capabilities_write_sanitized_evidence_with_database() 
         assert schema_projection["schema_json"] == {"columns": ["credit_code"]}
         assert schema_projection["source_ref"] == "dsp-metadata3:gather:gather-1"
         assert schema_projection["captured_at"]
-        catalog_item_projection = service.invoke_skill("metadata.catalog_item.query", {"resource_code": "res-legal-person", "role": "r6"})["items"][0]
+        catalog_item_result = service.invoke_skill("metadata.catalog_item.query", {"resource_code": "res-legal-person", "role": "r6"})
+        assert catalog_item_result["summary"]["diagnosis"] == "ok"
+        catalog_item_projection = catalog_item_result["items"][0]
         assert catalog_item_projection["source_schema_ref"] == {"table": "t_legal_person", "column": "credit_code"}
         assert catalog_item_projection["source_ref"] == "schema-res-1-v1"
         assert catalog_item_projection["generated_at"]
+        assert catalog_item_projection["explain"]["source_column"] == "credit_code"
+        assert [step["step"] for step in catalog_item_projection["replay"]["steps"]] == ["catalog_item", "resource_binding", "source_field", "evidence"]
+        assert catalog_item_projection["diagnosis"] == {"ok": True, "stage": "ready", "reason": None, "issues": []}
         gather_projection = service.invoke_skill("metadata.gather.evidence.query", {"resource_code": "res-legal-person", "role": "r6"})["items"][0]
         assert gather_projection["source_ref"] == "dsp-metadata3:meta_gather_task:gather-1"
         assert gather_projection["generated_at"]
         assert gather_projection["projection_only"] is True
+        assert gather_projection["evidence"] == {"source_ref": "dsp-metadata3:meta_gather_task:gather-1", "generated_at": gather_projection["generated_at"], "projection_only": True}
         lineage_projection = service.invoke_skill("metadata.lineage.query", {"resource_code": "res-legal-person", "role": "r8"})
         assert lineage_projection["total"] == 1
         assert lineage_projection["items"][0]["source_ref"] == "dsp-metadata3:lineage:lineage-1"
         assert lineage_projection["items"][0]["generated_at"]
+        assert lineage_projection["items"][0]["projection_only"] is True
+        assert lineage_projection["items"][0]["evidence"] == {"source_ref": "dsp-metadata3:lineage:lineage-1", "generated_at": lineage_projection["items"][0]["generated_at"], "projection_only": True}
         quality_projection = service.invoke_skill("ops.catalog.quality.query", {"target_ref": "credit_code", "role": "r8"})["items"][0]
         assert quality_projection["evidence_json"] == {"missing": 0}
         assert quality_projection["source_ref"] == "dsp-monitor:quality:quality-1"
         assert quality_projection["generated_at"]
+        assert quality_projection["projection_only"] is True
+        assert quality_projection["evidence"] == {"source_ref": "dsp-monitor:quality:quality-1", "generated_at": quality_projection["generated_at"], "projection_only": True}
         statistics = service.invoke_skill("ops.catalog.statistics.query", {"role": "r8"})["summary"]
         assert statistics["schemaMappingCount"] == 1
         assert statistics["qualityEvidenceCount"] == 1
         assert statistics["source_ref"] == "canonical_projection"
         assert statistics["generated_at"]
         assert statistics["projection_only"] is True
+        assert statistics["evidence"] == {"source_ref": "canonical_projection", "generated_at": statistics["generated_at"], "projection_only": True}
+
+
+
+def test_projection_updates_do_not_drive_business_lifecycle_state() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        service.invoke_skill(
+            "catalog.entry.create_draft",
+            {"catalog_code": "cat-projection-only", "title": "投影只读目录", "owner_org_id": "org-1", "role": "r6", "confirmed": True},
+        )
+        service.invoke_skill(
+            "resource.api.register",
+            {"resource_code": "res-projection-only", "title": "投影只读资源", "catalog_code": "cat-projection-only", "role": "r6", "confirmed": True},
+        )
+        service.invoke_skill("application.resource.submit", {"resource_id": "res-market-activity", "role": "r1", "confirmed": True})
+        request_before = database_store.application_repo.list_records()[0].status
+
+        service.invoke_skill(
+            "metadata.gather.evidence.upsert",
+            {
+                "gather_task_ref": "gather-projection-only",
+                "resource_code": "res-projection-only",
+                "source_system_ref": "dsp-metadata3:meta_gather_task:gather-projection-only",
+                "schema_snapshot_ref": "snapshot-projection-only",
+                "status": "failed",
+                "error_summary": "采集失败也只作为证据投影",
+                "role": "r6",
+                "confirmed": True,
+            },
+        )
+        service.invoke_skill(
+            "metadata.lineage.upsert",
+            {
+                "relation_ref": "lineage-projection-only",
+                "relation_scope": "table",
+                "source_resource_code": "res-projection-only",
+                "target_resource_code": "res-market-activity",
+                "relation_type": "derived",
+                "source_evidence_ref": "dsp-metadata3:lineage:lineage-projection-only",
+                "role": "r8",
+                "confirmed": True,
+            },
+        )
+        service.invoke_skill(
+            "ops.catalog.quality.upsert",
+            {
+                "quality_ref": "quality-projection-only",
+                "target_type": "catalog",
+                "target_ref": "cat-projection-only",
+                "quality_status": "failed",
+                "score": 10,
+                "source_ref": "dsp-monitor:quality:quality-projection-only",
+                "role": "r8",
+                "confirmed": True,
+            },
+        )
+
+        assert database_store.catalog_repo.get_entry("cat-projection-only").lifecycle_status == "draft"
+        assert database_store.resource_api_repo.get_asset("res-projection-only").lifecycle_status == "draft"
+        assert database_store.application_repo.list_records()[0].status == request_before
+
+        gather = service.invoke_skill("metadata.gather.evidence.query", {"resource_code": "res-projection-only", "role": "r6"})["items"][0]
+        lineage = service.invoke_skill("metadata.lineage.query", {"resource_code": "res-projection-only", "role": "r8"})["items"][0]
+        quality = service.invoke_skill("ops.catalog.quality.query", {"target_ref": "cat-projection-only", "role": "r8"})["items"][0]
+        for item in [gather, lineage, quality]:
+            assert item["projection_only"] is True
+            assert item["evidence"]["source_ref"] == item["source_ref"]
+            assert item["evidence"]["generated_at"] == item["generated_at"]
+
+        statistics = service.invoke_skill("ops.catalog.statistics.query", {"role": "r8"})["summary"]
+        assert statistics["projection_only"] is True
+        assert statistics["evidence"]["source_ref"] == "canonical_projection"
+
+
+
+def test_schema_mapping_query_diagnoses_missing_conflict_and_inactive_links() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        audit_bus.configure_sink(database_store.append_audit_event)
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        rows = [
+            {
+                "mapping_code": "missing-source",
+                "catalog_code": "cat-diagnose",
+                "catalog_item_code": "field-missing",
+                "resource_code": "res-diagnose",
+                "binding_code": "bind-diagnose",
+                "source_schema_ref": {},
+                "mapping_rule_json": {},
+                "evidence_ref": "evidence-missing-source",
+                "role": "r6",
+                "confirmed": True,
+            },
+            {
+                "mapping_code": "conflicted-source",
+                "catalog_code": "cat-diagnose",
+                "catalog_item_code": "field-conflicted",
+                "resource_code": "res-diagnose",
+                "binding_code": "bind-diagnose",
+                "source_schema_ref": {"column": "legacy_name"},
+                "mapping_rule_json": {"method": "manual"},
+                "confidence_level": "conflicted",
+                "evidence_ref": "evidence-conflicted",
+                "role": "r6",
+                "confirmed": True,
+            },
+            {
+                "mapping_code": "missing-column",
+                "catalog_code": "cat-diagnose",
+                "catalog_item_code": "field-missing-column",
+                "resource_code": "res-diagnose",
+                "binding_code": "bind-diagnose",
+                "source_schema_ref": {"table": "t_without_column"},
+                "mapping_rule_json": {"method": "direct"},
+                "evidence_ref": "evidence-missing-column",
+                "role": "r6",
+                "confirmed": True,
+            },
+            {
+                "mapping_code": "inactive-source",
+                "catalog_code": "cat-diagnose",
+                "catalog_item_code": "field-inactive",
+                "resource_code": "res-diagnose",
+                "binding_code": "bind-diagnose",
+                "source_schema_ref": {"column": "old_name"},
+                "mapping_rule_json": {"method": "direct"},
+                "evidence_ref": "evidence-inactive",
+                "status": "inactive",
+                "role": "r6",
+                "confirmed": True,
+            },
+        ]
+        for row in rows:
+            service.invoke_skill("catalog.schema.mapping.upsert", row)
+
+        result = service.invoke_skill("metadata.catalog_item.query", {"catalog_code": "cat-diagnose", "role": "r6"})
+        assert result["summary"] == {"total": 4, "active": 3, "missing": 2, "conflicted": 1, "inactive": 1, "diagnosis": "attention_required"}
+        by_code = {item["mapping_code"]: item for item in result["items"]}
+        assert by_code["missing-source"]["diagnosis"]["reason"] == "missing_source_schema_ref"
+        assert by_code["missing-column"]["diagnosis"]["reason"] == "missing_source_schema_ref"
+        assert by_code["missing-column"]["replay"]["steps"][2]["status"] == "missing"
+        assert by_code["conflicted-source"]["diagnosis"]["reason"] == "mapping_conflict"
+        assert by_code["inactive-source"]["diagnosis"]["reason"] == "inactive_mapping"
+        assert by_code["inactive-source"]["replay"]["steps"][2]["status"] == "resolved"
+
+        active_only = service.invoke_skill("metadata.catalog_item.query", {"catalog_code": "cat-diagnose", "include_inactive": False, "role": "r6"})
+        assert [item["mapping_code"] for item in active_only["items"]] == ["conflicted-source", "missing-column", "missing-source"]
+
+        no_mapping = service.invoke_skill("metadata.catalog_item.query", {"catalog_code": "cat-empty", "role": "r6"})
+        assert no_mapping["summary"]["diagnosis"] == "missing_mapping"
+
+
+
+def test_provider_manage_writes_require_audit_before_database_mutation() -> None:
+    with TemporaryDirectory() as tmp:
+        import os
+
+        db_path = Path(tmp) / "zw_brain.db"
+        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
+        database_store = DatabaseStore()
+        service = BrainService(state_store=StateStore(database_store=database_store))
+
+        try:
+            service.invoke_skill("catalog.manage_entry", {"catalog_id": "cat-business", "action": "publish", "role": "r7"})
+        except ConfirmationRequiredError:
+            pass
+        else:
+            raise AssertionError("catalog.manage_entry must require capability confirmation")
+        assert database_store.catalog_repo.get_entry("cat-business") is None
+
+        try:
+            service.invoke_skill("resource.manage_asset", {"resource_id": "res-jbxx-ledger", "action": "publish", "role": "r7"})
+        except ConfirmationRequiredError:
+            pass
+        else:
+            raise AssertionError("resource.manage_asset must require capability confirmation")
+        assert database_store.resource_api_repo.get_asset("res-jbxx-ledger") is None
+
+        audit_bus.configure_sink(lambda request_id, actor, skill_id, phase, payload: (_ for _ in ()).throw(AuditWriteError("audit down")))
+        try:
+            service.invoke_skill("catalog.manage_entry", {"catalog_id": "cat-business", "action": "publish", "role": "r7", "confirmed": True})
+        except AuditWriteError:
+            pass
+        else:
+            raise AssertionError("catalog.manage_entry must fail closed when audit write fails")
+        assert database_store.catalog_repo.get_entry("cat-business") is None
+
+        try:
+            service.invoke_skill("resource.manage_asset", {"resource_id": "res-jbxx-ledger", "action": "publish", "role": "r7", "confirmed": True})
+        except AuditWriteError:
+            pass
+        else:
+            raise AssertionError("resource.manage_asset must fail closed when audit write fails")
+        assert database_store.resource_api_repo.get_asset("res-jbxx-ledger") is None
+
+        audit_bus.configure_sink(database_store.append_audit_event)
+        catalog_result = service.invoke_skill("catalog.manage_entry", {"catalog_id": "cat-business", "action": "publish", "role": "r7", "confirmed": True})
+        resource_result = service.invoke_skill("resource.manage_asset", {"resource_id": "res-jbxx-ledger", "action": "publish", "role": "r7", "confirmed": True})
+        assert catalog_result["result"]["result"] == "published"
+        assert resource_result["result"]["result"] == "published"
+        assert database_store.catalog_repo.get_entry("cat-business") is not None
+        assert database_store.resource_api_repo.get_asset("res-jbxx-ledger") is not None
+        audit_skill_ids = [item.skill_id for item in database_store.list_audit_events()]
+        capability_skill_ids = [item.skill_id for item in database_store.list_capability_calls()]
+        assert audit_skill_ids.count("catalog.manage_entry") == 2
+        assert audit_skill_ids.count("resource.manage_asset") == 2
+        assert "catalog.manage_entry" in capability_skill_ids
+        assert "resource.manage_asset" in capability_skill_ids
 
 
 
@@ -1054,12 +1300,19 @@ def test_reconstruction_core_capability_names_cover_catalog_resource_application
                 "binding_code": "binding-core-demo",
                 "source_schema_ref": {"column": "credit_code", "password": "should-not-persist"},
                 "mapping_rule_json": {"method": "direct", "secret": "should-not-persist"},
+                "evidence_ref": "schema-core-demo-v1",
                 "role": "r6",
                 "confirmed": True,
             },
         )
         assert bind["result"]["mapping_code"] == "bind-core-demo-credit-code"
-        assert service.invoke_skill("metadata.catalog_item.query", {"catalog_code": "cat-core-demo", "role": "r6"})["items"][0]["source_schema_ref"] == {"column": "credit_code"}
+        mapping_query = service.invoke_skill("metadata.catalog_item.query", {"catalog_code": "cat-core-demo", "role": "r6"})
+        assert mapping_query["summary"] == {"total": 1, "active": 1, "missing": 0, "conflicted": 0, "inactive": 0, "diagnosis": "ok"}
+        assert mapping_query["items"][0]["source_schema_ref"] == {"column": "credit_code"}
+        assert mapping_query["items"][0]["explain"]["summary"] == "目录项 credit_code 通过资源 api-core-demo 的 binding-core-demo 通道绑定到来源字段。"
+        detail = service.invoke_skill("catalog.resource_view", {"resource_id": "cat-core-demo", "role": "r6"})
+        assert detail["fieldBindingSummary"]["diagnosis"] == "ok"
+        assert detail["fieldBindings"][0]["mapping_code"] == "bind-core-demo-credit-code"
         service.invoke_skill("catalog.entry.withdraw", {"catalog_code": "cat-core-demo", "role": "r7", "confirmed": True})
         withdrawn = service.invoke_skill("catalog.entry.query", {"catalog_code": "cat-core-demo", "role": "r6"})["items"][0]
         assert withdrawn["lifecycle_status"] == "retired"

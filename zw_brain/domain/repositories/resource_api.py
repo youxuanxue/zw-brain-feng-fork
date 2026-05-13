@@ -122,6 +122,24 @@ class ResourceApiRepository:
             session.refresh(record)
             return record
 
+    def rebind_catalog_code(self, legacy_catalog_code: str, catalog_code: str, *, tenant_id: str = "sd-default") -> int:
+        if legacy_catalog_code == catalog_code:
+            return 0
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            records = list(
+                session.execute(
+                    select(ResourceAssetRecord).where(
+                        ResourceAssetRecord.tenant_id == tenant_id,
+                        ResourceAssetRecord.catalog_code == legacy_catalog_code,
+                    )
+                ).scalars()
+            )
+            for record in records:
+                record.catalog_code = catalog_code
+            session.commit()
+            return len(records)
+
     def list_test_projections(self, resource_code: str | None = None, *, tenant_id: str = "sd-default") -> list[ResourceApiTestProjectionRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:

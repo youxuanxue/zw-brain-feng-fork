@@ -376,7 +376,11 @@ class BrainService:
             case "metadata.schema.query":
                 return self.query_metadata_schema(resource_code=payload.get("resource_code"), binding_code=payload.get("binding_code"))
             case "metadata.catalog_item.query":
-                return self.query_metadata_catalog_items(resource_code=payload.get("resource_code"), catalog_code=payload.get("catalog_code"))
+                return self.query_metadata_catalog_items(
+                    resource_code=payload.get("resource_code"),
+                    catalog_code=payload.get("catalog_code"),
+                    include_inactive=payload.get("include_inactive", True),
+                )
             case "metadata.lineage.query":
                 return self.query_metadata_lineage(resource_code=payload.get("resource_code"), relation_scope=payload.get("relation_scope"))
             case "metadata.gather.evidence.query":
@@ -450,7 +454,7 @@ class BrainService:
             case "resource.api.policy.update":
                 return self.update_api_resource_policy(payload)
             case "system.snapshot":
-                return redact_webui_snapshot(self.snapshot(), str(self._ui_state.get("role", "r1")))
+                return redact_webui_snapshot(self.snapshot(), str(payload.get("role", self._ui_state.get("role", "r1"))))
             case "system.schema_info":
                 return {"schemas": describe_schemas()}
             case "system.toggle_outage":
@@ -1877,7 +1881,13 @@ class BrainService:
             return resource
         record = store.catalog_repo.get_entry(resource_id, tenant_id=_DEFAULT_TENANT_ID)
         if record is not None:
-            return self._catalog_record_to_card_dict(record)
+            detail = self._catalog_record_to_card_dict(record)
+            mappings = self._mapping_diagnostics(
+                store.metadata_evidence_repo.list_schema_mappings(catalog_code=record.catalog_code, tenant_id=_DEFAULT_TENANT_ID)
+            )
+            detail["fieldBindings"] = mappings["items"]
+            detail["fieldBindingSummary"] = mappings["summary"]
+            return detail
         if snapshot_miss:
             raise NotFoundError(resource_id)
         return resource
@@ -2535,19 +2545,19 @@ class BrainService:
         ]
         return {"items": items, "total": len(items)}
 
-    def query_metadata_catalog_items(self, *, resource_code: Any = None, catalog_code: Any = None) -> dict[str, Any]:
+    def query_metadata_catalog_items(self, *, resource_code: Any = None, catalog_code: Any = None, include_inactive: Any = True) -> dict[str, Any]:
         store = self._state_store.database_store
         if store is None:
-            return {"items": [], "total": 0}
-        items = [
-            self._schema_mapping_record_to_dict(item)
-            for item in store.metadata_evidence_repo.list_schema_mappings(
+            return {"items": [], "total": 0, "summary": self._mapping_diagnostics([])["summary"]}
+        diagnostics = self._mapping_diagnostics(
+            store.metadata_evidence_repo.list_schema_mappings(
                 resource_code=str(resource_code) if resource_code else None,
                 catalog_code=str(catalog_code) if catalog_code else None,
+                include_inactive=str(include_inactive).lower() not in {"false", "0", "no"},
                 tenant_id=_DEFAULT_TENANT_ID,
             )
-        ]
-        return {"items": items, "total": len(items)}
+        )
+        return diagnostics | {"total": len(diagnostics["items"])}
 
     def query_metadata_gather_evidence(self, *, resource_code: Any = None, status: Any = None) -> dict[str, Any]:
         store = self._state_store.database_store
@@ -2609,15 +2619,18 @@ class BrainService:
         resource_count = len(store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID))
         schema_mapping_count = len(store.metadata_evidence_repo.list_schema_mappings(tenant_id=_DEFAULT_TENANT_ID))
         quality_count = len(store.metadata_evidence_repo.list_quality_evidence(tenant_id=_DEFAULT_TENANT_ID))
+        generated_at = self._now_datetime()
+        source_ref = "canonical_projection"
         return {
             "summary": {
                 "catalogCount": catalog_count,
                 "resourceCount": resource_count,
                 "schemaMappingCount": schema_mapping_count,
                 "qualityEvidenceCount": quality_count,
-                "source_ref": "canonical_projection",
-                "generated_at": self._now_datetime(),
+                "source_ref": source_ref,
+                "generated_at": generated_at,
                 "projection_only": True,
+                "evidence": {"source_ref": source_ref, "generated_at": generated_at, "projection_only": True},
             }
         }
 
@@ -3426,14 +3439,28 @@ class BrainService:
         }
 
     def _schema_mapping_record_to_dict(self, record: Any) -> dict[str, Any]:
+        source_schema_ref = copy.deepcopy(record.source_schema_ref)
+        if not isinstance(source_schema_ref, dict):
+            source_schema_ref = {"value": source_schema_ref} if source_schema_ref else {}
+        mapping_rule_json = copy.deepcopy(record.mapping_rule_json)
+        if not isinstance(mapping_rule_json, dict):
+            mapping_rule_json = {"value": mapping_rule_json} if mapping_rule_json else {}
+        source_column = self._schema_mapping_source_column(source_schema_ref)
+        diagnosis = self._schema_mapping_diagnosis(record)
+        replay_steps = [
+            {"step": "catalog_item", "ref": record.catalog_item_code, "status": "resolved", "detail": f"目录项 {record.catalog_item_code}"},
+            {"step": "resource_binding", "ref": record.binding_code, "status": "resolved", "detail": f"资源 {record.resource_code} / 通道 {record.binding_code}"},
+            {"step": "source_field", "ref": source_column, "status": "resolved" if source_column else "missing", "detail": source_schema_ref},
+            {"step": "evidence", "ref": record.evidence_ref, "status": "resolved" if record.evidence_ref else "missing", "detail": "legacy/import evidence ref"},
+        ]
         return {
             "mapping_code": record.mapping_code,
             "catalog_code": record.catalog_code,
             "catalog_item_code": record.catalog_item_code,
             "resource_code": record.resource_code,
             "binding_code": record.binding_code,
-            "source_schema_ref": copy.deepcopy(record.source_schema_ref),
-            "mapping_rule_json": copy.deepcopy(record.mapping_rule_json),
+            "source_schema_ref": source_schema_ref,
+            "mapping_rule_json": mapping_rule_json,
             "confidence_level": record.confidence_level,
             "evidence_ref": record.evidence_ref,
             "source_ref": record.evidence_ref,
@@ -3441,25 +3468,77 @@ class BrainService:
             "confirmed_by": record.confirmed_by,
             "confirmed_at": record.confirmed_at.isoformat() if record.confirmed_at else None,
             "generated_at": record.updated_at.isoformat(),
+            "explain": {
+                "summary": f"目录项 {record.catalog_item_code} 通过资源 {record.resource_code} 的 {record.binding_code} 通道绑定到来源字段。",
+                "source_column": source_column,
+                "mapping_rule": mapping_rule_json or {"method": "direct"},
+                "confidence": record.confidence_level,
+            },
+            "replay": {"mapping_code": record.mapping_code, "steps": replay_steps},
+            "diagnosis": diagnosis,
+        }
+
+    def _schema_mapping_source_column(self, source_schema_ref: Any) -> Any:
+        if not isinstance(source_schema_ref, dict):
+            return None
+        return source_schema_ref.get("column") or source_schema_ref.get("table_column_id") or source_schema_ref.get("field")
+
+    def _schema_mapping_diagnosis(self, record: Any) -> dict[str, Any]:
+        issues: list[dict[str, str]] = []
+        if record.status != "active":
+            issues.append({"stage": "status", "reason": "inactive_mapping", "detail": f"mapping status is {record.status}"})
+        if not self._schema_mapping_source_column(record.source_schema_ref):
+            issues.append({"stage": "source_field", "reason": "missing_source_schema_ref", "detail": "source_schema_ref has no column/table_column_id/field"})
+        if not record.evidence_ref:
+            issues.append({"stage": "evidence", "reason": "missing_evidence_ref", "detail": "evidence_ref is empty"})
+        if record.confidence_level in {"conflicted", "low"}:
+            issues.append({"stage": "confidence", "reason": "mapping_conflict", "detail": f"confidence_level is {record.confidence_level}"})
+        return {
+            "ok": not issues,
+            "stage": "ready" if not issues else issues[0]["stage"],
+            "reason": None if not issues else issues[0]["reason"],
+            "issues": issues,
+        }
+
+    def _mapping_diagnostics(self, records: list[Any]) -> dict[str, Any]:
+        items = [self._schema_mapping_record_to_dict(item) for item in records]
+        missing = [item for item in items if any(issue["reason"] == "missing_source_schema_ref" for issue in item["diagnosis"]["issues"])]
+        conflicts = [item for item in items if any(issue["reason"] == "mapping_conflict" for issue in item["diagnosis"]["issues"])]
+        inactive = [item for item in items if item["status"] != "active"]
+        return {
+            "items": items,
+            "summary": {
+                "total": len(items),
+                "active": sum(1 for item in items if item["status"] == "active"),
+                "missing": len(missing),
+                "conflicted": len(conflicts),
+                "inactive": len(inactive),
+                "diagnosis": "ok" if items and not missing and not conflicts and not inactive else ("missing_mapping" if not items else "attention_required"),
+            },
         }
 
     def _gather_evidence_record_to_dict(self, record: Any) -> dict[str, Any]:
+        source_ref = record.source_system_ref or record.gather_task_ref
+        generated_at = record.generated_at.isoformat()
         return {
             "gather_task_ref": record.gather_task_ref,
             "resource_code": record.resource_code,
             "source_system_ref": record.source_system_ref,
-            "source_ref": record.source_system_ref,
+            "source_ref": source_ref,
             "schema_snapshot_ref": record.schema_snapshot_ref,
             "status": record.status,
             "error_summary": record.error_summary,
             "evidence_json": copy.deepcopy(record.evidence_json),
-            "started_at": record.started_at,
-            "finished_at": record.finished_at,
-            "generated_at": record.generated_at.isoformat(),
+            "started_at": record.started_at.isoformat() if hasattr(record.started_at, "isoformat") else record.started_at,
+            "finished_at": record.finished_at.isoformat() if hasattr(record.finished_at, "isoformat") else record.finished_at,
+            "generated_at": generated_at,
             "projection_only": True,
+            "evidence": {"source_ref": source_ref, "generated_at": generated_at, "projection_only": True},
         }
 
     def _lineage_record_to_dict(self, record: Any) -> dict[str, Any]:
+        source_ref = record.source_evidence_ref or record.relation_ref
+        generated_at = record.generated_at.isoformat()
         return {
             "relation_ref": record.relation_ref,
             "relation_scope": record.relation_scope,
@@ -3470,11 +3549,15 @@ class BrainService:
             "relation_type": record.relation_type,
             "relation_rule_json": copy.deepcopy(record.relation_rule_json),
             "source_evidence_ref": record.source_evidence_ref,
-            "source_ref": record.source_evidence_ref,
-            "generated_at": record.generated_at.isoformat(),
+            "source_ref": source_ref,
+            "generated_at": generated_at,
+            "projection_only": True,
+            "evidence": {"source_ref": source_ref, "generated_at": generated_at, "projection_only": True},
         }
 
     def _quality_record_to_dict(self, record: Any) -> dict[str, Any]:
+        source_ref = record.source_ref or record.quality_ref
+        generated_at = record.generated_at.isoformat()
         return {
             "quality_ref": record.quality_ref,
             "target_type": record.target_type,
@@ -3482,8 +3565,10 @@ class BrainService:
             "quality_status": record.quality_status,
             "score": record.score,
             "evidence_json": copy.deepcopy(record.evidence_json),
-            "source_ref": record.source_ref,
-            "generated_at": record.generated_at.isoformat(),
+            "source_ref": source_ref,
+            "generated_at": generated_at,
+            "projection_only": True,
+            "evidence": {"source_ref": source_ref, "generated_at": generated_at, "projection_only": True},
         }
 
     def _resource_asset_record_to_dict(self, record: Any) -> dict[str, Any]:
@@ -3732,6 +3817,7 @@ class BrainService:
                     "status": "待补录完成",
                     "note": "待审批、补录和汇总完成后，再决定是否纳入模板。",
                 },
+                "summaryConfirmed": False,
             }
             self._snapshot["requests"].insert(0, request)
             self._snapshot["approvals"].insert(0, approval)
@@ -3868,6 +3954,7 @@ class BrainService:
                 delivery["aiSummary"]["impact"] = "回流确认后，下次类似需求的基层补录字段会进一步下降。"
                 delivery["backflow"]["status"] = "待确认"
                 delivery["backflow"]["note"] = "回流候选已具备业务证据，待台账管理员与目录管理员确认。"
+                delivery["summaryConfirmed"] = True
             self._append_audit_feed("summary.confirm", request_id, "ok", actor)
             return {"request_id": request_id, "status": request["status"]}
 
@@ -3990,25 +4077,24 @@ class BrainService:
         catalog = next((item for item in provider["catalogs"] if item["id"] == catalog_id), None)
         if catalog is None:
             raise NotFoundError(catalog_id)
-        if action == "publish":
-            store = self._state_store.database_store
-            if store is not None:
-                store.catalog_repo.upsert_from_resource(
-                    {
-                        "id": catalog["id"],
-                        "name": catalog.get("name", catalog["id"]),
-                        "status": "approved_pending_publish",
-                        "provider": catalog.get("owner", ""),
-                        "source_ref": catalog.get("source_ref") or f"provider:catalog:{catalog['id']}",
-                        "legacy_object_ref": catalog.get("legacy_object_ref") or catalog["id"],
-                        "summary_json": catalog,
-                    }
-                )
         if action not in {"publish", "revise"}:
             raise InvalidStateError(f"unsupported catalog action: {action}")
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             if action == "publish":
+                store = self._state_store.database_store
+                if store is not None:
+                    store.catalog_repo.upsert_from_resource(
+                        {
+                            "id": catalog["id"],
+                            "name": catalog.get("name", catalog["id"]),
+                            "status": "approved_pending_publish",
+                            "provider": catalog.get("owner", ""),
+                            "source_ref": catalog.get("source_ref") or f"provider:catalog:{catalog['id']}",
+                            "legacy_object_ref": catalog.get("legacy_object_ref") or catalog["id"],
+                            "summary_json": catalog,
+                        }
+                    )
                 catalog["status"] = "已发布"
                 catalog["issue"] = f"已由 {actor} 完成目录发布确认"
                 result = "published"
@@ -4029,31 +4115,31 @@ class BrainService:
         resource = next((item for item in provider["resources"] if item["id"] == resource_id), None)
         if resource is None:
             raise NotFoundError(resource_id)
-        store = self._state_store.database_store
-        if action == "publish" and store is not None:
-            store.resource_api_repo.upsert_asset(
-                {
-                    "resource_code": resource["id"],
-                    "title": resource.get("name", resource["id"]),
-                    "resource_kind": "dataset",
-                    "lifecycle_status": "approved_pending_publish",
-                    "owner_org_id": resource.get("owner_org_id"),
-                    "source_ref": resource.get("source_ref") or f"provider:resource:{resource['id']}",
-                    "legacy_object_ref": resource.get("legacy_object_ref") or resource["id"],
-                    "summary_json": resource,
-                }
-            )
-        if action == "suspend" and store is not None:
-            store.resource_api_repo.transition_asset(resource_id, "suspended")
         if action not in {"publish", "suspend"}:
             raise InvalidStateError(f"unsupported resource action: {action}")
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            store = self._state_store.database_store
             if action == "publish":
+                if store is not None:
+                    store.resource_api_repo.upsert_asset(
+                        {
+                            "resource_code": resource["id"],
+                            "title": resource.get("name", resource["id"]),
+                            "resource_kind": "dataset",
+                            "lifecycle_status": "approved_pending_publish",
+                            "owner_org_id": resource.get("owner_org_id"),
+                            "source_ref": resource.get("source_ref") or f"provider:resource:{resource['id']}",
+                            "legacy_object_ref": resource.get("legacy_object_ref") or resource["id"],
+                            "summary_json": resource,
+                        }
+                    )
                 resource["status"] = "可共享"
                 result = "published"
                 event_type = "resource.publish"
             else:
+                if store is not None:
+                    store.resource_api_repo.transition_asset(resource_id, "suspended")
                 resource["status"] = "暂停共享"
                 result = "suspended"
                 event_type = "resource.suspend"
@@ -4853,6 +4939,8 @@ class BrainService:
         if catalog_record is not None:
             sr = catalog_record.summary_json
             summary = sr if isinstance(sr, dict) else {}
+            if not summary.get("canonical_resource_id") and not summary.get("application_resource_id"):
+                return self._catalog_record_to_card_dict(catalog_record)
 
         provider_cat = next(
             (c for c in self._snapshot.get("provider", {}).get("catalogs", []) if c.get("id") == resource_id),

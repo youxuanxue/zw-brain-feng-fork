@@ -94,7 +94,14 @@ class MetadataEvidenceRepository:
             session.refresh(record)
             return record
 
-    def list_schema_mappings(self, *, resource_code: str | None = None, catalog_code: str | None = None, tenant_id: str = "sd-default") -> list[ResourceSchemaMappingRecord]:
+    def list_schema_mappings(
+        self,
+        *,
+        resource_code: str | None = None,
+        catalog_code: str | None = None,
+        include_inactive: bool = True,
+        tenant_id: str = "sd-default",
+    ) -> list[ResourceSchemaMappingRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(ResourceSchemaMappingRecord).where(ResourceSchemaMappingRecord.tenant_id == tenant_id)
@@ -102,7 +109,27 @@ class MetadataEvidenceRepository:
                 statement = statement.where(ResourceSchemaMappingRecord.resource_code == resource_code)
             if catalog_code:
                 statement = statement.where(ResourceSchemaMappingRecord.catalog_code == catalog_code)
+            if not include_inactive:
+                statement = statement.where(ResourceSchemaMappingRecord.status == "active")
             return list(session.execute(statement.order_by(ResourceSchemaMappingRecord.mapping_code)).scalars())
+
+    def rebind_catalog_code(self, legacy_catalog_code: str, catalog_code: str, *, tenant_id: str = "sd-default") -> int:
+        if legacy_catalog_code == catalog_code:
+            return 0
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            records = list(
+                session.execute(
+                    select(ResourceSchemaMappingRecord).where(
+                        ResourceSchemaMappingRecord.tenant_id == tenant_id,
+                        ResourceSchemaMappingRecord.catalog_code == legacy_catalog_code,
+                    )
+                ).scalars()
+            )
+            for record in records:
+                record.catalog_code = catalog_code
+            session.commit()
+            return len(records)
 
     def list_schema_snapshots(self, *, resource_code: str | None = None, binding_code: str | None = None, tenant_id: str = "sd-default") -> list[ResourceSchemaSnapshotRecord]:
         SessionLocal = create_session_factory()

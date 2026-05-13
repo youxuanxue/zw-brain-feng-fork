@@ -104,7 +104,7 @@ def test_delivery_task_detail_uses_delivery_projection_without_request_projectio
     block = pages_js[start : pages_js.index("PAGES.provider", start)]
     assert "entityNotFoundShell('p4', '关联共享申请'" not in block
     assert "关联申请仅作可选补充" in block
-    assert "const requestCompleted = request ? request.status === 'completed' : task.status === 'completed';" in block
+    assert "const requestCompleted = request ? request.status === 'completed' : task.status === 'completed' || task.summaryConfirmed === true;" in block
 
 
 def test_review_detail_guards_non_list_approval_fields() -> None:
@@ -245,6 +245,100 @@ def test_f4_webui_copy_is_customer_journey_not_legacy_menu_or_chat_shell() -> No
     assert "chat-input" not in combined
 
 
+def test_f5_independent_delivery_acceptance_package(monkeypatch: pytest.MonkeyPatch) -> None:
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _, offline_source = _prepare_imported_offline_db(root, monkeypatch)
+        server, thread, base_url = _start_rest_server()
+        try:
+            status, discovery = _get(base_url, "data.search", query="人口", page=1, role="r1")
+            discovery = _assert_ok_dict(status, discovery)
+            assert any(item["id"] == "BASE-POP-001" for item in discovery["results"])
+            assert not offline_source.exists()
+
+            status, detail = _get(base_url, "catalog.resource_view", resource_id="BASE-POP-001", role="r1")
+            detail = _assert_ok_dict(status, detail)
+            assert detail["fieldBindingSummary"]["diagnosis"] == "ok"
+            assert detail["fieldBindings"][0]["replay"]["steps"][2]["ref"] == "field-name"
+
+            status, metadata = _get(base_url, "metadata.catalog_item.query", catalog_code="BASE-POP-001", role="r7")
+            metadata = _assert_ok_dict(status, metadata)
+            assert metadata["summary"]["diagnosis"] == "ok"
+            assert metadata["items"][0]["explain"]["source_column"] == "field-name"
+
+            status, request = _post(
+                base_url,
+                "application.resource.submit",
+                {"resource_id": "res-market-activity", "query": "市场主体活跃度复用", "role": "r1", "confirmed": True},
+            )
+            request = _assert_ok_dict(status, request)
+            request_id = request["result"]["request_id"]
+            task_id = request_id.replace("REQ-", "DLV-", 1)
+            for skill_id, payload, expected in [
+                ("application.resource.review", {"request_id": request_id, "decision": "approve", "role": "r2", "confirmed": True}, "supplementing"),
+                ("supplement.submit", {"request_id": request_id, "role": "r3", "confirmed": True}, "summary-pending"),
+                ("summary.confirm", {"request_id": request_id, "role": "r5", "confirmed": True}, "completed"),
+            ]:
+                status, body = _post(base_url, skill_id, payload)
+                body = _assert_ok_dict(status, body)
+                assert body["result"]["status"] == expected
+
+            status, receipt = _post(base_url, "delivery.reconcile_receipt", {"task_id": task_id, "role": "r6", "confirmed": True})
+            receipt = _assert_ok_dict(status, receipt)
+            assert receipt["result"]["receipt_status"] == "reconciled"
+            status, backflow = _post(base_url, "backflow.confirm", {"task_id": task_id, "role": "r6", "confirmed": True})
+            backflow = _assert_ok_dict(status, backflow)
+            assert backflow["result"]["status"] == "completed"
+
+            status, adapter = _post(
+                base_url,
+                "adapter.national.delivery.receipt.sync",
+                {
+                    "adapter_slug": "national-platform",
+                    "operation": "delivery_receipt_sync",
+                    "direction": "outbound",
+                    "local_aggregate_type": "delivery_task",
+                    "local_aggregate_id": task_id,
+                    "external_object_id": "np-failed-receipt-1",
+                    "status": "failed",
+                    "failure_count": 1,
+                    "error_summary": "上级平台回执失败",
+                    "role": "r8",
+                    "confirmed": True,
+                },
+            )
+            adapter = _assert_ok_dict(status, adapter)
+            assert adapter["result"]["run"]["status"] == "failed"
+            assert adapter["result"]["mapping"]["status"] == "mapped"
+
+            status, mappings = _get(base_url, "adapter.external.mapping.query", local_aggregate_id=task_id, role="r8")
+            mappings = _assert_ok_dict(status, mappings)
+            assert any(item["external_object_id"] == "np-failed-receipt-1" for item in mappings["items"])
+
+            status, stats = _get(base_url, "ops.catalog.statistics.query", role="r8")
+            stats = _assert_ok_dict(status, stats)
+            assert stats["summary"]["projection_only"] is True
+            assert stats["summary"]["evidence"]["source_ref"] == "canonical_projection"
+
+            status, audit = _get(base_url, "audit.list", role="r8")
+            audit = _assert_ok_dict(status, audit)
+            audit_json = json.dumps(audit, ensure_ascii=False)
+            for marker in [
+                "application.resource.submit.after",
+                "application.resource.review.after",
+                "delivery.reconcile_receipt.after",
+                "backflow.confirm.after",
+                "adapter.national.delivery.receipt.sync.after",
+            ]:
+                assert marker in audit_json
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+            runtime._service = None
+            reset_service()
+
+
 def test_f4_customer_journey_http_asset_smoke_on_imported_db_with_legacy_offline(monkeypatch: pytest.MonkeyPatch) -> None:
     with TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -276,6 +370,14 @@ def test_f4_customer_journey_http_asset_smoke_on_imported_db_with_legacy_offline
             catalog_detail = _assert_ok_dict(status, catalog_detail)
             assert catalog_detail["id"] == "BASE-POP-001"
             assert catalog_detail["name"] == "人口基本信息"
+            assert catalog_detail["fieldBindingSummary"]["diagnosis"] == "ok"
+            assert catalog_detail["fieldBindings"][0]["explain"]["source_column"] == "field-name"
+
+            status, field_mapping = _get(base_url, "metadata.catalog_item.query", catalog_code="BASE-POP-001", role="r7")
+            field_mapping = _assert_ok_dict(status, field_mapping)
+            assert field_mapping["summary"] == {"total": 1, "active": 1, "missing": 0, "conflicted": 0, "inactive": 0, "diagnosis": "ok"}
+            assert field_mapping["items"][0]["mapping_code"] == "map-1"
+            assert field_mapping["items"][0]["replay"]["steps"][2]["ref"] == "field-name"
 
             status, denied = _post(
                 base_url,

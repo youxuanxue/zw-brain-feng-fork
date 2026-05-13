@@ -66,6 +66,33 @@ class LegacyObjectMappingRepository:
                 statement = statement.where(LegacyObjectMappingRecord.canonical_ref == canonical_ref)
             return list(session.execute(statement.order_by(LegacyObjectMappingRecord.mapped_at)).scalars())
 
+    def resolve_canonical_ref(
+        self,
+        *,
+        legacy_system: str,
+        legacy_object_type: str,
+        legacy_object_ref: str,
+        canonical_type: str,
+        tenant_id: str = "sd-default",
+    ) -> str | None:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            records = list(
+                session.execute(
+                    select(LegacyObjectMappingRecord).where(
+                        LegacyObjectMappingRecord.tenant_id == tenant_id,
+                        LegacyObjectMappingRecord.legacy_system == legacy_system,
+                        LegacyObjectMappingRecord.legacy_object_type == legacy_object_type,
+                        LegacyObjectMappingRecord.legacy_object_ref == legacy_object_ref,
+                        LegacyObjectMappingRecord.canonical_type == canonical_type,
+                    )
+                ).scalars()
+            )
+        refs = {record.canonical_ref for record in records if record.mapping_status == "mapped"} or {
+            record.canonical_ref for record in records
+        }
+        return next(iter(refs)) if len(refs) == 1 else None
+
     def upsert_mapping(
         self,
         payload: dict[str, Any],

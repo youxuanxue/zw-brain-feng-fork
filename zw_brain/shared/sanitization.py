@@ -79,11 +79,10 @@ def summary_with_source_kind(value: dict[str, Any] | None, source_ref: Any) -> d
 
 def legacy_mapping_payload(payload: dict[str, Any], *, tenant_id: str = "sd-default") -> dict[str, Any]:
     source_ref = str(payload["source_ref"])
-    legacy_system, _, legacy_object_type = source_ref.partition(":")
-    if not legacy_system or not legacy_object_type:
-        legacy_system = str(payload.get("legacy_system", "dsp-dataservice"))
-        legacy_object_type = str(payload.get("legacy_object_type", source_ref))
-    legacy_object_ref = str(payload.get("legacy_object_ref") or payload.get("source_event_ref") or source_ref)
+    source_parts = source_ref.split(":")
+    legacy_system = source_parts[0] if source_parts and source_parts[0] else str(payload.get("legacy_system", "dsp-dataservice"))
+    legacy_object_type = str(payload.get("legacy_object_type") or (source_parts[1] if len(source_parts) > 1 else source_ref))
+    legacy_object_ref = str(payload.get("legacy_object_ref") or payload.get("source_event_ref") or (":".join(source_parts[2:]) if len(source_parts) > 2 else source_ref))
     return {
         "tenant_id": tenant_id,
         "legacy_system": legacy_system,

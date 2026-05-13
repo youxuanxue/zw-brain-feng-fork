@@ -255,6 +255,21 @@ def test_legacy_migration_batch_strict_report_and_no_legacy_runtime() -> None:
         assert not [item for item in report["table_accounting"] if item["unaccounted_rows"]]
         assert "13800001111" not in json.dumps(report, ensure_ascii=False)
 
+        from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
+        from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
+        from zw_brain.domain.repositories.resource_api import ResourceApiRepository
+
+        legacy = LegacyObjectMappingRepository()
+        assert legacy.resolve_canonical_ref(
+            legacy_system="dsp-catalog3",
+            legacy_object_type="data_catalog",
+            legacy_object_ref="cata-1",
+            canonical_type="catalog_entry",
+            tenant_id="sd-default",
+        ) == "BASE-POP-001"
+        assert ResourceApiRepository().get_asset("mr-1").catalog_code == "BASE-POP-001"
+        assert [item.mapping_code for item in MetadataEvidenceRepository().list_schema_mappings(catalog_code="BASE-POP-001")] == ["map-1"]
+
         for entry in dumps_dir.iterdir():
             entry.unlink()
         from zw_brain.command.runtime import get_service, reset_service
@@ -268,6 +283,9 @@ def test_legacy_migration_batch_strict_report_and_no_legacy_runtime() -> None:
         assert "13800001111" not in json.dumps(entry, ensure_ascii=False)
         metadata = service.invoke_skill("metadata.catalog_item.query", {})
         assert metadata["total"] == 1
+        metadata_by_catalog = service.invoke_skill("metadata.catalog_item.query", {"catalog_code": "BASE-POP-001"})
+        assert metadata_by_catalog["total"] == 1
+        assert metadata_by_catalog["items"][0]["mapping_code"] == "map-1"
         reset_service()
 
 

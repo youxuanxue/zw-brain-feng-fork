@@ -250,10 +250,12 @@ def test_catalog_metadata_mapper_imports_catalog_resource_and_items() -> None:
         # Mask layer is read-side.
         assert entries["BASE-POP-001"].summary_json["summary"]["contact"]["contact_phone"] == "13800001111"
 
-        # CatalogItem rows
-        items = {i.item_code: i for i in catalog_repo.list_items("cata-1", tenant_id="sd-default")}
+        # CatalogItem rows are rebound from legacy cata_id to customer-visible cata_code.
+        assert catalog_repo.list_items("cata-1", tenant_id="sd-default") == []
+        items = {i.item_code: i for i in catalog_repo.list_items("BASE-POP-001", tenant_id="sd-default")}
         assert {"col-1", "col-2"} == set(items.keys())
         assert items["col-1"].title == "姓名"
+        assert items["col-1"].catalog_code == "BASE-POP-001"
         assert items["col-1"].summary_json["sensitive_level"] == "3"
 
         # ResourceAsset from both dumps
@@ -263,10 +265,12 @@ def test_catalog_metadata_mapper_imports_catalog_resource_and_items() -> None:
         assert "RES-POP-001" in assets
         assert assets["RES-POP-001"].resource_kind == "table"
         assert assets["RES-POP-001"].lifecycle_status == "revoked"  # 5 → revoked
+        assert assets["RES-POP-001"].catalog_code == "BASE-POP-001"
         # rc_resource (metaresource dump) — uses id as resource_code
         assert "mr-1" in assets
         assert assets["mr-1"].owner_org_id == "11370000004504927A"  # 省公安厅
         assert assets["mr-1"].lifecycle_status == "active"  # 4 → active
+        assert assets["mr-1"].catalog_code == "cata-3"
         bindings = {b.binding_code: b for b in resource_repo.list_bindings(tenant_id="sd-default")}
         assert bindings["table-1"].resource_code == "mr-1"
         assert bindings["table-1"].schema_ref["table_name"] == "t_parking"
@@ -274,8 +278,11 @@ def test_catalog_metadata_mapper_imports_catalog_resource_and_items() -> None:
         metadata = MetadataEvidenceRepository()
         mappings = metadata.list_schema_mappings(tenant_id="sd-default")
         assert len(mappings) == 1
+        assert mappings[0].catalog_code == "BASE-POP-001"
         assert mappings[0].catalog_item_code == "col-1"
         assert mappings[0].resource_code == "mr-1"
+        assert [m.mapping_code for m in metadata.list_schema_mappings(catalog_code="BASE-POP-001", tenant_id="sd-default")] == ["map-1"]
+        assert metadata.list_schema_mappings(catalog_code="cata-1", tenant_id="sd-default") == []
         assert metadata.list_schema_snapshots(tenant_id="sd-default")[0].resource_code == "mr-1"
         assert metadata.list_gather_evidence(tenant_id="sd-default")[0].status == "succeeded"
         assert metadata.list_lineage_relations(tenant_id="sd-default")[0].relation_ref == "rel-1"
@@ -285,8 +292,19 @@ def test_catalog_metadata_mapper_imports_catalog_resource_and_items() -> None:
         legacy = LegacyObjectMappingRepository()
         catalog_maps = legacy.list_mappings(tenant_id="sd-default", canonical_type="catalog_entry")
         assert {m.legacy_object_ref for m in catalog_maps} == {"cata-1", "cata-2"}
+        assert legacy.resolve_canonical_ref(
+            legacy_system="dsp-catalog3",
+            legacy_object_type="data_catalog",
+            legacy_object_ref="cata-1",
+            canonical_type="catalog_entry",
+            tenant_id="sd-default",
+        ) == "BASE-POP-001"
+        item_maps = legacy.list_mappings(tenant_id="sd-default", canonical_type="catalog_item")
+        assert {m.legacy_object_ref for m in item_maps} == {"col-1", "col-2", "col-3"}
         resource_maps = legacy.list_mappings(tenant_id="sd-default", canonical_type="resource_asset")
         assert {m.legacy_object_ref for m in resource_maps} == {"res-1", "mr-1"}
+        schema_mapping_maps = legacy.list_mappings(tenant_id="sd-default", canonical_type="resource_schema_mapping")
+        assert [(m.legacy_object_ref, m.canonical_ref) for m in schema_mapping_maps] == [("map-1", "map-1")]
 
         # Two AdapterRunRecords (one per schema), both succeeded
         runs = ExternalAdapterRepository().list_run_records(
