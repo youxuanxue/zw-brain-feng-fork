@@ -55,15 +55,24 @@ sudo mkdir -p /opt/zw-brain/data
 
 ## 4. 启动 REST WebUI/API
 
+项目统一使用 uv 进行 Python 构建与包管理，因此容器镜像也沿用 uv，保证本地、CI 和生产工具链一致。
+
 ```bash
 docker run -d \
   --name zw-brain-rest \
   --restart unless-stopped \
+  --add-host iaf.example.internal:127.0.0.1 \
   -p 8800:8800 \
   -v /opt/zw-brain/data:/data/zw-brain \
   -e ZW_BRAIN_DB_PATH=/data/zw-brain/zw_brain.db \
+  -e ZW_BRAIN_IAF_AUTH_SERVER_URL=https://iaf.example.internal/auth \
+  -e ZW_BRAIN_IAF_REALM=replace-me-realm \
+  -e ZW_BRAIN_IAF_CLIENT_ID=replace-me-client-id \
+  -e ZW_BRAIN_IAF_CLIENT_SECRET=replace-me-client-secret \
   zw-brain:1.0.0
 ```
+
+其中 `--add-host` 和 IAF 相关变量仅用于本地或联调示例；生产环境应按实际 DNS、证书和密钥管理方案替换，不要把真实密钥写入文档或镜像。
 
 健康检查：
 
@@ -85,9 +94,14 @@ Dashboard 是独立部署、只读消费 `dashboard.*` Skill 的运行面。建�
 docker run -d \
   --name zw-brain-dashboard \
   --restart unless-stopped \
+  --add-host iaf.example.internal:127.0.0.1 \
   -p 8801:8801 \
   -v /opt/zw-brain/data:/data/zw-brain \
   -e ZW_BRAIN_DB_PATH=/data/zw-brain/zw_brain.db \
+  -e ZW_BRAIN_IAF_AUTH_SERVER_URL=https://iaf.example.internal/auth \
+  -e ZW_BRAIN_IAF_REALM=replace-me-realm \
+  -e ZW_BRAIN_IAF_CLIENT_ID=replace-me-client-id \
+  -e ZW_BRAIN_IAF_CLIENT_SECRET=replace-me-client-secret \
   -e ZW_BRAIN_DASHBOARD_BFF_PORT=8801 \
   zw-brain:1.0.0 \
   zw-brain-dashboard-bff
@@ -109,6 +123,10 @@ http://<服务器IP>:8801/
 
 | 变量 | 说明 | 默认值 |
 | --- | --- | --- |
+| `ZW_BRAIN_IAF_AUTH_SERVER_URL` | IAF/OIDC 认证服务地址，例如 `https://iaf.example.internal/auth`；部署时替换为目标环境地址 | 必填（接入 IAF/OIDC 时） |
+| `ZW_BRAIN_IAF_REALM` | IAF realm，例如 `replace-me-realm` | 按运行配置解析 |
+| `ZW_BRAIN_IAF_CLIENT_ID` | IAF client id，例如 `replace-me-client-id` | 按运行配置解析 |
+| `ZW_BRAIN_IAF_CLIENT_SECRET` | IAF client secret；只允许通过运行时环境变量注入，示例中使用 `replace-me-client-secret` 占位 | 未设置 |
 | `ZW_BRAIN_DB_PATH` | SQLite 数据库文件路径 | `/data/zw-brain/zw_brain.db` |
 | `ZW_BRAIN_DATABASE_URL` | SQLAlchemy 数据库 URL；设置后优先于 `ZW_BRAIN_DB_PATH` | 未设置 |
 | `ZW_BRAIN_REST_HOST` | REST 监听地址 | `0.0.0.0` |
@@ -118,6 +136,10 @@ http://<服务器IP>:8801/
 | `ZW_BRAIN_REST_BASE_URL` | REST 对外基础 URL，用于契约投影等场景 | `http://127.0.0.1:<REST端口>` |
 | `ZW_BRAIN_WEBUI_DASHBOARD_URL` | WebUI 中 Dashboard 入口地址；可设为绝对 URL、相对路径或 `off` 禁用 | `/dashboard/` |
 | `ZW_BRAIN_TENANT_ID` | 默认租户标识 | 按运行配置解析 |
+| `ZW_BRAIN_IAF_AUTH_SERVER_URL` | IAF/OIDC 认证服务地址，例如 `https://iaf.example.internal/auth`；部署时替换为目标环境地址 | 必填（接入 IAF/OIDC 时） |
+| `ZW_BRAIN_IAF_REALM` | IAF realm，例如 `replace-me-realm` | 按运行配置解析 |
+| `ZW_BRAIN_IAF_CLIENT_ID` | IAF client id，例如 `replace-me-client-id` | 按运行配置解析 |
+| `ZW_BRAIN_IAF_CLIENT_SECRET` | IAF client secret；只允许通过运行时环境变量注入，示例中使用 `replace-me-client-secret` 占位 | 未设置 |
 | `ZW_BRAIN_IAF_CA_FILE` | IAF HTTPS 自定义 CA 证书文件路径（容器内路径），用于挂载内部 CA bundle | 未设置（使用系统默认信任链） |
 | `ZW_BRAIN_IAF_VERIFY_SSL` | 设为 `false` 时完全跳过 IAF 端点 SSL 验证（仅限测试/内网无证书环境） | `true` |
 
