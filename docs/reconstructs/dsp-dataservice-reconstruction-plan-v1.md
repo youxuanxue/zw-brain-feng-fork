@@ -197,7 +197,7 @@ legacy 对应：`ApiServiceStatistic`、`ApiServiceTimes`、网关调用日志�
 | `ApiServiceInfo.ID` | `legacy_object_mapping` + `resource_asset.id` | 新主键重新生成 UUID，旧 ID 只进入映射证据 |
 | `ApiServiceCatalog.ID` / `ApiGroup.ID` | `legacy_object_mapping` + `catalog_entry` / `catalog_item` | 分类、分组只作为目录展示与搜索结构，不等同 API 服务本体 |
 | `NAME` / `DESCRIPTION` | `resource_asset.resource_name` / `summary` | 用户可见名称与说明保留，但文案按新产品口径重写 |
-| `ORG_CODE` / `ORG_NAME` / `APP_ORGAN_CODE` | `owner_org_id` / `owner_org_snapshot` | 组织权威仍来自外部 IAM，本地只保存快照 |
+| `ORG_CODE` / `ORG_NAME` / `APP_ORGAN_CODE` | `owner_org_id` / `owner_org_snapshot` | 组织、角色和 IAM 绑定边界以 `dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准；服务能力只保存调用时快照 |
 | `REGION_CODE` / `REGION_NAME` | `catalog_entry.region_code` / `tenant_org_projection` / 指标区划字段 | 区划用于发现、统计与审批路由，不成为权限权威 |
 | `TYPE` / `SERVICE_TYPE` / `CALL_TYPE` | `resource_kind` / `resource_channel_binding.endpoint_ref` | 统一收敛为 API 通道类型与 endpoint 元数据 |
 | `URL` / `VERSION` / `PROXY_URL` / `REST_METHOD` | `resource_channel_binding.endpoint_ref` | 保存路由与外部端点引用，不暴露为前台导航 |

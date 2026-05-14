@@ -45,6 +45,7 @@ catalog3 与 metadata3 在旧平台中表面上是两个仓库，但在业务事
 | --- | --- |
 | `docs/approved/zw-brain-architecture-v4-gpt55.md` | 产品围绕少数高频旅程；人和 Agent 共用同一 Capability；长尾新增能力默认外部生产、平台注册；合规可证迹内建。 |
 | `docs/approved/zw-brain-data-model-v4-gpt55.md` | 模型围绕旅程与审计组织，不围绕 legacy 表名组织；legacy schema 只作为 adapter 输入；目录、申请、交付等强状态领域必须保留显式状态机。 |
+| `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` | 目录 / 元数据涉及的组织、角色、权限裁决和租户策略只消费 zw-brain Governance 与 Capability policy，不复刻旧 IAM / 菜单 / 权限后台。 |
 | `docs/approved/zw-brain-golden-path-r1-r3-r5-v1.md` | 首条黄金链路要把上级需求、资源/模板复用、基层补差、审核汇总和回流共享资源池打通。 |
 | `docs/approved/zw-brain-user-roles-and-journeys-v1.md` | 用户不是抽象管理员，而是要数的人、管数的人、填数的人、审数的人、查责的人；目录/元数据能力必须服务这些岗位。 |
 | `docs/approved/zw-brain-data-standards-utilization-scheme-v1.md` | 标准样本和历史实现只能作为证据层；正式标准资产进入 `CatalogModel`、`catalog_model_field` 和 Registry，不重建标准平台。 |
@@ -334,7 +335,7 @@ approved 数据模型已有 `catalog_entry`、`catalog_item`、`resource_asset`�
 | --- | --- | --- |
 | `data_catalog.cata_id` | `legacy_object_mapping` + `catalog_entry.id` | 新主键重新生成；旧 ID 只作映射证据。 |
 | `data_catalog.cata_title` | `catalog_entry.title` | 标题可保留，但展示文案按新产品口径清理。 |
-| `data_catalog.org_code/org_name` | `owner_org_id` / `owner_org_snapshot` | 组织权威来自 IAM，本地保存快照。 |
+| `data_catalog.org_code/org_name` | `owner_org_id` / `owner_org_snapshot` | 组织来源和 Governance 边界以 `dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准，本专题只保存调用时快照。 |
 | `data_catalog.region_code/region_name` | `region_code` / 组织区划快照 | 用于发现、审批路由、统计，不作为权限权威。 |
 | `data_catalog.shared_type/shared_way/share_condition` | `access_policy_json` | 映射共享方式、共享条件和不予共享原因。 |
 | `data_catalog_column.name_cn/data_format/length` | `catalog_item` / `catalog_model_field` | 字段口径必须可被资源 schema 映射解释。 |

@@ -52,7 +52,7 @@
 | `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md` | 申请、审批、交付、订阅的超期和异常必须从主链路投影，不在督导系统内复制状态。 |
 | `docs/reconstructs/dsp-objection-handling-reconstruction-plan-v1.md` | 异议超期、解决率、满意度进入 P6 指标，但异议状态仍归 ObjectionAggregate。 |
 | `docs/reconstructs/dsp-data-connect-cascade-reconstruction-plan-v1.md` | 外部通道健康、失败率、重放结果进入 P6 projection；外部状态不覆盖本地状态。 |
-| `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` | 租户策略和 Capability 暴露由 Registry 管理；P6 只能查看和建议，不绕过策略。 |
+| `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` | IAF IAM、本地 Governance、租户 / 组织 / 用户 / 角色投影、Capability policy 和暴露面边界由该文档定义；P6 只能查看和建议，不绕过策略。 |
 | `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` | 安全、标准、指标、监控、督导列为 P2 / P6 adapter 和 projection，不进入核心重构。 |
 
 ### 2.2 旧 datasecurity-service / indata-security-executor 证据
@@ -121,7 +121,7 @@
 | `/logWarning/*` | 日志告警规则、ES 磁盘、日志使用 | 外部观测底座摘要；不迁 ES。 |
 | `/servicedialing/warning/rule/*` | 服务拨测告警规则 | `adapter.health.probe` / service health projection。 |
 | `/servicedialing/task/config/*` | 服务拨测任务配置 | 外部调度器 / adapter run record。 |
-| `/login`、验证码 | 自建登录 | 外部 IAM，不迁。 |
+| `/login`、验证码 | 自建登录 | IAF IAM 承担认证；本地 Governance 边界以 `dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。 |
 
 表结构文档显示 `WarningMessage`、`WarningMessageInfo`、`WarningWorkOrderRules`、`WarningHandleProcess`、`LogWarningRule`、`MonitorItem`、`MonitorRule`、`MonitorResult`、`MonitorPlan`、`MonitorHost`、`DatasourceInfo`、`DatasourceMonitor` 等。新系统只保留告警事件、处理过程、规则摘要、健康指标和外部对象引用。
 

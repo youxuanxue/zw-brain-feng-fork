@@ -292,7 +292,7 @@ approved 数据模型已有 `application_record`、`approval_case`、`delivery_t
 | `data_*_approve.approve_result/opinion/handle_*` | `approval_decision` | 审批意见、处理人、处理时间进入审批轨迹。 |
 | `data_task` / `data_subtask` | `approval_case.routing_snapshot` / 待办投影 | 任务分解是处理过程，不复造任务系统。 |
 | `data_apply.id` | `legacy_object_mapping` + `application_record.id` | 申请统一进入申请状态机。 |
-| `data_apply.apply_org_id/apply_org_name` | `application_record.applicant_org_snapshot` | 申请方快照保留；组织权威仍来自外部 IAM。 |
+| `data_apply.apply_org_id/apply_org_name` | `application_record.applicant_org_snapshot` | 申请方快照保留；组织来源和 Governance 边界以 `dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。 |
 | `data_apply.org_id/org_name` | `application_record.provider_org_snapshot` / `approval_case.routing_snapshot` | 提供方用于审批路由和责任边界。 |
 | `data_apply_item` / `data_apply_column` | `application_record.requested_items_snapshot` | 字段级申请范围必须可回放。 |
 | `data_apply_course` / `data_apply_dept_approve` / `data_apply_review` | `approval_case`、`approval_step`、`approval_decision` | 统一审批过程。 |

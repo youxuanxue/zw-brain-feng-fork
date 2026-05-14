@@ -213,7 +213,7 @@ zw-brain 不继承这些后台形态，只保留五类用户可感知价值：
 | --- | --- | --- |
 | `share_zone.zone_id` | `legacy_object_mapping.legacy_id` + `topic_package.id` | 新主键不沿用旧 ID。 |
 | `share_zone.name/description/zone_logo` | `topic_package.display_snapshot` | logo 仅保存对象存储引用。 |
-| `share_zone.org_code/org_name` | `topic_package.owner_org_snapshot` | 组织权威源来自组织投影。 |
+| `share_zone.org_code/org_name` | `topic_package.owner_org_snapshot` | 组织来源和 Governance 边界以 `dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。 |
 | `share_zone.creator_id/creator_name/contact_phone` | actor snapshot / owner snapshot | 联系方式按敏感信息策略处理。 |
 | `share_zone.status/offline` | `topic_package.status` | 按本文状态机映射。 |
 | `share_zone_catalog_link.cata_id` | `topic_package_item.ref_id` | 引用 `catalog_entry`；未解析进入 unresolved。 |
@@ -246,7 +246,7 @@ zw-brain 不继承这些后台形态，只保留五类用户可感知价值：
 | `topic_package_id` | 专题包。 |
 | `actor_snapshot` | 用户 / service / agent 快照。 |
 | `org_snapshot` | 组织与区划快照。 |
-| `role_codes` | 外部 IAM / BSP 映射角色。 |
+| `role_codes` | IAF IAM、BSP 导入和 zw-brain Governance 映射后的角色。 |
 | `surface` | `webui/api/cli/mcp/a2a`。 |
 | `intent` | `view/subscribe/attach_evidence/review/admin`。 |
 

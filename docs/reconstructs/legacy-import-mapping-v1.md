@@ -3,6 +3,7 @@
 > **日期 / 状态**：2026-05-06 / draft（待评审；review 通过后进入阶段 1）
 > **范围**：`old/10示例数据/*.sql`（<!-- stat:legacy.import.schemas -->17<!-- /stat --> 个 mysqldump，<!-- stat:legacy.import.tables-total -->740<!-- /stat --> 张旧表，~445 MB）→ `zw_brain/domain/models.py`（<!-- stat:legacy.import.record-classes -->59<!-- /stat --> 个 Record 类）。
 > **单一事实源**：本文是"哪张旧表去哪、哪些字段缺位、哪些不导入、跨 schema 桥接顺序"的单一事实源。专题方案 `dsp-*-reconstruction-plan-v1.md` 是设计依据，本文是执行结论。
+> **治理边界引用**：旧 `dsp_bsp` / `dsp_manage` / `dsp_ucenter` 的 IAF IAM、本地 Governance、租户 / 组织 / 用户 / 角色投影、菜单权限和 token / 密码不迁边界，以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。
 > **不在本文范围**：旧 URL/旧 controller/旧菜单兼容（按 GATE-1 D-全新项目口径明确不兼容）。
 
 ## 如何使用本文档
@@ -22,6 +23,7 @@
 3. **数据量** — 全量解析、按 mapper 过滤；不导入清单见 §三。
 4. **PR 形态** — 与 WebUI 文案/demo seed/真组织 projection 注入并入第一个 PR（"导入 + 真业务气味"单一意图）。
 5. **审计纪律** — 每条 mapper 写入必须留 `LegacyObjectMappingRecord`（旧 ID 桥接）+ `AdapterRunRecord`（导入批次）+ `audit_event`（同步落库，按 D4）。冲突 `mapping_status='conflicted'`，不自动覆盖。
+6. **治理边界** — `dsp_bsp` / `dsp_manage` / `dsp_ucenter` 的导入只产出 zw-brain Governance 所需的本地投影、IAM 绑定证据、角色映射候选和策略候选；不导入密码、token、旧登录态、旧菜单或旧按钮权限树，具体口径以 `dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。
 
 ---
 
@@ -83,6 +85,8 @@
 | `block_err_log` / `flyway_schema_history` | 0 ~ <10 | 不导入 | — | 错误日志按 §1.2 |
 
 ### 5. `dsp_bsp`（基础支撑后台 — IAM/菜单/字典/组织）
+
+本段只给出逐表导入执行结论；IAF IAM、本地 Governance、租户 / 组织 / 用户 / 角色投影、菜单权限和不迁密码 / token 的产品边界，以 `dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。
 
 | 旧表 | 行数估计 | 落位 | 新模型 / Skill / Adapter | 备注 |
 |---|---|---|---|---|
@@ -365,7 +369,7 @@
 
 ### 3.2 §1.2 / D10 / N1 — IAM/底座/低价值
 
-- `dsp_bsp` 中 登录态 / 密码 / Token / 密钥 / CA / 短信 / 菜单 / 字典 / 通用流程 / xxl-job / webfinal（bsp plan §1.3）
+- `dsp_bsp` 中 登录态 / 密码 / Token / 密钥 / CA / 短信 / 菜单 / 字典 / 通用流程 / xxl-job / webfinal（具体治理边界以 `dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准）
 - `dsp_bsp.pub_resource*` / `pub_role_resource*` / `pub_function*`（菜单/按钮/接口权限树）
 - `dsp_monitor.automonitor_*` / `service_config` / `monitor_config` / `monitor_rule` / `mail_send_history` / `phone_message_send_history`（监控配置/通知历史）
 

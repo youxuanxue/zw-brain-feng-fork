@@ -1,7 +1,7 @@
 # 旧平台代码仓库重构优先级总览方案 v1
 
 > 范围：`old/代码信息抽取/代码项目信息汇总.xlsx` 中列出的旧平台代码仓库、`docs/approved/*` 中已批准的 zw-brain 重构原则，以及 `docs/reconstructs/*` 已完成的专题方案。
-> 结论：zw-brain 是全新 AI 原生项目，不兼容旧 URL、旧 API、旧菜单、旧页面、旧后台形态和旧库表兼容层。旧仓库重构不按代码规模排序，而按“是否承载强状态主旅程、是否补齐 approved 聚合缺口、是否必须通过统一 Capability 暴露、是否只能作为 adapter / projection / evidence”分流。本总览是旧仓库去向、统一重构原则、Capability 命名和跨专题决策基线的全局单一事实源；各专题文档只记录专题证据、映射和差异约束。
+> 结论：zw-brain 是全新 AI 原生项目，不兼容旧 URL、旧 API、旧菜单、旧页面、旧后台形态和旧库表兼容层。旧仓库重构不按代码规模排序，而按“是否承载强状态主旅程、是否补齐 approved 聚合缺口、是否必须通过统一 Capability 暴露、是否只能作为 adapter / projection / evidence”分流。本总览是旧仓库去向、统一重构原则、Capability 命名和跨专题决策基线的全局单一事实源；各专题文档只记录专题证据、映射和差异约束。涉及旧 `dsp-bsp` / `dsp-manage` / `dsp-ucenter`、IAF IAM、本地 Governance、租户 / 用户 / 组织 / 角色投影、菜单权限迁移的具体边界，以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。
 
 ## 一、全局重构原则
 
@@ -74,7 +74,7 @@
 | --- | --- | --- | --- |
 | P0 | `dsp-objection-handling-reconstruction-plan-v1.md` | `dsp-objection-handling` | `ObjectionAggregate` + `AuditAggregate`，补齐异议强状态闭环。 |
 | P0 | `dsp-data-connect-cascade-reconstruction-plan-v1.md` | `dsp-data-connect`、`dsp-cascade-platform`、`dsp-cascade-down` | 国家 / 上级直达与级联 adapter、external mapping、receipt、replay。 |
-| P1 | `dsp-bsp-manage-governance-reconstruction-plan-v1.md` | `dsp-bsp`、`dsp-manage`、`dsp-ucenter` | `brain_registry`、`tenant_capability_policy`、组织 / 用户 / 角色只读投影、外部 IAM adapter。 |
+| P1 | `dsp-bsp-manage-governance-reconstruction-plan-v1.md` | `dsp-bsp`、`dsp-manage`、`dsp-ucenter` | IAF IAM + zw-brain Governance + Capability Registry：本地治理投影、IAM 绑定、角色映射、租户策略、能力暴露和审计策略；具体边界以该专题方案为准。 |
 | P1 | `dsp-sharezone-topic-package-reconstruction-plan-v1.md` | `dsp-sharezone`、`dsp-example`、`dsp-basesubject` | P7 `TopicPackage` 投影、专题 evidence、可见性策略、复用入口。 |
 | P2 | `compliance-ops-adapters-reconstruction-plan-v1.md` | `datasecurity-service`、`indata-security-executor`、`standardservice-service`、`metricsmgr-service`、`data-operation-board-front`、`dsp-monitor`、`dsp-esupervision` | P6 合规运营 projection、标准资产候选、风险事件、健康信号、最小 `compliance_case` 闭环。 |
 
@@ -91,7 +91,7 @@
 | `datasecurity-service` | 后端 / 225 | P6 风险监测 / 外部安全 adapter | P2 | 去重分类分级 / 脱敏 / 加密引擎，只保留风险摘要、处置证据和审计联动。 |
 | `dsp-basesubject` | 后端 / 388 | 共享专区 / 专题包内容源候选 | P1 | 专题库、档案、标准和统计只作为专题素材或标准资产 evidence。 |
 | `dsp-blockchain` | 后端 / 27 | 区块链锚定 adapter | P3 | v4 已决定 `anchor_outbox` 异步锚定，不复刻区块链系统。 |
-| `dsp-bsp` | 后端 / 628 | 最小租户策略与注册治理 | P1 | 只抽取组织、角色、策略裁决语义，不复刻完整基础支撑后台。 |
+| `dsp-bsp` | 后端 / 628 | 本地业务治理与注册治理 | P1 | 组织、角色、IAM 绑定、策略裁决和菜单权限迁移边界以 `dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准；不复刻完整基础支撑后台。 |
 | `dsp-cascade-down` | 后端 / 2 | 上下级直达 / 级联 adapter | P0 | 与 `dsp-data-connect`、`dsp-cascade-platform` 合并分析。 |
 | `dsp-cascade-platform` | 后端 / 227 | 上下级直达 / 级联 adapter | P0 | 承接国家 / 上级双向通道、回执与督办证据。 |
 | `dsp-catalog3` | 后端 / 1067 | 已覆盖：目录 / 元数据重构方案 | 已完成 | 见 `dsp-catalog3-metadata3-reconstruction-plan-v1.md`。 |
@@ -101,7 +101,7 @@
 | `dsp-esupervision` | 后端 / 47 | 合规督导 projection / adapter | P2 | 合规预警规则可收敛为 P6 能力，不复刻督导后台。 |
 | `dsp-example` | 后端 / 125 | 共享专区 / 专题包内容源 | P1 | 应用案例只保留可验证的复用 / 上报证据。 |
 | `dsp-exchange` | 后端 / 299 | 已覆盖：申请 / 交付重构方案 | 已完成 | 见 `dsp-exchange-reconstruction-plan-v1.md`。 |
-| `dsp-manage` | 后端 / 403 | 最小租户策略与注册治理 | P1 | 与 `dsp-bsp` / `dsp-ucenter` 合并抽取治理语义。 |
+| `dsp-manage` | 后端 / 403 | 本地业务治理与注册治理 | P1 | 与 `dsp-bsp` / `dsp-ucenter` 合并抽取治理语义；具体 Governance 边界以 `dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。 |
 | `dsp-metadata3` | 后端 / 416 | 已覆盖：目录 / 元数据重构方案 | 已完成 | 见 `dsp-catalog3-metadata3-reconstruction-plan-v1.md`。 |
 | `dsp-monitor` | 后端 / 587 | 外部观测底座 / P6 投影 | P2 | 监控告警不是主旅程聚合，不能反向驱动业务状态。 |
 | `dsp-objection-handling` | 后端 / 104 | 异议闭环专题 | P0 | 补齐 `ObjectionAggregate` 强状态链路。 |
@@ -110,7 +110,7 @@
 | `dsp-require` | 后端 / 223 | 已覆盖：申请 / 交付重构方案 | 已完成 | 见 `dsp-exchange-reconstruction-plan-v1.md`。 |
 | `dsp-sharezone` | 后端 / 22 | 共享专区 / 专题包投影 | P1 | P7 必保留，但只做主题化聚合和策略投影。 |
 | `dsp-supply` | 后端 / 174 | 已覆盖：申请 / 交付重构方案 | 已完成 | 见 `dsp-exchange-reconstruction-plan-v1.md`。 |
-| `dsp-ucenter` | 后端 / 108 | 组织 / 用户投影与策略 adapter | P1 | 不自建完整 IAM，抽取权威组织源映射和策略裁决。 |
+| `dsp-ucenter` | 后端 / 108 | IAM 对接与用户投影治理 | P1 | 不自建完整 IAM；IAF IAM 认证、本地用户投影、绑定和策略裁决边界以 `dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。 |
 | `indata-security-executor` | 后端 / 9 | 安全风险执行器 adapter | P2 | 与 `datasecurity-service` 合并处理，只保留任务摘要、状态和 receipt。 |
 | `message-center` | 后端 / 52 | 外部通知 adapter | P3 | 通知不是业务主状态；由异议、审批、督办调用。 |
 | `metricsmgr-front` | 前端 / - | Dashboard 视觉输入 | P2 | 不迁前端代码，只参考指标展示诉求。 |
@@ -138,7 +138,7 @@
 
 1. `dsp-objection-handling-reconstruction-plan-v1.md`：已产出，补齐 J4 异议强状态闭环。
 2. `dsp-data-connect-cascade-reconstruction-plan-v1.md`：已产出，明确国家平台 / 上下级级联 adapter 与回执边界。
-3. `dsp-bsp-manage-governance-reconstruction-plan-v1.md`：已产出，抽取最小租户策略、能力注册治理和组织投影。
+3. `dsp-bsp-manage-governance-reconstruction-plan-v1.md`：已产出，作为 IAF IAM、本地 Governance、租户 / 组织 / 用户 / 角色投影、Capability policy 和旧 BSP / ucenter / manage 边界的专题单一事实源。
 4. `dsp-sharezone-topic-package-reconstruction-plan-v1.md`：已产出，把共享专区、专题包、应用案例、专题库收敛为 P7 投影与可见性策略。
 5. `compliance-ops-adapters-reconstruction-plan-v1.md`：已产出，处理安全、标准、指标、监控、督导等 P6 外部 adapter。
 
@@ -150,7 +150,7 @@
 
 | 编号 | 决策项 | 已定基线 | 实施约束 |
 | --- | --- | --- | --- |
-| D1 | 身份 / 租户权威源 | 外部 IAM 为权威源；旧 BSP / ucenter 只作投影和候选策略；`tenant_id` 由 zw-brain 租户投影 / 环境注册统一管理。 | 不自建完整 IAM，不迁密码 / Token；旧权限必须人工审核后才能进入 `tenant_capability_policy`。 |
+| D1 | 身份 / 租户权威源 | 外部 IAM 为认证权威源；zw-brain Governance 管理本地租户、组织、用户、角色投影和 Capability policy；`tenant_id` 由 zw-brain 租户投影 / 环境注册统一管理。 | 不自建完整 IAM，不迁密码 / Token；旧权限必须按 `dsp-bsp-manage-governance-reconstruction-plan-v1.md` 通过人工审核和 mapping manifest 后才能进入 `tenant_capability_policy`。 |
 | D2 | 国家直达 adapter 部署边界 | 国家直达 / 级联 adapter 独立部署在政务外网逻辑隔离可达区，zw-brain 主服务通过受控内部接口调用。 | 主服务不直接持有国家平台地址、证书、API key；敏感配置只在 adapter 环境中以密钥引用注入。 |
 | D3 | 外部下发对象生效方式 | 外部申请、目录、资源默认先进入候选池 / receipt / mapping，不自动成为 canonical 事实。 | 经规则校验或人工确认后，才生成 `application_record`、目录 / 资源候选发布或其他主链路对象。 |
 | D4 | P6 高风险 case 关闭门槛 | 高风险 `compliance_case` 双人复核；普通 case 平台单人关闭；监管 / 敏感场景需监管或指定角色确认。 | 每次关闭必须写 `audit_event` 和 `capability_call`，外部处置需保存 receipt。 |

@@ -41,7 +41,7 @@ phase_after_approval: Phase 0 / Wave 0（先打通 Catalog → Application → A
 3. **每次 Capability 调用都必须能回放到实体变化与审计事件。**
 4. **legacy schema 只作为 adapter 输入面，不再成为新的业务写入口。**
 5. **Phase 1 只收敛关键聚合边界，不把所有概念一次性膨胀成独立系统。**
-6. **IAM / 组织 / 权限 / 区块链 / 推理平台 / 国家平台继续作为外部底座，不在 zw-brain 内复造。**
+6. **IAM / 组织 / 权限 / 区块链 / 推理平台 / 国家平台继续作为外部底座，不在 zw-brain 内复造。**其中 IAF IAM 与本地 Governance、租户 / 用户 / 组织 / 角色投影、旧 BSP / ucenter / manage 边界以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。
 7. **控制面必须存在，但保持纤薄；Capability Registry 是治理事实源，不是普通用户产品首页。**
 
 ### 1.2 数据层总设计结论
@@ -56,7 +56,7 @@ phase_after_approval: Phase 0 / Wave 0（先打通 Catalog → Application → A
   - `brain_registry`：Capability 包注册、版本、暴露、adapter 映射
 - **对象存储单独承载附件 / 回执原件 / 证据文件**，数据库只存元数据与引用。
 - **legacy MySQL / XML / 外部接口全部只读接入**，通过 adapter 转译成 canonical 视图与映射证据。
-- **不在新库里重建完整用户、角色、菜单、门户、监控、消息中心 schema**；仅保留业务执行所需的最小租户/组织投影和审计快照。
+- **不在新库里重建完整用户、角色、菜单、门户、监控、消息中心 schema**；仅保留业务执行和 Governance 所需的本地租户 / 组织 / 用户 / 角色投影、IAM 绑定、策略裁决和审计快照，具体治理边界以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。
 - **Phase 0 / Wave 0 只落首条黄金链路与 Registry 最小 schema**；异议闭环与更完整的注册治理按 v4 路线图后置到 Wave 2。
 - **数据模型不仅服务存储，还必须支撑原生 WebUI、REST、CLI、MCP、A2A 五消费面的投影生成**；任何页面、接口、命令、工具、agent action 若无法回指同一 capability 与同一聚合事实源，都不符合 v4。
 
@@ -238,7 +238,7 @@ v4 明确要求“概念层完整，物理层分波次”。因此 Phase 1 的�
 
 - `tenant_id VARCHAR(64) NOT NULL`
 - `owner_org_id VARCHAR(64)` 或等价业务组织字段
-- 必要时保留 `owner_org_snapshot JSONB`，防止外部 IAM 变更导致历史回放失真
+- 必要时保留 `owner_org_snapshot JSONB`，防止 IAF IAM、组织主数据或 Governance 投影变更导致历史回放失真
 
 这里的唯一例外是 `brain_registry` 中的**跨租户公共事实源**，例如 `capability_package`、`capability_version`、`legacy_adapter_source`：
 
@@ -248,9 +248,10 @@ v4 明确要求“概念层完整，物理层分波次”。因此 Phase 1 的�
 
 ### 5.3 外部底座引用策略
 
-- 不复制 IAM 的完整用户/角色/权限表
+- 不复制 IAM 的完整用户 / 角色 / 权限表；只保存 Governance 所需投影、绑定和策略候选
 - 业务表只保存**外部 ID + 当时快照**
-- 组织树仅保留最小本地投影 `tenant_org_projection`
+- 组织树和用户 / 角色关系作为 Governance 本地投影管理，不成为认证权威源
+- IAF IAM、本地 Governance、旧 BSP / ucenter / manage 投影和菜单权限迁移边界以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准
 - 任何外部系统连接信息只保存引用，不保存明文密钥
 
 ### 5.4 JSONB 使用边界
@@ -286,7 +287,7 @@ v4 明确要求“概念层完整，物理层分波次”。因此 Phase 1 的�
 
 #### 6.1.1 `tenant_org_projection`
 
-用途：保存外部 IAM / 组织中心的最小本地投影，只做业务读取加速与历史回放辅助，不作为权限权威源。
+用途：保存 IAF IAM、组织主数据或旧 BSP 导入形成的 Governance 本地组织投影，用于业务读取、历史回放、策略裁决输入和导入对账；不作为 IAM 认证权威源。具体治理边界以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
@@ -1442,8 +1443,8 @@ resolved  → closed
 
 | legacy 表/模块 | 新表 | 说明 |
 |---------------|------|------|
-| `sys_department` / `sys_region` / `portal_organization` | `tenant_org_projection` | 仅保留最小投影 |
-| `sys_user` / `sys_role` / `sys_permission` / `oauth_*` | 不入 core | 继续作为外部 IAM 底座 |
+| `sys_department` / `sys_region` / `portal_organization` | `tenant_org_projection` | 作为 Governance 本地组织 / 区划投影，具体权威源和治理边界以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准 |
+| `sys_user` / `sys_role` / `sys_permission` / `oauth_*` | Governance 投影 / 策略候选；认证秘密不入 core | IAF IAM 是认证权威源；用户 / 角色投影、绑定和权限映射边界以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准 |
 
 ---
 

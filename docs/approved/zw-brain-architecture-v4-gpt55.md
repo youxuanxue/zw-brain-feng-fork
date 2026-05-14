@@ -205,7 +205,7 @@ OPC 不是“少人硬扛”，而是“架构、流程、工具都必须服务�
 
 旧平台反复依赖的身份、权限、监控、区块链、国家通道、推理平台等能力，说明新平台不应在内部重造：
 
-- IAM / 组织 / 身份：继续作为外部底座
+- IAM / 组织 / 身份：认证继续由 IAF IAM 外部化，本地业务治理由 zw-brain Governance 承担；旧 BSP / ucenter / manage 的具体边界以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准
 - 集团推理平台：统一模型调用边界
 - 区块链：异步 adapter 接入
 - 国家平台与集团平台：保持外部依赖关系，不在大脑内复造
@@ -861,7 +861,7 @@ adapter 绝不负责：
 | 资源申请 / 审批 / 撤回 / 续期 | `ApplicationApprovalAggregate` + P3 | Core |
 | 交换 / 交付 / 直达 | `DeliveryAggregate` + P4 | Core |
 | 异议处理 / 纠错 | `ObjectionAggregate` + P5 | Core |
-| 组织树 / 用户 / 角色 / 权限 | `TenantOrg` + Auth Policy | Platform substrate |
+| 组织树 / 用户 / 角色 / 权限 | `TenantOrg` + Auth Policy + zw-brain Governance | Platform substrate；旧 BSP / ucenter / manage 边界以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准 |
 | 服务报表 / 调用统计 / 资源统计 | P6 / Dashboard | Core / Common |
 | 共享专区 / 专题能力 | P7 + 注册能力聚合 | Common |
 | 外部 Skill / Agent 导出样例 | `CapabilityRegistryAggregate` | Platform substrate |

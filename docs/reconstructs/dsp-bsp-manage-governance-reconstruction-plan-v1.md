@@ -1,9 +1,9 @@
 # dsp-bsp / dsp-manage / dsp-ucenter 治理底座重构方案 v1
 
 > 范围：旧平台 `old/old_codes/dsp-bsp`、`old/old_codes/dsp-manage`、`old/old_codes/dsp-ucenter`，`old/代码信息抽取/代码信息抽取-27newbranch/dsp-bsp_*`、`dsp-manage_*`、`dsp-ucenter_*`，旧结构数据 `old/12-datastructure/dsp_bsp.xml`，approved 中关于 Capability Registry、租户策略、五消费面和外部依赖的设计原则，以及 IAF IAM 已分配给 zw-brain 的统一认证接入信息。
-> 结论：zw-brain 是全新项目，不迁入旧 `dsp-bsp` / `dsp-ucenter` 的自建 IAM、登录、密码、短信、CA、SSO、菜单、按钮权限、旧登录态和系统配置后台，也不把 `dsp-manage` 迁成新的综合管理控制台。统一认证权威源已确定为 IAF IAM；zw-brain 通过 OIDC 授权码流程获取身份声明，构建本地安全上下文、组织 / 区划 / 用户 / 角色投影、Capability policy 与审计证据。
-> 交付目标：旧 BSP 数据通过脚本 / adapter 一键导入 zw-brain 后，zw-brain 可脱离旧 BSP 独立运行、独立验收、独立交付客户；运行时认证依赖 IAF IAM，不依赖旧 BSP 密码、旧 token、旧登录态、旧菜单或旧权限接口。
-> 单一事实源：本文是旧 BSP / manage / ucenter 治理语义导入、IAF IAM 接入、本地身份投影、Capability 注册治理、租户策略和外化边界的专题单一事实源；跨专题 greenfield 口径、统一 Capability 命名和全局决策基线以 `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` 为准。
+> 结论：zw-brain 是全新项目，不迁入旧 `dsp-bsp` / `dsp-ucenter` 的自建 IAM、登录、密码、短信、CA、SSO、菜单、按钮权限、旧登录态和系统配置后台，也不把 `dsp-manage` 迁成新的综合管理控制台。但 zw-brain 必须交付自己的本地业务治理能力：租户、组织、区划、用户投影、角色映射、IAM 绑定状态、Capability policy、暴露面和审计策略都由 zw-brain Governance 管理。
+> 交付目标：IAF IAM 负责“谁能登录”；zw-brain Governance 负责“登录后属于哪个租户 / 组织 / 角色、可调用哪些 Capability、如何审计和治理”；Capability Registry 负责能力包、版本、五消费面暴露和租户启停。旧 BSP 数据通过脚本 / adapter 一键导入 zw-brain 后，zw-brain 可脱离旧 BSP 独立运行、独立验收、独立交付客户。
+> 单一事实源：本文是旧 BSP / manage / ucenter 治理语义导入、IAF IAM 接入、本地业务治理、身份 / 组织 / 角色投影、Capability 注册治理、租户策略和外化边界的专题单一事实源；其他 docs 触及 IAM、租户、用户、角色、组织、菜单权限或旧 BSP / ucenter / manage 去向时，应引用本文而不是重复定义边界。跨专题 greenfield 口径、统一 Capability 命名和全局决策基线以 `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` 为准。
 
 ## 一、设计原则
 
@@ -11,21 +11,23 @@
 
 旧 BSP 的表面形态是用户、角色、权限、菜单、组织、区域、应用、证书、字典、帮助、日志、登录和配置后台；旧 ucenter 是登录、OAuth、SAML、CAS、IAM、短信、扫码、CA/UKey 和门户入口；旧 manage 则混合了目录、资源申请、绩效、报表、统计、消息和配置。
 
-zw-brain 不继承这些后台模块，只保留五类治理价值：
+zw-brain 不继承这些后台模块，但必须交付客户可用的本地业务治理层。治理层只保留六类承重价值：
 
 1. 能识别调用者是谁、属于哪个组织和租户，以及当时的角色 / 岗位快照。
-2. 能判断某租户是否启用某 Capability 包、某版本和某消费面。
-3. 能审核 Capability 包是否允许暴露到 WebUI / REST / CLI / MCP / A2A。
-4. 能为主旅程保存组织、区划、角色、权限裁决的可审计证据。
-5. 能从 IAF IAM、组织源和旧 BSP 导入数据中生成只读投影，而不是自建完整身份系统。
+2. 能导入、同步、对账、人工修正、禁用和重新绑定租户、组织、区划、用户投影、角色映射与 IAM 绑定状态。
+3. 能判断某租户是否启用某 Capability 包、某版本和某消费面。
+4. 能审核 Capability 包是否允许暴露到 WebUI / REST / CLI / MCP / A2A。
+5. 能为主旅程保存组织、区划、角色、权限裁决的可审计证据。
+6. 能从 IAF IAM、组织源和旧 BSP 导入数据中生成本地治理投影，而不是自建完整身份认证系统。
 
-调用者身份以 IAF IAM OIDC token 为权威输入；zw-brain 只保存调用时 `actor_snapshot`、必要投影、策略裁决结果和审计证据，不保存旧密码、旧 token、验证码、短信状态或旧会话。
+调用者身份以 IAF IAM OIDC token 为权威输入；zw-brain 保存调用时 `actor_snapshot`、必要投影、策略裁决结果和审计证据。投影可以被本地治理台管理，但不得保存旧密码、旧 token、验证码、短信状态或旧会话，也不得取代 IAF IAM 成为认证权威源。
 
 ### 1.2 OPC：Registry 是能力治理的单一事实源
 
 - Capability 包、版本、暴露面、审核记录、租户启停策略以 `brain_registry` 为唯一事实源。
 - WebUI 动作、REST / OpenAPI、CLI、MCP、A2A 产物必须由 Registry 派生，不允许像旧 BSP 一样靠菜单 SQL 和按钮权限分散维护。
-- 用户、组织、角色只保存快照和只读投影；认证、密码、Token、短信、CA、SSO 由 IAF IAM 或外部认证因子承担。
+- 租户、组织、区划、用户、角色在 zw-brain 中作为本地治理投影管理；认证、密码、Token、短信、CA、SSO 由 IAF IAM 或外部认证因子承担。
+- 本地治理台可管理投影同步、IAM 绑定、角色映射、租户能力启停、策略覆盖和审计查看；不得提供密码重置、认证因子配置、旧菜单维护或旧按钮权限树配置。
 - 审计由 `capability_call` / `audit_event` 承载，不迁旧 `sys_log` 为新审计事实源。
 - `dsp-manage` 中目录、申请、绩效、报表、消息等业务后台不纳入本专题；分别归属目录、申请交付、P6 projection 或外部 adapter。
 - 旧 BSP 数据一键导入完成后，zw-brain 的运行时授权只查本地 Registry、投影和 policy，不再在线读取旧 BSP。
@@ -59,6 +61,8 @@ IAF 身份与旧 BSP 业务身份的绑定规则：
 
 本专题不提供旧 BSP、ucenter、manage 的 URL、菜单、按钮权限、登录态或后台页面兼容层；不设计 BSP 到 zw-brain 的运行时过渡期；不做旧 BSP 与 zw-brain 双读、双写或双登录态。
 
+这不等于 zw-brain 没有管理面。交付态管理面应是新的 Governance 控制台：管理租户、组织、区划、用户投影、角色映射、IAM 绑定状态、Capability policy、暴露面和审计策略；它的事实源是 IAF IAM claims、组织主数据、导入投影、Registry 和审计事件，不是旧菜单、旧权限 SQL 或旧登录体系。
+
 旧数据只支持通过脚本 / adapter 一键导入到新模型。导入成功后，zw-brain 按 Capability Registry、租户策略、本地投影和 IAF IAM 会话独立运行；旧 BSP 的菜单、按钮、权限 SQL、登录态和接口不再参与生产鉴权。
 
 ## 二、证据清单
@@ -70,7 +74,7 @@ IAF 身份与旧 BSP 业务身份的绑定规则：
 | `docs/approved/zw-brain-architecture-v4-gpt55.md` | 五消费面共享同一套 Skill / Capability 契约；新增能力默认外部生产、平台注册。 |
 | `docs/approved/zw-brain-data-model-v4-gpt55.md` | `brain_registry` 派生 WebUI、REST、CLI、MCP、A2A；`tenant_capability_policy` 控制租户级启停与暴露面。 |
 | `docs/approved/research-yibiaotong-zw-brain-v4.md` | 基层报表减负需要按权限取数和全程留痕，但不要求复造身份平台。 |
-| `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` | `dsp-bsp` / `dsp-manage` / `dsp-ucenter` 被列为 P1，只抽取最小租户策略、能力注册治理和组织投影。 |
+| `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` | `dsp-bsp` / `dsp-manage` / `dsp-ucenter` 被列为 P1；本文进一步明确它们收敛为本地业务治理层，而不是旧 IAM / 菜单 / 权限后台复刻。 |
 | `old/integrated-bigdata-platform/README.md` | 旧基础支撑是自建统一用户、角色、权限、菜单、参数、日志体系，所有旧系统菜单和权限依赖它。 |
 
 ### 2.2 IAF IAM 分配信息
@@ -105,10 +109,10 @@ IAF 对接手册给出的关键约束：
 
 | 旧接口簇 | 旧平台表现 | zw-brain 解释 |
 | --- | --- | --- |
-| `/bsp/user/*` | 用户增删改查、密码重置、修改密码 | 账号生命周期和密码外部化；只导入 actor 投影、IAM 绑定和 legacy mapping。 |
-| `/bsp/role/*` | 角色管理、角色权限配置 | 角色导入为 `role_projection` 和 policy condition，不复刻角色后台。 |
-| `/bsp/permission/*` | 权限管理 | 通过预批准 mapping manifest 转成 Capability policy，不迁按钮 / 接口权限树。 |
-| `/bsp/menu/*` | 菜单树和菜单配置 | WebUI 动作由 Registry 派生，不迁菜单表。 |
+| `/bsp/user/*` | 用户增删改查、密码重置、修改密码 | 账号开通、停用、密码重置外部化到 IAF IAM；zw-brain 管理 actor 投影、IAM 绑定状态和 legacy mapping。 |
+| `/bsp/role/*` | 角色管理、角色权限配置 | 角色导入为 `role_projection`、角色映射和 policy condition，不复刻旧角色后台。 |
+| `/bsp/permission/*` | 权限管理 | 通过预批准 mapping manifest 转成 Capability policy；Governance 可管理策略覆盖，但不迁按钮 / 接口权限树。 |
+| `/bsp/menu/*` | 菜单树和菜单配置 | WebUI 动作由 Registry 派生，不迁菜单表或菜单配置后台。 |
 | `/bsp/organ/*`、`/bsp/region/*` | 组织、区域树 | 导入为组织 / 区划投影，可作为 tenant / org policy 输入。 |
 | `/bsp/app/*` | 应用管理和审核 | 外部应用目录 / Capability package source，默认不进核心。 |
 | `/bsp/certificate/*` | 证书管理 | 外部密钥 / 证书系统，不迁。 |
@@ -172,26 +176,29 @@ IAF 对接手册给出的关键约束：
 
 旧 BSP 的菜单、权限、按钮、系统配置不能生成 Registry 事实；只有预批准 mapping manifest 覆盖到的新 Capability policy 可以在导入时写入 `tenant_capability_policy`。
 
-### 3.2 最小组织与身份投影
+### 3.2 本地治理投影
 
-实现只读投影，不作为 IAM：
+实现本地治理投影，不作为 IAM 认证权威源：
 
 | 投影 | 用途 | 来源 |
 | --- | --- | --- |
-| `tenant_projection` | 租户标识、名称、状态、IAF project 绑定 | 环境配置、IAF `project_id` / `project`、旧 BSP 导入。 |
-| `org_projection` | 组织编码、名称、父子关系、区划、状态 | 旧 BSP / manage 导入，或客户组织主数据。 |
-| `region_projection` | 区划编码、名称、层级、父子关系 | 旧 BSP region、国家 / 客户区划主数据。 |
-| `actor_projection` | IAF 用户 ID、显示名、组织、角色摘要、状态、旧身份绑定 | IAF token claims + 旧 BSP 导入绑定。 |
-| `role_projection` | 角色编码、名称、来源、适用租户 | 旧 BSP role、IAF group / role claims、导入 manifest。 |
+| `tenant_projection` | 租户标识、名称、状态、IAF project 绑定、租户治理状态 | 环境配置、IAF `project_id` / `project`、旧 BSP 导入。 |
+| `org_projection` | 组织编码、名称、父子关系、区划、状态、组织治理状态 | 旧 BSP / manage 导入，或客户组织主数据。 |
+| `region_projection` | 区划编码、名称、层级、父子关系、治理状态 | 旧 BSP region、国家 / 客户区划主数据。 |
+| `actor_projection` | IAF 用户 ID、显示名、组织、角色摘要、状态、旧身份绑定、IAM 绑定状态 | IAF token claims + 旧 BSP 导入绑定。 |
+| `role_projection` | 角色编码、名称、来源、适用租户、Capability policy 映射状态 | 旧 BSP role、IAF group / role claims、导入 manifest。 |
 
-这些投影只用于：
+这些投影可在 Governance 控制台中被导入、同步、对账、人工修正、禁用和重新绑定，但用途限定为：
 
 1. 构建 `actor_snapshot`。
 2. 支持 `tenant.policy.evaluate`。
 3. 支持 WebUI 可见性和 P6 审计筛选。
 4. 做 legacy ID 映射和导入对账。
+5. 支持客户交付态的组织、用户、角色和租户能力治理。
 
 ### 3.3 IAF OIDC 登录与本地安全上下文
+
+IAF IAM 只解决认证，zw-brain 在认证成功后生成本地业务安全上下文。安全上下文必须可被审计和治理，但不能回写为 IAM 密码、token 或认证因子。
 
 运行时链路：
 
@@ -256,12 +263,16 @@ IAF 对接手册给出的关键约束：
 | `tenant.capability.enable` | 写 | `approval-trace` | 启用租户能力包。 |
 | `tenant.capability.disable` | 写 | `approval-trace` | 禁用租户能力包。 |
 | `tenant.policy.evaluate` | 读 | `read-trace` | 判断调用者是否可调用某能力。 |
-| `org.projection.sync` | 写 | `write-trace` | 从组织主数据或一键导入结果同步只读组织投影。 |
+| `tenant.governance.view` | 读 | `read-trace` | 查看租户、组织、角色、IAM 绑定、能力策略和导入对账状态。 |
+| `tenant.governance.update` | 写 | `approval-trace` | 调整本地治理状态、角色映射、绑定修正、禁用 / 重新启用和策略覆盖。 |
+| `org.projection.sync` | 写 | `write-trace` | 从组织主数据或一键导入结果同步本地组织投影。 |
 | `actor.projection.sync` | 写 | `write-trace` | 从 IAF claims / IAM 同步和旧 BSP 导入结果同步用户 / 角色投影。 |
+| `role.mapping.configure` | 写 | `approval-trace` | 配置 IAF role / group、旧 BSP role 与 zw-brain Capability policy 的映射。 |
+| `iam.binding.reconcile` | 写 | `write-trace` | 对账 IAF 身份与本地 actor 投影绑定，标记 missing / unmatched / disabled。 |
 | `registry.artifact.export` | 读 | `read-trace` | 导出 WebUI / OpenAPI / CLI / MCP / A2A 产物。 |
 | `legacy.bsp.mapping.import` | 写 | `write-trace` | 一键导入旧 BSP 用户、组织、角色、IAM 绑定和预批准 Capability policy manifest。 |
 
-登录本身不是 zw-brain 业务 Capability；它属于 IAF IAM 外部认证能力。zw-brain 只在 token 校验后把身份声明解析为本地安全上下文。
+登录本身不是 zw-brain 业务 Capability；它属于 IAF IAM 外部认证能力。zw-brain 只在 token 校验后把身份声明解析为本地安全上下文，并通过 Governance Capability 管理登录后的业务授权与审计。
 
 ## 五、旧表到新系统映射
 
@@ -488,7 +499,7 @@ client secret 不进入代码仓库、文档正文、配置样例、导入报告
 
 ## 九、不做清单
 
-1. 不复刻旧 `dsp-bsp`、`dsp-ucenter` 的用户 / 角色 / 权限 / 菜单后台。
+1. 不复刻旧 `dsp-bsp`、`dsp-ucenter` 的 IAM、登录、密码、token、认证因子、菜单、按钮权限和旧后台。
 2. 不迁密码、OAuth token、验证码、短信、CA、UKey、SSO 会话。
 3. 不兼容旧 `/bsp/*`、`/login`、`/oauth2Login`、`/SAML2/*`、`/cas/*` URL。
 4. 不做旧 BSP 到 zw-brain 的运行时过渡期。
@@ -511,12 +522,12 @@ client secret 不进入代码仓库、文档正文、配置样例、导入报告
 | 编号 | 决策项 | 专题基线 | 实施约束 |
 | --- | --- | --- | --- |
 | G1 | 统一认证权威源 | IAF IAM 是当前 zw-brain 已分配的统一认证源。 | 使用 OIDC 授权码流程；必须校验 `state`、`nonce`、issuer、audience / clientId、JWT 签名和 `exp`；不迁密码、OAuth token、验证码、短信、CA、UKey、SSO 会话；不提供项目轻量登录兜底。 |
-| G2 | 组织 / 区划权威源 | 区划以国家 / 客户区划主数据为基线；组织可由旧 BSP 数据一键导入后形成本地只读投影。 | 旧 `sys_department` / `sys_region` 导入后只作为 `org_projection` / `region_projection` 和 legacy mapping，不依赖旧 BSP 在线服务。 |
-| G3 | 用户 / 角色投影同步方式 | 登录时根据 IAF token 生成 `actor_snapshot`；一键导入生成 `actor_projection`、`role_projection`、IAM 绑定和组织关系。 | 策略裁决以调用时 snapshot + 当前 policy version 为准；旧 BSP 用户 ID 不能作为新认证主键。 |
+| G2 | 组织 / 区划权威源 | 区划以国家 / 客户区划主数据为基线；组织可由旧 BSP 数据一键导入后形成本地治理投影。 | 旧 `sys_department` / `sys_region` 导入后只作为 `org_projection` / `region_projection` 和 legacy mapping，可在 Governance 中对账和修正，但不依赖旧 BSP 在线服务。 |
+| G3 | 用户 / 角色投影同步方式 | 登录时根据 IAF token 生成 `actor_snapshot`；一键导入生成 `actor_projection`、`role_projection`、IAM 绑定、组织关系和角色映射。 | 策略裁决以调用时 snapshot + 当前 policy version 为准；旧 BSP 用户 ID 不能作为新认证主键，Governance 只管理登录后的业务授权关系。 |
 | G4 | 旧 BSP 权限转换等级 | 旧 BSP 权限只可按预批准 Capability mapping manifest 转换为 `tenant_capability_policy`。 | 旧菜单 / 按钮 / URL 权限不得自动生效；manifest 未覆盖项 fail-closed 并进入未映射报告。 |
 | G5 | 旧 BSP 数据导入方式 | 仅支持脚本 / adapter 冷启动一键导入，不设计运行时过渡期。 | 不提供旧 URL、旧菜单、旧登录态兼容；导入必须幂等、可对账、敏感字段剔除、失败阻断。 |
 | G6 | IAF claim 到本地安全上下文 | `sub` 是用户权威标识；`project_id` / `project` 绑定租户 / 项目上下文；`ACCOUNT_ADMIN` 是主用户标识。 | `ACCOUNT_ADMIN` 只作为 policy condition，不直接绕过 Capability policy；`preferred_username`、`phone`、`email` 仅作辅助匹配或展示。 |
-| G7 | 独立交付目标 | 旧 BSP 数据一键导入并完成 IAF 账号绑定后，zw-brain 可脱离旧 BSP 独立运行、验收和交付客户。 | 运行时只依赖 IAF IAM、zw-brain Registry / policy / 投影和审计；旧 BSP 在线服务不可作为生产依赖。 |
+| G7 | 独立交付目标 | 旧 BSP 数据一键导入并完成 IAF 账号绑定后，zw-brain 可脱离旧 BSP 独立运行、验收和交付客户。 | 运行时只依赖 IAF IAM、zw-brain Governance、Registry / policy / 投影和审计；旧 BSP 在线服务不可作为生产依赖。 |
 
 ## 十一、证据来源
 
