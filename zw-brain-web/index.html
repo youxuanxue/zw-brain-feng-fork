@@ -46,9 +46,18 @@
       </a>
       <div id="deployment-label" class="deployment-label" hidden></div>
       <nav class="helper-links" aria-label="顶部辅助入口">
-        <a id="zw-login-nav-link" href="#/login" title="前往统一身份登录" aria-label="前往统一身份登录">登录</a>
+        <button id="zw-login-button" type="button" class="header-auth-link" title="前往统一身份登录" aria-label="前往统一身份登录" onclick="window.ACTIONS.startIafLogin(event)">登录</button>
       </nav>
       <div class="global-actions">
+        <div id="user-menu" class="user-menu" hidden>
+          <button id="user-menu-button" type="button" class="user-menu-button" aria-haspopup="true" aria-expanded="false" onclick="window.ACTIONS.toggleUserMenu(event)">
+            <span id="user-menu-name">当前用户</span>
+          </button>
+          <div id="user-menu-panel" class="user-menu-panel" hidden>
+            <a href="#/profile" class="user-menu-item">个人中心</a>
+            <button type="button" class="user-menu-item" onclick="window.ACTIONS.logout(event)">退出登录</button>
+          </div>
+        </div>
         <div id="identity-label" class="identity-label" aria-live="polite">当前账号</div>
         <div id="role-control" class="role-control" hidden>
           <span>当前岗位</span>
@@ -99,6 +108,7 @@
   </style>
 
   <script src="/js/pages.js"></script>
+  <script src="/js/auth.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

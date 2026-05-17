@@ -136,14 +136,15 @@ http://<服务器IP>:8801/
 | `ZW_BRAIN_REST_BASE_URL` | REST 对外基础 URL，用于契约投影等场景 | `http://127.0.0.1:<REST端口>` |
 | `ZW_BRAIN_WEBUI_DASHBOARD_URL` | WebUI 中 Dashboard 入口地址；可设为绝对 URL、相对路径或 `off` 禁用 | `/dashboard/` |
 | `ZW_BRAIN_TENANT_ID` | 默认租户标识 | 按运行配置解析 |
-| `ZW_BRAIN_IAF_AUTH_SERVER_URL` | IAF/OIDC 认证服务地址，例如 `https://iaf.example.internal/auth`；部署时替换为目标环境地址 | 必填（接入 IAF/OIDC 时） |
-| `ZW_BRAIN_IAF_REALM` | IAF realm，例如 `replace-me-realm` | 按运行配置解析 |
-| `ZW_BRAIN_IAF_CLIENT_ID` | IAF client id，例如 `replace-me-client-id` | 按运行配置解析 |
-| `ZW_BRAIN_IAF_CLIENT_SECRET` | IAF client secret；只允许通过运行时环境变量注入，示例中使用 `replace-me-client-secret` 占位 | 未设置 |
 | `ZW_BRAIN_IAF_CA_FILE` | IAF HTTPS 自定义 CA 证书文件路径（容器内路径），用于挂载内部 CA bundle | 未设置（使用系统默认信任链） |
 | `ZW_BRAIN_IAF_VERIFY_SSL` | 设为 `false` 时完全跳过 IAF 端点 SSL 验证（仅限测试/内网无证书环境） | `true` |
+| `ZW_BRAIN_DEV_IAM_BYPASS` | 研发期 IAM 网络不可达时临时跳过登录与 token-healthz；仅 `1` 生效，生产部署不得设置 | 未设置 |
 
 如需接入 IAF/OIDC、外部数据库或集团推理平台，应通过环境变量注入对应配置，不要把密钥、连接串或证书写入镜像。内网部署若 IAF 使用自签名证书，优先挂载 CA bundle（`ZW_BRAIN_IAF_CA_FILE`）；仅在无法提供证书时才使用 `ZW_BRAIN_IAF_VERIFY_SSL=false`。
+
+REST WebUI 登录采用 IAM 授权码流程：前端未发现 `sessionStorage` token 且 URL 无 `code` 时会跳转到 IAM 授权端点；回跳首页后由后端 `/auth/iaf/token` 代理 code 换取 token，`client_secret` 只在后端环境变量中使用。前端每 5 分钟检查 access token 过期时间，剩余小于 60 秒时调用 `/auth/iaf/refresh`；所有 `/api/*` 请求都会携带 `Authorization: Bearer <access_token>`，后端透传到 `{ZW_BRAIN_IAF_AUTH_SERVER_URL}/v1/token-healthz` 校验，校验不可用时按 503 失败关闭。退出登录会清理前端 `sessionStorage`，再跳转 IAM `/protocol/openid-connect/logout?redirect_uri=...` 清除 SSO 会话。
+
+开发环境若无法连通 IAM 服务端，可临时设置 `ZW_BRAIN_DEV_IAM_BYPASS=1`：WebUI 不跳转 IAM，后端 `/api/snapshot` 与 `/api/skills/*` 不再强制 token-healthz，但仍执行 Skill manifest、角色、租户和人工确认等业务门禁。该变量只用于研发调试，生产部署清单不要设置；正式上线前应移除 `ZW_BRAIN_DEV_IAM_BYPASS` 及 `development_iam_bypass` / `dev-iam-bypass` / `developmentBypassEnabled` 相关临时代码。
 
 ## 7. 旧平台数据迁移
 

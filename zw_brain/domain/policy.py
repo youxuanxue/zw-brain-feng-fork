@@ -15,6 +15,9 @@ ACTOR_NAMES = {
     "r8": "林督查",
     # 平台实施工程师（非客户业务角色） — 仅用于 M0 迁移监控、内部诊断
     "admin": "实施工程师",
+    # "system" is reserved for IAM-initiated automated writes (e.g., first-login actor projection
+    # sync). Not assignable to a human user — guarded by the small, explicit permission set below.
+    "system": "系统",
 }
 
 PERMISSION_ROLES = {
@@ -155,7 +158,7 @@ PERMISSION_ROLES = {
     "adapter.external.mapping.query.execute": {"r2", "r5", "r6", "r7", "r8"},
     "tenant.policy.evaluate.execute": {"r2", "r5", "r6", "r7", "r8"},
     "org.projection.sync.execute": {"r7", "r8"},
-    "actor.projection.sync.execute": {"r7", "r8"},
+    "actor.projection.sync.execute": {"r7", "r8", "system"},
     "legacy.bsp.mapping.import.execute": {"r7", "r8"},
     "legacy.sharezone.mapping.import.execute": {"r7", "r8"},
     # P0 M0 验收页是平台实施工具，主要给 admin（实施工程师）用。

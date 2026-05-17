@@ -8,6 +8,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
 from zw_brain.command.brain import (
     AccessDeniedError,
     BrainService,
@@ -379,8 +381,9 @@ def test_ambiguous_legacy_mapping_raises_without_canonical_resource_id() -> None
         tmp.cleanup()
 
 
-def test_application_resource_submit_resolves_provider_catalog_alias() -> None:
+def test_application_resource_submit_resolves_provider_catalog_alias(monkeypatch: pytest.MonkeyPatch) -> None:
     """Default discovery surfaces catalog codes (cat-parking); submit resolves to canonical template id."""
+    monkeypatch.delenv("ZW_BRAIN_DEV_IAM_BYPASS", raising=False)
     tmp, service = make_database_service()
     try:
         try:
@@ -394,6 +397,103 @@ def test_application_resource_submit_resolves_provider_catalog_alias() -> None:
             raise AssertionError("expected duplicate guard once alias maps to res-jbxx-ledger")
         snap = service.snapshot()
         assert snap["webui"]["dashboardHref"] == "/dashboard/"
+        assert snap["webui"]["iafIam"]["developmentBypassEnabled"] is False
+    finally:
+        tmp.cleanup()
+
+
+def test_snapshot_exposes_development_iam_bypass_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS", "1")
+    monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS_ACK", "development-only")
+    monkeypatch.delenv("ZW_BRAIN_IAF_AUTH_SERVER_URL", raising=False)
+    tmp, service = make_database_service()
+    try:
+        snap = service.snapshot()
+        assert snap["webui"]["iafIam"]["configured"] is False
+        assert snap["webui"]["iafIam"]["developmentBypassEnabled"] is True
+    finally:
+        tmp.cleanup()
+
+
+def test_audit_and_capability_call_carry_dev_iam_bypass_marker() -> None:
+    # Locks R-A001: AuthContext.development_iam_bypass must reach the audit envelope and the
+    # capability_call actor, otherwise bypass operations are indistinguishable from real r-role users
+    # in the audit trail. Both the actor suffix and the structured flag are asserted because tooling
+    # may filter on either form.
+    from zw_brain.shared.auth_context import (
+        AuthContext,
+        reset_auth_context,
+        set_auth_context,
+    )
+
+    tmp, service = make_database_service()
+    store = service._state_store.database_store
+    assert store is not None
+    bypass_ctx = AuthContext(
+        subject="dev-iam-bypass",
+        username="dev_iam_bypass",
+        tenant_id="sd-default",
+        org_code="dev",
+        role_codes=("r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"),
+        claims={"sub": "dev-iam-bypass", "development_iam_bypass": True},
+        development_iam_bypass=True,
+    )
+    token = set_auth_context(bypass_ctx)
+    try:
+        service.invoke_skill(
+            "objection.case.create",
+            {
+                "target_type": "delivery",
+                "target_id": "DLV-2026-04-25-0011",
+                "title": "bypass-audit-marker-case",
+                "category": "service",
+                "description": "verify audit marker propagation",
+                "role": "r1",
+                "confirmed": True,
+            },
+        )
+
+        capability_calls = store.list_capability_calls()
+        assert capability_calls, "expected at least one capability_call row"
+        bypass_calls = [item for item in capability_calls if item.actor.endswith("[bypass]")]
+        assert bypass_calls, f"expected bypass actor suffix on call rows, got actors={[item.actor for item in capability_calls]}"
+        assert all(item.role_code == "r1" for item in bypass_calls), "role_code should still reflect requested role"
+
+        audit_events = store.list_audit_events()
+        assert audit_events, "expected at least one audit event"
+        bypass_audits = [item for item in audit_events if item.payload_json.get("development_iam_bypass") is True]
+        assert bypass_audits, "expected audit payload to carry development_iam_bypass=True"
+        actor_snapshot = bypass_audits[0].payload_json.get("actor_snapshot") or {}
+        assert actor_snapshot.get("development_iam_bypass") is True
+        assert bypass_audits[0].actor.endswith("[bypass]")
+    finally:
+        reset_auth_context(token)
+        tmp.cleanup()
+
+
+def test_audit_marker_absent_when_auth_context_is_not_bypass() -> None:
+    tmp, service = make_database_service()
+    store = service._state_store.database_store
+    assert store is not None
+    try:
+        service.invoke_skill(
+            "objection.case.create",
+            {
+                "target_type": "delivery",
+                "target_id": "DLV-2026-04-25-0011",
+                "title": "clean-audit-case",
+                "category": "service",
+                "description": "verify clean audit when no bypass",
+                "role": "r1",
+                "confirmed": True,
+            },
+        )
+        for item in store.list_capability_calls():
+            assert not item.actor.endswith("[bypass]"), f"unexpected bypass suffix on {item.actor!r}"
+        for item in store.list_audit_events():
+            assert item.payload_json.get("development_iam_bypass") is not True
+            assert (item.payload_json.get("actor_snapshot") or {}).get("development_iam_bypass") is not True
+            assert not item.actor.endswith("[bypass]")
     finally:
         tmp.cleanup()
 
@@ -1807,7 +1907,7 @@ def test_f6_entry_web_and_adapters_do_not_bypass_command_policy_audit() -> None:
         assert "get_service().invoke_skill" in text or "runtime.invoke" in text or path.name == "__init__.py"
 
     app_source = "\n".join(path.read_text(encoding="utf-8") for path in (repo_root / "zw-brain-web").glob("js/*.js"))
-    assert "fetch(`/api/skills/${skillId}" in app_source
+    assert "window.ZW_AUTH.authFetch(`/api/skills/${skillId}" in app_source
     assert "Object.assign({ role: currentRole, confirmed: true }, payload)" in app_source
     # `.upsert_` / `/upsert?` indicates a direct-repo bypass; the literal
     # substring `upsert` is allowed because legitimate skill ids may carry
@@ -3352,9 +3452,11 @@ def test_p1_governance_no_legacy_runtime_compat_or_dual_read_write_contracts() -
     from zw_brain.skill_registration.runtime import load_manifests
 
     openapi = json.loads(rest_server_module.OPENAPI_PATH.read_text(encoding="utf-8"))
-    forbidden_paths = {"/bsp/", "/login", "/oauth2Login", "/SAML2/", "/cas/"}
+    forbidden_paths = {"/bsp/", "/oauth2Login", "/SAML2/", "/cas/"}
     assert not any(any(fragment in path for fragment in forbidden_paths) for path in openapi["paths"])
-    assert set(openapi["paths"]).issubset({"/health", "/openapi.json", "/api/snapshot"} | {f"/api/skills/{skill_id}" for skill_id in load_manifests()})
+    assert "/login" not in openapi["paths"]
+    auth_paths = {"/auth/iaf/config", "/auth/iaf/login", "/auth/iaf/token", "/auth/iaf/refresh", "/auth/iaf/logout"}
+    assert set(openapi["paths"]).issubset({"/health", "/openapi.json", "/api/snapshot"} | auth_paths | {f"/api/skills/{skill_id}" for skill_id in load_manifests()})
 
     server_source = Path(rest_server_module.__file__).read_text(encoding="utf-8")
     assert "/api/skills/" in server_source

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import html
 import json
+import logging
 import mimetypes
 import os
 import ssl
+import time
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -24,7 +25,9 @@ from zw_brain.command.brain import (
     UnknownSkillError,
 )
 from zw_brain.command.runtime import get_service
+from zw_brain.shared.auth_context import auth_context_from_claims, reset_auth_context, set_auth_context
 from zw_brain.shared.iaf_oidc import (
+    DEFAULT_IAF_CLIENT_ID,
     HttpRequest,
     HttpResponse,
     IafOidcClient,
@@ -32,9 +35,24 @@ from zw_brain.shared.iaf_oidc import (
     IafOidcStateError,
     IafOidcStateStore,
     IafOidcTokenError,
+    IafOidcTokenHealthError,
+    verify_iaf_access_token,
 )
-from zw_brain.shared.runtime_config import get_rest_host, get_rest_port
+from zw_brain.shared.runtime_config import (
+    get_dev_iam_bypass_enabled,
+    get_iaf_insecure_tls_dev_ack,
+    get_iaf_verify_ssl,
+    get_rest_host,
+    get_rest_port,
+)
 from zw_brain.skill_registration.runtime import SurfaceNotEnabledError, require_surface
+
+_LOGGER = logging.getLogger(__name__)
+_JWKS_CACHE_TTL_SECONDS = 600
+_DEV_IAM_BYPASS_ROLES = ("r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8")
+_DEV_IAM_BYPASS_SUBJECT = "dev-iam-bypass"
+_DEV_IAM_BYPASS_USERNAME = "dev_iam_bypass"
+_DEV_IAM_BYPASS_DISPLAY_NAME = "开发调试账号（IAM bypass）"
 
 
 def _web_root() -> Path:
@@ -52,6 +70,35 @@ OPENAPI_PATH = Path(__file__).with_name("openapi.json")
 _IAF_STATE_STORE = IafOidcStateStore()
 _IAF_TRANSPORT: Callable[[HttpRequest], HttpResponse] | None = None
 _IAF_JWKS: dict[str, Any] | None = None
+_IAF_JWKS_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+
+
+def _iaf_client_id() -> str:
+    return (os.environ.get("ZW_BRAIN_IAF_RESOURCE") or os.environ.get("ZW_BRAIN_IAF_CLIENT_ID") or DEFAULT_IAF_CLIENT_ID).strip() or DEFAULT_IAF_CLIENT_ID
+
+
+def _dev_iam_bypass_user_profile() -> dict[str, Any]:
+    return {
+        "subject": _DEV_IAM_BYPASS_SUBJECT,
+        "username": _DEV_IAM_BYPASS_USERNAME,
+        "display_name": _DEV_IAM_BYPASS_DISPLAY_NAME,
+        "tenant_id": "sd-default",
+        "org_code": "dev",
+        "role_codes": list(_DEV_IAM_BYPASS_ROLES),
+    }
+
+
+def _dev_iam_bypass_claims() -> dict[str, Any]:
+    client_id = _iaf_client_id()
+    return {
+        "sub": _DEV_IAM_BYPASS_SUBJECT,
+        "preferred_username": _DEV_IAM_BYPASS_USERNAME,
+        "project_id": "sd-default",
+        "org_code": "dev",
+        "realm_access": {"roles": ["DEV_IAM_BYPASS"]},
+        "resource_access": {client_id: {"roles": list(_DEV_IAM_BYPASS_ROLES)}},
+        "development_iam_bypass": True,
+    }
 
 
 def configure_iaf_auth_runtime(
@@ -63,12 +110,16 @@ def configure_iaf_auth_runtime(
     global _IAF_TRANSPORT, _IAF_JWKS, _IAF_STATE_STORE
     _IAF_TRANSPORT = transport
     _IAF_JWKS = jwks
+    _IAF_JWKS_CACHE.clear()
     if state_store is not None:
         _IAF_STATE_STORE = state_store
 
 
 def _iaf_ssl_context() -> ssl.SSLContext:
-    if os.environ.get("ZW_BRAIN_IAF_VERIFY_SSL", "true").lower() == "false":
+    # ZW_BRAIN_IAF_VERIFY_SSL=false only takes effect when paired with
+    # ZW_BRAIN_IAF_INSECURE_TLS_DEV_ACK=development-only — otherwise the value is silently ignored and
+    # a default-verifying context is returned. Prevents a single env typo from disabling TLS in prod.
+    if not get_iaf_verify_ssl() and get_iaf_insecure_tls_dev_ack():
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
@@ -88,7 +139,7 @@ def _default_transport(request: HttpRequest) -> HttpResponse:
         raise IafOidcError("IAF token endpoint unavailable") from exc
 
 
-def _default_jwks(client: IafOidcClient) -> dict[str, Any]:
+def _fetch_jwks(client: IafOidcClient) -> dict[str, Any]:
     request = HttpRequest(method="GET", url=client.config.endpoints.jwks_uri, headers={"Accept": "application/json"}, body=b"")
     response = (_IAF_TRANSPORT or _default_transport)(request)
     if response.status_code < 200 or response.status_code >= 300:
@@ -102,29 +153,36 @@ def _default_jwks(client: IafOidcClient) -> dict[str, Any]:
     return payload
 
 
+def _get_jwks(client: IafOidcClient, *, force_refresh: bool = False) -> dict[str, Any]:
+    if _IAF_JWKS is not None:
+        return _IAF_JWKS
+    cache_key = client.config.endpoints.jwks_uri
+    cached = _IAF_JWKS_CACHE.get(cache_key)
+    now = time.time()
+    if not force_refresh and cached is not None and (now - cached[0]) < _JWKS_CACHE_TTL_SECONDS:
+        return cached[1]
+    payload = _fetch_jwks(client)
+    _IAF_JWKS_CACHE[cache_key] = (now, payload)
+    return payload
+
+
+def _verify_access_token_with_refresh(client: IafOidcClient, access_token: str) -> dict[str, Any]:
+    # Single-retry on JWKS-key miss so a rotated kid does not require a process restart, and so that
+    # signature failures still propagate as IafOidcTokenError rather than being papered over.
+    try:
+        return verify_iaf_access_token(access_token, config=client.config, jwks=_get_jwks(client))
+    except IafOidcTokenError as exc:
+        if "jwks key mismatch" in str(exc) and _IAF_JWKS is None:
+            return verify_iaf_access_token(access_token, config=client.config, jwks=_get_jwks(client, force_refresh=True))
+        raise
+
+
 class ThreadingRestServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
     block_on_close = False
 
 
 class RestHandler(BaseHTTPRequestHandler):
-    def _prefer_iaf_callback_html_document(self, qs: dict[str, list[str]]) -> bool:
-        """Browser top-level OAuth redirects send Sec-Fetch-Dest: document / text/html; APIs use format=json / application/json."""
-        fmt = str((qs.get("format") or [""])[-1]).strip().lower()
-        if fmt == "json":
-            return False
-        dest = (self.headers.get("Sec-Fetch-Dest") or "").strip().lower()
-        if dest == "document":
-            return True
-        accept_all = self.headers.get("Accept") or ""
-        parts = [p.strip() for p in accept_all.split(",") if p.strip()]
-        first_mt = parts[0].split(";")[0].strip().lower() if parts else ""
-        if first_mt == "application/json":
-            return False
-        if "text/html" in accept_all.lower():
-            return True
-        return False
-
     def _iaf_login_returns_json_envelope(self, qs: dict[str, list[str]]) -> bool:
         """SPA/API expect JSON (authorization_url…); top-level browser navigations use redirects."""
         fmt = str((qs.get("format") or [""])[-1]).strip().lower()
@@ -135,32 +193,13 @@ class RestHandler(BaseHTTPRequestHandler):
         first_mt = parts[0].split(";")[0].strip().lower() if parts else ""
         return first_mt == "application/json"
 
-    def _html_iaf_login_complete_reload(self, *, spa_path: str = "/") -> None:
-        target_js = json.dumps(spa_path, ensure_ascii=False)
-        escaped_href = html.escape(spa_path, quote=True)
-        doc = (
-            "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"/>"
-            f"<meta http-equiv=\"refresh\" content=\"0;url={escaped_href}\"/>"
-            "<title>IAF IAM 登录</title></head><body>"
-            "<p>授权已完成，正在返回政务数据大脑…</p>"
-            f"<script>location.replace({target_js});</script>"
-            f"<noscript><a href=\"{escaped_href}\">点击进入应用</a></noscript>"
-            "</body></html>"
-        )
-        payload = doc.encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Content-Length", str(len(payload)))
-        self.end_headers()
-        self.wfile.write(payload)
-
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
+        if parsed.path == "/auth/iaf/config":
+            self._handle_iaf_config()
+            return
         if parsed.path == "/auth/iaf/login":
             self._handle_iaf_login(parsed)
-            return
-        if parsed.path == "/auth/iaf/callback":
-            self._handle_iaf_callback(parsed)
             return
         if parsed.path == "/auth/iaf/logout":
             self._handle_iaf_logout(parsed)
@@ -175,18 +214,10 @@ class RestHandler(BaseHTTPRequestHandler):
             self._empty(204, "image/x-icon")
             return
         if parsed.path == "/api/snapshot":
-            qs = parse_qs(parsed.query)
-            role = (qs.get("role") or ["r1"])[-1]
-            self._json(200, get_service().invoke_skill("system.snapshot", {"role": role}))
+            self._with_authenticated_request(lambda claims: self._handle_api_snapshot(parsed, claims))
             return
         if parsed.path.startswith("/api/skills/"):
-            skill_id = parsed.path[len("/api/skills/"):]
-            params = {k: v[-1] for k, v in parse_qs(parsed.query).items()}
-            try:
-                require_surface(skill_id, "api")
-                self._json(200, get_service().invoke_skill(skill_id, params))
-            except Exception as exc:  # noqa: BLE001
-                self._handle_error(exc)
+            self._with_authenticated_request(lambda claims: self._handle_api_skill_get(parsed, claims))
             return
         if parsed.path in {"/", "/index.html"}:
             self._serve_file(WEB_ROOT / "index.html")
@@ -198,21 +229,39 @@ class RestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
+        if parsed.path == "/auth/iaf/token":
+            self._handle_iaf_token()
+            return
+        if parsed.path == "/auth/iaf/refresh":
+            self._handle_iaf_refresh()
+            return
         if parsed.path.startswith("/api/skills/"):
-            skill_id = parsed.path[len("/api/skills/"):]
-            try:
-                payload = self._read_json_body()
-                require_surface(skill_id, "api")
-                self._json(200, get_service().invoke_skill(skill_id, payload))
-            except Exception as exc:  # noqa: BLE001
-                self._handle_error(exc)
+            self._with_authenticated_request(lambda claims: self._handle_api_skill_post(parsed, claims))
             return
         self._json(404, {"error": "not_found", "path": parsed.path})
+
+    def _handle_iaf_config(self) -> None:
+        development_iam_bypass_enabled = get_dev_iam_bypass_enabled()
+        body: dict[str, Any] = {
+            "configured": True,
+            "development_iam_bypass_enabled": development_iam_bypass_enabled,
+        }
+        if development_iam_bypass_enabled:
+            # Frontend reads the bypass user from here instead of fabricating its own claims;
+            # keeps server as the single source of truth for the synthetic identity.
+            body["development_iam_bypass_user"] = _dev_iam_bypass_user_profile()
+        try:
+            config = IafOidcClient().config
+            body["iaf"] = config.public_dict()
+        except IafOidcError as exc:
+            body["configured"] = False
+            body["detail"] = str(exc)
+        self._json(200, body)
 
     def _handle_iaf_login(self, parsed) -> None:  # type: ignore[no-untyped-def]
         try:
             qs = parse_qs(parsed.query)
-            redirect_uri = self._same_origin_url((qs.get("redirect_uri") or [""])[-1], default_path="/auth/iaf/callback")
+            redirect_uri = self._same_origin_url((qs.get("redirect_uri") or [""])[-1], default_path="/")
             login_state = _IAF_STATE_STORE.issue(redirect_uri=redirect_uri)
             auth = IafOidcClient().authorization_request(redirect_uri=redirect_uri, login_state=login_state)
             if self._iaf_login_returns_json_envelope(qs):
@@ -222,49 +271,137 @@ class RestHandler(BaseHTTPRequestHandler):
         except Exception as exc:  # noqa: BLE001
             self._handle_error(exc)
 
-    def _handle_iaf_callback(self, parsed) -> None:  # type: ignore[no-untyped-def]
+    def _handle_api_snapshot(self, parsed, _claims: dict[str, Any]) -> None:  # type: ignore[no-untyped-def]
+        qs = parse_qs(parsed.query)
+        role = (qs.get("role") or ["r1"])[-1]
+        self._json(200, get_service().invoke_skill("system.snapshot", {"role": role}))
+
+    def _handle_api_skill_get(self, parsed, _claims: dict[str, Any]) -> None:  # type: ignore[no-untyped-def]
+        skill_id = parsed.path[len("/api/skills/"):]
+        params = {k: v[-1] for k, v in parse_qs(parsed.query).items()}
+        require_surface(skill_id, "api")
+        self._json(200, get_service().invoke_skill(skill_id, params))
+
+    def _handle_api_skill_post(self, parsed, _claims: dict[str, Any]) -> None:  # type: ignore[no-untyped-def]
+        skill_id = parsed.path[len("/api/skills/"):]
+        payload = self._read_json_body()
+        require_surface(skill_id, "api")
+        self._json(200, get_service().invoke_skill(skill_id, payload))
+
+    def _with_authenticated_request(self, handler: Callable[[dict[str, Any]], None]) -> None:
         try:
-            qs = parse_qs(parsed.query)
-            code = (qs.get("code") or [""])[-1]
-            login_state = _IAF_STATE_STORE.consume((qs.get("state") or [""])[-1])
-            redirect_uri = login_state.redirect_uri or self._request_url("/auth/iaf/callback")
-            client = IafOidcClient()
-            token_payload = client.exchange_authorization_code(code=code, redirect_uri=redirect_uri, transport=_IAF_TRANSPORT or _default_transport)
-            id_token = str(token_payload.get("id_token") or "")
-            jwks = _IAF_JWKS or _default_jwks(client)
-            claims = client.verify_id_token(id_token, jwks=jwks, expected_nonce=login_state.nonce)
-            actor_result = get_service().invoke_skill(
-                "actor.projection.sync",
-                {
-                    "iaf_claims": claims,
-                    "tenant_id": str(claims.get("project_id") or "sd-default"),
-                    "org_code": claims.get("org_code"),
-                    "role": "r7",
-                    "confirmed": True,
-                },
-            )
-            if self._prefer_iaf_callback_html_document(qs):
-                self._html_iaf_login_complete_reload(spa_path="/?iaf_login=done")
+            if get_dev_iam_bypass_enabled():
+                claims = _dev_iam_bypass_claims()
+                context_token = set_auth_context(
+                    auth_context_from_claims(claims, client_id=_iaf_client_id(), development_iam_bypass=True)
+                )
+                try:
+                    handler(claims)
+                finally:
+                    reset_auth_context(context_token)
                 return
-            self._json(
-                200,
-                {
-                    "authenticated": True,
-                    "actor_snapshot": actor_result["result"]["actor_snapshots"][0],
-                    "audit_id": actor_result["audit_id"],
-                },
-            )
+            client = IafOidcClient()
+            authorization = self.headers.get("Authorization") or ""
+            # healthz checks revocation; verify_iaf_access_token validates RS256 signature, issuer,
+            # audience and expiry locally so authorization does not rely on healthz semantics alone.
+            client.validate_access_token_health(authorization=authorization, transport=_IAF_TRANSPORT or _default_transport)
+            access_token = authorization.split(None, 1)[1]
+            claims = _verify_access_token_with_refresh(client, access_token)
+            context_token = set_auth_context(auth_context_from_claims(claims, client_id=client.config.client_id))
+            try:
+                handler(claims)
+            finally:
+                reset_auth_context(context_token)
         except Exception as exc:  # noqa: BLE001
             self._handle_error(exc)
+
+    def _handle_iaf_token(self) -> None:
+        try:
+            payload = self._read_json_body()
+            code = str(payload.get("code") or "")
+            state = str(payload.get("state") or "")
+            login_state = _IAF_STATE_STORE.consume(state)
+            redirect_uri = login_state.redirect_uri or self._request_url("/")
+            client = IafOidcClient()
+            token_payload = client.exchange_authorization_code(code=code, redirect_uri=redirect_uri, transport=_IAF_TRANSPORT or _default_transport)
+            if not str(token_payload.get("access_token") or ""):
+                raise IafOidcTokenError("token response missing access_token")
+            claims = self._claims_from_token_payload(client, token_payload, expected_nonce=login_state.nonce)
+            actor_result = self._sync_actor_from_claims(claims)
+            response = self._public_token_payload(token_payload)
+            response["authenticated"] = True
+            response["actor_snapshot"] = actor_result["result"]["actor_snapshots"][0]
+            response["audit_id"] = actor_result["audit_id"]
+            self._json(200, response)
+        except Exception as exc:  # noqa: BLE001
+            self._handle_error(exc)
+
+    def _claims_from_token_payload(self, client: IafOidcClient, token_payload: dict[str, Any], *, expected_nonce: str | None) -> dict[str, Any]:
+        id_token = str(token_payload.get("id_token") or "")
+        if id_token:
+            jwks = _get_jwks(client)
+            try:
+                return client.verify_id_token(id_token, jwks=jwks, expected_nonce=expected_nonce)
+            except IafOidcTokenError as exc:
+                if "jwks key mismatch" in str(exc) and _IAF_JWKS is None:
+                    return client.verify_id_token(id_token, jwks=_get_jwks(client, force_refresh=True), expected_nonce=expected_nonce)
+                raise
+        access_token = str(token_payload.get("access_token") or "")
+        if not access_token:
+            raise IafOidcTokenError("token response missing access_token")
+        # No id_token in response → still verify the access token signature locally before trusting claims.
+        client.validate_access_token_health(authorization=f"Bearer {access_token}", transport=_IAF_TRANSPORT or _default_transport)
+        return _verify_access_token_with_refresh(client, access_token)
+
+    def _handle_iaf_refresh(self) -> None:
+        try:
+            payload = self._read_json_body()
+            client = IafOidcClient()
+            token_payload = client.refresh_access_token(refresh_token=str(payload.get("refresh_token") or ""), transport=_IAF_TRANSPORT or _default_transport)
+            self._json(200, self._public_token_payload(token_payload))
+        except IafOidcError as exc:
+            if "HTTP 401" in str(exc):
+                self._json(401, {"error": "iaf_auth_error", "detail": "refresh token invalid or expired"})
+                return
+            self._handle_error(exc)
+        except Exception as exc:  # noqa: BLE001
+            self._handle_error(exc)
+
+    def _sync_actor_from_claims(self, claims: dict[str, Any]) -> dict[str, Any]:
+        # IAM-initiated first-login projection is a system-origin write, not an r7 user action;
+        # using role="system" keeps the audit/capability_call actor honest. The "system" role is granted
+        # exactly the actor.projection.sync.execute permission in zw_brain/domain/policy.py.
+        return get_service().invoke_skill(
+            "actor.projection.sync",
+            {
+                "iaf_claims": claims,
+                "tenant_id": str(claims.get("project_id") or "sd-default"),
+                "org_code": claims.get("org_code"),
+                "role": "system",
+                "confirmed": True,
+            },
+        )
+
+    def _public_token_payload(self, token_payload: dict[str, Any]) -> dict[str, Any]:
+        # id_token is forwarded so the SPA can later pass it as id_token_hint at logout time, which
+        # most OIDC providers (incl. Keycloak) require to honor post_logout_redirect_uri without prompting.
+        allowed = {"access_token", "refresh_token", "expires_in", "refresh_expires_in", "token_type", "scope", "id_token"}
+        return {key: value for key, value in token_payload.items() if key in allowed}
 
     def _handle_iaf_logout(self, parsed) -> None:  # type: ignore[no-untyped-def]
         try:
             qs = parse_qs(parsed.query)
+            redirect_uri = (qs.get("redirect_uri") or [""])[-1]
+            id_token_hint = (qs.get("id_token_hint") or [""])[-1]
+            if get_dev_iam_bypass_enabled():
+                self._json(200, {"logout_url": self._same_origin_url(redirect_uri, default_path="/"), "local_auth_cleared": True})
+                return
             config = IafOidcClient().config
-            params = {}
-            redirect_uri = (qs.get("post_logout_redirect_uri") or [""])[-1]
+            params: dict[str, str] = {}
             if redirect_uri:
                 params["post_logout_redirect_uri"] = self._same_origin_url(redirect_uri, default_path="/")
+            if id_token_hint:
+                params["id_token_hint"] = id_token_hint
             logout_url = config.endpoints.logout_endpoint
             if params:
                 logout_url = f"{logout_url}?{urlencode(params)}"
@@ -345,6 +482,9 @@ class RestHandler(BaseHTTPRequestHandler):
         if isinstance(exc, IafOidcStateError):
             self._json(400, {"error": "iaf_state_error", "detail": str(exc)})
             return
+        if isinstance(exc, IafOidcTokenHealthError):
+            self._json(exc.status_code, {"error": "iaf_token_health_error", "detail": str(exc)})
+            return
         if isinstance(exc, IafOidcTokenError):
             self._json(401, {"error": "iaf_auth_error", "detail": str(exc)})
             return
@@ -381,7 +521,29 @@ class RestHandler(BaseHTTPRequestHandler):
         return
 
 
+def log_iaf_runtime_warnings() -> None:
+    if get_dev_iam_bypass_enabled():
+        _LOGGER.warning(
+            "ZW_BRAIN_DEV_IAM_BYPASS=1 is active — IAM auth is fully bypassed and every "
+            "request runs as a synthetic %s user with all r1..r8 roles. DEVELOPMENT ONLY.",
+            _DEV_IAM_BYPASS_SUBJECT,
+        )
+    elif os.environ.get("ZW_BRAIN_DEV_IAM_BYPASS", "").strip() == "1":
+        _LOGGER.warning(
+            "ZW_BRAIN_DEV_IAM_BYPASS=1 is set but ZW_BRAIN_DEV_IAM_BYPASS_ACK is missing/invalid; "
+            "bypass is IGNORED. Set ZW_BRAIN_DEV_IAM_BYPASS_ACK=development-only to enable it."
+        )
+    if not get_iaf_verify_ssl() and get_iaf_insecure_tls_dev_ack():
+        _LOGGER.warning("ZW_BRAIN_IAF_VERIFY_SSL=false with dev ack — IAM TLS verification is OFF. DEVELOPMENT ONLY.")
+    elif not get_iaf_verify_ssl():
+        _LOGGER.warning(
+            "ZW_BRAIN_IAF_VERIFY_SSL=false is set but ZW_BRAIN_IAF_INSECURE_TLS_DEV_ACK is missing/invalid; "
+            "TLS verification stays ON. Set ZW_BRAIN_IAF_INSECURE_TLS_DEV_ACK=development-only to disable."
+        )
+
+
 def main(host: str | None = None, port: int | None = None) -> None:
+    log_iaf_runtime_warnings()
     ThreadingRestServer((host or get_rest_host(), port or get_rest_port()), RestHandler).serve_forever()
 
 

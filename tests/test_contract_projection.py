@@ -158,8 +158,8 @@ def test_dashboard_and_webui_use_registry_gateways_only() -> None:
     assert "get_service().invoke_skill(skill_id, {})" in dashboard_bff
     assert "parsed.path.startswith(\"/api/skills/\")" not in dashboard_bff
 
-    assert "fetch(`/api/skills/${skillId}${encodeParams(payload)}`" in app_js
-    assert "fetch(`/api/skills/${skillId}`" in app_js
+    assert "window.ZW_AUTH.authFetch(`/api/skills/${skillId}${encodeParams(payload)}`" in app_js
+    assert "window.ZW_AUTH.authFetch(`/api/skills/${skillId}`" in app_js
     assert "Object.assign({ role: currentRole, confirmed: true }, payload)" in app_js
     assert "get_service" not in app_js
     assert "invoke_skill" not in app_js

@@ -19,6 +19,8 @@ from zw_brain.shared.iaf_oidc import (
     IafOidcStateError,
     IafOidcStateStore,
     IafOidcTokenError,
+    IafOidcTokenHealthError,
+    verify_iaf_access_token,
     verify_iaf_id_token,
 )
 from zw_brain.shared.runtime_config import get_iaf_iam_public_config
@@ -78,6 +80,7 @@ def test_iaf_config_derives_keycloak_oidc_endpoints_and_public_config(monkeypatc
     assert config.endpoints.token_endpoint == "https://iaf.example/auth/realms/picp/protocol/openid-connect/token"
     assert config.endpoints.logout_endpoint == "https://iaf.example/auth/realms/picp/protocol/openid-connect/logout"
     assert config.endpoints.jwks_uri == "https://iaf.example/auth/realms/picp/protocol/openid-connect/certs"
+    assert config.endpoints.token_healthz_endpoint == "https://iaf.example/auth/v1/token-healthz"
     public = config.public_dict()
     assert public["resource"] == "zw-brain"
     assert public["credential_env"] == DEFAULT_IAF_CLIENT_SECRET_ENV
@@ -165,6 +168,88 @@ def test_token_exchange_rejects_http_error_without_body_leak() -> None:
         client.exchange_authorization_code(code="auth-code", redirect_uri="https://brain.example/callback", transport=transport)
     assert "client_secret" not in str(excinfo.value)
     assert "leak" not in str(excinfo.value)
+
+
+def test_refresh_token_uses_refresh_grant_and_keeps_secret_out(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, Any] = {}
+    monkeypatch.setenv(DEFAULT_IAF_CLIENT_SECRET_ENV, "refresh-secret")
+    client = IafOidcClient(_config())
+
+    def transport(request):  # type: ignore[no-untyped-def]
+        captured["body"] = request.body.decode("utf-8")
+        return type("Response", (), {"status_code": 200, "body": b'{"access_token":"a.b.c","refresh_token":"r","token_type":"Bearer"}'})()
+
+    result = client.refresh_access_token(refresh_token="refresh-1", transport=transport)
+
+    form = parse_qs(captured["body"])
+    assert form["grant_type"] == ["refresh_token"]
+    assert form["refresh_token"] == ["refresh-1"]
+    assert form["client_id"] == ["zw-brain"]
+    assert form["client_secret"] == ["refresh-secret"]
+    assert "refresh-secret" not in json.dumps(result)
+
+
+def test_token_healthz_transmits_authorization_and_maps_status() -> None:
+    captured: dict[str, Any] = {}
+    client = IafOidcClient(_config())
+
+    def ok_transport(request):  # type: ignore[no-untyped-def]
+        captured["method"] = request.method
+        captured["url"] = request.url
+        captured["authorization"] = request.headers.get("Authorization")
+        return type("Response", (), {"status_code": 200, "body": b"{}"})()
+
+    client.validate_access_token_health(authorization="Bearer access-token", transport=ok_transport)
+    assert captured == {
+        "method": "GET",
+        "url": "https://iaf.example/auth/v1/token-healthz",
+        "authorization": "Bearer access-token",
+    }
+
+    def unauthorized(_request):  # type: ignore[no-untyped-def]
+        return type("Response", (), {"status_code": 401, "body": b"{}"})()
+
+    with pytest.raises(IafOidcTokenHealthError) as excinfo:
+        client.validate_access_token_health(authorization="Bearer bad", transport=unauthorized)
+    assert excinfo.value.status_code == 401
+
+    def unavailable(_request):  # type: ignore[no-untyped-def]
+        return type("Response", (), {"status_code": 503, "body": b"{}"})()
+
+    with pytest.raises(IafOidcTokenHealthError) as excinfo_503:
+        client.validate_access_token_health(authorization="Bearer maybe", transport=unavailable)
+    assert excinfo_503.value.status_code == 503
+
+
+def test_verify_iaf_access_token_accepts_signed_token_without_nonce() -> None:
+    config = _config()
+    keys = _KeyFixture()
+    claims = _claims(config)
+    claims.pop("nonce")
+    token = keys.encode(claims)
+
+    verified = verify_iaf_access_token(token, config=config, jwks=keys.jwks)
+
+    assert verified["sub"] == "iaf-user-001"
+    assert verified["aud"] == ["zw-brain"]
+
+
+def test_verify_iaf_access_token_rejects_tampered_signature() -> None:
+    config = _config()
+    good_keys = _KeyFixture(kid="same-kid")
+    bad_keys = _KeyFixture(kid="same-kid")
+    token = good_keys.encode(_claims(config))
+
+    with pytest.raises(IafOidcTokenError, match="jwt verification failed"):
+        verify_iaf_access_token(token, config=config, jwks=bad_keys.jwks)
+
+
+def test_verify_iaf_access_token_rejects_unsigned_jwt() -> None:
+    config = _config()
+    token = jwt.encode(_claims(config), key=None, algorithm="none", headers={"typ": "JWT"})
+
+    with pytest.raises(IafOidcTokenError, match="unsupported jwt algorithm"):
+        verify_iaf_access_token(token, config=config, jwks={"keys": [{"kty": "RSA"}]})
 
 
 def test_verify_iaf_id_token_accepts_valid_rs256_jwks_claims() -> None:

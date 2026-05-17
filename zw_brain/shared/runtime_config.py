@@ -81,6 +81,26 @@ def get_webui_dashboard_href() -> str | None:
     return None
 
 
+_DEV_BYPASS_ACK_VALUE = "development-only"
+
+
+def get_dev_iam_bypass_ack() -> bool:
+    return os.environ.get("ZW_BRAIN_DEV_IAM_BYPASS_ACK", "").strip() == _DEV_BYPASS_ACK_VALUE
+
+
+def get_dev_iam_bypass_enabled() -> bool:
+    # Two env vars are required so a single typo cannot disable auth in a production rollout.
+    return os.environ.get("ZW_BRAIN_DEV_IAM_BYPASS", "").strip() == "1" and get_dev_iam_bypass_ack()
+
+
+def get_iaf_verify_ssl() -> bool:
+    return os.environ.get("ZW_BRAIN_IAF_VERIFY_SSL", "true").strip().lower() != "false"
+
+
+def get_iaf_insecure_tls_dev_ack() -> bool:
+    return os.environ.get("ZW_BRAIN_IAF_INSECURE_TLS_DEV_ACK", "").strip() == _DEV_BYPASS_ACK_VALUE
+
+
 def get_iaf_iam_config() -> IafIamConfig:
     return IafIamConfig.from_env()
 

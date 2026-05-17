@@ -29,6 +29,7 @@
   const ROUTES = [
     { test: /^#\/login$/, page: 'login', nav: null },
     { test: /^#\/p0-migration-acceptance$/, page: 'migrationAcceptance', nav: 'main' },
+    { test: /^#\/profile$/, page: 'profile', nav: null },
     { test: /^#\/p1-workbench$/, page: 'workbench', nav: 'main' },
     { test: /^#\/p2-discovery$/, page: 'discovery', nav: 'main' },
     { test: /^#\/p2-discovery\/catalog-browse$/, page: 'catalogBrowse', nav: 'main' },
@@ -81,14 +82,14 @@
 
   async function invokeRead(skillId, params = {}) {
     const payload = Object.assign({ role: currentRole }, params);
-    const resp = await fetch(`/api/skills/${skillId}${encodeParams(payload)}`, {
+    const resp = await window.ZW_AUTH.authFetch(`/api/skills/${skillId}${encodeParams(payload)}`, {
       headers: { Accept: 'application/json' },
     });
     return await handleResponse(resp);
   }
 
   async function invokeWrite(skillId, payload = {}) {
-    const resp = await fetch(`/api/skills/${skillId}`, {
+    const resp = await window.ZW_AUTH.authFetch(`/api/skills/${skillId}`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -153,19 +154,26 @@
 
   function syncHeaderIdentityAndLegal() {
     const cfg = window.ZW_WEBUI || {};
+    const user = window.ZW_AUTH && window.ZW_AUTH.getCurrentUser ? window.ZW_AUTH.getCurrentUser() : null;
     const identityEl = document.getElementById('identity-label');
     const identityText = (cfg.identityLabel || '').trim();
     if (identityEl) {
-      identityEl.textContent = identityText || '当前账号';
+      identityEl.textContent = user
+        ? `当前账号：${user.displayName || user.username}`
+        : (identityText || '当前账号');
     }
-    // P7 — when we already have a real identity (anything other than the
-    // placeholder "当前账号"), hide the redundant 登录 nav link so users
-    // don't see "login" next to a logged-in identity chip.
+    // P7 — when an authenticated user is in session, hide the redundant 登录 nav link.
     const loginEl = document.getElementById('zw-login-nav-link');
     if (loginEl) {
-      const isAuthenticated = !!identityText && identityText !== '当前账号';
+      const isAuthenticated = !!user || (!!identityText && identityText !== '当前账号');
       loginEl.style.display = isAuthenticated ? 'none' : '';
     }
+    const loginButton = document.getElementById('zw-login-button');
+    if (loginButton) loginButton.hidden = !!user;
+    const userMenu = document.getElementById('user-menu');
+    if (userMenu) userMenu.hidden = !user;
+    const userName = document.getElementById('user-menu-name');
+    if (userName && user) userName.textContent = user.displayName || user.username || '当前用户';
     const legalEl = document.getElementById('legal-notice');
     if (legalEl) {
       const text = String(cfg.legalNotice || '').trim();
@@ -179,7 +187,7 @@
   }
 
   async function refreshSnapshot() {
-    const snapshot = await fetch(`/api/snapshot${encodeParams({ role: currentRole })}`, {
+    const snapshot = await window.ZW_AUTH.authFetch(`/api/snapshot${encodeParams({ role: currentRole })}`, {
       headers: { Accept: 'application/json' },
     }).then(handleResponse);
     hydrateSnapshot(snapshot);
@@ -199,20 +207,6 @@
       return fallback || '当前服务暂不可用，请稍后重试。';
     }
     return fallback || '操作未完成，请稍后重试。';
-  }
-
-  function consumeIafLoginQueryToastFlag() {
-    try {
-      const u = new URL(window.location.href);
-      if (String(u.searchParams.get('iaf_login') || '') !== 'done') return;
-      u.searchParams.delete('iaf_login');
-      const qs = u.searchParams.toString();
-      const nextPath = qs ? `${u.pathname}?${qs}` : u.pathname;
-      window.history.replaceState(null, '', `${nextPath}${window.location.hash || ''}`);
-      window.UI.toast('统一身份登录成功，账号权限已同步。', 'success');
-    } catch (_) {
-      /* non-fatal */
-    }
   }
 
   async function syncRouteData(hash) {
@@ -718,21 +712,32 @@
     async startIafLogin(event) {
       if (event) event.preventDefault();
       try {
-        const redirectUri = `${window.location.origin}/auth/iaf/callback`;
-        const resp = await fetch(`/auth/iaf/login?redirect_uri=${encodeURIComponent(redirectUri)}`, {
-          headers: { Accept: 'application/json' },
-        });
-        const data = await resp.json();
-        if (!resp.ok) {
-          throw new Error(data.detail || data.error || `HTTP ${resp.status}`);
-        }
-        if (!data.authorization_url) {
-          throw new Error('当前服务未返回授权地址');
-        }
-        window.location.href = String(data.authorization_url);
+        await window.ZW_AUTH.startLogin();
       } catch (err) {
         window.UI.toast(customerSafeError(err, '无法启动统一身份登录，请联系系统管理员检查服务状态。'), 'error');
       }
+    },
+    toggleUserMenu(event) {
+      if (event) event.preventDefault();
+      const panel = document.getElementById('user-menu-panel');
+      const button = document.getElementById('user-menu-button');
+      if (!panel || !button) return;
+      const nextHidden = !panel.hidden;
+      panel.hidden = nextHidden;
+      button.setAttribute('aria-expanded', nextHidden ? 'false' : 'true');
+    },
+    async logout(event) {
+      if (event) event.preventDefault();
+      try {
+        await window.ZW_AUTH.logout();
+      } catch (err) {
+        window.ZW_AUTH.clearSession();
+        window.location.href = '/';
+      }
+    },
+    showProfile(event) {
+      if (event) event.preventDefault();
+      window.location.hash = '#/profile';
     },
     noop(message) {
       window.UI.toast(message || '当前阶段暂无可办理动作', 'info');
@@ -1031,22 +1036,16 @@
     productShellNavTopResizeTimer = setTimeout(scheduleSyncProductShellNavTop, 120);
   });
 
-  function wireLoginNavLink() {
-    const el = document.getElementById('zw-login-nav-link');
-    if (!el) return;
-    el.addEventListener('click', () => {
-      window.setTimeout(async () => {
-        if ((window.location.hash || '') !== '#/login') return;
-        if (!snapshotReady) return;
-        try {
-          await syncRouteData('#/login');
-          dispatch();
-        } catch (err) {
-          const app = document.getElementById('app');
-          if (app) app.innerHTML = renderError(customerSafeError(err, '路由数据暂未完成加载。'));
-        }
-      }, 0);
+  function wireUserMenuDismiss() {
+    document.addEventListener('click', event => {
+      const menu = document.getElementById('user-menu');
+      const panel = document.getElementById('user-menu-panel');
+      const button = document.getElementById('user-menu-button');
+      if (!menu || !panel || !button || menu.contains(event.target)) return;
+      panel.hidden = true;
+      button.setAttribute('aria-expanded', 'false');
     });
+    window.addEventListener('zw-auth-change', syncHeaderIdentityAndLegal);
   }
 
   window.addEventListener('hashchange', async () => {
@@ -1060,7 +1059,7 @@
 
   window.addEventListener('DOMContentLoaded', async () => {
     const switcher = document.getElementById('role-switch');
-    wireLoginNavLink();
+    wireUserMenuDismiss();
     if (switcher) {
       switcher.addEventListener('change', async event => {
         currentRole = event.target.value;
@@ -1071,8 +1070,9 @@
       });
     }
     try {
+      const authenticated = await window.ZW_AUTH.bootstrapAuth();
+      if (!authenticated) return;
       await refreshSnapshot();
-      consumeIafLoginQueryToastFlag();
       await refreshSchemaInfo();
       if (switcher) switcher.value = currentRole;
       if (!window.location.hash) {

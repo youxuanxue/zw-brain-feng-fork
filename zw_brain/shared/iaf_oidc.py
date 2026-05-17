@@ -35,6 +35,12 @@ class IafOidcTokenError(IafOidcError):
     pass
 
 
+class IafOidcTokenHealthError(IafOidcError):
+    def __init__(self, status_code: int, message: str) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+
 @dataclass(frozen=True)
 class IafOidcEndpoints:
     issuer: str
@@ -42,6 +48,7 @@ class IafOidcEndpoints:
     token_endpoint: str
     logout_endpoint: str
     jwks_uri: str
+    token_healthz_endpoint: str
 
 
 @dataclass(frozen=True)
@@ -87,6 +94,7 @@ class IafIamConfig:
             token_endpoint=f"{openid_base}/token",
             logout_endpoint=f"{openid_base}/logout",
             jwks_uri=f"{openid_base}/certs",
+            token_healthz_endpoint=f"{base}/v1/token-healthz",
         )
 
     def public_dict(self) -> dict[str, Any]:
@@ -103,6 +111,7 @@ class IafIamConfig:
             "token_endpoint": endpoints.token_endpoint,
             "logout_endpoint": endpoints.logout_endpoint,
             "jwks_uri": endpoints.jwks_uri,
+            "token_healthz_endpoint": endpoints.token_healthz_endpoint,
         }
 
 
@@ -198,9 +207,44 @@ class IafOidcClient:
             "redirect_uri": redirect_uri,
             "client_id": self.config.client_id,
         }
+        return self._post_token_form(form, transport=transport, failure_label="token exchange")
+
+    def refresh_access_token(self, *, refresh_token: str, transport: HttpTransport) -> dict[str, Any]:
+        if not refresh_token:
+            raise IafOidcError("refresh token is required")
+        form = {
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "client_id": self.config.client_id,
+        }
+        return self._post_token_form(form, transport=transport, failure_label="token refresh")
+
+    def validate_access_token_health(self, *, authorization: str, transport: HttpTransport) -> None:
+        value = str(authorization or "").strip()
+        if not value.lower().startswith("bearer "):
+            raise IafOidcTokenHealthError(401, "missing bearer token")
+        request = HttpRequest(
+            method="GET",
+            url=self.config.endpoints.token_healthz_endpoint,
+            headers={"Accept": "application/json", "Authorization": value},
+            body=b"",
+        )
+        try:
+            response = transport(request)
+        except IafOidcError as exc:
+            raise IafOidcTokenHealthError(503, "token validation service unavailable") from exc
+        if response.status_code == 200:
+            return
+        if response.status_code == 401:
+            raise IafOidcTokenHealthError(401, "token invalid or expired")
+        if response.status_code == 503:
+            raise IafOidcTokenHealthError(503, "token validation service unavailable")
+        raise IafOidcTokenHealthError(503, f"token validation failed with HTTP {response.status_code}")
+
+    def _post_token_form(self, form: dict[str, str], *, transport: HttpTransport, failure_label: str) -> dict[str, Any]:
         client_secret = self.config.client_secret
         if client_secret:
-            form["client_secret"] = client_secret
+            form = form | {"client_secret": client_secret}
         request = HttpRequest(
             method="POST",
             url=self.config.endpoints.token_endpoint,
@@ -209,13 +253,13 @@ class IafOidcClient:
         )
         response = transport(request)
         if response.status_code < 200 or response.status_code >= 300:
-            raise IafOidcError(f"token exchange failed with HTTP {response.status_code}")
+            raise IafOidcError(f"{failure_label} failed with HTTP {response.status_code}")
         try:
             payload = json.loads(response.body.decode("utf-8"))
         except Exception as exc:
-            raise IafOidcError("token exchange returned invalid JSON") from exc
+            raise IafOidcError(f"{failure_label} returned invalid JSON") from exc
         if not isinstance(payload, dict):
-            raise IafOidcError("token exchange returned invalid payload")
+            raise IafOidcError(f"{failure_label} returned invalid payload")
         return payload
 
     def verify_id_token(self, token: str, *, jwks: dict[str, Any], expected_nonce: str | None = None) -> dict[str, Any]:
@@ -281,4 +325,31 @@ def verify_iaf_id_token(token: str, *, config: IafIamConfig, jwks: dict[str, Any
         raise IafOidcTokenError("missing sub")
     if config.require_preferred_username and not str(claims.get("preferred_username") or ""):
         raise IafOidcTokenError("missing preferred_username")
+    return safe_json(claims)
+
+
+def verify_iaf_access_token(token: str, *, config: IafIamConfig, jwks: dict[str, Any]) -> dict[str, Any]:
+    # Access tokens are signed RS256 JWTs in Keycloak; reusing id-token verification minus the nonce
+    # check (access tokens carry no nonce). Calling this before trusting claims closes the gap where
+    # /v1/token-healthz semantics alone cannot guarantee signature/iss/aud integrity.
+    if not token or token.count(".") != 2:
+        raise IafOidcTokenError("invalid jwt format")
+    jwk = _select_jwk(token, jwks)
+    try:
+        public_key = RSAAlgorithm.from_jwk(json.dumps(jwk))
+        claims = jwt.decode(
+            token,
+            key=public_key,
+            algorithms=["RS256"],
+            issuer=config.endpoints.issuer,
+            options={"require": ["exp", "iss", "sub"], "verify_aud": False},
+        )
+    except Exception as exc:
+        raise IafOidcTokenError("jwt verification failed") from exc
+    if not isinstance(claims, dict):
+        raise IafOidcTokenError("invalid jwt claims type")
+    if config.client_id not in _audience_values(claims):
+        raise IafOidcTokenError("audience mismatch")
+    if not str(claims.get("sub") or ""):
+        raise IafOidcTokenError("missing sub")
     return safe_json(claims)

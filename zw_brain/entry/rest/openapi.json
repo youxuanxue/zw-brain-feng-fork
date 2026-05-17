@@ -58,6 +58,24 @@
         "summary": "Get system snapshot",
         "operationId": "getSystemSnapshot",
         "x-zwbrain-skill-id": "system.snapshot",
+        "responses": {
+          "200": {
+            "description": "Snapshot response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
+          }
+        },
         "parameters": [
           {
             "name": "role",
@@ -79,18 +97,11 @@
             "description": "Web UI role; snapshot lists are redacted server-side to match page access."
           }
         ],
-        "responses": {
-          "200": {
-            "description": "Snapshot response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+        "security": [
+          {
+            "BearerAuth": []
           }
-        }
+        ]
       }
     },
     "/api/skills/adapter.cascade.health.query": {
@@ -240,6 +251,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -282,6 +299,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -433,6 +455,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -491,6 +519,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -632,6 +665,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -643,6 +682,11 @@
               "type": "string",
               "minLength": 1
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -780,9 +824,20 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
-        "parameters": []
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/audit.replay_evidence_chain": {
@@ -943,6 +998,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -954,6 +1015,11 @@
               "type": "string",
               "minLength": 1
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -1102,6 +1168,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -1180,6 +1252,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -1313,6 +1390,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -1359,6 +1442,11 @@
               "description": "filter by summary_json.source (e.g. 'reverse' for 反向编目 drafts)"
             },
             "description": "filter by summary_json.source (e.g. 'reverse' for 反向编目 drafts)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -1498,6 +1586,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -1524,6 +1618,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -1666,6 +1765,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -1676,6 +1781,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -1809,6 +1919,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -1828,6 +1944,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -1961,6 +2082,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -1979,6 +2106,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -2128,6 +2260,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -2139,6 +2277,11 @@
               "type": "string",
               "minLength": 1
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -2281,6 +2424,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -2291,6 +2440,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -2432,6 +2586,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -2474,6 +2634,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -2615,6 +2780,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -2641,6 +2812,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -2782,6 +2958,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -2808,6 +2990,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -2957,9 +3144,20 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
-        "parameters": []
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/data.search": {
@@ -3096,6 +3294,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -3117,6 +3321,11 @@
               "type": "string",
               "minLength": 1
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -3250,9 +3459,20 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
-        "parameters": []
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/delivery.view": {
@@ -3396,6 +3616,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -3407,6 +3633,11 @@
               "type": "string",
               "minLength": 1
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -3540,6 +3771,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -3567,6 +3804,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -3700,6 +3942,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -3727,6 +3975,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -3881,9 +4134,20 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
-        "parameters": []
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/governance.dispute_view": {
@@ -4027,6 +4291,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -4038,6 +4308,11 @@
               "type": "string",
               "minLength": 1
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -4245,6 +4520,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -4343,6 +4624,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -4517,6 +4803,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -4535,6 +4827,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -4668,6 +4965,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -4694,6 +4997,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -4827,6 +5135,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -4853,6 +5167,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -4986,6 +5305,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -5012,6 +5337,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -5145,6 +5475,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -5172,6 +5508,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -5305,6 +5646,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -5331,6 +5678,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -5482,6 +5834,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -5524,6 +5882,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -5675,6 +6038,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -5701,6 +6070,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -5852,6 +6226,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -5886,6 +6266,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -6019,6 +6404,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -6045,6 +6436,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -6172,6 +6568,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -6182,6 +6584,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -6324,6 +6731,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -6350,6 +6763,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -6492,6 +6910,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -6526,6 +6950,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -6663,6 +7092,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -6697,6 +7132,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -6841,6 +7281,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -6851,6 +7297,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -6984,9 +7435,20 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
-        "parameters": []
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/package.view": {
@@ -7127,6 +7589,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -7138,6 +7606,11 @@
               "type": "string",
               "minLength": 1
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -7296,9 +7769,20 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
-        "parameters": []
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/registry.artifact.export": {
@@ -7438,6 +7922,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -7464,6 +7954,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -7597,9 +8092,20 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
-        "parameters": []
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/request.view": {
@@ -7743,6 +8249,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -7754,6 +8266,11 @@
               "type": "string",
               "minLength": 1
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -7887,6 +8404,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -7905,6 +8428,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -8050,9 +8578,20 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
-        "parameters": []
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/tenant.policy.evaluate": {
@@ -8225,6 +8764,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -8333,6 +8878,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -8481,6 +9031,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -8507,6 +9063,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -8655,6 +9216,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -8689,6 +9256,11 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -8841,6 +9413,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -8861,6 +9439,11 @@
                 "r8"
               ]
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -8994,9 +9577,20 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
-        "parameters": []
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/zone.view": {
@@ -9143,6 +9737,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "parameters": [
@@ -9154,6 +9754,11 @@
               "type": "string",
               "minLength": 1
             }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ]
       }
@@ -9326,6 +9931,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -9372,7 +9983,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/adapter.cascade.consume": {
@@ -9546,6 +10162,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -9634,7 +10256,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/adapter.cascade.replay": {
@@ -9808,6 +10435,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -9896,7 +10529,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/adapter.health.probe": {
@@ -10061,6 +10699,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -10095,7 +10739,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/adapter.national.application.receive": {
@@ -10269,6 +10918,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -10357,7 +11012,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/adapter.national.application.reconcile": {
@@ -10531,6 +11191,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -10619,7 +11285,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/adapter.national.application.submit": {
@@ -10793,6 +11464,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -10881,7 +11558,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/adapter.national.catalog.pull": {
@@ -11055,6 +11737,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -11143,7 +11831,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/adapter.national.catalog.report": {
@@ -11317,6 +12010,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -11405,7 +12104,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/adapter.national.delivery.receipt.sync": {
@@ -11579,6 +12283,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -11667,7 +12377,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/adapter.national.objection.sync": {
@@ -11841,6 +12556,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -11929,7 +12650,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/adapter.national.resource.pull": {
@@ -12103,6 +12829,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -12191,7 +12923,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/adapter.national.resource.report": {
@@ -12365,6 +13102,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -12453,7 +13196,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/adapter.national.topic.report": {
@@ -12627,6 +13375,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -12715,7 +13469,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/application.grant.approve": {
@@ -12881,6 +13640,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -12923,7 +13688,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/application.grant.renew": {
@@ -13089,6 +13859,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -13124,7 +13900,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/application.resource.review": {
@@ -13290,6 +14071,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -13335,7 +14122,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/application.resource.submit": {
@@ -13501,6 +14293,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -13530,7 +14328,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/approval.case.decide": {
@@ -13695,6 +14498,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -13733,7 +14542,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/approval.review_decide": {
@@ -13900,6 +14714,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -13936,7 +14756,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/backflow.confirm": {
@@ -14103,6 +14928,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -14130,7 +14961,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/capability.exposure.configure": {
@@ -14295,6 +15131,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -14332,7 +15174,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/capability.package.register": {
@@ -14497,6 +15344,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -14547,7 +15400,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/capability.version.review": {
@@ -14712,6 +15570,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -14750,7 +15614,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/capability.version.submit": {
@@ -14915,6 +15784,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -14944,7 +15819,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/catalog.entry.create": {
@@ -15109,6 +15989,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -15157,7 +16043,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/catalog.entry.create_draft": {
@@ -15322,6 +16213,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -15373,7 +16270,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/catalog.entry.publish": {
@@ -15539,6 +16441,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -15565,7 +16473,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/catalog.entry.reverse_draft.confirm": {
@@ -15710,6 +16623,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -15748,7 +16667,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/catalog.entry.reverse_draft.create": {
@@ -15904,6 +16828,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -15953,7 +16883,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/catalog.entry.reverse_draft.reject": {
@@ -16098,6 +17033,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -16131,7 +17072,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/catalog.entry.review": {
@@ -16297,6 +17243,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -16332,7 +17284,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/catalog.entry.submit_review": {
@@ -16498,6 +17455,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -16524,7 +17487,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/catalog.entry.update": {
@@ -16689,6 +17657,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -16736,7 +17710,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/catalog.entry.withdraw": {
@@ -16902,6 +17881,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -16928,7 +17913,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/catalog.manage_entry": {
@@ -17094,6 +18084,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -17129,7 +18125,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/catalog.model.upsert": {
@@ -17282,6 +18283,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -17334,7 +18341,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/catalog.resource.bind": {
@@ -17499,6 +18511,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -17555,7 +18573,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/catalog.schema.mapping.upsert": {
@@ -17708,6 +18731,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -17774,7 +18803,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/compliance.case.assign": {
@@ -17939,6 +18973,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -17974,7 +19014,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/compliance.case.close": {
@@ -18139,6 +19184,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -18171,7 +19222,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/compliance.case.open": {
@@ -18336,6 +19392,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -18377,7 +19439,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/compliance.case.resolve": {
@@ -18542,6 +19609,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -18577,7 +19650,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/compliance.investigate_case": {
@@ -18743,6 +19821,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -18778,7 +19862,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/compliance.rule.configure": {
@@ -18943,6 +20032,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -18984,7 +20079,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/compliance.signal.ingest": {
@@ -19149,6 +20249,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -19183,7 +20289,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/delivery.access.grant": {
@@ -19349,6 +20460,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -19375,7 +20492,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/delivery.exchange.plan": {
@@ -19541,6 +20663,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -19574,7 +20702,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/delivery.exchange.publish": {
@@ -19740,6 +20873,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -19766,7 +20905,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/delivery.exchange.start": {
@@ -19932,6 +21076,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -19968,7 +21118,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/delivery.exchange.stop": {
@@ -20134,6 +21289,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -20163,7 +21324,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/delivery.receipt.ingest": {
@@ -20328,6 +21494,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -20373,7 +21545,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/delivery.reconcile_receipt": {
@@ -20539,6 +21716,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -20566,7 +21749,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/delivery.replace_or_cancel": {
@@ -20711,6 +21899,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -20754,7 +21948,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/delivery.subscription.manage": {
@@ -20920,6 +22119,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -20965,7 +22170,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/delivery.trigger_recovery": {
@@ -21131,6 +22341,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -21158,7 +22374,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/legacy.bsp.mapping.import": {
@@ -21329,6 +22550,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -21381,7 +22608,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/legacy.sharezone.mapping.import": {
@@ -21552,6 +22784,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -21664,7 +22902,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/metadata.gather.evidence.upsert": {
@@ -21817,6 +23060,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -21870,7 +23119,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/metadata.lineage.upsert": {
@@ -22023,6 +23277,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -22074,7 +23334,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/metadata.schema.snapshot.upsert": {
@@ -22227,6 +23492,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -22273,7 +23544,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/objection.case.accept": {
@@ -22447,6 +23723,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -22491,7 +23773,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/objection.case.assign": {
@@ -22665,6 +23952,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -22716,7 +24009,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/objection.case.close": {
@@ -22890,6 +24188,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -22934,7 +24238,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/objection.case.create": {
@@ -23108,6 +24417,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -23175,7 +24490,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/objection.case.escalate": {
@@ -23349,6 +24669,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -23396,7 +24722,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/objection.case.evaluate": {
@@ -23570,6 +24901,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -23632,7 +24969,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/objection.case.reject": {
@@ -23806,6 +25148,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -23850,7 +25198,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/objection.case.reply": {
@@ -24024,6 +25377,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -24074,7 +25433,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/objection.case.review": {
@@ -24248,6 +25612,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -24303,7 +25673,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/objection.case.submit": {
@@ -24477,6 +25852,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -24521,7 +25902,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/ops.catalog.quality.upsert": {
@@ -24674,6 +26060,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -24723,7 +26115,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/ops.gateway.heartbeat.ingest": {
@@ -24875,6 +26272,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -24919,7 +26322,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/ops.gateway.log.anchor": {
@@ -25071,6 +26479,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -25107,7 +26521,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/org.projection.sync": {
@@ -25278,6 +26697,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -25330,7 +26755,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/package.apply_tenant_policy": {
@@ -25496,6 +26926,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -25523,7 +26959,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/package.configure_exposure": {
@@ -25689,6 +27130,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -25724,7 +27171,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/package.register_version": {
@@ -25890,6 +27342,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -25917,7 +27375,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/package.review_decide": {
@@ -26083,6 +27546,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -26119,7 +27588,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/quality.rule.upsert": {
@@ -26264,6 +27738,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -26311,7 +27791,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/quality.task.replay": {
@@ -26456,6 +27941,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -26492,7 +27983,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/quality.task.run": {
@@ -26637,6 +28133,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -26672,7 +28174,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/request.create": {
@@ -26839,6 +28346,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -26869,7 +28382,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/request.submit": {
@@ -27036,6 +28554,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -27063,7 +28587,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/require.intent.refine": {
@@ -27228,6 +28757,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -27266,7 +28801,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/require.intent.review": {
@@ -27432,6 +28972,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -27470,7 +29016,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/require.intent.submit": {
@@ -27636,6 +29187,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -27677,7 +29234,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/require.resource.dispatch": {
@@ -27822,6 +29384,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -27861,7 +29429,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/require.resource.match": {
@@ -28026,6 +29599,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -28064,7 +29643,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/require.task.handoff": {
@@ -28208,6 +29792,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -28244,7 +29834,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/resource.api.change": {
@@ -28398,6 +29993,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -28472,7 +30073,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/resource.api.policy.update": {
@@ -28626,6 +30232,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -28690,7 +30302,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/resource.api.publish": {
@@ -28844,6 +30461,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -28906,7 +30529,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/resource.api.register": {
@@ -29060,6 +30688,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -29135,7 +30769,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/resource.api.review": {
@@ -29289,6 +30928,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -29352,7 +30997,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/resource.api.revoke": {
@@ -29506,6 +31156,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -29568,7 +31224,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/resource.api.submit_review": {
@@ -29722,6 +31383,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -29784,7 +31451,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/resource.api.test": {
@@ -29938,6 +31610,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -30005,7 +31683,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/resource.api.withdraw": {
@@ -30159,6 +31842,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -30221,7 +31910,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/resource.asset.publish": {
@@ -30387,6 +32081,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -30413,7 +32113,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/resource.asset.review": {
@@ -30579,6 +32284,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -30613,7 +32324,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/resource.asset.submit_review": {
@@ -30779,6 +32495,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -30805,7 +32527,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/resource.manage_asset": {
@@ -30971,6 +32698,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -31019,7 +32752,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/risk.event.ingest": {
@@ -31184,6 +32922,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -31218,7 +32962,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/security.scan.result.sync": {
@@ -31383,6 +33132,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -31417,7 +33172,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/service.publish_or_suspend": {
@@ -31583,6 +33343,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -31618,7 +33384,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/standard.asset.recommend": {
@@ -31783,6 +33554,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -31817,7 +33594,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/standard.asset.sync": {
@@ -31982,6 +33764,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -32016,7 +33804,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/subscription.terminate": {
@@ -32161,6 +33954,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -32194,7 +33993,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/summary.confirm": {
@@ -32361,6 +34165,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -32388,7 +34198,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/supplement.submit": {
@@ -32555,6 +34370,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -32582,7 +34403,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/system.toggle_outage": {
@@ -32734,6 +34560,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -32756,7 +34588,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/tenant.capability.disable": {
@@ -32921,6 +34758,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -32950,7 +34793,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/tenant.capability.enable": {
@@ -33115,6 +34963,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -33144,7 +34998,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/topic.package.configure": {
@@ -33315,6 +35174,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -33428,7 +35293,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/topic.package.create": {
@@ -33599,6 +35469,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -33712,7 +35588,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/topic.package.evidence.attach": {
@@ -33883,6 +35764,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -33996,7 +35883,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/topic.package.policy.update": {
@@ -34167,6 +36059,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -34280,7 +36178,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/topic.package.publish": {
@@ -34451,6 +36354,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -34564,7 +36473,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/topic.package.review": {
@@ -34735,6 +36649,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -34849,7 +36769,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/topic.package.submit": {
@@ -35020,6 +36945,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -35133,7 +37064,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/topic.package.subscribe": {
@@ -35304,6 +37240,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -35417,7 +37359,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/api/skills/zone.publish_topic_projection": {
@@ -35583,6 +37530,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired Bearer token"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
           }
         },
         "requestBody": {
@@ -35610,7 +37563,225 @@
               }
             }
           }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/auth/iaf/config": {
+      "get": {
+        "summary": "Get IAF IAM public config",
+        "operationId": "getIafConfig",
+        "responses": {
+          "200": {
+            "description": "IAF public configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "configured": {
+                      "type": "boolean"
+                    },
+                    "development_iam_bypass_enabled": {
+                      "type": "boolean"
+                    },
+                    "development_iam_bypass_user": {
+                      "type": "object",
+                      "description": "Synthetic identity returned only when development_iam_bypass_enabled is true.",
+                      "properties": {
+                        "subject": {
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        },
+                        "display_name": {
+                          "type": "string"
+                        },
+                        "tenant_id": {
+                          "type": "string"
+                        },
+                        "org_code": {
+                          "type": "string"
+                        },
+                        "role_codes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "iaf": {
+                      "type": "object"
+                    },
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "configured",
+                    "development_iam_bypass_enabled"
+                  ]
+                }
+              }
+            }
+          }
         }
+      }
+    },
+    "/auth/iaf/login": {
+      "get": {
+        "summary": "Create IAF authorization URL",
+        "operationId": "startIafLogin",
+        "parameters": [
+          {
+            "name": "redirect_uri",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorization URL JSON envelope"
+          },
+          "302": {
+            "description": "Redirect to IAM authorization endpoint"
+          },
+          "400": {
+            "description": "Invalid redirect URI"
+          }
+        }
+      }
+    },
+    "/auth/iaf/token": {
+      "post": {
+        "summary": "Exchange IAF authorization code for token",
+        "operationId": "exchangeIafCodeForToken",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "code",
+                  "state"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token package and actor snapshot"
+          },
+          "400": {
+            "description": "State or code exchange failed"
+          },
+          "401": {
+            "description": "Token verification failed"
+          }
+        }
+      }
+    },
+    "/auth/iaf/refresh": {
+      "post": {
+        "summary": "Refresh IAF access token",
+        "operationId": "refreshIafToken",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "refresh_token"
+                ],
+                "properties": {
+                  "refresh_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Refreshed token package"
+          },
+          "401": {
+            "description": "Refresh token invalid or expired"
+          }
+        }
+      }
+    },
+    "/auth/iaf/logout": {
+      "get": {
+        "summary": "Build IAF logout URL",
+        "operationId": "logoutIaf",
+        "parameters": [
+          {
+            "name": "redirect_uri",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id_token_hint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "IAF logout URL"
+          },
+          "400": {
+            "description": "Invalid redirect URI"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
       }
     }
   }

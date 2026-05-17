@@ -25,7 +25,8 @@ from zw_brain.domain.repositories.topic_package import TopicPackageRepository, T
 from zw_brain.domain.schemas import describe_schemas
 from zw_brain.domain.web_snapshot_redaction import redact_webui_snapshot
 from zw_brain.shared import queue
-from zw_brain.shared.runtime_config import get_webui_dashboard_href
+from zw_brain.shared.auth_context import get_auth_context
+from zw_brain.shared.runtime_config import get_dev_iam_bypass_enabled, get_webui_dashboard_href
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.shared.sanitization import safe_json
 from zw_brain.shared.sensitive_mask import apply_field_masks
@@ -112,7 +113,7 @@ class BrainService:
             "legalNotice": _os.environ.get("ZW_BRAIN_WEBUI_LEGAL_NOTICE", "").strip(),
             "identityLabel": _os.environ.get("ZW_BRAIN_WEBUI_IDENTITY_LABEL", "当前账号").strip() or "当前账号",
             "allowRoleSwitch": (_os.environ.get("ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH", "").strip() == "1"),
-            "iafIam": {"configured": bool(_iaf_url)},
+            "iafIam": {"configured": bool(_iaf_url), "developmentBypassEnabled": get_dev_iam_bypass_enabled()},
         }
         return state
 
@@ -4658,7 +4659,14 @@ class BrainService:
         resource_roles = claim_payload.get("resource_access") or {}
         service_roles = resource_roles.get(_expected_iaf_audience(), {}) if isinstance(resource_roles, dict) else {}
         iam_roles = [str(item) for item in (service_roles.get("roles") if isinstance(service_roles, dict) else []) or []]
-        realm_roles = [str(item) for item in ((claim_payload.get("realm_access") or {}).get("roles") or [])]
+        realm_access = claim_payload.get("realm_access") or {}
+        if isinstance(realm_access, dict):
+            realm_role_source = realm_access.get("roles") or []
+        elif isinstance(realm_access, list):
+            realm_role_source = realm_access
+        else:
+            realm_role_source = []
+        realm_roles = [str(item) for item in realm_role_source]
         merged_roles = sorted({*iam_roles, *realm_roles, *[str(item) for item in (fallback_roles or [])]})
 
         return {
@@ -6737,6 +6745,10 @@ class BrainService:
             actor_snapshot = {"actor": actor}
             if len(actor_parts) >= 3 and actor_parts[:2] == ["user", "gov"]:
                 actor_snapshot["role_code"] = actor_parts[2]
+        ctx = get_auth_context()
+        if ctx is not None and ctx.development_iam_bypass:
+            actor_snapshot["development_iam_bypass"] = True
+            payload_with_evidence["development_iam_bypass"] = True
         payload_with_evidence["skill_id"] = skill_id
         payload_with_evidence["audit_class"] = payload_with_evidence.get("audit_class") or manifest.get("audit_class")
         payload_with_evidence["actor_snapshot"] = actor_snapshot
@@ -6965,9 +6977,16 @@ class BrainService:
 
     def _actor_for_role(self, role: str) -> str:
         try:
-            return policy.actor_for_role(role)
+            actor = policy.actor_for_role(role)
         except DomainAccessDeniedError as exc:
             raise AccessDeniedError(str(exc)) from exc
+        # When the dev IAM bypass synthetic identity is active, suffix the actor so audit events and
+        # capability_call rows are unambiguously attributable to bypass mode — not to the human user
+        # whose role code was reused. Auditors filter on this suffix.
+        ctx = get_auth_context()
+        if ctx is not None and ctx.development_iam_bypass:
+            return f"{actor}[bypass]"
+        return actor
 
     def _request_by_id(self, request_id: str) -> dict[str, Any]:
         for item in self._snapshot["requests"]:

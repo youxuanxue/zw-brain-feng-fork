@@ -18,8 +18,16 @@ def test_generated_openapi_covers_registered_skills() -> None:
     assert "post" in paths["/api/skills/request.create"]
     assert "/api/skills/data.search" in paths
     assert "get" in paths["/api/skills/data.search"]
+    assert "/auth/iaf/config" in paths
+
+    auth_config_schema = paths["/auth/iaf/config"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+    assert "development_iam_bypass_enabled" in auth_config_schema["properties"]
+    assert "development_iam_bypass_enabled" in auth_config_schema["required"]
 
     request_create = paths["/api/skills/request.create"]["post"]
+    assert request_create["security"] == [{"BearerAuth": []}]
+    assert "401" in request_create["responses"]
+    assert "503" in request_create["responses"]
     assert request_create["x-zwbrain-skill-id"] == "request.create"
     assert request_create["x-zwbrain-human-confirmation-required"] is True
     assert request_create["x-zwbrain-auth-policy"] == "user"

@@ -191,6 +191,11 @@
 | POST | `/api/skills/zone.publish_topic_projection` | 发布专区正式投影 | `post_zone_publish_topic_projection` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/zone.view` | 查看专区详情 | `get_zone_view` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/snapshot` | Get system snapshot | `getSystemSnapshot` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/auth/iaf/config` | Get IAF IAM public config | `getIafConfig` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/auth/iaf/login` | Create IAF authorization URL | `startIafLogin` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/auth/iaf/logout` | Build IAF logout URL | `logoutIaf` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/auth/iaf/refresh` | Refresh IAF access token | `refreshIafToken` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/auth/iaf/token` | Exchange IAF authorization code for token | `exchangeIafCodeForToken` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/health` | Health check | `healthCheck` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/openapi.json` | Get generated OpenAPI spec | `getOpenAPISpec` | `zw_brain/entry/rest/openapi.json` |
 
@@ -471,7 +476,7 @@
 
 ## Statistics
 
-- REST endpoints: 180
+- REST endpoints: 185
 - CLI entries: 1
 - MCP tools: 61
 - A2A agent cards: 1

@@ -56,6 +56,30 @@ ERROR_RESPONSE_SCHEMA = {
     },
 }
 
+IAF_CONFIG_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "configured": {"type": "boolean"},
+        "development_iam_bypass_enabled": {"type": "boolean"},
+        "development_iam_bypass_user": {
+            "type": "object",
+            "description": "Synthetic identity returned only when development_iam_bypass_enabled is true.",
+            "properties": {
+                "subject": {"type": "string"},
+                "username": {"type": "string"},
+                "display_name": {"type": "string"},
+                "tenant_id": {"type": "string"},
+                "org_code": {"type": "string"},
+                "role_codes": {"type": "array", "items": {"type": "string"}},
+            },
+        },
+        "iaf": {"type": "object"},
+        "detail": {"type": "string"},
+    },
+    "required": ["configured", "development_iam_bypass_enabled"],
+}
+
+
 
 def dump_json(data: Any) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2) + "\n"
@@ -176,6 +200,8 @@ def build_standard_responses(output_schema: dict[str, Any], *, write: bool, prot
             "description": "Confirmation required or invalid state",
             "content": {"application/json": {"schema": ERROR_RESPONSE_SCHEMA}},
         }
+    responses["401"] = {"description": "Missing, invalid, or expired Bearer token"}
+    responses["503"] = {"description": "IAF token validation service unavailable"}
     return responses
 
 
@@ -211,7 +237,100 @@ def build_rest_operation(skill: dict[str, Any], *, method: str) -> dict[str, Any
                 }
             },
         }
+    operation["security"] = [{"BearerAuth": []}]
     return operation
+
+
+def build_iaf_auth_paths() -> dict[str, Any]:
+    return {
+        "/auth/iaf/config": {
+            "get": {
+                "summary": "Get IAF IAM public config",
+                "operationId": "getIafConfig",
+                "responses": {
+                    "200": {
+                        "description": "IAF public configuration",
+                        "content": {"application/json": {"schema": IAF_CONFIG_RESPONSE_SCHEMA}},
+                    }
+                },
+            }
+        },
+        "/auth/iaf/login": {
+            "get": {
+                "summary": "Create IAF authorization URL",
+                "operationId": "startIafLogin",
+                "parameters": [
+                    {"name": "redirect_uri", "in": "query", "required": False, "schema": {"type": "string"}},
+                    {"name": "format", "in": "query", "required": False, "schema": {"type": "string", "enum": ["json"]}},
+                ],
+                "responses": {
+                    "200": {"description": "Authorization URL JSON envelope"},
+                    "302": {"description": "Redirect to IAM authorization endpoint"},
+                    "400": {"description": "Invalid redirect URI"},
+                },
+            }
+        },
+        "/auth/iaf/token": {
+            "post": {
+                "summary": "Exchange IAF authorization code for token",
+                "operationId": "exchangeIafCodeForToken",
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["code", "state"],
+                                "properties": {"code": {"type": "string"}, "state": {"type": "string"}},
+                            }
+                        }
+                    },
+                },
+                "responses": {
+                    "200": {"description": "Token package and actor snapshot"},
+                    "400": {"description": "State or code exchange failed"},
+                    "401": {"description": "Token verification failed"},
+                },
+            }
+        },
+        "/auth/iaf/refresh": {
+            "post": {
+                "summary": "Refresh IAF access token",
+                "operationId": "refreshIafToken",
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["refresh_token"],
+                                "properties": {"refresh_token": {"type": "string"}},
+                            }
+                        }
+                    },
+                },
+                "responses": {
+                    "200": {"description": "Refreshed token package"},
+                    "401": {"description": "Refresh token invalid or expired"},
+                },
+            }
+        },
+        "/auth/iaf/logout": {
+            "get": {
+                "summary": "Build IAF logout URL",
+                "operationId": "logoutIaf",
+                "parameters": [
+                    {"name": "redirect_uri", "in": "query", "required": False, "schema": {"type": "string"}},
+                    {"name": "id_token_hint", "in": "query", "required": False, "schema": {"type": "string"}},
+                ],
+                "responses": {
+                    "200": {"description": "IAF logout URL"},
+                    "400": {"description": "Invalid redirect URI"},
+                },
+            }
+        },
+    }
+
 
 
 def build_rest_openapi(skills: list[dict[str, Any]]) -> dict[str, Any]:
@@ -261,6 +380,18 @@ def build_rest_openapi(skills: list[dict[str, Any]]) -> dict[str, Any]:
                 "summary": "Get system snapshot",
                 "operationId": "getSystemSnapshot",
                 "x-zwbrain-skill-id": "system.snapshot",
+                "responses": {
+                    "200": {
+                        "description": "Snapshot response",
+                        "content": {
+                            "application/json": {
+                                "schema": {"type": "object"}
+                            }
+                        },
+                    },
+                    "401": {"description": "Missing, invalid, or expired Bearer token"},
+                    "503": {"description": "IAF token validation service unavailable"},
+                },
                 "parameters": [
                     {
                         "name": "role",
@@ -270,16 +401,7 @@ def build_rest_openapi(skills: list[dict[str, Any]]) -> dict[str, Any]:
                         "description": "Web UI role; snapshot lists are redacted server-side to match page access.",
                     }
                 ],
-                "responses": {
-                    "200": {
-                        "description": "Snapshot response",
-                        "content": {
-                            "application/json": {
-                                "schema": {"type": "object"}
-                            }
-                        },
-                    }
-                },
+                "security": [{"BearerAuth": []}],
             }
         },
     }
@@ -293,6 +415,8 @@ def build_rest_openapi(skills: list[dict[str, Any]]) -> dict[str, Any]:
         else:
             paths[path] = {"get": build_rest_operation(skill, method="GET")}
 
+    paths.update(build_iaf_auth_paths())
+
     return {
         "openapi": "3.1.0",
         "info": {
@@ -300,6 +424,11 @@ def build_rest_openapi(skills: list[dict[str, Any]]) -> dict[str, Any]:
             "version": "1.0.0",
         },
         "paths": paths,
+        "components": {
+            "securitySchemes": {
+                "BearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
+            }
+        },
     }
 
 

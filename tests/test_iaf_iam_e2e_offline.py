@@ -268,7 +268,7 @@ def test_f6_offline_iaf_legacy_policy_governance_acceptance_chain() -> None:
         assert os.environ.get("ZW_BRAIN_LEGACY_BSP_ONLINE_URL") is None
 
 
-def test_iaf_oidc_rest_login_callback_logout_uses_rs256_jwks_path() -> None:
+def test_iaf_oidc_rest_login_token_logout_uses_rs256_jwks_path() -> None:
     with TemporaryDirectory() as tmp:
         _new_database_service(tmp)
         keys = _KeyFixture()
@@ -280,19 +280,19 @@ def test_iaf_oidc_rest_login_callback_logout_uses_rs256_jwks_path() -> None:
                 form = parse_qs(request.body.decode("utf-8"))
                 token = keys.encode(_valid_claims(nonce=captured["nonce"]))
                 captured["token_form"] = form
-                return HttpResponse(status_code=200, body=json.dumps({"id_token": token, "token_type": "Bearer"}).encode("utf-8"), headers={})
+                return HttpResponse(status_code=200, body=json.dumps({"access_token": token, "refresh_token": "refresh-1", "id_token": token, "token_type": "Bearer", "expires_in": 300}).encode("utf-8"), headers={})
             return HttpResponse(status_code=200, body=json.dumps(keys.jwks).encode("utf-8"), headers={})
 
         configure_iaf_auth_runtime(transport=transport, jwks=keys.jwks)
         server, thread, port = _run_rest_server()
         try:
-            login_url = f"http://127.0.0.1:{port}/auth/iaf/login?redirect_uri=http://127.0.0.1:{port}/auth/iaf/callback"
+            login_url = f"http://127.0.0.1:{port}/auth/iaf/login?redirect_uri=http://127.0.0.1:{port}/"
             status, headers, body = _request("GET", login_url, accept="text/html")
             assert status == 302
             assert body == ""
             auth_params = parse_qs(urlparse(headers["location"]).query)
             assert auth_params["client_id"] == ["zw-brain"]
-            assert auth_params["redirect_uri"] == [f"http://127.0.0.1:{port}/auth/iaf/callback"]
+            assert auth_params["redirect_uri"] == [f"http://127.0.0.1:{port}/"]
             assert auth_params["response_mode"] == ["query"]
             assert auth_params["response_type"] == ["code"]
             assert auth_params["scope"] == ["openid"]
@@ -307,28 +307,38 @@ def test_iaf_oidc_rest_login_callback_logout_uses_rs256_jwks_path() -> None:
             assert json_auth_params["state"] == [login["state"]]
             assert json_auth_params["nonce"] == [login["nonce"]]
 
-            status, callback = _request_json("GET", f"http://127.0.0.1:{port}/auth/iaf/callback?code=auth-code&state={login_state}")
+            status, callback = _request_json("POST", f"http://127.0.0.1:{port}/auth/iaf/token", {"code": "auth-code", "state": login_state})
             assert status == 200
             assert callback["authenticated"] is True
             assert callback["actor_snapshot"]["subject"] == "iaf-bound-user"
             assert callback["actor_snapshot"]["role_codes"] == ["ACCOUNT_ADMIN", "r7"]
             assert captured["token_form"]["code"] == ["auth-code"]
-            _assert_no_secrets(callback)
+            assert captured["token_form"]["redirect_uri"] == [f"http://127.0.0.1:{port}/"]
+            _assert_no_secrets({k: v for k, v in callback.items() if k in {"authenticated", "actor_snapshot", "audit_id"}})
             store = runtime.get_service()._state_store.database_store
             assert store is not None
             _assert_no_secrets([item.payload_json for item in store.list_audit_events()])
             _assert_no_secrets([item.input_json | item.output_json for item in store.list_capability_calls()])
 
-            status, logout = _request_json("GET", f"http://127.0.0.1:{port}/auth/iaf/logout?post_logout_redirect_uri=http://127.0.0.1:{port}/")
+            status, logout = _request_json("GET", f"http://127.0.0.1:{port}/auth/iaf/logout?redirect_uri=http://127.0.0.1:{port}/")
             assert status == 200
             assert logout["logout_url"].startswith("https://iaf.example/auth/realms/picp/protocol/openid-connect/logout")
+            assert "post_logout_redirect_uri=" in logout["logout_url"]
             assert logout["local_auth_cleared"] is True
             _assert_no_secrets(logout)
+
+            # id_token_hint is forwarded so the IdP can honor post_logout_redirect_uri without prompting.
+            status, logout_with_hint = _request_json(
+                "GET",
+                f"http://127.0.0.1:{port}/auth/iaf/logout?redirect_uri=http://127.0.0.1:{port}/&id_token_hint=id-hint-abc",
+            )
+            assert status == 200
+            assert "id_token_hint=id-hint-abc" in logout_with_hint["logout_url"]
 
             status, bad_login_redirect = _request_json("GET", f"http://127.0.0.1:{port}/auth/iaf/login?redirect_uri=https://evil.example/callback")
             assert status == 400
             assert bad_login_redirect["detail"] == "redirect origin mismatch"
-            status, bad_logout_redirect = _request_json("GET", f"http://127.0.0.1:{port}/auth/iaf/logout?post_logout_redirect_uri=https://evil.example/")
+            status, bad_logout_redirect = _request_json("GET", f"http://127.0.0.1:{port}/auth/iaf/logout?redirect_uri=https://evil.example/")
             assert status == 400
             assert bad_logout_redirect["detail"] == "redirect origin mismatch"
         finally:
@@ -339,8 +349,7 @@ def test_iaf_oidc_rest_login_callback_logout_uses_rs256_jwks_path() -> None:
             configure_iaf_auth_runtime(transport=None, jwks=None)
 
 
-def test_iaf_oidc_rest_callback_browser_navigation_returns_html_reload_spa() -> None:
-    """Browser-document OAuth callback returns HTML so the SPA can strip iaf_login=done after actor sync."""
+def test_iaf_oidc_rest_token_endpoint_returns_token_package_for_spa() -> None:
     with TemporaryDirectory() as tmp:
         _new_database_service(tmp)
         keys = _KeyFixture()
@@ -349,7 +358,7 @@ def test_iaf_oidc_rest_callback_browser_navigation_returns_html_reload_spa() -> 
         def transport(request: HttpRequest) -> HttpResponse:
             if request.method == "POST":
                 token = keys.encode(_valid_claims(nonce=captured["nonce"]))
-                return HttpResponse(status_code=200, body=json.dumps({"id_token": token, "token_type": "Bearer"}).encode("utf-8"), headers={})
+                return HttpResponse(status_code=200, body=json.dumps({"access_token": token, "refresh_token": "refresh-1", "id_token": token, "expires_in": 300, "token_type": "Bearer"}).encode("utf-8"), headers={})
             return HttpResponse(status_code=200, body=json.dumps(keys.jwks).encode("utf-8"), headers={})
 
         configure_iaf_auth_runtime(transport=transport, jwks=keys.jwks)
@@ -357,23 +366,15 @@ def test_iaf_oidc_rest_callback_browser_navigation_returns_html_reload_spa() -> 
         try:
             status, login = _request_json(
                 "GET",
-                f"http://127.0.0.1:{port}/auth/iaf/login?redirect_uri=http://127.0.0.1:{port}/auth/iaf/callback",
+                f"http://127.0.0.1:{port}/auth/iaf/login?redirect_uri=http://127.0.0.1:{port}/",
             )
             assert status == 200
             captured["nonce"] = login["nonce"]
-            st, body, hdrs = _request_raw(
-                "GET",
-                f"http://127.0.0.1:{port}/auth/iaf/callback?code=auth-code&state={login['state']}",
-                {
-                    "Host": f"127.0.0.1:{port}",
-                    "Accept": "text/html,application/xhtml+xml",
-                    "Sec-Fetch-Dest": "document",
-                },
-            )
-            assert st == 200
-            assert "text/html" in (hdrs.get("content-type") or "").lower()
-            assert "location.replace" in body
-            assert "/?iaf_login=done" in body.replace("\\", "")
+            status, token = _request_json("POST", f"http://127.0.0.1:{port}/auth/iaf/token", {"code": "auth-code", "state": login["state"]})
+            assert status == 200
+            assert token["access_token"]
+            assert token["refresh_token"] == "refresh-1"
+            assert token["actor_snapshot"]["subject"] == "iaf-bound-user"
         finally:
             server.shutdown()
             server.server_close()
@@ -391,7 +392,7 @@ def test_iaf_oidc_rest_callback_browser_navigation_returns_html_reload_spa() -> 
         ({"unsigned": True}, 401, "unsupported jwt algorithm"),
     ],
 )
-def test_iaf_oidc_rest_callback_fails_closed_for_invalid_rs256_boundaries(token_override: dict[str, object], expected_status: int, expected_detail: str) -> None:
+def test_iaf_oidc_rest_token_fails_closed_for_invalid_rs256_boundaries(token_override: dict[str, object], expected_status: int, expected_detail: str) -> None:
     with TemporaryDirectory() as tmp:
         _new_database_service(tmp)
         good_keys = _KeyFixture(kid="same-kid")
@@ -408,7 +409,7 @@ def test_iaf_oidc_rest_callback_fails_closed_for_invalid_rs256_boundaries(token_
                     token = bad_keys.encode(claims)
                 else:
                     token = good_keys.encode(claims)
-                return HttpResponse(status_code=200, body=json.dumps({"id_token": token}).encode("utf-8"), headers={})
+                return HttpResponse(status_code=200, body=json.dumps({"access_token": token, "refresh_token": "refresh-1", "id_token": token, "token_type": "Bearer", "expires_in": 300}).encode("utf-8"), headers={})
             return HttpResponse(status_code=200, body=json.dumps(good_keys.jwks).encode("utf-8"), headers={})
 
         configure_iaf_auth_runtime(transport=transport, jwks=good_keys.jwks)
@@ -418,7 +419,7 @@ def test_iaf_oidc_rest_callback_fails_closed_for_invalid_rs256_boundaries(token_
             assert status == 200
             captured["nonce"] = login["nonce"]
 
-            status, callback = _request_json("GET", f"http://127.0.0.1:{port}/auth/iaf/callback?code=auth-code&state={login['state']}")
+            status, callback = _request_json("POST", f"http://127.0.0.1:{port}/auth/iaf/token", {"code": "auth-code", "state": login["state"]})
             assert status == expected_status
             assert callback["detail"] == expected_detail
             _assert_no_secrets(callback)
@@ -430,13 +431,13 @@ def test_iaf_oidc_rest_callback_fails_closed_for_invalid_rs256_boundaries(token_
             configure_iaf_auth_runtime(transport=None, jwks=None)
 
 
-def test_iaf_oidc_rest_callback_rejects_bad_state_and_legacy_auth_routes() -> None:
+def test_iaf_oidc_rest_token_rejects_bad_state_and_legacy_auth_routes() -> None:
     with TemporaryDirectory() as tmp:
         _new_database_service(tmp)
         configure_iaf_auth_runtime(transport=lambda _request: HttpResponse(status_code=500, body=b"{}", headers={}), jwks={"keys": []})
         server, thread, port = _run_rest_server()
         try:
-            status, bad_state = _request_json("GET", f"http://127.0.0.1:{port}/auth/iaf/callback?code=auth-code&state=bad")
+            status, bad_state = _request_json("POST", f"http://127.0.0.1:{port}/auth/iaf/token", {"code": "auth-code", "state": "bad"})
             assert status == 400
             assert bad_state["detail"] == "state mismatch"
             for route in ["/login", "/oauth2Login", "/SAML2/login", "/cas/login"]:

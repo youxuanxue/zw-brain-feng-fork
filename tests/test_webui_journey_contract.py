@@ -17,6 +17,7 @@ from zw_brain.entry.rest.server import RestHandler
 
 REPO = Path(__file__).resolve().parents[1]
 APP_JS = REPO / "zw-brain-web" / "js" / "app.js"
+AUTH_JS = REPO / "zw-brain-web" / "js" / "auth.js"
 PAGES_JS = REPO / "zw-brain-web" / "js" / "pages.js"
 INDEX_HTML = REPO / "zw-brain-web" / "index.html"
 PYPROJECT = REPO / "pyproject.toml"
@@ -150,6 +151,42 @@ def test_dispatch_enforces_page_access_map() -> None:
     assert "assertRouteAccessParity" in app_js
 
 
+def test_webui_iam_auth_contract_uses_session_storage_and_user_menu() -> None:
+    index_html = INDEX_HTML.read_text(encoding="utf-8")
+    app_js = APP_JS.read_text(encoding="utf-8")
+    auth_js = AUTH_JS.read_text(encoding="utf-8")
+    pages_js = PAGES_JS.read_text(encoding="utf-8")
+
+    assert '<script src="/js/auth.js"></script>' in index_html
+    assert 'id="zw-login-button"' in index_html
+    assert 'id="user-menu"' in index_html
+    assert '退出登录' in index_html
+    assert '个人中心' in index_html
+    assert 'window.sessionStorage.setItem(STORAGE_KEY' in auth_js
+    assert 'window.localStorage' not in auth_js
+    assert "readAuthConfig" in auth_js
+    assert "development_iam_bypass_enabled" in auth_js
+    assert "writeDevelopmentIamBypassSession" in auth_js
+    assert "session.development_iam_bypass !== true" in auth_js
+    assert "authConfig = await readAuthConfig()" in auth_js
+    # Bypass identity (display name, role list) now flows from /auth/iaf/config — frontend reads
+    # development_iam_bypass_user instead of hardcoding it; verifies the single source of truth.
+    assert "development_iam_bypass_user" in auth_js
+    assert "DEV_IAM_BYPASS_ROLES" not in auth_js
+    assert "访客" not in auth_js
+    assert "headers.set('Authorization', `Bearer ${session.access_token}`)" in auth_js
+    assert "session.development_iam_bypass !== true" in auth_js
+    assert "tokenSecondsLeft(session) <= 0" in auth_js
+    assert "authConfig.development_iam_bypass_enabled === true" in auth_js
+    assert 'setInterval' in auth_js and '5 * 60 * 1000' in auth_js
+    assert 'REFRESH_THRESHOLD_SECONDS = 60' in auth_js
+    assert 'safeDecodeJwtPayload' in auth_js
+    assert 'await window.ZW_AUTH.bootstrapAuth()' in app_js
+    assert 'window.ZW_AUTH.authFetch(`/api/snapshot' in app_js
+    assert "{ test: /^#\\/profile$/, page: 'profile', nav: null }" in app_js
+    assert 'PAGES.profile = function' in pages_js
+
+
 def test_role_switch_refetches_snapshot() -> None:
     app_js = APP_JS.read_text(encoding="utf-8")
     if "switcher.addEventListener('change'" not in app_js:
@@ -190,8 +227,8 @@ def test_webui_routes_and_actions_use_shared_skill_policy_gateways() -> None:
     pages_js = PAGES_JS.read_text(encoding="utf-8")
     assert "const access = window.ZW_PAGE_ACCESS && window.ZW_PAGE_ACCESS[matched.page]" in app_js
     assert "renderAccessDeniedShell" in app_js
-    assert "fetch(`/api/skills/${skillId}${encodeParams(payload)}`" in app_js
-    assert "fetch(`/api/skills/${skillId}`" in app_js
+    assert "window.ZW_AUTH.authFetch(`/api/skills/${skillId}${encodeParams(payload)}`" in app_js
+    assert "window.ZW_AUTH.authFetch(`/api/skills/${skillId}`" in app_js
     assert "Object.assign({ role: currentRole, confirmed: true }, payload)" in app_js
     assert "window.ZW_PAGE_ACCESS" in pages_js
     assert "integrationAdmin: ['r7']" in pages_js

@@ -643,6 +643,7 @@ window.ZW_PAGE_ACCESS = {
   migrationAcceptance: ['admin'],
   workbench: ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8'],
   login: ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8'],
+  profile: ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8'],
   discovery: ['r1', 'r2', 'r6', 'r7', 'r8'],
   catalogBrowse: ['r1', 'r2', 'r6', 'r7', 'r8'],
   resourceDetail: ['r1', 'r2', 'r6', 'r7', 'r8'],
@@ -673,6 +674,7 @@ window.ZW_PAGE_SHELL = {
   migrationAcceptance: 'p0',
   workbench: 'p1',
   login: 'p1',
+  profile: 'p1',
   discovery: 'p2',
   catalogBrowse: 'p2',
   resourceDetail: 'p2',
@@ -1177,7 +1179,7 @@ function r1ApiCredentialsAndDemandRegistration() {
 
 PAGES.login = function () {
   const cfg = window.ZW_WEBUI && window.ZW_WEBUI.iafIam;
-  const iafConfigured = !!(cfg && cfg.configured);
+  const iafConfigured = cfg ? !!cfg.configured : true;
   const configuredBody = `
         <div class="login-gate-field">
           <label for="login-gate-iam-readonly">认证渠道</label>
@@ -1226,6 +1228,39 @@ PAGES.login = function () {
           ${iafConfigured ? configuredBody : unconfiguredBody}
         </div>
       </section>
+    </div>`;
+  return shell('p1', main);
+};
+
+PAGES.profile = function () {
+  const user = window.ZW_AUTH && window.ZW_AUTH.getCurrentUser ? window.ZW_AUTH.getCurrentUser() : null;
+  const roles = user && user.roles && user.roles.length ? user.roles.join('、') : '暂无角色信息';
+  const main = `
+    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '个人中心' }])}
+    <div class="page-hero">
+      <div class="page-toolbar">
+        <div>
+          <div class="page-kicker">账号与安全</div>
+          <div class="page-hero-title">统一身份个人中心</div>
+          <div class="page-hero-subtitle">以下信息来自 IAM access_token 的安全解码结果，仅用于前端展示。</div>
+        </div>
+        <button type="button" class="gov-btn gov-btn-secondary" onclick="window.ACTIONS.logout(event)">退出登录</button>
+      </div>
+    </div>
+    <div class="profile-card">
+      ${user ? `
+        <div class="profile-row"><span>用户名称</span><strong>${escapeHtml(user.displayName || user.username)}</strong></div>
+        <div class="profile-row"><span>IAM Subject</span><strong>${escapeHtml(user.subject || '—')}</strong></div>
+        <div class="profile-row"><span>邮箱</span><strong>${escapeHtml(user.email || '—')}</strong></div>
+        <div class="profile-row"><span>手机号</span><strong>${escapeHtml(user.phone || '—')}</strong></div>
+        <div class="profile-row"><span>所属主用户</span><strong>${escapeHtml(user.project || '—')}</strong></div>
+        <div class="profile-row"><span>所属主用户ID</span><strong>${escapeHtml(user.projectId || '—')}</strong></div>
+        <div class="profile-row"><span>组织编码</span><strong>${escapeHtml(user.orgCode || '—')}</strong></div>
+        <div class="profile-row"><span>角色</span><strong>${escapeHtml(roles)}</strong></div>
+      ` : `
+        <div class="login-gate-iam-box" role="alert">当前未获取到登录用户信息，请重新登录。</div>
+        <div class="login-gate-actions mt-4"><button type="button" class="gov-btn gov-btn-primary" onclick="window.ACTIONS.startIafLogin(event)">重新登录</button></div>
+      `}
     </div>`;
   return shell('p1', main);
 };
