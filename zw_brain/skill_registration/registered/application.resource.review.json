@@ -14,8 +14,12 @@
         "type": "string",
         "enum": [
           "approve",
+          "approve_reuse",
+          "approve_with_supplement",
           "return_for_fix",
-          "reject"
+          "reject",
+          "reject_duplicate",
+          "route_to_provider_or_catalog_admin"
         ]
       },
       "role": {
@@ -23,6 +27,12 @@
       },
       "confirmed": {
         "type": "boolean"
+      },
+      "reason": {
+        "type": "string"
+      },
+      "evidence": {
+        "type": "object"
       }
     },
     "required": [

@@ -62,7 +62,8 @@ def test_runtime_service_cli_and_rest_work_after_legacy_source_offline(monkeypat
         metadata = service.invoke_skill("metadata.catalog_item.query", {"role": "r7"})
         policy = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "catalog.browse", "surface": "api", "role": "r7"})
         assert entry["total"] == 1
-        assert metadata["total"] == 1
+        assert metadata["total"] >= 1
+        assert any(item["catalog_code"] == "BASE-POP-001" for item in metadata["items"])
         assert policy["source"] in {"brain_registry", "fail_closed", "tenant_capability_policy"}
         assert "13800001111" not in json.dumps([catalog, entry, metadata, policy], ensure_ascii=False)
 

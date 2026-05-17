@@ -309,6 +309,14 @@
         "catalog_code": {
           "type": "string"
         },
+        "source": {
+          "type": "string",
+          "description": "filter by summary_json.source (e.g. 'reverse' for 反向编目 drafts)"
+        },
+        "lifecycle_status": {
+          "type": "string",
+          "description": "filter by lifecycle_status (draft / pending_review / active / ...)"
+        },
         "role": {
           "type": "string"
         }
@@ -329,6 +337,52 @@
       ],
       "permissions": [
         "catalog.entry.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "catalog.entry.reverse_draft.suggest",
+    "description": "对一个已采集 schema 输出三档预填建议：1) 字段中文名取自 column.comment / meta_standard_cn（高置信度，绿）；2) PII 模式匹配 + 内置中文映射（中置信度，黄）；3) 推理网关 LLM 占位（低置信度，橙）。R6 在反向编目工作流卡片里据此一键提交 90% 预填好的草稿，而不必从空白开始。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.entry.reverse_draft.suggest",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "schema_ref"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "schema_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "catalog.entry.reverse_draft.suggest.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -826,6 +880,94 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "direct_access.catalog.query",
+    "description": "只读：列已发布且 summary_json.direct_access_eligible=true 的 catalog_entry，作为旧 dc_catalog 的 zw-brain 投影。事实源仍是 catalog_entry，dc_catalog 本身锁只读；任何想直接写 dc_catalog 的请求都退回 application_record 主链路。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/direct_access.catalog.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "default": 50
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "direct_access.catalog.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "direct_access.delivery.list",
+    "description": "只读：列 delivery_task 中 access_grant_snapshot.direct_access=true 且 status in (succeeded, in_progress) 的交付清单；R5/R8 据此判断是否有绕过 application_record 主链路的痕迹。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/direct_access.delivery.list",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "default": 50
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "direct_access.delivery.list.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "governance.dispute_list",
     "description": "查看重复要数、字段口径和补录异常相关争议，以及关联告警、工单与知识建议。",
     "protocol_type": "builtin_skill",
@@ -970,6 +1112,46 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "legacy.migration.status.query",
+    "description": "聚合 legacy_object_mapping、adapter_run_record 与 migration.* 审计事件，给 R7/R8 看 M0 验收 11 张工作队列卡片状态、按 canonical_type 分布的映射计数和最近一次 rollback 摘要。只读，零 side effect。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/legacy.migration.status.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string"
+        },
+        "tenant_id": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "legacy.migration.status.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "metadata.catalog_item.query",
     "description": "查询目录项与资源 schema 字段之间的映射证据。",
     "protocol_type": "builtin_skill",
@@ -1089,6 +1271,50 @@
       ],
       "permissions": [
         "metadata.lineage.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "metadata.schema.discover",
+    "description": "只读：列已采集 db_meta_table/db_meta_column 中尚未生成反向编目草稿的候选 schema，给 R6 在反向编目工作流中选源。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/metadata.schema.discover",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "default": 50
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "metadata.schema.discover.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -3783,8 +4009,12 @@
           "type": "string",
           "enum": [
             "approve",
+            "approve_reuse",
+            "approve_with_supplement",
             "return_for_fix",
-            "reject"
+            "reject",
+            "reject_duplicate",
+            "route_to_provider_or_catalog_admin"
           ]
         },
         "role": {
@@ -3792,6 +4022,12 @@
         },
         "confirmed": {
           "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "object"
         }
       },
       "required": [
@@ -4498,6 +4734,198 @@
       ],
       "permissions": [
         "catalog.entry.publish.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "catalog.entry.reverse_draft.confirm",
+    "description": "R7 半边：对反向编目草稿做字段口径裁决（中英文/敏感等级/类型）。通过后 catalog_entry.lifecycle_status 从 draft 推进到 pending_review；R6 再做正式挂接。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.entry.reverse_draft.confirm",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "catalog_code",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "field_decisions": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "comment": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "catalog.entry.reverse_draft.confirm.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "catalog.entry.reverse_draft.create",
+    "description": "R6 半边：根据已采集的 db_meta_table/db_meta_column 一键生成 catalog_entry(lifecycle_status=draft, summary_json.source=reverse) 草稿。草稿仅作为字段建议，不可直接被申请；R7 字段口径裁决通过后才能进入 pending_review。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.entry.reverse_draft.create",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "catalog_code",
+        "title",
+        "schema_ref",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "schema_ref": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "region_code": {
+          "type": "string"
+        },
+        "draft_field_suggestions": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "catalog.entry.reverse_draft.create.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "catalog.entry.reverse_draft.reject",
+    "description": "R7 对反向编目草稿做不予通过裁决；catalog_entry.lifecycle_status 退回 rejected 并写明驳回理由，等待 R6 补充 schema 证据后重新提交。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.entry.reverse_draft.reject",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "catalog_code",
+        "reject_reason",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "reject_reason": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "catalog.entry.reverse_draft.reject.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -5855,6 +6283,73 @@
       ],
       "permissions": [
         "delivery.reconcile_receipt.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "delivery.replace_or_cancel",
+    "description": "R2 在资源撤回或资产 suspended 时决定：把现有 delivery_task 重新指向替代资源（replace），或者取消并通知订阅方（cancel）。避免授权悬空。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/delivery.replace_or_cancel",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "delivery_code",
+        "action",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "delivery_code": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "replace",
+            "cancel"
+          ]
+        },
+        "replacement_resource_id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "delivery.replace_or_cancel.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -7669,6 +8164,196 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "quality.rule.upsert",
+    "description": "R6 维护检测规则（必填率/格式/值域/字段一致性/挂接一致性等）。规则按 rule_code 幂等 upsert；变更产生新版本，旧版本检测结论作为历史 evidence 保留。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/quality.rule.upsert",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "rule_code",
+        "rule_name",
+        "rule_kind",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "rule_code": {
+          "type": "string"
+        },
+        "rule_name": {
+          "type": "string"
+        },
+        "rule_kind": {
+          "type": "string",
+          "description": "completeness / format / value-range / consistency / mapping"
+        },
+        "rule_payload_json": {
+          "type": "object"
+        },
+        "target_catalog_codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "quality.rule.upsert.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "quality.task.replay",
+    "description": "R6 对失败的检测任务发起重跑；记录上次失败摘要 + 新一次任务引用，保持执行器回执可追溯。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/quality.task.replay",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "rule_code",
+        "previous_task_ref",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "rule_code": {
+          "type": "string"
+        },
+        "previous_task_ref": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "quality.task.replay.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "quality.task.run",
+    "description": "R6 一键触发某条规则的检测任务执行；任务执行在外部执行器，本端只写一次 quality_evidence_projection + audit_event，结果由外部回写。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/quality.task.run",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "rule_code",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "rule_code": {
+          "type": "string"
+        },
+        "target_catalog_code": {
+          "type": "string"
+        },
+        "scope_payload_json": {
+          "type": "object"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "quality.task.run.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "request.create",
     "description": "从资源发现页基于已识别模板发起新的受控准入申请。",
     "protocol_type": "builtin_skill",
@@ -7969,6 +8654,69 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "require.resource.dispatch",
+    "description": "R7 判定 R1 业务需求不可用现有目录复用 → 按区域/字段/时间窗切片 → 派 R5 任务。写一次 application_record.status='dispatched' + 一次 supplement 任务草案。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/require.resource.dispatch",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "application_code",
+        "dispatch_payload_json",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "application_code": {
+          "type": "string"
+        },
+        "dispatch_payload_json": {
+          "type": "object"
+        },
+        "target_region_codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "require.resource.dispatch.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "require.resource.match",
     "description": "将需求与目录、资源或字段候选建立受控证据关系。",
     "protocol_type": "builtin_skill",
@@ -8021,6 +8769,65 @@
       ],
       "permissions": [
         "require.resource.match.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "require.task.handoff",
+    "description": "记录 R7 把派发后的任务转给 R5 接管的责任快照；只写审计与责任快照，不修改业务字段。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/require.task.handoff",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "application_code",
+        "handoff_to_role",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "application_code": {
+          "type": "string"
+        },
+        "handoff_to_role": {
+          "type": "string"
+        },
+        "handoff_note": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "require.task.handoff.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -9009,7 +9816,7 @@
   },
   {
     "tool_name": "resource.manage_asset",
-    "description": "对资源资产执行发布或暂停共享治理动作。",
+    "description": "对资源资产执行字段证据补齐、字段绑定确认、审核提交、外部执行任务登记、发布或暂停共享治理动作。",
     "protocol_type": "builtin_skill",
     "endpoint": "http://127.0.0.1:8800/api/skills/resource.manage_asset",
     "parameters_schema": {
@@ -9028,7 +9835,11 @@
           "type": "string",
           "enum": [
             "publish",
-            "suspend"
+            "suspend",
+            "complete_field_evidence",
+            "confirm_field_binding",
+            "submit_review",
+            "request_external_execution"
           ]
         },
         "role": {
@@ -9036,6 +9847,15 @@
         },
         "confirmed": {
           "type": "boolean"
+        },
+        "field_evidence": {
+          "type": "object"
+        },
+        "binding_confirmations": {
+          "type": "array"
+        },
+        "external_execution": {
+          "type": "object"
         }
       }
     },
@@ -9350,6 +10170,63 @@
       ],
       "permissions": [
         "standard.asset.sync.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "subscription.terminate",
+    "description": "把 delivery_subscription.status 显式设为 terminated 并把影响摘要写入 audit_event；避免目录撤回时订阅悄悄失效。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/subscription.terminate",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "subscription_code",
+        "reason",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "subscription_code": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "subscription.terminate.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",

@@ -80,6 +80,7 @@ class ResourceApiRepository:
                 session.add(record)
             else:
                 record.title = str(payload.get("title", record.title))
+                record.resource_kind = str(payload.get("resource_kind", record.resource_kind))
                 record.lifecycle_status = str(payload.get("lifecycle_status", record.lifecycle_status))
                 record.owner_org_id = payload.get("owner_org_id", record.owner_org_id)
                 record.owner_org_snapshot_json = safe_json(payload.get("owner_org_snapshot_json") or record.owner_org_snapshot_json)

@@ -1,0 +1,51 @@
+{
+  "name": "catalog.entry.reverse_draft.reject",
+  "description": "R7 对反向编目草稿做不予通过裁决；catalog_entry.lifecycle_status 退回 rejected 并写明驳回理由，等待 R6 补充 schema 证据后重新提交。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "catalog_code",
+      "reject_reason",
+      "confirmed"
+    ],
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      },
+      "catalog_code": {
+        "type": "string"
+      },
+      "reject_reason": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "write",
+    "humanConfirmationRequired": true,
+    "readOnlyHint": false
+  },
+  "x-zwbrain-side-effects": [
+    "audit",
+    "db_write"
+  ],
+  "x-zwbrain-audit-class": "write-default",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "catalog.entry.reverse_draft.reject.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

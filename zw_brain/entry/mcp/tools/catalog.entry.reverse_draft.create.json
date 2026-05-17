@@ -1,0 +1,67 @@
+{
+  "name": "catalog.entry.reverse_draft.create",
+  "description": "R6 半边：根据已采集的 db_meta_table/db_meta_column 一键生成 catalog_entry(lifecycle_status=draft, summary_json.source=reverse) 草稿。草稿仅作为字段建议，不可直接被申请；R7 字段口径裁决通过后才能进入 pending_review。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "catalog_code",
+      "title",
+      "schema_ref",
+      "confirmed"
+    ],
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      },
+      "catalog_code": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string"
+      },
+      "schema_ref": {
+        "type": "string"
+      },
+      "owner_org_id": {
+        "type": "string"
+      },
+      "region_code": {
+        "type": "string"
+      },
+      "draft_field_suggestions": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "annotations": {
+    "mode": "write",
+    "humanConfirmationRequired": true,
+    "readOnlyHint": false
+  },
+  "x-zwbrain-side-effects": [
+    "audit",
+    "db_write"
+  ],
+  "x-zwbrain-audit-class": "write-default",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "catalog.entry.reverse_draft.create.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

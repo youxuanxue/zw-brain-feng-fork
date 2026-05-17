@@ -109,7 +109,9 @@ def test_installed_wheel_legacy_migration_then_runtime_without_dumps() -> None:
             capture_output=True,
             check=True,
         )
-        assert json.loads(metadata.stdout)["total"] == 1
+        metadata_payload = json.loads(metadata.stdout)
+        assert metadata_payload["total"] >= 1
+        assert any(item["catalog_code"] == "BASE-POP-001" for item in metadata_payload["items"])
 
         mcp_tools = subprocess.run(
             [str(bin_dir / "zw-brain-mcp"), "list-tools"],

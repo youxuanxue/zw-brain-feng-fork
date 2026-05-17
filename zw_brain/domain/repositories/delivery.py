@@ -91,6 +91,26 @@ class DeliveryRepository:
                 statement = statement.where(ExchangeMetricProjectionRecord.delivery_code == delivery_code)
             return list(session.execute(statement.order_by(ExchangeMetricProjectionRecord.generated_at)).scalars())
 
+    def update_task_payload(self, delivery_code: str, *, state: str | None = None, payload_patch: dict[str, Any] | None = None, tenant_id: str = "sd-default") -> DeliveryTaskRecord | None:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            record = session.execute(
+                select(DeliveryTaskRecord).where(
+                    DeliveryTaskRecord.tenant_id == tenant_id,
+                    DeliveryTaskRecord.delivery_code == delivery_code,
+                )
+            ).scalar_one_or_none()
+            if record is None:
+                return None
+            if state is not None:
+                record.state = state
+            if payload_patch:
+                record.payload_json = safe_json({**(record.payload_json or {}), **payload_patch})
+            record.updated_at = _now()
+            session.commit()
+            session.refresh(record)
+            return record
+
     def upsert_subscription(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> DeliverySubscriptionRecord:
         subscription_code = str(payload.get("subscription_code") or payload.get("subscription_id") or f"SUB-{payload['delivery_code']}")
         SessionLocal = create_session_factory()

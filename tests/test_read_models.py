@@ -117,7 +117,7 @@ def test_repository_backed_ops_views_include_projected_data() -> None:
         store = DatabaseStore()
         audit_bus.configure_sink(store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=store))
-        service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True})
+        service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve_with_supplement", "role": "r2", "confirmed": True})
         service.invoke_skill("supplement.submit", {"request_id": "REQ-2026-04-25-0011", "role": "r3", "confirmed": True})
         service.invoke_skill("summary.confirm", {"request_id": "REQ-2026-04-25-0011", "role": "r5", "confirmed": True})
         service.invoke_skill("delivery.reconcile_receipt", {"task_id": "DLV-2026-04-25-0011", "role": "r6", "confirmed": True})
@@ -128,9 +128,14 @@ def test_repository_backed_ops_views_include_projected_data() -> None:
         business_zone = service.invoke_skill("zone.view", {"zone_id": "business"})
 
         assert provider["repository"]["resourceCatalogCode"] == "res-jbxx-ledger"
+        assert provider["repository"]["packageCount"] >= 1
         assert provider["repository"]["deliveryReceiptCount"] >= 1
         assert any(item["id"] == "business" and item["repository"]["resourceCatalogCode"] == "res-jbxx-ledger" for item in zones)
         assert business_zone["repository"]["resourceCatalogCode"] == "res-jbxx-ledger"
+        assert "resourceLifecycleStatus" in business_zone["repository"]
+        assert business_zone["trust"]
+        assert provider["catalogs"][0]["issue"] == "v1.3 版本说明已同步"
+        assert any("模板版本：v1.3" in item for item in business_zone["trust"])
 
 
 def test_backend_skills_cover_main_webui_detail_routes() -> None:

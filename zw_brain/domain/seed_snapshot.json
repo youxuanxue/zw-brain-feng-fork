@@ -2822,8 +2822,8 @@
         "trend": "verify unresolved = 0"
       },
       {
-        "label": "基层补录字段数",
-        "value": "3 / 单任务",
+        "label": "单任务平均补录字段数",
+        "value": "3",
         "trend": "较整表采集大幅压缩"
       },
       {

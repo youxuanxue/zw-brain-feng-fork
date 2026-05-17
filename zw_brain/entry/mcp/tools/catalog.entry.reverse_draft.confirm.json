@@ -1,0 +1,56 @@
+{
+  "name": "catalog.entry.reverse_draft.confirm",
+  "description": "R7 半边：对反向编目草稿做字段口径裁决（中英文/敏感等级/类型）。通过后 catalog_entry.lifecycle_status 从 draft 推进到 pending_review；R6 再做正式挂接。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "catalog_code",
+      "confirmed"
+    ],
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      },
+      "catalog_code": {
+        "type": "string"
+      },
+      "field_decisions": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "comment": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "write",
+    "humanConfirmationRequired": true,
+    "readOnlyHint": false
+  },
+  "x-zwbrain-side-effects": [
+    "audit",
+    "db_write"
+  ],
+  "x-zwbrain-audit-class": "write-critical",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "catalog.entry.reverse_draft.confirm.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

@@ -299,6 +299,7 @@ def _get(base_url: str, skill_id: str, **params: object) -> tuple[int, dict | st
     return request_json("GET", f"{base_url}/api/skills/{skill_id}?{urlencode(params)}")
 
 
+@pytest.mark.browser_e2e
 def test_customer_main_journey_real_browser_on_imported_offline_db(monkeypatch: pytest.MonkeyPatch) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         offline_source = _prepare_imported_offline_db(Path(tmp), monkeypatch)
@@ -327,8 +328,8 @@ def test_customer_main_journey_real_browser_on_imported_offline_db(monkeypatch: 
             browser.eval(f"location.hash = '#/p3-request-flow/review/{request_id}'")
             _wait_for(browser, "document.body.innerText.includes('通过并下发补录')")
             _click_text(browser, "通过并下发补录")
-            _wait_for(browser, "document.body.innerText.includes('待补录')")
-            _assert_body_contains(browser, "待补录", "准入判断")
+            _wait_for(browser, "document.body.innerText.includes('补录中')")
+            _assert_body_contains(browser, "补录中", "准入判定动作")
 
             _set_role(browser, "r3")
             browser.eval(f"location.hash = '#/p3-request-flow/request/{request_id}'")

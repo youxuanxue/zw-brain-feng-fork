@@ -2,16 +2,29 @@
   "skill_id": "resource.manage_asset",
   "slug": "resource.manage_asset",
   "title": "治理资源资产",
-  "description": "对资源资产执行发布或暂停共享治理动作。",
+  "description": "对资源资产执行字段证据补齐、字段绑定确认、审核提交、外部执行任务登记、发布或暂停共享治理动作。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",
     "required": ["resource_id", "action", "confirmed"],
     "properties": {
       "resource_id": { "type": "string", "minLength": 1 },
-      "action": { "type": "string", "enum": ["publish", "suspend"] },
+      "action": {
+        "type": "string",
+        "enum": [
+          "publish",
+          "suspend",
+          "complete_field_evidence",
+          "confirm_field_binding",
+          "submit_review",
+          "request_external_execution"
+        ]
+      },
       "role": { "type": "string" },
-      "confirmed": { "type": "boolean" }
+      "confirmed": { "type": "boolean" },
+      "field_evidence": { "type": "object" },
+      "binding_confirmations": { "type": "array" },
+      "external_execution": { "type": "object" }
     }
   },
   "output_schema": {

@@ -40,6 +40,7 @@ APP_DROP_FIELDS = {"SECRET", "superior_app_secret", "superior_app_key"}
 class ServiceMapper:
     HANDLED_TABLES = {
         "api_service_info",
+        "api_service_catalog",
         "api_service_data",
         "api_service_proxy",
         "api_service_general",
@@ -88,6 +89,8 @@ class ServiceMapper:
                     self._map_service_channel(row, legacy_system, channel_kind="data")
                 elif table == "api_service_proxy":
                     self._map_service_channel(row, legacy_system, channel_kind="proxy")
+                elif table == "api_service_catalog":
+                    self._map_api_service_catalog(row, legacy_system)
                 elif table == "api_group":
                     self._map_api_group(row, legacy_system)
                 elif table == "api_service_app":
@@ -247,6 +250,63 @@ class ServiceMapper:
                     "sequence_num": row.get("sequence_num"),
                     "kind": "api_group",
                 },
+            },
+            tenant_id=self.tenant_id,
+        )
+
+    def _map_api_service_catalog(self, row: dict[str, Any], legacy_system: str) -> None:
+        # `api_service_catalog` is the service detail row: INPUT/OUTPUT/API_RESULT
+        # schema_ref + share/open policy. Attach it as a `catalog`-kind binding on
+        # the api resource so the resource view can surface schema_ref directly
+        # without polluting the api_service_info access_policy.
+        api_id = str(row.get("ID") or "")
+        service_id = str(row.get("SERVICE_ID") or api_id)
+        if not service_id:
+            return
+        binding_code = f"{service_id}:catalog:{api_id or service_id}"
+        endpoint_ref = {
+            "method": row.get("METHOD"),
+            "url": row.get("URL"),
+            "version": row.get("VERSION"),
+            "service_type": row.get("SERVICE_TYPE"),
+            "auth_type": row.get("AUTH_TYPE"),
+            "scope": row.get("SCOPE"),
+            "result_type": row.get("RESULT_TYPE"),
+            "type": row.get("TYPE"),
+        }
+        schema_ref = {
+            "input": row.get("INPUT"),
+            "output": row.get("OUTPUT"),
+            "api_result": row.get("API_RESULT"),
+        }
+        gateway_policy = {
+            "status": row.get("STATUS"),
+            "able_applied": row.get("ABLE_APPLIED"),
+            "share_type": row.get("share_type"),
+            "open_type": row.get("open_type"),
+            "app_code": row.get("APP_CODE"),
+            "app_name": row.get("APP_NAME"),
+            "app_organ_code": row.get("APP_ORGAN_CODE"),
+            "app_organ_name": row.get("APP_ORGAN_NAME"),
+            "remark": row.get("REMARK"),
+            "publish_time": coerce_time(row.get("PUBLISH_TIME")),
+            "modify_time": coerce_time(row.get("MODIFY_TIME")),
+            "update_cycle": row.get("update_cycle"),
+            "constant": row.get("CONSTANT"),
+        }
+        self.resource_repo.upsert_binding(
+            {
+                "binding_code": binding_code,
+                "resource_code": service_id,
+                "channel_kind": "api_catalog",
+                "route_ref": row.get("URL"),
+                "endpoint_ref": endpoint_ref,
+                "schema_ref": schema_ref,
+                "request_schema_json": {},
+                "response_schema_json": {},
+                "gateway_policy_json": gateway_policy,
+                "source_ref": f"{legacy_system}:api_service_catalog:{api_id or service_id}",
+                "legacy_object_ref": api_id or service_id,
             },
             tenant_id=self.tenant_id,
         )

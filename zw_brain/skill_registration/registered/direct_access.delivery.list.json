@@ -1,0 +1,40 @@
+{
+  "skill_id": "direct_access.delivery.list",
+  "slug": "direct_access.delivery.list",
+  "title": "已审批数据直达交付清单",
+  "description": "只读：列 delivery_task 中 access_grant_snapshot.direct_access=true 且 status in (succeeded, in_progress) 的交付清单；R5/R8 据此判断是否有绕过 application_record 主链路的痕迹。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": { "type": "string" },
+      "role": { "type": "string" },
+      "limit": { "type": "integer", "default": 50 }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "items": { "type": "array", "items": { "type": "object" } },
+      "total": { "type": "integer" }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-trace",
+  "execution_binding": "builtin",
+  "compatibility": ["webui", "api", "cli", "mcp", "a2a"],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "direct_access.delivery.list"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": ["direct_access.delivery.list.execute"],
+  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "registry_source": "internal",
+  "tags": ["direct_access", "delivery", "read"]
+}

@@ -94,6 +94,7 @@ class ObjectionMapper:
         # Group rows by parent objection_id so we can apply children alongside parent.
         objections: list[dict[str, Any]] = []
         children: dict[str, dict[str, list[dict[str, Any]]]] = {}
+        child_source_counts: dict[str, int] = {}
 
         for table, row in MysqldumpParser(dump_path).iter_rows():
             if table not in self.HANDLED_TABLES:
@@ -105,6 +106,7 @@ class ObjectionMapper:
                     continue
                 objections.append(row)
             else:
+                child_source_counts[table] = child_source_counts.get(table, 0) + 1
                 obj_id = row.get("objection_id")
                 if obj_id is None:
                     stats.skip(f"{table}.no_objection_id")
@@ -121,6 +123,19 @@ class ObjectionMapper:
                 for table, rows in kid_buckets.items():
                     stats.counts[f"{table}.attached"] = stats.counts.get(f"{table}.attached", 0) + len(rows)
             session.commit()
+
+        for table, source_count in child_source_counts.items():
+            attached = stats.counts.get(f"{table}.attached", 0)
+            already_skipped = sum(
+                count
+                for key, count in stats.skipped.items()
+                if key.startswith(f"{table}.")
+            )
+            orphan_count = source_count - attached - already_skipped
+            if orphan_count > 0:
+                stats.skipped[f"{table}.orphan_or_deleted_parent"] = stats.skipped.get(
+                    f"{table}.orphan_or_deleted_parent", 0
+                ) + orphan_count
 
         # legacy_object_mapping for each objection (separate session — repo manages own)
         for objection in objections:

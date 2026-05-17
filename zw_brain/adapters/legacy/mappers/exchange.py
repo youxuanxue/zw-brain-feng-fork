@@ -34,6 +34,7 @@ from zw_brain.domain.models import (
 )
 from zw_brain.domain.repositories.application import ApplicationRepository
 from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
+from zw_brain.domain.repositories.legacy_mapping import upsert_legacy_mapping_in_session
 from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.sanitization import safe_json
 
@@ -241,6 +242,8 @@ class ExchangeMapper:
             },
             tenant_id=self.tenant_id,
         )
+        if status == "approved":
+            self._upsert_pending_delivery_for_apply(scrubbed, legacy_system)
 
     def _map_data_original_require(self, row: dict[str, Any], legacy_system: str) -> None:
         require_id = row["id"]
@@ -277,6 +280,82 @@ class ExchangeMapper:
             tenant_id=self.tenant_id,
         )
 
+    def _upsert_pending_delivery_for_apply(self, row: dict[str, Any], legacy_system: str) -> None:
+        apply_id = row["id"]
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            task = session.execute(
+                select(DeliveryTaskRecord).where(
+                    DeliveryTaskRecord.tenant_id == self.tenant_id,
+                    DeliveryTaskRecord.delivery_code == apply_id,
+                )
+            ).scalar_one_or_none()
+            payload = safe_json(
+                {
+                    "kind": "apply_pending_delivery",
+                    "resource_id": row.get("resource_id"),
+                    "resource_name": row.get("resource_name"),
+                    "catalog_id": row.get("cata_id"),
+                    "provider_org_id": row.get("org_id"),
+                    "provider_org_name": row.get("org_name"),
+                    "applicant_org_id": row.get("apply_org_id"),
+                    "applicant_org_name": row.get("apply_org_name"),
+                    "use_reason": row.get("use_reason"),
+                    "use_item": row.get("use_item"),
+                    "create_time": coerce_time(row.get("create_time")),
+                    "source_ref": f"{legacy_system}:data_apply:{apply_id}",
+                }
+            )
+            if task is None:
+                task = DeliveryTaskRecord(
+                    tenant_id=self.tenant_id,
+                    delivery_code=apply_id,
+                    application_code=apply_id,
+                    state="pending",
+                    channel=row.get("type") or row.get("service_type") or "resource_apply",
+                    payload_json=payload,
+                )
+                session.add(task)
+            else:
+                task.application_code = apply_id
+                task.state = task.state or "pending"
+                task.channel = task.channel or row.get("type") or row.get("service_type") or "resource_apply"
+                task.payload_json = {**(task.payload_json or {}), **payload}
+            session.commit()
+        self._write_legacy_mapping(
+            legacy_system=legacy_system,
+            legacy_object_type="data_apply",
+            legacy_object_ref=apply_id,
+            canonical_type="DeliveryTaskRecord",
+            canonical_ref=apply_id,
+            evidence={"resource_id": row.get("resource_id"), "state": "pending"},
+        )
+
+    def _write_legacy_mapping(
+        self,
+        *,
+        legacy_system: str,
+        legacy_object_type: str,
+        legacy_object_ref: str,
+        canonical_type: str,
+        canonical_ref: str,
+        evidence: dict[str, Any] | None = None,
+    ) -> None:
+        from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
+
+        LegacyObjectMappingRepository().upsert_mapping(
+            {
+                "source_ref": f"{legacy_system}:{legacy_object_type}:{legacy_object_ref}",
+                "legacy_system": legacy_system,
+                "legacy_object_type": legacy_object_type,
+                "legacy_object_ref": legacy_object_ref,
+                "canonical_type": canonical_type,
+                "canonical_ref": canonical_ref,
+                "evidence_json": evidence or {},
+            },
+            tenant_id=self.tenant_id,
+        )
+
     # ------------------------------------------------------------------
     # data_apply_course → ApprovalCase + ApprovalStep + ApprovalDecision
     # ------------------------------------------------------------------
@@ -303,27 +382,27 @@ class ExchangeMapper:
                     tenant_id=self.tenant_id,
                     application_code=apply_id,
                     current_status=decision if step_status == "completed" else "pending_decision",
-                    current_step=1,
+                    current_step=0,
                     decision_payload_json={"source": f"{legacy_system}:data_apply_course"},
                 )
                 session.add(case)
                 session.flush()
             else:
-                # Walk current_step forward; the latest course row dictates current_status
-                case.current_step = (case.current_step or 1) + 1
                 case.current_status = decision if step_status == "completed" else "pending_decision"
 
-            # ApprovalStep — keyed by case + course id (idempotent: replace if re-imported)
+            step_name = scrubbed.get("node_name") or course_id
             step = session.execute(
                 select(ApprovalStepRecord).where(
                     ApprovalStepRecord.approval_case_id == case.id,
-                    ApprovalStepRecord.step_name == (scrubbed.get("node_name") or course_id),
+                    ApprovalStepRecord.step_name == step_name,
                 )
             ).scalar_one_or_none()
+            step_no = step.step_no if step is not None else (case.current_step or 0) + 1
+            case.current_step = step_no
             step_payload = {
                 "approval_case_id": case.id,
-                "step_no": case.current_step,
-                "step_name": scrubbed.get("node_name") or "审核",
+                "step_no": step_no,
+                "step_name": step_name,
                 "decision_mode": "single",
                 "status": step_status,
                 "approver_scope_json": safe_json({
@@ -347,9 +426,9 @@ class ExchangeMapper:
                 for k, v in step_payload.items():
                     setattr(step, k, v)
 
-            # ApprovalDecision: only if completed
+            decision_record = None
             if step_status == "completed":
-                existing = session.execute(
+                decision_record = session.execute(
                     select(ApprovalDecisionRecord).where(ApprovalDecisionRecord.step_id == step.id)
                 ).scalar_one_or_none()
                 decision_payload = {
@@ -368,11 +447,51 @@ class ExchangeMapper:
                         "check_status": scrubbed.get("check_status"),
                     }),
                 }
-                if existing is None:
-                    session.add(ApprovalDecisionRecord(**decision_payload))
+                if decision_record is None:
+                    decision_record = ApprovalDecisionRecord(**decision_payload)
+                    session.add(decision_record)
+                    session.flush()
                 else:
                     for k, v in decision_payload.items():
-                        setattr(existing, k, v)
+                        setattr(decision_record, k, v)
+            steps_for_case = list(
+                session.execute(
+                    select(ApprovalStepRecord).where(ApprovalStepRecord.approval_case_id == case.id)
+                ).scalars()
+            )
+            ordered_steps = sorted(
+                steps_for_case,
+                key=lambda item: (
+                    (item.started_at or item.completed_at or item.created_at).isoformat(),
+                    item.step_name,
+                ),
+            )
+            for index, case_step in enumerate(ordered_steps, start=1):
+                case_step.step_no = index
+            case.current_step = len(ordered_steps)
+            upsert_legacy_mapping_in_session(
+                session,
+                {
+                    "source_ref": f"{legacy_system}:data_apply_course:{course_id}",
+                    "legacy_object_ref": course_id,
+                    "canonical_type": "approval_step",
+                    "canonical_ref": step.id,
+                    "evidence_json": {"application_code": apply_id, "step_name": step.step_name, "decision": decision},
+                },
+                tenant_id=self.tenant_id,
+            )
+            if decision_record is not None:
+                upsert_legacy_mapping_in_session(
+                    session,
+                    {
+                        "source_ref": f"{legacy_system}:data_apply_course:{course_id}",
+                        "legacy_object_ref": course_id,
+                        "canonical_type": "approval_decision",
+                        "canonical_ref": decision_record.id,
+                        "evidence_json": {"application_code": apply_id, "step_name": step.step_name, "decision": decision},
+                    },
+                    tenant_id=self.tenant_id,
+                )
             session.commit()
 
     # ------------------------------------------------------------------
@@ -430,4 +549,20 @@ class ExchangeMapper:
                 task.payload_json = merged
                 task.state = delivery_state
                 task.channel = channel
+            upsert_legacy_mapping_in_session(
+                session,
+                {
+                    "source_ref": f"{legacy_system}:data_apply_authrization:{authz_id}",
+                    "legacy_object_ref": authz_id,
+                    "canonical_type": "DeliveryTaskRecord",
+                    "canonical_ref": apply_id,
+                    "evidence_json": {
+                        "application_code": apply_id,
+                        "state": delivery_state,
+                        "status": row.get("status"),
+                        "apply_status": row.get("apply_status"),
+                    },
+                },
+                tenant_id=self.tenant_id,
+            )
             session.commit()

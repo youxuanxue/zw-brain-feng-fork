@@ -1,0 +1,54 @@
+{
+  "name": "quality.task.replay",
+  "description": "R6 对失败的检测任务发起重跑；记录上次失败摘要 + 新一次任务引用，保持执行器回执可追溯。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "rule_code",
+      "previous_task_ref",
+      "confirmed"
+    ],
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      },
+      "rule_code": {
+        "type": "string"
+      },
+      "previous_task_ref": {
+        "type": "string"
+      },
+      "reason": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "write",
+    "humanConfirmationRequired": true,
+    "readOnlyHint": false
+  },
+  "x-zwbrain-side-effects": [
+    "audit",
+    "db_write"
+  ],
+  "x-zwbrain-audit-class": "write-default",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "quality.task.replay.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

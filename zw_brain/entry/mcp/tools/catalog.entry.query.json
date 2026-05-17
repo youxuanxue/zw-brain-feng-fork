@@ -10,6 +10,14 @@
       "catalog_code": {
         "type": "string"
       },
+      "source": {
+        "type": "string",
+        "description": "filter by summary_json.source (e.g. 'reverse' for 反向编目 drafts)"
+      },
+      "lifecycle_status": {
+        "type": "string",
+        "description": "filter by lifecycle_status (draft / pending_review / active / ...)"
+      },
       "role": {
         "type": "string"
       }

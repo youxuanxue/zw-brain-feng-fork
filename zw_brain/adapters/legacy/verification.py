@@ -16,7 +16,7 @@ from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.repositories.service_invocation import ServiceInvocationMetricRepository, metric_canonical_ref
 from zw_brain.domain.repositories.topic_package import TopicPackageRepository
 
-WEAK_RESOLVED_TYPES = {"DeliveryChannelRegistry", "ExternalApplicationMapping", "capability", "anchor_outbox"}
+WEAK_RESOLVED_TYPES = {"DeliveryChannelRegistry", "ExternalApplicationMapping", "capability", "anchor_outbox", "legacy_only_evidence"}
 
 
 def verify_legacy_migration(*, tenant_id: str, require_zero_conflicts: bool = False) -> dict[str, Any]:
@@ -123,8 +123,12 @@ def _canonical_ref_resolvers(tenant_id: str) -> dict[str, set[str]]:
         "lineage_relation_projection": {item.relation_ref for item in metadata.list_lineage_relations(tenant_id=tenant_id)},
         "quality_evidence_projection": {item.quality_ref for item in metadata.list_quality_evidence(tenant_id=tenant_id)},
         "application_record": {item.application_code for item in ApplicationRepository().list_records(tenant_id=tenant_id)},
+        "approval_step": _approval_step_refs(tenant_id),
+        "approval_decision": _approval_decision_refs(tenant_id),
         "ObjectionCaseRecord": {item.id for item in ObjectionRepository().list_cases(tenant_id=tenant_id)},
         "TopicPackageRecord": {item.package_code for item in TopicPackageRepository().list_packages(tenant_id=tenant_id)},
+        "TopicPackageVisibilityRecord": _topic_package_visibility_refs(tenant_id),
+        "TopicPackageItemRecord": _topic_package_item_refs(tenant_id),
         "DeliveryTaskRecord": {item.delivery_code for item in delivery.list_tasks(tenant_id=tenant_id)},
         "DeliveryAttemptRecord": {item.attempt_code for item in delivery.list_attempts(tenant_id=tenant_id)},
         "ComplianceCaseRecord": {item.case_code for item in compliance.list_cases(tenant_id=tenant_id)},
@@ -148,10 +152,89 @@ def _canonical_ref_resolvers(tenant_id: str) -> dict[str, set[str]]:
     }
 
 
+def _topic_package_visibility_refs(tenant_id: str) -> set[str]:
+    repo = TopicPackageRepository()
+    refs: set[str] = set()
+    for package in repo.list_packages(tenant_id=tenant_id):
+        refs.update(f"{package.package_code}:{item.visibility_code}" for item in repo.list_visibility(package.package_code, tenant_id=tenant_id))
+    return refs
+
+
+def _topic_package_item_refs(tenant_id: str) -> set[str]:
+    repo = TopicPackageRepository()
+    refs: set[str] = set()
+    for package in repo.list_packages(tenant_id=tenant_id):
+        refs.update(f"{package.package_code}:{item.item_code}" for item in repo.list_items(package.package_code, tenant_id=tenant_id))
+    return refs
+
+
+def _approval_step_refs(tenant_id: str) -> set[str]:
+    from sqlalchemy import select
+
+    from zw_brain.domain.models import ApprovalCaseRecord, ApprovalStepRecord
+    from zw_brain.shared.db import create_session_factory
+
+    SessionLocal = create_session_factory()
+    with SessionLocal() as session:
+        tenant_case_ids = select(ApprovalCaseRecord.id).where(ApprovalCaseRecord.tenant_id == tenant_id)
+        return {
+            item.id
+            for item in session.execute(
+                select(ApprovalStepRecord).where(ApprovalStepRecord.approval_case_id.in_(tenant_case_ids))
+            ).scalars()
+        }
+
+
+def _approval_decision_refs(tenant_id: str) -> set[str]:
+    from sqlalchemy import select
+
+    from zw_brain.domain.models import ApprovalCaseRecord, ApprovalDecisionRecord, ApprovalStepRecord
+    from zw_brain.shared.db import create_session_factory
+
+    SessionLocal = create_session_factory()
+    with SessionLocal() as session:
+        tenant_case_ids = select(ApprovalCaseRecord.id).where(ApprovalCaseRecord.tenant_id == tenant_id)
+        tenant_step_ids = select(ApprovalStepRecord.id).where(ApprovalStepRecord.approval_case_id.in_(tenant_case_ids))
+        return {
+            item.id
+            for item in session.execute(
+                select(ApprovalDecisionRecord).where(ApprovalDecisionRecord.step_id.in_(tenant_step_ids))
+            ).scalars()
+        }
+
+
 def _canonical_counts(tenant_id: str) -> dict[str, int]:
+    from sqlalchemy import select
+
+    from zw_brain.domain.models import ApprovalCaseRecord, ApprovalDecisionRecord, ApprovalStepRecord
+    from zw_brain.shared.db import create_session_factory
+
     catalog = CatalogRepository()
     resource_api = ResourceApiRepository()
     metadata = MetadataEvidenceRepository()
+    delivery = DeliveryRepository()
+    SessionLocal = create_session_factory()
+    with SessionLocal() as session:
+        tenant_case_ids = select(ApprovalCaseRecord.id).where(ApprovalCaseRecord.tenant_id == tenant_id)
+        approval_case_count = len(
+            list(
+                session.execute(
+                    select(ApprovalCaseRecord).where(ApprovalCaseRecord.tenant_id == tenant_id)
+                ).scalars()
+            )
+        )
+        approval_steps = list(
+            session.execute(
+                select(ApprovalStepRecord).where(ApprovalStepRecord.approval_case_id.in_(tenant_case_ids))
+            ).scalars()
+        )
+        approval_decision_count = len(
+            list(
+                session.execute(
+                    select(ApprovalDecisionRecord).where(ApprovalDecisionRecord.step_id.in_([item.id for item in approval_steps]))
+                ).scalars()
+            )
+        )
     return {
         "catalog_model": len(catalog.list_models(tenant_id=tenant_id)),
         "catalog_model_field": len(catalog.list_model_fields_all(tenant_id=tenant_id)),
@@ -164,4 +247,9 @@ def _canonical_counts(tenant_id: str) -> dict[str, int]:
         "metadata_gather_evidence_projection": len(metadata.list_gather_evidence(tenant_id=tenant_id)),
         "lineage_relation_projection": len(metadata.list_lineage_relations(tenant_id=tenant_id)),
         "quality_evidence_projection": len(metadata.list_quality_evidence(tenant_id=tenant_id)),
+        "application_record": len(ApplicationRepository().list_records(tenant_id=tenant_id)),
+        "approval_case": approval_case_count,
+        "approval_step": len(approval_steps),
+        "approval_decision": approval_decision_count,
+        "delivery_task": len(delivery.list_tasks(tenant_id=tenant_id)),
     }

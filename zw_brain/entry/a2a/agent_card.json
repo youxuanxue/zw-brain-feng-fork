@@ -107,6 +107,20 @@
       "sideEffects": []
     },
     {
+      "id": "catalog.entry.reverse_draft.suggest",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
       "id": "catalog.group.query",
       "mode": "read",
       "humanConfirmationRequired": false,
@@ -272,6 +286,34 @@
       "sideEffects": []
     },
     {
+      "id": "direct_access.catalog.query",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
+      "id": "direct_access.delivery.list",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
       "id": "governance.dispute_list",
       "mode": "read",
       "humanConfirmationRequired": false,
@@ -314,6 +356,20 @@
       "sideEffects": []
     },
     {
+      "id": "legacy.migration.status.query",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
       "id": "metadata.catalog_item.query",
       "mode": "read",
       "humanConfirmationRequired": false,
@@ -343,6 +399,20 @@
     },
     {
       "id": "metadata.lineage.query",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
+      "id": "metadata.schema.discover",
       "mode": "read",
       "humanConfirmationRequired": false,
       "auditClass": "read-trace",
@@ -1190,6 +1260,57 @@
       ]
     },
     {
+      "id": "catalog.entry.reverse_draft.confirm",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "catalog.entry.reverse_draft.create",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "catalog.entry.reverse_draft.reject",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
       "id": "catalog.entry.review",
       "mode": "write",
       "humanConfirmationRequired": true,
@@ -1572,6 +1693,23 @@
         "db_write",
         "state_machine_transition",
         "blockchain_anchor"
+      ]
+    },
+    {
+      "id": "delivery.replace_or_cancel",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
       ]
     },
     {
@@ -2004,6 +2142,57 @@
       ]
     },
     {
+      "id": "quality.rule.upsert",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "quality.task.replay",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "quality.task.run",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
       "id": "request.create",
       "mode": "write",
       "humanConfirmationRequired": true,
@@ -2095,6 +2284,23 @@
       ]
     },
     {
+      "id": "require.resource.dispatch",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
       "id": "require.resource.match",
       "mode": "write",
       "humanConfirmationRequired": true,
@@ -2109,6 +2315,22 @@
         "audit",
         "db_write",
         "blockchain_anchor"
+      ]
+    },
+    {
+      "id": "require.task.handoff",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit"
       ]
     },
     {
@@ -2429,6 +2651,23 @@
         "audit",
         "db_write",
         "blockchain_anchor"
+      ]
+    },
+    {
+      "id": "subscription.terminate",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
       ]
     },
     {

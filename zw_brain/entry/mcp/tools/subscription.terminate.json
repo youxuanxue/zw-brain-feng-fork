@@ -1,0 +1,51 @@
+{
+  "name": "subscription.terminate",
+  "description": "把 delivery_subscription.status 显式设为 terminated 并把影响摘要写入 audit_event；避免目录撤回时订阅悄悄失效。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "subscription_code",
+      "reason",
+      "confirmed"
+    ],
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      },
+      "subscription_code": {
+        "type": "string"
+      },
+      "reason": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "write",
+    "humanConfirmationRequired": true,
+    "readOnlyHint": false
+  },
+  "x-zwbrain-side-effects": [
+    "audit",
+    "db_write"
+  ],
+  "x-zwbrain-audit-class": "write-critical",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "subscription.terminate.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

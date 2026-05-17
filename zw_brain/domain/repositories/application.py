@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from zw_brain.domain.models import ApplicationRecord
 from zw_brain.domain.repositories.legacy_mapping import upsert_legacy_mapping_in_session
@@ -21,6 +21,16 @@ class ApplicationRepository:
                     .order_by(ApplicationRecord.application_code)
                 ).scalars()
             )
+
+    def update_status(self, application_code: str, status: str, *, tenant_id: str = "sd-default") -> None:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            session.execute(
+                update(ApplicationRecord)
+                .where(ApplicationRecord.tenant_id == tenant_id, ApplicationRecord.application_code == application_code)
+                .values(status=status)
+            )
+            session.commit()
 
     def upsert_from_request(self, request: dict[str, Any], *, tenant_id: str = "sd-default") -> None:
         SessionLocal = create_session_factory()

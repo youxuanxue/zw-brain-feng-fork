@@ -13,12 +13,16 @@ ACTOR_NAMES = {
     "r6": "孙老师",
     "r7": "高主任",
     "r8": "林督查",
+    # 平台实施工程师（非客户业务角色） — 仅用于 M0 迁移监控、内部诊断
+    "admin": "实施工程师",
 }
 
 PERMISSION_ROLES = {
-    "workbench.view.execute": {"r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"},
-    "system.snapshot.execute": {"r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"},
-    "system.schema_info.execute": {"r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"},
+    # admin（实施工程师）只拥有 WebUI 初始化必需的最少 foundational read 权限
+    # + legacy.migration.status.query（P0 数据源）。不授予任何业务写权限。
+    "workbench.view.execute": {"r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "admin"},
+    "system.snapshot.execute": {"r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "admin"},
+    "system.schema_info.execute": {"r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "admin"},
     "data.search.execute": {"r1", "r2", "r6", "r7", "r8"},
     "catalog.resource_view.execute": {"r1", "r2", "r6", "r7", "r8"},
     "request.list.execute": {"r1", "r2", "r3", "r4", "r5"},
@@ -154,6 +158,24 @@ PERMISSION_ROLES = {
     "actor.projection.sync.execute": {"r7", "r8"},
     "legacy.bsp.mapping.import.execute": {"r7", "r8"},
     "legacy.sharezone.mapping.import.execute": {"r7", "r8"},
+    # P0 M0 验收页是平台实施工具，主要给 admin（实施工程师）用。
+    # 保留 r7/r8 仅是客户验收日实施工程师可代为以这两个角色快速对照看一眼；
+    # 但 R7/R8 的导航 (PRODUCT_SHELL_NAV) 已隐藏 P0 入口，正常使用看不到。
+    "legacy.migration.status.query.execute": {"admin", "r7", "r8"},
+    "catalog.entry.reverse_draft.suggest.execute": {"r6", "r7"},
+    "catalog.entry.reverse_draft.create.execute": {"r6"},
+    "catalog.entry.reverse_draft.confirm.execute": {"r7"},
+    "catalog.entry.reverse_draft.reject.execute": {"r7"},
+    "metadata.schema.discover.execute": {"r6", "r7"},
+    "quality.rule.upsert.execute": {"r6", "r7"},
+    "quality.task.run.execute": {"r6"},
+    "quality.task.replay.execute": {"r6"},
+    "direct_access.catalog.query.execute": {"r2", "r5", "r6", "r7", "r8"},
+    "direct_access.delivery.list.execute": {"r5", "r8"},
+    "require.resource.dispatch.execute": {"r7"},
+    "require.task.handoff.execute": {"r7"},
+    "delivery.replace_or_cancel.execute": {"r2"},
+    "subscription.terminate.execute": {"r2"},
     "topic.package.create.execute": {"r7"},
     "topic.package.configure.execute": {"r7"},
     "topic.package.submit.execute": {"r7"},

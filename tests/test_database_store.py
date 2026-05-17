@@ -103,7 +103,7 @@ def test_runtime_service_uses_database_backing() -> None:
         service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True})
         snapshot, _ = database_store.load_runtime_state()
         request = next(item for item in snapshot["requests"] if item["id"] == "REQ-2026-04-25-0011")
-        assert request["status"] == "supplementing"
+        assert request["status"] == "granted"
 
         engine = create_engine(f"sqlite:///{db_path}", future=True)
         with engine.connect() as conn:

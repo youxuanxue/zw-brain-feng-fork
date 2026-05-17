@@ -7,12 +7,14 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
+from zw_brain.adapters.legacy.profiles.customer_core_v1_coverage import audit_only_skip_for
 from zw_brain.adapters.legacy.runner import LegacyImportRunner
 from zw_brain.adapters.legacy.schema_index import list_dump_candidates, list_dumps
 from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT
 from zw_brain.adapters.legacy.verification import verify_legacy_migration
 from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
-from zw_brain.shared.db import ensure_parent_dir
+from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
+from zw_brain.shared.db import create_session_factory, ensure_parent_dir
 from zw_brain.shared.migrate import ensure_runtime_schema, reset_and_upgrade
 from zw_brain.shared.sanitization import safe_json
 
@@ -151,6 +153,10 @@ def run_migration(options: MigrationOptions) -> dict[str, Any]:
     report["adapter_runs"] = [] if options.dry_run else _adapter_run_report(options.tenant_id)
     report["table_accounting"] = _table_accounting(report["dumps"], imports)
     report["fail_closed"] = _fail_closed_summary(report["dumps"], imports, report["table_accounting"])
+    if not options.dry_run:
+        report["coverage_skip_writes"] = _write_audit_only_skip_evidence(
+            report["table_accounting"], options.tenant_id
+        )
     report["sanitization"] = _sanitization_summary(report)
     report["verification"] = {"skipped": True, "reason": "dry_run_no_db_writes"} if options.dry_run else verify_legacy_migration(
         tenant_id=options.tenant_id,
@@ -160,8 +166,14 @@ def run_migration(options: MigrationOptions) -> dict[str, Any]:
     failed_runs = [item for item in report["adapter_runs"] if item["status"] not in {"succeeded", "replayed"}]
     mapper_errors = _mapper_errors(imports)
     dump_parse_errors = [schema for schema, info in report["dumps"].items() if info.get("parse_error")]
-    unaccounted_tables = [item for item in report["table_accounting"] if item["unaccounted_rows"] > 0]
-    unmapped_tables = [item for item in report["table_accounting"] if not item["declared"] and item["source_rows"] > 0]
+    unmapped_rows = [
+        item for item in report["table_accounting"]
+        if item.get("bucket") == "mapped" and item["unaccounted_rows"] > 0
+    ]
+    unknown_rows = [
+        item for item in report["table_accounting"]
+        if item.get("bucket") == "unknown" and item["source_rows"] > 0
+    ]
     if failed_imports:
         report["errors"].append(f"failed import(s): {', '.join(item['schema'] for item in failed_imports)}")
     if failed_runs:
@@ -170,12 +182,12 @@ def run_migration(options: MigrationOptions) -> dict[str, Any]:
         report["errors"].append(f"mapper error row(s): {mapper_errors}")
     if dump_parse_errors:
         report["errors"].append(f"dump parse error(s): {', '.join(dump_parse_errors)}")
-    if unmapped_tables:
-        table_refs = ", ".join(f"{item['schema']}.{item['table']}" for item in unmapped_tables[:10])
-        report["errors"].append(f"unmapped source row table(s): {table_refs}")
-    if unaccounted_tables:
-        table_refs = ", ".join(f"{item['schema']}.{item['table']}" for item in unaccounted_tables[:10])
-        report["errors"].append(f"unaccounted source row table(s): {table_refs}")
+    if unmapped_rows:
+        table_refs = ", ".join(f"{item['schema']}.{item['table']}" for item in unmapped_rows[:10])
+        report["errors"].append(f"unaccounted source row table(s) in declared mapper: {table_refs}")
+    if unknown_rows:
+        table_refs = ", ".join(f"{item['schema']}.{item['table']}" for item in unknown_rows[:10])
+        report["errors"].append(f"unknown source row table(s) (declare mapper or add to coverage manifest): {table_refs}")
     if report["verification"].get("failed"):
         report["errors"].append("legacy mapping verification failed")
     if options.strict and report["errors"]:
@@ -188,6 +200,89 @@ def run_migration(options: MigrationOptions) -> dict[str, Any]:
 def write_report(report: dict[str, Any], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def _write_audit_only_skip_evidence(table_accounting: list[dict[str, Any]], tenant_id: str) -> dict[str, Any]:
+    """For each audit-only-skip table in the manifest, write one legacy_object_mapping
+    row + one audit_event row so the skipped source is auditable without entering
+    business canonical tables (catalog_entry/catalog_item/resource_asset/...).
+    """
+    from datetime import UTC, datetime
+
+    from sqlalchemy import select
+
+    from zw_brain.domain.models import AuditEventRecord
+
+    skip_rows = [item for item in table_accounting if item.get("bucket") == "audit-only-skip"]
+    SessionLocal = create_session_factory()
+    legacy_mapping_repo = LegacyObjectMappingRepository()
+    mapping_written = 0
+    audit_written = 0
+    for row in skip_rows:
+        schema = row["schema"]
+        table = row["table"]
+        reason = row.get("skip_reason") or "audit_only_skip"
+        source_rows = int(row.get("source_rows") or 0)
+        legacy_system = legacy_system_for_schema(schema)
+        canonical_ref = f"{schema}.{table}"
+        legacy_mapping_repo.upsert_mapping(
+            {
+                "source_ref": f"{legacy_system}:legacy_only_evidence:{schema}.{table}",
+                "legacy_system": legacy_system,
+                "legacy_object_type": table,
+                "legacy_object_ref": canonical_ref,
+                "canonical_type": "legacy_only_evidence",
+                "canonical_ref": canonical_ref,
+                "evidence_json": {
+                    "reason": reason,
+                    "source_rows": source_rows,
+                    "schema": schema,
+                    "table": table,
+                },
+            },
+            tenant_id=tenant_id,
+        )
+        mapping_written += 1
+        with SessionLocal() as session:
+            # Idempotent: only insert when no prior receipt for (skill_id, schema.table).
+            existing = session.execute(
+                select(AuditEventRecord).where(
+                    AuditEventRecord.skill_id == "legacy.coverage.skip",
+                    AuditEventRecord.request_id == canonical_ref,
+                )
+            ).scalar_one_or_none()
+            if existing is None:
+                session.add(
+                    AuditEventRecord(
+                        request_id=canonical_ref,
+                        actor="legacy.migration",
+                        skill_id="legacy.coverage.skip",
+                        phase="audit_only_skip",
+                        payload_json=safe_json(
+                            {
+                                "schema": schema,
+                                "table": table,
+                                "reason": reason,
+                                "rows": source_rows,
+                                "tenant_id": tenant_id,
+                            }
+                        ),
+                        occurred_at=datetime.now(UTC),
+                    )
+                )
+                session.commit()
+                audit_written += 1
+    return {
+        "skip_table_count": len(skip_rows),
+        "legacy_only_evidence_written": mapping_written,
+        "audit_events_written": audit_written,
+    }
+
+
+def legacy_system_for_schema(schema: str) -> str:
+    from zw_brain.adapters.legacy.tenant_normalizer import legacy_system_for
+
+    return legacy_system_for(schema)
 
 
 def _base_report(options: MigrationOptions) -> dict[str, Any]:
@@ -290,10 +385,31 @@ def _fail_closed_summary(dumps: dict[str, dict[str, Any]], imports: list[dict[st
             for issue in mapper.get("issues", []) if isinstance(mapper, dict) else []:
                 issue_type = str(issue.get("type", "unknown"))
                 mapper_issues[issue_type] = mapper_issues.get(issue_type, 0) + 1
+    unknown_tables = [
+        f"{item['schema']}.{item['table']}"
+        for item in accounting
+        if item.get("bucket") == "unknown" and item["source_rows"] > 0
+    ]
+    # `unmapped` = mapper declared the table but failed to consume all rows.
+    unmapped_tables = [
+        f"{item['schema']}.{item['table']}"
+        for item in accounting
+        if item.get("bucket") == "mapped" and item["unaccounted_rows"] > 0
+    ]
+    declared_audit_only_skip = [
+        f"{item['schema']}.{item['table']}"
+        for item in accounting
+        if item.get("bucket") == "audit-only-skip"
+    ]
     return {
         "missing_dumps": [schema for schema, info in dumps.items() if not info.get("present")],
-        "unmapped_tables": [f"{item['schema']}.{item['table']}" for item in accounting if not item["declared"] and item["source_rows"] > 0],
-        "unaccounted_tables": [f"{item['schema']}.{item['table']}" for item in accounting if item["unaccounted_rows"] > 0],
+        "unmapped_tables": unmapped_tables,
+        "unknown_tables": unknown_tables,
+        "audit_only_skip_tables": declared_audit_only_skip,
+        # Legacy field kept for backwards-compat: list both unmapped + unknown so
+        # callers that still expect a single set still see every row that did NOT
+        # enter canonical state.
+        "unaccounted_tables": unmapped_tables + unknown_tables,
         "mapper_issues": dict(sorted(mapper_issues.items())),
     }
 
@@ -312,7 +428,7 @@ def _sensitive_value_markers(value: Any, policy: list[str]) -> set[str]:
     if isinstance(value, dict):
         markers: set[str] = set()
         for key, item in value.items():
-            if str(key) in {"excluded_legacy_facts", "forbidden_markers"}:
+            if str(key) in {"excluded_legacy_facts", "forbidden_markers", "audit_only_skip_tables", "table", "skip_reason"}:
                 continue
             markers.update(_sensitive_value_markers(item, policy))
         return markers
@@ -323,8 +439,17 @@ def _sensitive_value_markers(value: Any, policy: list[str]) -> set[str]:
         return markers
     if not isinstance(value, str):
         return set()
-    lowered = value.lower()
-    return {item for item in policy if item in lowered}
+    return {item for item in policy if _looks_like_sensitive_literal(value, item)}
+
+
+def _looks_like_sensitive_literal(value: str, marker: str) -> bool:
+    lowered = value.lower().strip()
+    if marker not in lowered:
+        return False
+    if lowered == marker:
+        return True
+    separators = ("=", ":", '"', "'", "{", "[", " ")
+    return any(f"{marker}{separator}" in lowered or f"{separator}{marker}" in lowered for separator in separators)
 
 
 def _table_accounting(dumps: dict[str, dict[str, Any]], imports: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -336,20 +461,37 @@ def _table_accounting(dumps: dict[str, dict[str, Any]], imports: list[dict[str, 
         mappers = imported.get("mappers") or []
         declared_tables = set(imported.get("handled_tables") or _declared_tables_for_schema(mappers))
         handled_tables = _handled_table_totals(mappers)
+        skip_for_schema = audit_only_skip_for(schema)
         for table, source_rows in sorted(tables.items()):
             source_count = int(source_rows)
             declared = table in declared_tables
-            handled_rows = handled_tables.get(table, 0) if declared else 0
-            rows.append(
-                {
-                    "schema": schema,
-                    "table": table,
-                    "declared": declared,
-                    "source_rows": source_count,
-                    "accounted_rows": handled_rows,
-                    "unaccounted_rows": max(source_count - handled_rows, 0) if declared else source_count,
-                }
+            skip_reason = skip_for_schema.get(table)
+            if declared:
+                handled_rows = handled_tables.get(table, 0)
+                bucket = "mapped"
+            elif skip_reason:
+                handled_rows = source_count
+                bucket = "audit-only-skip"
+            else:
+                handled_rows = 0
+                bucket = "unknown"
+            unaccounted = (
+                max(source_count - handled_rows, 0)
+                if bucket == "mapped"
+                else (0 if bucket == "audit-only-skip" else source_count)
             )
+            row = {
+                "schema": schema,
+                "table": table,
+                "declared": declared,
+                "bucket": bucket,
+                "source_rows": source_count,
+                "accounted_rows": handled_rows,
+                "unaccounted_rows": unaccounted,
+            }
+            if skip_reason:
+                row["skip_reason"] = skip_reason
+            rows.append(row)
     return rows
 
 
@@ -376,7 +518,7 @@ def _handled_table_totals(mappers: list[dict[str, Any]]) -> dict[str, int]:
             if "." not in str(key):
                 continue
             table, kind = str(key).split(".", 1)
-            if kind in {"imported", "errors"}:
+            if kind in {"imported", "errors", "attached", "merged"}:
                 totals[table] = totals.get(table, 0) + int(value)
         for key, value in (mapper.get("skipped") or {}).items():
             if "." not in str(key):

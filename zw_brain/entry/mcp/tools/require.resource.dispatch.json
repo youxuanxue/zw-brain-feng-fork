@@ -1,0 +1,57 @@
+{
+  "name": "require.resource.dispatch",
+  "description": "R7 判定 R1 业务需求不可用现有目录复用 → 按区域/字段/时间窗切片 → 派 R5 任务。写一次 application_record.status='dispatched' + 一次 supplement 任务草案。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "application_code",
+      "dispatch_payload_json",
+      "confirmed"
+    ],
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      },
+      "application_code": {
+        "type": "string"
+      },
+      "dispatch_payload_json": {
+        "type": "object"
+      },
+      "target_region_codes": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "annotations": {
+    "mode": "write",
+    "humanConfirmationRequired": true,
+    "readOnlyHint": false
+  },
+  "x-zwbrain-side-effects": [
+    "audit",
+    "db_write"
+  ],
+  "x-zwbrain-audit-class": "write-critical",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "require.resource.dispatch.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

@@ -21,6 +21,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import select
+
 from zw_brain.adapters.legacy._common import (
     ImportStats,
     coerce_datetime,
@@ -31,11 +33,22 @@ from zw_brain.adapters.legacy._common import (
 )
 from zw_brain.adapters.legacy.parser import MysqldumpParser
 from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT, legacy_system_for
+from zw_brain.domain.models import (
+    ApprovalCaseRecord,
+    ApprovalDecisionRecord,
+    ApprovalStepRecord,
+    TopicPackageItemRecord,
+    TopicPackageRecord,
+    TopicPackageVisibilityRecord,
+)
 from zw_brain.domain.repositories.catalog import CatalogRepository
+from zw_brain.domain.repositories.delivery import DeliveryRepository
 from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
-from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
+from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository, upsert_legacy_mapping_in_session
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
+from zw_brain.shared.db import create_session_factory
+from zw_brain.shared.sanitization import safe_json
 
 # Legacy `data_catalog.status` codes per CREATE TABLE COMMENT
 CATALOG_STATUS_TO_LIFECYCLE: dict[Any, str] = {
@@ -70,15 +83,26 @@ class CatalogMetadataMapper:
     HANDLED_TABLES = {
         "data_catalog",
         "data_catalog_column",
+        "data_catalog_group",
+        "data_group_permission",
+        "data_basic_elem_catalog",
+        "data_basic_elem_catalog_item",
         "data_resource",
         "rc_resource",
         "rc_resource_table",
+        "rc_resource_file",
+        "rc_resource_url",
         "rc_resource_api",
         "rc_resource_catalog_item_link",
+        "db_meta_table",
+        "db_meta_column",
         "meta_baseinfo",
+        "meta_baseinfo_history",
         "meta_table_column",
         "meta_gather_task",
         "meta_relation",
+        "rc_catalog_materialize",
+        "resource_flow_log",
         "catalog_quality_task",
         "catalog_quality_result",
     }
@@ -89,6 +113,7 @@ class CatalogMetadataMapper:
         self.catalog_repo = CatalogRepository()
         self.resource_repo = ResourceApiRepository()
         self.metadata_repo = MetadataEvidenceRepository()
+        self.delivery_repo = DeliveryRepository()
         self.adapter_repo = ExternalAdapterRepository()
         self.legacy_mapping_repo = LegacyObjectMappingRepository()
 
@@ -108,20 +133,32 @@ class CatalogMetadataMapper:
                     self._map_data_catalog(row, legacy_system)
                 elif table == "data_catalog_column":
                     self._map_data_catalog_column(row, legacy_system)
+                elif table == "data_catalog_group":
+                    self._map_data_catalog_group(row, legacy_system)
+                elif table == "data_group_permission":
+                    self._map_data_group_permission(row, legacy_system)
+                elif table == "data_basic_elem_catalog":
+                    self._map_data_basic_elem_catalog(row, legacy_system)
+                elif table == "data_basic_elem_catalog_item":
+                    self._map_data_basic_elem_catalog_item(row, legacy_system)
                 elif table == "data_resource":
                     self._map_data_resource(row, legacy_system)
                 elif table == "rc_resource":
                     self._map_rc_resource(row, legacy_system)
-                elif table in {"rc_resource_table", "rc_resource_api"}:
+                elif table in {"rc_resource_table", "rc_resource_file", "rc_resource_url", "rc_resource_api"}:
                     self._map_resource_channel_binding(table, row, legacy_system)
                 elif table == "rc_resource_catalog_item_link":
                     self._map_resource_catalog_item_link(row, legacy_system)
-                elif table in {"meta_baseinfo", "meta_table_column"}:
+                elif table in {"db_meta_table", "db_meta_column", "meta_baseinfo", "meta_baseinfo_history", "meta_table_column"}:
                     self._map_schema_snapshot(table, row, legacy_system)
                 elif table == "meta_gather_task":
                     self._map_gather_task(row, legacy_system)
                 elif table == "meta_relation":
                     self._map_lineage_relation(row, legacy_system)
+                elif table == "rc_catalog_materialize":
+                    self._map_catalog_materialize(row, legacy_system)
+                elif table == "resource_flow_log":
+                    self._map_resource_flow_log(row, legacy_system)
                 elif table in {"catalog_quality_task", "catalog_quality_result"}:
                     self._map_quality_evidence(table, row, legacy_system)
                 stats.bump(table)
@@ -204,7 +241,38 @@ class CatalogMetadataMapper:
             },
             tenant_id=self.tenant_id,
         )
+        self._attach_catalog_to_group_projection(row, catalog_code, legacy_system)
         self._rebind_catalog_code(cata_id, catalog_code)
+
+    def _attach_catalog_to_group_projection(self, row: dict[str, Any], catalog_code: str, legacy_system: str) -> None:
+        cata_id = row.get("cata_id")
+        seen: set[str] = set()
+        for group_id in (_first(row, "cata_group_id"), _first(row, "base_group_id"), _first(row, "theme_group_id")):
+            if group_id is None or group_id == "" or str(group_id) in seen:
+                continue
+            seen.add(str(group_id))
+            package_code = f"catalog-group:{group_id}"
+            self._upsert_topic_package_projection(
+                package_code=package_code,
+                title=row.get("cata_group_name") or row.get("share_group_name") or f"目录分组 {group_id}",
+                owner_org_id=row.get("org_code"),
+                status="published" if CATALOG_STATUS_TO_LIFECYCLE.get(row.get("status")) == "active" else "configuring",
+                display_snapshot_json={"projection_kind": "catalog_group", "source": "data_catalog", "group_id": group_id},
+                source_ref=f"{legacy_system}:data_catalog:{cata_id}:group:{group_id}",
+                replace_existing=False,
+            )
+            self._upsert_topic_item(
+                package_code,
+                {
+                    "item_code": f"catalog:{catalog_code}",
+                    "ref_type": "catalog_entry",
+                    "ref_id": catalog_code,
+                    "ref_status": CATALOG_STATUS_TO_LIFECYCLE.get(row.get("status"), "draft"),
+                    "title": row.get("cata_title") or catalog_code,
+                    "display_order": coerce_int(row.get("sort_level") or row.get("cata_order_code"), 0),
+                    "summary_json": {"legacy_catalog_id": cata_id, "group_id": group_id, "source": "data_catalog"},
+                },
+            )
 
     def _map_data_catalog_column(self, row: dict[str, Any], legacy_system: str) -> None:
         cata_id = row["cata_id"]
@@ -236,6 +304,246 @@ class CatalogMetadataMapper:
                     "standard_column_id": row.get("standard_column_id"),
                     "remark": row.get("remark"),
                     "open_condition": row.get("open_condition"),
+                },
+            },
+            tenant_id=self.tenant_id,
+        )
+
+    def _map_data_catalog_group(self, row: dict[str, Any], legacy_system: str) -> None:
+        group_id = str(row["group_id"])
+        package_code = f"catalog-group:{group_id}"
+        self._upsert_topic_package_projection(
+            package_code=package_code,
+            title=row.get("group_name") or package_code,
+            owner_org_id=None,
+            status=_catalog_group_status(row.get("status")),
+            display_snapshot_json={
+                "projection_kind": "catalog_group",
+                "group_code": row.get("group_code"),
+                "group_name": row.get("group_name"),
+                "parent_group_id": row.get("parent_group_id"),
+                "order_id": row.get("order_id"),
+                "is_del": row.get("is_del"),
+                "source": "data_catalog_group",
+            },
+            source_ref=f"{legacy_system}:data_catalog_group:{group_id}",
+            replace_existing=True,
+        )
+        self.legacy_mapping_repo.upsert_mapping(
+            {
+                "source_ref": f"{legacy_system}:data_catalog_group:{group_id}",
+                "legacy_system": legacy_system,
+                "legacy_object_type": "data_catalog_group",
+                "legacy_object_ref": group_id,
+                "canonical_type": "TopicPackageRecord",
+                "canonical_ref": package_code,
+                "evidence_json": {"group_name": row.get("group_name"), "projection_kind": "catalog_group"},
+            },
+            tenant_id=self.tenant_id,
+        )
+
+    def _map_data_group_permission(self, row: dict[str, Any], legacy_system: str) -> None:
+        permission_id = str(row["id"])
+        group_id = row.get("groupId")
+        if group_id is None or group_id == "":
+            return
+        package_code = f"catalog-group:{group_id}"
+        visibility = {
+            "visibility_code": f"data_group_permission:{permission_id}",
+            "org_code": row.get("userrsmid") if str(row.get("type") or "") != "role" else None,
+            "role_code": row.get("userrsmid") if str(row.get("type") or "") == "role" else None,
+            "surface": "webui",
+            "intent": "view",
+            "policy_status": "approved",
+            "condition_json": {
+                "legacy_permission_type": row.get("type"),
+                "group_id": group_id,
+                "group_code": row.get("groupCode"),
+                "source": "data_group_permission",
+            },
+        }
+        self._upsert_topic_package_projection(
+            package_code=package_code,
+            title=f"目录分组 {group_id}",
+            owner_org_id=None,
+            status="published",
+            display_snapshot_json={"projection_kind": "catalog_group", "source": "data_group_permission", "group_id": group_id},
+            source_ref=f"{legacy_system}:data_group_permission:{permission_id}",
+            replace_existing=False,
+        )
+        self._upsert_topic_visibility(package_code, visibility)
+        self.legacy_mapping_repo.upsert_mapping(
+            {
+                "source_ref": f"{legacy_system}:data_group_permission:{permission_id}",
+                "legacy_system": legacy_system,
+                "legacy_object_type": "data_group_permission",
+                "legacy_object_ref": permission_id,
+                "canonical_type": "TopicPackageVisibilityRecord",
+                "canonical_ref": f"{package_code}:data_group_permission:{permission_id}",
+                "evidence_json": {"package_code": package_code, "policy_status": "approved"},
+            },
+            tenant_id=self.tenant_id,
+        )
+
+    def _upsert_topic_package_projection(
+        self,
+        *,
+        package_code: str,
+        title: str,
+        owner_org_id: str | None,
+        status: str,
+        display_snapshot_json: dict[str, Any],
+        source_ref: str,
+        replace_existing: bool,
+    ) -> None:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            record = session.execute(
+                select(TopicPackageRecord).where(
+                    TopicPackageRecord.tenant_id == self.tenant_id,
+                    TopicPackageRecord.package_code == package_code,
+                )
+            ).scalar_one_or_none()
+            values = {
+                "tenant_id": self.tenant_id,
+                "package_code": package_code,
+                "title": title,
+                "scenario": "共享目录可见性 projection",
+                "owner_org_id": owner_org_id,
+                "owner_org_snapshot_json": {},
+                "status": status,
+                "display_snapshot_json": safe_json(display_snapshot_json),
+                "metric_snapshot_json": {},
+                "source_ref": source_ref,
+            }
+            if record is None:
+                session.add(TopicPackageRecord(**values))
+            elif replace_existing:
+                for key, value in values.items():
+                    setattr(record, key, value)
+            session.commit()
+
+    def _upsert_topic_item(self, package_code: str, item: dict[str, Any]) -> None:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            item_code = str(item["item_code"])
+            record = session.execute(
+                select(TopicPackageItemRecord).where(
+                    TopicPackageItemRecord.tenant_id == self.tenant_id,
+                    TopicPackageItemRecord.package_code == package_code,
+                    TopicPackageItemRecord.item_code == item_code,
+                )
+            ).scalar_one_or_none()
+            values = {
+                "tenant_id": self.tenant_id,
+                "package_code": package_code,
+                "item_code": item_code,
+                "ref_type": str(item.get("ref_type", "catalog_entry")),
+                "ref_id": str(item.get("ref_id", item_code)),
+                "ref_status": str(item.get("ref_status", "active")),
+                "title": str(item.get("title", item_code)),
+                "display_order": int(item.get("display_order", 0)),
+                "summary_json": safe_json(item.get("summary_json") or {}),
+            }
+            if record is None:
+                session.add(TopicPackageItemRecord(**values))
+            else:
+                for key, value in values.items():
+                    setattr(record, key, value)
+            session.commit()
+
+    def _upsert_topic_visibility(self, package_code: str, visibility: dict[str, Any]) -> None:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            visibility_code = str(visibility["visibility_code"])
+            record = session.execute(
+                select(TopicPackageVisibilityRecord).where(
+                    TopicPackageVisibilityRecord.tenant_id == self.tenant_id,
+                    TopicPackageVisibilityRecord.package_code == package_code,
+                    TopicPackageVisibilityRecord.visibility_code == visibility_code,
+                )
+            ).scalar_one_or_none()
+            values = {
+                "tenant_id": self.tenant_id,
+                "package_code": package_code,
+                "visibility_code": visibility_code,
+                "org_code": visibility.get("org_code"),
+                "role_code": visibility.get("role_code"),
+                "region_code": visibility.get("region_code"),
+                "surface": str(visibility.get("surface", "webui")),
+                "intent": str(visibility.get("intent", "view")),
+                "policy_status": str(visibility.get("policy_status", "approved")),
+                "condition_json": safe_json(visibility.get("condition_json") or {}),
+            }
+            if record is None:
+                session.add(TopicPackageVisibilityRecord(**values))
+            else:
+                for key, value in values.items():
+                    setattr(record, key, value)
+            session.commit()
+
+    def _map_data_basic_elem_catalog(self, row: dict[str, Any], legacy_system: str) -> None:
+        cata_id = str(row["cata_id"])
+        catalog_code = f"basic-elem:{cata_id}"
+        # `version` is part of legacy PK; first import wins as the basic_element catalog body.
+        self.catalog_repo.upsert_from_resource(
+            {
+                "id": catalog_code,
+                "name": row.get("cata_title") or catalog_code,
+                "status": "active",
+                "provider": row.get("imported_by_org_code"),
+                "region_code": None,
+                "source_ref": f"{legacy_system}:data_basic_elem_catalog:{cata_id}",
+                "legacy_object_ref": cata_id,
+                "summary": {
+                    "kind": "basic_element",
+                    "category_id": row.get("category_id"),
+                    "category_code": row.get("category_code"),
+                    "domain_id": row.get("domain_id"),
+                    "level": row.get("level"),
+                    "source_service_item_catalog_name": row.get("source_service_item_catalog_name"),
+                    "source_service_item_catalog_code": row.get("source_service_item_catalog_code"),
+                    "description": row.get("description"),
+                    "business_line_code": row.get("business_line_code"),
+                    "imported_by_org_code": row.get("imported_by_org_code"),
+                    "imported_by_org_name": row.get("imported_by_org_name"),
+                    "version": row.get("version"),
+                    "create_time": coerce_time(row.get("create_time")),
+                    "update_time": coerce_time(row.get("update_time")),
+                },
+            },
+            tenant_id=self.tenant_id,
+        )
+        self._rebind_catalog_code(cata_id, catalog_code)
+
+    def _map_data_basic_elem_catalog_item(self, row: dict[str, Any], legacy_system: str) -> None:
+        cata_id = str(row["cata_id"])
+        column_code = str(row["column_code"])
+        cata_version = row.get("cata_version")
+        catalog_code = self.legacy_mapping_repo.resolve_canonical_ref(
+            legacy_system=legacy_system,
+            legacy_object_type="data_basic_elem_catalog",
+            legacy_object_ref=cata_id,
+            canonical_type="catalog_entry",
+            tenant_id=self.tenant_id,
+        ) or f"basic-elem:{cata_id}"
+        # Item code combines column_code + cata_version to keep historical versions
+        # addressable, since the legacy PK is (cata_id, cata_version, column_code).
+        item_code = f"basic-elem:{cata_id}:{cata_version}:{column_code}"
+        self.catalog_repo.upsert_item(
+            {
+                "item_code": item_code,
+                "catalog_code": catalog_code,
+                "title": row.get("name_cn") or column_code,
+                "item_kind": "basic_element_field",
+                "display_order": 0,
+                "source_ref": f"{legacy_system}:data_basic_elem_catalog_item:{cata_id}:{cata_version}:{column_code}",
+                "legacy_object_ref": f"{cata_id}:{cata_version}:{column_code}",
+                "summary_json": {
+                    "kind": "basic_element_field",
+                    "data_format": row.get("data_format"),
+                    "cata_version": cata_version,
+                    "create_time": coerce_time(row.get("create_time")),
                 },
             },
             tenant_id=self.tenant_id,
@@ -299,23 +607,23 @@ class CatalogMetadataMapper:
         )
 
     def _map_resource_channel_binding(self, table: str, row: dict[str, Any], legacy_system: str) -> None:
-        legacy_id = _first(row, "id", "table_id", "api_id", "resource_id", "res_id")
-        resource_code = str(_first(row, "resource_id", "res_id", "rc_resource_id", "id", default=legacy_id))
-        binding_code = str(_first(row, "binding_code", "table_id", "api_id", "id", default=f"binding:{resource_code}"))
-        source_ref = f"{legacy_system}:{table}:{legacy_id or binding_code}"
-        channel_kind = "api_gateway" if table.endswith("api") else "table"
+        resource_code = str(_first(row, "resource_id", "res_id", "rc_resource_id", "id"))
+        legacy_id = _channel_legacy_id(table, row, resource_code)
+        binding_code = _channel_binding_code(table, row, resource_code, legacy_id)
+        source_ref = f"{legacy_system}:{table}:{legacy_id}"
+        channel_kind = _channel_kind_for(table)
         self.resource_repo.upsert_binding(
             {
                 "binding_code": binding_code,
                 "resource_code": resource_code,
                 "channel_kind": channel_kind,
-                "route_ref": _first(row, "table_name", "api_path", "path", "route_ref"),
-                "endpoint_ref": _sanitized_ref(row, include=("datasource_id", "database_id", "table_id", "api_id", "schema_name", "table_name", "api_path")),
-                "schema_ref": _sanitized_ref(row, include=("table_id", "table_name", "schema_name", "version")),
+                "route_ref": _route_ref_for_channel(table, row),
+                "endpoint_ref": _endpoint_ref_for_channel(table, row),
+                "schema_ref": _schema_ref_for_channel(table, row),
                 "request_schema_json": {},
                 "response_schema_json": {},
-                "gateway_policy_json": _sanitized_ref(row, include=("exchange_type", "share_type", "open_type")),
-                "lifecycle_status": "active",
+                "gateway_policy_json": _sanitized_ref(row, include=("exchange_type", "share_type", "open_type", "need_mask", "file_format", "file_store_type")),
+                "lifecycle_status": _normalize_channel_status(_first(row, "resource_status", "open_status", default="active")),
                 "source_ref": source_ref,
                 "legacy_object_ref": legacy_id or binding_code,
             },
@@ -324,39 +632,98 @@ class CatalogMetadataMapper:
 
     def _map_resource_catalog_item_link(self, row: dict[str, Any], legacy_system: str) -> None:
         link_id = _first(row, "id", "link_id", "relation_id")
-        catalog_item_code = str(_first(row, "catalog_item_id", "item_id", "column_id"))
+        catalog_item_raw = _first(row, "catalog_item_id", "item_id", "column_id")
+        if catalog_item_raw is None or str(catalog_item_raw).strip() == "":
+            # Real customer dumps include rows with empty catalog_item_id (legacy
+            # placeholders); they would otherwise collapse onto the same
+            # uq_resource_schema_mapping_current row with catalog_item_code='None'.
+            return
+        catalog_item_code = str(catalog_item_raw)
         resource_code = str(_first(row, "resource_id", "res_id", "rc_resource_id"))
         binding_code = str(_first(row, "binding_id", "table_id", default=resource_code))
         catalog_code = self._catalog_code_for(_first(row, "catalog_id", "cata_id"), legacy_system) or "unknown"
         source_column = _first(row, "table_column_id", "column_id", "field_name", "column_name")
+        mapping_code = str(
+            _first(row, "mapping_code", "id", default=f"{catalog_item_code}:{resource_code}:{binding_code}")
+        )
+        # Guard the (tenant_id, catalog_item_code, resource_code, binding_code, status)
+        # unique constraint when legacy data has multiple link rows for the same triple:
+        # if an active row already exists with a *different* mapping_code, demote the new
+        # one to status='superseded' and disambiguate the binding so the UNIQUE still
+        # holds for the (..., status='superseded') projection.
+        status = "active"
+        if self._has_active_mapping_for(catalog_item_code, resource_code, binding_code, mapping_code):
+            status = "superseded"
+            binding_code = f"{binding_code}#{mapping_code}"
         self.metadata_repo.upsert_schema_mapping(
             {
-                "mapping_code": str(_first(row, "mapping_code", "id", default=f"{catalog_item_code}:{resource_code}:{binding_code}")),
+                "mapping_code": mapping_code,
                 "catalog_code": catalog_code,
                 "catalog_item_code": catalog_item_code,
                 "resource_code": resource_code,
                 "binding_code": binding_code,
-                "source_schema_ref": {"column": source_column, "table_column_id": row.get("table_column_id")},
+                "source_schema_ref": {"column": row.get("table_column_name") or source_column, "table_column_id": row.get("table_column_id")},
                 "mapping_rule_json": _sanitized_ref(row, include=("mapping_rule", "convert_rule", "desensitize_rule", "status")),
                 "confidence_level": "confirmed",
                 "evidence_ref": f"{legacy_system}:rc_resource_catalog_item_link:{link_id or catalog_item_code}",
                 "source_ref": f"{legacy_system}:rc_resource_catalog_item_link:{link_id or catalog_item_code}",
                 "legacy_object_ref": link_id or f"{catalog_item_code}:{resource_code}:{binding_code}",
-                "status": "active",
+                "status": status,
             },
             tenant_id=self.tenant_id,
         )
 
+    def _has_active_mapping_for(
+        self,
+        catalog_item_code: str,
+        resource_code: str,
+        binding_code: str,
+        mapping_code: str,
+    ) -> bool:
+        from sqlalchemy import select
+
+        from zw_brain.domain.models import ResourceSchemaMappingRecord
+        from zw_brain.shared.db import create_session_factory
+
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            existing = session.execute(
+                select(ResourceSchemaMappingRecord).where(
+                    ResourceSchemaMappingRecord.tenant_id == self.tenant_id,
+                    ResourceSchemaMappingRecord.catalog_item_code == catalog_item_code,
+                    ResourceSchemaMappingRecord.resource_code == resource_code,
+                    ResourceSchemaMappingRecord.binding_code == binding_code,
+                    ResourceSchemaMappingRecord.status == "active",
+                )
+            ).scalar_one_or_none()
+        if existing is None:
+            return False
+        # Same row re-import (idempotent apply) should keep active status.
+        return existing.mapping_code != mapping_code
+
     def _map_schema_snapshot(self, table: str, row: dict[str, Any], legacy_system: str) -> None:
         meta_id = str(_first(row, "meta_id", "id", "column_id", "field_id"))
-        resource_code = str(_first(row, "resource_id", "res_id", "rc_resource_id", "meta_id", default=meta_id))
-        binding_code = _first(row, "binding_id", "table_id")
+        if table == "db_meta_column":
+            resource_code = str(_first(row, "table_meta_id", "meta_id", default=meta_id))
+            binding_code = str(_first(row, "table_meta_id", default=resource_code))
+            snapshot_ref = f"{resource_code}:db_meta_column:{meta_id}"
+            schema_json = _sanitized_ref(row, include=("meta_id", "table_meta_id", "column_name", "comment", "remark", "format", "length", "is_pk", "is_null", "meta_standard", "meta_standard_cn", "sensitive_level", "order_id", "need_encrypt", "column_precision"))
+        elif table == "db_meta_table":
+            resource_code = str(_first(row, "meta_id", default=meta_id))
+            binding_code = str(_first(row, "meta_id", default=resource_code))
+            snapshot_ref = f"{resource_code}:db_meta_table:{meta_id}"
+            schema_json = _sanitized_ref(row, include=("meta_id", "database_meta_id", "table_name", "comment", "unique_code", "remark", "update_cycle", "sensitive_level", "data_count", "recommend_status"))
+        else:
+            resource_code = str(_first(row, "resource_id", "res_id", "rc_resource_id", "meta_id", default=meta_id))
+            binding_code = _first(row, "binding_id", "table_id", "area_id")
+            snapshot_ref = f"{resource_code}:{table}:{meta_id}"
+            schema_json = _sanitized_ref(row, include=("meta_id", "meta_name", "model_id", "version", "table_name", "column_name", "name_cn", "name_en", "data_type", "data_format", "length", "comment", "org_code", "org_name", "region_code", "region_name", "gather_type", "status"))
         self.metadata_repo.upsert_schema_snapshot(
             {
-                "snapshot_ref": f"{resource_code}:{table}:{meta_id}",
+                "snapshot_ref": snapshot_ref,
                 "resource_code": resource_code,
                 "binding_code": binding_code,
-                "schema_json": _sanitized_ref(row, include=("meta_id", "meta_name", "model_id", "version", "table_name", "column_name", "name_cn", "name_en", "data_type", "data_format", "length", "comment")),
+                "schema_json": schema_json,
                 "source_ref": f"{legacy_system}:{table}:{meta_id}",
                 "legacy_object_ref": meta_id,
                 "captured_at": coerce_datetime(_first(row, "gather_time", "update_time", "create_time")),
@@ -402,6 +769,156 @@ class CatalogMetadataMapper:
             },
             tenant_id=self.tenant_id,
         )
+
+    def _map_catalog_materialize(self, row: dict[str, Any], legacy_system: str) -> None:
+        cata_id = str(row["cata_id"])
+        res_id = str(row.get("res_id") or cata_id)
+        attempt_code = f"materialize:{cata_id}:{res_id}"
+        self.delivery_repo.upsert_attempt(
+            {
+                "attempt_code": attempt_code,
+                "delivery_code": f"materialize:{cata_id}",
+                "attempt_kind": "catalog_materialize",
+                "state": "recorded",
+                "executor_ref": "external_materialize_executor",
+                "evidence_ref": attempt_code,
+                "payload_json": _sanitized_ref(row, include=("cata_id", "res_id", "table_name", "db_type")),
+            },
+            tenant_id=self.tenant_id,
+        )
+        self.delivery_repo.add_execution_evidence(
+            {
+                "evidence_ref": attempt_code,
+                "delivery_code": f"materialize:{cata_id}",
+                "attempt_code": attempt_code,
+                "executor_kind": "external_materialize_executor",
+                "executor_ref": "legacy.rc_catalog_materialize",
+                "evidence_kind": "materialize_receipt",
+                "result_status": "recorded",
+                "payload_json": _sanitized_ref(row, include=("cata_id", "res_id", "table_name", "db_type")),
+            },
+            tenant_id=self.tenant_id,
+        )
+        self.legacy_mapping_repo.upsert_mapping(
+            {
+                "source_ref": f"{legacy_system}:rc_catalog_materialize:{cata_id}:{res_id}",
+                "legacy_system": legacy_system,
+                "legacy_object_type": "rc_catalog_materialize",
+                "legacy_object_ref": f"{cata_id}:{res_id}",
+                "canonical_type": "DeliveryAttemptRecord",
+                "canonical_ref": attempt_code,
+                "evidence_json": {"delivery_code": f"materialize:{cata_id}", "executor": "external_materialize_executor"},
+            },
+            tenant_id=self.tenant_id,
+        )
+
+    def _map_resource_flow_log(self, row: dict[str, Any], legacy_system: str) -> None:
+        flow_id = str(row["id"])
+        resource_id = str(row.get("resource_id") or flow_id)
+        case_application_code = f"resource-review:{resource_id}"
+        step_name = str(row.get("node_name") or row.get("node_code") or flow_id)
+        decision = _resource_flow_decision(row.get("check_status"))
+        step_status = "completed" if row.get("check_time") else "pending"
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            case = session.execute(
+                select(ApprovalCaseRecord).where(
+                    ApprovalCaseRecord.tenant_id == self.tenant_id,
+                    ApprovalCaseRecord.application_code == case_application_code,
+                )
+            ).scalar_one_or_none()
+            if case is None:
+                case = ApprovalCaseRecord(
+                    tenant_id=self.tenant_id,
+                    application_code=case_application_code,
+                    current_status=decision if step_status == "completed" else "pending_decision",
+                    current_step=0,
+                    decision_payload_json={"source": f"{legacy_system}:resource_flow_log", "resource_id": resource_id},
+                )
+                session.add(case)
+                session.flush()
+            else:
+                case.current_status = decision if step_status == "completed" else "pending_decision"
+            step = session.execute(
+                select(ApprovalStepRecord).where(
+                    ApprovalStepRecord.approval_case_id == case.id,
+                    ApprovalStepRecord.step_name == step_name,
+                )
+            ).scalar_one_or_none()
+            step_no = step.step_no if step is not None else (case.current_step or 0) + 1
+            case.current_step = step_no
+            step_payload = {
+                "approval_case_id": case.id,
+                "step_no": step_no,
+                "step_name": step_name,
+                "decision_mode": "single",
+                "status": step_status,
+                "approver_scope_json": safe_json({
+                    "check_user_id": row.get("check_user_id"),
+                    "check_user_name": row.get("check_user_name"),
+                    "node_code": row.get("node_code"),
+                    "node_name": row.get("node_name"),
+                    "actor_code": row.get("actor_code"),
+                    "flow_code": row.get("flow_code"),
+                }),
+                "started_at": coerce_datetime(row.get("check_time")),
+                "completed_at": coerce_datetime(row.get("check_time")) if step_status == "completed" else None,
+            }
+            if step is None:
+                step = ApprovalStepRecord(**step_payload)
+                session.add(step)
+                session.flush()
+            else:
+                for key, value in step_payload.items():
+                    setattr(step, key, value)
+            decision_record = None
+            if step_status == "completed":
+                decision_record = session.execute(
+                    select(ApprovalDecisionRecord).where(ApprovalDecisionRecord.step_id == step.id)
+                ).scalar_one_or_none()
+                decision_payload = {
+                    "step_id": step.id,
+                    "decision": decision,
+                    "decision_reason": row.get("check_note"),
+                    "actor_snapshot_json": safe_json({"check_user_id": row.get("check_user_id"), "check_user_name": row.get("check_user_name")}),
+                    "evidence_json": safe_json({"flow_id": flow_id, "resource_id": resource_id, "check_type": row.get("check_type"), "last_node": row.get("last_node")}),
+                }
+                if decision_record is None:
+                    decision_record = ApprovalDecisionRecord(**decision_payload)
+                    session.add(decision_record)
+                    session.flush()
+                else:
+                    for key, value in decision_payload.items():
+                        setattr(decision_record, key, value)
+            steps_for_case = list(session.execute(select(ApprovalStepRecord).where(ApprovalStepRecord.approval_case_id == case.id)).scalars())
+            ordered_steps = sorted(steps_for_case, key=lambda item: ((item.started_at or item.completed_at or item.created_at).isoformat(), item.step_name))
+            for index, case_step in enumerate(ordered_steps, start=1):
+                case_step.step_no = index
+            case.current_step = len(ordered_steps)
+            upsert_legacy_mapping_in_session(
+                session,
+                {
+                    "source_ref": f"{legacy_system}:resource_flow_log:{flow_id}",
+                    "legacy_object_ref": flow_id,
+                    "canonical_type": "approval_step",
+                    "canonical_ref": step.id,
+                    "evidence_json": {"application_code": case_application_code, "resource_id": resource_id, "decision": decision},
+                },
+                tenant_id=self.tenant_id,
+            )
+            if decision_record is not None:
+                upsert_legacy_mapping_in_session(
+                    session,
+                    {
+                        "source_ref": f"{legacy_system}:resource_flow_log:{flow_id}",
+                        "legacy_object_ref": flow_id,
+                        "canonical_type": "approval_decision",
+                        "canonical_ref": decision_record.id,
+                        "evidence_json": {"application_code": case_application_code, "resource_id": resource_id, "decision": decision},
+                    },
+                    tenant_id=self.tenant_id,
+                )
+            session.commit()
 
     def _map_quality_evidence(self, table: str, row: dict[str, Any], legacy_system: str) -> None:
         quality_ref = str(_first(row, "quality_id", "task_id", "result_id", "id"))
@@ -479,12 +996,95 @@ class CatalogMetadataMapper:
 # helpers
 # ----------------------------------------------------------------------
 
+def _channel_legacy_id(table: str, row: dict[str, Any], resource_code: str) -> str:
+    if table.endswith("url"):
+        return f"{resource_code}:url"
+    return str(_first(row, "id", "table_id", "api_id", "resource_id", "res_id", default=resource_code))
+
+
+def _channel_binding_code(table: str, row: dict[str, Any], resource_code: str, legacy_id: str) -> str:
+    if table.endswith("url"):
+        return f"{resource_code}:url"
+    return str(_first(row, "binding_code", "table_id", "api_id", "id", default=legacy_id or f"binding:{resource_code}"))
+
+
+def _catalog_group_status(raw: Any) -> str:
+    text = str(raw if raw is not None else "1")
+    if text == "1":
+        return "published"
+    if text == "0":
+        return "offline"
+    return "draft"
+
+
+def _channel_kind_for(table: str) -> str:
+    if table.endswith("api"):
+        return "api_gateway"
+    if table.endswith("file"):
+        return "file"
+    if table.endswith("url"):
+        return "url"
+    return "table"
+
+
+def _route_ref_for_channel(table: str, row: dict[str, Any]) -> Any:
+    if table.endswith("file"):
+        return _first(row, "file_name", "file_format")
+    if table.endswith("url"):
+        return _first(row, "url_name", "url_code")
+    return _first(row, "table_name", "api_path", "path", "route_ref")
+
+
+def _endpoint_ref_for_channel(table: str, row: dict[str, Any]) -> dict[str, Any]:
+    if table.endswith("file"):
+        return _sanitized_ref(row, include=("file_name", "file_format", "file_source", "file_store_type", "node_id", "node_name", "exchange_en", "exchange_name"))
+    if table.endswith("url"):
+        return _sanitized_ref(row, include=("url_name", "url_code", "url_description"))
+    return _sanitized_ref(row, include=("datasource_id", "database_id", "table_id", "api_id", "schema_name", "table_name", "api_path"))
+
+
+def _schema_ref_for_channel(table: str, row: dict[str, Any]) -> dict[str, Any]:
+    if table.endswith("file"):
+        return _sanitized_ref(row, include=("file_name", "file_format", "file_size", "data_count"))
+    if table.endswith("url"):
+        return _sanitized_ref(row, include=("url_name", "url_code"))
+    return _sanitized_ref(row, include=("table_id", "table_name", "schema_name", "version", "table_version"))
+
+
+def _normalize_channel_status(raw: Any) -> str:
+    text = str(raw or "active").strip().lower()
+    if text in {"0", "active", "enabled", "published"}:
+        return "active"
+    if text in {"1", "draft"}:
+        return "draft"
+    if text in {"2", "pending", "pending_review"}:
+        return "pending_review"
+    if text in {"-1", "deleted"}:
+        return "deleted"
+    return "active"
+
+
+def _resource_flow_decision(raw: Any) -> str:
+    text = str(raw if raw is not None else "1").strip().lower()
+    if text in {"1", "approved", "pass", "passed"}:
+        return "approved"
+    if text in {"2", "rejected", "reject"}:
+        return "rejected"
+    if text in {"0", "correction", "request_correction"}:
+        return "request_correction"
+    return "approved"
+
+
 def _normalize_resource_kind(raw: Any) -> str:
     if not raw:
         return "table"
     text = str(raw).strip().lower()
-    if text in {"table", "file", "folder", "service", "api", "url"}:
-        return "service" if text == "service" else text
+    if text in {"table", "file", "folder", "service", "api", "url", "link"}:
+        if text == "service":
+            return "service"
+        if text == "link":
+            return "url"
+        return text
     return "table"
 
 

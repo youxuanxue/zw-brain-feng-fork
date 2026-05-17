@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import delete, select
 
 from zw_brain.domain.models import ApprovalCaseRecord, ApprovalDecisionRecord, ApprovalStepRecord
 from zw_brain.shared.db import create_session_factory
+
+
+def _now() -> datetime:
+    return datetime.now(UTC)
 
 
 class ApprovalRepository:
@@ -176,6 +181,75 @@ class ApprovalRepository:
                 )
             )
             session.commit()
+
+    def append_application_review_decision(
+        self,
+        application_code: str,
+        *,
+        decision: str,
+        reason: str,
+        evidence: dict[str, Any],
+        actor: str,
+        skill_id: str,
+        audit_id: str,
+        status: str,
+        tenant_id: str = "sd-default",
+    ) -> ApprovalDecisionRecord:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            case = session.execute(
+                select(ApprovalCaseRecord).where(
+                    ApprovalCaseRecord.tenant_id == tenant_id,
+                    ApprovalCaseRecord.application_code == application_code,
+                )
+            ).scalar_one_or_none()
+            payload = {
+                "decision": decision,
+                "reason": reason,
+                "evidence": evidence,
+                "actor": actor,
+                "skill_id": skill_id,
+                "audit_id": audit_id,
+            }
+            if case is None:
+                case = ApprovalCaseRecord(
+                    tenant_id=tenant_id,
+                    application_code=application_code,
+                    current_status=status,
+                    current_step=1,
+                    decision_payload_json=payload,
+                )
+                session.add(case)
+                session.flush()
+            else:
+                case.current_status = status
+                case.current_step = max(case.current_step or 1, 1)
+                case.decision_payload_json = {**(case.decision_payload_json or {}), "latest_r2_review": payload}
+            step_no = (case.current_step or 0) + 1
+            case.current_step = step_no
+            step = ApprovalStepRecord(
+                approval_case_id=case.id,
+                step_no=step_no,
+                step_name="R2 准入决策",
+                decision_mode="single",
+                status="completed",
+                approver_scope_json={"roles": ["r2"], "request_id": application_code, "audit_id": audit_id},
+                started_at=_now(),
+                completed_at=_now(),
+            )
+            session.add(step)
+            session.flush()
+            record = ApprovalDecisionRecord(
+                step_id=step.id,
+                decision=decision,
+                decision_reason=reason,
+                actor_snapshot_json={"actor": actor, "role_code": "r2", "skill_id": skill_id},
+                evidence_json={**evidence, "audit_id": audit_id, "skill_id": skill_id},
+            )
+            session.add(record)
+            session.commit()
+            session.refresh(record)
+            return record
 
     def upsert_from_request_and_approval(self, request: dict[str, Any], approval: dict[str, Any], *, tenant_id: str = "sd-default") -> None:
         SessionLocal = create_session_factory()

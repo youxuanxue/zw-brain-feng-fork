@@ -1,0 +1,53 @@
+{
+  "name": "require.task.handoff",
+  "description": "记录 R7 把派发后的任务转给 R5 接管的责任快照；只写审计与责任快照，不修改业务字段。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "application_code",
+      "handoff_to_role",
+      "confirmed"
+    ],
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      },
+      "application_code": {
+        "type": "string"
+      },
+      "handoff_to_role": {
+        "type": "string"
+      },
+      "handoff_note": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "write",
+    "humanConfirmationRequired": true,
+    "readOnlyHint": false
+  },
+  "x-zwbrain-side-effects": [
+    "audit"
+  ],
+  "x-zwbrain-audit-class": "write-default",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "require.task.handoff.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

@@ -1,0 +1,38 @@
+{
+  "name": "direct_access.catalog.query",
+  "description": "只读：列已发布且 summary_json.direct_access_eligible=true 的 catalog_entry，作为旧 dc_catalog 的 zw-brain 投影。事实源仍是 catalog_entry，dc_catalog 本身锁只读；任何想直接写 dc_catalog 的请求都退回 application_record 主链路。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "limit": {
+        "type": "integer",
+        "default": 50
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-audit-class": "read-trace",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "direct_access.catalog.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

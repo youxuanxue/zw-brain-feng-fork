@@ -1,4 +1,5 @@
 import json
+import shutil
 from http.server import HTTPServer
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -159,6 +160,25 @@ def test_role_switch_refetches_snapshot() -> None:
     assert "await refreshSnapshot()" in block
 
 
+def test_snapshot_role_hydration_overrides_default_role() -> None:
+    app_js = APP_JS.read_text(encoding="utf-8")
+    assert "currentRole = state.role || currentRole || 'r1';" in app_js
+    assert "currentRole = currentRole || state.role || 'r1';" not in app_js
+
+
+def test_provider_page_uses_three_step_task_flow_and_existing_actions() -> None:
+    pages_js = PAGES_JS.read_text(encoding="utf-8")
+    provider_start = pages_js.index("PAGES.provider = function")
+    provider_block = pages_js[provider_start : pages_js.index("PAGES.complianceOps", provider_start)]
+    assert "第一步：确认目录说明" in provider_block
+    assert "第二步：确认资源可用性" in provider_block
+    assert "第三步：值守预填与回流服务" in provider_block
+    assert "window.ACTIONS.manageCatalogEntry" in provider_block
+    assert "window.ACTIONS.manageResourceAsset" in provider_block
+    assert "window.ACTIONS.publishProviderService" in provider_block
+    assert "window.ACTIONS.suspendProviderService" in provider_block
+
+
 def test_pages_expose_access_map_for_app_router() -> None:
     pages_js = PAGES_JS.read_text(encoding="utf-8")
     assert "window.ZW_PAGE_ACCESS" in pages_js
@@ -194,6 +214,20 @@ def _prepare_imported_offline_db(root: Path, monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setenv("no_proxy", "127.0.0.1,localhost")
     reset_service()
     return db_path, offline_source
+
+
+def _prepare_real_legacy_offline_db(root: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[dict, Path]:
+    db_path = root / "real-customer.db"
+    dumps_dir = REPO / "old" / "10示例数据"
+    report = run_acceptance_migration(MigrationOptions(dumps_dir=dumps_dir, db_path=db_path, reset_db=True, strict=True))
+    assert report["status"] == "succeeded"
+    offline_source = root / "legacy-source-offline"
+    monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
+    monkeypatch.setenv("ZW_BRAIN_LEGACY_DUMPS_DIR", str(offline_source))
+    monkeypatch.setenv("NO_PROXY", "127.0.0.1,localhost")
+    monkeypatch.setenv("no_proxy", "127.0.0.1,localhost")
+    reset_service()
+    return report, offline_source
 
 
 def _start_rest_server() -> tuple[HTTPServer, Thread, str]:
@@ -245,6 +279,469 @@ def test_f4_webui_copy_is_customer_journey_not_legacy_menu_or_chat_shell() -> No
     assert "chat-input" not in combined
 
 
+def test_f3_r1_read_side_hits_real_medical_catalog_and_basic_element(monkeypatch: pytest.MonkeyPatch) -> None:
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _, offline_source = _prepare_imported_offline_db(root, monkeypatch)
+        server, thread, base_url = _start_rest_server()
+        try:
+            status, discovery = _get(base_url, "data.search", query="医疗", page=1, role="r1")
+            discovery = _assert_ok_dict(status, discovery)
+            ids = {item["id"] for item in discovery["results"]}
+            assert "307013370000308002000000/000049" in ids
+            assert "basic-elem:0b26783950004ed882ec9309fae73310" in ids
+            assert "停车场" not in discovery["summary"]["summary"]
+            assert not offline_source.exists()
+
+            status, detail = _get(base_url, "catalog.resource_view", resource_id="307013370000308002000000/000049", role="r1")
+            detail = _assert_ok_dict(status, detail)
+            assert detail["name"] == "区县域医疗机构院主要业务情况统计表"
+            assert detail["provider"] == "省大数据局"
+            assert detail["regionCode"] == "370000000000"
+            assert detail["accessPolicy"]["shareWay"] == "0204"
+            assert detail["sensitivePolicy"]["maskedOnRead"] is True
+            assert detail["fieldBindingSummary"]["diagnosis"] == "ok"
+            assert "出院者平均住院日" in detail["fields"]
+            assert detail["fieldBindings"][0]["catalog_item_title"] == "出院者平均住院日"
+            assert detail["fieldBindings"][0]["explain"]["source_column"] == "fdcdc442107540e5a0b10c9385b2775d"
+            assert detail["fieldBindings"][0]["replay"]["steps"][2]["ref"] == "fdcdc442107540e5a0b10c9385b2775d"
+            assert detail["resourceAssets"][0]["resource_code"] == "66dd29e00efe45729babe2c5bba118fa"
+            assert detail["schemaSnapshots"]
+            assert any(item["legacy_object_type"] == "data_catalog" for item in detail["legacyMappings"])
+            assert detail["reuseGapHint"]["message"]
+
+            status, resource_detail = _get(base_url, "catalog.resource_view", resource_id="66dd29e00efe45729babe2c5bba118fa", role="r1")
+            resource_detail = _assert_ok_dict(status, resource_detail)
+            assert resource_detail["repository"]["catalogCode"] == "307013370000308002000000/000049"
+            assert resource_detail["fieldBindingSummary"]["diagnosis"] == "ok"
+
+            status, metadata = _get(base_url, "metadata.catalog_item.query", catalog_code="307013370000308002000000/000049", role="r7")
+            metadata = _assert_ok_dict(status, metadata)
+            assert metadata["summary"]["diagnosis"] == "ok"
+            assert metadata["catalogFields"][0]["title"] == "出院者平均住院日"
+            assert metadata["items"][0]["catalog_item_title"] == "出院者平均住院日"
+
+            status, basic = _get(base_url, "metadata.catalog_item.query", catalog_code="basic-elem:0b26783950004ed882ec9309fae73310", role="r7")
+            basic = _assert_ok_dict(status, basic)
+            assert basic["summary"]["diagnosis"] == "catalog_fields_only"
+            assert basic["catalogFields"][0]["title"] == "人员姓名"
+
+            combined = json.dumps([discovery, detail, resource_detail, metadata, basic], ensure_ascii=False)
+            for marker in ["13800001111", "370102197001010011", "jdbc:", "10.0.", "192.168."]:
+                assert marker not in combined
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+            runtime._service = None
+            reset_service()
+
+
+def test_f3_webui_resource_detail_surfaces_business_evidence_copy() -> None:
+    pages_js = PAGES_JS.read_text(encoding="utf-8")
+    start = pages_js.index("PAGES.resourceDetail = function")
+    block = pages_js[start : pages_js.index("PAGES.requestFlow", start)]
+    assert "共享条件与安全策略" in pages_js
+    assert "复用与缺口判断" in pages_js
+    assert "资源与 schema 证据" in pages_js
+    assert "旧平台回指证据" in pages_js
+    assert "字段口径" in block
+    assert "只申请本次确需字段" in block
+    for forbidden in ["原型说明", "操作手册", "旧平台菜单"]:
+        assert forbidden not in block
+
+
+def test_f3_webui_review_detail_surfaces_r2_business_evidence_chain() -> None:
+    pages_js = PAGES_JS.read_text(encoding="utf-8")
+    start = pages_js.index("PAGES.reviewDetail = function")
+    block = pages_js[start : pages_js.index("PAGES.deliveryExchange", start)]
+    for expected in [
+        "申请材料与复用范围",
+        "准入证据链",
+        "建议决策与授权边界",
+        "旧平台回指与审计来源",
+        "历史与重复线索",
+        "质量投影",
+        "通过复用、退回缩小范围、驳回重复或转口径确认",
+    ]:
+        assert expected in block
+    for forbidden in ["技术调试", "debug", "原型说明", "操作手册", "旧平台菜单"]:
+        assert forbidden not in block
+
+
+@pytest.mark.legacy_migration_acceptance
+def test_f3_r2_parking_read_side_surfaces_real_approval_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
+    apply_id = "86013a7aaaf74724b7eb156272292e24"
+    resource_id = "39a41e4b4e80439187e0f86218bae5d9"
+    catalog_code = "370000308004000000/000001"
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        report, offline_source = _prepare_real_legacy_offline_db(root, monkeypatch)
+        assert report["stages"]["apply"]["dumps"]["dsp_catalog"]["tables"].get("data_apply_renewal", 0) == 0
+        server, thread, base_url = _start_rest_server()
+        try:
+            status, request_view = _get(base_url, "request.view", request_id=apply_id, role="r2")
+            request_view = _assert_ok_dict(status, request_view)
+            assert request_view["id"] == apply_id
+            assert request_view["resourceId"] == resource_id
+            assert request_view["resourceName"] == "停车场信息_库表资源"
+            assert request_view["status"] == "approved"
+            assert request_view["applicationMaterials"]["catalogCode"] == catalog_code
+            assert request_view["applicationMaterials"]["resourceId"] == resource_id
+            assert request_view["applicationMaterials"]["minimal"] is True
+            assert request_view["applicationMaterials"]["frequency"] == {"times": "1", "mostTimes": "1", "timeWindow": "每日（8:00-18:00)", "useDays": "1"}
+            assert [item["title"] for item in request_view["requestedItems"]] == ["名称", "地址"]
+            assert request_view["applicationMaterials"]["requestedItems"] == request_view["requestedItems"]
+            assert request_view["reuseCandidate"]["catalogCode"] == catalog_code
+            assert request_view["reuseCandidate"]["fieldBindingSummary"]["diagnosis"] == "ok"
+            assert request_view["reuseCandidate"]["resourceStatus"] == "active"
+            assert request_view["sensitivePolicy"]["fieldSensitiveLevels"] == ["1"]
+            assert {item["catalog_item_title"] for item in request_view["fieldBindings"]} == {"名称", "地址"}
+            assert {item["explain"]["source_column"] for item in request_view["fieldBindings"]} == {"name", "address"}
+            assert request_view["historicalContext"]["duplicateConclusion"] == "无在途重复申请，可按复用授权边界继续审批。"
+            assert request_view["historicalContext"]["relatedApplicationCount"] >= 1
+            assert request_view["qualityEvidence"]["status"] == "ready"
+            assert "字段绑定" in request_view["qualityEvidence"]["summary"]
+            assert [(item["resource_code"], item["lifecycle_status"]) for item in request_view["resourceAssets"]] == [(resource_id, "suspended")]
+            assert any(item["legacy_object_type"] == "data_apply" for item in request_view["legacyMappings"])
+            assert any(item["legacy_object_type"] == "data_catalog" for item in request_view["sourceEvidence"]["legacyMappings"])
+            assert not offline_source.exists()
+
+            status, approval_view = _get(base_url, "approval.view", request_id=apply_id, role="r2")
+            approval_view = _assert_ok_dict(status, approval_view)
+            assert approval_view["requestId"] == apply_id
+            assert approval_view["case"] == {"currentStatus": "approved", "currentStep": 4}
+            assert [item["stepName"] for item in approval_view["steps"]] == ["申请", "受理", "审核", "备案"]
+            assert [item["decision"] for item in approval_view["decisions"]] == ["approved", "approved", "approved", "approved"]
+            assert approval_view["applicationMaterials"] == request_view["applicationMaterials"]
+            assert approval_view["reuseCandidate"]["catalogCode"] == catalog_code
+            assert approval_view["fieldEvidence"]["fieldBindingSummary"]["diagnosis"] == "ok"
+            assert {item["lifecycle_status"] for item in approval_view["fieldEvidence"]["resourceAssets"]} == {"suspended"}
+            assert approval_view["historicalContext"]["inFlightDuplicateCount"] == 0
+            assert approval_view["qualityEvidence"]["source"] == "schema_mapping_projection"
+            assert approval_view["grantEvidence"]["state"] == "granted"
+            assert approval_view["grantEvidence"]["accessGrant"]["status"] == 0
+            assert approval_view["grantEvidence"]["accessGrant"]["apply_status"] == 9
+            assert approval_view["recommendedDecision"]["primary"] == "approve_reuse"
+            assert "不伪造续期" in approval_view["recommendedDecision"]["renewalBoundary"]
+            assert any(item["legacy_object_type"] == "data_apply_course" and item["canonical_type"] == "approval_decision" for item in approval_view["legacyMappings"])
+
+            status, delivery_view = _get(base_url, "delivery.view", task_id=apply_id, role="r6")
+            delivery_view = _assert_ok_dict(status, delivery_view)
+            assert delivery_view["id"] == apply_id
+            assert delivery_view["requestId"] == apply_id
+            assert delivery_view["status"] == "granted"
+            assert delivery_view["applicationMaterials"] == request_view["applicationMaterials"]
+            assert delivery_view["accessGrantSnapshot"]["limit_day"] == 180
+            assert delivery_view["authorizationBoundary"]["renewalSourceRows"] == 0
+            assert delivery_view["schemaEvidence"]["fieldBindingSummary"]["diagnosis"] == "ok"
+            assert delivery_view["schemaEvidence"]["qualityEvidence"]["status"] == "ready"
+            assert delivery_view["backflow"]["status"] == "不适用"
+            assert any(item["legacy_object_type"] == "data_apply_authrization" for item in delivery_view["legacyMappings"])
+
+            status, audit = _get(base_url, "audit.list", role="r8")
+            audit = _assert_ok_dict(status, audit)
+            audit_json = json.dumps(audit, ensure_ascii=False)
+            assert apply_id in audit_json
+            assert "legacy.exchange.import" in audit_json
+            assert "data_apply_course" in audit_json
+            assert "data_apply_authrization" in audit_json
+
+            combined = json.dumps([request_view, approval_view, delivery_view, audit], ensure_ascii=False)
+            for marker in ["13800001111", "370102197001010011", "jdbc:", "10.0.", "192.168."]:
+                assert marker not in combined
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+            runtime._service = None
+            reset_service()
+
+
+@pytest.mark.legacy_migration_acceptance
+def test_f4_r2_parking_review_decision_matrix_writes_policy_audit_and_boundaries(monkeypatch: pytest.MonkeyPatch) -> None:
+    apply_id = "86013a7aaaf74724b7eb156272292e24"
+    decisions = {
+        "approve_reuse": ("granted", "granted", "grantBoundary", False),
+        "approve_with_supplement": ("supplementing", "supplementing", "supplementBoundary", False),
+        "return_for_fix": ("need-fix", "blocked", "nonGrantBoundary", True),
+        "reject_duplicate": ("rejected", "blocked", "nonGrantBoundary", True),
+        "route_to_provider_or_catalog_admin": ("pending-provider-confirmation", "blocked", "nonGrantBoundary", True),
+    }
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        report, offline_source = _prepare_real_legacy_offline_db(root, monkeypatch)
+        base_db = root / "real-customer.db"
+        assert report["stages"]["apply"]["dumps"]["dsp_catalog"]["tables"].get("data_apply_renewal", 0) == 0
+        assert not offline_source.exists()
+        for decision, (expected_status, expected_delivery_state, boundary_key, non_grant) in decisions.items():
+            case_db = root / f"{decision}.db"
+            shutil.copyfile(base_db, case_db)
+            monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(case_db))
+            reset_service()
+            server, thread, base_url = _start_rest_server()
+            try:
+                if decision == "approve_reuse":
+                    status, denied = _post(
+                        base_url,
+                        "application.resource.review",
+                        {"request_id": apply_id, "decision": decision, "role": "r1", "confirmed": True},
+                    )
+                    assert status == 403
+                    assert isinstance(denied, dict)
+                    assert denied["error"] == "access_denied"
+
+                    status, unconfirmed = _post(
+                        base_url,
+                        "application.resource.review",
+                        {"request_id": apply_id, "decision": decision, "role": "r2", "confirmed": False},
+                    )
+                    assert status == 409
+                    assert isinstance(unconfirmed, dict)
+                    assert unconfirmed["error"] == "confirmation_required"
+
+                status, result = _post(
+                    base_url,
+                    "application.resource.review",
+                    {"request_id": apply_id, "decision": decision, "role": "r2", "confirmed": True},
+                )
+                result = _assert_ok_dict(status, result)
+                assert result["skill_id"] == "application.resource.review"
+                assert result["result"]["decision"] == decision
+                assert result["result"]["status"] == expected_status
+                assert result["result"]["delivery_state"] == expected_delivery_state
+                assert result["result"]["evidence"]["renewal_source_rows"] == 0
+
+                status, approval_view = _get(base_url, "approval.view", request_id=apply_id, role="r2")
+                approval_view = _assert_ok_dict(status, approval_view)
+                assert approval_view["decisions"][-1]["decision"] == decision
+                assert approval_view["decisions"][-1]["decisionReason"]
+                assert approval_view["decisions"][-1]["evidence"]["decision"] == decision
+                assert approval_view["reviewBoundary"]["decision"] == decision
+                assert approval_view["reviewBoundary"]["actor"].endswith(":刘主任")
+                assert approval_view["reviewBoundary"]["evidence"]["resource_id"] == "39a41e4b4e80439187e0f86218bae5d9"
+
+                status, delivery_view = _get(base_url, "delivery.view", task_id=apply_id, role="r6")
+                delivery_view = _assert_ok_dict(status, delivery_view)
+                assert delivery_view["status"] == expected_delivery_state
+                assert delivery_view["r2Review"]["decision"] == decision
+                assert delivery_view[boundary_key]
+                assert "不伪造续期" in delivery_view["renewalBoundary"]
+                if non_grant:
+                    assert delivery_view["nonGrantBoundary"]["no_new_grant"] is True
+                    assert "grantBoundary" not in delivery_view or delivery_view["grantBoundary"] == {}
+                    assert "supplementBoundary" not in delivery_view or delivery_view["supplementBoundary"] == {}
+                else:
+                    assert delivery_view[boundary_key]["field_scope"] == ["名称", "地址"]
+
+                status, audit = _get(base_url, "audit.list", role="r8")
+                audit = _assert_ok_dict(status, audit)
+                audit_json = json.dumps(audit, ensure_ascii=False)
+                assert "application.resource.review.after" in audit_json
+                assert decision in audit_json
+                assert apply_id in audit_json
+
+                combined = json.dumps([result, approval_view, delivery_view, audit], ensure_ascii=False)
+                for marker in ["13800001111", "370102197001010011", "jdbc:", "10.0.", "192.168."]:
+                    assert marker not in combined
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+                runtime._service = None
+                reset_service()
+
+
+@pytest.mark.legacy_migration_acceptance
+def test_f5_r2_delivery_readback_replays_grant_supplement_non_grant_and_webui_copy(monkeypatch: pytest.MonkeyPatch) -> None:
+    apply_id = "86013a7aaaf74724b7eb156272292e24"
+    decisions = {
+        "approve_reuse": ("grantBoundary", "granted"),
+        "approve_with_supplement": ("supplementBoundary", "supplementing"),
+        "reject_duplicate": ("nonGrantBoundary", "blocked"),
+    }
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _prepare_real_legacy_offline_db(root, monkeypatch)
+        base_db = root / "real-customer.db"
+        for decision, (boundary_key, expected_delivery_state) in decisions.items():
+            case_db = root / f"f5-{decision}.db"
+            shutil.copyfile(base_db, case_db)
+            monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(case_db))
+            reset_service()
+            server, thread, base_url = _start_rest_server()
+            try:
+                status, result = _post(
+                    base_url,
+                    "application.resource.review",
+                    {"request_id": apply_id, "decision": decision, "role": "r2", "confirmed": True},
+                )
+                result = _assert_ok_dict(status, result)
+                assert result["result"]["delivery_state"] == expected_delivery_state
+
+                status, request_view = _get(base_url, "request.view", request_id=apply_id, role="r2")
+                request_view = _assert_ok_dict(status, request_view)
+                assert [item["title"] for item in request_view["requestedItems"]] == ["名称", "地址"]
+                assert request_view["sensitivePolicy"]["fieldSensitiveLevels"] == ["1"]
+                assert request_view["applicationMaterials"]["frequency"] == {
+                    "times": "1",
+                    "mostTimes": "1",
+                    "timeWindow": "每日（8:00-18:00)",
+                    "useDays": "1",
+                }
+
+                status, approval_view = _get(base_url, "approval.view", request_id=apply_id, role="r2")
+                approval_view = _assert_ok_dict(status, approval_view)
+                assert approval_view["reviewBoundary"]["decision"] == decision
+                assert approval_view["grantEvidence"]["accessGrant"]["limit_day"] == 180
+                assert "不伪造续期" in approval_view["recommendedDecision"]["renewalBoundary"]
+
+                status, delivery_view = _get(base_url, "delivery.view", task_id=apply_id, role="r6")
+                delivery_view = _assert_ok_dict(status, delivery_view)
+                assert delivery_view["status"] == expected_delivery_state
+                assert delivery_view["accessGrantSnapshot"]["limit_day"] == 180
+                assert delivery_view["accessGrantSnapshot"]["res_type"] == "table"
+                assert delivery_view["authorizationBoundary"] == {
+                    "limitDays": 180,
+                    "resourceType": "table",
+                    "applyStatus": 9,
+                    "renewalSourceRows": 0,
+                    "renewalPolicy": "真实 data_apply_renewal 无行；不伪造续期成功路径。",
+                }
+                assert "不伪造续期" in delivery_view["renewalBoundary"]
+                boundary = delivery_view[boundary_key]
+                if boundary_key == "nonGrantBoundary":
+                    assert boundary == {"mode": decision, "no_new_grant": True}
+                    assert delivery_view["grantBoundary"] == {}
+                    assert delivery_view["supplementBoundary"] == {}
+                else:
+                    assert boundary["field_scope"] == ["名称", "地址"]
+                    assert boundary["sensitive_levels"] == ["1"]
+                    assert boundary["frequency"] == request_view["applicationMaterials"]["frequency"]
+                    assert boundary["limit_day"] == 180
+                    assert boundary["access_grant_snapshot"] == delivery_view["accessGrantSnapshot"]
+                    if boundary_key == "supplementBoundary":
+                        assert boundary["gap_fields"] == []
+
+                combined = json.dumps([request_view, approval_view, delivery_view], ensure_ascii=False)
+                for marker in ["13800001111", "370102197001010011", "jdbc:", "10.0.", "192.168."]:
+                    assert marker not in combined
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+                runtime._service = None
+                reset_service()
+
+    pages_js = PAGES_JS.read_text(encoding="utf-8")
+    start = pages_js.index("PAGES.deliveryTaskDetail = function")
+    block = pages_js[start : pages_js.index("PAGES.provider", start)]
+    for expected in [
+        "授权 / 续期边界回放",
+        "字段范围",
+        "敏感级别",
+        "访问频次",
+        "完成时限",
+        "access_grant_snapshot",
+        "续期边界",
+        "非通过处理",
+        "no_new_grant",
+        "delivery-authorization-boundary",
+    ]:
+        assert expected in block
+    for forbidden in ["原型说明", "操作手册", "旧平台菜单"]:
+        assert forbidden not in block
+
+
+def test_f4_r1_minimal_application_timeline_and_audit_on_imported_medical_resource(monkeypatch: pytest.MonkeyPatch) -> None:
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _, offline_source = _prepare_imported_offline_db(root, monkeypatch)
+        server, thread, base_url = _start_rest_server()
+        try:
+            submit_payload = {
+                "resource_id": "66dd29e00efe45729babe2c5bba118fa",
+                "query": "区县域医疗机构院主要业务情况统计表",
+                "purpose": "业务协同",
+                "time_window": "2026年5月",
+                "requested_items": ["出院者平均住院日"],
+                "gap_fields": ["统计时间窗", "区县范围"],
+                "delivery_expectation": "提供按区县汇总后的脱敏结果",
+                "role": "r1",
+                "confirmed": True,
+            }
+            status, submitted = _post(base_url, "application.resource.submit", submit_payload)
+            submitted = _assert_ok_dict(status, submitted)
+            request_id = submitted["result"]["request_id"]
+            task_id = submitted["result"]["task_id"]
+            assert request_id.startswith("REQ-")
+            assert task_id == request_id.replace("REQ-", "DLV-", 1)
+            assert not offline_source.exists()
+
+            status, request_view = _get(base_url, "request.view", request_id=request_id, role="r1")
+            request_view = _assert_ok_dict(status, request_view)
+            assert request_view["resourceName"] == "区县域医疗机构院主要业务情况统计表"
+            assert request_view["applicationMaterials"]["minimal"] is True
+            assert [item["title"] for item in request_view["applicationMaterials"]["requestedItems"]] == ["出院者平均住院日"]
+            assert [item["title"] for item in request_view["requestedItems"]] == ["出院者平均住院日"]
+            assert set(request_view["gapFields"]) == {"统计时间窗", "区县范围"}
+            assert request_view["applicationMaterials"]["gapFields"] == request_view["gapFields"]
+            assert request_view["deliveryExpectation"] == "提供按区县汇总后的脱敏结果"
+            assert request_view["applicationMaterials"]["deliveryExpectation"] == request_view["deliveryExpectation"]
+            assert request_view["sourceEvidence"]["legacyMappings"]
+            assert "整表重报" not in json.dumps(request_view, ensure_ascii=False)
+
+            status, approval_view = _get(base_url, "approval.view", request_id=request_id, role="r2")
+            approval_view = _assert_ok_dict(status, approval_view)
+            assert [item["stage"] for item in approval_view["statusTimeline"]] == ["待受理", "审核中", "审批结论", "delivery_task"]
+            assert approval_view["applicationMaterials"] == request_view["applicationMaterials"]
+
+            status, delivery_view = _get(base_url, "delivery.view", task_id=task_id, role="r6")
+            delivery_view = _assert_ok_dict(status, delivery_view)
+            assert delivery_view["id"] == task_id
+            assert delivery_view["requestId"] == request_id
+            assert delivery_view["applicationMaterials"] == request_view["applicationMaterials"]
+            assert delivery_view["applicationMaterials"]["gapFields"] == ["统计时间窗", "区县范围"]
+            assert delivery_view["backflow"]["candidateFields"] == ["统计时间窗", "区县范围"]
+
+            status, denied = _post(
+                base_url,
+                "application.resource.review",
+                {"request_id": request_id, "decision": "approve", "role": "r1", "confirmed": True},
+            )
+            assert status == 403
+            assert isinstance(denied, dict)
+            assert denied["error"] == "access_denied"
+
+            status, approved = _post(
+                base_url,
+                "application.resource.review",
+                {"request_id": request_id, "decision": "approve_with_supplement", "role": "r2", "confirmed": True},
+            )
+            approved = _assert_ok_dict(status, approved)
+            assert approved["result"]["status"] == "supplementing"
+
+            status, request_after_review = _get(base_url, "request.view", request_id=request_id, role="r1")
+            request_after_review = _assert_ok_dict(status, request_after_review)
+            assert request_after_review["status"] == "supplementing"
+
+            status, audit = _get(base_url, "audit.list", role="r8")
+            audit = _assert_ok_dict(status, audit)
+            audit_json = json.dumps(audit, ensure_ascii=False)
+            assert "application.resource.submit.after" in audit_json
+            assert "application.resource.review.after" in audit_json
+
+            combined = json.dumps([submitted, request_view, approval_view, delivery_view, approved, request_after_review, audit], ensure_ascii=False)
+            for marker in ["13800001111", "370102197001010011", "jdbc:", "10.0.", "192.168."]:
+                assert marker not in combined
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+            runtime._service = None
+            reset_service()
+
+
 def test_f5_independent_delivery_acceptance_package(monkeypatch: pytest.MonkeyPatch) -> None:
     with TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -263,8 +760,15 @@ def test_f5_independent_delivery_acceptance_package(monkeypatch: pytest.MonkeyPa
 
             status, metadata = _get(base_url, "metadata.catalog_item.query", catalog_code="BASE-POP-001", role="r7")
             metadata = _assert_ok_dict(status, metadata)
-            assert metadata["summary"]["diagnosis"] == "ok"
+            assert metadata["summary"] == {"total": 1, "active": 1, "missing": 0, "conflicted": 0, "inactive": 0, "diagnosis": "ok"}
             assert metadata["items"][0]["explain"]["source_column"] == "field-name"
+            assert metadata["items"][0]["evidence_ref"]
+            assert [step["step"] for step in metadata["items"][0]["replay"]["steps"]] == [
+                "catalog_item",
+                "resource_binding",
+                "source_field",
+                "evidence",
+            ]
 
             status, request = _post(
                 base_url,
@@ -274,14 +778,29 @@ def test_f5_independent_delivery_acceptance_package(monkeypatch: pytest.MonkeyPa
             request = _assert_ok_dict(status, request)
             request_id = request["result"]["request_id"]
             task_id = request_id.replace("REQ-", "DLV-", 1)
-            for skill_id, payload, expected in [
-                ("application.resource.review", {"request_id": request_id, "decision": "approve", "role": "r2", "confirmed": True}, "supplementing"),
-                ("supplement.submit", {"request_id": request_id, "role": "r3", "confirmed": True}, "summary-pending"),
-                ("summary.confirm", {"request_id": request_id, "role": "r5", "confirmed": True}, "completed"),
-            ]:
-                status, body = _post(base_url, skill_id, payload)
-                body = _assert_ok_dict(status, body)
-                assert body["result"]["status"] == expected
+
+            status, reviewed = _post(
+                base_url,
+                "application.resource.review",
+                {"request_id": request_id, "decision": "approve_with_supplement", "role": "r2", "confirmed": True},
+            )
+            reviewed = _assert_ok_dict(status, reviewed)
+            assert reviewed["result"]["status"] == "supplementing"
+
+            status, audit_after_review = _get(base_url, "audit.list", role="r8")
+            audit_after_review = _assert_ok_dict(status, audit_after_review)
+            audit_review_json = json.dumps(audit_after_review, ensure_ascii=False)
+            assert "application.resource.review.before" in audit_review_json
+            assert "application.resource.review.after" in audit_review_json
+            assert request_id in audit_review_json
+
+            status, supplemented = _post(base_url, "supplement.submit", {"request_id": request_id, "role": "r3", "confirmed": True})
+            supplemented = _assert_ok_dict(status, supplemented)
+            assert supplemented["result"]["status"] == "summary-pending"
+
+            status, summarized = _post(base_url, "summary.confirm", {"request_id": request_id, "role": "r5", "confirmed": True})
+            summarized = _assert_ok_dict(status, summarized)
+            assert summarized["result"]["status"] == "completed"
 
             status, receipt = _post(base_url, "delivery.reconcile_receipt", {"task_id": task_id, "role": "r6", "confirmed": True})
             receipt = _assert_ok_dict(status, receipt)
@@ -315,10 +834,29 @@ def test_f5_independent_delivery_acceptance_package(monkeypatch: pytest.MonkeyPa
             mappings = _assert_ok_dict(status, mappings)
             assert any(item["external_object_id"] == "np-failed-receipt-1" for item in mappings["items"])
 
+            status, provider = _get(base_url, "provider.view", role="r7")
+            provider = _assert_ok_dict(status, provider)
+            assert provider["repository"]["packageCount"] >= 1
+            assert provider["repository"]["deliveryReceiptCount"] >= 1
+
+            status, zone = _get(base_url, "zone.view", zone_id="business", role="r7")
+            zone = _assert_ok_dict(status, zone)
+            assert zone["repository"]["resourceCatalogCode"] == provider["repository"]["resourceCatalogCode"]
+            assert "resourceLifecycleStatus" in zone["repository"]
+            assert zone["trust"]
+
             status, stats = _get(base_url, "ops.catalog.statistics.query", role="r8")
             stats = _assert_ok_dict(status, stats)
             assert stats["summary"]["projection_only"] is True
             assert stats["summary"]["evidence"]["source_ref"] == "canonical_projection"
+            assert stats["summary"]["evidence"]["generated_at"]
+
+            status, quality = _get(base_url, "ops.catalog.quality.query", role="r8")
+            quality = _assert_ok_dict(status, quality)
+            assert quality["total"] >= 1
+            assert quality["items"][0]["projection_only"] is True
+            assert quality["items"][0]["evidence"]["source_ref"]
+            assert quality["items"][0]["evidence"]["generated_at"]
 
             status, audit = _get(base_url, "audit.list", role="r8")
             audit = _assert_ok_dict(status, audit)
@@ -377,6 +915,13 @@ def test_f4_customer_journey_http_asset_smoke_on_imported_db_with_legacy_offline
             field_mapping = _assert_ok_dict(status, field_mapping)
             assert field_mapping["summary"] == {"total": 1, "active": 1, "missing": 0, "conflicted": 0, "inactive": 0, "diagnosis": "ok"}
             assert field_mapping["items"][0]["mapping_code"] == "map-1"
+            assert field_mapping["items"][0]["evidence_ref"]
+            assert [step["step"] for step in field_mapping["items"][0]["replay"]["steps"]] == [
+                "catalog_item",
+                "resource_binding",
+                "source_field",
+                "evidence",
+            ]
             assert field_mapping["items"][0]["replay"]["steps"][2]["ref"] == "field-name"
 
             status, denied = _post(
@@ -405,7 +950,7 @@ def test_f4_customer_journey_http_asset_smoke_on_imported_db_with_legacy_offline
             status, approved = _post(
                 base_url,
                 "application.resource.review",
-                {"request_id": request_id, "decision": "approve", "role": "r2", "confirmed": True},
+                {"request_id": request_id, "decision": "approve_with_supplement", "role": "r2", "confirmed": True},
             )
             approved = _assert_ok_dict(status, approved)
             assert approved["result"]["status"] == "supplementing"

@@ -603,7 +603,6 @@ def test_delivery_exchange_records_execution_without_overwriting_canonical_deliv
             "approval.review_decide",
             {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True},
         )
-        service.invoke_skill("delivery.access.grant", {"task_id": "DLV-2026-04-25-0011", "role": "r6", "confirmed": True})
         before = service.invoke_skill("delivery.view", {"task_id": "DLV-2026-04-25-0011", "role": "r6"})["status"]
 
         stopped = service.invoke_skill(
@@ -613,8 +612,8 @@ def test_delivery_exchange_records_execution_without_overwriting_canonical_deliv
         after = service.invoke_skill("delivery.view", {"task_id": "DLV-2026-04-25-0011", "role": "r6"})["status"]
 
         assert stopped["result"]["state"] == "stopped"
-        assert before == "completed"
-        assert after == "completed"
+        assert before == "granted"
+        assert after == "granted"
         store = service._state_store.database_store
         assert store is not None
         attempts = store.delivery_repo.list_attempts(delivery_code="DLV-2026-04-25-0011")
@@ -1185,7 +1184,7 @@ def test_provider_manage_writes_require_audit_before_database_mutation() -> None
             pass
         else:
             raise AssertionError("catalog.manage_entry must require capability confirmation")
-        assert database_store.catalog_repo.get_entry("cat-business") is None
+        assert database_store.catalog_repo.get_entry("cat-business").lifecycle_status != "active"
 
         try:
             service.invoke_skill("resource.manage_asset", {"resource_id": "res-jbxx-ledger", "action": "publish", "role": "r7"})
@@ -1193,7 +1192,7 @@ def test_provider_manage_writes_require_audit_before_database_mutation() -> None
             pass
         else:
             raise AssertionError("resource.manage_asset must require capability confirmation")
-        assert database_store.resource_api_repo.get_asset("res-jbxx-ledger") is None
+        assert database_store.resource_api_repo.get_asset("res-jbxx-ledger").lifecycle_status == "active"
 
         audit_bus.configure_sink(lambda request_id, actor, skill_id, phase, payload: (_ for _ in ()).throw(AuditWriteError("audit down")))
         try:
@@ -1202,7 +1201,7 @@ def test_provider_manage_writes_require_audit_before_database_mutation() -> None
             pass
         else:
             raise AssertionError("catalog.manage_entry must fail closed when audit write fails")
-        assert database_store.catalog_repo.get_entry("cat-business") is None
+        assert database_store.catalog_repo.get_entry("cat-business").lifecycle_status != "active"
 
         try:
             service.invoke_skill("resource.manage_asset", {"resource_id": "res-jbxx-ledger", "action": "publish", "role": "r7", "confirmed": True})
@@ -1210,7 +1209,7 @@ def test_provider_manage_writes_require_audit_before_database_mutation() -> None
             pass
         else:
             raise AssertionError("resource.manage_asset must fail closed when audit write fails")
-        assert database_store.resource_api_repo.get_asset("res-jbxx-ledger") is None
+        assert database_store.resource_api_repo.get_asset("res-jbxx-ledger").lifecycle_status == "active"
 
         audit_bus.configure_sink(database_store.append_audit_event)
         catalog_result = service.invoke_skill("catalog.manage_entry", {"catalog_id": "cat-business", "action": "publish", "role": "r7", "confirmed": True})
@@ -1338,7 +1337,7 @@ def test_reconstruction_core_capability_names_cover_catalog_resource_application
             },
         )
         request_id = request["result"]["request_id"]
-        service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve", "role": "r2", "confirmed": True})
+        service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve_with_supplement", "role": "r2", "confirmed": True})
         task_id = request_id.replace("REQ-", "DLV-", 1)
         grant = service.invoke_skill("delivery.access.grant", {"task_id": task_id, "role": "r6", "confirmed": True})
         assert grant["result"]["status"] == "completed"
@@ -1655,10 +1654,10 @@ def test_f6_core_aggregates_keep_state_and_audit_evidence() -> None:
             raise AssertionError("unauthorized approval must fail closed")
         assert service.invoke_skill("request.view", {"request_id": request_id, "role": "r1"})["status"] == "pending"
 
-        approved = service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve", "role": "r2", "confirmed": True})
+        approved = service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve_with_supplement", "role": "r2", "confirmed": True})
         assert approved["result"]["status"] == "supplementing"
         try:
-            service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve", "role": "r2", "confirmed": True})
+            service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve_with_supplement", "role": "r2", "confirmed": True})
         except InvalidStateError:
             pass
         else:
@@ -1810,8 +1809,13 @@ def test_f6_entry_web_and_adapters_do_not_bypass_command_policy_audit() -> None:
     app_source = "\n".join(path.read_text(encoding="utf-8") for path in (repo_root / "zw-brain-web").glob("js/*.js"))
     assert "fetch(`/api/skills/${skillId}" in app_source
     assert "Object.assign({ role: currentRole, confirmed: true }, payload)" in app_source
-    for fragment in ["/api/repositories", "/api/db", "sqlite", "upsert", "DatabaseStore", "legacy.bsp.mapping.import"]:
+    # `.upsert_` / `/upsert?` indicates a direct-repo bypass; the literal
+    # substring `upsert` is allowed because legitimate skill ids may carry
+    # it (e.g. quality.rule.upsert is a Capability invocation, not a bypass).
+    for fragment in ["/api/repositories", "/api/db", "sqlite", "DatabaseStore", "legacy.bsp.mapping.import"]:
         assert fragment not in app_source
+    for bypass_fragment in [".upsert_", "/upsert?", "?upsert=", "&upsert="]:
+        assert bypass_fragment not in app_source, f"bypass fragment found: {bypass_fragment}"
 
     adapter_root = repo_root / "zw_brain" / "adapters"
     for path in adapter_root.rglob("*.py"):

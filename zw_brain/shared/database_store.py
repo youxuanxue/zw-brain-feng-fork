@@ -216,6 +216,19 @@ class DatabaseStore:
     def sync_reference_tables(self, snapshot: dict[str, Any]) -> None:
         for pkg in snapshot.get("capability_packages", []):
             self.capability_package_repo.upsert_from_package(pkg)
+        if not self.topic_package_repo.list_packages(tenant_id=get_runtime_tenant_id()):
+            for zone in snapshot.get("zones", []):
+                self.topic_package_repo.create_package(
+                    {
+                        "package_code": str(zone["id"]),
+                        "title": str(zone.get("name") or zone["id"]),
+                        "scenario": str(zone.get("desc") or "共享专区"),
+                        "status": "published" if zone.get("status") == "已上线" else "draft",
+                        "display_snapshot_json": {**safe_json(zone), "projection_kind": "share_zone"},
+                        "source_ref": f"seed:zone:{zone['id']}",
+                    },
+                    tenant_id=get_runtime_tenant_id(),
+                )
 
     def sync_aggregate_tables(self, snapshot: dict[str, Any]) -> None:
         self.sync_reference_tables(snapshot)
@@ -264,6 +277,9 @@ class DatabaseStore:
             self.delivery_repo.upsert_from_delivery(delivery, tenant_id=tenant_id)
 
         for resource in snapshot.get("api_resources", []):
+            existing_asset = self.resource_api_repo.get_asset(resource["resource_code"], tenant_id=tenant_id)
+            if existing_asset is not None and not should_seed_static_projection:
+                continue
             self.resource_api_repo.upsert_asset(resource, tenant_id=tenant_id)
             for binding in resource.get("channel_bindings", []):
                 self.resource_api_repo.upsert_binding({**binding, "resource_code": resource["resource_code"]}, tenant_id=tenant_id)
