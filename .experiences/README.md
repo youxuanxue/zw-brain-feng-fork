@@ -1,5 +1,7 @@
 # zw-brain 角色体验手册：M0 一次性迁移验收 + R1-R8 稳态治理旅程
 
+> **快速上手**：如果你是客户现场使用者，先看 [QUICKSTART.md](./QUICKSTART.md)——用人话写的极简指南。本文档是架构参考层，给产品研发团队和验收评审使用。
+
 这套文档不是旧后台操作手册，也不是把旧平台迁移工作分摊给 8 个角色。旧 catalog/metadata 后台的完整能力都要承接住，但旧平台退场只由 M0 一次性完成；R1-R8 不再承担导入、核验、补迁、重跑或回滚，而是在验收后的目录、资源、证据和投影上完成稳态工作。
 
 M0 结束后，旧对象来源可以回指 `legacy_object_mapping`，但这个回指只是来源证据，不是每个角色的日常动作；R1-R8 只处理用户可感知的发现、申请、审批、补差、汇总、资产治理、目录运营和合规督查。每一次目录、资源、申请、授权、发布动作都进入 Capability、策略和审计链；统计、质量、血缘、采集状态只作为可重算 `projection`，不反向改业务事实。
@@ -40,8 +42,8 @@ M0 是旧平台退场、zw-brain 开箱的迁移与验收旅程；它只发生�
 
 | 旧前端代码 | 旧用户体验 | 新旅程承接 |
 | --- | --- | --- |
-| `old/old_codes/portal-vue` | 首页、政务数据目录、政务数据资源、融合服务、应用中心、典型应用案例、通用服务、知识中心、数字化运营、搜索结果、资源申购车、反馈 | R1 负责发现、申请、跟踪与反馈；R2/R7/R8 负责审批、运营和抽查 |
-| `old/old_codes/app-center-web` | 我的应用、资源申购车、我的资源、应用注册、应用审核、代理授权申请、脚本管理、应用查询 | R1 表达用途与使用；R2 审核应用和代理授权边界；R8 抽查脚本、接口和授权风险 |
+| `old/old_codes/portal-vue` | Vue 3 + Vite 构建的公共门户，9 个顶级导航：`/home`（首页）、`/catalog`（政务数据目录 + 详情 + 需求提交）、`/resource`（政务数据资源 + 详情）、`/convergence-service`（融合服务）、`/app-center`（应用中心）、`/app-case`（典型应用案例）、`/common-service`（通用服务）、`/knowledge-center`（知识中心：业务/知识/通知/新闻/政策解读/法规/专家）、`/digital-operation`（数字化运营）、`/search-result`（搜索结果）、`/res-purchase-car`（资源申购车 + 申请提交）、`/feedback/:level`（反馈四类） | R1 负责发现、申请、跟踪与反馈；R2/R7/R8 负责审批、运营和抽查 |
+| `old/old_codes/app-center-web` | Angular 构建的应用中心：`/applications`（我的应用）、`/resources`（我的资源）、`/res-purchase-car`（资源申购车）、`/app-register`（应用注册）、`/app-check`（应用审核）、`/proxy-auth`（代理授权申请）、`/app-script`（脚本管理）、`/app-query`（应用查询） | R1 ���达用途���使用；R2 审��应用和代理授权边界；R8 抽查脚本、接口和授权风险 |
 | `old/old_codes/catalog-front` | 目录导入、派发、认领派发、审批、授权、资源挂接、统计、图谱、在线目录定义、开放目录 | M0 验收导入和映射结果；R6 提供资源证据；R7 运营稳态目录工作队列；R8 督查日常断链 |
 | `old/old_codes/metricsmgr-front` | 由后端菜单动态加载的指标平台（`src/router/index.ts` 通过 `asyncRoutes` 装配；`src/pages/*` 含 `overview / config / dev/{datamodel,datasource,metric,facet} / generate / task / market` 等页面），新平台不复刻这套主导航，仅作为指标/模型/任务/数据源证据 | R6 作为数据源/模型/指标/任务证据；R8 抽查异常 |
 | `old/old_codes/data-operation-board-front` | 治理大盘：overview / catalog / resource / integration / governance / supply-demand / data-usage / data-objection / direct-data-access | R5 处理用数与异议；R6 资源运营视图；R7 目录运营视图；R8 断链督查 |
@@ -54,11 +56,19 @@ M0 是旧平台退场、zw-brain 开箱的迁移与验收旅程；它只发生�
 | 类型 | 示例 |
 | --- | --- |
 | 目录 | `医疗救助信息`、`医保码信息`、`异地就医统筹区开通信息`、`辐射安全许可证首次申请信息`、`省编办党政群赋码信息`、`博士及以上学历人员户籍地信息`、`全省规模以上工业经济效益主要指标`、`停车场信息`、`学前教育幼儿基本信息-人口`、`必需经水路运输医疗废物审批信息`、`产品质量监督抽查信息`、`案件信息`、`参保信息`、`城乡居民养老保险参保登记` |
-| 组织 | `省大数据局`（`11370000MB284651XL`）、`省医保局`、`省公安厅`、`省教育厅`、`济南市教育局`、`省生态环境厅` |
+| 组织 | `省大数据局`（`11370000MB284651XL`）、`省医保局`、`省公安厅`、`省教育厅`、`省人力资源和社会保障厅`、`省人民政府办公厅`、`省市场监督管理局`、`省民政厅`、`省财政厅`、`省卫健委` |
+| 主题库 | `人口库`、`基层减负专题库`、`运行经济主题库`、`教育主题库`、`智慧医疗主题库`、`信用信息主题库`、`企业服务库`、`社会保障库`、`智慧城市专题库` |
+| 资源类型 | 库表（table）、文件（file）、文件夹（folder）、融合服务（fuse）、通用服务（general）、API/接口（service） |
 | 区域 | `山东省`（`370000000000`）、`济南市`、`历下区`、`章丘区` |
-| 状态（旧→新映射） | 旧 `审核中(2)` → `pending_review`；旧 `发布(3)` → `active`；旧 `撤销` → `revoked`；扩展态 `draft / approved_pending_publish / changing / suspended` 以 catalog3-metadata3 重构方案 §八 为准 |
+| 状态（旧→新映射） | 旧 `草稿(0)` → `draft`；旧 `待审核(1)` → `pending_review`；旧 `审批通过(2)` → `approved_pending_publish`；旧 `审批驳回(3)` → `draft`（退回）；旧 `已发布(4)` → `active`；旧 `下线(5)` → `suspended`；旧 `revoke_status=撤销` → `revoked`；扩展态 `changing` 以 catalog3-metadata3 重构方案 §八 为准 |
 | 上级通道反例 | 国家目录通道下发的跨省目录（仅 M0/R7 国家目录处出现）由 `external channel adapter` 标注，不作为 sd-default canonical 事实 |
 | 字段口径 | `字段名称`、`字段备注`、`字段格式`、`是否主键`、`是否允许为空`、`安全级别`、`是否需要加密`、`授权类型`、`级联授权` |
+| API 服务状态 | 旧 `api_service_catalog.status`：`0=草稿/1=注册审核中/3=注册审核已退回/4=待发布/2=已发布/5=撤销审核中/6=已撤销/9=已删除`（7 态） |
+| 审批工作流 | 旧平台审批分两层：简单审批走 `data_catalog_approve`（`business_type`：1=发布审核/2=撤销/3=变更/4=关联）；复杂申请走 OSWorkflow 引擎（`os_wfentry` / `os_currentstep` / `os_historystep`） |
+| 目录分组状态 | 旧 `data_catalog_group_lk.status` 有 8 态（0-7），覆盖草稿、牵头部门审核、资源部门审核、撤销流程 |
+| 需求生命周期 | `data_business.status`：`0=草稿/1=待校核/2=校核通过/3=校核驳回/4=已汇总/5=需求已响应/6=已反馈成效/7=认领但不能提供`（8 态） |
+| 异议状态 | `data_objection.status`：`0=删除/1=草稿/2=待受理/3=待平台核查/4=待数据提供方核查/5=已驳回/6=已核查`（7 态） |
+| 数据直达状态 | `dc_catalog.status`：`0=未上报/1=已上报/2=变更/3=撤销未上报/4=已撤销/5=已驳回`（国家交换通道专属，与省级目录状态完全独立） |
 
 ## 旧平台能力覆盖矩阵
 
@@ -141,8 +151,8 @@ M0 + R1-R8 内嵌的稳态工作队列总数 38 张，从这里一眼看到每�
 | `metricsmgr-front` 动态菜单 + `src/pages/*` | R6 数据源 / 模型 / 指标 / 任务证据；R8 异常抽查 | R6 步 5 + R8 步 11 | 任务失败 → R6 看回执 + R8 抽查 |
 | `dsp_require` 供需对接 | R1 需求登记 + R7 需求资源对接 + R5 任务派发 | R1 步 12 + R7 步 20 + R5 步 10 | 需求占坑 → R7 退回；不可复用 → R5 切片任务 |
 | `dsp_service` API 服务化 | R6 API 服务化交付 + R2 边界审 + R7 上线复核 + R8 绕行抽查 | R6 步 13 + R2 步 13 + R7 步 18 + R8 步 17 | IP 临时放开未回收 → R8 立即收回 |
-| `dsp_connect` 数据直达 | R7 双 catalog 解释 + R5/R8 直达清单督查 | R7 步 21 + R8 步 16 | 越过 `application_record` → R8 视为绕行 |
-| `dsp_handling` 异议处理四子流程 | R1 受理 + R5 评估/处置/授权/用数 + R8 绕行督查 | R5 步 11 + R8 步 14 | 四段时间倒置 → R8 视为线下处置 |
+| `dsp_connect` 数据直达 | R7 双 catalog 解释 + R5/R8 直达清单督查；注意：`dsp_connect` 库内有独立的 `dc_objection_*` 异议体系（`dc_objection_base_info` / `dc_objection_catalog` / `dc_objection_resource` / `dc_objection_apply` / `dc_objection_use` / `dc_objection_flow` / `dc_objection_accept_audit`）和独立的供需表（`dc_require` / `dc_require_resource`），均为国家交换通道专属，与省级 `dsp_handling` 异议体系平行但不互通 | R7 步 21 + R8 步 16 | 越过 `application_record` → R8 视为绕行 |
+| `dsp_handling` 异议处理 | R1 受理 + R5 评估/处置/授权/用数 + R8 绕行督查；实际包含 5 个扩展表：`data_objection_catalog`（目录纠错）、`data_objection_resource`（资源纠错）、`data_objection_authz`（授权异议）、`data_objection_content`（数据质量纠错）、`data_objection_use`（使用异议），对应 `objection_type` 1-4 四大类 + 质量纠错子类 | R5 步 11 + R8 步 14 | 四段时间倒置 → R8 视为线下处置 |
 | `dsp_catalog` 自动检测任务 | R6 规则维护 + R5 影响标注 + R8 失败督查 | R6 步 14 + R5 步 12 + R8 步 15 | 任务失败默认通过 → R8 升级 R6/M0 |
 | `dsp_metaresource` 反向编目 | R6 草稿生成 + R7 字段确认 | R6 步 12 + R7 步 15 | 字段冲突 → R7 退回 R6 补 schema |
 

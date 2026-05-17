@@ -12,7 +12,7 @@ from typing import Any
 # Mirrors zw-brain-web/js/pages.js `window.ZW_PAGE_ACCESS` — update both when nav roles change.
 _DISCOVERY = frozenset({"r1", "r2", "r6", "r7", "r8"})
 _REQUEST = frozenset({"r1", "r2", "r3", "r4", "r5"})
-_DELIVERY = frozenset({"r2", "r5", "r6", "r7", "r8"})
+_DELIVERY = frozenset({"r1", "r2", "r5", "r6", "r7", "r8"})
 _PROVIDER = frozenset({"r6", "r7"})
 _COMPLIANCE = frozenset({"r2", "r5", "r6", "r7", "r8"})
 _ZONES = frozenset({"r1", "r2", "r6", "r7", "r8"})

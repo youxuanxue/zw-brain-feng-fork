@@ -7,7 +7,7 @@
 ## 你手上拿到的真实输入
 
 - 待汇总申请：来自 R1/R2 的申请和审批边界。
-- 区域与组织：例如 `济南市教育局`、`历下区` 的补录结果，全部锚 `sd-default` 单租户单省。
+- 区域与组织：例如 `省人民政府办公厅`、`历下区` 的补录结果，全部锚 `sd-default` 单租户单省。
 - 字段口径：`字段格式`、`是否允许为空`、时间窗、来源说明。
 - 质量证据：缺失率、格式异常、字段冲突、schema 变化提示。
 - 状态：待汇总、退回修改、待交付、已回流。
@@ -16,7 +16,7 @@
 - 异议处理四子流程：旧 `dsp_handling` 的 `data_objection` / `data_objection_evaluate` / `data_objection_process` / `data_objection_authz` / `data_objection_use` 真实包含"受理 → 评估 → 处置 → 授权 → 用数闭环"五段（评估含 evaluate 一段）；本端承接评估、处置、授权、用数四段（受理由 R1 反馈入口完成）。
 - 需求任务派发：R7 判定 R1 业务需求不可复用时，本端接收"需求任务派发"，按区域/部门/字段切片成基层任务卡，派给 R3/R4；任务完成回流后回到本端汇总。
 - 自动检测任务受影响：旧 `catalog_quality_task` / `catalog_quality_task_log` / `catalog_quality_task_result` 的任务失败或规则口径变更会冲击你的汇总，本端只解释影响范围，不替 R6 改规则、不替 R8 督查执行器问题。
-- 旧状态映射：旧 `审核中(2)/发布(3)/撤销` ↔ 新 `pending_review/active/revoked`；汇总状态以 catalog3-metadata3 重构方案 §八 为准。
+- 旧状态映射：旧 `草稿(0)/待审核(1)/审批通过(2)/审批驳回(3)/已发布(4)/下线(5)` + 独立 `revoke_status` ↔ 新 `draft/pending_review/approved_pending_publish/active/suspended/revoked`；完整映射以 catalog3-metadata3 重构方案 §八 为准。
 
 ## 一条主旅程
 

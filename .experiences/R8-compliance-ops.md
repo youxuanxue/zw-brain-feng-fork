@@ -17,7 +17,7 @@
 - 异议绕行督查：旧 `dsp_handling / data_objection` 四子流程（评估/处置/授权/用数）若被线下推进，本端从用数方反馈、授权回执、交付时间差等线索回溯。
 - 自动检测失败督查：旧 `catalog_quality_task_log` 失败 / 超时 / 反复重跑模式由本端定位是执行器问题、规则口径问题还是数据源问题。
 - 数据直达绕行抽查：dc_catalog / dc_datasource 必须只读；任何越过 `application_record` 写入 dc 的请求都属高风险。
-- 旧状态映射：旧 `审核中(2)/发布(3)/撤销` ↔ 新 `pending_review/active/revoked`；审计断链以 catalog3-metadata3 重构方案 §八 状态机为基线判断。
+- 旧状态映射：旧 `草稿(0)/待审核(1)/审批通过(2)/审批驳回(3)/已发布(4)/下线(5)` + 独立 `revoke_status` ↔ 新 `draft/pending_review/approved_pending_publish/active/suspended/revoked`；完整映射以 catalog3-metadata3 重构方案 §八 状态机为基线判断。
 
 ## 一条主旅程
 

@@ -11,7 +11,7 @@
 - 已带出信息：来自上游目录资源和 schema 证据的基础字段。
 - 状态：待处理、草稿、已提交、退回修改。
 - 异常入口：对象不匹配、现场无法核实、需要补证据。
-- 旧→新状态映射：你不需要看后台状态字段，但若任务卡显示来源目录处于"审核中/已发布/已撤销"，对应新平台 `pending_review/active/revoked`；目录撤销时整张任务卡会被系统自动停发。
+- 旧→新状态映射：旧 `草稿(0)/待审核(1)/审批通过(2)/审批驳回(3)/已发布(4)/下线(5)` + 独立 `revoke_status` ↔ 新 `draft/pending_review/approved_pending_publish/active/suspended/revoked`；完整映射以 catalog3-metadata3 重构方案 §八 为准。你不需要看后台状态字段，但若任务卡显示来源目录处于"已发布/已下线/已撤销"，对应新平台 `active/suspended/revoked`；目录撤销时整张任务卡会被系统自动停发。
 - 单租户单省锚定：所有任务卡 `tenant_id=sd-default`、`region_code=370000000000`；村社区现场区域示例使用 `历下区` 下属街道，不出现跨省样例。
 
 ## 一条主旅程

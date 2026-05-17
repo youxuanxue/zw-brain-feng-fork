@@ -158,9 +158,17 @@
     const identityEl = document.getElementById('identity-label');
     const identityText = (cfg.identityLabel || '').trim();
     if (identityEl) {
-      identityEl.textContent = user
-        ? `当前账号：${user.displayName || user.username}`
-        : (identityText || '当前账号');
+      // When a user is authenticated, the user-menu button already shows the
+      // display name. Showing identity-label "当前账号：..." next to it would
+      // duplicate the same string. Keep identity-label only as the unauthenticated
+      // anchor text (e.g. "当前账号" / a custom identityLabel from config).
+      if (user) {
+        identityEl.hidden = true;
+        identityEl.textContent = '';
+      } else {
+        identityEl.hidden = false;
+        identityEl.textContent = identityText || '当前账号';
+      }
     }
     // P7 — when an authenticated user is in session, hide the redundant 登录 nav link.
     const loginEl = document.getElementById('zw-login-nav-link');
@@ -257,10 +265,10 @@
         if (requestIndex >= 0) window.RUNTIME_REQUESTS[requestIndex] = request; else window.RUNTIME_REQUESTS.unshift(request);
         const approvalIndex = window.RUNTIME_APPROVALS.findIndex(item => item.id === id);
         if (approvalIndex >= 0) window.RUNTIME_APPROVALS[approvalIndex] = approval; else window.RUNTIME_APPROVALS.unshift(approval);
-      } else if (route === '#/p4-delivery-exchange' && roleCan(['r2', 'r5', 'r6', 'r7', 'r8'])) {
+      } else if (route === '#/p4-delivery-exchange' && roleCan(['r1', 'r2', 'r5', 'r6', 'r7', 'r8'])) {
         const result = await invokeRead('delivery.list', {});
         window.RUNTIME_DELIVERY_TASKS = result.items;
-      } else if (route.startsWith('#/p4-delivery-exchange/task/') && roleCan(['r2', 'r5', 'r6', 'r7', 'r8'])) {
+      } else if (route.startsWith('#/p4-delivery-exchange/task/') && roleCan(['r1', 'r2', 'r5', 'r6', 'r7', 'r8'])) {
         const id = decodeURIComponent(route.split('/').pop());
         const task = await invokeRead('delivery.view', { task_id: id });
         const index = window.RUNTIME_DELIVERY_TASKS.findIndex(item => item.id === id);
@@ -325,6 +333,11 @@
           const reqResult = await invokeRead('request.list', {});
           window.RUNTIME_R7_DEMAND_PENDING = ((reqResult && reqResult.items) || []).filter(r => r.status === 'submitted' || r.status === 'pending');
         } catch (_) { window.RUNTIME_R7_DEMAND_PENDING = []; }
+        // R7 Direct Access channel data
+        try {
+          const directResult = await invokeRead('direct_access.catalog.query', {});
+          window.RUNTIME_R7_DIRECT_ACCESS = (directResult && directResult.directAccess) || window.RUNTIME_PROVIDER.directAccess || { catalogs: [], resources: [], demands: [], subscriptions: [] };
+        } catch (_) { window.RUNTIME_R7_DIRECT_ACCESS = window.RUNTIME_PROVIDER.directAccess || { catalogs: [], resources: [], demands: [], subscriptions: [] }; }
       } else if (route === '#/p5-provider/inbox/field-decision' && roleCan(['r7'])) {
         const result = await invokeRead('catalog.entry.query', { source: 'reverse', lifecycle_status: 'draft' });
         window.RUNTIME_R7_FIELD_DRAFTS = (result && result.items) || [];
@@ -1027,6 +1040,120 @@
       }, `已派 R5 切片任务 (application=${applicationCode})`, () => {
         window.location.hash = '#/p5-provider/inbox/demand-match';
       });
+    },
+
+    // ----- R1 交付后动作：续期 / 异议 / 评价 ---------------------------------
+    renewAuthorization(taskId) {
+      // Backend skill is `application.grant.renew`; the delivery
+      // task id maps to the underlying authorization grant via task → request →
+      // grant lineage, so we forward the task id and let the server resolve.
+      performWrite('application.grant.renew', {
+        delivery_task_id: taskId,
+      }, '续期申请已提交，保留原审批边界并延长有效期');
+    },
+    fileObjection(taskId) {
+      const objType = (document.getElementById('r1-objection-type') || {}).value || 'data';
+      const desc = (document.getElementById('r1-objection-desc') || {}).value || '';
+      if (!desc) {
+        window.UI.toast('请描述异议内容', 'error');
+        return;
+      }
+      const typeLabel = ({ data: '数据质量', resource: '资源范围', authorization: '授权边界', usage: '使用体验' })[objType] || objType;
+      // `objection.case.submit` expects an existing objection_id; the customer
+      // surface here always starts from scratch, so we call `objection.case.create`
+      // with status="submitted" to atomically create + advance past draft. The
+      // governance dashboard picks it up as a new dispute the same turn.
+      performWrite('objection.case.create', {
+        target_type: 'delivery_task',
+        target_id: taskId,
+        objection_kind: objType,
+        title: `${typeLabel}异议 · ${taskId}`,
+        basis_text: desc,
+        status: 'submitted',
+      }, '异议已提交，进入 R5 受理流程', () => {
+        window.location.hash = '#/p6-compliance-ops';
+      });
+    },
+    rateService(taskId) {
+      const score = (document.getElementById('r1-rating-score') || {}).value || '5';
+      const comment = (document.getElementById('r1-rating-comment') || {}).value || '';
+      performWrite('service.rating.submit', {
+        task_id: taskId,
+        score: Number(score),
+        comment: comment,
+      }, '服务评价已提交，感谢反馈');
+    },
+
+    // ----- R2 授权管理：暂停 / 收回 ------------------------------------------
+    suspendAuthorization(requestId) {
+      performWrite('application.grant.suspend', {
+        request_id: requestId,
+      }, '授权已暂停，R1 暂时无法访问');
+    },
+    revokeAuthorization(requestId) {
+      performWrite('application.grant.revoke', {
+        request_id: requestId,
+      }, '授权已收回，R1 需重新申请');
+    },
+
+    // ----- R7 国家数据直达通道 ------------------------------------------------
+    directAccessUpload(kind) {
+      // Backend uses the `adapter.national.*` skills for cross-tier reporting;
+      // map customer-friendly action names onto the contract route.
+      const skill = kind === 'catalog' ? 'adapter.national.catalog.report' : 'adapter.national.resource.report';
+      performWrite(skill, {
+        adapter_slug: 'adapter-national',
+        operation: 'report',
+        direction: 'outbound',
+        payload_kind: kind,
+      }, `${kind === 'catalog' ? '目录' : '资源'}上报已提交`);
+    },
+    directAccessAcceptDemand() {
+      performWrite('adapter.national.application.receive', {
+        adapter_slug: 'adapter-national',
+        operation: 'receive',
+        direction: 'inbound',
+      }, '国家需求已受理');
+    },
+    directAccessManageSubscription() {
+      performWrite('delivery.subscription.manage', {
+        action: 'review',
+      }, '订阅管理操作已提交');
+    },
+
+    // ----- R8 运维工单与交接班 ------------------------------------------------
+    createOpsTicket() {
+      const ticketType = (document.getElementById('r8-ticket-type') || {}).value || 'alert';
+      const title = (document.getElementById('r8-ticket-title') || {}).value || '';
+      const assignee = (document.getElementById('r8-ticket-assignee') || {}).value || '';
+      if (!title) {
+        window.UI.toast('请填写工单标题', 'error');
+        return;
+      }
+      performWrite('ops.ticket.create', {
+        ticket_type: ticketType,
+        title: title,
+        assignee: assignee,
+      }, `工单"${title}"已创建`);
+    },
+    closeOpsTicket(ticketId) {
+      performWrite('ops.ticket.close', {
+        ticket_id: ticketId,
+      }, `工单 ${ticketId} 已关闭`);
+    },
+    submitShiftHandover() {
+      const summary = (document.getElementById('r8-handover-summary') || {}).value || '';
+      const pending = (document.getElementById('r8-handover-pending') || {}).value || '';
+      const next = (document.getElementById('r8-handover-next') || {}).value || '';
+      if (!summary) {
+        window.UI.toast('请填写遗留事项摘要', 'error');
+        return;
+      }
+      performWrite('ops.shift_handover.submit', {
+        summary: summary,
+        pending_tickets: pending.split(',').map(s => s.trim()).filter(Boolean),
+        next_shift_assignee: next,
+      }, '交接班记录已提交');
     },
   };
 

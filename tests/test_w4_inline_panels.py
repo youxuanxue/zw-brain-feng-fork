@@ -105,10 +105,24 @@ def test_w4_3_grassroots_filter_and_exception_callback() -> None:
 
 
 def test_w4_does_not_register_new_skills() -> None:
-    """Sanity: W4 should not add new skill manifests — pure UI inline work."""
+    """Sanity: W4 itself is pure UI inline work — no new manifests from that
+    feature. Post-W4 work (QUICKSTART business smoke) legitimately added 6 new
+    skill manifests (grant.suspend/revoke, service.rating.submit, ops.ticket.*,
+    ops.shift_handover.submit). Lock the count at the current baseline so a
+    future W4-style "UI-only" feature can't quietly add a new skill manifest."""
     manifest_dir = REPO / "zw_brain" / "skill_registration" / "registered"
-    # W3 baseline: 192 manifests; W4 must keep it at 192
+    # W3 baseline: 192 manifests; Phase 5 (post-W4) added 6 for the smoke flow → 198.
     count = sum(1 for p in manifest_dir.glob("*.json"))
-    assert count == 192, f"W4 introduced unexpected skill manifests; count = {count}"
-    # spot-check: W2 added catalog.entry.reverse_draft.suggest, W3 added none
+    assert count == 198, f"unexpected skill manifest count change; count = {count}"
+    # spot-check: W2 added catalog.entry.reverse_draft.suggest
     assert (manifest_dir / "catalog.entry.reverse_draft.suggest.json").exists()
+    # spot-check: Phase 5 added the 6 customer-facing business skills
+    for name in (
+        "application.grant.suspend",
+        "application.grant.revoke",
+        "service.rating.submit",
+        "ops.ticket.create",
+        "ops.ticket.close",
+        "ops.shift_handover.submit",
+    ):
+        assert (manifest_dir / f"{name}.json").exists(), f"missing manifest: {name}"

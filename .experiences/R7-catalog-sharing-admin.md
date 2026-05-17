@@ -15,7 +15,7 @@
 - 在线目录定义：旧 `catalog-front /catalog-define-online` 是 R7 的运营工作队列。
 - 开放目录工作队列：旧 `catalog-front /open/catalog-config`、`/open/catalog-publish` 由 R7 主责；`/open/resource-config` 等资源侧由 R6 主、R7 审核。
 - 挂接审核视角：旧 `catalog-front /res-hook-examine` 在 R7 承接为"挂接审核"，挂接 / 发布 / 维护本身（`/res-hook`、`/res-hook-publish`、`/res-maintenance`）属 R6。
-- 状态：目录已 `发布`、投影生成中、投影失败、可申请、授权待确认、撤回待确认。旧 `dump-dsp_catalog` 真实状态枚举仅 `审核中(2)/发布(3)/撤销`，新平台扩展态 `draft/pending_review/approved_pending_publish/active/changing/revoked` 与旧三档的映射以 catalog3-metadata3 重构方案 §八 为准。
+- 状态：目录已 `发布`、投影生成中、投影失败、可申请、授权待确认、撤回待确认。旧 `dump-dsp_catalog` 真实状态枚举为 `草稿(0)/待审核(1)/审批通过(2)/审批驳回(3)/已发布(4)/下线(5)` + 独立 `revoke_status`，新平台扩展态 `draft/pending_review/approved_pending_publish/active/changing/suspended/revoked` 与旧六档的映射以 catalog3-metadata3 重构方案 §八 为准。
 - 策略证据：共享条件、可见组织、申请边界、授权类型、级联授权、订阅更新。
 - 问题模式：发布成功但门户不可见、同主题目录重复、挂接资源不显示列、推荐展示不合理。
 - 数据直达双 catalog：旧 `dsp_catalog.data_catalog` 是承重目录事实源，旧 `dsp_connect.dc_catalog` / `dc_datasource` 是已审批数据直达独立链路；新平台只保留 `catalog_entry` 一份事实源，dc_catalog 沉淀为"数据直达交付清单 projection"，由 R7 解释两者关系，禁止用户在 dc_catalog 上重新建目录。

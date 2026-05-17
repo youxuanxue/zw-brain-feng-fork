@@ -17,7 +17,7 @@
 - 申购车两端：旧 `portal-vue /res-purchase-car` 与 `app-center-web /res-purchase-car` 在新平台合并为同一份"申请草稿"，不分裂成两套系统。
 - 需求登记前置（旧 `dsp_require`）：在你确认"现有目录满足不了"前，先以"原始需求"形式登记（用途、字段口径、时间窗、责任部门）；R7 判断能否用现有目录复用；不可复用才升级为"业务需求"并派发 R5 任务。需求登记不等于申请，是申请的上游证据。
 - API 凭据与调用回执（旧 `dsp_service`）：交付通道是 API 时，授权生效后会发放 API 凭据（密钥引用、IP 白名单范围、限流额度），调用统计与错误样本回流到"我的应用"。
-- 旧状态映射：旧 `审核中(2)/发布(3)/撤销` ↔ 新 `pending_review/active/revoked`；申请生命周期以 catalog3-metadata3 重构方案 §八 为准。
+- 旧状态映射：旧 `草稿(0)/待审核(1)/审批通过(2)/审批驳回(3)/已发布(4)/下线(5)` + 独立 `revoke_status` ↔ 新 `draft/pending_review/approved_pending_publish/active/suspended/revoked`；完整映射以 catalog3-metadata3 重构方案 §八 为准。
 
 ## 一条主旅程
 

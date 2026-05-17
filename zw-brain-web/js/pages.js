@@ -210,14 +210,19 @@ function statCards(items) {
   return `
     <div class="grid gov-stats-grid gap-4">
       ${items.map(item => {
+        // Empty / zero counts deserve muted styling so the eye lands on real
+        // signal first — a wall of bold-blue zeros looks "alarming" instead of
+        // "idle". An empty-state card opts out of the call-to-action link as well.
+        const isEmpty = item.value === 0 || item.value === '0' || item.value === '' || item.value == null;
+        const valueClass = isEmpty ? 'gov-stat-value is-empty' : 'gov-stat-value';
         const inner = `
           <div class="gov-stat-label">${escapeHtml(item.label)}</div>
-          <div class="gov-stat-value">${escapeHtml(item.value)}</div>
+          <div class="${valueClass}">${escapeHtml(item.value)}</div>
           ${item.note ? `<div class="gov-stat-note">${escapeHtml(item.note)}</div>` : ''}
-          ${item.href ? '<div class="gov-stat-action">查看</div>' : ''}`;
-        return item.href
+          ${item.href && !isEmpty ? '<div class="gov-stat-action">查看</div>' : ''}`;
+        return item.href && !isEmpty
           ? `<a href="${safeHashHref(item.href)}" class="gov-stat-card gov-stat-link">${inner}</a>`
-          : `<div class="gov-stat-card">${inner}</div>`;
+          : `<div class="gov-stat-card${isEmpty ? ' is-idle' : ''}">${inner}</div>`;
       }).join('')}
     </div>`;
 }
@@ -431,7 +436,7 @@ const PRODUCT_SHELL_NAV = [
     sectionTitle: '交付交换与回流',
     navLabel: '看交付回执',
     href: '#/p4-delivery-exchange',
-    roles: ['r2', 'r5', 'r6', 'r7', 'r8'],
+    roles: ['r1', 'r2', 'r5', 'r6', 'r7', 'r8'],
     desc: '交付、对账、回流',
   },
   {
@@ -650,8 +655,8 @@ window.ZW_PAGE_ACCESS = {
   requestFlow: ['r1', 'r2', 'r3', 'r4', 'r5'],
   requestDetail: ['r1', 'r2', 'r3', 'r4', 'r5'],
   reviewDetail: ['r2', 'r5'],
-  deliveryExchange: ['r2', 'r5', 'r6', 'r7', 'r8'],
-  deliveryTaskDetail: ['r2', 'r5', 'r6', 'r7', 'r8'],
+  deliveryExchange: ['r1', 'r2', 'r5', 'r6', 'r7', 'r8'],
+  deliveryTaskDetail: ['r1', 'r2', 'r5', 'r6', 'r7', 'r8'],
   provider: ['r6', 'r7'],
   providerWizardReverseCatalog: ['r6'],
   providerWizardApiService: ['r6'],
@@ -1020,7 +1025,7 @@ PAGES.workbench = function () {
     { key: 'search',   label: '找可复用数据', desc: '先查已有资源和专题包，避免重新要数。', href: '#/p2-discovery', iconKey: 'search', roles: ['r1', 'r2', 'r6', 'r7', 'r8'] },
     { key: 'apply',    label: '发起共享申请', desc: '把资源、用途、差异字段带入受控准入。', href: '#/p3-request-flow', iconKey: 'apply', roles: ['r1', 'r2', 'r3', 'r4', 'r5'] },
     { key: 'progress', label: '看申请进度', desc: '查看补件、审批、补录和汇总状态。', href: primaryRequest ? summaryRouteForRole(role, primaryRequest.id) : '#/p3-request-flow', iconKey: 'progress', roles: ['r1', 'r2', 'r3', 'r4', 'r5'] },
-    { key: 'delivery', label: '看交付回执', desc: '跟踪交付、对账和回流候选。', href: primaryDelivery ? `#/p4-delivery-exchange/task/${primaryDelivery.id}` : '#/p4-delivery-exchange', iconKey: 'delivery', roles: ['r2', 'r5', 'r6', 'r7', 'r8'] },
+    { key: 'delivery', label: '看交付回执', desc: '跟踪交付、对账和回流候选。', href: primaryDelivery ? `#/p4-delivery-exchange/task/${primaryDelivery.id}` : '#/p4-delivery-exchange', iconKey: 'delivery', roles: ['r1', 'r2', 'r5', 'r6', 'r7', 'r8'] },
     { key: 'audit',    label: '查审计证据', desc: '回放争议、告警、工单和责任链。', href: '#/p6-compliance-ops', iconKey: 'audit', roles: ['r2', 'r5', 'r6', 'r7', 'r8'] },
     { key: 'topic',    label: '进专题包', desc: '从一表通、营商环境等场景直接进入。', href: '#/p7-zones-pack', iconKey: 'topic', roles: ['r1', 'r2', 'r6', 'r7', 'r8'] },
     { key: 'inbox',    label: '收件箱：字段裁决/挂接审核', desc: 'R7 的字段口径裁决 + 资源挂接审核 + 供需对接收件箱。', href: '#/p5-provider', iconKey: 'inbox', roles: ['r7'] },
@@ -1043,7 +1048,7 @@ PAGES.workbench = function () {
     { section: '常用办理', title: '查看共享申请进度', desc: primaryRequest ? `${primaryRequest.id} · ${requestStatusLabel(primaryRequest, role)}` : '暂无进行中的共享申请，可先从资源详情发起。', href: '#/p3-request-flow', tag: '受控准入', roles: ['r1', 'r2', 'r3', 'r4', 'r5'] },
     { section: '待我确认', title: current.todos?.[0]?.title || '查看今日待办', desc: current.todos?.[0]?.status || '按当前身份只显示需要你处理的事项。', href: current.todos?.[0]?.href || '#/p1-workbench', tag: '人工确认', roles: ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8'] },
     { section: '专题共享', title: '进入专题包', desc: '从高频主题进入资产、订阅和复用申请。', href: '#/p7-zones-pack', tag: '场景入口', roles: ['r1', 'r2', 'r6', 'r7', 'r8'] },
-    { section: '交付与审计', title: '查看交付回执与审计证据', desc: primaryDelivery ? `${primaryDelivery.id} · ${deliveryStatusLabel(primaryDelivery, primaryRequest)}` : '交付、对账、回流和争议证据集中查看。', href: primaryDelivery ? `#/p4-delivery-exchange/task/${primaryDelivery.id}` : '#/p6-compliance-ops', tag: '证据可查', roles: ['r2', 'r5', 'r6', 'r7', 'r8'] },
+    { section: '交付与审计', title: '查看交付回执与审计证据', desc: primaryDelivery ? `${primaryDelivery.id} · ${deliveryStatusLabel(primaryDelivery, primaryRequest)}` : '交付、对账、回流和争议证据集中查看。', href: primaryDelivery ? `#/p4-delivery-exchange/task/${primaryDelivery.id}` : '#/p6-compliance-ops', tag: '证据可查', roles: ['r1', 'r2', 'r5', 'r6', 'r7', 'r8'] },
   ];
   const serviceRows = baseRows.map(item => {
     const allowed = canAccess(item.roles);
@@ -1827,6 +1832,7 @@ PAGES.reviewDetail = function (id) {
       </aside>
     </div>
     ${r2GradeAuthorizationStrategyForm(request)}
+    ${r2AuthorizationManagement(request)}
     ${r5SummaryWithdrawAction(request)}
     ${panel(actionTitle, actionSubtitle, `
       <div class="flex gap-3 flex-wrap">
@@ -1877,6 +1883,28 @@ function r2GradeAuthorizationStrategyForm(request) {
       </div>
     </div>
     <div class="text-body-sm text-zw-mute mt-3">通过"通过并下发补录"时，此策略会随 decision payload 一并审计；R7 在收件箱按这一档实施可见组织。</div>
+  `);
+}
+
+function r2AuthorizationManagement(request) {
+  // R2 authorization suspend/revoke: manages in-flight authorizations
+  if (!window.STATE || window.STATE.role !== 'r2') return '';
+  if (!request || !['completed', 'approved', 'pending'].includes(request.status)) return '';
+  const isCompleted = request.status === 'completed' || request.status === 'approved';
+  return panel('授权管理 (R2)', '暂停、恢复或收回已生效的授权；处理续期请求。', `
+    <div class="grid grid-cols-2 gap-3 text-body-sm">
+      <div class="state-card">
+        <div class="row-title mb-2">暂停授权</div>
+        <div class="row-meta mb-2">暂停后 R1 无法访问数据，但授权不失效，可恢复。</div>
+        <button onclick="window.ACTIONS.suspendAuthorization('${escapeHtml(request.id)}')" class="gov-btn gov-btn-warn" ${isCompleted ? '' : 'disabled'}>暂停授权</button>
+      </div>
+      <div class="state-card">
+        <div class="row-title mb-2">收回授权</div>
+        <div class="row-meta mb-2">永久收回，R1 需重新申请。涉及安全事件时使用。</div>
+        <button onclick="window.ACTIONS.revokeAuthorization('${escapeHtml(request.id)}')" class="gov-btn gov-btn-danger" ${isCompleted ? '' : 'disabled'}>收回授权</button>
+      </div>
+    </div>
+    <div class="text-body-sm text-zw-mute mt-3">暂停/收回都会写入 audit_event，R8 可追溯。${isCompleted ? '' : ' 当前申请尚未生效，暂停/收回待申请完成后操作。'}</div>
   `);
 }
 
@@ -2056,11 +2084,56 @@ PAGES.deliveryTaskDetail = function (id) {
             <a href="#/p5-provider" class="gov-btn gov-btn-secondary">查看模板治理</a>
           </div>
         `)}
+        ${r1DeliveryActionsPanel(task)}
       </aside>
     </div>
   `;
   return shell('p4', main);
 };
+
+/** R1 视角下的交付后动作：续期、异议、评价 */
+function r1DeliveryActionsPanel(task) {
+  if (!window.STATE || window.STATE.role !== 'r1') return '';
+  const completed = task.status === 'completed' || backflowStatusKey(task.backflow?.status) === 'confirmed';
+  return `
+    ${panel('授权续期', '授权快到期时一键续期，不用重新申请全套流程', `
+      <div class="text-body-sm text-zw-mute mb-3">续期保留原审批边界（字段范围、脱敏档位、频次），只延长有效期。</div>
+      <div class="flex gap-3 flex-wrap">
+        <button onclick="window.ACTIONS.renewAuthorization('${escapeHtml(task.id)}')" class="gov-btn gov-btn-primary" ${completed ? '' : 'disabled'}>申请续期</button>
+        ${!completed ? actionNotice('交付完成后才能申请续期') : ''}
+      </div>
+    `)}
+    ${panel('提出异议', '对交付结果不满意时走正式异议流程（数据/资源/授权/使用四类）', `
+      <div class="space-y-3">
+        <select id="r1-objection-type" class="gov-input">
+          <option value="data">数据质量异议</option>
+          <option value="resource">资源范围异议</option>
+          <option value="authorization">授权边界异议</option>
+          <option value="usage">使用体验异议</option>
+        </select>
+        <input id="r1-objection-desc" class="gov-input" placeholder="描述异议内容（如：字段缺失、数据不准确、权限不足等）"/>
+        <button onclick="window.ACTIONS.fileObjection('${escapeHtml(task.id)}')" class="gov-btn gov-btn-primary">提交异议</button>
+      </div>
+      <div class="row-meta text-body-sm mt-2">异议提交后进入 R5 受理 → 评估 → 处置 → 确认闭环，R8 督办超期。</div>
+    `)}
+    ${completed ? panel('服务评价', '交付完成后为本次共享服务打分，帮助改进', `
+      <div class="space-y-3">
+        <div class="flex gap-2 items-center">
+          <label class="text-body-sm">满意度：</label>
+          <select id="r1-rating-score" class="gov-input" style="width:auto">
+            <option value="5">非常满意</option>
+            <option value="4">满意</option>
+            <option value="3">一般</option>
+            <option value="2">不满意</option>
+            <option value="1">非常不满意</option>
+          </select>
+        </div>
+        <input id="r1-rating-comment" class="gov-input" placeholder="补充评价（可选）"/>
+        <button onclick="window.ACTIONS.rateService('${escapeHtml(task.id)}')" class="gov-btn gov-btn-primary">提交评价</button>
+      </div>
+    `) : ''}
+  `;
+}
 
 
 function r7ProviderWorkflowCards() {
@@ -2097,6 +2170,52 @@ function r7ProviderWorkflowCards() {
       <div class="text-body-sm text-zw-mute mb-3">可复用即落 demand-resource 对接；不可复用按区域/字段派 R5 切片任务。</div>
       <a href="#/p5-provider/inbox/demand-match" class="gov-btn gov-btn-primary">打开供需对接收件箱</a>
     `) : ''}
+  `;
+}
+
+/** R7 国家数据直达通道：目录/资源/需求上报 → 受理 → 订阅 → 异议 */
+function r7DirectAccessChannel() {
+  if (!window.STATE || window.STATE.role !== 'r7') return '';
+  // Prefer the R7-scoped runtime payload (populated by syncRouteData when
+  // we have a dedicated direct-access skill), but fall back to the static
+  // provider.directAccess included in the WebUI snapshot — that is the source
+  // of truth in the current shipping build.
+  const directItems = window.RUNTIME_R7_DIRECT_ACCESS
+    || (window.RUNTIME_PROVIDER && window.RUNTIME_PROVIDER.directAccess)
+    || { catalogs: [], resources: [], demands: [], subscriptions: [] };
+  const cats = directItems.catalogs || [];
+  const ress = directItems.resources || [];
+  const demands = directItems.demands || [];
+  const subs = directItems.subscriptions || [];
+  return `
+    ${panel('国家数据直达通道（R7）', '目录/资源上报 → 需求受理 → 申请审核 → 订阅管理。对接国家平台的标准化出口。', `
+      <div class="grid grid-cols-2 gap-5">
+        <div class="state-card">
+          <div class="row-title mb-2">目录上报（${cats.length} 条）</div>
+          <div class="row-meta text-body-sm mb-3">已发布目录可一键上报国家平台。</div>
+          ${cats.length ? `<div class="gov-list text-body-sm">${cats.slice(0, 5).map(c => `<div class="gov-list-row"><div><div class="row-title">${escapeHtml(c.title || c.catalog_code)}</div><div class="row-meta">${escapeHtml(c.status || '待上报')}</div></div>${statusPill(c.status || '待上报')}</div>`).join('')}</div>` : '<div class="row-meta">暂无待上报目录。</div>'}
+          <button onclick="window.ACTIONS.directAccessUpload('catalog')" class="gov-btn gov-btn-primary mt-3">上报选中目录</button>
+        </div>
+        <div class="state-card">
+          <div class="row-title mb-2">资源上报（${ress.length} 条）</div>
+          <div class="row-meta text-body-sm mb-3">把已挂接资源推送到国家共享平台。</div>
+          ${ress.length ? `<div class="gov-list text-body-sm">${ress.slice(0, 5).map(r => `<div class="gov-list-row"><div><div class="row-title">${escapeHtml(r.title || r.resource_code)}</div><div class="row-meta">${escapeHtml(r.status || '待上报')}</div></div>${statusPill(r.status || '待上报')}</div>`).join('')}</div>` : '<div class="row-meta">暂无待上报资源。</div>'}
+          <button onclick="window.ACTIONS.directAccessUpload('resource')" class="gov-btn gov-btn-primary mt-3">上报选中资源</button>
+        </div>
+        <div class="state-card">
+          <div class="row-title mb-2">需求受理（${demands.length} 条）</div>
+          <div class="row-meta text-body-sm mb-3">来自国家平台下发的数据需求，需本地受理。</div>
+          ${demands.length ? `<div class="gov-list text-body-sm">${demands.slice(0, 5).map(d => `<div class="gov-list-row"><div><div class="row-title">${escapeHtml(d.title || d.demand_code)}</div><div class="row-meta">${escapeHtml(d.source || '国家平台')} · ${escapeHtml(d.status || '待受理')}</div></div>${statusPill(d.status || '待受理')}</div>`).join('')}</div>` : '<div class="row-meta">暂无待受理国家需求。</div>'}
+          <button onclick="window.ACTIONS.directAccessAcceptDemand()" class="gov-btn gov-btn-primary mt-3">受理选中需求</button>
+        </div>
+        <div class="state-card">
+          <div class="row-title mb-2">订阅管理（${subs.length} 条）</div>
+          <div class="row-meta text-body-sm mb-3">管理国家平台的数据订阅关系。</div>
+          ${subs.length ? `<div class="gov-list text-body-sm">${subs.slice(0, 5).map(s => `<div class="gov-list-row"><div><div class="row-title">${escapeHtml(s.title || s.subscription_code)}</div><div class="row-meta">订阅方：${escapeHtml(s.subscriber || '—')} · ${escapeHtml(s.status || '活跃')}</div></div>${statusPill(s.status || '活跃')}</div>`).join('')}</div>` : '<div class="row-meta">暂无活跃订阅。</div>'}
+          <button onclick="window.ACTIONS.directAccessManageSubscription()" class="gov-btn gov-btn-secondary mt-3">管理订阅</button>
+        </div>
+      </div>
+    `)}
   `;
 }
 
@@ -2151,6 +2270,7 @@ PAGES.provider = function () {
 
     ${isR6 && r6Cards ? `<div class="grid grid-cols-2 gap-5">${r6Cards}</div>` : ''}
     ${isR7 && r7Cards ? `<div class="grid grid-cols-2 gap-5">${r7Cards}</div>` : ''}
+    ${isR7 ? r7DirectAccessChannel() : ''}
 
     ${isR6 ? statCards(window.RUNTIME_PROVIDER.overview) : ''}
 
@@ -2719,24 +2839,83 @@ PAGES.complianceOps = function () {
         `)}
       </section>
       <section class="col-span-8 space-y-5">
-        ${panel('审计回放', '按时间回放原始证据和处理结果', `
-          <table class="gov-table">
-            <thead><tr><th>时间</th><th>事件</th><th>目标</th><th>主体</th><th>结果</th></tr></thead>
-            <tbody>
-              ${window.RUNTIME_AUDIT_EVENTS.map(item => `<tr><td>${item.time}</td><td>${item.type}</td><td>${item.target}</td><td>${item.actor}</td><td>${statusPill(item.result)}</td></tr>`).join('')}
-            </tbody>
-          </table>
-        `)}
+        ${(() => {
+          // Audit log carries 2k+ legacy migration rows that are noise for
+          // daily R8 governance — they all match `legacy.*` event types. Hide
+          // them by default and cap the inline table at the 20 most recent
+          // operational events. Surface the migration overflow as a count.
+          const all = window.RUNTIME_AUDIT_EVENTS || [];
+          const legacy = all.filter(e => String(e.type || '').startsWith('legacy.'));
+          const operational = all.filter(e => !String(e.type || '').startsWith('legacy.'));
+          const MAX_ROWS = 20;
+          const shown = operational.slice(-MAX_ROWS).reverse();
+          const overflow = operational.length - shown.length;
+          const overflowNote = overflow > 0 ? `（更早 ${overflow} 条已折叠）` : '';
+          const legacyNote = legacy.length > 0 ? `· M0 历史迁移审计 ${legacy.length} 条另存于历史链路` : '';
+          return panel('审计回放', '按时间倒序展示原始证据和处理结果', `
+            <div class="row-meta text-body-sm mb-3">显示最近 ${shown.length} / 共 ${operational.length} 条日常审计${overflowNote} ${legacyNote}</div>
+            <table class="gov-table">
+              <thead><tr><th>时间</th><th>事件</th><th>目标</th><th>主体</th><th>结果</th></tr></thead>
+              <tbody>
+                ${shown.map(item => `<tr><td>${escapeHtml(item.time)}</td><td>${escapeHtml(item.type)}</td><td>${escapeHtml(item.target)}</td><td>${escapeHtml(item.actor)}</td><td>${statusPill(item.result)}</td></tr>`).join('')}
+              </tbody>
+            </table>
+          `);
+        })()}
         ${panel('当前治理判断', '结合证据判断是否需要制度或模板调整', `
           <div data-ai-surface="compliance-inline-ai" class="text-body leading-7 text-zw-ink">${window.RUNTIME_AUDIT_AI.summary}</div>
           <div class="mt-4 text-body-sm text-zw-mute leading-7">${window.RUNTIME_AUDIT_AI.evidence.map(item => `• ${item}`).join('<br/>')}</div>
         `)}
         ${r8BypassSurveillancePanel()}
+        ${r8TicketAndHandoverPanel()}
       </section>
     </div>
   `;
   return shell('p6', main);
 };
+
+/** R8 运维工单创建 + 交接班面板 */
+function r8TicketAndHandoverPanel() {
+  if (!window.STATE || window.STATE.role !== 'r8') return '';
+  const tickets = window.RUNTIME_TICKETS || [];
+  return panel('运维工单与交接班（R8）', '创建工单、处理告警、执行巡检、交接班记录', `
+    <div class="grid grid-cols-2 gap-4">
+      <div class="state-card">
+        <div class="row-title mb-2">创建运维工单</div>
+        <div class="row-meta text-body-sm mb-3">发现问题后创建工单跟踪处理。</div>
+        <div class="space-y-2">
+          <select id="r8-ticket-type" class="gov-input">
+            <option value="alert">告警处理</option>
+            <option value="inspection">巡检异常</option>
+            <option value="dial-test">拨测失败</option>
+            <option value="security">安全事件</option>
+            <option value="other">其他</option>
+          </select>
+          <input id="r8-ticket-title" class="gov-input" placeholder="工单标题"/>
+          <input id="r8-ticket-assignee" class="gov-input" placeholder="指派责任人"/>
+          <button onclick="window.ACTIONS.createOpsTicket()" class="gov-btn gov-btn-primary">创建工单</button>
+        </div>
+      </div>
+      <div class="state-card">
+        <div class="row-title mb-2">交接班记录</div>
+        <div class="row-meta text-body-sm mb-3">值班结束时记录遗留事项，交给下一班。</div>
+        <div class="space-y-2">
+          <input id="r8-handover-summary" class="gov-input" placeholder="本班遗留事项摘要"/>
+          <input id="r8-handover-pending" class="gov-input" placeholder="待跟进工单编号（逗号分隔）"/>
+          <input id="r8-handover-next" class="gov-input" placeholder="接班人"/>
+          <button onclick="window.ACTIONS.submitShiftHandover()" class="gov-btn gov-btn-primary">提交交接班</button>
+        </div>
+      </div>
+    </div>
+    ${tickets.length ? `
+    <div class="mt-4">
+      <div class="row-title mb-2">当前工单（${tickets.length}）</div>
+      <div class="gov-list text-body-sm">
+        ${tickets.map(t => `<div class="gov-list-row"><div><div class="row-title">${escapeHtml(t.title)}</div><div class="row-meta">${escapeHtml(t.id)} · ${escapeHtml(t.assignee || t.owner || '—')}</div></div><div class="flex gap-2">${statusPill(t.status || '处理中')}<button onclick="window.ACTIONS.closeOpsTicket('${escapeHtml(t.id)}')" class="gov-btn gov-btn-secondary">关闭</button></div></div>`).join('')}
+      </div>
+    </div>` : ''}
+  `);
+}
 
 function r8BypassSurveillancePanel() {
   // W4.2: R8 视角下显示绕行督查；其他角色不显示

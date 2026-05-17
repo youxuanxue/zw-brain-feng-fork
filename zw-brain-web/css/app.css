@@ -3,6 +3,15 @@
    Tokens aligned with the approved light service reference
    ============================================================================= */
 
+/* The HTML hidden attribute MUST always hide the element.
+   Class-based display rules (.flex, .role-control, .header-auth-link, etc.)
+   override the UA default `[hidden] { display: none }`, so we enforce it
+   with !important. Without this, headers show stale 登录 buttons and
+   conflicting role controls. */
+[hidden] {
+  display: none !important;
+}
+
 :root {
   --b-primary: #006be6;
   --b-primary-hover: #0056c7;
@@ -68,6 +77,15 @@ body {
 }
 .flex-1 {
   flex: 1 1 0%;
+}
+.flex-col {
+  flex-direction: column;
+}
+.flex-row {
+  flex-direction: row;
+}
+.flex-wrap-reverse {
+  flex-wrap: wrap-reverse;
 }
 .inline-flex {
   display: inline-flex;
@@ -982,6 +1000,17 @@ a:hover {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.gov-stat-value.is-empty {
+  /* Idle / zero counts should not visually compete with real signal — keep
+     the same numeric weight (so the layout doesn't shift) but desaturate the
+     color to ink-disabled. The "is-idle" parent removes the hover lift. */
+  color: var(--b-disabled);
+  font-weight: 500;
+}
+.gov-stat-card.is-idle {
+  background: linear-gradient(180deg, #fbfdff 0%, #f5f9ff 100%);
+  border-style: dashed;
+}
 .gov-stat-note {
   margin-top: 8px;
   font-size: 13px;
@@ -1882,9 +1911,10 @@ pre.code {
   line-height: 1.45;
 }
 .service-entry-grid {
-  /* W7.4: auto-fit 让 2/3/4/5 个入口都均匀填满整行；最小 220px 保证可读 */
+  /* W7.4: auto-fit 让 2/3/4/5 个入口都均匀填满整行；最小 200px 让 5 张卡也能在
+     标准桌面宽度（~1440px）上一行排开，避免 4+1 的视觉破碎。 */
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 14px;
 }
 .service-entry {

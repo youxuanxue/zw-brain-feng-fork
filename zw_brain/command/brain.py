@@ -241,6 +241,18 @@ class BrainService:
                 return self.approve_application_grant(payload)
             case "application.grant.renew":
                 return self.renew_application_grant(payload)
+            case "application.grant.suspend":
+                return self.suspend_application_grant(payload)
+            case "application.grant.revoke":
+                return self.revoke_application_grant(payload)
+            case "service.rating.submit":
+                return self.submit_service_rating(payload)
+            case "ops.ticket.create":
+                return self.create_ops_ticket(payload)
+            case "ops.ticket.close":
+                return self.close_ops_ticket(payload)
+            case "ops.shift_handover.submit":
+                return self.submit_shift_handover(payload)
             case "require.intent.submit":
                 return self.submit_requirement_intent(payload)
             case "require.intent.refine":
@@ -2743,7 +2755,9 @@ class BrainService:
         items = copy.deepcopy(self._snapshot["disputes"])
         store = self._state_store.database_store
         if store is not None:
-            records = {record.id: record for record in store.objection_repo.list_cases(tenant_id=_DEFAULT_TENANT_ID)}
+            all_records = store.objection_repo.list_cases(tenant_id=_DEFAULT_TENANT_ID)
+            records = {record.id: record for record in all_records}
+            seed_ids = {item["id"] for item in items}
             for item in items:
                 record = records.get(item["id"])
                 if record is not None:
@@ -2759,6 +2773,26 @@ class BrainService:
                             "overallScore": evaluation.overall_score,
                             "comment": evaluation.comment,
                         }
+            # Surface objection cases created at runtime (not present in the
+            # seed disputes list) so newly-filed customer objections show up in
+            # the governance dashboard the same turn.
+            for record in all_records:
+                if record.id in seed_ids:
+                    continue
+                items.append({
+                    "id": record.id,
+                    "topic": record.title,
+                    "type": record.objection_kind,
+                    "status": record.status,
+                    "targetType": record.target_type,
+                    "targetId": record.target_id,
+                    "createdAt": record.created_at.isoformat() if getattr(record, "created_at", None) else "",
+                    "repository": {
+                        "objectionKind": record.objection_kind,
+                        "targetType": record.target_type,
+                        "status": record.status,
+                    },
+                })
         return {
             "items": items,
             "alerts": copy.deepcopy(self._snapshot["alerts"]),
@@ -2768,6 +2802,16 @@ class BrainService:
 
     def get_provider_view(self) -> dict[str, Any]:
         provider = copy.deepcopy(self._snapshot["provider"])
+        # National Direct Access (R7 跨大区上报通道) demo data lives only in
+        # seed_snapshot.json and is not persisted. Older DB rows predate this
+        # field, so we hydrate it from the seed clone whenever the loaded
+        # snapshot is missing it.
+        if "directAccess" not in provider:
+            from zw_brain.domain.seed import clone_seed_snapshot
+            seed = clone_seed_snapshot()
+            direct = seed.get("provider", {}).get("directAccess")
+            if direct is not None:
+                provider["directAccess"] = direct
         store = self._state_store.database_store
         if store is None:
             return provider
@@ -3367,7 +3411,9 @@ class BrainService:
     def renew_application_grant(self, payload: dict[str, Any]) -> dict[str, Any]:
         role = str(payload.get("role", self._ui_state["role"]))
         confirmed = bool(payload.get("confirmed"))
-        task_id = str(payload["task_id"])
+        # Customer surface forwards `delivery_task_id`; the legacy contract used
+        # `task_id`. Accept either so the same skill works from both call sites.
+        task_id = str(payload.get("task_id") or payload.get("delivery_task_id"))
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             task = self._delivery_by_id(task_id)
@@ -3379,6 +3425,126 @@ class BrainService:
             return {"task_id": task_id, "renew_until": payload.get("renew_until"), "audit_id": audit_id}
 
         return self._mutate("application.grant.renew", role, confirmed, payload, mutation)
+
+    def suspend_application_grant(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """R2 暂停已生效的授权 — R1 暂时无法访问但授权不失效，可恢复。"""
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        request_id = str(payload.get("request_id") or payload.get("delivery_task_id") or "")
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            request = self._request_by_id(request_id) if request_id.startswith("REQ-") else None
+            if request is not None:
+                request.setdefault("grant", {})["suspended"] = True
+                request.setdefault("timeline", []).append({"label": "授权已暂停", "time": self._now_datetime(), "note": str(payload.get("reason", "R2 临时暂停以核实使用边界。"))})
+            self._append_audit_feed("application.grant.suspend", request_id, "ok", actor)
+            return {"request_id": request_id, "suspended": True, "audit_id": audit_id}
+
+        return self._mutate("application.grant.suspend", role, confirmed, payload, mutation)
+
+    def revoke_application_grant(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """R2 收回已生效的授权 — 永久收回，R1 需重新申请。"""
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        request_id = str(payload.get("request_id") or payload.get("delivery_task_id") or "")
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            request = self._request_by_id(request_id) if request_id.startswith("REQ-") else None
+            if request is not None:
+                request.setdefault("grant", {})["revoked"] = True
+                request["status"] = "revoked"
+                request.setdefault("timeline", []).append({"label": "授权已收回", "time": self._now_datetime(), "note": str(payload.get("reason", "R2 收回授权，需重新申请。"))})
+            self._append_audit_feed("application.grant.revoke", request_id, "ok", actor)
+            return {"request_id": request_id, "revoked": True, "audit_id": audit_id}
+
+        return self._mutate("application.grant.revoke", role, confirmed, payload, mutation)
+
+    def submit_service_rating(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """R1 完成交付后为本次共享服务打分（写入审计供 R8 督查可见）。"""
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        task_id = str(payload.get("task_id") or payload.get("delivery_task_id") or "")
+        score = int(payload.get("score", 5))
+        comment = str(payload.get("comment", "")).strip()
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            task = self._delivery_by_id(task_id) if task_id else None
+            if task is not None:
+                task.setdefault("rating", {})
+                task["rating"]["score"] = score
+                task["rating"]["comment"] = comment
+                task["rating"]["ratedBy"] = actor
+                task["rating"]["ratedAt"] = self._now_datetime()
+                task.setdefault("history", []).append({"time": self._now_short_time(), "state": f"服务评价：{score} 星", "detail": comment or "—"})
+            self._append_audit_feed("service.rating.submit", task_id, "ok", actor)
+            return {"task_id": task_id, "score": score, "comment": comment, "audit_id": audit_id}
+
+        return self._mutate("service.rating.submit", role, confirmed, payload, mutation)
+
+    def create_ops_ticket(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """R8 创建运维工单（告警处理 / 巡检 / 拨测 / 安全 / 其他）。"""
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        ticket_type = str(payload.get("ticket_type", "alert"))
+        title = str(payload.get("title", "")).strip() or "运维工单"
+        assignee = str(payload.get("assignee", "")).strip() or "未指派"
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            ticket_id = f"TK-{self._now_date()}-{len(self._snapshot.get('tickets', [])) + 1:03d}"
+            ticket = {
+                "id": ticket_id,
+                "type": ticket_type,
+                "title": title,
+                "assignee": assignee,
+                "status": "处理中",
+                "createdBy": actor,
+                "createdAt": self._now_datetime(),
+            }
+            self._snapshot.setdefault("tickets", []).insert(0, ticket)
+            self._append_audit_feed("ops.ticket.create", ticket_id, "ok", actor)
+            return {"ticket": ticket, "audit_id": audit_id}
+
+        return self._mutate("ops.ticket.create", role, confirmed, payload, mutation)
+
+    def close_ops_ticket(self, payload: dict[str, Any]) -> dict[str, Any]:
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        ticket_id = str(payload.get("ticket_id", "")).strip()
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            tickets = self._snapshot.get("tickets", [])
+            target = next((t for t in tickets if t.get("id") == ticket_id), None)
+            if target is not None:
+                target["status"] = "已关闭"
+                target["closedBy"] = actor
+                target["closedAt"] = self._now_datetime()
+            self._append_audit_feed("ops.ticket.close", ticket_id, "ok", actor)
+            return {"ticket_id": ticket_id, "audit_id": audit_id}
+
+        return self._mutate("ops.ticket.close", role, confirmed, payload, mutation)
+
+    def submit_shift_handover(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """R8 交接班 — 记录本班通报事项 + 待跟进工单 + 接班人。"""
+        role = str(payload.get("role", self._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        summary = str(payload.get("summary", "")).strip()
+        pending = payload.get("pending_tickets") or []
+        next_shift = str(payload.get("next_shift_assignee", "")).strip() or "下班次值班人"
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            handover = {
+                "id": f"SH-{self._now_date()}-{len(self._snapshot.get('shift_handovers', [])) + 1:03d}",
+                "summary": summary,
+                "pendingTickets": pending,
+                "nextShiftAssignee": next_shift,
+                "submittedBy": actor,
+                "submittedAt": self._now_datetime(),
+            }
+            self._snapshot.setdefault("shift_handovers", []).insert(0, handover)
+            self._append_audit_feed("ops.shift_handover.submit", handover["id"], "ok", actor)
+            return {"handover": handover, "audit_id": audit_id}
+
+        return self._mutate("ops.shift_handover.submit", role, confirmed, payload, mutation)
 
     def submit_requirement_intent(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self.create_request(str(payload.get("resource_id") or "res-jbxx-ledger"), str(payload.get("role", self._ui_state["role"])), bool(payload.get("confirmed")), str(payload.get("intent") or payload.get("title") or self._ui_state.get("discoveryQuery", "")), "require.intent.submit")

@@ -11,7 +11,7 @@
 - 脱敏样例：`old/10示例数据/*` 中可用于演示和验收的样例。
 - 迁移状态：待导出、导出完成、脱敏通过、导入中、迁移待核验、迁移通过、迁移回滚。
 - 核验证据：`legacy_object_mapping`、导入批次号、schema 快照、目录项-资源字段绑定、quality projection、lineage projection、审计回执。
-- 旧→新状态映射：旧 `dump-dsp_catalog` 中目录状态仅 `审核中(2)/发布(3)/撤销` 三档，M0 必须把这三档映射到新平台 `pending_review/active/revoked`，并对没有旧值的扩展态 `draft/approved_pending_publish/changing/suspended` 做"无旧值"标记，以 catalog3-metadata3 重构方案 §八 为基线。
+- 旧→新状态映射：旧 `dump-dsp_catalog` 中目录状态为 `草稿(0)/待审核(1)/审批通过(2)/审批驳回(3)/已发布(4)/下线(5)` 六档 + 独立 `revoke_status` 字段，M0 必须把这些映射到新平台 `draft/pending_review/approved_pending_publish/active/suspended/revoked`，并对没有旧值的扩展态 `changing` 做"无旧值"标记，以 catalog3-metadata3 重构方案 §八 为基线。
 - 单租户单省锚定：所有迁入目录、资源、申请、授权、组织、区划默认 `tenant_id=sd-default`、`region_code=370000000000`（山东省）；上级通道下发的跨省目录单独标 `external_channel_origin`，不与 sd-default canonical 混淆。
 
 ## 一条主旅程
@@ -24,7 +24,7 @@
 6. 核验库表、文件、文件夹、链接、API/接口资源是否进入 `resource_asset` 与 `resource_channel_binding`。
 7. 核验元数据采集结果是否形成 `resource_schema_snapshot`，字段中文注释、格式、主键、空值、安全级别、加密要求是否可见。
 8. 核验目录项与资源字段是否形成 `resource_schema_mapping`，避免“目录能看到但资源交不了”。
-9. 对目录迁移审核做抽样：旧 `发布`、`已驳回`、撤回、变更、授权、续期等状态能否映射为 zw-brain 的状态机和审计回执。
+9. 对目录迁移审核做抽样：旧 `草稿(0)`、`待审核(1)`、`审批通过(2)`、`审批驳回(3)`、`已发布(4)`、`下线(5)` 及 `revoke_status` 撤销等状态能否映射为 zw-brain 的状态机和审计回执。
 10. 生成搜索、共享专题、质量、血缘、运营统计等 projection，并记录投影状态与失败摘要。
 11. 让 R6/R7/R8 分别抽查资源证据、目录运营入口和合规断链，形成验收结论。
 12. 验收通过后关闭迁移模式，把后续资源维护、目录发布、审批授权和合规督查移交给 R6/R7/R8。
@@ -36,7 +36,7 @@
 | 一键导出 | 客户现场启动迁移、补迁批次 | M0 实施人 + 客户授权 | 导出完成、脱敏通过 | 导出包 + 脱敏回执 |
 | 批量导入 | 导出包已脱敏 | M0 实施人 | 批次成功或停在缺口报告 | import batch + `legacy_object_mapping` |
 | 对象映射核验 | 批次导入完成 | M0 实施人 + R6/R7 抽样 | 旧对象逐一回指或缺口列出 | mapping evidence + 缺口清单 |
-| 目录迁移审核 | 旧目录 `审核中/发布/撤销` 三档进入新平台 | M0 + R7 抽样 | 状态映射可解释、目录可发现 | migration review + audit |
+| 目录迁移审核 | 旧目录 `草稿(0)/待审核(1)/审批通过(2)/审批驳回(3)/已发布(4)/下线(5)` + `revoke_status` 进入新平台 | M0 + R7 抽样 | 状态映射可解释、目录可发现 | migration review + audit |
 | schema 快照与挂接核验 | 元数据采集结果导入 | M0 + R6 抽样 | 字段中文注释、敏感级别、挂接绑定齐全 | `resource_schema_snapshot` + `resource_schema_mapping` |
 | 申请审批授权历史核验 | 旧申请/审批/授权导入 | M0 + R2 抽样 | 历史责任链可追溯，当前授权重新按策略生效 | `application_record` / `approval_case` / `delivery_task` 摘要 |
 | 投影生成 | canonical 写入完成 | M0 自动 + 失败摘要 | 搜索/共享/质量/血缘/统计 projection 状态可见 | projection status + 失败摘要 |

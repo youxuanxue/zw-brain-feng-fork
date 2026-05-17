@@ -16,7 +16,7 @@
 - 证据：字段口径、资源状态、授权策略、历史申请、quality projection、M0 验收后的来源引用。
 - 分级授权策略决策边界：R2 决定"允许哪一档授权 / 字段脱敏粒度 / 频次上限 / 有效期"；R7 只把 R2 决策落到可见组织、专题分组与策略解释。两端不重叠。
 - API 服务化授权边界证据：R6 提交的 API 草稿（路径、入参、出参、字段脱敏档位、订阅应用清单）、`api_access_ip`、`api_service_fuse` 配置。
-- 旧状态映射：旧 `审核中(2)/发布(3)/撤销` ↔ 新 `pending_review/active/revoked`；扩展态以 catalog3-metadata3 重构方案 §八 为准，审批意见落 `approval_case` + `approval_step` + `approval_decision`。
+- 旧状态映射：旧 `草稿(0)/待审核(1)/审批通过(2)/审批驳回(3)/已发布(4)/下线(5)` + 独立 `revoke_status` ↔ 新 `draft/pending_review/approved_pending_publish/active/suspended/revoked`；完整映射以 catalog3-metadata3 重构方案 §八 为准，审批意见落 `approval_case` + `approval_step` + `approval_decision`。
 
 ## 一条主旅程
 

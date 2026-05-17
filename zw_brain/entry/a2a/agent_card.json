@@ -1049,6 +1049,40 @@
       ]
     },
     {
+      "id": "application.grant.revoke",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition"
+      ]
+    },
+    {
+      "id": "application.grant.suspend",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition"
+      ]
+    },
+    {
       "id": "application.resource.review",
       "mode": "write",
       "humanConfirmationRequired": true,
@@ -2053,6 +2087,54 @@
       ]
     },
     {
+      "id": "ops.shift_handover.submit",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "ops.ticket.close",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "ops.ticket.create",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
       "id": "org.projection.sync",
       "mode": "write",
       "humanConfirmationRequired": true,
@@ -2617,6 +2699,22 @@
         "db_write",
         "state_machine_transition",
         "blockchain_anchor"
+      ]
+    },
+    {
+      "id": "service.rating.submit",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
       ]
     },
     {

@@ -1919,6 +1919,64 @@
         "本地泊位状态是需要基层确认的高频差异字段",
         "城市运行专题入口是客户演示主链路关键触点"
       ]
+    },
+    "directAccess": {
+      "catalogs": [
+        {
+          "catalog_code": "370000308004000000/000001",
+          "title": "停车场信息",
+          "status": "已上报",
+          "reported_at": "2026-04-20"
+        },
+        {
+          "catalog_code": "370000307013000000/000045",
+          "title": "医疗救助信息",
+          "status": "待上报",
+          "reported_at": null
+        }
+      ],
+      "resources": [
+        {
+          "resource_code": "39a41e4b4e80439187e0f86218bae5d9",
+          "title": "停车场信息_库表资源",
+          "status": "已上报",
+          "reported_at": "2026-04-20"
+        },
+        {
+          "resource_code": "486fad4640fb44589c05f72df23650d7",
+          "title": "停车场信息_文件资源",
+          "status": "待上报",
+          "reported_at": null
+        }
+      ],
+      "demands": [
+        {
+          "demand_code": "ND-2026-05-01-0001",
+          "title": "医保异地结算数据对接",
+          "source": "国家医保局",
+          "status": "待受理"
+        },
+        {
+          "demand_code": "ND-2026-05-03-0002",
+          "title": "不动产交易信息共享",
+          "source": "国家数据局",
+          "status": "待受理"
+        }
+      ],
+      "subscriptions": [
+        {
+          "subscription_code": "SUB-2026-04-15-0001",
+          "title": "停车场信息订阅",
+          "subscriber": "济南市大数据局",
+          "status": "活跃"
+        },
+        {
+          "subscription_code": "SUB-2026-04-18-0002",
+          "title": "医疗救助信息订阅",
+          "subscriber": "青岛市医保局",
+          "status": "活跃"
+        }
+      ]
     }
   },
   "disputes": [

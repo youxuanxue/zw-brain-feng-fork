@@ -20,8 +20,8 @@
 - API 服务化证据：旧 `dsp_service` 的 `api_service_info` / `api_service_general` / `api_access_ip` / `api_service_fuse` / `api_service_filter` / `api_service_counter` / `api_service_app` / `api_group` / `api_service_proxy` / `api_service_errors` 等表，承接为 `resource_channel_binding(kind=api)` 的服务化配置证据：IP 白名单、限流熔断、调用计数、错误样本、订阅应用、过滤代理。
 - 反向编目工作队列输入：`db_meta_database` / `db_meta_table` / `db_meta_column` 已采集 schema → 反向编目草稿建议。
 - 自动检测任务规则证据：旧 `catalog_quality_rule` / `catalog_quality_task` / `catalog_quality_template` / `catalog_quality_task_log` / `catalog_quality_task_result`。
-- 旧→新状态映射：资源生命周期旧仅 `审核中(2)/发布(3)/撤销`，新平台扩展为 `discovered/draft/pending_review/approved_pending_publish/active/changing/suspended/revoked`，映射规则以 catalog3-metadata3 重构方案 §八 为准；变更 / 物化期间保留上一 active 版本可回放。
-- 单租户单省锚定：所有资源 `tenant_id=sd-default`、`region_code=370000000000`；数据源、前置库、文件服务器、API 凭据样例统一为 `山东省 / 省大数据局（11370000MB284651XL）/ 省公安厅 / 省生态环境厅` 等真实组织。
+- 旧→新状态映射：资源生命周期旧为 `草稿(0)/待审核(1)/审批通过(2)/审批驳回(3)/已发布(4)/下线(5)` + 独立 `revoke_status`，新平台扩展为 `discovered/draft/pending_review/approved_pending_publish/active/changing/suspended/revoked`，映射规则以 catalog3-metadata3 重构方案 §八 为准；变更 / 物化期间保留上一 active 版本可回放。
+- 单租户单省锚定：所有资源 `tenant_id=sd-default`、`region_code=370000000000`；数据源、前置库、文件服务器、API 凭据样例统一为 `山东省 / 省大数据局（11370000MB284651XL）/ 省公安厅 / 省人力资源和社会保障厅` 等真实组织。
 
 ## 一条主旅程
 
