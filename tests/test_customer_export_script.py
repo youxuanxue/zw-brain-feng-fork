@@ -112,6 +112,7 @@ def test_postprocess_one_dump_redacts_and_emits_crc(tmp_path: Path) -> None:
     assert (out.parent / (out.name + ".rowcount")).exists()
 
 
+@pytest.mark.slow_infra
 @requires_sample_dumps
 @requires_datastructure
 def test_bundle_full_directory_creates_manifest(tmp_path: Path) -> None:
@@ -166,6 +167,7 @@ def test_bundle_refuses_to_overwrite_without_force(tmp_path: Path) -> None:
     assert "non-empty" in code.stderr
 
 
+@pytest.mark.slow_infra
 @requires_sample_dumps
 def test_verify_reports_ok_on_fresh_bundle(tmp_path: Path) -> None:
     out_dir = tmp_path / "B-verify-ok"
@@ -193,6 +195,7 @@ def test_verify_reports_ok_on_fresh_bundle(tmp_path: Path) -> None:
     assert report["failures"] == []
 
 
+@pytest.mark.slow_infra
 @requires_sample_dumps
 def test_verify_detects_tampered_file(tmp_path: Path) -> None:
     out_dir = tmp_path / "B-tampered"
@@ -226,6 +229,7 @@ def test_verify_detects_tampered_file(tmp_path: Path) -> None:
     assert any(victim.name in failure for failure in report["failures"])
 
 
+@pytest.mark.slow_infra
 @requires_sample_dumps
 def test_shell_entry_dry_run_with_sample_dumps(tmp_path: Path) -> None:
     """Smoke-test the bash entry script in --from-dir dry-run mode end-to-end."""

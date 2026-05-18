@@ -6,8 +6,14 @@ import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PYTHON = sys.executable
+
+# Builds + installs the project wheel into a temp env, then runs packaged entry-point smokes.
+# ~15 s locally, ~25-30 s on CI. Skipped on PR; runs on push-to-main.
+pytestmark = pytest.mark.slow_infra
 
 
 def test_installed_rest_and_dashboard_entry_smoke() -> None:

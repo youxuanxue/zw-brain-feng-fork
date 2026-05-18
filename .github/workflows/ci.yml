@@ -33,9 +33,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # PR: only 3.12 (fast path). Push-to-main: 3.11 + 3.12 (full compatibility matrix).
         # 3.11 = pyproject.toml's requires-python floor; 3.12 = stable.
-        # preflight / coverage / wheel only run on 3.12 to avoid redundant work.
-        python: ['3.11', '3.12']
+        # Coverage + slow_infra tests run only on push-to-main, not on PR (saves ~6 min PR-side).
+        python: ${{ (github.event_name == 'pull_request') && fromJSON('["3.12"]') || fromJSON('["3.11", "3.12"]') }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,20 +55,25 @@ jobs:
       - name: preflight
         if: matrix.python == '3.12'
         run: bash scripts/preflight.sh
-      - name: pytest with coverage
+      - name: pytest
+        # PR: default markers (slow_infra excluded by pyproject.toml addopts), no coverage.
+        # Push-to-main: explicit -m to include slow_infra; py3.12 also runs under coverage.
+        # --durations=10 keeps slow-test drift visible in CI logs so future regressions surface early.
         run: |
-          if [ "${{ matrix.python }}" = "3.12" ]; then
-            python -m coverage run -m pytest -q
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m pytest --durations=10
+          elif [ "${{ matrix.python }}" = "3.12" ]; then
+            python -m coverage run -m pytest -m "not legacy_migration_acceptance and not browser_e2e" --durations=10
             python -m coverage xml -o coverage.xml
             python -m coverage report --skip-covered --show-missing | tee coverage-summary.txt
           else
-            python -m pytest -q
+            python -m pytest -m "not legacy_migration_acceptance and not browser_e2e" --durations=10
           fi
       - name: build wheel
         if: matrix.python == '3.12'
         run: python -m build --wheel
       - name: upload coverage artifact
-        if: matrix.python == '3.12'
+        if: matrix.python == '3.12' && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.python }}

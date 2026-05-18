@@ -11,7 +11,14 @@ from tempfile import TemporaryDirectory
 from urllib.error import HTTPError, URLError
 from urllib.request import ProxyHandler, Request, build_opener
 
+import pytest
+
 from tests.test_legacy_migration_batch import _write_core_dumps
+
+# Builds + installs the project wheel into a temp env, then spins up packaged entry points and
+# legacy migration tooling. ~20-30 s per test locally, ~40-50 s on CI. Skipped on PR; runs on
+# push-to-main where a wheel regression must still gate.
+pytestmark = pytest.mark.slow_infra
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PYTHON = os.environ.get("PYTHON_FOR_SUBPROCESS") or sys.executable

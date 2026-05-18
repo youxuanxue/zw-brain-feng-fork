@@ -6,8 +6,14 @@ import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PYTHON = sys.executable
+
+# Builds a wheel + installs it into a clean env to smoke-test packaging metadata. ~23 s locally,
+# ~40 s on CI. Skipped on PR; runs on push-to-main where a packaging regression must still gate.
+pytestmark = pytest.mark.slow_infra
 
 
 def test_wheel_build_and_install_smoke() -> None:

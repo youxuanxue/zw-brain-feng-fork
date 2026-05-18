@@ -7,8 +7,14 @@ import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PYTHON = os.environ.get("PYTHON_FOR_SUBPROCESS") or sys.executable
+
+# Builds + installs the project wheel into a temp env, then HTTP-smokes the packaged handlers.
+# ~14 s locally, ~25 s on CI. Skipped on PR; runs on push-to-main.
+pytestmark = pytest.mark.slow_infra
 
 
 def test_installed_rest_and_dashboard_http_handler_smoke() -> None:
