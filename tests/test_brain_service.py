@@ -3455,7 +3455,15 @@ def test_p1_governance_no_legacy_runtime_compat_or_dual_read_write_contracts() -
     forbidden_paths = {"/bsp/", "/oauth2Login", "/SAML2/", "/cas/"}
     assert not any(any(fragment in path for fragment in forbidden_paths) for path in openapi["paths"])
     assert "/login" not in openapi["paths"]
-    auth_paths = {"/auth/iaf/config", "/auth/iaf/login", "/auth/iaf/token", "/auth/iaf/refresh", "/auth/iaf/logout"}
+    auth_paths = {
+        "/auth/iaf/config",
+        "/auth/iaf/login",
+        "/auth/iaf/token",
+        "/auth/iaf/session",
+        "/auth/iaf/refresh",
+        "/auth/iaf/dev-bypass-login",
+        "/auth/iaf/logout",
+    }
     assert set(openapi["paths"]).issubset({"/health", "/openapi.json", "/api/snapshot"} | auth_paths | {f"/api/skills/{skill_id}" for skill_id in load_manifests()})
 
     server_source = Path(rest_server_module.__file__).read_text(encoding="utf-8")

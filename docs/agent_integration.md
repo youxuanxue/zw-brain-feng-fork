@@ -198,10 +198,12 @@
 | GET | `/api/skills/zone.view` | 查看专区详情 | `get_zone_view` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/snapshot` | Get system snapshot | `getSystemSnapshot` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/auth/iaf/config` | Get IAF IAM public config | `getIafConfig` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/auth/iaf/dev-bypass-login` | Establish a BFF session in development IAM bypass mode | `devBypassLogin` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/auth/iaf/login` | Create IAF authorization URL | `startIafLogin` | `zw_brain/entry/rest/openapi.json` |
-| GET | `/auth/iaf/logout` | Build IAF logout URL | `logoutIaf` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/auth/iaf/refresh` | Refresh IAF access token | `refreshIafToken` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/auth/iaf/token` | Exchange IAF authorization code for token | `exchangeIafCodeForToken` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/auth/iaf/logout` | Drop the BFF session and build the IAF logout URL | `logoutIaf` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/auth/iaf/refresh` | Refresh IAF tokens using the cookie-bound session | `refreshIafToken` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/auth/iaf/session` | Return the public payload for the current BFF session (no side effects) | `getIafSession` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/auth/iaf/token` | Exchange IAF authorization code, establish BFF session cookie | `exchangeIafCodeForToken` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/health` | Health check | `healthCheck` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/openapi.json` | Get generated OpenAPI spec | `getOpenAPISpec` | `zw_brain/entry/rest/openapi.json` |
 
@@ -488,7 +490,7 @@
 
 ## Statistics
 
-- REST endpoints: 191
+- REST endpoints: 193
 - CLI entries: 1
 - MCP tools: 61
 - A2A agent cards: 1

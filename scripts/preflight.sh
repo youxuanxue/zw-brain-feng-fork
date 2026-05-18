@@ -59,6 +59,7 @@ done <<'CHECKS'
 段 14	scripts/check_external_refs.py	external-refs (D22)
 段 15	scripts/check_ui_spec_b.py	ui-spec-b (Spec B single theme)
 段 16	scripts/check_legacy_mappers.py	legacy-mappers (D7+D4)
+段 17	scripts/check_iam_doc_freshness.py	iam-doc-freshness (R-002)
 CHECKS
 
 echo ""

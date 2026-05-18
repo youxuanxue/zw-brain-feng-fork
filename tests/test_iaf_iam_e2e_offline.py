@@ -320,20 +320,39 @@ def test_iaf_oidc_rest_login_token_logout_uses_rs256_jwks_path() -> None:
             _assert_no_secrets([item.payload_json for item in store.list_audit_events()])
             _assert_no_secrets([item.input_json | item.output_json for item in store.list_capability_calls()])
 
-            status, logout = _request_json("GET", f"http://127.0.0.1:{port}/auth/iaf/logout?redirect_uri=http://127.0.0.1:{port}/")
-            assert status == 200
+            # Re-establish a session so the cookie path drives logout; the previous /auth/iaf/token
+            # response set the cookie, but _request_json discards headers — we need a fresh login
+            # whose Set-Cookie we capture and replay.
+            status_re_login, _, login2_raw = _request("GET", f"{login_url}&format=json")
+            assert status_re_login == 200
+            login2 = json.loads(login2_raw)
+            captured["nonce"] = login2["nonce"]
+            status_re_token, token_headers, _ = _request("POST", f"http://127.0.0.1:{port}/auth/iaf/token", {"code": "auth-code", "state": login2["state"]})
+            assert status_re_token == 200
+            session_cookie = ""
+            for chunk in (token_headers.get("set-cookie", "") or "").split(","):
+                for part in chunk.split(";"):
+                    part = part.strip()
+                    if part.startswith("zw_brain_session="):
+                        session_cookie = part.split("=", 1)[1]
+            assert session_cookie
+
+            # Issue logout with the cookie attached so id_token_hint flows from the session.
+            status_logout, logout_raw, _ = _request_raw(
+                "GET",
+                f"http://127.0.0.1:{port}/auth/iaf/logout?redirect_uri=http://127.0.0.1:{port}/",
+                headers={"Accept": "application/json", "Cookie": f"zw_brain_session={session_cookie}"},
+            )
+            assert status_logout == 200
+            logout = json.loads(logout_raw)
             assert logout["logout_url"].startswith("https://iaf.example/auth/realms/picp/protocol/openid-connect/logout")
             assert "post_logout_redirect_uri=" in logout["logout_url"]
-            assert logout["local_auth_cleared"] is True
-            _assert_no_secrets(logout)
-
             # id_token_hint is forwarded so the IdP can honor post_logout_redirect_uri without prompting.
-            status, logout_with_hint = _request_json(
-                "GET",
-                f"http://127.0.0.1:{port}/auth/iaf/logout?redirect_uri=http://127.0.0.1:{port}/&id_token_hint=id-hint-abc",
-            )
-            assert status == 200
-            assert "id_token_hint=id-hint-abc" in logout_with_hint["logout_url"]
+            # Source of truth is the session's stored id_token; we just assert presence + non-empty value.
+            assert "id_token_hint=" in logout["logout_url"]
+            assert "id_token_hint=&" not in logout["logout_url"]
+            assert logout["local_auth_cleared"] is True
+            _assert_no_secrets({k: v for k, v in logout.items() if k != "logout_url"})
 
             status, bad_login_redirect = _request_json("GET", f"http://127.0.0.1:{port}/auth/iaf/login?redirect_uri=https://evil.example/callback")
             assert status == 400
@@ -349,7 +368,7 @@ def test_iaf_oidc_rest_login_token_logout_uses_rs256_jwks_path() -> None:
             configure_iaf_auth_runtime(transport=None, jwks=None)
 
 
-def test_iaf_oidc_rest_token_endpoint_returns_token_package_for_spa() -> None:
+def test_iaf_oidc_rest_token_endpoint_establishes_bff_session_for_spa() -> None:
     with TemporaryDirectory() as tmp:
         _new_database_service(tmp)
         keys = _KeyFixture()
@@ -364,17 +383,24 @@ def test_iaf_oidc_rest_token_endpoint_returns_token_package_for_spa() -> None:
         configure_iaf_auth_runtime(transport=transport, jwks=keys.jwks)
         server, thread, port = _run_rest_server()
         try:
-            status, login = _request_json(
-                "GET",
-                f"http://127.0.0.1:{port}/auth/iaf/login?redirect_uri=http://127.0.0.1:{port}/",
-            )
-            assert status == 200
+            status_login, _, login_raw = _request("GET", f"http://127.0.0.1:{port}/auth/iaf/login?redirect_uri=http://127.0.0.1:{port}/")
+            assert status_login == 200
+            login = json.loads(login_raw)
             captured["nonce"] = login["nonce"]
-            status, token = _request_json("POST", f"http://127.0.0.1:{port}/auth/iaf/token", {"code": "auth-code", "state": login["state"]})
-            assert status == 200
-            assert token["access_token"]
-            assert token["refresh_token"] == "refresh-1"
-            assert token["actor_snapshot"]["subject"] == "iaf-bound-user"
+            status_token, headers_token, body_raw = _request("POST", f"http://127.0.0.1:{port}/auth/iaf/token", {"code": "auth-code", "state": login["state"]})
+            assert status_token == 200
+            body = json.loads(body_raw)
+            # Tokens stay server-side; the BFF response gives only the cookie + CSRF token + actor info.
+            assert "access_token" not in body
+            assert "refresh_token" not in body
+            assert "id_token" not in body
+            assert body["authenticated"] is True
+            assert body["csrf_token"]
+            assert body["actor_snapshot"]["subject"] == "iaf-bound-user"
+            set_cookie = headers_token.get("set-cookie") or ""
+            assert "zw_brain_session=" in set_cookie
+            assert "HttpOnly" in set_cookie
+            assert "SameSite=Lax" in set_cookie
         finally:
             server.shutdown()
             server.server_close()

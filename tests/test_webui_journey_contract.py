@@ -166,21 +166,33 @@ def test_webui_iam_auth_contract_uses_session_storage_and_user_menu() -> None:
     assert 'window.localStorage' not in auth_js
     assert "readAuthConfig" in auth_js
     assert "development_iam_bypass_enabled" in auth_js
-    assert "writeDevelopmentIamBypassSession" in auth_js
-    assert "session.development_iam_bypass !== true" in auth_js
-    assert "authConfig = await readAuthConfig()" in auth_js
-    # Bypass identity (display name, role list) now flows from /auth/iaf/config — frontend reads
-    # development_iam_bypass_user instead of hardcoding it; verifies the single source of truth.
-    assert "development_iam_bypass_user" in auth_js
+    # BFF model: state-changing requests double-submit the in-memory csrf_token via X-CSRF-Token.
+    # Tokens never reach the browser — no Authorization Bearer header on /api/* fetches.
+    assert "X-CSRF-Token" in auth_js
+    assert "credentials: 'include'" in auth_js
+    # Concrete code patterns that would indicate browser-side token handling — these must be gone.
+    assert "headers.set('Authorization'" not in auth_js
+    assert "session.access_token" not in auth_js
+    assert "session.refresh_token" not in auth_js
+    assert "session.id_token" not in auth_js
+    assert 'safeDecodeJwtPayload' not in auth_js
+    # Bypass mode uses a dedicated server endpoint so the BFF owns the synthetic session too.
+    assert "/auth/iaf/dev-bypass-login" in auth_js
+    assert "snapshot.development_iam_bypass" in auth_js
     assert "DEV_IAM_BYPASS_ROLES" not in auth_js
     assert "访客" not in auth_js
-    assert "headers.set('Authorization', `Bearer ${session.access_token}`)" in auth_js
-    assert "session.development_iam_bypass !== true" in auth_js
-    assert "tokenSecondsLeft(session) <= 0" in auth_js
-    assert "authConfig.development_iam_bypass_enabled === true" in auth_js
+    # Multi-tab login / logout propagation via BroadcastChannel — events only, no credentials.
+    assert "BroadcastChannel" in auth_js
+    assert "zw-brain-auth" in auth_js
+    # R-001 fix: a tab that hears `login` must NOT reload (empty sessionStorage would re-enter the
+    # OAuth flow and overwrite the cookie). It must instead pull csrf_token from /auth/iaf/session.
+    assert "/auth/iaf/session" in auth_js
+    assert "readCurrentSession" in auth_js
+    # R-005 fix: authFetch must clear the local snapshot on csrf_token_invalid so bootstrap can
+    # recover via /auth/iaf/session — otherwise the user silently wedges in a 403 loop.
+    assert "csrf_token_invalid" in auth_js
     assert 'setInterval' in auth_js and '5 * 60 * 1000' in auth_js
     assert 'REFRESH_THRESHOLD_SECONDS = 60' in auth_js
-    assert 'safeDecodeJwtPayload' in auth_js
     assert 'await window.ZW_AUTH.bootstrapAuth()' in app_js
     assert 'window.ZW_AUTH.authFetch(`/api/snapshot' in app_js
     assert "{ test: /^#\\/profile$/, page: 'profile', nav: null }" in app_js

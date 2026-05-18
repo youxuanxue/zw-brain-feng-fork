@@ -25,7 +25,12 @@ def test_generated_openapi_covers_registered_skills() -> None:
     assert "development_iam_bypass_enabled" in auth_config_schema["required"]
 
     request_create = paths["/api/skills/request.create"]["post"]
-    assert request_create["security"] == [{"BearerAuth": []}]
+    # Cookie + CSRF is the primary browser surface; Bearer is the fallback for CLI / direct API.
+    # Both must be advertised so OpenAPI clients can pick the right auth flow.
+    assert request_create["security"] == [
+        {"cookieAuth": [], "csrfToken": []},
+        {"BearerAuth": []},
+    ]
     assert "401" in request_create["responses"]
     assert "503" in request_create["responses"]
     assert request_create["x-zwbrain-skill-id"] == "request.create"

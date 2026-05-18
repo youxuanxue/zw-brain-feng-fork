@@ -4,9 +4,11 @@ import json
 import logging
 import mimetypes
 import os
+import secrets
 import ssl
 import time
 from collections.abc import Callable
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from socketserver import ThreadingMixIn
@@ -26,6 +28,12 @@ from zw_brain.command.brain import (
 )
 from zw_brain.command.runtime import get_service
 from zw_brain.shared.auth_context import auth_context_from_claims, reset_auth_context, set_auth_context
+from zw_brain.shared.auth_session import (
+    CSRF_HEADER_NAME,
+    SESSION_COOKIE_NAME,
+    AuthSession,
+    AuthSessionStore,
+)
 from zw_brain.shared.iaf_oidc import (
     DEFAULT_IAF_CLIENT_ID,
     HttpRequest,
@@ -71,6 +79,7 @@ _IAF_STATE_STORE = IafOidcStateStore()
 _IAF_TRANSPORT: Callable[[HttpRequest], HttpResponse] | None = None
 _IAF_JWKS: dict[str, Any] | None = None
 _IAF_JWKS_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+_AUTH_SESSION_STORE = AuthSessionStore()
 
 
 def _iaf_client_id() -> str:
@@ -106,13 +115,22 @@ def configure_iaf_auth_runtime(
     transport: Callable[[HttpRequest], HttpResponse] | None = None,
     jwks: dict[str, Any] | None = None,
     state_store: IafOidcStateStore | None = None,
+    session_store: AuthSessionStore | None = None,
 ) -> None:
-    global _IAF_TRANSPORT, _IAF_JWKS, _IAF_STATE_STORE
+    global _IAF_TRANSPORT, _IAF_JWKS, _IAF_STATE_STORE, _AUTH_SESSION_STORE
     _IAF_TRANSPORT = transport
     _IAF_JWKS = jwks
     _IAF_JWKS_CACHE.clear()
     if state_store is not None:
         _IAF_STATE_STORE = state_store
+    if session_store is not None:
+        _AUTH_SESSION_STORE = session_store
+    else:
+        _AUTH_SESSION_STORE.clear()
+
+
+def get_auth_session_store() -> AuthSessionStore:
+    return _AUTH_SESSION_STORE
 
 
 def _iaf_ssl_context() -> ssl.SSLContext:
@@ -204,6 +222,9 @@ class RestHandler(BaseHTTPRequestHandler):
         if parsed.path == "/auth/iaf/logout":
             self._handle_iaf_logout(parsed)
             return
+        if parsed.path == "/auth/iaf/session":
+            self._handle_iaf_session()
+            return
         if parsed.path == "/health":
             self._json(200, {"status": "ok", "service": "zw-brain-rest"})
             return
@@ -234,6 +255,9 @@ class RestHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/auth/iaf/refresh":
             self._handle_iaf_refresh()
+            return
+        if parsed.path == "/auth/iaf/dev-bypass-login":
+            self._handle_iaf_dev_bypass_login()
             return
         if parsed.path.startswith("/api/skills/"):
             self._with_authenticated_request(lambda claims: self._handle_api_skill_post(parsed, claims))
@@ -290,6 +314,32 @@ class RestHandler(BaseHTTPRequestHandler):
 
     def _with_authenticated_request(self, handler: Callable[[dict[str, Any]], None]) -> None:
         try:
+            # Path 1: cookie-bound BFF session is the primary browser surface. Even with the cookie,
+            # we re-run validate_access_token_health + RS256 verification per request so a revoked or
+            # tampered token cannot ride the session until expiry.
+            session = self._get_cookie_session()
+            if session is not None:
+                if self._method_requires_csrf() and not self._csrf_token_matches(session):
+                    self._json(403, {"error": "csrf_token_invalid"})
+                    return
+                if session.development_iam_bypass:
+                    claims = session.claims or _dev_iam_bypass_claims()
+                    context_token = set_auth_context(
+                        auth_context_from_claims(claims, client_id=_iaf_client_id(), development_iam_bypass=True)
+                    )
+                else:
+                    client = IafOidcClient()
+                    authorization = f"Bearer {session.access_token}"
+                    client.validate_access_token_health(authorization=authorization, transport=_IAF_TRANSPORT or _default_transport)
+                    claims = _verify_access_token_with_refresh(client, session.access_token)
+                    context_token = set_auth_context(auth_context_from_claims(claims, client_id=client.config.client_id))
+                try:
+                    handler(claims)
+                finally:
+                    reset_auth_context(context_token)
+                return
+
+            # Path 2: dev IAM bypass without an established cookie session (CLI / first-request bootstrap).
             if get_dev_iam_bypass_enabled():
                 claims = _dev_iam_bypass_claims()
                 context_token = set_auth_context(
@@ -300,10 +350,10 @@ class RestHandler(BaseHTTPRequestHandler):
                 finally:
                     reset_auth_context(context_token)
                 return
+
+            # Path 3: Authorization Bearer header — preserved for tests / direct API / CLI consumers.
             client = IafOidcClient()
             authorization = self.headers.get("Authorization") or ""
-            # healthz checks revocation; verify_iaf_access_token validates RS256 signature, issuer,
-            # audience and expiry locally so authorization does not rely on healthz semantics alone.
             client.validate_access_token_health(authorization=authorization, transport=_IAF_TRANSPORT or _default_transport)
             access_token = authorization.split(None, 1)[1]
             claims = _verify_access_token_with_refresh(client, access_token)
@@ -314,6 +364,37 @@ class RestHandler(BaseHTTPRequestHandler):
                 reset_auth_context(context_token)
         except Exception as exc:  # noqa: BLE001
             self._handle_error(exc)
+
+    def _method_requires_csrf(self) -> bool:
+        return str(self.command or "").upper() in {"POST", "PUT", "PATCH", "DELETE"}
+
+    def _csrf_token_matches(self, session: AuthSession) -> bool:
+        provided = self.headers.get(CSRF_HEADER_NAME) or ""
+        if not provided or not session.csrf_token:
+            return False
+        return secrets.compare_digest(str(provided), session.csrf_token)
+
+    def _get_cookie_session(self) -> AuthSession | None:
+        session_id = self._read_session_cookie()
+        if not session_id:
+            return None
+        return _AUTH_SESSION_STORE.get(session_id)
+
+    def _read_session_cookie(self) -> str:
+        raw = self.headers.get("Cookie") or ""
+        if not raw:
+            return ""
+        try:
+            jar: SimpleCookie = SimpleCookie()
+            jar.load(raw)
+        except Exception:  # noqa: BLE001
+            return ""
+        morsel = jar.get(SESSION_COOKIE_NAME)
+        return morsel.value if morsel else ""
+
+    def _is_https(self) -> bool:
+        # Behind a TLS-terminating proxy the X-Forwarded-Proto header is the authoritative signal.
+        return (self.headers.get("X-Forwarded-Proto") or "").lower() == "https"
 
     def _handle_iaf_token(self) -> None:
         try:
@@ -328,13 +409,96 @@ class RestHandler(BaseHTTPRequestHandler):
                 raise IafOidcTokenError("token response missing access_token")
             claims = self._claims_from_token_payload(client, token_payload, expected_nonce=login_state.nonce)
             actor_result = self._sync_actor_from_claims(claims)
-            response = self._public_token_payload(token_payload)
-            response["authenticated"] = True
-            response["actor_snapshot"] = actor_result["result"]["actor_snapshots"][0]
-            response["audit_id"] = actor_result["audit_id"]
-            self._json(200, response)
+            actor_snapshot = actor_result["result"]["actor_snapshots"][0]
+            audit_id = str(actor_result.get("audit_id") or "")
+            session = _AUTH_SESSION_STORE.create(
+                token_payload=token_payload,
+                claims=claims,
+                actor_snapshot=actor_snapshot,
+                audit_id=audit_id,
+            )
+            self._respond_with_session(session)
         except Exception as exc:  # noqa: BLE001
             self._handle_error(exc)
+
+    def _handle_iaf_session(self) -> None:
+        # Read-only: returns the public payload (incl. csrf_token) for the session bound to the
+        # cookie. Lets a freshly opened tab discover its csrf_token without re-running the OAuth
+        # flow — the cookie already carries authentication, sessionStorage is per-tab and needs
+        # bootstrapping. 401 if no cookie or session expired; never creates a session.
+        try:
+            session = self._get_cookie_session()
+            if session is None:
+                self._json(401, {"error": "session_missing"})
+                return
+            payload = json.dumps(session.public_payload(), ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+        except Exception as exc:  # noqa: BLE001
+            self._handle_error(exc)
+
+    def _handle_iaf_dev_bypass_login(self) -> None:
+        try:
+            if not get_dev_iam_bypass_enabled():
+                # 404 mirrors the response for unknown routes so a production server doesn't reveal
+                # that this dev-only endpoint exists at all.
+                self._json(404, {"error": "not_found", "path": "/auth/iaf/dev-bypass-login"})
+                return
+            claims = _dev_iam_bypass_claims()
+            # Bypass mode skips actor.projection.sync — the synthetic identity is not a real user and
+            # has no IAM-issued exp / iat. The session still carries enough actor info for the WebUI.
+            actor_snapshot = _dev_iam_bypass_user_profile()
+            token_payload = {"access_token": "", "expires_in": 24 * 60 * 60, "refresh_expires_in": 24 * 60 * 60}
+            session = _AUTH_SESSION_STORE.create(
+                token_payload=token_payload,
+                claims=claims,
+                actor_snapshot=actor_snapshot,
+                audit_id="dev-iam-bypass",
+                development_iam_bypass=True,
+            )
+            self._respond_with_session(session)
+        except Exception as exc:  # noqa: BLE001
+            self._handle_error(exc)
+
+    def _respond_with_session(self, session: AuthSession) -> None:
+        payload = json.dumps(session.public_payload(), ensure_ascii=False).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self._send_session_cookie(session)
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def _send_session_cookie(self, session: AuthSession) -> None:
+        max_age = max(int(session.refresh_expires_at - time.time()), 1)
+        # SameSite=Lax suffices: state-changing methods additionally require X-CSRF-Token.
+        # Secure is set whenever the request looks HTTPS (X-Forwarded-Proto=https) — local plain-HTTP
+        # tests still get a Cookie they can replay.
+        parts = [
+            f"{SESSION_COOKIE_NAME}={session.session_id}",
+            "Path=/",
+            f"Max-Age={max_age}",
+            "HttpOnly",
+            "SameSite=Lax",
+        ]
+        if self._is_https():
+            parts.append("Secure")
+        self.send_header("Set-Cookie", "; ".join(parts))
+
+    def _clear_session_cookie(self) -> None:
+        parts = [
+            f"{SESSION_COOKIE_NAME}=",
+            "Path=/",
+            "Max-Age=0",
+            "HttpOnly",
+            "SameSite=Lax",
+        ]
+        if self._is_https():
+            parts.append("Secure")
+        self.send_header("Set-Cookie", "; ".join(parts))
 
     def _claims_from_token_payload(self, client: IafOidcClient, token_payload: dict[str, Any], *, expected_nonce: str | None) -> dict[str, Any]:
         id_token = str(token_payload.get("id_token") or "")
@@ -355,10 +519,31 @@ class RestHandler(BaseHTTPRequestHandler):
 
     def _handle_iaf_refresh(self) -> None:
         try:
-            payload = self._read_json_body()
+            session = self._get_cookie_session()
+            if session is None:
+                self._json(401, {"error": "session_missing"})
+                return
+            if not self._csrf_token_matches(session):
+                self._json(403, {"error": "csrf_token_invalid"})
+                return
+            if session.development_iam_bypass:
+                # Bypass sessions carry no IAM refresh token; "refresh" simply echoes current payload.
+                self._respond_with_session(session)
+                return
+            if not session.refresh_token:
+                self._json(401, {"error": "refresh_token_missing"})
+                return
             client = IafOidcClient()
-            token_payload = client.refresh_access_token(refresh_token=str(payload.get("refresh_token") or ""), transport=_IAF_TRANSPORT or _default_transport)
-            self._json(200, self._public_token_payload(token_payload))
+            token_payload = client.refresh_access_token(refresh_token=session.refresh_token, transport=_IAF_TRANSPORT or _default_transport)
+            claims = session.claims
+            if str(token_payload.get("id_token") or ""):
+                # Re-verify claims when IAM rotates the id_token during refresh.
+                claims = self._claims_from_token_payload(client, token_payload, expected_nonce=None)
+            updated = _AUTH_SESSION_STORE.update_tokens(session.session_id, token_payload=token_payload, claims=claims)
+            if updated is None:
+                self._json(401, {"error": "session_expired"})
+                return
+            self._respond_with_session(updated)
         except IafOidcError as exc:
             if "HTTP 401" in str(exc):
                 self._json(401, {"error": "iaf_auth_error", "detail": "refresh token invalid or expired"})
@@ -382,19 +567,16 @@ class RestHandler(BaseHTTPRequestHandler):
             },
         )
 
-    def _public_token_payload(self, token_payload: dict[str, Any]) -> dict[str, Any]:
-        # id_token is forwarded so the SPA can later pass it as id_token_hint at logout time, which
-        # most OIDC providers (incl. Keycloak) require to honor post_logout_redirect_uri without prompting.
-        allowed = {"access_token", "refresh_token", "expires_in", "refresh_expires_in", "token_type", "scope", "id_token"}
-        return {key: value for key, value in token_payload.items() if key in allowed}
-
     def _handle_iaf_logout(self, parsed) -> None:  # type: ignore[no-untyped-def]
         try:
             qs = parse_qs(parsed.query)
             redirect_uri = (qs.get("redirect_uri") or [""])[-1]
-            id_token_hint = (qs.get("id_token_hint") or [""])[-1]
-            if get_dev_iam_bypass_enabled():
-                self._json(200, {"logout_url": self._same_origin_url(redirect_uri, default_path="/"), "local_auth_cleared": True})
+            session = self._get_cookie_session()
+            id_token_hint = session.id_token if session is not None else ""
+            if session is not None:
+                _AUTH_SESSION_STORE.delete(session.session_id)
+            if get_dev_iam_bypass_enabled() or (session is not None and session.development_iam_bypass):
+                self._respond_with_logout({"logout_url": self._same_origin_url(redirect_uri, default_path="/"), "local_auth_cleared": True})
                 return
             config = IafOidcClient().config
             params: dict[str, str] = {}
@@ -405,9 +587,18 @@ class RestHandler(BaseHTTPRequestHandler):
             logout_url = config.endpoints.logout_endpoint
             if params:
                 logout_url = f"{logout_url}?{urlencode(params)}"
-            self._json(200, {"logout_url": logout_url, "local_auth_cleared": True})
+            self._respond_with_logout({"logout_url": logout_url, "local_auth_cleared": True})
         except Exception as exc:  # noqa: BLE001
             self._handle_error(exc)
+
+    def _respond_with_logout(self, body: dict[str, Any]) -> None:
+        payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self._clear_session_cookie()
+        self.end_headers()
+        self.wfile.write(payload)
 
     def _request_url(self, path: str) -> str:
         scheme = "https" if self.headers.get("X-Forwarded-Proto") == "https" else "http"

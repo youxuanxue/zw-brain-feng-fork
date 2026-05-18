@@ -200,7 +200,8 @@ def build_standard_responses(output_schema: dict[str, Any], *, write: bool, prot
             "description": "Confirmation required or invalid state",
             "content": {"application/json": {"schema": ERROR_RESPONSE_SCHEMA}},
         }
-    responses["401"] = {"description": "Missing, invalid, or expired Bearer token"}
+    responses["401"] = {"description": "Missing/invalid session cookie or Bearer token, or token expired"}
+    responses["403"] = {"description": "Forbidden (e.g. csrf_token_invalid on cookie-authenticated writes)"}
     responses["503"] = {"description": "IAF token validation service unavailable"}
     return responses
 
@@ -237,8 +238,26 @@ def build_rest_operation(skill: dict[str, Any], *, method: str) -> dict[str, Any
                 }
             },
         }
-    operation["security"] = [{"BearerAuth": []}]
+    # Two acceptable auth surfaces: BFF session cookie (with X-CSRF-Token on writes) or Bearer JWT.
+    if write:
+        operation["security"] = [{"cookieAuth": [], "csrfToken": []}, {"BearerAuth": []}]
+    else:
+        operation["security"] = [{"cookieAuth": []}, {"BearerAuth": []}]
     return operation
+
+
+SESSION_PUBLIC_PAYLOAD_SCHEMA = {
+    "type": "object",
+    "required": ["authenticated", "csrf_token", "expires_at"],
+    "properties": {
+        "authenticated": {"type": "boolean"},
+        "csrf_token": {"type": "string", "description": "Double-submit token; required as X-CSRF-Token on writes"},
+        "expires_at": {"type": "integer", "description": "Unix seconds when the access window expires"},
+        "actor_snapshot": {"type": "object"},
+        "audit_id": {"type": "string"},
+        "development_iam_bypass": {"type": "boolean"},
+    },
+}
 
 
 def build_iaf_auth_paths() -> dict[str, Any]:
@@ -272,7 +291,8 @@ def build_iaf_auth_paths() -> dict[str, Any]:
         },
         "/auth/iaf/token": {
             "post": {
-                "summary": "Exchange IAF authorization code for token",
+                "summary": "Exchange IAF authorization code, establish BFF session cookie",
+                "description": "On success the server stores access / refresh / id tokens server-side and binds them to an HttpOnly session cookie. The response body intentionally omits all tokens; the client only needs the csrf_token for subsequent writes.",
                 "operationId": "exchangeIafCodeForToken",
                 "requestBody": {
                     "required": True,
@@ -287,44 +307,75 @@ def build_iaf_auth_paths() -> dict[str, Any]:
                     },
                 },
                 "responses": {
-                    "200": {"description": "Token package and actor snapshot"},
+                    "200": {
+                        "description": "Session established; Set-Cookie carries zw_brain_session (HttpOnly, SameSite=Lax, Secure under HTTPS)",
+                        "headers": {
+                            "Set-Cookie": {
+                                "description": "zw_brain_session=<id>; Path=/; Max-Age=...; HttpOnly; SameSite=Lax; Secure when HTTPS",
+                                "schema": {"type": "string"},
+                            }
+                        },
+                        "content": {"application/json": {"schema": SESSION_PUBLIC_PAYLOAD_SCHEMA}},
+                    },
                     "400": {"description": "State or code exchange failed"},
                     "401": {"description": "Token verification failed"},
                 },
             }
         },
+        "/auth/iaf/session": {
+            "get": {
+                "summary": "Return the public payload for the current BFF session (no side effects)",
+                "description": "Lets a freshly opened tab discover its csrf_token without re-running the OAuth flow. The session cookie carries authentication; this endpoint never creates a session.",
+                "operationId": "getIafSession",
+                "security": [{"cookieAuth": []}],
+                "responses": {
+                    "200": {"content": {"application/json": {"schema": SESSION_PUBLIC_PAYLOAD_SCHEMA}}, "description": "Current session public payload"},
+                    "401": {"description": "No session cookie or session expired"},
+                },
+            }
+        },
         "/auth/iaf/refresh": {
             "post": {
-                "summary": "Refresh IAF access token",
+                "summary": "Refresh IAF tokens using the cookie-bound session",
+                "description": "Reads the refresh_token from the server-side session; the request body is intentionally ignored. Requires X-CSRF-Token to defeat CSRF.",
                 "operationId": "refreshIafToken",
-                "requestBody": {
-                    "required": True,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "required": ["refresh_token"],
-                                "properties": {"refresh_token": {"type": "string"}},
-                            }
-                        }
-                    },
-                },
+                "security": [{"cookieAuth": [], "csrfToken": []}],
                 "responses": {
-                    "200": {"description": "Refreshed token package"},
-                    "401": {"description": "Refresh token invalid or expired"},
+                    "200": {"content": {"application/json": {"schema": SESSION_PUBLIC_PAYLOAD_SCHEMA}}, "description": "Refreshed session public payload"},
+                    "401": {"description": "Session missing or refresh token invalid / expired"},
+                    "403": {"description": "csrf_token_invalid"},
+                },
+            }
+        },
+        "/auth/iaf/dev-bypass-login": {
+            "post": {
+                "summary": "Establish a BFF session in development IAM bypass mode",
+                "description": "Returns 404 unless both ZW_BRAIN_DEV_IAM_BYPASS=1 and ZW_BRAIN_DEV_IAM_BYPASS_ACK=development-only are set. Production servers expose this as a 404.",
+                "operationId": "devBypassLogin",
+                "responses": {
+                    "200": {
+                        "description": "Bypass session established",
+                        "headers": {"Set-Cookie": {"schema": {"type": "string"}}},
+                        "content": {"application/json": {"schema": SESSION_PUBLIC_PAYLOAD_SCHEMA}},
+                    },
+                    "404": {"description": "Bypass disabled (production-equivalent)"},
                 },
             }
         },
         "/auth/iaf/logout": {
             "get": {
-                "summary": "Build IAF logout URL",
+                "summary": "Drop the BFF session and build the IAF logout URL",
+                "description": "Reads id_token_hint from the cookie-bound session. Clears the session cookie on the response.",
                 "operationId": "logoutIaf",
+                "security": [{"cookieAuth": []}],
                 "parameters": [
                     {"name": "redirect_uri", "in": "query", "required": False, "schema": {"type": "string"}},
-                    {"name": "id_token_hint", "in": "query", "required": False, "schema": {"type": "string"}},
                 ],
                 "responses": {
-                    "200": {"description": "IAF logout URL"},
+                    "200": {
+                        "description": "IAF logout URL; cookie cleared",
+                        "headers": {"Set-Cookie": {"schema": {"type": "string"}}},
+                    },
                     "400": {"description": "Invalid redirect URI"},
                 },
             }
@@ -389,7 +440,7 @@ def build_rest_openapi(skills: list[dict[str, Any]]) -> dict[str, Any]:
                             }
                         },
                     },
-                    "401": {"description": "Missing, invalid, or expired Bearer token"},
+                    "401": {"description": "Missing/invalid session cookie or Bearer token"},
                     "503": {"description": "IAF token validation service unavailable"},
                 },
                 "parameters": [
@@ -401,7 +452,7 @@ def build_rest_openapi(skills: list[dict[str, Any]]) -> dict[str, Any]:
                         "description": "Web UI role; snapshot lists are redacted server-side to match page access.",
                     }
                 ],
-                "security": [{"BearerAuth": []}],
+                "security": [{"cookieAuth": []}, {"BearerAuth": []}],
             }
         },
     }
@@ -426,7 +477,9 @@ def build_rest_openapi(skills: list[dict[str, Any]]) -> dict[str, Any]:
         "paths": paths,
         "components": {
             "securitySchemes": {
-                "BearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
+                "BearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"},
+                "cookieAuth": {"type": "apiKey", "in": "cookie", "name": "zw_brain_session"},
+                "csrfToken": {"type": "apiKey", "in": "header", "name": "X-CSRF-Token"},
             }
         },
     }
