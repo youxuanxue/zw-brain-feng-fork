@@ -210,6 +210,18 @@ else
     skip "scripts/sync-stats.sh not available"
 fi
 
+section "deleted files not still referenced (config/frontmatter)"
+if [ -f dev-rules/scripts/check_deleted_file_refs.py ]; then
+    if "${PYTHON_BIN:-python3}" dev-rules/scripts/check_deleted_file_refs.py > /tmp/preflight-deleted-refs.log 2>&1; then
+        ok "no dangling references to deleted files"
+    else
+        cat /tmp/preflight-deleted-refs.log | sed 's/^/    /'
+        fail "deleted file(s) still referenced in build config or doc frontmatter — fix reference or restore file"
+    fi
+else
+    skip "dev-rules/scripts/check_deleted_file_refs.py not present"
+fi
+
 section "cloud-agent env consistency (tools + secrets, both local and cloud)"
 if [ -f .cursor/cloud-agent.env ] && [ -x dev-rules/templates/cloud-agent-bootstrap.sh ]; then
     if [ -z "${CLOUD_AGENT_FORCE_CHECK:-}" ] && \
