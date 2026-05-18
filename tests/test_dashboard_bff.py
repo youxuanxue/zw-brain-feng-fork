@@ -37,8 +37,6 @@ def test_dashboard_bff_is_readonly_and_serves_dashboard_skill() -> None:
         from importlib.util import module_from_spec, spec_from_file_location
         from threading import Thread
 
-        from zw_brain_dashboard_bff import main as _  # noqa: F401
-
         module_path = Path(__file__).resolve().parents[1] / "zw-brain-dashboard" / "bff" / "main.py"
         spec = spec_from_file_location("zw_brain_dashboard_bff_impl", module_path)
         module = module_from_spec(spec)
