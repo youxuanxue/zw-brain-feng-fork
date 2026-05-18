@@ -5,7 +5,7 @@ description = "政务大脑 — AI-native re-architecture of the legacy Inspur �
 requires-python = ">=3.11"  # `from datetime import UTC` (3.11+); 3.10 is EOL Oct 2026
 authors = [{ name = "Inspur Cloud — 海若产品部", email = "zw-brain@inspur.com" }]
 license = { text = "Proprietary" }
-readme = "prototype/README.md"
+readme = "docs/deployment/sd-default-onboarding.md"
 dependencies = [
   "SQLAlchemy>=2.0",
   "alembic>=1.18",

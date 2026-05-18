@@ -903,7 +903,7 @@ adapter 绝不负责：
 | 统一能力契约由单一来源派生 | 已有基础 | 继续依赖 `export_agent_contract.py --check` |
 | 模型调用只能走集团推理平台 | 已 wired | 继续依赖 preflight 段 10 |
 | 大屏只读且与主大脑解耦 | 已 wired | 继续依赖 preflight 段 11 |
-| approved 设计必须配套原型（历史 D21） | 已退役 | 2026-04-28 起不再依赖 preflight 段 13；正式 WebUI 是界面验证载体，`prototype/capability-sheets/` 与 `prototype/storyboards/` 仅作为产品叙事文档保留 |
+| approved 设计必须配套原型（历史 D21） | 已退役 | 2026-04-28 起不再依赖 preflight 段 13；正式 WebUI 是界面验证载体。2026-05-18 起 `prototype/` 目录整体退役（能力归属规则与系统级护栏已吸收进 `.experiences/README.md`），产品叙事单一事实源在 `.experiences/` |
 | 外部引用悬空不得合并 | 已 wired | 继续依赖 preflight 段 14 |
 | 外部能力包必须带治理元数据 | 待接入 | 建议新增 package schema 检查 |
 | Capability 的确认边界不得被 UI / Agent 绕过 | 待接入 | 建议新增 contract-to-runtime 一致性检查 |
