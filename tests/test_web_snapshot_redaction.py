@@ -28,13 +28,20 @@ def test_redact_r1_strips_capability_packages_but_keeps_delivery() -> None:
             assert blocked_out["delivery_tasks"] == [], f"{blocked} must not see raw delivery_tasks"
 
 
-def test_redact_r7_keeps_capability_packages() -> None:
+def test_redact_r7_keeps_capability_packages_others_lose_them() -> None:
     with TemporaryDirectory() as tmp:
         store = StateStore(Path(tmp) / "state.json")
         svc = BrainService(state_store=store)
         full = svc.snapshot()
-        out = redact_webui_snapshot(full, "r7")
-        assert len(out["capability_packages"]) > 0
+        # Sanity: fixture must seed packages or the redaction decision below is vacuous.
+        assert full["capability_packages"], "fixture seed must include capability packages"
+        r7_out = redact_webui_snapshot(full, "r7")
+        r3_out = redact_webui_snapshot(full, "r3")
+        # R7 sees the original set (preservation, not just non-empty);
+        # R3 sees an empty list (consistent with the R3/R4-as-blocked convention
+        # used in test_redact_r1_strips_capability_packages_but_keeps_delivery).
+        assert r7_out["capability_packages"] == full["capability_packages"]
+        assert r3_out["capability_packages"] == []
 
 
 def test_invoke_system_snapshot_uses_role_payload() -> None:

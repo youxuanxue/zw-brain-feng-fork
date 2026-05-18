@@ -59,6 +59,26 @@ fail()    { echo "  FAIL: $*"; errors=$((errors + 1)); }
 ok()      { echo "  ok: $*"; }
 skip()    { echo "  skip: $*"; }
 
+# Standard wrapper for dev-rules upstream check_*.py invocations.
+# Usage: run_dev_rules_check <script_basename> <stage_name> <ok_msg> <fail_msg>
+# Log file is /tmp/preflight-<script_stem>.log; PYTHON_BIN respected.
+run_dev_rules_check() {
+    local script="$1" stage="$2" ok_msg="$3" fail_msg="$4"
+    local path="dev-rules/scripts/$script"
+    local log="/tmp/preflight-$(basename "$script" .py).log"
+    section "$stage"
+    if [ -f "$path" ]; then
+        if "${PYTHON_BIN:-python3}" "$path" > "$log" 2>&1; then
+            ok "$ok_msg"
+        else
+            cat "$log" | sed 's/^/    /'
+            fail "$fail_msg"
+        fi
+    else
+        skip "$path not present"
+    fi
+}
+
 git_sub() {
     local subdir="$1"; shift
     (
@@ -210,17 +230,35 @@ else
     skip "scripts/sync-stats.sh not available"
 fi
 
-section "deleted files not still referenced (config/frontmatter)"
-if [ -f dev-rules/scripts/check_deleted_file_refs.py ]; then
-    if "${PYTHON_BIN:-python3}" dev-rules/scripts/check_deleted_file_refs.py > /tmp/preflight-deleted-refs.log 2>&1; then
-        ok "no dangling references to deleted files"
-    else
-        cat /tmp/preflight-deleted-refs.log | sed 's/^/    /'
-        fail "deleted file(s) still referenced in build config or doc frontmatter — fix reference or restore file"
-    fi
-else
-    skip "dev-rules/scripts/check_deleted_file_refs.py not present"
-fi
+run_dev_rules_check check_contract_deletion_notice.py \
+    "contract deletion notice" \
+    "contract deletion: no public-contract paths removed (or notice token present)" \
+    "contract deletion requires explicit notice token in commit message"
+
+run_dev_rules_check check_web_surface_alignment.py \
+    "web surface alignment" \
+    "web surface: backend changes paired with web review (or web-only)" \
+    "backend changes need web-surface review note (or no-web-impact declaration)"
+
+run_dev_rules_check check_high_risk_anchor.py \
+    "high-risk approval anchor" \
+    "high-risk anchor: no migrations/schema changes (or approved-doc anchor present)" \
+    "high-risk path change requires anchor in docs/approved/* (token: high-risk-anchor)"
+
+run_dev_rules_check check_workflow_yaml.py \
+    "workflow yaml hygiene" \
+    "workflow yaml clean (no env.* in job-level if, claude -p has --allowedTools)" \
+    ".github/workflows/*.yml has hard-failure patterns (see above)"
+
+run_dev_rules_check check_existence_only_tests.py \
+    "no existence-only tests" \
+    "no existence-only tests (per test-philosophy.mdc)" \
+    "test(s) only assert file existence — replace with behavior assertions"
+
+run_dev_rules_check check_deleted_file_refs.py \
+    "deleted files not still referenced (config/frontmatter)" \
+    "no dangling references to deleted files" \
+    "deleted file(s) still referenced in build config or doc frontmatter — fix reference or restore file"
 
 section "cloud-agent env consistency (tools + secrets, both local and cloud)"
 if [ -f .cursor/cloud-agent.env ] && [ -x dev-rules/templates/cloud-agent-bootstrap.sh ]; then
