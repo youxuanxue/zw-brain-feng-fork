@@ -1,5 +1,11 @@
 # dsp-require / dsp-supply / dsp-exchange 相关模块重构方案 v1
 
+> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
+> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
+> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
+> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 原版 R 编号见 git blame。
+
 > 范围：旧平台 `old/old_codes/dsp-require`（目标版本 `v4.2.13`）、`old/old_codes/dsp-supply`（目标版本 `v4.9.13`）、`old/old_codes/dsp-exchange`（目标 tag `4.3.23`）、外部调用分析 `old/old_codes_analyse/dsp-exchange-apis.md`、旧结构数据 `old/12-datastructure` 与脱敏工单数据 `old/工单导出-列缩减.xlsx`。
 > 结论：zw-brain 是全新 AI 原生项目，不兼容旧接口、旧菜单、旧库表，也不把 require / supply / exchange 原样迁成三个新子系统；本方案只吸收需求形成、申请审批、授权续期、交换交付、订阅直达、运行回执等承重业务语义，重建为围绕主旅程、统一 Capability、可审计、可外化扩展的能力面。
 > 单一事实源：本文是 dsp-require / dsp-supply / dsp-exchange 专题映射、字段落位、能力迁移、工单解释和 ANP 外化边界的单一事实源；`docs/approved/*` 只保留 canonical 通用模型与本文引用。
@@ -58,8 +64,8 @@ zw-brain 不继承这些模块名，也不复刻它们的页面层级。它们�
 | --- | --- |
 | `docs/approved/zw-brain-architecture-v4-gpt55.md` | 产品围绕少数高频旅程；人和 Agent 共用同一 Capability；新增能力默认外部生产、平台注册；合规可证迹内建。 |
 | `docs/approved/zw-brain-data-model-v4-gpt55.md` | 模型围绕旅程与审计组织，不围绕 legacy 表名组织；申请、审批、交付、订阅必须保留显式状态机。 |
-| `docs/approved/zw-brain-golden-path-r1-r3-r5-v1.md` | 首条黄金链路要把上级需求、资源/模板复用、基层补差、审核汇总和回流共享资源池打通。 |
-| `docs/approved/zw-brain-user-roles-and-journeys-v1.md` | 用户不是抽象管理员，而是要数的人、管数的人、填数的人、审数的人、查责的人；供需和交换能力必须服务这些岗位。 |
+| `docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）` | 首条黄金链路要把上级需求、资源/模板复用、基层补差、审核汇总和回流共享资源池打通。 |
+| `docs/approved/zw-brain-roles-v2.md (取代于 D23)` | 用户不是抽象管理员，而是要数的人、管数的人、填数的人、审数的人、查责的人；供需和交换能力必须服务这些岗位。 |
 | `docs/approved/research-yibiaotong-zw-brain-v4.md` | zw-brain 必须承接上级交换和基层填报链路；供需/交换不是孤立后台，而是上下级协同和直达交付的中枢。 |
 
 ### 2.2 外部使用证据
@@ -183,7 +189,7 @@ zw-brain 不继承这些模块名，也不复刻它们的页面层级。它们�
 | 库表 | 40 | 库表交换和建表是高风险执行动作，需要审批、回执和脱敏引用。 |
 | 订阅 | 9 | 订阅出现次数低，但属于长周期交付事实，需显式建模。 |
 
-状态分布：已完成 698、挂起 63、处理中 21、升级中 7、撤销 2。问题级别历史中 `中心需求D3` 326、`请求R4` 137、`中心需求D2` 76、`中心需求D1` 51。这个分布只能支撑一个保守结论：真实问题大量来自需求请求和现场处理，不足以证明某个旧模块应原样保留；是否进入核心仍要看它能否服务发现、申请、审批、授权、交付和追责闭环。
+状态分布：已完成 698、挂起 63、处理中 21、升级中 7、撤销 2。问题级别历史中 `中心需求D3` 326、`请求村社区填报人` 137、`中心需求D2` 76、`中心需求D1` 51。这个分布只能支撑一个保守结论：真实问题大量来自需求请求和现场处理，不足以证明某个旧模块应原样保留；是否进入核心仍要看它能否服务发现、申请、审批、授权、交付和追责闭环。
 
 ### 4.2 工单样本对设计的约束
 

@@ -53,8 +53,8 @@ def _valid_claims(nonce: str) -> dict[str, Any]:
         "nonce": nonce,
         "preferred_username": "session_user",
         "project_id": "sd-default",
-        "realm_access": {"roles": ["r7"]},
-        "resource_access": {"zw-brain": {"roles": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"]}},
+        "realm_access": {"roles": ["ROLE_BUSIAUDIT"]},
+        "resource_access": {"zw-brain": {"roles": ["ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_ORGAN_OPERATER", "ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"]}},
     }
 
 
@@ -224,7 +224,7 @@ def test_cookie_session_authenticates_snapshot() -> None:
             session_cookie, _ = _establish_session(port, keys)
             status, _, body = _request(
                 "GET",
-                f"http://127.0.0.1:{port}/api/snapshot?role=r1",
+                f"http://127.0.0.1:{port}/api/snapshot?role=ROLE_ORGAN_OPERATER",
                 headers={"Cookie": f"{SESSION_COOKIE_NAME}={session_cookie}"},
             )
             assert status == 200, body
@@ -241,7 +241,7 @@ def test_missing_cookie_returns_401_when_no_bearer() -> None:
         configure_iaf_auth_runtime(transport=lambda request: HttpResponse(status_code=401, body=b"{}", headers={}))
         server, thread, port = _run_server()
         try:
-            status, _, _ = _request("GET", f"http://127.0.0.1:{port}/api/snapshot?role=r1")
+            status, _, _ = _request("GET", f"http://127.0.0.1:{port}/api/snapshot?role=ROLE_ORGAN_OPERATER")
             assert status in (400, 401)
         finally:
             server.shutdown()
@@ -260,7 +260,7 @@ def test_post_without_csrf_token_returns_403() -> None:
             status, _, body = _request(
                 "POST",
                 f"http://127.0.0.1:{port}/api/skills/system.snapshot",
-                body={"role": "r1"},
+                body={"role": "ROLE_ORGAN_OPERATER"},
                 headers={"Cookie": f"{SESSION_COOKIE_NAME}={session_cookie}"},
             )
             assert status == 403, body
@@ -281,7 +281,7 @@ def test_post_with_wrong_csrf_returns_403() -> None:
             status, _, body = _request(
                 "POST",
                 f"http://127.0.0.1:{port}/api/skills/system.snapshot",
-                body={"role": "r1"},
+                body={"role": "ROLE_ORGAN_OPERATER"},
                 headers={"Cookie": f"{SESSION_COOKIE_NAME}={session_cookie}", CSRF_HEADER_NAME: "totally-wrong"},
             )
             assert status == 403, body
@@ -358,7 +358,7 @@ def test_bearer_fallback_still_works_for_direct_api_clients() -> None:
         try:
             status, _, body = _request(
                 "GET",
-                f"http://127.0.0.1:{port}/api/snapshot?role=r1",
+                f"http://127.0.0.1:{port}/api/snapshot?role=ROLE_ORGAN_OPERATER",
                 headers={"Authorization": f"Bearer {access_token}"},
             )
             assert status == 200, body

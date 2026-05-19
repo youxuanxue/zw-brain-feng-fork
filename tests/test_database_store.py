@@ -19,11 +19,11 @@ def test_database_store_persists_runtime_state() -> None:
         store = DatabaseStore()
         snapshot, ui_state = store.load_runtime_state()
         assert "requests" in snapshot
-        ui_state["role"] = "r6"
+        ui_state["role"] = "ROLE_ORGAN_MANAGER"
         store.save_runtime_state(snapshot, ui_state)
         loaded_snapshot, loaded_ui = store.load_runtime_state()
         assert "requests" in loaded_snapshot
-        assert loaded_ui["role"] == "r6"
+        assert loaded_ui["role"] == "ROLE_ORGAN_MANAGER"
 
         engine = create_engine(f"sqlite:///{db_path}", future=True)
         tables = set(inspect(engine).get_table_names())
@@ -100,7 +100,7 @@ def test_runtime_service_uses_database_backing() -> None:
         database_store = DatabaseStore()
         audit_bus.configure_sink(database_store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=database_store))
-        service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True})
+        service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
         snapshot, _ = database_store.load_runtime_state()
         request = next(item for item in snapshot["requests"] if item["id"] == "REQ-2026-04-25-0011")
         assert request["status"] == "granted"
@@ -135,13 +135,13 @@ def test_database_store_records_capability_calls_and_tenant_policy_decisions() -
         database_store = DatabaseStore()
         audit_bus.configure_sink(database_store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=database_store))
-        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
 
-        decision = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "ledger.entity.base.read", "surface": "api", "role": "r7"})
-        blocked = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "ledger.entity.base.read", "surface": "webui", "role": "r7"})
-        service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "r2"})
+        decision = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "ledger.entity.base.read", "surface": "api", "role": "ROLE_BUSIAUDIT"})
+        blocked = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "ledger.entity.base.read", "surface": "webui", "role": "ROLE_BUSIAUDIT"})
+        service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "ROLE_ORGAN_MANAGER"})
         calls = database_store.list_capability_calls()
 
         assert decision["source"] == "tenant_capability_policy"

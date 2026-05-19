@@ -19,7 +19,7 @@ def rest_policy_eval(capability_id: str, surface: str) -> str:
         "from zw_brain.entry.rest.server import require_surface, get_service; "
         "require_surface('tenant.policy.evaluate', 'api'); "
         "print(json.dumps(get_service().invoke_skill('tenant.policy.evaluate', "
-        f"{{'capability_id':{capability_id!r},'surface':{surface!r},'role':'r7'}}), ensure_ascii=False))"
+        f"{{'capability_id':{capability_id!r},'surface':{surface!r},'role':'ROLE_BUSIAUDIT'}}), ensure_ascii=False))"
     )
 
 
@@ -46,7 +46,7 @@ def test_cli_mcp_and_a2a_share_runtime_contract() -> None:
 
         ensure_runtime_schema()
 
-        cli = run_module("-m", "zw_brain.entry.cli.main", "data.search", "--payload", '{"query":"法人","role":"r1"}', env=env)
+        cli = run_module("-m", "zw_brain.entry.cli.main", "data.search", "--payload", '{"query":"法人","role":"ROLE_ORGAN_OPERATER"}', env=env)
         cli_data = json.loads(cli.stdout)
         assert cli_data["results"]
 
@@ -62,7 +62,7 @@ def test_cli_mcp_and_a2a_share_runtime_contract() -> None:
             "call-tool",
             "request.view",
             "--payload",
-            '{"request_id":"REQ-2026-04-25-0011","role":"r1"}',
+            '{"request_id":"REQ-2026-04-25-0011","role":"ROLE_ORGAN_OPERATER"}',
             env=env,
         )
         mcp_data = json.loads(mcp_call.stdout)
@@ -80,7 +80,7 @@ def test_cli_mcp_and_a2a_share_runtime_contract() -> None:
             "invoke",
             "dashboard.render_command_center",
             "--payload",
-            '{"role":"r8"}',
+            '{"role":"ROLE_SECURITY_AUDIT"}',
             env=env,
         )
         a2a_data = json.loads(a2a_invoke.stdout)
@@ -92,7 +92,7 @@ def test_cli_mcp_and_a2a_share_runtime_contract() -> None:
             "zw_brain.entry.cli.main",
             "approval.review_decide",
             "--payload",
-            '{"request_id":"REQ-2026-04-25-0011","decision":"approve","role":"r1","confirmed":true}',
+            '{"request_id":"REQ-2026-04-25-0011","decision":"approve","role":"ROLE_ORGAN_OPERATER","confirmed":true}',
             env=env,
             check=False,
         )
@@ -105,7 +105,7 @@ def test_cli_mcp_and_a2a_share_runtime_contract() -> None:
             "call-tool",
             "request.create",
             "--payload",
-            '{"resource_id":"res-market-activity","role":"r1","confirmed":true}',
+            '{"resource_id":"res-market-activity","role":"ROLE_ORGAN_OPERATER","confirmed":true}',
             env=env,
             check=False,
         )
@@ -118,7 +118,7 @@ def test_cli_mcp_and_a2a_share_runtime_contract() -> None:
             "call-tool",
             "approval.review_decide",
             "--payload",
-            '{"request_id":"REQ-2026-04-25-0011","decision":"approve","role":"r1","confirmed":true}',
+            '{"request_id":"REQ-2026-04-25-0011","decision":"approve","role":"ROLE_ORGAN_OPERATER","confirmed":true}',
             env=env,
             check=False,
         )
@@ -131,7 +131,7 @@ def test_cli_mcp_and_a2a_share_runtime_contract() -> None:
             "invoke",
             "approval.review_decide",
             "--payload",
-            '{"request_id":"REQ-2026-04-25-0011","decision":"approve","role":"r1","confirmed":true}',
+            '{"request_id":"REQ-2026-04-25-0011","decision":"approve","role":"ROLE_ORGAN_OPERATER","confirmed":true}',
             env=env,
             check=False,
         )
@@ -152,9 +152,9 @@ def test_governance_iam_overview_shared_across_cli_mcp_a2a() -> None:
         from zw_brain.shared.migrate import ensure_runtime_schema
 
         ensure_runtime_schema()
-        cli = json.loads(run_module("-m", "zw_brain.entry.cli.main", "governance.iam_overview", "--payload", '{"role":"r7"}', env=env).stdout)
-        mcp = json.loads(run_module("-m", "zw_brain.entry.mcp.server", "call-tool", "governance.iam_overview", "--payload", '{"role":"r7"}', env=env).stdout)["result"]
-        a2a = json.loads(run_module("-m", "zw_brain.entry.a2a.server", "invoke", "governance.iam_overview", "--payload", '{"role":"r7"}', env=env).stdout)["result"]
+        cli = json.loads(run_module("-m", "zw_brain.entry.cli.main", "governance.iam_overview", "--payload", '{"role":"ROLE_BUSIAUDIT"}', env=env).stdout)
+        mcp = json.loads(run_module("-m", "zw_brain.entry.mcp.server", "call-tool", "governance.iam_overview", "--payload", '{"role":"ROLE_BUSIAUDIT"}', env=env).stdout)["result"]
+        a2a = json.loads(run_module("-m", "zw_brain.entry.a2a.server", "invoke", "governance.iam_overview", "--payload", '{"role":"ROLE_BUSIAUDIT"}', env=env).stdout)["result"]
         for payload in [cli, mcp, a2a]:
             assert payload["tenant_id"] == "sd-default"
             assert "summary" in payload
@@ -181,7 +181,7 @@ def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
             "zw_brain.entry.cli.main",
             "package.review_decide",
             "--payload",
-            '{"package_id":"PKG-2026-04-25-001","decision":"approve","role":"r7","confirmed":true}',
+            '{"package_id":"PKG-2026-04-25-001","decision":"approve","role":"ROLE_BUSIAUDIT","confirmed":true}',
             env=env,
         )
         run_module(
@@ -189,7 +189,7 @@ def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
             "zw_brain.entry.cli.main",
             "package.register_version",
             "--payload",
-            '{"package_id":"PKG-2026-04-25-001","role":"r7","confirmed":true}',
+            '{"package_id":"PKG-2026-04-25-001","role":"ROLE_BUSIAUDIT","confirmed":true}',
             env=env,
         )
         run_module(
@@ -197,7 +197,7 @@ def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
             "zw_brain.entry.cli.main",
             "package.apply_tenant_policy",
             "--payload",
-            '{"package_id":"PKG-2026-04-25-001","role":"r7","confirmed":true}',
+            '{"package_id":"PKG-2026-04-25-001","role":"ROLE_BUSIAUDIT","confirmed":true}',
             env=env,
         )
 
@@ -206,7 +206,7 @@ def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
             "zw_brain.entry.cli.main",
             "tenant.policy.evaluate",
             "--payload",
-            '{"capability_id":"ledger.entity.base.read","surface":"api","role":"r7"}',
+            '{"capability_id":"ledger.entity.base.read","surface":"api","role":"ROLE_BUSIAUDIT"}',
             env=env,
         )
         cli_surface_blocked = run_module(
@@ -214,7 +214,7 @@ def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
             "zw_brain.entry.cli.main",
             "tenant.policy.evaluate",
             "--payload",
-            '{"capability_id":"ledger.entity.base.read","surface":"cli","role":"r7"}',
+            '{"capability_id":"ledger.entity.base.read","surface":"cli","role":"ROLE_BUSIAUDIT"}',
             env=env,
         )
         cli_allowed_data = json.loads(cli_allowed.stdout)
@@ -261,7 +261,7 @@ def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
             "call-tool",
             "tenant.policy.evaluate",
             "--payload",
-            '{"capability_id":"ledger.entity.base.read","surface":"api","role":"r7"}',
+            '{"capability_id":"ledger.entity.base.read","surface":"api","role":"ROLE_BUSIAUDIT"}',
             env=env,
         )
         mcp_surface_blocked = run_module(
@@ -270,7 +270,7 @@ def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
             "call-tool",
             "tenant.policy.evaluate",
             "--payload",
-            '{"capability_id":"ledger.entity.base.read","surface":"mcp","role":"r7"}',
+            '{"capability_id":"ledger.entity.base.read","surface":"mcp","role":"ROLE_BUSIAUDIT"}',
             env=env,
         )
         mcp_allowed_data = json.loads(mcp_allowed.stdout)["result"]
@@ -288,7 +288,7 @@ def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
             "invoke",
             "tenant.policy.evaluate",
             "--payload",
-            '{"capability_id":"ledger.entity.base.read","surface":"api","role":"r7"}',
+            '{"capability_id":"ledger.entity.base.read","surface":"api","role":"ROLE_BUSIAUDIT"}',
             env=env,
         )
         a2a_surface_blocked = run_module(
@@ -297,7 +297,7 @@ def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
             "invoke",
             "tenant.policy.evaluate",
             "--payload",
-            '{"capability_id":"ledger.entity.base.read","surface":"a2a","role":"r7"}',
+            '{"capability_id":"ledger.entity.base.read","surface":"a2a","role":"ROLE_BUSIAUDIT"}',
             env=env,
         )
         a2a_allowed_data = json.loads(a2a_allowed.stdout)["result"]
@@ -314,15 +314,15 @@ def test_tenant_policy_evaluate_consistent_across_cli_mcp_a2a() -> None:
             "zw_brain.entry.cli.main",
             "tenant.capability.disable",
             "--payload",
-            '{"package_id":"PKG-2026-04-25-001","role":"r7","confirmed":true}',
+            '{"package_id":"PKG-2026-04-25-001","role":"ROLE_BUSIAUDIT","confirmed":true}',
             env=env,
         )
         disabled_results = {
             "webui": json.loads(run_module("-c", rest_policy_eval('ledger.entity.base.read', 'webui'), env=env).stdout),
-            "api": json.loads(run_module("-m", "zw_brain.entry.cli.main", "tenant.policy.evaluate", "--payload", '{"capability_id":"ledger.entity.base.read","surface":"api","role":"r7"}', env=env).stdout),
-            "cli": json.loads(run_module("-m", "zw_brain.entry.cli.main", "tenant.policy.evaluate", "--payload", '{"capability_id":"ledger.entity.base.read","surface":"cli","role":"r7"}', env=env).stdout),
-            "mcp": json.loads(run_module("-m", "zw_brain.entry.mcp.server", "call-tool", "tenant.policy.evaluate", "--payload", '{"capability_id":"ledger.entity.base.read","surface":"mcp","role":"r7"}', env=env).stdout)["result"],
-            "a2a": json.loads(run_module("-m", "zw_brain.entry.a2a.server", "invoke", "tenant.policy.evaluate", "--payload", '{"capability_id":"ledger.entity.base.read","surface":"a2a","role":"r7"}', env=env).stdout)["result"],
+            "api": json.loads(run_module("-m", "zw_brain.entry.cli.main", "tenant.policy.evaluate", "--payload", '{"capability_id":"ledger.entity.base.read","surface":"api","role":"ROLE_BUSIAUDIT"}', env=env).stdout),
+            "cli": json.loads(run_module("-m", "zw_brain.entry.cli.main", "tenant.policy.evaluate", "--payload", '{"capability_id":"ledger.entity.base.read","surface":"cli","role":"ROLE_BUSIAUDIT"}', env=env).stdout),
+            "mcp": json.loads(run_module("-m", "zw_brain.entry.mcp.server", "call-tool", "tenant.policy.evaluate", "--payload", '{"capability_id":"ledger.entity.base.read","surface":"mcp","role":"ROLE_BUSIAUDIT"}', env=env).stdout)["result"],
+            "a2a": json.loads(run_module("-m", "zw_brain.entry.a2a.server", "invoke", "tenant.policy.evaluate", "--payload", '{"capability_id":"ledger.entity.base.read","surface":"a2a","role":"ROLE_BUSIAUDIT"}', env=env).stdout)["result"],
         }
         assert set(disabled_results) == {"webui", "api", "cli", "mcp", "a2a"}
         for decision in disabled_results.values():

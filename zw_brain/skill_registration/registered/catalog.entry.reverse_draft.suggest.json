@@ -2,24 +2,43 @@
   "skill_id": "catalog.entry.reverse_draft.suggest",
   "slug": "catalog.entry.reverse_draft.suggest",
   "title": "反向编目智能预填",
-  "description": "对一个已采集 schema 输出三档预填建议：1) 字段中文名取自 column.comment / meta_standard_cn（高置信度，绿）；2) PII 模式匹配 + 内置中文映射（中置信度，黄）；3) 推理网关 LLM 占位（低置信度，橙）。R6 在反向编目工作流卡片里据此一键提交 90% 预填好的草稿，而不必从空白开始。",
+  "description": "对一个已采集 schema 输出三档预填建议：1) 字段中文名取自 column.comment / meta_standard_cn（高置信度，绿）；2) PII 模式匹配 + 内置中文映射（中置信度，黄）；3) 推理网关 LLM 占位（低置信度，橙）。提供方部门 在反向编目工作流卡片里据此一键提交 90% 预填好的草稿，而不必从空白开始。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",
-    "required": ["schema_ref"],
+    "required": [
+      "schema_ref"
+    ],
     "properties": {
-      "tenant_id": { "type": "string" },
-      "role": { "type": "string" },
-      "schema_ref": { "type": "string" }
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "schema_ref": {
+        "type": "string"
+      }
     }
   },
   "output_schema": {
     "type": "object",
     "properties": {
-      "schema_ref": { "type": "string" },
-      "title_suggestion": { "type": "object" },
-      "fields": { "type": "array", "items": { "type": "object" } },
-      "coverage": { "type": "object" }
+      "schema_ref": {
+        "type": "string"
+      },
+      "title_suggestion": {
+        "type": "object"
+      },
+      "fields": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "coverage": {
+        "type": "object"
+      }
     }
   },
   "side_effects": [],
@@ -28,7 +47,13 @@
   "human_confirmation_required": false,
   "audit_class": "read-trace",
   "execution_binding": "builtin",
-  "compatibility": ["webui", "api", "cli", "mcp", "a2a"],
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
   "runtime_binding": {
     "kind": "brain_service",
     "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
@@ -36,8 +61,19 @@
   },
   "rollback_target": null,
   "audit_required": true,
-  "permissions": ["catalog.entry.reverse_draft.suggest.execute"],
-  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "permissions": [
+    "catalog.entry.reverse_draft.suggest.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
   "registry_source": "internal",
-  "tags": ["catalog", "reverse_draft", "suggest", "r6", "read"]
+  "tags": [
+    "catalog",
+    "reverse_draft",
+    "suggest",
+    "ROLE_ORGAN_MANAGER",
+    "read"
+  ]
 }

@@ -1,5 +1,11 @@
 # zw-brain 客户交付最后一公里 · release 报告
 
+> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
+> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
+> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
+> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 原版 R 编号见 git blame。
+
 > **受众**：客户老板 / CIO / 实施负责人 + 产品评审 + zw-brain 团队 morning catch-up。
 > **判定**：本报告输出一个明确结论：『可交付客户』或『可交付客户（含已记账的 conditional 项）』或『阻塞中』。
 > **PR**：单一统一 PR [#59](https://github.com/feng222666888/zw-brain/pull/59)，16 commit 待 morning merge。
@@ -24,7 +30,7 @@
 ## TL;DR
 
 - **结论**：**可交付客户**（IAM bypass 修复后浏览器登录已实证；7 项 human-visual 待用户依次走一遍，2 项客户机房 mysqldump，2 项 prod env 配置）。
-- **底气**：demo 真数据 5 段 curl 2-run-ok / 30+ headless 项实跑 pass / 1 项已记账 debt（trigger 明确）/ 0 项越线动作（v4 基线、R1-R8 IA、dev-rules 通道、preflight 通道全部守住）/ supervisor 漏检的浏览器 IAM 已自检修复。
+- **底气**：demo 真数据 5 段 curl 2-run-ok / 30+ headless 项实跑 pass / 1 项已记账 debt（trigger 明确）/ 0 项越线动作（v4 基线、7 角色 IA、dev-rules 通道、preflight 通道全部守住）/ supervisor 漏检的浏览器 IAM 已自检修复。
 - **morning user 该做**：① 浏览器看 7 个页面（清单见 §handover）；② merge PR #59；③ 客户机房现场跑 #5 + #16 mysqldump；④ prod 配 #10 IAF endpoint + #11 推理密钥 REF。
 
 ## Jobs 三问
@@ -47,7 +53,7 @@ Jobs 不为凑数硬删。codebase post-#47/#48/#55 已经很 lean；本目标�
 **Q3：端到端 demo 最短几步？**
 
 - **Before**：≥ 3 步，需要懂 `?role=` URL hack、需要先 start REST、需要手动 acceptance 数据。
-- **After（ITEM-02）**：1 条命令 `bash scripts/customer_demo_5min.sh` → 5 分钟看见 R1 浏览 14 真目录 → R1 详情 → R1 申请 → R2 审批（含 5 字段授权策略）→ R8 审计回放 10+ event chain。
+- **After（ITEM-02）**：1 条命令 `bash scripts/customer_demo_5min.sh` → 5 分钟看见 申请人 浏览 14 真目录 → 申请人 详情 → 申请人 申请 → 审批人 审批（含 5 字段授权策略）→ 安全审计员 审计回放 10+ event chain。
 - **2-run-ok 证据**：REQ-0004 → REQ-0005，审计事件 65 → 77（每次跑增量 12 条；脚本自动 bypass 7890 代理污染、trap EXIT 清理 REST 子进程、幂等复用 pending 申请）。
 
 ## 9 个 ITEM 交付清单（PR #59 commit 序列）
@@ -79,7 +85,7 @@ Jobs 不为凑数硬删。codebase post-#47/#48/#55 已经很 lean；本目标�
 | 状态 | 数量 | 项 |
 | --- | --- | --- |
 | **pass headless** | 26 | 含 pytest 10/10 in 2.47s, legacy_object_mapping 99.99% (68931/68935 mapped), M0 验收 11 卡片, export 17 files / 875174 rows / 6 redaction 类别 |
-| **human-visual-required** | 7 | #22 P0 WebUI + #34 R1 / #35 R2 / #36 R6 / #37 R7 / #38 R8 / #39 R3-R4 共 6 个 P5/P6 工作面 |
+| **human-visual-required** | 7 | #22 P0 WebUI + #34 申请人 / #35 审批人 / #36 提供方部门 / #37 业务运营员 / #38 安全审计员 / #39 镇街填报人-村社区填报人 共 6 个 P5/P6 工作面 |
 | **customer-site-only** | 2 | #5 mysqldump in PATH + #16 真实库 dump（客户机房 DBA 现场跑） |
 | **prod-env-config** | 3 | #10 IAF endpoint + #11 推理密钥 REF（dev box skip，客户 prod env 必须设）+ #12 blockchain endpoint（mock-chain 默认通过） |
 | **debt（已记账）** | 1 | #40 distinct skill_id=8（< 12 期望）；原因：9 角色 e2e pytest 使用 TemporaryDirectory isolated DB，事件不落主 DB。trigger to re-evaluate：客户首次现场实跑 41 项时若 #40 < 12，按 checklist 改后的『主流程驱动 + 真实业务用户操作后再查』路径再查一次 |
@@ -103,11 +109,11 @@ ITEM-06 已交付 4 个 statusPill token（`status-fuse` / `status-audit-failed`
 1. **merge PR #59**（squash 或 keep 15 commit 均可；建议 keep 以保留 ITEM 边界，每个 commit 自带 ITEM 编号与 part k/n 标识）
 2. **7 项浏览器人眼**：照 [`handover-realrun-log.md §六/§八`](./handover-realrun-log.md) 路径，启 `bash scripts/start-local.sh` 后逐项点击 `http://127.0.0.1:8800/#/...`：
    - `#/p0-migration-acceptance` (#22)
-   - `#/p1-workbench`（切 r1，#34）
-   - `#/p3-request-flow/review/REQ-2026-04-25-0011`（切 r2，#35）
-   - `#/p5-provider`（切 r6 → #36；切 r7 → #37）
-   - `#/p6-compliance-ops`（切 r8，#38）
-   - `#/p3-request-flow`（切 r3，#39）
+   - `#/p1-workbench`（切 ROLE_ORGAN_OPERATER，#34）
+   - `#/p3-request-flow/review/REQ-2026-04-25-0011`（切 ROLE_ORGAN_MANAGER，#35）
+   - `#/p5-provider`（切 ROLE_ORGAN_MANAGER → #36；切 ROLE_BUSIAUDIT → #37）
+   - `#/p6-compliance-ops`（切 ROLE_SECURITY_AUDIT，#38）
+   - `#/p3-request-flow`（切 ROLE_ORGAN_OPERATER，#39）
 3. **客户机房**：实施工程师现场跑 `bash scripts/customer_export.sh --db-host=... --db-user=... --output-dir=...`（#5 + #16），手动验证 ITEM-04 next-step hint 引导到位
 4. **prod env**：客户 IT 部门配 IAF / OIDC endpoint + 推理网关密钥 REF（#10 + #11）；切记 dev box 上的 `ZW_BRAIN_DEV_IAM_BYPASS=1` 在 prod env 绝不能开
 5. **preflight-debt #40 trigger**：客户首次现场实跑 41 项时若 `SELECT COUNT(DISTINCT skill_id) FROM audit_event >= 12` 仍 fail → 主流程驱动 + 真实业务用户操作后再查；仍 < 12 升级 P0 fix（改 e2e fixture 或 checklist 语义）
@@ -125,7 +131,7 @@ ITEM-06 已交付 4 个 statusPill token（`status-fuse` / `status-audit-failed`
 
 **6 条非目标全部守住**：
 - 不动 v4 基线（D1-D22）✓
-- 不动 R1-R8 IA ✓
+- 不动 7 角色 IA ✓
 - 不修 dev-rules 同步通道 / preflight 总体结构 ✓
 - 不重写旧平台代码 / 不再造旧 schema ✓
 - 不直连 LLM（D6 守住）✓

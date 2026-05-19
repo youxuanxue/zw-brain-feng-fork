@@ -1,6 +1,6 @@
 {
   "name": "catalog.resource_view",
-  "description": "查看模板或资源的覆盖率、字段和复用解释，用于 R1 先复用模板。",
+  "description": "查看模板或资源的覆盖率、字段和复用解释，用于 申请人 先复用模板。",
   "inputSchema": {
     "type": "object",
     "required": [

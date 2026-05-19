@@ -48,19 +48,19 @@ def svc(tmp_path: Path) -> BrainService:
 
 
 W1_SKILLS = [
-    ("catalog.entry.reverse_draft.create", "write-default", {"r6"}),
-    ("catalog.entry.reverse_draft.confirm", "write-critical", {"r7"}),
-    ("catalog.entry.reverse_draft.reject", "write-default", {"r7"}),
-    ("metadata.schema.discover", "read-trace", {"r6", "r7"}),
-    ("quality.rule.upsert", "write-default", {"r6", "r7"}),
-    ("quality.task.run", "write-default", {"r6"}),
-    ("quality.task.replay", "write-default", {"r6"}),
-    ("direct_access.catalog.query", "read-trace", {"r2", "r5", "r6", "r7", "r8"}),
-    ("direct_access.delivery.list", "read-trace", {"r5", "r8"}),
-    ("require.resource.dispatch", "write-critical", {"r7"}),
-    ("require.task.handoff", "write-default", {"r7"}),
-    ("delivery.replace_or_cancel", "write-critical", {"r2"}),
-    ("subscription.terminate", "write-critical", {"r2"}),
+    ("catalog.entry.reverse_draft.create", "write-default", {"ROLE_ORGAN_MANAGER"}),
+    ("catalog.entry.reverse_draft.confirm", "write-critical", {"ROLE_BUSIAUDIT"}),
+    ("catalog.entry.reverse_draft.reject", "write-default", {"ROLE_BUSIAUDIT"}),
+    ("metadata.schema.discover", "read-trace", {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}),
+    ("quality.rule.upsert", "write-default", {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}),
+    ("quality.task.run", "write-default", {"ROLE_ORGAN_MANAGER"}),
+    ("quality.task.replay", "write-default", {"ROLE_ORGAN_MANAGER"}),
+    ("direct_access.catalog.query", "read-trace", {"ROLE_ORGAN_MANAGER", "ROLE_ORGAN_MANAGER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"}),
+    ("direct_access.delivery.list", "read-trace", {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"}),
+    ("require.resource.dispatch", "write-critical", {"ROLE_BUSIAUDIT"}),
+    ("require.task.handoff", "write-default", {"ROLE_BUSIAUDIT"}),
+    ("delivery.replace_or_cancel", "write-critical", {"ROLE_ORGAN_MANAGER"}),
+    ("subscription.terminate", "write-critical", {"ROLE_ORGAN_MANAGER"}),
 ]
 
 
@@ -79,7 +79,7 @@ def test_reverse_draft_lifecycle(svc: BrainService) -> None:
     create_result = svc.invoke_skill(
         "catalog.entry.reverse_draft.create",
         {
-            "role": "r6",
+            "role": "ROLE_ORGAN_MANAGER",
             "confirmed": True,
             "catalog_code": "TC-RD-001",
             "title": "停车场信息 (reverse-draft)",
@@ -93,7 +93,7 @@ def test_reverse_draft_lifecycle(svc: BrainService) -> None:
     confirm_result = svc.invoke_skill(
         "catalog.entry.reverse_draft.confirm",
         {
-            "role": "r7",
+            "role": "ROLE_BUSIAUDIT",
             "confirmed": True,
             "catalog_code": "TC-RD-001",
             "field_decisions": [{"name": "park_id", "sensitive_level": "1"}],
@@ -108,7 +108,7 @@ def test_reverse_draft_reject_requires_reverse_source(svc: BrainService) -> None
     svc.invoke_skill(
         "catalog.entry.reverse_draft.create",
         {
-            "role": "r6",
+            "role": "ROLE_ORGAN_MANAGER",
             "confirmed": True,
             "catalog_code": "TC-RD-002",
             "title": "字段口径模糊",
@@ -118,7 +118,7 @@ def test_reverse_draft_reject_requires_reverse_source(svc: BrainService) -> None
     result = svc.invoke_skill(
         "catalog.entry.reverse_draft.reject",
         {
-            "role": "r7",
+            "role": "ROLE_BUSIAUDIT",
             "confirmed": True,
             "catalog_code": "TC-RD-002",
             "reject_reason": "中英文字段不一致，缺主键说明",
@@ -129,7 +129,7 @@ def test_reverse_draft_reject_requires_reverse_source(svc: BrainService) -> None
 
 
 def test_metadata_schema_discover_is_read_only(svc: BrainService) -> None:
-    result = svc.invoke_skill("metadata.schema.discover", {"role": "r6", "limit": 20})
+    result = svc.invoke_skill("metadata.schema.discover", {"role": "ROLE_ORGAN_MANAGER", "limit": 20})
     assert "items" in result
     assert "total" in result
     assert isinstance(result["items"], list)
@@ -139,7 +139,7 @@ def test_quality_rule_then_run_then_replay(svc: BrainService) -> None:
     rule = svc.invoke_skill(
         "quality.rule.upsert",
         {
-            "role": "r6",
+            "role": "ROLE_ORGAN_MANAGER",
             "confirmed": True,
             "rule_code": "QR-MUST-FILL-01",
             "rule_name": "必填率检查",
@@ -154,7 +154,7 @@ def test_quality_rule_then_run_then_replay(svc: BrainService) -> None:
     run = svc.invoke_skill(
         "quality.task.run",
         {
-            "role": "r6",
+            "role": "ROLE_ORGAN_MANAGER",
             "confirmed": True,
             "rule_code": "QR-MUST-FILL-01",
             "target_catalog_code": "TC-RD-001",
@@ -166,7 +166,7 @@ def test_quality_rule_then_run_then_replay(svc: BrainService) -> None:
     replay = svc.invoke_skill(
         "quality.task.replay",
         {
-            "role": "r6",
+            "role": "ROLE_ORGAN_MANAGER",
             "confirmed": True,
             "rule_code": "QR-MUST-FILL-01",
             "previous_task_ref": previous_ref,
@@ -177,13 +177,13 @@ def test_quality_rule_then_run_then_replay(svc: BrainService) -> None:
 
 
 def test_direct_access_catalog_query_returns_envelope(svc: BrainService) -> None:
-    result = svc.invoke_skill("direct_access.catalog.query", {"role": "r8"})
+    result = svc.invoke_skill("direct_access.catalog.query", {"role": "ROLE_SECURITY_AUDIT"})
     assert "items" in result
     assert "total" in result
 
 
 def test_direct_access_delivery_list_returns_envelope(svc: BrainService) -> None:
-    result = svc.invoke_skill("direct_access.delivery.list", {"role": "r5"})
+    result = svc.invoke_skill("direct_access.delivery.list", {"role": "ROLE_ORGAN_MANAGER"})
     assert "items" in result
     assert "total" in result
 
@@ -209,7 +209,7 @@ def test_require_resource_dispatch_needs_existing_application(svc: BrainService)
     result = svc.invoke_skill(
         "require.resource.dispatch",
         {
-            "role": "r7",
+            "role": "ROLE_BUSIAUDIT",
             "confirmed": True,
             "application_code": "REQ-W1-0001",
             "dispatch_payload_json": {"slice_by": "region"},
@@ -223,15 +223,15 @@ def test_require_task_handoff_emits_audit(svc: BrainService) -> None:
     result = svc.invoke_skill(
         "require.task.handoff",
         {
-            "role": "r7",
+            "role": "ROLE_BUSIAUDIT",
             "confirmed": True,
             "application_code": "REQ-W1-0001",
-            "handoff_to_role": "r5",
-            "handoff_note": "R5 接管异常汇总",
+            "handoff_to_role": "ROLE_ORGAN_MANAGER",
+            "handoff_note": "审核汇总人 接管异常汇总",
         },
     )
     assert result["ok"] is True
-    assert result["result"]["handoff_to_role"] == "r5"
+    assert result["result"]["handoff_to_role"] == "ROLE_ORGAN_MANAGER"
 
 
 def test_delivery_replace_or_cancel_updates_state(svc: BrainService) -> None:
@@ -255,7 +255,7 @@ def test_delivery_replace_or_cancel_updates_state(svc: BrainService) -> None:
     result = svc.invoke_skill(
         "delivery.replace_or_cancel",
         {
-            "role": "r2",
+            "role": "ROLE_ORGAN_MANAGER",
             "confirmed": True,
             "delivery_code": "DLV-W1-0001",
             "action": "replace",
@@ -288,7 +288,7 @@ def test_subscription_terminate_writes_audit_snapshot(svc: BrainService) -> None
     result = svc.invoke_skill(
         "subscription.terminate",
         {
-            "role": "r2",
+            "role": "ROLE_ORGAN_MANAGER",
             "confirmed": True,
             "subscription_code": "SUB-W1-0001",
             "reason": "目录撤回影响订阅",
@@ -301,7 +301,7 @@ def test_write_skill_requires_confirmation(svc: BrainService) -> None:
     with pytest.raises(ConfirmationRequiredError):
         svc.invoke_skill(
             "catalog.entry.reverse_draft.create",
-            {"role": "r6", "catalog_code": "TC-NEED-CONFIRM", "title": "x", "schema_ref": "x"},
+            {"role": "ROLE_ORGAN_MANAGER", "catalog_code": "TC-NEED-CONFIRM", "title": "x", "schema_ref": "x"},
         )
 
 
@@ -309,5 +309,5 @@ def test_write_skill_rejects_wrong_role(svc: BrainService) -> None:
     with pytest.raises(AccessDeniedError):
         svc.invoke_skill(
             "catalog.entry.reverse_draft.confirm",
-            {"role": "r1", "confirmed": True, "catalog_code": "TC-WRONG-ROLE"},
+            {"role": "ROLE_ORGAN_OPERATER", "confirmed": True, "catalog_code": "TC-WRONG-ROLE"},
         )

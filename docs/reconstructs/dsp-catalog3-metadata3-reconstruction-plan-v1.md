@@ -1,5 +1,11 @@
 # dsp-catalog3 / dsp-metadata3 相关模块重构方案 v1
 
+> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
+> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
+> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
+> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 原版 R 编号见 git blame。
+
 > 范围：旧平台 `old/old_codes/dsp-catalog3`（目标版本 3.12.15）、`old/old_codes/dsp-metadata3`（目标版本 3.9.15）、外部调用分析 `old/old_codes_analyse/dsp-catalog3-apis.md` / `old/old_codes_analyse/dsp-metadata3-apis.md`、旧结构数据 `old/12-datastructure` 与脱敏工单数据 `old/工单导出-列缩减.xlsx`。
 > 结论：zw-brain 是全新 AI 原生项目，不兼容旧接口、旧菜单、旧库表，也不把 catalog3 / metadata3 原样迁成两个新子系统；本方案只吸收目录、元数据、资源、申请、授权、发布、质量、血缘等承重业务语义，重建为围绕主旅程、统一 Capability、可审计、可外化扩展的能力面。
 > 单一事实源：本文是 dsp-catalog3 / dsp-metadata3 专题映射、字段落位、能力迁移和 ANP 外化边界的单一事实源；`docs/approved/*` 只保留 canonical 通用模型与本文引用。
@@ -46,8 +52,8 @@ catalog3 与 metadata3 在旧平台中表面上是两个仓库，但在业务事
 | `docs/approved/zw-brain-architecture-v4-gpt55.md` | 产品围绕少数高频旅程；人和 Agent 共用同一 Capability；长尾新增能力默认外部生产、平台注册；合规可证迹内建。 |
 | `docs/approved/zw-brain-data-model-v4-gpt55.md` | 模型围绕旅程与审计组织，不围绕 legacy 表名组织；legacy schema 只作为 adapter 输入；目录、申请、交付等强状态领域必须保留显式状态机。 |
 | `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` | 目录 / 元数据涉及的组织、角色、权限裁决和租户策略只消费 zw-brain Governance 与 Capability policy，不复刻旧 IAM / 菜单 / 权限后台。 |
-| `docs/approved/zw-brain-golden-path-r1-r3-r5-v1.md` | 首条黄金链路要把上级需求、资源/模板复用、基层补差、审核汇总和回流共享资源池打通。 |
-| `docs/approved/zw-brain-user-roles-and-journeys-v1.md` | 用户不是抽象管理员，而是要数的人、管数的人、填数的人、审数的人、查责的人；目录/元数据能力必须服务这些岗位。 |
+| `docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）` | 首条黄金链路要把上级需求、资源/模板复用、基层补差、审核汇总和回流共享资源池打通。 |
+| `docs/approved/zw-brain-roles-v2.md (取代于 D23)` | 用户不是抽象管理员，而是要数的人、管数的人、填数的人、审数的人、查责的人；目录/元数据能力必须服务这些岗位。 |
 | `docs/approved/zw-brain-data-standards-utilization-scheme-v1.md` | 标准样本和历史实现只能作为证据层；正式标准资产进入 `CatalogModel`、`catalog_model_field` 和 Registry，不重建标准平台。 |
 
 ### 2.2 外部使用证据

@@ -65,7 +65,7 @@ def test_wheel_build_and_install_smoke() -> None:
         )
 
         cli = subprocess.run(
-            [str(python), "-m", "zw_brain.entry.cli.main", "data.search", "--payload", '{\"query\":\"法人\",\"role\":\"r1\"}'],
+            [str(python), "-m", "zw_brain.entry.cli.main", "data.search", "--payload", '{\"query\":\"法人\",\"role\":\"ROLE_ORGAN_OPERATER\"}'],
             cwd=tmp,
             env=env,
             text=True,

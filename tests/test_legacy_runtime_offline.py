@@ -56,28 +56,28 @@ def test_runtime_service_cli_and_rest_work_after_legacy_source_offline(monkeypat
         reset_service()
 
         service = get_service()
-        catalog = service.invoke_skill("catalog.browse", {"lifecycle": "all", "role": "r1"})
+        catalog = service.invoke_skill("catalog.browse", {"lifecycle": "all", "role": "ROLE_ORGAN_OPERATER"})
         assert any(item["catalog_code"] == "BASE-POP-001" for item in catalog["items"])
-        entry = service.invoke_skill("catalog.entry.query", {"catalog_code": "BASE-POP-001", "role": "r1"})
-        metadata = service.invoke_skill("metadata.catalog_item.query", {"role": "r7"})
-        policy = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "catalog.browse", "surface": "api", "role": "r7"})
+        entry = service.invoke_skill("catalog.entry.query", {"catalog_code": "BASE-POP-001", "role": "ROLE_ORGAN_OPERATER"})
+        metadata = service.invoke_skill("metadata.catalog_item.query", {"role": "ROLE_BUSIAUDIT"})
+        policy = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "catalog.browse", "surface": "api", "role": "ROLE_BUSIAUDIT"})
         assert entry["total"] == 1
         assert metadata["total"] >= 1
         assert any(item["catalog_code"] == "BASE-POP-001" for item in metadata["items"])
         assert policy["source"] in {"brain_registry", "fail_closed", "tenant_capability_policy"}
         assert "13800001111" not in json.dumps([catalog, entry, metadata, policy], ensure_ascii=False)
 
-        published = service.invoke_skill("catalog.entry.publish", {"catalog_code": "BASE-POP-001", "role": "r7", "confirmed": True})
+        published = service.invoke_skill("catalog.entry.publish", {"catalog_code": "BASE-POP-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         assert published["ok"] is True
         assert published["result"]["lifecycle_status"] == "active"
-        audit = service.invoke_skill("audit.list", {"role": "r7"})
+        audit = service.invoke_skill("audit.list", {"role": "ROLE_BUSIAUDIT"})
         assert any(item["type"] == "catalog.entry.publish.after" for item in audit["items"])
         assert "13800001111" not in json.dumps(audit, ensure_ascii=False)
         reset_service()
 
         env = _runtime_env(db_path, offline_legacy_source)
         cli = subprocess.run(
-            [PYTHON, "-m", "zw_brain.entry.cli.main", "catalog.browse", "--payload", '{"lifecycle":"all","role":"r1"}'],
+            [PYTHON, "-m", "zw_brain.entry.cli.main", "catalog.browse", "--payload", '{"lifecycle":"all","role":"ROLE_ORGAN_OPERATER"}'],
             cwd=REPO_ROOT,
             env=env,
             text=True,
@@ -96,7 +96,7 @@ def test_runtime_service_cli_and_rest_work_after_legacy_source_offline(monkeypat
         thread = Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
-            status, body = request_json("GET", f"http://127.0.0.1:{port}/api/skills/catalog.browse?lifecycle=all&role=r1")
+            status, body = request_json("GET", f"http://127.0.0.1:{port}/api/skills/catalog.browse?lifecycle=all&role=ROLE_ORGAN_OPERATER")
             assert status == 200
             assert any(item["catalog_code"] == "BASE-POP-001" for item in body["items"])
         finally:
@@ -133,10 +133,10 @@ def test_runtime_outputs_do_not_expose_legacy_secret_facts() -> None:
         env = _runtime_env(db_path, offline_legacy_source)
         outputs = []
         for skill_id, payload in [
-            ("catalog.browse", '{"lifecycle":"all","role":"r1"}'),
-            ("catalog.entry.query", '{"catalog_code":"BASE-POP-001","role":"r1"}'),
-            ("metadata.catalog_item.query", '{"role":"r7"}'),
-            ("audit.list", '{"role":"r7"}'),
+            ("catalog.browse", '{"lifecycle":"all","role":"ROLE_ORGAN_OPERATER"}'),
+            ("catalog.entry.query", '{"catalog_code":"BASE-POP-001","role":"ROLE_ORGAN_OPERATER"}'),
+            ("metadata.catalog_item.query", '{"role":"ROLE_BUSIAUDIT"}'),
+            ("audit.list", '{"role":"ROLE_BUSIAUDIT"}'),
         ]:
             result = subprocess.run(
                 [PYTHON, "-m", "zw_brain.entry.cli.main", skill_id, "--payload", payload],

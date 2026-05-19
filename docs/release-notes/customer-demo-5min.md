@@ -1,5 +1,11 @@
 # zw-brain 5 分钟客户演示剧本
 
+> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
+> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
+> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
+> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 原版 R 编号见 git blame。
+
 > ITEM-02 of `customer-delivery-final-mile`。配套脚本：`scripts/customer_demo_5min.sh`。
 
 ## 受众
@@ -50,17 +56,17 @@ bash scripts/customer_demo_5min.sh
 
 **期望看到**：
 ```
-ZW_BRAIN_DEV_IAM_BYPASS=1 is active — IAM auth is fully bypassed and every request runs as a synthetic dev-iam-bypass user with all r1..r8 roles. DEVELOPMENT ONLY.
+ZW_BRAIN_DEV_IAM_BYPASS=1 is active — IAM auth is fully bypassed and every request runs as a synthetic dev-iam-bypass user with all 6 个 ROLE_* 角色 roles. DEVELOPMENT ONLY.
 [demo-5min] ok: REST healthy @ http://127.0.0.1:8800/health
 ```
 
-**业务含义**：dev-bypass 模式下，单个合成用户具备 R1-R8 全部 8 个角色，便于一条脚本演完端到端流。生产环境走 IAF/OIDC，登录后由 IAM 注入真实 role_codes——同一套 REST、同一套 skill。
+**业务含义**：dev-bypass 模式下，单个合成用户具备 7 角色 全部 8 个角色，便于一条脚本演完端到端流。生产环境走 IAF/OIDC，登录后由 IAM 注入真实 role_codes——同一套 REST、同一套 skill。
 
-### 段 2：R1 浏览真目录（catalog.browse）
+### 段 2：申请人 浏览真目录（catalog.browse）
 
 **命令**：
 ```bash
-curl --noproxy '*' "http://127.0.0.1:8800/api/skills/catalog.browse?lifecycle=all&limit=10&role=r1"
+curl --noproxy '*' "http://127.0.0.1:8800/api/skills/catalog.browse?lifecycle=all&limit=10&role=ROLE_ORGAN_OPERATER"
 ```
 
 **期望看到**：
@@ -72,14 +78,14 @@ curl --noproxy '*' "http://127.0.0.1:8800/api/skills/catalog.browse?lifecycle=al
 ]}
 ```
 
-**业务含义**：R1 业务专班视角下，从单租户 `sd-default` 看到 14 条已落库的真目录条目，每条都带 owner_org / lifecycle_status / 真实 catalog_code。**不是导航菜单——是按申请视角组织的可复用目录池**。
+**业务含义**：申请人 业务专班视角下，从单租户 `sd-default` 看到 14 条已落库的真目录条目，每条都带 owner_org / lifecycle_status / 真实 catalog_code。**不是导航菜单——是按申请视角组织的可复用目录池**。
 
-### 段 3：R1 看目录详情（catalog.resource_view）
+### 段 3：申请人 看目录详情（catalog.resource_view）
 
 **命令**：脚本自动用上一步首条 active 目录（演示中是 `cat-parking`）。
 ```bash
 curl --noproxy '*' -X POST -H 'Content-Type: application/json' \
-  -d '{"resource_id":"cat-parking","role":"r1"}' \
+  -d '{"resource_id":"cat-parking","role":"ROLE_ORGAN_OPERATER"}' \
   http://127.0.0.1:8800/api/skills/catalog.resource_view
 ```
 
@@ -88,14 +94,14 @@ curl --noproxy '*' -X POST -H 'Content-Type: application/json' \
 {"id": "cat-parking", "name": "停车场信息目录", "status": "active", "fields_count": 0, "coverage": "真实旧平台目录"}
 ```
 
-**业务含义**：R1 看到的字段/coverage/状态都来自 canonical schema，**和接下来 R2 审批、R6 交付、R8 审计看到的是同一行记录**——单一事实来源，不是 R1 一个面、R2 另一个面。
+**业务含义**：申请人 看到的字段/coverage/状态都来自 canonical schema，**和接下来 审批人 审批、提供方部门 交付、安全审计员 审计看到的是同一行记录**——单一事实来源，不是 申请人 一个面、审批人 另一个面。
 
-### 段 4：R1 发起复用申请（application.resource.submit）
+### 段 4：申请人 发起复用申请（application.resource.submit）
 
-**命令**：脚本以 R1 角色对种子资源 `res-market-activity` 发起申请，purpose = "5 分钟客户演示 — 市营商环境专班复用市场主体活跃度"。
+**命令**：脚本以 申请人 角色对种子资源 `res-market-activity` 发起申请，purpose = "5 分钟客户演示 — 市营商环境专班复用市场主体活跃度"。
 ```bash
 curl --noproxy '*' -X POST -H 'Content-Type: application/json' \
-  -d '{"resource_id":"res-market-activity","role":"r1","confirmed":true,"query":"..."}' \
+  -d '{"resource_id":"res-market-activity","role":"ROLE_ORGAN_OPERATER","confirmed":true,"query":"..."}' \
   http://127.0.0.1:8800/api/skills/application.resource.submit
 ```
 
@@ -105,17 +111,17 @@ curl --noproxy '*' -X POST -H 'Content-Type: application/json' \
 ```
 
 **业务含义**：
-- R1 不需要自己写 SQL/对接系统——一条申请把 purpose、scope、time_window、最小必要字段全打包成 canonical application。
-- 状态进入 `pending`，**只有 R2 审批通过才进入交付链路**——这就是阀门，不是「点了就给数据」。
-- `audit_id` 当场返回，方便 R8 后续回放。
+- 申请人 不需要自己写 SQL/对接系统——一条申请把 purpose、scope、time_window、最小必要字段全打包成 canonical application。
+- 状态进入 `pending`，**只有 审批人 审批通过才进入交付链路**——这就是阀门，不是「点了就给数据」。
+- `audit_id` 当场返回，方便 安全审计员 后续回放。
 - **幂等**：若已存在 pending 申请，脚本自动复用，不重复落库。
 
-### 段 5：R2 审批通过（approval.review_decide）
+### 段 5：审批人 审批通过（approval.review_decide）
 
 **命令**：
 ```bash
 curl --noproxy '*' -X POST -H 'Content-Type: application/json' \
-  -d '{"request_id":"REQ-2026-05-18-0002","decision":"approve","role":"r2","confirmed":true}' \
+  -d '{"request_id":"REQ-2026-05-18-0002","decision":"approve","role":"ROLE_ORGAN_MANAGER","confirmed":true}' \
   http://127.0.0.1:8800/api/skills/approval.review_decide
 ```
 
@@ -125,32 +131,32 @@ curl --noproxy '*' -X POST -H 'Content-Type: application/json' \
 ```
 
 **业务含义**：
-- R2 审批承接人员一条命令通过，状态从 `pending` → `granted`，自动触发交付链路。
+- 审批人 审批承接人员一条命令通过，状态从 `pending` → `granted`，自动触发交付链路。
 - decision = `approve_reuse` 表明这是按「先复用真目录、不新增整表」策略通过——不是无脑放行。
-- 审批 audit_id 与 R1 申请 audit_id 不同但同链，R8 可以串起来。
+- 审批 audit_id 与 申请人 申请 audit_id 不同但同链，安全审计员 可以串起来。
 
-### 段 6：R8 审计回放（audit.list）
+### 段 6：安全审计员 审计回放（audit.list）
 
 **命令**：
 ```bash
 curl --noproxy '*' -X POST -H 'Content-Type: application/json' \
-  -d '{"role":"r8"}' \
+  -d '{"role":"ROLE_SECURITY_AUDIT"}' \
   http://127.0.0.1:8800/api/skills/audit.list
 ```
 
 **期望看到**：
 ```json
 {"count": 41, "tail5": [
-  {"audit_id":"AE-...","type":"application.resource.submit.before","actor":"user:gov:r1:周处长[bypass]","target":"res-market-activity"},
-  {"audit_id":"AE-...","type":"application.resource.submit.after","actor":"user:gov:r1:周处长[bypass]","target":"REQ-2026-05-18-0002"},
-  {"audit_id":"AE-...","type":"approval.review_decide.before","actor":"user:gov:r2:刘主任[bypass]","target":"REQ-2026-05-18-0002:approve_reuse"},
-  {"audit_id":"AE-...","type":"approval.review_decide.after","actor":"user:gov:r2:刘主任[bypass]","target":"REQ-2026-05-18-0002:approve_reuse"},
-  {"audit_id":"AE-...","type":"audit.list.before","actor":"user:gov:r8:林督查[bypass]","target":"AE-..."}
+  {"audit_id":"AE-...","type":"application.resource.submit.before","actor":"user:gov:ROLE_ORGAN_OPERATER:周处长[bypass]","target":"res-market-activity"},
+  {"audit_id":"AE-...","type":"application.resource.submit.after","actor":"user:gov:ROLE_ORGAN_OPERATER:周处长[bypass]","target":"REQ-2026-05-18-0002"},
+  {"audit_id":"AE-...","type":"approval.review_decide.before","actor":"user:gov:ROLE_ORGAN_MANAGER:刘主任[bypass]","target":"REQ-2026-05-18-0002:approve_reuse"},
+  {"audit_id":"AE-...","type":"approval.review_decide.after","actor":"user:gov:ROLE_ORGAN_MANAGER:刘主任[bypass]","target":"REQ-2026-05-18-0002:approve_reuse"},
+  {"audit_id":"AE-...","type":"audit.list.before","actor":"user:gov:ROLE_SECURITY_AUDIT:林督查[bypass]","target":"AE-..."}
 ]}
 ```
 
 **业务含义**：
-- R8 督查/审计角色看到 R1 提交、R2 决策、R8 自己的查询都按 before/after 双事件落库。**没有任何一次 mutation 不落审计**。
+- 安全审计员 督查/审计角色看到 申请人 提交、审批人 决策、安全审计员 自己的查询都按 before/after 双事件落库。**没有任何一次 mutation 不落审计**。
 - `target` 字段串起了 resource_id → request_id → 决策，构成可机器解析的证据链。
 - 区块链锚定 (`chain: pending`) 走 D4 异步 adapter——外链 down 不阻塞业务，但有 retry。
 
@@ -162,18 +168,18 @@ http://127.0.0.1:8800/
 ```
 首页右上『开发模式登录 dev-bypass』一键登录。
 
-**期望看到**：进入 R1 工作台后切角色到 R2，能看到刚才那条 `REQ-2026-05-18-0002` 已在「已通过」列表；切到 R8 督查可以看到审计回放面板。
+**期望看到**：进入 申请人 工作台后切角色到 审批人，能看到刚才那条 `REQ-2026-05-18-0002` 已在「已通过」列表；切到 安全审计员 督查可以看到审计回放面板。
 
 **业务含义**：5 段 curl 已经把模型层证明出来；剩下 90 秒让客户摸一下 WebUI，对应「同一套 skill 在 WebUI / REST / CLI / MCP / A2A 5 个消费面共享」——D2 单一事实来源。
 
 ## 一句话总结（脚本末尾自动打印）
 
 ```
-R1 浏览到 14 条真目录条目（含 停车场信息目录 等）；
-R1 看到 cat-parking 详情（0 字段）；
-R1 提交申请 REQ-2026-05-18-0003；
-R2 一键通过；
-R8 审计回看到 53 条事件链。
+申请人 浏览到 14 条真目录条目（含 停车场信息目录 等）；
+申请人 看到 cat-parking 详情（0 字段）；
+申请人 提交申请 REQ-2026-05-18-0003；
+审批人 一键通过；
+安全审计员 审计回看到 53 条事件链。
 浏览器入口：http://127.0.0.1:8800/  (用 dev-bypass 登录)
 ```
 
@@ -182,7 +188,7 @@ R8 审计回看到 53 条事件链。
 按客户重点选 1 条递进：
 
 - **数据范围**：跑 `bash scripts/customer_export.sh` 把 sd-default 全量真目录导出 csv 让客户看广度。
-- **角色全貌**：按 [`.experiences/`](../../.experiences/) R1-R8 八角色文档，1 个角色 1 分钟扫一遍。
+- **角色全貌**：按 [`.experiences/`](../../.experiences/) 7 角色 八角色文档，1 个角色 1 分钟扫一遍。
 - **稳态运营**：走 [`docs/deployment/sd-default-onboarding.md`](../deployment/sd-default-onboarding.md) 全 41 项 handover checklist。
 - **架构基线**：翻 [`docs/approved/zw-brain-architecture-v4-gpt55.md`](../approved/zw-brain-architecture-v4-gpt55.md) D1-D22 决策。
 

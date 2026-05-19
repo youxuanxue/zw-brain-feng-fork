@@ -12,14 +12,10 @@
       "role": {
         "type": "string",
         "enum": [
-          "r1",
-          "r2",
-          "r3",
-          "r4",
-          "r5",
-          "r6",
-          "r7",
-          "r8"
+          "ROLE_ORGAN_OPERATER",
+          "ROLE_ORGAN_MANAGER",
+          "ROLE_BUSIAUDIT",
+          "ROLE_SECURITY_AUDIT"
         ]
       }
     }

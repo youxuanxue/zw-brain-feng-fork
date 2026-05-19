@@ -1,6 +1,6 @@
 {
   "name": "quality.rule.upsert",
-  "description": "R6 维护检测规则（必填率/格式/值域/字段一致性/挂接一致性等）。规则按 rule_code 幂等 upsert；变更产生新版本，旧版本检测结论作为历史 evidence 保留。",
+  "description": "提供方部门 维护检测规则（必填率/格式/值域/字段一致性/挂接一致性等）。规则按 rule_code 幂等 upsert；变更产生新版本，旧版本检测结论作为历史 evidence 保留。",
   "inputSchema": {
     "type": "object",
     "required": [

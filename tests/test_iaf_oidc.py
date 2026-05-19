@@ -54,7 +54,7 @@ def _claims(config: IafIamConfig, **overrides: Any) -> dict[str, Any]:
         "phone": "13800001111",
         "email": "zhangsan@sd.gov.cn",
         "realm_access": {"roles": ["ACCOUNT_ADMIN"]},
-        "resource_access": {"zw-brain": {"roles": ["r7"]}},
+        "resource_access": {"zw-brain": {"roles": ["ROLE_BUSIAUDIT"]}},
     }
     claims.update(overrides)
     return claims

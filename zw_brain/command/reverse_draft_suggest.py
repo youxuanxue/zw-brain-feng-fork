@@ -9,7 +9,7 @@ Tier 2 (deterministic, ships now):
     - PII pattern match (mobile / phone / id_card / email / addr / secret …)
       reusing the redaction rule patterns from W0.1
     → yellow confidence "pii-pattern"; also flips sensitive_level to 3
-      so R6 doesn't accidentally ship a leaky catalog
+      so 部门管理员 doesn't accidentally ship a leaky catalog
 
 Tier 3 (stub, swap to inference gateway in W5):
     - placeholder "字段_<en_name>" with low confidence "llm-stub"
@@ -18,7 +18,7 @@ Tier 3 (stub, swap to inference gateway in W5):
       placeholder so the UI flow is complete end-to-end.
 
 Output shape is stable and stored under `summary_json.draft_field_suggestions`
-when the user accepts the suggestion, so R7 can later see exactly which
+when the user accepts the suggestion, so 业务运营员 can later see exactly which
 suggestion source each field came from.
 """
 from __future__ import annotations
@@ -28,7 +28,7 @@ from collections.abc import Iterable
 from typing import Any
 
 # Built-in Chinese mapping for common PII column patterns. These are the
-# names R7 will see when no comment is available — chosen to match the
+# names 业务运营员 will see when no comment is available — chosen to match the
 # vocabulary used in old/12-datastructure XML schemas.
 _PII_PATTERN_MAPPING: tuple[tuple[re.Pattern[str], str, str], ...] = (
     (re.compile(r"(^|_)(mobile|cellphone|手机)(_|$)", re.IGNORECASE), "手机号", "3"),

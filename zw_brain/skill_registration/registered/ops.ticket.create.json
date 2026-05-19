@@ -2,7 +2,7 @@
   "skill_id": "ops.ticket.create",
   "slug": "ops.ticket.create",
   "title": "创建运维工单",
-  "description": "R8 创建运维工单（告警处理 / 巡检 / 拨测 / 安全 / 其他），指派给责任人。",
+  "description": "安全审计员 创建运维工单（告警处理 / 巡检 / 拨测 / 安全 / 其他），指派给责任人。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",

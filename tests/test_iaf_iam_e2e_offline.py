@@ -57,7 +57,7 @@ def _valid_claims(**overrides: object) -> dict[str, object]:
         "project_id": "sd-default",
         "project": "shandong",
         "realm_access": {"roles": ["ACCOUNT_ADMIN"]},
-        "resource_access": {"zw-brain": {"roles": ["r7"]}},
+        "resource_access": {"zw-brain": {"roles": ["ROLE_BUSIAUDIT"]}},
         "phone": "13800001111",
         "email": "bound@sd.gov.cn",
     }
@@ -78,9 +78,9 @@ def _new_database_service(tmp: str) -> tuple[DatabaseStore, BrainService]:
 
 
 def _apply_minimum_policy(service: BrainService) -> None:
-    service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True})
-    service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
-    service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+    service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+    service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+    service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
 
 
 def _assert_no_secrets(payload: object) -> None:
@@ -154,7 +154,7 @@ def test_f6_offline_iaf_legacy_policy_governance_acceptance_chain() -> None:
                 "source": "offline-e2e",
                 "auditClass": "write-critical",
                 "requiresHuman": False,
-                "tenantPolicy": {"role_codes": ["r7"]},
+                "tenantPolicy": {"role_codes": ["ROLE_BUSIAUDIT"]},
                 "exposure": ["api", "webui", "cli", "mcp", "a2a"],
             },
             tenant_id="sd-default",
@@ -166,8 +166,8 @@ def test_f6_offline_iaf_legacy_policy_governance_acceptance_chain() -> None:
                 "tenant": {"tenant_id": "sd-default", "tenant_name": "山东省"},
                 "regions": [{"region_code": "370000", "region_name": "山东省"}],
                 "orgs": [{"org_code": "ORG-YBT", "org_name": "一表通专班", "region_code": "370000"}],
-                "roles": [{"role_code": "r7", "role_name": "目录管理员"}],
-                "role": "r7",
+                "roles": [{"role_code": "ROLE_BUSIAUDIT", "role_name": "目录管理员"}],
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
@@ -180,14 +180,14 @@ def test_f6_offline_iaf_legacy_policy_governance_acceptance_chain() -> None:
                 "expected_nonce": "nonce-e2e",
                 "tenant_id": "sd-default",
                 "org_code": "ORG-YBT",
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
         actor_snapshot = actor_result["result"]["actor_snapshots"][0]
         assert actor_snapshot["subject"] == "iaf-bound-user"
         assert actor_snapshot["status"] == "active"
-        assert set(actor_snapshot["role_codes"]) == {"ACCOUNT_ADMIN", "r7"}
+        assert set(actor_snapshot["role_codes"]) == {"ACCOUNT_ADMIN", "ROLE_BUSIAUDIT"}
         assert actor_snapshot["account_flags"] == {"account_admin": True}
 
         dry_run = service.invoke_skill(
@@ -199,7 +199,7 @@ def test_f6_offline_iaf_legacy_policy_governance_acceptance_chain() -> None:
                     {"legacy_permission_ref": "legacy:unknown", "legacy_role_ref": "ROLE_UNKNOWN", "capability_id": "unknown.capability", "surface": "api", "evidence_json": {"client_secret": "drop"}},
                     {"legacy_permission_ref": "legacy:iam-missing", "legacy_role_ref": "ROLE_IAM_MISSING", "capability_id": "topic.package.publish", "candidate_status": "iam_account_missing"},
                 ],
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
@@ -220,8 +220,8 @@ def test_f6_offline_iaf_legacy_policy_governance_acceptance_chain() -> None:
             }
             for item in apply_payload
         ]
-        applied_first = service.invoke_skill("legacy.bsp.mapping.import", {"mode": "apply", "rows": apply_rows, "role": "r7", "confirmed": True})
-        applied_second = service.invoke_skill("legacy.bsp.mapping.import", {"mode": "apply", "rows": apply_rows, "role": "r7", "confirmed": True})
+        applied_first = service.invoke_skill("legacy.bsp.mapping.import", {"mode": "apply", "rows": apply_rows, "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        applied_second = service.invoke_skill("legacy.bsp.mapping.import", {"mode": "apply", "rows": apply_rows, "role": "ROLE_BUSIAUDIT", "confirmed": True})
         assert applied_first["result"]["summary"] == applied_second["result"]["summary"]
         assert len(database_store.governance_projection_repo.list_policy_candidates(tenant_id="sd-default")) == 1
 
@@ -231,8 +231,8 @@ def test_f6_offline_iaf_legacy_policy_governance_acceptance_chain() -> None:
                 "tenant_id": "sd-default",
                 "capability_id": "topic.package.publish",
                 "surface": "api",
-                "role": "r7",
-                "role_codes": ["ACCOUNT_ADMIN", "r7"],
+                "role": "ROLE_BUSIAUDIT",
+                "role_codes": ["ACCOUNT_ADMIN", "ROLE_BUSIAUDIT"],
                 "actor_snapshot": actor_snapshot,
                 "org_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT"},
             },
@@ -240,24 +240,24 @@ def test_f6_offline_iaf_legacy_policy_governance_acceptance_chain() -> None:
         assert allowed["allowed"] is True
         assert allowed["decision_reason"] == "allowed_by_tenant_policy"
 
-        missing_policy = service.invoke_skill("tenant.policy.evaluate", {"tenant_id": "sd-default", "capability_id": "unknown.capability", "surface": "api", "role": "r7", "actor_snapshot": actor_snapshot})
+        missing_policy = service.invoke_skill("tenant.policy.evaluate", {"tenant_id": "sd-default", "capability_id": "unknown.capability", "surface": "api", "role": "ROLE_BUSIAUDIT", "actor_snapshot": actor_snapshot})
         assert missing_policy["allowed"] is False
         assert missing_policy["decision_reason"] == "missing_tenant_policy"
 
         admin_only = dict(actor_snapshot) | {"role_codes": ["ACCOUNT_ADMIN"]}
-        denied_admin = service.invoke_skill("tenant.policy.evaluate", {"tenant_id": "sd-default", "capability_id": "topic.package.publish", "surface": "api", "role": "r2", "role_codes": ["ACCOUNT_ADMIN"], "actor_snapshot": admin_only})
+        denied_admin = service.invoke_skill("tenant.policy.evaluate", {"tenant_id": "sd-default", "capability_id": "topic.package.publish", "surface": "api", "role": "ROLE_ORGAN_MANAGER", "role_codes": ["ACCOUNT_ADMIN"], "actor_snapshot": admin_only})
         assert denied_admin["allowed"] is False
         assert denied_admin["decision_reason"] == "role_not_allowed_by_registry"
 
-        overview = service.invoke_skill("governance.iam_overview", {"tenant_id": "sd-default", "role": "r7"})
+        overview = service.invoke_skill("governance.iam_overview", {"tenant_id": "sd-default", "role": "ROLE_BUSIAUDIT"})
         assert overview["summary"]["actor_count"] == 1
         assert overview["summary"]["policy_count"] >= 1
         assert any(item["type"] in {"unmapped_permission", "iam_account_missing"} for item in overview["import_issues"])
         assert any(item["skill_id"] == "tenant.policy.evaluate" and item["phase"] == "after" for item in overview["audit_events"])
         _assert_no_secrets(overview)
 
-        service.invoke_skill("tenant.capability.disable", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
-        disabled = service.invoke_skill("tenant.policy.evaluate", {"tenant_id": "sd-default", "capability_id": "ledger.entity.base.read", "surface": "api", "role": "r7", "actor_snapshot": actor_snapshot})
+        service.invoke_skill("tenant.capability.disable", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        disabled = service.invoke_skill("tenant.policy.evaluate", {"tenant_id": "sd-default", "capability_id": "ledger.entity.base.read", "surface": "api", "role": "ROLE_BUSIAUDIT", "actor_snapshot": actor_snapshot})
         assert disabled["allowed"] is False
         assert disabled["decision_reason"] == "tenant_policy_disabled"
 
@@ -311,7 +311,7 @@ def test_iaf_oidc_rest_login_token_logout_uses_rs256_jwks_path() -> None:
             assert status == 200
             assert callback["authenticated"] is True
             assert callback["actor_snapshot"]["subject"] == "iaf-bound-user"
-            assert callback["actor_snapshot"]["role_codes"] == ["ACCOUNT_ADMIN", "r7"]
+            assert callback["actor_snapshot"]["role_codes"] == ["ACCOUNT_ADMIN", "ROLE_BUSIAUDIT"]
             assert captured["token_form"]["code"] == ["auth-code"]
             assert captured["token_form"]["redirect_uri"] == [f"http://127.0.0.1:{port}/"]
             _assert_no_secrets({k: v for k, v in callback.items() if k in {"authenticated", "actor_snapshot", "audit_id"}})

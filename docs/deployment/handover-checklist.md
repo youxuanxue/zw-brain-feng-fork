@@ -1,5 +1,11 @@
 # zw-brain 客户现场移交 checklist
 
+> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
+> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
+> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
+> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 原版 R 编号见 git blame。
+
 > 📍 **你在哪一份 zw-brain 文档？**
 > | 你是谁 | 看哪份 |
 > | --- | --- |
@@ -48,7 +54,7 @@
 | 9 | `ZW_BRAIN_DB_PATH` 已设 | `echo $ZW_BRAIN_DB_PATH` | 绝对路径，非默认 | 误用默认路径 → 服务重启数据丢失，没人能签收 |
 | 10 | IAF/OIDC 端点可达 | `curl -s "$ZW_BRAIN_IAF_AUTH_SERVER_URL/.well-known/openid-configuration" \| jq .issuer` | 返回 issuer URL | IAM 不通 → 客户业务用户无法登录，整套大脑只有 dev-bypass 可用（生产禁用） |
 | 11 | 推理网关密钥引用配置 | `echo $ZW_BRAIN_INFERENCE_API_KEY_REF` | 非空，且不是明文（应以 `arn:` 或 `vault:` 开头） | 推理密钥缺/明文 → LLM 类 skill 全部失败 或 密钥泄露被合规警告 |
-| 12 | Blockchain anchor 端点配置（可选） | `echo $ZW_BRAIN_BLOCKCHAIN_ENDPOINT` | 非空 或 显式留 mock-chain | 未显式 mock-chain → audit 异步锚定无目标，R8 督查证据链断 |
+| 12 | Blockchain anchor 端点配置（可选） | `echo $ZW_BRAIN_BLOCKCHAIN_ENDPOINT` | 非空 或 显式留 mock-chain | 未显式 mock-chain → audit 异步锚定无目标，安全审计员 督查证据链断 |
 | 13 | 无明文密钥泄露到代码库 | `grep -rE '(password\|api_key)=.{8,}' --include="*.py" --include="*.json" /opt/zw-brain` | 仅命中 `*_REF` 引用、不出现真实值 | 明文密钥 → 立即合规高危事件，必须 rotation + 强制下架，签收作废 |
 
 ## 四、preflight 16 段全过（1 项 — 这一项覆盖整个机械规约层）
@@ -75,8 +81,8 @@
 | # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
 | --- | --- | --- | --- | --- |
 | 19 | 批量导入跑通 | `bash scripts/customer_acceptance_up.sh` | 写 `.data/customer-acceptance/migration-report.json` 且 status=succeeded | 迁移不通 → 客户旧数据进不来，大脑空跑 |
-| 20 | `legacy_object_mapping` 一对一回指 | `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(*), SUM(mapping_status='mapped') FROM legacy_object_mapping"` | total > 0 且 mapped 比例 ≥ 95% | mapping 断 → R8 督查无法溯源到旧对象，合规证据链不完整 |
-| 21 | M0 验收 status query 11 卡片 | `curl -s /api/skills/legacy.migration.status.query?role=r7 \| jq '.work_queue_cards \| length'` | `11` | 卡片缺失 → R7 看不到验收进度，无法签收 M0 |
+| 20 | `legacy_object_mapping` 一对一回指 | `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(*), SUM(mapping_status='mapped') FROM legacy_object_mapping"` | total > 0 且 mapped 比例 ≥ 95% | mapping 断 → 安全审计员 督查无法溯源到旧对象，合规证据链不完整 |
+| 21 | M0 验收 status query 11 卡片 | `curl -s /api/skills/legacy.migration.status.query?role=ROLE_BUSIAUDIT \| jq '.work_queue_cards \| length'` | `11` | 卡片缺失 → 业务运营员 看不到验收进度，无法签收 M0 |
 | 22 | P0 WebUI 页面渲染 | 浏览器访问 `#/p0-migration-acceptance` | 11 张卡片 + totals + canonical/legacy 分布表 | 页面不渲染 → 实施工程师无法证明迁移完成，签收没视觉证据 |
 | 23 | 显式回滚 dry-run 可调 | `python -m zw_brain.entry.legacy_migration.rollback --tenant=sd-default --legacy-system=dsp_catalog --dry-run` | 返回 scanned 数 + audit_id=null | 回滚链路坏 → 迁移如果半途出错无法干净退回，业务无 rollback plan |
 
@@ -85,14 +91,14 @@
 | # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
 | --- | --- | --- | --- | --- |
 | 24 | M0 验收 status query | pytest test_01 | pass | M0 验收契约断 → 客户无法证明迁移完成 |
-| 25 | R1 需求登记 | pytest test_02 | pass | R1 主旅程断 → 业务专班无法在生产里发起复用申请 |
-| 26 | R6→R7 反向编目闭环 | pytest test_03 | pass，lifecycle_status=pending_review | R6→R7 反向编目断 → 新资源进不了目录候选池 |
-| 27 | R2 分级授权审批 | pytest test_04 | pass | R2 审批断 → 申请进了系统但永远 pending，无法授权交付 |
-| 28 | R6 检测规则 + 任务 | pytest test_05 | pass | 检测规则断 → 字段质量问题无法被发现 |
-| 29 | R3 接派发任务 | pytest test_06 | pass | R3 派单断 → 镇街拿不到预填任务，基层补录走不通 |
-| 30 | R4 异常回传 | pytest test_07 | pass | R4 异常回传断 → 末端异常无路径回流，数据治理断头 |
-| 31 | R5 异议四子流程 | pytest test_08 | pass，evaluate 成功 | R5 异议断 → 申请方与提供方分歧无仲裁路径 |
-| 32 | R8 审计 + 直达督查 | pytest test_09 | pass | R8 督查断 → 合规问题无法独立核查，巡检失效 |
+| 25 | 申请人 需求登记 | pytest test_02 | pass | 申请人 主旅程断 → 业务专班无法在生产里发起复用申请 |
+| 26 | 提供方部门→业务运营员 反向编目闭环 | pytest test_03 | pass，lifecycle_status=pending_review | 提供方部门→业务运营员 反向编目断 → 新资源进不了目录候选池 |
+| 27 | 审批人 分级授权审批 | pytest test_04 | pass | 审批人 审批断 → 申请进了系统但永远 pending，无法授权交付 |
+| 28 | 提供方部门 检测规则 + 任务 | pytest test_05 | pass | 检测规则断 → 字段质量问题无法被发现 |
+| 29 | 镇街填报人 接派发任务 | pytest test_06 | pass | 镇街填报人 派单断 → 镇街拿不到预填任务，基层补录走不通 |
+| 30 | 村社区填报人 异常回传 | pytest test_07 | pass | 村社区填报人 异常回传断 → 末端异常无路径回流，数据治理断头 |
+| 31 | 审核汇总人 异议四子流程 | pytest test_08 | pass，evaluate 成功 | 审核汇总人 异议断 → 申请方与提供方分歧无仲裁路径 |
+| 32 | 安全审计员 审计 + 直达督查 | pytest test_09 | pass | 安全审计员 督查断 → 合规问题无法独立核查，巡检失效 |
 | 33 | audit 链覆盖 12 个核心 skill | pytest test_10 | pass，no missing | 审计漏写 skill → 部分操作不可回放，合规盲区 |
 
 一键跑全部：`pytest tests/test_acceptance_9_roles_e2e.py -v` → 10 passed
@@ -101,18 +107,18 @@
 
 | # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
 | --- | --- | --- | --- | --- |
-| 34 | R1 P1 工作台显示 API 凭据卡 + 需求登记 | 切角色 r1，进 `#/p1-workbench` | 底部出现"我的 API 凭据"和"需求登记前置"两栏 | R1 工作台缺关键卡 → 业务专班看不到自己的凭据和入口 |
-| 35 | R2 P3 reviewDetail 有分级授权策略 form | 切 r2，进 `#/p3-request-flow/review/REQ-2026-04-25-0011` | 看到 5 字段策略表（档位/脱敏/频次/有效期/级联） | R2 审批表单缺字段 → 无法设置授权边界，审批失效 |
-| 36 | R6 P5 4 张工作流卡 + 反向编目向导可点 | 切 r6，进 `#/p5-provider` | 看到 4 张 R6 工作流卡；点反向编目能进 `#/p5-provider/wizard/reverse-catalog` | R6 工作面缺 → 提供方无法发起反向编目，新资源进不了目录 |
-| 37 | R7 P5 3 张收件箱 + 字段口径裁决可点 | 切 r7，进 `#/p5-provider` | 看到 3 张 R7 卡（标题含 "N 条待我裁决"） | R7 收件箱缺 → 目录管理员看不到待裁决项，目录运营停摆 |
-| 38 | R8 P6 绕行督查 panel | 切 r8，进 `#/p6-compliance-ops` | 底部出现 R8 直达交付清单 + 异议绕行可疑 | R8 督查面缺 → 合规绕行无法被发现，督查抓瞎 |
-| 39 | R3/R4 P3 任务过滤 + 异常回传 | 切 r3，进 `#/p3-request-flow` | 列表只剩 supplementing/need-fix 状态；右上角有"异常回传"链接 | R3/R4 任务过滤错乱 → 镇街看不清自己该做哪些，基层补录混乱 |
+| 34 | 申请人 P1 工作台显示 API 凭据卡 + 需求登记 | 切角色 ROLE_ORGAN_OPERATER，进 `#/p1-workbench` | 底部出现"我的 API 凭据"和"需求登记前置"两栏 | 申请人 工作台缺关键卡 → 业务专班看不到自己的凭据和入口 |
+| 35 | 审批人 P3 reviewDetail 有分级授权策略 form | 切 ROLE_ORGAN_MANAGER，进 `#/p3-request-flow/review/REQ-2026-04-25-0011` | 看到 5 字段策略表（档位/脱敏/频次/有效期/级联） | 审批人 审批表单缺字段 → 无法设置授权边界，审批失效 |
+| 36 | 提供方部门 P5 4 张工作流卡 + 反向编目向导可点 | 切 ROLE_ORGAN_MANAGER，进 `#/p5-provider` | 看到 4 张 提供方部门 工作流卡；点反向编目能进 `#/p5-provider/wizard/reverse-catalog` | 提供方部门 工作面缺 → 提供方无法发起反向编目，新资源进不了目录 |
+| 37 | 业务运营员 P5 3 张收件箱 + 字段口径裁决可点 | 切 ROLE_BUSIAUDIT，进 `#/p5-provider` | 看到 3 张 业务运营员 卡（标题含 "N 条待我裁决"） | 业务运营员 收件箱缺 → 目录管理员看不到待裁决项，目录运营停摆 |
+| 38 | 安全审计员 P6 绕行督查 panel | 切 ROLE_SECURITY_AUDIT，进 `#/p6-compliance-ops` | 底部出现 安全审计员 直达交付清单 + 异议绕行可疑 | 安全审计员 督查面缺 → 合规绕行无法被发现，督查抓瞎 |
+| 39 | 基层填报人 P3 任务过滤 + 异常回传 | 切 ROLE_ORGAN_OPERATER，进 `#/p3-request-flow` | 列表只剩 supplementing/need-fix 状态；右上角有"异常回传"链接 | 基层填报人 任务过滤错乱 → 镇街看不清自己该做哪些，基层补录混乱 |
 
 ## 九、审计 + 合规收口（2 项）
 
 | # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
 | --- | --- | --- | --- | --- |
-| 40 | 写 skill 全部产生 audit_event | 9 角色 e2e 跑完后 `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(DISTINCT skill_id) FROM audit_event"` | ≥ 12（覆盖 W5.2 测试的关键 skill）。**注**：默认 e2e 测试使用 isolated TemporaryDirectory，事件不落 prod DB；客户验收时改用主 DB（`ZW_BRAIN_DB_PATH=$REPO_ROOT/.data/customer_acceptance.db`）实际驱动主流程后再查；见 `docs/preflight-debt.md` ITEM-07 entry | 审计漏写 → 合规证据链断 → R8 督查抓瞎，签收作废 |
+| 40 | 写 skill 全部产生 audit_event | 9 角色 e2e 跑完后 `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(DISTINCT skill_id) FROM audit_event"` | ≥ 12（覆盖 W5.2 测试的关键 skill）。**注**：默认 e2e 测试使用 isolated TemporaryDirectory，事件不落 prod DB；客户验收时改用主 DB（`ZW_BRAIN_DB_PATH=$REPO_ROOT/.data/customer_acceptance.db`）实际驱动主流程后再查；见 `docs/preflight-debt.md` ITEM-07 entry | 审计漏写 → 合规证据链断 → 安全审计员 督查抓瞎，签收作废 |
 | 41 | blockchain anchor 队列正常（或可达） | `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(*) FROM anchor_outbox WHERE delivered=0"` | 0 或 < 100（未投递队列正在异步处理；mock-chain 配置下应该 = 0） | anchor 大量未投递 → 区块链证据缺失，对外可信度证明不足 |
 
 ---

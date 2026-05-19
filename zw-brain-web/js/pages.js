@@ -1,15 +1,14 @@
 window.PAGES = {};
 
+// 2026-05-19 retrofit：用户角色对齐旧平台 ROLE_* 7 角色（详见 docs/approved/zw-brain-roles-v2.md）
 function roleLabel(role) {
   return {
-    r1: '上级业务需求发起人',
-    r2: '审批承接人员',
-    r3: '镇街填报人员',
-    r4: '村社区填报人员',
-    r5: '审核汇总人员',
-    r6: '台账管理员',
-    r7: '目录管理员',
-    r8: '合规与减负治理',
+    ROLE_ORGAN_OPERATER: '部门操作员',
+    ROLE_ORGAN_MANAGER: '部门管理员',
+    ROLE_BUSIAUDIT: '业务运营员',
+    ROLE_SECURITY_AUDIT: '安全审计员',
+    ROLE_SECURITY_ADMIN: '安全管理员',
+    ROLE_SYSTEM: '平台运维员',
   }[role] || role;
 }
 
@@ -49,17 +48,17 @@ function formatIdShort(value, prefix = '记录') {
 }
 
 /**
- * B3 — when a grassroots user (R3/R4) views a field's owner, never expose
- * the cross-role role code (R3/R4/R5). Map it to a role-neutral phrase so a
- * R3 user does not see "R4 补录" and vice versa. Non-grassroots users still
+ * B3 — when a grassroots user (基层填报人) views a field's owner, never expose
+ * the cross-role role code (基层填报人/审核汇总人). Map it to a role-neutral phrase so a
+ * 镇街填报人 user does not see "村社区填报人 补录" and vice versa. Non-grassroots users still
  * see the breakdown because they coordinate across the team.
  */
 function ownerForViewer(rawOwner, viewerRole) {
   const s = String(rawOwner || '').trim();
   if (!s) return '';
-  const isGrassroots = viewerRole === 'r3' || viewerRole === 'r4';
+  const isGrassroots = viewerRole === 'ROLE_ORGAN_OPERATER' || viewerRole === 'ROLE_ORGAN_OPERATER';
   if (!isGrassroots) return s;
-  // R3 / R4 only ever see their own bucket: "现场补录".
+  // 镇街填报人 / 村社区填报人 only ever see their own bucket: "现场补录".
   if (/R[345]/i.test(s)) return '现场补录';
   return s;
 }
@@ -196,11 +195,11 @@ function statusPill(status) {
 /**
  * 6 系统护栏 banner — 让客户看到的不是『系统繁忙』而是『护栏诚实拒绝 + 原因摘要』。
  * 参考 .experiences/README.md §系统级护栏 6 条。本期落地 4 条瞬时业务态，
- * 『外部 AI 全部失效』『能力包暴露面越界』另走降级模式标识/R7 注册驳回路径。
+ * 『外部 AI 全部失效』『能力包暴露面越界』另走降级模式标识/业务运营员 注册驳回路径。
  *
  * @param kind 'fuse_protection' | 'audit_write_failed' | 'external_channel_pending' | 'tenant_role_denied'
  * @param messageHtml 业务语言一句话（已转义；不要塞原始堆栈）
- * @param evidenceRef 可选 audit_id / event_id 供 R8 回放
+ * @param evidenceRef 可选 audit_id / event_id 供 安全审计员 回放
  */
 function guardrailBanner(kind, messageHtml, evidenceRef) {
   const cls = {
@@ -392,7 +391,7 @@ function panel(title, subtitle, body, extraClass = '') {
 }
 
 function summaryRouteForRole(role, requestId) {
-  return role === 'r2' || role === 'r5' ? `#/p3-request-flow/review/${requestId}` : `#/p3-request-flow/request/${requestId}`;
+  return role === 'ROLE_ORGAN_MANAGER' || role === 'ROLE_ORGAN_MANAGER' ? `#/p3-request-flow/review/${requestId}` : `#/p3-request-flow/request/${requestId}`;
 }
 
 function deliveryByRequestId(requestId) {
@@ -410,8 +409,8 @@ function activeDelivery() {
 
 function requestStatusLabel(item, role = window.STATE.role) {
   if (!item) return '—';
-  if (item.status === 'pending') return role === 'r1' ? '审批中' : '待审批';
-  if (item.status === 'supplementing') return role === 'r3' || role === 'r4' ? '待补录' : '补录中';
+  if (item.status === 'pending') return role === 'ROLE_ORGAN_OPERATER' ? '审批中' : '待审批';
+  if (item.status === 'supplementing') return role === 'ROLE_ORGAN_OPERATER' || role === 'ROLE_ORGAN_OPERATER' ? '待补录' : '补录中';
   if (item.status === 'summary-pending') return '待汇总确认';
   if (item.status === 'completed') return '已汇总';
   if (item.status === 'need-fix') return '待补正';
@@ -444,13 +443,13 @@ function packageStatusLabel(item) {
 const PRODUCT_SHELL_NAV = [
   // P0 (M0 迁移验收) 是实施工具，不在客户产品导航里。
   // 实施工程师 / 平台运维通过直接访问 #/p0-migration-acceptance 进入；
-  // 客户 R7/R8 不应在导航中看到此入口，也不应处理冲突这类技术债。
+  // 客户 业务运营员 / 安全审计员 不应在导航中看到此入口，也不应处理冲突这类技术债。
   {
     key: 'p1',
     sectionTitle: '数据共享工作台',
     navLabel: '数据共享工作台',
     href: '#/p1-workbench',
-    roles: ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8'],
+    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
     desc: '搜索、待办、证据入口',
   },
   {
@@ -458,7 +457,7 @@ const PRODUCT_SHELL_NAV = [
     sectionTitle: '数据资源发现',
     navLabel: '找可复用数据',
     href: '#/p2-discovery',
-    roles: ['r1', 'r2', 'r6', 'r7', 'r8'],
+    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
     desc: '先找资源和专题资产',
   },
   {
@@ -466,7 +465,7 @@ const PRODUCT_SHELL_NAV = [
     sectionTitle: '共享申请与审批',
     navLabel: '办共享申请',
     href: '#/p3-request-flow',
-    roles: ['r1', 'r2', 'r3', 'r4', 'r5'],
+    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
     desc: '申请、审批、补差异',
   },
   {
@@ -474,7 +473,7 @@ const PRODUCT_SHELL_NAV = [
     sectionTitle: '交付交换与回流',
     navLabel: '看交付回执',
     href: '#/p4-delivery-exchange',
-    roles: ['r1', 'r2', 'r5', 'r6', 'r7', 'r8'],
+    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
     desc: '交付、对账、回流',
   },
   {
@@ -482,7 +481,7 @@ const PRODUCT_SHELL_NAV = [
     sectionTitle: '维护数据供给',
     navLabel: '维护数据供给',
     href: '#/p5-provider',
-    roles: ['r6', 'r7'],
+    roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
     desc: '目录、资源、服务上架',
   },
   {
@@ -490,7 +489,7 @@ const PRODUCT_SHELL_NAV = [
     sectionTitle: '合规运营与减负',
     navLabel: '查审计证据',
     href: '#/p6-compliance-ops',
-    roles: ['r2', 'r5', 'r6', 'r7', 'r8'],
+    roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
     desc: '重复要数与证据回放',
   },
   {
@@ -498,7 +497,7 @@ const PRODUCT_SHELL_NAV = [
     sectionTitle: '共享专区 / 专题包',
     navLabel: '进专题包',
     href: '#/p7-zones-pack',
-    roles: ['r1', 'r2', 'r6', 'r7', 'r8'],
+    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
     desc: '一表通等场景入口',
   },
   {
@@ -506,14 +505,14 @@ const PRODUCT_SHELL_NAV = [
     sectionTitle: '受控接入治理',
     navLabel: '管受控接入',
     href: '#/p8-integration-admin',
-    roles: ['r7'],
+    roles: ['ROLE_BUSIAUDIT'],
     desc: '外部能力上线边界',
   },
 ];
 
 function requestStepIndex(item, role = window.STATE.role) {
   if (!item) return 0;
-  if (item.status === 'pending') return role === 'r1' ? 2 : 2;
+  if (item.status === 'pending') return role === 'ROLE_ORGAN_OPERATER' ? 2 : 2;
   if (item.status === 'supplementing') return 3;
   if (item.status === 'summary-pending') return 4;
   if (item.status === 'completed') return 5;
@@ -522,7 +521,7 @@ function requestStepIndex(item, role = window.STATE.role) {
 }
 
 function requestActionBar(item, role = window.STATE.role) {
-  const isGrassroots = role === 'r3' || role === 'r4';
+  const isGrassroots = role === 'ROLE_ORGAN_OPERATER' || role === 'ROLE_ORGAN_OPERATER';
   if (!item) return '';
   if (!isGrassroots && item.status === 'need-fix') {
     return `
@@ -681,36 +680,36 @@ function shell(activeKey, mainHtml) {
 /** 与侧栏 `PRODUCT_SHELL_NAV[].roles` 一致；服务端预加载裁剪见 `zw_brain/domain/web_snapshot_redaction.py` */
 window.ZW_PAGE_ACCESS = {
   // P0 (M0 迁移验收) 是实施工具，仅 admin（平台实施工程师）可直接访问。
-  // 客户角色 r7/r8 既不在导航看到它，也不能直接访问。
+  // 客户角色 业务运营员 / 安全审计员 既不在导航看到它，也不能直接访问。
   // 客户验收日实施工程师以 admin 身份打开本页让客户高层看一眼，不交互。
   migrationAcceptance: ['admin'],
-  workbench: ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8'],
-  login: ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8'],
-  profile: ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8'],
-  discovery: ['r1', 'r2', 'r6', 'r7', 'r8'],
-  catalogBrowse: ['r1', 'r2', 'r6', 'r7', 'r8'],
-  resourceDetail: ['r1', 'r2', 'r6', 'r7', 'r8'],
-  requestFlow: ['r1', 'r2', 'r3', 'r4', 'r5'],
-  requestDetail: ['r1', 'r2', 'r3', 'r4', 'r5'],
-  reviewDetail: ['r2', 'r5'],
-  deliveryExchange: ['r1', 'r2', 'r5', 'r6', 'r7', 'r8'],
-  deliveryTaskDetail: ['r1', 'r2', 'r5', 'r6', 'r7', 'r8'],
-  provider: ['r6', 'r7'],
-  providerWizardReverseCatalog: ['r6'],
-  providerWizardApiService: ['r6'],
-  providerWizardQualityRule: ['r6'],
-  providerInboxFieldDecision: ['r7'],
-  providerInboxFieldDecisionDetail: ['r7'],
-  providerInboxHookupReview: ['r7'],
-  providerInboxDemandMatch: ['r7'],
-  providerInboxDemandMatchDetail: ['r7'],
-  complianceOps: ['r2', 'r5', 'r6', 'r7', 'r8'],
-  disputeDetail: ['r2', 'r5', 'r6', 'r7', 'r8'],
-  zonesPack: ['r1', 'r2', 'r6', 'r7', 'r8'],
-  zoneDetail: ['r1', 'r2', 'r6', 'r7', 'r8'],
-  integrationAdmin: ['r7'],
-  iamGovernance: ['r7'],
-  packageDetail: ['r7'],
+  workbench: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+  login: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+  profile: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+  discovery: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+  catalogBrowse: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+  resourceDetail: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+  requestFlow: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
+  requestDetail: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
+  reviewDetail: ['ROLE_ORGAN_MANAGER'],
+  deliveryExchange: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+  deliveryTaskDetail: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+  provider: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
+  providerWizardReverseCatalog: ['ROLE_ORGAN_MANAGER'],
+  providerWizardApiService: ['ROLE_ORGAN_MANAGER'],
+  providerWizardQualityRule: ['ROLE_ORGAN_MANAGER'],
+  providerInboxFieldDecision: ['ROLE_BUSIAUDIT'],
+  providerInboxFieldDecisionDetail: ['ROLE_BUSIAUDIT'],
+  providerInboxHookupReview: ['ROLE_BUSIAUDIT'],
+  providerInboxDemandMatch: ['ROLE_BUSIAUDIT'],
+  providerInboxDemandMatchDetail: ['ROLE_BUSIAUDIT'],
+  complianceOps: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+  disputeDetail: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+  zonesPack: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+  zoneDetail: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+  integrationAdmin: ['ROLE_BUSIAUDIT'],
+  iamGovernance: ['ROLE_BUSIAUDIT'],
+  packageDetail: ['ROLE_BUSIAUDIT'],
 };
 
 window.ZW_PAGE_SHELL = {
@@ -893,7 +892,7 @@ PAGES.migrationAcceptance = function () {
               ${!totals.conflicted && (partialCount + pendingCount) ? `${partialCount} 张 partial + ${pendingCount} 张 pending 待处理。` : ''}
             </div>
             <div class="row-meta mt-2 text-body-sm">
-              <strong>客户角色 (R1-R8) 看不到此页</strong>；R7/R8 在 zw-brain 中只看到已迁干净的目录、资源、申请。剩余 conflicted 不暴露给业务人员裁决。
+              <strong>客户角色 (申请人-安全审计员) 看不到此页</strong>；业务运营员 / 安全审计员 在 zw-brain 中只看到已迁干净的目录、资源、申请。剩余 conflicted 不暴露给业务人员裁决。
             </div>
           </div>
         </div>
@@ -908,7 +907,7 @@ PAGES.migrationAcceptance = function () {
         <div>
           <div class="page-kicker">M0 迁移监控（仅平台实施）</div>
           <div class="page-hero-title">实施期诊断面板 — 不暴露给客户业务岗位</div>
-          <div class="page-hero-subtitle">租户 <code>${escapeHtml(state.tenant_id || 'sd-default')}</code>${lastRunTime ? ` · 上次同步 <code>${escapeHtml(lastRunTime)}</code>` : ''} · 客户 R1-R8 看到的是已迁干净的系统，不会看到本页</div>
+          <div class="page-hero-subtitle">租户 <code>${escapeHtml(state.tenant_id || 'sd-default')}</code>${lastRunTime ? ` · 上次同步 <code>${escapeHtml(lastRunTime)}</code>` : ''} · 客户 申请人-安全审计员 看到的是已迁干净的系统，不会看到本页</div>
         </div>
         <div class="page-meta">实施工程师 · admin</div>
       </div>
@@ -990,55 +989,43 @@ const WORKBENCH_ICONS = {
   shield: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1 1 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/></svg>',
 };
 
-// W6.1: 按角色定制 hero 文案 + 主入口排序
+// 2026-05-19 retrofit：按 7 角色重新组织 hero 文案（详见 docs/approved/zw-brain-roles-v2.md）
 const ROLE_HERO = {
-  r1: {
+  ROLE_ORGAN_OPERATER: {
     kicker: '数据共享工作台',
     title: '从一个业务需求开始，先找可复用数据。',
-    subtitle: '找得到就复用；要使用就发起受控申请；交付、回流和审计在同一条链上追踪。',
+    subtitle: '找得到就复用；要使用就发起受控申请；交付、回流和审计在同一条链上追踪。基层补差任务也在本台接收。',
     primary: ['search', 'apply', 'progress', 'delivery', 'topic'],
   },
-  r2: {
-    kicker: '审批承接台',
-    title: '把住重复要数阀门 — 看待审申请、复用判断、授权边界。',
-    subtitle: '不是把申请原样转发，而是看证据链做准入判定：分级授权 / 撤回处置 / API 边界审。',
-    primary: ['progress', 'audit', 'delivery', 'search'],
+  ROLE_ORGAN_MANAGER: {
+    kicker: '部门管理台',
+    title: '把住重复要数阀门 + 维护本部门数据供给。',
+    subtitle: '看待审申请、复用判断、授权边界；同时反向编目、API 服务化、汇总确认。提供方/需求方双视角。',
+    primary: ['progress', 'audit', 'delivery', 'catalog', 'api', 'search'],
   },
-  r3: {
-    kicker: '镇街补差任务',
-    title: '只补差异，不重填整表。',
-    subtitle: '看任务卡 → 补现场变化 → 提交。异常一键回传，不靠线下沟通。',
-    primary: ['apply', 'progress'],
-  },
-  r4: {
-    kicker: '村社区核实任务',
-    title: '现场核实，只看任务卡。',
-    subtitle: '任务卡告诉你补哪些字段、不补哪些。看不懂的字段一键回传上级。',
-    primary: ['apply', 'progress'],
-  },
-  r5: {
-    kicker: '审核汇总台',
-    title: '盯异常、确认自动汇总。',
-    subtitle: '不再线下拼表 — 系统已汇总好的结果在这里集中处理异常、口径冲突、质量证据。',
-    primary: ['progress', 'audit', 'delivery'],
-  },
-  r6: {
-    kicker: '数据供给台账',
-    title: '把目录、资源、API 准备好 — 让 R1 一搜就用。',
-    subtitle: '反向编目 / API 服务化 / 自动检测规则 — 4 张工作流卡都在"维护数据供给"。',
-    primary: ['catalog', 'api', 'audit', 'topic'],
-  },
-  r7: {
-    kicker: '目录运营台',
+  ROLE_BUSIAUDIT: {
+    kicker: '业务运营台',
     title: '让发布真正可发现、可申请、可授权。',
-    subtitle: '字段口径裁决 / 挂接审核 / 供需对接 — 3 张收件箱在"维护数据供给"。',
+    subtitle: '字段口径裁决 / 挂接审核 / 供需对接 / 平台发布权 — 主管部门最终复核与发布。',
     primary: ['inbox', 'catalog', 'topic', 'audit'],
   },
-  r8: {
+  ROLE_SECURITY_AUDIT: {
     kicker: '合规与减负治理',
     title: '守底线 — 重复要数、绕行采集、断链都进证据链。',
     subtitle: '减负指标 / 撤回审计 / 异议绕行 / 直达督查 — 不直接改业务事实，只形成整改建议。',
     primary: ['shield', 'audit', 'delivery'],
+  },
+  ROLE_SECURITY_ADMIN: {
+    kicker: '数据安全策略',
+    title: '分级分类 / 脱敏 / 密钥 / 风险处置。',
+    subtitle: '数据安全中心独立模块；与主业务流程解耦，只对数据资产施加保护策略。',
+    primary: ['shield'],
+  },
+  ROLE_SYSTEM: {
+    kicker: '平台运维台',
+    title: '组织 / 用户 / 网关 / 消息 / 告警 / 拨测。',
+    subtitle: '平台承建方运维面，不参与业务流程；保障平台底座可用。',
+    primary: [],
   },
   admin: {
     kicker: 'M0 实施监控',
@@ -1049,7 +1036,7 @@ const ROLE_HERO = {
 };
 
 PAGES.workbench = function () {
-  const current = window.RUNTIME_WORKBENCH[window.STATE.role] || window.RUNTIME_WORKBENCH.r1;
+  const current = window.RUNTIME_WORKBENCH[window.STATE.role] || window.RUNTIME_WORKBENCH.ROLE_ORGAN_OPERATER;
   const metrics = window.RUNTIME_DASHBOARD.burdenMetrics || [];
   const requests = window.RUNTIME_REQUESTS || [];
   const deliveryTasks = window.RUNTIME_DELIVERY_TASKS || [];
@@ -1057,19 +1044,19 @@ PAGES.workbench = function () {
   const primaryDelivery = activeDelivery();
   const role = window.STATE.role;
   const canAccess = roles => roles.includes(role);
-  const heroCfg = ROLE_HERO[role] || ROLE_HERO.r1;
+  const heroCfg = ROLE_HERO[role] || ROLE_HERO.ROLE_ORGAN_OPERATER;
   // W6.1+W6.6: serviceEntries 加 iconKey 用 SVG，按角色 primary 重排序
   const allServiceEntries = [
-    { key: 'search',   label: '找可复用数据', desc: '先查已有资源和专题包，避免重新要数。', href: '#/p2-discovery', iconKey: 'search', roles: ['r1', 'r2', 'r6', 'r7', 'r8'] },
-    { key: 'apply',    label: '发起共享申请', desc: '把资源、用途、差异字段带入受控准入。', href: '#/p3-request-flow', iconKey: 'apply', roles: ['r1', 'r2', 'r3', 'r4', 'r5'] },
-    { key: 'progress', label: '看申请进度', desc: '查看补件、审批、补录和汇总状态。', href: primaryRequest ? summaryRouteForRole(role, primaryRequest.id) : '#/p3-request-flow', iconKey: 'progress', roles: ['r1', 'r2', 'r3', 'r4', 'r5'] },
-    { key: 'delivery', label: '看交付回执', desc: '跟踪交付、对账和回流候选。', href: primaryDelivery ? `#/p4-delivery-exchange/task/${primaryDelivery.id}` : '#/p4-delivery-exchange', iconKey: 'delivery', roles: ['r1', 'r2', 'r5', 'r6', 'r7', 'r8'] },
-    { key: 'audit',    label: '查审计证据', desc: '回放争议、告警、工单和责任链。', href: '#/p6-compliance-ops', iconKey: 'audit', roles: ['r2', 'r5', 'r6', 'r7', 'r8'] },
-    { key: 'topic',    label: '进专题包', desc: '从一表通、营商环境等场景直接进入。', href: '#/p7-zones-pack', iconKey: 'topic', roles: ['r1', 'r2', 'r6', 'r7', 'r8'] },
-    { key: 'inbox',    label: '收件箱：字段裁决/挂接审核', desc: 'R7 的字段口径裁决 + 资源挂接审核 + 供需对接收件箱。', href: '#/p5-provider', iconKey: 'inbox', roles: ['r7'] },
-    { key: 'catalog',  label: '维护数据供给', desc: '反向编目 / 资源挂接 / 服务上架。', href: '#/p5-provider', iconKey: 'catalog', roles: ['r6', 'r7'] },
-    { key: 'api',      label: 'API 服务化交付', desc: '把资源对外开放为受控 API。', href: '#/p5-provider/wizard/api-service', iconKey: 'api', roles: ['r6'] },
-    { key: 'shield',   label: '减负指标 / 合规督查', desc: '减负结果、撤回审计、异议绕行、直达 / API 绕行抽查。', href: '#/p6-compliance-ops', iconKey: 'shield', roles: ['r8'] },
+    { key: 'search',   label: '找可复用数据', desc: '先查已有资源和专题包，避免重新要数。', href: '#/p2-discovery', iconKey: 'search', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
+    { key: 'apply',    label: '发起共享申请', desc: '把资源、用途、差异字段带入受控准入。', href: '#/p3-request-flow', iconKey: 'apply', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'] },
+    { key: 'progress', label: '看申请进度', desc: '查看补件、审批、补录和汇总状态。', href: primaryRequest ? summaryRouteForRole(role, primaryRequest.id) : '#/p3-request-flow', iconKey: 'progress', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'] },
+    { key: 'delivery', label: '看交付回执', desc: '跟踪交付、对账和回流候选。', href: primaryDelivery ? `#/p4-delivery-exchange/task/${primaryDelivery.id}` : '#/p4-delivery-exchange', iconKey: 'delivery', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
+    { key: 'audit',    label: '查审计证据', desc: '回放争议、告警、工单和责任链。', href: '#/p6-compliance-ops', iconKey: 'audit', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
+    { key: 'topic',    label: '进专题包', desc: '从一表通、营商环境等场景直接进入。', href: '#/p7-zones-pack', iconKey: 'topic', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
+    { key: 'inbox',    label: '收件箱：字段裁决/挂接审核', desc: '业务运营员 的字段口径裁决 + 资源挂接审核 + 供需对接收件箱。', href: '#/p5-provider', iconKey: 'inbox', roles: ['ROLE_BUSIAUDIT'] },
+    { key: 'catalog',  label: '维护数据供给', desc: '反向编目 / 资源挂接 / 服务上架。', href: '#/p5-provider', iconKey: 'catalog', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'] },
+    { key: 'api',      label: 'API 服务化交付', desc: '把资源对外开放为受控 API。', href: '#/p5-provider/wizard/api-service', iconKey: 'api', roles: ['ROLE_ORGAN_MANAGER'] },
+    { key: 'shield',   label: '减负指标 / 合规督查', desc: '减负结果、撤回审计、异议绕行、直达 / API 绕行抽查。', href: '#/p6-compliance-ops', iconKey: 'shield', roles: ['ROLE_SECURITY_AUDIT'] },
   ];
   // 按角色 primary 顺序排序；只显示当前角色 allowed 的
   const orderedEntries = heroCfg.primary
@@ -1082,11 +1069,11 @@ PAGES.workbench = function () {
         <em>${escapeHtml(item.desc)}</em>
       </a>`).join('');
   const baseRows = [
-    { section: '常用办理', title: '搜索业务或数据需求', desc: '输入“停车场信息”“泊位开放状态”等业务说法，先找可复用资源。', href: '#/p2-discovery', tag: '搜索优先', roles: ['r2', 'r6', 'r7', 'r8'] },
-    { section: '常用办理', title: '查看共享申请进度', desc: primaryRequest ? `${primaryRequest.id} · ${requestStatusLabel(primaryRequest, role)}` : '暂无进行中的共享申请，可先从资源详情发起。', href: '#/p3-request-flow', tag: '受控准入', roles: ['r1', 'r2', 'r3', 'r4', 'r5'] },
-    { section: '待我确认', title: current.todos?.[0]?.title || '查看今日待办', desc: current.todos?.[0]?.status || '按当前身份只显示需要你处理的事项。', href: current.todos?.[0]?.href || '#/p1-workbench', tag: '人工确认', roles: ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8'] },
-    { section: '专题共享', title: '进入专题包', desc: '从高频主题进入资产、订阅和复用申请。', href: '#/p7-zones-pack', tag: '场景入口', roles: ['r1', 'r2', 'r6', 'r7', 'r8'] },
-    { section: '交付与审计', title: '查看交付回执与审计证据', desc: primaryDelivery ? `${primaryDelivery.id} · ${deliveryStatusLabel(primaryDelivery, primaryRequest)}` : '交付、对账、回流和争议证据集中查看。', href: primaryDelivery ? `#/p4-delivery-exchange/task/${primaryDelivery.id}` : '#/p6-compliance-ops', tag: '证据可查', roles: ['r1', 'r2', 'r5', 'r6', 'r7', 'r8'] },
+    { section: '常用办理', title: '搜索业务或数据需求', desc: '输入“停车场信息”“泊位开放状态”等业务说法，先找可复用资源。', href: '#/p2-discovery', tag: '搜索优先', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
+    { section: '常用办理', title: '查看共享申请进度', desc: primaryRequest ? `${primaryRequest.id} · ${requestStatusLabel(primaryRequest, role)}` : '暂无进行中的共享申请，可先从资源详情发起。', href: '#/p3-request-flow', tag: '受控准入', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'] },
+    { section: '待我确认', title: current.todos?.[0]?.title || '查看今日待办', desc: current.todos?.[0]?.status || '按当前身份只显示需要你处理的事项。', href: current.todos?.[0]?.href || '#/p1-workbench', tag: '人工确认', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
+    { section: '专题共享', title: '进入专题包', desc: '从高频主题进入资产、订阅和复用申请。', href: '#/p7-zones-pack', tag: '场景入口', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
+    { section: '交付与审计', title: '查看交付回执与审计证据', desc: primaryDelivery ? `${primaryDelivery.id} · ${deliveryStatusLabel(primaryDelivery, primaryRequest)}` : '交付、对账、回流和争议证据集中查看。', href: primaryDelivery ? `#/p4-delivery-exchange/task/${primaryDelivery.id}` : '#/p6-compliance-ops', tag: '证据可查', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
   ];
   const serviceRows = baseRows.map(item => {
     const allowed = canAccess(item.roles);
@@ -1098,8 +1085,8 @@ PAGES.workbench = function () {
         <span class="service-row-tag">${escapeHtml(item.tag)}</span>
       </a>`;
   }).join('');
-  // W6.1: 搜索框仅 R1 / R2 显示（其他角色主入口不是搜索）
-  const showSearch = role === 'r1' || role === 'r2';
+  // W6.1: 搜索框仅 申请人 / 审批人 显示（其他角色主入口不是搜索）
+  const showSearch = role === 'ROLE_ORGAN_OPERATER' || role === 'ROLE_ORGAN_MANAGER';
   const main = `
     <div class="service-home-hero page-hero">
       <div class="service-home-copy">
@@ -1175,7 +1162,7 @@ PAGES.workbench = function () {
           <div class="text-body leading-7 text-zw-ink">${escapeHtml(current.aiSummary.summary)}</div>
           <div class="mt-4 text-body-sm text-zw-mute leading-7">${(current.aiSummary.basis || []).map(item => `• ${escapeHtml(item)}`).join('<br/>')}</div>
         `)}
-        ${(role === 'r3' || role === 'r4')
+        ${(role === 'ROLE_ORGAN_OPERATER' || role === 'ROLE_ORGAN_OPERATER')
           ? ''
           : panel('服务证据概览', '指标只作辅助，主路径仍从搜索和办理入口进入。', `
           ${statCards([
@@ -1192,8 +1179,8 @@ PAGES.workbench = function () {
 };
 
 function r1ApiCredentialsAndDemandRegistration() {
-  // W4.5: R1 视角下显示"我的 API 凭据"和"需求登记前置"两个入口
-  if (!window.STATE || window.STATE.role !== 'r1') return '';
+  // W4.5: 申请人 视角下显示"我的 API 凭据"和"需求登记前置"两个入口
+  if (!window.STATE || window.STATE.role !== 'ROLE_ORGAN_OPERATER') return '';
   const apiDeliveries = (window.RUNTIME_DELIVERY_TASKS || []).filter(t => t.channel === 'api' || (t.channel || '').includes('api'));
   return `
     <div class="grid grid-cols-2 gap-5 mt-5">
@@ -1206,12 +1193,12 @@ function r1ApiCredentialsAndDemandRegistration() {
           <div class="row-meta text-body-sm mt-2">凭据 / IP 白名单 / 限流额度详情请进 #/p4-delivery-exchange/task/&lt;delivery_code&gt; 查看。调用计数与错误样本走 ops.service.invocation.query。</div>
         ` : '<div class="row-meta">尚无 API 交付通道；通过申请审批后会在此显示。</div>'}
       `)}
-      ${panel('需求登记前置', '不确定该用哪份目录？先以「需求登记」前置：写明用途/字段/时间窗，R7 反查复用', `
-        <div class="row-meta text-body-sm mb-3">复用判断成功 → 直接申请；不可复用 → R7 派 R5 切片任务。</div>
+      ${panel('需求登记前置', '不确定该用哪份目录？先以「需求登记」前置：写明用途/字段/时间窗，业务运营员 反查复用', `
+        <div class="row-meta text-body-sm mb-3">复用判断成功 → 直接申请；不可复用 → 业务运营员 派 审核汇总人 切片任务。</div>
         <div class="flex flex-col gap-2">
-          <input id="r1-demand-purpose" class="gov-input" placeholder="用途 (e.g. 民生保障专题统计)"/>
-          <input id="r1-demand-fields" class="gov-input" placeholder="字段口径 (e.g. 停车场名称, 区域, 状态, 更新时间)"/>
-          <input id="r1-demand-window" class="gov-input" placeholder="时间窗 (e.g. 2026-01 ~ 2026-06)"/>
+          <input id="apply-demand-purpose" class="gov-input" placeholder="用途 (e.g. 民生保障专题统计)"/>
+          <input id="apply-demand-fields" class="gov-input" placeholder="字段口径 (e.g. 停车场名称, 区域, 状态, 更新时间)"/>
+          <input id="apply-demand-window" class="gov-input" placeholder="时间窗 (e.g. 2026-01 ~ 2026-06)"/>
           <button onclick="window.ACTIONS.submitDemandRegistration()" class="gov-btn gov-btn-primary">提交需求登记</button>
         </div>
         <div class="row-meta text-body-sm mt-2">提交后调用 require.intent.submit；可在 #/p3-request-flow 跟踪复用判断结果。</div>
@@ -1537,15 +1524,15 @@ PAGES.requestFlow = function () {
   const request = activeRequest();
   const draft = request.aiDraft;
   const role = window.STATE.role;
-  const isGrassroots = role === 'r3' || role === 'r4';
-  const isReviewer = role === 'r2' || role === 'r5';
+  const isGrassroots = role === 'ROLE_ORGAN_OPERATER' || role === 'ROLE_ORGAN_OPERATER';
+  const isReviewer = role === 'ROLE_ORGAN_MANAGER' || role === 'ROLE_ORGAN_MANAGER';
   const statusLabel = requestStatusLabel(request, role);
-  // W7.1: P3 hero 按角色定制 — R3/R4 只看自己的任务，不再读 R1/R2 的全链路口径
+  // W7.1: P3 hero 按角色定制 — 基层填报人 只看自己的任务，不再读 申请人/审批人 的全链路口径
   const heroCfg = (
-    role === 'r3' ? { kicker: '镇街补差任务', title: '我的差异补录任务', subtitle: '只处理标红的差异字段；预填值由上游目录与资源带出，异常字段一键回传。' } :
-    role === 'r4' ? { kicker: '村社区核实任务', title: '我的现场核实任务', subtitle: '看任务卡 → 补现场变化 → 提交。看不懂的字段一键回传上级。' } :
-    role === 'r2' ? { kicker: '审批承接 · 待审申请', title: '把住重复要数阀门 — 审批待办', subtitle: '看证据链做准入判定；分级授权策略 / API 边界审 / 撤回处置都在 reviewDetail 内联。' } :
-    role === 'r5' ? { kicker: '审核汇总 · 异常确认', title: '盯异常、确认自动汇总', subtitle: '不再线下拼表 — 系统已汇总好的结果在这里集中处理异常项、口径冲突、质量证据。' } :
+    role === 'ROLE_ORGAN_OPERATER' ? { kicker: '镇街补差任务', title: '我的差异补录任务', subtitle: '只处理标红的差异字段；预填值由上游目录与资源带出，异常字段一键回传。' } :
+    role === 'ROLE_ORGAN_OPERATER' ? { kicker: '村社区核实任务', title: '我的现场核实任务', subtitle: '看任务卡 → 补现场变化 → 提交。看不懂的字段一键回传上级。' } :
+    role === 'ROLE_ORGAN_MANAGER' ? { kicker: '审批承接 · 待审申请', title: '把住重复要数阀门 — 审批待办', subtitle: '看证据链做准入判定；分级授权策略 / API 边界审 / 撤回处置都在 reviewDetail 内联。' } :
+    role === 'ROLE_ORGAN_MANAGER' ? { kicker: '审核汇总 · 异常确认', title: '盯异常、确认自动汇总', subtitle: '不再线下拼表 — 系统已汇总好的结果在这里集中处理异常项、口径冲突、质量证据。' } :
                     { kicker: '共享申请与审批', title: '共享申请、准入审批、基层补录在一条链上办理。', subtitle: '发起人、审批承接、镇街社区和汇总人员看到同一份状态，只在自己负责的环节执行人工确认。' }
   );
   const main = `
@@ -1601,13 +1588,13 @@ PAGES.requestFlow = function () {
         ${panel(
           isGrassroots ? '我的补录提示' : '准入 / 汇总侧栏',
           (
-            role === 'r3' ? '镇街只核对已带出字段并补齐自己负责的现场差异。' :
-            role === 'r4' ? '村社区只核实现场变化字段，看不懂或无法核实就异常回传。' :
+            role === 'ROLE_ORGAN_OPERATER' ? '镇街只核对已带出字段并补齐自己负责的现场差异。' :
+            role === 'ROLE_ORGAN_OPERATER' ? '村社区只核实现场变化字段，看不懂或无法核实就异常回传。' :
             '审批承接人员处理准入，审核汇总人员处理异常项与汇总结果。'
           ), `
           <div class="text-body leading-7 text-zw-ink">${
-            role === 'r3' ? '本任务已自动带出企业基础字段，你只需核对经营状态、最近走访时间和现场备注。' :
-            role === 'r4' ? '本任务只让你核实当前现场状态，不要求接触整张表。' :
+            role === 'ROLE_ORGAN_OPERATER' ? '本任务已自动带出企业基础字段，你只需核对经营状态、最近走访时间和现场备注。' :
+            role === 'ROLE_ORGAN_OPERATER' ? '本任务只让你核实当前现场状态，不要求接触整张表。' :
             isReviewer ? '当前重点是确认差异字段、异常项和自动汇总结果。' :
             draft.risk
           }</div>
@@ -1641,16 +1628,16 @@ PAGES.requestDetail = function (id) {
   const item = requestById(id);
   if (!item) return entityNotFoundShell('p3', '共享申请', id, '#/p3-request-flow', '返回共享申请与审批');
   const role = window.STATE.role;
-  const isGrassroots = role === 'r3' || role === 'r4';
+  const isGrassroots = role === 'ROLE_ORGAN_OPERATER' || role === 'ROLE_ORGAN_OPERATER';
   const diffState = item.status === 'supplementing' ? '待补录' : item.status === 'summary-pending' || item.status === 'completed' ? '已补录' : item.status === 'need-fix' ? '待补正' : '待确认';
   const diffNote = field => {
     const owner = ownerForViewer(field.owner, role);
     const tail = item.status === 'summary-pending' || item.status === 'completed' ? ` · ${field.state || '已补录'}` : '';
     return owner ? `${field.reason} · ${owner}${tail}` : `${field.reason}${tail}`;
   };
-  const grassrootsCrumb = role === 'r3' ? '镇街补差任务' : '村社区核实任务';
-  const grassrootsTitle = role === 'r3' ? '我的差异补录任务' : '我的现场核实任务';
-  const grassrootsSubtitle = role === 'r3'
+  const grassrootsCrumb = role === 'ROLE_ORGAN_OPERATER' ? '镇街补差任务' : '村社区核实任务';
+  const grassrootsTitle = role === 'ROLE_ORGAN_OPERATER' ? '我的差异补录任务' : '我的现场核实任务';
+  const grassrootsSubtitle = role === 'ROLE_ORGAN_OPERATER'
     ? '只看分给镇街的差异字段，基础信息已经预填。'
     : '只核实现场变化字段，看不懂或无法核实就异常回传。';
   const main = isGrassroots ? `
@@ -1672,13 +1659,13 @@ PAGES.requestDetail = function (id) {
       <section class="col-span-8 space-y-5">
         ${panel('我的待补字段', '只补真正缺失、动态、现场性强的字段', `
           <div class="grid grid-cols-1 gap-3">${item.diffFields
-            // B3 — R3 only sees fields they own; R4 only sees fields they own.
+            // B3 — 镇街填报人 only sees fields they own; 村社区填报人 only sees fields they own.
             // Fields tagged for the *other* grassroots role get hidden so we
             // don't leak the cross-role breakdown onto the field card.
             .filter(field => {
               const o = String(field.owner || '').toUpperCase();
-              if (role === 'r3' && /R4(?!\/)/i.test(o) && !/R3/.test(o)) return false;
-              if (role === 'r4' && /R3(?!\/)/i.test(o) && !/R4/.test(o)) return false;
+              if (role === 'ROLE_ORGAN_OPERATER' && /村社区填报人(?!\/)/i.test(o) && !/镇街填报人/.test(o)) return false;
+              if (role === 'ROLE_ORGAN_OPERATER' && /镇街填报人(?!\/)/i.test(o) && !/村社区填报人/.test(o)) return false;
               return true;
             })
             .map(field => renderFieldState(field.label, field.value, diffState, diffNote(field))).join('')}</div>
@@ -1693,8 +1680,8 @@ PAGES.requestDetail = function (id) {
       </section>
       <aside class="col-span-4 space-y-5">
         ${panel('办理提醒', '先补差异，再提交；异常不要线下沟通', `
-          <div class="text-body leading-7 text-zw-ink">${role === 'r3' ? '镇街只处理分派给自己的补差任务。无法确认的字段回传上级汇总，不把问题压给社区。' : '村社区只核实现场事实。字段口径不理解、现场无法核实或任务范围不对时，直接回传异常。'}</div>
-          <div class="mt-4 text-body-sm text-zw-mute leading-7">下一步：${escapeHtml(item.aiStatus.nextAction || '提交后进入 R5 汇总确认。')}</div>
+          <div class="text-body leading-7 text-zw-ink">${role === 'ROLE_ORGAN_OPERATER' ? '镇街只处理分派给自己的补差任务。无法确认的字段回传上级汇总，不把问题压给社区。' : '村社区只核实现场事实。字段口径不理解、现场无法核实或任务范围不对时，直接回传异常。'}</div>
+          <div class="mt-4 text-body-sm text-zw-mute leading-7">下一步：${escapeHtml(item.aiStatus.nextAction || '提交后进入 审核汇总人 汇总确认。')}</div>
         `)}
         ${panel('回执与审计', '提交和异常回传都会留下回执', `
           <div class="flex flex-wrap gap-2 text-body">
@@ -1808,13 +1795,13 @@ PAGES.reviewDetail = function (id) {
     ? `<button onclick="window.ACTIONS.rejectRequest('${request.id}')" class="gov-btn gov-btn-danger">驳回</button>`
     : '';
   const main = `
-    ${crumbs([{ label: '共享申请与审批', href: '#/p3-request-flow' }, { label: window.STATE.role === 'r5' ? '汇总确认详情' : '审批准入详情' }])}
+    ${crumbs([{ label: '共享申请与审批', href: '#/p3-request-flow' }, { label: window.STATE.role === 'ROLE_ORGAN_MANAGER' ? '汇总确认详情' : '审批准入详情' }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
-          <div class="page-kicker">${window.STATE.role === 'r5' ? '审核汇总 · 异常确认' : (window.STATE.role === 'r2' ? '审批承接 · 准入判定' : '审核 / 汇总详情')}</div>
-          <div class="page-hero-title">${window.STATE.role === 'r5' ? '汇总确认' : '审批准入'} · ${request.id}</div>
-          <div class="page-hero-subtitle">${window.STATE.role === 'r5' ? '盯异常、确认自动汇总；本页只处理汇总阶段的异常项。' : window.STATE.role === 'r2' ? '看证据链做准入判定；分级授权策略 / API 边界审 / 撤回授权悬空处置都在本页。' : '审批承接人员处理准入，审核汇总人员处理异常项与自动汇总。'}</div>
+          <div class="page-kicker">${window.STATE.role === 'ROLE_ORGAN_MANAGER' ? '审核汇总 · 异常确认' : (window.STATE.role === 'ROLE_ORGAN_MANAGER' ? '审批承接 · 准入判定' : '审核 / 汇总详情')}</div>
+          <div class="page-hero-title">${window.STATE.role === 'ROLE_ORGAN_MANAGER' ? '汇总确认' : '审批准入'} · ${request.id}</div>
+          <div class="page-hero-subtitle">${window.STATE.role === 'ROLE_ORGAN_MANAGER' ? '盯异常、确认自动汇总；本页只处理汇总阶段的异常项。' : window.STATE.role === 'ROLE_ORGAN_MANAGER' ? '看证据链做准入判定；分级授权策略 / API 边界审 / 撤回授权悬空处置都在本页。' : '审批承接人员处理准入，审核汇总人员处理异常项与自动汇总。'}</div>
         </div>
         ${statusPill(statusLabel)}
       </div>
@@ -1838,7 +1825,7 @@ PAGES.reviewDetail = function (id) {
           </table>
         `)}
         ${panel('准入证据链', '把目录、资源状态、字段绑定、敏感策略和质量投影放在同一处判断', `
-          <div data-ai-surface="r2-approval-evidence-chain" class="space-y-4 text-body leading-7">
+          <div data-ai-surface="approval-evidence-chain" class="space-y-4 text-body leading-7">
             <div><strong>字段绑定</strong><div class="mt-2 text-zw-mute">诊断：${businessValue(fieldSummary.diagnosis)}；已绑定 ${businessValue(fieldSummary.active ?? fieldSummary.total ?? 0)} 项。${fieldBindings.map(item => `${businessValue(item.catalog_item_title || item.catalog_item_code)} → ${businessValue(item.explain && item.explain.source_column)}`).join('；') || '暂无字段绑定证据'}</div></div>
             <div><strong>敏感策略</strong><div class="mt-2 text-zw-mute">${businessValue(sensitivePolicy.display || '查询与导出侧按字段敏感级别脱敏。')} 字段敏感级别：${businessList(sensitivePolicy.fieldSensitiveLevels, '未标注')}</div></div>
             <div><strong>资源状态</strong><div class="mt-2 text-zw-mute">${resourceAssets.map(asset => `${businessValue(asset.title || asset.resource_code)}：${businessValue(asset.lifecycle_status)}`).join('；') || businessValue(request.reuseCandidate && request.reuseCandidate.resourceStatus)}</div></div>
@@ -1887,15 +1874,15 @@ PAGES.reviewDetail = function (id) {
 };
 
 function r2GradeAuthorizationStrategyForm(request) {
-  // W4.1: 仅当 R2 在 pending 阶段时显示分级授权策略表单
-  if (!window.STATE || window.STATE.role !== 'r2') return '';
+  // W4.1: 仅当 审批人 在 pending 阶段时显示分级授权策略表单
+  if (!window.STATE || window.STATE.role !== 'ROLE_ORGAN_MANAGER') return '';
   if (!request || request.status !== 'pending') return '';
   const grant = (request.recommendedDecision && request.recommendedDecision.grantBoundary) || {};
-  return panel('分级授权策略 (R2)', '决定授权档位、字段脱敏粒度、频次上限、有效期、是否级联。R7 只实施可见组织，不替 R2 决定档位。', `
+  return panel('分级授权策略 (审批人)', '决定授权档位、字段脱敏粒度、频次上限、有效期、是否级联。业务运营员 只实施可见组织，不替 审批人 决定档位。', `
     <div class="grid grid-cols-3 gap-3 text-body-sm">
       <div>
         <label class="row-meta">档位</label>
-        <select id="r2-grade" class="gov-input mt-1">
+        <select id="approval-grade" class="gov-input mt-1">
           <option value="standard">标准（按目录默认）</option>
           <option value="strict">收紧（仅特定组织）</option>
           <option value="relaxed">放宽（含级联）</option>
@@ -1903,7 +1890,7 @@ function r2GradeAuthorizationStrategyForm(request) {
       </div>
       <div>
         <label class="row-meta">字段脱敏档位</label>
-        <select id="r2-mask" class="gov-input mt-1">
+        <select id="approval-mask" class="gov-input mt-1">
           <option value="full">完全脱敏</option>
           <option value="partial" selected>部分脱敏（保留首尾）</option>
           <option value="none">不脱敏（仅向 sd-default 信任组织）</option>
@@ -1911,52 +1898,52 @@ function r2GradeAuthorizationStrategyForm(request) {
       </div>
       <div>
         <label class="row-meta">频次上限（次/天）</label>
-        <input id="r2-freq" class="gov-input mt-1" type="number" placeholder="如 200" />
+        <input id="approval-freq" class="gov-input mt-1" type="number" placeholder="如 200" />
       </div>
       <div>
         <label class="row-meta">有效期（天）</label>
-        <input id="r2-limitday" class="gov-input mt-1" type="number" placeholder="${escapeHtml(String(grant.limit_day || 90))}" />
+        <input id="approval-limitday" class="gov-input mt-1" type="number" placeholder="${escapeHtml(String(grant.limit_day || 90))}" />
       </div>
       <div class="flex items-end">
         <label class="row-meta flex items-center gap-2">
-          <input id="r2-cascade" type="checkbox"/> 允许级联授权
+          <input id="approval-cascade" type="checkbox"/> 允许级联授权
         </label>
       </div>
     </div>
-    <div class="text-body-sm text-zw-mute mt-3">通过"通过并下发补录"时，此策略会随 decision payload 一并审计；R7 在收件箱按这一档实施可见组织。</div>
+    <div class="text-body-sm text-zw-mute mt-3">通过"通过并下发补录"时，此策略会随 decision payload 一并审计；业务运营员 在收件箱按这一档实施可见组织。</div>
   `);
 }
 
 function r2AuthorizationManagement(request) {
-  // R2 authorization suspend/revoke: manages in-flight authorizations
-  if (!window.STATE || window.STATE.role !== 'r2') return '';
+  // 审批人 authorization suspend/revoke: manages in-flight authorizations
+  if (!window.STATE || window.STATE.role !== 'ROLE_ORGAN_MANAGER') return '';
   if (!request || !['completed', 'approved', 'pending'].includes(request.status)) return '';
   const isCompleted = request.status === 'completed' || request.status === 'approved';
-  return panel('授权管理 (R2)', '暂停、恢复或收回已生效的授权；处理续期请求。', `
+  return panel('授权管理 (审批人)', '暂停、恢复或收回已生效的授权；处理续期请求。', `
     <div class="grid grid-cols-2 gap-3 text-body-sm">
       <div class="state-card">
         <div class="row-title mb-2">暂停授权</div>
-        <div class="row-meta mb-2">暂停后 R1 无法访问数据，但授权不失效，可恢复。</div>
+        <div class="row-meta mb-2">暂停后 申请人 无法访问数据，但授权不失效，可恢复。</div>
         <button onclick="window.ACTIONS.suspendAuthorization('${escapeHtml(request.id)}')" class="gov-btn gov-btn-warn" ${isCompleted ? '' : 'disabled'}>暂停授权</button>
       </div>
       <div class="state-card">
         <div class="row-title mb-2">收回授权</div>
-        <div class="row-meta mb-2">永久收回，R1 需重新申请。涉及安全事件时使用。</div>
+        <div class="row-meta mb-2">永久收回，申请人 需重新申请。涉及安全事件时使用。</div>
         <button onclick="window.ACTIONS.revokeAuthorization('${escapeHtml(request.id)}')" class="gov-btn gov-btn-danger" ${isCompleted ? '' : 'disabled'}>收回授权</button>
       </div>
     </div>
-    <div class="text-body-sm text-zw-mute mt-3">暂停/收回都会写入 audit_event，R8 可追溯。${isCompleted ? '' : ' 当前申请尚未生效，暂停/收回待申请完成后操作。'}</div>
+    <div class="text-body-sm text-zw-mute mt-3">暂停/收回都会写入 audit_event，安全审计员 可追溯。${isCompleted ? '' : ' 当前申请尚未生效，暂停/收回待申请完成后操作。'}</div>
   `);
 }
 
 function r5SummaryWithdrawAction(request) {
-  // W4.4: 仅当 R5 看到已 completed 的请求 — 允许触发汇总撤回
-  if (!window.STATE || window.STATE.role !== 'r5') return '';
+  // W4.4: 仅当 审核汇总人 看到已 completed 的请求 — 允许触发汇总撤回
+  if (!window.STATE || window.STATE.role !== 'ROLE_ORGAN_MANAGER') return '';
   if (!request || request.status !== 'completed') return '';
-  return panel('汇总撤回 (R5)', '汇总后发现口径错配时，撤回本次汇总并保留影响范围。', `
+  return panel('汇总撤回 (审核汇总人)', '汇总后发现口径错配时，撤回本次汇总并保留影响范围。', `
     <div class="text-body-sm text-zw-mute mb-3">撤回会写一次 summary.confirm 反向决策事件 + 影响范围摘要；不删除原始补录数据。</div>
     <div class="flex gap-3 items-center">
-      <input id="r5-withdraw-reason" class="gov-input flex-1" placeholder="撤回原因 (e.g. 字段口径与目录模板冲突)" />
+      <input id="summary-withdraw-reason" class="gov-input flex-1" placeholder="撤回原因 (e.g. 字段口径与目录模板冲突)" />
       <button onclick="window.ACTIONS.withdrawSummary('${request.id}')" class="gov-btn gov-btn-warn">撤回汇总</button>
     </div>
   `);
@@ -2132,9 +2119,9 @@ PAGES.deliveryTaskDetail = function (id) {
   return shell('p4', main);
 };
 
-/** R1 视角下的交付后动作：续期、异议、评价 */
+/** 申请人 视角下的交付后动作：续期、异议、评价 */
 function r1DeliveryActionsPanel(task) {
-  if (!window.STATE || window.STATE.role !== 'r1') return '';
+  if (!window.STATE || window.STATE.role !== 'ROLE_ORGAN_OPERATER') return '';
   const completed = task.status === 'completed' || backflowStatusKey(task.backflow?.status) === 'confirmed';
   return `
     ${panel('授权续期', '授权快到期时一键续期，不用重新申请全套流程', `
@@ -2146,22 +2133,22 @@ function r1DeliveryActionsPanel(task) {
     `)}
     ${panel('提出异议', '对交付结果不满意时走正式异议流程（数据/资源/授权/使用四类）', `
       <div class="space-y-3">
-        <select id="r1-objection-type" class="gov-input">
+        <select id="apply-objection-type" class="gov-input">
           <option value="data">数据质量异议</option>
           <option value="resource">资源范围异议</option>
           <option value="authorization">授权边界异议</option>
           <option value="usage">使用体验异议</option>
         </select>
-        <input id="r1-objection-desc" class="gov-input" placeholder="描述异议内容（如：字段缺失、数据不准确、权限不足等）"/>
+        <input id="apply-objection-desc" class="gov-input" placeholder="描述异议内容（如：字段缺失、数据不准确、权限不足等）"/>
         <button onclick="window.ACTIONS.fileObjection('${escapeHtml(task.id)}')" class="gov-btn gov-btn-primary">提交异议</button>
       </div>
-      <div class="row-meta text-body-sm mt-2">异议提交后进入 R5 受理 → 评估 → 处置 → 确认闭环，R8 督办超期。</div>
+      <div class="row-meta text-body-sm mt-2">异议提交后进入 审核汇总人 受理 → 评估 → 处置 → 确认闭环，安全审计员 督办超期。</div>
     `)}
     ${completed ? panel('服务评价', '交付完成后为本次共享服务打分，帮助改进', `
       <div class="space-y-3">
         <div class="flex gap-2 items-center">
           <label class="text-body-sm">满意度：</label>
-          <select id="r1-rating-score" class="gov-input" style="width:auto">
+          <select id="apply-rating-score" class="gov-input" style="width:auto">
             <option value="5">非常满意</option>
             <option value="4">满意</option>
             <option value="3">一般</option>
@@ -2169,7 +2156,7 @@ function r1DeliveryActionsPanel(task) {
             <option value="1">非常不满意</option>
           </select>
         </div>
-        <input id="r1-rating-comment" class="gov-input" placeholder="补充评价（可选）"/>
+        <input id="apply-rating-comment" class="gov-input" placeholder="补充评价（可选）"/>
         <button onclick="window.ACTIONS.rateService('${escapeHtml(task.id)}')" class="gov-btn gov-btn-primary">提交评价</button>
       </div>
     `) : ''}
@@ -2178,17 +2165,17 @@ function r1DeliveryActionsPanel(task) {
 
 
 function r7ProviderWorkflowCards() {
-  if (window.STATE && window.STATE.role !== 'r7') return '';
+  if (window.STATE && window.STATE.role !== 'ROLE_BUSIAUDIT') return '';
   const fd = (window.RUNTIME_R7_FIELD_DRAFTS || []).length;
   const hk = (window.RUNTIME_R7_HOOKUP_PENDING || []).length;
   const dm = (window.RUNTIME_R7_DEMAND_PENDING || []).length;
   const total = fd + hk + dm;
-  // P5 — Inbox Zero. When all 3 R7 inboxes are empty, replace 4 zero-cards
+  // P5 — Inbox Zero. When all 3 业务运营员 inboxes are empty, replace 4 zero-cards
   // with a single celebratory state; surface the buttons as a thin secondary
   // strip so direct deep-links still work.
   if (total === 0) {
     return `
-      ${panel('收件箱已清空 · Inbox Zero', '本周 R7 三类裁决队列均已处理完，可专注分类关联 / 国家目录认领 / 在线目录定义等长周期治理', `
+      ${panel('收件箱已清空 · Inbox Zero', '本周 业务运营员 三类裁决队列均已处理完，可专注分类关联 / 国家目录认领 / 在线目录定义等长周期治理', `
         <div class="text-body leading-7 text-zw-ink">字段口径裁决 ・ 资源挂接审核 ・ 供需对接 — 当前都为 0 条。</div>
         <div class="mt-4 flex flex-wrap gap-2">
           <a href="#/p5-provider/inbox/field-decision" class="gov-btn gov-btn-secondary">字段口径收件箱</a>
@@ -2199,25 +2186,25 @@ function r7ProviderWorkflowCards() {
     `;
   }
   return `
-    ${fd > 0 ? panel(`字段口径裁决（${fd} 条待我裁决）`, 'R6 反向编目草稿 → R7 校字段中文名 + 敏感等级 → 通过/驳回', `
-      <div class="text-body-sm text-zw-mute mb-3">看 R6 已提交的草稿，置信度色块帮助你定位重点。</div>
+    ${fd > 0 ? panel(`字段口径裁决（${fd} 条待我裁决）`, '提供方部门 反向编目草稿 → 业务运营员 校字段中文名 + 敏感等级 → 通过/驳回', `
+      <div class="text-body-sm text-zw-mute mb-3">看 提供方部门 已提交的草稿，置信度色块帮助你定位重点。</div>
       <a href="#/p5-provider/inbox/field-decision" class="gov-btn gov-btn-primary">打开字段口径收件箱</a>
     `) : ''}
-    ${hk > 0 ? panel(`资源挂接审核（${hk} 条待我裁决）`, 'R6 提交目录项↔资源字段绑定 → R7 审字段证据', `
-      <div class="text-body-sm text-zw-mute mb-3">字段绑定不清的资源会驳回回 R6 补 schema。</div>
+    ${hk > 0 ? panel(`资源挂接审核（${hk} 条待我裁决）`, '提供方部门 提交目录项↔资源字段绑定 → 业务运营员 审字段证据', `
+      <div class="text-body-sm text-zw-mute mb-3">字段绑定不清的资源会驳回回 提供方部门 补 schema。</div>
       <a href="#/p5-provider/inbox/hookup-review" class="gov-btn gov-btn-primary">打开挂接审核收件箱</a>
     `) : ''}
-    ${dm > 0 ? panel(`供需对接（${dm} 条需求待对接）`, 'R1 业务需求 → R7 判定复用 or 派 R5 任务', `
-      <div class="text-body-sm text-zw-mute mb-3">可复用即落 demand-resource 对接；不可复用按区域/字段派 R5 切片任务。</div>
+    ${dm > 0 ? panel(`供需对接（${dm} 条需求待对接）`, '申请人 业务需求 → 业务运营员 判定复用 or 派 审核汇总人 任务', `
+      <div class="text-body-sm text-zw-mute mb-3">可复用即落 demand-resource 对接；不可复用按区域/字段派 审核汇总人 切片任务。</div>
       <a href="#/p5-provider/inbox/demand-match" class="gov-btn gov-btn-primary">打开供需对接收件箱</a>
     `) : ''}
   `;
 }
 
-/** R7 国家数据直达通道：目录/资源/需求上报 → 受理 → 订阅 → 异议 */
+/** 业务运营员 国家数据直达通道：目录/资源/需求上报 → 受理 → 订阅 → 异议 */
 function r7DirectAccessChannel() {
-  if (!window.STATE || window.STATE.role !== 'r7') return '';
-  // Prefer the R7-scoped runtime payload (populated by syncRouteData when
+  if (!window.STATE || window.STATE.role !== 'ROLE_BUSIAUDIT') return '';
+  // Prefer the 业务运营员-scoped runtime payload (populated by syncRouteData when
   // we have a dedicated direct-access skill), but fall back to the static
   // provider.directAccess included in the WebUI snapshot — that is the source
   // of truth in the current shipping build.
@@ -2229,7 +2216,7 @@ function r7DirectAccessChannel() {
   const demands = directItems.demands || [];
   const subs = directItems.subscriptions || [];
   return `
-    ${panel('国家数据直达通道（R7）', '目录/资源上报 → 需求受理 → 申请审核 → 订阅管理。对接国家平台的标准化出口。', `
+    ${panel('国家数据直达通道（业务运营员）', '目录/资源上报 → 需求受理 → 申请审核 → 订阅管理。对接国家平台的标准化出口。', `
       <div class="grid grid-cols-2 gap-5">
         <div class="state-card">
           <div class="row-title mb-2">目录上报（${cats.length} 条）</div>
@@ -2261,17 +2248,17 @@ function r7DirectAccessChannel() {
 }
 
 function r6ProviderWorkflowCards() {
-  if (window.STATE && window.STATE.role !== 'r6') return '';
+  if (window.STATE && window.STATE.role !== 'ROLE_ORGAN_MANAGER') return '';
   return `
-    ${panel('反向编目（R6 → R7）', '选已采集库表 → 系统预填 90% 草稿 → 一键提交 R7 字段口径裁决', `
+    ${panel('反向编目（提供方部门 → 业务运营员）', '选已采集库表 → 系统预填 90% 草稿 → 一键提交 业务运营员 字段口径裁决', `
       <div class="text-body-sm text-zw-mute mb-3">用现成的 schema 一气呵成新建目录草稿，跳过空白表单。</div>
       <a href="#/p5-provider/wizard/reverse-catalog" class="gov-btn gov-btn-primary">进入反向编目工作流</a>
     `)}
-    ${panel('API 服务化交付（R6 → R7/R2）', '把已发布资源对外开放为 API，配 IP 白名单 + 限流 + 字段脱敏档位', `
-      <div class="text-body-sm text-zw-mute mb-3">资源 → API 草稿 → 提审 R7 边界审 + R2 授权策略复核。</div>
+    ${panel('API 服务化交付（提供方部门 → 业务运营员/审批人）', '把已发布资源对外开放为 API，配 IP 白名单 + 限流 + 字段脱敏档位', `
+      <div class="text-body-sm text-zw-mute mb-3">资源 → API 草稿 → 提审 业务运营员 边界审 + 审批人 授权策略复核。</div>
       <a href="#/p5-provider/wizard/api-service" class="gov-btn gov-btn-primary">进入 API 服务化工作流</a>
     `)}
-    ${panel('自动检测规则维护（R6）', '维护必填率 / 格式 / 值域 / 字段一致性等检测规则，触发任务、查看回执、失败重跑', `
+    ${panel('自动检测规则维护（提供方部门）', '维护必填率 / 格式 / 值域 / 字段一致性等检测规则，触发任务、查看回执、失败重跑', `
       <div class="text-body-sm text-zw-mute mb-3">规则版本化；失败任务保留摘要可重跑。</div>
       <a href="#/p5-provider/wizard/quality-rule" class="gov-btn gov-btn-primary">进入检测规则工作流</a>
     `)}
@@ -2282,17 +2269,17 @@ function r6ProviderWorkflowCards() {
 }
 
 PAGES.provider = function () {
-  // W6.2: P5 按角色严格隔离 — R6 看维护卡 + 三步面板；R7 看收件箱 + 目录运营
+  // W6.2: P5 按角色严格隔离 — 提供方部门 看维护卡 + 三步面板；业务运营员 看收件箱 + 目录运营
   const role = window.STATE.role;
   const ai = window.RUNTIME_PROVIDER.aiGovernance;
-  const isR6 = role === 'r6';
-  const isR7 = role === 'r7';
+  const isR6 = role === 'ROLE_ORGAN_MANAGER';
+  const isR7 = role === 'ROLE_BUSIAUDIT';
   const r6Cards = isR6 ? r6ProviderWorkflowCards() : '';
   const r7Cards = isR7 ? r7ProviderWorkflowCards() : '';
   const heroKicker = isR7 ? '目录运营收件箱' : '维护数据供给';
   const heroTitle = isR7
     ? '让发布真正可发现、可申请、可授权。'
-    : '把目录、资源、API 准备好 — 让 R1 一搜就用。';
+    : '把目录、资源、API 准备好 — 让 申请人 一搜就用。';
   const heroSubtitle = isR7
     ? '字段口径裁决 / 资源挂接审核 / 供需对接 — 3 张收件箱集中处理。'
     : '反向编目 / API 服务化 / 自动检测规则 / 资源挂接 — 4 张工作流入口。';
@@ -2305,7 +2292,7 @@ PAGES.provider = function () {
           <div class="page-hero-title">${escapeHtml(heroTitle)}</div>
           <div class="page-hero-subtitle">${escapeHtml(heroSubtitle)}</div>
         </div>
-        <div class="page-meta">${isR7 ? '目录管理员（R7）' : '台账管理员（R6）'}</div>
+        <div class="page-meta">${isR7 ? '目录管理员（业务运营员）' : '台账管理员（提供方部门）'}</div>
       </div>
     </div>
 
@@ -2336,7 +2323,7 @@ PAGES.provider = function () {
   return shell('p5', main);
 };
 
-// ----- W3 R7 P5 工作收件箱 -------------------------------------------------
+// ----- W3 业务运营员 P5 工作收件箱 -------------------------------------------------
 
 PAGES.providerInboxFieldDecision = function () {
   const items = window.RUNTIME_R7_FIELD_DRAFTS || [];
@@ -2345,11 +2332,11 @@ PAGES.providerInboxFieldDecision = function () {
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
-          <div class="page-kicker">字段口径裁决收件箱（R7）</div>
-          <div class="page-hero-title">${items.length} 条 R6 反向编目草稿待我裁决。</div>
-          <div class="page-hero-subtitle">每条草稿带 R6 提交的字段建议；点开看完整字段表，按置信度色块定位重点。</div>
+          <div class="page-kicker">字段口径裁决收件箱（业务运营员）</div>
+          <div class="page-hero-title">${items.length} 条 提供方部门 反向编目草稿待我裁决。</div>
+          <div class="page-hero-subtitle">每条草稿带 提供方部门 提交的字段建议；点开看完整字段表，按置信度色块定位重点。</div>
         </div>
-        <div class="page-meta">目录管理员（R7）</div>
+        <div class="page-meta">目录管理员（业务运营员）</div>
       </div>
     </div>
     <div class="state-card mt-4">
@@ -2396,16 +2383,16 @@ PAGES.providerInboxFieldDecisionDetail = function (catalogCode) {
         <div>
           <div class="page-kicker">字段口径裁决：${escapeHtml(decoded)}</div>
           <div class="page-hero-title">校字段中文名 + 敏感等级，然后通过 / 驳回。</div>
-          <div class="page-hero-subtitle">绿/黄/橙 分别代表 comment / PII 模式 / 待补名 — 通过后草稿进 pending_review；驳回回 R6 修 schema。</div>
+          <div class="page-hero-subtitle">绿/黄/橙 分别代表 comment / PII 模式 / 待补名 — 通过后草稿进 pending_review；驳回回 提供方部门 修 schema。</div>
         </div>
-        <div class="page-meta">目录管理员（R7）</div>
+        <div class="page-meta">目录管理员（业务运营员）</div>
       </div>
     </div>
 
     <div class="state-card mt-4">
       <div class="row-title mb-2">字段建议表（共 ${suggestions.coverage.total} 字段 · ${suggestions.coverage.green} 绿 / ${suggestions.coverage.yellow} 黄 / ${suggestions.coverage.orange} 橙）</div>
       <table class="gov-table text-body-sm">
-        <thead><tr><th>字段英文名</th><th>R6 建议中文名（可改）</th><th>R6 建议来源</th><th>敏感等级（可改）</th><th>类型</th></tr></thead>
+        <thead><tr><th>字段英文名</th><th>提供方部门 建议中文名（可改）</th><th>提供方部门 建议来源</th><th>敏感等级（可改）</th><th>类型</th></tr></thead>
         <tbody>
           ${suggestions.fields.map((f, i) => `
             <tr>
@@ -2430,7 +2417,7 @@ PAGES.providerInboxFieldDecisionDetail = function (catalogCode) {
 
       <div class="mt-5 flex gap-3">
         <button onclick="window.ACTIONS.confirmFieldDecision('${escapeHtml(decoded)}')" class="gov-btn gov-btn-primary">通过 → 进入 pending_review</button>
-        <button onclick="window.ACTIONS.rejectFieldDecision('${escapeHtml(decoded)}')" class="gov-btn gov-btn-secondary">驳回 → 退回 R6</button>
+        <button onclick="window.ACTIONS.rejectFieldDecision('${escapeHtml(decoded)}')" class="gov-btn gov-btn-secondary">驳回 → 退回 提供方部门</button>
         <a href="#/p5-provider/inbox/field-decision" class="gov-btn gov-btn-secondary">返回收件箱</a>
       </div>
     </div>
@@ -2445,11 +2432,11 @@ PAGES.providerInboxHookupReview = function () {
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
-          <div class="page-kicker">资源挂接审核收件箱（R7）</div>
+          <div class="page-kicker">资源挂接审核收件箱（业务运营员）</div>
           <div class="page-hero-title">${items.length} 条挂接 / 资源发布草稿待我裁决。</div>
-          <div class="page-hero-subtitle">校 R6 提交的目录项↔资源字段绑定证据；字段绑定不清的退回 R6。</div>
+          <div class="page-hero-subtitle">校 提供方部门 提交的目录项↔资源字段绑定证据；字段绑定不清的退回 提供方部门。</div>
         </div>
-        <div class="page-meta">目录管理员（R7）</div>
+        <div class="page-meta">目录管理员（业务运营员）</div>
       </div>
     </div>
     <div class="state-card mt-4">
@@ -2490,11 +2477,11 @@ PAGES.providerInboxDemandMatch = function () {
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
-          <div class="page-kicker">供需对接收件箱（R7）</div>
-          <div class="page-hero-title">${items.length} 条 R1 业务需求待对接。</div>
-          <div class="page-hero-subtitle">先判定能不能用现成目录复用；不可复用就按区域/字段切片成 R5 任务。</div>
+          <div class="page-kicker">供需对接收件箱（业务运营员）</div>
+          <div class="page-hero-title">${items.length} 条 申请人 业务需求待对接。</div>
+          <div class="page-hero-subtitle">先判定能不能用现成目录复用；不可复用就按区域/字段切片成 审核汇总人 任务。</div>
         </div>
-        <div class="page-meta">目录管理员（R7）</div>
+        <div class="page-meta">目录管理员（业务运营员）</div>
       </div>
     </div>
     <div class="state-card mt-4">
@@ -2542,10 +2529,10 @@ PAGES.providerInboxDemandMatchDetail = function (applicationCode) {
       <div class="page-toolbar">
         <div>
           <div class="page-kicker">供需对接：${escapeHtml(decoded)}</div>
-          <div class="page-hero-title">先看现成候选，再决定复用 or 派 R5。</div>
+          <div class="page-hero-title">先看现成候选，再决定复用 or 派 审核汇总人。</div>
           <div class="page-hero-subtitle">需求来自 ${escapeHtml(demand.applicant_name || '—')} · ${escapeHtml(demand.applicant_org || '—')}</div>
         </div>
-        <div class="page-meta">目录管理员（R7）</div>
+        <div class="page-meta">目录管理员（业务运营员）</div>
       </div>
     </div>
 
@@ -2568,29 +2555,29 @@ PAGES.providerInboxDemandMatchDetail = function (applicationCode) {
             </div>
           `).join('')}
         </div>
-      ` : '<div class="row-meta">未找到现成可复用资源 — 建议派 R5 切片任务。</div>'}
+      ` : '<div class="row-meta">未找到现成可复用资源 — 建议派 审核汇总人 切片任务。</div>'}
     `)}
 
-    ${panel('R7 决定', '', `
+    ${panel('业务运营员 决定', '', `
       <div class="mt-3">
-        <label class="row-meta">切片方式（仅在派 R5 时填）</label>
+        <label class="row-meta">切片方式（仅在派 审核汇总人 时填）</label>
         <input id="dm-slice" class="gov-input mt-1" placeholder='{"slice_by":"region","slices":["370102","370112"]}'/>
       </div>
       <div class="mt-5 flex gap-3">
-        <button onclick="window.ACTIONS.dispatchDemand('${escapeHtml(decoded)}')" class="gov-btn gov-btn-primary">派 R5 切片任务</button>
+        <button onclick="window.ACTIONS.dispatchDemand('${escapeHtml(decoded)}')" class="gov-btn gov-btn-primary">派 审核汇总人 切片任务</button>
         <a href="#/p5-provider/inbox/demand-match" class="gov-btn gov-btn-secondary">返回收件箱</a>
       </div>
-      <div class="row-meta mt-3">如可复用，请直接在 R1 申请审批中通过；本端只处理"不可复用 → 派任务"动作。</div>
+      <div class="row-meta mt-3">如可复用，请直接在 申请人 申请审批中通过；本端只处理"不可复用 → 派任务"动作。</div>
     `)}
   `;
   return shell('p5', main);
 };
 
-// ----- W2 R6 P5 工作流向导 -------------------------------------------------
+// ----- W2 提供方部门 P5 工作流向导 -------------------------------------------------
 
 function confidenceBadge(confidence) {
   const cls = { green: 'is-ok', yellow: 'is-warn', orange: 'is-pending' }[confidence] || 'is-pending';
-  const label = { green: '高 (comment)', yellow: '中 (PII 模式)', orange: '低 (待 R6 补名)' }[confidence] || confidence;
+  const label = { green: '高 (comment)', yellow: '中 (PII 模式)', orange: '低 (待 提供方部门 补名)' }[confidence] || confidence;
   return `<span class="status-pill ${cls}">${escapeHtml(label)}</span>`;
 }
 
@@ -2666,7 +2653,7 @@ PAGES.providerWizardReverseCatalog = function () {
       </div>
 
       <div class="mt-5 flex gap-3">
-        <button onclick="window.ACTIONS.submitReverseCatalogDraft()" class="gov-btn gov-btn-primary">提交草稿（进入 R7 字段口径裁决）</button>
+        <button onclick="window.ACTIONS.submitReverseCatalogDraft()" class="gov-btn gov-btn-primary">提交草稿（进入 业务运营员 字段口径裁决）</button>
         <button onclick="window.ACTIONS.resetReverseCatalogWizard()" class="gov-btn gov-btn-secondary">重选 schema</button>
       </div>
     </div>
@@ -2679,9 +2666,9 @@ PAGES.providerWizardReverseCatalog = function () {
         <div>
           <div class="page-kicker">反向编目工作流</div>
           <div class="page-hero-title">选源 → 预填 → 提交，一气呵成。</div>
-          <div class="page-hero-subtitle">系统读 column.comment + meta_standard_cn + PII 模式给 90% 字段中文名建议；你只补差异。R7 在工作收件箱里裁决字段口径。</div>
+          <div class="page-hero-subtitle">系统读 column.comment + meta_standard_cn + PII 模式给 90% 字段中文名建议；你只补差异。业务运营员 在工作收件箱里裁决字段口径。</div>
         </div>
-        <div class="page-meta">台账管理员（R6）</div>
+        <div class="page-meta">台账管理员（提供方部门）</div>
       </div>
     </div>
 
@@ -2700,9 +2687,9 @@ PAGES.providerWizardApiService = function () {
         <div>
           <div class="page-kicker">API 服务化交付</div>
           <div class="page-hero-title">把已发布资源对外开放为 API。</div>
-          <div class="page-hero-subtitle">注册 API → 配 IP 白名单 / 限流 / 字段脱敏档位 → 提审 R7 边界审 + R2 授权策略复核。</div>
+          <div class="page-hero-subtitle">注册 API → 配 IP 白名单 / 限流 / 字段脱敏档位 → 提审 业务运营员 边界审 + 审批人 授权策略复核。</div>
         </div>
-        <div class="page-meta">台账管理员（R6）</div>
+        <div class="page-meta">台账管理员（提供方部门）</div>
       </div>
     </div>
     <div class="state-card mt-4">
@@ -2738,10 +2725,10 @@ PAGES.providerWizardApiService = function () {
         </div>
       </div>
       <div class="mt-5 flex gap-3">
-        <button onclick="window.ACTIONS.submitApiServicePublish()" class="gov-btn gov-btn-primary">提交 API 草稿 → R7 审核</button>
+        <button onclick="window.ACTIONS.submitApiServicePublish()" class="gov-btn gov-btn-primary">提交 API 草稿 → 业务运营员 审核</button>
         <a href="#/p5-provider" class="gov-btn gov-btn-secondary">返回 P5</a>
       </div>
-      <div class="row-meta mt-3">提交后会依次调用 resource.api.register → resource.api.policy.update → resource.api.submit_review。审核结果在 R7 收件箱。</div>
+      <div class="row-meta mt-3">提交后会依次调用 resource.api.register → resource.api.policy.update → resource.api.submit_review。审核结果在 业务运营员 收件箱。</div>
     </div>
   `;
   return shell('p5', main);
@@ -2757,7 +2744,7 @@ PAGES.providerWizardQualityRule = function () {
           <div class="page-hero-title">维护检测规则、触发任务、失败重跑。</div>
           <div class="page-hero-subtitle">规则按 rule_code 幂等保存；任务由外部执行器跑，失败可重跑。</div>
         </div>
-        <div class="page-meta">台账管理员（R6）</div>
+        <div class="page-meta">台账管理员（提供方部门）</div>
       </div>
     </div>
     <div class="grid grid-cols-2 gap-5 mt-4">
@@ -2821,18 +2808,18 @@ PAGES.providerWizardQualityRule = function () {
 
 PAGES.complianceOps = function () {
   const metrics = window.RUNTIME_DASHBOARD.burdenMetrics;
-  const role = (window.STATE && window.STATE.role) || 'r8';
-  // B4 — R2 vs R5 vs R6 vs R7 vs R8 must not look like the same page.
+  const role = (window.STATE && window.STATE.role) || 'ROLE_SECURITY_AUDIT';
+  // B4 — 审批人 vs 审核汇总人 vs 提供方部门 vs 业务运营员 vs 安全审计员 must not look like the same page.
   const heroCfg = (
-    role === 'r2' ? { kicker: '审批承接 · 合规视角', title: '看你审过的申请有没有形成绕行或重复要数。', subtitle: '回放你刚刚审批的准入边界，确认它们没有反弹成线下采集或越权访问。', meta: '审批承接' } :
-    role === 'r5' ? { kicker: '审核汇总 · 异常优先', title: '盯异常、确认自动汇总，不去线下重算。', subtitle: '先看争议与异常工单，再看减负指标与审计回放是否还有口径未对齐。', meta: '审核汇总' } :
-    role === 'r6' ? { kicker: '资源治理 · 提供方视角', title: '哪些资源字段被频繁要求、被审计点名？', subtitle: '从合规事件回推到你管理的资源、字段、采集任务，决定是否升级模板或下架。', meta: '资源治理' } :
-    role === 'r7' ? { kicker: '目录运营 · 共享侧视角', title: '看可见性与授权策略是否被绕行。', subtitle: '从争议、撤回、IAM 异常反向核对你发布的目录与共享专区是否需要调整。', meta: '目录运营' } :
+    role === 'ROLE_ORGAN_MANAGER' ? { kicker: '审批承接 · 合规视角', title: '看你审过的申请有没有形成绕行或重复要数。', subtitle: '回放你刚刚审批的准入边界，确认它们没有反弹成线下采集或越权访问。', meta: '审批承接' } :
+    role === 'ROLE_ORGAN_MANAGER' ? { kicker: '审核汇总 · 异常优先', title: '盯异常、确认自动汇总，不去线下重算。', subtitle: '先看争议与异常工单，再看减负指标与审计回放是否还有口径未对齐。', meta: '审核汇总' } :
+    role === 'ROLE_ORGAN_MANAGER' ? { kicker: '资源治理 · 提供方视角', title: '哪些资源字段被频繁要求、被审计点名？', subtitle: '从合规事件回推到你管理的资源、字段、采集任务，决定是否升级模板或下架。', meta: '资源治理' } :
+    role === 'ROLE_BUSIAUDIT' ? { kicker: '目录运营 · 共享侧视角', title: '看可见性与授权策略是否被绕行。', subtitle: '从争议、撤回、IAM 异常反向核对你发布的目录与共享专区是否需要调整。', meta: '目录运营' } :
                     { kicker: '合规督查 · 减负主责', title: '打住重复要数，统计采集和基层负担反映。', subtitle: '减负指标 / 绕行抽查 / 异议四子流程时间线，全部进入证据链。', meta: '合规督查' }
   );
-  // R5 cares first about exceptions, R2 about audit replay, others get the
+  // 审核汇总人 cares first about exceptions, 审批人 about audit replay, others get the
   // default metrics-first layout.
-  const exceptionsFirst = role === 'r5';
+  const exceptionsFirst = role === 'ROLE_ORGAN_MANAGER';
   const main = `
     ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: heroCfg.kicker }])}
     <div class="page-hero">
@@ -2882,7 +2869,7 @@ PAGES.complianceOps = function () {
       <section class="col-span-8 space-y-5">
         ${(() => {
           // Audit log carries 2k+ legacy migration rows that are noise for
-          // daily R8 governance — they all match `legacy.*` event types. Hide
+          // daily 安全审计员 governance — they all match `legacy.*` event types. Hide
           // them by default and cap the inline table at the 20 most recent
           // operational events. Surface the migration overflow as a count.
           const all = window.RUNTIME_AUDIT_EVENTS || [];
@@ -2915,25 +2902,25 @@ PAGES.complianceOps = function () {
   return shell('p6', main);
 };
 
-/** R8 运维工单创建 + 交接班面板 */
+/** 安全审计员 运维工单创建 + 交接班面板 */
 function r8TicketAndHandoverPanel() {
-  if (!window.STATE || window.STATE.role !== 'r8') return '';
+  if (!window.STATE || window.STATE.role !== 'ROLE_SECURITY_AUDIT') return '';
   const tickets = window.RUNTIME_TICKETS || [];
-  return panel('运维工单与交接班（R8）', '创建工单、处理告警、执行巡检、交接班记录', `
+  return panel('运维工单与交接班（安全审计员）', '创建工单、处理告警、执行巡检、交接班记录', `
     <div class="grid grid-cols-2 gap-4">
       <div class="state-card">
         <div class="row-title mb-2">创建运维工单</div>
         <div class="row-meta text-body-sm mb-3">发现问题后创建工单跟踪处理。</div>
         <div class="space-y-2">
-          <select id="r8-ticket-type" class="gov-input">
+          <select id="audit-ticket-type" class="gov-input">
             <option value="alert">告警处理</option>
             <option value="inspection">巡检异常</option>
             <option value="dial-test">拨测失败</option>
             <option value="security">安全事件</option>
             <option value="other">其他</option>
           </select>
-          <input id="r8-ticket-title" class="gov-input" placeholder="工单标题"/>
-          <input id="r8-ticket-assignee" class="gov-input" placeholder="指派责任人"/>
+          <input id="audit-ticket-title" class="gov-input" placeholder="工单标题"/>
+          <input id="audit-ticket-assignee" class="gov-input" placeholder="指派责任人"/>
           <button onclick="window.ACTIONS.createOpsTicket()" class="gov-btn gov-btn-primary">创建工单</button>
         </div>
       </div>
@@ -2941,9 +2928,9 @@ function r8TicketAndHandoverPanel() {
         <div class="row-title mb-2">交接班记录</div>
         <div class="row-meta text-body-sm mb-3">值班结束时记录遗留事项，交给下一班。</div>
         <div class="space-y-2">
-          <input id="r8-handover-summary" class="gov-input" placeholder="本班遗留事项摘要"/>
-          <input id="r8-handover-pending" class="gov-input" placeholder="待跟进工单编号（逗号分隔）"/>
-          <input id="r8-handover-next" class="gov-input" placeholder="接班人"/>
+          <input id="audit-handover-summary" class="gov-input" placeholder="本班遗留事项摘要"/>
+          <input id="audit-handover-pending" class="gov-input" placeholder="待跟进工单编号（逗号分隔）"/>
+          <input id="audit-handover-next" class="gov-input" placeholder="接班人"/>
           <button onclick="window.ACTIONS.submitShiftHandover()" class="gov-btn gov-btn-primary">提交交接班</button>
         </div>
       </div>
@@ -2959,11 +2946,11 @@ function r8TicketAndHandoverPanel() {
 }
 
 function r8BypassSurveillancePanel() {
-  // W4.2: R8 视角下显示绕行督查；其他角色不显示
-  if (!window.STATE || window.STATE.role !== 'r8') return '';
+  // W4.2: 安全审计员 视角下显示绕行督查；其他角色不显示
+  if (!window.STATE || window.STATE.role !== 'ROLE_SECURITY_AUDIT') return '';
   const direct = window.RUNTIME_R8_DIRECT_ACCESS || { items: [], total: 0 };
   const objection = (window.RUNTIME_DISPUTES || []).filter(d => /绕行|线下|未审批/.test(d.title + (d.aiSummary || '')));
-  return panel('R8 绕行督查 / 检测失败 / 撤回审计', '直达 + API 绕行抽查 / 检测任务失败 / 撤回是否走审批 / 异议四子流程时间倒置', `
+  return panel('安全审计员 绕行督查 / 检测失败 / 撤回审计', '直达 + API 绕行抽查 / 检测任务失败 / 撤回是否走审批 / 异议四子流程时间倒置', `
     <div class="grid grid-cols-2 gap-4">
       <div class="state-card">
         <div class="row-title mb-2">数据直达交付清单（已审批）</div>
@@ -2990,11 +2977,11 @@ function r8BypassSurveillancePanel() {
 }
 
 function r5ObjectionFourSubstagesPanel(item) {
-  // W4.4: R5 视角下展开"评估/处置/授权/用数"四子流程动作面板
-  if (!window.STATE || window.STATE.role !== 'r5') return '';
+  // W4.4: 审核汇总人 视角下展开"评估/处置/授权/用数"四子流程动作面板
+  if (!window.STATE || window.STATE.role !== 'ROLE_ORGAN_MANAGER') return '';
   const id = item && item.id;
   if (!id) return '';
-  return panel('异议四子流程裁决 (R5)', '评估 → 处置 → 授权影响 → 用数反馈；每段都进 data_objection projection，避免线下绕行。', `
+  return panel('异议四子流程裁决 (审核汇总人)', '评估 → 处置 → 授权影响 → 用数反馈；每段都进 data_objection projection，避免线下绕行。', `
     <div class="grid grid-cols-2 gap-4">
       <div class="state-card">
         <div class="row-title mb-2">① 评估</div>
@@ -3004,12 +2991,12 @@ function r5ObjectionFourSubstagesPanel(item) {
       </div>
       <div class="state-card">
         <div class="row-title mb-2">② 处置</div>
-        <div class="row-meta text-body-sm mb-2">退回 R3/R4 / 转 R6/R7 / 转 R2 / 解释关闭</div>
+        <div class="row-meta text-body-sm mb-2">退回 基层填报人 / 转 提供方部门 / 业务运营员 / 转 审批人 / 解释关闭</div>
         <select id="obj-proc-action-${escapeHtml(id)}" class="gov-input mb-2">
           <option value="return-to-grassroots">退回基层</option>
-          <option value="forward-to-provider">转 R6 修字段证据</option>
-          <option value="forward-to-catalog">转 R7 修目录口径</option>
-          <option value="forward-to-r2">转 R2 复审授权</option>
+          <option value="forward-to-provider">转 提供方部门 修字段证据</option>
+          <option value="forward-to-catalog">转 业务运营员 修目录口径</option>
+          <option value="forward-to-approval-redo">转 审批人 复审授权</option>
           <option value="close-with-explain">解释关闭</option>
         </select>
         <button onclick="window.ACTIONS.processObjection('${escapeHtml(id)}')" class="gov-btn gov-btn-primary">提交处置</button>
@@ -3030,7 +3017,7 @@ function r5ObjectionFourSubstagesPanel(item) {
         <button onclick="window.ACTIONS.replyObjection('${escapeHtml(id)}')" class="gov-btn gov-btn-primary">回复用数方</button>
       </div>
     </div>
-    <div class="row-meta mt-3 text-body-sm">每段动作都会写一次 audit_event + objection.case.* skill；R8 督查时间倒置时会标记。</div>
+    <div class="row-meta mt-3 text-body-sm">每段动作都会写一次 audit_event + objection.case.* skill；安全审计员 督查时间倒置时会标记。</div>
   `);
 }
 
@@ -3121,7 +3108,7 @@ PAGES.zonesPack = function () {
 PAGES.zoneDetail = function (id) {
   const zone = zoneById(id);
   if (!zone) return entityNotFoundShell('p7', '专题包', id, '#/p7-zones-pack', '返回共享专区 / 专题包');
-  const publishAction = window.STATE.role === 'r7'
+  const publishAction = window.STATE.role === 'ROLE_BUSIAUDIT'
     ? `<button onclick="window.ACTIONS.publishZoneTopicProjection('${zone.id}')" class="gov-btn gov-btn-primary">发布正式投影</button>`
     : actionNotice('当前身份可查看资产、发起复用申请或订阅更新，正式投影发布由目录管理员处理');
   const main = `

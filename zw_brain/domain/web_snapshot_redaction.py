@@ -9,15 +9,16 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-# Mirrors zw-brain-web/js/pages.js `window.ZW_PAGE_ACCESS` — update both when nav roles change.
-_DISCOVERY = frozenset({"r1", "r2", "r6", "r7", "r8"})
-_REQUEST = frozenset({"r1", "r2", "r3", "r4", "r5"})
-_DELIVERY = frozenset({"r1", "r2", "r5", "r6", "r7", "r8"})
-_PROVIDER = frozenset({"r6", "r7"})
-_COMPLIANCE = frozenset({"r2", "r5", "r6", "r7", "r8"})
-_ZONES = frozenset({"r1", "r2", "r6", "r7", "r8"})
-_CAPABILITY = frozenset({"r7"})
-_OPS = frozenset({"r7"})
+# D23 (2026-05-19): R1-R8 退役。Mirrors zw-brain-web/js/pages.js `window.ZW_PAGE_ACCESS` — update both when nav roles change.
+# 新角色码：ROLE_BUSIAUDIT / ROLE_ORGAN_MANAGER / ROLE_ORGAN_OPERATER / ROLE_SECURITY_ADMIN / ROLE_SECURITY_AUDIT / ROLE_SYSTEM
+_DISCOVERY = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"})
+_REQUEST = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"})
+_DELIVERY = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"})
+_PROVIDER = frozenset({"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"})
+_COMPLIANCE = frozenset({"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"})
+_ZONES = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"})
+_CAPABILITY = frozenset({"ROLE_BUSIAUDIT"})
+_OPS = frozenset({"ROLE_BUSIAUDIT"})
 
 _EMPTY_DISCOVERY: dict[str, Any] = {
     "zones": [],

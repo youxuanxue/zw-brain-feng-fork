@@ -2,7 +2,7 @@
   "skill_id": "ops.shift_handover.submit",
   "slug": "ops.shift_handover.submit",
   "title": "提交交接班记录",
-  "description": "R8 完成本班次的交接班 — 记录本班通报事项、待跟进工单、下班次接班人。",
+  "description": "安全审计员 完成本班次的交接班 — 记录本班通报事项、待跟进工单、下班次接班人。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",

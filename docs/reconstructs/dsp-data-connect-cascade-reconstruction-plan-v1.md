@@ -1,5 +1,11 @@
 # dsp-data-connect / dsp-cascade 直达级联重构方案 v1
 
+> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
+> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
+> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
+> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 原版 R 编号见 git blame。
+
 > 范围：旧平台 `old/old_codes/dsp-data-connect`、`old/代码信息抽取/代码信息抽取-27newbranch/dsp-data-connect_*`、`dsp-cascade-platform_*`、`dsp-cascade-down_*`、旧结构数据 `old/12-datastructure/dsp_connect.xml`、`old/2024-06-28全国一体化政务数据共享数据直达接口规范v0.55.docx`、旧平台业务说明 `old/integrated-bigdata-platform/README.md`，以及已批准的 zw-brain 架构、数据模型和既有重构方案。
 > 结论：zw-brain 不把 `dsp-data-connect`、`dsp-cascade-platform`、`dsp-cascade-down` 迁成“国家平台镜像系统”或“第二套目录 / 申请 / 交付库”；只吸收上下级通道、国家平台对象映射、上报 / 下发、申请受理、订阅回执、异议同步、级联日志和重放等承重语义，重建为 canonical 聚合之外的 `adapter.national.*` / `adapter.cascade.*` 能力包。国家 / 上级接口以全国一体化政务数据共享数据直达接口规范 v0.55 为协议输入，政务外网逻辑隔离边界作为部署约束。
 > 单一事实源：本文是数据直达与级联专题的旧表映射、Capability 边界、状态回执、外部通道和不做清单的单一事实源；目录、资源、申请、交付、异议的核心事实仍以对应 reconstructs 与 approved 数据模型为准；跨专题 greenfield 口径、统一 adapter 命名和全局决策基线以 `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` 为准。
@@ -50,7 +56,7 @@
 | --- | --- |
 | `docs/approved/zw-brain-architecture-v4-gpt55.md` | 国家平台保持外部依赖关系，不在大脑内复造；Legacy Adapters 是架构边界之一。 |
 | `docs/approved/zw-brain-data-model-v4-gpt55.md` | `dsp-data-connect`、`dsp-catalog-platform` 等不原样迁入，承重语义收敛到 CatalogResource / ApplicationApproval / Delivery / Objection / Audit 聚合。 |
-| `docs/approved/zw-brain-golden-path-r1-r3-r5-v1.md` | 首条黄金链路需要上级发起、基层补差、审核汇总、回流共享资源池。 |
+| `docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）` | 首条黄金链路需要上级发起、基层补差、审核汇总、回流共享资源池。 |
 | `docs/approved/research-yibiaotong-zw-brain-v4.md` | zw-brain 必须连接上级交换和基层填报链路；双向流动服务基层报表减负。 |
 | `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md` | `dsp_connect.xml` 中的订阅、需求、申请语义应进入申请 / 交付链路，但外部通道作为 adapter。 |
 | `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` | `dsp-data-connect`、`dsp-cascade-platform`、`dsp-cascade-down` 被列为 P0，合并成上下级直达与级联 adapter 专题。 |
@@ -75,7 +81,7 @@
 | `dc_catalog`、`dc_catalog_item`、`dc_catalog_group` | 上报 / 下发目录、目录项、分组 | 只读映射到 `catalog_entry` / P7 projection，不创建第二套目录事实源。 |
 | `dc_resource_base_info`、`dc_resource_*_detail` | 上报 / 下发资源及库表、文件、接口详情 | 映射到 `resource_asset` / `resource_channel_binding` 和 evidence。 |
 | `dc_resource_apply_info`、`dc_resource_apply_audit`、`dc_resource_apply_accept_audit` | 国家资源申请、受理、审核状态 | 映射到 `application_record` / `approval_case` / `delivery_receipt`。 |
-| `dc_require`、`dc_require_column`、`dc_require_resource` | 上级需求、供需、责任部门、关联资源 | 映射到 `application_record.intent_snapshot` 和 R1/R3 任务投影。 |
+| `dc_require`、`dc_require_column`、`dc_require_resource` | 上级需求、供需、责任部门、关联资源 | 映射到 `application_record.intent_snapshot` 和 申请人/镇街填报人 任务投影。 |
 | `dc_subscribe`、`dc_subscribe_table`、`dc_subscribe_folder`、`dc_to_subscribe` | 资源订阅、待确认订阅 | 映射到 `delivery_subscription` / `delivery_attempt` / receipt。 |
 | `dc_objection_*` | 异议上报、受理、流程、目录、资源、使用 | 映射到 `objection_case` / `objection_process` / `objection_evidence`。 |
 | `dc_example_*` | 案例事项、资源、信息项 | P7 专题包 evidence 或纵向案例上报 adapter。 |
@@ -349,7 +355,7 @@
 - `old/integrated-bigdata-platform/README.md`
 - `docs/approved/zw-brain-architecture-v4-gpt55.md`
 - `docs/approved/zw-brain-data-model-v4-gpt55.md`
-- `docs/approved/zw-brain-golden-path-r1-r3-r5-v1.md`
+- `docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）`
 - `docs/approved/research-yibiaotong-zw-brain-v4.md`
 - `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md`
 - `docs/reconstructs/dsp-objection-handling-reconstruction-plan-v1.md`

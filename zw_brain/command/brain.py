@@ -94,7 +94,7 @@ class BrainService:
         self._state_store = state_store or StateStore()
         self._snapshot = self._state_store.load()
         self._ui_state = {
-            "role": "r1",
+            "role": "ROLE_ORGAN_OPERATER",
             "discoveryQuery": DEFAULT_DISCOVERY_QUERY,
             "brainOutage": False,
         }
@@ -503,7 +503,7 @@ class BrainService:
             case "resource.api.policy.update":
                 return self.update_api_resource_policy(payload)
             case "system.snapshot":
-                return redact_webui_snapshot(self.snapshot(), str(payload.get("role", self._ui_state.get("role", "r1"))))
+                return redact_webui_snapshot(self.snapshot(), str(payload.get("role", self._ui_state.get("role", "ROLE_ORGAN_OPERATER"))))
             case "system.schema_info":
                 return {"schemas": describe_schemas()}
             case "system.toggle_outage":
@@ -1558,7 +1558,7 @@ class BrainService:
         return self._mutate("legacy.sharezone.mapping.import", role, confirmed, payload, mutation)
 
     def get_legacy_migration_status(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """Aggregate M0 acceptance state for the P0 WebUI page (R7 / R8).
+        """Aggregate M0 acceptance state for the P0 WebUI page (业务运营员 / 安全审计员).
 
         Reads `legacy_object_mapping`, `adapter_run_record`, and recent
         `audit_event(kind='migration.*')` rows in one shot. Returns counts by
@@ -1721,28 +1721,28 @@ class BrainService:
             {
                 "id": "mapping_verify",
                 "title": "对象映射核验",
-                "owner": "M0 + R6/R7 抽样",
+                "owner": "M0 + 数据提供方 / 业务运营员 抽样",
                 "status": status(has_mappings and not any_conflicted, has_mappings),
                 "summary": f"映射 {totals['mappings']} 条；冲突 {totals.get('conflicted', 0)}",
             },
             {
                 "id": "catalog_migration_review",
                 "title": "目录迁移审核",
-                "owner": "M0 + R7 抽样",
+                "owner": "M0 + 业务运营员 抽样",
                 "status": status(catalog_count > 0, False),
                 "summary": f"catalog_entry 映射 {catalog_count} 条",
             },
             {
                 "id": "schema_mapping",
                 "title": "schema 快照与挂接核验",
-                "owner": "M0 + R6 抽样",
+                "owner": "M0 + 数据提供方 抽样",
                 "status": status(resource_count > 0, False),
                 "summary": f"resource_asset 映射 {resource_count} 条",
             },
             {
                 "id": "application_history",
                 "title": "申请审批授权历史核验",
-                "owner": "M0 + R2 抽样",
+                "owner": "M0 + 审批人 抽样",
                 "status": status(application_count > 0 and delivery_count > 0, application_count > 0),
                 "summary": f"application_record {application_count} / delivery_task {delivery_count}",
             },
@@ -1756,9 +1756,9 @@ class BrainService:
             {
                 "id": "compliance_sample",
                 "title": "合规与断链抽查",
-                "owner": "R8 抽样",
+                "owner": "安全审计员 抽样",
                 "status": status(objection_count > 0, has_mappings),
-                "summary": f"已建立 objection_case {objection_count} 条样本" if objection_count else "等待 R8 抽查",
+                "summary": f"已建立 objection_case {objection_count} 条样本" if objection_count else "等待 安全审计员 抽查",
             },
             {
                 "id": "handover",
@@ -1987,7 +1987,7 @@ class BrainService:
                         "issued_by": actor,
                         "issued_audit": audit_id,
                     },
-                    "source_ref": f"r6:rule:{rule_code}",
+                    "source_ref": f"orgmgr:rule:{rule_code}",
                 }
             )
             self._append_audit_feed("quality.rule.upsert", rule_code, "ok", actor)
@@ -2016,7 +2016,7 @@ class BrainService:
                         "issued_by": actor,
                         "issued_audit": audit_id,
                     },
-                    "source_ref": f"r6:task:{audit_id[:8]}",
+                    "source_ref": f"orgmgr:task:{audit_id[:8]}",
                 }
             )
             self._append_audit_feed("quality.task.run", task_ref, "ok", actor)
@@ -2046,7 +2046,7 @@ class BrainService:
                         "issued_by": actor,
                         "issued_audit": audit_id,
                     },
-                    "source_ref": f"r6:replay:{audit_id[:8]}",
+                    "source_ref": f"orgmgr:replay:{audit_id[:8]}",
                 }
             )
             self._append_audit_feed("quality.task.replay", replay_ref, "ok", actor)
@@ -2677,11 +2677,11 @@ class BrainService:
         return items
 
     def list_audit_events(self) -> list[dict[str, Any]]:
-        """Return audit timeline for R8 / dashboard.
+        """Return audit timeline for 安全审计员 / dashboard.
 
         Time ordering: 内部分两 chunk —— 最近 500 条 audit_event（asc by time）
         + 最多 200 条 legacy.exchange.import projection（asc by mapped_at）。
-        每个 chunk 内时序严格升序；两 chunk 之间不保证 interleave。R8 UI 把
+        每个 chunk 内时序严格升序；两 chunk 之间不保证 interleave。安全审计员 UI 把
         legacy import 视作单独区段呈现，不与 audit 实时事件强混排。
         """
         store = self._state_store.database_store
@@ -2815,7 +2815,7 @@ class BrainService:
 
     def get_provider_view(self) -> dict[str, Any]:
         provider = copy.deepcopy(self._snapshot["provider"])
-        # National Direct Access (R7 跨大区上报通道) demo data lives only in
+        # National Direct Access (业务运营员 跨大区上报通道) demo data lives only in
         # seed_snapshot.json and is not persisted. Older DB rows predate this
         # field, so we hydrate it from the seed clone whenever the loaded
         # snapshot is missing it.
@@ -3269,7 +3269,7 @@ class BrainService:
             "reason": recommendation["reason"],
             "risk": [
                 "若申请方扩大字段范围，应退回缩小到最小必要字段。",
-                "若对资源口径有争议，应转 R6/R7 做口径确认。",
+                "若对资源口径有争议，应转 数据提供方 / 业务运营员 做口径确认。",
             ],
             "counterfactual": "如果发现同一资源存在在途重复申请，应驳回重复需求或合并到既有申请。",
             "impact": "通过后只按授权边界交付；退回或驳回也会保留理由、证据和责任节点。",
@@ -3440,7 +3440,7 @@ class BrainService:
         return self._mutate("application.grant.renew", role, confirmed, payload, mutation)
 
     def suspend_application_grant(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """R2 暂停已生效的授权 — R1 暂时无法访问但授权不失效，可恢复。"""
+        """审批人 暂停已生效的授权 — 申请人 暂时无法访问但授权不失效，可恢复。"""
         role = str(payload.get("role", self._ui_state["role"]))
         confirmed = bool(payload.get("confirmed"))
         request_id = str(payload.get("request_id") or payload.get("delivery_task_id") or "")
@@ -3449,14 +3449,14 @@ class BrainService:
             request = self._request_by_id(request_id) if request_id.startswith("REQ-") else None
             if request is not None:
                 request.setdefault("grant", {})["suspended"] = True
-                request.setdefault("timeline", []).append({"label": "授权已暂停", "time": self._now_datetime(), "note": str(payload.get("reason", "R2 临时暂停以核实使用边界。"))})
+                request.setdefault("timeline", []).append({"label": "授权已暂停", "time": self._now_datetime(), "note": str(payload.get("reason", "审批人 临时暂停以核实使用边界。"))})
             self._append_audit_feed("application.grant.suspend", request_id, "ok", actor)
             return {"request_id": request_id, "suspended": True, "audit_id": audit_id}
 
         return self._mutate("application.grant.suspend", role, confirmed, payload, mutation)
 
     def revoke_application_grant(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """R2 收回已生效的授权 — 永久收回，R1 需重新申请。"""
+        """审批人 收回已生效的授权 — 永久收回，申请人 需重新申请。"""
         role = str(payload.get("role", self._ui_state["role"]))
         confirmed = bool(payload.get("confirmed"))
         request_id = str(payload.get("request_id") or payload.get("delivery_task_id") or "")
@@ -3466,14 +3466,14 @@ class BrainService:
             if request is not None:
                 request.setdefault("grant", {})["revoked"] = True
                 request["status"] = "revoked"
-                request.setdefault("timeline", []).append({"label": "授权已收回", "time": self._now_datetime(), "note": str(payload.get("reason", "R2 收回授权，需重新申请。"))})
+                request.setdefault("timeline", []).append({"label": "授权已收回", "time": self._now_datetime(), "note": str(payload.get("reason", "审批人 收回授权，需重新申请。"))})
             self._append_audit_feed("application.grant.revoke", request_id, "ok", actor)
             return {"request_id": request_id, "revoked": True, "audit_id": audit_id}
 
         return self._mutate("application.grant.revoke", role, confirmed, payload, mutation)
 
     def submit_service_rating(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """R1 完成交付后为本次共享服务打分（写入审计供 R8 督查可见）。"""
+        """申请人 完成交付后为本次共享服务打分（写入审计供 安全审计员 督查可见）。"""
         role = str(payload.get("role", self._ui_state["role"]))
         confirmed = bool(payload.get("confirmed"))
         task_id = str(payload.get("task_id") or payload.get("delivery_task_id") or "")
@@ -3495,7 +3495,7 @@ class BrainService:
         return self._mutate("service.rating.submit", role, confirmed, payload, mutation)
 
     def create_ops_ticket(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """R8 创建运维工单（告警处理 / 巡检 / 拨测 / 安全 / 其他）。"""
+        """安全审计员 创建运维工单（告警处理 / 巡检 / 拨测 / 安全 / 其他）。"""
         role = str(payload.get("role", self._ui_state["role"]))
         confirmed = bool(payload.get("confirmed"))
         ticket_type = str(payload.get("ticket_type", "alert"))
@@ -3537,7 +3537,7 @@ class BrainService:
         return self._mutate("ops.ticket.close", role, confirmed, payload, mutation)
 
     def submit_shift_handover(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """R8 交接班 — 记录本班通报事项 + 待跟进工单 + 接班人。"""
+        """安全审计员 交接班 — 记录本班通报事项 + 待跟进工单 + 接班人。"""
         role = str(payload.get("role", self._ui_state["role"]))
         confirmed = bool(payload.get("confirmed"))
         summary = str(payload.get("summary", "")).strip()
@@ -3966,7 +3966,7 @@ class BrainService:
 
         `source` matches `summary_json.source` exactly (e.g. 'reverse' for
         reverse-cataloging drafts). `lifecycle_status` matches the column
-        directly. Together they let the R7 inbox list "pending reverse
+        directly. Together they let the 业务运营员 inbox list "pending reverse
         draft" entries without an extra skill.
         """
         store = self._state_store.database_store
@@ -4008,7 +4008,7 @@ class BrainService:
 
         Quality sort: legacy 测试条目（title 为纯 ASCII / 与 catalog_code 同名 /
         长度 < 4）一律推到末尾，让首屏 / 首页 / demo 第一眼看到的是真业务目录
-        （含 CJK 字符 + 长度 ≥ 4）。退役类垃圾条目应由 R7 用 catalog.entry.withdraw
+        （含 CJK 字符 + 长度 ≥ 4）。退役类垃圾条目应由 业务运营员 用 catalog.entry.withdraw
         清理，本排序只是不在客户面前展示噪声。
         """
         page = max(int(page or 1), 1)
@@ -5538,7 +5538,8 @@ class BrainService:
                 "id": request_id,
                 "resourceId": canonical_id,
                 "resourceName": resource["name"],
-                "applicant": f"{actor}（市营商环境专班）" if role == "r1" else actor,
+                # R-006 fix: 部门名称由 applicantDept 字段单独表达；不再在 actor 文本里拼接（折叠后无法靠 role 判断身份）
+                "applicant": actor,
                 "applicantDept": "市营商环境专班",
                 "purpose": purpose,
                 "range": scope,
@@ -5611,7 +5612,7 @@ class BrainService:
                     {
                         "label": "待审核汇总",
                         "time": "—",
-                        "note": "系统先自动汇总，再由 R5 只处理异常项。",
+                        "note": "系统先自动汇总，再由 审核汇总人 只处理异常项。",
                     },
                 ],
                 "aiDraft": {
@@ -5632,7 +5633,7 @@ class BrainService:
                     "summary": f"本申请拟复用 {resource['name']}，只申请 {', '.join(item['title'] for item in fields)}，缺口字段单独说明。",
                 },
                 "aiStatus": {
-                    "summary": f"申请已从资源发现页进入受控准入，当前围绕 {resource['name']} 等待 R2 判定最小字段范围。",
+                    "summary": f"申请已从资源发现页进入受控准入，当前围绕 {resource['name']} 等待 审批人 判定最小字段范围。",
                     "nextAction": "建议审批承接人员核对用途、时间窗、申请字段、缺口字段和交付期望。",
                     "evidence": [
                         f"申请字段：{', '.join(item['title'] for item in fields)}",
@@ -5682,7 +5683,7 @@ class BrainService:
                 ],
                 "aiSummary": {
                     "summary": "当前任务处于待受理阶段；平台已把申请字段、缺口字段和交付期望绑定到同一交付链路。",
-                    "nextAction": "请先由 R2 审核最小必要字段范围。",
+                    "nextAction": "请先由 审批人 审核最小必要字段范围。",
                     "cause": "当前只是生成最小必要申请，还未形成正式交付授权。",
                     "impact": "避免绕过受控准入直接扩大采集范围。",
                 },
@@ -5873,7 +5874,7 @@ class BrainService:
             "approve_with_supplement": "同意先复用既有字段，局部缺口补录后再交付。",
             "return_for_fix": "退回申请方缩小字段或范围，补齐最小必要说明。",
             "reject_duplicate": "驳回重复需求，避免绕过既有目录重复要数。",
-            "route_to_provider_or_catalog_admin": "转 R6/R7 确认目录口径或授权边界后再判定。",
+            "route_to_provider_or_catalog_admin": "转 数据提供方 / 业务运营员 确认目录口径或授权边界后再判定。",
         }
         return f"{labels[decision]} 申请：{request.get('resourceName') or request.get('id')}。"
 
@@ -5900,11 +5901,11 @@ class BrainService:
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             request["status"] = "summary-pending"
             request["diffFields"] = [
-                {"label": "经营状态", "value": "正常经营", "reason": "现场状态变化快", "owner": "R3/R4 补录", "state": "已补录"},
-                {"label": "最近走访时间", "value": self._now_date(), "reason": "共享池无现场时间", "owner": "R4 补录", "state": "已补录"},
-                {"label": "现场备注", "value": "已完成走访核验，无新增异常。", "reason": "仅末端掌握", "owner": "R3/R4 补录", "state": "已补录"},
+                {"label": "经营状态", "value": "正常经营", "reason": "现场状态变化快", "owner": "基层填报人 补录", "state": "已补录"},
+                {"label": "最近走访时间", "value": self._now_date(), "reason": "共享池无现场时间", "owner": "村社区填报人 补录", "state": "已补录"},
+                {"label": "现场备注", "value": "已完成走访核验，无新增异常。", "reason": "仅末端掌握", "owner": "基层填报人 补录", "state": "已补录"},
             ]
-            request["summaryResult"]["note"] = "基层差异字段已全部回收，系统已生成自动汇总结果，待 R5 确认异常项。"
+            request["summaryResult"]["note"] = "基层差异字段已全部回收，系统已生成自动汇总结果，待 审核汇总人 确认异常项。"
             request["timeline"].append(
                 {
                     "label": "差异补录已提交",
@@ -5912,8 +5913,8 @@ class BrainService:
                     "note": "基层已提交现场差异字段，系统已自动进入汇总确认阶段。",
                 }
             )
-            request["aiStatus"]["summary"] = "差异补录已提交，系统已完成自动汇总并等待 R5 处理异常项。"
-            request["aiStatus"]["nextAction"] = "请 R5 查看自动汇总结果并确认异常项。"
+            request["aiStatus"]["summary"] = "差异补录已提交，系统已完成自动汇总并等待 审核汇总人 处理异常项。"
+            request["aiStatus"]["nextAction"] = "请 审核汇总人 查看自动汇总结果并确认异常项。"
             delivery = self._delivery_by_request_id(request_id)
             if delivery:
                 delivery["status"] = "reconciling"
@@ -5927,7 +5928,7 @@ class BrainService:
                     }
                 )
                 delivery["aiSummary"]["summary"] = "链路已进入“自动汇总 → 异常确认 → 回流候选”阶段。"
-                delivery["aiSummary"]["nextAction"] = "请 R5 确认异常项，再由 R6 / R7 决定是否纳入模板。"
+                delivery["aiSummary"]["nextAction"] = "请 审核汇总人 确认异常项，再由 数据提供方 / 业务运营员 决定是否纳入模板。"
                 delivery["aiSummary"]["cause"] = "基层只补差异字段，因此系统可直接生成汇总结果。"
                 delivery["aiSummary"]["impact"] = "确认完成后可把高频差异字段推进到模板治理侧。"
                 delivery["backflow"]["status"] = "待确认"
@@ -5944,7 +5945,7 @@ class BrainService:
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             request["status"] = "completed"
-            request["summaryResult"]["note"] = "R5 已确认自动汇总结果，链路进入回流候选确认。"
+            request["summaryResult"]["note"] = "审核汇总人 已确认自动汇总结果，链路进入回流候选确认。"
             request["timeline"].append(
                 {
                     "label": "已确认自动汇总",
@@ -5953,17 +5954,17 @@ class BrainService:
                 }
             )
             request["aiStatus"]["summary"] = "自动汇总已确认，当前只剩回流候选是否正式纳入模板。"
-            request["aiStatus"]["nextAction"] = "请 R6 / R7 确认回流候选并同步模板版本与专题入口。"
+            request["aiStatus"]["nextAction"] = "请 数据提供方 / 业务运营员 确认回流候选并同步模板版本与专题入口。"
             delivery = self._delivery_by_request_id(request_id)
             if delivery:
                 delivery["status"] = "reconciling"
                 delivery["updatedAt"] = self._now_datetime()
-                delivery["note"] = "汇总已确认，等待 R6 / R7 决定回流是否正式生效。"
+                delivery["note"] = "汇总已确认，等待 数据提供方 / 业务运营员 决定回流是否正式生效。"
                 delivery["history"].append(
                     {
                         "time": self._now_short_time(),
                         "state": "汇总确认完成",
-                        "detail": "异常项已由 R5 确认，任务转入回流确认。",
+                        "detail": "异常项已由 审核汇总人 确认，任务转入回流确认。",
                     }
                 )
                 delivery["aiSummary"]["summary"] = "业务汇总已经闭环，当前重心转到模板治理和回流生效。"
@@ -6068,8 +6069,8 @@ class BrainService:
                     }
                 )
                 dispute["aiSummary"] = "调查已推进：当前已补充责任链与证据核查，下一步判断是否需要升级到模板或制度治理。"
-                self._set_todo_status("r8", dispute_id, "处理中")
-                self._set_todo_status("r6", dispute_id, "待核查")
+                self._set_todo_status("ROLE_SECURITY_AUDIT", dispute_id, "处理中")
+                self._set_todo_status("ROLE_ORGAN_MANAGER", dispute_id, "待核查")
                 event_type = "compliance.investigate-case"
             else:
                 dispute["status"] = "escalated"
@@ -6082,8 +6083,8 @@ class BrainService:
                     }
                 )
                 dispute["aiSummary"] = "争议已升级：当前不再停留在个案调查，而是转入模板治理与制度治理联动处置。"
-                self._set_todo_status("r8", dispute_id, "已升级")
-                self._set_todo_status("r6", dispute_id, "已升级")
+                self._set_todo_status("ROLE_SECURITY_AUDIT", dispute_id, "已升级")
+                self._set_todo_status("ROLE_ORGAN_MANAGER", dispute_id, "已升级")
                 event_type = "compliance.escalate-case"
             self._append_audit_feed(event_type, dispute_id, "ok", actor)
             return {"dispute_id": dispute_id, "status": dispute["status"], "action": action}
@@ -6707,13 +6708,13 @@ class BrainService:
                 }
             )
             request["aiStatus"]["summary"] = "申请已通过准入判定，系统正在按模板预填并等待基层补录差异字段。"
-            request["aiStatus"]["nextAction"] = "请 R3 / R4 核对预填字段后提交差异补录。"
+            request["aiStatus"]["nextAction"] = "请 镇街填报人 / 村社区填报人 核对预填字段后提交差异补录。"
             approval["suggestion"] = "建议通过"
             approval["impact"] = "已创建基层预填任务，待补录完成后进入自动汇总确认。"
             if delivery:
                 delivery["status"] = "supplementing"
                 delivery["updatedAt"] = self._now_datetime()
-                delivery["note"] = "预填任务已下发，等待 R3 / R4 完成差异补录。"
+                delivery["note"] = "预填任务已下发，等待 镇街填报人 / 村社区填报人 完成差异补录。"
                 delivery["history"].append(
                     {
                         "time": self._now_short_time(),
@@ -6822,10 +6823,10 @@ class BrainService:
                 {
                     "label": "已转供给侧口径确认",
                     "time": self._now_datetime(),
-                    "note": "需要 R6 / R7 确认目录字段口径或资源授权边界后再继续准入。",
+                    "note": "需要 数据提供方 / 业务运营员 确认目录字段口径或资源授权边界后再继续准入。",
                 }
             )
-            request["aiStatus"]["summary"] = "申请已转 R6 / R7 口径确认，当前不生成新授权。"
+            request["aiStatus"]["summary"] = "申请已转 数据提供方 / 业务运营员 口径确认，当前不生成新授权。"
             request["aiStatus"]["nextAction"] = "请供给侧确认目录字段口径、资源状态和授权边界。"
             approval["suggestion"] = "建议转口径确认"
             approval["impact"] = "转办期间暂停补录和交付，避免在口径未确认时扩大授权。"
@@ -6837,7 +6838,7 @@ class BrainService:
                     {
                         "time": self._now_short_time(),
                         "state": "转口径确认",
-                        "detail": "R2 要求 R6 / R7 先确认目录字段口径或授权边界。",
+                        "detail": "审批人 要求 数据提供方 / 业务运营员 先确认目录字段口径或授权边界。",
                     }
                 )
                 delivery["backflow"]["status"] = "不适用"
@@ -6849,7 +6850,7 @@ class BrainService:
 
     def _resolve_role(self, payload: dict[str, Any]) -> str:
         try:
-            return policy.resolve_role(payload.get("role"), self._ui_state.get("role", "r1"))
+            return policy.resolve_role(payload.get("role"), self._ui_state.get("role", "ROLE_ORGAN_OPERATER"))
         except DomainAccessDeniedError as exc:
             raise AccessDeniedError(str(exc)) from exc
 
@@ -7069,19 +7070,20 @@ class BrainService:
         package001 = self._maybe_package("PKG-2026-04-25-001")
 
         if request0011:
-            self._set_todo_status("r1", "REQ-2026-04-25-0011", self._request_status_text(request0011, "r1"))
-            self._set_todo_status("r2", "REQ-2026-04-25-0011", self._request_status_text(request0011, "r2"))
-            self._set_todo_status("r3", "REQ-2026-04-25-0011", self._request_status_text(request0011, "r3"))
-            self._set_todo_status("r4", "REQ-2026-04-25-0011", self._request_status_text(request0011, "r4"))
-            self._set_todo_status("r5", "REQ-2026-04-25-0011", self._request_status_text(request0011, "r5"))
+            # R-005 fix: 每条待办按 (role, item_id, category) 唯一；同一 REQ ID 在同一 role 下可承载多语境
+            self._set_todo_status("ROLE_ORGAN_OPERATER", "REQ-2026-04-25-0011", self._request_status_text(request0011, "applicant"), category="apply-progress")
+            self._set_todo_status("ROLE_ORGAN_MANAGER", "REQ-2026-04-25-0011", self._request_status_text(request0011, "reviewer"), category="review")
+            self._set_todo_status("ROLE_ORGAN_OPERATER", "REQ-2026-04-25-0011", self._request_status_text(request0011, "filler"), category="supplement-township")
+            self._set_todo_status("ROLE_ORGAN_OPERATER", "REQ-2026-04-25-0011", self._request_status_text(request0011, "filler"), category="supplement-village")
+            self._set_todo_status("ROLE_ORGAN_MANAGER", "REQ-2026-04-25-0011", self._request_status_text(request0011, "summarizer"), category="summary")
         if request0007:
-            self._set_todo_status("r2", "REQ-2026-04-24-0007", self._request_status_text(request0007, "r2"))
-            self._set_todo_status("r3", "REQ-2026-04-24-0007", self._request_status_text(request0007, "r3"))
+            self._set_todo_status("ROLE_ORGAN_MANAGER", "REQ-2026-04-24-0007", self._request_status_text(request0007, "reviewer"), category="review")
+            self._set_todo_status("ROLE_ORGAN_OPERATER", "REQ-2026-04-24-0007", self._request_status_text(request0007, "filler"), category="supplement-township")
 
         if task0011:
             confirmed = task0011["backflow"]["status"] == "已确认"
-            self._set_todo_status("r6", "LEDGER-parking-v1.3", "已发布" if confirmed else "待发布")
-            self._set_todo_status("r7", "ZONE-business-ledger", "已上线" if confirmed else "待更新")
+            self._set_todo_status("ROLE_ORGAN_MANAGER", "LEDGER-parking-v1.3", "已发布" if confirmed else "待发布")
+            self._set_todo_status("ROLE_BUSIAUDIT", "ZONE-business-ledger", "已上线" if confirmed else "待更新")
             provider = self._snapshot["provider"]
             provider["overview"][0]["value"] = "v1.3" if confirmed else "v1.2 → v1.3"
             provider["overview"][2]["value"] = "0" if confirmed else str(len(task0011["backflow"]["candidateFields"]))
@@ -7146,14 +7148,16 @@ class BrainService:
             dashboard["suggestions"]["nextAction"] = "继续盯住绕行告警并复盘专题入口执行情况。" if confirmed else "先看绕行告警，再推动停车场信息目录回流候选发布。"
 
         if package001:
-            self._set_todo_status("r7", "PKG-2026-04-25-001", self._package_status_text(package001))
+            self._set_todo_status("ROLE_BUSIAUDIT", "PKG-2026-04-25-001", self._package_status_text(package001))
 
-    def _set_todo_status(self, role: str, item_id: str, status: str) -> None:
+    # R-005 fix: 折叠后多个旧角色映射到同一 ROLE_*，原本不同语境（申请进度 vs 差异补录 vs 现场补录 vs 汇总）
+    # 的同 item_id 待办若仅按 (role, item_id) 去重会互相覆盖。引入 category 作为第二维度。
+    def _set_todo_status(self, role: str, item_id: str, status: str, *, category: str = "") -> None:
         bucket = self._snapshot["workbench"].get(role)
         if not bucket:
             return
         for todo in bucket["todos"]:
-            if todo["id"] == item_id:
+            if todo["id"] == item_id and todo.get("category", "") == category:
                 todo["status"] = status
                 return
 
@@ -7162,25 +7166,33 @@ class BrainService:
         delivery_state = delivery.get("status") if delivery else "pending"
         return [
             {"stage": "待受理", "status": "done", "ref": request.get("id"), "label": "申请已提交"},
-            {"stage": "审核中", "status": "done" if request.get("status") != "pending" else "current", "ref": request.get("id"), "label": self._request_status_text(request, "r2")},
+            {"stage": "审核中", "status": "done" if request.get("status") != "pending" else "current", "ref": request.get("id"), "label": self._request_status_text(request, "reviewer")},
             {"stage": "审批结论", "status": "done" if decision == "已通过" else "pending", "ref": request.get("id"), "label": decision},
             {"stage": "delivery_task", "status": delivery_state, "ref": delivery.get("id") if delivery else None, "label": delivery_state},
         ]
 
-    def _request_status_text(self, item: dict[str, Any], role: str) -> str:
-        if item["status"] == "pending":
-            return "审批中" if role == "r1" else "待审批"
-        if item["status"] == "supplementing":
-            return "待补录" if role in {"r3", "r4"} else "补录中"
-        if item["status"] == "summary-pending":
-            return "待汇总确认"
-        if item["status"] == "completed":
+    # R-002 fix: 文案不再按 role 单维区分（折叠后同一 ROLE_* 无法承载"申请人 vs 填报人"双语义）。
+    # 改为按业务视角（perspective）显示文案；调用方在每个待办语境下显式声明视角。
+    # perspective 取值：
+    #   "applicant"  — 申请人视角（看自己的申请进度）
+    #   "reviewer"   — 审批人/审核人视角（看待我审批的项）
+    #   "filler"     — 基层填报人视角（看待我补录的差异/现场任务）
+    #   "summarizer" — 汇总审核人视角（看待我确认的异常项）
+    def _request_status_text(self, item: dict[str, Any], perspective: str = "reviewer") -> str:
+        status = item["status"]
+        if status == "pending":
+            return {"applicant": "审批中", "reviewer": "待审批", "filler": "等待审批", "summarizer": "等待审批"}.get(perspective, "待审批")
+        if status == "supplementing":
+            return {"applicant": "补录中", "reviewer": "补录中", "filler": "待补录", "summarizer": "补录中"}.get(perspective, "补录中")
+        if status == "summary-pending":
+            return {"summarizer": "待汇总确认"}.get(perspective, "待汇总确认")
+        if status == "completed":
             return "已汇总"
-        if item["status"] == "need-fix":
+        if status == "need-fix":
             return "待补正"
-        if item["status"] == "rejected":
+        if status == "rejected":
             return "已驳回"
-        return str(item["status"])
+        return str(status)
 
     def _package_status_text(self, item: dict[str, Any]) -> str:
         if item["status"] == "pending":
@@ -7354,29 +7366,31 @@ class BrainService:
         raise NotFoundError(zone_id)
 
 
-    def _upsert_todo(self, role: str, item_id: str, title: str, status: str, href: str) -> None:
+    # R-005 fix: 同 R-005 — 待办按 (role, item_id, category) 唯一；折叠后多个语境的同 item_id 可共存。
+    def _upsert_todo(self, role: str, item_id: str, title: str, status: str, href: str, *, category: str = "") -> None:
         bucket = self._snapshot["workbench"].get(role)
         if not bucket:
             return
         for todo in bucket["todos"]:
-            if todo["id"] == item_id:
+            if todo["id"] == item_id and todo.get("category", "") == category:
                 todo["title"] = title
                 todo["status"] = status
                 todo["href"] = href
                 return
-        bucket["todos"].insert(0, {"id": item_id, "title": title, "status": status, "href": href})
+        bucket["todos"].insert(0, {"id": item_id, "title": title, "status": status, "href": href, "category": category})
 
     def _sync_request_todos(self) -> None:
         for request in self._snapshot["requests"]:
             request_id = request["id"]
             resource_name = request.get("resourceName", request_id)
-            self._upsert_todo("r1", request_id, f"{resource_name}复用申请进度跟踪", self._request_status_text(request, "r1"), f"#/p3-request-flow/request/{request_id}")
-            self._upsert_todo("r2", request_id, f"{resource_name}复用申请待判定", self._request_status_text(request, "r2"), f"#/p3-request-flow/review/{request_id}")
+            # R-002/R-005 fix: perspective + category 双维度（perspective 决定文案，category 区分同 REQ 在同 role 下的多个待办语境）
+            self._upsert_todo("ROLE_ORGAN_OPERATER", request_id, f"{resource_name}复用申请进度跟踪", self._request_status_text(request, "applicant"), f"#/p3-request-flow/request/{request_id}", category="apply-progress")
+            self._upsert_todo("ROLE_ORGAN_MANAGER", request_id, f"{resource_name}复用申请待判定", self._request_status_text(request, "reviewer"), f"#/p3-request-flow/review/{request_id}", category="review")
             if request["status"] in {"supplementing", "summary-pending", "completed", "need-fix"}:
-                self._upsert_todo("r3", request_id, f"{resource_name}差异补录任务", self._request_status_text(request, "r3"), f"#/p3-request-flow/request/{request_id}")
-                self._upsert_todo("r4", request_id, f"{resource_name}现场补录任务", self._request_status_text(request, "r4"), f"#/p3-request-flow/request/{request_id}")
+                self._upsert_todo("ROLE_ORGAN_OPERATER", request_id, f"{resource_name}差异补录任务", self._request_status_text(request, "filler"), f"#/p3-request-flow/request/{request_id}", category="supplement-township")
+                self._upsert_todo("ROLE_ORGAN_OPERATER", request_id, f"{resource_name}现场补录任务", self._request_status_text(request, "filler"), f"#/p3-request-flow/request/{request_id}", category="supplement-village")
             if request["status"] in {"pending", "summary-pending", "completed", "need-fix", "rejected"}:
-                self._upsert_todo("r5", request_id, f"{resource_name}汇总/准入处理", self._request_status_text(request, "r5"), f"#/p3-request-flow/review/{request_id}")
+                self._upsert_todo("ROLE_ORGAN_MANAGER", request_id, f"{resource_name}汇总/准入处理", self._request_status_text(request, "summarizer"), f"#/p3-request-flow/review/{request_id}", category="summary")
 
     def _new_request_id(self) -> str:
         prefix = f"REQ-{datetime.now():%Y-%m-%d}-"
@@ -7433,7 +7447,7 @@ class BrainService:
 
     def _diff_fields_for_gap(self, gap_fields: list[str]) -> list[dict[str, Any]]:
         return [
-            {"label": field, "value": "待补充", "reason": "本次申请仍需明确", "owner": "R1 补充说明 / R2 审核确认"}
+            {"label": field, "value": "待补充", "reason": "本次申请仍需明确", "owner": "申请人 补充说明 / 审批人 审核确认"}
             for field in gap_fields
         ]
 
@@ -7476,19 +7490,19 @@ class BrainService:
                 "label": "经营状态",
                 "value": "待镇街确认",
                 "reason": "现场状态变化快",
-                "owner": "R3/R4 补录",
+                "owner": "基层填报人 补录",
             },
             {
                 "label": "最近走访时间",
                 "value": "待补录",
                 "reason": "共享池无现场时间",
-                "owner": "R4 补录",
+                "owner": "村社区填报人 补录",
             },
             {
                 "label": "现场备注",
                 "value": "待补录",
                 "reason": "仅末端掌握",
-                "owner": "R3/R4 补录",
+                "owner": "基层填报人 补录",
             },
         ]
 

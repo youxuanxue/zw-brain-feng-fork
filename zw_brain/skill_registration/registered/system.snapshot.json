@@ -8,7 +8,7 @@
     "properties": {
       "role": {
         "type": "string",
-        "description": "Web UI 岗位（r1–r8）；决定返回的快照是否按页面权限预裁剪。缺省使用会话当前岗位。"
+        "description": "Web UI 岗位（ROLE_* 6 角色之一）；决定返回的快照是否按页面权限预裁剪。缺省使用会话当前岗位。"
       }
     }
   },

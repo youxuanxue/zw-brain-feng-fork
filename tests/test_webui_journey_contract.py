@@ -92,8 +92,8 @@ def test_request_detail_refresh_does_not_request_approval_view() -> None:
 def test_sync_route_refreshes_review_detail_with_approval_view() -> None:
     app_js = APP_JS.read_text(encoding="utf-8")
     pages_js = PAGES_JS.read_text(encoding="utf-8")
-    assert "route.startsWith('#/p3-request-flow/review/') && roleCan(['r2', 'r5'])" in app_js
-    assert "reviewDetail: ['r2', 'r5']" in pages_js
+    assert "route.startsWith('#/p3-request-flow/review/') && roleCan(['ROLE_ORGAN_MANAGER', 'ROLE_ORGAN_MANAGER'])" in app_js
+    assert "reviewDetail: ['ROLE_ORGAN_MANAGER', 'ROLE_ORGAN_MANAGER']" in pages_js
     review_idx = app_js.index("p3-request-flow/review/")
     view_idx = app_js.index("'request.view'", review_idx)
     approval_idx = app_js.index("'approval.view'", review_idx)
@@ -129,10 +129,10 @@ def test_p7_publish_projection_action_is_r7_only() -> None:
     action_block = app_js[action_start : app_js.index("reconcileDeliveryReceipt", action_start)]
     zone_start = pages_js.index("PAGES.zoneDetail = function")
     zone_block = pages_js[zone_start : pages_js.index("PAGES.integrationAdmin", zone_start)]
-    assert "currentRole !== 'r7'" in action_block
+    assert "currentRole !== 'ROLE_BUSIAUDIT'" in action_block
     assert "return;" in action_block
     assert "performWrite('zone.publish_topic_projection'" in action_block
-    assert "window.STATE.role === 'r7'" in zone_block
+    assert "window.STATE.role === 'ROLE_BUSIAUDIT'" in zone_block
     assert "正式投影发布由目录管理员处理" in zone_block
 
 
@@ -211,8 +211,8 @@ def test_role_switch_refetches_snapshot() -> None:
 
 def test_snapshot_role_hydration_overrides_default_role() -> None:
     app_js = APP_JS.read_text(encoding="utf-8")
-    assert "currentRole = state.role || currentRole || 'r1';" in app_js
-    assert "currentRole = currentRole || state.role || 'r1';" not in app_js
+    assert "currentRole = state.role || currentRole || 'ROLE_ORGAN_OPERATER';" in app_js
+    assert "currentRole = currentRole || state.role || 'ROLE_ORGAN_OPERATER';" not in app_js
 
 
 def test_provider_page_uses_three_step_task_flow_and_existing_actions() -> None:
@@ -243,8 +243,8 @@ def test_webui_routes_and_actions_use_shared_skill_policy_gateways() -> None:
     assert "window.ZW_AUTH.authFetch(`/api/skills/${skillId}`" in app_js
     assert "Object.assign({ role: currentRole, confirmed: true }, payload)" in app_js
     assert "window.ZW_PAGE_ACCESS" in pages_js
-    assert "integrationAdmin: ['r7']" in pages_js
-    assert "packageDetail: ['r7']" in pages_js
+    assert "integrationAdmin: ['ROLE_BUSIAUDIT']" in pages_js
+    assert "packageDetail: ['ROLE_BUSIAUDIT']" in pages_js
 
 
 def _prepare_imported_offline_db(root: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
@@ -334,7 +334,7 @@ def test_f3_r1_read_side_hits_real_medical_catalog_and_basic_element(monkeypatch
         _, offline_source = _prepare_imported_offline_db(root, monkeypatch)
         server, thread, base_url = _start_rest_server()
         try:
-            status, discovery = _get(base_url, "data.search", query="医疗", page=1, role="r1")
+            status, discovery = _get(base_url, "data.search", query="医疗", page=1, role="ROLE_ORGAN_OPERATER")
             discovery = _assert_ok_dict(status, discovery)
             ids = {item["id"] for item in discovery["results"]}
             assert "307013370000308002000000/000049" in ids
@@ -342,7 +342,7 @@ def test_f3_r1_read_side_hits_real_medical_catalog_and_basic_element(monkeypatch
             assert "停车场" not in discovery["summary"]["summary"]
             assert not offline_source.exists()
 
-            status, detail = _get(base_url, "catalog.resource_view", resource_id="307013370000308002000000/000049", role="r1")
+            status, detail = _get(base_url, "catalog.resource_view", resource_id="307013370000308002000000/000049", role="ROLE_ORGAN_OPERATER")
             detail = _assert_ok_dict(status, detail)
             assert detail["name"] == "区县域医疗机构院主要业务情况统计表"
             assert detail["provider"] == "省大数据局"
@@ -359,18 +359,18 @@ def test_f3_r1_read_side_hits_real_medical_catalog_and_basic_element(monkeypatch
             assert any(item["legacy_object_type"] == "data_catalog" for item in detail["legacyMappings"])
             assert detail["reuseGapHint"]["message"]
 
-            status, resource_detail = _get(base_url, "catalog.resource_view", resource_id="66dd29e00efe45729babe2c5bba118fa", role="r1")
+            status, resource_detail = _get(base_url, "catalog.resource_view", resource_id="66dd29e00efe45729babe2c5bba118fa", role="ROLE_ORGAN_OPERATER")
             resource_detail = _assert_ok_dict(status, resource_detail)
             assert resource_detail["repository"]["catalogCode"] == "307013370000308002000000/000049"
             assert resource_detail["fieldBindingSummary"]["diagnosis"] == "ok"
 
-            status, metadata = _get(base_url, "metadata.catalog_item.query", catalog_code="307013370000308002000000/000049", role="r7")
+            status, metadata = _get(base_url, "metadata.catalog_item.query", catalog_code="307013370000308002000000/000049", role="ROLE_BUSIAUDIT")
             metadata = _assert_ok_dict(status, metadata)
             assert metadata["summary"]["diagnosis"] == "ok"
             assert metadata["catalogFields"][0]["title"] == "出院者平均住院日"
             assert metadata["items"][0]["catalog_item_title"] == "出院者平均住院日"
 
-            status, basic = _get(base_url, "metadata.catalog_item.query", catalog_code="basic-elem:0b26783950004ed882ec9309fae73310", role="r7")
+            status, basic = _get(base_url, "metadata.catalog_item.query", catalog_code="basic-elem:0b26783950004ed882ec9309fae73310", role="ROLE_BUSIAUDIT")
             basic = _assert_ok_dict(status, basic)
             assert basic["summary"]["diagnosis"] == "catalog_fields_only"
             assert basic["catalogFields"][0]["title"] == "人员姓名"
@@ -390,16 +390,16 @@ def test_f3_webui_resource_detail_surfaces_business_evidence_copy() -> None:
     pages_js = PAGES_JS.read_text(encoding="utf-8")
     start = pages_js.index("PAGES.resourceDetail = function")
     block = pages_js[start : pages_js.index("PAGES.requestFlow", start)]
-    # Panels（R1 业务用户视角，文案业务化；R7 治理面术语保留在 R7-only 块）
+    # Panels（申请人 业务用户视角，文案业务化；业务运营员 治理面术语保留在 业务运营员-only 块）
     assert "共享条件与安全策略" in pages_js
     assert "能直接用的与还要补的" in pages_js   # 原 '复用与缺口判断'
     assert "数据来源与字段说明" in pages_js     # 原 '资源与 schema 证据'
     assert "原始系统来源" in pages_js           # 原 '旧平台回指证据'
-    # R1 resourceDetail 必须仍保留『只申请本次确需字段』业务核心指引
+    # 申请人 resourceDetail 必须仍保留『只申请本次确需字段』业务核心指引
     assert "只申请本次确需字段" in block
-    # 禁止术语：业务用户不应在 R1 资源详情页看到的设计 / 迁移说明书语言
+    # 禁止术语：业务用户不应在 申请人 资源详情页看到的设计 / 迁移说明书语言
     for forbidden in ["原型说明", "操作手册", "旧平台菜单", "schema 证据", "字段口径", "缺口说明"]:
-        assert forbidden not in block, f"R1 resourceDetail block leaks dev term: {forbidden}"
+        assert forbidden not in block, f"申请人 resourceDetail block leaks dev term: {forbidden}"
 
 
 def test_f3_webui_review_detail_surfaces_r2_business_evidence_chain() -> None:
@@ -431,7 +431,7 @@ def test_f3_r2_parking_read_side_surfaces_real_approval_evidence(monkeypatch: py
         assert report["stages"]["apply"]["dumps"]["dsp_catalog"]["tables"].get("data_apply_renewal", 0) == 0
         server, thread, base_url = _start_rest_server()
         try:
-            status, request_view = _get(base_url, "request.view", request_id=apply_id, role="r2")
+            status, request_view = _get(base_url, "request.view", request_id=apply_id, role="ROLE_ORGAN_MANAGER")
             request_view = _assert_ok_dict(status, request_view)
             assert request_view["id"] == apply_id
             assert request_view["resourceId"] == resource_id
@@ -458,7 +458,7 @@ def test_f3_r2_parking_read_side_surfaces_real_approval_evidence(monkeypatch: py
             assert any(item["legacy_object_type"] == "data_catalog" for item in request_view["sourceEvidence"]["legacyMappings"])
             assert not offline_source.exists()
 
-            status, approval_view = _get(base_url, "approval.view", request_id=apply_id, role="r2")
+            status, approval_view = _get(base_url, "approval.view", request_id=apply_id, role="ROLE_ORGAN_MANAGER")
             approval_view = _assert_ok_dict(status, approval_view)
             assert approval_view["requestId"] == apply_id
             assert approval_view["case"] == {"currentStatus": "approved", "currentStep": 4}
@@ -477,7 +477,7 @@ def test_f3_r2_parking_read_side_surfaces_real_approval_evidence(monkeypatch: py
             assert "不伪造续期" in approval_view["recommendedDecision"]["renewalBoundary"]
             assert any(item["legacy_object_type"] == "data_apply_course" and item["canonical_type"] == "approval_decision" for item in approval_view["legacyMappings"])
 
-            status, delivery_view = _get(base_url, "delivery.view", task_id=apply_id, role="r6")
+            status, delivery_view = _get(base_url, "delivery.view", task_id=apply_id, role="ROLE_ORGAN_MANAGER")
             delivery_view = _assert_ok_dict(status, delivery_view)
             assert delivery_view["id"] == apply_id
             assert delivery_view["requestId"] == apply_id
@@ -490,7 +490,7 @@ def test_f3_r2_parking_read_side_surfaces_real_approval_evidence(monkeypatch: py
             assert delivery_view["backflow"]["status"] == "不适用"
             assert any(item["legacy_object_type"] == "data_apply_authrization" for item in delivery_view["legacyMappings"])
 
-            status, audit = _get(base_url, "audit.list", role="r8")
+            status, audit = _get(base_url, "audit.list", role="ROLE_SECURITY_AUDIT")
             audit = _assert_ok_dict(status, audit)
             audit_json = json.dumps(audit, ensure_ascii=False)
             assert apply_id in audit_json
@@ -536,7 +536,7 @@ def test_f4_r2_parking_review_decision_matrix_writes_policy_audit_and_boundaries
                     status, denied = _post(
                         base_url,
                         "application.resource.review",
-                        {"request_id": apply_id, "decision": decision, "role": "r1", "confirmed": True},
+                        {"request_id": apply_id, "decision": decision, "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
                     )
                     assert status == 403
                     assert isinstance(denied, dict)
@@ -545,7 +545,7 @@ def test_f4_r2_parking_review_decision_matrix_writes_policy_audit_and_boundaries
                     status, unconfirmed = _post(
                         base_url,
                         "application.resource.review",
-                        {"request_id": apply_id, "decision": decision, "role": "r2", "confirmed": False},
+                        {"request_id": apply_id, "decision": decision, "role": "ROLE_ORGAN_MANAGER", "confirmed": False},
                     )
                     assert status == 409
                     assert isinstance(unconfirmed, dict)
@@ -554,7 +554,7 @@ def test_f4_r2_parking_review_decision_matrix_writes_policy_audit_and_boundaries
                 status, result = _post(
                     base_url,
                     "application.resource.review",
-                    {"request_id": apply_id, "decision": decision, "role": "r2", "confirmed": True},
+                    {"request_id": apply_id, "decision": decision, "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
                 )
                 result = _assert_ok_dict(status, result)
                 assert result["skill_id"] == "application.resource.review"
@@ -563,7 +563,7 @@ def test_f4_r2_parking_review_decision_matrix_writes_policy_audit_and_boundaries
                 assert result["result"]["delivery_state"] == expected_delivery_state
                 assert result["result"]["evidence"]["renewal_source_rows"] == 0
 
-                status, approval_view = _get(base_url, "approval.view", request_id=apply_id, role="r2")
+                status, approval_view = _get(base_url, "approval.view", request_id=apply_id, role="ROLE_ORGAN_MANAGER")
                 approval_view = _assert_ok_dict(status, approval_view)
                 assert approval_view["decisions"][-1]["decision"] == decision
                 assert approval_view["decisions"][-1]["decisionReason"]
@@ -572,7 +572,7 @@ def test_f4_r2_parking_review_decision_matrix_writes_policy_audit_and_boundaries
                 assert approval_view["reviewBoundary"]["actor"].endswith(":刘主任")
                 assert approval_view["reviewBoundary"]["evidence"]["resource_id"] == "39a41e4b4e80439187e0f86218bae5d9"
 
-                status, delivery_view = _get(base_url, "delivery.view", task_id=apply_id, role="r6")
+                status, delivery_view = _get(base_url, "delivery.view", task_id=apply_id, role="ROLE_ORGAN_MANAGER")
                 delivery_view = _assert_ok_dict(status, delivery_view)
                 assert delivery_view["status"] == expected_delivery_state
                 assert delivery_view["r2Review"]["decision"] == decision
@@ -585,7 +585,7 @@ def test_f4_r2_parking_review_decision_matrix_writes_policy_audit_and_boundaries
                 else:
                     assert delivery_view[boundary_key]["field_scope"] == ["名称", "地址"]
 
-                status, audit = _get(base_url, "audit.list", role="r8")
+                status, audit = _get(base_url, "audit.list", role="ROLE_SECURITY_AUDIT")
                 audit = _assert_ok_dict(status, audit)
                 audit_json = json.dumps(audit, ensure_ascii=False)
                 assert "application.resource.review.after" in audit_json
@@ -625,12 +625,12 @@ def test_f5_r2_delivery_readback_replays_grant_supplement_non_grant_and_webui_co
                 status, result = _post(
                     base_url,
                     "application.resource.review",
-                    {"request_id": apply_id, "decision": decision, "role": "r2", "confirmed": True},
+                    {"request_id": apply_id, "decision": decision, "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
                 )
                 result = _assert_ok_dict(status, result)
                 assert result["result"]["delivery_state"] == expected_delivery_state
 
-                status, request_view = _get(base_url, "request.view", request_id=apply_id, role="r2")
+                status, request_view = _get(base_url, "request.view", request_id=apply_id, role="ROLE_ORGAN_MANAGER")
                 request_view = _assert_ok_dict(status, request_view)
                 assert [item["title"] for item in request_view["requestedItems"]] == ["名称", "地址"]
                 assert request_view["sensitivePolicy"]["fieldSensitiveLevels"] == ["1"]
@@ -641,13 +641,13 @@ def test_f5_r2_delivery_readback_replays_grant_supplement_non_grant_and_webui_co
                     "useDays": "1",
                 }
 
-                status, approval_view = _get(base_url, "approval.view", request_id=apply_id, role="r2")
+                status, approval_view = _get(base_url, "approval.view", request_id=apply_id, role="ROLE_ORGAN_MANAGER")
                 approval_view = _assert_ok_dict(status, approval_view)
                 assert approval_view["reviewBoundary"]["decision"] == decision
                 assert approval_view["grantEvidence"]["accessGrant"]["limit_day"] == 180
                 assert "不伪造续期" in approval_view["recommendedDecision"]["renewalBoundary"]
 
-                status, delivery_view = _get(base_url, "delivery.view", task_id=apply_id, role="r6")
+                status, delivery_view = _get(base_url, "delivery.view", task_id=apply_id, role="ROLE_ORGAN_MANAGER")
                 delivery_view = _assert_ok_dict(status, delivery_view)
                 assert delivery_view["status"] == expected_delivery_state
                 assert delivery_view["accessGrantSnapshot"]["limit_day"] == 180
@@ -718,7 +718,7 @@ def test_f4_r1_minimal_application_timeline_and_audit_on_imported_medical_resour
                 "requested_items": ["出院者平均住院日"],
                 "gap_fields": ["统计时间窗", "区县范围"],
                 "delivery_expectation": "提供按区县汇总后的脱敏结果",
-                "role": "r1",
+                "role": "ROLE_ORGAN_OPERATER",
                 "confirmed": True,
             }
             status, submitted = _post(base_url, "application.resource.submit", submit_payload)
@@ -729,7 +729,7 @@ def test_f4_r1_minimal_application_timeline_and_audit_on_imported_medical_resour
             assert task_id == request_id.replace("REQ-", "DLV-", 1)
             assert not offline_source.exists()
 
-            status, request_view = _get(base_url, "request.view", request_id=request_id, role="r1")
+            status, request_view = _get(base_url, "request.view", request_id=request_id, role="ROLE_ORGAN_OPERATER")
             request_view = _assert_ok_dict(status, request_view)
             assert request_view["resourceName"] == "区县域医疗机构院主要业务情况统计表"
             assert request_view["applicationMaterials"]["minimal"] is True
@@ -742,12 +742,12 @@ def test_f4_r1_minimal_application_timeline_and_audit_on_imported_medical_resour
             assert request_view["sourceEvidence"]["legacyMappings"]
             assert "整表重报" not in json.dumps(request_view, ensure_ascii=False)
 
-            status, approval_view = _get(base_url, "approval.view", request_id=request_id, role="r2")
+            status, approval_view = _get(base_url, "approval.view", request_id=request_id, role="ROLE_ORGAN_MANAGER")
             approval_view = _assert_ok_dict(status, approval_view)
             assert [item["stage"] for item in approval_view["statusTimeline"]] == ["待受理", "审核中", "审批结论", "delivery_task"]
             assert approval_view["applicationMaterials"] == request_view["applicationMaterials"]
 
-            status, delivery_view = _get(base_url, "delivery.view", task_id=task_id, role="r6")
+            status, delivery_view = _get(base_url, "delivery.view", task_id=task_id, role="ROLE_ORGAN_MANAGER")
             delivery_view = _assert_ok_dict(status, delivery_view)
             assert delivery_view["id"] == task_id
             assert delivery_view["requestId"] == request_id
@@ -758,7 +758,7 @@ def test_f4_r1_minimal_application_timeline_and_audit_on_imported_medical_resour
             status, denied = _post(
                 base_url,
                 "application.resource.review",
-                {"request_id": request_id, "decision": "approve", "role": "r1", "confirmed": True},
+                {"request_id": request_id, "decision": "approve", "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
             )
             assert status == 403
             assert isinstance(denied, dict)
@@ -767,16 +767,16 @@ def test_f4_r1_minimal_application_timeline_and_audit_on_imported_medical_resour
             status, approved = _post(
                 base_url,
                 "application.resource.review",
-                {"request_id": request_id, "decision": "approve_with_supplement", "role": "r2", "confirmed": True},
+                {"request_id": request_id, "decision": "approve_with_supplement", "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
             )
             approved = _assert_ok_dict(status, approved)
             assert approved["result"]["status"] == "supplementing"
 
-            status, request_after_review = _get(base_url, "request.view", request_id=request_id, role="r1")
+            status, request_after_review = _get(base_url, "request.view", request_id=request_id, role="ROLE_ORGAN_OPERATER")
             request_after_review = _assert_ok_dict(status, request_after_review)
             assert request_after_review["status"] == "supplementing"
 
-            status, audit = _get(base_url, "audit.list", role="r8")
+            status, audit = _get(base_url, "audit.list", role="ROLE_SECURITY_AUDIT")
             audit = _assert_ok_dict(status, audit)
             audit_json = json.dumps(audit, ensure_ascii=False)
             assert "application.resource.submit.after" in audit_json
@@ -799,17 +799,17 @@ def test_f5_independent_delivery_acceptance_package(monkeypatch: pytest.MonkeyPa
         _, offline_source = _prepare_imported_offline_db(root, monkeypatch)
         server, thread, base_url = _start_rest_server()
         try:
-            status, discovery = _get(base_url, "data.search", query="人口", page=1, role="r1")
+            status, discovery = _get(base_url, "data.search", query="人口", page=1, role="ROLE_ORGAN_OPERATER")
             discovery = _assert_ok_dict(status, discovery)
             assert any(item["id"] == "BASE-POP-001" for item in discovery["results"])
             assert not offline_source.exists()
 
-            status, detail = _get(base_url, "catalog.resource_view", resource_id="BASE-POP-001", role="r1")
+            status, detail = _get(base_url, "catalog.resource_view", resource_id="BASE-POP-001", role="ROLE_ORGAN_OPERATER")
             detail = _assert_ok_dict(status, detail)
             assert detail["fieldBindingSummary"]["diagnosis"] == "ok"
             assert detail["fieldBindings"][0]["replay"]["steps"][2]["ref"] == "field-name"
 
-            status, metadata = _get(base_url, "metadata.catalog_item.query", catalog_code="BASE-POP-001", role="r7")
+            status, metadata = _get(base_url, "metadata.catalog_item.query", catalog_code="BASE-POP-001", role="ROLE_BUSIAUDIT")
             metadata = _assert_ok_dict(status, metadata)
             assert metadata["summary"] == {"total": 1, "active": 1, "missing": 0, "conflicted": 0, "inactive": 0, "diagnosis": "ok"}
             assert metadata["items"][0]["explain"]["source_column"] == "field-name"
@@ -824,7 +824,7 @@ def test_f5_independent_delivery_acceptance_package(monkeypatch: pytest.MonkeyPa
             status, request = _post(
                 base_url,
                 "application.resource.submit",
-                {"resource_id": "res-market-activity", "query": "市场主体活跃度复用", "role": "r1", "confirmed": True},
+                {"resource_id": "res-market-activity", "query": "市场主体活跃度复用", "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
             )
             request = _assert_ok_dict(status, request)
             request_id = request["result"]["request_id"]
@@ -833,30 +833,30 @@ def test_f5_independent_delivery_acceptance_package(monkeypatch: pytest.MonkeyPa
             status, reviewed = _post(
                 base_url,
                 "application.resource.review",
-                {"request_id": request_id, "decision": "approve_with_supplement", "role": "r2", "confirmed": True},
+                {"request_id": request_id, "decision": "approve_with_supplement", "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
             )
             reviewed = _assert_ok_dict(status, reviewed)
             assert reviewed["result"]["status"] == "supplementing"
 
-            status, audit_after_review = _get(base_url, "audit.list", role="r8")
+            status, audit_after_review = _get(base_url, "audit.list", role="ROLE_SECURITY_AUDIT")
             audit_after_review = _assert_ok_dict(status, audit_after_review)
             audit_review_json = json.dumps(audit_after_review, ensure_ascii=False)
             assert "application.resource.review.before" in audit_review_json
             assert "application.resource.review.after" in audit_review_json
             assert request_id in audit_review_json
 
-            status, supplemented = _post(base_url, "supplement.submit", {"request_id": request_id, "role": "r3", "confirmed": True})
+            status, supplemented = _post(base_url, "supplement.submit", {"request_id": request_id, "role": "ROLE_ORGAN_OPERATER", "confirmed": True})
             supplemented = _assert_ok_dict(status, supplemented)
             assert supplemented["result"]["status"] == "summary-pending"
 
-            status, summarized = _post(base_url, "summary.confirm", {"request_id": request_id, "role": "r5", "confirmed": True})
+            status, summarized = _post(base_url, "summary.confirm", {"request_id": request_id, "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
             summarized = _assert_ok_dict(status, summarized)
             assert summarized["result"]["status"] == "completed"
 
-            status, receipt = _post(base_url, "delivery.reconcile_receipt", {"task_id": task_id, "role": "r6", "confirmed": True})
+            status, receipt = _post(base_url, "delivery.reconcile_receipt", {"task_id": task_id, "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
             receipt = _assert_ok_dict(status, receipt)
             assert receipt["result"]["receipt_status"] == "reconciled"
-            status, backflow = _post(base_url, "backflow.confirm", {"task_id": task_id, "role": "r6", "confirmed": True})
+            status, backflow = _post(base_url, "backflow.confirm", {"task_id": task_id, "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
             backflow = _assert_ok_dict(status, backflow)
             assert backflow["result"]["status"] == "completed"
 
@@ -873,7 +873,7 @@ def test_f5_independent_delivery_acceptance_package(monkeypatch: pytest.MonkeyPa
                     "status": "failed",
                     "failure_count": 1,
                     "error_summary": "上级平台回执失败",
-                    "role": "r8",
+                    "role": "ROLE_SECURITY_AUDIT",
                     "confirmed": True,
                 },
             )
@@ -881,35 +881,35 @@ def test_f5_independent_delivery_acceptance_package(monkeypatch: pytest.MonkeyPa
             assert adapter["result"]["run"]["status"] == "failed"
             assert adapter["result"]["mapping"]["status"] == "mapped"
 
-            status, mappings = _get(base_url, "adapter.external.mapping.query", local_aggregate_id=task_id, role="r8")
+            status, mappings = _get(base_url, "adapter.external.mapping.query", local_aggregate_id=task_id, role="ROLE_SECURITY_AUDIT")
             mappings = _assert_ok_dict(status, mappings)
             assert any(item["external_object_id"] == "np-failed-receipt-1" for item in mappings["items"])
 
-            status, provider = _get(base_url, "provider.view", role="r7")
+            status, provider = _get(base_url, "provider.view", role="ROLE_BUSIAUDIT")
             provider = _assert_ok_dict(status, provider)
             assert provider["repository"]["packageCount"] >= 1
             assert provider["repository"]["deliveryReceiptCount"] >= 1
 
-            status, zone = _get(base_url, "zone.view", zone_id="business", role="r7")
+            status, zone = _get(base_url, "zone.view", zone_id="business", role="ROLE_BUSIAUDIT")
             zone = _assert_ok_dict(status, zone)
             assert zone["repository"]["resourceCatalogCode"] == provider["repository"]["resourceCatalogCode"]
             assert "resourceLifecycleStatus" in zone["repository"]
             assert zone["trust"]
 
-            status, stats = _get(base_url, "ops.catalog.statistics.query", role="r8")
+            status, stats = _get(base_url, "ops.catalog.statistics.query", role="ROLE_SECURITY_AUDIT")
             stats = _assert_ok_dict(status, stats)
             assert stats["summary"]["projection_only"] is True
             assert stats["summary"]["evidence"]["source_ref"] == "canonical_projection"
             assert stats["summary"]["evidence"]["generated_at"]
 
-            status, quality = _get(base_url, "ops.catalog.quality.query", role="r8")
+            status, quality = _get(base_url, "ops.catalog.quality.query", role="ROLE_SECURITY_AUDIT")
             quality = _assert_ok_dict(status, quality)
             assert quality["total"] >= 1
             assert quality["items"][0]["projection_only"] is True
             assert quality["items"][0]["evidence"]["source_ref"]
             assert quality["items"][0]["evidence"]["generated_at"]
 
-            status, audit = _get(base_url, "audit.list", role="r8")
+            status, audit = _get(base_url, "audit.list", role="ROLE_SECURITY_AUDIT")
             audit = _assert_ok_dict(status, audit)
             audit_json = json.dumps(audit, ensure_ascii=False)
             for marker in [
@@ -947,22 +947,22 @@ def test_f4_customer_journey_http_asset_smoke_on_imported_db_with_legacy_offline
                 assert isinstance(asset, str)
                 assert expected in asset
 
-            status, snapshot_r1 = request_json("GET", f"{base_url}/api/snapshot?role=r1")
-            snapshot_r1 = _assert_ok_dict(status, snapshot_r1)
-            assert snapshot_r1["state"]["role"] == "r1"
+            status, snapshot_organ_operater = request_json("GET", f"{base_url}/api/snapshot?role=ROLE_ORGAN_OPERATER")
+            snapshot_organ_operater = _assert_ok_dict(status, snapshot_organ_operater)
+            assert snapshot_organ_operater["state"]["role"] == "ROLE_ORGAN_OPERATER"
             assert not offline_source.exists()
 
-            status, discovery = _get(base_url, "data.search", query="人口", page=1, role="r1")
+            status, discovery = _get(base_url, "data.search", query="人口", page=1, role="ROLE_ORGAN_OPERATER")
             discovery = _assert_ok_dict(status, discovery)
             assert any(item["id"] == "BASE-POP-001" for item in discovery["results"])
-            status, catalog_detail = _get(base_url, "catalog.resource_view", resource_id="BASE-POP-001", role="r1")
+            status, catalog_detail = _get(base_url, "catalog.resource_view", resource_id="BASE-POP-001", role="ROLE_ORGAN_OPERATER")
             catalog_detail = _assert_ok_dict(status, catalog_detail)
             assert catalog_detail["id"] == "BASE-POP-001"
             assert catalog_detail["name"] == "人口基本信息"
             assert catalog_detail["fieldBindingSummary"]["diagnosis"] == "ok"
             assert catalog_detail["fieldBindings"][0]["explain"]["source_column"] == "field-name"
 
-            status, field_mapping = _get(base_url, "metadata.catalog_item.query", catalog_code="BASE-POP-001", role="r7")
+            status, field_mapping = _get(base_url, "metadata.catalog_item.query", catalog_code="BASE-POP-001", role="ROLE_BUSIAUDIT")
             field_mapping = _assert_ok_dict(status, field_mapping)
             assert field_mapping["summary"] == {"total": 1, "active": 1, "missing": 0, "conflicted": 0, "inactive": 0, "diagnosis": "ok"}
             assert field_mapping["items"][0]["mapping_code"] == "map-1"
@@ -978,7 +978,7 @@ def test_f4_customer_journey_http_asset_smoke_on_imported_db_with_legacy_offline
             status, denied = _post(
                 base_url,
                 "application.resource.review",
-                {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r1", "confirmed": True},
+                {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
             )
             assert status == 403
             assert isinstance(denied, dict)
@@ -987,13 +987,13 @@ def test_f4_customer_journey_http_asset_smoke_on_imported_db_with_legacy_offline
             status, created = _post(
                 base_url,
                 "application.resource.submit",
-                {"resource_id": "res-market-activity", "query": "市场主体活跃度复用", "role": "r1", "confirmed": True},
+                {"resource_id": "res-market-activity", "query": "市场主体活跃度复用", "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
             )
             created = _assert_ok_dict(status, created)
             request_id = created["result"]["request_id"]
             task_id = request_id.replace("REQ-", "DLV-", 1)
 
-            status, request_view = _get(base_url, "request.view", request_id=request_id, role="r1")
+            status, request_view = _get(base_url, "request.view", request_id=request_id, role="ROLE_ORGAN_OPERATER")
             request_view = _assert_ok_dict(status, request_view)
             assert request_view["status"] == "pending"
             assert request_view["auditId"].startswith("AE-")
@@ -1001,33 +1001,33 @@ def test_f4_customer_journey_http_asset_smoke_on_imported_db_with_legacy_offline
             status, approved = _post(
                 base_url,
                 "application.resource.review",
-                {"request_id": request_id, "decision": "approve_with_supplement", "role": "r2", "confirmed": True},
+                {"request_id": request_id, "decision": "approve_with_supplement", "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
             )
             approved = _assert_ok_dict(status, approved)
             assert approved["result"]["status"] == "supplementing"
 
-            status, supplemented = _post(base_url, "supplement.submit", {"request_id": request_id, "role": "r3", "confirmed": True})
+            status, supplemented = _post(base_url, "supplement.submit", {"request_id": request_id, "role": "ROLE_ORGAN_OPERATER", "confirmed": True})
             supplemented = _assert_ok_dict(status, supplemented)
             assert supplemented["result"]["status"] == "summary-pending"
 
-            status, summarized = _post(base_url, "summary.confirm", {"request_id": request_id, "role": "r5", "confirmed": True})
+            status, summarized = _post(base_url, "summary.confirm", {"request_id": request_id, "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
             summarized = _assert_ok_dict(status, summarized)
             assert summarized["result"]["status"] == "completed"
 
-            status, delivery_before = _get(base_url, "delivery.view", task_id=task_id, role="r6")
+            status, delivery_before = _get(base_url, "delivery.view", task_id=task_id, role="ROLE_ORGAN_MANAGER")
             delivery_before = _assert_ok_dict(status, delivery_before)
             assert delivery_before["requestId"] == request_id
             assert delivery_before["status"] == "reconciling"
 
-            status, receipt = _post(base_url, "delivery.reconcile_receipt", {"task_id": task_id, "role": "r6", "confirmed": True})
+            status, receipt = _post(base_url, "delivery.reconcile_receipt", {"task_id": task_id, "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
             receipt = _assert_ok_dict(status, receipt)
             assert receipt["result"]["receipt_status"] == "reconciled"
 
-            status, backflow = _post(base_url, "backflow.confirm", {"task_id": task_id, "role": "r6", "confirmed": True})
+            status, backflow = _post(base_url, "backflow.confirm", {"task_id": task_id, "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
             backflow = _assert_ok_dict(status, backflow)
             assert backflow["result"]["status"] == "completed"
 
-            status, delivery_after = _get(base_url, "delivery.view", task_id=task_id, role="r6")
+            status, delivery_after = _get(base_url, "delivery.view", task_id=task_id, role="ROLE_ORGAN_MANAGER")
             delivery_after = _assert_ok_dict(status, delivery_after)
             assert delivery_after["backflow"]["status"] == "已确认"
             assert delivery_after["receiptStatus"] == "reconciled"
@@ -1042,7 +1042,7 @@ def test_f4_customer_journey_http_asset_smoke_on_imported_db_with_legacy_offline
                     "title": "交付回执口径异议",
                     "basis_text": "回执字段需补充来源说明",
                     "expected_result": "补充证据后关闭异议",
-                    "role": "r1",
+                    "role": "ROLE_ORGAN_OPERATER",
                     "confirmed": True,
                 },
             )
@@ -1051,16 +1051,16 @@ def test_f4_customer_journey_http_asset_smoke_on_imported_db_with_legacy_offline
             assert objection["result"]["status"] == "draft"
 
             for skill_id, payload, expected_status in [
-                ("objection.case.submit", {"objection_id": objection_id, "role": "r1", "confirmed": True}, "submitted"),
-                ("objection.case.accept", {"objection_id": objection_id, "role": "r8", "confirmed": True}, "accepted"),
+                ("objection.case.submit", {"objection_id": objection_id, "role": "ROLE_ORGAN_OPERATER", "confirmed": True}, "submitted"),
+                ("objection.case.accept", {"objection_id": objection_id, "role": "ROLE_SECURITY_AUDIT", "confirmed": True}, "accepted"),
                 (
                     "objection.case.assign",
-                    {"objection_id": objection_id, "role": "r8", "confirmed": True, "target_status": "provider_investigating"},
+                    {"objection_id": objection_id, "role": "ROLE_SECURITY_AUDIT", "confirmed": True, "target_status": "provider_investigating"},
                     "provider_investigating",
                 ),
                 (
                     "objection.case.review",
-                    {"objection_id": objection_id, "role": "r8", "confirmed": True, "decision": "resolve", "resolved_summary": "回执证据已补齐"},
+                    {"objection_id": objection_id, "role": "ROLE_SECURITY_AUDIT", "confirmed": True, "decision": "resolve", "resolved_summary": "回执证据已补齐"},
                     "resolved",
                 ),
             ]:
@@ -1068,25 +1068,25 @@ def test_f4_customer_journey_http_asset_smoke_on_imported_db_with_legacy_offline
                 body = _assert_ok_dict(status, body)
                 assert body["result"]["status"] == expected_status
 
-            status, objection_cases = _get(base_url, "objection.case.query", role="r8")
+            status, objection_cases = _get(base_url, "objection.case.query", role="ROLE_SECURITY_AUDIT")
             objection_cases = _assert_ok_dict(status, objection_cases)
             assert any(item["id"] == objection_id and item["status"] == "resolved" for item in objection_cases["items"])
-            status, objection_process = _get(base_url, "objection.process.query", objection_id=objection_id, role="r8")
+            status, objection_process = _get(base_url, "objection.process.query", objection_id=objection_id, role="ROLE_SECURITY_AUDIT")
             objection_process = _assert_ok_dict(status, objection_process)
             assert len(objection_process["items"]) >= 5
 
-            status, compliance = _get(base_url, "governance.dispute_list", role="r8")
+            status, compliance = _get(base_url, "governance.dispute_list", role="ROLE_SECURITY_AUDIT")
             compliance = _assert_ok_dict(status, compliance)
             assert compliance["items"]
             dispute_id = compliance["items"][0]["id"]
-            status, dispute = _get(base_url, "governance.dispute_view", dispute_id=dispute_id, role="r8")
+            status, dispute = _get(base_url, "governance.dispute_view", dispute_id=dispute_id, role="ROLE_SECURITY_AUDIT")
             dispute = _assert_ok_dict(status, dispute)
             assert dispute["id"] == dispute_id
-            status, replay = _get(base_url, "audit.replay_evidence_chain", dispute_id=dispute_id, role="r8")
+            status, replay = _get(base_url, "audit.replay_evidence_chain", dispute_id=dispute_id, role="ROLE_SECURITY_AUDIT")
             replay = _assert_ok_dict(status, replay)
             assert replay["evidenceChain"]
 
-            status, audit = _get(base_url, "audit.list", role="r8")
+            status, audit = _get(base_url, "audit.list", role="ROLE_SECURITY_AUDIT")
             audit = _assert_ok_dict(status, audit)
             audit_json = json.dumps(audit, ensure_ascii=False)
             for marker in [

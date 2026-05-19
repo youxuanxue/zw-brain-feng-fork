@@ -1,6 +1,6 @@
 {
   "name": "quality.task.replay",
-  "description": "R6 对失败的检测任务发起重跑；记录上次失败摘要 + 新一次任务引用，保持执行器回执可追溯。",
+  "description": "提供方部门 对失败的检测任务发起重跑；记录上次失败摘要 + 新一次任务引用，保持执行器回执可追溯。",
   "inputSchema": {
     "type": "object",
     "required": [

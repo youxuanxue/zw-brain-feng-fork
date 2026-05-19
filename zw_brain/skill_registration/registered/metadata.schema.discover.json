@@ -2,7 +2,7 @@
   "skill_id": "metadata.schema.discover",
   "slug": "metadata.schema.discover",
   "title": "列可反向编目候选",
-  "description": "只读：列已采集 db_meta_table/db_meta_column 中尚未生成反向编目草稿的候选 schema，给 R6 在反向编目工作流中选源。",
+  "description": "只读：列已采集 db_meta_table/db_meta_column 中尚未生成反向编目草稿的候选 schema，给 提供方部门 在反向编目工作流中选源。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",

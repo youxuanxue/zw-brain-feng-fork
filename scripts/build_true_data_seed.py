@@ -7,7 +7,7 @@ Covers four surfaces (A1-A4 of docs/reconstructs/legacy-import-mapping-v1.md §�
 - A1 真政务案例 → discovery.resources (10 cards from dsp_example.data_example)
 - A2 真目录召回字典 → discovery.catalogTree + discovery.recallDictionary
 - A3 真组织/区划 projection → audit_events + workbench role greetings
-- A4 R1/R3/R5 端到端 demo → requests + approvals + delivery_tasks + disputes
+- A4 完整业务旅程端到端 demo → requests + approvals + delivery_tasks + disputes
 
 Idempotent: rerunning produces the same output regardless of prior state.
 Touches ONLY the keys listed above; all other hand-authored UI affordances
@@ -93,7 +93,7 @@ CASE_OVERRIDES: dict[str, dict] = {
         "explain": [
             "真政务案例：出生一件事（status=published, opinion=通过）",
             "field_type=11,16（人口与教育跨域），跨部门一表通典型",
-            "可作为 R1 个人专题“一件事”链路标杆",
+            "可作为 申请人 个人专题“一件事”链路标杆",
         ],
         "next": ["进入“一件事”专题包", "查看跨部门字段对齐", "申请人口基础信息复用"],
     },
@@ -103,7 +103,7 @@ CASE_OVERRIDES: dict[str, dict] = {
         "explain": [
             "真政务案例：小微企业一次性创业岗位开发补贴申领（submitted）",
             "field_type=05（创业就业），适合做小微企业惠企政策链演示",
-            "已沉淀进真共享专区，可做 R1→R3 联审标杆",
+            "已沉淀进真共享专区，可做 申请人→镇街填报人 联审标杆",
         ],
         "next": ["发起补贴复用申请", "查看小微企业惠企专题", "对齐人社部门数据口径"],
     },
@@ -537,20 +537,21 @@ def _augment_workbench(workbench: dict) -> dict:
     and aiSummary.basis to reference real Shandong orgs.
     """
     new_wb = json.loads(json.dumps(workbench))  # deep copy
-    if "r1" in new_wb:
-        new_wb["r1"]["greeting"] = "周处长，上午好（省大数据局 · 山东省）"
-        new_wb["r1"]["subtitle"] = (
+    # 2026-05-19 retrofit (D23): workbench bucket keys 对齐新 ROLE_* 6 角色
+    if "ROLE_ORGAN_OPERATER" in new_wb:
+        new_wb["ROLE_ORGAN_OPERATER"]["greeting"] = "周处长，上午好（省大数据局 · 山东省）"
+        new_wb["ROLE_ORGAN_OPERATER"]["subtitle"] = (
             "你有 1 条停车场信息复用申请待看进度；本周共有 10 条来自 dsp_example 的真政务案例可被订阅；"
             "1 条减负提示来自约 1.8 万条 pub_organ projection。"
         )
-    if "r3" in new_wb:
-        new_wb["r3"]["greeting"] = "区县协同员，上午好（济南市大数据局 · 区县代办）"
-        new_wb["r3"]["subtitle"] = (
+    if "ROLE_ORGAN_MANAGER" in new_wb:  # 旧 r3 镇街/区县协同员 → ORGAN_MANAGER 部门管理员
+        new_wb["ROLE_ORGAN_MANAGER"]["greeting"] = "区县协同员，上午好（济南市大数据局 · 区县代办）"
+        new_wb["ROLE_ORGAN_MANAGER"]["subtitle"] = (
             "本周 2 条由省大数据局发起的婚姻登记/出生一件事流转任务等你确认；停车场信息已通过基础目录审核。"
         )
-    if "r5" in new_wb:
-        new_wb["r5"]["greeting"] = "审计员，上午好（省纪检审计联络办）"
-        new_wb["r5"]["subtitle"] = (
+    if "ROLE_SECURITY_AUDIT" in new_wb:  # 旧 r5 审计员 → SECURITY_AUDIT
+        new_wb["ROLE_SECURITY_AUDIT"]["greeting"] = "审计员，上午好（省纪检审计联络办）"
+        new_wb["ROLE_SECURITY_AUDIT"]["subtitle"] = (
             "本周 8 条审计事件已锚定（2 条 anchored / 6 pending）；其中 1 条与省公安厅发起的目录异议相关。"
         )
     return new_wb
@@ -585,8 +586,8 @@ NEW_REQUESTS: list[dict] = [
             {"label": "field_type", "value": "11（婚育）", "source": "dsp_example.display.field_type", "state": "已预填"},
         ],
         "diffFields": [
-            {"label": "区县窗口接口端点", "value": "待区县确认", "reason": "各区县部署不一致", "owner": "R3 补录"},
-            {"label": "异地办理标识", "value": "待补录", "reason": "省民政厅口径仍在对齐", "owner": "R3/R4 补录"},
+            {"label": "区县窗口接口端点", "value": "待区县确认", "reason": "各区县部署不一致", "owner": "镇街填报人 补录"},
+            {"label": "异地办理标识", "value": "待补录", "reason": "省民政厅口径仍在对齐", "owner": "基层填报人 补录"},
         ],
         "reviewFocus": ["跨地区窗口口径是否一致", "异地办理流程是否走原审批链", "回流到真案例是否更新版本"],
         "summaryResult": {"totalEntities": 16, "autoMerged": 14, "exceptions": 2, "note": "16 个区县窗口接口已自动对齐 14 个，2 个待人工核对。"},
@@ -627,8 +628,8 @@ NEW_REQUESTS: list[dict] = [
             {"label": "field_type", "value": "11,16（人口/教育）", "source": "dsp_example.display.field_type", "state": "已预填"},
         ],
         "diffFields": [
-            {"label": "母婴档案电子化标识", "value": "待补录", "reason": "卫健委系统化进度差异", "owner": "R3 补录"},
-            {"label": "学籍同步窗口", "value": "待补录", "reason": "省教育厅接口尚未稳定", "owner": "R4 补录"},
+            {"label": "母婴档案电子化标识", "value": "待补录", "reason": "卫健委系统化进度差异", "owner": "镇街填报人 补录"},
+            {"label": "学籍同步窗口", "value": "待补录", "reason": "省教育厅接口尚未稳定", "owner": "村社区填报人 补录"},
         ],
         "reviewFocus": ["三方接口稳定性", "学籍同步是否需要二次回流"],
         "summaryResult": {"totalEntities": 24, "autoMerged": 22, "exceptions": 2, "note": "24 项跨域字段中 22 项已自动对齐，2 项学籍同步差异留待教育厅补录。"},
@@ -669,8 +670,8 @@ NEW_REQUESTS: list[dict] = [
             {"label": "field_type", "value": "05（创业就业）", "source": "dsp_example.display.field_type", "state": "已预填"},
         ],
         "diffFields": [
-            {"label": "新增岗位核验口径", "value": "待人社厅与税务对接", "reason": "存量与新增定义不同", "owner": "R3 补录"},
-            {"label": "补贴金额计算公式", "value": "待补录", "reason": "区县实际执行差异较大", "owner": "R4 补录"},
+            {"label": "新增岗位核验口径", "value": "待人社厅与税务对接", "reason": "存量与新增定义不同", "owner": "镇街填报人 补录"},
+            {"label": "补贴金额计算公式", "value": "待补录", "reason": "区县实际执行差异较大", "owner": "村社区填报人 补录"},
         ],
         "reviewFocus": ["新增岗位口径是否双方一致", "补贴金额是否走自动计算"],
         "summaryResult": {"totalEntities": 12, "autoMerged": 10, "exceptions": 2, "note": "12 个核心字段已对齐 10 个，新增岗位与补贴公式留待补录。"},

@@ -119,3 +119,17 @@ GATE-1 通过后立即收尾动作：
 - [2026-04-28] 决策：**dev-rules 方案 A** —— zw-brain 不接子模块、CI 不克隆规范仓库；本机可选 symlink；通用 preflight 段依赖的 approved / stat 检查迁入 `scripts/`。
 - [2026-05-18] 决策：**单一事实来源收敛 —— 退役 `prototype/` 目录**。`.experiences/` 已成为角色级稳态体验文档的权威源（M0 + R1-R8，~137KB），`prototype/storyboards/` 与 `prototype/capability-sheets/` 与之同主题但叙事冗余。Jobs 式取舍：从 `prototype/capability-sheets/README.md` 抽取"能力归属判定规则"（平台内建 vs 外部 ANP）+ 从 `prototype/storyboards/08-negative-flows-and-guardrails.md` 抽取 6 条系统级护栏，吸收为 `.experiences/README.md` 两节；其余（9 个 storyboards 含已退役 SPA 路由、6 份 CP 同模板冗余、prototype/README.md 客户交付内容已在 `docs/deployment/` 覆盖）直接删除。架构基线 §附录 C 同步更新——`prototype/*` 不再作为保留产物。
 
+### [2026-05-19] GATE-1.1 retrofit：业务 review 触发的产品定义重置
+
+2026-05-19 业务方（红军，旧平台产研负责人）线上视频 review zw-brain 当前角色旅程（`.experiences/R1-R8`），提出 18 条业务问题 + 3 条 UX 问题（原始材料：`old/20260519/`）。综合 Jobs 视角诊断：GATE-1 设计基线犯了三个根本性错误（角色矩阵化拍平、流程图当设计常量、AI 包装旧菜单 ≠ AI 原生）。本批 D23-D29 决策驱动一次性重写，**不留兼容**。
+
+主评审材料：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`；新角色规范：`docs/approved/zw-brain-roles-v2.md`；新 IA：`docs/approved/zw-brain-information-architecture-v2.md`；基线附录 D：`docs/approved/zw-brain-architecture-v4-gpt55.md`。
+
+- [2026-05-19] D23：**R1-R8 角色矩阵退役**。采用旧平台 7 角色码（`ROLE_SYSTEM` / `ROLE_BUSIAUDIT` / `ROLE_ORGAN_MANAGER` / `ROLE_ORGAN_OPERATER` / `ROLE_SECURITY_ADMIN` / `ROLE_SECURITY_AUDIT`） + 标签位 `tag_lead_dept`。事实源：`old/20260519/平台系统角色菜单梳理v5.xlsx`。alembic 0009 一次性迁移存量数据，`policy.py` 启动检查兜底 + role_code CHECK 约束 + 前端字符串清零。
+- [2026-05-19] D24：**信息架构收敛 3 旅程**。基线 §5.1 旧 J1-J4 + S1-S2 收敛为 J1 找数→用数 / J2 挂数→维数 / J3 看全局→处异常。§5.2 P1-P8 页面不变，重新归属。
+- [2026-05-19] D25：**审批流可配置化承诺**。业务方反馈 #4 项目级流程定制（鞍山"编制→二级部门审→一级部门审→发布"），下期立项流程引擎，本期不做。
+- [2026-05-19] D26：**表单 schema 化承诺**。业务方反馈 #17 项目级表单定制（四川/荆州），下期立项表单引擎，本期不做。
+- [2026-05-19] D27：**21 条反馈处置摘要**。完整处置见评审主文档 §三。本期落地：#1 #2 #3 #5 #7 #8 #9 #10 #11 #12 #14 #15 #16 + U-1 U-2 U-3；延后：#4 #6 #13 #17 #18。
+- [2026-05-19] D28：**GATE-x 元规则升级**。角色定义 / 业务流程 / 状态机三类决策，业务方 sign-off 才能进 D-编号。本批 D23-D29 待评审主文档 §九 sign-off。建议同步进 `dev-rules/global/CLAUDE.md` §2。
+- [2026-05-19] D29：**R 编号空间区分**。`D-编号` GATE 后决策；基线 §11 `R1-R9` 架构约束保留（且本附录追加 R10/R11/R12）；用户角色 `R[1-8]` 完全退役，仓库 grep 残留为 0。
+

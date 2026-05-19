@@ -84,14 +84,12 @@
             "schema": {
               "type": "string",
               "enum": [
-                "r1",
-                "r2",
-                "r3",
-                "r4",
-                "r5",
-                "r6",
-                "r7",
-                "r8"
+                "ROLE_SYSTEM",
+                "ROLE_BUSIAUDIT",
+                "ROLE_ORGAN_MANAGER",
+                "ROLE_ORGAN_OPERATER",
+                "ROLE_SECURITY_ADMIN",
+                "ROLE_SECURITY_AUDIT"
               ]
             },
             "description": "Web UI role; snapshot lists are redacted server-side to match page access."
@@ -1352,7 +1350,7 @@
     "/api/skills/catalog.entry.reverse_draft.suggest": {
       "get": {
         "summary": "反向编目智能预填",
-        "description": "对一个已采集 schema 输出三档预填建议：1) 字段中文名取自 column.comment / meta_standard_cn（高置信度，绿）；2) PII 模式匹配 + 内置中文映射（中置信度，黄）；3) 推理网关 LLM 占位（低置信度，橙）。R6 在反向编目工作流卡片里据此一键提交 90% 预填好的草稿，而不必从空白开始。",
+        "description": "对一个已采集 schema 输出三档预填建议：1) 字段中文名取自 column.comment / meta_standard_cn（高置信度，绿）；2) PII 模式匹配 + 内置中文映射（中置信度，黄）；3) 推理网关 LLM 占位（低置信度，橙）。提供方部门 在反向编目工作流卡片里据此一键提交 90% 预填好的草稿，而不必从空白开始。",
         "operationId": "get_catalog_entry_reverse_draft_suggest",
         "tags": [
           "Capability Projection"
@@ -1956,7 +1954,7 @@
     "/api/skills/catalog.resource_view": {
       "get": {
         "summary": "查看资源详情",
-        "description": "查看模板或资源的覆盖率、字段和复用解释，用于 R1 先复用模板。",
+        "description": "查看模板或资源的覆盖率、字段和复用解释，用于 申请人 先复用模板。",
         "operationId": "get_catalog_resource_view",
         "tags": [
           "Capability Projection"
@@ -3504,7 +3502,7 @@
     "/api/skills/direct_access.delivery.list": {
       "get": {
         "summary": "已审批数据直达交付清单",
-        "description": "只读：列 delivery_task 中 access_grant_snapshot.direct_access=true 且 status in (succeeded, in_progress) 的交付清单；R5/R8 据此判断是否有绕过 application_record 主链路的痕迹。",
+        "description": "只读：列 delivery_task 中 access_grant_snapshot.direct_access=true 且 status in (succeeded, in_progress) 的交付清单；审核汇总人 / 安全审计员 据此判断是否有绕过 application_record 主链路的痕迹。",
         "operationId": "get_direct_access_delivery_list",
         "tags": [
           "Capability Projection"
@@ -4264,7 +4262,7 @@
     "/api/skills/legacy.migration.status.query": {
       "get": {
         "summary": "查询 M0 迁移验收状态",
-        "description": "聚合 legacy_object_mapping、adapter_run_record 与 migration.* 审计事件，给 R7/R8 看 M0 验收 11 张工作队列卡片状态、按 canonical_type 分布的映射计数和最近一次 rollback 摘要。只读，零 side effect。",
+        "description": "聚合 legacy_object_mapping、adapter_run_record 与 migration.* 审计事件，给 业务运营员 / 安全审计员 看 M0 验收 11 张工作队列卡片状态、按 canonical_type 分布的映射计数和最近一次 rollback 摘要。只读，零 side effect。",
         "operationId": "get_legacy_migration_status_query",
         "tags": [
           "Capability Projection"
@@ -4917,7 +4915,7 @@
     "/api/skills/metadata.schema.discover": {
       "get": {
         "summary": "列可反向编目候选",
-        "description": "只读：列已采集 db_meta_table/db_meta_column 中尚未生成反向编目草稿的候选 schema，给 R6 在反向编目工作流中选源。",
+        "description": "只读：列已采集 db_meta_table/db_meta_column 中尚未生成反向编目草稿的候选 schema，给 提供方部门 在反向编目工作流中选源。",
         "operationId": "get_metadata_schema_discover",
         "tags": [
           "Capability Projection"
@@ -8649,14 +8647,10 @@
             "schema": {
               "type": "string",
               "enum": [
-                "r1",
-                "r2",
-                "r3",
-                "r4",
-                "r5",
-                "r6",
-                "r7",
-                "r8"
+                "ROLE_ORGAN_OPERATER",
+                "ROLE_ORGAN_MANAGER",
+                "ROLE_BUSIAUDIT",
+                "ROLE_SECURITY_AUDIT"
               ]
             }
           }
@@ -12880,7 +12874,7 @@
     "/api/skills/application.grant.revoke": {
       "post": {
         "summary": "收回授权",
-        "description": "R2 永久收回已生效的授权 — R1 需重新申请。涉及安全事件时使用。",
+        "description": "审批人 永久收回已生效的授权 — 申请人 需重新申请。涉及安全事件时使用。",
         "operationId": "post_application_grant_revoke",
         "tags": [
           "Capability Projection"
@@ -13064,7 +13058,7 @@
     "/api/skills/application.grant.suspend": {
       "post": {
         "summary": "暂停授权",
-        "description": "R2 暂停已生效的授权 — R1 暂时无法访问数据但授权不失效，可恢复。",
+        "description": "审批人 暂停已生效的授权 — 申请人 暂时无法访问数据但授权不失效，可恢复。",
         "operationId": "post_application_grant_suspend",
         "tags": [
           "Capability Projection"
@@ -15653,7 +15647,7 @@
     "/api/skills/catalog.entry.reverse_draft.confirm": {
       "post": {
         "summary": "反向编目字段确认",
-        "description": "R7 半边：对反向编目草稿做字段口径裁决（中英文/敏感等级/类型）。通过后 catalog_entry.lifecycle_status 从 draft 推进到 pending_review；R6 再做正式挂接。",
+        "description": "业务运营员 半边：对反向编目草稿做字段口径裁决（中英文/敏感等级/类型）。通过后 catalog_entry.lifecycle_status 从 draft 推进到 pending_review；提供方部门 再做正式挂接。",
         "operationId": "post_catalog_entry_reverse_draft_confirm",
         "tags": [
           "Capability Projection"
@@ -15833,7 +15827,7 @@
     "/api/skills/catalog.entry.reverse_draft.create": {
       "post": {
         "summary": "反向编目生成草稿",
-        "description": "R6 半边：根据已采集的 db_meta_table/db_meta_column 一键生成 catalog_entry(lifecycle_status=draft, summary_json.source=reverse) 草稿。草稿仅作为字段建议，不可直接被申请；R7 字段口径裁决通过后才能进入 pending_review。",
+        "description": "提供方部门 半边：根据已采集的 db_meta_table/db_meta_column 一键生成 catalog_entry(lifecycle_status=draft, summary_json.source=reverse) 草稿。草稿仅作为字段建议，不可直接被申请；业务运营员 字段口径裁决通过后才能进入 pending_review。",
         "operationId": "post_catalog_entry_reverse_draft_create",
         "tags": [
           "Capability Projection"
@@ -16035,7 +16029,7 @@
     "/api/skills/catalog.entry.reverse_draft.reject": {
       "post": {
         "summary": "反向编目草稿驳回",
-        "description": "R7 对反向编目草稿做不予通过裁决；catalog_entry.lifecycle_status 退回 rejected 并写明驳回理由，等待 R6 补充 schema 证据后重新提交。",
+        "description": "业务运营员 对反向编目草稿做不予通过裁决；catalog_entry.lifecycle_status 退回 rejected 并写明驳回理由，等待 提供方部门 补充 schema 证据后重新提交。",
         "operationId": "post_catalog_entry_reverse_draft_reject",
         "tags": [
           "Capability Projection"
@@ -20579,7 +20573,7 @@
     "/api/skills/delivery.replace_or_cancel": {
       "post": {
         "summary": "撤回引发的交付替代或取消",
-        "description": "R2 在资源撤回或资产 suspended 时决定：把现有 delivery_task 重新指向替代资源（replace），或者取消并通知订阅方（cancel）。避免授权悬空。",
+        "description": "审批人 在资源撤回或资产 suspended 时决定：把现有 delivery_task 重新指向替代资源（replace），或者取消并通知订阅方（cancel）。避免授权悬空。",
         "operationId": "post_delivery_replace_or_cancel",
         "tags": [
           "Capability Projection"
@@ -25057,7 +25051,7 @@
     "/api/skills/ops.shift_handover.submit": {
       "post": {
         "summary": "提交交接班记录",
-        "description": "R8 完成本班次的交接班 — 记录本班通报事项、待跟进工单、下班次接班人。",
+        "description": "安全审计员 完成本班次的交接班 — 记录本班通报事项、待跟进工单、下班次接班人。",
         "operationId": "post_ops_shift_handover_submit",
         "tags": [
           "Capability Projection"
@@ -25244,7 +25238,7 @@
     "/api/skills/ops.ticket.close": {
       "post": {
         "summary": "关闭运维工单",
-        "description": "R8 关闭已处理完毕的运维工单。",
+        "description": "安全审计员 关闭已处理完毕的运维工单。",
         "operationId": "post_ops_ticket_close",
         "tags": [
           "Capability Projection"
@@ -25425,7 +25419,7 @@
     "/api/skills/ops.ticket.create": {
       "post": {
         "summary": "创建运维工单",
-        "description": "R8 创建运维工单（告警处理 / 巡检 / 拨测 / 安全 / 其他），指派给责任人。",
+        "description": "安全审计员 创建运维工单（告警处理 / 巡检 / 拨测 / 安全 / 其他），指派给责任人。",
         "operationId": "post_ops_ticket_create",
         "tags": [
           "Capability Projection"
@@ -26616,7 +26610,7 @@
     "/api/skills/quality.rule.upsert": {
       "post": {
         "summary": "维护自动检测规则",
-        "description": "R6 维护检测规则（必填率/格式/值域/字段一致性/挂接一致性等）。规则按 rule_code 幂等 upsert；变更产生新版本，旧版本检测结论作为历史 evidence 保留。",
+        "description": "提供方部门 维护检测规则（必填率/格式/值域/字段一致性/挂接一致性等）。规则按 rule_code 幂等 upsert；变更产生新版本，旧版本检测结论作为历史 evidence 保留。",
         "operationId": "post_quality_rule_upsert",
         "tags": [
           "Capability Projection"
@@ -26805,7 +26799,7 @@
     "/api/skills/quality.task.replay": {
       "post": {
         "summary": "重跑失败的自动检测任务",
-        "description": "R6 对失败的检测任务发起重跑；记录上次失败摘要 + 新一次任务引用，保持执行器回执可追溯。",
+        "description": "提供方部门 对失败的检测任务发起重跑；记录上次失败摘要 + 新一次任务引用，保持执行器回执可追溯。",
         "operationId": "post_quality_task_replay",
         "tags": [
           "Capability Projection"
@@ -26983,7 +26977,7 @@
     "/api/skills/quality.task.run": {
       "post": {
         "summary": "触发自动检测任务",
-        "description": "R6 一键触发某条规则的检测任务执行；任务执行在外部执行器，本端只写一次 quality_evidence_projection + audit_event，结果由外部回写。",
+        "description": "提供方部门 一键触发某条规则的检测任务执行；任务执行在外部执行器，本端只写一次 quality_evidence_projection + audit_event，结果由外部回写。",
         "operationId": "post_quality_task_run",
         "tags": [
           "Capability Projection"
@@ -28150,7 +28144,7 @@
     "/api/skills/require.resource.dispatch": {
       "post": {
         "summary": "需求派发给基层补差",
-        "description": "R7 判定 R1 业务需求不可用现有目录复用 → 按区域/字段/时间窗切片 → 派 R5 任务。写一次 application_record.status='dispatched' + 一次 supplement 任务草案。",
+        "description": "业务运营员 判定 申请人 业务需求不可用现有目录复用 → 按区域/字段/时间窗切片 → 派 审核汇总人 任务。写一次 application_record.status='dispatched' + 一次 supplement 任务草案。",
         "operationId": "post_require_resource_dispatch",
         "tags": [
           "Capability Projection"
@@ -28530,8 +28524,8 @@
     },
     "/api/skills/require.task.handoff": {
       "post": {
-        "summary": "R7 → R5 任务交接审计",
-        "description": "记录 R7 把派发后的任务转给 R5 接管的责任快照；只写审计与责任快照，不修改业务字段。",
+        "summary": "业务运营员 → 审核汇总人 任务交接审计",
+        "description": "记录 业务运营员 把派发后的任务转给 审核汇总人 接管的责任快照；只写审计与责任快照，不修改业务字段。",
         "operationId": "post_require_task_handoff",
         "tags": [
           "Capability Projection"
@@ -32034,7 +32028,7 @@
     "/api/skills/service.rating.submit": {
       "post": {
         "summary": "提交服务评价",
-        "description": "R1 在交付完成后为本次共享服务打分（满意度 1-5 + 文字评价），写入审计供 R8 督查。",
+        "description": "申请人 在交付完成后为本次共享服务打分（满意度 1-5 + 文字评价），写入审计供 安全审计员 督查。",
         "operationId": "post_service_rating_submit",
         "tags": [
           "Capability Projection"

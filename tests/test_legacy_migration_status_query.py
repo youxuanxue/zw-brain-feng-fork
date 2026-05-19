@@ -30,7 +30,7 @@ def test_policy_grants_r7_and_r8() -> None:
     from zw_brain.domain.policy import PERMISSION_ROLES
 
     allowed = PERMISSION_ROLES.get("legacy.migration.status.query.execute") or set()
-    assert "r7" in allowed and "r8" in allowed
+    assert "ROLE_BUSIAUDIT" in allowed and "ROLE_SECURITY_AUDIT" in allowed
 
 
 def test_brain_service_returns_eleven_work_queue_cards(tmp_path, monkeypatch) -> None:
@@ -41,7 +41,7 @@ def test_brain_service_returns_eleven_work_queue_cards(tmp_path, monkeypatch) ->
     from zw_brain.command.brain import BrainService
 
     svc = BrainService()
-    result = svc.invoke_skill("legacy.migration.status.query", {"role": "r7"})
+    result = svc.invoke_skill("legacy.migration.status.query", {"role": "ROLE_BUSIAUDIT"})
     assert "totals" in result
     assert "work_queue_cards" in result
     cards = result["work_queue_cards"]
@@ -103,8 +103,8 @@ def test_webui_p0_route_and_access_are_wired() -> None:
     """
     P0 是实施工具，不在客户产品导航里：
     - 路由仍然存在（admin / 实施工程师可直达 URL）
-    - ZW_PAGE_ACCESS 收窄到只有 admin（去掉 r7/r8 看见的能力）
-    - PRODUCT_SHELL_NAV 不再有 p0 entry — R7/R8/客户都看不到导航入口
+    - ZW_PAGE_ACCESS 收窄到只有 admin（去掉业务运营员 / 安全审计员 看见的能力）
+    - PRODUCT_SHELL_NAV 不再有 p0 entry — 业务运营员 / 安全审计员/客户都看不到导航入口
     - 渲染函数 PAGES.migrationAcceptance 仍存在以供 admin 直达
     """
     app_js = (REPO / "zw-brain-web" / "js" / "app.js").read_text(encoding="utf-8")

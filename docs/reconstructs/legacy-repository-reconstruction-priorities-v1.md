@@ -1,5 +1,11 @@
 # 旧平台代码仓库重构优先级总览方案 v1
 
+> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
+> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
+> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
+> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 原版 R 编号见 git blame。
+
 > 范围：`old/代码信息抽取/代码项目信息汇总.xlsx` 中列出的旧平台代码仓库、`docs/approved/*` 中已批准的 zw-brain 重构原则，以及 `docs/reconstructs/*` 已完成的专题方案。
 > 结论：zw-brain 是全新 AI 原生项目，不兼容旧 URL、旧 API、旧菜单、旧页面、旧后台形态和旧库表兼容层。旧仓库重构不按代码规模排序，而按“是否承载强状态主旅程、是否补齐 approved 聚合缺口、是否必须通过统一 Capability 暴露、是否只能作为 adapter / projection / evidence”分流。本总览是旧仓库去向、统一重构原则、Capability 命名和跨专题决策基线的全局单一事实源；各专题文档只记录专题证据、映射和差异约束。涉及旧 `dsp-bsp` / `dsp-manage` / `dsp-ucenter`、IAF IAM、本地 Governance、租户 / 用户 / 组织 / 角色投影、菜单权限迁移的具体边界，以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。
 
@@ -11,7 +17,7 @@
 
 1. 承载目录、资源、申请、审批、交付、订阅、异议、审计、注册治理等强状态链路。
 2. 能被 WebUI / REST / CLI / MCP / A2A 共用同一套 Capability contract 表达。
-3. 能强化 R1 / R3 / R5 黄金链路，或支撑 P5 供给侧治理、P6 合规运营、P7 共享专区 / 专题包。
+3. 能强化 申请人 / 镇街填报人 / 审核汇总人 黄金链路，或支撑 P5 供给侧治理、P6 合规运营、P7 共享专区 / 专题包。
 4. 旧实现中存在跨仓承重业务语义，迁入后能消除旧平台模块孤岛。
 5. 能通过 `legacy_adapter_source`、`legacy_object_mapping`、`external_object_mapping`、`adapter_run_record` 留下证据，而不是复刻旧表、旧 Controller、旧菜单和旧后台。
 
@@ -168,7 +174,7 @@
 - `old/08标准服务系统标准数据`
 - `docs/approved/zw-brain-architecture-v4-gpt55.md`
 - `docs/approved/zw-brain-data-model-v4-gpt55.md`
-- `docs/approved/zw-brain-golden-path-r1-r3-r5-v1.md`
+- `docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）`
 - `docs/approved/research-yibiaotong-zw-brain-v4.md`
 - `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md`
 - `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md`

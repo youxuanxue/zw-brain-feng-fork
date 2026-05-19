@@ -2,7 +2,7 @@
   "skill_id": "application.grant.revoke",
   "slug": "application.grant.revoke",
   "title": "收回授权",
-  "description": "R2 永久收回已生效的授权 — R1 需重新申请。涉及安全事件时使用。",
+  "description": "审批人 永久收回已生效的授权 — 申请人 需重新申请。涉及安全事件时使用。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",

@@ -8,8 +8,8 @@ authors:
   - Claude Code (claude-opus-4-7) — 调研协作
 related_docs:
   - docs/approved/zw-brain-architecture-v4-gpt55.md
-  - docs/approved/zw-brain-user-roles-and-journeys-v1.md
-  - docs/approved/zw-brain-golden-path-r1-r3-r5-v1.md
+  - docs/approved/zw-brain-roles-v2.md (取代于 D23)
+  - docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）
   - docs/approved/zw-brain-legal-entity-ledger-scenario-v1.md
 related_prs: []
 related_commits: []
@@ -18,6 +18,12 @@ phase_after_approval: Wave 0（作为基层报表减负代表性场景调研输�
 ---
 
 # 政务“一表通”产品调研与 zw-brain v4 结合分析
+
+> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
+> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
+> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
+> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 原版 R 编号见 git blame。
 
 > 调研日期：2026-04-25  
 > 关联架构：`docs/approved/zw-brain-architecture-v4-gpt55.md`  

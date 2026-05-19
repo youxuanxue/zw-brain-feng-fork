@@ -46,7 +46,7 @@ def _write_core_dumps(dumps_dir: Path) -> None:
               `STATUS` int,
               PRIMARY KEY (`ID`)
             ) ENGINE=InnoDB;
-            INSERT INTO `pub_user` VALUES ('u-1','admin','管理员','ORG-1','r1',1);
+            INSERT INTO `pub_user` VALUES ('u-1','admin','管理员','ORG-1','ROLE_ORGAN_OPERATER',1);
             DROP TABLE IF EXISTS `pub_role`;
             CREATE TABLE `pub_role` (
               `ID` varchar(64),
@@ -55,7 +55,7 @@ def _write_core_dumps(dumps_dir: Path) -> None:
               `STATUS` int,
               PRIMARY KEY (`ID`)
             ) ENGINE=InnoDB;
-            INSERT INTO `pub_role` VALUES ('role-1','r1','申请人',1);
+            INSERT INTO `pub_role` VALUES ('role-1','ROLE_ORGAN_OPERATER','申请人',1);
             """
         ).strip(),
         encoding="utf-8",
@@ -513,7 +513,7 @@ def test_r2_parking_real_dump_migrates_approval_grant_and_legacy_mappings() -> N
 
     with TemporaryDirectory() as tmp:
         report = run_acceptance_migration(
-            MigrationOptions(dumps_dir=dumps_dir, db_path=Path(tmp) / "r2-parking.db", reset_db=True, strict=True)
+            MigrationOptions(dumps_dir=dumps_dir, db_path=Path(tmp) / "regional-parking.db", reset_db=True, strict=True)
         )
         assert report["status"] == "succeeded"
         assert report["acceptance"]["idempotency"]["verified"] is True
@@ -741,7 +741,7 @@ def test_r2_parking_real_dump_migrates_approval_grant_and_legacy_mappings() -> N
 
             topic_detail = service.invoke_skill(
                 "topic.package.query",
-                {"package_code": legal_person_group_package, "role": "r7"},
+                {"package_code": legal_person_group_package, "role": "ROLE_BUSIAUDIT"},
             )["items"][0]
             assert topic_detail["projectionKind"] == "catalog_group"
             assert topic_detail["projectionStatus"] == "projected"
@@ -755,11 +755,11 @@ def test_r2_parking_real_dump_migrates_approval_grant_and_legacy_mappings() -> N
             assert topic_detail["applicationBoundary"]["approvedViewPolicyCount"] == 18
             assert any(item["catalog_code"] == legal_person_catalog_code and item["visible"] for item in topic_detail["catalogProjectionItems"])
 
-            share_zones = service.invoke_skill("catalog.share_zone.query", {"role": "r7"})
+            share_zones = service.invoke_skill("catalog.share_zone.query", {"role": "ROLE_BUSIAUDIT"})
             assert share_zones["source_fact"].startswith("legacy share_zone/share_group dump rows are empty")
             assert any(item["package_code"] == legal_person_group_package for item in share_zones["items"])
 
-            discovered = service.invoke_skill("data.search", {"query": "法人登记注册基本信息", "role": "r7"})
+            discovered = service.invoke_skill("data.search", {"query": "法人登记注册基本信息", "role": "ROLE_BUSIAUDIT"})
             discovered_item = next(item for item in discovered["results"] if item["id"] == legal_person_catalog_code)
             assert discovered_item["status"] == "active"
             assert discovered_item["topicProjections"][0]["projectionStatus"] == "projected"
@@ -807,12 +807,12 @@ def test_r2_parking_real_dump_migrates_approval_grant_and_legacy_mappings() -> N
             )
             invisible_topic = service.invoke_skill(
                 "topic.package.query",
-                {"package_code": "catalog-group:f4-invisible", "role": "r7"},
+                {"package_code": "catalog-group:f4-invisible", "role": "ROLE_BUSIAUDIT"},
             )["items"][0]
             assert invisible_topic["projectionStatus"] == "blocked"
             assert "no_approved_visibility" in invisible_topic["projectionFailureReasons"]
             assert "authorization_not_effective" in invisible_topic["projectionFailureReasons"]
-            assert not any(item["id"] == "F4-INVISIBLE-CATALOG" for item in service.invoke_skill("data.search", {"query": "F4 active", "role": "r7"})["results"])
+            assert not any(item["id"] == "F4-INVISIBLE-CATALOG" for item in service.invoke_skill("data.search", {"query": "F4 active", "role": "ROLE_BUSIAUDIT"})["results"])
 
             database_store.catalog_repo.upsert_from_resource(
                 {
@@ -856,7 +856,7 @@ def test_r2_parking_real_dump_migrates_approval_grant_and_legacy_mappings() -> N
             )
             inactive_topic = service.invoke_skill(
                 "topic.package.query",
-                {"package_code": "catalog-group:f4-inactive", "role": "r7"},
+                {"package_code": "catalog-group:f4-inactive", "role": "ROLE_BUSIAUDIT"},
             )["items"][0]
             assert inactive_topic["projectionStatus"] == "blocked"
             assert "no_active_catalog_item" in inactive_topic["projectionFailureReasons"]
@@ -914,7 +914,7 @@ def test_r2_parking_real_dump_migrates_approval_grant_and_legacy_mappings() -> N
             )
             hidden_topic = service.invoke_skill(
                 "topic.package.query",
-                {"package_code": "catalog-group:f4-hidden-fields", "role": "r7"},
+                {"package_code": "catalog-group:f4-hidden-fields", "role": "ROLE_BUSIAUDIT"},
             )["items"][0]
             assert hidden_topic["projectionStatus"] == "blocked"
             assert "resource_binding_has_no_visible_fields" in hidden_topic["projectionFailureReasons"]

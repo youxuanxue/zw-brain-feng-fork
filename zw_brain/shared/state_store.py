@@ -41,7 +41,7 @@ class StateStore:
 
     def save(self, snapshot: dict[str, Any], ui_state: dict[str, Any] | None = None) -> None:
         if self._database_store is not None:
-            self._database_store.save_runtime_state(snapshot, ui_state or {"role": "r1", "discoveryQuery": "", "brainOutage": False})
+            self._database_store.save_runtime_state(snapshot, ui_state or {"role": "ROLE_ORGAN_OPERATER", "discoveryQuery": "", "brainOutage": False})
             return
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")

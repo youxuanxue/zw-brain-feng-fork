@@ -1,6 +1,6 @@
 """dsp_handling → ObjectionCase aggregate mapper.
 
-Step 8 of the bridging chain (last). Closes the R3 demo arc — application/delivery is
+Step 8 of the bridging chain (last). Closes the township-fill demo arc — application/delivery is
 already in canonical form; this mapper attaches the corresponding 异议 (objections) so
 the WebUI can show 申请 → 交付 → 异议 → 评价 end-to-end.
 

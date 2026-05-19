@@ -1,6 +1,6 @@
 {
   "name": "quality.task.run",
-  "description": "R6 一键触发某条规则的检测任务执行；任务执行在外部执行器，本端只写一次 quality_evidence_projection + audit_event，结果由外部回写。",
+  "description": "提供方部门 一键触发某条规则的检测任务执行；任务执行在外部执行器，本端只写一次 quality_evidence_projection + audit_event，结果由外部回写。",
   "inputSchema": {
     "type": "object",
     "required": [

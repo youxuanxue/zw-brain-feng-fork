@@ -1,6 +1,6 @@
 {
   "name": "catalog.entry.reverse_draft.suggest",
-  "description": "对一个已采集 schema 输出三档预填建议：1) 字段中文名取自 column.comment / meta_standard_cn（高置信度，绿）；2) PII 模式匹配 + 内置中文映射（中置信度，黄）；3) 推理网关 LLM 占位（低置信度，橙）。R6 在反向编目工作流卡片里据此一键提交 90% 预填好的草稿，而不必从空白开始。",
+  "description": "对一个已采集 schema 输出三档预填建议：1) 字段中文名取自 column.comment / meta_standard_cn（高置信度，绿）；2) PII 模式匹配 + 内置中文映射（中置信度，黄）；3) 推理网关 LLM 占位（低置信度，橙）。提供方部门 在反向编目工作流卡片里据此一键提交 90% 预填好的草稿，而不必从空白开始。",
   "inputSchema": {
     "type": "object",
     "required": [

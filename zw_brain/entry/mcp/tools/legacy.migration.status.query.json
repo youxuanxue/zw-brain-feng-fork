@@ -1,6 +1,6 @@
 {
   "name": "legacy.migration.status.query",
-  "description": "聚合 legacy_object_mapping、adapter_run_record 与 migration.* 审计事件，给 R7/R8 看 M0 验收 11 张工作队列卡片状态、按 canonical_type 分布的映射计数和最近一次 rollback 摘要。只读，零 side effect。",
+  "description": "聚合 legacy_object_mapping、adapter_run_record 与 migration.* 审计事件，给 业务运营员 / 安全审计员 看 M0 验收 11 张工作队列卡片状态、按 canonical_type 分布的映射计数和最近一次 rollback 摘要。只读，零 side effect。",
   "inputSchema": {
     "type": "object",
     "properties": {

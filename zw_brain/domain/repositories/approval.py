@@ -224,16 +224,16 @@ class ApprovalRepository:
             else:
                 case.current_status = status
                 case.current_step = max(case.current_step or 1, 1)
-                case.decision_payload_json = {**(case.decision_payload_json or {}), "latest_r2_review": payload}
+                case.decision_payload_json = {**(case.decision_payload_json or {}), "latest_organ_manager_review": payload}
             step_no = (case.current_step or 0) + 1
             case.current_step = step_no
             step = ApprovalStepRecord(
                 approval_case_id=case.id,
                 step_no=step_no,
-                step_name="R2 准入决策",
+                step_name="部门管理员准入决策",
                 decision_mode="single",
                 status="completed",
-                approver_scope_json={"roles": ["r2"], "request_id": application_code, "audit_id": audit_id},
+                approver_scope_json={"roles": ["ROLE_ORGAN_MANAGER"], "request_id": application_code, "audit_id": audit_id},
                 started_at=_now(),
                 completed_at=_now(),
             )
@@ -243,7 +243,7 @@ class ApprovalRepository:
                 step_id=step.id,
                 decision=decision,
                 decision_reason=reason,
-                actor_snapshot_json={"actor": actor, "role_code": "r2", "skill_id": skill_id},
+                actor_snapshot_json={"actor": actor, "role_code": "ROLE_ORGAN_MANAGER", "skill_id": skill_id},
                 evidence_json={**evidence, "audit_id": audit_id, "skill_id": skill_id},
             )
             session.add(record)
@@ -362,8 +362,8 @@ class ApprovalRepository:
 
     def _api_approver_roles(self, status: str) -> list[str]:
         if status in {"pending_review", "approved_pending_publish", "active", "retired", "revoked", "test_failed"}:
-            return ["r7"]
-        return ["r6", "r7"]
+            return ["ROLE_BUSIAUDIT"]
+        return ["ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"]
 
     def _api_decision_value(self, status: str) -> str:
         if status in {"approved_pending_publish", "active"}:
@@ -411,14 +411,14 @@ class ApprovalRepository:
 
     def _approver_roles(self, request_status: str) -> list[str]:
         if request_status in {"pending", "need-fix", "rejected"}:
-            return ["r2"]
+            return ["ROLE_ORGAN_MANAGER"]
         if request_status == "supplementing":
-            return ["r3", "r4"]
+            return ["ROLE_ORGAN_OPERATER"]
         if request_status == "summary-pending":
-            return ["r5"]
+            return ["ROLE_ORGAN_MANAGER"]
         if request_status == "completed":
-            return ["r6", "r7"]
-        return ["r2"]
+            return ["ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"]
+        return ["ROLE_ORGAN_MANAGER"]
 
     def _decision_value(self, request_status: str, approval: dict[str, Any]) -> str:
         suggestion = str(approval.get("suggestion", ""))

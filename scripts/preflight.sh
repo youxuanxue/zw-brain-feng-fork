@@ -61,6 +61,7 @@ done <<'CHECKS'
 段 16	scripts/check_legacy_mappers.py	legacy-mappers (D7+D4)
 段 17	scripts/check_iam_doc_freshness.py	iam-doc-freshness (R-002)
 段 18	scripts/check_db_bloat.py	db-bloat-check (canonical DB ≤ 2GB hard, 500MB soft)
+段 19	scripts/check_no_legacy_role_codes.py	no-legacy-role-codes (D23 retrofit)
 CHECKS
 
 echo ""

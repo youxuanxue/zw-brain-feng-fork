@@ -1,5 +1,11 @@
 # 旧平台样例数据 → zw-brain 数据模型一键导入映射 v1
 
+> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
+> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
+> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
+> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 原版 R 编号见 git blame。
+
 > **日期 / 状态**：2026-05-06 / draft（待评审；review 通过后进入阶段 1）
 > **范围**：`old/10示例数据/*.sql`（<!-- stat:legacy.import.schemas -->17<!-- /stat --> 个 mysqldump，<!-- stat:legacy.import.tables-total -->740<!-- /stat --> 张旧表，~445 MB）→ `zw_brain/domain/models.py`（<!-- stat:legacy.import.record-classes -->59<!-- /stat --> 个 Record 类）。
 > **单一事实源**：本文是"哪张旧表去哪、哪些字段缺位、哪些不导入、跨 schema 桥接顺序"的单一事实源。专题方案 `dsp-*-reconstruction-plan-v1.md` 是设计依据，本文是执行结论。
@@ -501,7 +507,7 @@
 
 → 5 消费面（WebUI/REST/CLI/MCP/A2A）的鉴权与审计上下文可见真组织名。
 
-### 5.4 R1/R3/R5 端到端 demo seed（A4）
+### 5.4 申请人/镇街填报人/审核汇总人 端到端 demo seed（A4）
 
 利用真实业务流转链：
 
@@ -516,7 +522,7 @@ dsp_require.data_require (67 条)
               → dsp_example.data_example_push_link 上报回流
 ```
 
-→ 选 3 条端到端 happy path + 1 条异议路径作为 demo seed，跑通 R1/R3/R5 黄金链路。
+→ 选 3 条端到端 happy path + 1 条异议路径作为 demo seed，跑通 申请人/镇街填报人/审核汇总人 黄金链路。
 
 ### 5.5 落地状态（2026-05-06）
 
@@ -524,7 +530,7 @@ A1–A4 已通过 `scripts/build_true_data_seed.py` 一次性生成，从 `.data
 
 - **A1** — `discovery.resources` 12 张卡：2 张停车场（`res-jbxx-ledger` + `res-parking-chengdu`，保留旧 id 给测试 fixture）+ 8 张来自 `dsp_example.data_example`（公司变更登记 / 不动产 / 出生一件事 / 中小学一件事 / 婚姻登记 / 小微企业补贴 / 数据查询创新 / 行政审批帮办代办）+ 2 张 legacy 占位（`res-market-activity` + `res-company-visit`，测试 fixture 占位）
 - **A2** — `discovery.catalogTree` 用真分布（10 / 1185 / 18750 / 16731；dump 快照 @2026-05-06，按附录 A 规则不入 stat-wrap）；`discovery.recallDictionary` 提供 8 类 basesubject + 25 个真目录标题样本（仅 `active` + `approved_pending_publish` 入选，过滤 retired），供 NL skill 召回字典使用
-- **A3** — `audit_events` 8 条全部使用真组织 actor（省大数据局 / 省公安厅 / 省人社厅 / 济南市大数据局 / platform）；`workbench.r1/r3/r5.greeting` 注入真组织上下文
+- **A3** — `audit_events` 8 条全部使用真组织 actor（省大数据局 / 省公安厅 / 省人社厅 / 济南市大数据局 / platform）；`workbench.ROLE_ORGAN_OPERATER/ROLE_ORGAN_MANAGER.greeting` 注入真组织上下文
 - **A4** — 在保留原 2 个停车场链路（`REQ-2026-04-25-0011` / `REQ-2026-04-24-0007` / `DLV-2026-04-25-0011` 等）之外，追加 3 条 happy chain（婚姻登记 / 出生一件事 / 小微企业补贴）+ 1 条异议路径（`DSP-2026-04-26-OBJ-PUBSEC` 来自真 `objection_case` 中省公安厅发起的"信息项中缺少抽检时间字段"）
 
 `scripts/build_true_data_seed.py` 是幂等的：可以在每次重新 import 真 dump 后再跑一次以同步 demo seed；preflight 段 8（sync-stats `--check`）依然全绿，因为 A1–A4 落点都是 prose-snapshot 数字而非契约 stat。

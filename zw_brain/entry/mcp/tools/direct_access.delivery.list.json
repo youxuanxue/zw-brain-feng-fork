@@ -1,6 +1,6 @@
 {
   "name": "direct_access.delivery.list",
-  "description": "只读：列 delivery_task 中 access_grant_snapshot.direct_access=true 且 status in (succeeded, in_progress) 的交付清单；R5/R8 据此判断是否有绕过 application_record 主链路的痕迹。",
+  "description": "只读：列 delivery_task 中 access_grant_snapshot.direct_access=true 且 status in (succeeded, in_progress) 的交付清单；审核汇总人 / 安全审计员 据此判断是否有绕过 application_record 主链路的痕迹。",
   "inputSchema": {
     "type": "object",
     "properties": {

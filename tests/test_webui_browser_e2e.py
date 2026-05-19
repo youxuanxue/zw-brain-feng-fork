@@ -306,7 +306,7 @@ def test_customer_main_journey_real_browser_on_imported_offline_db(monkeypatch: 
         server, thread, base_url = _start_rest_server()
         browser: BrowserE2E | None = None
         try:
-            status, detail = _get(base_url, "catalog.resource_view", resource_id="BASE-POP-001", role="r1")
+            status, detail = _get(base_url, "catalog.resource_view", resource_id="BASE-POP-001", role="ROLE_ORGAN_OPERATER")
             assert status == 200
             assert isinstance(detail, dict)
             assert detail["fieldBindingSummary"]["diagnosis"] == "ok"
@@ -324,28 +324,28 @@ def test_customer_main_journey_real_browser_on_imported_offline_db(monkeypatch: 
             task_id = request_id.replace("REQ-", "DLV-", 1)
             _assert_body_contains(browser, request_id, "状态时间线", "审计编号")
 
-            _set_role(browser, "r2")
+            _set_role(browser, "ROLE_ORGAN_MANAGER")
             browser.eval(f"location.hash = '#/p3-request-flow/review/{request_id}'")
             _wait_for(browser, "document.body.innerText.includes('通过并下发补录')")
             _click_text(browser, "通过并下发补录")
             _wait_for(browser, "document.body.innerText.includes('补录中')")
             _assert_body_contains(browser, "补录中", "准入判定动作")
 
-            _set_role(browser, "r3")
+            _set_role(browser, "ROLE_ORGAN_OPERATER")
             browser.eval(f"location.hash = '#/p3-request-flow/request/{request_id}'")
             _wait_for(browser, "document.body.innerText.includes('提交差异补录')")
             _click_text(browser, "提交差异补录")
             _wait_for(browser, "document.body.innerText.includes('待汇总确认')")
             _assert_body_contains(browser, "已补录", "待汇总确认")
 
-            _set_role(browser, "r5")
+            _set_role(browser, "ROLE_ORGAN_MANAGER")
             browser.eval(f"location.hash = '#/p3-request-flow/review/{request_id}'")
             _wait_for(browser, "document.body.innerText.includes('确认自动汇总')")
             _click_text(browser, "确认自动汇总")
             _wait_for(browser, "document.body.innerText.includes('已汇总')")
             _assert_body_contains(browser, "已汇总", "汇总确认动作")
 
-            _set_role(browser, "r6")
+            _set_role(browser, "ROLE_ORGAN_MANAGER")
             browser.eval(f"location.hash = '#/p4-delivery-exchange/task/{task_id}'")
             _wait_for(browser, "document.body.innerText.includes('对账交付回执')")
             _click_text(browser, "对账交付回执")
@@ -354,7 +354,7 @@ def test_customer_main_journey_real_browser_on_imported_offline_db(monkeypatch: 
             _wait_for(browser, "document.body.innerText.includes('回流确认已生效') || document.body.innerText.includes('已确认')")
             _assert_body_contains(browser, "交付回执", "已确认", "回流共享说明")
 
-            _set_role(browser, "r8")
+            _set_role(browser, "ROLE_SECURITY_AUDIT")
             browser.eval("location.hash = '#/p6-compliance-ops'")
             _wait_for(browser, "document.body.innerText.includes('审计回放') && document.body.innerText.includes('application.resource.submit.after')")
             text = _visible_text(browser)

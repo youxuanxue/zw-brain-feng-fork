@@ -38,8 +38,8 @@ def _build_test_access_token(**overrides: Any) -> str:
         "sub": "rest-test-user",
         "preferred_username": "rest_test",
         "project_id": "sd-default",
-        "realm_access": {"roles": ["r7"]},
-        "resource_access": {"zw-brain": {"roles": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"]}},
+        "realm_access": {"roles": ["ROLE_BUSIAUDIT"]},
+        "resource_access": {"zw-brain": {"roles": ["ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_ORGAN_OPERATER", "ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"]}},
     }
     claims.update(overrides)
     return jwt.encode(claims, _TEST_PRIVATE_KEY, algorithm="RS256", headers={"kid": _TEST_KID, "typ": "JWT"})
@@ -149,7 +149,7 @@ def test_rest_runtime_api_requires_bearer_and_fails_closed_on_healthz() -> None:
         thread = Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
-            status, missing = request_json_with_headers("GET", f"http://127.0.0.1:{port}/api/snapshot?role=r1", headers={"Accept": "application/json"})
+            status, missing = request_json_with_headers("GET", f"http://127.0.0.1:{port}/api/snapshot?role=ROLE_ORGAN_OPERATER", headers={"Accept": "application/json"})
             assert status == 401
             assert missing["error"] == "iaf_token_health_error"
 
@@ -159,7 +159,7 @@ def test_rest_runtime_api_requires_bearer_and_fails_closed_on_healthz() -> None:
             configure_iaf_auth_runtime(transport=unavailable)
             status, unavailable_body = request_json_with_headers(
                 "GET",
-                f"http://127.0.0.1:{port}/api/snapshot?role=r1",
+                f"http://127.0.0.1:{port}/api/snapshot?role=ROLE_ORGAN_OPERATER",
                 headers={"Accept": "application/json", "Authorization": _API_TOKEN},
                 configure_transport=False,
             )
@@ -169,7 +169,7 @@ def test_rest_runtime_api_requires_bearer_and_fails_closed_on_healthz() -> None:
             configure_iaf_auth_runtime(transport=_auth_transport)
             status, snapshot = request_json_with_headers(
                 "GET",
-                f"http://127.0.0.1:{port}/api/snapshot?role=r1",
+                f"http://127.0.0.1:{port}/api/snapshot?role=ROLE_ORGAN_OPERATER",
                 headers={"Accept": "application/json", "Authorization": _API_TOKEN},
             )
             assert status == 200
@@ -209,7 +209,7 @@ def test_rest_runtime_api_rejects_tampered_jwt_signature_even_when_healthz_passe
             "sub": "attacker",
             "preferred_username": "attacker",
             "project_id": "sd-default",
-            "resource_access": {"zw-brain": {"roles": ["r7"]}},
+            "resource_access": {"zw-brain": {"roles": ["ROLE_BUSIAUDIT"]}},
         }
         tampered_token = jwt.encode(tampered_claims, attacker_key, algorithm="RS256", headers={"kid": _TEST_KID, "typ": "JWT"})
         bearer = f"Bearer {tampered_token}"
@@ -229,7 +229,7 @@ def test_rest_runtime_api_rejects_tampered_jwt_signature_even_when_healthz_passe
         try:
             status, body = request_json_with_headers(
                 "GET",
-                f"http://127.0.0.1:{port}/api/snapshot?role=r1",
+                f"http://127.0.0.1:{port}/api/snapshot?role=ROLE_ORGAN_OPERATER",
                 headers={"Accept": "application/json", "Authorization": bearer},
                 configure_transport=False,
             )
@@ -277,11 +277,11 @@ def test_rest_runtime_dev_iam_bypass_allows_api_without_iaf_or_bearer() -> None:
             bypass_user = auth_config["development_iam_bypass_user"]
             assert bypass_user["subject"] == "dev-iam-bypass"
             assert bypass_user["username"] == "dev_iam_bypass"
-            assert bypass_user["role_codes"] == ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"]
+            assert bypass_user["role_codes"] == ["ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_ORGAN_OPERATER", "ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"]
 
             status, snapshot = request_json_with_headers(
                 "GET",
-                f"http://127.0.0.1:{port}/api/snapshot?role=r1",
+                f"http://127.0.0.1:{port}/api/snapshot?role=ROLE_ORGAN_OPERATER",
                 headers={"Accept": "application/json"},
                 development_iam_bypass=True,
             )
@@ -330,7 +330,7 @@ def test_rest_runtime_exposes_openapi_and_capability_endpoints() -> None:
 
             status, result = request_json(
                 "GET",
-                f"http://127.0.0.1:{port}/api/skills/data.search?query=%E6%B3%95%E4%BA%BA&page=1&role=r1",
+                f"http://127.0.0.1:{port}/api/skills/data.search?query=%E6%B3%95%E4%BA%BA&page=1&role=ROLE_ORGAN_OPERATER",
             )
             assert status == 200
             assert result["results"]
@@ -338,7 +338,7 @@ def test_rest_runtime_exposes_openapi_and_capability_endpoints() -> None:
             status, confirmation = request_json(
                 "POST",
                 f"http://127.0.0.1:{port}/api/skills/request.create",
-                {"resource_id": "res-market-activity", "role": "r1", "confirmed": False},
+                {"resource_id": "res-market-activity", "role": "ROLE_ORGAN_OPERATER", "confirmed": False},
             )
             assert status == 409
             assert confirmation["error"] == "confirmation_required"
@@ -350,7 +350,7 @@ def test_rest_runtime_exposes_openapi_and_capability_endpoints() -> None:
                 {
                     "resource_id": "res-market-activity",
                     "query": "我要发起市场主体活跃度复用申请",
-                    "role": "r1",
+                    "role": "ROLE_ORGAN_OPERATER",
                     "confirmed": True,
                 },
             )
@@ -359,7 +359,7 @@ def test_rest_runtime_exposes_openapi_and_capability_endpoints() -> None:
 
             status, request_view = request_json(
                 "GET",
-                f"http://127.0.0.1:{port}/api/skills/request.view?request_id={request_id}&role=r1",
+                f"http://127.0.0.1:{port}/api/skills/request.view?request_id={request_id}&role=ROLE_ORGAN_OPERATER",
             )
             assert status == 200
             assert request_view["id"] == request_id
@@ -368,7 +368,7 @@ def test_rest_runtime_exposes_openapi_and_capability_endpoints() -> None:
             status, duplicate = request_json(
                 "POST",
                 f"http://127.0.0.1:{port}/api/skills/request.create",
-                {"resource_id": "res-market-activity", "role": "r1", "confirmed": True},
+                {"resource_id": "res-market-activity", "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
             )
             assert status == 409
             assert duplicate["error"] == "invalid_state"
@@ -399,7 +399,7 @@ def test_rest_runtime_webui_canonical_catalog_metadata_actions_execute() -> None
                 {
                     "resource_id": "res-market-activity",
                     "query": "我要发起市场主体活跃度复用申请",
-                    "role": "r1",
+                    "role": "ROLE_ORGAN_OPERATER",
                     "confirmed": True,
                 },
             )
@@ -409,7 +409,7 @@ def test_rest_runtime_webui_canonical_catalog_metadata_actions_execute() -> None
             status, catalog_published = request_json(
                 "POST",
                 f"http://127.0.0.1:{port}/api/skills/catalog.entry.publish",
-                {"catalog_code": "cat-business", "role": "r7", "confirmed": True},
+                {"catalog_code": "cat-business", "role": "ROLE_BUSIAUDIT", "confirmed": True},
             )
             assert status == 200
             assert catalog_published["result"]["lifecycle_status"] == "active"
@@ -417,7 +417,7 @@ def test_rest_runtime_webui_canonical_catalog_metadata_actions_execute() -> None
             status, resource_published = request_json(
                 "POST",
                 f"http://127.0.0.1:{port}/api/skills/resource.asset.publish",
-                {"resource_code": "res-company-visit", "role": "r7", "confirmed": True},
+                {"resource_code": "res-company-visit", "role": "ROLE_BUSIAUDIT", "confirmed": True},
             )
             assert status == 200
             assert resource_published["result"]["lifecycle_status"] == "active"
@@ -425,7 +425,7 @@ def test_rest_runtime_webui_canonical_catalog_metadata_actions_execute() -> None
             status, grant = request_json(
                 "POST",
                 f"http://127.0.0.1:{port}/api/skills/delivery.access.grant",
-                {"task_id": "DLV-2026-04-24-0008", "role": "r6", "confirmed": True},
+                {"task_id": "DLV-2026-04-24-0008", "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
             )
             assert status == 200
             assert grant["result"]["status"] == "completed"
@@ -454,7 +454,7 @@ def test_rest_runtime_returns_422_for_missing_domain_entity() -> None:
             status, body = request_json(
                 "POST",
                 f"http://127.0.0.1:{port}/api/skills/application.resource.submit",
-                {"resource_id": "does-not-exist-anywhere", "role": "r1", "confirmed": True},
+                {"resource_id": "does-not-exist-anywhere", "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
             )
             assert status == 422
             assert body["error"] == "entity_not_found"
@@ -481,7 +481,7 @@ def test_rest_runtime_get_skill_returns_422_for_missing_domain_entity() -> None:
         try:
             status, body = request_json(
                 "GET",
-                f"http://127.0.0.1:{port}/api/skills/request.view?request_id=REQ-never-exists&role=r1",
+                f"http://127.0.0.1:{port}/api/skills/request.view?request_id=REQ-never-exists&role=ROLE_ORGAN_OPERATER",
             )
             assert status == 422
             assert body["error"] == "entity_not_found"
@@ -519,7 +519,7 @@ def test_rest_runtime_serves_main_webui_shell_and_enforces_access_denied() -> No
             status, denied = request_json(
                 "POST",
                 f"http://127.0.0.1:{port}/api/skills/approval.review_decide",
-                {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r1", "confirmed": True},
+                {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
             )
             assert status == 403
             assert denied["error"] == "access_denied"

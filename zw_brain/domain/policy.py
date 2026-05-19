@@ -2,219 +2,326 @@ from __future__ import annotations
 
 from typing import Any
 
+from zw_brain.domain.role_codes import (  # R-008 单一来源
+    ALL_ROLE_CODES,
+    LEGACY_ROLE_CODES as _LEGACY_ROLE_CODES,
+    ROLE_DISPLAY_NAMES_ZH,
+    ROLE_HIERARCHY,
+)
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
-ACTOR_NAMES = {
-    "r1": "周处长",
-    "r2": "刘主任",
-    "r3": "陈经办",
-    "r4": "王网格员",
-    "r5": "赵科长",
-    "r6": "孙老师",
-    "r7": "高主任",
-    "r8": "林督查",
-    # 平台实施工程师（非客户业务角色） — 仅用于 M0 迁移监控、内部诊断
-    "admin": "实施工程师",
-    # "system" is reserved for IAM-initiated automated writes (e.g., first-login actor projection
-    # sync). Not assignable to a human user — guarded by the small, explicit permission set below.
-    "system": "系统",
-}
+# R-008: ACTOR_NAMES 从 role_codes.ROLE_DISPLAY_NAMES_ZH 派生，不再手维护
+ACTOR_NAMES: dict[str, str] = dict(ROLE_DISPLAY_NAMES_ZH)
 
+# R-014 fix: 标签位运行时校验在 enforce_manifest_policy 实现；集合定义在 LEAD_DEPT_TAG_PERMISSIONS
+LEAD_DEPT_TAG_PERMISSIONS: frozenset[str] = frozenset({
+    "catalog.lead_dept_topic_review.execute",
+    "catalog.lead_dept_topic_revoke.execute",
+})
+
+# 权限分配规则（D23 retrofit 后）：
+# - 发现/查看类  → ORGAN_OPERATER + ORGAN_MANAGER + BUSIAUDIT + SECURITY_AUDIT（只读放开）
+# - 编制/提交类  → ORGAN_OPERATER（MANAGER 通过 ROLE_HIERARCHY 隐式获得）
+# - 审批/审核类  → ORGAN_MANAGER + BUSIAUDIT（部门审 + 平台复核）
+# - 发布/撤回类  → BUSIAUDIT（主管部门最终发布权）
+# - 数据安全策略 → SECURITY_ADMIN
+# - 审计/存证   → SECURITY_AUDIT
+# - 运维/网关   → ROLE_SYSTEM
 PERMISSION_ROLES = {
-    # admin（实施工程师）只拥有 WebUI 初始化必需的最少 foundational read 权限
-    # + legacy.migration.status.query（P0 数据源）。不授予任何业务写权限。
-    "workbench.view.execute": {"r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "admin"},
-    "system.snapshot.execute": {"r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "admin"},
-    "system.schema_info.execute": {"r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "admin"},
-    "data.search.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "catalog.resource_view.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "request.list.execute": {"r1", "r2", "r3", "r4", "r5"},
-    "request.view.execute": {"r1", "r2", "r3", "r4", "r5"},
-    "approval.view.execute": {"r2", "r5"},
-    "delivery.list.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "delivery.view.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "provider.view.execute": {"r6", "r7"},
-    "governance.dispute_list.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "governance.dispute_view.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "governance.iam_overview.execute": {"r7", "r8"},
-    "audit.replay_evidence_chain.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "audit.list.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "zone.list.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "zone.view.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "package.list.execute": {"r7"},
-    "package.view.execute": {"r7"},
-    "dashboard.render_command_center.execute": {"r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"},
-    "request.create.execute": {"r1"},
-    "request.submit.execute": {"r1"},
-    "approval.case.decide.execute": {"r2"},
-    "approval.review_decide.execute": {"r2"},
-    "supplement.submit.execute": {"r3", "r4"},
-    "summary.confirm.execute": {"r5"},
-    "backflow.confirm.execute": {"r6"},
-    "delivery.reconcile_receipt.execute": {"r6"},
-    "delivery.trigger_recovery.execute": {"r6"},
-    "service.publish_or_suspend.execute": {"r6"},
-    "ops.gateway.heartbeat.ingest.execute": {"r6", "r8"},
-    "ops.gateway.log.anchor.execute": {"r6", "r8"},
-    "ops.service.invocation.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "ops.service.report.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "resource.api.register.execute": {"r6", "r7"},
-    "resource.api.change.execute": {"r6", "r7"},
-    "resource.api.submit_review.execute": {"r6", "r7"},
-    "resource.api.review.execute": {"r7"},
-    "resource.api.publish.execute": {"r6", "r7"},
-    "resource.api.withdraw.execute": {"r6", "r7"},
-    "resource.api.revoke.execute": {"r6", "r7"},
-    "resource.api.test.execute": {"r6", "r7"},
-    "resource.api.policy.update.execute": {"r6", "r7"},
-    "catalog.group.query.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "catalog.share_zone.query.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "catalog.model.query.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "catalog.model.field.query.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "catalog.entry.query.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "catalog.browse.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "catalog.entry.create.execute": {"r6", "r7"},
-    "catalog.entry.update.execute": {"r6", "r7"},
-    "catalog.entry.create_draft.execute": {"r6", "r7"},
-    "catalog.entry.submit_review.execute": {"r6", "r7"},
-    "catalog.entry.review.execute": {"r7"},
-    "catalog.entry.publish.execute": {"r6", "r7"},
-    "catalog.entry.withdraw.execute": {"r6", "r7"},
-    "catalog.resource.bind.execute": {"r6", "r7"},
-    "resource.asset.query.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "resource.asset.submit_review.execute": {"r6", "r7"},
-    "resource.asset.review.execute": {"r7"},
-    "resource.asset.publish.execute": {"r6", "r7"},
-    "application.resource.submit.execute": {"r1"},
-    "application.resource.review.execute": {"r2"},
-    "delivery.access.grant.execute": {"r6"},
-    "metadata.schema.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "metadata.catalog_item.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "metadata.lineage.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "metadata.gather.evidence.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "ops.catalog.statistics.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "ops.catalog.quality.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "catalog.manage_entry.execute": {"r6", "r7"},
-    "catalog.model.upsert.execute": {"r6", "r7"},
-    "catalog.schema.mapping.upsert.execute": {"r6", "r7"},
-    "metadata.schema.snapshot.upsert.execute": {"r6", "r7"},
-    "metadata.gather.evidence.upsert.execute": {"r6", "r7"},
-    "metadata.lineage.upsert.execute": {"r6", "r7", "r8"},
-    "ops.catalog.quality.upsert.execute": {"r6", "r7", "r8"},
-    "resource.manage_asset.execute": {"r6", "r7"},
-    "zone.publish_topic_projection.execute": {"r7"},
-    "package.review_decide.execute": {"r7"},
-    "capability.package.register.execute": {"r7"},
-    "capability.version.submit.execute": {"r7"},
-    "capability.version.review.execute": {"r7"},
-    "capability.exposure.configure.execute": {"r7"},
-    "tenant.capability.enable.execute": {"r7"},
-    "tenant.capability.disable.execute": {"r7"},
-    "registry.artifact.export.execute": {"r7", "r8"},
-    "package.register_version.execute": {"r7"},
-    "package.apply_tenant_policy.execute": {"r7"},
-    "package.configure_exposure.execute": {"r7"},
-    "compliance.investigate_case.execute": {"r8"},
-    "compliance.signal.ingest.execute": {"r8"},
-    "risk.event.ingest.execute": {"r8"},
-    "compliance.rule.configure.execute": {"r8"},
-    "compliance.case.open.execute": {"r8"},
-    "compliance.case.assign.execute": {"r8"},
-    "compliance.case.resolve.execute": {"r8"},
-    "compliance.case.close.execute": {"r8"},
-    "compliance.case.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "compliance.metric.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "dashboard.compliance.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "standard.asset.sync.execute": {"r7", "r8"},
-    "standard.asset.recommend.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "security.scan.result.sync.execute": {"r8"},
-    "adapter.health.probe.execute": {"r6", "r7", "r8"},
-    "objection.case.create.execute": {"r1", "r2", "r5", "r6", "r7", "r8"},
-    "objection.case.submit.execute": {"r1", "r2", "r5", "r6", "r7", "r8"},
-    "objection.case.accept.execute": {"r2", "r5", "r7", "r8"},
-    "objection.case.reject.execute": {"r2", "r5", "r7", "r8"},
-    "objection.case.assign.execute": {"r2", "r5", "r7", "r8"},
-    "objection.case.reply.execute": {"r5", "r6", "r7", "r8"},
-    "objection.case.review.execute": {"r2", "r5", "r7", "r8"},
-    "objection.case.evaluate.execute": {"r1", "r2", "r5", "r6", "r7", "r8"},
-    "objection.case.escalate.execute": {"r2", "r5", "r7", "r8"},
-    "objection.case.close.execute": {"r2", "r5", "r7", "r8"},
-    "objection.case.query.execute": {"r1", "r2", "r5", "r6", "r7", "r8"},
-    "objection.process.query.execute": {"r1", "r2", "r5", "r6", "r7", "r8"},
-    "objection.metric.query.execute": {"r2", "r5", "r7", "r8"},
-    "adapter.national.catalog.pull.execute": {"r6", "r7", "r8"},
-    "adapter.national.resource.pull.execute": {"r6", "r7", "r8"},
-    "adapter.national.catalog.report.execute": {"r6", "r7", "r8"},
-    "adapter.national.resource.report.execute": {"r6", "r7", "r8"},
-    "adapter.national.application.submit.execute": {"r6", "r7", "r8"},
-    "adapter.national.application.receive.execute": {"r6", "r7", "r8"},
-    "adapter.national.application.reconcile.execute": {"r6", "r7", "r8"},
-    "adapter.national.delivery.receipt.sync.execute": {"r6", "r7", "r8"},
-    "adapter.national.objection.sync.execute": {"r6", "r7", "r8"},
-    "adapter.national.topic.report.execute": {"r6", "r7", "r8"},
-    "adapter.cascade.consume.execute": {"r6", "r7", "r8"},
-    "adapter.cascade.replay.execute": {"r6", "r7", "r8"},
-    "adapter.cascade.health.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "adapter.external.mapping.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "tenant.policy.evaluate.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "org.projection.sync.execute": {"r7", "r8"},
-    "actor.projection.sync.execute": {"r7", "r8", "system"},
-    "legacy.bsp.mapping.import.execute": {"r7", "r8"},
-    "legacy.sharezone.mapping.import.execute": {"r7", "r8"},
-    # P0 M0 验收页是平台实施工具，主要给 admin（实施工程师）用。
-    # 保留 r7/r8 仅是客户验收日实施工程师可代为以这两个角色快速对照看一眼；
-    # 但 R7/R8 的导航 (PRODUCT_SHELL_NAV) 已隐藏 P0 入口，正常使用看不到。
-    "legacy.migration.status.query.execute": {"admin", "r7", "r8"},
-    "catalog.entry.reverse_draft.suggest.execute": {"r6", "r7"},
-    "catalog.entry.reverse_draft.create.execute": {"r6"},
-    "catalog.entry.reverse_draft.confirm.execute": {"r7"},
-    "catalog.entry.reverse_draft.reject.execute": {"r7"},
-    "metadata.schema.discover.execute": {"r6", "r7"},
-    "quality.rule.upsert.execute": {"r6", "r7"},
-    "quality.task.run.execute": {"r6"},
-    "quality.task.replay.execute": {"r6"},
-    "direct_access.catalog.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "direct_access.delivery.list.execute": {"r5", "r8"},
-    "require.resource.dispatch.execute": {"r7"},
-    "require.task.handoff.execute": {"r7"},
-    "delivery.replace_or_cancel.execute": {"r2"},
-    "subscription.terminate.execute": {"r2"},
-    "topic.package.create.execute": {"r7"},
-    "topic.package.configure.execute": {"r7"},
-    "topic.package.submit.execute": {"r7"},
-    "topic.package.review.execute": {"r7"},
-    "topic.package.publish.execute": {"r7"},
-    "topic.package.policy.update.execute": {"r7"},
-    "topic.package.subscribe.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "topic.package.evidence.attach.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "topic.package.query.execute": {"r1", "r2", "r6", "r7", "r8"},
-    "topic.package.metric.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "delivery.receipt.ingest.execute": {"r6", "r7", "r8"},
-    "ops.exchange.statistics.query.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "ops.exchange.diagnose.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "delivery.exchange.plan.execute": {"r6", "r7"},
-    "delivery.exchange.start.execute": {"r6", "r7"},
-    "delivery.exchange.publish.execute": {"r6", "r7"},
-    "delivery.exchange.stop.execute": {"r6", "r7"},
-    "application.grant.approve.execute": {"r6"},
-    "application.grant.renew.execute": {"r1", "r6"},
-    "application.grant.suspend.execute": {"r2"},
-    "application.grant.revoke.execute": {"r2"},
-    "service.rating.submit.execute": {"r1"},
-    "ops.ticket.create.execute": {"r8"},
-    "ops.ticket.close.execute": {"r8"},
-    "ops.shift_handover.submit.execute": {"r8"},
-    "require.intent.submit.execute": {"r1"},
-    "require.intent.refine.execute": {"r1"},
-    "require.intent.review.execute": {"r2"},
-    "require.resource.match.execute": {"r2", "r5", "r6", "r7", "r8"},
-    "delivery.subscription.manage.execute": {"r6", "r7"},
-    "system.toggle_outage.execute": {"r8"},
+    # 基础导航与系统快照（所有业务角色可见）
+    "workbench.view.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SECURITY_ADMIN", "ROLE_SYSTEM", "admin"},
+    "system.snapshot.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SECURITY_ADMIN", "ROLE_SYSTEM", "admin"},
+    "system.schema_info.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SECURITY_ADMIN", "ROLE_SYSTEM", "admin"},
+
+    # J1 找数→用数：检索/详情/列表
+    "data.search.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "catalog.resource_view.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "request.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    "request.view.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    "approval.view.execute": {"ROLE_ORGAN_MANAGER"},
+    "delivery.list.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "delivery.view.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "provider.view.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+
+    # J3 异议/审计/合规
+    "governance.dispute_list.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "governance.dispute_view.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "governance.iam_overview.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "audit.replay_evidence_chain.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "audit.list.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+
+    # 区划只读
+    "zone.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "zone.view.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+
+    # 能力包注册（平台运营侧）
+    "package.list.execute": {"ROLE_BUSIAUDIT"},
+    "package.view.execute": {"ROLE_BUSIAUDIT"},
+
+    # 全角色工作台
+    "dashboard.render_command_center.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SECURITY_ADMIN", "ROLE_SYSTEM"},
+
+    # J1 申请：发起 → 审 → 授权
+    "request.create.execute": {"ROLE_ORGAN_OPERATER"},
+    "request.submit.execute": {"ROLE_ORGAN_OPERATER"},
+    "approval.case.decide.execute": {"ROLE_ORGAN_MANAGER"},
+    "approval.review_decide.execute": {"ROLE_ORGAN_MANAGER"},
+    "supplement.submit.execute": {"ROLE_ORGAN_OPERATER"},
+    "summary.confirm.execute": {"ROLE_ORGAN_MANAGER"},
+    "backflow.confirm.execute": {"ROLE_ORGAN_MANAGER"},
+    "delivery.reconcile_receipt.execute": {"ROLE_ORGAN_MANAGER"},
+    "delivery.trigger_recovery.execute": {"ROLE_ORGAN_MANAGER"},
+    "service.publish_or_suspend.execute": {"ROLE_ORGAN_MANAGER"},
+
+    # 运维侧网关/调用监控
+    "ops.gateway.heartbeat.ingest.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},
+    "ops.gateway.log.anchor.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},
+    "ops.service.invocation.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "ops.service.report.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+
+    # API 资源全生命周期
+    "resource.api.register.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "resource.api.change.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "resource.api.submit_review.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    # R-007 fix: 审核类权限保留交叉审（仅 BUSIAUDIT）
+    "resource.api.review.execute": {"ROLE_BUSIAUDIT"},
+    # R-001 fix: r6 (映射到 ROLE_ORGAN_MANAGER) 是提供方部门管理员，应保留对自家 API 资源的发布权
+    "resource.api.publish.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "resource.api.withdraw.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "resource.api.revoke.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "resource.api.test.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "resource.api.policy.update.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+
+    # 目录浏览/搜索
+    "catalog.group.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "catalog.share_zone.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "catalog.model.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "catalog.model.field.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "catalog.entry.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "catalog.browse.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+
+    # 目录编制（J2 挂数→维数）
+    "catalog.entry.create.execute": {"ROLE_ORGAN_OPERATER"},  # MANAGER 通过 hierarchy 获得
+    "catalog.entry.update.execute": {"ROLE_ORGAN_OPERATER"},
+    "catalog.entry.create_draft.execute": {"ROLE_ORGAN_OPERATER"},
+    "catalog.entry.submit_review.execute": {"ROLE_ORGAN_OPERATER"},
+    # R-007 fix: 审核类权限保留交叉审（仅 BUSIAUDIT 平台主管部门），避免部门管理员自审自家 OPERATER 提交。
+    # 评审流引擎（D25）上线后再按节点判定，届时此处放开给可配置审批节点定义角色。
+    "catalog.entry.review.execute": {"ROLE_BUSIAUDIT"},
+    # R-001 fix: r6 (映射到 ROLE_ORGAN_MANAGER) 是提供方部门管理员，应保留对自家目录的发布权
+    "catalog.entry.publish.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "catalog.entry.withdraw.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "catalog.resource.bind.execute": {"ROLE_ORGAN_OPERATER"},
+
+    # 资源资产
+    "resource.asset.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "resource.asset.submit_review.execute": {"ROLE_ORGAN_OPERATER"},
+    # R-007 fix: 审核类权限保留交叉审（仅 BUSIAUDIT）
+    "resource.asset.review.execute": {"ROLE_BUSIAUDIT"},
+    # R-001 fix: r6 (映射到 ROLE_ORGAN_MANAGER) 是提供方部门管理员，应保留对自家资源的发布权
+    "resource.asset.publish.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+
+    # 申请受理（资源端）
+    "application.resource.submit.execute": {"ROLE_ORGAN_OPERATER"},
+    "application.resource.review.execute": {"ROLE_ORGAN_MANAGER"},
+    "delivery.access.grant.execute": {"ROLE_ORGAN_MANAGER"},
+
+    # 元数据查询（开放给运营/审计）
+    "metadata.schema.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "metadata.catalog_item.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "metadata.lineage.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "metadata.gather.evidence.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "ops.catalog.statistics.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "ops.catalog.quality.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+
+    # 目录/模型 upsert（J2 主线）
+    "catalog.manage_entry.execute": {"ROLE_ORGAN_OPERATER"},
+    "catalog.model.upsert.execute": {"ROLE_ORGAN_OPERATER"},
+    "catalog.schema.mapping.upsert.execute": {"ROLE_ORGAN_OPERATER"},
+    "metadata.schema.snapshot.upsert.execute": {"ROLE_ORGAN_OPERATER"},
+    "metadata.gather.evidence.upsert.execute": {"ROLE_ORGAN_OPERATER"},
+    "metadata.lineage.upsert.execute": {"ROLE_ORGAN_OPERATER", "ROLE_SECURITY_AUDIT"},
+    "ops.catalog.quality.upsert.execute": {"ROLE_ORGAN_OPERATER", "ROLE_SECURITY_AUDIT"},
+    "resource.manage_asset.execute": {"ROLE_ORGAN_OPERATER"},
+
+    # 共享专题/能力包
+    "zone.publish_topic_projection.execute": {"ROLE_BUSIAUDIT"},
+    "package.review_decide.execute": {"ROLE_BUSIAUDIT"},
+    "capability.package.register.execute": {"ROLE_BUSIAUDIT"},
+    "capability.version.submit.execute": {"ROLE_BUSIAUDIT"},
+    "capability.version.review.execute": {"ROLE_BUSIAUDIT"},
+    "capability.exposure.configure.execute": {"ROLE_BUSIAUDIT"},
+    "tenant.capability.enable.execute": {"ROLE_BUSIAUDIT"},
+    "tenant.capability.disable.execute": {"ROLE_BUSIAUDIT"},
+    "registry.artifact.export.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "package.register_version.execute": {"ROLE_BUSIAUDIT"},
+    "package.apply_tenant_policy.execute": {"ROLE_BUSIAUDIT"},
+    "package.configure_exposure.execute": {"ROLE_BUSIAUDIT"},
+
+    # 合规 / 风险事件（SECURITY_AUDIT 主面）
+    "compliance.investigate_case.execute": {"ROLE_SECURITY_AUDIT"},
+    "compliance.signal.ingest.execute": {"ROLE_SECURITY_AUDIT"},
+    "risk.event.ingest.execute": {"ROLE_SECURITY_AUDIT"},
+    "compliance.rule.configure.execute": {"ROLE_SECURITY_AUDIT"},
+    "compliance.case.open.execute": {"ROLE_SECURITY_AUDIT"},
+    "compliance.case.assign.execute": {"ROLE_SECURITY_AUDIT"},
+    "compliance.case.resolve.execute": {"ROLE_SECURITY_AUDIT"},
+    "compliance.case.close.execute": {"ROLE_SECURITY_AUDIT"},
+    "compliance.case.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "compliance.metric.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "dashboard.compliance.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+
+    # 数据标准/数据安全（SECURITY_ADMIN 主面，部分共享给 BUSIAUDIT）
+    "standard.asset.sync.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_ADMIN"},
+    "standard.asset.recommend.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_ADMIN"},
+    "security.scan.result.sync.execute": {"ROLE_SECURITY_ADMIN", "ROLE_SECURITY_AUDIT"},
+
+    # adapter 健康
+    "adapter.health.probe.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+
+    # 异议（合规 + 部门 + 平台）
+    "objection.case.create.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "objection.case.submit.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "objection.case.accept.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "objection.case.reject.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "objection.case.assign.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "objection.case.reply.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "objection.case.review.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "objection.case.evaluate.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "objection.case.escalate.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "objection.case.close.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "objection.case.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "objection.process.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "objection.metric.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+
+    # 国家平台 adapter
+    "adapter.national.catalog.pull.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "adapter.national.resource.pull.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "adapter.national.catalog.report.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "adapter.national.resource.report.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "adapter.national.application.submit.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "adapter.national.application.receive.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "adapter.national.application.reconcile.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "adapter.national.delivery.receipt.sync.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "adapter.national.objection.sync.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "adapter.national.topic.report.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+
+    # adapter 级联消费
+    "adapter.cascade.consume.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "adapter.cascade.replay.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "adapter.cascade.health.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "adapter.external.mapping.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+
+    # 租户策略
+    "tenant.policy.evaluate.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+
+    # 组织/Actor projection（IAM 同步）
+    "org.projection.sync.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "actor.projection.sync.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "system"},
+
+    # 旧 BSP / sharezone 映射导入
+    "legacy.bsp.mapping.import.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "legacy.sharezone.mapping.import.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+
+    # M0 实施工程师专用（admin 主用；BUSIAUDIT/SECURITY_AUDIT 验收日代看）
+    "legacy.migration.status.query.execute": {"admin", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+
+    # 反向编目（J2）
+    "catalog.entry.reverse_draft.suggest.execute": {"ROLE_ORGAN_OPERATER"},
+    "catalog.entry.reverse_draft.create.execute": {"ROLE_ORGAN_OPERATER"},
+    "catalog.entry.reverse_draft.confirm.execute": {"ROLE_BUSIAUDIT"},
+    "catalog.entry.reverse_draft.reject.execute": {"ROLE_BUSIAUDIT"},
+
+    # schema 发现
+    "metadata.schema.discover.execute": {"ROLE_ORGAN_OPERATER"},
+
+    # 质量规则与任务（D27 #14：仅旁路；不进 J1/J2 主线）
+    "quality.rule.upsert.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "quality.task.run.execute": {"ROLE_ORGAN_MANAGER"},
+    "quality.task.replay.execute": {"ROLE_ORGAN_MANAGER"},
+
+    # 数据直达（D27 #13：国家平台流程，独立子旅程）
+    "direct_access.catalog.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "direct_access.delivery.list.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},
+
+    # 需求资源派发 / 任务移交
+    "require.resource.dispatch.execute": {"ROLE_BUSIAUDIT"},
+    "require.task.handoff.execute": {"ROLE_BUSIAUDIT"},
+
+    # 交付替换/取消 / 订阅终止
+    "delivery.replace_or_cancel.execute": {"ROLE_ORGAN_MANAGER"},
+    "subscription.terminate.execute": {"ROLE_ORGAN_MANAGER"},
+
+    # 专题包（共享专区）
+    "topic.package.create.execute": {"ROLE_BUSIAUDIT"},
+    "topic.package.configure.execute": {"ROLE_BUSIAUDIT"},
+    "topic.package.submit.execute": {"ROLE_BUSIAUDIT"},
+    "topic.package.review.execute": {"ROLE_BUSIAUDIT"},
+    "topic.package.publish.execute": {"ROLE_BUSIAUDIT"},
+    "topic.package.policy.update.execute": {"ROLE_BUSIAUDIT"},
+    "topic.package.subscribe.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "topic.package.evidence.attach.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "topic.package.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "topic.package.metric.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+
+    # 交付回执 / exchange
+    "delivery.receipt.ingest.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "ops.exchange.statistics.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "ops.exchange.diagnose.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "delivery.exchange.plan.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "delivery.exchange.start.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "delivery.exchange.publish.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "delivery.exchange.stop.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+
+    # 申请授权（grant）
+    "application.grant.approve.execute": {"ROLE_ORGAN_MANAGER"},
+    "application.grant.renew.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    "application.grant.suspend.execute": {"ROLE_ORGAN_MANAGER"},
+    "application.grant.revoke.execute": {"ROLE_ORGAN_MANAGER"},
+
+    # 服务评价
+    "service.rating.submit.execute": {"ROLE_ORGAN_OPERATER"},
+
+    # 工单（合规/督查侧）
+    "ops.ticket.create.execute": {"ROLE_SECURITY_AUDIT"},
+    "ops.ticket.close.execute": {"ROLE_SECURITY_AUDIT"},
+    "ops.shift_handover.submit.execute": {"ROLE_SECURITY_AUDIT"},
+
+    # 需求登记（D27 #6 智能推荐前置，下期实施）
+    "require.intent.submit.execute": {"ROLE_ORGAN_OPERATER"},
+    "require.intent.refine.execute": {"ROLE_ORGAN_OPERATER"},
+    "require.intent.review.execute": {"ROLE_ORGAN_MANAGER"},
+    "require.resource.match.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+
+    # 订阅管理 / 应急熔断
+    "delivery.subscription.manage.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "system.toggle_outage.execute": {"ROLE_SYSTEM", "ROLE_SECURITY_AUDIT"},
+
+    # 标签位（依附 ORGAN_MANAGER + tag_lead_dept）— D27 #11 处置
+    "catalog.lead_dept_topic_review.execute": {"ROLE_ORGAN_MANAGER"},  # 运行时再校验 tag_lead_dept
+    "catalog.lead_dept_topic_revoke.execute": {"ROLE_ORGAN_MANAGER"},
 }
 
 
 class DomainAccessDeniedError(PermissionError):
     pass
+
+
+def assert_no_legacy_role_codes() -> None:
+    """启动时检查：任何 r1-r8 字面值出现即抛错（D23 retrofit 兜底）。"""
+    offenders: list[str] = []
+    for role in ACTOR_NAMES:
+        if role.lower() in _LEGACY_ROLE_CODES:
+            offenders.append(f"ACTOR_NAMES key={role!r}")
+    for permission, roles in PERMISSION_ROLES.items():
+        for role in roles:
+            if role.lower() in _LEGACY_ROLE_CODES:
+                offenders.append(f"PERMISSION_ROLES[{permission!r}] contains {role!r}")
+    if offenders:
+        raise ValueError(
+            "D23: R1-R8 角色码已退役，policy.py 不允许出现 r1-r8 字面值；"
+            f"违例：{offenders}"
+        )
 
 
 def resolve_role(payload_role: object, fallback_role: str) -> str:
@@ -236,10 +343,25 @@ def tenant_for_role(role: str) -> str:
     return get_runtime_tenant_id()
 
 
+def _expand_with_hierarchy(role: str) -> set[str]:
+    """展开角色层级：MANAGER 隐式包含 OPERATER 的所有权限"""
+    expanded = {role}
+    inherits = ROLE_HIERARCHY.get(role, set())
+    for inherited in inherits:
+        expanded.add(inherited)
+        expanded.update(_expand_with_hierarchy(inherited))
+    return expanded
+
+
 def permissions_for_role(role: str) -> set[str]:
     if role not in ACTOR_NAMES:
         raise DomainAccessDeniedError(f"unknown role: {role}")
-    return {permission for permission, roles in PERMISSION_ROLES.items() if role in roles}
+    effective_roles = _expand_with_hierarchy(role)
+    return {
+        permission
+        for permission, roles in PERMISSION_ROLES.items()
+        if roles & effective_roles
+    }
 
 
 def enforce_manifest_policy(skill_id: str, manifest: dict[str, Any], role: str, payload: dict[str, Any]) -> None:
@@ -259,3 +381,22 @@ def enforce_manifest_policy(skill_id: str, manifest: dict[str, Any], role: str, 
     missing_permissions = sorted(required_permissions - permissions_for_role(role))
     if missing_permissions:
         raise DomainAccessDeniedError(f"role {role} lacks permissions for {skill_id}: {', '.join(missing_permissions)}")
+
+    # R-014 fix: 标签位运行时校验 — tag_lead_dept 标记的权限只允许持有该标签的 actor 调用。
+    # actor.tags 通过 payload.actor_tags 传入（IAM session 或上层注入）；未传时默认无标签。
+    # F1 fix: actor_tags 必须是 dict；非 dict 类型（str/list/None/...）等同于"无标签"，拒绝。
+    # F2 fix: 严格只接受 bool True 作为"持有标签"；字符串 "true"/"1"/"false" 等都不算（避免 IAM
+    # 误传字符串造成 Python truthiness 误判）。
+    tagged_permissions = required_permissions & LEAD_DEPT_TAG_PERMISSIONS
+    if tagged_permissions:
+        raw_tags = payload.get("actor_tags")
+        actor_tags = raw_tags if isinstance(raw_tags, dict) else {}
+        if actor_tags.get("tag_lead_dept") is not True:
+            raise DomainAccessDeniedError(
+                f"skill {skill_id} requires tag_lead_dept=True (bool); "
+                f"actor lacks the tag — needed for permissions: {', '.join(sorted(tagged_permissions))}"
+            )
+
+
+# 模块加载时立即检查；任何 r1-r8 残留导致 import 失败（fail-fast）
+assert_no_legacy_role_codes()

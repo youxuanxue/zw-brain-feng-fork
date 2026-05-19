@@ -153,7 +153,7 @@
 | POST | `/api/skills/require.intent.submit` | 提交数据需求意图 | `post_require_intent_submit` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/require.resource.dispatch` | 需求派发给基层补差 | `post_require_resource_dispatch` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/require.resource.match` | 匹配需求资源候选 | `post_require_resource_match` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/require.task.handoff` | R7 → R5 任务交接审计 | `post_require_task_handoff` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/require.task.handoff` | 业务运营员 → 审核汇总人 任务交接审计 | `post_require_task_handoff` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/resource.api.change` | 变更 API 服务资源 | `post_resource_api_change` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/resource.api.policy.update` | 更新 API 通道策略 | `post_resource_api_policy_update` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/resource.api.publish` | 发布 API 服务 | `post_resource_api_publish` | `zw_brain/entry/rest/openapi.json` |
@@ -224,26 +224,26 @@
 | `audit.replay_evidence_chain` | read | False | 按争议标识回放原始证据、关联审计事件、工单与知识建议。 | True | `zw_brain/entry/mcp/tools/audit.replay_evidence_chain.json` |
 | `catalog.browse` | read | False | 按 lifecycle / kind / owner / 关键词分页浏览 canonical catalog_entry。默认过滤 retired 噪声和 api-group 节点，给 WebUI 提供客户级浏览入口。 | True | `zw_brain/entry/mcp/tools/catalog.browse.json` |
 | `catalog.entry.query` | read | False | 查询已进入 canonical 聚合的目录条目详情和列表。 | True | `zw_brain/entry/mcp/tools/catalog.entry.query.json` |
-| `catalog.entry.reverse_draft.suggest` | read | False | 对一个已采集 schema 输出三档预填建议：1) 字段中文名取自 column.comment / meta_standard_cn（高置信度，绿）；2) PII 模式匹配 + 内置中文映射（中置信度，黄）；3) 推理网关 LLM 占位（低置信度，橙）。R6 在反向编目工作流卡片里据此一键提交 90% 预填好的草稿，而不必从空白开始。 | True | `zw_brain/entry/mcp/tools/catalog.entry.reverse_draft.suggest.json` |
+| `catalog.entry.reverse_draft.suggest` | read | False | 对一个已采集 schema 输出三档预填建议：1) 字段中文名取自 column.comment / meta_standard_cn（高置信度，绿）；2) PII 模式匹配 + 内置中文映射（中置信度，黄）；3) 推理网关 LLM 占位（低置信度，橙）。提供方部门 在反向编目工作流卡片里据此一键提交 90% 预填好的草稿，而不必从空白开始。 | True | `zw_brain/entry/mcp/tools/catalog.entry.reverse_draft.suggest.json` |
 | `catalog.group.query` | read | False | 查询目录分组投影，仅服务发现、专题和权限解释。 | True | `zw_brain/entry/mcp/tools/catalog.group.query.json` |
 | `catalog.model.field.query` | read | False | 查询目录/台账模板字段口径、敏感级别和策略摘要。 | True | `zw_brain/entry/mcp/tools/catalog.model.field.query.json` |
 | `catalog.model.query` | read | False | 查询目录/台账模板模型定义。 | True | `zw_brain/entry/mcp/tools/catalog.model.query.json` |
-| `catalog.resource_view` | read | False | 查看模板或资源的覆盖率、字段和复用解释，用于 R1 先复用模板。 | True | `zw_brain/entry/mcp/tools/catalog.resource_view.json` |
+| `catalog.resource_view` | read | False | 查看模板或资源的覆盖率、字段和复用解释，用于 申请人 先复用模板。 | True | `zw_brain/entry/mcp/tools/catalog.resource_view.json` |
 | `catalog.share_zone.query` | read | False | 查询共享专区专题入口和信任说明，不创建第二套目录事实源。 | True | `zw_brain/entry/mcp/tools/catalog.share_zone.query.json` |
 | `dashboard.render_command_center` | read | False | 只读返回 K12 指挥中心大屏摘要、减负指标与辅助结论。 | True | `zw_brain/entry/mcp/tools/dashboard.render_command_center.json` |
 | `data.search` | read | False | 按关键词 / 部门 / 主题域检索共享数据资源目录，返回命中清单与结构化摘要。 | True | `zw_brain/entry/mcp/tools/data.search.json` |
 | `delivery.list` | read | False | 查看预填下发、自动汇总、回流候选和异常交付任务列表。 | True | `zw_brain/entry/mcp/tools/delivery.list.json` |
 | `delivery.view` | read | False | 查看预填下发、自动汇总和回流候选的交付任务详情。 | True | `zw_brain/entry/mcp/tools/delivery.view.json` |
 | `direct_access.catalog.query` | read | False | 只读：列已发布且 summary_json.direct_access_eligible=true 的 catalog_entry，作为旧 dc_catalog 的 zw-brain 投影。事实源仍是 catalog_entry，dc_catalog 本身锁只读；任何想直接写 dc_catalog 的请求都退回 application_record 主链路。 | True | `zw_brain/entry/mcp/tools/direct_access.catalog.query.json` |
-| `direct_access.delivery.list` | read | False | 只读：列 delivery_task 中 access_grant_snapshot.direct_access=true 且 status in (succeeded, in_progress) 的交付清单；R5/R8 据此判断是否有绕过 application_record 主链路的痕迹。 | True | `zw_brain/entry/mcp/tools/direct_access.delivery.list.json` |
+| `direct_access.delivery.list` | read | False | 只读：列 delivery_task 中 access_grant_snapshot.direct_access=true 且 status in (succeeded, in_progress) 的交付清单；审核汇总人 / 安全审计员 据此判断是否有绕过 application_record 主链路的痕迹。 | True | `zw_brain/entry/mcp/tools/direct_access.delivery.list.json` |
 | `governance.dispute_list` | read | False | 查看重复要数、字段口径和补录异常相关争议，以及关联告警、工单与知识建议。 | True | `zw_brain/entry/mcp/tools/governance.dispute_list.json` |
 | `governance.dispute_view` | read | False | 查看单条治理争议的时间线和 AI 调查摘要。 | True | `zw_brain/entry/mcp/tools/governance.dispute_view.json` |
 | `governance.iam_overview` | read | False | 查看 IAF 绑定状态、投影、租户能力策略、旧 BSP 导入问题、审计证据和策略裁决结果。 | True | `zw_brain/entry/mcp/tools/governance.iam_overview.json` |
-| `legacy.migration.status.query` | read | False | 聚合 legacy_object_mapping、adapter_run_record 与 migration.* 审计事件，给 R7/R8 看 M0 验收 11 张工作队列卡片状态、按 canonical_type 分布的映射计数和最近一次 rollback 摘要。只读，零 side effect。 | True | `zw_brain/entry/mcp/tools/legacy.migration.status.query.json` |
+| `legacy.migration.status.query` | read | False | 聚合 legacy_object_mapping、adapter_run_record 与 migration.* 审计事件，给 业务运营员 / 安全审计员 看 M0 验收 11 张工作队列卡片状态、按 canonical_type 分布的映射计数和最近一次 rollback 摘要。只读，零 side effect。 | True | `zw_brain/entry/mcp/tools/legacy.migration.status.query.json` |
 | `metadata.catalog_item.query` | read | False | 查询目录项与资源 schema 字段之间的映射证据。 | True | `zw_brain/entry/mcp/tools/metadata.catalog_item.query.json` |
 | `metadata.gather.evidence.query` | read | False | 查询外部元数据采集任务回执和生成证据；采集状态只作为 projection，不反向改变资源业务状态。 | True | `zw_brain/entry/mcp/tools/metadata.gather.evidence.query.json` |
 | `metadata.lineage.query` | read | False | 查询资源或字段级血缘投影和影响分析依据。 | True | `zw_brain/entry/mcp/tools/metadata.lineage.query.json` |
-| `metadata.schema.discover` | read | False | 只读：列已采集 db_meta_table/db_meta_column 中尚未生成反向编目草稿的候选 schema，给 R6 在反向编目工作流中选源。 | True | `zw_brain/entry/mcp/tools/metadata.schema.discover.json` |
+| `metadata.schema.discover` | read | False | 只读：列已采集 db_meta_table/db_meta_column 中尚未生成反向编目草稿的候选 schema，给 提供方部门 在反向编目工作流中选源。 | True | `zw_brain/entry/mcp/tools/metadata.schema.discover.json` |
 | `metadata.schema.query` | read | False | 查询资源 schema 快照证据和字段结构。 | True | `zw_brain/entry/mcp/tools/metadata.schema.query.json` |
 | `objection.case.query` | read | False | 查询异议案件列表，供 P0 闭环和 P6 指标投影读取。 | True | `zw_brain/entry/mcp/tools/objection.case.query.json` |
 | `objection.metric.query` | read | False | 查询异议状态分布和闭环指标投影。 | True | `zw_brain/entry/mcp/tools/objection.metric.query.json` |
@@ -268,15 +268,15 @@
 | `workbench.view` | read | False | 按角色查看工作台待办、重点提示和副驾摘要。 | True | `zw_brain/entry/mcp/tools/workbench.view.json` |
 | `zone.list` | read | False | 查看共享专区与专题包列表。 | True | `zw_brain/entry/mcp/tools/zone.list.json` |
 | `zone.view` | read | False | 查看单个共享专区或专题包的资产、信任信息和引导说明。 | True | `zw_brain/entry/mcp/tools/zone.view.json` |
-| `catalog.entry.reverse_draft.confirm` | write | True | R7 半边：对反向编目草稿做字段口径裁决（中英文/敏感等级/类型）。通过后 catalog_entry.lifecycle_status 从 draft 推进到 pending_review；R6 再做正式挂接。 | True | `zw_brain/entry/mcp/tools/catalog.entry.reverse_draft.confirm.json` |
-| `catalog.entry.reverse_draft.create` | write | True | R6 半边：根据已采集的 db_meta_table/db_meta_column 一键生成 catalog_entry(lifecycle_status=draft, summary_json.source=reverse) 草稿。草稿仅作为字段建议，不可直接被申请；R7 字段口径裁决通过后才能进入 pending_review。 | True | `zw_brain/entry/mcp/tools/catalog.entry.reverse_draft.create.json` |
-| `catalog.entry.reverse_draft.reject` | write | True | R7 对反向编目草稿做不予通过裁决；catalog_entry.lifecycle_status 退回 rejected 并写明驳回理由，等待 R6 补充 schema 证据后重新提交。 | True | `zw_brain/entry/mcp/tools/catalog.entry.reverse_draft.reject.json` |
-| `delivery.replace_or_cancel` | write | True | R2 在资源撤回或资产 suspended 时决定：把现有 delivery_task 重新指向替代资源（replace），或者取消并通知订阅方（cancel）。避免授权悬空。 | True | `zw_brain/entry/mcp/tools/delivery.replace_or_cancel.json` |
-| `quality.rule.upsert` | write | True | R6 维护检测规则（必填率/格式/值域/字段一致性/挂接一致性等）。规则按 rule_code 幂等 upsert；变更产生新版本，旧版本检测结论作为历史 evidence 保留。 | True | `zw_brain/entry/mcp/tools/quality.rule.upsert.json` |
-| `quality.task.replay` | write | True | R6 对失败的检测任务发起重跑；记录上次失败摘要 + 新一次任务引用，保持执行器回执可追溯。 | True | `zw_brain/entry/mcp/tools/quality.task.replay.json` |
-| `quality.task.run` | write | True | R6 一键触发某条规则的检测任务执行；任务执行在外部执行器，本端只写一次 quality_evidence_projection + audit_event，结果由外部回写。 | True | `zw_brain/entry/mcp/tools/quality.task.run.json` |
-| `require.resource.dispatch` | write | True | R7 判定 R1 业务需求不可用现有目录复用 → 按区域/字段/时间窗切片 → 派 R5 任务。写一次 application_record.status='dispatched' + 一次 supplement 任务草案。 | True | `zw_brain/entry/mcp/tools/require.resource.dispatch.json` |
-| `require.task.handoff` | write | True | 记录 R7 把派发后的任务转给 R5 接管的责任快照；只写审计与责任快照，不修改业务字段。 | True | `zw_brain/entry/mcp/tools/require.task.handoff.json` |
+| `catalog.entry.reverse_draft.confirm` | write | True | 业务运营员 半边：对反向编目草稿做字段口径裁决（中英文/敏感等级/类型）。通过后 catalog_entry.lifecycle_status 从 draft 推进到 pending_review；提供方部门 再做正式挂接。 | True | `zw_brain/entry/mcp/tools/catalog.entry.reverse_draft.confirm.json` |
+| `catalog.entry.reverse_draft.create` | write | True | 提供方部门 半边：根据已采集的 db_meta_table/db_meta_column 一键生成 catalog_entry(lifecycle_status=draft, summary_json.source=reverse) 草稿。草稿仅作为字段建议，不可直接被申请；业务运营员 字段口径裁决通过后才能进入 pending_review。 | True | `zw_brain/entry/mcp/tools/catalog.entry.reverse_draft.create.json` |
+| `catalog.entry.reverse_draft.reject` | write | True | 业务运营员 对反向编目草稿做不予通过裁决；catalog_entry.lifecycle_status 退回 rejected 并写明驳回理由，等待 提供方部门 补充 schema 证据后重新提交。 | True | `zw_brain/entry/mcp/tools/catalog.entry.reverse_draft.reject.json` |
+| `delivery.replace_or_cancel` | write | True | 审批人 在资源撤回或资产 suspended 时决定：把现有 delivery_task 重新指向替代资源（replace），或者取消并通知订阅方（cancel）。避免授权悬空。 | True | `zw_brain/entry/mcp/tools/delivery.replace_or_cancel.json` |
+| `quality.rule.upsert` | write | True | 提供方部门 维护检测规则（必填率/格式/值域/字段一致性/挂接一致性等）。规则按 rule_code 幂等 upsert；变更产生新版本，旧版本检测结论作为历史 evidence 保留。 | True | `zw_brain/entry/mcp/tools/quality.rule.upsert.json` |
+| `quality.task.replay` | write | True | 提供方部门 对失败的检测任务发起重跑；记录上次失败摘要 + 新一次任务引用，保持执行器回执可追溯。 | True | `zw_brain/entry/mcp/tools/quality.task.replay.json` |
+| `quality.task.run` | write | True | 提供方部门 一键触发某条规则的检测任务执行；任务执行在外部执行器，本端只写一次 quality_evidence_projection + audit_event，结果由外部回写。 | True | `zw_brain/entry/mcp/tools/quality.task.run.json` |
+| `require.resource.dispatch` | write | True | 业务运营员 判定 申请人 业务需求不可用现有目录复用 → 按区域/字段/时间窗切片 → 派 审核汇总人 任务。写一次 application_record.status='dispatched' + 一次 supplement 任务草案。 | True | `zw_brain/entry/mcp/tools/require.resource.dispatch.json` |
+| `require.task.handoff` | write | True | 记录 业务运营员 把派发后的任务转给 审核汇总人 接管的责任快照；只写审计与责任快照，不修改业务字段。 | True | `zw_brain/entry/mcp/tools/require.task.handoff.json` |
 | `subscription.terminate` | write | True | 把 delivery_subscription.status 显式设为 terminated 并把影响摘要写入 audit_event；避免目录撤回时订阅悄悄失效。 | True | `zw_brain/entry/mcp/tools/subscription.terminate.json` |
 
 ## L1.4 A2A Server
@@ -443,7 +443,7 @@
 | `require.intent.submit` | 提交数据需求意图 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/require.intent.submit.json` |
 | `require.resource.dispatch` | 需求派发给基层补差 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/require.resource.dispatch.json` |
 | `require.resource.match` | 匹配需求资源候选 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/require.resource.match.json` |
-| `require.task.handoff` | R7 → R5 任务交接审计 | 1.0.0 | audit | `zw_brain/skill_registration/registered/require.task.handoff.json` |
+| `require.task.handoff` | 业务运营员 → 审核汇总人 任务交接审计 | 1.0.0 | audit | `zw_brain/skill_registration/registered/require.task.handoff.json` |
 | `resource.api.change` | 变更 API 服务资源 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/resource.api.change.json` |
 | `resource.api.policy.update` | 更新 API 通道策略 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/resource.api.policy.update.json` |
 | `resource.api.publish` | 发布 API 服务 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/resource.api.publish.json` |

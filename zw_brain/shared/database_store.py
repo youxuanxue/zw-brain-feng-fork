@@ -69,7 +69,7 @@ class DatabaseStore:
             if record is None:
                 snapshot = clone_seed_snapshot()
                 ui_state = {
-                    "role": "r1",
+                    "role": "ROLE_ORGAN_OPERATER",
                     "discoveryQuery": "",
                     "brainOutage": False,
                 }

@@ -2,7 +2,7 @@
   "skill_id": "ops.ticket.close",
   "slug": "ops.ticket.close",
   "title": "关闭运维工单",
-  "description": "R8 关闭已处理完毕的运维工单。",
+  "description": "安全审计员 关闭已处理完毕的运维工单。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",

@@ -346,7 +346,7 @@ def test_catalog_metadata_core_repositories_persist_reconstruction_evidence() ->
                 "version_status": "active",
                 "snapshot_json": {"password": "should-not-persist", "items": ["credit_code"]},
                 "audit_ref": "audit-cat-v1",
-                "created_by": "r2",
+                "created_by": "ROLE_ORGAN_MANAGER",
             }
         )
         evidence_repo.upsert_schema_snapshot(
@@ -431,7 +431,7 @@ def test_runtime_sync_writes_aggregate_tables() -> None:
         store = DatabaseStore()
         audit_bus.configure_sink(store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=store))
-        service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True})
+        service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
         store.sync_aggregate_tables(service.snapshot())
 
         engine = create_engine(f"sqlite:///{db_path}", future=True)
@@ -549,7 +549,7 @@ def test_external_adapter_repository_idempotency_and_secret_sanitization() -> No
                 "direction": "inbound",
                 "idempotency_key": "idem-1",
                 "status": "succeeded",
-                "receipt_json": {"token": "should-not-persist", "receipt_no": "R1"},
+                "receipt_json": {"token": "should-not-persist", "receipt_no": "申请人"},
             }
         )
         second = repo.upsert_run_record(
@@ -560,12 +560,12 @@ def test_external_adapter_repository_idempotency_and_secret_sanitization() -> No
                 "idempotency_key": "idem-1",
                 "status": "failed",
                 "error_summary": "remote rejected",
-                "receipt_json": {"api_key": "should-not-persist", "receipt_no": "R2"},
+                "receipt_json": {"api_key": "should-not-persist", "receipt_no": "审批人"},
             }
         )
         assert first.id == second.id
         assert second.status == "failed"
-        assert second.receipt_json == {"receipt_no": "R2"}
+        assert second.receipt_json == {"receipt_no": "审批人"}
 
         mapping = repo.upsert_mapping(
             {
@@ -599,7 +599,7 @@ def test_p1_governance_projection_and_topic_package_repositories() -> None:
         ensure_runtime_schema()
         governance = GovernanceProjectionRepository()
         governance.upsert_org({"org_code": "ORG-1", "org_name": "区政数局", "profile_json": {"secret": "drop", "level": "district"}})
-        governance.upsert_actor({"external_actor_id": "u-1", "display_name": "治理员", "org_code": "ORG-1", "role_codes": ["r7"], "profile_json": {"token": "drop", "mobile_mask": "138****0000"}})
+        governance.upsert_actor({"external_actor_id": "u-1", "display_name": "治理员", "org_code": "ORG-1", "role_codes": ["ROLE_BUSIAUDIT"], "profile_json": {"token": "drop", "mobile_mask": "138****0000"}})
         candidate = governance.import_legacy_policy_candidate({"legacy_permission_ref": "bsp:menu:sharezone", "legacy_role_ref": "ROLE_ADMIN", "capability_id": "topic.package.publish", "surface": "webui", "evidence_json": {"password": "drop", "source": "dsp-bsp"}})
         assert governance.list_orgs()[0].profile_json == {"level": "district"}
         legacy_actor = governance.list_actors()[0]
@@ -614,7 +614,7 @@ def test_p1_governance_projection_and_topic_package_repositories() -> None:
             "tp-ybt",
             {
                 "items": [{"item_code": "cat-jbxx", "ref_type": "catalog", "ref_id": "cat-jbxx", "summary_json": {"token": "drop", "domain": "法人"}}],
-                "visibility": [{"visibility_code": "r7-web", "role_code": "r7", "policy_status": "approved", "condition_json": {"api_key": "drop", "intent": "publish"}}],
+                "visibility": [{"visibility_code": "publish-web", "role_code": "ROLE_BUSIAUDIT", "policy_status": "approved", "condition_json": {"api_key": "drop", "intent": "publish"}}],
             },
         )
         topic.transition_package("tp-ybt", "submitted", {"opinion": "提交审核"})
@@ -650,13 +650,13 @@ def test_f2_governance_projection_binds_actor_by_iaf_sub_and_syncs_org_role_bind
         ensure_runtime_schema()
         repo = GovernanceProjectionRepository()
         repo.upsert_org({"org_code": "ORG-1", "org_name": "区政数局"})
-        repo.upsert_role({"role_code": "r7", "role_name": "治理员"})
+        repo.upsert_role({"role_code": "ROLE_BUSIAUDIT", "role_name": "治理员"})
         actor = repo.upsert_actor(
             {
                 "iaf_sub": "iaf-sub-001",
                 "display_name": "张三",
                 "org_code": "ORG-1",
-                "role_codes": ["r7"],
+                "role_codes": ["ROLE_BUSIAUDIT"],
                 "source_ref": "iaf:claims",
                 "profile_json": {"preferred_username": "zhangsan", "password": "drop", "client_secret": "drop"},
             }
@@ -669,7 +669,7 @@ def test_f2_governance_projection_binds_actor_by_iaf_sub_and_syncs_org_role_bind
         assert "password" not in actor.profile_json
         assert "client_secret" not in actor.profile_json
         bindings = repo.list_actor_org_role_bindings(external_actor_id="iaf-sub-001")
-        assert [(item.org_code, item.role_code, item.binding_status) for item in bindings] == [("ORG-1", "r7", "active")]
+        assert [(item.org_code, item.role_code, item.binding_status) for item in bindings] == [("ORG-1", "ROLE_BUSIAUDIT", "active")]
 
 
 def test_f2_governance_projection_auxiliary_match_binds_to_iaf_sub_without_authorizing_ambiguous_or_missing() -> None:
@@ -688,7 +688,7 @@ def test_f2_governance_projection_auxiliary_match_binds_to_iaf_sub_without_autho
                 "external_actor_id": "legacy-u-1",
                 "display_name": "张三",
                 "org_code": "ORG-1",
-                "role_codes": ["r7"],
+                "role_codes": ["ROLE_BUSIAUDIT"],
                 "status": "unmatched",
                 "profile_json": {"account": "zhangsan", "phone": "13800001111", "email": "zhangsan@sd.gov.cn", "token": "drop"},
             }

@@ -1,5 +1,11 @@
 # 用户登录与退出实现总结
 
+> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
+> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
+> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
+> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 原版 R 编号见 git blame。
+
 本文描述当前 zw-brain 基于 IAM/IAF 的用户登录、会话刷新、请求鉴权、用户信息展示、首次登录落库与退出登录实现。
 
 > 演进基线：本实现自 PR #53（feat: BFF session cookie + 多标签页 auth 同步）起采用 **BFF 模型**——
@@ -108,7 +114,7 @@ zw-brain.auth.v1
 前端通过 `window.ZW_AUTH.authFetch()` 统一发请求：
 
 ```js
-const resp = await window.ZW_AUTH.authFetch('/api/snapshot?role=r1');
+const resp = await window.ZW_AUTH.authFetch('/api/snapshot?role=ROLE_ORGAN_OPERATER');
 ```
 
 `authFetch` 行为：
@@ -158,7 +164,7 @@ Cookie: zw_brain_session=...
   "project": "...",
   "projectId": "...",
   "orgCode": "...",
-  "roles": ["r7", ...],
+  "roles": ["ROLE_BUSIAUDIT", ...],
   "exp": 1715040000
 }
 ```
@@ -169,7 +175,7 @@ Cookie: zw_brain_session=...
 ## 7. 首次登录落库
 
 `/auth/iaf/token` 在 token 校验通过后调用 `actor.projection.sync` Skill，以 `role="system"` 触发——
-IAM 触发的首登投影是 system-origin 写入，不再被错误标记为 r7 用户行为。该 Skill 的执行权限在
+IAM 触发的首登投影是 system-origin 写入，不再被错误标记为 ROLE_BUSIAUDIT 用户行为。该 Skill 的执行权限在
 `zw_brain/domain/policy.py` 中显式授权给 `system` role。
 
 研发期 bypass 会话**不**调用 `actor.projection.sync`，因为合成身份没有真实 IAM `exp/iat`。

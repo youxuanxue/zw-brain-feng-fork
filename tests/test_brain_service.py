@@ -75,7 +75,7 @@ def test_write_skill_rejects_unauthorized_role() -> None:
         try:
             service.invoke_skill(
                 "approval.review_decide",
-                {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r1", "confirmed": True},
+                {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
             )
         except AccessDeniedError:
             pass
@@ -91,7 +91,7 @@ def test_tenant_scoped_skill_rejects_cross_tenant_payload() -> None:
         try:
             service.invoke_skill(
                 "request.create",
-                {"resource_id": "res-market-activity", "role": "r1", "tenant_id": "external", "confirmed": True},
+                {"resource_id": "res-market-activity", "role": "ROLE_ORGAN_OPERATER", "tenant_id": "external", "confirmed": True},
             )
         except AccessDeniedError:
             pass
@@ -112,7 +112,7 @@ def test_create_request_from_resource_enters_controlled_admission() -> None:
             {
                 "resource_id": "res-market-activity",
                 "query": "我要为本周营商环境专题复用市场主体活跃度月度汇总，并进入受控准入。",
-                "role": "r1",
+                "role": "ROLE_ORGAN_OPERATER",
                 "confirmed": True,
             },
         )
@@ -127,7 +127,7 @@ def test_create_request_from_resource_enters_controlled_admission() -> None:
         assert request["resourceId"] == "res-market-activity"
         assert approval["id"] == request_id
         assert delivery["id"] == request_id.replace("REQ-", "DLV-", 1)
-        assert any(todo["id"] == request_id for todo in snapshot["workbench"]["r1"]["todos"])
+        assert any(todo["id"] == request_id for todo in snapshot["workbench"]["ROLE_ORGAN_OPERATER"]["todos"])
         events = drain_audit()
         assert any(event.skill_id == "request.create" and event.phase == "before" for event in events)
         assert any(event.skill_id == "request.create" and event.phase == "after" for event in events)
@@ -143,7 +143,7 @@ def test_create_request_rejects_duplicate_active_resource_request() -> None:
         try:
             service.invoke_skill(
                 "request.create",
-                {"resource_id": "res-jbxx-ledger", "role": "r1", "confirmed": True},
+                {"resource_id": "res-jbxx-ledger", "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
             )
         except InvalidStateError:
             pass
@@ -161,7 +161,7 @@ def test_approve_request_updates_state_and_enqueues_anchor() -> None:
 
         result = service.invoke_skill(
             "approval.review_decide",
-            {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True},
+            {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
         )
 
         assert result["ok"] is True
@@ -184,7 +184,7 @@ def test_resubmit_request_restores_pending_state() -> None:
     try:
         result = service.invoke_skill(
             "request.submit",
-            {"request_id": "REQ-2026-04-24-0007", "role": "r1", "confirmed": True},
+            {"request_id": "REQ-2026-04-24-0007", "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
         )
 
         assert result["ok"] is True
@@ -203,19 +203,19 @@ def test_delivery_receipt_reconcile_and_provider_service_toggle() -> None:
     try:
         reconcile = service.invoke_skill(
             "delivery.reconcile_receipt",
-            {"task_id": "DLV-2026-04-25-0011", "role": "r6", "confirmed": True},
+            {"task_id": "DLV-2026-04-25-0011", "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
         )
         assert reconcile["ok"] is True
 
         suspend = service.invoke_skill(
             "service.publish_or_suspend",
-            {"service_id": "svc-ledger-backflow", "action": "suspend", "role": "r6", "confirmed": True},
+            {"service_id": "svc-ledger-backflow", "action": "suspend", "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
         )
         assert suspend["ok"] is True
 
         publish = service.invoke_skill(
             "service.publish_or_suspend",
-            {"service_id": "svc-ledger-backflow", "action": "publish", "role": "r6", "confirmed": True},
+            {"service_id": "svc-ledger-backflow", "action": "publish", "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
         )
         assert publish["ok"] is True
 
@@ -234,19 +234,19 @@ def test_provider_publishing_controls_update_catalog_resource_and_zone() -> None
     try:
         catalog = service.invoke_skill(
             "catalog.manage_entry",
-            {"catalog_id": "cat-business", "action": "publish", "role": "r6", "confirmed": True},
+            {"catalog_id": "cat-business", "action": "publish", "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
         )
         assert catalog["ok"] is True
 
         resource = service.invoke_skill(
             "resource.manage_asset",
-            {"resource_id": "res-company-visit", "action": "publish", "role": "r6", "confirmed": True},
+            {"resource_id": "res-company-visit", "action": "publish", "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
         )
         assert resource["ok"] is True
 
         zone = service.invoke_skill(
             "zone.publish_topic_projection",
-            {"zone_id": "business", "role": "r7", "confirmed": True},
+            {"zone_id": "business", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
         assert zone["ok"] is True
 
@@ -266,19 +266,19 @@ def test_package_registry_actions_progress_from_approval_to_tenant_policy() -> N
     try:
         approve = service.invoke_skill(
             "package.review_decide",
-            {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True},
+            {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
         assert approve["ok"] is True
 
         register = service.invoke_skill(
             "package.register_version",
-            {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True},
+            {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
         assert register["ok"] is True
 
         apply = service.invoke_skill(
             "package.apply_tenant_policy",
-            {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True},
+            {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
         assert apply["ok"] is True
 
@@ -297,21 +297,21 @@ def test_delivery_recovery_and_package_exposure_configuration() -> None:
     try:
         recovery = service.invoke_skill(
             "delivery.trigger_recovery",
-            {"task_id": "DLV-2026-04-23-0004", "role": "r6", "confirmed": True},
+            {"task_id": "DLV-2026-04-23-0004", "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
         )
         assert recovery["ok"] is True
 
         service.invoke_skill(
             "package.review_decide",
-            {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True},
+            {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
         service.invoke_skill(
             "package.register_version",
-            {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True},
+            {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
         exposure = service.invoke_skill(
             "package.configure_exposure",
-            {"package_id": "PKG-2026-04-25-001", "mode": "expand", "role": "r7", "confirmed": True},
+            {"package_id": "PKG-2026-04-25-001", "mode": "expand", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
         assert exposure["ok"] is True
 
@@ -331,13 +331,13 @@ def test_dispute_investigation_and_escalation_update_timeline_and_owner() -> Non
     try:
         progress = service.invoke_skill(
             "compliance.investigate_case",
-            {"dispute_id": "DSP-2026-04-25-0003", "action": "progress", "role": "r8", "confirmed": True},
+            {"dispute_id": "DSP-2026-04-25-0003", "action": "progress", "role": "ROLE_SECURITY_AUDIT", "confirmed": True},
         )
         assert progress["ok"] is True
 
         escalate = service.invoke_skill(
             "compliance.investigate_case",
-            {"dispute_id": "DSP-2026-04-25-0003", "action": "escalate", "role": "r8", "confirmed": True},
+            {"dispute_id": "DSP-2026-04-25-0003", "action": "escalate", "role": "ROLE_SECURITY_AUDIT", "confirmed": True},
         )
         assert escalate["ok"] is True
 
@@ -371,7 +371,7 @@ def test_ambiguous_legacy_mapping_raises_without_canonical_resource_id() -> None
         try:
             service.invoke_skill(
                 "application.resource.submit",
-                {"resource_id": "cat-ambiguous-no-canonical", "role": "r1", "confirmed": True},
+                {"resource_id": "cat-ambiguous-no-canonical", "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
             )
         except BrainServiceError as exc:
             assert "ambiguous" in str(exc).lower()
@@ -389,7 +389,7 @@ def test_application_resource_submit_resolves_provider_catalog_alias(monkeypatch
         try:
             service.invoke_skill(
                 "application.resource.submit",
-                {"resource_id": "cat-parking", "role": "r1", "confirmed": True},
+                {"resource_id": "cat-parking", "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
             )
         except InvalidStateError as exc:
             assert "res-jbxx-ledger" in str(exc)
@@ -434,7 +434,7 @@ def test_audit_and_capability_call_carry_dev_iam_bypass_marker() -> None:
         username="dev_iam_bypass",
         tenant_id="sd-default",
         org_code="dev",
-        role_codes=("r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"),
+        role_codes=("ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_ORGAN_OPERATER", "ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"),
         claims={"sub": "dev-iam-bypass", "development_iam_bypass": True},
         development_iam_bypass=True,
     )
@@ -448,7 +448,7 @@ def test_audit_and_capability_call_carry_dev_iam_bypass_marker() -> None:
                 "title": "bypass-audit-marker-case",
                 "category": "service",
                 "description": "verify audit marker propagation",
-                "role": "r1",
+                "role": "ROLE_ORGAN_OPERATER",
                 "confirmed": True,
             },
         )
@@ -457,7 +457,7 @@ def test_audit_and_capability_call_carry_dev_iam_bypass_marker() -> None:
         assert capability_calls, "expected at least one capability_call row"
         bypass_calls = [item for item in capability_calls if item.actor.endswith("[bypass]")]
         assert bypass_calls, f"expected bypass actor suffix on call rows, got actors={[item.actor for item in capability_calls]}"
-        assert all(item.role_code == "r1" for item in bypass_calls), "role_code should still reflect requested role"
+        assert all(item.role_code == "ROLE_ORGAN_OPERATER" for item in bypass_calls), "role_code should still reflect requested role"
 
         audit_events = store.list_audit_events()
         assert audit_events, "expected at least one audit event"
@@ -484,7 +484,7 @@ def test_audit_marker_absent_when_auth_context_is_not_bypass() -> None:
                 "title": "clean-audit-case",
                 "category": "service",
                 "description": "verify clean audit when no bypass",
-                "role": "r1",
+                "role": "ROLE_ORGAN_OPERATER",
                 "confirmed": True,
             },
         )
@@ -509,7 +509,7 @@ def test_formal_governance_capability_aliases_use_canonical_paths() -> None:
                 "package_id": "PKG-FORMAL-001",
                 "source": "zw-brain registry",
                 "description": "只读辅助能力",
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
@@ -517,47 +517,47 @@ def test_formal_governance_capability_aliases_use_canonical_paths() -> None:
 
         approve = service.invoke_skill(
             "capability.version.review",
-            {"package_id": "PKG-FORMAL-001", "decision": "approve", "role": "r7", "confirmed": True},
+            {"package_id": "PKG-FORMAL-001", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
         assert approve["ok"] is True
 
         register = service.invoke_skill(
             "capability.version.submit",
-            {"package_id": "PKG-FORMAL-001", "role": "r7", "confirmed": True},
+            {"package_id": "PKG-FORMAL-001", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
         assert register["ok"] is True
 
         exposure = service.invoke_skill(
             "capability.exposure.configure",
-            {"package_id": "PKG-FORMAL-001", "mode": "expand", "role": "r7", "confirmed": True},
+            {"package_id": "PKG-FORMAL-001", "mode": "expand", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
         assert exposure["ok"] is True
 
         enabled = service.invoke_skill(
             "tenant.capability.enable",
-            {"package_id": "PKG-FORMAL-001", "role": "r7", "confirmed": True},
+            {"package_id": "PKG-FORMAL-001", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
         assert enabled["ok"] is True
 
         disabled = service.invoke_skill(
             "tenant.capability.disable",
-            {"package_id": "PKG-FORMAL-001", "role": "r7", "confirmed": True},
+            {"package_id": "PKG-FORMAL-001", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
         assert disabled["ok"] is True
 
         created = service.invoke_skill(
             "catalog.entry.create",
-            {"catalog_code": "cat-formal-001", "title": "正式目录", "role": "r6", "confirmed": True},
+            {"catalog_code": "cat-formal-001", "title": "正式目录", "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
         )
         assert created["ok"] is True
 
         updated = service.invoke_skill(
             "catalog.entry.update",
-            {"catalog_code": "cat-formal-001", "title": "正式目录修订", "role": "r6", "confirmed": True},
+            {"catalog_code": "cat-formal-001", "title": "正式目录修订", "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
         )
         assert updated["ok"] is True
 
-        exported = service.invoke_skill("registry.artifact.export", {"role": "r7"})
+        exported = service.invoke_skill("registry.artifact.export", {"role": "ROLE_BUSIAUDIT"})
         assert exported["total"] >= 1
 
         snapshot = service.snapshot()
@@ -574,56 +574,56 @@ def test_compliance_p6_minimal_closure_and_adapter_receipts() -> None:
     try:
         signal = service.invoke_skill(
             "compliance.signal.ingest",
-            {"adapter_slug": "compliance-center", "source_ref": "sig-001", "role": "r8", "confirmed": True},
+            {"adapter_slug": "compliance-center", "source_ref": "sig-001", "role": "ROLE_SECURITY_AUDIT", "confirmed": True},
         )
         assert signal["ok"] is True
 
         security = service.invoke_skill(
             "security.scan.result.sync",
-            {"adapter_slug": "security-center", "source_ref": "scan-001", "role": "r8", "confirmed": True},
+            {"adapter_slug": "security-center", "source_ref": "scan-001", "role": "ROLE_SECURITY_AUDIT", "confirmed": True},
         )
         assert security["ok"] is True
 
         standard = service.invoke_skill(
             "standard.asset.recommend",
-            {"adapter_slug": "standard-service", "source_ref": "std-001", "role": "r8", "confirmed": True},
+            {"adapter_slug": "standard-service", "source_ref": "std-001", "role": "ROLE_SECURITY_AUDIT", "confirmed": True},
         )
         assert standard["ok"] is True
 
         rule = service.invoke_skill(
             "compliance.rule.configure",
-            {"rule_id": "rule-001", "title": "重复采集合规规则", "role": "r8", "confirmed": True},
+            {"rule_id": "rule-001", "title": "重复采集合规规则", "role": "ROLE_SECURITY_AUDIT", "confirmed": True},
         )
         assert rule["ok"] is True
 
         opened = service.invoke_skill(
             "compliance.case.open",
-            {"case_id": "CMP-001", "title": "重复采集风险", "severity": "high", "role": "r8", "confirmed": True},
+            {"case_id": "CMP-001", "title": "重复采集风险", "severity": "high", "role": "ROLE_SECURITY_AUDIT", "confirmed": True},
         )
         assert opened["ok"] is True
         assert opened["result"]["status"] == "detected"
 
         assigned = service.invoke_skill(
             "compliance.case.assign",
-            {"case_id": "CMP-001", "owner": "区减负治理组", "role": "r8", "confirmed": True},
+            {"case_id": "CMP-001", "owner": "区减负治理组", "role": "ROLE_SECURITY_AUDIT", "confirmed": True},
         )
         assert assigned["result"]["status"] == "assigned"
 
         resolved = service.invoke_skill(
             "compliance.case.resolve",
-            {"case_id": "CMP-001", "summary": "已完成处置", "role": "r8", "confirmed": True},
+            {"case_id": "CMP-001", "summary": "已完成处置", "role": "ROLE_SECURITY_AUDIT", "confirmed": True},
         )
         assert resolved["result"]["status"] == "resolved"
 
         closed = service.invoke_skill(
             "compliance.case.close",
-            {"case_id": "CMP-001", "role": "r8", "confirmed": True},
+            {"case_id": "CMP-001", "role": "ROLE_SECURITY_AUDIT", "confirmed": True},
         )
         assert closed["result"]["status"] == "closed"
 
-        cases = service.invoke_skill("compliance.case.query", {"status": "closed", "role": "r8"})
-        metrics = service.invoke_skill("compliance.metric.query", {"role": "r8"})
-        dashboard = service.invoke_skill("dashboard.compliance.query", {"role": "r8"})
+        cases = service.invoke_skill("compliance.case.query", {"status": "closed", "role": "ROLE_SECURITY_AUDIT"})
+        metrics = service.invoke_skill("compliance.metric.query", {"role": "ROLE_SECURITY_AUDIT"})
+        dashboard = service.invoke_skill("dashboard.compliance.query", {"role": "ROLE_SECURITY_AUDIT"})
 
         assert any(item["id"] == "CMP-001" for item in cases["items"])
         assert metrics["by_status"]["closed"] >= 1
@@ -635,11 +635,11 @@ def test_compliance_p6_minimal_closure_and_adapter_receipts() -> None:
 def test_full_golden_path_reaches_backflow_confirmed() -> None:
     tmp, service = make_service()
     try:
-        service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True})
-        service.invoke_skill("supplement.submit", {"request_id": "REQ-2026-04-25-0011", "role": "r3", "confirmed": True})
-        service.invoke_skill("summary.confirm", {"request_id": "REQ-2026-04-25-0011", "role": "r5", "confirmed": True})
-        service.invoke_skill("delivery.reconcile_receipt", {"task_id": "DLV-2026-04-25-0011", "role": "r6", "confirmed": True})
-        service.invoke_skill("backflow.confirm", {"task_id": "DLV-2026-04-25-0011", "role": "r6", "confirmed": True})
+        service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
+        service.invoke_skill("supplement.submit", {"request_id": "REQ-2026-04-25-0011", "role": "ROLE_ORGAN_OPERATER", "confirmed": True})
+        service.invoke_skill("summary.confirm", {"request_id": "REQ-2026-04-25-0011", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
+        service.invoke_skill("delivery.reconcile_receipt", {"task_id": "DLV-2026-04-25-0011", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
+        service.invoke_skill("backflow.confirm", {"task_id": "DLV-2026-04-25-0011", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
 
         snapshot = service.snapshot()
         request = next(item for item in snapshot["requests"] if item["id"] == "REQ-2026-04-25-0011")
@@ -657,16 +657,16 @@ def test_generated_request_journey_reaches_backflow_confirmed() -> None:
     try:
         created = service.invoke_skill(
             "application.resource.submit",
-            {"resource_id": "res-market-activity", "query": "市场主体活跃度", "role": "r1", "confirmed": True},
+            {"resource_id": "res-market-activity", "query": "市场主体活跃度", "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
         )
         request_id = created["result"]["request_id"]
         task_id = request_id.replace("REQ-", "DLV-", 1)
 
-        service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve", "role": "r2", "confirmed": True})
-        service.invoke_skill("supplement.submit", {"request_id": request_id, "role": "r3", "confirmed": True})
-        service.invoke_skill("summary.confirm", {"request_id": request_id, "role": "r5", "confirmed": True})
-        service.invoke_skill("delivery.reconcile_receipt", {"task_id": task_id, "role": "r6", "confirmed": True})
-        service.invoke_skill("backflow.confirm", {"task_id": task_id, "role": "r6", "confirmed": True})
+        service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
+        service.invoke_skill("supplement.submit", {"request_id": request_id, "role": "ROLE_ORGAN_OPERATER", "confirmed": True})
+        service.invoke_skill("summary.confirm", {"request_id": request_id, "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
+        service.invoke_skill("delivery.reconcile_receipt", {"task_id": task_id, "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
+        service.invoke_skill("backflow.confirm", {"task_id": task_id, "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
 
         snapshot = service.snapshot()
         request = next(item for item in snapshot["requests"] if item["id"] == request_id)
@@ -682,12 +682,12 @@ def test_generated_request_journey_reaches_backflow_confirmed() -> None:
 def test_backflow_confirm_requires_reconciled_receipt() -> None:
     tmp, service = make_service()
     try:
-        service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True})
-        service.invoke_skill("supplement.submit", {"request_id": "REQ-2026-04-25-0011", "role": "r3", "confirmed": True})
-        service.invoke_skill("summary.confirm", {"request_id": "REQ-2026-04-25-0011", "role": "r5", "confirmed": True})
+        service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
+        service.invoke_skill("supplement.submit", {"request_id": "REQ-2026-04-25-0011", "role": "ROLE_ORGAN_OPERATER", "confirmed": True})
+        service.invoke_skill("summary.confirm", {"request_id": "REQ-2026-04-25-0011", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
 
         try:
-            service.invoke_skill("backflow.confirm", {"task_id": "DLV-2026-04-25-0011", "role": "r6", "confirmed": True})
+            service.invoke_skill("backflow.confirm", {"task_id": "DLV-2026-04-25-0011", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
         except InvalidStateError:
             pass
         else:
@@ -701,15 +701,15 @@ def test_delivery_exchange_records_execution_without_overwriting_canonical_deliv
     try:
         service.invoke_skill(
             "approval.review_decide",
-            {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True},
+            {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
         )
-        before = service.invoke_skill("delivery.view", {"task_id": "DLV-2026-04-25-0011", "role": "r6"})["status"]
+        before = service.invoke_skill("delivery.view", {"task_id": "DLV-2026-04-25-0011", "role": "ROLE_ORGAN_MANAGER"})["status"]
 
         stopped = service.invoke_skill(
             "delivery.exchange.stop",
-            {"task_id": "DLV-2026-04-25-0011", "role": "r6", "confirmed": True, "reason": "executor paused"},
+            {"task_id": "DLV-2026-04-25-0011", "role": "ROLE_ORGAN_MANAGER", "confirmed": True, "reason": "executor paused"},
         )
-        after = service.invoke_skill("delivery.view", {"task_id": "DLV-2026-04-25-0011", "role": "r6"})["status"]
+        after = service.invoke_skill("delivery.view", {"task_id": "DLV-2026-04-25-0011", "role": "ROLE_ORGAN_MANAGER"})["status"]
 
         assert stopped["result"]["state"] == "stopped"
         assert before == "granted"
@@ -731,7 +731,7 @@ def test_audit_payloads_are_sanitized_and_failed_calls_are_recorded() -> None:
         try:
             service.invoke_skill(
                 "compliance.case.open",
-                {"case_id": "DSP-2026-04-25-0003", "title": "duplicate", "role": "r8", "confirmed": True, "password": "drop-me"},
+                {"case_id": "DSP-2026-04-25-0003", "title": "duplicate", "role": "ROLE_SECURITY_AUDIT", "confirmed": True, "password": "drop-me"},
             )
         except Exception:
             pass
@@ -771,7 +771,7 @@ def test_gateway_heartbeat_ingest_is_idempotent_with_database() -> None:
                 "gateway_instance_id": "gw-api-main",
                 "runtime_profile": "active-active",
                 "status": "online",
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
@@ -781,12 +781,12 @@ def test_gateway_heartbeat_ingest_is_idempotent_with_database() -> None:
                 "gateway_instance_id": "gw-api-main",
                 "gateway_address_ref": "gw-ref-main",
                 "status": "warning",
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
 
-        report = service.invoke_skill("ops.service.report.query", {"role": "r6"})
+        report = service.invoke_skill("ops.service.report.query", {"role": "ROLE_ORGAN_MANAGER"})
         assert report["summary"]["gatewayCount"] == 1
         assert report["gateways"][0]["status"] == "warning"
         assert report["gateways"][0]["runtime_profile"] == "active-active"
@@ -822,7 +822,7 @@ def test_service_invocation_query_reads_projection_metrics() -> None:
             }
         )
 
-        result = service.invoke_skill("ops.service.invocation.query", {"resource_code": "api-custom-ledger", "role": "r6"})
+        result = service.invoke_skill("ops.service.invocation.query", {"resource_code": "api-custom-ledger", "role": "ROLE_ORGAN_MANAGER"})
 
         assert result["summary"]["invokeCount"] == 42
         assert result["summary"]["failedCount"] == 2
@@ -847,7 +847,7 @@ def test_api_resource_lifecycle_and_policy_filter_sensitive_fields() -> None:
                     "auth_ref": "auth-ref-company-ledger",
                     "gateway_policy_json": {"rate_limit": "1000/m", "nested": {"secret": "should-not-persist"}, "token": "should-not-persist"},
                 },
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
@@ -855,12 +855,12 @@ def test_api_resource_lifecycle_and_policy_filter_sensitive_fields() -> None:
         assert "secret" not in registered["result"]["summary_json"]
         assert registered["result"]["summary_json"]["nested"] == {}
 
-        service.invoke_skill("resource.api.submit_review", {"resource_code": "api-company-ledger", "role": "r6", "confirmed": True})
+        service.invoke_skill("resource.api.submit_review", {"resource_code": "api-company-ledger", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
         service.invoke_skill(
             "resource.api.review",
-            {"resource_code": "api-company-ledger", "decision": "approve", "role": "r7", "confirmed": True},
+            {"resource_code": "api-company-ledger", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
-        active = service.invoke_skill("resource.api.publish", {"resource_code": "api-company-ledger", "role": "r7", "confirmed": True})
+        active = service.invoke_skill("resource.api.publish", {"resource_code": "api-company-ledger", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         assert active["result"]["lifecycle_status"] == "active"
 
         policy_update = service.invoke_skill(
@@ -869,12 +869,12 @@ def test_api_resource_lifecycle_and_policy_filter_sensitive_fields() -> None:
                 "resource_code": "api-company-ledger",
                 "binding_code": "bind-company-ledger",
                 "gateway_policy_json": {"rate_limit": "800/m", "rules": [{"name": "daily", "password": "should-not-persist"}]},
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
         assert policy_update["result"]["gateway_policy_json"] == {"rate_limit": "800/m", "rules": [{"name": "daily"}]}
-        assert service.invoke_skill("data.search", {"query": "法人单位基础信息 API", "role": "r6"})["total"] >= 1
+        assert service.invoke_skill("data.search", {"query": "法人单位基础信息 API", "role": "ROLE_ORGAN_MANAGER"})["total"] >= 1
     finally:
         tmp.cleanup()
 
@@ -901,16 +901,16 @@ def test_api_resource_lifecycle_updates_approval_case_with_database() -> None:
                 "resource_code": "api-approval-ledger",
                 "title": "审批 API",
                 "source_ref": "dsp-dataservice:api_service_info",
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
-        service.invoke_skill("resource.api.submit_review", {"resource_code": "api-approval-ledger", "role": "r6", "confirmed": True})
+        service.invoke_skill("resource.api.submit_review", {"resource_code": "api-approval-ledger", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
         service.invoke_skill(
             "resource.api.review",
-            {"resource_code": "api-approval-ledger", "decision": "approve", "role": "r7", "confirmed": True},
+            {"resource_code": "api-approval-ledger", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
-        service.invoke_skill("resource.api.publish", {"resource_code": "api-approval-ledger", "role": "r7", "confirmed": True})
+        service.invoke_skill("resource.api.publish", {"resource_code": "api-approval-ledger", "role": "ROLE_BUSIAUDIT", "confirmed": True})
 
         cases = [item for item in database_store.approval_repo.list_cases() if item.application_code == "api-approval-ledger"]
         assert len(cases) == 1
@@ -956,7 +956,7 @@ def test_catalog_metadata_capabilities_write_sanitized_evidence_with_database() 
                     }
                 ],
                 "source_ref": "dsp-catalog3:model_catalog_template:tpl-1",
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
@@ -970,7 +970,7 @@ def test_catalog_metadata_capabilities_write_sanitized_evidence_with_database() 
                 "binding_code": "bind-table-1",
                 "schema_json": {"columns": ["credit_code"], "password": "should-not-persist"},
                 "source_ref": "dsp-metadata3:gather:gather-1",
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
@@ -989,7 +989,7 @@ def test_catalog_metadata_capabilities_write_sanitized_evidence_with_database() 
                 "evidence_ref": "schema-res-1-v1",
                 "source_ref": "dsp-metadata3:rc_resource_catalog_item_link:link-1",
                 "legacy_object_ref": "link-1",
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
@@ -1004,7 +1004,7 @@ def test_catalog_metadata_capabilities_write_sanitized_evidence_with_database() 
                 "schema_snapshot_ref": "schema-res-1-v1",
                 "status": "succeeded",
                 "evidence_json": {"rows": 2, "secret": "should-not-persist"},
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
@@ -1021,7 +1021,7 @@ def test_catalog_metadata_capabilities_write_sanitized_evidence_with_database() 
                 "target_schema_ref": "target.credit_code",
                 "source_evidence_ref": "dsp-metadata3:lineage:lineage-1",
                 "relation_rule_json": {"expr": "direct", "secret": "should-not-persist"},
-                "role": "r8",
+                "role": "ROLE_SECURITY_AUDIT",
                 "confirmed": True,
             },
         )
@@ -1037,7 +1037,7 @@ def test_catalog_metadata_capabilities_write_sanitized_evidence_with_database() 
                 "score": 96,
                 "evidence_json": {"missing": 0, "secret": "should-not-persist"},
                 "source_ref": "dsp-monitor:quality:quality-1",
-                "role": "r8",
+                "role": "ROLE_SECURITY_AUDIT",
                 "confirmed": True,
             },
         )
@@ -1050,13 +1050,13 @@ def test_catalog_metadata_capabilities_write_sanitized_evidence_with_database() 
         assert any(item.skill_id == "catalog.schema.mapping.upsert" for item in database_store.list_audit_events())
         assert any(item.legacy_object_ref == "link-1" for item in database_store.legacy_mapping_repo.list_mappings(canonical_type="resource_schema_mapping"))
 
-        assert service.invoke_skill("catalog.model.query", {"model_code": "legal-person-base", "role": "r6"})["total"] == 1
-        assert service.invoke_skill("catalog.model.field.query", {"model_code": "legal-person-base", "role": "r6"})["items"][0]["field_policy_json"] == {"share_condition": "审批后共享"}
-        schema_projection = service.invoke_skill("metadata.schema.query", {"resource_code": "res-legal-person", "role": "r6"})["items"][0]
+        assert service.invoke_skill("catalog.model.query", {"model_code": "legal-person-base", "role": "ROLE_ORGAN_MANAGER"})["total"] == 1
+        assert service.invoke_skill("catalog.model.field.query", {"model_code": "legal-person-base", "role": "ROLE_ORGAN_MANAGER"})["items"][0]["field_policy_json"] == {"share_condition": "审批后共享"}
+        schema_projection = service.invoke_skill("metadata.schema.query", {"resource_code": "res-legal-person", "role": "ROLE_ORGAN_MANAGER"})["items"][0]
         assert schema_projection["schema_json"] == {"columns": ["credit_code"]}
         assert schema_projection["source_ref"] == "dsp-metadata3:gather:gather-1"
         assert schema_projection["captured_at"]
-        catalog_item_result = service.invoke_skill("metadata.catalog_item.query", {"resource_code": "res-legal-person", "role": "r6"})
+        catalog_item_result = service.invoke_skill("metadata.catalog_item.query", {"resource_code": "res-legal-person", "role": "ROLE_ORGAN_MANAGER"})
         assert catalog_item_result["summary"]["diagnosis"] == "ok"
         catalog_item_projection = catalog_item_result["items"][0]
         assert catalog_item_projection["source_schema_ref"] == {"table": "t_legal_person", "column": "credit_code"}
@@ -1065,24 +1065,24 @@ def test_catalog_metadata_capabilities_write_sanitized_evidence_with_database() 
         assert catalog_item_projection["explain"]["source_column"] == "credit_code"
         assert [step["step"] for step in catalog_item_projection["replay"]["steps"]] == ["catalog_item", "resource_binding", "source_field", "evidence"]
         assert catalog_item_projection["diagnosis"] == {"ok": True, "stage": "ready", "reason": None, "issues": []}
-        gather_projection = service.invoke_skill("metadata.gather.evidence.query", {"resource_code": "res-legal-person", "role": "r6"})["items"][0]
+        gather_projection = service.invoke_skill("metadata.gather.evidence.query", {"resource_code": "res-legal-person", "role": "ROLE_ORGAN_MANAGER"})["items"][0]
         assert gather_projection["source_ref"] == "dsp-metadata3:meta_gather_task:gather-1"
         assert gather_projection["generated_at"]
         assert gather_projection["projection_only"] is True
         assert gather_projection["evidence"] == {"source_ref": "dsp-metadata3:meta_gather_task:gather-1", "generated_at": gather_projection["generated_at"], "projection_only": True}
-        lineage_projection = service.invoke_skill("metadata.lineage.query", {"resource_code": "res-legal-person", "role": "r8"})
+        lineage_projection = service.invoke_skill("metadata.lineage.query", {"resource_code": "res-legal-person", "role": "ROLE_SECURITY_AUDIT"})
         assert lineage_projection["total"] == 1
         assert lineage_projection["items"][0]["source_ref"] == "dsp-metadata3:lineage:lineage-1"
         assert lineage_projection["items"][0]["generated_at"]
         assert lineage_projection["items"][0]["projection_only"] is True
         assert lineage_projection["items"][0]["evidence"] == {"source_ref": "dsp-metadata3:lineage:lineage-1", "generated_at": lineage_projection["items"][0]["generated_at"], "projection_only": True}
-        quality_projection = service.invoke_skill("ops.catalog.quality.query", {"target_ref": "credit_code", "role": "r8"})["items"][0]
+        quality_projection = service.invoke_skill("ops.catalog.quality.query", {"target_ref": "credit_code", "role": "ROLE_SECURITY_AUDIT"})["items"][0]
         assert quality_projection["evidence_json"] == {"missing": 0}
         assert quality_projection["source_ref"] == "dsp-monitor:quality:quality-1"
         assert quality_projection["generated_at"]
         assert quality_projection["projection_only"] is True
         assert quality_projection["evidence"] == {"source_ref": "dsp-monitor:quality:quality-1", "generated_at": quality_projection["generated_at"], "projection_only": True}
-        statistics = service.invoke_skill("ops.catalog.statistics.query", {"role": "r8"})["summary"]
+        statistics = service.invoke_skill("ops.catalog.statistics.query", {"role": "ROLE_SECURITY_AUDIT"})["summary"]
         assert statistics["schemaMappingCount"] == 1
         assert statistics["qualityEvidenceCount"] == 1
         assert statistics["source_ref"] == "canonical_projection"
@@ -1109,13 +1109,13 @@ def test_projection_updates_do_not_drive_business_lifecycle_state() -> None:
 
         service.invoke_skill(
             "catalog.entry.create_draft",
-            {"catalog_code": "cat-projection-only", "title": "投影只读目录", "owner_org_id": "org-1", "role": "r6", "confirmed": True},
+            {"catalog_code": "cat-projection-only", "title": "投影只读目录", "owner_org_id": "org-1", "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
         )
         service.invoke_skill(
             "resource.api.register",
-            {"resource_code": "res-projection-only", "title": "投影只读资源", "catalog_code": "cat-projection-only", "role": "r6", "confirmed": True},
+            {"resource_code": "res-projection-only", "title": "投影只读资源", "catalog_code": "cat-projection-only", "role": "ROLE_ORGAN_MANAGER", "confirmed": True},
         )
-        service.invoke_skill("application.resource.submit", {"resource_id": "res-market-activity", "role": "r1", "confirmed": True})
+        service.invoke_skill("application.resource.submit", {"resource_id": "res-market-activity", "role": "ROLE_ORGAN_OPERATER", "confirmed": True})
         request_before = database_store.application_repo.list_records()[0].status
 
         service.invoke_skill(
@@ -1127,7 +1127,7 @@ def test_projection_updates_do_not_drive_business_lifecycle_state() -> None:
                 "schema_snapshot_ref": "snapshot-projection-only",
                 "status": "failed",
                 "error_summary": "采集失败也只作为证据投影",
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
@@ -1140,7 +1140,7 @@ def test_projection_updates_do_not_drive_business_lifecycle_state() -> None:
                 "target_resource_code": "res-market-activity",
                 "relation_type": "derived",
                 "source_evidence_ref": "dsp-metadata3:lineage:lineage-projection-only",
-                "role": "r8",
+                "role": "ROLE_SECURITY_AUDIT",
                 "confirmed": True,
             },
         )
@@ -1153,7 +1153,7 @@ def test_projection_updates_do_not_drive_business_lifecycle_state() -> None:
                 "quality_status": "failed",
                 "score": 10,
                 "source_ref": "dsp-monitor:quality:quality-projection-only",
-                "role": "r8",
+                "role": "ROLE_SECURITY_AUDIT",
                 "confirmed": True,
             },
         )
@@ -1162,15 +1162,15 @@ def test_projection_updates_do_not_drive_business_lifecycle_state() -> None:
         assert database_store.resource_api_repo.get_asset("res-projection-only").lifecycle_status == "draft"
         assert database_store.application_repo.list_records()[0].status == request_before
 
-        gather = service.invoke_skill("metadata.gather.evidence.query", {"resource_code": "res-projection-only", "role": "r6"})["items"][0]
-        lineage = service.invoke_skill("metadata.lineage.query", {"resource_code": "res-projection-only", "role": "r8"})["items"][0]
-        quality = service.invoke_skill("ops.catalog.quality.query", {"target_ref": "cat-projection-only", "role": "r8"})["items"][0]
+        gather = service.invoke_skill("metadata.gather.evidence.query", {"resource_code": "res-projection-only", "role": "ROLE_ORGAN_MANAGER"})["items"][0]
+        lineage = service.invoke_skill("metadata.lineage.query", {"resource_code": "res-projection-only", "role": "ROLE_SECURITY_AUDIT"})["items"][0]
+        quality = service.invoke_skill("ops.catalog.quality.query", {"target_ref": "cat-projection-only", "role": "ROLE_SECURITY_AUDIT"})["items"][0]
         for item in [gather, lineage, quality]:
             assert item["projection_only"] is True
             assert item["evidence"]["source_ref"] == item["source_ref"]
             assert item["evidence"]["generated_at"] == item["generated_at"]
 
-        statistics = service.invoke_skill("ops.catalog.statistics.query", {"role": "r8"})["summary"]
+        statistics = service.invoke_skill("ops.catalog.statistics.query", {"role": "ROLE_SECURITY_AUDIT"})["summary"]
         assert statistics["projection_only"] is True
         assert statistics["evidence"]["source_ref"] == "canonical_projection"
 
@@ -1201,7 +1201,7 @@ def test_schema_mapping_query_diagnoses_missing_conflict_and_inactive_links() ->
                 "source_schema_ref": {},
                 "mapping_rule_json": {},
                 "evidence_ref": "evidence-missing-source",
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
             {
@@ -1214,7 +1214,7 @@ def test_schema_mapping_query_diagnoses_missing_conflict_and_inactive_links() ->
                 "mapping_rule_json": {"method": "manual"},
                 "confidence_level": "conflicted",
                 "evidence_ref": "evidence-conflicted",
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
             {
@@ -1226,7 +1226,7 @@ def test_schema_mapping_query_diagnoses_missing_conflict_and_inactive_links() ->
                 "source_schema_ref": {"table": "t_without_column"},
                 "mapping_rule_json": {"method": "direct"},
                 "evidence_ref": "evidence-missing-column",
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
             {
@@ -1239,14 +1239,14 @@ def test_schema_mapping_query_diagnoses_missing_conflict_and_inactive_links() ->
                 "mapping_rule_json": {"method": "direct"},
                 "evidence_ref": "evidence-inactive",
                 "status": "inactive",
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         ]
         for row in rows:
             service.invoke_skill("catalog.schema.mapping.upsert", row)
 
-        result = service.invoke_skill("metadata.catalog_item.query", {"catalog_code": "cat-diagnose", "role": "r6"})
+        result = service.invoke_skill("metadata.catalog_item.query", {"catalog_code": "cat-diagnose", "role": "ROLE_ORGAN_MANAGER"})
         assert result["summary"] == {"total": 4, "active": 3, "missing": 2, "conflicted": 1, "inactive": 1, "diagnosis": "attention_required"}
         by_code = {item["mapping_code"]: item for item in result["items"]}
         assert by_code["missing-source"]["diagnosis"]["reason"] == "missing_source_schema_ref"
@@ -1256,10 +1256,10 @@ def test_schema_mapping_query_diagnoses_missing_conflict_and_inactive_links() ->
         assert by_code["inactive-source"]["diagnosis"]["reason"] == "inactive_mapping"
         assert by_code["inactive-source"]["replay"]["steps"][2]["status"] == "resolved"
 
-        active_only = service.invoke_skill("metadata.catalog_item.query", {"catalog_code": "cat-diagnose", "include_inactive": False, "role": "r6"})
+        active_only = service.invoke_skill("metadata.catalog_item.query", {"catalog_code": "cat-diagnose", "include_inactive": False, "role": "ROLE_ORGAN_MANAGER"})
         assert [item["mapping_code"] for item in active_only["items"]] == ["conflicted-source", "missing-column", "missing-source"]
 
-        no_mapping = service.invoke_skill("metadata.catalog_item.query", {"catalog_code": "cat-empty", "role": "r6"})
+        no_mapping = service.invoke_skill("metadata.catalog_item.query", {"catalog_code": "cat-empty", "role": "ROLE_ORGAN_MANAGER"})
         assert no_mapping["summary"]["diagnosis"] == "missing_mapping"
 
 
@@ -1279,7 +1279,7 @@ def test_provider_manage_writes_require_audit_before_database_mutation() -> None
         service = BrainService(state_store=StateStore(database_store=database_store))
 
         try:
-            service.invoke_skill("catalog.manage_entry", {"catalog_id": "cat-business", "action": "publish", "role": "r7"})
+            service.invoke_skill("catalog.manage_entry", {"catalog_id": "cat-business", "action": "publish", "role": "ROLE_BUSIAUDIT"})
         except ConfirmationRequiredError:
             pass
         else:
@@ -1287,7 +1287,7 @@ def test_provider_manage_writes_require_audit_before_database_mutation() -> None
         assert database_store.catalog_repo.get_entry("cat-business").lifecycle_status != "active"
 
         try:
-            service.invoke_skill("resource.manage_asset", {"resource_id": "res-jbxx-ledger", "action": "publish", "role": "r7"})
+            service.invoke_skill("resource.manage_asset", {"resource_id": "res-jbxx-ledger", "action": "publish", "role": "ROLE_BUSIAUDIT"})
         except ConfirmationRequiredError:
             pass
         else:
@@ -1296,7 +1296,7 @@ def test_provider_manage_writes_require_audit_before_database_mutation() -> None
 
         audit_bus.configure_sink(lambda request_id, actor, skill_id, phase, payload: (_ for _ in ()).throw(AuditWriteError("audit down")))
         try:
-            service.invoke_skill("catalog.manage_entry", {"catalog_id": "cat-business", "action": "publish", "role": "r7", "confirmed": True})
+            service.invoke_skill("catalog.manage_entry", {"catalog_id": "cat-business", "action": "publish", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         except AuditWriteError:
             pass
         else:
@@ -1304,7 +1304,7 @@ def test_provider_manage_writes_require_audit_before_database_mutation() -> None
         assert database_store.catalog_repo.get_entry("cat-business").lifecycle_status != "active"
 
         try:
-            service.invoke_skill("resource.manage_asset", {"resource_id": "res-jbxx-ledger", "action": "publish", "role": "r7", "confirmed": True})
+            service.invoke_skill("resource.manage_asset", {"resource_id": "res-jbxx-ledger", "action": "publish", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         except AuditWriteError:
             pass
         else:
@@ -1312,8 +1312,8 @@ def test_provider_manage_writes_require_audit_before_database_mutation() -> None
         assert database_store.resource_api_repo.get_asset("res-jbxx-ledger").lifecycle_status == "active"
 
         audit_bus.configure_sink(database_store.append_audit_event)
-        catalog_result = service.invoke_skill("catalog.manage_entry", {"catalog_id": "cat-business", "action": "publish", "role": "r7", "confirmed": True})
-        resource_result = service.invoke_skill("resource.manage_asset", {"resource_id": "res-jbxx-ledger", "action": "publish", "role": "r7", "confirmed": True})
+        catalog_result = service.invoke_skill("catalog.manage_entry", {"catalog_id": "cat-business", "action": "publish", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        resource_result = service.invoke_skill("resource.manage_asset", {"resource_id": "res-jbxx-ledger", "action": "publish", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         assert catalog_result["result"]["result"] == "published"
         assert resource_result["result"]["result"] == "published"
         assert database_store.catalog_repo.get_entry("cat-business") is not None
@@ -1358,17 +1358,17 @@ def test_reconstruction_core_capability_names_cover_catalog_resource_application
                         "summary_json": {"token": "should-not-persist"},
                     }
                 ],
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
         assert draft["result"]["lifecycle_status"] == "draft"
-        service.invoke_skill("catalog.entry.submit_review", {"catalog_code": "cat-core-demo", "role": "r6", "confirmed": True})
-        reviewed = service.invoke_skill("catalog.entry.review", {"catalog_code": "cat-core-demo", "decision": "approve", "role": "r7", "confirmed": True})
+        service.invoke_skill("catalog.entry.submit_review", {"catalog_code": "cat-core-demo", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
+        reviewed = service.invoke_skill("catalog.entry.review", {"catalog_code": "cat-core-demo", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         assert reviewed["result"]["lifecycle_status"] == "approved_pending_publish"
-        published = service.invoke_skill("catalog.entry.publish", {"catalog_code": "cat-core-demo", "role": "r7", "confirmed": True})
+        published = service.invoke_skill("catalog.entry.publish", {"catalog_code": "cat-core-demo", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         assert published["result"]["lifecycle_status"] == "active"
-        summary = service.invoke_skill("catalog.entry.query", {"catalog_code": "cat-core-demo", "role": "r6"})["items"][0]["summary_json"]
+        summary = service.invoke_skill("catalog.entry.query", {"catalog_code": "cat-core-demo", "role": "ROLE_ORGAN_MANAGER"})["items"][0]["summary_json"]
         assert summary["summary_json"]["domain"] == "法人"
         assert "secret" not in summary["summary_json"]
 
@@ -1378,16 +1378,16 @@ def test_reconstruction_core_capability_names_cover_catalog_resource_application
                 "resource_code": "api-core-demo",
                 "title": "核心资源 API",
                 "catalog_code": "cat-core-demo",
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
-        service.invoke_skill("resource.asset.submit_review", {"resource_code": "api-core-demo", "role": "r6", "confirmed": True})
-        reviewed_resource = service.invoke_skill("resource.asset.review", {"resource_code": "api-core-demo", "decision": "approve", "role": "r7", "confirmed": True})
+        service.invoke_skill("resource.asset.submit_review", {"resource_code": "api-core-demo", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
+        reviewed_resource = service.invoke_skill("resource.asset.review", {"resource_code": "api-core-demo", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         assert reviewed_resource["result"]["lifecycle_status"] == "approved_pending_publish"
-        resource = service.invoke_skill("resource.asset.publish", {"resource_code": "api-core-demo", "role": "r7", "confirmed": True})
+        resource = service.invoke_skill("resource.asset.publish", {"resource_code": "api-core-demo", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         assert resource["result"]["lifecycle_status"] == "active"
-        assert service.invoke_skill("resource.asset.query", {"resource_code": "api-core-demo", "role": "r6"})["total"] == 1
+        assert service.invoke_skill("resource.asset.query", {"resource_code": "api-core-demo", "role": "ROLE_ORGAN_MANAGER"})["total"] == 1
 
         bind = service.invoke_skill(
             "catalog.resource.bind",
@@ -1400,20 +1400,20 @@ def test_reconstruction_core_capability_names_cover_catalog_resource_application
                 "source_schema_ref": {"column": "credit_code", "password": "should-not-persist"},
                 "mapping_rule_json": {"method": "direct", "secret": "should-not-persist"},
                 "evidence_ref": "schema-core-demo-v1",
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
         assert bind["result"]["mapping_code"] == "bind-core-demo-credit-code"
-        mapping_query = service.invoke_skill("metadata.catalog_item.query", {"catalog_code": "cat-core-demo", "role": "r6"})
+        mapping_query = service.invoke_skill("metadata.catalog_item.query", {"catalog_code": "cat-core-demo", "role": "ROLE_ORGAN_MANAGER"})
         assert mapping_query["summary"] == {"total": 1, "active": 1, "missing": 0, "conflicted": 0, "inactive": 0, "diagnosis": "ok"}
         assert mapping_query["items"][0]["source_schema_ref"] == {"column": "credit_code"}
         assert mapping_query["items"][0]["explain"]["summary"] == "目录项 credit_code 通过资源 api-core-demo 的 binding-core-demo 通道绑定到来源字段。"
-        detail = service.invoke_skill("catalog.resource_view", {"resource_id": "cat-core-demo", "role": "r6"})
+        detail = service.invoke_skill("catalog.resource_view", {"resource_id": "cat-core-demo", "role": "ROLE_ORGAN_MANAGER"})
         assert detail["fieldBindingSummary"]["diagnosis"] == "ok"
         assert detail["fieldBindings"][0]["mapping_code"] == "bind-core-demo-credit-code"
-        service.invoke_skill("catalog.entry.withdraw", {"catalog_code": "cat-core-demo", "role": "r7", "confirmed": True})
-        withdrawn = service.invoke_skill("catalog.entry.query", {"catalog_code": "cat-core-demo", "role": "r6"})["items"][0]
+        service.invoke_skill("catalog.entry.withdraw", {"catalog_code": "cat-core-demo", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        withdrawn = service.invoke_skill("catalog.entry.query", {"catalog_code": "cat-core-demo", "role": "ROLE_ORGAN_MANAGER"})["items"][0]
         assert withdrawn["lifecycle_status"] == "retired"
         versions = database_store.catalog_repo.list_entry_versions("cat-core-demo")
         assert [item.version_status for item in versions] == ["active", "retired"]
@@ -1432,18 +1432,18 @@ def test_reconstruction_core_capability_names_cover_catalog_resource_application
             {
                 "resource_id": "res-market-activity",
                 "query": "复用法人模板，只补现场差异字段。",
-                "role": "r1",
+                "role": "ROLE_ORGAN_OPERATER",
                 "confirmed": True,
             },
         )
         request_id = request["result"]["request_id"]
-        service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve_with_supplement", "role": "r2", "confirmed": True})
+        service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve_with_supplement", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
         task_id = request_id.replace("REQ-", "DLV-", 1)
-        grant = service.invoke_skill("delivery.access.grant", {"task_id": task_id, "role": "r6", "confirmed": True})
+        grant = service.invoke_skill("delivery.access.grant", {"task_id": task_id, "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
         assert grant["result"]["status"] == "completed"
 
-        assert service.invoke_skill("catalog.group.query", {"role": "r6"})["total"] >= 1
-        assert service.invoke_skill("catalog.share_zone.query", {"role": "r6"})["total"] >= 1
+        assert service.invoke_skill("catalog.group.query", {"role": "ROLE_ORGAN_MANAGER"})["total"] >= 1
+        assert service.invoke_skill("catalog.share_zone.query", {"role": "ROLE_ORGAN_MANAGER"})["total"] >= 1
         audit_skill_ids = [item.skill_id for item in database_store.list_audit_events()]
         for skill_id in [
             "catalog.entry.withdraw",
@@ -1482,7 +1482,7 @@ def test_dsp_dataservice_objects_write_legacy_mappings() -> None:
                     "binding_code": "bind-trace-ledger",
                     "source_ref": "dsp-dataservice:api_service_proxy",
                 },
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
@@ -1492,7 +1492,7 @@ def test_dsp_dataservice_objects_write_legacy_mappings() -> None:
                 "gateway_instance_id": "gw-trace",
                 "source_ref": "dsp-dataservice:/openapi/report",
                 "status": "online",
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
@@ -1547,10 +1547,10 @@ def test_service_projection_source_kind_and_external_packages() -> None:
             }
         )
 
-        metrics = service.invoke_skill("ops.service.invocation.query", {"resource_code": "api-source-kind", "role": "r6"})["items"]
+        metrics = service.invoke_skill("ops.service.invocation.query", {"resource_code": "api-source-kind", "role": "ROLE_ORGAN_MANAGER"})["items"]
         assert metrics[0]["summary_json"]["source_kind"] == "gateway_adapter"
 
-        packages = {item["slug"]: item for item in service.invoke_skill("package.list", {"role": "r7"})["items"]}
+        packages = {item["slug"]: item for item in service.invoke_skill("package.list", {"role": "ROLE_BUSIAUDIT"})["items"]}
         for slug in {
             "dsp.gateway.runtime.adapter",
             "dsp.environment.diagnostics.adapter",
@@ -1588,7 +1588,7 @@ def test_gateway_log_anchor_writes_sanitized_outbox_request() -> None:
         try:
             service.invoke_skill(
                 "ops.gateway.log.anchor",
-                {"gateway_log_ref": "gateway-log-20260429-001", "role": "r6"},
+                {"gateway_log_ref": "gateway-log-20260429-001", "role": "ROLE_ORGAN_MANAGER"},
             )
         except ConfirmationRequiredError:
             pass
@@ -1602,7 +1602,7 @@ def test_gateway_log_anchor_writes_sanitized_outbox_request() -> None:
                 "resource_code": "api-trace-ledger",
                 "source_ref": "dsp-dataservice:apilog/deposit:001",
                 "evidence_json": {"failure_count": 1, "nested": {"password": "should-not-persist"}, "token": "should-not-persist"},
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
@@ -1638,18 +1638,18 @@ def test_api_resource_withdraw_and_revoke_update_approval_trace() -> None:
                 "resource_code": "api-retire-ledger",
                 "title": "撤回撤销 API",
                 "source_ref": "dsp-dataservice:api_service_info:api-retire-ledger",
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
-        service.invoke_skill("resource.api.submit_review", {"resource_code": "api-retire-ledger", "role": "r6", "confirmed": True})
+        service.invoke_skill("resource.api.submit_review", {"resource_code": "api-retire-ledger", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
         service.invoke_skill(
             "resource.api.review",
-            {"resource_code": "api-retire-ledger", "decision": "approve", "role": "r7", "confirmed": True},
+            {"resource_code": "api-retire-ledger", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
-        service.invoke_skill("resource.api.publish", {"resource_code": "api-retire-ledger", "role": "r7", "confirmed": True})
-        retired = service.invoke_skill("resource.api.withdraw", {"resource_code": "api-retire-ledger", "role": "r6", "confirmed": True})
-        revoked = service.invoke_skill("resource.api.revoke", {"resource_code": "api-retire-ledger", "role": "r7", "confirmed": True})
+        service.invoke_skill("resource.api.publish", {"resource_code": "api-retire-ledger", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        retired = service.invoke_skill("resource.api.withdraw", {"resource_code": "api-retire-ledger", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
+        revoked = service.invoke_skill("resource.api.revoke", {"resource_code": "api-retire-ledger", "role": "ROLE_BUSIAUDIT", "confirmed": True})
 
         assert retired["result"]["lifecycle_status"] == "retired"
         assert revoked["result"]["lifecycle_status"] == "revoked"
@@ -1680,7 +1680,7 @@ def test_api_resource_withdraw_and_revoke_update_approval_trace() -> None:
             {
                 "resource_code": "api-test-ledger",
                 "title": "连通性测试 API",
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
@@ -1691,7 +1691,7 @@ def test_api_resource_withdraw_and_revoke_update_approval_trace() -> None:
                 "test_result": "failed",
                 "binding_code": "bind-test-ledger",
                 "evidence_json": {"latency_ms": 20, "nested": {"secret": "should-not-persist"}, "token": "should-not-persist"},
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
@@ -1712,7 +1712,7 @@ def test_audit_sink_failure_blocks_write_mutation() -> None:
 
         audit_bus.configure_sink(fail_sink)
         try:
-            service.invoke_skill("request.create", {"resource_id": "res-market-activity", "role": "r1", "confirmed": True})
+            service.invoke_skill("request.create", {"resource_id": "res-market-activity", "role": "ROLE_ORGAN_OPERATER", "confirmed": True})
         except AuditWriteError:
             pass
         else:
@@ -1742,30 +1742,30 @@ def test_f6_core_aggregates_keep_state_and_audit_evidence() -> None:
 
         created = service.invoke_skill(
             "application.resource.submit",
-            {"resource_id": "res-market-activity", "query": "复用法人模板，只补现场差异字段。", "role": "r1", "confirmed": True},
+            {"resource_id": "res-market-activity", "query": "复用法人模板，只补现场差异字段。", "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
         )
         request_id = created["result"]["request_id"]
         task_id = request_id.replace("REQ-", "DLV-", 1)
         try:
-            service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve", "role": "r1", "confirmed": True})
+            service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve", "role": "ROLE_ORGAN_OPERATER", "confirmed": True})
         except AccessDeniedError:
             pass
         else:
             raise AssertionError("unauthorized approval must fail closed")
-        assert service.invoke_skill("request.view", {"request_id": request_id, "role": "r1"})["status"] == "pending"
+        assert service.invoke_skill("request.view", {"request_id": request_id, "role": "ROLE_ORGAN_OPERATER"})["status"] == "pending"
 
-        approved = service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve_with_supplement", "role": "r2", "confirmed": True})
+        approved = service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve_with_supplement", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
         assert approved["result"]["status"] == "supplementing"
         try:
-            service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve_with_supplement", "role": "r2", "confirmed": True})
+            service.invoke_skill("application.resource.review", {"request_id": request_id, "decision": "approve_with_supplement", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
         except InvalidStateError:
             pass
         else:
             raise AssertionError("application approval must reject duplicate approval transition")
-        assert service.invoke_skill("request.view", {"request_id": request_id, "role": "r1"})["status"] == "supplementing"
+        assert service.invoke_skill("request.view", {"request_id": request_id, "role": "ROLE_ORGAN_OPERATER"})["status"] == "supplementing"
 
-        service.invoke_skill("supplement.submit", {"request_id": request_id, "role": "r3", "confirmed": True})
-        service.invoke_skill("summary.confirm", {"request_id": request_id, "role": "r5", "confirmed": True})
+        service.invoke_skill("supplement.submit", {"request_id": request_id, "role": "ROLE_ORGAN_OPERATER", "confirmed": True})
+        service.invoke_skill("summary.confirm", {"request_id": request_id, "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
         receipt = service.invoke_skill(
             "delivery.receipt.ingest",
             {
@@ -1773,56 +1773,56 @@ def test_f6_core_aggregates_keep_state_and_audit_evidence() -> None:
                 "attempt_id": f"attempt-{request_id}",
                 "receipt_status": "succeeded",
                 "receipt": {"receipt_no": "RCPT-F6-001", "secret": "should-not-persist"},
-                "role": "r6",
+                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
         )
         assert receipt["result"]["receipt_status"] == "succeeded"
         stored_receipt = next(item for item in database_store.delivery_repo.list_receipts(task_id) if item.receipt_no == "RCPT-F6-001")
         assert stored_receipt.payload_json == {"receipt_no": "RCPT-F6-001"}
-        service.invoke_skill("delivery.reconcile_receipt", {"task_id": task_id, "role": "r6", "confirmed": True})
-        backflow = service.invoke_skill("backflow.confirm", {"task_id": task_id, "role": "r6", "confirmed": True})
+        service.invoke_skill("delivery.reconcile_receipt", {"task_id": task_id, "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
+        backflow = service.invoke_skill("backflow.confirm", {"task_id": task_id, "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
         assert backflow["result"]["status"] == "completed"
-        assert service.invoke_skill("delivery.view", {"task_id": task_id, "role": "r6"})["backflow"]["status"] == "已确认"
+        assert service.invoke_skill("delivery.view", {"task_id": task_id, "role": "ROLE_ORGAN_MANAGER"})["backflow"]["status"] == "已确认"
 
         objection = service.invoke_skill(
             "objection.case.create",
-            {"target_type": "delivery", "target_id": task_id, "title": "F6 交付回执异议", "role": "r1", "confirmed": True},
+            {"target_type": "delivery", "target_id": task_id, "title": "F6 交付回执异议", "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
         )
         objection_id = objection["result"]["id"]
         try:
-            service.invoke_skill("objection.case.close", {"objection_id": objection_id, "role": "r2", "confirmed": True})
+            service.invoke_skill("objection.case.close", {"objection_id": objection_id, "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
         except InvalidStateError:
             pass
         else:
             raise AssertionError("objection state machine must reject draft -> closed")
         for skill_id, payload, expected in [
-            ("objection.case.submit", {"role": "r1"}, "submitted"),
-            ("objection.case.accept", {"role": "r2"}, "accepted"),
-            ("objection.case.assign", {"role": "r2", "target_status": "provider_investigating"}, "provider_investigating"),
-            ("objection.case.review", {"role": "r2", "decision": "resolve", "resolved_summary": "回执已核正"}, "resolved"),
-            ("objection.case.close", {"role": "r2"}, "closed"),
+            ("objection.case.submit", {"role": "ROLE_ORGAN_OPERATER"}, "submitted"),
+            ("objection.case.accept", {"role": "ROLE_ORGAN_MANAGER"}, "accepted"),
+            ("objection.case.assign", {"role": "ROLE_ORGAN_MANAGER", "target_status": "provider_investigating"}, "provider_investigating"),
+            ("objection.case.review", {"role": "ROLE_ORGAN_MANAGER", "decision": "resolve", "resolved_summary": "回执已核正"}, "resolved"),
+            ("objection.case.close", {"role": "ROLE_ORGAN_MANAGER"}, "closed"),
         ]:
             result = service.invoke_skill(skill_id, {"objection_id": objection_id, "confirmed": True} | payload)
             assert result["result"]["status"] == expected
 
-        service.invoke_skill("catalog.entry.create_draft", {"catalog_code": "cat-f6-state", "title": "F6 状态目录", "role": "r6", "confirmed": True})
-        service.invoke_skill("catalog.entry.submit_review", {"catalog_code": "cat-f6-state", "role": "r6", "confirmed": True})
-        service.invoke_skill("catalog.entry.review", {"catalog_code": "cat-f6-state", "decision": "approve", "role": "r7", "confirmed": True})
-        service.invoke_skill("catalog.entry.publish", {"catalog_code": "cat-f6-state", "role": "r7", "confirmed": True})
+        service.invoke_skill("catalog.entry.create_draft", {"catalog_code": "cat-f6-state", "title": "F6 状态目录", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
+        service.invoke_skill("catalog.entry.submit_review", {"catalog_code": "cat-f6-state", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
+        service.invoke_skill("catalog.entry.review", {"catalog_code": "cat-f6-state", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("catalog.entry.publish", {"catalog_code": "cat-f6-state", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         assert database_store.catalog_repo.get_entry("cat-f6-state").lifecycle_status == "active"
         assert database_store.catalog_repo.list_entry_versions("cat-f6-state")[-1].audit_ref
 
-        service.invoke_skill("resource.api.register", {"resource_code": "api-f6-state", "title": "F6 状态资源", "role": "r6", "confirmed": True})
-        service.invoke_skill("resource.asset.submit_review", {"resource_code": "api-f6-state", "role": "r6", "confirmed": True})
-        service.invoke_skill("resource.asset.review", {"resource_code": "api-f6-state", "decision": "approve", "role": "r7", "confirmed": True})
-        service.invoke_skill("resource.asset.publish", {"resource_code": "api-f6-state", "role": "r7", "confirmed": True})
+        service.invoke_skill("resource.api.register", {"resource_code": "api-f6-state", "title": "F6 状态资源", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
+        service.invoke_skill("resource.asset.submit_review", {"resource_code": "api-f6-state", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
+        service.invoke_skill("resource.asset.review", {"resource_code": "api-f6-state", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("resource.asset.publish", {"resource_code": "api-f6-state", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         assert database_store.resource_api_repo.get_asset("api-f6-state").lifecycle_status == "active"
 
-        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
-        policy = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "ledger.entity.base.read", "surface": "api", "role": "r7", "target_ref": "PKG-2026-04-25-001"})
+        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        policy = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "ledger.entity.base.read", "surface": "api", "role": "ROLE_BUSIAUDIT", "target_ref": "PKG-2026-04-25-001"})
         assert policy["allowed"] is True
         assert policy["decision_reason"] == "allowed_by_tenant_policy"
         assert policy["policy_version"] == "tenant-policy:v1"
@@ -1852,8 +1852,8 @@ def test_f6_core_aggregates_keep_state_and_audit_evidence() -> None:
 
         calls = database_store.list_capability_calls()
         successful_review = next(item for item in calls if item.skill_id == "application.resource.review" and item.status == "succeeded")
-        assert successful_review.actor.startswith("user:gov:r2:")
-        assert successful_review.role_code == "r2"
+        assert successful_review.actor.startswith("user:gov:ROLE_ORGAN_MANAGER:")
+        assert successful_review.role_code == "ROLE_ORGAN_MANAGER"
         assert successful_review.request_ref == request_id
         policy_call = next(item for item in calls if item.skill_id == "tenant.policy.evaluate")
         assert policy_call.output_json["decision_reason"] == "allowed_by_tenant_policy"
@@ -1865,32 +1865,32 @@ def test_f6_write_gate_requires_confirmation_policy_and_durable_audit() -> None:
     tmp, service = make_service()
     try:
         try:
-            service.invoke_skill("application.resource.review", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2"})
+            service.invoke_skill("application.resource.review", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "ROLE_ORGAN_MANAGER"})
         except ConfirmationRequiredError:
             pass
         else:
             raise AssertionError("write must require human confirmation")
-        assert service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "r1"})["status"] == "pending"
+        assert service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "ROLE_ORGAN_OPERATER"})["status"] == "pending"
 
         try:
-            service.invoke_skill("application.resource.review", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r1", "confirmed": True})
+            service.invoke_skill("application.resource.review", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "ROLE_ORGAN_OPERATER", "confirmed": True})
         except AccessDeniedError:
             pass
         else:
             raise AssertionError("write must require manifest permission")
-        assert service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "r1"})["status"] == "pending"
+        assert service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "ROLE_ORGAN_OPERATER"})["status"] == "pending"
 
         def fail_sink(request_id, actor, skill_id, phase, payload):
             raise RuntimeError("audit database unavailable")
 
         audit_bus.configure_sink(fail_sink)
         try:
-            service.invoke_skill("application.resource.review", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2", "confirmed": True})
+            service.invoke_skill("application.resource.review", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
         except AuditWriteError:
             pass
         else:
             raise AssertionError("audit write failure must block mutation")
-        assert service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "r1"})["status"] == "pending"
+        assert service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "ROLE_ORGAN_OPERATER"})["status"] == "pending"
     finally:
         tmp.cleanup()
         audit_bus.clear_sink()
@@ -1949,7 +1949,7 @@ def test_p0_objection_case_closes_with_audited_database_flow() -> None:
                 "title": "交付回执结果异议",
                 "basis_text": "回执与实际下载状态不一致",
                 "expected_result": "重新核查交付链路",
-                "role": "r1",
+                "role": "ROLE_ORGAN_OPERATER",
                 "confirmed": True,
                 "evidence": [{"evidence_type": "text", "content_json": {"token": "secret", "note": "用户截图"}}],
             },
@@ -1959,24 +1959,24 @@ def test_p0_objection_case_closes_with_audited_database_flow() -> None:
 
         for skill_id, payload in [
             ("objection.case.submit", {}),
-            ("objection.case.accept", {"role": "r2"}),
-            ("objection.case.assign", {"role": "r2", "target_status": "provider_investigating"}),
-            ("objection.case.escalate", {"role": "r2", "opinion": "超过 SLA，升级督办", "evidence": [{"evidence_type": "sla", "content_json": {"password": "drop", "days": 3}}]}),
-            ("objection.case.reply", {"role": "r6", "opinion": "已完成提供方核查"}),
-            ("objection.case.review", {"role": "r2", "decision": "resolve", "resolved_summary": "交付回执已修正"}),
-            ("objection.case.evaluate", {"role": "r1", "overall_score": 95, "comment": "处理及时"}),
-            ("objection.case.close", {"role": "r2"}),
+            ("objection.case.accept", {"role": "ROLE_ORGAN_MANAGER"}),
+            ("objection.case.assign", {"role": "ROLE_ORGAN_MANAGER", "target_status": "provider_investigating"}),
+            ("objection.case.escalate", {"role": "ROLE_ORGAN_MANAGER", "opinion": "超过 SLA，升级督办", "evidence": [{"evidence_type": "sla", "content_json": {"password": "drop", "days": 3}}]}),
+            ("objection.case.reply", {"role": "ROLE_ORGAN_MANAGER", "opinion": "已完成提供方核查"}),
+            ("objection.case.review", {"role": "ROLE_ORGAN_MANAGER", "decision": "resolve", "resolved_summary": "交付回执已修正"}),
+            ("objection.case.evaluate", {"role": "ROLE_ORGAN_OPERATER", "overall_score": 95, "comment": "处理及时"}),
+            ("objection.case.close", {"role": "ROLE_ORGAN_MANAGER"}),
         ]:
             result = service.invoke_skill(skill_id, {"objection_id": objection_id, "confirmed": True} | payload)
             assert result["ok"] is True
 
-        cases = service.invoke_skill("objection.case.query", {"role": "r2"})
+        cases = service.invoke_skill("objection.case.query", {"role": "ROLE_ORGAN_MANAGER"})
         assert any(item["id"] == objection_id and item["status"] == "closed" for item in cases["items"])
-        process = service.invoke_skill("objection.process.query", {"objection_id": objection_id, "role": "r2"})
+        process = service.invoke_skill("objection.process.query", {"objection_id": objection_id, "role": "ROLE_ORGAN_MANAGER"})
         assert len(process["items"]) >= 6
         assert any(item["action_type"] == "escalate" and item["action_result"] == "escalated" for item in process["items"])
         assert any(item["content_json"] == {"days": 3} for item in process["evidence"])
-        metrics = service.invoke_skill("objection.metric.query", {"role": "r2"})
+        metrics = service.invoke_skill("objection.metric.query", {"role": "ROLE_ORGAN_MANAGER"})
         assert metrics["closed_count"] >= 1
 
         engine = create_engine(f"sqlite:///{os.environ['ZW_BRAIN_DB_PATH']}", future=True)
@@ -2000,11 +2000,11 @@ def test_p0_objection_invalid_transition_is_rejected() -> None:
         service = BrainService(state_store=StateStore(database_store=database_store))
         created = service.invoke_skill(
             "objection.case.create",
-            {"target_type": "resource", "target_id": "res-jbxx-ledger", "title": "资源异议", "role": "r1", "confirmed": True},
+            {"target_type": "resource", "target_id": "res-jbxx-ledger", "title": "资源异议", "role": "ROLE_ORGAN_OPERATER", "confirmed": True},
         )
 
         try:
-            service.invoke_skill("objection.case.close", {"objection_id": created["result"]["id"], "role": "r2", "confirmed": True})
+            service.invoke_skill("objection.case.close", {"objection_id": created["result"]["id"], "role": "ROLE_ORGAN_MANAGER", "confirmed": True})
         except InvalidStateError:
             pass
         else:
@@ -2026,7 +2026,7 @@ def test_p0_adapter_records_idempotent_receipts_without_canonical_overwrite() ->
         database_store = DatabaseStore()
         audit_bus.configure_sink(database_store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=database_store))
-        before = service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "r1"})["status"]
+        before = service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "ROLE_ORGAN_OPERATER"})["status"]
 
         payload = {
             "local_aggregate_type": "application",
@@ -2036,7 +2036,7 @@ def test_p0_adapter_records_idempotent_receipts_without_canonical_overwrite() ->
             "idempotency_key": "national-app-0011",
             "receipt_json": {"status": "accepted", "api_key": "should-not-persist"},
             "extra_json": {"certificate": "should-not-persist", "batch": "B001"},
-            "role": "r6",
+            "role": "ROLE_ORGAN_MANAGER",
             "confirmed": True,
         }
         first = service.invoke_skill("adapter.national.application.receive", payload)
@@ -2047,12 +2047,12 @@ def test_p0_adapter_records_idempotent_receipts_without_canonical_overwrite() ->
         assert first["result"]["run"]["id"] == second["result"]["run"]["id"]
         assert second["result"]["run"]["status"] == "partial"
         assert second["result"]["mapping"]["last_receipt_json"] == {"status": "accepted"}
-        after = service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "r1"})["status"]
+        after = service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "ROLE_ORGAN_OPERATER"})["status"]
         assert after == before
 
-        mappings = service.invoke_skill("adapter.external.mapping.query", {"local_aggregate_id": "REQ-2026-04-25-0011", "role": "r6"})
+        mappings = service.invoke_skill("adapter.external.mapping.query", {"local_aggregate_id": "REQ-2026-04-25-0011", "role": "ROLE_ORGAN_MANAGER"})
         assert mappings["total"] == 1
-        health = service.invoke_skill("adapter.cascade.health.query", {"role": "r6"})
+        health = service.invoke_skill("adapter.cascade.health.query", {"role": "ROLE_ORGAN_MANAGER"})
         assert health["summary"]["run_count"] == 1
 
         engine = create_engine(f"sqlite:///{os.environ['ZW_BRAIN_DB_PATH']}", future=True)
@@ -2084,8 +2084,8 @@ def test_p1_governance_and_topic_package_capabilities_with_database() -> None:
                 "tenant": {"tenant_id": "sd-default", "tenant_name": "默认租户"},
                 "regions": [{"region_code": "370100", "region_name": "济南市"}],
                 "orgs": [{"org_code": "ORG-YBT", "org_name": "一表通专班", "region_code": "370100", "profile_json": {"secret": "drop", "kind": "taskforce"}}],
-                "roles": [{"role_code": "r7", "role_name": "能力治理员"}],
-                "role": "r7",
+                "roles": [{"role_code": "ROLE_BUSIAUDIT", "role_name": "能力治理员"}],
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
@@ -2093,9 +2093,9 @@ def test_p1_governance_and_topic_package_capabilities_with_database() -> None:
 
         actor_sync = service.invoke_skill(
             "actor.projection.sync",
-            {"external_actor_id": "u-ybt", "display_name": "专题治理员", "org_code": "ORG-YBT", "role_codes": ["r7"], "role": "r7", "confirmed": True},
+            {"external_actor_id": "u-ybt", "display_name": "专题治理员", "org_code": "ORG-YBT", "role_codes": ["ROLE_BUSIAUDIT"], "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
-        assert actor_sync["result"]["items"][0]["role_codes_json"] == ["r7"]
+        assert actor_sync["result"]["items"][0]["role_codes_json"] == ["ROLE_BUSIAUDIT"]
 
         candidate = service.invoke_skill(
             "legacy.bsp.mapping.import",
@@ -2105,12 +2105,12 @@ def test_p1_governance_and_topic_package_capabilities_with_database() -> None:
                 "capability_id": "topic.package.publish",
                 "surface": "webui",
                 "evidence_json": {"token": "drop", "source": "old-bsp"},
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
         assert candidate["result"]["items"][0]["evidence_json"] == {"source": "old-bsp", "manifest_version": "inline-v1", "manifest_source_ref": "legacy:bsp:mapping-manifest:inline-v1"}
-        policy_eval = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "topic.package.publish", "role_code": "r7", "role": "r7"})
+        policy_eval = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "topic.package.publish", "role_code": "ROLE_BUSIAUDIT", "role": "ROLE_BUSIAUDIT"})
         assert policy_eval["allowed"] is False
         assert policy_eval["source"] == "fail_closed"
         assert policy_eval["decision_reason"] == "missing_tenant_policy"
@@ -2118,30 +2118,30 @@ def test_p1_governance_and_topic_package_capabilities_with_database() -> None:
 
         service.invoke_skill(
             "topic.package.create",
-            {"package_code": "tp-ybt", "title": "一表通 / 基层报表减负", "owner_org_id": "ORG-YBT", "display_snapshot_json": {"password": "drop", "headline": "基层只补差异"}, "role": "r7", "confirmed": True},
+            {"package_code": "tp-ybt", "title": "一表通 / 基层报表减负", "owner_org_id": "ORG-YBT", "display_snapshot_json": {"password": "drop", "headline": "基层只补差异"}, "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
         service.invoke_skill(
             "topic.package.configure",
             {
                 "package_code": "tp-ybt",
                 "items": [{"item_code": "cat-jbxx", "ref_type": "catalog", "ref_id": "cat-jbxx", "title": "法人基础信息", "summary_json": {"secret": "drop", "domain": "法人"}}],
-                "visibility": [{"visibility_code": "r7-web", "role_code": "r7", "policy_status": "approved", "condition_json": {"api_key": "drop", "scope": "governance"}}],
-                "role": "r7",
+                "visibility": [{"visibility_code": "publish-web", "role_code": "ROLE_BUSIAUDIT", "policy_status": "approved", "condition_json": {"api_key": "drop", "scope": "governance"}}],
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
-        service.invoke_skill("topic.package.submit", {"package_code": "tp-ybt", "role": "r7", "confirmed": True})
-        published = service.invoke_skill("topic.package.review", {"package_code": "tp-ybt", "decision": "approve", "role": "r7", "confirmed": True})
+        service.invoke_skill("topic.package.submit", {"package_code": "tp-ybt", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        published = service.invoke_skill("topic.package.review", {"package_code": "tp-ybt", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         assert published["result"]["status"] == "published"
-        service.invoke_skill("topic.package.evidence.attach", {"package_code": "tp-ybt", "evidence_type": "case", "title": "减负证据", "content_json": {"certificate": "drop", "saving_hours": 12}, "role": "r7", "confirmed": True})
-        service.invoke_skill("topic.package.subscribe", {"package_code": "tp-ybt", "org_code": "ORG-YBT", "role_code": "r1", "role": "r7", "confirmed": True})
+        service.invoke_skill("topic.package.evidence.attach", {"package_code": "tp-ybt", "evidence_type": "case", "title": "减负证据", "content_json": {"certificate": "drop", "saving_hours": 12}, "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("topic.package.subscribe", {"package_code": "tp-ybt", "org_code": "ORG-YBT", "role_code": "ROLE_ORGAN_OPERATER", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         database_store.topic_package_repo.upsert_metric("tp-ybt", {"metric_key": "reuse_count", "metric_value": 2})
 
-        detail = service.invoke_skill("topic.package.query", {"package_code": "tp-ybt", "role": "r7"})["items"][0]
+        detail = service.invoke_skill("topic.package.query", {"package_code": "tp-ybt", "role": "ROLE_BUSIAUDIT"})["items"][0]
         assert detail["display_snapshot_json"] == {"headline": "基层只补差异"}
         assert detail["items"][0]["summary_json"] == {"domain": "法人"}
         assert any(item["surface"] == "subscription" for item in detail["visibility"])
-        metrics = service.invoke_skill("topic.package.metric.query", {"package_code": "tp-ybt", "role": "r7"})
+        metrics = service.invoke_skill("topic.package.metric.query", {"package_code": "tp-ybt", "role": "ROLE_BUSIAUDIT"})
         assert metrics["summary"]["published_count"] == 1
         assert metrics["items"][0]["metric_value"] == 2
 
@@ -2178,8 +2178,8 @@ def test_p1_governance_actor_projection_accepts_mock_iaf_claims() -> None:
             "preferred_username": "zhangsan",
             "project_id": "sd-default",
             "project": "shandong",
-            "realm_access": {"roles": ["ACCOUNT_ADMIN", "r7"]},
-            "resource_access": {"zw-brain": {"roles": ["r7"]}},
+            "realm_access": {"roles": ["ACCOUNT_ADMIN", "ROLE_BUSIAUDIT"]},
+            "resource_access": {"zw-brain": {"roles": ["ROLE_BUSIAUDIT"]}},
         }
         token = _encode_mock_jwt(claims)
 
@@ -2191,7 +2191,7 @@ def test_p1_governance_actor_projection_accepts_mock_iaf_claims() -> None:
                 "expected_nonce": "n-1",
                 "tenant_id": "sd-default",
                 "org_code": "ORG-YBT",
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
@@ -2200,18 +2200,18 @@ def test_p1_governance_actor_projection_accepts_mock_iaf_claims() -> None:
         snapshot = result["result"]["actor_snapshots"][0]
         assert item["external_actor_id"] == "iaf-user-001"
         assert item["display_name"] == "z*******"
-        assert set(item["role_codes_json"]) == {"ACCOUNT_ADMIN", "r7"}
+        assert set(item["role_codes_json"]) == {"ACCOUNT_ADMIN", "ROLE_BUSIAUDIT"}
         assert item["profile_json"]["username"] == "zhangsan"
         assert item["profile_json"]["project_id"] == "sd-default"
         assert item["profile_json"]["project"] == "shandong"
-        assert item["profile_json"]["iam_role_codes"] == ["r7"]
-        assert item["profile_json"]["realm_roles"] == ["ACCOUNT_ADMIN", "r7"]
+        assert item["profile_json"]["iam_role_codes"] == ["ROLE_BUSIAUDIT"]
+        assert item["profile_json"]["realm_roles"] == ["ACCOUNT_ADMIN", "ROLE_BUSIAUDIT"]
         assert item["profile_json"]["account_admin"] is True
         assert snapshot["subject"] == "iaf-user-001"
         assert snapshot["tenant_id"] == "sd-default"
         assert snapshot["org_code"] == "ORG-YBT"
-        assert set(snapshot["role_codes"]) == {"ACCOUNT_ADMIN", "r7"}
-        assert snapshot["iam_role_codes"] == ["r7"]
+        assert set(snapshot["role_codes"]) == {"ACCOUNT_ADMIN", "ROLE_BUSIAUDIT"}
+        assert snapshot["iam_role_codes"] == ["ROLE_BUSIAUDIT"]
         assert snapshot["account_flags"]["account_admin"] is True
         assert snapshot["issuer"] == "https://iaf.example/realms/picp"
         assert snapshot["audience"] == ["zw-brain"]
@@ -2243,7 +2243,7 @@ def test_p1_governance_actor_projection_accepts_client_id_when_audience_claim_is
                 "exp": int((datetime.now(UTC) + timedelta(minutes=10)).timestamp()),
                 "state": "s-client-id",
                 "nonce": "n-client-id",
-                "resource_access": {"zw-brain": {"roles": ["r7"]}},
+                "resource_access": {"zw-brain": {"roles": ["ROLE_BUSIAUDIT"]}},
             }
         )
 
@@ -2254,14 +2254,14 @@ def test_p1_governance_actor_projection_accepts_client_id_when_audience_claim_is
                 "expected_state": "s-client-id",
                 "expected_nonce": "n-client-id",
                 "tenant_id": "sd-default",
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
 
         item = result["result"]["items"][0]
         assert item["external_actor_id"] == "iaf-user-client-id"
-        assert item["role_codes_json"] == ["r7"]
+        assert item["role_codes_json"] == ["ROLE_BUSIAUDIT"]
 
 
 def _assert_actor_projection_rejects_claims(claims: dict[str, object], *, expected_state: str = "s-2", expected_nonce: str = "n-2") -> None:
@@ -2289,7 +2289,7 @@ def _assert_actor_projection_rejects_claims(claims: dict[str, object], *, expect
                     "expected_state": expected_state,
                     "expected_nonce": expected_nonce,
                     "tenant_id": "sd-default",
-                    "role": "r7",
+                    "role": "ROLE_BUSIAUDIT",
                     "confirmed": True,
                 },
             )
@@ -2366,15 +2366,15 @@ def test_p1_governance_org_and_actor_projection_context_is_complete() -> None:
                 "tenant": {"tenant_id": "sd-default", "tenant_name": "山东省", "profile_json": {"project_id": "sd-default"}},
                 "regions": [{"region_code": "370100", "region_name": "济南市", "parent_region_code": "370000", "region_level": "2"}],
                 "orgs": [{"org_code": "ORG-YBT", "org_name": "省大数据局", "region_code": "370100"}],
-                "roles": [{"role_code": "r7", "role_name": "平台运营"}],
-                "role": "r7",
+                "roles": [{"role_code": "ROLE_BUSIAUDIT", "role_name": "平台运营"}],
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
         assert org_result["result"]["tenant"]["tenant_id"] == "sd-default"
         assert org_result["result"]["orgs"][0]["org_code"] == "ORG-YBT"
         assert org_result["result"]["regions"][0]["region_code"] == "370100"
-        assert org_result["result"]["roles"][0]["role_code"] == "r7"
+        assert org_result["result"]["roles"][0]["role_code"] == "ROLE_BUSIAUDIT"
 
         token = _encode_mock_jwt(
             {
@@ -2388,7 +2388,7 @@ def test_p1_governance_org_and_actor_projection_context_is_complete() -> None:
                 "project_id": "sd-default",
                 "project": "shandong",
                 "realm_access": {"roles": ["ACCOUNT_ADMIN"]},
-                "resource_access": {"zw-brain": {"roles": ["r7"]}},
+                "resource_access": {"zw-brain": {"roles": ["ROLE_BUSIAUDIT"]}},
             }
         )
         actor_result = service.invoke_skill(
@@ -2399,7 +2399,7 @@ def test_p1_governance_org_and_actor_projection_context_is_complete() -> None:
                 "expected_nonce": "n-3",
                 "tenant_id": "sd-default",
                 "org_code": "ORG-YBT",
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
@@ -2407,8 +2407,8 @@ def test_p1_governance_org_and_actor_projection_context_is_complete() -> None:
         assert snapshot["tenant_id"] == "sd-default"
         assert snapshot["org_code"] == "ORG-YBT"
         assert snapshot["status"] == "active"
-        assert set(snapshot["role_codes"]) == {"ACCOUNT_ADMIN", "r7"}
-        assert snapshot["iam_role_codes"] == ["r7"]
+        assert set(snapshot["role_codes"]) == {"ACCOUNT_ADMIN", "ROLE_BUSIAUDIT"}
+        assert snapshot["iam_role_codes"] == ["ROLE_BUSIAUDIT"]
         assert snapshot["project_id"] == "sd-default"
         assert snapshot["project"] == "shandong"
         assert snapshot["account_flags"]["account_admin"] is True
@@ -2417,7 +2417,7 @@ def test_p1_governance_org_and_actor_projection_context_is_complete() -> None:
         assert [item.tenant_id for item in repo.list_tenants()] == ["sd-default"]
         assert repo.list_orgs(tenant_id="sd-default")[0].org_code == "ORG-YBT"
         assert repo.list_regions(tenant_id="sd-default")[0].region_code == "370100"
-        assert repo.list_roles(tenant_id="sd-default")[0].role_code == "r7"
+        assert repo.list_roles(tenant_id="sd-default")[0].role_code == "ROLE_BUSIAUDIT"
         assert repo.list_actors(tenant_id="sd-default")[0].external_actor_id == "iaf-user-003"
 
 
@@ -2434,16 +2434,16 @@ def test_p1_governance_policy_fail_closed_for_unbound_or_inconsistent_actor_cont
         database_store = DatabaseStore()
         audit_bus.configure_sink(database_store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=database_store))
-        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
 
         base_payload = {
             "tenant_id": "sd-default",
             "capability_id": "ledger.entity.base.read",
             "surface": "api",
-            "role": "r7",
-            "actor_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT", "role_codes": ["r7"], "status": "active"},
+            "role": "ROLE_BUSIAUDIT",
+            "actor_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT", "role_codes": ["ROLE_BUSIAUDIT"], "status": "active"},
             "org_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT"},
         }
         allowed = service.invoke_skill("tenant.policy.evaluate", base_payload)
@@ -2475,7 +2475,7 @@ def test_p1_governance_policy_fail_closed_for_unbound_or_inconsistent_actor_cont
         assert denied["decision_reason"] == "org_binding_mismatch"
 
         role_mismatch = copy.deepcopy(base_payload)
-        role_mismatch["role"] = "r6"
+        role_mismatch["role"] = "ROLE_ORGAN_MANAGER"
         denied = service.invoke_skill("tenant.policy.evaluate", role_mismatch)
         assert denied["allowed"] is False
         assert denied["decision_reason"] == "role_binding_mismatch"
@@ -2494,22 +2494,22 @@ def test_f3_tenant_policy_evaluate_outputs_policy_fields_and_audit_evidence() ->
         database_store = DatabaseStore()
         audit_bus.configure_sink(database_store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=database_store))
-        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
 
         payload = {
             "tenant_id": "sd-default",
             "capability_slug": "ledger.entity.base.read",
             "surface": "api",
-            "role": "r7",
-            "role_codes": ["ACCOUNT_ADMIN", "r7"],
+            "role": "ROLE_BUSIAUDIT",
+            "role_codes": ["ACCOUNT_ADMIN", "ROLE_BUSIAUDIT"],
             "target_ref": "catalog:legal-person-base",
             "actor_snapshot": {
                 "tenant_id": "sd-default",
                 "subject": "iaf-user-001",
                 "org_code": "ORG-YBT",
-                "role_codes": ["ACCOUNT_ADMIN", "r7"],
+                "role_codes": ["ACCOUNT_ADMIN", "ROLE_BUSIAUDIT"],
                 "status": "active",
                 "phone": "13800001111",
                 "token": "drop",
@@ -2550,15 +2550,15 @@ def test_f3_tenant_policy_evaluate_denies_account_admin_without_registry_or_tena
         database_store = DatabaseStore()
         audit_bus.configure_sink(database_store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=database_store))
-        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
 
         payload = {
             "tenant_id": "sd-default",
             "capability_id": "ledger.entity.base.read",
             "surface": "api",
-            "role": "r2",
+            "role": "ROLE_ORGAN_MANAGER",
             "role_codes": ["ACCOUNT_ADMIN"],
             "actor_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT", "role_codes": ["ACCOUNT_ADMIN"], "status": "active", "account_flags": {"account_admin": True}},
             "org_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT"},
@@ -2568,9 +2568,9 @@ def test_f3_tenant_policy_evaluate_denies_account_admin_without_registry_or_tena
         assert denied["decision_reason"] == "role_not_allowed_by_registry"
 
         database_store.capability_package_repo.set_tenant_policy_status(service._package_by_id("PKG-2026-04-25-001"), tenant_id="sd-default", policy_status="disabled", enabled=False, exposed_surfaces=["api"])
-        payload["role"] = "r7"
-        payload["role_codes"] = ["ACCOUNT_ADMIN", "r7"]
-        payload["actor_snapshot"]["role_codes"] = ["ACCOUNT_ADMIN", "r7"]
+        payload["role"] = "ROLE_BUSIAUDIT"
+        payload["role_codes"] = ["ACCOUNT_ADMIN", "ROLE_BUSIAUDIT"]
+        payload["actor_snapshot"]["role_codes"] = ["ACCOUNT_ADMIN", "ROLE_BUSIAUDIT"]
         disabled = service.invoke_skill("tenant.policy.evaluate", payload)
         assert disabled["allowed"] is False
         assert disabled["decision_reason"] == "tenant_policy_disabled"
@@ -2589,15 +2589,15 @@ def test_f3_tenant_policy_evaluate_surfaces_and_high_risk_are_consistent() -> No
         database_store = DatabaseStore()
         audit_bus.configure_sink(database_store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=database_store))
-        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
 
         base_payload = {
             "tenant_id": "sd-default",
             "capability_id": "ledger.entity.base.read",
-            "role": "r7",
-            "actor_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT", "role_codes": ["r7"], "status": "active"},
+            "role": "ROLE_BUSIAUDIT",
+            "actor_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT", "role_codes": ["ROLE_BUSIAUDIT"], "status": "active"},
             "org_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT"},
         }
         decisions = {surface: service.invoke_skill("tenant.policy.evaluate", base_payload | {"surface": surface}) for surface in ["webui", "api", "cli", "mcp", "a2a"]}
@@ -2625,21 +2625,21 @@ def test_f5_governance_iam_overview_lists_filters_and_policy_evidence() -> None:
         database_store = DatabaseStore()
         audit_bus.configure_sink(database_store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=database_store))
-        service.invoke_skill("org.projection.sync", {"tenant": {"tenant_id": "sd-default", "tenant_name": "山东省"}, "orgs": [{"org_code": "ORG-YBT", "org_name": "一表通专班"}], "roles": [{"role_code": "r7", "role_name": "目录管理员"}], "role": "r7", "confirmed": True})
-        service.invoke_skill("actor.projection.sync", {"external_actor_id": "iaf-user-001", "iaf_sub": "iaf-user-001", "display_name": "治理员", "org_code": "ORG-YBT", "role_codes": ["r7"], "status": "active", "profile_json": {"binding_status": "bound", "phone": "13800001111"}, "role": "r7", "confirmed": True})
-        service.invoke_skill("actor.projection.sync", {"external_actor_id": "legacy-missing", "display_name": "未绑定用户", "org_code": "ORG-YBT", "role_codes": ["r7"], "status": "iam_account_missing", "profile_json": {"password": "drop", "binding_status": "iam_account_missing"}, "role": "r7", "confirmed": True})
-        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+        service.invoke_skill("org.projection.sync", {"tenant": {"tenant_id": "sd-default", "tenant_name": "山东省"}, "orgs": [{"org_code": "ORG-YBT", "org_name": "一表通专班"}], "roles": [{"role_code": "ROLE_BUSIAUDIT", "role_name": "目录管理员"}], "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("actor.projection.sync", {"external_actor_id": "iaf-user-001", "iaf_sub": "iaf-user-001", "display_name": "治理员", "org_code": "ORG-YBT", "role_codes": ["ROLE_BUSIAUDIT"], "status": "active", "profile_json": {"binding_status": "bound", "phone": "13800001111"}, "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("actor.projection.sync", {"external_actor_id": "legacy-missing", "display_name": "未绑定用户", "org_code": "ORG-YBT", "role_codes": ["ROLE_BUSIAUDIT"], "status": "iam_account_missing", "profile_json": {"password": "drop", "binding_status": "iam_account_missing"}, "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         service.invoke_skill(
             "legacy.bsp.mapping.import",
             {
                 "mode": "apply",
                 "rows": [
                     {"legacy_permission_ref": "legacy.unmapped.permission", "legacy_role_ref": "ROLE_X", "capability_id": "unknown.capability", "surface": "api"},
-                    {"legacy_permission_ref": "topic.package.publish", "legacy_role_ref": "r7", "capability_id": "topic.package.publish", "surface": "webui", "evidence_json": {"client_secret": "drop", "source": "legacy-bsp"}},
+                    {"legacy_permission_ref": "topic.package.publish", "legacy_role_ref": "ROLE_BUSIAUDIT", "capability_id": "topic.package.publish", "surface": "webui", "evidence_json": {"client_secret": "drop", "source": "legacy-bsp"}},
                 ],
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
@@ -2649,14 +2649,14 @@ def test_f5_governance_iam_overview_lists_filters_and_policy_evidence() -> None:
                 "tenant_id": "sd-default",
                 "capability_id": "ledger.entity.base.read",
                 "surface": "api",
-                "role": "r7",
-                "actor_snapshot": {"tenant_id": "sd-default", "subject": "iaf-user-001", "org_code": "ORG-YBT", "role_codes": ["r7"], "status": "active"},
+                "role": "ROLE_BUSIAUDIT",
+                "actor_snapshot": {"tenant_id": "sd-default", "subject": "iaf-user-001", "org_code": "ORG-YBT", "role_codes": ["ROLE_BUSIAUDIT"], "status": "active"},
                 "org_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT"},
             },
         )
         assert decision["allowed"] is True
 
-        overview = service.invoke_skill("governance.iam_overview", {"tenant_id": "sd-default", "role": "r7"})
+        overview = service.invoke_skill("governance.iam_overview", {"tenant_id": "sd-default", "role": "ROLE_BUSIAUDIT"})
         assert overview["summary"]["actor_count"] == 2
         assert overview["summary"]["binding_status_counts"] == {"active": 1, "iam_account_missing": 1}
         assert any(item["package_slug"] == "ledger.entity.base.read" for item in overview["tenant_policies"])
@@ -2667,9 +2667,9 @@ def test_f5_governance_iam_overview_lists_filters_and_policy_evidence() -> None:
         assert "password" not in json.dumps(overview, ensure_ascii=False).lower()
         assert overview["actors"][0]["profile_json"]["phone"] == "138****1111"
 
-        missing = service.invoke_skill("governance.iam_overview", {"tenant_id": "sd-default", "role": "r7", "binding_status": "iam_account_missing"})
+        missing = service.invoke_skill("governance.iam_overview", {"tenant_id": "sd-default", "role": "ROLE_BUSIAUDIT", "binding_status": "iam_account_missing"})
         assert [item["status"] for item in missing["actors"]] == ["iam_account_missing"]
-        issues = service.invoke_skill("governance.iam_overview", {"tenant_id": "sd-default", "role": "r7", "issue_type": "unmapped_permission"})
+        issues = service.invoke_skill("governance.iam_overview", {"tenant_id": "sd-default", "role": "ROLE_BUSIAUDIT", "issue_type": "unmapped_permission"})
         assert any(item["type"] == "unmapped_permission" for item in issues["import_issues"])
 
 
@@ -2711,7 +2711,7 @@ def test_p1_governance_legacy_import_supports_dry_run_and_idempotent_apply() -> 
                     "candidate_status": "iam_account_missing",
                 },
             ],
-            "role": "r7",
+            "role": "ROLE_BUSIAUDIT",
             "confirmed": True,
         }
 
@@ -2794,7 +2794,7 @@ def test_p1_governance_legacy_import_reports_all_blockers_and_sanitizes_evidence
                     "surface": "webui",
                 },
             ],
-            "role": "r7",
+            "role": "ROLE_BUSIAUDIT",
             "confirmed": True,
         }
 
@@ -2842,7 +2842,7 @@ def test_p1_governance_legacy_import_idempotent_and_conflict_safe() -> None:
                     "evidence_json": {"source": "legacy-bsp", "token": "drop"},
                 }
             ],
-            "role": "r7",
+            "role": "ROLE_BUSIAUDIT",
             "confirmed": True,
         }
 
@@ -2921,7 +2921,7 @@ def test_p1_governance_mapping_manifest_explicit_versioned_and_sanitized() -> No
                     }
                 ],
             },
-            "role": "r7",
+            "role": "ROLE_BUSIAUDIT",
             "confirmed": True,
         }
 
@@ -2955,15 +2955,15 @@ def test_p1_governance_policy_decision_and_import_receipts_are_auditable_and_san
         database_store = DatabaseStore()
         audit_bus.configure_sink(database_store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=database_store))
-        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         actor_snapshot = {
             "subject": "iaf-user-audit",
             "tenant_id": "sd-default",
             "org_code": "ORG-YBT",
-            "role_codes": ["r7"],
-            "iam_role_codes": ["r7"],
+            "role_codes": ["ROLE_BUSIAUDIT"],
+            "iam_role_codes": ["ROLE_BUSIAUDIT"],
             "account_flags": {"account_admin": False},
         }
         decision = service.invoke_skill(
@@ -2972,7 +2972,7 @@ def test_p1_governance_policy_decision_and_import_receipts_are_auditable_and_san
                 "tenant_id": "sd-default",
                 "capability_id": "ledger.entity.base.read",
                 "surface": "api",
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "actor_snapshot": actor_snapshot,
                 "org_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT"},
                 "risk_context": {"password": "drop", "token": "drop", "client_secret": "drop", "certificate": "drop", "safe": "keep"},
@@ -3005,7 +3005,7 @@ def test_p1_governance_policy_decision_and_import_receipts_are_auditable_and_san
                         }
                     ],
                 },
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
@@ -3035,7 +3035,7 @@ def test_p1_governance_policy_decision_and_import_receipts_are_auditable_and_san
         import_after = next(item for item in audit_events if item.skill_id == "legacy.bsp.mapping.import" and item.phase == "after")
         assert import_after.request_id == import_result["audit_id"]
         assert import_after.payload_json["items"][0]["evidence_json"] == item["evidence_json"]
-        sys_log_policy = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "topic.package.publish", "surface": "webui", "role": "r7", "risk_context": {"source_kind": "historical_sys_log_evidence"}})
+        sys_log_policy = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "topic.package.publish", "surface": "webui", "role": "ROLE_BUSIAUDIT", "risk_context": {"source_kind": "historical_sys_log_evidence"}})
         assert sys_log_policy["allowed"] is False
         assert sys_log_policy["decision_reason"] == "missing_tenant_policy"
 
@@ -3054,7 +3054,7 @@ def test_p1_governance_policy_fails_closed_without_capability_id_or_mapping_mani
         audit_bus.configure_sink(database_store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=database_store))
 
-        missing_capability = service.invoke_skill("tenant.policy.evaluate", {"surface": "api", "role": "r7"})
+        missing_capability = service.invoke_skill("tenant.policy.evaluate", {"surface": "api", "role": "ROLE_BUSIAUDIT"})
         assert missing_capability["allowed"] is False
         assert missing_capability["source"] == "fail_closed"
         assert missing_capability["decision_reason"] == "missing_capability_id"
@@ -3065,14 +3065,14 @@ def test_p1_governance_policy_fails_closed_without_capability_id_or_mapping_mani
             {
                 "mode": "dry-run",
                 "rows": [{"legacy_permission_ref": "dsp-bsp:unknown", "legacy_role_ref": "ROLE_UNKNOWN", "capability_id": "unknown.capability", "surface": "webui"}],
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
         assert unmapped_import["result"]["summary"]["failure_count"] == 1
         assert unmapped_import["result"]["summary"]["blockers"]["unmapped_permission"] == 1
 
-        denied = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "unknown.capability", "surface": "webui", "role": "r7"})
+        denied = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "unknown.capability", "surface": "webui", "role": "ROLE_BUSIAUDIT"})
         assert denied["allowed"] is False
         assert denied["source"] == "fail_closed"
         assert denied["decision_reason"] == "missing_tenant_policy"
@@ -3104,13 +3104,13 @@ def test_p1_governance_legacy_candidate_cannot_bypass_missing_or_restrictive_ten
                     "source_ref": "dsp-bsp:permission:sharezone:publish",
                 }
             ],
-            "role": "r7",
+            "role": "ROLE_BUSIAUDIT",
             "confirmed": True,
         }
         imported = service.invoke_skill("legacy.bsp.mapping.import", import_payload)
         assert imported["result"]["summary"]["mapping_count"] == 1
 
-        missing_policy = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "topic.package.publish", "surface": "webui", "role": "r7"})
+        missing_policy = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "topic.package.publish", "surface": "webui", "role": "ROLE_BUSIAUDIT"})
         assert missing_policy["allowed"] is False
         assert missing_policy["source"] == "fail_closed"
         assert missing_policy["decision_reason"] == "missing_tenant_policy"
@@ -3124,22 +3124,22 @@ def test_p1_governance_legacy_candidate_cannot_bypass_missing_or_restrictive_ten
                 "source": "zw-brain registry",
                 "status": "pending",
                 "exposure": ["api"],
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
-        service.invoke_skill("capability.version.review", {"package_id": "PKG-topic-package-publish", "decision": "approve", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.register_version", {"package_id": "PKG-topic-package-publish", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-topic-package-publish", "role": "r7", "confirmed": True})
+        service.invoke_skill("capability.version.review", {"package_id": "PKG-topic-package-publish", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.register_version", {"package_id": "PKG-topic-package-publish", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-topic-package-publish", "role": "ROLE_BUSIAUDIT", "confirmed": True})
 
-        surface_denied = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "topic.package.publish", "surface": "webui", "role": "r7"})
+        surface_denied = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "topic.package.publish", "surface": "webui", "role": "ROLE_BUSIAUDIT"})
         assert surface_denied["allowed"] is False
         assert surface_denied["source"] == "tenant_capability_policy"
         assert surface_denied["decision_reason"] == "surface_not_exposed"
         assert surface_denied["legacy_candidates"][0]["capability_id"] == "topic.package.publish"
 
-        service.invoke_skill("tenant.capability.disable", {"package_id": "PKG-topic-package-publish", "role": "r7", "confirmed": True})
-        disabled = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "topic.package.publish", "surface": "webui", "role": "r7"})
+        service.invoke_skill("tenant.capability.disable", {"package_id": "PKG-topic-package-publish", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        disabled = service.invoke_skill("tenant.policy.evaluate", {"capability_id": "topic.package.publish", "surface": "webui", "role": "ROLE_BUSIAUDIT"})
         assert disabled["allowed"] is False
         assert disabled["source"] == "tenant_capability_policy"
         assert disabled["decision_reason"] == "tenant_policy_disabled"
@@ -3165,15 +3165,15 @@ def test_p1_governance_account_admin_cannot_bypass_policy_denies_or_confirmation
             "tenant_id": "sd-default",
             "org_code": "ORG-YBT",
             "status": "active",
-            "role_codes": ["r7", "ACCOUNT_ADMIN"],
-            "iam_role_codes": ["r7"],
+            "role_codes": ["ROLE_BUSIAUDIT", "ACCOUNT_ADMIN"],
+            "iam_role_codes": ["ROLE_BUSIAUDIT"],
             "account_flags": {"account_admin": True},
         }
         base_payload = {
             "tenant_id": "sd-default",
             "capability_id": "ledger.entity.base.read",
             "surface": "api",
-            "role": "r7",
+            "role": "ROLE_BUSIAUDIT",
             "actor_snapshot": account_admin_actor,
             "org_snapshot": {"tenant_id": "sd-default", "org_code": "ORG-YBT"},
         }
@@ -3186,9 +3186,9 @@ def test_p1_governance_account_admin_cannot_bypass_policy_denies_or_confirmation
         assert missing_policy["decision_reason"] == "missing_tenant_policy"
         assert missing_policy["actor_snapshot"]["account_flags"]["account_admin"] is True
 
-        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+        service.invoke_skill("package.review_decide", {"package_id": "PKG-2026-04-25-001", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.register_version", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.apply_tenant_policy", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
 
         allowed = service.invoke_skill("tenant.policy.evaluate", base_payload)
         assert allowed["allowed"] is True
@@ -3208,14 +3208,14 @@ def test_p1_governance_account_admin_cannot_bypass_policy_denies_or_confirmation
         assert cross_tenant["source"] == "fail_closed"
         assert cross_tenant["decision_reason"] == "cross_tenant_denied"
 
-        service.invoke_skill("tenant.capability.disable", {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True})
+        service.invoke_skill("tenant.capability.disable", {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         disabled = service.invoke_skill("tenant.policy.evaluate", base_payload)
         assert disabled["allowed"] is False
         assert disabled["source"] == "tenant_capability_policy"
         assert disabled["decision_reason"] == "tenant_policy_disabled"
 
         try:
-            service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "r2"})
+            service.invoke_skill("approval.review_decide", {"request_id": "REQ-2026-04-25-0011", "decision": "approve", "role": "ROLE_ORGAN_MANAGER"})
         except ConfirmationRequiredError as exc:
             assert str(exc) == "approval.review_decide"
         else:
@@ -3241,17 +3241,17 @@ def test_p1_governance_tenant_policy_evaluate_fail_closed_surface_matrix() -> No
             {
                 "package_id": "PKG-2026-04-25-001",
                 "decision": "approve",
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
         service.invoke_skill(
             "package.register_version",
-            {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True},
+            {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
         service.invoke_skill(
             "package.apply_tenant_policy",
-            {"package_id": "PKG-2026-04-25-001", "role": "r7", "confirmed": True},
+            {"package_id": "PKG-2026-04-25-001", "role": "ROLE_BUSIAUDIT", "confirmed": True},
         )
 
         by_surface = {
@@ -3260,7 +3260,7 @@ def test_p1_governance_tenant_policy_evaluate_fail_closed_surface_matrix() -> No
                 {
                     "capability_id": "ledger.entity.base.read",
                     "surface": surface,
-                    "role": "r7",
+                    "role": "ROLE_BUSIAUDIT",
                 },
             )
             for surface in ["webui", "api", "cli", "mcp", "a2a"]
@@ -3279,7 +3279,7 @@ def test_p1_governance_tenant_policy_evaluate_fail_closed_surface_matrix() -> No
             {
                 "capability_id": "topic.package.publish",
                 "surface": "webui",
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
             },
         )
         assert no_policy["allowed"] is False
@@ -3318,8 +3318,8 @@ def test_p1_governance_cold_start_runtime_does_not_call_legacy_bsp_online_servic
                 "tenant": {"tenant_id": "sd-default", "tenant_name": "山东省", "source_ref": "dsp-bsp:tenant:default"},
                 "regions": [{"region_code": "370100", "region_name": "济南市", "parent_region_code": "370000", "region_level": "2", "source_ref": "dsp-bsp:pub_region:370100"}],
                 "orgs": [{"org_code": "11370000MB284651XL", "org_name": "省大数据局", "region_code": "370100", "source_ref": "dsp-bsp:pub_organ:11370000MB284651XL"}],
-                "roles": [{"role_code": "r7", "role_name": "平台治理员", "source_ref": "dsp-bsp:pub_role:r7"}],
-                "role": "r7",
+                "roles": [{"role_code": "ROLE_BUSIAUDIT", "role_name": "平台治理员", "source_ref": "dsp-bsp:pub_role:platform_steward"}],
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
@@ -3337,7 +3337,7 @@ def test_p1_governance_cold_start_runtime_does_not_call_legacy_bsp_online_servic
                 "project_id": "sd-default",
                 "project": "shandong",
                 "realm_access": {"roles": ["ACCOUNT_ADMIN"]},
-                "resource_access": {"zw-brain": {"roles": ["r7"]}},
+                "resource_access": {"zw-brain": {"roles": ["ROLE_BUSIAUDIT"]}},
             }
         )
         actor_result = service.invoke_skill(
@@ -3348,14 +3348,14 @@ def test_p1_governance_cold_start_runtime_does_not_call_legacy_bsp_online_servic
                 "expected_nonce": "nonce-cold",
                 "tenant_id": "sd-default",
                 "org_code": "11370000MB284651XL",
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
         actor_snapshot = actor_result["result"]["actor_snapshots"][0]
         assert actor_snapshot["tenant_id"] == "sd-default"
         assert actor_snapshot["org_code"] == "11370000MB284651XL"
-        assert actor_snapshot["iam_role_codes"] == ["r7"]
+        assert actor_snapshot["iam_role_codes"] == ["ROLE_BUSIAUDIT"]
         assert actor_snapshot["account_flags"]["account_admin"] is True
 
         import_result = service.invoke_skill(
@@ -3377,7 +3377,7 @@ def test_p1_governance_cold_start_runtime_does_not_call_legacy_bsp_online_servic
                         }
                     ],
                 },
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
@@ -3398,13 +3398,13 @@ def test_p1_governance_cold_start_runtime_does_not_call_legacy_bsp_online_servic
                 "source": "zw-brain registry",
                 "status": "pending",
                 "exposure": ["api", "cli", "mcp", "a2a", "webui"],
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
         )
-        service.invoke_skill("capability.version.review", {"package_id": "PKG-topic-package-publish-cold", "decision": "approve", "role": "r7", "confirmed": True})
-        service.invoke_skill("package.register_version", {"package_id": "PKG-topic-package-publish-cold", "role": "r7", "confirmed": True})
-        enable_result = service.invoke_skill("tenant.capability.enable", {"tenant_id": "sd-default", "package_id": "PKG-topic-package-publish-cold", "role": "r7", "confirmed": True})
+        service.invoke_skill("capability.version.review", {"package_id": "PKG-topic-package-publish-cold", "decision": "approve", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("package.register_version", {"package_id": "PKG-topic-package-publish-cold", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        enable_result = service.invoke_skill("tenant.capability.enable", {"tenant_id": "sd-default", "package_id": "PKG-topic-package-publish-cold", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         assert enable_result["result"]["tenant_id"] == "sd-default"
 
         policy_eval = service.invoke_skill(
@@ -3413,7 +3413,7 @@ def test_p1_governance_cold_start_runtime_does_not_call_legacy_bsp_online_servic
                 "tenant_id": "sd-default",
                 "capability_id": "topic.package.publish",
                 "surface": "api",
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
                 "actor_snapshot": actor_snapshot,
                 "org_snapshot": {"tenant_id": "sd-default", "org_code": "11370000MB284651XL"},
             },
@@ -3424,8 +3424,8 @@ def test_p1_governance_cold_start_runtime_does_not_call_legacy_bsp_online_servic
         assert policy_eval["legacy_candidates"][0]["legacy_permission_ref"] == "dsp-bsp:sharezone:publish"
         assert policy_eval["legacy_candidates"][0]["evidence_json"]["source_kind"] == "historical_sys_log_evidence"
 
-        business_view = service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "r1"})
-        registry_view = service.invoke_skill("registry.artifact.export", {"role": "r7"})
+        business_view = service.invoke_skill("request.view", {"request_id": "REQ-2026-04-25-0011", "role": "ROLE_ORGAN_OPERATER"})
+        registry_view = service.invoke_skill("registry.artifact.export", {"role": "ROLE_BUSIAUDIT"})
         assert business_view["id"] == "REQ-2026-04-25-0011"
         assert any(item["skill_id"] == "topic.package.publish" for item in registry_view["items"])
         assert any(package["slug"] == "topic.package.publish" and package["tenantPolicy"]["tenantId"] == "sd-default" for package in registry_view["packages"])
@@ -3434,7 +3434,7 @@ def test_p1_governance_cold_start_runtime_does_not_call_legacy_bsp_online_servic
         assert repo.list_tenants()[0].tenant_id == "sd-default"
         assert repo.list_regions(tenant_id="sd-default")[0].source_ref == "dsp-bsp:pub_region:370100"
         assert repo.list_orgs(tenant_id="sd-default")[0].source_ref == "dsp-bsp:pub_organ:11370000MB284651XL"
-        assert repo.list_roles(tenant_id="sd-default")[0].source_ref == "dsp-bsp:pub_role:r7"
+        assert repo.list_roles(tenant_id="sd-default")[0].source_ref == "dsp-bsp:pub_role:platform_steward"
         assert repo.list_actors(tenant_id="sd-default")[0].source_ref == "iaf:claims"
         assert database_store.capability_package_repo.get_policy("topic.package.publish", tenant_id="sd-default") is not None
 
@@ -3507,10 +3507,10 @@ def test_p1_topic_package_publish_requires_approved_visibility() -> None:
         database_store = DatabaseStore()
         audit_bus.configure_sink(database_store.append_audit_event)
         service = BrainService(state_store=StateStore(database_store=database_store))
-        service.invoke_skill("topic.package.create", {"package_code": "tp-blocked", "title": "未满足发布条件", "role": "r7", "confirmed": True})
-        service.invoke_skill("topic.package.submit", {"package_code": "tp-blocked", "role": "r7", "confirmed": True})
+        service.invoke_skill("topic.package.create", {"package_code": "tp-blocked", "title": "未满足发布条件", "role": "ROLE_BUSIAUDIT", "confirmed": True})
+        service.invoke_skill("topic.package.submit", {"package_code": "tp-blocked", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         try:
-            service.invoke_skill("topic.package.publish", {"package_code": "tp-blocked", "role": "r7", "confirmed": True})
+            service.invoke_skill("topic.package.publish", {"package_code": "tp-blocked", "role": "ROLE_BUSIAUDIT", "confirmed": True})
         except InvalidStateError:
             pass
         else:
@@ -3600,14 +3600,14 @@ def test_data_search_recalls_real_catalog_dictionary_titles() -> None:
     """
     tmp, service = make_service()
     try:
-        result = service.invoke_skill("data.search", {"query": "教师资格", "role": "r1"})
+        result = service.invoke_skill("data.search", {"query": "教师资格", "role": "ROLE_ORGAN_OPERATER"})
         recall_hits = [it for it in result["results"] if it.get("kind") == "recall_dictionary"]
         assert recall_hits, "recallDictionary must surface 教师资格 candidate"
         assert any("教师资格" in it["name"] for it in recall_hits)
-        default_result = service.invoke_skill("data.search", {"query": "停车场信息", "role": "r1"})
+        default_result = service.invoke_skill("data.search", {"query": "停车场信息", "role": "ROLE_ORGAN_OPERATER"})
         assert default_result["results"][0]["id"] == "res-jbxx-ledger"
         # Empty query must NOT spam recall (would dump 25 thin cards on every page load)
-        empty_result = service.invoke_skill("data.search", {"query": "", "role": "r1"})
+        empty_result = service.invoke_skill("data.search", {"query": "", "role": "ROLE_ORGAN_OPERATER"})
         assert not any(it.get("kind") == "recall_dictionary" for it in empty_result["results"])
     finally:
         tmp.cleanup()
@@ -3645,7 +3645,7 @@ def test_catalog_browse_paginates_active_real_entries() -> None:
         )
 
         # Default call: lifecycle=active, kind=real, page=1, limit=20
-        result = service.invoke_skill("catalog.browse", {"role": "r1"})
+        result = service.invoke_skill("catalog.browse", {"role": "ROLE_ORGAN_OPERATER"})
         assert result["page"] == 1
         assert result["limit"] == 20
         assert result["total"] >= 2
@@ -3655,28 +3655,28 @@ def test_catalog_browse_paginates_active_real_entries() -> None:
         assert "cat-retired-X" not in {it["catalog_code"] for it in result["items"]}
 
         # Pagination caps page size correctly.
-        page1 = service.invoke_skill("catalog.browse", {"role": "r1", "limit": 1})
+        page1 = service.invoke_skill("catalog.browse", {"role": "ROLE_ORGAN_OPERATER", "limit": 1})
         assert page1["page"] == 1
         assert page1["limit"] == 1
         assert len(page1["items"]) == 1
-        page2 = service.invoke_skill("catalog.browse", {"role": "r1", "limit": 1, "page": 2})
+        page2 = service.invoke_skill("catalog.browse", {"role": "ROLE_ORGAN_OPERATER", "limit": 1, "page": 2})
         assert page2["page"] == 2
         assert page2["items"][0]["catalog_code"] != page1["items"][0]["catalog_code"]
 
         # limit clamps to 100 (defends against client passing absurd values).
-        clamped = service.invoke_skill("catalog.browse", {"role": "r1", "limit": 999})
+        clamped = service.invoke_skill("catalog.browse", {"role": "ROLE_ORGAN_OPERATER", "limit": 999})
         assert clamped["limit"] == 100
         # Negative limit clamps up to 1.
-        floor = service.invoke_skill("catalog.browse", {"role": "r1", "limit": -5})
+        floor = service.invoke_skill("catalog.browse", {"role": "ROLE_ORGAN_OPERATER", "limit": -5})
         assert floor["limit"] == 1
 
         # kind=api-group surfaces only the api-group:* node
-        api_only = service.invoke_skill("catalog.browse", {"role": "r1", "kind": "api-group"})
+        api_only = service.invoke_skill("catalog.browse", {"role": "ROLE_ORGAN_OPERATER", "kind": "api-group"})
         assert all(it["catalog_code"].startswith("api-group:") for it in api_only["items"])
         assert api_only["total"] >= 1
 
         # lifecycle=retired surfaces the retired entry
-        retired_only = service.invoke_skill("catalog.browse", {"role": "r1", "lifecycle": "retired"})
+        retired_only = service.invoke_skill("catalog.browse", {"role": "ROLE_ORGAN_OPERATER", "lifecycle": "retired"})
         assert "cat-retired-X" in {it["catalog_code"] for it in retired_only["items"]}
 
 
@@ -3692,7 +3692,7 @@ def test_catalog_resource_view_opens_catalog_entry_not_in_curated_cards() -> Non
             {"id": "api-group:detail", "name": "浏览详情测试分组", "status": "active", "provider": "platform"}
         )
 
-        detail = service.invoke_skill("catalog.resource_view", {"resource_id": "api-group:detail", "role": "r1"})
+        detail = service.invoke_skill("catalog.resource_view", {"resource_id": "api-group:detail", "role": "ROLE_ORGAN_OPERATER"})
         assert detail["id"] == "api-group:detail"
         assert detail["name"] == "浏览详情测试分组"
         assert detail["explain"]
@@ -3714,7 +3714,7 @@ def test_catalog_resource_view_raises_when_neither_snapshot_nor_db_has_id() -> N
         try:
             service.invoke_skill(
                 "catalog.resource_view",
-                {"resource_id": "does-not-exist-anywhere", "role": "r1"},
+                {"resource_id": "does-not-exist-anywhere", "role": "ROLE_ORGAN_OPERATER"},
             )
         except NotFoundError:
             raised = True
@@ -3730,7 +3730,7 @@ def test_data_search_empty_query_keeps_curated_cards_in_database_mode() -> None:
     """
     tmp, service = make_database_service()
     try:
-        result = service.invoke_skill("data.search", {"query": "", "role": "r1"})
+        result = service.invoke_skill("data.search", {"query": "", "role": "ROLE_ORGAN_OPERATER"})
         assert result["total"] == 12
         assert all({"explain", "nextHints", "score", "coverage", "updatedAt"} <= set(item) for item in result["results"])
         assert any(item["id"] == "res-jbxx-ledger" for item in result["results"])
@@ -3747,7 +3747,7 @@ def test_data_search_database_results_are_card_shaped() -> None:
             {"id": "cat-search-demo", "name": "教师资格目录", "status": "active", "provider": "org-teacher"}
         )
 
-        result = service.invoke_skill("data.search", {"query": "教师资格", "role": "r1"})
+        result = service.invoke_skill("data.search", {"query": "教师资格", "role": "ROLE_ORGAN_OPERATER"})
         hit = next(item for item in result["results"] if item["id"] == "cat-search-demo")
         assert hit["name"] == "教师资格目录"
         assert hit["explain"]

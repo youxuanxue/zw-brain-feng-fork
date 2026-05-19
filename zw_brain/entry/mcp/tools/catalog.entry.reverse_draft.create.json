@@ -1,6 +1,6 @@
 {
   "name": "catalog.entry.reverse_draft.create",
-  "description": "R6 半边：根据已采集的 db_meta_table/db_meta_column 一键生成 catalog_entry(lifecycle_status=draft, summary_json.source=reverse) 草稿。草稿仅作为字段建议，不可直接被申请；R7 字段口径裁决通过后才能进入 pending_review。",
+  "description": "提供方部门 半边：根据已采集的 db_meta_table/db_meta_column 一键生成 catalog_entry(lifecycle_status=draft, summary_json.source=reverse) 草稿。草稿仅作为字段建议，不可直接被申请；业务运营员 字段口径裁决通过后才能进入 pending_review。",
   "inputSchema": {
     "type": "object",
     "required": [

@@ -448,7 +448,7 @@ def build_rest_openapi(skills: list[dict[str, Any]]) -> dict[str, Any]:
                         "name": "role",
                         "in": "query",
                         "required": False,
-                        "schema": {"type": "string", "enum": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"]},
+                        "schema": {"type": "string", "enum": ["ROLE_SYSTEM", "ROLE_BUSIAUDIT", "ROLE_ORGAN_MANAGER", "ROLE_ORGAN_OPERATER", "ROLE_SECURITY_ADMIN", "ROLE_SECURITY_AUDIT"]},
                         "description": "Web UI role; snapshot lists are redacted server-side to match page access.",
                     }
                 ],

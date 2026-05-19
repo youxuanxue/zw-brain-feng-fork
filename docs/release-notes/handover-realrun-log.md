@@ -1,5 +1,11 @@
 # handover-checklist 41 项 fresh-run log（ITEM-07）
 
+> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
+> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
+> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
+> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 原版 R 编号见 git blame。
+
 > **受众**：`customer-delivery-final-mile` /twin workspace ITEM-07 交付。早晨用户拿来核对哪几项需要他亲自看（#22, #34-#39 浏览器渲染）。
 > **执行时间**：2026-05-19 凌晨
 > **环境**：本机 venv (.venv/bin/python 3.13.0) + `.data/customer_acceptance.db`（既有 ITEM-02 demo 数据）+ 分支 `feature/customer-delivery-final-mile`
@@ -128,7 +134,7 @@
 - 结果：**pass**（mapped 比例 68931/68935 ≈ **99.99%**，远超 95% 门槛）
 
 ### #21 M0 验收 status query 11 卡片
-- 命令：`service.invoke_skill('legacy.migration.status.query', {'role':'r7'})`（等价于 `curl /api/skills/...`）
+- 命令：`service.invoke_skill('legacy.migration.status.query', {'role':'ROLE_BUSIAUDIT'})`（等价于 `curl /api/skills/...`）
 - 输出：`work_queue_cards count: 11`（首 3：export / import / mapping_verify）
 - 结果：**pass**
 
@@ -146,34 +152,34 @@
 ### #24-#33 一键跑
 - 命令：`.venv/bin/python -m pytest tests/test_acceptance_9_roles_e2e.py -v`
 - 输出：`10 passed in 2.47s`
-- 结果：**pass**（10/10）；逐项断言（M0 status / R1 需求登记 / R6→R7 反向编目 / R2 分级授权 / R6 检测规则 / R3 派单 / R4 异常回传 / R5 异议四子流程 / R8 直达督查 / audit 链覆盖）均通过
+- 结果：**pass**（10/10）；逐项断言（M0 status / 申请人 需求登记 / 提供方部门→业务运营员 反向编目 / 审批人 分级授权 / 提供方部门 检测规则 / 镇街填报人 派单 / 村社区填报人 异常回传 / 审核汇总人 异议四子流程 / 安全审计员 直达督查 / audit 链覆盖）均通过
 
 ## 八、WebUI 9 岗位浏览（6 项）
 
 > headless 跑不了；本节 6 项 **early-morning user walkthrough** 必看。启 REST 后浏览器访问：
 
-### #34 R1 P1 工作台显示 API 凭据卡 + 需求登记
-- 切角色 r1，进 `#/p1-workbench` → 底部应见"我的 API 凭据"和"需求登记前置"两栏
+### #34 申请人 P1 工作台显示 API 凭据卡 + 需求登记
+- 切角色 ROLE_ORGAN_OPERATER，进 `#/p1-workbench` → 底部应见"我的 API 凭据"和"需求登记前置"两栏
 - 结果：**human-visual-required**
 
-### #35 R2 P3 reviewDetail 有分级授权策略 form
-- 切 r2，进 `#/p3-request-flow/review/REQ-2026-04-25-0011` → 5 字段策略表（档位/脱敏/频次/有效期/级联）
+### #35 审批人 P3 reviewDetail 有分级授权策略 form
+- 切 ROLE_ORGAN_MANAGER，进 `#/p3-request-flow/review/REQ-2026-04-25-0011` → 5 字段策略表（档位/脱敏/频次/有效期/级联）
 - 结果：**human-visual-required**
 
-### #36 R6 P5 4 张工作流卡 + 反向编目向导可点
-- 切 r6，进 `#/p5-provider` → 4 张 R6 卡 + 点反向编目能进 `#/p5-provider/wizard/reverse-catalog`
+### #36 提供方部门 P5 4 张工作流卡 + 反向编目向导可点
+- 切 ROLE_ORGAN_MANAGER，进 `#/p5-provider` → 4 张 提供方部门 卡 + 点反向编目能进 `#/p5-provider/wizard/reverse-catalog`
 - 结果：**human-visual-required**
 
-### #37 R7 P5 3 张收件箱 + 字段口径裁决可点
-- 切 r7，进 `#/p5-provider` → 3 张 R7 卡（标题含 "N 条待我裁决"）
+### #37 业务运营员 P5 3 张收件箱 + 字段口径裁决可点
+- 切 ROLE_BUSIAUDIT，进 `#/p5-provider` → 3 张 业务运营员 卡（标题含 "N 条待我裁决"）
 - 结果：**human-visual-required**
 
-### #38 R8 P6 绕行督查 panel
-- 切 r8，进 `#/p6-compliance-ops` → 底部 R8 直达交付清单 + 异议绕行可疑
+### #38 安全审计员 P6 绕行督查 panel
+- 切 ROLE_SECURITY_AUDIT，进 `#/p6-compliance-ops` → 底部 安全审计员 直达交付清单 + 异议绕行可疑
 - 结果：**human-visual-required**
 
-### #39 R3/R4 P3 任务过滤 + 异常回传
-- 切 r3，进 `#/p3-request-flow` → 列表只剩 supplementing/need-fix；右上角"异常回传"链接
+### #39 基层填报人 P3 任务过滤 + 异常回传
+- 切 ROLE_ORGAN_OPERATER，进 `#/p3-request-flow` → 列表只剩 supplementing/need-fix；右上角"异常回传"链接
 - 结果：**human-visual-required**
 
 ## 九、审计 + 合规收口（2 项）

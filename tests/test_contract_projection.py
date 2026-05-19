@@ -214,7 +214,7 @@ def test_registered_builtin_contracts_are_brain_service_routed() -> None:
         required_permissions = set(skill.get("permissions") or [])
         role = next(
             (candidate for candidate in ACTOR_NAMES if required_permissions.issubset(permissions_for_role(candidate))),
-            "r8",
+            "ROLE_SECURITY_AUDIT",
         )
         payload = {name: _sample_value(name, schema) for name, schema in skill.get("input_schema", {}).get("properties", {}).items()}
         for name in skill.get("input_schema", {}).get("required", []):
@@ -250,7 +250,7 @@ def test_registered_skill_permissions_are_assigned_to_roles() -> None:
 
 def _sample_value(name: str, schema: dict) -> object:
     if name == "role":
-        return "r8"
+        return "ROLE_SECURITY_AUDIT"
     if name == "confirmed":
         return True
     if name == "decision":
@@ -285,7 +285,7 @@ def test_external_capability_contracts_are_not_brain_service_invokable() -> None
                 "target_type": "catalog",
                 "target_ref": "cat-demo",
                 "tenant_id": "sd-default",
-                "role": "r7",
+                "role": "ROLE_BUSIAUDIT",
             },
         )
     except UnknownSkillError:

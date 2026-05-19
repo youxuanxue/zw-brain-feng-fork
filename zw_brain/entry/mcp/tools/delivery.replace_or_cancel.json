@@ -1,6 +1,6 @@
 {
   "name": "delivery.replace_or_cancel",
-  "description": "R2 在资源撤回或资产 suspended 时决定：把现有 delivery_task 重新指向替代资源（replace），或者取消并通知订阅方（cancel）。避免授权悬空。",
+  "description": "审批人 在资源撤回或资产 suspended 时决定：把现有 delivery_task 重新指向替代资源（replace），或者取消并通知订阅方（cancel）。避免授权悬空。",
   "inputSchema": {
     "type": "object",
     "required": [

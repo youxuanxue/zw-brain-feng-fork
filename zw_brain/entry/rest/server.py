@@ -57,7 +57,8 @@ from zw_brain.skill_registration.runtime import SurfaceNotEnabledError, require_
 
 _LOGGER = logging.getLogger(__name__)
 _JWKS_CACHE_TTL_SECONDS = 600
-_DEV_IAM_BYPASS_ROLES = ("r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8")
+# R-008/R-009: 从单一来源 role_codes 派生（含 admin / system）
+from zw_brain.domain.role_codes import ALL_ROLE_CODES as _DEV_IAM_BYPASS_ROLES  # noqa: E402
 _DEV_IAM_BYPASS_SUBJECT = "dev-iam-bypass"
 _DEV_IAM_BYPASS_USERNAME = "dev_iam_bypass"
 _DEV_IAM_BYPASS_DISPLAY_NAME = "开发调试账号（IAM bypass）"
@@ -297,7 +298,7 @@ class RestHandler(BaseHTTPRequestHandler):
 
     def _handle_api_snapshot(self, parsed, _claims: dict[str, Any]) -> None:  # type: ignore[no-untyped-def]
         qs = parse_qs(parsed.query)
-        role = (qs.get("role") or ["r1"])[-1]
+        role = (qs.get("role") or ["ROLE_ORGAN_OPERATER"])[-1]
         self._json(200, get_service().invoke_skill("system.snapshot", {"role": role}))
 
     def _handle_api_skill_get(self, parsed, _claims: dict[str, Any]) -> None:  # type: ignore[no-untyped-def]
@@ -553,7 +554,7 @@ class RestHandler(BaseHTTPRequestHandler):
             self._handle_error(exc)
 
     def _sync_actor_from_claims(self, claims: dict[str, Any]) -> dict[str, Any]:
-        # IAM-initiated first-login projection is a system-origin write, not an r7 user action;
+        # IAM-initiated first-login projection is a system-origin write, not a ROLE_BUSIAUDIT user action;
         # using role="system" keeps the audit/capability_call actor honest. The "system" role is granted
         # exactly the actor.projection.sync.execute permission in zw_brain/domain/policy.py.
         return get_service().invoke_skill(
@@ -716,7 +717,7 @@ def log_iaf_runtime_warnings() -> None:
     if get_dev_iam_bypass_enabled():
         _LOGGER.warning(
             "ZW_BRAIN_DEV_IAM_BYPASS=1 is active — IAM auth is fully bypassed and every "
-            "request runs as a synthetic %s user with all r1..r8 roles. DEVELOPMENT ONLY.",
+            "request runs as a synthetic %s user with all 6 ROLE_* roles. DEVELOPMENT ONLY.",
             _DEV_IAM_BYPASS_SUBJECT,
         )
     elif os.environ.get("ZW_BRAIN_DEV_IAM_BYPASS", "").strip() == "1":

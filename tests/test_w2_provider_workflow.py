@@ -1,9 +1,9 @@
-"""W2 R6 P5 工作流卡片 contract test.
+"""W2 提供方部门 P5 工作流卡片 contract test.
 
 Covers:
 - catalog.entry.reverse_draft.suggest skill manifest + dispatch + role grant
 - 三档预填 helper (reverse_draft_suggest.build_field_suggestions / build_title_suggestion)
-- WebUI: P5 has 4 workflow cards (R6 only) + 3 wizard subpages registered
+- WebUI: P5 has 4 workflow cards (提供方部门 only) + 3 wizard subpages registered
 - WebUI: actions wire up to skills via documented chain
 """
 from __future__ import annotations
@@ -45,7 +45,7 @@ def test_suggest_skill_registered_with_correct_audit_class() -> None:
     for surface in ("webui", "api", "cli", "mcp", "a2a"):
         assert surface in manifest["compatibility"]
     allowed = PERMISSION_ROLES.get("catalog.entry.reverse_draft.suggest.execute") or set()
-    assert "r6" in allowed and "r7" in allowed
+    assert "ROLE_ORGAN_MANAGER" in allowed and "ROLE_BUSIAUDIT" in allowed
 
 
 def test_field_suggestions_three_tier_coverage_against_real_schema() -> None:
@@ -113,7 +113,7 @@ def test_title_suggestion_prefers_comment_over_table_name() -> None:
 def test_suggest_skill_returns_envelope_for_missing_schema(svc) -> None:
     result = svc.invoke_skill(
         "catalog.entry.reverse_draft.suggest",
-        {"role": "r6", "schema_ref": "snap-nonexistent"},
+        {"role": "ROLE_ORGAN_MANAGER", "schema_ref": "snap-nonexistent"},
     )
     assert result["found"] is False
     assert result["fields"] == []
@@ -146,7 +146,7 @@ def test_suggest_skill_returns_three_tier_for_real_snapshot(svc) -> None:
 
     result = svc.invoke_skill(
         "catalog.entry.reverse_draft.suggest",
-        {"role": "r6", "schema_ref": "snap-w2-001"},
+        {"role": "ROLE_ORGAN_MANAGER", "schema_ref": "snap-w2-001"},
     )
     assert result["found"] is True
     assert result["coverage"]["total"] == 3
@@ -157,11 +157,11 @@ def test_webui_p5_workflow_cards_and_wizards_wired() -> None:
     pages_js = (REPO / "zw-brain-web" / "js" / "pages.js").read_text(encoding="utf-8")
     app_js = (REPO / "zw-brain-web" / "js" / "app.js").read_text(encoding="utf-8")
 
-    # 1. Workflow cards function visible to r6 only
+    # 1. Workflow cards function visible to ROLE_ORGAN_MANAGER only
     assert "r6ProviderWorkflowCards" in pages_js
-    assert "反向编目（R6 → R7）" in pages_js
-    assert "API 服务化交付（R6 → R7/R2）" in pages_js
-    assert "自动检测规则维护（R6）" in pages_js
+    assert "反向编目（提供方部门 → 业务运营员）" in pages_js
+    assert "API 服务化交付（提供方部门 → 业务运营员/审批人）" in pages_js
+    assert "自动检测规则维护（提供方部门）" in pages_js
 
     # 2. Three wizard pages registered
     assert "PAGES.providerWizardReverseCatalog" in pages_js
@@ -172,7 +172,7 @@ def test_webui_p5_workflow_cards_and_wizards_wired() -> None:
         "providerWizardApiService",
         "providerWizardQualityRule",
     ):
-        assert f"{key}: ['r6']" in pages_js, f"missing access for {key}"
+        assert f"{key}: ['ROLE_ORGAN_MANAGER']" in pages_js, f"missing access for {key}"
         assert f"{key}: 'p5'" in pages_js, f"missing shell key for {key}"
 
     # 3. Routes — regex form in JS uses backslash-escaped slashes

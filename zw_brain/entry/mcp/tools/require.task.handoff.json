@@ -1,6 +1,6 @@
 {
   "name": "require.task.handoff",
-  "description": "记录 R7 把派发后的任务转给 R5 接管的责任快照；只写审计与责任快照，不修改业务字段。",
+  "description": "记录 业务运营员 把派发后的任务转给 审核汇总人 接管的责任快照；只写审计与责任快照，不修改业务字段。",
   "inputSchema": {
     "type": "object",
     "required": [

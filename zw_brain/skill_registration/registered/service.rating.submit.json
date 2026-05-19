@@ -2,7 +2,7 @@
   "skill_id": "service.rating.submit",
   "slug": "service.rating.submit",
   "title": "提交服务评价",
-  "description": "R1 在交付完成后为本次共享服务打分（满意度 1-5 + 文字评价），写入审计供 R8 督查。",
+  "description": "申请人 在交付完成后为本次共享服务打分（满意度 1-5 + 文字评价），写入审计供 安全审计员 督查。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",

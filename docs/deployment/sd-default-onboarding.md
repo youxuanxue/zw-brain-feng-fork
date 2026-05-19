@@ -1,5 +1,11 @@
 # sd-default 客户现场部署 runbook
 
+> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
+> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
+> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
+> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 原版 R 编号见 git blame。
+
 > 📍 **你在哪一份 zw-brain 文档？**
 > | 你是谁 | 看哪份 |
 > | --- | --- |
@@ -12,7 +18,7 @@
 > **本文件**：`docs/deployment/sd-default-onboarding.md` = 客户运维 0.5-1 工作日 runbook；每步带『做什么 / 怎么验证 / 失败排查』。签收看 handover-checklist。
 
 > **适用**：山东省（sd-default）单租户单省政务现场。
-> **目标**：从一台空机器开始，到 9 角色（M0 + R1-R8）能在 zw-brain 上完成
+> **目标**：从一台空机器开始，到 9 角色（M0 + 7 角色）能在 zw-brain 上完成
 > 自己的主旅程，**控制在 0.5-1 个工作日内完成**。
 
 本文档是 W5 客户移交清单（`handover-checklist.md`）的执行手册。
@@ -256,14 +262,14 @@ curl -s http://localhost:8800/openapi.json | jq '.paths | length'
 
 应该看到 10/10 通过：
 - `test_01_m0_acceptance_status_query` — M0 验收 status query
-- `test_02_r1_demand_registration_intent_submit` — R1 需求登记
-- `test_03_r7_reverse_draft_create_then_confirm` — R6→R7 反向编目闭环
-- `test_04_r2_application_review_with_grade_policy` — R2 分级授权策略审批
-- `test_05_r6_quality_rule_and_api_service` — R6 检测规则 + 任务触发
-- `test_06_r3_supplement_skill_callable` — R3 接补差任务派发
-- `test_07_r4_exception_callback_handoff` — R4 异常回传
-- `test_08_r5_objection_four_substages` — R5 异议四子流程
-- `test_09_r8_audit_list_and_direct_access` — R8 审计抽查 + 直达绕行
+- `test_02_r1_demand_registration_intent_submit` — 申请人 需求登记
+- `test_03_r7_reverse_draft_create_then_confirm` — 提供方部门→业务运营员 反向编目闭环
+- `test_04_r2_application_review_with_grade_policy` — 审批人 分级授权策略审批
+- `test_05_r6_quality_rule_and_api_service` — 提供方部门 检测规则 + 任务触发
+- `test_06_r3_supplement_skill_callable` — 镇街填报人 接补差任务派发
+- `test_07_r4_exception_callback_handoff` — 村社区填报人 异常回传
+- `test_08_r5_objection_four_substages` — 审核汇总人 异议四子流程
+- `test_09_r8_audit_list_and_direct_access` — 安全审计员 审计抽查 + 直达绕行
 - `test_10_audit_chain_covers_all_roles` — audit 链覆盖所有角色
 
 **失败排查**：
@@ -278,14 +284,14 @@ curl -s http://localhost:8800/openapi.json | jq '.paths | length'
 
 | 岗位 | 主入口 | 关键动作 |
 | --- | --- | --- |
-| M0（隐式：R7 + R8） | `#/p0-migration-acceptance` | 11 张工作队列卡片状态 |
-| R1 | `#/p1-workbench` | "我的 API 凭据"卡 + "需求登记前置"表单 |
-| R2 | `#/p3-request-flow/review/<req>` | 分级授权策略 inline 表单 |
-| R3/R4 | `#/p3-request-flow` | "只看我的"列表过滤 + "异常回传" |
-| R5 | `#/p6-compliance-ops/dispute/<obj>` | 异议四子流程 4 张表单卡 |
-| R6 | `#/p5-provider` | 4 张 R6 工作流卡（反向编目 / API 服务化 / 检测规则 / 资源挂接） |
-| R7 | `#/p5-provider` | 3 张 R7 收件箱（字段裁决 / 挂接审核 / 供需对接） |
-| R8 | `#/p6-compliance-ops` | "R8 绕行督查"panel |
+| M0（隐式：业务运营员 + 安全审计员） | `#/p0-migration-acceptance` | 11 张工作队列卡片状态 |
+| 申请人 | `#/p1-workbench` | "我的 API 凭据"卡 + "需求登记前置"表单 |
+| 审批人 | `#/p3-request-flow/review/<req>` | 分级授权策略 inline 表单 |
+| 基层填报人 | `#/p3-request-flow` | "只看我的"列表过滤 + "异常回传" |
+| 审核汇总人 | `#/p6-compliance-ops/dispute/<obj>` | 异议四子流程 4 张表单卡 |
+| 提供方部门 | `#/p5-provider` | 4 张 提供方部门 工作流卡（反向编目 / API 服务化 / 检测规则 / 资源挂接） |
+| 业务运营员 | `#/p5-provider` | 3 张 业务运营员 收件箱（字段裁决 / 挂接审核 / 供需对接） |
+| 安全审计员 | `#/p6-compliance-ops` | "安全审计员 绕行督查"panel |
 
 **客户现场签收脚本**：让客户每个岗位 1-2 个真实业务对象走完一次主旅程，把审计日志截图作为签收附件。
 

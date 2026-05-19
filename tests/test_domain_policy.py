@@ -13,16 +13,16 @@ from zw_brain.domain.policy import (
 
 def test_resolve_role_rejects_unknown_role() -> None:
     with pytest.raises(DomainAccessDeniedError):
-        resolve_role("rx", "r1")
+        resolve_role("rx", "ROLE_ORGAN_OPERATER")
 
 
 def test_actor_for_role_maps_government_actor_urn() -> None:
-    assert actor_for_role("r1") == "user:gov:r1:周处长"
+    assert actor_for_role("ROLE_ORGAN_OPERATER") == "user:gov:ROLE_ORGAN_OPERATER:部门操作员"
 
 
 def test_permissions_for_role_returns_declared_capabilities() -> None:
-    assert "request.create.execute" in permissions_for_role("r1")
-    assert "approval.review_decide.execute" not in permissions_for_role("r1")
+    assert "request.create.execute" in permissions_for_role("ROLE_ORGAN_OPERATER")
+    assert "approval.review_decide.execute" not in permissions_for_role("ROLE_ORGAN_OPERATER")
 
 
 def test_enforce_manifest_policy_rejects_missing_permission() -> None:
@@ -33,7 +33,7 @@ def test_enforce_manifest_policy_rejects_missing_permission() -> None:
         "permissions": ["approval.review_decide.execute"],
     }
     with pytest.raises(DomainAccessDeniedError):
-        enforce_manifest_policy("approval.review_decide", manifest, "r1", {"confirmed": True})
+        enforce_manifest_policy("approval.review_decide", manifest, "ROLE_ORGAN_OPERATER", {"confirmed": True})
 
 
 def test_enforce_manifest_policy_rejects_cross_tenant_payload() -> None:
@@ -44,7 +44,7 @@ def test_enforce_manifest_policy_rejects_cross_tenant_payload() -> None:
         "permissions": ["request.create.execute"],
     }
     with pytest.raises(DomainAccessDeniedError):
-        enforce_manifest_policy("request.create", manifest, "r1", {"confirmed": True, "tenant_id": "external"})
+        enforce_manifest_policy("request.create", manifest, "ROLE_ORGAN_OPERATER", {"confirmed": True, "tenant_id": "external"})
 
 
 @pytest.mark.parametrize("tenant_id", ["", 0, False])
@@ -56,7 +56,7 @@ def test_enforce_manifest_policy_rejects_falsy_tenant_payload(tenant_id: object)
         "permissions": ["request.create.execute"],
     }
     with pytest.raises(DomainAccessDeniedError):
-        enforce_manifest_policy("request.create", manifest, "r1", {"confirmed": True, "tenant_id": tenant_id})
+        enforce_manifest_policy("request.create", manifest, "ROLE_ORGAN_OPERATER", {"confirmed": True, "tenant_id": tenant_id})
 
 
 def test_enforce_manifest_policy_allows_unscoped_read_without_role_payload() -> None:
@@ -66,4 +66,4 @@ def test_enforce_manifest_policy_allows_unscoped_read_without_role_payload() -> 
         "human_confirmation_required": False,
         "permissions": ["data.search.execute"],
     }
-    enforce_manifest_policy("data.search", manifest, "r1", {})
+    enforce_manifest_policy("data.search", manifest, "ROLE_ORGAN_OPERATER", {})
