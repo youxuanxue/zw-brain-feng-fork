@@ -266,13 +266,23 @@
         const approvalIndex = window.RUNTIME_APPROVALS.findIndex(item => item.id === id);
         if (approvalIndex >= 0) window.RUNTIME_APPROVALS[approvalIndex] = approval; else window.RUNTIME_APPROVALS.unshift(approval);
       } else if (route === '#/p4-delivery-exchange' && roleCan(['r1', 'r2', 'r5', 'r6', 'r7', 'r8'])) {
-        const result = await invokeRead('delivery.list', {});
-        window.RUNTIME_DELIVERY_TASKS = result.items;
+        // r1 没有 delivery.list.execute 权限（治理侧 skill）；snapshot 已带 role-filtered
+        // delivery_tasks，refresh 失败时沿用 snapshot 不弹错（其它角色失败仍向上冒泡）。
+        try {
+          const result = await invokeRead('delivery.list', {});
+          window.RUNTIME_DELIVERY_TASKS = result.items;
+        } catch (err) {
+          if (currentRole !== 'r1') throw err;
+        }
       } else if (route.startsWith('#/p4-delivery-exchange/task/') && roleCan(['r1', 'r2', 'r5', 'r6', 'r7', 'r8'])) {
         const id = decodeURIComponent(route.split('/').pop());
-        const task = await invokeRead('delivery.view', { task_id: id });
-        const index = window.RUNTIME_DELIVERY_TASKS.findIndex(item => item.id === id);
-        if (index >= 0) window.RUNTIME_DELIVERY_TASKS[index] = task; else window.RUNTIME_DELIVERY_TASKS.unshift(task);
+        try {
+          const task = await invokeRead('delivery.view', { task_id: id });
+          const index = window.RUNTIME_DELIVERY_TASKS.findIndex(item => item.id === id);
+          if (index >= 0) window.RUNTIME_DELIVERY_TASKS[index] = task; else window.RUNTIME_DELIVERY_TASKS.unshift(task);
+        } catch (err) {
+          if (currentRole !== 'r1') throw err;
+        }
       } else if (route === '#/p5-provider' && roleCan(['r6', 'r7'])) {
         window.RUNTIME_PROVIDER = await invokeRead('provider.view', {});
       } else if (route === '#/p6-compliance-ops' && roleCan(['r2', 'r5', 'r6', 'r7', 'r8'])) {

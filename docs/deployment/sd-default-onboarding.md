@@ -1,5 +1,16 @@
 # sd-default 客户现场部署 runbook
 
+> 📍 **你在哪一份 zw-brain 文档？**
+> | 你是谁 | 看哪份 |
+> | --- | --- |
+> | 客户运维 / 实施工程师（部署 + 操作） | [`docs/deployment/sd-default-onboarding.md`](./sd-default-onboarding.md)（0.5-1 工作日 runbook） |
+> | 客户验收人 / 签收 | [`docs/deployment/handover-checklist.md`](./handover-checklist.md)（41 项核验签收） |
+> | 业务用户 / 8 角色试岗 | [`.experiences/QUICKSTART.md`](../../.experiences/QUICKSTART.md)（5 分钟人话指南） |
+> | 产品评审 / 架构师 / 角色体验回顾 | [`.experiences/README.md`](../../.experiences/README.md)（角色体验手册） |
+> | 客户老板 / CIO 5 分钟看效果 | `bash scripts/customer_demo_5min.sh`（[demo 剧本](../release-notes/customer-demo-5min.md)） |
+>
+> **本文件**：`docs/deployment/sd-default-onboarding.md` = 客户运维 0.5-1 工作日 runbook；每步带『做什么 / 怎么验证 / 失败排查』。签收看 handover-checklist。
+
 > **适用**：山东省（sd-default）单租户单省政务现场。
 > **目标**：从一台空机器开始，到 9 角色（M0 + R1-R8）能在 zw-brain 上完成
 > 自己的主旅程，**控制在 0.5-1 个工作日内完成**。

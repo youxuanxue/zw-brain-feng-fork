@@ -2677,9 +2677,18 @@ class BrainService:
         return items
 
     def list_audit_events(self) -> list[dict[str, Any]]:
+        """Return audit timeline for R8 / dashboard.
+
+        Time ordering: 内部分两 chunk —— 最近 500 条 audit_event（asc by time）
+        + 最多 200 条 legacy.exchange.import projection（asc by mapped_at）。
+        每个 chunk 内时序严格升序；两 chunk 之间不保证 interleave。R8 UI 把
+        legacy import 视作单独区段呈现，不与 audit 实时事件强混排。
+        """
         store = self._state_store.database_store
         if store is None:
             return copy.deepcopy(self._snapshot["audit_events"])
+        # 默认拉最近 500 条；早期是 SELECT * 拉 2000+ 行（含大 payload_json），
+        # audit.list 与 dashboard.render_command_center 撞 14-30s 慢。
         events = [
             {
                 "id": item.request_id,
@@ -2690,21 +2699,25 @@ class BrainService:
                 "result": "ok",
                 "chain": "pending",
             }
-            for item in store.list_audit_events()
+            for item in store.list_audit_events(limit=500)
         ]
-        for mapping in store.legacy_mapping_repo.list_mappings(tenant_id=_DEFAULT_TENANT_ID):
-            if mapping.legacy_object_type in {"data_apply", "data_apply_course", "data_apply_authrization"}:
-                events.append(
-                    {
-                        "id": mapping.id,
-                        "time": mapping.mapped_at.strftime("%m-%d %H:%M"),
-                        "actor": "legacy.exchange.import",
-                        "type": f"legacy.exchange.import.{mapping.legacy_object_type}",
-                        "target": mapping.legacy_object_ref,
-                        "result": mapping.mapping_status,
-                        "chain": f"{mapping.legacy_object_type}->{mapping.canonical_type}",
-                    }
-                )
+        # Push filter into SQL: 不要拉 54K mappings 全部到 Python 再过滤；只取 audit-relevant 三类 + cap 200。
+        for mapping in store.legacy_mapping_repo.list_mappings(
+            tenant_id=_DEFAULT_TENANT_ID,
+            legacy_object_types=["data_apply", "data_apply_course", "data_apply_authrization"],
+            limit=200,
+        ):
+            events.append(
+                {
+                    "id": mapping.id,
+                    "time": mapping.mapped_at.strftime("%m-%d %H:%M"),
+                    "actor": "legacy.exchange.import",
+                    "type": f"legacy.exchange.import.{mapping.legacy_object_type}",
+                    "target": mapping.legacy_object_ref,
+                    "result": mapping.mapping_status,
+                    "chain": f"{mapping.legacy_object_type}->{mapping.canonical_type}",
+                }
+            )
         return events
 
     def _audit_event_target(self, item: Any) -> str:
@@ -3658,21 +3671,40 @@ class BrainService:
         return package
 
     def get_dashboard(self) -> dict[str, Any]:
+        """Dashboard / 指挥中心 summary。
+        Hot path: 之前调 list_requests() / list_audit_events() 拉 258 application_records
+        + 2300+ audit_events 全字段 + 每条做 get_resource N+1，dashboard.render 30+s 卡死。
+        现在只用 COUNT(*) / 状态聚合 / count_audit_events，sub-second。
+        """
         dashboard = copy.deepcopy(self._snapshot["dashboard"])
         provider = self.get_provider_view()
         packages = self.list_packages()
-        requests = self.list_requests()
-        audit_items = self.list_audit_events()
+        store = self._state_store.database_store
+        snapshot_requests = self._snapshot.get("requests", [])
+        if store is not None:
+            # SQL COUNT — 不动 N+1 路径。
+            # 真 DB 是 source of truth；application_record 已包含 M0 导入的全部历史 +
+            # 运行时新申请。snapshot 上的 6 个 demo request 已经在 ITEM-02 demo 路径里
+            # 通过 application.resource.submit 落库，DB count 是唯一权威数字。
+            request_count = store.application_repo.count_records(tenant_id=_DEFAULT_TENANT_ID) or len(snapshot_requests)
+            request_alert_count = store.application_repo.count_by_statuses(
+                statuses=["rejected"], tenant_id=_DEFAULT_TENANT_ID,
+            )
+            audit_event_count = store.count_audit_events()
+        else:
+            request_count = len(snapshot_requests)
+            request_alert_count = sum(1 for item in snapshot_requests if item.get("status") in {"need-fix", "rejected"})
+            audit_event_count = len(self._snapshot.get("audit_events", []))
+        service_report = self.query_service_report()
         dashboard["brainOutage"] = self._ui_state["brainOutage"]
         dashboard["mode"] = "snapshot" if self._ui_state["brainOutage"] else "live-readonly"
-        service_report = self.query_service_report()
-        dashboard["summary"]["alerts"] = str(sum(1 for item in requests if item["status"] in {"need-fix", "rejected"}) + service_report["summary"]["gatewayWarnings"])
+        dashboard["summary"]["alerts"] = str(request_alert_count + service_report["summary"]["gatewayWarnings"])
         dashboard["summary"]["qps"] = str(service_report["summary"]["invokeCount"])
         dashboard["summary"]["agentsOnline"] = str(service_report["summary"]["gatewayCount"])
         dashboard["repository"] = {
-            "requestCount": len(requests),
+            "requestCount": request_count,
             "packageCount": len(packages),
-            "auditEventCount": len(audit_items),
+            "auditEventCount": audit_event_count,
             "providerResourceCatalogCode": provider.get("repository", {}).get("resourceCatalogCode"),
             "gatewayCount": service_report["summary"]["gatewayCount"],
             "serviceInvokeCount": service_report["summary"]["invokeCount"],
@@ -3973,6 +4005,11 @@ class BrainService:
         Filters:
           - lifecycle: 'active' (default) | 'approved_pending_publish' | 'draft' | 'pending_review' | 'rejected' | 'all'
           - kind: 'real' (default; excludes catalog_code starting with 'api-group:') | 'api-group' | 'all'
+
+        Quality sort: legacy 测试条目（title 为纯 ASCII / 与 catalog_code 同名 /
+        长度 < 4）一律推到末尾，让首屏 / 首页 / demo 第一眼看到的是真业务目录
+        （含 CJK 字符 + 长度 ≥ 4）。退役类垃圾条目应由 R7 用 catalog.entry.withdraw
+        清理，本排序只是不在客户面前展示噪声。
         """
         page = max(int(page or 1), 1)
         limit = max(min(int(limit or 20), 100), 1)
@@ -3991,6 +4028,21 @@ class BrainService:
             records = [r for r in records if r.catalog_code.startswith("api-group:")]
         if owner_org_id:
             records = [r for r in records if r.owner_org_id == str(owner_org_id)]
+
+        def _quality_key(r: Any) -> tuple[int, str]:
+            title = (getattr(r, "title", "") or "").strip()
+            code = getattr(r, "catalog_code", "") or ""
+            # 高分（排前）= 真业务目录；低分（排后）= legacy 测试噪声
+            has_cjk = any("一" <= ch <= "鿿" for ch in title)
+            long_enough = len(title) >= 4
+            # 仅当 title 与 code 完全相等才视为 placeholder（如 title='1' code='1'）；
+            # startswith 会把短数字 title 误伤合法长 catalog_code 的 owner_prefix。
+            distinct_from_code = title != code
+            score = (2 if has_cjk else 0) + (1 if long_enough else 0) + (1 if distinct_from_code else 0)
+            # 同分按 title 字典序稳定
+            return (-score, title)
+
+        records = sorted(records, key=_quality_key)
 
         total = len(records)
         start = (page - 1) * limit

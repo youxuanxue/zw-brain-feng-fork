@@ -1,5 +1,16 @@
 # zw-brain 角色体验手册：M0 一次性迁移验收 + R1-R8 稳态治理旅程
 
+> 📍 **你在哪一份 zw-brain 文档？**
+> | 你是谁 | 看哪份 |
+> | --- | --- |
+> | 客户运维 / 实施工程师（部署 + 操作） | [`docs/deployment/sd-default-onboarding.md`](../docs/deployment/sd-default-onboarding.md)（0.5-1 工作日 runbook） |
+> | 客户验收人 / 签收 | [`docs/deployment/handover-checklist.md`](../docs/deployment/handover-checklist.md)（41 项核验签收） |
+> | 业务用户 / 8 角色试岗 | [`.experiences/QUICKSTART.md`](./QUICKSTART.md)（5 分钟人话指南） |
+> | 产品评审 / 架构师 / 角色体验回顾 | [`.experiences/README.md`](./README.md)（角色体验手册） |
+> | 客户老板 / CIO 5 分钟看效果 | `bash scripts/customer_demo_5min.sh`（[demo 剧本](../docs/release-notes/customer-demo-5min.md)） |
+>
+> **本文件**：`.experiences/README.md` = 8 角色 + M0 体验手册，给产品评审 / 架构师看；不是 runbook、不是签收依据。
+
 > **快速上手**：如果你是客户现场使用者，先看 [QUICKSTART.md](./QUICKSTART.md)——用人话写的极简指南。本文档是架构参考层，给产品研发团队和验收评审使用。
 
 这套文档不是旧后台操作手册，也不是把旧平台迁移工作分摊给 8 个角色。旧 catalog/metadata 后台的完整能力都要承接住，但旧平台退场只由 M0 一次性完成；R1-R8 不再承担导入、核验、补迁、重跑或回滚，而是在验收后的目录、资源、证据和投影上完成稳态工作。

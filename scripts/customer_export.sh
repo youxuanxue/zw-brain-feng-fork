@@ -54,6 +54,15 @@ die() {
   exit "${2:-2}"
 }
 
+# fail_with_hint: 给以后的 callsite 用；不强改 die() 签名以保 13 处现有调用兼容。
+fail_with_hint() {
+  echo "FATAL: $1" >&2
+  if [[ -n "${2:-}" ]]; then
+    echo "  next-step: $2" >&2
+  fi
+  exit "${3:-2}"
+}
+
 for arg in "$@"; do
   case "$arg" in
     --db-host=*) DB_HOST="${arg#*=}" ;;
@@ -123,7 +132,10 @@ echo "[customer-export] verifying manifest hashes"
 "$PYTHON" "$REPO_ROOT/scripts/customer_export.py" verify --batch-dir="$OUTPUT_DIR" \
   || die "verify step failed — manifest hashes do not match files on disk" 4
 
-echo "[customer-export] OK"
+echo ""
+echo "=== export complete ==="
 echo "  batch_id=$BATCH_ID"
 echo "  output_dir=$OUTPUT_DIR"
-echo "  manifest=$OUTPUT_DIR/manifest.json"
+echo "  manifest: $OUTPUT_DIR/manifest.json"
+echo "  verify : python scripts/customer_export.py verify --batch-dir=$OUTPUT_DIR"
+echo "  next   : 把 $OUTPUT_DIR 完整目录拷贝到 zw-brain 部署机，运行 bash scripts/customer_acceptance_up.sh"

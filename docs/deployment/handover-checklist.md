@@ -1,5 +1,18 @@
 # zw-brain 客户现场移交 checklist
 
+> 📍 **你在哪一份 zw-brain 文档？**
+> | 你是谁 | 看哪份 |
+> | --- | --- |
+> | 客户运维 / 实施工程师（部署 + 操作） | [`docs/deployment/sd-default-onboarding.md`](./sd-default-onboarding.md)（0.5-1 工作日 runbook） |
+> | 客户验收人 / 签收 | [`docs/deployment/handover-checklist.md`](./handover-checklist.md)（41 项核验签收） |
+> | 业务用户 / 8 角色试岗 | [`.experiences/QUICKSTART.md`](../../.experiences/QUICKSTART.md)（5 分钟人话指南） |
+> | 产品评审 / 架构师 / 角色体验回顾 | [`.experiences/README.md`](../../.experiences/README.md)（角色体验手册） |
+> | 客户老板 / CIO 5 分钟看效果 | `bash scripts/customer_demo_5min.sh`（[demo 剧本](../release-notes/customer-demo-5min.md)） |
+>
+> **本文件**：`docs/deployment/handover-checklist.md` = 客户验收人 41 项 checkbox 签收依据；不是 runbook（看 onboarding）、不是体验手册（看 README）。
+
+> **客户老板 / CIO 视角**：先看 [`.experiences/QUICKSTART.md#客户拿到-zw-brain-之后的时间线`](../../.experiences/QUICKSTART.md#客户拿到-zw-brain-之后的时间线) 一图四阶段（首小时 / 首日 / 首周 / 首月），再来这里逐项签收。
+
 > **用途**：把 `sd-default-onboarding.md` 走完后的 41 项核验全部打勾，
 > **作为客户签收 zw-brain 进入生产的唯一依据**。
 >
@@ -12,93 +25,95 @@
 
 ## 一、环境前置（5 项）
 
-| # | 检查项 | 怎么验证 | 预期 |
-| --- | --- | --- | --- |
-| 1 | Python 3.13+ | `python3 --version` | 3.13.x |
-| 2 | uv 已装 | `uv --version` | 0.4+ |
-| 3 | venv 已建并装齐依赖 | `.venv/bin/python -c "import zw_brain"` | 不报错 |
-| 4 | 数据目录可写 | `touch $ZW_BRAIN_DB_PATH.test && rm $_` | 不报错 |
-| 5 | mysql 客户端可用（仅客户机房） | `which mysqldump` | 有路径返回 |
+| # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
+| --- | --- | --- | --- | --- |
+| 1 | Python 3.13+ | `python3 --version` | 3.13.x | venv 无法创建 → 后续全部失败，系统装不起来 |
+| 2 | uv 已装 | `uv --version` | 0.4+ | 依赖锁定失效 → 客户环境与开发环境漂移，难以现场修 bug |
+| 3 | venv 已建并装齐依赖 | `.venv/bin/python -c "import zw_brain"` | 不报错 | 进程起不来 → REST / dashboard / 任何 skill 调用全部 502 |
+| 4 | 数据目录可写 | `touch $ZW_BRAIN_DB_PATH.test && rm $_` | 不报错 | M0 迁移落不了库 → 客户旧数据进不来 |
+| 5 | mysql 客户端可用（仅客户机房） | `which mysqldump` | 有路径返回 | 客户机房无法一键导出 → M0 数据迁移走不通 |
 
 ## 二、数据库初始化（3 项）
 
-| # | 检查项 | 怎么验证 | 预期 |
-| --- | --- | --- | --- |
-| 6 | alembic upgrade head 成功 | `.venv/bin/alembic upgrade head` | 9 个 migration 全过 |
-| 7 | canonical schema 可写 | `python -c "from zw_brain.shared.migrate import ensure_runtime_schema; ensure_runtime_schema()"` | 不报错 |
-| 8 | 默认租户 sd-default 生效 | `python -c "from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT; print(DEFAULT_TENANT)"` | `sd-default` |
+| # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
+| --- | --- | --- | --- | --- |
+| 6 | alembic upgrade head 成功 | `.venv/bin/alembic upgrade head` | 9 个 migration 全过 | schema 版本不全 → 业务读写报"no such table"，整库不可用 |
+| 7 | canonical schema 可写 | `python -c "from zw_brain.shared.migrate import ensure_runtime_schema; ensure_runtime_schema()"` | 不报错 | canonical schema 不可写 → 任何 write skill（申请/审批/交付）都落不下来 |
+| 8 | 默认租户 sd-default 生效 | `python -c "from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT; print(DEFAULT_TENANT)"` | `sd-default` | 租户错配 → 数据写到错误 tenant，跨租户隔离失效 |
 
 ## 三、配置 / 密钥（5 项）
 
-| # | 检查项 | 怎么验证 | 预期 |
-| --- | --- | --- | --- |
-| 9 | `ZW_BRAIN_DB_PATH` 已设 | `echo $ZW_BRAIN_DB_PATH` | 绝对路径，非默认 |
-| 10 | IAF/OIDC 端点可达 | `curl -s "$ZW_BRAIN_IAF_AUTH_SERVER_URL/.well-known/openid-configuration" \| jq .issuer` | 返回 issuer URL |
-| 11 | 推理网关密钥引用配置 | `echo $ZW_BRAIN_INFERENCE_API_KEY_REF` | 非空，且不是明文（应以 `arn:` 或 `vault:` 开头） |
-| 12 | Blockchain anchor 端点配置（可选） | `echo $ZW_BRAIN_BLOCKCHAIN_ENDPOINT` | 非空 或 显式留 mock-chain |
-| 13 | 无明文密钥泄露到代码库 | `grep -rE '(password\|api_key)=.{8,}' --include="*.py" --include="*.json" /opt/zw-brain` | 仅命中 `*_REF` 引用、不出现真实值 |
+| # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
+| --- | --- | --- | --- | --- |
+| 9 | `ZW_BRAIN_DB_PATH` 已设 | `echo $ZW_BRAIN_DB_PATH` | 绝对路径，非默认 | 误用默认路径 → 服务重启数据丢失，没人能签收 |
+| 10 | IAF/OIDC 端点可达 | `curl -s "$ZW_BRAIN_IAF_AUTH_SERVER_URL/.well-known/openid-configuration" \| jq .issuer` | 返回 issuer URL | IAM 不通 → 客户业务用户无法登录，整套大脑只有 dev-bypass 可用（生产禁用） |
+| 11 | 推理网关密钥引用配置 | `echo $ZW_BRAIN_INFERENCE_API_KEY_REF` | 非空，且不是明文（应以 `arn:` 或 `vault:` 开头） | 推理密钥缺/明文 → LLM 类 skill 全部失败 或 密钥泄露被合规警告 |
+| 12 | Blockchain anchor 端点配置（可选） | `echo $ZW_BRAIN_BLOCKCHAIN_ENDPOINT` | 非空 或 显式留 mock-chain | 未显式 mock-chain → audit 异步锚定无目标，R8 督查证据链断 |
+| 13 | 无明文密钥泄露到代码库 | `grep -rE '(password\|api_key)=.{8,}' --include="*.py" --include="*.json" /opt/zw-brain` | 仅命中 `*_REF` 引用、不出现真实值 | 明文密钥 → 立即合规高危事件，必须 rotation + 强制下架，签收作废 |
 
 ## 四、preflight 16 段全过（1 项 — 这一项覆盖整个机械规约层）
 
-| # | 检查项 | 怎么验证 | 预期 |
-| --- | --- | --- | --- |
-| 14 | preflight 全段通过 | `bash scripts/preflight.sh 2>&1 \| tail -3` | `=== preflight: PASS (common + project stages) ===` |
+| # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
+| --- | --- | --- | --- | --- |
+| 14 | preflight 全段通过 | `bash scripts/preflight.sh 2>&1 \| tail -3` | `=== preflight: PASS (common + project stages) ===` | 机械规约层断 → 任何 PR 不能 merge，hotfix 链路瘫痪 |
 
 子段包括：branch naming / dev-rules 同步 / agent contract drift / user-story alignment / approved-doc invariants / doc stats sync / audit-must-block (D4) / blockchain-async (D4) / fixture-pii (D11) / no-direct-llm (D6) / dashboard-readonly (D15) / external-refs (D22) / ui-spec-b (Spec B 单主题) / legacy-mappers (D7+D4) — 16 段。
 
 ## 五、客户现场一键导出（4 项）
 
-| # | 检查项 | 怎么验证 | 预期 |
-| --- | --- | --- | --- |
-| 15 | customer_export.sh dry-run 跑通（仿真） | `bash scripts/customer_export.sh --from-dir=old/10示例数据 --output-dir=.data/export-dryrun/B-test --batch-id=B-test --tenant=sd-default --force` | 17 file_count，total_rows > 800K，redaction_summary 含 phone/email/addr/secret |
-| 16 | 真实库 dump 成功 | `ZW_BRAIN_DB_PASSWORD=*** bash scripts/customer_export.sh --db-host=... ...` | manifest.json 文件存在 + verify ok |
-| 17 | 列级脱敏生效 | `grep -c '<REDACTED:PHONE>' /data/legacy-imports/B-*/dump-dsp_bsp-*.sql` | 数千行（视 dsp_bsp 体量） |
-| 18 | crc32 / sha256 校验 ok | `python scripts/customer_export.py verify --batch-dir=/data/legacy-imports/B-*` | `{"ok": true, "failures": []}` |
+| # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
+| --- | --- | --- | --- | --- |
+| 15 | customer_export.sh dry-run 跑通（仿真） | `bash scripts/customer_export.sh --from-dir=old/10示例数据 --output-dir=.data/export-dryrun/B-test --batch-id=B-test --tenant=sd-default --force` | 17 file_count，total_rows > 800K，redaction_summary 含 phone/email/addr/secret | 一键导出脚本本身坏 → 客户机房落不出可消费的脱敏包 |
+| 16 | 真实库 dump 成功 | `ZW_BRAIN_DB_PASSWORD=*** bash scripts/customer_export.sh --db-host=... ...` | manifest.json 文件存在 + verify ok | mysql 连接/权限/编码失败 → 客户旧库一行数据进不来 |
+| 17 | 列级脱敏生效 | `grep -c '<REDACTED:PHONE>' /data/legacy-imports/B-*/dump-dsp_bsp-*.sql` | 数千行（视 dsp_bsp 体量） | 脱敏未触发 → PII 进 canonical 表，立即合规高危事件，签收作废 |
+| 18 | crc32 / sha256 校验 ok | `python scripts/customer_export.py verify --batch-dir=/data/legacy-imports/B-*` | `{"ok": true, "failures": []}` | hash 不一致 → 不知道导出件是否被传输污染，迁移不可信 |
 
 ## 六、M0 端到端（5 项）
 
-| # | 检查项 | 怎么验证 | 预期 |
-| --- | --- | --- | --- |
-| 19 | 批量导入跑通 | `bash scripts/customer_acceptance_up.sh` | 写 `.data/customer-acceptance/migration-report.json` 且 status=succeeded |
-| 20 | `legacy_object_mapping` 一对一回指 | `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(*), SUM(mapping_status='mapped') FROM legacy_object_mapping"` | total > 0 且 mapped 比例 ≥ 95% |
-| 21 | M0 验收 status query 11 卡片 | `curl -s /api/skills/legacy.migration.status.query?role=r7 \| jq '.work_queue_cards \| length'` | `11` |
-| 22 | P0 WebUI 页面渲染 | 浏览器访问 `#/p0-migration-acceptance` | 11 张卡片 + totals + canonical/legacy 分布表 |
-| 23 | 显式回滚 dry-run 可调 | `python -m zw_brain.entry.legacy_migration.rollback --tenant=sd-default --legacy-system=dsp_catalog --dry-run` | 返回 scanned 数 + audit_id=null |
+> **关联**：本节 5 项是对 [`sd-default-onboarding.md` §5 批量导入 + 验证（M0.2-M0.4）](./sd-default-onboarding.md#5-批量导入--验证m02-m04) 的核验。runbook 在那里看，本表的 exit code / 期望输出是验收签收依据。
+
+| # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
+| --- | --- | --- | --- | --- |
+| 19 | 批量导入跑通 | `bash scripts/customer_acceptance_up.sh` | 写 `.data/customer-acceptance/migration-report.json` 且 status=succeeded | 迁移不通 → 客户旧数据进不来，大脑空跑 |
+| 20 | `legacy_object_mapping` 一对一回指 | `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(*), SUM(mapping_status='mapped') FROM legacy_object_mapping"` | total > 0 且 mapped 比例 ≥ 95% | mapping 断 → R8 督查无法溯源到旧对象，合规证据链不完整 |
+| 21 | M0 验收 status query 11 卡片 | `curl -s /api/skills/legacy.migration.status.query?role=r7 \| jq '.work_queue_cards \| length'` | `11` | 卡片缺失 → R7 看不到验收进度，无法签收 M0 |
+| 22 | P0 WebUI 页面渲染 | 浏览器访问 `#/p0-migration-acceptance` | 11 张卡片 + totals + canonical/legacy 分布表 | 页面不渲染 → 实施工程师无法证明迁移完成，签收没视觉证据 |
+| 23 | 显式回滚 dry-run 可调 | `python -m zw_brain.entry.legacy_migration.rollback --tenant=sd-default --legacy-system=dsp_catalog --dry-run` | 返回 scanned 数 + audit_id=null | 回滚链路坏 → 迁移如果半途出错无法干净退回，业务无 rollback plan |
 
 ## 七、9 角色 e2e 契约（10 项 — W5.2 全部）
 
-| # | 检查项 | 怎么验证 | 预期 |
-| --- | --- | --- | --- |
-| 24 | M0 验收 status query | pytest test_01 | pass |
-| 25 | R1 需求登记 | pytest test_02 | pass |
-| 26 | R6→R7 反向编目闭环 | pytest test_03 | pass，lifecycle_status=pending_review |
-| 27 | R2 分级授权审批 | pytest test_04 | pass |
-| 28 | R6 检测规则 + 任务 | pytest test_05 | pass |
-| 29 | R3 接派发任务 | pytest test_06 | pass |
-| 30 | R4 异常回传 | pytest test_07 | pass |
-| 31 | R5 异议四子流程 | pytest test_08 | pass，evaluate 成功 |
-| 32 | R8 审计 + 直达督查 | pytest test_09 | pass |
-| 33 | audit 链覆盖 12 个核心 skill | pytest test_10 | pass，no missing |
+| # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
+| --- | --- | --- | --- | --- |
+| 24 | M0 验收 status query | pytest test_01 | pass | M0 验收契约断 → 客户无法证明迁移完成 |
+| 25 | R1 需求登记 | pytest test_02 | pass | R1 主旅程断 → 业务专班无法在生产里发起复用申请 |
+| 26 | R6→R7 反向编目闭环 | pytest test_03 | pass，lifecycle_status=pending_review | R6→R7 反向编目断 → 新资源进不了目录候选池 |
+| 27 | R2 分级授权审批 | pytest test_04 | pass | R2 审批断 → 申请进了系统但永远 pending，无法授权交付 |
+| 28 | R6 检测规则 + 任务 | pytest test_05 | pass | 检测规则断 → 字段质量问题无法被发现 |
+| 29 | R3 接派发任务 | pytest test_06 | pass | R3 派单断 → 镇街拿不到预填任务，基层补录走不通 |
+| 30 | R4 异常回传 | pytest test_07 | pass | R4 异常回传断 → 末端异常无路径回流，数据治理断头 |
+| 31 | R5 异议四子流程 | pytest test_08 | pass，evaluate 成功 | R5 异议断 → 申请方与提供方分歧无仲裁路径 |
+| 32 | R8 审计 + 直达督查 | pytest test_09 | pass | R8 督查断 → 合规问题无法独立核查，巡检失效 |
+| 33 | audit 链覆盖 12 个核心 skill | pytest test_10 | pass，no missing | 审计漏写 skill → 部分操作不可回放，合规盲区 |
 
 一键跑全部：`pytest tests/test_acceptance_9_roles_e2e.py -v` → 10 passed
 
 ## 八、WebUI 9 岗位浏览（6 项）
 
-| # | 检查项 | 怎么验证 | 预期 |
-| --- | --- | --- | --- |
-| 34 | R1 P1 工作台显示 API 凭据卡 + 需求登记 | 切角色 r1，进 `#/p1-workbench` | 底部出现"我的 API 凭据"和"需求登记前置"两栏 |
-| 35 | R2 P3 reviewDetail 有分级授权策略 form | 切 r2，进 `#/p3-request-flow/review/REQ-2026-04-25-0011` | 看到 5 字段策略表（档位/脱敏/频次/有效期/级联） |
-| 36 | R6 P5 4 张工作流卡 + 反向编目向导可点 | 切 r6，进 `#/p5-provider` | 看到 4 张 R6 工作流卡；点反向编目能进 `#/p5-provider/wizard/reverse-catalog` |
-| 37 | R7 P5 3 张收件箱 + 字段口径裁决可点 | 切 r7，进 `#/p5-provider` | 看到 3 张 R7 卡（标题含 "N 条待我裁决"） |
-| 38 | R8 P6 绕行督查 panel | 切 r8，进 `#/p6-compliance-ops` | 底部出现 R8 直达交付清单 + 异议绕行可疑 |
-| 39 | R3/R4 P3 任务过滤 + 异常回传 | 切 r3，进 `#/p3-request-flow` | 列表只剩 supplementing/need-fix 状态；右上角有"异常回传"链接 |
+| # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
+| --- | --- | --- | --- | --- |
+| 34 | R1 P1 工作台显示 API 凭据卡 + 需求登记 | 切角色 r1，进 `#/p1-workbench` | 底部出现"我的 API 凭据"和"需求登记前置"两栏 | R1 工作台缺关键卡 → 业务专班看不到自己的凭据和入口 |
+| 35 | R2 P3 reviewDetail 有分级授权策略 form | 切 r2，进 `#/p3-request-flow/review/REQ-2026-04-25-0011` | 看到 5 字段策略表（档位/脱敏/频次/有效期/级联） | R2 审批表单缺字段 → 无法设置授权边界，审批失效 |
+| 36 | R6 P5 4 张工作流卡 + 反向编目向导可点 | 切 r6，进 `#/p5-provider` | 看到 4 张 R6 工作流卡；点反向编目能进 `#/p5-provider/wizard/reverse-catalog` | R6 工作面缺 → 提供方无法发起反向编目，新资源进不了目录 |
+| 37 | R7 P5 3 张收件箱 + 字段口径裁决可点 | 切 r7，进 `#/p5-provider` | 看到 3 张 R7 卡（标题含 "N 条待我裁决"） | R7 收件箱缺 → 目录管理员看不到待裁决项，目录运营停摆 |
+| 38 | R8 P6 绕行督查 panel | 切 r8，进 `#/p6-compliance-ops` | 底部出现 R8 直达交付清单 + 异议绕行可疑 | R8 督查面缺 → 合规绕行无法被发现，督查抓瞎 |
+| 39 | R3/R4 P3 任务过滤 + 异常回传 | 切 r3，进 `#/p3-request-flow` | 列表只剩 supplementing/need-fix 状态；右上角有"异常回传"链接 | R3/R4 任务过滤错乱 → 镇街看不清自己该做哪些，基层补录混乱 |
 
 ## 九、审计 + 合规收口（2 项）
 
-| # | 检查项 | 怎么验证 | 预期 |
-| --- | --- | --- | --- |
-| 40 | 写 skill 全部产生 audit_event | 9 角色 e2e 跑完后 `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(DISTINCT skill_id) FROM audit_event"` | ≥ 12（覆盖 W5.2 测试的关键 skill） |
-| 41 | blockchain anchor 队列空（或可达） | `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(*) FROM anchor_outbox WHERE status='pending'"` | 0 或 < 100（pending 队列正在异步处理；mock-chain 配置下应该 = 0） |
+| # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
+| --- | --- | --- | --- | --- |
+| 40 | 写 skill 全部产生 audit_event | 9 角色 e2e 跑完后 `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(DISTINCT skill_id) FROM audit_event"` | ≥ 12（覆盖 W5.2 测试的关键 skill）。**注**：默认 e2e 测试使用 isolated TemporaryDirectory，事件不落 prod DB；客户验收时改用主 DB（`ZW_BRAIN_DB_PATH=$REPO_ROOT/.data/customer_acceptance.db`）实际驱动主流程后再查；见 `docs/preflight-debt.md` ITEM-07 entry | 审计漏写 → 合规证据链断 → R8 督查抓瞎，签收作废 |
+| 41 | blockchain anchor 队列正常（或可达） | `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(*) FROM anchor_outbox WHERE delivered=0"` | 0 或 < 100（未投递队列正在异步处理；mock-chain 配置下应该 = 0） | anchor 大量未投递 → 区块链证据缺失，对外可信度证明不足 |
 
 ---
 

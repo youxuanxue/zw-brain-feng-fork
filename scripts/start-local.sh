@@ -4,6 +4,12 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PYTHON_BIN="$REPO_ROOT/.venv/bin/python"
+
+# 单一 canonical DB：`.data/zw_brain.db`。M0 一键导入（customer_acceptance_up.sh）
+# 与日常 REST 写读用同一份；不再分裂为 customer_acceptance.db。
+# 历史 customer_acceptance.db / 多次会话累积的 zw_brain.db 由 scripts/db-vacuum.sh
+# 清理，由 preflight 段 18 监测膨胀。
+
 REST_HOST="${ZW_BRAIN_REST_HOST:-127.0.0.1}"
 REST_PORT="${ZW_BRAIN_REST_PORT:-8800}"
 DASHBOARD_HOST="${ZW_BRAIN_DASHBOARD_BFF_HOST:-127.0.0.1}"
@@ -13,6 +19,30 @@ DASHBOARD_BROWSER_HOST="${ZW_BRAIN_DASHBOARD_BROWSER_HOST:-127.0.0.1}"
 if [[ -z "${ZW_BRAIN_WEBUI_DASHBOARD_URL:-}" ]]; then
     export ZW_BRAIN_WEBUI_DASHBOARD_URL="http://${DASHBOARD_BROWSER_HOST}:${DASHBOARD_PORT}/"
 fi
+
+# Hard guard：start-local.sh 只用于 dev / 演示 box，绝不可用于客户 prod。
+# 客户 prod 必须用 docker-image-deployment.md 路径起服务（IAF/OIDC 真接入）。
+# 若调用方显式声明 prod 部署，立即拒启，避免下方 IAM bypass 误开。
+DEPLOY_MODE="${ZW_BRAIN_DEPLOY_MODE:-dev}"
+if [[ "$DEPLOY_MODE" == "prod" ]] || [[ "$DEPLOY_MODE" == "production" ]]; then
+    echo "[start-local] FAIL: ZW_BRAIN_DEPLOY_MODE=$DEPLOY_MODE — start-local.sh 仅限 dev/演示，prod 请用 docker-image-deployment.md" >&2
+    echo "[start-local] next-step: prod 部署见 docs/deployment/docker-image-deployment.md；本地 dev 跑：unset ZW_BRAIN_DEPLOY_MODE && bash scripts/start-local.sh" >&2
+    exit 2
+fi
+
+# Local dev IAM bypass: skip IAF/OIDC so browser can log in immediately without
+# external identity provider. NEVER set these in production — see
+# docs/preflight-debt.md `dev-iam-bypass` entry. If caller has explicitly set
+# ZW_BRAIN_IAF_AUTH_SERVER_URL we honour it (real IAF flow) and skip bypass.
+# Same dev-mode: enable the WebUI role-switch dropdown so a single bypass user
+# can exercise all 8 roles without separate IAM accounts. In prod the IAM
+# integration provides real role mapping and this stays 0.
+if [[ -z "${ZW_BRAIN_IAF_AUTH_SERVER_URL:-}" ]]; then
+    export ZW_BRAIN_DEV_IAM_BYPASS="${ZW_BRAIN_DEV_IAM_BYPASS:-1}"
+    export ZW_BRAIN_DEV_IAM_BYPASS_ACK="${ZW_BRAIN_DEV_IAM_BYPASS_ACK:-development-only}"
+    export ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH="${ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH:-1}"
+fi
+
 REST_PID=""
 DASHBOARD_PID=""
 

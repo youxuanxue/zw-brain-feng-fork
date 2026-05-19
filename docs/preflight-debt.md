@@ -17,3 +17,23 @@ the symptom, the deferred decision, and the trigger that forces a re-evaluation.
   TTL + `secrets.compare_digest` semantics already match the in-memory store).
 - **No mechanical preflight check**: Adding a "deployment topology" gate today would be noise. The
   trigger above is concrete enough that we'll know when to act.
+
+## 2026-05-19 — handover-checklist #40 expects ≥12 distinct skill_id in prod DB but e2e uses isolated TemporaryDirectory
+
+- **Where**: `docs/deployment/handover-checklist.md` §九 #40 expects
+  `SELECT COUNT(DISTINCT skill_id) FROM audit_event >= 12` against `$ZW_BRAIN_DB_PATH`.
+- **Implication**: `tests/test_acceptance_9_roles_e2e.py` 10 个 pytest 各自创建 `TemporaryDirectory()`
+  + isolated DB（参 test_acceptance_9_roles_e2e.py fixture），其 audit_event 不会落回主
+  `customer_acceptance.db`。结果：客户验收员按 checklist 跑完 41 项后，#40 主 DB 上的
+  distinct skill_id 仅承接 M0 主流程 + ITEM-02 5 段 curl 等真实业务调用（实测
+  `customer_acceptance.db` 当前 = 8 distinct skill_id）。
+- **Why deferred**: 修复方向有两种，都不在 ITEM-07 范围内：
+  1. 改 e2e fixture：把 audit_event 写到主 DB（破坏 test isolation，可能引入 flaky）；
+  2. 改 checklist 语义：把 #40 改为『跑 customer_demo_5min + 一遍人工操作后 ≥12』
+     （需重新设计验收脚本组合）。
+  现阶段把 partial 标在 part 1/3 run log + 在 #40 行补 "**注**" 说明（part 2/3 已落）。
+- **Trigger to re-evaluate**: 客户首个真实交付现场实跑 41 项时如果 #40 < 12，**必须**
+  在客户机房按 checklist 改后的『主流程驱动 + 真实业务用户操作后再查』路径再查一次；
+  仍 < 12 则升级为 P0 fix（改 e2e fixture 或 checklist 语义）。
+- **No mechanical preflight check**: 这是 checklist 设计语义与 test isolation 设计的固有
+  矛盾，不是机械可检测项；trigger 已落到客户首次实跑的实操步骤。

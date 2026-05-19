@@ -5,7 +5,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PYTHON="$REPO_ROOT/.venv/bin/python"
 DUMPS_DIR="${ZW_BRAIN_LEGACY_DUMPS_DIR:-$REPO_ROOT/old/10示例数据}"
 DATASTRUCTURE_DIR="${ZW_BRAIN_LEGACY_DATASTRUCTURE_DIR:-$REPO_ROOT/old/12-datastructure}"
-DB_PATH="${ZW_BRAIN_DB_PATH:-$REPO_ROOT/.data/customer_acceptance.db}"
+DB_PATH="${ZW_BRAIN_DB_PATH:-$REPO_ROOT/.data/zw_brain.db}"
 REPORT_DIR="${ZW_BRAIN_ACCEPTANCE_REPORT_DIR:-$REPO_ROOT/.data/customer-acceptance}"
 
 REQUIRED_SCHEMAS=(dsp_bsp dsp_catalog dsp_metaresource dsp_require dsp_handling dsp_example)
@@ -13,19 +13,32 @@ REQUIRED_XMLS=(dsp_catalog.xml dsp_metaresource.xml dsp_connect.xml dsp_handling
 
 step() { printf '\n[customer-acceptance] === %s ===\n' "$1"; }
 ok() { printf '[customer-acceptance] ok: %s\n' "$1"; }
-fail() { printf '[customer-acceptance] FAIL: %s\n' "$1" >&2; exit 1; }
+fail() {
+  printf '[customer-acceptance] FAIL: %s\n' "$1" >&2
+  if [[ -n "${2:-}" ]]; then
+    printf '[customer-acceptance] next-step: %s\n' "$2" >&2
+  fi
+  exit 1
+}
 
-[[ -x "$PYTHON" ]] || fail "missing virtualenv python at $PYTHON"
+[[ -x "$PYTHON" ]] || fail "missing virtualenv python at $PYTHON" \
+  "run: python3 -m venv .venv && .venv/bin/pip install -e ."
 mkdir -p "$REPORT_DIR"
 
 step "validate input artifacts"
-[[ -d "$DUMPS_DIR" ]] || fail "legacy dumps dir not found: $DUMPS_DIR"
-[[ -d "$DATASTRUCTURE_DIR" ]] || fail "legacy datastructure dir not found: $DATASTRUCTURE_DIR"
+[[ -d "$DUMPS_DIR" ]] || fail "legacy dumps dir not found: $DUMPS_DIR" \
+  "set ZW_BRAIN_LEGACY_DUMPS_DIR or place dumps under old/10示例数据/"
+[[ -d "$DATASTRUCTURE_DIR" ]] || fail "legacy datastructure dir not found: $DATASTRUCTURE_DIR" \
+  "set ZW_BRAIN_LEGACY_DATASTRUCTURE_DIR or place xmls under old/12-datastructure/"
 for schema in "${REQUIRED_SCHEMAS[@]}"; do
-  compgen -G "$DUMPS_DIR/dump-${schema}-*.sql" >/dev/null || fail "missing dump for schema ${schema} under $DUMPS_DIR"
+  compgen -G "$DUMPS_DIR/dump-${schema}-*.sql" >/dev/null || fail \
+    "missing dump for schema ${schema} under $DUMPS_DIR" \
+    "客户机房 DBA 用 mysqldump 拉 dsp_${schema}.sql 放入 $DUMPS_DIR；样例见 old/10示例数据/"
 done
 for xml in "${REQUIRED_XMLS[@]}"; do
-  [[ -f "$DATASTRUCTURE_DIR/$xml" ]] || fail "missing datastructure file: $DATASTRUCTURE_DIR/$xml"
+  [[ -f "$DATASTRUCTURE_DIR/$xml" ]] || fail \
+    "missing datastructure file: $DATASTRUCTURE_DIR/$xml" \
+    "从 dev-rules 仓 sync 最新 12-datastructure 或客户 IT 部门提供"
 done
 ok "required dumps + datastructure files are present"
 
@@ -87,5 +100,9 @@ PY
 ok "runtime smoke passed with offline legacy source"
 
 step "done"
-echo "db:      $DB_PATH"
-echo "reports: $REPORT_DIR"
+ok "db:      $DB_PATH"
+ok "reports: $REPORT_DIR"
+printf '\n[customer-acceptance] 下一步：\n'
+printf '  - 跑 5 分钟客户演示：bash scripts/customer_demo_5min.sh\n'
+printf '  - 详细验收 41 项：docs/deployment/handover-checklist.md\n'
+printf '  - 启动完整服务（含 dashboard）：bash scripts/start-local.sh\n'

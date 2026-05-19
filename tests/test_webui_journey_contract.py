@@ -390,14 +390,16 @@ def test_f3_webui_resource_detail_surfaces_business_evidence_copy() -> None:
     pages_js = PAGES_JS.read_text(encoding="utf-8")
     start = pages_js.index("PAGES.resourceDetail = function")
     block = pages_js[start : pages_js.index("PAGES.requestFlow", start)]
+    # Panels（R1 业务用户视角，文案业务化；R7 治理面术语保留在 R7-only 块）
     assert "共享条件与安全策略" in pages_js
-    assert "复用与缺口判断" in pages_js
-    assert "资源与 schema 证据" in pages_js
-    assert "旧平台回指证据" in pages_js
-    assert "字段口径" in block
+    assert "能直接用的与还要补的" in pages_js   # 原 '复用与缺口判断'
+    assert "数据来源与字段说明" in pages_js     # 原 '资源与 schema 证据'
+    assert "原始系统来源" in pages_js           # 原 '旧平台回指证据'
+    # R1 resourceDetail 必须仍保留『只申请本次确需字段』业务核心指引
     assert "只申请本次确需字段" in block
-    for forbidden in ["原型说明", "操作手册", "旧平台菜单"]:
-        assert forbidden not in block
+    # 禁止术语：业务用户不应在 R1 资源详情页看到的设计 / 迁移说明书语言
+    for forbidden in ["原型说明", "操作手册", "旧平台菜单", "schema 证据", "字段口径", "缺口说明"]:
+        assert forbidden not in block, f"R1 resourceDetail block leaks dev term: {forbidden}"
 
 
 def test_f3_webui_review_detail_surfaces_r2_business_evidence_chain() -> None:

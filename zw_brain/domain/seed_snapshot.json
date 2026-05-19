@@ -798,20 +798,26 @@
     ],
     "catalogTree": [
       {
-        "name": "真政务案例（dsp_example）",
-        "count": 10
+        "name": "共享目录条目",
+        "count": 189,
+        "href": "#/p2-discovery/catalog-browse"
       },
       {
-        "name": "共享目录条目（dsp_catalog）",
-        "count": 189
+        "name": "真实政务案例",
+        "count": 10,
+        "href": "#/p2-discovery/catalog-browse?kind=example"
       },
       {
-        "name": "组织 projection（dsp_bsp.pub_organ）",
-        "count": 18750
+        "name": "组织",
+        "count": 18750,
+        "href": null,
+        "hint": "由组织主数据投影自动维护"
       },
       {
-        "name": "区划 projection（dsp_bsp.pub_region）",
-        "count": 16731
+        "name": "区划",
+        "count": 16731,
+        "href": null,
+        "hint": "由区划主数据投影自动维护"
       }
     ],
     "recallDictionary": {

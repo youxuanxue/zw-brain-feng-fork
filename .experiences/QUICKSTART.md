@@ -1,5 +1,40 @@
 # zw-brain 使用指南
 
+> 📍 **你在哪一份 zw-brain 文档？**
+> | 你是谁 | 看哪份 |
+> | --- | --- |
+> | 客户运维 / 实施工程师（部署 + 操作） | [`docs/deployment/sd-default-onboarding.md`](../docs/deployment/sd-default-onboarding.md)（0.5-1 工作日 runbook） |
+> | 客户验收人 / 签收 | [`docs/deployment/handover-checklist.md`](../docs/deployment/handover-checklist.md)（41 项核验签收） |
+> | 业务用户 / 8 角色试岗 | [`.experiences/QUICKSTART.md`](./QUICKSTART.md)（5 分钟人话指南） |
+> | 产品评审 / 架构师 / 角色体验回顾 | [`.experiences/README.md`](./README.md)（角色体验手册） |
+> | 客户老板 / CIO 5 分钟看效果 | `bash scripts/customer_demo_5min.sh`（[demo 剧本](../docs/release-notes/customer-demo-5min.md)） |
+>
+> **本文件**：`.experiences/QUICKSTART.md` = 业务用户 5 分钟人话指南；不需要懂架构，只需要知道『我是谁、做什么、交给谁』。
+
+## 客户拿到 zw-brain 之后的时间线
+
+这一节告诉客户老板 / CIO / 实施工程师：买的东西、第一小时能看见什么、第一天能验收什么、第一周稳态运作什么、第一月业务上手什么。
+
+| 阶段 | 时间 | 角色 | 做什么 | 看见什么 | 出口产物 |
+| --- | --- | --- | --- | --- | --- |
+| **首小时** | 5-30 分钟 | 实施工程师 + 客户老板/CIO | `bash scripts/customer_demo_5min.sh` | 真数据 5 段 curl 全绿：R1 浏览 14+ 真目录 → R1 详情 → R1 申请（自动 audit）→ R2 审批（5 字段授权策略）→ R8 审计回放（10+ event chain） | demo log + 浏览器 8800 即可 |
+| **首日** | 0.5-1 工作日 | 实施工程师 | 按 [`docs/deployment/sd-default-onboarding.md`](../docs/deployment/sd-default-onboarding.md) 走完 0→9 节 runbook（环境/DB/配置/导出/导入/启动/验收/回滚） | 41 项 [`handover-checklist`](../docs/deployment/handover-checklist.md) 全绿（pass + 业务影响列）；R6/R7/R8 抽样验收 | 签收单 + migration-report.json |
+| **首周** | 1-2 周 | R6 + R7 + R8 | M0 移交后稳态接管：R6 维护资源台账，R7 运营目录工作队列，R8 用 dashboard 与 P6 督查链路 | dashboard 大屏看治理率；R7 收件箱清零；R8 0 个绕行违规 | 周报 + 治理大盘截图 |
+| **首月** | 4 周 | R1-R5 + R8 | 业务用户上手：R1 发现 + 申请；R2 阀门审批；R3/R4 现场补差；R5 异常汇总；R8 月度合规督查 | R1 月活 / 申请通过率 / R5 异常收敛率 / R8 督查闭环率 | 月度治理报告 |
+
+参考样例（真数据，已在 demo 跑过）：医疗救助信息 / 医保码信息 / 异地就医统筹区开通信息 / 停车场信息 / 参保信息
+
+## 8800 main web vs 8801 dashboard 谁面谁
+
+| 端口 | 服务 | 受众 | 写权 | 登录方式 |
+| --- | --- | --- | --- | --- |
+| 8800 | `zw_brain.entry.rest` (main web) | R1-R8 业务用户 + 实施工程师 (`?role=admin`) | 完整业务写权（受 IAM + skill `human_confirmation_required` 控制） | IAF/OIDC 或 dev-bypass |
+| 8801 | `zw_brain.entry.dashboard_bff` (大屏) | 指挥中心 / 高层 / 投影会议室 | **只读**（消费 `dashboard.*` skill；写动作 preflight 段 11 阻塞） | 同 IAM；通常配独立 read-only 账号 |
+
+两端共享同一份 canonical DB（`$ZW_BRAIN_DB_PATH`）；dashboard 故障与 main web 互不影响（独立部署单元）。一键启动：`bash scripts/start-local.sh` 同时起两端。
+
+---
+
 > 写给客户现场的真实使用者。不需要理解技术架构，只需要知道：我是谁、我该做什么、做完交给谁。
 > 架构细节见 [README.md](./README.md) 和各角色文档。
 

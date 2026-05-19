@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 
 from zw_brain.domain.models import ApplicationRecord
 from zw_brain.domain.repositories.legacy_mapping import upsert_legacy_mapping_in_session
@@ -11,6 +11,30 @@ from zw_brain.shared.sanitization import safe_json
 
 
 class ApplicationRepository:
+    def count_by_statuses(self, *, statuses: list[str], tenant_id: str = "sd-default") -> int:
+        """Fast count for dashboard.summary.alerts — avoids list_records +
+        per-row get_resource N+1 that made dashboard.render take 30+ seconds.
+        """
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            return int(
+                session.execute(
+                    select(func.count()).select_from(ApplicationRecord)
+                    .where(ApplicationRecord.tenant_id == tenant_id)
+                    .where(ApplicationRecord.status.in_(statuses))
+                ).scalar() or 0
+            )
+
+    def count_records(self, *, tenant_id: str = "sd-default") -> int:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            return int(
+                session.execute(
+                    select(func.count()).select_from(ApplicationRecord)
+                    .where(ApplicationRecord.tenant_id == tenant_id)
+                ).scalar() or 0
+            )
+
     def list_records(self, *, tenant_id: str = "sd-default") -> list[ApplicationRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:

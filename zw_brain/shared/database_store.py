@@ -105,10 +105,26 @@ class DatabaseStore:
             )
             session.commit()
 
-    def list_audit_events(self) -> list[AuditEventRecord]:
+    def list_audit_events(self, *, limit: int = 500) -> list[AuditEventRecord]:
+        """Return the most-recent audit events (default 500). Without LIMIT the
+        page hot path hydrates thousands of large payload_json blobs (~14 s for
+        ~2300 rows), which is what made audit.list and dashboard.render
+        time out. Callers that genuinely need all events should iterate paged.
+        """
         SessionLocal = self._session_factory()
         with SessionLocal() as session:
-            return list(session.execute(select(AuditEventRecord).order_by(AuditEventRecord.occurred_at)).scalars())
+            statement = select(AuditEventRecord).order_by(AuditEventRecord.occurred_at.desc())
+            if limit and limit > 0:
+                statement = statement.limit(limit)
+            records = list(session.execute(statement).scalars())
+            records.reverse()  # 调用方期望 ascending by time
+            return records
+
+    def count_audit_events(self) -> int:
+        from sqlalchemy import func
+        SessionLocal = self._session_factory()
+        with SessionLocal() as session:
+            return int(session.execute(select(func.count()).select_from(AuditEventRecord)).scalar() or 0)
 
     def append_capability_call(self, payload: dict[str, Any]) -> None:
         SessionLocal = self._session_factory()

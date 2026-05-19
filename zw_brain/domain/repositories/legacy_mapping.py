@@ -69,7 +69,16 @@ class LegacyObjectMappingRepository:
         tenant_id: str = "sd-default",
         canonical_type: str | None = None,
         canonical_ref: str | None = None,
+        legacy_object_types: list[str] | None = None,
+        limit: int | None = None,
     ) -> list[LegacyObjectMappingRecord]:
+        """List legacy mappings filtered server-side.
+
+        legacy_object_types / limit are perf knobs: M0 imports ~50k mappings;
+        SELECT all + Python-filter is the classic load-all-then-filter
+        antipattern that takes 60+ seconds on the audit timeline page. Push
+        the IN(...) filter and LIMIT down into SQL.
+        """
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(LegacyObjectMappingRecord).where(LegacyObjectMappingRecord.tenant_id == tenant_id)
@@ -77,7 +86,12 @@ class LegacyObjectMappingRepository:
                 statement = statement.where(LegacyObjectMappingRecord.canonical_type == canonical_type)
             if canonical_ref:
                 statement = statement.where(LegacyObjectMappingRecord.canonical_ref == canonical_ref)
-            return list(session.execute(statement.order_by(LegacyObjectMappingRecord.mapped_at)).scalars())
+            if legacy_object_types:
+                statement = statement.where(LegacyObjectMappingRecord.legacy_object_type.in_(legacy_object_types))
+            statement = statement.order_by(LegacyObjectMappingRecord.mapped_at)
+            if limit is not None and limit > 0:
+                statement = statement.limit(limit)
+            return list(session.execute(statement).scalars())
 
     def resolve_canonical_ref(
         self,

@@ -121,6 +121,10 @@ const STATUS_LABELS = {
   pending: '待审批',
   'pending-fix': '待补正',
   rejected: '已驳回',
+  'guardrail.fuse_protection': '主动熔断保护',
+  'guardrail.audit_write_failed': '审计写入失败',
+  'guardrail.external_channel_pending': '外部通道波动 · 待回执',
+  'guardrail.tenant_role_denied': '租户/角色拒绝',
 };
 
 function statusLabel(status) {
@@ -181,9 +185,43 @@ function statusPill(status) {
     '已派单': 'status-neutral',
     '筹建中': 'status-neutral',
     '不适用': 'status-neutral',
+    'guardrail.fuse_protection': 'status-fuse',
+    'guardrail.audit_write_failed': 'status-audit-failed',
+    'guardrail.external_channel_pending': 'status-external-pending',
+    'guardrail.tenant_role_denied': 'status-tenant-denied',
   };
   return `<span class="status-pill ${map[status] || 'status-neutral'}">${escapeHtml(statusLabel(status))}</span>`;
 }
+
+/**
+ * 6 系统护栏 banner — 让客户看到的不是『系统繁忙』而是『护栏诚实拒绝 + 原因摘要』。
+ * 参考 .experiences/README.md §系统级护栏 6 条。本期落地 4 条瞬时业务态，
+ * 『外部 AI 全部失效』『能力包暴露面越界』另走降级模式标识/R7 注册驳回路径。
+ *
+ * @param kind 'fuse_protection' | 'audit_write_failed' | 'external_channel_pending' | 'tenant_role_denied'
+ * @param messageHtml 业务语言一句话（已转义；不要塞原始堆栈）
+ * @param evidenceRef 可选 audit_id / event_id 供 R8 回放
+ */
+function guardrailBanner(kind, messageHtml, evidenceRef) {
+  const cls = {
+    fuse_protection: 'status-fuse',
+    audit_write_failed: 'status-audit-failed',
+    external_channel_pending: 'status-external-pending',
+    tenant_role_denied: 'status-tenant-denied',
+  }[kind] || 'status-neutral';
+  const label = {
+    fuse_protection: '主动熔断保护',
+    audit_write_failed: '审计写入失败 · 操作未完成',
+    external_channel_pending: '外部通道波动 · 等待回执',
+    tenant_role_denied: '租户/角色拒绝 · 不可越权调用',
+  }[kind] || '系统护栏';
+  const ev = evidenceRef ? `<span class="guardrail-evidence">${escapeHtml(evidenceRef)}</span>` : '';
+  return `<div class="guardrail-banner ${cls}" role="alert">
+    <span class="guardrail-badge">${escapeHtml(label)}</span>
+    <span class="guardrail-message">${messageHtml}</span>${ev}
+  </div>`;
+}
+if (typeof window !== 'undefined') { window.guardrailBanner = guardrailBanner; }
 
 function crumbs(items) {
   return `
@@ -294,8 +332,8 @@ function renderFieldBindingEvidence(item) {
         </div>
         ${statusPill(binding.diagnosis && binding.diagnosis.ok ? 'ok' : 'warning')}
       </div>`;
-  }).join('') : '<div class="text-body text-zw-mute py-4">当前目录还没有可回放的字段绑定记录，可把需要的字段作为缺口写入申请。</div>';
-  return panel('字段绑定解释', `诊断：${diagnosis} · 活跃 ${summary ? summary.active : 0} / 共 ${summary ? summary.total : bindings.length} 条`, `<div class="gov-list">${rows}</div>`);
+  }).join('') : '<div class="text-body text-zw-mute py-4">当前目录尚未对齐任何字段，可把需要的字段在申请里说明。</div>';
+  return panel('字段对应关系', `已对齐 ${summary ? summary.active : 0} / ${summary ? summary.total : bindings.length} 项`, `<div class="gov-list">${rows}</div>`);
 }
 
 function renderResourceEvidencePanels(item) {
@@ -317,22 +355,22 @@ function renderResourceEvidencePanels(item) {
           <div class="text-zw-mute">字段敏感级别：${escapeHtml((sensitive.fieldSensitiveLevels || []).join(' / ') || '未标注')}</div>
         </div>
       `)}
-      ${panel('复用与缺口判断', '明确已有证据和仍需补充的内容', `
-        <div class="text-body leading-7 text-zw-ink">${escapeHtml(gap.message || '先查看字段证据，再把缺口写入最小申请。')}</div>
-        <div class="mt-3 text-body-sm text-zw-mute">可复用字段：${escapeHtml(String(gap.readyFieldCount ?? (item.fields || []).length))} 项</div>
-        <div class="mt-2 text-body-sm text-zw-mute">缺口字段：${escapeHtml((gap.gapFields || []).join(' / ') || '暂无')}</div>
+      ${panel('能直接用的与还要补的', '已有什么，还缺什么', `
+        <div class="text-body leading-7 text-zw-ink">${escapeHtml(gap.message || '先查看已有字段，再把不够的写入申请。')}</div>
+        <div class="mt-3 text-body-sm text-zw-mute">已有字段：${escapeHtml(String(gap.readyFieldCount ?? (item.fields || []).length))} 项</div>
+        <div class="mt-2 text-body-sm text-zw-mute">仍需补充：${escapeHtml((gap.gapFields || []).join(' / ') || '暂无')}</div>
       `)}
     </div>
     <div class="grid grid-cols-2 gap-5 mt-5">
-      ${panel('资源与 schema 证据', '查看资源状态、schema 快照和来源表绑定', `
+      ${panel('数据来源与字段说明', '看每份资源、字段定义、原始来源', `
         <div class="gov-list">
-          ${assets.length ? assets.map(asset => `<div class="gov-list-row"><div><div class="row-title">${escapeHtml(asset.title || asset.resource_code)}</div><div class="row-meta">${escapeHtml(asset.resource_code)} · ${escapeHtml(asset.resource_kind || '—')} · ${escapeHtml(asset.lifecycle_status || '—')}</div></div>${statusPill(asset.lifecycle_status || 'active')}</div>`).join('') : '<div class="text-body text-zw-mute py-4">当前目录暂无资源资产记录。</div>'}
-          ${snapshots.length ? snapshots.map(snapshot => `<div class="gov-list-row"><div><div class="row-title">schema 快照 ${escapeHtml(snapshot.snapshot_ref)}</div><div class="row-meta">${escapeHtml(snapshot.resource_code)} · ${escapeHtml(snapshot.binding_code || '—')} · ${escapeHtml(snapshot.source_ref || '—')}</div></div>${statusPill('可查看')}</div>`).join('') : ''}
+          ${assets.length ? assets.map(asset => `<div class="gov-list-row"><div><div class="row-title">${escapeHtml(asset.title || asset.resource_code)}</div><div class="row-meta">${escapeHtml(asset.resource_code)} · ${escapeHtml(asset.resource_kind || '—')} · ${escapeHtml(asset.lifecycle_status || '—')}</div></div>${statusPill(asset.lifecycle_status || 'active')}</div>`).join('') : '<div class="text-body text-zw-mute py-4">当前目录暂无资源。</div>'}
+          ${snapshots.length ? snapshots.map(snapshot => `<div class="gov-list-row"><div><div class="row-title">字段定义版本 ${escapeHtml(snapshot.snapshot_ref)}</div><div class="row-meta">${escapeHtml(snapshot.resource_code)} · ${escapeHtml(snapshot.binding_code || '—')} · ${escapeHtml(snapshot.source_ref || '—')}</div></div>${statusPill('可查看')}</div>`).join('') : ''}
         </div>
       `)}
-      ${panel('旧平台回指证据', '用于现场核验：这条读面来自真实旧平台导入', `
+      ${panel('原始系统来源', '用于现场核验：这份数据从哪个旧系统导入', `
         <div class="gov-list">
-          ${mappings.length ? mappings.slice(0, 8).map(mapping => `<div class="gov-list-row"><div><div class="row-title">${escapeHtml(mapping.legacy_system)} · ${escapeHtml(mapping.legacy_object_type)}</div><div class="row-meta">${escapeHtml(mapping.legacy_object_ref)} → ${escapeHtml(mapping.canonical_type)}:${escapeHtml(mapping.canonical_ref)}</div></div>${statusPill(mapping.mapping_status || 'mapped')}</div>`).join('') : '<div class="text-body text-zw-mute py-4">当前读面暂无 legacy_object_mapping 回指。</div>'}
+          ${mappings.length ? mappings.slice(0, 8).map(mapping => `<div class="gov-list-row"><div><div class="row-title">${escapeHtml(mapping.legacy_system)} · ${escapeHtml(mapping.legacy_object_type)}</div><div class="row-meta">${escapeHtml(mapping.legacy_object_ref)} → ${escapeHtml(mapping.canonical_type)}:${escapeHtml(mapping.canonical_ref)}</div></div>${statusPill(mapping.mapping_status || 'mapped')}</div>`).join('') : '<div class="text-body text-zw-mute py-4">暂无可追溯的旧系统来源。</div>'}
         </div>
       `)}
     </div>`;
@@ -1325,11 +1363,14 @@ PAGES.discovery = function () {
         ${panel('目录树', '按对象和主题找，不按后台系统找', `
           <div class="space-y-2 text-body">
             ${window.RUNTIME_DISCOVERY.catalogTree.map(item => {
-              const isCatalogEntries = (item.name || '').includes('共享目录条目');
-              const inner = `<span>${item.name}</span><span class="text-zw-mute">${item.count}</span>`;
-              return isCatalogEntries
-                ? `<a href="#/p2-discovery/catalog-browse" class="flex justify-between py-2 border-b border-b-muted hover:bg-zw-tint">${inner}</a>`
-                : `<div class="flex justify-between py-2 border-b border-b-muted">${inner}</div>`;
+              const name = escapeHtml(item.name || '');
+              const count = item.count != null ? item.count : '';
+              const hint = item.hint ? `<div class="row-meta mt-1 text-body-sm text-zw-mute">${escapeHtml(item.hint)}</div>` : '';
+              const inner = `<div class="flex justify-between"><span>${name}</span><span class="text-zw-mute">${count}</span></div>${hint}`;
+              if (item.href) {
+                return `<a href="${escapeHtml(item.href)}" class="block py-2 border-b border-b-muted hover:bg-zw-tint">${inner}</a>`;
+              }
+              return `<div class="py-2 border-b border-b-muted text-zw-mute" title="${escapeHtml(item.hint || '本期暂不开放浏览')}">${inner}</div>`;
             }).join('')}
           </div>
         `)}
@@ -1467,7 +1508,7 @@ PAGES.resourceDetail = function (id) {
       </div>
     </div>
 
-    ${renderInlineSummary(`${item.name} 已在共享目录中命中。先核对字段口径、共享条件和 schema 证据，再只申请本次确需字段；未绑定字段作为缺口说明。`, item.nextHints)}
+    ${renderInlineSummary(`${item.name} 已在共享目录里。先看字段对得上不、能不能直接复用，再只申请本次确需字段；不够的字段写在申请里说明。`, item.nextHints)}
 
     <div class="grid grid-cols-2 gap-5">
       ${panel('核心字段与覆盖', '查看可直接复用的字段、来源和覆盖情况', `<div class="gov-list">${fields.length ? fields.map(field => `<div class="gov-list-row"><div class="row-title">${field}</div><div class="row-meta">标准字段 / 可预填</div></div>`).join('') : '<div class="text-body text-zw-mute py-4">该真目录暂未抽取字段清单，可先查看目录元数据与来源。</div>'}</div>`)}

@@ -1246,6 +1246,59 @@ a:hover {
   background: var(--b-muted);
 }
 
+/* ITEM-06: 6 系统护栏 → 4 瞬时业务 token。详见 .experiences/README.md §系统级护栏。 */
+.status-fuse {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+.status-fuse::before { background: #b91c1c; }
+
+.status-audit-failed {
+  background: #1f2937;
+  color: #fef3c7;
+  border-color: #374151;
+}
+.status-audit-failed::before { background: #f59e0b; }
+
+.status-external-pending {
+  background: #fffbeb;
+  color: #92400e;
+  border-color: #fde68a;
+}
+.status-external-pending::before { background: #c2410c; }
+
+.status-tenant-denied {
+  background: #f5f3ff;
+  color: #5b21b6;
+  border-color: #ddd6fe;
+}
+.status-tenant-denied::before { background: #7c3aed; }
+
+.guardrail-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-left: 4px solid currentColor;
+  border-radius: 4px;
+  margin: 12px 0;
+  font-size: 14px;
+  background: rgba(0,0,0,0.02);
+}
+.guardrail-banner .guardrail-badge {
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.guardrail-banner .guardrail-message {
+  flex: 1;
+}
+.guardrail-banner .guardrail-evidence {
+  color: #6b7280;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
 .audit-chip,
 .confidence-chip,
 .ai-tag {
