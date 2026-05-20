@@ -38,6 +38,7 @@ SKIP_PATH_FRAGMENTS = (
     "/.git/",
     "/node_modules/",
     "/__pycache__/",
+    "/.claude/worktrees/",  # 其它 Claude 会话的 git worktree 副本，不属本仓库主树
     "/.data/",
     "/.reviews/",
     "/old/",  # 旧平台真实数据（含 alembic / dashboard 字面值是旧平台事实）

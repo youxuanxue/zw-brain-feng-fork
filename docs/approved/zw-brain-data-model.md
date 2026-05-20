@@ -1,7 +1,7 @@
 ---
 doc_id: design-zw-brain-data-model
 status: approved
-gate: GATE-1
+gate: approved
 approved_by: xuejiao02
 authors:
   - 薛娇（产品研发负责人）
@@ -22,11 +22,9 @@ self_review_rounds: 3
 phase_after_approval: Phase 0 / Wave 0（先打通 Catalog → Application → Approval → Delivery → Audit；Objection 与最小注册治理进入后续波次）
 ---
 
-# 政务数据大脑（zw-brain）数据模型与数据库设计 v4-gpt55
+# 政务数据大脑（zw-brain）数据模型与数据库设计
 
-> 调研日期：2026-04-24  
-> 状态说明：本文是基于 `docs/approved/zw-brain-architecture.md` 的详细数据模型与数据库设计提案。在人工审批通过前，不视为权威实现基线。  
-> 设计目标：把 v4 的 Jobs / OPC / 合规内建 / 单一 Capability 契约，具体收敛为可落地的 canonical data model、Phase 1 物理库表边界，以及 legacy 适配映射规则。
+> 设计目标：把 `docs/approved/zw-brain-architecture.md` 的 Jobs / OPC / 合规内建 / 单一 Capability 契约，具体收敛为可落地的 canonical data model、Phase 1 物理库表边界，以及 legacy 适配映射规则。
 
 ---
 
@@ -85,18 +83,18 @@ phase_after_approval: Phase 0 / Wave 0（先打通 Catalog → Application → A
 
 ## 二、核心旅程、页面与五消费面覆盖矩阵
 
-> **v4.1 二轮反转同步（2026-05-20，pending R13 业务方 sign-off）**：本节原写 J1-J4 + S1/S2 6 入口，v4.1 已反转为 J1+J2 核心旅程 + B1 后台支撑面（详见 `docs/approved/zw-brain-architecture.md` §5.1）。本节同步：J3 交付合入 J1 找数→用数 闭环；J4 供给改名 J2 挂数→维数；S1+S2 收敛为 B1 后台支撑面（B1.1 合规与运营 / B1.2 接入扩展中心）。K12 Dashboard 已退役（R17），不再列入聚合表。
+> 信息架构对齐：J1 找数→用数 / J2 挂数→维数 两条核心旅程 + B1 看全局→处异常 后台支撑面（B1.1 合规与运营 / B1.2 接入扩展中心）。详见 `docs/approved/zw-brain-architecture.md` §5.1。
 
-### 2.1 旅程 / 后台面 → 聚合 → 页面覆盖（v4.1 反转后）
+### 2.1 旅程 / 后台面 → 聚合 → 页面覆盖
 
 | 旅程 / 后台面 | WebUI 页面 | 主要聚合 / 表 | 说明 |
 |--------------|-----------|--------------|------|
 | **J1 找数→用数** | P1 工作台、P2 资源发现、P3 申请/审批/跟踪、P4 交付/交换、P7 共享专区 | `catalog_entry`, `catalog_item`, `resource_asset`, `application_record`, `application_attachment`, `approval_case`, `approval_step`, `approval_decision`, `delivery_task`, `delivery_attempt`, `delivery_receipt`, `delivery_subscription`, `delivery_notice_projection`, `audit_receipt` | 用户视角的"找 → 申请 → 拿"5 步骨干合并为一条核心旅程；含异议子流程 + 供需对接子流程；含有条件/无条件共享审批分支（待业务方 sign-off 后补"不予共享"第 3 态） |
 | **J2 挂数→维数** | P1 工作台、P5 提供方管理、P7 共享专区 | `catalog_model`, `catalog_entry`, `catalog_entry_version`, `resource_asset`, `objection_*`（Wave 2） | 提供方编目 / 资源挂接 / 部门审 / 平台发布 / 异议处理 |
-| **B1.1 合规与运营**（原 S1 / 原 P6） | B1.1 合规与运营、P1 工作台 | `capability_call`, `audit_event`, `audit_receipt`, `anchor_outbox`, `service_invocation_metric_projection`, `gateway_runtime_status_projection` | 仅管理员/审计员；面向审计、统计、异常、追责，读的是审计事实和审计派生投影；不是消息通知；运行监控由集团统一运维监控平台承担（外部依赖） |
-| **B1.2 接入扩展中心**（原 S2 / 原 P8） | B1.2 接入扩展中心 | `capability_package`, `capability_version`, `capability_exposure`, `capability_review_record`, `tenant_capability_policy` | 仅管理员；后台支撑面；不进入普通用户主导航心智 |
+| **B1.1 合规与运营** | B1.1 合规与运营、P1 工作台 | `capability_call`, `audit_event`, `audit_receipt`, `anchor_outbox`, `service_invocation_metric_projection`, `gateway_runtime_status_projection` | 仅管理员/审计员；面向审计、统计、异常、追责，读的是审计事实和审计派生投影；不是消息通知；运行监控由集团统一运维监控平台承担（外部依赖） |
+| **B1.2 接入扩展中心** | B1.2 接入扩展中心 | `capability_package`, `capability_version`, `capability_exposure`, `capability_review_record`, `tenant_capability_policy` | 仅管理员；后台支撑面；不进入普通用户主导航心智 |
 
-> K12 大屏聚合表已退役（R17）：原 `gateway_runtime_status_projection` / `service_invocation_metric_projection` 移入 B1.1 合规与运营消费，不再为 K12 大屏单独服务。
+> 网关与调用统计投影（`gateway_runtime_status_projection` / `service_invocation_metric_projection`）由 B1.1 合规与运营消费。
 
 ### 2.2 五消费面 → 同一 capability 的数据依赖
 
@@ -118,8 +116,8 @@ phase_after_approval: Phase 0 / Wave 0（先打通 Catalog → Application → A
 | P4 交付/交换/直达 | `delivery_task`、`delivery_receipt`、`delivery_subscription` | 是 | 状态解释可由 AI 辅助，但不能替代时间线与回执 |
 | P5 提供方管理 | `catalog_model`、`catalog_entry`、`resource_asset`、`objection_*` | 是 | 编目、发布、下线、异议处理都属于强状态域 |
 | P7 共享专区/专题包 | 专题 projection、目录/资源投影 | 否 | 主题化聚合，不长新状态机 |
-| **B1.1 合规与运营**（原 P6） | `capability_call`、`audit_event`、`audit_receipt`、统计投影 | 否 | 仅管理员/审计员；以读为主，结论必须回指证据 |
-| **B1.2 接入扩展中心**（原 P8） | `capability_package`、`capability_version`、`capability_exposure`、`tenant_capability_policy` | 是 | 仅管理员；后台治理面 |
+| **B1.1 合规与运营** | `capability_call`、`audit_event`、`audit_receipt`、统计投影 | 否 | 仅管理员/审计员；以读为主，结论必须回指证据 |
+| **B1.2 接入扩展中心** | `capability_package`、`capability_version`、`capability_exposure`、`tenant_capability_policy` | 是 | 仅管理员；后台治理面 |
 
 ### 2.4 什么进入 canonical model，什么不进入
 
@@ -516,7 +514,7 @@ legacy 对应：目录信息项、字段口径与标准字段类证据；catalog
 
 #### 6.1.9 `resource_asset`
 
-用途：定义可被发现、申请、交付的数据资源，是 J1 找数→用数 主旅程的核心实体（v4.1 反转：原 J3 交付已合入 J1）。
+用途：定义可被发现、申请、交付的数据资源，是 J1 找数→用数 主旅程的核心实体。
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
@@ -770,7 +768,7 @@ legacy 对应：`SubscribeJob`, `batch_job_execution*`, `batch_step_execution*`,
 
 用途：保存交付回执、交换回执、国家通道回执、下载回执等**业务交付事实**。它表达的是“交付这件事有没有产生业务可消费的回执/确认”，而不是消息中心中的通知投递记录。与 `audit_receipt` 的分工如下：
 
-- `delivery_receipt`：描述 J1 找数→用数 主旅程末段交付任务的业务结果与外部回执（v4.1 反转后 J3 交付已合入 J1）
+- `delivery_receipt`：描述 J1 找数→用数 主旅程末段交付任务的业务结果与外部回执
 - `audit_receipt`：描述责任动作的确认、审批、调查、存证等审计事实
 
 | 字段 | 类型 | 约束 | 说明 |
@@ -948,7 +946,7 @@ legacy 对应：`data_objection_evaluate`
 
 #### 6.2.1 `capability_call`
 
-用途：记录每次 Capability 调用，是"谁通过哪个消费面触发了什么能力"的统一入口日志。这里严格服从 v4 的五消费面定义。**v4.1 二轮反转**（R17）：K12 Dashboard 独立部署面已退役，原 `dashboard.*` capability 已删除；B1.1 合规与运营消费 `capability_call` / `audit_event` 等统计投影。
+用途：记录每次 Capability 调用，是"谁通过哪个消费面触发了什么能力"的统一入口日志。严格服从基线五消费面定义（WebUI / API / CLI / MCP / A2A）。B1.1 合规与运营消费 `capability_call` / `audit_event` 等统计投影。
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
@@ -1053,13 +1051,13 @@ legacy 对应：`block_apilog`, `block_err_log`, `block_success_log`
 
 #### 6.2.5 `gateway_runtime_status_projection`
 
-用途：支撑 B1.1 合规与运营（原 P6）对外部网关运行状态的只读观察（v4.1 反转后 K12 大屏退役，相关消费迁入 B1.1）。它不是网关管理事实源，不承载路由、认证、限流等策略状态；这些策略仍回到 `resource_channel_binding.gateway_policy_json` 或外部网关策略系统。
+用途：支撑 B1.1 合规与运营对外部网关运行状态的只读观察。它不是网关管理事实源，不承载路由、认证、限流等策略状态；这些策略仍回到 `resource_channel_binding.gateway_policy_json` 或外部网关策略系统。
 
 `dsp-dataservice` 的 `/openapi/report` 网关心跳迁移语义、字段建议、来源证据与验收规则，以 `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md` §3.3 为单一事实源。
 
 #### 6.2.6 `service_invocation_metric_projection`
 
-用途：支撑 B1.1 合规与运营（原 P6）、REST / CLI 统计查询的服务调用指标读侧投影（v4.1 反转后 K12 大屏退役，原消费迁入 B1.1）。它不是业务事实源，来源必须回指 `capability_call`、`audit_event` 或只读网关日志 adapter。
+用途：支撑 B1.1 合规与运营、REST / CLI 统计查询的服务调用指标读侧投影。它不是业务事实源，来源必须回指 `capability_call`、`audit_event` 或只读网关日志 adapter。
 
 `dsp-dataservice` 的服务调用统计迁移语义、字段建议、来源证据与验收规则，以 `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md` §3.4 为单一事实源。
 
@@ -1525,7 +1523,7 @@ resolved  → closed
 - `delivery_subscription`
 - `anchor_outbox`
 
-说明：v4.1 反转后这一波服务 J1 找数→用数 主旅程闭环（原 J1+J2+J3 已合并），不把 J2 挂数→维数 与完整注册治理提前到 Wave 1。
+说明：这一波服务 J1 找数→用数 主旅程闭环，不把 J2 挂数→维数 与完整注册治理提前到 Wave 1。
 
 ### 11.3 Wave 2：J4 异议闭环与最小注册治理
 
