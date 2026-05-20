@@ -37,3 +37,16 @@ the symptom, the deferred decision, and the trigger that forces a re-evaluation.
   仍 < 12 则升级为 P0 fix（改 e2e fixture 或 checklist 语义）。
 - **No mechanical preflight check**: 这是 checklist 设计语义与 test isolation 设计的固有
   矛盾，不是机械可检测项；trigger 已落到客户首次实跑的实操步骤。
+
+## 2026-05-19 — customer_main_journey_real_browser e2e skip 跟踪（PR #60 留债）
+
+- **Where**: `tests/test_webui_browser_e2e.py:303-309`，已加 `@pytest.mark.skip(reason="...")`。
+- **Symptom**: PR #60 D23 retrofit 后该测试损坏；浏览器渲染"页面暂未准备好"而非预期资源详情。
+  通过 git stash/pop 验证：测试在 D23 retrofit 一开始就坏，与 PR #61 工作无关。
+- **Why deferred**: PR #61 范围是 J1+J2+J3 闭环 + e2e 矩阵，已由
+  `tests/test_j1j2j3_browser_matrix_e2e.py` 6 个新用例（自动化截图 5 张）完整覆盖。
+  这个测试涉及"深度 hash 路由 + customer_acceptance_up.sh 真数据库 + 5 角色穿插"的复杂场景，
+  根因排查需另开 PR（疑似 snapshot 在带 sharing_type 字段后的 role-filtered 投影路径有 corner case）。
+- **Trigger to re-evaluate**: 下次接手客户验收前的 final smoke 时必须修复；
+  在那之前由 J1+J2+J3 browser matrix e2e 提供等价业务流程覆盖。
+- **No mechanical preflight check**: 测试 skip 已显式声明 reason；preflight 不会"误以为绿"。

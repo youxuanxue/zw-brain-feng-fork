@@ -217,6 +217,19 @@
       "sideEffects": []
     },
     {
+      "id": "credential.query",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
       "id": "dashboard.compliance.query",
       "mode": "read",
       "humanConfirmationRequired": false,
@@ -1602,6 +1615,23 @@
         "audit",
         "db_write",
         "blockchain_anchor"
+      ]
+    },
+    {
+      "id": "credential.issue",
+      "mode": "write",
+      "humanConfirmationRequired": false,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "credential_issuance",
+        "state_machine_transition"
       ]
     },
     {

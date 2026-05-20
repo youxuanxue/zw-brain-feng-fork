@@ -92,8 +92,9 @@ def test_request_detail_refresh_does_not_request_approval_view() -> None:
 def test_sync_route_refreshes_review_detail_with_approval_view() -> None:
     app_js = APP_JS.read_text(encoding="utf-8")
     pages_js = PAGES_JS.read_text(encoding="utf-8")
-    assert "route.startsWith('#/p3-request-flow/review/') && roleCan(['ROLE_ORGAN_MANAGER', 'ROLE_ORGAN_MANAGER'])" in app_js
-    assert "reviewDetail: ['ROLE_ORGAN_MANAGER', 'ROLE_ORGAN_MANAGER']" in pages_js
+    # 2026-05-19 retrofit Stage 3 (R-013) 修复了 ZW_PAGE_ACCESS 数组的重复元素
+    assert "route.startsWith('#/p3-request-flow/review/') && roleCan(['ROLE_ORGAN_MANAGER'])" in app_js
+    assert "reviewDetail: ['ROLE_ORGAN_MANAGER']" in pages_js
     review_idx = app_js.index("p3-request-flow/review/")
     view_idx = app_js.index("'request.view'", review_idx)
     approval_idx = app_js.index("'approval.view'", review_idx)
@@ -133,7 +134,7 @@ def test_p7_publish_projection_action_is_r7_only() -> None:
     assert "return;" in action_block
     assert "performWrite('zone.publish_topic_projection'" in action_block
     assert "window.STATE.role === 'ROLE_BUSIAUDIT'" in zone_block
-    assert "正式投影发布由目录管理员处理" in zone_block
+    assert "正式发布由主管部门处理" in zone_block
 
 
 def test_current_parking_mainline_copy_does_not_mix_legal_entity_template() -> None:
@@ -412,7 +413,7 @@ def test_f3_webui_review_detail_surfaces_r2_business_evidence_chain() -> None:
         "建议决策与授权边界",
         "旧平台回指与审计来源",
         "历史与重复线索",
-        "质量投影",
+        "质量评估",
         "通过复用、退回缩小范围、驳回重复或转口径确认",
     ]:
         assert expected in block

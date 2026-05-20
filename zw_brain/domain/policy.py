@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from zw_brain.domain.role_codes import (  # R-008 单一来源
-    ALL_ROLE_CODES,
+from zw_brain.domain.role_codes import (
     LEGACY_ROLE_CODES as _LEGACY_ROLE_CODES,
+)
+from zw_brain.domain.role_codes import (  # R-008 单一来源
     ROLE_DISPLAY_NAMES_ZH,
     ROLE_HIERARCHY,
 )
@@ -125,6 +126,10 @@ PERMISSION_ROLES = {
     "application.resource.submit.execute": {"ROLE_ORGAN_OPERATER"},
     "application.resource.review.execute": {"ROLE_ORGAN_MANAGER"},
     "delivery.access.grant.execute": {"ROLE_ORGAN_MANAGER"},
+    # J1 凭据签发 — 审批通过自动触发；手工补签由审批人/主管部门触发
+    "credential.issue.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    # J1 凭据查询 — 申请人 P4 凭据领取页 + 审批人 / 主管部门 / 审计员
+    "credential.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
 
     # 元数据查询（开放给运营/审计）
     "metadata.schema.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
@@ -135,14 +140,16 @@ PERMISSION_ROLES = {
     "ops.catalog.quality.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
 
     # 目录/模型 upsert（J2 主线）
-    "catalog.manage_entry.execute": {"ROLE_ORGAN_OPERATER"},
+    # PR #60 后修复：BUSIAUDIT 主管部门作为平台运营方，需要直接管理目录（特别是审计/合规视角的目录管理）
+    "catalog.manage_entry.execute": {"ROLE_ORGAN_OPERATER", "ROLE_BUSIAUDIT"},
     "catalog.model.upsert.execute": {"ROLE_ORGAN_OPERATER"},
     "catalog.schema.mapping.upsert.execute": {"ROLE_ORGAN_OPERATER"},
     "metadata.schema.snapshot.upsert.execute": {"ROLE_ORGAN_OPERATER"},
     "metadata.gather.evidence.upsert.execute": {"ROLE_ORGAN_OPERATER"},
     "metadata.lineage.upsert.execute": {"ROLE_ORGAN_OPERATER", "ROLE_SECURITY_AUDIT"},
     "ops.catalog.quality.upsert.execute": {"ROLE_ORGAN_OPERATER", "ROLE_SECURITY_AUDIT"},
-    "resource.manage_asset.execute": {"ROLE_ORGAN_OPERATER"},
+    # PR #60 后修复：BUSIAUDIT 主管部门需要直接管理资产
+    "resource.manage_asset.execute": {"ROLE_ORGAN_OPERATER", "ROLE_BUSIAUDIT"},
 
     # 共享专题/能力包
     "zone.publish_topic_projection.execute": {"ROLE_BUSIAUDIT"},
@@ -173,7 +180,8 @@ PERMISSION_ROLES = {
 
     # 数据标准/数据安全（SECURITY_ADMIN 主面，部分共享给 BUSIAUDIT）
     "standard.asset.sync.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_ADMIN"},
-    "standard.asset.recommend.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_ADMIN"},
+    # PR #60 后修复：SECURITY_AUDIT 审计读取数据标准建议是合规场景刚需
+    "standard.asset.recommend.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_ADMIN", "ROLE_SECURITY_AUDIT"},
     "security.scan.result.sync.execute": {"ROLE_SECURITY_ADMIN", "ROLE_SECURITY_AUDIT"},
 
     # adapter 健康
@@ -226,14 +234,14 @@ PERMISSION_ROLES = {
     # M0 实施工程师专用（admin 主用；BUSIAUDIT/SECURITY_AUDIT 验收日代看）
     "legacy.migration.status.query.execute": {"admin", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
 
-    # 反向编目（J2）
-    "catalog.entry.reverse_draft.suggest.execute": {"ROLE_ORGAN_OPERATER"},
-    "catalog.entry.reverse_draft.create.execute": {"ROLE_ORGAN_OPERATER"},
+    # 反向编目（J2）— R6/R7 即 ROLE_ORGAN_MANAGER + ROLE_BUSIAUDIT 主导（OPERATER 通过 ROLE_HIERARCHY 隐式获得 suggest/create）
+    "catalog.entry.reverse_draft.suggest.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "catalog.entry.reverse_draft.create.execute": {"ROLE_ORGAN_MANAGER"},
     "catalog.entry.reverse_draft.confirm.execute": {"ROLE_BUSIAUDIT"},
     "catalog.entry.reverse_draft.reject.execute": {"ROLE_BUSIAUDIT"},
 
-    # schema 发现
-    "metadata.schema.discover.execute": {"ROLE_ORGAN_OPERATER"},
+    # schema 发现 — 反向编目入口；提供方部门管理员 + 平台主管部门可拉取候选 schema
+    "metadata.schema.discover.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
 
     # 质量规则与任务（D27 #14：仅旁路；不进 J1/J2 主线）
     "quality.rule.upsert.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},

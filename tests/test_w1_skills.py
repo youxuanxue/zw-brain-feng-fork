@@ -55,7 +55,7 @@ W1_SKILLS = [
     ("quality.rule.upsert", "write-default", {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}),
     ("quality.task.run", "write-default", {"ROLE_ORGAN_MANAGER"}),
     ("quality.task.replay", "write-default", {"ROLE_ORGAN_MANAGER"}),
-    ("direct_access.catalog.query", "read-trace", {"ROLE_ORGAN_MANAGER", "ROLE_ORGAN_MANAGER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"}),
+    ("direct_access.catalog.query", "read-trace", {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"}),
     ("direct_access.delivery.list", "read-trace", {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"}),
     ("require.resource.dispatch", "write-critical", {"ROLE_BUSIAUDIT"}),
     ("require.task.handoff", "write-default", {"ROLE_BUSIAUDIT"}),

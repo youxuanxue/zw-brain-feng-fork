@@ -277,7 +277,9 @@ def test_rest_runtime_dev_iam_bypass_allows_api_without_iaf_or_bearer() -> None:
             bypass_user = auth_config["development_iam_bypass_user"]
             assert bypass_user["subject"] == "dev-iam-bypass"
             assert bypass_user["username"] == "dev_iam_bypass"
-            assert bypass_user["role_codes"] == ["ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_ORGAN_OPERATER", "ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"]
+            # 2026-05-19 retrofit：bypass 角色对齐 role_codes.ALL_ROLE_CODES（6 业务角色 + admin + system）
+            from zw_brain.domain import role_codes
+            assert set(bypass_user["role_codes"]) == set(role_codes.ALL_ROLE_CODES)
 
             status, snapshot = request_json_with_headers(
                 "GET",

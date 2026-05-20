@@ -76,6 +76,8 @@
 | GET | `/api/skills/compliance.metric.query` | 查询合规指标 | `get_compliance_metric_query` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/compliance.rule.configure` | 配置合规规则 | `post_compliance_rule_configure` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/compliance.signal.ingest` | 接收合规信号 | `post_compliance_signal_ingest` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/credential.issue` | 签发访问凭据（app_key + secret） | `post_credential_issue` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/credential.query` | 查询访问凭据（P4 凭据领取页） | `get_credential_query` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/dashboard.compliance.query` | 查询合规驾驶舱 | `get_dashboard_compliance_query` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/dashboard.render_command_center` | 渲染指挥中心大屏 | `get_dashboard_render_command_center` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/data.search` | 数据资源检索 | `get_data_search` | `zw_brain/entry/rest/openapi.json` |
@@ -283,7 +285,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 184 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 186 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -352,6 +354,8 @@
 | `compliance.metric.query` | 查询合规指标 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/compliance.metric.query.json` |
 | `compliance.rule.configure` | 配置合规规则 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/compliance.rule.configure.json` |
 | `compliance.signal.ingest` | 接收合规信号 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/compliance.signal.ingest.json` |
+| `credential.issue` | 签发访问凭据（app_key + secret） | 1.0.0 | audit, credential_issuance, state_machine_transition | `zw_brain/skill_registration/registered/credential.issue.json` |
+| `credential.query` | 查询访问凭据（P4 凭据领取页） | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/credential.query.json` |
 | `dashboard.compliance.query` | 查询合规驾驶舱 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/dashboard.compliance.query.json` |
 | `dashboard.render_command_center` | 渲染指挥中心大屏 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/dashboard.render_command_center.json` |
 | `data.search` | 数据资源检索 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/data.search.json` |
@@ -490,9 +494,9 @@
 
 ## Statistics
 
-- REST endpoints: 193
+- REST endpoints: 195
 - CLI entries: 1
 - MCP tools: 61
 - A2A agent cards: 1
-- Registered Skills: 198
+- Registered Skills: 200
 

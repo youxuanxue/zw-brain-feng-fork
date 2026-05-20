@@ -1,0 +1,28 @@
+# gitleaks 配置 — zw-brain 项目级 allowlist
+#
+# 设计原则：
+# - 继承 gitleaks 默认规则集（覆盖 AWS / Stripe / GitHub Token 等真实密钥模式）
+# - 仅 allowlist 本项目演示 / 文档约定中的 *明确 demo 标识* 模式，不放过任何
+#   形态像真密钥的字符串。
+# - 演示密钥统一带 `DEMO` 前缀（AK-DEMO-* / SK-DEMO-*），与生产凭据形态可视区分。
+# - 真实密钥发布请走 BFF + secret manager；本仓库不允许任何无 DEMO 前缀的
+#   `app_key=` / `app_secret=` 字面值。
+[extend]
+useDefault = true
+
+[allowlist]
+description = "项目级 demo 凭据 + dev IAM bypass 占位密钥"
+regexes = [
+  # 凭据演示模板：J1+J2+J3 闭环 + 文档 README + curl 示例使用的占位 App Key
+  '''AK-DEMO-[A-Z0-9-]{6,}''',
+  # 凭据演示模板：对应 App Secret（带固定 SK-DEMO- 前缀）
+  '''SK-DEMO-[a-f0-9]{6,}''',
+  # 开发环境 IAM bypass 的 csrf_token 占位字符串
+  '''dev-iam-bypass''',
+]
+paths = [
+  # 演示 / 发布说明文档允许包含 demo 凭据示例
+  '''docs/release-notes/.*''',
+  # seed 数据本身就含 demo 凭据，由 .gitleaksignore 已记录的两条 fingerprint 兜底
+  '''zw_brain/domain/seed_snapshot\.json''',
+]

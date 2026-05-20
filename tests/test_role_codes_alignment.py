@@ -16,8 +16,6 @@ import importlib.util
 import re
 from pathlib import Path
 
-import pytest
-
 REPO = Path(__file__).resolve().parent.parent
 
 
@@ -40,8 +38,8 @@ def test_policy_actor_names_aligned_with_role_codes():
 
 
 def test_server_bypass_roles_aligned_with_role_codes():
-    from zw_brain.entry.rest import server
     from zw_brain.domain import role_codes
+    from zw_brain.entry.rest import server
     assert set(server._DEV_IAM_BYPASS_ROLES) == set(role_codes.ALL_ROLE_CODES), (
         "server._DEV_IAM_BYPASS_ROLES 必须与 role_codes.ALL_ROLE_CODES 同步"
     )
@@ -58,7 +56,7 @@ def test_alembic_0009_allowed_codes_aligned_with_role_codes():
 
 
 def test_web_snapshot_redaction_uses_only_known_roles():
-    from zw_brain.domain import web_snapshot_redaction, role_codes
+    from zw_brain.domain import role_codes, web_snapshot_redaction
     known = set(role_codes.BUSINESS_ROLE_CODES)
     for frozenset_name in ("_DISCOVERY", "_REQUEST", "_DELIVERY", "_PROVIDER", "_COMPLIANCE", "_ZONES", "_CAPABILITY", "_OPS"):
         s = getattr(web_snapshot_redaction, frozenset_name)
@@ -70,7 +68,7 @@ def test_web_snapshot_redaction_uses_only_known_roles():
 
 
 def _extract_object_keys(js_text: str, marker_pattern: str) -> set[str]:
-    """从 JS 源代码中提取一个对象字面量的 key 名集合。
+    r"""从 JS 源代码中提取一个对象字面量的 key 名集合。
 
     marker_pattern 是一个能匹配 "<对象起点 { 字符" 之前那一行的正则
     （如 r'const ROLE_NAMES\s*=\s*\{' 或 r'const ROLE_HERO\s*=\s*\{'）。

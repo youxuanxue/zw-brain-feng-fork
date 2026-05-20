@@ -112,8 +112,9 @@ def test_w4_does_not_register_new_skills() -> None:
     future W4-style "UI-only" feature can't quietly add a new skill manifest."""
     manifest_dir = REPO / "zw_brain" / "skill_registration" / "registered"
     # W3 baseline: 192 manifests; Phase 5 (post-W4) added 6 for the smoke flow → 198.
+    # 2026-05-19 retrofit: +2 for J1 凭据领取闭环（credential.issue / credential.query）→ 200.
     count = sum(1 for p in manifest_dir.glob("*.json"))
-    assert count == 198, f"unexpected skill manifest count change; count = {count}"
+    assert count == 200, f"unexpected skill manifest count change; count = {count}"
     # spot-check: W2 added catalog.entry.reverse_draft.suggest
     assert (manifest_dir / "catalog.entry.reverse_draft.suggest.json").exists()
     # spot-check: Phase 5 added the 6 customer-facing business skills

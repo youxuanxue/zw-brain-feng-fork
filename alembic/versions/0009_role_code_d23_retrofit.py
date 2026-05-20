@@ -66,9 +66,9 @@ def upgrade() -> None:
     # 基线 D22 元规则禁止 OPC 静默吞错；本迁移既写 DB 审计、也写 logger。
     import json
     import logging
-    from datetime import datetime, timezone
+    from datetime import UTC, datetime
     log = logging.getLogger("alembic.0009_role_code_d23_retrofit")
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = datetime.now(UTC).isoformat()
 
     for legacy_code, new_code in _LEGACY_TO_NEW.items():
         # Step A: 先把会被 DELETE 的冲突记录摘要写入 audit_event（持久化迁移证据）

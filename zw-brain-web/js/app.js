@@ -39,6 +39,7 @@
     { test: /^#\/p3-request-flow\/review\/(.+)$/, page: 'reviewDetail', nav: 'main' },
     { test: /^#\/p4-delivery-exchange$/, page: 'deliveryExchange', nav: 'main' },
     { test: /^#\/p4-delivery-exchange\/task\/(.+)$/, page: 'deliveryTaskDetail', nav: 'main' },
+    { test: /^#\/p4-delivery-exchange\/credential\/(.+)$/, page: 'deliveryCredential', nav: 'main' },
     { test: /^#\/p5-provider$/, page: 'provider', nav: 'main' },
     { test: /^#\/p5-provider\/wizard\/reverse-catalog$/, page: 'providerWizardReverseCatalog', nav: 'main' },
     { test: /^#\/p5-provider\/wizard\/api-service$/, page: 'providerWizardApiService', nav: 'main' },
@@ -219,7 +220,9 @@
 
   async function syncRouteData(hash) {
     if (!snapshotReady) return;
-    const route = hash || window.location.hash || '';
+    const rawRoute = hash || window.location.hash || '';
+    // 与 dispatch() 一致：剥掉 query/fragment 噪音
+    const route = rawRoute.split('?')[0].split('&')[0];
     try {
       if (route === '#/p1-workbench') {
         window.RUNTIME_WORKBENCH[currentRole] = await invokeRead('workbench.view', { role: currentRole });
@@ -282,6 +285,15 @@
           if (index >= 0) window.RUNTIME_DELIVERY_TASKS[index] = task; else window.RUNTIME_DELIVERY_TASKS.unshift(task);
         } catch (err) {
           if (currentRole !== 'ROLE_ORGAN_OPERATER') throw err;
+        }
+      } else if (route.startsWith('#/p4-delivery-exchange/credential/') && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
+        const requestId = decodeURIComponent(route.split('/').pop());
+        try {
+          const credentialView = await invokeRead('credential.query', { request_id: requestId });
+          window.RUNTIME_CREDENTIAL_VIEW = credentialView;
+        } catch (err) {
+          // 拒绝时仍渲染页面（显示 not_issued + 错误提示）
+          window.RUNTIME_CREDENTIAL_VIEW = { request_id: requestId, status: 'error', hint: err.message };
         }
       } else if (route === '#/p5-provider' && roleCan(['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'])) {
         window.RUNTIME_PROVIDER = await invokeRead('provider.view', {});
@@ -435,7 +447,9 @@
 
   function dispatch() {
     if (!snapshotReady) return;
-    const hash = window.location.hash || '#/p1-workbench';
+    const rawHash = window.location.hash || '#/p1-workbench';
+    // 路由前先剥掉 query/fragment 噪音（"#/p8-integration-admin?_t=123" → "#/p8-integration-admin"）
+    const hash = rawHash.split('?')[0].split('&')[0];
     let matched = null;
     let captures = [];
 
@@ -675,6 +689,19 @@
     triggerDeliveryRecovery(taskId) {
       performWrite('delivery.trigger_recovery', { task_id: taskId }, '恢复流程已触发');
     },
+    reissueCredential(requestId) {
+      // U-3 处置：审批人 / 主管部门手工补签或重新签发
+      performWrite('credential.issue', { request_id: requestId, reissue: true }, '凭据已重新签发；旧凭据立即失效', async () => {
+        // 强刷凭据视图
+        try {
+          const credentialView = await invokeRead('credential.query', { request_id: requestId });
+          window.RUNTIME_CREDENTIAL_VIEW = credentialView;
+          dispatch();
+        } catch (err) {
+          window.UI.toast('凭据查询失败：' + err.message, 'error');
+        }
+      });
+    },
     configurePackageExposure(packageId, mode) {
       performWrite('package.configure_exposure', { package_id: packageId, mode }, mode === 'tighten' ? '暴露面已收紧' : '暴露面已扩展');
     },
@@ -700,10 +727,10 @@
     },
     publishZoneTopicProjection(zoneId) {
       if (currentRole !== 'ROLE_BUSIAUDIT') {
-        window.UI.toast('当前身份暂无发布正式投影权限', 'error');
+        window.UI.toast('当前身份暂无正式发布权限', 'error');
         return;
       }
-      performWrite('zone.publish_topic_projection', { zone_id: zoneId }, '专区正式投影已发布');
+      performWrite('zone.publish_topic_projection', { zone_id: zoneId }, '已发布到正式专区');
     },
     reconcileDeliveryReceipt(taskId) {
       performWrite('delivery.reconcile_receipt', { task_id: taskId }, '交付回执已完成对账');
@@ -1185,13 +1212,19 @@
     window.addEventListener('zw-auth-change', syncHeaderIdentityAndLegal);
   }
 
-  window.addEventListener('hashchange', async () => {
-    try {
-      await syncRouteData(window.location.hash);
-    } catch (routeErr) {
-      window.UI.toast(customerSafeError(routeErr, '页面数据未就绪，已展示默认内容。'), 'info');
-    }
+  window.addEventListener('hashchange', () => {
+    // Jobs 优化：tab 切换立即从 snapshot 缓存渲染，不等后端 skill 调用。
+    // syncRouteData 在背景异步执行，完成后若数据有变化触发一次 re-dispatch。
     dispatch();
+    // 异步刷新（不阻塞 tab 切换感受）
+    syncRouteData(window.location.hash)
+      .then(() => {
+        // 数据可能更新过，重新渲染（开销小：只是 DOM 替换，无网络）
+        dispatch();
+      })
+      .catch(routeErr => {
+        window.UI.toast(customerSafeError(routeErr, '页面数据未就绪，已展示默认内容。'), 'info');
+      });
   });
 
   window.addEventListener('DOMContentLoaded', async () => {

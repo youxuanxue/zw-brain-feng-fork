@@ -17,7 +17,7 @@ R-011 retrofit: 缺测试是 OPC「以后注意」反模式（评审主文档 §
 from __future__ import annotations
 
 import importlib.util
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -109,11 +109,11 @@ def _run_upgrade(engine):
     which is the same shape alembic batch_alter_table generates for SQLite dialect).
     """
     import json
-    from datetime import datetime, timezone
+    from datetime import datetime
     mod = _load_module(ALEMBIC_0009, "alembic_0009_test")
 
     from sqlalchemy import text as t
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = datetime.now(UTC).isoformat()
 
     with engine.begin() as conn:
         for legacy_code, new_code in mod._LEGACY_TO_NEW.items():

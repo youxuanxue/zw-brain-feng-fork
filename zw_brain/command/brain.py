@@ -422,6 +422,18 @@ class BrainService:
                     str(payload.get("role", self._ui_state["role"])),
                     bool(payload.get("confirmed")),
                 )
+            case "credential.issue":
+                return self.issue_credential(
+                    str(payload["request_id"]),
+                    str(payload.get("role", self._ui_state["role"])),
+                    bool(payload.get("confirmed")),
+                    reissue=bool(payload.get("reissue", False)),
+                )
+            case "credential.query":
+                return self.get_credential(
+                    str(payload["request_id"]),
+                    str(payload.get("role", self._ui_state["role"])),
+                )
             case "metadata.schema.query":
                 return self.query_metadata_schema(resource_code=payload.get("resource_code"), binding_code=payload.get("binding_code"))
             case "metadata.catalog_item.query":
@@ -3776,7 +3788,7 @@ class BrainService:
                             "id": cand_id,
                             "name": title,
                             "provider": entry.get("owner_org_id", "") or "—",
-                            "zone": "真目录召回",
+                            "zone": "官方目录推荐",
                             "status": entry.get("lifecycle_status", "active"),
                             "desc": f"NL 召回字典命中（来自 dsp_catalog 真数据，{entry.get('lifecycle_status','active')}）。",
                             "kind": "recall_dictionary",
@@ -3862,7 +3874,7 @@ class BrainService:
                             "id": cand_id,
                             "name": title,
                             "provider": entry.get("owner_org_id", "") or "—",
-                            "zone": "真目录召回",
+                            "zone": "官方目录推荐",
                             "status": entry.get("lifecycle_status", "active"),
                             "desc": f"NL 召回字典命中（来自 dsp_catalog 真数据，{entry.get('lifecycle_status','active')}）。",
                             "kind": "recall_dictionary",
@@ -3889,7 +3901,7 @@ class BrainService:
     def _discovery_summary(self, query: str, resources: list[dict[str, Any]]) -> dict[str, Any]:
         base = copy.deepcopy(self._snapshot["discovery"]["aiCopilot"])
         if resources and query:
-            base["summary"] = f"已按“{query}”找到 {len(resources)} 条可复用目录或基础要素。先看字段、共享条件和 schema 证据；仍缺的字段再进入最小申请。"
+            base["summary"] = f"已按“{query}”找到 {len(resources)} 条可复用目录或基础要素。先看字段、共享条件和字段证据；仍缺的字段再进入最小申请。"
             base["missingQuestions"] = ["是否限定使用区域或时间窗？", "本次只需要哪些字段，哪些字段属于缺口？"]
             base["nextActions"] = ["打开资源详情", "核对字段口径", "整理最小申请字段"]
             base["evidence"] = [item.get("name", item.get("id", "")) for item in resources[:3]]
@@ -4971,7 +4983,7 @@ class BrainService:
             "name": record.title,
             "status": record.lifecycle_status,
             "provider": provider,
-            "zone": summary.get("zone") or self._region_label(record.region_code) or "真目录召回",
+            "zone": summary.get("zone") or self._region_label(record.region_code) or "官方目录推荐",
             "updatedAt": str(summary.get("updatedAt") or summary.get("updated_at") or summary.get("update_time") or record.updated_at.date().isoformat()),
             "coverage": summary.get("coverage", "真实旧平台目录"),
             "score": int(summary.get("score", 80 if record.catalog_code.startswith("basic-elem:") else 75)),
@@ -5866,7 +5878,11 @@ class BrainService:
                 "delivery_state": delivery_state,
             }
 
-        return self._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision, "reason": reason, "evidence": evidence}, mutation)
+        result = self._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision, "reason": reason, "evidence": evidence}, mutation)
+        # R-006 fix: 凭据签发作为审批之后的独立动作；audit 失败不污染审批 mutation
+        if decision in {"approve_reuse", "approve_with_supplement"}:
+            self._auto_issue_credential_on_approval(request_id, role, self._actor_for_role(role))
+        return result
 
     def _r2_review_reason(self, decision: str, request: dict[str, Any]) -> str:
         labels = {
@@ -6731,7 +6747,10 @@ class BrainService:
             self._append_audit_feed("request.approve", request_id, "ok", actor)
             return {"request_id": request_id, "status": request["status"]}
 
-        return self._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision}, mutation)
+        result = self._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision}, mutation)
+        # R-006 fix: 凭据签发作为审批之后的独立动作；audit 失败不污染审批 mutation
+        self._auto_issue_credential_on_approval(request_id, role, self._actor_for_role(role))
+        return result
 
     def _return_request_for_fix(self, request_id: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide", *, decision: str = "return_for_fix") -> dict[str, Any]:
         request = self._request_by_id(request_id)
@@ -7509,6 +7528,134 @@ class BrainService:
     def _new_audit_id(self) -> str:
         now = datetime.now()
         return f"AE-{now:%Y-%m-%d-%H%M%S%f}"
+
+    # ============== J1 凭据签发与查询（D27/U-3 处置承诺的凭据领取闭环） ==============
+
+    def _credential_for_request(self, request_id: str, seed: str | None = None) -> dict[str, Any]:
+        """Demo credential — 同一 (request_id, seed) 永远生成同一凭据；不依赖 IAM 密钥管理。
+
+        seed=None：首次签发（auto-on-approval），用 request_id 作种子，凭据可被 demo 用户重现。
+        seed=<audit_id>：reissue 路径传入 audit_id 作种子，**每次重签都产生不同 app_secret**
+        （旧 secret 立即失效语义；与生产 IAM reissue 行为对齐）。
+
+        前缀 AK-DEMO- / SK-DEMO- 让 preflight 与 audit 一眼能区分 demo vs 生产。
+        生产对接 IAM 时：替换本方法的实现 + 调用方在 reissue 路径必须传新 seed
+        （已由 issue_credential 实现保障）。
+        """
+        seed_material = f"d23-credential-{request_id}" if seed is None else f"d23-credential-{request_id}-reissue-{seed}"
+        digest = hashlib.sha256(seed_material.encode("utf-8")).hexdigest()
+        app_key = f"AK-DEMO-{request_id}-{digest[:8].upper()}"
+        app_secret = f"SK-DEMO-{digest[8:32]}"
+        valid_from = self._now_date()
+        valid_to = (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d")
+        return {
+            "app_key": app_key,
+            "app_secret": app_secret,
+            "valid_from": valid_from,
+            "valid_to": valid_to,
+            "quota_per_day": 1000,
+            "invoke_url_template": f"https://api.gov-data.local/v1/services/<resource_code>?app_key={app_key}",
+        }
+
+    def issue_credential(self, request_id: str, role: str, confirmed: bool, *, reissue: bool = False) -> dict[str, Any]:
+        """签发凭据 — 审批通过自动触发，或审批人/主管部门手工补签。"""
+        request = self._request_by_id(request_id)
+        delivery = self._delivery_by_request_id(request_id)
+        if delivery is None:
+            raise NotFoundError(request_id)
+        # 仅审批通过的 request 才能签发（前置守卫）。
+        # 覆盖所有"审批已通过"语义的状态：approved（同步落库即时态）/ supplementing（基层补差中）
+        # / summary-pending（汇总确认中）/ completed（已完成）/ in_delivery（交付进行中）/ granted（已授权）
+        approved_states = {"approved", "supplementing", "summary-pending", "completed", "in_delivery", "granted"}
+        if request.get("status") not in approved_states:
+            raise InvalidStateError(f"request {request_id} not approved yet; current status={request.get('status')}")
+
+        existing = (delivery.get("accessGrantSnapshot") or {}).get("credential")
+        if existing and not reissue:
+            return {
+                "request_id": request_id,
+                "credential": existing,
+                "audit_id": delivery.get("accessGrantSnapshot", {}).get("issued_audit_id"),
+                "issued_via": "cached",
+            }
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            # R-002 fix: reissue 路径传 audit_id 作 seed → 真生成新 app_secret（旧 secret 立即失效语义）
+            seed = audit_id if existing else None
+            credential = self._credential_for_request(request_id, seed=seed)
+            grant_snapshot = copy.deepcopy(delivery.get("accessGrantSnapshot") or {})
+            grant_snapshot["credential"] = credential
+            grant_snapshot["issued_audit_id"] = audit_id
+            grant_snapshot["issued_at"] = self._now_datetime()
+            grant_snapshot["issued_by"] = actor
+            delivery["accessGrantSnapshot"] = grant_snapshot
+            delivery.setdefault("history", []).append({
+                "time": self._now_short_time(),
+                "state": "凭据已签发" if not existing else "凭据已重新签发（旧 secret 立即失效）",
+                "detail": f"app_key={credential['app_key']}（demo 凭据），可在 P4 凭据领取页查看。",
+            })
+            self._append_audit_feed("credential.issue", request_id, "ok", actor)
+            return {
+                "request_id": request_id,
+                "credential": credential,
+                "audit_id": audit_id,
+                "issued_via": "manual-reissue" if existing else "auto-on-approval",
+            }
+
+        return self._mutate("credential.issue", role, confirmed, {"request_id": request_id, "reissue": reissue}, mutation)
+
+    def get_credential(self, request_id: str, role: str) -> dict[str, Any]:
+        """P4 凭据领取页查询入口 — 申请人 / 审批人 / 审计员都可查（无侧效，仅读）。"""
+        # 权限校验由 manifest + enforce_manifest_policy 走 invoke_skill 路径处理
+        delivery = self._delivery_by_request_id(request_id)
+        if delivery is None:
+            raise NotFoundError(request_id)
+        snapshot = delivery.get("accessGrantSnapshot") or {}
+        credential = snapshot.get("credential")
+        if not credential:
+            return {
+                "request_id": request_id,
+                "credential": None,
+                "status": "not_issued",
+                "hint": "凭据尚未签发；请等待审批通过或联系审批人手工签发。",
+            }
+        return {
+            "request_id": request_id,
+            "credential": credential,
+            "status": "issued",
+            "issued_audit_id": snapshot.get("issued_audit_id"),
+            "issued_at": snapshot.get("issued_at"),
+            "issued_by": snapshot.get("issued_by"),
+            "resource_id": delivery.get("resourceId"),
+            "resource_name": delivery.get("resourceName"),
+        }
+
+    def _auto_issue_credential_on_approval(self, request_id: str, role: str, actor: str) -> None:
+        """审批通过路径的内部钩子 — 通过 credential.issue skill 完成签发.
+
+        设计（R-006 + R-102）：
+        - hook 在 `_mutate` return **之后**调用；审批 mutation 已成功落库，本钩子失败
+          **不污染**审批 state（凭据可后续手工补签）。
+        - 通过 `invoke_skill("credential.issue", ...)` 触发，自动获得完整 `_mutate`
+          包装：capability_call ledger / audit before-after-error / D5 锚定 / 权限校验。
+        - 凭据签发失败时错误冒泡到 dispatch 层（D4 不静默吞错）；但审批已成功不受影响，
+          客户端可通过 P4 凭据领取页 `reissueCredential` 手工补签。
+
+        前置守卫：
+        - 无对应 delivery → 安全跳过（审批通过但无 delivery 投影是 demo 边界 case）
+        - 已有 credential → 安全跳过（重复进入审批通过路径不重签）
+        """
+        delivery = self._delivery_by_request_id(request_id)
+        if delivery is None:
+            return
+        if (delivery.get("accessGrantSnapshot") or {}).get("credential"):
+            return
+        # 通过 invoke_skill 路径触发；权限/审计/锚定一气呵成
+        self.invoke_skill("credential.issue", {
+            "request_id": request_id,
+            "role": role,
+            "confirmed": True,
+        })
 
     def _month_day_time(self) -> str:
         return datetime.now().strftime("%m-%d %H:%M")

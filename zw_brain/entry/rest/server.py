@@ -59,6 +59,7 @@ _LOGGER = logging.getLogger(__name__)
 _JWKS_CACHE_TTL_SECONDS = 600
 # R-008/R-009: 从单一来源 role_codes 派生（含 admin / system）
 from zw_brain.domain.role_codes import ALL_ROLE_CODES as _DEV_IAM_BYPASS_ROLES  # noqa: E402
+
 _DEV_IAM_BYPASS_SUBJECT = "dev-iam-bypass"
 _DEV_IAM_BYPASS_USERNAME = "dev_iam_bypass"
 _DEV_IAM_BYPASS_DISPLAY_NAME = "开发调试账号（IAM bypass）"

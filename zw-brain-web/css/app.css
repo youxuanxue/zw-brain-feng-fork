@@ -365,6 +365,7 @@ a:hover {
 
 .grid-cols-12 {
   grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: start;
 }
 .grid-cols-5 {
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -737,7 +738,7 @@ a:hover {
 .page-hero-subtitle {
   margin-top: 8px;
   font-size: 14px;
-  line-height: 1.65;
+  line-height: 1.5;
   color: var(--b-muted-soft);
 }
 .page-meta {
@@ -1064,6 +1065,50 @@ a:hover {
 .row-actions:hover {
   text-decoration: underline;
 }
+/* row-actions-subtle: 用于行尾"查看"链接 — 默认降权到 muted，hover 才显主色 */
+.row-actions-subtle {
+  color: var(--b-muted);
+  font-weight: 400;
+}
+.row-actions-subtle:hover {
+  color: var(--b-primary);
+  text-decoration: underline;
+}
+/* 待办三段式分组 */
+.gov-list-grouped .gov-list-section + .gov-list-section {
+  margin-top: 12px;
+  border-top: 1px solid var(--b-border);
+  padding-top: 12px;
+}
+.gov-list-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--b-muted);
+  letter-spacing: 0.04em;
+  padding: 6px 0 4px;
+  text-transform: uppercase;
+}
+/* 已完成项褪色 — 让"需要你"的最显眼 */
+.gov-list-row--done {
+  opacity: 0.55;
+}
+.gov-list-row--done .row-title {
+  color: var(--b-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--b-muted-soft);
+  text-decoration-thickness: 1px;
+}
+.row-done-check {
+  color: #2e7d32;
+  font-weight: 700;
+  margin-right: 4px;
+}
+/* P7 专区卡片等高 — auto-rows 1fr 让多个卡片对齐 */
+.zone-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
 
 .card-hover {
   transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
@@ -1321,9 +1366,12 @@ a:hover {
   border: 1px solid rgba(0, 150, 136, 0.25);
 }
 .ai-tag {
-  background: var(--b-bg-subtle);
-  color: var(--b-muted);
-  border: 1px solid var(--b-border);
+  background: transparent;
+  color: var(--b-muted-soft);
+  border: 1px dashed var(--b-border);
+  font-weight: 400;
+  font-size: 12px;
+  padding: 2px 8px;
 }
 
 .copilot-bar,
@@ -1430,10 +1478,22 @@ a:hover {
   font-size: 14px;
   margin: 2px 6px 2px 0;
 }
+/* chip-ok: 已识别（绿底绿字，明确 "system 已答" 视觉信号）*/
+.chip-ok {
+  background: rgba(46, 125, 50, 0.08);
+  color: #2e7d32;
+  border-color: rgba(46, 125, 50, 0.25);
+}
 .chip-ok::before {
   content: "✓";
-  color: var(--b-success);
+  color: #2e7d32;
   font-weight: 700;
+}
+/* chip-ask: 待用户答（黄底橙字，明确 "需要你输入" 视觉信号）*/
+.chip-ask {
+  background: rgba(230, 81, 0, 0.06);
+  color: #e65100;
+  border-color: rgba(230, 81, 0, 0.3);
 }
 .chip-ask::before {
   content: "?";
@@ -1673,6 +1733,43 @@ pre.code {
   overflow-wrap: anywhere;
 }
 
+.top-nav {
+  background: var(--b-bg-card);
+  border-bottom: 1px solid var(--b-border);
+  position: sticky;
+  top: 64px;
+  z-index: 20;
+  margin-bottom: 18px;
+}
+.top-nav-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+}
+.top-nav-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 14px 18px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--b-text-secondary);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.top-nav-item:hover {
+  color: var(--b-primary);
+}
+.top-nav-item.is-active {
+  color: var(--b-primary);
+  border-bottom-color: var(--b-primary);
+  font-weight: 600;
+}
 .product-shell-grid {
   display: grid;
   grid-template-columns: var(--zw-product-nav-w) minmax(0, 1fr);
@@ -1687,6 +1784,58 @@ pre.code {
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+.product-shell-main--full {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+  width: 100%;
+}
+.workbench-hero {
+  background: var(--b-bg-card);
+  border: 1px solid var(--b-border);
+  border-radius: var(--b-radius-md);
+  padding: 24px;
+  margin-bottom: 8px;
+}
+.workbench-hero-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.workbench-hero-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--b-text);
+  margin: 0;
+  line-height: 1.4;
+}
+.workbench-hero-count {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--b-primary);
+  margin: 0 4px;
+  vertical-align: -2px;
+}
+.text-zw-warn {
+  color: #e65100;
+  font-weight: 700;
+}
+.workbench-hero-sub {
+  margin: 6px 0 0 0;
+  color: var(--b-text-secondary);
+  font-size: 14px;
+}
+.workbench-hero-search {
+  display: flex;
+  gap: 8px;
+  min-width: 360px;
+  flex: 0 1 480px;
+}
+.workbench-hero-search .field-input {
+  flex: 1;
 }
 
 .product-shell-grid:not(.is-shell-nav-collapsed) .product-shell-aside {

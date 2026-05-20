@@ -10,7 +10,6 @@ import pytest
 
 from zw_brain.domain import policy
 
-
 _MANIFEST_REQUIRING_TAG = {
     "tenant_scope": "tenant",
     "human_confirmation_required": False,

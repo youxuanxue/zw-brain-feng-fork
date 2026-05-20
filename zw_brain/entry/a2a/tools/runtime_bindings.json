@@ -684,6 +684,48 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "credential.query",
+    "description": "只读。返回某 request 已签发的 credential（app_key + app_secret + 有效期 + 配额 + 调用 URL 模板）。申请人 / 审批人 / 主管部门 / 审计员均可查（受 policy 控制）。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/credential.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id"
+      ]
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": false,
+      "audit_class": "read",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "credential.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "dashboard.compliance.query",
     "description": "查询合规事件、指标和 adapter 健康概览。",
     "protocol_type": "builtin_skill",
@@ -5993,6 +6035,62 @@
       ],
       "permissions": [
         "compliance.signal.ingest.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "credential.issue",
+    "description": "审批通过后为申请签发可使用的 access credential：app_key + app_secret + 有效期 + 调用配额。审批通过路径会自动调用；手工补签由审批人/主管部门触发。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/credential.issue",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "actor_tags": {
+          "type": "object"
+        },
+        "reissue": {
+          "type": "boolean",
+          "description": "true 强制重新签发（覆盖已有 credential）；默认 false 时若已存在则返回现有"
+        }
+      },
+      "required": [
+        "request_id"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "credential_issuance",
+        "state_machine_transition"
+      ],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "credential.issue.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
