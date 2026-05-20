@@ -32,6 +32,15 @@ phase_after_approval: 持续维护（每次新增/删除 approved 文档时同�
 | [zw-brain-roles.md](zw-brain-roles.md) | 7 角色 + tag_lead_dept 详细规范 | spoke——基线 §5.1 / §11 R10/R11 的事实展开 |
 | [research-yibiaotong.md](research-yibiaotong.md) | 一表通调研事实 | spoke——基线 §3.4 C 引用的事实证据 |
 
+## 外部规范源（非 approved spoke，但被基线 §八 / R18 / D30 引用）
+
+| 文件 | 角色 |
+|---|---|
+| [../agent-runtime/product-integration-guide.md](../agent-runtime/product-integration-guide.md) | AgentRuntime 产品集成与声明式 Agent 开发指南（`anp-agent/v1.2` 速查 + Embedded SDK / Standalone HTTP 集成 + 生产 readiness checklist） |
+| [../agent-runtime/agent-runtime-api-cn.md](../agent-runtime/agent-runtime-api-cn.md) | AgentRuntime API 接入文档（session / task / event-stream / workspace / A2A / 鉴权契约） |
+
+> 这两份是**外部协议规范源**，不属基线 spoke（不在 approved 治理范围内），但 D30 / R18 决策的实施必须以这两份为准。新接入外部 Agent 必须直接产出 `AGENT.yaml`；旧 hub 包格式（`manifest.json` + `a2a/agent_card.json` + `skills/bindings.json` + `tools/runtime_bindings.json`）已废弃，不留兼容入口（与 R15 同精神）。
+
 ## 单一事实来源原则
 
 - **架构主张 / 路线图 / R-编号 / 产品形态** = `zw-brain-architecture.md`
@@ -55,7 +64,8 @@ phase_after_approval: 持续维护（每次新增/删除 approved 文档时同�
 GATE-1（2026-04-18）+ GATE-1.1 retrofit（2026-05-19 业务方 sign-off）+ v4.1 二轮反转（2026-05-20）+ reality check（2026-05-20）的全部决策已吸收进 `zw-brain-architecture.md` 的：
 
 - 修订记录段（按时间线列出每次变更的性质 + 触发源）
-- §11 关键设计主张（R1-R17）
+- §11 关键设计主张（R1-R18）
 - §3 reality-driven 章节（旧平台真实事实）
+- 附录 D（D23-D30 决策档案）
 
 完整历史细节（21 条业务反馈处置、reality check 调研过程等）从 git 历史 `feature/v4.1-jobs-refocus` 分支的早期 commit 找回。

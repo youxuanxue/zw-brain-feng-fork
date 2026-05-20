@@ -8,9 +8,10 @@ authors:
   - 薛娇（产品研发负责人）
   - Claude Code (claude-opus-4-7) — 设计协作
 related_docs:
-  - docs/approved/zw-brain-architecture.md
+  - docs/approved/zw-brain-data-model.md
   - docs/approved/zw-brain-roles.md
-  - docs/approved/zw-brain-architecture.md
+  - docs/agent-runtime/product-integration-guide.md
+  - docs/agent-runtime/agent-runtime-api-cn.md
   - old/代码信息抽取/代码信息抽取-27newbranch/All-Project_对外提供API清单.md
   - old/代码信息抽取/代码信息抽取-27newbranch/All-Project_外部SDK和接口文档(含项目交互关系).md
   - old/代码信息抽取/代码信息抽取-27newbranch/All-Project_数据库表结构文档.md
@@ -20,8 +21,6 @@ related_docs:
   - old/huiyijiangjie/20260417092236-转写_一体化大数据平台介绍-转写智能优化版-1.txt
   - old/20260519/平台系统角色菜单梳理v5.xlsx
   - old/20260519/会议信息/疑问&建议.txt
-  - hub/
-  - hub/各类skill与智能体/aihub-integration-api.md
 related_prs: []
 related_commits: []
 self_review_rounds: 2
@@ -317,7 +316,7 @@ OPC 不是“少人硬扛”，而是“架构、流程、工具都必须服务�
 1. **研发方式 AI 原生**：平台以 AI coding 为默认研发方式，规则、契约、检查都必须可被 Agent 理解、执行、校验。
 2. **能力形态 AI 原生**：平台内部以统一 Capability 为最小单位，再投影到 WebUI / API / CLI / MCP / A2A，不为每个入口各造一套实现。
 3. **体验形态 AI 原生**：用户看到的首先是**结构化主旅程优先**的产品界面；AI 只作为嵌入式副驾介入少数关键摩擦点——把用户意图翻译成检索/申请条件，把跨步骤上下文串起来，把审计/异常/交付等复杂证据转成可读摘要。它不是旧门户换皮，也不是只剩聊天框，更不是责任动作的默认入口。
-4. **扩展路径 AI 原生**：新增功能默认在外部 ANP / hub-compatible 能力包中构建，再注册进入平台，而不是继续在主仓库里长菜单、长模块、长分叉。
+4. **扩展路径 AI 原生**：新增功能默认在外部 Agent 中构建（ANP 平台 / Cursor / 其他工具皆可），通过 AgentRuntime 声明式协议（`AGENT.yaml`）注册进入平台，而不是继续在主仓库里长菜单、长模块、长分叉（详见 §八 / R18）。
 5. **可配置化 AI 原生**：政务场景项目级个性化（**审批流、表单字段、推荐规则、门户布局**）是基本盘——立项会议红军原话「各项目门户、表单、流程都个性化；旧平台靠改代码 + 改数据库」。**真正的 AI 原生差异化不是"在每页塞一个聊天框"，而是把"改代码 / 改库"以前必须做的事，提升为"用自然语言生成 schema / 节点 / 选人规则 → 平台运行可配置物 → 不再回主仓发版"**。该条件落地在 Wave 2 的三大引擎（§10.3：审批流引擎 + 表单 schema 化 + 智能推荐），由 §11 R14 锁定。
 
 ### 4.1 Capability 是唯一中性最小单位
@@ -357,7 +356,7 @@ v4 不再把“五入口共享契约”误解为“五入口同时做成完整�
 |------|------|----------|
 | Core | 跨项目高频、直接构成主旅程 | 平台内建 |
 | Common | 有复用价值，但不必进入主导航 | 后台入口 / 可选能力 |
-| Long-tail | 项目特有、低频、试验性、行业特化 | 外部 ANP / hub-compatible 包注册 |
+| Long-tail | 项目特有、低频、试验性、行业特化 | 外部 Agent 经 AgentRuntime AGENT.yaml 注册（详见 §八 / R18） |
 
 这条原则的目标不是“分类漂亮”，而是**不给低价值复杂度永久居住权**。
 
@@ -568,7 +567,6 @@ Capability、Registry、Policy、Audit 等实现都必须回落到这套代码�
 - **P4 交付与交换**：AI 做“状态解释助手”——解释当前阶段、异常原因、影响范围、下一步动作；不替代时间线、回执与任务状态本体。
 - **B1.1 合规与运营**（原 P6）：AI 做"调查摘要助手"——证据分类、事件归纳、工单/知识建议串联；不覆盖原始审计证据，也不替代人工调查结论。
 - **B1.2 平台接入后台**（原 P8）：AI 做"审核缺项助手"——标缺项、草拟退回意见、提示确认边界问题；不自动批准、自动发布。
-- **K12 大屏**：AI 做“指挥辅助结论”——结论、责任人、下一动作、依据摘要；不成为主视图主交互。
 
 #### 5.4.5 一票否决项
 
@@ -644,8 +642,8 @@ v4 继续采用五个消费面：
 | WebUI | 人类用户 | 高 |
 | API | 第三方系统 | 高 |
 | CLI | 运维 / Headless / 后台 Agent | 高 |
-| MCP | IDE / Claude / Cursor 类 Agent | 中 |
-| A2A | 外部 Agent 平台 | 中 |
+| MCP | IDE / Claude / Cursor 类 Agent（**外部 Agent 经 AgentRuntime 声明式协议 AGENT.yaml 暴露**，详见 §八 / R18） | 中 |
+| A2A | 外部 Agent 平台（**经 AgentRuntime 声明式协议暴露与调用**，详见 §八 / R18） | 中 |
 
 这里的“中优先级”不是说 MCP / A2A 不重要，而是说 **首波不为了协议对称牺牲交付顺序**。
 
@@ -673,6 +671,8 @@ v4 继续采用五个消费面：
 - 怎么调
 - 何时要人确认
 - 调完会留下什么回执与审计
+
+**与 AgentRuntime `AGENT.yaml` 的关系**：`Capability` 是 zw-brain 内部最小单位（描述「平台能做什么」）；`AGENT.yaml`（`anp-agent/v1.2`）是外部 Agent 声明式协议（描述「外部 Agent 需要什么能力 + 如何被运行」）。外部 Agent 通过 `AGENT.yaml` 中的 `tools` / `mcp_servers` / `skills` / `permissions` 段消费 zw-brain Capability；Registry 维护映射并裁剪有效工具集。两者不可互换：Capability 不会取代 AGENT.yaml，AGENT.yaml 也不会替代 Capability 契约（详见 §八 / R18）。
 
 ### 6.3 投影原则
 
@@ -719,7 +719,7 @@ L3 Domain Workflows
   Catalog | Resource | Application | Approval | Delivery | Objection | Compliance
 
 L4 Runtime & Adapters
-  Built-in Skills | Registered Packages | Adapter Skills | Tool Bindings
+  Built-in Skills | Registered Packages | Adapter Skills | Tool Bindings | AgentRuntime（声明式 Agent 执行内核，anp-agent/v1.2，详见 §八 / R18）
 
 L5 Data / External
   Canonical DB | Audit Store | Registry Store | Legacy Adapters | IAM | 推理平台 | 区块链 | 国家平台 | 对象存储 | 消息
@@ -772,33 +772,43 @@ v4 只要求控制面先具备以下最小能力：
 
 ## 八、外部能力集成模型
 
-### 8.1 ANP / hub-compatible 包是能力生产线，不是产品首页
+### 8.1 AgentRuntime 声明式协议是外部能力接入的唯一桥接面
 
-本基线确立：新增能力默认从外部 ANP / hub-compatible package 生产，再注册进入 zw-brain。
+本基线确立：**外部 Agent 不论由 ANP 平台、Cursor 还是其他工具构造，进入 zw-brain 必须以 AgentRuntime 声明式协议（`anp-agent/v1.2` 的 `AGENT.yaml`）形态声明并通过 AgentRuntime 执行内核运行**。
 
-但 v4 同时收紧一个表述：
+- 上游构造来源是异构的：ANP 平台、Cursor、手写、第三方 Agent IDE，皆为合法构造路径——只要能产出 `AGENT.yaml` 即可。
+- 桥接面是唯一的：`AGENT.yaml` + AgentRuntime 是唯一对外契约；不通过 AgentRuntime 的私有协议 / 私有运行时一律拒绝接入。
+- **旧 hub 包格式（`manifest.json` + `a2a/agent_card.json` + `skills/bindings.json` + `tools/runtime_bindings.json`）直接废弃**：不建归一工具、不保留兼容入口、不保留双格式注册路径。新接入必须直接产出 `AGENT.yaml`。这与 R15「全新项目不背历史兼容」同精神：当前没有真实接入存量，提前留兼容只会分散单人维护精力。
+
+v4 同时收紧一个表述：
 
 **外部能力生态是平台的扩展机制，不是普通用户的主要产品心智。**
 
 这意味着：
-- 对管理员而言，它是扩展路径
+- 对管理员而言，它是扩展路径（B1.2 接入扩展中心）
 - 对工程团队而言，它是复杂度隔离策略
-- 对普通用户而言，它最多体现为“多了一个可用能力”，而不是“我要先理解一个生态系统”
+- 对普通用户而言，它最多体现为「多了一个可用能力」，而不是「我要先理解一个生态系统」
 
-### 8.2 外部能力包的最小形态
+规范源（唯一）：`docs/agent-runtime/product-integration-guide.md` + `docs/agent-runtime/agent-runtime-api-cn.md`。
 
-参考 hub 样例，外部能力包至少应包含：
+### 8.2 zw-brain 对外部 Agent 的产品决策
 
-- `manifest.json`：包级元信息
-- `a2a/agent_card.json`：A2A 可发现面（如适用）
-- `skills/bindings.json`：Skill 绑定与 schema
-- `tools/runtime_bindings.json`：工具绑定
-- `runtime/`：执行入口与适配逻辑
-- 可选的 prompt / assets / references
+> **单一事实来源**：`AGENT.yaml` schema、字段语义、`trust_level` 三级定义、Embedded SDK / Standalone HTTP 集成方式、鉴权 / context / workspace 模式等**协议规范**由 `docs/agent-runtime/*` 承载。本节只声明 zw-brain 侧的产品决策，不复刻协议细节——AgentRuntime 升级时改 `docs/agent-runtime/*`，本基线无需同步。
+
+| 决策项 | zw-brain 选择 | 原因 / 兜底 |
+|---|---|---|
+| 声明形态 | `anp-agent/v1.2` `AGENT.yaml`（唯一） | 旧 hub 包格式废弃（§8.1）；不接受其它 schema |
+| `trust_level` 默认 | 外部 Agent = `untrusted`；`verified` 由 B1.2 管理员审核升级；`platform` 仅限 zw-brain 内置 Agent | 政务场景默认收紧；Registry 可覆盖收紧、不可放宽 |
+| 模型 provider | 必须指向 zw-brain 集团推理平台 gateway | D6 / preflight 段 10 强制 |
+| 运行形态 | Phase 1 默认 Embedded SDK；Standalone HTTP 留 Wave 3+ 评估 | 与 R7「控制面纤薄」一致；触发切换的条件 = 多租户隔离压力 / 跨集群部署 |
+| 鉴权模式 | `static_api_key` 或 `trusted_gateway`；禁用 `none` | 生产 readiness gate 阻断 |
+| 多租户模式 | `tenant_id="sd-default"` 单租户；不启用 `tenant_mode=multi` | 与 zw-brain 默认租户模型对齐 |
+| Context / Memory | `regulated_minimal` 或 `session_memory`；默认禁用 memory write | 合规优先 |
+| `admin:runtime` scope 映射 | 仅授予 `ROLE_SYSTEM` | 与 7 角色码体系对齐（R10） |
 
 ### 8.3 Registry 最小字段
 
-Capability Registry 至少维护：
+Capability Registry 至少维护以下字段（前 11 项为原有；后 4 项为本次 AgentRuntime 接入新增）：
 
 | 字段 | 含义 |
 |------|------|
@@ -813,18 +823,22 @@ Capability Registry 至少维护：
 | `compatibility` | 支持哪些消费面 |
 | `runtime_binding` | 实际执行绑定 |
 | `rollback_target` | 回滚版本 |
+| **`runtime_spec_version`** | 必须为 `anp-agent/v1.2`，其它 schema 拒绝注册 |
+| **`agent_yaml_ref`** | AGENT.yaml 在能力存储中的引用（路径 / OID） |
+| **`trust_level`** | `platform` / `verified` / `untrusted`（从 AGENT.yaml 反射 + Registry 可覆盖收紧，不可放宽） |
+| **`workspace_required`** | 是否需要文件型 workspace（影响沙盒选型与生产 readiness gate） |
 
 ### 8.4 注册流水线
 
-外部能力进入生产链路的最短路径：
+外部 Agent 进入生产链路的最短路径（**不接受任何非 AGENT.yaml 入口**；具体命令与 readiness gate 见 `docs/agent-runtime/*`）：
 
-1. 在 ANP 构建并测试能力
-2. 导出 hub-compatible 包
-3. 在 zw-brain 执行静态契约校验
-4. 声明租户、权限、审计、确认边界
-5. 通过审核后注册进 Registry
-6. 自动投影到允许暴露的消费面
-7. 所有调用回到统一审计与观测面
+1. 外部 Agent 在源工具（ANP / Cursor / 手写 / 其它）构建 → 产出 `AGENT.yaml`
+2. zw-brain 侧 validate + doctor 检查
+3. 声明租户、权限、审计、确认边界（zw-brain Capability 映射）
+4. 审核：默认 `untrusted` → `verified`，由 B1.2 管理员决策
+5. 注册进 Registry（含 §8.3 的 4 个 AgentRuntime 字段）
+6. 投影到允许的消费面（默认 A2A / MCP；WebUI / API / CLI 由 Capability 投影机制承接）
+7. 调用回到统一审计与观测面：Runtime 事件落入 zw-brain `audit_event` 聚合
 
 ### 8.5 允许外部化与禁止外部化的边界
 
@@ -834,12 +848,15 @@ Capability Registry 至少维护：
 - 长尾能力
 - 试验性 Agent
 - 快速迭代能力
+- Wave 2 三引擎的「配置草稿生成器」（自然语言 → schema 草稿，管理员确认后入库；不直接修改生产配置，详见 §10.3 / R14）
 
 不能外部化：
 - 租户 / 权限 / 策略 / 审计总线
 - canonical domain 的核心状态机
 - 关键写操作的确认与问责边界
-- 模型推理统一接入边界
+- 模型推理统一接入边界（必须走集团推理平台，D6 / 段 10）
+
+**机械边界**：禁止外部化的项不可通过 AgentRuntime `permissions` / `tool_policy` / `capabilities` 反向声明绕过——即使外部 Agent 在 `AGENT.yaml` 中声明了相应工具，Runtime 仍按 Registry 的 `trust_level` 与 zw-brain Capability policy 裁剪有效工具集，并由 B1.2 审核段拦截。
 
 ---
 
@@ -866,7 +883,7 @@ Capability Registry 至少维护：
 | `DeliveryTask` | 交付、交换、直达任务 | `dsp_connect.xml`: `dc_catalog`, `dc_example_resource`, `dc_example_matters`（57 张 dc_* 表的核心） |
 | `ObjectionCase` | 异议与纠错链；**真相补**：旧 `dsp_handling` 5 维度独立状态机（authz / catalog / content / resource / use） | `dsp_handling.xml`: `dc_objection_apply`, `dc_objection_accept_audit`（5 维度异议合计 10 表） |
 | `AuditEvent` | 全量审计事件 | 旧库分散在各 dump 的 *_log / *_record / capability_call 等；新平台 zw-brain audit_event 统一 |
-| `CapabilityPackage` | 注册能力包元信息；**真相补**：**zw-brain AI 原生重构引入的承重抽象**，无旧库继承——不是从旧平台事实推导，是为 AI 原生扩展模式新发明 | **无旧库表对应**——是 R7 / R14 引入的新概念；外部 ANP / hub-compatible 能力包注册路径 |
+| `CapabilityPackage` | 注册能力包元信息；**真相补**：**zw-brain AI 原生重构引入的承重抽象**，无旧库继承——不是从旧平台事实推导，是为 AI 原生扩展模式新发明 | **无旧库表对应**——是 R7 / R14 / R18 引入的新概念；外部 Agent 经 AgentRuntime AGENT.yaml 注册路径 |
 | `TenantOrg` | 组织、租户、部门、区域上下文；**真相补**：旧库支持多级区划（省/市/区）+ 跨地市协作，不是简单单租户 | `dsp_bsp.xml`: `pub_org`, `pub_org_role`, `pub_org_region`, `sys_user_role`, `sys_permission`（IAM 由 IAF 外部化，本地保留 actor_org_role_binding 投影） |
 
 **真相溯源结论**：
@@ -941,11 +958,12 @@ zw-brain 是**全新项目**，没有历史客户、没有存量数据需要迁�
 目标：先证明"统一能力契约 + 合规边界 + 一条真实旅程"能成立，而不是先堆平台全景。
 
 必须完成：
-- Capability Registry 最小 schema
+- Capability Registry 最小 schema（含 §8.3 4 个 AgentRuntime 新增字段）
 - WebUI / API / CLI 的契约投影打通
 - MCP / A2A 从同一契约可生成，但不要求首波全部产品化
 - 审计总线最小闭环
 - 推理平台统一入口 mock / 封装
+- **AgentRuntime Embedded SDK 最小集成**：至少 1 个 zw-brain 内置 Agent 用 `AGENT.yaml` 描述并通过 validate + doctor（产品决策见 §8.2；具体集成方式见 `docs/agent-runtime/*`）
 - **首条黄金链路 = J1 找数→用数**：检索 → 申请草稿 → 提交审批（含**有条件 / 无条件共享分支**两种内置流程）→ 通过后凭据领取 → 调用样例 → 调用监控；这一条必须能让客户跑通真实数据
 
 一句话：**先做成一个真能用的最小产品，不先做一个看起来完整的平台。**
@@ -957,6 +975,7 @@ zw-brain 是**全新项目**，没有历史客户、没有存量数据需要迁�
 - J1 供需对接子流程（meta 合并，非数据合并；6 步流程）
 - J2 在线编制 → 资源挂接 → 部门审 → 平台发布的核心 4 步
 - 审计回执与基本运营可见性
+- **首个外部 Agent 接入端到端验证**：选 1 个低风险长尾 Agent（如外部目录补全 / 申请草拟辅助），跑通 §8.4 注册流水线 7 步（构建 → validate → 声明边界 → B1.2 审核 → Registry 注册 → 投影至 A2A/MCP → 审计回流）
 
 约束：
 - 不追求长尾覆盖率
@@ -976,21 +995,23 @@ zw-brain 是**全新项目**，没有历史客户、没有存量数据需要迁�
 
 **Wave 2 其他内容**：
 - B1.1 合规与运营最小可用（异常发现 + 抽查 + 督查三段）
-- B1.2 接入扩展中心（外部能力包注册、启停、回滚）
+- B1.2 接入扩展中心（外部 Agent 经 AgentRuntime AGENT.yaml 注册、启停、回滚；含 trust_level 升降级、§8.4 流水线 UI 化）
 - 共享专区 / 专题包（P7，K11 必保留）
 - 一表通可选预填 adapter（**降级路径**，不默认；详见 §3.4 C）
 
+**三引擎与 AgentRuntime 的关系**：审批流 / 表单 schema / 推荐三引擎本身仍是 zw-brain 内建 Capability（不外部化）；外部 Agent 可作为「**配置草稿生成器**」接入（自然语言 → schema 草稿 → 管理员确认入库），但**不直接修改生产配置**（与 §4.4 / R14 一致；与 §8.5 「禁止外部化」边界一致——核心写操作 / 状态机仍在内建侧）。
+
 注意：这里仍然是"最小注册治理"，不是"生态产品化运营"。
 
-### 10.4 Wave 3：协议扩展硬化 + 大屏 + 多租户深化 + 国家通道独立子旅程
+### 10.4 Wave 3：协议扩展硬化 + 多租户深化 + 国家通道独立子旅程
 
 包括：
 - MCP / A2A 生产级硬化
-- 大屏只读能力完善（K12）
 - 多租户 / 多部门 / 多区域策略深化
 - 成本、性能、调用配额、观测告警
 - **国家数据直达**独立子旅程实现（业务反馈 #13，优先级 P2）
 - **国家扩展要素目录编制**独立子旅程（业务反馈 #18，优先级 P2）
+- **AgentRuntime Standalone HTTP 形态评估**：触发条件见 §8.2 决策表；具体切换路径见 `docs/agent-runtime/*`
 
 ### 10.5 Wave 4：legacy 退役
 
@@ -1080,6 +1101,9 @@ zw-brain 是**全新项目**，没有历史客户、没有存量数据需要迁�
 ### R17 — K12 大屏本期退役，不作为独立部署面承诺
 影响：D15 历史决策"K12 必保留"反转。理由：（1）大屏不是 J1 黄金链路必要条件；（2）独立部署 + 独立技术栈 + 独立 BFF 分散 OPC 单人维护精力；（3）真正的客户大屏诉求未明确，提前内建违反 R7（外部长尾注册优先）；（4）旧平台"演示场景"占比高于"运营使用"，客户演示需求等真实出现再做。代码层：`zw-brain-dashboard/`、`zw_brain/entry/dashboard_bff.py`、`scripts/check_dashboard_readonly.py`、preflight 段 11、4 个相关 tests 全部删除。复活路径：作为外部能力包独立产品或 Wave 3+ 立项。
 
+### R18 — 外部 Agent 接入 = AgentRuntime 声明式协议唯一桥接面
+影响：外部 Agent 不论由 ANP 平台、Cursor 还是其他工具构造，进入 zw-brain 必须以 AgentRuntime 声明式协议（`AGENT.yaml`）形态声明并通过 AgentRuntime 执行内核运行；**旧 hub 包格式直接废弃，不建归一工具、不保留兼容入口**（与 R15 同精神）。zw-brain 侧产品决策（信任等级默认、运行形态、鉴权 / 多租户 / context 选型）见 §8.2 决策表；协议规范单一事实来源 = `docs/agent-runtime/*`，AgentRuntime 升级不触发本基线同步。与 R7（长尾外部化）/ R14（项目级可配置）联动：外部 Agent 仅承担长尾能力与配置草稿生成，禁止承接 §8.5 禁止外部化清单。
+
 ---
 
 ## 附录 A — 旧能力簇 → 新能力面映射
@@ -1120,12 +1144,11 @@ zw-brain 是**全新项目**，没有历史客户、没有存量数据需要迁�
 - `old/使用日志分析情况/内蒙接口统计结果(含调用少于100次).xlsx`
 - `old/使用日志分析情况/三项目接口调用异同分析(含调用100条以下)[副本].xlsx`
 
-### B.5 外部能力包与治理证据
-- `hub/各类skill与智能体/aihub-integration-api.md`
-- `hub/项目专员_v1_runnable_a2a/manifest.json`
-- `hub/项目专员_v1_runnable_a2a/a2a/agent_card.json`
-- `hub/项目专员_v1_runnable_a2a/skills/bindings.json`
-- `hub/项目专员_v1_runnable_a2a/tools/runtime_bindings.json`
+### B.5 外部 Agent 接入规范源（AgentRuntime）
+- `docs/agent-runtime/product-integration-guide.md`（产品集成与声明式 Agent 开发指南，§1-§12）
+- `docs/agent-runtime/agent-runtime-api-cn.md`（API 接入文档，§1-§3 + session/task/event-stream/workspace/A2A API 参考）
+
+> 旧 `hub/*` 样例（hub 包格式 = `manifest.json` + `a2a/agent_card.json` + `skills/bindings.json` + `tools/runtime_bindings.json`）**已废弃**：D30 决策直接废弃旧格式，不留兼容入口。如需查看旧格式仅作产品故事档案查阅 git 历史，不作为接入路径或证据来源。
 
 ---
 
@@ -1135,7 +1158,7 @@ zw-brain 是**全新项目**，没有历史客户、没有存量数据需要迁�
 |------|-------------|------|
 | 统一能力契约由单一来源派生 | 已有基础 | 继续依赖 `export_agent_contract.py --check` |
 | 模型调用只能走集团推理平台 | 已 wired | 继续依赖 preflight 段 10 |
-| 大屏只读且与主大脑解耦 | 已 wired | 继续依赖 preflight 段 11 |
+| 大屏只读且与主大脑解耦 | 已退役 | K12 大屏 + preflight 段 11 已随 R17 / 二轮反转（2026-05-20）删除；本规则保留为映射档案 |
 | approved 设计必须配套原型（历史 D21） | 已退役 | 2026-04-28 起不再依赖 preflight 段 13；正式 WebUI 是界面验证载体。2026-05-18 起 `prototype/` 目录整体退役。2026-05-19 起 `.experiences/` 整目录退役（D23），产品叙事权威源迁移至 `docs/approved/zw-brain-roles.md` + `zw-brain-architecture.md` |
 | 角色码不得出现 R1-R8 字面值（R10 / D23） | 待接入 | 由 `policy.assert_no_legacy_role_codes()` 启动检查兜底；建议新增 preflight 段做仓库级 grep |
 | 工程术语不得出现在前端 UI（R12 / D29） | 待接入 | 建议新增 preflight 段做 `zw-brain-web/` grep 黑名单：`package` / `projection` / `capability` / `write-with-audit` 等 |
@@ -1221,6 +1244,22 @@ zw-brain 是**全新项目**，没有历史客户、没有存量数据需要迁�
 - `R-编号`（基线 §11）= 架构约束设计主张（R1-R9 不变）
 - `R[1-8]` 用户角色（已退役） = **不再使用**，前端/后端/文档 grep 残留为 0
 
+### D30 — 外部 Agent 接入采用 AgentRuntime 声明式协议（2026-05-20）
+
+**问题**：基线 §八（GATE-1 通过版）只描述了 hub-compatible 包格式作为外部能力的最小形态，未给出统一的 Agent 运行 / 声明式协议；MCP / A2A 两消费面缺乏对外执行内核绑定；§7.1 运行时视图 L4 未承载执行内核层。
+
+**决策**：
+
+- 外部 Agent 唯一对外声明式协议 = AgentRuntime `AGENT.yaml`；具体 schema / 字段 / 集成方式以 `docs/agent-runtime/*` 为单一事实来源
+- **旧 hub 包格式直接废弃**（不留兼容入口、不建归一工具、不保留双格式注册路径）；与 R15 同精神：全新项目不背历史兼容
+- zw-brain 侧产品决策（trust_level 默认、运行形态、鉴权 / 多租户 / context 选型）集中在 §8.2 决策表
+
+**承载边界**：基线只承载 zw-brain 产品决策（§8.2 / §8.3 / §8.4 / §8.5）；AgentRuntime 协议规范（schema、字段语义、命令、profile、API 路由）在 `docs/agent-runtime/*`。协议升级不触发本基线同步。
+
+**落地**：§六 6.1 表 + 6.2 关系段 / §7.1 L4 / §八 重写（8.1 唯一桥接面 + 8.2 zw-brain 产品决策表 + 8.3 Registry 新增 4 字段 + 8.4 流水线 + 8.5 机械边界）/ §10.1 + §10.2 + §10.3 + §10.4 三波次追加 / §11 新增 R18 / 附录 B.5 改 AgentRuntime 规范源 / frontmatter related_docs 追加。
+
+**R13 元规则不触发**：本决策为技术架构选型（运行 / 协议），不属于角色 / 业务流程 / 状态机决策类。
+
 ### 附录 D 关联约束（已升至 §11 正文（档案保留））
 
 | 编号 | 主张 | 正文位置 |
@@ -1230,6 +1269,7 @@ zw-brain 是**全新项目**，没有历史客户、没有存量数据需要迁�
 | R12 | 工程术语不进 UI：`package` / `projection` / `capability` / `write-with-audit` 等仅在代码与契约出现，前端必须用业务语义命名 | §11 R12 |
 | R13 | GATE-x 元规则：角色 / 业务流程 / 状态机决策必须业务方 sign-off | §11 R13（源 D28） |
 | R14 | 项目级可配置化是 AI 原生在政务场景的真正差异化 | §11 R14（源 §10.3 Wave 2 三引擎） |
+| R18 | 外部 Agent 接入 = AgentRuntime 声明式协议唯一桥接面；旧 hub 包格式直接废弃 | §11 R18（源 D30） |
 
 ---
 
@@ -1251,6 +1291,7 @@ zw-brain 是**全新项目**，没有历史客户、没有存量数据需要迁�
 | 2026-05-20 一轮 | 正文吸收附录 D（不开新 GATE） | §1.1 定位重写为"数据共享网关"；§1.2 AI 原生新增"项目级可配置化"第 5 条件；§1.4 重写；§3.4 补 5 类外部大库边界；§4.4/§5.3 NL 加速器新增"配置生成助手"；§5.1 收敛为 J1/J2/J3 三旅程（一轮）；§5.2 页面归属重排；§5.5/§5.6 显式 8 项不做清单；§10 Wave 2 明示三大 AI 差异化引擎；§11 R10-R14 上升正文；附录 D 留作决策档案 | 王红军 2026-05-19 业务方 review（21 条反馈）+ 立项会议（2026-04-17）F1-F10 二次对照 |
 | 2026-05-20 二轮 | **二轮再砍：4 个最彻底反转**（产品研发负责人乔布斯式聚焦，pending R13 业务方二次 sign-off） | §5.1 反转为 **2 核心旅程（J1+J2）+ 1 后台支撑面（B1）**；§5.2 / §10 K12 大屏退役（R17，反转 D15）；§9.6 alembic 删除（R15，全新项目不背历史兼容）；§3.4 外部依赖与 §10.6 不做清单同步；§11 新增 R15/R16/R17；新建 docs/approved/README.md + docs/reconstructs/README.md 单一导航 spine | 产品研发负责人 2026-05-20 再聚焦 + 用户 4 个最彻底版本指示 |
 | 2026-05-20 reality check | **reality check：原始素材回归（路径 3）** | §3.4 B 重写为"6 类外部依赖 + 真实分布"（新增"集团运维监控平台"作为第 6 类，基于 `dsp_monitor` 50 表事实）；§5.6 不进 IA 清单补"基础主题库 dsp_basesubject 81 表"作为第 13 项；§9.2 10 概念补真实状态机标注（双轨编制 / 3 物化形式 / 3 共享态 / 5 步申请流程 / 5 维度异议 / 多级区划 / `CapabilityPackage` zw-brain 新概念）；新建 `docs/approved/zw-brain-architecture.md` 事实补充档案 | 自检发现：前 4 轮迭代全部围绕"修复已有文档"，最初任务"充分综合旧平台真实素材（old/10示例数据 / old/12-datastructure / old/old_codes / old/html）"未真正执行；2 个 Explore agent 并行调研 572 表 + 291 截图 + 8 前端代码包后克制微调 |
+| 2026-05-20 D30 吸收 | **AgentRuntime 声明式协议吸收为外部 Agent 唯一桥接面（按单一事实来源原则）** | §6.1 表 MCP/A2A 行追加 AgentRuntime 注脚；§6.2 增 Capability ↔ AGENT.yaml 关系段；§7.1 L4 显式纳入 AgentRuntime 执行内核；§八 重写——8.1 唯一桥接面 + 旧 hub 废弃；8.2 zw-brain 产品决策表（trust_level 默认 / 运行形态 / 鉴权 / 多租户 / Context / scope 映射，不复刻 AgentRuntime schema）；8.3 Registry 追加 4 字段；8.4 流水线；8.5 机械边界；§10.1 + §10.2 + §10.3 + §10.4 追加 AgentRuntime 集成里程碑；§11 新增 R18；附录 B.5 改 AgentRuntime 规范源；附录 D 新增 D30；frontmatter related_docs 追加 + 顺手修自引用 + 重复（zw-brain-architecture.md → zw-brain-data-model.md）；顺手清理 §5.4.4 / §10.4 / 附录 C 的 K12 残留（与 R17 对齐） | 用户给定新事实：zw-brain 外部 Agent 经 AgentRuntime 统一声明式协议接入；用户两次澄清——(1) 旧 hub 包格式直接废弃不留兼容（与 R15 同精神）；(2) 协议细节单一事实来源 = `docs/agent-runtime/*`，基线只承载产品决策，AgentRuntime 升级不触发同步 |
 
 ---
 
