@@ -21,7 +21,7 @@ def get_database_url() -> str:
 
 
 # Engine cache: 1 engine + 1 sessionmaker per (url) — creating a new engine on
-# every repository method made audit.list / dashboard.render_command_center
+# every repository method made audit.list / compliance.case.query
 # take ~30-77 seconds because each call spun up a fresh connection pool. With
 # the cache, the same sessionmaker is reused, sub-second hot path restored.
 _ENGINE_CACHE: dict[str, tuple[Engine, sessionmaker[Session]]] = {}
@@ -66,7 +66,7 @@ def _get_cached(url: str) -> sessionmaker[Session]:
 def create_session_factory() -> sessionmaker[Session]:
     """Return a cached sessionmaker (1 per DB URL). Engine creation is
     expensive; callers used to pay it on every repository method, blocking
-    audit.list / dashboard.render_command_center for tens of seconds.
+    audit.list / compliance.case.query for tens of seconds.
     """
     return _get_cached(get_database_url())
 

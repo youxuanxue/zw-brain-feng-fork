@@ -726,82 +726,6 @@
     "auth_strategy": "none"
   },
   {
-    "tool_name": "dashboard.compliance.query",
-    "description": "查询合规事件、指标和 adapter 健康概览。",
-    "protocol_type": "builtin_skill",
-    "endpoint": "http://127.0.0.1:8800/api/skills/dashboard.compliance.query",
-    "parameters_schema": {
-      "type": "object",
-      "required": [],
-      "properties": {
-        "tenant_id": {
-          "type": "string"
-        },
-        "role": {
-          "type": "string"
-        },
-        "confirmed": {
-          "type": "boolean"
-        }
-      }
-    },
-    "config_json": {
-      "mode": "read",
-      "side_effects": [],
-      "human_confirmation_required": false,
-      "audit_required": true,
-      "audit_class": "read-normal",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "permissions": [
-        "dashboard.compliance.query.execute"
-      ],
-      "auth_policy": "user",
-      "tenant_scope": "tenant",
-      "registry_source": "internal"
-    },
-    "version": "1.0.0",
-    "invocation_mode": "sync",
-    "auth_strategy": "none"
-  },
-  {
-    "tool_name": "dashboard.render_command_center",
-    "description": "只读返回 K12 指挥中心大屏摘要、减负指标与辅助结论。",
-    "protocol_type": "builtin_skill",
-    "endpoint": "http://127.0.0.1:8800/api/skills/dashboard.render_command_center",
-    "parameters_schema": {
-      "type": "object",
-      "properties": {}
-    },
-    "config_json": {
-      "mode": "read",
-      "side_effects": [],
-      "human_confirmation_required": false,
-      "audit_required": true,
-      "audit_class": "read-default",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "mcp",
-        "a2a"
-      ],
-      "permissions": [
-        "dashboard.render_command_center.execute"
-      ],
-      "auth_policy": "user",
-      "tenant_scope": "tenant",
-      "registry_source": "internal"
-    },
-    "version": "1.0.0",
-    "invocation_mode": "sync",
-    "auth_strategy": "none"
-  },
-  {
     "tool_name": "data.search",
     "description": "按关键词 / 部门 / 主题域检索共享数据资源目录，返回命中清单与结构化摘要。",
     "protocol_type": "builtin_skill",
@@ -10783,7 +10707,7 @@
   },
   {
     "tool_name": "system.toggle_outage",
-    "description": "切换主脑故障态演示，验证 K12 只读快照模式和故障隔离。",
+    "description": "切换主脑故障态演示，验证 B1.1 合规与运营在故障态下的只读降级。",
     "protocol_type": "builtin_skill",
     "endpoint": "http://127.0.0.1:8800/api/skills/system.toggle_outage",
     "parameters_schema": {

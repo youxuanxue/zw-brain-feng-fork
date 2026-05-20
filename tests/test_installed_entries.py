@@ -45,13 +45,4 @@ def test_installed_rest_and_dashboard_entry_smoke() -> None:
             check=True,
         )
         assert rest.stdout.strip().splitlines() == ["True", "True"]
-
-        dash = subprocess.run(
-            [str(python), "-c", "from zw_brain.entry.dashboard_bff import DASHBOARD_ROOT; from pathlib import Path; print(DASHBOARD_ROOT.exists()); print((DASHBOARD_ROOT / 'index.html').exists()); print((DASHBOARD_ROOT / 'src' / 'dashboard.js').exists())"],
-            cwd=tmp,
-            env=env,
-            text=True,
-            capture_output=True,
-            check=True,
-        )
-        assert dash.stdout.strip().splitlines() == ["True", "True", "True"]
+        # K12 dashboard BFF 退役 (R17 / v4.1)：不再校验 dashboard 资源打包

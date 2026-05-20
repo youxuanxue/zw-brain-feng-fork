@@ -71,9 +71,9 @@ IAF 身份与旧 BSP 业务身份的绑定规则：
 
 | 约束来源 | 对本方案的约束 |
 | --- | --- |
-| `docs/approved/zw-brain-architecture-v4-gpt55.md` | 五消费面共享同一套 Skill / Capability 契约；新增能力默认外部生产、平台注册。 |
-| `docs/approved/zw-brain-data-model-v4-gpt55.md` | `brain_registry` 派生 WebUI、REST、CLI、MCP、A2A；`tenant_capability_policy` 控制租户级启停与暴露面。 |
-| `docs/approved/research-yibiaotong-zw-brain-v4.md` | 基层报表减负需要按权限取数和全程留痕，但不要求复造身份平台。 |
+| `docs/approved/zw-brain-architecture.md` | 五消费面共享同一套 Skill / Capability 契约；新增能力默认外部生产、平台注册。 |
+| `docs/approved/zw-brain-data-model.md` | `brain_registry` 派生 WebUI、REST、CLI、MCP、A2A；`tenant_capability_policy` 控制租户级启停与暴露面。 |
+| `docs/approved/research-yibiaotong.md` | 基层报表减负需要按权限取数和全程留痕，但不要求复造身份平台。 |
 | `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` | `dsp-bsp` / `dsp-manage` / `dsp-ucenter` 被列为 P1；本文进一步明确它们收敛为本地业务治理层，而不是旧 IAM / 菜单 / 权限后台复刻。 |
 | `old/integrated-bigdata-platform/README.md` | 旧基础支撑是自建统一用户、角色、权限、菜单、参数、日志体系，所有旧系统菜单和权限依赖它。 |
 
@@ -544,8 +544,8 @@ client secret 不进入代码仓库、文档正文、配置样例、导入报告
 - `old/代码信息抽取/代码信息抽取-27newbranch/dsp-manage_数据库表结构文档.md`
 - `old/12-datastructure/dsp_bsp.xml`
 - `old/integrated-bigdata-platform/README.md`
-- `docs/approved/zw-brain-architecture-v4-gpt55.md`
-- `docs/approved/zw-brain-data-model-v4-gpt55.md`
+- `docs/approved/zw-brain-architecture.md`
+- `docs/approved/zw-brain-data-model.md`
 - `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md`
 - `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md`
 - `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md`

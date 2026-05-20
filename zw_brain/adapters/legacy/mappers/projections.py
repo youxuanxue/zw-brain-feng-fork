@@ -1,6 +1,6 @@
 """dsp_monitor + dsp_perform → compliance/ops projections.
 
-Activates the M1-M6 records that alembic 0007 made room for:
+Activates the M1-M6 projection records:
 
   warning_message_info          → RiskEventProjectionRecord
   matter_handle / matter_manage → ComplianceCaseRecord

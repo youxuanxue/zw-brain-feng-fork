@@ -55,13 +55,13 @@ done <<'CHECKS'
 段 7b	scripts/check_blockchain_async.py	blockchain-async (D4)
 段 9	scripts/check_fixture_pii.py	fixture-pii (D11)
 段 10	scripts/check_no_direct_llm.py	no-direct-llm (D6)
-段 11	scripts/check_dashboard_readonly.py	dashboard-readonly (D15)
 段 14	scripts/check_external_refs.py	external-refs (D22)
 段 15	scripts/check_ui_spec_b.py	ui-spec-b (Spec B single theme)
 段 16	scripts/check_legacy_mappers.py	legacy-mappers (D7+D4)
 段 17	scripts/check_iam_doc_freshness.py	iam-doc-freshness (R-002)
 段 18	scripts/check_db_bloat.py	db-bloat-check (canonical DB ≤ 2GB hard, 500MB soft)
 段 19	scripts/check_no_legacy_role_codes.py	no-legacy-role-codes (D23 retrofit)
+段 20	scripts/check_no_retired_features.py	no-retired-features (R15 alembic + R17 K12 dashboard)
 CHECKS
 
 echo ""

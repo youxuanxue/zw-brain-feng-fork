@@ -46,4 +46,4 @@ def test_generated_openapi_file_is_valid_json() -> None:
     data = json.loads(path.read_text(encoding="utf-8"))
     assert data["openapi"] == "3.1.0"
     assert "/api/skills/request.create" in data["paths"]
-    assert "/api/skills/dashboard.render_command_center" in data["paths"]
+    assert "/api/skills/compliance.metric.query" in data["paths"]

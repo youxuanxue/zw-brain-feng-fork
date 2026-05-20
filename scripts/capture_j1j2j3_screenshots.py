@@ -9,7 +9,7 @@
 
 预置条件：
 - macOS Chrome 已安装
-- venv 已装；alembic 已 migrate
+- venv 已装；schema 由 ensure_runtime_schema 自动建（v4.1 R15：不用 alembic）
 """
 from __future__ import annotations
 
@@ -109,20 +109,7 @@ def capture_04_compliance_audit(base_url: str) -> None:
         browser.close()
 
 
-def capture_05_k12_dashboard_link(base_url: str) -> None:
-    print("05 - J3 P8 K12 大屏接入卡")
-    browser = _open_browser(f"{base_url}/#/p8-integration-admin")
-    try:
-        _wait_for(browser, "document.body && document.body.innerText.length > 100", timeout=10)
-        _wait_for(browser, "document.getElementById('role-switch') && window.STATE && window.STATE.role")
-        _set_role(browser, "ROLE_BUSIAUDIT")
-        browser.eval("location.hash = ''; location.hash = '#/p8-integration-admin'")
-        # 等待 P8 主标题 "受控接入治理" 出现（与 test_j3_k12_dashboard_link_present 相同等待）
-        _wait_for(browser, "document.body.innerText.length > 200 && document.body.innerText.includes('受控接入治理')", timeout=15)
-        time.sleep(1.5)
-        screenshot(browser, OUTPUT_DIR / "05-j3-dashboard-link.png", viewport_height=1400)
-    finally:
-        browser.close()
+# capture_05_k12_dashboard_link 已删除（K12 大屏退役 R17 / v4.1）
 
 
 def main() -> int:
@@ -135,10 +122,9 @@ def main() -> int:
         capture_02_sharing_type(base_url)
         capture_03_provider_wizard(base_url)
         capture_04_compliance_audit(base_url)
-        capture_05_k12_dashboard_link(base_url)
         print()
         print("=" * 50)
-        print(f"5 张截图已保存到 {OUTPUT_DIR.relative_to(REPO)}")
+        print(f"4 张截图已保存到 {OUTPUT_DIR.relative_to(REPO)}")
         return 0
     finally:
         server.shutdown()

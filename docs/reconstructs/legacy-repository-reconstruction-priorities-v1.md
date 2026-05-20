@@ -1,9 +1,9 @@
 # 旧平台代码仓库重构优先级总览方案 v1
 
 > **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
-> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
-> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
-> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 角色权威源：`docs/approved/zw-brain-roles.md`
+> - 信息架构权威源：`docs/approved/zw-brain-architecture.md`
+> - 评审决策记录：`docs/approved/zw-brain-architecture.md`
 > - 原版 R 编号见 git blame。
 
 > 范围：`old/代码信息抽取/代码项目信息汇总.xlsx` 中列出的旧平台代码仓库、`docs/approved/*` 中已批准的 zw-brain 重构原则，以及 `docs/reconstructs/*` 已完成的专题方案。
@@ -172,10 +172,10 @@
 - `old/12-datastructure/dsp_bsp.xml`
 - `old/2024-06-28全国一体化政务数据共享数据直达接口规范v0.55.docx`
 - `old/08标准服务系统标准数据`
-- `docs/approved/zw-brain-architecture-v4-gpt55.md`
-- `docs/approved/zw-brain-data-model-v4-gpt55.md`
-- `docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）`
-- `docs/approved/research-yibiaotong-zw-brain-v4.md`
+- `docs/approved/zw-brain-architecture.md`
+- `docs/approved/zw-brain-data-model.md`
+- `docs/approved/zw-brain-architecture.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）`
+- `docs/approved/research-yibiaotong.md`
 - `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md`
 - `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md`
 - `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md`

@@ -6,9 +6,10 @@
 测试覆盖：
 - policy.ACTOR_NAMES ⇔ role_codes.ROLE_DISPLAY_NAMES_ZH（dict 同步）
 - server._DEV_IAM_BYPASS_ROLES ⇔ role_codes.ALL_ROLE_CODES
-- alembic 0009 _ALLOWED_ROLE_CODES ⇔ role_codes.ALL_ROLE_CODES
 - web_snapshot_redaction frozensets ⊆ role_codes.ALL_ROLE_CODES（只读裁剪可以是子集）
 - 前端 app.js / pages.js 通过 JSON 解析对比（避免手维护漂移）
+
+（alembic 0009 _ALLOWED_ROLE_CODES 对齐校验已在 v4.1 R15 删除 alembic 时一并退役）
 """
 from __future__ import annotations
 
@@ -45,14 +46,7 @@ def test_server_bypass_roles_aligned_with_role_codes():
     )
 
 
-def test_alembic_0009_allowed_codes_aligned_with_role_codes():
-    from zw_brain.domain import role_codes
-    mod = _load_module(REPO / "alembic" / "versions" / "0009_role_code_d23_retrofit.py", "alembic_0009_align")
-    assert set(mod._ALLOWED_ROLE_CODES) == set(role_codes.ALL_ROLE_CODES), (
-        "alembic 0009 _ALLOWED_ROLE_CODES 必须与 role_codes.ALL_ROLE_CODES 同步；"
-        "如新增/退役角色，同改两处（或将 alembic 改为 import role_codes，"
-        "但注意迁移可能在 app 不可导入时运行）"
-    )
+# test_alembic_0009_allowed_codes_aligned_with_role_codes 已删除（alembic 退役 R15 / v4.1）
 
 
 def test_web_snapshot_redaction_uses_only_known_roles():

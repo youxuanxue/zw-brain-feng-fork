@@ -1,7 +1,7 @@
 {
   "skill_id": "system.toggle_outage",
   "title": "切换主脑故障态",
-  "description": "切换主脑故障态演示，验证 K12 只读快照模式和故障隔离。",
+  "description": "切换主脑故障态演示，验证 B1.1 合规与运营在故障态下的只读降级。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",

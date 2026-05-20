@@ -230,33 +230,6 @@
       "sideEffects": []
     },
     {
-      "id": "dashboard.compliance.query",
-      "mode": "read",
-      "humanConfirmationRequired": false,
-      "auditClass": "read-normal",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": []
-    },
-    {
-      "id": "dashboard.render_command_center",
-      "mode": "read",
-      "humanConfirmationRequired": false,
-      "auditClass": "read-default",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "mcp",
-        "a2a"
-      ],
-      "sideEffects": []
-    },
-    {
       "id": "data.search",
       "mode": "read",
       "humanConfirmationRequired": false,

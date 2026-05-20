@@ -189,24 +189,4 @@ def test_j3_compliance_audit_replay_security_audit(real_browser_env):
             browser.close()
 
 
-def test_j3_k12_dashboard_link_present(real_browser_env):
-    """T6 - P8 接入治理：K12 数据治理大屏入口卡片可见（指向独立部署的 zw-brain-dashboard）."""
-    base_url = real_browser_env
-    browser = None
-    try:
-        browser = _open_browser(f"{base_url}/#/p8-integration-admin")
-        _wait_for(browser, "document.body && document.body.innerText.length > 100")
-
-        # 等待角色切换器与 snapshot 完整加载
-        _wait_for(browser, "document.getElementById('role-switch') && window.STATE && window.STATE.role")
-        _set_role(browser, "ROLE_BUSIAUDIT")
-        # 重新打开 P8 hash 强刷
-        browser.eval("location.hash = ''; location.hash = '#/p8-integration-admin'")
-        _wait_for(browser, "document.body.innerText.length > 200 && document.body.innerText.includes('受控接入治理')", timeout=10)
-
-        # 验证 K12 链接元素存在 + href 指向 8801
-        href = browser.eval("(document.getElementById('k12-dashboard-link') || {}).href || ''")
-        assert "8801" in href, f"K12 链接应指向 8801 dashboard，实际：{href}"
-    finally:
-        if browser is not None:
-            browser.close()
+# test_j3_k12_dashboard_link_present 已删除（K12 大屏退役，R17 / v4.1 二轮再砍）

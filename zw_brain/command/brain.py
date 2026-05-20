@@ -26,7 +26,7 @@ from zw_brain.domain.schemas import describe_schemas
 from zw_brain.domain.web_snapshot_redaction import redact_webui_snapshot
 from zw_brain.shared import queue
 from zw_brain.shared.auth_context import get_auth_context
-from zw_brain.shared.runtime_config import get_dev_iam_bypass_enabled, get_webui_dashboard_href
+from zw_brain.shared.runtime_config import get_dev_iam_bypass_enabled
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.shared.sanitization import safe_json
 from zw_brain.shared.sensitive_mask import apply_field_masks
@@ -108,7 +108,6 @@ class BrainService:
         state["state"] = copy.deepcopy(self._ui_state)
         _iaf_url = (_os.environ.get("ZW_BRAIN_IAF_AUTH_SERVER_URL") or "").strip()
         state["webui"] = {
-            "dashboardHref": get_webui_dashboard_href(),
             "deploymentLabel": _os.environ.get("ZW_BRAIN_DEPLOYMENT_LABEL", "").strip(),
             "legalNotice": _os.environ.get("ZW_BRAIN_WEBUI_LEGAL_NOTICE", "").strip(),
             "identityLabel": _os.environ.get("ZW_BRAIN_WEBUI_IDENTITY_LABEL", "当前账号").strip() or "当前账号",
@@ -281,8 +280,6 @@ class BrainService:
                 return self.query_compliance_cases(status=payload.get("status"), severity=payload.get("severity"))
             case "compliance.metric.query":
                 return self.query_compliance_metrics()
-            case "dashboard.compliance.query":
-                return self.query_compliance_dashboard()
             case "adapter.cascade.health.query":
                 return self.query_adapter_health(adapter_slug=payload.get("adapter_slug"))
             case "adapter.external.mapping.query":
@@ -371,8 +368,6 @@ class BrainService:
                     "items": self.list_audit_events(),
                     "summary": copy.deepcopy(self._snapshot["audit_ai"]),
                 }
-            case "dashboard.render_command_center":
-                return self.get_dashboard()
             case "catalog.group.query":
                 return self.query_catalog_groups()
             case "catalog.share_zone.query":
@@ -947,10 +942,6 @@ class BrainService:
             by_severity[str(item.get("severity", "unknown"))] = by_severity.get(str(item.get("severity", "unknown")), 0) + 1
         open_count = sum(count for status, count in by_status.items() if status not in {"resolved", "closed"})
         return {"total": len(cases), "open_count": open_count, "resolved_count": by_status.get("resolved", 0) + by_status.get("closed", 0), "by_status": by_status, "by_severity": by_severity}
-
-    def query_compliance_dashboard(self) -> dict[str, Any]:
-        metrics = self.query_compliance_metrics()
-        return {"summary": metrics, "cases": self.query_compliance_cases()["items"], "adapterHealth": self.query_adapter_health()["summary"]}
 
     def query_adapter_health(self, *, adapter_slug: Any = None) -> dict[str, Any]:
         runs = [self._adapter_run_record_to_dict(item) for item in self._external_adapter_repo().list_run_records(tenant_id=_DEFAULT_TENANT_ID, adapter_slug=str(adapter_slug) if adapter_slug else None)]
@@ -2700,7 +2691,7 @@ class BrainService:
         if store is None:
             return copy.deepcopy(self._snapshot["audit_events"])
         # 默认拉最近 500 条；早期是 SELECT * 拉 2000+ 行（含大 payload_json），
-        # audit.list 与 dashboard.render_command_center 撞 14-30s 慢。
+        # audit.list 与 compliance.case.query 撞 14-30s 慢。
         events = [
             {
                 "id": item.request_id,
@@ -3681,48 +3672,6 @@ class BrainService:
         package.setdefault("rollbackTarget", "v0.9.0")
         package.setdefault("runtimeBinding", "builtin registry projection")
         return package
-
-    def get_dashboard(self) -> dict[str, Any]:
-        """Dashboard / 指挥中心 summary。
-        Hot path: 之前调 list_requests() / list_audit_events() 拉 258 application_records
-        + 2300+ audit_events 全字段 + 每条做 get_resource N+1，dashboard.render 30+s 卡死。
-        现在只用 COUNT(*) / 状态聚合 / count_audit_events，sub-second。
-        """
-        dashboard = copy.deepcopy(self._snapshot["dashboard"])
-        provider = self.get_provider_view()
-        packages = self.list_packages()
-        store = self._state_store.database_store
-        snapshot_requests = self._snapshot.get("requests", [])
-        if store is not None:
-            # SQL COUNT — 不动 N+1 路径。
-            # 真 DB 是 source of truth；application_record 已包含 M0 导入的全部历史 +
-            # 运行时新申请。snapshot 上的 6 个 demo request 已经在 ITEM-02 demo 路径里
-            # 通过 application.resource.submit 落库，DB count 是唯一权威数字。
-            request_count = store.application_repo.count_records(tenant_id=_DEFAULT_TENANT_ID) or len(snapshot_requests)
-            request_alert_count = store.application_repo.count_by_statuses(
-                statuses=["rejected"], tenant_id=_DEFAULT_TENANT_ID,
-            )
-            audit_event_count = store.count_audit_events()
-        else:
-            request_count = len(snapshot_requests)
-            request_alert_count = sum(1 for item in snapshot_requests if item.get("status") in {"need-fix", "rejected"})
-            audit_event_count = len(self._snapshot.get("audit_events", []))
-        service_report = self.query_service_report()
-        dashboard["brainOutage"] = self._ui_state["brainOutage"]
-        dashboard["mode"] = "snapshot" if self._ui_state["brainOutage"] else "live-readonly"
-        dashboard["summary"]["alerts"] = str(request_alert_count + service_report["summary"]["gatewayWarnings"])
-        dashboard["summary"]["qps"] = str(service_report["summary"]["invokeCount"])
-        dashboard["summary"]["agentsOnline"] = str(service_report["summary"]["gatewayCount"])
-        dashboard["repository"] = {
-            "requestCount": request_count,
-            "packageCount": len(packages),
-            "auditEventCount": audit_event_count,
-            "providerResourceCatalogCode": provider.get("repository", {}).get("resourceCatalogCode"),
-            "gatewayCount": service_report["summary"]["gatewayCount"],
-            "serviceInvokeCount": service_report["summary"]["invokeCount"],
-            "serviceFailureCount": service_report["summary"]["failedCount"],
-        }
-        return dashboard
 
     def search_resources(self, query: str, page: int = 1) -> dict[str, Any]:
         query = query.strip()
@@ -7140,31 +7089,7 @@ class BrainService:
                 "模板版本：v1.2，v1.3 待发布",
                 "责任方：区政数局 / 市场监管局",
             ]
-            dashboard = self._snapshot["dashboard"]
-            dashboard["summary"]["alerts"] = "1" if confirmed else "2"
-            # W7.3: value 拆主数值 + 描述行；避免"3 / 单任务"视觉断裂
-            dashboard["burdenMetrics"][1]["label"] = "单任务平均补录字段数"
-            dashboard["burdenMetrics"][1]["value"] = "1" if confirmed else "3"
-            dashboard["burdenMetrics"][1]["trend"] = "较基线 -84%" if confirmed else "较基线 -72%"
-            dashboard["burdenMetrics"][2]["value"] = "96%" if confirmed else "93%"
-            dashboard["burdenMetrics"][2]["trend"] = "较上周 +14pt" if confirmed else "较上周 +11pt"
-            dashboard["burdenMetrics"][3]["value"] = "0" if confirmed else "2"
-            dashboard["burdenMetrics"][3]["trend"] = "已纳入模板" if confirmed else "本周新增"
-            dashboard["suggestions"]["body"] = (
-                "当前黄金链路已经闭环到模板升级，基层补录字段明显收缩。下一步重点盯住仍绕开模板发起采集的部门。"
-                if confirmed
-                else "当前黄金链路已经跑通，但仍有部门绕开停车场信息共享目录发起新增采集，同时泊位开放状态字段持续高频补录，建议优先做制度提醒和目录回流。"
-            )
-            dashboard["suggestions"]["evidence"] = [
-                "本地泊位开放状态与最新开放时间已并入停车场信息目录回流候选",
-                "基层补录字段数已下降到 1 / 单任务",
-                "仍有 1 条绕行类告警需要制度治理",
-            ] if confirmed else [
-                "本周重复要数率已降至 12%，但仍有 1 条高风险绕行告警",
-                "本地泊位开放状态字段近 7 日补录 14 次",
-                "停车场信息目录复用后基层填报时长下降 31%",
-            ]
-            dashboard["suggestions"]["nextAction"] = "继续盯住绕行告警并复盘专题入口执行情况。" if confirmed else "先看绕行告警，再推动停车场信息目录回流候选发布。"
+            # K12 dashboard 块已退役 (R17 / v4.1)；toggle 副作用不再更新大屏 burden/suggestions
 
         if package001:
             self._set_todo_status("ROLE_BUSIAUDIT", "PKG-2026-04-25-001", self._package_status_text(package001))

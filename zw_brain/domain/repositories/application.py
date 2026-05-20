@@ -12,8 +12,8 @@ from zw_brain.shared.sanitization import safe_json
 
 class ApplicationRepository:
     def count_by_statuses(self, *, statuses: list[str], tenant_id: str = "sd-default") -> int:
-        """Fast count for dashboard.summary.alerts — avoids list_records +
-        per-row get_resource N+1 that made dashboard.render take 30+ seconds.
+        """Fast count for compliance metric alerts — avoids list_records +
+        per-row get_resource N+1 that previously caused 30+ second queries.
         """
         SessionLocal = create_session_factory()
         with SessionLocal() as session:

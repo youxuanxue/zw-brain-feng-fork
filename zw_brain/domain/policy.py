@@ -59,9 +59,6 @@ PERMISSION_ROLES = {
     "package.list.execute": {"ROLE_BUSIAUDIT"},
     "package.view.execute": {"ROLE_BUSIAUDIT"},
 
-    # 全角色工作台
-    "dashboard.render_command_center.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SECURITY_ADMIN", "ROLE_SYSTEM"},
-
     # J1 申请：发起 → 审 → 授权
     "request.create.execute": {"ROLE_ORGAN_OPERATER"},
     "request.submit.execute": {"ROLE_ORGAN_OPERATER"},
@@ -176,7 +173,6 @@ PERMISSION_ROLES = {
     "compliance.case.close.execute": {"ROLE_SECURITY_AUDIT"},
     "compliance.case.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "compliance.metric.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "dashboard.compliance.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
 
     # 数据标准/数据安全（SECURITY_ADMIN 主面，部分共享给 BUSIAUDIT）
     "standard.asset.sync.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_ADMIN"},

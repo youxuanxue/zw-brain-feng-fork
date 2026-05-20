@@ -1,6 +1,6 @@
 window.PAGES = {};
 
-// 2026-05-19 retrofit：用户角色对齐旧平台 ROLE_* 7 角色（详见 docs/approved/zw-brain-roles-v2.md）
+// 2026-05-19 retrofit：用户角色对齐旧平台 ROLE_* 7 角色（详见 docs/approved/zw-brain-roles.md）
 function roleLabel(role) {
   return {
     ROLE_ORGAN_OPERATER: '部门操作员',
@@ -96,12 +96,7 @@ function humanConfirmPillText(role) {
 }
 
 function renderDashboardShortcutLink() {
-  const href = window.ZW_WEBUI && window.ZW_WEBUI.dashboardHref;
-  if (!href) {
-    return '<span class="text-body-sm text-zw-mute leading-7">独立大屏入口暂未开放，请先在审计证据页查看治理状态。</span>';
-  }
-  const safe = escapeHtml(href);
-  return `<a href="${safe}" target="_blank" rel="noopener noreferrer">查看独立大屏</a>`;
+  return '<span class="text-body-sm text-zw-mute leading-7">独立大屏 K12 本期退役（R17 / v4.1）；合规与运营进入 B1.1 后台支撑面。</span>';
 }
 
 const STATUS_LABELS = {
@@ -649,7 +644,7 @@ function workbenchDrillHintFromHref(href) {
   if (path.includes('/p8-integration-admin/package/')) return '打开能力包审核';
   if (path.includes('/p8-integration-admin/iam-governance')) return '打开身份与权限治理';
   if (path.includes('/p8-integration-admin')) return '打开受控接入治理';
-  if (path.includes('/dashboard/')) return '打开关联告警视图';
+  if (path.includes('/b1-compliance-ops/')) return '打开关联告警视图';
   if (path.includes('/p2-discovery')) return '打开数据资源发现';
   if (path.includes('/p3-request-flow')) return '打开共享申请列表';
   return '进入办理';
@@ -1006,7 +1001,7 @@ const WORKBENCH_ICONS = {
   shield: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1 1 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/></svg>',
 };
 
-// 2026-05-19 retrofit：按 7 角色重新组织 hero 文案（详见 docs/approved/zw-brain-roles-v2.md）
+// 2026-05-19 retrofit：按 7 角色重新组织 hero 文案（详见 docs/approved/zw-brain-roles.md）
 const ROLE_HERO = {
   ROLE_ORGAN_OPERATER: {
     kicker: '数据共享工作台',
@@ -1054,7 +1049,8 @@ const ROLE_HERO = {
 
 PAGES.workbench = function () {
   const current = window.RUNTIME_WORKBENCH[window.STATE.role] || window.RUNTIME_WORKBENCH.ROLE_ORGAN_OPERATER;
-  const metrics = window.RUNTIME_DASHBOARD.burdenMetrics || [];
+  // K12 dashboard.burdenMetrics 已退役 (R17 / v4.1)
+  const metrics = (window.RUNTIME_DASHBOARD && window.RUNTIME_DASHBOARD.burdenMetrics) || [];
   const requests = window.RUNTIME_REQUESTS || [];
   const deliveryTasks = window.RUNTIME_DELIVERY_TASKS || [];
   const primaryRequest = activeRequest();
@@ -2992,7 +2988,8 @@ PAGES.providerWizardQualityRule = function () {
 
 
 PAGES.complianceOps = function () {
-  const metrics = window.RUNTIME_DASHBOARD.burdenMetrics;
+  // K12 dashboard.burdenMetrics 已退役 (R17 / v4.1)
+  const metrics = (window.RUNTIME_DASHBOARD && window.RUNTIME_DASHBOARD.burdenMetrics) || [];
   const role = (window.STATE && window.STATE.role) || 'ROLE_SECURITY_AUDIT';
   const heroCfg = (
     role === 'ROLE_ORGAN_MANAGER' ? { kicker: '合规运营', title: '看你审过的申请有没有重复要数或绕行。', subtitle: '回放审批边界 · 异常工单 · 减负指标', meta: '合规运营' } :
@@ -3373,10 +3370,9 @@ PAGES.integrationAdmin = function () {
         `)}
       </section>
       <aside class="col-span-5 space-y-5">
-        ${panel('数据治理大屏（独立只读）', '与本系统解耦的全局治理可视化入口', `
-          <div class="text-body leading-7 text-zw-ink">独立部署的只读大屏，承担全局数据治理可视化。点击下方按钮在新标签页打开。</div>
-          <div class="mt-3 text-body-sm text-zw-mute leading-7">若入口不可访问，请联系平台运维确认大屏服务是否启动。</div>
-          <a href="http://127.0.0.1:8801/" target="_blank" rel="noopener" class="gov-btn gov-btn-primary mt-4 inline-block" id="governance-dashboard-link">打开数据治理大屏 →</a>
+        ${panel('数据治理大屏（已退役）', 'K12 大屏本期退役（R17 / v4.1）', `
+          <div class="text-body leading-7 text-zw-ink">原 K12 数据治理大屏作为独立部署面在 v4.1 二轮再砍中退役（详见 R17）。</div>
+          <div class="mt-3 text-body-sm text-zw-mute leading-7">合规与运营入口已迁入 B1.1 后台支撑面；若客户真实诉求出现，作为独立产品或外部能力包评估。</div>
         `)}
         ${panel('身份、权限与裁决证据', '查看账号绑定、岗位范围、租户策略和拒绝原因', `
           <div class="text-body leading-7 text-zw-ink">从统一能力契约读取治理总览，直接查看身份、授权与策略证据。</div>

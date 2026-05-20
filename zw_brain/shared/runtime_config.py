@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 from typing import Any
-from urllib.parse import urlparse
 
 from zw_brain.shared.iaf_oidc import IafIamConfig
 
@@ -10,7 +9,6 @@ from zw_brain.shared.iaf_oidc import IafIamConfig
 # (127.0.0.1-only rejects forwarded connections from the preview proxy).
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_REST_PORT = 8800
-DEFAULT_DASHBOARD_BFF_PORT = 8801
 
 
 def _get_port(name: str, default: int) -> int:
@@ -50,35 +48,6 @@ def get_rest_base_url() -> str:
 
 def get_rest_api_skills_endpoint() -> str:
     return f"{get_rest_base_url()}/api/skills"
-
-
-def get_dashboard_bff_host() -> str:
-    return os.environ.get("ZW_BRAIN_DASHBOARD_BFF_HOST", DEFAULT_HOST)
-
-
-def get_dashboard_bff_port() -> int:
-    if os.environ.get("ZW_BRAIN_DASHBOARD_BFF_PORT"):
-        return _get_port("ZW_BRAIN_DASHBOARD_BFF_PORT", DEFAULT_DASHBOARD_BFF_PORT)
-    rest = get_rest_port()
-    if rest >= 65535:
-        return DEFAULT_DASHBOARD_BFF_PORT
-    return rest + 1
-
-
-def get_webui_dashboard_href() -> str | None:
-    raw = (os.environ.get("ZW_BRAIN_WEBUI_DASHBOARD_URL") or "").strip()
-    if raw.lower() in {"none", "off", "false", "-", "0"}:
-        return None
-    if not raw:
-        return "/dashboard/"
-    if raw.startswith("/"):
-        url = raw.rstrip("/")
-        return url + "/" if url else "/"
-    parsed = urlparse(raw)
-    if parsed.scheme in {"http", "https"} and parsed.netloc:
-        url = raw.rstrip("/")
-        return url + "/"
-    return None
 
 
 _DEV_BYPASS_ACK_VALUE = "development-only"

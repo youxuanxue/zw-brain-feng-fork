@@ -1,9 +1,9 @@
 # sd-default 客户现场部署 runbook
 
 > **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
-> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
-> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
-> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 角色权威源：`docs/approved/zw-brain-roles.md`
+> - 信息架构权威源：`docs/approved/zw-brain-architecture.md`
+> - 评审决策记录：`docs/approved/zw-brain-architecture.md`
 > - 原版 R 编号见 git blame。
 
 > 📍 **你在哪一份 zw-brain 文档？**
@@ -73,13 +73,15 @@ uv venv && uv pip install -e .
 
 ## 2. 数据库初始化
 
-### 2.1 创建数据目录 + alembic upgrade
+### 2.1 创建数据目录 + 初始化 schema（v4.1 R15：drop & recreate，不用 alembic）
 
 ```bash
 export ZW_BRAIN_DB_PATH=/data/zw-brain/runtime.db
 mkdir -p $(dirname $ZW_BRAIN_DB_PATH)
-.venv/bin/alembic upgrade head
+.venv/bin/python -c "from zw_brain.shared.migrate import ensure_runtime_schema; ensure_runtime_schema()"
 ```
+
+**说明**：v4.1 二轮再砍后 alembic 已删除（详见 R15）；新项目用 SQLAlchemy `Base.metadata.drop_all` + `create_all` 一步重建。第一个真实客户上线 + 第一次生产 schema 变更时再重启 alembic baseline。
 
 **验证**：
 ```bash
@@ -240,15 +242,13 @@ curl -s http://localhost:8800/openapi.json | jq '.paths | length'
 # 180+
 ```
 
-### 6.2 Dashboard BFF（只读运营面）
+### 6.2 K12 大屏（已退役 R17 / v4.1）
 
-```bash
-.venv/bin/zw-brain-dashboard-bff --host 0.0.0.0 --port 8801
-```
+K12 独立大屏 + Dashboard BFF 在 v4.1 二轮再砍中退役（详见架构基线 R17）。合规与运营进入 B1.1 后台支撑面，由 REST 主服务统一服务。
 
 ### 6.3 反向代理（可选）
 
-把 WebUI 8800 / Dashboard 8801 / 统一身份回调地址挂在 nginx 后面，统一 TLS 终结。
+把 WebUI 8800 / 统一身份回调地址挂在 nginx 后面，统一 TLS 终结。
 
 ---
 
@@ -343,7 +343,7 @@ curl -s http://localhost:8800/openapi.json | jq '.paths | length'
 
 ## 附录 B：组件清单（按 `pyproject.toml`）
 
-- 入口：`zw-brain-rest`, `zw-brain-dashboard-bff`, `zw-brain-cli`, `zw-brain-mcp`, `zw-brain-a2a`, `zw-brain-migrate-legacy`
+- 入口：`zw-brain-rest`, `zw-brain-cli`, `zw-brain-mcp`, `zw-brain-a2a`, `zw-brain-migrate-legacy`（K12 dashboard-bff 已退役 R17 / v4.1）
 - 测试：`pytest tests/` 全套 441+ 用例
 - 契约：`scripts/export_agent_contract.py` 生成 5 端口契约（180 REST / 1 CLI / 61 MCP / 1 A2A / 192 Skills）
 - preflight：`bash scripts/preflight.sh` — 16 段机械检查

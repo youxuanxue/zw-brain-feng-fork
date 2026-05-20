@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  // 2026-05-19 retrofit：用户角色对齐旧平台 ROLE_* 7 角色（详见 docs/approved/zw-brain-roles-v2.md）
+  // 2026-05-19 retrofit：用户角色对齐旧平台 ROLE_* 7 角色（详见 docs/approved/zw-brain-roles.md）
   const ROLE_NAMES = {
     ROLE_ORGAN_OPERATER: '部门操作员',
     ROLE_ORGAN_MANAGER: '部门管理员',
@@ -126,7 +126,8 @@
     window.RUNTIME_KNOWLEDGE_ARTICLES = snapshot.knowledge_articles;
     window.RUNTIME_ZONES = snapshot.zones;
     window.RUNTIME_CAPABILITY_PACKAGES = snapshot.capability_packages;
-    window.RUNTIME_DASHBOARD = snapshot.dashboard;
+    // K12 dashboard 数据块已退役 (R17 / v4.1)；保留 RUNTIME_DASHBOARD 兜底以兼容 pages.js defensive guard
+    window.RUNTIME_DASHBOARD = snapshot.dashboard || {};
     window.ZW_WEBUI = snapshot.webui || {};
     window.CATALOG_BROWSE_FILTERS = window.CATALOG_BROWSE_FILTERS || { page: 1, limit: 20, lifecycle: 'active', kind: 'real' };
     window.RUNTIME_CATALOG_BROWSE = window.RUNTIME_CATALOG_BROWSE || { items: [], total: 0, page: 1, limit: 20 };
@@ -298,16 +299,15 @@
       } else if (route === '#/p5-provider' && roleCan(['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'])) {
         window.RUNTIME_PROVIDER = await invokeRead('provider.view', {});
       } else if (route === '#/p6-compliance-ops' && roleCan(['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
+        // K12 dashboard / dashboard.render_command_center Skill 已退役 (R17 / v4.1)
         const disputes = await invokeRead('governance.dispute_list', {});
         const audit = await invokeRead('audit.list', {});
-        const dashboard = await invokeRead('dashboard.render_command_center', {});
         window.RUNTIME_DISPUTES = disputes.items;
         window.RUNTIME_ALERTS = disputes.alerts || window.RUNTIME_ALERTS;
         window.RUNTIME_TICKETS = disputes.tickets || window.RUNTIME_TICKETS;
         window.RUNTIME_KNOWLEDGE_ARTICLES = disputes.knowledgeArticles || window.RUNTIME_KNOWLEDGE_ARTICLES;
         window.RUNTIME_AUDIT_EVENTS = audit.items;
         window.RUNTIME_AUDIT_AI = audit.summary;
-        window.RUNTIME_DASHBOARD = dashboard;
       } else if (route.startsWith('#/p6-compliance-ops/dispute/') && roleCan(['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
         const id = decodeURIComponent(route.split('/').pop());
         const dispute = await invokeRead('governance.dispute_view', { dispute_id: id });

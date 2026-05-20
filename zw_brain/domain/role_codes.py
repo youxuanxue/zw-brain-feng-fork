@@ -7,8 +7,9 @@
 - zw_brain.domain.policy.ACTOR_NAMES (权限矩阵权威源)
 - zw_brain.entry.rest.server._DEV_IAM_BYPASS_ROLES
 - zw_brain.domain.web_snapshot_redaction
-- alembic/versions/0009_role_code_d23_retrofit.py
 - 前端：通过 export_agent_contract.py 生成的 OpenAPI enum（system.snapshot.role）派生
+
+（alembic 0009 旧消费者已在 v4.1 R15 删除 alembic 时一并清理）
 
 未直接消费但需保持同步（测试 test_role_codes_alignment.py 验证）：
 - zw-brain-web/js/app.js ROLE_NAMES

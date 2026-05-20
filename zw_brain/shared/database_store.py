@@ -108,7 +108,7 @@ class DatabaseStore:
     def list_audit_events(self, *, limit: int = 500) -> list[AuditEventRecord]:
         """Return the most-recent audit events (default 500). Without LIMIT the
         page hot path hydrates thousands of large payload_json blobs (~14 s for
-        ~2300 rows), which is what made audit.list and dashboard.render
+        ~2300 rows), which is what made audit.list and compliance.case.query
         time out. Callers that genuinely need all events should iterate paged.
         """
         SessionLocal = self._session_factory()

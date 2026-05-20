@@ -12,13 +12,7 @@ PYTHON_BIN="$REPO_ROOT/.venv/bin/python"
 
 REST_HOST="${ZW_BRAIN_REST_HOST:-127.0.0.1}"
 REST_PORT="${ZW_BRAIN_REST_PORT:-8800}"
-DASHBOARD_HOST="${ZW_BRAIN_DASHBOARD_BFF_HOST:-127.0.0.1}"
-DASHBOARD_PORT="${ZW_BRAIN_DASHBOARD_BFF_PORT:-8801}"
-# Embedded WebUI → standalone dashboard shortcut (browser cannot open listen addresses like 0.0.0.0).
-DASHBOARD_BROWSER_HOST="${ZW_BRAIN_DASHBOARD_BROWSER_HOST:-127.0.0.1}"
-if [[ -z "${ZW_BRAIN_WEBUI_DASHBOARD_URL:-}" ]]; then
-    export ZW_BRAIN_WEBUI_DASHBOARD_URL="http://${DASHBOARD_BROWSER_HOST}:${DASHBOARD_PORT}/"
-fi
+# K12 dashboard BFF 在 v4.1 二轮再砍中退役（R17）；本脚本仅启动 REST + WebUI
 
 # Hard guard：start-local.sh 只用于 dev / 演示 box，绝不可用于客户 prod。
 # 客户 prod 必须用 docker-image-deployment.md 路径起服务（IAF/OIDC 真接入）。
@@ -44,17 +38,12 @@ if [[ -z "${ZW_BRAIN_IAF_AUTH_SERVER_URL:-}" ]]; then
 fi
 
 REST_PID=""
-DASHBOARD_PID=""
 
 cleanup() {
     local status=$?
     if [[ -n "$REST_PID" ]] && kill -0 "$REST_PID" 2>/dev/null; then
         kill "$REST_PID" 2>/dev/null || true
         wait "$REST_PID" 2>/dev/null || true
-    fi
-    if [[ -n "$DASHBOARD_PID" ]] && kill -0 "$DASHBOARD_PID" 2>/dev/null; then
-        kill "$DASHBOARD_PID" 2>/dev/null || true
-        wait "$DASHBOARD_PID" 2>/dev/null || true
     fi
     exit "$status"
 }
@@ -128,14 +117,6 @@ start_rest() {
     REST_PID=$!
 }
 
-start_dashboard() {
-    (
-        cd "$REPO_ROOT"
-        exec "$PYTHON_BIN" zw-brain-dashboard/bff/main.py
-    ) &
-    DASHBOARD_PID=$!
-}
-
 echo "=== zw-brain local startup ==="
 echo "[start-local] repo: $REPO_ROOT"
 echo "[start-local] python: $PYTHON_BIN"
@@ -148,21 +129,12 @@ if ! check_port_free "$REST_HOST" "$REST_PORT"; then
     exit 1
 fi
 
-if ! check_port_free "$DASHBOARD_HOST" "$DASHBOARD_PORT"; then
-    show_port_conflict "$DASHBOARD_PORT"
-    exit 1
-fi
-
 start_rest
-start_dashboard
 
 wait_for_health "http://$REST_HOST:$REST_PORT/health" "REST"
-wait_for_health "http://$DASHBOARD_HOST:$DASHBOARD_PORT/health" "Dashboard"
 
 echo "[start-local] REST PID: $REST_PID"
-echo "[start-local] Dashboard PID: $DASHBOARD_PID"
 echo "[start-local] REST URL: http://$REST_HOST:$REST_PORT"
-echo "[start-local] Dashboard URL: http://$DASHBOARD_HOST:$DASHBOARD_PORT"
-echo "[start-local] Press Ctrl+C to stop both services"
+echo "[start-local] Press Ctrl+C to stop"
 
-wait "$REST_PID" "$DASHBOARD_PID"
+wait "$REST_PID"

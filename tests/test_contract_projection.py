@@ -148,15 +148,9 @@ def test_registry_projection_metadata_matches_openapi_mcp_and_a2a() -> None:
             assert skill_id not in a2a_bindings
 
 
-def test_dashboard_and_webui_use_registry_gateways_only() -> None:
-    dashboard_bff = (REPO_ROOT / "zw_brain" / "entry" / "dashboard_bff.py").read_text(encoding="utf-8")
+def test_webui_uses_registry_gateways_only() -> None:
+    # K12 dashboard BFF 退役 (R17 / v4.1)；本测试仅校验 WebUI 通过 registry gateway 调能力
     app_js = (REPO_ROOT / "zw-brain-web" / "js" / "app.js").read_text(encoding="utf-8")
-
-    assert "parsed.path.startswith(\"/api/skills/dashboard.\")" in dashboard_bff
-    assert "require_surface(skill_id, \"webui\")" in dashboard_bff
-    assert "do_POST" not in dashboard_bff
-    assert "get_service().invoke_skill(skill_id, {})" in dashboard_bff
-    assert "parsed.path.startswith(\"/api/skills/\")" not in dashboard_bff
 
     assert "window.ZW_AUTH.authFetch(`/api/skills/${skillId}${encodeParams(payload)}`" in app_js
     assert "window.ZW_AUTH.authFetch(`/api/skills/${skillId}`" in app_js

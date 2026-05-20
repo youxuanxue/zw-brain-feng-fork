@@ -78,14 +78,13 @@ def test_cli_mcp_and_a2a_share_runtime_contract() -> None:
             "-m",
             "zw_brain.entry.a2a.server",
             "invoke",
-            "dashboard.render_command_center",
+            "compliance.metric.query",
             "--payload",
             '{"role":"ROLE_SECURITY_AUDIT"}',
             env=env,
         )
         a2a_data = json.loads(a2a_invoke.stdout)
-        assert a2a_data["skill_id"] == "dashboard.render_command_center"
-        assert a2a_data["result"]["mode"] in {"live-readonly", "snapshot"}
+        assert a2a_data["skill_id"] == "compliance.metric.query"
 
         denied_cli = run_module(
             "-m",
@@ -356,24 +355,4 @@ def test_rest_main_reads_host_and_port_from_env(monkeypatch) -> None:
     assert captured["served"] is True
 
 
-def test_dashboard_main_reads_host_and_port_from_env(monkeypatch) -> None:
-    captured = {}
-
-    class FakeServer:
-        def __init__(self, address, handler):
-            captured["address"] = address
-            captured["handler"] = handler
-
-        def serve_forever(self):
-            captured["served"] = True
-
-    monkeypatch.setenv("ZW_BRAIN_DASHBOARD_BFF_HOST", "0.0.0.0")
-    monkeypatch.setenv("ZW_BRAIN_DASHBOARD_BFF_PORT", "18801")
-
-    from zw_brain.entry import dashboard_bff
-
-    monkeypatch.setattr(dashboard_bff, "HTTPServer", FakeServer)
-    dashboard_bff.main()
-
-    assert captured["address"] == ("0.0.0.0", 18801)
-    assert captured["served"] is True
+# test_dashboard_main_reads_host_and_port_from_env 已删除（K12 大屏 BFF 退役 R17 / v4.1）

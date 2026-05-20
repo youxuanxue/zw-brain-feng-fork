@@ -1,9 +1,9 @@
 # zw-brain 客户现场移交 checklist
 
 > **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
-> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
-> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
-> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 角色权威源：`docs/approved/zw-brain-roles.md`
+> - 信息架构权威源：`docs/approved/zw-brain-architecture.md`
+> - 评审决策记录：`docs/approved/zw-brain-architecture.md`
 > - 原版 R 编号见 git blame。
 
 > 📍 **你在哪一份 zw-brain 文档？**
@@ -35,7 +35,7 @@
 | --- | --- | --- | --- | --- |
 | 1 | Python 3.13+ | `python3 --version` | 3.13.x | venv 无法创建 → 后续全部失败，系统装不起来 |
 | 2 | uv 已装 | `uv --version` | 0.4+ | 依赖锁定失效 → 客户环境与开发环境漂移，难以现场修 bug |
-| 3 | venv 已建并装齐依赖 | `.venv/bin/python -c "import zw_brain"` | 不报错 | 进程起不来 → REST / dashboard / 任何 skill 调用全部 502 |
+| 3 | venv 已建并装齐依赖 | `.venv/bin/python -c "import zw_brain"` | 不报错 | 进程起不来 → REST / 任何 skill 调用全部 502 |
 | 4 | 数据目录可写 | `touch $ZW_BRAIN_DB_PATH.test && rm $_` | 不报错 | M0 迁移落不了库 → 客户旧数据进不来 |
 | 5 | mysql 客户端可用（仅客户机房） | `which mysqldump` | 有路径返回 | 客户机房无法一键导出 → M0 数据迁移走不通 |
 
@@ -43,8 +43,8 @@
 
 | # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
 | --- | --- | --- | --- | --- |
-| 6 | alembic upgrade head 成功 | `.venv/bin/alembic upgrade head` | 9 个 migration 全过 | schema 版本不全 → 业务读写报"no such table"，整库不可用 |
-| 7 | canonical schema 可写 | `python -c "from zw_brain.shared.migrate import ensure_runtime_schema; ensure_runtime_schema()"` | 不报错 | canonical schema 不可写 → 任何 write skill（申请/审批/交付）都落不下来 |
+| 6 | schema 初始化成功（v4.1 R15：不用 alembic） | `.venv/bin/python -c "from zw_brain.shared.migrate import ensure_runtime_schema; ensure_runtime_schema()"` | 不报错 | schema 不全 → 业务读写报"no such table"，整库不可用 |
+| 7 | canonical schema 可写 | （与第 6 项合并；v4.1 R15 后 alembic 已删除） | 不报错 | 同上 |
 | 8 | 默认租户 sd-default 生效 | `python -c "from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT; print(DEFAULT_TENANT)"` | `sd-default` | 租户错配 → 数据写到错误 tenant，跨租户隔离失效 |
 
 ## 三、配置 / 密钥（5 项）
@@ -63,7 +63,7 @@
 | --- | --- | --- | --- | --- |
 | 14 | preflight 全段通过 | `bash scripts/preflight.sh 2>&1 \| tail -3` | `=== preflight: PASS (common + project stages) ===` | 机械规约层断 → 任何 PR 不能 merge，hotfix 链路瘫痪 |
 
-子段包括：branch naming / dev-rules 同步 / agent contract drift / user-story alignment / approved-doc invariants / doc stats sync / audit-must-block (D4) / blockchain-async (D4) / fixture-pii (D11) / no-direct-llm (D6) / dashboard-readonly (D15) / external-refs (D22) / ui-spec-b (Spec B 单主题) / legacy-mappers (D7+D4) — 16 段。
+子段包括：branch naming / dev-rules 同步 / agent contract drift / user-story alignment / approved-doc invariants / doc stats sync / audit-must-block (D4) / blockchain-async (D4) / fixture-pii (D11) / no-direct-llm (D6) / external-refs (D22) / ui-spec-b (Spec B 单主题) / legacy-mappers (D7+D4) — v4.1 R17 反转后 dashboard-readonly 段 11 已删除，共 15 段。
 
 ## 五、客户现场一键导出（4 项）
 

@@ -4,7 +4,7 @@
 Watch for sqlite physical bloat in the canonical zw-brain DB. WAL + heavy
 audit_event / anchor_outbox writes can let .data/zw_brain.db reach gigabytes
 while the actual rowcount stays small. That bloat made audit.list /
-dashboard.render look like product bugs (77s / 30s timeouts) — the cure is
+compliance.case.query look like product bugs (77s / 30s timeouts) — the cure is
 `scripts/db-vacuum.sh`, not code.
 
 Severity:

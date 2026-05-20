@@ -28,7 +28,7 @@
 
 异议链路与目录、资源、申请、授权、交付都有关，但它不是这些领域的附属状态：
 
-1. `docs/approved/zw-brain-data-model-v4-gpt55.md` 已将 `objection_case`、`objection_evidence`、`objection_process`、`objection_evaluation` 设计为独立表。
+1. `docs/approved/zw-brain-data-model.md` 已将 `objection_case`、`objection_evidence`、`objection_process`、`objection_evaluation` 设计为独立表。
 2. 旧表 `data_objection.objection_type` 覆盖数据目录、数据资源、数据授权、数据使用，后续又新增内容质量类异议。
 3. 旧平台业务说明明确“实际数据修复属于线下动作，平台只承载流程协同”，说明异议的核心不是改数据，而是责任、证据和闭环。
 4. 旧代码存在超期预警调度和四方速率查询，说明异议是合规运营和追责指标的重要输入。
@@ -47,8 +47,8 @@
 
 | 约束来源 | 对本方案的约束 |
 | --- | --- |
-| `docs/approved/zw-brain-architecture-v4-gpt55.md` | 目录、申请、交付、异议是强状态领域；异议不是备注字段，而是独立链路。 |
-| `docs/approved/zw-brain-data-model-v4-gpt55.md` | `ObjectionAggregate` 是核心聚合之一；异议状态推进需要与审计事件、回执在事务边界内一致。 |
+| `docs/approved/zw-brain-architecture.md` | 目录、申请、交付、异议是强状态领域；异议不是备注字段，而是独立链路。 |
+| `docs/approved/zw-brain-data-model.md` | `ObjectionAggregate` 是核心聚合之一；异议状态推进需要与审计事件、回执在事务边界内一致。 |
 | `docs/approved/zw-brain-user-roles-and-journeys-v1.md` | 处理对象不是抽象管理员，而是要数的人、管数的人、填数的人、审数的人、查责的人。 |
 | `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` | `dsp-objection-handling` 被列为 P0，优先补齐 J4 异议强状态闭环。 |
 | `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md` | 目录 / 资源质量问题应进入证据与强状态，不通过门户或目录后台补丁解决。 |
@@ -287,8 +287,8 @@
 - `old/old_codes/dsp-objection-handling/doc/共享条例sql/xxl-job-init-handling.sql`
 - `old/old_codes/dsp-objection-handling/src/main/resources/application.properties`
 - `old/integrated-bigdata-platform/README.md`
-- `docs/approved/zw-brain-architecture-v4-gpt55.md`
-- `docs/approved/zw-brain-data-model-v4-gpt55.md`
+- `docs/approved/zw-brain-architecture.md`
+- `docs/approved/zw-brain-data-model.md`
 - `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md`
 - `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md`
 - `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md`

@@ -1,6 +1,8 @@
-# Docker 镜像文件部署手册
+# Docker 镜像文件部署手册（v4.1 已更新）
 
-本文说明如何从源码构建 `zw-brain` Docker 镜像、导出镜像文件，并在目标服务器通过镜像文件部署 REST WebUI/API 与只读 Dashboard BFF。
+> **v4.1 二轮再砍变更（2026-05-20）**：K12 大屏（Dashboard BFF）已退役（架构基线 R17）；alembic 已删除（R15）。本文中相关章节已移除或简化。
+
+本文说明如何从源码构建 `zw-brain` Docker 镜像、导出镜像文件，并在目标服务器通过镜像文件部署 REST WebUI/API。
 
 ## 1. 构建镜像
 
@@ -13,11 +15,12 @@ docker build -t zw-brain:1.0.0 .
 镜像默认启动 `zw-brain-rest`，同时内置以下运行入口，可通过 `docker run ... <command>` 覆盖：
 
 - `zw-brain-rest`：REST API + WebUI，默认端口 `8800`
-- `zw-brain-dashboard-bff`：只读 Dashboard BFF，默认端口 `8801`
 - `zw-brain-cli`：命令行调用 Skill
 - `zw-brain-mcp`：MCP 入口
 - `zw-brain-a2a`：A2A 入口
 - `zw-brain-migrate-legacy`：旧平台数据迁移入口
+
+（K12 dashboard-bff 已在 v4.1 R17 退役，不再作为入口提供）
 
 ## 2. 导出与导入镜像文件
 
@@ -86,38 +89,9 @@ WebUI 访问地址：
 http://<服务器IP>:8800/
 ```
 
-## 5. 启动只读 Dashboard BFF
+## 5. K12 大屏已退役（R17 / v4.1）
 
-Dashboard 是独立部署、只读消费 `dashboard.*` Skill 的运行面。建议与 REST 使用同一个镜像、同一个数据卷，但作为单独容器启动：
-
-```bash
-docker run -d \
-  --name zw-brain-dashboard \
-  --restart unless-stopped \
-  --add-host iaf.example.internal:127.0.0.1 \
-  -p 8801:8801 \
-  -v /opt/zw-brain/data:/data/zw-brain \
-  -e ZW_BRAIN_DB_PATH=/data/zw-brain/zw_brain.db \
-  -e ZW_BRAIN_IAF_AUTH_SERVER_URL=https://iaf.example.internal/auth \
-  -e ZW_BRAIN_IAF_REALM=replace-me-realm \
-  -e ZW_BRAIN_IAF_CLIENT_ID=replace-me-client-id \
-  -e ZW_BRAIN_IAF_CLIENT_SECRET=replace-me-client-secret \
-  -e ZW_BRAIN_DASHBOARD_BFF_PORT=8801 \
-  zw-brain:1.0.0 \
-  zw-brain-dashboard-bff
-```
-
-健康检查：
-
-```bash
-curl http://127.0.0.1:8801/health
-```
-
-Dashboard 访问地址：
-
-```text
-http://<服务器IP>:8801/
-```
+原"独立 Dashboard BFF（8801 端口）"在 v4.1 二轮再砍中退役（架构基线 R17）。合规与运营进入 B1.1 后台支撑面，由 REST 主服务（8800 端口）统一服务。客户演示真有大屏诉求时，作为独立产品或外部能力包评估。
 
 ## 6. 常用环境变量
 
@@ -131,10 +105,7 @@ http://<服务器IP>:8801/
 | `ZW_BRAIN_DATABASE_URL` | SQLAlchemy 数据库 URL；设置后优先于 `ZW_BRAIN_DB_PATH` | 未设置 |
 | `ZW_BRAIN_REST_HOST` | REST 监听地址 | `0.0.0.0` |
 | `ZW_BRAIN_REST_PORT` | REST 监听端口 | `8800` |
-| `ZW_BRAIN_DASHBOARD_BFF_HOST` | Dashboard BFF 监听地址 | `0.0.0.0` |
-| `ZW_BRAIN_DASHBOARD_BFF_PORT` | Dashboard BFF 监听端口 | `8801` |
 | `ZW_BRAIN_REST_BASE_URL` | REST 对外基础 URL，用于契约投影等场景 | `http://127.0.0.1:<REST端口>` |
-| `ZW_BRAIN_WEBUI_DASHBOARD_URL` | WebUI 中 Dashboard 入口地址；可设为绝对 URL、相对路径或 `off` 禁用 | `/dashboard/` |
 | `ZW_BRAIN_TENANT_ID` | 默认租户标识 | 按运行配置解析 |
 | `ZW_BRAIN_IAF_CA_FILE` | IAF HTTPS 自定义 CA 证书文件路径（容器内路径），用于挂载内部 CA bundle | 未设置（使用系统默认信任链） |
 | `ZW_BRAIN_IAF_VERIFY_SSL` | 设为 `false` 时完全跳过 IAF 端点 SSL 验证（仅限测试/内网无证书环境） | `true` |
@@ -173,19 +144,18 @@ docker run --rm \
 
 ```bash
 docker logs -f zw-brain-rest
-docker logs -f zw-brain-dashboard
 ```
 
 停止容器：
 
 ```bash
-docker stop zw-brain-rest zw-brain-dashboard
+docker stop zw-brain-rest
 ```
 
 删除容器：
 
 ```bash
-docker rm zw-brain-rest zw-brain-dashboard
+docker rm zw-brain-rest
 ```
 
 升级镜像时，先导入新镜像，再停止并重建容器；保留 `/opt/zw-brain/data` 数据目录即可复用数据库。
@@ -204,13 +174,4 @@ docker run -d \
   zw-brain:1.0.0
 curl http://127.0.0.1:8800/health
 docker rm -f zw-brain-rest-test
-
-docker run -d \
-  --name zw-brain-dashboard-test \
-  -p 8801:8801 \
-  -v /tmp/zw-brain-docker-data:/data/zw-brain \
-  zw-brain:1.0.0 \
-  zw-brain-dashboard-bff
-curl http://127.0.0.1:8801/health
-docker rm -f zw-brain-dashboard-test
 ```

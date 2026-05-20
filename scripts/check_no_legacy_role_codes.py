@@ -3,14 +3,15 @@
 check_no_legacy_role_codes.py — preflight 段 19
 
 强约束（设计基线 §附录 D / D23 retrofit）：
-    R1-R8 用户角色码已于 2026-05-19 退役（详见 docs/approved/zw-brain-roles-v2.md）。
+    R1-R8 用户角色码已于 2026-05-19 退役（详见 docs/approved/zw-brain-roles.md）。
     任何 .py / .js / .json / .md 文件中独立 token 形式的 r1..r8 / R1..R8 字面值
     都不得出现，除非属于以下 intentional 上下文之一：
       - retrofit 注脚（"retrofit (D23-D29)" / "2026-05-19 retrofit"）
       - 新 approved 文档中的退役映射表（roles-v2.md / ia-v2.md / gate1.1-retrofit / architecture v4 附录 D）
       - policy.py 自身的 _LEGACY_ROLE_CODES 启动检查
-      - alembic 0009 自身的 _LEGACY_TO_NEW 数据迁移映射
       - CLAUDE.md 决策记录中明确标注的历史 D 编号或 R-编号
+
+注：原 alembic 0009 数据迁移映射已在 v4.1 R15 删除 alembic 时一并清理。
 
 退出码：0 = 全部通过；1 = 至少一处违反
 
@@ -76,12 +77,12 @@ ALLOWED_LINE_MARKERS = (
 )
 
 # 允许整文件白名单（这些文件本身就是描述 R1-R8 退役的权威源）
+# alembic 0009 + 其单元测试已在 v4.1 R15 删除 alembic 时一并清理
 ALLOWED_FILES = (
-    "docs/approved/zw-brain-roles-v2.md",
-    "docs/approved/zw-brain-information-architecture-v2.md",
-    "docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md",
-    "docs/approved/zw-brain-architecture-v4-gpt55.md",
-    "alembic/versions/0009_role_code_d23_retrofit.py",
+    "docs/approved/zw-brain-architecture.md",  # 唯一基线（含 R10 R1-R8 退役说明）
+    "docs/approved/zw-brain-roles.md",  # 7 角色规范 + R1-R8 退役映射
+    "docs/approved/README.md",  # 单一导航 spine
+    "docs/reconstructs/README.md",  # 旧仓→新仓映射导航
     "scripts/check_no_legacy_role_codes.py",  # 本脚本自身
     "zw_brain/domain/policy.py",  # 启动检查 _LEGACY_ROLE_CODES 本身需含 r1-r8
     "zw_brain/domain/role_codes.py",  # 单一来源：LEGACY_ROLE_CODES 集合定义
@@ -89,9 +90,6 @@ ALLOWED_FILES = (
     # check_approved_docs.py 的 R1-R5 是 approved-doc frontmatter invariants 规则编号
     # 完全不同 namespace（与用户角色码无关），整文件白名单
     "scripts/check_approved_docs.py",
-    # alembic 0009 migration 的单元测试必须能向 actor_org_role_binding 写入
-    # r1-r8 字面值（用以验证迁移行为 + CHECK 约束生效），整文件白名单
-    "tests/test_alembic_0009_role_code_migration.py",
 )
 
 

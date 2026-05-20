@@ -26,15 +26,7 @@ CANONICAL_WEB_TOKENS = {
     "--b-muted": "#5c6370",
 }
 
-CANONICAL_DASH_TOKENS = {
-    "--b-primary": "#006be6",
-    "--b-secondary": "#009688",
-    "--b-bg-page": "#f2f7fd",
-    "--b-bg-card": "#ffffff",
-    "--b-border": "#d4e2f4",
-    "--b-text": "#1a1d21",
-    "--b-muted": "#5c6370",
-}
+# K12 dashboard retired in v4.1 二轮再砍 (R17); CANONICAL_DASH_TOKENS removed.
 
 CANONICAL_VISUAL_ROUTES = {
     "#/p1-workbench",
@@ -66,7 +58,6 @@ FORBIDDEN_WEB_PATTERNS = [
 
 SHIPPED_WEB_ROOTS = [
     REPO / "zw-brain-web",
-    REPO / "zw-brain-dashboard",
 ]
 
 SHIPPED_WEB_ASSETS = [
@@ -198,7 +189,7 @@ def require_visual_routes_guarded(app_js: str, errors: list[str]) -> None:
 def require_web_layout(sheet: str, errors: list[str]) -> None:
     required = {
         "font-family: \"Microsoft YaHei\", \"PingFang SC\", \"Noto Sans SC\", system-ui, sans-serif": "global font stack must follow Spec B government-service typography",
-        "--zw-shell-content-max: 1500px": "main WebUI shell width must align with dashboard width",
+        "--zw-shell-content-max: 1500px": "main WebUI shell width must align with Spec B layout width",
         "--zw-main-pad-y: 24px": "main shell vertical rhythm must remain stable",
         "grid-template-columns: var(--zw-product-nav-w) minmax(0, 1fr)": "business nav must use normal two-column layout",
         "position: static": "business nav must stay in document flow and align with the first content card",
@@ -232,25 +223,7 @@ def require_web_layout(sheet: str, errors: list[str]) -> None:
             errors.append(f"zw-brain-web/css/app.css: {message}")
 
 
-def require_dashboard_typography(dashboard: str, errors: list[str]) -> None:
-    required = {
-        "font-size: 15px;\n        line-height: 1.65;": "dashboard body must use Spec B body typography",
-        "font-size: 30px;": "dashboard metrics must use Spec B display typography",
-        "font-size: 18px;": "dashboard titles must use Spec B panel typography",
-        "font-size: 13px;": "dashboard captions must use Spec B caption typography",
-    }
-    for needle, message in required.items():
-        if needle not in dashboard:
-            errors.append(f"zw-brain-dashboard/index.html: {message}")
-
-    forbidden = {
-        "font-size: 11px;": "dashboard must not use undersized legacy caption typography",
-        "font-size: 12px;": "dashboard must not use undersized legacy caption typography",
-        "font-size: 28px;": "dashboard metrics must not use old display scale",
-    }
-    for needle, message in forbidden.items():
-        if needle in dashboard:
-            errors.append(f"zw-brain-dashboard/index.html: {message}")
+# K12 dashboard typography check retired in v4.1 二轮再砍 (R17).
 
 
 def require_web_typography(path: Path, text: str, errors: list[str]) -> None:
@@ -314,12 +287,10 @@ def main() -> int:
 
     web_index = REPO / "zw-brain-web" / "index.html"
     web_css = REPO / "zw-brain-web" / "css" / "app.css"
-    dashboard_index = REPO / "zw-brain-dashboard" / "index.html"
 
     spec = require_file(SPEC, errors)
     html = require_file(web_index, errors)
     sheet = require_file(web_css, errors)
-    dashboard = require_file(dashboard_index, errors)
 
     app_js = REPO / "zw-brain-web" / "js" / "app.js"
     pages_js = REPO / "zw-brain-web" / "js" / "pages.js"
@@ -338,10 +309,6 @@ def main() -> int:
     if sheet:
         require_tokens(web_css, sheet, CANONICAL_WEB_TOKENS, errors)
         require_web_layout(sheet, errors)
-
-    if dashboard:
-        require_tokens(dashboard_index, dashboard, CANONICAL_DASH_TOKENS, errors)
-        require_dashboard_typography(dashboard, errors)
 
     if app_script:
         require_literal_routes_reachable(app_script, errors)

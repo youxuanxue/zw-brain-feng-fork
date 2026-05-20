@@ -84,7 +84,7 @@
 
 ## 三、zw-brain 数据模型设计
 
-本节是 `dsp-dataservice` 相关数据模型与迁移映射的单一事实源；`docs/approved/zw-brain-data-model-v4-gpt55.md` 只保留 zw-brain canonical model 的通用结构，并在相关模块引用本节。
+本节是 `dsp-dataservice` 相关数据模型与迁移映射的单一事实源；`docs/approved/zw-brain-data-model.md` 只保留 zw-brain canonical model 的通用结构，并在相关模块引用本节。
 
 ### 3.1 API 服务资源
 

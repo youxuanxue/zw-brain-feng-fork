@@ -2,7 +2,7 @@
 status: approved
 version: v2
 supersedes_note: 取代已删除的 zw-brain-user-roles-and-journeys-v1.md (D23 retrofit)
-driven_by: docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md (D23)
+driven_by: docs/approved/zw-brain-architecture.md (D23)
 fact_source: old/20260519/平台系统角色菜单梳理v5.xlsx
 ---
 

@@ -3,22 +3,14 @@ from __future__ import annotations
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-
-def test_dashboard_skill_is_read_only() -> None:
-    tmp, service = make_service()
-    try:
-        result = service.invoke_skill("dashboard.render_command_center", {})
-        assert result["mode"] in {"live-readonly", "snapshot"}
-        assert "summary" in result
-    finally:
-        tmp.cleanup()
+# test_dashboard_skill_is_read_only 已删除（K12 大屏 + dashboard.render_command_center Skill 退役 R17 / v4.1）
 
 
 def test_snapshot_contains_expected_collections() -> None:
     tmp, service = make_service()
     try:
         snapshot = service.invoke_skill("system.snapshot", {})
-        for key in ["workbench", "discovery", "requests", "delivery_tasks", "capability_packages", "dashboard", "state"]:
+        for key in ["workbench", "discovery", "requests", "delivery_tasks", "capability_packages", "state"]:
             assert key in snapshot
     finally:
         tmp.cleanup()
@@ -162,7 +154,6 @@ def test_backend_skills_cover_main_webui_detail_routes() -> None:
         provider = service.invoke_skill("provider.view", {})
         zone = service.invoke_skill("zone.view", {"zone_id": "business"})
         package = service.invoke_skill("package.view", {"package_id": "PKG-2026-04-25-001"})
-        dashboard = service.invoke_skill("dashboard.render_command_center", {})
 
         assert request["id"] == "REQ-2026-04-25-0011"
         assert approval["id"] == "REQ-2026-04-25-0011"
@@ -170,7 +161,7 @@ def test_backend_skills_cover_main_webui_detail_routes() -> None:
         assert provider["repository"]["resourceCatalogCode"] == "res-jbxx-ledger"
         assert zone["id"] == "business"
         assert package["id"] == "PKG-2026-04-25-001"
-        assert dashboard["mode"] in {"live-readonly", "snapshot"}
+        # dashboard.render_command_center Skill 已退役 (R17 / v4.1)
 
 
 def test_repository_backed_list_skills_cover_live_pages() -> None:
@@ -257,11 +248,9 @@ def test_compliance_page_inputs_can_be_refreshed_from_live_skills() -> None:
 
         disputes = service.invoke_skill("governance.dispute_list", {})
         audit = service.invoke_skill("audit.list", {})
-        dashboard = service.invoke_skill("dashboard.render_command_center", {})
 
         assert disputes["items"]
         assert audit["items"]
-        assert dashboard["burdenMetrics"]
 
 
 def test_recovery_and_exposure_controls_project_into_live_reads() -> None:

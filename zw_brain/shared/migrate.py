@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
-
-from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
 
-from alembic import command
+from zw_brain.domain.models import Base
 from zw_brain.shared.db import get_database_url
+
+# v4.1 R15：alembic 删除；schema 用 SQLAlchemy Base.metadata 管理（drop_all + create_all）。
+# REQUIRED_TABLES / REQUIRED_COLUMNS 保留为运行时自检清单（独立于 Base 的反射式校验）。
 
 REQUIRED_TABLES = {
     "runtime_state",
@@ -103,51 +103,36 @@ REQUIRED_COLUMNS = {
 }
 
 
-def _assets_root() -> Path:
-    package_root = Path(__file__).resolve().parents[1]
-    packaged = package_root / "_assets"
-    if packaged.exists():
-        return packaged
-    return package_root.parents[0]
-
-
-def _alembic_ini() -> Path:
-    return _assets_root() / "alembic.ini"
-
-
-def _alembic_script_location() -> Path:
-    return _assets_root() / "alembic"
-
-
-def _config() -> Config:
-    cfg = Config(str(_alembic_ini()))
-    cfg.set_main_option("script_location", str(_alembic_script_location()))
-    cfg.set_main_option("sqlalchemy.url", get_database_url())
-    return cfg
-
-
 def upgrade() -> None:
-    command.upgrade(_config(), "head")
+    """Create all tables defined on Base.metadata. v4.1 R15: replaces alembic upgrade."""
+    engine = create_engine(get_database_url(), future=True)
+    Base.metadata.create_all(bind=engine)
 
 
 def reset_and_upgrade() -> None:
+    """Drop all existing tables and recreate from Base.metadata. v4.1 R15: drop & recreate."""
     engine = create_engine(get_database_url(), future=True)
     with engine.begin() as conn:
         inspector = inspect(conn)
         for table_name in inspector.get_table_names():
             conn.execute(text(f'DROP TABLE IF EXISTS "{table_name}"'))
+    engine.dispose()
     upgrade()
 
 
 def ensure_runtime_schema() -> None:
+    """Verify required tables/columns exist; reset if not (drop & recreate)."""
     engine = create_engine(get_database_url(), future=True)
     inspector = inspect(engine)
     tables = set(inspector.get_table_names())
     if not REQUIRED_TABLES.issubset(tables):
+        engine.dispose()
         reset_and_upgrade()
         return
     for table_name, required_columns in REQUIRED_COLUMNS.items():
         columns = {column["name"] for column in inspector.get_columns(table_name)}
         if not required_columns.issubset(columns):
+            engine.dispose()
             reset_and_upgrade()
             return
+    engine.dispose()

@@ -12,7 +12,7 @@ check_external_refs.py
 权威对照文件（按优先级）:
     1. 环境变量 `DIGITAL_CLONE_RESEARCH_PATH`（若指向可读文件）
     2. `dev-rules/digital-clone-research.md`（本机可选 symlink / 克隆）
-    3. `docs/approved/zw-brain-architecture-v4-gpt55.md`（zw-brain 自包含基线，含 §一/二/三 等章节结构）
+    3. `docs/approved/zw-brain-architecture.md`（zw-brain 自包含基线，含 §一/二/三 等章节结构）
 
 判定逻辑：
     抽取 `digital-clone-research.md §X` 形态引用，与对照文件内 `## …` 风格标题中的
@@ -48,7 +48,7 @@ def resolve_external_file() -> Path:
             return p
     for rel in (
         Path("dev-rules") / "digital-clone-research.md",
-        Path("docs") / "approved" / "zw-brain-architecture-v4-gpt55.md",
+        Path("docs") / "approved" / "zw-brain-architecture.md",
     ):
         p = REPO_ROOT / rel
         if p.is_file():
@@ -146,7 +146,7 @@ def main() -> int:
             f"  tried: {external_path}\n"
             f"  but {sum(len(v) for v in refs.values())} reference(s) across {len({f for v in refs.values() for f, _ in v})} file(s) point to it.\n"
             f"  fix: add dev-rules mirror + digital-clone-research.md, set DIGITAL_CLONE_RESEARCH_PATH, "
-            f"or ensure docs/approved/zw-brain-architecture-v4-gpt55.md exists; align § anchors.",
+            f"or ensure docs/approved/zw-brain-architecture.md exists; align § anchors.",
             file=sys.stderr,
         )
         return 1

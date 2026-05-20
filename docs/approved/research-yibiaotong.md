@@ -1,5 +1,5 @@
 ---
-doc_id: research-yibiaotong-zw-brain-v4
+doc_id: research-yibiaotong
 status: approved
 gate: GATE-1
 approved_by: xuejiao02
@@ -7,10 +7,9 @@ authors:
   - 薛娇（产品研发负责人）
   - Claude Code (claude-opus-4-7) — 调研协作
 related_docs:
-  - docs/approved/zw-brain-architecture-v4-gpt55.md
-  - docs/approved/zw-brain-roles-v2.md (取代于 D23)
-  - docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）
-  - docs/approved/zw-brain-legal-entity-ledger-scenario-v1.md
+  - docs/approved/zw-brain-architecture.md
+  - docs/approved/zw-brain-roles.md
+  - docs/approved/zw-brain-data-model.md
 related_prs: []
 related_commits: []
 self_review_rounds: 1
@@ -20,13 +19,13 @@ phase_after_approval: Wave 0（作为基层报表减负代表性场景调研输�
 # 政务“一表通”产品调研与 zw-brain v4 结合分析
 
 > **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
-> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
-> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
-> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 角色权威源：`docs/approved/zw-brain-roles.md`
+> - 信息架构权威源：`docs/approved/zw-brain-architecture.md`
+> - 评审决策记录：`docs/approved/zw-brain-architecture.md`
 > - 原版 R 编号见 git blame。
 
 > 调研日期：2026-04-25  
-> 关联架构：`docs/approved/zw-brain-architecture-v4-gpt55.md`  
+> 关联架构：`docs/approved/zw-brain-architecture.md`  
 > 结论摘要：zw-brain 的重构目标不是再造一个并列大平台；“一表通”应被吸纳为政务数据大脑在基层报表减负方向上的代表性应用场景与落地验证路径，优先落在共享专区 / 专题包、供给侧治理、合规运营与统一 Capability 契约之上。
 
 ## 一、调研结论
@@ -89,7 +88,7 @@ phase_after_approval: Wave 0（作为基层报表减负代表性场景调研输�
 
 ## 三、与 zw-brain v4 的总体关系
 
-`docs/approved/zw-brain-architecture-v4-gpt55.md` 的一句话定位是：让政务数据从发现、申请、审批到交付，在一个简洁产品里被人和 Agent 通过同一能力面完成，并且全程合规可证迹。
+`docs/approved/zw-brain-architecture.md` 的一句话定位是：让政务数据从发现、申请、审批到交付，在一个简洁产品里被人和 Agent 通过同一能力面完成，并且全程合规可证迹。
 
 “一表通”和 v4 架构高度契合，但不应改变 v4 的主架构方向。它不是新的顶层平台，也不是替代目录、申请、交付、审计主旅程的新中心，而是一个能验证 v4 架构价值的高频政务场景。
 
@@ -285,7 +284,7 @@ zw-brain 值得把基层报表减负场景纳入统一底座，但进入方式�
 
 ## 九、建议补入 v4 架构的表述
 
-如果后续修订 `docs/approved/zw-brain-architecture-v4-gpt55.md`，建议只补少量文字，不把一表通写成新的主线。
+如果后续修订 `docs/approved/zw-brain-architecture.md`，建议只补少量文字，不把一表通写成新的主线。
 
 建议补在三处：
 

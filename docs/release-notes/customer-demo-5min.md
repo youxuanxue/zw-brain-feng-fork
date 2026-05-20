@@ -1,9 +1,9 @@
 # zw-brain 5 分钟客户演示剧本
 
 > **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
-> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
-> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
-> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 角色权威源：`docs/approved/zw-brain-roles.md`
+> - 信息架构权威源：`docs/approved/zw-brain-architecture.md`
+> - 评审决策记录：`docs/approved/zw-brain-architecture.md`
 > - 原版 R 编号见 git blame。
 
 > ITEM-02 of `customer-delivery-final-mile`。配套脚本：`scripts/customer_demo_5min.sh`。
@@ -190,7 +190,7 @@ http://127.0.0.1:8800/
 - **数据范围**：跑 `bash scripts/customer_export.sh` 把 sd-default 全量真目录导出 csv 让客户看广度。
 - **角色全貌**：按 [`.experiences/`](../../.experiences/) 7 角色 八角色文档，1 个角色 1 分钟扫一遍。
 - **稳态运营**：走 [`docs/deployment/sd-default-onboarding.md`](../deployment/sd-default-onboarding.md) 全 41 项 handover checklist。
-- **架构基线**：翻 [`docs/approved/zw-brain-architecture-v4-gpt55.md`](../approved/zw-brain-architecture-v4-gpt55.md) D1-D22 决策。
+- **架构基线**：翻 [`docs/approved/zw-brain-architecture.md`](../approved/zw-brain-architecture.md) D1-D22 决策。
 
 ## 失败 next-step
 

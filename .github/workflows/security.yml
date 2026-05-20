@@ -59,6 +59,12 @@ jobs:
         # as ERROR (not WARNING) and fails the run even with --skip-editable.
         # Workaround: freeze deps excluding the editable install, audit that file.
         # Use --ignore-vuln GHSA-... with a tracking issue link for unfixable advisories.
+        #
+        # PYSEC-2025-183 (CVE-2025-45768) PyJWT 弱加密：供应商已 disputed
+        # （key length 由应用控制，不是库的问题）；upstream 不会出 fix version。
+        # 见 https://osv.dev/vulnerability/PYSEC-2025-183
+        # zw-brain 使用 PyJWT 仅做 IAF IAM JWT 验证（密钥长度由 IAF 控制），不受影响。
         run: |
           pip freeze --exclude-editable > deps-frozen.txt
-          pip-audit --strict -r deps-frozen.txt
+          pip-audit --strict -r deps-frozen.txt \
+            --ignore-vuln PYSEC-2025-183

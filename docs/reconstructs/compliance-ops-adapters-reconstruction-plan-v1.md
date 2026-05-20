@@ -46,8 +46,8 @@
 
 | 约束来源 | 对本方案的约束 |
 | --- | --- |
-| `docs/approved/zw-brain-architecture-v4-gpt55.md` | Dashboard 独立部署、只读消费；数据治理中心、外部观测底座、集团推理平台保持外部依赖。 |
-| `docs/approved/zw-brain-data-model-v4-gpt55.md` | `audit_event`、`capability_call`、receipt 和 canonical 聚合是合规解释的事实来源。 |
+| `docs/approved/zw-brain-architecture.md` | Dashboard 独立部署、只读消费；数据治理中心、外部观测底座、集团推理平台保持外部依赖。 |
+| `docs/approved/zw-brain-data-model.md` | `audit_event`、`capability_call`、receipt 和 canonical 聚合是合规解释的事实来源。 |
 | `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md` | 目录、元数据、资源、质量、血缘已收敛到 CatalogResourceAggregate，标准 / 安全只可作为 evidence。 |
 | `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md` | 申请、审批、交付、订阅的超期和异常必须从主链路投影，不在督导系统内复制状态。 |
 | `docs/reconstructs/dsp-objection-handling-reconstruction-plan-v1.md` | 异议超期、解决率、满意度进入 P6 指标，但异议状态仍归 ObjectionAggregate。 |
@@ -197,7 +197,7 @@
 | `standard.asset.recommend` | 写 | `write-trace` | 触发外部标准推荐并保存结果摘要。 |
 | `security.scan.result.sync` | 写 | `write-trace` | 同步敏感识别、分类分级、脱敏任务摘要。 |
 | `adapter.health.probe` | 写 | `write-trace` | 写入服务、通道、adapter 健康检测结果。 |
-| `dashboard.compliance.query` | 读 | `read-trace` | Dashboard 只读查询合规运营 projection。 |
+| ~~`dashboard.compliance.query`~~ | — | — | Skill 已退役 (R17 / v4.1)；B1.1 合规运营改由 compliance.case.query + compliance.metric.query 组合调用 |
 
 消费面：
 
@@ -302,8 +302,8 @@
 - `old/old_codes/standardservice-service/standard-report/src/main/java/com/inspur/standard/report/controller/*.java`
 - `old/old_codes/metricsmgr-service/src/main/java/com/inspur/cloud/platform/metric/controller/*.java`
 - `old/old_codes/dsp-esupervision/dsp-esupervision-console/src/main/java/com/inspur/dsp/console/**/*.java`
-- `docs/approved/zw-brain-architecture-v4-gpt55.md`
-- `docs/approved/zw-brain-data-model-v4-gpt55.md`
+- `docs/approved/zw-brain-architecture.md`
+- `docs/approved/zw-brain-data-model.md`
 - `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md`
 - `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md`
 - `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md`

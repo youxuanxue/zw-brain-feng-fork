@@ -396,7 +396,6 @@ def test_application_resource_submit_resolves_provider_catalog_alias(monkeypatch
         else:
             raise AssertionError("expected duplicate guard once alias maps to res-jbxx-ledger")
         snap = service.snapshot()
-        assert snap["webui"]["dashboardHref"] == "/dashboard/"
         assert snap["webui"]["iafIam"]["developmentBypassEnabled"] is False
     finally:
         tmp.cleanup()
@@ -623,11 +622,9 @@ def test_compliance_p6_minimal_closure_and_adapter_receipts() -> None:
 
         cases = service.invoke_skill("compliance.case.query", {"status": "closed", "role": "ROLE_SECURITY_AUDIT"})
         metrics = service.invoke_skill("compliance.metric.query", {"role": "ROLE_SECURITY_AUDIT"})
-        dashboard = service.invoke_skill("dashboard.compliance.query", {"role": "ROLE_SECURITY_AUDIT"})
 
         assert any(item["id"] == "CMP-001" for item in cases["items"])
         assert metrics["by_status"]["closed"] >= 1
-        assert dashboard["summary"]["resolved_count"] >= 1
     finally:
         tmp.cleanup()
 

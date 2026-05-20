@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Start zw-brain REST (WebUI) + dashboard BFF for Cursor Cloud / local preview.
+# Start zw-brain REST (WebUI) for Cursor Cloud / local preview.
+# K12 dashboard BFF retired in v4.1 二轮再砍 (R17). 仅启动 REST + WebUI.
 # Binds 0.0.0.0 by default (see zw_brain.shared.runtime_config) so forwarded preview works.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -25,6 +26,4 @@ Base.metadata.create_all(bind=engine)
 print("cloud-preview: db ready at", os.environ["ZW_BRAIN_DB_PATH"])
 PY
 
-# Dashboard BFF uses get_dashboard_bff_port() → rest port + 1 when unset
-"$PY" "$ROOT/zw-brain-dashboard/bff/main.py" &
 exec "$PY" -m zw_brain.entry.rest.server

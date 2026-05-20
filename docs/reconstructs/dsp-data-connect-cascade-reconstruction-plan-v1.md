@@ -1,9 +1,9 @@
 # dsp-data-connect / dsp-cascade 直达级联重构方案 v1
 
 > **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
-> - 角色权威源：`docs/approved/zw-brain-roles-v2.md`
-> - 信息架构权威源：`docs/approved/zw-brain-information-architecture-v2.md`
-> - 评审决策记录：`docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md`
+> - 角色权威源：`docs/approved/zw-brain-roles.md`
+> - 信息架构权威源：`docs/approved/zw-brain-architecture.md`
+> - 评审决策记录：`docs/approved/zw-brain-architecture.md`
 > - 原版 R 编号见 git blame。
 
 > 范围：旧平台 `old/old_codes/dsp-data-connect`、`old/代码信息抽取/代码信息抽取-27newbranch/dsp-data-connect_*`、`dsp-cascade-platform_*`、`dsp-cascade-down_*`、旧结构数据 `old/12-datastructure/dsp_connect.xml`、`old/2024-06-28全国一体化政务数据共享数据直达接口规范v0.55.docx`、旧平台业务说明 `old/integrated-bigdata-platform/README.md`，以及已批准的 zw-brain 架构、数据模型和既有重构方案。
@@ -54,10 +54,10 @@
 
 | 约束来源 | 对本方案的约束 |
 | --- | --- |
-| `docs/approved/zw-brain-architecture-v4-gpt55.md` | 国家平台保持外部依赖关系，不在大脑内复造；Legacy Adapters 是架构边界之一。 |
-| `docs/approved/zw-brain-data-model-v4-gpt55.md` | `dsp-data-connect`、`dsp-catalog-platform` 等不原样迁入，承重语义收敛到 CatalogResource / ApplicationApproval / Delivery / Objection / Audit 聚合。 |
-| `docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）` | 首条黄金链路需要上级发起、基层补差、审核汇总、回流共享资源池。 |
-| `docs/approved/research-yibiaotong-zw-brain-v4.md` | zw-brain 必须连接上级交换和基层填报链路；双向流动服务基层报表减负。 |
+| `docs/approved/zw-brain-architecture.md` | 国家平台保持外部依赖关系，不在大脑内复造；Legacy Adapters 是架构边界之一。 |
+| `docs/approved/zw-brain-data-model.md` | `dsp-data-connect`、`dsp-catalog-platform` 等不原样迁入，承重语义收敛到 CatalogResource / ApplicationApproval / Delivery / Objection / Audit 聚合。 |
+| `docs/approved/zw-brain-architecture.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）` | 首条黄金链路需要上级发起、基层补差、审核汇总、回流共享资源池。 |
+| `docs/approved/research-yibiaotong.md` | zw-brain 必须连接上级交换和基层填报链路；双向流动服务基层报表减负。 |
 | `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md` | `dsp_connect.xml` 中的订阅、需求、申请语义应进入申请 / 交付链路，但外部通道作为 adapter。 |
 | `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` | `dsp-data-connect`、`dsp-cascade-platform`、`dsp-cascade-down` 被列为 P0，合并成上下级直达与级联 adapter 专题。 |
 
@@ -353,10 +353,10 @@
 - `old/12-datastructure/dsp_connect.xml`
 - `old/2024-06-28全国一体化政务数据共享数据直达接口规范v0.55.docx`
 - `old/integrated-bigdata-platform/README.md`
-- `docs/approved/zw-brain-architecture-v4-gpt55.md`
-- `docs/approved/zw-brain-data-model-v4-gpt55.md`
-- `docs/approved/zw-brain-gate1.1-retrofit-2026-05-19.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）`
-- `docs/approved/research-yibiaotong-zw-brain-v4.md`
+- `docs/approved/zw-brain-architecture.md`
+- `docs/approved/zw-brain-data-model.md`
+- `docs/approved/zw-brain-architecture.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）`
+- `docs/approved/research-yibiaotong.md`
 - `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md`
 - `docs/reconstructs/dsp-objection-handling-reconstruction-plan-v1.md`
 - `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md`

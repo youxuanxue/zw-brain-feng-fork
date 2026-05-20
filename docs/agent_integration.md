@@ -78,8 +78,6 @@
 | POST | `/api/skills/compliance.signal.ingest` | 接收合规信号 | `post_compliance_signal_ingest` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/credential.issue` | 签发访问凭据（app_key + secret） | `post_credential_issue` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/credential.query` | 查询访问凭据（P4 凭据领取页） | `get_credential_query` | `zw_brain/entry/rest/openapi.json` |
-| GET | `/api/skills/dashboard.compliance.query` | 查询合规驾驶舱 | `get_dashboard_compliance_query` | `zw_brain/entry/rest/openapi.json` |
-| GET | `/api/skills/dashboard.render_command_center` | 渲染指挥中心大屏 | `get_dashboard_render_command_center` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/data.search` | 数据资源检索 | `get_data_search` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/delivery.access.grant` | 授权访问交付 | `post_delivery_access_grant` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/delivery.exchange.plan` | 生成交换计划 | `post_delivery_exchange_plan` | `zw_brain/entry/rest/openapi.json` |
@@ -232,7 +230,6 @@
 | `catalog.model.query` | read | False | 查询目录/台账模板模型定义。 | True | `zw_brain/entry/mcp/tools/catalog.model.query.json` |
 | `catalog.resource_view` | read | False | 查看模板或资源的覆盖率、字段和复用解释，用于 申请人 先复用模板。 | True | `zw_brain/entry/mcp/tools/catalog.resource_view.json` |
 | `catalog.share_zone.query` | read | False | 查询共享专区专题入口和信任说明，不创建第二套目录事实源。 | True | `zw_brain/entry/mcp/tools/catalog.share_zone.query.json` |
-| `dashboard.render_command_center` | read | False | 只读返回 K12 指挥中心大屏摘要、减负指标与辅助结论。 | True | `zw_brain/entry/mcp/tools/dashboard.render_command_center.json` |
 | `data.search` | read | False | 按关键词 / 部门 / 主题域检索共享数据资源目录，返回命中清单与结构化摘要。 | True | `zw_brain/entry/mcp/tools/data.search.json` |
 | `delivery.list` | read | False | 查看预填下发、自动汇总、回流候选和异常交付任务列表。 | True | `zw_brain/entry/mcp/tools/delivery.list.json` |
 | `delivery.view` | read | False | 查看预填下发、自动汇总和回流候选的交付任务详情。 | True | `zw_brain/entry/mcp/tools/delivery.view.json` |
@@ -285,7 +282,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 186 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 184 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -356,8 +353,6 @@
 | `compliance.signal.ingest` | 接收合规信号 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/compliance.signal.ingest.json` |
 | `credential.issue` | 签发访问凭据（app_key + secret） | 1.0.0 | audit, credential_issuance, state_machine_transition | `zw_brain/skill_registration/registered/credential.issue.json` |
 | `credential.query` | 查询访问凭据（P4 凭据领取页） | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/credential.query.json` |
-| `dashboard.compliance.query` | 查询合规驾驶舱 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/dashboard.compliance.query.json` |
-| `dashboard.render_command_center` | 渲染指挥中心大屏 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/dashboard.render_command_center.json` |
 | `data.search` | 数据资源检索 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/data.search.json` |
 | `delivery.access.grant` | 授权访问交付 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/delivery.access.grant.json` |
 | `delivery.exchange.plan` | 生成交换计划 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/delivery.exchange.plan.json` |
@@ -494,9 +489,9 @@
 
 ## Statistics
 
-- REST endpoints: 195
+- REST endpoints: 193
 - CLI entries: 1
-- MCP tools: 61
+- MCP tools: 60
 - A2A agent cards: 1
-- Registered Skills: 200
+- Registered Skills: 198
 

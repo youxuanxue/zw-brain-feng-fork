@@ -152,22 +152,9 @@ def test_installed_wheel_legacy_migration_then_runtime_without_dumps() -> None:
             check=True,
         )
         assert "zw-brain-web" in rest_probe.stdout
-        dashboard_probe = subprocess.run(
-            [
-                str(python),
-                "-c",
-                "from zw_brain.entry.dashboard_bff import DASHBOARD_ROOT; assert (DASHBOARD_ROOT/'index.html').exists(); assert (DASHBOARD_ROOT/'src'/'dashboard.js').exists(); print(DASHBOARD_ROOT)",
-            ],
-            cwd=tmp,
-            env=runtime_env,
-            text=True,
-            capture_output=True,
-            check=True,
-        )
-        assert "zw-brain-dashboard" in dashboard_probe.stdout
 
 
-def test_installed_rest_and_dashboard_bff_serve_packaged_assets() -> None:
+def test_installed_rest_serves_packaged_assets() -> None:
     with TemporaryDirectory() as tmp:
         root = Path(tmp)
         dist_dir = root / "dist"
@@ -228,36 +215,3 @@ def test_installed_rest_and_dashboard_bff_serve_packaged_assets() -> None:
             except subprocess.TimeoutExpired:
                 rest.kill()
                 rest.wait(timeout=5)
-
-        dashboard_port = _free_port()
-        dashboard = subprocess.Popen(
-            [str(bin_dir / "zw-brain-dashboard-bff")],
-            cwd=tmp,
-            env=env | {"ZW_BRAIN_DASHBOARD_BFF_HOST": "127.0.0.1", "ZW_BRAIN_DASHBOARD_BFF_PORT": str(dashboard_port)},
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        try:
-            status = 0
-            body = ""
-            for _ in range(80):
-                time.sleep(0.05)
-                status, _, body = _request("GET", f"http://127.0.0.1:{dashboard_port}/health")
-                if status == 200:
-                    break
-            assert status == 200, body
-            status, content_type, html = _request("GET", f"http://127.0.0.1:{dashboard_port}/index.html")
-            assert status == 200
-            assert content_type.startswith("text/html")
-            assert "政务数据大脑 · 指挥大屏" in html
-            status, _, forbidden_raw = _request("GET", f"http://127.0.0.1:{dashboard_port}/api/skills/request.create")
-            assert status == 404
-            assert json.loads(forbidden_raw)["error"] in {"UnknownSkillError", "not_found"}
-        finally:
-            dashboard.terminate()
-            try:
-                dashboard.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                dashboard.kill()
-                dashboard.wait(timeout=5)

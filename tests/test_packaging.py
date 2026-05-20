@@ -78,10 +78,7 @@ def test_wheel_build_and_install_smoke() -> None:
         assert site_root is not None
         assert (site_root / "zw_brain" / "entry" / "rest" / "openapi.json").exists()
         assert (site_root / "zw_brain" / "entry" / "a2a" / "agent_card.json").exists()
-        assert (site_root / "zw_brain" / "_assets" / "zw-brain-dashboard" / "src" / "dashboard.js").exists()
         assert (site_root / "zw_brain" / "_assets" / "zw-brain-web" / "index.html").exists()
-        assert (site_root / "zw_brain" / "_assets" / "alembic" / "env.py").exists()
-        assert (site_root / "zw_brain" / "_assets" / "alembic.ini").exists()
 
         migrate = subprocess.run(
             [str(bin_dir / "zw-brain-migrate-legacy"), "--help"],

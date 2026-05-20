@@ -49,9 +49,9 @@ zw-brain 不继承这些后台形态，只保留五类用户可感知价值：
 
 | 约束来源 | 对本方案的约束 |
 | --- | --- |
-| `docs/approved/zw-brain-architecture-v4-gpt55.md` | 共享专区作为 K11 / P7 产品形态保留，但不复刻旧平台菜单导航；五消费面共享 Capability 契约。 |
-| `docs/approved/zw-brain-data-model-v4-gpt55.md` | `tenant_capability_policy` 控制租户级启停与暴露面；目录、资源、申请、交付、异议已有 canonical 聚合。 |
-| `docs/approved/research-yibiaotong-zw-brain-v4.md` | 一表通 / 基层报表减负需要将上级交换和基层填报链路组织成可复用场景。 |
+| `docs/approved/zw-brain-architecture.md` | 共享专区作为 K11 / P7 产品形态保留，但不复刻旧平台菜单导航；五消费面共享 Capability 契约。 |
+| `docs/approved/zw-brain-data-model.md` | `tenant_capability_policy` 控制租户级启停与暴露面；目录、资源、申请、交付、异议已有 canonical 聚合。 |
+| `docs/approved/research-yibiaotong.md` | 一表通 / 基层报表减负需要将上级交换和基层填报链路组织成可复用场景。 |
 | `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md` | 共享专区保留为 P7 主题 / 分组投影；权限裁决走统一租户策略。 |
 | `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md` | 专题包内的订阅、申请和交付必须进入申请 / 交付主链路，不在专区内自建流程。 |
 | `docs/reconstructs/dsp-data-connect-cascade-reconstruction-plan-v1.md` | 案例 / 专题包如需上报国家平台，应通过 `adapter.national.topic.report`，不在专区内部实现外部协议。 |
@@ -337,9 +337,9 @@ zw-brain 不继承这些后台形态，只保留五类用户可感知价值：
 - `old/代码信息抽取/代码信息抽取-27newbranch/dsp-basesubject_数据库表结构文档.md`
 - `old/代码信息抽取/代码信息抽取-27newbranch/dsp-basesubject_外部SDK和接口文档.md`
 - `old/integrated-bigdata-platform/README.md`
-- `docs/approved/zw-brain-architecture-v4-gpt55.md`
-- `docs/approved/zw-brain-data-model-v4-gpt55.md`
-- `docs/approved/research-yibiaotong-zw-brain-v4.md`
+- `docs/approved/zw-brain-architecture.md`
+- `docs/approved/zw-brain-data-model.md`
+- `docs/approved/research-yibiaotong.md`
 - `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md`
 - `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md`
 - `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md`
