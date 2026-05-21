@@ -1,16 +1,11 @@
 # 旧平台样例数据 → zw-brain 数据模型一键导入映射 v1
 
-> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
-> - 角色权威源：`docs/approved/zw-brain-roles.md`
-> - 信息架构权威源：`docs/approved/zw-brain-architecture.md`
-> - 评审决策记录：`docs/approved/zw-brain-architecture.md`
-> - 原版 R 编号见 git blame。
+> 角色权威源：[`docs/approved/zw-brain-roles.md`](../approved/zw-brain-roles.md) | 架构基线：[`docs/approved/zw-brain-architecture.md`](../approved/zw-brain-architecture.md)
 
-> **日期 / 状态**：2026-05-06 / draft（待评审；review 通过后进入阶段 1）
 > **范围**：`old/10示例数据/*.sql`（<!-- stat:legacy.import.schemas -->17<!-- /stat --> 个 mysqldump，<!-- stat:legacy.import.tables-total -->740<!-- /stat --> 张旧表，~445 MB）→ `zw_brain/domain/models.py`（<!-- stat:legacy.import.record-classes -->59<!-- /stat --> 个 Record 类）。
 > **单一事实源**：本文是"哪张旧表去哪、哪些字段缺位、哪些不导入、跨 schema 桥接顺序"的单一事实源。专题方案 `dsp-*-reconstruction-plan-v1.md` 是设计依据，本文是执行结论。
 > **治理边界引用**：旧 `dsp_bsp` / `dsp_manage` / `dsp_ucenter` 的 IAF IAM、本地 Governance、租户 / 组织 / 用户 / 角色投影、菜单权限和 token / 密码不迁边界，以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。
-> **不在本文范围**：旧 URL/旧 controller/旧菜单兼容（按 GATE-1 D-全新项目口径明确不兼容）。
+> **不在本文范围**：旧 URL/旧 controller/旧菜单兼容（zw-brain 是全新项目，不兼容）。
 
 ## 如何使用本文档
 
@@ -22,8 +17,8 @@
 
 ## 〇、关键政策（导入器必须遵守）
 
-1. **租户口径** — 所有 canonical record 统一注入 `tenant_id="sd-default"`（[2026-05-06] 单租户单省山东省决策）。旧组织码（`11370000MB284651XL` 省大数据局、`11370000004504927A` 省公安厅、`370000000000` 山东省）按真值灌入 `OrgProjectionRecord` / `RegionProjectionRecord`，不参与 tenant_id 派生。
-2. **敏感字段策略**（[2026-05-06] 覆盖 CLAUDE.md §1.3.6 的局部口径）：
+1. **租户口径** — 所有 canonical record 统一注入 `tenant_id="sd-default"`（单租户单省山东省）。旧组织码（`11370000MB284651XL` 省大数据局、`11370000004504927A` 省公安厅、`370000000000` 山东省）按真值灌入 `OrgProjectionRecord` / `RegionProjectionRecord`，不参与 tenant_id 派生。
+2. **敏感字段策略**（覆盖 CLAUDE.md §1.3.6 的局部口径）：
    - **业务可见敏感字段**（个人/组织联系信息：姓名、手机号、邮箱、单位联系人、地址）— **允许原值入库**到 `LegacyObjectMappingRecord` / canonical 聚合 / 投影。读出口（Skill 出参 / WebUI / dashboard / 日志 / 审计 receipt / 导出文件）必须按角色掩码（手机号前 3 后 4、姓名姓+⼈），由 domain repository 出口或 Skill 响应序列化层统一封装。
    - **真正机密**（密码、Token、密钥、证书、内部 IP/端口、DB 连接串、文件服务器路径）— **仍按 §1.3.6 禁止入库**。`db_database_node` / `meta_host` / `db_meta_database.password` / `pub_user.password` / `dc_datasource` / `pub_db` 等表/字段不得明文进入新库；如需保留迁移证据，仅落 `AdapterRunRecord.source_ref`（哈希引用）或脱敏摘要。
 3. **数据量** — 全量解析、按 mapper 过滤；不导入清单见 §三。
@@ -189,7 +184,7 @@
 | 旧表 | 行数估计 | 落位 | 新模型 / Skill / Adapter | 备注 |
 |---|---|---|---|---|
 | `data_example` | 10-100 | →canonical | `TopicPackageRecord` + `LegacyObjectMappingRecord` | sharezone plan §2.3 — A1 真业务案例的核心来源（10 个真实政务案例） |
-| `data_example_contact` | <10 | →canonical | `TopicPackageRecord.display_snapshot_json.contacts`（**原值入库 + 读出口掩码**） | [2026-05-06] 敏感字段策略：手机号/姓名入库，读出按掩码 |
+| `data_example_contact` | <10 | →canonical | `TopicPackageRecord.display_snapshot_json.contacts`（**原值入库 + 读出口掩码**） | 敏感字段策略：手机号/姓名入库，读出按掩码（详见 §〇 关键政策 2） |
 | `data_example_feedback` | <10 | →canonical | `ObjectionCaseRecord` 或 `TopicPackageEvidenceRecord(evidence_type='feedback')` | sharezone plan §2.3 |
 | `data_example_file` | 10-100 | →canonical | `TopicPackageEvidenceRecord(evidence_type='file')` | — |
 | `data_example_item` | 10-100 | →canonical | `TopicPackageItemRecord` | — |
@@ -356,7 +351,7 @@
 | **M11** | **archive template / case archive evidence** | `dsp_basesubject.archive_template` / `archive_column` | sharezone plan §2.4 归外部档案 adapter | **可选**：在 `TopicPackageEvidenceRecord.payload_json` 内承载；或新增 `ArchiveTemplateProjectionRecord` |
 | **M13** | **审批 opinion type 字典** | `dsp_catalog.data_apply_course_opiniontype` | 当前 `ApprovalDecisionRecord` 无字典关联 | **建议**：领域字典进 `CapabilityManifestRecord.manifest_json`，不单独建表 |
 
-> **阻塞结论**：M1–M6 是 compliance plan 反复提到但未在 models.py 承接的核心类型，**P2 mapper（dsp_monitor / dsp_pipelines / dsp_perform / dsp_block）阻塞依赖这 6 个 record**。**已于阶段 1.5 通过 alembic 0007_compliance_projection.py 一并落地**（<!-- stat:legacy.import.missing-resolved -->6<!-- /stat -->/6 解除）；P2 mapper 已在 PR #12 落库。M7–M11 / M13 是 nice-to-have，可在阶段 2 末期视情况增补。
+> **阻塞结论**：M1–M6 是 compliance plan 反复提到但未在 models.py 承接的核心类型，**P2 mapper（dsp_monitor / dsp_pipelines / dsp_perform / dsp_block）阻塞依赖这 6 个 record**。**已于阶段 1.5 通过 SQLAlchemy `Base.metadata.create_all`（6 个 record 落入 `zw_brain/domain/models.py`）一并落地**（<!-- stat:legacy.import.missing-resolved -->6<!-- /stat -->/6 解除）；P2 mapper 已在 PR #12 落库。alembic 已整体退役（架构 §9.6 / R15），新功能 drop & recreate 替代。M7–M11 / M13 是 nice-to-have，可在阶段 2 末期视情况增补。
 
 ---
 
@@ -507,7 +502,7 @@
 
 → 5 消费面（WebUI/REST/CLI/MCP/A2A）的鉴权与审计上下文可见真组织名。
 
-### 5.4 申请人/镇街填报人/审核汇总人 端到端 demo seed（A4）
+### 5.4 ROLE_ORGAN_OPERATER → ROLE_ORGAN_MANAGER → ROLE_BUSIAUDIT 端到端 demo seed（A4）
 
 利用真实业务流转链：
 
@@ -522,7 +517,7 @@ dsp_require.data_require (67 条)
               → dsp_example.data_example_push_link 上报回流
 ```
 
-→ 选 3 条端到端 happy path + 1 条异议路径作为 demo seed，跑通 申请人/镇街填报人/审核汇总人 黄金链路。
+→ 选 3 条端到端 happy path + 1 条异议路径作为 demo seed，跑通 J1 找数→用数（ROLE_ORGAN_OPERATER 发起 + ROLE_ORGAN_MANAGER 部门审 + ROLE_BUSIAUDIT 平台审批/受理异议）黄金链路。
 
 ### 5.5 落地状态（2026-05-06）
 
@@ -542,7 +537,7 @@ A1–A4 已通过 `scripts/build_true_data_seed.py` 一次性生成，从 `.data
 阶段 0 关闭、阶段 1 + 阶段 1.5 落地状态：
 
 - [ ] **本文档评审通过**（用户 / 产品负责人签字确认 §一映射 + §三不导入边界） — pending review，进入阶段 2 前补
-- [x] **新增 6 个 compliance/ops record**（M1–M6） — alembic `0007_compliance_projection.py` @ PR #11
+- [x] **新增 6 个 compliance/ops record**（M1–M6） — SQLAlchemy `Base.metadata.create_all`（6 个 record 落入 `zw_brain/domain/models.py`） @ PR #11；alembic 已整体退役（R15）
 - [x] **敏感字段掩码层就位** — `zw_brain/shared/sensitive_mask.py` @ PR #11，BrainService 读侧注入 @ PR #12，按 `ZW_BRAIN_MASK_ROLE` (`internal_admin`/`internal_viewer`/`external`) 决策
 - [x] **`zw_brain/adapters/legacy/` 包结构** — parser / runner / 10 mapper 全在位 @ PR #11+#12
 - [x] **`scripts/import_legacy_dumps.py` CLI 入口** — `list` / `parse-stats` / `cache` / `import` / `verify --strict` 五子命令 @ PR #11+#12

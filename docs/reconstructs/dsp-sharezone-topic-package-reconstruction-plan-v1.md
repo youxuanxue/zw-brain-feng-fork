@@ -49,7 +49,7 @@ zw-brain 不继承这些后台形态，只保留五类用户可感知价值：
 
 | 约束来源 | 对本方案的约束 |
 | --- | --- |
-| `docs/approved/zw-brain-architecture.md` | 共享专区作为 K11 / P7 产品形态保留，但不复刻旧平台菜单导航；五消费面共享 Capability 契约。 |
+| `docs/approved/zw-brain-architecture.md` | 共享专区作为 P7 产品形态保留，但不复刻旧平台菜单导航；五消费面共享 Capability 契约。 |
 | `docs/approved/zw-brain-data-model.md` | `tenant_capability_policy` 控制租户级启停与暴露面；目录、资源、申请、交付、异议已有 canonical 聚合。 |
 | `docs/approved/research-yibiaotong.md` | 一表通 / 基层报表减负需要将上级交换和基层填报链路组织成可复用场景。 |
 | `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md` | 共享专区保留为 P7 主题 / 分组投影；权限裁决走统一租户策略。 |
@@ -71,7 +71,7 @@ zw-brain 不继承这些后台形态，只保留五类用户可感知价值：
 | `share_zone_org_auth` | 使用部门、资源、规则、申请 ID、授权状态 | `delivery_subscription` / `application_record` / receipt 的专题投影。 |
 | `share_zone_approve` | 上线审核环节、意见、处理人、审核结果 | `topic_package_review_record` 或 `capability_review_record`。 |
 | `share_zone_appkey` | 使用部门、应用系统、资源、服务调用密钥 | 只保留外部应用 / 授权映射；`app_key` 不迁入。 |
-| `share_zone_statistics`、`share_zone_org_auth_statistic` | 关联部门数、目录数、资源数、调用 / 交换统计 | P6 / P7 运营 projection，不作为可写事实。 |
+| `share_zone_statistics`、`share_zone_org_auth_statistic` | 关联部门数、目录数、资源数、调用 / 交换统计 | B1.1 / P7 运营 projection，不作为可写事实。 |
 | `catalog_share_group` | 目录共享分组、归属部门、排序、状态 | 专题包分组候选或目录分组迁移 evidence。 |
 | `share_group_permission` | 用户 / 部门对共享分组的权限 | `tenant_capability_policy` 候选，需人工审核后生效。 |
 
@@ -95,7 +95,7 @@ zw-brain 不继承这些后台形态，只保留五类用户可感知价值：
 | --- | --- | --- |
 | `/dsp/example/new/manage/*` | 管理示范应用、关联目录资源、维护示范项 | `topic.package.evidence.attach`，案例作为专题包 evidence。 |
 | `/dsp/example/publish/*` | 发布、取消发布、关联示范 | `topic.package.publish` 或案例素材发布审核。 |
-| `/dsp/example/report/*` | 示范应用报表、添加、取消 | P6 / P7 运营 projection 或纵向案例上报素材。 |
+| `/dsp/example/report/*` | 示范应用报表、添加、取消 | B1.1 / P7 运营 projection 或纵向案例上报素材。 |
 | `/dsp/example/web/*` | 门户列表、资源、需求、评论、反馈 | P7 专题详情读模型，不迁旧门户页面。 |
 | `/restapi/portal/*` | 统计数量、详情、示范项、列表 | `topic.package.query` / `topic.package.metric.query` 的 REST 投影。 |
 | `/dsp/organization/*` | 组织树、全国组织 | 组织投影；权威组织源不在示范应用内。 |
@@ -124,7 +124,7 @@ zw-brain 不继承这些后台形态，只保留五类用户可感知价值：
 | `/archive/type/*`、`/archive/template/*`、`/archive/data/*`、`/archive/sync/*` | 档案类型、模板、数据、同步任务 | 外部档案 / 知识素材 adapter；同步日志进入 adapter run record。 |
 | `/catalog/*` | 目录管理与统计 | 目录事实归属 `catalog_entry`；统计为 projection。 |
 | `/standard/api/*`、`/standard/element/*` | 标准 API、数据元素 | 标准资产 adapter 或 `catalog_model` evidence。 |
-| `/statistic/population/*`、`/statistic/corporation/*`、`/statistic/subject/*` | 人口、法人、主题统计 | P6 / P7 指标 projection，不作为事实源。 |
+| `/statistic/population/*`、`/statistic/corporation/*`、`/statistic/subject/*` | 人口、法人、主题统计 | B1.1 / P7 指标 projection，不作为事实源。 |
 | `/page/template/*`、`/page/module/*`、`/page/column/*` | 页面模板、模块、字段配置 | WebUI 产品配置参考，不迁旧页面引擎。 |
 | `/procedure/*` | 流程配置 | 不迁通用流程后台；专题包审核走 Registry / review record。 |
 | `/database/*`、`/database/test` | 数据库配置和连通性测试 | 禁止迁入连接信息、账号和密钥。 |
@@ -201,7 +201,7 @@ zw-brain 不继承这些后台形态，只保留五类用户可感知价值：
 
 消费面：
 
-- WebUI：P7 共享专区 / 专题包详情、P2 资源发现入口、P5 供给侧治理入口、P6 运营指标入口。
+- WebUI：P7 共享专区 / 专题包详情、P2 资源发现入口、P5 供给侧治理入口、B1.1 运营指标入口。
 - REST：对外查询专题包、专题资源清单和复用成效。
 - CLI：迁移导入、策略检查、指标导出。
 - MCP：Agent 查询专题结构、资源证据和复用建议。

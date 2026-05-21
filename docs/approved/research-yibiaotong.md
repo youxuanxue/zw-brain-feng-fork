@@ -99,15 +99,15 @@ phase_after_approval: Wave 0（作为基层报表减负代表性场景调研输�
 | 一表通能力 | 对应旅程 / 页面 | 对应领域能力 | 建议定位 |
 |---|---|---|---|
 | 标准业务表 / 台账模板 | P5 提供方管理 / P7 共享专区 | `CatalogModel` / `Catalog` | Core / Common |
-| 台账数据池 | P7 共享专区 / P6 合规与运营 | `Resource` / read model / adapter | Common |
+| 台账数据池 | P7 共享专区 / B1.1 合规与运营 | `Resource` / read model / adapter | Common |
 | 日常数据维护 | P5 提供方管理 | `Resource` 变更、审计事件 | Common |
 | 临时报表下派 | P3 申请审批 / P5 提供方管理 | `Application` / `ApprovalTask` | Common，需要状态机 |
-| 报表准入审批 | P3 申请审批 / P6 合规运营 | `ApprovalTask` / `AuditEvent` | Core，防绕开基层减负 |
+| 报表准入审批 | P3 申请审批 / B1.1 合规与运营 | `ApprovalTask` / `AuditEvent` | Core，防绕开基层减负 |
 | 智能填报 / 字段预填 | P3 / P5 内嵌 AI | Capability + 推理平台 | AI 减摩 |
 | 数据取用 / 共享 | P2 资源发现 / P4 交付交换 | `Resource` / `DeliveryTask` | Core |
-| 分析调度 | P6 合规运营 / K12 大屏 | Dashboard read model | Common / 只读 |
-| 数据标准规范 | P8 平台接入与扩展中心 | Capability Registry / schema | Platform substrate |
-| 运行管理办法 | P6 / P8 | Policy / Audit / Registry | Platform substrate |
+| 分析调度 | B1.1 合规与运营 | Read model | Common / 只读 |
+| 数据标准规范 | B1.2 平台接入与扩展中心 | Capability Registry / schema | Platform substrate |
+| 运行管理办法 | B1.1 / B1.2 | Policy / Audit / Registry | Platform substrate |
 
 ## 五、结合点
 
@@ -263,7 +263,7 @@ zw-brain 应避免这条路。正确边界是：只围绕基层报表减负和�
 - **Wave 0**：仅将基层报表减负链路作为候选黄金链路调研对象；不新增完整模块。
 - **Wave 1**：如需验证，可做一条“标准业务表发现 → 取数申请 → 授权交付 → 审计回放”的只读 / 半写闭环。
 - **Wave 2**：正式纳入 `P7 共享专区 / 专题包`，补齐台账模板、临时报表任务、报表准入、基层提交、分析调度。
-- **Wave 3**：再考虑跨层级大规模推广、多租户策略深化、Dashboard 指挥视图、A2A / MCP 接入。
+- **Wave 3**：再考虑跨层级大规模推广、多租户策略深化、A2A / MCP 接入。
 
 ### 8.3 产品判断
 
@@ -271,7 +271,7 @@ zw-brain 值得把基层报表减负场景纳入统一底座，但进入方式�
 
 - 进入的是“基层报表减负专题包”，不是“万能表单平台”。
 - 复用的是本基线的 Capability、Catalog、Application、Delivery、Audit，不另起一套平行领域模型。
-- 强化的是 P7 / P5 / P6，不新增普通用户主导航。
+- 强化的是 P7 / P5 / B1.1，不新增普通用户主导航。
 - AI 做字段、口径、预填、摘要，不做责任性动作。
 - 制度约束和审计指标必须和功能一起设计。
 

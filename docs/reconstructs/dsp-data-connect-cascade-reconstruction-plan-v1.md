@@ -1,10 +1,6 @@
 # dsp-data-connect / dsp-cascade 直达级联重构方案 v1
 
-> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
-> - 角色权威源：`docs/approved/zw-brain-roles.md`
-> - 信息架构权威源：`docs/approved/zw-brain-architecture.md`
-> - 评审决策记录：`docs/approved/zw-brain-architecture.md`
-> - 原版 R 编号见 git blame。
+> 角色权威源：[`docs/approved/zw-brain-roles.md`](../approved/zw-brain-roles.md) | 架构基线：[`docs/approved/zw-brain-architecture.md`](../approved/zw-brain-architecture.md)
 
 > 范围：旧平台 `old/old_codes/dsp-data-connect`、`old/代码信息抽取/代码信息抽取-27newbranch/dsp-data-connect_*`、`dsp-cascade-platform_*`、`dsp-cascade-down_*`、旧结构数据 `old/12-datastructure/dsp_connect.xml`、`old/2024-06-28全国一体化政务数据共享数据直达接口规范v0.55.docx`、旧平台业务说明 `old/integrated-bigdata-platform/README.md`，以及已批准的 zw-brain 架构、数据模型和既有重构方案。
 > 结论：zw-brain 不把 `dsp-data-connect`、`dsp-cascade-platform`、`dsp-cascade-down` 迁成“国家平台镜像系统”或“第二套目录 / 申请 / 交付库”；只吸收上下级通道、国家平台对象映射、上报 / 下发、申请受理、订阅回执、异议同步、级联日志和重放等承重语义，重建为 canonical 聚合之外的 `adapter.national.*` / `adapter.cascade.*` 能力包。国家 / 上级接口以全国一体化政务数据共享数据直达接口规范 v0.55 为协议输入，政务外网逻辑隔离边界作为部署约束。
@@ -20,7 +16,7 @@
 2. 国家 / 上级平台下发的目录、资源、需求、申请能进入本地候选投影或正式申请处理链路。
 3. 订阅、交付和授权状态能被同步、追踪、重试和解释。
 4. 级联接口、Kafka 下行、批处理执行和补发能留下审计证据，失败可重放。
-5. 用户面对的是 zw-brain 的 P1/P2/P3/P5/P6/P7 主旅程，而不是另一个“数据直达系统”菜单。
+5. 用户面对的是 zw-brain 的 P1/P2/P3/P5/P7 主旅程 + B1.1 后台支撑面，而不是另一个"数据直达系统"菜单。
 
 ### 1.2 OPC：canonical 主事实不被外部通道反向切分
 
@@ -56,7 +52,7 @@
 | --- | --- |
 | `docs/approved/zw-brain-architecture.md` | 国家平台保持外部依赖关系，不在大脑内复造；Legacy Adapters 是架构边界之一。 |
 | `docs/approved/zw-brain-data-model.md` | `dsp-data-connect`、`dsp-catalog-platform` 等不原样迁入，承重语义收敛到 CatalogResource / ApplicationApproval / Delivery / Objection / Audit 聚合。 |
-| `docs/approved/zw-brain-architecture.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）` | 首条黄金链路需要上级发起、基层补差、审核汇总、回流共享资源池。 |
+| `docs/approved/zw-brain-architecture.md` | 国家直达与跨地市级联是 J1 / J2 之外的独立子旅程，按 §10.4 Wave 3 延后实施；本期仅以 adapter 形态接入，不进 J1/J2 主导航。 |
 | `docs/approved/research-yibiaotong.md` | zw-brain 必须连接上级交换和基层填报链路；双向流动服务基层报表减负。 |
 | `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md` | `dsp_connect.xml` 中的订阅、需求、申请语义应进入申请 / 交付链路，但外部通道作为 adapter。 |
 | `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` | `dsp-data-connect`、`dsp-cascade-platform`、`dsp-cascade-down` 被列为 P0，合并成上下级直达与级联 adapter 专题。 |
@@ -71,7 +67,7 @@
 | `/auth/queryPublishedServicePage`、`/auth` | 查询已发布服务与认证 | 与 dataservice capability / access grant 关联，授权结果写 receipt。 |
 | `/organ/report/regionLeftTreeNodesFromBsp` | 区域树 / 组织 | 组织投影和外部编码映射。 |
 | `/admin/refreshApplyStatus`、`/admin/refreshAuth`、`/admin/objectionStatusRefresh` | 刷新申请、授权、异议状态 | 状态同步 / reconcile capability，不对用户暴露。 |
-| `/api/metrics/probe`、`/api/metrics` | 指标探测 | P6 通道健康 projection。 |
+| `/api/metrics/probe`、`/api/metrics` | 指标探测 | B1.1 通道健康 projection。 |
 
 ### 2.3 旧 data-connect 表证据
 
@@ -81,7 +77,7 @@
 | `dc_catalog`、`dc_catalog_item`、`dc_catalog_group` | 上报 / 下发目录、目录项、分组 | 只读映射到 `catalog_entry` / P7 projection，不创建第二套目录事实源。 |
 | `dc_resource_base_info`、`dc_resource_*_detail` | 上报 / 下发资源及库表、文件、接口详情 | 映射到 `resource_asset` / `resource_channel_binding` 和 evidence。 |
 | `dc_resource_apply_info`、`dc_resource_apply_audit`、`dc_resource_apply_accept_audit` | 国家资源申请、受理、审核状态 | 映射到 `application_record` / `approval_case` / `delivery_receipt`。 |
-| `dc_require`、`dc_require_column`、`dc_require_resource` | 上级需求、供需、责任部门、关联资源 | 映射到 `application_record.intent_snapshot` 和 申请人/镇街填报人 任务投影。 |
+| `dc_require`、`dc_require_column`、`dc_require_resource` | 跨级数据需求、供需、责任部门、关联资源 | 映射到 `application_record.intent_snapshot` 和 ROLE_ORGAN_OPERATER 任务投影。 |
 | `dc_subscribe`、`dc_subscribe_table`、`dc_subscribe_folder`、`dc_to_subscribe` | 资源订阅、待确认订阅 | 映射到 `delivery_subscription` / `delivery_attempt` / receipt。 |
 | `dc_objection_*` | 异议上报、受理、流程、目录、资源、使用 | 映射到 `objection_case` / `objection_process` / `objection_evidence`。 |
 | `dc_example_*` | 案例事项、资源、信息项 | P7 专题包 evidence 或纵向案例上报 adapter。 |
@@ -120,10 +116,10 @@
 | `cascadeResourcePushJobHandler`、`cascadeCatalogPushJobHandler`、`cascadeRequirePushHanlder`、`cascadeBspPushJobHandler` | 外部调度器 / adapter job，不进入主旅程。 |
 | Kafka Topic `级联数据同步主题` | 外部消息输入，解析后写候选映射、receipt 或 canonical command。 |
 | `data_cascade_record_log` | adapter run record / `audit_event`。 |
-| `data_cascade_interface_log` | 通道调用日志 / P6 健康 projection。 |
+| `data_cascade_interface_log` | 通道调用日志 / B1.1 健康 projection。 |
 | `data_cascade_plat_info` | 外部平台连接信息；敏感字段不得入库明文。 |
 | `cata_catalog*`、`data_require*`、`supply_catalog_apply*` | 下行目录、需求、申请投影，最终归属 canonical 聚合。 |
-| `data_interact_feedback` | 可转为 `objection_case` 或 P6 反馈 evidence。 |
+| `data_interact_feedback` | 可转为 `objection_case` 或 B1.1 反馈 evidence。 |
 
 ### 2.6 旧业务说明证据
 
@@ -238,7 +234,7 @@
 | `dc_catalog.status`、`dc_system.status` | external mapping status | 上报、变更、撤销、驳回。 |
 | `dc_datasource.host/port/user/password` | 不迁明文字段 | 只允许保存密钥引用或脱敏 endpoint ref。 |
 | `data_cascade_record_log` | adapter run record | 下行记录和补发依据。 |
-| `data_cascade_interface_log` | `audit_event` + P6 projection | 接口调用日志。 |
+| `data_cascade_interface_log` | `audit_event` + B1.1 projection | 接口调用日志。 |
 | `data_cascade_plat_info.link_ip` 等 | adapter config reference | 敏感连接配置不得入 canonical。 |
 | Spring Batch `batch_*` 表 | adapter run record | 执行历史摘要。 |
 | `api_service_*` | dataservice capability / access grant / audit | 不复造 API 网关。 |
@@ -273,7 +269,7 @@
 
 ### 6.3 失败处理
 
-- 网络不可达、政务网接口失败：记录 adapter run failed，进入 P6 通道健康告警。
+- 网络不可达、政务网接口失败：记录 adapter run failed，进入 B1.1 通道健康告警。
 - 外部协议校验失败：记录 unresolved mapping，等待人工或协议修订。
 - 本地目标不存在：进入 unresolved，不自动创建核心事实。
 - 重放成功：保留原失败记录，新建 replay run record。
@@ -284,12 +280,12 @@
 | 读模型 / 指标 | 来源 | 用途 |
 | --- | --- | --- |
 | 外部对象映射查询 | external mapping | 解释本地对象对应国家 / 上级对象 ID。 |
-| 上报批次列表 | adapter run record | P6 合规运营与运维排障。 |
+| 上报批次列表 | adapter run record | B1.1 合规运营与运维排障。 |
 | 下行消费日志 | adapter run record + cascade logs | 查询失败、补发和重放结果。 |
 | 国家接口健康 | adapter run record + probe | 直达链路监控。 |
 | 申请 / 授权状态同步差异 | receipt + canonical 状态 | 发现外部状态和本地状态不一致。 |
 | 目录 / 资源上报覆盖率 | catalog/resource mapping | 统计哪些对象已上报。 |
-| 失败率 / 超时率 | adapter run record | P6 预警。 |
+| 失败率 / 超时率 | adapter run record | B1.1 预警。 |
 | 高频 unresolved 对象 | unresolved mapping | 指导字段映射和协议适配。 |
 
 ## 八、迁移与验证策略
@@ -355,7 +351,7 @@
 - `old/integrated-bigdata-platform/README.md`
 - `docs/approved/zw-brain-architecture.md`
 - `docs/approved/zw-brain-data-model.md`
-- `docs/approved/zw-brain-architecture.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）`
+- `docs/approved/zw-brain-architecture.md`
 - `docs/approved/research-yibiaotong.md`
 - `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md`
 - `docs/reconstructs/dsp-objection-handling-reconstruction-plan-v1.md`

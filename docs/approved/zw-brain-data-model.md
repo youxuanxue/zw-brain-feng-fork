@@ -19,7 +19,7 @@ related_docs:
 related_prs: []
 related_commits: []
 self_review_rounds: 3
-phase_after_approval: Phase 0 / Wave 0（先打通 Catalog → Application → Approval → Delivery → Audit；Objection 与最小注册治理进入后续波次）
+phase_after_approval: Wave 0（先打通 Catalog → Application → Approval → Delivery → Audit；Objection 与最小注册治理进入后续波次）
 ---
 
 # 政务数据大脑（zw-brain）数据模型与数据库设计
@@ -30,7 +30,7 @@ phase_after_approval: Phase 0 / Wave 0（先打通 Catalog → Application → A
 
 ## 一、约束来源与结论先行
 
-### 1.1 本文直接服从的 v4 硬约束
+### 1.1 本文直接服从的架构基线硬约束
 
 本文不自创另一套数据库哲学，直接服从 `docs/approved/zw-brain-architecture.md` 的以下约束：
 
@@ -55,12 +55,12 @@ phase_after_approval: Phase 0 / Wave 0（先打通 Catalog → Application → A
 - **对象存储单独承载附件 / 回执原件 / 证据文件**，数据库只存元数据与引用。
 - **legacy MySQL / XML / 外部接口全部只读接入**，通过 adapter 转译成 canonical 视图与映射证据。
 - **不在新库里重建完整用户、角色、菜单、门户、监控、消息中心 schema**；仅保留业务执行和 Governance 所需的本地租户 / 组织 / 用户 / 角色投影、IAM 绑定、策略裁决和审计快照，具体治理边界以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。
-- **Phase 0 / Wave 0 只落首条黄金链路与 Registry 最小 schema**；异议闭环与更完整的注册治理按 v4 路线图后置到 Wave 2。
-- **数据模型不仅服务存储，还必须支撑原生 WebUI、REST、CLI、MCP、A2A 五消费面的投影生成**；任何页面、接口、命令、工具、agent action 若无法回指同一 capability 与同一聚合事实源，都不符合 v4。
+- **Wave 0 只落首条黄金链路与 Registry 最小 schema**；异议闭环与更完整的注册治理按架构基线路线图后置到 Wave 2。
+- **数据模型不仅服务存储，还必须支撑原生 WebUI、REST、CLI、MCP、A2A 五消费面的投影生成**；任何页面、接口、命令、工具、agent action 若无法回指同一 capability 与同一聚合事实源，都不符合架构基线。
 
 ### 1.3 为什么 Canonical DB 选 PostgreSQL
 
-在 v4 的约束下，PostgreSQL 比继续沿用 legacy 的多套 MySQL 更符合 Jobs / OPC：
+在架构基线约束下，PostgreSQL 比继续沿用 legacy 的多套 MySQL 更符合 Jobs / OPC：
 
 1. **强状态聚合需要严格事务与约束。** 申请、审批、交付、异议的状态推进需要在同一事务里同时写业务实体、审计事件、回执 outbox。
 2. **CatalogModel / Capability contract / 审计快照天然需要 JSONB。** 这些是结构化但不适合被拆成过多稀碎列的内容，PostgreSQL 对 JSONB、GIN 索引、部分索引更友好。
@@ -69,10 +69,10 @@ phase_after_approval: Phase 0 / Wave 0（先打通 Catalog → Application → A
 
 ### 1.4 本文额外回答的产品问题
 
-本文不仅回答“表怎么建”，还必须回答以下 v4 下的产品问题：
+本文不仅回答"表怎么建"，还必须回答以下架构基线下的产品问题：
 
-1. **J1–J4 / S1 / S2 各自由哪些聚合与 read model 支撑**。
-2. **P1–P8 原生 WebUI 页面依赖哪些事实源与派生视图**。
+1. **J1 / J2 / B1 各自由哪些聚合与 read model 支撑**。
+2. **P1-P5 / P7 + B1.1 / B1.2 八个原生 WebUI 页面依赖哪些事实源与派生视图**。
 3. **同一 capability 如何同时投影到 REST、CLI、MCP、A2A，而不复制业务逻辑**。
 4. **哪些数据只允许作为投影存在，不能反向长成新的业务状态机**。
 5. **哪些地方必须让 AI 只做减摩，不得吃掉结构化页面与责任边界**。
@@ -89,7 +89,7 @@ phase_after_approval: Phase 0 / Wave 0（先打通 Catalog → Application → A
 
 | 旅程 / 后台面 | WebUI 页面 | 主要聚合 / 表 | 说明 |
 |--------------|-----------|--------------|------|
-| **J1 找数→用数** | P1 工作台、P2 资源发现、P3 申请/审批/跟踪、P4 交付/交换、P7 共享专区 | `catalog_entry`, `catalog_item`, `resource_asset`, `application_record`, `application_attachment`, `approval_case`, `approval_step`, `approval_decision`, `delivery_task`, `delivery_attempt`, `delivery_receipt`, `delivery_subscription`, `delivery_notice_projection`, `audit_receipt` | 用户视角的"找 → 申请 → 拿"5 步骨干合并为一条核心旅程；含异议子流程 + 供需对接子流程；含有条件/无条件共享审批分支（待业务方 sign-off 后补"不予共享"第 3 态） |
+| **J1 找数→用数** | P1 工作台、P2 资源发现、P3 申请/审批/跟踪、P4 交付/交换、P7 共享专区 | `catalog_entry`, `catalog_item`, `resource_asset`, `application_record`, `application_attachment`, `approval_case`, `approval_step`, `approval_decision`, `delivery_task`, `delivery_attempt`, `delivery_receipt`, `delivery_subscription`, `delivery_notice_projection`, `audit_receipt` | 用户视角的"找 → 申请 → 拿"5 步骨干合并为一条核心旅程；含异议子流程 + 供需对接子流程；含有条件 / 无条件 / 不予共享 3 种 `share_type`（详见 architecture.md §3.3） |
 | **J2 挂数→维数** | P1 工作台、P5 提供方管理、P7 共享专区 | `catalog_model`, `catalog_entry`, `catalog_entry_version`, `resource_asset`, `objection_*`（Wave 2） | 提供方编目 / 资源挂接 / 部门审 / 平台发布 / 异议处理 |
 | **B1.1 合规与运营** | B1.1 合规与运营、P1 工作台 | `capability_call`, `audit_event`, `audit_receipt`, `anchor_outbox`, `service_invocation_metric_projection`, `gateway_runtime_status_projection` | 仅管理员/审计员；面向审计、统计、异常、追责，读的是审计事实和审计派生投影；不是消息通知；运行监控由集团统一运维监控平台承担（外部依赖） |
 | **B1.2 接入扩展中心** | B1.2 接入扩展中心 | `capability_package`, `capability_version`, `capability_exposure`, `capability_review_record`, `tenant_capability_policy` | 仅管理员；后台支撑面；不进入普通用户主导航心智 |
@@ -146,22 +146,22 @@ phase_after_approval: Phase 0 / Wave 0（先打通 Catalog → Application → A
 - `dsp-example`、`dsp-perform`、大部分门户运营类模型
 - 旧门户菜单、专题、资讯、帮助、公告、评分等前台岛模型
 
-这些能力在 v4 中不是“消失”，而是：
+这些能力在架构基线中不是"消失"，而是：
 
 - 作为外部系统继续存在，或
-- 以 read model / adapter 的方式喂给 P1/P6/P7 页面，或
+- 以 read model / adapter 的方式喂给 P1 / P7 / B1.1 页面，或
 - 在确有高频价值时以外部 Capability 包注册进入。
 
 ### 2.5 Jobs / OPC 数据模型验收清单
 
 任何新增表、状态机或投影，在进入本文前都应回答以下问题：
 
-1. **它服务的是哪条核心旅程或支撑面？** 若不能回指 J1–J4 / S1 / S2，默认不进核心模型。
+1. **它服务的是哪条核心旅程或支撑面？** 若不能回指 J1 / J2 / B1，默认不进核心模型。
 2. **它是事实源还是投影？** 若只是为了页面方便展示，应优先做 projection，而不是新增聚合根。
 3. **它是否能同时支撑 WebUI、REST、CLI、MCP、A2A 的同一 capability 投影？** 若不能，说明边界切错了。
 4. **它是否让普通用户产品心智变复杂？** 若新增的是后台岛、门户残留或长尾管理面，默认外部化。
 5. **它是否降低 OPC 运转效率？** 若新增后需要更多人工同步、更多双写、更多专用实现链，就违背 OPC。
-6. **它是否让 AI 夺主？** 若一个字段或表存在只是为了给聊天式入口兜底，而不是支撑结构化页面与责任边界，应判定为偏离 v4。
+6. **它是否让 AI 夺主？** 若一个字段或表存在只是为了给聊天式入口兜底，而不是支撑结构化页面与责任边界，应判定为偏离基线。
 
 ## 三、领域概念、聚合边界与 legacy 语义映射
 
@@ -209,7 +209,7 @@ phase_after_approval: Phase 0 / Wave 0（先打通 Catalog → Application → A
 
 ### 4.2 为什么先分 schema，不先分库
 
-v4 明确要求“概念层完整，物理层分波次”。因此 Phase 1 的最优解不是按概念拆很多库，而是：
+架构基线明确要求"概念层完整，物理层分波次"。因此 Phase 1 的最优解不是按概念拆很多库，而是：
 
 - 在数据库里先把边界画对
 - 在服务编排里先把 command / domain / audit 串对
@@ -421,7 +421,7 @@ legacy 对应：目录字段、维度和表单属性类证据；catalog3 / metad
 
 #### 6.1.6 `catalog_entry`
 
-用途：目录主实体，是 J1/J4 的核心聚合根之一。
+用途：目录主实体，是 J1 / J2 的核心聚合根之一。
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
@@ -574,7 +574,7 @@ legacy 对应：`ApiServiceNode`, `ApiInputParam`, `ApiServiceGeneral`, `base_sy
 
 #### 6.1.11 `application_record`
 
-用途：申请单主实体，是 J2 的中心聚合根。
+用途：申请单主实体，是 J1 找数→用数 主旅程的中心聚合根。
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
@@ -844,7 +844,7 @@ legacy 对应：`dc_subscribe`, `PipelinesSubscribe`, `SubscribeDetail`, `Subscr
 
 #### 6.1.21 `objection_case`
 
-用途：异议工单主实体，是 J4 的强状态链路。
+用途：异议工单主实体，是 J1 / J2 异议子流程的强状态链路。
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
@@ -1025,7 +1025,7 @@ legacy 对应：审批结果、人工确认记录、调查结论、`block_succes
 
 #### 6.2.4 `anchor_outbox`
 
-用途：对接区块链/监管外链的异步 outbox。遵循 v4：**本地审计同步落库，外部上链异步执行**。
+用途：对接区块链/监管外链的异步 outbox。遵循基线 §3.4 / §9.5：**本地审计同步落库，外部上链异步执行**。
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
@@ -1072,7 +1072,7 @@ legacy 对应：`block_apilog`, `block_err_log`, `block_success_log`
 > - MCP tool / resource manifest
 > - A2A action / agent card 元数据
 > 
-> 若某消费面需要额外手写一份能力描述而无法从 registry / contract 派生，说明该数据模型仍不符合 v4 的单一事实源要求。
+> 若某消费面需要额外手写一份能力描述而无法从 registry / contract 派生，说明该数据模型仍不符合基线的单一事实源要求。
 
 #### 6.3.1 `capability_package`
 
@@ -1435,7 +1435,7 @@ resolved  → closed
 - API 服务本体进入 `resource_asset(resource_kind='api')`。
 - API 调用通道、路由、契约、鉴权引用和网关策略进入 `resource_channel_binding`。
 - 申请、审批、授权、发布、撤回进入 `application_record`、`approval_case`、`delivery_task` 与审计链。
-- 网关心跳与服务调用统计只作为 P6 / Dashboard 读侧投影，不成为业务事实源。
+- 网关心跳与服务调用统计只作为 B1.1 读侧投影，不成为业务事实源。
 - 日志上链按 `anchor_outbox` + `audit_receipt` 处理，外链结果不反向驱动业务状态。
 - 密钥、内部地址、工单个人信息不得明文进入 canonical DB、文档或日志。
 
@@ -1512,7 +1512,7 @@ resolved  → closed
 - `legacy_adapter_source`
 - `legacy_object_mapping`
 
-意义：已经足以打通 `发现 → 申请 → 审批 → 交付 → 审计` 首条黄金链路，并满足 v4 对“Registry 最小 schema”的要求，但**不提前展开完整租户级注册治理**。
+意义：已经足以打通 `发现 → 申请 → 审批 → 交付 → 审计` 首条黄金链路，并满足基线对"Registry 最小 schema"的要求，但**不提前展开完整租户级注册治理**。
 
 ### 11.2 Wave 1：交付深化与目录版本完善
 
@@ -1523,9 +1523,9 @@ resolved  → closed
 - `delivery_subscription`
 - `anchor_outbox`
 
-说明：这一波服务 J1 找数→用数 主旅程闭环，不把 J2 挂数→维数 与完整注册治理提前到 Wave 1。
+说明：这一波服务 J1 找数→用数 主旅程闭环，不把 J2 挂数→维数 完整注册治理提前到 Wave 1。
 
-### 11.3 Wave 2：J4 异议闭环与最小注册治理
+### 11.3 Wave 2：异议闭环与最小注册治理
 
 视真实需求再补：
 
@@ -1537,13 +1537,13 @@ resolved  → closed
 - `capability_review_record`
 - `tenant_capability_policy`
 - 更细的 projection / search 文档表
-- Dashboard 指标投影表
+- B1.1 指标投影表
 - 批量导入/导出任务表
 - 更细粒度的 capability review / rollout 辅助表
 
 ---
 
-## 十二、为什么这份设计符合 v4，而不是又回到旧平台
+## 十二、为什么这份设计符合架构基线，而不是又回到旧平台
 
 ### 12.1 它保留了复杂领域，但没有继承 legacy 系统切分
 
@@ -1556,7 +1556,7 @@ resolved  → closed
 - AuditAggregate
 - CapabilityRegistryAggregate
 
-这正是 v4 要求的“围绕旅程，不围绕模块名”。
+这正是基线要求的"围绕旅程，不围绕模块名"。
 
 ### 12.2 它保留了合规与追责，但没有长成另一个大平台
 
@@ -1611,6 +1611,6 @@ resolved  → closed
 
 ## 文档维护说明
 
-- 若 v4 架构基线的聚合边界、Capability 最小契约、物理存储分层发生变化，本文必须同步修订。
+- 若架构基线的聚合边界、Capability 最小契约、物理存储分层发生变化，本文必须同步修订。
 - 若后续实现决定拆分物理库，只允许调整部署层，不允许反向破坏本文的领域边界。
 - 若新增 legacy 迁移来源，必须补充到 `legacy_adapter_source` / `legacy_object_mapping` 规则，而不是直接扩散旧表命名进 domain。

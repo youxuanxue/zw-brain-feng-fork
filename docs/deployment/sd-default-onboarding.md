@@ -1,10 +1,6 @@
 # sd-default 客户现场部署 runbook
 
-> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
-> - 角色权威源：`docs/approved/zw-brain-roles.md`
-> - 信息架构权威源：`docs/approved/zw-brain-architecture.md`
-> - 评审决策记录：`docs/approved/zw-brain-architecture.md`
-> - 原版 R 编号见 git blame。
+> 角色权威源：[`docs/approved/zw-brain-roles.md`](../approved/zw-brain-roles.md) | 架构基线：[`docs/approved/zw-brain-architecture.md`](../approved/zw-brain-architecture.md)
 
 > 📍 **你在哪一份 zw-brain 文档？**
 > | 你是谁 | 看哪份 |
@@ -73,7 +69,7 @@ uv venv && uv pip install -e .
 
 ## 2. 数据库初始化
 
-### 2.1 创建数据目录 + 初始化 schema（v4.1 R15：drop & recreate，不用 alembic）
+### 2.1 创建数据目录 + 初始化 schema（drop & recreate，不用 alembic）
 
 ```bash
 export ZW_BRAIN_DB_PATH=/data/zw-brain/runtime.db
@@ -81,7 +77,7 @@ mkdir -p $(dirname $ZW_BRAIN_DB_PATH)
 .venv/bin/python -c "from zw_brain.shared.migrate import ensure_runtime_schema; ensure_runtime_schema()"
 ```
 
-**说明**：v4.1 二轮再砍后 alembic 已删除（详见 R15）；新项目用 SQLAlchemy `Base.metadata.drop_all` + `create_all` 一步重建。第一个真实客户上线 + 第一次生产 schema 变更时再重启 alembic baseline。
+**说明**：zw-brain 是全新项目，schema 用 SQLAlchemy `Base.metadata.drop_all` + `create_all` 一步重建；不维护 alembic 迁移链。第一个真实客户上线 + 第一次生产 schema 变更时再启动 alembic baseline（详见架构基线 §9.6）。
 
 **验证**：
 ```bash
@@ -242,11 +238,7 @@ curl -s http://localhost:8800/openapi.json | jq '.paths | length'
 # 180+
 ```
 
-### 6.2 K12 大屏（已退役 R17 / v4.1）
-
-K12 独立大屏 + Dashboard BFF 在 v4.1 二轮再砍中退役（详见架构基线 R17）。合规与运营进入 B1.1 后台支撑面，由 REST 主服务统一服务。
-
-### 6.3 反向代理（可选）
+### 6.2 反向代理（可选）
 
 把 WebUI 8800 / 统一身份回调地址挂在 nginx 后面，统一 TLS 终结。
 
@@ -262,14 +254,14 @@ K12 独立大屏 + Dashboard BFF 在 v4.1 二轮再砍中退役（详见架构�
 
 应该看到 10/10 通过：
 - `test_01_m0_acceptance_status_query` — M0 验收 status query
-- `test_02_r1_demand_registration_intent_submit` — 申请人 需求登记
-- `test_03_r7_reverse_draft_create_then_confirm` — 提供方部门→业务运营员 反向编目闭环
-- `test_04_r2_application_review_with_grade_policy` — 审批人 分级授权策略审批
-- `test_05_r6_quality_rule_and_api_service` — 提供方部门 检测规则 + 任务触发
-- `test_06_r3_supplement_skill_callable` — 镇街填报人 接补差任务派发
-- `test_07_r4_exception_callback_handoff` — 村社区填报人 异常回传
-- `test_08_r5_objection_four_substages` — 审核汇总人 异议四子流程
-- `test_09_r8_audit_list_and_direct_access` — 安全审计员 审计抽查 + 直达绕行
+- `test_02_r1_demand_registration_intent_submit` — ROLE_ORGAN_OPERATER 需求登记
+- `test_03_r7_reverse_draft_create_then_confirm` — ROLE_ORGAN_MANAGER → ROLE_BUSIAUDIT 反向编目闭环
+- `test_04_r2_application_review_with_grade_policy` — ROLE_ORGAN_MANAGER 分级授权策略审批
+- `test_05_r6_quality_rule_and_api_service` — ROLE_ORGAN_MANAGER 检测规则 + 任务触发
+- `test_06_r3_supplement_skill_callable` — ROLE_ORGAN_OPERATER 接补差任务派发（基层补差场景）
+- `test_07_r4_exception_callback_handoff` — ROLE_ORGAN_OPERATER 异常回传（基层场景）
+- `test_08_r5_objection_four_substages` — ROLE_BUSIAUDIT 异议四子流程
+- `test_09_r8_audit_list_and_direct_access` — ROLE_SECURITY_AUDIT 审计抽查 + 直达绕行
 - `test_10_audit_chain_covers_all_roles` — audit 链覆盖所有角色
 
 **失败排查**：
@@ -284,14 +276,14 @@ K12 独立大屏 + Dashboard BFF 在 v4.1 二轮再砍中退役（详见架构�
 
 | 岗位 | 主入口 | 关键动作 |
 | --- | --- | --- |
-| M0（隐式：业务运营员 + 安全审计员） | `#/p0-migration-acceptance` | 11 张工作队列卡片状态 |
-| 申请人 | `#/p1-workbench` | "我的 API 凭据"卡 + "需求登记前置"表单 |
-| 审批人 | `#/p3-request-flow/review/<req>` | 分级授权策略 inline 表单 |
-| 基层填报人 | `#/p3-request-flow` | "只看我的"列表过滤 + "异常回传" |
-| 审核汇总人 | `#/p6-compliance-ops/dispute/<obj>` | 异议四子流程 4 张表单卡 |
-| 提供方部门 | `#/p5-provider` | 4 张 提供方部门 工作流卡（反向编目 / API 服务化 / 检测规则 / 资源挂接） |
-| 业务运营员 | `#/p5-provider` | 3 张 业务运营员 收件箱（字段裁决 / 挂接审核 / 供需对接） |
-| 安全审计员 | `#/p6-compliance-ops` | "安全审计员 绕行督查"panel |
+| M0（隐式：ROLE_BUSIAUDIT + ROLE_SECURITY_AUDIT） | `#/p0-migration-acceptance` | 11 张工作队列卡片状态 |
+| ROLE_ORGAN_OPERATER（申请发起） | `#/p1-workbench` | "我的 API 凭据"卡 + "需求登记前置"表单 |
+| ROLE_ORGAN_MANAGER（部门审批） | `#/p3-request-flow/review/<req>` | 分级授权策略 inline 表单 |
+| ROLE_ORGAN_OPERATER（基层补差） | `#/p3-request-flow` | "只看我的"列表过滤 + "异常回传" |
+| ROLE_BUSIAUDIT（异议受理） | `#/p6-compliance-ops/dispute/<obj>`（B1.1 后台 literal 路由） | 异议四子流程 4 张表单卡 |
+| ROLE_ORGAN_MANAGER（部门提供方） | `#/p5-provider` | 4 张 提供方部门 工作流卡（反向编目 / API 服务化 / 检测规则 / 资源挂接） |
+| ROLE_BUSIAUDIT（平台运营） | `#/p5-provider` | 3 张 业务运营员 收件箱（字段裁决 / 挂接审核 / 供需对接） |
+| ROLE_SECURITY_AUDIT（合规督查） | `#/p6-compliance-ops`（B1.1 后台 literal 路由） | "安全审计员 绕行督查"panel |
 
 **客户现场签收脚本**：让客户每个岗位 1-2 个真实业务对象走完一次主旅程，把审计日志截图作为签收附件。
 
@@ -343,7 +335,7 @@ K12 独立大屏 + Dashboard BFF 在 v4.1 二轮再砍中退役（详见架构�
 
 ## 附录 B：组件清单（按 `pyproject.toml`）
 
-- 入口：`zw-brain-rest`, `zw-brain-cli`, `zw-brain-mcp`, `zw-brain-a2a`, `zw-brain-migrate-legacy`（K12 dashboard-bff 已退役 R17 / v4.1）
+- 入口：`zw-brain-rest`, `zw-brain-cli`, `zw-brain-mcp`, `zw-brain-a2a`, `zw-brain-migrate-legacy`
 - 测试：`pytest tests/` 全套 441+ 用例
 - 契约：`scripts/export_agent_contract.py` 生成 5 端口契约（180 REST / 1 CLI / 61 MCP / 1 A2A / 192 Skills）
 - preflight：`bash scripts/preflight.sh` — 16 段机械检查

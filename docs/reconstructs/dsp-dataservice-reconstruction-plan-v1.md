@@ -28,11 +28,11 @@
 
 | 旧模块 | 旧职责 | zw-brain 去向 |
 | --- | --- | --- |
-| `dsp-service-mgmt` | 服务目录、发布审核、代理导入、统计查询、应用授权、网关配置管理 | 核心语义拆入 `CatalogResourceAggregate`、`ApplicationApprovalAggregate`、`AuditAggregate` 与 P6 运营投影 |
+| `dsp-service-mgmt` | 服务目录、发布审核、代理导入、统计查询、应用授权、网关配置管理 | 核心语义拆入 `CatalogResourceAggregate`、`ApplicationApprovalAggregate`、`AuditAggregate` 与 B1.1 运营投影 |
 | `dsp-service-gateway` | Zuul 网关、路由、鉴权、限流、元数据缓存、调用上报 | 外部网关/运行时 adapter；策略元数据进入 `resource_channel_binding` |
 | `dsp-service-work` | 刷新网关缓存、上传调用日志到区块链 | 异步 worker；缓存刷新成为运行时内部动作，上链进入 `anchor_outbox` |
 | `dsp-service-orchestrator` | 轻量工作流，支持 HTTP、DATA_SERVICE 等任务 | 长尾编排能力；只保留为可注册 Capability 包，不进入主旅程核心状态机 |
-| `hystrix-dashboard` | 熔断监控页面 | 不迁入 WebUI；由外部观测底座或 P6 只读指标摘要承接 |
+| `hystrix-dashboard` | 熔断监控页面 | 不迁入 WebUI；由外部观测底座或 B1.1 只读指标摘要承接 |
 
 ### 2.2 高频外部使用形态
 
@@ -47,7 +47,7 @@
 
 因此迁移优先级不是“先复刻所有 controller”，而是：
 
-1. 先把网关心跳和服务调用统计变成 P6 / Dashboard 可读的运营与审计投影。
+1. 先把网关心跳和服务调用统计变成 B1.1 可读的运营与审计投影。
 2. 再把服务资源定义变成可发现、可申请、可交付的 `api` 类 `resource_asset`。
 3. 最后处理低频服务管理动作，将其收敛到目录/资源发布、通道策略和能力注册治理。
 
@@ -59,8 +59,8 @@
 | --- | --- | --- | --- |
 | P0 | `/openapi/report` | 最高频，362,407 次；实际是网关心跳 | 进入 `gateway_runtime_status_projection`，不作为业务报表 |
 | P0 | `/openapi/getServiceInvokedBySystemStatisticInfos` | 173,072 次；调用方/系统统计 | 进入 `service_invocation_metric_projection` 与 `ops.service.invocation.query` |
-| P1 | `/openapi/sendCallThresholdMessage` | 30,443 次；阈值通知 | 不重建消息中心；作为 P6 告警/通知 adapter 输出 |
-| P1 | 服务列表、详情、目录查询 | 千级到百级；支撑发现 | API 服务资源化后由 P2/P6 读 `resource_asset` 与 projection |
+| P1 | `/openapi/sendCallThresholdMessage` | 30,443 次；阈值通知 | 不重建消息中心；作为 B1.1 告警/通知 adapter 输出 |
+| P1 | 服务列表、详情、目录查询 | 千级到百级；支撑发现 | API 服务资源化后由 P2/B1.1 读 `resource_asset` 与 projection |
 | P2 | 服务维护、发布、审核、撤回、代理导入 | 百级以下但责任强 | 进入写 Capability 与 `approval_case`，不按旧 URL 兼容 |
 | P3 | Hystrix、WSDL、低频后台页 | 低频或运维/长尾 | 外部化或不迁入主产品 |
 
@@ -113,7 +113,7 @@ API 服务的真实调用通道进入 `resource_channel_binding`：
 
 ### 3.3 网关运行状态投影
 
-旧 `/openapi/report` 是网关心跳，zw-brain 不应把它伪装成业务报表。建议在 P6 / Dashboard 读侧使用 `gateway_runtime_status_projection`：
+旧 `/openapi/report` 是网关心跳，zw-brain 不应把它伪装成业务报表。建议在 B1.1 读侧使用 `gateway_runtime_status_projection`：
 
 | 字段 | 说明 |
 | --- | --- |
@@ -131,7 +131,7 @@ API 服务的真实调用通道进入 `resource_channel_binding`：
 约束与索引建议：
 
 - `UNIQUE (tenant_id, gateway_instance_id)`，确保一个租户内同一网关实例只有一条当前状态。
-- `INDEX (tenant_id, status, last_reported_at DESC)`，支撑 P6 / Dashboard 查询在线、降级、离线实例。
+- `INDEX (tenant_id, status, last_reported_at DESC)`，支撑 B1.1 查询在线、降级、离线实例。
 
 legacy 对应：`AdminApiController.report`、`Report2MgmtJob`、`MgmtService.report2Mgmt`、Redis `GATEWAY_REPORT`。
 
@@ -139,7 +139,7 @@ legacy 对应：`AdminApiController.report`、`Report2MgmtJob`、`MgmtService.re
 
 旧系统最常被外部消费的是统计查询，因此 zw-brain 需要显式承认一个读侧投影：`brain_audit.service_invocation_metric_projection`。
 
-它不是业务事实源，事实源仍是 `capability_call`、`audit_event` 与网关调用日志 adapter；它的职责是支撑 P6、Dashboard、API 查询与运营排障。
+它不是业务事实源，事实源仍是 `capability_call`、`audit_event` 与网关调用日志 adapter；它的职责是支撑 B1.1、API 查询与运营排障。
 
 建议字段：
 
@@ -223,7 +223,7 @@ legacy 对应：`ApiServiceStatistic`、`ApiServiceTimes`、网关调用日志�
 | `old/12-datastructure/dsp_service.xml` | `api_service_app` 的 `APP_ID`、`AUTH_TYPE`、`FREQUENCY_*`、`SECRET`、`superior_app_secret` | 授权关系进入 `application_record` / `delivery_task.access_grant_snapshot`；密钥只进密钥系统或引用，不得明文落 canonical DB |
 | `old/12-datastructure/dsp_service.xml` | `api_access_ip`、`api_service_filter`、`api_service_pool`、`api_service_errors` | 黑白名单、过滤器、线程池、错误码属于通道策略和契约证据，收敛到 `gateway_policy_json` / `schema_ref` |
 | `old/12-datastructure/dsp_service.xml` | `api_service_times` 的提供方、调用方、区划、应用、调用次数与错误统计字段，`api_service_statistic` 的浏览/收藏/申请/评分字段 | 调用与错误统计进入 `service_invocation_metric_projection`；浏览、收藏、评分不作为核心事实源 |
-| `old/12-datastructure/dsp_monitor.xml` | `cgservice_warning_rules`、`interface_result`、`product_call_result`、`service_warning_rule` 中的 `service_id`、`service_name`、`gateway_ip`、`error_type`、`call_time` | 运行监控和拨测只作为 P6 / Dashboard 运营投影与外部诊断 Capability 输入，不成为服务生命周期事实源 |
+| `old/12-datastructure/dsp_monitor.xml` | `cgservice_warning_rules`、`interface_result`、`product_call_result`、`service_warning_rule` 中的 `service_id`、`service_name`、`gateway_ip`、`error_type`、`call_time` | 运行监控和拨测只作为 B1.1 运营投影与外部诊断 Capability 输入，不成为服务生命周期事实源 |
 | `old/12-datastructure/dsp_block.xml` | `block_apilog`、`block_err_log`、`block_success_log` | 上链仍按 `anchor_outbox` + `audit_receipt` 处理；外链结果不反向驱动业务状态 |
 
 因此，`old/12-datastructure` 的作用是校验旧表字段覆盖面，而不是要求 zw-brain 复刻旧库 schema；凡属生命周期、审批、授权、审计的事实进入 canonical 聚合，凡属运行、统计、拨测、告警的内容进入可重算投影或外部 Capability。
@@ -256,7 +256,7 @@ legacy 对应：`ApiServiceStatistic`、`ApiServiceTimes`、网关调用日志�
 | API 通道绑定 | 代理、路由、参数、响应、鉴权引用 → `resource_channel_binding` | 调用通道是服务可交付的必要条件，必须可被审计和回放 |
 | 服务申请、审批、授权、发布、撤回 | `application_record`、`approval_case`、`delivery_task` | 旧 controller 写动作责任强，必须进入统一状态机和审计链 |
 | 通道策略治理 | 限流、熔断、黑白名单、过滤链、日志采集级别 → `gateway_policy_json` | 策略影响调用安全和稳定性，属于资源交付边界，不做独立网关后台 |
-| 网关心跳与运行状态 | `/openapi/report` → `gateway_runtime_status_projection` | 旧最高频接口实际是网关心跳，进入 P6 / Dashboard 只读运行状态投影 |
+| 网关心跳与运行状态 | `/openapi/report` → `gateway_runtime_status_projection` | 旧最高频接口实际是网关心跳，进入 B1.1 只读运行状态投影 |
 | 服务调用统计与错误归因 | `ApiServiceTimes`、网关日志 → `service_invocation_metric_projection` | 调用量、成功率、错误归因支撑运营排障，不作为业务事实源 |
 | 调用失败与工单语义归因 | 工单主题类型、处置摘要、证据引用 → 审计与运营投影 | 工单反复暴露接口失败、流程改造、展示异常，需要可解释的证据链，不复制工单系统 |
 | 日志上链证据 | `UploadApiLog2BlockchainJob` → `anchor_outbox` + `audit_receipt` | 上链是审计证据扩展，本地审计先落库，外链异步执行 |
@@ -332,7 +332,7 @@ legacy 对应：`ApiServiceStatistic`、`ApiServiceTimes`、网关调用日志�
 - 建立 `gateway_runtime_status_projection`，承接 `/openapi/report` 语义。
 - 建立 `service_invocation_metric_projection`，承接服务调用统计语义。
 - 将旧网关日志、统计表、Redis 心跳快照只读接入为 adapter source。
-- 由 `capability_call` / `audit_event` / adapter 日志生成 P6 与 Dashboard 指标。
+- 由 `capability_call` / `audit_event` / adapter 日志生成 B1.1 指标。
 - 暴露 `ops.gateway.heartbeat.ingest`、`ops.service.report.query` 与 `ops.service.invocation.query`。
 
 ### Wave 1：API 服务资源化

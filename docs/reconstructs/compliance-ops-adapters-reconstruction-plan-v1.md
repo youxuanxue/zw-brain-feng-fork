@@ -1,8 +1,8 @@
 # compliance ops adapters 合规运营与外部治理重构方案 v1
 
-> 范围：旧平台 `datasecurity-service`、`indata-security-executor`、`standardservice-service`、`metricsmgr-service`、`data-operation-board-front`、`dsp-monitor`、`dsp-esupervision`，以及 approved 中关于 P6 合规运营、Dashboard 只读隔离、外部数据治理中心、外部观测底座、Capability contract 和审计总线的设计原则。
-> 结论：zw-brain 不把旧安全中心、标准服务平台、指标平台、监控告警、督导系统迁成新的综合运维 / 治理后台；只吸收风险事件、敏感识别摘要、标准资产候选、指标定义投影、接口健康、告警工单、超期督导和整改证据等承重语义，重建为 P6 合规运营 projection + 外部 adapter + `audit_event` 证据链。安全风险闭环进入 zw-brain P6，自带最小 `compliance_case` 闭环；标准数据迁移参考 `old/08标准服务系统标准数据`。
-> 单一事实源：本文是安全、标准、指标、监控、督导等 P6 合规运营旧仓库的重构去向、Capability 边界、旧表 / 接口映射和不做清单的专题单一事实源；目录、资源、申请、交付、异议、专题包和能力注册的主事实仍以对应 reconstructs 与 approved 数据模型为准；跨专题 greenfield 口径和全局决策基线以 `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` 为准。
+> 范围：旧平台 `datasecurity-service`、`indata-security-executor`、`standardservice-service`、`metricsmgr-service`、`data-operation-board-front`、`dsp-monitor`、`dsp-esupervision`，以及 approved 中关于 B1.1 合规与运营、外部数据治理中心、外部观测底座、Capability contract 和审计总线的设计原则。
+> 结论：zw-brain 不把旧安全中心、标准服务平台、指标平台、监控告警、督导系统迁成新的综合运维 / 治理后台；只吸收风险事件、敏感识别摘要、标准资产候选、指标定义投影、接口健康、告警工单、超期督导和整改证据等承重语义，重建为 B1.1 合规与运营 projection + 外部 adapter + `audit_event` 证据链。安全风险闭环进入 zw-brain B1.1，自带最小 `compliance_case` 闭环；标准数据迁移参考 `old/08标准服务系统标准数据`。
+> 单一事实源：本文是安全、标准、指标、监控、督导等 B1.1 合规与运营旧仓库的重构去向、Capability 边界、旧表 / 接口映射和不做清单的专题单一事实源；目录、资源、申请、交付、异议、专题包和能力注册的主事实仍以对应 reconstructs 与 approved 数据模型为准；跨专题 greenfield 口径和全局决策基线以 `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` 为准。
 
 ## 一、设计原则
 
@@ -16,29 +16,29 @@
 4. 运维方能看到外部通道、服务调用、级联 adapter、任务执行的健康和失败原因。
 5. Agent 能基于审计、回执、指标和风险证据生成追责 / 改进建议，而不是维护一套独立监控事实。
 
-### 1.2 OPC：P6 是 projection 与 case，不是反向事实源
+### 1.2 OPC：B1.1 是 projection 与 case，不是反向事实源
 
 - 安全风险、监控告警、标准质量、指标看板、督导预警只读消费 canonical 事件、回执、审计和外部 adapter 摘要。
-- 目录、资源、申请、交付、异议、Capability 的状态不能由 P6 projection 直接覆盖。
+- 目录、资源、申请、交付、异议、Capability 的状态不能由 B1.1 projection 直接覆盖。
 - 需要人工处置的风险进入 `compliance_case` 候选；`risk_case` 只作为 `compliance_case` 的风险分类或读模型术语，不新增未获 approved 数据模型确认的核心事实表。zw-brain 自带最小确认、分派、整改、关闭闭环，不默认派发到外部工单系统。
 - 分类分级、敏感识别、脱敏、加密、密钥、数据源扫描默认外部化，zw-brain 只保存摘要、结果引用和整改证据。
-- Dashboard 只读消费 `dashboard.*` / `compliance.*` projection，禁止内嵌写操作。
+- B1.1 只读消费 `compliance.*` projection，禁止内嵌写操作。
 
 ### 1.3 为什么不能迁成安全 / 指标 / 监控大后台
 
 1. approved 已明确数据治理中心、外部观测底座是外部依赖，zw-brain 不复造。
 2. 旧 `datasecurity-service` 同时覆盖分类分级、识别、脱敏、加密、密钥、数据源、风险和看板，迁入会形成新平台底座。
-3. 旧 `metricsmgr-service` 能直连数据源、建模型、建指标、发布 API 和调度任务，和 zw-brain 的目录 / 服务 / Dashboard 边界冲突。
+3. 旧 `metricsmgr-service` 能直连数据源、建模型、建指标、发布 API 和调度任务，和 zw-brain 的目录 / 服务 / B1.1 边界冲突。
 4. 旧 `dsp-monitor`、`dsp-esupervision` 的价值是告警、超期和合规证据，不应变成主业务状态机。
-5. OPC 要求主旅程深而窄：P6 只提供可解释运营与处置入口，不成为所有系统的后台入口。
+5. OPC 要求主旅程深而窄：B1.1 只提供可解释运营与处置入口，不成为所有系统的后台入口。
 
 ### 1.4 旧业务逻辑继承规则
 
-风险识别、告警接收、督导超期、规则配置、标准数据元 / 字典、指标口径和处理过程，默认以旧 `datasecurity-service`、`indata-security-executor`、`standardservice-service`、`metricsmgr-service`、`dsp-monitor`、`dsp-esupervision` 代码实现和 `old/08标准服务系统标准数据` 为实施依据。只有当旧逻辑试图复造安全中心 / 标准平台 / 指标平台 / 监控后台、直接修改 canonical 主状态、迁入连接串 / 密钥 / 样例敏感数据，或让 Dashboard 执行业务写操作时，才进入独立决策。
+风险识别、告警接收、督导超期、规则配置、标准数据元 / 字典、指标口径和处理过程，默认以旧 `datasecurity-service`、`indata-security-executor`、`standardservice-service`、`metricsmgr-service`、`dsp-monitor`、`dsp-esupervision` 代码实现和 `old/08标准服务系统标准数据` 为实施依据。只有当旧逻辑试图复造安全中心 / 标准平台 / 指标平台 / 监控后台、直接修改 canonical 主状态、迁入连接串 / 密钥 / 样例敏感数据，或让 B1.1 投影反向执行业务写操作时，才进入独立决策。
 
 ### 1.5 全新项目口径
 
-本专题不提供旧安全中心、标准平台、指标平台、监控告警、电子督导、Dashboard 写操作或旧 URL 兼容层。`compliance_case` 是 P6 最小闭环的逻辑对象；物理表和字段落地必须回到 approved v4 数据模型校准，不以本文新增未批准核心表。
+本专题不提供旧安全中心、标准平台、指标平台、监控告警、电子督导写操作或旧 URL 兼容层。`compliance_case` 是 B1.1 最小闭环的逻辑对象；物理表和字段落地必须回到 approved 数据模型基线，不以本文新增未批准核心表。
 
 ## 二、证据清单
 
@@ -46,14 +46,14 @@
 
 | 约束来源 | 对本方案的约束 |
 | --- | --- |
-| `docs/approved/zw-brain-architecture.md` | Dashboard 独立部署、只读消费；数据治理中心、外部观测底座、集团推理平台保持外部依赖。 |
+| `docs/approved/zw-brain-architecture.md` | 不做大屏 / 指挥中心 / 演示页面（§1.3）；数据治理中心、外部观测底座、集团推理平台保持外部依赖。 |
 | `docs/approved/zw-brain-data-model.md` | `audit_event`、`capability_call`、receipt 和 canonical 聚合是合规解释的事实来源。 |
 | `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md` | 目录、元数据、资源、质量、血缘已收敛到 CatalogResourceAggregate，标准 / 安全只可作为 evidence。 |
 | `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md` | 申请、审批、交付、订阅的超期和异常必须从主链路投影，不在督导系统内复制状态。 |
-| `docs/reconstructs/dsp-objection-handling-reconstruction-plan-v1.md` | 异议超期、解决率、满意度进入 P6 指标，但异议状态仍归 ObjectionAggregate。 |
-| `docs/reconstructs/dsp-data-connect-cascade-reconstruction-plan-v1.md` | 外部通道健康、失败率、重放结果进入 P6 projection；外部状态不覆盖本地状态。 |
-| `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` | IAF IAM、本地 Governance、租户 / 组织 / 用户 / 角色投影、Capability policy 和暴露面边界由该文档定义；P6 只能查看和建议，不绕过策略。 |
-| `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` | 安全、标准、指标、监控、督导列为 P2 / P6 adapter 和 projection，不进入核心重构。 |
+| `docs/reconstructs/dsp-objection-handling-reconstruction-plan-v1.md` | 异议超期、解决率、满意度进入 B1.1 指标，但异议状态仍归 ObjectionAggregate。 |
+| `docs/reconstructs/dsp-data-connect-cascade-reconstruction-plan-v1.md` | 外部通道健康、失败率、重放结果进入 B1.1 projection；外部状态不覆盖本地状态。 |
+| `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` | IAF IAM、本地 Governance、租户 / 组织 / 用户 / 角色投影、Capability policy 和暴露面边界由该文档定义；B1.1 只能查看和建议，不绕过策略。 |
+| `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` | 安全、标准、指标、监控、督导列为 P2 / B1.1 adapter 和 projection，不进入核心重构。 |
 
 ### 2.2 旧 datasecurity-service / indata-security-executor 证据
 
@@ -62,7 +62,7 @@
 | 旧能力 | 旧平台表现 | zw-brain 解释 |
 | --- | --- | --- |
 | 分类分级 | `DataCategoryController`、`DataLevelController`、`DataStrategyController`，如 `/classification/v1/categories/*` | 外部数据治理 / 安全中心；只同步分类分级摘要和资源风险标签。 |
-| 数据资产视角 | `DataCatalogPerspectiveController`、`DatabasePerspectiveController`、`DataAssetViewController` | P6 / P2 资产安全 projection，不成为目录事实源。 |
+| 数据资产视角 | `DataCatalogPerspectiveController`、`DatabasePerspectiveController`、`DataAssetViewController` | B1.1 / P2 资产安全 projection，不成为目录事实源。 |
 | 数据源管理 | `DatasourceController`、`DatasourceManageController` | 外部扫描配置；禁止迁入连接串和账号。 |
 | 敏感识别 | `RuleController`、`RuleGroupController`、`TaskController`、`RecordController`、`ResultController`、`SensitiveDataController` | `security.scan.result.sync`，仅保存摘要、风险级别和对象引用。 |
 | 动态 / 静态脱敏 | `DynamicDsRuleController`、`DynamicDtRuleController`、`StaticRuleController`、`StaticTaskController`、`StaticRecordController` | 外部执行器；zw-brain 保存任务 receipt，不执行脱敏引擎。 |
@@ -90,7 +90,7 @@
 | `/catalog/*`、`/api/catalog/*` | 标准分类目录 | 标准资产目录 projection，不替代业务目录。 |
 | `/recommend/*`、`/tableRecommend/*`、`/fileRecommend/*` | 表 / 文件 / 资源推荐标准 | `standard.asset.recommend` adapter 结果。 |
 | `/search/*` | 标准检索、热词、访问量、同步 ES | 统一搜索 / projection，不迁 ES 写入链路。 |
-| `/overview/*`、`/analysisReport/*` | 标准覆盖率、发布趋势、关联趋势、PDF 导出 | P6 标准质量 projection，不作为事实源。 |
+| `/overview/*`、`/analysisReport/*` | 标准覆盖率、发布趋势、关联趋势、PDF 导出 | B1.1 标准质量 projection，不作为事实源。 |
 
 ### 2.4 旧 metricsmgr-service / data-operation-board-front 证据
 
@@ -99,14 +99,14 @@
 | 旧接口簇 | 旧平台表现 | zw-brain 解释 |
 | --- | --- | --- |
 | `/datasource/*` | 数据源创建、连接测试、表 / 字段 / 样例数据 | 外部 BI / 指标平台；禁止迁入连接信息。 |
-| `/indicator/*` | 指标创建、发布、下线、版本、血缘、查询指标数据 | `metric.definition` 候选或 P6 指标 projection；不直接查询业务库。 |
-| `/dimension/*`、`/dataModel/*` | 维度和数据模型管理 | Dashboard projection 元数据候选。 |
+| `/indicator/*` | 指标创建、发布、下线、版本、血缘、查询指标数据 | `metric.definition` 候选或 B1.1 指标 projection；不直接查询业务库。 |
+| `/dimension/*`、`/dataModel/*` | 维度和数据模型管理 | B1.1 projection 元数据候选。 |
 | `/api-service/*`、`/api/do/*` | 指标 API 发布、在线测试、授权应用、调用统计 | 不复造 API 网关；服务型 Capability 归 `dsp-dataservice` 方案。 |
 | `/scheduler/*` | 指标调度任务、实例、重启、停止 | 外部调度器；只保存 adapter run record。 |
 | `/app/*`、`/oauth/token` | 应用和 OAuth | 外部应用 / IAM，不迁。 |
-| `/tag/*`、`/catalog/*`、`/statistic-period/*` | 标签、业务目录、统计周期 | P6 projection 配置候选。 |
+| `/tag/*`、`/catalog/*`、`/statistic-period/*` | 标签、业务目录、统计周期 | B1.1 projection 配置候选。 |
 
-`data-operation-board-front` 只作为 Dashboard 视觉 / 指标展示诉求输入，不迁前端代码；正式 Dashboard 必须只读消费 projection。
+`data-operation-board-front` 只作为 B1.1 视觉 / 指标展示诉求输入，不迁前端代码；B1.1 必须只读消费 projection。
 
 ### 2.5 旧 dsp-monitor 证据
 
@@ -115,7 +115,7 @@
 | 旧接口簇 | 旧平台表现 | zw-brain 解释 |
 | --- | --- | --- |
 | `/warningWorkOrder/ruleConfigure/*` | 告警工单规则配置 | `compliance.rule.configure` 候选，但规则执行可外部化。 |
-| `/warningMessageInfo/overview/*` | 告警概览、分布、24 小时趋势 | P6 告警 projection。 |
+| `/warningMessageInfo/overview/*` | 告警概览、分布、24 小时趋势 | B1.1 告警 projection。 |
 | `/warningMessageInfo/manage/*` | 接收、清理、详情、生成工单、处理告警 | `risk.event.ingest` / `compliance.case.open` / `compliance.case.resolve`。 |
 | `/warning/interface/pushWarningInfo` | 外部告警推送 | `risk.event.ingest`。 |
 | `/logWarning/*` | 日志告警规则、ES 磁盘、日志使用 | 外部观测底座摘要；不迁 ES。 |
@@ -131,7 +131,7 @@
 
 | 旧接口簇 | 旧平台表现 | zw-brain 解释 |
 | --- | --- | --- |
-| `/home/getHomeStatic`、`/home/getAlertTrend`、`/home/getAlertDistribution` | 首页统计、预警趋势、分布 | P6 compliance projection。 |
+| `/home/getHomeStatic`、`/home/getAlertTrend`、`/home/getAlertDistribution` | 首页统计、预警趋势、分布 | B1.1 compliance projection。 |
 | `/apply/getTimelimitStatic`、`/apply/getApplyData`、`/apply/timeLimitHandle` | 申请超期统计、列表、处理 | 从 `application_record` / `approval_case` 投影；处理进入合规 case。 |
 | `/apply/getComplianceStatic`、`/apply/complianceHandle` | 申请合规统计和处理 | 合规规则命中与整改证据。 |
 | `/handling/getTimeLimitStatic`、`/handling/getComplianceData` | 异议超期和合规 | 从 ObjectionAggregate 投影。 |
@@ -142,7 +142,7 @@
 
 ## 三、目标模型
 
-### 3.1 P6 逻辑边界
+### 3.1 B1.1 逻辑边界
 
 建议新增逻辑 projection / adapter，不新增大而全运维聚合；具体物理表落地必须以 approved v4 数据模型为准：
 
@@ -151,13 +151,13 @@
 - `compliance_case`：需要人工确认和整改的合规问题，可关联目录、资源、申请、交付、异议、adapter run。
 - `compliance_rule`：超期、失败率、调用异常、标准覆盖、敏感数据等规则定义；规则来源可为配置或外部系统。
 - `standard_asset_projection`：标准模型、字典、规则、文档和推荐结果的候选 / evidence。
-- `metric_definition_projection`：P6 / Dashboard 指标定义、维度、口径和来源。
+- `metric_definition_projection`：B1.1 指标定义、维度、口径和来源。
 - `health_signal_projection`：服务、adapter、外部通道、任务运行健康。
 - `adapter_run_record`：外部安全扫描、标准推荐、指标同步、告警接收、督导计算等执行摘要。
 
 ### 3.2 事实来源原则
 
-| P6 对象 | 来源 | 禁止行为 |
+| B1.1 对象 | 来源 | 禁止行为 |
 | --- | --- | --- |
 | 超期信号 | canonical 状态时间、SLA、审计事件 | 不在督导系统内复制主状态。 |
 | 风险事件 | 安全中心 / 监控 / 审计 / 能力调用 | 不保存密钥、明文样例和敏感扫描明细。 |
@@ -191,18 +191,16 @@
 | `compliance.case.assign` | 写 | `approval-trace` | 分派责任组织或处理人。 |
 | `compliance.case.resolve` | 写 | `approval-trace` | 提交整改结果和证据。 |
 | `compliance.case.close` | 写 | `approval-trace` | 关闭或驳回整改。 |
-| `compliance.metric.query` | 读 | `read-trace` | 查询 P6 指标、趋势、组织排行。 |
+| `compliance.metric.query` | 读 | `read-trace` | 查询 B1.1 指标、趋势、组织排行。 |
 | `compliance.case.query` | 读 | `read-trace` | 查询风险 / 合规 case 列表和详情。 |
 | `standard.asset.sync` | 写 | `write-trace` | 同步标准模型、字典、规则、文档候选。 |
 | `standard.asset.recommend` | 写 | `write-trace` | 触发外部标准推荐并保存结果摘要。 |
 | `security.scan.result.sync` | 写 | `write-trace` | 同步敏感识别、分类分级、脱敏任务摘要。 |
 | `adapter.health.probe` | 写 | `write-trace` | 写入服务、通道、adapter 健康检测结果。 |
-| ~~`dashboard.compliance.query`~~ | — | — | Skill 已退役 (R17 / v4.1)；B1.1 合规运营改由 compliance.case.query + compliance.metric.query 组合调用 |
 
 消费面：
 
-- WebUI：P6 合规运营、问题处置、规则配置、高风险确认。
-- Dashboard：只读展示 P6 指标和趋势。
+- WebUI：B1.1 合规与运营、问题处置、规则配置、高风险确认。
 - REST：外部安全 / 监控 / 标准系统推送摘要。
 - CLI：迁移、规则校验、指标导出、adapter 健康排障。
 - MCP：Agent 查询风险证据、生成整改建议和追责摘要。
@@ -232,7 +230,7 @@
 | `dsp-monitor MonitorResult*` | `health_signal_projection` | 健康检测结果。 |
 | `dsp-monitor DatasourceInfo` | 不迁连接配置 | 只保留脱敏 endpoint ref。 |
 | `dsp-esupervision` 超期 / 合规接口 | `compliance_signal` / `compliance_case` | 从 canonical 重新投影。 |
-| `data-operation-board-front`、`metricsmgr-front` | Dashboard 视觉输入 | 不迁前端代码。 |
+| `data-operation-board-front`、`metricsmgr-front` | B1.1 视觉输入 | 不迁前端代码。 |
 
 ## 六、迁移与验证策略
 
@@ -243,7 +241,7 @@
 3. 将告警消息、风险事件、超期记录导入为 `compliance_signal` 候选。
 4. 将已处理工单、督导处理、整改说明导入为 `compliance_case` / evidence 候选。
 5. 将标准模型、字典、规则、文档映射到标准资产 projection 或 `catalog_model` evidence。
-6. 将指标定义、维度、口径映射为 P6 / Dashboard 指标 projection。
+6. 将指标定义、维度、口径映射为 B1.1 指标 projection。
 7. 将服务拨测、adapter 执行、外部通道健康导入 `health_signal_projection` / `adapter_run_record`。
 8. 排除或脱敏数据库连接、IP、账号、密码、密钥、扫描样例、日志明细和文件内部路径。
 9. 对所有规则候选设置 pending，人工审核后才能生效。
@@ -253,15 +251,15 @@
 最小样本必须覆盖：
 
 1. 一个申请超期记录从 `approval_case` 状态时间重新投影为 `compliance_signal`。
-2. 一个异议超期记录从 `objection_case` 重新投影为 P6 指标。
+2. 一个异议超期记录从 `objection_case` 重新投影为 B1.1 指标。
 3. 一个直达 adapter 失败记录进入通道健康 projection。
 4. 一个安全敏感识别结果只保存摘要，不保存样例值。
 5. 一个标准模型候选能关联到 `catalog_model`，无法解析时进入 unresolved。
 6. 一个监控告警被升级为 `compliance_case` 并完成整改闭环。
 7. 一个旧告警规则导入后保持 pending，不自动生效。
-8. 一个 Dashboard 查询只读 projection，不能调用写能力。
+8. 一个 B1.1 查询只读 projection，不能调用写能力。
 9. 一个 metrics 数据源连接配置被排除或脱敏。
-10. 一个 P6 Agent 查询风险证据并生成摘要，不能直接关闭 case。
+10. 一个 B1.1 Agent 查询风险证据并生成摘要，不能直接关闭 case。
 
 ## 七、不做清单
 
@@ -269,7 +267,7 @@
 2. 不迁入数据库连接串、账号、密码、密钥、证书、内部 IP、扫描样例和日志明细。
 3. 不在 zw-brain 内实现分类分级、敏感识别、脱敏、加密、密钥管理引擎。
 4. 不把旧监控 / 督导状态作为目录、申请、交付、异议的新事实源。
-5. 不让 Dashboard 或 P6 projection 执行业务写操作。
+5. 不让 B1.1 projection 反向执行业务写操作。
 6. 不复造指标 API 网关、OAuth、应用中心和调度中心。
 7. 不把标准服务的全局字典平台迁入核心；字典必须归属具体领域。
 8. 不把外部观测底座、ES、Prometheus、XXL-Job、Nacos 配置迁为产品模型。
@@ -277,13 +275,13 @@
 
 ## 八、专题差异决策
 
-全局高风险 case 关闭门槛、标准数据权威批次和 greenfield 口径以总览方案第八节为准。本专题只保留 P6 合规运营、外部安全和 Dashboard 的差异决策：
+全局高风险 case 关闭门槛、标准数据权威批次和 greenfield 口径以总览方案第八节为准。本专题只保留 B1.1 合规与运营与外部安全的差异决策：
 
 | 编号 | 决策项 | 专题基线 | 实施约束 |
 | --- | --- | --- | --- |
-| P1 | P6 逻辑对象与 approved 物理模型关系 | `compliance_case` 是 P6 最小闭环逻辑对象；物理表、字段和聚合归属必须以 approved v4 数据模型为准。 | `risk_case` 只能作为 `compliance_case` 分类、投影视图或候选术语，不新增未批准核心事实表。 |
-| P2 | 外部安全中心 API 可用性 | 不阻塞 P6 最小闭环；API 可用时同步摘要，不可用时支持人工 / 文件导入风险事件。 | zw-brain 不实现扫描、脱敏、加密、密钥管理引擎。 |
-| P3 | P6 Dashboard 指标口径来源 | zw-brain projection 统一定义 P6 指标口径；旧 metrics / esupervision 作为口径参考。 | Dashboard 只读消费 projection，不允许写业务状态。 |
+| P1 | B1.1 逻辑对象与 approved 物理模型关系 | `compliance_case` 是 B1.1 最小闭环逻辑对象；物理表、字段和聚合归属必须以 approved v4 数据模型为准。 | `risk_case` 只能作为 `compliance_case` 分类、投影视图或候选术语，不新增未批准核心事实表。 |
+| P2 | 外部安全中心 API 可用性 | 不阻塞 B1.1 最小闭环；API 可用时同步摘要，不可用时支持人工 / 文件导入风险事件。 | zw-brain 不实现扫描、脱敏、加密、密钥管理引擎。 |
+| P3 | B1.1 指标口径来源 | zw-brain projection 统一定义 B1.1 指标口径；旧 metrics / esupervision 作为口径参考。 | B1.1 只读消费 projection，不允许写业务状态。 |
 | P4 | 外部告警接入方式 | 统一接入 `risk.event.ingest`，安全、监控、级联 adapter 以 `source_type` 区分。 | 风险事件统一去重、升级为 compliance case 和审计。 |
 | P5 | 安全扫描样例数据处理 | 默认不保存明文样例；只保存摘要、风险等级、对象引用、结果哈希和受控对象存储引用。 | 原始明细保留在外部安全中心或受控对象存储，读取需额外权限和审计。 |
 

@@ -29,7 +29,7 @@ zw-brain 不继承这些后台模块，但必须交付客户可用的本地业�
 - 租户、组织、区划、用户、角色在 zw-brain 中作为本地治理投影管理；认证、密码、Token、短信、CA、SSO 由 IAF IAM 或外部认证因子承担。
 - 本地治理台可管理投影同步、IAM 绑定、角色映射、租户能力启停、策略覆盖和审计查看；不得提供密码重置、认证因子配置、旧菜单维护或旧按钮权限树配置。
 - 审计由 `capability_call` / `audit_event` 承载，不迁旧 `sys_log` 为新审计事实源。
-- `dsp-manage` 中目录、申请、绩效、报表、消息等业务后台不纳入本专题；分别归属目录、申请交付、P6 projection 或外部 adapter。
+- `dsp-manage` 中目录、申请、绩效、报表、消息等业务后台不纳入本专题；分别归属目录、申请交付、B1.1 projection 或外部 adapter。
 - 旧 BSP 数据一键导入完成后，zw-brain 的运行时授权只查本地 Registry、投影和 policy，不再在线读取旧 BSP。
 
 ### 1.3 IAF IAM 是统一认证权威源
@@ -192,7 +192,7 @@ IAF 对接手册给出的关键约束：
 
 1. 构建 `actor_snapshot`。
 2. 支持 `tenant.policy.evaluate`。
-3. 支持 WebUI 可见性和 P6 审计筛选。
+3. 支持 WebUI 可见性和 B1.1 审计筛选。
 4. 做 legacy ID 映射和导入对账。
 5. 支持客户交付态的组织、用户、角色和租户能力治理。
 
@@ -374,7 +374,7 @@ IAF IAM 只解决认证，zw-brain 在认证成功后生成本地业务安全上
 | 证书管理 | 外部密钥和证书管理系统。 |
 | 帮助中心 | 文档 / 知识库，不进入核心模型。 |
 | 消息中心 | notification adapter。 |
-| 绩效、报表、指标 | P6 projection 或后续 compliance ops adapter。 |
+| 绩效、报表、指标 | B1.1 projection 或后续 compliance ops adapter。 |
 | 系统配置 | 环境变量、settings、Registry manifest，不迁旧配置表。 |
 
 client secret 不进入代码仓库、文档正文、配置样例、导入报告、运行日志或审计事件；仅通过部署 Secret / 环境变量注入。

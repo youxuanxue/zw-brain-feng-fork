@@ -39,7 +39,7 @@
 
 ### 1.5 全新项目口径
 
-本专题不提供旧 `/dataObjection*`、`/accept/*`、`/restapi/*`、Dubbo 服务、菜单或旧页面兼容层。异议状态权威只属于 `ObjectionAggregate`；P6 只能消费异议指标 projection，不得反向推进异议主状态。
+本专题不提供旧 `/dataObjection*`、`/accept/*`、`/restapi/*`、Dubbo 服务、菜单或旧页面兼容层。异议状态权威只属于 `ObjectionAggregate`；B1.1 只能消费异议指标 projection，不得反向推进异议主状态。
 
 ## 二、证据清单
 
@@ -49,8 +49,8 @@
 | --- | --- |
 | `docs/approved/zw-brain-architecture.md` | 目录、申请、交付、异议是强状态领域；异议不是备注字段，而是独立链路。 |
 | `docs/approved/zw-brain-data-model.md` | `ObjectionAggregate` 是核心聚合之一；异议状态推进需要与审计事件、回执在事务边界内一致。 |
-| `docs/approved/zw-brain-user-roles-and-journeys-v1.md` | 处理对象不是抽象管理员，而是要数的人、管数的人、填数的人、审数的人、查责的人。 |
-| `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` | `dsp-objection-handling` 被列为 P0，优先补齐 J4 异议强状态闭环。 |
+| `docs/approved/zw-brain-roles.md` | 处理对象不是抽象管理员，而是要数的人、管数的人、填数的人、审数的人、查责的人。 |
+| `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` | `dsp-objection-handling` 被列为 P0，优先补齐 J1 / J2 异议子流程强状态闭环。 |
 | `docs/reconstructs/dsp-catalog3-metadata3-reconstruction-plan-v1.md` | 目录 / 资源质量问题应进入证据与强状态，不通过门户或目录后台补丁解决。 |
 | `docs/reconstructs/dsp-exchange-reconstruction-plan-v1.md` | 授权、交付、订阅争议应能关联申请和交付回执，不能散落在交换系统里。 |
 
@@ -66,7 +66,7 @@
 | `/connect/*` | 关联申请、目录、异议、组织 | 转为 `target_type` / `target_id` / `related_application_id` 和 legacy 映射。 |
 | `/message/*` | 消息列表、处理消息 | 通知 adapter，不进入 `ObjectionAggregate`。 |
 | `/catalogstable/*`、`/queryCatalogGroupList` | 查询目录和分组 | 只读关联 `catalog_entry` / P7 projection。 |
-| `/restapi/queryObjectFourRate`、`/restapi/getDataObjectionProcessList`、`/restapi/dataContent/*` | 四方速率、流程、内容质量异议开放接口 | P6 指标 projection、`objection_process` 读模型、`quality` 类异议能力。 |
+| `/restapi/queryObjectFourRate`、`/restapi/getDataObjectionProcessList`、`/restapi/dataContent/*` | 四方速率、流程、内容质量异议开放接口 | B1.1 指标 projection、`objection_process` 读模型、`quality` 类异议能力。 |
 
 ### 2.3 旧表证据
 
@@ -175,11 +175,11 @@
 | `objection.case.escalate` | 写 | `write-trace` | 生成督办事件，通知由 adapter 处理。 |
 | `objection.case.query` | 读 | `read-trace` | 查询异议列表和详情。 |
 | `objection.process.query` | 读 | `read-trace` | 查询处理过程。 |
-| `objection.metric.query` | 读 | `read-trace` | 查询四方速率、超期率、解决率、满意度等 P6 指标。 |
+| `objection.metric.query` | 读 | `read-trace` | 查询四方速率、超期率、解决率、满意度等 B1.1 指标。 |
 
 消费面：
 
-- WebUI：P5 提供方管理、P6 合规运营、P7 共享专区详情中的异议入口。
+- WebUI：P5 提供方管理、B1.1 合规与运营、P7 共享专区详情中的异议入口。
 - REST：外部系统提交内容质量异议、查询过程和指标。
 - CLI：运维 / 迁移回放查询、督办重放。
 - MCP：Agent 查询异议证据、生成追责摘要。
@@ -215,7 +215,7 @@
 | 提供方待核查列表 | `provider_investigating` + provider org | P5 提供方管理。 |
 | 异议过程时间线 | `objection_process` + `audit_event` | 详情页、MCP 摘要、外部查询。 |
 | 四方速率 | `objection_process` 时间差 | 替代旧 `/restapi/queryObjectFourRate`。 |
-| 超期预警 | 状态停留时间 + SLA 规则 | P6 合规运营和通知 adapter。 |
+| 超期预警 | 状态停留时间 + SLA 规则 | B1.1 合规运营和通知 adapter。 |
 | 解决率 / 满意度 | `objection_evaluation.solved_flag` + score | 质量和合规看板。 |
 | 高频异议对象 | `target_type` / `target_id` 聚合 | 反哺目录质量、资源可靠性和服务契约治理。 |
 

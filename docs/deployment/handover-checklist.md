@@ -1,10 +1,6 @@
 # zw-brain 客户现场移交 checklist
 
-> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
-> - 角色权威源：`docs/approved/zw-brain-roles.md`
-> - 信息架构权威源：`docs/approved/zw-brain-architecture.md`
-> - 评审决策记录：`docs/approved/zw-brain-architecture.md`
-> - 原版 R 编号见 git blame。
+> 角色权威源：[`docs/approved/zw-brain-roles.md`](../approved/zw-brain-roles.md) | 架构基线：[`docs/approved/zw-brain-architecture.md`](../approved/zw-brain-architecture.md)
 
 > 📍 **你在哪一份 zw-brain 文档？**
 > | 你是谁 | 看哪份 |
@@ -43,8 +39,8 @@
 
 | # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
 | --- | --- | --- | --- | --- |
-| 6 | schema 初始化成功（v4.1 R15：不用 alembic） | `.venv/bin/python -c "from zw_brain.shared.migrate import ensure_runtime_schema; ensure_runtime_schema()"` | 不报错 | schema 不全 → 业务读写报"no such table"，整库不可用 |
-| 7 | canonical schema 可写 | （与第 6 项合并；v4.1 R15 后 alembic 已删除） | 不报错 | 同上 |
+| 6 | schema 初始化成功（用 SQLAlchemy `create_all`，不用 alembic） | `.venv/bin/python -c "from zw_brain.shared.migrate import ensure_runtime_schema; ensure_runtime_schema()"` | 不报错 | schema 不全 → 业务读写报"no such table"，整库不可用 |
+| 7 | canonical schema 可写 | （与第 6 项合并） | 不报错 | 同上 |
 | 8 | 默认租户 sd-default 生效 | `python -c "from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT; print(DEFAULT_TENANT)"` | `sd-default` | 租户错配 → 数据写到错误 tenant，跨租户隔离失效 |
 
 ## 三、配置 / 密钥（5 项）
@@ -63,7 +59,7 @@
 | --- | --- | --- | --- | --- |
 | 14 | preflight 全段通过 | `bash scripts/preflight.sh 2>&1 \| tail -3` | `=== preflight: PASS (common + project stages) ===` | 机械规约层断 → 任何 PR 不能 merge，hotfix 链路瘫痪 |
 
-子段包括：branch naming / dev-rules 同步 / agent contract drift / user-story alignment / approved-doc invariants / doc stats sync / audit-must-block (D4) / blockchain-async (D4) / fixture-pii (D11) / no-direct-llm (D6) / external-refs (D22) / ui-spec-b (Spec B 单主题) / legacy-mappers (D7+D4) — v4.1 R17 反转后 dashboard-readonly 段 11 已删除，共 15 段。
+子段包括：branch naming / dev-rules 同步 / agent contract drift / user-story alignment / approved-doc invariants / doc stats sync / audit-must-block (D4) / blockchain-async (D4) / fixture-pii (D11) / no-direct-llm (D6) / external-refs (D22) / ui-spec-b (Spec B 单主题) / legacy-mappers (D7+D4)。
 
 ## 五、客户现场一键导出（4 项）
 
@@ -91,13 +87,13 @@
 | # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
 | --- | --- | --- | --- | --- |
 | 24 | M0 验收 status query | pytest test_01 | pass | M0 验收契约断 → 客户无法证明迁移完成 |
-| 25 | 申请人 需求登记 | pytest test_02 | pass | 申请人 主旅程断 → 业务专班无法在生产里发起复用申请 |
+| 25 | ROLE_ORGAN_OPERATER 需求登记 | pytest test_02 | pass | ROLE_ORGAN_OPERATER 主旅程断 → 业务专班无法在生产里发起复用申请 |
 | 26 | 提供方部门→业务运营员 反向编目闭环 | pytest test_03 | pass，lifecycle_status=pending_review | 提供方部门→业务运营员 反向编目断 → 新资源进不了目录候选池 |
 | 27 | 审批人 分级授权审批 | pytest test_04 | pass | 审批人 审批断 → 申请进了系统但永远 pending，无法授权交付 |
 | 28 | 提供方部门 检测规则 + 任务 | pytest test_05 | pass | 检测规则断 → 字段质量问题无法被发现 |
-| 29 | 镇街填报人 接派发任务 | pytest test_06 | pass | 镇街填报人 派单断 → 镇街拿不到预填任务，基层补录走不通 |
-| 30 | 村社区填报人 异常回传 | pytest test_07 | pass | 村社区填报人 异常回传断 → 末端异常无路径回流，数据治理断头 |
-| 31 | 审核汇总人 异议四子流程 | pytest test_08 | pass，evaluate 成功 | 审核汇总人 异议断 → 申请方与提供方分歧无仲裁路径 |
+| 29 | ROLE_ORGAN_OPERATER 接派发任务（基层补差场景） | pytest test_06 | pass | 基层补差派单断 → 基层归口部门拿不到预填任务，基层补录走不通 |
+| 30 | ROLE_ORGAN_OPERATER 异常回传（村社区基层场景） | pytest test_07 | pass | 末端异常回传断 → 末端异常无路径回流，数据治理断头 |
+| 31 | ROLE_BUSIAUDIT 异议四子流程 | pytest test_08 | pass，evaluate 成功 | ROLE_BUSIAUDIT 异议断 → 申请方与提供方分歧无仲裁路径 |
 | 32 | 安全审计员 审计 + 直达督查 | pytest test_09 | pass | 安全审计员 督查断 → 合规问题无法独立核查，巡检失效 |
 | 33 | audit 链覆盖 12 个核心 skill | pytest test_10 | pass，no missing | 审计漏写 skill → 部分操作不可回放，合规盲区 |
 
@@ -107,12 +103,12 @@
 
 | # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
 | --- | --- | --- | --- | --- |
-| 34 | 申请人 P1 工作台显示 API 凭据卡 + 需求登记 | 切角色 ROLE_ORGAN_OPERATER，进 `#/p1-workbench` | 底部出现"我的 API 凭据"和"需求登记前置"两栏 | 申请人 工作台缺关键卡 → 业务专班看不到自己的凭据和入口 |
+| 34 | ROLE_ORGAN_OPERATER P1 工作台显示 API 凭据卡 + 需求登记 | 切角色 ROLE_ORGAN_OPERATER，进 `#/p1-workbench` | 底部出现"我的 API 凭据"和"需求登记前置"两栏 | 工作台缺关键卡 → 业务专班看不到自己的凭据和入口 |
 | 35 | 审批人 P3 reviewDetail 有分级授权策略 form | 切 ROLE_ORGAN_MANAGER，进 `#/p3-request-flow/review/REQ-2026-04-25-0011` | 看到 5 字段策略表（档位/脱敏/频次/有效期/级联） | 审批人 审批表单缺字段 → 无法设置授权边界，审批失效 |
 | 36 | 提供方部门 P5 4 张工作流卡 + 反向编目向导可点 | 切 ROLE_ORGAN_MANAGER，进 `#/p5-provider` | 看到 4 张 提供方部门 工作流卡；点反向编目能进 `#/p5-provider/wizard/reverse-catalog` | 提供方部门 工作面缺 → 提供方无法发起反向编目，新资源进不了目录 |
 | 37 | 业务运营员 P5 3 张收件箱 + 字段口径裁决可点 | 切 ROLE_BUSIAUDIT，进 `#/p5-provider` | 看到 3 张 业务运营员 卡（标题含 "N 条待我裁决"） | 业务运营员 收件箱缺 → 目录管理员看不到待裁决项，目录运营停摆 |
-| 38 | 安全审计员 P6 绕行督查 panel | 切 ROLE_SECURITY_AUDIT，进 `#/p6-compliance-ops` | 底部出现 安全审计员 直达交付清单 + 异议绕行可疑 | 安全审计员 督查面缺 → 合规绕行无法被发现，督查抓瞎 |
-| 39 | 基层填报人 P3 任务过滤 + 异常回传 | 切 ROLE_ORGAN_OPERATER，进 `#/p3-request-flow` | 列表只剩 supplementing/need-fix 状态；右上角有"异常回传"链接 | 基层填报人 任务过滤错乱 → 镇街看不清自己该做哪些，基层补录混乱 |
+| 38 | ROLE_SECURITY_AUDIT B1.1 绕行督查 panel | 切 ROLE_SECURITY_AUDIT，进 `#/p6-compliance-ops`（B1.1 后台支撑面 literal 路由） | 底部出现 安全审计员 直达交付清单 + 异议绕行可疑 | B1.1 督查面缺 → 合规绕行无法被发现，督查抓瞎 |
+| 39 | ROLE_ORGAN_OPERATER P3 任务过滤 + 异常回传（基层场景） | 切 ROLE_ORGAN_OPERATER，进 `#/p3-request-flow` | 列表只剩 supplementing/need-fix 状态；右上角有"异常回传"链接 | 基层任务过滤错乱 → 基层归口部门看不清自己该做哪些，基层补录混乱 |
 
 ## 九、审计 + 合规收口（2 项）
 

@@ -1,10 +1,6 @@
 # dsp-catalog3 / dsp-metadata3 相关模块重构方案 v1
 
-> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
-> - 角色权威源：`docs/approved/zw-brain-roles.md`
-> - 信息架构权威源：`docs/approved/zw-brain-architecture.md`
-> - 评审决策记录：`docs/approved/zw-brain-architecture.md`
-> - 原版 R 编号见 git blame。
+> 角色权威源：[`docs/approved/zw-brain-roles.md`](../approved/zw-brain-roles.md) | 架构基线：[`docs/approved/zw-brain-architecture.md`](../approved/zw-brain-architecture.md)
 
 > 范围：旧平台 `old/old_codes/dsp-catalog3`（目标版本 3.12.15）、`old/old_codes/dsp-metadata3`（目标版本 3.9.15）、外部调用分析 `old/old_codes_analyse/dsp-catalog3-apis.md` / `old/old_codes_analyse/dsp-metadata3-apis.md`、旧结构数据 `old/12-datastructure` 与脱敏工单数据 `old/工单导出-列缩减.xlsx`。
 > 结论：zw-brain 是全新 AI 原生项目，不兼容旧接口、旧菜单、旧库表，也不把 catalog3 / metadata3 原样迁成两个新子系统；本方案只吸收目录、元数据、资源、申请、授权、发布、质量、血缘等承重业务语义，重建为围绕主旅程、统一 Capability、可审计、可外化扩展的能力面。
@@ -52,8 +48,8 @@ catalog3 与 metadata3 在旧平台中表面上是两个仓库，但在业务事
 | `docs/approved/zw-brain-architecture.md` | 产品围绕少数高频旅程；人和 Agent 共用同一 Capability；长尾新增能力默认外部生产、平台注册；合规可证迹内建。 |
 | `docs/approved/zw-brain-data-model.md` | 模型围绕旅程与审计组织，不围绕 legacy 表名组织；legacy schema 只作为 adapter 输入；目录、申请、交付等强状态领域必须保留显式状态机。 |
 | `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` | 目录 / 元数据涉及的组织、角色、权限裁决和租户策略只消费 zw-brain Governance 与 Capability policy，不复刻旧 IAM / 菜单 / 权限后台。 |
-| `docs/approved/zw-brain-architecture.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）` | 首条黄金链路要把上级需求、资源/模板复用、基层补差、审核汇总和回流共享资源池打通。 |
-| `docs/approved/zw-brain-roles.md (取代于 D23)` | 用户不是抽象管理员，而是要数的人、管数的人、填数的人、审数的人、查责的人；目录/元数据能力必须服务这些岗位。 |
+| `docs/approved/zw-brain-architecture.md` | 首条黄金链路 = J1 找数→用数（检索 → 申请草稿 → 提交审批 → 凭据领取 → 调用样例 → 调用监控），目录/元数据是该链路的资源发现入口。 |
+| `docs/approved/zw-brain-roles.md` | 用户不是抽象管理员，而是要数的人、管数的人、填数的人、审数的人、查责的人；目录/元数据能力必须服务这些岗位。 |
 | `docs/approved/zw-brain-architecture.md` (§3.4 集团数据治理中心) | 标准样本和历史实现只能作为证据层；正式标准资产进入 `CatalogModel`、`catalog_model_field` 和 Registry，不重建标准平台。 |
 
 ### 2.2 外部使用证据
@@ -62,7 +58,7 @@ catalog3 与 metadata3 在旧平台中表面上是两个仓库，但在业务事
 
 | 旧能力 / 接口簇 | 调用特征 | 新系统解释 |
 | --- | ---: | --- |
-| `/restapi/getDeptTotalCataNumAndResourceNum` | 21,198 | 部门目录/资源统计是 P6 / Dashboard 运营投影，不是新事实源。 |
+| `/restapi/getDeptTotalCataNumAndResourceNum` | 21,198 | 部门目录/资源统计是 B1.1 运营投影，不是新事实源。 |
 | `/dsp/catalog/register/getCatalog` | 13,432 | 目录详情与编辑是 `catalog_entry` / `catalog_entry_version` 的强状态能力。 |
 | `/api/model/catalog-template-info` | 13,051 | 目录模板是 `CatalogModel`，支撑标准业务表和基层预填。 |
 | `/restapi/dict/getDictInfo` | 9,192 | 字典是标准/字段口径证据，不应散落在页面逻辑。 |
@@ -83,7 +79,7 @@ catalog3 与 metadata3 在旧平台中表面上是两个仓库，但在业务事
 | `/review/list` | 2,021 | 资源审核进入统一 `approval_case`。 |
 | `/table/queryTableList` | 1,277 | 数据表候选清单是元数据 adapter 读面。 |
 | `/database/query` | 1,028 | 数据源查询是外部数据源投影，不做数据库管理后台。 |
-| 资源统计 `/resource/statistic/*` | 800+ | 进入 P6 运营投影。 |
+| 资源统计 `/resource/statistic/*` | 800+ | 进入 B1.1 运营投影。 |
 | `/catalog/list`、`/catalog/queryItemList` | 683 / 408 | 证明 metadata3 反向依赖目录信息项。 |
 | `/metadata/gather/list` | 428 | 采集任务事实进入证据和执行器，不进入普通主导航。 |
 
@@ -107,7 +103,7 @@ catalog3 与 metadata3 在旧平台中表面上是两个仓库，但在业务事
 | `dsp_metaresource.xml` | `rc_catalog_materialize` | 目录物化证明 catalog 与 metadata 共享同一资源交付链；物化执行外化，核心只保存映射、版本和回执。 |
 | `dsp_metaresource.xml` | `db_database_node`、`database_manage_history` | 数据源、前置库、建表执行和数据库操作日志是外部执行器证据；内部地址、端口、连接路径不得明文进入 canonical model。 |
 | `dsp_metaresource.xml` | `meta_log` | 元数据操作日志进入 `audit_event` 或迁移证据。 |
-| `old/12-datastructure/dsp_monitor.xml` | `matter_manage`、`matter_handle`、`warning_work_order_rules` 等工单/告警语义 | 告警与工单只作为 P6 运营投影和外部诊断 Capability 输入，不复制监控工单系统。 |
+| `old/12-datastructure/dsp_monitor.xml` | `matter_manage`、`matter_handle`、`warning_work_order_rules` 等工单/告警语义 | 告警与工单只作为 B1.1 运营投影和外部诊断 Capability 输入，不复制监控工单系统。 |
 | `old/12-datastructure/dsp_connect.xml` | 上级目录 ID、对接目录等同步语义 | 级联 / 上下级对接进入 adapter 与外部通道，不改变 canonical 主事实源。 |
 
 ## 三、真实工单事实
@@ -137,7 +133,7 @@ catalog3 与 metadata3 在旧平台中表面上是两个仓库，但在业务事
 
 | 工单问题模式 | 旧平台表现 | zw-brain 处理 |
 | --- | --- | --- |
-| 目录发布后门户不显示 | 目录系统已发布，门户或共享站点没有同步展示 | 目录发布写 `catalog_entry_version` + `audit_receipt`；搜索/门户投影异步生成并带 `projection_status`，P6 可解释卡在哪一步。 |
+| 目录发布后门户不显示 | 目录系统已发布，门户或共享站点没有同步展示 | 目录发布写 `catalog_entry_version` + `audit_receipt`；搜索/门户投影异步生成并带 `projection_status`，B1.1 可解释卡在哪一步。 |
 | 目录 / 资源统计异常 | 部门调整、区划变更、门户统计与资源系统不一致 | 统计只作为可重算 projection；组织/区划保存快照和来源，不反向改业务事实。 |
 | 资源申请授权缺失 | 用户申请后在授权系统看不到记录，或频次变更缺少审批接口 | 申请、审批、授权、续期统一进入 `application_record`、`approval_case`、`delivery_task.access_grant_snapshot`。 |
 | 目录字段新增与门户筛选 | 客户要求目录列表新增回流、筛选字段 | 字段进入 `catalog_model_field` / `catalog_item` 扩展口径；展示配置是投影，不为每个客户 fork 后端。 |
@@ -301,7 +297,7 @@ approved 数据模型已有 `catalog_entry`、`catalog_item`、`resource_asset`�
 
 #### 6.2.2 `metadata_gather_evidence_projection`
 
-用途：承接采集任务、采集日志和字段快照，让 P5 / P6 能解释“这个资源 schema 从哪里来、何时采集、是否可信”。
+用途：承接采集任务、采集日志和字段快照，让 P5 / B1.1 能解释"这个资源 schema 从哪里来、何时采集、是否可信"。
 
 | 字段 | 说明 |
 | --- | --- |
@@ -320,7 +316,7 @@ approved 数据模型已有 `catalog_entry`、`catalog_item`、`resource_asset`�
 
 #### 6.2.3 `lineage_relation_projection`
 
-用途：承接表级、字段级、图谱关系查询，服务 P5 资源治理和 P6 审计解释。
+用途：承接表级、字段级、图谱关系查询，服务 P5 资源治理和 B1.1 审计解释。
 
 | 字段 | 说明 |
 | --- | --- |
@@ -392,7 +388,7 @@ approved 数据模型已有 `catalog_entry`、`catalog_item`、`resource_asset`�
 | `metadata.schema.query` | schema projection | `/table/queryColumnList`、`meta_baseinfo` | `read-trace` | 查询表字段、中文注释、敏感级别。 |
 | `metadata.catalog_item.query` | schema / mapping projection | metadata `/catalog/queryItemList`、`rc_resource_catalog_item_link` | `read-trace` | metadata3 对目录项的反向依赖只作为绑定证据。 |
 | `metadata.lineage.query` | lineage projection | `meta_relation`、graphdb、`/metadata/relation/*` | `read-trace` | 查询血缘和影响分析。 |
-| `ops.catalog.statistics.query` | P6 projection | catalog 统计 REST API | `read-trace` | 目录、资源、部门、区划统计。 |
+| `ops.catalog.statistics.query` | B1.1 projection | catalog 统计 REST API | `read-trace` | 目录、资源、部门、区划统计。 |
 | `ops.catalog.quality.query` | quality projection | `catalog_quality_task_result` | `read-trace` | 质量结果查询与解释。 |
 
 ### 7.2 可通过 ANP / 外部 Capability 外化的能力
@@ -478,7 +474,7 @@ approved 数据模型已有 `catalog_entry`、`catalog_item`、`resource_asset`�
 | `dsp_metadata_mapping` | `rc_resource_catalog_item_link` | `resource_schema_mapping` |
 | `dsp_metadata_lineage` | `meta_relation*`、graphdb 表 | `lineage_relation_projection`、`lineage_column_projection` |
 | `dsp_metadata_gather` | `meta_gather_task*`、job 日志 | 采集 evidence + 外部执行器任务引用 |
-| `work_order_pattern` | 脱敏工单主题、故障模式、处理摘要 | P6 运营问题模式 projection（可选） |
+| `work_order_pattern` | 脱敏工单主题、故障模式、处理摘要 | B1.1 运营问题模式 projection（可选） |
 
 ### 9.2 输出纪律
 
@@ -499,7 +495,7 @@ approved 数据模型已有 `catalog_entry`、`catalog_item`、`resource_asset`�
 - 生成 `catalog_entry`、`catalog_item`、`resource_asset`、`resource_channel_binding` 草案与 `legacy_object_mapping`。
 - 建立 `resource_schema_mapping` 草案，专门承接目录项-表字段绑定。
 - 建立目录/资源统计 projection，对齐旧高频统计接口语义。
-- P6 能解释目录发布、门户投影、资源挂接、字段缺失问题卡在哪一步。
+- B1.1 能解释目录发布、门户投影、资源挂接、字段缺失问题卡在哪一步。
 
 ### Wave 1：目录发布与资源申请主旅程
 
@@ -541,7 +537,7 @@ approved 数据模型已有 `catalog_entry`、`catalog_item`、`resource_asset`�
 7. 旧 URL 不作为兼容契约；新契约以 Capability slug 与统一 contract 为准。
 8. ANP / 外部 Capability 必须声明输入输出 contract、审计等级、租户策略和失败回写方式。
 9. 外化能力不得绕过核心状态机、审计总线和策略裁决。
-10. 如果某项能力不能服务 J1-J4 / S1 / S2，也不能解释真实工单中的高频问题，默认不进核心模型。
+10. 如果某项能力不能服务 J1 / J2 / B1，也不能解释真实工单中的高频问题，默认不进核心模型。
 
 ## 十二、源码与事实证据索引
 

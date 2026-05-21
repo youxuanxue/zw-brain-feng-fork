@@ -1,10 +1,6 @@
 # dsp-require / dsp-supply / dsp-exchange 相关模块重构方案 v1
 
-> **2026-05-19 retrofit (D23-D29)**：本文 7 角色 角色矩阵已退役。
-> - 角色权威源：`docs/approved/zw-brain-roles.md`
-> - 信息架构权威源：`docs/approved/zw-brain-architecture.md`
-> - 评审决策记录：`docs/approved/zw-brain-architecture.md`
-> - 原版 R 编号见 git blame。
+> 角色权威源：[`docs/approved/zw-brain-roles.md`](../approved/zw-brain-roles.md) | 架构基线：[`docs/approved/zw-brain-architecture.md`](../approved/zw-brain-architecture.md)
 
 > 范围：旧平台 `old/old_codes/dsp-require`（目标版本 `v4.2.13`）、`old/old_codes/dsp-supply`（目标版本 `v4.9.13`）、`old/old_codes/dsp-exchange`（目标 tag `4.3.23`）、外部调用分析 `old/old_codes_analyse/dsp-exchange-apis.md`、旧结构数据 `old/12-datastructure` 与脱敏工单数据 `old/工单导出-列缩减.xlsx`。
 > 结论：zw-brain 是全新 AI 原生项目，不兼容旧接口、旧菜单、旧库表，也不把 require / supply / exchange 原样迁成三个新子系统；本方案只吸收需求形成、申请审批、授权续期、交换交付、订阅直达、运行回执等承重业务语义，重建为围绕主旅程、统一 Capability、可审计、可外化扩展的能力面。
@@ -64,8 +60,8 @@ zw-brain 不继承这些模块名，也不复刻它们的页面层级。它们�
 | --- | --- |
 | `docs/approved/zw-brain-architecture.md` | 产品围绕少数高频旅程；人和 Agent 共用同一 Capability；新增能力默认外部生产、平台注册；合规可证迹内建。 |
 | `docs/approved/zw-brain-data-model.md` | 模型围绕旅程与审计组织，不围绕 legacy 表名组织；申请、审批、交付、订阅必须保留显式状态机。 |
-| `docs/approved/zw-brain-architecture.md（GATE-1.1 retrofit 评审主文档 — 旧 golden-path 文档已退役）` | 首条黄金链路要把上级需求、资源/模板复用、基层补差、审核汇总和回流共享资源池打通。 |
-| `docs/approved/zw-brain-roles.md (取代于 D23)` | 用户不是抽象管理员，而是要数的人、管数的人、填数的人、审数的人、查责的人；供需和交换能力必须服务这些岗位。 |
+| `docs/approved/zw-brain-architecture.md` | 首条黄金链路 = J1 找数→用数（检索 → 申请草稿 → 提交审批 → 凭据领取 → 调用样例 → 调用监控），需求/申请/交换是该链路的核心承重段。 |
+| `docs/approved/zw-brain-roles.md` | 用户不是抽象管理员，而是要数的人、管数的人、填数的人、审数的人、查责的人；供需和交换能力必须服务这些岗位。 |
 | `docs/approved/research-yibiaotong.md` | zw-brain 必须承接上级交换和基层填报链路；供需/交换不是孤立后台，而是上下级协同和直达交付的中枢。 |
 
 ### 2.2 外部使用证据
@@ -74,7 +70,7 @@ zw-brain 不继承这些模块名，也不复刻它们的页面层级。它们�
 
 | 旧能力 / 接口簇 | 调用特征 | 新系统解释 |
 | --- | ---: | --- |
-| `/restapi/countRequiresNumber` | 519,627 | 需求数量统计是 P1 / P6 的运营投影，不是新事实源。 |
+| `/restapi/countRequiresNumber` | 519,627 | 需求数量统计是 P1 / B1.1 的运营投影，不是新事实源。 |
 | `/dsp/require/task/querytasks` | 937 | 需求任务是申请/需求处理轨迹，进入 `application_record`、`approval_case` 与待办投影。 |
 | `/dsp/require/common/queryRequireByPage` | 225 | 需求列表应围绕用户“要什么、谁处理、是否响应”组织。 |
 | `/dsp/require/inventory/requireApprove` | 91 | 需求审核必须进入统一审批状态机和审计链。 |
@@ -97,7 +93,7 @@ zw-brain 不继承这些模块名，也不复刻它们的页面层级。它们�
 
 | 旧能力 / 接口簇 | 调用特征 | 新系统解释 |
 | --- | ---: | --- |
-| `/cloud/wbService/visual/resourceStatisticsInfo` | 120,174 | 交换可视化和资源统计是 P6 / Dashboard 投影，不是交换事实源。 |
+| `/cloud/wbService/visual/resourceStatisticsInfo` | 120,174 | 交换可视化和资源统计是 B1.1 投影，不是交换事实源。 |
 | `/dsp/exchange/custom/getCustomJobList` | 10,185 | 交换任务列表进入 `delivery_task` / `delivery_subscription` 的读模型。 |
 | `/dsp/exchange/custom/getNifiJobHistory` | 4,039 | NiFi 历史是外部执行器 evidence，不能反向驱动业务状态。 |
 | `/dsp/exchange/custom/getAllPipelines` | 1,862 | 管道是外部执行器配置引用，不在核心模型里复造调度平台。 |
@@ -120,7 +116,7 @@ zw-brain 不继承这些模块名，也不复刻它们的页面层级。它们�
 | `data_require_resource` | 数据需求关联资源 | 连接需求、资源、目录和后续交付任务的 evidence。 |
 | `data_require_approve` / `data_original_require_approve` | 需求审核意见、驳回原因、处理人 | `approval_case`、`approval_step`、`approval_decision`。 |
 | `data_task` / `data_subtask` / `data_task_process` | 主任务、子任务、会议/处理过程 | 待办投影、审批过程和协同证据；不复造任务管理系统。 |
-| `data_require_review` | 需求方、平台方、提供方评价 | 交付后评价 evidence；可进入 P6 满意度投影，不推进核心状态。 |
+| `data_require_review` | 需求方、平台方、提供方评价 | 交付后评价 evidence；可进入 B1.1 满意度投影，不推进核心状态。 |
 | `data_*_statistics` | 组织、资源、需求统计 | 可重算运营投影。 |
 | `data_message` | 系统消息和告警 | `delivery_notice_projection` 或外部通知，不作为业务事实源。 |
 
@@ -135,7 +131,7 @@ zw-brain 不继承这些模块名，也不复刻它们的页面层级。它们�
 | `dsp_metaresource.xml` | `rc_resource`、`rc_resource_table`、`rc_resource_catalog_item_link` | 资源、库表和目录信息项挂接进入 `resource_asset`、`resource_channel_binding` 与 schema evidence。 |
 | `dsp_metaresource.xml` | `db_meta_database`、`db_meta_table`、`db_meta_column`、`database_manage_history` | 数据源、库表、建表、字段结构是外部执行器证据；内部地址、端口、连接路径不得明文进入 canonical model。 |
 | `dsp_service.xml` | `api_service_app`、`api_service_proxy`、`api_service_times` | API 授权、路由、频控和统计分别进入授权快照、通道策略与运营投影。 |
-| `dsp_monitor.xml` | `matter_handle`、`warning_work_order_rules`、拨测和告警结果 | 告警与工单只作为 P6 运营投影和外部诊断 Capability 输入，不复制监控工单系统。 |
+| `dsp_monitor.xml` | `matter_handle`、`warning_work_order_rules`、拨测和告警结果 | 告警与工单只作为 B1.1 运营投影和外部诊断 Capability 输入，不复制监控工单系统。 |
 | `dsp_block.xml` | 申请、目录、资源、调用日志上链表 | 上链仍按 `anchor_outbox` + `audit_receipt` 处理；外链结果不反向驱动业务状态。 |
 
 ### 3.3 `dsp_connect.xml`
@@ -145,7 +141,7 @@ zw-brain 不继承这些模块名，也不复刻它们的页面层级。它们�
 | 旧表 | 承重语义 | 新系统解释 |
 | --- | --- | --- |
 | `dc_catalog` / `dc_catalog_item` | 上级目录与信息项 | 上级目录 adapter evidence；canonical 仍是 `catalog_entry` / `catalog_item`。 |
-| `dc_require` / `dc_require_column` / `dc_require_resource` | 下发的需求、供需信息项、供需关联资源/目录 | 上级需求进入 `application_record`，关联资源进入申请/交付 evidence。 |
+| `dc_require` / `dc_require_column` / `dc_require_resource` | 下发的需求、供需信息项、供需关联资源/目录 | 跨级数据需求进入 `application_record`，关联资源进入申请/交付 evidence。 |
 | `dc_resource_apply_info` / `dc_resource_apply_info_province` | 资源申请、省级资源申请 | `application_record` 与申请来源 evidence。 |
 | `dc_resource_apply_audit` / `dc_resource_apply_audit_province` / `dc_resource_apply_accept_audit` | 审核、受理审核 | `approval_case`、`approval_step`、`approval_decision`。 |
 | `dc_subscribe` / `dc_subscribe_table` / `dc_subscribe_folder` | 资源订阅、库表订阅、文件夹订阅 | `delivery_subscription`。 |
@@ -161,7 +157,7 @@ zw-brain 不继承这些模块名，也不复刻它们的页面层级。它们�
 | `meta_host` / `meta_datasource` / `meta_table` / `meta_table_column` | 主机、数据源、库表、字段 | 外部数据源投影和 schema evidence；敏感连接信息不得落 canonical 明文。 |
 | `resource_applied` / `resource_status` | 交换侧资源申请与状态 | 旧交换侧申请只作为 `application_record` / `delivery_task` 的 legacy evidence。 |
 | `subscribe_job` / `subscribe_detail*` / `subscribe_trans` | 订阅任务、订阅明细、订阅转换 | `delivery_subscription` + `delivery_attempt`；来源为 `dsp-exchange` 实体与 Kingbase SQL。 |
-| `nifi_job_history` / `nifi_job_alarm_info` / `job_warning_info` | 执行历史和告警 | 执行器 evidence 与 P6 投影，不推进业务状态。 |
+| `nifi_job_history` / `nifi_job_alarm_info` / `job_warning_info` | 执行历史和告警 | 执行器 evidence 与 B1.1 投影，不推进业务状态。 |
 | `components_install*` / `exchange_executor*` | 组件安装、执行器步骤 | ANP 外部执行器能力，不进入主产品事实源。 |
 | `stats_exchange` / `stats_resource` / `exchange_table_statisc` | 交换统计 | 可重算运营投影。 |
 | `resource_file_download_log` | 文件下载使用日志 | 下载回执或审计事件输入，按敏感级别脱敏保存。 |
@@ -198,9 +194,9 @@ zw-brain 不继承这些模块名，也不复刻它们的页面层级。它们�
 | “申请审核系统中的受理环节需拆分为两步流程” | 受理、审核、授权是否是可配置且可审计的责任步骤？ | `approval_step` / `approval_decision`，通过 Capability 推进，不按页面硬编码。 |
 | “一体化平台，申请省里面的资源，无法选择使用部门” | 上级资源申请时，申请方组织和使用部门是否有清晰快照与路由？ | `application_record.applicant_org_snapshot`、`approval_case.routing_snapshot`。 |
 | “数据交换系统交换数据问题排查” | 交换失败时能否定位是授权、计划、执行器、源库、目标库还是字段映射问题？ | `delivery_task`、`delivery_attempt`、`delivery_receipt`、执行器 evidence。 |
-| “某个数据服务接口调用失败” | 服务调用失败是资源契约问题、授权问题、网关问题还是调用方问题？ | dataservice 专题模型 + P6 调用统计投影 + 审计事件。 |
+| "某个数据服务接口调用失败" | 服务调用失败是资源契约问题、授权问题、网关问题还是调用方问题？ | dataservice 专题模型 + B1.1 调用统计投影 + 审计事件。 |
 | “共享交换系统，新工作台整合数据直达工作台页面” | 用户应看到一个交付/直达工作台，而不是 supply 和 exchange 两个后台。 | P4 交付/交换/直达围绕 `delivery_task` 与 `delivery_subscription` 组织。 |
-| “门户首页目录和资源统计异常” | 统计口径是否可重算、可解释、可回指事实源？ | P6 / Dashboard read model，不把统计表作为业务事实源。 |
+| "门户首页目录和资源统计异常" | 统计口径是否可重算、可解释、可回指事实源？ | B1.1 read model，不把统计表作为业务事实源。 |
 | “资源系统注册 mysql 数据源报错” | 数据源注册和连通性是否会污染核心业务模型？ | ANP 外部执行器，核心只保存脱敏引用、审批和回执。 |
 | “关于接口代理服务挂载方法” | 低频配置咨询是否应成为主导航能力？ | 外化为接入指南或 ANP 能力包，不进入普通用户主旅程。 |
 
@@ -215,7 +211,7 @@ zw-brain 不继承这些模块名，也不复刻它们的页面层级。它们�
 | 资源申请、服务申请、场景申请 | `application_record` | 统一申请状态机。 |
 | 申请附件、申请 PDF、补件材料 | `application_attachment` / `blob_object` | 附件只存元数据和对象存储引用。 |
 | 授权、续期、频次变更、撤销授权 | `delivery_task.access_grant_snapshot`、`delivery_subscription`、`approval_case` | 授权是交付结果和持续关系，续期仍需审批。 |
-| 交换任务、订阅任务、直达任务 | `delivery_task`、`delivery_subscription` | 统一 J3 交付事实源。 |
+| 交换任务、订阅任务、直达任务 | `delivery_task`、`delivery_subscription` | 统一 J1 交付事实源。 |
 | 交换执行批次、调度历史、NiFi/Kettle 历史 | `delivery_attempt` + execution evidence | 执行细节只作为尝试和证据。 |
 | 交换回执、下载回执、授权生效回执 | `delivery_receipt` | 交付结果必须可回放。 |
 | 需求统计、申请统计、交换统计、资源统计 | `*_metric_projection` | 可重算 read model，不反向驱动业务状态。 |
@@ -267,7 +263,7 @@ approved 数据模型已有 `application_record`、`approval_case`、`delivery_t
 
 #### 5.2.3 `exchange_metric_projection`
 
-用途：支撑 P4 / P6 / Dashboard 查询交换运行、订阅、资源使用统计。
+用途：支撑 P4 / B1.1 查询交换运行、订阅、资源使用统计。
 
 建议字段：
 
@@ -383,7 +379,7 @@ approved 数据模型已有 `application_record`、`approval_case`、`delivery_t
 | NiFi / Kettle / Spring Batch 编排执行 | ANP 执行器 | 只能执行 `delivery.exchange.plan` 已批准的计划；结果回写 evidence / receipt。 |
 | 数据库连通性探测 | ANP 执行器 | 不保存连接串明文；只回写脱敏状态和错误分类。 |
 | 建库建表 / 结构调整 / 清表 | 高风险 ANP 执行器 | 必须由核心审批授权后执行；执行 SQL 和结果进入脱敏证据。 |
-| 主机、节点、组件安装 | 运维能力包 | 不进入普通 WebUI；只向 P6 暴露健康状态和风险摘要。 |
+| 主机、节点、组件安装 | 运维能力包 | 不进入普通 WebUI；只向 B1.1 暴露健康状态和风险摘要。 |
 | 告警通知、安全漏洞处置 | 外部安全/运维能力包 | 告警是证据和待办输入，不成为交付状态权威。 |
 | 客户专属统计报表 | 外部报表包 | 只能读 canonical 和投影，不允许写业务状态。 |
 | 旧接口兼容代理 | adapter 包 | 只作为过渡接入输入，不承诺 URL 兼容，不绕过 Capability。 |
@@ -420,7 +416,7 @@ approved 数据模型已有 `application_record`、`approval_case`、`delivery_t
 
 ### Wave 3：运营投影和排障解释
 
-目标：P4 / P6 / Dashboard 能解释交换量、失败原因、授权到期、订阅健康。
+目标：P4 / B1.1 能解释交换量、失败原因、授权到期、订阅健康。
 
 - 建立 `exchange_metric_projection`。
 - 摄取 `nifi_job_history`、`job_warning_info`、`resource_file_download_log` 的脱敏 evidence。

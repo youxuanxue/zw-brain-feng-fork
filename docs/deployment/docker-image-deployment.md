@@ -1,6 +1,4 @@
-# Docker 镜像文件部署手册（v4.1 已更新）
-
-> **v4.1 二轮再砍变更（2026-05-20）**：K12 大屏（Dashboard BFF）已退役（架构基线 R17）；alembic 已删除（R15）。本文中相关章节已移除或简化。
+# Docker 镜像文件部署手册
 
 本文说明如何从源码构建 `zw-brain` Docker 镜像、导出镜像文件，并在目标服务器通过镜像文件部署 REST WebUI/API。
 
@@ -19,8 +17,6 @@ docker build -t zw-brain:1.0.0 .
 - `zw-brain-mcp`：MCP 入口
 - `zw-brain-a2a`：A2A 入口
 - `zw-brain-migrate-legacy`：旧平台数据迁移入口
-
-（K12 dashboard-bff 已在 v4.1 R17 退役，不再作为入口提供）
 
 ## 2. 导出与导入镜像文件
 
@@ -89,11 +85,7 @@ WebUI 访问地址：
 http://<服务器IP>:8800/
 ```
 
-## 5. K12 大屏已退役（R17 / v4.1）
-
-原"独立 Dashboard BFF（8801 端口）"在 v4.1 二轮再砍中退役（架构基线 R17）。合规与运营进入 B1.1 后台支撑面，由 REST 主服务（8800 端口）统一服务。客户演示真有大屏诉求时，作为独立产品或外部能力包评估。
-
-## 6. 常用环境变量
+## 5. 常用环境变量
 
 | 变量 | 说明 | 默认值 |
 | --- | --- | --- |
@@ -117,7 +109,7 @@ REST WebUI 登录采用 IAM 授权码流程：前端未发现 `sessionStorage` t
 
 开发环境若无法连通 IAM 服务端，可临时设置 `ZW_BRAIN_DEV_IAM_BYPASS=1`：WebUI 不跳转 IAM，后端 `/api/snapshot` 与 `/api/skills/*` 不再强制 token-healthz，但仍执行 Skill manifest、角色、租户和人工确认等业务门禁。该变量只用于研发调试，生产部署清单不要设置；正式上线前应移除 `ZW_BRAIN_DEV_IAM_BYPASS` 及 `development_iam_bypass` / `dev-iam-bypass` / `developmentBypassEnabled` 相关临时代码。
 
-## 7. 旧平台数据迁移
+## 6. 旧平台数据迁移
 
 如果需要在部署后导入脱敏旧平台 dump，可将 dump 目录挂载到容器中运行迁移命令：
 
@@ -138,7 +130,7 @@ docker run --rm \
 
 如需清空并重建目标库，可在确认数据可丢弃后追加 `--reset-db`。
 
-## 8. 运维命令
+## 7. 运维命令
 
 查看日志：
 
@@ -160,7 +152,7 @@ docker rm zw-brain-rest
 
 升级镜像时，先导入新镜像，再停止并重建容器；保留 `/opt/zw-brain/data` 数据目录即可复用数据库。
 
-## 9. 构建后自检命令
+## 8. 构建后自检命令
 
 ```bash
 docker run --rm zw-brain:1.0.0 zw-brain-cli --help
