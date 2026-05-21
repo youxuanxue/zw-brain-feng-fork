@@ -190,7 +190,7 @@ zw-brain 的工作是：
 | `dsp_basesubject` | 81 | 基础主题库（与政务目录并行的独立编制系统） | **并行主线** |
 | `dsp_bsp` | 76 | IAM + 应用中心 + API 网关 + 用户/角色/权限/菜单 | 平台底座 |
 | `dsp_metaresource` | 59 | 元数据 + 数据血缘（graphdb_node / graphdb_relation 5 表） | 含外部治理范围 |
-| `dsp_connect` | 57 | 跨地市数据通道（dc_* 系列）+ 国家直达 | **省市间真实主线** |
+| `dsp_connect` | 57 | 跨地市数据通道（48 张 dc_* 前缀）+ 国家直达（9 张非 dc_*） | **省市间真实主线** |
 | `dsp_pipelines` | 50 | ETL 任务编排（batch_job / etl_meta） | 外部数据治理范围 |
 | `dsp_monitor` | 50 | 服务调用 / 失败分析 / 告警工单 / 巡检 / 拨测 / 知识库 | **运行监控独立体系** |
 | `dsp_require` | 29 | 申请审批 5 步流程（编制→校核→汇总→响应→反馈） | J1 主旅程核心 |
@@ -199,7 +199,7 @@ zw-brain 的工作是：
 | `dsp_app_center` | 15 | 应用注册 / 我的应用 | 平台底座 |
 | `dsp_example` | 11 | 示例数据集成 | 辅助 |
 | `dsp_pdf` | 10 | PDF 处理 | 辅助 |
-| `dsp_handling` | 10 | 异议 5 维度（authz / catalog / content / resource / use） | 强状态领域 |
+| `dsp_handling` | 10 | 异议 5 维度（authz / catalog / content / resource / use）+ 2 流程辅助表（evaluate / process）+ 1 主表 + 2 辅助（消息 / flyway） | 强状态领域 |
 | `dsp_block` | 10 | 数享链 / 数据存证 | 外部依赖 |
 | `dsp_message` | 9 | 消息中心 | 平台底座 |
 | `data_resource` | 7 | 资源主表 + 物化记录 + 治理任务 | J1/J2 共用 |
@@ -248,7 +248,7 @@ zw-brain 的工作是：
 | **共享类型** | `shared_type` 3 态（1 无条件 / 2 有条件 / 3 不予共享） | `dsp_catalog.xml:384-385` `data_catalog` | §9.2 `Catalog` 标 3 共享态 |
 | **资源物化** | 3 种物化形式：`data_resource_table`（表）/ `data_resource_file`（文件）/ `data_resource_api`（接口） | `dsp_catalog.xml`（`data_resource_*` 系列） | §9.2 `Resource` 标 3 物化形式 |
 | **申请审批** | 5 业务节点（编制 → 校核 → 汇总 → 响应 → 反馈）；XML `data_business.status` 实现为 0-6 共 7 态序列 | `dsp_require.xml:23-25` + 立项会议 | §9.2 `Application` 标 5 节点 |
-| **异议处理** | 5 维度独立状态机（authz / catalog / content / resource / use） | `dsp_handling.xml`：`data_objection_authz`（54）/ `_catalog`（74）/ `_content`（89）/ `_resource`（132）/ `_use`（155） | §9.2 `ObjectionCase` 标 5 维度 |
+| **异议处理** | 5 维度独立状态机（authz / catalog / content / resource / use）+ 2 张流程辅助表（evaluate / process） | `dsp_handling.xml`：`data_objection_authz`（54）/ `_catalog`（74）/ `_content`（89）/ `_resource`（132）/ `_use`（155）+ `_evaluate`（103）/ `_process`（120）= 7 张 | §9.2 `ObjectionCase` 标 5 维度 + 评价/过程流程链 |
 | **目录编制双轨** | 政务目录 vs 国家扩展要素目录（不同 status 机 + 不同审批路径，`data_ext_elem_catalog_compile_task` 独立流程） | `dsp_catalog.xml` | §9.2 `CatalogModel` 标双轨 |
 | **租户/区划** | 多级区划（省/市/区）+ 跨地市协作 | `dsp_bsp.xml` `pub_org` + `dsp_connect` dc_* | §9.2 `TenantOrg` 标多级 |
 
@@ -277,8 +277,8 @@ zw-brain 的工作是：
 | **集团运维监控平台** | `dsp_monitor` 50 张独立表 | **不复造，对接集团统一运维监控** | 旧平台 37 页运行监控密度极高；新平台 B1.1/B1.2 仅消费监控数据 |
 | **集团数据治理中心** | `dsp_pipelines` 50 + `dsp_perform` 16 + `dsp_metaresource` graphdb 5 = 71+ 表 | **不复造** | 71+ 表是真实规模 |
 | **集团数据安全中心** | `db_meta_database_permission` 等脱敏隐私表分散 | **不复造，仅 B1.2 后台提供策略入口** | 由集团数据安全中心承担 |
-| **数据存证 / 数享链** | 主体 `dsp_block` 10 张 + 跨地市 `dsp_connect` 57 张 dc_* 系列含存证 | **能力包外部化（adapter）；不在主仓 domain；外链 down 不阻塞业务** | 存证不止 dsp_block |
-| **省市间数据通道** | `dsp_connect` 57 张 dc_* + 国家直达 | **保持外部依赖；国家直达 + 跨地市统一为"省市间数据通道"adapter** | 运营层面延后立项 |
+| **数据存证 / 数享链** | 主体 `dsp_block` 10 张 + 跨地市 `dsp_connect` 48 张 dc_* 系列含存证 | **能力包外部化（adapter）；不在主仓 domain；外链 down 不阻塞业务** | 存证不止 dsp_block |
+| **省市间数据通道** | `dsp_connect` 57 张表（48 dc_* + 9 国家直达） | **保持外部依赖；国家直达 + 跨地市统一为"省市间数据通道"adapter** | 运营层面延后立项 |
 
 **注**：旧 BSP 内嵌的 API 网关子模块（`dsp_service` 27 表）+ 应用中心子模块（`dsp_app_center` 15 表）的本地业务治理由 zw-brain Governance 承担，IAM 由 IAF IAM 外部化；具体边界以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。
 
@@ -790,8 +790,8 @@ L5 Data / External
 | `Resource` | 可被发现与申请的数据资源；旧库 3 种物化形式：`data_resource_table`（表）/ `data_resource_file`（文件）/ `data_resource_api`（接口） | `dsp_catalog.xml`: `data_resource`, `data_resource_table`, `data_resource_file`, `data_resource_api`, `data_resource_table_column` + `data_resource.xml` 模块 |
 | `Application` | 申请单；旧 `dsp_require` 5 业务节点（编制 → 校核 → 汇总 → 响应 → 反馈），XML `data_business.status` 实现为 0-6 共 7 态序列 | `dsp_require.xml`: `data_require`, `data_original_require`, `data_require_approve`, `data_business`, `business_requirements` |
 | `ApprovalTask` | 审批任务与决策轨迹；与 `ObjectionCase` 边界：前者是申请审批 5 节点，后者是异议 5 维度独立状态机 | `dsp_require.xml` 含 `data_business_approve` + `dsp_catalog.xml` 含 `data_catalog` status 联动 |
-| `DeliveryTask` | 交付、交换、直达任务 | `dsp_connect.xml`: `dc_catalog`, `dc_example_resource`, `dc_example_matters`（57 张 dc_* 表的核心） |
-| `ObjectionCase` | 异议与纠错链；旧 `dsp_handling` 5 维度独立状态机（authz / catalog / content / resource / use） | `dsp_handling.xml`: `data_objection_authz`（54）, `data_objection_catalog`（74）, `data_objection_content`（89）, `data_objection_resource`（132）, `data_objection_use`（155） |
+| `DeliveryTask` | 交付、交换、直达任务 | `dsp_connect.xml`: `dc_catalog`, `dc_example_resource`, `dc_example_matters`（48 张 dc_* 跨地市表的核心；另含 9 张非 dc_* 国家直达表） |
+| `ObjectionCase` | 异议与纠错链；旧 `dsp_handling` 5 维度独立状态机（authz / catalog / content / resource / use）+ 2 张流程辅助表（evaluate 评价 / process 处理过程） | `dsp_handling.xml`: `data_objection_authz`（54）, `data_objection_catalog`（74）, `data_objection_content`（89）, `data_objection_resource`（132）, `data_objection_use`（155）, `data_objection_evaluate`（103）, `data_objection_process`（120）= 7 张 |
 | `AuditEvent` | 全量审计事件 | 旧库分散在各 dump 的 *_log / *_record / capability_call 等；新平台 zw-brain audit_event 统一 |
 | `CapabilityPackage` | 注册能力包元信息；**zw-brain AI 原生重构引入的承重抽象**，无旧库继承 | **无旧库表对应**——为 AI 原生扩展模式新发明 |
 | `TenantOrg` | 组织、租户、部门、区域上下文；旧库支持多级区划（省/市/区）+ 跨地市协作 | `dsp_bsp.xml`: `pub_org`, `pub_org_role`, `pub_org_region`, `sys_user_role`, `sys_permission`（IAM 由 IAF 外部化，本地保留 actor_org_role_binding 投影） |

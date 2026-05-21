@@ -29,7 +29,7 @@
 异议链路与目录、资源、申请、授权、交付都有关，但它不是这些领域的附属状态：
 
 1. `docs/approved/zw-brain-data-model.md` 已将 `objection_case`、`objection_evidence`、`objection_process`、`objection_evaluation` 设计为独立表。
-2. 旧表 `data_objection.objection_type` 覆盖数据目录、数据资源、数据授权、数据使用，后续又新增内容质量类异议。
+2. 旧表 `data_objection.objection_type` 覆盖 5 异议维度（`catalog` 数据目录 / `resource` 数据资源 / `authz` 数据授权 / `use` 数据使用 / `content` 内容质量），分别落入 5 张维度证据表；另有 2 张流程辅助表（`data_objection_process` 处理过程 / `data_objection_evaluate` 评价）+ 1 张主表（`data_objection`）支撑整链。架构基线 §3.3 / §9.2 对此分解作了硬约束。
 3. 旧平台业务说明明确“实际数据修复属于线下动作，平台只承载流程协同”，说明异议的核心不是改数据，而是责任、证据和闭环。
 4. 旧代码存在超期预警调度和四方速率查询，说明异议是合规运营和追责指标的重要输入。
 

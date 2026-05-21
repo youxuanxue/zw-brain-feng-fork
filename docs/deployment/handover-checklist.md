@@ -7,13 +7,12 @@
 > | --- | --- |
 > | 客户运维 / 实施工程师（部署 + 操作） | [`docs/deployment/sd-default-onboarding.md`](./sd-default-onboarding.md)（0.5-1 工作日 runbook） |
 > | 客户验收人 / 签收 | [`docs/deployment/handover-checklist.md`](./handover-checklist.md)（41 项核验签收） |
-> | 业务用户 / 8 角色试岗 | [`.experiences/QUICKSTART.md`](../../.experiences/QUICKSTART.md)（5 分钟人话指南） |
-> | 产品评审 / 架构师 / 角色体验回顾 | [`.experiences/README.md`](../../.experiences/README.md)（角色体验手册） |
+> | 业务用户 / 7 角色 + M0 试岗 | [`docs/approved/zw-brain-roles.md`](../approved/zw-brain-roles.md)（7 角色权威源 + 各角色旅程任务地图） |
 > | 客户老板 / CIO 5 分钟看效果 | `bash scripts/customer_demo_5min.sh`（[demo 剧本](../release-notes/customer-demo-5min.md)） |
 >
 > **本文件**：`docs/deployment/handover-checklist.md` = 客户验收人 41 项 checkbox 签收依据；不是 runbook（看 onboarding）、不是体验手册（看 README）。
 
-> **客户老板 / CIO 视角**：先看 [`.experiences/QUICKSTART.md#客户拿到-zw-brain-之后的时间线`](../../.experiences/QUICKSTART.md#客户拿到-zw-brain-之后的时间线) 一图四阶段（首小时 / 首日 / 首周 / 首月），再来这里逐项签收。
+> **客户老板 / CIO 视角**：先看 [`docs/release-notes/customer-demo-5min.md`](../release-notes/customer-demo-5min.md)（5 分钟端到端演示剧本，配套 `scripts/customer_demo_5min.sh`），再来这里逐项签收。
 
 > **用途**：把 `sd-default-onboarding.md` 走完后的 41 项核验全部打勾，
 > **作为客户签收 zw-brain 进入生产的唯一依据**。
@@ -53,13 +52,13 @@
 | 12 | Blockchain anchor 端点配置（可选） | `echo $ZW_BRAIN_BLOCKCHAIN_ENDPOINT` | 非空 或 显式留 mock-chain | 未显式 mock-chain → audit 异步锚定无目标，安全审计员 督查证据链断 |
 | 13 | 无明文密钥泄露到代码库 | `grep -rE '(password\|api_key)=.{8,}' --include="*.py" --include="*.json" /opt/zw-brain` | 仅命中 `*_REF` 引用、不出现真实值 | 明文密钥 → 立即合规高危事件，必须 rotation + 强制下架，签收作废 |
 
-## 四、preflight 16 段全过（1 项 — 这一项覆盖整个机械规约层）
+## 四、preflight 20 段全过（1 项 — 这一项覆盖整个机械规约层）
 
 | # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
 | --- | --- | --- | --- | --- |
 | 14 | preflight 全段通过 | `bash scripts/preflight.sh 2>&1 \| tail -3` | `=== preflight: PASS (common + project stages) ===` | 机械规约层断 → 任何 PR 不能 merge，hotfix 链路瘫痪 |
 
-子段包括：branch naming / dev-rules 同步 / agent contract drift / user-story alignment / approved-doc invariants / doc stats sync / audit-must-block (D4) / blockchain-async (D4) / fixture-pii (D11) / no-direct-llm (D6) / external-refs (D22) / ui-spec-b (Spec B 单主题) / legacy-mappers (D7+D4)。
+子段以 `scripts/preflight.sh` 实际执行为准（当前 20 段），含：branch naming / dev-rules 同步 / agent contract drift / user-story alignment / approved-doc invariants / doc stats sync / audit-must-block / blockchain-async / fixture-pii / no-direct-llm / external-refs / ui-spec-b / legacy-mappers / iam-doc-freshness / db-bloat-check / no-legacy-role-codes / no-retired-features 等。子段编号与覆盖项随脚本演进，以脚本输出为准。
 
 ## 五、客户现场一键导出（4 项）
 
@@ -82,7 +81,7 @@
 | 22 | P0 WebUI 页面渲染 | 浏览器访问 `#/p0-migration-acceptance` | 11 张卡片 + totals + canonical/legacy 分布表 | 页面不渲染 → 实施工程师无法证明迁移完成，签收没视觉证据 |
 | 23 | 显式回滚 dry-run 可调 | `python -m zw_brain.entry.legacy_migration.rollback --tenant=sd-default --legacy-system=dsp_catalog --dry-run` | 返回 scanned 数 + audit_id=null | 回滚链路坏 → 迁移如果半途出错无法干净退回，业务无 rollback plan |
 
-## 七、9 角色 e2e 契约（10 项 — W5.2 全部）
+## 七、M0 + 7 角色 e2e 契约（10 项 — W5.2 全部）
 
 | # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
 | --- | --- | --- | --- | --- |
@@ -99,7 +98,7 @@
 
 一键跑全部：`pytest tests/test_acceptance_9_roles_e2e.py -v` → 10 passed
 
-## 八、WebUI 9 岗位浏览（6 项）
+## 八、WebUI M0 + 7 角色浏览（6 项）
 
 | # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
 | --- | --- | --- | --- | --- |
@@ -114,7 +113,7 @@
 
 | # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
 | --- | --- | --- | --- | --- |
-| 40 | 写 skill 全部产生 audit_event | 9 角色 e2e 跑完后 `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(DISTINCT skill_id) FROM audit_event"` | ≥ 12（覆盖 W5.2 测试的关键 skill）。**注**：默认 e2e 测试使用 isolated TemporaryDirectory，事件不落 prod DB；客户验收时改用主 DB（`ZW_BRAIN_DB_PATH=$REPO_ROOT/.data/customer_acceptance.db`）实际驱动主流程后再查；见 `docs/preflight-debt.md` ITEM-07 entry | 审计漏写 → 合规证据链断 → 安全审计员 督查抓瞎，签收作废 |
+| 40 | 写 skill 全部产生 audit_event | 客户机房按主旅程实跑一遍（M0 迁移 + `bash scripts/customer_demo_5min.sh` 5 段 curl + 7 角色 WebUI 各点 1-2 个真实业务对象）后查 `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(DISTINCT skill_id) FROM audit_event"` | ≥ 12（覆盖 W5.2 关键 skill）。zw-brain 是全新项目，单一 canonical DB 走 `$ZW_BRAIN_DB_PATH`（默认 `.data/zw_brain.db`）；e2e 测试用 isolated TemporaryDirectory 仅供单测隔离，不参与本项验收计数 | 审计漏写 → 合规证据链断 → 安全审计员 督查抓瞎，签收作废 |
 | 41 | blockchain anchor 队列正常（或可达） | `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(*) FROM anchor_outbox WHERE delivered=0"` | 0 或 < 100（未投递队列正在异步处理；mock-chain 配置下应该 = 0） | anchor 大量未投递 → 区块链证据缺失，对外可信度证明不足 |
 
 ---
@@ -130,8 +129,8 @@
 □ migration-report.json
 □ verify-report.json
 □ test_acceptance_9_roles_e2e.py 输出（10/10 passed）
-□ WebUI 9 岗位浏览验收截图（每岗位 ≥ 1 张）
-□ preflight 输出（16 段 PASS）
+□ WebUI M0 + 7 角色浏览验收截图（每岗位 ≥ 1 张）
+□ preflight 输出（20 段 PASS）
 ```
 
 ---
@@ -140,7 +139,7 @@
 
 | 项目 | 保修内容 | 责任方 |
 | --- | --- | --- |
-| zw-brain 核心 | 主旅程 9 角色 e2e 通过；bug fix 7×24 | zw-brain 团队 |
+| zw-brain 核心 | 主旅程 M0 + 7 角色 e2e 通过；bug fix 7×24 | zw-brain 团队 |
 | 推理网关 | 集团统一推理平台 SLA | 集团推理团队 |
 | IAM/OIDC | 客户 IT 部门维护 | 客户 |
 | Blockchain anchor | 视客户是否启用 | 客户 / mock-chain 默认本地 |

@@ -29,7 +29,7 @@
 bash scripts/customer_demo_5min.sh
 ```
 
-第一次跑会自动 import 真数据到 `.data/customer_acceptance.db`（≈ 1-2 分钟）。
+第一次跑会自动 import 真数据到 `$ZW_BRAIN_DB_PATH`（默认 `.data/zw_brain.db`，≈ 1-2 分钟）。
 之后每次跑都直接复用该 DB，5 段 curl 大约 3-5 秒完成。
 
 完整 log 落在 `.data/customer-demo/demo-<时间戳>.log`。
@@ -38,14 +38,14 @@ bash scripts/customer_demo_5min.sh
 
 ### 段 0：preflight + acceptance bootstrap（≈ 0-10 秒，第一次 1-2 分钟）
 
-**命令**：脚本前半部分自动执行——venv 校验、jq 校验、端口空闲校验、acceptance db 校验。
-如果 `.data/customer_acceptance.db` 不存在或 < 1MB，自动调用 `scripts/customer_acceptance_up.sh` 走真数据导入 + 严格校验 + 字段绑定 smoke。
+**命令**：脚本前半部分自动执行——venv 校验、jq 校验、端口空闲校验、canonical db 校验。
+如果 `$ZW_BRAIN_DB_PATH`（默认 `.data/zw_brain.db`）不存在或 < 1MB，自动调用 `scripts/customer_acceptance_up.sh` 走真数据导入 + 严格校验 + 字段绑定 smoke。
 
 **期望看到**：
 ```
 [demo-5min] ok: venv + jq present
 [demo-5min] ok: port 127.0.0.1:8800 free
-[demo-5min] ok: 已有 acceptance db: .../customer_acceptance.db ( 18M)
+[demo-5min] ok: 已有 canonical db: .../zw_brain.db ( 18M)
 ```
 
 **业务含义**：M0 真数据已落库——客户的 17 个旧平台 dump + 5 个 datastructure xml 已经按 sd-default 单租户单省映射到 canonical schema，**不是 mock，不是 fixture，是客户拿来的真数据**。
@@ -188,7 +188,7 @@ http://127.0.0.1:8800/
 按客户重点选 1 条递进：
 
 - **数据范围**：跑 `bash scripts/customer_export.sh` 把 sd-default 全量真目录导出 csv 让客户看广度。
-- **角色全貌**：按 [`.experiences/`](../../.experiences/) 7 角色 八角色文档，1 个角色 1 分钟扫一遍。
+- **角色全貌**：按 [`docs/approved/zw-brain-roles.md`](../approved/zw-brain-roles.md) 的 7 角色 + 牵头标签任务地图，1 个角色 1 分钟扫一遍。
 - **稳态运营**：走 [`docs/deployment/sd-default-onboarding.md`](../deployment/sd-default-onboarding.md) 全 41 项 handover checklist。
 - **架构基线**：翻 [`docs/approved/zw-brain-architecture.md`](../approved/zw-brain-architecture.md) D1-D22 决策。
 

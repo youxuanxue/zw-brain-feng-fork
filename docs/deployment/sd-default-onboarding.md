@@ -7,14 +7,13 @@
 > | --- | --- |
 > | 客户运维 / 实施工程师（部署 + 操作） | [`docs/deployment/sd-default-onboarding.md`](./sd-default-onboarding.md)（0.5-1 工作日 runbook） |
 > | 客户验收人 / 签收 | [`docs/deployment/handover-checklist.md`](./handover-checklist.md)（41 项核验签收） |
-> | 业务用户 / 8 角色试岗 | [`.experiences/QUICKSTART.md`](../../.experiences/QUICKSTART.md)（5 分钟人话指南） |
-> | 产品评审 / 架构师 / 角色体验回顾 | [`.experiences/README.md`](../../.experiences/README.md)（角色体验手册） |
+> | 业务用户 / 7 角色 + M0 试岗 | [`docs/approved/zw-brain-roles.md`](../approved/zw-brain-roles.md)（7 角色权威源 + 各角色旅程任务地图） |
 > | 客户老板 / CIO 5 分钟看效果 | `bash scripts/customer_demo_5min.sh`（[demo 剧本](../release-notes/customer-demo-5min.md)） |
 >
 > **本文件**：`docs/deployment/sd-default-onboarding.md` = 客户运维 0.5-1 工作日 runbook；每步带『做什么 / 怎么验证 / 失败排查』。签收看 handover-checklist。
 
 > **适用**：山东省（sd-default）单租户单省政务现场。
-> **目标**：从一台空机器开始，到 9 角色（M0 + 7 角色）能在 zw-brain 上完成
+> **目标**：从一台空机器开始，到 8 验收岗（M0 迁移岗 + 7 角色）能在 zw-brain 上完成
 > 自己的主旅程，**控制在 0.5-1 个工作日内完成**。
 
 本文档是 W5 客户移交清单（`handover-checklist.md`）的执行手册。
@@ -244,7 +243,7 @@ curl -s http://localhost:8800/openapi.json | jq '.paths | length'
 
 ---
 
-## 7. 9 角色 e2e 验收
+## 7. M0 + 7 角色 e2e 验收（10 项）
 
 跑端到端 acceptance 测试，**这就是客户现场移交的最终签收依据**：
 
@@ -319,7 +318,7 @@ curl -s http://localhost:8800/openapi.json | jq '.paths | length'
 
 ## 10. 移交前最终核验
 
-按 `docs/deployment/handover-checklist.md` 走完 41 项检查。客户现场最终签收 = checklist 全打勾 + W5.2 全 10 项 e2e 通过 + WebUI 9 岗位浏览通过。
+按 `docs/deployment/handover-checklist.md` 走完 41 项检查。客户现场最终签收 = checklist 全打勾 + W5.2 全 10 项 e2e 通过 + WebUI M0 + 7 角色浏览通过。
 
 ---
 
@@ -338,4 +337,4 @@ curl -s http://localhost:8800/openapi.json | jq '.paths | length'
 - 入口：`zw-brain-rest`, `zw-brain-cli`, `zw-brain-mcp`, `zw-brain-a2a`, `zw-brain-migrate-legacy`
 - 测试：`pytest tests/` 全套 441+ 用例
 - 契约：`scripts/export_agent_contract.py` 生成 5 端口契约（180 REST / 1 CLI / 61 MCP / 1 A2A / 192 Skills）
-- preflight：`bash scripts/preflight.sh` — 16 段机械检查
+- preflight：`bash scripts/preflight.sh` — 20 段机械检查（段数随脚本演进，以脚本实际输出为准）

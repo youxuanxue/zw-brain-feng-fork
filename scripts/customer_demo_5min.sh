@@ -19,7 +19,7 @@ export no_proxy="$NO_PROXY"
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PYTHON="$REPO_ROOT/.venv/bin/python"
-DB_PATH="${ZW_BRAIN_DB_PATH:-$REPO_ROOT/.data/customer_acceptance.db}"
+DB_PATH="${ZW_BRAIN_DB_PATH:-$REPO_ROOT/.data/zw_brain.db}"
 REST_HOST="${ZW_BRAIN_REST_HOST:-127.0.0.1}"
 REST_PORT="${ZW_BRAIN_REST_PORT:-8800}"
 LOG_DIR="$REPO_ROOT/.data/customer-demo"
@@ -79,9 +79,9 @@ ok "port $REST_HOST:$REST_PORT free"
 # ---------- M0 真数据 acceptance bootstrap (idempotent) ----------
 step "M0 真数据 acceptance bootstrap"
 if [[ -s "$DB_PATH" ]] && [[ $(stat -f%z "$DB_PATH" 2>/dev/null || stat -c%s "$DB_PATH") -ge 1000000 ]]; then
-  ok "已有 acceptance db: $DB_PATH ($(du -h "$DB_PATH" | cut -f1))"
+  ok "已有 canonical db: $DB_PATH ($(du -h "$DB_PATH" | cut -f1))"
 else
-  note "未发现 acceptance db；调用 scripts/customer_acceptance_up.sh"
+  note "未发现 canonical db；调用 scripts/customer_acceptance_up.sh 导入真数据"
   bash "$REPO_ROOT/scripts/customer_acceptance_up.sh" \
     || fail "customer_acceptance_up.sh 失败" \
        "请按其错误提示修复（缺 dump / 缺 datastructure / venv 依赖），再重跑本脚本"
@@ -141,7 +141,7 @@ step "[1/5] R1 浏览：真目录（catalog.browse）"
 # 真业务目录名 99% 含『信息』关键字（见 .experiences/README.md 样例清单），用 query=信息 精准锁定。
 # fallback：若 query 命中 0，退回原默认浏览。
 BROWSE=$(call GET "$API/catalog.browse?lifecycle=all&limit=10&query=%E4%BF%A1%E6%81%AF&role=r1") \
-  || fail "catalog.browse 失败" "确认 acceptance db 存在且非空 (re-run scripts/customer_acceptance_up.sh)"
+  || fail "catalog.browse 失败" "确认 canonical db 存在且非空 (re-run scripts/customer_acceptance_up.sh)"
 TOTAL=$(printf '%s' "$BROWSE" | jq -r '.total // 0')
 if (( TOTAL == 0 )); then
   note "query=信息 命中 0，回退到默认浏览"
