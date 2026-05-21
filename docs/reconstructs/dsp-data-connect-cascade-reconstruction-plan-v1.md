@@ -6,6 +6,15 @@
 > 结论：zw-brain 不把 `dsp-data-connect`、`dsp-cascade-platform`、`dsp-cascade-down` 迁成“国家平台镜像系统”或“第二套目录 / 申请 / 交付库”；只吸收上下级通道、国家平台对象映射、上报 / 下发、申请受理、订阅回执、异议同步、级联日志和重放等承重语义，重建为 canonical 聚合之外的 `adapter.national.*` / `adapter.cascade.*` 能力包。国家 / 上级接口以全国一体化政务数据共享数据直达接口规范 v0.55 为协议输入，政务外网逻辑隔离边界作为部署约束。
 > 单一事实源：本文是数据直达与级联专题的旧表映射、Capability 边界、状态回执、外部通道和不做清单的单一事实源；目录、资源、申请、交付、异议的核心事实仍以对应 reconstructs 与 approved 数据模型为准；跨专题 greenfield 口径、统一 adapter 命名和全局决策基线以 `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` 为准。
 
+## 〇、专题口径速览
+
+- **本期不实施**：国家直达 + 跨地市级联是基线 §10.4 / Wave 3 延后子旅程；本文档**仅在本期落 adapter 接口骨架与映射规则**，不投入业务联调；先实施仅限 `legacy_object_mapping` + `external_object_mapping` 表导入与 receipt 占位。**`legacy-repository-reconstruction-priorities-v1.md` §四已同步把 `dsp-data-connect` / `dsp-cascade-platform` / `dsp-cascade-down` 三个仓库从 P0 降为 Wave 3 候选**（与本文一致）。
+- **adapter 落位**：所有 `adapter.national.*` / `adapter.cascade.*` 代码落在 `zw_brain/shared/adapters/national_exchange/`（基线 §7.2 entry/command/domain/shared 分层）；不在 `domain/` 新建国家通道领域模型。
+- **adapter 写入规则**：adapter 绝不作为新业务写入口（基线 §9.5）；外部状态必须先形成 receipt，再由本地 domain 能力按 R15 §8 注册流水线决定是否推进 canonical 状态。
+- **UI 业务术语**：前端文案使用"省市间数据通道 / 国家直达"等业务术语，禁止暴露 `adapter` / `external_object_mapping` 等工程术语（基线 §11 R12）。
+- **默认租户**：`tenant_id="sd-default"`，不启用 multi-tenant（基线 §8.2）。
+- **主要执行角色**：本地侧 `ROLE_BUSIAUDIT`（平台受理 + 国家通道转报审核）/ `ROLE_ORGAN_MANAGER`（部门发起上报）；基线 §5.1 7 角色码集合（角色与方向解耦，R11）。
+
 ## 一、设计原则
 
 ### 1.1 Jobs：从“镜像上级平台”改成“外部通道可证迹”

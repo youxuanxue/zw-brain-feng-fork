@@ -178,6 +178,10 @@ IAF 对接手册给出的关键约束：
 
 ### 3.2 本地治理投影
 
+> **物理实现归属**：以下所有投影表作为 `CapabilityRegistryAggregate` + shared substrate 的物理实现，schema 通过 SQLAlchemy `Base.metadata.drop_all + create_all` 管理（基线 §9.3 / §9.6），不进入 alembic。
+>
+> **默认租户**：Phase 1 单租户单省，`tenant_projection.tenant_id` 取值固定为 `"sd-default"`（基线 §8.2）；`tenant_mode=multi` 不启用。
+
 实现本地治理投影，不作为 IAM 认证权威源：
 
 | 投影 | 用途 | 来源 |
@@ -233,11 +237,12 @@ IAF IAM 只解决认证，zw-brain 在认证成功后生成本地业务安全上
 
 | 输入 | 说明 |
 | --- | --- |
-| `tenant_id` | 租户。 |
+| `tenant_id` | 租户（Phase 1 固定为 `sd-default`，基线 §8.2）。 |
 | `actor_snapshot` | 用户 / service / agent 快照。 |
 | `org_snapshot` | 组织和区划快照。 |
-| `role_codes` | IAF roles / groups 与导入角色映射后的角色集合。 |
-| `capability_slug` | 能力标识。 |
+| `role_codes` | IAF roles / groups 与导入角色映射后的角色集合，**限定为基线 §5.1 7 角色码集合**（`ROLE_SYSTEM` / `ROLE_BUSIAUDIT` / `ROLE_ORGAN_MANAGER` / `ROLE_ORGAN_OPERATER` / `ROLE_SECURITY_ADMIN` / `ROLE_SECURITY_AUDIT`），r1-r8 字面值禁止写入（基线 §11 R10）。 |
+| `tags` | 可选标签位 JSON；当前仅承载 `tag_lead_dept: bool`（牵头部门标签依附 `ROLE_ORGAN_MANAGER`，仅 2 项菜单覆盖，详见 `docs/approved/zw-brain-roles.md`）。 |
+| `capability_slug` | 能力标识；前端 UI 不暴露此 slug（基线 §11 R12 工程术语黑名单），UI 文案改用业务语义。 |
 | `surface` | `webui/api/cli/mcp/a2a`。 |
 | `target_ref` | 可选目标对象，如 catalog/resource/application。 |
 | `risk_context` | 是否跨租户、是否写操作、是否需人工确认。 |
@@ -253,6 +258,8 @@ IAF IAM 只解决认证，zw-brain 在认证成功后生成本地业务安全上
 | `policy_version` | 策略版本。 |
 
 ## 四、Capability 设计
+
+> 以下 Capability slug 仅出现在契约 / 代码 / Registry 层；前端 UI 必须按基线 §11 R12 改用业务语义命名（如 `capability.package.register` → "能力包注册"；`tenant.capability.enable` → "启用能力"），禁止把 `package` / `projection` / `capability` / `policy_decision` 等工程术语暴露给最终用户。
 
 | Capability | 写 / 读 | 审计级别 | 说明 |
 | --- | --- | --- | --- |

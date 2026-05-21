@@ -41,6 +41,10 @@
 
 ### 1. `data_resource`（旧"数据资源库"招标补齐型）
 
+> 主旅程归属：N/A（本 schema 整体不导入；目录 / 元数据完整能力由 `dsp_catalog` + `dsp_metaresource` 主路径承接，详见 MEMORY `catalog_metadata_full_capability`）。
+>
+> **`data_resource` 不导入 ≠ 不继承目录/元数据能力**：本 schema 是旧"招标补齐型建库向导"的资源 ID 空间，与 `dsp_metaresource.rc_resource`（资源事实源）+ `dsp_catalog.data_resource`（catalog 内嵌资源）重复。零导入是因为事实已被主路径承接，不是边界收紧。
+
 | 旧表 | 行数估计 | 落位 | 新模型 / Skill / Adapter | 备注 |
 |---|---|---|---|---|
 | `catalog_link_info` | 100+ | 不导入 | — | priorities §六 默认不重构；功能已收敛到 `CatalogEntryRecord` |
@@ -61,6 +65,8 @@
 | `databasechangelog*` / `flyway_schema_history` | <10 | 不导入 | — | 元表 |
 
 ### 3. `dsp_basesubject`（基础主题库 / 档案 / 标准 / 统计）
+
+> 主旅程归属：N/A（基线 §5.6 #13 / `dsp_basesubject` 81 张独立表**完全不复造**）；仅少量 `basesubject_info` 作 `TopicPackageRecord` evidence 候选。
 
 | 旧表 | 行数估计 | 落位 | 新模型 / Skill / Adapter | 备注 |
 |---|---|---|---|---|
@@ -108,6 +114,8 @@
 | `webfinal_*` / `xxl_job_*` / `base_dict` / `base_system_config` | 0 ~ 100+ | 不导入 | — | 监控日志/调度 §priorities §六 |
 
 ### 6. `dsp_catalog`（目录 + 申请审批 P0 主旅程）
+
+> 主旅程归属：**J1 找数→用数**（资源发现 P2 + 申请审批 P3）+ **J2 挂数→维数**（编目 P5）；基线 §5.1。详细字段映射以 `dsp-catalog3-metadata3-reconstruction-plan-v1.md` 为准。
 
 | 旧表 | 行数估计 | 落位 | 新模型 / Skill / Adapter | 备注 |
 |---|---|---|---|---|
@@ -162,6 +170,8 @@
 
 ### 7. `dsp_connect`（数据直达 / 国家平台对接）
 
+> 主旅程归属：**Wave 3 延后**（基线 §10.4 国家直达独立子旅程）；本期仅落 `LegacyObjectMappingRecord` + `ExternalObjectMappingRecord` 占位，业务联调延后。详见 `dsp-data-connect-cascade-reconstruction-plan-v1.md`。
+
 | 旧表 | 行数估计 | 落位 | 新模型 / Skill / Adapter | 备注 |
 |---|---|---|---|---|
 | `batch_job_*`（10 张 Spring Batch 表） | <10 ~ 100+ | →external_mapping | `AdapterRunRecord` | data-connect plan §2.3 — Spring Batch 历史作 adapter run |
@@ -195,6 +205,8 @@
 
 ### 9. `dsp_handling`（异议 P0）
 
+> 主旅程归属：**J1 找数→用数**（使用方异议）+ **J2 挂数→维数**（提供方核查复核）；基线 §3.3 / §9.2 5 维度独立状态机。
+
 | 旧表 | 行数估计 | 落位 | 新模型 / Skill / Adapter | 备注 |
 |---|---|---|---|---|
 | `data_objection` | 10-100 (43) | →canonical | `ObjectionCaseRecord` + `LegacyObjectMappingRecord` | objection plan §五 |
@@ -215,6 +227,8 @@
 | 全部 8 张表（`dsp_business_code` / `dsp_inside_message_type` / `dsp_message` (193557 行) / `dsp_message_err` / `dsp_message_retry` / `dsp_message_task` / `dsp_relation` / `dsp_site_message` (192327 行) / `dsp_template` / `flyway_schema_history_apply`） | 0 ~ 100+ | 不导入 | — | priorities §六 message-center 默认外部化；286 MB 不进核心 |
 
 ### 11. `dsp_metaresource`（元数据 + 资源 P0）
+
+> 主旅程归属：**J1 找数→用数**（资源发现 P2 + 凭据领取 P4）+ **J2 挂数→维数**（资源挂接 P5）；基线 §5.1。
 
 | 旧表 | 行数估计 | 落位 | 新模型 / Skill / Adapter | 备注 |
 |---|---|---|---|---|
@@ -289,6 +303,8 @@
 
 ### 16. `dsp_require`（需求 / 申请 P0）
 
+> 主旅程归属：**J1 找数→用数**（申请审批 P3 + 供需对接子流程）；基线 §3.3 5 节点申请审批主线。
+
 | 旧表 | 行数估计 | 落位 | 新模型 / Skill / Adapter | 备注 |
 |---|---|---|---|---|
 | `business_requirements` | 0 | →canonical | `ApplicationRecord` + `payload_json.kind='business_requirement'` | — |
@@ -351,7 +367,7 @@
 | **M11** | **archive template / case archive evidence** | `dsp_basesubject.archive_template` / `archive_column` | sharezone plan §2.4 归外部档案 adapter | **可选**：在 `TopicPackageEvidenceRecord.payload_json` 内承载；或新增 `ArchiveTemplateProjectionRecord` |
 | **M13** | **审批 opinion type 字典** | `dsp_catalog.data_apply_course_opiniontype` | 当前 `ApprovalDecisionRecord` 无字典关联 | **建议**：领域字典进 `CapabilityManifestRecord.manifest_json`，不单独建表 |
 
-> **阻塞结论**：M1–M6 是 compliance plan 反复提到但未在 models.py 承接的核心类型，**P2 mapper（dsp_monitor / dsp_pipelines / dsp_perform / dsp_block）阻塞依赖这 6 个 record**。**已于阶段 1.5 通过 SQLAlchemy `Base.metadata.create_all`（6 个 record 落入 `zw_brain/domain/models.py`）一并落地**（<!-- stat:legacy.import.missing-resolved -->6<!-- /stat -->/6 解除）；P2 mapper 已在 PR #12 落库。alembic 已整体退役（架构 §9.6 / R15），新功能 drop & recreate 替代。M7–M11 / M13 是 nice-to-have，可在阶段 2 末期视情况增补。
+> **阻塞结论**：M1–M6 是 compliance plan 反复提到但未在 models.py 承接的核心类型，**P2 mapper（dsp_monitor / dsp_pipelines / dsp_perform / dsp_block）阻塞依赖这 6 个 record**。当前 6 个 record 已通过 SQLAlchemy `Base.metadata.create_all` 落入 `zw_brain/domain/models.py`（<!-- stat:legacy.import.missing-resolved -->6<!-- /stat -->/6 解除）；P2 mapper 已落库。schema 管理走 `drop_all + create_all`，alembic 不进入产品基线（架构基线 §9.6）。M7–M11 / M13 是 nice-to-have，可视情况增补。
 
 ---
 

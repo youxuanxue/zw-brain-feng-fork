@@ -8,6 +8,16 @@
 >
 > 事实审计口径：接口条目数和调用量只来自 `old/old_codes_analyse/dsp-exchange-apis.md`；旧表和字段只来自 `old/12-datastructure/*.xml`、旧 SQL、旧实体注解；工单统计只来自 `old/工单导出-列缩减.xlsx` 的关键词命中。本文的“应进入 / 不应进入 / 必须经 Capability”是基于 approved 约束和这些事实推出的目标架构判断，不等同于旧系统已经这样实现。
 
+## 〇、专题口径速览
+
+- **旅程归属**：require / supply / exchange 三仓汇流的主旅程是 **J1 找数→用数**（资源发现 P2 + 申请审批 P3 + 交付交换 P4）+ **J2 挂数→维数**（发布与异议复核 P5）；基线 §5.1。
+- **物理实现**：本文 §5.2 建议补充的 `legacy_object_mapping` / `delivery_execution_evidence` / `exchange_metric_projection` 三个辅助结构作为 `ApplicationApprovalAggregate` + `DeliveryAggregate` 的物理实现，schema 通过 SQLAlchemy `Base.metadata.drop_all + create_all` 管理（基线 §9.3 / §9.6），**不进入 alembic**。
+- **R14 三引擎**：本文 §八 `require.intent.submit` 之前可由 **Wave 2 智能推荐前置引擎**拦截（基线 §10.3：相似目录推荐 → 推荐失败再转人工需求登记）；本文档 Wave 0 先做直接登记路径。`application.resource.review` 的"项目级审批节点 + 选人规则"（如鞍山"编制 → 二级部门审 → 一级部门审 → 发布"）由 Wave 2 R14 **审批流可视化引擎**接管；本文档 Wave 0 仍用硬编码 5 步流程。
+- **R15 桥接面**：§八 Capability 通过统一 contract 投影到 5 消费面（WebUI / API / CLI / MCP / A2A），MCP / A2A 投影由 AgentRuntime `AGENT.yaml` 声明（基线 §8.1 / R15）。
+- **国家通道延后**：§3.3 / §四 出现的 `dc_subscribe` 等跨级订阅，归基线 §10.4 / Wave 3 国家直达延后子旅程；本期仅以 adapter 形态接入，不进 J1 / J2 主导航（详见 `dsp-data-connect-cascade-reconstruction-plan-v1.md`）。
+- **默认租户**：`tenant_id="sd-default"`，不启用 multi-tenant（基线 §8.2）。
+- **角色与方向**：执行者限定基线 §5.1 7 角色码集合；申请方 / 提供方方向由 `applicant_org_code` / `owner_org_code` 运行时计算（R11），禁止再通过新增角色码表达方向。
+
 ## 一、设计原则
 
 ### 1.1 Jobs：从“三个后台系统”改成“要数、批数、交付、追责”

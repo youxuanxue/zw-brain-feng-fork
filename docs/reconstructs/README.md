@@ -22,12 +22,21 @@
 ## 当前实施口径
 
 - **2 旅程 + 1 后台支撑面**：J1 找数→用数 / J2 挂数→维数 / B1 看全局→处异常（B1.1 合规运营 / B1.2 接入扩展中心）。详见 [docs/approved/zw-brain-architecture.md §5.1](../approved/zw-brain-architecture.md)
-- **7 角色码 + tag_lead_dept 标签**（沿用旧平台 ROLE_* 码）。详见 [docs/approved/zw-brain-roles.md](../approved/zw-brain-roles.md)
+- **大屏 / 指挥中心 / 演示页面不进产品形态**（基线 §1.3）；如未来有客户重启此类需求，按 Wave 3+ 独立产品立项
+- **7 角色码 + tag_lead_dept 标签**（沿用旧平台 ROLE_* 码，基线 §11 R10/R11）。详见 [docs/approved/zw-brain-roles.md](../approved/zw-brain-roles.md)
 - **schema 全新创建（drop_all + create_all）**：不维护 alembic 迁移链；新功能 drop & recreate 替代。详见 [架构基线 §9.6](../approved/zw-brain-architecture.md)
-- **大屏 / 国家通道独立子旅程 / 一表通预填**：本期不实施；外部依赖或延后 Wave 3
+- **默认租户 `sd-default`**（单租户单省山东）：不启用 `tenant_mode=multi`（基线 §8.2 + AgentRuntime 接入边界）
+- **R14 三引擎**（审批流可视化 + 表单 schema 化 + 智能推荐前置）：Wave 2 必达；本目录任何业务专题文档涉及"项目级流程 / 表单 / 推荐"定制时，统一回指三引擎，不再各文档独立定义
+- **R15 AgentRuntime 唯一桥接面**：外部 Agent 通过 `AGENT.yaml` 接入，协议规范以 `docs/agent-runtime/*` 为单一事实源
+- **国家通道（直达 + 级联）/ 一表通预填**：本期不实施；前者延后 Wave 3，后者降级为可选 adapter
 
 ## 冲突仲裁
 
-- 跨专题事实冲突时，[legacy-repository-reconstruction-priorities-v1.md](legacy-repository-reconstruction-priorities-v1.md) 是仲裁源
-- 涉及 IAF IAM / 租户 / 角色 / 组织时，[dsp-bsp-manage-governance-reconstruction-plan-v1.md](dsp-bsp-manage-governance-reconstruction-plan-v1.md) 是仲裁源
-- 涉及业务流程 / 状态机 / 用户角色定义时，[docs/approved/zw-brain-architecture.md](../approved/zw-brain-architecture.md) + [zw-brain-roles.md](../approved/zw-brain-roles.md) 是仲裁源（高于本目录）
+| 优先级 | 仲裁源 | 适用情境 |
+|---|---|---|
+| 1（最高） | [docs/approved/zw-brain-architecture.md](../approved/zw-brain-architecture.md) | 架构主张 / 路线图 / R-编号 / 产品形态 / 业务流程 / 状态机 |
+| 2 | [docs/approved/zw-brain-roles.md](../approved/zw-brain-roles.md) | 7 角色码 / tag_lead_dept / 角色与方向解耦 |
+| 3 | [docs/approved/zw-brain-data-model.md](../approved/zw-brain-data-model.md) | 概念层聚合 / Wave 0-2 物理表集 / canonical schema 边界 |
+| 4 | [legacy-repository-reconstruction-priorities-v1.md](legacy-repository-reconstruction-priorities-v1.md) | 旧仓库去向总览 / 跨专题事实冲突 |
+| 5 | [dsp-bsp-manage-governance-reconstruction-plan-v1.md](dsp-bsp-manage-governance-reconstruction-plan-v1.md) | IAF IAM / 租户 / 角色 / 组织治理边界 |
+| 6（外部规范） | [docs/agent-runtime/*](../agent-runtime/) | AgentRuntime `anp-agent/v1.2` 协议规范、Embedded SDK / Standalone HTTP 形态 |

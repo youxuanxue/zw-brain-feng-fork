@@ -6,7 +6,7 @@
 > | 你是谁 | 看哪份 |
 > | --- | --- |
 > | 客户运维 / 实施工程师（部署 + 操作） | [`docs/deployment/sd-default-onboarding.md`](./sd-default-onboarding.md)（0.5-1 工作日 runbook） |
-> | 客户验收人 / 签收 | [`docs/deployment/handover-checklist.md`](./handover-checklist.md)（41 项核验签收） |
+> | 客户验收人 / 签收 | [`docs/deployment/handover-checklist.md`](./handover-checklist.md)（42 项核验签收） |
 > | 业务用户 / 7 角色 + M0 试岗 | [`docs/approved/zw-brain-roles.md`](../approved/zw-brain-roles.md)（7 角色权威源 + 各角色旅程任务地图） |
 > | 客户老板 / CIO 5 分钟看效果 | `bash scripts/customer_demo_5min.sh`（[demo 剧本](../release-notes/customer-demo-5min.md)） |
 >
@@ -15,6 +15,14 @@
 > **适用**：山东省（sd-default）单租户单省政务现场。
 > **目标**：从一台空机器开始，到 8 验收岗（M0 迁移岗 + 7 角色）能在 zw-brain 上完成
 > 自己的主旅程，**控制在 0.5-1 个工作日内完成**。
+>
+> **权威源对齐**（基线 `docs/approved/zw-brain-architecture.md`）：
+> - 单租户：`tenant_id=sd-default`（不启用 multi-tenant；基线 §8.2）
+> - schema：SQLAlchemy `Base.metadata.drop_all + create_all`；**alembic 不进入产品基线**（基线 §9.6）
+> - 模型调用：必须经集团推理平台；mock client 仅限研发态，不可用于客户验收（基线 §3.4 + preflight 段 10）
+> - 外部依赖：IAF IAM / 集团推理平台 / 区块链 adapter / 集团数据治理中心 / 集团数据安全中心 / 集团运维监控（基线 §3.4）
+> - WebUI 页面：P1-P5/P7 + B1.1/B1.2 共 8 页面（基线 §5.2 硬上限 ≤8）；B1.1 合规与运营的 literal 路由为 `#/p6-compliance-ops`
+> - 本 runbook 不打包大屏 / 指挥中心 / 演示页面入口（基线 §1.3）
 
 本文档是 W5 客户移交清单（`handover-checklist.md`）的执行手册。
 每个步骤都给出"做什么 / 怎么验证 / 失败排查"三段。
@@ -33,6 +41,8 @@
 | MySQL 客户端 | 5.7+ / 8.0+ | 仅在客户机房现场跑 `customer_export.sh` 时需要 |
 | bash | 4+ | 运行 `scripts/*.sh` |
 
+> **注**：alembic 不在上表内——zw-brain 不维护迁移链（基线 §9.6）。容器启动通过 `ensure_runtime_schema()` 校验，缺列/表时执行 `drop_all + create_all`；首客户上线 + 首次生产 schema 变更后再启 alembic baseline。
+
 或者用 Docker 镜像（详见 `docker-image-deployment.md`），跳过 Python / SQLite 单独安装。
 
 ### 0.2 必备访问
@@ -40,9 +50,14 @@
 | 访问 | 用途 | 提供方 |
 | --- | --- | --- |
 | 客户旧库 (`dsp_*` schemas) | 一键导出 17 张旧表 | 客户 DBA 提供只读账号 |
-| IAM/OIDC 端点 | 统一身份登录（IAF 集成） | 客户 IT 部门 |
+| IAM/OIDC 端点 | 统一身份登录（IAF 集成） | 客户 IT 部门 / IAF |
 | 推理网关密钥引用 | LLM 调用走 `zw_brain.shared.inference.client` | 集团推理平台 |
-| Blockchain anchor 端点（可选） | 审计回执上链 | mock-chain 默认本地；客户现场需提供 |
+| Blockchain anchor 端点（可选） | 审计回执上链；异步 adapter，外链 down 不阻塞业务（基线 §3.4 / D4） | mock-chain 默认本地；客户现场需提供 |
+
+> **外部依赖边界说明**（**非访问需求**，仅供运维理解责任划分；本平台不直连这些系统）：
+> - 集团数据治理中心：数据清洗 / 质量 / 血缘由集团数据治理中心承担，本平台只通过融合服务系统**注册并代理**治理后接口
+> - 集团数据安全中心：数据分类分级 / 敏感识别 / 脱敏 / 密钥由集团数据安全中心承担，本平台 B1.1 仅为 `ROLE_SECURITY_ADMIN` 提供策略入口
+> - 集团运维监控平台：运行监控 / 告警 / 巡检（旧 dsp_monitor 50 表的外部依赖），本平台 B1.1 仅消费监控数据
 
 ---
 
@@ -107,6 +122,11 @@ zw-brain 单租户单省，默认 `tenant_id=sd-default`、`region_code=37000000
 ZW_BRAIN_DB_PATH=/data/zw-brain/runtime.db
 ZW_BRAIN_LEGACY_DUMPS_DIR=/data/zw-brain/legacy-imports
 ZW_BRAIN_LEGACY_DATASTRUCTURE_DIR=/opt/zw-brain/old/12-datastructure
+ZW_BRAIN_TENANT_ID=sd-default          # 单租户单省（基线 §8.2 + MEMORY sd-default）；不启用 multi-tenant
+
+# DEV_IAM_BYPASS：仅限研发/网络隔离环境，生产部署**必须未设置或 =0**
+# prod guard 延后至首客户部署（MEMORY dev-iam-bypass debt），目前依赖部署文档 + 运维 checklist 兜底
+# ZW_BRAIN_DEV_IAM_BYPASS=1            # 生产环境注释掉，绝不设置
 
 # WebUI / REST
 ZW_BRAIN_DEPLOYMENT_LABEL="山东政务数据大脑 · 生产"
@@ -143,7 +163,7 @@ print('inference client:', client.__class__.__name__)
 ```
 
 **失败排查**：
-- `inference client gateway not reachable` → 推理网关网络问题；客户先用 mock client 跑通后切换
+- `inference client gateway not reachable` → 推理网关网络问题；**研发态**可用 mock client 跑通后切换，**生产环境必须走集团推理平台**（基线 §3.4 + preflight 段 10），mock 不可用于客户验收
 - IAF 配置错误 → WebUI 登录页会显示"统一身份未配置"，可临时用 `ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH=1` 走训练态
 
 ---
@@ -251,6 +271,8 @@ curl -s http://localhost:8800/openapi.json | jq '.paths | length'
 .venv/bin/python -m pytest tests/test_acceptance_9_roles_e2e.py -v
 ```
 
+> 该测试文件实际覆盖 M0 迁移岗 + 7 角色 = 10 项 e2e。
+
 应该看到 10/10 通过：
 - `test_01_m0_acceptance_status_query` — M0 验收 status query
 - `test_02_r1_demand_registration_intent_submit` — ROLE_ORGAN_OPERATER 需求登记
@@ -335,6 +357,7 @@ curl -s http://localhost:8800/openapi.json | jq '.paths | length'
 ## 附录 B：组件清单（按 `pyproject.toml`）
 
 - 入口：`zw-brain-rest`, `zw-brain-cli`, `zw-brain-mcp`, `zw-brain-a2a`, `zw-brain-migrate-legacy`
+- **外部 Agent 接入**：不增加新入口；通过 `AGENT.yaml` 经 AgentRuntime 内核运行（基线 §8.1 / R15），协议规范以 `docs/agent-runtime/*` 为单一事实源
 - 测试：`pytest tests/` 全套 441+ 用例
 - 契约：`scripts/export_agent_contract.py` 生成 5 端口契约（180 REST / 1 CLI / 61 MCP / 1 A2A / 192 Skills）
 - preflight：`bash scripts/preflight.sh` — 20 段机械检查（段数随脚本演进，以脚本实际输出为准）

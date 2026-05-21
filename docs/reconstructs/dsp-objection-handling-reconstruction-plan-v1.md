@@ -4,16 +4,25 @@
 > 结论：zw-brain 不迁入旧 `dsp-objection-handling` 的页面、菜单、Dubbo、XXL-Job、消息表和旧 URL；只吸收异议填报、受理、分发、核查、复核、评价、督办、证据留存等承重语义，重建为 `ObjectionAggregate` + `AuditAggregate` 上的可审计强状态链路。异议处理由 zw-brain 自带最小闭环，不集成现有工单系统。
 > 单一事实源：本文是异议闭环专题的旧表映射、Capability 边界、状态机、证据模型和外化边界的单一事实源；approved 数据模型保留 canonical 表定义，本文补充旧仓库迁移与产品化方案；跨专题 greenfield 口径和全局决策基线以 `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` 为准。
 
+## 〇、专题口径速览
+
+- **旅程归属**：异议子流程归 **J1 找数→用数**（使用方对授权 / 使用 / 内容质量发起异议）+ **J2 挂数→维数**（提供方对编目 / 资源补充核查）；B1.1 合规与运营消费异议指标 projection（基线 §5.1）。
+- **5 维度状态机的实施层现状记录**：基线 §3.3 / §9.2 概念层硬约束为"5 维度独立状态机"（authz / catalog / content / resource / use）；本文档 §三 现状文档展示参考实施已使用"同一 `objection_case` 状态机 + `objection_kind` / `target_type` 字段区分维度"+ 5 张维度证据表保留为 `objection_evidence` 子类。本说明仅为**记录现状**，**不是**对基线 5 独立状态机硬约束的修改提案；任何对该硬约束的实质修改（合并 / 重新切分 / 字段语义调整）属于"业务流程 / 状态机决策"，需另开 PR 走 R13 业务方 sign-off（基线 §11 R13 元规则）。
+- **物理实现**：`objection_case` / `objection_evidence` / `objection_process` / `objection_evaluation` 作为 `ObjectionAggregate` 物理实现，schema 通过 SQLAlchemy `Base.metadata.drop_all + create_all` 管理（基线 §9.6），**不进入 alembic**。
+- **R15 桥接面**：本文 §四 Capability 通过统一 contract 投影到 5 消费面（WebUI / API / CLI / MCP / A2A），MCP / A2A 投影由 AgentRuntime `AGENT.yaml` 声明（基线 §8.1 / R15）。
+- **默认租户**：`tenant_id="sd-default"`，不启用 multi-tenant（基线 §8.2）。
+- **角色与方向**：执行者限定基线 §5.1 7 角色码集合；本文档 §1.1 的"使用方 / 平台方 / 提供方 / 监管方"为业务术语，实际执行映射为：使用方=`ROLE_ORGAN_OPERATER`、平台方=`ROLE_BUSIAUDIT`、提供方=`ROLE_ORGAN_MANAGER`、监管方=`ROLE_SECURITY_AUDIT`。方向（提出方 vs 被诉方）由 `complainant_org_snapshot` / `provider_org_snapshot` 运行时计算（R11）。
+
 ## 一、设计原则
 
 ### 1.1 Jobs：从“异议管理后台”改成“纠错、协同、追责、闭环”
 
 旧 `dsp-objection-handling` 的表面形态是异议列表、异议受理、数据关联、消息管理、目录查询和开放 API。zw-brain 不继承这些后台模块名，只保留五类用户可感知价值：
 
-1. 使用方能针对目录、资源、授权、使用、内容质量发起异议，并提交依据和期望结果。
-2. 平台方能判断异议是否合理，决定受理、驳回、退回补充或分发核查。
-3. 提供方能围绕被质疑的目录、资源、服务、数据质量提交核查说明和整改证据。
-4. 监管方能看到处理是否超时、责任归属、处理过程、评价结果和证据链。
+1. `ROLE_ORGAN_OPERATER`（使用方）能针对目录、资源、授权、使用、内容质量发起异议，并提交依据和期望结果。
+2. `ROLE_BUSIAUDIT`（平台方）能判断异议是否合理，决定受理、驳回、退回补充或分发核查。
+3. `ROLE_ORGAN_MANAGER`（提供方）能围绕被质疑的目录、资源、服务、数据质量提交核查说明和整改证据。
+4. `ROLE_SECURITY_AUDIT`（监管方）能看到处理是否超时、责任归属、处理过程、评价结果和证据链。
 5. Agent 能把异议、审计、交付、服务调用和目录质量证据转成可读摘要，辅助判断而不是替代业务责任人。
 
 ### 1.2 OPC：强状态入核心，通知和调度外部化

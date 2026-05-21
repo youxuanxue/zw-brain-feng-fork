@@ -10,7 +10,7 @@
 > | 业务用户 / 7 角色 + M0 试岗 | [`docs/approved/zw-brain-roles.md`](../approved/zw-brain-roles.md)（7 角色权威源 + 各角色旅程任务地图） |
 > | 客户老板 / CIO 5 分钟看效果 | `bash scripts/customer_demo_5min.sh`（[demo 剧本](../release-notes/customer-demo-5min.md)） |
 >
-> **本文件**：`docs/deployment/handover-checklist.md` = 客户验收人 41 项 checkbox 签收依据；不是 runbook（看 onboarding）、不是体验手册（看 README）。
+> **本文件**：`docs/deployment/handover-checklist.md` = 客户验收人 42 项 checkbox 签收依据；不是 runbook（看 onboarding）、不是体验手册（看 README）。
 
 > **客户老板 / CIO 视角**：先看 [`docs/release-notes/customer-demo-5min.md`](../release-notes/customer-demo-5min.md)（5 分钟端到端演示剧本，配套 `scripts/customer_demo_5min.sh`），再来这里逐项签收。
 
@@ -106,15 +106,16 @@
 | 35 | 审批人 P3 reviewDetail 有分级授权策略 form | 切 ROLE_ORGAN_MANAGER，进 `#/p3-request-flow/review/REQ-2026-04-25-0011` | 看到 5 字段策略表（档位/脱敏/频次/有效期/级联） | 审批人 审批表单缺字段 → 无法设置授权边界，审批失效 |
 | 36 | 提供方部门 P5 4 张工作流卡 + 反向编目向导可点 | 切 ROLE_ORGAN_MANAGER，进 `#/p5-provider` | 看到 4 张 提供方部门 工作流卡；点反向编目能进 `#/p5-provider/wizard/reverse-catalog` | 提供方部门 工作面缺 → 提供方无法发起反向编目，新资源进不了目录 |
 | 37 | 业务运营员 P5 3 张收件箱 + 字段口径裁决可点 | 切 ROLE_BUSIAUDIT，进 `#/p5-provider` | 看到 3 张 业务运营员 卡（标题含 "N 条待我裁决"） | 业务运营员 收件箱缺 → 目录管理员看不到待裁决项，目录运营停摆 |
-| 38 | ROLE_SECURITY_AUDIT B1.1 绕行督查 panel | 切 ROLE_SECURITY_AUDIT，进 `#/p6-compliance-ops`（B1.1 后台支撑面 literal 路由） | 底部出现 安全审计员 直达交付清单 + 异议绕行可疑 | B1.1 督查面缺 → 合规绕行无法被发现，督查抓瞎 |
+| 38 | ROLE_SECURITY_AUDIT B1.1 绕行督查 panel | 切 ROLE_SECURITY_AUDIT，进 `#/p6-compliance-ops`（B1.1 合规与运营后台支撑面 literal 路由，仅管理员/审计员；**不在 8 页面普通用户主导航内**——基线 §5.2 = P1-P5/P7 + B1.1/B1.2 共 8 页面） | 底部出现 安全审计员 直达交付清单 + 异议绕行可疑 | B1.1 督查面缺 → 合规绕行无法被发现，督查抓瞎 |
 | 39 | ROLE_ORGAN_OPERATER P3 任务过滤 + 异常回传（基层场景） | 切 ROLE_ORGAN_OPERATER，进 `#/p3-request-flow` | 列表只剩 supplementing/need-fix 状态；右上角有"异常回传"链接 | 基层任务过滤错乱 → 基层归口部门看不清自己该做哪些，基层补录混乱 |
 
-## 九、审计 + 合规收口（2 项）
+## 九、审计 + 合规收口（3 项）
 
 | # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
 | --- | --- | --- | --- | --- |
 | 40 | 写 skill 全部产生 audit_event | 客户机房按主旅程实跑一遍（M0 迁移 + `bash scripts/customer_demo_5min.sh` 5 段 curl + 7 角色 WebUI 各点 1-2 个真实业务对象）后查 `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(DISTINCT skill_id) FROM audit_event"` | ≥ 12（覆盖 W5.2 关键 skill）。zw-brain 是全新项目，单一 canonical DB 走 `$ZW_BRAIN_DB_PATH`（默认 `.data/zw_brain.db`）；e2e 测试用 isolated TemporaryDirectory 仅供单测隔离，不参与本项验收计数 | 审计漏写 → 合规证据链断 → 安全审计员 督查抓瞎，签收作废 |
-| 41 | blockchain anchor 队列正常（或可达） | `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(*) FROM anchor_outbox WHERE delivered=0"` | 0 或 < 100（未投递队列正在异步处理；mock-chain 配置下应该 = 0） | anchor 大量未投递 → 区块链证据缺失，对外可信度证明不足 |
+| 41 | blockchain anchor 队列正常（或可达） | `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(*) FROM anchor_outbox WHERE delivered=0"` | 0 或 < 100（未投递队列正在异步处理；mock-chain 配置下应该 = 0）。**区块链 adapter 异步执行、外链 down 不阻塞业务**（基线 §3.4 / D4）；anchor 失败不阻断主流程，进 `anchor_outbox` 重试 | anchor 大量未投递 → 区块链证据缺失，对外可信度证明不足 |
+| 42 | AgentRuntime AGENT.yaml 注册抽查（按需） | 若客户启用外部 Agent 接入，B1.2 管理员对已注册 `AGENT.yaml` 做 1-2 条抽查（基线 §8.2 + §8.4）：`trust_level` 默认 `untrusted`、`provider` 指向集团推理平台 gateway、`tenant_id=sd-default`、`auth_policy != none` | 抽查通过；否则降级 `untrusted` 或下线 | 外部 Agent 越权调用 → 主旅程被绕过，审计断链 |
 
 ---
 
@@ -140,15 +141,19 @@
 | 项目 | 保修内容 | 责任方 |
 | --- | --- | --- |
 | zw-brain 核心 | 主旅程 M0 + 7 角色 e2e 通过；bug fix 7×24 | zw-brain 团队 |
-| 推理网关 | 集团统一推理平台 SLA | 集团推理团队 |
-| IAM/OIDC | 客户 IT 部门维护 | 客户 |
-| Blockchain anchor | 视客户是否启用 | 客户 / mock-chain 默认本地 |
+| 推理网关 | 集团统一推理平台 SLA（基线 §3.4 / preflight 段 10） | 集团推理团队 |
+| IAM/OIDC | IAF IAM 认证权威源；客户 IT 部门维护 | 客户 IT / IAF |
+| Blockchain anchor | 视客户是否启用；异步 adapter，外链 down 不阻塞业务 | 客户 / mock-chain 默认本地 |
+| 集团数据治理中心 | 数据清洗 / 质量 / 血缘（基线 §3.4，本平台不复造） | 集团数据治理团队 |
+| 集团数据安全中心 | 数据分类分级 / 敏感识别 / 脱敏 / 密钥（基线 §3.4） | 集团数据安全团队 |
+| 集团运维监控平台 | 运行监控 / 告警 / 巡检（旧 dsp_monitor 50 表的外部依赖；本平台不复造） | 集团运维团队 |
 | 旧库导出兼容性 | 仅承诺 sd-default 17 个 dsp_* schema；新增旧库需 PR | zw-brain 团队 |
 
 ## 加固建议（生产环境）
 
 1. **`ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH=0`** 关闭岗位切换，强制走 IAM 角色映射
 2. **`ZW_BRAIN_MASK_ROLE=external`** 默认外部脱敏；只在审计回放岗位用 `internal_admin`
-3. 数据库换 PostgreSQL，把 `ZW_BRAIN_DATABASE_URL` 指向 PG（schema 兼容）
+3. 数据库换 PostgreSQL：首次切换至**空** PG 库时，把 `ZW_BRAIN_DATABASE_URL` 指向 PG，首次启动 `ensure_runtime_schema()` 自动建表（基线 §9.6 全新项目原则）；**若 PG 库已含 zw-brain 数据，必须先备份再决定是否重置，不可在生产数据存在时直接清空**。alembic 不进入产品基线；首客户上线 + 首次生产 schema 变更后再启 alembic baseline
 4. 反向代理统一 TLS 终结 + WAF
 5. `customer_export.sh` 的 `ZW_BRAIN_DB_PASSWORD` 走 Vault / KMS，不走文件
+6. **`ZW_BRAIN_DEV_IAM_BYPASS` 必须未设置或为 `0`**（MEMORY `dev-iam-bypass debt`，prod guard 延后至首客户部署；目前依赖部署文档 + 运维 checklist 兜底）

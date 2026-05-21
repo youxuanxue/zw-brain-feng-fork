@@ -27,7 +27,7 @@ phase_after_approval: 持续维护（每次新增/删除 approved 文档时同�
 
 | 文件 | 角色 | 关系 |
 |---|---|---|
-| **[zw-brain-architecture.md](zw-brain-architecture.md)** | **架构基线（唯一权威）** | spine——所有架构主张、产品形态、路线图、R-编号设计主张在此 |
+| **[zw-brain-architecture.md](zw-brain-architecture.md)** | **架构基线（唯一权威）** | spine——所有架构主张、产品形态、路线图、R-编号（R1-R15，持续追加）设计主张在此 |
 | [zw-brain-data-model.md](zw-brain-data-model.md) | 数据模型详细展开 | spoke——基线 §9 的事实展开 |
 | [zw-brain-roles.md](zw-brain-roles.md) | 7 角色 + tag_lead_dept 详细规范 | spoke——基线 §5.1 / §11 R10/R11 的事实展开 |
 | [research-yibiaotong.md](research-yibiaotong.md) | 一表通调研事实 | spoke——基线 §3.4 C 引用的事实证据 |

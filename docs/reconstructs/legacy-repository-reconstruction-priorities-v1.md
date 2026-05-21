@@ -72,12 +72,14 @@
 
 ## 四、重点重构专题索引
 
+> 优先级标记 = 旧仓库重构紧迫度（按真实工单频度 + 主旅程依赖）；与基线 §10 Wave 节奏正交（同优先级可能跨 Wave）。`P0 = 必须在 Wave 1 闭环 / P1 = Wave 1-2 / P2 = Wave 2 投影 + adapter / P3 = Wave 3+ 候选`。
+
 | 优先级 | 专题方案 | 覆盖旧仓库 | 新系统落位 |
 | --- | --- | --- | --- |
-| P0 | `dsp-objection-handling-reconstruction-plan-v1.md` | `dsp-objection-handling` | `ObjectionAggregate` + `AuditAggregate`，补齐异议强状态闭环。 |
-| P0 | `dsp-data-connect-cascade-reconstruction-plan-v1.md` | `dsp-data-connect`、`dsp-cascade-platform`、`dsp-cascade-down` | 国家 / 上级直达与级联 adapter、external mapping、receipt、replay。 |
+| P0 | `dsp-objection-handling-reconstruction-plan-v1.md` | `dsp-objection-handling` | `ObjectionAggregate` + `AuditAggregate`，补齐 J1/J2 异议强状态闭环。 |
+| P0 | `dsp-data-connect-cascade-reconstruction-plan-v1.md` | `dsp-data-connect`、`dsp-cascade-platform`、`dsp-cascade-down` | 国家 / 上级直达与级联 adapter、external mapping、receipt、replay。**实施节奏 = 基线 §10.4 Wave 3 延后**：本期仅落 adapter 骨架与映射规则，不投入业务联调（业务方原话"用得最少"）；旧仓库优先级仍为 P0（资料整理 + 适配层接口冻结的紧迫度未变）。 |
 | P1 | `dsp-bsp-manage-governance-reconstruction-plan-v1.md` | `dsp-bsp`、`dsp-manage`、`dsp-ucenter` | IAF IAM + zw-brain Governance + Capability Registry：本地治理投影、IAM 绑定、角色映射、租户策略、能力暴露和审计策略；具体边界以该专题方案为准。 |
-| P1 | `dsp-sharezone-topic-package-reconstruction-plan-v1.md` | `dsp-sharezone`、`dsp-example`、`dsp-basesubject` | P7 `TopicPackage` 投影、专题 evidence、可见性策略、复用入口。 |
+| P1 | `dsp-sharezone-topic-package-reconstruction-plan-v1.md` | `dsp-sharezone`、`dsp-example`、`dsp-basesubject` | P7 `TopicPackage` 投影、专题 evidence、可见性策略、复用入口；首批专题包以 sd-default 山东省高频跨部门政务场景为标杆（清单由业务方 sign-off）。 |
 | P2 | `compliance-ops-adapters-reconstruction-plan-v1.md` | `datasecurity-service`、`indata-security-executor`、`standardservice-service`、`metricsmgr-service`、`data-operation-board-front`、`dsp-monitor`、`dsp-esupervision` | B1.1 合规运营 projection、标准资产候选、风险事件、健康信号、最小 `compliance_case` 闭环。 |
 
 ## 五、Excel 全量仓库覆盖矩阵
@@ -94,11 +96,11 @@
 | `dsp-basesubject` | 后端 / 388 | 共享专区 / 专题包内容源候选 | P1 | 专题库、档案、标准和统计只作为专题素材或标准资产 evidence。 |
 | `dsp-blockchain` | 后端 / 27 | 区块链锚定 adapter | P3 | v4 已决定 `anchor_outbox` 异步锚定，不复刻区块链系统。 |
 | `dsp-bsp` | 后端 / 628 | 本地业务治理与注册治理 | P1 | 组织、角色、IAM 绑定、策略裁决和菜单权限迁移边界以 `dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准；不复刻完整基础支撑后台。 |
-| `dsp-cascade-down` | 后端 / 2 | 上下级直达 / 级联 adapter | P0 | 与 `dsp-data-connect`、`dsp-cascade-platform` 合并分析。 |
-| `dsp-cascade-platform` | 后端 / 227 | 上下级直达 / 级联 adapter | P0 | 承接国家 / 上级双向通道、回执与督办证据。 |
+| `dsp-cascade-down` | 后端 / 2 | 上下级直达 / 级联 adapter | P0（节奏=Wave 3） | 与 `dsp-data-connect`、`dsp-cascade-platform` 合并分析；旧仓库优先级 P0，实施节奏按基线 §10.4 Wave 3 延后。 |
+| `dsp-cascade-platform` | 后端 / 227 | 上下级直达 / 级联 adapter | P0（节奏=Wave 3） | 承接国家 / 上级双向通道、回执与督办证据；旧仓库优先级 P0，实施节奏按基线 §10.4 Wave 3 延后。 |
 | `dsp-catalog3` | 后端 / 1067 | 已覆盖：目录 / 元数据重构方案 | 已完成 | 见 `dsp-catalog3-metadata3-reconstruction-plan-v1.md`。 |
 | `dsp-catalog-platform` | 后端 / 47 | 已纳入目录语义，不单独重构 | P2 | approved 明确不原样迁入；承重语义已收敛到 CatalogResourceAggregate。 |
-| `dsp-data-connect` | 后端 / 562 | 上下级直达 / 级联 adapter | P0 | `dsp_connect.xml` 多次被数据模型和 exchange 方案引用，需形成独立 adapter 边界。 |
+| `dsp-data-connect` | 后端 / 562 | 上下级直达 / 级联 adapter | P0（节奏=Wave 3） | `dsp_connect.xml` 多次被数据模型和 exchange 方案引用，需形成独立 adapter 边界；旧仓库优先级 P0，实施节奏按基线 §10.4 Wave 3 延后，本期仅落 adapter 骨架。 |
 | `dsp-dataservice` | 后端 / 357 | 已覆盖：服务型 Capability 重构方案 | 已完成 | 见 `dsp-dataservice-reconstruction-plan-v1.md`。 |
 | `dsp-esupervision` | 后端 / 47 | 合规督导 projection / adapter | P2 | 合规预警规则可收敛为 B1.1 能力，不复刻督导后台。 |
 | `dsp-example` | 后端 / 125 | 共享专区 / 专题包内容源 | P1 | 应用案例只保留可验证的复用 / 上报证据。 |
@@ -158,6 +160,12 @@
 | D4 | B1.1 高风险 case 关闭门槛 | 高风险 `compliance_case` 双人复核；普通 case 平台单人关闭；监管 / 敏感场景需监管或指定角色确认。 | 每次关闭必须写 `audit_event` 和 `capability_call`，外部处置需保存 receipt。 |
 | D5 | 专题包发布审核机制 | 专题包发布、下线、可见性策略变更统一走 capability review；高影响专题包双人审核。 | 专题包不得绕过 `tenant_capability_policy` 直接授权资源使用。 |
 | D6 | 标准数据权威批次 | `old/08标准服务系统标准数据` 全量先导入候选，人工确认后标记 authoritative 才生效。 | 未确认数据元 / 字典只能作为 `standard_asset_projection` 候选，不得直接进入生产 `CatalogModel` 事实。 |
+| D7 | 默认租户 | 单租户单省山东省，`tenant_id="sd-default"`；不启用 `tenant_mode=multi`。 | 所有 mapper / canonical record / AGENT.yaml 均使用 `sd-default`；与基线 §8.2 + MEMORY 一致。 |
+| D8 | WebUI 8 页面口径 | P1 工作台 / P2 资源发现 / P3 申请审批跟踪 / P4 交付交换直达 / P5 提供方管理 / P7 共享专区 / B1.1 合规与运营 / B1.2 接入扩展中心；硬上限 `≤8`。 | 任何"P6 / P8 / 新增主导航页面"提案需走 GATE 流程 + 业务方 sign-off（基线 §11 R13）。 |
+| D9 | R14 三引擎（项目级可配置） | Wave 2 必达：审批流可视化 + 表单 schema 化 + 智能推荐前置；客户差异由配置 + 多租户策略 + 外部能力包承接，不通过主仓代码分叉（基线 §11 反 per-tenant fork 主张）。 | 任何"项目级流程 / 表单 / 推荐定制"需求统一回指三引擎，本目录任何专题文档不重复定义。 |
+| D10 | R15 AgentRuntime 唯一桥接面 | 外部 Agent 不论由 ANP 平台、Cursor 还是其他工具构造，进入 zw-brain 必须以 `anp-agent/v1.2` `AGENT.yaml` 声明并通过 AgentRuntime 执行内核运行；协议规范以 `docs/agent-runtime/*` 为单一事实源。 | 不接受任何非 AGENT.yaml 入口；MCP / A2A 投影由 AGENT.yaml 声明（基线 §8.1 / R15）。 |
+| D11 | schema 管理 | SQLAlchemy `Base.metadata.drop_all + create_all`；alembic 不进入产品基线（基线 §9.6）。 | 所有专题方案新增辅助表均通过 drop_all/create_all 管理；首客户上线 + 首次生产 schema 变更时再启 alembic baseline。 |
+| D12 | 不构建大屏 / 指挥中心 / 演示页面 | 大屏不在产品形态内（基线 §1.3）；运营 / 督查指标归 B1.1 合规与运营 panel。 | 本目录任何专题方案不得新增大屏入口；如未来有客户需求按 Wave 3+ 独立产品立项。 |
 
 ## 九、证据来源
 

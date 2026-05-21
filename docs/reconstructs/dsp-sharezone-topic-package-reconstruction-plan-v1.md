@@ -1,8 +1,19 @@
 # dsp-sharezone / dsp-example / dsp-basesubject 共享专区与专题包重构方案 v1
 
 > 范围：旧平台 `old/12-datastructure/dsp_catalog.xml` 中 `sharezone` / `catalog_share_group` 相关结构、`old/old_codes/dsp-sharezone`、`old/old_codes/dsp-example`、`old/old_codes/dsp-basesubject`，`old/代码信息抽取/代码信息抽取-27newbranch/dsp-example_*`、`dsp-basesubject_*`，以及 approved 中关于 P7 共享专区、专题包、一表通 / 基层报表减负、Capability Registry、租户策略和外部依赖的设计原则。
-> 结论：zw-brain 保留“共享专区”作为 P7 主题化复用入口，但不迁成旧共享专区后台、示范应用后台或基础主题库系统；只吸收专题组织、目录 / 资源引用、可见组织策略、发布审核、复用证据、应用案例和主题库素材等承重语义，重建为 `TopicPackage` 投影 + `tenant_capability_policy` 可见性策略 + canonical 聚合引用。首批专题包以“一表通 / 基层报表减负”为标杆场景。
+> 结论：zw-brain 保留“共享专区”作为 P7 主题化复用入口，但不迁成旧共享专区后台、示范应用后台或基础主题库系统；只吸收专题组织、目录 / 资源引用、可见组织策略、发布审核、复用证据、应用案例和主题库素材等承重语义，重建为 `TopicPackage` 投影 + `tenant_capability_policy` 可见性策略 + canonical 聚合引用。**首批专题包以 sd-default 山东省真实政务案例为标杆**（具体清单由业务方按客户优先级 sign-off，可参考 `m0-site-migration.md` 已列举的"医疗救助信息 / 医保码信息 / 异地就医统筹区开通信息"等真实高频目录）；"一表通 / 基层报表减负"在基线 §3.4 C 已**降级为可选预填 adapter**，归 Wave 2 候选专题之一（详见 `docs/approved/research-yibiaotong.md`），不再作为首批标杆。
 > 单一事实源：本文是共享专区、专题包、示范应用和基础主题库内容源的专题单一事实源；目录、资源、申请、交付、异议、标准资产和能力注册的核心事实仍以对应 reconstructs 与 approved 数据模型为准；跨专题 greenfield 口径、统一 Capability 命名和全局决策基线以 `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` 为准。
+
+## 〇、专题口径速览
+
+- **旅程归属**：P7 共享专区是 **J1 找数→用数**（用户按主题快速发现 + 申请）+ **J2 挂数→维数**（运营方组织专题包）的复用入口；基线 §5.2 P7。
+- **首批标杆**：sd-default 山东省高频跨部门政务场景（具体清单由业务方 sign-off，可参考 `m0-site-migration.md` 真实高频目录）；一表通定位为 Wave 2 候选可选 adapter（基线 §3.4 C）。
+- **物理实现**：`TopicPackage` 系列 6 张表作为 `CapabilityRegistryAggregate` 的物理实现（专题为能力包的主题视图），schema 通过 SQLAlchemy `Base.metadata.drop_all + create_all` 管理（基线 §9.6），**不进入 alembic**。
+- **R15 桥接面**：§四 12 个 Capability slug 通过统一 contract 投影到 5 消费面（WebUI / API / CLI / MCP / A2A），MCP / A2A 投影由 AgentRuntime `AGENT.yaml` 声明（基线 §8.1 / R15）；前端 UI 文案禁用 `package` / `projection` 工程术语（基线 §11 R12）。
+- **可见性策略边界**：本文 §四 `topic.package.policy.update` Phase 1 仅支持组织 + 角色 + 消费面三维（与 §3.2 T2 一致），分级授权延后至 R14 表单 schema 化引擎 Wave 2 后再评估（与基线 §5.6 #3"目录分级授权本期不做"一致）。
+- **basesubject 边界**：`dsp_basesubject` 81 张独立表**完全不复造**（基线 §5.6 #13）；本文档 §3 目标模型中 basesubject 仅作为专题素材 / 标准资产 evidence 候选输入，**不生成新事实源**（与本文 §1.2 / §1.5 一致）。
+- **默认租户**：`tenant_id="sd-default"`，不启用 multi-tenant（基线 §8.2）。
+- **角色与方向**：执行者限定基线 §5.1 7 角色码集合；专题包运营 = `ROLE_BUSIAUDIT`；专题包内容贡献 = `ROLE_ORGAN_MANAGER` / `ROLE_ORGAN_OPERATER`。
 
 ## 一、设计原则
 
@@ -321,7 +332,7 @@ zw-brain 不继承这些后台形态，只保留五类用户可感知价值：
 
 | 编号 | 决策项 | 专题基线 | 实施约束 |
 | --- | --- | --- | --- |
-| T1 | 首批标杆场景 | 首批 P7 专题包以“一表通 / 基层报表减负”为标杆场景；企业服务、人口、法人等主题作为后续扩展。 | 专题包必须引用 canonical 目录 / 资源 / 模型 / 申请模板 / evidence，不新建主题库事实。 |
+| T1 | 首批标杆场景 | **首批 P7 专题包以 sd-default 山东省高频跨部门政务场景为标杆**（具体清单由业务方按客户优先级 sign-off；可参考 `m0-site-migration.md` 已列举的"医疗救助信息 / 医保码信息 / 异地就医统筹区开通信息"等真实高频目录）；"一表通 / 基层报表减负"按基线 §3.4 C 降级为 Wave 2 候选可选 adapter（与 `docs/approved/research-yibiaotong.md` Wave 2 同步），不作为首批标杆；企业服务、人口、法人等主题作为后续扩展。 | 专题包必须引用 canonical 目录 / 资源 / 模型 / 申请模板 / evidence，不新建主题库事实。 |
 | T2 | 可见性策略维度 | 首版支持组织 + 角色 + 区划 + 消费面；岗位、业务条线、专题准入条件后续扩展。 | 策略输入至少包含 `tenant_id`、`org_snapshot`、`role_codes`、`region_code`、`surface`、`intent`。 |
 | T3 | 旧资源授权规则迁移等级 | 旧 `share_zone_resource_auth` 只作为策略模板候选，不自动生效。 | 经人工审核后可转为专题可见性策略、申请模板或交付订阅限制。 |
 | T4 | 应用案例是否继续上报国家 / 上级平台 | 首版只保留上报能力，不默认全量上报；按专题包或案例显式触发。 | 上报必须走 `adapter.national.topic.report` 并保存 external mapping 与 receipt。 |

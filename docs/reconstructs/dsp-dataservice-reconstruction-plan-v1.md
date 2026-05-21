@@ -3,6 +3,15 @@
 > 范围：旧平台 `old/old_codes/dsp-dataservice`（3.16.15）、外部调用分析 `old/old_codes_analyse/dsp-dataservice-apis.md` 与旧结构数据 `old/12-datastructure`。
 > 结论：zw-brain 是全新 AI 原生项目，迁移目标不是兼容旧接口与旧表，而是吸收承重业务语义，重建为围绕主旅程、统一 Capability、可审计的数据服务能力面。
 
+## 〇、专题口径速览
+
+- **旅程归属**：API 服务资源在 **J1 找数→用数**中是 P2/P3/P4 主要消费对象（资源发现 / 申请审批 / 凭据领取与调用）；服务发布 / 撤回归 **J2 挂数→维数**（P5 提供方管理）；网关健康 / 调用统计归 **B1.1 合规与运营**只读 projection（基线 §5.1）。
+- **物理实现**：本文 §3.3-3.4 投影表 `gateway_runtime_status_projection` / `service_invocation_metric_projection` 作为 B1.1 read model（基线 §3.4 "运行监控由集团统一运维监控平台承担" 兼容），schema 通过 `Base.metadata.drop_all + create_all` 管理（基线 §9.6），**不进入 alembic**；这两张表是审计派生投影，**不是网关管理事实源**。
+- **R15 桥接面**：§3.5 Capability 清单（`resource.api.*` / `ops.gateway.*` / `ops.service.*`）通过统一 contract 投影到 5 消费面（WebUI / API / CLI / MCP / A2A），MCP / A2A 投影由 AgentRuntime `AGENT.yaml` 声明（基线 §8.1 / R15）。
+- **R14 三引擎**：API 服务的"服务发布审批节点 / 选人规则"由 Wave 2 R14 审批流可视化引擎承接（基线 §10.3），本文档 Wave 0 仍用硬编码 5 步流程。
+- **默认租户**：`tenant_id="sd-default"`，不启用 multi-tenant（基线 §8.2）。
+- **本文 Wave 编号** = 基线 §10 Wave 的专题子集；本文档原标 Wave 0-3 与基线 Wave 0-4 节奏对齐：网关心跳 / 调用统计投影属基线 Wave 0；API 服务资源化属基线 Wave 1；治理动作属基线 Wave 2；编排外部化属基线 Wave 3。
+
 ## 一、设计原则
 
 ### 1.1 Jobs：从“数据服务后台”改成“数据拿得到、用得稳、可追责”

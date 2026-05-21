@@ -22,7 +22,11 @@
 - 目录、资源、申请、交付、异议、Capability 的状态不能由 B1.1 projection 直接覆盖。
 - 需要人工处置的风险进入 `compliance_case` 候选；`risk_case` 只作为 `compliance_case` 的风险分类或读模型术语，不新增未获 approved 数据模型确认的核心事实表。zw-brain 自带最小确认、分派、整改、关闭闭环，不默认派发到外部工单系统。
 - 分类分级、敏感识别、脱敏、加密、密钥、数据源扫描默认外部化，zw-brain 只保存摘要、结果引用和整改证据。
-- B1.1 只读消费 `compliance.*` projection，禁止内嵌写操作。
+- B1.1 对**业务主旅程（J1/J2）的状态**只读：禁止 B1.1 投影或 case 闭环反向覆盖目录、资源、申请、审批、交付、异议、Capability 等核心状态。
+- B1.1 的**写操作严格限定在合规 case 闭环 + 规则配置**：`compliance.case.*`、`compliance.rule.configure`、`risk.event.ingest` 是 B1.1 自身闭环所必需的 6 个写 Capability（详见 §四 Capability 清单），其作用域不越出"风险事件入站 → 升级 case → 分派 → 整改 → 关闭"链路。
+- 主要执行角色：`ROLE_BUSIAUDIT`（业务运营员，case 受理与分派）/ `ROLE_SECURITY_AUDIT`（审计督查）/ `ROLE_SECURITY_ADMIN`（数据安全策略）；基线 §5.1 7 角色码集合。
+- 本专题新增的 6 个辅助表（`compliance_signal` / `risk_event_projection` / `compliance_case` / `compliance_rule` / `health_signal_projection` / `metric_definition_projection`）**通过 SQLAlchemy `Base.metadata.drop_all + create_all` 管理**，不进入 alembic（基线 §9.6）。
+- 默认租户：`tenant_id="sd-default"`（基线 §8.2 / 单租户单省）。
 
 ### 1.3 为什么不能迁成安全 / 指标 / 监控大后台
 

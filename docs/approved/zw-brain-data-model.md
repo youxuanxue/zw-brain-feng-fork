@@ -89,7 +89,7 @@ phase_after_approval: Wave 0（先打通 Catalog → Application → Approval �
 
 | 旅程 / 后台面 | WebUI 页面 | 主要聚合 / 表 | 说明 |
 |--------------|-----------|--------------|------|
-| **J1 找数→用数** | P1 工作台、P2 资源发现、P3 申请/审批/跟踪、P4 交付/交换、P7 共享专区 | `catalog_entry`, `catalog_item`, `resource_asset`, `application_record`, `application_attachment`, `approval_case`, `approval_step`, `approval_decision`, `delivery_task`, `delivery_attempt`, `delivery_receipt`, `delivery_subscription`, `delivery_notice_projection`, `audit_receipt` | 用户视角的"找 → 申请 → 拿"5 步骨干合并为一条核心旅程；含异议子流程 + 供需对接子流程；含有条件 / 无条件 / 不予共享 3 种 `share_type`（详见 architecture.md §3.3） |
+| **J1 找数→用数** | P1 工作台、P2 资源发现、P3 申请/审批/跟踪、P4 交付/交换、P7 共享专区 | `catalog_entry`, `catalog_item`, `resource_asset`, `application_record`, `application_attachment`, `approval_case`, `approval_step`, `approval_decision`, `delivery_task`, `delivery_receipt`, `delivery_notice_projection`, `audit_receipt`（Wave 0 必选）；`delivery_attempt`, `delivery_subscription`（Wave 1 补齐，见 §11.1-11.2） | 用户视角的"找 → 申请 → 拿"5 步骨干合并为一条核心旅程；含异议子流程 + 供需对接子流程；含有条件 / 无条件 / 不予共享 3 种 `share_type`（详见 architecture.md §3.3） |
 | **J2 挂数→维数** | P1 工作台、P5 提供方管理、P7 共享专区 | `catalog_model`, `catalog_entry`, `catalog_entry_version`, `resource_asset`, `objection_*`（Wave 2） | 提供方编目 / 资源挂接 / 部门审 / 平台发布 / 异议处理 |
 | **B1.1 合规与运营** | B1.1 合规与运营、P1 工作台 | `capability_call`, `audit_event`, `audit_receipt`, `anchor_outbox`, `service_invocation_metric_projection`, `gateway_runtime_status_projection` | 仅管理员/审计员；面向审计、统计、异常、追责，读的是审计事实和审计派生投影；不是消息通知；运行监控由集团统一运维监控平台承担（外部依赖） |
 | **B1.2 接入扩展中心** | B1.2 接入扩展中心 | `capability_package`, `capability_version`, `capability_exposure`, `capability_review_record`, `tenant_capability_policy` | 仅管理员；后台支撑面；不进入普通用户主导航心智 |
@@ -1444,7 +1444,7 @@ resolved  → closed
 | legacy 表/模块 | 新表 | 说明 |
 |---------------|------|------|
 | `sys_department` / `sys_region` / `portal_organization` | `tenant_org_projection` | 作为 Governance 本地组织 / 区划投影，具体权威源和治理边界以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准 |
-| `sys_user` / `sys_role` / `sys_permission` / `oauth_*` | Governance 投影 / 策略候选；认证秘密不入 core | IAF IAM 是认证权威源；用户 / 角色投影、绑定和权限映射边界以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准 |
+| `sys_user` / `sys_role` / `sys_permission` / `oauth_*` | Governance 投影 / 策略候选；认证秘密不入 core | **IAF IAM 是唯一认证权威源**，zw-brain 不复造认证 schema；用户 / 角色投影、绑定和权限映射边界以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准 |
 
 ---
 
@@ -1598,7 +1598,7 @@ resolved  → closed
 | `dsp-pdf` | 对象存储 + 文档服务 | 文件管理不应反向成为主数据模型 |
 | `portal-vue` / `catalog-front` | 前端实现输入，不入核心库表 | 前端状态不是权威数据模型 |
 | `dsp-example` | 共享专区/专题包的外部内容源 | 不是首波核心聚合 |
-| `dsp-basesubject` | Wave 2 再评估 | 更像专题库/知识面，不是首条黄金链路所必需 |
+| `dsp-basesubject` | **不复造**（基线 §5.6 #13） | 81 张独立表的并行编制系统；归外部数据治理中心或客户线下编制；本平台不重建 |
 
 ## 附录 B — 本文使用的主要旧库证据
 

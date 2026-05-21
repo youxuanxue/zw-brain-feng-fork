@@ -6,6 +6,15 @@
 > 结论：zw-brain 是全新 AI 原生项目，不兼容旧接口、旧菜单、旧库表，也不把 catalog3 / metadata3 原样迁成两个新子系统；本方案只吸收目录、元数据、资源、申请、授权、发布、质量、血缘等承重业务语义，重建为围绕主旅程、统一 Capability、可审计、可外化扩展的能力面。
 > 单一事实源：本文是 dsp-catalog3 / dsp-metadata3 专题映射、字段落位、能力迁移和 ANP 外化边界的单一事实源；`docs/approved/*` 只保留 canonical 通用模型与本文引用。
 
+## 〇、专题口径速览
+
+- **旅程归属**：catalog3 / metadata3 主旅程归属 **J1 找数→用数**（资源发现 P2 + 申请审批 P3）+ **J2 挂数→维数**（编目挂接 P5）；统计 / 质量 / 血缘相关只读能力归 **B1.1 合规与运营**（基线 §5.1）。
+- **物理实现**：本文 §6.2 新增的 `resource_schema_mapping` / `metadata_gather_evidence_projection` / `lineage_relation_projection` 三个辅助结构作为 `CatalogResourceAggregate` 的物理实现，schema 通过 SQLAlchemy `Base.metadata.drop_all + create_all` 管理（基线 §9.3 / §9.6），**不进入 alembic**。
+- **默认租户**：`tenant_id="sd-default"`，不启用 multi-tenant（基线 §8.2）。
+- **角色与方向**：角色码限定基线 §5.1 7 角色集合；编目方向（提供方 vs 需求方）由 `applicant_org_code` / `owner_org_code` 运行时计算，禁止再通过新增角色码表达方向（基线 §11 R11）。
+- **本文 Wave 编号**：本文档内 Wave 编号 = 基线 §10 Wave 的专题子集；目录 / 元数据采集 / 质量 / 血缘相关能力大多落 Wave 0-1，与基线 J1+J2 闭环节奏对齐；项目级目录字段定制 / 推荐由 **Wave 2 三引擎**（R14：审批流可视化 + 表单 schema 化 + 智能推荐前置）承接，本文档不重复定义。
+- **R15 桥接面**：本文档 §7.1 Capability 通过统一 contract 投影到 5 消费面（WebUI / API / CLI / MCP / A2A），其中 MCP / A2A 由 AgentRuntime `AGENT.yaml` 声明（基线 §8.1 / R15）；外部 Agent 不直接读写 canonical，仅作为长尾或配置草稿生成器。
+
 ## 一、设计原则
 
 ### 1.1 Jobs：从“目录后台 + 元数据后台”改成“找得到、要得清、交付稳、证据可追”

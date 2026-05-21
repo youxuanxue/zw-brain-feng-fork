@@ -1,5 +1,12 @@
 # Docker 镜像文件部署手册
 
+> **权威源对齐**（基线 `docs/approved/zw-brain-architecture.md`）：
+> - 单租户：`tenant_id=sd-default`（不启用 multi-tenant；基线 §8.2 + MEMORY sd-default）
+> - schema：SQLAlchemy `Base.metadata.drop_all + create_all` 容器首次启动自动重建（基线 §9.6），alembic 不进入产品基线
+> - 模型调用：必须经集团推理平台，禁止直连第三方 LLM（基线 §3.4 / preflight 段 10）
+> - 外部依赖：IAF IAM / 集团推理平台 / 区块链 adapter / 集团数据治理中心 / 集团数据安全中心 / 集团运维监控（基线 §3.4）
+> - WebUI 页面：P1-P5/P7 + B1.1/B1.2 共 8 页面（基线 §5.2 硬上限 ≤8）；本镜像不构建大屏 / 指挥中心 / 演示页面（基线 §1.3）
+
 本文说明如何从源码构建 `zw-brain` Docker 镜像、导出镜像文件，并在目标服务器通过镜像文件部署 REST WebUI/API。
 
 ## 1. 构建镜像
@@ -17,6 +24,8 @@ docker build -t zw-brain:1.0.0 .
 - `zw-brain-mcp`：MCP 入口
 - `zw-brain-a2a`：A2A 入口
 - `zw-brain-migrate-legacy`：旧平台数据迁移入口
+
+> 外部 Agent 接入不需独立容器入口：通过 `AGENT.yaml` 经 AgentRuntime 内核运行（基线 §8.1 / R15），协议规范以 `docs/agent-runtime/*` 为准；如未来出 Standalone HTTP 形态再扩入口。
 
 ## 2. 导出与导入镜像文件
 
@@ -39,6 +48,8 @@ docker images zw-brain
 ```
 
 ## 3. 准备持久化目录
+
+> Schema 生命周期：容器启动时 `zw_brain.shared.migrate.ensure_runtime_schema()` 校验必需表/列是否齐全——**齐全则跳过**，**缺失列/表时执行 `drop_all + create_all`**（**会清空所有数据**，基线 §9.6）。挂载持久化目录可用于跨升级保留数据；**当模型 schema 发生不向后兼容变更时（缺列触发 reset），数据将被清空**——升级前必须由运维评估是否备份。首客户上线 + 首次生产 schema 变更后再启 alembic baseline。
 
 SQLite 数据库默认建议挂载到宿主机目录，避免容器重建导致数据丢失：
 
@@ -98,7 +109,9 @@ http://<服务器IP>:8800/
 | `ZW_BRAIN_REST_HOST` | REST 监听地址 | `0.0.0.0` |
 | `ZW_BRAIN_REST_PORT` | REST 监听端口 | `8800` |
 | `ZW_BRAIN_REST_BASE_URL` | REST 对外基础 URL，用于契约投影等场景 | `http://127.0.0.1:<REST端口>` |
-| `ZW_BRAIN_TENANT_ID` | 默认租户标识 | 按运行配置解析 |
+| `ZW_BRAIN_TENANT_ID` | 默认租户标识；Phase 1 固定 `sd-default`（单租户单省山东；基线 §8.2） | `sd-default` |
+| `ZW_BRAIN_INFERENCE_GATEWAY_URL` | 集团推理平台 gateway URL；所有 LLM / Embedding / ASR / Rerank / OCR 调用必须经此入口（基线 §3.4 + preflight 段 10） | 必填（生产环境） |
+| `ZW_BRAIN_INFERENCE_API_KEY_REF` | 集团推理平台 API key 引用（密钥引用，非明文）；密钥材料不进入镜像 | 必填（生产环境） |
 | `ZW_BRAIN_IAF_CA_FILE` | IAF HTTPS 自定义 CA 证书文件路径（容器内路径），用于挂载内部 CA bundle | 未设置（使用系统默认信任链） |
 | `ZW_BRAIN_IAF_VERIFY_SSL` | 设为 `false` 时完全跳过 IAF 端点 SSL 验证（仅限测试/内网无证书环境） | `true` |
 | `ZW_BRAIN_DEV_IAM_BYPASS` | 研发期 IAM 网络不可达时临时跳过登录与 token-healthz；仅 `1` 生效，生产部署不得设置 | 未设置 |
@@ -108,6 +121,8 @@ http://<服务器IP>:8800/
 REST WebUI 登录采用 IAM 授权码流程：前端未发现 `sessionStorage` token 且 URL 无 `code` 时会跳转到 IAM 授权端点；回跳首页后由后端 `/auth/iaf/token` 代理 code 换取 token，`client_secret` 只在后端环境变量中使用。前端每 5 分钟检查 access token 过期时间，剩余小于 60 秒时调用 `/auth/iaf/refresh`；所有 `/api/*` 请求都会携带 `Authorization: Bearer <access_token>`，后端透传到 `{ZW_BRAIN_IAF_AUTH_SERVER_URL}/v1/token-healthz` 校验，校验不可用时按 503 失败关闭。退出登录会清理前端 `sessionStorage`，再跳转 IAM `/protocol/openid-connect/logout?redirect_uri=...` 清除 SSO 会话。
 
 开发环境若无法连通 IAM 服务端，可临时设置 `ZW_BRAIN_DEV_IAM_BYPASS=1`：WebUI 不跳转 IAM，后端 `/api/snapshot` 与 `/api/skills/*` 不再强制 token-healthz，但仍执行 Skill manifest、角色、租户和人工确认等业务门禁。该变量只用于研发调试，生产部署清单不要设置；正式上线前应移除 `ZW_BRAIN_DEV_IAM_BYPASS` 及 `development_iam_bypass` / `dev-iam-bypass` / `developmentBypassEnabled` 相关临时代码。
+
+> **prod guard debt**：`ZW_BRAIN_DEV_IAM_BYPASS` 的生产环境硬拦截守卫延后至首客户部署阶段实现（MEMORY `dev-iam-bypass debt`），当前登记于 `docs/preflight-debt.md`；交付时由部署文档 + 运维 checklist 确保该变量未设置，不依赖代码守卫拦截。
 
 ## 6. 旧平台数据迁移
 
