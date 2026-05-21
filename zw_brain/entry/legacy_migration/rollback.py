@@ -10,7 +10,7 @@ re-emitted by re-running the importer (which will create fresh mappings).
 When `--also-suspend-canonical` is passed, rollback additionally flips the
 status column on a known subset of canonical records (catalog_entry,
 resource_asset, application_record, approval_case) to `suspended` so that
-operators can quickly hide partially-migrated records from end-user views (J1 找数→用数 / J2 挂数→维数 / J3 看全局→处异常 旅程).
+operators can quickly hide partially-migrated records from end-user views (J1 找数→用数 / J2 挂数→维数 旅程 + B1 后台支撑面).
 
 Scope can be expressed three ways (pick exactly one):
 

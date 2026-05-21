@@ -24,7 +24,7 @@ def _now() -> datetime:
 class ComplianceOpsRepository:
     """Compliance/ops projections (M1–M6).
 
-    Read paths are eventually consumed by Dashboard / P6 surfaces; write paths come from
+    Read paths are eventually consumed by B1.1 合规与运营 surfaces (route p6-compliance-ops); write paths come from
     the legacy importer (mappers/projections.py) and from the `compliance.*`,
     `risk.event.ingest`, `adapter.health.probe`, `standard.asset.sync` skills.
     """

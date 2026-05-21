@@ -17,7 +17,7 @@ PYTHON = os.environ.get("PYTHON_FOR_SUBPROCESS") or sys.executable
 pytestmark = pytest.mark.slow_infra
 
 
-def test_installed_rest_and_dashboard_http_handler_smoke() -> None:
+def test_installed_rest_http_handler_smoke() -> None:
     with TemporaryDirectory() as tmp:
         dist_dir = Path(tmp) / "dist"
         subprocess.run(
@@ -52,4 +52,3 @@ def test_installed_rest_and_dashboard_http_handler_smoke() -> None:
         rest_data = json.loads(rest.stdout.strip())
         assert rest_data["health"] == {"status": "ok", "service": "zw-brain-rest"}
         assert rest_data["has_title"] is True
-        # K12 dashboard BFF retired (R17 / v4.1): dash HTTP handler test removed.

@@ -16,7 +16,7 @@ PYTHON = sys.executable
 pytestmark = pytest.mark.slow_infra
 
 
-def test_installed_rest_and_dashboard_entry_smoke() -> None:
+def test_installed_rest_entry_smoke() -> None:
     with TemporaryDirectory() as tmp:
         dist_dir = Path(tmp) / "dist"
         subprocess.run(
@@ -45,4 +45,3 @@ def test_installed_rest_and_dashboard_entry_smoke() -> None:
             check=True,
         )
         assert rest.stdout.strip().splitlines() == ["True", "True"]
-        # K12 dashboard BFF 退役 (R17 / v4.1)：不再校验 dashboard 资源打包

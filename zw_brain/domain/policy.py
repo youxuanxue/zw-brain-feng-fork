@@ -44,7 +44,7 @@ PERMISSION_ROLES = {
     "delivery.view.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "provider.view.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
 
-    # J3 异议/审计/合规
+    # B1.1 异议/审计/合规
     "governance.dispute_list.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "governance.dispute_view.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "governance.iam_overview.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
@@ -230,7 +230,7 @@ PERMISSION_ROLES = {
     # M0 实施工程师专用（admin 主用；BUSIAUDIT/SECURITY_AUDIT 验收日代看）
     "legacy.migration.status.query.execute": {"admin", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
 
-    # 反向编目（J2）— R6/R7 即 ROLE_ORGAN_MANAGER + ROLE_BUSIAUDIT 主导（OPERATER 通过 ROLE_HIERARCHY 隐式获得 suggest/create）
+    # 反向编目（J2）— ROLE_ORGAN_MANAGER + ROLE_BUSIAUDIT 主导（OPERATER 通过 ROLE_HIERARCHY 隐式获得 suggest/create）
     "catalog.entry.reverse_draft.suggest.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "catalog.entry.reverse_draft.create.execute": {"ROLE_ORGAN_MANAGER"},
     "catalog.entry.reverse_draft.confirm.execute": {"ROLE_BUSIAUDIT"},

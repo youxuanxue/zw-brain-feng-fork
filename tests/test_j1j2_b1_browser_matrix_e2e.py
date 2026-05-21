@@ -1,9 +1,9 @@
-"""J1+J2+J3 三旅程浏览器 e2e 矩阵 — 真 Chrome via CDP.
+"""J1+J2 旅程 + B1 后台支撑面浏览器 e2e 矩阵 — 真 Chrome via CDP.
 
 补完 test_webui_browser_e2e.py 的 customer_main_journey 之外的关键场景，覆盖：
 - J1: P4 凭据领取页 + sharing_type 分流 UI
 - J2: P5 提供方主面 + 字段口径裁决收件箱
-- J3: P6 合规审计 + P8 K12 大屏接入点
+- B1.1: 合规与运营（路由仍为 p6-compliance-ops）— 审计/争议时间线
 - 多角色穿插切换
 
 测试基础设施沿用 test_webui_browser_e2e（CDP + headless Chrome）。
@@ -168,8 +168,8 @@ def test_j2_provider_p5_overview_visible_to_busiaudit(real_browser_env):
             browser.close()
 
 
-def test_j3_compliance_audit_replay_security_audit(real_browser_env):
-    """T5 - J3 P6 合规运营：ROLE_SECURITY_AUDIT 可看到审计回放时间线."""
+def test_b1_compliance_audit_replay_security_audit(real_browser_env):
+    """T5 - B1.1 合规运营（路由 p6-compliance-ops）：ROLE_SECURITY_AUDIT 可看到审计回放时间线."""
     base_url = real_browser_env
     browser = None
     try:
@@ -180,13 +180,12 @@ def test_j3_compliance_audit_replay_security_audit(real_browser_env):
         browser.eval("location.hash = '#/p6-compliance-ops'")
         _wait_for(browser, "document.body.innerText.length > 200", timeout=10)
         text = _visible_text(browser)
-        # P6 主面应包含合规/审计相关元素
+        # B1.1 主面应包含合规/审计相关元素
         assert any(kw in text for kw in ("审计", "合规", "时间线", "争议", "异议")), (
-            f"P6 合规运营 SECURITY_AUDIT 视角缺关键内容：{text[:300]}"
+            f"B1.1 合规运营 SECURITY_AUDIT 视角缺关键内容：{text[:300]}"
         )
     finally:
         if browser is not None:
             browser.close()
 
 
-# test_j3_k12_dashboard_link_present 已删除（K12 大屏退役，R17 / v4.1 二轮再砍）
