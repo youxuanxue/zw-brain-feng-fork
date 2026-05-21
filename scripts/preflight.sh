@@ -62,6 +62,7 @@ done <<'CHECKS'
 段 18	scripts/check_db_bloat.py	db-bloat-check (canonical DB ≤ 2GB hard, 500MB soft)
 段 19	scripts/check_no_legacy_role_codes.py	no-legacy-role-codes (D23 retrofit)
 段 20	scripts/check_no_retired_features.py	no-retired-features (R15 alembic + R17 K12 dashboard)
+段 21	scripts/check_no_numbered_routes.py	no-numbered-routes (route de-identify guardrail)
 CHECKS
 
 echo ""

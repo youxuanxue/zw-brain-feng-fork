@@ -21,7 +21,7 @@
 > - schema：SQLAlchemy `Base.metadata.drop_all + create_all`；**alembic 不进入产品基线**（基线 §9.6）
 > - 模型调用：必须经集团推理平台；mock client 仅限研发态，不可用于客户验收（基线 §3.4 + preflight 段 10）
 > - 外部依赖：IAF IAM / 集团推理平台 / 区块链 adapter / 集团数据治理中心 / 集团数据安全中心 / 集团运维监控（基线 §3.4）
-> - WebUI 页面：P1-P5/P7 + B1.1/B1.2 共 8 页面（基线 §5.2 硬上限 ≤8）；B1.1 合规与运营的 literal 路由为 `#/p6-compliance-ops`
+> - WebUI 页面：P1-P5/P7 + B1.1/B1.2 共 8 页面（基线 §5.2 硬上限 ≤8）；B1.1 合规与运营的 literal 路由为 `#/compliance-ops`
 > - 本 runbook 不打包大屏 / 指挥中心 / 演示页面入口（基线 §1.3）
 
 本文档是 W5 客户移交清单（`handover-checklist.md`）的执行手册。
@@ -297,14 +297,14 @@ curl -s http://localhost:8800/openapi.json | jq '.paths | length'
 
 | 岗位 | 主入口 | 关键动作 |
 | --- | --- | --- |
-| M0（隐式：ROLE_BUSIAUDIT + ROLE_SECURITY_AUDIT） | `#/p0-migration-acceptance` | 11 张工作队列卡片状态 |
-| ROLE_ORGAN_OPERATER（申请发起） | `#/p1-workbench` | "我的 API 凭据"卡 + "需求登记前置"表单 |
-| ROLE_ORGAN_MANAGER（部门审批） | `#/p3-request-flow/review/<req>` | 分级授权策略 inline 表单 |
-| ROLE_ORGAN_OPERATER（基层补差） | `#/p3-request-flow` | "只看我的"列表过滤 + "异常回传" |
-| ROLE_BUSIAUDIT（异议受理） | `#/p6-compliance-ops/dispute/<obj>`（B1.1 后台 literal 路由） | 异议四子流程 4 张表单卡 |
-| ROLE_ORGAN_MANAGER（部门提供方） | `#/p5-provider` | 4 张 提供方部门 工作流卡（反向编目 / API 服务化 / 检测规则 / 资源挂接） |
-| ROLE_BUSIAUDIT（平台运营） | `#/p5-provider` | 3 张 业务运营员 收件箱（字段裁决 / 挂接审核 / 供需对接） |
-| ROLE_SECURITY_AUDIT（合规督查） | `#/p6-compliance-ops`（B1.1 后台 literal 路由） | "安全审计员 绕行督查"panel |
+| M0（隐式：ROLE_BUSIAUDIT + ROLE_SECURITY_AUDIT） | `#/migration-acceptance` | 11 张工作队列卡片状态 |
+| ROLE_ORGAN_OPERATER（申请发起） | `#/workbench` | "我的 API 凭据"卡 + "需求登记前置"表单 |
+| ROLE_ORGAN_MANAGER（部门审批） | `#/request-flow/review/<req>` | 分级授权策略 inline 表单 |
+| ROLE_ORGAN_OPERATER（基层补差） | `#/request-flow` | "只看我的"列表过滤 + "异常回传" |
+| ROLE_BUSIAUDIT（异议受理） | `#/compliance-ops/dispute/<obj>`（B1.1 后台 literal 路由） | 异议四子流程 4 张表单卡 |
+| ROLE_ORGAN_MANAGER（部门提供方） | `#/provider` | 4 张 提供方部门 工作流卡（反向编目 / API 服务化 / 检测规则 / 资源挂接） |
+| ROLE_BUSIAUDIT（平台运营） | `#/provider` | 3 张 业务运营员 收件箱（字段裁决 / 挂接审核 / 供需对接） |
+| ROLE_SECURITY_AUDIT（合规督查） | `#/compliance-ops`（B1.1 后台 literal 路由） | "安全审计员 绕行督查"panel |
 
 **客户现场签收脚本**：让客户每个岗位 1-2 个真实业务对象走完一次主旅程，把审计日志截图作为签收附件。
 

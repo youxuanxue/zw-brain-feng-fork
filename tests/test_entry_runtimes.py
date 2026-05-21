@@ -353,6 +353,3 @@ def test_rest_main_reads_host_and_port_from_env(monkeypatch) -> None:
 
     assert captured["address"] == ("0.0.0.0", 18800)
     assert captured["served"] is True
-
-
-# test_dashboard_main_reads_host_and_port_from_env 已删除（K12 大屏 BFF 退役 R17 / v4.1）

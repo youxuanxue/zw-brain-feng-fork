@@ -3,8 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-# test_dashboard_skill_is_read_only 已删除（K12 大屏 + dashboard.render_command_center Skill 退役 R17 / v4.1）
-
 
 def test_snapshot_contains_expected_collections() -> None:
     tmp, service = make_service()
@@ -161,7 +159,6 @@ def test_backend_skills_cover_main_webui_detail_routes() -> None:
         assert provider["repository"]["resourceCatalogCode"] == "res-jbxx-ledger"
         assert zone["id"] == "business"
         assert package["id"] == "PKG-2026-04-25-001"
-        # dashboard.render_command_center Skill 已退役 (R17 / v4.1)
 
 
 def test_repository_backed_list_skills_cover_live_pages() -> None:

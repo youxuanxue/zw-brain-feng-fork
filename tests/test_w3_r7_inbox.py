@@ -110,7 +110,7 @@ def test_r7_inbox_pages_and_routes_registered() -> None:
     ):
         assert f"PAGES.{page}" in pages_js, f"missing page renderer {page}"
         assert f"{page}: ['ROLE_BUSIAUDIT']" in pages_js, f"missing access map for {page}"
-        assert f"{page}: 'p5'" in pages_js, f"missing shell key for {page}"
+        assert f"{page}: 'provider'" in pages_js, f"missing shell key for {page}"
     for slug in ("field-decision", "hookup-review", "demand-match"):
         assert f"\\/inbox\\/{slug}" in app_js, f"missing route for {slug}"
 

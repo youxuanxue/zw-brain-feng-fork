@@ -78,7 +78,7 @@
 | 19 | 批量导入跑通 | `bash scripts/customer_acceptance_up.sh` | 写 `.data/customer-acceptance/migration-report.json` 且 status=succeeded | 迁移不通 → 客户旧数据进不来，大脑空跑 |
 | 20 | `legacy_object_mapping` 一对一回指 | `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(*), SUM(mapping_status='mapped') FROM legacy_object_mapping"` | total > 0 且 mapped 比例 ≥ 95% | mapping 断 → 安全审计员 督查无法溯源到旧对象，合规证据链不完整 |
 | 21 | M0 验收 status query 11 卡片 | `curl -s /api/skills/legacy.migration.status.query?role=ROLE_BUSIAUDIT \| jq '.work_queue_cards \| length'` | `11` | 卡片缺失 → 业务运营员 看不到验收进度，无法签收 M0 |
-| 22 | P0 WebUI 页面渲染 | 浏览器访问 `#/p0-migration-acceptance` | 11 张卡片 + totals + canonical/legacy 分布表 | 页面不渲染 → 实施工程师无法证明迁移完成，签收没视觉证据 |
+| 22 | P0 WebUI 页面渲染 | 浏览器访问 `#/migration-acceptance` | 11 张卡片 + totals + canonical/legacy 分布表 | 页面不渲染 → 实施工程师无法证明迁移完成，签收没视觉证据 |
 | 23 | 显式回滚 dry-run 可调 | `python -m zw_brain.entry.legacy_migration.rollback --tenant=sd-default --legacy-system=dsp_catalog --dry-run` | 返回 scanned 数 + audit_id=null | 回滚链路坏 → 迁移如果半途出错无法干净退回，业务无 rollback plan |
 
 ## 七、M0 + 7 角色 e2e 契约（10 项 — W5.2 全部）
@@ -102,12 +102,12 @@
 
 | # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
 | --- | --- | --- | --- | --- |
-| 34 | ROLE_ORGAN_OPERATER P1 工作台显示 API 凭据卡 + 需求登记 | 切角色 ROLE_ORGAN_OPERATER，进 `#/p1-workbench` | 底部出现"我的 API 凭据"和"需求登记前置"两栏 | 工作台缺关键卡 → 业务专班看不到自己的凭据和入口 |
-| 35 | 审批人 P3 reviewDetail 有分级授权策略 form | 切 ROLE_ORGAN_MANAGER，进 `#/p3-request-flow/review/REQ-2026-04-25-0011` | 看到 5 字段策略表（档位/脱敏/频次/有效期/级联） | 审批人 审批表单缺字段 → 无法设置授权边界，审批失效 |
-| 36 | 提供方部门 P5 4 张工作流卡 + 反向编目向导可点 | 切 ROLE_ORGAN_MANAGER，进 `#/p5-provider` | 看到 4 张 提供方部门 工作流卡；点反向编目能进 `#/p5-provider/wizard/reverse-catalog` | 提供方部门 工作面缺 → 提供方无法发起反向编目，新资源进不了目录 |
-| 37 | 业务运营员 P5 3 张收件箱 + 字段口径裁决可点 | 切 ROLE_BUSIAUDIT，进 `#/p5-provider` | 看到 3 张 业务运营员 卡（标题含 "N 条待我裁决"） | 业务运营员 收件箱缺 → 目录管理员看不到待裁决项，目录运营停摆 |
-| 38 | ROLE_SECURITY_AUDIT B1.1 绕行督查 panel | 切 ROLE_SECURITY_AUDIT，进 `#/p6-compliance-ops`（B1.1 合规与运营后台支撑面 literal 路由，仅管理员/审计员；**不在 8 页面普通用户主导航内**——基线 §5.2 = P1-P5/P7 + B1.1/B1.2 共 8 页面） | 底部出现 安全审计员 直达交付清单 + 异议绕行可疑 | B1.1 督查面缺 → 合规绕行无法被发现，督查抓瞎 |
-| 39 | ROLE_ORGAN_OPERATER P3 任务过滤 + 异常回传（基层场景） | 切 ROLE_ORGAN_OPERATER，进 `#/p3-request-flow` | 列表只剩 supplementing/need-fix 状态；右上角有"异常回传"链接 | 基层任务过滤错乱 → 基层归口部门看不清自己该做哪些，基层补录混乱 |
+| 34 | ROLE_ORGAN_OPERATER P1 工作台显示 API 凭据卡 + 需求登记 | 切角色 ROLE_ORGAN_OPERATER，进 `#/workbench` | 底部出现"我的 API 凭据"和"需求登记前置"两栏 | 工作台缺关键卡 → 业务专班看不到自己的凭据和入口 |
+| 35 | 审批人 P3 reviewDetail 有分级授权策略 form | 切 ROLE_ORGAN_MANAGER，进 `#/request-flow/review/REQ-2026-04-25-0011` | 看到 5 字段策略表（档位/脱敏/频次/有效期/级联） | 审批人 审批表单缺字段 → 无法设置授权边界，审批失效 |
+| 36 | 提供方部门 P5 4 张工作流卡 + 反向编目向导可点 | 切 ROLE_ORGAN_MANAGER，进 `#/provider` | 看到 4 张 提供方部门 工作流卡；点反向编目能进 `#/provider/wizard/reverse-catalog` | 提供方部门 工作面缺 → 提供方无法发起反向编目，新资源进不了目录 |
+| 37 | 业务运营员 P5 3 张收件箱 + 字段口径裁决可点 | 切 ROLE_BUSIAUDIT，进 `#/provider` | 看到 3 张 业务运营员 卡（标题含 "N 条待我裁决"） | 业务运营员 收件箱缺 → 目录管理员看不到待裁决项，目录运营停摆 |
+| 38 | ROLE_SECURITY_AUDIT B1.1 绕行督查 panel | 切 ROLE_SECURITY_AUDIT，进 `#/compliance-ops`（B1.1 合规与运营后台支撑面 literal 路由，仅管理员/审计员；**不在 8 页面普通用户主导航内**——基线 §5.2 = P1-P5/P7 + B1.1/B1.2 共 8 页面） | 底部出现 安全审计员 直达交付清单 + 异议绕行可疑 | B1.1 督查面缺 → 合规绕行无法被发现，督查抓瞎 |
+| 39 | ROLE_ORGAN_OPERATER P3 任务过滤 + 异常回传（基层场景） | 切 ROLE_ORGAN_OPERATER，进 `#/request-flow` | 列表只剩 supplementing/need-fix 状态；右上角有"异常回传"链接 | 基层任务过滤错乱 → 基层归口部门看不清自己该做哪些，基层补录混乱 |
 
 ## 九、审计 + 合规收口（3 项）
 

@@ -177,7 +177,7 @@
     url.searchParams.delete('state');
     url.searchParams.delete('session_state');
     const hash = window.location.hash || '';
-    const nextHash = hash.includes('code=') || hash.includes('state=') ? '#/p1-workbench' : (hash || '#/p1-workbench');
+    const nextHash = hash.includes('code=') || hash.includes('state=') ? '#/workbench' : (hash || '#/workbench');
     window.history.replaceState(null, '', `${url.pathname}${url.search}${nextHash}`);
   }
 

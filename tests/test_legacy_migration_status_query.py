@@ -99,7 +99,7 @@ def test_work_queue_card_status_logic_against_synthetic_data() -> None:
     assert by_id["handover"] == "ready"
 
 
-def test_webui_p0_route_and_access_are_wired() -> None:
+def test_webui_migration_acceptance_route_and_access_are_wired() -> None:
     """
     P0 是实施工具，不在客户产品导航里：
     - 路由仍然存在（admin / 实施工程师可直达 URL）
@@ -110,24 +110,24 @@ def test_webui_p0_route_and_access_are_wired() -> None:
     app_js = (REPO / "zw-brain-web" / "js" / "app.js").read_text(encoding="utf-8")
     pages_js = (REPO / "zw-brain-web" / "js" / "pages.js").read_text(encoding="utf-8")
     # Route registered — admin can still直达
-    assert "#/p0-migration-acceptance" in app_js
+    assert "#/migration-acceptance" in app_js
     assert "page: 'migrationAcceptance'" in app_js
     # Pre-mount data fetch wire 仍在 admin 视角生效
     assert "legacy.migration.status.query" in app_js
     # Access map 收紧到 admin only
     assert "migrationAcceptance: ['admin']" in pages_js
-    assert "migrationAcceptance: 'p0'" in pages_js
-    # PRODUCT_SHELL_NAV 不再含 p0 nav entry — 没有 "key: 'p0'" 在 PRODUCT_SHELL_NAV
-    # 但 ZW_PAGE_SHELL 仍有 p0 映射（用于面包屑/shell key）
+    assert "migrationAcceptance: 'migration-acceptance'" in pages_js
+    # PRODUCT_SHELL_NAV 不再含 migration-acceptance nav entry —
+    # ZW_PAGE_SHELL 仍有 migration-acceptance 映射（用于面包屑/shell key）
     assert "PAGES.migrationAcceptance" in pages_js
-    # 验证 p0 不在 product shell nav 中（仅出现在 access/shell 映射、不出现在 nav array）
+    # 验证 migration-acceptance 不在 product shell nav 中（仅出现在 access/shell 映射、不出现在 nav array）
     import re
     nav_block = re.search(r"const PRODUCT_SHELL_NAV = \[(.*?)\];", pages_js, re.DOTALL)
     assert nav_block, "PRODUCT_SHELL_NAV array must exist"
-    assert "key: 'p0'" not in nav_block.group(1), "PRODUCT_SHELL_NAV 不应再含 p0 (M0 不暴露给客户)"
+    assert "key: 'migration-acceptance'" not in nav_block.group(1), "PRODUCT_SHELL_NAV 不应再含 migration-acceptance (M0 不暴露给客户)"
 
 
-def test_webui_p0_render_handles_missing_state() -> None:
+def test_webui_migration_acceptance_render_handles_missing_state() -> None:
     """Render must not throw when RUNTIME_MIGRATION_ACCEPTANCE is null (pre-mount)."""
     pages_js = (REPO / "zw-brain-web" / "js" / "pages.js").read_text(encoding="utf-8")
     # Look for the early-return loading placeholder.

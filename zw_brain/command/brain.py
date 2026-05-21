@@ -7328,13 +7328,13 @@ class BrainService:
             request_id = request["id"]
             resource_name = request.get("resourceName", request_id)
             # R-002/R-005 fix: perspective + category 双维度（perspective 决定文案，category 区分同 REQ 在同 role 下的多个待办语境）
-            self._upsert_todo("ROLE_ORGAN_OPERATER", request_id, f"{resource_name}复用申请进度跟踪", self._request_status_text(request, "applicant"), f"#/p3-request-flow/request/{request_id}", category="apply-progress")
-            self._upsert_todo("ROLE_ORGAN_MANAGER", request_id, f"{resource_name}复用申请待判定", self._request_status_text(request, "reviewer"), f"#/p3-request-flow/review/{request_id}", category="review")
+            self._upsert_todo("ROLE_ORGAN_OPERATER", request_id, f"{resource_name}复用申请进度跟踪", self._request_status_text(request, "applicant"), f"#/request-flow/request/{request_id}", category="apply-progress")
+            self._upsert_todo("ROLE_ORGAN_MANAGER", request_id, f"{resource_name}复用申请待判定", self._request_status_text(request, "reviewer"), f"#/request-flow/review/{request_id}", category="review")
             if request["status"] in {"supplementing", "summary-pending", "completed", "need-fix"}:
-                self._upsert_todo("ROLE_ORGAN_OPERATER", request_id, f"{resource_name}差异补录任务", self._request_status_text(request, "filler"), f"#/p3-request-flow/request/{request_id}", category="supplement-township")
-                self._upsert_todo("ROLE_ORGAN_OPERATER", request_id, f"{resource_name}现场补录任务", self._request_status_text(request, "filler"), f"#/p3-request-flow/request/{request_id}", category="supplement-village")
+                self._upsert_todo("ROLE_ORGAN_OPERATER", request_id, f"{resource_name}差异补录任务", self._request_status_text(request, "filler"), f"#/request-flow/request/{request_id}", category="supplement-township")
+                self._upsert_todo("ROLE_ORGAN_OPERATER", request_id, f"{resource_name}现场补录任务", self._request_status_text(request, "filler"), f"#/request-flow/request/{request_id}", category="supplement-village")
             if request["status"] in {"pending", "summary-pending", "completed", "need-fix", "rejected"}:
-                self._upsert_todo("ROLE_ORGAN_MANAGER", request_id, f"{resource_name}汇总/准入处理", self._request_status_text(request, "summarizer"), f"#/p3-request-flow/review/{request_id}", category="summary")
+                self._upsert_todo("ROLE_ORGAN_MANAGER", request_id, f"{resource_name}汇总/准入处理", self._request_status_text(request, "summarizer"), f"#/request-flow/review/{request_id}", category="summary")
 
     def _new_request_id(self) -> str:
         prefix = f"REQ-{datetime.now():%Y-%m-%d}-"

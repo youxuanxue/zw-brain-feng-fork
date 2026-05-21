@@ -21,7 +21,7 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-function safeHashHref(value, fallback = '#/p1-workbench') {
+function safeHashHref(value, fallback = '#/workbench') {
   const text = String(value || '');
   if (/^#\/[A-Za-z0-9_./:-]*$/.test(text)) return text;
   return fallback;
@@ -227,7 +227,7 @@ function crumbs(items) {
     <nav class="text-body-sm text-zw-mute mb-2 flex items-center gap-2 flex-wrap crumbs">
       ${items.map((it, i) => i === items.length - 1
         ? `<span class="text-zw-ink">${escapeHtml(it.label)}</span>`
-        : `<a href="${safeHashHref(it.href || '#/p1-workbench')}">${escapeHtml(it.label)}</a><span class="crumb-sep">/</span>`
+        : `<a href="${safeHashHref(it.href || '#/workbench')}">${escapeHtml(it.label)}</a><span class="crumb-sep">/</span>`
       ).join('')}
     </nav>`;
 }
@@ -454,7 +454,7 @@ function panel(title, subtitle, body, extraClass = '') {
 }
 
 function summaryRouteForRole(role, requestId) {
-  return role === 'ROLE_ORGAN_MANAGER' || role === 'ROLE_ORGAN_MANAGER' ? `#/p3-request-flow/review/${requestId}` : `#/p3-request-flow/request/${requestId}`;
+  return role === 'ROLE_ORGAN_MANAGER' || role === 'ROLE_ORGAN_MANAGER' ? `#/request-flow/review/${requestId}` : `#/request-flow/request/${requestId}`;
 }
 
 function deliveryByRequestId(requestId) {
@@ -505,69 +505,69 @@ function packageStatusLabel(item) {
 /** Sidebar labels + canonical section titles (breadcrumbs / page kickers must stay in sync with this). */
 const PRODUCT_SHELL_NAV = [
   // P0 (M0 迁移验收) 是实施工具，不在客户产品导航里。
-  // 实施工程师 / 平台运维通过直接访问 #/p0-migration-acceptance 进入；
+  // 实施工程师 / 平台运维通过直接访问 #/migration-acceptance 进入；
   // 客户 业务运营员 / 安全审计员 不应在导航中看到此入口，也不应处理冲突这类技术债。
   {
-    key: 'p1',
+    key: 'workbench',
     sectionTitle: '数据共享工作台',
     navLabel: '数据共享工作台',
-    href: '#/p1-workbench',
+    href: '#/workbench',
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
     desc: '搜索、待办、证据入口',
   },
   {
-    key: 'p2',
+    key: 'discovery',
     sectionTitle: '数据资源发现',
     navLabel: '找可复用数据',
-    href: '#/p2-discovery',
+    href: '#/discovery',
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
     desc: '先找资源和专题资产',
   },
   {
-    key: 'p3',
+    key: 'request-flow',
     sectionTitle: '共享申请与审批',
     navLabel: '办共享申请',
-    href: '#/p3-request-flow',
+    href: '#/request-flow',
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
     desc: '申请、审批、补差异',
   },
   {
-    key: 'p4',
+    key: 'delivery-exchange',
     sectionTitle: '交付交换与回流',
     navLabel: '看交付回执',
-    href: '#/p4-delivery-exchange',
+    href: '#/delivery-exchange',
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
     desc: '交付、对账、回流',
   },
   {
-    key: 'p5',
+    key: 'provider',
     sectionTitle: '维护数据供给',
     navLabel: '维护数据供给',
-    href: '#/p5-provider',
+    href: '#/provider',
     roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
     desc: '目录、资源、服务上架',
   },
   {
-    key: 'p6',
+    key: 'compliance-ops',
     sectionTitle: '合规运营与减负',
     navLabel: '查审计证据',
-    href: '#/p6-compliance-ops',
+    href: '#/compliance-ops',
     roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
     desc: '重复要数与证据回放',
   },
   {
-    key: 'p7',
+    key: 'zones-pack',
     sectionTitle: '共享专区 / 专题包',
     navLabel: '进专题包',
-    href: '#/p7-zones-pack',
+    href: '#/zones-pack',
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
     desc: '一表通等场景入口',
   },
   {
-    key: 'p8',
+    key: 'integration-admin',
     sectionTitle: '受控接入治理',
     navLabel: '管受控接入',
-    href: '#/p8-integration-admin',
+    href: '#/integration-admin',
     roles: ['ROLE_BUSIAUDIT'],
     desc: '外部能力上线边界',
   },
@@ -593,7 +593,7 @@ function requestActionBar(item, role = window.STATE.role) {
   }
   if (!isGrassroots && item.status === 'pending') {
     return `
-      <a href="#/p3-request-flow/review/${item.id}" class="gov-btn gov-btn-primary">进入审批详情</a>
+      <a href="#/request-flow/review/${item.id}" class="gov-btn gov-btn-primary">进入审批详情</a>
       ${actionNotice('申请已进入受控准入，当前等待审批承接人员处理')}`;
   }
   if (isGrassroots && item.status === 'supplementing') {
@@ -603,13 +603,13 @@ function requestActionBar(item, role = window.STATE.role) {
   }
   if (item.status === 'summary-pending') {
     return `
-      <a href="#/p3-request-flow/review/${item.id}" class="gov-btn gov-btn-primary">查看汇总确认</a>
+      <a href="#/request-flow/review/${item.id}" class="gov-btn gov-btn-primary">查看汇总确认</a>
       ${actionNotice('当前链路已进入自动汇总确认，等待主管部门处理异常项')}`;
   }
   if (item.status === 'completed') {
     const delivery = deliveryByRequestId(item.id);
     return `
-      <a href="#/p4-delivery-exchange${delivery ? `/task/${delivery.id}` : ''}" class="gov-btn gov-btn-primary">查看回流确认</a>
+      <a href="#/delivery-exchange${delivery ? `/task/${delivery.id}` : ''}" class="gov-btn gov-btn-primary">查看回流确认</a>
       ${actionNotice('自动汇总已经确认完成，下一步是供给侧确认回流候选')}`;
   }
   if (item.status === 'rejected') {
@@ -631,22 +631,22 @@ function isBusinessNavCollapsed() {
 function workbenchDrillHintFromHref(href) {
   if (!href || href === '#') return '进入办理';
   const path = String(href).replace(/^#\/?/, '/');
-  if (path.includes('/p3-request-flow/review/')) return '打开审批或汇总办理';
-  if (path.includes('/p3-request-flow/request/')) return '打开申请与补录进度';
-  if (path.includes('/p2-discovery/resource/')) return '打开目录资源详情';
-  if (path.includes('/p4-delivery-exchange/task/')) return '打开交付任务与回流';
-  if (path.includes('/p4-delivery-exchange')) return '打开交付交换';
-  if (path.includes('/p6-compliance-ops/dispute/')) return '打开争议与责任链';
-  if (path.includes('/p6-compliance-ops')) return '打开合规运营';
-  if (path.includes('/p5-provider')) return '打开供给与模板治理';
-  if (path.includes('/p7-zones-pack/zone/')) return '打开专区详情';
-  if (path.includes('/p7-zones-pack')) return '打开共享专区';
-  if (path.includes('/p8-integration-admin/package/')) return '打开能力包审核';
-  if (path.includes('/p8-integration-admin/iam-governance')) return '打开身份与权限治理';
-  if (path.includes('/p8-integration-admin')) return '打开受控接入治理';
+  if (path.includes('/request-flow/review/')) return '打开审批或汇总办理';
+  if (path.includes('/request-flow/request/')) return '打开申请与补录进度';
+  if (path.includes('/discovery/resource/')) return '打开目录资源详情';
+  if (path.includes('/delivery-exchange/task/')) return '打开交付任务与回流';
+  if (path.includes('/delivery-exchange')) return '打开交付交换';
+  if (path.includes('/compliance-ops/dispute/')) return '打开争议与责任链';
+  if (path.includes('/compliance-ops')) return '打开合规运营';
+  if (path.includes('/provider')) return '打开供给与模板治理';
+  if (path.includes('/zones-pack/zone/')) return '打开专区详情';
+  if (path.includes('/zones-pack')) return '打开共享专区';
+  if (path.includes('/integration-admin/package/')) return '打开能力包审核';
+  if (path.includes('/integration-admin/iam-governance')) return '打开身份与权限治理';
+  if (path.includes('/integration-admin')) return '打开受控接入治理';
   if (path.includes('/b1-compliance-ops/')) return '打开关联告警视图';
-  if (path.includes('/p2-discovery')) return '打开数据资源发现';
-  if (path.includes('/p3-request-flow')) return '打开共享申请列表';
+  if (path.includes('/discovery')) return '打开数据资源发现';
+  if (path.includes('/request-flow')) return '打开共享申请列表';
   return '进入办理';
 }
 
@@ -724,41 +724,41 @@ window.ZW_PAGE_ACCESS = {
 };
 
 window.ZW_PAGE_SHELL = {
-  migrationAcceptance: 'p0',
-  workbench: 'p1',
-  login: 'p1',
-  profile: 'p1',
-  discovery: 'p2',
-  catalogBrowse: 'p2',
-  resourceDetail: 'p2',
-  requestFlow: 'p3',
-  requestDetail: 'p3',
-  reviewDetail: 'p3',
-  deliveryExchange: 'p4',
-  deliveryTaskDetail: 'p4',
-  deliveryCredential: 'p4',
-  provider: 'p5',
-  providerWizardReverseCatalog: 'p5',
-  providerWizardApiService: 'p5',
-  providerWizardQualityRule: 'p5',
-  providerInboxFieldDecision: 'p5',
-  providerInboxFieldDecisionDetail: 'p5',
-  providerInboxHookupReview: 'p5',
-  providerInboxDemandMatch: 'p5',
-  providerInboxDemandMatchDetail: 'p5',
-  complianceOps: 'p6',
-  disputeDetail: 'p6',
-  zonesPack: 'p7',
-  zoneDetail: 'p7',
-  integrationAdmin: 'p8',
-  iamGovernance: 'p8',
-  packageDetail: 'p8',
+  migrationAcceptance: 'migration-acceptance',
+  workbench: 'workbench',
+  login: 'workbench',
+  profile: 'workbench',
+  discovery: 'discovery',
+  catalogBrowse: 'discovery',
+  resourceDetail: 'discovery',
+  requestFlow: 'request-flow',
+  requestDetail: 'request-flow',
+  reviewDetail: 'request-flow',
+  deliveryExchange: 'delivery-exchange',
+  deliveryTaskDetail: 'delivery-exchange',
+  deliveryCredential: 'delivery-exchange',
+  provider: 'provider',
+  providerWizardReverseCatalog: 'provider',
+  providerWizardApiService: 'provider',
+  providerWizardQualityRule: 'provider',
+  providerInboxFieldDecision: 'provider',
+  providerInboxFieldDecisionDetail: 'provider',
+  providerInboxHookupReview: 'provider',
+  providerInboxDemandMatch: 'provider',
+  providerInboxDemandMatchDetail: 'provider',
+  complianceOps: 'compliance-ops',
+  disputeDetail: 'compliance-ops',
+  zonesPack: 'zones-pack',
+  zoneDetail: 'zones-pack',
+  integrationAdmin: 'integration-admin',
+  iamGovernance: 'integration-admin',
+  packageDetail: 'integration-admin',
 };
 
 function entityNotFoundShell(activeKey, entityLabel, rawId, backHref, backLabel) {
   const id = escapeHtml(String(rawId || ''));
   const label = escapeHtml(entityLabel);
-  const safeBack = backHref ? escapeHtml(backHref) : '#/p1-workbench';
+  const safeBack = backHref ? escapeHtml(backHref) : '#/workbench';
   const backText = escapeHtml(backLabel || '回到数据共享工作台');
   const main = `
     <div class="state-card">
@@ -768,14 +768,14 @@ function entityNotFoundShell(activeKey, entityLabel, rawId, backHref, backLabel)
       <div class="state-meta">记录编号：<code>${id}</code></div>
       <div class="mt-5 flex gap-3 flex-wrap">
         <a href="${safeBack}" class="gov-btn gov-btn-primary">${backText}</a>
-        <a href="#/p1-workbench" class="gov-btn gov-btn-secondary">回到数据共享工作台</a>
+        <a href="#/workbench" class="gov-btn gov-btn-secondary">回到数据共享工作台</a>
       </div>
     </div>`;
   return shell(activeKey, main);
 }
 
 window.renderAccessDeniedShell = function (pageKey) {
-  const sk = window.ZW_PAGE_SHELL[pageKey] || 'p1';
+  const sk = window.ZW_PAGE_SHELL[pageKey] || 'workbench';
   const main = `
     <div class="state-card">
       <div class="page-kicker">当前身份不可办理</div>
@@ -783,8 +783,8 @@ window.renderAccessDeniedShell = function (pageKey) {
       <p class="page-hero-subtitle">系统只展示你可以负责的申请、审批、交付或审计动作。请返回数据共享工作台，从当前身份可办理的入口继续。</p>
       <div class="state-meta">当前身份：${roleLabel(window.STATE.role)}</div>
       <div class="mt-5 flex gap-3 flex-wrap">
-        <a href="#/p1-workbench" class="gov-btn gov-btn-primary">查看我能办理的事项</a>
-        <a href="#/p2-discovery" class="gov-btn gov-btn-secondary">先找可复用数据</a>
+        <a href="#/workbench" class="gov-btn gov-btn-primary">查看我能办理的事项</a>
+        <a href="#/discovery" class="gov-btn gov-btn-secondary">先找可复用数据</a>
       </div>
     </div>`;
   return shell(sk, main);
@@ -828,8 +828,8 @@ function packageById(id) {
 PAGES.migrationAcceptance = function () {
   const state = window.RUNTIME_MIGRATION_ACCEPTANCE;
   if (!state) {
-    return shell('p0', `
-      ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: 'M0 迁移验收' }])}
+    return shell('migration-acceptance', `
+      ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: 'M0 迁移验收' }])}
       <div class="state-card">
         <div class="page-kicker">M0 迁移验收</div>
         <div class="page-hero-title">正在加载迁移状态…</div>
@@ -984,7 +984,7 @@ PAGES.migrationAcceptance = function () {
       ` : '<div class="row-meta text-body-sm">尚未触发 rollback — 这是好事，意味着本批迁移没出现需要冻结的批次。</div>'}
     `)}
   `;
-  return shell('p0', main);
+  return shell('migration-acceptance', main);
 };
 
 // W6.6: SVG 矢量图标（替代单字色块）
@@ -1060,16 +1060,16 @@ PAGES.workbench = function () {
   const heroCfg = ROLE_HERO[role] || ROLE_HERO.ROLE_ORGAN_OPERATER;
   // W6.1+W6.6: serviceEntries 加 iconKey 用 SVG，按角色 primary 重排序
   const allServiceEntries = [
-    { key: 'search',   label: '找可复用数据', desc: '先查已有资源和专题包，避免重新要数。', href: '#/p2-discovery', iconKey: 'search', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
-    { key: 'apply',    label: '发起共享申请', desc: '把资源、用途、差异字段带入受控准入。', href: '#/p3-request-flow', iconKey: 'apply', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'] },
-    { key: 'progress', label: '看申请进度', desc: '查看补件、审批、补录和汇总状态。', href: primaryRequest ? summaryRouteForRole(role, primaryRequest.id) : '#/p3-request-flow', iconKey: 'progress', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'] },
-    { key: 'delivery', label: '看交付回执', desc: '跟踪交付、对账和回流候选。', href: primaryDelivery ? `#/p4-delivery-exchange/task/${primaryDelivery.id}` : '#/p4-delivery-exchange', iconKey: 'delivery', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
-    { key: 'audit',    label: '查审计证据', desc: '回放争议、告警、工单和责任链。', href: '#/p6-compliance-ops', iconKey: 'audit', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
-    { key: 'topic',    label: '进专题包', desc: '从一表通、营商环境等场景直接进入。', href: '#/p7-zones-pack', iconKey: 'topic', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
-    { key: 'inbox',    label: '收件箱：字段裁决/挂接审核', desc: '业务运营员 的字段口径裁决 + 资源挂接审核 + 供需对接收件箱。', href: '#/p5-provider', iconKey: 'inbox', roles: ['ROLE_BUSIAUDIT'] },
-    { key: 'catalog',  label: '维护数据供给', desc: '反向编目 / 资源挂接 / 服务上架。', href: '#/p5-provider', iconKey: 'catalog', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'] },
-    { key: 'api',      label: 'API 服务化交付', desc: '把资源对外开放为受控 API。', href: '#/p5-provider/wizard/api-service', iconKey: 'api', roles: ['ROLE_ORGAN_MANAGER'] },
-    { key: 'shield',   label: '减负指标 / 合规督查', desc: '减负结果、撤回审计、异议绕行、直达 / API 绕行抽查。', href: '#/p6-compliance-ops', iconKey: 'shield', roles: ['ROLE_SECURITY_AUDIT'] },
+    { key: 'search',   label: '找可复用数据', desc: '先查已有资源和专题包，避免重新要数。', href: '#/discovery', iconKey: 'search', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
+    { key: 'apply',    label: '发起共享申请', desc: '把资源、用途、差异字段带入受控准入。', href: '#/request-flow', iconKey: 'apply', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'] },
+    { key: 'progress', label: '看申请进度', desc: '查看补件、审批、补录和汇总状态。', href: primaryRequest ? summaryRouteForRole(role, primaryRequest.id) : '#/request-flow', iconKey: 'progress', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'] },
+    { key: 'delivery', label: '看交付回执', desc: '跟踪交付、对账和回流候选。', href: primaryDelivery ? `#/delivery-exchange/task/${primaryDelivery.id}` : '#/delivery-exchange', iconKey: 'delivery', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
+    { key: 'audit',    label: '查审计证据', desc: '回放争议、告警、工单和责任链。', href: '#/compliance-ops', iconKey: 'audit', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
+    { key: 'topic',    label: '进专题包', desc: '从一表通、营商环境等场景直接进入。', href: '#/zones-pack', iconKey: 'topic', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
+    { key: 'inbox',    label: '收件箱：字段裁决/挂接审核', desc: '业务运营员 的字段口径裁决 + 资源挂接审核 + 供需对接收件箱。', href: '#/provider', iconKey: 'inbox', roles: ['ROLE_BUSIAUDIT'] },
+    { key: 'catalog',  label: '维护数据供给', desc: '反向编目 / 资源挂接 / 服务上架。', href: '#/provider', iconKey: 'catalog', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'] },
+    { key: 'api',      label: 'API 服务化交付', desc: '把资源对外开放为受控 API。', href: '#/provider/wizard/api-service', iconKey: 'api', roles: ['ROLE_ORGAN_MANAGER'] },
+    { key: 'shield',   label: '减负指标 / 合规督查', desc: '减负结果、撤回审计、异议绕行、直达 / API 绕行抽查。', href: '#/compliance-ops', iconKey: 'shield', roles: ['ROLE_SECURITY_AUDIT'] },
   ];
   // 按角色 primary 顺序排序；只显示当前角色 allowed 的
   const orderedEntries = heroCfg.primary
@@ -1082,11 +1082,11 @@ PAGES.workbench = function () {
         <em>${escapeHtml(item.desc)}</em>
       </a>`).join('');
   const baseRows = [
-    { section: '常用办理', title: '搜索业务或数据需求', desc: '输入“停车场信息”“泊位开放状态”等业务说法，先找可复用资源。', href: '#/p2-discovery', tag: '搜索优先', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
-    { section: '常用办理', title: '查看共享申请进度', desc: primaryRequest ? `${primaryRequest.id} · ${requestStatusLabel(primaryRequest, role)}` : '暂无进行中的共享申请，可先从资源详情发起。', href: '#/p3-request-flow', tag: '受控准入', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'] },
-    { section: '待我确认', title: current.todos?.[0]?.title || '查看今日待办', desc: current.todos?.[0]?.status || '按当前身份只显示需要你处理的事项。', href: current.todos?.[0]?.href || '#/p1-workbench', tag: '人工确认', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
-    { section: '专题共享', title: '进入专题包', desc: '从高频主题进入资产、订阅和复用申请。', href: '#/p7-zones-pack', tag: '场景入口', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
-    { section: '交付与审计', title: '查看交付回执与审计证据', desc: primaryDelivery ? `${primaryDelivery.id} · ${deliveryStatusLabel(primaryDelivery, primaryRequest)}` : '交付、对账、回流和争议证据集中查看。', href: primaryDelivery ? `#/p4-delivery-exchange/task/${primaryDelivery.id}` : '#/p6-compliance-ops', tag: '证据可查', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
+    { section: '常用办理', title: '搜索业务或数据需求', desc: '输入“停车场信息”“泊位开放状态”等业务说法，先找可复用资源。', href: '#/discovery', tag: '搜索优先', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
+    { section: '常用办理', title: '查看共享申请进度', desc: primaryRequest ? `${primaryRequest.id} · ${requestStatusLabel(primaryRequest, role)}` : '暂无进行中的共享申请，可先从资源详情发起。', href: '#/request-flow', tag: '受控准入', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'] },
+    { section: '待我确认', title: current.todos?.[0]?.title || '查看今日待办', desc: current.todos?.[0]?.status || '按当前身份只显示需要你处理的事项。', href: current.todos?.[0]?.href || '#/workbench', tag: '人工确认', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
+    { section: '专题共享', title: '进入专题包', desc: '从高频主题进入资产、订阅和复用申请。', href: '#/zones-pack', tag: '场景入口', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
+    { section: '交付与审计', title: '查看交付回执与审计证据', desc: primaryDelivery ? `${primaryDelivery.id} · ${deliveryStatusLabel(primaryDelivery, primaryRequest)}` : '交付、对账、回流和争议证据集中查看。', href: primaryDelivery ? `#/delivery-exchange/task/${primaryDelivery.id}` : '#/compliance-ops', tag: '证据可查', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'] },
   ];
   const serviceRows = baseRows.map(item => {
     const allowed = canAccess(item.roles);
@@ -1136,7 +1136,7 @@ PAGES.workbench = function () {
           const basis = (current.aiSummary?.basis || []).filter(Boolean);
           // Jobs：1 句话 + 1 个"去办"按钮 + 可折叠依据
           const firstHrefMatch = summary.match(/"(.+?)"复用申请|"(.+?)"/);
-          const ctaHref = (current.todos && current.todos[0] && current.todos[0].href) || '#/p3-request-flow';
+          const ctaHref = (current.todos && current.todos[0] && current.todos[0].href) || '#/request-flow';
           return `
             <div class="text-body leading-7 text-zw-ink">${escapeHtml(summary)}</div>
             <div class="mt-4 flex gap-2 flex-wrap">
@@ -1148,15 +1148,15 @@ PAGES.workbench = function () {
         })())}
         ${alertCount > 0 ? panel(`通知与告警（${alertCount}）`, '需要关注的合规事件', `
           <div class="space-y-2 text-body-sm leading-7">
-            ${(window.RUNTIME_ALERTS || []).slice(0, 5).map(a => `<a href="#/p6-compliance-ops" class="block py-2 border-b border-b-muted hover:bg-zw-tint"><strong>${escapeHtml(a.title || a.label || '告警')}</strong><div class="row-meta text-body-sm">${escapeHtml(a.desc || a.note || '')}</div></a>`).join('')}
+            ${(window.RUNTIME_ALERTS || []).slice(0, 5).map(a => `<a href="#/compliance-ops" class="block py-2 border-b border-b-muted hover:bg-zw-tint"><strong>${escapeHtml(a.title || a.label || '告警')}</strong><div class="row-meta text-body-sm">${escapeHtml(a.desc || a.note || '')}</div></a>`).join('')}
           </div>
         `) : ''}
         ${role !== 'ROLE_ORGAN_OPERATER' ? panel('服务证据概览', '指标仅作辅助', `
           ${statCards([
-            { label: '目录资源', value: window.RUNTIME_DISCOVERY.resources.length, note: '可复用资源', href: '#/p2-discovery' },
-            { label: '共享申请', value: requests.length, note: primaryRequest ? requestStatusLabel(primaryRequest, role) : '暂无申请', href: '#/p3-request-flow' },
-            { label: '交付任务', value: deliveryTasks.length, note: primaryDelivery ? deliveryStatusLabel(primaryDelivery, primaryRequest) : '暂无任务', href: '#/p4-delivery-exchange' },
-            { label: '治理告警', value: alertCount, note: metrics[0] ? `${metrics[0].label} ${metrics[0].value}` : '暂无异常', href: '#/p6-compliance-ops' },
+            { label: '目录资源', value: window.RUNTIME_DISCOVERY.resources.length, note: '可复用资源', href: '#/discovery' },
+            { label: '共享申请', value: requests.length, note: primaryRequest ? requestStatusLabel(primaryRequest, role) : '暂无申请', href: '#/request-flow' },
+            { label: '交付任务', value: deliveryTasks.length, note: primaryDelivery ? deliveryStatusLabel(primaryDelivery, primaryRequest) : '暂无任务', href: '#/delivery-exchange' },
+            { label: '治理告警', value: alertCount, note: metrics[0] ? `${metrics[0].label} ${metrics[0].value}` : '暂无异常', href: '#/compliance-ops' },
           ])}
         `) : ''}
       </aside>
@@ -1164,7 +1164,7 @@ PAGES.workbench = function () {
 
     ${r1ApiCredentialsAndDemandRegistration()}
   `;
-  return shell('p1', main);
+  return shell('workbench', main);
 };
 
 function r1ApiCredentialsAndDemandRegistration() {
@@ -1177,7 +1177,7 @@ function r1ApiCredentialsAndDemandRegistration() {
         ${apiDeliveries.length ? `
           <table class="gov-table text-body-sm">
             <thead><tr><th>交付编号</th><th>关联申请</th><th>状态</th><th>更新时间</th></tr></thead>
-            <tbody>${apiDeliveries.slice(0, 10).map(t => `<tr><td><a href="#/p4-delivery-exchange/credential/${escapeHtml(t.requestId || '')}">${escapeHtml(t.id || '')}</a></td><td>${escapeHtml(t.requestId || '—')}</td><td>${statusPill(t.status || 'pending')}</td><td class="row-meta">${escapeHtml(t.updatedAt || '')}</td></tr>`).join('')}</tbody>
+            <tbody>${apiDeliveries.slice(0, 10).map(t => `<tr><td><a href="#/delivery-exchange/credential/${escapeHtml(t.requestId || '')}">${escapeHtml(t.id || '')}</a></td><td>${escapeHtml(t.requestId || '—')}</td><td>${statusPill(t.status || 'pending')}</td><td class="row-meta">${escapeHtml(t.updatedAt || '')}</td></tr>`).join('')}</tbody>
           </table>
           <div class="row-meta text-body-sm mt-2">点击交付编号查看 App Key、调用示例与配额。</div>
         ` : '<div class="row-meta">尚无接口交付通道；通过申请审批后会在此显示。</div>'}
@@ -1209,7 +1209,7 @@ PAGES.login = function () {
         <div class="login-gate-actions">
           <button type="button" class="gov-btn gov-btn-primary"
             onclick="window.ACTIONS.startIafLogin(event)">打开统一身份登录页</button>
-          <a href="#/p1-workbench" class="gov-btn gov-btn-secondary">返回数据共享工作台</a>
+          <a href="#/workbench" class="gov-btn gov-btn-secondary">返回数据共享工作台</a>
         </div>
         <p class="login-gate-footnote">登录成功后将自动返回本系统。</p>`;
   const unconfiguredBody = `
@@ -1220,11 +1220,11 @@ PAGES.login = function () {
           </div>
         </div>
         <div class="login-gate-actions">
-          <a href="#/p1-workbench" class="gov-btn gov-btn-primary">返回数据共享工作台</a>
+          <a href="#/workbench" class="gov-btn gov-btn-primary">返回数据共享工作台</a>
         </div>
         <p class="login-gate-footnote">本系统不存储账号口令，请通过统一身份页面完成认证。</p>`;
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '统一身份登录' }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '统一身份登录' }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -1248,14 +1248,14 @@ PAGES.login = function () {
         </div>
       </section>
     </div>`;
-  return shell('p1', main);
+  return shell('workbench', main);
 };
 
 PAGES.profile = function () {
   const user = window.ZW_AUTH && window.ZW_AUTH.getCurrentUser ? window.ZW_AUTH.getCurrentUser() : null;
   const roles = user && user.roles && user.roles.length ? user.roles.join('、') : '暂无角色信息';
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '个人中心' }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '个人中心' }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -1281,7 +1281,7 @@ PAGES.profile = function () {
         <div class="login-gate-actions mt-4"><button type="button" class="gov-btn gov-btn-primary" onclick="window.ACTIONS.startIafLogin(event)">重新登录</button></div>
       `}
     </div>`;
-  return shell('p1', main);
+  return shell('workbench', main);
 };
 
 PAGES.discovery = function () {
@@ -1294,8 +1294,8 @@ PAGES.discovery = function () {
     ...(runtime.aiCopilot || {}),
   };
   if (!runtime.resources) {
-    return shell('p2', `
-      ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '数据资源发现' }])}
+    return shell('discovery', `
+      ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '数据资源发现' }])}
       <div class="state-card">
         <div class="page-kicker">数据资源发现</div>
         <div class="page-hero-title">正在加载资源清单…</div>
@@ -1304,7 +1304,7 @@ PAGES.discovery = function () {
   }
   const query = escapeHtml(window.STATE.discoveryQuery || '');
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '数据资源发现' }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '数据资源发现' }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -1359,7 +1359,7 @@ PAGES.discovery = function () {
         ${panel('推荐结果', '把“为什么先用它”说清楚，让新增采集变成例外', `
           <div class="space-y-4">
             ${window.RUNTIME_DISCOVERY.resources.map(item => `
-              <a href="#/p2-discovery/resource/${item.id}" class="panel card-hover block">
+              <a href="#/discovery/resource/${item.id}" class="panel card-hover block">
                 <div class="panel-body">
                   <div class="grid grid-cols-12 gap-4 items-start">
                     <div class="col-span-8">
@@ -1392,7 +1392,7 @@ PAGES.discovery = function () {
       </section>
     </div>
   `;
-  return shell('p2', main);
+  return shell('discovery', main);
 };
 
 PAGES.catalogBrowse = function () {
@@ -1413,7 +1413,7 @@ PAGES.catalogBrowse = function () {
         <div class="row-title">${escapeHtml(item.title || '(未命名)')}</div>
         <div class="row-meta mt-1">${escapeHtml(item.catalog_code)} · ${escapeHtml(item.owner_org_id || '—')} · ${escapeHtml(item.lifecycle_status || '—')}</div>
       </div>
-      <a href="#/p2-discovery/resource/${encodeURIComponent(item.catalog_code)}" class="row-actions">查看详情</a>
+      <a href="#/discovery/resource/${encodeURIComponent(item.catalog_code)}" class="row-actions">查看详情</a>
     </div>`).join('');
 
   const empty = data.total === 0 ? `<div class="text-body text-zw-mute py-6 text-center">当前筛选下暂未找到可办理目录。可以切换状态或类型，也可以回到资源发现页重新搜索业务需求。</div>` : '';
@@ -1467,18 +1467,18 @@ PAGES.catalogBrowse = function () {
       </div>
     </div>
   `;
-  return shell('p2', main);
+  return shell('discovery', main);
 };
 
 PAGES.resourceDetail = function (id) {
   const item = resourceById(id);
-  if (!item) return entityNotFoundShell('p2', '数据资源', id, '#/p2-discovery', '返回数据资源发现');
+  if (!item) return entityNotFoundShell('discovery', '数据资源', id, '#/discovery', '返回数据资源发现');
   const approvalRate = item.approvalRate || '—';
   const subscribers = item.subscribers ?? '—';
   const fields = item.catalogFields && item.catalogFields.length ? item.catalogFields.map(field => field.title) : (item.fields || []);
   const zoneId = item.zone === '营商环境专区' ? 'business' : item.zone === '治理减负专区' ? 'governance' : 'livelihood';
   const main = `
-    ${crumbs([{ label: '数据资源发现', href: '#/p2-discovery' }, { label: item.name }])}
+    ${crumbs([{ label: '数据资源发现', href: '#/discovery' }, { label: item.name }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -1502,7 +1502,7 @@ PAGES.resourceDetail = function (id) {
         </div>
         <div class="mt-5 flex gap-3">
           <button onclick="window.ACTIONS.createRequest('${item.id}')" class="gov-btn gov-btn-primary">发起标准复用申请</button>
-          <a href="#/p7-zones-pack/zone/${zoneId}" class="gov-btn gov-btn-secondary">查看所属专题包</a>
+          <a href="#/zones-pack/zone/${zoneId}" class="gov-btn gov-btn-secondary">查看所属专题包</a>
         </div>
       `)}
     </div>
@@ -1511,7 +1511,7 @@ PAGES.resourceDetail = function (id) {
     </div>
     ${renderResourceEvidencePanels(item)}
   `;
-  return shell('p2', main);
+  return shell('discovery', main);
 };
 
 PAGES.requestFlow = function () {
@@ -1527,7 +1527,7 @@ PAGES.requestFlow = function () {
                     { kicker: '共享申请与审批', title: '共享申请、准入审批、基层补录在一条链上办理。', subtitle: '发起人、审批承接、镇街社区和汇总人员看到同一份状态，只在自己负责的环节执行人工确认。' }
   );
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: heroCfg.kicker }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: heroCfg.kicker }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -1606,12 +1606,12 @@ PAGES.requestFlow = function () {
       </aside>
     </div>
   `;
-  return shell('p3', main);
+  return shell('request-flow', main);
 };
 
 PAGES.requestDetail = function (id) {
   const item = requestById(id);
-  if (!item) return entityNotFoundShell('p3', '共享申请', id, '#/p3-request-flow', '返回共享申请与审批');
+  if (!item) return entityNotFoundShell('request-flow', '共享申请', id, '#/request-flow', '返回共享申请与审批');
   const role = window.STATE.role;
   const isGrassroots = role === 'ROLE_ORGAN_OPERATER' || role === 'ROLE_ORGAN_OPERATER';
   const diffState = item.status === 'supplementing' ? '待补录' : item.status === 'summary-pending' || item.status === 'completed' ? '已补录' : item.status === 'need-fix' ? '待补正' : '待确认';
@@ -1626,7 +1626,7 @@ PAGES.requestDetail = function (id) {
     ? '只看分给镇街的差异字段，基础信息已经预填。'
     : '只核实现场变化字段，看不懂或无法核实就异常回传。';
   const main = isGrassroots ? `
-    ${crumbs([{ label: '我的任务', href: '#/p3-request-flow' }, { label: grassrootsCrumb }])}
+    ${crumbs([{ label: '我的任务', href: '#/request-flow' }, { label: grassrootsCrumb }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -1681,7 +1681,7 @@ PAGES.requestDetail = function (id) {
       </aside>
     </div>
   ` : `
-    ${crumbs([{ label: '共享申请与审批', href: '#/p3-request-flow' }, { label: escapeHtml(formatIdShort(item.id, '申请')) }])}
+    ${crumbs([{ label: '共享申请与审批', href: '#/request-flow' }, { label: escapeHtml(formatIdShort(item.id, '申请')) }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -1738,13 +1738,13 @@ PAGES.requestDetail = function (id) {
       </aside>
     </div>
   `;
-  return shell('p3', main);
+  return shell('request-flow', main);
 };
 
 PAGES.reviewDetail = function (id) {
   const request = requestById(id);
   const approval = approvalById(id);
-  if (!request || !approval) return entityNotFoundShell('p3', '申请或审批记录', id, '#/p3-request-flow', '返回共享申请与审批');
+  if (!request || !approval) return entityNotFoundShell('request-flow', '申请或审批记录', id, '#/request-flow', '返回共享申请与审批');
   const isSummaryStage = request.status === 'summary-pending' || request.status === 'completed';
   // 2026-05-19 retrofit：仅展示资源 sharing_type 标识；两段审批待后续审批流引擎上线（评审主文档 §八 P0 延后立项）。
   // 当前本期不分流审批流程，避免前端承诺 vs 后端行为不一致。
@@ -1786,7 +1786,7 @@ PAGES.reviewDetail = function (id) {
     ? `<button onclick="window.ACTIONS.rejectRequest('${request.id}')" class="gov-btn gov-btn-danger">驳回</button>`
     : '';
   const main = `
-    ${crumbs([{ label: '共享申请与审批', href: '#/p3-request-flow' }, { label: window.STATE.role === 'ROLE_ORGAN_MANAGER' ? '汇总确认详情' : '审批准入详情' }])}
+    ${crumbs([{ label: '共享申请与审批', href: '#/request-flow' }, { label: window.STATE.role === 'ROLE_ORGAN_MANAGER' ? '汇总确认详情' : '审批准入详情' }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -1868,7 +1868,7 @@ PAGES.reviewDetail = function (id) {
       </div>
     `)}
   `;
-  return shell('p3', main);
+  return shell('request-flow', main);
 };
 
 function r2GradeAuthorizationStrategyForm(request) {
@@ -1965,7 +1965,7 @@ PAGES.deliveryExchange = function () {
           const quota = cred.quota_per_day ? `${cred.quota_per_day}/天` : '';
           const metaLine = [quota, validTo ? `有效期至 ${validTo}` : ''].filter(Boolean).join(' · ');
           return `
-          <a href="#/p4-delivery-exchange/credential/${encodeURIComponent(t.requestId || '')}" class="panel card-hover block">
+          <a href="#/delivery-exchange/credential/${encodeURIComponent(t.requestId || '')}" class="panel card-hover block">
             <div class="panel-body">
               <div class="flex items-center justify-between">
                 <div class="panel-title text-body">${escapeHtml(t.name || '交付任务')}</div>
@@ -1980,7 +1980,7 @@ PAGES.deliveryExchange = function () {
     `)}
   ` : '';
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '交付交换与回流' }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '交付交换与回流' }])}
     <header class="workbench-hero">
       <div>
         <h1 class="workbench-hero-title">交付交换与回流</h1>
@@ -2008,7 +2008,7 @@ PAGES.deliveryExchange = function () {
                   ? '当前链路被退回、驳回或存在异常，需要先处理阻断。'
                   : '当前任务处于可追踪状态。';
           return `
-          <a href="#/p4-delivery-exchange/task/${task.id}" class="panel card-hover block">
+          <a href="#/delivery-exchange/task/${task.id}" class="panel card-hover block">
             <div class="panel-body">
               <div class="flex items-start justify-between gap-4">
                 <div>
@@ -2026,12 +2026,12 @@ PAGES.deliveryExchange = function () {
       </div>
     `)}
   `;
-  return shell('p4', main);
+  return shell('delivery-exchange', main);
 };
 
 PAGES.deliveryTaskDetail = function (id) {
   const task = deliveryById(id);
-  if (!task) return entityNotFoundShell('p4', '交付任务', id, '#/p4-delivery-exchange', '返回交付交换与回流');
+  if (!task) return entityNotFoundShell('delivery-exchange', '交付任务', id, '#/delivery-exchange', '返回交付交换与回流');
   const request = requestById(task.requestId);
   const ai = task.aiSummary;
   const statusLabel = deliveryStatusLabel(task, request);
@@ -2046,7 +2046,7 @@ PAGES.deliveryTaskDetail = function (id) {
   const nonGrantBoundary = task.nonGrantBoundary || {};
   const activeBoundary = Object.keys(grantBoundary).length ? grantBoundary : supplementBoundary;
   const main = `
-    ${crumbs([{ label: '交付交换与回流', href: '#/p4-delivery-exchange' }, { label: task.id }])}
+    ${crumbs([{ label: '交付交换与回流', href: '#/delivery-exchange' }, { label: task.id }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -2136,15 +2136,15 @@ PAGES.deliveryTaskDetail = function (id) {
               : backflowKey === 'confirmed'
                 ? `${actionNotice('回流确认已生效')}`
                 : `${actionNotice('当前还未满足回流确认条件：需先完成汇总确认和交付回执对账，且不能重复确认已生效回流')}`}
-            <a href="#/p5-provider" class="gov-btn gov-btn-secondary">查看模板治理</a>
-            ${task.requestId ? `<a href="#/p4-delivery-exchange/credential/${encodeURIComponent(task.requestId)}" class="gov-btn gov-btn-primary" data-action="goto-credential">领取访问凭据 →</a>` : ''}
+            <a href="#/provider" class="gov-btn gov-btn-secondary">查看模板治理</a>
+            ${task.requestId ? `<a href="#/delivery-exchange/credential/${encodeURIComponent(task.requestId)}" class="gov-btn gov-btn-primary" data-action="goto-credential">领取访问凭据 →</a>` : ''}
           </div>
         `)}
         ${r1DeliveryActionsPanel(task)}
       </aside>
     </div>
   `;
-  return shell('p4', main);
+  return shell('delivery-exchange', main);
 };
 
 /**
@@ -2161,7 +2161,7 @@ PAGES.deliveryCredential = function (requestId) {
   if (view.status !== 'issued') {
     const hint = view.hint || '凭据状态加载中…';
     const main = `
-      ${crumbs([{ label: '交付交换与回流', href: '#/p4-delivery-exchange' }, { label: '访问凭据', href: '' }])}
+      ${crumbs([{ label: '交付交换与回流', href: '#/delivery-exchange' }, { label: '访问凭据', href: '' }])}
       <div class="page-hero">
         <div class="page-hero-title">访问凭据</div>
         <div class="page-hero-subtitle">申请编号 ${escapeHtml(requestId)}</div>
@@ -2175,7 +2175,7 @@ PAGES.deliveryCredential = function (requestId) {
           </div>` : ''}
       `)}
     `;
-    return shell('p4', main);
+    return shell('delivery-exchange', main);
   }
 
   const cred = view.credential;
@@ -2229,7 +2229,7 @@ PAGES.deliveryCredential = function (requestId) {
   ].join('\n');
 
   const main = `
-    ${crumbs([{ label: '交付交换与回流', href: '#/p4-delivery-exchange' }, { label: '访问凭据', href: '' }])}
+    ${crumbs([{ label: '交付交换与回流', href: '#/delivery-exchange' }, { label: '访问凭据', href: '' }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -2288,7 +2288,7 @@ PAGES.deliveryCredential = function (requestId) {
           </table>
         `)}
         ${panel('调用监控入口', '查看本次申请下凭据的调用日志与配额消耗', `
-          <a href="#/p6-compliance-ops" class="gov-btn gov-btn-secondary" data-action="goto-monitor">查看调用日志（P6 合规运营）</a>
+          <a href="#/compliance-ops" class="gov-btn gov-btn-secondary" data-action="goto-monitor">查看调用日志（P6 合规运营）</a>
         `)}
         ${canReissue ? panel('管理员操作', '主管部门 / 审批人可在密钥泄露后强制重新签发', `
           <button onclick="window.ACTIONS.reissueCredential('${escapeHtml(requestId)}')" class="gov-btn gov-btn-primary">重新签发凭据</button>
@@ -2297,7 +2297,7 @@ PAGES.deliveryCredential = function (requestId) {
       </aside>
     </div>
   `;
-  return shell('p4', main);
+  return shell('delivery-exchange', main);
 };
 
 /** 申请人 视角下的交付后动作：续期、异议、评价 */
@@ -2359,9 +2359,9 @@ function r7ProviderWorkflowCards() {
       ${panel('收件箱已清空 · Inbox Zero', '本周 业务运营员 三类裁决队列均已处理完，可专注分类关联 / 国家目录认领 / 在线目录定义等长周期治理', `
         <div class="text-body leading-7 text-zw-ink">字段口径裁决 ・ 资源挂接审核 ・ 供需对接 — 当前都为 0 条。</div>
         <div class="mt-4 flex flex-wrap gap-2">
-          <a href="#/p5-provider/inbox/field-decision" class="gov-btn gov-btn-secondary">字段口径收件箱</a>
-          <a href="#/p5-provider/inbox/hookup-review" class="gov-btn gov-btn-secondary">挂接审核收件箱</a>
-          <a href="#/p5-provider/inbox/demand-match" class="gov-btn gov-btn-secondary">供需对接收件箱</a>
+          <a href="#/provider/inbox/field-decision" class="gov-btn gov-btn-secondary">字段口径收件箱</a>
+          <a href="#/provider/inbox/hookup-review" class="gov-btn gov-btn-secondary">挂接审核收件箱</a>
+          <a href="#/provider/inbox/demand-match" class="gov-btn gov-btn-secondary">供需对接收件箱</a>
         </div>
       `)}
     `;
@@ -2369,15 +2369,15 @@ function r7ProviderWorkflowCards() {
   return `
     ${fd > 0 ? panel(`字段口径裁决（${fd} 条待我裁决）`, '提供方部门 反向编目草稿 → 业务运营员 校字段中文名 + 敏感等级 → 通过/驳回', `
       <div class="text-body-sm text-zw-mute mb-3">看 提供方部门 已提交的草稿，置信度色块帮助你定位重点。</div>
-      <a href="#/p5-provider/inbox/field-decision" class="gov-btn gov-btn-primary">打开字段口径收件箱</a>
+      <a href="#/provider/inbox/field-decision" class="gov-btn gov-btn-primary">打开字段口径收件箱</a>
     `) : ''}
     ${hk > 0 ? panel(`资源挂接审核（${hk} 条待我裁决）`, '提供方部门 提交目录项↔资源字段绑定 → 业务运营员 审字段证据', `
       <div class="text-body-sm text-zw-mute mb-3">字段绑定不清的资源会驳回回 提供方部门 补 schema。</div>
-      <a href="#/p5-provider/inbox/hookup-review" class="gov-btn gov-btn-primary">打开挂接审核收件箱</a>
+      <a href="#/provider/inbox/hookup-review" class="gov-btn gov-btn-primary">打开挂接审核收件箱</a>
     `) : ''}
     ${dm > 0 ? panel(`供需对接（${dm} 条需求待对接）`, '申请人 业务需求 → 业务运营员 判定复用 or 派 审核汇总人 任务', `
       <div class="text-body-sm text-zw-mute mb-3">可复用即落 demand-resource 对接；不可复用按区域/字段派 审核汇总人 切片任务。</div>
-      <a href="#/p5-provider/inbox/demand-match" class="gov-btn gov-btn-primary">打开供需对接收件箱</a>
+      <a href="#/provider/inbox/demand-match" class="gov-btn gov-btn-primary">打开供需对接收件箱</a>
     `) : ''}
   `;
 }
@@ -2433,15 +2433,15 @@ function r6ProviderWorkflowCards() {
   return `
     ${panel('反向编目（提供方部门 → 业务运营员）', '选已采集库表 → 系统预填 90% 草稿 → 一键提交 业务运营员 字段口径裁决', `
       <div class="text-body-sm text-zw-mute mb-3">用现成的 schema 一气呵成新建目录草稿，跳过空白表单。</div>
-      <a href="#/p5-provider/wizard/reverse-catalog" class="gov-btn gov-btn-primary">从已有库表生成目录</a>
+      <a href="#/provider/wizard/reverse-catalog" class="gov-btn gov-btn-primary">从已有库表生成目录</a>
     `)}
     ${panel('API 服务化交付（提供方部门 → 业务运营员/审批人）', '把已发布资源对外开放为 API，配 IP 白名单 + 限流 + 字段脱敏档位', `
       <div class="text-body-sm text-zw-mute mb-3">资源 → API 草稿 → 提审 业务运营员 边界审 + 审批人 授权策略复核。</div>
-      <a href="#/p5-provider/wizard/api-service" class="gov-btn gov-btn-primary">进入 API 服务化工作流</a>
+      <a href="#/provider/wizard/api-service" class="gov-btn gov-btn-primary">进入 API 服务化工作流</a>
     `)}
     ${panel('自动检测规则维护（提供方部门）', '维护必填率 / 格式 / 值域 / 字段一致性等检测规则，触发任务、查看回执、失败重跑', `
       <div class="text-body-sm text-zw-mute mb-3">规则版本化；失败任务保留摘要可重跑。</div>
-      <a href="#/p5-provider/wizard/quality-rule" class="gov-btn gov-btn-primary">进入检测规则工作流</a>
+      <a href="#/provider/wizard/quality-rule" class="gov-btn gov-btn-primary">进入检测规则工作流</a>
     `)}
     ${panel('资源挂接 / 发布 / 维护（已有）', '已有目录-资源绑定 + 资源上下架；驳回回路看下方"第一步/第二步"', `
       <div class="text-body-sm text-zw-mute mb-3">沿用下方现有列表入口；将在 W3 收敛为统一审核队列。</div>
@@ -2465,7 +2465,7 @@ PAGES.provider = function () {
     ? '字段口径裁决 / 资源挂接审核 / 供需对接收件箱'
     : '从已采集库表生成目录 / 资源对外开放为接口 / 自动检测规则';
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: heroKicker }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: heroKicker }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -2501,7 +2501,7 @@ PAGES.provider = function () {
       <div class="mt-4 text-body-sm text-zw-mute leading-7">${ai.priorities.map(item => `• ${item}`).join('<br/>')}</div>
     `)}
   `;
-  return shell('p5', main);
+  return shell('provider', main);
 };
 
 // ----- W3 业务运营员 P5 工作收件箱 -------------------------------------------------
@@ -2509,7 +2509,7 @@ PAGES.provider = function () {
 PAGES.providerInboxFieldDecision = function () {
   const items = window.RUNTIME_R7_FIELD_DRAFTS || [];
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '维护数据供给', href: '#/p5-provider' }, { label: '字段口径裁决' }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '维护数据供给', href: '#/provider' }, { label: '字段口径裁决' }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -2531,26 +2531,26 @@ PAGES.providerInboxFieldDecision = function () {
               </div>
               <div class="flex items-center gap-2">
                 <span class="status-pill is-pending">draft</span>
-                <a href="#/p5-provider/inbox/field-decision/${encodeURIComponent(item.catalog_code)}" class="gov-btn gov-btn-secondary">打开裁决</a>
+                <a href="#/provider/inbox/field-decision/${encodeURIComponent(item.catalog_code)}" class="gov-btn gov-btn-secondary">打开裁决</a>
               </div>
             </div>
           `).join('')}
         </div>
       ` : '<div class="row-meta">当前无待我裁决的反向编目草稿。</div>'}
       <div class="mt-4">
-        <a href="#/p5-provider" class="gov-btn gov-btn-secondary">返回数据供给</a>
+        <a href="#/provider" class="gov-btn gov-btn-secondary">返回数据供给</a>
       </div>
     </div>
   `;
-  return shell('p5', main);
+  return shell('provider', main);
 };
 
 PAGES.providerInboxFieldDecisionDetail = function (catalogCode) {
   const decoded = decodeURIComponent(catalogCode || '');
   const suggestions = window.RUNTIME_R7_FIELD_DRAFT_DETAIL || null;
   if (!suggestions) {
-    return shell('p5', `
-      ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '维护数据供给', href: '#/p5-provider' }, { label: '字段口径裁决', href: '#/p5-provider/inbox/field-decision' }, { label: decoded }])}
+    return shell('provider', `
+      ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '维护数据供给', href: '#/provider' }, { label: '字段口径裁决', href: '#/provider/inbox/field-decision' }, { label: decoded }])}
       <div class="state-card mt-4">
         <div class="page-kicker">正在加载草稿</div>
         <div class="row-meta mt-2">${escapeHtml(decoded)}</div>
@@ -2558,7 +2558,7 @@ PAGES.providerInboxFieldDecisionDetail = function (catalogCode) {
     `);
   }
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '维护数据供给', href: '#/p5-provider' }, { label: '字段口径裁决', href: '#/p5-provider/inbox/field-decision' }, { label: decoded }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '维护数据供给', href: '#/provider' }, { label: '字段口径裁决', href: '#/provider/inbox/field-decision' }, { label: decoded }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -2599,17 +2599,17 @@ PAGES.providerInboxFieldDecisionDetail = function (catalogCode) {
       <div class="mt-5 flex gap-3">
         <button onclick="window.ACTIONS.confirmFieldDecision('${escapeHtml(decoded)}')" class="gov-btn gov-btn-primary">通过 → 进入 pending_review</button>
         <button onclick="window.ACTIONS.rejectFieldDecision('${escapeHtml(decoded)}')" class="gov-btn gov-btn-secondary">驳回 → 退回 提供方部门</button>
-        <a href="#/p5-provider/inbox/field-decision" class="gov-btn gov-btn-secondary">返回收件箱</a>
+        <a href="#/provider/inbox/field-decision" class="gov-btn gov-btn-secondary">返回收件箱</a>
       </div>
     </div>
   `;
-  return shell('p5', main);
+  return shell('provider', main);
 };
 
 PAGES.providerInboxHookupReview = function () {
   const items = window.RUNTIME_R7_HOOKUP_PENDING || [];
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '维护数据供给', href: '#/p5-provider' }, { label: '挂接审核' }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '维护数据供给', href: '#/provider' }, { label: '挂接审核' }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -2644,17 +2644,17 @@ PAGES.providerInboxHookupReview = function () {
         </div>
       ` : '<div class="row-meta">当前无待我审核的挂接 / 资源发布草稿。</div>'}
       <div class="mt-4">
-        <a href="#/p5-provider" class="gov-btn gov-btn-secondary">返回数据供给</a>
+        <a href="#/provider" class="gov-btn gov-btn-secondary">返回数据供给</a>
       </div>
     </div>
   `;
-  return shell('p5', main);
+  return shell('provider', main);
 };
 
 PAGES.providerInboxDemandMatch = function () {
   const items = window.RUNTIME_R7_DEMAND_PENDING || [];
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '维护数据供给', href: '#/p5-provider' }, { label: '供需对接' }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '维护数据供给', href: '#/provider' }, { label: '供需对接' }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -2676,26 +2676,26 @@ PAGES.providerInboxDemandMatch = function () {
               </div>
               <div class="flex items-center gap-2">
                 <span class="status-pill is-pending">${escapeHtml(item.status || 'submitted')}</span>
-                <a href="#/p5-provider/inbox/demand-match/${encodeURIComponent(item.application_code)}" class="gov-btn gov-btn-secondary">打开对接</a>
+                <a href="#/provider/inbox/demand-match/${encodeURIComponent(item.application_code)}" class="gov-btn gov-btn-secondary">打开对接</a>
               </div>
             </div>
           `).join('')}
         </div>
       ` : '<div class="row-meta">当前无待对接的业务需求。</div>'}
       <div class="mt-4">
-        <a href="#/p5-provider" class="gov-btn gov-btn-secondary">返回数据供给</a>
+        <a href="#/provider" class="gov-btn gov-btn-secondary">返回数据供给</a>
       </div>
     </div>
   `;
-  return shell('p5', main);
+  return shell('provider', main);
 };
 
 PAGES.providerInboxDemandMatchDetail = function (applicationCode) {
   const decoded = decodeURIComponent(applicationCode || '');
   const ctx = window.RUNTIME_R7_DEMAND_DETAIL || null;
   if (!ctx) {
-    return shell('p5', `
-      ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '维护数据供给', href: '#/p5-provider' }, { label: '供需对接', href: '#/p5-provider/inbox/demand-match' }, { label: decoded }])}
+    return shell('provider', `
+      ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '维护数据供给', href: '#/provider' }, { label: '供需对接', href: '#/provider/inbox/demand-match' }, { label: decoded }])}
       <div class="state-card mt-4">
         <div class="page-kicker">正在加载需求</div>
         <div class="row-meta mt-2">${escapeHtml(decoded)}</div>
@@ -2705,7 +2705,7 @@ PAGES.providerInboxDemandMatchDetail = function (applicationCode) {
   const demand = ctx.demand || {};
   const matches = ctx.matches || [];
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '维护数据供给', href: '#/p5-provider' }, { label: '供需对接', href: '#/p5-provider/inbox/demand-match' }, { label: decoded }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '维护数据供给', href: '#/provider' }, { label: '供需对接', href: '#/provider/inbox/demand-match' }, { label: decoded }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -2746,12 +2746,12 @@ PAGES.providerInboxDemandMatchDetail = function (applicationCode) {
       </div>
       <div class="mt-5 flex gap-3">
         <button onclick="window.ACTIONS.dispatchDemand('${escapeHtml(decoded)}')" class="gov-btn gov-btn-primary">派 审核汇总人 切片任务</button>
-        <a href="#/p5-provider/inbox/demand-match" class="gov-btn gov-btn-secondary">返回收件箱</a>
+        <a href="#/provider/inbox/demand-match" class="gov-btn gov-btn-secondary">返回收件箱</a>
       </div>
       <div class="row-meta mt-3">如可复用，请直接在 申请人 申请审批中通过；本端只处理"不可复用 → 派任务"动作。</div>
     `)}
   `;
-  return shell('p5', main);
+  return shell('provider', main);
 };
 
 // ----- W2 提供方部门 P5 工作流向导 -------------------------------------------------
@@ -2774,7 +2774,7 @@ PAGES.providerWizardReverseCatalog = function () {
       <div class="row-meta mt-2">系统会优先列出尚未生成草稿的候选；已有草稿的会标记。</div>
       <div class="mt-4 flex gap-3">
         <button onclick="window.ACTIONS.loadReverseCatalogCandidates()" class="gov-btn gov-btn-primary">${candidates.length ? '重新拉取候选' : '加载候选库表清单'}</button>
-        <a href="#/p5-provider" class="gov-btn gov-btn-secondary">返回数据供给</a>
+        <a href="#/provider" class="gov-btn gov-btn-secondary">返回数据供给</a>
       </div>
       ${candidates.length ? `
         <div class="gov-list mt-4 text-body-sm">
@@ -2841,7 +2841,7 @@ PAGES.providerWizardReverseCatalog = function () {
   ` : '';
 
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '维护数据供给', href: '#/p5-provider' }, { label: '从已采集库表生成目录' }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '维护数据供给', href: '#/provider' }, { label: '从已采集库表生成目录' }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -2856,13 +2856,13 @@ PAGES.providerWizardReverseCatalog = function () {
     ${stepChoose}
     ${stepReview}
   `;
-  return shell('p5', main);
+  return shell('provider', main);
 };
 
 PAGES.providerWizardApiService = function () {
   const wizState = window.STATE.providerApiServiceWizard || {};
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '维护数据供给', href: '#/p5-provider' }, { label: '资源对外开放为接口' }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '维护数据供给', href: '#/provider' }, { label: '资源对外开放为接口' }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -2907,17 +2907,17 @@ PAGES.providerWizardApiService = function () {
       </div>
       <div class="mt-5 flex gap-3">
         <button onclick="window.ACTIONS.submitApiServicePublish()" class="gov-btn gov-btn-primary">提交草稿 → 主管部门审核</button>
-        <a href="#/p5-provider" class="gov-btn gov-btn-secondary">返回数据供给</a>
+        <a href="#/provider" class="gov-btn gov-btn-secondary">返回数据供给</a>
       </div>
       <div class="row-meta mt-3">提交后会进入主管部门审核流程，结果会出现在主管部门收件箱并发邮件/站内信通知你。</div>
     </div>
   `;
-  return shell('p5', main);
+  return shell('provider', main);
 };
 
 PAGES.providerWizardQualityRule = function () {
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '维护数据供给', href: '#/p5-provider' }, { label: '自动检测规则工作流' }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '维护数据供给', href: '#/provider' }, { label: '自动检测规则工作流' }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -2983,7 +2983,7 @@ PAGES.providerWizardQualityRule = function () {
       要查看任务结果与失败摘要，请用 <code>ops.catalog.quality.query</code>（P6 合规运营页可见）或 W3 上线后的统一收件箱。
     </div>
   `;
-  return shell('p5', main);
+  return shell('provider', main);
 };
 
 
@@ -3000,7 +3000,7 @@ PAGES.complianceOps = function () {
   // default metrics-first layout.
   const exceptionsFirst = role === 'ROLE_ORGAN_MANAGER';
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: heroCfg.kicker }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: heroCfg.kicker }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -3019,7 +3019,7 @@ PAGES.complianceOps = function () {
         ${metrics.map((item, idx) => {
           const ctaMap = ['解析对账', '差异热区', '汇总回放', '回流候选'];
           const cta = ctaMap[idx] || '查看详情';
-          return `<a href="#/p6-compliance-ops" class="gov-stat-card gov-stat-link"><div class="gov-stat-label">${escapeHtml(item.label)}</div><div class="gov-stat-value">${escapeHtml(String(item.value))}</div><div class="mt-2 text-caption text-zw-mute">${escapeHtml(item.trend || '')}</div><div class="mt-3 text-caption font-bold text-zw-link">${cta} →</div></a>`;
+          return `<a href="#/compliance-ops" class="gov-stat-card gov-stat-link"><div class="gov-stat-label">${escapeHtml(item.label)}</div><div class="gov-stat-value">${escapeHtml(String(item.value))}</div><div class="mt-2 text-caption text-zw-mute">${escapeHtml(item.trend || '')}</div><div class="mt-3 text-caption font-bold text-zw-link">${cta} →</div></a>`;
         }).join('')}
       </div>
     `)}
@@ -3030,7 +3030,7 @@ PAGES.complianceOps = function () {
         ${metrics.map((item, idx) => {
           const ctaMap = ['解析对账', '差异热区', '汇总回放', '回流候选'];
           const cta = ctaMap[idx] || '查看详情';
-          return `<a href="#/p6-compliance-ops" class="gov-stat-card gov-stat-link"><div class="gov-stat-label">${escapeHtml(item.label)}</div><div class="gov-stat-value">${escapeHtml(String(item.value))}</div><div class="mt-2 text-caption text-zw-mute">${escapeHtml(item.trend || '')}</div><div class="mt-3 text-caption font-bold text-zw-link">${cta} →</div></a>`;
+          return `<a href="#/compliance-ops" class="gov-stat-card gov-stat-link"><div class="gov-stat-label">${escapeHtml(item.label)}</div><div class="gov-stat-value">${escapeHtml(String(item.value))}</div><div class="mt-2 text-caption text-zw-mute">${escapeHtml(item.trend || '')}</div><div class="mt-3 text-caption font-bold text-zw-link">${cta} →</div></a>`;
         }).join('')}
       </div>
     `)
@@ -3045,7 +3045,7 @@ PAGES.complianceOps = function () {
               const owner = item.owner && item.owner !== 'undefined' ? item.owner : '待分配';
               const summary = item.aiSummary && item.aiSummary !== 'undefined' ? item.aiSummary : '尚无研判摘要';
               const idLabel = formatIdShort(item.id, '争议');
-              return `<a href="#/p6-compliance-ops/dispute/${escapeHtml(item.id)}" class="panel card-hover block"><div class="panel-body"><div class="flex items-center justify-between"><div class="panel-title text-body">${escapeHtml(title)}</div>${statusPill(item.status)}</div><div class="row-meta mt-2">${escapeHtml(idLabel)} · ${escapeHtml(owner)}</div><div class="mt-3 text-body-sm text-zw-mute leading-7" data-ai-surface="dispute-inline-ai">初步判断：${escapeHtml(summary)}</div></div></a>`;
+              return `<a href="#/compliance-ops/dispute/${escapeHtml(item.id)}" class="panel card-hover block"><div class="panel-body"><div class="flex items-center justify-between"><div class="panel-title text-body">${escapeHtml(title)}</div>${statusPill(item.status)}</div><div class="row-meta mt-2">${escapeHtml(idLabel)} · ${escapeHtml(owner)}</div><div class="mt-3 text-body-sm text-zw-mute leading-7" data-ai-surface="dispute-inline-ai">初步判断：${escapeHtml(summary)}</div></div></a>`;
             }).join('') || '<div class="row-meta">当前没有需要处理的争议事项。</div>'}
           </div>
         `)}
@@ -3092,7 +3092,7 @@ PAGES.complianceOps = function () {
       </section>
     </div>
   `;
-  return shell('p6', main);
+  return shell('compliance-ops', main);
 };
 
 /** 安全审计员 运维工单创建 + 交接班面板 */
@@ -3160,7 +3160,7 @@ function r8BypassSurveillancePanel() {
         <div class="row-meta text-body-sm">命中"线下/绕行/未审批"关键字的争议；点击进 disputeDetail 看四子流程时间线。</div>
         ${objection.length ? `
           <div class="gov-list text-body-sm mt-3">
-            ${objection.slice(0, 5).map(d => `<div class="gov-list-row"><div><div class="row-title">${escapeHtml(d.title)}</div><div class="row-meta mt-1">${escapeHtml(d.id)} · ${escapeHtml(d.owner || '')}</div></div><a href="#/p6-compliance-ops/dispute/${escapeHtml(d.id)}" class="gov-btn gov-btn-secondary">打开</a></div>`).join('')}
+            ${objection.slice(0, 5).map(d => `<div class="gov-list-row"><div><div class="row-title">${escapeHtml(d.title)}</div><div class="row-meta mt-1">${escapeHtml(d.id)} · ${escapeHtml(d.owner || '')}</div></div><a href="#/compliance-ops/dispute/${escapeHtml(d.id)}" class="gov-btn gov-btn-secondary">打开</a></div>`).join('')}
           </div>
         ` : '<div class="row-meta mt-2">未命中绕行可疑模式。</div>'}
       </div>
@@ -3216,12 +3216,12 @@ function r5ObjectionFourSubstagesPanel(item) {
 
 PAGES.disputeDetail = function (id) {
   const item = disputeById(id);
-  if (!item) return entityNotFoundShell('p6', '争议事项', id, '#/p6-compliance-ops', '返回合规运营与减负');
+  if (!item) return entityNotFoundShell('compliance-ops', '争议事项', id, '#/compliance-ops', '返回合规运营与减负');
   const title = item.title && item.title !== 'undefined' ? item.title : '未命名争议';
   const owner = item.owner && item.owner !== 'undefined' ? item.owner : '待分配';
   const summary = item.aiSummary && item.aiSummary !== 'undefined' ? item.aiSummary : '尚无研判摘要';
   const main = `
-    ${crumbs([{ label: '合规运营与减负', href: '#/p6-compliance-ops' }, { label: formatIdShort(item.id, '争议') }])}
+    ${crumbs([{ label: '合规运营与减负', href: '#/compliance-ops' }, { label: formatIdShort(item.id, '争议') }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -3274,13 +3274,13 @@ PAGES.disputeDetail = function (id) {
       </div>
     `) : ''}
   `;
-  return shell('p6', main);
+  return shell('compliance-ops', main);
 };
 
 
 PAGES.zonesPack = function () {
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '共享专区 / 专题包' }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '共享专区 / 专题包' }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -3293,21 +3293,21 @@ PAGES.zonesPack = function () {
 
     ${panel('专题包列表', '选择今天要处理的专题场景', `
       <div class="grid ${(window.RUNTIME_ZONES || []).length <= 3 ? 'grid-cols-2' : 'grid-cols-3'} gap-5">
-        ${window.RUNTIME_ZONES.map(zone => `<a href="#/p7-zones-pack/zone/${zone.id}" class="panel card-hover zone-card block"><div class="panel-body"><div class="flex items-center justify-between gap-2"><div class="panel-title text-body">${zone.name}</div>${statusPill(zone.status)}</div><p class="text-body mt-3 leading-7">${zone.desc}</p><div class="mt-4 row-meta">资产 ${zone.assets.length} 项 · 订阅部门 ${zone.subscribers}</div></div></a>`).join('')}
+        ${window.RUNTIME_ZONES.map(zone => `<a href="#/zones-pack/zone/${zone.id}" class="panel card-hover zone-card block"><div class="panel-body"><div class="flex items-center justify-between gap-2"><div class="panel-title text-body">${zone.name}</div>${statusPill(zone.status)}</div><p class="text-body mt-3 leading-7">${zone.desc}</p><div class="mt-4 row-meta">资产 ${zone.assets.length} 项 · 订阅部门 ${zone.subscribers}</div></div></a>`).join('')}
       </div>
     `)}
   `;
-  return shell('p7', main);
+  return shell('zones-pack', main);
 };
 
 PAGES.zoneDetail = function (id) {
   const zone = zoneById(id);
-  if (!zone) return entityNotFoundShell('p7', '专题包', id, '#/p7-zones-pack', '返回共享专区 / 专题包');
+  if (!zone) return entityNotFoundShell('zones-pack', '专题包', id, '#/zones-pack', '返回共享专区 / 专题包');
   const publishAction = window.STATE.role === 'ROLE_BUSIAUDIT'
     ? `<button onclick="window.ACTIONS.publishZoneTopicProjection('${zone.id}')" class="gov-btn gov-btn-primary">发布到正式专区</button>`
     : actionNotice('当前身份可查看资产、发起复用申请或订阅更新，正式发布由主管部门处理');
   const main = `
-    ${crumbs([{ label: '共享专区 / 专题包', href: '#/p7-zones-pack' }, { label: zone.name }])}
+    ${crumbs([{ label: '共享专区 / 专题包', href: '#/zones-pack' }, { label: zone.name }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -3331,7 +3331,7 @@ PAGES.zoneDetail = function (id) {
       `)}
     </div>
   `;
-  return shell('p7', main);
+  return shell('zones-pack', main);
 };
 
 PAGES.integrationAdmin = function () {
@@ -3340,7 +3340,7 @@ PAGES.integrationAdmin = function () {
   const rejectedCount = packages.filter(item => item.status === 'rejected').length;
   const readOnlyCount = packages.filter(item => item.requiresHuman === false).length;
   const main = `
-    ${crumbs([{ label: '数据共享工作台', href: '#/p1-workbench' }, { label: '受控接入治理' }])}
+    ${crumbs([{ label: '数据共享工作台', href: '#/workbench' }, { label: '受控接入治理' }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -3365,7 +3365,7 @@ PAGES.integrationAdmin = function () {
       <section class="col-span-7">
         ${panel('待确认的外部能力', '逐项确认它能帮经办人提效，也不会替人越权办理', `
           <div class="space-y-3 text-body">
-            ${packages.map(item => `<a href="#/p8-integration-admin/package/${item.id}" class="panel card-hover block"><div class="panel-body"><div class="flex items-center justify-between gap-3"><div class="panel-title text-body">${formatPackageName(item.slug)}</div>${statusPill(packageStatusLabel(item))}</div><div class="row-meta mt-2">${item.source}</div><div class="mt-3">${item.desc}</div><div class="mt-2 text-body-sm text-zw-mute leading-7">审核状态：${packageStatusLabel(item)} · 开放范围 ${formatExposure(item.exposure)}</div><div class="mt-3 text-body-sm text-zw-mute leading-7" data-ai-surface="package-inline-ai">建议摘要：${item.aiReview.summary}</div></div></a>`).join('')}
+            ${packages.map(item => `<a href="#/integration-admin/package/${item.id}" class="panel card-hover block"><div class="panel-body"><div class="flex items-center justify-between gap-3"><div class="panel-title text-body">${formatPackageName(item.slug)}</div>${statusPill(packageStatusLabel(item))}</div><div class="row-meta mt-2">${item.source}</div><div class="mt-3">${item.desc}</div><div class="mt-2 text-body-sm text-zw-mute leading-7">审核状态：${packageStatusLabel(item)} · 开放范围 ${formatExposure(item.exposure)}</div><div class="mt-3 text-body-sm text-zw-mute leading-7" data-ai-surface="package-inline-ai">建议摘要：${item.aiReview.summary}</div></div></a>`).join('')}
           </div>
         `)}
       </section>
@@ -3376,7 +3376,7 @@ PAGES.integrationAdmin = function () {
         `)}
         ${panel('身份、权限与裁决证据', '查看账号绑定、岗位范围、租户策略和拒绝原因', `
           <div class="text-body leading-7 text-zw-ink">从统一能力契约读取治理总览，直接查看身份、授权与策略证据。</div>
-          <a href="#/p8-integration-admin/iam-governance" class="gov-btn gov-btn-secondary mt-4 inline-block">打开治理总览</a>
+          <a href="#/integration-admin/iam-governance" class="gov-btn gov-btn-secondary mt-4 inline-block">打开治理总览</a>
         `)}
         ${panel('上线前确认', '上线前确认来源、范围、责任动作和回退方案', `
           <ul class="space-y-2 text-body leading-7 list-disc pl-5">
@@ -3393,7 +3393,7 @@ PAGES.integrationAdmin = function () {
       </aside>
     </div>
   `;
-  return shell('p8', main);
+  return shell('integration-admin', main);
 };
 
 PAGES.iamGovernance = function () {
@@ -3405,7 +3405,7 @@ PAGES.iamGovernance = function () {
   const audit = data.audit_events || [];
   const probe = data.policy_probe;
   const main = `
-    ${crumbs([{ label: '受控接入治理', href: '#/p8-integration-admin' }, { label: '身份与权限治理' }])}
+    ${crumbs([{ label: '受控接入治理', href: '#/integration-admin' }, { label: '身份与权限治理' }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -3459,12 +3459,12 @@ PAGES.iamGovernance = function () {
       </aside>
     </div>
   `;
-  return shell('p8', main);
+  return shell('integration-admin', main);
 };
 
 PAGES.packageDetail = function (id) {
   const item = packageById(id);
-  if (!item) return entityNotFoundShell('p8', '能力包', id, '#/p8-integration-admin', '返回受控接入治理');
+  if (!item) return entityNotFoundShell('integration-admin', '能力包', id, '#/integration-admin', '返回受控接入治理');
   const ai = item.aiReview;
   const statusLabel = packageStatusLabel(item);
   const canApprove = item.status !== 'approved' && item.status !== 'rejected';
@@ -3473,7 +3473,7 @@ PAGES.packageDetail = function (id) {
   const canConfigureExposure = item.versionStatus === 'registered';
   const canApplyTenantPolicy = item.versionStatus === 'registered' && !(item.tenantPolicy && item.tenantPolicy.policyStatus === 'enabled');
   const main = `
-    ${crumbs([{ label: '受控接入治理', href: '#/p8-integration-admin' }, { label: item.slug }])}
+    ${crumbs([{ label: '受控接入治理', href: '#/integration-admin' }, { label: item.slug }])}
     <div class="page-hero">
       <div class="page-toolbar">
         <div>
@@ -3528,7 +3528,7 @@ PAGES.packageDetail = function (id) {
       </div>
     `)}
   `;
-  return shell('p8', main);
+  return shell('integration-admin', main);
 };
 
 function formatPackageName(slug) {

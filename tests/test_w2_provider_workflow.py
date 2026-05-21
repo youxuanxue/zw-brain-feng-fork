@@ -173,7 +173,7 @@ def test_webui_p5_workflow_cards_and_wizards_wired() -> None:
         "providerWizardQualityRule",
     ):
         assert f"{key}: ['ROLE_ORGAN_MANAGER']" in pages_js, f"missing access for {key}"
-        assert f"{key}: 'p5'" in pages_js, f"missing shell key for {key}"
+        assert f"{key}: 'provider'" in pages_js, f"missing shell key for {key}"
 
     # 3. Routes — regex form in JS uses backslash-escaped slashes
     for slug in ("reverse-catalog", "api-service", "quality-rule"):

@@ -55,7 +55,7 @@ def screenshot(browser, path: Path, *, viewport_height: int = 900) -> None:
 
 def capture_01_j1_credential(base_url: str) -> None:
     print("01 - J1 凭据领取页（P4 已签发凭据 + curl 示例）")
-    browser = _open_browser(f"{base_url}/#/p4-delivery-exchange/credential/REQ-2026-04-26-0006")
+    browser = _open_browser(f"{base_url}/#/delivery-exchange/credential/REQ-2026-04-26-0006")
     try:
         _wait_for(browser, "document.body && document.body.innerText.length > 100", timeout=10)
         time.sleep(1)  # 给渲染留时间
@@ -66,12 +66,12 @@ def capture_01_j1_credential(base_url: str) -> None:
 
 def capture_02_sharing_type(base_url: str) -> None:
     print("02 - J1 sharing_type 分流 UI（reviewDetail）")
-    browser = _open_browser(f"{base_url}/#/p3-request-flow/review/REQ-2026-04-25-0011")
+    browser = _open_browser(f"{base_url}/#/request-flow/review/REQ-2026-04-25-0011")
     try:
         _wait_for(browser, "document.body && document.body.innerText.length > 200", timeout=10)
         _wait_for(browser, "document.getElementById('role-switch') && window.STATE && window.STATE.role")
         _set_role(browser, "ROLE_ORGAN_MANAGER")
-        browser.eval("location.hash = ''; location.hash = '#/p3-request-flow/review/REQ-2026-04-25-0011'")
+        browser.eval("location.hash = ''; location.hash = '#/request-flow/review/REQ-2026-04-25-0011'")
         _wait_for(browser, "document.body.innerText.includes('共享') && (document.body.innerText.includes('无条件') || document.body.innerText.includes('有条件'))", timeout=10)
         time.sleep(1)
         screenshot(browser, OUTPUT_DIR / "02-j1-sharing-type-ui.png", viewport_height=1600)
@@ -81,12 +81,12 @@ def capture_02_sharing_type(base_url: str) -> None:
 
 def capture_03_provider_wizard(base_url: str) -> None:
     print("03 - J2 反向编目 wizard（P5）")
-    browser = _open_browser(f"{base_url}/#/p5-provider/wizard/reverse-catalog")
+    browser = _open_browser(f"{base_url}/#/provider/wizard/reverse-catalog")
     try:
         _wait_for(browser, "document.body && document.body.innerText.length > 100", timeout=10)
         _wait_for(browser, "document.getElementById('role-switch') && window.STATE && window.STATE.role")
         _set_role(browser, "ROLE_ORGAN_MANAGER")
-        browser.eval("location.hash = ''; location.hash = '#/p5-provider/wizard/reverse-catalog'")
+        browser.eval("location.hash = ''; location.hash = '#/provider/wizard/reverse-catalog'")
         _wait_for(browser, "document.body.innerText.includes('反向编目')", timeout=10)
         time.sleep(1)
         screenshot(browser, OUTPUT_DIR / "03-j2-provider-wizard.png", viewport_height=1200)
@@ -96,12 +96,12 @@ def capture_03_provider_wizard(base_url: str) -> None:
 
 def capture_04_compliance_audit(base_url: str) -> None:
     print("04 - J3 P6 合规运营审计回放")
-    browser = _open_browser(f"{base_url}/#/p6-compliance-ops")
+    browser = _open_browser(f"{base_url}/#/compliance-ops")
     try:
         _wait_for(browser, "document.body && document.body.innerText.length > 100", timeout=10)
         _wait_for(browser, "document.getElementById('role-switch') && window.STATE && window.STATE.role")
         _set_role(browser, "ROLE_SECURITY_AUDIT")
-        browser.eval("location.hash = ''; location.hash = '#/p6-compliance-ops'")
+        browser.eval("location.hash = ''; location.hash = '#/compliance-ops'")
         _wait_for(browser, "document.body.innerText.length > 300", timeout=10)
         time.sleep(1)
         screenshot(browser, OUTPUT_DIR / "04-j3-compliance-audit.png", viewport_height=1400)

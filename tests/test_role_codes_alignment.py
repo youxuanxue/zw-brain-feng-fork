@@ -46,9 +46,6 @@ def test_server_bypass_roles_aligned_with_role_codes():
     )
 
 
-# test_alembic_0009_allowed_codes_aligned_with_role_codes 已删除（alembic 退役 R15 / v4.1）
-
-
 def test_web_snapshot_redaction_uses_only_known_roles():
     from zw_brain.domain import role_codes, web_snapshot_redaction
     known = set(role_codes.BUSINESS_ROLE_CODES)

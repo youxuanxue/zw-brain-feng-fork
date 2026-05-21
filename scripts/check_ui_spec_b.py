@@ -29,14 +29,14 @@ CANONICAL_WEB_TOKENS = {
 # K12 dashboard retired in v4.1 二轮再砍 (R17); CANONICAL_DASH_TOKENS removed.
 
 CANONICAL_VISUAL_ROUTES = {
-    "#/p1-workbench",
-    "#/p2-discovery",
-    "#/p3-request-flow",
-    "#/p4-delivery-exchange",
-    "#/p5-provider",
-    "#/p6-compliance-ops",
-    "#/p7-zones-pack",
-    "#/p8-integration-admin",
+    "#/workbench",
+    "#/discovery",
+    "#/request-flow",
+    "#/delivery-exchange",
+    "#/provider",
+    "#/compliance-ops",
+    "#/zones-pack",
+    "#/integration-admin",
 }
 
 FORBIDDEN_WEB_PATTERNS = [
@@ -175,10 +175,10 @@ def require_visual_routes_guarded(app_js: str, errors: list[str]) -> None:
         if not route_is_reachable(route, js_route_regexes(app_js)):
             errors.append(f"canonical visual route {route} is not matched by app.js ROUTES")
     restricted_refreshes = {
-        "#/p4-delivery-exchange": "delivery.list",
-        "#/p5-provider": "provider.view",
-        "#/p6-compliance-ops": "governance.dispute_list",
-        "#/p8-integration-admin": "package.list",
+        "#/delivery-exchange": "delivery.list",
+        "#/provider": "provider.view",
+        "#/compliance-ops": "governance.dispute_list",
+        "#/integration-admin": "package.list",
     }
     for route, skill_id in restricted_refreshes.items():
         marker = f"route === '{route}' && roleCan"

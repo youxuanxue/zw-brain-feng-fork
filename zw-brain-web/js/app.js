@@ -28,34 +28,34 @@
 
   const ROUTES = [
     { test: /^#\/login$/, page: 'login', nav: null },
-    { test: /^#\/p0-migration-acceptance$/, page: 'migrationAcceptance', nav: 'main' },
+    { test: /^#\/migration-acceptance$/, page: 'migrationAcceptance', nav: 'main' },
     { test: /^#\/profile$/, page: 'profile', nav: null },
-    { test: /^#\/p1-workbench$/, page: 'workbench', nav: 'main' },
-    { test: /^#\/p2-discovery$/, page: 'discovery', nav: 'main' },
-    { test: /^#\/p2-discovery\/catalog-browse$/, page: 'catalogBrowse', nav: 'main' },
-    { test: /^#\/p2-discovery\/resource\/(.+)$/, page: 'resourceDetail', nav: 'main' },
-    { test: /^#\/p3-request-flow$/, page: 'requestFlow', nav: 'main' },
-    { test: /^#\/p3-request-flow\/request\/(.+)$/, page: 'requestDetail', nav: 'main' },
-    { test: /^#\/p3-request-flow\/review\/(.+)$/, page: 'reviewDetail', nav: 'main' },
-    { test: /^#\/p4-delivery-exchange$/, page: 'deliveryExchange', nav: 'main' },
-    { test: /^#\/p4-delivery-exchange\/task\/(.+)$/, page: 'deliveryTaskDetail', nav: 'main' },
-    { test: /^#\/p4-delivery-exchange\/credential\/(.+)$/, page: 'deliveryCredential', nav: 'main' },
-    { test: /^#\/p5-provider$/, page: 'provider', nav: 'main' },
-    { test: /^#\/p5-provider\/wizard\/reverse-catalog$/, page: 'providerWizardReverseCatalog', nav: 'main' },
-    { test: /^#\/p5-provider\/wizard\/api-service$/, page: 'providerWizardApiService', nav: 'main' },
-    { test: /^#\/p5-provider\/wizard\/quality-rule$/, page: 'providerWizardQualityRule', nav: 'main' },
-    { test: /^#\/p5-provider\/inbox\/field-decision$/, page: 'providerInboxFieldDecision', nav: 'main' },
-    { test: /^#\/p5-provider\/inbox\/field-decision\/(.+)$/, page: 'providerInboxFieldDecisionDetail', nav: 'main' },
-    { test: /^#\/p5-provider\/inbox\/hookup-review$/, page: 'providerInboxHookupReview', nav: 'main' },
-    { test: /^#\/p5-provider\/inbox\/demand-match$/, page: 'providerInboxDemandMatch', nav: 'main' },
-    { test: /^#\/p5-provider\/inbox\/demand-match\/(.+)$/, page: 'providerInboxDemandMatchDetail', nav: 'main' },
-    { test: /^#\/p6-compliance-ops$/, page: 'complianceOps', nav: 'main' },
-    { test: /^#\/p6-compliance-ops\/dispute\/(.+)$/, page: 'disputeDetail', nav: 'main' },
-    { test: /^#\/p7-zones-pack$/, page: 'zonesPack', nav: 'main' },
-    { test: /^#\/p7-zones-pack\/zone\/(.+)$/, page: 'zoneDetail', nav: 'main' },
-    { test: /^#\/p8-integration-admin$/, page: 'integrationAdmin', nav: 'main' },
-    { test: /^#\/p8-integration-admin\/iam-governance$/, page: 'iamGovernance', nav: 'main' },
-    { test: /^#\/p8-integration-admin\/package\/(.+)$/, page: 'packageDetail', nav: 'main' },
+    { test: /^#\/workbench$/, page: 'workbench', nav: 'main' },
+    { test: /^#\/discovery$/, page: 'discovery', nav: 'main' },
+    { test: /^#\/discovery\/catalog-browse$/, page: 'catalogBrowse', nav: 'main' },
+    { test: /^#\/discovery\/resource\/(.+)$/, page: 'resourceDetail', nav: 'main' },
+    { test: /^#\/request-flow$/, page: 'requestFlow', nav: 'main' },
+    { test: /^#\/request-flow\/request\/(.+)$/, page: 'requestDetail', nav: 'main' },
+    { test: /^#\/request-flow\/review\/(.+)$/, page: 'reviewDetail', nav: 'main' },
+    { test: /^#\/delivery-exchange$/, page: 'deliveryExchange', nav: 'main' },
+    { test: /^#\/delivery-exchange\/task\/(.+)$/, page: 'deliveryTaskDetail', nav: 'main' },
+    { test: /^#\/delivery-exchange\/credential\/(.+)$/, page: 'deliveryCredential', nav: 'main' },
+    { test: /^#\/provider$/, page: 'provider', nav: 'main' },
+    { test: /^#\/provider\/wizard\/reverse-catalog$/, page: 'providerWizardReverseCatalog', nav: 'main' },
+    { test: /^#\/provider\/wizard\/api-service$/, page: 'providerWizardApiService', nav: 'main' },
+    { test: /^#\/provider\/wizard\/quality-rule$/, page: 'providerWizardQualityRule', nav: 'main' },
+    { test: /^#\/provider\/inbox\/field-decision$/, page: 'providerInboxFieldDecision', nav: 'main' },
+    { test: /^#\/provider\/inbox\/field-decision\/(.+)$/, page: 'providerInboxFieldDecisionDetail', nav: 'main' },
+    { test: /^#\/provider\/inbox\/hookup-review$/, page: 'providerInboxHookupReview', nav: 'main' },
+    { test: /^#\/provider\/inbox\/demand-match$/, page: 'providerInboxDemandMatch', nav: 'main' },
+    { test: /^#\/provider\/inbox\/demand-match\/(.+)$/, page: 'providerInboxDemandMatchDetail', nav: 'main' },
+    { test: /^#\/compliance-ops$/, page: 'complianceOps', nav: 'main' },
+    { test: /^#\/compliance-ops\/dispute\/(.+)$/, page: 'disputeDetail', nav: 'main' },
+    { test: /^#\/zones-pack$/, page: 'zonesPack', nav: 'main' },
+    { test: /^#\/zones-pack\/zone\/(.+)$/, page: 'zoneDetail', nav: 'main' },
+    { test: /^#\/integration-admin$/, page: 'integrationAdmin', nav: 'main' },
+    { test: /^#\/integration-admin\/iam-governance$/, page: 'iamGovernance', nav: 'main' },
+    { test: /^#\/integration-admin\/package\/(.+)$/, page: 'packageDetail', nav: 'main' },
     { test: /^#\/$/, page: 'workbench', nav: 'main' },
   ];
 
@@ -225,9 +225,9 @@
     // 与 dispatch() 一致：剥掉 query/fragment 噪音
     const route = rawRoute.split('?')[0].split('&')[0];
     try {
-      if (route === '#/p1-workbench') {
+      if (route === '#/workbench') {
         window.RUNTIME_WORKBENCH[currentRole] = await invokeRead('workbench.view', { role: currentRole });
-      } else if (route === '#/p2-discovery' && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
+      } else if (route === '#/discovery' && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
         const query = currentDiscoveryQuery || window.STATE?.discoveryQuery || '';
         // data.search requires a non-empty query — on first visit show the seed
         // resources from snapshot and wait for the user to type, rather than
@@ -239,7 +239,7 @@
           currentDiscoveryQuery = result.query || query;
           window.STATE.discoveryQuery = currentDiscoveryQuery;
         }
-      } else if (route === '#/p2-discovery/catalog-browse' && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
+      } else if (route === '#/discovery/catalog-browse' && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
         const filters = window.CATALOG_BROWSE_FILTERS || {};
         const result = await invokeRead('catalog.browse', {
           page: filters.page || 1,
@@ -248,20 +248,20 @@
           kind: filters.kind || 'real',
         });
         window.RUNTIME_CATALOG_BROWSE = result;
-      } else if (route.startsWith('#/p2-discovery/resource/') && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
+      } else if (route.startsWith('#/discovery/resource/') && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
         const id = decodeURIComponent(route.split('/').pop());
         const resource = await invokeRead('catalog.resource_view', { resource_id: id });
         const index = window.RUNTIME_DISCOVERY.resources.findIndex(item => item.id === id);
         if (index >= 0) window.RUNTIME_DISCOVERY.resources[index] = resource; else window.RUNTIME_DISCOVERY.resources.unshift(resource);
-      } else if (route === '#/p3-request-flow' && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'])) {
+      } else if (route === '#/request-flow' && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'])) {
         const result = await invokeRead('request.list', {});
         window.RUNTIME_REQUESTS = result.items;
-      } else if (route.startsWith('#/p3-request-flow/request/') && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'])) {
+      } else if (route.startsWith('#/request-flow/request/') && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'])) {
         const id = decodeURIComponent(route.split('/').pop());
         const request = await invokeRead('request.view', { request_id: id });
         const requestIndex = window.RUNTIME_REQUESTS.findIndex(item => item.id === id);
         if (requestIndex >= 0) window.RUNTIME_REQUESTS[requestIndex] = request; else window.RUNTIME_REQUESTS.unshift(request);
-      } else if (route.startsWith('#/p3-request-flow/review/') && roleCan(['ROLE_ORGAN_MANAGER'])) {
+      } else if (route.startsWith('#/request-flow/review/') && roleCan(['ROLE_ORGAN_MANAGER'])) {
         const id = decodeURIComponent(route.split('/').pop());
         const request = await invokeRead('request.view', { request_id: id });
         const approval = await invokeRead('approval.view', { request_id: id });
@@ -269,7 +269,7 @@
         if (requestIndex >= 0) window.RUNTIME_REQUESTS[requestIndex] = request; else window.RUNTIME_REQUESTS.unshift(request);
         const approvalIndex = window.RUNTIME_APPROVALS.findIndex(item => item.id === id);
         if (approvalIndex >= 0) window.RUNTIME_APPROVALS[approvalIndex] = approval; else window.RUNTIME_APPROVALS.unshift(approval);
-      } else if (route === '#/p4-delivery-exchange' && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
+      } else if (route === '#/delivery-exchange' && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
         // ROLE_ORGAN_OPERATER 没有 delivery.list.execute 权限（治理侧 skill）；snapshot 已带 role-filtered
         // delivery_tasks，refresh 失败时沿用 snapshot 不弹错（其它角色失败仍向上冒泡）。
         try {
@@ -278,7 +278,7 @@
         } catch (err) {
           if (currentRole !== 'ROLE_ORGAN_OPERATER') throw err;
         }
-      } else if (route.startsWith('#/p4-delivery-exchange/task/') && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
+      } else if (route.startsWith('#/delivery-exchange/task/') && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
         const id = decodeURIComponent(route.split('/').pop());
         try {
           const task = await invokeRead('delivery.view', { task_id: id });
@@ -287,7 +287,7 @@
         } catch (err) {
           if (currentRole !== 'ROLE_ORGAN_OPERATER') throw err;
         }
-      } else if (route.startsWith('#/p4-delivery-exchange/credential/') && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
+      } else if (route.startsWith('#/delivery-exchange/credential/') && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
         const requestId = decodeURIComponent(route.split('/').pop());
         try {
           const credentialView = await invokeRead('credential.query', { request_id: requestId });
@@ -296,9 +296,9 @@
           // 拒绝时仍渲染页面（显示 not_issued + 错误提示）
           window.RUNTIME_CREDENTIAL_VIEW = { request_id: requestId, status: 'error', hint: err.message };
         }
-      } else if (route === '#/p5-provider' && roleCan(['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'])) {
+      } else if (route === '#/provider' && roleCan(['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'])) {
         window.RUNTIME_PROVIDER = await invokeRead('provider.view', {});
-      } else if (route === '#/p6-compliance-ops' && roleCan(['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
+      } else if (route === '#/compliance-ops' && roleCan(['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
         // K12 dashboard / dashboard.render_command_center Skill 已退役 (R17 / v4.1)
         const disputes = await invokeRead('governance.dispute_list', {});
         const audit = await invokeRead('audit.list', {});
@@ -308,40 +308,40 @@
         window.RUNTIME_KNOWLEDGE_ARTICLES = disputes.knowledgeArticles || window.RUNTIME_KNOWLEDGE_ARTICLES;
         window.RUNTIME_AUDIT_EVENTS = audit.items;
         window.RUNTIME_AUDIT_AI = audit.summary;
-      } else if (route.startsWith('#/p6-compliance-ops/dispute/') && roleCan(['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
+      } else if (route.startsWith('#/compliance-ops/dispute/') && roleCan(['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
         const id = decodeURIComponent(route.split('/').pop());
         const dispute = await invokeRead('governance.dispute_view', { dispute_id: id });
         const evidence = await invokeRead('audit.replay_evidence_chain', { dispute_id: id });
         dispute.evidenceReplay = evidence;
         const index = window.RUNTIME_DISPUTES.findIndex(item => item.id === id);
         if (index >= 0) window.RUNTIME_DISPUTES[index] = dispute; else window.RUNTIME_DISPUTES.unshift(dispute);
-      } else if (route.startsWith('#/p7-zones-pack/zone/') && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
+      } else if (route.startsWith('#/zones-pack/zone/') && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
         const id = decodeURIComponent(route.split('/').pop());
         const zone = await invokeRead('zone.view', { zone_id: id });
         const index = window.RUNTIME_ZONES.findIndex(item => item.id === id);
         if (index >= 0) window.RUNTIME_ZONES[index] = zone; else window.RUNTIME_ZONES.unshift(zone);
-      } else if (route === '#/p7-zones-pack' && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
+      } else if (route === '#/zones-pack' && roleCan(['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
         const result = await invokeRead('zone.list', {});
         window.RUNTIME_ZONES = result.items;
-      } else if (route.startsWith('#/p8-integration-admin/package/') && roleCan(['ROLE_BUSIAUDIT'])) {
+      } else if (route.startsWith('#/integration-admin/package/') && roleCan(['ROLE_BUSIAUDIT'])) {
         const id = decodeURIComponent(route.split('/').pop());
         const pkg = await invokeRead('package.view', { package_id: id });
         const index = window.RUNTIME_CAPABILITY_PACKAGES.findIndex(item => item.id === id);
         if (index >= 0) window.RUNTIME_CAPABILITY_PACKAGES[index] = pkg; else window.RUNTIME_CAPABILITY_PACKAGES.unshift(pkg);
-      } else if (route === '#/p8-integration-admin/iam-governance' && roleCan(['ROLE_BUSIAUDIT'])) {
+      } else if (route === '#/integration-admin/iam-governance' && roleCan(['ROLE_BUSIAUDIT'])) {
         window.RUNTIME_IAM_GOVERNANCE = await invokeRead('governance.iam_overview', {});
-      } else if (route === '#/p8-integration-admin' && roleCan(['ROLE_BUSIAUDIT'])) {
+      } else if (route === '#/integration-admin' && roleCan(['ROLE_BUSIAUDIT'])) {
         const result = await invokeRead('package.list', {});
         window.RUNTIME_CAPABILITY_PACKAGES = result.items;
         window.RUNTIME_IAM_GOVERNANCE = await invokeRead('governance.iam_overview', {});
-      } else if (route === '#/p0-migration-acceptance' && roleCan(['admin'])) {
+      } else if (route === '#/migration-acceptance' && roleCan(['admin'])) {
         window.RUNTIME_MIGRATION_ACCEPTANCE = await invokeRead('legacy.migration.status.query', {});
-      } else if (route === '#/p6-compliance-ops' && roleCan(['ROLE_SECURITY_AUDIT'])) {
+      } else if (route === '#/compliance-ops' && roleCan(['ROLE_SECURITY_AUDIT'])) {
         // W4.2: 安全审计员 看 P6 时预拉直达交付清单作绕行督查的数据源
         try {
           window.RUNTIME_R8_DIRECT_ACCESS = await invokeRead('direct_access.delivery.list', { limit: 50 });
         } catch (_) { window.RUNTIME_R8_DIRECT_ACCESS = { items: [], total: 0 }; }
-      } else if (route === '#/p5-provider' && roleCan(['ROLE_BUSIAUDIT'])) {
+      } else if (route === '#/provider' && roleCan(['ROLE_BUSIAUDIT'])) {
         // 业务运营员 P5 视图：预拉收件箱条数用于工作流卡片标题
         try {
           const draftsResult = await invokeRead('catalog.entry.query', { source: 'reverse', lifecycle_status: 'draft' });
@@ -360,10 +360,10 @@
           const directResult = await invokeRead('direct_access.catalog.query', {});
           window.RUNTIME_R7_DIRECT_ACCESS = (directResult && directResult.directAccess) || window.RUNTIME_PROVIDER.directAccess || { catalogs: [], resources: [], demands: [], subscriptions: [] };
         } catch (_) { window.RUNTIME_R7_DIRECT_ACCESS = window.RUNTIME_PROVIDER.directAccess || { catalogs: [], resources: [], demands: [], subscriptions: [] }; }
-      } else if (route === '#/p5-provider/inbox/field-decision' && roleCan(['ROLE_BUSIAUDIT'])) {
+      } else if (route === '#/provider/inbox/field-decision' && roleCan(['ROLE_BUSIAUDIT'])) {
         const result = await invokeRead('catalog.entry.query', { source: 'reverse', lifecycle_status: 'draft' });
         window.RUNTIME_R7_FIELD_DRAFTS = (result && result.items) || [];
-      } else if (route.startsWith('#/p5-provider/inbox/field-decision/') && roleCan(['ROLE_BUSIAUDIT'])) {
+      } else if (route.startsWith('#/provider/inbox/field-decision/') && roleCan(['ROLE_BUSIAUDIT'])) {
         const catalogCode = decodeURIComponent(route.split('/').pop());
         const result = await invokeRead('catalog.entry.reverse_draft.suggest', { schema_ref: catalogCode });
         // For 业务运营员 inbox, the schema_ref equals catalog_code (草稿命名约定)；若找不到，
@@ -386,7 +386,7 @@
             found: true,
           };
         }
-      } else if (route === '#/p5-provider/inbox/hookup-review' && roleCan(['ROLE_BUSIAUDIT'])) {
+      } else if (route === '#/provider/inbox/hookup-review' && roleCan(['ROLE_BUSIAUDIT'])) {
         const result = await invokeRead('catalog.browse', { lifecycle: 'pending_review', limit: 50 });
         window.RUNTIME_R7_HOOKUP_PENDING = ((result && result.items) || []).map(item => ({
           resource_code: item.catalog_code,
@@ -394,10 +394,10 @@
           kind: '目录-资源挂接',
           status: item.lifecycle_status || 'pending_review',
         }));
-      } else if (route === '#/p5-provider/inbox/demand-match' && roleCan(['ROLE_BUSIAUDIT'])) {
+      } else if (route === '#/provider/inbox/demand-match' && roleCan(['ROLE_BUSIAUDIT'])) {
         const result = await invokeRead('request.list', {});
         window.RUNTIME_R7_DEMAND_PENDING = ((result && result.items) || []).filter(r => r.status === 'submitted' || r.status === 'pending');
-      } else if (route.startsWith('#/p5-provider/inbox/demand-match/') && roleCan(['ROLE_BUSIAUDIT'])) {
+      } else if (route.startsWith('#/provider/inbox/demand-match/') && roleCan(['ROLE_BUSIAUDIT'])) {
         const applicationCode = decodeURIComponent(route.split('/').pop());
         try {
           const request = await invokeRead('request.view', { request_id: applicationCode });
@@ -447,8 +447,8 @@
 
   function dispatch() {
     if (!snapshotReady) return;
-    const rawHash = window.location.hash || '#/p1-workbench';
-    // 路由前先剥掉 query/fragment 噪音（"#/p8-integration-admin?_t=123" → "#/p8-integration-admin"）
+    const rawHash = window.location.hash || '#/workbench';
+    // 路由前先剥掉 query/fragment 噪音（"#/integration-admin?_t=123" → "#/integration-admin"）
     const hash = rawHash.split('?')[0].split('&')[0];
     let matched = null;
     let captures = [];
@@ -518,7 +518,7 @@
       <div class="bg-white rounded-2xl p-10 text-center border-default shadow-soft">
         <div class="text-display mb-3">页面未找到</div>
         <p class="text-zw-mute mb-4">没有匹配的业务入口：<code>${escapedHash}</code></p>
-        <a href="#/p1-workbench" class="inline-block gov-btn gov-btn-primary px-4 py-2 rounded-lg text-caption">回到数据共享工作台</a>
+        <a href="#/workbench" class="inline-block gov-btn gov-btn-primary px-4 py-2 rounded-lg text-caption">回到数据共享工作台</a>
       </div>`;
   }
 
@@ -529,7 +529,7 @@
         <div class="page-hero-title">当前服务没有完成加载。</div>
         <p class="page-hero-subtitle">${message}</p>
         <div class="mt-5 flex gap-3 flex-wrap">
-          <a href="#/p1-workbench" class="gov-btn gov-btn-primary">回到数据共享工作台</a>
+          <a href="#/workbench" class="gov-btn gov-btn-primary">回到数据共享工作台</a>
           <button type="button" class="gov-btn gov-btn-secondary" onclick="window.location.reload()">刷新重试</button>
         </div>
       </div>`;
@@ -597,7 +597,7 @@
         return;
       }
       if (window.STATE) window.STATE.discoveryQuery = currentDiscoveryQuery;
-      window.location.hash = '#/p2-discovery';
+      window.location.hash = '#/discovery';
     },
     async setDiscoveryQuery(event) {
       event.preventDefault();
@@ -632,7 +632,7 @@
     createRequest(resourceId) {
       const existing = (window.RUNTIME_REQUESTS || []).find(item => item.resourceId === resourceId && ['pending', 'supplementing', 'summary-pending'].includes(item.status));
       if (existing) {
-        window.location.hash = `#/p3-request-flow/request/${existing.id}`;
+        window.location.hash = `#/request-flow/request/${existing.id}`;
         window.UI.toast('已续接当前未完成申请', 'info');
         return;
       }
@@ -640,9 +640,9 @@
         await refreshSnapshot();
         const requestId = result?.result?.request_id || result?.request_id;
         if (requestId) {
-          window.location.hash = `#/p3-request-flow/request/${requestId}`;
+          window.location.hash = `#/request-flow/request/${requestId}`;
         } else {
-          window.location.hash = '#/p3-request-flow';
+          window.location.hash = '#/request-flow';
         }
       });
     },
@@ -652,7 +652,7 @@
         return;
       }
       performWrite('request.submit', { request_id: requestId }, '已重新提交并进入受控准入', () => {
-        window.location.hash = `#/p3-request-flow/request/${requestId}`;
+        window.location.hash = `#/request-flow/request/${requestId}`;
       });
     },
     approveRequest(requestId) {
@@ -855,7 +855,7 @@
         },
         '反向编目草稿已生成并提交 业务运营员 字段口径裁决',
         () => {
-          window.location.hash = '#/p5-provider';
+          window.location.hash = '#/provider';
         },
       );
     },
@@ -887,7 +887,7 @@
           resource_id: resourceId, api_path: apiPath,
         });
         window.UI.toast('API 草稿三步链已提交：注册 → 策略 → 提审', 'success');
-        window.location.hash = '#/p5-provider';
+        window.location.hash = '#/provider';
       } catch (err) {
         window.UI.toast(customerSafeError(err, 'API 三步链未完成，请检查参数或角色范围。'), 'error');
       }
@@ -956,7 +956,7 @@
         field_decisions: fieldRows,
         comment: comment,
       }, `已通过 ${catalogCode} 字段口径裁决，进入 pending_review`, () => {
-        window.location.hash = '#/p5-provider/inbox/field-decision';
+        window.location.hash = '#/provider/inbox/field-decision';
       });
     },
     rejectFieldDecision(catalogCode) {
@@ -969,7 +969,7 @@
         catalog_code: catalogCode,
         reject_reason: comment,
       }, `已驳回 ${catalogCode}，退回 提供方部门 修字段证据`, () => {
-        window.location.hash = '#/p5-provider/inbox/field-decision';
+        window.location.hash = '#/provider/inbox/field-decision';
       });
     },
 
@@ -1075,7 +1075,7 @@
         dispatch_payload_json: dispatchPayload,
         target_region_codes: regions,
       }, `已派 审核汇总人 切片任务 (application=${applicationCode})`, () => {
-        window.location.hash = '#/p5-provider/inbox/demand-match';
+        window.location.hash = '#/provider/inbox/demand-match';
       });
     },
 
@@ -1108,7 +1108,7 @@
         basis_text: desc,
         status: 'submitted',
       }, '异议已提交，进入 审核汇总人 受理流程', () => {
-        window.location.hash = '#/p6-compliance-ops';
+        window.location.hash = '#/compliance-ops';
       });
     },
     rateService(taskId) {
@@ -1235,7 +1235,7 @@
         currentRole = event.target.value;
         if (window.STATE) window.STATE.role = currentRole;
         await refreshSnapshot();
-        await syncRouteData(window.location.hash || '#/p1-workbench');
+        await syncRouteData(window.location.hash || '#/workbench');
         dispatch();
       });
     }
@@ -1246,7 +1246,7 @@
       await refreshSchemaInfo();
       if (switcher) switcher.value = currentRole;
       if (!window.location.hash) {
-        window.location.hash = '#/p1-workbench';
+        window.location.hash = '#/workbench';
         dispatch();
       } else {
         // Route-specific data is best-effort: a single skill fetch failure

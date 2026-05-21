@@ -3,7 +3,7 @@
 补完 test_webui_browser_e2e.py 的 customer_main_journey 之外的关键场景，覆盖：
 - J1: P4 凭据领取页 + sharing_type 分流 UI
 - J2: P5 提供方主面 + 字段口径裁决收件箱
-- B1.1: 合规与运营（路由仍为 p6-compliance-ops）— 审计/争议时间线
+- B1.1: 合规与运营 — 审计/争议时间线
 - 多角色穿插切换
 
 测试基础设施沿用 test_webui_browser_e2e（CDP + headless Chrome）。
@@ -58,18 +58,18 @@ def test_j1_credential_loop_p4(real_browser_env):
     browser = None
     try:
         # 先准备一个走完审批的 REQ：通过 REST 直接调
-        browser = _open_browser(f"{base_url}/#/p2-discovery/resource/BASE-POP-001")
+        browser = _open_browser(f"{base_url}/#/discovery/resource/BASE-POP-001")
         _wait_for(browser, "document.body && document.body.innerText.includes('人口基本信息')")
 
         # 申请人创建申请
         _click_text(browser, "发起标准复用申请")
-        _wait_for(browser, "location.hash.startsWith('#/p3-request-flow/request/')")
+        _wait_for(browser, "location.hash.startsWith('#/request-flow/request/')")
         request_id = browser.eval("location.hash.split('/').pop()")
         assert request_id.startswith("REQ-")
 
         # 审批通过 → hook 自动签发凭据
         _set_role(browser, "ROLE_ORGAN_MANAGER")
-        browser.eval(f"location.hash = '#/p3-request-flow/review/{request_id}'")
+        browser.eval(f"location.hash = '#/request-flow/review/{request_id}'")
         _wait_for(browser, "document.body.innerText.includes('通过并下发补录') || document.body.innerText.includes('立即下发凭据') || document.body.innerText.includes('转提供方审批')")
         # 不论 sharing_type 分流，找到主要审批按钮点击
         ok = browser.eval(
@@ -89,7 +89,7 @@ def test_j1_credential_loop_p4(real_browser_env):
 
         # 切回申请人视角看 P4 凭据领取页
         _set_role(browser, "ROLE_ORGAN_OPERATER")
-        browser.eval(f"location.hash = '#/p4-delivery-exchange/credential/{request_id}'")
+        browser.eval(f"location.hash = '#/delivery-exchange/credential/{request_id}'")
         _wait_for(browser, "document.body.innerText.includes('App Key') || document.body.innerText.includes('凭据未签发')", timeout=10)
         text = _visible_text(browser)
         # 至少能看到凭据页框架（已签发或未签发都行；hook 不一定成功）
@@ -108,7 +108,7 @@ def test_j1_seeded_credential_already_issued_view(real_browser_env):
     base_url = real_browser_env
     browser = None
     try:
-        browser = _open_browser(f"{base_url}/#/p4-delivery-exchange/credential/REQ-2026-04-26-0006")
+        browser = _open_browser(f"{base_url}/#/delivery-exchange/credential/REQ-2026-04-26-0006")
         _wait_for(browser, "document.body.innerText.length > 50", timeout=10)
         text = _visible_text(browser)
         # 至少能加载页面（凭据状态可能 issued 或 not_issued 取决于 DB 是否使用 seed_snapshot）
@@ -127,11 +127,11 @@ def test_j1_sharing_type_branch_ui(real_browser_env):
     browser = None
     try:
         # 直接打开 reviewDetail（seed 中的 pending 申请之一，sharing_type=unconditional 或 conditional）
-        browser = _open_browser(f"{base_url}/#/p3-request-flow/review/REQ-2026-04-25-0011")
+        browser = _open_browser(f"{base_url}/#/request-flow/review/REQ-2026-04-25-0011")
         _wait_for(browser, "document.body && document.body.innerText.length > 200", timeout=10)
         _wait_for(browser, "document.getElementById('role-switch') && window.STATE && window.STATE.role")
         _set_role(browser, "ROLE_ORGAN_MANAGER")
-        browser.eval("location.hash = ''; location.hash = '#/p3-request-flow/review/REQ-2026-04-25-0011'")
+        browser.eval("location.hash = ''; location.hash = '#/request-flow/review/REQ-2026-04-25-0011'")
         _wait_for(
             browser,
             "document.body.innerText.includes('共享类型') || document.body.innerText.includes('共享 / 审批分流') || document.body.innerText.includes('无条件共享') || document.body.innerText.includes('有条件共享')",
@@ -156,7 +156,7 @@ def test_j2_provider_p5_overview_visible_to_busiaudit(real_browser_env):
         _wait_for(browser, "document.body && document.body.innerText.length > 100")
 
         _set_role(browser, "ROLE_BUSIAUDIT")
-        browser.eval("location.hash = '#/p5-provider'")
+        browser.eval("location.hash = '#/provider'")
         _wait_for(browser, "document.body.innerText.length > 200", timeout=10)
         text = _visible_text(browser)
         # P5 主面应包含提供方相关元素（"维护"、"提供"、"资源"任一）
@@ -169,7 +169,7 @@ def test_j2_provider_p5_overview_visible_to_busiaudit(real_browser_env):
 
 
 def test_b1_compliance_audit_replay_security_audit(real_browser_env):
-    """T5 - B1.1 合规运营（路由 p6-compliance-ops）：ROLE_SECURITY_AUDIT 可看到审计回放时间线."""
+    """T5 - B1.1 合规运营：ROLE_SECURITY_AUDIT 可看到审计回放时间线."""
     base_url = real_browser_env
     browser = None
     try:
@@ -177,7 +177,7 @@ def test_b1_compliance_audit_replay_security_audit(real_browser_env):
         _wait_for(browser, "document.body && document.body.innerText.length > 100")
 
         _set_role(browser, "ROLE_SECURITY_AUDIT")
-        browser.eval("location.hash = '#/p6-compliance-ops'")
+        browser.eval("location.hash = '#/compliance-ops'")
         _wait_for(browser, "document.body.innerText.length > 200", timeout=10)
         text = _visible_text(browser)
         # B1.1 主面应包含合规/审计相关元素

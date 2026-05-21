@@ -83,8 +83,8 @@ def test_entity_lookup_does_not_silent_fallback_to_first_row() -> None:
 
 def test_request_detail_refresh_does_not_request_approval_view() -> None:
     app_js = APP_JS.read_text(encoding="utf-8")
-    request_start = app_js.index("route.startsWith('#/p3-request-flow/request/')")
-    request_block = app_js[request_start : app_js.index("route.startsWith('#/p3-request-flow/review/')", request_start)]
+    request_start = app_js.index("route.startsWith('#/request-flow/request/')")
+    request_block = app_js[request_start : app_js.index("route.startsWith('#/request-flow/review/')", request_start)]
     assert "'request.view'" in request_block
     assert "'approval.view'" not in request_block
 
@@ -93,9 +93,9 @@ def test_sync_route_refreshes_review_detail_with_approval_view() -> None:
     app_js = APP_JS.read_text(encoding="utf-8")
     pages_js = PAGES_JS.read_text(encoding="utf-8")
     # 2026-05-19 retrofit Stage 3 (R-013) 修复了 ZW_PAGE_ACCESS 数组的重复元素
-    assert "route.startsWith('#/p3-request-flow/review/') && roleCan(['ROLE_ORGAN_MANAGER'])" in app_js
+    assert "route.startsWith('#/request-flow/review/') && roleCan(['ROLE_ORGAN_MANAGER'])" in app_js
     assert "reviewDetail: ['ROLE_ORGAN_MANAGER']" in pages_js
-    review_idx = app_js.index("p3-request-flow/review/")
+    review_idx = app_js.index("request-flow/review/")
     view_idx = app_js.index("'request.view'", review_idx)
     approval_idx = app_js.index("'approval.view'", review_idx)
     assert view_idx < approval_idx
@@ -105,7 +105,7 @@ def test_delivery_task_detail_uses_delivery_projection_without_request_projectio
     pages_js = PAGES_JS.read_text(encoding="utf-8")
     start = pages_js.index("PAGES.deliveryTaskDetail = function")
     block = pages_js[start : pages_js.index("PAGES.provider", start)]
-    assert "entityNotFoundShell('p4', '关联共享申请'" not in block
+    assert "entityNotFoundShell('delivery-exchange', '关联共享申请'" not in block
     assert "关联申请仅作可选补充" in block
     assert "const requestCompleted = request ? request.status === 'completed' : task.status === 'completed' || task.summaryConfirmed === true;" in block
 
