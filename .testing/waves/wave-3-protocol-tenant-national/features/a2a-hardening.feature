@@ -45,8 +45,9 @@ Feature: A2A 投影生产级硬化（agent skill 模型）
 
   Scenario: 负向 — A2A 跨租户隔离
     Given 外部 Agent 在 sd-default 注册
-    When 它 invoke skill 查询 other-province 数据
+    When 它 invoke skill 查询 yn-default 租户的数据（与 multi-tenant-policy.feature 命名一致）
     Then 返回空（tenant filter 生效）
+    And 审计 reject + reason="cross_tenant_query_attempt"
 
   Scenario: 回归 — A2A 投影与 MCP 投影来自同一 registry
     Then mcp_tools.json 与 a2a/agent_card.json 中**同名 Capability**字段集合一致

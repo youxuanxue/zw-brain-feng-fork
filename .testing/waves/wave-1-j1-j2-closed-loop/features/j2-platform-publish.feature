@@ -3,7 +3,7 @@
 # Pages: P5
 # Consumer-faces: WebUI
 # Roles: ROLE_BUSIAUDIT
-# Trace: 基线 §10.2 J2 平台发布, 基线 §5.2 P5 重复率检测提醒, 旧 xlsx 行 [52..55] 目录发布 + [72..73] 资源发布
+# Trace: 基线 §10.2 J2 平台发布, 基线 §5.2 P5 重复率检测提醒, 旧 xlsx 行 [40..42] 目录发布 (发布+批量+删除/下线) + [64..65] 资源发布 (单条+批量)
 # Priority: P1
 # Status: Draft
 

@@ -40,11 +40,12 @@ Feature: 三引擎 #3 — 智能推荐前置
     Then 创建 BusinessRequirement，自动归入 BUSIAUDIT 供需对接队列
     And 我的输入语义摘要作为需求背景
 
-  Scenario: 负向 — 推荐不能跨租户泄露数据
-    Given 历史申请含 other-province 的数据
-    When 我输入需求
-    Then 推荐结果不含 other-province 的资源
-    And 命中相似申请数仅来自 sd-default
+  Scenario: 负向 — 推荐不能跨部门暴露 shared_type=3 不予共享资源
+    Given 部门Z 的 catalog C_2499 shared_type=3 不予共享
+    When 我（部门A 用户）输入需求触发推荐
+    Then 推荐结果不含 C_2499
+    And 推荐引擎的相似申请数仅来自 J1 已授权样本
+    And 注：跨租户（不同 tenant_id）推荐隔离回归见 wave-3-protocol-tenant-national/features/multi-tenant-policy.feature
 
   Scenario: 负向 — 推荐结果不能绕过 J1 主流程
     When AI 推荐看似确定性高的资源 C_2401

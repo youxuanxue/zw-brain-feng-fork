@@ -2,8 +2,8 @@
 # Journey: J2
 # Pages: P5
 # Consumer-faces: WebUI
-# Roles: ROLE_ORGAN_OPERATER (含 tag_lead_dept) | ROLE_ORGAN_MANAGER
-# Trace: 基线 §3.2 目录管理 23 页, §3.3 CatalogModel 双轨编制, §10.2 J2 在线编制, 旧 xlsx 行 [40..48]
+# Roles: ROLE_ORGAN_OPERATER | ROLE_ORGAN_MANAGER (含 tag_lead_dept — 牵头标签依附 MANAGER，per docs/approved/zw-brain-roles.md §三)
+# Trace: 基线 §3.2 目录管理 23 页, §3.3 CatalogModel 双轨编制, §10.2 J2 在线编制, 旧 xlsx 行 [35..38] 反向编目+在线编制+导入+编辑 (45-53 国家目录治理 ⏸ Wave 3)
 # Priority: P1
 # Status: Draft
 

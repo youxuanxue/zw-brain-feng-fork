@@ -44,11 +44,12 @@ Feature: 一表通可选预填 adapter（基层补差任务出现时）
     And 任何对一表通的写动作只能走一表通自己的入口
     And zw-brain 是只读消费者
 
-  Scenario: 负向 — adapter 不能跨租户预填
-    Given 一表通返回 other-province 的数据
+  Scenario: 负向 — adapter 返回的字段与申请上下文不匹配时不预填
+    Given 一表通返回的字段含 "外省协作业务编号"（不在当前申请的字段范围内）
     When zw-brain adapter 读取
-    Then 数据被 tenant filter 过滤掉
-    And 申请草稿不预填 other-province 数据
+    Then 不匹配字段被静默丢弃，不预填到申请草稿
+    And 申请草稿仅预填字段范围内的合规字段
+    And 注：跨租户（不同 tenant_id）adapter 隔离回归见 wave-3-protocol-tenant-national/features/multi-tenant-policy.feature
 
   Scenario: 回归 — adapter 不进 J1/J2 主链路硬依赖
     Then J1/J2 主链路在一表通完全不可用时仍能完成所有 happy path

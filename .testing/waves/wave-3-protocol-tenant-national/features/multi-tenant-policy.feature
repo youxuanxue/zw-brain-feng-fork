@@ -58,3 +58,25 @@ Feature: 多租户 / 多部门 / 多区域策略深化
   Scenario: 回归 — sd-default 在多租户引入后行为不变
     Then 单租户 sd-default 主旅程的所有 Wave 0/1/2 用例**仍 100% 通过**
     And 多租户引入是叠加而非破坏（OPC 反碎片化）
+
+  Scenario: 回归 — 通用隔离对子能力的传递性覆盖（接收从 Wave 0-2 移除的 specific 跨租户场景）
+    # 本 Scenario 是 PR #71 review R-003 的对接点：Wave 0-2 中 4 个 specific 跨租户场景
+    # (j1-resource-discovery / p7-shared-zones / adapter-yibiaotong / engine-recommend-prefer)
+    # 在单租户哲学下移除并 sign-post 推到 Wave 3，本 Scenario 显式验证通用隔离对每个子能力都传递生效。
+    Given sd-default + yn-default 两租户已并存，各自含完整 catalog / resource / application 种子
+    And U_SD 用户 session.tenant_id=sd-default；U_YN 用户 session.tenant_id=yn-default
+
+    When U_SD 在 P2 资源发现页检索（命中 yn-default 的关键词）
+    Then 结果集不含 yn-default 的 catalog（基础隔离传递到资源发现）
+
+    When U_SD 打开 P7 共享专区
+    Then 不显示 yn-default 的专题包（隔离传递到专题聚合层）
+
+    When 一表通 adapter 返回的字段含 yn-default 租户的业务编号
+    Then zw-brain adapter 拒绝预填到 sd-default 的申请草稿（隔离传递到 adapter 层）
+
+    When U_SD 触发智能推荐引擎，历史样本池仅来自 sd-default
+    Then 推荐结果不含 yn-default 的资源（隔离传递到推荐层）
+
+    And 任意一项失败 → 该子能力存在跨租户泄露 → 阻塞 multi-tenant 上线
+    And 审计 capability_call 均带正确 tenant_id 字段，不混租户

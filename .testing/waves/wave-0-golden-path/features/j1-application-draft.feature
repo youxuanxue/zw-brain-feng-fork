@@ -3,7 +3,7 @@
 # Pages: P3
 # Consumer-faces: WebUI | API
 # Roles: ROLE_ORGAN_OPERATER
-# Trace: R9, 基线 §5.4.4 P3 申请草拟助手反约束, 旧 xlsx 行 [1..5] (代理服务/库表/融合服务/通用服务申请), 业务反馈 #17
+# Trace: R9, 基线 §5.4.4 P3 申请草拟助手反约束, 旧 xlsx 行 [3..4] 库表 + [8..11] 文件夹/文件 (代理服务/融合服务/通用服务申请 ❌ 不复刻，详见 cross-cutting/legacy-128-mapping.md), 业务反馈 #17
 # Priority: P0
 # Status: Draft
 
@@ -18,7 +18,7 @@ Feature: J1 申请草稿（P3 申请/审批/跟踪页）
     And 资源 C101 / C102 已发布
     And 资源 C101 shared_type=1 无条件共享；C102 shared_type=2 有条件共享
 
-  Scenario: 正向 — 从 P2 跳入 P3 草稿，主体信息自动预填（旧 xlsx 行 2）
+  Scenario: 正向 — 从 P2 跳入 P3 草稿，主体信息自动预填（旧 xlsx 行 4 "库表资源申请-有期限"）
     When 我从 P2 点击 C101 的 "申请使用"
     Then P3 草稿页打开，资源信息预填：
       | 字段             | 期望                |
@@ -28,14 +28,14 @@ Feature: J1 申请草稿（P3 申请/审批/跟踪页）
     And 使用方信息按当前账号 org 自动预填
     And 申请单 status=0 草稿
 
-  Scenario: 正向 — 暂存草稿（旧 xlsx 行 1 "资源申请暂存"）
+  Scenario: 正向 — 暂存草稿（旧 xlsx 行 3 "库表资源申请暂存"）
     Given 字典 apply.temporarily_store 已开启
     When 我在草稿页填入部分字段后点击 "暂存"
     Then 草稿写入数据库，application.status=0
     And 我刷新页面，草稿被还原
     And 必填字段未完整时**仍可暂存**（与"提交"区分开）
 
-  Scenario: 正向 — 提交申请（无条件共享分支，旧 xlsx 行 2）
+  Scenario: 正向 — 提交申请（无条件共享分支，旧 xlsx 行 4 "库表资源申请-有期限"）
     When 我完整填写：
       | 数据用途       | 业务系统查询接口          |
       | 业务系统       | 公安治安管理系统          |
@@ -56,7 +56,7 @@ Feature: J1 申请草稿（P3 申请/审批/跟踪页）
     And 我点击 "采纳建议 #2"，"申请依据" 输入框被填入
     And 助手输出**不替我提交**（提交按钮仍需手动点击 — 反约束 P3）
 
-  Scenario: 负向 — 必填缺失拒绝提交（旧 xlsx 行 1）
+  Scenario: 负向 — 必填缺失拒绝提交（旧 xlsx 行 3 暂存场景的反向 — 必填校验在"提交"步骤强生效）
     Given 我已暂存但 "申请依据" 为空
     When 我点击 "提交申请"
     Then 拒绝提交

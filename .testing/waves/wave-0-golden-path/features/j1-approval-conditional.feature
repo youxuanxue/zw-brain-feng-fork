@@ -3,7 +3,7 @@
 # Pages: P3
 # Consumer-faces: WebUI
 # Roles: ROLE_ORGAN_MANAGER | ROLE_BUSIAUDIT
-# Trace: R10 / R11, 基线 §10.1（有条件共享审批分支）, 旧 xlsx 行 [16..24] 服务审核, 业务反馈 #4
+# Trace: R10 / R11, 基线 §10.1（有条件共享审批分支）, 旧 xlsx 行 [86..90] 服务审核 + [91] 申请变更复用主审批流, 业务反馈 #4
 # Priority: P0
 # Status: Draft
 

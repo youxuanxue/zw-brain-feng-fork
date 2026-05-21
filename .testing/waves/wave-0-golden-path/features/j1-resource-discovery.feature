@@ -21,10 +21,11 @@ Feature: J1 资源发现（P2 资源发现页）
       | C101       | 户籍基础信息       | 部门A_公安       | 1 无条件          | table           |
       | C102       | 法人单位登记信息    | 部门B_市场监管    | 2 有条件          | api             |
       | C103       | 不动产登记摘要     | 部门C_自然资源    | 2 有条件          | file            |
-      | C999       | 跨省案件协作数据    | other-province  | 1 无条件          | api             |
+      | C104       | 内部专用统计基线    | 部门A_公安       | 3 不予共享        | table           |
     And 我以 ROLE_ORGAN_OPERATER 身份登录，org_code=部门A_公安
+    And 单租户假设：跨租户隔离的回归用例见 wave-3-protocol-tenant-national/features/multi-tenant-policy.feature（Wave 3 才引入第二租户）
 
-  Scenario: 正向 — 关键词检索命中目录（旧 xlsx 行 12 "目录列表"）
+  Scenario: 正向 — 关键词检索命中目录（旧 xlsx 行 13 "查看数据目录"）
     When 我在 P2 检索框输入 "户籍"
     Then 返回结果列表至少包含 1 条
     And 第一条结果显示：
@@ -53,10 +54,11 @@ Feature: J1 资源发现（P2 资源发现页）
     When 我点击 "申请使用"
     Then 跳转到 P3 申请草稿页，资源 C101 已自动填入
 
-  Scenario: 负向 — 跨租户资源不可见（多租户隔离）
-    When 我在 sd-default 租户下检索 "跨省案件协作"
-    Then 不返回 C999
-    And 审计总线记录 tenant_scope decision=reject，原因="resource.tenant ≠ session.tenant"
+  Scenario: 负向 — shared_type=3 不予共享资源不进 P2 检索（基线 §3.3 3 共享态）
+    When 我在 sd-default 租户下检索 "内部专用统计基线"
+    Then 不返回 C104
+    And 审计总线记录 capability_call=resource.search 但结果集不含 C104
+    And 注：跨租户场景（不同 tenant_id 隔离）见 wave-3-protocol-tenant-national/features/multi-tenant-policy.feature
 
   Scenario: 负向 — 未授权角色访问 P2 被拒
     Given 我以 ROLE_SECURITY_AUDIT 身份登录（不在 J1 主面）

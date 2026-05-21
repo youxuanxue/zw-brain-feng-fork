@@ -44,7 +44,7 @@ Feature: Infra — AgentRuntime Embedded SDK 最小集成
   Scenario: 正向 — 内置 Agent 通过 Embedded SDK 调用 Capability
     Given Capability `resource.search` 已注册，exposure 含 "internal-agent"
     When 内置 Agent zw_search_helper 调用 tool resource.search(keyword="户籍")
-    Then 调用回到 zw-brain 统一审计面（actor_role=ROLE_SYSTEM_AGENT 或类似）
+    Then 调用回到 zw-brain 统一审计面，actor_role=ROLE_SYSTEM（内置 Agent 触发对应 ROLE_SYSTEM，与 R10 7 角色码集合一致；见 cross-cutting/role-task-skill-trace.md §6）
     And 调用结果与人类 ROLE_ORGAN_OPERATER 调同一接口一致（同 Capability 投影）
 
   Scenario: 负向 — AGENT.yaml runtime_spec_version 错误 → 拒绝注册

@@ -3,7 +3,7 @@
 # Pages: P5
 # Consumer-faces: WebUI | CLI
 # Roles: ROLE_ORGAN_OPERATER
-# Trace: 基线 §3.3 3 物化形式 (data_resource_table / file / api), §10.2 J2 资源挂接, 旧 xlsx 行 [62..76]
+# Trace: 基线 §3.3 3 物化形式 (data_resource_table / file / api), §10.2 J2 资源挂接, 旧 xlsx 行 [57..61] 资源注册 (库表/链接/文件/文件夹/库表-视图) + [66] 目录物化
 # Priority: P1
 # Status: Draft
 

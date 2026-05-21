@@ -41,10 +41,11 @@ Feature: P7 共享专区 / 专题包订阅
     And 创建后即在 P7 可见
     And 专题维护操作落审计
 
-  Scenario: 负向 — 跨租户专题不可见
-    Given 专题 "他省专题包" 属于 other-province
+  Scenario: 负向 — 未上架/已下线的专题包不在 P7 显示
+    Given 专题 "试运行专题包" status=draft；专题 "已退役专题包" status=archived
     When 我（sd-default）打开 P7
-    Then 不显示 "他省专题包"
+    Then 不显示这两个专题包
+    And 注：跨租户专题隔离（不同 tenant_id）见 wave-3-protocol-tenant-national/features/multi-tenant-policy.feature
 
   Scenario: 负向 — 订阅不绕过 J1 主审批流
     Given 我订阅了 "营商环境"
