@@ -96,7 +96,8 @@
 | 32 | 安全审计员 审计 + 直达督查 | pytest test_09 | pass | 安全审计员 督查断 → 合规问题无法独立核查，巡检失效 |
 | 33 | audit 链覆盖 12 个核心 skill | pytest test_10 | pass，no missing | 审计漏写 skill → 部分操作不可回放，合规盲区 |
 
-一键跑全部：`pytest tests/test_acceptance_9_roles_e2e.py -v` → 10 passed
+一键跑全部：`.venv/bin/python -m pytest tests/ -q` → 26 passed + 1 deselected（slow_infra）。
+> 上表 24-33 项 e2e 用例的 pytest 实施由 Wave 0/1 实施 PR 接力（设计源 = `.testing/waves/wave-{0,1}/features/*.feature`，详见 `.testing/cleanup-plan.md` 删除映射）；当前移交以"现场按 .feature 顺序人工跑通 + audit_event 表回放"为等价验收路径。
 
 ## 八、WebUI M0 + 7 角色浏览（6 项）
 
@@ -129,9 +130,9 @@
 附件：
 □ migration-report.json
 □ verify-report.json
-□ test_acceptance_9_roles_e2e.py 输出（10/10 passed）
+□ `pytest tests/ -q` 输出（26 passed + 1 deselected）+ `.testing/waves/wave-{0,1}/features/` 现场人工 walkthrough 记录
 □ WebUI M0 + 7 角色浏览验收截图（每岗位 ≥ 1 张）
-□ preflight 输出（20 段 PASS）
+□ preflight 输出（21 段 PASS）
 ```
 
 ---

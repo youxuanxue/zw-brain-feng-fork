@@ -263,30 +263,26 @@ curl -s http://localhost:8800/openapi.json | jq '.paths | length'
 
 ---
 
-## 7. M0 + 7 角色 e2e 验收（10 项）
+## 7. 端到端 acceptance 验收
 
-跑端到端 acceptance 测试，**这就是客户现场移交的最终签收依据**：
+客户现场移交的最终签收依据 = `.testing/waves/wave-0-golden-path/` + `wave-1-j1-j2-closed-loop/` 全部 .feature 跑通 + B1.1/B1.2 后台抽查通过。
 
-```bash
-.venv/bin/python -m pytest tests/test_acceptance_9_roles_e2e.py -v
-```
+**当前状态**：
+- 设计文档：`.testing/waves/wave-{0,1}/features/*.feature`（Gherkin/BDD 形态，含 J1 找数→用数 6 步 + J2 编制→挂接→部门审→平台发布 4 步 + 异议 5 维度 + 凭据撤回 + 供需对接）
+- pytest 实施：**待 Wave 0/1 实施 PR 接力**（详见 `.testing/cleanup-plan.md` 删除映射）；当前仅保留 4 个机械对齐测试：
+  ```bash
+  .venv/bin/python -m pytest tests/ -q
+  # 期望：26 passed + 1 deselected (slow_infra)
+  ```
 
-> 该测试文件实际覆盖 M0 迁移岗 + 7 角色 = 10 项 e2e。
-
-应该看到 10/10 通过：
-- `test_01_m0_acceptance_status_query` — M0 验收 status query
-- `test_02_r1_demand_registration_intent_submit` — ROLE_ORGAN_OPERATER 需求登记
-- `test_03_r7_reverse_draft_create_then_confirm` — ROLE_ORGAN_MANAGER → ROLE_BUSIAUDIT 反向编目闭环
-- `test_04_r2_application_review_with_grade_policy` — ROLE_ORGAN_MANAGER 分级授权策略审批
-- `test_05_r6_quality_rule_and_api_service` — ROLE_ORGAN_MANAGER 检测规则 + 任务触发
-- `test_06_r3_supplement_skill_callable` — ROLE_ORGAN_OPERATER 接补差任务派发（基层补差场景）
-- `test_07_r4_exception_callback_handoff` — ROLE_ORGAN_OPERATER 异常回传（基层场景）
-- `test_08_r5_objection_four_substages` — ROLE_BUSIAUDIT 异议四子流程
-- `test_09_r8_audit_list_and_direct_access` — ROLE_SECURITY_AUDIT 审计抽查 + 直达绕行
-- `test_10_audit_chain_covers_all_roles` — audit 链覆盖所有角色
+**移交时执行清单**（pytest 实施化前的人工验收等价路径）：
+1. 客户现场用真实数据按 `.testing/waves/wave-0-golden-path/features/j1-*.feature` 顺序跑一次 J1 主链路（资源发现 → 申请草稿 → 审批 → 凭据 → API 调用）
+2. 按 `wave-1-j1-j2-closed-loop/features/j2-*.feature` 跑 J2 编目→挂接→审核→发布闭环
+3. 抽查异议 5 维度任一 ≥1 次完整闭环
+4. 查 audit_event 表：上述每一步是否完整落审计
 
 **失败排查**：
-- 某个角色测试失败 → 看具体 skill_id 与对应角色的 `PERMISSION_ROLES` 配置；客户现场如自定义岗位映射需同步改 `zw_brain/domain/policy.py`
+- skill_id 与角色不匹配 → 看 `zw_brain/domain/policy.py` 的角色映射
 - audit_event 缺事件 → 检查 `audit_bus.configure_sink` 是否在 BrainService 初始化时被调用
 
 ---

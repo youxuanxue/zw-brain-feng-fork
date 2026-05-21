@@ -43,6 +43,7 @@ SKIP_PATH_FRAGMENTS = (
     "/.data/",
     "/.reviews/",
     "/.experiences/",  # 已删除（本次 D23 退役）
+    "/.testing/",  # Wave 测试用例设计文档（.md 中 R1-R15 是基线 §11 设计主张引用，与已退役 R1-R8 用户角色码同名但不同 namespace）；.feature 文件本就不在 EXTENSIONS 内
     "/old/",  # 旧平台真实数据 / 文档 / xlsx（D23 前的事实源，本身含旧角色码）
     "/dist/",
     "/build/",
