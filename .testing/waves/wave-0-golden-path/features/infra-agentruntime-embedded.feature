@@ -5,7 +5,13 @@
 # Roles: ROLE_SYSTEM
 # Trace: D2 / R15 / 基线 §八 AgentRuntime 声明式协议 / §10.1
 # Priority: P0
-# Status: Draft
+# Status: Deferred
+# Defer-Reason: AgentRuntime Embedded SDK 完全未实现（agents/ 目录不存在、AGENT.yaml 无、validate/doctor CLI 无）。
+#   J1 找数→用数黄金链路不依赖内置 AgentRuntime；Wave1 ext-agent-pilot.feature 已引 AGENT.yaml，
+#   与 a2a-hardening 天然同期立项 AgentRuntime。提前 Wave 0 内建违反 R7「不为假设的未来需求设计」。
+#   Jobs-style 决策（supervisor 自主权 per feedback_jobs_autonomy_in_twin，不属 freeze/IA/credentials 红线）：
+#   选 path (b) 降级 Wave1。
+# Defer-Tracker: .data/customer-acceptance/wave0/W0-06-deferred-additions.md → D-6
 
 Feature: Infra — AgentRuntime Embedded SDK 最小集成
   As a 平台架构师 / Wave 0 守门人

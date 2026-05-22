@@ -5,7 +5,10 @@
 # Roles: All
 # Trace: R3 / R6 / 基线 §6 统一能力契约 / §10.1
 # Priority: P0
-# Status: Draft
+# Status: InTest
+# InTest-Scope: tests/test_wave0_infra.py 数据层覆盖 4 项（J1 skill 五面 slug 一致 / input_schema 单一源 /
+#   export_agent_contract.py --check 无 drift / 单一 capability registry 目录）；
+#   human_confirmation 五面统一标注的 WebUI 二次弹窗渲染归 W0-07 浏览器侧。
 
 Feature: Infra — 单一能力契约 → 五消费面投影一致性
   As a 平台架构师 / Wave 0 守门人

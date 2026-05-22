@@ -5,7 +5,13 @@
 # Roles: ROLE_ORGAN_MANAGER | ROLE_BUSIAUDIT
 # Trace: R10 / R11, 基线 §10.1（有条件共享审批分支）, 旧 xlsx 行 [86..90] 服务审核 + [91] 申请变更复用主审批流, 业务反馈 #4
 # Priority: P0
-# Status: Draft
+# Status: Deferred
+# Defer-Reason: 真数据中 approval_step.decision_mode='single' 共 886 行 / 'department' 共 0 行；
+#   conditional 两步审批的数据底座（dsp_catalog.data_apply_dept_approve）在 W0-02 已 defer
+#   （ExchangeMapper 未 HANDLED，见 .data/customer-acceptance/wave0/W0-02-deferred-candidates.md → D-1）。
+#   解冻路径：先恢复 D-1 mapper（ExchangeMapper.data_apply_dept_approve），canonical 写出
+#   decision_mode='department' 行 → W0-08 重新接入本 .feature 7 Scenario 并改回 Status: InTest。
+# Defer-Tracker: .data/customer-acceptance/wave0/W0-04-deferred-additions.md
 
 Feature: J1 有条件共享分支 — 部门审 + 平台复核两步
   As a 部门管理员 (ROLE_ORGAN_MANAGER 提供方部门) + 业务运营员 (ROLE_BUSIAUDIT)

@@ -5,7 +5,13 @@
 # Roles: ROLE_ORGAN_OPERATER
 # Trace: R1 / R3, 基线 §5.2 P4 调用监控入口, 基线 §10.1
 # Priority: P0
-# Status: Draft
+# Status: InTest
+# InTest-Scope: 3 个 Scenario 由 tests/test_wave0_j1_credential_call.py 数据层覆盖（按 actor 过滤 /
+#   最小字段集 schema 探测 / 真数据 status 分布 ≥744 行 succeeded）；
+#   curl 实调端到端 / 配额耗尽 429 / QPS 限流 / 过期 401 + scope 403 / AI 不替代时间线 + 工程术语黑名单
+#   归 W0-07 浏览器侧（UI 层 R12 黑名单：capability_call.skill_id legitimately 含 register-version /
+#   package / projection / apply-tenant-policy canonical 名 — 此约束在 UI 渲染层而非 DB 内部）。
+#   配额 / 限流引擎本期不实现，归 Wave 1+。
 
 Feature: J1 API 调用监控（P4 调用监控段）
   As a 部门操作员 (ROLE_ORGAN_OPERATER)

@@ -4927,13 +4927,20 @@ class BrainService:
         provider = body.get("org_name") or body.get("imported_by_org_name") or record.owner_org_id or summary.get("provider", "—")
         desc = body.get("description") or body.get("source_service_item_catalog_name") or summary.get("desc") or record.title
         access_policy = self._catalog_access_policy(body, record)
+        # Legacy migration occasionally carries an updated_at that is in the future
+        # (planning-date semantics in dsp_catalog). Clamp to today so the customer
+        # never sees "更新于 2026-08-19" on a UI rendered 2026-05-22.
+        raw_updated = summary.get("updatedAt") or summary.get("updated_at") or summary.get("update_time") or record.updated_at.date().isoformat()
+        today_iso = self._now_date()
+        if str(raw_updated)[:10] > today_iso:
+            raw_updated = today_iso
         return {
             "id": record.catalog_code,
             "name": record.title,
             "status": record.lifecycle_status,
             "provider": provider,
             "zone": summary.get("zone") or self._region_label(record.region_code) or "官方目录推荐",
-            "updatedAt": str(summary.get("updatedAt") or summary.get("updated_at") or summary.get("update_time") or record.updated_at.date().isoformat()),
+            "updatedAt": str(raw_updated),
             "coverage": summary.get("coverage", "真实旧平台目录"),
             "score": int(summary.get("score", 80 if record.catalog_code.startswith("basic-elem:") else 75)),
             "desc": str(desc),
@@ -5551,7 +5558,7 @@ class BrainService:
                         "note": f"系统识别当前需求优先命中 {resource['name']}。",
                     },
                     {
-                        "label": "已生成标准复用申请",
+                        "label": "已生成共享申请",
                         "time": self._now_datetime(),
                         "note": f"进入受控准入并生成 audit_id {audit_id}",
                     },
@@ -5629,6 +5636,8 @@ class BrainService:
             delivery = {
                 "id": task_id,
                 "requestId": request_id,
+                "resourceId": canonical_id,
+                "resourceName": resource["name"],
                 "name": f"{resource['name']} 交付任务",
                 "channel": "受控交付 + 审计回执",
                 "status": "pending",
@@ -7544,6 +7553,13 @@ class BrainService:
                 "status": "not_issued",
                 "hint": "凭据尚未签发；请等待审批通过或联系审批人手工签发。",
             }
+        resource_id = delivery.get("resourceId")
+        resource_name = delivery.get("resourceName")
+        if not resource_name or not resource_id:
+            request = self._request_by_id(request_id)
+            if request is not None:
+                resource_name = resource_name or request.get("resourceName")
+                resource_id = resource_id or request.get("resourceId")
         return {
             "request_id": request_id,
             "credential": credential,
@@ -7551,8 +7567,8 @@ class BrainService:
             "issued_audit_id": snapshot.get("issued_audit_id"),
             "issued_at": snapshot.get("issued_at"),
             "issued_by": snapshot.get("issued_by"),
-            "resource_id": delivery.get("resourceId"),
-            "resource_name": delivery.get("resourceName"),
+            "resource_id": resource_id,
+            "resource_name": resource_name,
         }
 
     def _auto_issue_credential_on_approval(self, request_id: str, role: str, actor: str) -> None:

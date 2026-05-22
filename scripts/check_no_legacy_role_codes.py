@@ -40,6 +40,7 @@ SKIP_PATH_FRAGMENTS = (
     "/node_modules/",
     "/__pycache__/",
     "/.claude/worktrees/",  # 其它 Claude 会话的 git worktree 副本，不属本仓库主树
+    "/.claude/twin-workspaces/",  # twin supervisor/worker 运行时编排状态（gitignored）；与 .reviews/.data 同类，非产品代码，含基线 §11 架构约束 R6/R7 引用
     "/.data/",
     "/.reviews/",
     "/.experiences/",  # 已删除（本次 D23 退役）
@@ -76,6 +77,8 @@ ALLOWED_LINE_MARKERS = (
     # build_true_data_seed.py 中迁移注释含旧 r3/r5 描述
     "旧 r3",
     "旧 r5",
+    # 基线 §11 架构约束 R7（OPC 单人维护）违反引用 — 与已退役用户角色码 R1-R8 同名异 namespace
+    "violates R7",
 )
 
 # 允许整文件白名单（这些文件本身就是描述 R1-R8 退役的权威源）

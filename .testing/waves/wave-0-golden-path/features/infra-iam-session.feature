@@ -5,7 +5,12 @@
 # Roles: All
 # Trace: 基线 §3.4 (IAF IAM 外部依赖), docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md
 # Priority: P0
-# Status: Draft
+# Status: InTest
+# InTest-Scope: tests/test_wave0_infra.py 覆盖 7 项（OIDC 端点派生 / 缺 auth_server_url 报错 /
+#   realm_access.roles → role_codes 映射 / 未知角色码不静默扩权 / 默认租户 sd-default /
+#   会话生命周期 + token 不回传浏览器体 / 无 bearer 401）；
+#   D-2 红线：session → actor_org_role_binding 投影写入 + valid_to 软删除依赖 D-2 解冻（GovernanceMapper
+#   投影 0 行），本期 skip 不实现；id_token RS256 全链路验签需 jwks 加密 fixture，归 W0-07。
 
 Feature: Infra — IAM 认证 + 会话生命周期
   As a 平台架构师

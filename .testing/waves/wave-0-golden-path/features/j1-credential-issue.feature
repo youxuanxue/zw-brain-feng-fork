@@ -5,7 +5,21 @@
 # Roles: ROLE_ORGAN_OPERATER
 # Trace: R1, 基线 §5.2 P4「必含凭据领取页（授权码 / API Key + curl/Python/Java 调用样例 + 配额 + 监控入口）」
 # Priority: P0
-# Status: Draft
+# Status: InTest
+# InTest-Scope: 5 个 Scenario 由 tests/test_wave0_j1_credential_call.py 覆盖（凭据签发幂等 /
+#   撤销 / expires_at 携带 / 签发后状态机 / payload 工程术语黑名单——以 delivery_repo.upsert_from_delivery
+#   合成数据走 canonical runtime contract）；
+#   P4 前端四件套（CLI 消费面 / 首次明文后续脱敏 / 非 owner 403）归 W0-07 浏览器验收。
+# Cross-Wave-Note: tests/test_wave0_j1_credential_call.py::test_cross_wave_approval_to_delivery_consistency
+#   断言失败 — sample N=10 的 approved approval_case 中 0/10 (0.0%) 有 delivery_task 行；
+#   全量 approved=244 → with_delivery=26 (10.7%) << 阈值 60%。
+#   根因：W0-02 legacy `dsp_catalog.data_apply_authrization`=2 行 + `data_apply`=68 行 pending-delivery
+#   候选 → canonical delivery_task=68，未覆盖已 approved 244 条。属 W0-02 ↔ W0-04 结构性数据缺口，
+#   非本期 W0-05 可修。详见 .data/customer-acceptance/wave0/W0-05-deferred-additions.md → D-5。
+#   needs_human 决策路径：
+#     (a) 解冻 D-1 + 新增 mapper 全量映射 data_apply_authrization → 重灌；
+#     (b) 接受 legacy 缺口，断言阈值下调至 ≥10% + runtime issue 路径补齐 J1 forward flow；
+#     (c) 本 .feature 整体降级 Deferred(W0-08) 同 conditional 处置。
 
 Feature: J1 凭据领取（P4 交付/交换/直达页）
   As a 部门操作员 (ROLE_ORGAN_OPERATER)

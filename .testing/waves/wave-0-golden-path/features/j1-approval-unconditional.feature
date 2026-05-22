@@ -5,7 +5,7 @@
 # Roles: ROLE_BUSIAUDIT
 # Trace: R10 / R11, 基线 §10.1（必含有条件/无条件两种分支）, 旧 xlsx 行 [86..90] 服务审核 (资源驳回/受理/审核) + [83] 我的申请
 # Priority: P0
-# Status: Draft
+# Status: InTest
 
 Feature: J1 无条件共享分支 — 平台直接审批
   As a 业务运营员 (ROLE_BUSIAUDIT，省/市大数据局)

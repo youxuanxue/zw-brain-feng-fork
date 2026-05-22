@@ -432,7 +432,25 @@ function renderResourceEvidencePanels(item) {
       `)}
       ${panel('原始系统来源', '用于现场核验：这份数据从哪个旧系统导入', `
         <div class="gov-list">
-          ${mappings.length ? mappings.slice(0, 8).map(mapping => `<div class="gov-list-row"><div><div class="row-title">${escapeHtml(mapping.legacy_system)} · ${escapeHtml(mapping.legacy_object_type)}</div><div class="row-meta">${escapeHtml(mapping.legacy_object_ref)} → ${escapeHtml(mapping.canonical_type)}:${escapeHtml(mapping.canonical_ref)}</div></div>${statusPill(mapping.mapping_status || 'mapped')}</div>`).join('') : '<div class="text-body text-zw-mute py-4">暂无可追溯的旧系统来源。</div>'}
+          ${(() => {
+            if (!mappings.length) return '<div class="text-body text-zw-mute py-4">暂无可追溯的旧系统来源。</div>';
+            // Group by (legacy_system + legacy_object_type) to avoid showing 7+ near-identical rows
+            // that share the same source system but differ only by per-field ref; collapse them into
+            // one row with a count badge.
+            const grouped = new Map();
+            for (const m of mappings) {
+              const key = `${m.legacy_system}|${m.legacy_object_type}`;
+              if (!grouped.has(key)) grouped.set(key, { sample: m, count: 0, statuses: new Set() });
+              const g = grouped.get(key);
+              g.count += 1;
+              g.statuses.add(m.mapping_status || 'mapped');
+            }
+            return Array.from(grouped.values()).slice(0, 8).map(g => {
+              const m = g.sample;
+              const countTag = g.count > 1 ? `<span class="ml-2 text-body-sm text-zw-mute">×${g.count} 条</span>` : '';
+              return `<div class="gov-list-row"><div><div class="row-title">${escapeHtml(m.legacy_system)} · ${escapeHtml(m.legacy_object_type)}${countTag}</div><div class="row-meta">${escapeHtml(m.legacy_object_ref)} → ${escapeHtml(m.canonical_type)}:${escapeHtml(m.canonical_ref)}</div></div>${statusPill(Array.from(g.statuses)[0] || 'mapped')}</div>`;
+            }).join('');
+          })()}
         </div>
       `)}
     </div>`;
@@ -774,22 +792,6 @@ function entityNotFoundShell(activeKey, entityLabel, rawId, backHref, backLabel)
   return shell(activeKey, main);
 }
 
-window.renderAccessDeniedShell = function (pageKey) {
-  const sk = window.ZW_PAGE_SHELL[pageKey] || 'workbench';
-  const main = `
-    <div class="state-card">
-      <div class="page-kicker">当前身份不可办理</div>
-      <div class="page-hero-title">这个入口暂不属于你的岗位范围。</div>
-      <p class="page-hero-subtitle">系统只展示你可以负责的申请、审批、交付或审计动作。请返回数据共享工作台，从当前身份可办理的入口继续。</p>
-      <div class="state-meta">当前身份：${roleLabel(window.STATE.role)}</div>
-      <div class="mt-5 flex gap-3 flex-wrap">
-        <a href="#/workbench" class="gov-btn gov-btn-primary">查看我能办理的事项</a>
-        <a href="#/discovery" class="gov-btn gov-btn-secondary">先找可复用数据</a>
-      </div>
-    </div>`;
-  return shell(sk, main);
-};
-
 function resourceById(id) {
   return window.RUNTIME_DISCOVERY.resources.find(item => item.id === id);
 }
@@ -804,6 +806,27 @@ function asList(value) {
   if (value === undefined || value === null || value === '') return [];
   return [value];
 }
+// Decision / next-action enum → Chinese display labels.
+// The raw codes (approve_reuse / approve_reuse_with_gap_attention / return_for_fix / reject_duplicate /
+// route_to_provider_or_catalog_admin / deliver_to_provider_or_catalog_admin / submit_for_review …) remain
+// the contract values posted to skills; this map only translates for the UI panel that previously rendered
+// the bare enum to the customer.
+const DECISION_LABEL_MAP = {
+  approve_reuse: '核准复用',
+  approve_reuse_with_gap_attention: '核准复用并关注缺口字段',
+  approve_with_supplement: '核准并触发差异补录',
+  return_for_fix: '退回补正',
+  reject_duplicate: '驳回重复',
+  route_to_provider_or_catalog_admin: '转资源提供方 / 口径管理员',
+  deliver_to_provider_or_catalog_admin: '转发至资源提供方 / 口径管理员',
+  submit_for_review: '提交审批',
+  pending_provider_confirmation: '待资源提供方确认',
+};
+function decisionLabel(code) {
+  if (code === undefined || code === null || code === '') return '';
+  const key = String(code).trim();
+  return DECISION_LABEL_MAP[key] || key;
+}
 function businessValue(value, fallback = '—') {
   if (value === undefined || value === null || value === '') return fallback;
   return escapeHtml(value);
@@ -811,6 +834,61 @@ function businessValue(value, fallback = '—') {
 function businessList(items, fallback = '—') {
   const list = asList(items).filter(item => item !== undefined && item !== null && item !== '');
   return list.length ? list.map(escapeHtml).join(' / ') : fallback;
+}
+function decisionList(items, fallback = '—') {
+  const list = asList(items).filter(item => item !== undefined && item !== null && item !== '');
+  return list.length ? list.map(item => escapeHtml(decisionLabel(item))).join(' / ') : fallback;
+}
+
+// Audit-event hook type → human display label.
+// The raw event types (`approval.audit.before`, `governance.steps.lookup.after`, etc.) are
+// retained as the contract value (they appear in audit query APIs and in JSON exports); this
+// label is only for the operations table cell so a 安全审计员 can scan the column in Chinese
+// without parsing dotted hook codes. The raw type is shown as a secondary caption underneath.
+function auditEventLabel(code) {
+  if (code === undefined || code === null || code === '') return '—';
+  const key = String(code).trim();
+  // Direct mappings for known hook codes.
+  const DIRECT = {
+    'approval.audit.before': '审批前置审计',
+    'approval.audit.after': '审批结果审计',
+    'application.audit.before': '申请前置审计',
+    'application.audit.after': '申请结果审计',
+    'credential.audit.before': '凭据签发审计',
+    'credential.audit.after': '凭据签发完成',
+    'delivery.audit.before': '交付前置审计',
+    'delivery.audit.after': '交付完成审计',
+    'governance.steps.lookup.before': '治理动作查询前',
+    'governance.steps.lookup.after': '治理动作查询后',
+    'system.snapshot.before': '系统快照前置',
+    'system.snapshot.after': '系统快照完成',
+    'workbench.macro.detected': '工作台宏调用',
+    'data.search.before': '资源检索前',
+    'data.search.after': '资源检索完成',
+    'request.view.after': '申请详情查询',
+    'request.list.after': '申请列表查询',
+    'capability.invoke.before': '能力调用前',
+    'capability.invoke.after': '能力调用完成',
+    'audit.list.after': '审计回放查询',
+    'audit.replay.after': '审计回放重放',
+  };
+  if (DIRECT[key]) return DIRECT[key];
+  // Generic dotted hook fallback: split on '.', translate well-known leaves, otherwise keep raw.
+  const VERB = { before: '前置', after: '完成', error: '失败', detected: '检测', lookup: '查询' };
+  const NOUN = {
+    approval: '审批', application: '申请', credential: '凭据', delivery: '交付',
+    governance: '治理', system: '系统', workbench: '工作台', data: '数据',
+    capability: '能力', audit: '审计', request: '申请', snapshot: '快照',
+    macro: '宏', steps: '动作', search: '检索', invoke: '调用', view: '查询', list: '列表',
+  };
+  const parts = key.split('.');
+  if (parts.length >= 2) {
+    const headCn = NOUN[parts[0]] || parts[0];
+    const tailKey = parts[parts.length - 1];
+    const tailCn = VERB[tailKey] || NOUN[tailKey] || tailKey;
+    return `${headCn}·${tailCn}`;
+  }
+  return key;
 }
 function deliveryById(id) {
   return window.RUNTIME_DELIVERY_TASKS.find(item => item.id === id);
@@ -1498,10 +1576,10 @@ PAGES.resourceDetail = function (id) {
           <div>覆盖情况：<strong>${escapeHtml(String(item.coverage || '—'))}</strong></div>
           <div>历史审批通过率：<strong>${approvalRate}</strong></div>
           <div>订阅 / 使用部门：<strong>${subscribers}</strong></div>
-          <div class="text-zw-mute">推荐动作：先查看差异字段，再发起标准复用申请。</div>
+          <div class="text-zw-mute">推荐动作：先查看差异字段，再发起共享申请。</div>
         </div>
         <div class="mt-5 flex gap-3">
-          <button onclick="window.ACTIONS.createRequest('${item.id}')" class="gov-btn gov-btn-primary">发起标准复用申请</button>
+          <button onclick="window.ACTIONS.createRequest('${item.id}')" class="gov-btn gov-btn-primary">发起共享申请</button>
           <a href="#/zones-pack/zone/${zoneId}" class="gov-btn gov-btn-secondary">查看所属专题包</a>
         </div>
       `)}
@@ -1555,7 +1633,7 @@ PAGES.requestFlow = function () {
           <div class="mt-4 flex gap-3 flex-wrap">
             ${requestActionBar(request, role)}
           </div>
-        `) : panel('标准复用申请', '按模板覆盖率、差异字段和责任说明生成申请材料', `
+        `) : panel('共享申请', '按模板覆盖率、差异字段和责任说明生成申请材料', `
           <div class="grid grid-cols-2 gap-4 text-body" data-ai-surface="request-inline-ai">
             ${renderFieldState('复用模板', request.resourceName, '已识别', '作为涉企默认基础对象')}
             ${renderFieldState('模板覆盖率', request.templateCoverage, '已识别', '多数基础字段可自动带出')}
@@ -1833,7 +1911,7 @@ PAGES.reviewDetail = function (id) {
         `)}
         ${panel(isSummaryStage ? '自动汇总结果与异常项' : '建议决策与授权边界', isSummaryStage ? '审核汇总人员确认异常项和自动汇总结果。' : '审批承接人员基于证据选择通过复用、退回缩小范围、驳回重复或转口径确认。', `
           <div data-ai-surface="review-summary" class="space-y-4 text-body leading-7">
-            <div><strong>${isSummaryStage ? '自动汇总结果' : '建议决策'}</strong><div class="mt-2 text-zw-mute">${businessValue(recommendation.primary || request.summaryResult.note)}；可选动作：${businessList(recommendation.alternatives)}</div></div>
+            <div><strong>${isSummaryStage ? '自动汇总结果' : '建议决策'}</strong><div class="mt-2 text-zw-mute">${businessValue(decisionLabel(recommendation.primary) || request.summaryResult.note)}；可选动作：${decisionList(recommendation.alternatives)}</div></div>
             <div><strong>授权边界</strong><div class="mt-2 text-zw-mute">状态：${businessValue(grantEvidence.state)}；资源类型：${businessValue(grant.res_type || (recommendation.grantBoundary || {}).res_type)}；授权期：${businessValue(grant.limit_day || (recommendation.grantBoundary || {}).limit_day)} 天；续期：${businessValue(recommendation.renewalBoundary)}</div></div>
             <div><strong>异常项</strong><div class="mt-2 text-zw-mute">${exceptionItems.map(item => `• ${escapeHtml(item)}`).join('<br/>') || '—'}</div></div>
           </div>
@@ -3078,7 +3156,7 @@ PAGES.complianceOps = function () {
             <table class="gov-table">
               <thead><tr><th>时间</th><th>事件</th><th>目标</th><th>主体</th><th>结果</th></tr></thead>
               <tbody>
-                ${shown.map(item => `<tr><td>${escapeHtml(item.time)}</td><td>${escapeHtml(item.type)}</td><td>${escapeHtml(item.target)}</td><td>${escapeHtml(item.actor)}</td><td>${statusPill(item.result)}</td></tr>`).join('')}
+                ${shown.map(item => `<tr><td>${escapeHtml(item.time)}</td><td>${escapeHtml(auditEventLabel(item.type))}<div class="row-meta text-caption">${escapeHtml(item.type || '')}</div></td><td>${escapeHtml(item.target)}</td><td>${escapeHtml(item.actor)}</td><td>${statusPill(item.result)}</td></tr>`).join('')}
               </tbody>
             </table>
           `);

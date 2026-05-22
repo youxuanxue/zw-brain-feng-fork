@@ -81,6 +81,21 @@
     return !roles || roles.includes(currentRole);
   }
 
+  function pickRoleLandingHash() {
+    const ACCESS = window.ZW_PAGE_ACCESS || {};
+    const CANDIDATES = [
+      ['workbench', '#/workbench'],
+      ['discovery', '#/discovery'],
+      ['deliveryExchange', '#/delivery-exchange'],
+      ['complianceOps', '#/compliance-ops'],
+      ['zonesPack', '#/zones-pack'],
+    ];
+    for (const [page, route] of CANDIDATES) {
+      if (ACCESS[page] && ACCESS[page].includes(currentRole)) return route;
+    }
+    return null;
+  }
+
   async function invokeRead(skillId, params = {}) {
     const payload = Object.assign({ role: currentRole }, params);
     const resp = await window.ZW_AUTH.authFetch(`/api/skills/${skillId}${encodeParams(payload)}`, {
@@ -471,11 +486,13 @@
 
     const access = window.ZW_PAGE_ACCESS && window.ZW_PAGE_ACCESS[matched.page];
     if (access && !roleCan(access)) {
-      if (typeof window.renderAccessDeniedShell === 'function') {
-        document.getElementById('app').innerHTML = window.renderAccessDeniedShell(matched.page);
-      } else {
-        document.getElementById('app').innerHTML = renderError('当前身份范围暂未确认，请回到数据共享工作台重新选择办理入口。');
+      // 当前角色对该路由无权限：直接跳到首个可用落地页，不渲染 access-denied 死循环。
+      const fallback = pickRoleLandingHash();
+      if (fallback && fallback !== hash) {
+        window.location.hash = fallback;  // hashchange 触发 dispatch 重跑
+        return;
       }
+      document.getElementById('app').innerHTML = renderError('当前身份暂无可办理入口，请联系管理员。');
       highlightNav(null);
       scheduleSyncProductShellNavTop();
       return;
@@ -636,7 +653,7 @@
         window.UI.toast('已续接当前未完成申请', 'info');
         return;
       }
-      performWrite('application.resource.submit', { resource_id: resourceId, query: currentDiscoveryQuery || window.STATE?.discoveryQuery || '' }, '已发起标准复用申请并进入受控准入', async result => {
+      performWrite('application.resource.submit', { resource_id: resourceId, query: currentDiscoveryQuery || window.STATE?.discoveryQuery || '' }, '已发起共享申请并进入受控准入', async result => {
         await refreshSnapshot();
         const requestId = result?.result?.request_id || result?.request_id;
         if (requestId) {
