@@ -321,13 +321,13 @@ def test_infra_iam_session_writes_actor_org_role_binding():
 
 
 # ======================================================================
-# infra-agentruntime-embedded —— needs_human（infra skill 完全缺位）
+# infra-agentruntime-embedded —— Deferred → Wave 1（infra skill 完全缺位，sign-off 2026-05-22）
 # ======================================================================
 
-@pytest.mark.skip(reason="needs_human: AgentRuntime Embedded SDK 完全未实现 —— 无 agents/zw_search_helper/、"
-                         "无 AGENT.yaml、无 agentruntime validate/doctor CLI（zw_brain/agents/ 仅空包 docstring，"
-                         "zw_brain/orchestrator/ 为 reserved 空包）。属'infra skill 缺位，非 bug'，超出 W0-06 "
-                         "≤60 LOC infra 范围，不自行实现。Status 留 Draft，待人工决策实现 vs 降级 Wave1。"
-                         "详见 .data/customer-acceptance/wave0/W0-06-deferred-additions.md。")
+@pytest.mark.skip(reason="Deferred → Wave 1（产品负责人 sign-off 2026-05-22）：AgentRuntime Embedded SDK "
+                         "（agents/zw_search_helper/AGENT.yaml + agentruntime validate/doctor CLI）本期不实现。"
+                         "J1 找数→用数黄金链路不依赖内置 AgentRuntime；与 Wave1 ext-agent-pilot（已引 AGENT.yaml）"
+                         "+ a2a-hardening 同期立项。提前 Wave0 内建违反『不为假设的未来需求提前设计』原则。"
+                         "详见 .data/customer-acceptance/wave0/W0-06-deferred-additions.md → D-6。")
 def test_infra_agentruntime_embedded_validate_and_doctor():
     pass

@@ -30,6 +30,7 @@ driven_by: docs/approved/zw-brain-architecture.md §10.2
 | j2-platform-publish | J2 业务 | P1 | BUSIAUDIT |
 | j1-credential-revoke | J1 业务 | P1 | BUSIAUDIT + ORGAN_OPERATER |
 | ext-agent-pilot | 外部 Agent | P1 | ROLE_SYSTEM + 内部业务调用方 |
+| infra-agentruntime-embedded | Infra | P1 | Internal Agent（Wave0 降级而来，与 ext-agent-pilot 同期）|
 
 ## 完成判据
 
@@ -37,6 +38,7 @@ driven_by: docs/approved/zw-brain-architecture.md §10.2
 - 部门可独立完成 J2 编制 → 挂接 → 部门审 → 平台发布
 - 至少 1 个外部 Agent 通过 §8.4 七步流水线进入 Registry 并被业务调用
 - BUSIAUDIT 可对已授权申请执行撤回 / 暂停
+- 至少 1 个内置 Agent 用 `AGENT.yaml` 描述并通过 `agentruntime validate` + `doctor`（Wave0 降级而来）
 
 ## 不在 Wave 1 内
 

@@ -29,7 +29,7 @@ driven_by: docs/approved/zw-brain-architecture.md §10.1
 | infra-contract-projection | Infra | P0 | All × WebUI/API/CLI |
 | infra-audit-bus | Infra | P0 | All × Backend |
 | infra-inference-gateway | Infra | P0 | All × Backend |
-| infra-agentruntime-embedded | Infra | P0 | Internal Agent |
+| infra-agentruntime-embedded | Infra | ~~P0~~ → **Deferred Wave1** | Internal Agent |
 
 ## 完成判据
 
@@ -37,10 +37,10 @@ driven_by: docs/approved/zw-brain-architecture.md §10.1
 - `pytest tests/test_wave0_*.py -q` 全部 green
 - 审计总线写入失败时业务**熔断**（不静默吞错）
 - 任意模型调用都走集团推理平台（preflight 段 10 强制）
-- 至少 1 个 zw-brain 内置 Agent 用 `AGENT.yaml` 描述并通过 `validate` + `doctor`
 
 ## 不在 Wave 0 内
 
+- 内置 Agent（AgentRuntime Embedded：`AGENT.yaml` + `validate`/`doctor` CLI）（Wave 1，产品负责人 sign-off 2026-05-22；J1 黄金链路不依赖，与 ext-agent-pilot 同期立项）
 - 异议 5 维度（Wave 1）
 - 供需对接（Wave 1）
 - J2 提供方旅程（Wave 1）

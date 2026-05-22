@@ -84,7 +84,7 @@ driven_by:
 |---|---|---|
 | untrusted | 外部 Agent 默认 | wave-1 ext-agent-pilot + wave-2 b1-2-trust-level-upgrade |
 | verified | 经 B1.2 管理员升级 | wave-2 b1-2-trust-level-upgrade |
-| platform | 仅限 zw-brain 内置 Agent | wave-0 infra-agentruntime-embedded |
+| platform | 仅限 zw-brain 内置 Agent | wave-1 infra-agentruntime-embedded（Wave0 降级而来）|
 
 降级（verified → untrusted）：wave-2 b1-2-trust-level-upgrade (收紧 Scenario)
 拒绝（× → platform）：同上 (负向 Scenario)
