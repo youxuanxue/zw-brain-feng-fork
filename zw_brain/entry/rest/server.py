@@ -27,6 +27,7 @@ from zw_brain.command.brain import (
     UnknownSkillError,
 )
 from zw_brain.command.runtime import get_service
+from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.shared.auth_context import auth_context_from_claims, reset_auth_context, set_auth_context
 from zw_brain.shared.auth_session import (
     CSRF_HEADER_NAME,
@@ -53,6 +54,7 @@ from zw_brain.shared.runtime_config import (
     get_rest_host,
     get_rest_port,
 )
+from zw_brain.shared.session_context import build_trusted_skill_payload
 from zw_brain.skill_registration.runtime import SurfaceNotEnabledError, require_surface
 
 _LOGGER = logging.getLogger(__name__)
@@ -89,7 +91,9 @@ def _iaf_client_id() -> str:
 
 
 def _dev_iam_bypass_user_profile() -> dict[str, Any]:
-    return {
+    from zw_brain.shared.session_context import apply_runtime_context, contexts_from_role_codes
+
+    snapshot = {
         "subject": _DEV_IAM_BYPASS_SUBJECT,
         "username": _DEV_IAM_BYPASS_USERNAME,
         "display_name": _DEV_IAM_BYPASS_DISPLAY_NAME,
@@ -97,6 +101,8 @@ def _dev_iam_bypass_user_profile() -> dict[str, Any]:
         "org_code": "dev",
         "role_codes": list(_DEV_IAM_BYPASS_ROLES),
     }
+    contexts = contexts_from_role_codes(snapshot["role_codes"], org_code="dev")
+    return apply_runtime_context(snapshot, contexts, preferred_org_code="dev", preferred_role_code="ROLE_ORGAN_OPERATER")
 
 
 def _dev_iam_bypass_claims() -> dict[str, Any]:
@@ -299,20 +305,40 @@ class RestHandler(BaseHTTPRequestHandler):
 
     def _handle_api_snapshot(self, parsed, _claims: dict[str, Any]) -> None:  # type: ignore[no-untyped-def]
         qs = parse_qs(parsed.query)
-        role = (qs.get("role") or ["ROLE_ORGAN_OPERATER"])[-1]
-        self._json(200, get_service().invoke_skill("system.snapshot", {"role": role}))
+        params = {k: v[-1] for k, v in qs.items()}
+        session = self._get_cookie_session()
+        if session is not None:
+            params = self._trusted_skill_payload(session, params)
+        else:
+            params.setdefault("role", (qs.get("role") or ["ROLE_ORGAN_OPERATER"])[-1])
+        self._json(200, get_service().invoke_skill("system.snapshot", params))
 
     def _handle_api_skill_get(self, parsed, _claims: dict[str, Any]) -> None:  # type: ignore[no-untyped-def]
         skill_id = parsed.path[len("/api/skills/"):]
         params = {k: v[-1] for k, v in parse_qs(parsed.query).items()}
         require_surface(skill_id, "api")
+        session = self._get_cookie_session()
+        if session is not None:
+            params = self._trusted_skill_payload(session, params)
         self._json(200, get_service().invoke_skill(skill_id, params))
 
     def _handle_api_skill_post(self, parsed, _claims: dict[str, Any]) -> None:  # type: ignore[no-untyped-def]
         skill_id = parsed.path[len("/api/skills/"):]
         payload = self._read_json_body()
         require_surface(skill_id, "api")
+        session = self._get_cookie_session()
+        if session is not None:
+            payload = self._trusted_skill_payload(session, payload)
         self._json(200, get_service().invoke_skill(skill_id, payload))
+
+    def _trusted_skill_payload(self, session: AuthSession, client_payload: dict[str, Any] | None) -> dict[str, Any]:
+        snapshot = dict(session.actor_snapshot)
+        if not snapshot.get("available_contexts"):
+            snapshot = get_service().enrich_actor_snapshot_for_session(snapshot)
+            updated = _AUTH_SESSION_STORE.update_actor_snapshot(session.session_id, snapshot)
+            if updated is not None:
+                snapshot = dict(updated.actor_snapshot)
+        return build_trusted_skill_payload(client_payload, actor_snapshot=snapshot)
 
     def _with_authenticated_request(self, handler: Callable[[dict[str, Any]], None]) -> None:
         try:
@@ -411,7 +437,7 @@ class RestHandler(BaseHTTPRequestHandler):
                 raise IafOidcTokenError("token response missing access_token")
             claims = self._claims_from_token_payload(client, token_payload, expected_nonce=login_state.nonce)
             actor_result = self._sync_actor_from_claims(claims)
-            actor_snapshot = actor_result["result"]["actor_snapshots"][0]
+            actor_snapshot = get_service().enrich_actor_snapshot_for_session(actor_result["result"]["actor_snapshots"][0])
             audit_id = str(actor_result.get("audit_id") or "")
             session = _AUTH_SESSION_STORE.create(
                 token_payload=token_payload,
@@ -657,7 +683,7 @@ class RestHandler(BaseHTTPRequestHandler):
         if isinstance(exc, SurfaceNotEnabledError):
             self._json(404, {"error": "surface_not_enabled", "detail": str(exc)})
             return
-        if isinstance(exc, AccessDeniedError):
+        if isinstance(exc, (AccessDeniedError, DomainAccessDeniedError)):
             self._json(403, {"error": "access_denied", "detail": str(exc)})
             return
         if isinstance(exc, ConfirmationRequiredError):

@@ -11,7 +11,11 @@ from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT, legacy_sy
 from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
 from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
+from zw_brain.domain.role_codes import BUSINESS_ROLE_CODES, LEGACY_ROLE_CODES, SYSTEM_ROLE_CODES, TAG_LEAD_DEPT
 from zw_brain.shared.sanitization import safe_json
+
+_PRODUCT_ROLE_ALLOWLIST = frozenset(BUSINESS_ROLE_CODES)
+_FORBIDDEN_IMPORT_ROLE_CODES = frozenset(SYSTEM_ROLE_CODES)
 
 REAL_SECRET_FIELDS = {
     "password",
@@ -49,6 +53,14 @@ class GovernanceMapper:
         "pub_region",
         "pub_user",
         "pub_role",
+        "pub_user_role",
+        "pub_user_organ",
+        "pub_user_organ_role",
+        "pub_resource",
+        "pub_function",
+        "pub_role_function",
+        "pub_role_resource",
+        "pub_apps",
         "sys_department",
         "sys_region",
         "sys_user",
@@ -58,8 +70,23 @@ class GovernanceMapper:
         "sys_user_department",
         "sys_permission",
         "iaf_binding_manifest",
+        "role_mapping_manifest",
         "capability_mapping_manifest",
     }
+    _PUB_IDENTITY_TABLES = frozenset({"pub_user", "pub_user_role", "pub_user_organ", "pub_user_organ_role"})
+    # 必须经 manifest（role_mapping_manifest / capability_mapping_manifest）批量映射才能进投影/候选；
+    # 没有 manifest 时 fail-closed，不允许走 per-row no-op 默默丢数据。
+    _PUB_GOVERNANCE_TABLES = frozenset(
+        {
+            "pub_user_role",
+            "pub_user_organ",
+            "pub_user_organ_role",
+            "pub_resource",
+            "pub_function",
+            "pub_role_function",
+            "pub_role_resource",
+        }
+    )
     ADAPTER_SLUG = "legacy.bsp.governance"
 
     def __init__(self, *, tenant_id: str = DEFAULT_TENANT):
@@ -83,8 +110,33 @@ class GovernanceMapper:
             stats.bump_source(table_name)
             rows_by_table.setdefault(table_name, []).append(row)
 
+        defer_pub_identity = bool(
+            rows_by_table.get("pub_user_organ_role")
+            or rows_by_table.get("iaf_binding_manifest")
+            or rows_by_table.get("role_mapping_manifest")
+        )
+        batch_no = stats.dump_path.stem
+
         for table_name, rows in rows_by_table.items():
             if table_name.startswith("pub_"):
+                # 治理身份 / 权限关系表必须经 manifest 批量路径处理；缺 manifest 时 fail-closed。
+                if table_name in self._PUB_GOVERNANCE_TABLES:
+                    if defer_pub_identity:
+                        # 由 _map_pub_governance / _import_pub_role_permission_candidates 统一消化
+                        continue
+                    stats.add_issue(
+                        "missing_manifest",
+                        table_name,
+                        "",
+                        {"reason": "pub_governance_relation_requires_manifest", "row_count": len(rows)},
+                    )
+                    continue
+                if defer_pub_identity and table_name in self._PUB_IDENTITY_TABLES:
+                    # pub_user 留给 _map_pub_governance 统一消化（line 312 起按 user_id
+                    # 重新分组）。parse 阶段 line 110 已 bump_source 一次，这里不再叠加
+                    # （R-301 修死代码：旧实现在此对 rows 再 bump_source 一遍，会让
+                    # source_counts["pub_user"] 翻倍，纯统计漂移）。
+                    continue
                 handler = getattr(self, f"_map_{table_name[len('pub_'):]}")
                 for row in rows:
                     try:
@@ -93,6 +145,9 @@ class GovernanceMapper:
                         stats.bump(table_name, "errors")
                         stats.skipped.setdefault(f"{table_name}.missing_field:{exc.args[0]}", 0)
                         stats.skipped[f"{table_name}.missing_field:{exc.args[0]}"] += 1
+
+        if defer_pub_identity and rows_by_table.get("pub_user"):
+            self._map_pub_governance(rows_by_table, stats, legacy_system, dry_run=dry_run, batch_no=batch_no)
 
         if any(table_name.startswith("sys_") or table_name.endswith("_manifest") for table_name in rows_by_table):
             self._map_sys_governance(rows_by_table, stats, legacy_system, dry_run=dry_run)
@@ -225,6 +280,262 @@ class GovernanceMapper:
             stats=stats,
         )
         stats.bump("pub_role")
+
+    def _map_apps(self, row: dict[str, Any], stats: ImportStats, legacy_system: str, *, dry_run: bool = False) -> None:
+        secret = _row_value(row, "SECRET")
+        if secret not in (None, ""):
+            stats.add_issue("sensitive_field_blocked", "pub_apps", _string_value(row, "CODE", "ID"), {"field": "SECRET"})
+        stats.bump("pub_apps")
+
+    def _map_pub_governance(
+        self,
+        rows_by_table: dict[str, list[dict[str, Any]]],
+        stats: ImportStats,
+        legacy_system: str,
+        *,
+        dry_run: bool,
+        batch_no: str,
+    ) -> None:
+        tenant_payload = {
+            "tenant_id": self.tenant_id,
+            "tenant_name": "山东省默认租户" if self.tenant_id == DEFAULT_TENANT else self.tenant_id,
+            "status": "active",
+            "source_ref": f"{legacy_system}:tenant:{self.tenant_id}",
+            "profile_json": {"import_source": "bsp_pub_governance", "batch_no": batch_no},
+        }
+        self._write_projection("tenant_projection", dry_run, lambda: self.governance_repo.upsert_tenant(tenant_payload, tenant_id=self.tenant_id), stats)
+
+        # 显式 fail-closed 标记：defer_pub_identity 路径下缺 iaf_binding_manifest / role_mapping_manifest
+        # 等同于"M0 baseline 不到位"，必须在 receipt 顶层 issue 流标记一条；否则只能靠下游 per-row
+        # unmapped_role / iam_account_missing 摘要才能反推 root cause，对 M0 实施工程师不友好。
+        manifest_tables_present = {
+            "iaf_binding_manifest": bool(rows_by_table.get("iaf_binding_manifest")),
+            "role_mapping_manifest": bool(rows_by_table.get("role_mapping_manifest")),
+            "capability_mapping_manifest": bool(rows_by_table.get("capability_mapping_manifest")),
+        }
+        for manifest_table, present in manifest_tables_present.items():
+            if not present:
+                stats.add_issue(
+                    "missing_manifest",
+                    manifest_table,
+                    "",
+                    {"reason": "m0_baseline_manifest_absent", "pub_governance_will_fail_closed": True},
+                )
+
+        binding_index = _binding_index(rows_by_table.get("iaf_binding_manifest", []))
+        role_mapping = _role_mapping_index(rows_by_table.get("role_mapping_manifest", []), stats)
+        capability_index = _capability_mapping_index(rows_by_table.get("capability_mapping_manifest", []), stats)
+
+        users_by_code: dict[str, dict[str, Any]] = {}
+        users_by_id: dict[str, dict[str, Any]] = {}
+        for row in rows_by_table.get("pub_user", []):
+            user_id = str(row["ID"])
+            user_code = _string_value(row, "USER_CODE", "ID") or user_id
+            users_by_id[user_id] = row
+            users_by_code[user_code] = row
+            stats.bump("pub_user")
+
+        organ_roles = rows_by_table.get("pub_user_organ_role", [])
+        user_org_roles: dict[str, list[dict[str, Any]]] = {}
+        for row in organ_roles:
+            user_code = _string_value(row, "USER_CODE")
+            if user_code:
+                user_org_roles.setdefault(user_code, []).append(row)
+            stats.bump("pub_user_organ_role")
+
+        for _row in rows_by_table.get("pub_user_role", []):
+            stats.bump("pub_user_role")
+        for _row in rows_by_table.get("pub_user_organ", []):
+            stats.bump("pub_user_organ")
+
+        for user_id, row in users_by_id.items():
+            user_code = _string_value(row, "USER_CODE", "ID") or user_id
+            account = _string_value(row, "ACCOUNT")
+            binding = binding_index.get(f"id:{user_id}") or binding_index.get(f"code:{user_code}") or binding_index.get(f"account:{account}")
+            iaf_sub = _string_value(binding or {}, "IAF_SUB", "SUB", "IAM_SUB", "USER_SUB")
+            status = _status_flag(row.get("STATUS"))
+            binding_specs: list[dict[str, Any]] = []
+            binding_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+            if iaf_sub and status == "active":
+                for rel in user_org_roles.get(user_code, []):
+                    org_code = _string_value(rel, "ORG_CODE")
+                    raw_role_code = _string_value(rel, "ROLE_CODE", "ROLE_VALUE")
+                    if not org_code or not raw_role_code:
+                        continue
+                    # BSP schema (`pub_user_organ_role.ROLE_CODE`): "角色编码,以'#'号分隔"
+                    # Real sd-default 数据出现 'ROLE_DATA_LEADER#ROLE_MGMT_LEADER' 等多角色串；
+                    # 必须先拆才能逐项 normalize，否则整串当成单一未知 ref 全部丢成 missing_role_mapping。
+                    for legacy_role in _split_pub_organ_role_codes(raw_role_code):
+                        normalized = _normalize_legacy_role(legacy_role, role_mapping, stats, table="pub_user_organ_role", legacy_ref=f"{user_code}:{org_code}:{legacy_role}")
+                        if normalized is None:
+                            continue
+                        key = (org_code, normalized["role_code"])
+                        tags_json = normalized.get("tags_json") or {}
+                        if key in binding_by_key:
+                            binding_by_key[key]["tags_json"] = {**binding_by_key[key].get("tags_json", {}), **tags_json}
+                        else:
+                            binding_by_key[key] = {
+                                "org_code": org_code,
+                                "role_code": normalized["role_code"],
+                                "tags_json": tags_json,
+                                "source_priority": "pub_user_organ_role",
+                            }
+                binding_specs = list(binding_by_key.values())
+                if not binding_specs:
+                    fallback_roles = _normalize_role_list(_split_role_codes(row.get("ROLE_VALUE") or row.get("ROLE_CODE")), role_mapping, stats, table="pub_user", legacy_ref=user_id)
+                    org_code = _string_value(row, "ORG_CODE")
+                    if org_code:
+                        for role_code, tags_json in fallback_roles:
+                            binding_specs.append(
+                                {
+                                    "org_code": org_code,
+                                    "role_code": role_code,
+                                    "tags_json": tags_json,
+                                    "source_priority": "pub_user.ROLE_VALUE",
+                                }
+                            )
+
+            issue_status = None
+            role_codes: list[str] = []
+            main_org = _string_value(row, "ORG_CODE")
+            if not iaf_sub:
+                issue_status = "iam_account_missing"
+                status = "iam_account_missing"
+                stats.add_issue("iam_account_missing", "pub_user", user_id, {"account": account, "user_code": user_code})
+                for legacy_role in _split_role_codes(row.get("ROLE_VALUE") or row.get("ROLE_CODE")):
+                    _normalize_legacy_role(legacy_role, role_mapping, stats, table="pub_user", legacy_ref=user_id)
+            elif status != "active":
+                status = "disabled"
+                binding_specs = []
+            elif not binding_specs:
+                issue_status = "unmatched"
+                status = "unmatched"
+                stats.add_issue("missing_org_relationship", "pub_user", user_id, {"account": account, "user_code": user_code})
+            else:
+                role_codes = sorted({item["role_code"] for item in binding_specs})
+                main_org = next((item["org_code"] for item in binding_specs), main_org)
+
+            actor_ref = iaf_sub or user_id
+            payload = {
+                "external_actor_id": actor_ref,
+                "iaf_sub": iaf_sub,
+                "legacy_actor_ref": user_id,
+                "display_name": row.get("NAME") or account or user_id,
+                "org_code": main_org,
+                "role_codes": role_codes,
+                "status": status,
+                "source_ref": f"{legacy_system}:pub_user:{user_id}",
+                "profile_json": _scrub_profile(
+                    {
+                        "legacy_actor_ref": user_id,
+                        "legacy_user_code": user_code,
+                        "account": account,
+                        "preferred_username": _row_value(binding or {}, "PREFERRED_USERNAME", "USERNAME") or account,
+                        "org_codes": sorted({item["org_code"] for item in binding_specs}),
+                        "region_code": row.get("REGION_CODE"),
+                        "binding_status": issue_status or "bound",
+                        "batch_no": batch_no,
+                    }
+                ),
+            }
+            if dry_run:
+                stats.bump_target("actor_projection")
+                if binding_specs:
+                    stats.target_counts["actor_org_role_binding"] = stats.target_counts.get("actor_org_role_binding", 0) + len(binding_specs)
+            else:
+                actor = self.governance_repo.upsert_actor(payload, tenant_id=self.tenant_id)
+                if binding_specs and actor.status == "active":
+                    self.governance_repo.sync_actor_bindings(actor, binding_specs, batch_no=batch_no)
+            self._write_legacy_mapping(
+                legacy_system=legacy_system,
+                legacy_object_type="pub_user",
+                legacy_object_ref=user_id,
+                canonical_type="ActorProjectionRecord",
+                canonical_ref=actor_ref,
+                evidence={"account": account, "user_code": user_code, "binding_status": payload["profile_json"]["binding_status"]},
+                dry_run=dry_run,
+                stats=stats,
+            )
+
+        self._import_pub_role_permission_candidates(
+            rows_by_table.get("pub_role_function", []),
+            rows_by_table.get("pub_function", []),
+            role_mapping,
+            capability_index,
+            stats,
+            legacy_system,
+            permission_kind="function",
+            dry_run=dry_run,
+        )
+        self._import_pub_role_permission_candidates(
+            rows_by_table.get("pub_role_resource", []),
+            rows_by_table.get("pub_resource", []),
+            role_mapping,
+            capability_index,
+            stats,
+            legacy_system,
+            permission_kind="resource",
+            dry_run=dry_run,
+        )
+        _account_manifest_tables(rows_by_table, stats)
+
+    def _import_pub_role_permission_candidates(
+        self,
+        relation_rows: list[dict[str, Any]],
+        object_rows: list[dict[str, Any]],
+        role_mapping: dict[str, dict[str, Any]],
+        capability_index: dict[str, dict[str, Any]],
+        stats: ImportStats,
+        legacy_system: str,
+        *,
+        permission_kind: str,
+        dry_run: bool,
+    ) -> None:
+        object_table = "pub_function" if permission_kind == "function" else "pub_resource"
+        relation_table = "pub_role_function" if permission_kind == "function" else "pub_role_resource"
+        object_index: dict[str, dict[str, Any]] = {}
+        for row in object_rows:
+            ref = _string_value(row, "ID", "CODE", "NAME_ID")
+            if ref:
+                object_index[ref] = row
+        for row in relation_rows:
+            legacy_role = _string_value(row, "ROLE_CODE", "ROLE_ID")
+            permission_ref = _string_value(row, "FUNCTION_CODE", "FUNC_CODE", "RES_CODE", "RESOURCE_CODE", "RES_ID")
+            role_code = _normalize_legacy_role(legacy_role, role_mapping, stats, table=relation_table, legacy_ref=f"{legacy_role}:{permission_ref}", allow_unmapped_role=True)
+            mapped_role = role_code["role_code"] if role_code else legacy_role
+            capability = capability_index.get(permission_ref)
+            if not capability or not capability.get("capability_id"):
+                stats.add_issue("unmapped_permission", relation_table, f"{legacy_role}:{permission_ref}", {"role_ref": mapped_role, "permission_ref": permission_ref})
+                stats.bump(relation_table)
+                continue
+            evidence = _scrub_profile(
+                {
+                    "role_ref": mapped_role,
+                    "permission_ref": permission_ref,
+                    "permission_kind": permission_kind,
+                    "manifest_version": capability.get("manifest_version"),
+                    "manifest_source_ref": capability.get("manifest_source_ref"),
+                    "legacy_object": object_index.get(permission_ref, {}),
+                }
+            )
+            self._write_projection(
+                "legacy_policy_mapping_candidate",
+                dry_run,
+                lambda capability=capability, evidence=evidence, permission_ref=permission_ref, mapped_role=mapped_role: self.governance_repo.import_legacy_policy_candidate(
+                    {
+                        "legacy_system": legacy_system,
+                        "legacy_permission_ref": permission_ref,
+                        "legacy_role_ref": mapped_role,
+                        "capability_id": capability["capability_id"],
+                        "surface": capability.get("surface"),
+                        "candidate_status": capability.get("candidate_status") or "pending_review",
+                        "evidence_json": evidence,
+                    },
+                    tenant_id=self.tenant_id,
+                ),
+                stats,
+            )
+            stats.bump(relation_table)
 
     def _map_sys_governance(self, rows_by_table: dict[str, list[dict[str, Any]]], stats: ImportStats, legacy_system: str, *, dry_run: bool) -> None:
         tenant_payload = {
@@ -551,6 +862,20 @@ def _split_role_codes(raw: Any) -> list[str]:
     return [piece.strip() for piece in str(raw).split(",") if piece.strip()]
 
 
+def _split_pub_organ_role_codes(raw: Any) -> list[str]:
+    """BSP pub_user_organ_role.ROLE_CODE 多角色拼接：schema comment 明确 '以#号分隔'。
+    宽容地兼容 ',' / ';' / '|' 分隔以防客户场景偏离，但 '#' 是文档化的主分隔。"""
+    if not raw:
+        return []
+    if isinstance(raw, list):
+        return [str(item) for item in raw if item]
+    text = str(raw)
+    # 一次拆多种分隔符；不直接 replace 多次，保留稳定顺序便于后续 dedup。
+    for sep in ("#", ";", "|"):
+        text = text.replace(sep, ",")
+    return [piece.strip() for piece in text.split(",") if piece.strip()]
+
+
 def _lower_keys(row: dict[str, Any]) -> dict[str, Any]:
     return {str(key).lower(): value for key, value in row.items()}
 
@@ -616,11 +941,102 @@ def _binding_index(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
     for row in rows:
         legacy_user_id = _string_value(row, "LEGACY_USER_ID", "USER_ID", "SYS_USER_ID")
+        user_code = _string_value(row, "LEGACY_USER_CODE", "USER_CODE")
         account = _string_value(row, "ACCOUNT", "USERNAME", "PREFERRED_USERNAME")
         if legacy_user_id:
             out[f"id:{legacy_user_id}"] = row
+        if user_code:
+            out[f"code:{user_code}"] = row
         if account:
             out[f"account:{account}"] = row
+    return out
+
+
+def _role_mapping_index(rows: list[dict[str, Any]], stats: ImportStats) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        legacy_role_ref = _string_value(row, "LEGACY_ROLE_REF", "LEGACY_ROLE_CODE", "ROLE_CODE", "ROLE_VALUE", "VALUE")
+        if not legacy_role_ref:
+            stats.add_issue("unmapped_role", "role_mapping_manifest", "", {"reason": "missing_legacy_role_ref"})
+            stats.bump("role_mapping_manifest")
+            continue
+        target_type = str(_row_value(row, "TARGET_TYPE") or "role").lower()
+        target_role_code = _string_value(row, "TARGET_ROLE_CODE")
+        target_tag = _string_value(row, "TARGET_TAG")
+        if target_type == "tag" and target_tag not in {TAG_LEAD_DEPT}:
+            stats.add_issue("unmapped_role", "role_mapping_manifest", legacy_role_ref, {"reason": "unsupported_target_tag", "target_tag": target_tag})
+            stats.bump("role_mapping_manifest")
+            continue
+        if target_type == "role" and target_role_code in _FORBIDDEN_IMPORT_ROLE_CODES:
+            stats.add_issue("unmapped_role", "role_mapping_manifest", legacy_role_ref, {"reason": "forbidden_technical_role", "target_role_code": target_role_code})
+            stats.bump("role_mapping_manifest")
+            continue
+        out[legacy_role_ref] = {
+            "target_type": target_type,
+            "target_role_code": target_role_code,
+            "target_tag": target_tag or None,
+            "confidence": _row_value(row, "CONFIDENCE"),
+        }
+        stats.bump("role_mapping_manifest")
+    return out
+
+
+def _normalize_legacy_role(
+    legacy_role: str,
+    role_mapping: dict[str, dict[str, Any]],
+    stats: ImportStats,
+    *,
+    table: str,
+    legacy_ref: str,
+    allow_unmapped_role: bool = False,
+) -> dict[str, Any] | None:
+    normalized = str(legacy_role or "").strip()
+    if not normalized:
+        return None
+    lowered = normalized.lower()
+    if lowered in LEGACY_ROLE_CODES:
+        stats.add_issue("unmapped_role", table, legacy_ref, {"reason": "legacy_r1_r8_blocked", "legacy_role": normalized})
+        return None
+    mapping = role_mapping.get(normalized)
+    if mapping is None:
+        stats.add_issue("unmapped_role", table, legacy_ref, {"reason": "missing_role_mapping", "legacy_role": normalized})
+        return None
+    target_type = str(mapping.get("target_type") or "role")
+    target_role_code = str(mapping.get("target_role_code") or "")
+    if target_type == "tag":
+        if target_role_code not in _PRODUCT_ROLE_ALLOWLIST:
+            stats.add_issue("unmapped_role", table, legacy_ref, {"reason": "tag_requires_product_role", "target_role_code": target_role_code})
+            return None
+        tag = mapping.get("target_tag")
+        return {"role_code": target_role_code, "tags_json": {tag: True} if tag else {}}
+    if target_role_code in _FORBIDDEN_IMPORT_ROLE_CODES:
+        stats.add_issue("unmapped_role", table, legacy_ref, {"reason": "forbidden_technical_role", "legacy_role": normalized})
+        return None
+    if target_role_code not in _PRODUCT_ROLE_ALLOWLIST:
+        stats.add_issue("unmapped_role", table, legacy_ref, {"reason": "role_not_in_product_allowlist", "legacy_role": normalized, "target_role_code": target_role_code})
+        return None if not allow_unmapped_role else {"role_code": target_role_code, "tags_json": {}}
+    return {"role_code": target_role_code, "tags_json": {}}
+
+
+def _normalize_role_list(
+    legacy_roles: list[str],
+    role_mapping: dict[str, dict[str, Any]],
+    stats: ImportStats,
+    *,
+    table: str,
+    legacy_ref: str,
+) -> list[tuple[str, dict[str, Any]]]:
+    out: list[tuple[str, dict[str, Any]]] = []
+    seen: set[tuple[str, str]] = set()
+    for legacy_role in legacy_roles:
+        normalized = _normalize_legacy_role(legacy_role, role_mapping, stats, table=table, legacy_ref=legacy_ref)
+        if normalized is None:
+            continue
+        key = (normalized["role_code"], str(sorted((normalized.get("tags_json") or {}).items())))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append((normalized["role_code"], normalized.get("tags_json") or {}))
     return out
 
 
@@ -651,7 +1067,8 @@ def _capability_mapping_index(rows: list[dict[str, Any]], stats: ImportStats) ->
         }
         capability_id = _string_value(row, "CAPABILITY_ID", "CAPABILITY_SLUG", "SKILL_ID")
         if not capability_id:
-            stats.add_issue("unmapped_permission", "capability_mapping_manifest", next((item for item in permission_refs if item), ""), {"reason": "missing_capability_id"})
+            stats.bump("capability_mapping_manifest")
+            continue
         payload = {
             "capability_id": capability_id,
             "surface": _row_value(row, "SURFACE"),

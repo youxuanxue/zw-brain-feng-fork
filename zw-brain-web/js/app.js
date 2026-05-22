@@ -154,6 +154,35 @@
     window.STATE = state;
     syncDeploymentChip();
     syncHeaderIdentityAndLegal();
+    syncRoleSwitchControl();
+  }
+
+  function syncRoleSwitchControl() {
+    const switcher = document.getElementById('role-switch');
+    if (!switcher || !window.ZW_AUTH || typeof window.ZW_AUTH.getAllowedProductRoles !== 'function') return;
+    const allowed = new Set(window.ZW_AUTH.getAllowedProductRoles());
+    let firstAllowed = '';
+    Array.from(switcher.options).forEach(opt => {
+      const ok = allowed.has(opt.value);
+      opt.disabled = !ok;
+      opt.title = ok ? '' : '当前账号未授权此岗位';
+      if (ok && !firstAllowed) firstAllowed = opt.value;
+    });
+    if (allowed.size && !allowed.has(currentRole) && firstAllowed) {
+      currentRole = firstAllowed;
+      switcher.value = firstAllowed;
+      if (window.STATE) window.STATE.role = firstAllowed;
+    }
+  }
+
+  function showRoleSwitchDeniedPage(requestedRole, activeRole) {
+    if (typeof window.renderRoleSwitchDeniedShell === 'function') {
+      document.getElementById('app').innerHTML = window.renderRoleSwitchDeniedShell(requestedRole, activeRole);
+    } else {
+      document.getElementById('app').innerHTML = renderError('当前账号未授权所选岗位，请改选其他岗位。');
+    }
+    highlightNav(null);
+    scheduleSyncProductShellNavTop();
   }
 
   function syncDeploymentChip() {
@@ -1229,6 +1258,10 @@
     window.addEventListener('zw-auth-change', syncHeaderIdentityAndLegal);
   }
 
+  window.addEventListener('zw-auth-change', () => {
+    syncRoleSwitchControl();
+  });
+
   window.addEventListener('hashchange', () => {
     // Jobs 优化：tab 切换立即从 snapshot 缓存渲染，不等后端 skill 调用。
     // syncRouteData 在背景异步执行，完成后若数据有变化触发一次 re-dispatch。
@@ -1249,11 +1282,29 @@
     wireUserMenuDismiss();
     if (switcher) {
       switcher.addEventListener('change', async event => {
-        currentRole = event.target.value;
+        const previousRole = currentRole;
+        const requestedRole = event.target.value;
+        if (window.ZW_AUTH && typeof window.ZW_AUTH.isProductRoleAllowed === 'function' && !window.ZW_AUTH.isProductRoleAllowed(requestedRole)) {
+          event.target.value = previousRole;
+          if (window.STATE) window.STATE.role = previousRole;
+          const label = ROLE_NAMES[requestedRole] || requestedRole;
+          window.UI.toast(`当前账号未授权「${label}」，请选择已授权岗位。`, 'info');
+          showRoleSwitchDeniedPage(requestedRole, previousRole);
+          return;
+        }
+        currentRole = requestedRole;
         if (window.STATE) window.STATE.role = currentRole;
-        await refreshSnapshot();
-        await syncRouteData(window.location.hash || '#/workbench');
-        dispatch();
+        try {
+          await refreshSnapshot();
+          await syncRouteData(window.location.hash || '#/workbench');
+          dispatch();
+        } catch (err) {
+          event.target.value = previousRole;
+          currentRole = previousRole;
+          if (window.STATE) window.STATE.role = previousRole;
+          window.UI.toast(customerSafeError(err, '切换岗位未完成，请稍后重试。'), 'info');
+          showRoleSwitchDeniedPage(requestedRole, previousRole);
+        }
       });
     }
     try {

@@ -3,6 +3,7 @@
 .dockerignore
 
 .data
+.data.bak
 .venv
 .venv-*
 venv
@@ -29,4 +30,6 @@ yarn-error.log*
 *.log
 *.db
 *.sqlite
-*.sqlite3
+
+.Dockerfile
+.Dockerfile_v1.0.0

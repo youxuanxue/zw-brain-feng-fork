@@ -12,6 +12,14 @@
 
   const STORAGE_KEY = 'zw-brain.auth.v1';
   const CSRF_HEADER = 'X-CSRF-Token';
+  const PRODUCT_ROLE_CODES = [
+    'ROLE_ORGAN_OPERATER',
+    'ROLE_ORGAN_MANAGER',
+    'ROLE_BUSIAUDIT',
+    'ROLE_SECURITY_ADMIN',
+    'ROLE_SECURITY_AUDIT',
+    'ROLE_SYSTEM',
+  ];
   const REFRESH_CHECK_MS = 5 * 60 * 1000;
   const REFRESH_THRESHOLD_SECONDS = 60;
   const BROADCAST_CHANNEL_NAME = 'zw-brain-auth';
@@ -388,6 +396,37 @@
     return readSnapshot();
   }
 
+  /** 会话内可切换的产品岗位（available_contexts / role_codes；dev bypass 为全部 6 岗） */
+  function getAllowedProductRoles() {
+    const snapshot = readSnapshot();
+    if (!snapshot) return [];
+    if (snapshot.development_iam_bypass === true) {
+      return PRODUCT_ROLE_CODES.slice();
+    }
+    const actor = snapshot.actor_snapshot && typeof snapshot.actor_snapshot === 'object' ? snapshot.actor_snapshot : {};
+    const fromContexts = Array.isArray(actor.available_contexts)
+      ? actor.available_contexts
+          .map(item => String((item && item.role_code) || ''))
+          .filter(code => PRODUCT_ROLE_CODES.includes(code))
+      : [];
+    if (fromContexts.length) {
+      return [...new Set(fromContexts)];
+    }
+    const fromActor = (actor.role_codes || []).map(String).filter(code => PRODUCT_ROLE_CODES.includes(code));
+    const fromUser = snapshot.user && Array.isArray(snapshot.user.roles)
+      ? snapshot.user.roles.map(String).filter(code => PRODUCT_ROLE_CODES.includes(code))
+      : [];
+    return [...new Set([...fromActor, ...fromUser])];
+  }
+
+  function isProductRoleAllowed(role) {
+    const code = String(role || '');
+    if (!PRODUCT_ROLE_CODES.includes(code)) return false;
+    const allowed = getAllowedProductRoles();
+    if (!allowed.length) return false;
+    return allowed.includes(code);
+  }
+
   window.ZW_AUTH = {
     bootstrapAuth,
     startLogin,
@@ -398,5 +437,7 @@
     getCurrentUser,
     getSession,
     clearSession,
+    getAllowedProductRoles,
+    isProductRoleAllowed,
   };
 })();

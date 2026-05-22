@@ -48,6 +48,8 @@ PERMISSION_ROLES = {
     "governance.dispute_list.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "governance.dispute_view.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "governance.iam_overview.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "governance.policy_candidate.list.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "governance.policy_candidate.review.execute": {"ROLE_BUSIAUDIT"},
     "audit.replay_evidence_chain.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "audit.list.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
 
@@ -333,6 +335,11 @@ def resolve_role(payload_role: object, fallback_role: str) -> str:
     if role not in ACTOR_NAMES:
         raise DomainAccessDeniedError(f"unknown role: {role}")
     return role
+
+
+def filter_product_role_codes(role_codes: list[str] | tuple[str, ...] | None) -> list[str]:
+    """IAF / 旧 BSP 投影中的角色码只保留产品白名单（D23 + 阶段 D）。"""
+    return [str(item) for item in (role_codes or []) if str(item) in ACTOR_NAMES]
 
 
 def actor_for_role(role: str) -> str:

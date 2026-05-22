@@ -1,0 +1,1430 @@
+{
+  "manifest_type": "capability_mapping_manifest",
+  "tenant_id": "sd-default",
+  "manifest_version": "m0-sd-default-v1",
+  "description": "pub_resource.ID → capability_id by URL 前缀匹配；只收录已注册 Skill。未命中前缀的资源由 mapper 留 unmapped_permission issue，需现场补充映射规则。",
+  "rows": [
+    {
+      "legacy_permission_ref": "001622B33F994897ADB6FECA5841C6E6",
+      "capability_id": "workbench.view",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/announcement/index",
+      "legacy_name": "通知公告"
+    },
+    {
+      "legacy_permission_ref": "027CF1A7CB6D4AD880DCF8D52836D94B",
+      "capability_id": "ops.service.invocation.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/perform/taskmonitor/index",
+      "legacy_name": "任务监控"
+    },
+    {
+      "legacy_permission_ref": "03ADE09968804089AF2D699E65DA6EA6",
+      "capability_id": "governance.dispute_view",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/accept/index",
+      "legacy_name": "异议受理"
+    },
+    {
+      "legacy_permission_ref": "04E8602786884229BCE7603F2349A8B1",
+      "capability_id": "audit.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/audit/renewal/index",
+      "legacy_name": "授权续期审核"
+    },
+    {
+      "legacy_permission_ref": "05F5B936EF1343F0AA7745EDF6C9683F",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/require/linkIndex",
+      "legacy_name": "需求推送结果"
+    },
+    {
+      "legacy_permission_ref": "0601CE7BFC434F9B801F3F94D3776DA5",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/require/task/index",
+      "legacy_name": "工作任务管理"
+    },
+    {
+      "legacy_permission_ref": "07FA2D5E6A514AFB8EDA7884388C90B8",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/apply/statistic/analysis",
+      "legacy_name": "资源申请情况分析"
+    },
+    {
+      "legacy_permission_ref": "0ABE7CBA53E0462BBDD58428A603CCA1",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/report/audit/index",
+      "legacy_name": "资源申请审核情况一览"
+    },
+    {
+      "legacy_permission_ref": "0B8892007D1C4D648C01F2C90D6A7559",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/resource/apply/linkIndex",
+      "legacy_name": "申请信息结果"
+    },
+    {
+      "legacy_permission_ref": "0C60EEACCB8547F6A5AF2AA6AE57DE7F",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/tagInfo/index",
+      "legacy_name": "标签信息管理"
+    },
+    {
+      "legacy_permission_ref": "0d9e57e9a59b4b7a8e60fd1eb6d982d",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalogquality/rule",
+      "legacy_name": "检测规则管理"
+    },
+    {
+      "legacy_permission_ref": "0e093f4799834339824b251283ab834",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalogquality/taskManage",
+      "legacy_name": "自动检测任务管理"
+    },
+    {
+      "legacy_permission_ref": "0E0E6FFE22D94D5C997E2BF25B08D509",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/search/index",
+      "legacy_name": "目录查询"
+    },
+    {
+      "legacy_permission_ref": "0E80E6647CF04066B55EC79E256737A3",
+      "capability_id": "resource.asset.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/api/resource/acquire/table/page",
+      "legacy_name": "库表资源"
+    },
+    {
+      "legacy_permission_ref": "0FC59798A8234ECD8073BBEC9E00BF58",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/apply/service/index",
+      "legacy_name": "资源代理授权申请"
+    },
+    {
+      "legacy_permission_ref": "162AA3A39D044E5BB8631A5605D2490D",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/taglink/index",
+      "legacy_name": "标签关系管理"
+    },
+    {
+      "legacy_permission_ref": "197C319C0C0B4168A82548DF7A652997",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/feedback/index",
+      "legacy_name": "案例反馈清单"
+    },
+    {
+      "legacy_permission_ref": "1A14274A8F1B401CA018B2E49475A577",
+      "capability_id": "resource.asset.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/api/resource/acquire/api/page",
+      "legacy_name": "API资源"
+    },
+    {
+      "legacy_permission_ref": "1AAB66169C764EE1933E12425A0E9CA3",
+      "capability_id": "ops.service.invocation.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/perform/result/result/index",
+      "legacy_name": "结果公示"
+    },
+    {
+      "legacy_permission_ref": "1CA49F6960D64D94879CE6162B08EDBB",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/require/track/index",
+      "legacy_name": "任务进度跟踪"
+    },
+    {
+      "legacy_permission_ref": "1CEE8AB3D5E14BB2A3158A22AAE75266",
+      "capability_id": "resource.asset.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/api/resource/report/index",
+      "legacy_name": "资源上报"
+    },
+    {
+      "legacy_permission_ref": "1ED014BE4A5B41AFA00CB673A76775B1",
+      "capability_id": "audit.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/audit/scene/myapply",
+      "legacy_name": "我的融合服务申请"
+    },
+    {
+      "legacy_permission_ref": "1F56939076E74F009D6B365F05FB3074",
+      "capability_id": "ops.shift_handover.submit",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/duty/negativelist/index",
+      "legacy_name": "数据负面清单"
+    },
+    {
+      "legacy_permission_ref": "201AA1F4B9774513BE074EDE00744F91",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/resource/reviceApplyIndex",
+      "legacy_name": "申请接收"
+    },
+    {
+      "legacy_permission_ref": "21981CA792BD489282198FEEA2AEEE33",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/report/duty/index",
+      "legacy_name": "责任清单一览"
+    },
+    {
+      "legacy_permission_ref": "2354320671DB4F78B52AF8C3AC8F8AEB",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/resource/applyIndex",
+      "legacy_name": "申请信息推送"
+    },
+    {
+      "legacy_permission_ref": "241cc113790443a9b211240342c995a",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalogquality/deptReport",
+      "legacy_name": "部门质量检测报告"
+    },
+    {
+      "legacy_permission_ref": "26FB65218D194AF3BC23241D28B089D2",
+      "capability_id": "audit.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/audit/openresource/index",
+      "legacy_name": "开放资源申请审核"
+    },
+    {
+      "legacy_permission_ref": "2715A46DE1E6490EB3CE1BA8FDB8B587",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/require/subjectbase/index",
+      "legacy_name": "主题库维护"
+    },
+    {
+      "legacy_permission_ref": "29DD1F2A5EA748A4BFC8CC42D6BF67A4",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/report/duty/approveIndex",
+      "legacy_name": "责任清单待审核"
+    },
+    {
+      "legacy_permission_ref": "2CFF3E2F5FD340A8B950FAB23BEC448A",
+      "capability_id": "resource.asset.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/api/resource/acquire/file/page",
+      "legacy_name": "文件资源"
+    },
+    {
+      "legacy_permission_ref": "2E141BC9CFAD468BAB96518BFBE8E5D6",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/report/poWeeklyReport/index",
+      "legacy_name": "平台运行情况统计周报"
+    },
+    {
+      "legacy_permission_ref": "2ed69f0f47534e8eb56d903d40869f3",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalogquality/manualCheck",
+      "legacy_name": "人工质量检测"
+    },
+    {
+      "legacy_permission_ref": "31C04B0609E14592A5F8FC2E7C97F417",
+      "capability_id": "ops.service.invocation.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/perform/audit/index",
+      "legacy_name": "结果审核"
+    },
+    {
+      "legacy_permission_ref": "3513F72F000A40B3A7D1ADD8EA29F241",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/apply/resource/index",
+      "legacy_name": "我的申请"
+    },
+    {
+      "legacy_permission_ref": "3674F0B389804941A764099D2E41A1E8",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/require/task/addIndex",
+      "legacy_name": "发布工作任务"
+    },
+    {
+      "legacy_permission_ref": "380BEF6860804D20AE179864F93E4CO2",
+      "capability_id": "delivery.exchange.publish",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/connect/originalRequire/page/addIndex",
+      "legacy_name": "需求录入"
+    },
+    {
+      "legacy_permission_ref": "380BEF6860804D20AE179864F93E4CO3",
+      "capability_id": "delivery.exchange.publish",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/connect/originalRequire/page/index",
+      "legacy_name": "需求清单"
+    },
+    {
+      "legacy_permission_ref": "380BEF6860804D20AE179864F93E4CO4",
+      "capability_id": "delivery.exchange.publish",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/connect/originalRequire/page/checkIndex",
+      "legacy_name": "需求校核"
+    },
+    {
+      "legacy_permission_ref": "380BEF6860804D20AE179864F93E4CO5",
+      "capability_id": "delivery.exchange.publish",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/connect/originalRequire/page/acceptIndex",
+      "legacy_name": "需求受理"
+    },
+    {
+      "legacy_permission_ref": "380BEF6860804D20AE179864F93E4CO6",
+      "capability_id": "delivery.exchange.publish",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/connect/collectRequire/page/addIndex",
+      "legacy_name": "需求汇总"
+    },
+    {
+      "legacy_permission_ref": "380BEF6860804D20AE179864F93E4CO7",
+      "capability_id": "delivery.exchange.publish",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/connect/collectRequire/page/index",
+      "legacy_name": "汇总需求清单"
+    },
+    {
+      "legacy_permission_ref": "3A88690E3BDD4099A8346D61002BBEF1",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/index",
+      "legacy_name": "首页"
+    },
+    {
+      "legacy_permission_ref": "3B6DE8A7EE8C44B4A394676C35F59E59",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/require/administer/index",
+      "legacy_name": "数据治理清单"
+    },
+    {
+      "legacy_permission_ref": "3F72EB6EA6F0ACDE048DB942B524",
+      "capability_id": "delivery.exchange.plan",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/exchange/resource/dataProbe",
+      "legacy_name": "数据探查"
+    },
+    {
+      "legacy_permission_ref": "46FF2DF8FEBD49F78FF25885AC710F96",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/tagGroup/index",
+      "legacy_name": "标签维度管理"
+    },
+    {
+      "legacy_permission_ref": "4D4E1D93170B44E78A82D12172E55285",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/publish/publishIndex",
+      "legacy_name": "案例推送"
+    },
+    {
+      "legacy_permission_ref": "4ddf0865d3524f28af17ab5311c7cd7",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalogquality/addTask",
+      "legacy_name": "自动检测任务定义"
+    },
+    {
+      "legacy_permission_ref": "4e2551ae160749ee83fe37267c032d7",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalogquality/catalogReport",
+      "legacy_name": "目录质量检测报告"
+    },
+    {
+      "legacy_permission_ref": "4F70EFF1D5E04E9C9DFF74AA34861EB5",
+      "capability_id": "delivery.exchange.plan",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/exchange/tableMonitorList",
+      "legacy_name": "任务监控"
+    },
+    {
+      "legacy_permission_ref": "4FE3A719CAA7453E99F6C7AF06EFFE5C",
+      "capability_id": "ops.service.invocation.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/perform/config/script/index",
+      "legacy_name": "脚本配置"
+    },
+    {
+      "legacy_permission_ref": "55AD3689495444BDBE82C4C9B04D85AC",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/require/inventory/index",
+      "legacy_name": "业务需求清单"
+    },
+    {
+      "legacy_permission_ref": "57CE58D654F443C8B68B57BE79AFEDFB",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/require/reviceIndex",
+      "legacy_name": "需求接收"
+    },
+    {
+      "legacy_permission_ref": "5987CE616E2F4918BFDD8BDF1DFB99C2",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/web/index",
+      "legacy_name": "概览"
+    },
+    {
+      "legacy_permission_ref": "5AAD038C0E614F0A83720E72E43ABB04",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/register/index",
+      "legacy_name": " 目录维护"
+    },
+    {
+      "legacy_permission_ref": "5BB30E419E724D988FF02A10C199A34D",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/resource/linkIndex",
+      "legacy_name": "资源推送结果"
+    },
+    {
+      "legacy_permission_ref": "5BCDBB1FFEF046AB8526693BD8B135BD",
+      "capability_id": "audit.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/audit/service/index",
+      "legacy_name": "资源代理授权审核"
+    },
+    {
+      "legacy_permission_ref": "5E03EA835FC042C8A048B776D6EC0C01",
+      "capability_id": "delivery.exchange.plan",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/exchange/rule/index",
+      "legacy_name": "数据规则"
+    },
+    {
+      "legacy_permission_ref": "5E6E6A5A0DC0453A878DC655F758767F",
+      "capability_id": "audit.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/audit/scene/index",
+      "legacy_name": "融合服务受理"
+    },
+    {
+      "legacy_permission_ref": "600A2D44D0794B439E29AC05DAB3F15D",
+      "capability_id": "audit.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/audit/resource/warning/index",
+      "legacy_name": "资源审核预警"
+    },
+    {
+      "legacy_permission_ref": "6096D7B7FB1B437BA46E6E73C84CF3B1",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/link/index?type=organ",
+      "legacy_name": "部门案例推送结果"
+    },
+    {
+      "legacy_permission_ref": "62823AC8533548BA8E0DF6395D686F3C",
+      "capability_id": "audit.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/audit/scene/deptindex",
+      "legacy_name": "融合服务审核"
+    },
+    {
+      "legacy_permission_ref": "63CDE50682FA47B6B911050E373C7FA5",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/supervision/feedback/index",
+      "legacy_name": "资源纠错"
+    },
+    {
+      "legacy_permission_ref": "6C41398088644391A2393F547E0AA5E5",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/publish/linkIndex",
+      "legacy_name": "案例接收"
+    },
+    {
+      "legacy_permission_ref": "6CE2F838A9E24A0F8C4FAA56AADB7F29",
+      "capability_id": "ops.service.invocation.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/perform/manualReport/index",
+      "legacy_name": "手动上报"
+    },
+    {
+      "legacy_permission_ref": "6CF3915C73CC4D37ACD4638FAD4612BE",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/apiTest/index",
+      "legacy_name": "接口测试"
+    },
+    {
+      "legacy_permission_ref": "6D632688C7954682AE0639978A44A430",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/report/platformOperation/index",
+      "legacy_name": "平台运行情况"
+    },
+    {
+      "legacy_permission_ref": "6E56DD7C727C4FDEA2A5C47C7EB88289",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/feedback/resourceIndex",
+      "legacy_name": "资源反馈清单"
+    },
+    {
+      "legacy_permission_ref": "6E658A19A249491995C6A7F3ADF898D8",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/apply/resourceAgent/index",
+      "legacy_name": "资源代理授权申请备案"
+    },
+    {
+      "legacy_permission_ref": "72AABCBA9FA54673B8CB82DC31DAEF7D",
+      "capability_id": "audit.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/audit/resource/authBack",
+      "legacy_name": "资源申请授权"
+    },
+    {
+      "legacy_permission_ref": "74272CD251F44FD386817EAFA6C1E750",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/supervision/item/index",
+      "legacy_name": "应用事项管理"
+    },
+    {
+      "legacy_permission_ref": "7491EDAA8D824723BB2604F248B207F8",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/report/nonduty/approveIndex",
+      "legacy_name": "非责任清单待审核"
+    },
+    {
+      "legacy_permission_ref": "76411642943C4FDE855E3B33DEA93221",
+      "capability_id": "ops.shift_handover.submit",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/duty/list/index",
+      "legacy_name": "数据责任清单"
+    },
+    {
+      "legacy_permission_ref": "78B68242914144BB950D2100D19A96B2",
+      "capability_id": "ops.service.invocation.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/perform/autoReport/scada/index",
+      "legacy_name": "采集任务"
+    },
+    {
+      "legacy_permission_ref": "79A9860F71C14D05A092E5163C5917A8",
+      "capability_id": "delivery.exchange.plan",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/exchange/custom/tableCustomList",
+      "legacy_name": "库表交换"
+    },
+    {
+      "legacy_permission_ref": "7D471B3287794860991178983F0AD5A2",
+      "capability_id": "delivery.exchange.plan",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/exchange/resource/fileDownloadResourceList",
+      "legacy_name": "文件下载"
+    },
+    {
+      "legacy_permission_ref": "7E6E9AE42E134AAA905F5562006D3126",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/infopub/column/index",
+      "legacy_name": "栏目管理"
+    },
+    {
+      "legacy_permission_ref": "7FDE336F73EC4386A6440E0B9ED45548",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/require/done/index",
+      "legacy_name": "已办任务"
+    },
+    {
+      "legacy_permission_ref": "803FE39F76C048718C89DAA918B5C702",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/commentinfo/index",
+      "legacy_name": "评论管理"
+    },
+    {
+      "legacy_permission_ref": "80CC9FB548DF4596A4594B02960C8511",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/sharegroup/index",
+      "legacy_name": "共享分组维护"
+    },
+    {
+      "legacy_permission_ref": "824D0376541744DFA759C6FDB215F50C",
+      "capability_id": "delivery.exchange.plan",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/exchange/alarmList",
+      "legacy_name": "任务告警"
+    },
+    {
+      "legacy_permission_ref": "83CE1B27554E4825BFEABC222E443450",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/apply/resource/reviewindex",
+      "legacy_name": "申请评价"
+    },
+    {
+      "legacy_permission_ref": "8531432266734570B6D0E0F58C323A2B",
+      "capability_id": "ops.shift_handover.submit",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/duty/statistics/index",
+      "legacy_name": "责任落实工作进展-废弃"
+    },
+    {
+      "legacy_permission_ref": "87C29CDD71C54D15B52711AF9C3C2A35",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/report/duty/passIndex",
+      "legacy_name": "责任清单审核通过"
+    },
+    {
+      "legacy_permission_ref": "88F352BEE01C4C17B887465FB0533AED",
+      "capability_id": "ops.service.invocation.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/perform/result/pdfReport/index",
+      "legacy_name": "评估报告"
+    },
+    {
+      "legacy_permission_ref": "8A277E6A47D546D3A14EF5BEC50863A7",
+      "capability_id": "ops.service.invocation.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/perform/config/calRule/index",
+      "legacy_name": "指标计算规则配置"
+    },
+    {
+      "legacy_permission_ref": "8C5DCBC599D442F3B24CFDDF82762FD8",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/require/upcoming/index",
+      "legacy_name": "待办任务"
+    },
+    {
+      "legacy_permission_ref": "8F03B75A907343588C4A3B0EAFCF2FC9",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/require/index",
+      "legacy_name": "需求推送"
+    },
+    {
+      "legacy_permission_ref": "905414f777e9498b88dc64e707370fa",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/reverse/index",
+      "legacy_name": "反向编目"
+    },
+    {
+      "legacy_permission_ref": "953A1E9CFA064A51867E38F95DA3F48B",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/resource/reviceIndex",
+      "legacy_name": "资源接收"
+    },
+    {
+      "legacy_permission_ref": "9901A6BF275C47D6BB2DD6FC16BD0469",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/require/administer/list",
+      "legacy_name": "数据需求清单"
+    },
+    {
+      "legacy_permission_ref": "9936646C1F054F8FA8F674C06B1B8DE5",
+      "capability_id": "resource.asset.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/api/resource/acquire/folder/page",
+      "legacy_name": "文件夹资源"
+    },
+    {
+      "legacy_permission_ref": "9A110761DDE64FA080DF38B06737CFE3",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/link/index?type=region",
+      "legacy_name": "地方案例推送结果"
+    },
+    {
+      "legacy_permission_ref": "9E4DB85CB56E4B579C566433BE465311",
+      "capability_id": "ops.service.invocation.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/perform/autoReport/plan/index",
+      "legacy_name": "考核计划"
+    },
+    {
+      "legacy_permission_ref": "A2E77C9E8E7B46C4B2784EE2994A3C3F",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/report/dataExchange/index",
+      "legacy_name": "库表、文件交换量统计"
+    },
+    {
+      "legacy_permission_ref": "A4A1133D9E2E4655A8D281E796E70F2C",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/report/index",
+      "legacy_name": "案例上报"
+    },
+    {
+      "legacy_permission_ref": "A4BE79E358354BC290F5E30817A95235",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/feedbackinfo/index",
+      "legacy_name": "网站反馈管理"
+    },
+    {
+      "legacy_permission_ref": "A61924938D234F2B8E87D69A134E99D0",
+      "capability_id": "delivery.exchange.plan",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/exchange/folderJobManage",
+      "legacy_name": "文件夹订阅"
+    },
+    {
+      "legacy_permission_ref": "A68D708DEED04AE48A476E851DB5377F",
+      "capability_id": "resource.asset.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/api/resource/acquire/index",
+      "legacy_name": "资源获取"
+    },
+    {
+      "legacy_permission_ref": "A7F633E53DD3485393EF5791FFB946C7",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/apply/statistic/mystatistic",
+      "legacy_name": "我的资源申请分析"
+    },
+    {
+      "legacy_permission_ref": "A954D79A112A4B6C817863658E404A0B",
+      "capability_id": "ops.service.report.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/report/datasource/index",
+      "legacy_name": "数据源上报"
+    },
+    {
+      "legacy_permission_ref": "AB888984DDEE41339DC35213F50F1986",
+      "capability_id": "resource.asset.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/api/resource/report/page",
+      "legacy_name": "安徽资源上报"
+    },
+    {
+      "legacy_permission_ref": "ABD5EE884A114DE78043FF717BACDA37",
+      "capability_id": "resource.asset.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/api/resource/report/indexAssociation",
+      "legacy_name": "资源目录关联"
+    },
+    {
+      "legacy_permission_ref": "AC567F4B00DC47AAB669ECB7A2FA534D",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/require/collect/addIndex",
+      "legacy_name": "数据需求汇总"
+    },
+    {
+      "legacy_permission_ref": "B29E5F5B8DE94E179569740D3AD73F7D",
+      "capability_id": "ops.shift_handover.submit",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/duty/claimsub/index",
+      "legacy_name": "数据责任认领（二级部门）-废弃"
+    },
+    {
+      "legacy_permission_ref": "B2E266E851374FF1A9576DBEBD29B6B1",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/supervision/catalogproblem/index",
+      "legacy_name": "目录纠错"
+    },
+    {
+      "legacy_permission_ref": "B4095534556840CD9432ACB0C2C7CDB1",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/require/business/checkIndex",
+      "legacy_name": "业务需求校核"
+    },
+    {
+      "legacy_permission_ref": "B60A13FA7B3B4946860D69984195DA14",
+      "capability_id": "delivery.exchange.plan",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/exchange/exchangeJobManage",
+      "legacy_name": "库表订阅"
+    },
+    {
+      "legacy_permission_ref": "BA421BDA85F74DE7B637B52DD1D29049",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/new/manage/index",
+      "legacy_name": "案例提出"
+    },
+    {
+      "legacy_permission_ref": "BE5E9914404C4795984EA87E34BF1692",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/require/statistics/index",
+      "legacy_name": "需求梳理工作进展-废弃"
+    },
+    {
+      "legacy_permission_ref": "bf23385f-ec6a-11e8-aa23-005056964d2f",
+      "capability_id": "ops.service.report.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/report/app/index",
+      "legacy_name": "应用上报"
+    },
+    {
+      "legacy_permission_ref": "bf42dd17-ec6a-11e8-aa23-005056964d2f",
+      "capability_id": "ops.service.report.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/report/organ/index",
+      "legacy_name": "组织机构上报"
+    },
+    {
+      "legacy_permission_ref": "bf69b7a9-ec6a-11e8-aa23-005056964d2f",
+      "capability_id": "ops.service.report.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/report/resource/index",
+      "legacy_name": "资源上报"
+    },
+    {
+      "legacy_permission_ref": "bf7394ff-ec6a-11e8-aa23-005056964d2f",
+      "capability_id": "ops.service.report.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/report/group/index",
+      "legacy_name": "资源分类上报"
+    },
+    {
+      "legacy_permission_ref": "c016b4c8-ec6a-11e8-aa23-005056964d2f",
+      "capability_id": "ops.service.report.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/report/catalog/index",
+      "legacy_name": "目录上报"
+    },
+    {
+      "legacy_permission_ref": "c03342bd-ec6a-11e8-aa23-005056964d2f",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/catalog/download/index",
+      "legacy_name": "目录接收"
+    },
+    {
+      "legacy_permission_ref": "C169F787FD244F37AFDB3C4CB0E30C00",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/apply/submitapply/index",
+      "legacy_name": "申请提交"
+    },
+    {
+      "legacy_permission_ref": "C3871587A92A4BC1BB5F0B86B90D224",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/topublish/index",
+      "legacy_name": "目录发布"
+    },
+    {
+      "legacy_permission_ref": "C4C2651423C644E5B4652C782ADC4C5D",
+      "capability_id": "audit.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/audit/call/index",
+      "legacy_name": "申请变更审核"
+    },
+    {
+      "legacy_permission_ref": "C5477C7A8DFF4CD7A41291C3FFCD5BD8",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/report/nonduty/index",
+      "legacy_name": "非责任清单一览"
+    },
+    {
+      "legacy_permission_ref": "C71B6B2A139A4BC8ACC1C9523072FA04",
+      "capability_id": "delivery.exchange.plan",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/exchange/rule/index",
+      "legacy_name": "数据规则"
+    },
+    {
+      "legacy_permission_ref": "C83CE178748E40E8B086AE3A82BECA9C",
+      "capability_id": "audit.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/home/audit/resource/index",
+      "legacy_name": "资源申请审核"
+    },
+    {
+      "legacy_permission_ref": "C8E93443082647308AE59F206333BE03",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/report/resource/serviceIndex",
+      "legacy_name": "服务整体使用情况"
+    },
+    {
+      "legacy_permission_ref": "CADDD4E5602142BBA8840B786826A6EB",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/dutyManage/dutyIndex",
+      "legacy_name": "责任清单维护"
+    },
+    {
+      "legacy_permission_ref": "catamgr010111",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/group/index",
+      "legacy_name": "目录分类维护"
+    },
+    {
+      "legacy_permission_ref": "catamgr010211",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/group/authorize",
+      "legacy_name": "目录分级授权"
+    },
+    {
+      "legacy_permission_ref": "catamgr020211",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/import/index",
+      "legacy_name": "批量导入"
+    },
+    {
+      "legacy_permission_ref": "catamgr020311",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/catalogApprove/index",
+      "legacy_name": "目录审核"
+    },
+    {
+      "legacy_permission_ref": "catamgr020411",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/publish/index",
+      "legacy_name": "目录撤销"
+    },
+    {
+      "legacy_permission_ref": "catamgr020511",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/export/index",
+      "legacy_name": "目录导出"
+    },
+    {
+      "legacy_permission_ref": "catamgr020611",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/transApprove/index",
+      "legacy_name": "目录迁移审核"
+    },
+    {
+      "legacy_permission_ref": "catamgr030111",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/groupLink/index",
+      "legacy_name": "分类关联"
+    },
+    {
+      "legacy_permission_ref": "catamgr030211",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/groupLinkApprove/index",
+      "legacy_name": "关联审核"
+    },
+    {
+      "legacy_permission_ref": "catamgr030311",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/groupLinkCancel/index",
+      "legacy_name": "关联撤销"
+    },
+    {
+      "legacy_permission_ref": "catamgr030411",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/leadDept/approve/index",
+      "legacy_name": "牵头部门审核"
+    },
+    {
+      "legacy_permission_ref": "catamgr030511",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/leadDept/cancel/index",
+      "legacy_name": "牵头部门撤销"
+    },
+    {
+      "legacy_permission_ref": "catamgr030611",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/leadDept/catalogView/index",
+      "legacy_name": "已发布目录"
+    },
+    {
+      "legacy_permission_ref": "CC9C05F97B874CC5A5FCFF5E7CA8B218",
+      "capability_id": "ops.shift_handover.submit",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/duty/claim/index",
+      "legacy_name": "数据责任认领"
+    },
+    {
+      "legacy_permission_ref": "CF7B857B7B474D9DA0E2113041D92843",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/approve/index",
+      "legacy_name": "案例审核"
+    },
+    {
+      "legacy_permission_ref": "connect201",
+      "capability_id": "resource.asset.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/api/resource/report/orgIndex",
+      "legacy_name": "部门资源上报"
+    },
+    {
+      "legacy_permission_ref": "D2ED96660F074CC7A68C7C3E90372329",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/contact/index",
+      "legacy_name": "联系人列表"
+    },
+    {
+      "legacy_permission_ref": "DB27FFD35BDE447F8D65D14A626B1992",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/require/collect/index",
+      "legacy_name": "数据需求清单"
+    },
+    {
+      "legacy_permission_ref": "DF02410A820543798E5BDBB3C7E0734F",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/resource/index",
+      "legacy_name": "资源推送"
+    },
+    {
+      "legacy_permission_ref": "DF0CD54FE86B4CF4AB1391AC231E0F0A",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/supervision/resourceApply/index",
+      "legacy_name": "资源申请"
+    },
+    {
+      "legacy_permission_ref": "E0B68DEF592B4FD594E0565A97474706",
+      "capability_id": "ops.shift_handover.submit",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/duty/linkresource/index",
+      "legacy_name": "数据资源关联"
+    },
+    {
+      "legacy_permission_ref": "E17618A4D302417A9912EB598DA7EB41",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/feedback/requireIndex",
+      "legacy_name": "需求反馈清单"
+    },
+    {
+      "legacy_permission_ref": "E28A823148094611B928C4F31A1A9655",
+      "capability_id": "ops.service.invocation.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/perform/config/base/index",
+      "legacy_name": "指标基础信息配置"
+    },
+    {
+      "legacy_permission_ref": "E7F971280C2B4B03B5ED703DCCACE4F0",
+      "capability_id": "catalog.entry.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/catalog/manage/infopub/news/index",
+      "legacy_name": "栏目内容管理"
+    },
+    {
+      "legacy_permission_ref": "ED0B28B324AB470BBEFB05A8FF5B39CA",
+      "capability_id": "catalog.browse",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/example/publish/index",
+      "legacy_name": "案例发布"
+    },
+    {
+      "legacy_permission_ref": "excmgf020201",
+      "capability_id": "delivery.exchange.plan",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/exchange/pipeline/index",
+      "legacy_name": "通道管理"
+    },
+    {
+      "legacy_permission_ref": "excmgf020202",
+      "capability_id": "delivery.exchange.plan",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/exchange/host/index",
+      "legacy_name": "服务器管理"
+    },
+    {
+      "legacy_permission_ref": "excmgf020501",
+      "capability_id": "delivery.exchange.plan",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/exchange/node/index",
+      "legacy_name": "节点管理"
+    },
+    {
+      "legacy_permission_ref": "excmgf020601",
+      "capability_id": "delivery.exchange.plan",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/exchange/database/index",
+      "legacy_name": "数据源管理"
+    },
+    {
+      "legacy_permission_ref": "excmgf030301",
+      "capability_id": "delivery.exchange.plan",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/exchange/resource/resourceList",
+      "legacy_name": "已授权资源"
+    },
+    {
+      "legacy_permission_ref": "F12C9415A9D34CA2ABA1DBDEFE4AE210",
+      "capability_id": "delivery.exchange.plan",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/exchange/account/index",
+      "legacy_name": "交换任务对账"
+    },
+    {
+      "legacy_permission_ref": "F62053E5C754439C9C7234926F9F9D5F",
+      "capability_id": "ops.service.invocation.query",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/manage/perform/config/model/index",
+      "legacy_name": "指标模型配置"
+    },
+    {
+      "legacy_permission_ref": "FD9F3092314E4A358116E8AB3E5B7D7C",
+      "capability_id": "delivery.exchange.plan",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/exchange/custom/tableCustomMonitorList",
+      "legacy_name": "任务监控"
+    },
+    {
+      "legacy_permission_ref": "FF24370C8CC140D6992458E1D278BBF5",
+      "capability_id": "request.list",
+      "surface": "webui",
+      "candidate_status": "pending_review",
+      "manifest_version": "m0-sd-default-v1",
+      "legacy_path": "/dsp/require/consider/index",
+      "legacy_name": "数据需求复议"
+    }
+  ]
+}

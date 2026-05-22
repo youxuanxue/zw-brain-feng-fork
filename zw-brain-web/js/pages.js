@@ -792,6 +792,29 @@ function entityNotFoundShell(activeKey, entityLabel, rawId, backHref, backLabel)
   return shell(activeKey, main);
 }
 
+/** 顶栏岗位切换选了未授权岗位时的整页提示 */
+window.renderRoleSwitchDeniedShell = function (requestedRole, activeRole) {
+  const requested = roleLabel(requestedRole);
+  const active = roleLabel(activeRole);
+  const auth = window.ZW_AUTH || {};
+  const allowed = typeof auth.getAllowedProductRoles === 'function' ? auth.getAllowedProductRoles() : [];
+  const allowedText = allowed.length
+    ? allowed.map(roleLabel).join('、')
+    : '暂无已授权岗位，请联系管理员在治理库中配置账号角色';
+  const main = `
+    <div class="state-card" role="alert">
+      <div class="page-kicker">岗位未授权</div>
+      <div class="page-hero-title">「${escapeHtml(requested)}」不在当前账号授权范围内。</div>
+      <p class="page-hero-subtitle">岗位切换仅展示 IAM 登录后可用的治理投影角色。请改选已授权岗位继续办理，或联系管理员在 zw-brain 治理库中补全绑定。</p>
+      <div class="state-meta">已选岗位：${escapeHtml(requested)} · 当前有效岗位：${escapeHtml(active)}</div>
+      <div class="state-meta mt-2">本账号已授权：${escapeHtml(allowedText)}</div>
+      <div class="mt-5 flex gap-3 flex-wrap">
+        <a href="#/workbench" class="gov-btn gov-btn-primary">回到数据共享工作台</a>
+      </div>
+    </div>`;
+  return shell('workbench', main);
+};
+
 function resourceById(id) {
   return window.RUNTIME_DISCOVERY.resources.find(item => item.id === id);
 }

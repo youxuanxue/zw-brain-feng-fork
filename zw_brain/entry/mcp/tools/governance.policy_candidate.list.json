@@ -1,0 +1,58 @@
+{
+  "name": "governance.policy_candidate.list",
+  "description": "按租户与状态筛选 legacy_policy_mapping_candidate，并输出审核用汇总报告；不直接授予权限。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "candidate_status": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "legacy_system": {
+        "type": "string"
+      },
+      "legacy_role_ref": {
+        "type": "string"
+      },
+      "role_code": {
+        "type": "string"
+      },
+      "capability_id": {
+        "type": "string"
+      },
+      "capability_slug": {
+        "type": "string"
+      },
+      "surface": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-audit-class": "read-sensitive",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "governance.policy_candidate.list.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

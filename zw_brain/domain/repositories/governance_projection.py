@@ -119,7 +119,11 @@ class GovernanceProjectionRepository:
             "profile_json": profile,
         }
         record = self._upsert(ActorProjectionRecord, [ActorProjectionRecord.tenant_id == tenant_id, ActorProjectionRecord.external_actor_id == data["external_actor_id"]], data)
-        self._sync_actor_role_bindings(record)
+        # IAM 首登/换票同步：Token 无 ROLE_* 时角色由本地治理投影承担，不得清空 BSP 导入的 binding。
+        if str(data.get("source_ref") or "") == "iaf:claims" and not (data["role_codes_json"] or []):
+            pass
+        else:
+            self._sync_actor_role_bindings(record)
         return record
 
     def import_legacy_policy_candidate(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> LegacyPolicyMappingCandidateRecord:
@@ -159,11 +163,55 @@ class GovernanceProjectionRepository:
     def list_actors(self, *, tenant_id: str = "sd-default") -> list[ActorProjectionRecord]:
         return self._list(select(ActorProjectionRecord).where(ActorProjectionRecord.tenant_id == tenant_id).order_by(ActorProjectionRecord.external_actor_id))
 
-    def list_actor_org_role_bindings(self, *, tenant_id: str = "sd-default", external_actor_id: str | None = None) -> list[ActorOrgRoleBindingRecord]:
+    def list_actor_org_role_bindings(
+        self,
+        *,
+        tenant_id: str = "sd-default",
+        external_actor_id: str | None = None,
+        binding_status: str | None = None,
+        batch_no: str | None = None,
+    ) -> list[ActorOrgRoleBindingRecord]:
         statement = select(ActorOrgRoleBindingRecord).where(ActorOrgRoleBindingRecord.tenant_id == tenant_id)
         if external_actor_id:
             statement = statement.where(ActorOrgRoleBindingRecord.external_actor_id == external_actor_id)
+        if binding_status:
+            statement = statement.where(ActorOrgRoleBindingRecord.binding_status == binding_status)
+        if batch_no:
+            statement = statement.where(ActorOrgRoleBindingRecord.batch_no == batch_no)
         return self._list(statement.order_by(ActorOrgRoleBindingRecord.external_actor_id, ActorOrgRoleBindingRecord.org_code, ActorOrgRoleBindingRecord.role_code))
+
+    def list_active_actor_contexts(self, *, tenant_id: str = "sd-default", external_actor_id: str) -> list[dict[str, Any]]:
+        contexts: list[dict[str, Any]] = []
+        for item in self.list_actor_org_role_bindings(tenant_id=tenant_id, external_actor_id=external_actor_id, binding_status="active"):
+            tags = item.tags_json if isinstance(item.tags_json, dict) else {}
+            contexts.append(
+                {
+                    "org_code": item.org_code,
+                    "role_code": item.role_code,
+                    "actor_tags": tags,
+                    "source_priority": item.source_priority,
+                    "batch_no": item.batch_no,
+                }
+            )
+        return contexts
+
+    def disable_bindings_for_batch(self, batch_no: str, *, tenant_id: str = "sd-default") -> int:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            bindings = list(
+                session.execute(
+                    select(ActorOrgRoleBindingRecord).where(
+                        ActorOrgRoleBindingRecord.tenant_id == tenant_id,
+                        ActorOrgRoleBindingRecord.batch_no == batch_no,
+                        ActorOrgRoleBindingRecord.binding_status == "active",
+                    )
+                ).scalars()
+            )
+            for item in bindings:
+                item.binding_status = "disabled"
+                item.updated_at = _now()
+            session.commit()
+            return len(bindings)
 
     def find_actor_for_iaf_claims(self, claims: dict[str, Any], *, tenant_id: str = "sd-default") -> ActorProjectionRecord | None:
         iaf_sub = str(claims.get("sub") or "")
@@ -245,11 +293,60 @@ class GovernanceProjectionRepository:
             tenant_id=tenant_id,
         )
 
-    def list_policy_candidates(self, *, tenant_id: str = "sd-default", candidate_status: str | None = None) -> list[LegacyPolicyMappingCandidateRecord]:
+    def list_policy_candidates(
+        self,
+        *,
+        tenant_id: str = "sd-default",
+        candidate_status: str | None = None,
+        legacy_system: str | None = None,
+        legacy_role_ref: str | None = None,
+        capability_id: str | None = None,
+        surface: str | None = None,
+    ) -> list[LegacyPolicyMappingCandidateRecord]:
         statement = select(LegacyPolicyMappingCandidateRecord).where(LegacyPolicyMappingCandidateRecord.tenant_id == tenant_id)
         if candidate_status:
             statement = statement.where(LegacyPolicyMappingCandidateRecord.candidate_status == candidate_status)
-        return self._list(statement.order_by(LegacyPolicyMappingCandidateRecord.legacy_permission_ref))
+        if legacy_system:
+            statement = statement.where(LegacyPolicyMappingCandidateRecord.legacy_system == legacy_system)
+        if legacy_role_ref:
+            statement = statement.where(LegacyPolicyMappingCandidateRecord.legacy_role_ref == legacy_role_ref)
+        if capability_id:
+            statement = statement.where(LegacyPolicyMappingCandidateRecord.capability_id == capability_id)
+        if surface:
+            statement = statement.where(LegacyPolicyMappingCandidateRecord.surface == surface)
+        return self._list(statement.order_by(LegacyPolicyMappingCandidateRecord.legacy_permission_ref, LegacyPolicyMappingCandidateRecord.capability_id))
+
+    def review_policy_candidate(
+        self,
+        *,
+        tenant_id: str,
+        legacy_system: str,
+        legacy_permission_ref: str,
+        capability_id: str,
+        candidate_status: str,
+        review_evidence: dict[str, Any] | None = None,
+    ) -> LegacyPolicyMappingCandidateRecord:
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            record = session.execute(
+                select(LegacyPolicyMappingCandidateRecord).where(
+                    LegacyPolicyMappingCandidateRecord.tenant_id == tenant_id,
+                    LegacyPolicyMappingCandidateRecord.legacy_system == legacy_system,
+                    LegacyPolicyMappingCandidateRecord.legacy_permission_ref == legacy_permission_ref,
+                    LegacyPolicyMappingCandidateRecord.capability_id == capability_id,
+                )
+            ).scalar_one_or_none()
+            if record is None:
+                raise KeyError(f"{legacy_system}:{legacy_permission_ref}:{capability_id}")
+            record.candidate_status = candidate_status
+            if review_evidence:
+                merged = dict(record.evidence_json) if isinstance(record.evidence_json, dict) else {}
+                merged.update(review_evidence)
+                record.evidence_json = safe_json(merged)
+            record.updated_at = _now()
+            session.commit()
+            session.refresh(record)
+            return record
 
     def upsert_legacy_object_mapping(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> LegacyObjectMappingRecord | None:
         if not payload.get("source_ref"):
@@ -296,7 +393,14 @@ class GovernanceProjectionRepository:
         session.flush()
         return record
 
-    def _sync_actor_role_bindings(self, actor: ActorProjectionRecord) -> None:
+    def sync_actor_bindings(
+        self,
+        actor: ActorProjectionRecord,
+        bindings: list[dict[str, Any]] | None = None,
+        *,
+        batch_no: str | None = None,
+    ) -> None:
+        """Upsert explicit org-role bindings; disable stale rows for the same actor."""
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             existing = list(
@@ -307,19 +411,35 @@ class GovernanceProjectionRepository:
                     )
                 ).scalars()
             )
-            desired = set()
-            if actor.org_code and actor.status == "active":
-                desired = {(actor.org_code, str(role)) for role in actor.role_codes_json or [] if str(role)}
+            desired_specs: list[tuple[str, str, dict[str, Any]]] = []
+            if bindings:
+                for item in bindings:
+                    org_code = str(item.get("org_code") or "")
+                    role_code = str(item.get("role_code") or "")
+                    if not org_code or not role_code:
+                        continue
+                    tags = item.get("tags_json") or item.get("actor_tags") or {}
+                    desired_specs.append((org_code, role_code, safe_json(tags if isinstance(tags, dict) else {})))
+            elif actor.org_code and actor.status == "active":
+                for role in actor.role_codes_json or []:
+                    if str(role):
+                        desired_specs.append((actor.org_code, str(role), {}))
+            desired_keys = {(org, role) for org, role, _ in desired_specs}
+            spec_by_key = {(org, role): spec for org, role, spec in desired_specs}
             for item in existing:
-                if (item.org_code, item.role_code) not in desired:
+                if (item.org_code, item.role_code) not in desired_keys:
                     item.binding_status = "disabled"
                     item.updated_at = _now()
             existing_keys = {(item.org_code, item.role_code): item for item in existing}
-            for org_code, role_code in desired:
+            for org_code, role_code, tags_json in desired_specs:
+                evidence = safe_json({"source_ref": actor.source_ref, "binding_status": (actor.profile_json or {}).get("binding_status")})
                 if (org_code, role_code) in existing_keys:
                     record = existing_keys[(org_code, role_code)]
                     record.binding_status = "active"
-                    record.evidence_json = safe_json({"source_ref": actor.source_ref, "binding_status": actor.profile_json.get("binding_status")})
+                    record.tags_json = tags_json
+                    record.evidence_json = evidence
+                    if batch_no:
+                        record.batch_no = batch_no
                     record.updated_at = _now()
                 else:
                     session.add(
@@ -329,11 +449,16 @@ class GovernanceProjectionRepository:
                             org_code=org_code,
                             role_code=role_code,
                             binding_status="active",
+                            tags_json=tags_json,
+                            batch_no=batch_no,
                             source_ref=actor.source_ref,
-                            evidence_json=safe_json({"source_ref": actor.source_ref, "binding_status": actor.profile_json.get("binding_status")}),
+                            evidence_json=evidence,
                         )
                     )
             session.commit()
+
+    def _sync_actor_role_bindings(self, actor: ActorProjectionRecord) -> None:
+        self.sync_actor_bindings(actor)
 
     def _get_actor(self, external_actor_id: str, *, tenant_id: str = "sd-default") -> ActorProjectionRecord | None:
         SessionLocal = create_session_factory()

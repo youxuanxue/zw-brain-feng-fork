@@ -117,3 +117,43 @@ def test_frontend_role_hero_covers_all_business_roles():
     expected = set(role_codes.BUSINESS_ROLE_CODES)
     missing = expected - keys
     assert not missing, f"pages.js ROLE_HERO 缺角色键 {missing}"
+
+
+def _extract_array_string_literals(js_text: str, marker_pattern: str) -> set[str]:
+    r"""从 JS 源代码中提取一个字符串数组字面量的元素集合。
+
+    marker_pattern 匹配 "<标识符 = [" 之前那一行的正则
+    （如 r'const PRODUCT_ROLE_CODES\s*=\s*\['）。
+    严格只在该数组的方括号范围内提取 'xx' / "xx" 字面量。
+    """
+    m = re.search(marker_pattern, js_text)
+    if not m:
+        return set()
+    start = m.end() - 1  # 落在 '[' 上
+    depth = 0
+    end = start
+    for i in range(start, len(js_text)):
+        c = js_text[i]
+        if c == "[":
+            depth += 1
+        elif c == "]":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    body = js_text[start + 1:end]
+    return set(re.findall(r"['\"]([A-Za-z_][A-Za-z0-9_]*)['\"]", body))
+
+
+def test_frontend_auth_product_role_codes_aligned_with_backend():
+    """auth.js PRODUCT_ROLE_CODES 驱动岗位切换前端门禁，必须与 BUSINESS_ROLE_CODES 完全一致。
+
+    一旦后端 BUSINESS_ROLE_CODES 增删，本测试会先于 UX bug 拦下漂移。
+    """
+    from zw_brain.domain import role_codes
+    auth_js = (REPO / "zw-brain-web" / "js" / "auth.js").read_text(encoding="utf-8")
+    codes = _extract_array_string_literals(auth_js, r"const PRODUCT_ROLE_CODES\s*=\s*\[")
+    assert codes == set(role_codes.BUSINESS_ROLE_CODES), (
+        f"auth.js PRODUCT_ROLE_CODES 与 role_codes.BUSINESS_ROLE_CODES 漂移；"
+        f"auth.js={sorted(codes)} expected={sorted(role_codes.BUSINESS_ROLE_CODES)}"
+    )

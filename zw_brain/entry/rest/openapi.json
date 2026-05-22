@@ -4115,6 +4115,231 @@
         ]
       }
     },
+    "/api/skills/governance.policy_candidate.list": {
+      "get": {
+        "summary": "查询旧权限映射候选",
+        "description": "按租户与状态筛选 legacy_policy_mapping_candidate，并输出审核用汇总报告；不直接授予权限。",
+        "operationId": "get_governance_policy_candidate_list",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "governance.policy_candidate.list",
+        "x-zwbrain-side-effects": [],
+        "x-zwbrain-human-confirmation-required": false,
+        "x-zwbrain-audit-class": "read-sensitive",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ],
+        "x-zwbrain-permissions": [
+          "governance.policy_candidate.list.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "tenant_id",
+                    "summary",
+                    "items"
+                  ],
+                  "properties": {
+                    "tenant_id": {
+                      "type": "string"
+                    },
+                    "filters": {
+                      "type": "object"
+                    },
+                    "summary": {
+                      "type": "object"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "export_report": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill id, skill surface disabled, or HTTP route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Referenced domain entity missing (error=entity_not_found); distinct from route/skill 404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (e.g. csrf_token_invalid on cookie-authenticated writes)"
+          },
+          "401": {
+            "description": "Missing/invalid session cookie or Bearer token, or token expired"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
+          }
+        },
+        "parameters": [
+          {
+            "name": "candidate_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "capability_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "capability_slug",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "legacy_role_ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "legacy_system",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "surface",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/skills/legacy.migration.status.query": {
       "get": {
         "summary": "查询 M0 迁移验收状态",
@@ -21201,6 +21426,215 @@
                   },
                   "confirmed": {
                     "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/skills/governance.policy_candidate.review": {
+      "post": {
+        "summary": "审核旧权限映射候选",
+        "description": "对 legacy_policy_mapping_candidate 执行批准/驳回；可选将已批准候选合并写入 tenant_capability_policy（须经人工确认）。",
+        "operationId": "post_governance_policy_candidate_review",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "governance.policy_candidate.review",
+        "x-zwbrain-side-effects": [
+          "audit",
+          "db_write",
+          "blockchain_anchor"
+        ],
+        "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-critical",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
+        "x-zwbrain-permissions": [
+          "governance.policy_candidate.review.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    },
+                    "audit_id": {
+                      "type": "string"
+                    },
+                    "result": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill id, skill surface disabled, or HTTP route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Referenced domain entity missing (error=entity_not_found); distinct from route/skill 404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (e.g. csrf_token_invalid on cookie-authenticated writes)"
+          },
+          "409": {
+            "description": "Confirmation required or invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid session cookie or Bearer token, or token expired"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "decision",
+                  "confirmed"
+                ],
+                "properties": {
+                  "tenant_id": {
+                    "type": "string"
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "approve",
+                      "reject",
+                      "apply",
+                      "approve_and_apply"
+                    ]
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  },
+                  "review_note": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "legacy_system": {
+                    "type": "string"
+                  },
+                  "legacy_permission_ref": {
+                    "type": "string"
+                  },
+                  "capability_id": {
+                    "type": "string"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
                   }
                 }
               }

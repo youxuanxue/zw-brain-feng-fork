@@ -96,6 +96,8 @@
 | GET | `/api/skills/governance.dispute_list` | 查看治理争议列表 | `get_governance_dispute_list` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/governance.dispute_view` | 查看治理争议详情 | `get_governance_dispute_view` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/governance.iam_overview` | 查看 IAM 治理总览 | `get_governance_iam_overview` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/governance.policy_candidate.list` | 查询旧权限映射候选 | `get_governance_policy_candidate_list` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/governance.policy_candidate.review` | 审核旧权限映射候选 | `post_governance_policy_candidate_review` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/legacy.bsp.mapping.import` | 导入旧权限候选映射 | `post_legacy_bsp_mapping_import` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/legacy.migration.status.query` | 查询 M0 迁移验收状态 | `get_legacy_migration_status_query` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/legacy.sharezone.mapping.import` | 导入旧共享专区专题候选 | `post_legacy_sharezone_mapping_import` | `zw_brain/entry/rest/openapi.json` |
@@ -238,6 +240,7 @@
 | `governance.dispute_list` | read | False | 查看重复要数、字段口径和补录异常相关争议，以及关联告警、工单与知识建议。 | True | `zw_brain/entry/mcp/tools/governance.dispute_list.json` |
 | `governance.dispute_view` | read | False | 查看单条治理争议的时间线和 AI 调查摘要。 | True | `zw_brain/entry/mcp/tools/governance.dispute_view.json` |
 | `governance.iam_overview` | read | False | 查看 IAF 绑定状态、投影、租户能力策略、旧 BSP 导入问题、审计证据和策略裁决结果。 | True | `zw_brain/entry/mcp/tools/governance.iam_overview.json` |
+| `governance.policy_candidate.list` | read | False | 按租户与状态筛选 legacy_policy_mapping_candidate，并输出审核用汇总报告；不直接授予权限。 | True | `zw_brain/entry/mcp/tools/governance.policy_candidate.list.json` |
 | `legacy.migration.status.query` | read | False | 聚合 legacy_object_mapping、adapter_run_record 与 migration.* 审计事件，给 业务运营员 / 安全审计员 看 M0 验收 11 张工作队列卡片状态、按 canonical_type 分布的映射计数和最近一次 rollback 摘要。只读，零 side effect。 | True | `zw_brain/entry/mcp/tools/legacy.migration.status.query.json` |
 | `metadata.catalog_item.query` | read | False | 查询目录项与资源 schema 字段之间的映射证据。 | True | `zw_brain/entry/mcp/tools/metadata.catalog_item.query.json` |
 | `metadata.gather.evidence.query` | read | False | 查询外部元数据采集任务回执和生成证据；采集状态只作为 projection，不反向改变资源业务状态。 | True | `zw_brain/entry/mcp/tools/metadata.gather.evidence.query.json` |
@@ -282,7 +285,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 184 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 186 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -385,6 +388,8 @@
 | `governance.dispute_list` | 查看治理争议列表 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.dispute_list.json` |
 | `governance.dispute_view` | 查看治理争议详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.dispute_view.json` |
 | `governance.iam_overview` | 查看 IAM 治理总览 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.iam_overview.json` |
+| `governance.policy_candidate.list` | 查询旧权限映射候选 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.policy_candidate.list.json` |
+| `governance.policy_candidate.review` | 审核旧权限映射候选 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/governance.policy_candidate.review.json` |
 | `legacy.bsp.mapping.import` | 导入旧权限候选映射 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/legacy.bsp.mapping.import.json` |
 | `legacy.migration.status.query` | 查询 M0 迁移验收状态 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/legacy.migration.status.query.json` |
 | `legacy.sharezone.mapping.import` | 导入旧共享专区专题候选 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/legacy.sharezone.mapping.import.json` |
@@ -489,9 +494,9 @@
 
 ## Statistics
 
-- REST endpoints: 193
+- REST endpoints: 195
 - CLI entries: 1
-- MCP tools: 60
+- MCP tools: 61
 - A2A agent cards: 1
-- Registered Skills: 198
+- Registered Skills: 200
 

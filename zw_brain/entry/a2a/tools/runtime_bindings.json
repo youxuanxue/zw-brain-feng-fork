@@ -1078,6 +1078,70 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "governance.policy_candidate.list",
+    "description": "按租户与状态筛选 legacy_policy_mapping_candidate，并输出审核用汇总报告；不直接授予权限。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/governance.policy_candidate.list",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "candidate_status": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "legacy_system": {
+          "type": "string"
+        },
+        "legacy_role_ref": {
+          "type": "string"
+        },
+        "role_code": {
+          "type": "string"
+        },
+        "capability_id": {
+          "type": "string"
+        },
+        "capability_slug": {
+          "type": "string"
+        },
+        "surface": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "governance.policy_candidate.list.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "legacy.migration.status.query",
     "description": "聚合 legacy_object_mapping、adapter_run_record 与 migration.* 审计事件，给 业务运营员 / 安全审计员 看 M0 验收 11 张工作队列卡片状态、按 canonical_type 分布的映射计数和最近一次 rollback 摘要。只读，零 side effect。",
     "protocol_type": "builtin_skill",
@@ -6600,6 +6664,83 @@
       ],
       "permissions": [
         "delivery.trigger_recovery.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "governance.policy_candidate.review",
+    "description": "对 legacy_policy_mapping_candidate 执行批准/驳回；可选将已批准候选合并写入 tenant_capability_policy（须经人工确认）。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/governance.policy_candidate.review",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "decision",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "reject",
+            "apply",
+            "approve_and_apply"
+          ]
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "review_note": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "legacy_system": {
+          "type": "string"
+        },
+        "legacy_permission_ref": {
+          "type": "string"
+        },
+        "capability_id": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "governance.policy_candidate.review.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",

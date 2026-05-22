@@ -1,0 +1,512 @@
+{
+  "manifest_type": "role_mapping_manifest",
+  "tenant_id": "sd-default",
+  "manifest_version": "m0-sd-default-v1",
+  "description": "73 legacy ROLE_* → 6 个产品 BUSINESS_ROLE_CODES baseline；M0 实施工程师可在现场基于客户实际语义微调，结果回流本 fixture。",
+  "rows": [
+    {
+      "legacy_role_ref": "ROLE_BUSIAUDIT",
+      "target_type": "role",
+      "target_role_code": "ROLE_BUSIAUDIT",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "运营管理人员直接对齐"
+    },
+    {
+      "legacy_role_ref": "ROLE_ORGAN_MANAGER",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "部门管理员直接对齐"
+    },
+    {
+      "legacy_role_ref": "ROLE_ORGAN_OPERATER",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "部门操作员直接对齐"
+    },
+    {
+      "legacy_role_ref": "ROLE_SYSTEM",
+      "target_type": "role",
+      "target_role_code": "ROLE_SYSTEM",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "系统运维人员直接对齐"
+    },
+    {
+      "legacy_role_ref": "ROLE_BUSINESS_MANAGER",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "业务管理人员 = 部门管理员的语义同义词"
+    },
+    {
+      "legacy_role_ref": "ROLE_BUSINESS_OPERATOR",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "业务实施人员"
+    },
+    {
+      "legacy_role_ref": "ROLE_BUSINESS_PROVIDED",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "提供方部门业务管理"
+    },
+    {
+      "legacy_role_ref": "ROLE_BUSIOPER",
+      "target_type": "role",
+      "target_role_code": "ROLE_BUSIAUDIT",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "运营业务人员（平台主管部门职能）"
+    },
+    {
+      "legacy_role_ref": "ROLE_BUS_MANAGER_TEST",
+      "target_type": "role",
+      "target_role_code": "ROLE_BUSIAUDIT",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "数据主管部门"
+    },
+    {
+      "legacy_role_ref": "ROLE_CONTENT_CHECKER",
+      "target_type": "role",
+      "target_role_code": "ROLE_BUSIAUDIT",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "内容审核员（平台复核职能）"
+    },
+    {
+      "legacy_role_ref": "ROLE_CONTENT_EDITOR",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "内容编辑（部门内编制职能）"
+    },
+    {
+      "legacy_role_ref": "ROLE_RESOURCEAPPLY",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "资源申请人员"
+    },
+    {
+      "legacy_role_ref": "ROLE_RESOURCEPUB",
+      "target_type": "role",
+      "target_role_code": "ROLE_BUSIAUDIT",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "资源发布者（平台发布权）"
+    },
+    {
+      "legacy_role_ref": "ROLE_RESOURCE_MANAGER",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "资源管理人员"
+    },
+    {
+      "legacy_role_ref": "ROLE_RESOURCE_OPERTOR",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "资源操作人员"
+    },
+    {
+      "legacy_role_ref": "ROLE_PUBAUDIT",
+      "target_type": "role",
+      "target_role_code": "ROLE_BUSIAUDIT",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "发布审核员"
+    },
+    {
+      "legacy_role_ref": "ROLE_USEAUDIT",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "资源授权审批"
+    },
+    {
+      "legacy_role_ref": "ROLE_submission",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "需求提报员"
+    },
+    {
+      "legacy_role_ref": "ROLE_Community",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "社区填报者"
+    },
+    {
+      "legacy_role_ref": "ROLE_ROW",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "街道填报者"
+    },
+    {
+      "legacy_role_ref": "ROLE_Supervisor",
+      "target_type": "role",
+      "target_role_code": "ROLE_BUSIAUDIT",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "大数据主管管理部门"
+    },
+    {
+      "legacy_role_ref": "ROLE_WORKER",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "工作人员"
+    },
+    {
+      "legacy_role_ref": "ROLE_WORKER_APP",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "基层工作人员"
+    },
+    {
+      "legacy_role_ref": "ROLE_DATA_LEADER",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": "tag_lead_dept",
+      "confidence": "confirmed",
+      "rationale": "数据领导（牵头部门）"
+    },
+    {
+      "legacy_role_ref": "ROLE_DATA_LEADER_APP",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": "tag_lead_dept",
+      "confidence": "confirmed",
+      "rationale": "基层数据领导"
+    },
+    {
+      "legacy_role_ref": "ROLE_DATA_MANAGE_TEAM",
+      "target_type": "role",
+      "target_role_code": "ROLE_BUSIAUDIT",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "数据治理团队"
+    },
+    {
+      "legacy_role_ref": "ROLE_LEADAUDIT",
+      "target_type": "role",
+      "target_role_code": "ROLE_BUSIAUDIT",
+      "target_tag": "tag_lead_dept",
+      "confidence": "confirmed",
+      "rationale": "牵头部门审核员"
+    },
+    {
+      "legacy_role_ref": "ROLE_LEADDEPT",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": "tag_lead_dept",
+      "confidence": "confirmed",
+      "rationale": "牵头部门操作员"
+    },
+    {
+      "legacy_role_ref": "ROLE_MGMT_LEADER",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "分管领导"
+    },
+    {
+      "legacy_role_ref": "ROLE_MGMT_LEADER_APP",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "基层分管领导"
+    },
+    {
+      "legacy_role_ref": "ROLE_ORGAN",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "部门管理员"
+    },
+    {
+      "legacy_role_ref": "ROLE_AUDIT",
+      "target_type": "role",
+      "target_role_code": "ROLE_SECURITY_AUDIT",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "安全审计人员"
+    },
+    {
+      "legacy_role_ref": "ROLE_SECURITY_AUDITOR",
+      "target_type": "role",
+      "target_role_code": "ROLE_SECURITY_AUDIT",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "安全审计员"
+    },
+    {
+      "legacy_role_ref": "ROLE_SECURITY_MANAGER",
+      "target_type": "role",
+      "target_role_code": "ROLE_SECURITY_ADMIN",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "安全管理员"
+    },
+    {
+      "legacy_role_ref": "ROLE_SECRET",
+      "target_type": "role",
+      "target_role_code": "ROLE_SECURITY_ADMIN",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "安全保密人员"
+    },
+    {
+      "legacy_role_ref": "ROLE_MAINTEN",
+      "target_type": "role",
+      "target_role_code": "ROLE_SYSTEM",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "运维管理人员"
+    },
+    {
+      "legacy_role_ref": "ROLE_FIRST_OPERATION",
+      "target_type": "role",
+      "target_role_code": "ROLE_SYSTEM",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "一线运维"
+    },
+    {
+      "legacy_role_ref": "ROLE_GDRP_OPS_ADMIN",
+      "target_type": "role",
+      "target_role_code": "ROLE_SYSTEM",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "运维管理员"
+    },
+    {
+      "legacy_role_ref": "ROLE_GDRP_OPS_WORKER",
+      "target_type": "role",
+      "target_role_code": "ROLE_SYSTEM",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "运维普通用户"
+    },
+    {
+      "legacy_role_ref": "ROLE_MANAGER",
+      "target_type": "role",
+      "target_role_code": "ROLE_SYSTEM",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "系统管理人员"
+    },
+    {
+      "legacy_role_ref": "ROLE_REGION",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "地市管理员"
+    },
+    {
+      "legacy_role_ref": "ROLE_REGION_ADMIN",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "基层区域管理员"
+    },
+    {
+      "legacy_role_ref": "ROLE_REGION_ALL",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "区域管理员（本级及以下）"
+    },
+    {
+      "legacy_role_ref": "ROLE_REGION_SELF",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "区域管理员（本级）"
+    },
+    {
+      "legacy_role_ref": "ROLE_COUNTRY_ADMIN",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "区县管理员"
+    },
+    {
+      "legacy_role_ref": "ROLE_ZJPT_QXBMGLY",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "区县部门管理员"
+    },
+    {
+      "legacy_role_ref": "ROLE_ZJPT_QXBMPTYH",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "区县部门普通用户"
+    },
+    {
+      "legacy_role_ref": "ROLE_ZJPT_SJBMGLY",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "市部门管理员"
+    },
+    {
+      "legacy_role_ref": "ROLE_ZJPT_SJBMPTYH",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "市部门普通用户"
+    },
+    {
+      "legacy_role_ref": "ROLE_ZJPT_SQCZY",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "社区操作员"
+    },
+    {
+      "legacy_role_ref": "ROLE_ZJPT_SQGLY",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "社区管理员"
+    },
+    {
+      "legacy_role_ref": "ROLE_ZJPT_WGCZY",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "网格操作员"
+    },
+    {
+      "legacy_role_ref": "ROLE_ZJPT_WGGLY",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "网格管理员"
+    },
+    {
+      "legacy_role_ref": "ROLE_ZJPT_ZJCZY",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "镇街操作员"
+    },
+    {
+      "legacy_role_ref": "ROLE_ZJPT_ZJGLY",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "镇街管理员"
+    },
+    {
+      "legacy_role_ref": "ROLE_OPEN_BUSIADMIN",
+      "target_type": "role",
+      "target_role_code": "ROLE_BUSIAUDIT",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "运营管理人员（开放门户）"
+    },
+    {
+      "legacy_role_ref": "ROLE_OPEN_BUSIOPER",
+      "target_type": "role",
+      "target_role_code": "ROLE_BUSIAUDIT",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "运营业务人员（开放）"
+    },
+    {
+      "legacy_role_ref": "ROLE_OPEN_CHECKER",
+      "target_type": "role",
+      "target_role_code": "ROLE_BUSIAUDIT",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "部门审核员（开放）"
+    },
+    {
+      "legacy_role_ref": "ROLE_OPEN_DEPTADMIN",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "部门管理员（开放）"
+    },
+    {
+      "legacy_role_ref": "ROLE_OPEN_MANAGER",
+      "target_type": "role",
+      "target_role_code": "ROLE_SYSTEM",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "系统管理员（开放）"
+    },
+    {
+      "legacy_role_ref": "ROLE_OPEN_OPERATOR",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_OPERATER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "部门操作员（开放）"
+    },
+    {
+      "legacy_role_ref": "ROLE_OPEN_REGIONADMIN",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "地市管理员（开放）"
+    },
+    {
+      "legacy_role_ref": "ROLE_OPEN_SYSTEM",
+      "target_type": "role",
+      "target_role_code": "ROLE_SYSTEM",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "系统运维人员（开放）"
+    }
+  ]
+}

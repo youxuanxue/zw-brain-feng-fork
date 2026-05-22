@@ -103,6 +103,22 @@ class AuthSessionStore:
                 return None
             return session
 
+    def update_actor_snapshot(self, session_id: str, actor_snapshot: dict[str, Any]) -> AuthSession | None:
+        now = time.time()
+        with self._lock:
+            current = self._sessions.get(str(session_id or ""))
+            if current is None or current.refresh_expires_at <= now:
+                if current is not None:
+                    self._sessions.pop(current.session_id, None)
+                return None
+            session = replace(
+                current,
+                actor_snapshot=safe_json(actor_snapshot),
+                updated_at=now,
+            )
+            self._sessions[session.session_id] = session
+            return session
+
     def update_tokens(
         self,
         session_id: str,

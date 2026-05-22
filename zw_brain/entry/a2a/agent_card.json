@@ -342,6 +342,20 @@
       "sideEffects": []
     },
     {
+      "id": "governance.policy_candidate.list",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
       "id": "legacy.migration.status.query",
       "mode": "read",
       "humanConfirmationRequired": false,
@@ -1782,6 +1796,23 @@
         "audit",
         "db_write",
         "state_machine_transition",
+        "blockchain_anchor"
+      ]
+    },
+    {
+      "id": "governance.policy_candidate.review",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
         "blockchain_anchor"
       ]
     },

@@ -17,6 +17,7 @@
 - 旧平台导出包：目录、目录项、资源、资源字段、元数据快照、申请、审批、授权、质量、血缘、审计流转。
 - 结构依据：`old/12-datastructure/*` 中的旧表结构。
 - 脱敏样例：`old/10示例数据/*` 中可用于演示和验收的样例。
+- 用户角色 / 权限承接 baseline manifest：`tests/fixtures/m0-sd-default/{iaf-binding,role-mapping,capability-mapping}-manifest.json`（基于 `old/10示例数据/dump-dsp_bsp-202604271139.sql` 构造，由 `scripts/build_m0_sd_default_fixtures.py` 幂等生成；M0 实施现场可调整后回流）。e2e 验证：`tests/test_bsp_sd_default_real_dump_e2e.py`。
 - 迁移状态：待导出、导出完成、脱敏通过、导入中、迁移待核验、迁移通过、迁移回滚。
 - 核验证据：`legacy_object_mapping`、导入批次号、schema 快照、目录项-资源字段绑定、quality projection、lineage projection、审计回执。
 - 旧→新状态映射：旧 `dump-dsp_catalog` 中目录状态为 `草稿(0)/待审核(1)/审批通过(2)/审批驳回(3)/已发布(4)/下线(5)` 六档 + 独立 `revoke_status` 字段，M0 必须把这些映射到新平台 `draft/pending_review/approved_pending_publish/active/suspended/revoked`，并对没有旧值的扩展态 `changing` 做"无旧值"标记，以 catalog3-metadata3 重构方案 §八 为基线。

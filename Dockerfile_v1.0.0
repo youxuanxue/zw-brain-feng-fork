@@ -1,0 +1,21 @@
+# 开发辅助镜像：在已有 1.0.0 基础镜像上直接覆盖当前源码，跳过完整构建流程。
+# 仅用于内网快速验证，不用于生产部署（CI 使用根目录 Dockerfile）。
+#
+# 构建（默认指向内网 harbor 命名空间）：
+#   docker build -f Dockerfile_v1.0.0 -t zw-brain:dev .
+# 若 registry 主机或路径不同，传 build-arg 覆盖：
+#   docker build -f Dockerfile_v1.0.0 \
+#     --build-arg REGISTRY=registry.example.com:8086 \
+#     --build-arg IMAGE_REPO=library/zw-brain \
+#     --build-arg BASE_TAG=1.0.0 \
+#     -t zw-brain:dev .
+ARG REGISTRY=docker.harbor.com:8086
+ARG IMAGE_REPO=library/zw-brain
+ARG BASE_TAG=1.0.0
+
+FROM ${REGISTRY}/${IMAGE_REPO}:${BASE_TAG}
+
+WORKDIR /src
+ENV PYTHONPATH=/src
+
+COPY . .
