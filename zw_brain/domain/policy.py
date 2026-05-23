@@ -179,7 +179,6 @@ PERMISSION_ROLES = {
     "compliance.metric.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
 
     # 数据标准/数据安全（SECURITY_ADMIN 主面，部分共享给 BUSIAUDIT）
-    "standard.asset.sync.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_ADMIN"},
     # PR #60 后修复：SECURITY_AUDIT 审计读取数据标准建议是合规场景刚需
     "standard.asset.recommend.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_ADMIN", "ROLE_SECURITY_AUDIT"},
     "security.scan.result.sync.execute": {"ROLE_SECURITY_ADMIN", "ROLE_SECURITY_AUDIT"},

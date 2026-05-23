@@ -290,7 +290,7 @@ class BrainService:
                 return self.manage_delivery_subscription(payload)
             case "adapter.health.probe":
                 return self.record_adapter_operation(skill_id, {"adapter_slug": payload.get("adapter_slug", "adapter-health"), "operation": "health_probe", "direction": "inbound"} | payload)
-            case "compliance.signal.ingest" | "risk.event.ingest" | "standard.asset.sync" | "standard.asset.recommend" | "security.scan.result.sync":
+            case "compliance.signal.ingest" | "risk.event.ingest" | "standard.asset.recommend" | "security.scan.result.sync":
                 return self.record_adapter_operation(skill_id, payload)
             case "compliance.rule.configure":
                 return self.configure_compliance_rule(payload)

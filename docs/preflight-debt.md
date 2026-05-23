@@ -5,6 +5,46 @@ the symptom, the deferred decision, and the trigger that forces a re-evaluation.
 
 任何一条 entry 在 trigger 触发时必须升级为 P0 fix 或转化为机械化 preflight check；不允许长期沉淀。
 
+## 2026-05-24 — AgentRuntime runtime 触发式延后（D30 retrofit）
+
+- **Where**: 协议规范 `docs/agent-runtime/product-integration-guide.md` + `agent-runtime-api-cn.md` 完整；
+  Registry schema 4 新字段（`runtime_spec_version` / `agent_yaml_ref` / `trust_level` / `workspace_required`）
+  + `scripts/agentruntime_validate.py` + `scripts/agentruntime_doctor.py` + 内置 Agent `AGENT.yaml` 样本
+  **均未创建**。
+- **Implication**: 架构基线 §8 / R15 描述了外部 Agent 通过 AgentRuntime 接入的产品决策；但运行时未实现。
+  原 §10.2 "Wave 1 必达 ≥1 内置 Agent 用 AGENT.yaml 通过 validate+doctor"（产品负责人 sign-off 2026-05-22）
+  已 D30 撤回为触发式（架构 §8.6）。
+- **Why deferred**: 当前 zw-brain 无外部 Agent 接入排队，按 OPC「只为真实需求建复杂度」拒绝提前盖楼；
+  Registry 单源派生 5 消费面 + `product_scope.{journey,status}` 过滤已机械保证 status≠live 不进任何投影，
+  外部 Agent 通过现有 capability 调用走 5 surface 任一面即可，不需要额外 runtime 层。
+- **Trigger to re-evaluate** (任一触发即升级为 P0)：
+  - **T1**：出现首个真实外部 Agent 接入需求（ANP / Cursor / 第三方 IDE）→ 立即新增 Registry schema 4 字段
+    + validate/doctor 工具链 + preflight 段强制约束。
+  - **T2**：客户要求 zw-brain 内置 Agent 以 `AGENT.yaml` 形态对外暴露 → 选 1 个低风险 builtin Agent 转写。
+  - **T3**：B1.2 接入扩展中心 UI 立项（Wave 2 范围）→ §8.4 7 步流水线 UI 化。
+- **No mechanical preflight check (now)**: 段 22 capability 禁区前缀 + `validate_manifest` 现有约束已兜底
+  「未授权能力不得变 live+builtin」；额外的 AgentRuntime 字段守卫在 T1/T2 触发前是 noise。
+- **不预先盖楼**：在 T1/T2/T3 任一触发前，主仓库不引入未被消费的 schema 字段、不写空跑的 validate/doctor 脚本、
+  不在测试夹具里维护 AGENT.yaml 样本。
+
+## 2026-05-24 — 附录 C 4 项 trigger 化 pending（D30 retrofit）
+
+设计基线 §附录 C「软→硬映射」表中以下 4 条由"待接入"改为"trigger 化 pending"。每条配明确 trigger，
+任一触发即升级为 P0 fix 或机械化 check：
+
+- **外部能力包必须带治理元数据** — Trigger：出现首个外部能力包注册请求（与 §8.6 T1 联动）。
+  届时新增 `scripts/check_external_package_metadata.py`（治理元数据 schema：rollback_target /
+  audit_class / tenant_scope / auth_policy 必填）。
+- **Capability 确认边界不得被 UI / Agent 绕过** — Trigger：出现 UI / Agent 绕过 `human_confirmation_required`
+  的案例 OR §8.6 T1 触发。届时新增 `scripts/check_confirmation_boundary.py`（contract `human_confirmation_required=true`
+  必须在 brain.invoke_skill 链路有运行时校验点）。
+- **反 per-tenant fork** — Trigger：出现第二个真实租户 OR 客户提出 fork 后端意图。当前单租户 `sd-default`，
+  无 fork 风险；多租户实装时新增 `scripts/check_no_tenant_fork.py`（仓库 grep 拒绝 `tenant_id == "specific-customer"`
+  类硬编码分支）。
+- **控制面不得出现多处手维护投影** — Trigger：`export_agent_contract.py --check` drift 后发现手维护痕迹。
+  当前 5 消费面均派生自单 registry；新增 `scripts/check_no_hand_maintained_projection.py`
+  扫 5 投影目录是否含"AUTO-GENERATED; DO NOT EDIT BY HAND"banner 之外的人工 patch 痕迹。
+
 ## 2026-05-18 — BFF session store is single-process in-memory
 
 - **Where**: `zw_brain/shared/auth_session.AuthSessionStore` (thread-safe dict in the REST entry process).
@@ -42,27 +82,6 @@ the symptom, the deferred decision, and the trigger that forces a re-evaluation.
   2. `customer_demo_5min.sh` 的 127.0.0.1 绑定（网络层）
   3. **段 23 preflight scan**（commit-time，G1.4 新增）
   这三条层叠兜底；不再加 prose 软提醒。
-
-## 2026-05-22 — standard.asset.sync manifest preserved with deferred:wave-4 status
-
-- **Where**: `zw_brain/skill_registration/registered/standard.asset.sync.json` (status=deferred:wave-4,
-  journey=b1)；引用面包含 `zw_brain/command/brain.py` dispatch case (line 267, 与 4 个其他 skill 共享 case)、
-  `zw_brain/domain/policy.py` 权限映射 (line 180)、`zw_brain/domain/repositories/compliance_ops.py`
-  docstring (line 29)、`scripts/regenerate_bsp_capability_manifest.py` 旧平台 FUNC_GOVERN_STANDARD
-  映射 (line 30)、3 个生成产物 (`zw_brain/entry/rest/openapi.json`、`zw_brain/entry/a2a/agent_card.json`、
-  `zw_brain/entry/a2a/tools/runtime_bindings.json`)、2 份文档 (`docs/agent_integration.md`、
-  `docs/reconstructs/compliance-ops-adapters-reconstruction-plan-v1.md`)。
-- **Implication**: §1.3 "标准服务 = 旧平台几乎不用" — UI 不可达即可，无业务运行必要。本期未物理删除。
-- **Why deferred**: P0-03 范围严守 registry 元数据，不允许动 `export_agent_contract.py` 与 5 surface 投影（P0-04 范围）；
-  物理删除需触 8 个引用面 + 重新生成 3 个 openapi/a2a artifacts，与 P0-04 投影过滤路径冲突。
-  P0-04 实现 status≠live 过滤后，deferred:wave-4 已机械不进任一消费面投影（webui/api/cli/mcp/a2a），
-  与物理删除业务效果等价。
-- **Trigger to re-evaluate**: (a) P0-04 投影过滤完成且确认 status=deferred:wave-4 已不进 openapi/agent_card/runtime_bindings；
-  (b) Wave 4 legacy 退役期统一清理：届时一并删除 manifest + brain.py dispatch case 中的 `standard.asset.sync` 分支 +
-  policy.py 权限条目 + scripts mapper + 2 份 doc 引用 + 重新生成 3 个 artifact；
-  (c) 任何客户场景实际触发 `standard.asset.sync.execute` 调用——则立即从 debt 升级为产品需求。
-- **No mechanical preflight check (now)**: AC2 新门禁 (P0-05 段 22) 只拦"禁区域 status=live+builtin"；deferred:wave-4
-  本就不是 live，机械上不会触发回归。
 
 ## 2026-05-23 — 5 个 borderline B1 业务报表 capability 仍 live，待业务方 sign-off
 

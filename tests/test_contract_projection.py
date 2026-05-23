@@ -238,6 +238,8 @@ def test_registered_builtin_contracts_are_brain_service_routed() -> None:
 
 
 def test_registered_skill_permissions_are_assigned_to_roles() -> None:
+    """live skill 的 permissions 必须被至少一个 role 持有；
+    deferred:wave-N / external 状态不进任何 surface 投影，无 role 绑定刚性需求。"""
     from zw_brain.domain.policy import ACTOR_NAMES, permissions_for_role
 
     permissions_by_role = {role: permissions_for_role(role) for role in ACTOR_NAMES}
@@ -245,6 +247,9 @@ def test_registered_skill_permissions_are_assigned_to_roles() -> None:
 
     for skill in discover_skills():
         if "error" in skill:
+            continue
+        scope = skill.get("product_scope") or {}
+        if scope.get("status") != "live":
             continue
         for permission in skill.get("permissions") or []:
             if not any(permission in permissions for permissions in permissions_by_role.values()):

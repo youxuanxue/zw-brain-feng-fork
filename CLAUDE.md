@@ -136,3 +136,15 @@ GATE-1 通过后立即收尾动作：
 - [2026-05-19] D28：**GATE-x 元规则升级**。角色定义 / 业务流程 / 状态机三类决策，业务方 sign-off 才能进 D-编号。本批 D23-D29 待评审主文档 §九 sign-off。建议同步进 `dev-rules/global/CLAUDE.md` §2。
 - [2026-05-19] D29：**R 编号空间区分**。`D-编号` GATE 后决策；基线 §11 `R1-R9` 架构约束保留（且本附录追加 R10/R11/R12）；用户角色 `R[1-8]` 完全退役，仓库 grep 残留为 0。
 
+### [2026-05-24] D30 retrofit：产品完成度 review 触发的漂移一次性清理
+
+2026-05-24 乔布斯视角逐条对照架构基线 §1-附录 C 与代码事实（200 manifest / 5 消费面 / 14 preflight 段 / 18 测试套件），发现 6 项漂移并一次性清理。摘要：
+
+- [2026-05-24] D30：**R15 AgentRuntime 触发式落地（撤回 Wave 1 sign-off）**。原 §10.2 "Wave 1 必达 ≥1 内置 Agent 用 AGENT.yaml 通过 validate+doctor"（产品负责人 sign-off 2026-05-22）落地范围**撤回**——原 sign-off 由产品负责人单独发出，未经业务方 GATE，按 R13 元规则不构成业务流程类决策的硬承诺，本次按 OPC「只为真实需求建复杂度」改为触发式（§8.6 T1/T2/T3）。代码层无任何 AgentRuntime runtime 提前建造；协议规范 docs/agent-runtime/* 保留；Registry schema 字段（`runtime_spec_version` / `agent_yaml_ref` / `trust_level` / `workspace_required`）+ validate/doctor 工具链在 T1（首个真实外部 Agent 接入需求）触发当日落地。debt entry 见 [docs/preflight-debt.md](docs/preflight-debt.md)「2026-05-24 — AgentRuntime runtime 触发式延后」。
+  - **R12 工程术语不进 UI 机械化**：新增 preflight 段 24 `scripts/check_ui_term_blacklist.py`。判定模型剥离 ${...} / HTML 属性值 / skill_id slug 后查残留 UI 文本，对真违规精确捕获、不误伤 contract slug。
+  - **§9.5 adapter 写禁区机械化**：新增 preflight 段 25 `scripts/check_adapter_write_ban.py`。`zw_brain/adapters/legacy/` 之外任何写 token（session.add/commit/merge/delete / 裸 SQL INSERT/UPDATE/DELETE）拦下；legacy 一次性迁移区显式放行。
+  - **R14 / §10.3 三引擎契约字段就位**：200 manifest 全量增加 `config_change_class: live` 默认值；`validate_manifest` 强制取值 ∈ {live, preview, draft}。Wave 2 三引擎落地时由配置 capability 显式改 preview/draft，无需再改 schema。
+  - **死引用清理**：`standard.asset.sync`（deferred:wave-4）的 4 处主仓代码引用（brain.py dispatch union + policy.py 权限映射 + compliance_ops.py docstring + scripts/regenerate_bsp_capability_manifest.py FUNC 映射）全删；manifest 与 forbidden-zone 测试夹具保留（验证 §1.3 标准服务禁区回潮防护）；`tests/test_contract_projection.py::test_registered_skill_permissions_are_assigned_to_roles` 改为只校验 live skill；debt 条目「2026-05-22 standard.asset.sync」移除。
+  - **附录 C 4 条 pending trigger 化**：外部能力包元数据 / Capability 确认边界 / 反 per-tenant fork / 控制面手维护投影 4 项从「待接入」改为「trigger 化 pending」，每条配明确 trigger，禁止长期沉淀。
+  - **副作用确认**：5 消费面投影 `export_agent_contract.py --check` 零漂移；默认测试套 81 passed / 12 skipped；新增 2 段守卫脚本（段 24 R12 + 段 25 §9.5）对负向测试用例精确拦下；preflight 16 段全 PASS（14 旧 + 2 新）。
+

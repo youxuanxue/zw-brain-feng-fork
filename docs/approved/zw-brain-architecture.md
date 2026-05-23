@@ -601,9 +601,14 @@ legacy 门户的信息架构只能作为遗留能力索引，不再作为新 Web
   "human_confirmation_required": true,
   "audit_class": "write-critical",
   "execution_binding": "builtin|registered-package|adapter-call",
-  "exposure": ["webui", "api", "cli", "mcp", "a2a"]
+  "config_change_class": "live|preview|draft",
+  "compatibility": ["webui", "api", "cli", "mcp", "a2a"]
 }
 ```
+
+> 字段说明：
+> - `config_change_class`（D30 retrofit / R14 联动）：默认 `live` 立即生效；`preview` / `draft` 仅 Wave 2 三引擎走「草稿→预览→管理员入库」流时使用。由 `validate_manifest` 强制校验。
+> - `compatibility`：实际 manifest 字段名（早期 spec 误用 `exposure`，2026-05-24 D30 retrofit 同步更正）。
 
 **与 AgentRuntime `AGENT.yaml` 的关系**：`Capability` 是 zw-brain 内部最小单位（描述「平台能做什么」）；`AGENT.yaml`（`anp-agent/v1.2`）是外部 Agent 声明式协议（描述「外部 Agent 需要什么能力 + 如何被运行」）。外部 Agent 通过 `AGENT.yaml` 中的 `tools` / `mcp_servers` / `skills` / `permissions` 段消费 zw-brain Capability；Registry 维护映射并裁剪有效工具集。两者不可互换（详见 §八 / R15）。
 
@@ -811,6 +816,24 @@ L5 Data / External
 
 **机械边界**：禁止外部化的项不可通过 AgentRuntime `permissions` / `tool_policy` / `capabilities` 反向声明绕过——即使外部 Agent 在 `AGENT.yaml` 中声明了相应工具，Runtime 仍按 Registry 的 `trust_level` 与 zw-brain Capability policy 裁剪有效工具集，并由 B1.2 审核段拦截。
 
+### 8.6 落地形态：规范先行，触发式实现（D30 retrofit）
+
+§8.1–8.5 是协议规范与产品决策；**运行时与 Registry schema 的具体落地按"真实需求触发"原则推进**。zw-brain 现阶段无外部 Agent 接入排队，按 OPC 「只为真实需求建复杂度」拒绝提前盖楼。
+
+**当前已落地（Wave 0/Wave 1 实有）：**
+- 协议规范文档 `docs/agent-runtime/product-integration-guide.md` + `agent-runtime-api-cn.md`
+- Registry 单源派生 5 消费面（`product_scope.{journey,status}` 字段就位，`status != live` 不进任何投影）
+- `config_change_class: live|preview|draft` 字段就位（默认 `live`），为 Wave 2 三引擎「草稿→预览→入库」流预留契约
+
+**触发条件 → 立即升级为产品需求并机械化：**
+- **T1**：出现首个真实外部 Agent 接入需求（无论来自 ANP / Cursor / 第三方 IDE）→ 立即新增 Registry schema 字段 `runtime_spec_version` / `agent_yaml_ref` / `trust_level` / `workspace_required`；实现 `scripts/agentruntime_validate.py` + `scripts/agentruntime_doctor.py`；preflight 加段强制约束
+- **T2**：客户要求 zw-brain 内置 Agent 以 `AGENT.yaml` 形态对外暴露 → 选 1 个低风险 builtin Agent 转 `AGENT.yaml` 形态作为 reference
+- **T3**：B1.2 接入扩展中心 UI 立项（Wave 2 范围）→ §8.4 7 步流水线 UI 化
+
+**绝不预先盖楼**：在 T1/T2/T3 任一触发前，主仓库不引入未被消费的 schema 字段、不写空跑的 validate/doctor 脚本、不在测试夹具里维护 AGENT.yaml 样本。
+
+**事故防线**：本节"触发式落地"不解除 §8.5「禁止外部化清单」与 §6.6 / §段 22「禁区前缀回潮防护」的机械边界——任何接入路径都受现有 capability policy + trust_level 默认 untrusted 兜底。
+
 ---
 
 ## 九、数据模型
@@ -914,8 +937,8 @@ zw-brain 是**全新项目**，没有历史客户、没有存量数据需要迁�
 - J1 供需对接子流程（meta 合并，非数据合并；6 步流程）
 - J2 在线编制 → 资源挂接 → 部门审 → 平台发布的核心 4 步
 - 审计回执与基本运营可见性
-- **首个外部 Agent 接入端到端验证**：选 1 个低风险长尾 Agent，跑通 §8.4 注册流水线 7 步
-- AgentRuntime Embedded SDK 最小集成：至少 1 个 zw-brain 内置 Agent 用 `AGENT.yaml` 描述并通过 validate + doctor（Wave0 降级而来，产品负责人 sign-off 2026-05-22；J1 黄金链路不依赖，与首个外部 Agent 接入同期立项）
+- ~~首个外部 Agent 接入端到端验证~~（D30 触发式延后）
+- ~~AgentRuntime Embedded SDK 最小集成~~（D30 触发式延后 → Wave 2+ 起，触发条件 = 出现首个真实外部 Agent 接入需求；详见 §8.6 与 [docs/preflight-debt.md](../preflight-debt.md)）
 
 约束：
 - 不追求长尾覆盖率
@@ -1034,6 +1057,8 @@ Wave 2 必达三引擎（审批流可视化引擎 + 表单 schema 化引擎 + �
 
 外部 Agent 不论由 ANP 平台、Cursor 还是其他工具构造，进入 zw-brain 必须以 AgentRuntime 声明式协议（`AGENT.yaml`）形态声明并通过 AgentRuntime 执行内核运行。zw-brain 侧产品决策见 §8.2；协议规范单一事实来源 = `docs/agent-runtime/*`。**本条与 R7（长尾外部化）/ R14（项目级可配置）联动**：外部 Agent 仅承担长尾能力与配置草稿生成，**禁止承接 §8.5 禁止外部化清单**（租户 / 权限 / 策略 / 审计总线 / canonical 核心状态机 / 关键写操作确认边界 / 模型推理统一入口）。
 
+**落地形态（D30 retrofit）**：本条是协议规范约束；运行时 Registry schema（`runtime_spec_version` / `agent_yaml_ref` / `trust_level` / `workspace_required`）+ validate/doctor 工具链 + 内置 Agent `AGENT.yaml` 转写按 §8.6 三类触发条件推进，不预先盖楼。
+
 ---
 
 ## 附录 A — 旧能力簇 → 新能力面映射
@@ -1097,15 +1122,15 @@ Wave 2 必达三引擎（审批流可视化引擎 + 表单 schema 化引擎 + �
 | 统一能力契约由单一来源派生 | 已有基础 | 继续依赖 `export_agent_contract.py --check` |
 | 模型调用只能走集团推理平台 | 已 wired | 继续依赖 preflight 段 10 |
 | 角色码不得出现 r1-r8 字面值（R10） | 已 wired | `policy.assert_no_legacy_role_codes()` 启动检查 + preflight 段做仓库级 grep |
-| 工程术语不得出现在前端 UI（R12） | 待接入 | 建议新增 preflight 段做 `zw-brain-web/` grep 黑名单 |
+| 工程术语不得出现在前端 UI（R12） | 已 wired（D30）| preflight 段 24 `scripts/check_ui_term_blacklist.py` —— 扫 `zw-brain-web/` 9 词黑名单，剥离 ${...} / HTML 属性 / skill_id slug 后查残留 UI 文本 |
 | 角色 / 业务流程 / 状态机决策必须业务方 sign-off（R13） | 软约束 | preflight 暂不强制（涉及人工审批，硬化收益低） |
-| 项目级可配置物必须经管理员"草稿→预览→确认入库"三步（R14 / Wave 2） | Wave 2 后接入 | 三引擎落地时 + 契约层增加 `config_change_class: live\|preview\|draft` 字段 |
+| 项目级可配置物必须经管理员"草稿→预览→确认入库"三步（R14 / Wave 2） | 字段就位（D30）；三引擎 Wave 2 落地 | manifest schema 已增加 `config_change_class: live\|preview\|draft`（默认 `live`），由 `validate_manifest` 强制；Wave 2 三引擎落地时由配置 capability 显式改 `preview` / `draft` |
 | 外部引用悬空不得合并 | 已 wired | 继续依赖 preflight 段 14 |
-| 外部能力包必须带治理元数据 | 待接入 | 建议新增 package schema 检查 |
-| Capability 的确认边界不得被 UI / Agent 绕过 | 待接入 | 建议新增 contract-to-runtime 一致性检查 |
-| adapter 禁止成为新写入口 | 待接入 | 建议新增 adapter write-ban 检查 |
-| 反 per-tenant fork | 待接入 | 建议新增 tenant-fork 检查 |
-| 控制面不得出现多处手维护投影 | 待接入 | 建议新增 registry-to-projection 一致性检查 |
+| adapter 禁止成为新写入口（§9.5）| 已 wired（D30）| preflight 段 25 `scripts/check_adapter_write_ban.py` —— `zw_brain/adapters/legacy/` 之外任何 adapter 出现 `session.add/commit/merge/delete` 或裸 SQL `INSERT/UPDATE/DELETE` token 拦下 |
+| 外部能力包必须带治理元数据 | trigger 化 pending | 触发条件 = 出现首个外部能力包注册请求；届时新增 package schema 检查；详见 [preflight-debt.md](../preflight-debt.md) |
+| Capability 的确认边界不得被 UI / Agent 绕过 | trigger 化 pending | 触发条件 = 出现绕过案例 OR §8.6 T1 外部 Agent 接入；届时新增 contract-to-runtime 一致性检查 |
+| 反 per-tenant fork | trigger 化 pending | 触发条件 = 出现第二个真实租户 OR 客户提出 fork 后端意图；当前单租户 `sd-default`，无 fork 风险 |
+| 控制面不得出现多处手维护投影 | trigger 化 pending | 触发条件 = `export_agent_contract.py --check` drift 后发现手维护痕迹；目前 5 消费面均派生自单 registry |
 
 ---
 

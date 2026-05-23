@@ -65,6 +65,8 @@ done <<'CHECKS'
 段 21	scripts/check_no_numbered_routes.py	no-numbered-routes (route de-identify guardrail)
 段 22	scripts/check_capability_boundary.py	capability-boundary (P0-05 §1.3 forbidden-zone live+builtin)
 段 23	scripts/check_iam_prod_guard.py	iam-prod-guard (G1.4 — dev-iam-bypass 不得入生产部署清单)
+段 24	scripts/check_ui_term_blacklist.py	ui-term-blacklist (R12 工程术语不进 UI — 9 词黑名单)
+段 25	scripts/check_adapter_write_ban.py	adapter-write-ban (§9.5 adapter 禁止成为新写入口)
 CHECKS
 
 echo ""

@@ -26,7 +26,7 @@ class ComplianceOpsRepository:
 
     Read paths are eventually consumed by B1.1 合规与运营 surfaces; write paths come from
     the legacy importer (mappers/projections.py) and from the `compliance.*`,
-    `risk.event.ingest`, `adapter.health.probe`, `standard.asset.sync` skills.
+    `risk.event.ingest`, `adapter.health.probe` skills.
     """
 
     def upsert_case(self, payload: dict[str, Any], *, tenant_id: str) -> ComplianceCaseRecord:

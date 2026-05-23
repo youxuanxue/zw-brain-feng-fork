@@ -47,6 +47,7 @@
   "human_confirmation_required": true,
   "audit_class": "write-critical",
   "execution_binding": "builtin",
+  "config_change_class": "live",
   "compatibility": [
     "webui",
     "api",

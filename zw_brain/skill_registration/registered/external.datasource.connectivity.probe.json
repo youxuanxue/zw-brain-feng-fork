@@ -66,6 +66,7 @@
   "human_confirmation_required": false,
   "audit_class": "external-execution",
   "execution_binding": "external_capability",
+  "config_change_class": "live",
   "compatibility": [],
   "runtime_binding": {
     "kind": "external_capability",

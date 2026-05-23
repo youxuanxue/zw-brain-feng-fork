@@ -48,6 +48,7 @@
   "human_confirmation_required": false,
   "audit_class": "read-normal",
   "execution_binding": "builtin",
+  "config_change_class": "live",
   "compatibility": [
     "webui",
     "api",

@@ -10,6 +10,9 @@ SURFACES = {"webui", "api", "cli", "mcp", "a2a"}
 JOURNEYS = {"j1", "j2", "b1", "infra", "external", "national"}
 STATUS_LITERALS = {"live", "external"}
 STATUS_DEFERRED_RE = re.compile(r"^deferred:wave-[1-4]$")
+# R14 / 设计基线 §10.3：三引擎落地后允许 capability 进入 preview / draft 态。
+# 默认 'live'；preview / draft 仅在 Wave 2 三引擎走"草稿→预览→入库"流时合法。
+CONFIG_CHANGE_CLASSES = {"live", "preview", "draft"}
 
 
 class SurfaceNotEnabledError(PermissionError):
@@ -85,4 +88,9 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
     ):
         raise ValueError(
             f"{skill_id} product_scope.status must be 'live' / 'external' / 'deferred:wave-[1-4]', got {status!r}"
+        )
+    config_change_class = manifest.get("config_change_class", "live")
+    if config_change_class not in CONFIG_CHANGE_CLASSES:
+        raise ValueError(
+            f"{skill_id} config_change_class must be one of {sorted(CONFIG_CHANGE_CLASSES)}, got {config_change_class!r}"
         )

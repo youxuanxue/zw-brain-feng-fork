@@ -27,7 +27,6 @@ FUNC_MAP: dict[str, str | None] = {
     "FUNC_APPROVAL_DECIDE": "approval.case.decide",
     "FUNC_CREDENTIAL_QUERY": "credential.query",
     "FUNC_CAPABILITY_REGISTER": "package.register_version",
-    "FUNC_GOVERN_STANDARD": "standard.asset.sync",
     "FUNC_GOVERN_QUALITY": "ops.catalog.quality.query",
     "FUNC_CATEGORY_MANAGE": "catalog.group.query",
     "FUNC_AUDIT_LIST": "audit.list",
