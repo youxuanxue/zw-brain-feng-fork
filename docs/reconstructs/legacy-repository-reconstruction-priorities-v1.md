@@ -161,7 +161,7 @@
 | D5 | 专题包发布审核机制 | 专题包发布、下线、可见性策略变更统一走 capability review；高影响专题包双人审核。 | 专题包不得绕过 `tenant_capability_policy` 直接授权资源使用。 |
 | D6 | 标准数据权威批次 | `old/08标准服务系统标准数据` 全量先导入候选，人工确认后标记 authoritative 才生效。 | 未确认数据元 / 字典只能作为 `standard_asset_projection` 候选，不得直接进入生产 `CatalogModel` 事实。 |
 | D7 | 默认租户 | 单租户单省山东省，`tenant_id="sd-default"`；不启用 `tenant_mode=multi`。 | 所有 mapper / canonical record / AGENT.yaml 均使用 `sd-default`；与基线 §8.2 + MEMORY 一致。 |
-| D8 | WebUI 8 页面口径 | P1 工作台 / P2 资源发现 / P3 申请审批跟踪 / P4 交付交换直达 / P5 提供方管理 / P7 共享专区 / B1.1 合规与运营 / B1.2 接入扩展中心；硬上限 `≤8`。 | 任何"P6 / P8 / 新增主导航页面"提案需走 GATE 流程 + 业务方 sign-off（基线 §11 R13）。 |
+| D8 | WebUI 8 页面口径 | P1 工作台 / P2 资源发现 / P3 申请审批跟踪 / P4 交付交换直达 / P5 提供方管理 / P7 共享专区 / B1.1 合规与运营 / B1.2 接入扩展中心；硬上限 `≤8`。 | 任何复活已退役编号或新增主导航页面的提案需走 GATE 流程 + 业务方 sign-off（基线 §11 R13）。 |
 | D9 | R14 三引擎（项目级可配置） | Wave 2 必达：审批流可视化 + 表单 schema 化 + 智能推荐前置；客户差异由配置 + 多租户策略 + 外部能力包承接，不通过主仓代码分叉（基线 §11 反 per-tenant fork 主张）。 | 任何"项目级流程 / 表单 / 推荐定制"需求统一回指三引擎，本目录任何专题文档不重复定义。 |
 | D10 | R15 AgentRuntime 唯一桥接面 | 外部 Agent 不论由 ANP 平台、Cursor 还是其他工具构造，进入 zw-brain 必须以 `anp-agent/v1.2` `AGENT.yaml` 声明并通过 AgentRuntime 执行内核运行；协议规范以 `docs/agent-runtime/*` 为单一事实源。 | 不接受任何非 AGENT.yaml 入口；MCP / A2A 投影由 AGENT.yaml 声明（基线 §8.1 / R15）。 |
 | D11 | schema 管理 | SQLAlchemy `Base.metadata.drop_all + create_all`；alembic 不进入产品基线（基线 §9.6）。 | 所有专题方案新增辅助表均通过 drop_all/create_all 管理；首客户上线 + 首次生产 schema 变更时再启 alembic baseline。 |

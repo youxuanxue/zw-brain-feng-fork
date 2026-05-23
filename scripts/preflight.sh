@@ -61,7 +61,7 @@ done <<'CHECKS'
 段 17	scripts/check_iam_doc_freshness.py	iam-doc-freshness (R-002)
 段 18	scripts/check_db_bloat.py	db-bloat-check (canonical DB ≤ 2GB hard, 500MB soft)
 段 19	scripts/check_no_legacy_role_codes.py	no-legacy-role-codes (D23 retrofit)
-段 20	scripts/check_no_retired_features.py	no-retired-features (R15 alembic + R17 K12 dashboard)
+段 20	scripts/check_no_retired_features.py	no-retired-features (alembic 删除 + K12 dashboard 退役)
 段 21	scripts/check_no_numbered_routes.py	no-numbered-routes (route de-identify guardrail)
 段 22	scripts/check_capability_boundary.py	capability-boundary (P0-05 §1.3 forbidden-zone live+builtin)
 段 23	scripts/check_iam_prod_guard.py	iam-prod-guard (G1.4 — dev-iam-bypass 不得入生产部署清单)

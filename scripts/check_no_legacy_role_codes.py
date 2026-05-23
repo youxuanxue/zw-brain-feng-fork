@@ -21,7 +21,7 @@ check_no_legacy_role_codes.py — preflight 段 19
     ALLOWED_FILES 追加一条。这是 token 空间重叠的代价，不是精确 namespace 判定；
     两个豁免列表的当前条目数以代码中的常量为准，不在本 docstring 复述以免漂移。
 
-注：原 alembic 0009 数据迁移映射已在 v4.1 R15 删除 alembic 时一并清理。
+注：原 alembic 0009 数据迁移映射已在 alembic 整体删除时一并清理（详见 D23 二次升级）。
 
 退出码：0 = 全部通过；1 = 至少一处违反
 
@@ -92,7 +92,7 @@ ALLOWED_LINE_MARKERS = (
 )
 
 # 允许整文件白名单（这些文件本身就是描述 R1-R8 退役的权威源）
-# alembic 0009 + 其单元测试已在 v4.1 R15 删除 alembic 时一并清理
+# alembic 0009 + 其单元测试已在 alembic 整体删除时一并清理（D23 二次升级）
 ALLOWED_FILES = (
     "docs/approved/zw-brain-architecture.md",  # 唯一基线（含 R10 R1-R8 退役说明）
     "docs/approved/zw-brain-roles.md",  # 7 角色规范 + R1-R8 退役映射

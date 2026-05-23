@@ -20,7 +20,7 @@
 
 ⚠️ 数据风险：本脚本调用 ensure_runtime_schema()。若目标 DB 的 actor_org_role_binding
 表缺少 PR #74 新增列（tags_json / batch_no / source_priority / valid_from / valid_to /
-granted_by），ensure_runtime_schema 会触发 drop & recreate（v4.1 R15 决策），**整库内
+granted_by），ensure_runtime_schema 会触发 drop & recreate（alembic 删除决策，详见 D23 二次升级），**整库内
 所有已写入数据将丢失**。请先确认 DB 已升至 PR #74 schema 或目标 DB 内无需保留的数据。
 脚本在主流程前会探测一次，若发现要 reset 则要求显式 --allow-schema-reset。
 """

@@ -5,7 +5,7 @@ Drives the live zw-brain WebUI (http://127.0.0.1:8800) with Playwright against
 the real .data/zw_brain.db (sd-default, 1222 catalog_entry rows). Captures 6
 sequential screenshots proving the J1 chain:
 
-  P1 资源发现 → 资源详情 → P3 申请填报 → P4 审批通过 → P5 凭据 → P6 调用监控
+  P1 资源发现 → 资源详情 → P3 申请填报 → P4 审批通过 → P5 凭据 → B1.1 调用监控
 
 Roles (dev IAM bypass grants the synthetic user all 6 ROLE_*; switching is the
 client-side #role-switch dropdown, no re-login):
@@ -185,7 +185,7 @@ def run() -> int:
                  "credential page renders for the approved request",
                  f"credential-page rendered, signal={cred_signal}, screenshot={s}", True)
 
-            # ---- Step 6: 触发 API 调用 → P6 调用监控 -----------------------------
+            # ---- Step 6: 触发 API 调用 → B1.1 调用监控 -----------------------------
             # curl-equivalent out-of-band API call sharing the browser session/cookies.
             api_url = (CONFIG.base_url +
                        f"/api/skills/data.search?role=ROLE_ORGAN_OPERATER&query={SEARCH_KEYWORD}&page=1")
@@ -198,7 +198,7 @@ def run() -> int:
             mon_txt = page.locator("#app").inner_text()
             mon_signal = any(k in mon_txt for k in ("调用", "审计", "data.search", "capability", "合规"))
             s = shot(page, "06-api-call-monitoring.png")
-            _log("Step6 触发 API 调用 + P6 调用监控 (audit.list)",
+            _log("Step6 触发 API 调用 + B1.1 调用监控 (audit.list)",
                  "out-of-band data.search call (HTTP 200) appears in monitoring surface",
                  f"api_status={api_status}, monitor signal={mon_signal}, screenshot={s}",
                  api_status == 200)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Start zw-brain REST (WebUI) for Cursor Cloud / local preview.
-# K12 dashboard BFF retired in v4.1 二轮再砍 (R17). 仅启动 REST + WebUI.
+# K12 dashboard BFF retired in 二轮再砍 (详见 D15 二次反转). 仅启动 REST + WebUI.
 # Binds 0.0.0.0 by default (see zw_brain.shared.runtime_config) so forwarded preview works.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

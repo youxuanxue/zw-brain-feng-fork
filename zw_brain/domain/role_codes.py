@@ -9,7 +9,7 @@
 - zw_brain.domain.web_snapshot_redaction
 - 前端：通过 export_agent_contract.py 生成的 OpenAPI enum（system.snapshot.role）派生
 
-（alembic 0009 旧消费者已在 v4.1 R15 删除 alembic 时一并清理）
+（alembic 0009 旧消费者已在 alembic 整体删除时一并清理；详见 D23 二次升级）
 
 未直接消费但需保持同步（测试 test_role_codes_alignment.py 验证）：
 - zw-brain-web/js/app.js ROLE_NAMES

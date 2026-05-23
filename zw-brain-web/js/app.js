@@ -141,7 +141,7 @@
     window.RUNTIME_KNOWLEDGE_ARTICLES = snapshot.knowledge_articles;
     window.RUNTIME_ZONES = snapshot.zones;
     window.RUNTIME_CAPABILITY_PACKAGES = snapshot.capability_packages;
-    // K12 dashboard 数据块已退役 (R17 / v4.1)；保留 RUNTIME_DASHBOARD 兜底以兼容 pages.js defensive guard
+    // K12 dashboard 数据块已退役（K12 大屏本期退役）；保留 RUNTIME_DASHBOARD 兜底以兼容 pages.js defensive guard
     window.RUNTIME_DASHBOARD = snapshot.dashboard || {};
     window.ZW_WEBUI = snapshot.webui || {};
     window.CATALOG_BROWSE_FILTERS = window.CATALOG_BROWSE_FILTERS || { page: 1, limit: 20, lifecycle: 'active', kind: 'real' };
@@ -366,7 +366,7 @@
           } catch (_) { window.RUNTIME_R7_DIRECT_ACCESS = window.RUNTIME_PROVIDER.directAccess || { catalogs: [], resources: [], demands: [], subscriptions: [] }; }
         }
       } else if (route === '#/compliance-ops' && roleCan(['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
-        // K12 dashboard / dashboard.render_command_center Skill 已退役 (R17 / v4.1)
+        // K12 dashboard / dashboard.render_command_center Skill 已退役（K12 大屏本期退役）
         const disputes = await invokeRead('governance.dispute_list', {});
         const audit = await invokeRead('audit.list', {});
         window.RUNTIME_DISPUTES = disputes.items;
@@ -404,7 +404,7 @@
       } else if (route === '#/migration-acceptance' && roleCan(['admin'])) {
         window.RUNTIME_MIGRATION_ACCEPTANCE = await invokeRead('legacy.migration.status.query', {});
       } else if (route === '#/compliance-ops' && roleCan(['ROLE_SECURITY_AUDIT'])) {
-        // W4.2: 安全审计员 看 P6 时预拉直达交付清单作绕行督查的数据源
+        // W4.2: 安全审计员 看 B1.1 时预拉直达交付清单作绕行督查的数据源
         try {
           window.RUNTIME_R8_DIRECT_ACCESS = await invokeRead('direct_access.delivery.list', { limit: 50 });
         } catch (_) { window.RUNTIME_R8_DIRECT_ACCESS = { items: [], total: 0 }; }

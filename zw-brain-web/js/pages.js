@@ -96,7 +96,7 @@ function humanConfirmPillText(role) {
 }
 
 function renderDashboardShortcutLink() {
-  return '<span class="text-body-sm text-zw-mute leading-7">独立大屏 K12 本期退役（R17 / v4.1）；合规与运营进入 B1.1 后台支撑面。</span>';
+  return '<span class="text-body-sm text-zw-mute leading-7">独立大屏 K12 本期已退役；合规与运营进入 B1.1 后台支撑面。</span>';
 }
 
 const STATUS_LABELS = {
@@ -1150,7 +1150,7 @@ const ROLE_HERO = {
 
 PAGES.workbench = function () {
   const current = window.RUNTIME_WORKBENCH[window.STATE.role] || window.RUNTIME_WORKBENCH.ROLE_ORGAN_OPERATER;
-  // K12 dashboard.burdenMetrics 已退役 (R17 / v4.1)
+  // K12 dashboard.burdenMetrics 已退役（K12 大屏本期退役）
   const metrics = (window.RUNTIME_DASHBOARD && window.RUNTIME_DASHBOARD.burdenMetrics) || [];
   const requests = window.RUNTIME_REQUESTS || [];
   const deliveryTasks = window.RUNTIME_DELIVERY_TASKS || [];
@@ -2389,7 +2389,7 @@ PAGES.deliveryCredential = function (requestId) {
           </table>
         `)}
         ${panel('调用监控入口', '查看本次申请下凭据的调用日志与配额消耗', `
-          <a href="#/compliance-ops" class="gov-btn gov-btn-secondary" data-action="goto-monitor">查看调用日志（P6 合规运营）</a>
+          <a href="#/compliance-ops" class="gov-btn gov-btn-secondary" data-action="goto-monitor">查看调用日志（B1.1 合规与运营）</a>
         `)}
         ${canReissue ? panel('管理员操作', '主管部门 / 审批人可在密钥泄露后强制重新签发', `
           <button onclick="window.ACTIONS.reissueCredential('${escapeHtml(requestId)}')" class="gov-btn gov-btn-primary">重新签发凭据</button>
@@ -3134,7 +3134,7 @@ PAGES.providerWizardQualityRule = function () {
       `)}
     </div>
     <div class="mt-4 row-meta">
-      要查看任务结果与失败摘要，请用 <code>ops.catalog.quality.query</code>（P6 合规运营页可见）或 W3 上线后的统一收件箱。
+      要查看任务结果与失败摘要，请用 <code>ops.catalog.quality.query</code>（B1.1 合规与运营页可见）或 W3 上线后的统一收件箱。
     </div>
   `;
   return shell('provider', main);
@@ -3142,7 +3142,7 @@ PAGES.providerWizardQualityRule = function () {
 
 
 PAGES.complianceOps = function () {
-  // K12 dashboard.burdenMetrics 已退役 (R17 / v4.1)
+  // K12 dashboard.burdenMetrics 已退役（K12 大屏本期退役）
   const metrics = (window.RUNTIME_DASHBOARD && window.RUNTIME_DASHBOARD.burdenMetrics) || [];
   const role = (window.STATE && window.STATE.role) || 'ROLE_SECURITY_AUDIT';
   const heroCfg = (
@@ -3524,8 +3524,8 @@ PAGES.integrationAdmin = function () {
         `)}
       </section>
       <aside class="col-span-5 space-y-5">
-        ${panel('数据治理大屏（已退役）', 'K12 大屏本期退役（R17 / v4.1）', `
-          <div class="text-body leading-7 text-zw-ink">原 K12 数据治理大屏作为独立部署面在 v4.1 二轮再砍中退役（详见 R17）。</div>
+        ${panel('数据治理大屏（已退役）', 'K12 大屏本期已退役', `
+          <div class="text-body leading-7 text-zw-ink">原 K12 数据治理大屏作为独立部署面在本期已退役。</div>
           <div class="mt-3 text-body-sm text-zw-mute leading-7">合规与运营入口已迁入 B1.1 后台支撑面；若客户真实诉求出现，作为独立产品或外部能力包评估。</div>
         `)}
         ${panel('身份、权限与裁决证据', '查看账号绑定、岗位范围、租户策略和拒绝原因', `

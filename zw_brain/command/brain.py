@@ -7642,7 +7642,7 @@ class BrainService:
                 "模板版本：v1.2，v1.3 待发布",
                 "责任方：区政数局 / 市场监管局",
             ]
-            # K12 dashboard 块已退役 (R17 / v4.1)；toggle 副作用不再更新大屏 burden/suggestions
+            # K12 dashboard 块已退役（详见 D15 二次反转）；toggle 副作用不再更新大屏 burden/suggestions
 
         if package001:
             self._set_todo_status("ROLE_BUSIAUDIT", "PKG-2026-04-25-001", self._package_status_text(package001))

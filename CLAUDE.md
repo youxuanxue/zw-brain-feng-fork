@@ -103,7 +103,7 @@ PR [#1](https://github.com/feng222666888/zw-brain/pull/1) merged at 2026-04-18 0
 - [2026-04-18] D13：**外部 Agent / Skill 接入政务大脑是合法且必备的扩展路径**（A2A 服务端 + Skill 注册），具体协议⏳ 待业务侧同步；Phase 0 先以占位 schema 跑通编排闭环
 - [2026-04-18] D14：**所有模型推理调用走集团推理平台的硬约束不变**；推理平台 SDK 具体形态⏳ 待业务侧同步；Phase 0 先以 mock 实现 `zw_brain/shared/inference/client.py`，文档到位后只换内部实现
 - [2026-04-18] D15（修订）：原 N1「不做政务大脑自己的可视化大屏」**反转**为 K12「必保留」；架构上**保持相对独立**——独立部署单元 `zw-brain-dashboard/`、只读消费 dashboard.* Skill、禁止内嵌写操作（preflight 段 11 强制）、故障与主大脑隔离
-  - **[2026-05-20] D15 二次反转（v4.1 R17）**：K12 大屏**本期退役**。理由：（1）非 J1 黄金链路必要条件；（2）独立部署 + 独立技术栈分散 OPC 单人维护精力；（3）真实客户大屏诉求未明确，提前内建违反 R7；（4）旧平台"演示场景"占比高于"运营使用"。代码层 `zw-brain-dashboard/` + `zw_brain/entry/dashboard_bff.py` + `scripts/check_dashboard_readonly.py` + preflight 段 11 + 4 个相关 tests 全部删除。复活路径：作为外部能力包独立产品或 Wave 3+ 立项。
+  - **[2026-05-20] D15 二次反转**：K12 大屏**本期退役**。理由：（1）非 J1 黄金链路必要条件；（2）独立部署 + 独立技术栈分散 OPC 单人维护精力；（3）真实客户大屏诉求未明确，提前内建违反 R7；（4）旧平台"演示场景"占比高于"运营使用"。代码层 `zw-brain-dashboard/` + `zw_brain/entry/dashboard_bff.py` + `scripts/check_dashboard_readonly.py` + preflight 段 11 + 4 个相关 tests 全部删除。复活路径：作为外部能力包独立产品或 Wave 3+ 立项。
 - [2026-04-18] D16：在 §4.4.2 数据模型章节加入 **URN 小白解释**；后续凡新文档首次出现 URN 必须回链 §4.4.2，不得自行简化为「ID」「主键」
 - [2026-04-18] D17（OPC 升级触发，第三轮自检）：**散文档数值漂移必须用 stat 块包裹**（详见基线附录 A「数字漂移防御层」），注册到 `dev-rules/.stats.json`，preflight 段 8 自动校验，禁止裸写"X 段 / X 类 / X 条"
 - [2026-04-18] D18（OPC 升级触发，第七+八轮自检）：**「上游补实体 → 下游 fixture 缺位」「跨节引用幽灵编号」「行号硬编码"反复触发 → 治本：(a) GATE-2 后追加 `scripts/check_fixture_coverage.py` 校验 `adapters/*_adapter.py` ↔ `fixtures/<entity>/`；(b) `dev-rules/check-doc-xrefs.sh` 扫描 `§X.Y` 与 `line N` 引用形式
@@ -127,9 +127,9 @@ GATE-1 通过后立即收尾动作：
 主评审材料：`docs/approved/zw-brain-architecture.md`；新角色规范：`docs/approved/zw-brain-roles.md`；新 IA：`docs/approved/zw-brain-architecture.md`；基线附录 D：`docs/approved/zw-brain-architecture.md`。
 
 - [2026-05-19] D23：**R1-R8 角色矩阵退役**。采用旧平台 7 角色码（`ROLE_SYSTEM` / `ROLE_BUSIAUDIT` / `ROLE_ORGAN_MANAGER` / `ROLE_ORGAN_OPERATER` / `ROLE_SECURITY_ADMIN` / `ROLE_SECURITY_AUDIT`） + 标签位 `tag_lead_dept`。事实源：`old/20260519/平台系统角色菜单梳理v5.xlsx`。alembic 0009 一次性迁移存量数据，`policy.py` 启动检查兜底 + role_code CHECK 约束 + 前端字符串清零。
-  - **[2026-05-20] v4.1 R15 升级**：alembic 整体删除（全新项目不背历史兼容；新功能 drop & recreate 替代）。原 0009 数据迁移本质性错误——zw-brain 是全新项目，无 r1-r8 存量数据需要迁移；`policy.assert_no_legacy_role_codes` + `scripts/check_no_legacy_role_codes.py` 启动检查 + 仓库 grep 双兜底仍存。
+  - **[2026-05-20] D23 二次升级（alembic 整体删除）**：alembic 整体删除（全新项目不背历史兼容；新功能 drop & recreate 替代）。原 0009 数据迁移本质性错误——zw-brain 是全新项目，无 r1-r8 存量数据需要迁移；`policy.assert_no_legacy_role_codes` + `scripts/check_no_legacy_role_codes.py` 启动检查 + 仓库 grep 双兜底仍存。
 - [2026-05-19] D24：**信息架构收敛 3 旅程**。基线 §5.1 旧 J1-J4 + S1-S2 收敛为 J1 找数→用数 / J2 挂数→维数 / J3 看全局→处异常。§5.2 P1-P8 页面不变，重新归属。
-  - **[2026-05-20] v4.1 R16 二次反转**：J3 退为**后台支撑面 B1**，3 旅程 → 2 旅程（J1+J2）+ B1。原 P6/P8 改 B1.1/B1.2；K12 退役（R17）。**pending R13 业务方下次 review 二次 sign-off**；ia-v2.md 维持 3 旅程描述作为 GATE-1.1 sign-off 历史快照。
+  - **[2026-05-20] D24 二次反转**：J3 退为**后台支撑面 B1**，3 旅程 → 2 旅程（J1+J2）+ B1。原 P6/P8 改 B1.1/B1.2；K12 退役（详见 D15 二次反转）。**pending R13 业务方下次 review 二次 sign-off**；ia-v2.md 维持 3 旅程描述作为 GATE-1.1 sign-off 历史快照。
 - [2026-05-19] D25：**审批流可配置化承诺**。业务方反馈 #4 项目级流程定制（鞍山"编制→二级部门审→一级部门审→发布"），下期立项流程引擎，本期不做。
 - [2026-05-19] D26：**表单 schema 化承诺**。业务方反馈 #17 项目级表单定制（四川/荆州），下期立项表单引擎，本期不做。
 - [2026-05-19] D27：**21 条反馈处置摘要**。完整处置见评审主文档 §三。本期落地：#1 #2 #3 #5 #7 #8 #9 #10 #11 #12 #14 #15 #16 + U-1 U-2 U-3；延后：#4 #6 #13 #17 #18。

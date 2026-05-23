@@ -45,6 +45,29 @@ the symptom, the deferred decision, and the trigger that forces a re-evaluation.
   当前 5 消费面均派生自单 registry；新增 `scripts/check_no_hand_maintained_projection.py`
   扫 5 投影目录是否含"AUTO-GENERATED; DO NOT EDIT BY HAND"banner 之外的人工 patch 痕迹。
 
+## 2026-05-24 — Wave 2 R14 三引擎触发式跟踪（D-31d）
+
+- **Where**: 设计基线 §1.4 #1 + §10.3 + §11 R14 承诺的 "项目级可配置化 = AI 原生差异化" 三引擎
+  （审批流可视化引擎 / 表单 schema 化引擎 / 智能推荐前置引擎）当前 0% 实现。检索
+  `zw_brain/skill_registration/registered/` 200 manifest 无任一三引擎 capability slug
+  （`approval_flow.*` / `form_schema.*` / `recommendation.*` 等均不存在）。
+- **Implication**: 三引擎是 zw-brain "为什么选我而不是旧平台 + 改代码" 的根本差异化承诺，
+  Wave 2 范围。当前 200 manifest 已含 `config_change_class: live|preview|draft` 字段
+  就位，等三引擎落第一个 capability 即可激活 "草稿→预览→管理员入库" 流。
+- **Why deferred**: Wave 2 按基线路线分波次落地；本期 Wave 0/Wave 1 J1+J2 黄金链路优先打通。
+  按 OPC「只为真实需求建复杂度」原则，未演练前不预先盖三引擎楼。
+- **Trigger to re-evaluate** (任一触发即启动 Wave 2 三引擎)：
+  - **T1**：首位真实客户演练中提出 "项目个性化能不能不改代码？" 类问题（鞍山审批流定制 /
+    四川荆州表单定制 / 推荐失败转人工需求登记类场景）。
+  - **T2**：业务方（红军 / 海若产品部）下次 IA review 中将三引擎列入下期必交付项。
+  - **T3**：客户演练后 J1 申请-审批闭环转化率 < 业务方预期，需要"申请前推荐 + 自动草拟" AI
+    减摩点兜底（基线 §10.3 智能推荐前置的真实需求触发面）。
+- **No mechanical preflight check (now)**: 没有 capability 就没有 schema drift 可检；
+  字段 `config_change_class` 已由 `validate_manifest` 强制校验（D30 落地），三引擎落地时只增
+  preview/draft 实例，不需要新增 preflight 段。
+- **不允许长期沉淀**：本条 entry 必须在首位客户演练后 30 天内重新评估；若届时无任一触发条件，
+  本 entry 升级为"明确不做"（基线 §10.6）并写入 D-编号决策，不留模糊。
+
 ## 2026-05-18 — BFF session store is single-process in-memory
 
 - **Where**: `zw_brain/shared/auth_session.AuthSessionStore` (thread-safe dict in the REST entry process).

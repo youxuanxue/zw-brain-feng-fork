@@ -26,7 +26,7 @@ CANONICAL_WEB_TOKENS = {
     "--b-muted": "#5c6370",
 }
 
-# K12 dashboard retired in v4.1 二轮再砍 (R17); CANONICAL_DASH_TOKENS removed.
+# K12 dashboard retired in 二轮再砍 (详见 D15 二次反转); CANONICAL_DASH_TOKENS removed.
 
 CANONICAL_VISUAL_ROUTES = {
     "#/workbench",
@@ -223,7 +223,7 @@ def require_web_layout(sheet: str, errors: list[str]) -> None:
             errors.append(f"zw-brain-web/css/app.css: {message}")
 
 
-# K12 dashboard typography check retired in v4.1 二轮再砍 (R17).
+# K12 dashboard typography check retired in 二轮再砍 (详见 D15 二次反转).
 
 
 def require_web_typography(path: Path, text: str, errors: list[str]) -> None:

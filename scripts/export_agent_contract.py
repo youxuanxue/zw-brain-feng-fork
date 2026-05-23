@@ -665,6 +665,12 @@ def render(
 
     lines.append("## L1.2.5 CLI")
     lines.append("")
+    lines.append(
+        "> CLI 采用 generic invoker 模式：1 个统一入口 `zw-brain-cli <skill_id> --payload '<json>'`，"
+        "通过 `skill_id` 参数化访问全部 live capability（见 `## L1.5 Skills (Capabilities) Catalog`）。"
+        "符合 OPC「单一入口、避免堆 N 个独立子命令」原则。"
+    )
+    lines.append("")
     if cli:
         lines.append("| Command | Source |")
         lines.append("| ------- | ------ |")

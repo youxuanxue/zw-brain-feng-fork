@@ -184,6 +184,8 @@
 
 ## L1.2.5 CLI
 
+> CLI 采用 generic invoker 模式：1 个统一入口 `zw-brain-cli <skill_id> --payload '<json>'`，通过 `skill_id` 参数化访问全部 live capability（见 `## L1.5 Skills (Capabilities) Catalog`）。符合 OPC「单一入口、避免堆 N 个独立子命令」原则。
+
 | Command | Source |
 | ------- | ------ |
 | `zw-brain-cli <skill_id> --payload '<json>'` | `zw_brain/entry/cli/main.py` |
@@ -217,7 +219,7 @@
 | `metadata.gather.evidence.query` | read | False | 查询外部元数据采集任务回执和生成证据；采集状态只作为 projection，不反向改变资源业务状态。 | True | `zw_brain/entry/mcp/tools/metadata.gather.evidence.query.json` |
 | `metadata.schema.discover` | read | False | 只读：列已采集 db_meta_table/db_meta_column 中尚未生成反向编目草稿的候选 schema，给 提供方部门 在反向编目工作流中选源。 | True | `zw_brain/entry/mcp/tools/metadata.schema.discover.json` |
 | `metadata.schema.query` | read | False | 查询资源 schema 快照证据和字段结构。 | True | `zw_brain/entry/mcp/tools/metadata.schema.query.json` |
-| `objection.case.query` | read | False | 查询异议案件列表，供 P0 闭环和 P6 指标投影读取。 | True | `zw_brain/entry/mcp/tools/objection.case.query.json` |
+| `objection.case.query` | read | False | 查询异议案件列表，供 J1 异议子流程和 B1.1 合规与运营页指标投影读取。 | True | `zw_brain/entry/mcp/tools/objection.case.query.json` |
 | `objection.metric.query` | read | False | 查询异议状态分布和闭环指标投影。 | True | `zw_brain/entry/mcp/tools/objection.metric.query.json` |
 | `objection.process.query` | read | False | 查询异议处理过程、证据与评价链路。 | True | `zw_brain/entry/mcp/tools/objection.process.query.json` |
 | `ops.catalog.statistics.query` | read | False | 查询目录、资源、schema 映射和质量证据的治理统计摘要。 | True | `zw_brain/entry/mcp/tools/ops.catalog.statistics.query.json` |

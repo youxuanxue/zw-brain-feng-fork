@@ -185,7 +185,7 @@ def test_j1_resource_discovery_retired_not_returned(catalog_repo):
     """负向 — 已退役资源不进 P2 检索（lifecycle_status='retired' 作为
     "shared_type=3 不予共享" 在 zw-brain canonical 模型下的最接近代理）。
 
-    legacy mapping 备注：dsp_catalog.data_catalog.share_type 未在 v4.1 canonical
+    legacy mapping 备注：dsp_catalog.data_catalog.share_type 未在 canonical
     模型中保留为顶层列（在 summary_json 中作为半结构化字段）。已 retired 的目录
     在 search_entries 中**不应**被业务面默认返回；本断言对真数据中 retired 项
     做反向验证。

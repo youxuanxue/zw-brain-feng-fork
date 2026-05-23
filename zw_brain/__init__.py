@@ -9,7 +9,7 @@ The active implementation baseline follows:
 
 Current implementation includes real runtime entry surfaces, canonical skill
 registration, database-backed aggregate projection, synchronous audit + async
-anchor outbox, and a main WebUI. K12 dashboard unit retired in v4.1 (R17).
+anchor outbox, and a main WebUI. K12 dashboard unit retired (详见 D15 二次反转).
 """
 
 __version__ = "1.0.0"

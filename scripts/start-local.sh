@@ -12,7 +12,7 @@ PYTHON_BIN="$REPO_ROOT/.venv/bin/python"
 
 REST_HOST="${ZW_BRAIN_REST_HOST:-127.0.0.1}"
 REST_PORT="${ZW_BRAIN_REST_PORT:-8800}"
-# K12 dashboard BFF 在 v4.1 二轮再砍中退役（R17）；本脚本仅启动 REST + WebUI
+# K12 dashboard BFF 在二轮再砍中退役（详见 D15 二次反转）；本脚本仅启动 REST + WebUI
 
 # Hard guard：start-local.sh 只用于 dev / 演示 box，绝不可用于客户 prod。
 # 客户 prod 必须用 docker-image-deployment.md 路径起服务（IAF/OIDC 真接入）。

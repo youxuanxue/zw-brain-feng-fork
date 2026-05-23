@@ -1268,7 +1268,7 @@
   },
   {
     "tool_name": "objection.case.query",
-    "description": "查询异议案件列表，供 P0 闭环和 P6 指标投影读取。",
+    "description": "查询异议案件列表，供 J1 异议子流程和 B1.1 合规与运营页指标投影读取。",
     "protocol_type": "builtin_skill",
     "endpoint": "http://127.0.0.1:8800/api/skills/objection.case.query",
     "parameters_schema": {

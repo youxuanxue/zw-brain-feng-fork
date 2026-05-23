@@ -8,7 +8,7 @@
 
 - Wave 0 共识别 **9 条 deferred 项（D-1..D-9）**：mapper 缺口 2、数据行差 1、feature 文档 1、cross-wave 链路 1、infra 未实现 1、契约漂移 1、设计事实记录 1、perf 1（**D-9 由 W0-08 后客户浏览器复测追加**）。
 - 状态分布：**D-5 = Resolved**（path (b) 用户 sign-off，阈值 1% + runtime fixture 真验证）；**其余 8 条 = Deferred**。
-- 客户首套部署阻塞评估：**9 条全部「否」**——J1 找数→用数黄金链路（P1→P6 渲染 + 申请→审批→凭据→监控写链路）已由 W0-07 真浏览器 e2e 跑通；e2e green 后又用 Jobs 视角追加 ~149 LOC UI/数据展示修复（详见 W0-09-pr-description.md「Jobs 视角 UI/数据修复（AC3 衍生）」节）；D-9 perf 影响进度页加载体感（37s）但不阻塞功能正确性。
+- 客户首套部署阻塞评估：**9 条全部「否」**——J1 找数→用数黄金链路（P1→B1.1 渲染 + 申请→审批→凭据→监控写链路）已由 W0-07 真浏览器 e2e 跑通；e2e green 后又用 Jobs 视角追加 ~149 LOC UI/数据展示修复（详见 W0-09-pr-description.md「Jobs 视角 UI/数据修复（AC3 衍生）」节）；D-9 perf 影响进度页加载体感（37s）但不阻塞功能正确性。
 - 解冻归属：D-1/D-4/D-6/D-7/D-8/D-9 → Wave 1；D-2 → Wave 1/2；D-5 → 数据治理 Wave 2/3；D-3 → 无需解冻（非 bug）。
 - 每条 D-N 均带证据链（源笔记路径 / demo finding / pytest skip / 真数据快照 / 真访问日志），见 §2 总表与 §3 详情。
 - 另有 7 项 W0-03/W0-04 UI skip（负向/多账号/时序边缘断言），均**未被正向黄金链路直接闭合**，建议 Wave 1 立「负向 + 多账号 e2e」专项承接，见 §4。
@@ -121,7 +121,7 @@
 
 ## §4 7 项 W0-03/W0-04 UI skip 状态
 
-W0-07 浏览器 e2e 是 **J1 正向 happy-path**（P1→P6 渲染 + 找数→申请→审批→凭据→监控写动作链路）。
+W0-07 浏览器 e2e 是 **J1 正向 happy-path**（P1→B1.1 渲染 + 找数→申请→审批→凭据→监控写动作链路）。
 下列 7 项 W0-03/W0-04 UI skip 多为**负向/多账号/时序边缘断言**，不在单条正向黄金链路脚本射程内。
 逐项闭合状态如下：**0/7 被正向黄金链路直接闭合**，建议 Wave 1 立「负向 + 多账号 e2e」专项承接。
 
@@ -149,7 +149,7 @@ W0-07 浏览器 e2e 是 **J1 正向 happy-path**（P1→P6 渲染 + 找数→申
 |---|---|---|
 | AC1 | legacy 真数据导入 canonical + 核心表行数 > 0（catalog_entry=1222，sd-default）| ✓ 达成（D-3 行差为幂等语义，非缺陷）|
 | AC2 | 11 .feature 配套 pytest 全 Green + Status 推进 | ✓ 达成（4 pytest 50P/25S/0F + 11 .feature 头标更新；infra 5 个 .feature 同期数据层断言一并落 test_wave0_infra.py）|
-| AC3 | 浏览器 P1→P6 逐页验收 + ≥6 截图归档 | ✓ 达成（W0-07，7/7 green，6 截图）；**衍生：e2e green 后 Jobs 视角追加 5 处 UI/数据展示修复（~149 LOC），详见 W0-09-pr-description.md** |
+| AC3 | 浏览器 P1→B1.1 逐页验收 + ≥6 截图归档 | ✓ 达成（W0-07，7/7 green，6 截图）；**衍生：e2e green 后 Jobs 视角追加 5 处 UI/数据展示修复（~149 LOC），详见 W0-09-pr-description.md** |
 | AC4 | preflight Green + diff 不引入 Wave 1+ + 改动可反查 W0 编号 | ✓ 达成（W0-09-preflight.log + git diff --stat 限定 Wave 0）|
 | AC5 | 本期识别但 Wave 0 范围外的 bug/缺陷/缺口全部归档 + 证据链 + 归属 Wave | ✓ 达成（本文档 D-1..D-9，0 客户首套部署阻塞）|
 
@@ -161,7 +161,7 @@ W0-07 浏览器 e2e 是 **J1 正向 happy-path**（P1→P6 渲染 + 找数→申
 
 ### 惊喜事实
 
-- **正向链路本身 0 处 UI 源码修复**：W0-07 真浏览器 e2e 跑通 J1 P1→P6 全链路时，`zw-brain-web/`、`server.py`、`orchestrator/` 路由/鉴权/角色切换/技能投影端到端可用，无需任何源码改动即可 green。
+- **正向链路本身 0 处 UI 源码修复**：W0-07 真浏览器 e2e 跑通 J1 P1→B1.1 全链路时，`zw-brain-web/`、`server.py`、`orchestrator/` 路由/鉴权/角色切换/技能投影端到端可用，无需任何源码改动即可 green。
 - **e2e green 后的 Jobs 视角追加 ~149 LOC UI/数据展示修复**（不属正向链路阻塞，归 AC3 衍生质量修整）：raw enum 码翻译、未来日期 clamp、mapping 重复行去重、credential resourceName 回退、access-denied 死循环改 fallback redirect、role-switch 下拉去掉 dev-only 角色。详见 W0-09-pr-description.md「Jobs 视角 UI/数据修复（AC3 衍生）」节。
 
 ### Jobs 风格决策记录

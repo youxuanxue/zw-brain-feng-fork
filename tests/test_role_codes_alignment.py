@@ -9,7 +9,7 @@
 - web_snapshot_redaction frozensets ⊆ role_codes.ALL_ROLE_CODES（只读裁剪可以是子集）
 - 前端 app.js / pages.js 通过 JSON 解析对比（避免手维护漂移）
 
-（alembic 0009 _ALLOWED_ROLE_CODES 对齐校验已在 v4.1 R15 删除 alembic 时一并退役）
+（alembic 0009 _ALLOWED_ROLE_CODES 对齐校验已在 alembic 整体删除时一并退役；详见 D23 二次升级）
 """
 from __future__ import annotations
 

@@ -454,7 +454,7 @@ sources:
 
 ## §6 风险与误删兜底：J1 黄金链路必须 live 的契约集合
 
-> P0-06 验证依据。`tests/e2e/wave0_j1_golden_path.py` 端到端跑 P1 资源发现 → P2 资源详情 → P3 申请填报 → P4 审批通过 → P5 凭据 → P6 调用监控；该链路依赖的契约**一律不能改 deferred / external / delete**，否则 e2e 7/7 PASS 立即红。
+> P0-06 验证依据。`tests/e2e/wave0_j1_golden_path.py` 端到端跑 P1 资源发现 → P2 资源详情 → P3 申请填报 → P4 审批通过 → P5 凭据 → B1.1 调用监控；该链路依赖的契约**一律不能改 deferred / external / delete**，否则 e2e 7/7 PASS 立即红。
 
 ### §6.1 e2e 直接命中（必 live）
 
@@ -464,7 +464,7 @@ data.search                    (/api/skills/data.search 直接调用)
 
 ### §6.2 e2e WebUI 链路必经（必 live）
 
-> Playwright 驱动 WebUI 点击产生的后端调用，按 P1→P6 旅程顺序：
+> Playwright 驱动 WebUI 点击产生的后端调用，按 P1→B1.1 旅程顺序：
 
 ```
 # P1 资源发现
@@ -486,7 +486,7 @@ application.grant.approve                                     (审批通过)
 credential.issue / credential.query                           (凭据领取)
 delivery.access.grant                                         (授权)
 
-# P6 调用监控
+# B1.1 调用监控
 delivery.list / delivery.view                                 (golden-path tag)
 delivery.exchange.start / delivery.exchange.stop              (调用监控)
 delivery.receipt.ingest / delivery.reconcile_receipt          (golden-path tag)

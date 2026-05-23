@@ -160,7 +160,7 @@ def test_registry_projection_metadata_matches_openapi_mcp_and_a2a() -> None:
 
 
 def test_webui_uses_registry_gateways_only() -> None:
-    # K12 dashboard BFF 退役 (R17 / v4.1)；本测试仅校验 WebUI 通过 registry gateway 调能力
+    # K12 dashboard BFF 退役（详见 D15 二次反转）；本测试仅校验 WebUI 通过 registry gateway 调能力
     app_js = (REPO_ROOT / "zw-brain-web" / "js" / "app.js").read_text(encoding="utf-8")
 
     assert "window.ZW_AUTH.authFetch(`/api/skills/${skillId}${encodeParams(payload)}`" in app_js

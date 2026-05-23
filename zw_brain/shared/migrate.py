@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, inspect, text
 from zw_brain.domain.models import Base
 from zw_brain.shared.db import get_database_url
 
-# v4.1 R15：alembic 删除；schema 用 SQLAlchemy Base.metadata 管理（drop_all + create_all）。
+# alembic 删除（D23 二次升级）；schema 用 SQLAlchemy Base.metadata 管理（drop_all + create_all）。
 # REQUIRED_TABLES / REQUIRED_COLUMNS 保留为运行时自检清单（独立于 Base 的反射式校验）。
 
 REQUIRED_TABLES = {
@@ -117,13 +117,13 @@ REQUIRED_COLUMNS = {
 
 
 def upgrade() -> None:
-    """Create all tables defined on Base.metadata. v4.1 R15: replaces alembic upgrade."""
+    """Create all tables defined on Base.metadata. Replaces alembic upgrade (alembic 删除, D23 二次升级)."""
     engine = create_engine(get_database_url(), future=True)
     Base.metadata.create_all(bind=engine)
 
 
 def reset_and_upgrade() -> None:
-    """Drop all existing tables and recreate from Base.metadata. v4.1 R15: drop & recreate."""
+    """Drop all existing tables and recreate from Base.metadata. Drop & recreate (alembic 删除, D23 二次升级)."""
     engine = create_engine(get_database_url(), future=True)
     with engine.begin() as conn:
         inspector = inspect(conn)

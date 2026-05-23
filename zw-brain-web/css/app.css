@@ -995,7 +995,7 @@ a:hover {
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   color: var(--b-neutral-text);
-  /* P6 — keep ratio values like "59,541 / 59,541" on one line; shrink
+  /* B1.1 — keep ratio values like "59,541 / 59,541" on one line; shrink
      gracefully on narrow cards rather than breaking after the slash. */
   white-space: nowrap;
   overflow: hidden;
