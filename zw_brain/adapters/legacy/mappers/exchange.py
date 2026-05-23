@@ -91,6 +91,20 @@ COURSE_CHECK_STATUS_TO_DECISION: dict[int, str] = {
     1: "approved",
     2: "rejected",
 }
+# data_apply_dept_approve.status (CREATE TABLE COMMENT): 0 待审核 / 1 审核通过 / 2 审核驳回 / 3 补齐补正
+# G1.5 D-1: 部门审批分支映射；3 补齐补正归入 request_correction（与 course.check_status=0 一致）
+DEPT_APPROVE_STATUS_TO_STEP_STATUS: dict[int, str] = {
+    0: "pending",
+    1: "completed",
+    2: "completed",
+    3: "completed",
+}
+DEPT_APPROVE_STATUS_TO_DECISION: dict[int, str] = {
+    1: "approved",
+    2: "rejected",
+    3: "request_correction",
+}
+
 # data_apply_authrization.status: 0 待处理 / 1 已处理
 AUTHZ_APPLY_STATUS_TO_DELIVERY_STATE: dict[int, str] = {
     -1: "withdrawn",
@@ -109,6 +123,7 @@ class ExchangeMapper:
         "data_original_require",
         "data_apply",
         "data_apply_course",
+        "data_apply_dept_approve",
         "data_apply_authrization",
     }
     ADAPTER_SLUG = "legacy.exchange.import"
@@ -137,6 +152,8 @@ class ExchangeMapper:
                     self._map_data_apply(row, legacy_system)
                 elif table == "data_apply_course":
                     self._map_data_apply_course(row, legacy_system)
+                elif table == "data_apply_dept_approve":
+                    self._map_data_apply_dept_approve(row, legacy_system)
                 elif table == "data_apply_authrization":
                     self._map_data_apply_authrization(row, legacy_system)
                 stats.bump(table)
@@ -489,6 +506,145 @@ class ExchangeMapper:
                         "canonical_type": "approval_decision",
                         "canonical_ref": decision_record.id,
                         "evidence_json": {"application_code": apply_id, "step_name": step.step_name, "decision": decision},
+                    },
+                    tenant_id=self.tenant_id,
+                )
+            session.commit()
+
+    # ------------------------------------------------------------------
+    # data_apply_dept_approve → ApprovalStep(decision_mode='department') + ApprovalDecision
+    # G1.5 D-1: 部门审批分支（有条件共享 conditional 路径第一步）
+    # ------------------------------------------------------------------
+
+    def _map_data_apply_dept_approve(self, row: dict[str, Any], legacy_system: str) -> None:
+        dept_approve_id = row["id"]
+        apply_id = row.get("apply_id")
+        if not apply_id:
+            return
+        status_int = coerce_int(row.get("status"), 0)
+        step_status = DEPT_APPROVE_STATUS_TO_STEP_STATUS.get(status_int, "pending")
+        decision = DEPT_APPROVE_STATUS_TO_DECISION.get(status_int)  # None when status=0 pending
+        approve_org_code = row.get("approve_org_code") or "unknown"
+        approve_org_name = row.get("approve_org_name") or approve_org_code
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            case = session.execute(
+                select(ApprovalCaseRecord).where(
+                    ApprovalCaseRecord.tenant_id == self.tenant_id,
+                    ApprovalCaseRecord.application_code == apply_id,
+                )
+            ).scalar_one_or_none()
+            if case is None:
+                case = ApprovalCaseRecord(
+                    tenant_id=self.tenant_id,
+                    application_code=apply_id,
+                    current_status=decision if (decision and step_status == "completed") else "pending_decision",
+                    current_step=0,
+                    decision_payload_json={"source": f"{legacy_system}:data_apply_dept_approve"},
+                )
+                session.add(case)
+                session.flush()
+            # step_name 用部门名标识，department 分支与 course 的 node_name single 步分离
+            step_name = f"部门审-{approve_org_name}"
+            step = session.execute(
+                select(ApprovalStepRecord).where(
+                    ApprovalStepRecord.approval_case_id == case.id,
+                    ApprovalStepRecord.step_name == step_name,
+                )
+            ).scalar_one_or_none()
+            step_no = step.step_no if step is not None else (case.current_step or 0) + 1
+            step_payload = {
+                "approval_case_id": case.id,
+                "step_no": step_no,
+                "step_name": step_name,
+                "decision_mode": "department",
+                "status": step_status,
+                "approver_scope_json": safe_json({
+                    "approve_org_code": approve_org_code,
+                    "approve_org_name": approve_org_name,
+                }),
+                "started_at": coerce_datetime(row.get("create_time")),
+                "completed_at": coerce_datetime(row.get("create_time")) if step_status == "completed" else None,
+            }
+            if step is None:
+                step = ApprovalStepRecord(**step_payload)
+                session.add(step)
+                session.flush()
+            else:
+                for k, v in step_payload.items():
+                    setattr(step, k, v)
+
+            decision_record = None
+            if step_status == "completed" and decision is not None:
+                decision_record = session.execute(
+                    select(ApprovalDecisionRecord).where(ApprovalDecisionRecord.step_id == step.id)
+                ).scalar_one_or_none()
+                decision_payload = {
+                    "step_id": step.id,
+                    "decision": decision,
+                    "decision_reason": None,
+                    "actor_snapshot_json": safe_json({
+                        "approve_org_code": approve_org_code,
+                        "approve_org_name": approve_org_name,
+                    }),
+                    "evidence_json": safe_json({
+                        "dept_approve_id": dept_approve_id,
+                        "legacy_status": status_int,
+                    }),
+                }
+                if decision_record is None:
+                    decision_record = ApprovalDecisionRecord(**decision_payload)
+                    session.add(decision_record)
+                    session.flush()
+                else:
+                    for k, v in decision_payload.items():
+                        setattr(decision_record, k, v)
+            # 重排步骤顺序，department 步与 single 步混合按时间排序
+            steps_for_case = list(
+                session.execute(
+                    select(ApprovalStepRecord).where(ApprovalStepRecord.approval_case_id == case.id)
+                ).scalars()
+            )
+            ordered_steps = sorted(
+                steps_for_case,
+                key=lambda item: (
+                    (item.started_at or item.completed_at or item.created_at).isoformat(),
+                    item.step_name,
+                ),
+            )
+            for index, case_step in enumerate(ordered_steps, start=1):
+                case_step.step_no = index
+            case.current_step = len(ordered_steps)
+            upsert_legacy_mapping_in_session(
+                session,
+                {
+                    "source_ref": f"{legacy_system}:data_apply_dept_approve:{dept_approve_id}",
+                    "legacy_object_ref": dept_approve_id,
+                    "canonical_type": "approval_step",
+                    "canonical_ref": step.id,
+                    "evidence_json": {
+                        "application_code": apply_id,
+                        "step_name": step.step_name,
+                        "decision_mode": "department",
+                        "decision": decision,
+                    },
+                },
+                tenant_id=self.tenant_id,
+            )
+            if decision_record is not None:
+                upsert_legacy_mapping_in_session(
+                    session,
+                    {
+                        "source_ref": f"{legacy_system}:data_apply_dept_approve:{dept_approve_id}",
+                        "legacy_object_ref": dept_approve_id,
+                        "canonical_type": "approval_decision",
+                        "canonical_ref": decision_record.id,
+                        "evidence_json": {
+                            "application_code": apply_id,
+                            "step_name": step.step_name,
+                            "decision_mode": "department",
+                            "decision": decision,
+                        },
                     },
                     tenant_id=self.tenant_id,
                 )

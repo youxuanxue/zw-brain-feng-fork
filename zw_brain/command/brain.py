@@ -10,6 +10,7 @@ import json
 # visible PII (name / phone / email / id / address) is ingested raw, masked on
 # read. Set ZW_BRAIN_MASK_ROLE=internal_admin to opt up (audit replay only).
 import os as _os
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -87,6 +88,31 @@ class NotFoundError(BrainServiceError):
 
 class InvalidTokenError(BrainServiceError):
     pass
+
+
+@dataclass
+class _RequestBatchContext:
+    """Prefetched indices for list_requests N+1 elimination (D-9).
+
+    Why: list_requests previously called delivery_repo.list_tasks() /
+    application_repo.list_records() / legacy_mapping_repo.list_mappings() /
+    resource_api_repo.list_assets() / metadata_evidence_repo.list_schema_*()
+    once per item (deep N+1 through get_resource → _enrich_catalog_detail),
+    ~37s on the customer browser replay. This context bundles prefetched
+    indices that helpers consult instead of re-fetching.
+    """
+
+    delivery_by_appcode: dict[str, Any] = field(default_factory=dict)
+    application_records: list[Any] = field(default_factory=list)
+    legacy_mappings_by_ref: dict[tuple[str, str], list[Any]] = field(default_factory=dict)
+    quality_by_target: dict[tuple[str, str], list[Any]] = field(default_factory=dict)
+    resource_cache: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Enrichment-layer prefetches (consumed by _enrich_catalog_detail / _mapping_diagnostics).
+    resource_assets_by_catalog: dict[str, list[Any]] = field(default_factory=dict)
+    schema_mappings_by_catalog: dict[str, list[Any]] = field(default_factory=dict)
+    schema_snapshots_by_resource: dict[str, list[Any]] = field(default_factory=dict)
+    catalog_items_by_catalog: dict[str, list[Any]] = field(default_factory=dict)
+    catalog_items_by_item_code: dict[str, Any] = field(default_factory=dict)
 
 
 class BrainService:
@@ -399,6 +425,12 @@ class BrainService:
             case "resource.asset.query":
                 return self.query_resource_assets(resource_code=payload.get("resource_code"))
             case "application.resource.submit":
+                # G1.3 #3: 提交申请必须显式填写 purpose；未传字段保持自动 fallback
+                # 路径不变（旧 UI 流向兼容），但显式传空字符串视为「故意空填」拒绝提交。
+                if "purpose" in payload and not str(payload.get("purpose") or "").strip():
+                    raise InvalidStateError(
+                        "application.resource.submit: purpose 必填，不能为空字符串"
+                    )
                 return self.create_request(
                     str(payload["resource_id"]),
                     str(payload.get("role", self._ui_state["role"])),
@@ -2955,15 +2987,87 @@ class BrainService:
         store = self._state_store.database_store
         if store is None:
             return items
-        records = {record.application_code: record for record in store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID)}
+        # D-9 perf: prefetch four indices once, share via context to eliminate
+        # ~5N full-table scans inside _application_record_to_request helpers.
+        all_records = list(store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID))
+        records = {record.application_code: record for record in all_records}
+        context = self._build_request_batch_context(store, all_records)
         for item in items:
             record = records.pop(item["id"], None)
             if record is not None:
-                self._overlay_application_record(item, record, store)
+                self._overlay_application_record(item, record, store, context=context)
         for record in records.values():
             if (record.payload_json or {}).get("kind") == "apply":
-                items.append(self._application_record_to_request(record, store))
+                items.append(self._application_record_to_request(record, store, context=context))
         return items
+
+    def _build_request_batch_context(self, store: Any, application_records: list[Any]) -> _RequestBatchContext:
+        """Prefetch four indices and a resource cache for list_requests (D-9).
+
+        Cost: 1 delivery_repo.list_tasks + 2 legacy_mapping_repo.list_mappings
+        (one per canonical_type) + 1 metadata_evidence_repo.list_quality_evidence
+        + 0 application_repo.list_records (reuses caller's already-fetched list).
+        Replaces ~5N per-item scans with O(1) lookups.
+        """
+        delivery_by_appcode: dict[str, Any] = {}
+        for delivery in store.delivery_repo.list_tasks(tenant_id=_DEFAULT_TENANT_ID):
+            delivery_by_appcode[delivery.application_code] = delivery
+            delivery_by_appcode[delivery.delivery_code] = delivery
+
+        legacy_mappings_by_ref: dict[tuple[str, str], list[Any]] = {}
+        # 8 canonical_types are touched by enrichment + request projection.
+        for canonical_type in (
+            "application_record",
+            "DeliveryTaskRecord",
+            "catalog_entry",
+            "catalog_item",
+            "resource_schema_mapping",
+            "resource_asset",
+            "approval_step",
+            "approval_decision",
+        ):
+            for mapping in store.legacy_mapping_repo.list_mappings(
+                tenant_id=_DEFAULT_TENANT_ID,
+                canonical_type=canonical_type,
+            ):
+                key = (canonical_type, str(mapping.canonical_ref))
+                legacy_mappings_by_ref.setdefault(key, []).append(mapping)
+
+        quality_by_target: dict[tuple[str, str], list[Any]] = {}
+        for item in store.metadata_evidence_repo.list_quality_evidence(tenant_id=_DEFAULT_TENANT_ID):
+            key = (str(item.target_type), str(item.target_ref))
+            quality_by_target.setdefault(key, []).append(item)
+
+        resource_assets_by_catalog: dict[str, list[Any]] = {}
+        for asset in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID):
+            resource_assets_by_catalog.setdefault(asset.catalog_code, []).append(asset)
+
+        schema_mappings_by_catalog: dict[str, list[Any]] = {}
+        for mapping in store.metadata_evidence_repo.list_schema_mappings(tenant_id=_DEFAULT_TENANT_ID):
+            schema_mappings_by_catalog.setdefault(mapping.catalog_code, []).append(mapping)
+
+        schema_snapshots_by_resource: dict[str, list[Any]] = {}
+        for snapshot in store.metadata_evidence_repo.list_schema_snapshots(tenant_id=_DEFAULT_TENANT_ID):
+            schema_snapshots_by_resource.setdefault(snapshot.resource_code, []).append(snapshot)
+
+        catalog_items_by_catalog: dict[str, list[Any]] = {}
+        catalog_items_by_item_code: dict[str, Any] = {}
+        for item in store.catalog_repo.list_items(tenant_id=_DEFAULT_TENANT_ID):
+            catalog_items_by_catalog.setdefault(item.catalog_code, []).append(item)
+            catalog_items_by_item_code[item.item_code] = item
+
+        return _RequestBatchContext(
+            delivery_by_appcode=delivery_by_appcode,
+            application_records=list(application_records),
+            legacy_mappings_by_ref=legacy_mappings_by_ref,
+            quality_by_target=quality_by_target,
+            resource_cache={},
+            resource_assets_by_catalog=resource_assets_by_catalog,
+            schema_mappings_by_catalog=schema_mappings_by_catalog,
+            schema_snapshots_by_resource=schema_snapshots_by_resource,
+            catalog_items_by_catalog=catalog_items_by_catalog,
+            catalog_items_by_item_code=catalog_items_by_item_code,
+        )
 
     def list_packages(self) -> list[dict[str, Any]]:
         items = copy.deepcopy(self._snapshot["capability_packages"])
@@ -3175,7 +3279,7 @@ class BrainService:
             return self.get_delivery_task(tasks[0]["id"])
         return {}
 
-    def get_resource(self, resource_id: str) -> dict[str, Any]:
+    def get_resource(self, resource_id: str, *, context: _RequestBatchContext | None = None) -> dict[str, Any]:
         store = self._state_store.database_store
         snapshot_miss = False
         try:
@@ -3190,14 +3294,14 @@ class BrainService:
         record = store.catalog_repo.get_entry(resource_id, tenant_id=_DEFAULT_TENANT_ID)
         if record is not None:
             detail = self._catalog_record_to_card_dict(record)
-            self._enrich_catalog_detail(detail, record, store)
+            self._enrich_catalog_detail(detail, record, store, context=context)
             return detail
         asset = store.resource_api_repo.get_asset(resource_id, tenant_id=_DEFAULT_TENANT_ID)
         if asset is not None and asset.catalog_code:
             record = store.catalog_repo.get_entry(asset.catalog_code, tenant_id=_DEFAULT_TENANT_ID)
             if record is not None:
                 detail = self._catalog_record_to_card_dict(record)
-                self._enrich_catalog_detail(detail, record, store, focused_resource_code=asset.resource_code)
+                self._enrich_catalog_detail(detail, record, store, focused_resource_code=asset.resource_code, context=context)
                 return detail
         if snapshot_miss:
             raise NotFoundError(resource_id)
@@ -3225,20 +3329,40 @@ class BrainService:
         request["statusTimeline"] = self._request_status_timeline(request, delivery)
         return request
 
-    def _overlay_application_record(self, request: dict[str, Any], record: Any, store: Any) -> None:
-        enriched = self._application_record_to_request(record, store)
+    def _overlay_application_record(
+        self,
+        request: dict[str, Any],
+        record: Any,
+        store: Any,
+        *,
+        context: _RequestBatchContext | None = None,
+    ) -> None:
+        enriched = self._application_record_to_request(record, store, context=context)
         request.update(enriched)
 
     def _request_from_application_record(self, request_id: str, store: Any) -> dict[str, Any] | None:
         record = next((item for item in store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID) if item.application_code == request_id), None)
         return self._application_record_to_request(record, store) if record is not None else None
 
-    def _application_record_to_request(self, record: Any, store: Any) -> dict[str, Any]:
+    def _application_record_to_request(
+        self,
+        record: Any,
+        store: Any,
+        *,
+        context: _RequestBatchContext | None = None,
+    ) -> dict[str, Any]:
         payload = _mask(copy.deepcopy(record.payload_json or {}))
         resource_id = str(payload.get("resourceId") or payload.get("resource_id") or "")
         catalog_id = str(payload.get("catalog_id") or "")
         try:
-            resource = self.get_resource(resource_id) if resource_id else {}
+            if context is not None and resource_id:
+                cached = context.resource_cache.get(resource_id)
+                if cached is None:
+                    cached = self.get_resource(resource_id, context=context)
+                    context.resource_cache[resource_id] = cached
+                resource = cached
+            else:
+                resource = self.get_resource(resource_id) if resource_id else {}
         except NotFoundError:
             resource = {}
         catalog_code = resource.get("repository", {}).get("catalogCode") or catalog_id
@@ -3254,12 +3378,12 @@ class BrainService:
         if original_materials.get("requestedItems"):
             requested_items = copy.deepcopy(original_materials["requestedItems"])
         gap_fields = list(original_materials.get("gapFields") or (resource.get("reuseGapHint") or {}).get("gapFields") or [])
-        delivery = self._delivery_task_from_record(record.application_code, store)
-        legacy_mappings = self._legacy_mapping_refs(store, "application_record", record.application_code)
-        legacy_mappings.extend(self._legacy_mapping_refs(store, "DeliveryTaskRecord", record.application_code))
+        delivery = self._delivery_task_from_record(record.application_code, store, context=context)
+        legacy_mappings = self._legacy_mapping_refs(store, "application_record", record.application_code, context=context)
+        legacy_mappings.extend(self._legacy_mapping_refs(store, "DeliveryTaskRecord", record.application_code, context=context))
         source_evidence = self._application_source_evidence(resource, requested_items)
-        historical_context = self._application_history_context(record, store, resource_id, catalog_code)
-        quality_evidence = self._application_quality_evidence(store, resource, catalog_code, resource_id)
+        historical_context = self._application_history_context(record, store, resource_id, catalog_code, context=context)
+        quality_evidence = self._application_quality_evidence(store, resource, catalog_code, resource_id, context=context)
         applicant_snapshot = _mask({"applicant_name": record.applicant_name, "applicant_org": record.applicant_org})
         materials = {
             "purpose": original_materials.get("purpose") or payload.get("use_reason") or payload.get("apply_basis") or "复用已有目录资源办理业务事项",
@@ -3446,8 +3570,17 @@ class BrainService:
                 task["receiptNo"] = task["receipts"][-1]["receiptNo"]
         return task
 
-    def _delivery_task_from_record(self, request_id: str, store: Any) -> dict[str, Any] | None:
-        record = next((item for item in store.delivery_repo.list_tasks(tenant_id=_DEFAULT_TENANT_ID) if item.delivery_code == request_id or item.application_code == request_id), None)
+    def _delivery_task_from_record(
+        self,
+        request_id: str,
+        store: Any,
+        *,
+        context: _RequestBatchContext | None = None,
+    ) -> dict[str, Any] | None:
+        if context is not None:
+            record = context.delivery_by_appcode.get(request_id)
+        else:
+            record = next((item for item in store.delivery_repo.list_tasks(tenant_id=_DEFAULT_TENANT_ID) if item.delivery_code == request_id or item.application_code == request_id), None)
         if record is None:
             return None
         payload = record.payload_json or {}
@@ -3500,10 +3633,19 @@ class BrainService:
             "renewalPolicy": "真实 data_apply_renewal 无行；不伪造续期成功路径。",
         }
 
-    def _application_history_context(self, record: Any, store: Any, resource_id: str, catalog_code: str) -> dict[str, Any]:
+    def _application_history_context(
+        self,
+        record: Any,
+        store: Any,
+        resource_id: str,
+        catalog_code: str,
+        *,
+        context: _RequestBatchContext | None = None,
+    ) -> dict[str, Any]:
+        source = context.application_records if context is not None else store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID)
         records = [
             item
-            for item in store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID)
+            for item in source
             if (item.payload_json or {}).get("kind") == "apply"
             and (
                 str((item.payload_json or {}).get("resourceId") or "") == resource_id
@@ -3524,16 +3666,31 @@ class BrainService:
             "message": "历史申请、审批过程和授权记录已通过 legacy_object_mapping 串联。",
         }
 
-    def _application_quality_evidence(self, store: Any, resource: dict[str, Any], catalog_code: str, resource_id: str) -> dict[str, Any]:
-        direct = [
-            self._quality_record_to_dict(item)
-            for target_type, target_ref in (("catalog", catalog_code), ("resource", resource_id))
-            for item in store.metadata_evidence_repo.list_quality_evidence(
-                target_type=target_type,
-                target_ref=target_ref,
-                tenant_id=_DEFAULT_TENANT_ID,
-            )
-        ]
+    def _application_quality_evidence(
+        self,
+        store: Any,
+        resource: dict[str, Any],
+        catalog_code: str,
+        resource_id: str,
+        *,
+        context: _RequestBatchContext | None = None,
+    ) -> dict[str, Any]:
+        if context is not None:
+            direct = [
+                self._quality_record_to_dict(item)
+                for target_type, target_ref in (("catalog", catalog_code), ("resource", resource_id))
+                for item in context.quality_by_target.get((target_type, str(target_ref)), [])
+            ]
+        else:
+            direct = [
+                self._quality_record_to_dict(item)
+                for target_type, target_ref in (("catalog", catalog_code), ("resource", resource_id))
+                for item in store.metadata_evidence_repo.list_quality_evidence(
+                    target_type=target_type,
+                    target_ref=target_ref,
+                    tenant_id=_DEFAULT_TENANT_ID,
+                )
+            ]
         summary = resource.get("fieldBindingSummary") or {}
         if direct:
             status = "ready" if all(item.get("quality_status") in {"passed", "ok", "ready"} for item in direct) else "attention_required"
@@ -4545,8 +4702,8 @@ class BrainService:
             store = self._state_store.database_store
             repo = store.catalog_repo if store is not None else CatalogRepository()
             model = repo.upsert_model(payload)
-            for field in payload.get("fields") or []:
-                repo.upsert_model_field({**field, "model_code": model.model_code})
+            for fld in payload.get("fields") or []:
+                repo.upsert_model_field({**fld, "model_code": model.model_code})
             self._append_audit_feed("catalog.model.upsert", model.model_code, "ok", actor)
             return {"model_code": model.model_code, "status": model.status, "audit_id": audit_id}
 
@@ -5293,34 +5450,46 @@ class BrainService:
             },
         }
 
-    def _enrich_catalog_detail(self, detail: dict[str, Any], record: Any, store: Any, *, focused_resource_code: str | None = None) -> None:
+    def _enrich_catalog_detail(self, detail: dict[str, Any], record: Any, store: Any, *, focused_resource_code: str | None = None, context: _RequestBatchContext | None = None) -> None:
         catalog_code = record.catalog_code
-        fields = self._catalog_field_dicts(catalog_code, store)
-        mapping_records = store.metadata_evidence_repo.list_schema_mappings(catalog_code=catalog_code, tenant_id=_DEFAULT_TENANT_ID)
+        fields = self._catalog_field_dicts(catalog_code, store, context=context)
+        if context is not None:
+            mapping_records = list(context.schema_mappings_by_catalog.get(catalog_code, []))
+        else:
+            mapping_records = list(store.metadata_evidence_repo.list_schema_mappings(catalog_code=catalog_code, tenant_id=_DEFAULT_TENANT_ID))
         if focused_resource_code:
+            # Focused-resource lookup is a tiny set; one filtered SQL is cheap.
             mapping_by_code = {item.mapping_code: item for item in mapping_records}
             for item in store.metadata_evidence_repo.list_schema_mappings(resource_code=focused_resource_code, tenant_id=_DEFAULT_TENANT_ID):
                 mapping_by_code[item.mapping_code] = item
             mapping_records = list(mapping_by_code.values())
-        mappings = self._mapping_diagnostics(mapping_records, store=store)
+        mappings = self._mapping_diagnostics(mapping_records, store=store, context=context)
         if focused_resource_code:
             mappings["items"] = [item for item in mappings["items"] if item["resource_code"] == focused_resource_code]
             mappings["summary"] = self._mapping_summary(mappings["items"])
+        if context is not None:
+            asset_records = context.resource_assets_by_catalog.get(catalog_code, [])
+        else:
+            asset_records = [item for item in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID) if item.catalog_code == catalog_code]
         resources = [
             self._resource_asset_record_to_dict(item)
-            for item in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID)
-            if item.catalog_code == catalog_code and (not focused_resource_code or item.resource_code == focused_resource_code)
+            for item in asset_records
+            if not focused_resource_code or item.resource_code == focused_resource_code
         ]
         resource_codes = {item["resource_code"] for item in resources} | {item["resource_code"] for item in mappings["items"]}
-        snapshots = [
-            self._schema_snapshot_record_to_dict(item)
-            for item in store.metadata_evidence_repo.list_schema_snapshots(tenant_id=_DEFAULT_TENANT_ID)
-            if item.resource_code in resource_codes
-        ]
-        legacy_refs = self._legacy_mapping_refs(store, "catalog_entry", catalog_code)
-        legacy_refs.extend(self._legacy_mapping_refs(store, "catalog_item", [field["item_code"] for field in fields]))
-        legacy_refs.extend(self._legacy_mapping_refs(store, "resource_schema_mapping", [item["mapping_code"] for item in mappings["items"]]))
-        legacy_refs.extend(self._legacy_mapping_refs(store, "resource_asset", list(resource_codes)))
+        if context is not None:
+            snapshot_records = [
+                snapshot
+                for code in resource_codes
+                for snapshot in context.schema_snapshots_by_resource.get(code, [])
+            ]
+        else:
+            snapshot_records = [item for item in store.metadata_evidence_repo.list_schema_snapshots(tenant_id=_DEFAULT_TENANT_ID) if item.resource_code in resource_codes]
+        snapshots = [self._schema_snapshot_record_to_dict(item) for item in snapshot_records]
+        legacy_refs = self._legacy_mapping_refs(store, "catalog_entry", catalog_code, context=context)
+        legacy_refs.extend(self._legacy_mapping_refs(store, "catalog_item", [field["item_code"] for field in fields], context=context))
+        legacy_refs.extend(self._legacy_mapping_refs(store, "resource_schema_mapping", [item["mapping_code"] for item in mappings["items"]], context=context))
+        legacy_refs.extend(self._legacy_mapping_refs(store, "resource_asset", list(resource_codes), context=context))
         detail["fields"] = [field["title"] for field in fields] or detail.get("fields", [])
         detail["catalogFields"] = fields
         detail["fieldBindings"] = mappings["items"]
@@ -5341,7 +5510,8 @@ class BrainService:
         detail["explain"] = self._catalog_explain(detail, fields, mappings["summary"])
         detail["nextHints"] = self._catalog_next_hints(fields, mappings["summary"])
 
-    def _catalog_field_dicts(self, catalog_code: str, store: Any) -> list[dict[str, Any]]:
+    def _catalog_field_dicts(self, catalog_code: str, store: Any, *, context: _RequestBatchContext | None = None) -> list[dict[str, Any]]:
+        source = context.catalog_items_by_catalog.get(catalog_code, []) if context is not None else store.catalog_repo.list_items(catalog_code, tenant_id=_DEFAULT_TENANT_ID)
         return [
             {
                 "item_code": item.item_code,
@@ -5352,18 +5522,29 @@ class BrainService:
                 "summary_json": _mask(copy.deepcopy(item.summary_json or {})),
                 "source_ref": item.source_ref,
             }
-            for item in store.catalog_repo.list_items(catalog_code, tenant_id=_DEFAULT_TENANT_ID)
+            for item in source
         ]
 
-    def _legacy_mapping_refs(self, store: Any, canonical_type: str, canonical_ref: str | list[str]) -> list[dict[str, Any]]:
+    def _legacy_mapping_refs(
+        self,
+        store: Any,
+        canonical_type: str,
+        canonical_ref: str | list[str],
+        *,
+        context: _RequestBatchContext | None = None,
+    ) -> list[dict[str, Any]]:
         refs = canonical_ref if isinstance(canonical_ref, list) else [canonical_ref]
         rows: list[dict[str, Any]] = []
         for ref in refs:
-            for item in store.legacy_mapping_repo.list_mappings(
-                canonical_type=canonical_type,
-                canonical_ref=str(ref),
-                tenant_id=_DEFAULT_TENANT_ID,
-            ):
+            if context is not None:
+                items = context.legacy_mappings_by_ref.get((canonical_type, str(ref)), [])
+            else:
+                items = store.legacy_mapping_repo.list_mappings(
+                    canonical_type=canonical_type,
+                    canonical_ref=str(ref),
+                    tenant_id=_DEFAULT_TENANT_ID,
+                )
+            for item in items:
                 rows.append(
                     {
                         "legacy_system": item.legacy_system,
@@ -5525,18 +5706,22 @@ class BrainService:
             "issues": issues,
         }
 
-    def _mapping_diagnostics(self, records: list[Any], *, store: Any | None = None) -> dict[str, Any]:
+    def _mapping_diagnostics(self, records: list[Any], *, store: Any | None = None, context: _RequestBatchContext | None = None) -> dict[str, Any]:
         items = [self._schema_mapping_record_to_dict(item) for item in records]
         if store is not None:
-            source_column_titles = self._source_column_titles_for_mappings(items, store)
+            source_column_titles = self._source_column_titles_for_mappings(items, store, context=context)
             catalog_codes = {item["catalog_code"] for item in items}
             fields_by_code = {
                 field["item_code"]: field
                 for catalog_code in catalog_codes
-                for field in self._catalog_field_dicts(catalog_code, store)
+                for field in self._catalog_field_dicts(catalog_code, store, context=context)
             }
             missing_item_codes = {item["catalog_item_code"] for item in items if item["catalog_item_code"] not in fields_by_code}
             if missing_item_codes:
+                if context is not None:
+                    source_items = [context.catalog_items_by_item_code[code] for code in missing_item_codes if code in context.catalog_items_by_item_code]
+                else:
+                    source_items = [item for item in store.catalog_repo.list_items(tenant_id=_DEFAULT_TENANT_ID) if item.item_code in missing_item_codes]
                 fields_by_code.update(
                     {
                         item.item_code: {
@@ -5544,8 +5729,7 @@ class BrainService:
                             "title": item.title,
                             "summary_json": self._mask_schema_mapping_payload(copy.deepcopy(item.summary_json or {})),
                         }
-                        for item in store.catalog_repo.list_items(tenant_id=_DEFAULT_TENANT_ID)
-                        if item.item_code in missing_item_codes
+                        for item in source_items
                     }
                 )
             for item in items:
@@ -5564,16 +5748,22 @@ class BrainService:
                     item["catalog_item_summary"] = field["summary_json"]
         return {"items": items, "summary": self._mapping_summary(items)}
 
-    def _source_column_titles_for_mappings(self, items: list[dict[str, Any]], store: Any) -> dict[Any, Any]:
+    def _source_column_titles_for_mappings(self, items: list[dict[str, Any]], store: Any, *, context: _RequestBatchContext | None = None) -> dict[Any, Any]:
         refs = {item.get("explain", {}).get("source_column") for item in items}
         refs.discard(None)
         if not refs:
             return {}
         resource_codes = {item.get("resource_code") for item in items if item.get("resource_code")}
+        if context is not None:
+            snapshots_iter = [
+                snapshot
+                for code in resource_codes
+                for snapshot in context.schema_snapshots_by_resource.get(code, [])
+            ]
+        else:
+            snapshots_iter = [snapshot for snapshot in store.metadata_evidence_repo.list_schema_snapshots(tenant_id=_DEFAULT_TENANT_ID) if snapshot.resource_code in resource_codes]
         out: dict[Any, Any] = {}
-        for snapshot in store.metadata_evidence_repo.list_schema_snapshots(tenant_id=_DEFAULT_TENANT_ID):
-            if snapshot.resource_code not in resource_codes:
-                continue
+        for snapshot in snapshots_iter:
             schema = snapshot.schema_json if isinstance(snapshot.schema_json, dict) else {}
             for ref_key in ("meta_id", "id", "column_id", "field_id"):
                 ref = schema.get(ref_key)
@@ -7369,7 +7559,7 @@ class BrainService:
         )
 
     def _audit_target_from_payload(self, request_id: str, payload: dict[str, Any]) -> str:
-        for field in (
+        for fld in (
             "dispute_id",
             "request_id",
             "task_id",
@@ -7383,7 +7573,7 @@ class BrainService:
             "target_ref",
             "id",
         ):
-            value = payload.get(field)
+            value = payload.get(fld)
             if value:
                 return str(value)
         return request_id
@@ -7775,11 +7965,11 @@ class BrainService:
         }
         fields = []
         source_fields = [item["title"] for item in requested_fields] if requested_fields else resource.get("fields", [])[:5]
-        for field in source_fields[:5]:
+        for fld in source_fields[:5]:
             fields.append(
                 {
-                    "label": field,
-                    "value": samples.get(field, "已带出"),
+                    "label": fld,
+                    "value": samples.get(fld, "已带出"),
                     "source": "共享资源池 / 字段证据",
                     "state": "已预填",
                 }

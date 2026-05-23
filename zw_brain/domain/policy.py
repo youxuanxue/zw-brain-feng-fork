@@ -123,6 +123,8 @@ PERMISSION_ROLES = {
 
     # 申请受理（资源端）
     "application.resource.submit.execute": {"ROLE_ORGAN_OPERATER"},
+    # D-7 align (G1.2): 无条件共享审批 = 资源提供部门管理员单步通过；前端
+    # ZW_PAGE_ACCESS.reviewDetail + .feature 头标已同步收敛到 ROLE_ORGAN_MANAGER。
     "application.resource.review.execute": {"ROLE_ORGAN_MANAGER"},
     "delivery.access.grant.execute": {"ROLE_ORGAN_MANAGER"},
     # J1 凭据签发 — 审批通过自动触发；手工补签由审批人/主管部门触发

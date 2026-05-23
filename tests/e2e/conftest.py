@@ -7,12 +7,19 @@ golden-path scripts reuse the same launch knobs. Importable as a plain module
 The local shell may export HTTP(S)_PROXY pointing at a personal proxy
 (e.g. 127.0.0.1:7890) which 502s on the loopback service. Chromium must launch
 with --no-proxy-server so 127.0.0.1:8800 is hit directly.
+
+Also exposes a shared `api_post(page, skill, payload)` helper that drives a
+skill via `window.ZW_AUTH.authFetch` —— CSRF token auto-injected, so call
+sites stop reinventing HTTP clients (urlopen + Cookie header is brittle and
+can mask backend rejection paths as CSRF rejections; see R-G1-001).
 """
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCREENSHOT_DIR = REPO_ROOT / ".data" / "customer-acceptance" / "wave0" / "screenshots"
@@ -41,3 +48,46 @@ class E2EConfig:
 
 
 CONFIG = E2EConfig()
+
+
+def api_post(page: Any, skill: str, payload: dict) -> dict:
+    """Drive a write skill via `window.ZW_AUTH.authFetch` (CSRF auto-injected).
+
+    Returns a dict::
+
+        {"status": int, "ok": bool, "body": str, "result": dict | None,
+         "error": str | None}
+
+    `status >= 400` and `ok = False` indicate rejection; callers can inspect
+    `body` for the exact error code (e.g. `"purpose"` literal). Direct
+    `context.request.post` / `urlopen` bypass CSRF and rejection paths get
+    masked as 403 csrf_token_invalid —— see R-G1-001 / G2.3 in PR-G2.
+    """
+    payload_json = json.dumps(payload, ensure_ascii=False)
+    js = f"""
+    async () => {{
+      const resp = await window.ZW_AUTH.authFetch('/api/skills/{skill}', {{
+        method: 'POST',
+        headers: {{ 'Accept': 'application/json', 'Content-Type': 'application/json' }},
+        body: {json.dumps(payload_json)},
+      }});
+      const text = await resp.text();
+      return {{ status: resp.status, body: text }};
+    }}
+    """
+    out = page.evaluate(js)
+    status = int(out.get("status") or 0)
+    body = str(out.get("body") or "")
+    parsed: dict | None = None
+    try:
+        parsed = json.loads(body) if body else None
+    except (ValueError, TypeError):
+        parsed = None
+    ok = bool(parsed and parsed.get("ok"))
+    return {
+        "status": status,
+        "ok": ok,
+        "body": body,
+        "result": (parsed or {}).get("result") if parsed else None,
+        "error": (parsed or {}).get("error") if parsed else None,
+    }

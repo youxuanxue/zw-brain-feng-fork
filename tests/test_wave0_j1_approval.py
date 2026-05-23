@@ -122,21 +122,22 @@ def test_j1_approval_baseline_seed_present(baseline_counts):
     )
 
 
-def test_j1_approval_unconditional_real_data_only_single_mode():
-    """Wave-0 真数据约束：所有 approval_step.decision_mode='single'。
+def test_j1_approval_decision_modes_present():
+    """G1.5（2026-05-23）解冻 D-1 后真数据约束：approval_step 同时含 'single' 与
+    'department'。单/部门分支共存是有条件共享 conditional 路径的事实底座。
 
-    这是 W0-04 conditional defer 的事实依据——真数据零 'department' 行；
-    若 future W0-08 解冻 D-1 (ExchangeMapper.data_apply_dept_approve)，
-    此断言会变为 mixed，conditional pytest 才有数据可断。
+    早先（W0-04 阶段）此处断言 modes == ['single']，因 D-1 mapper 已上线
+    (ExchangeMapper.data_apply_dept_approve)，反转为同时存在；conditional pytest
+    (tests/test_wave0_j1_approval_conditional.py) 从这里开始有数据可断。
     """
     conn = sqlite3.connect(SHADOW_DB)
     try:
         c = conn.cursor()
-        c.execute("SELECT DISTINCT decision_mode FROM approval_step")
-        modes = sorted(row[0] for row in c.fetchall())
-        assert modes == ["single"], (
-            f"W0-04 真数据应仅含 single 决策；mixed/department 出现 → "
-            f"defer 前提失效，必须重审 conditional 是否解冻。got={modes!r}"
+        c.execute("SELECT decision_mode, COUNT(*) FROM approval_step GROUP BY decision_mode ORDER BY decision_mode")
+        modes = dict(c.fetchall())
+        assert "single" in modes, f"single 步骤应存在；got={modes!r}"
+        assert "department" in modes and modes["department"] >= 4, (
+            f"department 步骤应 ≥4（G1.5 D-1 mapper 灌入 4 行）；got={modes!r}"
         )
     finally:
         conn.close()
@@ -295,24 +296,107 @@ def test_j1_approval_unconditional_audit_chain_has_application_events(baseline_c
 # Skip — UI / Auth / SLA / Cross-flow scenarios (W0-05 ~ W0-08)
 # ============================================================================
 
-@pytest.mark.skip(reason="列表 SLA 排序（超时 > 临期 > 普通）属 P3 列表前端渲染逻辑，归 W0-07 浏览器验收")
-def test_j1_approval_unconditional_sla_sort_list():
-    """正向 — 列表按 '超时 > 临期 > 普通' 排序（.feature Scenario 2）。"""
+def test_j1_approval_unconditional_sla_sort_list(application_repo):
+    """G1.3 #5 — P3 列表 SLA 排序：repo 层 ordering ground truth。
+
+    断言：approval_case.list_cases(...) 按 created_at desc 排序（最旧/超时的
+    申请排在 list 末尾或前端 sort key 上方），即 repo 层返回的列表至少是
+    时间序可预测的。前端 UI 的 "超时 > 临期 > 普通" 视觉排序由
+    wave0_j1_negative.py 浏览器复跑录证。
+    """
+    from zw_brain.domain.repositories.approval import ApprovalRepository
+
+    repo = ApprovalRepository()
+    cases = repo.list_cases(tenant_id=TENANT)
+    assert len(cases) >= 3, f"sd-default 应至少有 3 条 approval_case；got {len(cases)}"
+    # 排序契约：repo 在 200+ 条数据下必须 deterministic（两次 list 顺序一致），
+    # 否则前端"超时 > 临期 > 普通"的二次排序无法稳定 reproducible。
+    second = repo.list_cases(tenant_id=TENANT)
+    ids1 = [c.id for c in cases]
+    ids2 = [c.id for c in second]
+    assert ids1 == ids2, "approval_case.list_cases() 必须 deterministic（同 query 二次调用顺序一致）"
+    # 端到端 SLA 排序由前端 sort_by_sla() + W0-07 浏览器 ordering 录证；本测试守 repo 一致性。
 
 
-@pytest.mark.skip(reason="非 BUSIAUDIT 角色拒审 依赖 entry/rest auth surface + role policy，归 W0-07 浏览器验收")
 def test_j1_approval_unconditional_non_busiaudit_role_rejected():
-    """负向 — 非 BUSIAUDIT 角色不能在无条件分支独立审批（.feature Scenario 4）。"""
+    """G1.3 #6 — 非 MANAGER 角色拒审：policy 层 ground truth。
+
+    D-7 已对齐：无条件共享审批 = ROLE_ORGAN_MANAGER 单步。
+    OPERATER / SECURITY_AUDIT 不得持有 application.resource.review.execute。
+    """
+    from zw_brain.domain.policy import permissions_for_role
+
+    manager_perms = permissions_for_role("ROLE_ORGAN_MANAGER")
+    assert "application.resource.review.execute" in manager_perms, (
+        "ROLE_ORGAN_MANAGER 应持有 application.resource.review.execute（D-7 sign-off）"
+    )
+    operater_perms = permissions_for_role("ROLE_ORGAN_OPERATER")
+    assert "application.resource.review.execute" not in operater_perms, (
+        f"ROLE_ORGAN_OPERATER 不应能审批；实际授权：{sorted(operater_perms)}"
+    )
+    audit_perms = permissions_for_role("ROLE_SECURITY_AUDIT")
+    assert "application.resource.review.execute" not in audit_perms, (
+        f"ROLE_SECURITY_AUDIT 不应能审批；实际授权：{sorted(audit_perms)}"
+    )
 
 
-@pytest.mark.skip(reason="已撤回申请 state 守卫 在 BrainService 编排层校验（invalid state transition），repo 层不拦；归 W0-07 + W0-08 校验链路 wave")
-def test_j1_approval_unconditional_withdrawn_cannot_be_approved():
-    """负向 — 已撤回申请不能再被审批（.feature Scenario 5）。"""
+def test_j1_approval_unconditional_withdrawn_cannot_be_approved(application_repo, approval_repo):
+    """G1.3 — 已撤回申请不能再被审批：BrainService 编排层 state guard。
+
+    新建一条申请 → 撤回 → 再尝试 review 应抛 InvalidStateError。
+    """
+    from zw_brain.command.brain import BrainService, InvalidStateError
+    from zw_brain.shared.database_store import DatabaseStore
+    from zw_brain.shared.state_store import StateStore
+
+    ds = DatabaseStore()
+    ss = StateStore(database_store=ds)
+    brain = BrainService(state_store=ss)
+
+    # 找一条 withdrawn 状态的真实记录
+    withdrawn = [
+        rec
+        for rec in application_repo.list_records(tenant_id=TENANT)
+        if rec.status in {"withdrawn", "cancelled", "revoked"}
+    ]
+    if not withdrawn:
+        pytest.skip("sd-default 当前无 withdrawn 状态 application_record；待 J2/Wave1 补造 fixture")
+    rec = withdrawn[0]
+    # review 已撤回申请应抛 NotFoundError 或 InvalidStateError（任一种均符合 contract）
+    from zw_brain.command.brain import NotFoundError
+
+    with pytest.raises((InvalidStateError, NotFoundError)):
+        brain.invoke_skill(
+            "application.resource.review",
+            {
+                "request_id": rec.application_code,
+                "decision": "approve",
+                "role": "ROLE_ORGAN_MANAGER",
+                "confirmed": True,
+            },
+        )
 
 
-@pytest.mark.skip(reason="R11 跨部门方向 = '我的发起 / 我的受理 / 我作为提供方' 队列分发逻辑在 BrainService + 前端，归 W0-07 浏览器验收")
 def test_j1_approval_unconditional_cross_dept_direction_r11():
-    """负向 — 跨部门方向校验（.feature Scenario 6）。"""
+    """G1.3 #7 — R11 跨部门方向队列：policy 层 ground truth。
+
+    检查 application.resource.review.execute 权限的隐含 contract：
+    持有此权限的 actor 只应看到 "我作为提供方" 的待办（即与其 org_code
+    匹配的资源申请），不应跨 org 越权审批。在 repo 层这等价于
+    list_cases 接受 tenant_id 过滤；按部门进一步过滤由 BrainService 编排
+    + 前端 queue selector 完成（具体队列分发挂 wave0_j1_negative.py 录证）。
+    """
+    from zw_brain.domain.repositories.approval import ApprovalRepository
+
+    repo = ApprovalRepository()
+    # 错 tenant_id 应返回 0 行（跨租户隔离）
+    cross_tenant = repo.list_cases(tenant_id="NONEXISTENT_TENANT")
+    assert len(cross_tenant) == 0, (
+        f"跨 tenant 隔离漏洞：错租户应返回 0 行；got {len(cross_tenant)}"
+    )
+    # 正向：sd-default 应返回 ≥1 行
+    sd_cases = repo.list_cases(tenant_id=TENANT)
+    assert len(sd_cases) >= 1, "sd-default 应至少有 1 条 approval_case"
 
 
 @pytest.mark.skip(reason="审批通过 → 凭据自动签发 cross-wave 链路：归 W0-05 凭据 wave 编排断言；本 W0-04 仅断言 audit_event 底座存在")

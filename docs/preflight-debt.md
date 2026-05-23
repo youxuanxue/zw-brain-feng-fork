@@ -27,14 +27,21 @@ the symptom, the deferred decision, and the trigger that forces a re-evaluation.
   IAF/OIDC 即可登录走 WebUI；逻辑在 `zw_brain/shared/auth_session.py` + `zw_brain/entry/rest.py`
   的 bypass 分支。
 - **Implication**: 该 bypass 在生产环境会绕过真实 IAM；客户机房若误开等于无身份认证。
-- **Why deferred**: Hard guard 已落 — `start-local.sh` 拦截 `ZW_BRAIN_DEPLOY_MODE=prod`；调用方
-  若显式设置 `ZW_BRAIN_IAF_AUTH_SERVER_URL` 则自动放弃 bypass 走真 IAF 流程。docker-image-
-  deployment.md 路径不通过 start-local.sh / customer_demo_5min.sh 启动，从入口隔离风险。
-- **Trigger to re-evaluate**: 首个真实客户部署上线前，加机械化 preflight 段检测 prod 部署清单
-  里 `ZW_BRAIN_DEV_IAM_BYPASS` / `ZW_BRAIN_DEV_IAM_BYPASS_ACK` 不出现；同时审查所有 bypass 分支
-  代码是否仍必要（理想是首位客户上线后直接删 bypass 路径，硬性走真 IAM）。
-- **Mechanical guardrail (now)**: `start-local.sh` 的 prod-mode 拦截 + `customer_demo_5min.sh`
-  的本机端口绑定（127.0.0.1）；这两条已是事实层兜底，不再加 prose 软提醒。
+- **Status (2026-05-23 G1.4 升级)**: Mechanical preflight (now) — 段 23
+  `scripts/check_iam_prod_guard.py` 扫描部署清单（`Dockerfile*` /
+  `docker-compose*.yaml` / `scripts/deploy*.sh`），若同文件同时出现
+  `ZW_BRAIN_DEPLOY_MODE=prod` 与 `ZW_BRAIN_DEV_IAM_BYPASS*` 任一关键字
+  → exit 1。debt entry trigger（「首个真实客户部署上线前」）由 G3「找一个真客户
+  在屏幕前 30 分钟跑通」等价触发，故此 G1 期落地。
+- **Why preflight (and not deletion of bypass code yet)**: bypass 在
+  `start-local.sh` + `customer_demo_5min.sh` + Playwright e2e 路径仍是
+  默认入口；删除代码层 bypass 路径在首位客户上线后处理。当下机械守的是
+  「漏到生产清单」这条最危险路径。
+- **Mechanical guardrail (now)**:
+  1. `start-local.sh` 的 prod-mode 拦截（运行时）
+  2. `customer_demo_5min.sh` 的 127.0.0.1 绑定（网络层）
+  3. **段 23 preflight scan**（commit-time，G1.4 新增）
+  这三条层叠兜底；不再加 prose 软提醒。
 
 ## 2026-05-22 — standard.asset.sync manifest preserved with deferred:wave-4 status
 
