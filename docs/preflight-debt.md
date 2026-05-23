@@ -83,3 +83,22 @@ the symptom, the deferred decision, and the trigger that forces a re-evaluation.
   让 5 surface 同步剔除。
 - **No mechanical preflight check (now)**: 段 22 不收录"borderline 业务报表" 前缀（不在 §1.3 已观察禁区前缀清单内）；
   这是设计 intent，避免 false positive 误伤合法报表能力。debt 条目本身就是兜底跟踪。
+
+## 2026-05-23 — 集成测试用 `brain.invoke_skill()` 直调，绕过 trust-stamp 路径
+
+- **Where**: `tests/test_wave1_j2_pipeline.py`、其他通过 `_call(brain, skill, payload)` →
+  `brain.invoke_skill(...)` 直调集成测试。生产 mutate skill 入口是
+  `REST cookie session → build_trusted_skill_payload → _TRUSTED_SESSION_MARKER stamp → invoke_skill`，
+  这些集成测试**完全跳过 stamp 步骤**。
+- **Implication**: 任何因 `_TRUSTED_SESSION_MARKER`（object() 哨兵）跨序列化边界泄漏导致的
+  TypeError，**pytest 集成层无法覆盖**——必须 e2e（Playwright cookie session）才能复现。
+  PR #79 的 B1 + B3 两个 production 500 都属此类（existing 20 项 regression 全过、客户演练打一发就 500）。
+- **Why deferred**: 全面在集成层补 trusted-payload fixture 是一次较大的测试 pyramid 改造（每个
+  mutate skill 测试都要加 fixture），单 PR 内做会过度扩张范围。PR #79 已在 `tests/test_trusted_session_context.py`
+  新增 `test_mutate_skill_with_trusted_payload_persists_anchor_outbox` 作为此 bug 类的护栏——
+  下次出现类似 sentinel 跨边界问题，本测试会失败。但**其他 mutate skill 仍存在层级缺口**。
+- **Trigger to re-evaluate**: (a) 再出现一次"e2e 抓到、pytest 没抓到"的 production 现场——立即把
+  trusted-payload helper 提取到 `tests/_trusted_payload.py` 并所有 mutate skill 集成测试改走该 helper；
+  (b) Wave 2 测试 pyramid 整改窗口期，主动 retrofit。
+- **No mechanical preflight check (now)**: 检测"集成测试是否经过 trust-stamp"需要 AST 分析或测试
+  覆盖率打标，复杂度高于价值。Debt 条目兜底，加 R-001 类点护栏。

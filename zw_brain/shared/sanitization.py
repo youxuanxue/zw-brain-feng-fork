@@ -26,6 +26,11 @@ SENSITIVE_JSON_KEYS = {
     "private_key",
     "permission_sql",
     "service_sql",
+    # Process-local trust marker (zw_brain.shared.session_context._TRUSTED_SESSION_MARKER).
+    # Carrying its object() sentinel into any serialization sink (audit DB, log, JSON
+    # response) raises TypeError. The marker is only meaningful inside one process and
+    # MUST NOT cross a serialization boundary.
+    "_trusted_session_context",
 }
 
 

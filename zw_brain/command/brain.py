@@ -7505,13 +7505,18 @@ class BrainService:
         return str(value)
 
     def _enqueue_anchor(self, request_id: str, actor: str, skill_id: str, payload: dict[str, Any]) -> None:
+        # safe_json strips the trust sentinel and other process-local objects that
+        # cannot cross a JSON boundary. Without it, _mutate's `payload | result`
+        # carries _TRUSTED_SESSION_MARKER (object()) and json.dumps below raises
+        # TypeError → REST returns 500 to the caller.
+        sanitized_payload = safe_json(payload)
         content_hash = hashlib.sha256(
             json.dumps(
                 {
                     "request_id": request_id,
                     "actor": actor,
                     "skill_id": skill_id,
-                    "payload": payload,
+                    "payload": sanitized_payload,
                 },
                 ensure_ascii=False,
                 sort_keys=True,

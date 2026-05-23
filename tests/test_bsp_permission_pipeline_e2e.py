@@ -296,3 +296,63 @@ def test_iam_missing_actor_fail_closed_on_policy_evaluate() -> None:
         )
         assert decision["allowed"] is False
         assert decision["decision_reason"] in {"iam_account_missing", "actor_unmatched", "missing_tenant_policy"}
+
+
+# R-002 regression — pub_resource source rows must be counted as `handled` so strict
+# table_accounting doesn't fail-close `customer_acceptance_up.sh dry_run` on
+# "unaccounted source row table(s): dsp_bsp.pub_resource". Existing pipeline dump
+# uses pub_role_function/pub_function for ACL; pub_resource/pub_role_resource exercise
+# a separate `_import_pub_role_permission_candidates(permission_kind="resource")` branch
+# that previously bumped only the relation table, leaving each object row unaccounted.
+_PUB_RESOURCE_ACCOUNTING_DUMP_SUFFIX = """
+DROP TABLE IF EXISTS `pub_resource`;
+CREATE TABLE `pub_resource` (
+  `ID` varchar(36) NOT NULL,
+  `CODE` varchar(64) NOT NULL,
+  `NAME` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`ID`)
+) ENGINE=InnoDB;
+
+INSERT INTO `pub_resource` VALUES \
+('RES-001','AUDIT_LIST','审计列表资源'),\
+('RES-002','AUDIT_DETAIL','审计详情资源');
+
+DROP TABLE IF EXISTS `pub_role_resource`;
+CREATE TABLE `pub_role_resource` (
+  `ROLE_CODE` varchar(64) NOT NULL,
+  `RES_CODE` varchar(64) NOT NULL
+) ENGINE=InnoDB;
+
+INSERT INTO `pub_role_resource` VALUES \
+('ROLE_BUSIAUDIT','AUDIT_LIST'),\
+('ROLE_BUSIAUDIT','AUDIT_DETAIL');
+"""
+
+
+def test_pub_resource_rows_count_as_handled_for_strict_table_accounting() -> None:
+    """R-002 — 每个 pub_resource 源行必须 bump 到 stats.counts["pub_resource.attached"]，
+    否则 strict mode 下 run_legacy_migration 计算的 unaccounted_rows>0 会 fail-close
+    `customer_acceptance_up.sh dry_run`（实际客户演练时被这条挡住过）。"""
+    with TemporaryDirectory() as tmp:
+        dumps_dir = Path(tmp) / "dumps"
+        dumps_dir.mkdir(parents=True, exist_ok=True)
+        dump_path = dumps_dir / "dump-dsp_bsp-20260523-pub-resource-e2e.sql"
+        dump_path.write_text(
+            _PUB_BATCH_GOVERNANCE_DUMP + _PIPELINE_DUMP_SUFFIX + _PUB_RESOURCE_ACCOUNTING_DUMP_SUFFIX,
+            encoding="utf-8",
+        )
+
+        from zw_brain.adapters.legacy.mappers.governance import GovernanceMapper
+
+        stats = GovernanceMapper().import_dump(dump_path, dry_run=True).to_dict()
+
+        # source_counts 来自 dump 解析：刚塞 2 行
+        assert stats["source_counts"].get("pub_resource") == 2, stats["source_counts"]
+        # _handled_table_totals 只识别 {imported, errors, attached, merged} 4 种 kind；
+        # 修复点正是给 pub_resource 每行 bump "attached"，所以 .attached 必须 == source_rows
+        attached = stats["counts"].get("pub_resource.attached", 0)
+        assert attached == 2, (
+            f"pub_resource.attached={attached}，缺失会让 run_legacy_migration 的 "
+            f"strict table_accounting 把 pub_resource 计入 unaccounted_rows 并 fail-close。"
+            f" counts={stats['counts']}"
+        )

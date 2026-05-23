@@ -302,3 +302,69 @@ def test_is_trusted_session_payload_only_accepts_server_sentinel() -> None:
     # 即使经过 json round-trip 模拟序列化也失活（确认 sentinel 不可被反序列化）
     rebuilt_via_json = json.loads(json.dumps({**rebuilt, TRUSTED_SESSION_CONTEXT_KEY: True}))
     assert not is_trusted_session_payload(rebuilt_via_json)
+
+
+def test_safe_json_strips_trust_sentinel_so_audit_writes_succeed() -> None:
+    """Trust sentinel (object()) must be filtered before any serialization sink — otherwise
+    audit DB writes raise TypeError and synchronous audit-bus fuses /api/snapshot to 500."""
+    from zw_brain.shared.sanitization import safe_json
+    from zw_brain.shared.session_context import TRUSTED_SESSION_CONTEXT_KEY, build_trusted_skill_payload
+
+    snapshot = {
+        "tenant_id": "sd-default",
+        "available_contexts": [{"org_code": "ORG-A", "role_code": "ROLE_ORGAN_OPERATER", "actor_tags": {}}],
+        "current_org_code": "ORG-A",
+        "current_role": "ROLE_ORGAN_OPERATER",
+    }
+    payload = build_trusted_skill_payload({"q": "x"}, actor_snapshot=snapshot)
+    assert TRUSTED_SESSION_CONTEXT_KEY in payload  # in-memory marker present
+    sanitized = safe_json(payload)
+    assert TRUSTED_SESSION_CONTEXT_KEY not in sanitized
+    # End-to-end: sanitized payload must round-trip through JSON without raising.
+    json.dumps(sanitized)
+
+
+def test_mutate_skill_with_trusted_payload_persists_anchor_outbox() -> None:
+    """R-001 regression — `_enqueue_anchor` 必须把 trust sentinel 剥掉再算 content_hash。
+
+    覆盖 B3 真实现场：从 build_trusted_skill_payload 出来的 payload 走完整 _mutate 路径
+    （audit emit → capability_call → anchor_outbox），任一序列化点泄漏 sentinel 都会
+    TypeError → REST 500。仅断言 safe_json() 不够——若 _enqueue_anchor 未来重构丢失
+    safe_json 调用，本测试会立即失败。"""
+    with TemporaryDirectory() as tmp:
+        _bootstrap_runtime(tmp)
+        store = runtime._service._state_store.database_store  # type: ignore[union-attr]
+        assert store is not None
+        before = len(store.list_pending_anchor_outbox())
+
+        snapshot = {
+            "tenant_id": "sd-default",
+            "available_contexts": [{"org_code": "ORG-A", "role_code": "ROLE_ORGAN_OPERATER", "actor_tags": {}}],
+            "current_org_code": "ORG-A",
+            "current_role": "ROLE_ORGAN_OPERATER",
+            "org_code": "ORG-A",
+            "role_codes": ["ROLE_ORGAN_OPERATER"],
+        }
+        trusted_payload = build_trusted_skill_payload(
+            {
+                "catalog_code": "R001-TRUST-SENTINEL-REGRESSION",
+                "title": "R-001 enqueue_anchor regression",
+                "owner_org_id": "ORG-A",
+                "summary_json": {"description": "asserts content_hash path strips sentinel"},
+                "confirmed": True,
+            },
+            actor_snapshot=snapshot,
+        )
+
+        # _mutate → _emit_audit → _record_capability_call → _enqueue_anchor.
+        # 全链路任一序列化点保留 sentinel 都会 raise TypeError，invoke_skill 直接抛。
+        result = runtime._service.invoke_skill("catalog.entry.create_draft", trusted_payload)  # type: ignore[union-attr]
+        assert result["ok"] is True, result
+
+        after = store.list_pending_anchor_outbox()
+        assert len(after) == before + 1, (
+            f"side_effects=blockchain_anchor 必须落 anchor_outbox 行；before={before} after={len(after)}"
+        )
+        # content_hash 是 hex sha256，必为 64 字符纯 hex——这是"json.dumps 没抛 TypeError"的硬证据
+        assert len(after[-1].content_hash) == 64
+        int(after[-1].content_hash, 16)  # 解析成功即证明 hex 合法

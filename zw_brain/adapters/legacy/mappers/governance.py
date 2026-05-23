@@ -498,6 +498,13 @@ class GovernanceMapper:
             ref = _string_value(row, "ID", "CODE", "NAME_ID")
             if ref:
                 object_index[ref] = row
+            # Each object row is consumed as ACL evidence (indexed for role-permission
+            # candidate emission below). Without this bump, strict table_accounting
+            # sees source_rows>0 / handled_rows=0 and fail-closes the dump on
+            # "unaccounted source row table(s)". Kind="attached" is recognized by
+            # migration_batch._handled_table_totals; semantically each row is attached
+            # to the ACL relation it backs.
+            stats.bump(object_table, "attached")
         for row in relation_rows:
             legacy_role = _string_value(row, "ROLE_CODE", "ROLE_ID")
             permission_ref = _string_value(row, "FUNCTION_CODE", "FUNC_CODE", "RES_CODE", "RESOURCE_CODE", "RES_ID")
