@@ -272,34 +272,6 @@
       "sideEffects": []
     },
     {
-      "id": "direct_access.catalog.query",
-      "mode": "read",
-      "humanConfirmationRequired": false,
-      "auditClass": "read-trace",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "mcp",
-        "a2a"
-      ],
-      "sideEffects": []
-    },
-    {
-      "id": "direct_access.delivery.list",
-      "mode": "read",
-      "humanConfirmationRequired": false,
-      "auditClass": "read-trace",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "mcp",
-        "a2a"
-      ],
-      "sideEffects": []
-    },
-    {
       "id": "governance.dispute_list",
       "mode": "read",
       "humanConfirmationRequired": false,
@@ -398,20 +370,6 @@
       "sideEffects": []
     },
     {
-      "id": "metadata.lineage.query",
-      "mode": "read",
-      "humanConfirmationRequired": false,
-      "auditClass": "read-trace",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "mcp",
-        "a2a"
-      ],
-      "sideEffects": []
-    },
-    {
       "id": "metadata.schema.discover",
       "mode": "read",
       "humanConfirmationRequired": false,
@@ -482,35 +440,7 @@
       "sideEffects": []
     },
     {
-      "id": "ops.catalog.quality.query",
-      "mode": "read",
-      "humanConfirmationRequired": false,
-      "auditClass": "read-trace",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "mcp",
-        "a2a"
-      ],
-      "sideEffects": []
-    },
-    {
       "id": "ops.catalog.statistics.query",
-      "mode": "read",
-      "humanConfirmationRequired": false,
-      "auditClass": "read-trace",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "mcp",
-        "a2a"
-      ],
-      "sideEffects": []
-    },
-    {
-      "id": "ops.exchange.diagnose",
       "mode": "read",
       "humanConfirmationRequired": false,
       "auditClass": "read-trace",
@@ -840,176 +770,6 @@
         "audit",
         "db_write",
         "blockchain_anchor"
-      ]
-    },
-    {
-      "id": "adapter.national.application.receive",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "adapter-write",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "adapter_receipt"
-      ]
-    },
-    {
-      "id": "adapter.national.application.reconcile",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "adapter-write",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "adapter_receipt"
-      ]
-    },
-    {
-      "id": "adapter.national.application.submit",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "adapter-write",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "adapter_receipt"
-      ]
-    },
-    {
-      "id": "adapter.national.catalog.pull",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "adapter-write",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "adapter_receipt"
-      ]
-    },
-    {
-      "id": "adapter.national.catalog.report",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "adapter-write",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "adapter_receipt"
-      ]
-    },
-    {
-      "id": "adapter.national.delivery.receipt.sync",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "adapter-write",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "adapter_receipt"
-      ]
-    },
-    {
-      "id": "adapter.national.objection.sync",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "adapter-write",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "adapter_receipt"
-      ]
-    },
-    {
-      "id": "adapter.national.resource.pull",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "adapter-write",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "adapter_receipt"
-      ]
-    },
-    {
-      "id": "adapter.national.resource.report",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "adapter-write",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "adapter_receipt"
-      ]
-    },
-    {
-      "id": "adapter.national.topic.report",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "adapter-write",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "adapter_receipt"
       ]
     },
     {
@@ -1868,23 +1628,6 @@
       ]
     },
     {
-      "id": "metadata.lineage.upsert",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-critical",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "blockchain_anchor"
-      ]
-    },
-    {
       "id": "metadata.schema.snapshot.upsert",
       "mode": "write",
       "humanConfirmationRequired": true,
@@ -2072,103 +1815,6 @@
       ]
     },
     {
-      "id": "ops.catalog.quality.upsert",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-critical",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "blockchain_anchor"
-      ]
-    },
-    {
-      "id": "ops.gateway.heartbeat.ingest",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-critical",
-      "surfaces": [
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "blockchain_anchor"
-      ]
-    },
-    {
-      "id": "ops.gateway.log.anchor",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-critical",
-      "surfaces": [
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "blockchain_anchor"
-      ]
-    },
-    {
-      "id": "ops.shift_handover.submit",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-normal",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write"
-      ]
-    },
-    {
-      "id": "ops.ticket.close",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-normal",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write"
-      ]
-    },
-    {
-      "id": "ops.ticket.create",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-normal",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write"
-      ]
-    },
-    {
       "id": "org.projection.sync",
       "mode": "write",
       "humanConfirmationRequired": true,
@@ -2255,57 +1901,6 @@
         "db_write",
         "state_machine_transition",
         "blockchain_anchor"
-      ]
-    },
-    {
-      "id": "quality.rule.upsert",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-default",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "mcp",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write"
-      ]
-    },
-    {
-      "id": "quality.task.replay",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-default",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "mcp",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write"
-      ]
-    },
-    {
-      "id": "quality.task.run",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-default",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "mcp",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write"
       ]
     },
     {
@@ -2749,40 +2344,6 @@
       "sideEffects": [
         "audit",
         "db_write"
-      ]
-    },
-    {
-      "id": "standard.asset.recommend",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-normal",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "blockchain_anchor"
-      ]
-    },
-    {
-      "id": "standard.asset.sync",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-normal",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "blockchain_anchor"
       ]
     },
     {

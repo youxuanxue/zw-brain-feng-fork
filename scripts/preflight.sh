@@ -63,6 +63,7 @@ done <<'CHECKS'
 段 19	scripts/check_no_legacy_role_codes.py	no-legacy-role-codes (D23 retrofit)
 段 20	scripts/check_no_retired_features.py	no-retired-features (R15 alembic + R17 K12 dashboard)
 段 21	scripts/check_no_numbered_routes.py	no-numbered-routes (route de-identify guardrail)
+段 22	scripts/check_capability_boundary.py	capability-boundary (P0-05 §1.3 forbidden-zone live+builtin)
 CHECKS
 
 echo ""

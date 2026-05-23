@@ -89,5 +89,9 @@
     "asset",
     "recommend",
     "write"
-  ]
+  ],
+  "product_scope": {
+    "journey": "external",
+    "status": "deferred:wave-2"
+  }
 }

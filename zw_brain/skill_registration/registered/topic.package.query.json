@@ -83,5 +83,9 @@
     "topic",
     "package",
     "read"
-  ]
+  ],
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
 }

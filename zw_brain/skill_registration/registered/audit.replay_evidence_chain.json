@@ -6,21 +6,57 @@
   "version": "1.0.0",
   "input_schema": {
     "type": "object",
-    "required": ["dispute_id"],
+    "required": [
+      "dispute_id"
+    ],
     "properties": {
-      "dispute_id": { "type": "string", "minLength": 1 }
+      "dispute_id": {
+        "type": "string",
+        "minLength": 1
+      }
     }
   },
   "output_schema": {
     "type": "object",
-    "required": ["disputeId", "summary", "evidenceChain", "auditEvents", "tickets", "knowledgeArticles"],
+    "required": [
+      "disputeId",
+      "summary",
+      "evidenceChain",
+      "auditEvents",
+      "tickets",
+      "knowledgeArticles"
+    ],
     "properties": {
-      "disputeId": { "type": "string" },
-      "summary": { "type": "string" },
-      "evidenceChain": { "type": "array", "items": { "type": "object" } },
-      "auditEvents": { "type": "array", "items": { "type": "object" } },
-      "tickets": { "type": "array", "items": { "type": "object" } },
-      "knowledgeArticles": { "type": "array", "items": { "type": "object" } }
+      "disputeId": {
+        "type": "string"
+      },
+      "summary": {
+        "type": "string"
+      },
+      "evidenceChain": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "auditEvents": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "tickets": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "knowledgeArticles": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
     }
   },
   "side_effects": [],
@@ -29,7 +65,13 @@
   "human_confirmation_required": false,
   "audit_class": "read-sensitive",
   "execution_binding": "builtin",
-  "compatibility": ["webui", "api", "cli", "mcp", "a2a"],
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
   "runtime_binding": {
     "kind": "brain_service",
     "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
@@ -37,8 +79,22 @@
   },
   "rollback_target": null,
   "audit_required": true,
-  "permissions": ["audit.replay_evidence_chain.execute"],
-  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "permissions": [
+    "audit.replay_evidence_chain.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
   "registry_source": "internal",
-  "tags": ["audit", "evidence", "read", "compliance"]
+  "tags": [
+    "audit",
+    "evidence",
+    "read",
+    "compliance"
+  ],
+  "product_scope": {
+    "journey": "b1",
+    "status": "live"
+  }
 }

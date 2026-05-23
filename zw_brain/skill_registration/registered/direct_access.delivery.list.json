@@ -7,16 +7,30 @@
   "input_schema": {
     "type": "object",
     "properties": {
-      "tenant_id": { "type": "string" },
-      "role": { "type": "string" },
-      "limit": { "type": "integer", "default": 50 }
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "limit": {
+        "type": "integer",
+        "default": 50
+      }
     }
   },
   "output_schema": {
     "type": "object",
     "properties": {
-      "items": { "type": "array", "items": { "type": "object" } },
-      "total": { "type": "integer" }
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "total": {
+        "type": "integer"
+      }
     }
   },
   "side_effects": [],
@@ -25,7 +39,13 @@
   "human_confirmation_required": false,
   "audit_class": "read-trace",
   "execution_binding": "builtin",
-  "compatibility": ["webui", "api", "cli", "mcp", "a2a"],
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
   "runtime_binding": {
     "kind": "brain_service",
     "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
@@ -33,8 +53,21 @@
   },
   "rollback_target": null,
   "audit_required": true,
-  "permissions": ["direct_access.delivery.list.execute"],
-  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "permissions": [
+    "direct_access.delivery.list.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
   "registry_source": "internal",
-  "tags": ["direct_access", "delivery", "read"]
+  "tags": [
+    "direct_access",
+    "delivery",
+    "read"
+  ],
+  "product_scope": {
+    "journey": "national",
+    "status": "deferred:wave-3"
+  }
 }

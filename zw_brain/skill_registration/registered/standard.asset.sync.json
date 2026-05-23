@@ -89,5 +89,9 @@
     "asset",
     "sync",
     "write"
-  ]
+  ],
+  "product_scope": {
+    "journey": "external",
+    "status": "deferred:wave-4"
+  }
 }

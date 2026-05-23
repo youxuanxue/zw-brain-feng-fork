@@ -90,5 +90,9 @@
     "cascade",
     "health",
     "read"
-  ]
+  ],
+  "product_scope": {
+    "journey": "infra",
+    "status": "live"
+  }
 }

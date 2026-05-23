@@ -74,5 +74,9 @@
     "dispatch",
     "ROLE_BUSIAUDIT",
     "write"
-  ]
+  ],
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
 }

@@ -114,5 +114,9 @@
     "tenant",
     "field-projection",
     "contract"
-  ]
+  ],
+  "product_scope": {
+    "journey": "external",
+    "status": "external"
+  }
 }

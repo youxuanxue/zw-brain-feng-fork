@@ -5,11 +5,21 @@ check_no_legacy_role_codes.py — preflight 段 19
 强约束（设计基线 §附录 D / D23 retrofit）：
     R1-R8 用户角色码已于 2026-05-19 退役（详见 docs/approved/zw-brain-roles.md）。
     任何 .py / .js / .json / .md 文件中独立 token 形式的 r1..r8 / R1..R8 字面值
-    都不得出现，除非属于以下 intentional 上下文之一：
-      - retrofit 注脚（"retrofit (D23-D29)" / "2026-05-19 retrofit"）
-      - 新 approved 文档中的退役映射表（roles-v2.md / ia-v2.md / gate1.1-retrofit / architecture v4 附录 D）
-      - policy.py 自身的 _LEGACY_ROLE_CODES 启动检查
-      - CLAUDE.md 决策记录中明确标注的历史 D 编号或 R-编号
+    都不得出现，除非命中下方两类豁免之一。
+
+匹配模型（实际实现，无 role-context 语义判定）：
+    扫描就是单条件 `\\b[rR][1-8]\\b`——不区分 namespace。已退役用户角色码 R1-R8
+    与基线 §11 架构约束编号 R7/R10、approved-doc frontmatter invariants R1-R5
+    共用这个 token 空间，本脚本**不**靠同行上下文 regex 区分它们，而是靠两类显式
+    豁免兜底误命中：
+      1. ALLOWED_LINE_MARKERS — 同行命中任一短语即跳过该行（精确短语，避免过宽）。
+      2. ALLOWED_FILES — 整文件白名单，用于"角色/架构编号密集、逐行加 marker 不划算"
+         的权威源（roles.md / architecture.md / policy.py / role_codes.py / CLAUDE.md
+         及若干引用 §11 R 编号的 reconstructs 文档）。
+
+    已知取舍：新增引用架构约束 R 编号的 approved/reconstructs 文档时，可能需要往
+    ALLOWED_FILES 追加一条。这是 token 空间重叠的代价，不是精确 namespace 判定；
+    两个豁免列表的当前条目数以代码中的常量为准，不在本 docstring 复述以免漂移。
 
 注：原 alembic 0009 数据迁移映射已在 v4.1 R15 删除 alembic 时一并清理。
 
@@ -95,6 +105,9 @@ ALLOWED_FILES = (
     # check_approved_docs.py 的 R1-R5 是 approved-doc frontmatter invariants 规则编号
     # 完全不同 namespace（与用户角色码无关），整文件白名单
     "scripts/check_approved_docs.py",
+    # P0-01 capability registry classification 文档引用 §11 架构约束 R7/R8/R10/R14/R15
+    # 完全不同 namespace（与已退役 R1-R8 用户角色码无关），整文件白名单
+    "docs/reconstructs/p0-contract-classification.md",
 )
 
 

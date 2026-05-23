@@ -75,5 +75,9 @@
     "exchange",
     "diagnose",
     "read"
-  ]
+  ],
+  "product_scope": {
+    "journey": "external",
+    "status": "external"
+  }
 }

@@ -89,5 +89,9 @@
     "process",
     "evidence",
     "read"
-  ]
+  ],
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
 }

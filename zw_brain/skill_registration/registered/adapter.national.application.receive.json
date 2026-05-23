@@ -153,5 +153,9 @@
     "application",
     "receive",
     "receipt"
-  ]
+  ],
+  "product_scope": {
+    "journey": "national",
+    "status": "deferred:wave-3"
+  }
 }

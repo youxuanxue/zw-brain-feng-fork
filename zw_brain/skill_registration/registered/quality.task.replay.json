@@ -72,5 +72,9 @@
     "replay",
     "ROLE_ORGAN_MANAGER",
     "write"
-  ]
+  ],
+  "product_scope": {
+    "journey": "external",
+    "status": "external"
+  }
 }

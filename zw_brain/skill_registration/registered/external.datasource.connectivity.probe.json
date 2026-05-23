@@ -88,5 +88,9 @@
     "datasource",
     "probe",
     "contract"
-  ]
+  ],
+  "product_scope": {
+    "journey": "external",
+    "status": "external"
+  }
 }

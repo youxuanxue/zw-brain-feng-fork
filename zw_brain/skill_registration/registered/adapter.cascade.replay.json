@@ -152,5 +152,9 @@
     "cascade",
     "replay",
     "receipt"
-  ]
+  ],
+  "product_scope": {
+    "journey": "infra",
+    "status": "live"
+  }
 }

@@ -153,5 +153,9 @@
     "application",
     "reconcile",
     "receipt"
-  ]
+  ],
+  "product_scope": {
+    "journey": "national",
+    "status": "deferred:wave-3"
+  }
 }

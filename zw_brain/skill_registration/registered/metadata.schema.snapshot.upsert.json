@@ -6,32 +6,92 @@
   "version": "1.0.0",
   "input_schema": {
     "type": "object",
-    "required": ["resource_code", "schema_json", "confirmed"],
+    "required": [
+      "resource_code",
+      "schema_json",
+      "confirmed"
+    ],
     "properties": {
-      "snapshot_ref": { "type": "string" },
-      "resource_code": { "type": "string", "minLength": 1 },
-      "binding_code": { "type": "string" },
-      "schema_json": { "type": "object" },
-      "schema_hash": { "type": "string" },
-      "captured_at": { "type": "string" },
-      "source_ref": { "type": "string" },
-      "role": { "type": "string" },
-      "confirmed": { "type": "boolean" }
+      "snapshot_ref": {
+        "type": "string"
+      },
+      "resource_code": {
+        "type": "string",
+        "minLength": 1
+      },
+      "binding_code": {
+        "type": "string"
+      },
+      "schema_json": {
+        "type": "object"
+      },
+      "schema_hash": {
+        "type": "string"
+      },
+      "captured_at": {
+        "type": "string"
+      },
+      "source_ref": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      }
     }
   },
-  "output_schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "result": { "type": "object" } } },
-  "side_effects": ["audit", "db_write", "blockchain_anchor"],
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "ok": {
+        "type": "boolean"
+      },
+      "result": {
+        "type": "object"
+      }
+    }
+  },
+  "side_effects": [
+    "audit",
+    "db_write",
+    "blockchain_anchor"
+  ],
   "tenant_scope": "tenant",
   "auth_policy": "user",
   "human_confirmation_required": true,
   "audit_class": "write-critical",
   "execution_binding": "builtin",
-  "compatibility": ["webui", "api", "cli", "a2a"],
-  "runtime_binding": { "kind": "brain_service", "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill", "method": "metadata.schema.snapshot.upsert" },
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "metadata.schema.snapshot.upsert"
+  },
   "rollback_target": null,
   "audit_required": true,
-  "permissions": ["metadata.schema.snapshot.upsert.execute"],
-  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "permissions": [
+    "metadata.schema.snapshot.upsert.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
   "registry_source": "internal",
-  "tags": ["metadata", "schema", "evidence", "write"]
+  "tags": [
+    "metadata",
+    "schema",
+    "evidence",
+    "write"
+  ],
+  "product_scope": {
+    "journey": "infra",
+    "status": "live"
+  }
 }

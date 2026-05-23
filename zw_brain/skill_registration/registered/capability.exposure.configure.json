@@ -92,5 +92,9 @@
     "exposure",
     "configure",
     "write"
-  ]
+  ],
+  "product_scope": {
+    "journey": "b1",
+    "status": "live"
+  }
 }

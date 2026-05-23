@@ -174,5 +174,9 @@
     "package",
     "review",
     "write"
-  ]
+  ],
+  "product_scope": {
+    "journey": "j2",
+    "status": "live"
+  }
 }

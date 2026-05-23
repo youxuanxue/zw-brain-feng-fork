@@ -89,5 +89,9 @@
     "health",
     "probe",
     "write"
-  ]
+  ],
+  "product_scope": {
+    "journey": "infra",
+    "status": "live"
+  }
 }

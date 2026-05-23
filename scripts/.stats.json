@@ -24,6 +24,22 @@
     "legacy.import.missing-resolved": {
       "description": "Count of M1–M6 records (the §二 'P2 blocking' subset) actually present in domain/models.py — once this hits 6, the mapping doc's blocking note is fully discharged.",
       "compute": "grep -cE '^class (ComplianceCase|ComplianceRule|RiskEventProjection|HealthSignalProjection|StandardAssetProjection|MetricDefinitionProjection)Record\\b' zw_brain/domain/models.py | tr -d ' '"
+    },
+    "zwbrain.capability-budget-j1": {
+      "description": "zw-brain: J1 找数→用数 旅程 live capability 数（design contract per-journey budget）。drift = registry 边界变更，需走 GATE 决策。",
+      "compute": "if [ -d zw_brain/skill_registration/registered ]; then python3 -c \"import json,glob; print(sum(1 for p in glob.glob('zw_brain/skill_registration/registered/*.json') for d in [json.load(open(p))] if (d.get('product_scope') or {}).get('journey')=='j1' and (d.get('product_scope') or {}).get('status')=='live'))\"; else echo 0; fi"
+    },
+    "zwbrain.capability-budget-j2": {
+      "description": "zw-brain: J2 挂数→维数 旅程 live capability 数（design contract per-journey budget）。drift = registry 边界变更。",
+      "compute": "if [ -d zw_brain/skill_registration/registered ]; then python3 -c \"import json,glob; print(sum(1 for p in glob.glob('zw_brain/skill_registration/registered/*.json') for d in [json.load(open(p))] if (d.get('product_scope') or {}).get('journey')=='j2' and (d.get('product_scope') or {}).get('status')=='live'))\"; else echo 0; fi"
+    },
+    "zwbrain.capability-budget-b1": {
+      "description": "zw-brain: B1 后台支撑面（合规与运营 + 平台接入与扩展）live capability 数。drift = registry 边界变更。",
+      "compute": "if [ -d zw_brain/skill_registration/registered ]; then python3 -c \"import json,glob; print(sum(1 for p in glob.glob('zw_brain/skill_registration/registered/*.json') for d in [json.load(open(p))] if (d.get('product_scope') or {}).get('journey')=='b1' and (d.get('product_scope') or {}).get('status')=='live'))\"; else echo 0; fi"
+    },
+    "zwbrain.capability-budget-infra": {
+      "description": "zw-brain: infra 底座（鉴权 / 审计 / actor / adapter health 等）live capability 数。drift = 底座边界变更。",
+      "compute": "if [ -d zw_brain/skill_registration/registered ]; then python3 -c \"import json,glob; print(sum(1 for p in glob.glob('zw_brain/skill_registration/registered/*.json') for d in [json.load(open(p))] if (d.get('product_scope') or {}).get('journey')=='infra' and (d.get('product_scope') or {}).get('status')=='live'))\"; else echo 0; fi"
     }
   }
 }

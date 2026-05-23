@@ -78,5 +78,9 @@
     "withdrawal",
     "ROLE_ORGAN_MANAGER",
     "write"
-  ]
+  ],
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
 }

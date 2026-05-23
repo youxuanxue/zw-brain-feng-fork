@@ -25,7 +25,13 @@
       },
       "surface": {
         "type": "string",
-        "enum": ["webui", "api", "cli", "mcp", "a2a"]
+        "enum": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ]
       },
       "target_ref": {
         "type": "string"
@@ -65,14 +71,30 @@
       "result": {
         "type": "object",
         "properties": {
-          "allowed": {"type": "boolean"},
-          "decision_reason": {"type": "string"},
-          "human_confirmation_required": {"type": "boolean"},
-          "audit_class": {"type": "string"},
-          "policy_version": {"type": "string"},
-          "actor_snapshot": {"type": "object"},
-          "org_snapshot": {"type": "object"},
-          "risk_context": {"type": "object"}
+          "allowed": {
+            "type": "boolean"
+          },
+          "decision_reason": {
+            "type": "string"
+          },
+          "human_confirmation_required": {
+            "type": "boolean"
+          },
+          "audit_class": {
+            "type": "string"
+          },
+          "policy_version": {
+            "type": "string"
+          },
+          "actor_snapshot": {
+            "type": "object"
+          },
+          "org_snapshot": {
+            "type": "object"
+          },
+          "risk_context": {
+            "type": "object"
+          }
         }
       },
       "items": {
@@ -122,5 +144,9 @@
     "policy",
     "governance",
     "read"
-  ]
+  ],
+  "product_scope": {
+    "journey": "b1",
+    "status": "live"
+  }
 }

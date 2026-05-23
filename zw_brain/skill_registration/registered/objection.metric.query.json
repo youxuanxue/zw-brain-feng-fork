@@ -83,5 +83,9 @@
     "objection",
     "metric",
     "read"
-  ]
+  ],
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
 }

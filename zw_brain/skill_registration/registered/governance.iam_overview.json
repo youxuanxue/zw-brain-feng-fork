@@ -126,7 +126,10 @@
         }
       },
       "policy_probe": {
-        "type": ["object", "null"]
+        "type": [
+          "object",
+          "null"
+        ]
       }
     }
   },
@@ -163,5 +166,9 @@
     "iam",
     "projection",
     "read"
-  ]
+  ],
+  "product_scope": {
+    "journey": "b1",
+    "status": "live"
+  }
 }

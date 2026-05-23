@@ -101,5 +101,9 @@
     "resource",
     "review",
     "write"
-  ]
+  ],
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
 }

@@ -74,5 +74,9 @@
     "artifact",
     "export",
     "read"
-  ]
+  ],
+  "product_scope": {
+    "journey": "infra",
+    "status": "live"
+  }
 }

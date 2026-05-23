@@ -68,5 +68,9 @@
     "share_zone",
     "query",
     "read"
-  ]
+  ],
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
 }

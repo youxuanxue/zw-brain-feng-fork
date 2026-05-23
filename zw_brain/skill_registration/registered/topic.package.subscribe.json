@@ -174,5 +174,9 @@
     "package",
     "subscribe",
     "write"
-  ]
+  ],
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
 }

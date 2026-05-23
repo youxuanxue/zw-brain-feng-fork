@@ -75,5 +75,9 @@
     "suggest",
     "ROLE_ORGAN_MANAGER",
     "read"
-  ]
+  ],
+  "product_scope": {
+    "journey": "j2",
+    "status": "live"
+  }
 }

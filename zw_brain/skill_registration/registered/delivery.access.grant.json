@@ -82,5 +82,9 @@
     "access",
     "grant",
     "write"
-  ]
+  ],
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
 }

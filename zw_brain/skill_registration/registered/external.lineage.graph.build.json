@@ -113,5 +113,9 @@
     "lineage",
     "graph",
     "contract"
-  ]
+  ],
+  "product_scope": {
+    "journey": "external",
+    "status": "external"
+  }
 }

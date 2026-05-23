@@ -7,27 +7,64 @@
   "input_schema": {
     "type": "object",
     "properties": {
-      "tenant_id": { "type": "string" },
-      "candidate_status": { "type": "string" },
-      "status": { "type": "string" },
-      "legacy_system": { "type": "string" },
-      "legacy_role_ref": { "type": "string" },
-      "role_code": { "type": "string" },
-      "capability_id": { "type": "string" },
-      "capability_slug": { "type": "string" },
-      "surface": { "type": "string" },
-      "role": { "type": "string" }
+      "tenant_id": {
+        "type": "string"
+      },
+      "candidate_status": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "legacy_system": {
+        "type": "string"
+      },
+      "legacy_role_ref": {
+        "type": "string"
+      },
+      "role_code": {
+        "type": "string"
+      },
+      "capability_id": {
+        "type": "string"
+      },
+      "capability_slug": {
+        "type": "string"
+      },
+      "surface": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      }
     }
   },
   "output_schema": {
     "type": "object",
-    "required": ["tenant_id", "summary", "items"],
+    "required": [
+      "tenant_id",
+      "summary",
+      "items"
+    ],
     "properties": {
-      "tenant_id": { "type": "string" },
-      "filters": { "type": "object" },
-      "summary": { "type": "object" },
-      "items": { "type": "array", "items": { "type": "object" } },
-      "export_report": { "type": "object" }
+      "tenant_id": {
+        "type": "string"
+      },
+      "filters": {
+        "type": "object"
+      },
+      "summary": {
+        "type": "object"
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "export_report": {
+        "type": "object"
+      }
     }
   },
   "side_effects": [],
@@ -36,7 +73,13 @@
   "human_confirmation_required": false,
   "audit_class": "read-sensitive",
   "execution_binding": "builtin",
-  "compatibility": ["webui", "api", "cli", "mcp", "a2a"],
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
   "runtime_binding": {
     "kind": "brain_service",
     "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
@@ -44,8 +87,21 @@
   },
   "rollback_target": null,
   "audit_required": true,
-  "permissions": ["governance.policy_candidate.list.execute"],
-  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "permissions": [
+    "governance.policy_candidate.list.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
   "registry_source": "internal",
-  "tags": ["governance", "policy-candidate", "read"]
+  "tags": [
+    "governance",
+    "policy-candidate",
+    "read"
+  ],
+  "product_scope": {
+    "journey": "b1",
+    "status": "live"
+  }
 }

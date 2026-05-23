@@ -19,16 +19,6 @@
 | POST | `/api/skills/adapter.cascade.replay` | 重放级联事件 | `post_adapter_cascade_replay` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/adapter.external.mapping.query` | 查询外部对象映射 | `get_adapter_external_mapping_query` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/adapter.health.probe` | 探测适配器健康 | `post_adapter_health_probe` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/adapter.national.application.receive` | 接收国家申请回执 | `post_adapter_national_application_receive` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/adapter.national.application.reconcile` | 对账国家申请回执 | `post_adapter_national_application_reconcile` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/adapter.national.application.submit` | 提交国家申请回执 | `post_adapter_national_application_submit` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/adapter.national.catalog.pull` | 拉取国家目录回执 | `post_adapter_national_catalog_pull` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/adapter.national.catalog.report` | 上报国家目录回执 | `post_adapter_national_catalog_report` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/adapter.national.delivery.receipt.sync` | 同步国家交付回执 | `post_adapter_national_delivery_receipt_sync` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/adapter.national.objection.sync` | 同步国家异议回执 | `post_adapter_national_objection_sync` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/adapter.national.resource.pull` | 拉取国家资源回执 | `post_adapter_national_resource_pull` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/adapter.national.resource.report` | 上报国家资源回执 | `post_adapter_national_resource_report` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/adapter.national.topic.report` | 上报国家专题回执 | `post_adapter_national_topic_report` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/application.grant.approve` | 审批资源授权 | `post_application_grant_approve` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/application.grant.renew` | 申请授权续期 | `post_application_grant_renew` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/application.grant.revoke` | 收回授权 | `post_application_grant_revoke` | `zw_brain/entry/rest/openapi.json` |
@@ -91,8 +81,6 @@
 | POST | `/api/skills/delivery.subscription.manage` | 管理持续订阅交付 | `post_delivery_subscription_manage` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/delivery.trigger_recovery` | 触发交付恢复 | `post_delivery_trigger_recovery` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/delivery.view` | 查看交付任务 | `get_delivery_view` | `zw_brain/entry/rest/openapi.json` |
-| GET | `/api/skills/direct_access.catalog.query` | 数据直达目录只读视图 | `get_direct_access_catalog_query` | `zw_brain/entry/rest/openapi.json` |
-| GET | `/api/skills/direct_access.delivery.list` | 已审批数据直达交付清单 | `get_direct_access_delivery_list` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/governance.dispute_list` | 查看治理争议列表 | `get_governance_dispute_list` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/governance.dispute_view` | 查看治理争议详情 | `get_governance_dispute_view` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/governance.iam_overview` | 查看 IAM 治理总览 | `get_governance_iam_overview` | `zw_brain/entry/rest/openapi.json` |
@@ -104,8 +92,6 @@
 | GET | `/api/skills/metadata.catalog_item.query` | 查询目录项字段映射 | `get_metadata_catalog_item_query` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/metadata.gather.evidence.query` | 查询元数据采集证据 | `get_metadata_gather_evidence_query` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/metadata.gather.evidence.upsert` | 记录元数据采集证据 | `post_metadata_gather_evidence_upsert` | `zw_brain/entry/rest/openapi.json` |
-| GET | `/api/skills/metadata.lineage.query` | 查询元数据血缘 | `get_metadata_lineage_query` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/metadata.lineage.upsert` | 记录元数据血缘关系 | `post_metadata_lineage_upsert` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/metadata.schema.discover` | 列可反向编目候选 | `get_metadata_schema_discover` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/metadata.schema.query` | 查询 Schema 证据 | `get_metadata_schema_query` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/metadata.schema.snapshot.upsert` | 记录 Schema 快照 | `post_metadata_schema_snapshot_upsert` | `zw_brain/entry/rest/openapi.json` |
@@ -122,18 +108,10 @@
 | POST | `/api/skills/objection.case.submit` | 提交异议案件 | `post_objection_case_submit` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/objection.metric.query` | 查询异议指标 | `get_objection_metric_query` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/objection.process.query` | 查询异议过程 | `get_objection_process_query` | `zw_brain/entry/rest/openapi.json` |
-| GET | `/api/skills/ops.catalog.quality.query` | 查询目录质量证据 | `get_ops_catalog_quality_query` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/ops.catalog.quality.upsert` | 记录目录质量证据 | `post_ops_catalog_quality_upsert` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/ops.catalog.statistics.query` | 查询目录资源统计 | `get_ops_catalog_statistics_query` | `zw_brain/entry/rest/openapi.json` |
-| GET | `/api/skills/ops.exchange.diagnose` | 诊断交换问题 | `get_ops_exchange_diagnose` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/ops.exchange.statistics.query` | 查询交换统计 | `get_ops_exchange_statistics_query` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/ops.gateway.heartbeat.ingest` | 摄入网关心跳 | `post_ops_gateway_heartbeat_ingest` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/ops.gateway.log.anchor` | 登记网关日志存证 | `post_ops_gateway_log_anchor` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/ops.service.invocation.query` | 查询服务调用统计 | `get_ops_service_invocation_query` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/ops.service.report.query` | 查询服务运行态势 | `get_ops_service_report_query` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/ops.shift_handover.submit` | 提交交接班记录 | `post_ops_shift_handover_submit` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/ops.ticket.close` | 关闭运维工单 | `post_ops_ticket_close` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/ops.ticket.create` | 创建运维工单 | `post_ops_ticket_create` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/org.projection.sync` | 同步组织治理投影 | `post_org_projection_sync` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/package.apply_tenant_policy` | 生效租户策略 | `post_package_apply_tenant_policy` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/package.configure_exposure` | 配置能力包暴露面 | `post_package_configure_exposure` | `zw_brain/entry/rest/openapi.json` |
@@ -142,9 +120,6 @@
 | POST | `/api/skills/package.review_decide` | 审核能力包 | `post_package_review_decide` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/package.view` | 查看能力包详情 | `get_package_view` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/provider.view` | 查看供给侧治理 | `get_provider_view` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/quality.rule.upsert` | 维护自动检测规则 | `post_quality_rule_upsert` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/quality.task.replay` | 重跑失败的自动检测任务 | `post_quality_task_replay` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/quality.task.run` | 触发自动检测任务 | `post_quality_task_run` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/registry.artifact.export` | 导出注册工件 | `get_registry_artifact_export` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/request.create` | 发起标准复用申请 | `post_request_create` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/request.list` | 查看申请列表 | `get_request_list` | `zw_brain/entry/rest/openapi.json` |
@@ -174,8 +149,6 @@
 | POST | `/api/skills/security.scan.result.sync` | 同步安全扫描结果 | `post_security_scan_result_sync` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/service.publish_or_suspend` | 发布或暂停供给服务 | `post_service_publish_or_suspend` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/service.rating.submit` | 提交服务评价 | `post_service_rating_submit` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/standard.asset.recommend` | 推荐标准资产 | `post_standard_asset_recommend` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/standard.asset.sync` | 同步标准资产 | `post_standard_asset_sync` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/subscription.terminate` | 订阅显式终止 | `post_subscription_terminate` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/summary.confirm` | 确认自动汇总 | `post_summary_confirm` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/supplement.submit` | 提交差异补录 | `post_supplement_submit` | `zw_brain/entry/rest/openapi.json` |
@@ -235,8 +208,6 @@
 | `data.search` | read | False | 按关键词 / 部门 / 主题域检索共享数据资源目录，返回命中清单与结构化摘要。 | True | `zw_brain/entry/mcp/tools/data.search.json` |
 | `delivery.list` | read | False | 查看预填下发、自动汇总、回流候选和异常交付任务列表。 | True | `zw_brain/entry/mcp/tools/delivery.list.json` |
 | `delivery.view` | read | False | 查看预填下发、自动汇总和回流候选的交付任务详情。 | True | `zw_brain/entry/mcp/tools/delivery.view.json` |
-| `direct_access.catalog.query` | read | False | 只读：列已发布且 summary_json.direct_access_eligible=true 的 catalog_entry，作为旧 dc_catalog 的 zw-brain 投影。事实源仍是 catalog_entry，dc_catalog 本身锁只读；任何想直接写 dc_catalog 的请求都退回 application_record 主链路。 | True | `zw_brain/entry/mcp/tools/direct_access.catalog.query.json` |
-| `direct_access.delivery.list` | read | False | 只读：列 delivery_task 中 access_grant_snapshot.direct_access=true 且 status in (succeeded, in_progress) 的交付清单；审核汇总人 / 安全审计员 据此判断是否有绕过 application_record 主链路的痕迹。 | True | `zw_brain/entry/mcp/tools/direct_access.delivery.list.json` |
 | `governance.dispute_list` | read | False | 查看重复要数、字段口径和补录异常相关争议，以及关联告警、工单与知识建议。 | True | `zw_brain/entry/mcp/tools/governance.dispute_list.json` |
 | `governance.dispute_view` | read | False | 查看单条治理争议的时间线和 AI 调查摘要。 | True | `zw_brain/entry/mcp/tools/governance.dispute_view.json` |
 | `governance.iam_overview` | read | False | 查看 IAF 绑定状态、投影、租户能力策略、旧 BSP 导入问题、审计证据和策略裁决结果。 | True | `zw_brain/entry/mcp/tools/governance.iam_overview.json` |
@@ -244,15 +215,12 @@
 | `legacy.migration.status.query` | read | False | 聚合 legacy_object_mapping、adapter_run_record 与 migration.* 审计事件，给 业务运营员 / 安全审计员 看 M0 验收 11 张工作队列卡片状态、按 canonical_type 分布的映射计数和最近一次 rollback 摘要。只读，零 side effect。 | True | `zw_brain/entry/mcp/tools/legacy.migration.status.query.json` |
 | `metadata.catalog_item.query` | read | False | 查询目录项与资源 schema 字段之间的映射证据。 | True | `zw_brain/entry/mcp/tools/metadata.catalog_item.query.json` |
 | `metadata.gather.evidence.query` | read | False | 查询外部元数据采集任务回执和生成证据；采集状态只作为 projection，不反向改变资源业务状态。 | True | `zw_brain/entry/mcp/tools/metadata.gather.evidence.query.json` |
-| `metadata.lineage.query` | read | False | 查询资源或字段级血缘投影和影响分析依据。 | True | `zw_brain/entry/mcp/tools/metadata.lineage.query.json` |
 | `metadata.schema.discover` | read | False | 只读：列已采集 db_meta_table/db_meta_column 中尚未生成反向编目草稿的候选 schema，给 提供方部门 在反向编目工作流中选源。 | True | `zw_brain/entry/mcp/tools/metadata.schema.discover.json` |
 | `metadata.schema.query` | read | False | 查询资源 schema 快照证据和字段结构。 | True | `zw_brain/entry/mcp/tools/metadata.schema.query.json` |
 | `objection.case.query` | read | False | 查询异议案件列表，供 P0 闭环和 P6 指标投影读取。 | True | `zw_brain/entry/mcp/tools/objection.case.query.json` |
 | `objection.metric.query` | read | False | 查询异议状态分布和闭环指标投影。 | True | `zw_brain/entry/mcp/tools/objection.metric.query.json` |
 | `objection.process.query` | read | False | 查询异议处理过程、证据与评价链路。 | True | `zw_brain/entry/mcp/tools/objection.process.query.json` |
-| `ops.catalog.quality.query` | read | False | 查询目录、目录项或资源质量检测结果和解释证据。 | True | `zw_brain/entry/mcp/tools/ops.catalog.quality.query.json` |
 | `ops.catalog.statistics.query` | read | False | 查询目录、资源、schema 映射和质量证据的治理统计摘要。 | True | `zw_brain/entry/mcp/tools/ops.catalog.statistics.query.json` |
-| `ops.exchange.diagnose` | read | False | 基于回执、执行证据和投影解释交换失败原因，不直接改状态。 | True | `zw_brain/entry/mcp/tools/ops.exchange.diagnose.json` |
 | `ops.exchange.statistics.query` | read | False | 只读查询交换、订阅和交付投影统计，不反向驱动业务状态。 | True | `zw_brain/entry/mcp/tools/ops.exchange.statistics.query.json` |
 | `ops.service.invocation.query` | read | False | 只读查询 API 服务调用量、成功失败和错误归因摘要。 | True | `zw_brain/entry/mcp/tools/ops.service.invocation.query.json` |
 | `ops.service.report.query` | read | False | 只读汇总网关心跳和服务调用统计，形成服务运行态势报告。 | True | `zw_brain/entry/mcp/tools/ops.service.report.query.json` |
@@ -274,9 +242,6 @@
 | `catalog.entry.reverse_draft.create` | write | True | 提供方部门 半边：根据已采集的 db_meta_table/db_meta_column 一键生成 catalog_entry(lifecycle_status=draft, summary_json.source=reverse) 草稿。草稿仅作为字段建议，不可直接被申请；业务运营员 字段口径裁决通过后才能进入 pending_review。 | True | `zw_brain/entry/mcp/tools/catalog.entry.reverse_draft.create.json` |
 | `catalog.entry.reverse_draft.reject` | write | True | 业务运营员 对反向编目草稿做不予通过裁决；catalog_entry.lifecycle_status 退回 rejected 并写明驳回理由，等待 提供方部门 补充 schema 证据后重新提交。 | True | `zw_brain/entry/mcp/tools/catalog.entry.reverse_draft.reject.json` |
 | `delivery.replace_or_cancel` | write | True | 审批人 在资源撤回或资产 suspended 时决定：把现有 delivery_task 重新指向替代资源（replace），或者取消并通知订阅方（cancel）。避免授权悬空。 | True | `zw_brain/entry/mcp/tools/delivery.replace_or_cancel.json` |
-| `quality.rule.upsert` | write | True | 提供方部门 维护检测规则（必填率/格式/值域/字段一致性/挂接一致性等）。规则按 rule_code 幂等 upsert；变更产生新版本，旧版本检测结论作为历史 evidence 保留。 | True | `zw_brain/entry/mcp/tools/quality.rule.upsert.json` |
-| `quality.task.replay` | write | True | 提供方部门 对失败的检测任务发起重跑；记录上次失败摘要 + 新一次任务引用，保持执行器回执可追溯。 | True | `zw_brain/entry/mcp/tools/quality.task.replay.json` |
-| `quality.task.run` | write | True | 提供方部门 一键触发某条规则的检测任务执行；任务执行在外部执行器，本端只写一次 quality_evidence_projection + audit_event，结果由外部回写。 | True | `zw_brain/entry/mcp/tools/quality.task.run.json` |
 | `require.resource.dispatch` | write | True | 业务运营员 判定 申请人 业务需求不可用现有目录复用 → 按区域/字段/时间窗切片 → 派 审核汇总人 任务。写一次 application_record.status='dispatched' + 一次 supplement 任务草案。 | True | `zw_brain/entry/mcp/tools/require.resource.dispatch.json` |
 | `require.task.handoff` | write | True | 记录 业务运营员 把派发后的任务转给 审核汇总人 接管的责任快照；只写审计与责任快照，不修改业务字段。 | True | `zw_brain/entry/mcp/tools/require.task.handoff.json` |
 | `subscription.terminate` | write | True | 把 delivery_subscription.status 显式设为 terminated 并把影响摘要写入 audit_event；避免目录撤回时订阅悄悄失效。 | True | `zw_brain/entry/mcp/tools/subscription.terminate.json` |
@@ -285,9 +250,11 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 186 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 159 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
+
+> 仅列出 `product_scope.status=live` 的能力；`deferred:wave-N` / `external` manifests 物理存在但不投影到 5 surface，完整边界规则见 [`docs/approved/zw-brain-architecture.md` §6.6](./approved/zw-brain-architecture.md)。
 
 | Skill ID | Title | Version | Side Effects | Source |
 | -------- | ----- | ------- | ------------ | ------ |
@@ -297,16 +264,6 @@
 | `adapter.cascade.replay` | 重放级联事件 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.cascade.replay.json` |
 | `adapter.external.mapping.query` | 查询外部对象映射 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/adapter.external.mapping.query.json` |
 | `adapter.health.probe` | 探测适配器健康 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/adapter.health.probe.json` |
-| `adapter.national.application.receive` | 接收国家申请回执 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.national.application.receive.json` |
-| `adapter.national.application.reconcile` | 对账国家申请回执 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.national.application.reconcile.json` |
-| `adapter.national.application.submit` | 提交国家申请回执 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.national.application.submit.json` |
-| `adapter.national.catalog.pull` | 拉取国家目录回执 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.national.catalog.pull.json` |
-| `adapter.national.catalog.report` | 上报国家目录回执 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.national.catalog.report.json` |
-| `adapter.national.delivery.receipt.sync` | 同步国家交付回执 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.national.delivery.receipt.sync.json` |
-| `adapter.national.objection.sync` | 同步国家异议回执 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.national.objection.sync.json` |
-| `adapter.national.resource.pull` | 拉取国家资源回执 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.national.resource.pull.json` |
-| `adapter.national.resource.report` | 上报国家资源回执 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.national.resource.report.json` |
-| `adapter.national.topic.report` | 上报国家专题回执 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.national.topic.report.json` |
 | `application.grant.approve` | 审批资源授权 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/application.grant.approve.json` |
 | `application.grant.renew` | 申请授权续期 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/application.grant.renew.json` |
 | `application.grant.revoke` | 收回授权 | 1.0.0 | audit, db_write, state_machine_transition | `zw_brain/skill_registration/registered/application.grant.revoke.json` |
@@ -369,22 +326,6 @@
 | `delivery.subscription.manage` | 管理持续订阅交付 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/delivery.subscription.manage.json` |
 | `delivery.trigger_recovery` | 触发交付恢复 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/delivery.trigger_recovery.json` |
 | `delivery.view` | 查看交付任务 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/delivery.view.json` |
-| `direct_access.catalog.query` | 数据直达目录只读视图 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/direct_access.catalog.query.json` |
-| `direct_access.delivery.list` | 已审批数据直达交付清单 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/direct_access.delivery.list.json` |
-| `external.cascade.sync.execute` | 外部级联同步执行契约 | 1.0.0 | external_execution, audit, evidence_callback | `zw_brain/skill_registration/registered/external.cascade.sync.execute.json` |
-| `external.catalog.materialize.execute` | 外部目录物化执行契约 | 1.0.0 | external_execution, audit, evidence_callback | `zw_brain/skill_registration/registered/external.catalog.materialize.execute.json` |
-| `external.catalog.reverse_compile.execute` | 外部反向编目执行契约 | 1.0.0 | external_execution, audit, evidence_callback | `zw_brain/skill_registration/registered/external.catalog.reverse_compile.execute.json` |
-| `external.datasource.connectivity.probe` | 外部数据源连通性探测契约 | 1.0.0 | external_execution, audit, evidence_callback | `zw_brain/skill_registration/registered/external.datasource.connectivity.probe.json` |
-| `external.datasource.connectivity.test` | 外部数据源连通性测试契约 | 1.0.0 | external_execution, audit, evidence_callback | `zw_brain/skill_registration/registered/external.datasource.connectivity.test.json` |
-| `external.exchange.executor.execute` | 外部交换执行器契约 | 1.0.0 | external_execution, audit, evidence_callback | `zw_brain/skill_registration/registered/external.exchange.executor.execute.json` |
-| `external.lineage.graph.build` | 外部血缘图谱构建契约 | 1.0.0 | external_execution, audit, evidence_callback | `zw_brain/skill_registration/registered/external.lineage.graph.build.json` |
-| `external.metadata.gather.execute` | 外部元数据采集执行契约 | 1.0.0 | external_execution, audit, evidence_callback | `zw_brain/skill_registration/registered/external.metadata.gather.execute.json` |
-| `external.notification.workorder.dispatch` | 外部通知工单分发契约 | 1.0.0 | external_execution, audit, evidence_callback | `zw_brain/skill_registration/registered/external.notification.workorder.dispatch.json` |
-| `external.quality.scan.execute` | 外部质量检测执行契约 | 1.0.0 | external_execution, audit, evidence_callback | `zw_brain/skill_registration/registered/external.quality.scan.execute.json` |
-| `external.schema.structure.apply` | 外部库表结构执行契约 | 1.0.0 | external_execution, audit, evidence_callback | `zw_brain/skill_registration/registered/external.schema.structure.apply.json` |
-| `external.security.remediation.dispatch` | 外部安全整改分发契约 | 1.0.0 | external_execution, audit, evidence_callback | `zw_brain/skill_registration/registered/external.security.remediation.dispatch.json` |
-| `external.share.governance.configure` | 外部共享治理配置契约 | 1.0.0 | external_execution, audit, evidence_callback | `zw_brain/skill_registration/registered/external.share.governance.configure.json` |
-| `external.tenant.field_projection.configure` | 外部客户字段投影配置契约 | 1.0.0 | external_execution, audit, evidence_callback | `zw_brain/skill_registration/registered/external.tenant.field_projection.configure.json` |
 | `governance.dispute_list` | 查看治理争议列表 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.dispute_list.json` |
 | `governance.dispute_view` | 查看治理争议详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.dispute_view.json` |
 | `governance.iam_overview` | 查看 IAM 治理总览 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.iam_overview.json` |
@@ -396,8 +337,6 @@
 | `metadata.catalog_item.query` | 查询目录项字段映射 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/metadata.catalog_item.query.json` |
 | `metadata.gather.evidence.query` | 查询元数据采集证据 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/metadata.gather.evidence.query.json` |
 | `metadata.gather.evidence.upsert` | 记录元数据采集证据 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/metadata.gather.evidence.upsert.json` |
-| `metadata.lineage.query` | 查询元数据血缘 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/metadata.lineage.query.json` |
-| `metadata.lineage.upsert` | 记录元数据血缘关系 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/metadata.lineage.upsert.json` |
 | `metadata.schema.discover` | 列可反向编目候选 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/metadata.schema.discover.json` |
 | `metadata.schema.query` | 查询 Schema 证据 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/metadata.schema.query.json` |
 | `metadata.schema.snapshot.upsert` | 记录 Schema 快照 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/metadata.schema.snapshot.upsert.json` |
@@ -414,18 +353,10 @@
 | `objection.case.submit` | 提交异议案件 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/objection.case.submit.json` |
 | `objection.metric.query` | 查询异议指标 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/objection.metric.query.json` |
 | `objection.process.query` | 查询异议过程 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/objection.process.query.json` |
-| `ops.catalog.quality.query` | 查询目录质量证据 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/ops.catalog.quality.query.json` |
-| `ops.catalog.quality.upsert` | 记录目录质量证据 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/ops.catalog.quality.upsert.json` |
 | `ops.catalog.statistics.query` | 查询目录资源统计 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/ops.catalog.statistics.query.json` |
-| `ops.exchange.diagnose` | 诊断交换问题 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/ops.exchange.diagnose.json` |
 | `ops.exchange.statistics.query` | 查询交换统计 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/ops.exchange.statistics.query.json` |
-| `ops.gateway.heartbeat.ingest` | 摄入网关心跳 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/ops.gateway.heartbeat.ingest.json` |
-| `ops.gateway.log.anchor` | 登记网关日志存证 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/ops.gateway.log.anchor.json` |
 | `ops.service.invocation.query` | 查询服务调用统计 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/ops.service.invocation.query.json` |
 | `ops.service.report.query` | 查询服务运行态势 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/ops.service.report.query.json` |
-| `ops.shift_handover.submit` | 提交交接班记录 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/ops.shift_handover.submit.json` |
-| `ops.ticket.close` | 关闭运维工单 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/ops.ticket.close.json` |
-| `ops.ticket.create` | 创建运维工单 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/ops.ticket.create.json` |
 | `org.projection.sync` | 同步组织治理投影 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/org.projection.sync.json` |
 | `package.apply_tenant_policy` | 生效租户策略 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/package.apply_tenant_policy.json` |
 | `package.configure_exposure` | 配置能力包暴露面 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/package.configure_exposure.json` |
@@ -434,9 +365,6 @@
 | `package.review_decide` | 审核能力包 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/package.review_decide.json` |
 | `package.view` | 查看能力包详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/package.view.json` |
 | `provider.view` | 查看供给侧治理 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/provider.view.json` |
-| `quality.rule.upsert` | 维护自动检测规则 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/quality.rule.upsert.json` |
-| `quality.task.replay` | 重跑失败的自动检测任务 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/quality.task.replay.json` |
-| `quality.task.run` | 触发自动检测任务 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/quality.task.run.json` |
 | `registry.artifact.export` | 导出注册工件 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/registry.artifact.export.json` |
 | `request.create` | 发起标准复用申请 | 1.0.0 | audit, db_write, state_machine_transition, task_dispatch, blockchain_anchor | `zw_brain/skill_registration/registered/request.create.json` |
 | `request.list` | 查看申请列表 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/request.list.json` |
@@ -466,8 +394,6 @@
 | `security.scan.result.sync` | 同步安全扫描结果 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/security.scan.result.sync.json` |
 | `service.publish_or_suspend` | 发布或暂停供给服务 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/service.publish_or_suspend.json` |
 | `service.rating.submit` | 提交服务评价 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/service.rating.submit.json` |
-| `standard.asset.recommend` | 推荐标准资产 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/standard.asset.recommend.json` |
-| `standard.asset.sync` | 同步标准资产 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/standard.asset.sync.json` |
 | `subscription.terminate` | 订阅显式终止 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/subscription.terminate.json` |
 | `summary.confirm` | 确认自动汇总 | 1.0.0 | audit, db_write, state_machine_transition, task_dispatch, blockchain_anchor | `zw_brain/skill_registration/registered/summary.confirm.json` |
 | `supplement.submit` | 提交差异补录 | 1.0.0 | audit, db_write, state_machine_transition, task_dispatch, blockchain_anchor | `zw_brain/skill_registration/registered/supplement.submit.json` |
@@ -494,9 +420,9 @@
 
 ## Statistics
 
-- REST endpoints: 195
+- REST endpoints: 168
 - CLI entries: 1
-- MCP tools: 61
+- MCP tools: 53
 - A2A agent cards: 1
-- Registered Skills: 200
+- Registered Skills (live): 159 / 200 on-disk
 

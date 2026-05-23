@@ -96,5 +96,9 @@
     "require",
     "intent",
     "write"
-  ]
+  ],
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
 }

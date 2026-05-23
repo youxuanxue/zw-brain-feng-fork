@@ -152,5 +152,9 @@
     "cascade",
     "consume",
     "receipt"
-  ]
+  ],
+  "product_scope": {
+    "journey": "infra",
+    "status": "live"
+  }
 }

@@ -93,5 +93,9 @@
     "version",
     "review",
     "write"
-  ]
+  ],
+  "product_scope": {
+    "journey": "b1",
+    "status": "live"
+  }
 }

@@ -625,6 +625,50 @@ legacy 门户的信息架构只能作为遗留能力索引，不再作为新 Web
 
 **自动生成本身就是产品边界的一部分**：手维护多个投影是 OPC 模式禁止的反模式；任何一处投影若需要"手改"，先回头修 registry / contract，再让生成器输出。
 
+### 6.6 Registry 边界与能力预算（P0-05 落地）
+
+能力 registry 不是"无限注册的容器"，而是与 WebUI §5.2 8 页面 cap 同等地位的**产品边界**。每条 manifest 必须在 `product_scope` 自报旅程归属与状态：
+
+| 字段 | 取值 | 含义 |
+|------|------|------|
+| `product_scope.journey` | `j1` / `j2` / `b1` / `infra` / `external` / `national` | 该能力服务于哪条 §5.1 旅程或后台支撑面；非核心旅程必须显式声明 |
+| `product_scope.status` | `live` / `deferred:wave-{1..4}` / `external` | `live` 才进 5 消费面投影；`deferred` 与 `external` 由 `export_agent_contract.py` 机械过滤掉，UI 不可达 |
+
+**Per-journey live capability 预算（drift = registry 边界变更）：**
+
+- J1 找数→用数：`<!-- stat:zwbrain.capability-budget-j1 -->59<!-- /stat -->` live capabilities
+- J2 挂数→维数：`<!-- stat:zwbrain.capability-budget-j2 -->42<!-- /stat -->` live capabilities
+- B1 后台支撑面：`<!-- stat:zwbrain.capability-budget-b1 -->41<!-- /stat -->` live capabilities
+- Infra 底座（鉴权 / 审计 / actor / adapter health）：`<!-- stat:zwbrain.capability-budget-infra -->17<!-- /stat -->` live capabilities
+
+这 4 个数字写进 `scripts/.stats.json`，preflight 段 8 自动校验。任意一项 drift（无论是增是减）都意味着 §5.1 旅程范围或底座边界被改动，**必须走 GATE 决策**，不允许悄悄漂移。
+
+**已发现禁区前缀的回潮防护（preflight 段 22）：**
+
+`scripts/check_capability_boundary.py` 按 skill_id prefix 把 manifest 分类到**当前已观察到曾出现 builtin 越界**的 7 类禁区前缀（血缘 / 质量 / 运维监控 / 工单 / 国家通道 / 国家直达 / 标准服务）。判定规则：
+
+| skill_id prefix / 形态 | 归属禁区前缀 |
+|---|---|
+| `metadata.lineage.*`（仅此前缀，不含 skill_id 其它位置的 `lineage` 段） | §1.3 血缘 |
+| `quality.*` / `ops.catalog.quality.*` | §1.3 质量 |
+| `ops.gateway.*` / `ops.shift_handover.*` / `ops.exchange.diagnose` | §1.3 运维监控 |
+| `ops.ticket.*` | §1.3 工单（外部消息中心） |
+| `adapter.national.*` | §1.3 国家通道 |
+| `direct_access.*` | §1.3 国家直达 |
+| `standard.*` | §1.3 标准服务 |
+
+判红条件：任一 manifest 同时满足 `product_scope.status == "live"` **且** `execution_binding == "builtin"`。
+
+**作用边界（避免误解）：**
+
+- 段 22 只防"主 zw-brain 自建 builtin"回潮，**不阻止通过 `execution_binding == external_capability` 桥接外部系统消费同域能力**——例如 `external.lineage.graph.build` / `external.quality.scan.execute` / `external.notification.workorder.dispatch` 均为合法形态，正是 §1.3 "集团中心已做" 的消费桥接。血缘禁区**刻意不用「skill_id 含 `lineage` 段」宽匹配**：`external.lineage.*` 等桥接能力靠 `status` + `execution_binding` 区分，段 22 只锁 `metadata.lineage.*` 曾出现的 builtin 回潮。
+- 段 22 是**事后防回潮**，把 P0 已清理的 27 个越界 manifest 锁死；**不是 §1.3 完整 10 类的事前防违建**。伪装成核心旅程（j1/j2/b1/infra）的新建 builtin 无法靠 prefix 拦下，那属架构约束「能力扩展唯一路径 = Skill 注册」+「高频核心走 builtin、长尾默认外部化」+ reviewer 判断范畴。
+- §1.3 出现新的 builtin 越界前缀时（例如未来若有 `dashboard.*` / `desensitize.*` 等），需同步更新 `check_capability_boundary.py::FORBIDDEN_ZONES`。
+
+当前基线扫描结果：200 manifests / 27 落入禁区前缀 / 0 live+builtin 越界（13 `external` + 14 `deferred` + 1 `external_capability`）。任何把禁区 manifest 状态改回 `live + builtin` 的 commit 必然被段 22 拦下；回归保障由 `tests/test_capability_boundary.py` 自动化覆盖（6 个场景）。
+
+**与 §7.3 webui-pages-cap 的关系**：8 页面 cap 是 UI 层"什么进主导航"的硬边界；本节的旅程预算 + 段 22 禁区前缀回潮防护是 capability 层"什么能成为 builtin live 能力"的硬边界。两者一上一下，共同构成产品形态的机械化执行面，杜绝旧平台"全菜单全能力"的形态复刻。
+
 ---
 
 ## 七、架构与代码边界

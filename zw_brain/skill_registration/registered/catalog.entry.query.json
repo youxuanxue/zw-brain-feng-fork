@@ -4,20 +4,77 @@
   "title": "查询目录条目",
   "description": "查询已进入 canonical 聚合的目录条目详情和列表。",
   "version": "1.0.0",
-  "input_schema": { "type": "object", "properties": { "query": { "type": "string" }, "catalog_code": { "type": "string" }, "source": { "type": "string", "description": "filter by summary_json.source (e.g. 'reverse' for 反向编目 drafts)" }, "lifecycle_status": { "type": "string", "description": "filter by lifecycle_status (draft / pending_review / active / ...)" }, "role": { "type": "string" } } },
-  "output_schema": { "type": "object", "properties": { "items": { "type": "array", "items": { "type": "object" } }, "total": { "type": "integer" } } },
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string"
+      },
+      "catalog_code": {
+        "type": "string"
+      },
+      "source": {
+        "type": "string",
+        "description": "filter by summary_json.source (e.g. 'reverse' for 反向编目 drafts)"
+      },
+      "lifecycle_status": {
+        "type": "string",
+        "description": "filter by lifecycle_status (draft / pending_review / active / ...)"
+      },
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "total": {
+        "type": "integer"
+      }
+    }
+  },
   "side_effects": [],
   "tenant_scope": "tenant",
   "auth_policy": "user",
   "human_confirmation_required": false,
   "audit_class": "read-trace",
   "execution_binding": "builtin",
-  "compatibility": ["webui", "api", "cli", "mcp", "a2a"],
-  "runtime_binding": { "kind": "brain_service", "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill", "method": "catalog.entry.query" },
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "catalog.entry.query"
+  },
   "rollback_target": null,
   "audit_required": true,
-  "permissions": ["catalog.entry.query.execute"],
-  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "permissions": [
+    "catalog.entry.query.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
   "registry_source": "internal",
-  "tags": ["catalog", "entry", "read"]
+  "tags": [
+    "catalog",
+    "entry",
+    "read"
+  ],
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
 }

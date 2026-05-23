@@ -108,5 +108,9 @@
     "api",
     "write",
     "governance"
-  ]
+  ],
+  "product_scope": {
+    "journey": "j2",
+    "status": "live"
+  }
 }

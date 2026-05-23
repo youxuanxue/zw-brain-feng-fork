@@ -73,5 +73,9 @@
     "reverse_draft",
     "ROLE_BUSIAUDIT",
     "write"
-  ]
+  ],
+  "product_scope": {
+    "journey": "j2",
+    "status": "live"
+  }
 }

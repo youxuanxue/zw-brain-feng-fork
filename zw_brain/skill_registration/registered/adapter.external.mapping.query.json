@@ -96,5 +96,9 @@
     "external",
     "mapping",
     "read"
-  ]
+  ],
+  "product_scope": {
+    "journey": "infra",
+    "status": "live"
+  }
 }

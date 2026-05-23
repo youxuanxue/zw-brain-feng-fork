@@ -78,5 +78,9 @@
     "exchange",
     "statistics",
     "read"
-  ]
+  ],
+  "product_scope": {
+    "journey": "b1",
+    "status": "live"
+  }
 }

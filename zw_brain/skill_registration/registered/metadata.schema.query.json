@@ -4,20 +4,69 @@
   "title": "查询 Schema 证据",
   "description": "查询资源 schema 快照证据和字段结构。",
   "version": "1.0.0",
-  "input_schema": { "type": "object", "properties": { "resource_code": { "type": "string" }, "binding_code": { "type": "string" }, "role": { "type": "string" } } },
-  "output_schema": { "type": "object", "properties": { "items": { "type": "array", "items": { "type": "object" } }, "total": { "type": "integer" } } },
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "resource_code": {
+        "type": "string"
+      },
+      "binding_code": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "total": {
+        "type": "integer"
+      }
+    }
+  },
   "side_effects": [],
   "tenant_scope": "tenant",
   "auth_policy": "user",
   "human_confirmation_required": false,
   "audit_class": "read-trace",
   "execution_binding": "builtin",
-  "compatibility": ["webui", "api", "cli", "mcp", "a2a"],
-  "runtime_binding": { "kind": "brain_service", "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill", "method": "metadata.schema.query" },
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "metadata.schema.query"
+  },
   "rollback_target": null,
   "audit_required": true,
-  "permissions": ["metadata.schema.query.execute"],
-  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "permissions": [
+    "metadata.schema.query.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
   "registry_source": "internal",
-  "tags": ["metadata", "schema", "read"]
+  "tags": [
+    "metadata",
+    "schema",
+    "read"
+  ],
+  "product_scope": {
+    "journey": "infra",
+    "status": "live"
+  }
 }

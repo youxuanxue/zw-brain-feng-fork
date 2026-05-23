@@ -86,5 +86,9 @@
     "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
     "method": "workbench.view"
   },
-  "rollback_target": null
+  "rollback_target": null,
+  "product_scope": {
+    "journey": "infra",
+    "status": "live"
+  }
 }

@@ -65,5 +65,9 @@
     "gather",
     "evidence",
     "read"
-  ]
+  ],
+  "product_scope": {
+    "journey": "infra",
+    "status": "live"
+  }
 }

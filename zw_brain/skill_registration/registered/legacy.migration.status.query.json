@@ -7,28 +7,67 @@
   "input_schema": {
     "type": "object",
     "properties": {
-      "role": { "type": "string" },
-      "tenant_id": { "type": "string" }
+      "role": {
+        "type": "string"
+      },
+      "tenant_id": {
+        "type": "string"
+      }
     }
   },
   "output_schema": {
     "type": "object",
     "properties": {
-      "tenant_id": { "type": "string" },
+      "tenant_id": {
+        "type": "string"
+      },
       "totals": {
         "type": "object",
         "properties": {
-          "mappings": { "type": "integer" },
-          "mapped": { "type": "integer" },
-          "conflicted": { "type": "integer" },
-          "rolled_back": { "type": "integer" }
+          "mappings": {
+            "type": "integer"
+          },
+          "mapped": {
+            "type": "integer"
+          },
+          "conflicted": {
+            "type": "integer"
+          },
+          "rolled_back": {
+            "type": "integer"
+          }
         }
       },
-      "by_canonical_type": { "type": "array", "items": { "type": "object" } },
-      "by_legacy_system": { "type": "array", "items": { "type": "object" } },
-      "recent_adapter_runs": { "type": "array", "items": { "type": "object" } },
-      "recent_rollbacks": { "type": "array", "items": { "type": "object" } },
-      "work_queue_cards": { "type": "array", "items": { "type": "object" } }
+      "by_canonical_type": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "by_legacy_system": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "recent_adapter_runs": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "recent_rollbacks": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "work_queue_cards": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
     }
   },
   "side_effects": [],
@@ -37,7 +76,13 @@
   "human_confirmation_required": false,
   "audit_class": "read-trace",
   "execution_binding": "builtin",
-  "compatibility": ["webui", "api", "cli", "mcp", "a2a"],
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
   "runtime_binding": {
     "kind": "brain_service",
     "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
@@ -45,8 +90,23 @@
   },
   "rollback_target": null,
   "audit_required": true,
-  "permissions": ["legacy.migration.status.query.execute"],
-  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "permissions": [
+    "legacy.migration.status.query.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
   "registry_source": "internal",
-  "tags": ["legacy", "m0", "migration", "acceptance", "read"]
+  "tags": [
+    "legacy",
+    "m0",
+    "migration",
+    "acceptance",
+    "read"
+  ],
+  "product_scope": {
+    "journey": "infra",
+    "status": "live"
+  }
 }

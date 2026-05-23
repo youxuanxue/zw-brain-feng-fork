@@ -111,5 +111,9 @@
     "notification",
     "workorder",
     "contract"
-  ]
+  ],
+  "product_scope": {
+    "journey": "external",
+    "status": "external"
+  }
 }

@@ -89,5 +89,9 @@
     "objection",
     "case",
     "read"
-  ]
+  ],
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
 }

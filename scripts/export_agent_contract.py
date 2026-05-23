@@ -99,6 +99,11 @@ def sort_skills_for_projection(skills: list[dict[str, Any]]) -> list[dict[str, A
     return sorted(skills, key=lambda item: (bool(item.get("side_effects")), item.get("skill_id", "")))
 
 
+def is_live(skill: dict[str, Any]) -> bool:
+    scope = skill.get("product_scope") or {}
+    return scope.get("status") == "live"
+
+
 def discover_cli() -> list[dict[str, Any]]:
     if not ENTRY_CLI.exists():
         return []
@@ -141,10 +146,11 @@ def discover_skills() -> list[dict[str, Any]]:
                     "compatibility": data.get("compatibility", []),
                     "execution_binding": data.get("execution_binding", ""),
                     "runtime_binding": data.get("runtime_binding", {}),
+                    "product_scope": data.get("product_scope", {}),
                     "source": str(spec.relative_to(REPO_ROOT)),
                 }
             )
-        except (json.JSONDecodeError, OSError) as exc:
+        except (json.JSONDecodeError, OSError, ValueError) as exc:
             skills.append({"skill_id": spec.stem, "error": str(exc), "source": str(spec.relative_to(REPO_ROOT))})
     return skills
 
@@ -385,7 +391,11 @@ def build_iaf_auth_paths() -> dict[str, Any]:
 
 
 def build_rest_openapi(skills: list[dict[str, Any]]) -> dict[str, Any]:
-    valid_skills = [skill for skill in skills if "error" not in skill and is_surface_enabled(skill, "api")]
+    valid_skills = [
+        skill
+        for skill in skills
+        if "error" not in skill and is_surface_enabled(skill, "api") and is_live(skill)
+    ]
     paths: dict[str, Any] = {
         "/health": {
             "get": {
@@ -523,7 +533,7 @@ def build_mcp_tool_descriptor(skill: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_a2a_card(skills: list[dict[str, Any]]) -> dict[str, Any]:
-    ordered = sort_skills_for_projection(skills)
+    ordered = sort_skills_for_projection([skill for skill in skills if is_live(skill)])
     return {
         "name": A2A_NAME,
         "description": A2A_DESCRIPTION,
@@ -549,7 +559,7 @@ def build_a2a_card(skills: list[dict[str, Any]]) -> dict[str, Any]:
 
 def build_runtime_bindings(skills: list[dict[str, Any]]) -> list[dict[str, Any]]:
     bindings: list[dict[str, Any]] = []
-    for skill in sort_skills_for_projection(skills):
+    for skill in sort_skills_for_projection([skill for skill in skills if is_live(skill)]):
         bindings.append(
             {
                 "tool_name": skill["skill_id"],
@@ -587,7 +597,7 @@ def expected_projection_files(
     files[OPENAPI_PATH] = dump_json(openapi)
     rest_entries = rest_entries_from_openapi(openapi)
 
-    mcp_skills = [skill for skill in valid_skills if is_surface_enabled(skill, "mcp")]
+    mcp_skills = [skill for skill in valid_skills if is_surface_enabled(skill, "mcp") and is_live(skill)]
     mcp_entries: list[dict[str, Any]] = []
     expected_mcp_paths: set[Path] = set()
     for skill in sort_skills_for_projection(mcp_skills):
@@ -605,7 +615,7 @@ def expected_projection_files(
             }
         )
 
-    a2a_skills = [skill for skill in valid_skills if is_surface_enabled(skill, "a2a")]
+    a2a_skills = [skill for skill in valid_skills if is_surface_enabled(skill, "a2a") and is_live(skill)]
     card = build_a2a_card(a2a_skills)
     files[A2A_CARD_PATH] = dump_json(card)
     files[A2A_RUNTIME_BINDINGS_PATH] = dump_json(build_runtime_bindings(a2a_skills))
@@ -688,29 +698,51 @@ def render(
         lines.append("_No A2A agent cards discovered._")
     lines.append("")
 
+    error_skills = [skill for skill in skills if "error" in skill]
+    if error_skills:
+        lines.append("## ⚠️ Parse Errors")
+        lines.append("")
+        lines.append("以下 manifest 文件物理存在但解析失败（JSON / 字段校验），不会进入任何 surface 投影。修复后重跑 `python scripts/export_agent_contract.py`。")
+        lines.append("")
+        lines.append("| Skill ID | Error | Source |")
+        lines.append("| -------- | ----- | ------ |")
+        for skill in error_skills:
+            lines.append(f"| {skill['skill_id']} | {skill['error']} | `{skill['source']}` |")
+        lines.append("")
+
     lines.append("## Registered Skills (the canonical contract — D2)")
     lines.append("")
-    if skills:
+    lines.append(
+        "> 仅列出 `product_scope.status=live` 的能力；`deferred:wave-N` / `external` manifests 物理存在但不投影到 5 surface，"
+        "完整边界规则见 [`docs/approved/zw-brain-architecture.md` §6.6](./approved/zw-brain-architecture.md)。"
+    )
+    lines.append("")
+    live_skills = [skill for skill in skills if "error" not in skill and is_live(skill)]
+    if live_skills:
         lines.append("| Skill ID | Title | Version | Side Effects | Source |")
         lines.append("| -------- | ----- | ------- | ------------ | ------ |")
-        for skill in skills:
-            if "error" in skill:
-                lines.append(f"| {skill['skill_id']} | (parse error) {skill['error']} | | | `{skill['source']}` |")
-            else:
-                effects = ", ".join(skill.get("side_effects", [])) if skill.get("side_effects") else "(read-only)"
-                lines.append(f"| `{skill['skill_id']}` | {skill['title']} | {skill['version']} | {effects} | `{skill['source']}` |")
+        for skill in live_skills:
+            effects = ", ".join(skill.get("side_effects", [])) if skill.get("side_effects") else "(read-only)"
+            lines.append(f"| `{skill['skill_id']}` | {skill['title']} | {skill['version']} | {effects} | `{skill['source']}` |")
     else:
         lines.append("_No registered Skills discovered._")
     lines.append("")
 
-    valid_skill_count = len([skill for skill in skills if "error" not in skill])
+    live_skill_count = len(live_skills)
+    on_disk_count = len(skills)
+    error_count = len(error_skills)
     lines.append("## Statistics")
     lines.append("")
     lines.append(f"- REST endpoints: {len(rest)}")
     lines.append(f"- CLI entries: {len(cli)}")
     lines.append(f"- MCP tools: {len(mcp)}")
     lines.append(f"- A2A agent cards: {len(a2a)}")
-    lines.append(f"- Registered Skills: {valid_skill_count}")
+    if error_count:
+        lines.append(
+            f"- Registered Skills (live): {live_skill_count} / {on_disk_count} on-disk ({error_count} parse error(s))"
+        )
+    else:
+        lines.append(f"- Registered Skills (live): {live_skill_count} / {on_disk_count} on-disk")
     lines.append("")
     return "\n".join(lines) + "\n"
 
@@ -768,7 +800,7 @@ def main() -> int:
                 print(f"  - {error}")
             print("  Run: python scripts/export_agent_contract.py")
             return 1
-        valid_skill_count = len([skill for skill in skills if "error" not in skill])
+        valid_skill_count = len([skill for skill in skills if "error" not in skill and is_live(skill)])
         print(
             f"[contract] OK: {DOC_PATH.relative_to(REPO_ROOT)} in sync with discovered entries "
             f"(REST={len(rest_entries)} CLI={len(cli)} MCP={len(mcp_entries)} A2A={len(a2a_entries)} Skills={valid_skill_count})"
@@ -780,7 +812,7 @@ def main() -> int:
     remove_extra_mcp_files(expected_mcp_paths)
     DOC_PATH.parent.mkdir(parents=True, exist_ok=True)
     DOC_PATH.write_text(doc_content, encoding="utf-8")
-    valid_skill_count = len([skill for skill in skills if "error" not in skill])
+    valid_skill_count = len([skill for skill in skills if "error" not in skill and is_live(skill)])
     print(
         f"[contract] generated: {DOC_PATH.relative_to(REPO_ROOT)} "
         f"(REST={len(rest_entries)} CLI={len(cli)} MCP={len(mcp_entries)} A2A={len(a2a_entries)} Skills={valid_skill_count})"

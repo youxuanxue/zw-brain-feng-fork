@@ -71,5 +71,9 @@
     "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
     "method": "package.view"
   },
-  "rollback_target": null
+  "rollback_target": null,
+  "product_scope": {
+    "journey": "b1",
+    "status": "live"
+  }
 }
