@@ -342,6 +342,29 @@
         }
       } else if (route === '#/provider' && roleCan(['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'])) {
         window.RUNTIME_PROVIDER = await invokeRead('provider.view', {});
+        // G2.1 — BUSIAUDIT 视角合并预拉（原 388 块永不可达，已修复）
+        if (roleCan(['ROLE_BUSIAUDIT'])) {
+          try {
+            const draftsResult = await invokeRead('catalog.entry.query', { source: 'reverse', lifecycle_status: 'draft' });
+            window.RUNTIME_R7_FIELD_DRAFTS = (draftsResult && draftsResult.items) || [];
+          } catch (_) { window.RUNTIME_R7_FIELD_DRAFTS = []; }
+          try {
+            const browseResult = await invokeRead('catalog.browse', { lifecycle: 'pending_review', limit: 50 });
+            window.RUNTIME_R7_HOOKUP_PENDING = (browseResult && browseResult.items) || [];
+          } catch (_) { window.RUNTIME_R7_HOOKUP_PENDING = []; }
+          try {
+            const publishPending = await invokeRead('catalog.browse', { lifecycle: 'approved_pending_publish', limit: 50 });
+            window.RUNTIME_R7_CATALOG_PUBLISH_PENDING = (publishPending && publishPending.items) || [];
+          } catch (_) { window.RUNTIME_R7_CATALOG_PUBLISH_PENDING = []; }
+          try {
+            const reqResult = await invokeRead('request.list', {});
+            window.RUNTIME_R7_DEMAND_PENDING = ((reqResult && reqResult.items) || []).filter(r => r.status === 'submitted' || r.status === 'pending');
+          } catch (_) { window.RUNTIME_R7_DEMAND_PENDING = []; }
+          try {
+            const directResult = await invokeRead('direct_access.catalog.query', {});
+            window.RUNTIME_R7_DIRECT_ACCESS = (directResult && directResult.directAccess) || window.RUNTIME_PROVIDER.directAccess || { catalogs: [], resources: [], demands: [], subscriptions: [] };
+          } catch (_) { window.RUNTIME_R7_DIRECT_ACCESS = window.RUNTIME_PROVIDER.directAccess || { catalogs: [], resources: [], demands: [], subscriptions: [] }; }
+        }
       } else if (route === '#/compliance-ops' && roleCan(['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'])) {
         // K12 dashboard / dashboard.render_command_center Skill 已退役 (R17 / v4.1)
         const disputes = await invokeRead('governance.dispute_list', {});
@@ -385,25 +408,6 @@
         try {
           window.RUNTIME_R8_DIRECT_ACCESS = await invokeRead('direct_access.delivery.list', { limit: 50 });
         } catch (_) { window.RUNTIME_R8_DIRECT_ACCESS = { items: [], total: 0 }; }
-      } else if (route === '#/provider' && roleCan(['ROLE_BUSIAUDIT'])) {
-        // 业务运营员 P5 视图：预拉收件箱条数用于工作流卡片标题
-        try {
-          const draftsResult = await invokeRead('catalog.entry.query', { source: 'reverse', lifecycle_status: 'draft' });
-          window.RUNTIME_R7_FIELD_DRAFTS = (draftsResult && draftsResult.items) || [];
-        } catch (_) { window.RUNTIME_R7_FIELD_DRAFTS = []; }
-        try {
-          const browseResult = await invokeRead('catalog.browse', { lifecycle: 'pending_review', limit: 50 });
-          window.RUNTIME_R7_HOOKUP_PENDING = (browseResult && browseResult.items) || [];
-        } catch (_) { window.RUNTIME_R7_HOOKUP_PENDING = []; }
-        try {
-          const reqResult = await invokeRead('request.list', {});
-          window.RUNTIME_R7_DEMAND_PENDING = ((reqResult && reqResult.items) || []).filter(r => r.status === 'submitted' || r.status === 'pending');
-        } catch (_) { window.RUNTIME_R7_DEMAND_PENDING = []; }
-        // 业务运营员 Direct Access channel data
-        try {
-          const directResult = await invokeRead('direct_access.catalog.query', {});
-          window.RUNTIME_R7_DIRECT_ACCESS = (directResult && directResult.directAccess) || window.RUNTIME_PROVIDER.directAccess || { catalogs: [], resources: [], demands: [], subscriptions: [] };
-        } catch (_) { window.RUNTIME_R7_DIRECT_ACCESS = window.RUNTIME_PROVIDER.directAccess || { catalogs: [], resources: [], demands: [], subscriptions: [] }; }
       } else if (route === '#/provider/inbox/field-decision' && roleCan(['ROLE_BUSIAUDIT'])) {
         const result = await invokeRead('catalog.entry.query', { source: 'reverse', lifecycle_status: 'draft' });
         window.RUNTIME_R7_FIELD_DRAFTS = (result && result.items) || [];
@@ -763,6 +767,14 @@
         return;
       }
       performWrite('catalog.manage_entry', { catalog_id: catalogId, action }, '目录说明已修正');
+    },
+    // G2.1 — 业务运营员 目录审核（pending_review → approved_pending_publish | rejected）
+    reviewCatalogEntry(catalogCode, decision) {
+      const label = decision === 'approve' ? '审核通过，待发布' : '已驳回';
+      performWrite('catalog.entry.review', { catalog_code: catalogCode, decision }, label);
+    },
+    publishCatalogEntry(catalogCode) {
+      performWrite('catalog.entry.publish', { catalog_code: catalogCode }, '目录已上线（active）');
     },
     manageResourceAsset(resourceId, action) {
       if (action === 'publish') {

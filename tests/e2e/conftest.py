@@ -91,3 +91,24 @@ def api_post(page: Any, skill: str, payload: dict) -> dict:
         "result": (parsed or {}).get("result") if parsed else None,
         "error": (parsed or {}).get("error") if parsed else None,
     }
+
+
+def api_post_or_raise(page: Any, skill: str, payload: dict) -> dict:
+    """Drive a write skill and raise RuntimeError on any non-OK response.
+
+    For happy-path e2e (Wave 1 J2 golden / G2.1 click-through) where every
+    non-OK response is a real test failure. Negative tests (wave0_j1_negative)
+    should keep using `api_post` directly so they can inspect status/error/body.
+
+    Returns just the `result` dict from the skill response.
+    """
+    resp = api_post(page, skill, payload)
+    if resp["status"] >= 400:
+        raise RuntimeError(
+            f"API {skill} failed: HTTP {resp['status']} body={resp['body'][:500]}"
+        )
+    if not resp["ok"]:
+        raise RuntimeError(
+            f"API {skill} returned ok=false: {resp['body'][:500]}"
+        )
+    return resp["result"] or {}

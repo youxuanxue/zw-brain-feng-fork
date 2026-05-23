@@ -2446,6 +2446,58 @@ function r1DeliveryActionsPanel(task) {
 }
 
 
+/** G2.1 — 业务运营员 目录审核与上线面板：J2 单部门最小闭环最后两关 */
+function r7CatalogReviewPublishPanel() {
+  if (window.STATE && window.STATE.role !== 'ROLE_BUSIAUDIT') return '';
+  const reviewItems = (window.RUNTIME_R7_HOOKUP_PENDING || []).slice(0, 8);
+  const publishItems = (window.RUNTIME_R7_CATALOG_PUBLISH_PENDING || []).slice(0, 8);
+  if (reviewItems.length === 0 && publishItems.length === 0) return '';
+  const reviewRow = (item) => {
+    const code = escapeHtml(item.catalog_code || item.id || '—');
+    const title = escapeHtml(item.title || item.name || code);
+    const owner = escapeHtml(item.owner_org_id || item.provider || '—');
+    return `<div class="gov-list-row">
+      <div>
+        <div class="row-title">${title}</div>
+        <div class="row-meta mt-1">${code} · 提交方 ${owner}</div>
+      </div>
+      <div class="flex items-center gap-2">
+        ${statusPill('待审')}
+        <button onclick="window.ACTIONS.reviewCatalogEntry('${code}', 'approve')" class="gov-btn gov-btn-primary">审核通过</button>
+        <button onclick="window.ACTIONS.reviewCatalogEntry('${code}', 'reject')" class="gov-btn gov-btn-secondary">驳回</button>
+      </div>
+    </div>`;
+  };
+  const publishRow = (item) => {
+    const code = escapeHtml(item.catalog_code || item.id || '—');
+    const title = escapeHtml(item.title || item.name || code);
+    const owner = escapeHtml(item.owner_org_id || item.provider || '—');
+    return `<div class="gov-list-row">
+      <div>
+        <div class="row-title">${title}</div>
+        <div class="row-meta mt-1">${code} · 提交方 ${owner}</div>
+      </div>
+      <div class="flex items-center gap-2">
+        ${statusPill('待发布')}
+        <button onclick="window.ACTIONS.publishCatalogEntry('${code}')" class="gov-btn gov-btn-primary">上线发布</button>
+      </div>
+    </div>`;
+  };
+  return `
+    ${panel(`目录审核与上线（${reviewItems.length} 条待审 · ${publishItems.length} 条待发布）`,
+      '业务运营员 把 提供方部门 提交的 pending_review 目录审通过 → approved_pending_publish → 上线 active', `
+      ${reviewItems.length > 0 ? `
+        <div class="text-body-sm text-zw-mute mb-2">待审核（pending_review）：</div>
+        <div class="gov-list text-body-sm mb-4">${reviewItems.map(reviewRow).join('')}</div>
+      ` : ''}
+      ${publishItems.length > 0 ? `
+        <div class="text-body-sm text-zw-mute mb-2">待发布（approved_pending_publish）：</div>
+        <div class="gov-list text-body-sm">${publishItems.map(publishRow).join('')}</div>
+      ` : ''}
+    `)}
+  `;
+}
+
 function r7ProviderWorkflowCards() {
   if (window.STATE && window.STATE.role !== 'ROLE_BUSIAUDIT') return '';
   const fd = (window.RUNTIME_R7_FIELD_DRAFTS || []).length;
@@ -2580,6 +2632,7 @@ PAGES.provider = function () {
 
     ${isR6 && r6Cards ? `<div class="grid grid-cols-2 gap-5">${r6Cards}</div>` : ''}
     ${isR7 && r7Cards ? `<div class="grid grid-cols-2 gap-5">${r7Cards}</div>` : ''}
+    ${isR7 ? r7CatalogReviewPublishPanel() : ''}
     ${isR7 ? r7DirectAccessChannel() : ''}
 
     ${isR6 ? statCards(window.RUNTIME_PROVIDER.overview) : ''}
