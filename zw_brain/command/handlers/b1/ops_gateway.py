@@ -1,0 +1,95 @@
+"""B1 ops_gateway handlers — 2 cap migrated from BrainService (F1 turn 5).
+
+Method bodies physically migrated (`self.` → `brain.`); per-cap handler functions
+registered in `zw_brain.command.dispatch.DISPATCH_TABLE`.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from zw_brain.command.brain import BrainService
+import copy
+from datetime import datetime
+
+from zw_brain.command.brain import BrainServiceError
+
+# ──────────────────────────────────────────────────────────────────────────
+# Migrated method bodies
+# ──────────────────────────────────────────────────────────────────────────
+
+def _ingest_gateway_heartbeat(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    role = str(payload.get("role", brain._ui_state["role"]))
+    confirmed = bool(payload.get("confirmed"))
+    status = str(payload.get("status", "online"))
+    if status not in {"online", "warning", "offline"}:
+        raise BrainServiceError(f"unsupported gateway status: {status}")
+    gateway_payload = {
+        "gateway_instance_id": str(payload["gateway_instance_id"]),
+        "gateway_address_ref": payload.get("gateway_address_ref"),
+        "runtime_profile": payload.get("runtime_profile"),
+        "status": status,
+        "last_reported_at": payload.get("last_reported_at") or datetime.now().isoformat(),
+        "source_ref": payload.get("source_ref") or "gateway-heartbeat",
+        "summary_json": copy.deepcopy(payload.get("summary_json", {})),
+    }
+
+    def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+        store = brain._state_store.database_store
+        if store is None:
+            statuses = brain._snapshot.setdefault("gateway_runtime_statuses", [])
+            current = next((item for item in statuses if item["gateway_instance_id"] == gateway_payload["gateway_instance_id"]), None)
+            if current is None:
+                current = copy.deepcopy(gateway_payload)
+                statuses.append(current)
+            else:
+                current.update(copy.deepcopy(gateway_payload))
+            result = copy.deepcopy(current)
+        else:
+            result = brain._gateway_record_to_dict(store.gateway_runtime_repo.upsert_heartbeat(gateway_payload))
+        brain._append_audit_feed("ops.gateway.heartbeat", gateway_payload["gateway_instance_id"], "ok", actor)
+        return result | {"audit_id": audit_id}
+
+    return brain._mutate("ops.gateway.heartbeat.ingest", role, confirmed, gateway_payload, mutation)
+
+def _anchor_gateway_log(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    role = str(payload.get("role", brain._ui_state["role"]))
+    confirmed = bool(payload.get("confirmed"))
+    gateway_log_ref = str(payload["gateway_log_ref"])
+    evidence = brain._safe_json(payload.get("evidence_json", {}))
+    anchor_payload = {
+        "gateway_log_ref": gateway_log_ref,
+        "resource_code": payload.get("resource_code"),
+        "source_ref": payload.get("source_ref") or gateway_log_ref,
+        "evidence_json": evidence,
+    }
+
+    def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+        store = brain._state_store.database_store
+        if store is not None:
+            store.legacy_mapping_repo.upsert_mapping(
+                {
+                    "source_ref": anchor_payload["source_ref"],
+                    "legacy_object_ref": gateway_log_ref,
+                    "canonical_type": "anchor_outbox",
+                    "canonical_ref": audit_id,
+                    "evidence_json": {"resource_code": anchor_payload.get("resource_code")},
+                }
+            )
+        brain._append_audit_feed("ops.gateway.log.anchor", gateway_log_ref, "ok", actor)
+        return anchor_payload | {"anchor_outbox_ref": audit_id, "audit_id": audit_id}
+
+    return brain._mutate("ops.gateway.log.anchor", role, confirmed, anchor_payload, mutation)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Handler entrypoints
+# ──────────────────────────────────────────────────────────────────────────
+
+def handler_ops_gateway_heartbeat_ingest(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+    return _ingest_gateway_heartbeat(brain, payload)
+
+def handler_ops_gateway_log_anchor(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+    return _anchor_gateway_log(brain, payload)
+

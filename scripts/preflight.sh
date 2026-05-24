@@ -68,6 +68,8 @@ done <<'CHECKS'
 段 24	scripts/check_ui_term_blacklist.py	ui-term-blacklist (R12 工程术语不进 UI — 9 词黑名单)
 段 25	scripts/check_adapter_write_ban.py	adapter-write-ban (§9.5 adapter 禁止成为新写入口)
 段 26	scripts/check_twin_workspaces.py	twin-workspaces (.twin/ 6 workspace goal+plan schema valid)
+段 27	scripts/check_ruff.py	ruff (与 CI lint job 对齐，F821/F401/I001/E402)
+段 28	scripts/check_capability_registration.py	capability-registration (DISPATCH_TABLE + handlers + _CATEGORIZATION.md 三处一致)
 CHECKS
 
 echo ""

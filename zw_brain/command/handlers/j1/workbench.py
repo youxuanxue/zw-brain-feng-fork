@@ -1,0 +1,89 @@
+"""J1 workbench handlers — 3 cap migrated from BrainService (F1 turn 6, J1 收官)."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from zw_brain.command.brain import BrainService
+
+import copy
+
+from zw_brain.command.brain import _DEFAULT_TENANT_ID, NotFoundError
+
+# ──────────────────────────────────────────────────────────────────────────
+# Migrated method bodies
+# ──────────────────────────────────────────────────────────────────────────
+
+def _get_workbench(brain, role: str) -> dict[str, Any]:
+    if role not in brain._snapshot["workbench"]:
+        raise NotFoundError(role)
+    return copy.deepcopy(brain._snapshot["workbench"][role])
+
+def _submit_service_rating(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    """申请人 完成交付后为本次共享服务打分（写入审计供 安全审计员 督查可见）。"""
+    role = str(payload.get("role", brain._ui_state["role"]))
+    confirmed = bool(payload.get("confirmed"))
+    task_id = str(payload.get("task_id") or payload.get("delivery_task_id") or "")
+    score = int(payload.get("score", 5))
+    comment = str(payload.get("comment", "")).strip()
+
+    def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+        task = brain._delivery_by_id(task_id) if task_id else None
+        if task is not None:
+            task.setdefault("rating", {})
+            task["rating"]["score"] = score
+            task["rating"]["comment"] = comment
+            task["rating"]["ratedBy"] = actor
+            task["rating"]["ratedAt"] = brain._now_datetime()
+            task.setdefault("history", []).append({"time": brain._now_short_time(), "state": f"服务评价：{score} 星", "detail": comment or "—"})
+        brain._append_audit_feed("service.rating.submit", task_id, "ok", actor)
+        return {"task_id": task_id, "score": score, "comment": comment, "audit_id": audit_id}
+
+    return brain._mutate("service.rating.submit", role, confirmed, payload, mutation)
+
+def _terminate_subscription(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    role = str(payload.get("role", brain._ui_state["role"]))
+    confirmed = bool(payload.get("confirmed"))
+    subscription_code = str(payload["subscription_code"])
+    reason = str(payload["reason"])
+
+    def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+        from sqlalchemy import select  # noqa: PLC0415
+
+        from zw_brain.domain.models import DeliverySubscriptionRecord  # noqa: PLC0415
+        from zw_brain.shared.db import create_session_factory  # noqa: PLC0415
+
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            rec = session.execute(
+                select(DeliverySubscriptionRecord)
+                .where(DeliverySubscriptionRecord.tenant_id == _DEFAULT_TENANT_ID)
+                .where(DeliverySubscriptionRecord.subscription_code == subscription_code)
+            ).scalar_one_or_none()
+            if rec is None:
+                raise NotFoundError(subscription_code)
+            rec.status = "terminated"
+            snapshot = copy.deepcopy(rec.legacy_status_snapshot_json or {})
+            snapshot.setdefault("terminations", []).append({"audit_id": audit_id, "reason": reason, "actor": actor})
+            rec.legacy_status_snapshot_json = snapshot
+            session.commit()
+        brain._append_audit_feed("subscription.terminate", subscription_code, "ok", actor)
+        return {"subscription_code": subscription_code, "status": "terminated", "audit_id": audit_id}
+
+    return brain._mutate("subscription.terminate", role, confirmed, payload, mutation)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Handler entrypoints
+# ──────────────────────────────────────────────────────────────────────────
+
+def handler_workbench_view(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+    return _get_workbench(brain, str(payload.get("role", brain._ui_state["role"])))
+
+def handler_service_rating_submit(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+    return _submit_service_rating(brain, payload)
+
+def handler_subscription_terminate(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+    return _terminate_subscription(brain, payload)
+

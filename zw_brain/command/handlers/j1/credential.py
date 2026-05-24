@@ -1,0 +1,108 @@
+"""J1 credential handlers — 2 cap migrated from BrainService (F1 turn 6, J1 收官)."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from zw_brain.command.brain import BrainService
+
+import copy
+
+from zw_brain.command.brain import InvalidStateError, NotFoundError
+
+# ──────────────────────────────────────────────────────────────────────────
+# Migrated method bodies
+# ──────────────────────────────────────────────────────────────────────────
+
+def _issue_credential(brain, request_id: str, role: str, confirmed: bool, *, reissue: bool = False) -> dict[str, Any]:
+    """签发凭据 — 审批通过自动触发，或审批人/主管部门手工补签。"""
+    request = brain._request_by_id(request_id)
+    delivery = brain._delivery_by_request_id(request_id)
+    if delivery is None:
+        raise NotFoundError(request_id)
+    # 仅审批通过的 request 才能签发（前置守卫）。
+    # 覆盖所有"审批已通过"语义的状态：approved（同步落库即时态）/ supplementing（基层补差中）
+    # / summary-pending（汇总确认中）/ completed（已完成）/ in_delivery（交付进行中）/ granted（已授权）
+    approved_states = {"approved", "supplementing", "summary-pending", "completed", "in_delivery", "granted"}
+    if request.get("status") not in approved_states:
+        raise InvalidStateError(f"request {request_id} not approved yet; current status={request.get('status')}")
+
+    existing = (delivery.get("accessGrantSnapshot") or {}).get("credential")
+    if existing and not reissue:
+        return {
+            "request_id": request_id,
+            "credential": existing,
+            "audit_id": delivery.get("accessGrantSnapshot", {}).get("issued_audit_id"),
+            "issued_via": "cached",
+        }
+
+    def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+        # R-002 fix: reissue 路径传 audit_id 作 seed → 真生成新 app_secret（旧 secret 立即失效语义）
+        seed = audit_id if existing else None
+        credential = brain._credential_for_request(request_id, seed=seed)
+        grant_snapshot = copy.deepcopy(delivery.get("accessGrantSnapshot") or {})
+        grant_snapshot["credential"] = credential
+        grant_snapshot["issued_audit_id"] = audit_id
+        grant_snapshot["issued_at"] = brain._now_datetime()
+        grant_snapshot["issued_by"] = actor
+        delivery["accessGrantSnapshot"] = grant_snapshot
+        delivery.setdefault("history", []).append({
+            "time": brain._now_short_time(),
+            "state": "凭据已签发" if not existing else "凭据已重新签发（旧 secret 立即失效）",
+            "detail": f"app_key={credential['app_key']}（demo 凭据），可在 P4 凭据领取页查看。",
+        })
+        brain._append_audit_feed("credential.issue", request_id, "ok", actor)
+        return {
+            "request_id": request_id,
+            "credential": credential,
+            "audit_id": audit_id,
+            "issued_via": "manual-reissue" if existing else "auto-on-approval",
+        }
+
+    return brain._mutate("credential.issue", role, confirmed, {"request_id": request_id, "reissue": reissue}, mutation)
+
+def _get_credential(brain, request_id: str, role: str) -> dict[str, Any]:
+    """P4 凭据领取页查询入口 — 申请人 / 审批人 / 审计员都可查（无侧效，仅读）。"""
+    # 权限校验由 manifest + enforce_manifest_policy 走 invoke_skill 路径处理
+    delivery = brain._delivery_by_request_id(request_id)
+    if delivery is None:
+        raise NotFoundError(request_id)
+    snapshot = delivery.get("accessGrantSnapshot") or {}
+    credential = snapshot.get("credential")
+    if not credential:
+        return {
+            "request_id": request_id,
+            "credential": None,
+            "status": "not_issued",
+            "hint": "凭据尚未签发；请等待审批通过或联系审批人手工签发。",
+        }
+    resource_id = delivery.get("resourceId")
+    resource_name = delivery.get("resourceName")
+    if not resource_name or not resource_id:
+        request = brain._request_by_id(request_id)
+        if request is not None:
+            resource_name = resource_name or request.get("resourceName")
+            resource_id = resource_id or request.get("resourceId")
+    return {
+        "request_id": request_id,
+        "credential": credential,
+        "status": "issued",
+        "issued_audit_id": snapshot.get("issued_audit_id"),
+        "issued_at": snapshot.get("issued_at"),
+        "issued_by": snapshot.get("issued_by"),
+        "resource_id": resource_id,
+        "resource_name": resource_name,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Handler entrypoints
+# ──────────────────────────────────────────────────────────────────────────
+
+def handler_credential_issue(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+    return _issue_credential(brain, str(payload["request_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), reissue=bool(payload.get("reissue", False)))
+
+def handler_credential_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+    return _get_credential(brain, str(payload["request_id"]), str(payload.get("role", brain._ui_state["role"])))
+
