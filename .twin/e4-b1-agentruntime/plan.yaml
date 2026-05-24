@@ -63,9 +63,15 @@ items:
     scanned'
   - 'capability stat: 202→206 / B1 43→47 / DISPATCH 187→191'
   - BACKEND DONE; UI BLOCKED ON E5 webui rebuild
+  - F3-backend commit 58d5587 + F3-UI commit 0e1d9e3 — B1.1 4 panel 后端 + UI 完整
+  - B1.1 4 panel：审计回放（F2 audit.event.replay）+ 统计（F3-b audit.event.statistics）+ 异常（F3-b
+    audit.event.anomaly）+ 追责（F3-b audit.event.accountability）+ 助手（F3-b assistant.investigation_summary）
+  - UI 严守设计意图：助手不替代原始证据 / sha1 不还原 / 元审计 request_id 透传 / 单租户 sd-default 硬约束
+  - pytest 243/20 零回归；npm typecheck + build PASS；preflight 31 段全 PASS
+  - e2e harness 待 E5 next round 装 vitest/playwright；placeholder spec 已写好 9 条验证清单
   depends_on:
   - F2
-  status: blocked
+  status: completed
   next_action: 实装 4 panel 后端 capability + 助手走 shared/inference/client；UI 等 E5
   blocked_reason: F3-backend commit 58d5587 已 land（4 新 capability + 2 handler + 5
     投影 + 15 tests）；仅 UI portion（4 panel 截图 + tests/e2e/b11_compliance.spec.ts + 真实
@@ -101,10 +107,19 @@ items:
   evidence_plan:
   - 证据预算：B1.2 主流程 e2e + 与 E3 协商的 slot 接口文档
   - 停止条件：三引擎管理员页能嵌入 B1.2
-  actual_evidence: []
+  actual_evidence:
+  - F5 commit a0c93e6 on chore/e4-b1-agentruntime-ui (base F3-UI 0e1d9e3)
+  - 'diff: 5 files / +770 / -57 — B12IntegrationAdmin.vue rewrite + 2 composables
+    + b12-fixture + e2e placeholder'
+  - npm typecheck + build PASS（181.85 kB JS + 68.76 kB CSS gzip）
+  - 'pytest full suite: 243 passed / 20 skipped — zero regression'
+  - 'preflight: PASS — 31 stages all green (含段 15/24/28/29 重点段)'
+  - trust_level 三层防御：后端 manifest description + F6 readiness doc §3.1 + F5 UI disclaimer
+    行 (manifest 业务字段 vs Registry 字段)
+  - 写操作 confirm+prompt 兜底 + 状态机按钮 disabled 兜底 + 三引擎 slot contract layer 不重实装
   depends_on:
   - F4
-  status: blocked
+  status: completed
   next_action: 等 E5 webui 重建后落 UI；本项先做接口契约 + 占位
   blocked_reason: 'F5 deliverable = B1.2 UI（含三引擎管理员配置页容器）。原 blocked_reason 等 E5/F2
     webui 重建——PR #87 已 land main（e5 plan.yaml stale 但 main 代码就绪），技术上可解锁。supervisor

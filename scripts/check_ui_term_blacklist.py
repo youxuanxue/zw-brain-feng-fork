@@ -58,6 +58,7 @@ SKIP_PATH_FRAGMENTS = (
     "/__pycache__/",
     "/.git/",
     "/dist/",
+    "/dist-vite/",
     "/build/",
 )
 
