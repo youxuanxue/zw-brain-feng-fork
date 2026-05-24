@@ -384,6 +384,26 @@
       ]
     },
     {
+      "skill_id": "catalog.duplicate.check",
+      "title": "目录重复率检测（发布前）",
+      "description": "J2 发布前对单一 catalog 做轻量重复率检测，返回 duplicate_warnings 数组供 P5 提供方管理面 UI 展示（非硬拦：调用方继续执行 publish 即可）。匹配规则：title 完全相等的其他 catalog；同 region_code + 同 owner_org_id 的其他 catalog。不做模糊匹配 / Embedding similarity（属高级匹配，归 R14 三引擎或 ML 阶段）。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "catalog_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
       "skill_id": "catalog.entry.query",
       "title": "查询目录条目",
       "description": "查询已进入 canonical 聚合的目录条目详情和列表。",

@@ -27,6 +27,7 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
   ] },
   { anchor: "P2", capabilities: [
     {"skillId": "catalog.browse", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["catalog.browse.execute"]},
+    {"skillId": "catalog.duplicate.check", "mode": "read", "auditClass": "read-trace", "humanConfirmationRequired": false, "roles": [], "permissions": ["catalog.duplicate.check.execute"]},
     {"skillId": "catalog.entry.query", "mode": "read", "auditClass": "read-trace", "humanConfirmationRequired": false, "roles": [], "permissions": ["catalog.entry.query.execute"]},
     {"skillId": "catalog.entry.reverse_draft.suggest", "mode": "read", "auditClass": "read-trace", "humanConfirmationRequired": false, "roles": [], "permissions": ["catalog.entry.reverse_draft.suggest.execute"]},
     {"skillId": "catalog.group.query", "mode": "read", "auditClass": "read-trace", "humanConfirmationRequired": false, "roles": [], "permissions": ["catalog.group.query.execute"]},

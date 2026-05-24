@@ -70,6 +70,7 @@ from zw_brain.command.handlers.j1 import (
 )
 from zw_brain.command.handlers.j2 import (
     compliance,
+    duplicate_check,
     governance,
     metadata,
     quality,
@@ -118,6 +119,8 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "legacy.bsp.mapping.import": legacy_bsp_mapping.handler,
     "legacy.migration.status.query": legacy_migration_status.handler,
     "legacy.sharezone.mapping.import": legacy_sharezone_mapping.handler,
+    # F3 (E2 J2): J2 — duplicate_check (1 cap; 发布前重复率检测，read-only 非硬拦)
+    "catalog.duplicate.check": duplicate_check.handler_catalog_duplicate_check,
     # turn 4: J2 — compliance (8 cap)
     "compliance.case.open": compliance.handler_compliance_case_open,
     "compliance.case.assign": compliance.handler_compliance_case_assign,

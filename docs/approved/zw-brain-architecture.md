@@ -642,7 +642,7 @@ legacy 门户的信息架构只能作为遗留能力索引，不再作为新 Web
 **Per-journey live capability 预算（drift = registry 边界变更）：**
 
 - J1 找数→用数：`<!-- stat:zwbrain.capability-budget-j1 -->65<!-- /stat -->` live capabilities
-- J2 挂数→维数：`<!-- stat:zwbrain.capability-budget-j2 -->42<!-- /stat -->` live capabilities
+- J2 挂数→维数：`<!-- stat:zwbrain.capability-budget-j2 -->43<!-- /stat -->` live capabilities
 - B1 后台支撑面：`<!-- stat:zwbrain.capability-budget-b1 -->60<!-- /stat -->` live capabilities
 - Infra 底座（鉴权 / 审计 / actor / adapter health）：`<!-- stat:zwbrain.capability-budget-infra -->17<!-- /stat -->` live capabilities
 

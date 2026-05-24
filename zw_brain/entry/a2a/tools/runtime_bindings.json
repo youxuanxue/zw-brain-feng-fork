@@ -673,6 +673,48 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "catalog.duplicate.check",
+    "description": "J2 发布前对单一 catalog 做轻量重复率检测，返回 duplicate_warnings 数组供 P5 提供方管理面 UI 展示（非硬拦：调用方继续执行 publish 即可）。匹配规则：title 完全相等的其他 catalog；同 region_code + 同 owner_org_id 的其他 catalog。不做模糊匹配 / Embedding similarity（属高级匹配，归 R14 三引擎或 ML 阶段）。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.duplicate.check",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "catalog_code": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "catalog_code"
+      ]
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "catalog.duplicate.check.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "catalog.entry.query",
     "description": "查询已进入 canonical 聚合的目录条目详情和列表。",
     "protocol_type": "builtin_skill",

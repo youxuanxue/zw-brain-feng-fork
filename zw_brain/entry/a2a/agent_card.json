@@ -177,6 +177,19 @@
       "sideEffects": []
     },
     {
+      "id": "catalog.duplicate.check",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
       "id": "catalog.entry.query",
       "mode": "read",
       "humanConfirmationRequired": false,

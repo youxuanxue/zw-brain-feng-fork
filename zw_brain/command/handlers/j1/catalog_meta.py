@@ -171,13 +171,23 @@ def _upsert_catalog_model(brain, payload: dict[str, Any]) -> dict[str, Any]:
 def _bind_catalog_resource(brain, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
+    # F2 (E2 J2)：物化形式（table/file/api 等）由调用方在 payload 显式声明，
+    # 仓库层不增列，handler 在 return 反射给前端 / e2e 判定。
+    materialization_kind = payload.get("materialization_kind")
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         store = brain._state_store.database_store
         repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
         mapping = repo.upsert_schema_mapping({**payload, "confirmed_by": payload.get("confirmed_by") or actor})
         brain._append_audit_feed("catalog.resource.bind", mapping.mapping_code, "ok", actor)
-        return {"mapping_code": mapping.mapping_code, "status": mapping.status, "audit_id": audit_id}
+        result: dict[str, Any] = {
+            "mapping_code": mapping.mapping_code,
+            "status": mapping.status,
+            "audit_id": audit_id,
+        }
+        if materialization_kind:
+            result["materialization_kind"] = str(materialization_kind)
+        return result
 
     return brain._mutate("catalog.resource.bind", role, confirmed, payload, mutation)
 

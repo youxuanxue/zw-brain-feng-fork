@@ -3,7 +3,7 @@
 设计：
 - 单一 console_script entry point（pyproject.toml `zw-brain-cli`），不引 rich/click 等花哨依赖。
 - 默认走 in-process invoke (`zw_brain.command.runtime.get_service`)；--endpoint 切到 HTTP。
-- --list / --describe 从 F4 派生的 commands.generated.json 切，不重复枚举 200 manifest。
+- --list / --describe 从 F4 派生的 commands.generated.json 切，不重复枚举 <!-- stat:zwbrain.manifest-total -->200<!-- /stat --> manifest。
 - 失败语义清晰：unknown skill = 2 / bad payload = 3 / invoke failure = 4。
 
 使用示例：

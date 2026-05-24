@@ -40,6 +40,10 @@
     "zwbrain.capability-budget-infra": {
       "description": "zw-brain: infra 底座（鉴权 / 审计 / actor / adapter health 等）live capability 数。drift = 底座边界变更。",
       "compute": "if [ -d zw_brain/skill_registration/registered ]; then python3 -c \"import json,glob; print(sum(1 for p in glob.glob('zw_brain/skill_registration/registered/*.json') for d in [json.load(open(p))] if (d.get('product_scope') or {}).get('journey')=='infra' and (d.get('product_scope') or {}).get('status')=='live'))\"; else echo 0; fi"
+    },
+    "zwbrain.manifest-total": {
+      "description": "zw-brain: skill_registration on-disk manifest 总数 (live + deferred + external)。用于 prose 引用全集 manifest 时去硬编码——之前 6 处 prose 写 '200 manifest' 在 manifest 增长后 stale。",
+      "compute": "if [ -d zw_brain/skill_registration/registered ]; then ls zw_brain/skill_registration/registered/*.json 2>/dev/null | wc -l | tr -d ' '; else echo 0; fi"
     }
   }
 }

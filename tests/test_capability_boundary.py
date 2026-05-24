@@ -149,5 +149,39 @@ def test_classify_zone_known_prefixes() -> None:
         sys.path.pop(0)
 
 
+def test_catalog_national_ext_elem_deferred_wave3_no_regression() -> None:
+    """F5 (E2 J2)：国家扩展要素目录编制 IA 占位 — manifest deferred:wave-3 + 不 wire 任何执行面。
+
+    防止回潮（Wave 3 才落地业务逻辑）：
+      1. manifest 字段 product_scope.status == 'deferred:wave-3'；
+      2. DISPATCH_TABLE 中无 catalog.national_ext_elem.compile（避免误 wire 到 brain runtime）；
+      3. _CATEGORIZATION.md 中无对应行（deferred 不进 4 桶清单）；
+      4. 5 surface 投影器自动过滤（is_live → False），由现有 test_contract_projection 兜底。
+
+    任一条退化即视为回潮，应红灯并要求改 wave-3 实装走正式 GATE。
+    """
+    repo_root = Path(__file__).resolve().parent.parent
+    manifest_path = repo_root / "zw_brain" / "skill_registration" / "registered" / "catalog.national_ext_elem.compile.json"
+    dispatch_path = repo_root / "zw_brain" / "command" / "dispatch.py"
+    categorization_path = repo_root / "zw_brain" / "command" / "handlers" / "_CATEGORIZATION.md"
+
+    assert manifest_path.exists(), f"F5 manifest 缺失：{manifest_path}"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["skill_id"] == "catalog.national_ext_elem.compile"
+    scope = manifest.get("product_scope") or {}
+    assert scope.get("journey") == "j2", scope
+    assert scope.get("status") == "deferred:wave-3", scope
+
+    dispatch_text = dispatch_path.read_text(encoding="utf-8")
+    assert "catalog.national_ext_elem.compile" not in dispatch_text, (
+        "F5 防回潮：deferred manifest 不应出现在 DISPATCH_TABLE / dispatch.py 中"
+    )
+
+    categorization_text = categorization_path.read_text(encoding="utf-8")
+    assert "catalog.national_ext_elem.compile" not in categorization_text, (
+        "F5 防回潮：deferred manifest 不应出现在 _CATEGORIZATION.md 4 桶清单中"
+    )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

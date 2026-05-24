@@ -49,10 +49,10 @@ the symptom, the deferred decision, and the trigger that forces a re-evaluation.
 
 - **Where**: 设计基线 §1.4 #1 + §10.3 + §11 R14 承诺的 "项目级可配置化 = AI 原生差异化" 三引擎
   （审批流可视化引擎 / 表单 schema 化引擎 / 智能推荐前置引擎）当前 0% 实现。检索
-  `zw_brain/skill_registration/registered/` 200 manifest 无任一三引擎 capability slug
+  `zw_brain/skill_registration/registered/` <!-- stat:zwbrain.manifest-total -->227<!-- /stat --> manifest 无任一三引擎 capability slug
   （`approval_flow.*` / `form_schema.*` / `recommendation.*` 等均不存在）。
 - **Implication**: 三引擎是 zw-brain "为什么选我而不是旧平台 + 改代码" 的根本差异化承诺，
-  Wave 2 范围。当前 200 manifest 已含 `config_change_class: live|preview|draft` 字段
+  Wave 2 范围。当前 <!-- stat:zwbrain.manifest-total -->227<!-- /stat --> manifest 已含 `config_change_class: live|preview|draft` 字段
   就位，等三引擎落第一个 capability 即可激活 "草稿→预览→管理员入库" 流。
 - **Why deferred**: Wave 2 按基线路线分波次落地；本期 Wave 0/Wave 1 J1+J2 黄金链路优先打通。
   按 OPC「只为真实需求建复杂度」原则，未演练前不预先盖三引擎楼。

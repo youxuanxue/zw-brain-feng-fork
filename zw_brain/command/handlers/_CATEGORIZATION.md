@@ -1,4 +1,4 @@
-# handlers — capability 分桶清单（185 cap，SoT）
+# handlers — capability 分桶清单（210 cap，SoT）
 
 每个 capability 一行；新增 capability 必须同步本表 + [`zw_brain/command/dispatch.py`](../dispatch.py) DISPATCH_TABLE + 对应桶 handler 模块（基线 §11 反 per-tenant fork + R10/R11/R12 三层依赖）。
 
@@ -118,10 +118,11 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `supplement.submit` | j1 | `submit_supplement` | 6392 |
 | `workbench.view` | j1 | `get_workbench` | 2978 |
 
-## J2 挂数→维数 — 37 caps
+## J2 挂数→维数 — 38 caps
 
 | capability_id | bucket | method_name | method_lines |
 |---|---|---|---|
+| `catalog.duplicate.check` | j2 | `check_catalog_duplicate` | 0 |
 | `compliance.case.assign` | j2 | `transition_compliance_case` | 934 |
 | `compliance.case.close` | j2 | `transition_compliance_case` | 934 |
 | `compliance.case.open` | j2 | `open_compliance_case` | 903 |

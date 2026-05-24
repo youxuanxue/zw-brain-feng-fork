@@ -128,13 +128,20 @@ PERMISSION_ROLES = {
     "catalog.entry.update.execute": {"ROLE_ORGAN_OPERATER"},
     "catalog.entry.create_draft.execute": {"ROLE_ORGAN_OPERATER"},
     "catalog.entry.submit_review.execute": {"ROLE_ORGAN_OPERATER"},
-    # R-007 fix: 审核类权限保留交叉审（仅 BUSIAUDIT 平台主管部门），避免部门管理员自审自家 OPERATER 提交。
-    # 评审流引擎（D25）上线后再按节点判定，届时此处放开给可配置审批节点定义角色。
-    "catalog.entry.review.execute": {"ROLE_BUSIAUDIT"},
+    # F1 (E2 J2 3-layer)：放开给 ROLE_ORGAN_MANAGER（部门待审 stage）+ ROLE_BUSIAUDIT（平台待审 stage）。
+    # stage-aware 判定在 handlers/j1/catalog_entry.py::_review_catalog_entry：MANAGER 只能从 pending_review
+    # → pending_platform_review；BUSIAUDIT 只能从 pending_platform_review → approved_pending_publish
+    # （旧单步直达 pending_review→approved_pending_publish 作为兼容路径暂留）。
+    # 评审流引擎（D25）上线后由节点定义角色，届时整体收回到 PERMISSION_ROLES 显式映射。
+    "catalog.entry.review.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     # R-001 fix: r6 (映射到 ROLE_ORGAN_MANAGER) 是提供方部门管理员，应保留对自家目录的发布权
     "catalog.entry.publish.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "catalog.entry.withdraw.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "catalog.resource.bind.execute": {"ROLE_ORGAN_OPERATER"},
+    # F3 (E2 J2)：发布前重复率检测，read-only 非硬拦。发布链路上 OPERATER 编目 / MANAGER
+    # 部门审 / BUSIAUDIT 平台审三个角色都该看到提醒。SECURITY_AUDIT 不直接发布，归
+    # objection.case.* 异议侧；catalog.browse.execute 已开放给审计员，无需重复授权。
+    "catalog.duplicate.check.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
 
     # 资源资产
     "resource.asset.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},

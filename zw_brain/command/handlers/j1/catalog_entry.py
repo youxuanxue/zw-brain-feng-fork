@@ -262,16 +262,39 @@ def _reject_catalog_entry_reverse_draft(brain, payload: dict[str, Any]) -> dict[
     return brain._mutate("catalog.entry.reverse_draft.reject", role, confirmed, payload, mutation)
 
 def _review_catalog_entry(brain, catalog_code: str, decision: str, role: str, confirmed: bool) -> dict[str, Any]:
+    # F1 (E2 J2 3-layer): stage-aware approval.
+    #   pending_review            ← 部门待审（MANAGER 审）
+    #   pending_platform_review   ← 平台待审（BUSIAUDIT 复核；F1 新增运行时态，不入 CATALOG_STATUS_TO_LIFECYCLE）
+    # 旧单步兼容路径：state=pending_review + role=BUSIAUDIT → 直达 approved_pending_publish。
+    # 留作渐进迁移，待全部调用方迁到 3 层后再决策是否移除（见 F1 review skeleton 决策点②）。
     if decision == "approve":
-        return brain.transition_catalog_entry(catalog_code, "approved_pending_publish", "catalog.entry.review", role, confirmed)
+        store = brain._state_store.database_store
+        repo = store.catalog_repo if store is not None else CatalogRepository()
+        existing = repo.get_entry(catalog_code, tenant_id=_DEFAULT_TENANT_ID)
+        if existing is None:
+            raise NotFoundError(catalog_code)
+        state = existing.lifecycle_status
+        if state == "pending_review" and role == "ROLE_ORGAN_MANAGER":
+            target = "pending_platform_review"
+        elif state == "pending_platform_review" and role == "ROLE_BUSIAUDIT":
+            target = "approved_pending_publish"
+        elif state == "pending_review" and role == "ROLE_BUSIAUDIT":
+            # 兼容旧单步路径
+            target = "approved_pending_publish"
+        else:
+            raise InvalidStateError(
+                f"catalog_entry {catalog_code} cannot be approved from state={state} by role={role}; "
+                "expected pending_review+MANAGER, pending_platform_review+BUSIAUDIT, or pending_review+BUSIAUDIT (legacy single-step)"
+            )
+        return _transition_catalog_entry(brain, catalog_code, target, "catalog.entry.review", role, confirmed)
     if decision == "return_for_fix":
-        return brain.transition_catalog_entry(catalog_code, "draft", "catalog.entry.review", role, confirmed)
+        return _transition_catalog_entry(brain, catalog_code, "draft", "catalog.entry.review", role, confirmed)
     if decision == "reject":
-        return brain.transition_catalog_entry(catalog_code, "rejected", "catalog.entry.review", role, confirmed)
+        return _transition_catalog_entry(brain, catalog_code, "rejected", "catalog.entry.review", role, confirmed)
     raise BrainServiceError(f"unsupported catalog entry review decision: {decision}")
 
 def _submit_catalog_entry_review(brain, catalog_code: str, role: str, confirmed: bool) -> dict[str, Any]:
-    return brain.transition_catalog_entry(catalog_code, "pending_review", "catalog.entry.submit_review", role, confirmed)
+    return _transition_catalog_entry(brain, catalog_code, "pending_review", "catalog.entry.submit_review", role, confirmed)
 
 def _update_catalog_entry(brain, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
@@ -317,7 +340,28 @@ def handler_catalog_entry_create_draft(brain: BrainService, skill_id: str, paylo
     return _create_catalog_entry_draft(brain, payload)
 
 def handler_catalog_entry_publish(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _transition_catalog_entry(brain, str(payload["catalog_code"]), "active", "catalog.entry.publish", str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+    # F3 (E2 J2)：发布前自动跑 catalog.duplicate.check skill；非硬拦——warnings 透传到
+    # publish envelope.result.duplicate_warnings 字段供 UI 展示，**不阻断** publish。
+    # 走 brain.invoke_skill 而非 helper：让 duplicate.check capability_call 独立落账
+    # （F3 evidence_plan: 提醒事件 audit）。catalog 不存在时跳过预检，让下面的 _transition
+    # 抛 NotFoundError 保持错误语义单一。
+    code = str(payload["catalog_code"])
+    role = str(payload.get("role", brain._ui_state["role"]))
+    confirmed = bool(payload.get("confirmed"))
+    duplicate_warnings: list[dict[str, Any]] = []
+    try:
+        dup_envelope = brain.invoke_skill(
+            "catalog.duplicate.check",
+            {"catalog_code": code, "role": role},
+        )
+        if isinstance(dup_envelope, dict):
+            duplicate_warnings = dup_envelope.get("duplicate_warnings") or []
+    except NotFoundError:
+        pass
+    envelope = _transition_catalog_entry(brain, code, "active", "catalog.entry.publish", role, confirmed)
+    if isinstance(envelope, dict) and isinstance(envelope.get("result"), dict):
+        envelope["result"]["duplicate_warnings"] = duplicate_warnings
+    return envelope
 
 def handler_catalog_entry_withdraw(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
     return _transition_catalog_entry(brain, str(payload["catalog_code"]), "retired", "catalog.entry.withdraw", str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))

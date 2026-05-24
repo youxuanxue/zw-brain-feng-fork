@@ -86,12 +86,49 @@ def _evaluate_objection_case(brain, payload: dict[str, Any]) -> dict[str, Any]:
 
     return brain._mutate("objection.case.evaluate", role, confirmed, payload, mutation)
 
-def _query_objection_cases(brain, *, status: Any = None, target_type: Any = None) -> dict[str, Any]:
-    records = [brain._objection_record_to_dict(item) for item in brain._objection_repo().list_cases(tenant_id=_DEFAULT_TENANT_ID)]
+def _query_objection_cases(
+    brain,
+    *,
+    status: Any = None,
+    target_type: Any = None,
+    target_ref: Any = None,
+    target_org_id: Any = None,
+    dimension: Any = None,
+) -> dict[str, Any]:
+    # F4 (E2 J2)：扩 3 个可选 filter 供 J2 提供方收件箱 + 5 维度报表用。
+    # target_ref 精确匹配 case.target_id（异议直接挂的实体 ref，如 catalog_code）；
+    # target_org_id 精确匹配 case.provider_org_id（异议归属的提供方部门，对 J2 收件箱语义）；
+    # dimension 走 objection_state.dimension_of(record, evidences) 推断，对齐 5 维度报表口径。
+    # 全部 optional：未传 = 与 PR #90 行为完全一致。
+    repo = brain._objection_repo()
+    raw_records = list(repo.list_cases(tenant_id=_DEFAULT_TENANT_ID))
+    records = [brain._objection_record_to_dict(item) for item in raw_records]
     if status:
         records = [item for item in records if item["status"] == str(status)]
     if target_type:
         records = [item for item in records if item["target_type"] == str(target_type)]
+    if target_ref is not None:
+        wanted = str(target_ref)
+        records = [item for item in records if str(item.get("target_id")) == wanted]
+    if target_org_id is not None:
+        wanted = str(target_org_id)
+        records = [
+            item for item in records
+            if str(item.get("provider_org_id") or "") == wanted
+        ]
+    if dimension is not None:
+        from zw_brain.domain.objection_state import dimension_of  # noqa: PLC0415
+        wanted_dim = str(dimension)
+        raw_by_id = {item.id: item for item in raw_records}
+        kept: list[dict[str, Any]] = []
+        for record in records:
+            raw = raw_by_id.get(record["id"])
+            if raw is None:
+                continue
+            evidences = list(repo.list_evidence(record["id"]))
+            if dimension_of(raw, evidences) == wanted_dim:
+                kept.append(record)
+        records = kept
     return {"items": records, "total": len(records)}
 
 def _reply_objection_case(brain, payload: dict[str, Any]) -> dict[str, Any]:
@@ -178,7 +215,14 @@ def handler_objection_case_evaluate(brain: BrainService, skill_id: str, payload:
     return _evaluate_objection_case(brain, payload)
 
 def handler_objection_case_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _query_objection_cases(brain, status=payload.get("status"), target_type=payload.get("target_type"))
+    return _query_objection_cases(
+        brain,
+        status=payload.get("status"),
+        target_type=payload.get("target_type"),
+        target_ref=payload.get("target_ref"),
+        target_org_id=payload.get("target_org_id"),
+        dimension=payload.get("dimension"),
+    )
 
 def handler_objection_case_reply(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
     return _reply_objection_case(brain, payload)

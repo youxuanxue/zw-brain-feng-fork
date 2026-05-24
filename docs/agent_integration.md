@@ -48,6 +48,7 @@
 | POST | `/api/skills/capability.version.review` | 审核能力版本 | `post_capability_version_review` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/capability.version.submit` | 提交能力版本登记 | `post_capability_version_submit` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/catalog.browse` | 浏览真目录条目 | `get_catalog_browse` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/catalog.duplicate.check` | 目录重复率检测（发布前） | `get_catalog_duplicate_check` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/catalog.entry.create` | 创建目录条目 | `post_catalog_entry_create` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/catalog.entry.create_draft` | 创建目录草稿 | `post_catalog_entry_create_draft` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/catalog.entry.publish` | 发布目录条目 | `post_catalog_entry_publish` | `zw_brain/entry/rest/openapi.json` |
@@ -285,7 +286,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 184 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 185 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -328,6 +329,7 @@
 | `capability.version.review` | 审核能力版本 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/capability.version.review.json` |
 | `capability.version.submit` | 提交能力版本登记 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/capability.version.submit.json` |
 | `catalog.browse` | 浏览真目录条目 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/catalog.browse.json` |
+| `catalog.duplicate.check` | 目录重复率检测（发布前） | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/catalog.duplicate.check.json` |
 | `catalog.entry.create` | 创建目录条目 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/catalog.entry.create.json` |
 | `catalog.entry.create_draft` | 创建目录草稿 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/catalog.entry.create_draft.json` |
 | `catalog.entry.publish` | 发布目录条目 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/catalog.entry.publish.json` |
@@ -480,9 +482,9 @@
 
 ## Statistics
 
-- REST endpoints: 193
+- REST endpoints: 194
 - CLI entries: 1
 - MCP tools: 61
 - A2A agent cards: 1
-- Registered Skills (live): 184 / 225 on-disk
+- Registered Skills (live): 185 / 227 on-disk
 
