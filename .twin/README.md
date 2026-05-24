@@ -38,6 +38,6 @@
 - **跨 workspace 依赖**：twin schema 当前不支持跨 workspace 阻塞表达。本目录约定在 `plan.yaml` 的 `blocked_reason` 字段用人类可读 prose 描述（"等 E5 webui 重建 F2 完成后接入"），不引入 token 化 schema。
 - **M0 PR review**：跨 worker M0 PR 路由通过 GitHub PR @reviewer 机制（提 M0 PR 时 @ E6 worker 持有人），不依赖定期同步会议。
 
-## 已知未机械化保护点（trigger 化 pending）
+## 已落地保护点
 
-- **.twin/ schema 检查 deferred**：当前 12 yaml commit 进仓库但无 preflight 段保护（schema valid / 12 文件存在性）。Trigger：再次出现"yaml 误删 / schema 漂移"事故时加 preflight 段。
+- **.twin/ schema 检查 (preflight 段 26)**：[scripts/check_twin_workspaces.py](../scripts/check_twin_workspaces.py) 调 `scripts.twin validate` 守 12 yaml schema。2026-05-24 PR #85 落地——触发事件：e6 supervisor 启动时 F8.deliverable 与 AC7.statement 文本重合致运行期校验失败，README 原 trigger 已 fire。

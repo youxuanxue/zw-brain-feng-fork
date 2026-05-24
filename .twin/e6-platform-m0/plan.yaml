@@ -102,8 +102,8 @@ items:
     blocked_reason: null
 
   - id: F8
-    deliverable: CI/CD + 客户机房部署 + 监控对接集团运维监控
-    scope: staging 部署 + 灰度 + 回滚 + 监控对接；不含 legacy retirement
+    deliverable: 部署管线落地（scripts/deploy_*.sh + Dockerfile_v1.0.0 升级 + staging 灰度 / 回滚脚本 + 集团运维监控 dashboard 接入 adapter）
+    scope: staging 部署 + 灰度 + 回滚 + 监控 adapter；不含 legacy retirement
     covers_ac:
       - AC7
     evidence_plan:
