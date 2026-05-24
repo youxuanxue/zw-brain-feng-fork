@@ -37,6 +37,7 @@ const items = computed(() =>
 );
 const drillItems = computed(() => [
   { label: '身份治理', href: '#/integration-admin/iam-governance', hint: 'IAM 矩阵' },
+  { label: '三引擎配置', href: '#/engines-admin', hint: '审批流 / 表单 / 推荐' },
   { label: '回到合规', href: '#/compliance-ops', hint: '事件追责' },
 ]);
 

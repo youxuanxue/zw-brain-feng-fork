@@ -191,6 +191,22 @@ PERMISSION_ROLES = {
     "package.apply_tenant_policy.execute": {"ROLE_BUSIAUDIT"},
     "package.configure_exposure.execute": {"ROLE_BUSIAUDIT"},
 
+    # E3 Wave-2 三引擎 — 审批流模板入库（项目级管理员）
+    "approval_flow.schema.commit.execute": {"ROLE_ORGAN_MANAGER"},
+    # E3 Wave-2 三引擎 — 审批流 NL 草稿 + 三步流程（项目级管理员）
+    "approval_flow.nl_draft.execute": {"ROLE_ORGAN_MANAGER"},
+    "approval_flow.schema.promote_to_preview.execute": {"ROLE_ORGAN_MANAGER"},
+    "approval_flow.schema.revert_to_draft.execute": {"ROLE_ORGAN_MANAGER"},
+    # E3 Wave-2 三引擎 — 表单模板入库（项目级管理员）
+    "form_schema.commit.execute": {"ROLE_ORGAN_MANAGER"},
+    # E3 Wave-2 三引擎 — 表单 NL 草稿 + 三步流程（项目级管理员）
+    "form_schema.nl_draft.execute": {"ROLE_ORGAN_MANAGER"},
+    "form_schema.promote_to_preview.execute": {"ROLE_ORGAN_MANAGER"},
+    "form_schema.revert_to_draft.execute": {"ROLE_ORGAN_MANAGER"},
+    # E3 Wave-2 三引擎 — 推荐规则入库（项目级管理员）+ J1 申请前置目录推荐（用户面）
+    "recommendation.rule.commit.execute": {"ROLE_ORGAN_MANAGER"},
+    "recommendation.similar_catalog.suggest.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+
     # 合规 / 风险事件（SECURITY_AUDIT 主面）
     "compliance.investigate_case.execute": {"ROLE_SECURITY_AUDIT"},
     "compliance.signal.ingest.execute": {"ROLE_SECURITY_AUDIT"},

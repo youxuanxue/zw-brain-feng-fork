@@ -1,0 +1,55 @@
+{
+  "_meta": {
+    "source": "old/10示例数据/dump-dsp_require-202604271411.sql / data_require table",
+    "purpose": "F6 智能推荐前置引擎真实历史数据 hit-rate 验收 fixture",
+    "tenant_id": "sd-default",
+    "note": "5 条真实 require_title + status，catalog_id 是 fixture 内合成（dump 原表无 catalog 直链），org 字段脱敏成位置占位"
+  },
+  "records": [
+    {
+      "source_require_id": "02ccefaf83174971b10706b1ea071990",
+      "catalog_id": "cat-disabled-info-001",
+      "resource_id": "res-disabled-info-001",
+      "name": "残疾人信息资源",
+      "org": "org-prov-bigdata-001",
+      "status": "6",
+      "applied_at": "2025-07-09T14:51:26"
+    },
+    {
+      "source_require_id": "02db3e6011d64f2baae223b0af6634bc",
+      "catalog_id": "cat-catalog-info-002",
+      "resource_id": null,
+      "name": "基于目录信息项需求",
+      "org": "org-prov-education-002",
+      "status": "2",
+      "applied_at": "2025-07-08T16:37:05"
+    },
+    {
+      "source_require_id": "05668ebabece4890a730457207a5ca26",
+      "catalog_id": "cat-mine-safety-003",
+      "resource_id": "res-mine-safety-003",
+      "name": "非煤矿矿山企业安全生产许可证_库表资源",
+      "org": "org-prov-bigdata-003",
+      "status": "5",
+      "applied_at": "2025-07-08T19:24:10"
+    },
+    {
+      "source_require_id": "06911109a7d24af785d5178f2db01894",
+      "catalog_id": "cat-finance-budget-004",
+      "resource_id": "res-finance-budget-004",
+      "name": "政府性基金预算支出预算表",
+      "org": "org-prov-bigdata-004",
+      "status": "1",
+      "applied_at": "2025-07-08T08:00:00"
+    },
+    {
+      "source_require_id": "0a1e3f44b9234d72b1ef7e8a0a2f01ab",
+      "catalog_id": "cat-disabled-info-001",
+      "resource_id": "res-disabled-info-001",
+      "name": "残疾人证补办申请人员信息",
+      "org": "org-prov-disability-005",
+      "status": "4",
+      "applied_at": "2025-07-10T10:20:00"
+    }
+  ]
+}

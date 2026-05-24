@@ -62,6 +62,18 @@ REQUIRED_TABLES = {
     "objection_evaluation",
     "capability_package",
     "tenant_capability_policy",
+    "approval_flow_schema",
+    "approval_flow_node",
+    "approval_flow_selection_rule",
+    "approval_flow_branch",
+    "form_schema",
+    "form_section",
+    "form_field",
+    "form_validator",
+    "recommendation_rule",
+    "recommendation_rule_clause",
+    "requirement_history",
+    "requirement_submission",
 }
 REQUIRED_COLUMNS = {
     "capability_call": {"call_ref", "tenant_id", "skill_id", "role_code", "status", "input_json", "output_json"},

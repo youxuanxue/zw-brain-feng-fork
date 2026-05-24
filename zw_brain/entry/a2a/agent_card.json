@@ -1043,6 +1043,71 @@
       ]
     },
     {
+      "id": "approval_flow.nl_draft",
+      "mode": "write",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "external_inference"
+      ]
+    },
+    {
+      "id": "approval_flow.schema.commit",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "approval_flow.schema.promote_to_preview",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "approval_flow.schema.revert_to_draft",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
       "id": "backflow.confirm",
       "mode": "write",
       "humanConfirmationRequired": true,
@@ -1718,6 +1783,71 @@
       ]
     },
     {
+      "id": "form_schema.commit",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "form_schema.nl_draft",
+      "mode": "write",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "external_inference"
+      ]
+    },
+    {
+      "id": "form_schema.promote_to_preview",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "form_schema.revert_to_draft",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
       "id": "governance.policy_candidate.review",
       "mode": "write",
       "humanConfirmationRequired": true,
@@ -2093,6 +2223,37 @@
         "audit",
         "db_write",
         "state_machine_transition"
+      ]
+    },
+    {
+      "id": "recommendation.rule.commit",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "recommendation.similar_catalog.suggest",
+      "mode": "write",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit"
       ]
     },
     {

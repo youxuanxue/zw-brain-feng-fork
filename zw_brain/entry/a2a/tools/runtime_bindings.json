@@ -3608,6 +3608,233 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "approval_flow.nl_draft",
+    "description": "管理员一句话描述审批流程意向 → 经集团推理平台生成 schema 草稿入 draft 态；不自动入库，须经 promote→commit 三步流程。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/approval_flow.nl_draft",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "schema_code",
+        "title",
+        "intent_text",
+        "created_by"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "schema_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "intent_text": {
+          "type": "string"
+        },
+        "created_by": {
+          "type": "string"
+        },
+        "deterministic_only": {
+          "type": "boolean"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "external_inference"
+      ],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "approval_flow.nl_draft.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "approval_flow.schema.commit",
+    "description": "管理员把项目级审批流模板从 preview 态确认入库（version+1，进入 live），是 R14 三引擎草稿→预览→入库三步的最后一步。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/approval_flow.schema.commit",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "schema_id",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "schema_id": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "approval_flow.schema.commit.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "approval_flow.schema.promote_to_preview",
+    "description": "管理员把项目级审批流模板从 draft 提级到 preview 待入库。preview 态可回退到 draft 也可 commit 到 live。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/approval_flow.schema.promote_to_preview",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "schema_id",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "schema_id": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "approval_flow.schema.promote_to_preview.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "approval_flow.schema.revert_to_draft",
+    "description": "管理员把项目级审批流模板从 preview 回退到 draft 再编辑；不影响 live 态历史版本。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/approval_flow.schema.revert_to_draft",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "schema_id",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "schema_id": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "approval_flow.schema.revert_to_draft.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "backflow.confirm",
     "description": "由供给侧确认回流候选正式纳入模板版本。",
     "protocol_type": "builtin_skill",
@@ -5997,6 +6224,233 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "form_schema.commit",
+    "description": "管理员把项目级表单模板（字段+校验+布局）从 preview 态确认入库（version+1，进入 live），是 R14 三引擎草稿→预览→入库三步的最后一步。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/form_schema.commit",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "schema_id",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "schema_id": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "form_schema.commit.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "form_schema.nl_draft",
+    "description": "管理员一句话描述表单字段意向 → 经集团推理平台生成 schema 草稿入 draft 态；不自动入库，须经 promote→commit 三步流程。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/form_schema.nl_draft",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "form_code",
+        "title",
+        "intent_text",
+        "created_by"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "form_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "intent_text": {
+          "type": "string"
+        },
+        "created_by": {
+          "type": "string"
+        },
+        "deterministic_only": {
+          "type": "boolean"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "external_inference"
+      ],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "form_schema.nl_draft.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "form_schema.promote_to_preview",
+    "description": "管理员把项目级表单模板从 draft 提级到 preview 待入库。preview 态可回退到 draft 也可 commit 到 live。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/form_schema.promote_to_preview",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "schema_id",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "schema_id": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "form_schema.promote_to_preview.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "form_schema.revert_to_draft",
+    "description": "管理员把项目级表单模板从 preview 回退到 draft 再编辑；不影响 live 态历史版本。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/form_schema.revert_to_draft",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "schema_id",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "schema_id": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "form_schema.revert_to_draft.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "governance.policy_candidate.review",
     "description": "对 legacy_policy_mapping_candidate 执行批准/驳回；可选将已批准候选合并写入 tenant_capability_policy（须经人工确认）。",
     "protocol_type": "builtin_skill",
@@ -7597,6 +8051,120 @@
       ],
       "permissions": [
         "package.trust_level.update.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "recommendation.rule.commit",
+    "description": "管理员把项目级推荐规则模板从 preview 态确认入库（version+1，进入 live），是 R14 三引擎草稿→预览→入库三步的最后一步。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/recommendation.rule.commit",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "rule_id",
+        "confirmed"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "rule_id": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "recommendation.rule.commit.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "recommendation.similar_catalog.suggest",
+    "description": "J1 申请前置：基于已入库 live 推荐规则 + 历史申请投影，按意向文本推荐相似目录候选。推荐为空且 fallback_register=true 时落 manual_requirement 转人工登记。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/recommendation.similar_catalog.suggest",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "intent_text",
+        "submitted_by"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "intent_text": {
+          "type": "string"
+        },
+        "intent_org": {
+          "type": "string"
+        },
+        "top_k": {
+          "type": "integer"
+        },
+        "submitted_by": {
+          "type": "string"
+        },
+        "fallback_register": {
+          "type": "boolean"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit"
+      ],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "recommendation.similar_catalog.suggest.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",

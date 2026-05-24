@@ -1,7 +1,12 @@
-"""J1 request handlers — 5 cap migrated from BrainService (F1 turn 6, J1 收官)."""
+"""J1 request handlers — 5 cap migrated from BrainService (F1 turn 6, J1 收官)。
+
+E3 Wave-2 F2：application.resource.submit 提交后按 shared_type 自动启动审批流基线
+（hook 失败不破业务主路径，D4 审计总线哲学）。
+"""
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -11,9 +16,64 @@ import copy
 from datetime import datetime, timedelta
 
 from zw_brain.command.brain import DEFAULT_DISCOVERY_QUERY, InvalidStateError, NotFoundError
+from zw_brain.domain.approval_flow_baseline import start_approval_workflow_from_baseline
+from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
+_logger = logging.getLogger(__name__)
+
+
+def _extract_shared_type(options: dict[str, Any], resource: dict[str, Any]) -> Any:
+    """从 payload/resource 多个常见位置抽 shared_type；不存在返 None。"""
+    for key in ("shared_type", "share_type", "sharedType", "shareType"):
+        value = options.get(key)
+        if value is not None:
+            return value
+    repository = resource.get("repository") if isinstance(resource, dict) else None
+    if isinstance(repository, dict):
+        for key in ("shared_type", "share_type", "sharedType", "shareType"):
+            value = repository.get(key)
+            if value is not None:
+                return value
+    return None
+
+
+def _maybe_start_baseline_workflow(
+    *,
+    application_code: str,
+    tenant_id: str,
+    shared_type: Any,
+    submitted_by: str,
+) -> str | None:
+    """从 baseline 启动审批工作流；任何异常以 logger.warning 记录后返 None（D4：不破业务主路径，但保留可观测）。"""
+    if shared_type is None:
+        return None
+    SessionLocal = create_session_factory()
+    try:
+        with SessionLocal() as session:
+            case = start_approval_workflow_from_baseline(
+                session,
+                application_code=application_code,
+                tenant_id=tenant_id,
+                shared_type=shared_type,
+                submitted_by=submitted_by,
+            )
+            return case.id if case is not None else None
+    except Exception as exc:  # noqa: BLE001 — hook 不破业务，但失败必须可观测（R-001 fix）
+        _logger.warning(
+            "approval_flow.baseline.hook.failed",
+            extra={
+                "application_code": application_code,
+                "tenant_id": tenant_id,
+                "shared_type": shared_type,
+                "submitted_by": submitted_by,
+                "error_class": type(exc).__name__,
+                "error_msg": str(exc)[:500],
+            },
+            exc_info=True,
+        )
+        return None
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -221,7 +281,18 @@ def _create_request(
         brain._snapshot["approvals"].insert(0, approval)
         brain._snapshot["delivery_tasks"].insert(0, delivery)
         brain._append_audit_feed(skill_id, request_id, "ok", actor)
-        return {"request_id": request_id, "task_id": task_id, "status": request["status"]}
+
+        # E3 Wave-2 F2 hook：按 shared_type 自动启动审批流基线（不破业务主路径）
+        approval_case_id = _maybe_start_baseline_workflow(
+            application_code=request_id,
+            tenant_id=_DEFAULT_TENANT_ID,
+            shared_type=_extract_shared_type(options, resource),
+            submitted_by=actor,
+        )
+        result: dict[str, Any] = {"request_id": request_id, "task_id": task_id, "status": request["status"]}
+        if approval_case_id is not None:
+            result["approval_case_id"] = approval_case_id
+        return result
 
     audit_payload = {
         "resource_id": resource_id,

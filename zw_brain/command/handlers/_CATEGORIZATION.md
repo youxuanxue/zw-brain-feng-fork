@@ -13,11 +13,12 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 - **B1（后台支撑）**：ops/iam/projection/audit/system/registry/capability/package(cap-pkg)/tenant.capability
 - **infra**：adapter.* / record_adapter_operation 透传 / legacy.* 迁移
 
-## J1 找数→用数 — 94 caps
+## J1 找数→用数 — 95 caps
 
 | capability_id | bucket | method_name | method_lines |
 |---|---|---|---|
 | `application.grant.approve` | j1 | `approve_application_grant` | 3873 |
+| `recommendation.similar_catalog.suggest` | j1 | `handler_recommendation_similar_catalog_suggest` | E3 Wave-2 F6 新增 |
 | `application.grant.renew` | j1 | `renew_application_grant` | 3894 |
 | `application.grant.revoke` | j1 | `revoke_application_grant` | 3928 |
 | `application.grant.suspend` | j1 | `suspend_application_grant` | 3912 |
@@ -164,12 +165,21 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | capability_id | bucket | method_name | method_lines |
 |---|---|---|---|
 | `actor.projection.sync` | b1 | `sync_actor_projection` | 1568 |
-| `assistant.investigation_summary` | b1 | `handler_assistant_investigation_summary` | F3-backend |
-| `audit.event.accountability` | b1 | `handler_audit_event_accountability` | F3-backend |
-| `audit.event.anomaly` | b1 | `handler_audit_event_anomaly` | F3-backend |
-| `audit.event.query` | b1 | `handler_audit_event_query` | F2 |
-| `audit.event.replay` | b1 | `handler_audit_event_replay` | F2 |
-| `audit.event.statistics` | b1 | `handler_audit_event_statistics` | F3-backend |
+| `approval_flow.schema.commit` | b1 | `handler_approval_flow_schema_commit` | E3 Wave-2 F1 新增 |
+| `approval_flow.nl_draft` | b1 | `handler_approval_flow_nl_draft` | E3 Wave-2 F3 新增 |
+| `approval_flow.schema.promote_to_preview` | b1 | `handler_approval_flow_schema_promote_to_preview` | E3 Wave-2 F3 新增 |
+| `approval_flow.schema.revert_to_draft` | b1 | `handler_approval_flow_schema_revert_to_draft` | E3 Wave-2 F3 新增 |
+| `assistant.investigation_summary` | b1 | `handler_assistant_investigation_summary` | E4 F3-backend |
+| `audit.event.accountability` | b1 | `handler_audit_event_accountability` | E4 F3-backend |
+| `audit.event.anomaly` | b1 | `handler_audit_event_anomaly` | E4 F3-backend |
+| `audit.event.query` | b1 | `handler_audit_event_query` | E4 F2 |
+| `audit.event.replay` | b1 | `handler_audit_event_replay` | E4 F2 |
+| `audit.event.statistics` | b1 | `handler_audit_event_statistics` | E4 F3-backend |
+| `form_schema.commit` | b1 | `handler_form_schema_commit` | E3 Wave-2 F4 新增 |
+| `form_schema.nl_draft` | b1 | `handler_form_schema_nl_draft` | E3 Wave-2 F5 新增 |
+| `form_schema.promote_to_preview` | b1 | `handler_form_schema_promote_to_preview` | E3 Wave-2 F5 新增 |
+| `form_schema.revert_to_draft` | b1 | `handler_form_schema_revert_to_draft` | E3 Wave-2 F5 新增 |
+| `recommendation.rule.commit` | b1 | `handler_recommendation_rule_commit` | E3 Wave-2 F6 新增 |
 | `audit.list` | b1 | `list_audit_events` | 3096 |
 | `audit.replay_evidence_chain` | b1 | `replay_evidence_chain` | 3785 |
 | `capability.exposure.configure` | b1 | `configure_package_exposure` | 6529 |
@@ -234,9 +244,9 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 
 ## 总计
 
-- J1: 94 caps
+- J1: 95 caps
 - J2: 37 caps
 - B1: 41 caps
 - infra: 22 caps
 - 未归类: 0 caps
-- **合计：194 caps**
+- **合计：204 caps**

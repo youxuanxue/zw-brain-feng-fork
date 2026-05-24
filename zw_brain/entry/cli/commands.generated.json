@@ -2142,6 +2142,146 @@
       ]
     },
     {
+      "skill_id": "approval_flow.nl_draft",
+      "title": "用一句话生成审批流草稿",
+      "description": "管理员一句话描述审批流程意向 → 经集团推理平台生成 schema 草稿入 draft 态；不自动入库，须经 promote→commit 三步流程。",
+      "mode": "write",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "created_by",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "deterministic_only",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "intent_text",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "schema_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "approval_flow.schema.commit",
+      "title": "提交审批流模板入库",
+      "description": "管理员把项目级审批流模板从 preview 态确认入库（version+1，进入 live），是 R14 三引擎草稿→预览→入库三步的最后一步。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "schema_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "approval_flow.schema.promote_to_preview",
+      "title": "审批流模板：草稿提级到预览",
+      "description": "管理员把项目级审批流模板从 draft 提级到 preview 待入库。preview 态可回退到 draft 也可 commit 到 live。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "schema_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "approval_flow.schema.revert_to_draft",
+      "title": "审批流模板：预览回退到草稿",
+      "description": "管理员把项目级审批流模板从 preview 回退到 draft 再编辑；不影响 live 态历史版本。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "schema_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
       "skill_id": "backflow.confirm",
       "title": "确认回流共享",
       "description": "由供给侧确认回流候选正式纳入模板版本。",
@@ -3682,6 +3822,146 @@
       ]
     },
     {
+      "skill_id": "form_schema.commit",
+      "title": "提交表单模板入库",
+      "description": "管理员把项目级表单模板（字段+校验+布局）从 preview 态确认入库（version+1，进入 live），是 R14 三引擎草稿→预览→入库三步的最后一步。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "schema_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "form_schema.nl_draft",
+      "title": "用一句话生成表单 schema 草稿",
+      "description": "管理员一句话描述表单字段意向 → 经集团推理平台生成 schema 草稿入 draft 态；不自动入库，须经 promote→commit 三步流程。",
+      "mode": "write",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "created_by",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "deterministic_only",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "form_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "intent_text",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "form_schema.promote_to_preview",
+      "title": "表单模板：草稿提级到预览",
+      "description": "管理员把项目级表单模板从 draft 提级到 preview 待入库。preview 态可回退到 draft 也可 commit 到 live。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "schema_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "form_schema.revert_to_draft",
+      "title": "表单模板：预览回退到草稿",
+      "description": "管理员把项目级表单模板从 preview 回退到 draft 再编辑；不影响 live 态历史版本。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "schema_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
       "skill_id": "governance.policy_candidate.review",
       "title": "审核旧权限映射候选",
       "description": "对 legacy_policy_mapping_candidate 执行批准/驳回；可选将已批准候选合并写入 tenant_capability_policy（须经人工确认）。",
@@ -4903,6 +5183,81 @@
           "name": "trust_level",
           "required": true,
           "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "recommendation.rule.commit",
+      "title": "提交推荐规则入库",
+      "description": "管理员把项目级推荐规则模板从 preview 态确认入库（version+1，进入 live），是 R14 三引擎草稿→预览→入库三步的最后一步。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "rule_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "recommendation.similar_catalog.suggest",
+      "title": "智能推荐相似目录",
+      "description": "J1 申请前置：基于已入库 live 推荐规则 + 历史申请投影，按意向文本推荐相似目录候选。推荐为空且 fallback_register=true 时落 manual_requirement 转人工登记。",
+      "mode": "write",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "fallback_register",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "intent_org",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "intent_text",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "submitted_by",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "top_k",
+          "required": false,
+          "type": "integer"
         }
       ]
     },

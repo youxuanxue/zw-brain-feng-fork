@@ -1092,3 +1092,223 @@ class MetricDefinitionProjectionRecord(Base):
     owner_org_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
     generated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+# ---------------------------------------------------------------------------
+# E3 Wave-2 三引擎 — F1 审批流模板（schema / node / selection_rule / branch）
+# 运行态 ApprovalCase* 不变；这一组是「模板/定义层」，由
+# ApprovalFlowSchemaRepo 配 draft→preview→live 状态机使用。
+# ---------------------------------------------------------------------------
+
+
+class ApprovalFlowSchemaRecord(Base):
+    __tablename__ = "approval_flow_schema"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "schema_code",
+            "version",
+            name="uq_approval_flow_schema_tenant_code_version",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    schema_code: Mapped[str] = mapped_column(String(64), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(16), index=True, default="draft")
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    source_kind: Mapped[str] = mapped_column(String(32), default="manual")
+    draft_source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload_json: Mapped[dict] = mapped_column(JSON)
+    created_by: Mapped[str] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+    committed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class ApprovalFlowNodeRecord(Base):
+    __tablename__ = "approval_flow_node"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    schema_id: Mapped[str] = mapped_column(String(36), index=True)
+    node_code: Mapped[str] = mapped_column(String(64), index=True)
+    node_name: Mapped[str] = mapped_column(String(200))
+    node_type: Mapped[str] = mapped_column(String(32), index=True)
+    order_index: Mapped[int] = mapped_column(Integer, default=0)
+    selection_rule_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class ApprovalFlowSelectionRuleRecord(Base):
+    __tablename__ = "approval_flow_selection_rule"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    schema_id: Mapped[str] = mapped_column(String(36), index=True)
+    rule_code: Mapped[str] = mapped_column(String(64), index=True)
+    rule_kind: Mapped[str] = mapped_column(String(32), index=True)
+    rule_payload_json: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class ApprovalFlowBranchRecord(Base):
+    __tablename__ = "approval_flow_branch"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    schema_id: Mapped[str] = mapped_column(String(36), index=True)
+    from_node_code: Mapped[str] = mapped_column(String(64), index=True)
+    to_node_code: Mapped[str] = mapped_column(String(64), index=True)
+    condition_kind: Mapped[str] = mapped_column(String(32), index=True, default="always")
+    condition_payload_json: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+# ---------------------------------------------------------------------------
+# E3 Wave-2 三引擎 — F4 表单 schema 化（schema / section / field / validator）
+# 与 ApprovalFlow* 同形：模板/定义层，配 FormSchemaRepo 走 draft→preview→live。
+# 业务运行态表单实例（J1/J2 提交）不在本组；本组只承接结构契约。
+# ---------------------------------------------------------------------------
+
+
+class FormSchemaRecord(Base):
+    __tablename__ = "form_schema"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "form_code",
+            "version",
+            name="uq_form_schema_tenant_code_version",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    form_code: Mapped[str] = mapped_column(String(64), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(16), index=True, default="draft")
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    source_kind: Mapped[str] = mapped_column(String(32), default="manual")
+    draft_source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload_json: Mapped[dict] = mapped_column(JSON)
+    created_by: Mapped[str] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+    committed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class FormSectionRecord(Base):
+    __tablename__ = "form_section"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    form_schema_id: Mapped[str] = mapped_column(String(36), index=True)
+    section_code: Mapped[str] = mapped_column(String(64), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    order_index: Mapped[int] = mapped_column(Integer, default=0)
+    collapsible: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class FormFieldRecord(Base):
+    __tablename__ = "form_field"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    form_schema_id: Mapped[str] = mapped_column(String(36), index=True)
+    section_code: Mapped[str] = mapped_column(String(64), index=True)
+    field_code: Mapped[str] = mapped_column(String(64), index=True)
+    field_name: Mapped[str] = mapped_column(String(200))
+    field_type: Mapped[str] = mapped_column(String(32), index=True)
+    order_index: Mapped[int] = mapped_column(Integer, default=0)
+    required: Mapped[bool] = mapped_column(Boolean, default=False)
+    placeholder: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    default_value_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    layout_hints_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class FormValidatorRecord(Base):
+    __tablename__ = "form_validator"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    form_schema_id: Mapped[str] = mapped_column(String(36), index=True)
+    validator_code: Mapped[str] = mapped_column(String(64), index=True)
+    applies_to_field_code: Mapped[str] = mapped_column(String(64), index=True)
+    validator_kind: Mapped[str] = mapped_column(String(32), index=True)
+    validator_payload_json: Mapped[dict] = mapped_column(JSON)
+    error_message_template: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+# ---------------------------------------------------------------------------
+# E3 Wave-2 三引擎 — F6 智能推荐前置（rule / rule_clause / history / submission）
+# 与 ApprovalFlow* / FormSchema* 同形：rule 走 draft→preview→live；
+# RequirementHistory 是真实 dump-dsp_require 投影（fixture-fed），
+# RequirementSubmission 是引擎跑后落地的「申请意向」（recommend pick 或 fallback 人工登记）。
+# ---------------------------------------------------------------------------
+
+
+class RecommendationRuleRecord(Base):
+    __tablename__ = "recommendation_rule"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "rule_code",
+            "version",
+            name="uq_recommendation_rule_tenant_code_version",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    rule_code: Mapped[str] = mapped_column(String(64), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(16), index=True, default="draft")
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    source_kind: Mapped[str] = mapped_column(String(32), default="manual")
+    draft_source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload_json: Mapped[dict] = mapped_column(JSON)
+    created_by: Mapped[str] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+    committed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class RecommendationRuleClauseRecord(Base):
+    __tablename__ = "recommendation_rule_clause"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    rule_id: Mapped[str] = mapped_column(String(36), index=True)
+    clause_code: Mapped[str] = mapped_column(String(64), index=True)
+    clause_kind: Mapped[str] = mapped_column(String(32), index=True)
+    clause_payload_json: Mapped[dict] = mapped_column(JSON)
+    weight: Mapped[float] = mapped_column(default=1.0)
+    order_index: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class RequirementHistoryRecord(Base):
+    __tablename__ = "requirement_history"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    source_require_id: Mapped[str] = mapped_column(String(64), index=True)
+    catalog_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    resource_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    org: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    extra_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class RequirementSubmissionRecord(Base):
+    __tablename__ = "requirement_submission"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    submitted_by: Mapped[str] = mapped_column(String(128))
+    intent_text: Mapped[str] = mapped_column(Text)
+    submission_kind: Mapped[str] = mapped_column(String(32), index=True)
+    target_catalog_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    recommendation_audit_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)

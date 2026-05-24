@@ -21,9 +21,11 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zw_brain.command.handlers.b1 import (
+    approval_flow_schema,
     audit,
     capability_admin,
     exchange_statistics_query,
+    form_schema,
     intake,
     investigation,
     ops_catalog,
@@ -32,6 +34,7 @@ from zw_brain.command.handlers.b1 import (
     ops_service,
     ops_workflow,
     projection,
+    recommendation_rule,
     registry,
     system_ops,
 )
@@ -57,6 +60,7 @@ from zw_brain.command.handlers.j1 import (
     governance_dispute,
     objection,
     provider,
+    recommendation_suggest,
     request,
     requirement_intake,
     resource_api,
@@ -322,6 +326,21 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "workbench.view": workbench.handler_workbench_view,
     "service.rating.submit": workbench.handler_service_rating_submit,
     "subscription.terminate": workbench.handler_subscription_terminate,
+    # E3 Wave-2 三引擎 F1 — 审批流模板 commit (1 cap, B1 后台支撑面)
+    "approval_flow.schema.commit": approval_flow_schema.handler_approval_flow_schema_commit,
+    # E3 Wave-2 三引擎 F3 — NL 草稿 + 三步流程 promote/revert (3 cap, B1)
+    "approval_flow.nl_draft": approval_flow_schema.handler_approval_flow_nl_draft,
+    "approval_flow.schema.promote_to_preview": approval_flow_schema.handler_approval_flow_schema_promote_to_preview,
+    "approval_flow.schema.revert_to_draft": approval_flow_schema.handler_approval_flow_schema_revert_to_draft,
+    # E3 Wave-2 三引擎 F4 — 表单模板 commit (1 cap, B1 后台支撑面)
+    "form_schema.commit": form_schema.handler_form_schema_commit,
+    # E3 Wave-2 三引擎 F5 — 表单 NL 草稿 + 三步流程 promote/revert (3 cap, B1)
+    "form_schema.nl_draft": form_schema.handler_form_schema_nl_draft,
+    "form_schema.promote_to_preview": form_schema.handler_form_schema_promote_to_preview,
+    "form_schema.revert_to_draft": form_schema.handler_form_schema_revert_to_draft,
+    # E3 Wave-2 三引擎 F6 — 推荐规则 commit (1 cap, B1) + 相似目录推荐 suggest (1 cap, J1)
+    "recommendation.rule.commit": recommendation_rule.handler_recommendation_rule_commit,
+    "recommendation.similar_catalog.suggest": recommendation_suggest.handler_recommendation_similar_catalog_suggest,
 }
 DISPATCH_TABLE.update({cap: adapter_passthrough.handler for cap in _PASSTHROUGH_CAPS})
 

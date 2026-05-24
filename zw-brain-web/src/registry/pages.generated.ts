@@ -206,6 +206,18 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     {"skillId": "tenant.capability.disable", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["tenant.capability.disable.execute"]},
     {"skillId": "tenant.capability.enable", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["tenant.capability.enable.execute"]},
   ] },
+  { anchor: "B1.3", capabilities: [
+    {"skillId": "approval_flow.nl_draft", "mode": "write", "auditClass": "read-normal", "humanConfirmationRequired": false, "roles": [], "permissions": ["approval_flow.nl_draft.execute"]},
+    {"skillId": "approval_flow.schema.commit", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["approval_flow.schema.commit.execute"]},
+    {"skillId": "approval_flow.schema.promote_to_preview", "mode": "write", "auditClass": "write-normal", "humanConfirmationRequired": true, "roles": [], "permissions": ["approval_flow.schema.promote_to_preview.execute"]},
+    {"skillId": "approval_flow.schema.revert_to_draft", "mode": "write", "auditClass": "write-normal", "humanConfirmationRequired": true, "roles": [], "permissions": ["approval_flow.schema.revert_to_draft.execute"]},
+    {"skillId": "form_schema.commit", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["form_schema.commit.execute"]},
+    {"skillId": "form_schema.nl_draft", "mode": "write", "auditClass": "read-normal", "humanConfirmationRequired": false, "roles": [], "permissions": ["form_schema.nl_draft.execute"]},
+    {"skillId": "form_schema.promote_to_preview", "mode": "write", "auditClass": "write-normal", "humanConfirmationRequired": true, "roles": [], "permissions": ["form_schema.promote_to_preview.execute"]},
+    {"skillId": "form_schema.revert_to_draft", "mode": "write", "auditClass": "write-normal", "humanConfirmationRequired": true, "roles": [], "permissions": ["form_schema.revert_to_draft.execute"]},
+    {"skillId": "recommendation.rule.commit", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["recommendation.rule.commit.execute"]},
+    {"skillId": "recommendation.similar_catalog.suggest", "mode": "write", "auditClass": "read-normal", "humanConfirmationRequired": false, "roles": [], "permissions": ["recommendation.similar_catalog.suggest.execute"]},
+  ] },
 ];
 
 export const UNMAPPED_WEBUI_SKILLS: string[] = ["assistant.investigation_summary", "search.intent.parse"];

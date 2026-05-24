@@ -641,9 +641,9 @@ legacy 门户的信息架构只能作为遗留能力索引，不再作为新 Web
 
 **Per-journey live capability 预算（drift = registry 边界变更）：**
 
-- J1 找数→用数：`<!-- stat:zwbrain.capability-budget-j1 -->64<!-- /stat -->` live capabilities
+- J1 找数→用数：`<!-- stat:zwbrain.capability-budget-j1 -->65<!-- /stat -->` live capabilities
 - J2 挂数→维数：`<!-- stat:zwbrain.capability-budget-j2 -->42<!-- /stat -->` live capabilities
-- B1 后台支撑面：`<!-- stat:zwbrain.capability-budget-b1 -->50<!-- /stat -->` live capabilities
+- B1 后台支撑面：`<!-- stat:zwbrain.capability-budget-b1 -->59<!-- /stat -->` live capabilities
 - Infra 底座（鉴权 / 审计 / actor / adapter health）：`<!-- stat:zwbrain.capability-budget-infra -->17<!-- /stat -->` live capabilities
 
 这 4 个数字写进 `scripts/.stats.json`，preflight 段 8 自动校验。任意一项 drift（无论是增是减）都意味着 §5.1 旅程范围或底座边界被改动，**必须走 GATE 决策**，不允许悄悄漂移。
@@ -961,6 +961,8 @@ zw-brain 是**全新项目**，没有历史客户、没有存量数据需要迁�
 - 一表通可选预填 adapter（**降级路径**，不默认；详见 §3.4 C）
 
 **三引擎与 AgentRuntime 的关系**：审批流 / 表单 schema / 推荐三引擎本身仍是 zw-brain 内建 Capability（不外部化）；外部 Agent 可作为「配置草稿生成器」接入（自然语言 → schema 草稿 → 管理员确认入库），但**不直接修改生产配置**（与 §8.5 边界一致）。
+
+**Wave 2 客户落地 sign-off 材料**（E3 F8 自动产出）：路径 `.data/wave2-acceptance/SIGN_OFF.md`，由 `tests/integration/test_wave2_three_engines_acceptance.py` 跑过即重生成；包含鞍山 4 级审批 / 四川 7 字段表单 / 荆州 5 条推荐规则三例的 e2e 入库证据、duration 时长记录、真实历史 hit-rate、§ 3 业务方签字栏（待业务方填）。业务方签字后此 Wave 2 「客户落地 ≤ 1 周」承诺由 pending 升 completed。
 
 ### 10.4 Wave 3：协议扩展硬化 + 多租户深化 + 国家通道独立子旅程
 

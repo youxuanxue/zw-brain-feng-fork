@@ -30,6 +30,10 @@
 | POST | `/api/skills/approval.evidence.summarize` | P3 审批依据助手（归纳依据 + 反事实 + 推荐结论） | `post_approval_evidence_summarize` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/approval.review_decide` | 审批并裁决申请 | `post_approval_review_decide` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/approval.view` | 查看审批详情 | `get_approval_view` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/approval_flow.nl_draft` | 用一句话生成审批流草稿 | `post_approval_flow_nl_draft` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/approval_flow.schema.commit` | 提交审批流模板入库 | `post_approval_flow_schema_commit` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/approval_flow.schema.promote_to_preview` | 审批流模板：草稿提级到预览 | `post_approval_flow_schema_promote_to_preview` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/approval_flow.schema.revert_to_draft` | 审批流模板：预览回退到草稿 | `post_approval_flow_schema_revert_to_draft` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/assistant.investigation_summary` | 调查摘要助手 | `get_assistant_investigation_summary` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/audit.event.accountability` | 审计事件追责反查 | `get_audit_event_accountability` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/audit.event.anomaly` | 审计事件异常 Top-N 扫描 | `get_audit_event_anomaly` | `zw_brain/entry/rest/openapi.json` |
@@ -91,6 +95,10 @@
 | POST | `/api/skills/delivery.subscription.manage` | 管理持续订阅交付 | `post_delivery_subscription_manage` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/delivery.trigger_recovery` | 触发交付恢复 | `post_delivery_trigger_recovery` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/delivery.view` | 查看交付任务 | `get_delivery_view` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/form_schema.commit` | 提交表单模板入库 | `post_form_schema_commit` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/form_schema.nl_draft` | 用一句话生成表单 schema 草稿 | `post_form_schema_nl_draft` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/form_schema.promote_to_preview` | 表单模板：草稿提级到预览 | `post_form_schema_promote_to_preview` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/form_schema.revert_to_draft` | 表单模板：预览回退到草稿 | `post_form_schema_revert_to_draft` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/governance.dispute_list` | 查看治理争议列表 | `get_governance_dispute_list` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/governance.dispute_view` | 查看治理争议详情 | `get_governance_dispute_view` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/governance.iam_overview` | 查看 IAM 治理总览 | `get_governance_iam_overview` | `zw_brain/entry/rest/openapi.json` |
@@ -133,6 +141,8 @@
 | POST | `/api/skills/package.trust_level.update` | 升降能力包信任级 | `post_package_trust_level_update` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/package.view` | 查看能力包详情 | `get_package_view` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/provider.view` | 查看供给侧治理 | `get_provider_view` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/recommendation.rule.commit` | 提交推荐规则入库 | `post_recommendation_rule_commit` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/recommendation.similar_catalog.suggest` | 智能推荐相似目录 | `post_recommendation_similar_catalog_suggest` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/registry.artifact.export` | 导出注册工件 | `get_registry_artifact_export` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/request.create` | 发起标准复用申请 | `post_request_create` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/request.list` | 查看申请列表 | `get_request_list` | `zw_brain/entry/rest/openapi.json` |
@@ -273,7 +283,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 173 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 183 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -298,6 +308,10 @@
 | `approval.evidence.summarize` | P3 审批依据助手（归纳依据 + 反事实 + 推荐结论） | 1.0.0 | audit | `zw_brain/skill_registration/registered/approval.evidence.summarize.json` |
 | `approval.review_decide` | 审批并裁决申请 | 1.0.0 | audit, db_write, state_machine_transition, task_dispatch, blockchain_anchor | `zw_brain/skill_registration/registered/approval.review_decide.json` |
 | `approval.view` | 查看审批详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/approval.view.json` |
+| `approval_flow.nl_draft` | 用一句话生成审批流草稿 | 1.0.0 | audit, db_write, external_inference | `zw_brain/skill_registration/registered/approval_flow.nl_draft.json` |
+| `approval_flow.schema.commit` | 提交审批流模板入库 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/approval_flow.schema.commit.json` |
+| `approval_flow.schema.promote_to_preview` | 审批流模板：草稿提级到预览 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/approval_flow.schema.promote_to_preview.json` |
+| `approval_flow.schema.revert_to_draft` | 审批流模板：预览回退到草稿 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/approval_flow.schema.revert_to_draft.json` |
 | `assistant.investigation_summary` | 调查摘要助手 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/assistant.investigation_summary.json` |
 | `audit.event.accountability` | 审计事件追责反查 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/audit.event.accountability.json` |
 | `audit.event.anomaly` | 审计事件异常 Top-N 扫描 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/audit.event.anomaly.json` |
@@ -359,6 +373,10 @@
 | `delivery.subscription.manage` | 管理持续订阅交付 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/delivery.subscription.manage.json` |
 | `delivery.trigger_recovery` | 触发交付恢复 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/delivery.trigger_recovery.json` |
 | `delivery.view` | 查看交付任务 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/delivery.view.json` |
+| `form_schema.commit` | 提交表单模板入库 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/form_schema.commit.json` |
+| `form_schema.nl_draft` | 用一句话生成表单 schema 草稿 | 1.0.0 | audit, db_write, external_inference | `zw_brain/skill_registration/registered/form_schema.nl_draft.json` |
+| `form_schema.promote_to_preview` | 表单模板：草稿提级到预览 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/form_schema.promote_to_preview.json` |
+| `form_schema.revert_to_draft` | 表单模板：预览回退到草稿 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/form_schema.revert_to_draft.json` |
 | `governance.dispute_list` | 查看治理争议列表 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.dispute_list.json` |
 | `governance.dispute_view` | 查看治理争议详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.dispute_view.json` |
 | `governance.iam_overview` | 查看 IAM 治理总览 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/governance.iam_overview.json` |
@@ -401,6 +419,8 @@
 | `package.trust_level.update` | 升降能力包信任级 | 1.0.0 | audit, db_write, state_machine_transition | `zw_brain/skill_registration/registered/package.trust_level.update.json` |
 | `package.view` | 查看能力包详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/package.view.json` |
 | `provider.view` | 查看供给侧治理 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/provider.view.json` |
+| `recommendation.rule.commit` | 提交推荐规则入库 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/recommendation.rule.commit.json` |
+| `recommendation.similar_catalog.suggest` | 智能推荐相似目录 | 1.0.0 | audit | `zw_brain/skill_registration/registered/recommendation.similar_catalog.suggest.json` |
 | `registry.artifact.export` | 导出注册工件 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/registry.artifact.export.json` |
 | `request.create` | 发起标准复用申请 | 1.0.0 | audit, db_write, state_machine_transition, task_dispatch, blockchain_anchor | `zw_brain/skill_registration/registered/request.create.json` |
 | `request.list` | 查看申请列表 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/request.list.json` |
@@ -457,9 +477,9 @@
 
 ## Statistics
 
-- REST endpoints: 182
+- REST endpoints: 192
 - CLI entries: 1
 - MCP tools: 60
 - A2A agent cards: 1
-- Registered Skills (live): 173 / 214 on-disk
+- Registered Skills (live): 183 / 224 on-disk
 

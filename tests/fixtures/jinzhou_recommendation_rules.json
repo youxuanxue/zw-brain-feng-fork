@@ -1,0 +1,89 @@
+{
+  "_meta": {
+    "source": "F6 supervisor instruction — 荆州 5 条推荐规则示例",
+    "purpose": "覆盖 5 种主要 clause_kind（keyword_match / category_match / org_affinity / usage_frequency / fuzzy_text）各 1 条；第 5 条同时叠 fuzzy_text",
+    "tenant_id": "sd-default"
+  },
+  "rules": [
+    {
+      "rule_code": "jz_disabled_keyword_v1",
+      "title": "荆州·残疾人信息直接命中",
+      "payload": {
+        "clauses": [
+          {
+            "clause_code": "kw_disabled",
+            "clause_kind": "keyword_match",
+            "clause_payload_json": {"keywords": ["残疾", "残疾人"]},
+            "weight": 1.5,
+            "order_index": 0
+          }
+        ]
+      }
+    },
+    {
+      "rule_code": "jz_finance_category_v1",
+      "title": "荆州·财政类规则",
+      "payload": {
+        "clauses": [
+          {
+            "clause_code": "cat_finance",
+            "clause_kind": "category_match",
+            "clause_payload_json": {
+              "categories": ["预算", "财政", "基金"],
+              "catalog_category_hint": "政府性基金预算支出预算表"
+            },
+            "weight": 1.2,
+            "order_index": 0
+          }
+        ]
+      }
+    },
+    {
+      "rule_code": "jz_org_affinity_v1",
+      "title": "荆州·机构关联度",
+      "payload": {
+        "clauses": [
+          {
+            "clause_code": "org_jinzhou_bigdata",
+            "clause_kind": "org_affinity",
+            "clause_payload_json": {
+              "orgs": ["org-prov-bigdata-004", "org-prov-disability-005"]
+            },
+            "weight": 0.8,
+            "order_index": 0
+          }
+        ]
+      }
+    },
+    {
+      "rule_code": "jz_usage_frequency_v1",
+      "title": "荆州·历史高频加权",
+      "payload": {
+        "clauses": [
+          {
+            "clause_code": "freq_repeat",
+            "clause_kind": "usage_frequency",
+            "clause_payload_json": {"min_count": 1, "scale": 0.5},
+            "weight": 1.0,
+            "order_index": 0
+          }
+        ]
+      }
+    },
+    {
+      "rule_code": "jz_fuzzy_text_v1",
+      "title": "荆州·模糊文本相似",
+      "payload": {
+        "clauses": [
+          {
+            "clause_code": "fuzzy_default",
+            "clause_kind": "fuzzy_text",
+            "clause_payload_json": {},
+            "weight": 1.0,
+            "order_index": 0
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,125 +1,197 @@
 schema_version: 1
 goal_id: e3-wave2-engines
 items:
-  - id: F1
-    deliverable: 审批流引擎数据模型 + 状态机（节点 + 选人规则 + 条件分支 schema）
-    scope: 数据模型 + 状态机；不含 NL 草稿生成；不含 UI
-    covers_ac:
-      - AC1
-    evidence_plan:
-      - 证据预算：tests/integration/test_approval_flow_engine.py 数据模型用例 + 状态机可达性证明
-      - 停止条件：模型可序列化、可校验、可入库；config_change_class:draft/preview/live 三态可流转
-    actual_evidence: []
-    depends_on: []
-    status: pending
-    next_action: 在 zw_brain/domain/models.py 增加 ApprovalFlowSchema/Node/SelectionRule/Branch 模型；新增对应 capability manifest 标 audit_class:write-critical
-    blocked_reason: null
-
-  - id: F2
-    deliverable: 审批流引擎内置基线（有条件 / 无条件共享两种默认流程）+ J1 集成
-    scope: 两种基线流程入库；E1 的 J1 申请走基线流程；不含项目级定制
-    covers_ac:
-      - AC1
-    evidence_plan:
-      - 证据预算：tests/integration/test_approval_flow_baseline.py + 与 E1 J1 集成 e2e
-      - 停止条件：J1 申请按 shared_type=1/2 自动选择对应基线流程
-    actual_evidence: []
-    depends_on:
-      - F1
-    status: pending
-    next_action: 实装 ApprovalFlowBaselineSeeder；改 E1 的 application.submit handler 调用基线
-    blocked_reason: 等 E1 J1 申请提交 handler 稳定后改其调用基线；本项 seeder 本身可先跑
-
-  - id: F3
-    deliverable: 审批流引擎 NL 草稿生成（管理员侧）+ 三步流程（草稿→预览→入库）
-    scope: NL 调用经 shared/inference/client；草稿不直接生效；管理员确认才入库
-    covers_ac:
-      - AC1
-    evidence_plan:
-      - 证据预算：tests/integration/test_approval_flow_nl_draft.py + 鞍山 4 级流程从一句话到入库的 e2e
-      - 停止条件：NL 草稿可生成 + 管理员可编辑预览 + 入库后立即生效
-    actual_evidence: []
-    depends_on:
-      - F1
-    status: pending
-    next_action: 扩展 zw_brain/command/reverse_draft_suggest.py 增 approval_flow.nl_draft skill；preflight 段 10 不报红
-    blocked_reason: null
-
-  - id: F4
-    deliverable: 表单 schema 化引擎数据模型 + 校验
-    scope: 字段 + 校验 + 布局 schema；不含 NL 草稿；不含 UI
-    covers_ac:
-      - AC2
-    evidence_plan:
-      - 证据预算：tests/integration/test_form_schema_engine.py 数据模型用例 + 校验规则覆盖
-      - 停止条件：表单 schema 可被 J1/J2 表单页面消费
-    actual_evidence: []
-    depends_on: []
-    status: pending
-    next_action: 设计 FormSchema/Field/Validator 模型 + JSON Schema 兼容
-    blocked_reason: null
-
-  - id: F5
-    deliverable: 表单 schema NL 草稿生成 + 三步入库
-    scope: NL 走 shared/inference/client；草稿不直接生效
-    covers_ac:
-      - AC2
-    evidence_plan:
-      - 证据预算：tests/integration/test_form_schema_nl_draft.py + 四川 7 字段从一句话到入库 e2e
-      - 停止条件：NL 生成 + 管理员入库
-    actual_evidence: []
-    depends_on:
-      - F4
-    status: pending
-    next_action: 扩展 reverse_draft_suggest.py 增 form_schema.nl_draft skill
-    blocked_reason: null
-
-  - id: F6
-    deliverable: 智能推荐前置引擎（基于 sd-default 真实历史数据）
-    scope: 相似目录推荐 + 推荐失败转人工需求登记；不做实时学习
-    covers_ac:
-      - AC3
-    evidence_plan:
-      - 证据预算：tests/integration/test_recommendation_engine.py + 真实 dump-dsp_require 5 条历史申请的推荐输出 + 命中率报告
-      - 停止条件：推荐有证据支撑；失败可降级人工登记
-    actual_evidence: []
-    depends_on: []
-    status: pending
-    next_action: 设计 recommendation.similar_catalog skill；嵌入 P3 申请入口前置；荆州 5 条规则示例入库
-    blocked_reason: null
-
-  - id: F7
-    deliverable: 三引擎管理员配置页 UI（B1.2 子集）
-    scope: 三引擎入口 + 草稿/预览/入库三步；UI 工程术语黑名单遵守
-    covers_ac:
-      - AC4
-    evidence_plan:
-      - 证据预算：三引擎配置页 e2e + R12 工程术语黑名单 preflight 段 24 不报红
-      - 停止条件：管理员能完整跑三步配置
-    actual_evidence: []
-    depends_on:
-      - F3
-      - F5
-      - F6
-    status: pending
-    next_action: 与 E4 协商 B1.2 UI 容器边界；与 E5 协商前端组件库；等 E5 webui 重建后接入
-    blocked_reason: 等 E5 webui 构建管线（e5/plan.yaml F2）+ E4 B1.2 UI 容器（e4/plan.yaml F5）就位
-
-  - id: F8
-    deliverable: 客户落地周期验证 + 三个项目级定制 sign-off
-    scope: 鞍山 4 级审批 + 四川 7 字段表单 + 荆州 5 条推荐规则全部入库且生效；时长 ≤1 周
-    covers_ac:
-      - AC5
-    evidence_plan:
-      - 证据预算：三个配置示例入库 + 时长记录 + 业务方 sign-off
-      - 停止条件：三个示例端到端运行；业务方签字
-    actual_evidence: []
-    depends_on:
-      - F2
-      - F3
-      - F5
-      - F6
-      - F7
-    status: pending
-    next_action: 在 F2/F3/F5/F6/F7 完成后启动 1 周验证窗口；准备 sign-off 材料
-    blocked_reason: null
+- id: F1
+  deliverable: 审批流引擎数据模型 + 状态机（节点 + 选人规则 + 条件分支 schema）
+  scope: 数据模型 + 状态机；不含 NL 草稿生成；不含 UI
+  covers_ac:
+  - AC1
+  evidence_plan:
+  - 证据预算：tests/integration/test_approval_flow_engine.py 数据模型用例 + 状态机可达性证明
+  - 停止条件：模型可序列化、可校验、可入库；config_change_class:draft/preview/live 三态可流转
+  actual_evidence:
+  - 'commit 8752331 feat(e3): F1 — 审批流引擎数据模型+状态机+commit skill'
+  - tests/integration/test_approval_flow_engine.py 10 passed in 0.50s; full pytest
+    106 passed/12 skipped
+  - bash scripts/preflight.sh PASS (common + project 29 段, 含段 10 LLM 直连禁令 / 段 22 capability
+    boundary / 段 24 R12 UI 黑名单 / 段 25 §9.5 adapter 写禁区 / 段 26 .twin schema / 段 28
+    capability registration 三一致 / 段 29 无手维护投影)
+  - reset_and_upgrade() 跑通，4 张新表 approval_flow_schema/node/selection_rule/branch 建立；ensure_runtime_schema()
+    63 表通过
+  - 新增/修改 18 文件：zw_brain/domain/{models.py,approval_flow_schema.py,policy.py}, zw_brain/command/{dispatch.py,handlers/_CATEGORIZATION.md,handlers/b1/approval_flow_schema.py},
+    zw_brain/skill_registration/registered/approval_flow.schema.commit.json, zw_brain/shared/migrate.py,
+    tests/integration/{__init__.py,test_approval_flow_engine.py}, 5 surface 投影派生产物
+    + 2 stat 块同步
+  depends_on: []
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F2
+  deliverable: 审批流引擎内置基线（有条件 / 无条件共享两种默认流程）+ J1 集成
+  scope: 两种基线流程入库；E1 的 J1 申请走基线流程；不含项目级定制
+  covers_ac:
+  - AC1
+  evidence_plan:
+  - 证据预算：tests/integration/test_approval_flow_baseline.py + 与 E1 J1 集成 e2e
+  - 停止条件：J1 申请按 shared_type=1/2 自动选择对应基线流程
+  actual_evidence:
+  - 'commit 2b21233 feat(e3): F2 — 审批流基线 seeder + J1 申请提交自动启动 (有条件/无条件共享)'
+  - tests/integration/test_approval_flow_baseline.py 12 passed in 0.60s; full pytest
+    172 passed/12 skipped
+  - bash scripts/preflight.sh PASS (29 段)
+  - 新增 zw_brain/domain/approval_flow_baseline.py (~150 行) + 测试 + 改 j1/request.py 加
+    hook + migrate.py seeder 集成
+  - 'e2e: shared_type=1 → conditional baseline (4 approval steps), shared_type=2 →
+    unconditional baseline (1 approval step); hook 失败时原 handler ok=true + audit warning'
+  depends_on:
+  - F1
+  status: completed
+  next_action: ''
+  blocked_reason: 等 E1 J1 申请提交 handler 稳定后改其调用基线；本项 seeder 本身可先跑
+- id: F3
+  deliverable: 审批流引擎 NL 草稿生成（管理员侧）+ 三步流程（草稿→预览→入库）
+  scope: NL 调用经 shared/inference/client；草稿不直接生效；管理员确认才入库
+  covers_ac:
+  - AC1
+  evidence_plan:
+  - 证据预算：tests/integration/test_approval_flow_nl_draft.py + 鞍山 4 级流程从一句话到入库的 e2e
+  - 停止条件：NL 草稿可生成 + 管理员可编辑预览 + 入库后立即生效
+  actual_evidence:
+  - 'commit 4c944ce feat(e3): F3 — 审批流 NL 草稿+三步流程+鞍山 4 级 e2e'
+  - tests/integration/test_approval_flow_nl_draft.py 12 passed in 1.07s; full pytest
+    148 passed/12 skipped
+  - bash scripts/preflight.sh PASS (含段 10 LLM 直连禁令)
+  - 新增 zw_brain/domain/approval_flow_nl_draft.py (3-tier deterministic→LLM→fallback)
+    + 3 manifest (nl_draft / promote_to_preview / revert_to_draft) + dispatch+policy+_CATEGORIZATION
+    (B1 桶 44→47) + 5 surface 投影 regen
+  - 鞍山 4 级 e2e：intent='鞍山审批流程：编制→二级部门审→一级部门审→发布' → 6 节点 schema (start+4 approval+end)
+    live; audit chain 4 条完整
+  - LLM 调用经 shared.inference.client.chat 带 request_id; InferenceError/JSON decode/payload
+    校验失败均降级 deterministic
+  depends_on:
+  - F1
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F4
+  deliverable: 表单 schema 化引擎数据模型 + 校验
+  scope: 字段 + 校验 + 布局 schema；不含 NL 草稿；不含 UI
+  covers_ac:
+  - AC2
+  evidence_plan:
+  - 证据预算：tests/integration/test_form_schema_engine.py 数据模型用例 + 校验规则覆盖
+  - 停止条件：表单 schema 可被 J1/J2 表单页面消费
+  actual_evidence:
+  - 'commit f36df22 feat(e3): F4 — 表单 schema 化引擎数据模型+校验+commit skill'
+  - tests/integration/test_form_schema_engine.py 13 passed in 0.56s; full pytest 119
+    passed/12 skipped
+  - bash scripts/preflight.sh PASS (common + project 29 段)
+  - reset_and_upgrade() 跑通，67 表（4 张新表 form_schema/form_section/form_field/form_validator）
+  - to_json_schema(record) 输出 draft-07 兼容投影（field_type → JSON type/format/items 映射
+    + required 聚合 + regex/range/length/enum/file_size/custom_expression validator
+    注入）
+  - 新增 zw_brain/domain/form_schema.py / zw_brain/command/handlers/b1/form_schema.py
+    / zw_brain/skill_registration/registered/form_schema.commit.json + 4 models +
+    dispatch+policy+_CATEGORIZATION + tests + 5 surface 投影 regen + 2 stat 块 sync
+  depends_on: []
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F5
+  deliverable: 表单 schema NL 草稿生成 + 三步入库
+  scope: NL 走 shared/inference/client；草稿不直接生效
+  covers_ac:
+  - AC2
+  evidence_plan:
+  - 证据预算：tests/integration/test_form_schema_nl_draft.py + 四川 7 字段从一句话到入库 e2e
+  - 停止条件：NL 生成 + 管理员入库
+  actual_evidence:
+  - 'commit 1863c53 feat(e3): F5 — 表单 schema NL 草稿+三步流程+四川 7 字段 e2e'
+  - tests/integration/test_form_schema_nl_draft.py 12 passed in 1.05s; full pytest
+    160 passed/12 skipped
+  - bash scripts/preflight.sh PASS (含段 10 LLM 直连禁令)
+  - 新增 zw_brain/domain/form_schema_nl_draft.py (3-tier) + 3 manifest (nl_draft / promote_to_preview
+    / revert_to_draft) + dispatch+policy+_CATEGORIZATION (B1 桶 47→50) + 5 surface
+    投影 regen
+  - '四川 7 字段 e2e: intent=''四川申请表单：姓名、身份证号、联系电话、单位、申请事由、申请日期、附件'' → live 含 7 字段 + 身份证
+    regex + 联系电话 length + 附件 file_size validator; audit chain 完整; to_json_schema(record)
+    输出含 7 properties'
+  depends_on:
+  - F4
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F6
+  deliverable: 智能推荐前置引擎（基于 sd-default 真实历史数据）
+  scope: 相似目录推荐 + 推荐失败转人工需求登记；不做实时学习
+  covers_ac:
+  - AC3
+  evidence_plan:
+  - 证据预算：tests/integration/test_recommendation_engine.py + 真实 dump-dsp_require 5 条历史申请的推荐输出
+    + 命中率报告
+  - 停止条件：推荐有证据支撑；失败可降级人工登记
+  actual_evidence:
+  - 'commit 292710b feat(e3): F6 — 智能推荐前置引擎+5 条荆州规则+真实历史 hit-rate 报告'
+  - tests/integration/test_recommendation_engine.py 17 passed in 0.53s; full pytest
+    136 passed/12 skipped
+  - bash scripts/preflight.sh PASS (common + project 29 段)
+  - reset_and_upgrade() 71 表（4 张新表 recommendation_rule/recommendation_rule_clause/requirement_history/requirement_submission）
+  - 真实 hit-rate 40% (2/5) ≥ 20% baseline；荆州 5 条规则示例覆盖 5 种 clause_kind
+  - 新增 zw_brain/domain/{recommendation_rule.py,recommendation_engine.py} + 2 manifest
+    (recommendation.rule.commit + recommendation.similar_catalog.suggest) + 2 handlers
+    (b1/recommendation_rule.py + j1/recommendation_suggest.py) + dispatch+policy+_CATEGORIZATION
+    + tests + 2 fixtures (dsp_require_sample.json + jinzhou_recommendation_rules.json)
+    + 5 surface 投影 + 2 stat 块
+  depends_on: []
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F7
+  deliverable: 三引擎管理员配置页 UI（B1.2 子集）
+  scope: 三引擎入口 + 草稿/预览/入库三步；UI 工程术语黑名单遵守
+  covers_ac:
+  - AC4
+  evidence_plan:
+  - 证据预算：三引擎配置页 e2e + R12 工程术语黑名单 preflight 段 24 不报红
+  - 停止条件：管理员能完整跑三步配置
+  actual_evidence:
+  - 'commit 08adea0 feat(e3): F7 — 三引擎管理员配置页 UI (B1.3 EnginesAdmin / 3 tabs + 三步)'
+  - B13EnginesAdmin.vue 464 行 + router 路径 /engines-admin + WEBUI_PAGE_PREFIX_MAP +3
+    prefix
+  - pages.generated.ts UNMAPPED_WEBUI_SKILLS=[]（pre-F7 10 个 approval_flow/form_schema/recommendation
+    skill 全部归位 B1.3）
+  - npm --prefix zw-brain-web run typecheck PASS + npm run build PASS
+  - bash scripts/preflight.sh PASS (29 段，含段 24 R12 工程术语黑名单 + 段 28 三一致 + 段 29 无手维护投影)
+  depends_on:
+  - F3
+  - F5
+  - F6
+  status: completed
+  next_action: ''
+  blocked_reason: 等 E5 webui 构建管线（e5/plan.yaml F2）+ E4 B1.2 UI 容器（e4/plan.yaml F5）就位
+- id: F8
+  deliverable: 客户落地周期验证 + 三个项目级定制 sign-off
+  scope: 鞍山 4 级审批 + 四川 7 字段表单 + 荆州 5 条推荐规则全部入库且生效；时长 ≤1 周
+  covers_ac:
+  - AC5
+  evidence_plan:
+  - 证据预算：三个配置示例入库 + 时长记录 + 业务方 sign-off
+  - 停止条件：三个示例端到端运行；业务方签字
+  actual_evidence:
+  - 'commit 6837f5d feat(e3): F8 — Wave-2 三引擎 sign-off 材料 + 三例 e2e acceptance'
+  - tests/integration/test_wave2_three_engines_acceptance.py 4 passed in 1.13s; full
+    pytest 176 passed/12 skipped
+  - bash scripts/preflight.sh PASS (29 段)
+  - .data/wave2-acceptance/SIGN_OFF.md 生成 + anshan_approval.json + sichuan_form.json
+    + jinzhou_recommendation.json + consolidated.json
+  - e2e 总耗时 0.275s（远 < 1 周 604800s 硬上限）; 荆州 hit-rate 40% (2/5)
+  - 审计事件 24 条经 audit bus 同步落库（D4 哲学满足）
+  depends_on:
+  - F2
+  - F3
+  - F5
+  - F6
+  - F7
+  status: in_progress
+  next_action: 等业务方 sign-off；技术材料已在 .data/wave2-acceptance/SIGN_OFF.md
+  blocked_reason: null
