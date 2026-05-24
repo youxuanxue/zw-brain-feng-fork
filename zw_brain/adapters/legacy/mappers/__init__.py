@@ -18,7 +18,8 @@ Bridging order (legacy-import-mapping-v1.md §四.1):
     6. basesubject  (basesubject_info / bs_resource / schema_info — 主题库主线，F3 turn 2 漏做补齐)
     7. service  (api_service_*)
     8. connect  (dc_*)
-    9. projections  (monitor / perform — only summaries)
+    9. graph_lineage  (graphdb_node / graphdb_relation / graphdb_*_attr/column — 图血缘多跳，F3 turn 3 漏做补齐)
+    10. projections  (monitor / perform — only summaries)
 """
 
 from zw_brain.adapters.legacy._common import ImportStats
@@ -27,6 +28,7 @@ from zw_brain.adapters.legacy.mappers.catalog_metadata import CatalogMetadataMap
 from zw_brain.adapters.legacy.mappers.connect import ConnectMapper
 from zw_brain.adapters.legacy.mappers.exchange import ExchangeMapper
 from zw_brain.adapters.legacy.mappers.governance import GovernanceMapper
+from zw_brain.adapters.legacy.mappers.graph_lineage import GraphLineageMapper
 from zw_brain.adapters.legacy.mappers.objection import ObjectionMapper
 from zw_brain.adapters.legacy.mappers.pipelines import PipelinesMapper
 from zw_brain.adapters.legacy.mappers.projections import MonitorMapper, PerformMapper
@@ -39,6 +41,7 @@ __all__ = [
     "ConnectMapper",
     "ExchangeMapper",
     "GovernanceMapper",
+    "GraphLineageMapper",
     "ImportStats",
     "MonitorMapper",
     "ObjectionMapper",

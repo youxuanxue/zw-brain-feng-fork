@@ -1,7 +1,7 @@
-# M0 mapper 覆盖判定表 — 17 dump × 11 mapper
+# M0 mapper 覆盖判定表 — 17 dump × 12 mapper
 
 > 架构基线：[`docs/approved/zw-brain-architecture.md`](../approved/zw-brain-architecture.md) §1.3 / §3.4 / §5.6 — 复造 / 不复造的权威源
-> mapper 实现：[`zw_brain/adapters/legacy/mappers/`](../../zw_brain/adapters/legacy/mappers/) 11 mapper（basesubject / catalog_metadata / connect / exchange / governance / objection / pipelines / projections.{Monitor,Perform} / service / topic_package）
+> mapper 实现：[`zw_brain/adapters/legacy/mappers/`](../../zw_brain/adapters/legacy/mappers/) 12 mapper（basesubject / catalog_metadata / connect / exchange / governance / graph_lineage / objection / pipelines / projections.{Monitor,Perform} / service / topic_package）
 > 真实 dump：`old/10示例数据/dump-dsp_*.sql` 17 个；schema 定义：`old/12-datastructure/dsp_*.xml`（本地工件，`.gitignore` 不入仓库；持有者本地 mirror）
 > 表数防漂移：本表的 mapper 表数由 preflight 段 29 [`scripts/check_m0_mapper_coverage_doc.py`](../../scripts/check_m0_mapper_coverage_doc.py) 机械校验，与各 mapper `HANDLED_TABLES` 集合保持一致
 
@@ -29,14 +29,14 @@
 | `dsp_monitor` | 50 | ✅ 已覆盖（合规摘要） | projections.MonitorMapper（8 表 warning_* / matter_* / interface_result / product_call_result / ip_connection_failure → ComplianceOps）；automonitor_* / monitor_config / scheduling_* 等 ~42 表 复造（§1.3 集团运维监控 forbidden） |
 | `dsp_require` | 34 | 🟡 部分已覆盖 + 待澄清 | data_require / data_original_require（exchange.py 已经从 dsp_catalog 拉过一遍）；data_business_* / data_task / data_subtask / data_item_* 待澄清是否进 Application |
 | `dsp_basesubject` | 81 | ✅ 已覆盖（主体）+ 复造（统计/治理） | basesubject（11 表 → TopicPackage）F3 turn 2 落地；复造：population_* / corporation_* / archive_* / data_schema_* / basesubject_job_* / bs_subject_statistic 等 ~70 表 → §1.3 统计/治理 forbidden |
-| `dsp_metaresource` | 62 | 🔴 **漏做（graphdb）+ 已覆盖（meta）+ 复造（etl_meta / es_index）** | 漏做：graphdb_node / graphdb_relation / graphdb_*_attr/column 5 表 → 应进 Catalog lineage；已覆盖：rc_resource_* / meta_baseinfo* / meta_gather_task / meta_relation / rc_catalog_materialize（catalog_metadata 已含）；复造：etl_meta_* / es_index_* / file_meta_* / database_manage_history → §1.3 数据治理 forbidden |
+| `dsp_metaresource` | 62 | ✅ 已覆盖（含 graph_lineage）+ 复造（etl_meta / es_index） | graph_lineage（5 表 graphdb_node / graphdb_relation / graphdb_*_attr/column → LineageRelationProjectionRecord）F3 turn 3 落地；已覆盖：rc_resource_* / meta_baseinfo* / meta_gather_task / meta_relation / rc_catalog_materialize（catalog_metadata 已含）；复造：etl_meta_* / es_index_* / file_meta_* / database_manage_history → §1.3 数据治理 forbidden |
 | `dsp_app_center` | 21 | 🚫 **复造** | §1.3 forbidden — 「不复造应用中心脚本管理」(D-Init 决策) |
 | `dsp_message` | 10 | 🚫 **复造** | §1.3 forbidden — 「不复造消息中心」(D-Init 决策) |
 | `dsp_pdf` | 12 | 🚫 **复造** | §1.3 forbidden — 「不复造文档管理 / 文件存储」(基线 §3.4 文件由集团对象存储统一) |
 | `dsp_block` | 10 | 🚫 **复造**（待业务 sign-off） | 基线 §3.4 — 区块链对接走 adapter 异步锚定，**不在 zw-brain 内复造区块链快照**；block_apply / block_resource / block_org / block_apilog 是上链审计快照，由 audit_bus + adapter 处理 |
 | `data_resource` | 7 | 🟡 **待澄清** | catalog_link_info / resource_link_info / resource_database_info — 可能与 catalog_metadata.rc_resource_url / rc_resource_table 重复；建议业务方确认是否需要补 mapper |
 
-**统计**：✅ 已覆盖（含部分覆盖+合规摘要）= 10 个（F3 turn 2 后 dsp_basesubject 加入）；🔴 漏做（含部分漏做）= 1 个（metaresource graphdb 段）；🚫 复造（§1.3 forbidden）= 4 个（app_center + message + pdf + block）；🟡 待澄清 = 2 个（require + data_resource）。
+**统计**：✅ 已覆盖（含部分覆盖+合规摘要）= 11 个（F3 turn 2 dsp_basesubject + turn 3 dsp_metaresource graphdb 段加入）；🔴 漏做（含部分漏做）= 0 个；🚫 复造（§1.3 forbidden）= 4 个（app_center + message + pdf + block）；🟡 待澄清 = 2 个（require + data_resource）。
 
 ## §2 已覆盖（含 mapper 路由）
 
@@ -136,17 +136,17 @@
 
 **已落地**：`zw_brain/adapters/legacy/mappers/basesubject.py` + `tests/test_legacy_basesubject_mapper.py`（3 用例覆盖 happy / legacy mapping / error path）。dump `old/10示例数据/dump-dsp_basesubject-202604271138.sql` 中 11 表 INSERT 行为空（行业 basesubject 尚未启动），mapper 已就位、增量同步即可接入。
 
-### 4.2 dsp_metaresource graphdb — 图数据库 lineage
+### 4.2 dsp_metaresource graphdb — 图数据库 lineage ✅ F3 turn 3 已落地
 
 **62 表分三类**：
 
-| 类别 | 表示例 | 状态 | 建议 |
-|---|---|---|---|
-| 元数据 baseinfo | `meta_baseinfo` / `meta_baseinfo_history` / `meta_relation` / `meta_gather_task` / `rc_catalog_materialize` / `rc_resource*` / `db_meta_table` / `db_meta_column` / `resource_flow_log` | ✅ **已覆盖** | `catalog_metadata.py` HANDLED_TABLES 已含 |
-| **图数据库 lineage** | `graphdb_node` / `graphdb_node_column` / `graphdb_relation` / `graphdb_relation_attr` / `graphdb_relation_column` | 🔴 **漏做** | 5 表是 catalog lineage 关键（资源↔表↔字段的图谱关系），目前 `meta_relation` 单表无法表达多跳；建议扩展 `catalog_metadata.py` 加 HANDLED_TABLES `graphdb_*`，或独立 `graph_lineage.py` mapper；接入桶：**catalog_metadata 同桶** |
-| ETL meta / es_index / file_meta / database_manage_history | `etl_meta_*` 8 表 / `es_index_column` / `file_meta*` / `database_manage_history` 等 | 🚫 **复造** | §1.3 数据治理 forbidden — 集团数据治理统一 |
+| 类别 | 表示例 | 状态 |
+|---|---|---|
+| 元数据 baseinfo | `meta_baseinfo` / `meta_baseinfo_history` / `meta_relation` / `meta_gather_task` / `rc_catalog_materialize` / `rc_resource*` / `db_meta_table` / `db_meta_column` / `resource_flow_log` | ✅ **已覆盖** — `catalog_metadata.py` HANDLED_TABLES 已含 |
+| **图数据库 lineage** | `graphdb_node` / `graphdb_node_column` / `graphdb_relation` / `graphdb_relation_attr` / `graphdb_relation_column` | ✅ **已覆盖** — `graph_lineage.py` 5 表 → `LineageRelationProjectionRecord`（relation_scope="graphdb"）；start/end node + columns + attrs + rel-columns 嵌入 `relation_rule_json`；F3 turn 3 落地 |
+| ETL meta / es_index / file_meta / database_manage_history | `etl_meta_*` 8 表 / `es_index_column` / `file_meta*` / `database_manage_history` 等 | 🚫 **复造** — §1.3 数据治理 forbidden（集团数据治理统一） |
 
-**建议**：graphdb_* 5 表补 mapper PR 独立提，扩展 lineage 表达能力。
+**已落地**：`zw_brain/adapters/legacy/mappers/graph_lineage.py` + `tests/test_legacy_graph_lineage_mapper.py`（3 用例覆盖 happy / legacy mapping / NULL fail-closed）。dump `old/10示例数据/dump-dsp_metaresource-202604271411.sql` 中 graphdb_* 5 表 INSERT 行为空（图血缘尚未启用），mapper 已就位、增量同步即可接入。
 
 ## §5 待澄清（业务方 sign-off）
 
@@ -176,18 +176,18 @@ dsp_require（34 表）和 dsp_catalog（181 表）都含 `data_require` / `data
 
 | Verdict | dump 数 | 备注 |
 |---|---:|---|
-| ✅ 已覆盖（主线或核心摘要） | 10 | dsp_catalog / dsp_connect / dsp_example / dsp_handling / dsp_bsp / dsp_service / dsp_pipelines / dsp_perform / dsp_monitor / dsp_basesubject（F3 turn 2 补） |
-| 🔴 漏做（含 sub-set 漏） | 1 | dsp_metaresource graphdb（图 lineage） |
+| ✅ 已覆盖（主线或核心摘要） | 11 | dsp_catalog / dsp_connect / dsp_example / dsp_handling / dsp_bsp / dsp_service / dsp_pipelines / dsp_perform / dsp_monitor / dsp_basesubject（F3 turn 2 补） / dsp_metaresource（含 F3 turn 3 graphdb_* graph_lineage） |
+| 🔴 漏做（含 sub-set 漏） | 0 | — |
 | 🚫 复造（§1.3 forbidden zone 明示） | 4 | dsp_app_center / dsp_message / dsp_pdf / dsp_block |
 | 🟡 待澄清（业务方 sign-off） | 2 | dsp_require（vs dsp_catalog 重叠）/ data_resource（vs rc_resource_* 重叠） |
 | **合计** | **17** | — |
 
-**漏做项后续 PR 候选**：
+**漏做项后续 PR 候选** — 全部已落地：
 
 1. ✅ `mapper/basesubject.py` — F3 turn 2 已落地（11 表 → TopicPackageRecord 主线 + 子结构）
-2. `catalog_metadata.py` 扩 HANDLED_TABLES `graphdb_*` 5 表 → 扩展 `MetaRelation` 表达图谱多跳，或独立 `graph_lineage.py` mapper
+2. ✅ `mapper/graph_lineage.py` — F3 turn 3 已落地（5 表 → LineageRelationProjectionRecord，独立 mapper 而非扩 catalog_metadata，便于图血缘按 relation_scope="graphdb" 独立查询）
 
-两项后续 PR 互不依赖；business sign-off 完成后各自独立 PR 提交。
+剩余两项 🟡 待澄清（§5）需业务方 sign-off 推进。
 
 ## §7 评审签收
 
