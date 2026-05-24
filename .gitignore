@@ -56,7 +56,9 @@ hub/
 
 # ── 历史素材（本地保留，不随仓库分发）──────────────────────────
 # old/：旧平台白皮书、会议素材、截图等；integrated-bigdata-platform 等于 2026-04-18 自 docs/ 迁入。
+# 同时排除 symlink（worktree 中常用 `ln -s ../../../old old` 复用本地 mirror）
 old/
+/old
 
 .xuejiao-twin*
 

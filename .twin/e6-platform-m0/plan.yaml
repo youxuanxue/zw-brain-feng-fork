@@ -62,11 +62,15 @@ items:
   evidence_plan:
   - 证据预算：判定表完整 + 7 dump 字段逐一过 + 漏做项 PR 链接
   - 停止条件：7 dump 全部判定且补完
-  actual_evidence: []
+  actual_evidence:
+  - turn 1 commit 71fb999 — docs/deployment/m0-mapper-coverage.md (196 LOC, 17 dump
+    × 10 mapper 判定矩阵)
+  - '4 verdict: 9 已覆盖 + 2 漏做 + 4 复造 forbidden + 2 待澄清'
+  - goal.yaml 7 dump 全部 verdict; preflight 28 段不变 PASS; pytest 83 passed
   depends_on: []
-  status: pending
-  next_action: 对照 old/12-datastructure/*.xml + old/10示例数据/dump-*.sql + 基线 §3.4/§5.6
-    + 现有 zw_brain/adapters/legacy/mappers/ 10 mapper，逐一过
+  status: in_progress
+  next_action: turn 2 补 basesubject.py mapper; turn 3 补 graph_lineage 扩展; needs_human
+    2 待澄清 dump sign-off
   blocked_reason: null
 - id: F4
   deliverable: 5 类投影状态可见 + 失败摘要可读
