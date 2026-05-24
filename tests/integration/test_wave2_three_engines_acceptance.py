@@ -20,6 +20,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._trusted_payload import invoke_trusted
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SHADOW_DB = REPO_ROOT / ".data" / "test_F8_wave2_acceptance_shadow.db"
 # R-003 fix: SIGN_OFF.md 走 docs/（PR reviewer 可见），数据 artifact 走 .data/（不进 git）
@@ -86,29 +88,34 @@ def _run_anshan_e2e() -> dict:
     schema_code = f"anshan_acceptance_{_short_id()}_v1"
     try:
         t0 = time.perf_counter()
-        draft = brain.invoke_skill(
-            "approval_flow.nl_draft",
-            {
+        draft = invoke_trusted(
+                    brain,
+                    "approval_flow.nl_draft",
+                    {
                 "tenant_id": "sd-default",
                 "schema_code": schema_code,
                 "title": "鞍山 4 级审批流（F8 sign-off）",
                 "intent_text": intent,
                 "created_by": "user:gov:ROLE_ORGAN_MANAGER:f8",
-                "role": "ROLE_ORGAN_MANAGER",
             },
-        )
+                    role="ROLE_ORGAN_MANAGER",
+                )
         t_draft = time.perf_counter()
         assert draft["result"]["status"] == "draft"
         schema_id = draft["result"]["schema_id"]
-        brain.invoke_skill(
+        invoke_trusted(
+            brain,
             "approval_flow.schema.promote_to_preview",
             {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_ORGAN_MANAGER"},
+            role="ROLE_ORGAN_MANAGER",
         )
         t_preview = time.perf_counter()
-        committed = brain.invoke_skill(
-            "approval_flow.schema.commit",
-            {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_ORGAN_MANAGER"},
-        )
+        committed = invoke_trusted(
+                        brain,
+                        "approval_flow.schema.commit",
+                        {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_ORGAN_MANAGER"},
+                        role="ROLE_ORGAN_MANAGER",
+                    )
         t_live = time.perf_counter()
     finally:
         audit_bus.clear_sink()
@@ -144,29 +151,34 @@ def _run_sichuan_e2e() -> dict:
     form_code = f"sichuan_acceptance_{_short_id()}_v1"
     try:
         t0 = time.perf_counter()
-        draft = brain.invoke_skill(
-            "form_schema.nl_draft",
-            {
+        draft = invoke_trusted(
+                    brain,
+                    "form_schema.nl_draft",
+                    {
                 "tenant_id": "sd-default",
                 "form_code": form_code,
                 "title": "四川 7 字段表单（F8 sign-off）",
                 "intent_text": intent,
                 "created_by": "user:gov:ROLE_ORGAN_MANAGER:f8",
-                "role": "ROLE_ORGAN_MANAGER",
             },
-        )
+                    role="ROLE_ORGAN_MANAGER",
+                )
         t_draft = time.perf_counter()
         assert draft["result"]["status"] == "draft"
         schema_id = draft["result"]["schema_id"]
-        brain.invoke_skill(
+        invoke_trusted(
+            brain,
             "form_schema.promote_to_preview",
             {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_ORGAN_MANAGER"},
+            role="ROLE_ORGAN_MANAGER",
         )
         t_preview = time.perf_counter()
-        committed = brain.invoke_skill(
-            "form_schema.commit",
-            {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_ORGAN_MANAGER"},
-        )
+        committed = invoke_trusted(
+                        brain,
+                        "form_schema.commit",
+                        {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_ORGAN_MANAGER"},
+                        role="ROLE_ORGAN_MANAGER",
+                    )
         t_live = time.perf_counter()
     finally:
         audit_bus.clear_sink()

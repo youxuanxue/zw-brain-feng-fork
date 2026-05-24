@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._trusted_payload import invoke_trusted
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SHADOW_DB = REPO_ROOT / ".data" / "test_F1_approval_flow_shadow.db"
 
@@ -260,15 +262,16 @@ def test_commit_via_skill_dispatch_returns_ok_and_audit_id(session):
     audit_bus.configure_sink(ds.append_audit_event)
     try:
         brain = BrainService(state_store=ss)
-        result = brain.invoke_skill(
-            "approval_flow.schema.commit",
-            {
+        result = invoke_trusted(
+                     brain,
+                     "approval_flow.schema.commit",
+                     {
                 "tenant_id": "sd-default",
                 "schema_id": record.id,
                 "confirmed": True,
-                "role": "ROLE_ORGAN_MANAGER",
             },
-        )
+                     role="ROLE_ORGAN_MANAGER",
+                 )
     finally:
         audit_bus.clear_sink()
 

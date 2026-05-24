@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._trusted_payload import invoke_trusted
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SHADOW_DB = REPO_ROOT / ".data" / "test_F6_recommendation_shadow.db"
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
@@ -425,15 +427,16 @@ def test_commit_rule_skill_returns_ok_and_audit_id(session):
     audit_bus.configure_sink(ds.append_audit_event)
     try:
         brain = BrainService(state_store=ss)
-        result = brain.invoke_skill(
-            "recommendation.rule.commit",
-            {
+        result = invoke_trusted(
+                     brain,
+                     "recommendation.rule.commit",
+                     {
                 "tenant_id": "sd-default",
                 "rule_id": rec.id,
                 "confirmed": True,
-                "role": "ROLE_ORGAN_MANAGER",
             },
-        )
+                     role="ROLE_ORGAN_MANAGER",
+                 )
     finally:
         audit_bus.clear_sink()
 
@@ -455,16 +458,17 @@ def test_suggest_skill_returns_candidates_or_fallback(session):
     ds = DatabaseStore()
     ss = StateStore(database_store=ds)
     brain = BrainService(state_store=ss)
-    result = brain.invoke_skill(
-        "recommendation.similar_catalog.suggest",
-        {
+    result = invoke_trusted(
+                 brain,
+                 "recommendation.similar_catalog.suggest",
+                 {
             "tenant_id": "sd-default",
             "intent_text": "残疾人证补办",
             "submitted_by": "user:gov:ROLE_ORGAN_OPERATER:fixture",
             "top_k": 5,
-            "role": "ROLE_ORGAN_OPERATER",
         },
-    )
+                 role="ROLE_ORGAN_OPERATER",
+             )
     assert result["ok"] is True
     assert result["skill_id"] == "recommendation.similar_catalog.suggest"
     res = result["result"]

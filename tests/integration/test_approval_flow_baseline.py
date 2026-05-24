@@ -12,6 +12,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._trusted_payload import invoke_trusted
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SHADOW_DB = REPO_ROOT / ".data" / "test_F2_approval_flow_baseline_shadow.db"
 
@@ -230,16 +232,17 @@ def _next_resource_id() -> str:
 
 def _submit_and_get_case(brain, shared_type, resource_id: str | None = None):
     rid = resource_id or _next_resource_id()
-    res = brain.invoke_skill(
-        "application.resource.submit",
-        {
+    res = invoke_trusted(
+              brain,
+              "application.resource.submit",
+              {
             "resource_id": rid,
             "confirmed": True,
-            "role": "ROLE_ORGAN_OPERATER",
             "purpose": "F2 baseline e2e",
             "shared_type": shared_type,
         },
-    )
+              role="ROLE_ORGAN_OPERATER",
+          )
     return res
 
 
@@ -296,16 +299,17 @@ def test_j1_application_submit_with_no_shared_type_succeeds_without_baseline():
 
     brain, _ = _new_brain_and_seed()
     try:
-        result = brain.invoke_skill(
-            "application.resource.submit",
-            {
+        result = invoke_trusted(
+                     brain,
+                     "application.resource.submit",
+                     {
                 "resource_id": _next_resource_id(),
                 "confirmed": True,
-                "role": "ROLE_ORGAN_OPERATER",
                 "purpose": "F2 no-shared-type",
                 # 不传 shared_type
             },
-        )
+                     role="ROLE_ORGAN_OPERATER",
+                 )
     finally:
         audit_bus.clear_sink()
     assert result["ok"] is True
@@ -330,16 +334,17 @@ def test_j1_application_submit_continues_if_baseline_hook_fails(monkeypatch, cap
     brain, _ = _new_brain_and_seed()
     try:
         with caplog.at_level(logging.WARNING, logger="zw_brain.command.handlers.j1.request"):
-            result = brain.invoke_skill(
-                "application.resource.submit",
-                {
+            result = invoke_trusted(
+                         brain,
+                         "application.resource.submit",
+                         {
                     "resource_id": _next_resource_id(),
                     "confirmed": True,
-                    "role": "ROLE_ORGAN_OPERATER",
                     "purpose": "F2 hook fail defensive",
                     "shared_type": 1,
                 },
-            )
+                         role="ROLE_ORGAN_OPERATER",
+                     )
     finally:
         audit_bus.clear_sink()
     assert result["ok"] is True
