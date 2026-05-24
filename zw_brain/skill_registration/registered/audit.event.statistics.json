@@ -1,0 +1,73 @@
+{
+  "skill_id": "audit.event.statistics",
+  "slug": "audit.event.statistics",
+  "title": "审计事件统计聚合",
+  "description": "按时间桶（hour / day / week / month）+ 维度（actor / skill_id / tenant_id / audit_class）聚合审计事件计数；用于 B1.1 合规与运营面统计 panel。只读，单租户 sd-default 强过滤。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "bucket": {
+        "type": "string",
+        "enum": ["hour", "day", "week", "month"],
+        "default": "day",
+        "description": "时间桶粒度"
+      },
+      "dimension": {
+        "type": "string",
+        "enum": ["actor", "skill_id", "audit_class", "tenant_id"],
+        "default": "audit_class",
+        "description": "聚合维度"
+      },
+      "tenant_id": {
+        "type": "string",
+        "description": "租户 ID；缺省走运行时租户（单租户 sd-default 模式下不可跨租户读）"
+      },
+      "since": { "type": "string", "format": "date-time" },
+      "until": { "type": "string", "format": "date-time" },
+      "limit": { "type": "integer", "minimum": 1, "maximum": 10000, "default": 1000 }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["bucket", "dimension", "buckets", "totals"],
+    "properties": {
+      "bucket": { "type": "string" },
+      "dimension": { "type": "string" },
+      "buckets": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["bucket_key", "by_dimension", "total"],
+          "properties": {
+            "bucket_key": { "type": "string" },
+            "by_dimension": { "type": "object" },
+            "total": { "type": "integer" }
+          }
+        }
+      },
+      "totals": { "type": "object" },
+      "scanned": { "type": "integer" }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-sensitive",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": ["webui", "api", "cli", "mcp", "a2a"],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "audit.event.statistics"
+  },
+  "rollback_target": null,
+  "audit_required": false,
+  "permissions": ["audit.event.statistics.execute"],
+  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "registry_source": "internal",
+  "tags": ["audit", "read", "compliance", "statistics"],
+  "product_scope": { "journey": "b1", "status": "live" }
+}

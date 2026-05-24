@@ -51,6 +51,90 @@
       "sideEffects": []
     },
     {
+      "id": "assistant.investigation_summary",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
+      "id": "audit.event.accountability",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
+      "id": "audit.event.anomaly",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
+      "id": "audit.event.query",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
+      "id": "audit.event.replay",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
+      "id": "audit.event.statistics",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
       "id": "audit.list",
       "mode": "read",
       "humanConfirmationRequired": false,
@@ -486,6 +570,20 @@
       "mode": "read",
       "humanConfirmationRequired": false,
       "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
+      "id": "package.exposure.matrix.query",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-sensitive",
       "surfaces": [
         "webui",
         "api",
@@ -1961,6 +2059,40 @@
         "db_write",
         "state_machine_transition",
         "blockchain_anchor"
+      ]
+    },
+    {
+      "id": "package.rollback",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition"
+      ]
+    },
+    {
+      "id": "package.trust_level.update",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition"
       ]
     },
     {

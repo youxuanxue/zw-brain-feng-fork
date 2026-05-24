@@ -100,6 +100,221 @@
       ]
     },
     {
+      "skill_id": "assistant.investigation_summary",
+      "title": "调查摘要助手",
+      "description": "把 B1.1 statistics / anomaly / accountability panel 输出脱敏后送集团推理平台生成调查摘要；不覆盖原始审计证据，只提供阅读辅助。actor/skill_id 在送推理前 hash 化；payload 敏感字段一律脱敏。所有推理调用必须走 shared/inference/client（D6 + D14）。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": false,
+      "args": [
+        {
+          "name": "max_tokens",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "panel",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "panel_payload",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "audit.event.accountability",
+      "title": "审计事件追责反查",
+      "description": "按 actor 反查所有 outcome=denied 的 request_id + 关联完整 audit 链；用于 B1.1 追责 panel。返回链路 metadata + sanitized payload（敏感字段 hash 化）；不返回原始 payload 全文。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": false,
+      "args": [
+        {
+          "name": "actor",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "since",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "until",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "audit.event.anomaly",
+      "title": "审计事件异常 Top-N 扫描",
+      "description": "Rule-based 异常事件 Top-N 扫描，三类内建规则：(1) 跨租户读 cross-tenant-read；(2) 单 actor 高频失败 high-failure-rate；(3) 反复 denied request_id repeated-denied。返回每条异常的证据 request_id + 命中规则；不返回原始 payload 全文。用于 B1.1 异常 + 督查 panel。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": false,
+      "args": [
+        {
+          "name": "min_failure_count",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "since",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "top_n",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "until",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "audit.event.query",
+      "title": "查询审计事件",
+      "description": "按 actor / skill_id / tenant_id / audit_class / 时间窗口查询正规化后的审计事件流。回包含事件元数据 + 聚合摘要，不外泄 payload 原文（payload 字段需通过专用 evidence chain 二次申请）。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": false,
+      "args": [
+        {
+          "name": "actor",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "audit_class",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "since",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "skill_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "until",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "audit.event.replay",
+      "title": "回放审批链审计事件",
+      "description": "按 request_id 拉一条审批链的完整 phase 序列（before / commit / after / error 等），用于安全审计员复现一次写操作的全部审计步骤。事件序列回放，非时间回放；payload 透传给 caller 但 meta-audit 只记录 request_id + count。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": false,
+      "args": [
+        {
+          "name": "limit",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "audit.event.statistics",
+      "title": "审计事件统计聚合",
+      "description": "按时间桶（hour / day / week / month）+ 维度（actor / skill_id / tenant_id / audit_class）聚合审计事件计数；用于 B1.1 合规与运营面统计 panel。只读，单租户 sd-default 强过滤。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": false,
+      "args": [
+        {
+          "name": "bucket",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "dimension",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "since",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "until",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
       "skill_id": "audit.list",
       "title": "查看审计事件",
       "description": "查看主链路审计事件流与证据摘要。",
@@ -886,6 +1101,46 @@
       "args": [
         {
           "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "package.exposure.matrix.query",
+      "title": "查询能力包暴露矩阵",
+      "description": "返回全量 capability manifest × 5 消费面（webui/api/cli/mcp/a2a）暴露矩阵；只读、按 journey/status/binding 维度筛选。数据派生自 zw_brain/skill_registration/registered/*.json 的 compatibility / product_scope / execution_binding 字段，不重新计算。handler 自身写一条 read-sensitive sanitized meta-audit（与 F2/F3 同 pattern）。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": false,
+      "args": [
+        {
+          "name": "execution_binding",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "journey",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "surface",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
           "required": false,
           "type": "string"
         }
@@ -4577,6 +4832,76 @@
         {
           "name": "role",
           "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "package.rollback",
+      "title": "回滚能力包版本",
+      "description": "将能力包当前活跃版本回滚到上一个已注册版本（package.registeredVersion ← rollbackTarget）。回滚操作 write-critical 强制 human_confirmation_required=true；写主库 + 写审计。回滚不动 manifest 文件本身，仅切换 capability_package 表里的 active version；rollback_target 在回滚前必须存在。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "package_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "target_version",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "package.trust_level.update",
+      "title": "升降能力包信任级",
+      "description": "更新能力包的 trust_level 业务字段（基线级 baseline / 已审 reviewed / 严管 restricted / 撤回 revoked 四档）。本字段是 **能力包内置元数据**，描述本平台对该能力包的信任评估；与 AgentRuntime Registry 的 trust_level（F6 T1 触发，描述外部 Agent 来源信任级）不同——前者由 BUSIAUDIT / SECURITY_ADMIN 决定能否启用，后者由 AgentRuntime supervisor 决定能否消费 Agent。本 F4 只处理 manifest 字段；F6 触发后再增 Registry 字段。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "package_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "trust_level",
+          "required": true,
           "type": "string"
         }
       ]

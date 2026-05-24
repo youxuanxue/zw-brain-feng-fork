@@ -1,0 +1,65 @@
+{
+  "name": "audit.event.query",
+  "description": "按 actor / skill_id / tenant_id / audit_class / 时间窗口查询正规化后的审计事件流。回包含事件元数据 + 聚合摘要，不外泄 payload 原文（payload 字段需通过专用 evidence chain 二次申请）。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "actor": {
+        "type": "string",
+        "description": "按发起人精确匹配，如 'user:gov:ROLE_SECURITY_AUDIT:安全审计员'"
+      },
+      "skill_id": {
+        "type": "string",
+        "description": "按 capability skill_id 精确匹配"
+      },
+      "tenant_id": {
+        "type": "string",
+        "description": "租户 ID；缺省走运行时租户（sd-default 单租户模式下不可跨租户读）"
+      },
+      "audit_class": {
+        "type": "string",
+        "enum": [
+          "write-critical",
+          "write-normal",
+          "read-sensitive"
+        ],
+        "description": "按 3 级正规化 audit_class 过滤；其他历史值在 store 写入时已 normalize"
+      },
+      "since": {
+        "type": "string",
+        "format": "date-time",
+        "description": "起始时间（ISO8601 含时区）"
+      },
+      "until": {
+        "type": "string",
+        "format": "date-time",
+        "description": "截止时间（ISO8601 含时区）"
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000,
+        "default": 200
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-audit-class": "read-sensitive",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "audit.event.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

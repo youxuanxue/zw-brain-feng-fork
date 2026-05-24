@@ -30,6 +30,12 @@
 | POST | `/api/skills/approval.evidence.summarize` | P3 审批依据助手（归纳依据 + 反事实 + 推荐结论） | `post_approval_evidence_summarize` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/approval.review_decide` | 审批并裁决申请 | `post_approval_review_decide` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/approval.view` | 查看审批详情 | `get_approval_view` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/assistant.investigation_summary` | 调查摘要助手 | `get_assistant_investigation_summary` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/audit.event.accountability` | 审计事件追责反查 | `get_audit_event_accountability` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/audit.event.anomaly` | 审计事件异常 Top-N 扫描 | `get_audit_event_anomaly` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/audit.event.query` | 查询审计事件 | `get_audit_event_query` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/audit.event.replay` | 回放审批链审计事件 | `get_audit_event_replay` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/audit.event.statistics` | 审计事件统计聚合 | `get_audit_event_statistics` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/audit.list` | 查看审计事件 | `get_audit_list` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/audit.replay_evidence_chain` | 回放证据链 | `get_audit_replay_evidence_chain` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/backflow.confirm` | 确认回流共享 | `post_backflow_confirm` | `zw_brain/entry/rest/openapi.json` |
@@ -119,9 +125,12 @@
 | POST | `/api/skills/org.projection.sync` | 同步组织治理投影 | `post_org_projection_sync` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/package.apply_tenant_policy` | 生效租户策略 | `post_package_apply_tenant_policy` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/package.configure_exposure` | 配置能力包暴露面 | `post_package_configure_exposure` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/package.exposure.matrix.query` | 查询能力包暴露矩阵 | `get_package_exposure_matrix_query` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/package.list` | 查看能力包列表 | `get_package_list` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/package.register_version` | 登记能力包版本 | `post_package_register_version` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/package.review_decide` | 审核能力包 | `post_package_review_decide` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/package.rollback` | 回滚能力包版本 | `post_package_rollback` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/package.trust_level.update` | 升降能力包信任级 | `post_package_trust_level_update` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/package.view` | 查看能力包详情 | `get_package_view` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/provider.view` | 查看供给侧治理 | `get_provider_view` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/registry.artifact.export` | 导出注册工件 | `get_registry_artifact_export` | `zw_brain/entry/rest/openapi.json` |
@@ -202,6 +211,12 @@
 | `adapter.cascade.health.query` | read | False | 查询级联 adapter 运行记录和最近状态。 | True | `zw_brain/entry/mcp/tools/adapter.cascade.health.query.json` |
 | `adapter.external.mapping.query` | read | False | 查询国家平台或级联系统外部对象与本地聚合的映射。 | True | `zw_brain/entry/mcp/tools/adapter.external.mapping.query.json` |
 | `approval.view` | read | False | 查看审批建议、风险、影响和异常项。 | True | `zw_brain/entry/mcp/tools/approval.view.json` |
+| `assistant.investigation_summary` | read | False | 把 B1.1 statistics / anomaly / accountability panel 输出脱敏后送集团推理平台生成调查摘要；不覆盖原始审计证据，只提供阅读辅助。actor/skill_id 在送推理前 hash 化；payload 敏感字段一律脱敏。所有推理调用必须走 shared/inference/client（D6 + D14）。 | True | `zw_brain/entry/mcp/tools/assistant.investigation_summary.json` |
+| `audit.event.accountability` | read | False | 按 actor 反查所有 outcome=denied 的 request_id + 关联完整 audit 链；用于 B1.1 追责 panel。返回链路 metadata + sanitized payload（敏感字段 hash 化）；不返回原始 payload 全文。 | True | `zw_brain/entry/mcp/tools/audit.event.accountability.json` |
+| `audit.event.anomaly` | read | False | Rule-based 异常事件 Top-N 扫描，三类内建规则：(1) 跨租户读 cross-tenant-read；(2) 单 actor 高频失败 high-failure-rate；(3) 反复 denied request_id repeated-denied。返回每条异常的证据 request_id + 命中规则；不返回原始 payload 全文。用于 B1.1 异常 + 督查 panel。 | True | `zw_brain/entry/mcp/tools/audit.event.anomaly.json` |
+| `audit.event.query` | read | False | 按 actor / skill_id / tenant_id / audit_class / 时间窗口查询正规化后的审计事件流。回包含事件元数据 + 聚合摘要，不外泄 payload 原文（payload 字段需通过专用 evidence chain 二次申请）。 | True | `zw_brain/entry/mcp/tools/audit.event.query.json` |
+| `audit.event.replay` | read | False | 按 request_id 拉一条审批链的完整 phase 序列（before / commit / after / error 等），用于安全审计员复现一次写操作的全部审计步骤。事件序列回放，非时间回放；payload 透传给 caller 但 meta-audit 只记录 request_id + count。 | True | `zw_brain/entry/mcp/tools/audit.event.replay.json` |
+| `audit.event.statistics` | read | False | 按时间桶（hour / day / week / month）+ 维度（actor / skill_id / tenant_id / audit_class）聚合审计事件计数；用于 B1.1 合规与运营面统计 panel。只读，单租户 sd-default 强过滤。 | True | `zw_brain/entry/mcp/tools/audit.event.statistics.json` |
 | `audit.list` | read | False | 查看主链路审计事件流与证据摘要。 | True | `zw_brain/entry/mcp/tools/audit.list.json` |
 | `audit.replay_evidence_chain` | read | False | 按争议标识回放原始证据、关联审计事件、工单与知识建议。 | True | `zw_brain/entry/mcp/tools/audit.replay_evidence_chain.json` |
 | `catalog.browse` | read | False | 按 lifecycle / kind / owner / 关键词分页浏览 canonical catalog_entry。默认过滤 retired 噪声和 api-group 节点，给 WebUI 提供客户级浏览入口。 | True | `zw_brain/entry/mcp/tools/catalog.browse.json` |
@@ -231,6 +246,7 @@
 | `ops.exchange.statistics.query` | read | False | 只读查询交换、订阅和交付投影统计，不反向驱动业务状态。 | True | `zw_brain/entry/mcp/tools/ops.exchange.statistics.query.json` |
 | `ops.service.invocation.query` | read | False | 只读查询 API 服务调用量、成功失败和错误归因摘要。 | True | `zw_brain/entry/mcp/tools/ops.service.invocation.query.json` |
 | `ops.service.report.query` | read | False | 只读汇总网关心跳和服务调用统计，形成服务运行态势报告。 | True | `zw_brain/entry/mcp/tools/ops.service.report.query.json` |
+| `package.exposure.matrix.query` | read | False | 返回全量 capability manifest × 5 消费面（webui/api/cli/mcp/a2a）暴露矩阵；只读、按 journey/status/binding 维度筛选。数据派生自 zw_brain/skill_registration/registered/*.json 的 compatibility / product_scope / execution_binding 字段，不重新计算。handler 自身写一条 read-sensitive sanitized meta-audit（与 F2/F3 同 pattern）。 | True | `zw_brain/entry/mcp/tools/package.exposure.matrix.query.json` |
 | `package.list` | read | False | 查看待审核和已处理的能力注册包列表。 | True | `zw_brain/entry/mcp/tools/package.list.json` |
 | `package.view` | read | False | 查看单个能力包的暴露面、审核状态和 AI 评审结果。 | True | `zw_brain/entry/mcp/tools/package.view.json` |
 | `provider.view` | read | False | 查看模板版本、目录状态、资源与治理建议。 | True | `zw_brain/entry/mcp/tools/provider.view.json` |
@@ -257,7 +273,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 164 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 173 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -282,6 +298,12 @@
 | `approval.evidence.summarize` | P3 审批依据助手（归纳依据 + 反事实 + 推荐结论） | 1.0.0 | audit | `zw_brain/skill_registration/registered/approval.evidence.summarize.json` |
 | `approval.review_decide` | 审批并裁决申请 | 1.0.0 | audit, db_write, state_machine_transition, task_dispatch, blockchain_anchor | `zw_brain/skill_registration/registered/approval.review_decide.json` |
 | `approval.view` | 查看审批详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/approval.view.json` |
+| `assistant.investigation_summary` | 调查摘要助手 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/assistant.investigation_summary.json` |
+| `audit.event.accountability` | 审计事件追责反查 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/audit.event.accountability.json` |
+| `audit.event.anomaly` | 审计事件异常 Top-N 扫描 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/audit.event.anomaly.json` |
+| `audit.event.query` | 查询审计事件 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/audit.event.query.json` |
+| `audit.event.replay` | 回放审批链审计事件 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/audit.event.replay.json` |
+| `audit.event.statistics` | 审计事件统计聚合 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/audit.event.statistics.json` |
 | `audit.list` | 查看审计事件 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/audit.list.json` |
 | `audit.replay_evidence_chain` | 回放证据链 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/audit.replay_evidence_chain.json` |
 | `backflow.confirm` | 确认回流共享 | 1.0.0 | audit, db_write, state_machine_transition, task_dispatch, blockchain_anchor | `zw_brain/skill_registration/registered/backflow.confirm.json` |
@@ -371,9 +393,12 @@
 | `org.projection.sync` | 同步组织治理投影 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/org.projection.sync.json` |
 | `package.apply_tenant_policy` | 生效租户策略 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/package.apply_tenant_policy.json` |
 | `package.configure_exposure` | 配置能力包暴露面 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/package.configure_exposure.json` |
+| `package.exposure.matrix.query` | 查询能力包暴露矩阵 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/package.exposure.matrix.query.json` |
 | `package.list` | 查看能力包列表 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/package.list.json` |
 | `package.register_version` | 登记能力包版本 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/package.register_version.json` |
 | `package.review_decide` | 审核能力包 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/skill_registration/registered/package.review_decide.json` |
+| `package.rollback` | 回滚能力包版本 | 1.0.0 | audit, db_write, state_machine_transition | `zw_brain/skill_registration/registered/package.rollback.json` |
+| `package.trust_level.update` | 升降能力包信任级 | 1.0.0 | audit, db_write, state_machine_transition | `zw_brain/skill_registration/registered/package.trust_level.update.json` |
 | `package.view` | 查看能力包详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/package.view.json` |
 | `provider.view` | 查看供给侧治理 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/provider.view.json` |
 | `registry.artifact.export` | 导出注册工件 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/registry.artifact.export.json` |
@@ -432,9 +457,9 @@
 
 ## Statistics
 
-- REST endpoints: 173
+- REST endpoints: 182
 - CLI entries: 1
-- MCP tools: 53
+- MCP tools: 60
 - A2A agent cards: 1
-- Registered Skills (live): 164 / 205 on-disk
+- Registered Skills (live): 173 / 214 on-disk
 

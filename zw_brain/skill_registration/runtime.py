@@ -14,6 +14,46 @@ STATUS_DEFERRED_RE = re.compile(r"^deferred:wave-[1-4]$")
 # 默认 'live'；preview / draft 仅在 Wave 2 三引擎走"草稿→预览→入库"流时合法。
 CONFIG_CHANGE_CLASSES = {"live", "preview", "draft"}
 
+# F4 — 能力包内置 trust_level（manifest / capability_package 表字段）。
+# **不要与 F6 T1 触发的 AgentRuntime Registry trust_level 混淆**：前者由 BUSIAUDIT
+# / SECURITY_ADMIN 评估，决定能力包能否启用；后者描述外部 Agent 来源可信级。
+PACKAGE_TRUST_LEVELS: tuple[str, ...] = ("baseline", "reviewed", "restricted", "revoked")
+
+# F4 — 能力包生命周期合法迁移；其他迁移由 handler raise InvalidStateError。
+_PACKAGE_LIFECYCLE_TRANSITIONS: dict[str, set[str]] = {
+    "pending": {"approved", "pending-fix", "rejected"},
+    "pending-fix": {"pending", "rejected"},
+    "approved": {"active", "rejected"},
+    "active": {"rolled-back", "suspended", "revoked"},
+    "rolled-back": {"active", "suspended"},
+    "suspended": {"active", "revoked"},
+    "rejected": set(),
+    "revoked": set(),
+}
+
+
+def package_trust_levels() -> tuple[str, ...]:
+    """枚举能力包内置 trust_level 取值（F4 manifest 字段语义）。"""
+    return PACKAGE_TRUST_LEVELS
+
+
+def validate_package_lifecycle_transition(from_status: str, to_status: str) -> None:
+    """能力包状态机校验；非法迁移 raise ValueError。
+
+    F4 范围：用于 package.rollback / package.trust_level.update 等写操作前校验；
+    F5 UI / F6 AgentRuntime Registry 等扩展状态不在本表内。
+    """
+    if from_status == to_status:
+        return
+    allowed = _PACKAGE_LIFECYCLE_TRANSITIONS.get(from_status)
+    if allowed is None:
+        raise ValueError(f"unknown package lifecycle source state: {from_status!r}")
+    if to_status not in allowed:
+        raise ValueError(
+            f"illegal package lifecycle transition: {from_status!r} → {to_status!r}; "
+            f"allowed: {sorted(allowed) or '∅'}"
+        )
+
 
 class SurfaceNotEnabledError(PermissionError):
     pass

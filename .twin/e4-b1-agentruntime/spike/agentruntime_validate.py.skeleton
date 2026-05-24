@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+"""agentruntime_validate.py — T1 fire 时拷贝到 scripts/ 实装的命令骨架。
+
+【SPIKE STATUS】本文件后缀 .skeleton，**不入 main scripts/，不被 preflight
+拾取**，纯本地准备。T1 触发当日 cp 到 scripts/agentruntime_validate.py 并补
+真实校验逻辑。
+
+【命令契约】
+    agentruntime_validate.py <AGENT.yaml path>
+    退出码：0 = valid；非 0 = invalid（错误打印到 stderr）
+
+【输入】
+    AGENT.yaml 文件路径（local file / OCI ref 解包后的本地路径）
+
+【输出】
+    - stdout：valid 时输出 JSON {"valid": true, "spec_version": "...", "skill_id": "..."}
+    - stderr：invalid 时输出每条 violation（line + reason）
+    - 退出码：0 / 1
+
+【校验规则】（与 spike/registry_schema_diff.json validate_rules_on_t1_fire 对齐）
+    1. spec 字段必须存在且 in {"anp-agent/v1.1", "anp-agent/v1.2"}
+    2. metadata.name + metadata.version 必填
+    3. tools.kind 不接受历史 'mcp' / 'skill'（旧 v1 形态）；只接受 v1.2 原生
+    4. permissions 段不允许声明 §8.5 禁止外部化清单（租户 / 权限 / 策略 /
+       审计总线 / canonical 核心 / 关键写确认边界 / 推理统一入口）
+    5. model.provider 必须指向集团推理平台 gateway（不允许直连第三方）
+    6. auth.mode in {"static_api_key", "trusted_gateway"}；禁用 "none"
+    7. tenant_mode != "multi"（与 sd-default 单租户对齐）
+    8. context.memory_mode in {"regulated_minimal", "session_memory"}；
+       禁用 memory write
+    9. permissions.scopes 中 admin:runtime 仅允许由 ROLE_SYSTEM 持有
+    10. trust_level 字段缺省 → 默认 "untrusted"
+
+【与 export_agent_contract.py 的差异】
+    export_agent_contract.py：校验 zw-brain 内部 manifest（209 个 registered/*.json）
+        到 5 消费面投影的一致性；scope = zw-brain 自身的 Capability 契约。
+    agentruntime_validate.py：校验外部 Agent yaml 接入合法性；scope = 外部
+        Agent → zw-brain Registry 的边界守门。两者出现在不同 PR 链路。
+
+【实装骨架】
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
+ALLOWED_SPEC_VERSIONS: tuple[str, ...] = ("anp-agent/v1.1", "anp-agent/v1.2")
+ALLOWED_AUTH_MODES: tuple[str, ...] = ("static_api_key", "trusted_gateway")
+ALLOWED_TRUST_LEVELS: tuple[str, ...] = ("platform", "verified", "untrusted")
+ALLOWED_MEMORY_MODES: tuple[str, ...] = ("regulated_minimal", "session_memory")
+ALLOWED_TOOL_KINDS: tuple[str, ...] = ("function", "http", "a2a", "external")
+
+# §8.5 禁止外部化清单（machine list — T1 fire 时 augment 自 source）
+FORBIDDEN_PERMISSION_PREFIXES: tuple[str, ...] = (
+    "tenant.",
+    "policy.",
+    "audit.",  # 审计写入禁止外部化
+    "canonical.",
+    "approval.case.decide",  # 关键写操作的确认边界
+    "inference.direct",  # 推理统一入口
+)
+
+
+def _violation(violations: list[str], msg: str) -> None:
+    violations.append(msg)
+
+
+def validate_agent_yaml(yaml_path: Path) -> tuple[bool, list[str], dict[str, Any]]:
+    """SPIKE：T1 fire 时补 import yaml + 真实解析。"""
+    violations: list[str] = []
+    parsed: dict[str, Any] = {}
+
+    # === T1 fire 时实装 ===
+    # try:
+    #     import yaml
+    # except ImportError:
+    #     _violation(violations, "pyyaml not installed (pip install pyyaml)")
+    #     return False, violations, parsed
+    # try:
+    #     with yaml_path.open("r", encoding="utf-8") as f:
+    #         parsed = yaml.safe_load(f) or {}
+    # except (OSError, yaml.YAMLError) as exc:
+    #     _violation(violations, f"failed to parse yaml: {exc}")
+    #     return False, violations, parsed
+
+    # spec_version 校验
+    spec = parsed.get("spec")
+    if spec not in ALLOWED_SPEC_VERSIONS:
+        _violation(violations, f"spec must be in {ALLOWED_SPEC_VERSIONS}; got {spec!r}")
+
+    # metadata 校验
+    meta = parsed.get("metadata") or {}
+    for required in ("name", "version"):
+        if not meta.get(required):
+            _violation(violations, f"metadata.{required} is required")
+
+    # auth 校验
+    auth_mode = (parsed.get("auth") or {}).get("mode")
+    if auth_mode not in ALLOWED_AUTH_MODES:
+        _violation(violations, f"auth.mode must be in {ALLOWED_AUTH_MODES}; got {auth_mode!r}")
+
+    # tenant_mode 校验
+    if parsed.get("tenant_mode") == "multi":
+        _violation(violations, "tenant_mode='multi' not allowed (sd-default single-tenant only)")
+
+    # memory_mode 校验
+    memory_mode = (parsed.get("context") or {}).get("memory_mode")
+    if memory_mode is not None and memory_mode not in ALLOWED_MEMORY_MODES:
+        _violation(violations, f"context.memory_mode must be in {ALLOWED_MEMORY_MODES}; got {memory_mode!r}")
+
+    # permissions 禁区前缀
+    perms = (parsed.get("permissions") or {}).get("scopes") or []
+    for scope in perms:
+        for prefix in FORBIDDEN_PERMISSION_PREFIXES:
+            if isinstance(scope, str) and scope.startswith(prefix):
+                _violation(
+                    violations,
+                    f"permissions.scopes contains forbidden externalization prefix: {scope!r} (§8.5)",
+                )
+
+    # trust_level 默认 untrusted
+    trust_level = parsed.get("trust_level") or "untrusted"
+    if trust_level not in ALLOWED_TRUST_LEVELS:
+        _violation(violations, f"trust_level must be in {ALLOWED_TRUST_LEVELS}; got {trust_level!r}")
+
+    valid = not violations
+    return valid, violations, parsed
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("path", type=Path, help="AGENT.yaml 文件路径")
+    parser.add_argument("--json", action="store_true", help="输出 JSON 格式")
+    args = parser.parse_args()
+
+    valid, violations, parsed = validate_agent_yaml(args.path)
+
+    if args.json:
+        print(json.dumps({
+            "valid": valid,
+            "spec_version": parsed.get("spec"),
+            "skill_id": (parsed.get("metadata") or {}).get("name"),
+            "trust_level": parsed.get("trust_level") or "untrusted",
+            "violations": violations,
+        }, ensure_ascii=False, indent=2))
+    else:
+        if valid:
+            print(f"[validate] OK: {args.path}")
+        else:
+            print(f"[validate] FAIL: {args.path}", file=sys.stderr)
+            for v in violations:
+                print(f"  - {v}", file=sys.stderr)
+
+    return 0 if valid else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

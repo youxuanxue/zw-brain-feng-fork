@@ -1,0 +1,139 @@
+{
+  "skill_id": "audit.event.query",
+  "slug": "audit.event.query",
+  "title": "查询审计事件",
+  "description": "按 actor / skill_id / tenant_id / audit_class / 时间窗口查询正规化后的审计事件流。回包含事件元数据 + 聚合摘要，不外泄 payload 原文（payload 字段需通过专用 evidence chain 二次申请）。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "actor": {
+        "type": "string",
+        "description": "按发起人精确匹配，如 'user:gov:ROLE_SECURITY_AUDIT:安全审计员'"
+      },
+      "skill_id": {
+        "type": "string",
+        "description": "按 capability skill_id 精确匹配"
+      },
+      "tenant_id": {
+        "type": "string",
+        "description": "租户 ID；缺省走运行时租户（sd-default 单租户模式下不可跨租户读）"
+      },
+      "audit_class": {
+        "type": "string",
+        "enum": [
+          "write-critical",
+          "write-normal",
+          "read-sensitive"
+        ],
+        "description": "按 3 级正规化 audit_class 过滤；其他历史值在 store 写入时已 normalize"
+      },
+      "since": {
+        "type": "string",
+        "format": "date-time",
+        "description": "起始时间（ISO8601 含时区）"
+      },
+      "until": {
+        "type": "string",
+        "format": "date-time",
+        "description": "截止时间（ISO8601 含时区）"
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000,
+        "default": 200
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "items",
+      "summary"
+    ],
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "request_id",
+            "actor",
+            "skill_id",
+            "tenant_id",
+            "audit_class",
+            "event_type",
+            "phase",
+            "occurred_at"
+          ],
+          "properties": {
+            "request_id": { "type": "string" },
+            "actor": { "type": "string" },
+            "skill_id": { "type": "string" },
+            "tenant_id": { "type": "string" },
+            "audit_class": { "type": "string" },
+            "event_type": { "type": "string" },
+            "phase": { "type": "string" },
+            "occurred_at": { "type": "string", "format": "date-time" }
+          }
+        }
+      },
+      "summary": {
+        "type": "object",
+        "required": [
+          "total",
+          "by_audit_class",
+          "by_skill",
+          "by_actor"
+        ],
+        "properties": {
+          "total": { "type": "integer" },
+          "by_audit_class": { "type": "object" },
+          "by_skill": { "type": "object" },
+          "by_actor": { "type": "object" },
+          "first_occurred_at": { "type": [ "string", "null" ] },
+          "last_occurred_at": { "type": [ "string", "null" ] }
+        }
+      }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-sensitive",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "audit.event.query"
+  },
+  "rollback_target": null,
+  "audit_required": false,
+  "permissions": [
+    "audit.event.query.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "audit",
+    "read",
+    "compliance"
+  ],
+  "product_scope": {
+    "journey": "b1",
+    "status": "live"
+  }
+}

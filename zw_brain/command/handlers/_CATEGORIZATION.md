@@ -159,11 +159,17 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `zone.publish_topic_projection` | j2 | `publish_zone_topic_projection` | 6913 |
 | `zone.view` | j2 | `get_zone` | 4106 |
 
-## B1 后台支撑 — 32 caps
+## B1 后台支撑 — 41 caps
 
 | capability_id | bucket | method_name | method_lines |
 |---|---|---|---|
 | `actor.projection.sync` | b1 | `sync_actor_projection` | 1568 |
+| `assistant.investigation_summary` | b1 | `handler_assistant_investigation_summary` | F3-backend |
+| `audit.event.accountability` | b1 | `handler_audit_event_accountability` | F3-backend |
+| `audit.event.anomaly` | b1 | `handler_audit_event_anomaly` | F3-backend |
+| `audit.event.query` | b1 | `handler_audit_event_query` | F2 |
+| `audit.event.replay` | b1 | `handler_audit_event_replay` | F2 |
+| `audit.event.statistics` | b1 | `handler_audit_event_statistics` | F3-backend |
 | `audit.list` | b1 | `list_audit_events` | 3096 |
 | `audit.replay_evidence_chain` | b1 | `replay_evidence_chain` | 3785 |
 | `capability.exposure.configure` | b1 | `configure_package_exposure` | 6529 |
@@ -185,9 +191,12 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `org.projection.sync` | b1 | `sync_org_projection` | 1545 |
 | `package.apply_tenant_policy` | b1 | `apply_package_tenant_policy` | 7032 |
 | `package.configure_exposure` | b1 | `configure_package_exposure` | 6529 |
+| `package.exposure.matrix.query` | b1 | `handler_package_exposure_matrix_query` | F4 |
 | `package.list` | b1 | `list_packages` | 3071 |
 | `package.register_version` | b1 | `register_package_version` | 7012 |
 | `package.review_decide` | b1 | `review_package` | 7066 |
+| `package.rollback` | b1 | `handler_package_rollback` | F4 |
+| `package.trust_level.update` | b1 | `handler_package_trust_level_update` | F4 |
 | `package.view` | b1 | `get_package` | 4112 |
 | `registry.artifact.export` | b1 | `export_registry_artifacts` | 7171 |
 | `system.schema_info` | b1 | `?` | ? |
@@ -227,7 +236,7 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 
 - J1: 94 caps
 - J2: 37 caps
-- B1: 32 caps
+- B1: 41 caps
 - infra: 22 caps
 - 未归类: 0 caps
-- **合计：185 caps**
+- **合计：194 caps**

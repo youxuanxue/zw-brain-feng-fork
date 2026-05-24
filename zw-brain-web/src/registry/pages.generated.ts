@@ -136,6 +136,11 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     {"skillId": "zone.publish_topic_projection", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["zone.publish_topic_projection.execute"]},
   ] },
   { anchor: "B1.1", capabilities: [
+    {"skillId": "audit.event.accountability", "mode": "read", "auditClass": "read-sensitive", "humanConfirmationRequired": false, "roles": [], "permissions": ["audit.event.accountability.execute"]},
+    {"skillId": "audit.event.anomaly", "mode": "read", "auditClass": "read-sensitive", "humanConfirmationRequired": false, "roles": [], "permissions": ["audit.event.anomaly.execute"]},
+    {"skillId": "audit.event.query", "mode": "read", "auditClass": "read-sensitive", "humanConfirmationRequired": false, "roles": [], "permissions": ["audit.event.query.execute"]},
+    {"skillId": "audit.event.replay", "mode": "read", "auditClass": "read-sensitive", "humanConfirmationRequired": false, "roles": [], "permissions": ["audit.event.replay.execute"]},
+    {"skillId": "audit.event.statistics", "mode": "read", "auditClass": "read-sensitive", "humanConfirmationRequired": false, "roles": [], "permissions": ["audit.event.statistics.execute"]},
     {"skillId": "audit.list", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["audit.list.execute"]},
     {"skillId": "audit.replay_evidence_chain", "mode": "read", "auditClass": "read-sensitive", "humanConfirmationRequired": false, "roles": [], "permissions": ["audit.replay_evidence_chain.execute"]},
     {"skillId": "compliance.case.query", "mode": "read", "auditClass": "read-normal", "humanConfirmationRequired": false, "roles": [], "permissions": ["compliance.case.query.execute"]},
@@ -176,6 +181,7 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     {"skillId": "adapter.cascade.health.query", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["adapter.cascade.health.query.execute"]},
     {"skillId": "adapter.external.mapping.query", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["adapter.external.mapping.query.execute"]},
     {"skillId": "legacy.migration.status.query", "mode": "read", "auditClass": "read-trace", "humanConfirmationRequired": false, "roles": [], "permissions": ["legacy.migration.status.query.execute"]},
+    {"skillId": "package.exposure.matrix.query", "mode": "read", "auditClass": "read-sensitive", "humanConfirmationRequired": false, "roles": [], "permissions": ["package.exposure.matrix.query.execute"]},
     {"skillId": "package.list", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["package.list.execute"]},
     {"skillId": "package.view", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["package.view.execute"]},
     {"skillId": "registry.artifact.export", "mode": "read", "auditClass": "read-normal", "humanConfirmationRequired": false, "roles": [], "permissions": ["registry.artifact.export.execute"]},
@@ -195,9 +201,11 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     {"skillId": "package.configure_exposure", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["package.configure_exposure.execute"]},
     {"skillId": "package.register_version", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["package.register_version.execute"]},
     {"skillId": "package.review_decide", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["package.review_decide.execute"]},
+    {"skillId": "package.rollback", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["package.rollback.execute"]},
+    {"skillId": "package.trust_level.update", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["package.trust_level.update.execute"]},
     {"skillId": "tenant.capability.disable", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["tenant.capability.disable.execute"]},
     {"skillId": "tenant.capability.enable", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["tenant.capability.enable.execute"]},
   ] },
 ];
 
-export const UNMAPPED_WEBUI_SKILLS: string[] = ["search.intent.parse"];
+export const UNMAPPED_WEBUI_SKILLS: string[] = ["assistant.investigation_summary", "search.intent.parse"];

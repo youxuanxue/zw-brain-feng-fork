@@ -1,0 +1,46 @@
+{
+  "name": "audit.event.replay",
+  "description": "按 request_id 拉一条审批链的完整 phase 序列（before / commit / after / error 等），用于安全审计员复现一次写操作的全部审计步骤。事件序列回放，非时间回放；payload 透传给 caller 但 meta-audit 只记录 request_id + count。",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "request_id"
+    ],
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "审批链 request_id（与 brain.invoke_skill 落审计时的 request_id 一致）"
+      },
+      "tenant_id": {
+        "type": "string",
+        "description": "租户 ID；缺省走运行时租户。单租户 sd-default 模式下不可跨租户读"
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 10000,
+        "default": 1000
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-audit-class": "read-sensitive",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "audit.event.replay.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

@@ -1,0 +1,76 @@
+{
+  "name": "package.exposure.matrix.query",
+  "description": "返回全量 capability manifest × 5 消费面（webui/api/cli/mcp/a2a）暴露矩阵；只读、按 journey/status/binding 维度筛选。数据派生自 zw_brain/skill_registration/registered/*.json 的 compatibility / product_scope / execution_binding 字段，不重新计算。handler 自身写一条 read-sensitive sanitized meta-audit（与 F2/F3 同 pattern）。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "journey": {
+        "type": "string",
+        "enum": [
+          "j1",
+          "j2",
+          "b1",
+          "infra",
+          "external",
+          "national"
+        ]
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "live",
+          "external",
+          "deferred:wave-1",
+          "deferred:wave-2",
+          "deferred:wave-3",
+          "deferred:wave-4"
+        ]
+      },
+      "execution_binding": {
+        "type": "string",
+        "enum": [
+          "builtin",
+          "external_capability"
+        ]
+      },
+      "surface": {
+        "type": "string",
+        "enum": [
+          "webui",
+          "api",
+          "cli",
+          "mcp",
+          "a2a"
+        ]
+      },
+      "tenant_id": {
+        "type": "string"
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000,
+        "default": 500
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-audit-class": "read-sensitive",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "package.exposure.matrix.query.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

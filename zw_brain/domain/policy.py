@@ -60,6 +60,14 @@ PERMISSION_ROLES = {
     "governance.policy_candidate.review.execute": {"ROLE_BUSIAUDIT"},
     "audit.replay_evidence_chain.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "audit.list.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # F2: 正规化审计事件流的查询 + 回放面（安全审计员 / 主管部门 / 系统）
+    "audit.event.query.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT", "ROLE_SYSTEM"},
+    "audit.event.replay.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT", "ROLE_SYSTEM"},
+    # F3-backend: B1.1 4 panel 后端 capability + 调查摘要助手
+    "audit.event.statistics.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT", "ROLE_SYSTEM"},
+    "audit.event.anomaly.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT", "ROLE_SYSTEM"},
+    "audit.event.accountability.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT", "ROLE_SYSTEM"},
+    "assistant.investigation_summary.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT", "ROLE_SYSTEM"},
 
     # 区划只读
     "zone.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
@@ -68,6 +76,11 @@ PERMISSION_ROLES = {
     # 能力包注册（平台运营侧）
     "package.list.execute": {"ROLE_BUSIAUDIT"},
     "package.view.execute": {"ROLE_BUSIAUDIT"},
+    # F4 B1.2 intake：rollback / 暴露矩阵 / trust_level 升降（BUSIAUDIT 主管 +
+    # SECURITY_ADMIN 数据安全；SYSTEM 给运维自动回滚）
+    "package.rollback.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_ADMIN", "ROLE_SYSTEM"},
+    "package.exposure.matrix.query.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_ADMIN", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"},
+    "package.trust_level.update.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_ADMIN"},
 
     # J1 申请：发起 → 审 → 授权
     "request.create.execute": {"ROLE_ORGAN_OPERATER"},

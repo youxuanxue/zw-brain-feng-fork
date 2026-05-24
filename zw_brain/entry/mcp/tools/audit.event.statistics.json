@@ -1,0 +1,68 @@
+{
+  "name": "audit.event.statistics",
+  "description": "按时间桶（hour / day / week / month）+ 维度（actor / skill_id / tenant_id / audit_class）聚合审计事件计数；用于 B1.1 合规与运营面统计 panel。只读，单租户 sd-default 强过滤。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "bucket": {
+        "type": "string",
+        "enum": [
+          "hour",
+          "day",
+          "week",
+          "month"
+        ],
+        "default": "day",
+        "description": "时间桶粒度"
+      },
+      "dimension": {
+        "type": "string",
+        "enum": [
+          "actor",
+          "skill_id",
+          "audit_class",
+          "tenant_id"
+        ],
+        "default": "audit_class",
+        "description": "聚合维度"
+      },
+      "tenant_id": {
+        "type": "string",
+        "description": "租户 ID；缺省走运行时租户（单租户 sd-default 模式下不可跨租户读）"
+      },
+      "since": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "until": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 10000,
+        "default": 1000
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-audit-class": "read-sensitive",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "audit.event.statistics.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

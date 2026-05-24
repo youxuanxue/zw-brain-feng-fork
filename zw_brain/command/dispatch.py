@@ -24,6 +24,8 @@ from zw_brain.command.handlers.b1 import (
     audit,
     capability_admin,
     exchange_statistics_query,
+    intake,
+    investigation,
     ops_catalog,
     ops_exchange,
     ops_gateway,
@@ -158,9 +160,16 @@ DISPATCH_TABLE: dict[str, Handler] = {
     # turn 5: B1 — projection (2 cap)
     "org.projection.sync": projection.handler_org_projection_sync,
     "actor.projection.sync": projection.handler_actor_projection_sync,
-    # turn 5: B1 — audit (2 cap)
+    # turn 5: B1 — audit (8 cap; +2 F2 audit.event.{query,replay}, +4 F3-backend
+    # audit.event.{statistics,anomaly,accountability} + assistant.investigation_summary)
     "audit.list": audit.handler_audit_list,
     "audit.replay_evidence_chain": audit.handler_audit_replay_evidence_chain,
+    "audit.event.query": audit.handler_audit_event_query,
+    "audit.event.replay": audit.handler_audit_event_replay,
+    "audit.event.statistics": audit.handler_audit_event_statistics,
+    "audit.event.anomaly": audit.handler_audit_event_anomaly,
+    "audit.event.accountability": audit.handler_audit_event_accountability,
+    "assistant.investigation_summary": investigation.handler_assistant_investigation_summary,
     # turn 5: B1 — ops_catalog (3 cap)
     "ops.catalog.quality.query": ops_catalog.handler_ops_catalog_quality_query,
     "ops.catalog.quality.upsert": ops_catalog.handler_ops_catalog_quality_upsert,
@@ -190,6 +199,10 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "package.list": capability_admin.handler_package_list,
     "package.view": capability_admin.handler_package_view,
     "tenant.capability.disable": capability_admin.handler_tenant_capability_disable,
+    # F4 B1.2 intake (3 new cap): rollback / exposure matrix / trust_level
+    "package.rollback": intake.handler_package_rollback,
+    "package.exposure.matrix.query": intake.handler_package_exposure_matrix_query,
+    "package.trust_level.update": intake.handler_package_trust_level_update,
     # turn 5: B1 — registry (1 cap)
     "registry.artifact.export": registry.handler_registry_artifact_export,
     # turn 5: B1 — system_ops (3 cap)

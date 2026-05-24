@@ -147,6 +147,383 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "assistant.investigation_summary",
+    "description": "把 B1.1 statistics / anomaly / accountability panel 输出脱敏后送集团推理平台生成调查摘要；不覆盖原始审计证据，只提供阅读辅助。actor/skill_id 在送推理前 hash 化；payload 敏感字段一律脱敏。所有推理调用必须走 shared/inference/client（D6 + D14）。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/assistant.investigation_summary",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "request_id",
+        "panel"
+      ],
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "原 panel 调用 request_id；调推理时强制透传以串审计 trail（D4）"
+        },
+        "panel": {
+          "type": "string",
+          "enum": [
+            "statistics",
+            "anomaly",
+            "accountability"
+          ],
+          "description": "上游 panel 类型"
+        },
+        "panel_payload": {
+          "type": "object",
+          "description": "panel 原始输出（statistics buckets / anomaly list / accountability chains 之一）"
+        },
+        "tenant_id": {
+          "type": "string"
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 4096,
+          "default": 800
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": false,
+      "audit_class": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "assistant.investigation_summary.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "audit.event.accountability",
+    "description": "按 actor 反查所有 outcome=denied 的 request_id + 关联完整 audit 链；用于 B1.1 追责 panel。返回链路 metadata + sanitized payload（敏感字段 hash 化）；不返回原始 payload 全文。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/audit.event.accountability",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "actor"
+      ],
+      "properties": {
+        "actor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tenant_id": {
+          "type": "string"
+        },
+        "since": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "until": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 100
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": false,
+      "audit_class": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "audit.event.accountability.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "audit.event.anomaly",
+    "description": "Rule-based 异常事件 Top-N 扫描，三类内建规则：(1) 跨租户读 cross-tenant-read；(2) 单 actor 高频失败 high-failure-rate；(3) 反复 denied request_id repeated-denied。返回每条异常的证据 request_id + 命中规则；不返回原始 payload 全文。用于 B1.1 异常 + 督查 panel。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/audit.event.anomaly",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "since": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "until": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "top_n": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        },
+        "min_failure_count": {
+          "type": "integer",
+          "minimum": 2,
+          "default": 3,
+          "description": "high-failure-rate 规则的最低失败次数阈值"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": false,
+      "audit_class": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "audit.event.anomaly.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "audit.event.query",
+    "description": "按 actor / skill_id / tenant_id / audit_class / 时间窗口查询正规化后的审计事件流。回包含事件元数据 + 聚合摘要，不外泄 payload 原文（payload 字段需通过专用 evidence chain 二次申请）。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/audit.event.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "actor": {
+          "type": "string",
+          "description": "按发起人精确匹配，如 'user:gov:ROLE_SECURITY_AUDIT:安全审计员'"
+        },
+        "skill_id": {
+          "type": "string",
+          "description": "按 capability skill_id 精确匹配"
+        },
+        "tenant_id": {
+          "type": "string",
+          "description": "租户 ID；缺省走运行时租户（sd-default 单租户模式下不可跨租户读）"
+        },
+        "audit_class": {
+          "type": "string",
+          "enum": [
+            "write-critical",
+            "write-normal",
+            "read-sensitive"
+          ],
+          "description": "按 3 级正规化 audit_class 过滤；其他历史值在 store 写入时已 normalize"
+        },
+        "since": {
+          "type": "string",
+          "format": "date-time",
+          "description": "起始时间（ISO8601 含时区）"
+        },
+        "until": {
+          "type": "string",
+          "format": "date-time",
+          "description": "截止时间（ISO8601 含时区）"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 200
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": false,
+      "audit_class": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "audit.event.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "audit.event.replay",
+    "description": "按 request_id 拉一条审批链的完整 phase 序列（before / commit / after / error 等），用于安全审计员复现一次写操作的全部审计步骤。事件序列回放，非时间回放；payload 透传给 caller 但 meta-audit 只记录 request_id + count。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/audit.event.replay",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "request_id"
+      ],
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "审批链 request_id（与 brain.invoke_skill 落审计时的 request_id 一致）"
+        },
+        "tenant_id": {
+          "type": "string",
+          "description": "租户 ID；缺省走运行时租户。单租户 sd-default 模式下不可跨租户读"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000,
+          "default": 1000
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": false,
+      "audit_class": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "audit.event.replay.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "audit.event.statistics",
+    "description": "按时间桶（hour / day / week / month）+ 维度（actor / skill_id / tenant_id / audit_class）聚合审计事件计数；用于 B1.1 合规与运营面统计 panel。只读，单租户 sd-default 强过滤。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/audit.event.statistics",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "bucket": {
+          "type": "string",
+          "enum": [
+            "hour",
+            "day",
+            "week",
+            "month"
+          ],
+          "default": "day",
+          "description": "时间桶粒度"
+        },
+        "dimension": {
+          "type": "string",
+          "enum": [
+            "actor",
+            "skill_id",
+            "audit_class",
+            "tenant_id"
+          ],
+          "default": "audit_class",
+          "description": "聚合维度"
+        },
+        "tenant_id": {
+          "type": "string",
+          "description": "租户 ID；缺省走运行时租户（单租户 sd-default 模式下不可跨租户读）"
+        },
+        "since": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "until": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000,
+          "default": 1000
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": false,
+      "audit_class": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "audit.event.statistics.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "audit.list",
     "description": "查看主链路审计事件流与证据摘要。",
     "protocol_type": "builtin_skill",
@@ -1567,6 +1944,88 @@
       ],
       "permissions": [
         "ops.service.report.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
+    "tool_name": "package.exposure.matrix.query",
+    "description": "返回全量 capability manifest × 5 消费面（webui/api/cli/mcp/a2a）暴露矩阵；只读、按 journey/status/binding 维度筛选。数据派生自 zw_brain/skill_registration/registered/*.json 的 compatibility / product_scope / execution_binding 字段，不重新计算。handler 自身写一条 read-sensitive sanitized meta-audit（与 F2/F3 同 pattern）。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/package.exposure.matrix.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "journey": {
+          "type": "string",
+          "enum": [
+            "j1",
+            "j2",
+            "b1",
+            "infra",
+            "external",
+            "national"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "live",
+            "external",
+            "deferred:wave-1",
+            "deferred:wave-2",
+            "deferred:wave-3",
+            "deferred:wave-4"
+          ]
+        },
+        "execution_binding": {
+          "type": "string",
+          "enum": [
+            "builtin",
+            "external_capability"
+          ]
+        },
+        "surface": {
+          "type": "string",
+          "enum": [
+            "webui",
+            "api",
+            "cli",
+            "mcp",
+            "a2a"
+          ]
+        },
+        "tenant_id": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 500
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": false,
+      "audit_class": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "package.exposure.matrix.query.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -7013,6 +7472,131 @@
       ],
       "permissions": [
         "package.review_decide.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "package.rollback",
+    "description": "将能力包当前活跃版本回滚到上一个已注册版本（package.registeredVersion ← rollbackTarget）。回滚操作 write-critical 强制 human_confirmation_required=true；写主库 + 写审计。回滚不动 manifest 文件本身，仅切换 capability_package 表里的 active version；rollback_target 在回滚前必须存在。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/package.rollback",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "package_id",
+        "confirmed"
+      ],
+      "properties": {
+        "package_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_version": {
+          "type": "string",
+          "description": "回滚目标版本号；缺省走 capability_package.rollbackTarget"
+        },
+        "reason": {
+          "type": "string",
+          "description": "回滚原因（业务侧记录；落审计 payload）"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "package.rollback.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "package.trust_level.update",
+    "description": "更新能力包的 trust_level 业务字段（基线级 baseline / 已审 reviewed / 严管 restricted / 撤回 revoked 四档）。本字段是 **能力包内置元数据**，描述本平台对该能力包的信任评估；与 AgentRuntime Registry 的 trust_level（F6 T1 触发，描述外部 Agent 来源信任级）不同——前者由 BUSIAUDIT / SECURITY_ADMIN 决定能否启用，后者由 AgentRuntime supervisor 决定能否消费 Agent。本 F4 只处理 manifest 字段；F6 触发后再增 Registry 字段。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/package.trust_level.update",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "package_id",
+        "trust_level",
+        "confirmed"
+      ],
+      "properties": {
+        "package_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trust_level": {
+          "type": "string",
+          "enum": [
+            "baseline",
+            "reviewed",
+            "restricted",
+            "revoked"
+          ],
+          "description": "目标信任级（能力包内置元数据，**非** AgentRuntime Registry 字段）"
+        },
+        "reason": {
+          "type": "string",
+          "description": "升降级原因；落审计 payload"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "package.trust_level.update.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",

@@ -1,0 +1,51 @@
+{
+  "name": "audit.event.anomaly",
+  "description": "Rule-based 异常事件 Top-N 扫描，三类内建规则：(1) 跨租户读 cross-tenant-read；(2) 单 actor 高频失败 high-failure-rate；(3) 反复 denied request_id repeated-denied。返回每条异常的证据 request_id + 命中规则；不返回原始 payload 全文。用于 B1.1 异常 + 督查 panel。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "since": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "until": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "top_n": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100,
+        "default": 20
+      },
+      "min_failure_count": {
+        "type": "integer",
+        "minimum": 2,
+        "default": 3,
+        "description": "high-failure-rate 规则的最低失败次数阈值"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-audit-class": "read-sensitive",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "audit.event.anomaly.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}
