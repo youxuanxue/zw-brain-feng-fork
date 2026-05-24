@@ -67,10 +67,16 @@ items:
     × 10 mapper 判定矩阵)
   - '4 verdict: 9 已覆盖 + 2 漏做 + 4 复造 forbidden + 2 待澄清'
   - goal.yaml 7 dump 全部 verdict; preflight 28 段不变 PASS; pytest 83 passed
+  - 'turn 1 commit (PR #88): docs/deployment/m0-mapper-coverage.md 17 dump × 10 mapper
+    判定矩阵'
+  - 'turn 2 commit e62f0c4: BasesubjectMapper 11 表 → TopicPackageRecord (314 LOC +
+    192 LOC test)'
+  - dsp_basesubject 升级 verdict; mapper 10 → 11; tests 101 passed; preflight 30 段全
+    PASS
   depends_on: []
   status: in_progress
-  next_action: turn 2 补 basesubject.py mapper; turn 3 补 graph_lineage 扩展; needs_human
-    2 待澄清 dump sign-off
+  next_action: 'turn 3: graphdb_* 5 表扩展（推荐独立 graph_lineage.py mapper）；2 待澄清 dump sign-off
+    独立 needs_human'
   blocked_reason: null
 - id: F4
   deliverable: 5 类投影状态可见 + 失败摘要可读

@@ -14,13 +14,15 @@ Bridging order (legacy-import-mapping-v1.md §四.1):
     2. catalog_metadata  (rc_resource → ResourceAsset, then data_catalog → CatalogEntry)
     3. exchange  (data_require → Application, then data_apply → Application + Approval + Delivery)
     4. objection  (data_objection)
-    5. topic_package  (data_example, basesubject_info)
-    6. service  (api_service_*)
-    7. connect  (dc_*)
-    8. projections  (monitor / perform — only summaries)
+    5. topic_package  (data_example — 共享专题案例)
+    6. basesubject  (basesubject_info / bs_resource / schema_info — 主题库主线，F3 turn 2 漏做补齐)
+    7. service  (api_service_*)
+    8. connect  (dc_*)
+    9. projections  (monitor / perform — only summaries)
 """
 
 from zw_brain.adapters.legacy._common import ImportStats
+from zw_brain.adapters.legacy.mappers.basesubject import BasesubjectMapper
 from zw_brain.adapters.legacy.mappers.catalog_metadata import CatalogMetadataMapper
 from zw_brain.adapters.legacy.mappers.connect import ConnectMapper
 from zw_brain.adapters.legacy.mappers.exchange import ExchangeMapper
@@ -32,6 +34,7 @@ from zw_brain.adapters.legacy.mappers.service import ServiceMapper
 from zw_brain.adapters.legacy.mappers.topic_package import TopicPackageMapper
 
 __all__ = [
+    "BasesubjectMapper",
     "CatalogMetadataMapper",
     "ConnectMapper",
     "ExchangeMapper",
