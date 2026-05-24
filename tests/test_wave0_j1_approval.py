@@ -363,17 +363,19 @@ def test_j1_approval_unconditional_withdrawn_cannot_be_approved(application_repo
         pytest.skip("sd-default 当前无 withdrawn 状态 application_record；待 J2/Wave1 补造 fixture")
     rec = withdrawn[0]
     # review 已撤回申请应抛 NotFoundError 或 InvalidStateError（任一种均符合 contract）
+    from tests._trusted_payload import invoke_trusted
     from zw_brain.command.brain import NotFoundError
 
     with pytest.raises((InvalidStateError, NotFoundError)):
-        brain.invoke_skill(
+        invoke_trusted(
+            brain,
             "application.resource.review",
             {
                 "request_id": rec.application_code,
                 "decision": "approve",
-                "role": "ROLE_ORGAN_MANAGER",
                 "confirmed": True,
             },
+            role="ROLE_ORGAN_MANAGER",
         )
 
 

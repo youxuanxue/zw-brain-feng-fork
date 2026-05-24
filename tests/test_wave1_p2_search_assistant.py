@@ -26,6 +26,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._trusted_payload import invoke_trusted
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
 SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_p2_search_shadow.db"
@@ -77,7 +79,8 @@ def brain():
 
 
 def _invoke(brain, payload: dict) -> dict:
-    out = brain.invoke_skill("search.intent.parse", payload)
+    role = payload.pop("role", "ROLE_ORGAN_MANAGER")
+    out = invoke_trusted(brain, "search.intent.parse", payload, role=role)
     if isinstance(out, dict) and "result" in out and "audit_id" in out:
         return out["result"]
     return out

@@ -451,28 +451,32 @@ def test_j1_application_draft_required_field_missing_blocks_submit(catalog_repo)
     target = catalog_repo.search_entries("户籍", tenant_id=TENANT)[0]
     brain = _build_brain_with_audit_sink()
 
+    from tests._trusted_payload import invoke_trusted
+
     # 显式传空字符串 purpose → 拒绝
     with pytest.raises(InvalidStateError, match="purpose 必填"):
-        brain.invoke_skill(
+        invoke_trusted(
+            brain,
             "application.resource.submit",
             {
                 "resource_id": target.catalog_code,
-                "role": "ROLE_ORGAN_OPERATER",
                 "purpose": "",  # 显式空填，必须拒绝
                 "confirmed": True,
             },
+            role="ROLE_ORGAN_OPERATER",
         )
 
     # 显式传 whitespace-only → 同样拒绝（strip 后空）
     with pytest.raises(InvalidStateError, match="purpose 必填"):
-        brain.invoke_skill(
+        invoke_trusted(
+            brain,
             "application.resource.submit",
             {
                 "resource_id": target.catalog_code,
-                "role": "ROLE_ORGAN_OPERATER",
                 "purpose": "   ",
                 "confirmed": True,
             },
+            role="ROLE_ORGAN_OPERATER",
         )
 
 
@@ -498,16 +502,19 @@ def test_j1_application_draft_other_user_org_rejected():
         pytest.skip("sd-default 当前无 active 户籍资源；待 J2/Wave1 补造 fixture")
     real = actives[0]
 
+    from tests._trusted_payload import invoke_trusted
+
     try:
-        result = brain.invoke_skill(
+        result = invoke_trusted(
+            brain,
             "application.resource.submit",
             {
                 "resource_id": real.catalog_code,
-                "role": "ROLE_ORGAN_OPERATER",
                 "purpose": "测试跨账号拒绝：payload 注入的 applicant_org 不应穿透",
                 "applicant_org": "WOULD_BE_FORGED_DEPT_A",  # 跨账号伪造尝试
                 "confirmed": True,
             },
+            role="ROLE_ORGAN_OPERATER",
         )
     except (InvalidStateError, NotFoundError):
         # 也合法：active request 已存在或资源 lifecycle 不允许时直接拒绝

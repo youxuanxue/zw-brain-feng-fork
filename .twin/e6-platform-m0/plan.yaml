@@ -115,10 +115,14 @@ items:
   evidence_plan:
   - 证据预算：tests/_trusted_payload.py + 至少 10 个 mutate skill 集成测试改造 + 解决 PR
   - 停止条件：mutate skill 集成测试不再绕过 trust-stamp
-  actual_evidence: []
+  actual_evidence:
+  - 'turn 1 commit 8cfbd19: tests/_trusted_payload.py (77 LOC) + 4 文件 12 显式改造 + _call
+    helper 带动 15+ 站'
+  - 'PR #79 类 sentinel bug 回归护栏建立; tests 165 passed; preflight 30 段全 PASS'
   depends_on: []
-  status: pending
-  next_action: 提取 helper；按 mutate skill 列表逐一改造
+  status: in_progress
+  next_action: 'turn 2 收尾: 改造剩余 12 处 invoke_skill (test_bsp_*_e2e / test_contract_projection)
+    + 加 preflight 段 31 机械防回潮'
   blocked_reason: null
 - id: F7
   deliverable: Wave 2/3/4 测试 features 填充 + 转 pytest

@@ -17,6 +17,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._trusted_payload import invoke_trusted
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
 SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_p4_explain_shadow.db"
@@ -81,7 +83,8 @@ def brain():
 
 
 def _invoke(brain, payload: dict) -> dict:
-    out = brain.invoke_skill("delivery.status.explain", payload)
+    role = payload.pop("role", "ROLE_ORGAN_MANAGER")
+    out = invoke_trusted(brain, "delivery.status.explain", payload, role=role)
     if isinstance(out, dict) and "result" in out and "audit_id" in out:
         return out["result"]
     return out
@@ -150,7 +153,7 @@ def test_explain_not_found_returns_hint(brain):
 
 def test_explain_requires_at_least_one_id(brain):
     with pytest.raises(ValueError, match="required"):
-        brain.invoke_skill("delivery.status.explain", {"role": "ROLE_ORGAN_OPERATER"})
+        invoke_trusted(brain, "delivery.status.explain", {}, role="ROLE_ORGAN_OPERATER")
 
 
 # ──────────────────────────────────────────────────────────────────────

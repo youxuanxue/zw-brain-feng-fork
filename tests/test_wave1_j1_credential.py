@@ -21,6 +21,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._trusted_payload import invoke_trusted
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
 SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_credential_shadow.db"
@@ -120,7 +122,8 @@ def _inject_approved_request(brain, request_id: str, real_resource: dict) -> Non
 
 
 def _invoke(brain, skill_id: str, payload: dict) -> dict:
-    out = brain.invoke_skill(skill_id, payload)
+    role = payload.pop("role", "ROLE_ORGAN_MANAGER")
+    out = invoke_trusted(brain, skill_id, payload, role=role)
     # write caps wrap as {"result": ..., "audit_id": ...}; read caps return direct dict
     if isinstance(out, dict) and "result" in out and "audit_id" in out:
         return out["result"]

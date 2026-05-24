@@ -26,6 +26,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._trusted_payload import invoke_trusted
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
 SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_objection_lifecycle_shadow.db"
@@ -371,7 +373,8 @@ def brain():
 
 
 def _invoke(brain, skill_id: str, payload: dict) -> dict:
-    return brain.invoke_skill(skill_id, payload)["result"]
+    role = payload.pop("role", "ROLE_ORGAN_MANAGER")
+    return invoke_trusted(brain, skill_id, payload, role=role)["result"]
 
 
 def test_brain_dispatch_catalog_lifecycle_audit_chain(repo, brain):

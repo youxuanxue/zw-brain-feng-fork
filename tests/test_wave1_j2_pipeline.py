@@ -31,6 +31,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._trusted_payload import invoke_trusted
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
 SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_j2_shadow.db"
@@ -110,8 +112,15 @@ def _unique_catalog_code(prefix: str = "TEST-J2") -> str:
 
 def _call(brain, skill: str, payload: dict) -> dict:
     """invoke_skill wraps the inner mutation in {'ok', 'skill_id', 'audit_id', 'result'};
-    helper returns just `result` dict so scenario assertions stay terse."""
-    return brain.invoke_skill(skill, payload)["result"]
+    helper returns just `result` dict so scenario assertions stay terse.
+
+    Routes through trusted-payload helper so mutate skill tests go through the
+    same trust-stamp path as production BFF (REST/MCP/CLI) instead of bypassing
+    `build_trusted_skill_payload`. role is extracted from payload (test fixtures
+    embed it) and passed to invoke_trusted to construct the actor_snapshot.
+    """
+    role = str(payload.pop("role", "ROLE_ORGAN_OPERATER"))
+    return invoke_trusted(brain, skill, payload, role=role)["result"]
 
 
 # G2.2 policy reality（见 zw_brain/domain/policy.py line 110）：

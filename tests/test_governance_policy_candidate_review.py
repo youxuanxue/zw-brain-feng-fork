@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
+from tests._trusted_payload import invoke_trusted
 from zw_brain.command.brain import BrainService, ConfirmationRequiredError
 from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.shared import audit as audit_bus
@@ -62,7 +63,8 @@ def test_list_policy_candidates_filters_by_status() -> None:
 def test_approve_alone_does_not_enable_tenant_policy() -> None:
     with TemporaryDirectory() as tmp:
         service = _service(tmp)
-        service.invoke_skill(
+        invoke_trusted(
+            service,
             "legacy.bsp.mapping.import",
             {
                 "mode": "apply",
@@ -74,11 +76,12 @@ def test_approve_alone_does_not_enable_tenant_policy() -> None:
                         "surface": "webui",
                     }
                 ],
-                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
+            role="ROLE_BUSIAUDIT",
         )
-        reviewed = service.invoke_skill(
+        reviewed = invoke_trusted(
+            service,
             "governance.policy_candidate.review",
             {
                 "decision": "approve",
@@ -88,9 +91,9 @@ def test_approve_alone_does_not_enable_tenant_policy() -> None:
                         "capability_id": "zone.publish_topic_projection",
                     }
                 ],
-                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
+            role="ROLE_BUSIAUDIT",
         )
         assert reviewed["result"]["summary"]["success_count"] == 1
         assert reviewed["audit_id"]
@@ -106,7 +109,8 @@ def test_approve_alone_does_not_enable_tenant_policy() -> None:
 def test_approve_and_apply_enables_tenant_policy_with_audit() -> None:
     with TemporaryDirectory() as tmp:
         service = _service(tmp)
-        service.invoke_skill(
+        invoke_trusted(
+            service,
             "legacy.bsp.mapping.import",
             {
                 "mode": "apply",
@@ -118,11 +122,12 @@ def test_approve_and_apply_enables_tenant_policy_with_audit() -> None:
                         "surface": "webui",
                     }
                 ],
-                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
+            role="ROLE_BUSIAUDIT",
         )
-        reviewed = service.invoke_skill(
+        reviewed = invoke_trusted(
+            service,
             "governance.policy_candidate.review",
             {
                 "decision": "approve_and_apply",
@@ -132,9 +137,9 @@ def test_approve_and_apply_enables_tenant_policy_with_audit() -> None:
                         "capability_id": "zone.publish_topic_projection",
                     }
                 ],
-                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
+            role="ROLE_BUSIAUDIT",
         )
         assert reviewed["audit_id"]
         assert reviewed["result"]["summary"]["applied_policy_count"] == 1
@@ -152,21 +157,23 @@ def test_review_requires_confirmation() -> None:
     with TemporaryDirectory() as tmp:
         service = _service(tmp)
         with pytest.raises(ConfirmationRequiredError):
-            service.invoke_skill(
+            invoke_trusted(
+                service,
                 "governance.policy_candidate.review",
                 {
                     "decision": "reject",
                     "items": [{"legacy_permission_ref": "X", "capability_id": "audit.list"}],
-                    "role": "ROLE_BUSIAUDIT",
                     "confirmed": False,
                 },
+                role="ROLE_BUSIAUDIT",
             )
 
 
 def test_reject_blocks_apply() -> None:
     with TemporaryDirectory() as tmp:
         service = _service(tmp)
-        service.invoke_skill(
+        invoke_trusted(
+            service,
             "legacy.bsp.mapping.import",
             {
                 "mode": "apply",
@@ -178,27 +185,29 @@ def test_reject_blocks_apply() -> None:
                         "surface": "api",
                     }
                 ],
-                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
+            role="ROLE_BUSIAUDIT",
         )
-        service.invoke_skill(
+        invoke_trusted(
+            service,
             "governance.policy_candidate.review",
             {
                 "decision": "reject",
                 "items": [{"legacy_permission_ref": "dsp-bsp:deny", "capability_id": "audit.list"}],
-                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
+            role="ROLE_BUSIAUDIT",
         )
-        applied = service.invoke_skill(
+        applied = invoke_trusted(
+            service,
             "governance.policy_candidate.review",
             {
                 "decision": "apply",
                 "items": [{"legacy_permission_ref": "dsp-bsp:deny", "capability_id": "audit.list"}],
-                "role": "ROLE_BUSIAUDIT",
                 "confirmed": True,
             },
+            role="ROLE_BUSIAUDIT",
         )
         assert applied["result"]["items"][0]["result"] == "failed"
         assert applied["result"]["items"][0]["reason"] == "candidate_not_approved"

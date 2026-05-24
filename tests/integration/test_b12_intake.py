@@ -22,6 +22,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._trusted_payload import invoke_trusted
+
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TENANT = "sd-default"
 
@@ -100,14 +102,11 @@ def test_existing_review_lifecycle_still_works_under_multiplex_sink(brain_with_a
     brain._package_by_id(pkg_id)["status"] = "pending"
     brain._package_by_id(pkg_id)["versionStatus"] = "draft"
 
-    out = brain.invoke_skill(
+    out = invoke_trusted(
+        brain,
         "package.review_decide",
-        {
-            "package_id": pkg_id,
-            "decision": "approve",
-            "role": "ROLE_BUSIAUDIT",
-            "confirmed": True,
-        },
+        {"package_id": pkg_id, "decision": "approve", "confirmed": True},
+        role="ROLE_BUSIAUDIT",
     )
     assert out["ok"] is True
     assert brain._package_by_id(pkg_id)["status"] == "approved"
@@ -128,14 +127,11 @@ def test_tenant_capability_enable_writes_audit_under_multiplex_sink(brain_with_a
     item["versionStatus"] = "registered"
     item["registeredVersion"] = item.get("registeredVersion") or "v1.0.0"
 
-    out = brain.invoke_skill(
+    out = invoke_trusted(
+        brain,
         "tenant.capability.enable",
-        {
-            "package_id": pkg_id,
-            "tenant_id": TENANT,
-            "role": "ROLE_BUSIAUDIT",
-            "confirmed": True,
-        },
+        {"package_id": pkg_id, "tenant_id": TENANT, "confirmed": True},
+        role="ROLE_BUSIAUDIT",
     )
     assert out["ok"] is True
     # multiplex sink 应同时落主 DB + F1 AuditStore；这里只校验 AuditStore 至少
@@ -153,14 +149,11 @@ def test_tenant_capability_enable_writes_audit_under_multiplex_sink(brain_with_a
 def test_package_rollback_swaps_active_and_previous_version(brain_with_audit) -> None:
     brain = brain_with_audit
     pkg_id = _new_package(brain)
-    out = brain.invoke_skill(
+    out = invoke_trusted(
+        brain,
         "package.rollback",
-        {
-            "package_id": pkg_id,
-            "reason": "regression in v1.2.0",
-            "role": "ROLE_BUSIAUDIT",
-            "confirmed": True,
-        },
+        {"package_id": pkg_id, "reason": "regression in v1.2.0", "confirmed": True},
+        role="ROLE_BUSIAUDIT",
     )
     assert out["ok"] is True
     assert out["result"]["previous_version"] == "v1.2.0"
@@ -178,9 +171,11 @@ def test_package_rollback_rejects_when_no_rollback_target(brain_with_audit) -> N
     pkg_id = _new_package(brain)
     brain._package_by_id(pkg_id)["rollbackTarget"] = ""
     with pytest.raises(InvalidStateError):
-        brain.invoke_skill(
+        invoke_trusted(
+            brain,
             "package.rollback",
-            {"package_id": pkg_id, "role": "ROLE_BUSIAUDIT", "confirmed": True},
+            {"package_id": pkg_id, "confirmed": True},
+            role="ROLE_BUSIAUDIT",
         )
 
 
@@ -191,9 +186,11 @@ def test_package_rollback_rejects_when_no_rollback_target(brain_with_audit) -> N
 
 def test_exposure_matrix_returns_all_manifests(brain_with_audit) -> None:
     brain = brain_with_audit
-    out = brain.invoke_skill(
+    out = invoke_trusted(
+        brain,
         "package.exposure.matrix.query",
-        {"role": "ROLE_BUSIAUDIT", "tenant_id": TENANT},
+        {"tenant_id": TENANT},
+        role="ROLE_BUSIAUDIT",
     )
     assert out["totals"]["manifests"] >= 200  # 209 currently
     assert "api" in out["totals"]["by_surface"]
@@ -210,9 +207,11 @@ def test_exposure_matrix_returns_all_manifests(brain_with_audit) -> None:
 
 def test_exposure_matrix_filters_by_journey_and_status(brain_with_audit) -> None:
     brain = brain_with_audit
-    out = brain.invoke_skill(
+    out = invoke_trusted(
+        brain,
         "package.exposure.matrix.query",
-        {"journey": "b1", "status": "live", "role": "ROLE_BUSIAUDIT", "tenant_id": TENANT},
+        {"journey": "b1", "status": "live", "tenant_id": TENANT},
+        role="ROLE_BUSIAUDIT",
     )
     assert all(r["journey"] == "b1" and r["status"] == "live" for r in out["matrix"])
     assert out["scanned"] >= 47  # B1 budget after F4 = 50
@@ -220,9 +219,11 @@ def test_exposure_matrix_filters_by_journey_and_status(brain_with_audit) -> None
 
 def test_exposure_matrix_filters_by_surface(brain_with_audit) -> None:
     brain = brain_with_audit
-    out = brain.invoke_skill(
+    out = invoke_trusted(
+        brain,
         "package.exposure.matrix.query",
-        {"surface": "mcp", "role": "ROLE_BUSIAUDIT", "tenant_id": TENANT},
+        {"surface": "mcp", "tenant_id": TENANT},
+        role="ROLE_BUSIAUDIT",
     )
     assert all("mcp" in r["surfaces"] for r in out["matrix"])
 
@@ -236,15 +237,11 @@ def test_package_trust_level_update_changes_metadata(brain_with_audit) -> None:
     brain = brain_with_audit
     pkg_id = _new_package(brain)
 
-    out = brain.invoke_skill(
+    out = invoke_trusted(
+        brain,
         "package.trust_level.update",
-        {
-            "package_id": pkg_id,
-            "trust_level": "reviewed",
-            "reason": "compliance review approved",
-            "role": "ROLE_BUSIAUDIT",
-            "confirmed": True,
-        },
+        {"package_id": pkg_id, "trust_level": "reviewed", "reason": "compliance review approved", "confirmed": True},
+        role="ROLE_BUSIAUDIT",
     )
     assert out["ok"] is True
     assert out["result"]["previous_trust_level"] == "baseline"
@@ -258,14 +255,11 @@ def test_package_trust_level_rejects_unknown_level(brain_with_audit) -> None:
     brain = brain_with_audit
     pkg_id = _new_package(brain)
     with pytest.raises(BrainServiceError):
-        brain.invoke_skill(
+        invoke_trusted(
+            brain,
             "package.trust_level.update",
-            {
-                "package_id": pkg_id,
-                "trust_level": "ultra-trusted",
-                "role": "ROLE_BUSIAUDIT",
-                "confirmed": True,
-            },
+            {"package_id": pkg_id, "trust_level": "ultra-trusted", "confirmed": True},
+            role="ROLE_BUSIAUDIT",
         )
 
 
