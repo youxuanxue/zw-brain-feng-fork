@@ -2556,6 +2556,64 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "application.draft.suggest",
+    "description": "P3 申请页减摩组件。基于资源名称、申请方、使用场景与历史相似申请，预填申请字段（purpose / use_reason / use_item / service_times / use_region 等）并给出风险评分。仅作辅助建议，绝不调用申请提交接口。推理走集团推理平台统一通道；推理失败时回落本地规则。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/application.draft.suggest",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "resource_name": {
+          "type": "string"
+        },
+        "applicant_org": {
+          "type": "string"
+        },
+        "use_case": {
+          "type": "string",
+          "description": "使用场景一句话描述"
+        },
+        "role": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "request_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "resource_name",
+        "applicant_org"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit"
+      ],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "application.draft.suggest.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "application.grant.approve",
     "description": "审批授权、收回授权或频次变更，审批通过后才能形成授权快照。",
     "protocol_type": "builtin_skill",
@@ -2969,6 +3027,56 @@
       ],
       "permissions": [
         "approval.case.decide.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "approval.evidence.summarize",
+    "description": "P3 审批页减摩组件。输入待审申请 id，归纳支持依据 / 反事实因素 / 推荐审批结论 (approve|return_for_fix|reject)。仅作辅助提示，绝不调用审批决策接口。推理走集团推理平台统一通道；推理失败时回落本地规则。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/approval.evidence.summarize",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "application_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "request_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "application_id"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit"
+      ],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "approval.evidence.summarize.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -4751,6 +4859,50 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "credential.sample.render",
+    "description": "只读。基于已签发 credential + 真实 sd-default 资源 schema，渲染 curl/Python/Java 三种语言的可复制粘贴端到端调用样例 + 配额展示 + §3.4 集团运维监控入口链接（不内嵌 dashboard）。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/credential.sample.render",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit"
+      ],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "credential.sample.render.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "delivery.access.grant",
     "description": "在审批通过后写入访问授权交付事实和审计链。",
     "protocol_type": "builtin_skill",
@@ -5204,6 +5356,56 @@
       ],
       "permissions": [
         "delivery.replace_or_cancel.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "delivery.status.explain",
+    "description": "P4 交付任务详情页减摩组件。输入交付任务 id（delivery_code 或 application_code），输出当前阶段语义解释、异常原因、影响范围与责任归属。证据基于交付任务字段；仅解释不评价。推理走集团推理平台统一通道；推理失败时回落本地规则。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/delivery.status.explain",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "delivery_code": {
+          "type": "string"
+        },
+        "application_code": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "request_id": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit"
+      ],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "delivery.status.explain.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -8403,6 +8605,59 @@
       ],
       "permissions": [
         "risk.event.ingest.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "search.intent.parse",
+    "description": "P2 资源发现页减摩组件。把用户一句话搜索拆成结构化辅助字段：业务意图、关键词、覆盖范围、缺口字段、推荐理由、追问列表。仅作辅助提示，不替代目录树 / 筛选器 / 资源详情。推理走集团推理平台统一通道；推理失败时回落本地规则解析（degraded=true）。可由调用方传 enabled=false 关闭。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/search.intent.parse",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "用户一句话搜索语句"
+        },
+        "role": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "false 时跳过推理直接走本地规则；默认 true"
+        },
+        "request_id": {
+          "type": "string",
+          "description": "审计关联（D4）；缺省由 cap 自动生成"
+        }
+      },
+      "required": [
+        "query"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit"
+      ],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "search.intent.parse.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",

@@ -22,8 +22,10 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `application.grant.revoke` | j1 | `revoke_application_grant` | 3928 |
 | `application.grant.suspend` | j1 | `suspend_application_grant` | 3912 |
 | `application.resource.review` | j1 | `review_request` | 6245 |
+| `application.draft.suggest` | j1 | `do_application_draft_suggest` | 0 |
 | `application.resource.submit` | j1 | `create_request` | 5993 |
 | `approval.case.decide` | j1 | `review_request` | 6245 |
+| `approval.evidence.summarize` | j1 | `do_approval_evidence_summarize` | 0 |
 | `approval.review_decide` | j1 | `review_request` | 6245 |
 | `approval.view` | j1 | `get_approval` | 3455 |
 | `backflow.confirm` | j1 | `confirm_backflow` | 6478 |
@@ -51,13 +53,16 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `catalog.share_zone.query` | j1 | `query_catalog_share_zones` | 4345 |
 | `credential.issue` | j1 | `issue_credential` | 8037 |
 | `credential.query` | j1 | `get_credential` | 8084 |
+| `credential.sample.render` | j1 | `render_credential_samples` | 0 |
 | `data.search` | j1 | `search_resources` | 4143 |
+| `search.intent.parse` | j1 | `parse_search_intent` | 0 |
 | `delivery.access.grant` | j1 | `grant_delivery_access` | 6929 |
 | `delivery.exchange.plan` | j1 | `plan_delivery_exchange` | 3861 |
 | `delivery.exchange.publish` | j1 | `publish_delivery_exchange` | 3867 |
 | `delivery.exchange.start` | j1 | `start_delivery_exchange` | 3864 |
 | `delivery.exchange.stop` | j1 | `stop_delivery_exchange` | 3870 |
 | `delivery.list` | j1 | `list_delivery_tasks` | 3146 |
+| `delivery.status.explain` | j1 | `do_delivery_status_explain` | 0 |
 | `delivery.receipt.ingest` | j1 | `ingest_delivery_receipt` | 3809 |
 | `delivery.reconcile_receipt` | j1 | `reconcile_delivery_receipt` | 6959 |
 | `delivery.replace_or_cancel` | j1 | `replace_or_cancel_delivery` | 2507 |

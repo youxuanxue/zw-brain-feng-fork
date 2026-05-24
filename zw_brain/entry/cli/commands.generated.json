@@ -1532,6 +1532,46 @@
       ]
     },
     {
+      "skill_id": "application.draft.suggest",
+      "title": "P3 申请草拟助手（预填字段 + 风险预估）",
+      "description": "P3 申请页减摩组件。基于资源名称、申请方、使用场景与历史相似申请，预填申请字段（purpose / use_reason / use_item / service_times / use_region 等）并给出风险评分。仅作辅助建议，绝不调用申请提交接口。推理走集团推理平台统一通道；推理失败时回落本地规则。",
+      "mode": "write",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "applicant_org",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "enabled",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "request_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_name",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "use_case",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
       "skill_id": "application.grant.approve",
       "title": "审批资源授权",
       "description": "审批授权、收回授权或频次变更，审批通过后才能形成授权快照。",
@@ -1781,6 +1821,36 @@
         },
         {
           "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "approval.evidence.summarize",
+      "title": "P3 审批依据助手（归纳依据 + 反事实 + 推荐结论）",
+      "description": "P3 审批页减摩组件。输入待审申请 id，归纳支持依据 / 反事实因素 / 推荐审批结论 (approve|return_for_fix|reject)。仅作辅助提示，绝不调用审批决策接口。推理走集团推理平台统一通道；推理失败时回落本地规则。",
+      "mode": "write",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "application_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "enabled",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "request_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
           "required": false,
           "type": "string"
         }
@@ -2967,6 +3037,26 @@
       ]
     },
     {
+      "skill_id": "credential.sample.render",
+      "title": "渲染凭据三语调用样例（curl / Python / Java）",
+      "description": "只读。基于已签发 credential + 真实 sd-default 资源 schema，渲染 curl/Python/Java 三种语言的可复制粘贴端到端调用样例 + 配额展示 + §3.4 集团运维监控入口链接（不内嵌 dashboard）。",
+      "mode": "write",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
       "skill_id": "delivery.access.grant",
       "title": "授权访问交付",
       "description": "在审批通过后写入访问授权交付事实和审计链。",
@@ -3226,6 +3316,41 @@
         },
         {
           "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "delivery.status.explain",
+      "title": "P4 交付状态解释助手（阶段 / 异常原因 / 影响范围）",
+      "description": "P4 交付任务详情页减摩组件。输入交付任务 id（delivery_code 或 application_code），输出当前阶段语义解释、异常原因、影响范围与责任归属。证据基于交付任务字段；仅解释不评价。推理走集团推理平台统一通道；推理失败时回落本地规则。",
+      "mode": "write",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "application_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "delivery_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "enabled",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "request_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
           "required": false,
           "type": "string"
         }
@@ -5586,6 +5711,36 @@
         },
         {
           "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "search.intent.parse",
+      "title": "P2 搜索上下文助手（意图解析 + 缺口追问 + 推荐理由）",
+      "description": "P2 资源发现页减摩组件。把用户一句话搜索拆成结构化辅助字段：业务意图、关键词、覆盖范围、缺口字段、推荐理由、追问列表。仅作辅助提示，不替代目录树 / 筛选器 / 资源详情。推理走集团推理平台统一通道；推理失败时回落本地规则解析（degraded=true）。可由调用方传 enabled=false 关闭。",
+      "mode": "write",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "enabled",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "query",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "request_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
           "required": false,
           "type": "string"
         }

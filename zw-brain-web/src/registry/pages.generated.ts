@@ -59,6 +59,7 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     {"skillId": "approval.view", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["approval.view.execute"]},
     {"skillId": "request.list", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["request.list.execute"]},
     {"skillId": "request.view", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["request.view.execute"]},
+    {"skillId": "application.draft.suggest", "mode": "write", "auditClass": "read", "humanConfirmationRequired": false, "roles": [], "permissions": ["application.draft.suggest.execute"]},
     {"skillId": "application.grant.approve", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["application.grant.approve.execute"]},
     {"skillId": "application.grant.renew", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["application.grant.renew.execute"]},
     {"skillId": "application.grant.revoke", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["application.grant.revoke.execute"]},
@@ -66,6 +67,7 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     {"skillId": "application.resource.review", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["application.resource.review.execute"]},
     {"skillId": "application.resource.submit", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["application.resource.submit.execute"]},
     {"skillId": "approval.case.decide", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["approval.case.decide.execute"]},
+    {"skillId": "approval.evidence.summarize", "mode": "write", "auditClass": "read", "humanConfirmationRequired": false, "roles": [], "permissions": ["approval.evidence.summarize.execute"]},
     {"skillId": "approval.review_decide", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["approval.review_decide.execute"]},
     {"skillId": "backflow.confirm", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["backflow.confirm.execute"]},
     {"skillId": "request.create", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["request.create.execute"]},
@@ -84,6 +86,7 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     {"skillId": "delivery.list", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["delivery.list.execute"]},
     {"skillId": "delivery.view", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["delivery.view.execute"]},
     {"skillId": "credential.issue", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": false, "roles": [], "permissions": ["credential.issue.execute"]},
+    {"skillId": "credential.sample.render", "mode": "write", "auditClass": "read", "humanConfirmationRequired": false, "roles": [], "permissions": ["credential.sample.render.execute"]},
     {"skillId": "delivery.access.grant", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["delivery.access.grant.execute"]},
     {"skillId": "delivery.exchange.plan", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["delivery.exchange.plan.execute"]},
     {"skillId": "delivery.exchange.publish", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["delivery.exchange.publish.execute"]},
@@ -92,6 +95,7 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     {"skillId": "delivery.receipt.ingest", "mode": "write", "auditClass": "write-normal", "humanConfirmationRequired": true, "roles": [], "permissions": ["delivery.receipt.ingest.execute"]},
     {"skillId": "delivery.reconcile_receipt", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["delivery.reconcile_receipt.execute"]},
     {"skillId": "delivery.replace_or_cancel", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["delivery.replace_or_cancel.execute"]},
+    {"skillId": "delivery.status.explain", "mode": "write", "auditClass": "read", "humanConfirmationRequired": false, "roles": [], "permissions": ["delivery.status.explain.execute"]},
     {"skillId": "delivery.subscription.manage", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["delivery.subscription.manage.execute"]},
     {"skillId": "delivery.trigger_recovery", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["delivery.trigger_recovery.execute"]},
   ] },
@@ -196,4 +200,4 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
   ] },
 ];
 
-export const UNMAPPED_WEBUI_SKILLS: string[] = [];
+export const UNMAPPED_WEBUI_SKILLS: string[] = ["search.intent.parse"];

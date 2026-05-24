@@ -42,6 +42,7 @@ from zw_brain.command.handlers.infra import (
     legacy_sharezone_mapping,
 )
 from zw_brain.command.handlers.j1 import (
+    application_assistants,
     application_grant,
     approval,
     catalog_entry,
@@ -49,6 +50,7 @@ from zw_brain.command.handlers.j1 import (
     credential,
     data_search,
     delivery,
+    delivery_explain,
     direct_access,
     governance_dispute,
     objection,
@@ -56,6 +58,7 @@ from zw_brain.command.handlers.j1 import (
     request,
     requirement_intake,
     resource_api,
+    search_assistant,
     workbench,
 )
 from zw_brain.command.handlers.j2 import (
@@ -97,6 +100,8 @@ _PASSTHROUGH_CAPS = (
 DISPATCH_TABLE: dict[str, Handler] = {
     # turn 2
     "data.search": data_search.handler,
+    # F6: J1 P2 搜索上下文助手（减摩组件，走 shared/inference/client）
+    "search.intent.parse": search_assistant.handler_search_intent_parse,
     "topic.package.create": topic_package_create.handler,
     "ops.exchange.statistics.query": exchange_statistics_query.handler,
     # turn 3: infra
@@ -201,6 +206,9 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "application.resource.review": approval.handler_application_resource_review,
     "approval.case.decide": approval.handler_approval_case_decide,
     "approval.review_decide": approval.handler_approval_review_decide,
+    # F7: J1 P3 双助手 (减摩组件，走 shared/inference/client + 三层降级)
+    "application.draft.suggest": application_assistants.handler_application_draft_suggest,
+    "approval.evidence.summarize": application_assistants.handler_approval_evidence_summarize,
     # turn 6: J1 — catalog_entry (12 cap)
     "catalog.entry.create": catalog_entry.handler_catalog_entry_create,
     "catalog.entry.create_draft": catalog_entry.handler_catalog_entry_create_draft,
@@ -225,9 +233,10 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "catalog.resource_view": catalog_meta.handler_catalog_resource_view,
     "catalog.schema.mapping.upsert": catalog_meta.handler_catalog_schema_mapping_upsert,
     "catalog.share_zone.query": catalog_meta.handler_catalog_share_zone_query,
-    # turn 6: J1 — credential (2 cap)
+    # turn 6: J1 — credential (3 cap: F5 added sample.render)
     "credential.issue": credential.handler_credential_issue,
     "credential.query": credential.handler_credential_query,
+    "credential.sample.render": credential.handler_credential_sample_render,
     # turn 6: J1 — delivery (12 cap)
     "delivery.exchange.plan": delivery.handler_delivery_exchange_plan,
     "delivery.exchange.publish": delivery.handler_delivery_exchange_publish,
@@ -241,6 +250,8 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "delivery.view": delivery.handler_delivery_view,
     "delivery.access.grant": delivery.handler_delivery_access_grant,
     "delivery.list": delivery.handler_delivery_list,
+    # F8: J1 P4 状态解释助手（减摩组件，走 shared/inference/client + 三层降级）
+    "delivery.status.explain": delivery_explain.handler_delivery_status_explain,
     # turn 6: J1 — direct_access (2 cap)
     "direct_access.catalog.query": direct_access.handler_direct_access_catalog_query,
     "direct_access.delivery.list": direct_access.handler_direct_access_delivery_list,

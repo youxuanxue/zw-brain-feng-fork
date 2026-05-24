@@ -11,6 +11,11 @@ from zw_brain.domain.models import (
     ObjectionEvidenceRecord,
     ObjectionProcessRecord,
 )
+from zw_brain.domain.objection_state import (
+    ALLOWED_TRANSITIONS_BY_DIMENSION,
+    GENERIC_DIMENSION,
+    dimension_of,
+)
 from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.sanitization import safe_json
 
@@ -139,7 +144,14 @@ class ObjectionRepository:
             record = session.execute(select(ObjectionCaseRecord).where(ObjectionCaseRecord.id == objection_id)).scalar_one_or_none()
             if record is None:
                 raise KeyError(objection_id)
-            self._assert_transition(record.status, next_status)
+            evidences = list(
+                session.execute(
+                    select(ObjectionEvidenceRecord).where(
+                        ObjectionEvidenceRecord.objection_id == objection_id
+                    )
+                ).scalars()
+            )
+            self._assert_transition(record.status, next_status, dimension=dimension_of(record, evidences))
             record.status = next_status
             record.row_version += 1
             record.updated_at = _now()
@@ -321,7 +333,15 @@ class ObjectionRepository:
             )
             session.commit()
 
-    def _assert_transition(self, current: str, next_status: str) -> None:
+    def _assert_transition(self, current: str, next_status: str, *, dimension: str = GENERIC_DIMENSION) -> None:
+        allowed_table = ALLOWED_TRANSITIONS_BY_DIMENSION.get(dimension)
+        if allowed_table is not None:
+            allowed = allowed_table.get(current, frozenset())
+            if next_status not in allowed:
+                raise ObjectionStateError(
+                    f"invalid {dimension}-dimension objection transition: {current} -> {next_status}"
+                )
+            return
         if next_status not in self.TRANSITIONS.get(current, set()):
             raise ObjectionStateError(f"invalid objection transition: {current} -> {next_status}")
 

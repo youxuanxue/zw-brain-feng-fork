@@ -773,6 +773,21 @@
       ]
     },
     {
+      "id": "application.draft.suggest",
+      "mode": "write",
+      "humanConfirmationRequired": false,
+      "auditClass": "read",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit"
+      ]
+    },
+    {
       "id": "application.grant.approve",
       "mode": "write",
       "humanConfirmationRequired": true,
@@ -893,6 +908,21 @@
         "audit",
         "db_write",
         "blockchain_anchor"
+      ]
+    },
+    {
+      "id": "approval.evidence.summarize",
+      "mode": "write",
+      "humanConfirmationRequired": false,
+      "auditClass": "read",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit"
       ]
     },
     {
@@ -1382,6 +1412,21 @@
       ]
     },
     {
+      "id": "credential.sample.render",
+      "mode": "write",
+      "humanConfirmationRequired": false,
+      "auditClass": "read",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit"
+      ]
+    },
+    {
       "id": "delivery.access.grant",
       "mode": "write",
       "humanConfirmationRequired": true,
@@ -1521,6 +1566,21 @@
       "sideEffects": [
         "audit",
         "db_write"
+      ]
+    },
+    {
+      "id": "delivery.status.explain",
+      "mode": "write",
+      "humanConfirmationRequired": false,
+      "auditClass": "read",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit"
       ]
     },
     {
@@ -2293,6 +2353,21 @@
         "audit",
         "db_write",
         "blockchain_anchor"
+      ]
+    },
+    {
+      "id": "search.intent.parse",
+      "mode": "write",
+      "humanConfirmationRequired": false,
+      "auditClass": "read",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit"
       ]
     },
     {

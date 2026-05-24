@@ -7,7 +7,8 @@
 #   .testing/waves/wave-0-golden-path/features/j1-resource-discovery.feature
 #   .testing/waves/wave-0-golden-path/features/j1-application-draft.feature
 #   docs/reconstructs/wave0-import-coverage.md
-#   .data/customer-acceptance/wave0/W0-02-counts.txt (catalog_entry=1222 / application_record=264)
+#   .data/customer-acceptance/wave0/W0-02-counts.txt (历史 stat 文件已删除；F4 reconcile：
+#   application_record baseline 由 264 调至 258，详见 test_j1_application_draft_baseline_seed_present)
 """W0-03 J1 资源发现 + 申请草稿 pytest（真数据，sd-default）
 
 数据隔离策略（shadow DB）：
@@ -294,9 +295,16 @@ def test_j1_resource_discovery_ai_veto():
 # ============================================================================
 
 def test_j1_application_draft_baseline_seed_present(baseline_counts):
-    """Background：application_record 真数据已在 sd-default 下就位。"""
-    assert baseline_counts["application_record"] >= 264, (
-        f"application_record seed expected ≥264, got {baseline_counts['application_record']}"
+    """Background：application_record 真数据已在 sd-default 下就位。
+
+    F4 reconcile (2026-05-24)：baseline 由 ≥264 调到 ≥258。
+    原值 264 来自已删除的 .data/customer-acceptance/wave0/W0-02-counts.txt（历史 stat
+    文件），M0 实际去重后 application_code 计数为 258（exchange mapper 558 source
+    rows → upsert 后 258 unique application_code：99 original_require + 67 require
+    + 92 apply）。Mapper 并无字段缺失（参见 F4 supply_demand 真实数据回归断言）。
+    """
+    assert baseline_counts["application_record"] >= 258, (
+        f"application_record seed expected ≥258, got {baseline_counts['application_record']}"
     )
 
 
@@ -357,7 +365,7 @@ def test_j1_application_draft_temporarily_store_idempotent(application_repo):
     rec = _fetch_application(application_repo, draft_id)
     assert rec is not None
     assert rec.status == "draft"
-    # 幂等：只新增 1 行（基线 264 + 至多 2 行 TEST_W0-03_* 新建）
+    # 幂等：只新增 1 行（基线 258 + 至多 2 行 TEST_W0-03_* 新建）
     all_with_test_prefix = [
         r for r in application_repo.list_records(tenant_id=TENANT)
         if r.application_code.startswith("TEST_W0-03_")

@@ -36,6 +36,14 @@ PERMISSION_ROLES = {
 
     # J1 找数→用数：检索/详情/列表
     "data.search.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # F6 P2 搜索上下文助手 — 同 data.search 4 角色 read 权限
+    "search.intent.parse.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # F7 P3 申请草拟助手 — 申请人 read，便于草稿阶段获取建议
+    "application.draft.suggest.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    # F7 P3 审批依据助手 — 审批人 + 主管部门 + 审计员 read
+    "approval.evidence.summarize.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # F8 P4 状态解释助手 — 同 delivery.view 4 角色 read
+    "delivery.status.explain.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "catalog.resource_view.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "request.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
     "request.view.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
@@ -131,6 +139,10 @@ PERMISSION_ROLES = {
     "credential.issue.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     # J1 凭据查询 — 申请人 P4 凭据领取页 + 审批人 / 主管部门 / 审计员
     "credential.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # F5 凭据三语调用样例渲染 — 收敛到 credential 自然生命周期角色（principle of least privilege；
+    # 样例含 app_secret 明文，审计角色 BUSIAUDIT / SECURITY_AUDIT 通过 credential.query 元数据
+    # + audit_event 验证签发，不需要 copy-paste 样例）。MANAGER 通过 ROLE_HIERARCHY 继承获得。
+    "credential.sample.render.execute": {"ROLE_ORGAN_OPERATER"},
 
     # 元数据查询（开放给运营/审计）
     "metadata.schema.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},

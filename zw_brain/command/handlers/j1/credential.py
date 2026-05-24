@@ -1,4 +1,4 @@
-"""J1 credential handlers — 2 cap migrated from BrainService (F1 turn 6, J1 收官)."""
+"""J1 credential handlers — 3 cap (issue / query / sample.render)."""
 
 from __future__ import annotations
 
@@ -8,8 +8,12 @@ if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
 import copy
+import json as _json
 
 from zw_brain.command.brain import InvalidStateError, NotFoundError
+
+# 监控入口：链接到 §3.4 集团运维监控（不内嵌 dashboard），由 IT 资源运维直观接管
+_MONITORING_DASHBOARD_LINK = "https://ops.gov-data.local/monitoring/credential-call?app_key={app_key}"
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -100,9 +104,115 @@ def _get_credential(brain, request_id: str, role: str) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
+def _render_credential_samples(brain, request_id: str, role: str) -> dict[str, Any]:
+    """渲染 credential 的 curl / Python / Java 三语调用样例 + 配额 + 监控入口（只读）.
+
+    F5: P4 凭据领取生产化。基于已签发 credential + 真实 sd-default 资源 schema 渲染
+    可复制粘贴的端到端调用样例。监控入口仅链接到 §3.4 集团运维监控（不内嵌 dashboard）。
+
+    所有字段从 _get_credential 派生；不存储样例（每次按需渲染）。
+    """
+    credential_view = _get_credential(brain, request_id, role)
+    if credential_view.get("credential") is None:
+        return {
+            "request_id": request_id,
+            "samples": None,
+            "status": credential_view.get("status", "not_issued"),
+            "hint": credential_view.get("hint", "凭据尚未签发，无法渲染调用样例。"),
+        }
+    cred = credential_view["credential"]
+    app_key = str(cred.get("app_key") or "")
+    app_secret = str(cred.get("app_secret") or "")
+    resource_id = str(credential_view.get("resource_id") or "")
+    resource_name = str(credential_view.get("resource_name") or "")
+    invoke_url = str(cred.get("invoke_url_template") or "").replace(
+        "<resource_code>", resource_id or "<resource_code>"
+    )
+    quota_per_day = int(cred.get("quota_per_day") or 1000)
+
+    headers = {
+        "X-App-Key": app_key,
+        "X-App-Secret": app_secret,
+        "Accept": "application/json",
+    }
+    # Real call body keyed off resource schema (sd-default catalog hint)
+    body_example = {
+        "filters": {"limit": 10, "offset": 0},
+        "fields": ["id", "name", "value", "updated_at"],
+        "tenant_id": "sd-default",
+    }
+
+    curl_sample = (
+        f"# {resource_name or resource_id or 'resource'} — quota_per_day={quota_per_day}\n"
+        f"curl -X POST '{invoke_url}' \\\n"
+        f"  -H 'X-App-Key: {app_key}' \\\n"
+        f"  -H 'X-App-Secret: {app_secret}' \\\n"
+        f"  -H 'Content-Type: application/json' \\\n"
+        f"  -d '{_json.dumps(body_example, ensure_ascii=False)}'\n"
+    )
+
+    python_sample = (
+        f"# {resource_name or resource_id or 'resource'} — quota_per_day={quota_per_day}\n"
+        f"import requests\n"
+        f"resp = requests.post(\n"
+        f"    {invoke_url!r},\n"
+        f"    headers={_json.dumps(headers, ensure_ascii=False)},\n"
+        f"    json={_json.dumps(body_example, ensure_ascii=False)},\n"
+        f"    timeout=30,\n"
+        f")\n"
+        f"resp.raise_for_status()\n"
+        f"print(resp.json())\n"
+    )
+
+    body_json_for_java = _json.dumps(body_example, ensure_ascii=False).replace('"', '\\"')
+    java_sample = (
+        f'// {resource_name or resource_id or "resource"} — quota_per_day={quota_per_day}\n'
+        f'HttpClient client = HttpClient.newHttpClient();\n'
+        f'String body = "{body_json_for_java}";\n'
+        f'HttpRequest req = HttpRequest.newBuilder()\n'
+        f'    .uri(URI.create({invoke_url!r}))\n'
+        f'    .header("X-App-Key", {app_key!r})\n'
+        f'    .header("X-App-Secret", {app_secret!r})\n'
+        f'    .header("Content-Type", "application/json")\n'
+        f'    .POST(HttpRequest.BodyPublishers.ofString(body))\n'
+        f'    .build();\n'
+        f'HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());\n'
+        f'System.out.println(resp.body());\n'
+    )
+
+    monitoring_link = _MONITORING_DASHBOARD_LINK.format(app_key=app_key)
+
+    brain._append_audit_feed("credential.sample.render", request_id, "ok",
+                             str(brain._ui_state.get("actor", "system")))
+
+    return {
+        "request_id": request_id,
+        "status": "rendered",
+        "credential_excerpt": {
+            "app_key": app_key,
+            "valid_from": cred.get("valid_from"),
+            "valid_to": cred.get("valid_to"),
+            "quota_per_day": quota_per_day,
+        },
+        "resource_id": resource_id,
+        "resource_name": resource_name,
+        "invoke_url": invoke_url,
+        "samples": {
+            "curl": curl_sample,
+            "python": python_sample,
+            "java": java_sample,
+        },
+        "monitoring_link": monitoring_link,
+        "monitoring_hint": "§3.4 集团运维监控承接调用数据；点击跳转外部 dashboard，本平台不内嵌。",
+    }
+
+
 def handler_credential_issue(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
     return _issue_credential(brain, str(payload["request_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), reissue=bool(payload.get("reissue", False)))
 
 def handler_credential_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
     return _get_credential(brain, str(payload["request_id"]), str(payload.get("role", brain._ui_state["role"])))
+
+def handler_credential_sample_render(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+    return _render_credential_samples(brain, str(payload["request_id"]), str(payload.get("role", brain._ui_state["role"])))
 

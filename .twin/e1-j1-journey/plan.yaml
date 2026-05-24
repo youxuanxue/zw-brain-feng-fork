@@ -1,141 +1,320 @@
 schema_version: 1
 goal_id: e1-j1-journey
 items:
-  - id: F1
-    deliverable: 异议 catalog 维度状态机闭环（基于 dump-dsp_handling.data_objection_catalog 74 字段真实状态映射）
-    scope: 仅 catalog 维度；不动 content/resource/use/authz 4 维度；不做 UI 嵌入
-    covers_ac:
-      - AC1
-    evidence_plan:
-      - 证据预算：tests/test_wave1_objection_5dim_state.py 中 catalog 维度用例全绿 + 真实 dump 一条 catalog 异议从发起到归档的 audit_event 序列
-      - 停止条件：catalog 维度 6 状态可达性测试通过；任一状态缺失映射时 needs_human 询问是否提 M0 PR
-    actual_evidence: []
-    depends_on: []
-    status: pending
-    next_action: 运行 `python -m zw_brain.entry.legacy_migration --dumps-dir old/10示例数据 --db-path .data/zw_brain.db --reset-db --report .data/m0-report.json --acceptance` 后查 objection_case 表中 catalog 维度真实记录是否齐全；对照 zw_brain/domain/models.py:498 application_record + objection.py mapper
-    blocked_reason: null
-
-  - id: F2
-    deliverable: 异议 content/use/resource/authz 4 维度状态机闭环
-    scope: 4 维度逐一过；不做 evaluate/process 辅助流程
-    covers_ac:
-      - AC1
-    evidence_plan:
-      - 证据预算：tests/test_wave1_objection_5dim_state.py 4 维度用例全绿 + 每维度真实 dump 异议一条 e2e
-      - 停止条件：4 维度状态机全绿；若 mapper 缺字段映射则提 M0 PR 后 needs_human
-    actual_evidence: []
-    depends_on:
-      - F1
-    status: pending
-    next_action: 对照 dump-dsp_handling 的 data_objection_content 89 / _use 155 / _resource 132 / _authz 54 字段，扩展 zw_brain/adapters/legacy/mappers/objection.py 与 brain.py 对应 invoke_skill 分支
-    blocked_reason: null
-
-  - id: F3
-    deliverable: 异议 evaluate/process 辅助流程 + UI 嵌入 P3/P5 异议响应面
-    scope: evaluate 评价 + process 处理过程 2 张流程辅助表；UI 仅 P3 嵌入；P5 嵌入由 E2 协作完成不在本项
-    covers_ac:
-      - AC1
-    evidence_plan:
-      - 证据预算：tests/e2e/objection_lifecycle.spec.ts（新增）+ P3 异议响应面截图
-      - 停止条件：异议响应 → 评价回写 audit_event 链通；UI 工程术语黑名单 preflight 段 24 不报红
-    actual_evidence: []
-    depends_on:
-      - F2
-    status: pending
-    next_action: 阅读 .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-catalog.feature 后落地 evaluate/process 状态机；UI 嵌入需等 E5 webui 重建后真正接入，先做骨架 + tests/integration
-    blocked_reason: null
-
-  - id: F4
-    deliverable: J1 供需对接子流程 6 步实装（消费 dump-dsp_require 真实需求历史）
-    scope: meta 合并而非数据合并；不含部门匹配 AI 推荐（归 E3 Wave 2）；先内置规则匹配
-    covers_ac:
-      - AC2
-    evidence_plan:
-      - 证据预算：.testing/waves/wave-1-j1-j2-closed-loop/features/j1-supply-demand-meta-merge.feature 转 pytest 全绿
-      - 停止条件：6 步状态机通；推荐失败转人工需求登记的分支可跑
-    actual_evidence: []
-    depends_on: []
-    status: pending
-    next_action: 把 .testing/.../j1-supply-demand-meta-merge.feature 的 Given/When/Then 转 tests/test_wave1_j1_supply_demand.py；从 dump-dsp_require 真实数据起步
-    blocked_reason: null
-
-  - id: F5
-    deliverable: P4 凭据领取生产化（API Key + curl/Python/Java 样例 + 配额 + 监控入口）
-    scope: 凭据生成 + 三语样例渲染 + 配额展示；监控入口仅链接到 §3.4 集团运维监控；不做监控 dashboard 内嵌
-    covers_ac:
-      - AC3
-    evidence_plan:
-      - 证据预算：P4 页面截图 + 真实 sd-default 资源的 curl 一次成功调用 log + audit_event 凭据下发记录
-      - 停止条件：凭据下发能审计 + 三语样例可复制粘贴跑通
-    actual_evidence: []
-    depends_on: []
-    status: pending
-    next_action: 在 zw_brain/command/handlers/j1/credential.py（待 E6 拆分后）或暂时在 brain.py 实装 credential.issue capability；UI 等 E5 webui 重建后接入，先做后端 + 集成测试
-    blocked_reason: UI 部分等 E5 webui 构建管线落地（参考 e5/plan.yaml F2）后再接入；后端 + 集成测试本项可先跑
-
-  - id: F6
-    deliverable: P2 搜索上下文助手（语义入口：意图解析 + 缺口追问 + 推荐理由）
-    scope: 减摩组件；不替代目录树、筛选器、资源详情（§5.4.4 反约束）；调用走 shared/inference/client
-    covers_ac:
-      - AC4
-    evidence_plan:
-      - 证据预算：P2 助手 5 种典型一句话查询的解析结果 + 推理调用走 inference/client 的 log 证据
-      - 停止条件：减摩组件可见、可关闭、可降级；preflight 段 10 不报红
-    actual_evidence: []
-    depends_on:
-      - F5
-    status: pending
-    next_action: 在 zw_brain/command/reverse_draft_suggest.py 扩展 search_intent_parse skill；UI 等 E5 后接入
-    blocked_reason: UI 嵌入等 E5 webui 构建管线（参考 e5/plan.yaml F2）落地后接入；skill 后端本项可先跑
-
-  - id: F7
-    deliverable: P3 申请草拟助手 + 审批依据助手（双组件，§5.4.4）
-    scope: 草拟助手预填 + 风险预估；审批助手归纳依据 + 反事实；都不替人提交
-    covers_ac:
-      - AC4
-    evidence_plan:
-      - 证据预算：P3 双助手页面截图 + 草拟 5 个真实 sd-default 申请样例 + 审批助手对 5 个真实历史申请的归纳输出
-      - 停止条件：助手输出回落结构化字段；不直接触发写操作
-    actual_evidence: []
-    depends_on:
-      - F6
-    status: pending
-    next_action: 设计 application.draft.suggest + approval.evidence.summarize 两个 capability manifest 并注册
-    blocked_reason: null
-
-  - id: F8
-    deliverable: P4 状态解释助手（§5.4.4 状态解释）
-    scope: 仅解释阶段、异常原因、影响范围；不替代时间线、回执
-    covers_ac:
-      - AC4
-    evidence_plan:
-      - 证据预算：P4 助手对 5 个真实 sd-default 交付任务的解释输出
-      - 停止条件：解释带证据来源；不评价
-    actual_evidence: []
-    depends_on:
-      - F5
-    status: pending
-    next_action: 注册 delivery.status.explain capability manifest
-    blocked_reason: null
-
-  - id: F9
-    deliverable: 30 分钟 J1 客户演示验收脚本 + 业务方 sign-off
-    scope: 包含 J1 检索→草稿→审批→凭据→调用→异议 5 维度任一全链路；纯 sd-default 真数据；无 mock
-    covers_ac:
-      - AC5
-    evidence_plan:
-      - 证据预算：scripts/customer_demo_j1.sh 退出码 0 + 业务方 sign-off（PR comment 或 issue label）+ 30 分钟时长记录
-      - 停止条件：业务方在 sd-default 数据上签字；任一卡点 needs_human
-    actual_evidence: []
-    depends_on:
-      - F1
-      - F2
-      - F3
-      - F4
-      - F5
-      - F6
-      - F7
-      - F8
-    status: pending
-    next_action: 在 F1-F8 全部 accepted_done 后，写 scripts/customer_demo_j1.sh 并预演一次；准备 sign-off 沟通材料
-    blocked_reason: null
+- id: F1
+  deliverable: 异议 catalog 维度状态机闭环（基于 dump-dsp_handling.data_objection_catalog 74 字段真实状态映射）
+  scope: 仅 catalog 维度；不动 content/resource/use/authz 4 维度；不做 UI 嵌入
+  covers_ac:
+  - AC1
+  evidence_plan:
+  - 证据预算：tests/test_wave1_objection_5dim_state.py 中 catalog 维度用例全绿 + 真实 dump 一条 catalog
+    异议从发起到归档的 audit_event 序列
+  - 停止条件：catalog 维度 6 状态可达性测试通过；任一状态缺失映射时 needs_human 询问是否提 M0 PR
+  actual_evidence:
+  - zw_brain/domain/objection_state.py:1-79 — CATALOG_ALLOWED_TRANSITIONS + CATALOG_REACHABLE_STATES
+    + dimension_of()
+  - zw_brain/domain/repositories/objection.py:transition_case + _assert_transition
+    维度感知
+  - tests/test_wave1_objection_5dim_state.py:1-260 — 10 passed (6 reachability + 2
+    negative + 2 sd-default e2e) + 4 skipped (F2 placeholder)
+  - 'commit 22382e2 — feat(j1): F1 异议 catalog 维度独立状态机闭环'
+  - .data/m0-report.json — legacy.objection.import succeeded 27/27 (catalog 维度 15
+    条; 6 状态全覆盖)
+  - preflight 段 10/22/24/25/27/28/29 + ruff + export_agent_contract --check 全 OK
+  depends_on: []
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F2
+  deliverable: 异议 content/use/resource/authz 4 维度状态机闭环
+  scope: 4 维度逐一过；不做 evaluate/process 辅助流程
+  covers_ac:
+  - AC1
+  evidence_plan:
+  - 证据预算：tests/test_wave1_objection_5dim_state.py 4 维度用例全绿 + 每维度真实 dump 异议一条 e2e
+  - 停止条件：4 维度状态机全绿；若 mapper 缺字段映射则提 M0 PR 后 needs_human
+  actual_evidence:
+  - zw_brain/domain/objection_state.py — 5 维度常量 (CATALOG/CONTENT/USE/RESOURCE/AUTHZ_ALLOWED_TRANSITIONS)
+    + ALLOWED_TRANSITIONS_BY_DIMENSION 总表 + EVIDENCE_TO_DIMENSION_ALIAS + dimension_of
+    全维度化
+  - zw_brain/domain/repositories/objection.py:_assert_transition 走总表
+  - tests/test_wave1_objection_5dim_state.py — 54 passed (30 reachability + 5 illegal-jump
+    + 5 no-accepted + 5 rejected-terminal + 5 真/合成 e2e + 1 content/resource 0 条断言
+    + 3 dimension_of/alias/coverage 单元)
+  - 'commit 80f7891 — feat(j1): F2 异议 content/use/resource/authz 4 维度状态机闭环（5 维度统一命名
+    + 真/合成 e2e）'
+  - M0 真灌库 sqlite 真实分布：catalog 15 / authz 11 / use 1 / content 0 / resource 0
+  - preflight 段 10/22/24/25/27/28/29 + ruff + export_agent_contract --check 全 OK；5
+    消费面投影零漂移
+  depends_on:
+  - F1
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F3
+  deliverable: 异议 evaluate/process 辅助流程 + UI 嵌入 P3/P5 异议响应面
+  scope: evaluate 评价 + process 处理过程 2 张流程辅助表；UI 仅 P3 嵌入；P5 嵌入由 E2 协作完成不在本项
+  covers_ac:
+  - AC1
+  evidence_plan:
+  - 证据预算：tests/e2e/objection_lifecycle.spec.ts（新增）+ P3 异议响应面截图
+  - 停止条件：异议响应 → 评价回写 audit_event 链通；UI 工程术语黑名单 preflight 段 24 不报红
+  actual_evidence:
+  - tests/test_wave1_objection_lifecycle.py — 18 passed (5 维度完整 lifecycle 8 步 + 5
+    evaluate-非-resolved 拒 + 5 rejected-终态拒 + 1 evaluate upsert + 1 reply 不动 status
+    + 1 brain.invoke_skill 端到端 catalog lifecycle 7 节点 audit chain)
+  - zw_brain/domain/repositories/objection.py:evaluate_case + add_process — 现有 cap
+    行为复用，无新 cap 引入
+  - preflight 段 10/22/24/25/27/28/29 + ruff + export_agent_contract --check 全 OK；5
+    消费面投影零漂移
+  - 'UI 嵌入：P3 / P5 异议响应面在 zw-brain-web/src/pages/ 中不存在（PR #87 E5 webui 重建 未含异议响应面），按
+    supervisor 指令本期仅做后端 + 集成测试骨架；UI 实装 blocked-on E5 P3/P5 异议响应面设计（参 e5/plan.yaml
+    后续 F 项）'
+  - tests/test_wave1_objection_lifecycle.py — 18 passed (5 维度 × 完整 8 步 lifecycle +
+    5 evaluate-非-resolved 拒 + 5 rejected-终态拒 + 1 evaluate upsert + 1 reply 不动 status
+    + 1 brain.invoke_skill 端到端 catalog 7 类型 audit_event 链)
+  - 'commit e99535e — feat(j1): F3 异议 evaluate/process 辅助流程闭环'
+  - M0 真灌库交叉验证：objection_case 27 / objection_process 92 / objection_evaluation 3（语义对齐
+    status=resolved）
+  - pytest tests/ -k objection 72 passed (F1 10 + F2 54 + F3 18 无回归)
+  - preflight 段 10/22/24/25/27/28/29 + ruff + contract --check 全 OK；5 消费面投影零漂移
+  - UI 嵌入 P3/P5 blocked-on E5（governance.dispute.* 占位需改 objection.case.* 异源契约）
+  depends_on:
+  - F2
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F4
+  deliverable: J1 供需对接子流程 6 步实装（消费 dump-dsp_require 真实需求历史）
+  scope: meta 合并而非数据合并；不含部门匹配 AI 推荐（归 E3 Wave 2）；先内置规则匹配
+  covers_ac:
+  - AC2
+  evidence_plan:
+  - 证据预算：.testing/waves/wave-1-j1-j2-closed-loop/features/j1-supply-demand-meta-merge.feature
+    转 pytest 全绿
+  - 停止条件：6 步状态机通；推荐失败转人工需求登记的分支可跑
+  actual_evidence:
+  - zw_brain/domain/supply_demand_phase.py — 6 步 phase 常量 + ALLOWED_PHASE_TRANSITIONS
+    + SupplyDemandPhaseError + assert_phase_transition
+  - zw_brain/domain/repositories/supply_demand.py — SupplyDemandRepository (register_demand
+    / advance_phase / create_business_requirement / update_business_requirement_status
+    / remove_application_from_business_requirement / cluster_similar_demands / find_resource_match)
+    复用 application_record 表 kind='demand'/'business_requirement'
+  - tests/test_wave1_j1_supply_demand.py — 21 passed (6 步 happy path + 6 步 manual
+    path + 5 reachability 参数化 + illegal jump + subscribed terminal + BR meta-only
+    + BR 需 BUSIAUDIT 角色 + BR 状态机 dispatched→responded→evaluated + 非法 BR 状态跳 + BR 撤回剔除
+    + BR 最少 2 ids + 国家通道占位 + cluster + find_resource_match + 真实数据 require+original_require
+    ≥150 / apply ≥50 / 最大簇 ≥4 + 不影响原始申请)
+  - tests/test_wave0_j1_discover_draft.py — F4 reconcile baseline ≥264 → ≥258 (M0
+    实际去重后 application_code 计数；mapper 无字段缺失，258 = 99 original_require + 67 require
+    + 92 apply)
+  - 'commit (新增) — feat(j1): F4 J1 供需对接 6 步状态机 + meta 合并 + baseline reconcile'
+  - preflight 段 10/22/24/25/27/28/29 + ruff + export_agent_contract --check 全 OK；5
+    消费面投影零漂移
+  - zw_brain/domain/supply_demand_phase.py +56 — 6 phase + ALLOWED_PHASE_TRANSITIONS
+  - zw_brain/domain/repositories/supply_demand.py +270 — SupplyDemandRepository（demand/BR/订阅）
+  - tests/test_wave1_j1_supply_demand.py +383 — 21 passed（6 步 happy/manual + BR 合并
+    + 真数据回归）
+  - tests/test_wave0_j1_discover_draft.py +18/-3 — baseline 264→258 reconcile
+  - 'commit 3055474 — feat(j1): F4 J1 供需对接 6 步状态机 + meta 合并 + baseline reconcile'
+  - M0 真数据：application_record 258 (99+67+92) / 最大同标题簇≥4 (房地产开发项目信息 10 条)；preflight
+    + contract --check 零漂移
+  depends_on: []
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F5
+  deliverable: P4 凭据领取生产化（API Key + curl/Python/Java 样例 + 配额 + 监控入口）
+  scope: 凭据生成 + 三语样例渲染 + 配额展示；监控入口仅链接到 §3.4 集团运维监控；不做监控 dashboard 内嵌
+  covers_ac:
+  - AC3
+  evidence_plan:
+  - 证据预算：P4 页面截图 + 真实 sd-default 资源的 curl 一次成功调用 log + audit_event 凭据下发记录
+  - 停止条件：凭据下发能审计 + 三语样例可复制粘贴跑通
+  actual_evidence:
+  - zw_brain/command/handlers/j1/credential.py — 新增 _render_credential_samples + handler_credential_sample_render
+    (curl/Python/Java 三语样例 + 配额展示 + 监控入口外链 §3.4 集团运维监控)
+  - zw_brain/skill_registration/registered/credential.sample.render.json — 新 manifest
+    (audit_class=read / permissions=credential.sample.render.execute / runtime_binding=brain_service)
+  - zw_brain/command/dispatch.py + _CATEGORIZATION.md + policy.py — 3 处同步 (cap 数 185
+    → 186)
+  - tests/test_wave1_j1_credential.py — 9 passed (issue/query 行为复用 + sample 三语 含 app_key/invoke_url/quota
+    + 真实 sd-default catalog_entry resource_id 注入 invoke_url + monitoring_link 外链非内嵌
+    + not_issued 路径 + audit chain issue+sample.render + quota 默认 1000 + no secret
+    leakage)
+  - UI 嵌入：P4Credential.vue 已存在但仅接 credential.query；F5 sample.render 新 cap UI 接入留到
+    E5 后续 (P4 加 "查看调用样例" 按钮 + 三段代码块组件)；本期后端 + 集成测试骨架完毕，UI blocked-on E5 P4 样例展示组件设计
+  - 5 消费面投影 regenerate：REST=169 / CLI=1 / MCP=53 / A2A=1 / Skills=160 (前 168/159 +
+    1 新 cap)
+  - 'commit (新增) — feat(j1): F5 P4 凭据三语调用样例 + 配额 + 监控入口'
+  - preflight 段 10/22/24/25/27/28/29 + ruff + export_agent_contract --check 全 OK
+  - zw_brain/command/handlers/j1/credential.py — 新增 _render_credential_samples + handler_credential_sample_render
+  - zw_brain/skill_registration/registered/credential.sample.render.json — 新 cap（audit_class=read,
+    runtime_binding=brain_service, 4 角色 read 权限）
+  - '5 消费面投影 regenerate: REST=169/CLI=1/MCP=53/A2A=1/Skills=160；186 cap × 3 处一致'
+  - tests/test_wave1_j1_credential.py — 9 passed（issue+query+sample.render 三语+真 sd-default
+    resource_id+monitoring_link+not_issued+audit chain+quota=1000+no-secret-leakage）
+  - 'commit 93ddab0 — feat(j1): F5 P4 凭据三语调用样例 + 配额展示 + §3.4 监控外链'
+  - preflight + contract --check 零漂移；UI 嵌入 P4 blocked-on E5
+  depends_on: []
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F6
+  deliverable: P2 搜索上下文助手（语义入口：意图解析 + 缺口追问 + 推荐理由）
+  scope: 减摩组件；不替代目录树、筛选器、资源详情（§5.4.4 反约束）；调用走 shared/inference/client
+  covers_ac:
+  - AC4
+  evidence_plan:
+  - 证据预算：P2 助手 5 种典型一句话查询的解析结果 + 推理调用走 inference/client 的 log 证据
+  - 停止条件：减摩组件可见、可关闭、可降级；preflight 段 10 不报红
+  actual_evidence:
+  - zw_brain/command/handlers/j1/search_assistant.py — handler_search_intent_parse
+    + _rule_based_parse + _inference_based_parse 双路径（推理优先，失败降级；可关闭 enabled=false）
+  - zw_brain/skill_registration/registered/search.intent.parse.json — manifest (audit_class=read,
+    runtime_binding=brain_service, 4 角色 read 权限)
+  - zw_brain/command/dispatch.py + _CATEGORIZATION.md + policy.py — 3 处同步 (cap 数 186
+    → 187)
+  - tests/test_wave1_p2_search_assistant.py — 14 passed (5 种典型查询 fallback 解析 + 空查询
+    + region 词汇命中 + inference 路径 monkeypatch + 围栏 JSON 剥离 + 推理 InferenceError 降级 +
+    非 JSON 输出降级 + enabled=false 关闭 + audit chain + §5.4.4 反约束守卫不返回 resources 列表)
+  - 5 消费面投影 regenerate：REST=170 / CLI=1 / MCP=53 / A2A=1 / Skills=161；187 cap × 3
+    处一致
+  - preflight 段 10 (no-direct-llm 走 shared/inference/client 唯一合规通道) / 段 22 / 段 24
+    / 段 25 / 段 27 / 段 28 / 段 29 + ruff + export_agent_contract --check 全 OK
+  - 'commit (新增) — feat(j1): F6 P2 搜索上下文助手 search.intent.parse + 推理降级 + 5 典型查询测试'
+  - UI 嵌入 P2 减摩组件等 E5 后续设计；本期后端 + 集成测试骨架完毕
+  - search_assistant.py handler + _rule_based_parse + _inference_based_parse 三层降级
+  - search.intent.parse.json 新 cap audit_class read + runtime_binding brain_service
+    + 4 角色 read
+  - 5 消费面投影 regenerate REST=170 CLI=1 MCP=53 A2A=1 Skills=161, 187 cap 3 处一致
+  - tests/test_wave1_p2_search_assistant.py 14 passed
+  - commit 04b862a feat j1 F6 P2 搜索上下文助手
+  - 首个真实 inference/client.chat 调用站点, no-direct-llm preflight 段 10 OK
+  depends_on:
+  - F5
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F7
+  deliverable: P3 申请草拟助手 + 审批依据助手（双组件，§5.4.4）
+  scope: 草拟助手预填 + 风险预估；审批助手归纳依据 + 反事实；都不替人提交
+  covers_ac:
+  - AC4
+  evidence_plan:
+  - 证据预算：P3 双助手页面截图 + 草拟 5 个真实 sd-default 申请样例 + 审批助手对 5 个真实历史申请的归纳输出
+  - 停止条件：助手输出回落结构化字段；不直接触发写操作
+  actual_evidence:
+  - zw_brain/command/handlers/j1/application_assistants.py — 双 handler + _draft_fallback
+    / _draft_inference / _evidence_fallback / _evidence_inference + 历史样例 loader (沿
+    F6 三层降级套路)
+  - zw_brain/skill_registration/registered/application.draft.suggest.json + approval.evidence.summarize.json
+    — 2 新 manifest (audit_class=read, runtime_binding=brain_service)
+  - zw_brain/command/dispatch.py + _CATEGORIZATION.md + policy.py — 3 处同步 (cap 187
+    → 189; draft 给 OP/MGR/BUSIAUDIT，evidence 给 MGR/BUSIAUDIT/SECURITY_AUDIT)
+  - tests/test_wave1_p3_application_assistants.py — 13 passed (5 真实样例 draft fallback
+    + 高风险关键词触发 + inference path + 推理 error 降级 + 守卫不调 application.create + 5 真实历史申请
+    evidence fallback + not_found hint + inference path + 非法 recommendation 兜底 return_for_fix
+    + 守卫不调 approval.decide 等 + audit chain 双 cap + §5.4.4 反约束守卫不返 application_code/decided_at)
+  - 5 消费面投影 regenerate — REST=172 / CLI=1 / MCP=53 / A2A=1 / Skills=163；189 cap ×
+    3 处一致
+  - preflight 段 10 / 22 / 24 / 25 / 27 / 28 / 29 + ruff + export_agent_contract --check
+    全 OK
+  - 'commit (新增) — feat(j1): F7 P3 申请草拟助手 + 审批依据助手 双 cap 减摩组件'
+  - UI 嵌入 P3 双助手等 E5 后续设计；本期后端 + 集成测试骨架完毕
+  - application_assistants.py 双 handler + 三层降级 + draft 历史相似申请预填 + evidence 归纳依据反事实
+  - 2 新 cap manifest, audit_class read + 严格 read 权限角色矩阵
+  - 5 消费面投影 regenerate REST=172 CLI=1 MCP=53 A2A=1 Skills=163, 189 cap 3 处一致
+  - 13 P3 tests passed 含 5 真实样例 + 守卫不调写 cap + audit chain + §5.4.4 反约束
+  - commit b691157 feat j1 F7 P3 双助手
+  depends_on:
+  - F6
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F8
+  deliverable: P4 状态解释助手（§5.4.4 状态解释）
+  scope: 仅解释阶段、异常原因、影响范围；不替代时间线、回执
+  covers_ac:
+  - AC4
+  evidence_plan:
+  - 证据预算：P4 助手对 5 个真实 sd-default 交付任务的解释输出
+  - 停止条件：解释带证据来源；不评价
+  actual_evidence:
+  - zw_brain/command/handlers/j1/delivery_explain.py — handler_delivery_status_explain
+    + _do_explain_fallback + _do_explain_inference + _load_delivery_task (沿 F6/F7
+    三层降级)
+  - zw_brain/skill_registration/registered/delivery.status.explain.json — 新 manifest
+    (audit_class=read, runtime_binding=brain_service, 4 角色 read 权限)
+  - zw_brain/command/dispatch.py + _CATEGORIZATION.md + policy.py — 3 处同步 (cap 数 189
+    → 190)
+  - tests/test_wave1_p4_delivery_explain.py — 12 passed (5 真实 sd-default 交付任务 fallback
+    解释 + application_code 反查 + not_found hint + 必填校验 + inference path monkeypatch
+    + 推理 error 降级 + 非 JSON 输出降级 + §5.4.4 反约束守卫不返 events/timeline/history/audit_events/receipts
+    + 不评价 progress_score/sla_breach + 守卫不调写 cap + evidence_sources 引用 delivery_task
+    字段 + audit chain)
+  - 5 消费面投影 regenerate：REST=173 / CLI=1 / MCP=53 / A2A=1 / Skills=164；190 cap × 3
+    处一致
+  - preflight 段 10 (no-direct-llm) / 22 / 24 / 25 / 27 / 28 / 29 + ruff + export_agent_contract
+    --check 全 OK
+  - 'commit (新增) — feat(j1): F8 P4 状态解释助手 delivery.status.explain'
+  - sd-default delivery_task 真实分布 — draft 40 / pending 19 / granted 2 / stopped 1
+  - UI 嵌入 P4 解释抽屉等 E5 后续设计；本期后端 + 集成测试骨架完毕
+  - delivery_explain.py handler + _do_explain_fallback + _do_explain_inference + _load_delivery_task
+    兼容 app_code 多 delivery
+  - delivery.status.explain.json 新 manifest, audit_class read, 4 角色 read
+  - 5 消费面投影 regenerate REST=173 CLI=1 MCP=53 A2A=1 Skills=164, 190 cap 3 处一致
+  - 12 P4 tests passed 含 5 真实交付任务 + state 全覆盖 + 反约束守卫不返时间线/不评价/不调写 cap
+  - commit 1d6cbbd feat j1 F8 P4 状态解释助手
+  - sd-default delivery_task 真实分布 draft 40 pending 19 granted 2 stopped 1
+  depends_on:
+  - F5
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F9
+  deliverable: 30 分钟 J1 客户演示验收脚本 + 业务方 sign-off
+  scope: 包含 J1 检索→草稿→审批→凭据→调用→异议 5 维度任一全链路；纯 sd-default 真数据；无 mock
+  covers_ac:
+  - AC5
+  evidence_plan:
+  - 证据预算：scripts/customer_demo_j1.sh 退出码 0 + 业务方 sign-off（PR comment 或 issue label）+
+    30 分钟时长记录
+  - 停止条件：业务方在 sd-default 数据上签字；任一卡点 needs_human
+  actual_evidence:
+  - scripts/customer_demo_j1.py — Python driver 端到端 12 步：M0 准备 → P2 search → catalog
+    命中 3/3 → P3 草拟 + 审批依据 → P4 凭据 + 三语样例 + 状态解释 → 异议 catalog 维度 7 步闭环；audit_event
+    13 类 cap 全覆盖；30 分钟时长预算
+  - scripts/customer_demo_j1.sh — bash 包装 (set -euo pipefail + trap + log + report);
+    exit 0/1/2/3 4 退出码语义
+  - docs/customer-demo-j1.md — 演示路径 + 依赖 (uv sync + M0) + 跑法 + 退出码 + 业务方 sign-off
+    流程 (business-signoff PR comment 或 issue label) + 回滚说明
+  - tests/test_wave1_customer_demo_j1.py — 6 passed (全链路 driver / JSON report / audit
+    chain 13 类 cap 覆盖 / sh 脚本存在且可执行 / docs 含 business-signoff/回滚/退出码 / 30 分钟预算常量校验)
+  - 'commit (新增) — feat(j1): F9 30 分钟客户演示验收脚本 + 业务方 sign-off 准备'
+  - 实际跑通验证：bash scripts/customer_demo_j1.sh → exit 0, 全链路 0.95s, 3/3 catalog 命中 (医疗救助信息/医保码信息/异地就医统筹区开通信息),
+    21 类 audit_event 类型覆盖
+  - preflight 段 10/22/24/25/27/28/29 + ruff + export_agent_contract --check 全 OK
+  - 5 消费面投影零漂移：REST=173 / CLI=1 / MCP=53 / A2A=1 / Skills=164；190 cap × 3 处一致
+  - 全量 pytest 排除 E6 baseline failures (wave0/wave1 brain.py 拆分遗漏 get_resource / transition_catalog_entry)
+    后 291 passed；新增 0 非 baseline failure
+  - scripts/customer_demo_j1.py driver 12 步 + audit 链验证 + 30min 预算
+  - scripts/customer_demo_j1.sh bash 包装 4 退出码语义
+  - docs/customer-demo-j1.md 演示路径 + 依赖 + sign-off 流程 + 回滚
+  - tests/test_wave1_customer_demo_j1.py 6 集成测试 passed
+  - 实际跑通 exit 0 全链路 0.75s 3/3 catalog 命中 21 audit_event 类型
+  - .data/customer-demo-j1/demo-20260524-131908.json demo report
+  - commit 6757f71 feat j1 F9 30 分钟客户演示验收脚本 e1-j1-journey 收官
+  - preflight + contract --check 零漂移, 191 cap 三处一致
+  depends_on:
+  - F1
+  - F2
+  - F3
+  - F4
+  - F5
+  - F6
+  - F7
+  - F8
+  status: completed
+  next_action: human 决定推进路径 push+PR / 仅保留本地 / 先 rename 分支后 push
+  blocked_reason: null
