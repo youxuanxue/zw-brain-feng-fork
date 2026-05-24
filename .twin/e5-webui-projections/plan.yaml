@@ -1,0 +1,119 @@
+schema_version: 1
+goal_id: e5-webui-projections
+items:
+  - id: F1
+    deliverable: 前端框架选型 + spike PR（Vue3+Vite 或 React+Vite）
+    scope: 选型 + 1 个 spike 页面（P1 工作台）跑通；不含其他 7 页面
+    covers_ac:
+      - AC1
+    evidence_plan:
+      - 证据预算：选型 PR + spike P1 截图 + npm run dev 热重载演示 + 构建产物大小对比
+      - 停止条件：选型 sign-off + spike 页面能装载真实 P1 待办数据
+    actual_evidence: []
+    depends_on: []
+    status: pending
+    next_action: 阅读现有 zw-brain-web/js/pages.js（231KB bundle）提取 8 页面路由 + UI 模式；写选型评估 + spike P1
+    blocked_reason: null
+
+  - id: F2
+    deliverable: WebUI 构建管线 + 现有 bundle 替换
+    scope: vite 完整构建管线 + 等价替换现有 bundle；不含 8 页面完整重写
+    covers_ac:
+      - AC1
+    evidence_plan:
+      - 证据预算：构建产物与现有 bundle 功能等价 e2e + 部署清单更新
+      - 停止条件：现有 zw-brain-web 路由全部跑通；用户登录 + 8 页面可达
+    actual_evidence: []
+    depends_on:
+      - F1
+    status: pending
+    next_action: 把现有 vanilla JS 逻辑迁到框架组件；保留路由不变
+    blocked_reason: null
+
+  - id: F3
+    deliverable: 8 页面成品化（P1-P5/P7 + B1.1/B1.2）装载 sd-default 真实数据
+    scope: 8 页面骨架 + 真实数据接入；不含 J1/J2 业务交互（等 E1/E2 后端）+ 不含三引擎配置页（等 E3）+ 不含 B1 业务面（等 E4）
+    covers_ac:
+      - AC2
+    evidence_plan:
+      - 证据预算：8 页面截图（含真实数据）+ check_ui_spec_b + check_ui_term_blacklist 双绿
+      - 停止条件：8 页面可达 + 真实数据可见 + 工程术语黑名单不报红
+    actual_evidence: []
+    depends_on:
+      - F2
+    status: pending
+    next_action: 按 8 页面架构 §5.2 表 P1-P5/P7/B1.1/B1.2 落组件
+    blocked_reason: null
+
+  - id: F4
+    deliverable: 5 消费面投影器扩展（scripts/export_agent_contract.py）
+    scope: 派生 WebUI 页面注册 / REST OpenAPI / CLI spec / MCP manifest / A2A card；不含投影目录的人工 patch
+    covers_ac:
+      - AC3
+    evidence_plan:
+      - 证据预算：5 投影目录全自动生成 + AUTO-GENERATED banner + check_no_hand_maintained_projection.py（新增）不报红
+      - 停止条件：5 投影从 200 manifest 派生且无手维护
+    actual_evidence: []
+    depends_on: []
+    status: pending
+    next_action: 阅读 scripts/export_agent_contract.py 现有派生逻辑；扩展 5 个生成器；新增 preflight 段
+    blocked_reason: null
+
+  - id: F5
+    deliverable: CLI 生产硬化——能 headless 跑完 J1 全链路用 sd-default 真数据
+    scope: CLI 命令树 + headless 完整路径；不含交互式 TUI
+    covers_ac:
+      - AC4
+    evidence_plan:
+      - 证据预算：scripts/headless_j1_demo.sh 输出 + zw_brain/entry/cli/main.py 完整命令树
+      - 停止条件：CLI 能跑通 J1 检索→申请→审批→凭据→调用
+    actual_evidence: []
+    depends_on:
+      - F4
+    status: pending
+    next_action: 把 zw_brain/entry/cli/main.py 从 23 LOC 骨架扩到完整命令树；从 F4 投影器派生命令注册
+    blocked_reason: J1 后端 handler 等 E1（e1/plan.yaml F1-F8）就位；CLI 命令树骨架本项可先跑
+  - id: F6
+    deliverable: MCP/A2A 生产硬化——MCP 工具/资源可被 Cursor/Claude 调；A2A card 可发现
+    scope: MCP server + A2A card；不含 AgentRuntime（归 E4）
+    covers_ac:
+      - AC4
+    evidence_plan:
+      - 证据预算：MCP server Cursor 实测连通 + A2A card 可发现日志
+      - 停止条件：外部 IDE/Agent 能调通至少 5 个 J1 高频 capability
+    actual_evidence: []
+    depends_on:
+      - F4
+    status: pending
+    next_action: 扩展 zw_brain/entry/mcp/server.py + entry/a2a/server.py；从 F4 投影器派生工具/skill 注册
+    blocked_reason: null
+
+  - id: F7
+    deliverable: 嵌入式自然语言加速器（P2/P3/B1.1/B1.2 减摩组件 UI）
+    scope: §5.4.4 减摩组件 UI 框架 + 4 处嵌入位；不含 NL 后端（归 E1/E3/E4）
+    covers_ac:
+      - AC5
+    evidence_plan:
+      - 证据预算：4 组件截图 + §5.4.6 六问自检通过记录
+      - 停止条件：组件不替代主页面 + 输出回落结构化
+    actual_evidence: []
+    depends_on:
+      - F3
+    status: pending
+    next_action: 设计 NLAcceleratorPanel 通用组件 + 在 P2/P3/B1.1/B1.2 4 处嵌入
+    blocked_reason: null
+
+  - id: F8
+    deliverable: 6 人解锁验证——至少 2 个其他 worker UI 任务在本 worker 完成 1 周内 land
+    scope: 与 E1 F6/F7/F8、E2 F4、E3 F7、E4 F3/F5 任一协作落 land
+    covers_ac:
+      - AC6
+    evidence_plan:
+      - 证据预算：≥2 个其他 worker 的 UI PR merged
+      - 停止条件：解锁验证通过
+    actual_evidence: []
+    depends_on:
+      - F3
+    status: pending
+    next_action: F3 完成后通知 E1/E2/E3/E4 接入；追踪其 UI PR
+    blocked_reason: null

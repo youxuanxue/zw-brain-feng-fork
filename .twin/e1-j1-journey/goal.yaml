@@ -1,0 +1,36 @@
+schema_version: 1
+id: e1-j1-journey
+one_liner: 让 J1 找数→用数旅程在 sd-default 真实数据上跑通含异议 5 维度的完整闭环
+
+core_goal: |
+  消费 M0 一次性迁移产出的 sd-default canonical（dump-dsp_catalog 161 表 + dump-dsp_require 29 表
+  + dump-dsp_handling 10 表），让 ROLE_BUSIAUDIT 在 30 分钟内端到端跑通：
+  P2 资源发现搜到`医疗救助信息`/`医保码信息`/`异地就医统筹区开通信息` →
+  P3 草拟申请并通过有条件/无条件分支审批 →
+  P4 凭据领取（API Key + curl/Python/Java 样例 + 配额 + 监控入口）→
+  发起异议（5 维度任一）→ 部门响应 → 平台仲裁 → 评价归档。
+  共享纪律见 .twin/README.md（撞 M0 墙路径：catalog_metadata.py / objection.py）。
+
+acceptance_criteria:
+  - id: AC1
+    statement: J1 异议处理 5 维度（authz/catalog/content/resource/use）独立状态机 + evaluate/process 辅助流程在 sd-default 真实异议历史上完整闭环
+    evidence_type: tests/integration/test_wave1_objection_5dim_state.py 全绿 + 真实 dump 跑通的 e2e 截图
+  - id: AC2
+    statement: J1 供需对接子流程 6 步（找不到数据→登记需求→智能推荐失败→人工需求登记→部门响应→订阅）可跑
+    evidence_type: tests/e2e supply-demand feature 全绿 + .testing/waves/wave-1-j1-j2-closed-loop/features/j1-supply-demand-meta-merge.feature 实现
+  - id: AC3
+    statement: P4 凭据领取生产化——授权码 + API Key + curl/Python/Java 三语调用样例 + 配额展示 + 监控入口
+    evidence_type: P4 页面截图（含真实 sd-default 资源调用样例） + 凭据下发审计事件
+  - id: AC4
+    statement: P2 搜索上下文助手 + P3 申请草拟与审批依据助手 + P4 状态解释助手三处 AI 减摩组件就位
+    evidence_type: 三个 AI 减摩组件页面截图 + reverse_draft_suggest.py 真实调用推理客户端的日志
+  - id: AC5
+    statement: 30 分钟客户演示能完整跑通 J1 含异议，由业务方在 sd-default 真实数据上签字
+    evidence_type: 验收脚本退出码 0 + 业务方 sign-off（PR comment 或 issue label `business-signoff`）
+
+non_goals:
+  - 不做 J2 编目/上架/发布（归 E2）
+  - 不做 Wave 2 三引擎中的审批流可视化编辑器（归 E3）
+  - 不做 B1 后台合规/接入扩展中心（归 E4）
+  - 不重建 zw-brain-web 构建管线（等 E5 落地后并行）
+  - 不实现 AgentRuntime 外部 Agent 接入（归 E4 触发式）

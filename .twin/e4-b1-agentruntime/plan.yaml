@@ -1,0 +1,123 @@
+schema_version: 1
+goal_id: e4-b1-agentruntime
+items:
+  - id: F1
+    deliverable: 审计总线生产化——事件流三级分类 + 持久化 + 索引
+    scope: 写后端事件流 + 存储 schema + 索引；不含 UI；不含回放（F2）
+    covers_ac:
+      - AC1
+    evidence_plan:
+      - 证据预算：tests/integration/test_audit_bus.py 全绿 + 三级事件流真实写入 + 索引查询性能 e2e
+      - 停止条件：51 LOC stub 替换为生产代码；段 audit-must-block 不报红
+    actual_evidence: []
+    depends_on: []
+    status: pending
+    next_action: 重写 zw_brain/shared/audit/__init__.py 为完整事件流；新增 zw_brain/shared/audit/store.py（持久化）+ index.py
+    blocked_reason: null
+
+  - id: F2
+    deliverable: 审计回放 + 查询 API
+    scope: 回放 API + 查询 API；不含 UI（F3 做 UI）
+    covers_ac:
+      - AC1
+    evidence_plan:
+      - 证据预算：tests/integration/test_audit_replay.py + 真实 sd-default 一条审批链回放
+      - 停止条件：能按 actor/skill/tenant/time 查询并回放
+    actual_evidence: []
+    depends_on:
+      - F1
+    status: pending
+    next_action: 设计 audit.event.query / audit.event.replay 两个 capability manifest 并实装
+    blocked_reason: null
+
+  - id: F3
+    deliverable: B1.1 合规与运营 4 panel 后端 + UI
+    scope: 审计回放/统计/异常/追责 4 panel；含调查摘要 AI 助手；UI 等 E5 webui 重建后接入
+    covers_ac:
+      - AC2
+    evidence_plan:
+      - 证据预算：B1.1 4 panel 截图 + tests/e2e/b11_compliance.spec.ts + 710 用户真实回放演示
+      - 停止条件：4 panel 都能展示真实 sd-default 数据；助手不覆盖原始证据
+    actual_evidence: []
+    depends_on:
+      - F2
+    status: pending
+    next_action: 实装 4 panel 后端 capability + 助手走 shared/inference/client；UI 等 E5
+    blocked_reason: 4 panel UI 等 E5 webui 构建管线（e5/plan.yaml F2）落地；后端 capability 本项可先跑
+
+  - id: F4
+    deliverable: B1.2 接入扩展中心后端
+    scope: 能力包审核/注册/启停/回滚 + 暴露矩阵 + 租户策略 + trust_level 升降级；不含 AgentRuntime T1 触发字段
+    covers_ac:
+      - AC3
+    evidence_plan:
+      - 证据预算：tests/integration/test_b12_intake.py + 200 manifest 矩阵展示
+      - 停止条件：能力包全生命周期可跑
+    actual_evidence: []
+    depends_on: []
+    status: pending
+    next_action: 实装 capability.package.* 系列 skill；扩展 zw_brain/skill_registration/runtime.py
+    blocked_reason: null
+
+  - id: F5
+    deliverable: B1.2 UI（含三引擎管理员配置页容器，与 E3 协作）
+    scope: B1.2 主框架 + 容器 slot 留给 E3 三引擎；UI 等 E5 webui 重建后接入
+    covers_ac:
+      - AC3
+    evidence_plan:
+      - 证据预算：B1.2 主流程 e2e + 与 E3 协商的 slot 接口文档
+      - 停止条件：三引擎管理员页能嵌入 B1.2
+    actual_evidence: []
+    depends_on:
+      - F4
+    status: pending
+    next_action: 等 E5 webui 重建后落 UI；本项先做接口契约 + 占位
+    blocked_reason: B1.2 UI 等 E5 webui 构建管线（e5/plan.yaml F2）落地；接口契约 + 占位本项可先跑
+
+  - id: F6
+    deliverable: AgentRuntime T1 触发式实装预案（即开即用，T1 未到不实装）
+    scope: 写好"T1 触发时 1 天内落地"的执行预案 + 准备 Registry schema diff + validate/doctor 脚本骨架（不 commit 主干）；T1 真实触发再 land
+    covers_ac:
+      - AC4
+    evidence_plan:
+      - 证据预算：docs/agent-runtime-t1-readiness.md 预案 + 脚本骨架 spike 在 worker 本地 + 触发时 1 天落地能力证明
+      - 停止条件：T1 未触发时 deferred；T1 触发时 1 天内 PR land + preflight 加段
+    actual_evidence: []
+    depends_on: []
+    status: deferred
+    next_action: 写 T1 readiness 预案文档；T1/T2/T3 触发条件 + 落地范围按架构 §8.6 + preflight-debt.md 2026-05-24 entry
+    blocked_reason: T1/T2/T3 任一触发前刻意不预先盖楼（架构 §8.6 硬约束）；触发由真实外部需求驱动，非时间驱动
+
+  - id: F7
+    deliverable: 5 borderline B1 业务报表 sign-off 闭环
+    scope: 与业务方逐一过 5 条 manifest（service.rating.submit / ops.{catalog,exchange,service}.*.statistics / ops.service.report.query）；判定 live 或翻 external
+    covers_ac:
+      - AC5
+    evidence_plan:
+      - 证据预算：业务方 sign-off 记录 + status 翻转后 export_agent_contract.py --check 零漂移 + preflight 段 22 一致
+      - 停止条件：5 条全部 sign-off 完成
+    actual_evidence: []
+    depends_on: []
+    status: pending
+    next_action: 准备 5 条 manifest 的语义 + 使用频度证据材料；约业务方下次 IA review 单独过
+    blocked_reason: null
+
+  - id: F8
+    deliverable: 安全审计员 + 业务方 sign-off + B1.1/B1.2 30 分钟验收
+    scope: B1.1 真实数据回放 + B1.2 能力包审核完整跑通；sign-off
+    covers_ac:
+      - AC6
+    evidence_plan:
+      - 证据预算：scripts/customer_demo_b1.sh + 安全审计员 + 业务方 sign-off
+      - 停止条件：双方签字；任一卡点 needs_human
+    actual_evidence: []
+    depends_on:
+      - F1
+      - F2
+      - F3
+      - F4
+      - F5
+      - F7
+    status: pending
+    next_action: F1-F5/F7 完成后写 scripts/customer_demo_b1.sh
+    blocked_reason: null

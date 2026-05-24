@@ -1,0 +1,141 @@
+schema_version: 1
+goal_id: e1-j1-journey
+items:
+  - id: F1
+    deliverable: 异议 catalog 维度状态机闭环（基于 dump-dsp_handling.data_objection_catalog 74 字段真实状态映射）
+    scope: 仅 catalog 维度；不动 content/resource/use/authz 4 维度；不做 UI 嵌入
+    covers_ac:
+      - AC1
+    evidence_plan:
+      - 证据预算：tests/test_wave1_objection_5dim_state.py 中 catalog 维度用例全绿 + 真实 dump 一条 catalog 异议从发起到归档的 audit_event 序列
+      - 停止条件：catalog 维度 6 状态可达性测试通过；任一状态缺失映射时 needs_human 询问是否提 M0 PR
+    actual_evidence: []
+    depends_on: []
+    status: pending
+    next_action: 运行 `python -m zw_brain.entry.legacy_migration --dumps-dir old/10示例数据 --db-path .data/zw_brain.db --reset-db --report .data/m0-report.json --acceptance` 后查 objection_case 表中 catalog 维度真实记录是否齐全；对照 zw_brain/domain/models.py:498 application_record + objection.py mapper
+    blocked_reason: null
+
+  - id: F2
+    deliverable: 异议 content/use/resource/authz 4 维度状态机闭环
+    scope: 4 维度逐一过；不做 evaluate/process 辅助流程
+    covers_ac:
+      - AC1
+    evidence_plan:
+      - 证据预算：tests/test_wave1_objection_5dim_state.py 4 维度用例全绿 + 每维度真实 dump 异议一条 e2e
+      - 停止条件：4 维度状态机全绿；若 mapper 缺字段映射则提 M0 PR 后 needs_human
+    actual_evidence: []
+    depends_on:
+      - F1
+    status: pending
+    next_action: 对照 dump-dsp_handling 的 data_objection_content 89 / _use 155 / _resource 132 / _authz 54 字段，扩展 zw_brain/adapters/legacy/mappers/objection.py 与 brain.py 对应 invoke_skill 分支
+    blocked_reason: null
+
+  - id: F3
+    deliverable: 异议 evaluate/process 辅助流程 + UI 嵌入 P3/P5 异议响应面
+    scope: evaluate 评价 + process 处理过程 2 张流程辅助表；UI 仅 P3 嵌入；P5 嵌入由 E2 协作完成不在本项
+    covers_ac:
+      - AC1
+    evidence_plan:
+      - 证据预算：tests/e2e/objection_lifecycle.spec.ts（新增）+ P3 异议响应面截图
+      - 停止条件：异议响应 → 评价回写 audit_event 链通；UI 工程术语黑名单 preflight 段 24 不报红
+    actual_evidence: []
+    depends_on:
+      - F2
+    status: pending
+    next_action: 阅读 .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-catalog.feature 后落地 evaluate/process 状态机；UI 嵌入需等 E5 webui 重建后真正接入，先做骨架 + tests/integration
+    blocked_reason: null
+
+  - id: F4
+    deliverable: J1 供需对接子流程 6 步实装（消费 dump-dsp_require 真实需求历史）
+    scope: meta 合并而非数据合并；不含部门匹配 AI 推荐（归 E3 Wave 2）；先内置规则匹配
+    covers_ac:
+      - AC2
+    evidence_plan:
+      - 证据预算：.testing/waves/wave-1-j1-j2-closed-loop/features/j1-supply-demand-meta-merge.feature 转 pytest 全绿
+      - 停止条件：6 步状态机通；推荐失败转人工需求登记的分支可跑
+    actual_evidence: []
+    depends_on: []
+    status: pending
+    next_action: 把 .testing/.../j1-supply-demand-meta-merge.feature 的 Given/When/Then 转 tests/test_wave1_j1_supply_demand.py；从 dump-dsp_require 真实数据起步
+    blocked_reason: null
+
+  - id: F5
+    deliverable: P4 凭据领取生产化（API Key + curl/Python/Java 样例 + 配额 + 监控入口）
+    scope: 凭据生成 + 三语样例渲染 + 配额展示；监控入口仅链接到 §3.4 集团运维监控；不做监控 dashboard 内嵌
+    covers_ac:
+      - AC3
+    evidence_plan:
+      - 证据预算：P4 页面截图 + 真实 sd-default 资源的 curl 一次成功调用 log + audit_event 凭据下发记录
+      - 停止条件：凭据下发能审计 + 三语样例可复制粘贴跑通
+    actual_evidence: []
+    depends_on: []
+    status: pending
+    next_action: 在 zw_brain/command/handlers/j1/credential.py（待 E6 拆分后）或暂时在 brain.py 实装 credential.issue capability；UI 等 E5 webui 重建后接入，先做后端 + 集成测试
+    blocked_reason: UI 部分等 E5 webui 构建管线落地（参考 e5/plan.yaml F2）后再接入；后端 + 集成测试本项可先跑
+
+  - id: F6
+    deliverable: P2 搜索上下文助手（语义入口：意图解析 + 缺口追问 + 推荐理由）
+    scope: 减摩组件；不替代目录树、筛选器、资源详情（§5.4.4 反约束）；调用走 shared/inference/client
+    covers_ac:
+      - AC4
+    evidence_plan:
+      - 证据预算：P2 助手 5 种典型一句话查询的解析结果 + 推理调用走 inference/client 的 log 证据
+      - 停止条件：减摩组件可见、可关闭、可降级；preflight 段 10 不报红
+    actual_evidence: []
+    depends_on:
+      - F5
+    status: pending
+    next_action: 在 zw_brain/command/reverse_draft_suggest.py 扩展 search_intent_parse skill；UI 等 E5 后接入
+    blocked_reason: UI 嵌入等 E5 webui 构建管线（参考 e5/plan.yaml F2）落地后接入；skill 后端本项可先跑
+
+  - id: F7
+    deliverable: P3 申请草拟助手 + 审批依据助手（双组件，§5.4.4）
+    scope: 草拟助手预填 + 风险预估；审批助手归纳依据 + 反事实；都不替人提交
+    covers_ac:
+      - AC4
+    evidence_plan:
+      - 证据预算：P3 双助手页面截图 + 草拟 5 个真实 sd-default 申请样例 + 审批助手对 5 个真实历史申请的归纳输出
+      - 停止条件：助手输出回落结构化字段；不直接触发写操作
+    actual_evidence: []
+    depends_on:
+      - F6
+    status: pending
+    next_action: 设计 application.draft.suggest + approval.evidence.summarize 两个 capability manifest 并注册
+    blocked_reason: null
+
+  - id: F8
+    deliverable: P4 状态解释助手（§5.4.4 状态解释）
+    scope: 仅解释阶段、异常原因、影响范围；不替代时间线、回执
+    covers_ac:
+      - AC4
+    evidence_plan:
+      - 证据预算：P4 助手对 5 个真实 sd-default 交付任务的解释输出
+      - 停止条件：解释带证据来源；不评价
+    actual_evidence: []
+    depends_on:
+      - F5
+    status: pending
+    next_action: 注册 delivery.status.explain capability manifest
+    blocked_reason: null
+
+  - id: F9
+    deliverable: 30 分钟 J1 客户演示验收脚本 + 业务方 sign-off
+    scope: 包含 J1 检索→草稿→审批→凭据→调用→异议 5 维度任一全链路；纯 sd-default 真数据；无 mock
+    covers_ac:
+      - AC5
+    evidence_plan:
+      - 证据预算：scripts/customer_demo_j1.sh 退出码 0 + 业务方 sign-off（PR comment 或 issue label）+ 30 分钟时长记录
+      - 停止条件：业务方在 sd-default 数据上签字；任一卡点 needs_human
+    actual_evidence: []
+    depends_on:
+      - F1
+      - F2
+      - F3
+      - F4
+      - F5
+      - F6
+      - F7
+      - F8
+    status: pending
+    next_action: 在 F1-F8 全部 accepted_done 后，写 scripts/customer_demo_j1.sh 并预演一次；准备 sign-off 沟通材料
+    blocked_reason: null

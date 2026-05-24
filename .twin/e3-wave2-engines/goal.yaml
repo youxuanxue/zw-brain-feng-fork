@@ -1,0 +1,36 @@
+schema_version: 1
+id: e3-wave2-engines
+one_liner: Wave 2 三引擎落地，让客户落地 ≤1 周不改代码完成项目级流程/表单/推荐定制
+
+core_goal: |
+  R14 兑现：把以前必须"改代码 + 改库"才能做的项目级个性化，提升为"自然语言生成 schema 草稿
+  → 管理员结构化预览 → 确认入库"三步可配置物，由 zw-brain 内建 Capability 承接。
+  三大引擎：审批流可视化（节点+选人规则+条件分支 schema 化）+ 表单 schema 化（字段+校验+布局）+
+  智能推荐前置（基于 sd-default dump-dsp_require 真实历史 + dump-data_resource 真实元数据）。
+  AI 调用必须走 shared/inference/client 经集团推理平台（preflight 段 10）；
+  config_change_class 字段已就位（live|preview|draft），三引擎是 preview/draft 流的首消费方。
+  最终验收：用三引擎在 1 周内完成"鞍山 4 级审批 + 四川 7 字段表单 + 荆州 5 条推荐规则"项目级交付。
+
+acceptance_criteria:
+  - id: AC1
+    statement: 审批流可视化引擎——内置「有条件 / 无条件共享」基线 + 项目级编辑器（节点+选人+条件分支可配置）+ 草稿→预览→入库三步流程
+    evidence_type: tests/integration/test_approval_flow_engine.py + 编辑器页面截图 + 鞍山 4 级流程配置示例完整入库
+  - id: AC2
+    statement: 表单 schema 化引擎——字段+校验+布局 schema 化，自然语言生成字段定义草稿，管理员入库
+    evidence_type: tests/integration/test_form_schema_engine.py + 表单编辑器页面截图 + 四川 7 字段配置示例完整入库
+  - id: AC3
+    statement: 智能推荐前置引擎——基于 sd-default dump-dsp_require 历史 + dump-data_resource 元数据，相似目录推荐失败再转人工需求登记
+    evidence_type: tests/integration/test_recommendation_engine.py + 推荐 5 个真实历史申请的命中率报告 + 荆州 5 条推荐规则配置示例
+  - id: AC4
+    statement: 三引擎管理员配置页 UI（B1.2 子集，与 E4 边界协商）
+    evidence_type: 三引擎配置页截图 + 管理员草稿/预览/入库三步操作 e2e
+  - id: AC5
+    statement: 客户落地周期验证——1 周内不改代码完成鞍山+四川+荆州三个项目级定制
+    evidence_type: 三个配置示例完整入库 + 时长记录 + 业务方 sign-off
+
+non_goals:
+  - 不做 J1/J2 旅程主体（归 E1/E2）
+  - 不实装 AgentRuntime 外部 Agent 接入（归 E4）
+  - 不做 B1.1 合规与运营主体功能（归 E4）
+  - 不做 B1.2 接入扩展中心的能力包审核流程（归 E4，仅借用 B1.2 UI 容器）
+  - 不直连任何第三方 LLM（共享纪律，见 .twin/README.md）

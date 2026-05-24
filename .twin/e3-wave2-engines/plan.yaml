@@ -1,0 +1,125 @@
+schema_version: 1
+goal_id: e3-wave2-engines
+items:
+  - id: F1
+    deliverable: 审批流引擎数据模型 + 状态机（节点 + 选人规则 + 条件分支 schema）
+    scope: 数据模型 + 状态机；不含 NL 草稿生成；不含 UI
+    covers_ac:
+      - AC1
+    evidence_plan:
+      - 证据预算：tests/integration/test_approval_flow_engine.py 数据模型用例 + 状态机可达性证明
+      - 停止条件：模型可序列化、可校验、可入库；config_change_class:draft/preview/live 三态可流转
+    actual_evidence: []
+    depends_on: []
+    status: pending
+    next_action: 在 zw_brain/domain/models.py 增加 ApprovalFlowSchema/Node/SelectionRule/Branch 模型；新增对应 capability manifest 标 audit_class:write-critical
+    blocked_reason: null
+
+  - id: F2
+    deliverable: 审批流引擎内置基线（有条件 / 无条件共享两种默认流程）+ J1 集成
+    scope: 两种基线流程入库；E1 的 J1 申请走基线流程；不含项目级定制
+    covers_ac:
+      - AC1
+    evidence_plan:
+      - 证据预算：tests/integration/test_approval_flow_baseline.py + 与 E1 J1 集成 e2e
+      - 停止条件：J1 申请按 shared_type=1/2 自动选择对应基线流程
+    actual_evidence: []
+    depends_on:
+      - F1
+    status: pending
+    next_action: 实装 ApprovalFlowBaselineSeeder；改 E1 的 application.submit handler 调用基线
+    blocked_reason: 等 E1 J1 申请提交 handler 稳定后改其调用基线；本项 seeder 本身可先跑
+
+  - id: F3
+    deliverable: 审批流引擎 NL 草稿生成（管理员侧）+ 三步流程（草稿→预览→入库）
+    scope: NL 调用经 shared/inference/client；草稿不直接生效；管理员确认才入库
+    covers_ac:
+      - AC1
+    evidence_plan:
+      - 证据预算：tests/integration/test_approval_flow_nl_draft.py + 鞍山 4 级流程从一句话到入库的 e2e
+      - 停止条件：NL 草稿可生成 + 管理员可编辑预览 + 入库后立即生效
+    actual_evidence: []
+    depends_on:
+      - F1
+    status: pending
+    next_action: 扩展 zw_brain/command/reverse_draft_suggest.py 增 approval_flow.nl_draft skill；preflight 段 10 不报红
+    blocked_reason: null
+
+  - id: F4
+    deliverable: 表单 schema 化引擎数据模型 + 校验
+    scope: 字段 + 校验 + 布局 schema；不含 NL 草稿；不含 UI
+    covers_ac:
+      - AC2
+    evidence_plan:
+      - 证据预算：tests/integration/test_form_schema_engine.py 数据模型用例 + 校验规则覆盖
+      - 停止条件：表单 schema 可被 J1/J2 表单页面消费
+    actual_evidence: []
+    depends_on: []
+    status: pending
+    next_action: 设计 FormSchema/Field/Validator 模型 + JSON Schema 兼容
+    blocked_reason: null
+
+  - id: F5
+    deliverable: 表单 schema NL 草稿生成 + 三步入库
+    scope: NL 走 shared/inference/client；草稿不直接生效
+    covers_ac:
+      - AC2
+    evidence_plan:
+      - 证据预算：tests/integration/test_form_schema_nl_draft.py + 四川 7 字段从一句话到入库 e2e
+      - 停止条件：NL 生成 + 管理员入库
+    actual_evidence: []
+    depends_on:
+      - F4
+    status: pending
+    next_action: 扩展 reverse_draft_suggest.py 增 form_schema.nl_draft skill
+    blocked_reason: null
+
+  - id: F6
+    deliverable: 智能推荐前置引擎（基于 sd-default 真实历史数据）
+    scope: 相似目录推荐 + 推荐失败转人工需求登记；不做实时学习
+    covers_ac:
+      - AC3
+    evidence_plan:
+      - 证据预算：tests/integration/test_recommendation_engine.py + 真实 dump-dsp_require 5 条历史申请的推荐输出 + 命中率报告
+      - 停止条件：推荐有证据支撑；失败可降级人工登记
+    actual_evidence: []
+    depends_on: []
+    status: pending
+    next_action: 设计 recommendation.similar_catalog skill；嵌入 P3 申请入口前置；荆州 5 条规则示例入库
+    blocked_reason: null
+
+  - id: F7
+    deliverable: 三引擎管理员配置页 UI（B1.2 子集）
+    scope: 三引擎入口 + 草稿/预览/入库三步；UI 工程术语黑名单遵守
+    covers_ac:
+      - AC4
+    evidence_plan:
+      - 证据预算：三引擎配置页 e2e + R12 工程术语黑名单 preflight 段 24 不报红
+      - 停止条件：管理员能完整跑三步配置
+    actual_evidence: []
+    depends_on:
+      - F3
+      - F5
+      - F6
+    status: pending
+    next_action: 与 E4 协商 B1.2 UI 容器边界；与 E5 协商前端组件库；等 E5 webui 重建后接入
+    blocked_reason: 等 E5 webui 构建管线（e5/plan.yaml F2）+ E4 B1.2 UI 容器（e4/plan.yaml F5）就位
+
+  - id: F8
+    deliverable: 客户落地周期验证 + 三个项目级定制 sign-off
+    scope: 鞍山 4 级审批 + 四川 7 字段表单 + 荆州 5 条推荐规则全部入库且生效；时长 ≤1 周
+    covers_ac:
+      - AC5
+    evidence_plan:
+      - 证据预算：三个配置示例入库 + 时长记录 + 业务方 sign-off
+      - 停止条件：三个示例端到端运行；业务方签字
+    actual_evidence: []
+    depends_on:
+      - F2
+      - F3
+      - F5
+      - F6
+      - F7
+    status: pending
+    next_action: 在 F2/F3/F5/F6/F7 完成后启动 1 周验证窗口；准备 sign-off 材料
+    blocked_reason: null

@@ -1,0 +1,133 @@
+schema_version: 1
+goal_id: e6-platform-m0
+items:
+  - id: F1
+    deliverable: brain.py 拆分（8368 LOC → command/dispatch.py + command/handlers/{j1,j2,b1,infra}/）
+    scope: 纯重构 + 接口不变 + 测试 100% 不退化；不动业务逻辑
+    covers_ac:
+      - AC1
+    evidence_plan:
+      - 证据预算：拆分 PR diff + tests 全绿 + 各 handler 子目录 LOC 报告
+      - 停止条件：brain.py ≤500 LOC + 18 tests/test_*.py 100% 不退化
+    actual_evidence: []
+    depends_on: []
+    status: pending
+    next_action: 阅读 zw_brain/command/brain.py 完整结构；按 BrainService 类内 invoke_skill 分支拆分；新增 handlers/ 子目录
+    blocked_reason: null
+
+  - id: F2
+    deliverable: 推理客户端生产化（187 LOC mock → 真实集团推理平台 SDK + 保留 mock 模式）
+    scope: 真实 SDK 接入 + mock 模式开关；不含三引擎 NL 调用（归 E3 消费）
+    covers_ac:
+      - AC2
+    evidence_plan:
+      - 证据预算：tests/integration/test_inference_client.py + 真实调用 e2e + preflight 段 10 不报红
+      - 停止条件：真实模式 + mock 模式双跑通；preflight 不报红
+    actual_evidence: []
+    depends_on: []
+    status: pending
+    next_action: 等集团推理平台 SDK 文档/凭据；同时实装本机 mock 模式开关
+    blocked_reason: 真实 SDK 接入等集团推理平台凭据/文档下发；mock 模式开关本项可先跑
+  - id: F3
+    deliverable: M0 mapper 覆盖判定表（7 个未做 dump 逐一确认 §3.4/§5.6 不复造 or 漏做）
+    scope: docs/deployment/m0-mapper-coverage.md 新增；漏做项各自补 mapper PR（按需）
+    covers_ac:
+      - AC4
+    evidence_plan:
+      - 证据预算：判定表完整 + 7 dump 字段逐一过 + 漏做项 PR 链接
+      - 停止条件：7 dump 全部判定且补完
+    actual_evidence: []
+    depends_on: []
+    status: pending
+    next_action: 对照 old/12-datastructure/*.xml + old/10示例数据/dump-*.sql + 基线 §3.4/§5.6 + 现有 zw_brain/adapters/legacy/mappers/ 10 mapper，逐一过
+    blocked_reason: null
+
+  - id: F4
+    deliverable: 5 类投影状态可见 + 失败摘要可读
+    scope: search / 共享专题 / 质量 / 血缘 / 运营统计 投影状态 API + 失败摘要；不含 B1.1 UI（归 E4 F3）
+    covers_ac:
+      - AC5
+    evidence_plan:
+      - 证据预算：tests/integration/test_projection_status.py + B1.1 投影状态 API 端到端
+      - 停止条件：5 类投影状态 + 失败摘要可被 B1.1 消费
+    actual_evidence: []
+    depends_on:
+      - F3
+    status: pending
+    next_action: 扩展 zw_brain/adapters/legacy/mappers/projections.py（385 LOC）+ 新增 capability projection.status.query
+    blocked_reason: null
+
+  - id: F5
+    deliverable: M0 现场实施面 UI（12 步主旅程浏览器化）
+    scope: 12 步从 CLI 升级浏览器；UI 等 E5 webui 重建后接入；本项做后端 + 流程编排
+    covers_ac:
+      - AC3
+    evidence_plan:
+      - 证据预算：M0 浏览器实施面 e2e + 12 步可视化截图 + 客户现场实施人 sign-off
+      - 停止条件：实施人能在浏览器跑完 12 步
+    actual_evidence: []
+    depends_on:
+      - F3
+    status: pending
+    next_action: 设计 m0.migration.* 系列 capability；本项做后端 + 流程编排；UI 等 E5
+    blocked_reason: M0 实施面 UI 等 E5 webui 构建管线（e5/plan.yaml F2）落地；后端 + 流程编排本项可先跑
+
+  - id: F6
+    deliverable: 测试 pyramid trusted-payload helper 改造
+    scope: 提取 tests/_trusted_payload.py + 所有 mutate skill 集成测试改走该 helper
+    covers_ac:
+      - AC6
+    evidence_plan:
+      - 证据预算：tests/_trusted_payload.py + 至少 10 个 mutate skill 集成测试改造 + 解决 PR #79 类 bug 的护栏
+      - 停止条件：mutate skill 集成测试不再绕过 trust-stamp
+    actual_evidence: []
+    depends_on: []
+    status: pending
+    next_action: 提取 helper；按 mutate skill 列表逐一改造
+    blocked_reason: null
+
+  - id: F7
+    deliverable: Wave 2/3/4 测试 features 填充 + 转 pytest
+    scope: .testing/waves/wave-{2,3,4} 全部 features 填充 + 关键 features 转 pytest
+    covers_ac:
+      - AC6
+    evidence_plan:
+      - 证据预算：3 wave features 文件 + 至少 5 个 features 转 pytest 全绿
+      - 停止条件：3 wave features 不再仅有 README
+    actual_evidence: []
+    depends_on:
+      - F6
+    status: pending
+    next_action: 对照 .testing/cleanup-plan.md + 基线 §10.3-10.5 写 features
+    blocked_reason: null
+
+  - id: F8
+    deliverable: CI/CD + 客户机房部署 + 监控对接集团运维监控
+    scope: staging 部署 + 灰度 + 回滚 + 监控对接；不含 legacy retirement
+    covers_ac:
+      - AC7
+    evidence_plan:
+      - 证据预算：scripts/deploy_*.sh + Dockerfile_v1.0.0 升级 + 客户机房 dry-run + 监控 dashboard 接入证据
+      - 停止条件：客户机房能 dry-run 部署且监控接通
+    actual_evidence: []
+    depends_on:
+      - F1
+      - F2
+    status: pending
+    next_action: 与客户运维对齐机房环境；升级 Dockerfile_v1.0.0
+    blocked_reason: null
+
+  - id: F9
+    deliverable: M0 PR @reviewer 责任承担（其他 worker 撞 M0 墙时提的 PR 通过 GitHub @ E6 持有人 review）
+    scope: 跨 worker 的 M0 PR review；不主动写 M0 业务逻辑（响应式）
+    covers_ac:
+      - AC4
+    evidence_plan:
+      - 证据预算：已 review 的 M0 PR 列表（GitHub PR comment + reviewer 记录）
+      - 停止条件：本 worker 持续承担直到全部 wave 验收
+    actual_evidence: []
+    depends_on:
+      - F3
+    status: pending
+    next_action: 在 F3 完成后通知 5 worker：提 M0 PR 时 @feng222666888（E6 持有人）；GitHub PR review 通道驱动，不开定期会议
+    blocked_reason: null
