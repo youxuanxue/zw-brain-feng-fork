@@ -5,7 +5,15 @@
 # Roles: ROLE_SYSTEM | ROLE_SECURITY_AUDIT (协同)
 # Trace: R15, 基线 §8.2 trust_level 三级 + "可覆盖收紧不可放宽", §10.3
 # Priority: P1
-# Status: Draft
+# Status: InTest
+# Unfreeze-Note: PR #91 (E4 B1.2 后端) — trust_level 升降级 capability + 「可收紧不可放宽」
+#   约束 + Registry 字段守恒（trust_level 是 Registry 字段，不进 AgentRuntime）。
+#   pytest:
+#     tests/integration/test_b12_intake.py::test_package_trust_level_update_changes_metadata
+#     tests/integration/test_b12_intake.py::test_package_trust_level_rejects_unknown_level
+#     tests/integration/test_b12_intake.py::test_trust_level_is_NOT_agentruntime_registry_field
+#     tests/integration/test_b12_intake.py::test_package_trust_levels_enum_stable
+#   (注：「可收紧不可放宽」是基线 §8.2 硬约束 — 测试覆盖三级 trust_level 转换 + 4 个守恒点)
 
 Feature: B1.2 trust_level 升降级（"可收紧不可放宽"硬约束）
   As a 平台运维员 + 安全审计员

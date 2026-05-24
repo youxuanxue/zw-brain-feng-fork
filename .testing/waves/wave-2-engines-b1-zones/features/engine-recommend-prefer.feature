@@ -5,7 +5,13 @@
 # Roles: ROLE_ORGAN_OPERATER
 # Trace: R14, 基线 §10.3 智能推荐前置, 业务反馈 #6 (一开始不确定要哪些目录时应有推荐)
 # Priority: P1
-# Status: Draft
+# Status: InTest
+# Unfreeze-Note: PR #92 (2026-06-X) — Wave-2 三引擎落地：智能推荐引擎（基于"类似需求"+协同过滤）。
+#   pytest:
+#     tests/integration/test_recommendation_engine.py — recommendation.similar_catalog.suggest +
+#       similar_user / co-occurrence / rule-based / hybrid 4 召回策略，含 surface_entry 投影
+#     tests/integration/test_wave2_three_engines_acceptance.py — 三引擎端到端 acceptance
+#   (注：业务反馈 #6 一开始不确定要哪些目录时应有推荐 — 由推荐 capability 在 P2 / P3 提示)
 
 Feature: 三引擎 #3 — 智能推荐前置
   As a 部门操作员（潜在申请人）

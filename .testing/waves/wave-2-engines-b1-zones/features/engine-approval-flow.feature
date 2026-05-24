@@ -5,7 +5,15 @@
 # Roles: ROLE_SYSTEM (配置) | ROLE_BUSIAUDIT (复核)
 # Trace: R8 / R14, 基线 §10.3 审批流可视化引擎, 业务反馈 #4 (鞍山"编制→二级部门审→一级部门审→发布")
 # Priority: P1
-# Status: Draft
+# Status: InTest
+# Unfreeze-Note: PR #92 (2026-06-X) — Wave-2 三引擎落地：审批流引擎 commit / promote / revert
+#   capability + nl_draft 推理路径 + schema lifecycle (draft → preview → live → tombstoned)。
+#   pytest:
+#     tests/integration/test_approval_flow_baseline.py — pre-engine 单步审批 baseline
+#     tests/integration/test_approval_flow_engine.py   — schema commit / promote / revert + 多步节点 / 条件分支
+#     tests/integration/test_approval_flow_nl_draft.py — 自然语言起草 schema → 落 draft
+#     tests/integration/test_wave2_three_engines_acceptance.py — 三引擎端到端 acceptance
+#   (注：业务反馈 #4 鞍山"二级部门审 → 一级部门审 → 发布"由 schema 配置驱动，无需改代码)
 
 Feature: 三引擎 #1 — 审批流可视化引擎
   As a 平台运维员 / 业务运营员

@@ -5,7 +5,13 @@
 # Roles: ROLE_SYSTEM | ROLE_BUSIAUDIT
 # Trace: R8 / R14, 基线 §10.3 表单 schema 化引擎, 业务反馈 #17 (四川 / 荆州都改表单)
 # Priority: P1
-# Status: Draft
+# Status: InTest
+# Unfreeze-Note: PR #92 (2026-06-X) — Wave-2 三引擎落地：表单 schema 化引擎 + NL 起草。
+#   pytest:
+#     tests/integration/test_form_schema_engine.py   — form_schema commit / promote / revert + field/validation/layout 校验
+#     tests/integration/test_form_schema_nl_draft.py — NL → form schema 起草路径
+#     tests/integration/test_wave2_three_engines_acceptance.py — 三引擎端到端 acceptance
+#   (注：业务反馈 #17 四川/荆州都改表单，由 schema 配置驱动，无需改代码 / 改库)
 
 Feature: 三引擎 #2 — 表单 schema 化引擎
   As a 平台运维员

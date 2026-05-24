@@ -5,7 +5,14 @@
 # Roles: ROLE_SYSTEM
 # Trace: R15, 基线 §8.3 Registry 最小字段, §8.4 注册流水线 UI 化, §10.3
 # Priority: P1
-# Status: Draft
+# Status: InTest
+# Unfreeze-Note: PR #91 (E4 B1.2 后端) + PR #97 (B1.2 UI panel)：能力包审核注册流水线
+#   (manifest → lint → audit → 注册) 后端 capability + UI panel 落地。
+#   pytest:
+#     tests/integration/test_b12_intake.py — exposure matrix filter / lifecycle transition validate /
+#       package metadata trust_level 字段 / cross-tenant 拒绝 / 8 cases
+#   (注：trust_level 升降级走 b1-2-trust-level-upgrade.feature；本 feature 聚焦
+#   package 注册流水线本身 — manifest 字段、生命周期态转换合法性、cross-tenant 隔离)
 
 Feature: B1.2 能力包审核注册（UI 化的 §8.4 流水线）
   As a 平台运维员
