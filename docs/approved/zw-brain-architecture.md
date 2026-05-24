@@ -643,7 +643,7 @@ legacy 门户的信息架构只能作为遗留能力索引，不再作为新 Web
 
 - J1 找数→用数：`<!-- stat:zwbrain.capability-budget-j1 -->65<!-- /stat -->` live capabilities
 - J2 挂数→维数：`<!-- stat:zwbrain.capability-budget-j2 -->42<!-- /stat -->` live capabilities
-- B1 后台支撑面：`<!-- stat:zwbrain.capability-budget-b1 -->59<!-- /stat -->` live capabilities
+- B1 后台支撑面：`<!-- stat:zwbrain.capability-budget-b1 -->60<!-- /stat -->` live capabilities
 - Infra 底座（鉴权 / 审计 / actor / adapter health）：`<!-- stat:zwbrain.capability-budget-infra -->17<!-- /stat -->` live capabilities
 
 这 4 个数字写进 `scripts/.stats.json`，preflight 段 8 自动校验。任意一项 drift（无论是增是减）都意味着 §5.1 旅程范围或底座边界被改动，**必须走 GATE 决策**，不允许悄悄漂移。

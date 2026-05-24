@@ -60,6 +60,8 @@ PERMISSION_ROLES = {
     "governance.policy_candidate.review.execute": {"ROLE_BUSIAUDIT"},
     "audit.replay_evidence_chain.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "audit.list.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # F4 5 类投影状态聚合（业务运营员 / 安全审计员 看投影 pipeline 健康度）
+    "projection.status.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     # F2: 正规化审计事件流的查询 + 回放面（安全审计员 / 主管部门 / 系统）
     "audit.event.query.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT", "ROLE_SYSTEM"},
     "audit.event.replay.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT", "ROLE_SYSTEM"},

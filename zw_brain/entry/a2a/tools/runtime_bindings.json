@@ -2110,6 +2110,46 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "projection.status.query",
+    "description": "聚合 search / 共享专题 / 质量 / 血缘 / 运营统计 5 类投影 record，按类型返回 total_rows / latest_updated_at / failed_count / failure_summary，给 业务运营员 / 安全审计员 看投影 pipeline 健康度。只读，零 side effect。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/projection.status.query",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string"
+        },
+        "tenant_id": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "projection.status.query.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "provider.view",
     "description": "查看模板版本、目录状态、资源与治理建议。",
     "protocol_type": "builtin_skill",

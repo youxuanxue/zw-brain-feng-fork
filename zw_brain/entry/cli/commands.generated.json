@@ -1171,6 +1171,26 @@
       ]
     },
     {
+      "skill_id": "projection.status.query",
+      "title": "查询 5 类投影状态 + 失败摘要",
+      "description": "聚合 search / 共享专题 / 质量 / 血缘 / 运营统计 5 类投影 record，按类型返回 total_rows / latest_updated_at / failed_count / failure_summary，给 业务运营员 / 安全审计员 看投影 pipeline 健康度。只读，零 side effect。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
       "skill_id": "provider.view",
       "title": "查看供给侧治理",
       "description": "查看模板版本、目录状态、资源与治理建议。",

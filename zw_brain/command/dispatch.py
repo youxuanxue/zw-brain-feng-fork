@@ -34,6 +34,7 @@ from zw_brain.command.handlers.b1 import (
     ops_service,
     ops_workflow,
     projection,
+    projection_status,
     recommendation_rule,
     registry,
     system_ops,
@@ -164,6 +165,8 @@ DISPATCH_TABLE: dict[str, Handler] = {
     # turn 5: B1 — projection (2 cap)
     "org.projection.sync": projection.handler_org_projection_sync,
     "actor.projection.sync": projection.handler_actor_projection_sync,
+    # F4 turn 1: B1 — projection_status (1 cap, 5 类投影 health aggregator)
+    "projection.status.query": projection_status.handler_projection_status_query,
     # turn 5: B1 — audit (8 cap; +2 F2 audit.event.{query,replay}, +4 F3-backend
     # audit.event.{statistics,anomaly,accountability} + assistant.investigation_summary)
     "audit.list": audit.handler_audit_list,

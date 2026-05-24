@@ -160,11 +160,12 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `zone.publish_topic_projection` | j2 | `publish_zone_topic_projection` | 6913 |
 | `zone.view` | j2 | `get_zone` | 4106 |
 
-## B1 后台支撑 — 41 caps
+## B1 后台支撑 — 42 caps
 
 | capability_id | bucket | method_name | method_lines |
 |---|---|---|---|
 | `actor.projection.sync` | b1 | `sync_actor_projection` | 1568 |
+| `projection.status.query` | b1 | `handler_projection_status_query` | F4 turn 1 新增 |
 | `approval_flow.schema.commit` | b1 | `handler_approval_flow_schema_commit` | E3 Wave-2 F1 新增 |
 | `approval_flow.nl_draft` | b1 | `handler_approval_flow_nl_draft` | E3 Wave-2 F3 新增 |
 | `approval_flow.schema.promote_to_preview` | b1 | `handler_approval_flow_schema_promote_to_preview` | E3 Wave-2 F3 新增 |
@@ -246,7 +247,7 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 
 - J1: 95 caps
 - J2: 37 caps
-- B1: 41 caps
+- B1: 42 caps
 - infra: 22 caps
 - 未归类: 0 caps
-- **合计：204 caps**
+- **合计：205 caps**

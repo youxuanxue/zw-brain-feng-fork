@@ -622,6 +622,20 @@
       "sideEffects": []
     },
     {
+      "id": "projection.status.query",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
       "id": "provider.view",
       "mode": "read",
       "humanConfirmationRequired": false,
