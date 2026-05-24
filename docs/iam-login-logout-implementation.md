@@ -33,20 +33,22 @@
 
 ## 2. 前端登录主流程
 
-前端认证入口在 `zw-brain-web/js/auth.js`。
+前端认证入口在 `zw-brain-web/src/composables/useAuth.ts`（F3 vite 化后从旧 vanilla `js/auth.js` 物理迁移）。
 
-关键函数：
+关键导出：
 
-- `bootstrapAuth()`：应用启动认证引导。
+- `bootstrap()`：应用启动认证引导。
 - `startLogin()`：请求后端生成 IAM 授权地址并跳转。
 - `exchangeCodeForToken(code, state)`：把 IAM 回跳 URL 中的授权码交给后端换会话。
 - `readCurrentSession()`：用现有 cookie 拉取当前会话的 public payload，用于新开标签页 bootstrap 与
   BroadcastChannel `login` 事件回调。
+- `authFetch(url, init)`：统一的 fetch 包装；写操作自动附 `X-CSRF-Token` header。
 
-启动时，`zw-brain-web/js/app.js` 调用：
+启动时，`zw-brain-web/src/main.ts` + `App.vue` 调用：
 
-```js
-await window.ZW_AUTH.bootstrapAuth();
+```ts
+import { bootstrap } from '@/composables/useAuth';
+await bootstrap();
 ```
 
 `bootstrapAuth()` 顺序：
@@ -111,10 +113,11 @@ zw-brain.auth.v1
 
 ## 4. 业务请求鉴权（/api/\*）
 
-前端通过 `window.ZW_AUTH.authFetch()` 统一发请求：
+前端通过 `authFetch()`（exported from `useAuth.ts`）统一发请求：
 
-```js
-const resp = await window.ZW_AUTH.authFetch('/api/snapshot?role=ROLE_ORGAN_OPERATER');
+```ts
+import { authFetch } from '@/composables/useAuth';
+const resp = await authFetch('/api/snapshot?role=ROLE_ORGAN_OPERATER');
 ```
 
 `authFetch` 行为：
@@ -255,7 +258,7 @@ ZW_BRAIN_IAF_INSECURE_TLS_DEV_ACK=development-only
 
 | 模块 | 路径 | 职责 |
 |---|---|---|
-| 前端 | `zw-brain-web/js/auth.js` | bootstrap、login/refresh/logout、authFetch、BroadcastChannel |
+| 前端 | `zw-brain-web/src/composables/useAuth.ts` | bootstrap、login/refresh/logout、authFetch、BroadcastChannel、5min refresh timer |
 | 后端入口 | `zw_brain/entry/rest/server.py` | 路由、cookie/CSRF、session store 集成 |
 | BFF 会话 | `zw_brain/shared/auth_session.py` | `AuthSessionStore` + `AuthSession` |
 | IAM 客户端 | `zw_brain/shared/iaf_oidc.py` | OIDC 客户端、JWKS、token 验签 |

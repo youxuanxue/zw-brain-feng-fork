@@ -70,6 +70,7 @@ done <<'CHECKS'
 段 26	scripts/check_twin_workspaces.py	twin-workspaces (.twin/ 6 workspace goal+plan schema valid)
 段 27	scripts/check_ruff.py	ruff (与 CI lint job 对齐，F821/F401/I001/E402)
 段 28	scripts/check_capability_registration.py	capability-registration (DISPATCH_TABLE + handlers + _CATEGORIZATION.md 三处一致)
+段 29	scripts/check_no_hand_maintained_projection.py	no-hand-maintained-projection (F4 5 消费面投影派生自单一 Registry)
 CHECKS
 
 echo ""

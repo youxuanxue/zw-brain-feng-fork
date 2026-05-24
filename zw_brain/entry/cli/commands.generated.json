@@ -1,0 +1,7135 @@
+{
+  "_generated_by": "scripts/export_agent_contract.py — DO NOT EDIT BY HAND. Regenerate via: python3 scripts/export_agent_contract.py",
+  "schema_version": 1,
+  "invoke_pattern": "zw-brain-cli <skill_id> --payload '<json>'",
+  "endpoint": "http://127.0.0.1:8800/api/skills",
+  "commands": [
+    {
+      "skill_id": "adapter.cascade.health.query",
+      "title": "查询级联健康",
+      "description": "查询级联 adapter 运行记录和最近状态。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "adapter_slug",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "adapter.external.mapping.query",
+      "title": "查询外部对象映射",
+      "description": "查询国家平台或级联系统外部对象与本地聚合的映射。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "external_system",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "local_aggregate_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "local_aggregate_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "approval.view",
+      "title": "查看审批详情",
+      "description": "查看审批建议、风险、影响和异常项。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "audit.list",
+      "title": "查看审计事件",
+      "description": "查看主链路审计事件流与证据摘要。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": []
+    },
+    {
+      "skill_id": "audit.replay_evidence_chain",
+      "title": "回放证据链",
+      "description": "按争议标识回放原始证据、关联审计事件、工单与知识建议。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "dispute_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.browse",
+      "title": "浏览真目录条目",
+      "description": "按 lifecycle / kind / owner / 关键词分页浏览 canonical catalog_entry。默认过滤 retired 噪声和 api-group 节点，给 WebUI 提供客户级浏览入口。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "kind",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "lifecycle",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "page",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "query",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.entry.query",
+      "title": "查询目录条目",
+      "description": "查询已进入 canonical 聚合的目录条目详情和列表。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "catalog_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "lifecycle_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "query",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.entry.reverse_draft.suggest",
+      "title": "反向编目智能预填",
+      "description": "对一个已采集 schema 输出三档预填建议：1) 字段中文名取自 column.comment / meta_standard_cn（高置信度，绿）；2) PII 模式匹配 + 内置中文映射（中置信度，黄）；3) 推理网关 LLM 占位（低置信度，橙）。提供方部门 在反向编目工作流卡片里据此一键提交 90% 预填好的草稿，而不必从空白开始。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "schema_ref",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.group.query",
+      "title": "查询目录分组",
+      "description": "查询目录分组投影，仅服务发现、专题和权限解释。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.model.field.query",
+      "title": "查询目录模型字段",
+      "description": "查询目录/台账模板字段口径、敏感级别和策略摘要。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "model_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.model.query",
+      "title": "查询目录模型",
+      "description": "查询目录/台账模板模型定义。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "model_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.resource_view",
+      "title": "查看资源详情",
+      "description": "查看模板或资源的覆盖率、字段和复用解释，用于 申请人 先复用模板。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "resource_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.share_zone.query",
+      "title": "查询共享专区投影",
+      "description": "查询共享专区专题入口和信任说明，不创建第二套目录事实源。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "compliance.case.query",
+      "title": "查询合规事件",
+      "description": "查询合规事件最小闭环快照。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "severity",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "compliance.metric.query",
+      "title": "查询合规指标",
+      "description": "查询合规事件状态和风险分布指标。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "credential.query",
+      "title": "查询访问凭据（P4 凭据领取页）",
+      "description": "只读。返回某 request 已签发的 credential（app_key + app_secret + 有效期 + 配额 + 调用 URL 模板）。申请人 / 审批人 / 主管部门 / 审计员均可查（受 policy 控制）。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": false,
+      "args": [
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "data.search",
+      "title": "数据资源检索",
+      "description": "按关键词 / 部门 / 主题域检索共享数据资源目录，返回命中清单与结构化摘要。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "page",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "query",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "delivery.list",
+      "title": "查看交付任务列表",
+      "description": "查看预填下发、自动汇总、回流候选和异常交付任务列表。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": []
+    },
+    {
+      "skill_id": "delivery.view",
+      "title": "查看交付任务",
+      "description": "查看预填下发、自动汇总和回流候选的交付任务详情。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "governance.dispute_list",
+      "title": "查看治理争议列表",
+      "description": "查看重复要数、字段口径和补录异常相关争议，以及关联告警、工单与知识建议。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": []
+    },
+    {
+      "skill_id": "governance.dispute_view",
+      "title": "查看治理争议详情",
+      "description": "查看单条治理争议的时间线和 AI 调查摘要。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "dispute_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "governance.iam_overview",
+      "title": "查看 IAM 治理总览",
+      "description": "查看 IAF 绑定状态、投影、租户能力策略、旧 BSP 导入问题、审计证据和策略裁决结果。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "actor_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "binding_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "capability_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "capability_slug",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "external_actor_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "issue_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "risk_context",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "surface",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "governance.policy_candidate.list",
+      "title": "查询旧权限映射候选",
+      "description": "按租户与状态筛选 legacy_policy_mapping_candidate，并输出审核用汇总报告；不直接授予权限。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "candidate_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "capability_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "capability_slug",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "legacy_role_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "legacy_system",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "surface",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "legacy.migration.status.query",
+      "title": "查询 M0 迁移验收状态",
+      "description": "聚合 legacy_object_mapping、adapter_run_record 与 migration.* 审计事件，给 业务运营员 / 安全审计员 看 M0 验收 11 张工作队列卡片状态、按 canonical_type 分布的映射计数和最近一次 rollback 摘要。只读，零 side effect。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "metadata.catalog_item.query",
+      "title": "查询目录项字段映射",
+      "description": "查询目录项与资源 schema 字段之间的映射证据。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "catalog_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "metadata.gather.evidence.query",
+      "title": "查询元数据采集证据",
+      "description": "查询外部元数据采集任务回执和生成证据；采集状态只作为 projection，不反向改变资源业务状态。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "resource_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "metadata.schema.discover",
+      "title": "列可反向编目候选",
+      "description": "只读：列已采集 db_meta_table/db_meta_column 中尚未生成反向编目草稿的候选 schema，给 提供方部门 在反向编目工作流中选源。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "limit",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "metadata.schema.query",
+      "title": "查询 Schema 证据",
+      "description": "查询资源 schema 快照证据和字段结构。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "binding_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "objection.case.query",
+      "title": "查询异议案件",
+      "description": "查询异议案件列表，供 J1 异议子流程和 B1.1 合规与运营页指标投影读取。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "target_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "objection.metric.query",
+      "title": "查询异议指标",
+      "description": "查询异议状态分布和闭环指标投影。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "objection.process.query",
+      "title": "查询异议过程",
+      "description": "查询异议处理过程、证据与评价链路。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "objection_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "ops.catalog.statistics.query",
+      "title": "查询目录资源统计",
+      "description": "查询目录、资源、schema 映射和质量证据的治理统计摘要。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "ops.exchange.statistics.query",
+      "title": "查询交换统计",
+      "description": "只读查询交换、订阅和交付投影统计，不反向驱动业务状态。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "delivery_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "metric_scope",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "ops.service.invocation.query",
+      "title": "查询服务调用统计",
+      "description": "只读查询 API 服务调用量、成功失败和错误归因摘要。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "capability_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "metric_scope",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "ops.service.report.query",
+      "title": "查询服务运行态势",
+      "description": "只读汇总网关心跳和服务调用统计，形成服务运行态势报告。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "package.list",
+      "title": "查看能力包列表",
+      "description": "查看待审核和已处理的能力注册包列表。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": []
+    },
+    {
+      "skill_id": "package.view",
+      "title": "查看能力包详情",
+      "description": "查看单个能力包的暴露面、审核状态和 AI 评审结果。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "package_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "provider.view",
+      "title": "查看供给侧治理",
+      "description": "查看模板版本、目录状态、资源与治理建议。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": []
+    },
+    {
+      "skill_id": "registry.artifact.export",
+      "title": "导出注册工件",
+      "description": "只读导出 skill manifest 与能力包注册工件。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "request.list",
+      "title": "查看申请列表",
+      "description": "查看黄金链路中的申请清单和当前状态。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": []
+    },
+    {
+      "skill_id": "request.view",
+      "title": "查看申请详情",
+      "description": "查看申请详情、差异字段、时间线与 AI 解释。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "resource.asset.query",
+      "title": "查询资源资产",
+      "description": "查询资源资产详情、生命周期和策略快照。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "resource_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "system.schema_info",
+      "title": "查看 canonical schema 信息",
+      "description": "返回 brain_core / brain_audit / brain_registry 三个 canonical schema 的用途说明。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": []
+    },
+    {
+      "skill_id": "system.snapshot",
+      "title": "导出系统快照",
+      "description": "导出当前运行时快照，供主 WebUI 使用统一事实源。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "tenant.policy.evaluate",
+      "title": "评估租户能力策略",
+      "description": "基于 brain registry 和租户策略评估指定角色是否可使用能力；旧权限仅作为候选证据。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "actor_snapshot",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "capability_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "capability_slug",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "org_snapshot",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "risk_context",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_codes",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "skill_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "surface",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "target_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "topic.package.metric.query",
+      "title": "查询专题包指标",
+      "description": "查询专题包复用、发布和治理指标投影。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "package_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "topic.package.query",
+      "title": "查询专题包",
+      "description": "查询专题包列表和详情投影。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "package_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "workbench.view",
+      "title": "查看工作台",
+      "description": "按角色查看工作台待办、重点提示和副驾摘要。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "role",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "zone.list",
+      "title": "查看专区列表",
+      "description": "查看共享专区与专题包列表。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": []
+    },
+    {
+      "skill_id": "zone.view",
+      "title": "查看专区详情",
+      "description": "查看单个共享专区或专题包的资产、信任信息和引导说明。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "zone_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "actor.projection.sync",
+      "title": "同步用户角色投影",
+      "description": "同步外部用户与角色快照投影，仅用于展示、审计和策略评估上下文。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "actors",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "display_name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "external_actor_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "org_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_codes",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "adapter.cascade.consume",
+      "title": "消费级联事件",
+      "description": "幂等记录上下级级联事件消费结果、失败摘要和证据回执。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "batch_no",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "direction",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "error_summary",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "external_object_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "external_object_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "external_system",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "extra_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "failure_count",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "idempotency_key",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "last_receipt_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "legacy_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "legacy_table",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "local_aggregate_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "local_aggregate_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "mapping_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "protocol_version",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "receipt_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "success_count",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "target_count",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "adapter.cascade.replay",
+      "title": "重放级联事件",
+      "description": "按幂等键记录级联失败事件重放结果和回执。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "batch_no",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "direction",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "error_summary",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "external_object_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "external_object_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "external_system",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "extra_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "failure_count",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "idempotency_key",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "last_receipt_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "legacy_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "legacy_table",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "local_aggregate_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "local_aggregate_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "mapping_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "protocol_version",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "receipt_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "success_count",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "target_count",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "adapter.health.probe",
+      "title": "探测适配器健康",
+      "description": "记录 adapter 健康探测回执。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "adapter_slug",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "receipt_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "application.grant.approve",
+      "title": "审批资源授权",
+      "description": "审批授权、收回授权或频次变更，审批通过后才能形成授权快照。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "grant_policy",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "application.grant.renew",
+      "title": "申请授权续期",
+      "description": "发起或审批授权续期，更新持续交付关系但不静默延长授权。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "renew_until",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "subscription_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "application.grant.revoke",
+      "title": "收回授权",
+      "description": "审批人 永久收回已生效的授权 — 申请人 需重新申请。涉及安全事件时使用。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "delivery_task_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "request_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "application.grant.suspend",
+      "title": "暂停授权",
+      "description": "审批人 暂停已生效的授权 — 申请人 暂时无法访问数据但授权不失效，可恢复。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "delivery_task_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "request_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "application.resource.review",
+      "title": "审批资源申请",
+      "description": "对资源申请执行通过、补正或驳回判定。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "evidence",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "application.resource.submit",
+      "title": "提交资源申请",
+      "description": "围绕可复用资源提交受控准入申请。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "query",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "approval.case.decide",
+      "title": "裁决审批案件",
+      "description": "对申请案件执行通过、退回或驳回，复用 canonical 审批状态机。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "approval.review_decide",
+      "title": "审批并裁决申请",
+      "description": "对申请执行通过、退回补正或驳回，保留人工确认边界。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "backflow.confirm",
+      "title": "确认回流共享",
+      "description": "由供给侧确认回流候选正式纳入模板版本。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "capability.exposure.configure",
+      "title": "配置能力暴露面",
+      "description": "在版本登记后配置能力包 surfaces，不改变 canonical 写权。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "mode",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "package_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "capability.package.register",
+      "title": "登记能力包",
+      "description": "将能力包登记到统一 registry 候审，不授予主状态写权。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "contract",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "description",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "exposure",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "package_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "slug",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "source",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenantPolicy",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "capability.version.review",
+      "title": "审核能力版本",
+      "description": "复用能力包审核状态机裁决版本是否可进入登记。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "package_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "capability.version.submit",
+      "title": "提交能力版本登记",
+      "description": "审核通过后把能力包版本登记到统一 registry。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "package_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.entry.create",
+      "title": "创建目录条目",
+      "description": "创建 canonical 目录条目草稿。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "catalog_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "items",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "region_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "summary_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.entry.create_draft",
+      "title": "创建目录草稿",
+      "description": "创建 canonical 目录草稿，未发布前不可默认申请。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "catalog_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "items",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "legacy_object_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "region_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "summary_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "title",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.entry.publish",
+      "title": "发布目录条目",
+      "description": "发布目录版本并使目录进入可发现状态。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "catalog_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.entry.reverse_draft.confirm",
+      "title": "反向编目字段确认",
+      "description": "业务运营员 半边：对反向编目草稿做字段口径裁决（中英文/敏感等级/类型）。通过后 catalog_entry.lifecycle_status 从 draft 推进到 pending_review；提供方部门 再做正式挂接。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "catalog_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "comment",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "field_decisions",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.entry.reverse_draft.create",
+      "title": "反向编目生成草稿",
+      "description": "提供方部门 半边：根据已采集的 db_meta_table/db_meta_column 一键生成 catalog_entry(lifecycle_status=draft, summary_json.source=reverse) 草稿。草稿仅作为字段建议，不可直接被申请；业务运营员 字段口径裁决通过后才能进入 pending_review。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "catalog_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "draft_field_suggestions",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "region_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "schema_ref",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.entry.reverse_draft.reject",
+      "title": "反向编目草稿驳回",
+      "description": "业务运营员 对反向编目草稿做不予通过裁决；catalog_entry.lifecycle_status 退回 rejected 并写明驳回理由，等待 提供方部门 补充 schema 证据后重新提交。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "catalog_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "reject_reason",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.entry.review",
+      "title": "审核目录条目",
+      "description": "对目录条目执行通过、退回或驳回判定。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "catalog_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.entry.submit_review",
+      "title": "提交目录审核",
+      "description": "把目录草稿提交到统一审批责任链。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "catalog_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.entry.update",
+      "title": "更新目录条目",
+      "description": "更新目录条目草稿内容，不绕过目录生命周期。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "catalog_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "items",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "region_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "summary_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.entry.withdraw",
+      "title": "撤回目录条目",
+      "description": "撤回或下线目录条目，监管场景不物理删除。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "catalog_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.manage_entry",
+      "title": "治理目录条目",
+      "description": "对目录条目执行发布或说明修正治理动作。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "action",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "catalog_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.model.upsert",
+      "title": "维护目录模型",
+      "description": "维护 zw-brain 原生目录模型与字段定义，承接目录模板的可审计建模语义。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "fields",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "legacy_object_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "model_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "model_schema_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.resource.bind",
+      "title": "绑定目录资源字段",
+      "description": "确认目录项与资源字段绑定，写入 schema mapping 证据链。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "binding_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "catalog_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "catalog_item_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "evidence_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "legacy_object_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "mapping_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "mapping_rule_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_schema_ref",
+          "required": false,
+          "type": "object"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.schema.mapping.upsert",
+      "title": "确认目录字段映射",
+      "description": "记录目录项与资源 schema 字段之间的确认映射，形成可追溯的重构证据链。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "binding_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "catalog_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "catalog_item_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confidence_level",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "evidence_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "legacy_object_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "mapping_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "mapping_rule_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_schema_ref",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "compliance.case.assign",
+      "title": "分派合规事件",
+      "description": "将合规事件分派给处置责任方。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "case_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "compliance.case.close",
+      "title": "关闭合规事件",
+      "description": "关闭已解决的合规事件。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "case_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "compliance.case.open",
+      "title": "打开合规事件",
+      "description": "打开合规事件最小处置闭环。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "case_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "owner",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "severity",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "summary",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "compliance.case.resolve",
+      "title": "解决合规事件",
+      "description": "记录合规事件处置完成结果。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "case_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "summary",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "compliance.investigate_case",
+      "title": "调查或升级争议",
+      "description": "对合规争议执行推进调查或升级治理动作。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "action",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "dispute_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "compliance.rule.configure",
+      "title": "配置合规规则",
+      "description": "维护 zw-brain 最小合规规则快照。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "rule_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "rule_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "severity",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "compliance.signal.ingest",
+      "title": "接收合规信号",
+      "description": "接收外部合规信号并记录 adapter receipt。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "adapter_slug",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "receipt_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "credential.issue",
+      "title": "签发访问凭据（app_key + secret）",
+      "description": "审批通过后为申请签发可使用的 access credential：app_key + app_secret + 有效期 + 调用配额。审批通过路径会自动调用；手工补签由审批人/主管部门触发。",
+      "mode": "write",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "actor_tags",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "reissue",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "delivery.access.grant",
+      "title": "授权访问交付",
+      "description": "在审批通过后写入访问授权交付事实和审计链。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "delivery.exchange.plan",
+      "title": "生成交换计划",
+      "description": "生成字段映射、源目标脱敏引用和交付计划快照。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "plan",
+          "required": true,
+          "type": "object"
+        },
+        {
+          "name": "resource_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "delivery.exchange.publish",
+      "title": "发布交换任务",
+      "description": "发布已审批的交换计划，形成可执行交付任务状态。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "delivery.exchange.start",
+      "title": "启动交换任务",
+      "description": "启动单次或持续交换执行并生成 delivery_attempt。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "executor_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "mode",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "delivery.exchange.stop",
+      "title": "停止交换任务",
+      "description": "暂停、停用或撤销交换任务，不删除历史回执。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "delivery.receipt.ingest",
+      "title": "摄取交付回执",
+      "description": "摄取交换执行、下载、授权或订阅回执，只写回执、证据和投影。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "attempt_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "metrics",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "receipt",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "receipt_status",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "delivery.reconcile_receipt",
+      "title": "对账交付回执",
+      "description": "对交付任务回执执行人工确认后的对账动作。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "delivery.replace_or_cancel",
+      "title": "撤回引发的交付替代或取消",
+      "description": "审批人 在资源撤回或资产 suspended 时决定：把现有 delivery_task 重新指向替代资源（replace），或者取消并通知订阅方（cancel）。避免授权悬空。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "action",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "delivery_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "replacement_resource_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "delivery.subscription.manage",
+      "title": "管理持续订阅交付",
+      "description": "创建、暂停、续期或取消资源订阅关系。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "action",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "policy_snapshot",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "schedule_ref",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "subscription_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "delivery.trigger_recovery",
+      "title": "触发交付恢复",
+      "description": "对失败交付任务显式触发恢复流程。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "governance.policy_candidate.review",
+      "title": "审核旧权限映射候选",
+      "description": "对 legacy_policy_mapping_candidate 执行批准/驳回；可选将已批准候选合并写入 tenant_capability_policy（须经人工确认）。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "capability_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "items",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "legacy_permission_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "legacy_system",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "review_note",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "legacy.bsp.mapping.import",
+      "title": "导入旧权限候选映射",
+      "description": "把旧 BSP 权限与角色关系导入为待审核候选映射，不直接授予生产权限。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "candidate_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "candidates",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "capability_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "evidence_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "legacy_permission_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "legacy_role_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "legacy_system",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "surface",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "legacy.sharezone.mapping.import",
+      "title": "导入旧共享专区专题候选",
+      "description": "把旧共享专区配置导入为 TopicPackage 投影候选，不保留旧应用密钥、路径或页面引擎。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "condition_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "content_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "decision",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "display_snapshot",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "display_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "items",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "legacy_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "metric_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "org_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "package_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "policy_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "region_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "scenario",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "visibilities",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "visibility",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "zone_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "metadata.gather.evidence.upsert",
+      "title": "记录元数据采集证据",
+      "description": "记录外部元数据采集任务回执，采集成败不直接改变资源业务状态。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "error_summary",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "evidence_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "finished_at",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "gather_task_ref",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "schema_snapshot_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_system_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "started_at",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "metadata.schema.snapshot.upsert",
+      "title": "记录 Schema 快照",
+      "description": "记录外部采集或资源绑定返回的 schema 快照，只作为受控证据进入 zw-brain。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "binding_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "captured_at",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "schema_hash",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "schema_json",
+          "required": true,
+          "type": "object"
+        },
+        {
+          "name": "snapshot_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "objection.case.accept",
+      "title": "受理异议案件",
+      "description": "受理已提交异议并进入调查分发前置状态。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "evidence",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "handler_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "handler_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "objection_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "objection.case.assign",
+      "title": "分发异议核查",
+      "description": "将已受理或调查中的异议分发至平台或提供方核查节点。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "evidence",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "handler_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "handler_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "objection_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "target_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "objection.case.close",
+      "title": "关闭异议案件",
+      "description": "关闭已解决异议并固化闭环结果。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "evidence",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "handler_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "handler_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "objection_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "objection.case.create",
+      "title": "创建异议案件",
+      "description": "创建异议案件并写入首条过程和证据链，不触碰目录、资源、申请或交付主状态。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "basis_text",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "complainant_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "complainant_org_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "evidence",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "expected_result",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "objection_kind",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "provider_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "provider_org_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "related_application_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "target_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "target_type",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "objection.case.escalate",
+      "title": "升级异议督办",
+      "description": "将异议升级为督办状态并记录督办证据，通知由外部 adapter 处理。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "escalation_level",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "evidence",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "handler_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "handler_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "objection_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "objection.case.evaluate",
+      "title": "评价异议处理",
+      "description": "对已解决异议写入或更新评价记录。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "comment",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "evaluator_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "handler_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "handler_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "objection_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "overall_score",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "result_score",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "solved_flag",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "timeliness_score",
+          "required": false,
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "skill_id": "objection.case.reject",
+      "title": "驳回异议案件",
+      "description": "按状态机驳回异议并留存处理意见。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "evidence",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "handler_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "handler_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "objection_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "objection.case.reply",
+      "title": "提交异议回复",
+      "description": "追加核查回复、证据和处理过程，不直接改变其他聚合状态。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "action_result",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "evidence",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "handler_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "handler_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "node_name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "objection_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "objection.case.review",
+      "title": "复核异议处理",
+      "description": "复核核查结果，按结论推进为已解决或退回继续调查。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "evidence",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "handler_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "handler_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "objection_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resolved_summary",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "objection.case.submit",
+      "title": "提交异议案件",
+      "description": "将草稿异议提交进入受理队列。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "evidence",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "handler_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "handler_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "objection_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "org.projection.sync",
+      "title": "同步组织治理投影",
+      "description": "同步租户、区域、组织和角色只读投影，不把旧 IAM 变成 zw-brain 权威身份源。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "org_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "org_name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "orgs",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "regions",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "roles",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "tenant",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "package.apply_tenant_policy",
+      "title": "生效租户策略",
+      "description": "在版本登记后对指定租户生效能力包策略与暴露范围。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "package_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "package.configure_exposure",
+      "title": "配置能力包暴露面",
+      "description": "在版本登记后显式调整能力包暴露矩阵。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "mode",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "package_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "package.register_version",
+      "title": "登记能力包版本",
+      "description": "在审核通过后把能力包版本登记到统一 registry 事实源。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "package_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "package.review_decide",
+      "title": "审核能力包",
+      "description": "由管理员对能力注册包执行批准、退回补充或驳回。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "package_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "request.create",
+      "title": "发起标准复用申请",
+      "description": "从资源发现页基于已识别模板发起新的受控准入申请。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "query",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "request.submit",
+      "title": "重新提交申请",
+      "description": "对补正后的申请重新提交，回到受控准入。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "require.intent.refine",
+      "title": "结构化数据需求意图",
+      "description": "把原始诉求结构化为数据项、资源候选和交付偏好。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "delivery_preference",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "refine_note",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "requested_items",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "require.intent.review",
+      "title": "校核数据需求意图",
+      "description": "对数据需求执行通过、补正或驳回判定。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "require.intent.submit",
+      "title": "提交数据需求意图",
+      "description": "提交原始数据需求或上级下发需求，进入受控申请/审批链路。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "delivery_preference",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "intent",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "requested_items",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "resource_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "require.resource.dispatch",
+      "title": "需求派发给基层补差",
+      "description": "业务运营员 判定 申请人 业务需求不可用现有目录复用 → 按区域/字段/时间窗切片 → 派 审核汇总人 任务。写一次 application_record.status='dispatched' + 一次 supplement 任务草案。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "application_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "dispatch_payload_json",
+          "required": true,
+          "type": "object"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "target_region_codes",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "require.resource.match",
+      "title": "匹配需求资源候选",
+      "description": "将需求与目录、资源或字段候选建立受控证据关系。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "candidate_resources",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "match_note",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "resource_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "require.task.handoff",
+      "title": "业务运营员 → 审核汇总人 任务交接审计",
+      "description": "记录 业务运营员 把派发后的任务转给 审核汇总人 接管的责任快照；只写审计与责任快照，不修改业务字段。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "application_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "handoff_note",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "handoff_to_role",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "resource.api.change",
+      "title": "变更 API 服务资源",
+      "description": "对 API 服务资源摘要或通道绑定执行受控变更。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "access_policy_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "binding_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "catalog_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "channel_binding",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "gateway_policy_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "qos_policy_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "region_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "summary_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "test_result",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "resource.api.policy.update",
+      "title": "更新 API 通道策略",
+      "description": "更新 API 通道限流、熔断、名单和日志级别等策略元数据。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "binding_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "catalog_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "channel_binding",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "gateway_policy_json",
+          "required": true,
+          "type": "object"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "summary_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "test_result",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "resource.api.publish",
+      "title": "发布 API 服务",
+      "description": "把审核通过的 API 服务发布到可共享状态。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "binding_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "catalog_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "channel_binding",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "gateway_policy_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "summary_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "test_result",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "resource.api.register",
+      "title": "注册 API 服务资源",
+      "description": "把 API 服务登记为 zw-brain 原生资源资产。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "access_policy_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "binding_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "catalog_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "channel_binding",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "gateway_policy_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "qos_policy_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "region_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "summary_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "test_result",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "resource.api.review",
+      "title": "审核 API 服务",
+      "description": "对 API 服务资源审核通过或退回。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "binding_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "catalog_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "channel_binding",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "gateway_policy_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "summary_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "test_result",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "resource.api.revoke",
+      "title": "撤销 API 服务授权",
+      "description": "撤销 API 服务授权并保留审计证据。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "binding_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "catalog_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "channel_binding",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "gateway_policy_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "summary_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "test_result",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "resource.api.submit_review",
+      "title": "提交 API 服务审核",
+      "description": "把 API 服务资源从草稿推进到待审核。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "binding_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "catalog_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "channel_binding",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "gateway_policy_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "summary_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "test_result",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "resource.api.test",
+      "title": "登记 API 服务连通性测试",
+      "description": "登记 API 服务连通性测试结果，不直连旧网关。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "binding_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "catalog_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "channel_binding",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "evidence_json",
+          "required": true,
+          "type": "object"
+        },
+        {
+          "name": "gateway_policy_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "summary_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "test_result",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "resource.api.withdraw",
+      "title": "撤回 API 服务",
+      "description": "把 API 服务从发布态撤回到治理态。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "binding_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "catalog_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "channel_binding",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "gateway_policy_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "summary_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "test_result",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "resource.asset.publish",
+      "title": "发布资源资产",
+      "description": "发布资源资产，使其进入可发现、可申请状态。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "resource.asset.review",
+      "title": "审核资源资产",
+      "description": "对资源资产执行通过或退回判定。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "resource.asset.submit_review",
+      "title": "提交资源审核",
+      "description": "把资源资产提交到统一审核链路。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "resource.manage_asset",
+      "title": "治理资源资产",
+      "description": "对资源资产执行字段证据补齐、字段绑定确认、审核提交、外部执行任务登记、发布或暂停共享治理动作。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "action",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "binding_confirmations",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "external_execution",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "field_evidence",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "resource_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "risk.event.ingest",
+      "title": "接收风险事件",
+      "description": "接收风险事件并沉淀运行回执，不直接改写主事实。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "adapter_slug",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "receipt_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "security.scan.result.sync",
+      "title": "同步安全扫描结果",
+      "description": "同步安全扫描结果回执，不直接执行修复动作。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "adapter_slug",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "receipt_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "service.publish_or_suspend",
+      "title": "发布或暂停供给服务",
+      "description": "对供给侧关键服务执行发布或暂停治理动作。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "action",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "service_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "service.rating.submit",
+      "title": "提交服务评价",
+      "description": "申请人 在交付完成后为本次共享服务打分（满意度 1-5 + 文字评价），写入审计供 安全审计员 督查。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "comment",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "delivery_task_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "score",
+          "required": true,
+          "type": "integer"
+        },
+        {
+          "name": "task_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "subscription.terminate",
+      "title": "订阅显式终止",
+      "description": "把 delivery_subscription.status 显式设为 terminated 并把影响摘要写入 audit_event；避免目录撤回时订阅悄悄失效。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "reason",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "subscription_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "summary.confirm",
+      "title": "确认自动汇总",
+      "description": "由审核汇总人员确认自动汇总结果并推进到回流候选确认。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "supplement.submit",
+      "title": "提交差异补录",
+      "description": "由基层提交差异补录结果，进入自动汇总确认。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "system.toggle_outage",
+      "title": "切换主脑故障态",
+      "description": "切换主脑故障态演示，验证 B1.1 合规与运营在故障态下的只读降级。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "tenant.capability.disable",
+      "title": "禁用租户能力",
+      "description": "对当前租户禁用能力包暴露策略。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "package_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "tenant.capability.enable",
+      "title": "启用租户能力",
+      "description": "对当前租户启用已登记能力包策略。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "package_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "topic.package.configure",
+      "title": "配置专题包",
+      "description": "配置专题包条目、展示快照和可见性策略候选。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "condition_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "content_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "decision",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "display_snapshot",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "display_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "items",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "legacy_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "metric_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "org_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "package_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "policy_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "region_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "scenario",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "visibilities",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "visibility",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "zone_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "topic.package.create",
+      "title": "创建专题包",
+      "description": "创建一表通/基层减负专题包投影，只组合 canonical 资源引用和展示快照。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "condition_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "content_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "decision",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "display_snapshot",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "display_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "items",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "legacy_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "metric_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "org_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "package_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "policy_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "region_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "scenario",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "visibilities",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "visibility",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "zone_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "topic.package.evidence.attach",
+      "title": "附加专题包证据",
+      "description": "为专题包追加案例、发布、复用或治理证据。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "condition_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "content_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "decision",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "display_snapshot",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "display_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "items",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "legacy_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "metric_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "org_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "package_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "policy_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "region_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "scenario",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "visibilities",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "visibility",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "zone_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "topic.package.policy.update",
+      "title": "更新专题包可见策略",
+      "description": "更新专题包可见性策略候选和审批状态。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "condition_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "content_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "decision",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "display_snapshot",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "display_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "items",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "legacy_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "metric_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "org_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "package_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "policy_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "region_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "scenario",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "visibilities",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "visibility",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "zone_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "topic.package.publish",
+      "title": "发布专题包",
+      "description": "发布满足治理约束的专题包投影。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "condition_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "content_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "decision",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "display_snapshot",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "display_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "items",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "legacy_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "metric_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "org_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "package_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "policy_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "region_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "scenario",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "visibilities",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "visibility",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "zone_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "topic.package.review",
+      "title": "审核专题包",
+      "description": "审核专题包发布申请，通过后必须满足条目和已批准可见性约束。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "condition_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "content_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "display_snapshot",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "display_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "items",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "legacy_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "metric_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "org_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "package_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "policy_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "region_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "scenario",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "visibilities",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "visibility",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "zone_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "topic.package.submit",
+      "title": "提交专题包审核",
+      "description": "把专题包提交到发布审核，不改变目录、资源、申请或交付事实。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "condition_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "content_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "decision",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "display_snapshot",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "display_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "items",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "legacy_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "metric_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "org_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "package_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "policy_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "region_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "scenario",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "visibilities",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "visibility",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "zone_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "topic.package.subscribe",
+      "title": "订阅专题包",
+      "description": "记录组织或角色对专题包的订阅意图，订阅仍受租户策略约束。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "condition_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "content_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "decision",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "display_snapshot",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "display_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "evidence_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "items",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "legacy_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "metric_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "opinion",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "org_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_snapshot_json",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "package_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "policy_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "region_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "related_ref_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "scenario",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "visibilities",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "visibility",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "zone_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "zone.publish_topic_projection",
+      "title": "发布专区正式投影",
+      "description": "把已治理资产正式投影到共享专区前台入口。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "zone_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

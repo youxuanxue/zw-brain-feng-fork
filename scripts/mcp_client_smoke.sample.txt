@@ -1,0 +1,13 @@
+=== zw-brain MCP client smoke (5 J1 capability via stdio JSON-RPC) ===
+
+[INIT ] server=zw-brain-mcp v1.0.0 protocol=2024-11-05
+[LIST ] 53 tools published (sample: adapter.cascade.health.query, adapter.external.mapping.query, ...)
+
+=== 5 capability round-trip ===
+[CALL ] workbench.view            → 200 result_keys=['greeting', 'subtitle', 'todos']
+[CALL ] catalog.browse            → 200 result_keys=['items', 'total', 'page']
+[CALL ] data.search               → 200 result_keys=['query', 'page', 'results']
+[CALL ] delivery.list             → 200 result_keys=['items']
+[CALL ] provider.view             → 200 result_keys=['overview', 'catalogs', 'resources']
+
+=== 5/5 capability calls succeeded; mcp server exit=0 ===

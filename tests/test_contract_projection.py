@@ -160,14 +160,41 @@ def test_registry_projection_metadata_matches_openapi_mcp_and_a2a() -> None:
 
 
 def test_webui_uses_registry_gateways_only() -> None:
-    # K12 dashboard BFF 退役（详见 D15 二次反转）；本测试仅校验 WebUI 通过 registry gateway 调能力
-    app_js = (REPO_ROOT / "zw-brain-web" / "js" / "app.js").read_text(encoding="utf-8")
+    # F3 vite 接管后旧 vanilla bundle 退役；本测试同步迁到 src/composables 校验：
+    #   (1) skill 调用必须走 /api/skills/<id> （即 registry gateway）；
+    #   (2) browser 永远不直接 import get_service / invoke_skill；
+    #   (3) authFetch 是统一出口，组件不裸 fetch /api/skills（CSRF 才会附）。
+    web_src = REPO_ROOT / "zw-brain-web" / "src"
+    sources = [p for p in web_src.rglob("*") if p.suffix in {".ts", ".vue"} and p.is_file()]
+    assert sources, "expected vite src/ sources"
 
-    assert "window.ZW_AUTH.authFetch(`/api/skills/${skillId}${encodeParams(payload)}`" in app_js
-    assert "window.ZW_AUTH.authFetch(`/api/skills/${skillId}`" in app_js
-    assert "Object.assign({ role: currentRole, confirmed: true }, payload)" in app_js
-    assert "get_service" not in app_js
-    assert "invoke_skill" not in app_js
+    all_text = "\n".join(p.read_text(encoding="utf-8") for p in sources)
+
+    # (1) skill 调用要打到 /api/skills/
+    assert "/api/skills/" in all_text, "WebUI must address skills via /api/skills/<id>"
+
+    # (2) 浏览器代码禁止 import 后端 service / invoke_skill
+    assert "get_service" not in all_text, "WebUI must not call brain.get_service directly"
+    assert "invoke_skill" not in all_text, "WebUI must not call invoke_skill directly"
+
+    # (3) skill 调用应通过 authFetch（registry gateway 出口）；
+    #     至少 useActionStub + useWorkbench + useSnapshot 三处典型用法存在。
+    use_action = (web_src / "composables" / "useActionStub.ts").read_text(encoding="utf-8")
+    use_snap = (web_src / "composables" / "useSnapshot.ts").read_text(encoding="utf-8")
+    use_wb = (web_src / "composables" / "useWorkbench.ts").read_text(encoding="utf-8")
+    assert "authFetch(`/api/skills/${" in use_action
+    assert "authFetch(" in use_snap and "/api/snapshot" in use_snap
+    assert "authFetch(" in use_wb and "/api/skills/workbench.view" in use_wb
+
+    # (4) write-skill 调用必须默认带 confirmed: true（policy.py:386
+    # human_confirmation_required runtime gate；约 130 个 skill 强制要求）。
+    # 旧 vanilla bundle 用 `Object.assign({ confirmed: true }, payload)` sticky default；
+    # vite 化后由 useActionStub 维持等价 sticky default。
+    assert "confirmed: true" in use_action, (
+        "useActionStub must include sticky `confirmed: true` in dispatch payload; "
+        "without it ~130 human_confirmation_required write skills are silently rejected "
+        "by policy.py:386 runtime gate."
+    )
 
 
 def test_external_capability_contracts_are_registered_but_not_direct_surfaces() -> None:

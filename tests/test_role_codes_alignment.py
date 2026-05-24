@@ -94,29 +94,32 @@ def _extract_object_keys(js_text: str, marker_pattern: str) -> set[str]:
 
 
 def test_frontend_role_names_aligned_with_backend():
-    """前端 app.js ROLE_NAMES 与后端 role_codes 一致（避免后端添加角色而前端漏更）.
+    """前端 PRODUCT_ROLE_LABELS（src/composables/useAuth.ts）与后端 role_codes 一致。
 
-    F3 fix: 用对象 key 范围抽取替代 raw grep，避免注释/字符串假阳性。
+    F3 fix: 旧 js/app.js ROLE_NAMES 已退役 → src/composables/useAuth.ts
+    PRODUCT_ROLE_LABELS。本测试同步迁。`admin` 是 dev/调试用户的合成角色码，
+    不属于业务角色矩阵，因此 PRODUCT_ROLE_LABELS 不要求包含。
     """
     from zw_brain.domain import role_codes
-    app_js = (REPO / "zw-brain-web" / "js" / "app.js").read_text(encoding="utf-8")
-    keys = _extract_object_keys(app_js, r"const ROLE_NAMES\s*=\s*\{")
-    expected = set(role_codes.BUSINESS_ROLE_CODES) | {"admin"}
+    use_auth = (REPO / "zw-brain-web" / "src" / "composables" / "useAuth.ts").read_text(encoding="utf-8")
+    keys = _extract_object_keys(use_auth, r"PRODUCT_ROLE_LABELS\s*:\s*Record<string, string>\s*=\s*\{")
+    expected = set(role_codes.BUSINESS_ROLE_CODES)
     missing = expected - keys
-    assert not missing, f"app.js ROLE_NAMES 缺角色键 {missing}"
+    assert not missing, f"useAuth.ts PRODUCT_ROLE_LABELS 缺角色键 {missing}"
 
 
 def test_frontend_role_hero_covers_all_business_roles():
-    """前端 pages.js ROLE_HERO 必须覆盖所有 BUSINESS_ROLE_CODES.
+    """所有 BUSINESS_ROLE_CODES 必须在 vite source 树中可被引用（router meta + 角色门禁）。
 
-    F3 fix: 同上，按对象 key 范围抽取。
+    F3 fix: 旧 pages.js ROLE_HERO 退役 → 检查 src/ 中至少有 PRODUCT_ROLE_CODES 数组
+    + PRODUCT_ROLE_LABELS 同时声明，且两者覆盖所有业务角色。
     """
     from zw_brain.domain import role_codes
-    pages_js = (REPO / "zw-brain-web" / "js" / "pages.js").read_text(encoding="utf-8")
-    keys = _extract_object_keys(pages_js, r"const ROLE_HERO\s*=\s*\{")
+    use_auth = (REPO / "zw-brain-web" / "src" / "composables" / "useAuth.ts").read_text(encoding="utf-8")
+    codes = _extract_array_string_literals(use_auth, r"PRODUCT_ROLE_CODES\s*=\s*\[")
     expected = set(role_codes.BUSINESS_ROLE_CODES)
-    missing = expected - keys
-    assert not missing, f"pages.js ROLE_HERO 缺角色键 {missing}"
+    missing = expected - codes
+    assert not missing, f"useAuth.ts PRODUCT_ROLE_CODES 缺角色键 {missing}"
 
 
 def _extract_array_string_literals(js_text: str, marker_pattern: str) -> set[str]:
@@ -146,14 +149,15 @@ def _extract_array_string_literals(js_text: str, marker_pattern: str) -> set[str
 
 
 def test_frontend_auth_product_role_codes_aligned_with_backend():
-    """auth.js PRODUCT_ROLE_CODES 驱动岗位切换前端门禁，必须与 BUSINESS_ROLE_CODES 完全一致。
+    """useAuth.ts PRODUCT_ROLE_CODES 驱动岗位切换前端门禁，必须与 BUSINESS_ROLE_CODES 完全一致。
 
     一旦后端 BUSINESS_ROLE_CODES 增删，本测试会先于 UX bug 拦下漂移。
+    F3 迁移：旧 js/auth.js → src/composables/useAuth.ts 同名常量。
     """
     from zw_brain.domain import role_codes
-    auth_js = (REPO / "zw-brain-web" / "js" / "auth.js").read_text(encoding="utf-8")
-    codes = _extract_array_string_literals(auth_js, r"const PRODUCT_ROLE_CODES\s*=\s*\[")
+    use_auth = (REPO / "zw-brain-web" / "src" / "composables" / "useAuth.ts").read_text(encoding="utf-8")
+    codes = _extract_array_string_literals(use_auth, r"PRODUCT_ROLE_CODES\s*=\s*\[")
     assert codes == set(role_codes.BUSINESS_ROLE_CODES), (
-        f"auth.js PRODUCT_ROLE_CODES 与 role_codes.BUSINESS_ROLE_CODES 漂移；"
-        f"auth.js={sorted(codes)} expected={sorted(role_codes.BUSINESS_ROLE_CODES)}"
+        f"useAuth.ts PRODUCT_ROLE_CODES 与 role_codes.BUSINESS_ROLE_CODES 漂移；"
+        f"useAuth.ts={sorted(codes)} expected={sorted(role_codes.BUSINESS_ROLE_CODES)}"
     )

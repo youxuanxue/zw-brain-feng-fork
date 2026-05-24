@@ -60,12 +60,29 @@ SHIPPED_WEB_ROOTS = [
     REPO / "zw-brain-web",
 ]
 
+# F1 vite skeleton 引入：跳过依赖/构建产物（npm-managed / gitignored）。
+# 扫描面：HTML/CSS/JS（旧 vanilla 残留兼容）+ Vue SFC（src/**/*.vue 是 vite build 真正的
+# 用户可见输入面）。TS composables 不扫——它们是控制流，违规会在 .vue 引用时被捕获；
+# 直接扫 .ts 会把内部 import 字面值（ZW_BRAIN_* env 名、"演示"/"占位" 注释词）误报。
+# R-004 修：去掉 `/src/` skip + 把 .vue 纳入 suffix 集合。
+_SHIPPED_WEB_SKIP_FRAGMENTS = (
+    "/node_modules/",
+    "/dist-vite/",
+    "/.vite/",
+)
+
+
+def _is_shipped(path) -> bool:  # type: ignore[no-untyped-def]
+    posix = path.as_posix()
+    return not any(fragment in posix for fragment in _SHIPPED_WEB_SKIP_FRAGMENTS)
+
+
 SHIPPED_WEB_ASSETS = [
     path
     for root in SHIPPED_WEB_ROOTS
     if root.is_dir()
     for path in sorted(root.rglob("*"))
-    if path.suffix in {".html", ".css", ".js"}
+    if path.suffix in {".html", ".css", ".js", ".vue"} and _is_shipped(path)
 ]
 
 
@@ -292,10 +309,13 @@ def main() -> int:
     html = require_file(web_index, errors)
     sheet = require_file(web_css, errors)
 
+    # F3 vite 接管后旧 vanilla bundle 已退役；以下检查仅在文件仍存在时跑（保 retrofit 路径）。
+    # routing 由 vite + vue-router 接管（src/router/index.ts）、capability 调用由 useActionStub
+    # + authFetch 接管、typography 由各 .vue 组件 scoped style + css/app.css token 接管。
     app_js = REPO / "zw-brain-web" / "js" / "app.js"
     pages_js = REPO / "zw-brain-web" / "js" / "pages.js"
-    app_script = require_file(app_js, errors)
-    pages_script = require_file(pages_js, errors)
+    app_script = read(app_js) if app_js.is_file() else ""
+    pages_script = read(pages_js) if pages_js.is_file() else ""
 
     if spec:
         require_spec_contract(spec, errors)
