@@ -70,4 +70,4 @@ old/
 .twin/*/runs/
 
 tests/test_temp_token.py
-参考文档*
+test-results/

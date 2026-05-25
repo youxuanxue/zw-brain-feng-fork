@@ -92,7 +92,7 @@ PERMISSION_ROLES = {
     "supplement.submit.execute": {"ROLE_ORGAN_OPERATER"},
     "summary.confirm.execute": {"ROLE_ORGAN_MANAGER"},
     "backflow.confirm.execute": {"ROLE_ORGAN_MANAGER"},
-    "delivery.reconcile_receipt.execute": {"ROLE_ORGAN_MANAGER"},
+    "delivery.reconcile_receipt.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "delivery.trigger_recovery.execute": {"ROLE_ORGAN_MANAGER"},
     "service.publish_or_suspend.execute": {"ROLE_ORGAN_MANAGER"},
 
@@ -248,6 +248,9 @@ PERMISSION_ROLES = {
     "objection.case.escalate.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "objection.case.close.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "objection.case.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "demand.register.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "demand.phase.advance.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "demand.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "objection.process.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "objection.metric.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
 

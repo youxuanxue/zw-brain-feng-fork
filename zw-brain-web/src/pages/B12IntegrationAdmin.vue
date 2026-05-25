@@ -206,7 +206,7 @@ const TRUST_LABELS: Record<string, string> = {
         <tbody>
           <tr v-for="p in packages.data.value.items" :key="p.id">
             <td><span class="tech-id">{{ p.id }}</span></td>
-            <td>{{ p.name || '—' }}</td>
+            <td><a :href="`#/integration-admin/package/${p.id}`">{{ p.name || '—' }}</a></td>
             <td><span :class="['status-pill', `status-${p.status}`]">{{ STATUS_LABELS[p.status] ?? p.status }}</span></td>
             <td><span class="tech-id">{{ p.version || '—' }}</span></td>
             <td><span class="tech-id">{{ p.rollback_target || '—' }}</span></td>

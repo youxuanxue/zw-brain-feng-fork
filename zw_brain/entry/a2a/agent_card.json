@@ -369,6 +369,19 @@
       "sideEffects": []
     },
     {
+      "id": "demand.list",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
       "id": "governance.dispute_list",
       "mode": "read",
       "humanConfirmationRequired": false,
@@ -1807,6 +1820,38 @@
         "db_write",
         "state_machine_transition",
         "blockchain_anchor"
+      ]
+    },
+    {
+      "id": "demand.phase.advance",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "demand.register",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
       ]
     },
     {

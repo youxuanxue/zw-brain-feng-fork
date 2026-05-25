@@ -43,6 +43,8 @@ items:
   actual_evidence:
   - zw_brain/command/handlers/j2/duplicate_check.py + dispatch catalog.duplicate.check
   - tests/test_wave1_j2_pipeline.py — F3 duplicate.check audit 断言
+  - zw-brain-web P5Provider.vue — publish 队列 + duplicate_warnings 面板
+  - tests/e2e/p5_duplicate_warnings.spec.ts — 浏览器 publish envelope 断言
   depends_on:
   - F1
   status: completed

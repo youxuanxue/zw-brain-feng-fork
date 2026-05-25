@@ -90,6 +90,9 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `provider.view` | j1 | `get_provider_view` | 3233 |
 | `request.create` | j1 | `create_request` | 5993 |
 | `request.list` | j1 | `list_requests` | 2984 |
+| `demand.register` | j1 | `SupplyDemandRepository.register_demand` | supply_demand_handlers |
+| `demand.phase.advance` | j1 | `SupplyDemandRepository.advance_phase` | supply_demand_handlers |
+| `demand.list` | j1 | `SupplyDemandRepository.list_demands` | supply_demand_handlers |
 | `request.submit` | j1 | `submit_request` | 6207 |
 | `request.view` | j1 | `get_request` | 3309 |
 | `require.intent.refine` | j1 | `refine_requirement_intent` | 4035 |

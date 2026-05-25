@@ -9,6 +9,7 @@ core_goal: |
   智能推荐前置（基于 sd-default dump-dsp_require 真实历史 + dump-data_resource 真实元数据）。
   AI 调用必须走 shared/inference/client 经集团推理平台（preflight 段 10）；
   config_change_class 字段已就位（live|preview|draft），三引擎是 preview/draft 流的首消费方。
+  B13 `/engines-admin` 壳已 land（E3 F7 + E5 路由）；**Wave 2 业务 sign-off（F8）与预览门禁（E5 F16）仍 pending**。
   最终验收：用三引擎在 1 周内完成"鞍山 4 级审批 + 四川 7 字段表单 + 荆州 5 条推荐规则"项目级交付。
 
 acceptance_criteria:

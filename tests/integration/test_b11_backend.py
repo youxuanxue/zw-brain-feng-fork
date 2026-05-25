@@ -31,6 +31,7 @@ from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.shared import audit as audit_bus
 from zw_brain.shared.audit import store as audit_store_mod
 from zw_brain.shared.audit.store import AuditStore, StoredAuditEvent
+from zw_brain.shared.inference.client import InferenceError
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 ROLE_MAPPING_FIXTURE = REPO_ROOT / "tests/fixtures/m0-sd-default/role-mapping-manifest.json"
@@ -318,6 +319,28 @@ def test_investigation_summary_uses_inference_client_and_sanitizes(monkeypatch, 
     assert "application.grant.approve" not in user_msg.content
     assert "REQ-1" not in user_msg.content
     assert "sha1:" in user_msg.content, "脱敏后应保留 sha1: 占位符"
+
+
+def test_investigation_summary_falls_back_when_inference_fails(monkeypatch, store: AuditStore) -> None:
+    audit_bus.configure_sink(_store_sink(store))
+
+    def _boom(*args, **kwargs):
+        raise InferenceError("inference unavailable")
+
+    monkeypatch.setattr(inv_handlers.inference_client, "chat", _boom)
+    out = inv_handlers.handler_assistant_investigation_summary(
+        brain=None,  # type: ignore[arg-type]
+        skill_id="assistant.investigation_summary",
+        payload={
+            "request_id": "REQ-INV-FALLBACK",
+            "panel": "statistics",
+            "panel_payload": {"scanned": 42, "totals": {"read-sensitive": 40, "write-critical": 2}},
+            "tenant_id": TENANT,
+        },
+    )
+    assert out["model"] == "rule-fallback"
+    assert "42" in out["summary"]
+    assert out["sanitized_input_digest"]
 
 
 # ---------------------------------------------------------------------------

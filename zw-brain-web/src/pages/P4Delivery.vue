@@ -36,7 +36,6 @@ async function reconcile(id: string) {
     skillId: 'delivery.reconcile_receipt',
     payload: { task_id: id },
     successTitle: '已触发对账',
-    pendingBackend: 'E2 交付对账 (e2/plan.yaml F5)',
   });
 }
 </script>

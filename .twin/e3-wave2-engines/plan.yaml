@@ -193,5 +193,5 @@ items:
   - F6
   - F7
   status: in_progress
-  next_action: 等业务方 sign-off；B1.3 /engines-admin 浏览器壳已验（2026-05-25）
-  blocked_reason: null
+  next_action: 等业务方 sign-off；2026-05-25 浏览器 `/engines-admin` 三 tab 可达（ROLE_BUSIAUDIT）——加 E5 F16 预览 banner 后再对外演示
+  blocked_reason: 人类 sign-off 未落盘；UI 预览门禁待 E5 F16

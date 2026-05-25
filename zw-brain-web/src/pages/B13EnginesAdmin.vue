@@ -321,6 +321,10 @@ function lastResultText(): string {
         </template>
       </PageFocusHeader>
 
+      <p class="wave2-banner" role="note">
+        Wave 2 预览：本页配置能力处于草稿→预览→入库流程，正式启用待业务方确认（E3 sign-off）。
+      </p>
+
       <section class="focus-section">
       <header class="tab-row">
         <button
@@ -455,5 +459,9 @@ function lastResultText(): string {
 .result-pre {
   margin: 0; padding: 8px; background: #fff; border-radius: 4px; font-size: 11px; color: #2a3a52;
   max-height: 180px; overflow: auto; white-space: pre-wrap;
+}
+.wave2-banner {
+  margin: 0 0 12px; padding: 10px 12px; border-radius: 6px;
+  background: #fff8e6; border: 1px solid #f0d080; font-size: 13px; color: #6b4e00;
 }
 </style>

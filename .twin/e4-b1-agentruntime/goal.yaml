@@ -17,10 +17,10 @@ acceptance_criteria:
     evidence_type: tests/integration/test_audit_bus.py 全绿 + 真实 sd-default 审计事件回放截图 + 段 audit-must-block 不报红
   - id: AC2
     statement: B1.1 合规与运营 UI + 后端——4 panel live + Playwright 可运行；调查助手不覆盖原始证据
-    evidence_type: B1.1 4 panel 截图 + tests/e2e/b11_compliance.spec.ts 可 CI 执行 + 988+ 审计事件 live
+    evidence_type: B1.1 4 panel 截图 + tests/e2e/b11_compliance.spec.ts 2 测 CI 绿 + 988+ 审计事件 live
   - id: AC3
-    statement: B1.2 接入扩展中心——ROLE_SYSTEM 下能力包矩阵 live + 写操作 confirm 边界
-    evidence_type: B1.2 主流程 Playwright 冒烟 + 200 manifest 矩阵
+    statement: B1.2 接入扩展中心——ROLE_BUSIAUDIT 下能力包矩阵 live + 写操作 confirm 边界 + b12 e2e 实装
+    evidence_type: B1.2 主流程 Playwright 冒烟（≥3 测）+ 200 manifest 矩阵
   - id: AC4
     statement: AgentRuntime 触发式落地预案就绪——T1/T2/T3 任一触发当日 1 天内可 land（按架构 §8.6 + preflight-debt 2026-05-24 entry 已锚定的触发条件与落地范围）
     evidence_type: docs/agent-runtime-t1-readiness.md 预案文档 + 触发时 1 天 PR land 能力证明

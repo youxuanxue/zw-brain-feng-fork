@@ -96,6 +96,15 @@ def test_fallback_rule_typical_queries(brain, query, expected_intent, must_conta
     assert out["recommendation_reason"]
 
 
+def test_fallback_rule_business_environment_query(brain):
+    out = _invoke(
+        brain,
+        {"query": "查省营商环境相关数据", "role": "ROLE_ORGAN_OPERATER", "enabled": False},
+    )
+    assert out["intent"] == "discover_resource"
+    assert any("营商环境" in k for k in out["keywords"]), out["keywords"]
+
+
 def test_fallback_rule_empty_query_marks_unknown(brain):
     out = _invoke(brain, {"query": "", "role": "ROLE_ORGAN_OPERATER", "enabled": False})
     assert out["intent"] == "unknown"

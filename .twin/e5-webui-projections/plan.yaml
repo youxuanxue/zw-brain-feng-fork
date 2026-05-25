@@ -44,24 +44,14 @@ items:
   - 停止条件：8 主页面可达 + 真实数据可见 + 工程术语黑名单不报红
   actual_evidence:
   - zw-brain-web/src/pages/{P1-P5,P7,B11,B12}*.vue — 8 主页面组件就位
-  - 2026-05-25 Playwright 验收：P1/P2/P3/P4/P7 live 数据；B1.1/B1.2 在正确岗位下 live
-  - zw-brain-web/src/router/index.ts — 13 条子路由仍指向 PagePlaceholder（P5 wizard/inbox、P7
-    详情等）
-  - P5 provider 待办全 0 — snapshot provider 契约与 UI 字段不一致（归 E2 F7 补投影）
-  - P5ReverseCatalogWizard.vue + P5FieldDecisionInbox.vue + P7ZoneDetail.vue 实装
-  - router/index.ts 三条子路由去 PagePlaceholder
-  - npm run build + check_ui_term_blacklist 双绿
-  - P5 wizard/inbox + P7 detail 去占位
-  - e2e 覆盖 P5 wizard + P7 detail + role-switch
-  - e2e 覆盖 P5 wizard + P7 detail
-  - P5 六条子路由去占位
-  - providerTodoCounts 非零
-  - e2e p5_b12_unlock
+  - F13-F16 收敛 P3 异议/供需、P4 任务详情、P2 catalog-browse、B1.2 package 详情
+  - router PagePlaceholder 降至 login/profile/migration/iam-governance 4 条
+  - npm run e2e 33 passed @ 8800（feature/e5-f13-f17-browser-closure）
   depends_on:
   - F2
   status: completed
   next_action: ''
-  blocked_reason: P5 真实计数等 E2 补 provider snapshot 投影（field_decisions/hookup_reviews/demand_matches）
+  blocked_reason: null
 - id: F4
   deliverable: 5 消费面投影器扩展（scripts/export_agent_contract.py）
   scope: 派生 WebUI 页面注册 / REST OpenAPI / CLI spec / MCP manifest / A2A card；不含投影目录的人工
@@ -219,14 +209,93 @@ items:
   - 证据预算：npm run e2e 或 pytest 包装 playwright + CI job 绿
   - 停止条件：b11_compliance.spec.ts 从 PLACEHOLDER 变为可执行
   actual_evidence:
-  - tests/e2e/b11_compliance.spec.ts + b12_intake.spec.ts — 仅 prose 规格，无 harness
-  - 2026-05-25 临时 Playwright 脚本已验证主页面行为
   - playwright.config.ts + package.json e2e script
-  - webui_smoke.spec.ts 8 tests + b11 2 tests
-  - 'npm run e2e: 10 passed (8810)'
+  - webui_smoke + b11 + b12 + j1_objection + j1_supply_demand + p4_delivery + p5_b12 + nl_accelerator
+  - npm run e2e 33 passed @ 8800
   depends_on:
   - F9
   - F10
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F13
+  deliverable: P3 J1 异议发起/跟踪面（objection.case.* UI）
+  scope: P3RequestFlow 或 P3RequestDetail 嵌入：发起 catalog 维异议 + 状态跟踪 + evaluate；R12 合规
+  covers_ac:
+  - AC2
+  evidence_plan:
+  - 证据预算：Playwright 从 P3 发起一条异议并跟踪至 closed + 截图
+  - 停止条件：浏览器等价 customer_demo_j1 STEP-7~12（至少 catalog 维）
+  actual_evidence:
+  - P3Objection{Inbox,New,Detail}.vue + router 子路由 + P3 入口链接
+  - tests/e2e/j1_objection_browser.spec.ts 2 passed
+  depends_on:
+  - F12
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F14
+  deliverable: P3 供需对接 6 步可见入口
+  scope: 最小「找不到数据→登记需求→订阅」；复用 E1 supply_demand cap；不含 Wave 2 推荐编辑器
+  covers_ac:
+  - AC2
+  evidence_plan:
+  - 证据预算：Playwright 登记 demand 并可见 phase + 截图
+  - 停止条件：P3 用户可发现并完成主路径一步
+  actual_evidence:
+  - P3SupplyDemand.vue + demand.{register,phase.advance,list} skill 三件套
+  - tests/e2e/j1_supply_demand_browser.spec.ts 1 passed
+  depends_on:
+  - F13
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F15
+  deliverable: P4 交付任务详情 + snapshot 列表去截断
+  scope: 交付任务详情页实装 + delivery_tasks 分页或全量策略；statusLabels 补 delivery 枚举
+  covers_ac:
+  - AC2
+  evidence_plan:
+  - 证据预算：点击任务编号进详情非占位；列表条数与 API 策略一致截图
+  - 停止条件：不再「点编号进死胡同」；未知 slug 不一律「待处理」
+  actual_evidence:
+  - P4DeliveryTaskDetail.vue + system.snapshot 合并 list_delivery_tasks
+  - statusLabels 补 delivery/异议/供需 phase 枚举
+  - tests/test_delivery_snapshot_enrichment.py + p4_delivery_detail.spec.ts
+  depends_on:
+  - F3
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F16
+  deliverable: 剩余子路由去占位 + B13 预览门禁
+  scope: P2 catalog-browse、B1.2 package/:id 实装或从导航移除 dead link；/engines-admin 加 Wave2 预览 banner
+  covers_ac:
+  - AC2
+  evidence_plan:
+  - 证据预算：占位路由清单归零或显式 deferred；B13 非目标用户带预览提示
+  - 停止条件：用户主路径无「功能建设中」死胡同
+  actual_evidence:
+  - P2CatalogBrowse.vue + B12PackageDetail.vue + B13 wave2-banner
+  - B12 列表名称链到 package 详情
+  depends_on:
+  - F3
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F17
+  deliverable: b12_intake Playwright 实装（E4 F5 协作）
+  scope: 将 b12_intake.spec.ts placeholder 12 条清单转 it()；confirm/prompt mock
+  covers_ac:
+  - AC6
+  evidence_plan:
+  - 证据预算：npm run e2e 含 b12 ≥3 用例 + CI 绿
+  - 停止条件：写操作二次确认 + 3 tab 切换有运行时断言
+  actual_evidence:
+  - tests/e2e/b12_intake.spec.ts 3 it() executable
+  - playwright.config.ts testMatch 扩展 8 spec 文件
+  depends_on:
+  - F12
   status: completed
   next_action: ''
   blocked_reason: null

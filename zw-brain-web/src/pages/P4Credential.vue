@@ -3,6 +3,7 @@ import { computed, ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { authFetch } from '@/composables/useAuth';
 import { invokeActionStub } from '@/composables/useActionStub';
+import { getProductRole } from '@/composables/useProductRole';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
@@ -40,7 +41,7 @@ async function load() {
   sampleView.value = null;
   try {
     const resp = await authFetch(
-      `/api/skills/credential.query?role=ROLE_ORGAN_OPERATER&request_id=${encodeURIComponent(reqId.value)}`,
+      `/api/skills/credential.query?role=${encodeURIComponent(getProductRole().value)}&request_id=${encodeURIComponent(reqId.value)}`,
       { headers: { Accept: 'application/json' } },
     );
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -50,7 +51,7 @@ async function load() {
       const sresp = await authFetch('/api/skills/credential.sample.render', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ request_id: reqId.value, role: 'ROLE_ORGAN_OPERATER', confirmed: true }),
+        body: JSON.stringify({ request_id: reqId.value, role: getProductRole().value, confirmed: true }),
       });
       if (sresp.ok) {
         sampleView.value = (await sresp.json()) as SampleRenderView;
@@ -92,7 +93,6 @@ async function reissue() {
     skillId: 'credential.issue',
     payload: { request_id: reqId.value },
     successTitle: '已重发凭据',
-    pendingBackend: 'E2 凭据 (e2/plan.yaml F5)',
   });
   await load();
 }

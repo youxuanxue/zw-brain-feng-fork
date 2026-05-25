@@ -29,15 +29,25 @@ function toggle() {
   }
 }
 
+function autoApplyPrimaryAction() {
+  const primary = result.value?.actions.find(
+    (a) =>
+      (a.kind === 'filter' && a.payload && (a.payload.query || a.payload.zone)) ||
+      a.kind === 'navigate',
+  );
+  if (primary) triggerAction(primary);
+}
+
 async function submit() {
   const q = query.value.trim();
   if (!q) return;
   await parse(q);
+  autoApplyPrimaryAction();
 }
 
 function applyPreset(p: string) {
   query.value = p;
-  void parse(p);
+  void parse(p).then(autoApplyPrimaryAction);
 }
 
 function triggerAction(action: StructuredAction) {
@@ -63,7 +73,7 @@ function triggerAction(action: StructuredAction) {
     <aside v-if="open" class="nl-drawer" role="complementary" aria-label="自然语言加速器">
       <header class="nl-head">
         <strong>自然语言加速器</strong>
-        <p class="nl-hint">输入一句话快速命中本页高频操作。失败时不影响你直接使用页面按钮。</p>
+        <p class="nl-hint">输入一句话，解析后会自动填入下方搜索并展示结果。</p>
       </header>
 
       <form class="nl-form" @submit.prevent="submit">

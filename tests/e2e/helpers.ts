@@ -33,3 +33,41 @@ export async function gotoHash(page: Page, hash: string): Promise<void> {
   }, hash);
   await page.waitForTimeout(800);
 }
+
+/** 确保至少一条待发布目录；多轮 e2e 发布后队列为空时自动从 pending_review 补一条。 */
+export async function ensurePublishQueue(page: Page): Promise<boolean> {
+  const queueResp = await page.request.post(`${E2E_BASE_URL}/api/skills/catalog.entry.query`, {
+    data: { role: 'ROLE_BUSIAUDIT', lifecycle_status: 'approved_pending_publish', limit: 1 },
+  });
+  if (queueResp.ok()) {
+    const body = (await queueResp.json()) as { items?: unknown[] };
+    if (body.items?.length) return true;
+  }
+
+  const pendingResp = await page.request.post(`${E2E_BASE_URL}/api/skills/catalog.entry.query`, {
+    data: { role: 'ROLE_BUSIAUDIT', lifecycle_status: 'pending_review', limit: 1 },
+  });
+  if (!pendingResp.ok()) return false;
+  const pending = (await pendingResp.json()) as {
+    items?: Array<{ catalog_code?: string; id?: string }>;
+  };
+  const code = pending.items?.[0]?.catalog_code ?? pending.items?.[0]?.id;
+  if (!code) return false;
+
+  const reviewResp = await page.request.post(`${E2E_BASE_URL}/api/skills/catalog.entry.review`, {
+    data: {
+      role: 'ROLE_BUSIAUDIT',
+      catalog_code: code,
+      decision: 'approve',
+      confirmed: true,
+    },
+  });
+  if (!reviewResp.ok()) return false;
+
+  const after = await page.request.post(`${E2E_BASE_URL}/api/skills/catalog.entry.query`, {
+    data: { role: 'ROLE_BUSIAUDIT', lifecycle_status: 'approved_pending_publish', limit: 1 },
+  });
+  if (!after.ok()) return false;
+  const afterBody = (await after.json()) as { items?: unknown[] };
+  return Boolean(afterBody.items?.length);
+}

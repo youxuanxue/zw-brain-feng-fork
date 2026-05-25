@@ -4,9 +4,10 @@ one_liner: 让 J2 挂数→维数旅程支持原生 3 层默认审批 + 资源 3
 
 core_goal: |
   后端 J2 三审 + 三物化 + 重复率提醒 + customer_demo_j2 已在 main land（tests/test_wave1_j2_pipeline.py 全绿）。
-  当前缺口在 **P5 浏览器面**：provider snapshot 与 UI 字段契约不一致（待办恒 0）、wizard/inbox 子路由占位。
-  让 ROLE_ORGAN_MANAGER 在 P5 能完成：编制 → 挂接（table/file/api）→ 部门审 → 平台复核 → 发布（含重复率提醒）→
-  异议响应。项目级流程定制仍归 E3 三引擎。
+  PR #106 后 **P5 浏览器面基本可用**：provider snapshot 四卡待办非零、wizard/inbox 子路由实装、异议收件箱 7 条 live（Playwright p5_b12_unlock + webui_smoke 26 passed）。
+  仍待：**发布流重复率提醒浏览器可见**（AC2 UI 证据）、**业务方 sign-off**（F6）。
+  让 ROLE_ORGAN_MANAGER 在 P5 能完成：编制 → 挂接（table/file/api）→ 部门审 → 平台复核 → 发布（含重复率提醒）→ 异议响应。
+  项目级流程定制仍归 E3 三引擎。
   共享纪律见 .twin/README.md（撞 M0 墙路径：catalog_metadata.py / exchange.py / projections.py provider 段）。
 
 acceptance_criteria:

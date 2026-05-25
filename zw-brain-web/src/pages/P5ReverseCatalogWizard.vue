@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
@@ -26,6 +26,12 @@ const catalogs = computed(() => {
   const list = (provider.value.catalogs as unknown[] | undefined) ?? [];
   return list.map((c) => mapReverseDraftCatalog(c as Record<string, unknown>));
 });
+
+watch(catalogs, (list) => {
+  if (!selectedCatalogId.value && list.length) {
+    selectedCatalogId.value = list[0].id;
+  }
+}, { immediate: true });
 
 const selected = computed(
   (): ReverseDraftCatalog | null =>

@@ -14,6 +14,29 @@ const REQUEST_STATUS_ZH: Record<string, string> = {
   reconciling: '待对账',
   issued: '已签发',
   not_issued: '未签发',
+  // 交付任务
+  planned: '已计划',
+  published: '已发布',
+  running: '运行中',
+  stopped: '已停止',
+  delivered: '已交付',
+  active: '进行中',
+  failed: '失败',
+  // 异议 / 通用
+  submitted: '已提交',
+  platform_investigating: '平台核查中',
+  provider_investigating: '部门核查中',
+  resolved: '已解决',
+  closed: '已关闭',
+  escalated: '已升级',
+  accepted: '已受理',
+  // 供需 6 步
+  gap_discovered: '发现缺口',
+  registered: '已登记',
+  recommend_failed: '推荐未命中',
+  manual_registered: '人工登记',
+  provider_responded: '部门已响应',
+  subscribed: '已订阅',
 };
 
 const SLUG_RE = /^[a-z][a-z0-9_-]*$/;

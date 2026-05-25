@@ -205,6 +205,7 @@ items:
   - 2026-05-25 验收记录见 e5/plan.yaml F5 actual_evidence
   - 'headless_j1_demo.sh: DEMO_FAILURES counter, exit 1 on non-200, decision=approve_reuse'
   - test_wave0_infra::test_headless_j1_demo_fails_closed_on_non_200_steps PASS
+  - PR #106 后本地复验 5/5 全绿 @ 8800
   depends_on: []
   status: completed
   next_action: 改 headless_j1_demo.sh；复用 customer_demo_j1 审批参数

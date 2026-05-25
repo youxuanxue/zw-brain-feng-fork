@@ -49,10 +49,83 @@ _INTENT_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
 _REGION_PATTERN = re.compile(r"(全省|跨省|省内|济南|青岛|烟台|淄博|潍坊|临沂|济宁|泰安|聊城|滨州|菏泽|枣庄|日照|东营|威海|德州)")
 
 
+_QUERY_PREFIXES = ("帮我", "我要", "想要", "搜索", "查", "找", "搜")
+_QUERY_SUFFIXES = ("相关数据", "相关资源", "相关", "数据", "资源", "信息", "目录")
+_TOPIC_VOCAB = (
+    "营商环境",
+    "停车场",
+    "医保码",
+    "医保",
+    "户籍",
+    "不动产",
+    "教育",
+    "水电气",
+    "一表通",
+    "民政",
+    "出生",
+    "婚姻登记",
+    "行政审批",
+    "房地产",
+    "医疗救助",
+    "跨省",
+)
+
+
 def _split_keywords(query: str) -> list[str]:
     """简单中文分词 (Wave 1 stub)：按空格 / 标点 拆，过滤短词."""
     parts = re.split(r"[\s,，。;；:：、\-——()（）\[\]【】\"'""'']+", query.strip())
     return [p for p in parts if len(p) >= 2]
+
+
+def _strip_query_noise(text: str) -> str:
+    q = text.strip()
+    for prefix in _QUERY_PREFIXES:
+        if q.startswith(prefix):
+            q = q[len(prefix) :]
+    for suffix in _QUERY_SUFFIXES:
+        if q.endswith(suffix) and len(q) > len(suffix) + 1:
+            q = q[: -len(suffix)]
+    return q.lstrip("省市区县").strip()
+
+
+def _extract_search_terms(query: str) -> list[str]:
+    """从整句 NL 输入提取可检索主题词，避免整句落进搜索框导致 0 命中。"""
+    query_clean = query.strip()
+    if not query_clean:
+        return []
+    terms: list[str] = []
+    for topic in sorted(_TOPIC_VOCAB, key=len, reverse=True):
+        if topic not in query_clean:
+            continue
+        if any(topic in existing or existing in topic for existing in terms):
+            continue
+        terms.append(topic)
+    if terms:
+        return terms[:8]
+    stripped = _strip_query_noise(query_clean)
+    parts = _split_keywords(stripped)
+    if parts:
+        return parts[:8]
+    if len(stripped) >= 2:
+        return [stripped]
+    return _split_keywords(query_clean)[:8]
+
+
+def _normalize_keywords(query: str, keywords: list[str]) -> list[str]:
+    cleaned = [str(k).strip() for k in keywords if str(k).strip()]
+    extracted = _extract_search_terms(query)
+    merged: list[str] = []
+    for k in cleaned + extracted:
+        if not k or k in merged:
+            continue
+        if any(k in existing or existing in k for existing in merged):
+            continue
+        merged.append(k)
+    if not merged:
+        return extracted[:8]
+    if len(merged) == 1 and merged[0] == query.strip():
+        return extracted[:8] or merged
+    return merged[:8]
 
 
 def _rule_based_parse(query: str) -> dict[str, Any]:
@@ -67,7 +140,7 @@ def _rule_based_parse(query: str) -> dict[str, Any]:
             "follow_up_questions": ["想找哪类政务数据？", "数据涉及哪些部门？"],
             "source": "fallback_rule",
         }
-    keywords = _split_keywords(query_clean)
+    keywords = _extract_search_terms(query_clean)
     intent = INTENT_UNKNOWN
     for candidate_intent, markers in _INTENT_RULES:
         if any(m in query_clean for m in markers):
@@ -196,6 +269,13 @@ def _parse_search_intent(brain, query: str, role: str, *, enabled: bool, request
     if inference_result is not None:
         brain._append_audit_feed("search.intent.parse", audit_target, "ok", actor)
         inference_result["enabled"] = True
+        inference_result["keywords"] = _normalize_keywords(query, inference_result.get("keywords") or [])
+        dim = inference_result.get("dimension") or {}
+        if isinstance(dim, dict):
+            dim["keyword"] = inference_result["keywords"][:5]
+            if inference_result["keywords"] and not dim.get("target_resource_hint"):
+                dim["target_resource_hint"] = inference_result["keywords"][0]
+            inference_result["dimension"] = dim
         return inference_result
 
     # 推理失败 / JSON 解析失败 → 降级

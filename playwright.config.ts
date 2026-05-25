@@ -4,7 +4,19 @@ const baseURL = process.env.ZW_E2E_BASE_URL ?? 'http://127.0.0.1:8800';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  testMatch: ['webui_smoke.spec.ts', 'b11_compliance.spec.ts', 'nl_accelerator_live.spec.ts', 'p5_b12_unlock.spec.ts'],
+  testMatch: [
+    'webui_smoke.spec.ts',
+    'b11_compliance.spec.ts',
+    'b12_intake.spec.ts',
+    'nl_accelerator_live.spec.ts',
+    'p5_b12_unlock.spec.ts',
+    'j1_objection_browser.spec.ts',
+    'j1_supply_demand_browser.spec.ts',
+    'p4_delivery_detail.spec.ts',
+    'p5_duplicate_warnings.spec.ts',
+    'twin_browser_pages.spec.ts',
+    'customer_acceptance_checklist.spec.ts',
+  ],
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,

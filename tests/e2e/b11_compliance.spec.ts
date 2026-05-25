@@ -102,8 +102,8 @@ test.describe('B1.1 合规与运营 smoke', () => {
 
   test('OPERATER 无权静默进入合规页', async ({ page }) => {
     await setRole(page, 'ROLE_ORGAN_OPERATER');
+    await gotoHash(page, '#/workbench');
     await gotoHash(page, '#/compliance-ops');
-    await page.waitForTimeout(1000);
-    expect(page.url()).not.toMatch(/#\/compliance-ops/);
+    await expect.poll(() => page.url(), { timeout: 10_000 }).not.toMatch(/#\/compliance-ops/);
   });
 });

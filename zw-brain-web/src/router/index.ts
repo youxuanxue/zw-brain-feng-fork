@@ -5,11 +5,17 @@ import { defaultRouteForRole, isRouteAllowedForRole } from '@/lib/pageAccess';
 import P1Workbench from '@/pages/P1Workbench.vue';
 import P2Discovery from '@/pages/P2Discovery.vue';
 import P2ResourceDetail from '@/pages/P2ResourceDetail.vue';
+import P2CatalogBrowse from '@/pages/P2CatalogBrowse.vue';
 import P3RequestFlow from '@/pages/P3RequestFlow.vue';
 import P3RequestDetail from '@/pages/P3RequestDetail.vue';
 import P3ReviewDetail from '@/pages/P3ReviewDetail.vue';
+import P3ObjectionInbox from '@/pages/P3ObjectionInbox.vue';
+import P3ObjectionDetail from '@/pages/P3ObjectionDetail.vue';
+import P3ObjectionNew from '@/pages/P3ObjectionNew.vue';
+import P3SupplyDemand from '@/pages/P3SupplyDemand.vue';
 import P4Delivery from '@/pages/P4Delivery.vue';
 import P4Credential from '@/pages/P4Credential.vue';
+import P4DeliveryTaskDetail from '@/pages/P4DeliveryTaskDetail.vue';
 import P5Provider from '@/pages/P5Provider.vue';
 import P5ReverseCatalogWizard from '@/pages/P5ReverseCatalogWizard.vue';
 import P5ApiServiceWizard from '@/pages/P5ApiServiceWizard.vue';
@@ -26,6 +32,7 @@ import P7ZoneDetail from '@/pages/P7ZoneDetail.vue';
 import B11ComplianceOps from '@/pages/B11ComplianceOps.vue';
 import B11DisputeDetail from '@/pages/B11DisputeDetail.vue';
 import B12IntegrationAdmin from '@/pages/B12IntegrationAdmin.vue';
+import B12PackageDetail from '@/pages/B12PackageDetail.vue';
 import B13EnginesAdmin from '@/pages/B13EnginesAdmin.vue';
 import PagePlaceholder from '@/pages/PagePlaceholder.vue';
 
@@ -39,17 +46,21 @@ const routes: RouteRecordRaw[] = [
 
   // P2 资源发现
   { path: '/discovery', name: 'P2-discovery', component: P2Discovery, meta: { page: 'P2', title: 'P2 资源发现' } },
-  { path: '/discovery/catalog-browse', component: PagePlaceholder, meta: { page: 'P2', title: 'P2 目录浏览' } },
+  { path: '/discovery/catalog-browse', component: P2CatalogBrowse, meta: { page: 'P2', title: 'P2 目录浏览' } },
   { path: '/discovery/resource/:id', component: P2ResourceDetail, meta: { page: 'P2', title: 'P2 资源详情' } },
 
   // P3 申请 / 审批 / 跟踪
   { path: '/request-flow', name: 'P3-request-flow', component: P3RequestFlow, meta: { page: 'P3', title: 'P3 申请 · 审批 · 跟踪' } },
   { path: '/request-flow/request/:id', component: P3RequestDetail, meta: { page: 'P3', title: 'P3 申请详情' } },
   { path: '/request-flow/review/:id', component: P3ReviewDetail, meta: { page: 'P3', title: 'P3 审批详情' } },
+  { path: '/request-flow/objection', component: P3ObjectionInbox, meta: { page: 'P3', title: 'P3 我的异议' } },
+  { path: '/request-flow/objection/new', component: P3ObjectionNew, meta: { page: 'P3', title: 'P3 发起异议' } },
+  { path: '/request-flow/objection/:id', component: P3ObjectionDetail, meta: { page: 'P3', title: 'P3 异议详情' } },
+  { path: '/request-flow/supply-demand', component: P3SupplyDemand, meta: { page: 'P3', title: 'P3 供需对接' } },
 
   // P4 交付 / 交换 / 直达
   { path: '/delivery-exchange', name: 'P4-delivery', component: P4Delivery, meta: { page: 'P4', title: 'P4 交付 · 交换 · 直达' } },
-  { path: '/delivery-exchange/task/:id', component: PagePlaceholder, meta: { page: 'P4', title: 'P4 交付任务详情' } },
+  { path: '/delivery-exchange/task/:id', component: P4DeliveryTaskDetail, meta: { page: 'P4', title: 'P4 交付任务详情' } },
   { path: '/delivery-exchange/credential/:id', component: P4Credential, meta: { page: 'P4', title: 'P4 凭据领取' } },
 
   // P5 提供方管理
@@ -76,7 +87,7 @@ const routes: RouteRecordRaw[] = [
   // B1.2 平台接入与扩展中心（后台）
   { path: '/integration-admin', name: 'B1.2-integration', component: B12IntegrationAdmin, meta: { page: 'B1.2', title: 'B1.2 平台接入与扩展中心' } },
   { path: '/integration-admin/iam-governance', component: PagePlaceholder, meta: { page: 'B1.2', title: 'B1.2 身份治理' } },
-  { path: '/integration-admin/package/:id', component: PagePlaceholder, meta: { page: 'B1.2', title: 'B1.2 能力包详情' } },
+  { path: '/integration-admin/package/:id', component: B12PackageDetail, meta: { page: 'B1.2', title: 'B1.2 能力包详情' } },
 
   // B1.3 三引擎配置中心（E3 Wave-2 F7）—— 审批流 / 表单 / 推荐 草稿→预览→入库
   { path: '/engines-admin', name: 'B1.3-engines', component: B13EnginesAdmin, meta: { page: 'B1.3', title: 'B1.3 三引擎配置中心' } },

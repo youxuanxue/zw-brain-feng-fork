@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 import zw_brain.shared.audit as audit_bus
 from zw_brain.domain.policy import DomainAccessDeniedError, tenant_for_role
 from zw_brain.shared.inference import client as inference_client
-from zw_brain.shared.inference.client import ChatMessage
+from zw_brain.shared.inference.client import ChatMessage, InferenceError
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _SENSITIVE_KEYS = (
@@ -114,11 +114,42 @@ def _emit_meta_audit(
     )
 
 
+def _fallback_investigation_summary(panel: str, sanitized: dict[str, Any], digest: str) -> dict[str, Any]:
+    """规则摘要：推理平台不可用时仍给出可演示的调查结论（不调用第三方 LLM）。"""
+    if panel == "statistics":
+        scanned = int(sanitized.get("scanned") or 0)
+        totals = sanitized.get("totals") or {}
+        top = ", ".join(f"{k} {v}" for k, v in list(totals.items())[:3]) if totals else "暂无分布"
+        text = (
+            f"统计视图共扫描 {scanned} 条审计事件；累计分布：{top}。"
+            "建议关注 write-critical 占比是否异常升高，并抽样核对高频 skill。"
+        )
+    elif panel == "anomaly":
+        anomalies = sanitized.get("anomalies") or []
+        n = len(anomalies) if isinstance(anomalies, list) else 0
+        text = (
+            f"异常视图命中 {n} 项规则告警。"
+            "优先处理 high-severity 且重复出现的 actor/skill 组合，并关联 request 回放原始证据。"
+        )
+    else:
+        total = int(sanitized.get("total") or 0)
+        text = (
+            f"追责视图共 {total} 条拒绝链路。"
+            "建议从 denied 次数最高的 request 入手，核对策略匹配与岗位授权是否一致。"
+        )
+    return {
+        "summary": text,
+        "model": "rule-fallback",
+        "sanitized_input_digest": digest,
+        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+    }
+
+
 def handler_assistant_investigation_summary(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
     """F3 assistant.investigation_summary —— 脱敏 panel + chat() + meta-audit。
 
     成功路径：返回 {summary, model, sanitized_input_digest, usage}。
-    推理失败：raise InferenceError 上抛（D14 不允许 fallback 直连第三方）。
+    推理失败：回落规则摘要（仍走脱敏输入，不直连第三方 LLM 以外路径）。
     """
     tenant_id = _enforce_tenant_scope(payload)
     panel = str(payload["panel"]).strip()
@@ -144,13 +175,22 @@ def handler_assistant_investigation_summary(brain: BrainService, skill_id: str, 
         ),
     ]
 
-    result = inference_client.chat(
-        messages,
-        model="claude-sonnet-4-7",
-        max_tokens=max_tokens,
-        temperature=0.0,
-        request_id=request_id,
-    )
+    try:
+        result = inference_client.chat(
+            messages,
+            model="claude-sonnet-4-7",
+            max_tokens=max_tokens,
+            temperature=0.0,
+            request_id=request_id,
+        )
+        summary_text = result.text
+        model_name = result.model
+        usage = dict(result.usage)
+    except InferenceError:
+        fallback = _fallback_investigation_summary(panel, sanitized, sanitized_digest)
+        summary_text = fallback["summary"]
+        model_name = fallback["model"]
+        usage = fallback["usage"]
 
     fingerprint = hashlib.sha1(
         json.dumps(
@@ -165,14 +205,14 @@ def handler_assistant_investigation_summary(brain: BrainService, skill_id: str, 
         payload=payload,
         tenant_id=tenant_id,
         param_hash=fingerprint,
-        summary_length=len(result.text or ""),
+        summary_length=len(summary_text or ""),
     )
 
     return {
-        "summary": result.text,
-        "model": result.model,
+        "summary": summary_text,
+        "model": model_name,
         "sanitized_input_digest": sanitized_digest,
-        "usage": dict(result.usage),
+        "usage": usage,
     }
 
 

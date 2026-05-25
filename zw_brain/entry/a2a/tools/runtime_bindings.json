@@ -1265,6 +1265,48 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "demand.list",
+    "description": "列出当前租户登记的 demand 记录，可按 phase 筛选。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/demand.list",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "demand.list.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "governance.dispute_list",
     "description": "查看重复要数、字段口径和补录异常相关争议，以及关联告警、工单与知识建议。",
     "protocol_type": "builtin_skill",
@@ -6298,6 +6340,126 @@
       ],
       "permissions": [
         "delivery.trigger_recovery.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "demand.phase.advance",
+    "description": "按 6 步状态机推进 demand 的 demand_phase。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/demand.phase.advance",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "demand_id": {
+          "type": "string"
+        },
+        "next_phase": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "demand_id",
+        "next_phase",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "demand.phase.advance.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "demand.register",
+    "description": "用户在 P3 找不到可复用资源时登记需求，写入 application_record kind=demand。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/demand.register",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "demand_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "applicant": {
+          "type": "string"
+        },
+        "applicant_dept": {
+          "type": "string"
+        },
+        "target_resource_hint": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "demand.register.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",

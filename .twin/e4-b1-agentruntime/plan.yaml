@@ -184,5 +184,5 @@ items:
   - F5
   - F7
   status: pending
-  next_action: F1-F5/F7 完成后写 scripts/customer_demo_b1.sh；2026-05-25 浏览器验收 B1.1/B1.2 主面已 live
-  blocked_reason: null
+  next_action: F7 业务判定后写 scripts/customer_demo_b1.sh；2026-05-25 浏览器 B1.1 四 panel + 调查助手 + B1.2 三 tab live（b11 2 e2e 绿，b12 仍 placeholder→E5 F17）
+  blocked_reason: F7 borderline 报表 sign-off 未过；b12 Playwright 未实装

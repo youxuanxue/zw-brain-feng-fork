@@ -3,19 +3,19 @@ id: e5-webui-projections
 one_liner: 前端工程化重建 + 8 页面成品化 + 5 消费面投影器派生
 
 core_goal: |
-  Vue3+Vite 骨架与 8 主页面（P1-P5/P7 + B1.1/B1.2）已在 main land，dist-vite 由 REST 托管。
-  当前阶段从「解锁并行开发」转为「浏览器可闭环」：写操作必须跟随顶栏岗位、P3 审批枚举对齐后端、
-  P5/P7 子路由去占位、NL 减摩接 E1 已 land 的 cap（非 fixture 兜底）、Playwright 固化 2026-05-25
-  端到端验收结论防回归。
-  5 消费面投影器 + CLI/MCP/A2A 投影已就位；headless J1 脚本需去假绿。
-  共享纪律见 .twin/README.md（撞 M0 墙路径：projections.py 缺 provider 收件箱计数等）。
+  Vue3+Vite 骨架与 8 主页面（P1-P5/P7 + B1.1/B1.2）已在 main land；PR #106 收口写路径 + Playwright harness（26 passed @ 8800）。
+  **F1-F12 已完成**（岗位跟随、审批枚举、P5/P7 子路由、NL live、headless_j1_demo 真绿）。
+  当前阶段：**补齐 J1 浏览器闭环与子路由死胡同**——P3 异议 + 供需入口（E1 F10/F12）、P4 任务详情 + 列表截断、
+  P2 catalog-browse / B1.2 package 详情去占位、B13 预览门禁、b12 Playwright 实装（F13-F17）。
+  5 消费面投影器 + CLI/MCP/A2A 投影已就位。
+  共享纪律见 .twin/README.md。
 
 acceptance_criteria:
   - id: AC1
     statement: WebUI 源码 + 构建管线重建（Vue3+Vite），保留 8 页面路由
     evidence_type: zw-brain-web/src + package.json + vite.config + dist-vite + npm run dev 热重载
   - id: AC2
-    statement: 8 页面成品化装载 sd-default 真实数据，浏览器写路径可闭环，遵守 R12 工程术语黑名单
+    statement: 8 页面成品化装载 sd-default 真实数据，浏览器 J1/J2 主路径可闭环，遵守 R12 工程术语黑名单
     evidence_type: 8 主页面 live 截图 + Playwright 冒烟 + preflight 段 24 不报红 + 子路由占位清单收敛
   - id: AC3
     statement: 5 消费面投影器从单一 Registry 派生——WebUI 页面注册 / REST OpenAPI / CLI spec / MCP manifest / A2A card

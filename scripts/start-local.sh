@@ -111,15 +111,25 @@ PY
 
 ensure_webui_build() {
     local dist_index="$REPO_ROOT/zw-brain-web/dist-vite/index.html"
-    if [[ -f "$dist_index" ]]; then
+    local needs_build=0
+    if [[ ! -f "$dist_index" ]]; then
+        needs_build=1
+    elif find "$REPO_ROOT/zw-brain-web/src" -type f -newer "$dist_index" -print -quit 2>/dev/null | grep -q .; then
+        needs_build=1
+    fi
+    if [[ "$needs_build" -eq 0 ]]; then
         return 0
     fi
     if ! command -v npm >/dev/null 2>&1; then
-        echo "[start-local] FAIL: zw-brain-web/dist-vite missing and npm not on PATH" >&2
+        echo "[start-local] FAIL: zw-brain-web/dist-vite stale/missing and npm not on PATH" >&2
         echo "[start-local] Hint: cd zw-brain-web && npm install && npm run build" >&2
         exit 1
     fi
-    echo "[start-local] building zw-brain-web (dist-vite missing)..."
+    if [[ -f "$dist_index" ]]; then
+        echo "[start-local] rebuilding zw-brain-web (src newer than dist-vite)..."
+    else
+        echo "[start-local] building zw-brain-web (dist-vite missing)..."
+    fi
     (cd "$REPO_ROOT/zw-brain-web" && npm run build)
 }
 

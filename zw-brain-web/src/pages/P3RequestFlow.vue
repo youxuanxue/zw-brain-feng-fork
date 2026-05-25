@@ -116,6 +116,8 @@ async function quickResubmit(id: string) {
         :links="[
           { label: '资源发现', href: '#/discovery' },
           { label: '交付回执', href: '#/delivery-exchange' },
+          { label: '我的异议', href: '#/request-flow/objection' },
+          { label: '登记需求', href: '#/request-flow/supply-demand' },
         ]"
       >
         <template #aside>

@@ -44,7 +44,7 @@ export function useInvestigationSummary(): UseSummaryResult {
       });
       if (!payload || typeof payload.summary !== 'string') throw new Error('payload shape unexpected');
       data.value = payload;
-      source.value = 'live';
+      source.value = payload.model === 'rule-fallback' ? 'fixture' : 'live';
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);
       data.value = SUMMARY_FIXTURE;

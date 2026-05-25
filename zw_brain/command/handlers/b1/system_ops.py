@@ -48,6 +48,8 @@ def handler_system_snapshot(brain: BrainService, skill_id: str, payload: dict[st
     enriched = enrich_provider_snapshot(brain.snapshot(), tenant_id=tenant_id)
     enriched = enrich_zones_snapshot(enriched, tenant_id=tenant_id)
     enriched = enrich_disputes_snapshot(enriched, tenant_id=tenant_id)
+    if role in {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"}:
+        enriched["delivery_tasks"] = brain.list_delivery_tasks()
     return redact_webui_snapshot(enriched, role)
 
 def handler_system_schema_info(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:

@@ -3,13 +3,10 @@ id: e1-j1-journey
 one_liner: 让 J1 找数→用数旅程在 sd-default 真实数据上跑通含异议 5 维度的完整闭环
 
 core_goal: |
-  后端 F1-F9 已在 main land（异议 5 维、供需 6 步、P4 三语样例、3 处减摩 cap、customer_demo_j1.py）。
-  下一阶段：**浏览器可演示**——在 sd-default 上让 ROLE_BUSIAUDIT 30 分钟内跑通：
-  P2 搜到`医疗救助信息`/`医保码信息`/`异地就医统筹区开通信息` →
-  P3 草拟申请并通过审批（UI 写路径 + 决策枚举正确）→
-  P4 凭据领取（Key + 三语样例，状态标签正确）→
-  发起异议（5 维度任一）→ 部门响应 → 平台仲裁 → 评价归档。
-  NL 减摩接 search.intent.parse 等已 land cap，不再 fixture 为主路径。
+  后端 F1-F9 + CLI 演示脚本已在 main land（异议 5 维、供需 6 步、P4 三语样例、3 处减摩 cap、customer_demo_j1.py exit 0）。
+  PR #106 后浏览器 **前半段已通**：P2 三类资源可搜、P3 审批写路径 + 枚举对齐、P4 凭据子页 Key + 三语样例 +「已签发」、NL 减摩 live。
+  **仍缺浏览器闭环（P0）**：P3 **无** J1 异议发起/跟踪入口；P3 **无** 供需对接 6 步可见入口——30 分钟演示无法在 UI 等价复现 customer_demo_j1 异议段（STEP-7~12）。
+  下一阶段：与 E5 F13/F14 协作补齐上述两入口 → E1 F11 业务方 sign-off。
   共享纪律见 .twin/README.md（撞 M0 墙路径：catalog_metadata.py / objection.py）。
 
 acceptance_criteria:

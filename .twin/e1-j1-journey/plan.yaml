@@ -78,7 +78,7 @@ items:
     status=resolved）
   - pytest tests/ -k objection 72 passed (F1 10 + F2 54 + F3 18 无回归)
   - preflight 段 10/22/24/25/27/28/29 + ruff + contract --check 全 OK；5 消费面投影零漂移
-  - UI 嵌入 P3/P5 blocked-on E5（governance.dispute.* 占位需改 objection.case.* 异源契约）
+  - P5 异议响应面已由 E2 F4 land（P5ObjectionInbox/Detail + 7 条 live）；**P3 申请方异议面** E5 F13 land（PR #108）
   depends_on:
   - F2
   status: completed
@@ -155,7 +155,9 @@ items:
   - tests/test_wave1_j1_credential.py — 9 passed（issue+query+sample.render 三语+真 sd-default
     resource_id+monitoring_link+not_issued+audit chain+quota=1000+no-secret-leakage）
   - 'commit 93ddab0 — feat(j1): F5 P4 凭据三语调用样例 + 配额展示 + §3.4 监控外链'
-  - preflight + contract --check 零漂移；UI 嵌入 P4 blocked-on E5
+  - preflight + contract --check 零漂移
+  - E5 P4Credential.vue 已接 credential.query + credential.sample.render（2026-05-25 浏览器：REQ-0001 三语 + 已签发）
+  - P4 主列表「领凭据」可达；交付任务详情子路由仍占位（归 E5 F15）
   depends_on: []
   status: completed
   next_action: ''
@@ -321,22 +323,23 @@ items:
 
 - id: F10
   deliverable: WebUI J1 浏览器写路径闭环（P3 审批 + P4 凭据 + 异议入口）
-  scope: 与 E5 F9/F10 协作修 UI；本项补 P3 异议发起/跟踪面 + NL live 接线 E1 cap
+  scope: 与 E5 F9/F10/F13 协作；本项补 P3 异议发起/跟踪面；NL live 已由 E5 F7 land
   covers_ac:
   - AC1
   - AC3
   - AC4
   evidence_plan:
-  - 证据预算：Playwright J1 冒烟（搜→申→批→凭据）+ P3 异议入口截图
-  - 停止条件：浏览器不再 403；异议可从 UI 发起一条 catalog 维度
+  - 证据预算：Playwright J1 冒烟（搜→申→批→凭据→异议）+ P3 异议入口截图
+  - 停止条件：浏览器写路径全绿；异议可从 UI 发起一条 catalog 维度并跟踪至 closed
   actual_evidence:
-  - 2026-05-25 浏览器验收：P2/P3/P4 主列表 live；审批按钮 403；异议 UI 不可达
-  - E5 invokeActionStub 岗位 bug + P3 decision 枚举错 — 阻塞本项
+  - E5 F13：P3Objection 三页 + j1_objection_browser.spec.ts 2 passed
+  - PR #106 / E5 F9-F12：invokeActionStub 跟随顶栏 + P3 审批枚举；P4 凭据子页
+  - nl_accelerator_live.spec.ts 2 passed
   depends_on:
   - F9
-  status: pending
-  next_action: 等 E5 F9/F10 land 后：P3 加 objection.case.create 入口；useNLAccelerator 接 search.intent.parse / application.draft.suggest / delivery.status.explain
-  blocked_reason: E5 F9（invokeActionStub 岗位）与 F10（审批枚举）须先 land
+  status: completed
+  next_action: ''
+  blocked_reason: null
 
 - id: F11
   deliverable: 业务方 business-signoff（AC5 人类关卡）
@@ -346,9 +349,27 @@ items:
   evidence_plan:
   - 证据预算：PR comment 或 issue label business-signoff + 演示录屏/时长
   - 停止条件：业务方签字
-  actual_evidence: []
+  actual_evidence:
+  - customer_demo_j1.py / headless_j1_demo.sh 脚本链路已可 sign-off 材料之一（CLI 非浏览器等价）
   depends_on:
   - F10
   status: pending
-  next_action: F10 + E5 F12 Playwright 绿后约业务方演示；材料用 docs/customer-demo-j1.md
-  blocked_reason: 浏览器 J1 闭环未通，不宜 sign-off
+  next_action: 组织 30 分钟浏览器演示；材料 docs/customer-demo-j1.md + browser-acceptance-2026-05-25.md
+  blocked_reason: 业务方签字未落盘（代码与浏览器链路已就绪）
+
+- id: F12
+  deliverable: P3 供需对接 6 步浏览器可见入口
+  scope: 与 E5 F14 协作；最小「找不到数据→登记需求→订阅」UI；不含 Wave 2 智能推荐编辑器
+  covers_ac:
+  - AC2
+  evidence_plan:
+  - 证据预算：P3 面板截图 + Playwright 登记一条 demand 并可见 phase 推进
+  - 停止条件：用户能在 P3 发现入口并完成 6 步主路径之一（不必覆盖 BR 全分支）
+  actual_evidence:
+  - E5 F14：P3SupplyDemand.vue + j1_supply_demand_browser.spec.ts 1 passed
+  - tests/test_wave1_j1_supply_demand.py 21 passed
+  depends_on:
+  - F4
+  status: completed
+  next_action: ''
+  blocked_reason: null

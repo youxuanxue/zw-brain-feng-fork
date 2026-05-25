@@ -91,6 +91,11 @@ async function supplement() {
       <PageFocusHeader :title="id" :meta="headerMeta" />
       <DetailPanel v-if="rows.length" title="基本信息" :rows="rows" />
       <DetailPanel v-if="prefilled.length" title="系统预填字段" :rows="prefilled" />
+      <p class="aux-links">
+        <a href="#/request-flow/objection">我的异议</a>
+        ·
+        <a href="#/request-flow/supply-demand">找不到数据 · 登记需求</a>
+      </p>
       <DetailActions>
         <button
           type="button"
@@ -110,4 +115,7 @@ async function supplement() {
 .gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
 .gov-btn-primary:disabled { background: #9bbedd; cursor: not-allowed; opacity: 0.85; }
 .gov-btn-secondary { background: #fff; border-color: var(--b-border, #d4e2f4); color: var(--b-neutral-text, #1a1d21); }
+.aux-links { margin: 12px 0; font-size: 13px; }
+.aux-links a { color: var(--b-primary, #006be6); text-decoration: none; }
+.aux-links a:hover { text-decoration: underline; }
 </style>

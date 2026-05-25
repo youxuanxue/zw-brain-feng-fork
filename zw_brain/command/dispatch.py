@@ -66,6 +66,7 @@ from zw_brain.command.handlers.j1 import (
     requirement_intake,
     resource_api,
     search_assistant,
+    supply_demand_handlers,
     workbench,
 )
 from zw_brain.command.handlers.j2 import (
@@ -303,6 +304,10 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "request.submit": request.handler_request_submit,
     "request.view": request.handler_request_view,
     "request.list": request.handler_request_list,
+    # J1 — supply demand (3 cap, E5 F14 browser)
+    "demand.register": supply_demand_handlers.handler_demand_register,
+    "demand.phase.advance": supply_demand_handlers.handler_demand_phase_advance,
+    "demand.list": supply_demand_handlers.handler_demand_list,
     # turn 6: J1 — requirement_intake (9 cap)
     "require.intent.submit": requirement_intake.handler_require_intent_submit,
     "require.intent.refine": requirement_intake.handler_require_intent_refine,

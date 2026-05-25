@@ -42,16 +42,15 @@
 
 - **.twin/ schema 检查 (preflight 段 26)**：[scripts/check_twin_workspaces.py](../scripts/check_twin_workspaces.py) 调 `scripts.twin validate` 守 12 yaml schema。2026-05-24 PR #85 落地——触发事件：e6 supervisor 启动时 F8.deliverable 与 AC7.statement 文本重合致运行期校验失败，README 原 trigger 已 fire。
 
-## 2026-05-25 浏览器端到端验收快照（main + start-local.sh）
+## 2026-05-25 浏览器端到端验收快照（PR #108 / feature/e5-f13-f17-browser-closure）
 
-本地 `bash scripts/start-local.sh`（`127.0.0.1:8800`，sd-default DB）+ Playwright 无头走查结论已写入各 worker `goal.yaml` / `plan.yaml`：
+本地 `bash scripts/start-local.sh`（`127.0.0.1:8800`，`NO_PROXY=127.0.0.1,localhost`）+ Playwright + Jobs 逐页走查；详见 `.twin/attachments/browser-acceptance-2026-05-25.md`。
 
 | 区域 | 结论 |
 |------|------|
-| P1–P4 / P7 主面 | live 数据，搜索命中 E1 三类资源 |
-| P3 写路径 | invokeActionStub 岗位 bug + 审批枚举错 → 403 |
-| P5 / J2 | provider 投影空 + 子路由占位 |
-| B1.1 / B1.2 | 正确岗位下 live；缺 Playwright CI harness |
-| NL 减摩 | UI 壳在，fixture 兜底为主 |
+| 自动化 | `npm run e2e` **62 passed**；`customer_acceptance_checklist.spec.ts` **14/14**；`headless_j1_demo.sh` 5/5；`customer_demo_j1/j2.py` exit 0 |
+| E5 F13–F17 | **completed** — P3 异议/供需、P4 详情、子路由、b12 e2e |
+| P1–P7 + B1 | 主路径无「功能建设中」；按钮对齐 manifest skill |
+| 人类关卡 | E1 F11 / E2 F6 / E3 F8 business-signoff；E4 AgentRuntime 触发式；E6 推理 SDK/CI/CD |
 
-优先修复顺序见 e5/plan.yaml F9→F12；E1 F10–F11 依赖 E5 写路径修复。
+**优先修复顺序（已完成代码侧）**：e5 F13→F17 → E1 F10 browser → E2 duplicate_warnings UI → 待业务 sign-off。

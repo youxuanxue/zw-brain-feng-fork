@@ -45,6 +45,26 @@ interface SearchIntentParse {
   follow_up_questions?: string[];
 }
 
+const ZONE_BY_TOPIC: Record<string, string> = {
+  营商环境: '营商环境专区',
+  治理减负: '治理减负专区',
+  民生保障: '民生保障专区',
+};
+
+function deriveP2SearchQuery(rawQuery: string, data: SearchIntentParse): string {
+  const kws = (data.keywords ?? []).map((k) => String(k).trim()).filter(Boolean);
+  if (kws.length) return kws[0];
+  return rawQuery.trim();
+}
+
+function resolveZoneTopic(searchQuery: string, rawQuery: string): string | null {
+  const hay = `${searchQuery} ${rawQuery}`;
+  for (const [topic, zone] of Object.entries(ZONE_BY_TOPIC)) {
+    if (hay.includes(topic)) return zone;
+  }
+  return null;
+}
+
 async function parseP2(query: string, role: string): Promise<NLAcceleratorParseResult> {
   const data = await postSkill<SearchIntentParse>('search.intent.parse', {
     role,
@@ -53,34 +73,35 @@ async function parseP2(query: string, role: string): Promise<NLAcceleratorParseR
     request_id: newRequestId('UI-NL-P2'),
   });
   const actions: StructuredAction[] = [];
-  const kw = (data.keywords ?? []).filter(Boolean).join(' ') || query.trim();
-  if (kw) {
-    actions.push({
-      kind: 'filter',
-      label: `应用关键词：${kw}`,
-      target: 'query',
-      payload: { query: kw },
-    });
-  }
+  const searchQ = deriveP2SearchQuery(query, data);
+
   if (data.intent === 'query_application') {
-    actions.push({ kind: 'navigate', label: '跳到在途申请', target: '#/request-flow' });
+    actions.push({ kind: 'navigate', label: '查看在途申请', target: '#/request-flow' });
+  } else if (data.intent === 'register_demand') {
+    actions.push({ kind: 'navigate', label: '登记找不到的数据', target: '#/request-flow/supply-demand' });
+  } else if (searchQ) {
+    const zone = resolveZoneTopic(searchQ, query);
+    if (zone) {
+      actions.push({
+        kind: 'filter',
+        label: `搜索：${zone.replace(/专区$/, '')}`,
+        target: 'zone',
+        payload: { zone, query: zone.replace(/专区$/, '') },
+      });
+    } else {
+      actions.push({
+        kind: 'filter',
+        label: `搜索：${searchQ}`,
+        target: 'query',
+        payload: { query: searchQ },
+      });
+    }
   }
-  if (data.intent === 'register_demand') {
-    actions.push({ kind: 'navigate', label: '跳到供需对接', target: '#/provider/inbox/demand-match' });
-  }
-  const hint = data.keywords?.[0] ?? query.slice(0, 24);
-  if (hint) {
-    actions.push({
-      kind: 'invoke',
-      label: '查目录入口',
-      target: 'catalog.entry.query',
-      payload: { query: hint },
-      detail: data.follow_up_questions?.[0],
-    });
-  }
+
   const partial = (data.missing_fields?.length ?? 0) > 0;
+  const primary = actions[0]?.label ?? '搜索';
   return {
-    summary: data.recommendation_reason ?? `已解析搜索意图（${data.intent ?? 'unknown'}）`,
+    summary: data.recommendation_reason ?? `已为你执行「${primary}」`,
     parse_status: partial ? 'partial' : 'ok',
     actions,
   };
