@@ -143,11 +143,24 @@ if ! check_port_free "$REST_HOST" "$REST_PORT"; then
     exit 1
 fi
 
+# F2：本机 dev 默认 mock 推理（须在 REST 子进程启动前 export）
+if [[ -z "${ZW_BRAIN_INFERENCE_MODE:-}" ]]; then
+    export ZW_BRAIN_INFERENCE_MODE=mock
+fi
+
 ensure_webui_build
 
 start_rest
 
 wait_for_health "http://$REST_HOST:$REST_PORT/health" "REST"
+
+echo "[start-local] inference: ZW_BRAIN_INFERENCE_MODE=${ZW_BRAIN_INFERENCE_MODE} (mock=本机无网关; platform=需 INSPUR_INFERENCE_BASE_URL+API_KEY)"
+
+# F11：本地 curl 502 常见原因是 shell 全局 http_proxy 把 127.0.0.1 也走代理
+if [[ -n "${http_proxy:-}" || -n "${HTTP_PROXY:-}" || -n "${https_proxy:-}" || -n "${HTTPS_PROXY:-}" ]]; then
+    echo "[start-local] tip: 检测到 http(s)_proxy；若 curl http://$REST_HOST:$REST_PORT 返回 502，请执行："
+    echo "[start-local]       export NO_PROXY=127.0.0.1,localhost,\$NO_PROXY"
+fi
 
 echo "[start-local] REST PID: $REST_PID"
 echo "[start-local] REST URL: http://$REST_HOST:$REST_PORT"

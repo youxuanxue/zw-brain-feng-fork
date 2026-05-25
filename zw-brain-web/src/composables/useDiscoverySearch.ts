@@ -1,8 +1,9 @@
 import { computed, ref, watch } from 'vue';
 import { authFetch } from './useAuth';
 import { useDiscoveryResources, useSnapshot } from './useSnapshot';
+import { mergeDiscoveryResults } from '@/lib/discoverySearchFilter';
 
-/** P2 搜索：空 query 用 snapshot 精选 12 条；有关键词时走 data.search 全库检索。 */
+/** P2 搜索：空 query 用 snapshot 精选；有关键词时本地即时筛选 + data.search 全库检索。 */
 export function useDiscoverySearch(role = 'ROLE_ORGAN_OPERATER') {
   const query = ref('');
   const searchResults = ref<Record<string, unknown>[]>([]);
@@ -41,14 +42,20 @@ export function useDiscoverySearch(role = 'ROLE_ORGAN_OPERATER') {
 
   watch(query, (q) => {
     if (debounceTimer !== null) window.clearTimeout(debounceTimer);
+    if (!q.trim()) {
+      searchResults.value = [];
+      searchError.value = null;
+      searching.value = false;
+      return;
+    }
     debounceTimer = window.setTimeout(() => {
       void runSearch(q);
     }, 350);
   });
 
   const displayed = computed(() => {
-    if (query.value.trim()) return searchResults.value;
-    return snapshotResources.value as Record<string, unknown>[];
+    const snapshot = snapshotResources.value as Record<string, unknown>[];
+    return mergeDiscoveryResults(snapshot, searchResults.value, query.value);
   });
 
   const isSearchMode = computed(() => Boolean(query.value.trim()));

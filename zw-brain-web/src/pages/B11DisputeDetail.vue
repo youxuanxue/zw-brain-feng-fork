@@ -32,10 +32,21 @@ const headerMeta = computed(() => {
 });
 
 async function escalate() {
-  await invokeActionStub({ skillId: 'governance.dispute.escalate', payload: { dispute_id: id.value }, successTitle: '已升级', pendingBackend: 'E4 后台业务 (e4/plan.yaml F3)' });
+  await invokeActionStub({
+    skillId: 'objection.case.escalate',
+    payload: { objection_id: id.value, opinion: '合规运营升级督办' },
+    successTitle: '已升级',
+    role: 'ROLE_SECURITY_AUDIT',
+  });
 }
+
 async function resolve() {
-  await invokeActionStub({ skillId: 'governance.dispute.resolve', payload: { dispute_id: id.value }, successTitle: '已解决', pendingBackend: 'E4 后台业务' });
+  await invokeActionStub({
+    skillId: 'objection.case.close',
+    payload: { objection_id: id.value, opinion: '经核查已解决' },
+    successTitle: '已关闭',
+    role: 'ROLE_SECURITY_AUDIT',
+  });
 }
 </script>
 

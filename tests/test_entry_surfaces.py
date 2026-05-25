@@ -14,9 +14,12 @@ from __future__ import annotations
 import io
 import json
 from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
 from typing import Any
 
 import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # ─── CLI (zw_brain.entry.cli.main) ──────────────────────────────────────────
 
@@ -139,6 +142,30 @@ def test_mcp_call_tool_real_invoke(monkeypatch: pytest.MonkeyPatch) -> None:
     result = call_tool("workbench.view", {"role": "ROLE_ORGAN_OPERATER"})
     assert result["tool"] == "workbench.view"
     assert "greeting" in result["result"]
+
+
+def test_mcp_client_smoke_stdio_subprocess() -> None:
+    """F6: MCP stdio JSON-RPC 子进程 smoke（与 Cursor 接入同协议路径）。"""
+    import os
+    import subprocess
+    import sys
+
+    env = {
+        **os.environ,
+        "ZW_BRAIN_DEV_IAM_BYPASS": "1",
+        "ZW_BRAIN_DEV_IAM_BYPASS_ACK": "development-only",
+    }
+    script = REPO_ROOT / "scripts" / "mcp_client_smoke.py"
+    proc = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=REPO_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "5 capability calls succeeded" in proc.stdout or "→ 200" in proc.stdout
 
 
 def test_mcp_handle_tools_list_jsonrpc() -> None:

@@ -290,8 +290,8 @@ const TRUST_LABELS: Record<string, string> = {
           <h2 class="focus-section-title">三引擎入口</h2>
         </header>
       <p class="disclaimer">
-        三引擎（审批流 / 表单 / 智能推荐前置）的管理员配置面已由 E3 落地在
-        <a href="#/engines-admin">三引擎配置中心</a>；本面板提供入口链接，不重复实装。
+        三引擎（审批流 / 表单 / 智能推荐前置）的管理员配置面已集中在
+        <a href="#/engines-admin">三引擎配置中心</a>；本面板仅提供入口链接。
       </p>
       <div class="slot-grid">
         <a v-for="slot in slots" :key="slot.key" :href="slot.href" class="slot-card">

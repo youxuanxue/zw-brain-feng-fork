@@ -25,6 +25,16 @@ from typing import Any
 from urllib import error, request
 
 DEFAULT_INFERENCE_MODEL = "claude-sonnet-4-7"
+INFERENCE_MODE_ENV = "ZW_BRAIN_INFERENCE_MODE"
+_MOCK_EMBED_DIM = 8
+
+
+def resolve_inference_mode(*, base_url: str, api_key: str | None) -> str:
+    """Return ``mock`` or ``platform``. Explicit env wins; default is strict platform."""
+    explicit = (os.getenv(INFERENCE_MODE_ENV) or "").strip().lower()
+    if explicit in {"mock", "platform"}:
+        return explicit
+    return "platform"
 
 
 @dataclass(frozen=True)
@@ -54,11 +64,17 @@ class InferenceClient:
         api_key: str | None = None,
         model: str | None = None,
         timeout_seconds: float = 30.0,
+        mode: str | None = None,
     ) -> None:
         self._base_url = (base_url or os.getenv("INSPUR_INFERENCE_BASE_URL") or os.getenv("BASE_URL") or "").rstrip("/")
         self._api_key = api_key or os.getenv("INSPUR_INFERENCE_API_KEY") or os.getenv("AUTH_TOKEN")
         self._model = model or os.getenv("INSPUR_INFERENCE_MODEL") or os.getenv("MODEL") or DEFAULT_INFERENCE_MODEL
         self._timeout_seconds = timeout_seconds
+        self._mode = mode or resolve_inference_mode(base_url=self._base_url, api_key=self._api_key)
+
+    @property
+    def mode(self) -> str:
+        return self._mode
 
     def _require_platform_config(self) -> None:
         if not self._base_url:
@@ -105,6 +121,28 @@ class InferenceClient:
             raise InferenceError("inference response must be a json object")
         return parsed
 
+    def _mock_chat(
+        self,
+        messages: list[ChatMessage],
+        *,
+        model: str,
+        request_id: str,
+    ) -> ChatResult:
+        last_user = next((m.content for m in reversed(messages) if m.role == "user"), "")
+        resolved_model = self._resolve_model(model)
+        preview = last_user.strip().replace("\n", " ")[:200]
+        return ChatResult(
+            text=f"[mock-inference:{resolved_model}] {preview}",
+            model=resolved_model,
+            usage={"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+            finish_reason="stop",
+        )
+
+    def _mock_embed(self, texts: list[str], *, model: str) -> list[list[float]]:
+        resolved_model = self._resolve_model(model)
+        _ = resolved_model
+        return [[0.125] * _MOCK_EMBED_DIM for _ in texts]
+
     def chat(
         self,
         messages: list[ChatMessage],
@@ -117,6 +155,8 @@ class InferenceClient:
         if not request_id:
             raise InferenceError("request_id is required (D4 audit trail)")
         resolved_model = self._resolve_model(model)
+        if self._mode == "mock":
+            return self._mock_chat(messages, model=resolved_model, request_id=request_id)
         payload: dict[str, Any] = {
             "model": resolved_model,
             "messages": [{"role": m.role, "content": m.content} for m in messages],
@@ -154,6 +194,8 @@ class InferenceClient:
         # Legacy evidence: standardservice `/syncModel2Vector` writes vectors via RecommendAgentService
         # (`/add` and `/query`) to an external Python vector service.
         resolved_model = self._resolve_model(model)
+        if self._mode == "mock":
+            return self._mock_embed(texts, model=resolved_model)
         response = self._post_json("/v1/embeddings", {"model": resolved_model, "input": texts})
         rows = response.get("data")
         if not isinstance(rows, list):
@@ -172,9 +214,19 @@ _default_client: InferenceClient | None = None
 
 def get_client() -> InferenceClient:
     global _default_client
-    if _default_client is None:
-        _default_client = InferenceClient()
+    mode = resolve_inference_mode(
+        base_url=(os.getenv("INSPUR_INFERENCE_BASE_URL") or os.getenv("BASE_URL") or "").rstrip("/"),
+        api_key=os.getenv("INSPUR_INFERENCE_API_KEY") or os.getenv("AUTH_TOKEN"),
+    )
+    if _default_client is None or _default_client.mode != mode:
+        _default_client = InferenceClient(mode=mode)
     return _default_client
+
+
+def reset_default_client() -> None:
+    """Test helper: drop cached singleton so env / mode changes take effect."""
+    global _default_client
+    _default_client = None
 
 
 def chat(messages: list[ChatMessage], **kwargs: Any) -> ChatResult:

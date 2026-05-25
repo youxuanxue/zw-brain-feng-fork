@@ -1785,6 +1785,8 @@
         "status": "已发布",
         "owner": "省大数据局",
         "issue": "需补充本地泊位状态回流说明",
+        "catalog_code": "cat-parking",
+        "schema_ref": "res-jbxx-ledger:legacy:370000308004000000/000001",
         "source_ref": "共享目录表:data_catalog:370000308004000000/000001",
         "legacy_object_ref": "370000308004000000/000001",
         "canonical_resource_id": "res-jbxx-ledger",

@@ -1,0 +1,12 @@
+{
+  "name": "zw-brain-e2e",
+  "private": true,
+  "description": "Playwright harness for zw-brain WebUI (tests/e2e/*.spec.ts)",
+  "scripts": {
+    "e2e": "playwright test",
+    "e2e:install": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0"
+  }
+}

@@ -3,28 +3,17 @@ import { computed } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub } from '@/composables/useActionStub';
+import { providerTodoCounts } from '@/lib/providerProjection';
 
 const provider = useProvider();
 const { source } = useSnapshot();
 
-const counts = computed(() => {
-  const it = provider.value as Record<string, unknown>;
-  const fieldDec = Array.isArray((it as { field_decisions?: unknown[] }).field_decisions)
-    ? ((it as { field_decisions: unknown[] }).field_decisions).length
-    : 0;
-  const hookup = Array.isArray((it as { hookup_reviews?: unknown[] }).hookup_reviews)
-    ? ((it as { hookup_reviews: unknown[] }).hookup_reviews).length
-    : 0;
-  const demand = Array.isArray((it as { demand_matches?: unknown[] }).demand_matches)
-    ? ((it as { demand_matches: unknown[] }).demand_matches).length
-    : 0;
-  return { fieldDec, hookup, demand };
-});
+const counts = computed(() => providerTodoCounts(provider.value as Record<string, unknown>));
 
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
   const c = counts.value;
-  return `待办：字段裁决 ${c.fieldDec} · 挂接审核 ${c.hookup} · 供需 ${c.demand}`;
+  return `待办：字段裁决 ${c.fieldDec} · 挂接审核 ${c.hookup} · 供需 ${c.demand} · 异议 ${c.objection}`;
 });
 
 const statCards = computed(() => {
@@ -33,15 +22,15 @@ const statCards = computed(() => {
     { key: 'field-decision', label: '字段裁决', value: c.fieldDec, href: '#/provider/inbox/field-decision' },
     { key: 'hookup-review', label: '挂接审核', value: c.hookup, href: '#/provider/inbox/hookup-review' },
     { key: 'demand-match', label: '供需对接', value: c.demand, href: '#/provider/inbox/demand-match' },
+    { key: 'objection', label: '异议响应', value: c.objection, href: '#/provider/inbox/objection' },
   ];
 });
 
-async function publishDraft(slug: string) {
+async function publishDraft(catalogCode: string) {
   await invokeActionStub({
     skillId: 'catalog.entry.publish',
-    payload: { entry_id: slug },
+    payload: { catalog_code: catalogCode },
     successTitle: '已提交发布审核',
-    pendingBackend: 'E4 提供方治理 (e4/plan.yaml F2)',
   });
 }
 </script>
@@ -66,7 +55,7 @@ async function publishDraft(slug: string) {
         </a>
       </div>
       <div v-if="source === 'live'" class="row-actions" style="margin-top: 12px">
-        <button type="button" class="gov-btn gov-btn-primary" @click="publishDraft('demo-draft-001')">
+        <button type="button" class="gov-btn gov-btn-primary" @click="publishDraft('cat-parking')">
           提交草稿到发布审核（示例）
         </button>
       </div>

@@ -11,6 +11,7 @@ const items = computed(() =>
     const it = z as Record<string, unknown>;
     return {
       id: String(it.id ?? ''),
+      packageCode: String(it.package_code ?? it.id ?? ''),
       name: String(it.name ?? ''),
       desc: String(it.desc ?? it.description ?? ''),
       status: String(it.status ?? ''),
@@ -24,12 +25,11 @@ const headerMeta = computed(() => {
   return items.value.length ? `${items.value.length} 个专题可订阅` : '暂无专题包';
 });
 
-async function subscribe(id: string) {
+async function subscribe(packageCode: string) {
   await invokeActionStub({
-    skillId: 'zone.publish_topic_projection',
-    payload: { zone_id: id },
-    successTitle: '已加入订阅候选',
-    pendingBackend: 'E3 专题运营 (e3/plan.yaml F6)',
+    skillId: 'topic.package.subscribe',
+    payload: { package_code: packageCode },
+    successTitle: '已订阅专题',
   });
 }
 </script>
@@ -54,7 +54,7 @@ async function subscribe(id: string) {
           </header>
           <p v-if="z.desc" class="zone-desc">{{ z.desc }}</p>
           <footer class="row-actions">
-            <button type="button" class="gov-btn gov-btn-primary" @click="subscribe(z.id)">订阅专题</button>
+            <button type="button" class="gov-btn gov-btn-primary" @click="subscribe(z.packageCode)">订阅专题</button>
             <a :href="`#/zones-pack/zone/${encodeURIComponent(z.id)}`" class="gov-btn gov-btn-secondary">详情</a>
           </footer>
         </article>

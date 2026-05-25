@@ -2,11 +2,12 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { lookupRequest, useSnapshot } from '@/composables/useSnapshot';
-import { invokeActionStub } from '@/composables/useActionStub';
+import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { mapDetailRows } from '@/lib/detailDisplay';
+import { formatTodoStatus } from '@/lib/statusLabels';
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
@@ -41,16 +42,45 @@ const prefilled = computed(() => {
 });
 
 const headerMeta = computed(() => {
-  if (req.value) return String(req.value.resourceName ?? req.value.purpose ?? '') || '—';
+  if (req.value) {
+    const status = formatTodoStatus(String(req.value.status ?? ''));
+    const name = String(req.value.resourceName ?? req.value.purpose ?? '') || '—';
+    return `${name} · ${status}`;
+  }
   if (source.value !== 'live') return '正在加载……';
   return '未找到该申请';
 });
 
+const rawStatus = computed(() => String(req.value?.status ?? '').trim());
+const canResubmit = computed(() => rawStatus.value === 'need-fix');
+const canWithdraw = computed(() => ['pending', 'need-fix', 'draft'].includes(rawStatus.value));
+
 async function withdraw() {
-  await invokeActionStub({ skillId: 'catalog.entry.withdraw', payload: { request_id: id.value }, successTitle: '已撤回', pendingBackend: 'E2' });
+  pushToast({
+    kind: 'info',
+    title: '暂不可撤回',
+    detail: canWithdraw.value
+      ? '撤回申请能力尚未在本环境开通；如需取消请联系审批人驳回或等待退回补正。'
+      : '当前状态不支持撤回申请。',
+  });
 }
 async function supplement() {
-  await invokeActionStub({ skillId: 'application.resource.submit', payload: { request_id: id.value }, successTitle: '补件已提交', pendingBackend: 'E2 (e2/plan.yaml F4)' });
+  if (!canResubmit.value) {
+    pushToast({
+      kind: 'info',
+      title: '暂不可重新提交',
+      detail:
+        rawStatus.value === 'pending'
+          ? '申请仍在审批中；若需补件请等待审批人「退回补正」后再点重新提交。'
+          : '当前状态不支持重新提交。',
+    });
+    return;
+  }
+  await invokeActionStub({
+    skillId: 'request.submit',
+    payload: { request_id: id.value },
+    successTitle: '已重新提交',
+  });
 }
 </script>
 
@@ -62,9 +92,22 @@ async function supplement() {
       <DetailPanel v-if="rows.length" title="基本信息" :rows="rows" />
       <DetailPanel v-if="prefilled.length" title="系统预填字段" :rows="prefilled" />
       <DetailActions>
-        <button type="button" class="gov-btn gov-btn-primary" @click="supplement">补件 / 重新提交</button>
+        <button
+          type="button"
+          class="gov-btn gov-btn-primary"
+          @click="supplement"
+        >
+          补件 / 重新提交
+        </button>
         <button type="button" class="gov-btn gov-btn-secondary" @click="withdraw">撤回申请</button>
       </DetailActions>
     </section>
   </main>
 </template>
+
+<style scoped>
+.gov-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; }
+.gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
+.gov-btn-primary:disabled { background: #9bbedd; cursor: not-allowed; opacity: 0.85; }
+.gov-btn-secondary { background: #fff; border-color: var(--b-border, #d4e2f4); color: var(--b-neutral-text, #1a1d21); }
+</style>

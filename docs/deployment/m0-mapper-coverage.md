@@ -27,16 +27,16 @@
 | `dsp_pipelines` | 62 | ✅ 已覆盖（摘要） | pipelines（3 表 subscribe_job / exchange_executor / exchange_pipelines 摘要）；ETL 任务运行细节 ~59 表 复造（§1.3 数据治理中心 forbidden） |
 | `dsp_perform` | 18 | ✅ 已覆盖（摘要） | projections.PerformMapper（kpi_index_info 1 表摘要）；kpi 详情/计算/规则 ~17 表 复造（§1.3 绩效考核 forbidden — D10） |
 | `dsp_monitor` | 50 | ✅ 已覆盖（合规摘要） | projections.MonitorMapper（8 表 warning_* / matter_* / interface_result / product_call_result / ip_connection_failure → ComplianceOps）；automonitor_* / monitor_config / scheduling_* 等 ~42 表 复造（§1.3 集团运维监控 forbidden） |
-| `dsp_require` | 34 | 🟡 部分已覆盖 + 待澄清 | data_require / data_original_require（exchange.py 已经从 dsp_catalog 拉过一遍）；data_business_* / data_task / data_subtask / data_item_* 待澄清是否进 Application |
+| `dsp_require` | 34 | ✅ 已覆盖（J1 核心 6 表）+ 🚫 复造（旧流程运行时） | exchange.py 6 表（`data_require` / `data_original_require` / `data_apply*` 等 → Application）；`data_business_*` / `data_task` / `data_subtask` / `data_item_*` ~28 表 → 旧平台流程引擎运行时，Wave 2 三引擎（E3）承接，**非整库复造**（基线 §9.2 J1 主旅程） |
 | `dsp_basesubject` | 81 | ✅ 已覆盖（主体）+ 复造（统计/治理） | basesubject（11 表 → TopicPackage）F3 turn 2 落地；复造：population_* / corporation_* / archive_* / data_schema_* / basesubject_job_* / bs_subject_statistic 等 ~70 表 → §1.3 统计/治理 forbidden |
 | `dsp_metaresource` | 62 | ✅ 已覆盖（含 graph_lineage）+ 复造（etl_meta / es_index） | graph_lineage（5 表 graphdb_node / graphdb_relation / graphdb_*_attr/column → LineageRelationProjectionRecord）F3 turn 3 落地；已覆盖：rc_resource_* / meta_baseinfo* / meta_gather_task / meta_relation / rc_catalog_materialize（catalog_metadata 已含）；复造：etl_meta_* / es_index_* / file_meta_* / database_manage_history → §1.3 数据治理 forbidden |
 | `dsp_app_center` | 21 | 🚫 **复造** | §1.3 forbidden — 「不复造应用中心脚本管理」(D-Init 决策) |
 | `dsp_message` | 10 | 🚫 **复造** | §1.3 forbidden — 「不复造消息中心」(D-Init 决策) |
 | `dsp_pdf` | 12 | 🚫 **复造** | §1.3 forbidden — 「不复造文档管理 / 文件存储」(基线 §3.4 文件由集团对象存储统一) |
-| `dsp_block` | 10 | 🚫 **复造**（待业务 sign-off） | 基线 §3.4 — 区块链对接走 adapter 异步锚定，**不在 zw-brain 内复造区块链快照**；block_apply / block_resource / block_org / block_apilog 是上链审计快照，由 audit_bus + adapter 处理 |
-| `data_resource` | 7 | 🟡 **待澄清** | catalog_link_info / resource_link_info / resource_database_info — 可能与 catalog_metadata.rc_resource_url / rc_resource_table 重复；建议业务方确认是否需要补 mapper |
+| `dsp_block` | 10 | 🚫 **复造** | 基线 §3.4 D4 — 区块链 adapter 异步锚定；`audit_bus` 同步落库，block_* 快照不进 canonical（2026-05-25 sign-off） |
+| `data_resource` | 7 | ⏸ **M0 profile 外（触发式 adapter）** | customer-core-v1 以 `dsp_catalog.rc_resource_*` 为主路径；独立 dump 7 表 **非永久废弃** — 首个客户证明 catalog 未覆盖增量时补 ≤5 表摘要 mapper（`resource_logo` → ResourceAsset 展示字段） |
 
-**统计**：✅ 已覆盖（含部分覆盖+合规摘要）= 11 个（F3 turn 2 dsp_basesubject + turn 3 dsp_metaresource graphdb 段加入）；🔴 漏做（含部分漏做）= 0 个；🚫 复造（§1.3 forbidden）= 4 个（app_center + message + pdf + block）；🟡 待澄清 = 2 个（require + data_resource）。
+**统计**：✅ 已覆盖（含部分覆盖+合规摘要）= 12 个（含 dsp_require J1 核心 6 表）；🔴 漏做 = 0；🚫 复造（§1.3 forbidden + 旧流程运行时子集）= 4 dump 整库（app_center + message + pdf + block）+ dsp_require 运行时 ~28 表；⏸ M0 profile 外 = 1（data_resource 触发式 adapter）。
 
 ## §2 已覆盖（含 mapper 路由）
 
@@ -148,50 +148,52 @@
 
 **已落地**：`zw_brain/adapters/legacy/mappers/graph_lineage.py` + `tests/test_legacy_graph_lineage_mapper.py`（3 用例覆盖 happy / legacy mapping / NULL fail-closed）。dump `old/10示例数据/dump-dsp_metaresource-202604271411.sql` 中 graphdb_* 5 表 INSERT 行为空（图血缘尚未启用），mapper 已就位、增量同步即可接入。
 
-## §5 待澄清（业务方 sign-off）
+## §5 已签收（2026-05-25 产品负责人 sign-off）
 
-### 5.1 dsp_require — 与 dsp_catalog 部分重叠
+### 5.1 dsp_require — J1 核心已覆盖 + 旧流程运行时复造
 
-dsp_require（34 表）和 dsp_catalog（181 表）都含 `data_require` / `data_original_require` / `data_apply` 等表，但 dsp_require 多了 `data_business_*` / `data_task` / `data_subtask` / `data_item_*` / `data_taskitem_link`。
+| 子集 | 表数约 | verdict | 理由 |
+|---|---:|---|---|
+| J1 核心 | 6 | ✅ 已覆盖 | `exchange.py` — canonical `Application` / `Approval` SoT；M0 导入主路径 `dsp_catalog`，同名表在 `dsp_require` dump 走同一 mapper |
+| 旧流程运行时 | ~28 | 🚫 复造 | `data_business_*` / `data_task` / `data_subtask` / `data_item_*` — 旧平台 5 节点流程实例化存储；Wave 2 可配置审批（E3，D25）承接，M0 不复刻表结构 |
 
-**问题**：
-1. dsp_require 是否是 dsp_catalog 的独立副本（schema-per-org），还是有独立业务语义？
-2. `data_business_*` / `data_task` / `data_subtask` 是否需进 zw-brain `Application` / 新增 `BusinessTask` 实体？
+**sign-off**：非整库复造；J1 申请审批语义已在 zw-brain canonical 模型跑通。
 
-**当前状态**：`exchange.py` 已覆盖 `data_require` / `data_original_require` / `data_apply` 等核心 6 表。dsp_require 内同名表与 dsp_catalog 内同名表的关系（覆盖 / 副本 / 独立）需业务方明示。
+### 5.2 data_resource — M0 不纳入 customer-core-v1，触发式 adapter
 
-**建议**：业务方 sign-off 后决定：① dsp_require 整库判 `复造`（dsp_catalog 为唯一权威源）；② 或独立 mapper PR 补 `data_business_*` / `data_task` 等到新增实体。
+独立 `data_resource` schema（7 表）在基线 §9.2 为 `Resource` 合法溯源之一，但 **M0 sd-default profile 不要求该 dump**。
 
-### 5.2 data_resource — link/database/file_info 是否冗余
+| 路径 | verdict |
+|---|---|
+| `dsp_catalog` 内 `data_resource_*` / `rc_resource_*` | ✅ 已覆盖 — `catalog_metadata.py` |
+| 独立 `dump-data_resource-*.sql` | ⏸ **触发式** — 首个客户 dump 证明 catalog 未覆盖增量行时，补 ≤5 表摘要 mapper；`resource_logo` 进 `ResourceAsset.display_snapshot_json` |
 
-`dump-data_resource-*.sql`（7 表，含 `resource_database_info` / `resource_link_info` / `resource_logo` / `resource_task_info` / `catalog_link_info`）。
+**sign-off**：非永久冗余废弃；M0 判定表 closure 不阻塞于独立 data_resource dump。
 
-**问题**：
-- `resource_database_info` vs `catalog_metadata.rc_resource_*`：是否冗余？
-- `resource_logo` 是 ResourceAsset 的 logo 字段还是独立资源？
+### 5.3 dsp_block — 复造（adapter 路径）
 
-**建议**：业务方 sign-off 是否需要补 `data_resource` mapper（建议 mapper `data_resource.py` HANDLED_TABLES = `{resource_database_info, resource_link_info, resource_logo, resource_task_info, catalog_link_info}`）。如确认冗余则判 `复造`，否则补 PR。
+**sign-off**：与 §3 一致 — `audit_bus` + 区块链 adapter；block_* 快照不进 canonical。
 
 ## §6 总览统计
 
 | Verdict | dump 数 | 备注 |
 |---|---:|---|
-| ✅ 已覆盖（主线或核心摘要） | 11 | dsp_catalog / dsp_connect / dsp_example / dsp_handling / dsp_bsp / dsp_service / dsp_pipelines / dsp_perform / dsp_monitor / dsp_basesubject（F3 turn 2 补） / dsp_metaresource（含 F3 turn 3 graphdb_* graph_lineage） |
+| ✅ 已覆盖（主线或核心摘要） | 12 | 上表 11 + dsp_require J1 核心 6 表 |
 | 🔴 漏做（含 sub-set 漏） | 0 | — |
-| 🚫 复造（§1.3 forbidden zone 明示） | 4 | dsp_app_center / dsp_message / dsp_pdf / dsp_block |
-| 🟡 待澄清（业务方 sign-off） | 2 | dsp_require（vs dsp_catalog 重叠）/ data_resource（vs rc_resource_* 重叠） |
-| **合计** | **17** | — |
+| 🚫 复造（§1.3 forbidden 整库 + 运行时子集） | 4 整库 | dsp_app_center / dsp_message / dsp_pdf / dsp_block（§5.3 sign-off） |
+| ⏸ M0 profile 外（触发式 adapter） | 1 | data_resource（§5.2 sign-off） |
+| **合计** | **17** | §5 待澄清项已清零 |
 
 **漏做项后续 PR 候选** — 全部已落地：
 
 1. ✅ `mapper/basesubject.py` — F3 turn 2 已落地（11 表 → TopicPackageRecord 主线 + 子结构）
 2. ✅ `mapper/graph_lineage.py` — F3 turn 3 已落地（5 表 → LineageRelationProjectionRecord，独立 mapper 而非扩 catalog_metadata，便于图血缘按 relation_scope="graphdb" 独立查询）
 
-剩余两项 🟡 待澄清（§5）需业务方 sign-off 推进。
+§5 三项已于 2026-05-25 sign-off 收口；无待澄清 dump。
 
 ## §7 评审签收
 
-- [ ] 业务方（红军 / 产品负责人）已 sign-off §5 待澄清 2 项
-- [ ] 业务方已 sign-off §4 漏做 2 项的优先级（M0 必接 / M0 后置 / 长期不接）
-- [ ] §3 复造 4 项（§1.3 forbidden）业务方无异议
+- [x] 业务方（红军 / 产品负责人）已 sign-off §5（dsp_require 分层 / data_resource 触发式 / dsp_block adapter）
+- [x] 业务方已 sign-off §4 漏做 2 项的优先级（M0 必接 basesubject + graph_lineage 已落地）
+- [x] §3 复造 4 项（§1.3 forbidden）业务方无异议（含 dsp_block §5.3）
 - [ ] preflight 段 16（mapper 完整性）保持通过 — 本表的判定不要求改动现有 mapper

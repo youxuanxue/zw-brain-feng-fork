@@ -73,8 +73,14 @@ def _update_topic_package_policy(brain, payload: dict[str, Any]) -> dict[str, An
     return brain._mutate("topic.package.policy.update", role, confirmed, payload, mutation)
 
 def _subscribe_topic_package(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    role = str(payload.get("role", brain._ui_state["role"]))
+    confirmed = bool(payload.get("confirmed"))
+    package_code = str(payload["package_code"])
     subscription = {
-        "visibility_code": str(payload.get("visibility_code") or f"{payload.get('org_code', '*')}:{payload.get('role_code', '*')}:subscription:use"),
+        "visibility_code": str(
+            payload.get("visibility_code")
+            or f"{payload.get('org_code', '*')}:{payload.get('role_code', '*')}:{package_code}:subscription:use"
+        ),
         "org_code": payload.get("org_code"),
         "role_code": payload.get("role_code"),
         "region_code": payload.get("region_code"),
@@ -83,7 +89,24 @@ def _subscribe_topic_package(brain, payload: dict[str, Any]) -> dict[str, Any]:
         "policy_status": str(payload.get("policy_status", "pending_review")),
         "condition_json": payload.get("condition_json") or payload.get("condition") or {},
     }
-    return brain.update_topic_package_policy(payload | {"visibility": [subscription]})
+
+    def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+        try:
+            records = brain._topic_package_repo().update_policy(
+                package_code,
+                payload | {"visibility": [subscription], "actor_snapshot_json": {"actor": actor, "role": role}},
+            )
+        except KeyError as exc:
+            raise NotFoundError(package_code) from exc
+        brain._append_audit_feed("topic.package.subscribe", package_code, "ok", actor)
+        return {
+            "package_code": package_code,
+            "items": [brain._topic_visibility_record_to_dict(item) for item in records],
+            "total": len(records),
+            "audit_id": audit_id,
+        }
+
+    return brain._mutate("topic.package.subscribe", role, confirmed, payload, mutation)
 
 def _attach_topic_package_evidence(brain, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))

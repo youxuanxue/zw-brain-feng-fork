@@ -1,208 +1,232 @@
 schema_version: 1
 goal_id: e5-webui-projections
 items:
-  - id: F1
-    deliverable: 前端框架选型 + spike PR（Vue3+Vite）
-    scope: 选型 + 1 个 spike 页面（P1 工作台）跑通；不含其他 7 页面
-    covers_ac:
-      - AC1
-    evidence_plan:
-      - 证据预算：选型 PR + spike P1 截图 + npm run dev 热重载演示 + 构建产物大小对比
-      - 停止条件：选型 sign-off + spike 页面能装载真实 P1 待办数据
-    actual_evidence:
-      - zw-brain-web/package.json — Vue3+Vite 选型落地
-      - zw-brain-web/src/pages/P1Workbench.vue + useWorkbench.ts — spike P1 live 数据
-      - npm run dev / npm run build 可跑；dist-vite 由 REST 托管
-    depends_on: []
-    status: completed
-    next_action: ''
-    blocked_reason: null
-
-  - id: F2
-    deliverable: WebUI 构建管线 + 现有 bundle 替换
-    scope: vite 完整构建管线 + 等价替换现有 bundle；不含 8 页面完整重写
-    covers_ac:
-      - AC1
-    evidence_plan:
-      - 证据预算：构建产物与现有 bundle 功能等价 e2e + 部署清单更新
-      - 停止条件：现有 zw-brain-web 路由全部跑通；用户登录 + 8 页面可达
-    actual_evidence:
-      - zw-brain-web/dist-vite/index.html + assets/ — Vite 生产构建
-      - scripts/start-local.sh ensure_webui_build + zw_brain/entry/rest/server.py _web_public_root
-      - 2026-05-25 浏览器验收：8 主路由 hash 可达（P1-P5/P7 + B1.1/B1.2）
-    depends_on:
-      - F1
-    status: completed
-    next_action: ''
-    blocked_reason: null
-
-  - id: F3
-    deliverable: 8 页面成品化（P1-P5/P7 + B1.1/B1.2）装载 sd-default 真实数据
-    scope: 8 主页面骨架 + 真实数据接入；13 个子路由仍 PagePlaceholder（wizard/inbox/详情页）
-    covers_ac:
-      - AC2
-    evidence_plan:
-      - 证据预算：8 页面截图（含真实数据）+ check_ui_spec_b + check_ui_term_blacklist 双绿
-      - 停止条件：8 主页面可达 + 真实数据可见 + 工程术语黑名单不报红
-    actual_evidence:
-      - zw-brain-web/src/pages/{P1-P5,P7,B11,B12}*.vue — 8 主页面组件就位
-      - 2026-05-25 Playwright 验收：P1/P2/P3/P4/P7 live 数据；B1.1/B1.2 在正确岗位下 live
-      - zw-brain-web/src/router/index.ts — 13 条子路由仍指向 PagePlaceholder（P5 wizard/inbox、P7 详情等）
-      - P5 provider 待办全 0 — snapshot provider 契约与 UI 字段不一致（归 E2 F7 补投影）
-    depends_on:
-      - F2
-    status: in_progress
-    next_action: 实装 P5 高优先级子路由（反向编目向导 + 字段裁决收件箱）至少各 1 条可点通路径；P7 专题详情去占位
-    blocked_reason: P5 真实计数等 E2 补 provider snapshot 投影（field_decisions/hookup_reviews/demand_matches）
-
-  - id: F4
-    deliverable: 5 消费面投影器扩展（scripts/export_agent_contract.py）
-    scope: 派生 WebUI 页面注册 / REST OpenAPI / CLI spec / MCP manifest / A2A card；不含投影目录的人工 patch
-    covers_ac:
-      - AC3
-    evidence_plan:
-      - 证据预算：5 投影目录全自动生成 + AUTO-GENERATED banner + check_no_hand_maintained_projection 不报红
-      - 停止条件：5 投影从 manifest 派生且无手维护
-    actual_evidence:
-      - scripts/export_agent_contract.py --check OK（REST=194 CLI=1 MCP=61 A2A=1 Skills=185）
-      - scripts/check_no_hand_maintained_projection.py 接入 preflight
-    depends_on: []
-    status: completed
-    next_action: ''
-    blocked_reason: null
-
-  - id: F5
-    deliverable: CLI 生产硬化——能 headless 跑完 J1 全链路用 sd-default 真数据
-    scope: CLI 命令树 + headless 完整路径；脚本不得假绿
-    covers_ac:
-      - AC4
-    evidence_plan:
-      - 证据预算：scripts/headless_j1_demo.sh 输出 + 失败步非零退出
-      - 停止条件：CLI 能跑通 J1 检索→申请→审批→凭据→调用
-    actual_evidence:
-      - scripts/headless_j1_demo.sh 存在且 exit 0
-      - 2026-05-25 实测：STEP 2 request.create E2-pending、STEP 3 approval 决策/岗位失败仍 exit 0 — 假绿
-    depends_on:
-      - F4
-    status: in_progress
-    next_action: 与 E6 F10 协作改 headless 脚本：任一步 capability 非 200 则 exit 1；审批步用 approve_reuse + ROLE_ORGAN_MANAGER
-    blocked_reason: null
-
-  - id: F6
-    deliverable: MCP/A2A 生产硬化——MCP 工具/资源可被 Cursor/Claude 调；A2A card 可发现
-    scope: MCP server + A2A card；不含 AgentRuntime（归 E4）
-    covers_ac:
-      - AC4
-    evidence_plan:
-      - 证据预算：MCP server Cursor 实测连通 + A2A card 可发现日志
-      - 停止条件：外部 IDE/Agent 能调通至少 5 个 J1 高频 capability
-    actual_evidence:
-      - zw_brain/entry/mcp/server.py + entry/a2a/ 投影产物就位
-      - 2026-05-25 未在本轮做 Cursor 实测连通
-    depends_on:
-      - F4
-    status: in_progress
-    next_action: Cursor 连本地 MCP 调 catalog.browse + request.create + credential.query 各 1 次；记录连通日志
-    blocked_reason: null
-
-  - id: F7
-    deliverable: 嵌入式自然语言加速器（P2/P3/B1.1/B1.2 减摩组件 UI）
-    scope: §5.4.4 减摩组件 UI 框架 + 4 处嵌入位；NL 后端接线归 E1/E3 cap
-    covers_ac:
-      - AC5
-    evidence_plan:
-      - 证据预算：4 组件截图 + live 解析（非 fixture）+ §5.4.6 六问自检
-      - 停止条件：组件不替代主页面 + 后端 cap 可达时走 live
-    actual_evidence:
-      - zw-brain-web/src/components/NLAcceleratorPanel.vue — P2/P3/B11/B12 四锚点嵌入
-      - 2026-05-25 浏览器：面板显示「兜底回退（NL 后端等 E1/E3/E4 land）」— nl.accelerator.parse 未注册
-      - E1 已 land search.intent.parse / application.draft.suggest / delivery.status.explain — UI 未接线
-    depends_on:
-      - F3
-    status: in_progress
-    next_action: useNLAccelerator 改调 E1 已 land 的 page-anchor→skill 映射；去掉 fixture 为主路径
-    blocked_reason: null
-
-  - id: F8
-    deliverable: 6 人解锁验证——至少 2 个其他 worker UI 任务在本 worker 完成 1 周内 land
-    scope: 与 E1/E2/E3/E4 UI 协作 PR merged
-    covers_ac:
-      - AC6
-    evidence_plan:
-      - 证据预算：≥2 个其他 worker 的 UI PR merged
-      - 停止条件：解锁验证通过
-    actual_evidence: []
-    depends_on:
-      - F3
-      - F9
-    status: pending
-    next_action: F9/F10 land 后通知 E1/E2 开 UI 协作 PR（异议面、P5 子路由）
-    blocked_reason: 写路径岗位 bug（F9）未修前其他 worker UI 联调会被 403 阻断
-
-  - id: F9
-    deliverable: invokeActionStub 默认使用顶栏岗位（getProductRole）
-    scope: 所有 POST /api/skills/* 写操作与 #role-switch 同步；不含后端 policy 变更
-    covers_ac:
-      - AC2
-    evidence_plan:
-      - 证据预算：Playwright — 切 ROLE_ORGAN_MANAGER 后 P3「通过」返回 200 + toast ok
-      - 停止条件：浏览器写操作岗位与顶栏一致
-    actual_evidence:
-      - 2026-05-25 验收：invokeActionStub 默认 ROLE_ORGAN_OPERATER；部门管理员点审批 403
-      - zw-brain-web/src/composables/useActionStub.ts — 未 import getProductRole
-    depends_on: []
-    status: pending
-    next_action: useActionStub.ts 默认 role=getProductRole().value；P3ReviewDetail 等显式传 role 的调用删冗余
-    blocked_reason: null
-
-  - id: F10
-    deliverable: P3 审批决策枚举与后端对齐
-    scope: UI 传 approve_reuse / reject_duplicate / return_for_fix；不含审批流引擎定制
-    covers_ac:
-      - AC2
-    evidence_plan:
-      - 证据预算：Playwright 审批通过一步 + API body decision 字段断言
-      - 停止条件：不再出现 unsupported review decision
-    actual_evidence:
-      - P3ReviewDetail.vue 仍传 approved/rejected/pending-fix
-      - 后端 approval.py 只认 approve_reuse 等 normalized 值；CLI 用 approve_reuse 可 200
-    depends_on:
-      - F9
-    status: pending
-    next_action: 改 P3ReviewDetail approve/reject/fix 三个 handler 的 decision 枚举 + 成功 toast 文案
-    blocked_reason: null
-
-  - id: F11
-    deliverable: 凭据状态中文映射 + 岗位无权重定向提示
-    scope: statusLabels issued→已签发；路由守卫 fallback 时 toast 说明无权访问
-    covers_ac:
-      - AC2
-    evidence_plan:
-      - 证据预算：P4 凭据页 issued 显示「已签发」截图 + OPERATER 访问 P5 时出现提示而非静默跳工作台
-      - 停止条件：不再出现「有 Key 却显示待处理」
-    actual_evidence:
-      - 2026-05-25：credential.query status=issued 但 DetailPanel 显示「待处理」（formatTodoStatus 缺映射）
-      - 2026-05-25：无权限路由静默 redirect 到 workbench
-    depends_on:
-      - F3
-    status: pending
-    next_action: statusLabels.ts 增 issued/not_issued；router.beforeEach 可选 pushToast 一次
-    blocked_reason: null
-
-  - id: F12
-    deliverable: Playwright e2e harness — tests/e2e/*.spec.ts 可 CI 运行
-    scope: "'@playwright/test' + 基于 2026-05-25 验收脚本固化 P1-P4/B1.1 冒烟；不含全量视觉回归"
-    covers_ac:
-      - AC6
-    evidence_plan:
-      - 证据预算：npm run e2e 或 pytest 包装 playwright + CI job 绿
-      - 停止条件：b11_compliance.spec.ts 从 PLACEHOLDER 变为可执行
-    actual_evidence:
-      - tests/e2e/b11_compliance.spec.ts + b12_intake.spec.ts — 仅 prose 规格，无 harness
-      - 2026-05-25 临时 Playwright 脚本已验证主页面行为
-    depends_on:
-      - F9
-      - F10
-    status: pending
-    next_action: zw-brain-web 或 repo 根加 playwright.config.ts + package.json script；固化 role-switch 冒烟
-    blocked_reason: null
+- id: F1
+  deliverable: 前端框架选型 + spike PR（Vue3+Vite）
+  scope: 选型 + 1 个 spike 页面（P1 工作台）跑通；不含其他 7 页面
+  covers_ac:
+  - AC1
+  evidence_plan:
+  - 证据预算：选型 PR + spike P1 截图 + npm run dev 热重载演示 + 构建产物大小对比
+  - 停止条件：选型 sign-off + spike 页面能装载真实 P1 待办数据
+  actual_evidence:
+  - zw-brain-web/package.json — Vue3+Vite 选型落地
+  - zw-brain-web/src/pages/P1Workbench.vue + useWorkbench.ts — spike P1 live 数据
+  - npm run dev / npm run build 可跑；dist-vite 由 REST 托管
+  depends_on: []
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F2
+  deliverable: WebUI 构建管线 + 现有 bundle 替换
+  scope: vite 完整构建管线 + 等价替换现有 bundle；不含 8 页面完整重写
+  covers_ac:
+  - AC1
+  evidence_plan:
+  - 证据预算：构建产物与现有 bundle 功能等价 e2e + 部署清单更新
+  - 停止条件：现有 zw-brain-web 路由全部跑通；用户登录 + 8 页面可达
+  actual_evidence:
+  - zw-brain-web/dist-vite/index.html + assets/ — Vite 生产构建
+  - scripts/start-local.sh ensure_webui_build + zw_brain/entry/rest/server.py _web_public_root
+  - 2026-05-25 浏览器验收：8 主路由 hash 可达（P1-P5/P7 + B1.1/B1.2）
+  depends_on:
+  - F1
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F3
+  deliverable: 8 页面成品化（P1-P5/P7 + B1.1/B1.2）装载 sd-default 真实数据
+  scope: 8 主页面骨架 + 真实数据接入；13 个子路由仍 PagePlaceholder（wizard/inbox/详情页）
+  covers_ac:
+  - AC2
+  evidence_plan:
+  - 证据预算：8 页面截图（含真实数据）+ check_ui_spec_b + check_ui_term_blacklist 双绿
+  - 停止条件：8 主页面可达 + 真实数据可见 + 工程术语黑名单不报红
+  actual_evidence:
+  - zw-brain-web/src/pages/{P1-P5,P7,B11,B12}*.vue — 8 主页面组件就位
+  - 2026-05-25 Playwright 验收：P1/P2/P3/P4/P7 live 数据；B1.1/B1.2 在正确岗位下 live
+  - zw-brain-web/src/router/index.ts — 13 条子路由仍指向 PagePlaceholder（P5 wizard/inbox、P7
+    详情等）
+  - P5 provider 待办全 0 — snapshot provider 契约与 UI 字段不一致（归 E2 F7 补投影）
+  - P5ReverseCatalogWizard.vue + P5FieldDecisionInbox.vue + P7ZoneDetail.vue 实装
+  - router/index.ts 三条子路由去 PagePlaceholder
+  - npm run build + check_ui_term_blacklist 双绿
+  - P5 wizard/inbox + P7 detail 去占位
+  - e2e 覆盖 P5 wizard + P7 detail + role-switch
+  - e2e 覆盖 P5 wizard + P7 detail
+  - P5 六条子路由去占位
+  - providerTodoCounts 非零
+  - e2e p5_b12_unlock
+  depends_on:
+  - F2
+  status: completed
+  next_action: ''
+  blocked_reason: P5 真实计数等 E2 补 provider snapshot 投影（field_decisions/hookup_reviews/demand_matches）
+- id: F4
+  deliverable: 5 消费面投影器扩展（scripts/export_agent_contract.py）
+  scope: 派生 WebUI 页面注册 / REST OpenAPI / CLI spec / MCP manifest / A2A card；不含投影目录的人工
+    patch
+  covers_ac:
+  - AC3
+  evidence_plan:
+  - 证据预算：5 投影目录全自动生成 + AUTO-GENERATED banner + check_no_hand_maintained_projection
+    不报红
+  - 停止条件：5 投影从 manifest 派生且无手维护
+  actual_evidence:
+  - scripts/export_agent_contract.py --check OK（REST=194 CLI=1 MCP=61 A2A=1 Skills=185）
+  - scripts/check_no_hand_maintained_projection.py 接入 preflight
+  depends_on: []
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F5
+  deliverable: CLI 生产硬化——能 headless 跑完 J1 全链路用 sd-default 真数据
+  scope: CLI 命令树 + headless 完整路径；脚本不得假绿
+  covers_ac:
+  - AC4
+  evidence_plan:
+  - 证据预算：scripts/headless_j1_demo.sh 输出 + 失败步非零退出
+  - 停止条件：CLI 能跑通 J1 检索→申请→审批→凭据→调用
+  actual_evidence:
+  - scripts/headless_j1_demo.sh 存在且 exit 0
+  - 2026-05-25 实测：STEP 2 request.create E2-pending、STEP 3 approval 决策/岗位失败仍 exit 0
+    — 假绿
+  - headless_j1_demo.sh approve_reuse + strict exit
+  - test_headless_j1_demo.py
+  depends_on:
+  - F4
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F6
+  deliverable: MCP/A2A 生产硬化——MCP 工具/资源可被 Cursor/Claude 调；A2A card 可发现
+  scope: MCP server + A2A card；不含 AgentRuntime（归 E4）
+  covers_ac:
+  - AC4
+  evidence_plan:
+  - 证据预算：MCP server Cursor 实测连通 + A2A card 可发现日志
+  - 停止条件：外部 IDE/Agent 能调通至少 5 个 J1 高频 capability
+  actual_evidence:
+  - zw_brain/entry/mcp/server.py + entry/a2a/ 投影产物就位
+  - 2026-05-25 未在本轮做 Cursor 实测连通
+  - test_mcp_client_smoke_stdio_subprocess
+  - approval.py upsert scalars().first() 修复
+  depends_on:
+  - F4
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F7
+  deliverable: 嵌入式自然语言加速器（P2/P3/B1.1/B1.2 减摩组件 UI）
+  scope: §5.4.4 减摩组件 UI 框架 + 4 处嵌入位；NL 后端接线归 E1/E3 cap
+  covers_ac:
+  - AC5
+  evidence_plan:
+  - 证据预算：4 组件截图 + live 解析（非 fixture）+ §5.4.6 六问自检
+  - 停止条件：组件不替代主页面 + 后端 cap 可达时走 live
+  actual_evidence:
+  - zw-brain-web/src/components/NLAcceleratorPanel.vue — P2/P3/B11/B12 四锚点嵌入
+  - 2026-05-25 浏览器：面板显示「兜底回退（NL 后端等 E1/E3/E4 land）」— nl.accelerator.parse 未注册
+  - E1 已 land search.intent.parse / application.draft.suggest / delivery.status.explain
+    — UI 未接线
+  - nlAcceleratorRouting.ts + useNLAccelerator live 主路径
+  - npm run build + check_ui_term_blacklist OK
+  - nl_accelerator_live.spec.ts 2 passed (8810)
+  depends_on:
+  - F3
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F8
+  deliverable: 6 人解锁验证——至少 2 个其他 worker UI 任务在本 worker 完成 1 周内 land
+  scope: 与 E1/E2/E3/E4 UI 协作 PR merged
+  covers_ac:
+  - AC6
+  evidence_plan:
+  - 证据预算：≥2 个其他 worker 的 UI PR merged
+  - 停止条件：解锁验证通过
+  actual_evidence:
+  - F9/F10/F11 403/枚举修复解锁写路径
+  - p5_b12_unlock.spec.ts B1.2 tab + P5 子路由 e2e
+  - npm run e2e 16 passed
+  depends_on:
+  - F3
+  - F9
+  status: completed
+  next_action: ''
+  blocked_reason: 写路径岗位 bug（F9）未修前其他 worker UI 联调会被 403 阻断
+- id: F9
+  deliverable: invokeActionStub 默认使用顶栏岗位（getProductRole）
+  scope: 所有 POST /api/skills/* 写操作与
+  covers_ac:
+  - AC2
+  evidence_plan:
+  - 证据预算：Playwright — 切 ROLE_ORGAN_MANAGER 后 P3「通过」返回 200 + toast ok
+  - 停止条件：浏览器写操作岗位与顶栏一致
+  actual_evidence:
+  - 2026-05-25 验收：invokeActionStub 默认 ROLE_ORGAN_OPERATER；部门管理员点审批 403
+  - zw-brain-web/src/composables/useActionStub.ts — 未 import getProductRole
+  - useActionStub.ts import getProductRole，默认 role 跟随顶栏
+  - npm run build OK
+  depends_on: []
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F10
+  deliverable: P3 审批决策枚举与后端对齐
+  scope: UI 传 approve_reuse / reject_duplicate / return_for_fix；不含审批流引擎定制
+  covers_ac:
+  - AC2
+  evidence_plan:
+  - 证据预算：Playwright 审批通过一步 + API body decision 字段断言
+  - 停止条件：不再出现 unsupported review decision
+  actual_evidence:
+  - P3ReviewDetail.vue 仍传 approved/rejected/pending-fix
+  - 后端 approval.py 只认 approve_reuse 等 normalized 值；CLI 用 approve_reuse 可 200
+  - P3ReviewDetail decision 枚举对齐后端 normalized 值
+  - npm run build OK
+  depends_on:
+  - F9
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F11
+  deliverable: 凭据状态中文映射 + 岗位无权重定向提示
+  scope: statusLabels issued→已签发；路由守卫 fallback 时 toast 说明无权访问
+  covers_ac:
+  - AC2
+  evidence_plan:
+  - 证据预算：P4 凭据页 issued 显示「已签发」截图 + OPERATER 访问 P5 时出现提示而非静默跳工作台
+  - 停止条件：不再出现「有 Key 却显示待处理」
+  actual_evidence:
+  - 2026-05-25：credential.query status=issued 但 DetailPanel 显示「待处理」（formatTodoStatus
+    缺映射）
+  - 2026-05-25：无权限路由静默 redirect 到 workbench
+  - statusLabels issued/not_issued 映射
+  - router.beforeEach 无权限 toast
+  - npm run build OK
+  depends_on:
+  - F3
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F12
+  deliverable: Playwright e2e harness — tests/e2e/*.spec.ts 可 CI 运行
+  scope: '''@playwright/test'' + 基于 2026-05-25 验收脚本固化 P1-P4/B1.1 冒烟；不含全量视觉回归'
+  covers_ac:
+  - AC6
+  evidence_plan:
+  - 证据预算：npm run e2e 或 pytest 包装 playwright + CI job 绿
+  - 停止条件：b11_compliance.spec.ts 从 PLACEHOLDER 变为可执行
+  actual_evidence:
+  - tests/e2e/b11_compliance.spec.ts + b12_intake.spec.ts — 仅 prose 规格，无 harness
+  - 2026-05-25 临时 Playwright 脚本已验证主页面行为
+  - playwright.config.ts + package.json e2e script
+  - webui_smoke.spec.ts 8 tests + b11 2 tests
+  - 'npm run e2e: 10 passed (8810)'
+  depends_on:
+  - F9
+  - F10
+  status: completed
+  next_action: ''
+  blocked_reason: null

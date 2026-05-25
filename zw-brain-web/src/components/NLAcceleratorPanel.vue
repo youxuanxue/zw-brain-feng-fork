@@ -62,7 +62,7 @@ function triggerAction(action: StructuredAction) {
 
     <aside v-if="open" class="nl-drawer" role="complementary" aria-label="自然语言加速器">
       <header class="nl-head">
-        <strong>自然语言加速器 · {{ pageAnchor }}</strong>
+        <strong>自然语言加速器</strong>
         <p class="nl-hint">输入一句话快速命中本页高频操作。失败时不影响你直接使用页面按钮。</p>
       </header>
 
@@ -96,7 +96,7 @@ function triggerAction(action: StructuredAction) {
             <span class="nl-tag nl-tag-ok">真实后端</span>
           </template>
           <template v-else-if="source === 'fixture'">
-            <span class="nl-tag nl-tag-warn">兜底回退（NL 后端等 E1/E3/E4 land）</span>
+            <span class="nl-tag nl-tag-warn">离线建议（后端暂不可用）</span>
           </template>
           <template v-else>
             <span class="nl-tag nl-tag-pending">解析未命中</span>
@@ -114,7 +114,7 @@ function triggerAction(action: StructuredAction) {
         <p v-else class="nl-fallback">未解析出可执行动作；请使用页面上的按钮直接操作。</p>
       </section>
       <div v-else-if="error" class="nl-error">
-        加速器调用出错：{{ error }}（已尝试 fixture 兜底）
+        加速器调用出错：{{ error }}（已尝试离线建议）
       </div>
     </aside>
   </div>

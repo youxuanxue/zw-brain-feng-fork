@@ -8,7 +8,9 @@
     "dev": "vite --host 127.0.0.1 --port 5173",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview --port 4173",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "e2e": "npm --prefix .. run e2e",
+    "e2e:install": "npm --prefix .. run e2e:install"
   },
   "dependencies": {
     "vue": "^3.4.38",

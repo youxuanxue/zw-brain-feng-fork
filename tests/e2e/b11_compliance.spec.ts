@@ -66,6 +66,9 @@
  * block；保留这份文档以备 trace。
  */
 
+import { test, expect } from '@playwright/test';
+import { gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
+
 // Placeholder 占位 export，防止本文件作为空模块被 typecheck 报红
 export const B11_E2E_PLACEHOLDER = {
   panels: ['statistics', 'anomaly', 'accountability', 'replay'] as const,
@@ -79,3 +82,28 @@ export const B11_E2E_PLACEHOLDER = {
   ] as const,
   expectedRoles: ['ROLE_SECURITY_AUDIT', 'ROLE_BUSIAUDIT'] as const,
 };
+
+test.describe('B1.1 合规与运营 smoke', () => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    await skipUnlessBackend(page, testInfo);
+    await page.goto('/');
+    await waitAppReady(page);
+    await setRole(page, 'ROLE_SECURITY_AUDIT');
+    await gotoHash(page, '#/compliance-ops');
+  });
+
+  test('SECURITY_AUDIT 进入页面并切换 4 panel', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: '合规与运营' })).toBeVisible();
+    for (const label of ['统计', '异常', '追责', '回放'] as const) {
+      await page.getByRole('tab', { name: label }).click();
+      await expect(page.getByRole('tab', { name: label })).toHaveAttribute('aria-selected', 'true');
+    }
+  });
+
+  test('OPERATER 无权静默进入合规页', async ({ page }) => {
+    await setRole(page, 'ROLE_ORGAN_OPERATER');
+    await gotoHash(page, '#/compliance-ops');
+    await page.waitForTimeout(1000);
+    expect(page.url()).not.toMatch(/#\/compliance-ops/);
+  });
+});

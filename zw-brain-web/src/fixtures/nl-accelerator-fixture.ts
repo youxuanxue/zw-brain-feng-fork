@@ -1,5 +1,5 @@
-// F7 fixture：NL 加速器后端（nl.accelerator.parse skill）当前未 land（E1/E3/E4 范围）。
-// UI 走 fixture 兜底，演示「自然语言 → 结构化 action[]」回落形态；后端 land 后无需改 UI。
+// F7 fixture：live page-anchor→skill 映射失败时的最终兜底（dev / 离线演示）。
+// 主路径见 lib/nlAcceleratorRouting.ts；此处保留 preset 样例供回落对齐。
 
 export type StructuredActionKind = 'filter' | 'navigate' | 'invoke' | 'draft';
 

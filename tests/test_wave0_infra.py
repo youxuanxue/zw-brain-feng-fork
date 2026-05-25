@@ -217,11 +217,12 @@ def test_infra_inference_requires_request_id_for_audit_trail():
         client.chat([ChatMessage(role="user", content="hi")], model="qwen-7b", request_id=None)
 
 
-def test_infra_inference_requires_platform_config_not_third_party():
+def test_infra_inference_requires_platform_config_not_third_party(monkeypatch: pytest.MonkeyPatch):
     """未配置 gateway base_url 时 raise，绝不回退直连第三方."""
     from zw_brain.shared.inference.client import ChatMessage, InferenceClient, InferenceError
 
-    client = InferenceClient(base_url="", api_key="", model="qwen-7b")
+    monkeypatch.delenv("ZW_BRAIN_INFERENCE_MODE", raising=False)
+    client = InferenceClient(base_url="", api_key="", model="qwen-7b", mode="platform")
     with pytest.raises(InferenceError):
         client.chat([ChatMessage(role="user", content="hi")], model="qwen-7b", request_id="REQ-1")
 
@@ -333,6 +334,40 @@ def test_infra_webui_allow_role_switch_on_dev_bypass(monkeypatch: pytest.MonkeyP
 
     monkeypatch.setenv("ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH", "0")
     assert brain.snapshot()["webui"]["allowRoleSwitch"] is False
+
+
+# ======================================================================
+# E6 F10/F11 — headless demo 去假绿 + start-local NO_PROXY 提示
+# ======================================================================
+
+def test_headless_j1_demo_fails_closed_on_non_200_steps():
+    """F10：headless J1 脚本任一步非 200 则 exit 1，审批步用 approve_reuse。"""
+    script = (REPO_ROOT / "scripts" / "headless_j1_demo.sh").read_text(encoding="utf-8")
+    assert "FAILED" in script
+    assert 'exit 1' in script
+    assert "approve_reuse" in script
+    assert "extract_request_id" in script
+    assert '"decision":"approved"' not in script
+    assert 'REQ-2026-04-25-0011' not in script
+
+
+def test_start_local_prints_no_proxy_tip_when_proxy_env_set():
+    """F11：start-local 在检测到 http(s)_proxy 时提示 NO_PROXY 排障。"""
+    script = (REPO_ROOT / "scripts" / "start-local.sh").read_text(encoding="utf-8")
+    assert "NO_PROXY=127.0.0.1,localhost" in script
+    assert "http_proxy" in script or "HTTP_PROXY" in script
+
+
+def test_start_local_defaults_inference_mock_and_documents_mode():
+    """F2：start-local 在 REST 启动前默认 ZW_BRAIN_INFERENCE_MODE=mock 并打印说明。"""
+    script = (REPO_ROOT / "scripts" / "start-local.sh").read_text(encoding="utf-8")
+    assert "ZW_BRAIN_INFERENCE_MODE=mock" in script
+    assert "ZW_BRAIN_INFERENCE_MODE=${ZW_BRAIN_INFERENCE_MODE}" in script
+    assert "INSPUR_INFERENCE_BASE_URL" in script
+    # mock 须在 start_rest 调用之前 export（函数定义行 start_rest() 不算）
+    mock_block = script.find('if [[ -z "${ZW_BRAIN_INFERENCE_MODE:-}" ]]; then')
+    start_call = script.find("\nstart_rest\n")
+    assert mock_block != -1 and start_call != -1 and mock_block < start_call
 
 
 # ======================================================================

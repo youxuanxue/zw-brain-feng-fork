@@ -1,141 +1,153 @@
 schema_version: 1
 goal_id: e2-j2-journey
 items:
-  - id: F1
-    deliverable: J2 原生 3 层默认审批流程后端实装（部门内审 → 平台复核 → 发布）
-    scope: 仅 3 层默认流程，不含项目级定制；不动 J1 申请流程
-    covers_ac:
-      - AC1
-    evidence_plan:
-      - 证据预算：tests/test_wave1_j2_pipeline.py 全绿 + 真实目录 audit_event 序列
-      - 停止条件：3 层审批可达性测试通过
-    actual_evidence:
-      - tests/test_wave1_j2_pipeline.py — 28 tests，2026-05-25 全绿（含 3 skipped）
-      - zw_brain/command/handlers/j2/ + catalog.review.* dispatch 就位
-    depends_on: []
-    status: completed
-    next_action: ''
-    blocked_reason: null
-
-  - id: F2
-    deliverable: 资源 3 物化形式（table/file/api）字段绑定完整性实装
-    scope: 3 物化各 1 个真实 sd-default 资源 e2e
-    covers_ac:
-      - AC2
-    evidence_plan:
-      - 证据预算：3 物化各一条 dump-data_resource 发布 e2e
-      - 停止条件：3 物化绑定可见、可发布
-    actual_evidence:
-      - tests/test_wave1_j2_pipeline.py — table/file/api 物化路径用例在套件内覆盖
-      - scripts/customer_demo_j2.py — 6 passed
-    depends_on:
-      - F1
-    status: completed
-    next_action: ''
-    blocked_reason: null
-
-  - id: F3
-    deliverable: 发布时重复率检测提醒（非硬拦）
-    scope: catalog.duplicate.check + publish 路径自动触发
-    covers_ac:
-      - AC2
-    evidence_plan:
-      - 证据预算：故意重复目录 e2e + capability_call 落账
-      - 停止条件：提醒可见、可忽略、可继续发布
-    actual_evidence:
-      - zw_brain/command/handlers/j2/duplicate_check.py + dispatch catalog.duplicate.check
-      - tests/test_wave1_j2_pipeline.py — F3 duplicate.check audit 断言
-    depends_on:
-      - F1
-    status: completed
-    next_action: ''
-    blocked_reason: null
-
-  - id: F4
-    deliverable: P5 异议响应面后端 + UI 嵌入（与 E1 F3 协作）
-    scope: 提供方接收 + 响应 + 评价回写；UI 等 E5 P5 子路由
-    covers_ac:
-      - AC3
-    evidence_plan:
-      - 证据预算：tests/e2e/objection_provider_response.spec.ts + P5 异议响应面截图
-      - 停止条件：提供方响应能更新异议状态
-    actual_evidence:
-      - 后端 objection.case.* handlers 就位；E1 F3 lifecycle 测试 18 passed
-      - P5 /provider/inbox/* 仍 PagePlaceholder；snapshot disputes 对 OPERATER 为空
-    depends_on:
-      - F1
-    status: in_progress
-    next_action: 与 E1/E5 协调：P5 异议收件箱实装 + provider 角色下 disputes 投影
-    blocked_reason: E5 P5 子路由占位；E1 F10 异议 UI 入口未 land
-
-  - id: F5
-    deliverable: 国家扩展要素目录编制 IA 占位 + manifest deferred:wave-3
-    scope: manifest 标 deferred + preflight 段 22 防回潮
-    covers_ac:
-      - AC4
-    evidence_plan:
-      - 证据预算：manifest deferred + tests/test_capability_boundary.py
-      - 停止条件：preflight 段 22 不报红
-    actual_evidence:
-      - tests/test_capability_boundary.py 防回潮用例在 preflight 段 22 覆盖
-    depends_on: []
-    status: completed
-    next_action: ''
-    blocked_reason: null
-
-  - id: F6
-    deliverable: J2 验收脚本 + 业务方 sign-off 准备
-    scope: scripts/customer_demo_j2.* 后端链路；浏览器 P5 演示待 F7/F8
-    covers_ac:
-      - AC5
-    evidence_plan:
-      - 证据预算：customer_demo_j2.sh exit 0 + business-signoff
-      - 停止条件：业务方签字
-    actual_evidence:
-      - scripts/customer_demo_j2.py + .sh — tests/test_wave1_customer_demo_j2.py 6 passed
-      - 2026-05-25：P5 UI 待办全 0，无法做提供方日常浏览器演示
-    depends_on:
-      - F1
-      - F2
-      - F3
-      - F4
-      - F5
-    status: in_progress
-    next_action: F7/F8 land 后补 Playwright J2 冒烟 + 约业务方 sign-off
-    blocked_reason: P5 浏览器面未就绪（F7 provider 投影 + F8 子路由）
-
-  - id: F7
-    deliverable: provider snapshot 投影补全（field_decisions / hookup_reviews / demand_matches）
-    scope: system.snapshot 或 web_snapshot_redaction 输出与 P5Provider.vue 契约对齐
-    covers_ac:
-      - AC1
-      - AC2
-    evidence_plan:
-      - 证据预算：/api/snapshot provider 含非零计数 + P5 截图
-      - 停止条件：P5 三待办卡片数字来自 live 数据
-    actual_evidence:
-      - 2026-05-25：snapshot provider 仅 overview/catalogs/resources/services；UI 读 field_decisions 等恒为 0
-      - zw_brain/domain/web_snapshot_redaction.py _EMPTY_PROVIDER 无收件箱字段
-    depends_on:
-      - F1
-    status: pending
-    next_action: 扩展 snapshot provider 投影（撞 M0 墙走 projections.py / catalog_metadata.py PR）
-    blocked_reason: null
-
-  - id: F8
-    deliverable: P5 核心子路由去占位（反向编目向导 + 字段裁决收件箱 + 挂接审核）
-    scope: 至少 3 条 wizard/inbox 路由实装；与 E5 F3 协作
-    covers_ac:
-      - AC1
-      - AC3
-    evidence_plan:
-      - 证据预算：Playwright ROLE_ORGAN_MANAGER 下 3 子页非「功能建设中」截图
-      - 停止条件：J2 编制→挂接→审→发布可在 WebUI 点通主路径
-    actual_evidence:
-      - zw-brain-web/src/router/index.ts — 6+ P5 子路由 PagePlaceholder
-      - 2026-05-25 Playwright：wizard/inbox 显示「功能建设中」
-    depends_on:
-      - F7
-    status: pending
-    next_action: 优先 landing reverse-catalog wizard + field-decision inbox 列表页
-    blocked_reason: F7 provider 计数为 0 时 inbox 列表无数据可展示
+- id: F1
+  deliverable: J2 原生 3 层默认审批流程后端实装（部门内审 → 平台复核 → 发布）
+  scope: 仅 3 层默认流程，不含项目级定制；不动 J1 申请流程
+  covers_ac:
+  - AC1
+  evidence_plan:
+  - 证据预算：tests/test_wave1_j2_pipeline.py 全绿 + 真实目录 audit_event 序列
+  - 停止条件：3 层审批可达性测试通过
+  actual_evidence:
+  - tests/test_wave1_j2_pipeline.py — 28 tests，2026-05-25 全绿（含 3 skipped）
+  - zw_brain/command/handlers/j2/ + catalog.review.* dispatch 就位
+  depends_on: []
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F2
+  deliverable: 资源 3 物化形式（table/file/api）字段绑定完整性实装
+  scope: 3 物化各 1 个真实 sd-default 资源 e2e
+  covers_ac:
+  - AC2
+  evidence_plan:
+  - 证据预算：3 物化各一条 dump-data_resource 发布 e2e
+  - 停止条件：3 物化绑定可见、可发布
+  actual_evidence:
+  - tests/test_wave1_j2_pipeline.py — table/file/api 物化路径用例在套件内覆盖
+  - scripts/customer_demo_j2.py — 6 passed
+  depends_on:
+  - F1
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F3
+  deliverable: 发布时重复率检测提醒（非硬拦）
+  scope: catalog.duplicate.check + publish 路径自动触发
+  covers_ac:
+  - AC2
+  evidence_plan:
+  - 证据预算：故意重复目录 e2e + capability_call 落账
+  - 停止条件：提醒可见、可忽略、可继续发布
+  actual_evidence:
+  - zw_brain/command/handlers/j2/duplicate_check.py + dispatch catalog.duplicate.check
+  - tests/test_wave1_j2_pipeline.py — F3 duplicate.check audit 断言
+  depends_on:
+  - F1
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F4
+  deliverable: P5 异议响应面后端 + UI 嵌入（与 E1 F3 协作）
+  scope: 提供方接收 + 响应 + 评价回写；P5 异议 inbox/detail 子路由
+  covers_ac:
+  - AC3
+  evidence_plan:
+  - 证据预算：tests/e2e/wave1_j2_provider_p5_smoke.py 含异议页 + reply/review pytest
+  - 停止条件：提供方响应能更新异议状态
+  actual_evidence:
+  - zw_brain/domain/provider_snapshot_projection.py — provider.objection_cases
+  - zw-brain-web P5ObjectionInbox / P5ObjectionDetail + P5Provider 第四待办卡
+  - tests/test_objection_provider_response.py — inbox + reply/review 闭环
+  - tests/test_provider_snapshot_projection.py — disputes + operater redact
+  depends_on:
+  - F1
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F5
+  deliverable: 国家扩展要素目录编制 IA 占位 + manifest deferred:wave-3
+  scope: manifest 标 deferred + preflight 段 22 防回潮
+  covers_ac:
+  - AC4
+  evidence_plan:
+  - 证据预算：manifest deferred + tests/test_capability_boundary.py
+  - 停止条件：preflight 段 22 不报红
+  actual_evidence:
+  - tests/test_capability_boundary.py 防回潮用例在 preflight 段 22 覆盖
+  depends_on: []
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F6
+  deliverable: J2 验收脚本 + 业务方 sign-off 准备
+  scope: scripts/customer_demo_j2.* 后端链路；浏览器 P5 演示待 F7/F8
+  covers_ac:
+  - AC5
+  evidence_plan:
+  - 证据预算：customer_demo_j2.sh exit 0 + business-signoff
+  - 停止条件：业务方签字
+  actual_evidence:
+  - scripts/customer_demo_j2.py + .sh — 2026-05-25 exit 0（shadow 自 .data/zw_brain.db，1.37s）
+  - .data/customer-demo-j2/demo-20260525-195940.json — 13 audit 类型 + F1/F3/F4 quality_flags
+  - tests/test_wave1_customer_demo_j2.py — 6 passed（真库 seed 就位后）
+  - provider/objection/p5 回归 pytest 12 passed + preflight PASS
+  - tests/e2e/wave1_j2_provider_p5_smoke.py — exit 0（本 worktree dist-vite + 8801）
+  depends_on:
+  - F1
+  - F2
+  - F3
+  - F4
+  - F5
+  status: in_progress
+  next_action: 业务方 sign-off（PR comment 或 issue label business-signoff）
+  blocked_reason: 业务方签字未落盘
+- id: F7
+  deliverable: provider snapshot 投影补全（field_decisions / hookup_reviews / demand_matches）
+  scope: system.snapshot 或 web_snapshot_redaction 输出与 P5Provider.vue 契约对齐
+  covers_ac:
+  - AC1
+  - AC2
+  evidence_plan:
+  - 证据预算：/api/snapshot provider 含非零计数 + P5 截图
+  - 停止条件：P5 三待办卡片数字来自 live 数据
+  actual_evidence:
+  - 2026-05-25：snapshot provider 仅 overview/catalogs/resources/services；UI 读 field_decisions
+    等恒为 0
+  - zw_brain/domain/web_snapshot_redaction.py _EMPTY_PROVIDER 无收件箱字段
+  - zw_brain/domain/provider_snapshot_projection.py — DB 投影三收件箱数组
+  - zw_brain/command/handlers/b1/system_ops.py — system.snapshot enrich 链路
+  - tests/test_provider_snapshot_projection.py — 3 passed
+  - preflight PASS
+  depends_on:
+  - F1
+  status: completed
+  next_action: ''
+  blocked_reason: null
+- id: F8
+  deliverable: P5 核心子路由去占位（反向编目向导 + 字段裁决收件箱 + 挂接审核）
+  scope: 至少 3 条 wizard/inbox 路由实装；与 E5 F3 协作
+  covers_ac:
+  - AC1
+  - AC3
+  evidence_plan:
+  - 证据预算：Playwright ROLE_ORGAN_MANAGER 下 3 子页非「功能建设中」截图
+  - 停止条件：J2 编制→挂接→审→发布可在 WebUI 点通主路径
+  actual_evidence:
+  - zw-brain-web/src/router/index.ts — 6+ P5 子路由 PagePlaceholder
+  - 2026-05-25 Playwright：wizard/inbox 显示「功能建设中」
+  - P5FieldDecisionInbox / P5HookupReviewInbox / P5DemandMatchInbox + P5DemandMatchDetail
+  - router 三条 inbox + demand 详情去 PagePlaceholder
+  - tests/test_provider_snapshot_projection.py — 5 passed
+  - 三条 inbox + demand 详情实装
+  - tests/test_provider_snapshot_projection.py — 7 passed
+  - P5ReverseCatalogWizard / P5ApiServiceWizard / P5QualityRuleWizard
+  - 三条 inbox + demand 详情
+  - tests/test_p5_provider_routes.py
+  - tests/e2e/wave1_j2_provider_p5_smoke.py
+  depends_on:
+  - F7
+  status: completed
+  next_action: ''
+  blocked_reason: null

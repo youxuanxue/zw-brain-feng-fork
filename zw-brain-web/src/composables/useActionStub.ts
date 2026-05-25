@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { authFetch } from './useAuth';
 import { loadSnapshot } from './useSnapshot';
+import { getProductRole } from './useProductRole';
 
 // F3 业务交互 stub：把 7 主页面 + 6 子页的 onClick 收口到此处。
 // 真正 land 的业务 handler（E1/E2/E4 输出）通过 /api/skills/<skill_id> 调到；
@@ -49,7 +50,7 @@ export interface ActionStubOptions {
 // Future: if a flow needs an additional modal step (e.g. irreversible destructive ops), the
 // caller should pass `{ confirmed: false }` and present its own confirm UI before re-invoke.
 export async function invokeActionStub(opts: ActionStubOptions): Promise<{ ok: boolean; status: number; data?: unknown }> {
-  const role = opts.role ?? 'ROLE_ORGAN_OPERATER';
+  const role = opts.role ?? getProductRole().value;
   try {
     const resp = await authFetch(`/api/skills/${opts.skillId}`, {
       method: 'POST',
@@ -58,7 +59,7 @@ export async function invokeActionStub(opts: ActionStubOptions): Promise<{ ok: b
     });
     if (resp.ok) {
       const data = await resp.json().catch(() => undefined);
-      pushToast({ kind: 'ok', title: opts.successTitle ?? '已提交', detail: opts.skillId });
+      pushToast({ kind: 'ok', title: opts.successTitle ?? '已提交' });
       if (opts.refreshSnapshotAfter !== false) {
         void loadSnapshot(role);
       }
@@ -67,20 +68,29 @@ export async function invokeActionStub(opts: ActionStubOptions): Promise<{ ok: b
     const data = await resp.json().catch(() => undefined);
     const pendingBackend = resp.status === 404 || resp.status === 405 || resp.status === 501;
     if (pendingBackend) {
-      const detail = `${opts.pendingBackend ? `等 ${opts.pendingBackend} land` : '后端尚未实现'} · ${opts.skillId}`;
-      pushToast({ kind: 'warn', title: '操作待后端 land', detail });
+      pushToast({
+        kind: 'warn',
+        title: '暂不可用',
+        detail: '该操作尚未在本环境开通，请稍后再试或联系平台管理员。',
+      });
     } else {
       const bodyDetail =
         data && typeof data === 'object' && 'detail' in (data as object)
           ? String((data as Record<string, unknown>).detail ?? '')
           : '';
-      const detail = bodyDetail || `${opts.skillId} 返回 HTTP ${resp.status}`;
+      let detail = bodyDetail || '请检查当前岗位权限或稍后重试。';
+      const missing = bodyDetail.match(/missing required input field\(s\):\s*(.+?)\s*\(skill:/i);
+      if (missing) {
+        detail = `缺少必填信息：${missing[1]}。请重新选择目录或联系管理员补全 schema 引用。`;
+      } else if (resp.status === 403) {
+        detail = '当前岗位无权执行此操作，请切换岗位或联系管理员。';
+      }
       pushToast({ kind: 'info', title: '操作未完成', detail });
     }
     return { ok: false, status: resp.status, data };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    pushToast({ kind: 'error', title: '调用失败', detail: `${opts.skillId} · ${msg}` });
+    pushToast({ kind: 'error', title: '调用失败', detail: msg });
     return { ok: false, status: 0 };
   }
 }

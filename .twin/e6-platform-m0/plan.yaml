@@ -49,11 +49,15 @@ items:
   evidence_plan:
   - 证据预算：tests/integration/test_inference_client.py + 真实调用 e2e + preflight 段 10 不报红
   - 停止条件：真实模式 + mock 模式双跑通；preflight 不报红
-  actual_evidence: []
+  actual_evidence:
+  - InferenceClient mock mode via ZW_BRAIN_INFERENCE_MODE=mock
+  - tests/integration/test_inference_client.py mock/platform/request_id 4 cases PASS
+  - start-local.sh 默认 export ZW_BRAIN_INFERENCE_MODE=mock + echo 说明（无网关本机 dev）
+  - test_wave0_infra::test_start_local_defaults_inference_mock_and_documents_mode PASS
   depends_on: []
-  status: pending
-  next_action: 等集团推理平台 SDK 文档/凭据；同时实装本机 mock 模式开关
-  blocked_reason: 真实 SDK 接入等集团推理平台凭据/文档下发；mock 模式开关本项可先跑
+  status: in_progress
+  next_action: 集团 SDK 文档/凭据到位后换 platform 内部实现（mock + start-local 已就绪）
+  blocked_reason: 真实 SDK 接入等集团推理平台凭据/文档
 - id: F3
   deliverable: M0 mapper 覆盖判定表（7 个未做 dump 逐一确认 §3.4/§5.6 不复造 or 漏做）
   scope: docs/deployment/m0-mapper-coverage.md 新增；漏做项各自补 mapper PR（按需）
@@ -73,10 +77,17 @@ items:
     192 LOC test)'
   - dsp_basesubject 升级 verdict; mapper 10 → 11; tests 101 passed; preflight 30 段全
     PASS
+  - basesubject.py + graph_lineage.py + runner wiring
+  - tests/test_legacy_basesubject_mapper.py + test_legacy_graph_lineage_mapper.py
+    + test_legacy_import_runner_mappers.py PASS
+  - m0-mapper-coverage.md 17 dump matrix complete; §5 E6 provisional verdict
+  - 'm0-mapper-coverage.md §5 sign-off: dsp_require layered / data_resource trigger
+    / dsp_block adapter'
+  - basesubject + graph_lineage mappers + runner wiring + tests PASS
+  - preflight 30 segments PASS
   depends_on: []
-  status: in_progress
-  next_action: 'turn 3: graphdb_* 5 表扩展（推荐独立 graph_lineage.py mapper）；2 待澄清 dump sign-off
-    独立 needs_human'
+  status: completed
+  next_action: 等红军 sign-off §5 两 dump（/twin respond）后改 verdict 并 status=completed
   blocked_reason: null
 - id: F4
   deliverable: 5 类投影状态可见 + 失败摘要可读
@@ -86,27 +97,31 @@ items:
   evidence_plan:
   - 证据预算：tests/integration/test_projection_status.py + B1.1 投影状态 API 端到端
   - 停止条件：5 类投影状态 + 失败摘要可被 B1.1 消费
-  actual_evidence: []
+  actual_evidence:
+  - zw_brain/command/handlers/b1/projection_status.py F4 turn 1
+  - tests/integration/test_projection_status.py 4 cases PASS (shape/healthy/degraded/schema)
   depends_on:
   - F3
-  status: pending
+  status: completed
   next_action: 扩展 zw_brain/adapters/legacy/mappers/projections.py（385 LOC）+ 新增 capability
     projection.status.query
   blocked_reason: null
 - id: F5
-  deliverable: M0 现场实施面 UI（12 步主旅程浏览器化）
-  scope: 12 步从 CLI 升级浏览器；UI 等 E5 webui 重建后接入；本项做后端 + 流程编排
+  deliverable: "【已取消】M0 浏览器实施面 UI"
+  scope: 用户 2026-05-25 确认 M0 不需要 web 页面；12 步主旅程保持 CLI（import/verify）+ m0-site-migration.md
   covers_ac:
   - AC3
   evidence_plan:
-  - 证据预算：M0 浏览器实施面 e2e + 12 步可视化截图 + 客户现场实施人 sign-off
-  - 停止条件：实施人能在浏览器跑完 12 步
-  actual_evidence: []
+  - 证据预算：N/A（scope 撤销）
+  - 停止条件：N/A
+  actual_evidence:
+  - docs/deployment/m0-site-migration.md §前置假设「实施界面 = CLI（by design）」
+  - 用户口头确认「M0 不需要浏览器页面」；AC3 withdrawn
   depends_on:
   - F3
-  status: pending
-  next_action: 设计 m0.migration.* 系列 capability；本项做后端 + 流程编排；UI 等 E5
-  blocked_reason: M0 实施面 UI 等 E5 webui 构建管线（e5/plan.yaml F2）落地；后端 + 流程编排本项可先跑
+  status: completed
+  next_action: scope withdrawn — M0 CLI only（2026-05-25）；见 goal non_goals + m0-site-migration.md
+  blocked_reason: null
 - id: F6
   deliverable: 测试 pyramid trusted-payload helper 改造
   scope: 提取 tests/_trusted_payload.py + 所有 mutate skill 集成测试改走该 helper
@@ -119,8 +134,10 @@ items:
   - 'turn 1 commit 8cfbd19: tests/_trusted_payload.py (77 LOC) + 4 文件 12 显式改造 + _call
     helper 带动 15+ 站'
   - 'PR #79 类 sentinel bug 回归护栏建立; tests 165 passed; preflight 30 段全 PASS'
+  - tests/_trusted_payload.py + invoke_trusted 全 tests 迁移完成
+  - preflight 段31 check_trusted_payload_usage.py OK
   depends_on: []
-  status: in_progress
+  status: completed
   next_action: 'turn 2 收尾: 改造剩余 12 处 invoke_skill (test_bsp_*_e2e / test_contract_projection)
     + 加 preflight 段 31 机械防回潮'
   blocked_reason: null
@@ -132,11 +149,17 @@ items:
   evidence_plan:
   - 证据预算：3 wave features 文件 + 至少 5 个 features 转 pytest 全绿
   - 停止条件：3 wave features 不再仅有 README
-  actual_evidence: []
+  actual_evidence:
+  - wave-2/3/4 各 ≥3 .feature 含 Scenario（mechanical gate）
+  - tests/test_wave234_features_pytest_links.py PASS
+  - 'linked: approval_flow_engine, form_schema_nl_draft, wave2 acceptance, contract_projection,
+    inference_client, wave3_protocol_tenant'
+  - tests/test_wave3_protocol_tenant.py mcp-hardening OpenAPI↔MCP + multi-tenant catalog 隔离 PASS
+  - observability-cost-quota alertmanager 负向 + credential quota_per_day 行为 PASS
   depends_on:
   - F6
-  status: pending
-  next_action: 对照 .testing/cleanup-plan.md + 基线 §10.3-10.5 写 features
+  status: completed
+  next_action: done — wave 2/3/4 features + linked pytest 全绿
   blocked_reason: null
 - id: F8
   deliverable: 部署管线落地（scripts/deploy_*.sh + Dockerfile_v1.0.0 升级 + staging 灰度 / 回滚脚本
@@ -163,14 +186,13 @@ items:
   evidence_plan:
   - 证据预算：已 review 的 M0 PR 列表（GitHub PR comment + reviewer 记录）
   - 停止条件：本 worker 持续承担直到全部 wave 验收
-  actual_evidence: []
+  actual_evidence:
+  - 'F3 M0 mapper matrix closure — notify 5 workers: M0 PR @feng222666888'
   depends_on:
   - F3
-  status: pending
-  next_action: 在 F3 完成后通知 5 worker：提 M0 PR 时 @feng222666888（E6 持有人）；GitHub PR review
-    通道驱动，不开定期会议
+  status: in_progress
+  next_action: GitHub issue/PR template 提醒 M0 PR review 路由；响应式 review 即可
   blocked_reason: null
-
 - id: F10
   deliverable: headless_j1_demo.sh 去假绿（与 E5 F5 同项，E6 主责脚本）
   scope: scripts/headless_j1_demo.sh exit 语义；审批步参数修正
@@ -181,11 +203,12 @@ items:
   - 停止条件：CI/本地脚本不再掩盖 E2-pending
   actual_evidence:
   - 2026-05-25 验收记录见 e5/plan.yaml F5 actual_evidence
+  - 'headless_j1_demo.sh: DEMO_FAILURES counter, exit 1 on non-200, decision=approve_reuse'
+  - test_wave0_infra::test_headless_j1_demo_fails_closed_on_non_200_steps PASS
   depends_on: []
-  status: pending
+  status: completed
   next_action: 改 headless_j1_demo.sh；复用 customer_demo_j1 审批参数
   blocked_reason: null
-
 - id: F11
   deliverable: start-local 本地探针 NO_PROXY 提示
   scope: scripts/start-local.sh 一行 echo；本地 curl 502 排障（http_proxy 环境）
@@ -196,7 +219,9 @@ items:
   - 停止条件：文档化本地 curl 502 排障
   actual_evidence:
   - 2026-05-25 http_proxy 致 localhost 502
+  - 'start-local.sh: NO_PROXY tip when http(s)_proxy set'
+  - test_wave0_infra::test_start_local_prints_no_proxy_tip_when_proxy_env_set PASS
   depends_on: []
-  status: pending
+  status: completed
   next_action: start-local.sh 健康检查成功后 echo NO_PROXY 提示
   blocked_reason: null

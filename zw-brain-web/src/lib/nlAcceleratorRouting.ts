@@ -1,0 +1,475 @@
+// F7 page-anchor → E1 live skill 映射：NL 面板不再依赖 nl.accelerator.parse 占位 skill。
+// 各 anchor 调用已 land 的读/助手 cap，把响应投影为 StructuredAction[]。
+
+import { postSkill, newRequestId } from '@/composables/useApiClient';
+import type { NLAcceleratorParseResult, StructuredAction } from '@/fixtures/nl-accelerator-fixture';
+
+const REQ_PATTERN = /REQ-[A-Z0-9-]+/i;
+
+const ANCHOR_ROLE: Record<string, string | undefined> = {
+  'B1.1': 'ROLE_SECURITY_AUDIT',
+  'B1.2': 'ROLE_BUSIAUDIT',
+};
+
+export function resolveNLRole(pageAnchor: string, fallbackRole: string): string {
+  return ANCHOR_ROLE[pageAnchor] ?? fallbackRole;
+}
+
+export async function parseNLAcceleratorLive(
+  pageAnchor: string,
+  query: string,
+  role: string,
+): Promise<NLAcceleratorParseResult> {
+  const effectiveRole = resolveNLRole(pageAnchor, role);
+  switch (pageAnchor) {
+    case 'P2':
+      return parseP2(query, effectiveRole);
+    case 'P3':
+      return parseP3(query, effectiveRole);
+    case 'B1.1':
+      return parseB11(query, effectiveRole);
+    case 'B1.2':
+      return parseB12(query, effectiveRole);
+    default:
+      throw new Error(`unsupported NL page anchor: ${pageAnchor}`);
+  }
+}
+
+// ── P2 → search.intent.parse ──────────────────────────────────────────
+
+interface SearchIntentParse {
+  intent?: string;
+  keywords?: string[];
+  missing_fields?: string[];
+  recommendation_reason?: string;
+  follow_up_questions?: string[];
+}
+
+async function parseP2(query: string, role: string): Promise<NLAcceleratorParseResult> {
+  const data = await postSkill<SearchIntentParse>('search.intent.parse', {
+    role,
+    query,
+    enabled: true,
+    request_id: newRequestId('UI-NL-P2'),
+  });
+  const actions: StructuredAction[] = [];
+  const kw = (data.keywords ?? []).filter(Boolean).join(' ') || query.trim();
+  if (kw) {
+    actions.push({
+      kind: 'filter',
+      label: `应用关键词：${kw}`,
+      target: 'query',
+      payload: { query: kw },
+    });
+  }
+  if (data.intent === 'query_application') {
+    actions.push({ kind: 'navigate', label: '跳到在途申请', target: '#/request-flow' });
+  }
+  if (data.intent === 'register_demand') {
+    actions.push({ kind: 'navigate', label: '跳到供需对接', target: '#/provider/inbox/demand-match' });
+  }
+  const hint = data.keywords?.[0] ?? query.slice(0, 24);
+  if (hint) {
+    actions.push({
+      kind: 'invoke',
+      label: '查目录入口',
+      target: 'catalog.entry.query',
+      payload: { query: hint },
+      detail: data.follow_up_questions?.[0],
+    });
+  }
+  const partial = (data.missing_fields?.length ?? 0) > 0;
+  return {
+    summary: data.recommendation_reason ?? `已解析搜索意图（${data.intent ?? 'unknown'}）`,
+    parse_status: partial ? 'partial' : 'ok',
+    actions,
+  };
+}
+
+// ── P3 → request.list / approval.evidence.summarize / application.draft.suggest ──
+
+interface RequestListItem {
+  id?: string;
+  status?: string;
+  submittedAt?: string;
+  resourceName?: string;
+}
+
+interface ApprovalEvidence {
+  recommendation?: string;
+  recommended_decision_reason?: string;
+  historical_summary?: string;
+  bases?: string[];
+  application_id?: string;
+}
+
+interface DraftSuggest {
+  reasoning?: string;
+  risk_band?: string;
+  missing_fields?: string[];
+  suggested_fields?: Record<string, unknown>;
+}
+
+function isApprovalQuery(q: string): boolean {
+  return /待审|审批|催办|驳回|通过|跟进|几条|REQ-/i.test(q);
+}
+
+function isStaleRejectQuery(q: string): boolean {
+  return /驳回|未跟进|30\s*天/.test(q);
+}
+
+function extractReqId(q: string): string | null {
+  const m = q.match(REQ_PATTERN);
+  return m ? m[0].toUpperCase() : null;
+}
+
+async function parseP3(query: string, role: string): Promise<NLAcceleratorParseResult> {
+  const q = query.trim();
+  const reqId = extractReqId(q);
+
+  if (isStaleRejectQuery(q) && !reqId) {
+    return {
+      summary: '识别到批量驳回 / 长期未跟进场景；执行前需人工确认',
+      parse_status: 'partial',
+      actions: [
+        { kind: 'filter', label: '过滤：≥30 天未跟进', target: 'stale_only', payload: { days: 30 } },
+        {
+          kind: 'draft',
+          label: '草拟批量驳回意见（需人工 confirm）',
+          target: 'approval.case.decide',
+          payload: { decision: 'reject' },
+        },
+      ],
+    };
+  }
+
+  if (isApprovalQuery(q)) {
+    const list = await postSkill<{ items?: RequestListItem[] }>('request.list', {
+      role,
+      request_id: newRequestId('UI-NL-P3-LIST'),
+    });
+    const items = list.items ?? [];
+    const pending = items.filter((it) => String(it.status ?? '').includes('pending'));
+    const targetId = reqId ?? pending[0]?.id;
+
+    if (/几条|多少|待审/.test(q) && !reqId) {
+      return {
+        summary: `当前 ${items.length} 条在途，其中 ${pending.length} 条待审批`,
+        parse_status: 'ok',
+        actions: [
+          {
+            kind: 'filter',
+            label: '只显示「待我审批」',
+            target: 'mine_pending',
+            payload: { stage: 'pending_review' },
+          },
+          { kind: 'invoke', label: '刷新申请列表', target: 'request.list', payload: {} },
+        ],
+      };
+    }
+
+    if (/催办/.test(q)) {
+      const recent = items[0];
+      const label = recent?.resourceName ?? recent?.id ?? '最近提交';
+      return {
+        summary: recent
+          ? `最近 1 条「${label}」可发起催办提醒`
+          : '暂无在途申请可催办',
+        parse_status: recent ? 'ok' : 'partial',
+        actions: recent
+          ? [
+              { kind: 'filter', label: '定位最近提交', target: 'time_window', payload: { date: 'recent' } },
+              {
+                kind: 'invoke',
+                label: '触发催办通知',
+                target: 'request.submit',
+                payload: { request_id: recent.id, reminder: true },
+              },
+            ]
+          : [],
+      };
+    }
+
+    if (targetId) {
+      const evidence = await postSkill<ApprovalEvidence>('approval.evidence.summarize', {
+        role,
+        application_id: targetId,
+        enabled: true,
+        request_id: newRequestId('UI-NL-P3-EVD'),
+      });
+      const rec = evidence.recommendation ?? 'return_for_fix';
+      const actions: StructuredAction[] = [
+        {
+          kind: 'navigate',
+          label: `查看申请 ${targetId}`,
+          target: `#/request-flow/request/${targetId}`,
+        },
+        {
+          kind: 'invoke',
+          label: '拉审批详情',
+          target: 'approval.view',
+          payload: { request_id: targetId },
+        },
+      ];
+      if (rec === 'reject') {
+        actions.push({
+          kind: 'draft',
+          label: '草拟驳回依据',
+          target: 'approval.case.decide',
+          payload: { decision: 'reject', request_id: targetId },
+        });
+      }
+      return {
+        summary:
+          evidence.recommended_decision_reason ??
+          `审批建议：${rec}；${evidence.historical_summary ?? ''}`.trim(),
+        parse_status: 'ok',
+        actions,
+      };
+    }
+  }
+
+  const draft = await postSkill<DraftSuggest>('application.draft.suggest', {
+    role,
+    resource_name: inferResourceName(q),
+    applicant_org: '本部门',
+    use_case: q,
+    enabled: true,
+    request_id: newRequestId('UI-NL-P3-DRAFT'),
+  });
+  const actions: StructuredAction[] = [];
+  if (draft.suggested_fields && Object.keys(draft.suggested_fields).length) {
+    actions.push({
+      kind: 'draft',
+      label: '预填申请草拟字段',
+      target: 'request.create',
+      payload: draft.suggested_fields,
+    });
+  }
+  if (draft.missing_fields?.length) {
+    actions.push({
+      kind: 'filter',
+      label: `待补：${draft.missing_fields[0]}`,
+      target: 'missing_fields',
+      payload: { fields: draft.missing_fields },
+    });
+  }
+  return {
+    summary: draft.reasoning ?? `草拟建议已生成（风险 ${draft.risk_band ?? '—'}）`,
+    parse_status: (draft.missing_fields?.length ?? 0) > 0 ? 'partial' : 'ok',
+    actions,
+  };
+}
+
+function inferResourceName(q: string): string {
+  const stripped = q.replace(/申请|草拟|帮我|请|数据|资源/g, '').trim();
+  return stripped.length >= 2 ? stripped.slice(0, 40) : '通用数据资源';
+}
+
+// ── B1.1 → audit.event.anomaly / audit.event.statistics / replay ───────
+
+interface AuditAnomalyResult {
+  anomalies?: Array<{
+    rule?: string;
+    severity?: string;
+    summary?: string;
+    evidence_request_ids?: string[];
+    occurrence_count?: number;
+  }>;
+  scanned?: number;
+}
+
+interface AuditStatisticsResult {
+  totals?: Record<string, number>;
+  bucket?: string;
+}
+
+async function parseB11(query: string, role: string): Promise<NLAcceleratorParseResult> {
+  const q = query.trim();
+  const reqId = extractReqId(q);
+
+  if (reqId) {
+    return {
+      summary: `已定位申请单据 ${reqId}；可查看完整审计链`,
+      parse_status: 'ok',
+      actions: [
+        { kind: 'navigate', label: '跳到申请详情', target: `#/request-flow/request/${reqId}` },
+        {
+          kind: 'invoke',
+          label: '查审计回放',
+          target: 'audit.replay_evidence_chain',
+          payload: { request_id: reqId },
+        },
+      ],
+    };
+  }
+
+  if (/统计|本周|24\s*h|热点|失败/.test(q)) {
+    const bucket = /24\s*h|小时/.test(q) ? 'hour' : /week|周/.test(q) ? 'week' : 'day';
+    const stats = await postSkill<AuditStatisticsResult>('audit.event.statistics', {
+      role,
+      bucket,
+      dimension: 'audit_class',
+      request_id: newRequestId('UI-NL-B11-STAT'),
+    });
+    const totals = stats.totals ?? {};
+    const totalEvents = Object.values(totals).reduce((a, b) => a + b, 0);
+    const failHint = totals.failed ?? totals.error ?? 0;
+    return {
+      summary:
+        failHint > 0
+          ? `近 ${bucket === 'hour' ? '24h' : bucket === 'week' ? '本周' : '今日'}审计事件 ${totalEvents} 条，失败 ${failHint} 条`
+          : `近 ${bucket === 'hour' ? '24h' : bucket === 'week' ? '本周' : '今日'}审计事件 ${totalEvents} 条；护栏正常`,
+      parse_status: 'ok',
+      actions: [
+        {
+          kind: 'filter',
+          label: `时间窗口：${bucket}`,
+          target: 'time_window',
+          payload: { bucket },
+        },
+        {
+          kind: 'invoke',
+          label: '刷新统计聚合',
+          target: 'audit.event.statistics',
+          payload: { bucket, dimension: 'audit_class' },
+        },
+      ],
+    };
+  }
+
+  const anomaly = await postSkill<AuditAnomalyResult>('audit.event.anomaly', {
+    role,
+    top_n: 10,
+    request_id: newRequestId('UI-NL-B11-ANO'),
+  });
+  const list = anomaly.anomalies ?? [];
+  const high = list.filter((a) => a.severity === 'high');
+  const top = list[0];
+  const actions: StructuredAction[] = [
+    {
+      kind: 'filter',
+      label: high.length ? '风险等级：高' : '展示全部异常',
+      target: 'risk',
+      payload: { level: high.length ? 'high' : 'all' },
+    },
+  ];
+  if (top?.evidence_request_ids?.[0]) {
+    actions.push({
+      kind: 'invoke',
+      label: '查审计回放',
+      target: 'audit.replay_evidence_chain',
+      payload: { request_id: top.evidence_request_ids[0] },
+      detail: top.summary,
+    });
+  } else {
+    actions.push({
+      kind: 'invoke',
+      label: '重新扫描异常 Top-N',
+      target: 'audit.event.anomaly',
+      payload: { top_n: 20 },
+    });
+  }
+  return {
+    summary: list.length
+      ? `扫描 ${anomaly.scanned ?? '—'} 条审计，命中 ${list.length} 条异常${high.length ? `（高风险 ${high.length} 条）` : ''}`
+      : `扫描 ${anomaly.scanned ?? '—'} 条审计，未发现异常`,
+    parse_status: 'ok',
+    actions,
+  };
+}
+
+// ── B1.2 → package.list + 启发式 IAM 导航 ─────────────────────────────
+
+interface PackageListItem {
+  id?: string;
+  status?: string;
+  slug?: string;
+  desc?: string;
+}
+
+async function parseB12(query: string, role: string): Promise<NLAcceleratorParseResult> {
+  const q = query.trim();
+
+  if (/IAM|鉴权|身份/.test(q)) {
+    return {
+      summary: 'IAM 鉴权治理请切换到身份治理面板查看近 7 天失败记录',
+      parse_status: 'ok',
+      actions: [
+        {
+          kind: 'navigate',
+          label: '跳身份治理面板',
+          target: '#/integration-admin/iam-governance',
+        },
+      ],
+    };
+  }
+
+  const data = await postSkill<{ items?: PackageListItem[] }>('package.list', {
+    role,
+    request_id: newRequestId('UI-NL-B12'),
+  });
+  const items = data.items ?? [];
+  const pending = items.filter((it) => String(it.status ?? '') === 'pending');
+  const faulty = items.filter((it) =>
+    ['suspended', 'rejected', 'revoked', 'rolled-back'].includes(String(it.status ?? '')),
+  );
+
+  if (/未注册|待审|能力包/.test(q)) {
+    return {
+      summary: `当前 ${pending.length} 个待审能力包（共 ${items.length} 个注册项）`,
+      parse_status: 'ok',
+      actions: [
+        {
+          kind: 'filter',
+          label: '状态：待审',
+          target: 'trust_level',
+          payload: { trust_level: 'untrusted' },
+        },
+        {
+          kind: 'invoke',
+          label: '查注册队列',
+          target: 'capability.version.review',
+          payload: {},
+        },
+      ],
+    };
+  }
+
+  if (/故障|异常|接入/.test(q)) {
+    return {
+      summary: faulty.length
+        ? `识别 ${faulty.length} 个异常状态能力包`
+        : '当前接入正常，展示最近接入审核记录',
+      parse_status: faulty.length ? 'partial' : 'ok',
+      actions: [
+        {
+          kind: 'invoke',
+          label: '查最近接入审核',
+          target: 'capability.version.review',
+          payload: { window_days: 7 },
+        },
+      ],
+    };
+  }
+
+  const match = items.find(
+    (it) =>
+      (it.slug && q.includes(it.slug)) ||
+      (it.desc && q.length >= 2 && it.desc.includes(q.slice(0, 6))),
+  );
+  return {
+    summary: match
+      ? `命中能力包 ${match.id ?? match.slug ?? '—'}（${match.status ?? '—'}）`
+      : `共 ${items.length} 个能力包，${pending.length} 个待审`,
+    parse_status: match ? 'ok' : 'partial',
+    actions: [
+      {
+        kind: 'filter',
+        label: match ? `定位：${match.slug ?? match.id}` : '状态：待审',
+        target: 'package_filter',
+        payload: match ? { package_id: match.id } : { status: 'pending' },
+      },
+    ],
+  };
+}

@@ -71,6 +71,14 @@ class LegacyImportRunner:
             from zw_brain.adapters.legacy.mappers.catalog_metadata import CatalogMetadataMapper
 
             out.append(CatalogMetadataMapper(tenant_id=self.tenant_id))
+        if schema == "dsp_metaresource":
+            from zw_brain.adapters.legacy.mappers.graph_lineage import GraphLineageMapper
+
+            out.append(GraphLineageMapper(tenant_id=self.tenant_id))
+        if schema == "dsp_basesubject":
+            from zw_brain.adapters.legacy.mappers.basesubject import BasesubjectMapper
+
+            out.append(BasesubjectMapper(tenant_id=self.tenant_id))
         if schema in {"dsp_require", "dsp_catalog"}:
             from zw_brain.adapters.legacy.mappers.exchange import ExchangeMapper
 

@@ -54,6 +54,20 @@ ZW_BRAIN_LEGACY_DATASTRUCTURE_DIR=/path/to/old/12-datastructure \
 bash scripts/customer_demo_j2.sh
 ```
 
+### P5 浏览器面冒烟（F6/F8，可选）
+
+后端 demo 通过后，在本 **worktree** 构建 WebUI 并启动 REST（勿占用他处旧 8800 进程）：
+
+```bash
+cd zw-brain-web && npm install && npm run build
+ZW_BRAIN_REST_PORT=8801 bash scripts/start-local.sh   # 8800 已被其它 clone 占用时
+ZW_E2E_BASE_URL=http://127.0.0.1:8801 .venv/bin/python3 tests/e2e/wave1_j2_provider_p5_smoke.py
+```
+
+- 退出码 `0`：四条 inbox + 反向编目 wizard 均不含「功能建设中」
+- 退出码 `2`：`{ZW_E2E_BASE_URL}/health` 不可达（跳过，非失败）
+- 截图：`.data/customer-acceptance/wave1/screenshots/provider-p5-smoke/`
+
 退出码：
 
 - `0`：全链路成功；log 落于 `.data/customer-demo-j2/demo-<ts>.log`，

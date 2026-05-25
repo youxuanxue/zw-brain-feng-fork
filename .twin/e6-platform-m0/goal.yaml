@@ -1,16 +1,16 @@
 schema_version: 1
 id: e6-platform-m0
-one_liner: brain.py 拆分 + 推理客户端生产化 + M0 现场实施面 UI + CI/CD（兼 M0 PR @reviewer）
+one_liner: brain.py 拆分 + 推理客户端生产化 + M0 CLI 迁移基建 + CI/CD（兼 M0 PR @reviewer）
 
 core_goal: |
   P0 解锁项 + 平台底座 + M0 维护责任。让其他 5 人不被 brain.py 8368 LOC 单文件 merge 阻塞；
-  让 shared/inference/client 从 187 LOC mock 升级为真实接入集团推理平台 SDK；让 M0 实施工程师
-  能在客户现场用浏览器跑完 12 步主旅程（当前仅 CLI）；补完 M0 的 7 个 dump mapper 覆盖判定表
-  （dsp_basesubject / dsp_monitor / dsp_message / dsp_block / dsp_metaresource graphdb / dsp_pdf
-  / dsp_app_center —— 逐一确认 §3.4/§5.6 不复造 or 漏做）；保证 search / 共享专题 / 质量 / 血缘 /
-  运营统计 5 类投影状态可见 + 失败摘要可读；落地 Wave 2/3/4 测试 features；CI/CD + 客户机房部署 +
-  对接集团运维监控。**M0 PR @reviewer 责任**：其他 worker 提的 M0 PR 通过 GitHub @ E6 持有人 review，
-  不依赖定期同步会议。
+  让 shared/inference/client 从 187 LOC mock 升级为真实接入集团推理平台 SDK；M0 现场实施走 CLI
+  （import_legacy_dumps / verify 等，见 docs/deployment/m0-site-migration.md）——**不建浏览器实施面**；
+  补完 M0 的 7 个 dump mapper 覆盖判定表（dsp_basesubject / dsp_monitor / dsp_message / dsp_block /
+  dsp_metaresource graphdb / dsp_pdf / dsp_app_center —— 逐一确认 §3.4/§5.6 不复造 or 漏做）；
+  保证 search / 共享专题 / 质量 / 血缘 / 运营统计 5 类投影状态可见 + 失败摘要可读；
+  落地 Wave 2/3/4 测试 features；CI/CD + 客户机房部署 + 对接集团运维监控。
+  **M0 PR @reviewer 责任**：其他 worker 提的 M0 PR 通过 GitHub @ E6 持有人 review，不依赖定期同步会议。
 
 acceptance_criteria:
   - id: AC1
@@ -20,8 +20,8 @@ acceptance_criteria:
     statement: 推理客户端生产化——187 LOC mock 升级为真实接入集团推理平台 SDK，保留 mock 模式给本机
     evidence_type: tests/integration/test_inference_client.py + 真实推理调用 e2e + preflight 段 10 不报红
   - id: AC3
-    statement: M0 现场实施面 UI——12 步主旅程从 CLI 升级为浏览器可视化（M0 实施人能现场跑）
-    evidence_type: M0 浏览器实施面 e2e + 12 步可视化截图 + 客户现场实施人 sign-off
+    statement: "【已撤销 2026-05-25】M0 浏览器实施面——用户确认 M0 不需要 web 页面；12 步主旅程由 CLI + 文档验收（见 m0-site-migration.md）"
+    evidence_type: docs/deployment/m0-site-migration.md 前置假设「实施界面 = CLI（by design）」
   - id: AC4
     statement: M0 mapper 覆盖判定表——7 个未做 mapper 逐一确认 §3.4/§5.6 不复造 or 漏做，补进 M0 文档
     evidence_type: docs/deployment/m0-mapper-coverage.md 新增 + 真实 7 dump 字段逐一过 + 漏做项的补 mapper PR
@@ -36,6 +36,7 @@ acceptance_criteria:
     evidence_type: scripts/deploy_*.sh + Dockerfile_v1.0.0 升级 + 客户机房 dry-run sign-off + 监控 dashboard 接入证据
 
 non_goals:
+  - 不建 M0 浏览器实施面（CLI by design；见 docs/deployment/m0-site-migration.md）
   - 不写 J1/J2 业务功能（归 E1/E2）
   - 不写 Wave 2 三引擎数据模型（归 E3）
   - 不写 B1.1/B1.2 业务面（归 E4，本 worker 只提供 5 投影状态）

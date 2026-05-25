@@ -3,28 +3,21 @@ import { computed } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { useDeliveryTasks, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub } from '@/composables/useActionStub';
-
-const STATUS_LABEL: Record<string, string> = {
-  pending: '待处理',
-  reconciling: '待对账',
-  in_delivery: '交付中',
-  in_deliver: '交付中',
-  completed: '已完成',
-  ok: '成功',
-  failed: '失败',
-};
+import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 
 const tasks = useDeliveryTasks();
 const { source } = useSnapshot();
 const items = computed(() =>
   tasks.value.map((t) => {
     const it = t as Record<string, unknown>;
+    const status = String(it.status ?? '');
     return {
       id: String(it.id ?? ''),
       name: String(it.name ?? ''),
       requestId: String(it.requestId ?? ''),
       channel: String(it.channel ?? ''),
-      statusLabel: STATUS_LABEL[String(it.status ?? '')] ?? String(it.status ?? '—'),
+      status,
+      statusLabel: formatTodoStatus(status),
       updatedAt: String(it.updatedAt ?? ''),
     };
   })
@@ -76,7 +69,7 @@ async function reconcile(id: string) {
             <td><a :href="`#/delivery-exchange/task/${t.id}`"><code>{{ t.id }}</code></a></td>
             <td>{{ t.name || '—' }}</td>
             <td>{{ t.channel || '—' }}</td>
-            <td><span class="status-pill">{{ t.statusLabel }}</span></td>
+            <td><span class="status-pill" :class="todoStatusTone(t.status)">{{ t.statusLabel }}</span></td>
             <td>{{ t.updatedAt || '—' }}</td>
             <td class="table-actions">
               <div class="table-actions-inner">

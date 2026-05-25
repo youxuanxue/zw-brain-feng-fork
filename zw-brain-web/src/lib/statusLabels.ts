@@ -12,6 +12,8 @@ const REQUEST_STATUS_ZH: Record<string, string> = {
   revoked: '已撤销',
   draft: '草稿',
   reconciling: '待对账',
+  issued: '已签发',
+  not_issued: '未签发',
 };
 
 const SLUG_RE = /^[a-z][a-z0-9_-]*$/;
@@ -29,7 +31,7 @@ export function formatTodoStatus(raw: string): string {
 export function todoStatusTone(raw: string): string {
   const key = String(raw ?? '').trim();
   if (/待|补|改|审|核|告警|拦截|异常|处理中|预警/.test(key)) return 'tone-warn';
-  if (key === 'approved' || key === '已通过' || key === '可查看' || key === 'granted' || key === '已授权')
+  if (key === 'approved' || key === '已通过' || key === '可查看' || key === 'granted' || key === '已授权' || key === 'issued' || key === '已签发')
     return 'tone-ok';
   if (key === 'in_delivery' || key === '交付中' || key === '补录中') return 'tone-info';
   if (key === 'rejected' || key === '已驳回') return 'tone-danger';

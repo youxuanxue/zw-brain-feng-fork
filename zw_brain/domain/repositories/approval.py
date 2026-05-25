@@ -259,7 +259,7 @@ class ApprovalRepository:
                     ApprovalCaseRecord.tenant_id == tenant_id,
                     ApprovalCaseRecord.application_code == request["id"],
                 )
-            ).scalar_one_or_none()
+            ).scalars().first()
             if record is None:
                 record = ApprovalCaseRecord(
                     tenant_id=tenant_id,
