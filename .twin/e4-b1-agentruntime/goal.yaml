@@ -16,11 +16,11 @@ acceptance_criteria:
     statement: 审计总线生产化——51 LOC stub 升级为完整事件流（三级分类）+ 持久化存储 + 回放 + 索引
     evidence_type: tests/integration/test_audit_bus.py 全绿 + 真实 sd-default 审计事件回放截图 + 段 audit-must-block 不报红
   - id: AC2
-    statement: B1.1 合规与运营 UI + 后端——审计回放/统计/异常/追责/督查 + 调查摘要助手（不覆盖原始审计证据）
-    evidence_type: B1.1 4 个 panel 截图 + tests/e2e/b11_compliance.spec.ts + 真实 710 用户审计回放演示
+    statement: B1.1 合规与运营 UI + 后端——4 panel live + Playwright 可运行；调查助手不覆盖原始证据
+    evidence_type: B1.1 4 panel 截图 + tests/e2e/b11_compliance.spec.ts 可 CI 执行 + 988+ 审计事件 live
   - id: AC3
-    statement: B1.2 接入扩展中心——能力包审核/注册/启停/回滚 + 暴露矩阵 + 租户策略 + trust_level 升降级 UI
-    evidence_type: B1.2 主流程 e2e + 真实能力包矩阵展示（200 manifest 全量）
+    statement: B1.2 接入扩展中心——ROLE_SYSTEM 下能力包矩阵 live + 写操作 confirm 边界
+    evidence_type: B1.2 主流程 Playwright 冒烟 + 200 manifest 矩阵
   - id: AC4
     statement: AgentRuntime 触发式落地预案就绪——T1/T2/T3 任一触发当日 1 天内可 land（按架构 §8.6 + preflight-debt 2026-05-24 entry 已锚定的触发条件与落地范围）
     evidence_type: docs/agent-runtime-t1-readiness.md 预案文档 + 触发时 1 天 PR land 能力证明
@@ -35,5 +35,5 @@ non_goals:
   - 不做 J1/J2 旅程主体（归 E1/E2）
   - 不做 Wave 2 三引擎数据模型/引擎本身（归 E3）
   - 不实装 AgentRuntime 在 T1/T2/T3 未触发前的代码（架构 §8.6 反"提前盖楼"）
-  - 不重建 zw-brain-web 构建管线（归 E5）
+  - 不重做 zw-brain-web 构建管线（E5 已 land；e2e harness 归 E5 F12）
   - 不接外部消息中心 / 集团运维监控 / 区块链 / 国家通道（归 E6/M0 + 基线 §3.4 外部依赖）

@@ -3,23 +3,22 @@ id: e2-j2-journey
 one_liner: 让 J2 挂数→维数旅程支持原生 3 层默认审批 + 资源 3 物化形式 + 异议响应
 
 core_goal: |
-  消费 M0 一次性迁移产出的 sd-default canonical（dump-data_resource 7 表 + dump-dsp_catalog 161 表
-  中的资源/字段/物化绑定），让 ROLE_ORGAN_OPERATER 操作员能在 P5 提供方管理面：
-  在线编制目录 → 资源挂接（table/file/api 3 种物化形式）→ 部门管理员（ROLE_ORGAN_MANAGER）审 →
-  平台业审（ROLE_BUSIAUDIT）复核 → 发布（含重复率检测提醒，非硬拦）→
-  接收使用方异议 → 响应 → 评价归档。本期实现"原生 3 层默认流程"，项目级流程定制由 E3 三引擎承接。
-  共享纪律见 .twin/README.md（撞 M0 墙路径：catalog_metadata.py / exchange.py）。
+  后端 J2 三审 + 三物化 + 重复率提醒 + customer_demo_j2 已在 main land（tests/test_wave1_j2_pipeline.py 全绿）。
+  当前缺口在 **P5 浏览器面**：provider snapshot 与 UI 字段契约不一致（待办恒 0）、wizard/inbox 子路由占位。
+  让 ROLE_ORGAN_MANAGER 在 P5 能完成：编制 → 挂接（table/file/api）→ 部门审 → 平台复核 → 发布（含重复率提醒）→
+  异议响应。项目级流程定制仍归 E3 三引擎。
+  共享纪律见 .twin/README.md（撞 M0 墙路径：catalog_metadata.py / exchange.py / projections.py provider 段）。
 
 acceptance_criteria:
   - id: AC1
     statement: J2 原生 3 层默认审批流程闭环（部门内审 → 平台复核 → 发布），能在 sd-default 真实目录数据上跑通
     evidence_type: tests/test_wave1_j2_pipeline.py 全绿 + 真实目录从编制到发布的 audit_event 链
   - id: AC2
-    statement: 资源 3 物化形式（table/file/api）字段绑定完整性 + 发布时重复率检测提醒（非硬拦）
-    evidence_type: 3 种物化形式各一个真实资源发布 e2e + 重复率提醒页面截图（含一个故意重复的资源）
+    statement: 资源 3 物化 + 重复率提醒；P5 UI 可见提醒（非仅后端）
+    evidence_type: 3 物化 e2e + P5 发布流重复率提醒截图
   - id: AC3
-    statement: J2 异议响应面（P5 嵌入）—— 提供方接收 → 响应 → 评价 闭环
-    evidence_type: tests/e2e/objection_provider_response.spec.ts + P5 异议响应面截图（与 E1 F3 协作）
+    statement: J2 异议响应面（P5 嵌入）提供方接收→响应→评价闭环
+    evidence_type: Playwright P5 异议面 + tests/e2e objection_provider_response 可运行
   - id: AC4
     statement: 国家扩展要素目录编制 IA 占位 + manifest deferred:wave-3，preflight 段 22 防回潮
     evidence_type: manifest 标 deferred + tests/test_capability_boundary.py 防回潮用例新增

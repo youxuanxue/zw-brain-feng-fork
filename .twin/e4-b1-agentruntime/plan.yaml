@@ -184,5 +184,5 @@ items:
   - F5
   - F7
   status: pending
-  next_action: F1-F5/F7 完成后写 scripts/customer_demo_b1.sh
+  next_action: F1-F5/F7 完成后写 scripts/customer_demo_b1.sh；2026-05-25 浏览器验收 B1.1/B1.2 主面已 live
   blocked_reason: null

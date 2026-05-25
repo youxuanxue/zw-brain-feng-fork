@@ -170,3 +170,33 @@ items:
   next_action: 在 F3 完成后通知 5 worker：提 M0 PR 时 @feng222666888（E6 持有人）；GitHub PR review
     通道驱动，不开定期会议
   blocked_reason: null
+
+- id: F10
+  deliverable: headless_j1_demo.sh 去假绿（与 E5 F5 同项，E6 主责脚本）
+  scope: scripts/headless_j1_demo.sh exit 语义；审批步参数修正
+  covers_ac:
+  - AC6
+  evidence_plan:
+  - 证据预算：失败步 exit 1；与 customer_demo_j1.py 行为一致
+  - 停止条件：CI/本地脚本不再掩盖 E2-pending
+  actual_evidence:
+  - 2026-05-25 验收记录见 e5/plan.yaml F5 actual_evidence
+  depends_on: []
+  status: pending
+  next_action: 改 headless_j1_demo.sh；复用 customer_demo_j1 审批参数
+  blocked_reason: null
+
+- id: F11
+  deliverable: start-local 本地探针 NO_PROXY 提示
+  scope: scripts/start-local.sh 一行 echo；本地 curl 502 排障（http_proxy 环境）
+  covers_ac:
+  - AC7
+  evidence_plan:
+  - 证据预算：启动日志含 NO_PROXY 提示
+  - 停止条件：文档化本地 curl 502 排障
+  actual_evidence:
+  - 2026-05-25 http_proxy 致 localhost 502
+  depends_on: []
+  status: pending
+  next_action: start-local.sh 健康检查成功后 echo NO_PROXY 提示
+  blocked_reason: null

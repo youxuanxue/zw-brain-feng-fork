@@ -193,5 +193,5 @@ items:
   - F6
   - F7
   status: in_progress
-  next_action: 等业务方 sign-off；技术材料已在 .data/wave2-acceptance/SIGN_OFF.md
+  next_action: 等业务方 sign-off；B1.3 /engines-admin 浏览器壳已验（2026-05-25）
   blocked_reason: null

@@ -41,3 +41,17 @@
 ## 已落地保护点
 
 - **.twin/ schema 检查 (preflight 段 26)**：[scripts/check_twin_workspaces.py](../scripts/check_twin_workspaces.py) 调 `scripts.twin validate` 守 12 yaml schema。2026-05-24 PR #85 落地——触发事件：e6 supervisor 启动时 F8.deliverable 与 AC7.statement 文本重合致运行期校验失败，README 原 trigger 已 fire。
+
+## 2026-05-25 浏览器端到端验收快照（main + start-local.sh）
+
+本地 `bash scripts/start-local.sh`（`127.0.0.1:8800`，sd-default DB）+ Playwright 无头走查结论已写入各 worker `goal.yaml` / `plan.yaml`：
+
+| 区域 | 结论 |
+|------|------|
+| P1–P4 / P7 主面 | live 数据，搜索命中 E1 三类资源 |
+| P3 写路径 | invokeActionStub 岗位 bug + 审批枚举错 → 403 |
+| P5 / J2 | provider 投影空 + 子路由占位 |
+| B1.1 / B1.2 | 正确岗位下 live；缺 Playwright CI harness |
+| NL 减摩 | UI 壳在，fixture 兜底为主 |
+
+优先修复顺序见 e5/plan.yaml F9→F12；E1 F10–F11 依赖 E5 写路径修复。

@@ -316,5 +316,39 @@ items:
   - F7
   - F8
   status: completed
-  next_action: human 决定推进路径 push+PR / 仅保留本地 / 先 rename 分支后 push
+  next_action: ''
   blocked_reason: null
+
+- id: F10
+  deliverable: WebUI J1 浏览器写路径闭环（P3 审批 + P4 凭据 + 异议入口）
+  scope: 与 E5 F9/F10 协作修 UI；本项补 P3 异议发起/跟踪面 + NL live 接线 E1 cap
+  covers_ac:
+  - AC1
+  - AC3
+  - AC4
+  evidence_plan:
+  - 证据预算：Playwright J1 冒烟（搜→申→批→凭据）+ P3 异议入口截图
+  - 停止条件：浏览器不再 403；异议可从 UI 发起一条 catalog 维度
+  actual_evidence:
+  - 2026-05-25 浏览器验收：P2/P3/P4 主列表 live；审批按钮 403；异议 UI 不可达
+  - E5 invokeActionStub 岗位 bug + P3 decision 枚举错 — 阻塞本项
+  depends_on:
+  - F9
+  status: pending
+  next_action: 等 E5 F9/F10 land 后：P3 加 objection.case.create 入口；useNLAccelerator 接 search.intent.parse / application.draft.suggest / delivery.status.explain
+  blocked_reason: E5 F9（invokeActionStub 岗位）与 F10（审批枚举）须先 land
+
+- id: F11
+  deliverable: 业务方 business-signoff（AC5 人类关卡）
+  scope: 组织 30 分钟浏览器演示；不含改后端
+  covers_ac:
+  - AC5
+  evidence_plan:
+  - 证据预算：PR comment 或 issue label business-signoff + 演示录屏/时长
+  - 停止条件：业务方签字
+  actual_evidence: []
+  depends_on:
+  - F10
+  status: pending
+  next_action: F10 + E5 F12 Playwright 绿后约业务方演示；材料用 docs/customer-demo-j1.md
+  blocked_reason: 浏览器 J1 闭环未通，不宜 sign-off

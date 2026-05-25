@@ -3,33 +3,32 @@ id: e5-webui-projections
 one_liner: 前端工程化重建 + 8 页面成品化 + 5 消费面投影器派生
 
 core_goal: |
-  解锁项：zw-brain-web 当前是 316KB JS bundle（app.js 67KB + pages.js 231KB + auth.js 16KB）+ index.html
-  + css，无源码、无构建管线，6 人无法并行开发前端。本 worker 必须在 2 周内 land 现代前端骨架
-  （Vue3+Vite 或 React+Vite 二选一）+ 8 页面（P1-P5/P7 + B1.1/B1.2）+ 5 消费面投影器
-  （扩展 scripts/export_agent_contract.py 派生 WebUI 页面注册 / OpenAPI / CLI spec / MCP manifest /
-  A2A card）+ CLI/MCP/A2A 生产硬化 + 嵌入式自然语言加速器（P2/P3/B1.1/B1.2）。
-  WebUI 装载 sd-default 真实数据后必须像真产品，不是骨架。
-  共享纪律见 .twin/README.md（撞 M0 墙路径：projections.py 缺 search / 共享专题 / 运营统计投影时）。
+  Vue3+Vite 骨架与 8 主页面（P1-P5/P7 + B1.1/B1.2）已在 main land，dist-vite 由 REST 托管。
+  当前阶段从「解锁并行开发」转为「浏览器可闭环」：写操作必须跟随顶栏岗位、P3 审批枚举对齐后端、
+  P5/P7 子路由去占位、NL 减摩接 E1 已 land 的 cap（非 fixture 兜底）、Playwright 固化 2026-05-25
+  端到端验收结论防回归。
+  5 消费面投影器 + CLI/MCP/A2A 投影已就位；headless J1 脚本需去假绿。
+  共享纪律见 .twin/README.md（撞 M0 墙路径：projections.py 缺 provider 收件箱计数等）。
 
 acceptance_criteria:
   - id: AC1
-    statement: WebUI 源码 + 构建管线重建（Vue3+Vite 或 React+Vite 二选一），保留 8 页面路由
-    evidence_type: zw-brain-web/src 源码目录 + package.json + vite.config + 构建产物等价于现有 bundle + npm run dev 热重载
+    statement: WebUI 源码 + 构建管线重建（Vue3+Vite），保留 8 页面路由
+    evidence_type: zw-brain-web/src + package.json + vite.config + dist-vite + npm run dev 热重载
   - id: AC2
-    statement: 8 页面成品化（P1-P5/P7 + B1.1/B1.2）装载 sd-default 真实数据，遵守 R12 工程术语黑名单
-    evidence_type: 8 页面截图（含真实数据） + preflight 段 24 不报红 + check_ui_spec_b 8 页面 cap 不报红
+    statement: 8 页面成品化装载 sd-default 真实数据，浏览器写路径可闭环，遵守 R12 工程术语黑名单
+    evidence_type: 8 主页面 live 截图 + Playwright 冒烟 + preflight 段 24 不报红 + 子路由占位清单收敛
   - id: AC3
     statement: 5 消费面投影器从单一 Registry 派生——WebUI 页面注册 / REST OpenAPI / CLI spec / MCP manifest / A2A card
-    evidence_type: scripts/export_agent_contract.py 扩展输出 + 5 投影目录全自动生成 banner + check_no_hand_maintained_projection 不报红
+    evidence_type: scripts/export_agent_contract.py --check + check_no_hand_maintained_projection 不报红
   - id: AC4
-    statement: CLI / MCP / A2A 生产硬化——CLI 能 headless 跑完 J1 全链路用 sd-default 真数据；MCP/A2A 至少能被 Cursor/Claude 调
-    evidence_type: scripts/headless_j1_demo.sh + MCP server 真实连通测试 + A2A card 可发现
+    statement: CLI / MCP / A2A 生产硬化——CLI headless J1 真绿；MCP/A2A 至少可被 Cursor/Claude 调
+    evidence_type: scripts/headless_j1_demo.sh 失败步 exit 非 0 + MCP 连通测试 + A2A card 可发现
   - id: AC5
-    statement: 嵌入式自然语言加速器（§5.4.4 减摩组件）在 P2/P3/B1.1/B1.2 落位，反约束遵守
-    evidence_type: 4 个 AI 减摩组件截图 + 不替代结构页面本体的反约束自检
+    statement: 嵌入式自然语言加速器在 P2/P3/B1.1/B1.2 落位且 live 接线，反约束遵守
+    evidence_type: 4 组件 live 解析截图 + 不替代结构页面本体 + 不接 nl.accelerator.parse fixture 为主路径
   - id: AC6
-    statement: 6 人不再被前端阻塞——E1/E2/E3/E4 的 UI 任务能并行接入
-    evidence_type: 至少 2 个其他 worker 的 UI 任务 PR 在本 worker 完成后 1 周内 land
+    statement: 6 人不再被前端阻塞——Playwright harness + ≥2 个其他 worker UI PR land
+    evidence_type: tests/e2e 可 CI 运行 + E1/E2 UI 协作 PR merged
 
 non_goals:
   - 不写 J1/J2 业务后端（归 E1/E2）
