@@ -5,6 +5,44 @@ the symptom, the deferred decision, and the trigger that forces a re-evaluation.
 
 任何一条 entry 在 trigger 触发时必须升级为 P0 fix 或转化为机械化 preflight check；不允许长期沉淀。
 
+## 2026-05-25 — 真数据回归不在 CI 自动门禁（D11 张力）
+
+- **Where**: 14 个真数据测试模块（`tests/test_wave{0,1}_*` J1/J2 黄金链路）靠 `tests/_seed_guard.require_real_seed`
+  守卫；seed `.data/zw_brain.db` 是 gitignore 的本地 513MB→123MB 灌库产物。CI runner 无此 seed，
+  这批测试全部 `pytest.skip`。
+- **Implication**: 基线 D11「所有 Skill 必须以旧平台真实业务数据回归验证，禁止 Mock 业务数据」当前**只在本地手动跑**，
+  不在 push/PR 的自动门禁内。CI 绿 ≠ 真数据链路绿——真数据回归靠本地或客户验收承接。
+- **Why deferred**: 用户 2026-05-25 明确本期只硬化守卫，CI 覆盖转 debt+trigger。dumps（`old/10示例数据/*.sql`，
+  最大 dsp_message 286MB）未 git-track，CI 引入真数据需先解决数据来源（轻量 seed 子集 git-track 化 or
+  对象存储拉取）+ 构建时长，范围明显更大。
+- **Trigger to re-evaluate**（任一触发即升级）：(a) 首个真实客户上线前——真数据回归必须进 CI 门禁；
+  (b) dumps 完成脱敏 + 可 git-track 的轻量 seed 子集就位；(c) 再次出现"本地真数据抓到、CI 没抓到"的
+  production 现场。届时新增 CI job：从 dumps/子集构建 seed → 跑 `tests/test_wave*` 真数据套件。
+- **Mechanical guardrail (now)**: `tests/_seed_guard.schema_drift_reason()` 在 seed schema 落后于
+  当前模型时**干净 skip + 打印重建命令**（替代此前 copy-paste `_seed_ready()` 只查行数、stale seed 抛
+  61 个 `no such column` cryptic ERROR 的回潮路径）。
+
+## 2026-05-25 — 推理客户端仍是 mock（E6 AC2，卡集团 SDK）
+
+- **Where**: `zw_brain/shared/inference/client.py`（187 LOC）仍是 mock 实现，注释明示 "real implementation
+  will wrap the Group Inference Platform SDK once the [SDK lands]"。
+- **Implication**: 基线 D6/D14 硬约束「所有模型推理调用走集团推理平台统一 SDK，禁止直连第三方 LLM」在产品形态
+  已就位（所有 AI 减摩点走 `shared/inference/client`），但底层是 mock；真实推理质量/延迟/配额未经真链路验证。
+  E6 AC2「推理客户端生产化」严格说未达成——属外部依赖阻塞，非漏做。
+- **Why deferred**: 集团推理平台 SDK 形态 / 接口文档尚未同步到位（D14 已记此前提）；mock 模式保留给本机/演示。
+- **Trigger to re-evaluate**: 集团推理平台 SDK 文档 / 接口到位日 → 换内部实现（保留 mock 模式开关）+ 新增
+  `tests/integration/test_inference_client.py` 真连通测试 + preflight 段 10（禁直连第三方）回归确认。
+
+## 2026-05-25 — 客户机房部署 + 监控对接未落地（E6 AC7）
+
+- **Where**: 无 `scripts/deploy_*.sh`；`Dockerfile` / `Dockerfile_v1.0.0` 存在，CI（`ci.yml` / `security.yml`）
+  覆盖 lint/test/build wheel，但**客户机房 dry-run 部署脚本 + 对接集团运维监控的证据缺位**。
+- **Implication**: E6 AC7「CI/CD + 客户机房部署 + 监控对接集团运维监控」只完成 CI 段；现场部署 + 监控对接未做。
+- **Why deferred**: 用户 2026-05-25 明确本期只登记 debt + trigger，不写部署脚本。客户机房环境 / 集团监控接入口径
+  未明确前提前写 deploy 脚本属"为未验证需求盖楼"。
+- **Trigger to re-evaluate**: 首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
+  与「dev-iam-bypass 生产守卫」「真数据进 CI」同属"首个客户上线前"批次触发，可一并处理。
+
 ## 2026-05-24 — AgentRuntime runtime 触发式延后（D30 retrofit）
 
 - **Where**: 协议规范 `docs/agent-runtime/product-integration-guide.md` + `agent-runtime-api-cn.md` 完整；
@@ -45,28 +83,19 @@ the symptom, the deferred decision, and the trigger that forces a re-evaluation.
   当前 5 消费面均派生自单 registry；新增 `scripts/check_no_hand_maintained_projection.py`
   扫 5 投影目录是否含"AUTO-GENERATED; DO NOT EDIT BY HAND"banner 之外的人工 patch 痕迹。
 
-## 2026-05-24 — Wave 2 R14 三引擎触发式跟踪（D-31d）
+## 2026-05-24 — Wave 2 R14 三引擎已落地，待 T1 客户演练验证（D-31d，2026-05-25 更新）
 
-- **Where**: 设计基线 §1.4 #1 + §10.3 + §11 R14 承诺的 "项目级可配置化 = AI 原生差异化" 三引擎
-  （审批流可视化引擎 / 表单 schema 化引擎 / 智能推荐前置引擎）当前 0% 实现。检索
-  `zw_brain/skill_registration/registered/` <!-- stat:zwbrain.manifest-total -->227<!-- /stat --> manifest 无任一三引擎 capability slug
-  （`approval_flow.*` / `form_schema.*` / `recommendation.*` 等均不存在）。
-- **Implication**: 三引擎是 zw-brain "为什么选我而不是旧平台 + 改代码" 的根本差异化承诺，
-  Wave 2 范围。当前 <!-- stat:zwbrain.manifest-total -->227<!-- /stat --> manifest 已含 `config_change_class: live|preview|draft` 字段
-  就位，等三引擎落第一个 capability 即可激活 "草稿→预览→管理员入库" 流。
-- **Why deferred**: Wave 2 按基线路线分波次落地；本期 Wave 0/Wave 1 J1+J2 黄金链路优先打通。
-  按 OPC「只为真实需求建复杂度」原则，未演练前不预先盖三引擎楼。
-- **Trigger to re-evaluate** (任一触发即启动 Wave 2 三引擎)：
-  - **T1**：首位真实客户演练中提出 "项目个性化能不能不改代码？" 类问题（鞍山审批流定制 /
-    四川荆州表单定制 / 推荐失败转人工需求登记类场景）。
-  - **T2**：业务方（红军 / 海若产品部）下次 IA review 中将三引擎列入下期必交付项。
-  - **T3**：客户演练后 J1 申请-审批闭环转化率 < 业务方预期，需要"申请前推荐 + 自动草拟" AI
-    减摩点兜底（基线 §10.3 智能推荐前置的真实需求触发面）。
-- **No mechanical preflight check (now)**: 没有 capability 就没有 schema drift 可检；
-  字段 `config_change_class` 已由 `validate_manifest` 强制校验（D30 落地），三引擎落地时只增
-  preview/draft 实例，不需要新增 preflight 段。
-- **不允许长期沉淀**：本条 entry 必须在首位客户演练后 30 天内重新评估；若届时无任一触发条件，
-  本 entry 升级为"明确不做"（基线 §10.6）并写入 D-编号决策，不留模糊。
+- **Status (2026-05-25 更新)**: 不再是 "0% 实现 / deferred"。三引擎已在 **PR #92** 落地：检索
+  `zw_brain/skill_registration/registered/` 现有 10 个三引擎 capability（`approval_flow.*` 4 +
+  `form_schema.*` 4 + `recommendation.*` 2；总 manifest <!-- stat:zwbrain.manifest-total -->227<!-- /stat -->）。`config_change_class` preview/draft
+  流已激活（当前 preview 2 / draft 4）。
+- **What remains**: 代码侧已交付；**未完成的是 T1 真实客户演练验证**——用三引擎在 ≤1 周内不改代码
+  完成"鞍山 4 级审批 + 四川 7 字段表单 + 荆州 5 条推荐规则"项目级定制，由业务方 sign-off。
+  acceptance 材料 `docs/wave2-acceptance/SIGN_OFF.md`（tracked，PR reviewer 可见）已备，等真人门禁（属 R13 业务流程类决策）。
+- **Trigger to re-evaluate**: 首位真实客户演练。届时跑通三引擎项目级定制并由业务方（红军 / 海若产品部）
+  sign-off → 本 entry 关闭并写入 D-编号；若演练暴露引擎缺口（节点/字段/推荐规则不够表达）→ 升级为 P1 fix。
+- **No mechanical preflight check (now)**: `config_change_class` 取值已由 `validate_manifest` 强制校验
+  （∈ {live, preview, draft}）；三引擎 preview/draft 实例增减不需要新增 preflight 段。
 
 ## 2026-05-18 — BFF session store is single-process in-memory
 

@@ -17,11 +17,12 @@ from __future__ import annotations
 
 import os
 import shutil
-import sqlite3
 import time
 from pathlib import Path
 
 import pytest
+
+from tests._seed_guard import require_real_seed
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
@@ -31,26 +32,7 @@ TENANT = "sd-default"
 # Perf budget: 1s P95 客户体感上限（G1.1 实测 ~300ms，留 3× 余量）。
 REQUEST_LIST_BUDGET_MS = 1000
 
-
-def _real_data_ready() -> bool:
-    if not SEED_DB.exists():
-        return False
-    try:
-        with sqlite3.connect(f"file:{SEED_DB}?mode=ro", uri=True) as conn:
-            row = conn.execute(
-                "SELECT COUNT(*) FROM application_record WHERE tenant_id=?", (TENANT,)
-            ).fetchone()
-            return bool(row and row[0] >= 200)
-    except sqlite3.OperationalError:
-        return False
-
-
-if not _real_data_ready():
-    pytest.skip(
-        "W0-02 legacy 真灌库 数据缺位（CI runner 不带 .data/zw_brain.db）；"
-        "本地真数据验收承接 D-9 perf budget，证据见 .data/customer-acceptance/wave0/",
-        allow_module_level=True,
-    )
+require_real_seed({"application_record": 200})
 
 
 @pytest.fixture(scope="module", autouse=True)

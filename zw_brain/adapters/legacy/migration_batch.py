@@ -14,7 +14,7 @@ from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT
 from zw_brain.adapters.legacy.verification import verify_legacy_migration
 from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
 from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
-from zw_brain.shared.db import create_session_factory, ensure_parent_dir
+from zw_brain.shared.db import create_session_factory, ensure_parent_dir, get_database_url, reset_engine_cache
 from zw_brain.shared.migrate import ensure_runtime_schema, reset_and_upgrade
 from zw_brain.shared.sanitization import safe_json
 
@@ -193,8 +193,38 @@ def run_migration(options: MigrationOptions) -> dict[str, Any]:
     if options.strict and report["errors"]:
         report["status"] = "failed"
         raise MigrationError(report)
+    if not options.dry_run:
+        _checkpoint_seed_file()
     report["status"] = "failed" if report["errors"] else "succeeded"
     return report
+
+
+def _checkpoint_seed_file() -> None:
+    """Merge the WAL into the main DB file so the built seed is self-contained.
+
+    SQLite runs in WAL mode (shared/db.py), so writes land in a side `-wal` file
+    that is only folded into the main `.db` on checkpoint. The cached engines
+    hold connections open, so without this the migration would exit leaving a
+    stray `-wal`. Anything that copies only the main file then sees a stale
+    snapshot — e.g. the real-data test fixtures' `shutil.copy(SEED_DB, ...)`,
+    whose first run after a rebuild missed freshly-imported rows, or an ops file
+    transfer of a customer migration. Dispose engines (closes their connections)
+    then TRUNCATE-checkpoint via a fresh connection so the `-wal` is removed.
+    """
+    url = get_database_url()
+    reset_engine_cache()
+    if not url.startswith("sqlite:///"):
+        return
+    import sqlite3
+
+    db_path = url.removeprefix("sqlite:///")
+    if not Path(db_path).exists():
+        return
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    finally:
+        conn.close()
 
 
 def write_report(report: dict[str, Any], path: Path) -> None:

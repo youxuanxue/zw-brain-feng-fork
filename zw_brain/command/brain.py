@@ -157,6 +157,60 @@ class BrainService:
                 f"missing required input field(s): {', '.join(missing)} (skill: {skill_id})"
             )
 
+    # --- Split-refactor delegation shims (PR #86) -------------------------
+    # PR #86 拆分 brain.py 时把这些方法体抽成 handler 层 `_X(brain, ...)` 模块级
+    # helper，但 brain.py 内部 (self.X) 与多个 handler (brain.X) 调用点未同步更新，
+    # 真实 J1/J2 路径会 AttributeError（仅在 CI 跳过的真数据测试里才暴露）。这些薄
+    # 委托方法把公开 API 恢复到 BrainService，实现仍在 handler helper（local import
+    # 避免与 handler→brain 的模块级反向依赖成环）。
+    def get_resource(self, *args: Any, **kwargs: Any) -> Any:
+        from zw_brain.command.handlers.j1.catalog_meta import _get_resource
+        return _get_resource(self, *args, **kwargs)
+
+    def get_request(self, *args: Any, **kwargs: Any) -> Any:
+        from zw_brain.command.handlers.j1.request import _get_request
+        return _get_request(self, *args, **kwargs)
+
+    def create_request(self, *args: Any, **kwargs: Any) -> Any:
+        from zw_brain.command.handlers.j1.request import _create_request
+        return _create_request(self, *args, **kwargs)
+
+    def get_delivery_task(self, *args: Any, **kwargs: Any) -> Any:
+        from zw_brain.command.handlers.j1.delivery import _get_delivery_task
+        return _get_delivery_task(self, *args, **kwargs)
+
+    def review_request(self, *args: Any, **kwargs: Any) -> Any:
+        from zw_brain.command.handlers.j1.approval import _review_request
+        return _review_request(self, *args, **kwargs)
+
+    def transition_api_resource(self, *args: Any, **kwargs: Any) -> Any:
+        from zw_brain.command.handlers.j1.resource_api import _transition_api_resource
+        return _transition_api_resource(self, *args, **kwargs)
+
+    def get_dispute(self, *args: Any, **kwargs: Any) -> Any:
+        from zw_brain.command.handlers.j1.governance_dispute import _get_dispute
+        return _get_dispute(self, *args, **kwargs)
+
+    def list_audit_events(self, *args: Any, **kwargs: Any) -> Any:
+        from zw_brain.command.handlers.b1.audit import _list_audit_events
+        return _list_audit_events(self, *args, **kwargs)
+
+    def list_packages(self, *args: Any, **kwargs: Any) -> Any:
+        from zw_brain.command.handlers.b1.capability_admin import _list_packages
+        return _list_packages(self, *args, **kwargs)
+
+    def evaluate_tenant_policy(self, *args: Any, **kwargs: Any) -> Any:
+        from zw_brain.command.handlers.j2.tenant_policy import _evaluate_tenant_policy
+        return _evaluate_tenant_policy(self, *args, **kwargs)
+
+    def list_zones(self, *args: Any, **kwargs: Any) -> Any:
+        from zw_brain.command.handlers.j2.zone import _list_zones
+        return _list_zones(self, *args, **kwargs)
+
+    def update_topic_package_policy(self, *args: Any, **kwargs: Any) -> Any:
+        from zw_brain.command.handlers.j2.topic_package import _update_topic_package_policy
+        return _update_topic_package_policy(self, *args, **kwargs)
+
     def invoke_skill(self, skill_id: str, payload: dict[str, Any] | None = None) -> Any:
         payload = payload or {}
         try:

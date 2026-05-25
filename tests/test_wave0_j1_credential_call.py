@@ -38,6 +38,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._seed_guard import require_real_seed
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
 SHADOW_DB = REPO_ROOT / ".data" / "test_W0-05_shadow.db"
@@ -49,26 +51,9 @@ CROSS_WAVE_SAMPLE = 10  # N=10 per supervisor instruction
 # 仅作"legacy forward-flow 存在性证明"下限（覆盖率 >0 即说明灌库链路非全断）。
 CROSS_WAVE_MIN_COVERAGE_PCT = 1
 
-
-def _w0_real_data_ready(table: str, min_rows: int) -> bool:
-    if not SEED_DB.exists():
-        return False
-    try:
-        with sqlite3.connect(f"file:{SEED_DB}?mode=ro", uri=True) as conn:
-            row = conn.execute(
-                f"SELECT COUNT(*) FROM {table} WHERE tenant_id=?", (TENANT,)
-            ).fetchone()
-            return bool(row and row[0] >= min_rows)
-    except sqlite3.OperationalError:
-        return False
-
-
-if not _w0_real_data_ready("capability_call", 744):
-    pytest.skip(
-        "W0-02 legacy 真灌库 数据缺位（CI runner 不带 .data/zw_brain.db）；"
-        "本地真数据验收承接，证据见 .data/customer-acceptance/wave0/",
-        allow_module_level=True,
-    )
+# capability_call 是运行时记录（brain._record_capability_call），不由 legacy import 产出；
+# 全新 import 的 seed 为 0，需先跑过真实调用流才有历史。缺位时干净 skip。
+require_real_seed({"capability_call": 744})
 
 
 @pytest.fixture(scope="session", autouse=True)

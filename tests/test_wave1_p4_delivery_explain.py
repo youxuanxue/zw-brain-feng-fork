@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+from tests._seed_guard import require_real_seed
 from tests._trusted_payload import invoke_trusted
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -24,23 +25,7 @@ SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
 SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_p4_explain_shadow.db"
 TENANT = "sd-default"
 
-
-def _seed_ready() -> bool:
-    if not SEED_DB.exists():
-        return False
-    try:
-        with sqlite3.connect(f"file:{SEED_DB}?mode=ro", uri=True) as conn:
-            row = conn.execute(
-                "SELECT COUNT(*) FROM delivery_task WHERE tenant_id=?",
-                (TENANT,),
-            ).fetchone()
-            return bool(row and row[0] >= 50)
-    except sqlite3.OperationalError:
-        return False
-
-
-if not _seed_ready():
-    pytest.skip("M0 真灌库 delivery_task 缺位", allow_module_level=True)
+require_real_seed({"delivery_task": 50})
 
 
 @pytest.fixture(scope="module", autouse=True)

@@ -61,7 +61,7 @@ fi
 
 find_doc_files() {
     find "$REPO_ROOT" \
-        \( -name .git -o -name node_modules -o -name backups -o -name old -o -name '.stats.json' -o -name dev-rules \) -prune \
+        \( -name .git -o -name .claude -o -name node_modules -o -name backups -o -name old -o -name '.stats.json' -o -name dev-rules \) -prune \
         -o \( -name '*.md' -o -name '*.mdc' \) -print 2>/dev/null
 }
 

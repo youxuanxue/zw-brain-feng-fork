@@ -12,34 +12,19 @@ from __future__ import annotations
 
 import json
 import os
-import sqlite3
 import sys
 from pathlib import Path
 
-import pytest
+from tests._seed_guard import require_real_seed
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
 SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_customer_demo_j1_shadow.db"
 TENANT = "sd-default"
 
-
-def _seed_ready() -> bool:
-    if not SEED_DB.exists():
-        return False
-    try:
-        with sqlite3.connect(f"file:{SEED_DB}?mode=ro", uri=True) as conn:
-            for tbl, mn in (("catalog_entry", 100), ("application_record", 100), ("delivery_task", 50), ("objection_case", 20)):
-                row = conn.execute(f"SELECT COUNT(*) FROM {tbl} WHERE tenant_id=?", (TENANT,)).fetchone()
-                if not row or row[0] < mn:
-                    return False
-        return True
-    except sqlite3.OperationalError:
-        return False
-
-
-if not _seed_ready():
-    pytest.skip("M0 真灌库数据缺位（CI runner 无 .data/zw_brain.db）", allow_module_level=True)
+require_real_seed(
+    {"catalog_entry": 100, "application_record": 100, "delivery_task": 50, "objection_case": 20}
+)
 
 
 # 把 scripts/ 加入 sys.path 以便 import customer_demo_j1

@@ -28,31 +28,14 @@ from pathlib import Path
 
 import pytest
 
+from tests._seed_guard import require_real_seed
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
 SHADOW_DB = REPO_ROOT / ".data" / "test_W0-04_shadow.db"
 TENANT = "sd-default"
 
-
-def _w0_real_data_ready(table: str, min_rows: int) -> bool:
-    if not SEED_DB.exists():
-        return False
-    try:
-        with sqlite3.connect(f"file:{SEED_DB}?mode=ro", uri=True) as conn:
-            row = conn.execute(
-                f"SELECT COUNT(*) FROM {table} WHERE tenant_id=?", (TENANT,)
-            ).fetchone()
-            return bool(row and row[0] >= min_rows)
-    except sqlite3.OperationalError:
-        return False
-
-
-if not _w0_real_data_ready("approval_case", 268):
-    pytest.skip(
-        "W0-02 legacy 真灌库 数据缺位（CI runner 不带 .data/zw_brain.db）；"
-        "本地真数据验收承接，证据见 .data/customer-acceptance/wave0/",
-        allow_module_level=True,
-    )
+require_real_seed({"approval_case": 262})
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -111,14 +94,17 @@ def baseline_counts():
 def test_j1_approval_baseline_seed_present(baseline_counts):
     """Background：approval_case / step / decision 真数据已在 sd-default 下就位
     （W0-02 灌库前提，证据 .data/customer-acceptance/wave0/W0-02-counts.txt）。"""
-    assert baseline_counts["approval_case"] >= 268, (
-        f"approval_case seed expected ≥268, got {baseline_counts['approval_case']}"
+    # Post-#76 idempotency baseline: ExchangeMapper dedups by application_code,
+    # so the chain is 6 cases shorter than the pre-dedup W0-02 snapshot
+    # (268/886/886 → 262/884/883). Floors guard "enough real data", not exact counts.
+    assert baseline_counts["approval_case"] >= 262, (
+        f"approval_case seed expected ≥262, got {baseline_counts['approval_case']}"
     )
-    assert baseline_counts["approval_step"] >= 886, (
-        f"approval_step seed expected ≥886, got {baseline_counts['approval_step']}"
+    assert baseline_counts["approval_step"] >= 884, (
+        f"approval_step seed expected ≥884, got {baseline_counts['approval_step']}"
     )
-    assert baseline_counts["approval_decision"] >= 886, (
-        f"approval_decision seed expected ≥886, got {baseline_counts['approval_decision']}"
+    assert baseline_counts["approval_decision"] >= 883, (
+        f"approval_decision seed expected ≥883, got {baseline_counts['approval_decision']}"
     )
 
 

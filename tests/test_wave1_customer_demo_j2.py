@@ -12,43 +12,21 @@ from __future__ import annotations
 
 import json
 import os
-import sqlite3
 import sys
 from pathlib import Path
 
-import pytest
+from tests._seed_guard import require_real_seed
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
 TENANT = "sd-default"
 
-
-def _seed_ready() -> bool:
-    if not SEED_DB.exists():
-        return False
-    try:
-        with sqlite3.connect(f"file:{SEED_DB}?mode=ro", uri=True) as conn:
-            # F6 demo 仅依赖：catalog_entry (≥1000) + resource_asset.resource_kind=table (≥1)
-            cat_row = conn.execute(
-                "SELECT COUNT(*) FROM catalog_entry WHERE tenant_id=?", (TENANT,)
-            ).fetchone()
-            if not cat_row or cat_row[0] < 1000:
-                return False
-            res_row = conn.execute(
-                "SELECT COUNT(*) FROM resource_asset WHERE tenant_id=? "
-                "AND resource_kind='table' AND owner_org_id IS NOT NULL AND owner_org_id != ''",
-                (TENANT,),
-            ).fetchone()
-            return bool(res_row and res_row[0] >= 1)
-    except sqlite3.OperationalError:
-        return False
-
-
-if not _seed_ready():
-    pytest.skip(
-        "M0 真灌库数据缺位（CI runner 无 .data/zw_brain.db 或 resource_asset.resource_kind='table' 空）",
-        allow_module_level=True,
-    )
+# F6 demo 仅依赖：catalog_entry (≥1000) + resource_asset.resource_kind=table (≥1)
+require_real_seed([
+    ("catalog_entry", 1000),
+    ("resource_asset", 1, "tenant_id = 'sd-default' AND resource_kind='table' "
+     "AND owner_org_id IS NOT NULL AND owner_org_id != ''"),
+])
 
 
 # 把 scripts/ 加入 sys.path 以便 import customer_demo_j2

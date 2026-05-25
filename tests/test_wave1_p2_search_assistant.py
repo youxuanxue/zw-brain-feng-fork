@@ -21,36 +21,18 @@ from __future__ import annotations
 
 import os
 import shutil
-import sqlite3
 from pathlib import Path
 
 import pytest
 
+from tests._seed_guard import require_real_seed
 from tests._trusted_payload import invoke_trusted
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
 SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_p2_search_shadow.db"
 
-
-def _seed_ready() -> bool:
-    if not SEED_DB.exists():
-        return False
-    try:
-        with sqlite3.connect(f"file:{SEED_DB}?mode=ro", uri=True) as conn:
-            row = conn.execute(
-                "SELECT COUNT(*) FROM catalog_entry WHERE tenant_id='sd-default'"
-            ).fetchone()
-            return bool(row and row[0] >= 100)
-    except sqlite3.OperationalError:
-        return False
-
-
-if not _seed_ready():
-    pytest.skip(
-        "M0 真灌库缺位（CI runner 无 .data/zw_brain.db）",
-        allow_module_level=True,
-    )
+require_real_seed({"catalog_entry": 100})
 
 
 @pytest.fixture(scope="module", autouse=True)
