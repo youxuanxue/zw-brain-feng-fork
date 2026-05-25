@@ -436,11 +436,11 @@ a:hover {
 .global-header-inner {
   max-width: var(--zw-shell-content-max);
   margin: 0 auto;
-  padding: 16px 24px;
+  padding: 12px 24px;
   display: flex;
   align-items: center;
-  gap: 24px;
-  flex-wrap: wrap;
+  gap: 16px;
+  flex-wrap: nowrap;
 }
 .global-brand {
   display: flex;
@@ -470,16 +470,19 @@ a:hover {
   color: var(--b-muted);
 }
 .deployment-label {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   font-size: 12px;
-  line-height: 1.35;
+  line-height: 1.2;
   color: var(--b-muted);
-  padding: 6px 12px;
+  padding: 4px 10px;
   border-radius: 9999px;
   background: rgba(0, 107, 230, 0.06);
   border: 1px solid rgba(0, 107, 230, 0.12);
-  max-width: min(440px, 100%);
+  max-width: min(280px, 28vw);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .helper-links {
   position: relative;
@@ -514,12 +517,17 @@ a:hover {
   outline: none;
   box-shadow: var(--b-focus-ring);
 }
+.header-auth-link:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 .global-actions {
-  margin-left: 0;
+  margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 10px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
   justify-content: flex-end;
 }
 
@@ -538,13 +546,19 @@ a:hover {
 
 .user-menu {
   position: relative;
-}
-.user-menu-button {
-  min-height: 40px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 0 14px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+.user-menu-button {
+  min-height: 36px;
+  max-width: 7.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
   border-radius: var(--b-radius-pill);
   border: 1px solid rgba(0, 107, 230, 0.22);
   background: #f8fbff;
@@ -552,7 +566,33 @@ a:hover {
   font: inherit;
   font-size: 14px;
   font-weight: 700;
+  cursor: default;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.user-menu-logout {
+  min-height: 36px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: var(--b-radius-pill);
+  border: 1px solid var(--b-border);
+  background: var(--b-bg-card);
+  color: var(--b-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
+}
+.user-menu-logout:hover,
+.user-menu-logout:focus-visible {
+  outline: none;
+  background: var(--b-bg-subtle);
+  color: var(--b-primary);
+  box-shadow: var(--b-focus-ring);
 }
 .user-menu-button:focus-visible {
   outline: none;
@@ -590,6 +630,18 @@ a:hover {
   outline: none;
   background: var(--b-bg-subtle);
   color: var(--b-primary);
+}
+
+@media (max-width: 900px) {
+  .global-header-inner {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+  .global-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
 }
 
 .role-control {
@@ -1739,7 +1791,7 @@ pre.code {
   position: sticky;
   top: 64px;
   z-index: 20;
-  margin-bottom: 18px;
+  margin-bottom: 10px;
 }
 .top-nav-inner {
   max-width: 1280px;

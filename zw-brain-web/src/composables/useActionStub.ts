@@ -64,12 +64,20 @@ export async function invokeActionStub(opts: ActionStubOptions): Promise<{ ok: b
       }
       return { ok: true, status: resp.status, data };
     }
-    const detail =
-      resp.status === 404 || resp.status === 405 || resp.status === 501
-        ? `${opts.pendingBackend ? `等 ${opts.pendingBackend} land` : '后端尚未实现'} · ${opts.skillId}`
-        : `${opts.skillId} 返回 HTTP ${resp.status}`;
-    pushToast({ kind: 'warn', title: '操作待后端 land', detail });
-    return { ok: false, status: resp.status };
+    const data = await resp.json().catch(() => undefined);
+    const pendingBackend = resp.status === 404 || resp.status === 405 || resp.status === 501;
+    if (pendingBackend) {
+      const detail = `${opts.pendingBackend ? `等 ${opts.pendingBackend} land` : '后端尚未实现'} · ${opts.skillId}`;
+      pushToast({ kind: 'warn', title: '操作待后端 land', detail });
+    } else {
+      const bodyDetail =
+        data && typeof data === 'object' && 'detail' in (data as object)
+          ? String((data as Record<string, unknown>).detail ?? '')
+          : '';
+      const detail = bodyDetail || `${opts.skillId} 返回 HTTP ${resp.status}`;
+      pushToast({ kind: 'info', title: '操作未完成', detail });
+    }
+    return { ok: false, status: resp.status, data };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     pushToast({ kind: 'error', title: '调用失败', detail: `${opts.skillId} · ${msg}` });

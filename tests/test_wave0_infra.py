@@ -320,6 +320,21 @@ def test_infra_iam_session_writes_actor_org_role_binding():
     pass
 
 
+def test_infra_webui_allow_role_switch_on_dev_bypass(monkeypatch: pytest.MonkeyPatch):
+    """Dev IAM bypass 默认打开岗位切换（与 scripts/start-local.sh 一致）；显式 =0 仍关闭。"""
+    from zw_brain.command.brain import BrainService
+    from zw_brain.shared.state_store import StateStore
+
+    brain = BrainService(state_store=StateStore())
+    monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS", "1")
+    monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS_ACK", "development-only")
+    monkeypatch.delenv("ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH", raising=False)
+    assert brain.snapshot()["webui"]["allowRoleSwitch"] is True
+
+    monkeypatch.setenv("ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH", "0")
+    assert brain.snapshot()["webui"]["allowRoleSwitch"] is False
+
+
 # ======================================================================
 # infra-agentruntime-embedded —— Deferred → Wave 1（infra skill 完全缺位，sign-off 2026-05-22）
 # ======================================================================

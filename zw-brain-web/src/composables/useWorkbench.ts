@@ -1,6 +1,7 @@
-import { ref, onMounted, type Ref } from 'vue';
+import { ref, onMounted, watch, type Ref } from 'vue';
 import { WORKBENCH_FIXTURE, type WorkbenchView } from '@/fixtures/workbench-fixture';
 import { authFetch } from './useAuth';
+import { getProductRole } from './useProductRole';
 
 export type WorkbenchSource = 'live' | 'fixture' | 'loading';
 
@@ -15,12 +16,17 @@ export interface UseWorkbenchResult {
 // 失败回落到本地 fixture，并把 source 标成 'fixture'，让 UI 上面挂个开发期提示条。
 //
 // F1 spike 阶段 brain server 通常未起 → 直接 fixture 路径。F2 起接入认证后改成默认 live。
-export function useWorkbench(role = 'ROLE_ORGAN_OPERATER'): UseWorkbenchResult {
+export function useWorkbench(roleOverride?: string): UseWorkbenchResult {
   const data = ref<WorkbenchView | null>(null);
   const source = ref<WorkbenchSource>('loading');
   const error = ref<string | null>(null);
 
+  function resolveRole(): string {
+    return roleOverride ?? getProductRole().value;
+  }
+
   async function refresh(): Promise<void> {
+    const role = resolveRole();
     source.value = 'loading';
     error.value = null;
     try {
@@ -44,6 +50,12 @@ export function useWorkbench(role = 'ROLE_ORGAN_OPERATER'): UseWorkbenchResult {
   onMounted(() => {
     void refresh();
   });
+
+  if (!roleOverride) {
+    watch(getProductRole(), () => {
+      void refresh();
+    });
+  }
 
   return { data, source, error, refresh };
 }

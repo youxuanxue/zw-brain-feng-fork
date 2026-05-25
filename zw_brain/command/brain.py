@@ -129,12 +129,16 @@ class BrainService:
         state = copy.deepcopy(self._snapshot)
         state["state"] = copy.deepcopy(self._ui_state)
         _iaf_url = (_os.environ.get("ZW_BRAIN_IAF_AUTH_SERVER_URL") or "").strip()
+        _dev_bypass = get_dev_iam_bypass_enabled()
+        _allow_switch_env = _os.environ.get("ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH", "").strip()
+        # Dev IAM bypass 默认打开岗位切换（与 scripts/start-local.sh 一致）；显式 =0 时仍关闭。
+        _allow_role_switch = _allow_switch_env == "1" or (_dev_bypass and _allow_switch_env != "0")
         state["webui"] = {
             "deploymentLabel": _os.environ.get("ZW_BRAIN_DEPLOYMENT_LABEL", "").strip(),
             "legalNotice": _os.environ.get("ZW_BRAIN_WEBUI_LEGAL_NOTICE", "").strip(),
             "identityLabel": _os.environ.get("ZW_BRAIN_WEBUI_IDENTITY_LABEL", "当前账号").strip() or "当前账号",
-            "allowRoleSwitch": (_os.environ.get("ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH", "").strip() == "1"),
-            "iafIam": {"configured": bool(_iaf_url), "developmentBypassEnabled": get_dev_iam_bypass_enabled()},
+            "allowRoleSwitch": _allow_role_switch,
+            "iafIam": {"configured": bool(_iaf_url), "developmentBypassEnabled": _dev_bypass},
         }
         return state
 
@@ -3039,6 +3043,39 @@ class BrainService:
             return "待补正"
         if status == "rejected":
             return "已驳回"
+        if status == "approved":
+            return {
+                "applicant": "已通过",
+                "reviewer": "已通过",
+                "filler": "待补录",
+                "summarizer": "待汇总确认",
+            }.get(perspective, "已通过")
+        if status == "in_delivery":
+            return {
+                "applicant": "交付中",
+                "reviewer": "交付中",
+                "filler": "交付中",
+                "summarizer": "交付中",
+            }.get(perspective, "交付中")
+        if status == "granted":
+            return "已授权"
+        if status == "revoked":
+            return "已撤销"
+        _fallback = {
+            "draft": "草稿",
+            "open": "待处理",
+            "reconciling": "待对账",
+            "warning": "需关注",
+            "failed": "失败",
+            "online": "在线",
+            "escalated": "已升级",
+            "resolved": "已解决",
+            "provider_investigating": "提供方核查中",
+        }
+        if status in _fallback:
+            return _fallback[status]
+        if isinstance(status, str) and status.isascii() and status.replace("-", "").replace("_", "").isalnum() and status == status.lower():
+            return "待处理"
         return str(status)
 
     def _package_status_text(self, item: dict[str, Any]) -> str:

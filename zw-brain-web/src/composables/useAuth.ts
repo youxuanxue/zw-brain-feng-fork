@@ -159,6 +159,19 @@ export async function startLogin(): Promise<void> {
   window.location.href = url;
 }
 
+/** 顶栏「登录」唯一入口：dev bypass 走免登录，否则跳转 IAF/OIDC（与旧 ZW_AUTH.bootstrap 一致）。 */
+export async function login(): Promise<AuthSnapshot | null> {
+  const cfg = await _readAuthConfig().catch(() => ({ development_iam_bypass_enabled: false }));
+  if (cfg.development_iam_bypass_enabled === true) {
+    const snapshot = await _devBypassLogin();
+    _broadcast('login');
+    _startRefreshTimer();
+    return snapshot;
+  }
+  await startLogin();
+  return null;
+}
+
 export async function logout(): Promise<void> {
   const redirectUri = `${window.location.origin}/`;
   try {

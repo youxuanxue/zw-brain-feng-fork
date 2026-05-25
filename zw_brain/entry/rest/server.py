@@ -64,7 +64,7 @@ from zw_brain.domain.role_codes import ALL_ROLE_CODES as _DEV_IAM_BYPASS_ROLES  
 
 _DEV_IAM_BYPASS_SUBJECT = "dev-iam-bypass"
 _DEV_IAM_BYPASS_USERNAME = "dev_iam_bypass"
-_DEV_IAM_BYPASS_DISPLAY_NAME = "开发调试账号（IAM bypass）"
+_DEV_IAM_BYPASS_DISPLAY_NAME = "本地调试"
 
 
 def _web_root() -> Path:
@@ -77,7 +77,17 @@ def _web_root() -> Path:
     return packaged_path
 
 
+def _web_public_root(web_root: Path | None = None) -> Path:
+    """Serve Vite production bundle when dist-vite/ exists; else dev index (needs Vite :5173)."""
+    root = web_root or _web_root()
+    built = root / "dist-vite"
+    if (built / "index.html").is_file():
+        return built
+    return root
+
+
 WEB_ROOT = _web_root()
+WEB_PUBLIC_ROOT = _web_public_root(WEB_ROOT)
 OPENAPI_PATH = Path(__file__).with_name("openapi.json")
 _IAF_STATE_STORE = IafOidcStateStore()
 _IAF_TRANSPORT: Callable[[HttpRequest], HttpResponse] | None = None
@@ -249,10 +259,18 @@ class RestHandler(BaseHTTPRequestHandler):
             self._with_authenticated_request(lambda claims: self._handle_api_skill_get(parsed, claims))
             return
         if parsed.path in {"/", "/index.html"}:
-            self._serve_file(WEB_ROOT / "index.html")
+            self._serve_file(WEB_PUBLIC_ROOT / "index.html")
             return
-        if parsed.path.startswith("/css/") or parsed.path.startswith("/js/") or parsed.path.startswith("/assets/"):
-            self._serve_file(WEB_ROOT / parsed.path.lstrip("/"), enforce_web_root=True)
+        if (
+            parsed.path.startswith("/css/")
+            or parsed.path.startswith("/js/")
+            or parsed.path.startswith("/assets/")
+            or parsed.path.startswith("/src/")
+        ):
+            rel = parsed.path.lstrip("/")
+            # Dev index references /src/*.ts — only resolvable from source tree, not dist-vite.
+            serve_root = WEB_ROOT if rel.startswith("src/") else WEB_PUBLIC_ROOT
+            self._serve_file(serve_root / rel, enforce_web_root=True)
             return
         self._json(404, {"error": "not_found", "path": parsed.path})
 
@@ -651,7 +669,15 @@ class RestHandler(BaseHTTPRequestHandler):
     def _serve_file(self, path: Path, *, enforce_web_root: bool = False) -> None:
         if enforce_web_root:
             try:
-                path.resolve().relative_to(WEB_ROOT.resolve())
+                resolved = path.resolve()
+                for root in (WEB_ROOT.resolve(), WEB_PUBLIC_ROOT.resolve()):
+                    try:
+                        resolved.relative_to(root)
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    raise ValueError("outside web roots")
             except (ValueError, FileNotFoundError):
                 self._json(404, {"error": "not_found", "path": str(path)})
                 return

@@ -50,6 +50,26 @@ class E2EConfig:
 CONFIG = E2EConfig()
 
 
+def wait_vue_app_ready(page: Any, config: E2EConfig | None = None) -> None:
+    """Wait for Vue3 WebUI bootstrap (auth + snapshot banner)."""
+    cfg = config or CONFIG
+    page.wait_for_selector(".boot-banner", timeout=cfg.nav_timeout_ms)
+    page.wait_for_selector(".user-menu-button, .header-auth-link", timeout=cfg.nav_timeout_ms)
+
+
+def set_vue_role(page: Any, role: str, config: E2EConfig | None = None) -> None:
+    """Switch dev IAM bypass role via #role-switch (requires allowRoleSwitch)."""
+    cfg = config or CONFIG
+    page.wait_for_selector("#role-switch", timeout=cfg.nav_timeout_ms)
+    page.select_option("#role-switch", role)
+    page.wait_for_timeout(1200)
+
+
+def goto_vue_hash(page: Any, hash_value: str) -> None:
+    page.evaluate("h => { window.location.hash = h; }", hash_value)
+    page.wait_for_timeout(800)
+
+
 def api_post(page: Any, skill: str, payload: dict) -> dict:
     """Drive a write skill via `window.ZW_AUTH.authFetch` (CSRF auto-injected).
 

@@ -7,6 +7,7 @@ import {
   type ExposureMatrixResult,
   type PackageListResult,
 } from '@/fixtures/b12-fixture';
+import { normalizePackageRow } from '@/lib/packageDisplay';
 
 // B1.2 接入扩展中心后端调用封装：
 // - package.list（既有 capability_admin handler）
@@ -44,7 +45,11 @@ export function usePackageList(): UsePackageListResult {
         request_id: newRequestId('UI-PKG-LIST'),
       });
       if (!payload || !Array.isArray(payload.items)) throw new Error('payload shape unexpected');
-      data.value = payload;
+      data.value = {
+        items: (payload.items as unknown[]).map((row) =>
+          normalizePackageRow(row as Record<string, unknown>)
+        ),
+      };
       source.value = 'live';
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);

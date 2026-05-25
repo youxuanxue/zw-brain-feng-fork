@@ -2641,7 +2641,9 @@
             "ROLE_ORGAN_OPERATER",
             "ROLE_ORGAN_MANAGER",
             "ROLE_BUSIAUDIT",
-            "ROLE_SECURITY_AUDIT"
+            "ROLE_SECURITY_AUDIT",
+            "ROLE_SECURITY_ADMIN",
+            "ROLE_SYSTEM"
           ]
         }
       }

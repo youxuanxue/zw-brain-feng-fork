@@ -22,7 +22,7 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
   { anchor: "P1", capabilities: [
     {"skillId": "system.schema_info", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["system.schema_info.execute"]},
     {"skillId": "system.snapshot", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["system.snapshot.execute"]},
-    {"skillId": "workbench.view", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": ["ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"], "permissions": ["workbench.view.execute"]},
+    {"skillId": "workbench.view", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": ["ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SECURITY_ADMIN", "ROLE_SYSTEM"], "permissions": ["workbench.view.execute"]},
     {"skillId": "system.toggle_outage", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["system.toggle_outage.execute"]},
   ] },
   { anchor: "P2", capabilities: [

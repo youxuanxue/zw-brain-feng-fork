@@ -1,21 +1,40 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
-import { RouterLink, RouterView } from 'vue-router';
+import { RouterLink, RouterView, useRouter } from 'vue-router';
 import {
   bootstrap as bootstrapAuth,
   getCurrentUser,
+  getSession,
   getAllowedProductRoles,
+  isAuthLoading,
+  login,
   logout,
-  startLogin,
   PRODUCT_ROLE_LABELS,
 } from '@/composables/useAuth';
 import { loadSnapshot, useWebUiConfig, useSnapshot } from '@/composables/useSnapshot';
+import { pushToast } from '@/composables/useActionStub';
 import ActionToast from '@/components/ActionToast.vue';
+import ProductTopNav from '@/components/ProductTopNav.vue';
+import { getProductRole, setProductRole } from '@/composables/useProductRole';
+import { defaultRouteForRole, isRouteAllowedForRole } from '@/lib/pageAccess';
 
+const router = useRouter();
 const user = getCurrentUser();
+const session = getSession();
+const authLoading = isAuthLoading();
+
+const userMenuTitle = computed(() => {
+  if (session.value?.development_iam_bypass) {
+    return '开发环境免统一身份登录（IAM bypass）';
+  }
+  const u = user.value;
+  if (!u) return '';
+  const extra = [u.username, u.orgCode].filter(Boolean).join(' · ');
+  return extra || u.displayName;
+});
 const { source: snapSource } = useSnapshot();
 const webui = useWebUiConfig();
-const currentRole = ref<string>('ROLE_ORGAN_OPERATER');
+const currentRole = getProductRole();
 const allowedRoles = ref<string[]>([]);
 const initError = ref<string | null>(null);
 
@@ -28,7 +47,7 @@ async function refreshAll() {
     await bootstrapAuth();
     allowedRoles.value = getAllowedProductRoles();
     if (allowedRoles.value.length && !allowedRoles.value.includes(currentRole.value)) {
-      currentRole.value = allowedRoles.value[0];
+      setProductRole(allowedRoles.value[0]);
     }
     await loadSnapshot(currentRole.value);
   } catch (e) {
@@ -38,8 +57,33 @@ async function refreshAll() {
 
 async function onRoleChange(event: Event) {
   const target = event.target as HTMLSelectElement;
-  currentRole.value = target.value;
+  setProductRole(target.value);
   await loadSnapshot(currentRole.value);
+  if (!isRouteAllowedForRole(router.currentRoute.value.path, currentRole.value)) {
+    const dest = defaultRouteForRole(currentRole.value);
+    await router.replace(dest);
+    pushToast({
+      kind: 'info',
+      title: '已切换岗位',
+      detail: '当前页面不在该岗位可见范围，已跳转到可访问的首页。',
+    });
+  }
+}
+
+async function onLoginClick() {
+  try {
+    await login();
+    await refreshAll();
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    pushToast({
+      kind: 'error',
+      title: '登录失败',
+      detail: /iaf|统一身份/i.test(detail)
+        ? '未配置统一身份。本地开发请在 REST 侧启用开发免登录后重启服务。'
+        : detail,
+    });
+  }
 }
 
 onMounted(() => {
@@ -63,14 +107,15 @@ onMounted(() => {
           v-if="!user"
           type="button"
           class="header-auth-link"
-          title="前往统一身份登录"
-          @click="startLogin"
-        >登录</button>
+          title="开发环境为免登录；生产环境跳转统一身份"
+          :disabled="authLoading"
+          @click="onLoginClick"
+        >{{ authLoading ? '登录中…' : '登录' }}</button>
       </nav>
       <div class="global-actions">
         <div v-if="user" class="user-menu">
-          <span class="user-menu-button">{{ user.displayName || user.username || '当前用户' }}</span>
-          <button type="button" class="user-menu-item" @click="logout">退出登录</button>
+          <span class="user-menu-button" :title="userMenuTitle">{{ user.displayName || user.username || '当前用户' }}</span>
+          <button type="button" class="user-menu-logout" @click="logout">退出</button>
         </div>
         <div v-else class="identity-label" aria-live="polite">当前账号</div>
         <div v-if="allowRoleSwitch && allowedRoles.length" class="role-control">
@@ -91,11 +136,11 @@ onMounted(() => {
   <main class="app-shell-main">
     <section class="app-frame app-frame-live">
       <div id="app-router" class="min-w-0">
-        <div v-if="snapSource === 'loading'" class="boot-banner boot-banner-info">正在加载 sd-default 数据……</div>
+        <div v-if="snapSource === 'loading'" class="boot-banner boot-banner-info">正在加载数据……</div>
         <div v-else-if="snapSource === 'error'" class="boot-banner boot-banner-warn">
-          后端 /api/snapshot 暂不可达。已切到只读骨架；启动 brain REST（端口 8800）后刷新页面即可装载真实数据。
+          数据暂不可达。请确认 brain REST（8800）已启动后刷新。
         </div>
-        <div v-else-if="snapSource === 'live'" class="boot-banner boot-banner-ok">已连接 brain · sd-default 单租户单省（山东）</div>
+        <ProductTopNav :role="currentRole" />
         <RouterView />
         <div v-if="initError" class="boot-banner boot-banner-warn">初始化告警：{{ initError }}</div>
       </div>
@@ -147,26 +192,6 @@ onMounted(() => {
   border-radius: 8px;
   background: linear-gradient(135deg, #006be6, #0048a8);
   display: inline-block;
-}
-.user-menu {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.user-menu-button {
-  font-size: 14px;
-  font-weight: 600;
-}
-.user-menu-item {
-  background: none;
-  border: 1px solid var(--b-border, #d4e2f4);
-  border-radius: 6px;
-  padding: 4px 10px;
-  cursor: pointer;
-  font-size: 13px;
-}
-.user-menu-item:hover {
-  background: var(--b-bg-subtle, #e8f2fc);
 }
 .sr-only {
   position: absolute;

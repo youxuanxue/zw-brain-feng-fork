@@ -1,0 +1,366 @@
+/* 全局紧凑页壳：顶栏已表达旅程，页面只保留标题行 + 主内容 */
+.focus-page {
+  margin: 0;
+}
+.focus-page .crumbs {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.focus-page .crumbs a {
+  color: var(--b-primary, #006be6);
+  text-decoration: none;
+}
+.focus-page .crumbs a:hover {
+  text-decoration: underline;
+}
+/* 顶层卡片：含 P1 网格内嵌 panel（原先 > .panel 漏掉 .p1-grid 子节点） */
+.focus-page > .panel,
+.focus-page > aside.panel,
+.focus-page .p1-layout > .panel,
+.focus-page .p1-layout > aside.panel {
+  margin: 0;
+  padding: 20px 24px;
+  box-sizing: border-box;
+}
+.focus-page .panel > .panel-body,
+.focus-page .panel > :not(.focus-head):not(header) {
+  margin-top: 0;
+}
+.focus-empty {
+  margin: 16px 0 8px;
+  font-size: 14px;
+  color: var(--b-muted, #5c6370);
+}
+.focus-search {
+  width: 100%;
+  max-width: 520px;
+  padding: 8px 12px;
+  border: 1px solid var(--b-border, #d4e2f4);
+  border-radius: 6px;
+  font-size: 14px;
+}
+.focus-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.focus-table th,
+.focus-table td {
+  padding: 10px 8px;
+  text-align: left;
+  font-size: 13px;
+  border-bottom: 1px solid var(--b-border, #d4e2f4);
+}
+.focus-table th {
+  background: var(--b-bg-subtle, #e8f2fc);
+  color: var(--b-muted, #5c6370);
+  font-weight: 600;
+}
+.focus-table code {
+  background: var(--b-bg-subtle, #e8f2fc);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.status-pill {
+  background: var(--b-bg-subtle, #e8f2fc);
+  color: var(--b-primary, #006be6);
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.status-pill.tone-warn {
+  background: #fff3cd;
+  color: #856404;
+}
+.status-pill.tone-ok {
+  background: #d4f8e0;
+  color: #155724;
+}
+.status-pill.tone-info {
+  background: var(--b-bg-subtle, #e8f2fc);
+  color: var(--b-primary, #006be6);
+}
+.status-pill.tone-danger {
+  background: #f8d7da;
+  color: #842029;
+}
+.status-pill.tone-neutral {
+  background: var(--b-bg-subtle, #e8f2fc);
+  color: var(--b-muted, #5c6370);
+}
+/* 列表页尾链接（div 用） */
+.row-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+/* 表格「操作」列：两枚按钮固定同一行 */
+.focus-table td.table-actions {
+  width: 1%;
+  white-space: nowrap;
+  vertical-align: middle;
+  text-decoration: none;
+  font-weight: inherit;
+  color: inherit;
+}
+.focus-table .table-actions-inner {
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+}
+.focus-table .table-actions-inner .gov-btn {
+  flex-shrink: 0;
+}
+
+/* B1 等多段页：单外壳 panel + 内部分区（避免嵌套 .panel 双边框、零 padding） */
+.focus-page .panel.panel-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 20px 24px;
+}
+.focus-page .panel.panel-stack .panel:not(.panel-stack) {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  margin: 0;
+  padding: 0;
+}
+.focus-tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--b-border, #d4e2f4);
+}
+.focus-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.focus-tab {
+  background: var(--b-bg-subtle, #e8f2fc);
+  color: var(--b-neutral-text, #1a1d21);
+  border: 1px solid var(--b-border, #d4e2f4);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.focus-tab.active,
+.focus-tab[aria-selected='true'] {
+  background: var(--b-primary, #006be6);
+  color: #fff;
+  border-color: var(--b-primary, #006be6);
+}
+.focus-tab.refresh-btn {
+  margin-left: auto;
+}
+.focus-section {
+  padding: 18px 0;
+  margin: 0;
+}
+.focus-section + .focus-section {
+  border-top: 1px solid var(--b-border, #d4e2f4);
+}
+.focus-section--accent {
+  border-top: 2px solid var(--b-primary, #006be6);
+  padding-top: 20px;
+  margin-top: 4px;
+}
+.focus-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.focus-section-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--b-neutral-text, #1a1d21);
+}
+.focus-section-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+}
+.focus-section-controls input,
+.focus-section-controls select {
+  padding: 4px 8px;
+  border: 1px solid var(--b-border, #d4e2f4);
+  border-radius: 4px;
+  font-size: 13px;
+}
+.focus-prose {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--b-neutral-text, #1a1d21);
+}
+.focus-prose--muted {
+  color: var(--b-muted, #5c6370);
+  font-size: 13px;
+}
+.focus-ops-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+.focus-ops-table th,
+.focus-ops-table td {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 13px;
+  border-bottom: 1px solid var(--b-border, #d4e2f4);
+}
+.focus-ops-table th {
+  background: var(--b-bg-subtle, #e8f2fc);
+  color: var(--b-muted, #5c6370);
+  font-weight: 600;
+}
+.focus-page .tech-id {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 12px;
+  background: var(--b-bg-subtle, #e8f2fc);
+  padding: 2px 6px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+
+/* ── 详情页 SoT：仅 focus-page + focus-detail 双类页生效 ── */
+.focus-page.focus-detail > .panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.focus-page.focus-detail .detail-block {
+  padding: 16px 0 0;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.focus-page.focus-detail .detail-block + .detail-block {
+  border-top: 1px solid var(--b-border, #d4e2f4);
+  margin-top: 16px;
+  padding-top: 16px;
+}
+.focus-page.focus-detail .detail-block-head {
+  margin-bottom: 12px;
+}
+.focus-page.focus-detail .detail-block-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--b-neutral-text, #1a1d21);
+}
+.focus-page.focus-detail .detail-block-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--b-muted, #5c6370);
+}
+.focus-page.focus-detail .detail-list {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 10px 20px;
+  margin: 0;
+}
+.focus-page.focus-detail .detail-list dt {
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--b-muted, #5c6370);
+}
+.focus-page.focus-detail .detail-list dd {
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--b-neutral-text, #1a1d21);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.focus-page.focus-detail .detail-value {
+  font-weight: 500;
+  word-break: break-word;
+}
+.focus-page.focus-detail .detail-raw {
+  display: block;
+  max-width: 100%;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--b-muted, #5c6370);
+  line-height: 1.45;
+  word-break: break-all;
+}
+.focus-page.focus-detail .detail-meta {
+  font-size: 12px;
+  color: var(--b-muted, #5c6370);
+}
+.focus-page.focus-detail .detail-meta-pill {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--b-bg-subtle, #e8f2fc);
+  color: var(--b-primary, #006be6);
+}
+.focus-page.focus-detail .detail-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--b-border, #d4e2f4);
+}
+.focus-page.focus-detail .detail-actions .gov-btn {
+  flex-shrink: 0;
+}
+.focus-page .gov-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.focus-page .gov-btn-primary {
+  background: var(--b-primary, #006be6);
+  color: #fff;
+}
+.focus-page .gov-btn-secondary {
+  background: #fff;
+  border-color: var(--b-border, #d4e2f4);
+  color: var(--b-neutral-text, #1a1d21);
+}
+.focus-page .gov-btn-danger {
+  background: #b32424;
+  color: #fff;
+}
+.focus-page .gov-btn:hover {
+  filter: brightness(0.97);
+}

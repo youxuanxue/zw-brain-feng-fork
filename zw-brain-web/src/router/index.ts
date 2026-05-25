@@ -1,4 +1,6 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router';
+import { getProductRole } from '@/composables/useProductRole';
+import { defaultRouteForRole, isRouteAllowedForRole } from '@/lib/pageAccess';
 import P1Workbench from '@/pages/P1Workbench.vue';
 import P2Discovery from '@/pages/P2Discovery.vue';
 import P2ResourceDetail from '@/pages/P2ResourceDetail.vue';
@@ -76,6 +78,14 @@ const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHashHistory(),
   routes,
+});
+
+router.beforeEach((to) => {
+  const role = getProductRole().value;
+  if (isRouteAllowedForRole(to.path, role)) return true;
+  const fallback = defaultRouteForRole(role);
+  if (to.path === fallback) return true;
+  return { path: fallback, replace: true };
 });
 
 export default router;

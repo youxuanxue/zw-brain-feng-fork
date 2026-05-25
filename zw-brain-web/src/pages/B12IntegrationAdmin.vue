@@ -11,8 +11,11 @@ import {
 } from '@/composables/usePackageLifecycle';
 import { useEngineSlots } from '@/composables/useEngineSlots';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
+import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import DataSourceBadge from '@/components/DataSourceBadge.vue';
 import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
 import type { StructuredAction } from '@/composables/useNLAccelerator';
+import { trustPillClass } from '@/lib/packageDisplay';
 
 // B1.2 接入扩展中心：3 tab——能力包注册表 / 暴露范围矩阵 / 三引擎入口；
 // 仅 ROLE_SECURITY_ADMIN / ROLE_BUSIAUDIT 可见（后端 policy.py 已限）。
@@ -161,58 +164,57 @@ const TRUST_LABELS: Record<string, string> = {
 </script>
 
 <template>
-  <main class="page-shell">
-    <header class="page-hero">
-      <div class="hero-row">
-        <div>
-          <div class="page-kicker">B1.2 · 后台支撑面</div>
-          <h1 class="page-hero-title">接入扩展中心</h1>
-          <p class="page-hero-subtitle">能力包审核 / 启停 / 回滚 / 暴露范围矩阵 / 信任级升降；仅运营管理员、平台运营员可见。</p>
-        </div>
-        <NLAcceleratorPanel page-anchor="B1.2" :presets="NL_PRESETS_B12" @action="consumeNLAction" />
+  <main class="focus-page">
+    <section class="panel panel-stack">
+      <PageFocusHeader title="接入扩展中心" meta="能力包 · 暴露矩阵 · 信任级">
+        <template #aside>
+          <NLAcceleratorPanel page-anchor="B1.2" :presets="NL_PRESETS_B12" @action="consumeNLAction" />
+        </template>
+      </PageFocusHeader>
+
+      <div class="focus-tab-row">
+        <nav class="focus-tabs" role="tablist">
+          <button
+            v-for="t in (['list', 'matrix', 'engines'] as TabKind[])"
+            :key="t"
+            type="button"
+            role="tab"
+            class="focus-tab"
+            :class="{ active: activeTab === t }"
+            :aria-selected="activeTab === t"
+            @click="switchTab(t)"
+          >
+            {{ t === 'list' ? '能力包注册' : t === 'matrix' ? '暴露范围矩阵' : '三引擎入口' }}
+          </button>
+        </nav>
+        <button type="button" class="focus-tab refresh-btn" @click="refreshActive">刷新</button>
       </div>
-    </header>
 
-    <div class="panel-tab-row">
-      <nav class="panel-tabs" role="tablist">
-        <button
-          v-for="t in (['list', 'matrix', 'engines'] as TabKind[])"
-          :key="t"
-          type="button"
-          role="tab"
-          :class="['panel-tab', { active: activeTab === t }]"
-          :aria-selected="activeTab === t"
-          @click="switchTab(t)"
-        >
-          {{ t === 'list' ? '能力包注册' : t === 'matrix' ? '暴露范围矩阵' : '三引擎入口' }}
-        </button>
-      </nav>
-      <button type="button" class="panel-tab refresh-btn" @click="refreshActive">刷新</button>
-    </div>
-
-    <!-- 能力包注册 -->
-    <section v-show="activeTab === 'list'" class="panel">
-      <header class="panel-head">
-        <h2 class="panel-title">能力包注册表</h2>
-        <span class="source-pill" :class="packages.source.value">{{ packages.source.value }}</span>
-      </header>
-      <p class="disclaimer">
-        信任级 <code>trust_level</code> 是 <strong>本平台对能力包的信任评估</strong>（业务字段，4 档：基线 / 已审 / 严管 / 撤回）。
-        与 AgentRuntime 外部 Agent 来源信任级（3 档：platform / verified / untrusted，AgentRuntime 触发后落地）<strong>不是同一字段</strong>，
-        前者由运营管理员评估决定能否启用，后者描述外部 Agent 来源可信级。
-      </p>
-      <table v-if="packages.data.value && packages.data.value.items.length" class="pkg-table">
+      <section v-show="activeTab === 'list'" class="focus-section">
+        <header class="focus-section-head">
+          <h2 class="focus-section-title">能力包注册表</h2>
+          <DataSourceBadge :source="packages.source.value" />
+        </header>
+        <p class="disclaimer">
+          「内置信任级」是<strong>本平台对能力包的信任评估</strong>（四档：基线 / 已审 / 严管 / 撤回），由运营管理员评估后决定能否启用；
+          与外部智能体来源信任级不是同一字段。
+        </p>
+        <table v-if="packages.data.value && packages.data.value.items.length" class="pkg-table">
         <thead>
           <tr><th>编号</th><th>名称</th><th>状态</th><th>当前版本</th><th>上一版本</th><th>信任级</th><th>操作</th></tr>
         </thead>
         <tbody>
           <tr v-for="p in packages.data.value.items" :key="p.id">
-            <td><code>{{ p.id }}</code></td>
+            <td><span class="tech-id">{{ p.id }}</span></td>
             <td>{{ p.name || '—' }}</td>
             <td><span :class="['status-pill', `status-${p.status}`]">{{ STATUS_LABELS[p.status] ?? p.status }}</span></td>
-            <td><code>{{ p.version || '—' }}</code></td>
-            <td><code>{{ p.rollback_target || '—' }}</code></td>
-            <td><span class="trust-pill">{{ TRUST_LABELS[p.trust_level] ?? p.trust_level }}</span></td>
+            <td><span class="tech-id">{{ p.version || '—' }}</span></td>
+            <td><span class="tech-id">{{ p.rollback_target || '—' }}</span></td>
+            <td>
+              <span :class="['trust-pill', trustPillClass(p.trust_level)]">
+                {{ TRUST_LABELS[p.trust_level] ?? p.trust_level }}
+              </span>
+            </td>
             <td class="actions">
               <button class="gov-btn gov-btn-primary" @click="onReview(p.id, 'approve')" :disabled="p.status === 'active' || p.status === 'rejected' || p.status === 'revoked'">批准</button>
               <button class="gov-btn gov-btn-secondary" @click="onReview(p.id, 'return_for_fix')" :disabled="p.status !== 'pending'">退回</button>
@@ -224,14 +226,13 @@ const TRUST_LABELS: Record<string, string> = {
           </tr>
         </tbody>
       </table>
-      <div v-else class="text-body text-zw-mute">{{ packages.source.value === 'loading' ? '正在加载……' : '暂无注册能力包。' }}</div>
-    </section>
+      <p v-else class="focus-prose focus-prose--muted">{{ packages.source.value === 'loading' ? '正在加载……' : '暂无注册能力包。' }}</p>
+      </section>
 
-    <!-- 暴露范围矩阵 -->
-    <section v-show="activeTab === 'matrix'" class="panel">
-      <header class="panel-head">
-        <h2 class="panel-title">暴露范围矩阵</h2>
-        <div class="panel-controls">
+      <section v-show="activeTab === 'matrix'" class="focus-section">
+        <header class="focus-section-head">
+          <h2 class="focus-section-title">暴露范围矩阵</h2>
+          <div class="focus-section-controls">
           <label>所属旅程：
             <select v-model="matrixJourneyFilter" @change="matrix.load({ journey: matrixJourneyFilter || undefined, status: matrixStatusFilter || undefined })">
               <option value="">全部</option>
@@ -250,10 +251,10 @@ const TRUST_LABELS: Record<string, string> = {
               <option value="deferred:wave-2">延后到 Wave-2</option>
             </select>
           </label>
-          <span class="source-pill" :class="matrix.source.value">{{ matrix.source.value }}</span>
-        </div>
-      </header>
-      <p v-if="matrix.data.value" class="text-body">
+          <DataSourceBadge :source="matrix.source.value" />
+          </div>
+        </header>
+        <p v-if="matrix.data.value" class="focus-prose">
         共 <strong>{{ matrix.data.value.totals.manifests }}</strong> 份能力契约；
         本次筛选 <strong>{{ matrix.data.value.scanned }}</strong> 行。各消费面分布：
         <span v-for="s in matrixSurfaces" :key="s.key" class="status-pill">{{ s.key }}: {{ s.value }}</span>
@@ -264,7 +265,7 @@ const TRUST_LABELS: Record<string, string> = {
         </thead>
         <tbody>
           <tr v-for="row in matrix.data.value.matrix" :key="row.skill_id">
-            <td><code>{{ row.skill_id }}</code></td>
+            <td><span class="tech-id">{{ row.skill_id }}</span></td>
             <td>{{ row.journey }}</td>
             <td><span :class="['status-pill', `status-${row.status.replace(':', '-')}`]">{{ row.status }}</span></td>
             <td>{{ row.execution_binding }}</td>
@@ -273,18 +274,21 @@ const TRUST_LABELS: Record<string, string> = {
             <td>
               <span v-for="s in row.surfaces" :key="s" class="status-pill">{{ s }}</span>
             </td>
-            <td><span class="trust-pill">{{ TRUST_LABELS[row.trust_level] ?? row.trust_level }}</span></td>
+            <td>
+              <span :class="['trust-pill', trustPillClass(row.trust_level)]">
+                {{ TRUST_LABELS[row.trust_level] ?? row.trust_level }}
+              </span>
+            </td>
           </tr>
         </tbody>
       </table>
-      <div v-else class="text-body text-zw-mute">{{ matrix.source.value === 'loading' ? '正在加载……' : '当前筛选无数据。' }}</div>
-    </section>
+      <p v-else class="focus-prose focus-prose--muted">{{ matrix.source.value === 'loading' ? '正在加载……' : '当前筛选无数据。' }}</p>
+      </section>
 
-    <!-- 三引擎入口 -->
-    <section v-show="activeTab === 'engines'" class="panel">
-      <header class="panel-head">
-        <h2 class="panel-title">三引擎入口</h2>
-      </header>
+      <section v-show="activeTab === 'engines'" class="focus-section">
+        <header class="focus-section-head">
+          <h2 class="focus-section-title">三引擎入口</h2>
+        </header>
       <p class="disclaimer">
         三引擎（审批流 / 表单 / 智能推荐前置）的管理员配置面已由 E3 落地在
         <a href="#/engines-admin">三引擎配置中心</a>；本面板提供入口链接，不重复实装。
@@ -293,45 +297,44 @@ const TRUST_LABELS: Record<string, string> = {
         <a v-for="slot in slots" :key="slot.key" :href="slot.href" class="slot-card">
           <h3>{{ slot.title }}</h3>
           <p>{{ slot.subtitle }}</p>
-          <p class="slot-status">{{ slot.status === 'available' ? '可用' : (slot.pending_reason || '待 land') }}</p>
+          <p class="slot-status">{{ slot.status === 'available' ? '可用' : (slot.pending_reason || '待上线') }}</p>
         </a>
       </div>
+    </section>
     </section>
   </main>
 </template>
 
 <style scoped>
-.page-shell { display: grid; gap: 16px; }
-.hero-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-.panel-tab-row { display: flex; gap: 8px; align-items: center; }
-.panel-tabs { display: flex; gap: 8px; align-items: center; }
-.panel-tab {
-  background: var(--b-bg-subtle, #e8f2fc); color: var(--b-neutral-text, #1a1d21);
-  border: 1px solid var(--b-border, #d4e2f4); padding: 6px 14px; border-radius: 6px;
-  font-size: 13px; cursor: pointer;
+.disclaimer {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--b-muted, #5c6370);
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  background: var(--b-bg-subtle, #e8f2fc);
+  border-radius: 6px;
+  border-left: 3px solid var(--b-primary, #006be6);
 }
-.panel-tab.active { background: var(--b-primary, #006be6); color: #fff; border-color: var(--b-primary, #006be6); }
-.refresh-btn { margin-left: auto; }
-.panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
-.panel-controls { display: flex; gap: 12px; align-items: center; font-size: 13px; }
-.panel-controls select, .panel-controls input {
-  padding: 4px 8px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 4px; font-size: 13px;
-}
-.source-pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--b-bg-subtle, #e8f2fc); color: var(--b-muted, #5c6370); }
-.source-pill.live { background: #d4f8e0; color: #155724; }
-.source-pill.fixture { background: #fff3cd; color: #856404; }
-.source-pill.loading { background: #cfe2ff; color: #084298; }
-.disclaimer { font-size: 12px; color: var(--b-muted, #5c6370); margin: 0 0 8px; padding: 8px 10px; background: var(--b-bg-subtle, #e8f2fc); border-radius: 6px; border-left: 3px solid var(--b-primary, #006be6); }
 .pkg-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-.pkg-table th, .pkg-table td { padding: 10px 8px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--b-border, #d4e2f4); }
+.pkg-table th, .pkg-table td { padding: 10px 12px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--b-border, #d4e2f4); }
 .pkg-table th { background: var(--b-bg-subtle, #e8f2fc); color: var(--b-muted, #5c6370); font-weight: 600; }
-code { background: var(--b-bg-subtle, #e8f2fc); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
 .status-pill { background: var(--b-bg-subtle, #e8f2fc); color: var(--b-primary, #006be6); font-size: 12px; padding: 2px 8px; border-radius: 999px; margin-right: 4px; display: inline-block; }
 .status-pill.status-active { background: #d4f8e0; color: #155724; }
 .status-pill.status-pending { background: #fff3cd; color: #856404; }
 .status-pill.status-rejected, .status-pill.status-revoked { background: #f8d7da; color: #842029; }
 .status-pill.status-rolled-back { background: #cfe2ff; color: #084298; }
-.trust-pill { background: var(--b-primary, #006be6); color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 999px; }
+.trust-pill {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  display: inline-block;
+}
+.trust-pill.trust-baseline { background: var(--b-bg-subtle, #e8f2fc); color: var(--b-muted, #5c6370); }
+.trust-pill.trust-reviewed { background: #d4f8e0; color: #155724; }
+.trust-pill.trust-restricted { background: #fff3cd; color: #856404; }
+.trust-pill.trust-revoked { background: #f8d7da; color: #842029; }
 .actions { display: flex; flex-wrap: wrap; gap: 4px; }
 .gov-btn { padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; border: 1px solid transparent; }
 .gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }

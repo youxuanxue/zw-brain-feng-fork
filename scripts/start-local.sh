@@ -109,6 +109,20 @@ PY
     return 1
 }
 
+ensure_webui_build() {
+    local dist_index="$REPO_ROOT/zw-brain-web/dist-vite/index.html"
+    if [[ -f "$dist_index" ]]; then
+        return 0
+    fi
+    if ! command -v npm >/dev/null 2>&1; then
+        echo "[start-local] FAIL: zw-brain-web/dist-vite missing and npm not on PATH" >&2
+        echo "[start-local] Hint: cd zw-brain-web && npm install && npm run build" >&2
+        exit 1
+    fi
+    echo "[start-local] building zw-brain-web (dist-vite missing)..."
+    (cd "$REPO_ROOT/zw-brain-web" && npm run build)
+}
+
 start_rest() {
     (
         cd "$REPO_ROOT"
@@ -128,6 +142,8 @@ if ! check_port_free "$REST_HOST" "$REST_PORT"; then
     show_port_conflict "$REST_PORT"
     exit 1
 fi
+
+ensure_webui_build
 
 start_rest
 

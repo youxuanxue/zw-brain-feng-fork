@@ -9,6 +9,7 @@ export interface WorkbenchTodo {
   title: string;
   status: string;
   href?: string;
+  category?: string;
 }
 
 export interface WorkbenchView {

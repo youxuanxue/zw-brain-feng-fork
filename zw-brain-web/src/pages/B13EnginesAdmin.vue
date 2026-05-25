@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import DrillStrip from '@/components/DrillStrip.vue';
+import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import type { StructuredAction } from '@/composables/useNLAccelerator';
@@ -165,9 +165,9 @@ function consumeNLAction(action: StructuredAction) {
   }
 }
 
-const drillItems = [
-  { label: '回到合规与运营', href: '#/compliance-ops', hint: '事件追责' },
-  { label: '回到平台接入与扩展中心', href: '#/integration-admin', hint: '能力包管理' },
+const headerLinks = [
+  { label: '合规与运营', href: '#/compliance-ops' },
+  { label: '平台接入', href: '#/integration-admin' },
 ];
 
 async function onGenerateDraft() {
@@ -309,21 +309,19 @@ function lastResultText(): string {
 </script>
 
 <template>
-  <main class="page-shell">
-    <header class="page-hero">
-      <div class="hero-row">
-        <div>
-          <div class="page-kicker">B1.3 · 后台支撑面</div>
-          <h1 class="page-hero-title">三引擎配置中心</h1>
-          <p class="page-hero-subtitle">审批流 / 申请表单 / 推荐规则 — 草稿 → 预览 → 入库三步操作；项目级定制不再改代码。</p>
-        </div>
-        <NLAcceleratorPanel page-anchor="B1.3" :presets="NL_PRESETS_B13" @action="consumeNLAction" />
-      </div>
-    </header>
+  <main class="focus-page">
+    <section class="panel panel-stack">
+      <PageFocusHeader
+        title="三引擎配置"
+        meta="审批流 · 申请表单 · 推荐规则（草稿→预览→入库）"
+        :links="headerLinks"
+      >
+        <template #aside>
+          <NLAcceleratorPanel page-anchor="B1.3" :presets="NL_PRESETS_B13" @action="consumeNLAction" />
+        </template>
+      </PageFocusHeader>
 
-    <DrillStrip kicker="高频任务" :items="drillItems" />
-
-    <section class="panel">
+      <section class="focus-section">
       <header class="tab-row">
         <button
           v-for="engine in ENGINES"
@@ -338,10 +336,7 @@ function lastResultText(): string {
       </header>
 
       <div class="engine-body">
-        <div class="engine-meta">
-          <h2 class="panel-title">{{ activeEngine().heroTitle }}</h2>
-          <p class="panel-subtitle">{{ activeEngine().heroHint }}</p>
-        </div>
+        <p class="engine-hint">{{ activeEngine().heroHint }}</p>
 
         <div class="preset-row">
           <span class="preset-kicker">示例</span>
@@ -414,14 +409,14 @@ function lastResultText(): string {
           <pre class="result-pre">{{ lastResultText() }}</pre>
         </div>
       </div>
+      </section>
     </section>
   </main>
 </template>
 
 <style scoped>
-.page-shell { display: grid; gap: 16px; }
-.hero-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-.tab-row { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--b-border, #d4e2f4); }
+.engine-hint { margin: 0 0 14px; font-size: 14px; line-height: 1.6; color: var(--b-muted, #5c6370); }
+.tab-row { display: flex; gap: 8px; margin: 0 0 16px; padding-bottom: 12px; border-bottom: 1px solid var(--b-border, #d4e2f4); }
 .tab-btn {
   padding: 8px 16px; border: none; background: transparent; cursor: pointer; font-size: 14px;
   color: var(--b-muted, #5c6370); border-bottom: 2px solid transparent;

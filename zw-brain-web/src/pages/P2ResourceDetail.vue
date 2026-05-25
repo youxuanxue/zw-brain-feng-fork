@@ -1,14 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { lookupResource, useSnapshot } from '@/composables/useSnapshot';
+import { useResourceDetail } from '@/composables/useResourceDetail';
 import { invokeActionStub } from '@/composables/useActionStub';
+import { navigateToRequestDetail, resolveRequestIdFromAction } from '@/composables/useRequestNavigation';
+import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
+import DetailActions from '@/components/DetailActions.vue';
+import { mapDetailRows } from '@/lib/detailDisplay';
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
-const resource = lookupResource(id.value);
-const { source } = useSnapshot();
+const { resource, source, loading, fetchError } = useResourceDetail(() => id.value);
+
+const displayName = computed(() => {
+  const r = resource.value;
+  if (!r) return '';
+  return String(r.name ?? r.title ?? '');
+});
 
 const rows = computed(() => {
   const r = resource.value;
@@ -21,70 +30,66 @@ const rows = computed(() => {
   if (r.subscribers !== undefined) out.push({ label: '订阅量', value: String(r.subscribers) });
   if (r.coverage) out.push({ label: '字段覆盖', value: String(r.coverage) });
   if (r.approvalRate) out.push({ label: '审批通过率', value: String(r.approvalRate) });
-  return out;
+  return mapDetailRows(out);
 });
 
 const fields = computed(() => (Array.isArray(resource.value?.fields) ? (resource.value!.fields as string[]) : []));
 const explain = computed(() => (Array.isArray(resource.value?.explain) ? (resource.value!.explain as string[]) : []));
 
+const headerTitle = computed(() => {
+  if (resource.value) return displayName.value || id.value;
+  if (loading.value) return '正在加载……';
+  return id.value;
+});
+const headerMeta = computed(() => {
+  if (resource.value && resource.value.desc) return String(resource.value.desc);
+  if (fetchError.value) return `加载失败：${fetchError.value}`;
+  if (source.value !== 'live') return '正在加载资源详情……';
+  if (!resource.value) return '未找到该资源';
+  return '';
+});
+
 async function apply() {
-  await invokeActionStub({
+  const result = await invokeActionStub({
     skillId: 'request.create',
     payload: { resource_id: id.value },
     successTitle: '复用申请已起草',
     pendingBackend: 'E2 申请管理 (e2/plan.yaml F4)',
   });
+  const requestId = resolveRequestIdFromAction(result);
+  if (requestId) navigateToRequestDetail(requestId);
 }
 </script>
 
 <template>
-  <main class="page-shell">
-    <nav class="crumbs"><a href="#/discovery">← 回到资源发现</a></nav>
-    <header class="page-hero">
-      <div class="page-kicker">P2 · 资源详情</div>
-      <h1 v-if="resource" class="page-hero-title">{{ resource.name }}</h1>
-      <h1 v-else class="page-hero-title">资源 <code>{{ id }}</code></h1>
-      <p v-if="resource && resource.desc" class="page-hero-subtitle">{{ resource.desc }}</p>
-      <p v-else-if="source !== 'live'" class="page-hero-subtitle">等待 /api/snapshot 装载该资源详情。</p>
-      <p v-else class="page-hero-subtitle">未在当前 snapshot 中找到该资源；可能需要 F4 投影器派生扩展或回 P2 重新搜。</p>
-    </header>
-
-    <DetailPanel v-if="rows.length" title="基本信息" subtitle="来自 sd-default 真实资源" :rows="rows" />
-
-    <section v-if="fields.length" class="panel">
-      <header><h2 class="panel-title">字段清单（前 12 项）</h2></header>
-      <ul class="chip-list">
-        <li v-for="f in fields.slice(0, 12)" :key="f">{{ f }}</li>
-      </ul>
-    </section>
-
-    <section v-if="explain.length" class="panel">
-      <header><h2 class="panel-title">复用提示</h2></header>
-      <ul class="hint-list">
-        <li v-for="e in explain" :key="e">{{ e }}</li>
-      </ul>
-    </section>
-
+  <main class="focus-page focus-detail">
+    <nav class="crumbs"><a href="#/discovery">← 资源发现</a></nav>
     <section class="panel">
-      <header><h2 class="panel-title">下一步</h2></header>
-      <div class="actions">
+      <PageFocusHeader :title="headerTitle" :meta="headerMeta" />
+      <DetailPanel v-if="rows.length" title="基本信息" :rows="rows" />
+      <section v-if="fields.length" class="detail-block">
+        <h2 class="detail-block-title">字段清单（前 12 项）</h2>
+        <ul class="chip-list">
+          <li v-for="f in fields.slice(0, 12)" :key="f">{{ f }}</li>
+        </ul>
+      </section>
+      <section v-if="explain.length" class="detail-block">
+        <h2 class="detail-block-title">复用提示</h2>
+        <ul class="hint-list">
+          <li v-for="e in explain" :key="e">{{ e }}</li>
+        </ul>
+      </section>
+      <DetailActions>
         <button type="button" class="gov-btn gov-btn-primary" data-skill="request.create" @click="apply">发起复用申请</button>
         <a href="#/zones-pack" class="gov-btn gov-btn-secondary">看专题</a>
-      </div>
+      </DetailActions>
     </section>
   </main>
 </template>
 
 <style scoped>
-.page-shell { display: grid; gap: 16px; }
-.crumbs a { font-size: 13px; color: var(--b-primary, #006be6); text-decoration: none; }
-.crumbs a:hover { text-decoration: underline; }
-.chip-list { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-list { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .chip-list li { font-size: 12px; padding: 2px 10px; background: var(--b-bg-page, #f2f7fd); border: 1px solid var(--b-border, #d4e2f4); border-radius: 999px; }
-.hint-list { padding-left: 20px; margin: 12px 0 0; font-size: 14px; }
+.hint-list { padding-left: 20px; margin: 8px 0 0; font-size: 14px; line-height: 1.6; }
 .hint-list li { padding: 4px 0; }
-.actions { display: flex; gap: 8px; margin-top: 12px; }
-.gov-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; text-decoration: none; }
-.gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
-.gov-btn-secondary { background: #fff; border-color: var(--b-border, #d4e2f4); color: var(--b-neutral-text, #1a1d21); }
 </style>
