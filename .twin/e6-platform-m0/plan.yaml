@@ -8,7 +8,7 @@ items:
   - AC1
   evidence_plan:
   - 证据预算：拆分 PR diff + tests 全绿 + 各 handler 子目录 LOC 报告
-  - 停止条件：brain.py ≤500 LOC + 18 tests/test_*.py 100% 不退化
+  - 停止条件：dispatch.py ≤500 LOC + brain.py 内 0 case dispatcher（grep -c "^case " = 0）+ 18 tests/test_*.py 100% 不退化（AC1 真实意图=dispatch 不臃肿，brain.py 本身不卡 LOC 上限，见 docs/approved/zw-brain-architecture.md §10.2；BrainService 残留读路径方法群下沉见 preflight-debt 2026-05-26 entry）
   actual_evidence:
   - turn 1 commit 8bb172f — handlers/ 骨架 + dispatch.py + _CATEGORIZATION.md (185 caps,
     J1=94/J2=37/B1=32/infra=22)
@@ -26,7 +26,7 @@ items:
   next_action: ''
   blocked_reason: null
 - id: F2
-  deliverable: 推理客户端生产化（187 LOC mock → 真实集团推理平台 SDK + 保留 mock 模式）
+  deliverable: 推理客户端生产化（mock 实现 → 真实集团推理平台网关 + 保留 mock 模式）
   scope: 真实 SDK 接入 + mock 模式开关；不含三引擎 NL 调用（归 E3 消费）
   covers_ac:
   - AC2
@@ -34,14 +34,15 @@ items:
   - 证据预算：tests/integration/test_inference_client.py + 真实调用 e2e + preflight 段 10 不报红
   - 停止条件：真实模式 + mock 模式双跑通；preflight 不报红
   actual_evidence:
-  - InferenceClient mock mode via ZW_BRAIN_INFERENCE_MODE=mock
+  - zw_brain/shared/inference/client.py:146-209 — platform 模式 chat/embed 真实 HTTP 路径已实装（/v1/chat/completions + /v1/embeddings），非 mock-only；代码层生产化已完成
+  - InferenceClient mock mode via ZW_BRAIN_INFERENCE_MODE=mock；默认 strict platform，env 显式切 mock
   - tests/integration/test_inference_client.py mock/platform/request_id 4 cases PASS
   - start-local.sh 默认 export ZW_BRAIN_INFERENCE_MODE=mock + echo 说明（无网关本机 dev）
   - test_wave0_infra::test_start_local_defaults_inference_mock_and_documents_mode PASS
   depends_on: []
-  status: in_progress
-  next_action: 集团 SDK 文档/凭据到位后换 platform 内部实现（mock + start-local 已就绪）
-  blocked_reason: 真实 SDK 接入等集团推理平台凭据/文档
+  status: blocked
+  next_action: 等集团推理平台网关凭据/endpoint → 跑真实调用 e2e + preflight 段 10 真网关验证（代码路径已就绪，无需再写实现）
+  blocked_reason: 外部依赖——集团推理平台网关凭据/endpoint 未提供；platform HTTP 代码路径已实装（client.py:146-209），仅缺真实网关 e2e 验证，非工程内可推进项
 - id: F3
   deliverable: M0 mapper 覆盖判定表（7 个未做 dump 逐一确认 §3.4/§5.6 不复造 or 漏做）
   scope: docs/deployment/m0-mapper-coverage.md 新增；漏做项各自补 mapper PR（按需）
@@ -157,9 +158,9 @@ items:
   depends_on:
   - F1
   - F2
-  status: pending
-  next_action: 与客户运维对齐机房环境；升级 Dockerfile_v1.0.0
-  blocked_reason: null
+  status: blocked
+  next_action: 等客户机房环境对齐 + 集团运维监控 endpoint → 再写 deploy 脚本 / 升级 Dockerfile_v1.0.0（机房形态未知前不投机式造脚本）
+  blocked_reason: 外部依赖——客户机房环境未对齐 + 集团运维监控 dashboard endpoint 未提供；AC7 证据（机房 dry-run + 监控接入）均需外部访问，非工程内可推进项
 - id: F9
   deliverable: M0 PR @reviewer 责任承担（其他 worker 撞 M0 墙时提的 PR 通过 GitHub @ E6 持有人 review）
   scope: 跨 worker 的 M0 PR review；不主动写 M0 业务逻辑（响应式）

@@ -18,6 +18,24 @@ trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / �
 目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
 trigger 关闭即可删除字段。
 
+## 2026-05-26 — BrainService 残留读路径方法群下沉（brain.py god-class）
+
+- **Where**: `zw_brain/command/brain.py`（3462 LOC）拆分后 185 cap dispatcher 全迁出至 `dispatch.py`
+  + `handlers/{j1,j2,b1,infra}/`，但 `BrainService` 类本身仍持有 **~192 方法**，其中绝大多数是
+  `_*_record_to_dict` / `_*_projection` / `_topic_*` / `_governance_*` / `_delivery_*` 读路径
+  映射 + 投影 helper（语义上属 projection / repository 层，非编排层）。
+- **Implication**: §10.2 已 re-scope —— AC1 真实意图「dispatch 不臃肿」由 `dispatch.py` 360 LOC +
+  brain.py 内 0 case dispatcher 达成，brain.py 不再卡 LOC 上限。但 192 方法 god-class 仍是真实债：
+  多 worker 若同时改读路径投影方法仍会在此文件 merge 撞车；类体过大降低可读性。
+- **Why deferred**: 当前无活跃功能需要这些方法搬家；把 ~3000 LOC 读路径方法盲搬到 projection/domain
+  层是高 blast-radius 的投机式重构（违反「不为假设造复杂度」）。re-scope 已入档 §10.2，状态板不再
+  谎报 ≤500。
+- **Trigger to re-evaluate**: (a) 出现一次 brain.py 读路径方法的多 worker merge 撞车 → 把撞车簇
+  方法下沉到对应 projection repo；(b) Wave 2/3 读路径重构窗口期主动分批下沉（按 j1/j2/b1/governance
+  域切）。任一触发当日按域切片下沉，不整文件一次性搬。
+- **No mechanical preflight check (now)**: brain.py LOC 上限已显式退役（§10.2），不设 LOC 门禁避免
+  把"不卡上限"的结论又机械化回来；debt 条目兜底跟踪。
+
 ## 2026-05-26 — 读路径热表 tenant-only 全扫白名单（PR #113 同模式残留）
 
 - **Where**: 段 32 `scripts/check_read_path_full_scan.py` 在当前 main HEAD 扫到 12 处与
@@ -84,16 +102,17 @@ trigger 关闭即可删除字段。
   当前模型时**干净 skip + 打印重建命令**（替代此前 copy-paste `_seed_ready()` 只查行数、stale seed 抛
   61 个 `no such column` cryptic ERROR 的回潮路径）。
 
-## 2026-05-25 — 推理客户端仍是 mock（E6 AC2，卡集团 SDK）
+## 2026-05-25 — 推理客户端等真实网关验证（E6 AC2，卡集团 SDK 凭据）
 
-- **Where**: `zw_brain/shared/inference/client.py`（187 LOC）仍是 mock 实现，注释明示 "real implementation
-  will wrap the Group Inference Platform SDK once the [SDK lands]"。
+- **Where**: `zw_brain/shared/inference/client.py`（239 LOC）**platform 模式 chat/embed 真实 HTTP 路径已实装**
+  （`client.py:146-209`，POST `/v1/chat/completions` + `/v1/embeddings`），默认 strict platform，env 显式切 mock；
+  非 mock-only。**代码层生产化已完成**，缺的是真实网关凭据下的连通验证。
 - **Implication**: 基线 D6/D14 硬约束「所有模型推理调用走集团推理平台统一 SDK，禁止直连第三方 LLM」在产品形态
-  已就位（所有 AI 减摩点走 `shared/inference/client`），但底层是 mock；真实推理质量/延迟/配额未经真链路验证。
-  E6 AC2「推理客户端生产化」严格说未达成——属外部依赖阻塞，非漏做。
-- **Why deferred**: 集团推理平台 SDK 形态 / 接口文档尚未同步到位（D14 已记此前提）；mock 模式保留给本机/演示。
-- **Trigger to re-evaluate**: 集团推理平台 SDK 文档 / 接口到位日 → 换内部实现（保留 mock 模式开关）+ 新增
-  `tests/integration/test_inference_client.py` 真连通测试 + preflight 段 10（禁直连第三方）回归确认。
+  + 代码路径均已就位；但真实推理质量/延迟/配额/鉴权未经真网关链路验证。E6 AC2 停止条件「真实模式 + mock 模式
+  双跑通」中 platform 真链路一段未验——属外部依赖阻塞（缺凭据/endpoint），非工程内可推进项。
+- **Why deferred**: 集团推理平台网关凭据 / endpoint 尚未同步到位（D14 已记此前提）；mock 模式保留给本机/演示。
+- **Trigger to re-evaluate**: 集团推理平台网关凭据 / endpoint 到位日 → 跑 platform 真连通 e2e
+  （`tests/integration/test_inference_client.py` 已有 platform case 骨架）+ preflight 段 10（禁直连第三方）回归确认。
 
 ## 2026-05-25 — 客户机房部署 + 监控对接未落地（E6 AC7）
 
