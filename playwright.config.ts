@@ -16,6 +16,7 @@ export default defineConfig({
     'p5_duplicate_warnings.spec.ts',
     'twin_browser_pages.spec.ts',
     'customer_acceptance_checklist.spec.ts',
+    'b12_iam_governance.spec.ts',
   ],
   fullyParallel: false,
   workers: 1,

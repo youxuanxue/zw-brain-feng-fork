@@ -168,6 +168,7 @@ const TRUST_LABELS: Record<string, string> = {
     <section class="panel panel-stack">
       <PageFocusHeader title="接入扩展中心" meta="能力包 · 暴露矩阵 · 信任级">
         <template #aside>
+          <a class="gov-btn gov-btn-secondary" href="#/integration-admin/iam-governance">身份治理</a>
           <NLAcceleratorPanel page-anchor="B1.2" :presets="NL_PRESETS_B12" @action="consumeNLAction" />
         </template>
       </PageFocusHeader>

@@ -114,13 +114,14 @@ http://<服务器IP>:8800/
 | `ZW_BRAIN_INFERENCE_API_KEY_REF` | 集团推理平台 API key 引用（密钥引用，非明文）；密钥材料不进入镜像 | 必填（生产环境） |
 | `ZW_BRAIN_IAF_CA_FILE` | IAF HTTPS 自定义 CA 证书文件路径（容器内路径），用于挂载内部 CA bundle | 未设置（使用系统默认信任链） |
 | `ZW_BRAIN_IAF_VERIFY_SSL` | 设为 `false` 时完全跳过 IAF 端点 SSL 验证（仅限测试/内网无证书环境） | `true` |
-| `ZW_BRAIN_DEV_IAM_BYPASS` | 研发期 IAM 网络不可达时临时跳过登录与 token-healthz；仅 `1` 生效，生产部署不得设置 | 未设置 |
+| `ZW_BRAIN_DEV_IAM_BYPASS` | 研发期 IAM 网络不可达时临时跳过登录与 token-healthz；须与 `ZW_BRAIN_DEV_IAM_BYPASS_ACK=development-only` 同时设置才生效；生产部署不得设置 | 未设置 |
+| `ZW_BRAIN_DEV_IAM_BYPASS_ACK` | bypass 双因子确认字；仅 `development-only` 与 `ZW_BRAIN_DEV_IAM_BYPASS=1` 联用 | 未设置 |
 
 如需接入 IAF/OIDC、外部数据库或集团推理平台，应通过环境变量注入对应配置，不要把密钥、连接串或证书写入镜像。内网部署若 IAF 使用自签名证书，优先挂载 CA bundle（`ZW_BRAIN_IAF_CA_FILE`）；仅在无法提供证书时才使用 `ZW_BRAIN_IAF_VERIFY_SSL=false`。
 
-REST WebUI 登录采用 IAM 授权码流程：前端未发现 `sessionStorage` token 且 URL 无 `code` 时会跳转到 IAM 授权端点；回跳首页后由后端 `/auth/iaf/token` 代理 code 换取 token，`client_secret` 只在后端环境变量中使用。前端每 5 分钟检查 access token 过期时间，剩余小于 60 秒时调用 `/auth/iaf/refresh`；所有 `/api/*` 请求都会携带 `Authorization: Bearer <access_token>`，后端透传到 `{ZW_BRAIN_IAF_AUTH_SERVER_URL}/v1/token-healthz` 校验，校验不可用时按 503 失败关闭。退出登录会清理前端 `sessionStorage`，再跳转 IAM `/protocol/openid-connect/logout?redirect_uri=...` 清除 SSO 会话。
+REST WebUI 登录采用 **IAM 授权码 + BFF 会话**（详见 `docs/iam-login-logout-implementation.md`）：前端 URL 无 `code` 且后端 `/auth/iaf/session` 未返回有效会话时会跳转到 IAM 授权端点；回跳后由后端 `/auth/iaf/token` 代理 code 换取 IAM token 并写入服务端 session。浏览器仅通过 `zw_brain_session` HttpOnly cookie 携带不透明 session id；前端 JavaScript 只保存公开会话摘要与 CSRF token，**不接收、不保存、不发送** IAM access token 或 refresh token。前端每 5 分钟请求 `/auth/iaf/refresh` 由后端刷新 session 内 token；所有 `/api/*` 浏览器请求使用同源 cookie 鉴权，写请求额外携带 `X-CSRF-Token`，后端仍透传 session 内 access token 到 `{ZW_BRAIN_IAF_AUTH_SERVER_URL}/v1/token-healthz` 校验并本地 RS256 验签，校验不可用时按 503 失败关闭。退出登录会清理服务端 session 与 HttpOnly cookie，再跳转 IAM `/protocol/openid-connect/logout?redirect_uri=...` 清除 SSO 会话。
 
-开发环境若无法连通 IAM 服务端，可临时设置 `ZW_BRAIN_DEV_IAM_BYPASS=1`：WebUI 不跳转 IAM，后端 `/api/snapshot` 与 `/api/skills/*` 不再强制 token-healthz，但仍执行 Skill manifest、角色、租户和人工确认等业务门禁。该变量只用于研发调试，生产部署清单不要设置；正式上线前应移除 `ZW_BRAIN_DEV_IAM_BYPASS` 及 `development_iam_bypass` / `dev-iam-bypass` / `developmentBypassEnabled` 相关临时代码。
+开发环境若无法连通 IAM 服务端，须**同时**设置 `ZW_BRAIN_DEV_IAM_BYPASS=1` 与 `ZW_BRAIN_DEV_IAM_BYPASS_ACK=development-only`：WebUI 不跳转 IAM，后端 `/api/snapshot` 与 `/api/skills/*` 走 bypass 路径，但仍执行 Skill manifest、角色、租户和人工确认等业务门禁。该开关只用于研发调试，生产部署清单不要设置。
 
 > **prod guard debt**：`ZW_BRAIN_DEV_IAM_BYPASS` 的生产环境硬拦截守卫延后至首客户部署阶段实现（MEMORY `dev-iam-bypass debt`），当前登记于 `docs/preflight-debt.md`；交付时由部署文档 + 运维 checklist 确保该变量未设置，不依赖代码守卫拦截。
 

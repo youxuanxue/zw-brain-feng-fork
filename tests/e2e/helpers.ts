@@ -16,8 +16,12 @@ export async function skipUnlessBackend(page: Page, testInfo: TestInfo): Promise
 }
 
 export async function waitAppReady(page: Page): Promise<void> {
-  await page.waitForSelector('.boot-banner', { timeout: 20_000 });
-  await page.waitForSelector('.user-menu-button, .header-auth-link', { timeout: 20_000 });
+  const loginBtn = page.locator('#login-gate-submit');
+  if ((await loginBtn.count()) > 0) {
+    await loginBtn.click();
+    await page.waitForTimeout(600);
+  }
+  await page.waitForSelector('.user-menu-button', { timeout: 20_000 });
   await page.waitForSelector('#role-switch', { timeout: 30_000 });
 }
 

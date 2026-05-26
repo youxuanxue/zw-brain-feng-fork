@@ -159,16 +159,24 @@ export async function startLogin(): Promise<void> {
   window.location.href = url;
 }
 
-/** 顶栏「登录」唯一入口：dev bypass 走免登录，否则跳转 IAF/OIDC（与旧 ZW_AUTH.bootstrap 一致）。 */
-export async function login(): Promise<AuthSnapshot | null> {
-  const cfg = await _readAuthConfig().catch(() => ({ development_iam_bypass_enabled: false }));
-  if (cfg.development_iam_bypass_enabled === true) {
-    const snapshot = await _devBypassLogin();
-    _broadcast('login');
-    _startRefreshTimer();
-    return snapshot;
-  }
+export async function loginWithIam(): Promise<void> {
   await startLogin();
+}
+
+export async function loginWithDevBypass(): Promise<AuthSnapshot> {
+  const cfg = await _readAuthConfig().catch(() => ({ development_iam_bypass_enabled: false }));
+  if (cfg.development_iam_bypass_enabled !== true) {
+    throw new Error('当前环境未启用开发免登录');
+  }
+  const snapshot = await _devBypassLogin();
+  _broadcast('login');
+  _startRefreshTimer();
+  return snapshot;
+}
+
+/** 兼容旧调用：默认走统一身份登录，不再自动选择开发 bypass。 */
+export async function login(): Promise<AuthSnapshot | null> {
+  await loginWithIam();
   return null;
 }
 
@@ -273,13 +281,6 @@ export async function bootstrap(): Promise<AuthSnapshot | null> {
     }
     snapshot = await _readCurrentSession().catch(() => null);
     if (snapshot && snapshot.authenticated) { _startRefreshTimer(); return snapshot; }
-    const cfg = await _readAuthConfig().catch(() => ({ development_iam_bypass_enabled: false }));
-    if (cfg.development_iam_bypass_enabled === true) {
-      const s = await _devBypassLogin();
-      _broadcast('login');
-      _startRefreshTimer();
-      return s;
-    }
     return null;
   } finally {
     _loading.value = false;

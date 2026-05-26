@@ -25,23 +25,42 @@ export interface Snapshot {
 const _data = ref<Snapshot | null>(null);
 const _source = ref<Source>('idle');
 const _error = ref<string | null>(null);
+const _cache = new Map<string, Snapshot>();
+let _initialHydrated = false;
 
-export async function loadSnapshot(role = 'ROLE_ORGAN_OPERATER'): Promise<Snapshot | null> {
-  _source.value = 'loading';
+async function _fetchSnapshot(role: string): Promise<Snapshot> {
+  const resp = await authFetch(`/api/snapshot?role=${encodeURIComponent(role)}`, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return (await resp.json()) as Snapshot;
+}
+
+export async function loadSnapshot(
+  role = 'ROLE_ORGAN_OPERATER',
+  opts?: { soft?: boolean }
+): Promise<Snapshot | null> {
+  const soft = opts?.soft ?? _initialHydrated;
+  const cached = _cache.get(role);
+  if (cached) {
+    _data.value = cached;
+    _source.value = 'live';
+  } else if (!soft) {
+    _source.value = 'loading';
+  }
   _error.value = null;
   try {
-    const resp = await authFetch(`/api/snapshot?role=${encodeURIComponent(role)}`, {
-      headers: { Accept: 'application/json' },
-    });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const payload = (await resp.json()) as Snapshot;
+    const payload = await _fetchSnapshot(role);
+    _cache.set(role, payload);
     _data.value = payload;
     _source.value = 'live';
+    _initialHydrated = true;
     return payload;
   } catch (e) {
     _error.value = e instanceof Error ? e.message : String(e);
-    _source.value = 'error';
-    return null;
+    if (!cached) _source.value = 'error';
+    _initialHydrated = true;
+    return cached ?? null;
   }
 }
 

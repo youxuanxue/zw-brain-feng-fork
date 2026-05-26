@@ -32,8 +32,10 @@ import P7ZoneDetail from '@/pages/P7ZoneDetail.vue';
 import B11ComplianceOps from '@/pages/B11ComplianceOps.vue';
 import B11DisputeDetail from '@/pages/B11DisputeDetail.vue';
 import B12IntegrationAdmin from '@/pages/B12IntegrationAdmin.vue';
+import B12IamGovernance from '@/pages/B12IamGovernance.vue';
 import B12PackageDetail from '@/pages/B12PackageDetail.vue';
 import B13EnginesAdmin from '@/pages/B13EnginesAdmin.vue';
+import PLogin from '@/pages/PLogin.vue';
 import PagePlaceholder from '@/pages/PagePlaceholder.vue';
 
 // hash 模式 + 8 页面对齐旧 vanilla bundle ROUTES（参见 src/router/route-table.md）。
@@ -86,14 +88,14 @@ const routes: RouteRecordRaw[] = [
 
   // B1.2 平台接入与扩展中心（后台）
   { path: '/integration-admin', name: 'B1.2-integration', component: B12IntegrationAdmin, meta: { page: 'B1.2', title: 'B1.2 平台接入与扩展中心' } },
-  { path: '/integration-admin/iam-governance', component: PagePlaceholder, meta: { page: 'B1.2', title: 'B1.2 身份治理' } },
+  { path: '/integration-admin/iam-governance', component: B12IamGovernance, meta: { page: 'B1.2', title: 'B1.2 身份治理' } },
   { path: '/integration-admin/package/:id', component: B12PackageDetail, meta: { page: 'B1.2', title: 'B1.2 能力包详情' } },
 
   // B1.3 三引擎配置中心（E3 Wave-2 F7）—— 审批流 / 表单 / 推荐 草稿→预览→入库
   { path: '/engines-admin', name: 'B1.3-engines', component: B13EnginesAdmin, meta: { page: 'B1.3', title: 'B1.3 三引擎配置中心' } },
 
   // 辅助页
-  { path: '/login', component: PagePlaceholder, meta: { title: '登录中转' } },
+  { path: '/login', component: PLogin, meta: { title: '登录' } },
   { path: '/profile', component: PagePlaceholder, meta: { title: '个人中心' } },
   { path: '/migration-acceptance', component: PagePlaceholder, meta: { title: 'M0 迁移验收（实施工程师）' } },
 ];

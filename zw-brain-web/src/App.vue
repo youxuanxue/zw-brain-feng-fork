@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
-import { RouterLink, RouterView, useRouter } from 'vue-router';
+import { onMounted, ref, computed, watch } from 'vue';
+import { RouterLink, RouterView, useRouter, useRoute } from 'vue-router';
 import {
   bootstrap as bootstrapAuth,
   getCurrentUser,
   getSession,
   getAllowedProductRoles,
   isAuthLoading,
-  login,
   logout,
   PRODUCT_ROLE_LABELS,
 } from '@/composables/useAuth';
@@ -19,6 +18,7 @@ import { getProductRole, setProductRole } from '@/composables/useProductRole';
 import { defaultRouteForRole, isRouteAllowedForRole } from '@/lib/pageAccess';
 
 const router = useRouter();
+const route = useRoute();
 const user = getCurrentUser();
 const session = getSession();
 const authLoading = isAuthLoading();
@@ -35,19 +35,25 @@ const userMenuTitle = computed(() => {
 const { source: snapSource } = useSnapshot();
 const webui = useWebUiConfig();
 const currentRole = getProductRole();
-const allowedRoles = ref<string[]>([]);
 const initError = ref<string | null>(null);
 
 const deploymentLabel = computed(() => String(webui.value.deploymentLabel ?? ''));
 const legalNotice = computed(() => String(webui.value.legalNotice ?? ''));
 const allowRoleSwitch = computed(() => Boolean(webui.value.allowRoleSwitch));
+const isLoginRoute = computed(() => route.path === '/login');
+const roleSwitchBusy = ref(false);
+const allowedRoles = computed(() => {
+  if (!user.value) return [];
+  void session.value;
+  return getAllowedProductRoles();
+});
 
 async function refreshAll() {
   try {
     await bootstrapAuth();
-    allowedRoles.value = getAllowedProductRoles();
-    if (allowedRoles.value.length && !allowedRoles.value.includes(currentRole.value)) {
-      setProductRole(allowedRoles.value[0]);
+    if (!user.value) {
+      if (!isLoginRoute.value) await router.replace('/login');
+      return;
     }
     await loadSnapshot(currentRole.value);
   } catch (e) {
@@ -55,40 +61,63 @@ async function refreshAll() {
   }
 }
 
+watch(
+  allowedRoles,
+  (roles) => {
+    if (!roles.length || !user.value) return;
+    if (!roles.includes(currentRole.value)) {
+      const prev = currentRole.value;
+      const next = roles[0];
+      setProductRole(next);
+      pushToast({
+        kind: 'info',
+        title: '岗位已自动调整',
+        detail: `当前登录身份无权使用「${PRODUCT_ROLE_LABELS[prev] ?? prev}」，已切换为「${PRODUCT_ROLE_LABELS[next] ?? next}」。`,
+      });
+    }
+  },
+  { immediate: true }
+);
+
 async function onRoleChange(event: Event) {
   const target = event.target as HTMLSelectElement;
-  setProductRole(target.value);
-  await loadSnapshot(currentRole.value);
+  const chosen = target.value;
+  if (chosen === currentRole.value) return;
+  setProductRole(chosen);
+  roleSwitchBusy.value = true;
+  try {
+    await loadSnapshot(currentRole.value, { soft: true });
+  } finally {
+    roleSwitchBusy.value = false;
+  }
+  const roleLabel = PRODUCT_ROLE_LABELS[chosen] ?? chosen;
   if (!isRouteAllowedForRole(router.currentRoute.value.path, currentRole.value)) {
     const dest = defaultRouteForRole(currentRole.value);
     await router.replace(dest);
     pushToast({
       kind: 'info',
       title: '已切换岗位',
-      detail: '当前页面不在该岗位可见范围，已跳转到可访问的首页。',
+      detail: `当前身份：${roleLabel}。该岗位无权停留在此页，已跳转到可用入口。`,
     });
+    return;
   }
-}
-
-async function onLoginClick() {
-  try {
-    await login();
-    await refreshAll();
-  } catch (e) {
-    const detail = e instanceof Error ? e.message : String(e);
-    pushToast({
-      kind: 'error',
-      title: '登录失败',
-      detail: /iaf|统一身份/i.test(detail)
-        ? '未配置统一身份。本地开发请在 REST 侧启用开发免登录后重启服务。'
-        : detail,
-    });
-  }
+  pushToast({
+    kind: 'info',
+    title: '已切换岗位',
+    detail: `当前身份：${roleLabel}。页面与权限已按新岗位刷新。`,
+  });
 }
 
 onMounted(() => {
   void refreshAll();
 });
+
+watch(
+  () => route.path,
+  (path) => {
+    if (path !== '/login' && !user.value) void refreshAll();
+  }
+);
 </script>
 
 <template>
@@ -102,26 +131,33 @@ onMounted(() => {
         </div>
       </RouterLink>
       <div v-if="deploymentLabel" class="deployment-label">{{ deploymentLabel }}</div>
-      <nav class="helper-links" aria-label="顶部辅助入口">
+      <nav v-if="!isLoginRoute" class="helper-links" aria-label="顶部辅助入口">
         <button
           v-if="!user"
           type="button"
           class="header-auth-link"
-          title="开发环境为免登录；生产环境跳转统一身份"
+          title="前往登录页"
           :disabled="authLoading"
-          @click="onLoginClick"
+          @click="router.push('/login')"
         >{{ authLoading ? '登录中…' : '登录' }}</button>
       </nav>
       <div class="global-actions">
-        <div v-if="user" class="user-menu">
+        <div v-if="user && !isLoginRoute" class="user-menu">
           <span class="user-menu-button" :title="userMenuTitle">{{ user.displayName || user.username || '当前用户' }}</span>
           <button type="button" class="user-menu-logout" @click="logout">退出</button>
         </div>
-        <div v-else class="identity-label" aria-live="polite">当前账号</div>
-        <div v-if="allowRoleSwitch && allowedRoles.length" class="role-control">
+        <div v-else-if="!isLoginRoute" class="identity-label" aria-live="polite">当前账号</div>
+        <div v-if="allowRoleSwitch && allowedRoles.length && !isLoginRoute" class="role-control">
           <span>当前岗位</span>
           <label class="sr-only" for="role-switch">切换岗位身份</label>
-          <select id="role-switch" class="role-select" :value="currentRole" @change="onRoleChange">
+          <select
+            id="role-switch"
+            class="role-select"
+            :class="{ 'role-select-busy': roleSwitchBusy }"
+            :value="currentRole"
+            :disabled="roleSwitchBusy"
+            @change="onRoleChange"
+          >
             <option
               v-for="code in allowedRoles"
               :key="code"
@@ -136,11 +172,14 @@ onMounted(() => {
   <main class="app-shell-main">
     <section class="app-frame app-frame-live">
       <div id="app-router" class="min-w-0">
-        <div v-if="snapSource === 'loading'" class="boot-banner boot-banner-info">正在加载数据……</div>
+        <div
+          v-if="!isLoginRoute && snapSource === 'loading' && !roleSwitchBusy"
+          class="boot-banner boot-banner-info"
+        >正在加载数据……</div>
         <div v-else-if="snapSource === 'error'" class="boot-banner boot-banner-warn">
           数据暂不可达。请确认 brain REST（8800）已启动后刷新。
         </div>
-        <ProductTopNav :role="currentRole" />
+        <ProductTopNav v-if="!isLoginRoute" :role="currentRole" />
         <RouterView />
         <div v-if="initError" class="boot-banner boot-banner-warn">初始化告警：{{ initError }}</div>
       </div>
@@ -206,5 +245,9 @@ onMounted(() => {
 }
 .min-w-0 {
   min-width: 0;
+}
+.role-select-busy {
+  opacity: 0.65;
+  cursor: wait;
 }
 </style>

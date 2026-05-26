@@ -51,10 +51,17 @@ CONFIG = E2EConfig()
 
 
 def wait_vue_app_ready(page: Any, config: E2EConfig | None = None) -> None:
-    """Wait for Vue3 WebUI bootstrap (auth + snapshot banner)."""
+    """Wait for Vue3 WebUI bootstrap (login gate if needed, then role switch)."""
     cfg = config or CONFIG
-    page.wait_for_selector(".boot-banner", timeout=cfg.nav_timeout_ms)
-    page.wait_for_selector(".user-menu-button, .header-auth-link", timeout=cfg.nav_timeout_ms)
+    login_btn = page.locator("#login-gate-submit")
+    try:
+        if login_btn.is_visible(timeout=3000):
+            login_btn.click()
+            page.wait_for_timeout(600)
+    except Exception:
+        pass
+    page.wait_for_selector(".user-menu-button", timeout=cfg.nav_timeout_ms)
+    page.wait_for_selector("#role-switch", timeout=cfg.nav_timeout_ms)
 
 
 def set_vue_role(page: Any, role: str, config: E2EConfig | None = None) -> None:
