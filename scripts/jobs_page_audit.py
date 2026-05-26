@@ -37,7 +37,7 @@ PAGES: list[tuple[str, str, str, str]] = [
     ("#/compliance-ops", "ROLE_SECURITY_AUDIT", "B1.1 合规运营", "any"),
     ("#/integration-admin", "ROLE_BUSIAUDIT", "B1.2 接入中心", "any"),
     ("#/integration-admin/iam-governance", "ROLE_BUSIAUDIT", "B1.2 身份治理", "table_or_empty"),
-    ("#/engines-admin", "ROLE_SYSTEM", "B1.3 三引擎", "any"),
+    ("#/integration-admin/engines", "ROLE_SYSTEM", "B1.2 三引擎子页", "any"),
 ]
 
 issues: list[dict] = []

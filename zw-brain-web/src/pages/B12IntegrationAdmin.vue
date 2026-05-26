@@ -27,8 +27,8 @@ import { trustPillClass } from '@/lib/packageDisplay';
 //      不是同一字段。UI 上 disclaimer 行明示。
 //   2. 写操作（审核/启停/回滚/信任级升降级）严格走 window.confirm() 二次确认；
 //      与后端 manifest human_confirmation_required=true 对齐。
-//   3. 三引擎 slot 不重实装；本 UI 列 3 个入口跳转到 E3 已 land 的
-//      /engines-admin（B13EnginesAdmin.vue 内 tab 切换），见 useEngineSlots.ts。
+//   3. 三引擎 slot 不重实装；本 UI 列 3 个入口跳转到 B1.2 子页
+//      /integration-admin/engines（B13EnginesAdmin.vue 内 tab 切换），见 useEngineSlots.ts。
 
 type TabKind = 'list' | 'matrix' | 'engines';
 const activeTab = ref<TabKind>('list');
@@ -291,8 +291,8 @@ const TRUST_LABELS: Record<string, string> = {
           <h2 class="focus-section-title">三引擎入口</h2>
         </header>
       <p class="disclaimer">
-        三引擎（审批流 / 表单 / 智能推荐前置）的管理员配置面已集中在
-        <a href="#/engines-admin">三引擎配置中心</a>；本面板仅提供入口链接。
+        三引擎（审批流 / 表单 / 智能推荐前置）的管理员配置面已集中在本节子页
+        <a href="#/integration-admin/engines">三引擎配置</a>；本面板仅提供入口链接。
       </p>
       <div class="slot-grid">
         <a v-for="slot in slots" :key="slot.key" :href="slot.href" class="slot-card">

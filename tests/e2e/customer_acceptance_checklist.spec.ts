@@ -192,8 +192,8 @@ test.describe('客户验收 — 业务运营 B1', () => {
     expect(page.url()).not.toMatch(/#\/integration-admin\/iam-governance/);
   });
 
-  test('B1.3 三引擎 Wave2 预览 banner', async ({ page }) => {
-    await gotoHash(page, '#/engines-admin');
+  test('B1.2 三引擎子页 Wave2 预览 banner', async ({ page }) => {
+    await gotoHash(page, '#/integration-admin/engines');
     await expect(page.getByRole('heading', { name: '三引擎配置' })).toBeVisible();
     await expect(page.getByText(/Wave\s*2|预览|草稿/i).first()).toBeVisible();
   });

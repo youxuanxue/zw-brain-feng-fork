@@ -330,9 +330,11 @@ sources:
 
 ---
 
-## §4 per-journey live 计数表（P0-05 预算基线）
+## §4 per-journey live 计数表（P0-05 预算基线 — 已撤回）
 
-> 处置后实际 live 能力数（剔除 deferred / external / delete）。建议预算 = 实际计数 + 小余量（5-10%，对齐 §7.3 webui-pages-cap 思路：禁止悄悄长大，长大必须改基线）。
+> **状态变更（2026-05-26 PR #111）**：本节"建议预算上限 + 余量"模型已撤回为**假契约**。理由：增删一个 capability 是日常工程动作，无人为单点漂移开 GATE 会议；架构基线 §6.6 同步删除了 4 个 `zwbrain.capability-budget-*` stat 与 `zwbrain.webui-pages-cap` stat。真正的产品边界由 preflight 段 22 禁区前缀回潮防护 + §7.3 entry→command→domain→shared 分层 + reviewer 判断承担。
+>
+> 本节下方 P0-05 当时的实测计数表保留为 **历史快照**，不再作为契约面预算。
 
 **计数依据**：基于 §1 表 200 行逐条 journey 字段统计（已核对两次）。
 

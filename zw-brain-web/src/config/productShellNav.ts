@@ -73,7 +73,7 @@ export function activeShellKey(path: string): string {
   if (p.startsWith('/provider')) return 'provider';
   if (p.startsWith('/compliance-ops')) return 'compliance-ops';
   if (p.startsWith('/zones-pack')) return 'zones-pack';
-  if (p.startsWith('/integration-admin') || p.startsWith('/engines-admin')) return 'integration-admin';
+  if (p.startsWith('/integration-admin')) return 'integration-admin';
   if (p.startsWith('/workbench') || p === '/profile' || p.startsWith('/login')) return 'workbench';
   return 'workbench';
 }

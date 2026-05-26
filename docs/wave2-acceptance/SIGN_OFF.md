@@ -19,7 +19,7 @@
 - F4 `f36df22` — 表单 schema 化引擎数据模型 + 校验 + commit skill
 - F5 `1863c53` — 表单 schema NL 草稿 + 三步流程 + 四川 7 字段 e2e
 - F6 `292710b` — 智能推荐前置引擎 + 5 条荆州规则 + 真实历史 hit-rate
-- F7 `08adea0` — 三引擎管理员配置页 UI (B1.3 EnginesAdmin)
+- F7 `08adea0` — 三引擎管理员配置页 UI (B1.2 子页 /integration-admin/engines)
 
 ## § 2 真实数据回归
 

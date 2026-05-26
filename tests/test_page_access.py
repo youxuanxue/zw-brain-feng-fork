@@ -66,7 +66,7 @@ def _active_shell_key(path: str) -> str:
         return "compliance-ops"
     if p.startswith("/zones-pack"):
         return "zones-pack"
-    if p.startswith("/integration-admin") or p.startswith("/engines-admin"):
+    if p.startswith("/integration-admin"):
         return "integration-admin"
     return "workbench"
 
@@ -78,7 +78,7 @@ def _is_route_allowed(path: str, role: str) -> bool:
 
 def test_operater_cannot_access_integration_admin() -> None:
     assert not _is_route_allowed("/integration-admin", "ROLE_ORGAN_OPERATER")
-    assert not _is_route_allowed("/engines-admin", "ROLE_ORGAN_OPERATER")
+    assert not _is_route_allowed("/integration-admin/engines", "ROLE_ORGAN_OPERATER")
 
 
 def test_system_can_access_integration_admin() -> None:

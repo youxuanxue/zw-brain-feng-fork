@@ -5,7 +5,8 @@ import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import type { StructuredAction } from '@/composables/useNLAccelerator';
 
-// E3 Wave-2 F7 三引擎配置中心：审批流 / 表单 / 推荐 三 tab 共享「草稿 → 预览 → 入库」三步。
+// E3 Wave-2 F7 三引擎配置（收编为 B1.2 子页 /integration-admin/engines）：
+// 审批流 / 表单 / 推荐 三 tab 共享「草稿 → 预览 → 入库」三步。
 // 文案严守 R12（preflight 段 24 工程术语黑名单）：不出现 skill_id / manifest /
 // config_change_class / audit_class / draft / preview / live 等纯工程词，
 // 全部业务化为「能力 / 草稿 / 预览 / 入库 / 回退」等中文术语。
@@ -155,7 +156,7 @@ function applyPreset(preset: EnginePreset) {
   titleInput.value[k] = preset.schemaTitleHint;
 }
 
-const NL_PRESETS_B13 = ENGINES.flatMap((e) => e.examplePresets.map((p) => p.title));
+const NL_PRESETS_ENGINES = ENGINES.flatMap((e) => e.examplePresets.map((p) => p.title));
 
 function consumeNLAction(action: StructuredAction) {
   if (action.kind === 'invoke' && action.target) {
@@ -317,7 +318,7 @@ function lastResultText(): string {
         :links="headerLinks"
       >
         <template #aside>
-          <NLAcceleratorPanel page-anchor="B1.3" :presets="NL_PRESETS_B13" @action="consumeNLAction" />
+          <NLAcceleratorPanel page-anchor="B1.2" :presets="NL_PRESETS_ENGINES" @action="consumeNLAction" />
         </template>
       </PageFocusHeader>
 

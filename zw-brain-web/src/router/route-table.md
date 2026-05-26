@@ -1,9 +1,9 @@
 # zw-brain-web 路由表（F1 spike → F2/F3 全量重建参照）
 
 > 单一事实来源：本文件记录旧 vanilla JS bundle（js/app.js 的 `ROUTES` 数组）→ 设计基线 §5.2
-> 8 个产品页面（P1-P5/P7 + B1.1/B1.2）的映射，供 F2 框架替换 / F3 成品化阶段沿用。
+> 主入口枚举（P1-P5/P7 + B1.1/B1.2）的映射，供 F2 框架替换 / F3 成品化阶段沿用。
 >
-> 8 页面硬上限引用：docs/approved/zw-brain-architecture.md §5.2（stat `zwbrain.webui-pages-cap` = 8）。
+> 主入口边界引用：docs/approved/zw-brain-architecture.md §5.2（"每加一个主入口都要回答为什么不是已有 P/B 的子页"）。
 > R12 工程术语黑名单：本表 / Vue 组件 / 路由 name 字段，**不得**出现
 > `package / projection / capability / write-with-audit / register-version / apply-tenant-policy /
 > reconcile-receipt / submit-evidence / policy_decision`。新 router 用业务语义命名。
@@ -41,10 +41,11 @@
 | `#/compliance-ops`             | `PAGES.complianceOps`                 | **B1.1 合规与运营**   | B1 后台 |
 | `#/compliance-ops/dispute/:id` | `PAGES.disputeDetail`                 | B1.1 异议详情        | B1 后台 |
 | `#/integration-admin`          | `PAGES.integrationAdmin`              | **B1.2 平台接入与扩展中心** | B1 后台 |
+| `#/integration-admin/engines`        | `PAGES.enginesAdmin`            | B1.2 三引擎配置（审批流 / 表单 / 推荐） | B1 后台 |
 | `#/integration-admin/iam-governance` | `PAGES.iamGovernance`           | B1.2 身份治理        | B1 后台 |
 | `#/integration-admin/package/:id`    | `PAGES.packageDetail`            | B1.2 能力包详情       | B1 后台 |
 
-## 辅助页（非 8 页面计数内）
+## 辅助页（不计入主入口枚举）
 
 | 旧 hash 路由             | 新页面             | 备注 |
 | ----------------------- | ----------------- | --- |

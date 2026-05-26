@@ -68,7 +68,7 @@ phase_after_approval: Phase 0（先打通首条黄金链路 J1 找数→用数�
 
 zw-brain 的工作是：
 - 保留 5 步骨干（旧平台已验证的正确逻辑）
-- 删除多年累积的冗余（18 项一级目录 → 8 页面，删 56%）
+- 删除多年累积的冗余（18 项一级目录 → 8 主入口，删 56%）
 - 加上 AI 让定制不靠改代码（项目级流程/表单/推荐通过配置 + AI 辅助生成）
 
 项目代号 `zw-brain`（"政务数据大脑"）继续沿用；产品身份是"数据共享网关"。
@@ -112,7 +112,7 @@ zw-brain 的工作是：
 2. **人 + Agent 共用同一能力面**——后端只维护一套契约，5 消费面（WebUI/API/CLI/MCP/A2A）自动投影
 3. **合规默认内建**——审计总线 / 模型调用集团推理平台 / 区块链 adapter
 4. **单一 WebUI**——不是旧平台 7 个独立 SPA 拼接，避免角色困惑
-5. **基于旧平台真相而非纸上设计**——18 项一级目录 → 8 页面的减法逐项可追溯到旧库 678 表 / 291 离线 HTML 页面 / 21 条业务反馈
+5. **基于旧平台真相而非纸上设计**——18 项一级目录 → 8 主入口的减法逐项可追溯到旧库 678 表 / 291 离线 HTML 页面 / 21 条业务反馈
 
 ### 1.5 成功标准
 
@@ -238,7 +238,7 @@ zw-brain 的工作是：
 
 1. **运行监控 / 数据直达 / 供需对接** 是真实使用频度前三（37+36+36 = 109 页 ≈ 37%）—— §3.4 外部依赖承接。
 2. **国家目录治理 27 页**虽多，但业务方原话"用得最少"—— §5.6 标 P2 优先级正确。
-3. **18 项一级目录 → 8 页面是 56% 减法**——收敛逻辑见 §5.2.1。
+3. **18 项一级目录 → 8 主入口是 56% 减法**——收敛逻辑见 §5.2.1。
 
 ### 3.3 真实强状态领域：6 态 catalog + 5 步申请 + 5 维度异议
 
@@ -413,11 +413,11 @@ Capability、Registry、Policy、Audit 等实现都必须回落到这套代码�
 - **国家扩展要素目录编制**作为 J2 下的独立子旅程（客户重心在本级共享，延后）
 - **编号空间区分**：`J1/J2` = 用户核心旅程；`B1` = 后台支撑面；`R1-R15` = 架构约束设计主张（§11）；`D-编号` = GATE 后决策（写入 CLAUDE.md）
 
-### 5.2 WebUI 核心页面
+### 5.2 WebUI 主入口
 
-产品界面收敛为 **8 个主页面**，硬上限 `≤<!-- stat:zwbrain.webui-pages-cap -->8<!-- /stat -->`。普通用户主心智应聚焦核心旅程页面（P1-P5/P7），后台支撑面（B1.1 / B1.2）仅管理员访问。
+主入口枚举如下（普通用户聚焦 P1-P5/P7；后台支撑面 B1.1 / B1.2 仅管理员/审计员可见）。**新增主入口必须先回答"为什么不是已有某 P/B 的子页"**——8 这个数字不是契约，"每加一个主入口都要回答为什么"才是。子页（detail / inbox / wizard 等）随旅程拓展不计入主入口枚举。
 
-| 页面 | 服务的旅程 / 后台面 | 说明 |
+| 主入口 | 服务的旅程 / 后台面 | 说明 |
 |------|--------------------|------|
 | P1 工作台 | 全局入口（所有用户） | **首屏=今日待办**（不是菜单树）；按 超时 > 临期 > 普通 排序；中央=进行中事项（近 7 天）；右侧=推荐 + 通知 |
 | P2 资源发现 | J1 找数→用数 | 检索、筛选、目录展开、资源详情；UI 不堆工程术语 |
@@ -426,11 +426,13 @@ Capability、Registry、Policy、Audit 等实现都必须回落到这套代码�
 | P5 提供方管理 | J2 挂数→维数 | 编目、上架、发布、异议处理；发布时重复率检测提醒（不硬拦） |
 | P7 共享专区 / 专题包 | J1 找数→用数 + J2 挂数→维数 | 主题化聚合与订阅入口 |
 | B1.1 合规与运营 | B1 后台支撑面 | 审计回放、统计、异常、追责；仅管理员/审计员 |
-| B1.2 平台接入与扩展中心 | B1 后台支撑面 | 仅管理员；能力包审核注册、外部接入配置、暴露矩阵与租户策略 |
+| B1.2 平台接入与扩展中心 | B1 后台支撑面 | 仅管理员；含 (a) 外部能力包接入 / 暴露矩阵 / 租户策略；(b) **三引擎配置**（审批流可视化 / 表单 schema / 推荐规则——R14 兑现，详见 §10.3）；(c) 身份治理（IAM 投影面） |
 
-### 5.2.1 旧平台 18 项一级目录 → 新平台 8 页面的真实收敛逻辑
+**admin 旅程占位**：路由 `/migration-acceptance`（M0 迁移验收 · 实施工程师 admin 账号）在 PagePlaceholder 状态，不进主导航；首个客户上线时升格为 B1.x 子页或独立 admin 旅程，按 R13 业务方 sign-off 决策。
 
-> 让 8 页面的减法透明可追溯——基于 `old/20260519/平台系统角色菜单梳理v5.xlsx` + `old/html/` 291 离线 HTML 分簇 + `old/old_codes/portal-vue` 路由事实。
+### 5.2.1 旧平台 18 项一级目录 → 新平台主入口的真实收敛逻辑
+
+> 让主入口的减法透明可追溯——基于 `old/20260519/平台系统角色菜单梳理v5.xlsx` + `old/html/` 291 离线 HTML 分簇 + `old/old_codes/portal-vue` 路由事实。
 
 | 旧平台菜单（实有项） | 旧 SPA 路由 | HTML 密度 | 处置 | 收敛动作 |
 |---|---|---|---|---|
@@ -457,11 +459,11 @@ Capability、Registry、Policy、Audit 等实现都必须回落到这套代码�
 
 **收敛逻辑总结**（20 个旧入口的收敛动作分布）：
 
-- ✅ **保留**（进 8 页面 P1-P5/P7 或 B1.1/B1.2，含合并）：10 项
+- ✅ **保留**（进 8 主入口 P1-P5/P7 或 B1.1/B1.2，含合并）：10 项
 - ❌ **不复造**（外部依赖或不进 IA）：8 项
 - ⏸️ **占位延后**：2 项（国家通道）
 
-**Jobs 式判断**：旧平台 18 项一级目录 + 7 个独立 SPA → zw-brain 8 页面 + 单一 WebUI，**真实减法 56%**。客户日常用的就是 J1+J2 这两条链。
+**Jobs 式判断**：旧平台 18 项一级目录 + 7 个独立 SPA → zw-brain 8 主入口 + 单一 WebUI，**真实减法 56%**。客户日常用的就是 J1+J2 这两条链。
 
 ### 5.3 嵌入式自然语言加速器
 
@@ -632,21 +634,14 @@ legacy 门户的信息架构只能作为遗留能力索引，不再作为新 Web
 
 ### 6.6 Registry 边界与能力预算（P0-05 落地）
 
-能力 registry 不是"无限注册的容器"，而是与 WebUI §5.2 8 页面 cap 同等地位的**产品边界**。每条 manifest 必须在 `product_scope` 自报旅程归属与状态：
+能力 registry 不是"无限注册的容器"，而是与 §5.2 主入口枚举同等地位的**产品边界**。每条 manifest 必须在 `product_scope` 自报旅程归属与状态：
 
 | 字段 | 取值 | 含义 |
 |------|------|------|
 | `product_scope.journey` | `j1` / `j2` / `b1` / `infra` / `external` / `national` | 该能力服务于哪条 §5.1 旅程或后台支撑面；非核心旅程必须显式声明 |
 | `product_scope.status` | `live` / `deferred:wave-{1..4}` / `external` | `live` 才进 5 消费面投影；`deferred` 与 `external` 由 `export_agent_contract.py` 机械过滤掉，UI 不可达 |
 
-**Per-journey live capability 预算（drift = registry 边界变更）：**
-
-- J1 找数→用数：`<!-- stat:zwbrain.capability-budget-j1 -->68<!-- /stat -->` live capabilities
-- J2 挂数→维数：`<!-- stat:zwbrain.capability-budget-j2 -->43<!-- /stat -->` live capabilities
-- B1 后台支撑面：`<!-- stat:zwbrain.capability-budget-b1 -->60<!-- /stat -->` live capabilities
-- Infra 底座（鉴权 / 审计 / actor / adapter health）：`<!-- stat:zwbrain.capability-budget-infra -->17<!-- /stat -->` live capabilities
-
-这 4 个数字写进 `scripts/.stats.json`，preflight 段 8 自动校验。任意一项 drift（无论是增是减）都意味着 §5.1 旅程范围或底座边界被改动，**必须走 GATE 决策**，不允许悄悄漂移。
+> 此前的 per-journey live capability 预算曾被写为"drift = GATE 决策"的硬契约（4 个 stat 数字）。现实里增删一个 capability 是日常工程动作，无人为单点漂移开 GATE——属假契约。已删除：真正的产品边界由本节段 22 禁区前缀回潮防护 + §7.3 entry→command→domain→shared 分层 + reviewer 判断共同承担。
 
 **已发现禁区前缀的回潮防护（preflight 段 22）：**
 
@@ -667,12 +662,12 @@ legacy 门户的信息架构只能作为遗留能力索引，不再作为新 Web
 **作用边界（避免误解）：**
 
 - 段 22 只防"主 zw-brain 自建 builtin"回潮，**不阻止通过 `execution_binding == external_capability` 桥接外部系统消费同域能力**——例如 `external.lineage.graph.build` / `external.quality.scan.execute` / `external.notification.workorder.dispatch` 均为合法形态，正是 §1.3 "集团中心已做" 的消费桥接。血缘禁区**刻意不用「skill_id 含 `lineage` 段」宽匹配**：`external.lineage.*` 等桥接能力靠 `status` + `execution_binding` 区分，段 22 只锁 `metadata.lineage.*` 曾出现的 builtin 回潮。
-- 段 22 是**事后防回潮**，把 P0 已清理的 27 个越界 manifest 锁死；**不是 §1.3 完整 10 类的事前防违建**。伪装成核心旅程（j1/j2/b1/infra）的新建 builtin 无法靠 prefix 拦下，那属架构约束「能力扩展唯一路径 = Skill 注册」+「高频核心走 builtin、长尾默认外部化」+ reviewer 判断范畴。
+- 段 22 是**事后防回潮**，把 P0 已清理的越界 manifest 集合锁死；**不是 §1.3 完整 10 类的事前防违建**。伪装成核心旅程（j1/j2/b1/infra）的新建 builtin 无法靠 prefix 拦下，那属架构约束「能力扩展唯一路径 = Skill 注册」+「高频核心走 builtin、长尾默认外部化」+ reviewer 判断范畴。
 - §1.3 出现新的 builtin 越界前缀时（例如未来若有 `dashboard.*` / `desensitize.*` 等），需同步更新 `check_capability_boundary.py::FORBIDDEN_ZONES`。
 
-当前基线扫描结果：200 manifests / 27 落入禁区前缀 / 0 live+builtin 越界（13 `external` + 14 `deferred` + 1 `external_capability`）。任何把禁区 manifest 状态改回 `live + builtin` 的 commit 必然被段 22 拦下；回归保障由 `tests/test_capability_boundary.py` 自动化覆盖（6 个场景）。
+基线契约：所有落入上表 7 类禁区前缀的 manifest，必须 `status != live` 或 `execution_binding != builtin`——任意把禁区 manifest 改回 `live + builtin` 的 commit 必然被段 22 拦下；回归保障由 `tests/test_capability_boundary.py` 自动化覆盖（6 个场景）。具体数字（当前禁区 manifest 数量、live/deferred 分布）属运行时事实，由脚本输出，不在本文裸写——参考 `scripts/check_capability_boundary.py --report` 或 `bash scripts/sync-stats.sh --check`。
 
-**与 §7.3 webui-pages-cap 的关系**：8 页面 cap 是 UI 层"什么进主导航"的硬边界；本节的旅程预算 + 段 22 禁区前缀回潮防护是 capability 层"什么能成为 builtin live 能力"的硬边界。两者一上一下，共同构成产品形态的机械化执行面，杜绝旧平台"全菜单全能力"的形态复刻。
+**与 §5.2 主入口枚举的关系**：§5.2 主入口枚举是 UI 层"什么进主导航"的产品边界；本节段 22 禁区前缀回潮防护是 capability 层"什么能成为 builtin live 能力"的产品边界。两者一上一下，共同杜绝旧平台"全菜单全能力"的形态复刻。
 
 ---
 
@@ -1037,7 +1032,13 @@ OPC 模式下，主仓只保留高频核心与底座，长尾能力默认转向�
 
 ### R10 — 用户角色定义严格对齐旧平台 ROLE_* 码，不引入并行命名空间
 
-7 角色码（`ROLE_SYSTEM` / `ROLE_BUSIAUDIT` / `ROLE_ORGAN_MANAGER` / `ROLE_ORGAN_OPERATER` / `ROLE_SECURITY_ADMIN` / `ROLE_SECURITY_AUDIT` + `tag_lead_dept` 标签）冻结；新增需走 GATE + 业务方 sign-off；由 `policy.assert_no_legacy_role_codes()` + preflight 段双层兜底。
+**6 用户角色码 + 1 标签位 + 2 运行账号**（合计 8 项；权威源 `zw_brain/domain/role_codes.py`）：
+
+- **6 用户角色码**（受 R13 GATE 约束，新增/修改必须业务方 sign-off）：`ROLE_ORGAN_OPERATER` / `ROLE_ORGAN_MANAGER` / `ROLE_BUSIAUDIT` / `ROLE_SECURITY_ADMIN` / `ROLE_SECURITY_AUDIT` / `ROLE_SYSTEM`
+- **1 标签位**：`tag_lead_dept`，依附 `ROLE_ORGAN_MANAGER`，仅基础主题分类相关 2 项权限——是属性不是角色，不进角色枚举
+- **2 运行账号**（非用户角色，是 actor / 运行时身份；不受 R13 GATE 约束）：`admin`（实施工程师，M0 验收/部署期使用）+ `system`（IAM 自动写入身份）。这两个不分配给真实人员、不进 UI 角色切换器、不在业务流程中扮演角色——属"系统账号"。
+
+冻结由 `policy.assert_no_legacy_role_codes()` 启动检查 + preflight 段 19 (`check_no_legacy_role_codes.py`) 仓库级 grep 双层兜底。新增**用户角色码**必须走 R13 GATE + 业务方 sign-off；新增**运行账号**仅需架构 review，不触发业务方 GATE。
 
 ### R11 — 角色与数据流向解耦：方向由运行时计算，不通过角色拆分表达
 
@@ -1132,7 +1133,20 @@ Wave 2 必达三引擎（审批流可视化引擎 + 表单 schema 化引擎 + �
 | 外部能力包必须带治理元数据 | trigger 化 pending | 触发条件 = 出现首个外部能力包注册请求；届时新增 package schema 检查；详见 [preflight-debt.md](../preflight-debt.md) |
 | Capability 的确认边界不得被 UI / Agent 绕过 | trigger 化 pending | 触发条件 = 出现绕过案例 OR §8.6 T1 外部 Agent 接入；届时新增 contract-to-runtime 一致性检查 |
 | 反 per-tenant fork | trigger 化 pending | 触发条件 = 出现第二个真实租户 OR 客户提出 fork 后端意图；当前单租户 `sd-default`，无 fork 风险 |
-| 控制面不得出现多处手维护投影 | trigger 化 pending | 触发条件 = `export_agent_contract.py --check` drift 后发现手维护痕迹；目前 5 消费面均派生自单 registry |
+| 控制面不得出现多处手维护投影（F4） | 已 wired | preflight 段 29 `scripts/check_no_hand_maintained_projection.py` —— 5 消费面投影禁止 "AUTO-GENERATED; DO NOT EDIT" banner 之外的手工 patch 痕迹 |
+
+### C.1 preflight 段全集
+
+**单一事实源**：`scripts/preflight.sh` 的 while-read 块（段号 → 脚本路径 → 检查 desc 三列）。本附录**不再复制**该表——任何"doc 抄 script 一份让 reviewer 同步"都是 OPC 反模式（本 PR review 第 1 轮 R-002 finding 即此）。
+
+查询用法：
+
+```bash
+grep -E '^段' scripts/preflight.sh         # 查段号 + 检查目的（中文 desc）
+bash scripts/preflight.sh                 # 按段顺序跑全检查
+```
+
+每段脚本顶部 docstring 给出关联的 D-编号 / R-编号约束。当某段需要补充设计层解释时，**回到本文 §对应章节展开**——脚本是执行权威，doc 是设计权威，两者通过段号互引、不复制内容。
 
 ---
 

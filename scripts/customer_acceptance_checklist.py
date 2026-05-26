@@ -206,9 +206,9 @@ def main() -> int:
         )
 
         set_role(page, "ROLE_SYSTEM")
-        goto(page, "#/engines-admin")
+        goto(page, "#/integration-admin/engines")
         t = app_text(page)
-        record("B1.3 三引擎", "三引擎" in t and PLACEHOLDER not in t, t[:80])
+        record("B1.2 三引擎子页", "三引擎" in t and PLACEHOLDER not in t, t[:80])
 
         # 操作员无权 P5
         set_role(page, "ROLE_ORGAN_OPERATER")
