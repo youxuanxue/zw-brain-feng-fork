@@ -5,6 +5,19 @@ the symptom, the deferred decision, and the trigger that forces a re-evaluation.
 
 任何一条 entry 在 trigger 触发时必须升级为 P0 fix 或转化为机械化 preflight check；不允许长期沉淀。
 
+## entry 必填字段约定（2026-05-26）
+
+**自本约定起新增的** trigger 化延后 entry，应含 `Where` / `Implication` / `Why deferred`
+/ `Trigger to re-evaluate` 四个核心字段；并且**如果 trigger 触发当日落地的代码会撞 main
+已占用的标识符**，必须额外补一行 `Reserved names (taken)`，记录当前 main 已占用、将来
+trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / 类名 …）+ rename 取舍提示。
+
+既有 entry（2026-05-26 之前）字段命名不严格统一，仅在触动重写时一并补齐——避免一次性
+回填造成纯文字 PR 噪声。
+
+目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
+trigger 关闭即可删除字段。
+
 ## 2026-05-26 — 读路径热表 tenant-only 全扫白名单（PR #113 同模式残留）
 
 - **Where**: 段 32 `scripts/check_read_path_full_scan.py` 在当前 main HEAD 扫到 12 处与
@@ -113,6 +126,10 @@ the symptom, the deferred decision, and the trigger that forces a re-evaluation.
   「未授权能力不得变 live+builtin」；额外的 AgentRuntime 字段守卫在 T1/T2 触发前是 noise。
 - **不预先盖楼**：在 T1/T2/T3 任一触发前，主仓库不引入未被消费的 schema 字段、不写空跑的 validate/doctor 脚本、
   不在测试夹具里维护 AGENT.yaml 样本。
+- **Reserved names (taken)**: `trust_level` (业务字段，能力包内置元数据，enum baseline/reviewed/restricted/revoked)
+  — 触发 T1 时 AgentRuntime Registry trust_level (platform/verified/untrusted) 撞名，必须 rename 其中一方
+  （建议把 AgentRuntime 字段改名为 `package_trust_level` 或 `runtime_trust_level`，业务字段已写进 2 manifest
+  + policy 校验难翻盘）。
 
 ## 2026-05-24 — 附录 C 4 项 trigger 化 pending（D30 retrofit）
 

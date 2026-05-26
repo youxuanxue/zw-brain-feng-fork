@@ -94,6 +94,6 @@
   ],
   "product_scope": {
     "journey": "infra",
-    "status": "live"
+    "status": "deferred:wave-3"
   }
 }

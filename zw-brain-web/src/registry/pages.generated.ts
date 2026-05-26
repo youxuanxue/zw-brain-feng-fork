@@ -179,7 +179,6 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     {"skillId": "security.scan.result.sync", "mode": "write", "auditClass": "write-normal", "humanConfirmationRequired": true, "roles": [], "permissions": ["security.scan.result.sync.execute"]},
   ] },
   { anchor: "B1.2", capabilities: [
-    {"skillId": "adapter.cascade.health.query", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["adapter.cascade.health.query.execute"]},
     {"skillId": "adapter.external.mapping.query", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["adapter.external.mapping.query.execute"]},
     {"skillId": "legacy.migration.status.query", "mode": "read", "auditClass": "read-trace", "humanConfirmationRequired": false, "roles": [], "permissions": ["legacy.migration.status.query.execute"]},
     {"skillId": "package.exposure.matrix.query", "mode": "read", "auditClass": "read-sensitive", "humanConfirmationRequired": false, "roles": [], "permissions": ["package.exposure.matrix.query.execute"]},
@@ -188,8 +187,6 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     {"skillId": "registry.artifact.export", "mode": "read", "auditClass": "read-normal", "humanConfirmationRequired": false, "roles": [], "permissions": ["registry.artifact.export.execute"]},
     {"skillId": "tenant.policy.evaluate", "mode": "read", "auditClass": "read-trace", "humanConfirmationRequired": false, "roles": [], "permissions": ["tenant.policy.evaluate.execute"]},
     {"skillId": "actor.projection.sync", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["actor.projection.sync.execute"]},
-    {"skillId": "adapter.cascade.consume", "mode": "write", "auditClass": "adapter-write", "humanConfirmationRequired": true, "roles": [], "permissions": ["adapter.cascade.consume.execute"]},
-    {"skillId": "adapter.cascade.replay", "mode": "write", "auditClass": "adapter-write", "humanConfirmationRequired": true, "roles": [], "permissions": ["adapter.cascade.replay.execute"]},
     {"skillId": "adapter.health.probe", "mode": "write", "auditClass": "write-normal", "humanConfirmationRequired": true, "roles": [], "permissions": ["adapter.health.probe.execute"]},
     {"skillId": "approval_flow.nl_draft", "mode": "write", "auditClass": "read-normal", "humanConfirmationRequired": false, "roles": [], "permissions": ["approval_flow.nl_draft.execute"]},
     {"skillId": "approval_flow.schema.commit", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["approval_flow.schema.commit.execute"]},

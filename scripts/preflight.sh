@@ -29,17 +29,26 @@ ok_proj()   { echo "  ok: $*"; }
 
 run_check() {
     local section_id="$1"
-    local script="$2"
+    local script_cmd="$2"
     local desc="$3"
-    section "$section_id $desc ($script)"
-    if [ ! -f "$script" ]; then
-        echo "  skip: $script not present (see docs/preflight-debt.md)"
+    section "$section_id $desc ($script_cmd)"
+    # script_cmd 第一段为路径，剩余为参数（支持 `script.py --check` 类形态）
+    local script_path script_args
+    script_path="${script_cmd%% *}"
+    if [[ "$script_cmd" == *" "* ]]; then
+        script_args="${script_cmd#* }"
+    else
+        script_args=""
+    fi
+    if [ ! -f "$script_path" ]; then
+        echo "  skip: $script_path not present (see docs/preflight-debt.md)"
         return
     fi
-    if [ ! -x "$script" ]; then
-        chmod +x "$script" 2>/dev/null || true
+    if [ ! -x "$script_path" ]; then
+        chmod +x "$script_path" 2>/dev/null || true
     fi
-    if "$script"; then
+    # shellcheck disable=SC2086
+    if "$script_path" $script_args; then
         ok_proj "$desc"
     else
         fail_proj "$desc"
@@ -75,6 +84,9 @@ done <<'CHECKS'
 段 30	scripts/check_m0_mapper_coverage_doc.py	m0-mapper-doc (覆盖判定 doc count vs HANDLED_TABLES 防漂移)
 段 31	scripts/check_trusted_payload_usage.py	trusted-payload-usage (tests 走 invoke_trusted 不直接 brain.invoke_skill — F6 防回潮)
 段 32	scripts/check_read_path_full_scan.py	read-path-full-scan (PR #113 教训机械化)
+段 32b	scripts/generate_full_scan_exemptions.py --check	full-scan-exemptions-sync (E2 豁免清单与代码同步)
+段 33	scripts/check_live_builtin_budget.py	live-builtin-budget (架构约束 R7 单 prefix > 25 触发 review)
+段 34	scripts/check_wave_snapshot_sync.py	wave-snapshot-sync (E1 — §〇.1 反向链接锚点解析 + debt 反向覆盖)
 CHECKS
 
 echo ""

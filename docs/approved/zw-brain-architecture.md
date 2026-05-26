@@ -46,7 +46,7 @@ phase_after_approval: Phase 0（先打通首条黄金链路 J1 找数→用数�
 | 六、统一能力契约 | 五个消费面如何共用一套能力 | 工程 / 外部接入 |
 | 七、架构与代码边界 | 运行时分层与代码分层 | 工程 |
 | 八、外部能力集成模型 | 新能力的接入路径 | 工程 / 生态 |
-| 九、数据模型 | 领域语义与 Phase 1 物理边界 | 工程 |
+| 九、数据模型 + 非功能契约 | 领域语义与 Phase 1 物理边界 + §9.7 读写路径性能 / 会话 / 部署形态 | 工程 |
 | 十、实施路线图 | 先做什么、后做什么、不做什么 | PM / 架构师 |
 | 十一、关键设计主张 | R1-R15 设计主张 | 决策审计 |
 | 附录 A | 旧能力簇 → 新能力面映射 | 产品 / 迁移 |
@@ -930,6 +930,88 @@ zw-brain 是**全新项目**，没有历史客户、没有存量数据需要迁�
 - **本机 / CI / 部署用 `Base.metadata.drop_all()` + `create_all()`**：每次启动重建 schema；不维护迁移链
 - **alembic 不进入产品基线**：对全新项目维护迁移链是历史兼容思维的副产品
 - **alembic 启用条件**：第一个真实客户上线 + 第一次生产 schema 变更时，把当时的 schema 作为新 baseline 启动 alembic
+
+### 9.7 非功能契约
+
+> 本节晒出读写路径性能、会话与部署形态的关键约束。数字基于真实事故反推与经验估算；
+> 业务级精确 SLO 在首个客户上线（trigger）前是 placeholder——届时由真实压测取代，
+> 并写入 D-编号决策。
+
+#### 9.7.1 读路径热区（preflight 段 32 机械化）
+
+以下模块的读路径**禁止全表扫**，必须显式 `.where()` / `.filter()` / `.limit()`
+或带豁免注释 `# full-scan-ok: <reason>`：
+
+- `zw_brain/domain/repositories/catalog.py`（PR #113 教训：目录列表查询全表扫触发性能事故）
+- `zw_brain/domain/repositories/resource.py` / `application.py` / `approval.py` /
+  `delivery.py` / `supply_demand.py`
+- `zw_brain/command/handlers/j2/metadata.py`
+
+豁免清单由 `scripts/check_read_path_full_scan.py` 在 commit 时强制；
+真实豁免数 + 原因每月 review（详见 §9.7.5）。
+
+#### 9.7.2 读路径性能契约（placeholder，首客上线前为占位）
+
+| 接口 | 期望 p95 | 索引依赖 | 状态 |
+|---|---|---|---|
+| `catalog.list.query` / `catalog.search` | < 200ms @ 10万行（基于 PR #113 fix 后实测约 120ms） | `data_catalog.tenant_id + status` 复合 | 实测就位 |
+| `resource.detail.query` | < 100ms | `data_resource.id` PK | 默认 |
+| `application.list.query` | < 300ms @ 5万行 | `data_business.applicant_org_code + status` | 待补 |
+| 其余 5 消费面投影 | 派生而非实时计算 | 见 §6.5 | 已就位 |
+
+**触发更新**：首个客户上线前压测取代 placeholder；任何接口 p95 > 期望 1.5× 触发 P0
+事故 + 进 debt entry。
+
+#### 9.7.3 会话与多副本语义（BFF）
+
+PR #110 之后（数据基于 `zw_brain/shared/auth_session.py` + `zw_brain/entry/rest/server.py`
+代码事实）：
+
+- **BFF session 后端**：可选 Redis；环境变量 `ZW_BRAIN_SESSION_REDIS_URL` 设置时走
+  `RedisAuthSessionStore`（key prefix `zw-brain:session:`，可由
+  `ZW_BRAIN_SESSION_REDIS_KEY_PREFIX` 覆盖），否则走 `InMemoryAuthSessionStore`
+- **TTL**：access token = `expires_in`（IAF OIDC 提供；默认 fallback 5 分钟），
+  refresh token = `refresh_expires_in`（IAF OIDC 提供；默认 fallback 24 小时）。
+  无滑动续期；接近过期时由 `should_refresh` 触发 refresh
+- **多副本支持**：单租户单省 `sd-default`，BFF 可水平扩 N 副本，**前提是配置 Redis
+  backend**；InMemory 默认仅支持单进程
+- **CSRF 形态**：synchronizer token pattern — `csrf_token` 与 session 绑定，前端通过
+  GET `/auth/iaf/session` 获取后在 mutate 请求带 `X-CSRF-Token` header；cookie 是
+  HttpOnly（前端读不到）+ `SameSite=Lax` + `Secure`（HTTPS 时）
+- **登出**：服务端 `_AUTH_SESSION_STORE.delete(session_id)` + `_clear_session_cookie()`
+  + IAF OIDC end-session endpoint 重定向（如已配置）
+- **session schema 变更**：滚动升级时新增字段默认值要使老 session 仍可读
+  （`AuthSession.from_storage_dict` 已对可选字段用 `.get(... or default)`）
+
+#### 9.7.4 部署形态（首客上线前 placeholder）
+
+- **本机/演示默认**：`scripts/start-local.sh` — 单 Postgres + 单 BFF 进程 +
+  InMemoryAuthSessionStore；不需要 Redis
+- **生产形态目标**：Docker 镜像（`Dockerfile` / `Dockerfile_v1.0.0`）+ 单 Postgres
+  + 单 Redis（**强制**：未设置 `ZW_BRAIN_SESSION_REDIS_URL` 且 `ZW_BRAIN_DEPLOY_MODE=prod`
+  会启动即 `SystemExit`）+ BFF 多副本（水平扩展依赖 Redis 共享 session）
+- **客户机房部署脚本**：未落地（debt 2026-05-25 entry）；触发条件 = 首客立项
+- **监控对接**：未对接集团运维监控（debt 2026-05-25 entry）；触发条件同上
+- **dev-iam-bypass 生产守卫**：preflight 段 23 已机械（debt 跟踪中）
+
+#### 9.7.5 豁免与债务 review
+
+- **段 32 read-path full-scan 豁免**：由 `scripts/check_read_path_full_scan.py` 在违规时
+  打印；当前真实豁免清单 review 周期 = 每月一次（与 debt entry review 同步）
+- **段 33 live-builtin budget 豁免**：`scripts/.live_builtin_budget_exemptions.json`
+  显式登记；越过 N=25 阈值的 prefix 必须配 architecture-review issue 链接
+
+#### 9.7.6 与现有机械检查的对照
+
+| 非功能契约 | 机械段 | 状态 |
+|---|---|---|
+| 读路径不得全表扫 | 段 32 | 已就位（PR #114） |
+| 单 prefix live+builtin ≤ 25 | 段 33 | 本 PR 引入 |
+| Wave 真相表与 debt 同步 | 段 34 | 本 PR 引入 |
+| full-scan 豁免清单与代码同步 | 段 32b | 本 PR 引入 |
+| 推理调用走集团平台 | 段 10 | 已就位 |
+| 审计同步落库 | 段 7a/7b | 已就位 |
+| adapter 写禁区 | 段 25 | 已就位 |
 
 ---
 

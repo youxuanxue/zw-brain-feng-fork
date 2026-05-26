@@ -10,6 +10,11 @@ sources:
 
 # P0-01 — 200 Capability 契约分类矩阵
 
+> **2026-05-26 PR #115 更新**：`adapter.cascade.{consume,health.query,replay}` 3 条由
+> `live | 保留` 调整为 `deferred:wave-3 | deferred`，与 §3.4 省市间数据通道延后 +
+> `adapter.national.*` 同 pattern 对齐（handler 共享通用记账逻辑，UI 出口 0，业务调用 0）。
+> 表内具体 row 35-37 + §3 journey 分布表 infra 计数已同步更新。
+>
 > **本文档是 P0-01 只读分析产物**。不动 manifest / schema / 门禁 / db。仅作为 P0-02..P0-07 的执行依据。
 >
 > Jobs 视角的判断尺度：
@@ -32,9 +37,9 @@ sources:
 | # | skill_id | 当前 binding/source | journey | status 建议 | 处置 | 一句话理由 / 依据 |
 |---|----------|----------------------|---------|------------|------|--------------------|
 | 1 | actor.projection.sync | builtin/internal | b1 | live | 保留 | §5.2 B1.2 角色投影同步（IAM 概览所需） |
-| 2 | adapter.cascade.consume | builtin/internal | infra | live | 保留 | §3.1 dsp_connect 57 表跨地市真实主线，cascade 与 national 是两回事 |
-| 3 | adapter.cascade.health.query | builtin/internal | infra | live | 保留 | 跨地市通道健康，infra 类 |
-| 4 | adapter.cascade.replay | builtin/internal | infra | live | 保留 | 跨地市回执回放 |
+| 2 | adapter.cascade.consume | builtin/internal | infra | deferred:wave-3 | deferred | §3.4 省市间数据通道延后；与 national.* 同 pattern（handler 共享通用记账逻辑，UI/业务调用 0；2026-05-26 PR #115） |
+| 3 | adapter.cascade.health.query | builtin/internal | infra | deferred:wave-3 | deferred | §3.4 同上；2026-05-26 PR #115 |
+| 4 | adapter.cascade.replay | builtin/internal | infra | deferred:wave-3 | deferred | §3.4 同上；2026-05-26 PR #115 |
 | 5 | adapter.external.mapping.query | builtin/internal | infra | live | 保留 | 外部映射查询（多 adapter 共用） |
 | 6 | adapter.health.probe | builtin/internal | infra | live | 保留 | adapter 健康基础设施 |
 | 7 | adapter.national.application.receive | builtin/internal | national | deferred:wave-3 | deferred | §10.4 国家通道独立子旅程 P2，本期不投影 |
@@ -343,26 +348,26 @@ sources:
 | j1 | 59 | **65** | +6 | J1 找数→用数（Wave 0 已跑通） + Wave 1 异议(13) / 供需(6) 子流程契约预留 |
 | j2 | 42 | **46** | +4 | J2 挂数→维数（Wave 1 闭环） + topic.package 维护方(8) + resource.api(9) + reverse_draft(4) |
 | b1 | 41 | **45** | +4 | B1.1 合规运营(9) + B1.2 平台接入扩展(10) + governance(5) + compliance.case(5) + tenant(3)；含 1 borderline (service.rating.submit) |
-| infra | 17 | **20** | +3 | workbench + system(2) + legacy migration(3) + adapter cascade(3) + adapter base(2) + metadata 支撑(5) + registry.export |
-| **合计 live** | **159** | **176** | +17 | 同时声明 external=27 / deferred=13 / delete=1 |
+| infra | 14 | **17** | +3 | workbench + system(2) + legacy migration(3) + adapter base(2) + metadata 支撑(5) + registry.export（2026-05-26 PR #115：adapter cascade(3) 移至 deferred:wave-3） |
+| **合计 live** | **156** | **173** | +17 | 同时声明 external=27 / deferred=16 / delete=1 |
 | external (已) | 14 | — | — | 已 `external_capability`/`external_contract`；不计入预算 |
 | external (改) | 13 | — | — | §5.1 builtin→external（§1.3 血缘/质量/运维） |
-| deferred:wave-3 | 12 | — | — | national/direct_access；§10.4 |
+| deferred:wave-3 | 15 | — | — | national/direct_access；§10.4 + adapter cascade(3)（2026-05-26 PR #115） |
 | deferred:wave-2 | 1 | — | — | standard.asset.recommend；§10.3 三引擎之一 |
 | delete | 1 | — | — | standard.asset.sync；§1.3 "标准服务" |
-| **总计契约文件** | **200** | — | — | 159 live + 14 已 ext + 13 改 ext + 12 deferred-w3 + 1 deferred-w2 + 1 delete = 200 ✓ |
+| **总计契约文件** | **200** | — | — | 156 live + 14 已 ext + 13 改 ext + 15 deferred-w3 + 1 deferred-w2 + 1 delete = 200 ✓ |
 
-**Tally 核验**（≡200）：
-- 159 保留 live builtin（J1 59 + J2 42 + B1 41 + infra 17）
+**Tally 核验**（≡200，2026-05-26 PR #115 更新）：
+- 156 保留 live builtin（J1 59 + J2 42 + B1 41 + infra 14）
 - 14 已 `external_capability/external_contract`（不动）
 - 13 builtin→改 status=external（§5.1 清单：metadata.lineage.* 2 + quality.* 3 + ops.catalog.quality.* 2 + ops.exchange.diagnose + ops.gateway.* 2 + ops.shift_handover + ops.ticket.* 2 = 13）
-- 12 builtin→改 status=deferred:wave-3（adapter.national.* 10 + direct_access.* 2）
+- 15 builtin→改 status=deferred:wave-3（adapter.national.* 10 + direct_access.* 2 + adapter.cascade.* 3）
 - 1 builtin→改 status=deferred:wave-2（standard.asset.recommend）
 - 1 builtin→delete（standard.asset.sync）
 
-**净减效果**：186 builtin/live → 159 live = **净减 27 越界契约**（13 改 external + 12 deferred:wave-3 + 1 deferred:wave-2 + 1 delete），加上 14 已 external 维持现状，合计 200 个契约的边界归属全部清晰。
+**净减效果**：186 builtin/live → 156 live = **净减 30 越界契约**（13 改 external + 15 deferred:wave-3 + 1 deferred:wave-2 + 1 delete），加上 14 已 external 维持现状，合计 200 个契约的边界归属全部清晰。
 
-**修正后预算建议**：j1=65 / j2=46 / b1=45 / infra=20，合计上限 **176**。改预算 = 一次有记录的架构决策（写入基线 §6 或 §9）。
+**修正后预算建议**：j1=65 / j2=46 / b1=45 / infra=17（2026-05-26 PR #115：cascade 3 条延后后下调），合计上限 **173**。改预算 = 一次有记录的架构决策（写入基线 §6 或 §9）。
 
 > **borderline 说明**：B1=41 含 `service.rating.submit`（#175）。sign-off 若改为 external，则 b1=40、live=158、b1 预算降到 44。
 

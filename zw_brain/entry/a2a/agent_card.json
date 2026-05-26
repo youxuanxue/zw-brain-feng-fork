@@ -9,20 +9,6 @@
   },
   "skills": [
     {
-      "id": "adapter.cascade.health.query",
-      "mode": "read",
-      "humanConfirmationRequired": false,
-      "auditClass": "read-default",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "mcp",
-        "a2a"
-      ],
-      "sideEffects": []
-    },
-    {
       "id": "adapter.external.mapping.query",
       "mode": "read",
       "humanConfirmationRequired": false,
@@ -857,40 +843,6 @@
         "audit",
         "db_write",
         "blockchain_anchor"
-      ]
-    },
-    {
-      "id": "adapter.cascade.consume",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "adapter-write",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "adapter_receipt"
-      ]
-    },
-    {
-      "id": "adapter.cascade.replay",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "adapter-write",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "adapter_receipt"
       ]
     },
     {

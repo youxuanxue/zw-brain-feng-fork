@@ -1,0 +1,5 @@
+{
+  "_comment_1": "preflight 段 33 (check_live_builtin_budget.py) 豁免清单。键为 skill_id prefix（slug.split('.')[0]），值为 max_allowed_count（int），允许该 prefix 超过默认 N=25。",
+  "_comment_2": "豁免必须配 architecture-review issue 链接走 R-编号决策；空对象表示无豁免（默认 N=25 卡所有 prefix）。",
+  "_comment_3": "以 _ 开头的键被脚本忽略（用作注释字段）。"
+}

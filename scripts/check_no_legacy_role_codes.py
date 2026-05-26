@@ -90,6 +90,9 @@ ALLOWED_LINE_MARKERS = (
     "旧 r5",
     # 基线 §11 架构约束 R7（OPC 单人维护）违反引用 — 与已退役用户角色码 R1-R8 同名异 namespace
     "violates R7",
+    # 段 33 live-builtin-budget 文档与引用 — 架构约束 R7/R4 namespace 显式标注
+    "架构约束 R7",
+    "架构约束 R4",
 )
 
 # 允许整文件白名单（这些文件本身就是描述 R1-R8 退役的权威源）

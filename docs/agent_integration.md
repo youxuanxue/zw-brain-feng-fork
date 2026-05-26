@@ -14,9 +14,6 @@
 | Method | Path | Summary | Operation ID | Source |
 | ------ | ---- | ------- | ------------ | ------ |
 | POST | `/api/skills/actor.projection.sync` | 同步用户角色投影 | `post_actor_projection_sync` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/adapter.cascade.consume` | 消费级联事件 | `post_adapter_cascade_consume` | `zw_brain/entry/rest/openapi.json` |
-| GET | `/api/skills/adapter.cascade.health.query` | 查询级联健康 | `get_adapter_cascade_health_query` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/adapter.cascade.replay` | 重放级联事件 | `post_adapter_cascade_replay` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/adapter.external.mapping.query` | 查询外部对象映射 | `get_adapter_external_mapping_query` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/adapter.health.probe` | 探测适配器健康 | `post_adapter_health_probe` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/application.draft.suggest` | P3 申请草拟助手（预填字段 + 风险预估） | `post_application_draft_suggest` | `zw_brain/entry/rest/openapi.json` |
@@ -223,7 +220,6 @@
 
 | Tool Name | Mode | Human Confirmation | Description | Has Input Schema | Source |
 | --------- | ---- | ------------------ | ----------- | ---------------- | ------ |
-| `adapter.cascade.health.query` | read | False | 查询级联 adapter 运行记录和最近状态。 | True | `zw_brain/entry/mcp/tools/adapter.cascade.health.query.json` |
 | `adapter.external.mapping.query` | read | False | 查询国家平台或级联系统外部对象与本地聚合的映射。 | True | `zw_brain/entry/mcp/tools/adapter.external.mapping.query.json` |
 | `approval.view` | read | False | 查看审批建议、风险、影响和异常项。 | True | `zw_brain/entry/mcp/tools/approval.view.json` |
 | `assistant.investigation_summary` | read | False | 把 B1.1 statistics / anomaly / accountability panel 输出脱敏后送集团推理平台生成调查摘要；不覆盖原始审计证据，只提供阅读辅助。actor/skill_id 在送推理前 hash 化；payload 敏感字段一律脱敏。所有推理调用必须走 shared/inference/client（D6 + D14）。 | True | `zw_brain/entry/mcp/tools/assistant.investigation_summary.json` |
@@ -289,7 +285,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 188 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 185 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -298,9 +294,6 @@
 | Skill ID | Title | Version | Side Effects | Source |
 | -------- | ----- | ------- | ------------ | ------ |
 | `actor.projection.sync` | 同步用户角色投影 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/actor.projection.sync.json` |
-| `adapter.cascade.consume` | 消费级联事件 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.cascade.consume.json` |
-| `adapter.cascade.health.query` | 查询级联健康 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/adapter.cascade.health.query.json` |
-| `adapter.cascade.replay` | 重放级联事件 | 1.0.0 | audit, db_write, adapter_receipt | `zw_brain/skill_registration/registered/adapter.cascade.replay.json` |
 | `adapter.external.mapping.query` | 查询外部对象映射 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/adapter.external.mapping.query.json` |
 | `adapter.health.probe` | 探测适配器健康 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/skill_registration/registered/adapter.health.probe.json` |
 | `application.draft.suggest` | P3 申请草拟助手（预填字段 + 风险预估） | 1.0.0 | audit | `zw_brain/skill_registration/registered/application.draft.suggest.json` |
@@ -488,9 +481,9 @@
 
 ## Statistics
 
-- REST endpoints: 197
+- REST endpoints: 194
 - CLI entries: 1
-- MCP tools: 61
+- MCP tools: 60
 - A2A agent cards: 1
-- Registered Skills (live): 188 / 230 on-disk
+- Registered Skills (live): 185 / 230 on-disk
 
