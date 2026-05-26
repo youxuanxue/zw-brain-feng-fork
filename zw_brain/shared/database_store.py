@@ -34,6 +34,12 @@ from zw_brain.shared.db import create_session_factory, ensure_parent_dir
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.shared.sanitization import safe_json
 
+# Process-wide ui_state keys only — per-request `role` lives in ContextVar.
+DEFAULT_PERSISTABLE_UI_STATE: dict[str, Any] = {
+    "discoveryQuery": "",
+    "brainOutage": False,
+}
+
 
 def _now() -> datetime:
     return datetime.now(UTC)
@@ -68,12 +74,7 @@ class DatabaseStore:
             record = session.execute(select(RuntimeStateRecord).where(RuntimeStateRecord.id == 1)).scalar_one_or_none()
             if record is None:
                 snapshot = clone_seed_snapshot()
-                ui_state = {
-                    "role": "ROLE_ORGAN_OPERATER",
-                    "discoveryQuery": "",
-                    "brainOutage": False,
-                }
-                return snapshot, ui_state
+                return snapshot, dict(DEFAULT_PERSISTABLE_UI_STATE)
             return dict(record.snapshot_json), dict(record.ui_state_json)
 
     def save_runtime_state(self, snapshot: dict[str, Any], ui_state: dict[str, Any]) -> None:

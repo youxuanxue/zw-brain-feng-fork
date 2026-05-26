@@ -156,6 +156,11 @@ class _UIStateProxy(MutableMapping[str, Any]):
     def __len__(self) -> int:
         return len(self._backing) + len(self._CONTEXT_KEYS)
 
+    def persistable_view(self) -> dict[str, Any]:
+        # Per-request keys (ContextVar-backed) must not enter durable storage —
+        # their value is meaningful only inside the request that wrote them.
+        return dict(self._backing)
+
 
 class BrainService:
     def __init__(self, state_store: StateStore | None = None) -> None:
@@ -2871,7 +2876,7 @@ class BrainService:
         )
 
     def _persist(self) -> None:
-        self._state_store.save(self._snapshot, dict(self._ui_state))
+        self._state_store.save(self._snapshot, self._ui_state.persistable_view())
 
     def _emit_audit(self, request_id: str, actor: str, skill_id: str, phase: str, payload: dict[str, Any]) -> None:
         manifest = get_manifest(skill_id)

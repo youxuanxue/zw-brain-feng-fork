@@ -1,17 +1,25 @@
 """Per-request role isolation — regression guard for the concurrency bug where
 `role` was stashed on the process-global BrainService singleton (`_ui_state`).
 
-Covers `_UIStateProxy` (the drop-in mapping) + the backing ContextVar across
-threads and asyncio tasks, plus the `dict(proxy)` materialization used by
-`BrainService.snapshot()` / `_persist`.
+Covers `_UIStateProxy` (ContextVar routing + `persistable_view`) across threads
+and asyncio tasks, `BrainService.snapshot()` materialization, and
+`BrainService._persist()` durable storage (DB `ui_state_json`).
 """
 
 from __future__ import annotations
 
 import asyncio
 import threading
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from zw_brain.command.brain import _UIStateProxy
+import pytest
+
+from zw_brain.command.brain import BrainService, _UIStateProxy
+from zw_brain.shared import db as db_module
+from zw_brain.shared.database_store import DatabaseStore
+from zw_brain.shared.migrate import ensure_runtime_schema
+from zw_brain.shared.state_store import StateStore
 from zw_brain.shared.ui_request_context import (
     DEFAULT_ROLE,
     get_current_role,
@@ -65,6 +73,49 @@ def test_dict_materialization_reflects_current_contextvar() -> None:
     proxy = _fresh_proxy()
     proxy["role"] = "ROLE_SECURITY_ADMIN"
     assert dict(proxy)["role"] == "ROLE_SECURITY_ADMIN"
+
+
+@pytest.fixture()
+def temp_db(monkeypatch: pytest.MonkeyPatch) -> Path:
+    with TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "ui_request_context_isolation.db"
+        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
+        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
+        with db_module._CACHE_LOCK:
+            db_module._ENGINE_CACHE.clear()
+        ensure_runtime_schema()
+        yield db_path
+        with db_module._CACHE_LOCK:
+            db_module._ENGINE_CACHE.clear()
+
+
+def test_persistable_view_excludes_per_request_role() -> None:
+    """role is per-request (ContextVar) — must not leak into durable storage."""
+    proxy = _fresh_proxy()
+    proxy["role"] = "ROLE_SECURITY_ADMIN"
+    view = proxy.persistable_view()
+    assert "role" not in view
+    assert view == {"discoveryQuery": "q", "brainOutage": False}
+    # mutating the returned dict must not affect the proxy's backing
+    view["discoveryQuery"] = "mutated"
+    assert proxy["discoveryQuery"] == "q"
+
+
+def test_persist_excludes_per_request_role_from_db(temp_db: Path) -> None:
+    """BrainService._persist must write process-wide ui_state only."""
+    ds = DatabaseStore()
+    ds.initialize()
+    brain = BrainService(state_store=StateStore(database_store=ds))
+    brain._ui_state["role"] = "ROLE_SECURITY_ADMIN"
+    brain._ui_state["discoveryQuery"] = "persist-me"
+
+    assert brain.snapshot()["state"]["role"] == "ROLE_SECURITY_ADMIN"
+
+    brain._persist()
+    _, persisted_ui_state = ds.load_runtime_state()
+    assert "role" not in persisted_ui_state
+    assert persisted_ui_state["discoveryQuery"] == "persist-me"
+    assert persisted_ui_state["brainOutage"] is False
 
 
 def test_role_isolated_across_threads() -> None:
