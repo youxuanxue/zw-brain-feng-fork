@@ -1037,6 +1037,7 @@ PR #110 之后（数据基于 `zw_brain/shared/auth_session.py` + `zw_brain/entr
 - J1 供需对接子流程（meta 合并，非数据合并；6 步流程）
 - J2 在线编制 → 资源挂接 → 部门审 → 平台发布的核心 4 步
 - 审计回执与基本运营可见性
+- **brain.py 拆分（PR #86）**：185 cap 全部迁出至 `dispatch.py` + `handlers/{j1,j2,b1,infra}/`；brain.py 残留 `BrainService` class + 6 exception class + helpers（截至 2026-05-26 为 3462 LOC），不再承担 case dispatcher。原 e6/plan.yaml F1 stop condition `brain.py ≤500 LOC` 按 dispatch.py 360 LOC 收尾，brain.py 本身不再卡 LOC 上限——拆分 AC1 真实意图是「dispatch 不臃肿」，已达成（`grep -c "^case " brain.py = 0`）。
 - ~~首个外部 Agent 接入端到端验证~~（D30 触发式延后）
 - ~~AgentRuntime Embedded SDK 最小集成~~（D30 触发式延后 → Wave 2+ 起，触发条件 = 出现首个真实外部 Agent 接入需求；详见 §8.6 与 [docs/preflight-debt.md](../preflight-debt.md)）
 

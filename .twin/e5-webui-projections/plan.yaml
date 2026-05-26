@@ -144,7 +144,7 @@ items:
   - F9
   status: completed
   next_action: ''
-  blocked_reason: 写路径岗位 bug（F9）未修前其他 worker UI 联调会被 403 阻断
+  blocked_reason: null
 - id: F9
   deliverable: invokeActionStub 默认使用顶栏岗位（getProductRole）
   scope: 所有 POST /api/skills/* 写操作与

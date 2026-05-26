@@ -102,7 +102,7 @@ items:
   - F3
   - F4
   - F5
-  status: in_progress
+  status: pending
   next_action: 业务方 sign-off（PR comment 或 issue label business-signoff）
   blocked_reason: 业务方签字未落盘
 - id: F7

@@ -26,6 +26,7 @@ dev = [
   "pytest>=9.0.3",      # CVE-2025-71176 fixed in 9.0.3
   "ruff>=0.5",
   "fakeredis>=2.0",
+  "PyYAML>=6.0",        # preflight 段 26 cross-field check（PR #117）
 ]
 
 [build-system]

@@ -19,8 +19,7 @@ items:
     + 7b blockchain-async + 26 twin-workspaces + 27 ruff)'
   depends_on: []
   status: completed
-  next_action: 重写 zw_brain/shared/audit/__init__.py 为完整事件流；新增 zw_brain/shared/audit/store.py（持久化）+
-    index.py
+  next_action: ''
   blocked_reason: null
 - id: F2
   deliverable: 审计回放 + 查询 API
@@ -42,7 +41,7 @@ items:
   depends_on:
   - F1
   status: completed
-  next_action: 设计 audit.event.query / audit.event.replay 两个 capability manifest 并实装
+  next_action: ''
   blocked_reason: null
 - id: F3
   deliverable: B1.1 合规与运营 4 panel 后端 + UI
@@ -72,10 +71,8 @@ items:
   depends_on:
   - F2
   status: completed
-  next_action: 实装 4 panel 后端 capability + 助手走 shared/inference/client；UI 等 E5
-  blocked_reason: F3-backend commit 58d5587 已 land（4 新 capability + 2 handler + 5
-    投影 + 15 tests）；仅 UI portion（4 panel 截图 + tests/e2e/b11_compliance.spec.ts + 真实
-    710 用户 demo）阻塞在 E5 webui 重建（e5/plan.yaml F2）。UI 段在 E5 unblock 后开新 round（F3-UI）单独跑。
+  next_action: ''
+  blocked_reason: null
 - id: F4
   deliverable: B1.2 接入扩展中心后端
   scope: 能力包审核/注册/启停/回滚 + 暴露矩阵 + 租户策略 + trust_level 升降级；不含 AgentRuntime T1 触发字段
@@ -97,7 +94,7 @@ items:
     AgentRuntime Registry 字段（外部 Agent 来源信任级）3 处文档 + 1 合同护栏 test
   depends_on: []
   status: completed
-  next_action: 实装 capability.package.* 系列 skill；扩展 zw_brain/skill_registration/runtime.py
+  next_action: ''
   blocked_reason: null
 - id: F5
   deliverable: B1.2 UI（含三引擎管理员配置页容器，与 E3 协作）
@@ -120,11 +117,8 @@ items:
   depends_on:
   - F4
   status: completed
-  next_action: 等 E5 webui 重建后落 UI；本项先做接口契约 + 占位
-  blocked_reason: 'F5 deliverable = B1.2 UI（含三引擎管理员配置页容器）。原 blocked_reason 等 E5/F2
-    webui 重建——PR #87 已 land main（e5 plan.yaml stale 但 main 代码就绪），技术上可解锁。supervisor
-    不在本 round 自动驱动 UI 实装：UI rounds 需要 browser 验证（preview_* tool 流），且 .experiences/R1-R8
-    角色旅程触面比单 capability 大。等用户决策是否 spawn F5 UI round。'
+  next_action: ''
+  blocked_reason: null
 - id: F6
   deliverable: AgentRuntime T1 触发式实装预案（即开即用，T1 未到不实装）
   scope: 写好"T1 触发时 1 天内落地"的执行预案 + 准备 Registry schema diff + validate/doctor 脚本骨架（不
@@ -145,9 +139,8 @@ items:
     字段，本 round 不 land 即按计划'
   depends_on: []
   status: completed
-  next_action: 写 T1 readiness 预案文档；T1/T2/T3 触发条件 + 落地范围按架构 §8.6 + preflight-debt.md
-    2026-05-24 entry
-  blocked_reason: T1/T2/T3 任一触发前刻意不预先盖楼（架构 §8.6 硬约束）；触发由真实外部需求驱动，非时间驱动
+  next_action: ''
+  blocked_reason: null
 - id: F7
   deliverable: 5 borderline B1 业务报表 sign-off 闭环
   scope: 与业务方逐一过 5 条 manifest（service.rating.submit / ops.{catalog,exchange,service}.*.statistics

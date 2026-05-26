@@ -11,35 +11,19 @@ items:
   - 停止条件：brain.py ≤500 LOC + 18 tests/test_*.py 100% 不退化
   actual_evidence:
   - turn 1 commit 8bb172f — handlers/ 骨架 + dispatch.py + _CATEGORIZATION.md (185 caps,
-    J1=94/J2=37/B1=32/infra=22)；brain.py 未动；pytest 81 passed；preflight 26 段全 PASS
-  - turn 1 commit 8bb172f — handlers/ 骨架 + dispatch.py + _CATEGORIZATION.md (185 caps,
     J1=94/J2=37/B1=32/infra=22)
-  - turn 2 commit e9f6e02 — 4 representative cap 迁移 + lookup pattern (brain.py 8155→7961
-    LOC, pytest 81 passed)
-  - turn 1 commit 8bb172f — categorization + skeleton (185 caps 4 buckets)
-  - turn 2 commit e9f6e02 — 4 representative cap 迁移 (brain.py 8155→7961 LOC)
-  - turn 3 commit 18e5a48 — infra 桶 21 cap 整批 + handler 签名扩展 + 多行 case 块消灭 (brain.py
-    7961→7591 LOC，累计 -564)
-  - turn 1 commit 8bb172f — categorization + skeleton
   - turn 2 commit e9f6e02 — 4 representative cap (brain.py 8155→7961)
-  - turn 3 commit 18e5a48 — infra 桶 21 cap + handler 签名扩展 (brain.py 7961→7591)
-  - turn 4 commit f1ecfc0 — J2 桶 36 cap 整批 (brain.py 7591→6432，累计 -1723 from 8155)
-  - turn 2 commit e9f6e02 — 4 cap (brain.py 8155→7961)
   - turn 3 commit 18e5a48 — infra 桶 21 cap (brain.py 7961→7591)
   - turn 4 commit f1ecfc0 — J2 桶 36 cap (brain.py 7591→6432)
-  - turn 5 commit 13a7e54 — B1 桶 31 cap (brain.py 6432→5665，累计 -2490 from 8155)
-  - turn 2 commit e9f6e02 — 4 cap + lookup pattern (brain.py 8155→7961)
   - turn 5 commit 13a7e54 — B1 桶 31 cap (brain.py 6432→5665)
-  - turn 6 commit 3b25161 — J1 桶 93 cap + match block 收尾 (brain.py 5665→3375，累计 -4780
-    from 8155)
-  - AC1 达成：185/185 cap 迁出 + dispatch.py 304 LOC ≤500 + handlers/{j1,j2,b1,infra}/
-    40 module + 零行为变化
-  - brain.py 3375 LOC 剩内部 helper / property / 异常类 / dataclass — F1 plan stop condition
-    `≤500` 过度延伸 AC1，按实际状态收尾
+  - turn 6 commit 3b25161 — J1 桶 93 cap (brain.py 5665→3375)
+  - AC1 达成：185/185 cap 迁出 + dispatch.py 360 LOC ≤500 + handlers/ 58 module + 零行为变化
+  - brain.py 3462 LOC 残留 BrainService class / 6 exception class / helpers — stop condition
+    `≤500 LOC` 按 dispatch.py 而非 brain.py 收尾（见 docs/approved/zw-brain-architecture.md
+    §10.2 入档）
   depends_on: []
   status: completed
-  next_action: supervisor 推 chore/brain-py-split + 开 PR + /xj-review + 等 user merge；F3/F6
-    可并行启动
+  next_action: ''
   blocked_reason: null
 - id: F2
   deliverable: 推理客户端生产化（187 LOC mock → 真实集团推理平台 SDK + 保留 mock 模式）
@@ -87,7 +71,7 @@ items:
   - preflight 30 segments PASS
   depends_on: []
   status: completed
-  next_action: 等红军 sign-off §5 两 dump（/twin respond）后改 verdict 并 status=completed
+  next_action: ''
   blocked_reason: null
 - id: F4
   deliverable: 5 类投影状态可见 + 失败摘要可读
@@ -103,8 +87,7 @@ items:
   depends_on:
   - F3
   status: completed
-  next_action: 扩展 zw_brain/adapters/legacy/mappers/projections.py（385 LOC）+ 新增 capability
-    projection.status.query
+  next_action: ''
   blocked_reason: null
 - id: F5
   deliverable: "【已取消】M0 浏览器实施面 UI"
@@ -120,7 +103,7 @@ items:
   depends_on:
   - F3
   status: completed
-  next_action: scope withdrawn — M0 CLI only（2026-05-25）；见 goal non_goals + m0-site-migration.md
+  next_action: ''
   blocked_reason: null
 - id: F6
   deliverable: 测试 pyramid trusted-payload helper 改造
@@ -138,8 +121,7 @@ items:
   - preflight 段31 check_trusted_payload_usage.py OK
   depends_on: []
   status: completed
-  next_action: 'turn 2 收尾: 改造剩余 12 处 invoke_skill (test_bsp_*_e2e / test_contract_projection)
-    + 加 preflight 段 31 机械防回潮'
+  next_action: ''
   blocked_reason: null
 - id: F7
   deliverable: Wave 2/3/4 测试 features 填充 + 转 pytest
@@ -159,7 +141,7 @@ items:
   depends_on:
   - F6
   status: completed
-  next_action: done — wave 2/3/4 features + linked pytest 全绿
+  next_action: ''
   blocked_reason: null
 - id: F8
   deliverable: 部署管线落地（scripts/deploy_*.sh + Dockerfile_v1.0.0 升级 + staging 灰度 / 回滚脚本
@@ -208,7 +190,7 @@ items:
   - PR #106 后本地复验 5/5 全绿 @ 8800
   depends_on: []
   status: completed
-  next_action: 改 headless_j1_demo.sh；复用 customer_demo_j1 审批参数
+  next_action: ''
   blocked_reason: null
 - id: F11
   deliverable: start-local 本地探针 NO_PROXY 提示
@@ -224,5 +206,5 @@ items:
   - test_wave0_infra::test_start_local_prints_no_proxy_tip_when_proxy_env_set PASS
   depends_on: []
   status: completed
-  next_action: start-local.sh 健康检查成功后 echo NO_PROXY 提示
+  next_action: ''
   blocked_reason: null
