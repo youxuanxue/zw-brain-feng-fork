@@ -61,7 +61,7 @@ phase_after_approval: Phase 0（先打通首条黄金链路 J1 找数→用数�
 
 | Wave | 状态 | 真人 sign-off | 阻塞 / 触发式延后 |
 |---|---|---|---|
-| Wave 0（机械守卫 + J1 黄金链路） | `shipped` | 工程交付（preflight 段 7a..32 全绿 + tests/test_wave0_* 套件存在） | — |
+| Wave 0（机械守卫 + J1 黄金链路） | `shipped` | 工程交付（preflight 全段绿 + tests/test_wave0_* 套件存在） | — |
 | Wave 1（J1 闭环深化 + J2 挂数→维数） | `partially-shipped` | 工程交付 PR #90 / #98 / #103-#106 / #108 / #109；AgentRuntime 子项触发式延后 | AgentRuntime runtime 子项：[preflight-debt §2026-05-24 AgentRuntime](../preflight-debt.md)（T1/T2/T3 任一触发即升级 P0）；读路径 6 处全扫白名单：[preflight-debt §2026-05-26 PR #113 同模式残留](../preflight-debt.md) |
 | Wave 2（三引擎 + B1 合规 + 共享专区） | `partially-shipped` | 代码侧 PR #92 已落地（三引擎 10 个 capability）；真人 sign-off 待业务方现场演练 | 真人 sign-off 待业务方现场演练：[preflight-debt §2026-05-24 Wave 2 R14 三引擎](../preflight-debt.md)；borderline 5 capability：[preflight-debt §2026-05-23 5 个 B1 业务报表](../preflight-debt.md) |
 | Wave 3（协议硬化 + 多租户 + 国家通道） | `not-started` | — | 阻塞 = Wave 2 客户演练 sign-off；多租户支线另需触发：[preflight-debt §2026-05-24 反 per-tenant fork](../preflight-debt.md) |

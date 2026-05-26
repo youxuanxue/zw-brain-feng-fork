@@ -544,7 +544,7 @@ A1–A4 已通过 `scripts/build_true_data_seed.py` 一次性生成，从 `.data
 - **A3** — `audit_events` 8 条全部使用真组织 actor（省大数据局 / 省公安厅 / 省人社厅 / 济南市大数据局 / platform）；`workbench.ROLE_ORGAN_OPERATER/ROLE_ORGAN_MANAGER.greeting` 注入真组织上下文
 - **A4** — 在保留原 2 个停车场链路（`REQ-2026-04-25-0011` / `REQ-2026-04-24-0007` / `DLV-2026-04-25-0011` 等）之外，追加 3 条 happy chain（婚姻登记 / 出生一件事 / 小微企业补贴）+ 1 条异议路径（`DSP-2026-04-26-OBJ-PUBSEC` 来自真 `objection_case` 中省公安厅发起的"信息项中缺少抽检时间字段"）
 
-`scripts/build_true_data_seed.py` 是幂等的：可以在每次重新 import 真 dump 后再跑一次以同步 demo seed；preflight 段 8（sync-stats `--check`）依然全绿，因为 A1–A4 落点都是 prose-snapshot 数字而非契约 stat。
+`scripts/build_true_data_seed.py` 是幂等的：可以在每次重新 import 真 dump 后再跑一次以同步 demo seed；preflight 的 sync-stats `--check` section 依然全绿，因为 A1–A4 落点都是 prose-snapshot 数字而非契约 stat。
 
 ---
 
