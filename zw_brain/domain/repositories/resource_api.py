@@ -20,16 +20,22 @@ def _now() -> datetime:
 
 
 class ResourceApiRepository:
-    def list_assets(self, *, tenant_id: str = "sd-default") -> list[ResourceAssetRecord]:
+    def list_assets(
+        self,
+        *,
+        tenant_id: str = "sd-default",
+        lifecycle_status: str | None = None,
+    ) -> list[ResourceAssetRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            return list(
-                session.execute(
-                    select(ResourceAssetRecord)
-                    .where(ResourceAssetRecord.tenant_id == tenant_id)
-                    .order_by(ResourceAssetRecord.resource_code)
-                ).scalars()
+            statement = (
+                select(ResourceAssetRecord)
+                .where(ResourceAssetRecord.tenant_id == tenant_id)
+                .order_by(ResourceAssetRecord.resource_code)
             )
+            if lifecycle_status:
+                statement = statement.where(ResourceAssetRecord.lifecycle_status == lifecycle_status)
+            return list(session.execute(statement).scalars())
 
     def has_assets(self, *, tenant_id: str = "sd-default") -> bool:
         SessionLocal = create_session_factory()

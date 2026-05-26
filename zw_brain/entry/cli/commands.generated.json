@@ -422,6 +422,16 @@
           "type": "string"
         },
         {
+          "name": "limit",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "offset",
+          "required": false,
+          "type": "integer"
+        },
+        {
           "name": "query",
           "required": false,
           "type": "string"

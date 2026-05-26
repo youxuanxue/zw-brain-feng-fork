@@ -21,6 +21,16 @@
         "type": "string",
         "description": "filter by lifecycle_status (draft / pending_review / active / ...)"
       },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "max rows to return; filters apply in SQL before serialization"
+      },
+      "offset": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "skip rows before applying limit"
+      },
       "role": {
         "type": "string"
       }

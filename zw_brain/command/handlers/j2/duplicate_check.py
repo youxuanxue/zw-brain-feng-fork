@@ -5,7 +5,7 @@
   - region+org：同 region_code + 同 owner_org_id 且非自身的其他目录。
 
 更高级的模糊匹配 / Embedding similarity 不在 F3 scope（归 R14 三引擎或 ML stage）。
-本 handler 只读 catalog_repo.list_entries，不写状态、不做合并、不抛阻拦异常。
+本 handler 只读 catalog_repo，不写状态、不做合并、不抛阻拦异常。
 """
 
 from __future__ import annotations
@@ -20,10 +20,12 @@ from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
-
-
-def _candidate_lifecycle(record: Any) -> bool:
-    return record.lifecycle_status in {"active", "approved_pending_publish", "pending_platform_review", "pending_review"}
+_DUPLICATE_LIFECYCLES = (
+    "active",
+    "approved_pending_publish",
+    "pending_platform_review",
+    "pending_review",
+)
 
 
 def check_catalog_duplicate(brain: BrainService, catalog_code: str) -> dict[str, Any]:
@@ -39,11 +41,14 @@ def check_catalog_duplicate(brain: BrainService, catalog_code: str) -> dict[str,
     owner_org = (target.owner_org_id or "").strip()
 
     warnings: list[dict[str, Any]] = []
-    for record in repo.list_entries(tenant_id=_DEFAULT_TENANT_ID):
-        if record.catalog_code == target.catalog_code:
-            continue
-        if not _candidate_lifecycle(record):
-            continue
+    for record in repo.list_duplicate_candidates(
+        tenant_id=_DEFAULT_TENANT_ID,
+        exclude_catalog_code=catalog_code,
+        title=title,
+        region_code=region,
+        owner_org_id=owner_org,
+        lifecycle_statuses=_DUPLICATE_LIFECYCLES,
+    ):
         dims: list[str] = []
         if title and (record.title or "").strip() == title:
             dims.append("title")

@@ -2872,6 +2872,28 @@
             "description": "filter by lifecycle_status (draft / pending_review / active / ...)"
           },
           {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "max rows to return; filters apply in SQL before serialization"
+            },
+            "description": "max rows to return; filters apply in SQL before serialization"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "skip rows before applying limit"
+            },
+            "description": "skip rows before applying limit"
+          },
+          {
             "name": "query",
             "in": "query",
             "required": false,

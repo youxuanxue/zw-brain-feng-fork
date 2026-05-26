@@ -41,16 +41,22 @@ class ObjectionRepository:
         "closed": set(),
     }
 
-    def list_cases(self, *, tenant_id: str = "sd-default") -> list[ObjectionCaseRecord]:
+    def list_cases(
+        self,
+        *,
+        tenant_id: str = "sd-default",
+        status: str | None = None,
+    ) -> list[ObjectionCaseRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            return list(
-                session.execute(
-                    select(ObjectionCaseRecord)
-                    .where(ObjectionCaseRecord.tenant_id == tenant_id)
-                    .order_by(ObjectionCaseRecord.created_at)
-                ).scalars()
+            statement = (
+                select(ObjectionCaseRecord)
+                .where(ObjectionCaseRecord.tenant_id == tenant_id)
+                .order_by(ObjectionCaseRecord.created_at)
             )
+            if status:
+                statement = statement.where(ObjectionCaseRecord.status == status)
+            return list(session.execute(statement).scalars())
 
     def get_case(self, objection_id: str, *, tenant_id: str = "sd-default") -> ObjectionCaseRecord | None:
         SessionLocal = create_session_factory()

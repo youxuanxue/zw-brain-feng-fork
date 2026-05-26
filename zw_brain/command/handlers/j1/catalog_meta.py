@@ -50,16 +50,21 @@ def _browse_catalog_entries(
 
     store = brain._state_store.database_store
     repo = store.catalog_repo if store is not None else CatalogRepository()
-    records = repo.search_entries(str(query), tenant_id=_DEFAULT_TENANT_ID) if query else repo.list_entries(tenant_id=_DEFAULT_TENANT_ID)
-
-    if lifecycle != "all":
-        records = [r for r in records if r.lifecycle_status == lifecycle]
-    if kind == "real":
-        records = [r for r in records if not r.catalog_code.startswith("api-group:")]
-    elif kind == "api-group":
-        records = [r for r in records if r.catalog_code.startswith("api-group:")]
-    if owner_org_id:
-        records = [r for r in records if r.owner_org_id == str(owner_org_id)]
+    lifecycle_status = None if lifecycle == "all" else lifecycle
+    catalog_code_prefix = "api-group:" if kind == "api-group" else None
+    exclude_catalog_code_prefix = "api-group:" if kind == "real" else None
+    owner = str(owner_org_id) if owner_org_id else None
+    browse_filters = {
+        "tenant_id": _DEFAULT_TENANT_ID,
+        "lifecycle_status": lifecycle_status,
+        "owner_org_id": owner,
+        "catalog_code_prefix": catalog_code_prefix,
+        "exclude_catalog_code_prefix": exclude_catalog_code_prefix,
+    }
+    if query:
+        records = repo.search_entries(str(query), **browse_filters)
+    else:
+        records = repo.list_entries(**browse_filters)
 
     def _quality_key(r: Any) -> tuple[int, str]:
         title = (getattr(r, "title", "") or "").strip()

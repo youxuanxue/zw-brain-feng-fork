@@ -97,6 +97,35 @@ def _transition_catalog_entry(brain, catalog_code: str, status: str, skill_id: s
 
     return brain._mutate(skill_id, role, confirmed, {"catalog_code": catalog_code, "status": status}, mutation)
 
+def _parse_query_limit(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    parsed = int(value)
+    if parsed < 1:
+        raise ValueError("limit must be >= 1")
+    return parsed
+
+
+def _parse_query_offset(value: Any) -> int:
+    if value is None or value == "":
+        return 0
+    parsed = int(value)
+    if parsed < 0:
+        raise ValueError("offset must be >= 0")
+    return parsed
+
+
+def _filter_entries_by_source(records: list[Any], source: Any) -> list[Any]:
+    if not source:
+        return records
+    wanted_src = str(source)
+    return [
+        record
+        for record in records
+        if isinstance(record.summary_json, dict) and record.summary_json.get("source") == wanted_src
+    ]
+
+
 def _query_catalog_entries(
     brain,
     *,
@@ -104,6 +133,8 @@ def _query_catalog_entries(
     catalog_code: Any = None,
     source: Any = None,
     lifecycle_status: Any = None,
+    limit: Any = None,
+    offset: Any = None,
 ) -> dict[str, Any]:
     """Query catalog entries with optional structural filters.
 
@@ -114,23 +145,39 @@ def _query_catalog_entries(
     """
     store = brain._state_store.database_store
     repo = store.catalog_repo if store is not None else CatalogRepository()
+    limit_value = _parse_query_limit(limit)
+    offset_value = _parse_query_offset(offset)
+    wanted_lc = str(lifecycle_status) if lifecycle_status else None
+
     if query:
         records = repo.search_entries(str(query), tenant_id=_DEFAULT_TENANT_ID)
+        if wanted_lc:
+            records = [record for record in records if record.lifecycle_status == wanted_lc]
+        records = _filter_entries_by_source(records, source)
+        total = len(records)
+        if limit_value is not None:
+            records = records[offset_value : offset_value + limit_value]
     else:
-        records = repo.list_entries(tenant_id=_DEFAULT_TENANT_ID)
-    if lifecycle_status:
-        wanted_lc = str(lifecycle_status)
-        records = [r for r in records if r.lifecycle_status == wanted_lc]
-    if source:
-        wanted_src = str(source)
-        records = [
-            r for r in records
-            if isinstance(r.summary_json, dict) and r.summary_json.get("source") == wanted_src
-        ]
+        records = repo.list_entries(
+            tenant_id=_DEFAULT_TENANT_ID,
+            lifecycle_status=wanted_lc,
+            limit=limit_value,
+            offset=offset_value,
+        )
+        records = _filter_entries_by_source(records, source)
+        if source:
+            total = len(records)
+        elif limit_value is not None:
+            total = repo.count_entries(tenant_id=_DEFAULT_TENANT_ID, lifecycle_status=wanted_lc)
+        else:
+            total = len(records)
+
     entries = [brain._catalog_entry_record_to_dict(item) for item in records]
     if catalog_code:
-        entries = [item for item in entries if item["catalog_code"] == str(catalog_code)]
-    return {"items": entries, "total": len(entries)}
+        wanted_code = str(catalog_code)
+        entries = [item for item in entries if item["catalog_code"] == wanted_code]
+        total = len(entries)
+    return {"items": entries, "total": total}
 
 def _suggest_catalog_entry_reverse_draft(brain, payload: dict[str, Any]) -> dict[str, Any]:
     """Return three-tier field suggestions for a given schema snapshot.
@@ -367,7 +414,15 @@ def handler_catalog_entry_withdraw(brain: BrainService, skill_id: str, payload: 
     return _transition_catalog_entry(brain, str(payload["catalog_code"]), "retired", "catalog.entry.withdraw", str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
 
 def handler_catalog_entry_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _query_catalog_entries(brain, query=payload.get("query"), catalog_code=payload.get("catalog_code"), source=payload.get("source"), lifecycle_status=payload.get("lifecycle_status"))
+    return _query_catalog_entries(
+        brain,
+        query=payload.get("query"),
+        catalog_code=payload.get("catalog_code"),
+        source=payload.get("source"),
+        lifecycle_status=payload.get("lifecycle_status"),
+        limit=payload.get("limit"),
+        offset=payload.get("offset"),
+    )
 
 def handler_catalog_entry_reverse_draft_suggest(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
     return _suggest_catalog_entry_reverse_draft(brain, payload)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import and_, func, or_, select
 
 from zw_brain.domain.models import (
     CatalogEntryRecord,
@@ -158,16 +158,154 @@ class CatalogRepository:
                 ).scalars()
             )
 
-    def list_entries(self, *, tenant_id: str = "sd-default") -> list[CatalogEntryRecord]:
+    def _entry_list_statement(
+        self,
+        *,
+        tenant_id: str,
+        lifecycle_status: str | None = None,
+        lifecycle_statuses: tuple[str, ...] | None = None,
+        owner_org_id: str | None = None,
+        catalog_code_prefix: str | None = None,
+        exclude_catalog_code_prefix: str | None = None,
+        exclude_catalog_code: str | None = None,
+    ):
+        statement = (
+            select(CatalogEntryRecord)
+            .where(CatalogEntryRecord.tenant_id == tenant_id)
+            .order_by(CatalogEntryRecord.catalog_code)
+        )
+        if lifecycle_status:
+            statement = statement.where(CatalogEntryRecord.lifecycle_status == lifecycle_status)
+        if lifecycle_statuses:
+            statement = statement.where(CatalogEntryRecord.lifecycle_status.in_(lifecycle_statuses))
+        if owner_org_id:
+            statement = statement.where(CatalogEntryRecord.owner_org_id == owner_org_id)
+        if catalog_code_prefix:
+            statement = statement.where(CatalogEntryRecord.catalog_code.like(f"{catalog_code_prefix}%"))
+        if exclude_catalog_code_prefix:
+            statement = statement.where(~CatalogEntryRecord.catalog_code.like(f"{exclude_catalog_code_prefix}%"))
+        if exclude_catalog_code:
+            statement = statement.where(CatalogEntryRecord.catalog_code != exclude_catalog_code)
+        return statement
+
+    def _entry_filter_kwargs(
+        self,
+        *,
+        lifecycle_status: str | None = None,
+        lifecycle_statuses: tuple[str, ...] | None = None,
+        owner_org_id: str | None = None,
+        catalog_code_prefix: str | None = None,
+        exclude_catalog_code_prefix: str | None = None,
+        exclude_catalog_code: str | None = None,
+    ) -> dict[str, Any]:
+        return {
+            "lifecycle_status": lifecycle_status,
+            "lifecycle_statuses": lifecycle_statuses,
+            "owner_org_id": owner_org_id,
+            "catalog_code_prefix": catalog_code_prefix,
+            "exclude_catalog_code_prefix": exclude_catalog_code_prefix,
+            "exclude_catalog_code": exclude_catalog_code,
+        }
+
+    def count_entries(
+        self,
+        *,
+        tenant_id: str = "sd-default",
+        lifecycle_status: str | None = None,
+        lifecycle_statuses: tuple[str, ...] | None = None,
+        owner_org_id: str | None = None,
+        catalog_code_prefix: str | None = None,
+        exclude_catalog_code_prefix: str | None = None,
+    ) -> int:
+        SessionLocal = create_session_factory()
+        filters = self._entry_filter_kwargs(
+            lifecycle_status=lifecycle_status,
+            lifecycle_statuses=lifecycle_statuses,
+            owner_org_id=owner_org_id,
+            catalog_code_prefix=catalog_code_prefix,
+            exclude_catalog_code_prefix=exclude_catalog_code_prefix,
+        )
+        with SessionLocal() as session:
+            statement = select(func.count()).select_from(CatalogEntryRecord).where(
+                CatalogEntryRecord.tenant_id == tenant_id
+            )
+            if filters["lifecycle_status"]:
+                statement = statement.where(CatalogEntryRecord.lifecycle_status == filters["lifecycle_status"])
+            if filters["lifecycle_statuses"]:
+                statement = statement.where(CatalogEntryRecord.lifecycle_status.in_(filters["lifecycle_statuses"]))
+            if filters["owner_org_id"]:
+                statement = statement.where(CatalogEntryRecord.owner_org_id == filters["owner_org_id"])
+            if filters["catalog_code_prefix"]:
+                statement = statement.where(CatalogEntryRecord.catalog_code.like(f"{filters['catalog_code_prefix']}%"))
+            if filters["exclude_catalog_code_prefix"]:
+                statement = statement.where(
+                    ~CatalogEntryRecord.catalog_code.like(f"{filters['exclude_catalog_code_prefix']}%")
+                )
+            return int(session.execute(statement).scalar_one())
+
+    def list_entries(
+        self,
+        *,
+        tenant_id: str = "sd-default",
+        lifecycle_status: str | None = None,
+        lifecycle_statuses: tuple[str, ...] | None = None,
+        owner_org_id: str | None = None,
+        catalog_code_prefix: str | None = None,
+        exclude_catalog_code_prefix: str | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[CatalogEntryRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            return list(
-                session.execute(
-                    select(CatalogEntryRecord)
-                    .where(CatalogEntryRecord.tenant_id == tenant_id)
-                    .order_by(CatalogEntryRecord.catalog_code)
-                ).scalars()
+            statement = self._entry_list_statement(
+                tenant_id=tenant_id,
+                lifecycle_status=lifecycle_status,
+                lifecycle_statuses=lifecycle_statuses,
+                owner_org_id=owner_org_id,
+                catalog_code_prefix=catalog_code_prefix,
+                exclude_catalog_code_prefix=exclude_catalog_code_prefix,
             )
+            if offset:
+                statement = statement.offset(offset)
+            if limit is not None:
+                statement = statement.limit(limit)
+            return list(session.execute(statement).scalars())
+
+    def list_duplicate_candidates(
+        self,
+        *,
+        tenant_id: str = "sd-default",
+        exclude_catalog_code: str,
+        title: str = "",
+        region_code: str = "",
+        owner_org_id: str = "",
+        lifecycle_statuses: tuple[str, ...],
+    ) -> list[CatalogEntryRecord]:
+        match_clauses = []
+        if title:
+            match_clauses.append(CatalogEntryRecord.title == title)
+        if region_code and owner_org_id:
+            match_clauses.append(
+                and_(
+                    CatalogEntryRecord.region_code == region_code,
+                    CatalogEntryRecord.owner_org_id == owner_org_id,
+                )
+            )
+        if not match_clauses:
+            return []
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            statement = (
+                select(CatalogEntryRecord)
+                .where(
+                    CatalogEntryRecord.tenant_id == tenant_id,
+                    CatalogEntryRecord.catalog_code != exclude_catalog_code,
+                    CatalogEntryRecord.lifecycle_status.in_(lifecycle_statuses),
+                    or_(*match_clauses),
+                )
+                .order_by(CatalogEntryRecord.catalog_code)
+            )
+            return list(session.execute(statement).scalars())
 
     def get_entry(self, catalog_code: str, *, tenant_id: str = "sd-default") -> CatalogEntryRecord | None:
         SessionLocal = create_session_factory()
@@ -179,14 +317,29 @@ class CatalogRepository:
                 )
             ).scalar_one_or_none()
 
-    def search_entries(self, query: str, *, tenant_id: str = "sd-default") -> list[CatalogEntryRecord]:
+    def search_entries(
+        self,
+        query: str,
+        *,
+        tenant_id: str = "sd-default",
+        lifecycle_status: str | None = None,
+        lifecycle_statuses: tuple[str, ...] | None = None,
+        owner_org_id: str | None = None,
+        catalog_code_prefix: str | None = None,
+        exclude_catalog_code_prefix: str | None = None,
+    ) -> list[CatalogEntryRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             records = list(
                 session.execute(
-                    select(CatalogEntryRecord)
-                    .where(CatalogEntryRecord.tenant_id == tenant_id)
-                    .order_by(CatalogEntryRecord.catalog_code)
+                    self._entry_list_statement(
+                        tenant_id=tenant_id,
+                        lifecycle_status=lifecycle_status,
+                        lifecycle_statuses=lifecycle_statuses,
+                        owner_org_id=owner_org_id,
+                        catalog_code_prefix=catalog_code_prefix,
+                        exclude_catalog_code_prefix=exclude_catalog_code_prefix,
+                    )
                 ).scalars()
             )
             query = query.strip()

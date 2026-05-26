@@ -23,12 +23,9 @@ from zw_brain.domain.supply_demand_phase import (
 )
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
-_FIELD_DECISION_STATUSES = frozenset({"pending_review"})
-_HOOKUP_REVIEW_STATUSES = frozenset({"pending_review"})
 _DEMAND_PROVIDER_PHASES = frozenset(
     {PHASE_REGISTERED, PHASE_MANUAL_REGISTERED, PHASE_RECOMMEND_FAILED}
 )
-_PROVIDER_OBJECTION_STATUSES = frozenset({"provider_investigating"})
 
 
 def _entry_to_field_decision(record: Any) -> dict[str, Any]:
@@ -77,13 +74,11 @@ def project_provider_inbox(*, tenant_id: str | None = None) -> dict[str, list[di
 
     field_decisions = [
         _entry_to_field_decision(record)
-        for record in catalog_repo.list_entries(tenant_id=tenant_id)
-        if record.lifecycle_status in _FIELD_DECISION_STATUSES
+        for record in catalog_repo.list_entries(tenant_id=tenant_id, lifecycle_status="pending_review")
     ]
     hookup_reviews = [
         _asset_to_hookup_review(record)
-        for record in resource_repo.list_assets(tenant_id=tenant_id)
-        if record.lifecycle_status in _HOOKUP_REVIEW_STATUSES
+        for record in resource_repo.list_assets(tenant_id=tenant_id, lifecycle_status="pending_review")
     ]
     demand_matches = [
         _demand_to_match(item)
@@ -92,8 +87,7 @@ def project_provider_inbox(*, tenant_id: str | None = None) -> dict[str, list[di
     ]
     objection_cases = [
         _case_to_objection_inbox(record)
-        for record in objection_repo.list_cases(tenant_id=tenant_id)
-        if record.status in _PROVIDER_OBJECTION_STATUSES
+        for record in objection_repo.list_cases(tenant_id=tenant_id, status="provider_investigating")
     ]
     return {
         "field_decisions": field_decisions,
