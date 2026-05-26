@@ -60,7 +60,7 @@ Feature: Infra — 单一能力契约 → 五消费面投影一致性
     Then 三处都查不到
     And WebUI 与 CLI 中正常可见
 
-  Scenario: 回归 — registry 是单一事实源（OPC 模式约束）
+  Scenario: 回归 — registry 是单一事实源（确定性自动化运营和运维约束）
     Then 仓库中**仅有一个**目录用于定义 Capability（zw_brain/skill_registration/registered/*.json）
     And 任何 entry/*/ 下的 schema 文件都应由生成器输出，不在 git 历史中手编辑
     And preflight 段对 entry/*/ 下手编辑做反向探测

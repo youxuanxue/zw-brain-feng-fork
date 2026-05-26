@@ -133,7 +133,7 @@ trigger 关闭即可删除字段。
 - **Implication**: 架构基线 §8 / R15 描述了外部 Agent 通过 AgentRuntime 接入的产品决策；但运行时未实现。
   原 §10.2 "Wave 1 必达 ≥1 内置 Agent 用 AGENT.yaml 通过 validate+doctor"（产品负责人 sign-off 2026-05-22）
   已 D30 撤回为触发式（架构 §8.6）。
-- **Why deferred**: 当前 zw-brain 无外部 Agent 接入排队，按 OPC「只为真实需求建复杂度」拒绝提前盖楼；
+- **Why deferred**: 当前 zw-brain 无外部 Agent 接入排队，按确定性自动化运营和运维「只为真实需求建复杂度」拒绝提前盖楼；
   Registry 单源派生 5 消费面 + `product_scope.{journey,status}` 过滤已机械保证 status≠live 不进任何投影，
   外部 Agent 通过现有 capability 调用走 5 surface 任一面即可，不需要额外 runtime 层。
 - **Trigger to re-evaluate** (任一触发即升级为 P0)：

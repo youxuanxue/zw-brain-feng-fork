@@ -4,7 +4,7 @@
 强约束（防止"按域均匀长 capability"反架构约束 R7 的机械门禁）：
     单个 skill_id prefix 下 live+builtin manifest 数 > N（当前 N=25）即视为
     "按域均匀长而非按频度收敛"——违背基线架构约束 R7「外部长尾注册优先，主仓库
-    只承接高频核心与底座」（OPC 模式下，长尾能力默认转向外部能力包路径）。
+    只承接高频核心与底座」（确定性自动化运营和运维下，长尾能力默认转向外部能力包路径）。
     preflight 必须红灯，开发者必须三选一：
       (a) 拆 prefix（拒绝"按域均匀长"，重新归属到更细分的命名空间）；
       (b) 把其中部分 mark deferred / external（status != live 或 binding != builtin）；

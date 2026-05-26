@@ -53,7 +53,7 @@ Feature: Infra — 模型调用走集团推理平台统一入口
     Then client 至少注入系统级前缀（限制 capability 范围 / 限制 user）
     And 模型输出不直接作为责任性写操作的 trigger（业务侧仍需结构化确认 — 反约束 §5.4.5）
 
-  Scenario: 回归 — 推理客户端是单一文件入口（OPC 模式）
+  Scenario: 回归 — 推理客户端是单一文件入口（确定性自动化运营和运维）
     Then 仓库中**仅一个** client 入口文件：`zw_brain/shared/inference/client.py`
     And `grep -r "import openai\|import anthropic\|import baichuan\|import zhipuai\|import dashscope" zw_brain/` 返回 0 条
     And preflight 段 10 持续守卫此约束

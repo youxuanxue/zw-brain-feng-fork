@@ -57,7 +57,7 @@ Feature: 多租户 / 多部门 / 多区域策略深化
 
   Scenario: 回归 — sd-default 在多租户引入后行为不变
     Then 单租户 sd-default 主旅程的所有 Wave 0/1/2 用例**仍 100% 通过**
-    And 多租户引入是叠加而非破坏（OPC 反碎片化）
+    And 多租户引入是叠加而非破坏（确定性自动化运营和运维反碎片化）
 
   Scenario: 回归 — 通用隔离对子能力的传递性覆盖（接收从 Wave 0-2 移除的 specific 跨租户场景）
     # 本 Scenario 是 PR #71 review R-003 的对接点：Wave 0-2 中 4 个 specific 跨租户场景

@@ -29,7 +29,7 @@ zw-brain 不继承这些后台形态，只保留五类用户可感知价值：
 4. 监管方能看到专题包的覆盖组织、使用量、申请转化、质量异议和复用成效。
 5. Agent 能读取专题包结构、引用事实和证据，生成场景级复用建议，而不是维护另一套资源事实。
 
-### 1.2 OPC：TopicPackage 是投影，不是第六个资源库
+### 1.2 确定性自动化运营和运维：TopicPackage 是投影，不是第六个资源库
 
 - 目录事实仍归属 `catalog_entry` / `catalog_item` / `catalog_model`。
 - 资源事实仍归属 `resource_asset` / `resource_channel_binding`。

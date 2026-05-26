@@ -84,7 +84,7 @@ def test_infra_projection_export_check_has_no_drift():
 
 
 def test_infra_projection_single_capability_registry_dir():
-    """仓库中仅一个目录定义 Capability（OPC 单一事实源约束）."""
+    """仓库中仅一个目录定义 Capability（确定性自动化运营和运维单一事实源约束）."""
     registry = REPO_ROOT / "zw_brain" / "skill_registration" / "registered"
     assert registry.is_dir()
     assert list(registry.glob("*.json")), "registered/ 下应有 capability 契约 JSON"
@@ -196,7 +196,7 @@ def test_infra_inference_no_direct_llm_check_passes():
 
 
 def test_infra_inference_single_client_egress():
-    """模型调用唯一出口文件存在且唯一（OPC 单一文件入口）."""
+    """模型调用唯一出口文件存在且唯一（确定性自动化运营和运维单一文件入口）."""
     from scripts.check_no_direct_llm import BLACKLIST_HOSTS
 
     client = REPO_ROOT / "zw_brain" / "shared" / "inference" / "client.py"

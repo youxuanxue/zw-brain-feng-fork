@@ -22,7 +22,7 @@ zw-brain 不继承这些后台模块，但必须交付客户可用的本地业�
 
 调用者身份以 IAF IAM OIDC token 为权威输入；zw-brain 保存调用时 `actor_snapshot`、必要投影、策略裁决结果和审计证据。投影可以被本地治理台管理，但不得保存旧密码、旧 token、验证码、短信状态或旧会话，也不得取代 IAF IAM 成为认证权威源。
 
-### 1.2 OPC：Registry 是能力治理的单一事实源
+### 1.2 确定性自动化运营和运维：Registry 是能力治理的单一事实源
 
 - Capability 包、版本、暴露面、审核记录、租户启停策略以 `brain_registry` 为唯一事实源。
 - WebUI 动作、REST / OpenAPI、CLI、MCP、A2A 产物必须由 Registry 派生，不允许像旧 BSP 一样靠菜单 SQL 和按钮权限分散维护。

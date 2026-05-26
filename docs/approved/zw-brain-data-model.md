@@ -24,7 +24,7 @@ phase_after_approval: Wave 0（先打通 Catalog → Application → Approval �
 
 # 政务数据大脑（zw-brain）数据模型与数据库设计
 
-> 设计目标：把 `docs/approved/zw-brain-architecture.md` 的 Jobs / OPC / 合规内建 / 单一 Capability 契约，具体收敛为可落地的 canonical data model、Phase 1 物理库表边界，以及 legacy 适配映射规则。
+> 设计目标：把 `docs/approved/zw-brain-architecture.md` 的 Jobs / 确定性自动化运营和运维 / 合规内建 / 单一 Capability 契约，具体收敛为可落地的 canonical data model、Phase 1 物理库表边界，以及 legacy 适配映射规则。
 
 ---
 
@@ -60,11 +60,11 @@ phase_after_approval: Wave 0（先打通 Catalog → Application → Approval �
 
 ### 1.3 为什么 Canonical DB 选 PostgreSQL
 
-在架构基线约束下，PostgreSQL 比继续沿用 legacy 的多套 MySQL 更符合 Jobs / OPC：
+在架构基线约束下，PostgreSQL 比继续沿用 legacy 的多套 MySQL 更符合 Jobs / 确定性自动化运营和运维：
 
 1. **强状态聚合需要严格事务与约束。** 申请、审批、交付、异议的状态推进需要在同一事务里同时写业务实体、审计事件、回执 outbox。
 2. **CatalogModel / Capability contract / 审计快照天然需要 JSONB。** 这些是结构化但不适合被拆成过多稀碎列的内容，PostgreSQL 对 JSONB、GIN 索引、部分索引更友好。
-3. **Phase 1 需要“少运维、强边界”。** 单集群分 schema 既能保持逻辑清晰，也符合 OPC 的最小运维面。
+3. **Phase 1 需要“少运维、强边界”。** 单集群分 schema 既能保持逻辑清晰，也符合确定性自动化运营和运维的最小运维面。
 4. **后续分库演进自然。** 当 `brain_audit` 或 `brain_registry` 增长到独立边界时，可按 schema 平滑拆出，不影响领域模型本身。
 
 ### 1.4 本文额外回答的产品问题
@@ -152,7 +152,7 @@ phase_after_approval: Wave 0（先打通 Catalog → Application → Approval �
 - 以 read model / adapter 的方式喂给 P1 / P7 / B1.1 页面，或
 - 在确有高频价值时以外部 Capability 包注册进入。
 
-### 2.5 Jobs / OPC 数据模型验收清单
+### 2.5 Jobs / 确定性自动化运营和运维 数据模型验收清单
 
 任何新增表、状态机或投影，在进入本文前都应回答以下问题：
 
@@ -160,7 +160,7 @@ phase_after_approval: Wave 0（先打通 Catalog → Application → Approval �
 2. **它是事实源还是投影？** 若只是为了页面方便展示，应优先做 projection，而不是新增聚合根。
 3. **它是否能同时支撑 WebUI、REST、CLI、MCP、A2A 的同一 capability 投影？** 若不能，说明边界切错了。
 4. **它是否让普通用户产品心智变复杂？** 若新增的是后台岛、门户残留或长尾管理面，默认外部化。
-5. **它是否降低 OPC 运转效率？** 若新增后需要更多人工同步、更多双写、更多专用实现链，就违背 OPC。
+5. **它是否降低确定性自动化运转效率？** 若新增后需要更多人工同步、更多双写、更多专用实现链，就违背确定性自动化运营和运维原则。
 6. **它是否让 AI 夺主？** 若一个字段或表存在只是为了给聊天式入口兜底，而不是支撑结构化页面与责任边界，应判定为偏离基线。
 
 ## 三、领域概念、聚合边界与 legacy 语义映射
@@ -1564,7 +1564,7 @@ resolved  → closed
 - 但没有重建消息中心、监控中心、门户中心、应用中心的大而全 schema
 - 普通用户面对的是主旅程，后台治理面对的是最小 Registry 与 Audit
 
-### 12.3 它符合 OPC 的最小运转面
+### 12.3 它符合确定性自动化运营和运维的最小运转面
 
 - Phase 1 单 PostgreSQL 集群即可承载关键领域
 - 通过 schema 保持清晰边界

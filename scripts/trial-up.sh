@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # trial-up.sh — one-command internal env for product polish iterations
 #
-# OPC leverage point: every internal walkthrough, real-data regression, or
+# 确定性自动化运营和运维杠杆点： every internal walkthrough, real-data regression, or
 # trial dry-run goes through this script instead of being rebuilt by hand.
 #
 # Default flow:

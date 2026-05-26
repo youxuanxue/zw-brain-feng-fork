@@ -16,7 +16,7 @@
   4. tenant.policy.evaluate 再调返回 allowed=True（"下接 role policy" 闭环）
   5. 真实 actor_snapshot（iaf_sub-bound）查询时角色 binding 走 actor_org_role_binding（"上接 IAF" 闭环）
 
-定位：本测试是 M0 现场切换的回归基线；fixture 内容是 OPC 模式下 M0 实施工程师工作产物 baseline，
+定位：本测试是 M0 现场切换的回归基线；fixture 内容是 团队协作下 M0 实施工程师工作产物 baseline，
 现场可调整后回流。脚本 `scripts/build_m0_sd_default_fixtures.py` 是 fixture 生成器，幂等可复跑。
 """
 from __future__ import annotations

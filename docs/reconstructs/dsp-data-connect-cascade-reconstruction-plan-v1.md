@@ -27,7 +27,7 @@
 4. 级联接口、Kafka 下行、批处理执行和补发能留下审计证据，失败可重放。
 5. 用户面对的是 zw-brain 的 P1/P2/P3/P5/P7 主旅程 + B1.1 后台支撑面，而不是另一个"数据直达系统"菜单。
 
-### 1.2 OPC：canonical 主事实不被外部通道反向切分
+### 1.2 确定性自动化运营和运维：canonical 主事实不被外部通道反向切分
 
 - 目录事实仍归属 `catalog_entry` / `catalog_item` / `resource_asset`。
 - 申请事实仍归属 `application_record` / `approval_case`。

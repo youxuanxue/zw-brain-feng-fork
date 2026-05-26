@@ -6,13 +6,13 @@
 
 ## 角色上下文
 
-我是产品研发负责人，以 OPC（One-Person Company）模式运作：一个人 + AI 数字分身 = 精干团队的产出。
+我是产品研发负责人，带领团队推进公司重点项目 zw-brain。核心目标是确定性自动化运营和运维：通过 Cursor + AI 数字分身杠杆团队产能，把可机械化的交付与运维环节脚本化、门禁化。
 
 - 所在公司：浪潮云信息技术股份公司
 - 部门：人工智能工厂 / 海若产品部
-- 工作模式：OPC — 通过 Cursor + Claude Code 双引擎驱动长时运行的自主研发
+- 工作模式：团队协同研发 — 通过 Cursor + Claude Code 双引擎驱动长时运行交付
 - 产品设计：遵循乔布斯理念（聚焦、简洁、端到端、精品意识）
-- 研发运维：遵循 OPC 哲学（杠杆最大化、流程极简、自动化优先）
+- 研发运维：遵循确定性自动化运营和运维原则（杠杆最大化、流程极简、自动化优先）
 
 ## 关联项目（同级目录）
 
@@ -103,10 +103,10 @@ PR [#1](https://github.com/feng222666888/zw-brain/pull/1) merged at 2026-04-18 0
 - [2026-04-18] D13：**外部 Agent / Skill 接入政务大脑是合法且必备的扩展路径**（A2A 服务端 + Skill 注册），具体协议⏳ 待业务侧同步；Phase 0 先以占位 schema 跑通编排闭环
 - [2026-04-18] D14：**所有模型推理调用走集团推理平台的硬约束不变**；推理平台 SDK 具体形态⏳ 待业务侧同步；Phase 0 先以 mock 实现 `zw_brain/shared/inference/client.py`，文档到位后只换内部实现
 - [2026-04-18] D15（修订）：原 N1「不做政务大脑自己的可视化大屏」**反转**为 K12「必保留」；架构上**保持相对独立**——独立部署单元 `zw-brain-dashboard/`、只读消费 dashboard.* Skill、禁止内嵌写操作（preflight 段 11 强制）、故障与主大脑隔离
-  - **[2026-05-20] D15 二次反转**：K12 大屏**本期退役**。理由：（1）非 J1 黄金链路必要条件；（2）独立部署 + 独立技术栈分散 OPC 单人维护精力；（3）真实客户大屏诉求未明确，提前内建违反 R7；（4）旧平台"演示场景"占比高于"运营使用"。代码层 `zw-brain-dashboard/` + `zw_brain/entry/dashboard_bff.py` + `scripts/check_dashboard_readonly.py` + preflight 段 11 + 4 个相关 tests 全部删除。复活路径：作为外部能力包独立产品或 Wave 3+ 立项。
+  - **[2026-05-20] D15 二次反转**：K12 大屏**本期退役**。理由：（1）非 J1 黄金链路必要条件；（2）独立部署 + 独立技术栈分散团队维护精力；（3）真实客户大屏诉求未明确，提前内建违反 R7；（4）旧平台"演示场景"占比高于"运营使用"。代码层 `zw-brain-dashboard/` + `zw_brain/entry/dashboard_bff.py` + `scripts/check_dashboard_readonly.py` + preflight 段 11 + 4 个相关 tests 全部删除。复活路径：作为外部能力包独立产品或 Wave 3+ 立项。
 - [2026-04-18] D16：在 §4.4.2 数据模型章节加入 **URN 小白解释**；后续凡新文档首次出现 URN 必须回链 §4.4.2，不得自行简化为「ID」「主键」
-- [2026-04-18] D17（OPC 升级触发，第三轮自检）：**散文档数值漂移必须用 stat 块包裹**（详见基线附录 A「数字漂移防御层」），注册到 `scripts/.stats.json`，preflight 的 `sync-stats.sh --check` section 自动校验，禁止裸写"X 段 / X 类 / X 条"
-- [2026-04-18] D18（OPC 升级触发，第七+八轮自检）：**「上游补实体 → 下游 fixture 缺位」「跨节引用幽灵编号」「行号硬编码"反复触发 → 治本：(a) GATE-2 后追加 `scripts/check_fixture_coverage.py` 校验 `adapters/*_adapter.py` ↔ `fixtures/<entity>/`；(b) `dev-rules/check-doc-xrefs.sh` 扫描 `§X.Y` 与 `line N` 引用形式
+- [2026-04-18] D17（确定性自动化升级触发，第三轮自检）：**散文档数值漂移必须用 stat 块包裹**（详见基线附录 A「数字漂移防御层」），注册到 `scripts/.stats.json`，preflight 的 `sync-stats.sh --check` section 自动校验，禁止裸写"X 段 / X 类 / X 条"
+- [2026-04-18] D18（确定性自动化升级触发，第七+八轮自检）：**「上游补实体 → 下游 fixture 缺位」「跨节引用幽灵编号」「行号硬编码"反复触发 → 治本：(a) GATE-2 后追加 `scripts/check_fixture_coverage.py` 校验 `adapters/*_adapter.py` ↔ `fixtures/<entity>/`；(b) `dev-rules/check-doc-xrefs.sh` 扫描 `§X.Y` 与 `line N` 引用形式
 - [2026-04-18] D19（GATE-1 review 触发）：**技术选型从设计基线剔除** —— L1 Web 框架 + L2 编排引擎 ⏳ 延后到 Phase 0 PoC 决策（5 个对比维度：推理平台 SDK 兼容 / 审计 hook 注入难度 / AI Coding 改对率 / 政务部署兼容 / 集团技术栈一致性）；GATE-1 应 freeze 的是「哲学 / 架构层 / 数据模型 / 契约形态」，**反对「随手提到 = 隐式决策」反模式**
 - [2026-04-18] D20（M-I (b) 落地，第六轮自检）：**数字漂移防御层 stat 命名修订 + wrap 范围** —— 落地附录 A 时发现原 `mapping-rows-old/new` 误判 §八 表用 K/N 行标识，修订为 `zwbrain.kept-functions`（§3.1 K 表）+ `zwbrain.not-doing`（§3.4 N 表）；5 个 zw-brain stat 中只有 `zwbrain.webui-pages-cap` 在 prose 中存在硬数字声明，已包裹（§7.3 共 3 处），其余 4 个 compute 就位但 prose 无对应数字、**不强行 wrap**（反对「为 stat 而 stat」反模式）
 
@@ -140,7 +140,7 @@ GATE-1 通过后立即收尾动作：
 
 2026-05-24 乔布斯视角逐条对照架构基线 §1-附录 C 与代码事实（200 manifest / 5 消费面 / 14 preflight 段 / 18 测试套件），发现 6 项漂移并一次性清理。摘要：
 
-- [2026-05-24] D30：**R15 AgentRuntime 触发式落地（撤回 Wave 1 sign-off）**。原 §10.2 "Wave 1 必达 ≥1 内置 Agent 用 AGENT.yaml 通过 validate+doctor"（产品负责人 sign-off 2026-05-22）落地范围**撤回**——原 sign-off 由产品负责人单独发出，未经业务方 GATE，按 R13 元规则不构成业务流程类决策的硬承诺，本次按 OPC「只为真实需求建复杂度」改为触发式（§8.6 T1/T2/T3）。代码层无任何 AgentRuntime runtime 提前建造；协议规范 docs/agent-runtime/* 保留；Registry schema 字段（`runtime_spec_version` / `agent_yaml_ref` / `trust_level` / `workspace_required`）+ validate/doctor 工具链在 T1（首个真实外部 Agent 接入需求）触发当日落地。debt entry 见 [docs/preflight-debt.md](docs/preflight-debt.md)「2026-05-24 — AgentRuntime runtime 触发式延后」。
+- [2026-05-24] D30：**R15 AgentRuntime 触发式落地（撤回 Wave 1 sign-off）**。原 §10.2 "Wave 1 必达 ≥1 内置 Agent 用 AGENT.yaml 通过 validate+doctor"（产品负责人 sign-off 2026-05-22）落地范围**撤回**——原 sign-off 由产品负责人单独发出，未经业务方 GATE，按 R13 元规则不构成业务流程类决策的硬承诺，本次按确定性自动化运营和运维「只为真实需求建复杂度」改为触发式（§8.6 T1/T2/T3）。代码层无任何 AgentRuntime runtime 提前建造；协议规范 docs/agent-runtime/* 保留；Registry schema 字段（`runtime_spec_version` / `agent_yaml_ref` / `trust_level` / `workspace_required`）+ validate/doctor 工具链在 T1（首个真实外部 Agent 接入需求）触发当日落地。debt entry 见 [docs/preflight-debt.md](docs/preflight-debt.md)「2026-05-24 — AgentRuntime runtime 触发式延后」。
   - **R12 工程术语不进 UI 机械化**：新增 preflight 段 24 `scripts/check_ui_term_blacklist.py`。判定模型剥离 ${...} / HTML 属性值 / skill_id slug 后查残留 UI 文本，对真违规精确捕获、不误伤 contract slug。
   - **§9.5 adapter 写禁区机械化**：新增 preflight 段 25 `scripts/check_adapter_write_ban.py`。`zw_brain/adapters/legacy/` 之外任何写 token（session.add/commit/merge/delete / 裸 SQL INSERT/UPDATE/DELETE）拦下；legacy 一次性迁移区显式放行。
   - **R14 / §10.3 三引擎契约字段就位**：200 manifest 全量增加 `config_change_class: live` 默认值；`validate_manifest` 强制取值 ∈ {live, preview, draft}。Wave 2 三引擎落地时由配置 capability 显式改 preview/draft，无需再改 schema。

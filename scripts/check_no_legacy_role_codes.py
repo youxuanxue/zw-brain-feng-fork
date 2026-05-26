@@ -88,7 +88,7 @@ ALLOWED_LINE_MARKERS = (
     # build_true_data_seed.py 中迁移注释含旧 r3/r5 描述
     "旧 r3",
     "旧 r5",
-    # 基线 §11 架构约束 R7（OPC 单人维护）违反引用 — 与已退役用户角色码 R1-R8 同名异 namespace
+    # 基线 §11 架构约束 R7（确定性自动化运营和运维）违反引用 — 与已退役用户角色码 R1-R8 同名异 namespace
     "violates R7",
     # 段 33 live-builtin-budget 文档与引用 — 架构约束 R7/R4 namespace 显式标注
     "架构约束 R7",

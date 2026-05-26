@@ -6,7 +6,7 @@
 
 源数据：old/10示例数据/dump-dsp_bsp-202604271139.sql（脱敏样例，作为 sd-default M0 基线）。
 
-定位（important）：本脚本输出的不是"自动决策"，而是 **OPC 模式下 M0 实施工程师的工作产物 baseline**。
+定位（important）：本脚本输出的不是"自动决策"，而是 **团队协作下 M0 实施工程师的工作产物 baseline**。
 角色映射的语义判定 + capability 收录范围必须由业务方在现场最终确认。复跑前清空旧 fixture。
 
 用法::

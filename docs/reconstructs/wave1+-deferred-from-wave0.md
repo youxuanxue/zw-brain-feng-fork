@@ -87,7 +87,7 @@
 - **解冻条件**：Wave 1 与 `ext-agent-pilot.feature`（已引 `AGENT.yaml`）同期落地。
 - **证据路径**：`.data/customer-acceptance/wave0/W0-06-deferred-additions.md`；SDK / `AGENT.yaml` / CLI 完全缺位；`tests/test_wave0_infra.py:327` skip（needs_human 已 supervisor 决断为 Deferred）。
 - **预估解冻代价**：≥200 LOC infra（不含集成测试）。
-- **复盘**：OPC 单人维护不支持 ≥200 LOC 推测性 infra 提前实现（violates R7）；Wave 1 与外部 Agent pilot 合并落地最经济。
+- **复盘**：团队协同下按确定性自动化原则不支持 ≥200 LOC 推测性 infra 提前实现（violates R7）；Wave 1 与外部 Agent pilot 合并落地最经济。
 
 ### D-7 — 审批角色 .feature(BUSIAUDIT) vs runtime(ORGAN_MANAGER) 漂移
 
@@ -167,7 +167,7 @@ W0-07 浏览器 e2e 是 **J1 正向 happy-path**（P1→B1.1 渲染 + 找数→�
 ### Jobs 风格决策记录
 
 - **W0-05 path (b)**：用户 + supervisor sign-off，接受 legacy 历史缺口，cross-wave 阈值降至 1% + 新增 runtime fixture 真验证 J1 forward flow（D-5 Resolved）。
-- **W0-06 path (b)**：supervisor sign-off，AgentRuntime Embedded SDK 降级 Wave 1 与 ext-agent-pilot 同期，避免 OPC 单人提前实现 ≥200 LOC 推测性 infra（D-6 Deferred）。
+- **W0-06 path (b)**：supervisor sign-off，AgentRuntime Embedded SDK 降级 Wave 1 与 ext-agent-pilot 同期，避免团队提前实现 ≥200 LOC 推测性 infra（D-6 Deferred）。
 
 ### 引向 W0-09
 

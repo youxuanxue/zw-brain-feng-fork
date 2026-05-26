@@ -25,7 +25,7 @@
 4. `ROLE_SECURITY_AUDIT`（监管方）能看到处理是否超时、责任归属、处理过程、评价结果和证据链。
 5. Agent 能把异议、审计、交付、服务调用和目录质量证据转成可读摘要，辅助判断而不是替代业务责任人。
 
-### 1.2 OPC：强状态入核心，通知和调度外部化
+### 1.2 确定性自动化运营和运维：强状态入核心，通知和调度外部化
 
 - 异议主状态进入 `objection_case`，不能退化成 `catalog_entry`、`resource_asset` 或 `delivery_task` 上的备注字段。
 - 异议过程进入 `objection_process`，评价进入 `objection_evaluation`，文本、附件、字段差异、错误数据清单等进入 `objection_evidence`。

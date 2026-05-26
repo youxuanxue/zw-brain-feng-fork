@@ -32,7 +32,7 @@ zw-brain 不继承这些模块名，也不复刻它们的页面层级。它们�
 4. 监管方能从申请、审批、授权、交付、异常、统计追溯责任链。
 5. 低频、基础设施耦合强、客户现场差异大的动作通过 ANP / 外部 Capability 包执行，不占用主产品心智。
 
-### 1.2 OPC：单一事实源，不为供需和交换开第二套平台
+### 1.2 确定性自动化运营和运维：单一事实源，不为供需和交换开第二套平台
 
 - 需求、申请、审批、授权、交付继续进入 `brain_core` 的 canonical model，不建立并列的“供需中心”和“交换中心”。
 - require / supply / exchange 专属映射、投影字段、迁移规则和能力边界以本文为单一事实源；approved 数据模型只保留通用结构与本文引用。
@@ -436,7 +436,7 @@ approved 数据模型已有 `application_record`、`approval_case`、`delivery_t
 
 | 风险 / 反模式 | 为什么不接受 | 防线 |
 | --- | --- | --- |
-| 按旧仓库建立 `require_center`、`supply_center`、`exchange_center` | 会复制旧后台岛，违背主旅程和 OPC | 只按聚合建模。 |
+| 按旧仓库建立 `require_center`、`supply_center`、`exchange_center` | 会复制旧后台岛，违背主旅程和确定性自动化运营和运维 | 只按聚合建模。 |
 | 为兼容旧 URL 重建 controller | 会形成第二套业务入口，破坏 Capability 单一事实源 | 旧 URL 仅 adapter 输入，不承诺兼容。 |
 | 把 `exchange_job` 当作唯一交付事实源 | 交换任务只是交付方式之一，无法覆盖 API、文件、订阅和直达 | 统一落 `delivery_task`。 |
 | 把统计表当事实源 | 统计口径漂移会反向污染状态 | 统计全部为可重算 projection。 |
