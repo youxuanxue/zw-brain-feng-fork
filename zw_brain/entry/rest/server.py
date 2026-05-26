@@ -33,7 +33,9 @@ from zw_brain.shared.auth_session import (
     CSRF_HEADER_NAME,
     SESSION_COOKIE_NAME,
     AuthSession,
-    AuthSessionStore,
+    AuthSessionStoreProtocol,
+    create_auth_session_store,
+    validate_session_store_for_deploy,
 )
 from zw_brain.shared.iaf_oidc import (
     DEFAULT_IAF_CLIENT_ID,
@@ -93,7 +95,7 @@ _IAF_STATE_STORE = IafOidcStateStore()
 _IAF_TRANSPORT: Callable[[HttpRequest], HttpResponse] | None = None
 _IAF_JWKS: dict[str, Any] | None = None
 _IAF_JWKS_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
-_AUTH_SESSION_STORE = AuthSessionStore()
+_AUTH_SESSION_STORE: AuthSessionStoreProtocol = create_auth_session_store()
 
 
 def _iaf_client_id() -> str:
@@ -133,7 +135,7 @@ def configure_iaf_auth_runtime(
     transport: Callable[[HttpRequest], HttpResponse] | None = None,
     jwks: dict[str, Any] | None = None,
     state_store: IafOidcStateStore | None = None,
-    session_store: AuthSessionStore | None = None,
+    session_store: AuthSessionStoreProtocol | None = None,
 ) -> None:
     global _IAF_TRANSPORT, _IAF_JWKS, _IAF_STATE_STORE, _AUTH_SESSION_STORE
     _IAF_TRANSPORT = transport
@@ -147,7 +149,7 @@ def configure_iaf_auth_runtime(
         _AUTH_SESSION_STORE.clear()
 
 
-def get_auth_session_store() -> AuthSessionStore:
+def get_auth_session_store() -> AuthSessionStoreProtocol:
     return _AUTH_SESSION_STORE
 
 
@@ -788,6 +790,7 @@ def log_iaf_runtime_warnings() -> None:
 
 
 def main(host: str | None = None, port: int | None = None) -> None:
+    validate_session_store_for_deploy()
     log_iaf_runtime_warnings()
     ThreadingRestServer((host or get_rest_host(), port or get_rest_port()), RestHandler).serve_forever()
 

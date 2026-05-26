@@ -279,14 +279,16 @@ REST 端点：
 
 ## 13. 测试覆盖
 
-- `tests/test_auth_session_store.py`：会话 CRUD、过期清理、CSRF token 生成、refresh 阈值。
-- `tests/test_rest_session_lifecycle.py`：登录回调 cookie 属性、CSRF 必填、cookie/Bearer 双路径、
-  /auth/iaf/session 复用、bypass 双因子。
-- `tests/test_iaf_iam_e2e_offline.py`：BFF 模式下 cookie 设置、不返回 token、PR #45 安全断言保留。
-- `tests/test_rest_runtime.py`：Bearer 路径回归、bypass 路径回归。
-- `tests/test_webui_journey_contract.py`：auth.js 字符串契约（X-CSRF-Token、`credentials:'include'`、
-  BroadcastChannel、`readCurrentSession`、`csrf_token_invalid` 处理）。
+- `tests/test_auth_session_redis.py`：Redis 会话 CRUD、双实例共享、prod deploy guard。
+- `tests/test_wave0_infra.py::test_infra_iam_session_lifecycle`：内存会话 public payload 不含 token。
+- `tests/test_trusted_session_context.py`：Cookie 会话提权拒绝、trusted payload 边界。
+- `tests/test_entry_surfaces.py::test_a2a_serve_refuses_without_dev_bypass`：bypass 双因子。
+- `tests/test_iam_governance_web_surface.py` / `tests/e2e/b12_iam_governance.spec.ts`：BFF 写路径 CSRF + 身份治理 Web 消费面。
 
-## 14. 已知 debt
+## 14. 会话存储（多副本）
 
-详见 `docs/preflight-debt.md`：当前 `AuthSessionStore` 为单进程内存实现，多副本部署前需切 Redis/DB。
+- **默认（未设 Redis）**：单进程内存 `InMemoryAuthSessionStore`，适用于 `start-local.sh` 与单 worker 容器。
+- **生产 / 多 REST 副本**：必须设置 `ZW_BRAIN_SESSION_REDIS_URL`（例如 `redis://redis:6379/0`），由
+  `RedisAuthSessionStore` 共享 BFF 会话；`ZW_BRAIN_DEPLOY_MODE=prod` 时未配置会拒绝启动。
+- 可选 `ZW_BRAIN_SESSION_REDIS_KEY_PREFIX`（默认 `zw-brain:session:`）。
+- 测试：`tests/test_auth_session_redis.py`。

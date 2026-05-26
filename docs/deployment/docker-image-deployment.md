@@ -116,6 +116,9 @@ http://<服务器IP>:8800/
 | `ZW_BRAIN_IAF_VERIFY_SSL` | 设为 `false` 时完全跳过 IAF 端点 SSL 验证（仅限测试/内网无证书环境） | `true` |
 | `ZW_BRAIN_DEV_IAM_BYPASS` | 研发期 IAM 网络不可达时临时跳过登录与 token-healthz；须与 `ZW_BRAIN_DEV_IAM_BYPASS_ACK=development-only` 同时设置才生效；生产部署不得设置 | 未设置 |
 | `ZW_BRAIN_DEV_IAM_BYPASS_ACK` | bypass 双因子确认字；仅 `development-only` 与 `ZW_BRAIN_DEV_IAM_BYPASS=1` 联用 | 未设置 |
+| `ZW_BRAIN_SESSION_REDIS_URL` | BFF 会话 Redis URL；**多 REST 副本 / 生产必填**（例如 `redis://redis:6379/0`） | 未设置（单 worker 内存会话） |
+| `ZW_BRAIN_SESSION_REDIS_KEY_PREFIX` | Redis session key 前缀 | `zw-brain:session:` |
+| `ZW_BRAIN_DEPLOY_MODE` | 设为 `prod` / `production` 时强制要求 `ZW_BRAIN_SESSION_REDIS_URL` | 未设置 |
 
 如需接入 IAF/OIDC、外部数据库或集团推理平台，应通过环境变量注入对应配置，不要把密钥、连接串或证书写入镜像。内网部署若 IAF 使用自签名证书，优先挂载 CA bundle（`ZW_BRAIN_IAF_CA_FILE`）；仅在无法提供证书时才使用 `ZW_BRAIN_IAF_VERIFY_SSL=false`。
 
@@ -123,7 +126,7 @@ REST WebUI 登录采用 **IAM 授权码 + BFF 会话**（详见 `docs/iam-login-
 
 开发环境若无法连通 IAM 服务端，须**同时**设置 `ZW_BRAIN_DEV_IAM_BYPASS=1` 与 `ZW_BRAIN_DEV_IAM_BYPASS_ACK=development-only`：WebUI 不跳转 IAM，后端 `/api/snapshot` 与 `/api/skills/*` 走 bypass 路径，但仍执行 Skill manifest、角色、租户和人工确认等业务门禁。该开关只用于研发调试，生产部署清单不要设置。
 
-> **prod guard debt**：`ZW_BRAIN_DEV_IAM_BYPASS` 的生产环境硬拦截守卫延后至首客户部署阶段实现（MEMORY `dev-iam-bypass debt`），当前登记于 `docs/preflight-debt.md`；交付时由部署文档 + 运维 checklist 确保该变量未设置，不依赖代码守卫拦截。
+> **prod guard**：`scripts/check_iam_prod_guard.py`（preflight 段 23）拦截 prod 部署清单中的 dev-iam-bypass 关键字；`ZW_BRAIN_DEPLOY_MODE=prod` 时 `zw-brain-rest` 启动还要求 `ZW_BRAIN_SESSION_REDIS_URL`（见 §5 环境变量表与 `docs/preflight-debt.md`）。
 
 ## 6. 旧平台数据迁移
 

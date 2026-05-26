@@ -164,15 +164,32 @@ test.describe('客户验收 — 业务运营 B1', () => {
     await setRole(page, 'ROLE_BUSIAUDIT');
   });
 
-  test('B1.2 接入中心 tab + 包详情链', async ({ page }) => {
+  test('B1.2 接入中心 → 身份治理中心', async ({ page }) => {
     await gotoHash(page, '#/integration-admin');
     await expect(page.getByRole('heading', { name: '接入扩展中心' })).toBeVisible();
     await expect(page.getByText('功能建设中')).toHaveCount(0);
-    const detailLink = page.locator('a[href*="#/integration-admin/packages/"]').first();
-    if (await detailLink.isVisible()) {
-      await detailLink.click();
-      await expect(page.getByText('功能建设中')).toHaveCount(0);
-    }
+    await expect(page.getByRole('link', { name: '身份治理' })).toBeVisible();
+    await page.getByRole('link', { name: '身份治理' }).click();
+    await expect(page).toHaveURL(/#\/integration-admin\/iam-governance/, { timeout: 8_000 });
+    await expect(page.getByRole('heading', { name: '身份治理' })).toBeVisible();
+    await expect(page.getByText('映射候选列表')).toBeVisible();
+    await expect(page.locator('.data-source-badge')).toBeVisible();
+  });
+
+  test('B1.2 能力包详情链', async ({ page }) => {
+    await gotoHash(page, '#/integration-admin');
+    const detailLink = page.locator('a[href*="#/integration-admin/package/"]').first();
+    await expect(detailLink).toBeVisible({ timeout: 12_000 });
+    await detailLink.click();
+    await expect(page).toHaveURL(/#\/integration-admin\/package\//, { timeout: 8_000 });
+    await expect(page.getByText('功能建设中')).toHaveCount(0);
+  });
+
+  test('B1.2 部门操作员无权进身份治理', async ({ page }) => {
+    await setRole(page, 'ROLE_ORGAN_OPERATER');
+    await gotoHash(page, '#/integration-admin/iam-governance');
+    await page.waitForTimeout(1000);
+    expect(page.url()).not.toMatch(/#\/integration-admin\/iam-governance/);
   });
 
   test('B1.3 三引擎 Wave2 预览 banner', async ({ page }) => {

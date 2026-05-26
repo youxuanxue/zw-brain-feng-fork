@@ -19,9 +19,13 @@ zw-brain-a2a = "zw_brain.entry.a2a.server:main"
 zw-brain-migrate-legacy = "zw_brain.entry.legacy_migration.main:main"
 
 [project.optional-dependencies]
+redis = [
+  "redis>=5.0",
+]
 dev = [
   "pytest>=9.0.3",      # CVE-2025-71176 fixed in 9.0.3
   "ruff>=0.5",
+  "fakeredis>=2.0",
 ]
 
 [build-system]

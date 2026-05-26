@@ -97,20 +97,24 @@ the symptom, the deferred decision, and the trigger that forces a re-evaluation.
 - **No mechanical preflight check (now)**: `config_change_class` 取值已由 `validate_manifest` 强制校验
   （∈ {live, preview, draft}）；三引擎 preview/draft 实例增减不需要新增 preflight 段。
 
-## 2026-05-18 — BFF session store is single-process in-memory
+## 2026-05-26 — BFF session Redis backend（P0-E 关闭）
 
-- **Where**: `zw_brain/shared/auth_session.AuthSessionStore` (thread-safe dict in the REST entry process).
-- **Implication**: A multi-process / multi-replica REST deployment will hand out cookies that only
-  resolve on the issuing replica. Subsequent requests routed to a different replica look like
-  un-authenticated traffic.
-- **Why deferred**: Current zw-brain REST deployment is single-process (one `zw-brain-rest` worker
-  per node, sticky LB upstream). Adding Redis / DB-backed sessions before any deployment actually
-  needs it would be premature infra.
-- **Trigger to re-evaluate**: First time we want to run `zw-brain-rest` behind a non-sticky load
-  balancer, or run more than one REST worker, switch to an out-of-process backend (Redis preferred:
-  TTL + `secrets.compare_digest` semantics already match the in-memory store).
-- **No mechanical preflight check**: Adding a "deployment topology" gate today would be noise. The
-  trigger above is concrete enough that we'll know when to act.
+- **Where**: `zw_brain/shared/auth_session.py` — `RedisAuthSessionStore` + `create_auth_session_store()`;
+  `zw_brain/entry/rest/server.py` startup calls `validate_session_store_for_deploy()`.
+- **Implication**: 多 REST worker / 非 sticky LB 部署时，设置 `ZW_BRAIN_SESSION_REDIS_URL` 即可共享
+  HttpOnly BFF 会话；未设置时仍走单进程 `InMemoryAuthSessionStore`（`start-local.sh` 默认路径不变）。
+- **Prod guard**: `ZW_BRAIN_DEPLOY_MODE=prod|production` 且未配置 `ZW_BRAIN_SESSION_REDIS_URL` →
+  `zw-brain-rest` 启动即 `SystemExit`。
+- **Mechanical check (now)**: `tests/test_auth_session_redis.py`（fakeredis 双实例共享会话 + prod guard）。
+- **Ops**: 生产镜像需 `uv pip install 'zw-brain[redis]'` 或等价安装 `redis>=5.0`；可选
+  `ZW_BRAIN_SESSION_REDIS_KEY_PREFIX`（默认 `zw-brain:session:`）。
+
+## 2026-05-18 — BFF session store is single-process in-memory — **已 superseded 2026-05-26**
+
+> 历史条目保留审计链。实现已升级为 Redis 可选 + 内存 fallback；见上条 P0-E 关闭记录。
+
+- **Where (was)**: in-memory only.
+- **Trigger (was)**: multi-replica → **已落地 Redis backend**。
 
 ## dev-iam-bypass — `ZW_BRAIN_DEV_IAM_BYPASS=1` 仅限本机/演示
 

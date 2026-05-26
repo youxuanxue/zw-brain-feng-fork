@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import urllib.request
@@ -13,7 +14,8 @@ sys.path.insert(0, str(REPO))
 
 from playwright.sync_api import sync_playwright  # noqa: E402
 
-BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8830"
+_DEFAULT_PORT = os.environ.get("ZW_BRAIN_REST_PORT", "8800")
+BASE = sys.argv[1] if len(sys.argv) > 1 else f"http://127.0.0.1:{_DEFAULT_PORT}"
 PLACEHOLDER = "功能建设中"
 FORBIDDEN = re.compile(
     r"skill_id|plan\.yaml|\bcapability\b|\bprojection\b|write-with-audit|E[1-6]\s+F[0-9]|E[1-6]\s+",
@@ -47,6 +49,11 @@ def forbidden_in(text: str) -> str | None:
 
 def wait_ready(page) -> None:
     page.goto(BASE + "/", wait_until="domcontentloaded")
+    login_btn = page.locator("#login-gate-submit")
+    if login_btn.count() > 0:
+        login_btn.click()
+        page.wait_for_timeout(600)
+    page.wait_for_selector(".user-menu-button", timeout=30000)
     page.wait_for_selector("#role-switch", timeout=30000)
 
 
@@ -176,6 +183,27 @@ def main() -> int:
         t = app_text(page)
         fb = forbidden_in(t)
         record("B1.2 接入中心", "接入扩展中心" in t and fb is None, f"forbidden={fb}")
+
+        has_gov_link = page.locator('a[href="#/integration-admin/iam-governance"]').count() > 0
+        record("B1.2 身份治理入口", has_gov_link, "接入中心顶栏「身份治理」链接")
+
+        goto(page, "#/integration-admin/iam-governance")
+        t = app_text(page)
+        fb = forbidden_in(t)
+        record(
+            "B1.2 身份治理页",
+            "身份治理" in t and "映射候选列表" in t and PLACEHOLDER not in t and fb is None,
+            f"forbidden={fb}",
+        )
+
+        set_role(page, "ROLE_ORGAN_OPERATER")
+        goto(page, "#/integration-admin/iam-governance")
+        page.wait_for_timeout(1200)
+        record(
+            "B1.2 身份治理岗位守卫",
+            "#/integration-admin/iam-governance" not in page.evaluate("() => location.hash"),
+            page.evaluate("() => location.hash"),
+        )
 
         set_role(page, "ROLE_SYSTEM")
         goto(page, "#/engines-admin")

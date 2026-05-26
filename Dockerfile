@@ -17,7 +17,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 COPY --from=builder /dist/*.whl /tmp/
-RUN uv pip install --system /tmp/*.whl && rm -f /tmp/*.whl
+RUN uv pip install --system /tmp/*.whl && uv pip install --system 'redis>=5.0' && rm -f /tmp/*.whl
 
 VOLUME ["/data/zw-brain"]
 EXPOSE 8800 8801
