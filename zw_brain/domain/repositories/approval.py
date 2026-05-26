@@ -15,6 +15,9 @@ def _now() -> datetime:
 
 class ApprovalRepository:
     def list_cases(self, *, tenant_id: str = "sd-default") -> list[ApprovalCaseRecord]:
+        # full-scan-ok: handler 侧多个 next(... for ... if application_code == X) 二次过滤；
+        # ApprovalCase 行数 ≈ Application 行数，trigger 与 application.list_records 同步。
+        # 详见 docs/preflight-debt.md 「2026-05-26 — 读路径热表 tenant-only 全扫白名单」
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(

@@ -28,7 +28,7 @@ import { trustPillClass } from '@/lib/packageDisplay';
 //   2. 写操作（审核/启停/回滚/信任级升降级）严格走 window.confirm() 二次确认；
 //      与后端 manifest human_confirmation_required=true 对齐。
 //   3. 三引擎 slot 不重实装；本 UI 列 3 个入口跳转到 B1.2 子页
-//      /integration-admin/engines（B13EnginesAdmin.vue 内 tab 切换），见 useEngineSlots.ts。
+//      /integration-admin/engines（EnginesAdmin.vue 内 tab 切换），见 useEngineSlots.ts。
 
 type TabKind = 'list' | 'matrix' | 'engines';
 const activeTab = ref<TabKind>('list');

@@ -5,6 +5,55 @@ the symptom, the deferred decision, and the trigger that forces a re-evaluation.
 
 任何一条 entry 在 trigger 触发时必须升级为 P0 fix 或转化为机械化 preflight check；不允许长期沉淀。
 
+## 2026-05-26 — 读路径热表 tenant-only 全扫白名单（PR #113 同模式残留）
+
+- **Where**: 段 32 `scripts/check_read_path_full_scan.py` 在当前 main HEAD 扫到 12 处与
+  PR #113 同模式的 `select(HotModel).where(tenant_id==X)` 不带 limit / 不带额外
+  业务过滤维度的全量扫表点：
+  - `zw_brain/domain/repositories/catalog.py::list_model_fields_all` —
+    legacy verification 一次性 count/set-membership
+  - `zw_brain/domain/repositories/delivery.py::list_tasks` —
+    J1 投递任务全量列表
+  - `zw_brain/domain/repositories/application.py::list_records` —
+    J1 申请全量列表（governance/dispute/approval handler 复用）
+  - `zw_brain/domain/repositories/approval.py::list_cases` —
+    审批 case 全量列表（与 application 同步触发）
+  - `zw_brain/domain/repositories/supply_demand.py::list_demands` —
+    payload_json.kind 维度过滤需 SQL JSON 算子才能下推
+  - `zw_brain/command/handlers/j2/metadata.py` `existing_reverse` 推断 —
+    summary_json.source 同 JSON 维度场景
+  - `zw_brain/domain/repositories/catalog.py::_entry_list_statement` return —
+    PR #113 修复路径 query builder；调用方须传 filter/limit
+  - `zw_brain/domain/repositories/catalog.py::list_items` —
+    catalog_code 可选；None 时 tenant-only 全量 item
+  - `zw_brain/domain/repositories/delivery.py::list_attempts` —
+    delivery_code/attempt_code 可选；双 None 时 tenant-only
+  - `zw_brain/domain/repositories/objection.py::list_cases` —
+    status 可选；None 时 tenant-only 全量 objection
+  - `zw_brain/domain/repositories/resource_api.py::list_assets` —
+    lifecycle_status 可选；None 时 tenant-only 全量 resource
+  - `zw_brain/domain/repositories/resource_api.py::list_bindings` —
+    resource_code 可选；None 时 tenant-only 全量 binding
+- **Implication**: 与 PR #113 catalog.entry.query 同形态的「读路径全量扫表 + 内存
+  过滤」反模式残留点；当前单租户 sd-default 下行数 ≤ 数千，未触发 P5「待发布目录」
+  级的卡顿，但**多租户接入或 J1/J2 量级进入万级时同类卡顿必定复现**。
+- **Why deferred**: PR #113 修的是 P5 阻塞客户演示的最高优先级单点；本次本意是用段 32
+  把这条「同模式 list-only-tenant」机械化，把残留 6 处一次性修完会显著超出
+  「基线漂移收口」PR 范围。改修需要：(a) 给每个 repo 接口加业务维度参数；
+  (b) 同步改 ≥10 个 caller；(c) JSON 列下推需要 SQLite vs PostgreSQL 分支。
+  Jobs 风格的可逆决策：先用 `# full-scan-ok: <理由>` 把 6 处标记为显式接受的债务，
+  机械守住「新增点不得回潮」，旧点等触发再批改。
+- **Trigger to re-evaluate** (任一触发即升级为 P0 fix)：
+  - **T1**：J1 申请量 / catalog 量进入万级（≥ 10k 行）→ 出现 P5 同类客户卡顿。
+  - **T2**：第二个真实租户接入 → tenant-only filter 不再有界。
+  - **T3**：再出现一次「客户演示卡顿被现场 hotfix」事件 → 不再容忍残留点。
+  届时按 PR #113 同手法把每个 `list_*` 改造为业务维度下推 + paged 接口；
+  JSON 列场景额外评估「把维度提到独立索引列」（D7 adapter 输入归口）。
+- **Mechanical guardrail (now)**: 段 32 `scripts/check_read_path_full_scan.py`
+  对**新增**的 `select(HotModel).where(tenant_id==X)` 不带 limit / 不带额外维度
+  过滤的写法一律拦下，必须显式加 `# full-scan-ok: <≥7 字符理由>` 才放行；
+  即未来回潮必先经过明确"接受债务"的动作，杜绝隐式漂移。
+
 ## 2026-05-25 — 真数据回归不在 CI 自动门禁（D11 张力）
 
 - **Where**: 14 个真数据测试模块（`tests/test_wave{0,1}_*` J1/J2 黄金链路）靠 `tests/_seed_guard.require_real_seed`

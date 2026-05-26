@@ -37,6 +37,7 @@ phase_after_approval: Phase 0（先打通首条黄金链路 J1 找数→用数�
 
 | 章节 | 回答的问题 | 读者 |
 |------|-----------|------|
+| 〇.1 当前真相表 | 5 个 Wave 当前停在哪一步（反向索引 preflight-debt） | 所有 reviewer 先读 |
 | 一、我们造什么 | 产品身份 + 用户场景 + 做/不做什么 + 成功标准 | 所有人（客户/业务方先读） |
 | 二、设计哲学 | 为什么必须做减法 | 决策者 / 架构师 |
 | 三、从证据得到什么结论 | 旧平台事实对新平台的含义；外部依赖边界 | 架构师 / 产品 |
@@ -51,6 +52,28 @@ phase_after_approval: Phase 0（先打通首条黄金链路 J1 找数→用数�
 | 附录 A | 旧能力簇 → 新能力面映射 | 产品 / 迁移 |
 | 附录 B | 关键证据索引 | Reviewer |
 | 附录 C | 软规则 → 机械检查映射 | 工程 / OPC 自检 |
+
+---
+
+## 〇.1 当前真相表（Wave Status Snapshot）
+
+> 本表是当前真相的索引面；下文 §十路线图保留设计意图、§十一 R 主张保留架构约束，本表负责让 reviewer 不必交叉读两份文档就能看到 Wave 当前停在哪一步。
+
+| Wave | 状态 | 真人 sign-off | 阻塞 / 触发式延后 |
+|---|---|---|---|
+| Wave 0（机械守卫 + J1 黄金链路） | `shipped` | 工程交付（preflight 段 7a..32 全绿 + tests/test_wave0_* 套件存在） | — |
+| Wave 1（J1 闭环深化 + J2 挂数→维数） | `partially-shipped` | 工程交付 PR #90 / #98 / #103-#106 / #108 / #109；AgentRuntime 子项触发式延后 | AgentRuntime runtime 子项：[preflight-debt §2026-05-24 AgentRuntime](../preflight-debt.md)（T1/T2/T3 任一触发即升级 P0）；读路径 6 处全扫白名单：[preflight-debt §2026-05-26 PR #113 同模式残留](../preflight-debt.md) |
+| Wave 2（三引擎 + B1 合规 + 共享专区） | `partially-shipped` | 代码侧 PR #92 已落地（三引擎 10 个 capability）；真人 sign-off 待业务方现场演练 | 真人 sign-off 待业务方现场演练：[preflight-debt §2026-05-24 Wave 2 R14 三引擎](../preflight-debt.md)；borderline 5 capability：[preflight-debt §2026-05-23 5 个 B1 业务报表](../preflight-debt.md) |
+| Wave 3（协议硬化 + 多租户 + 国家通道） | `not-started` | — | 阻塞 = Wave 2 客户演练 sign-off；多租户支线另需触发：[preflight-debt §2026-05-24 反 per-tenant fork](../preflight-debt.md) |
+| Wave 4（legacy 退役） | `not-started` | — | 阻塞 = Wave 3 多协议硬化 + 真数据回归进 CI：[preflight-debt §2026-05-25 真数据](../preflight-debt.md) / [§2026-05-25 推理 mock](../preflight-debt.md) / [§2026-05-25 客户机房部署](../preflight-debt.md)；附录 C 4 项触发式 pending：[preflight-debt §2026-05-24 附录 C 4 项](../preflight-debt.md) |
+
+**单一权威路径声明**：当本表与 §十路线图 / `docs/preflight-debt.md` 任一处冲突时，**以本表为准**——本表是当前真相的统一索引面。
+
+补充说明：
+- `shipped` = 代码已交付 + 工程门禁全绿；`partially-shipped` = 代码已交付但仍有等待真人 sign-off / 触发式延后子项；`in-progress` = 已开工尚未交付；`deferred-trigger` = 整体延后但有明确触发条件；`not-started` = 未开工。
+- **D30 retrofit 已落地**：§8.6 触发式 + §10.2 strike-through（AgentRuntime 撤回提前盖楼）+ D-31d 三引擎已在 PR #92 落地——上述均体现在本表 Wave 1 / Wave 2 状态列中。
+- BFF Redis session（[preflight-debt §2026-05-26 BFF session Redis backend](../preflight-debt.md)）已 superseded 关闭，**不再列为阻塞**。
+- 真人 sign-off ⊂ R13 元规则（角色 / 业务流程 / 状态机决策必须业务方 sign-off），与工程交付并行；工程交付绿 ≠ Wave shipped。
 
 ---
 
@@ -957,7 +980,7 @@ zw-brain 是**全新项目**，没有历史客户、没有存量数据需要迁�
 
 **三引擎与 AgentRuntime 的关系**：审批流 / 表单 schema / 推荐三引擎本身仍是 zw-brain 内建 Capability（不外部化）；外部 Agent 可作为「配置草稿生成器」接入（自然语言 → schema 草稿 → 管理员确认入库），但**不直接修改生产配置**（与 §8.5 边界一致）。
 
-**Wave 2 客户落地 sign-off 材料**（E3 F8 自动产出）：路径 `.data/wave2-acceptance/SIGN_OFF.md`，由 `tests/integration/test_wave2_three_engines_acceptance.py` 跑过即重生成；包含鞍山 4 级审批 / 四川 7 字段表单 / 荆州 5 条推荐规则三例的 e2e 入库证据、duration 时长记录、真实历史 hit-rate、§ 3 业务方签字栏（待业务方填）。业务方签字后此 Wave 2 「客户落地 ≤ 1 周」承诺由 pending 升 completed。
+**Wave 2 客户落地 sign-off 材料**（E3 F8 自动产出）：tracked 路径 `docs/wave2-acceptance/SIGN_OFF.md`（**单一权威**——PR reviewer 与业务方直接读，无需 checkout + 跑 test），由 `tests/integration/test_wave2_three_engines_acceptance.py` 跑过即重生成；包含鞍山 4 级审批 / 四川 7 字段表单 / 荆州 5 条推荐规则三例的 e2e 入库证据、duration 时长记录、真实历史 hit-rate、§ 3 业务方签字栏（待业务方填）。JSON 中间产物（consolidated / anshan_approval / sichuan_form / jinzhou_recommendation）仍走 `.data/wave2-acceptance/`（gitignored，本地复跑后生成）。业务方签字后此 Wave 2 「客户落地 ≤ 1 周」承诺由 pending 升 completed。
 
 ### 10.4 Wave 3：协议扩展硬化 + 多租户深化 + 国家通道独立子旅程
 

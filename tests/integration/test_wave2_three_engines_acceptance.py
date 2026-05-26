@@ -9,6 +9,10 @@ SIGN_OFF.md`（tracked，PR reviewer 可见）+ `.data/wave2-acceptance/*.json`�
 
 R-003 fix（2026-05-24）：SIGN_OFF.md 路径从 `.data/wave2-acceptance/` 迁到
 `docs/wave2-acceptance/`，使 PR reviewer 与业务方无需 checkout + 跑 test 即可读签字材料。
+
+2026-05-26 收口：删除 `.data/wave2-acceptance/SIGN_OFF.md` 副本写入路径。tracked
+`docs/wave2-acceptance/SIGN_OFF.md` 是**单一权威**；JSON artifact（consolidated 等）仍
+留在 `.data/` 作为本地复跑产物（gitignored）。
 """
 from __future__ import annotations
 
@@ -471,11 +475,11 @@ def test_three_engines_consolidated_acceptance() -> None:
         "`pytest tests/integration/test_wave2_three_engines_acceptance.py -v` 后回写。",
         "",
     ]
-    # R-003 fix: SIGN_OFF.md 走 docs/ tracked 路径（PR reviewer 可见）；同时保留 .data/ 旧路径副本
-    # 兼容已有引用，直到外部消费者全部切到 docs/。
+    # R-003 fix（2026-05-24）：SIGN_OFF.md 走 docs/ tracked 路径（PR reviewer 可见）。
+    # 2026-05-26 收口：移除 .data/wave2-acceptance/SIGN_OFF.md 副本。tracked 路径是
+    # 单一权威；JSON artifact（consolidated/anshan_approval/sichuan_form/jinzhou_recommendation）
+    # 仍走 .data/（不进 git，本地复跑后生成），二者职责分明。
     sign_off_path = SIGN_OFF_DIR / "SIGN_OFF.md"
     sign_off_path.write_text("\n".join(md_lines), encoding="utf-8")
     assert sign_off_path.exists()
-    legacy_sign_off_path = ACCEPTANCE_DIR / "SIGN_OFF.md"
-    legacy_sign_off_path.write_text("\n".join(md_lines), encoding="utf-8")
     assert summary["audit_event_count"] >= 6, f"审计事件数 {summary['audit_event_count']} 过低"

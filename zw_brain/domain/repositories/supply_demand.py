@@ -107,6 +107,10 @@ class SupplyDemandRepository:
     ) -> list[dict[str, Any]]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
+            # full-scan-ok: kind/demand_phase 存 payload_json JSON 列，需 SQL JSON 算子
+            # （SQLite vs PG 分支）才能下推；当前演示规模 <500 行，先内存过滤。
+            # trigger: Application 表万级 或 多租户 → repo 改为按 application_kind 列拆分
+            # 后用 SQL where，或引入复合索引。详见 docs/preflight-debt.md 同条 entry。
             records = list(
                 session.execute(
                     select(ApplicationRecord)

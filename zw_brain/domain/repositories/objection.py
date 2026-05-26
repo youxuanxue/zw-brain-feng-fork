@@ -47,6 +47,8 @@ class ObjectionRepository:
         tenant_id: str = "sd-default",
         status: str | None = None,
     ) -> list[ObjectionCaseRecord]:
+        # full-scan-ok: status 可选；None 时 tenant-only 全量 objection case；当前单租户 <1k
+        # trigger: 异议工单万级或多租户时改 paged + 默认 status 过滤
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = (

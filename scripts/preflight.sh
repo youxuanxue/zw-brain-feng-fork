@@ -74,6 +74,7 @@ done <<'CHECKS'
 段 29	scripts/check_no_hand_maintained_projection.py	no-hand-maintained-projection (F4 5 消费面投影派生自单一 Registry)
 段 30	scripts/check_m0_mapper_coverage_doc.py	m0-mapper-doc (覆盖判定 doc count vs HANDLED_TABLES 防漂移)
 段 31	scripts/check_trusted_payload_usage.py	trusted-payload-usage (tests 走 invoke_trusted 不直接 brain.invoke_skill — F6 防回潮)
+段 32	scripts/check_read_path_full_scan.py	read-path-full-scan (PR #113 教训机械化)
 CHECKS
 
 echo ""

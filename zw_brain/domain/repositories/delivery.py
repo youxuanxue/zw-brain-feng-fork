@@ -23,6 +23,9 @@ def _now() -> datetime:
 
 class DeliveryRepository:
     def list_tasks(self, *, tenant_id: str = "sd-default") -> list[DeliveryTaskRecord]:
+        # full-scan-ok: J1 投递任务上限 = 已申请通过的资源数；当前单租户下 <1k；
+        # trigger: J1 申请量进入万级或第二个租户接入时改 paged + 状态过滤。
+        # 详见 docs/preflight-debt.md 「2026-05-26 — 读路径热表 tenant-only 全扫白名单」
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(
@@ -53,6 +56,8 @@ class DeliveryRepository:
             return list(session.execute(statement.order_by(DeliverySubscriptionRecord.updated_at)).scalars())
 
     def list_attempts(self, delivery_code: str | None = None, attempt_code: str | None = None, *, tenant_id: str = "sd-default") -> list[DeliveryAttemptRecord]:
+        # full-scan-ok: delivery_code/attempt_code 可选；双 None 时 tenant-only 全量 attempt
+        # trigger: J1 投递量万级或多租户时改 paged + 必填 delivery_code
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(DeliveryAttemptRecord).where(DeliveryAttemptRecord.tenant_id == tenant_id)

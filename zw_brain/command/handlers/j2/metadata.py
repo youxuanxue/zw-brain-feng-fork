@@ -41,6 +41,10 @@ def _discover_metadata_schema(brain, payload: dict[str, Any]) -> dict[str, Any]:
             .order_by(desc(ResourceSchemaSnapshotRecord.created_at))
             .limit(limit)
         ).scalars().all()
+        # full-scan-ok: summary_json.source 是 JSON 列上的 reverse-source 过滤；
+        # 等同于 supply_demand.list_demands 的 JSON 维度场景；当前 catalog ≤ 1.2 万行，
+        # trigger: catalog 5 万级或多租户 → 把 source 提到独立索引列（D7 adapter 输入归口）。
+        # 详见 docs/preflight-debt.md 「2026-05-26 — 读路径热表 tenant-only 全扫白名单」
         existing_reverse = {
             (entry.summary_json or {}).get("schema_ref")
             for entry in session.execute(

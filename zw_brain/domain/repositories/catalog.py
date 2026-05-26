@@ -186,6 +186,8 @@ class CatalogRepository:
             statement = statement.where(~CatalogEntryRecord.catalog_code.like(f"{exclude_catalog_code_prefix}%"))
         if exclude_catalog_code:
             statement = statement.where(CatalogEntryRecord.catalog_code != exclude_catalog_code)
+        # full-scan-ok: builder 基座仅 tenant；调用方须传 lifecycle/owner/prefix/limit（PR #113 修复路径）
+        # trigger: list_entries 默认全 None 且无 limit 时等同 #113 全扫 — 见 preflight-debt §2026-05-26
         return statement
 
     def _entry_filter_kwargs(
@@ -367,6 +369,8 @@ class CatalogRepository:
             return matched
 
     def list_items(self, catalog_code: str | None = None, *, tenant_id: str = "sd-default") -> list[CatalogItemRecord]:
+        # full-scan-ok: catalog_code 可选；None 时 tenant-only 全量 item；当前单租户 <1k
+        # trigger: catalog 万级或多租户时改必填 catalog_code 或 paged list_items
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(CatalogItemRecord).where(CatalogItemRecord.tenant_id == tenant_id)
@@ -375,6 +379,9 @@ class CatalogRepository:
             return list(session.execute(statement.order_by(CatalogItemRecord.catalog_code, CatalogItemRecord.display_order, CatalogItemRecord.item_code)).scalars())
 
     def list_model_fields_all(self, *, tenant_id: str = "sd-default") -> list[CatalogModelFieldRecord]:
+        # full-scan-ok: legacy verification 一次性 count/set-membership 用途；method 名带 _all
+        # 显式声明全量；当前单租户 sd-default 下行数 ≤ 数千；trigger: 多租户启用后改 join filter。
+        # 详见 docs/preflight-debt.md 「2026-05-26 — 读路径热表 tenant-only 全扫白名单」
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(

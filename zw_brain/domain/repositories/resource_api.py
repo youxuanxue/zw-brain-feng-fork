@@ -26,6 +26,8 @@ class ResourceApiRepository:
         tenant_id: str = "sd-default",
         lifecycle_status: str | None = None,
     ) -> list[ResourceAssetRecord]:
+        # full-scan-ok: lifecycle_status 可选；None 时 tenant-only 全量 resource asset
+        # trigger: 资源量万级或多租户时改 paged + 默认 lifecycle 过滤
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = (
@@ -208,6 +210,8 @@ class ResourceApiRepository:
             return record
 
     def list_bindings(self, resource_code: str | None = None, *, tenant_id: str = "sd-default") -> list[ResourceChannelBindingRecord]:
+        # full-scan-ok: resource_code 可选；None 时 tenant-only 全量 channel binding
+        # trigger: 绑定量万级或多租户时改 paged + 必填 resource_code
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(ResourceChannelBindingRecord).where(ResourceChannelBindingRecord.tenant_id == tenant_id)

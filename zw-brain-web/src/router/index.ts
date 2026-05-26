@@ -34,13 +34,13 @@ import B11DisputeDetail from '@/pages/B11DisputeDetail.vue';
 import B12IntegrationAdmin from '@/pages/B12IntegrationAdmin.vue';
 import B12IamGovernance from '@/pages/B12IamGovernance.vue';
 import B12PackageDetail from '@/pages/B12PackageDetail.vue';
-import B13EnginesAdmin from '@/pages/B13EnginesAdmin.vue';
+import EnginesAdmin from '@/pages/EnginesAdmin.vue';
 import PLogin from '@/pages/PLogin.vue';
 import PagePlaceholder from '@/pages/PagePlaceholder.vue';
 
 // hash 模式 + 主入口枚举对齐旧 vanilla bundle ROUTES（参见 src/router/route-table.md）。
 // F3：P5 六条子路由 + P7 详情已实装；P2/P4/B1.2 部分辅助子路由仍占位。
-// 收编：三引擎配置归入 B1.2（/integration-admin/engines），不再独立成 B1.3。
+// 收编：三引擎配置归入 B1.2（/integration-admin/engines），不再作为独立主入口。
 const routes: RouteRecordRaw[] = [
   { path: '/', redirect: '/workbench' },
 
@@ -89,7 +89,7 @@ const routes: RouteRecordRaw[] = [
 
   // B1.2 平台接入与扩展中心（后台） —— 含 (a) 接入 (b) 三引擎配置 (c) 身份治理
   { path: '/integration-admin', name: 'B1.2-integration', component: B12IntegrationAdmin, meta: { page: 'B1.2', title: 'B1.2 平台接入与扩展中心' } },
-  { path: '/integration-admin/engines', component: B13EnginesAdmin, meta: { page: 'B1.2', title: 'B1.2 三引擎配置' } },
+  { path: '/integration-admin/engines', component: EnginesAdmin, meta: { page: 'B1.2', title: 'B1.2 三引擎配置' } },
   { path: '/integration-admin/iam-governance', component: B12IamGovernance, meta: { page: 'B1.2', title: 'B1.2 身份治理' } },
   { path: '/integration-admin/package/:id', component: B12PackageDetail, meta: { page: 'B1.2', title: 'B1.2 能力包详情' } },
 

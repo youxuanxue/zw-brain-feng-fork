@@ -1,6 +1,6 @@
 // B1.2 三引擎 slot 容器：B1.2 UI 不重实装三引擎 admin 业务逻辑（实装在
-// B13EnginesAdmin.vue 文件中，但路由已收编为 B1.2 子页 /integration-admin/engines，
-// 不再作为独立主入口 B1.3）；本 composable 只提供 slot route 定义
+// EnginesAdmin.vue 文件中；路由收编为 B1.2 子页 /integration-admin/engines，
+// 不再作为独立主入口）；本 composable 只提供 slot route 定义
 // 让 B1.2 把"审批流 / 表单 / 推荐"作为 3 个跳转入口呈现给管理员，点击跳到三引擎
 // 子页。href 通过 ?engine=<key> query 让落地页默认打开对应 tab。
 //

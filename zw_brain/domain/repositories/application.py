@@ -36,6 +36,11 @@ class ApplicationRepository:
             )
 
     def list_records(self, *, tenant_id: str = "sd-default") -> list[ApplicationRecord]:
+        # full-scan-ok: J1 申请记录全量被多个 handler 共享（governance / dispute /
+        # approval listing），二次 in-memory filter 走 application_code lookup；
+        # 当前单租户下 <2k；trigger: 申请量万级 或 多租户接入 → 改为按 applicant_org
+        # / status / application_code 推导的 paged repo 接口。
+        # 详见 docs/preflight-debt.md 「2026-05-26 — 读路径热表 tenant-only 全扫白名单」
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(
