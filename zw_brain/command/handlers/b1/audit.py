@@ -85,10 +85,13 @@ def _replay_evidence_chain(brain, dispute_id: str) -> dict[str, Any]:
         }
         for step in dispute.get("timeline", [])
     ]
+    # Related requests are declared on the dispute record (data-driven), not
+    # hardcoded — a real dispute carries its own linked request ids.
+    related_request_ids = dispute.get("relatedRequestIds") or []
     audit_events = [
         item
         for item in brain.list_audit_events()
-        if item["target"] in {dispute_id, "REQ-2026-04-24-0007", "REQ-2026-04-25-0011"}
+        if item["target"] in {dispute_id, *related_request_ids}
     ]
     return {
         "disputeId": dispute_id,

@@ -10,6 +10,7 @@ import json
 # visible PII (name / phone / email / id / address) is ingested raw, masked on
 # read. Set ZW_BRAIN_MASK_ROLE=internal_admin to opt up (audit replay only).
 import os as _os
+from collections.abc import Iterator, MutableMapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -28,6 +29,7 @@ from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.shared.sanitization import safe_json
 from zw_brain.shared.sensitive_mask import apply_field_masks
 from zw_brain.shared.state_store import StateStore
+from zw_brain.shared.ui_request_context import get_current_role, set_current_role
 from zw_brain.skill_registration.runtime import get_manifest, load_manifests
 
 _DEFAULT_MASK_ROLE = _os.environ.get("ZW_BRAIN_MASK_ROLE", "external")
@@ -111,15 +113,60 @@ class _RequestBatchContext:
     catalog_items_by_item_code: dict[str, Any] = field(default_factory=dict)
 
 
+class _UIStateProxy(MutableMapping[str, Any]):
+    """Drop-in replacement for the old ``_ui_state`` dict.
+
+    ``role`` is per-request and must NOT live on the process-global BrainService
+    singleton (concurrent requests would overwrite each other between resolve and
+    read). This proxy routes the ``role`` key to a ContextVar (thread / asyncio
+    task isolated) while keeping ``discoveryQuery`` / ``brainOutage`` on a real
+    backing dict. The mapping API is preserved so existing call sites
+    (``_ui_state["role"]`` / ``.get("role", d)`` / ``_ui_state["role"] = x``)
+    work unchanged and become concurrency-safe for free.
+
+    Invariant locked by ``scripts/check_brain_no_request_state_singleton.py``:
+    the backing dict must never seed a ``role`` key.
+    """
+
+    _CONTEXT_KEYS = ("role",)
+
+    def __init__(self, backing: dict[str, Any]) -> None:
+        self._backing = backing
+
+    def __getitem__(self, key: str) -> Any:
+        if key == "role":
+            return get_current_role()
+        return self._backing[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        if key == "role":
+            set_current_role(value)
+            return
+        self._backing[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        if key == "role":
+            raise KeyError("role is a per-request context value and cannot be deleted")
+        del self._backing[key]
+
+    def __iter__(self) -> Iterator[str]:
+        yield "role"
+        yield from self._backing
+
+    def __len__(self) -> int:
+        return len(self._backing) + len(self._CONTEXT_KEYS)
+
+
 class BrainService:
     def __init__(self, state_store: StateStore | None = None) -> None:
         self._state_store = state_store or StateStore()
         self._snapshot = self._state_store.load()
-        self._ui_state = {
-            "role": "ROLE_ORGAN_OPERATER",
+        # role is per-request → ContextVar via _UIStateProxy; only true-global
+        # keys are seeded on the backing dict (see _UIStateProxy docstring).
+        self._ui_state = _UIStateProxy({
             "discoveryQuery": DEFAULT_DISCOVERY_QUERY,
             "brainOutage": False,
-        }
+        })
         self._sync_state_views()
         self._persist()
         if self._state_store.database_store is not None:
@@ -127,7 +174,9 @@ class BrainService:
 
     def snapshot(self) -> dict[str, Any]:
         state = copy.deepcopy(self._snapshot)
-        state["state"] = copy.deepcopy(self._ui_state)
+        # dict(...) materializes the proxy (role read from ContextVar now) into a
+        # plain JSON-serializable dict; deepcopy of the proxy object would leak it.
+        state["state"] = dict(self._ui_state)
         _iaf_url = (_os.environ.get("ZW_BRAIN_IAF_AUTH_SERVER_URL") or "").strip()
         _dev_bypass = get_dev_iam_bypass_enabled()
         _allow_switch_env = _os.environ.get("ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH", "").strip()
@@ -2822,7 +2871,7 @@ class BrainService:
         )
 
     def _persist(self) -> None:
-        self._state_store.save(self._snapshot, self._ui_state)
+        self._state_store.save(self._snapshot, dict(self._ui_state))
 
     def _emit_audit(self, request_id: str, actor: str, skill_id: str, phase: str, payload: dict[str, Any]) -> None:
         manifest = get_manifest(skill_id)
@@ -2939,67 +2988,10 @@ class BrainService:
 
     def _sync_state_views(self) -> None:
         self._sync_request_todos()
-        request0011 = self._maybe_request("REQ-2026-04-25-0011")
-        request0007 = self._maybe_request("REQ-2026-04-24-0007")
-        task0011 = self._maybe_delivery("DLV-2026-04-25-0011")
-        package001 = self._maybe_package("PKG-2026-04-25-001")
-
-        if request0011:
-            # R-005 fix: 每条待办按 (role, item_id, category) 唯一；同一 REQ ID 在同一 role 下可承载多语境
-            self._set_todo_status("ROLE_ORGAN_OPERATER", "REQ-2026-04-25-0011", self._request_status_text(request0011, "applicant"), category="apply-progress")
-            self._set_todo_status("ROLE_ORGAN_MANAGER", "REQ-2026-04-25-0011", self._request_status_text(request0011, "reviewer"), category="review")
-            self._set_todo_status("ROLE_ORGAN_OPERATER", "REQ-2026-04-25-0011", self._request_status_text(request0011, "filler"), category="supplement-township")
-            self._set_todo_status("ROLE_ORGAN_OPERATER", "REQ-2026-04-25-0011", self._request_status_text(request0011, "filler"), category="supplement-village")
-            self._set_todo_status("ROLE_ORGAN_MANAGER", "REQ-2026-04-25-0011", self._request_status_text(request0011, "summarizer"), category="summary")
-        if request0007:
-            self._set_todo_status("ROLE_ORGAN_MANAGER", "REQ-2026-04-24-0007", self._request_status_text(request0007, "reviewer"), category="review")
-            self._set_todo_status("ROLE_ORGAN_OPERATER", "REQ-2026-04-24-0007", self._request_status_text(request0007, "filler"), category="supplement-township")
-
-        if task0011:
-            confirmed = task0011["backflow"]["status"] == "已确认"
-            self._set_todo_status("ROLE_ORGAN_MANAGER", "LEDGER-parking-v1.3", "已发布" if confirmed else "待发布")
-            self._set_todo_status("ROLE_BUSIAUDIT", "ZONE-business-ledger", "已上线" if confirmed else "待更新")
-            provider = self._snapshot["provider"]
-            provider["overview"][0]["value"] = "v1.3" if confirmed else "v1.2 → v1.3"
-            provider["overview"][2]["value"] = "0" if confirmed else str(len(task0011["backflow"]["candidateFields"]))
-            provider["catalogs"][0]["issue"] = "v1.3 版本说明已同步" if confirmed else "需补充 v1.3 版本说明"
-            if not provider["catalogs"][1].get("governanceLocked"):
-                provider["catalogs"][1]["status"] = "已发布" if confirmed else "待质检"
-                provider["catalogs"][1]["issue"] = "默认复用入口已更新" if confirmed else "需更新默认复用入口说明"
-            provider["resources"][0]["updatedAt"] = self._now_date() if confirmed else "2026-04-25"
-            if not provider["resources"][1].get("governanceLocked"):
-                provider["resources"][1]["status"] = "可共享" if confirmed else "待审核"
-            provider["aiGovernance"]["summary"] = (
-                "停车场信息共享目录已确认吸收高频差异字段，下一步重点转为持续监测补录热区和维护专题入口一致性。"
-                if confirmed
-                else "建议优先发布停车场信息共享目录回流候选，并把“本地泊位开放状态”“最新开放时间”纳入目录说明；其次更新城市运行专题目录中的默认复用入口说明。"
-            )
-            discovery = self._resource_by_id("res-jbxx-ledger")
-            discovery["coverage"] = "89%" if confirmed else "82%"
-            discovery["updatedAt"] = self._now_date() if confirmed else "2026-04-25"
-            discovery["explain"] = [
-                "当前需求可直接复用 v1.3 模板，基层补录字段进一步收缩",
-                "经营状态与最近走访时间已纳入正式字段",
-                "专题入口与模板版本已同步更新",
-            ] if confirmed else [
-                "当前需求首先应复用该模板，而不是重新发起整表采集",
-                "模板已覆盖多数企业基础字段",
-                "仅需补少量现场差异字段即可形成任务",
-            ]
-            zone = self._zone_by_id("business")
-            zone["trust"] = [
-                "来源等级：高",
-                "模板版本：v1.3，默认入口已同步",
-                "责任方：区政数局 / 市场监管局",
-            ] if confirmed else [
-                "来源等级：高",
-                "模板版本：v1.2，v1.3 待发布",
-                "责任方：区政数局 / 市场监管局",
-            ]
-            # K12 dashboard 块已退役（详见 D15 二次反转）；toggle 副作用不再更新大屏 burden/suggestions
-
-        if package001:
-            self._set_todo_status("ROLE_BUSIAUDIT", "PKG-2026-04-25-001", self._package_status_text(package001))
+        # Demo-seed cascades live in a dedicated module (no demo entity IDs in core).
+        # Lazy import breaks the demo_state_sync → brain module cycle.
+        from zw_brain.command.demo_state_sync import sync_demo_state_views  # noqa: PLC0415
+        sync_demo_state_views(self)
 
     # R-005 fix: 折叠后多个旧角色映射到同一 ROLE_*，原本不同语境（申请进度 vs 差异补录 vs 现场补录 vs 汇总）
     # 的同 item_id 待办若仅按 (role, item_id) 去重会互相覆盖。引入 category 作为第二维度。

@@ -35,6 +35,12 @@ trigger 关闭即可删除字段。
   域切）。任一触发当日按域切片下沉，不整文件一次性搬。
 - **No mechanical preflight check (now)**: brain.py LOC 上限已显式退役（§10.2），不设 LOC 门禁避免
   把"不卡上限"的结论又机械化回来；debt 条目兜底跟踪。
+- **Update (2026-05-26)**: 仍**不加** LOC / 方法数上限（与上一条一致）。本次只硬化两个**精准回归面**，
+  非笼统增长门禁：① 段 35 `check_brain_no_request_state_singleton.py` —— per-request `role` 必走
+  `zw_brain/shared/ui_request_context.py` 的 ContextVar，`_ui_state` 单例 backing dict 不得 seed
+  `role`（锁死并发污染修复，`_UIStateProxy`）；② 段 36 `check_no_demo_id_literals.py` —— `REQ-/DLV-/PKG-`
+  demo id 限 `zw_brain/command/demo_state_sync.py`，不得回潮进 `brain.py`/handlers。两者针对本轮已修的
+  具体回归点，不构成对 §10.2「不卡 LOC 上限」结论的翻推。
 
 ## 2026-05-26 — 读路径热表 tenant-only 全扫白名单（PR #113 同模式残留）
 
