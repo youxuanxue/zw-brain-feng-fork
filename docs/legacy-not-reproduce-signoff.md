@@ -156,6 +156,27 @@ driven_by:
 
 合计：**50 条 ❌ 不复刻**（与 `.testing/cross-cutting/legacy-128-mapping.md` 一致；行号双轨漂移由 `scripts/check_legacy_smoke_row_numbers.py` 守 preflight 段 39）。
 
+## 二点五、批准后归属（D32 — V3 上帝视角穿透）
+
+**业务方 PR #129 sign-off 后，24 条 ⏸ 复活的归属（D31.b 关闭）**：既存 reconstruction plan 已完整覆盖，**不需要新设计**。
+
+| 类别 | 条数 | 归属 plan | Wave 节奏 | 旅程映射 |
+|---|---|---|---|---|
+| A 融合 / 通用 / 代理服务 | 20（106 除外）| **`docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md`** | Wave 0 网关投影 / Wave 1 API 资源化 / Wave 2 R14 审批 / Wave 3 编排外部化 | J1 申请审批 + J2 发布审核 + B1.1 调用统计 + Wave 3 注册 Capability |
+| D 主题库 / 专题库 / 数购车 | 4 | **`docs/reconstructs/dsp-sharezone-topic-package-reconstruction-plan-v1.md`** | Wave 2 P7 共享专区 | J1 主题导航发现 + J2 运营方组织专题包 |
+
+**关键事实（V3 穿透）**：
+
+1. 旧 dsp-dataservice 63 万次调用真相（`old/old_codes_analyse/dsp-dataservice-apis.md` 89 接口）：
+   - 57% (`/openapi/report`) = 网关每分钟心跳（Report2MgmtJob → redis），不是业务面 → `gateway_runtime_status_projection`
+   - 27% (`/openapi/getServiceInvokedBy...`) = 调用统计查询 → `service_invocation_metric_projection`
+   - 真正"融合服务编排" 1 年 3 客户合计 21 次提交 → Wave 3 注册 Capability 包
+2. **没有"集团 API 网关"外部依赖**（架构基线 §3.4 明文：本地 API 网关由 zw-brain Governance 承担）
+3. dsp-basesubject 81 表保持不复造（与 D 类 4 条复活解耦；basesubject 是另一个独立系统）
+4. orchestrator 走 Wave 3 注册 Capability 包路径 = D31.b (c) 外部能力包的精准触发
+
+**业务方 review 简化**：5 分钟确认"按这两份 plan 推进"即可，**不需要 30 分钟新决策**。
+
 ## 三、复活的代价（业务方决策辅助）
 
 若业务方判定某类别为"复活"或"部分复活"，需评估：

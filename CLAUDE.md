@@ -170,3 +170,13 @@ GATE-1 通过后立即收尾动作：
 - [2026-05-27] D31.a：**A 类 106 案例提出页保持不复活**。业务方在 §二 A 注释明确"案例提出页不复活"，单独保留 ❌；mapping doc 行 106 / yaml entry 不变。
 - [2026-05-27] D31.b：**复活范围归属待定**：(a) 进 Wave 2.x（与三引擎同期，作为"项目级服务能力面配置"）；(b) 进 Wave 3+（与协议硬化同期）；(c) 走外部能力包路径（B1.2 接入扩展中心承接）。三选一由下次业务方/产品 review 决定，不在本 P0 范围。
 - [2026-05-27] D31.c：**飞轮反模式 #1 防御强化**：复活的"服务能力面"必须走 R8 反 per-tenant fork + R14 三引擎，禁止为复活功能在 zw-brain 内部复造旧 BSP / 旧门户结构。preflight 段 22 (capability-boundary) + 段 25 (adapter-write-ban) 继续守住。
+
+### [2026-05-27] D32 retrofit：A/D 类复活归属决策 — 既存 reconstruction plan 接管
+
+D31 子项 D31.b 原文："复活范围归属待定：(a) 进 Wave 2.x / (b) 进 Wave 3+ / (c) 外部能力包"。本次 V3 上帝视角穿透发现：**docs/reconstructs/ 内已有两份 reconstruction plan 完整覆盖 A/D 类**，D31 P0 真值源回灌时漏引用。D32 是 D31.b 的兑现 + V3 真值源补回灌。
+
+- [2026-05-27] D32：**A 类 20 条复活 → 按 `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md`（399 行）落地**。该 plan 已写完旅程归属（J1 申请审批 / J2 发布审核 / B1.1 调用统计与网关健康 / Wave 3 编排外部化）+ §3.5 12 个 Capability slug（`resource.api.{register,change,submit_review,review,publish,withdraw,revoke,test,policy.update}` + `ops.gateway.{heartbeat.ingest,log.anchor}` + `ops.service.{report.query,invocation.query}`）+ §二.1 旧 5 模块映射（mgmt → J1+J2+B1.1；gateway → 运行时 adapter；work → anchor_outbox；orchestrator → 注册 Capability 包；hystrix-dashboard → 不迁入）+ §二.3 Pareto P0-P3 优先级。**业务方"整合后重新设计"已在此 plan 兑现**：不复刻旧 BSP / 旧门户子系统形态，承重语义散落到 J1/J2/B1.1 + 注册 Capability + 外部 adapter。Wave 归属：Wave 0 网关心跳 + 调用统计投影 / Wave 1 API 资源化 / Wave 2 R14 三引擎承接服务发布审批 / Wave 3 orchestrator 外部化。
+- [2026-05-27] D32.a：**D 类 4 条复活 → 按 `docs/reconstructs/dsp-sharezone-topic-package-reconstruction-plan-v1.md` 落地**。该 plan 已写完旅程归属（J1 主题导航发现 + J2 运营方组织专题包）+ TopicPackage 6 张表 + §四 12 个 Capability slug（`topic.package.*` 系列）+ 首批 sd-default 山东高频跨部门政务标杆 + basesubject 81 表硬保护不复造（与 D7 forbidden-zone / §5.6 #13 一致）+ 一表通 Wave 2 候选可选 adapter 定位。Wave 归属：Wave 2 P7 共享专区，与三引擎同期。
+- [2026-05-27] D32.b：**两份 plan 状态从"待业务方触发"升级为"D31/D32 已触发，active"**。plan 文件头加 D31/D32 触发注明；mapping doc 24 条 disposition 注明对应 plan 路径；signoff doc 加"批准后归属"段。
+- [2026-05-27] D32.c：**D31.b 三选一关闭**：不是 (a)(b)(c) 任一，是 (d) **既存 reconstruction plan 接管，散落到 Wave 0/1/2/3 + 外部能力包**。A 类的 dsp-service-orchestrator 走 (c) 外部能力包，其余 19 条按 plan §3.5 拆到 J1/J2/B1.1；D 类按 P7 落地（与 plan 既定 Wave 2 一致）。
+- [2026-05-27] D32.d：**V3 暴露 D31 P0 真值源回灌漏洞**：D31 P0 覆盖 7 文件（CLAUDE.md / 架构基线 §1.3/§3.1/§5.6 / 飞轮 / mapping doc / yaml / Wave 4 README），漏引用 `docs/reconstructs/` 内 2 份核心 plan。D32 补回灌 + meta finding：写 `scripts/check_approved_doc_drift.py` 扫"D-编号引用是否涵盖所有相关 reconstructs/*.md"，未来 D-编号决策必须 explicit 引用既存 plan。

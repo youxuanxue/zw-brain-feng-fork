@@ -118,17 +118,19 @@ phase_after_approval: Phase 0 后期 — 飞轮势能完成、齿轮组连接、
 | **齿轮组**（三角闭环）| 飞轮的"传动" | 每个 commit / PR 都在转 | 任意一个齿轮断链飞轮停转 |
 | **动能层**（客户上线）| 飞轮的"输出" | 每客户一次完整循环 | 不上线 = 飞轮在原地空转 |
 
-## 三、势能层：5 类业务真值源
+## 三、势能层：7 类业务真值源
 
 ### 3.1 真值源清单
 
 | # | 真值源 | 物理位置 | 视角 | 是否签字属性 |
 |---|---|---|---|---|
 | 1 | 架构基线 R1-R15 | `docs/approved/zw-brain-architecture.md` §十一 | 工程架构 | ✓（GATE-1 / 1.1）|
-| 2 | 决策 D1-D30+ | `CLAUDE.md` 决策记录 | 历史决定 | ✓（D 编号即签字）|
-| 3 | 业务方 review 21 条反馈 | `old/20260519/` + D27 摘要 | 客户真实痛点 | ✓（业务方亲签）|
+| 2 | 决策 D1-D32+ | `CLAUDE.md` 决策记录 | 历史决定 | ✓（D 编号即签字）|
+| 3 | 业务方 review 21 条反馈 + PR #129 50 条逐条签字 | `old/20260519/` + D27 摘要 + `docs/legacy-not-reproduce-signoff.md` | 客户真实痛点 | ✓（业务方亲签）|
 | 4 | sd-default SQL 17 dump | `old/10示例数据/` (438MB) | 真实数据形态 | ✗（事实，无需签字）|
 | 5 | **★ 旧 xlsx 128 用例** | `old/共享平台V5.0.2-冒烟.xlsx` | **业务方亲手验过的路径** | ✓（业务方亲签）|
+| 6 | **旧平台模块 reconstruction plans** | `docs/reconstructs/dsp-*-reconstruction-plan-v1.md`（10 份）| 旧代码 → zw-brain 落地路径 | ✓（plan v1 sign-off + D32 触发 active）|
+| 7 | **旧平台真实 API 调用数据** | `old/old_codes_analyse/*-apis.md` + `old/使用日志分析情况/` | 客户真实使用画像（Pareto 决策依据）| ✗（事实）|
 
 ### 3.2 第 5 类的特殊地位（旧 xlsx 128 用例）
 
@@ -136,7 +138,7 @@ xlsx 是**唯一一份"业务方亲手写、旧平台已生产验证、用业务
 
 - **客户期望底线**：旧能做的新必须能做，或明示不复刻（业务方签字接受）
 - **回归基线**：防 ship 后客户回头骂"重构把我用的弄没了"
-- **退役判据硬指标**（处置完整度 = 116/131 = 89%）：✅ 等价回归 73 + ❌ 接受不复刻 16 + ⏸ 占位延后 / 复活待立项 23 + ⚠ 外部依赖 4 = 116 已处置；unmapped 15 是 mapping doc 未登记 gap（待真值源回灌补足，不计入退役公式）。分布由 `tests/fixtures/legacy_smoke.yaml` 实时维护，看板由 `scripts/check_legacy_retirement_ready.py` 输出（D31 业务方 PR #129 触发 24 条 ❌ → ⏸ 复活）
+- **退役判据硬指标**（处置完整度 = 116/131 = 89%）：✅ 等价回归 73 + ❌ 接受不复刻 16 + ⏸ 占位延后 / 按 plan 落地 23 + ⚠ 外部依赖 4 = 116 已处置；unmapped 15 是 mapping doc 未登记 gap（待真值源回灌补足，不计入退役公式）。分布由 `tests/fixtures/legacy_smoke.yaml` 实时维护，看板由 `scripts/check_legacy_retirement_ready.py` 输出（D31 业务方 PR #129 触发 24 条 ❌ → ⏸；D32 升级两份 reconstruction plan 为 active：A 类 → `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md`；D 类 → `docs/reconstructs/dsp-sharezone-topic-package-reconstruction-plan-v1.md`）
 - **机械化路径**：xlsx → `tests/fixtures/legacy_smoke.yaml` → `tests/test_legacy_smoke_equivalence.py` parametrize → mapped 条目等价回归（当前 73；分布由 yaml 实时维护）
 
 详见 `.testing/cross-cutting/legacy-128-mapping.md` + 本文附录 A.5。
@@ -321,12 +323,12 @@ Ship gate (Wave 0+1+2 全 Verified): K / 34
 **目标**：势能积累完成 + 三角硬化连接。
 
 **完成度判据**：
-- [x] 5 类真值源齐全
+- [x] 7 类真值源齐全（D32 补回灌 reconstruction plans + 真实 API 调用数据）
 - [x] 飞轮文档 land（#123）
 - [x] 三角字段加上（#123）
 - [x] preflight 段 38/39 守住（#125）
 - [x] xlsx → `legacy_smoke.yaml`（#125）
-- [x] 原 50 条 ❌ 不复刻清单业务方签字（PR [#129](https://github.com/feng222666888/zw-brain/pull/129) → `docs/legacy-not-reproduce-signoff.md` `status: approved`；D31 后：26 接受 + 24 复活转 ⏸ 待 Wave 2.x+ 立项）
+- [x] 原 50 条 ❌ 不复刻清单业务方签字（PR [#129](https://github.com/feng222666888/zw-brain/pull/129) → `docs/legacy-not-reproduce-signoff.md` `status: approved`；D31/D32 后：26 接受 + 24 复活按 reconstruction plan 落地：A→dsp-dataservice / D→sharezone-topic）
 - [ ] 业务方 review 节奏固化（每月一次）
 
 ### 第 1 圈 — 首客户上线（2026-06 → 2026-08）
@@ -429,7 +431,7 @@ docs/legacy-not-reproduce-signoff.md
        ↓ 业务方签字（PR #129）
 not_reproduce 签字接受（当前 16 条；24 条 D31 复活转 ⏸）
        +
-deferred 占位 / 复活待立项（当前 23 条）+ external 外部依赖（4 条）有处置
+deferred 占位 / 按 plan 落地（当前 23 条）+ external 外部依赖（4 条）有处置
        =
 Wave 4 退役判据闭合
        ↓
@@ -493,7 +495,7 @@ legacy 写入口可关闭
 
 ## 附录 C — 飞轮维护原则
 
-1. **真值源不可删**：5 类真值源任一删除等于飞轮势能丢失。
+1. **真值源不可删**：7 类真值源任一删除等于飞轮势能丢失。
 2. **三角连接不可断**：preflight 段 38 是硬约束。
 3. **回灌 ritual 不可省**：客户上线 30 天内必做（§十）。
 4. **加速器 3 个都不可缺**：缺 1 个飞轮第 N 圈与第 1 圈同速。

@@ -61,17 +61,19 @@ echo "    [ ] #8 Wave 4 SLI 当 GWT 用（docs/customer-readiness/wave4-cutoff-c
 
 echo
 echo "  飞轮三层完整度："
-flywheel_potential=5
+flywheel_potential=7
 flywheel_potential_checked=0
 for src in \
     docs/approved/zw-brain-architecture.md \
     docs/approved/zw-brain-flywheel.md \
     docs/approved/zw-brain-roles.md \
     old/共享平台V5.0.2-冒烟.xlsx \
-    .testing/cross-cutting/legacy-128-mapping.md; do
+    .testing/cross-cutting/legacy-128-mapping.md \
+    docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md \
+    old/old_codes_analyse/dsp-dataservice-apis.md; do
     [[ -f "$src" ]] && flywheel_potential_checked=$((flywheel_potential_checked + 1))
 done
-echo "    势能层（5 类真值源）: ${flywheel_potential_checked} / ${flywheel_potential}"
+echo "    势能层（7 类真值源）: ${flywheel_potential_checked} / ${flywheel_potential}"
 triangle_n=$(python3 scripts/check_trace_triangle.py 2>&1 | grep -oE 'scanned [0-9]+' | head -1 | awk '{print $2}' || echo '?')
 echo "    齿轮组（三角连接）  : ${triangle_n} feature 三角字段守住（preflight 段 38）"
 echo "    动能层（客户上线）  : 0 / N（等首客户上线）"

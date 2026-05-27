@@ -54,7 +54,7 @@ related_docs:
 
 | 类型 | 处置状态判据 | 数据源 |
 |---|---|---|
-| 旧 xlsx 原 50 条 ❌ 不复刻 | 业务方 PR #129 签字（已 approved 2026-05-27）：16 条接受 ❌ + 24 条转 ⏸ 复活待 Wave 2.x+ 立项 | `docs/legacy-not-reproduce-signoff.md` + D31 |
+| 旧 xlsx 原 50 条 ❌ 不复刻 | 业务方 PR #129 签字（已 approved 2026-05-27）：16 条接受 ❌ + 24 条转 ⏸ 按既存 reconstruction plan 落地（A 类 → dsp-dataservice / D 类 → sharezone-topic）| `docs/legacy-not-reproduce-signoff.md` + D31/D32 |
 | 旧 xlsx 12 条 ⏸ 占位延后 | 客户接受延后 OR 由外部能力包承接 | 客户回访记录 |
 | 旧 xlsx 6 条 ⚠ 外部依赖 | 集团运维 / 数据治理 / IAM 联通 | 集团服务联调记录 |
 | 客户上线后新发现长尾需求 | 外部能力包承接 OR 业务方接受不做 | 客户上线 30 天 ritual |

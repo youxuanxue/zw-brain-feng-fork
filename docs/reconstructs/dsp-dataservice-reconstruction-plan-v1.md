@@ -1,5 +1,7 @@
 # dsp-dataservice 相关模块重构方案 v1
 
+> **状态（2026-05-27 D32 升级为 active）**：业务方 PR #129 sign-off A 类 20 条复活（D31）触发本 plan 从 "deferred-trigger" 升级为 **active 落地路径**。CLAUDE.md D32 决策明文："A 类 20 条复活 → 按本 plan 落地"。本 plan §3.5 12 Capability + §二.1 5 模块映射 + §二.3 Pareto P0-P3 是 A 类复活的唯一执行真值源；新设计禁止绕过本 plan 直接立项。
+>
 > 范围：旧平台 `old/old_codes/dsp-dataservice`（3.16.15）、外部调用分析 `old/old_codes_analyse/dsp-dataservice-apis.md` 与旧结构数据 `old/12-datastructure`。
 > 结论：zw-brain 是全新 AI 原生项目，迁移目标不是兼容旧接口与旧表，而是吸收承重业务语义，重建为围绕主旅程、统一 Capability、可审计的数据服务能力面。
 

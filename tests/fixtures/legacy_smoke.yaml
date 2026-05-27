@@ -22,7 +22,7 @@
     3. 提示暂存成功
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（代理服务不进 IA，§5.6 #1 #11'
+  rationale: 'D32 按 dsp-dataservice-reconstruction-plan-v1.md 落地（代理服务不进 IA，§5.6 #1 #11'
 - xlsx_row: 2
   name: 代理服务资源申请-有期限
   system: 门户
@@ -67,7 +67,7 @@
     16. 接口资源申请提交成功
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（同上'
+  rationale: D32 按 dsp-dataservice-reconstruction-plan-v1.md 落地（同上
 - xlsx_row: 3
   name: 库表资源申请暂存
   system: 门户
@@ -168,7 +168,7 @@
     16. 接口资源申请提交成功
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（融合服务不进 IA（§5.6 #12'
+  rationale: 'D32 按 dsp-dataservice-reconstruction-plan-v1.md 落地（融合服务不进 IA（§5.6 #12'
 - xlsx_row: 6
   name: 通用服务资源申请暂存
   system: 门户
@@ -187,7 +187,7 @@
     3. 提示暂存成功
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（通用服务不进 IA（§5.6 #12'
+  rationale: 'D32 按 dsp-dataservice-reconstruction-plan-v1.md 落地（通用服务不进 IA（§5.6 #12'
 - xlsx_row: 7
   name: 通用服务资源申请-有期限
   system: 门户
@@ -232,7 +232,7 @@
     16. 接口资源申请提交成功
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（同上'
+  rationale: D32 按 dsp-dataservice-reconstruction-plan-v1.md 落地（同上
 - xlsx_row: 8
   name: 文件夹资源申请暂存
   system: 门户
@@ -544,7 +544,7 @@
   expected: 1. 列表服务展示正确
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（§5.6 #12'
+  rationale: 'D32 按 dsp-dataservice-reconstruction-plan-v1.md 落地（§5.6 #12'
 - xlsx_row: 23
   name: 通用服务列表查看
   system: 门户
@@ -557,7 +557,7 @@
   expected: 1. 列表服务展示正确
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（同上'
+  rationale: D32 按 dsp-dataservice-reconstruction-plan-v1.md 落地（同上
 - xlsx_row: 24
   name: 服务申请
   system: 门户
@@ -578,7 +578,8 @@
     4. 提交成功
   disposition: deferred
   feature_ref: .testing/waves/wave-1-j1-j2-closed-loop/features/j2-resource-mount.feature
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（"服务"概念合并到 resource.api 物化（§3.3 / §5.6'
+  rationale: |-
+    D32 按 dsp-dataservice-reconstruction-plan-v1.md 落地（"服务"概念合并到 resource.api 物化（§3.3 / §5.6
 - xlsx_row: 25
   name: 首页
   system: 门户
@@ -612,7 +613,8 @@
     4. 提交成功
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（"数购车" 是应用中心子能力（§5.6 #11'
+  rationale: |-
+    D32.a 按 dsp-sharezone-topic-package-reconstruction-plan-v1.md 落地（Wave 2 P7）（"数购车" 是应用中心子能力（§5.6 #11
 - xlsx_row: 27
   name: 应用列表查看
   system: 门户
@@ -1744,7 +1746,7 @@
     5. 服务名称、数据来源部门和联系人等信息均已保存
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（代理服务不进 IA'
+  rationale: D32 按 dsp-dataservice-reconstruction-plan-v1.md 落地（代理服务不进 IA
 - xlsx_row: 72
   name: 单个注册服务审核通过
   system: 融合服务
@@ -1805,7 +1807,7 @@
     5. 服务发布成功
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（通用服务不进 IA'
+  rationale: D32 按 dsp-dataservice-reconstruction-plan-v1.md 落地（通用服务不进 IA
 - xlsx_row: 75
   name: 代理服务申请变更
   system: 申请审核
@@ -1830,7 +1832,7 @@
     6. 不展示变更按钮
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（代理服务不进 IA'
+  rationale: D32 按 dsp-dataservice-reconstruction-plan-v1.md 落地（代理服务不进 IA
 - xlsx_row: 76
   name: 库表申请变更
   system: 申请审核
@@ -1911,7 +1913,7 @@
     6. 不展示变更按钮
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（通用服务不进 IA'
+  rationale: D32 按 dsp-dataservice-reconstruction-plan-v1.md 落地（通用服务不进 IA
 - xlsx_row: 79
   name: 文件夹申请变更
   system: 申请审核
@@ -2061,7 +2063,7 @@
     4. 资源申请审核通过
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（融合服务不进 IA'
+  rationale: D32 按 dsp-dataservice-reconstruction-plan-v1.md 落地（融合服务不进 IA
 - xlsx_row: 85
   name: 待审核融合服务受理
   system: 申请授权
@@ -2082,7 +2084,7 @@
     4. 资源申请受理通过
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（同上'
+  rationale: D32 按 dsp-dataservice-reconstruction-plan-v1.md 落地（同上
 - xlsx_row: 86
   name: 待审核资源驳回
   system: 申请授权
@@ -2343,7 +2345,8 @@
   expected: 认领提交成功
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（"主题库" 不复造（§5.6 #11'
+  rationale: |-
+    D32.a 按 dsp-sharezone-topic-package-reconstruction-plan-v1.md 落地（Wave 2 P7）（"主题库" 不复造（§5.6 #11
 - xlsx_row: 99
   name: 数据资源关联
   system: 供需系统
@@ -2502,7 +2505,8 @@
     6. 处理进度表显示正确
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（"主题库" 不复造（§5.6 #11'
+  rationale: |-
+    D32.a 按 dsp-sharezone-topic-package-reconstruction-plan-v1.md 落地（Wave 2 P7）（"主题库" 不复造（§5.6 #11
 - xlsx_row: 105
   name: 已办任务详情查看
   system: 供需系统
@@ -2542,7 +2546,8 @@
     2. 主题库提交成功
   disposition: deferred
   feature_ref: null
-  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（§5.6 #11'
+  rationale: |-
+    D32.a 按 dsp-sharezone-topic-package-reconstruction-plan-v1.md 落地（Wave 2 P7）（§5.6 #11
 - xlsx_row: 107
   name: 库表订阅
   system: 数据交换

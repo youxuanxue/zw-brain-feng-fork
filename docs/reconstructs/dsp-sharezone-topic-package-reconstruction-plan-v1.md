@@ -1,5 +1,7 @@
 # dsp-sharezone / dsp-example / dsp-basesubject 共享专区与专题包重构方案 v1
 
+> **状态（2026-05-27 D32.a 升级为 active）**：业务方 PR #129 sign-off D 类 4 条复活（主题库 / 专题库 / 数购车，D31）触发本 plan 从 "deferred-trigger" 升级为 **active 落地路径**。CLAUDE.md D32.a 决策明文："D 类 4 条复活 → 按本 plan 落地，归 Wave 2 P7 共享专区"。本 plan §四 12 Capability + TopicPackage 6 张表 + 首批 sd-default 山东标杆是 D 类复活的唯一执行真值源；basesubject 81 表硬保护不复造（与 D7 forbidden-zone / §5.6 #13 一致）。
+>
 > 范围：旧平台 `old/12-datastructure/dsp_catalog.xml` 中 `sharezone` / `catalog_share_group` 相关结构、`old/old_codes/dsp-sharezone`、`old/old_codes/dsp-example`、`old/old_codes/dsp-basesubject`，`old/代码信息抽取/代码信息抽取-27newbranch/dsp-example_*`、`dsp-basesubject_*`，以及 approved 中关于 P7 共享专区、专题包、一表通 / 基层报表减负、Capability Registry、租户策略和外部依赖的设计原则。
 > 结论：zw-brain 保留“共享专区”作为 P7 主题化复用入口，但不迁成旧共享专区后台、示范应用后台或基础主题库系统；只吸收专题组织、目录 / 资源引用、可见组织策略、发布审核、复用证据、应用案例和主题库素材等承重语义，重建为 `TopicPackage` 投影 + `tenant_capability_policy` 可见性策略 + canonical 聚合引用。**首批专题包以 sd-default 山东省真实政务案例为标杆**（具体清单由业务方按客户优先级 sign-off，可参考 `m0-site-migration.md` 已列举的"医疗救助信息 / 医保码信息 / 异地就医统筹区开通信息"等真实高频目录）；"一表通 / 基层报表减负"在基线 §3.4 C 已**降级为可选预填 adapter**，归 Wave 2 候选专题之一（详见 `docs/approved/research-yibiaotong.md`），不再作为首批标杆。
 > 单一事实源：本文是共享专区、专题包、示范应用和基础主题库内容源的专题单一事实源；目录、资源、申请、交付、异议、标准资产和能力注册的核心事实仍以对应 reconstructs 与 approved 数据模型为准；跨专题 greenfield 口径、统一 Capability 命名和全局决策基线以 `docs/reconstructs/legacy-repository-reconstruction-priorities-v1.md` 为准。
