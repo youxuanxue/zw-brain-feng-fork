@@ -27,6 +27,7 @@ dev = [
   "ruff>=0.5",
   "fakeredis>=2.0",
   "PyYAML>=6.0",        # preflight 段 26 cross-field check（PR #117）
+  "openpyxl>=3.1",      # scripts/extract_legacy_smoke_xlsx.py（飞轮势能源结构化）
 ]
 
 [build-system]
