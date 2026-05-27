@@ -23,7 +23,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _diagnose_exchange(brain, *, task_id: Any = None, attempt_id: Any = None) -> dict[str, Any]:
+def _diagnose_exchange(brain, deps, ctx, *, task_id: Any = None, attempt_id: Any = None) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     delivery_code = str(task_id) if task_id else None
     attempt_code = str(attempt_id) if attempt_id else None
@@ -40,5 +40,5 @@ def _diagnose_exchange(brain, *, task_id: Any = None, attempt_id: Any = None) ->
 def handler_ops_exchange_diagnose(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _diagnose_exchange(brain, task_id=payload.get("task_id"), attempt_id=payload.get("attempt_id"))
+    return _diagnose_exchange(brain, deps, ctx, task_id=payload.get("task_id"), attempt_id=payload.get("attempt_id"))
 

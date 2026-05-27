@@ -17,7 +17,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _query_direct_access_catalog(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _query_direct_access_catalog(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     """List active catalog_entry that flag direct-access eligibility."""
     from sqlalchemy import select  # noqa: PLC0415
 
@@ -47,7 +47,7 @@ def _query_direct_access_catalog(brain, payload: dict[str, Any]) -> dict[str, An
     ][:limit]
     return {"items": items, "total": len(items)}
 
-def _list_direct_access_delivery(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _list_direct_access_delivery(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     """List delivery_task rows whose payload_json marks direct-access delivery."""
     from sqlalchemy import select  # noqa: PLC0415
 
@@ -89,10 +89,10 @@ def _list_direct_access_delivery(brain, payload: dict[str, Any]) -> dict[str, An
 def handler_direct_access_catalog_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _query_direct_access_catalog(brain, payload)
+    return _query_direct_access_catalog(brain, deps, ctx, payload)
 
 def handler_direct_access_delivery_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _list_direct_access_delivery(brain, payload)
+    return _list_direct_access_delivery(brain, deps, ctx, payload)
 

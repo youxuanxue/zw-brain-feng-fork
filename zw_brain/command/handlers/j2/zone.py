@@ -19,7 +19,7 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _list_zones(brain) -> list[dict[str, Any]]:
+def _list_zones(brain, deps, ctx) -> list[dict[str, Any]]:
     zones = copy.deepcopy(brain._snapshot["zones"])
     resource_id = brain._provider_primary_resource_id()
     resource = brain.get_resource(resource_id) if resource_id else {}
@@ -31,13 +31,13 @@ def _list_zones(brain) -> list[dict[str, Any]]:
             }
     return zones
 
-def _get_zone(brain, zone_id: str) -> dict[str, Any]:
+def _get_zone(brain, deps, ctx, zone_id: str) -> dict[str, Any]:
     for item in brain.list_zones():
         if item["id"] == zone_id:
             return copy.deepcopy(item)
     raise NotFoundError(zone_id)
 
-def _publish_zone_topic_projection(brain, zone_id: str, role: str, confirmed: bool) -> dict[str, Any]:
+def _publish_zone_topic_projection(brain, deps, ctx, zone_id: str, role: str, confirmed: bool) -> dict[str, Any]:
     zone = brain._zone_by_id(zone_id)
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
@@ -48,10 +48,10 @@ def _publish_zone_topic_projection(brain, zone_id: str, role: str, confirmed: bo
         zone.setdefault("nextActions", [])
         if "继续作为默认复用入口" not in zone["nextActions"]:
             zone["nextActions"].insert(0, "继续作为默认复用入口")
-        brain._append_audit_feed("zone.publish-topic-projection", zone_id, "ok", actor)
+        deps.append_audit_feed("zone.publish-topic-projection", zone_id, "ok", actor)
         return {"zone_id": zone_id, "status": zone["status"]}
 
-    return brain._mutate("zone.publish_topic_projection", role, confirmed, {"zone_id": zone_id}, mutation)
+    return deps.write(ctx, {"zone_id": zone_id}, mutation)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -61,15 +61,15 @@ def _publish_zone_topic_projection(brain, zone_id: str, role: str, confirmed: bo
 def handler_zone_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return {"items": _list_zones(brain)}
+    return {"items": _list_zones(brain, deps, ctx)}
 
 def handler_zone_view(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _get_zone(brain, str(payload["zone_id"]))
+    return _get_zone(brain, deps, ctx, str(payload["zone_id"]))
 
 def handler_zone_publish_topic_projection(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _publish_zone_topic_projection(brain, str(payload["zone_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    return _publish_zone_topic_projection(brain, deps, ctx, str(payload["zone_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 

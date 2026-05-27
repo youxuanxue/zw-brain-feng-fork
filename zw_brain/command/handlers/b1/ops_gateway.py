@@ -22,7 +22,7 @@ from zw_brain.command.serializers import ops_metrics as ops_metrics_ser
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _ingest_gateway_heartbeat(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _ingest_gateway_heartbeat(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     status = str(payload.get("status", "online"))
@@ -51,12 +51,12 @@ def _ingest_gateway_heartbeat(brain, payload: dict[str, Any]) -> dict[str, Any]:
             result = copy.deepcopy(current)
         else:
             result = ops_metrics_ser.gateway_to_dict(store.gateway_runtime_repo.upsert_heartbeat(gateway_payload))
-        brain._append_audit_feed("ops.gateway.heartbeat", gateway_payload["gateway_instance_id"], "ok", actor)
+        deps.append_audit_feed("ops.gateway.heartbeat", gateway_payload["gateway_instance_id"], "ok", actor)
         return result | {"audit_id": audit_id}
 
-    return brain._mutate("ops.gateway.heartbeat.ingest", role, confirmed, gateway_payload, mutation)
+    return deps.write(ctx, gateway_payload, mutation)
 
-def _anchor_gateway_log(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _anchor_gateway_log(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     gateway_log_ref = str(payload["gateway_log_ref"])
@@ -80,10 +80,10 @@ def _anchor_gateway_log(brain, payload: dict[str, Any]) -> dict[str, Any]:
                     "evidence_json": {"resource_code": anchor_payload.get("resource_code")},
                 }
             )
-        brain._append_audit_feed("ops.gateway.log.anchor", gateway_log_ref, "ok", actor)
+        deps.append_audit_feed("ops.gateway.log.anchor", gateway_log_ref, "ok", actor)
         return anchor_payload | {"anchor_outbox_ref": audit_id, "audit_id": audit_id}
 
-    return brain._mutate("ops.gateway.log.anchor", role, confirmed, anchor_payload, mutation)
+    return deps.write(ctx, anchor_payload, mutation)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -93,10 +93,10 @@ def _anchor_gateway_log(brain, payload: dict[str, Any]) -> dict[str, Any]:
 def handler_ops_gateway_heartbeat_ingest(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _ingest_gateway_heartbeat(brain, payload)
+    return _ingest_gateway_heartbeat(brain, deps, ctx, payload)
 
 def handler_ops_gateway_log_anchor(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _anchor_gateway_log(brain, payload)
+    return _anchor_gateway_log(brain, deps, ctx, payload)
 

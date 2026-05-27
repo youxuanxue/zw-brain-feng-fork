@@ -19,7 +19,7 @@ from zw_brain.domain.recommendation_rule import (
 from zw_brain.shared.db import create_session_factory
 
 
-def _commit_rule(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+def _commit_rule(brain, deps, ctx: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     tenant_id = str(payload.get("tenant_id") or "")
@@ -37,7 +37,7 @@ def _commit_rule(brain: BrainService, skill_id: str, payload: dict[str, Any]) ->
                     f"recommendation rule {rule_id!r} does not belong to tenant {tenant_id!r}"
                 )
             committed = repo.commit_to_live(rule_id)
-            brain._append_audit_feed(skill_id, rule_id, "ok", actor)
+            deps.append_audit_feed(skill_id, rule_id, "ok", actor)
             return {
                 "rule_id": committed.id,
                 "rule_code": committed.rule_code,
@@ -45,10 +45,10 @@ def _commit_rule(brain: BrainService, skill_id: str, payload: dict[str, Any]) ->
                 "committed_at": committed.committed_at.isoformat() if committed.committed_at else None,
             }
 
-    return brain._mutate(skill_id, role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
 
 def handler_recommendation_rule_commit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _commit_rule(brain, skill_id, payload)
+    return _commit_rule(brain, deps, ctx, skill_id, payload)

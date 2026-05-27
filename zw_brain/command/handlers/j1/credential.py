@@ -22,7 +22,7 @@ _MONITORING_DASHBOARD_LINK = "https://ops.gov-data.local/monitoring/credential-c
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _issue_credential(brain, request_id: str, role: str, confirmed: bool, *, reissue: bool = False) -> dict[str, Any]:
+def _issue_credential(brain, deps, ctx, request_id: str, role: str, confirmed: bool, *, reissue: bool = False) -> dict[str, Any]:
     """签发凭据 — 审批通过自动触发，或审批人/主管部门手工补签。"""
     request = brain._request_by_id(request_id)
     delivery = brain._delivery_by_request_id(request_id)
@@ -59,7 +59,7 @@ def _issue_credential(brain, request_id: str, role: str, confirmed: bool, *, rei
             "state": "凭据已签发" if not existing else "凭据已重新签发（旧 secret 立即失效）",
             "detail": f"app_key={credential['app_key']}（demo 凭据），可在 P4 凭据领取页查看。",
         })
-        brain._append_audit_feed("credential.issue", request_id, "ok", actor)
+        deps.append_audit_feed("credential.issue", request_id, "ok", actor)
         return {
             "request_id": request_id,
             "credential": credential,
@@ -67,9 +67,9 @@ def _issue_credential(brain, request_id: str, role: str, confirmed: bool, *, rei
             "issued_via": "manual-reissue" if existing else "auto-on-approval",
         }
 
-    return brain._mutate("credential.issue", role, confirmed, {"request_id": request_id, "reissue": reissue}, mutation)
+    return deps.write(ctx, {"request_id": request_id, "reissue": reissue}, mutation)
 
-def _get_credential(brain, request_id: str, role: str) -> dict[str, Any]:
+def _get_credential(brain, deps, ctx, request_id: str, role: str) -> dict[str, Any]:
     """P4 凭据领取页查询入口 — 申请人 / 审批人 / 审计员都可查（无侧效，仅读）。"""
     # 权限校验由 manifest + enforce_manifest_policy 走 invoke_skill 路径处理
     delivery = brain._delivery_by_request_id(request_id)
@@ -107,7 +107,7 @@ def _get_credential(brain, request_id: str, role: str) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def _render_credential_samples(brain, request_id: str, role: str) -> dict[str, Any]:
+def _render_credential_samples(brain, deps, ctx, request_id: str, role: str) -> dict[str, Any]:
     """渲染 credential 的 curl / Python / Java 三语调用样例 + 配额 + 监控入口（只读）.
 
     F5: P4 凭据领取生产化。基于已签发 credential + 真实 sd-default 资源 schema 渲染
@@ -115,7 +115,7 @@ def _render_credential_samples(brain, request_id: str, role: str) -> dict[str, A
 
     所有字段从 _get_credential 派生；不存储样例（每次按需渲染）。
     """
-    credential_view = _get_credential(brain, request_id, role)
+    credential_view = _get_credential(brain, deps, ctx, request_id, role)
     if credential_view.get("credential") is None:
         return {
             "request_id": request_id,
@@ -185,7 +185,7 @@ def _render_credential_samples(brain, request_id: str, role: str) -> dict[str, A
 
     monitoring_link = _MONITORING_DASHBOARD_LINK.format(app_key=app_key)
 
-    brain._append_audit_feed("credential.sample.render", request_id, "ok",
+    deps.append_audit_feed("credential.sample.render", request_id, "ok",
                              str(brain._ui_state.get("actor", "system")))
 
     return {
@@ -213,15 +213,15 @@ def _render_credential_samples(brain, request_id: str, role: str) -> dict[str, A
 def handler_credential_issue(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _issue_credential(brain, str(payload["request_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), reissue=bool(payload.get("reissue", False)))
+    return _issue_credential(brain, deps, ctx, str(payload["request_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), reissue=bool(payload.get("reissue", False)))
 
 def handler_credential_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _get_credential(brain, str(payload["request_id"]), str(payload.get("role", ctx.role)))
+    return _get_credential(brain, deps, ctx, str(payload["request_id"]), str(payload.get("role", ctx.role)))
 
 def handler_credential_sample_render(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _render_credential_samples(brain, str(payload["request_id"]), str(payload.get("role", ctx.role)))
+    return _render_credential_samples(brain, deps, ctx, str(payload["request_id"]), str(payload.get("role", ctx.role)))
 

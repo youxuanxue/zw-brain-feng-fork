@@ -23,7 +23,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _sync_org_projection(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _sync_org_projection(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
@@ -36,7 +36,7 @@ def _sync_org_projection(brain, payload: dict[str, Any]) -> dict[str, Any]:
         orgs_payload = payload.get("orgs") or ([payload] if payload.get("org_code") else [])
         orgs = [repo.upsert_org(item, tenant_id=tenant_id) for item in orgs_payload]
         roles = [repo.upsert_role(item, tenant_id=tenant_id) for item in payload.get("roles") or []]
-        brain._append_audit_feed("org.projection.sync", tenant.tenant_id, "ok", actor)
+        deps.append_audit_feed("org.projection.sync", tenant.tenant_id, "ok", actor)
         return {
             "tenant": governance_ser.tenant_projection_to_dict(tenant),
             "orgs": [governance_ser.org_projection_to_dict(item) for item in orgs],
@@ -45,9 +45,9 @@ def _sync_org_projection(brain, payload: dict[str, Any]) -> dict[str, Any]:
             "audit_id": audit_id,
         }
 
-    return brain._mutate("org.projection.sync", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
-def _sync_actor_projection(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _sync_actor_projection(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
@@ -98,7 +98,7 @@ def _sync_actor_projection(brain, payload: dict[str, Any]) -> dict[str, Any]:
             actor_record = repo.upsert_actor(actor_payload, tenant_id=tenant_id)
             actors.append(actor_record)
             actor_snapshots.append(brain._actor_snapshot_from_projection(actor_record, claims=claims_payload))
-        brain._append_audit_feed("actor.projection.sync", actors[0].external_actor_id if actors else "actor_projection", "ok", actor)
+        deps.append_audit_feed("actor.projection.sync", actors[0].external_actor_id if actors else "actor_projection", "ok", actor)
         return {
             "items": [governance_ser.actor_projection_to_dict(item) for item in actors],
             "actor_snapshots": actor_snapshots,
@@ -106,7 +106,7 @@ def _sync_actor_projection(brain, payload: dict[str, Any]) -> dict[str, Any]:
             "audit_id": audit_id,
         }
 
-    return brain._mutate("actor.projection.sync", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -116,10 +116,10 @@ def _sync_actor_projection(brain, payload: dict[str, Any]) -> dict[str, Any]:
 def handler_org_projection_sync(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _sync_org_projection(brain, payload)
+    return _sync_org_projection(brain, deps, ctx, payload)
 
 def handler_actor_projection_sync(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _sync_actor_projection(brain, payload)
+    return _sync_actor_projection(brain, deps, ctx, payload)
 

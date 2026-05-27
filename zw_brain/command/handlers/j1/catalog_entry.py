@@ -22,7 +22,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _create_catalog_entry_draft(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _create_catalog_entry_draft(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     catalog_code = str(payload["catalog_code"])
@@ -43,12 +43,12 @@ def _create_catalog_entry_draft(brain, payload: dict[str, Any]) -> dict[str, Any
         repo.upsert_from_resource(catalog_payload, tenant_id=_DEFAULT_TENANT_ID)
         for item in payload.get("items") or []:
             repo.upsert_item({**item, "catalog_code": catalog_code}, tenant_id=_DEFAULT_TENANT_ID)
-        brain._append_audit_feed("catalog.entry.create_draft", catalog_code, "ok", actor)
+        deps.append_audit_feed("catalog.entry.create_draft", catalog_code, "ok", actor)
         return {"catalog_code": catalog_code, "lifecycle_status": "draft", "audit_id": audit_id}
 
-    return brain._mutate("catalog.entry.create_draft", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
-def _transition_catalog_entry(brain, catalog_code: str, status: str, skill_id: str, role: str, confirmed: bool) -> dict[str, Any]:
+def _transition_catalog_entry(brain, deps, ctx, catalog_code: str, status: str, skill_id: str, role: str, confirmed: bool) -> dict[str, Any]:
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         store = brain._state_store.database_store
         repo = store.catalog_repo if store is not None else CatalogRepository()
@@ -94,10 +94,10 @@ def _transition_catalog_entry(brain, catalog_code: str, status: str, skill_id: s
                 decision="return" if status in {"draft", "rejected"} else None,
                 tenant_id=_DEFAULT_TENANT_ID,
             )
-        brain._append_audit_feed(skill_id, catalog_code, "ok", actor)
+        deps.append_audit_feed(skill_id, catalog_code, "ok", actor)
         return {"catalog_code": catalog_code, "lifecycle_status": status, "audit_id": audit_id}
 
-    return brain._mutate(skill_id, role, confirmed, {"catalog_code": catalog_code, "status": status}, mutation)
+    return deps.write(ctx, {"catalog_code": catalog_code, "status": status}, mutation)
 
 def _parse_query_limit(value: Any) -> int | None:
     if value is None or value == "":
@@ -130,6 +130,8 @@ def _filter_entries_by_source(records: list[Any], source: Any) -> list[Any]:
 
 def _query_catalog_entries(
     brain,
+    deps,
+    ctx,
     *,
     query: Any = None,
     catalog_code: Any = None,
@@ -181,7 +183,7 @@ def _query_catalog_entries(
         total = len(entries)
     return {"items": entries, "total": total}
 
-def _suggest_catalog_entry_reverse_draft(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _suggest_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     """Return three-tier field suggestions for a given schema snapshot.
 
     Read-only. Resolves `schema_ref` against ResourceSchemaSnapshotRecord
@@ -228,7 +230,7 @@ def _suggest_catalog_entry_reverse_draft(brain, payload: dict[str, Any]) -> dict
         "found": True,
     }
 
-def _create_catalog_entry_reverse_draft(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _create_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     catalog_code = str(payload["catalog_code"])
@@ -255,12 +257,12 @@ def _create_catalog_entry_reverse_draft(brain, payload: dict[str, Any]) -> dict[
             },
             tenant_id=_DEFAULT_TENANT_ID,
         )
-        brain._append_audit_feed("catalog.entry.reverse_draft.create", catalog_code, "ok", actor)
+        deps.append_audit_feed("catalog.entry.reverse_draft.create", catalog_code, "ok", actor)
         return {"catalog_code": catalog_code, "lifecycle_status": "draft", "schema_ref": schema_ref, "audit_id": audit_id}
 
-    return brain._mutate("catalog.entry.reverse_draft.create", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
-def _confirm_catalog_entry_reverse_draft(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _confirm_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     catalog_code = str(payload["catalog_code"])
@@ -281,12 +283,12 @@ def _confirm_catalog_entry_reverse_draft(brain, payload: dict[str, Any]) -> dict
         summary["confirmation_comment"] = payload.get("comment")
         summary["confirmed_by_audit"] = audit_id
         repo.upsert_from_resource(summary, tenant_id=_DEFAULT_TENANT_ID)
-        brain._append_audit_feed("catalog.entry.reverse_draft.confirm", catalog_code, "ok", actor)
+        deps.append_audit_feed("catalog.entry.reverse_draft.confirm", catalog_code, "ok", actor)
         return {"catalog_code": catalog_code, "lifecycle_status": "pending_review", "audit_id": audit_id}
 
-    return brain._mutate("catalog.entry.reverse_draft.confirm", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
-def _reject_catalog_entry_reverse_draft(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _reject_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     catalog_code = str(payload["catalog_code"])
@@ -305,12 +307,12 @@ def _reject_catalog_entry_reverse_draft(brain, payload: dict[str, Any]) -> dict[
         summary["rejected_reason"] = reason
         summary["rejected_by_audit"] = audit_id
         repo.upsert_from_resource(summary, tenant_id=_DEFAULT_TENANT_ID)
-        brain._append_audit_feed("catalog.entry.reverse_draft.reject", catalog_code, "ok", actor)
+        deps.append_audit_feed("catalog.entry.reverse_draft.reject", catalog_code, "ok", actor)
         return {"catalog_code": catalog_code, "lifecycle_status": "rejected", "reason": reason, "audit_id": audit_id}
 
-    return brain._mutate("catalog.entry.reverse_draft.reject", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
-def _review_catalog_entry(brain, catalog_code: str, decision: str, role: str, confirmed: bool) -> dict[str, Any]:
+def _review_catalog_entry(brain, deps, ctx, catalog_code: str, decision: str, role: str, confirmed: bool) -> dict[str, Any]:
     # F1 (E2 J2 3-layer): stage-aware approval.
     #   pending_review            ← 部门待审（MANAGER 审）
     #   pending_platform_review   ← 平台待审（BUSIAUDIT 复核；F1 新增运行时态，不入 CATALOG_STATUS_TO_LIFECYCLE）
@@ -335,17 +337,17 @@ def _review_catalog_entry(brain, catalog_code: str, decision: str, role: str, co
                 f"catalog_entry {catalog_code} cannot be approved from state={state} by role={role}; "
                 "expected pending_review+MANAGER, pending_platform_review+BUSIAUDIT, or pending_review+BUSIAUDIT (legacy single-step)"
             )
-        return _transition_catalog_entry(brain, catalog_code, target, "catalog.entry.review", role, confirmed)
+        return _transition_catalog_entry(brain, deps, ctx, catalog_code, target, "catalog.entry.review", role, confirmed)
     if decision == "return_for_fix":
-        return _transition_catalog_entry(brain, catalog_code, "draft", "catalog.entry.review", role, confirmed)
+        return _transition_catalog_entry(brain, deps, ctx, catalog_code, "draft", "catalog.entry.review", role, confirmed)
     if decision == "reject":
-        return _transition_catalog_entry(brain, catalog_code, "rejected", "catalog.entry.review", role, confirmed)
+        return _transition_catalog_entry(brain, deps, ctx, catalog_code, "rejected", "catalog.entry.review", role, confirmed)
     raise BrainServiceError(f"unsupported catalog entry review decision: {decision}")
 
-def _submit_catalog_entry_review(brain, catalog_code: str, role: str, confirmed: bool) -> dict[str, Any]:
-    return _transition_catalog_entry(brain, catalog_code, "pending_review", "catalog.entry.submit_review", role, confirmed)
+def _submit_catalog_entry_review(brain, deps, ctx, catalog_code: str, role: str, confirmed: bool) -> dict[str, Any]:
+    return _transition_catalog_entry(brain, deps, ctx, catalog_code, "pending_review", "catalog.entry.submit_review", role, confirmed)
 
-def _update_catalog_entry(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _update_catalog_entry(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     catalog_code = str(payload["catalog_code"])
@@ -372,10 +374,10 @@ def _update_catalog_entry(brain, payload: dict[str, Any]) -> dict[str, Any]:
         )
         for item in payload.get("items") or []:
             repo.upsert_item({**item, "catalog_code": catalog_code}, tenant_id=_DEFAULT_TENANT_ID)
-        brain._append_audit_feed("catalog.entry.update", catalog_code, "ok", actor)
+        deps.append_audit_feed("catalog.entry.update", catalog_code, "ok", actor)
         return {"catalog_code": catalog_code, "lifecycle_status": existing.lifecycle_status, "audit_id": audit_id}
 
-    return brain._mutate("catalog.entry.update", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -385,12 +387,12 @@ def _update_catalog_entry(brain, payload: dict[str, Any]) -> dict[str, Any]:
 def handler_catalog_entry_create(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _create_catalog_entry_draft(brain, payload)
+    return _create_catalog_entry_draft(brain, deps, ctx, payload)
 
 def handler_catalog_entry_create_draft(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _create_catalog_entry_draft(brain, payload)
+    return _create_catalog_entry_draft(brain, deps, ctx, payload)
 
 def handler_catalog_entry_publish(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
@@ -413,7 +415,7 @@ def handler_catalog_entry_publish(deps: HandlerDeps, ctx: SkillContext, payload:
             duplicate_warnings = dup_envelope.get("duplicate_warnings") or []
     except NotFoundError:
         pass
-    envelope = _transition_catalog_entry(brain, code, "active", "catalog.entry.publish", role, confirmed)
+    envelope = _transition_catalog_entry(brain, deps, ctx, code, "active", "catalog.entry.publish", role, confirmed)
     if isinstance(envelope, dict) and isinstance(envelope.get("result"), dict):
         envelope["result"]["duplicate_warnings"] = duplicate_warnings
     return envelope
@@ -421,13 +423,15 @@ def handler_catalog_entry_publish(deps: HandlerDeps, ctx: SkillContext, payload:
 def handler_catalog_entry_withdraw(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _transition_catalog_entry(brain, str(payload["catalog_code"]), "retired", "catalog.entry.withdraw", str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    return _transition_catalog_entry(brain, deps, ctx, str(payload["catalog_code"]), "retired", "catalog.entry.withdraw", str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
 def handler_catalog_entry_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
     return _query_catalog_entries(
         brain,
+        deps,
+        ctx,
         query=payload.get("query"),
         catalog_code=payload.get("catalog_code"),
         source=payload.get("source"),
@@ -439,35 +443,35 @@ def handler_catalog_entry_query(deps: HandlerDeps, ctx: SkillContext, payload: d
 def handler_catalog_entry_reverse_draft_suggest(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _suggest_catalog_entry_reverse_draft(brain, payload)
+    return _suggest_catalog_entry_reverse_draft(brain, deps, ctx, payload)
 
 def handler_catalog_entry_reverse_draft_create(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _create_catalog_entry_reverse_draft(brain, payload)
+    return _create_catalog_entry_reverse_draft(brain, deps, ctx, payload)
 
 def handler_catalog_entry_reverse_draft_confirm(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _confirm_catalog_entry_reverse_draft(brain, payload)
+    return _confirm_catalog_entry_reverse_draft(brain, deps, ctx, payload)
 
 def handler_catalog_entry_reverse_draft_reject(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _reject_catalog_entry_reverse_draft(brain, payload)
+    return _reject_catalog_entry_reverse_draft(brain, deps, ctx, payload)
 
 def handler_catalog_entry_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _review_catalog_entry(brain, str(payload["catalog_code"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    return _review_catalog_entry(brain, deps, ctx, str(payload["catalog_code"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
 def handler_catalog_entry_submit_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _submit_catalog_entry_review(brain, str(payload["catalog_code"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    return _submit_catalog_entry_review(brain, deps, ctx, str(payload["catalog_code"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
 def handler_catalog_entry_update(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _update_catalog_entry(brain, payload)
+    return _update_catalog_entry(brain, deps, ctx, payload)
 

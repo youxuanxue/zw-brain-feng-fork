@@ -25,7 +25,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _query_catalog_quality(brain, *, target_type: Any = None, target_ref: Any = None) -> dict[str, Any]:
+def _query_catalog_quality(brain, deps, ctx, *, target_type: Any = None, target_ref: Any = None) -> dict[str, Any]:
     store = brain._state_store.database_store
     if store is None:
         return {"items": [], "total": 0}
@@ -39,7 +39,7 @@ def _query_catalog_quality(brain, *, target_type: Any = None, target_ref: Any = 
     ]
     return {"items": items, "total": len(items)}
 
-def _upsert_catalog_quality_evidence(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _upsert_catalog_quality_evidence(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
 
@@ -47,12 +47,12 @@ def _upsert_catalog_quality_evidence(brain, payload: dict[str, Any]) -> dict[str
         store = brain._state_store.database_store
         repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
         evidence = repo.upsert_quality_evidence(payload)
-        brain._append_audit_feed("ops.catalog.quality.upsert", evidence.quality_ref, "ok", actor)
+        deps.append_audit_feed("ops.catalog.quality.upsert", evidence.quality_ref, "ok", actor)
         return {"quality_ref": evidence.quality_ref, "quality_status": evidence.quality_status, "audit_id": audit_id}
 
-    return brain._mutate("ops.catalog.quality.upsert", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
-def _query_catalog_statistics(brain) -> dict[str, Any]:
+def _query_catalog_statistics(brain, deps, ctx) -> dict[str, Any]:
     store = brain._state_store.database_store
     if store is None:
         return {
@@ -93,15 +93,15 @@ def _query_catalog_statistics(brain) -> dict[str, Any]:
 def handler_ops_catalog_quality_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _query_catalog_quality(brain, target_type=payload.get("target_type"), target_ref=payload.get("target_ref"))
+    return _query_catalog_quality(brain, deps, ctx, target_type=payload.get("target_type"), target_ref=payload.get("target_ref"))
 
 def handler_ops_catalog_quality_upsert(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _upsert_catalog_quality_evidence(brain, payload)
+    return _upsert_catalog_quality_evidence(brain, deps, ctx, payload)
 
 def handler_ops_catalog_statistics_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _query_catalog_statistics(brain)
+    return _query_catalog_statistics(brain, deps, ctx)
 

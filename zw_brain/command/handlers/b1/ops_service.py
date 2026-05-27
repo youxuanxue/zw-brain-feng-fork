@@ -22,6 +22,8 @@ from zw_brain.command.serializers import ops_metrics as ops_metrics_ser
 
 def _query_service_invocations(
     brain,
+    deps,
+    ctx,
     *,
     resource_code: Any = None,
     capability_id: Any = None,
@@ -47,7 +49,7 @@ def _query_service_invocations(
         ]
     return {"items": metrics, "summary": brain._metric_summary(metrics)}
 
-def _query_service_report(brain) -> dict[str, Any]:
+def _query_service_report(brain, deps, ctx) -> dict[str, Any]:
     store = brain._state_store.database_store
     if store is None:
         gateways = copy.deepcopy(brain._snapshot.get("gateway_runtime_statuses", []))
@@ -77,10 +79,10 @@ def _query_service_report(brain) -> dict[str, Any]:
 def handler_ops_service_invocation_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _query_service_invocations(brain, resource_code=payload.get("resource_code"), capability_id=payload.get("capability_id"), metric_scope=payload.get("metric_scope"))
+    return _query_service_invocations(brain, deps, ctx, resource_code=payload.get("resource_code"), capability_id=payload.get("capability_id"), metric_scope=payload.get("metric_scope"))
 
 def handler_ops_service_report_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _query_service_report(brain)
+    return _query_service_report(brain, deps, ctx)
 

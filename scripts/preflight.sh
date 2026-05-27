@@ -93,6 +93,8 @@ done <<'CHECKS'
 段 38	scripts/check_trace_triangle.py	trace-triangle (飞轮 §四 — .feature # Owner/# Pytest/# Twin-F + plan.yaml spec_ref 三角连接守卫)
 段 39	scripts/check_legacy_smoke_row_numbers.py	legacy-smoke-rows (飞轮 §三.2 — .feature 引用旧 xlsx 行号必须在 mapping doc 出现)
 段 40	scripts/check_handler_brain_backref.py	handler-brain-backref (handler body 不得反向访问 BrainService — Action A，白名单受控)
+段 41	scripts/check_pipeline_middleware_order.py	pipeline-middleware-order (SkillPipeline middleware 顺序与 MIDDLEWARE_ORDER 一致 — Action B)
+段 42	scripts/check_handler_uses_pipeline.py	handler-uses-pipeline (handler 不得调 brain._mutate / _invoke_traced_read / _append_audit_feed，必须走 deps.pipeline — Action B)
 CHECKS
 
 echo ""

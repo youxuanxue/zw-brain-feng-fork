@@ -25,7 +25,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _evaluate_tenant_policy(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _evaluate_tenant_policy(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
     capability_id = str(payload.get("capability_id", payload.get("skill_id", payload.get("capability_slug", ""))))
@@ -200,5 +200,5 @@ def _evaluate_tenant_policy(brain, payload: dict[str, Any]) -> dict[str, Any]:
 def handler_tenant_policy_evaluate(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _evaluate_tenant_policy(brain, payload)
+    return _evaluate_tenant_policy(brain, deps, ctx, payload)
 

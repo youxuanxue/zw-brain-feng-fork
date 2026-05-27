@@ -22,10 +22,10 @@ from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _toggle_outage(brain, role: str, confirmed: bool) -> dict[str, Any]:
+def _toggle_outage(brain, deps, ctx, role: str, confirmed: bool) -> dict[str, Any]:
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         brain._ui_state["brainOutage"] = not brain._ui_state["brainOutage"]
-        brain._append_audit_feed(
+        deps.append_audit_feed(
             "dashboard.snapshot-toggle",
             "brain",
             "warning" if brain._ui_state["brainOutage"] else "ok",
@@ -33,7 +33,7 @@ def _toggle_outage(brain, role: str, confirmed: bool) -> dict[str, Any]:
         )
         return {"brainOutage": brain._ui_state["brainOutage"]}
 
-    return brain._mutate("system.toggle_outage", role, confirmed, {}, mutation)
+    return deps.write(ctx, {}, mutation)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ def _toggle_outage(brain, role: str, confirmed: bool) -> dict[str, Any]:
 def handler_system_toggle_outage(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _toggle_outage(brain, str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    return _toggle_outage(brain, deps, ctx, str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
 def handler_system_snapshot(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.

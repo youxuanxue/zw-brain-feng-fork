@@ -251,13 +251,13 @@ def _inference_based_parse(query: str, request_id: str) -> dict[str, Any] | None
     }
 
 
-def _parse_search_intent(brain, query: str, role: str, *, enabled: bool, request_id: str) -> dict[str, Any]:
+def _parse_search_intent(brain, deps, ctx, query: str, role: str, *, enabled: bool, request_id: str) -> dict[str, Any]:
     actor = str(brain._ui_state.get("actor", "system")) if hasattr(brain, "_ui_state") else "system"
     audit_target = query[:80] if query else "<empty>"
 
     if not enabled:
         result = _rule_based_parse(query)
-        brain._append_audit_feed("search.intent.parse", audit_target, "ok", actor)
+        deps.append_audit_feed("search.intent.parse", audit_target, "ok", actor)
         result["enabled"] = False
         return result
 
@@ -268,7 +268,7 @@ def _parse_search_intent(brain, query: str, role: str, *, enabled: bool, request
         inference_result = None
 
     if inference_result is not None:
-        brain._append_audit_feed("search.intent.parse", audit_target, "ok", actor)
+        deps.append_audit_feed("search.intent.parse", audit_target, "ok", actor)
         inference_result["enabled"] = True
         inference_result["keywords"] = _normalize_keywords(query, inference_result.get("keywords") or [])
         dim = inference_result.get("dimension") or {}
@@ -281,7 +281,7 @@ def _parse_search_intent(brain, query: str, role: str, *, enabled: bool, request
 
     # 推理失败 / JSON 解析失败 → 降级
     fallback = _rule_based_parse(query)
-    brain._append_audit_feed("search.intent.parse", audit_target, "warning", actor)
+    deps.append_audit_feed("search.intent.parse", audit_target, "warning", actor)
     fallback["enabled"] = True
     fallback["degraded"] = True
     return fallback
@@ -294,4 +294,4 @@ def handler_search_intent_parse(deps: HandlerDeps, ctx: SkillContext, payload: d
     role = str(payload.get("role", ctx.role))
     enabled = bool(payload.get("enabled", True))
     request_id = str(payload.get("request_id") or f"search-intent-{abs(hash(query)) & 0xFFFFFFFF:08x}")
-    return _parse_search_intent(brain, query, role, enabled=enabled, request_id=request_id)
+    return _parse_search_intent(brain, deps, ctx, query, role, enabled=enabled, request_id=request_id)

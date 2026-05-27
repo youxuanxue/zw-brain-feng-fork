@@ -234,52 +234,136 @@ class BrainService:
     # 委托方法把公开 API 恢复到 BrainService，实现仍在 handler helper（local import
     # 避免与 handler→brain 的模块级反向依赖成环）。
     def get_resource(self, *args: Any, **kwargs: Any) -> Any:
-        from zw_brain.command.handlers.j1.catalog_meta import _get_resource
-        return _get_resource(self, *args, **kwargs)
+        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+        from zw_brain.command.handlers.j1.catalog_meta import _get_resource  # noqa: PLC0415
+        deps = self._get_handler_deps()
+        # Delegate-shim ctx is a stub: callers may not have a skill_id in scope.
+        # Helper body's ctx use is for ctx.role fallback (handled via payload.get) and
+        # pipeline.write skill_id (which gets routed through brain._mutate adapter anyway).
+        ctx = SkillContext(skill_id="", role=self._ui_state.get("role", ""), actor="",
+                            confirmed=False, manifest={})
+        return _get_resource(self, deps, ctx, *args, **kwargs)
 
     def get_request(self, *args: Any, **kwargs: Any) -> Any:
-        from zw_brain.command.handlers.j1.request import _get_request
-        return _get_request(self, *args, **kwargs)
+        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+        from zw_brain.command.handlers.j1.request import _get_request  # noqa: PLC0415
+        deps = self._get_handler_deps()
+        # Delegate-shim ctx is a stub: callers may not have a skill_id in scope.
+        # Helper body's ctx use is for ctx.role fallback (handled via payload.get) and
+        # pipeline.write skill_id (which gets routed through brain._mutate adapter anyway).
+        ctx = SkillContext(skill_id="", role=self._ui_state.get("role", ""), actor="",
+                            confirmed=False, manifest={})
+        return _get_request(self, deps, ctx, *args, **kwargs)
 
     def create_request(self, *args: Any, **kwargs: Any) -> Any:
-        from zw_brain.command.handlers.j1.request import _create_request
-        return _create_request(self, *args, **kwargs)
+        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+        from zw_brain.command.handlers.j1.request import _create_request  # noqa: PLC0415
+        deps = self._get_handler_deps()
+        # Delegate-shim ctx is a stub: callers may not have a skill_id in scope.
+        # Helper body's ctx use is for ctx.role fallback (handled via payload.get) and
+        # pipeline.write skill_id (which gets routed through brain._mutate adapter anyway).
+        ctx = SkillContext(skill_id="", role=self._ui_state.get("role", ""), actor="",
+                            confirmed=False, manifest={})
+        return _create_request(self, deps, ctx, *args, **kwargs)
 
     def get_delivery_task(self, *args: Any, **kwargs: Any) -> Any:
-        from zw_brain.command.handlers.j1.delivery import _get_delivery_task
-        return _get_delivery_task(self, *args, **kwargs)
+        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+        from zw_brain.command.handlers.j1.delivery import _get_delivery_task  # noqa: PLC0415
+        deps = self._get_handler_deps()
+        # Delegate-shim ctx is a stub: callers may not have a skill_id in scope.
+        # Helper body's ctx use is for ctx.role fallback (handled via payload.get) and
+        # pipeline.write skill_id (which gets routed through brain._mutate adapter anyway).
+        ctx = SkillContext(skill_id="", role=self._ui_state.get("role", ""), actor="",
+                            confirmed=False, manifest={})
+        return _get_delivery_task(self, deps, ctx, *args, **kwargs)
 
     def review_request(self, *args: Any, **kwargs: Any) -> Any:
-        from zw_brain.command.handlers.j1.approval import _review_request
-        return _review_request(self, *args, **kwargs)
+        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+        from zw_brain.command.handlers.j1.approval import _review_request  # noqa: PLC0415
+        deps = self._get_handler_deps()
+        # Delegate-shim ctx is a stub: callers may not have a skill_id in scope.
+        # Helper body's ctx use is for ctx.role fallback (handled via payload.get) and
+        # pipeline.write skill_id (which gets routed through brain._mutate adapter anyway).
+        ctx = SkillContext(skill_id="", role=self._ui_state.get("role", ""), actor="",
+                            confirmed=False, manifest={})
+        return _review_request(self, deps, ctx, *args, **kwargs)
 
     def transition_api_resource(self, *args: Any, **kwargs: Any) -> Any:
-        from zw_brain.command.handlers.j1.resource_api import _transition_api_resource
-        return _transition_api_resource(self, *args, **kwargs)
+        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+        from zw_brain.command.handlers.j1.resource_api import _transition_api_resource  # noqa: PLC0415
+        deps = self._get_handler_deps()
+        # Delegate-shim ctx is a stub: callers may not have a skill_id in scope.
+        # Helper body's ctx use is for ctx.role fallback (handled via payload.get) and
+        # pipeline.write skill_id (which gets routed through brain._mutate adapter anyway).
+        ctx = SkillContext(skill_id="", role=self._ui_state.get("role", ""), actor="",
+                            confirmed=False, manifest={})
+        return _transition_api_resource(self, deps, ctx, *args, **kwargs)
 
     def get_dispute(self, *args: Any, **kwargs: Any) -> Any:
-        from zw_brain.command.handlers.j1.governance_dispute import _get_dispute
-        return _get_dispute(self, *args, **kwargs)
+        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+        from zw_brain.command.handlers.j1.governance_dispute import _get_dispute  # noqa: PLC0415
+        deps = self._get_handler_deps()
+        # Delegate-shim ctx is a stub: callers may not have a skill_id in scope.
+        # Helper body's ctx use is for ctx.role fallback (handled via payload.get) and
+        # pipeline.write skill_id (which gets routed through brain._mutate adapter anyway).
+        ctx = SkillContext(skill_id="", role=self._ui_state.get("role", ""), actor="",
+                            confirmed=False, manifest={})
+        return _get_dispute(self, deps, ctx, *args, **kwargs)
 
     def list_audit_events(self, *args: Any, **kwargs: Any) -> Any:
-        from zw_brain.command.handlers.b1.audit import _list_audit_events
-        return _list_audit_events(self, *args, **kwargs)
+        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+        from zw_brain.command.handlers.b1.audit import _list_audit_events  # noqa: PLC0415
+        deps = self._get_handler_deps()
+        # Delegate-shim ctx is a stub: callers may not have a skill_id in scope.
+        # Helper body's ctx use is for ctx.role fallback (handled via payload.get) and
+        # pipeline.write skill_id (which gets routed through brain._mutate adapter anyway).
+        ctx = SkillContext(skill_id="", role=self._ui_state.get("role", ""), actor="",
+                            confirmed=False, manifest={})
+        return _list_audit_events(self, deps, ctx, *args, **kwargs)
 
     def list_packages(self, *args: Any, **kwargs: Any) -> Any:
-        from zw_brain.command.handlers.b1.capability_admin import _list_packages
-        return _list_packages(self, *args, **kwargs)
+        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+        from zw_brain.command.handlers.b1.capability_admin import _list_packages  # noqa: PLC0415
+        deps = self._get_handler_deps()
+        # Delegate-shim ctx is a stub: callers may not have a skill_id in scope.
+        # Helper body's ctx use is for ctx.role fallback (handled via payload.get) and
+        # pipeline.write skill_id (which gets routed through brain._mutate adapter anyway).
+        ctx = SkillContext(skill_id="", role=self._ui_state.get("role", ""), actor="",
+                            confirmed=False, manifest={})
+        return _list_packages(self, deps, ctx, *args, **kwargs)
 
     def evaluate_tenant_policy(self, *args: Any, **kwargs: Any) -> Any:
-        from zw_brain.command.handlers.j2.tenant_policy import _evaluate_tenant_policy
-        return _evaluate_tenant_policy(self, *args, **kwargs)
+        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+        from zw_brain.command.handlers.j2.tenant_policy import _evaluate_tenant_policy  # noqa: PLC0415
+        deps = self._get_handler_deps()
+        # Delegate-shim ctx is a stub: callers may not have a skill_id in scope.
+        # Helper body's ctx use is for ctx.role fallback (handled via payload.get) and
+        # pipeline.write skill_id (which gets routed through brain._mutate adapter anyway).
+        ctx = SkillContext(skill_id="", role=self._ui_state.get("role", ""), actor="",
+                            confirmed=False, manifest={})
+        return _evaluate_tenant_policy(self, deps, ctx, *args, **kwargs)
 
     def list_zones(self, *args: Any, **kwargs: Any) -> Any:
-        from zw_brain.command.handlers.j2.zone import _list_zones
-        return _list_zones(self, *args, **kwargs)
+        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+        from zw_brain.command.handlers.j2.zone import _list_zones  # noqa: PLC0415
+        deps = self._get_handler_deps()
+        # Delegate-shim ctx is a stub: callers may not have a skill_id in scope.
+        # Helper body's ctx use is for ctx.role fallback (handled via payload.get) and
+        # pipeline.write skill_id (which gets routed through brain._mutate adapter anyway).
+        ctx = SkillContext(skill_id="", role=self._ui_state.get("role", ""), actor="",
+                            confirmed=False, manifest={})
+        return _list_zones(self, deps, ctx, *args, **kwargs)
 
     def update_topic_package_policy(self, *args: Any, **kwargs: Any) -> Any:
-        from zw_brain.command.handlers.j2.topic_package import _update_topic_package_policy
-        return _update_topic_package_policy(self, *args, **kwargs)
+        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+        from zw_brain.command.handlers.j2.topic_package import _update_topic_package_policy  # noqa: PLC0415
+        deps = self._get_handler_deps()
+        # Delegate-shim ctx is a stub: callers may not have a skill_id in scope.
+        # Helper body's ctx use is for ctx.role fallback (handled via payload.get) and
+        # pipeline.write skill_id (which gets routed through brain._mutate adapter anyway).
+        ctx = SkillContext(skill_id="", role=self._ui_state.get("role", ""), actor="",
+                            confirmed=False, manifest={})
+        return _update_topic_package_policy(self, deps, ctx, *args, **kwargs)
 
     def invoke_skill(self, skill_id: str, payload: dict[str, Any] | None = None) -> Any:
         payload = payload or {}
@@ -2385,64 +2469,42 @@ class BrainService:
             raise AccessDeniedError(str(exc)) from exc
 
     def _invoke_traced_read(self, skill_id: str, role: str, payload: dict[str, Any], operation: Any) -> Any:
+        """Legacy entry — Action B routes through SkillPipeline.read.
+
+        Kept as a thin adapter for callers that still hold a BrainService
+        reference (test fixtures, in-process scripts). Commits 3-4 sweep
+        handler-side ``brain._invoke_traced_read(...)`` calls to
+        ``deps.pipeline.read(ctx, payload, fn)`` directly.
+
+        Fallback: if no database_store (legacy in-memory mode), skip the
+        audit pipeline and just run the operation — production / CI always
+        have a database_store so this branch is dev-only.
+        """
         store = self._state_store.database_store
         if store is None:
             return operation()
-        actor = self._actor_for_role(role)
-        audit_id = ids.new_audit_id()
-        started_at = datetime.now()
-        self._emit_audit(audit_id, actor, skill_id, "before", payload)
-        try:
-            result = operation()
-        except Exception as exc:
-            self._emit_audit(audit_id, actor, skill_id, "error", {"error": exc.__class__.__name__, "message": str(exc)})
-            self._record_capability_call(
-                audit_id,
-                actor,
-                role,
-                skill_id,
-                payload,
-                {"error": exc.__class__.__name__, "message": str(exc)},
-                started_at,
-                status="failed",
-            )
-            raise
-        self._emit_audit(audit_id, actor, skill_id, "after", result if isinstance(result, dict) else {"result": result})
-        self._record_capability_call(audit_id, actor, role, skill_id, payload, result if isinstance(result, dict) else {"result": result}, started_at)
-        return result
+        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+        ctx = SkillContext(
+            skill_id=skill_id, role=role, actor=self._actor_for_role(role),
+            confirmed=False, manifest=get_manifest(skill_id),
+        )
+        deps = self._get_handler_deps()
+        return deps.pipeline.read(ctx, payload, lambda _audit_id, _actor: operation())
 
     def _mutate(self, skill_id: str, role: str, confirmed: bool, payload: dict[str, Any], mutation: Any) -> dict[str, Any]:
-        manifest = get_manifest(skill_id)
-        self._enforce_manifest_policy(skill_id, manifest, role, payload | {"confirmed": confirmed})
-        if manifest.get("human_confirmation_required") and not confirmed:
-            raise ConfirmationRequiredError(skill_id)
-        actor = self._actor_for_role(role)
-        audit_id = ids.new_audit_id()
-        started_at = datetime.now()
-        self._emit_audit(audit_id, actor, skill_id, "before", payload)
-        try:
-            result = mutation(audit_id, actor)
-        except Exception as exc:
-            self._emit_audit(audit_id, actor, skill_id, "error", {"error": exc.__class__.__name__, "message": str(exc)})
-            self._record_capability_call(
-                audit_id,
-                actor,
-                role,
-                skill_id,
-                payload,
-                {"error": exc.__class__.__name__, "message": str(exc)},
-                started_at,
-                status="failed",
-            )
-            raise
-        self._sync_state_views()
-        self._persist()
-        self._emit_audit(audit_id, actor, skill_id, "after", result)
-        self._record_capability_call(audit_id, actor, role, skill_id, payload, result, started_at)
-        if manifest.get("side_effects"):
-            self._sync_database_aggregates()
-            self._enqueue_anchor(audit_id, actor, skill_id, payload | result)
-        return {"ok": True, "skill_id": skill_id, "audit_id": audit_id, "result": result}
+        """Legacy entry — Action B routes through SkillPipeline.write.
+
+        Kept as a thin adapter so existing callers don't need to construct
+        a SkillContext + call ``deps.pipeline.write`` themselves. Commits
+        3-4 sweep handler-side ``brain._mutate(...)`` calls to the new API.
+        """
+        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+        ctx = SkillContext(
+            skill_id=skill_id, role=role, actor=self._actor_for_role(role),
+            confirmed=confirmed, manifest=get_manifest(skill_id),
+        )
+        deps = self._get_handler_deps()
+        return deps.pipeline.write(ctx, payload, mutation)
 
     def _record_capability_call(
         self,

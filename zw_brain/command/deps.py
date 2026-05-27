@@ -57,6 +57,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
+    from zw_brain.command.pipeline import SkillPipeline
     from zw_brain.domain.repositories.delivery import DeliveryRepository
     from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
     from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
@@ -137,13 +138,18 @@ class HandlerDeps:
     state_store: StateStore
     audit_bus: Any  # zw_brain.shared.audit module
     queue: Any  # zw_brain.shared.queue module
+    pipeline: SkillPipeline  # Action B — see zw_brain/command/pipeline.py
     brain_legacy: BrainService  # preflight 段 38 whitelisted escape hatch
 
     # ------------------------------------------------------------------
-    # Cross-cutting facade — replaces 93 ``brain._mutate(...)`` +
-    # 106 ``brain._append_audit_feed(...)`` reverse accesses.
-    # Today they delegate to BrainService. Action B lifts the bodies
-    # out, but the handler-facing API stays stable.
+    # Cross-cutting facade — handler-facing canonical write/read entries.
+    #
+    # ``write`` / ``read`` route through SkillPipeline (Action B). Handlers
+    # don't access ``deps.pipeline.X`` directly — preflight segment 42
+    # forbids that, so we have one canonical entry shape (``deps.write``).
+    #
+    # ``append_audit_feed`` still delegates to BrainService — no pipeline
+    # equivalent today; Action D may lift it into a domain service.
     # ------------------------------------------------------------------
 
     def write(
@@ -152,17 +158,32 @@ class HandlerDeps:
         payload: dict[str, Any],
         mutation: Callable[[str, str], dict[str, Any]],
     ) -> dict[str, Any]:
-        """Run a write-path mutation through the audit + anchor pipeline.
+        """Run a write-path mutation through the SkillPipeline middleware chain.
 
         Replaces ``brain._mutate(skill_id, role, confirmed, payload, mutation)``.
 
         The ``mutation`` callable receives ``(audit_id, actor)`` and must
         return the result dict — same closure contract as before, so handler
-        bodies migrate mechanically.
+        bodies migrate mechanically. The chain (Policy → Identity → AuditEmit
+        → CapabilityCall → Persist → Anchor) is documented in
+        ``zw_brain/command/pipeline.py`` and verified by preflight segment 41.
         """
-        return self.brain_legacy._mutate(
-            ctx.skill_id, ctx.role, ctx.confirmed, payload, mutation
-        )
+        return self.pipeline.write(ctx, payload, mutation)
+
+    def read(
+        self,
+        ctx: SkillContext,
+        payload: dict[str, Any],
+        fn: Callable[[str, str], Any],
+    ) -> Any:
+        """Run a traced read through the SkillPipeline (no Persist, no Anchor).
+
+        Replaces ``brain._invoke_traced_read(skill_id, role, payload, fn)``
+        for ``audit_required and not side_effects`` skills. ``fn(audit_id,
+        actor)`` returns the handler's raw result (any shape — not wrapped
+        in the write envelope).
+        """
+        return self.pipeline.read(ctx, payload, fn)
 
     def append_audit_feed(
         self, event_type: str, target: str, result: str, actor: str
@@ -184,6 +205,7 @@ class HandlerDeps:
         """
         # Local imports break circular dependency (deps → brain → handlers → deps).
         import zw_brain.shared.audit as audit_bus
+        from zw_brain.command.pipeline import build_default_pipeline
         from zw_brain.shared import queue
 
         store = brain._state_store
@@ -218,5 +240,6 @@ class HandlerDeps:
             state_store=store,
             audit_bus=audit_bus,
             queue=queue,
+            pipeline=build_default_pipeline(brain),
             brain_legacy=brain,
         )

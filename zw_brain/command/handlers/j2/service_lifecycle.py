@@ -18,7 +18,7 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _publish_or_suspend_service(brain, service_id: str, action: str, role: str, confirmed: bool) -> dict[str, Any]:
+def _publish_or_suspend_service(brain, deps, ctx, service_id: str, action: str, role: str, confirmed: bool) -> dict[str, Any]:
     provider = brain._snapshot["provider"]
     service = next((item for item in provider["services"] if item["id"] == service_id), None)
     if service is None:
@@ -40,10 +40,10 @@ def _publish_or_suspend_service(brain, service_id: str, action: str, role: str, 
             event_type = "service.suspend"
             result = "suspended"
         provider["overview"][3]["value"] = str(sum(1 for item in provider["services"] if item["status"] != "在线"))
-        brain._append_audit_feed(event_type, service_id, "ok", actor)
+        deps.append_audit_feed(event_type, service_id, "ok", actor)
         return {"service_id": service_id, "status": service["status"], "result": result}
 
-    return brain._mutate("service.publish_or_suspend", role, confirmed, {"service_id": service_id, "action": action}, mutation)
+    return deps.write(ctx, {"service_id": service_id, "action": action}, mutation)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -53,5 +53,5 @@ def _publish_or_suspend_service(brain, service_id: str, action: str, role: str, 
 def handler_service_publish_or_suspend(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _publish_or_suspend_service(brain, str(payload["service_id"]), str(payload["action"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    return _publish_or_suspend_service(brain, deps, ctx, str(payload["service_id"]), str(payload["action"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 

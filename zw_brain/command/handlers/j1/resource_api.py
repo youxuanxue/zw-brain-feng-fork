@@ -22,7 +22,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _register_api_resource(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _register_api_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     resource = brain._api_payload(payload, default_status="draft")
@@ -32,12 +32,12 @@ def _register_api_resource(brain, payload: dict[str, Any]) -> dict[str, Any]:
         binding = payload.get("channel_binding")
         if isinstance(binding, dict):
             brain._upsert_api_binding({**binding, "resource_code": resource["resource_code"]})
-        brain._append_audit_feed("resource.api.register", resource["resource_code"], "ok", actor)
+        deps.append_audit_feed("resource.api.register", resource["resource_code"], "ok", actor)
         return result | {"audit_id": audit_id}
 
-    return brain._mutate("resource.api.register", role, confirmed, resource, mutation)
+    return deps.write(ctx, resource, mutation)
 
-def _change_api_resource(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _change_api_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     resource = brain._api_payload(payload, default_status="draft")
@@ -50,22 +50,22 @@ def _change_api_resource(brain, payload: dict[str, Any]) -> dict[str, Any]:
         binding = payload.get("channel_binding")
         if isinstance(binding, dict):
             brain._upsert_api_binding({**binding, "resource_code": resource["resource_code"]})
-        brain._append_audit_feed("resource.api.change", resource["resource_code"], "ok", actor)
+        deps.append_audit_feed("resource.api.change", resource["resource_code"], "ok", actor)
         return result | {"audit_id": audit_id}
 
-    return brain._mutate("resource.api.change", role, confirmed, resource, mutation)
+    return deps.write(ctx, resource, mutation)
 
-def _submit_api_resource_review(brain, resource_code: str, role: str, confirmed: bool, skill_id: str = "resource.api.submit_review") -> dict[str, Any]:
+def _submit_api_resource_review(brain, deps, ctx, resource_code: str, role: str, confirmed: bool, skill_id: str = "resource.api.submit_review") -> dict[str, Any]:
     return brain.transition_api_resource(resource_code, "pending_review", skill_id, role, confirmed)
 
-def _review_api_resource(brain, resource_code: str, decision: str, role: str, confirmed: bool, skill_id: str = "resource.api.review") -> dict[str, Any]:
+def _review_api_resource(brain, deps, ctx, resource_code: str, decision: str, role: str, confirmed: bool, skill_id: str = "resource.api.review") -> dict[str, Any]:
     if decision == "approve":
         return brain.transition_api_resource(resource_code, "approved_pending_publish", skill_id, role, confirmed)
     if decision == "return_for_fix":
         return brain.transition_api_resource(resource_code, "draft", skill_id, role, confirmed)
     raise BrainServiceError(f"unsupported api resource review decision: {decision}")
 
-def _transition_api_resource(brain, resource_code: str, status: str, skill_id: str, role: str, confirmed: bool) -> dict[str, Any]:
+def _transition_api_resource(brain, deps, ctx, resource_code: str, status: str, skill_id: str, role: str, confirmed: bool) -> dict[str, Any]:
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         store = brain._state_store.database_store
         if store is None:
@@ -104,12 +104,12 @@ def _transition_api_resource(brain, resource_code: str, status: str, skill_id: s
                 decision="return" if status in {"draft", "test_failed"} else None,
             )
             result = resource_api_ser.resource_asset_to_dict(record)
-        brain._append_audit_feed(skill_id, resource_code, "ok", actor)
+        deps.append_audit_feed(skill_id, resource_code, "ok", actor)
         return result | {"audit_id": audit_id}
 
-    return brain._mutate(skill_id, role, confirmed, {"resource_code": resource_code, "status": status}, mutation)
+    return deps.write(ctx, {"resource_code": resource_code, "status": status}, mutation)
 
-def _test_api_resource(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _test_api_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     resource_code = str(payload["resource_code"])
@@ -154,12 +154,12 @@ def _test_api_resource(brain, payload: dict[str, Any]) -> dict[str, Any]:
             )
             result = resource_api_ser.resource_asset_to_dict(record)
             test_record = resource_api_ser.api_test_projection_to_dict(projection)
-        brain._append_audit_feed("resource.api.test", resource_code, "ok", actor)
+        deps.append_audit_feed("resource.api.test", resource_code, "ok", actor)
         return result | {"audit_id": audit_id, "test_projection": test_record}
 
-    return brain._mutate("resource.api.test", role, confirmed, test_payload, mutation)
+    return deps.write(ctx, test_payload, mutation)
 
-def _update_api_resource_policy(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _update_api_resource_policy(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     resource_code = str(payload["resource_code"])
@@ -174,12 +174,12 @@ def _update_api_resource_policy(brain, payload: dict[str, Any]) -> dict[str, Any
             raise NotFoundError(binding_code)
         binding["gateway_policy_json"] = policy_payload
         result = brain._upsert_api_binding(binding)
-        brain._append_audit_feed("resource.api.policy.update", resource_code, "ok", actor)
+        deps.append_audit_feed("resource.api.policy.update", resource_code, "ok", actor)
         return result | {"audit_id": audit_id}
 
-    return brain._mutate("resource.api.policy.update", role, confirmed, {"resource_code": resource_code, "binding_code": binding_code}, mutation)
+    return deps.write(ctx, {"resource_code": resource_code, "binding_code": binding_code}, mutation)
 
-def _query_resource_assets(brain, *, resource_code: Any = None) -> dict[str, Any]:
+def _query_resource_assets(brain, deps, ctx, *, resource_code: Any = None) -> dict[str, Any]:
     store = brain._state_store.database_store
     if store is None:
         resources = copy.deepcopy(brain._snapshot.get("api_resources", []))
@@ -194,6 +194,8 @@ def _query_resource_assets(brain, *, resource_code: Any = None) -> dict[str, Any
 
 def _manage_resource_asset(
     brain,
+    deps,
+    ctx,
     resource_id: str,
     action: str,
     role: str,
@@ -251,10 +253,10 @@ def _manage_resource_asset(
             snapshot_resource["updatedAt"] = clock.now_date()
             snapshot_resource.setdefault("evidence", {})[action] = {"audit_id": audit_id, "actor": actor}
         provider["aiGovernance"]["summary"] = "资源治理状态已更新，当前应确认专区是否只消费可见资产。"
-        brain._append_audit_feed(event_type, resource_id, "ok", actor)
+        deps.append_audit_feed(event_type, resource_id, "ok", actor)
         return result | {"audit_id": audit_id}
 
-    return brain._mutate("resource.manage_asset", role, confirmed, brain._provider_manage_payload(resource_id, action, payload), mutation)
+    return deps.write(ctx, brain._provider_manage_payload(resource_id, action, payload), mutation)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -264,70 +266,70 @@ def _manage_resource_asset(
 def handler_resource_api_register(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _register_api_resource(brain, payload)
+    return _register_api_resource(brain, deps, ctx, payload)
 
 def handler_resource_api_change(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _change_api_resource(brain, payload)
+    return _change_api_resource(brain, deps, ctx, payload)
 
 def handler_resource_api_submit_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _submit_api_resource_review(brain, str(payload["resource_code"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    return _submit_api_resource_review(brain, deps, ctx, str(payload["resource_code"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
 def handler_resource_asset_submit_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _submit_api_resource_review(brain, str(payload["resource_code"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "resource.asset.submit_review")
+    return _submit_api_resource_review(brain, deps, ctx, str(payload["resource_code"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "resource.asset.submit_review")
 
 def handler_resource_api_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _review_api_resource(brain, str(payload["resource_code"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    return _review_api_resource(brain, deps, ctx, str(payload["resource_code"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
 def handler_resource_asset_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _review_api_resource(brain, str(payload["resource_code"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "resource.asset.review")
+    return _review_api_resource(brain, deps, ctx, str(payload["resource_code"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "resource.asset.review")
 
 def handler_resource_api_publish(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _transition_api_resource(brain, str(payload["resource_code"]), "active", "resource.api.publish", str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    return _transition_api_resource(brain, deps, ctx, str(payload["resource_code"]), "active", "resource.api.publish", str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
 def handler_resource_api_revoke(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _transition_api_resource(brain, str(payload["resource_code"]), "revoked", "resource.api.revoke", str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    return _transition_api_resource(brain, deps, ctx, str(payload["resource_code"]), "revoked", "resource.api.revoke", str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
 def handler_resource_api_withdraw(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _transition_api_resource(brain, str(payload["resource_code"]), "retired", "resource.api.withdraw", str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    return _transition_api_resource(brain, deps, ctx, str(payload["resource_code"]), "retired", "resource.api.withdraw", str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
 def handler_resource_asset_publish(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _transition_api_resource(brain, str(payload["resource_code"]), "active", "resource.asset.publish", str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    return _transition_api_resource(brain, deps, ctx, str(payload["resource_code"]), "active", "resource.asset.publish", str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
 def handler_resource_api_test(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _test_api_resource(brain, payload)
+    return _test_api_resource(brain, deps, ctx, payload)
 
 def handler_resource_api_policy_update(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _update_api_resource_policy(brain, payload)
+    return _update_api_resource_policy(brain, deps, ctx, payload)
 
 def handler_resource_asset_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _query_resource_assets(brain, resource_code=payload.get("resource_code"))
+    return _query_resource_assets(brain, deps, ctx, resource_code=payload.get("resource_code"))
 
 def handler_resource_manage_asset(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _manage_resource_asset(brain, str(payload["resource_id"]), str(payload["action"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), payload)
+    return _manage_resource_asset(brain, deps, ctx, str(payload["resource_id"]), str(payload["action"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), payload)
 

@@ -24,7 +24,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _configure_topic_package(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _configure_topic_package(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
@@ -35,12 +35,12 @@ def _configure_topic_package(brain, payload: dict[str, Any]) -> dict[str, Any]:
             record = deps.repos.topic_package.configure_package(package_code, payload | {"actor_snapshot_json": {"actor": actor, "role": role}})
         except KeyError as exc:
             raise NotFoundError(package_code) from exc
-        brain._append_audit_feed("topic.package.configure", package_code, "ok", actor)
+        deps.append_audit_feed("topic.package.configure", package_code, "ok", actor)
         return topic_package_ser.topic_package_to_dict(record) | {"audit_id": audit_id}
 
-    return brain._mutate("topic.package.configure", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
-def _transition_topic_package(brain, package_code: str, next_status: str, action_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+def _transition_topic_package(brain, deps, ctx, package_code: str, next_status: str, action_type: str, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
@@ -56,12 +56,12 @@ def _transition_topic_package(brain, package_code: str, next_status: str, action
             raise NotFoundError(package_code) from exc
         except TopicPackageStateError as exc:
             raise InvalidStateError(str(exc)) from exc
-        brain._append_audit_feed(f"topic.package.{action_type}", package_code, "ok", actor)
+        deps.append_audit_feed(f"topic.package.{action_type}", package_code, "ok", actor)
         return topic_package_ser.topic_package_to_dict(record) | {"audit_id": audit_id}
 
-    return brain._mutate(f"topic.package.{action_type}", role, confirmed, {"package_code": package_code, "next_status": next_status} | payload, mutation)
+    return deps.write(ctx, {"package_code": package_code, "next_status": next_status} | payload, mutation)
 
-def _update_topic_package_policy(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _update_topic_package_policy(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
@@ -72,12 +72,12 @@ def _update_topic_package_policy(brain, payload: dict[str, Any]) -> dict[str, An
             records = deps.repos.topic_package.update_policy(package_code, payload | {"actor_snapshot_json": {"actor": actor, "role": role}})
         except KeyError as exc:
             raise NotFoundError(package_code) from exc
-        brain._append_audit_feed("topic.package.policy.update", package_code, "ok", actor)
+        deps.append_audit_feed("topic.package.policy.update", package_code, "ok", actor)
         return {"items": [topic_package_ser.topic_visibility_to_dict(item) for item in records], "total": len(records), "audit_id": audit_id}
 
-    return brain._mutate("topic.package.policy.update", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
-def _subscribe_topic_package(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _subscribe_topic_package(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
@@ -104,7 +104,7 @@ def _subscribe_topic_package(brain, payload: dict[str, Any]) -> dict[str, Any]:
             )
         except KeyError as exc:
             raise NotFoundError(package_code) from exc
-        brain._append_audit_feed("topic.package.subscribe", package_code, "ok", actor)
+        deps.append_audit_feed("topic.package.subscribe", package_code, "ok", actor)
         return {
             "package_code": package_code,
             "items": [topic_package_ser.topic_visibility_to_dict(item) for item in records],
@@ -112,9 +112,9 @@ def _subscribe_topic_package(brain, payload: dict[str, Any]) -> dict[str, Any]:
             "audit_id": audit_id,
         }
 
-    return brain._mutate("topic.package.subscribe", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
-def _attach_topic_package_evidence(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _attach_topic_package_evidence(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
@@ -125,12 +125,12 @@ def _attach_topic_package_evidence(brain, payload: dict[str, Any]) -> dict[str, 
             record = deps.repos.topic_package.attach_evidence(package_code, payload | {"actor_snapshot_json": {"actor": actor, "role": role}})
         except KeyError as exc:
             raise NotFoundError(package_code) from exc
-        brain._append_audit_feed("topic.package.evidence.attach", package_code, "ok", actor)
+        deps.append_audit_feed("topic.package.evidence.attach", package_code, "ok", actor)
         return topic_package_ser.topic_evidence_to_dict(record) | {"audit_id": audit_id}
 
-    return brain._mutate("topic.package.evidence.attach", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
-def _query_topic_packages(brain, *, package_code: Any = None, status: Any = None) -> dict[str, Any]:
+def _query_topic_packages(brain, deps, ctx, *, package_code: Any = None, status: Any = None) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     repo = deps.repos.topic_package
     if package_code:
@@ -145,7 +145,7 @@ def _query_topic_packages(brain, *, package_code: Any = None, status: Any = None
         ]
     return {"items": items, "total": len(items)}
 
-def _query_topic_package_metrics(brain, *, package_code: Any = None) -> dict[str, Any]:
+def _query_topic_package_metrics(brain, deps, ctx, *, package_code: Any = None) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     repo = deps.repos.topic_package
     packages = [repo.get_package(str(package_code))] if package_code else repo.list_packages()
@@ -170,46 +170,46 @@ def _query_topic_package_metrics(brain, *, package_code: Any = None) -> dict[str
 def handler_topic_package_configure(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _configure_topic_package(brain, payload)
+    return _configure_topic_package(brain, deps, ctx, payload)
 
 def handler_topic_package_submit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _transition_topic_package(brain, str(payload["package_code"]), "submitted", "submit", payload)
+    return _transition_topic_package(brain, deps, ctx, str(payload["package_code"]), "submitted", "submit", payload)
 
 def handler_topic_package_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
     decision = str(payload["decision"])
-    return _transition_topic_package(brain, str(payload["package_code"]), "published" if decision == "approve" else "rejected", "review", payload)
+    return _transition_topic_package(brain, deps, ctx, str(payload["package_code"]), "published" if decision == "approve" else "rejected", "review", payload)
 
 def handler_topic_package_publish(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _transition_topic_package(brain, str(payload["package_code"]), "published", "publish", payload)
+    return _transition_topic_package(brain, deps, ctx, str(payload["package_code"]), "published", "publish", payload)
 
 def handler_topic_package_policy_update(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _update_topic_package_policy(brain, payload)
+    return _update_topic_package_policy(brain, deps, ctx, payload)
 
 def handler_topic_package_subscribe(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _subscribe_topic_package(brain, payload)
+    return _subscribe_topic_package(brain, deps, ctx, payload)
 
 def handler_topic_package_evidence_attach(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _attach_topic_package_evidence(brain, payload)
+    return _attach_topic_package_evidence(brain, deps, ctx, payload)
 
 def handler_topic_package_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _query_topic_packages(brain, package_code=payload.get("package_code"), status=payload.get("status"))
+    return _query_topic_packages(brain, deps, ctx, package_code=payload.get("package_code"), status=payload.get("status"))
 
 def handler_topic_package_metric_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _query_topic_package_metrics(brain, package_code=payload.get("package_code"))
+    return _query_topic_package_metrics(brain, deps, ctx, package_code=payload.get("package_code"))
 

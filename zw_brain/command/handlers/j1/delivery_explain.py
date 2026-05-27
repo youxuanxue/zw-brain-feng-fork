@@ -143,7 +143,7 @@ def _do_explain_inference(task: dict[str, Any], *, request_id: str) -> dict[str,
     }
 
 
-def _load_delivery_task(brain, *, delivery_code: str | None, application_code: str | None) -> dict[str, Any] | None:
+def _load_delivery_task(brain, deps, ctx, *, delivery_code: str | None, application_code: str | None) -> dict[str, Any] | None:
     """从 DeliveryRepository 取真实 sd-default 交付任务."""
     from sqlalchemy import select
 
@@ -177,7 +177,7 @@ def _load_delivery_task(brain, *, delivery_code: str | None, application_code: s
     }
 
 
-def _do_explain(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _do_explain(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     delivery_code = (payload.get("delivery_code") or "").strip() or None
     application_code = (payload.get("application_code") or "").strip() or None
     if not delivery_code and not application_code:
@@ -186,7 +186,7 @@ def _do_explain(brain, payload: dict[str, Any]) -> dict[str, Any]:
     request_id = str(payload.get("request_id") or f"delivery-explain-{abs(hash(delivery_code or application_code)) & 0xFFFFFFFF:08x}")
     actor = str(brain._ui_state.get("actor", "system")) if hasattr(brain, "_ui_state") else "system"
 
-    task = _load_delivery_task(brain, delivery_code=delivery_code, application_code=application_code)
+    task = _load_delivery_task(brain, deps, ctx, delivery_code=delivery_code, application_code=application_code)
     if task is None:
         return {
             "delivery_code": delivery_code,
@@ -199,7 +199,7 @@ def _do_explain(brain, payload: dict[str, Any]) -> dict[str, Any]:
 
     if not enabled:
         result = _do_explain_fallback(task)
-        brain._append_audit_feed("delivery.status.explain", task["delivery_code"] or "", "ok", actor)
+        deps.append_audit_feed("delivery.status.explain", task["delivery_code"] or "", "ok", actor)
         result["enabled"] = False
         return result
 
@@ -209,12 +209,12 @@ def _do_explain(brain, payload: dict[str, Any]) -> dict[str, Any]:
     except InferenceError:
         inf = None
     if inf is not None:
-        brain._append_audit_feed("delivery.status.explain", task["delivery_code"] or "", "ok", actor)
+        deps.append_audit_feed("delivery.status.explain", task["delivery_code"] or "", "ok", actor)
         inf["enabled"] = True
         return inf
 
     fallback = _do_explain_fallback(task)
-    brain._append_audit_feed("delivery.status.explain", task["delivery_code"] or "", "warning", actor)
+    deps.append_audit_feed("delivery.status.explain", task["delivery_code"] or "", "warning", actor)
     fallback["enabled"] = True
     fallback["degraded"] = True
     return fallback
@@ -223,4 +223,4 @@ def _do_explain(brain, payload: dict[str, Any]) -> dict[str, Any]:
 def handler_delivery_status_explain(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _do_explain(brain, payload)
+    return _do_explain(brain, deps, ctx, payload)

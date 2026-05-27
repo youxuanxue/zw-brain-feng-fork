@@ -18,7 +18,7 @@ from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepos
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _upsert_quality_rule(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _upsert_quality_rule(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     rule_code = str(payload["rule_code"])
@@ -44,12 +44,12 @@ def _upsert_quality_rule(brain, payload: dict[str, Any]) -> dict[str, Any]:
                 "source_ref": f"orgmgr:rule:{rule_code}",
             }
         )
-        brain._append_audit_feed("quality.rule.upsert", rule_code, "ok", actor)
+        deps.append_audit_feed("quality.rule.upsert", rule_code, "ok", actor)
         return {"rule_code": rule_code, "quality_ref": evidence.quality_ref, "audit_id": audit_id}
 
-    return brain._mutate("quality.rule.upsert", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
-def _run_quality_task(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _run_quality_task(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     rule_code = str(payload["rule_code"])
@@ -73,12 +73,12 @@ def _run_quality_task(brain, payload: dict[str, Any]) -> dict[str, Any]:
                 "source_ref": f"orgmgr:task:{audit_id[:8]}",
             }
         )
-        brain._append_audit_feed("quality.task.run", task_ref, "ok", actor)
+        deps.append_audit_feed("quality.task.run", task_ref, "ok", actor)
         return {"task_ref": task_ref, "rule_code": rule_code, "task_status": "running", "audit_id": audit_id}
 
-    return brain._mutate("quality.task.run", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
-def _replay_quality_task(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _replay_quality_task(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     rule_code = str(payload["rule_code"])
@@ -103,10 +103,10 @@ def _replay_quality_task(brain, payload: dict[str, Any]) -> dict[str, Any]:
                 "source_ref": f"orgmgr:replay:{audit_id[:8]}",
             }
         )
-        brain._append_audit_feed("quality.task.replay", replay_ref, "ok", actor)
+        deps.append_audit_feed("quality.task.replay", replay_ref, "ok", actor)
         return {"task_ref": replay_ref, "previous_task_ref": previous_task_ref, "audit_id": audit_id}
 
-    return brain._mutate("quality.task.replay", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -116,15 +116,15 @@ def _replay_quality_task(brain, payload: dict[str, Any]) -> dict[str, Any]:
 def handler_quality_rule_upsert(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _upsert_quality_rule(brain, payload)
+    return _upsert_quality_rule(brain, deps, ctx, payload)
 
 def handler_quality_task_run(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _run_quality_task(brain, payload)
+    return _run_quality_task(brain, deps, ctx, payload)
 
 def handler_quality_task_replay(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _replay_quality_task(brain, payload)
+    return _replay_quality_task(brain, deps, ctx, payload)
 

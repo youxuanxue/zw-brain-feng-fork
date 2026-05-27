@@ -24,7 +24,7 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _configure_compliance_rule(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _configure_compliance_rule(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     rule_id = str(payload["rule_id"])
@@ -44,12 +44,12 @@ def _configure_compliance_rule(brain, payload: dict[str, Any]) -> dict[str, Any]
             rules.append(rule_payload)
         else:
             rule.update(rule_payload)
-        brain._append_audit_feed("compliance.rule.configure", rule_id, "ok", actor)
+        deps.append_audit_feed("compliance.rule.configure", rule_id, "ok", actor)
         return {"rule_id": rule_id, "status": rule_payload["status"], "audit_id": audit_id}
 
-    return brain._mutate("compliance.rule.configure", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
-def _open_compliance_case(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _open_compliance_case(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     case_id = str(payload.get("case_id") or payload.get("dispute_id") or f"CMP-{ids.new_audit_id()}")
@@ -75,12 +75,12 @@ def _open_compliance_case(brain, payload: dict[str, Any]) -> dict[str, Any]:
                 "aiSummary": str(payload.get("aiSummary", payload.get("summary", "合规事件已进入 zw-brain 最小闭环，后续只沉淀证据与处置结果。"))),
             }
         )
-        brain._append_audit_feed("compliance.case.open", case_id, "ok", actor)
+        deps.append_audit_feed("compliance.case.open", case_id, "ok", actor)
         return {"case_id": case_id, "status": "detected", "audit_id": audit_id}
 
-    return brain._mutate("compliance.case.open", role, confirmed, payload | {"case_id": case_id}, mutation)
+    return deps.write(ctx, payload | {"case_id": case_id}, mutation)
 
-def _transition_compliance_case(brain, case_id: str, status: str, action: str, payload: dict[str, Any]) -> dict[str, Any]:
+def _transition_compliance_case(brain, deps, ctx, case_id: str, status: str, action: str, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     case = next((item for item in brain._snapshot.setdefault("disputes", []) if item.get("id") == case_id), None)
@@ -104,12 +104,12 @@ def _transition_compliance_case(brain, case_id: str, status: str, action: str, p
         label = {"assign": "分派合规处置", "resolve": "完成合规处置", "close": "关闭合规事件"}[action]
         case.setdefault("timeline", []).append({"time": clock.now_datetime(), "label": label, "note": str(payload.get("opinion", payload.get("summary", label)))})
         case["aiSummary"] = str(payload.get("aiSummary", payload.get("summary", f"合规事件已{label}，证据链保留在统一审计与快照中。")))
-        brain._append_audit_feed(f"compliance.case.{action}", case_id, "ok", actor)
+        deps.append_audit_feed(f"compliance.case.{action}", case_id, "ok", actor)
         return {"case_id": case_id, "status": case["status"], "audit_id": audit_id}
 
-    return brain._mutate(f"compliance.case.{action}", role, confirmed, {"case_id": case_id, "status": status} | payload, mutation)
+    return deps.write(ctx, {"case_id": case_id, "status": status} | payload, mutation)
 
-def _query_compliance_cases(brain, *, status: Any = None, severity: Any = None) -> dict[str, Any]:
+def _query_compliance_cases(brain, deps, ctx, *, status: Any = None, severity: Any = None) -> dict[str, Any]:
     cases = copy.deepcopy(brain._snapshot.get("disputes", []))
     if status:
         cases = [item for item in cases if item.get("status") == str(status)]
@@ -117,7 +117,7 @@ def _query_compliance_cases(brain, *, status: Any = None, severity: Any = None) 
         cases = [item for item in cases if item.get("severity") == str(severity)]
     return {"items": cases, "total": len(cases)}
 
-def _query_compliance_metrics(brain) -> dict[str, Any]:
+def _query_compliance_metrics(brain, deps, ctx) -> dict[str, Any]:
     cases = brain._snapshot.get("disputes", [])
     by_status: dict[str, int] = {}
     by_severity: dict[str, int] = {}
@@ -127,7 +127,7 @@ def _query_compliance_metrics(brain) -> dict[str, Any]:
     open_count = sum(count for status, count in by_status.items() if status not in {"resolved", "closed"})
     return {"total": len(cases), "open_count": open_count, "resolved_count": by_status.get("resolved", 0) + by_status.get("closed", 0), "by_status": by_status, "by_severity": by_severity}
 
-def _investigate_dispute(brain, dispute_id: str, action: str, role: str, confirmed: bool) -> dict[str, Any]:
+def _investigate_dispute(brain, deps, ctx, dispute_id: str, action: str, role: str, confirmed: bool) -> dict[str, Any]:
     dispute = next((item for item in brain._snapshot["disputes"] if item["id"] == dispute_id), None)
     if dispute is None:
         raise NotFoundError(dispute_id)
@@ -161,10 +161,10 @@ def _investigate_dispute(brain, dispute_id: str, action: str, role: str, confirm
             brain._set_todo_status("ROLE_SECURITY_AUDIT", dispute_id, "已升级")
             brain._set_todo_status("ROLE_ORGAN_MANAGER", dispute_id, "已升级")
             event_type = "compliance.escalate-case"
-        brain._append_audit_feed(event_type, dispute_id, "ok", actor)
+        deps.append_audit_feed(event_type, dispute_id, "ok", actor)
         return {"dispute_id": dispute_id, "status": dispute["status"], "action": action}
 
-    return brain._mutate("compliance.investigate_case", role, confirmed, {"dispute_id": dispute_id, "action": action}, mutation)
+    return deps.write(ctx, {"dispute_id": dispute_id, "action": action}, mutation)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -174,40 +174,40 @@ def _investigate_dispute(brain, dispute_id: str, action: str, role: str, confirm
 def handler_compliance_case_open(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _open_compliance_case(brain, payload)
+    return _open_compliance_case(brain, deps, ctx, payload)
 
 def handler_compliance_case_assign(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _transition_compliance_case(brain, str(payload["case_id"]), "assigned", "assign", payload)
+    return _transition_compliance_case(brain, deps, ctx, str(payload["case_id"]), "assigned", "assign", payload)
 
 def handler_compliance_case_close(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _transition_compliance_case(brain, str(payload["case_id"]), "closed", "close", payload)
+    return _transition_compliance_case(brain, deps, ctx, str(payload["case_id"]), "closed", "close", payload)
 
 def handler_compliance_case_resolve(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _transition_compliance_case(brain, str(payload["case_id"]), "resolved", "resolve", payload)
+    return _transition_compliance_case(brain, deps, ctx, str(payload["case_id"]), "resolved", "resolve", payload)
 
 def handler_compliance_case_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _query_compliance_cases(brain, status=payload.get("status"), severity=payload.get("severity"))
+    return _query_compliance_cases(brain, deps, ctx, status=payload.get("status"), severity=payload.get("severity"))
 
 def handler_compliance_metric_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _query_compliance_metrics(brain)
+    return _query_compliance_metrics(brain, deps, ctx)
 
 def handler_compliance_rule_configure(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _configure_compliance_rule(brain, payload)
+    return _configure_compliance_rule(brain, deps, ctx, payload)
 
 def handler_compliance_investigate_case(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _investigate_dispute(brain, str(payload["dispute_id"]), str(payload["action"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    return _investigate_dispute(brain, deps, ctx, str(payload["dispute_id"]), str(payload["action"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 

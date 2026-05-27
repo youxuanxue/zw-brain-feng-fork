@@ -42,7 +42,7 @@ def _iso(dt: datetime | None) -> str | None:
     return dt.isoformat() if dt is not None else None
 
 
-def _project_search(brain: BrainService, tenant_id: str) -> dict[str, Any]:
+def _project_search(brain, deps, ctx: BrainService, tenant_id: str) -> dict[str, Any]:
     """search 投影 = CatalogEntryRecord（data_search 命中底层目录条目）。"""
     from sqlalchemy import desc, func, select  # noqa: PLC0415 — keep import-cost local
 
@@ -70,7 +70,7 @@ def _project_search(brain: BrainService, tenant_id: str) -> dict[str, Any]:
     }
 
 
-def _project_topic_package(brain: BrainService, tenant_id: str) -> dict[str, Any]:
+def _project_topic_package(brain, deps, ctx: BrainService, tenant_id: str) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     """共享专题 = TopicPackageRecord（含 basesubject + dsp_example 主题包）。"""
     packages = deps.repos.topic_package.list_packages(tenant_id=tenant_id)
@@ -93,7 +93,7 @@ def _project_topic_package(brain: BrainService, tenant_id: str) -> dict[str, Any
     }
 
 
-def _project_quality(brain: BrainService, tenant_id: str) -> dict[str, Any]:
+def _project_quality(brain, deps, ctx: BrainService, tenant_id: str) -> dict[str, Any]:
     """质量 = QualityEvidenceProjectionRecord。失败 = quality_status ∈ {failed/rejected/warning}。"""
     records = _metadata_evidence_repo().list_quality_evidence(tenant_id=tenant_id)
     failures = [r for r in records if (r.quality_status or "").lower() in _QUALITY_FAILED_STATUSES]
@@ -116,7 +116,7 @@ def _project_quality(brain: BrainService, tenant_id: str) -> dict[str, Any]:
     }
 
 
-def _project_lineage(brain: BrainService, tenant_id: str) -> dict[str, Any]:
+def _project_lineage(brain, deps, ctx: BrainService, tenant_id: str) -> dict[str, Any]:
     """血缘 = LineageRelationProjectionRecord（含 graph_lineage scope=graphdb 5 表）。"""
     records = _metadata_evidence_repo().list_lineage_relations(tenant_id=tenant_id)
     latest = max((r.generated_at for r in records if r.generated_at is not None), default=None)
@@ -130,7 +130,7 @@ def _project_lineage(brain: BrainService, tenant_id: str) -> dict[str, Any]:
     }
 
 
-def _project_ops_metric(brain: BrainService, tenant_id: str) -> dict[str, Any]:
+def _project_ops_metric(brain, deps, ctx: BrainService, tenant_id: str) -> dict[str, Any]:
     """运营统计 = ExchangeMetricProjectionRecord + ServiceInvocationMetricProjectionRecord."""
     from sqlalchemy import desc, func, select  # noqa: PLC0415
 
@@ -235,11 +235,11 @@ def handler_projection_status_query(deps: HandlerDeps, ctx: SkillContext, payloa
     skill_id = ctx.skill_id
     tenant_id = str(payload.get("tenant_id") or _DEFAULT_TENANT_ID)
     projections = [
-        _project_search(brain, tenant_id),
-        _project_topic_package(brain, tenant_id),
-        _project_quality(brain, tenant_id),
-        _project_lineage(brain, tenant_id),
-        _project_ops_metric(brain, tenant_id),
+        _project_search(brain, deps, ctx, tenant_id),
+        _project_topic_package(brain, deps, ctx, tenant_id),
+        _project_quality(brain, deps, ctx, tenant_id),
+        _project_lineage(brain, deps, ctx, tenant_id),
+        _project_ops_metric(brain, deps, ctx, tenant_id),
     ]
     return {
         "tenant_id": tenant_id,

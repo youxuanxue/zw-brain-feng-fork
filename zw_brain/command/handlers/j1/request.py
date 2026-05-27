@@ -84,6 +84,8 @@ def _maybe_start_baseline_workflow(
 
 def _create_request(
     brain,
+    deps,
+    ctx,
     resource_id: str,
     role: str,
     confirmed: bool,
@@ -282,7 +284,7 @@ def _create_request(
         brain._snapshot["requests"].insert(0, request)
         brain._snapshot["approvals"].insert(0, approval)
         brain._snapshot["delivery_tasks"].insert(0, delivery)
-        brain._append_audit_feed(skill_id, request_id, "ok", actor)
+        deps.append_audit_feed(skill_id, request_id, "ok", actor)
 
         # E3 Wave-2 F2 hook：按 shared_type 自动启动审批流基线（不破业务主路径）
         approval_case_id = _maybe_start_baseline_workflow(
@@ -305,9 +307,9 @@ def _create_request(
         "gap_fields": options.get("gap_fields"),
         "delivery_expectation": options.get("delivery_expectation"),
     }
-    return brain._mutate(skill_id, role, confirmed, audit_payload, mutation)
+    return deps.write(ctx, audit_payload, mutation)
 
-def _submit_request(brain, request_id: str, role: str, confirmed: bool) -> dict[str, Any]:
+def _submit_request(brain, deps, ctx, request_id: str, role: str, confirmed: bool) -> dict[str, Any]:
     request = brain._request_by_id(request_id)
     if request["status"] != "need-fix":
         raise InvalidStateError("current request is not in resubmission state")
@@ -340,12 +342,12 @@ def _submit_request(brain, request_id: str, role: str, confirmed: bool) -> dict[
             )
             delivery["aiSummary"]["summary"] = "当前仍处于准入判定前，不应提前下发基层任务。"
             delivery["aiSummary"]["nextAction"] = "请先完成审批承接，再决定是否进入补录链路。"
-        brain._append_audit_feed("request.resubmit", request_id, "ok", actor)
+        deps.append_audit_feed("request.resubmit", request_id, "ok", actor)
         return {"request_id": request_id, "status": request["status"]}
 
-    return brain._mutate("request.submit", role, confirmed, {"request_id": request_id}, mutation)
+    return deps.write(ctx, {"request_id": request_id}, mutation)
 
-def _get_request(brain, request_id: str) -> dict[str, Any]:
+def _get_request(brain, deps, ctx, request_id: str) -> dict[str, Any]:
     store = brain._state_store.database_store
     request = brain._maybe_request(request_id)
     if request is None:
@@ -377,22 +379,22 @@ def handler_application_resource_submit(deps: HandlerDeps, ctx: SkillContext, pa
     skill_id = ctx.skill_id
     if "purpose" in payload and not str(payload.get("purpose") or "").strip():
         raise InvalidStateError("application.resource.submit: purpose 必填，不能为空字符串")
-    return _create_request(brain, str(payload["resource_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), str(payload.get("query", brain._ui_state.get("discoveryQuery", ""))), "application.resource.submit", payload)
+    return _create_request(brain, deps, ctx, str(payload["resource_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), str(payload.get("query", brain._ui_state.get("discoveryQuery", ""))), "application.resource.submit", payload)
 
 def handler_request_create(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _create_request(brain, str(payload["resource_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), str(payload.get("query", brain._ui_state.get("discoveryQuery", ""))), options=payload)
+    return _create_request(brain, deps, ctx, str(payload["resource_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), str(payload.get("query", brain._ui_state.get("discoveryQuery", ""))), options=payload)
 
 def handler_request_submit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _submit_request(brain, str(payload["request_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    return _submit_request(brain, deps, ctx, str(payload["request_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
 def handler_request_view(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _get_request(brain, str(payload["request_id"]))
+    return _get_request(brain, deps, ctx, str(payload["request_id"]))
 
 def handler_request_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.

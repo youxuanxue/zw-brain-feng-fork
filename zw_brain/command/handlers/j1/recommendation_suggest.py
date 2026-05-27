@@ -20,7 +20,7 @@ from zw_brain.domain.recommendation_engine import RecommendationEngine
 from zw_brain.shared.db import create_session_factory
 
 
-def _suggest(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+def _suggest(brain, deps, ctx: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     tenant_id = str(payload.get("tenant_id") or "")
     intent_text = str(payload.get("intent_text") or "")
     submitted_by = str(payload.get("submitted_by") or "")
@@ -65,4 +65,4 @@ def _suggest(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> dic
 def handler_recommendation_similar_catalog_suggest(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _suggest(brain, skill_id, payload)
+    return _suggest(brain, deps, ctx, skill_id, payload)

@@ -45,7 +45,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # ──────────────────────────────────────────────────────────────────────────
 
 
-def _rollback_package(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _rollback_package(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     package_id = str(payload["package_id"])
@@ -80,7 +80,7 @@ def _rollback_package(brain, payload: dict[str, Any]) -> dict[str, Any]:
         store = brain._state_store.database_store
         if store is not None and hasattr(store, "capability_package_repo"):
             store.capability_package_repo.upsert_from_package(item)
-        brain._append_audit_feed("package.rollback", package_id, "ok", actor)
+        deps.append_audit_feed("package.rollback", package_id, "ok", actor)
         return {
             "package_id": package_id,
             "previous_version": current_version or "",
@@ -88,13 +88,13 @@ def _rollback_package(brain, payload: dict[str, Any]) -> dict[str, Any]:
             "rollback_at": item["lastRollbackAt"],
         }
 
-    return brain._mutate("package.rollback", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
 
 def handler_package_rollback(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _rollback_package(brain, payload)
+    return _rollback_package(brain, deps, ctx, payload)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ def handler_package_rollback(deps: HandlerDeps, ctx: SkillContext, payload: dict
 # ──────────────────────────────────────────────────────────────────────────
 
 
-def _update_package_trust_level(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _update_package_trust_level(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     package_id = str(payload["package_id"])
@@ -131,7 +131,7 @@ def _update_package_trust_level(brain, payload: dict[str, Any]) -> dict[str, Any
         store = brain._state_store.database_store
         if store is not None and hasattr(store, "capability_package_repo"):
             store.capability_package_repo.upsert_from_package(item)
-        brain._append_audit_feed("package.trust_level.update", package_id, "ok", actor)
+        deps.append_audit_feed("package.trust_level.update", package_id, "ok", actor)
         return {
             "package_id": package_id,
             "previous_trust_level": previous_trust,
@@ -139,13 +139,13 @@ def _update_package_trust_level(brain, payload: dict[str, Any]) -> dict[str, Any
             "updated_at": item["lastTrustLevelChangeAt"],
         }
 
-    return brain._mutate("package.trust_level.update", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
 
 def handler_package_trust_level_update(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _update_package_trust_level(brain, payload)
+    return _update_package_trust_level(brain, deps, ctx, payload)
 
 
 # ──────────────────────────────────────────────────────────────────────────

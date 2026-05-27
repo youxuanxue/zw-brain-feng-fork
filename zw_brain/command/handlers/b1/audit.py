@@ -32,7 +32,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _list_audit_events(brain) -> list[dict[str, Any]]:
+def _list_audit_events(brain, deps, ctx) -> list[dict[str, Any]]:
     """Return audit timeline for 安全审计员 / dashboard.
 
     Time ordering: 内部分两 chunk —— 最近 500 条 audit_event（asc by time）
@@ -76,7 +76,7 @@ def _list_audit_events(brain) -> list[dict[str, Any]]:
         )
     return events
 
-def _replay_evidence_chain(brain, dispute_id: str) -> dict[str, Any]:
+def _replay_evidence_chain(brain, deps, ctx, dispute_id: str) -> dict[str, Any]:
     dispute = brain.get_dispute(dispute_id)
     evidence = [
         {
@@ -112,14 +112,14 @@ def handler_audit_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, 
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
     return {
-        "items": _list_audit_events(brain),
+        "items": _list_audit_events(brain, deps, ctx),
         "summary": copy.deepcopy(brain._snapshot["audit_ai"]),
     }
 
 def handler_audit_replay_evidence_chain(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _replay_evidence_chain(brain, str(payload["dispute_id"]))
+    return _replay_evidence_chain(brain, deps, ctx, str(payload["dispute_id"]))
 
 
 # ──────────────────────────────────────────────────────────────────────────

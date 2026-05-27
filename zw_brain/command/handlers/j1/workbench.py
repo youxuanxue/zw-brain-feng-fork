@@ -18,12 +18,12 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _get_workbench(brain, role: str) -> dict[str, Any]:
+def _get_workbench(brain, deps, ctx, role: str) -> dict[str, Any]:
     if role not in brain._snapshot["workbench"]:
         raise NotFoundError(role)
     return copy.deepcopy(brain._snapshot["workbench"][role])
 
-def _submit_service_rating(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _submit_service_rating(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     """申请人 完成交付后为本次共享服务打分（写入审计供 安全审计员 督查可见）。"""
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
@@ -40,12 +40,12 @@ def _submit_service_rating(brain, payload: dict[str, Any]) -> dict[str, Any]:
             task["rating"]["ratedBy"] = actor
             task["rating"]["ratedAt"] = clock.now_datetime()
             task.setdefault("history", []).append({"time": clock.now_short_time(), "state": f"服务评价：{score} 星", "detail": comment or "—"})
-        brain._append_audit_feed("service.rating.submit", task_id, "ok", actor)
+        deps.append_audit_feed("service.rating.submit", task_id, "ok", actor)
         return {"task_id": task_id, "score": score, "comment": comment, "audit_id": audit_id}
 
-    return brain._mutate("service.rating.submit", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
-def _terminate_subscription(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _terminate_subscription(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     subscription_code = str(payload["subscription_code"])
@@ -71,10 +71,10 @@ def _terminate_subscription(brain, payload: dict[str, Any]) -> dict[str, Any]:
             snapshot.setdefault("terminations", []).append({"audit_id": audit_id, "reason": reason, "actor": actor})
             rec.legacy_status_snapshot_json = snapshot
             session.commit()
-        brain._append_audit_feed("subscription.terminate", subscription_code, "ok", actor)
+        deps.append_audit_feed("subscription.terminate", subscription_code, "ok", actor)
         return {"subscription_code": subscription_code, "status": "terminated", "audit_id": audit_id}
 
-    return brain._mutate("subscription.terminate", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -84,15 +84,15 @@ def _terminate_subscription(brain, payload: dict[str, Any]) -> dict[str, Any]:
 def handler_workbench_view(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _get_workbench(brain, str(payload.get("role", ctx.role)))
+    return _get_workbench(brain, deps, ctx, str(payload.get("role", ctx.role)))
 
 def handler_service_rating_submit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _submit_service_rating(brain, payload)
+    return _submit_service_rating(brain, deps, ctx, payload)
 
 def handler_subscription_terminate(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _terminate_subscription(brain, payload)
+    return _terminate_subscription(brain, deps, ctx, payload)
 

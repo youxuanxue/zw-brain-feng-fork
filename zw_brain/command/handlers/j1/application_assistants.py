@@ -135,7 +135,7 @@ def _draft_inference(
     }
 
 
-def _load_historical_examples(brain, resource_name: str, limit: int = 5) -> list[dict[str, Any]]:
+def _load_historical_examples(brain, deps, ctx, resource_name: str, limit: int = 5) -> list[dict[str, Any]]:
     """从真实 application_record 找历史相似申请（同 resource_name），脱敏后返回."""
     store = getattr(brain, "_state_store", None)
     examples: list[dict[str, Any]] = []
@@ -165,7 +165,7 @@ def _load_historical_examples(brain, resource_name: str, limit: int = 5) -> list
     return examples
 
 
-def _do_draft_suggest(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _do_draft_suggest(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     resource_name = str(payload.get("resource_name") or "").strip()
     applicant_org = str(payload.get("applicant_org") or "").strip()
     use_case = str(payload.get("use_case") or "").strip()
@@ -176,24 +176,24 @@ def _do_draft_suggest(brain, payload: dict[str, Any]) -> dict[str, Any]:
 
     if not enabled:
         result = _draft_fallback(resource_name, applicant_org, use_case)
-        brain._append_audit_feed("application.draft.suggest", audit_target, "ok", actor)
+        deps.append_audit_feed("application.draft.suggest", audit_target, "ok", actor)
         result["enabled"] = False
         return result
 
-    examples = _load_historical_examples(brain, resource_name)
+    examples = _load_historical_examples(brain, deps, ctx, resource_name)
     inf: dict[str, Any] | None = None
     try:
         inf = _draft_inference(resource_name, applicant_org, use_case, historical_examples=examples, request_id=request_id)
     except InferenceError:
         inf = None
     if inf is not None:
-        brain._append_audit_feed("application.draft.suggest", audit_target, "ok", actor)
+        deps.append_audit_feed("application.draft.suggest", audit_target, "ok", actor)
         inf["enabled"] = True
         inf["historical_examples_count"] = len(examples)
         return inf
 
     fallback = _draft_fallback(resource_name, applicant_org, use_case)
-    brain._append_audit_feed("application.draft.suggest", audit_target, "warning", actor)
+    deps.append_audit_feed("application.draft.suggest", audit_target, "warning", actor)
     fallback["enabled"] = True
     fallback["degraded"] = True
     fallback["historical_examples_count"] = len(examples)
@@ -203,7 +203,7 @@ def _do_draft_suggest(brain, payload: dict[str, Any]) -> dict[str, Any]:
 def handler_application_draft_suggest(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _do_draft_suggest(brain, payload)
+    return _do_draft_suggest(brain, deps, ctx, payload)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -288,7 +288,7 @@ def _evidence_inference(
     }
 
 
-def _load_application(brain, application_id: str) -> dict[str, Any] | None:
+def _load_application(brain, deps, ctx, application_id: str) -> dict[str, Any] | None:
     from zw_brain.domain.repositories.application import ApplicationRepository
     repo = ApplicationRepository()
     for record in repo.list_records(tenant_id="sd-default"):
@@ -307,7 +307,7 @@ def _load_application(brain, application_id: str) -> dict[str, Any] | None:
     return None
 
 
-def _load_historical_for_review(brain, resource_name: str, exclude_id: str, limit: int = 5) -> list[dict[str, Any]]:
+def _load_historical_for_review(brain, deps, ctx, resource_name: str, exclude_id: str, limit: int = 5) -> list[dict[str, Any]]:
     from zw_brain.domain.repositories.application import ApplicationRepository
     repo = ApplicationRepository()
     out: list[dict[str, Any]] = []
@@ -330,7 +330,7 @@ def _load_historical_for_review(brain, resource_name: str, exclude_id: str, limi
     return out
 
 
-def _do_evidence_summarize(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _do_evidence_summarize(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     application_id = str(payload.get("application_id") or "").strip()
     if not application_id:
         raise ValueError("application_id is required")
@@ -338,7 +338,7 @@ def _do_evidence_summarize(brain, payload: dict[str, Any]) -> dict[str, Any]:
     request_id = str(payload.get("request_id") or f"app-evidence-{abs(hash(application_id)) & 0xFFFFFFFF:08x}")
     actor = str(brain._ui_state.get("actor", "system")) if hasattr(brain, "_ui_state") else "system"
 
-    application = _load_application(brain, application_id)
+    application = _load_application(brain, deps, ctx, application_id)
     if application is None:
         return {
             "application_id": application_id,
@@ -347,11 +347,11 @@ def _do_evidence_summarize(brain, payload: dict[str, Any]) -> dict[str, Any]:
             "source": "fallback_rule",
             "enabled": enabled,
         }
-    historical = _load_historical_for_review(brain, str(application.get("resource_name") or ""), exclude_id=application_id)
+    historical = _load_historical_for_review(brain, deps, ctx, str(application.get("resource_name") or ""), exclude_id=application_id)
 
     if not enabled:
         result = _evidence_fallback(application, historical)
-        brain._append_audit_feed("approval.evidence.summarize", application_id, "ok", actor)
+        deps.append_audit_feed("approval.evidence.summarize", application_id, "ok", actor)
         result["application_id"] = application_id
         result["application_status"] = application["status"]
         result["enabled"] = False
@@ -363,14 +363,14 @@ def _do_evidence_summarize(brain, payload: dict[str, Any]) -> dict[str, Any]:
     except InferenceError:
         inf = None
     if inf is not None:
-        brain._append_audit_feed("approval.evidence.summarize", application_id, "ok", actor)
+        deps.append_audit_feed("approval.evidence.summarize", application_id, "ok", actor)
         inf["application_id"] = application_id
         inf["application_status"] = application["status"]
         inf["enabled"] = True
         return inf
 
     fallback = _evidence_fallback(application, historical)
-    brain._append_audit_feed("approval.evidence.summarize", application_id, "warning", actor)
+    deps.append_audit_feed("approval.evidence.summarize", application_id, "warning", actor)
     fallback["application_id"] = application_id
     fallback["application_status"] = application["status"]
     fallback["enabled"] = True
@@ -381,4 +381,4 @@ def _do_evidence_summarize(brain, payload: dict[str, Any]) -> dict[str, Any]:
 def handler_approval_evidence_summarize(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _do_evidence_summarize(brain, payload)
+    return _do_evidence_summarize(brain, deps, ctx, payload)

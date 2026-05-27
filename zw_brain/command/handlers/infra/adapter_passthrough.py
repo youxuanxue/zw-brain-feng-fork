@@ -19,7 +19,7 @@ from zw_brain.command.serializers import adapter as adapter_ser
 def handler(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _record_adapter_operation(brain, skill_id, payload)
+    return _record_adapter_operation(brain, deps, ctx, skill_id, payload)
 
 
 def handler_health_probe(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
@@ -30,10 +30,10 @@ def handler_health_probe(deps: HandlerDeps, ctx: SkillContext, payload: dict[str
         "operation": "health_probe",
         "direction": "inbound",
     } | payload
-    return _record_adapter_operation(brain, skill_id, enriched)
+    return _record_adapter_operation(brain, deps, ctx, skill_id, enriched)
 
 
-def _record_adapter_operation(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+def _record_adapter_operation(brain, deps, ctx: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
@@ -76,11 +76,11 @@ def _record_adapter_operation(brain: BrainService, skill_id: str, payload: dict[
                     "extra_json": payload.get("extra_json") or {},
                 }
             )
-        brain._append_audit_feed(skill_id, idempotency_key, "ok", actor)
+        deps.append_audit_feed(skill_id, idempotency_key, "ok", actor)
         return {
             "run": adapter_ser.adapter_run_to_dict(run),
             "mapping": adapter_ser.external_mapping_to_dict(mapping) if mapping is not None else None,
             "audit_id": audit_id,
         }
 
-    return brain._mutate(skill_id, role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)

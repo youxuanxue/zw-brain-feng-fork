@@ -15,7 +15,7 @@ import copy
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _get_provider_view(brain) -> dict[str, Any]:
+def _get_provider_view(brain, deps, ctx) -> dict[str, Any]:
     provider = copy.deepcopy(brain._snapshot["provider"])
     # National Direct Access (业务运营员 跨大区上报通道) demo data lives only in
     # seed_snapshot.json and is not persisted. Older DB rows predate this
@@ -53,5 +53,5 @@ def _get_provider_view(brain) -> dict[str, Any]:
 def handler_provider_view(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _get_provider_view(brain)
+    return _get_provider_view(brain, deps, ctx)
 

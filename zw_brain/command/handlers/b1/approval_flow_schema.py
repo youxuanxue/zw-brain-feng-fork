@@ -27,7 +27,7 @@ from zw_brain.domain.approval_flow_schema import (
 from zw_brain.shared.db import create_session_factory
 
 
-def _commit_schema(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+def _commit_schema(brain, deps, ctx: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     tenant_id = str(payload.get("tenant_id") or "")
@@ -45,7 +45,7 @@ def _commit_schema(brain: BrainService, skill_id: str, payload: dict[str, Any]) 
                     f"schema {schema_id!r} does not belong to tenant {tenant_id!r}"
                 )
             committed = repo.commit_to_live(schema_id)
-            brain._append_audit_feed(skill_id, schema_id, "ok", actor)
+            deps.append_audit_feed(skill_id, schema_id, "ok", actor)
             return {
                 "schema_id": committed.id,
                 "schema_code": committed.schema_code,
@@ -53,10 +53,10 @@ def _commit_schema(brain: BrainService, skill_id: str, payload: dict[str, Any]) 
                 "committed_at": committed.committed_at.isoformat() if committed.committed_at else None,
             }
 
-    return brain._mutate(skill_id, role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
 
-def _nl_draft(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+def _nl_draft(brain, deps, ctx: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed", True))  # manifest 不要求 human confirm，默认通过
     tenant_id = str(payload.get("tenant_id") or "")
@@ -89,7 +89,7 @@ def _nl_draft(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> di
                 "selection_rule_count": len(record.payload_json.get("selection_rules", [])),
                 "branch_count": len(record.payload_json.get("branches", [])),
             }
-            brain._append_audit_feed(skill_id, record.id, "ok", actor)
+            deps.append_audit_feed(skill_id, record.id, "ok", actor)
             return {
                 "schema_id": record.id,
                 "status": record.status,
@@ -99,10 +99,10 @@ def _nl_draft(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> di
                 "source_metadata": source_meta,
             }
 
-    return brain._mutate(skill_id, role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
 
-def _promote_to_preview(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+def _promote_to_preview(brain, deps, ctx: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     tenant_id = str(payload.get("tenant_id") or "")
@@ -120,17 +120,17 @@ def _promote_to_preview(brain: BrainService, skill_id: str, payload: dict[str, A
                     f"schema {schema_id!r} does not belong to tenant {tenant_id!r}"
                 )
             promoted = repo.promote_to_preview(schema_id)
-            brain._append_audit_feed(skill_id, schema_id, "ok", actor)
+            deps.append_audit_feed(skill_id, schema_id, "ok", actor)
             return {
                 "schema_id": promoted.id,
                 "status": promoted.status,
                 "version": promoted.version,
             }
 
-    return brain._mutate(skill_id, role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
 
-def _revert_to_draft(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+def _revert_to_draft(brain, deps, ctx: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     tenant_id = str(payload.get("tenant_id") or "")
@@ -148,35 +148,35 @@ def _revert_to_draft(brain: BrainService, skill_id: str, payload: dict[str, Any]
                     f"schema {schema_id!r} does not belong to tenant {tenant_id!r}"
                 )
             reverted = repo.revert_to_draft(schema_id)
-            brain._append_audit_feed(skill_id, schema_id, "ok", actor)
+            deps.append_audit_feed(skill_id, schema_id, "ok", actor)
             return {
                 "schema_id": reverted.id,
                 "status": reverted.status,
                 "version": reverted.version,
             }
 
-    return brain._mutate(skill_id, role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
 
 def handler_approval_flow_schema_commit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _commit_schema(brain, skill_id, payload)
+    return _commit_schema(brain, deps, ctx, skill_id, payload)
 
 
 def handler_approval_flow_nl_draft(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _nl_draft(brain, skill_id, payload)
+    return _nl_draft(brain, deps, ctx, skill_id, payload)
 
 
 def handler_approval_flow_schema_promote_to_preview(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _promote_to_preview(brain, skill_id, payload)
+    return _promote_to_preview(brain, deps, ctx, skill_id, payload)
 
 
 def handler_approval_flow_schema_revert_to_draft(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _revert_to_draft(brain, skill_id, payload)
+    return _revert_to_draft(brain, deps, ctx, skill_id, payload)

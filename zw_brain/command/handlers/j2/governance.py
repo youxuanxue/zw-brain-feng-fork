@@ -28,7 +28,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _get_governance_iam_overview(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _get_governance_iam_overview(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
     status_filter = str(payload.get("binding_status", payload.get("status", "")) or "")
@@ -104,7 +104,7 @@ def _get_governance_iam_overview(brain, payload: dict[str, Any]) -> dict[str, An
         "policy_probe": policy_probe,
     }
 
-def _list_policy_mapping_candidates(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _list_policy_mapping_candidates(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
     repo = deps.repos.governance_projection
@@ -140,7 +140,7 @@ def _list_policy_mapping_candidates(brain, payload: dict[str, Any]) -> dict[str,
         },
     }
 
-def _review_policy_mapping_candidates(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _review_policy_mapping_candidates(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
@@ -360,7 +360,7 @@ def _review_policy_mapping_candidates(brain, payload: dict[str, Any]) -> dict[st
             applied_policies.append(governance_ser.tenant_policy_to_dict(policy_record))
 
         failure_count = sum(1 for item in results if item.get("result") == "failed")
-        brain._append_audit_feed(
+        deps.append_audit_feed(
             "governance.policy_candidate.review",
             tenant_id,
             "warning" if failure_count else "ok",
@@ -380,7 +380,7 @@ def _review_policy_mapping_candidates(brain, payload: dict[str, Any]) -> dict[st
             "audit_id": audit_id,
         }
 
-    return brain._mutate("governance.policy_candidate.review", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -390,15 +390,15 @@ def _review_policy_mapping_candidates(brain, payload: dict[str, Any]) -> dict[st
 def handler_governance_iam_overview(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _get_governance_iam_overview(brain, payload)
+    return _get_governance_iam_overview(brain, deps, ctx, payload)
 
 def handler_governance_policy_candidate_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _list_policy_mapping_candidates(brain, payload)
+    return _list_policy_mapping_candidates(brain, deps, ctx, payload)
 
 def handler_governance_policy_candidate_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _review_policy_mapping_candidates(brain, payload)
+    return _review_policy_mapping_candidates(brain, deps, ctx, payload)
 

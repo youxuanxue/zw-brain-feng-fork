@@ -16,7 +16,7 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _list_governance_disputes(brain) -> dict[str, Any]:
+def _list_governance_disputes(brain, deps, ctx) -> dict[str, Any]:
     items = copy.deepcopy(brain._snapshot["disputes"])
     store = brain._state_store.database_store
     if store is not None:
@@ -65,7 +65,7 @@ def _list_governance_disputes(brain) -> dict[str, Any]:
         "knowledgeArticles": copy.deepcopy(brain._snapshot["knowledge_articles"]),
     }
 
-def _get_dispute(brain, dispute_id: str) -> dict[str, Any]:
+def _get_dispute(brain, deps, ctx, dispute_id: str) -> dict[str, Any]:
     dispute = next((copy.deepcopy(item) for item in brain._snapshot["disputes"] if item["id"] == dispute_id), None)
     if dispute is None:
         raise NotFoundError(dispute_id)
@@ -106,10 +106,10 @@ def _get_dispute(brain, dispute_id: str) -> dict[str, Any]:
 def handler_governance_dispute_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _list_governance_disputes(brain)
+    return _list_governance_disputes(brain, deps, ctx)
 
 def handler_governance_dispute_view(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _get_dispute(brain, str(payload["dispute_id"]))
+    return _get_dispute(brain, deps, ctx, str(payload["dispute_id"]))
 

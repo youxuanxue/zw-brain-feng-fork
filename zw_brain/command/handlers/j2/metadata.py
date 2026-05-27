@@ -23,7 +23,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _discover_metadata_schema(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _discover_metadata_schema(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     """List ResourceSchemaSnapshotRecord rows that don't yet have a reverse draft."""
     from sqlalchemy import desc, select  # noqa: PLC0415
 
@@ -66,7 +66,7 @@ def _discover_metadata_schema(brain, payload: dict[str, Any]) -> dict[str, Any]:
     ]
     return {"items": items, "total": len(items)}
 
-def _query_metadata_schema(brain, *, resource_code: Any = None, binding_code: Any = None) -> dict[str, Any]:
+def _query_metadata_schema(brain, deps, ctx, *, resource_code: Any = None, binding_code: Any = None) -> dict[str, Any]:
     store = brain._state_store.database_store
     if store is None:
         return {"items": [], "total": 0}
@@ -80,7 +80,7 @@ def _query_metadata_schema(brain, *, resource_code: Any = None, binding_code: An
     ]
     return {"items": items, "total": len(items)}
 
-def _query_metadata_catalog_items(brain, *, resource_code: Any = None, catalog_code: Any = None, include_inactive: Any = True) -> dict[str, Any]:
+def _query_metadata_catalog_items(brain, deps, ctx, *, resource_code: Any = None, catalog_code: Any = None, include_inactive: Any = True) -> dict[str, Any]:
     store = brain._state_store.database_store
     if store is None:
         return {"items": [], "total": 0, "summary": brain._mapping_diagnostics([])["summary"], "catalogFields": []}
@@ -111,7 +111,7 @@ def _query_metadata_catalog_items(brain, *, resource_code: Any = None, catalog_c
         return diagnostics | {"total": len(diagnostics["items"]), "catalogFields": catalog_fields}
     return diagnostics | {"total": len(diagnostics["items"]), "catalogFields": []}
 
-def _query_metadata_lineage(brain, *, resource_code: Any = None, relation_scope: Any = None) -> dict[str, Any]:
+def _query_metadata_lineage(brain, deps, ctx, *, resource_code: Any = None, relation_scope: Any = None) -> dict[str, Any]:
     store = brain._state_store.database_store
     if store is None:
         return {"items": [], "total": 0}
@@ -125,7 +125,7 @@ def _query_metadata_lineage(brain, *, resource_code: Any = None, relation_scope:
     ]
     return {"items": items, "total": len(items)}
 
-def _query_metadata_gather_evidence(brain, *, resource_code: Any = None, status: Any = None) -> dict[str, Any]:
+def _query_metadata_gather_evidence(brain, deps, ctx, *, resource_code: Any = None, status: Any = None) -> dict[str, Any]:
     store = brain._state_store.database_store
     if store is None:
         return {"items": [], "total": 0}
@@ -139,7 +139,7 @@ def _query_metadata_gather_evidence(brain, *, resource_code: Any = None, status:
     ]
     return {"items": items, "total": len(items)}
 
-def _upsert_metadata_schema_snapshot(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _upsert_metadata_schema_snapshot(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
 
@@ -147,12 +147,12 @@ def _upsert_metadata_schema_snapshot(brain, payload: dict[str, Any]) -> dict[str
         store = brain._state_store.database_store
         repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
         snapshot = repo.upsert_schema_snapshot(payload)
-        brain._append_audit_feed("metadata.schema.snapshot.upsert", snapshot.snapshot_ref, "ok", actor)
+        deps.append_audit_feed("metadata.schema.snapshot.upsert", snapshot.snapshot_ref, "ok", actor)
         return {"snapshot_ref": snapshot.snapshot_ref, "schema_hash": snapshot.schema_hash, "audit_id": audit_id}
 
-    return brain._mutate("metadata.schema.snapshot.upsert", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
-def _upsert_metadata_gather_evidence(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _upsert_metadata_gather_evidence(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
 
@@ -160,12 +160,12 @@ def _upsert_metadata_gather_evidence(brain, payload: dict[str, Any]) -> dict[str
         store = brain._state_store.database_store
         repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
         evidence = repo.upsert_gather_evidence(payload)
-        brain._append_audit_feed("metadata.gather.evidence.upsert", evidence.gather_task_ref, "ok", actor)
+        deps.append_audit_feed("metadata.gather.evidence.upsert", evidence.gather_task_ref, "ok", actor)
         return {"gather_task_ref": evidence.gather_task_ref, "status": evidence.status, "audit_id": audit_id}
 
-    return brain._mutate("metadata.gather.evidence.upsert", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
-def _upsert_metadata_lineage(brain, payload: dict[str, Any]) -> dict[str, Any]:
+def _upsert_metadata_lineage(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
 
@@ -173,10 +173,10 @@ def _upsert_metadata_lineage(brain, payload: dict[str, Any]) -> dict[str, Any]:
         store = brain._state_store.database_store
         repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
         relation = repo.upsert_lineage_relation(payload)
-        brain._append_audit_feed("metadata.lineage.upsert", relation.relation_ref, "ok", actor)
+        deps.append_audit_feed("metadata.lineage.upsert", relation.relation_ref, "ok", actor)
         return {"relation_ref": relation.relation_ref, "relation_type": relation.relation_type, "audit_id": audit_id}
 
-    return brain._mutate("metadata.lineage.upsert", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -186,40 +186,40 @@ def _upsert_metadata_lineage(brain, payload: dict[str, Any]) -> dict[str, Any]:
 def handler_metadata_schema_discover(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _discover_metadata_schema(brain, payload)
+    return _discover_metadata_schema(brain, deps, ctx, payload)
 
 def handler_metadata_schema_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _query_metadata_schema(brain, resource_code=payload.get("resource_code"), binding_code=payload.get("binding_code"))
+    return _query_metadata_schema(brain, deps, ctx, resource_code=payload.get("resource_code"), binding_code=payload.get("binding_code"))
 
 def handler_metadata_catalog_item_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _query_metadata_catalog_items(brain, resource_code=payload.get("resource_code"), catalog_code=payload.get("catalog_code"), include_inactive=payload.get("include_inactive", True))
+    return _query_metadata_catalog_items(brain, deps, ctx, resource_code=payload.get("resource_code"), catalog_code=payload.get("catalog_code"), include_inactive=payload.get("include_inactive", True))
 
 def handler_metadata_lineage_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _query_metadata_lineage(brain, resource_code=payload.get("resource_code"), relation_scope=payload.get("relation_scope"))
+    return _query_metadata_lineage(brain, deps, ctx, resource_code=payload.get("resource_code"), relation_scope=payload.get("relation_scope"))
 
 def handler_metadata_gather_evidence_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _query_metadata_gather_evidence(brain, resource_code=payload.get("resource_code"), status=payload.get("status"))
+    return _query_metadata_gather_evidence(brain, deps, ctx, resource_code=payload.get("resource_code"), status=payload.get("status"))
 
 def handler_metadata_schema_snapshot_upsert(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _upsert_metadata_schema_snapshot(brain, payload)
+    return _upsert_metadata_schema_snapshot(brain, deps, ctx, payload)
 
 def handler_metadata_gather_evidence_upsert(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _upsert_metadata_gather_evidence(brain, payload)
+    return _upsert_metadata_gather_evidence(brain, deps, ctx, payload)
 
 def handler_metadata_lineage_upsert(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _upsert_metadata_lineage(brain, payload)
+    return _upsert_metadata_lineage(brain, deps, ctx, payload)
 
