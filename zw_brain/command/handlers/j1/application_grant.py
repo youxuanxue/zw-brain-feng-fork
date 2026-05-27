@@ -25,7 +25,7 @@ def _approve_application_grant(brain, deps, ctx, payload: dict[str, Any]) -> dic
         confirmed = bool(payload.get("confirmed"))
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-            task = brain._delivery_by_id(task_id)
+            task = deps.view.delivery.find_by_id(task_id)
             task["status"] = "warning"
             task["updatedAt"] = clock.now_datetime()
             task["note"] = str(payload.get("reason", "授权申请未通过。"))
@@ -45,7 +45,7 @@ def _renew_application_grant(brain, deps, ctx, payload: dict[str, Any]) -> dict[
     task_id = str(payload.get("task_id") or payload.get("delivery_task_id"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        task = brain._delivery_by_id(task_id)
+        task = deps.view.delivery.find_by_id(task_id)
         task.setdefault("access", {})["renew_until"] = payload.get("renew_until")
         task["updatedAt"] = clock.now_datetime()
         task.setdefault("history", []).append({"time": clock.now_short_time(), "state": "授权已续期", "detail": str(payload.get("reason", "访问授权续期完成。"))})
@@ -62,7 +62,7 @@ def _suspend_application_grant(brain, deps, ctx, payload: dict[str, Any]) -> dic
     request_id = str(payload.get("request_id") or payload.get("delivery_task_id") or "")
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        request = brain._request_by_id(request_id) if request_id.startswith("REQ-") else None
+        request = deps.view.requests.find_by_id(request_id) if request_id.startswith("REQ-") else None
         if request is not None:
             request.setdefault("grant", {})["suspended"] = True
             request.setdefault("timeline", []).append({"label": "授权已暂停", "time": clock.now_datetime(), "note": str(payload.get("reason", "审批人 临时暂停以核实使用边界。"))})
@@ -78,7 +78,7 @@ def _revoke_application_grant(brain, deps, ctx, payload: dict[str, Any]) -> dict
     request_id = str(payload.get("request_id") or payload.get("delivery_task_id") or "")
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        request = brain._request_by_id(request_id) if request_id.startswith("REQ-") else None
+        request = deps.view.requests.find_by_id(request_id) if request_id.startswith("REQ-") else None
         if request is not None:
             request.setdefault("grant", {})["revoked"] = True
             request["status"] = "revoked"

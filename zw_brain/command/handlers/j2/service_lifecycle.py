@@ -19,7 +19,10 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 # ──────────────────────────────────────────────────────────────────────────
 
 def _publish_or_suspend_service(brain, deps, ctx, service_id: str, action: str, role: str, confirmed: bool) -> dict[str, Any]:
-    provider = brain._snapshot["provider"]
+    # Action C — provider is read-then-mutated (service["status"] = ...,
+    # provider["overview"][3]["value"] = ...); use brain_legacy escape hatch
+    # to keep in-place semantics until Action D retires the snapshot dict.
+    provider = deps.brain_legacy._snapshot["provider"]
     service = next((item for item in provider["services"] if item["id"] == service_id), None)
     if service is None:
         raise NotFoundError(service_id)

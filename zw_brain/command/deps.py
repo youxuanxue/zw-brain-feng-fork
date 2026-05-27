@@ -58,6 +58,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
     from zw_brain.command.pipeline import SkillPipeline
+    from zw_brain.command.views import ReadViews
     from zw_brain.domain.repositories.delivery import DeliveryRepository
     from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
     from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
@@ -67,7 +68,9 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class Repos:
-    """Concrete repo handles — eliminates 6 ``brain._X_repo()`` factories.
+    """Concrete repo handles — eliminates 6 ``brain._X_repo()`` factories +
+    Action C extends with 8 more repos to retire 59 ``brain._state_store.database_store.X``
+    direct accesses in handler bodies.
 
     Constructed once per HandlerDeps build (``HandlerDeps.from_brain``);
     handlers never construct repos directly. Fields are intentionally typed
@@ -76,12 +79,23 @@ class Repos:
     is materialised at construction time, not lazily per call.
     """
 
+    # Action A — original 6
     objection: Any  # ObjectionRepository — concrete type avoids import cycle
     external_adapter: ExternalAdapterRepository
     governance_projection: GovernanceProjectionRepository
     topic_package: TopicPackageRepository
     capability_package: Any  # CapabilityPackageRepository — same as objection
     delivery: DeliveryRepository
+    # Action C — 8 additional repos so handlers no longer reach into
+    # ``brain._state_store.database_store.X`` to find them.
+    catalog: Any           # CatalogRepository
+    application: Any       # ApplicationRepository
+    approval: Any          # ApprovalRepository
+    gateway_runtime: Any   # GatewayRuntimeRepository
+    legacy_mapping: Any    # LegacyObjectMappingRepository
+    metadata_evidence: Any # MetadataEvidenceRepository
+    resource_api: Any      # ResourceApiRepository
+    service_invocation: Any # ServiceInvocationMetricRepository
 
 
 @dataclass(frozen=True)
@@ -125,7 +139,7 @@ class HandlerDeps:
     ``brain_legacy`` is the explicit escape hatch for migration: handlers
     accessing as-yet-unmigrated BrainService surface (``snapshot`` reads,
     in-memory lookup helpers, aggregate-projection methods) use
-    ``deps.brain_legacy.X`` — preflight 段 38 whitelists exactly which
+    ``deps.brain_legacy.X`` — preflight 段 40 whitelists exactly which
     ``X`` are allowed; expanding the whitelist requires a debt entry.
 
     Cross-cutting wrappers (``write`` / ``append_audit_feed``) are thin
@@ -139,13 +153,14 @@ class HandlerDeps:
     audit_bus: Any  # zw_brain.shared.audit module
     queue: Any  # zw_brain.shared.queue module
     pipeline: SkillPipeline  # Action B — see zw_brain/command/pipeline.py
-    brain_legacy: BrainService  # preflight 段 38 whitelisted escape hatch
+    view: ReadViews  # Action C — see zw_brain/command/views.py
+    brain_legacy: BrainService  # preflight 段 40 whitelisted escape hatch
 
     # ------------------------------------------------------------------
     # Cross-cutting facade — handler-facing canonical write/read entries.
     #
     # ``write`` / ``read`` route through SkillPipeline (Action B). Handlers
-    # don't access ``deps.pipeline.X`` directly — preflight segment 42
+    # don't access ``deps.pipeline.X`` directly — preflight segment 43
     # forbids that, so we have one canonical entry shape (``deps.write``).
     #
     # ``append_audit_feed`` still delegates to BrainService — no pipeline
@@ -166,7 +181,7 @@ class HandlerDeps:
         return the result dict — same closure contract as before, so handler
         bodies migrate mechanically. The chain (Policy → Identity → AuditEmit
         → CapabilityCall → Persist → Anchor) is documented in
-        ``zw_brain/command/pipeline.py`` and verified by preflight segment 41.
+        ``zw_brain/command/pipeline.py`` and verified by preflight segment 42.
         """
         return self.pipeline.write(ctx, payload, mutation)
 
@@ -206,25 +221,44 @@ class HandlerDeps:
         # Local imports break circular dependency (deps → brain → handlers → deps).
         import zw_brain.shared.audit as audit_bus
         from zw_brain.command.pipeline import build_default_pipeline
+        from zw_brain.command.views import ReadViews
         from zw_brain.shared import queue
 
         store = brain._state_store
         db_store = store.database_store
         if db_store is not None:
             repos = Repos(
+                # Action A — original 6
                 objection=db_store.objection_repo,
                 external_adapter=db_store.external_adapter_repo,
                 governance_projection=db_store.governance_projection_repo,
                 topic_package=db_store.topic_package_repo,
                 capability_package=db_store.capability_package_repo,
                 delivery=db_store.delivery_repo,
+                # Action C — 8 additional repos
+                catalog=db_store.catalog_repo,
+                application=db_store.application_repo,
+                approval=db_store.approval_repo,
+                gateway_runtime=db_store.gateway_runtime_repo,
+                legacy_mapping=db_store.legacy_mapping_repo,
+                metadata_evidence=db_store.metadata_evidence_repo,
+                resource_api=db_store.resource_api_repo,
+                service_invocation=db_store.service_invocation_repo,
             )
         else:
+            from zw_brain.domain.repositories.application import ApplicationRepository
+            from zw_brain.domain.repositories.approval import ApprovalRepository
             from zw_brain.domain.repositories.capability_package import CapabilityPackageRepository
+            from zw_brain.domain.repositories.catalog import CatalogRepository
             from zw_brain.domain.repositories.delivery import DeliveryRepository
             from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
+            from zw_brain.domain.repositories.gateway_runtime import GatewayRuntimeRepository
             from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
+            from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
+            from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
             from zw_brain.domain.repositories.objection import ObjectionRepository
+            from zw_brain.domain.repositories.resource_api import ResourceApiRepository
+            from zw_brain.domain.repositories.service_invocation import ServiceInvocationMetricRepository
             from zw_brain.domain.repositories.topic_package import TopicPackageRepository
 
             repos = Repos(
@@ -234,6 +268,14 @@ class HandlerDeps:
                 topic_package=TopicPackageRepository(),
                 capability_package=CapabilityPackageRepository(),
                 delivery=DeliveryRepository(),
+                catalog=CatalogRepository(),
+                application=ApplicationRepository(),
+                approval=ApprovalRepository(),
+                gateway_runtime=GatewayRuntimeRepository(),
+                legacy_mapping=LegacyObjectMappingRepository(),
+                metadata_evidence=MetadataEvidenceRepository(),
+                resource_api=ResourceApiRepository(),
+                service_invocation=ServiceInvocationMetricRepository(),
             )
         return cls(
             repos=repos,
@@ -241,5 +283,6 @@ class HandlerDeps:
             audit_bus=audit_bus,
             queue=queue,
             pipeline=build_default_pipeline(brain),
+            view=ReadViews.from_brain(brain),
             brain_legacy=brain,
         )

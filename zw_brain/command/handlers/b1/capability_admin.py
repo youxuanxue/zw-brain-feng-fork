@@ -31,7 +31,7 @@ def _register_capability_package(brain, deps, ctx, payload: dict[str, Any]) -> d
     slug = str(payload["slug"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        packages = brain._snapshot.setdefault("capability_packages", [])
+        packages = deps.brain_legacy._snapshot.setdefault("capability_packages", [])
         item = next((entry for entry in packages if entry.get("id") == package_id or entry.get("slug") == slug), None)
         package_payload = {
             "id": package_id,
@@ -57,16 +57,16 @@ def _register_capability_package(brain, deps, ctx, payload: dict[str, Any]) -> d
             packages.append(package_payload)
         else:
             item.update(package_payload)
-        store = brain._state_store.database_store
+        store = deps.state_store.database_store
         if store is not None:
-            store.capability_package_repo.upsert_from_package(package_payload)
+            deps.repos.capability_package.upsert_from_package(package_payload)
         deps.append_audit_feed("capability.package.register", package_id, "ok", actor)
         return {"package_id": package_id, "slug": slug, "status": package_payload["status"], "audit_id": audit_id}
 
     return deps.write(ctx, payload, mutation)
 
 def _register_package_version(brain, deps, ctx, package_id: str, role: str, confirmed: bool, skill_id: str = "package.register_version") -> dict[str, Any]:
-    item = brain._package_by_id(package_id)
+    item = deps.view.packages.find_by_id(package_id)
     if item["status"] != "approved":
         raise InvalidStateError("package must be approved before version registration")
 
@@ -86,7 +86,7 @@ def _register_package_version(brain, deps, ctx, package_id: str, role: str, conf
     return deps.write(ctx, {"package_id": package_id}, mutation)
 
 def _review_package(brain, deps, ctx, package_id: str, decision: str, role: str, confirmed: bool, skill_id: str = "package.review_decide") -> dict[str, Any]:
-    item = brain._package_by_id(package_id)
+    item = deps.view.packages.find_by_id(package_id)
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         if decision == "approve":
@@ -116,7 +116,7 @@ def _review_package(brain, deps, ctx, package_id: str, decision: str, role: str,
     return deps.write(ctx, {"package_id": package_id, "decision": decision}, mutation)
 
 def _configure_package_exposure(brain, deps, ctx, package_id: str, mode: str, role: str, confirmed: bool, skill_id: str = "package.configure_exposure") -> dict[str, Any]:
-    item = brain._package_by_id(package_id)
+    item = deps.view.packages.find_by_id(package_id)
     if item.get("versionStatus") != "registered":
         raise InvalidStateError("package version must be registered before exposure configuration")
     if mode not in {"tighten", "expand"}:
@@ -138,7 +138,7 @@ def _configure_package_exposure(brain, deps, ctx, package_id: str, mode: str, ro
     return deps.write(ctx, {"package_id": package_id, "mode": mode}, mutation)
 
 def _apply_package_tenant_policy(brain, deps, ctx, package_id: str, role: str, confirmed: bool, skill_id: str = "package.apply_tenant_policy", tenant_id: str = _DEFAULT_TENANT_ID) -> dict[str, Any]:
-    item = brain._package_by_id(package_id)
+    item = deps.view.packages.find_by_id(package_id)
     if item.get("versionStatus") != "registered":
         raise InvalidStateError("package version must be registered before tenant policy activation")
 
@@ -156,9 +156,9 @@ def _apply_package_tenant_policy(brain, deps, ctx, package_id: str, role: str, c
             },
         }
         item["status"] = "approved"
-        store = brain._state_store.database_store
+        store = deps.state_store.database_store
         if store is not None:
-            policy_record = store.capability_package_repo.upsert_tenant_policy(item | {"tenantPolicy": {"role_codes": [role]}}, tenant_id=tenant_id, exposed_surfaces=["api"])
+            policy_record = deps.repos.capability_package.upsert_tenant_policy(item | {"tenantPolicy": {"role_codes": [role]}}, tenant_id=tenant_id, exposed_surfaces=["api"])
             item["tenantPolicy"] = {
                 "tenantId": policy_record.tenant_id,
                 "policyStatus": policy_record.policy_status,
@@ -172,12 +172,12 @@ def _apply_package_tenant_policy(brain, deps, ctx, package_id: str, role: str, c
     return deps.write(ctx, {"package_id": package_id, "tenant_id": tenant_id}, mutation)
 
 def _list_packages(brain, deps, ctx) -> list[dict[str, Any]]:
-    items = copy.deepcopy(brain._snapshot["capability_packages"])
-    store = brain._state_store.database_store
+    items = deps.view.packages.list_all()  # Action C — read facade (already deepcopies)
+    store = deps.state_store.database_store
     if store is None:
         return items
-    records = {record.package_slug: record for record in store.capability_package_repo.list_packages()}
-    policies = {item.package_slug: item for item in store.capability_package_repo.list_policies()}
+    records = {record.package_slug: record for record in deps.repos.capability_package.list_packages()}
+    policies = {item.package_slug: item for item in deps.repos.capability_package.list_policies()}
     for item in items:
         record = records.get(item["slug"])
         if record is not None:
@@ -197,11 +197,11 @@ def _list_packages(brain, deps, ctx) -> list[dict[str, Any]]:
     return items
 
 def _get_package(brain, deps, ctx, package_id: str) -> dict[str, Any]:
-    package = copy.deepcopy(brain._package_by_id(package_id))
-    store = brain._state_store.database_store
+    package = copy.deepcopy(deps.view.packages.find_by_id(package_id))
+    store = deps.state_store.database_store
     if store is None:
         return package
-    for record in store.capability_package_repo.list_packages():
+    for record in deps.repos.capability_package.list_packages():
         if record.manifest_json.get("id") == package_id or record.package_slug == package.get("slug"):
             package["status"] = record.review_status
             package["repository"] = {
@@ -209,7 +209,7 @@ def _get_package(brain, deps, ctx, package_id: str) -> dict[str, Any]:
                 "sourceOrg": record.source_org,
             }
             break
-    policies = store.capability_package_repo.list_policies()
+    policies = deps.repos.capability_package.list_policies()
     policy = next((item for item in policies if item.package_slug == package.get("slug")), None)
     if policy is not None:
         package["tenantPolicy"] = {
@@ -228,7 +228,7 @@ def _get_package(brain, deps, ctx, package_id: str) -> dict[str, Any]:
     return package
 
 def _disable_tenant_capability(brain, deps, ctx, package_id: str, role: str, confirmed: bool, tenant_id: str = _DEFAULT_TENANT_ID) -> dict[str, Any]:
-    item = brain._package_by_id(package_id)
+    item = deps.view.packages.find_by_id(package_id)
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         item["tenantPolicy"] = {
@@ -241,9 +241,9 @@ def _disable_tenant_capability(brain, deps, ctx, package_id: str, role: str, con
                 "auditClass": item.get("auditClass"),
             },
         }
-        store = brain._state_store.database_store
+        store = deps.state_store.database_store
         if store is not None:
-            policy_record = store.capability_package_repo.set_tenant_policy_status(
+            policy_record = deps.repos.capability_package.set_tenant_policy_status(
                 item,
                 tenant_id=tenant_id,
                 policy_status="disabled",

@@ -35,7 +35,7 @@ def _get_governance_iam_overview(brain, deps, ctx, payload: dict[str, Any]) -> d
     capability_filter = str(payload.get("capability_id", payload.get("capability_slug", "")) or "")
     issue_filter = str(payload.get("issue_type", "") or "")
     repo = deps.repos.governance_projection
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     tenants = [governance_ser.tenant_projection_to_dict(item) for item in repo.list_tenants() if not tenant_id or item.tenant_id == tenant_id]
     orgs = [governance_ser.org_projection_to_dict(item) for item in repo.list_orgs(tenant_id=tenant_id)]
     regions = [governance_ser.region_projection_to_dict(item) for item in repo.list_regions(tenant_id=tenant_id)]
@@ -47,7 +47,7 @@ def _get_governance_iam_overview(brain, deps, ctx, payload: dict[str, Any]) -> d
     if role_filter:
         roles = [item for item in roles if item.get("role_code") == role_filter]
     actors = [item for item in actors if brain._filter_governance_actor(item, status_filter=status_filter, role_filter=role_filter, actor_filter=actor_filter)]
-    policies = [governance_ser.tenant_policy_to_dict(item) for item in store.capability_package_repo.list_policies(tenant_id=tenant_id)] if store is not None else []
+    policies = [governance_ser.tenant_policy_to_dict(item) for item in deps.repos.capability_package.list_policies(tenant_id=tenant_id)] if store is not None else []
     if capability_filter:
         policies = [item for item in policies if item.get("package_slug") == capability_filter]
     candidates = [governance_ser.legacy_policy_candidate_to_dict(item) for item in repo.list_policy_candidates(tenant_id=tenant_id)]

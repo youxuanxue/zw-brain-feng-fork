@@ -28,7 +28,7 @@ def _create_catalog_entry_draft(brain, deps, ctx, payload: dict[str, Any]) -> di
     catalog_code = str(payload["catalog_code"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
+        store = deps.state_store.database_store
         catalog_payload = {
             "id": catalog_code,
             "name": str(payload.get("title", catalog_code)),
@@ -39,7 +39,7 @@ def _create_catalog_entry_draft(brain, deps, ctx, payload: dict[str, Any]) -> di
             "legacy_object_ref": payload.get("legacy_object_ref") or catalog_code,
             "summary_json": brain._safe_json(payload.get("summary_json") or {}),
         }
-        repo = store.catalog_repo if store is not None else CatalogRepository()
+        repo = deps.repos.catalog if store is not None else CatalogRepository()
         repo.upsert_from_resource(catalog_payload, tenant_id=_DEFAULT_TENANT_ID)
         for item in payload.get("items") or []:
             repo.upsert_item({**item, "catalog_code": catalog_code}, tenant_id=_DEFAULT_TENANT_ID)
@@ -50,8 +50,7 @@ def _create_catalog_entry_draft(brain, deps, ctx, payload: dict[str, Any]) -> di
 
 def _transition_catalog_entry(brain, deps, ctx, catalog_code: str, status: str, skill_id: str, role: str, confirmed: bool) -> dict[str, Any]:
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
-        repo = store.catalog_repo if store is not None else CatalogRepository()
+        repo = deps.repos.catalog  # Action C — deps.repos always wired (DB or in-memory fallback)
         existing = repo.get_entry(catalog_code, tenant_id=_DEFAULT_TENANT_ID)
         if existing is None:
             raise NotFoundError(catalog_code)
@@ -84,16 +83,16 @@ def _transition_catalog_entry(brain, deps, ctx, catalog_code: str, status: str, 
                     "created_by": actor,
                 }
             )
-        if store is not None:
-            store.approval_repo.upsert_catalog_entry_lifecycle(
-                catalog_code,
-                status,
-                actor=actor,
-                skill_id=skill_id,
-                audit_id=audit_id,
-                decision="return" if status in {"draft", "rejected"} else None,
-                tenant_id=_DEFAULT_TENANT_ID,
-            )
+        # Action C — deps.repos.approval always wired (DB or in-memory fallback)
+        deps.repos.approval.upsert_catalog_entry_lifecycle(
+            catalog_code,
+            status,
+            actor=actor,
+            skill_id=skill_id,
+            audit_id=audit_id,
+            decision="return" if status in {"draft", "rejected"} else None,
+            tenant_id=_DEFAULT_TENANT_ID,
+        )
         deps.append_audit_feed(skill_id, catalog_code, "ok", actor)
         return {"catalog_code": catalog_code, "lifecycle_status": status, "audit_id": audit_id}
 
@@ -147,8 +146,7 @@ def _query_catalog_entries(
     directly. Together they let the 业务运营员 inbox list "pending reverse
     draft" entries without an extra skill.
     """
-    store = brain._state_store.database_store
-    repo = store.catalog_repo if store is not None else CatalogRepository()
+    repo = deps.repos.catalog  # Action C — deps.repos always wired (DB or in-memory fallback)
     limit_value = _parse_query_limit(limit)
     offset_value = _parse_query_offset(offset)
     wanted_lc = str(lifecycle_status) if lifecycle_status else None
@@ -236,8 +234,7 @@ def _create_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any
     catalog_code = str(payload["catalog_code"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
-        repo = store.catalog_repo if store is not None else CatalogRepository()
+        repo = deps.repos.catalog  # Action C — deps.repos always wired (DB or in-memory fallback)
         schema_ref = str(payload.get("schema_ref", ""))
         # CatalogRepository.upsert_from_resource stores the whole resource
         # dict as summary_json, so put reverse-draft markers at top level.
@@ -268,8 +265,7 @@ def _confirm_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, An
     catalog_code = str(payload["catalog_code"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
-        repo = store.catalog_repo if store is not None else CatalogRepository()
+        repo = deps.repos.catalog  # Action C — deps.repos always wired (DB or in-memory fallback)
         existing = repo.get_entry(catalog_code, tenant_id=_DEFAULT_TENANT_ID)
         if existing is None:
             raise NotFoundError(catalog_code)
@@ -295,8 +291,7 @@ def _reject_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any
     reason = str(payload["reject_reason"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
-        repo = store.catalog_repo if store is not None else CatalogRepository()
+        repo = deps.repos.catalog  # Action C — deps.repos always wired (DB or in-memory fallback)
         existing = repo.get_entry(catalog_code, tenant_id=_DEFAULT_TENANT_ID)
         if existing is None:
             raise NotFoundError(catalog_code)
@@ -319,8 +314,7 @@ def _review_catalog_entry(brain, deps, ctx, catalog_code: str, decision: str, ro
     # 旧单步兼容路径：state=pending_review + role=BUSIAUDIT → 直达 approved_pending_publish。
     # 留作渐进迁移，待全部调用方迁到 3 层后再决策是否移除（见 F1 review skeleton 决策点②）。
     if decision == "approve":
-        store = brain._state_store.database_store
-        repo = store.catalog_repo if store is not None else CatalogRepository()
+        repo = deps.repos.catalog  # Action C — deps.repos always wired (DB or in-memory fallback)
         existing = repo.get_entry(catalog_code, tenant_id=_DEFAULT_TENANT_ID)
         if existing is None:
             raise NotFoundError(catalog_code)
@@ -353,8 +347,7 @@ def _update_catalog_entry(brain, deps, ctx, payload: dict[str, Any]) -> dict[str
     catalog_code = str(payload["catalog_code"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
-        repo = store.catalog_repo if store is not None else CatalogRepository()
+        repo = deps.repos.catalog  # Action C — deps.repos always wired (DB or in-memory fallback)
         existing = repo.get_entry(catalog_code, tenant_id=_DEFAULT_TENANT_ID)
         if existing is None:
             raise NotFoundError(catalog_code)

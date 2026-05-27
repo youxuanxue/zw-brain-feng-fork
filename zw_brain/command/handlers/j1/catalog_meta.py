@@ -12,8 +12,6 @@ import copy
 from zw_brain.command.brain import InvalidStateError, NotFoundError, _RequestBatchContext
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import catalog as catalog_ser
-from zw_brain.domain.repositories.catalog import CatalogRepository
-from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
@@ -52,8 +50,7 @@ def _browse_catalog_entries(
     lifecycle = str(lifecycle or "active")
     kind = str(kind or "real")
 
-    store = brain._state_store.database_store
-    repo = store.catalog_repo if store is not None else CatalogRepository()
+    repo = deps.repos.catalog  # Action C — deps.repos always wired (DB or in-memory fallback)
     lifecycle_status = None if lifecycle == "all" else lifecycle
     catalog_code_prefix = "api-group:" if kind == "api-group" else None
     exclude_catalog_code_prefix = "api-group:" if kind == "real" else None
@@ -93,13 +90,13 @@ def _browse_catalog_entries(
 
 def _query_catalog_groups(brain, deps, ctx) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
-    catalogs = copy.deepcopy(brain._snapshot.get("provider", {}).get("catalogs", []))
+    catalogs = copy.deepcopy(deps.brain_legacy._snapshot.get("provider", {}).get("catalogs", []))
     groups: dict[str, dict[str, Any]] = {}
     for catalog in catalogs:
         key = str(catalog.get("domain") or catalog.get("group") or "default")
         group = groups.setdefault(key, {"group_code": key, "title": key, "catalog_count": 0})
         group["catalog_count"] += 1
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     if store is None:
         return {"items": list(groups.values()), "total": len(groups)}
     packages = [
@@ -112,7 +109,10 @@ def _query_catalog_groups(brain, deps, ctx) -> dict[str, Any]:
     return {"items": list(groups.values()), "total": len(groups)}
 
 def _manage_catalog_entry(brain, deps, ctx, catalog_id: str, action: str, role: str, confirmed: bool) -> dict[str, Any]:
-    provider = brain._snapshot["provider"]
+    # Action C — provider is read-then-mutated (catalog["status"] = "已发布" etc.);
+    # use brain_legacy escape hatch to keep in-place semantics until Action D
+    # retires the snapshot dict.
+    provider = deps.brain_legacy._snapshot["provider"]
     catalog = next((item for item in provider["catalogs"] if item["id"] == catalog_id), None)
     if catalog is None:
         raise NotFoundError(catalog_id)
@@ -121,9 +121,9 @@ def _manage_catalog_entry(brain, deps, ctx, catalog_id: str, action: str, role: 
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         if action == "publish":
-            store = brain._state_store.database_store
+            store = deps.state_store.database_store
             if store is not None:
-                store.catalog_repo.upsert_from_resource(
+                deps.repos.catalog.upsert_from_resource(
                     {
                         "id": catalog["id"],
                         "name": catalog.get("name", catalog["id"]),
@@ -150,16 +150,14 @@ def _manage_catalog_entry(brain, deps, ctx, catalog_id: str, action: str, role: 
     return deps.write(ctx, {"catalog_id": catalog_id, "action": action}, mutation)
 
 def _query_catalog_models(brain, deps, ctx, *, model_code: Any = None) -> dict[str, Any]:
-    store = brain._state_store.database_store
-    repo = store.catalog_repo if store is not None else CatalogRepository()
+    repo = deps.repos.catalog  # Action C — deps.repos always wired (DB or in-memory fallback)
     models = [catalog_ser.catalog_model_to_dict(item) for item in repo.list_models(tenant_id=_DEFAULT_TENANT_ID)]
     if model_code:
         models = [item for item in models if item["model_code"] == str(model_code)]
     return {"items": models, "total": len(models)}
 
 def _query_catalog_model_fields(brain, deps, ctx, model_code: str) -> dict[str, Any]:
-    store = brain._state_store.database_store
-    repo = store.catalog_repo if store is not None else CatalogRepository()
+    repo = deps.repos.catalog  # Action C — deps.repos always wired (DB or in-memory fallback)
     fields = [catalog_ser.catalog_model_field_to_dict(item) for item in repo.list_model_fields(model_code, tenant_id=_DEFAULT_TENANT_ID)]
     return {"items": fields, "total": len(fields)}
 
@@ -168,8 +166,7 @@ def _upsert_catalog_model(brain, deps, ctx, payload: dict[str, Any]) -> dict[str
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
-        repo = store.catalog_repo if store is not None else CatalogRepository()
+        repo = deps.repos.catalog  # Action C — deps.repos always wired (DB or in-memory fallback)
         model = repo.upsert_model(payload)
         for fld in payload.get("fields") or []:
             repo.upsert_model_field({**fld, "model_code": model.model_code})
@@ -186,8 +183,7 @@ def _bind_catalog_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[st
     materialization_kind = payload.get("materialization_kind")
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
-        repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
+        repo = deps.repos.metadata_evidence  # Action C — deps.repos always wired (DB or in-memory fallback)
         mapping = repo.upsert_schema_mapping({**payload, "confirmed_by": payload.get("confirmed_by") or actor})
         deps.append_audit_feed("catalog.resource.bind", mapping.mapping_code, "ok", actor)
         result: dict[str, Any] = {
@@ -202,7 +198,7 @@ def _bind_catalog_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[st
     return deps.write(ctx, payload, mutation)
 
 def _get_resource(brain, deps, ctx, resource_id: str, *, context: _RequestBatchContext | None = None) -> dict[str, Any]:
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     snapshot_miss = False
     try:
         resource = copy.deepcopy(brain._resource_by_id(resource_id))
@@ -213,14 +209,14 @@ def _get_resource(brain, deps, ctx, resource_id: str, *, context: _RequestBatchC
         resource = {}
     if store is None:
         return resource
-    record = store.catalog_repo.get_entry(resource_id, tenant_id=_DEFAULT_TENANT_ID)
+    record = deps.repos.catalog.get_entry(resource_id, tenant_id=_DEFAULT_TENANT_ID)
     if record is not None:
         detail = brain._catalog_record_to_card_dict(record)
         brain._enrich_catalog_detail(detail, record, store, context=context)
         return detail
-    asset = store.resource_api_repo.get_asset(resource_id, tenant_id=_DEFAULT_TENANT_ID)
+    asset = deps.repos.resource_api.get_asset(resource_id, tenant_id=_DEFAULT_TENANT_ID)
     if asset is not None and asset.catalog_code:
-        record = store.catalog_repo.get_entry(asset.catalog_code, tenant_id=_DEFAULT_TENANT_ID)
+        record = deps.repos.catalog.get_entry(asset.catalog_code, tenant_id=_DEFAULT_TENANT_ID)
         if record is not None:
             detail = brain._catalog_record_to_card_dict(record)
             brain._enrich_catalog_detail(detail, record, store, focused_resource_code=asset.resource_code, context=context)
@@ -234,8 +230,7 @@ def _upsert_catalog_schema_mapping(brain, deps, ctx, payload: dict[str, Any]) ->
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
-        repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
+        repo = deps.repos.metadata_evidence  # Action C — deps.repos always wired (DB or in-memory fallback)
         mapping = repo.upsert_schema_mapping({**payload, "confirmed_by": payload.get("confirmed_by") or actor})
         deps.append_audit_feed("catalog.schema.mapping.upsert", mapping.mapping_code, "ok", actor)
         return {"mapping_code": mapping.mapping_code, "status": mapping.status, "audit_id": audit_id}
@@ -244,10 +239,10 @@ def _upsert_catalog_schema_mapping(brain, deps, ctx, payload: dict[str, Any]) ->
 
 def _query_catalog_share_zones(brain, deps, ctx) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     if store is None:
         zones = []
-        for zone in brain._snapshot.get("zones", []):
+        for zone in deps.brain_legacy._snapshot.get("zones", []):
             zones.append(
                 {
                     "zone_id": zone.get("id"),

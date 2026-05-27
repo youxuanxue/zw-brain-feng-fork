@@ -137,9 +137,8 @@ def _draft_inference(
 
 def _load_historical_examples(brain, deps, ctx, resource_name: str, limit: int = 5) -> list[dict[str, Any]]:
     """从真实 application_record 找历史相似申请（同 resource_name），脱敏后返回."""
-    store = getattr(brain, "_state_store", None)
     examples: list[dict[str, Any]] = []
-    if store is None or getattr(store, "database_store", None) is None:
+    if deps.state_store.database_store is None:
         return examples
     try:
         from zw_brain.domain.repositories.application import ApplicationRepository

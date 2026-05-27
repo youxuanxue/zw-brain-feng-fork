@@ -11,7 +11,6 @@ manifest audit_required=false（不走 _invoke_traced_read 自动 emit），hand
 
 from __future__ import annotations
 
-import copy
 import hashlib
 import json
 from datetime import UTC, datetime
@@ -40,9 +39,9 @@ def _list_audit_events(brain, deps, ctx) -> list[dict[str, Any]]:
     每个 chunk 内时序严格升序；两 chunk 之间不保证 interleave。安全审计员 UI 把
     legacy import 视作单独区段呈现，不与 audit 实时事件强混排。
     """
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     if store is None:
-        return copy.deepcopy(brain._snapshot["audit_events"])
+        return deps.view.audit_events.list_all()  # Action C — read facade
     # 默认拉最近 500 条；早期是 SELECT * 拉 2000+ 行（含大 payload_json），
     # audit.list 与 compliance.case.query 撞 14-30s 慢。
     events = [
@@ -58,7 +57,7 @@ def _list_audit_events(brain, deps, ctx) -> list[dict[str, Any]]:
         for item in store.list_audit_events(limit=500)
     ]
     # Push filter into SQL: 不要拉 54K mappings 全部到 Python 再过滤；只取 audit-relevant 三类 + cap 200。
-    for mapping in store.legacy_mapping_repo.list_mappings(
+    for mapping in deps.repos.legacy_mapping.list_mappings(
         tenant_id=_DEFAULT_TENANT_ID,
         legacy_object_types=["data_apply", "data_apply_course", "data_apply_authrization"],
         limit=200,
@@ -99,8 +98,8 @@ def _replay_evidence_chain(brain, deps, ctx, dispute_id: str) -> dict[str, Any]:
         "summary": dispute.get("aiSummary"),
         "evidenceChain": evidence,
         "auditEvents": audit_events,
-        "tickets": [item for item in brain._snapshot["tickets"] if item["id"] in {"TK-2026-04-25-014", "TK-2026-04-25-015"}],
-        "knowledgeArticles": [item for item in brain._snapshot["knowledge_articles"] if item["id"] in {"KB-REDUCE-BURDEN-02", "KB-TEMPLATE-BACKFLOW-01"}],
+        "tickets": [item for item in deps.view.tickets.list_all() if item["id"] in {"TK-2026-04-25-014", "TK-2026-04-25-015"}],
+        "knowledgeArticles": [item for item in deps.view.knowledge.list_articles() if item["id"] in {"KB-REDUCE-BURDEN-02", "KB-TEMPLATE-BACKFLOW-01"}],
     }
 
 
@@ -113,7 +112,7 @@ def handler_audit_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, 
     skill_id = ctx.skill_id
     return {
         "items": _list_audit_events(brain, deps, ctx),
-        "summary": copy.deepcopy(brain._snapshot["audit_ai"]),
+        "summary": deps.view.audit_ai.get(),  # Action C — read facade
     }
 
 def handler_audit_replay_evidence_chain(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:

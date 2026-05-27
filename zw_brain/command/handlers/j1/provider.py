@@ -9,14 +9,12 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 if TYPE_CHECKING:
     pass
 
-import copy
-
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
 def _get_provider_view(brain, deps, ctx) -> dict[str, Any]:
-    provider = copy.deepcopy(brain._snapshot["provider"])
+    provider = deps.view.provider.get()  # Action C — read-path facade (was raw snapshot read)
     # National Direct Access (业务运营员 跨大区上报通道) demo data lives only in
     # seed_snapshot.json and is not persisted. Older DB rows predate this
     # field, so we hydrate it from the seed clone whenever the loaded
@@ -27,7 +25,7 @@ def _get_provider_view(brain, deps, ctx) -> dict[str, Any]:
         direct = seed.get("provider", {}).get("directAccess")
         if direct is not None:
             provider["directAccess"] = direct
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     if store is None:
         return provider
     packages = brain.list_packages()

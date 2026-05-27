@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 import zw_brain.shared.clock as clock
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import quality as quality_ser
-from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
@@ -26,12 +25,12 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # ──────────────────────────────────────────────────────────────────────────
 
 def _query_catalog_quality(brain, deps, ctx, *, target_type: Any = None, target_ref: Any = None) -> dict[str, Any]:
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     if store is None:
         return {"items": [], "total": 0}
     items = [
         quality_ser.quality_to_dict(item)
-        for item in store.metadata_evidence_repo.list_quality_evidence(
+        for item in deps.repos.metadata_evidence.list_quality_evidence(
             target_type=str(target_type) if target_type else None,
             target_ref=str(target_ref) if target_ref else None,
             tenant_id=_DEFAULT_TENANT_ID,
@@ -44,8 +43,7 @@ def _upsert_catalog_quality_evidence(brain, deps, ctx, payload: dict[str, Any]) 
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
-        repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
+        repo = deps.repos.metadata_evidence  # Action C — deps.repos always wired (DB or in-memory fallback)
         evidence = repo.upsert_quality_evidence(payload)
         deps.append_audit_feed("ops.catalog.quality.upsert", evidence.quality_ref, "ok", actor)
         return {"quality_ref": evidence.quality_ref, "quality_status": evidence.quality_status, "audit_id": audit_id}
@@ -53,12 +51,12 @@ def _upsert_catalog_quality_evidence(brain, deps, ctx, payload: dict[str, Any]) 
     return deps.write(ctx, payload, mutation)
 
 def _query_catalog_statistics(brain, deps, ctx) -> dict[str, Any]:
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     if store is None:
         return {
             "summary": {
-                "catalogCount": len(brain._snapshot.get("catalog_items", [])),
-                "resourceCount": len(brain._snapshot.get("api_resources", [])),
+                "catalogCount": len(deps.brain_legacy._snapshot.get("catalog_items", [])),
+                "resourceCount": len(deps.brain_legacy._snapshot.get("api_resources", [])),
                 "schemaMappingCount": 0,
                 "qualityEvidenceCount": 0,
                 "source_ref": "seed_snapshot",
@@ -66,10 +64,10 @@ def _query_catalog_statistics(brain, deps, ctx) -> dict[str, Any]:
                 "projection_only": True,
             }
         }
-    catalog_count = len(store.catalog_repo.list_entries(tenant_id=_DEFAULT_TENANT_ID))
-    resource_count = len(store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID))
-    schema_mapping_count = len(store.metadata_evidence_repo.list_schema_mappings(tenant_id=_DEFAULT_TENANT_ID))
-    quality_count = len(store.metadata_evidence_repo.list_quality_evidence(tenant_id=_DEFAULT_TENANT_ID))
+    catalog_count = len(deps.repos.catalog.list_entries(tenant_id=_DEFAULT_TENANT_ID))
+    resource_count = len(deps.repos.resource_api.list_assets(tenant_id=_DEFAULT_TENANT_ID))
+    schema_mapping_count = len(deps.repos.metadata_evidence.list_schema_mappings(tenant_id=_DEFAULT_TENANT_ID))
+    quality_count = len(deps.repos.metadata_evidence.list_quality_evidence(tenant_id=_DEFAULT_TENANT_ID))
     generated_at = clock.now_datetime()
     source_ref = "canonical_projection"
     return {

@@ -99,7 +99,7 @@ def _create_request(
     existing = next(
         (
             item
-            for item in brain._snapshot["requests"]
+            for item in deps.view.requests.list_all()  # Action C — read facade
             if item.get("resourceId") == canonical_id and item["status"] in {"pending", "supplementing", "summary-pending"}
         ),
         None,
@@ -281,9 +281,12 @@ def _create_request(
             },
             "summaryConfirmed": False,
         }
-        brain._snapshot["requests"].insert(0, request)
-        brain._snapshot["approvals"].insert(0, approval)
-        brain._snapshot["delivery_tasks"].insert(0, delivery)
+        # Action C — snapshot mutations stay via brain_legacy escape hatch;
+        # in-memory snapshot dict elimination is Action D scope. Reading still
+        # goes through deps.view.* facades above.
+        deps.brain_legacy._snapshot["requests"].insert(0, request)
+        deps.brain_legacy._snapshot["approvals"].insert(0, approval)
+        deps.brain_legacy._snapshot["delivery_tasks"].insert(0, delivery)
         deps.append_audit_feed(skill_id, request_id, "ok", actor)
 
         # E3 Wave-2 F2 hook：按 shared_type 自动启动审批流基线（不破业务主路径）
@@ -310,7 +313,7 @@ def _create_request(
     return deps.write(ctx, audit_payload, mutation)
 
 def _submit_request(brain, deps, ctx, request_id: str, role: str, confirmed: bool) -> dict[str, Any]:
-    request = brain._request_by_id(request_id)
+    request = deps.view.requests.find_by_id(request_id)
     if request["status"] != "need-fix":
         raise InvalidStateError("current request is not in resubmission state")
 
@@ -328,7 +331,7 @@ def _submit_request(brain, deps, ctx, request_id: str, role: str, confirmed: boo
         )
         request["aiStatus"]["summary"] = "申请已按“模板复用 + 差异补录”方式重新提交，当前重新回到受控准入阶段。"
         request["aiStatus"]["nextAction"] = "建议审批承接人员重新核对差异字段责任边界。"
-        delivery = brain._delivery_by_request_id(request_id)
+        delivery = deps.view.delivery.find_by_request_id(request_id)
         if delivery:
             delivery["status"] = "warning"
             delivery["updatedAt"] = clock.now_datetime()
@@ -348,23 +351,23 @@ def _submit_request(brain, deps, ctx, request_id: str, role: str, confirmed: boo
     return deps.write(ctx, {"request_id": request_id}, mutation)
 
 def _get_request(brain, deps, ctx, request_id: str) -> dict[str, Any]:
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     request = brain._maybe_request(request_id)
     if request is None:
         if store is None:
             raise NotFoundError(request_id)
-        record = next((item for item in store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID) if item.application_code == request_id), None)
+        record = next((item for item in deps.repos.application.list_records(tenant_id=_DEFAULT_TENANT_ID) if item.application_code == request_id), None)
         if record is None:
             raise NotFoundError(request_id)
         return brain._application_record_to_request(record, store)
     request = copy.deepcopy(request)
     if store is None:
         return request
-    for record in store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID):
+    for record in deps.repos.application.list_records(tenant_id=_DEFAULT_TENANT_ID):
         if record.application_code == request_id:
             brain._overlay_application_record(request, record, store)
             break
-    delivery = brain._delivery_by_request_id(request_id) or brain._delivery_task_from_record(request_id, store)
+    delivery = deps.view.delivery.find_by_request_id(request_id) or brain._delivery_task_from_record(request_id, store)
     request["taskId"] = delivery["id"] if delivery else None
     request["statusTimeline"] = brain._request_status_timeline(request, delivery)
     return request

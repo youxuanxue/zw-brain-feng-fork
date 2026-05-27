@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Preflight segment 41 — verify SkillPipeline middleware order is the documented one.
+"""Preflight segment 42 — verify SkillPipeline middleware order is the documented one.
 
 Action B introduced an ordered middleware chain for write/read paths
 (``zw_brain/command/pipeline.py``). The order matters for correctness:

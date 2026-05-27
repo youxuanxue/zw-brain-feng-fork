@@ -31,7 +31,7 @@ def _refine_requirement_intent(brain, deps, ctx, payload: dict[str, Any]) -> dic
     request_id = str(payload["request_id"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        request = brain._request_by_id(request_id)
+        request = deps.view.requests.find_by_id(request_id)
         request.setdefault("timeline", []).append({"label": "需求已细化", "time": clock.now_datetime(), "note": str(payload.get("refine_note", "已补充需求意图与资源范围。"))})
         request["purpose"] = str(payload.get("refine_note") or request.get("purpose"))
         request["aiStatus"]["summary"] = "需求意图已细化，仍保持受控准入链路。"
@@ -81,7 +81,7 @@ def _match_requirement_resource(brain, deps, ctx, payload: dict[str, Any]) -> di
     request_id = str(payload["request_id"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        request = brain._request_by_id(request_id)
+        request = deps.view.requests.find_by_id(request_id)
         candidates = payload.get("candidate_resources") or ([payload["resource_id"]] if payload.get("resource_id") else [])
         request["matchedResources"] = safe_json(candidates)
         request.setdefault("timeline", []).append({"label": "资源匹配完成", "time": clock.now_datetime(), "note": str(payload.get("match_note", "已生成候选资源匹配结果。"))})
@@ -108,7 +108,7 @@ def _handoff_require_task(brain, deps, ctx, payload: dict[str, Any]) -> dict[str
     return deps.write(ctx, payload, mutation)
 
 def _submit_supplement(brain, deps, ctx, request_id: str, role: str, confirmed: bool) -> dict[str, Any]:
-    request = brain._request_by_id(request_id)
+    request = deps.view.requests.find_by_id(request_id)
     if request["status"] != "supplementing":
         raise InvalidStateError("request is not in supplementing state")
 
@@ -129,7 +129,7 @@ def _submit_supplement(brain, deps, ctx, request_id: str, role: str, confirmed: 
         )
         request["aiStatus"]["summary"] = "差异补录已提交，系统已完成自动汇总并等待 审核汇总人 处理异常项。"
         request["aiStatus"]["nextAction"] = "请 审核汇总人 查看自动汇总结果并确认异常项。"
-        delivery = brain._delivery_by_request_id(request_id)
+        delivery = deps.view.delivery.find_by_request_id(request_id)
         if delivery:
             delivery["status"] = "reconciling"
             delivery["updatedAt"] = clock.now_datetime()
@@ -153,7 +153,7 @@ def _submit_supplement(brain, deps, ctx, request_id: str, role: str, confirmed: 
     return deps.write(ctx, {"request_id": request_id}, mutation)
 
 def _confirm_summary(brain, deps, ctx, request_id: str, role: str, confirmed: bool) -> dict[str, Any]:
-    request = brain._request_by_id(request_id)
+    request = deps.view.requests.find_by_id(request_id)
     if request["status"] != "summary-pending":
         raise InvalidStateError("request is not ready for summary confirmation")
 
@@ -169,7 +169,7 @@ def _confirm_summary(brain, deps, ctx, request_id: str, role: str, confirmed: bo
         )
         request["aiStatus"]["summary"] = "自动汇总已确认，当前只剩回流候选是否正式纳入模板。"
         request["aiStatus"]["nextAction"] = "请 数据提供方 / 业务运营员 确认回流候选并同步模板版本与专题入口。"
-        delivery = brain._delivery_by_request_id(request_id)
+        delivery = deps.view.delivery.find_by_request_id(request_id)
         if delivery:
             delivery["status"] = "reconciling"
             delivery["updatedAt"] = clock.now_datetime()
@@ -194,8 +194,8 @@ def _confirm_summary(brain, deps, ctx, request_id: str, role: str, confirmed: bo
     return deps.write(ctx, {"request_id": request_id}, mutation)
 
 def _confirm_backflow(brain, deps, ctx, task_id: str, role: str, confirmed: bool) -> dict[str, Any]:
-    task = brain._delivery_by_id(task_id)
-    request = brain._request_by_id(task["requestId"])
+    task = deps.view.delivery.find_by_id(task_id)
+    request = deps.view.requests.find_by_id(task["requestId"])
     if request["status"] != "completed" or task.get("receiptStatus") != "reconciled" or task["backflow"]["status"] == "已确认":
         raise InvalidStateError("delivery task is not ready for backflow confirmation")
 

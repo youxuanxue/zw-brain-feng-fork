@@ -7,8 +7,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     pass
 
-import copy
-
 from zw_brain.command.brain import _DEFAULT_TENANT_ID, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
 
@@ -17,10 +15,12 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 # ──────────────────────────────────────────────────────────────────────────
 
 def _list_governance_disputes(brain, deps, ctx) -> dict[str, Any]:
-    items = copy.deepcopy(brain._snapshot["disputes"])
-    store = brain._state_store.database_store
-    if store is not None:
-        all_records = store.objection_repo.list_cases(tenant_id=_DEFAULT_TENANT_ID)
+    items = deps.view.disputes.list_all()  # Action C — read-path facade (already deepcopies)
+    # Action C — deps.repos.objection is always wired (DB or in-memory fallback);
+    # in-memory repo returns empty list when not seeded, preserving prior
+    # ``database_store is None`` fallback semantics.
+    all_records = deps.repos.objection.list_cases(tenant_id=_DEFAULT_TENANT_ID)
+    if all_records:
         records = {record.id: record for record in all_records}
         seed_ids = {item["id"] for item in items}
         for item in items:
@@ -31,7 +31,7 @@ def _list_governance_disputes(brain, deps, ctx) -> dict[str, Any]:
                     "targetType": record.target_type,
                     "status": record.status,
                 }
-                evaluation = store.objection_repo.get_evaluation(item["id"])
+                evaluation = deps.repos.objection.get_evaluation(item["id"])
                 if evaluation is not None:
                     item["evaluation"] = {
                         "solvedFlag": evaluation.solved_flag,
@@ -60,19 +60,18 @@ def _list_governance_disputes(brain, deps, ctx) -> dict[str, Any]:
             })
     return {
         "items": items,
-        "alerts": copy.deepcopy(brain._snapshot["alerts"]),
-        "tickets": copy.deepcopy(brain._snapshot["tickets"]),
-        "knowledgeArticles": copy.deepcopy(brain._snapshot["knowledge_articles"]),
+        "alerts": deps.view.alerts.list_all(),
+        "tickets": deps.view.tickets.list_all(),
+        "knowledgeArticles": deps.view.knowledge.list_articles(),
     }
 
 def _get_dispute(brain, deps, ctx, dispute_id: str) -> dict[str, Any]:
-    dispute = next((copy.deepcopy(item) for item in brain._snapshot["disputes"] if item["id"] == dispute_id), None)
+    dispute = deps.view.disputes.get_dispute_by_id(dispute_id)
     if dispute is None:
         raise NotFoundError(dispute_id)
-    store = brain._state_store.database_store
-    if store is None:
-        return dispute
-    record = store.objection_repo.get_case(dispute_id)
+    # Action C — deps.repos.objection: DB or in-memory fallback (latter returns
+    # None for unknown IDs, preserving prior ``database_store is None`` short-circuit).
+    record = deps.repos.objection.get_case(dispute_id)
     if record is None:
         return dispute
     dispute["repository"] = {
@@ -87,9 +86,9 @@ def _get_dispute(brain, deps, ctx, dispute_id: str) -> dict[str, Any]:
             "actionResult": item.action_result,
             "opinion": item.opinion,
         }
-        for item in store.objection_repo.list_processes(dispute_id)
+        for item in deps.repos.objection.list_processes(dispute_id)
     ]
-    evaluation = store.objection_repo.get_evaluation(dispute_id)
+    evaluation = deps.repos.objection.get_evaluation(dispute_id)
     if evaluation is not None:
         dispute["evaluation"] = {
             "solvedFlag": evaluation.solved_flag,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Preflight segment 42 — handlers must use deps.write, not brain._mutate.
+"""Preflight segment 43 — handlers must use deps.write, not brain._mutate.
 
 Action B made ``deps.write(ctx, payload, fn)`` and ``deps.read(ctx, payload,
 fn)`` the canonical handler-facing write/read entry points. The underlying

@@ -75,7 +75,7 @@ def _ingest_delivery_receipt(brain, deps, ctx, payload: dict[str, Any]) -> dict[
     return deps.write(ctx, payload, mutation)
 
 def _reconcile_delivery_receipt(brain, deps, ctx, task_id: str, role: str, confirmed: bool) -> dict[str, Any]:
-    task = brain._delivery_by_id(task_id)
+    task = deps.view.delivery.find_by_id(task_id)
     if task["status"] == "failed":
         raise InvalidStateError("failed delivery task cannot be reconciled without recovery")
     if task.get("receiptStatus") == "reconciled":
@@ -148,7 +148,7 @@ def _manage_delivery_subscription(brain, deps, ctx, payload: dict[str, Any]) -> 
         raise InvalidStateError(f"unsupported subscription action: {action}")
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        task = brain._delivery_by_id(str(payload["task_id"]))
+        task = deps.view.delivery.find_by_id(str(payload["task_id"]))
         status = {"create": "active", "activate": "active", "pause": "paused", "resume": "active", "cancel": "cancelled"}[action]
         subscription = deps.repos.delivery.upsert_subscription({"subscription_code": payload.get("subscription_id"), "delivery_code": task["id"], "resource_code": task.get("resourceId") or task.get("access", {}).get("resource_code"), "status": status, "schedule_ref": payload.get("schedule_ref") or {}, "policy_snapshot": payload.get("policy_snapshot") or {}, "legacy_status_snapshot": {"action": action, "task_status": task.get("status")}})
         task.setdefault("history", []).append({"time": clock.now_short_time(), "state": "订阅策略已更新", "detail": f"订阅状态：{status}"})
@@ -158,7 +158,7 @@ def _manage_delivery_subscription(brain, deps, ctx, payload: dict[str, Any]) -> 
     return deps.write(ctx, payload, mutation)
 
 def _trigger_delivery_recovery(brain, deps, ctx, task_id: str, role: str, confirmed: bool) -> dict[str, Any]:
-    task = brain._delivery_by_id(task_id)
+    task = deps.view.delivery.find_by_id(task_id)
     if task["status"] != "failed":
         raise InvalidStateError("delivery task is not in failed state")
 
@@ -181,7 +181,7 @@ def _trigger_delivery_recovery(brain, deps, ctx, task_id: str, role: str, confir
     return deps.write(ctx, {"task_id": task_id}, mutation)
 
 def _get_delivery_task(brain, deps, ctx, task_id: str) -> dict[str, Any]:
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     task = brain._maybe_delivery(task_id)
     if task is None:
         if store is None:
@@ -193,7 +193,7 @@ def _get_delivery_task(brain, deps, ctx, task_id: str) -> dict[str, Any]:
         task = copy.deepcopy(task)
     if store is None:
         return task
-    record = next((item for item in store.delivery_repo.list_tasks(tenant_id=_DEFAULT_TENANT_ID) if item.delivery_code == task_id), None)
+    record = next((item for item in deps.repos.delivery.list_tasks(tenant_id=_DEFAULT_TENANT_ID) if item.delivery_code == task_id), None)
     request = brain._maybe_request(task.get("requestId", "")) or brain._request_from_application_record(task.get("requestId", ""), store)
     if request is not None:
         task["applicationMaterials"] = copy.deepcopy(request.get("applicationMaterials", {}))
@@ -228,7 +228,7 @@ def _get_delivery_task(brain, deps, ctx, task_id: str) -> dict[str, Any]:
                 "receiptStatus": item.receipt_status,
                 "payload": copy.deepcopy(item.payload_json),
             }
-            for item in store.delivery_repo.list_receipts(task_id)
+            for item in deps.repos.delivery.list_receipts(task_id)
         ]
         if task["receipts"]:
             task["receiptStatus"] = task["receipts"][-1]["receiptStatus"]

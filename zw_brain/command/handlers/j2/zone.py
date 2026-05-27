@@ -20,7 +20,7 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 # ──────────────────────────────────────────────────────────────────────────
 
 def _list_zones(brain, deps, ctx) -> list[dict[str, Any]]:
-    zones = copy.deepcopy(brain._snapshot["zones"])
+    zones = deps.view.zones.list_all()  # Action C — read facade (already deepcopies)
     resource_id = brain._provider_primary_resource_id()
     resource = brain.get_resource(resource_id) if resource_id else {}
     for zone in zones:

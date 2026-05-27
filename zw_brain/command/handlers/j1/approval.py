@@ -16,18 +16,18 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 # ──────────────────────────────────────────────────────────────────────────
 
 def _get_approval(brain, deps, ctx, request_id: str) -> dict[str, Any]:
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     approval = copy.deepcopy(brain._approval_by_id(request_id)) if brain._maybe_approval(request_id) is not None else {"id": request_id}
     if store is None:
         if "requestId" not in approval:
             raise NotFoundError(request_id)
         return approval
-    case = next((item for item in store.approval_repo.list_cases(tenant_id=_DEFAULT_TENANT_ID) if item.application_code == request_id), None)
+    case = next((item for item in deps.repos.approval.list_cases(tenant_id=_DEFAULT_TENANT_ID) if item.application_code == request_id), None)
     if case is None and "requestId" not in approval:
         raise NotFoundError(request_id)
     approval["requestId"] = request_id
     request = brain.get_request(request_id)
-    delivery = brain._delivery_by_request_id(request_id) or brain._delivery_task_from_record(request_id, store)
+    delivery = deps.view.delivery.find_by_request_id(request_id) or brain._delivery_task_from_record(request_id, store)
     approval["statusTimeline"] = brain._request_status_timeline(request, delivery)
     approval["applicationMaterials"] = copy.deepcopy(request.get("applicationMaterials", {}))
     approval["reuseCandidate"] = copy.deepcopy(request.get("reuseCandidate", {}))
@@ -47,8 +47,8 @@ def _get_approval(brain, deps, ctx, request_id: str) -> dict[str, Any]:
             "currentStatus": case.current_status,
             "currentStep": case.current_step,
         }
-        step_records = store.approval_repo.list_steps(request_id)
-        decision_records = store.approval_repo.list_decisions(request_id)
+        step_records = deps.repos.approval.list_steps(request_id)
+        decision_records = deps.repos.approval.list_decisions(request_id)
         approval["steps"] = [
             {
                 "stepNo": item.step_no,
@@ -80,7 +80,7 @@ def _get_approval(brain, deps, ctx, request_id: str) -> dict[str, Any]:
 def _review_request(brain, deps, ctx, request_id: str, decision: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide") -> dict[str, Any]:
     normalized = {"approve": "approve_reuse", "reject": "reject_duplicate"}.get(decision, decision)
     if normalized in {"approve_reuse", "approve_with_supplement", "return_for_fix", "reject_duplicate", "route_to_provider_or_catalog_admin"}:
-        store = brain._state_store.database_store
+        store = deps.state_store.database_store
         if store is not None and brain._request_from_application_record(request_id, store) is not None:
             return brain._review_application_record(request_id, normalized, role, confirmed, skill_id)
     if normalized in {"approve_reuse", "approve_with_supplement"}:

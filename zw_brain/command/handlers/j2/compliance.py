@@ -30,7 +30,7 @@ def _configure_compliance_rule(brain, deps, ctx, payload: dict[str, Any]) -> dic
     rule_id = str(payload["rule_id"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        rules = brain._snapshot.setdefault("compliance_rules", [])
+        rules = deps.brain_legacy._snapshot.setdefault("compliance_rules", [])
         rule = next((item for item in rules if item.get("id") == rule_id), None)
         rule_payload = {
             "id": rule_id,
@@ -55,7 +55,7 @@ def _open_compliance_case(brain, deps, ctx, payload: dict[str, Any]) -> dict[str
     case_id = str(payload.get("case_id") or payload.get("dispute_id") or f"CMP-{ids.new_audit_id()}")
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        cases = brain._snapshot.setdefault("disputes", [])
+        cases = deps.brain_legacy._snapshot.setdefault("disputes", [])
         if any(item.get("id") == case_id for item in cases):
             raise InvalidStateError("compliance case already exists")
         cases.append(
@@ -83,7 +83,7 @@ def _open_compliance_case(brain, deps, ctx, payload: dict[str, Any]) -> dict[str
 def _transition_compliance_case(brain, deps, ctx, case_id: str, status: str, action: str, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
-    case = next((item for item in brain._snapshot.setdefault("disputes", []) if item.get("id") == case_id), None)
+    case = next((item for item in deps.brain_legacy._snapshot.setdefault("disputes", []) if item.get("id") == case_id), None)
     if case is None:
         raise NotFoundError(case_id)
     allowed = {
@@ -110,7 +110,7 @@ def _transition_compliance_case(brain, deps, ctx, case_id: str, status: str, act
     return deps.write(ctx, {"case_id": case_id, "status": status} | payload, mutation)
 
 def _query_compliance_cases(brain, deps, ctx, *, status: Any = None, severity: Any = None) -> dict[str, Any]:
-    cases = copy.deepcopy(brain._snapshot.get("disputes", []))
+    cases = copy.deepcopy(deps.brain_legacy._snapshot.get("disputes", []))
     if status:
         cases = [item for item in cases if item.get("status") == str(status)]
     if severity:
@@ -118,7 +118,7 @@ def _query_compliance_cases(brain, deps, ctx, *, status: Any = None, severity: A
     return {"items": cases, "total": len(cases)}
 
 def _query_compliance_metrics(brain, deps, ctx) -> dict[str, Any]:
-    cases = brain._snapshot.get("disputes", [])
+    cases = deps.brain_legacy._snapshot.get("disputes", [])
     by_status: dict[str, int] = {}
     by_severity: dict[str, int] = {}
     for item in cases:
@@ -128,7 +128,9 @@ def _query_compliance_metrics(brain, deps, ctx) -> dict[str, Any]:
     return {"total": len(cases), "open_count": open_count, "resolved_count": by_status.get("resolved", 0) + by_status.get("closed", 0), "by_status": by_status, "by_severity": by_severity}
 
 def _investigate_dispute(brain, deps, ctx, dispute_id: str, action: str, role: str, confirmed: bool) -> dict[str, Any]:
-    dispute = next((item for item in brain._snapshot["disputes"] if item["id"] == dispute_id), None)
+    # Action C — read-then-mutate (dispute["timeline"].append below); use brain_legacy
+    # escape hatch so in-place mutation is preserved until Action D retires the dict.
+    dispute = next((item for item in deps.brain_legacy._snapshot["disputes"] if item["id"] == dispute_id), None)
     if dispute is None:
         raise NotFoundError(dispute_id)
     if action not in {"progress", "escalate"}:

@@ -13,7 +13,7 @@ handler 签名（Action A 升级 2026-05-27）：
 
 历史签名 ``handler(brain, skill_id, payload)`` 已退役；handler 通过
 ``deps.repos.*`` / ``deps.write(ctx, ...)`` / ``ctx.role`` 等访问能力。未迁的
-god-object surface 通过 ``deps.brain_legacy.X`` escape hatch（preflight 段 38
+god-object surface 通过 ``deps.brain_legacy.X`` escape hatch（preflight 段 40
 白名单受控；commit 6 起强制收口）。
 
 共享 method（如 transition_objection_case 服务 7 cap、record_adapter_operation

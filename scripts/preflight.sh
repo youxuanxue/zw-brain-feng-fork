@@ -97,6 +97,7 @@ done <<'CHECKS'
 段 42	scripts/check_pipeline_middleware_order.py	pipeline-middleware-order (SkillPipeline middleware 顺序与 MIDDLEWARE_ORDER 一致 — Action B)
 段 43	scripts/check_handler_uses_pipeline.py	handler-uses-pipeline (handler 不得调 brain._mutate / _invoke_traced_read / _append_audit_feed，必须走 deps.pipeline — Action B)
 段 44	scripts/check_approved_doc_drift.py	approved-doc-drift (D32.d — D-编号决策真值源回灌守卫，PR-mode WARN-only)
+段 45	scripts/check_handler_no_direct_snapshot_read.py	handler-no-direct-snapshot-read (handler 不得直接读 brain._snapshot / brain._state_store.database_store / brain._{request,package,delivery}_by_*，必须走 deps.view / deps.repos — Action C)
 CHECKS
 
 echo ""

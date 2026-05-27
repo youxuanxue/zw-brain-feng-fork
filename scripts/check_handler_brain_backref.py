@@ -49,35 +49,44 @@ HANDLERS_DIR = REPO_ROOT / "zw_brain" / "command" / "handlers"
 HANDLER_WHITELIST: dict[str, str] = {
     # The alias itself — handler body's first line aliases brain for backward-compat.
     "brain = deps.brain_legacy": "Action A backward-compat alias (commit 2)",
-    # Read-path lookups not yet behind a typed repo
-    "brain.get_resource": "in-memory snapshot read; Action B/C migrates to deps.repos.resource",
-    "brain.get_request": "in-memory snapshot read; Action B/C migrates to deps.repos.request",
-    "brain.create_request": "writes to snapshot in addition to repo; Action B",
-    "brain.get_delivery_task": "snapshot read; Action B",
-    "brain.review_request": "writes to snapshot in addition to repo; Action B",
-    "brain.transition_api_resource": "writes to snapshot in addition to repo; Action B",
-    "brain.get_dispute": "snapshot read; Action B",
-    "brain.list_audit_events": "snapshot+DB merge read; Action C",
-    "brain.list_packages": "snapshot+DB merge read; Action C",
-    "brain.evaluate_tenant_policy": "policy evaluator surface; Action B",
-    "brain.list_zones": "snapshot read; Action C",
-    "brain.update_topic_package_policy": "policy update; Action B",
-    "brain.list_requests": "aggregate read; Action C",
-    "brain.list_delivery_tasks": "aggregate read; Action C",
-    "brain.snapshot": "snapshot dump for REST /api/snapshot; Action C",
+    # Aggregate / cross-cutting reads that survived Action C (still needed because
+    # the underlying projection is multi-source: snapshot + DB + computed). Each
+    # will be lifted in Action D when the relevant domain service emerges.
+    "brain.list_requests": "aggregate read; Action D",
+    "brain.list_delivery_tasks": "aggregate read; Action D",
+    "brain.snapshot": "snapshot dump for REST /api/snapshot; legitimate (debug surface)",
     "brain.manifests": "manifest registry pass-through; legitimate",
-    "brain.enrich_actor_snapshot_for_session": "session bootstrap; Action B",
-    "brain.invoke_skill": "credential auto-issue re-entry via invoke_skill; Action B",
-    # Remaining residual surface (8 sites at commit 6) — kept here so reviewers can see
-    # the explicit "still to migrate" list. Each is harmless today but should empty
-    # out as Action B (SkillPipeline) lifts these helpers out of BrainService.
-    "brain._snapshot": "audit.list direct snapshot read (no_db fallback); Action C",
-    "brain._exchange_metric_summary": "BrainService static helper; Action B pulls into shared",
-    "brain._mutate": "legacy.bsp/infra path with multi-line literal; Action B",
-    "brain._safe_json": "thin wrapper over shared.sanitization.safe_json; trivial inline candidate, Action B",
-    "brain._build_m0_work_queue_cards": "BrainService @staticmethod aggregator; Action B pulls into shared",
-    "brain.grant_delivery_access": "PR#86 delegate shim — Action B retires shims",
-    "brain._ui_state": "request.py default brain alias 兜底 in tests/CLI; preserved fallback semantics",
+    "brain.invoke_skill": "credential auto-issue re-entry via invoke_skill; Action D",
+    # Remaining residual surface — kept here so reviewers can see the explicit
+    # "still to migrate" list. Each is harmless today but should empty out as
+    # Action D / Action F lift these helpers out of BrainService.
+    "brain._exchange_metric_summary": "BrainService static helper; Action F pulls into shared",
+    "brain._mutate": "legacy.bsp/infra path with multi-line literal; Action D",
+    "brain._safe_json": "thin wrapper over shared.sanitization.safe_json; trivial inline candidate, Action F",
+    "brain._build_m0_work_queue_cards": "BrainService @staticmethod aggregator; Action F pulls into shared",
+    "brain.grant_delivery_access": "PR#86 delegate shim — Action D retires shims",
+    "brain._ui_state": "request.py default brain alias 兜底 in tests/CLI; preserved fallback semantics — Action F",
+
+    # ── Pre-Action-C historical (kept for diff readability) ──────────────────
+    # These entries were retired by Action C (snapshot reads → deps.view facade,
+    # repo lookups → deps.repos, lookup helpers → deps.view.X.find_*). Listed
+    # here as a no-op / audit trail; they no longer surface in handler bodies
+    # but stay in the dict so reviewers tracing the Action C migration can
+    # cross-reference the original entry.
+    # "brain.get_resource":      retired by Action C (deps.view.resources / deps.repos.catalog)
+    # "brain.get_request":       retired by Action C (deps.view.requests.find_by_id)
+    # "brain.create_request":    retired by Action B/C (deps.write + deps.view)
+    # "brain.get_delivery_task": retired by Action C (deps.view.delivery.find_by_id)
+    # "brain.review_request":    retired by Action B/C
+    # "brain.transition_api_resource": retired by Action B/C
+    # "brain.get_dispute":       retired by Action C
+    # "brain.list_audit_events": retired by Action C (deps.view.audit_events.list_all)
+    # "brain.list_packages":     retired by Action C (deps.view.packages.list_all)
+    # "brain.evaluate_tenant_policy": retired by Action B
+    # "brain.list_zones":        retired by Action C (deps.view.zones.list_all)
+    # "brain.update_topic_package_policy": retired by Action B
+    # "brain.enrich_actor_snapshot_for_session": retired by Action B
+    # "brain._snapshot":         retired by Action C (deps.view.X — segment 45 guards)
 }
 
 # Patterns inside handler body that don't count as god-object access

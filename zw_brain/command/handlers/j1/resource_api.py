@@ -43,7 +43,7 @@ def _change_api_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str,
     resource = brain._api_payload(payload, default_status="draft")
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        existing = brain._find_api_resource(resource["resource_code"])
+        existing = deps.view.resources.get_api_resource(resource["resource_code"])
         if existing is None:
             raise NotFoundError(resource["resource_code"])
         result = brain._upsert_api_resource({**existing, **resource})
@@ -67,20 +67,20 @@ def _review_api_resource(brain, deps, ctx, resource_code: str, decision: str, ro
 
 def _transition_api_resource(brain, deps, ctx, resource_code: str, status: str, skill_id: str, role: str, confirmed: bool) -> dict[str, Any]:
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
+        store = deps.state_store.database_store
         if store is None:
-            resource = brain._find_api_resource(resource_code)
+            resource = deps.view.resources.get_api_resource(resource_code)
             if resource is None:
                 raise NotFoundError(resource_code)
             resource["lifecycle_status"] = status
             resource["updated_at"] = clock.now_datetime()
             result = brain._upsert_api_resource(resource)
         else:
-            record = store.resource_api_repo.transition_asset(resource_code, status)
+            record = deps.repos.resource_api.transition_asset(resource_code, status)
             if record is None:
                 raise NotFoundError(resource_code)
             if status == "active" and record.catalog_code:
-                store.catalog_repo.upsert_from_resource(
+                deps.repos.catalog.upsert_from_resource(
                     {
                         "id": record.catalog_code,
                         "name": record.title,
@@ -95,7 +95,7 @@ def _transition_api_resource(brain, deps, ctx, resource_code: str, status: str, 
                         "explain": record.summary_json.get("explain", []),
                     }
                 )
-            store.approval_repo.upsert_api_resource_lifecycle(
+            deps.repos.approval.upsert_api_resource_lifecycle(
                 resource_code,
                 status,
                 actor=actor,
@@ -128,23 +128,23 @@ def _test_api_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, A
     }
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
+        store = deps.state_store.database_store
         if store is None:
-            resource = brain._find_api_resource(resource_code)
+            resource = deps.view.resources.get_api_resource(resource_code)
             if resource is None:
                 raise NotFoundError(resource_code)
             resource["lifecycle_status"] = next_status
             resource["updated_at"] = clock.now_datetime()
             result = brain._upsert_api_resource(resource)
-            tests = brain._snapshot.setdefault("api_resource_tests", [])
+            tests = deps.brain_legacy._snapshot.setdefault("api_resource_tests", [])
             test_record = test_payload | {"test_ref": audit_id, "tested_by": actor, "tested_at": clock.now_datetime()}
             tests.append(test_record)
         else:
-            record = store.resource_api_repo.transition_asset(resource_code, next_status)
+            record = deps.repos.resource_api.transition_asset(resource_code, next_status)
             if record is None:
                 raise NotFoundError(resource_code)
-            projection = store.resource_api_repo.upsert_test_projection(test_payload | {"test_ref": audit_id, "tested_by": actor})
-            store.approval_repo.upsert_api_resource_lifecycle(
+            projection = deps.repos.resource_api.upsert_test_projection(test_payload | {"test_ref": audit_id, "tested_by": actor})
+            deps.repos.approval.upsert_api_resource_lifecycle(
                 resource_code,
                 next_status,
                 actor=actor,
@@ -167,7 +167,7 @@ def _update_api_resource_policy(brain, deps, ctx, payload: dict[str, Any]) -> di
     policy_payload = brain._safe_json(payload.get("gateway_policy_json", {}))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        if brain._find_api_resource(resource_code) is None:
+        if deps.view.resources.get_api_resource(resource_code) is None:
             raise NotFoundError(resource_code)
         binding = brain._find_api_binding(binding_code)
         if binding is None or binding.get("resource_code") != resource_code:
@@ -180,13 +180,13 @@ def _update_api_resource_policy(brain, deps, ctx, payload: dict[str, Any]) -> di
     return deps.write(ctx, {"resource_code": resource_code, "binding_code": binding_code}, mutation)
 
 def _query_resource_assets(brain, deps, ctx, *, resource_code: Any = None) -> dict[str, Any]:
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     if store is None:
-        resources = copy.deepcopy(brain._snapshot.get("api_resources", []))
+        resources = copy.deepcopy(deps.brain_legacy._snapshot.get("api_resources", []))
         if resource_code:
             resources = [item for item in resources if item.get("resource_code") == resource_code]
     else:
-        resources = [resource_api_ser.resource_asset_to_dict(item) for item in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID)]
+        resources = [resource_api_ser.resource_asset_to_dict(item) for item in deps.repos.resource_api.list_assets(tenant_id=_DEFAULT_TENANT_ID)]
         if resource_code:
             resources = [item for item in resources if item["resource_code"] == str(resource_code)]
         resources = [brain._enrich_provider_resource_asset(item, store) for item in resources]
@@ -215,10 +215,13 @@ def _manage_resource_asset(
         raise InvalidStateError(f"unsupported resource action: {action}")
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
-        provider = brain._snapshot["provider"]
+        store = deps.state_store.database_store
+        # Action C — provider snapshot is read-then-mutated below (lines ~255);
+        # deps.view.provider.get() would return a deepcopy, breaking the in-place
+        # mutation. Use brain_legacy escape hatch until Action D retires the dict.
+        provider = deps.brain_legacy._snapshot["provider"]
         snapshot_resource = next((item for item in provider["resources"] if item["id"] == resource_id), None)
-        resource_record = store.resource_api_repo.get_asset(resource_id, tenant_id=_DEFAULT_TENANT_ID) if store is not None else None
+        resource_record = deps.repos.resource_api.get_asset(resource_id, tenant_id=_DEFAULT_TENANT_ID) if store is not None else None
         if snapshot_resource is None and resource_record is None:
             raise NotFoundError(resource_id)
         if action == "complete_field_evidence":

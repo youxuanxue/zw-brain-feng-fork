@@ -12,7 +12,6 @@ if TYPE_CHECKING:
     pass
 
 from zw_brain.command.deps import HandlerDeps, SkillContext
-from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -24,8 +23,7 @@ def _upsert_quality_rule(brain, deps, ctx, payload: dict[str, Any]) -> dict[str,
     rule_code = str(payload["rule_code"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
-        repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
+        repo = deps.repos.metadata_evidence  # Action C — deps.repos always wired (DB or in-memory fallback)
         quality_ref = f"quality-rule:{rule_code}"
         evidence = repo.upsert_quality_evidence(
             {
@@ -55,8 +53,7 @@ def _run_quality_task(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, An
     rule_code = str(payload["rule_code"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
-        repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
+        repo = deps.repos.metadata_evidence  # Action C — deps.repos always wired (DB or in-memory fallback)
         task_ref = f"quality-task:{rule_code}:{audit_id[:8]}"
         repo.upsert_quality_evidence(
             {
@@ -85,8 +82,7 @@ def _replay_quality_task(brain, deps, ctx, payload: dict[str, Any]) -> dict[str,
     previous_task_ref = str(payload["previous_task_ref"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
-        repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
+        repo = deps.repos.metadata_evidence  # Action C — deps.repos always wired (DB or in-memory fallback)
         replay_ref = f"quality-task:{rule_code}:replay:{audit_id[:8]}"
         repo.upsert_quality_evidence(
             {

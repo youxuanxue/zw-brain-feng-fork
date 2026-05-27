@@ -49,7 +49,7 @@ def _rollback_package(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, An
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     package_id = str(payload["package_id"])
-    item = brain._package_by_id(package_id)
+    item = deps.view.packages.find_by_id(package_id)
     current_version = item.get("registeredVersion") or item.get("version")
     target_version = str(payload.get("target_version") or item.get("rollbackTarget") or "")
     if not target_version:
@@ -77,9 +77,9 @@ def _rollback_package(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, An
         item["aiReview"]["summary"] = (
             f"已回滚到 {target_version}；上一活跃版本 {current_version} 入 rollbackTarget。"
         )
-        store = brain._state_store.database_store
+        store = deps.state_store.database_store
         if store is not None and hasattr(store, "capability_package_repo"):
-            store.capability_package_repo.upsert_from_package(item)
+            deps.repos.capability_package.upsert_from_package(item)
         deps.append_audit_feed("package.rollback", package_id, "ok", actor)
         return {
             "package_id": package_id,
@@ -112,7 +112,7 @@ def _update_package_trust_level(brain, deps, ctx, payload: dict[str, Any]) -> di
             f"trust_level must be one of {list(PACKAGE_TRUST_LEVELS)}; got {target_trust!r}"
         )
 
-    item = brain._package_by_id(package_id)
+    item = deps.view.packages.find_by_id(package_id)
     previous_trust = str(item.get("trustLevel") or "baseline")
     if previous_trust == target_trust:
         raise InvalidStateError(
@@ -128,9 +128,9 @@ def _update_package_trust_level(brain, deps, ctx, payload: dict[str, Any]) -> di
             f"能力包内置 trust_level: {previous_trust} → {target_trust}（业务字段，"
             f"与 AgentRuntime Registry trust_level 不同；F6 触发前 Registry 不存在）。"
         )
-        store = brain._state_store.database_store
+        store = deps.state_store.database_store
         if store is not None and hasattr(store, "capability_package_repo"):
-            store.capability_package_repo.upsert_from_package(item)
+            deps.repos.capability_package.upsert_from_package(item)
         deps.append_audit_feed("package.trust_level.update", package_id, "ok", actor)
         return {
             "package_id": package_id,

@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 
 from zw_brain.command.brain import NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
-from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
@@ -32,8 +31,8 @@ _DUPLICATE_LIFECYCLES = (
 def check_catalog_duplicate(brain: BrainService, catalog_code: str) -> dict[str, Any]:
     """Pure helper — read-only, no audit. Used both by the standalone skill and by
     `handler_catalog_entry_publish` to inline-attach `duplicate_warnings` to publish result."""
-    store = brain._state_store.database_store
-    repo = store.catalog_repo if store is not None else CatalogRepository()
+    deps = brain._get_handler_deps()  # Action C — recover deps for repo access
+    repo = deps.repos.catalog  # Action C — deps.repos always wired (DB or in-memory fallback)
     target = repo.get_entry(catalog_code, tenant_id=_DEFAULT_TENANT_ID)
     if target is None:
         raise NotFoundError(catalog_code)

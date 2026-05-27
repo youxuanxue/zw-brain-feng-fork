@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""check_no_silent_error_swallow_in_adapter.py — preflight 段 40
+"""check_no_silent_error_swallow_in_adapter.py — preflight 段 41
 
 CLAUDE.md §2 全局宪法禁止 silent error swallow。legacy adapter mappers 内
 `stats.add_issue(...) + continue` 模式表示「业务级跳过这一行」，必须配套写入

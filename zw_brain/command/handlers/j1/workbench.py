@@ -19,9 +19,12 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 # ──────────────────────────────────────────────────────────────────────────
 
 def _get_workbench(brain, deps, ctx, role: str) -> dict[str, Any]:
-    if role not in brain._snapshot["workbench"]:
+    # Action C — WorkbenchView.get_for_role defaults to {"todos": []} for missing
+    # roles; we need explicit NotFoundError, so go through brain_legacy escape
+    # hatch to keep the existence check. (Will retire with snapshot dict in Action D.)
+    if role not in deps.brain_legacy._snapshot["workbench"]:
         raise NotFoundError(role)
-    return copy.deepcopy(brain._snapshot["workbench"][role])
+    return deps.view.workbench.get_for_role(role)
 
 def _submit_service_rating(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     """申请人 完成交付后为本次共享服务打分（写入审计供 安全审计员 督查可见）。"""
@@ -32,7 +35,7 @@ def _submit_service_rating(brain, deps, ctx, payload: dict[str, Any]) -> dict[st
     comment = str(payload.get("comment", "")).strip()
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        task = brain._delivery_by_id(task_id) if task_id else None
+        task = deps.view.delivery.find_by_id(task_id) if task_id else None
         if task is not None:
             task.setdefault("rating", {})
             task["rating"]["score"] = score

@@ -30,7 +30,7 @@ def _create_ops_ticket(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, A
     assignee = str(payload.get("assignee", "")).strip() or "未指派"
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        ticket_id = f"TK-{clock.now_date()}-{len(brain._snapshot.get('tickets', [])) + 1:03d}"
+        ticket_id = f"TK-{clock.now_date()}-{len(deps.brain_legacy._snapshot.get('tickets', [])) + 1:03d}"
         ticket = {
             "id": ticket_id,
             "type": ticket_type,
@@ -40,7 +40,7 @@ def _create_ops_ticket(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, A
             "createdBy": actor,
             "createdAt": clock.now_datetime(),
         }
-        brain._snapshot.setdefault("tickets", []).insert(0, ticket)
+        deps.brain_legacy._snapshot.setdefault("tickets", []).insert(0, ticket)
         deps.append_audit_feed("ops.ticket.create", ticket_id, "ok", actor)
         return {"ticket": ticket, "audit_id": audit_id}
 
@@ -52,7 +52,7 @@ def _close_ops_ticket(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, An
     ticket_id = str(payload.get("ticket_id", "")).strip()
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        tickets = brain._snapshot.get("tickets", [])
+        tickets = deps.brain_legacy._snapshot.get("tickets", [])
         target = next((t for t in tickets if t.get("id") == ticket_id), None)
         if target is not None:
             target["status"] = "已关闭"
@@ -73,14 +73,14 @@ def _submit_shift_handover(brain, deps, ctx, payload: dict[str, Any]) -> dict[st
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         handover = {
-            "id": f"SH-{clock.now_date()}-{len(brain._snapshot.get('shift_handovers', [])) + 1:03d}",
+            "id": f"SH-{clock.now_date()}-{len(deps.brain_legacy._snapshot.get('shift_handovers', [])) + 1:03d}",
             "summary": summary,
             "pendingTickets": pending,
             "nextShiftAssignee": next_shift,
             "submittedBy": actor,
             "submittedAt": clock.now_datetime(),
         }
-        brain._snapshot.setdefault("shift_handovers", []).insert(0, handover)
+        deps.brain_legacy._snapshot.setdefault("shift_handovers", []).insert(0, handover)
         deps.append_audit_feed("ops.shift_handover.submit", handover["id"], "ok", actor)
         return {"handover": handover, "audit_id": audit_id}
 

@@ -63,9 +63,9 @@ def _evaluate_tenant_policy(brain, deps, ctx, payload: dict[str, Any]) -> dict[s
             "risk_context": risk_context,
         }
 
-    tenant_policy = None
-    if brain._state_store.database_store is not None:
-        tenant_policy = brain._state_store.database_store.capability_package_repo.get_policy(capability_id, tenant_id=tenant_id)
+    # Action C — deps.repos.capability_package: DB or in-memory fallback; in-memory
+    # returns None for unknown policy lookups, preserving prior None-check semantics.
+    tenant_policy = deps.repos.capability_package.get_policy(capability_id, tenant_id=tenant_id)
 
     registry_roles: list[str] = []
     for candidate_role in role_codes:

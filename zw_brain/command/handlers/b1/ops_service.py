@@ -29,9 +29,9 @@ def _query_service_invocations(
     capability_id: Any = None,
     metric_scope: Any = None,
 ) -> dict[str, Any]:
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     if store is None:
-        metrics = copy.deepcopy(brain._snapshot.get("service_invocation_metrics", []))
+        metrics = copy.deepcopy(deps.brain_legacy._snapshot.get("service_invocation_metrics", []))
         if resource_code:
             metrics = [item for item in metrics if item.get("resource_code") == resource_code]
         if capability_id:
@@ -41,7 +41,7 @@ def _query_service_invocations(
     else:
         metrics = [
             ops_metrics_ser.metric_to_dict(item)
-            for item in store.service_invocation_repo.list_metrics(
+            for item in deps.repos.service_invocation.list_metrics(
                 resource_code=str(resource_code) if resource_code else None,
                 capability_id=str(capability_id) if capability_id else None,
                 metric_scope=str(metric_scope) if metric_scope else None,
@@ -50,13 +50,13 @@ def _query_service_invocations(
     return {"items": metrics, "summary": brain._metric_summary(metrics)}
 
 def _query_service_report(brain, deps, ctx) -> dict[str, Any]:
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     if store is None:
-        gateways = copy.deepcopy(brain._snapshot.get("gateway_runtime_statuses", []))
-        metrics = copy.deepcopy(brain._snapshot.get("service_invocation_metrics", []))
+        gateways = copy.deepcopy(deps.brain_legacy._snapshot.get("gateway_runtime_statuses", []))
+        metrics = copy.deepcopy(deps.brain_legacy._snapshot.get("service_invocation_metrics", []))
     else:
-        gateways = [ops_metrics_ser.gateway_to_dict(item) for item in store.gateway_runtime_repo.list_statuses()]
-        metrics = [ops_metrics_ser.metric_to_dict(item) for item in store.service_invocation_repo.list_metrics()]
+        gateways = [ops_metrics_ser.gateway_to_dict(item) for item in deps.repos.gateway_runtime.list_statuses()]
+        metrics = [ops_metrics_ser.metric_to_dict(item) for item in deps.repos.service_invocation.list_metrics()]
     offline = sum(1 for item in gateways if item.get("status") != "online")
     metric_summary = brain._metric_summary(metrics)
     return {

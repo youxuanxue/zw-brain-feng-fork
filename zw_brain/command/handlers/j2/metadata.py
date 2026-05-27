@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import metadata as metadata_ser
-from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
@@ -67,12 +66,12 @@ def _discover_metadata_schema(brain, deps, ctx, payload: dict[str, Any]) -> dict
     return {"items": items, "total": len(items)}
 
 def _query_metadata_schema(brain, deps, ctx, *, resource_code: Any = None, binding_code: Any = None) -> dict[str, Any]:
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     if store is None:
         return {"items": [], "total": 0}
     items = [
         metadata_ser.schema_snapshot_to_dict(item)
-        for item in store.metadata_evidence_repo.list_schema_snapshots(
+        for item in deps.repos.metadata_evidence.list_schema_snapshots(
             resource_code=str(resource_code) if resource_code else None,
             binding_code=str(binding_code) if binding_code else None,
             tenant_id=_DEFAULT_TENANT_ID,
@@ -81,12 +80,12 @@ def _query_metadata_schema(brain, deps, ctx, *, resource_code: Any = None, bindi
     return {"items": items, "total": len(items)}
 
 def _query_metadata_catalog_items(brain, deps, ctx, *, resource_code: Any = None, catalog_code: Any = None, include_inactive: Any = True) -> dict[str, Any]:
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     if store is None:
         return {"items": [], "total": 0, "summary": brain._mapping_diagnostics([])["summary"], "catalogFields": []}
     catalog_code_text = str(catalog_code) if catalog_code else None
     diagnostics = brain._mapping_diagnostics(
-        store.metadata_evidence_repo.list_schema_mappings(
+        deps.repos.metadata_evidence.list_schema_mappings(
             resource_code=str(resource_code) if resource_code else None,
             catalog_code=catalog_code_text,
             include_inactive=str(include_inactive).lower() not in {"false", "0", "no"},
@@ -112,12 +111,12 @@ def _query_metadata_catalog_items(brain, deps, ctx, *, resource_code: Any = None
     return diagnostics | {"total": len(diagnostics["items"]), "catalogFields": []}
 
 def _query_metadata_lineage(brain, deps, ctx, *, resource_code: Any = None, relation_scope: Any = None) -> dict[str, Any]:
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     if store is None:
         return {"items": [], "total": 0}
     items = [
         metadata_ser.lineage_to_dict(item)
-        for item in store.metadata_evidence_repo.list_lineage_relations(
+        for item in deps.repos.metadata_evidence.list_lineage_relations(
             resource_code=str(resource_code) if resource_code else None,
             relation_scope=str(relation_scope) if relation_scope else None,
             tenant_id=_DEFAULT_TENANT_ID,
@@ -126,12 +125,12 @@ def _query_metadata_lineage(brain, deps, ctx, *, resource_code: Any = None, rela
     return {"items": items, "total": len(items)}
 
 def _query_metadata_gather_evidence(brain, deps, ctx, *, resource_code: Any = None, status: Any = None) -> dict[str, Any]:
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     if store is None:
         return {"items": [], "total": 0}
     items = [
         metadata_ser.gather_evidence_to_dict(item)
-        for item in store.metadata_evidence_repo.list_gather_evidence(
+        for item in deps.repos.metadata_evidence.list_gather_evidence(
             resource_code=str(resource_code) if resource_code else None,
             status=str(status) if status else None,
             tenant_id=_DEFAULT_TENANT_ID,
@@ -144,8 +143,7 @@ def _upsert_metadata_schema_snapshot(brain, deps, ctx, payload: dict[str, Any]) 
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
-        repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
+        repo = deps.repos.metadata_evidence  # Action C — deps.repos always wired (DB or in-memory fallback)
         snapshot = repo.upsert_schema_snapshot(payload)
         deps.append_audit_feed("metadata.schema.snapshot.upsert", snapshot.snapshot_ref, "ok", actor)
         return {"snapshot_ref": snapshot.snapshot_ref, "schema_hash": snapshot.schema_hash, "audit_id": audit_id}
@@ -157,8 +155,7 @@ def _upsert_metadata_gather_evidence(brain, deps, ctx, payload: dict[str, Any]) 
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
-        repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
+        repo = deps.repos.metadata_evidence  # Action C — deps.repos always wired (DB or in-memory fallback)
         evidence = repo.upsert_gather_evidence(payload)
         deps.append_audit_feed("metadata.gather.evidence.upsert", evidence.gather_task_ref, "ok", actor)
         return {"gather_task_ref": evidence.gather_task_ref, "status": evidence.status, "audit_id": audit_id}
@@ -170,8 +167,7 @@ def _upsert_metadata_lineage(brain, deps, ctx, payload: dict[str, Any]) -> dict[
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
-        repo = store.metadata_evidence_repo if store is not None else MetadataEvidenceRepository()
+        repo = deps.repos.metadata_evidence  # Action C — deps.repos always wired (DB or in-memory fallback)
         relation = repo.upsert_lineage_relation(payload)
         deps.append_audit_feed("metadata.lineage.upsert", relation.relation_ref, "ok", actor)
         return {"relation_ref": relation.relation_ref, "relation_type": relation.relation_type, "audit_id": audit_id}

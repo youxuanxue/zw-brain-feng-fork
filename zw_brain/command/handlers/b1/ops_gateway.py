@@ -39,9 +39,9 @@ def _ingest_gateway_heartbeat(brain, deps, ctx, payload: dict[str, Any]) -> dict
     }
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
+        store = deps.state_store.database_store
         if store is None:
-            statuses = brain._snapshot.setdefault("gateway_runtime_statuses", [])
+            statuses = deps.brain_legacy._snapshot.setdefault("gateway_runtime_statuses", [])
             current = next((item for item in statuses if item["gateway_instance_id"] == gateway_payload["gateway_instance_id"]), None)
             if current is None:
                 current = copy.deepcopy(gateway_payload)
@@ -50,7 +50,7 @@ def _ingest_gateway_heartbeat(brain, deps, ctx, payload: dict[str, Any]) -> dict
                 current.update(copy.deepcopy(gateway_payload))
             result = copy.deepcopy(current)
         else:
-            result = ops_metrics_ser.gateway_to_dict(store.gateway_runtime_repo.upsert_heartbeat(gateway_payload))
+            result = ops_metrics_ser.gateway_to_dict(deps.repos.gateway_runtime.upsert_heartbeat(gateway_payload))
         deps.append_audit_feed("ops.gateway.heartbeat", gateway_payload["gateway_instance_id"], "ok", actor)
         return result | {"audit_id": audit_id}
 
@@ -69,9 +69,9 @@ def _anchor_gateway_log(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, 
     }
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        store = brain._state_store.database_store
+        store = deps.state_store.database_store
         if store is not None:
-            store.legacy_mapping_repo.upsert_mapping(
+            deps.repos.legacy_mapping.upsert_mapping(
                 {
                     "source_ref": anchor_payload["source_ref"],
                     "legacy_object_ref": gateway_log_ref,

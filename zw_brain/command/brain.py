@@ -377,7 +377,7 @@ class BrainService:
         self._enforce_manifest_policy(skill_id, manifest, role, payload)
         # Action A: build per-call SkillContext + cached HandlerDeps. Handlers
         # signature is `(deps, ctx, payload)`; brain reverse-access goes
-        # through deps.brain_legacy.X (preflight 段 38 whitelists allowed surface).
+        # through deps.brain_legacy.X (preflight 段 40 whitelists allowed surface).
         ctx = self._build_skill_context(skill_id, role, payload, manifest)
         deps = self._get_handler_deps()
         if manifest.get("audit_required") and not manifest.get("side_effects"):
@@ -414,7 +414,7 @@ class BrainService:
     def _dispatch_skill(self, deps: Any, ctx: Any, payload: dict[str, Any]) -> Any:
         # F1 split (turn 6 收官): 全 185 cap 已注册到 DISPATCH_TABLE；命中即 return，未注册视为 unknown skill。
         # Action A 升级 2026-05-27: handler 接收 (deps, ctx, payload) 而非 (brain, skill_id, payload)；
-        # 未迁的 god-object surface 通过 deps.brain_legacy.X escape hatch（preflight 段 38 受控）。
+        # 未迁的 god-object surface 通过 deps.brain_legacy.X escape hatch（preflight 段 40 受控）。
         # Lazy import to break circular dep (brain → dispatch → handlers → brain.exceptions).
         from zw_brain.command import dispatch as _dispatch  # noqa: PLC0415
         handler = _dispatch.lookup(ctx.skill_id)

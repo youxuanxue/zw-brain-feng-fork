@@ -29,7 +29,7 @@ that handlers invoke via ``deps.pipeline.write(ctx, payload, fn)``. Adding
 a new cross-cutting becomes a new ``Middleware`` subclass + an entry in
 the registration order — zero edits to BrainService.
 
-Middleware order is fixed and machine-verified by preflight segment 41
+Middleware order is fixed and machine-verified by preflight segment 42
 (``scripts/check_pipeline_middleware_order.py``):
 
     1. PolicyMiddleware         — enforce manifest policy + confirmation gate
@@ -276,7 +276,7 @@ class AnchorMiddleware:
 # ───────────────────────────────────────────────────────────────────────────
 
 
-# Module-level constant so preflight segment 41 can mechanically verify
+# Module-level constant so preflight segment 42 can mechanically verify
 # the order at static analysis time (no runtime introspection needed).
 MIDDLEWARE_ORDER: tuple[str, ...] = (
     "PolicyMiddleware",

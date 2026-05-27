@@ -24,8 +24,8 @@ _MONITORING_DASHBOARD_LINK = "https://ops.gov-data.local/monitoring/credential-c
 
 def _issue_credential(brain, deps, ctx, request_id: str, role: str, confirmed: bool, *, reissue: bool = False) -> dict[str, Any]:
     """签发凭据 — 审批通过自动触发，或审批人/主管部门手工补签。"""
-    request = brain._request_by_id(request_id)
-    delivery = brain._delivery_by_request_id(request_id)
+    request = deps.view.requests.find_by_id(request_id)
+    delivery = deps.view.delivery.find_by_request_id(request_id)
     if delivery is None:
         raise NotFoundError(request_id)
     # 仅审批通过的 request 才能签发（前置守卫）。
@@ -72,7 +72,7 @@ def _issue_credential(brain, deps, ctx, request_id: str, role: str, confirmed: b
 def _get_credential(brain, deps, ctx, request_id: str, role: str) -> dict[str, Any]:
     """P4 凭据领取页查询入口 — 申请人 / 审批人 / 审计员都可查（无侧效，仅读）。"""
     # 权限校验由 manifest + enforce_manifest_policy 走 invoke_skill 路径处理
-    delivery = brain._delivery_by_request_id(request_id)
+    delivery = deps.view.delivery.find_by_request_id(request_id)
     if delivery is None:
         raise NotFoundError(request_id)
     snapshot = delivery.get("accessGrantSnapshot") or {}
@@ -87,7 +87,7 @@ def _get_credential(brain, deps, ctx, request_id: str, role: str) -> dict[str, A
     resource_id = delivery.get("resourceId")
     resource_name = delivery.get("resourceName")
     if not resource_name or not resource_id:
-        request = brain._request_by_id(request_id)
+        request = deps.view.requests.find_by_id(request_id)
         if request is not None:
             resource_name = resource_name or request.get("resourceName")
             resource_id = resource_id or request.get("resourceId")

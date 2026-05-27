@@ -23,12 +23,13 @@ def handler(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> An
 
 
 def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action B/C — recover deps for view/repo access
     query = query.strip()
-    store = brain._state_store.database_store
+    store = deps.state_store.database_store
     if store is None:
         haystack = query.lower()
         resources = []
-        for item in brain._snapshot["discovery"]["resources"]:
+        for item in deps.view.discovery.get_resources():  # Action C — read facade (deepcopies once)
             text = " ".join(
                 [
                     item["name"],
@@ -41,7 +42,7 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
             ).lower()
             if not haystack or haystack in text:
                 resources.append(copy.deepcopy(item))
-        for api_res in brain._snapshot.get("api_resources", []):
+        for api_res in deps.view.resources.list_api_resources():
             if api_res.get("lifecycle_status") in {"draft", "revoked"}:
                 continue
             summary = api_res.get("summary_json") or {}
@@ -72,7 +73,7 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
         # non-empty (would otherwise add 25 thin cards to every page load).
         if haystack:
             seen_ids = {r["id"] for r in resources}
-            recall = brain._snapshot.get("discovery", {}).get("recallDictionary", {})
+            recall = deps.view.discovery.get_recall_dictionary()
             for entry in recall.get("sample_titles", []):
                 title = entry.get("title", "")
                 if not title or haystack not in title.lower():
@@ -100,17 +101,17 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
                 )
     else:
         if not query:
-            resources = [copy.deepcopy(item) for item in brain._snapshot["discovery"]["resources"]]
+            resources = deps.view.discovery.get_resources()  # Action C — already deepcopied
         else:
             haystack = query.lower()
-            records = store.catalog_repo.search_entries(query, tenant_id=_DEFAULT_TENANT_ID)
+            records = deps.repos.catalog.search_entries(query, tenant_id=_DEFAULT_TENANT_ID)
             resources = [
                 brain._catalog_record_to_card_dict(record) | {"topicProjections": brain._catalog_topic_projection_cards(record.catalog_code, store)}
                 for record in records
                 if brain._catalog_is_discoverable(record, store)
             ]
             existing_ids = {r["id"] for r in resources}
-            for item in brain._snapshot["discovery"]["resources"]:
+            for item in deps.view.discovery.get_resources():  # Action C — read facade
                 text = " ".join(
                     [
                         item["name"],
@@ -127,7 +128,7 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
                     continue
                 existing_ids.add(item["id"])
                 resources.append(copy.deepcopy(item))
-            for api_res in brain._snapshot.get("api_resources", []):
+            for api_res in deps.view.resources.list_api_resources():
                 if api_res.get("lifecycle_status") in {"draft", "revoked"}:
                     continue
                 summary = api_res.get("summary_json") or {}
@@ -158,7 +159,7 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
                         "resource_kind": api_res.get("resource_kind"),
                     }
                 )
-            recall = brain._snapshot.get("discovery", {}).get("recallDictionary", {})
+            recall = deps.view.discovery.get_recall_dictionary()
             for entry in recall.get("sample_titles", []):
                 title = entry.get("title", "")
                 if not title or haystack not in title.lower():
