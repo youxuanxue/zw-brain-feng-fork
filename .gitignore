@@ -17,7 +17,7 @@ Thumbs.db
 __pycache__/
 .pytest_cache/
 *.pyc
-.venv/
+.venv
 .ruff_cache/
 *.egg-info/
 build/
@@ -36,10 +36,11 @@ htmlcov/
 !.env.example
 
 # ── Node (e.g. zw-brain-dashboard tooling) ─────────────────────
-node_modules/
+# 无尾斜杠：worktree 中常 `ln -s` 复用主 checkout 的依赖/数据，symlink 不被 `dir/` 匹配
+node_modules
 
 # ── Local runtime state ────────────────────────────────────────
-.data/
+.data
 .legacy_cache/
 
 # ── Claude local session state ─────────────────────────────────

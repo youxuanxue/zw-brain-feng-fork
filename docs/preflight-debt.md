@@ -18,6 +18,57 @@ trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / �
 目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
 trigger 关闭即可删除字段。
 
+## 2026-05-27 — J2-4 资源挂接 OPERATER 提交侧 wizard 立项延后
+
+- **Where**: `.testing/waves/wave-1-j1-j2-closed-loop/features/j2-resource-mount.feature`
+  Status: Backlog；`zw-brain-web/src/pages/` 0 个 `P5HookupSubmit*` / `P5ResourceMount*` 页面；
+  `zw_brain/skills/` 0 个 `resource.mount.*` / `hookup.create.*` skill。`P5HookupReviewInbox.vue`
+  是 BUSIAUDIT 审核侧入口，对应的「OPERATER 提交挂接」上游页未建。
+- **Implication**: J2-4 是 Wave-1 必备走线（基线 §3.3 三物化形式 table / file / api +
+  §10.2 J2 资源挂接 + 旧 xlsx 行 [57..61] 资源注册）。当前 OPERATER 在 P5Provider 上有
+  在线编制 / API 服务化 / 质量规则 wizard，但**为已发布目录补挂 table/file 物化资源**没有入口，
+  申请人 J1 只能拿到 api 物化的 catalog，table/file 形态完全走不通。
+- **Why deferred**: 涉及新 wizard page + composable + `resource.mount` skill（≥3 个 skill：
+  table/file/api 各一）+ data_resource 表（D23 二次升级删 alembic，需 drop&recreate）+
+  字段映射 / 字段类型一致性校验子表单。≥500 LOC 新代码，walkthrough 中临时实现会绕过原型审批流。
+- **Trigger to re-evaluate**: (a) 业务方提出"在线提交挂接"演示需求 → 走 product-dev.mdc
+  R13 + GATE 流程立项；(b) Wave-2 三引擎落地时如果发现 OPERATER 仍只能挂 api → 把 wizard
+  纳入三引擎 (R14) 作为表单引擎的首批落地场景（与发布审批同期）。
+- **Reserved names (taken)**: 当前 main 已存在 `P5HookupReviewInbox.vue`（审核侧 inbox，
+  BUSIAUDIT），新建提交侧 wizard 应命名为 `P5HookupSubmitWizard.vue` 或 `P5ResourceMountWizard.vue`
+  以避免与现有 inbox 撞类名 / route 前缀；route 建议 `/provider/wizard/hookup-submit`
+  （和现有 `/provider/inbox/hookup-review` 形成 submit↔review 对位）。
+- **UI placeholder (2026-05-27)**: P5Provider PageFocusHeader 已加灰链「资源挂接（Wave-1 ⏳）」
+  作为验收 walkthrough 时的可见占位，点击 toast "Wave-1 待立项"；不接路由。
+- **No mechanical preflight check (now)**: Wave 真实 gap，非漂移。trigger 触发当日按
+  product-dev.mdc 阶段 2 起原型 → GATE-2 审批后实施。
+
+## 2026-05-27 — B1.1-A 长期无人申请目录诊断立项延后
+
+- **Where**: `.testing/waves/wave-2-engines-b1-zones/features/b1-1-anomaly-detection.feature`
+  Status: Backlog（Pytest: pending）；`zw_brain/skills/` 0 个 `catalog.dormant.*` /
+  `dormant.diagnose.*` skill；`zw-brain-web/src/pages/B11ComplianceOps.vue` anomaly tab
+  仅显示「审计异常（read-sensitive 反复触发等）」，**不包含** feature 要求的「按发布时长 ×
+  申请数 二维诊断 → 建议下线 / 推广 / 观察」。
+- **Implication**: B1.1-A 是基线 §5.6 业务反馈 #14 兑现路径（"B1 后台旁路抽查长期无人申请的目录"），
+  也是 zw-brain 区分于"数据治理中心"的核心定位（仅基于自有的"申请数 + 发布时长"二维事实，
+  **不**包含数据质量评分 / 血缘分析 / 敏感识别 — 那些归集团数据治理 + 安全中心）。当前缺失
+  使得 BUSIAUDIT 旁路抽查能力没有具体抓手。
+- **Why deferred**: 涉及新 skill (`catalog.dormant.diagnose`) 真实扫 audit_event +
+  catalog status + 推送通知到 owner_org 部门管理员（D-编号 D-29 决策范围）+ 前端
+  panel + CSV 导出。≥400 LOC + tests。
+- **Trigger to re-evaluate**: (a) 业务方 sign-off Wave-2 ready 时优先考虑；
+  (b) 三引擎 (R14) 落地后用 AI 配置引擎的"draft" capability 自动生成诊断报表配置，
+  人工 promote 到 preview/live → 该路径作为三引擎首批应用场景；(c) 首个客户演练若
+  问起"长期无申请目录怎么办"立即升级 P0。
+- **Reserved names (taken)**: `B11ComplianceOps.vue` 当前 `activePanel` 4 值
+  `'statistics' | 'anomaly' | 'accountability' | 'replay'`，新建第 5 tab 应命名
+  `'dormant-catalog'` 而非 `'inactive'` / `'stale'`，与 feature 文件「长期无人申请」语义一致。
+- **UI placeholder (2026-05-27)**: B11ComplianceOps anomaly tab 顶部加灰条
+  「长期无人申请目录诊断（Wave-2 ⏳ 已立项）」+ 简短说明，作为验收 walkthrough 可见占位。
+- **No mechanical preflight check (now)**: Wave 真实 gap，非漂移。trigger 触发后实施
+  按 §10.3 三引擎落地 + R14 路径。
+
 ## 2026-05-26 — BrainService 残留读路径方法群下沉（brain.py god-class）
 
 - **Where**: `zw_brain/command/brain.py`（3462 LOC）拆分后 185 cap dispatcher 全迁出至 `dispatch.py`

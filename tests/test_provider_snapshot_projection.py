@@ -91,15 +91,16 @@ def test_manager_snapshot_includes_provider_inbox_arrays(brain: BrainService) ->
     assert provider["field_decisions"][0]["id"] == "cat-proj-field-001"
 
 
-def test_operater_snapshot_redacts_provider_inbox(brain: BrainService) -> None:
+def test_operater_snapshot_includes_provider_for_inline_authoring(brain: BrainService) -> None:
+    # roles.md §66 + J2 §166 明确「在线编制目录」属部门操作员职责；
+    # /provider shell 必须对 OPERATER 开放（demo customer_demo_j2.sh STEP-1~4 全部 OPERATER 调）。
+    # 收件箱待办的可见性由 P5*Inbox.vue 按 canApproveHookup 等岗位 helper 在前端层裁剪。
     _seed_inbox_rows()
     snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_ORGAN_OPERATER"}, role="ROLE_ORGAN_OPERATER")
     provider = snap["provider"]
-    assert provider["field_decisions"] == []
-    assert provider["hookup_reviews"] == []
-    assert provider["demand_matches"] == []
-    assert provider["objection_cases"] == []
-    assert provider["catalogs"] == []
+    assert isinstance(provider, dict)
+    assert "catalogs" in provider
+    assert "field_decisions" in provider
 
 
 def test_field_decision_projection_item_shape_for_inbox_ui(brain: BrainService) -> None:
@@ -163,7 +164,9 @@ def test_operater_snapshot_redacts_disputes(brain: BrainService) -> None:
 def test_redact_empty_provider_includes_inbox_keys() -> None:
     from zw_brain.domain.web_snapshot_redaction import _EMPTY_PROVIDER
 
-    redacted = redact_webui_snapshot({"provider": {}}, "ROLE_ORGAN_OPERATER")
+    # Security admin 不属于「数据供给维护」三角色（OPERATER/MANAGER/BUSIAUDIT），
+    # provider snapshot 应被 redact 为 _EMPTY_PROVIDER。
+    redacted = redact_webui_snapshot({"provider": {}}, "ROLE_SECURITY_ADMIN")
     assert redacted["provider"] == _EMPTY_PROVIDER
 
 

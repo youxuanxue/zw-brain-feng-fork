@@ -17,11 +17,15 @@ export async function skipUnlessBackend(page: Page, testInfo: TestInfo): Promise
 
 export async function waitAppReady(page: Page): Promise<void> {
   const loginBtn = page.locator('#login-gate-submit');
-  if ((await loginBtn.count()) > 0) {
+  const userMenu = page.locator('.user-menu-button');
+  await Promise.race([
+    loginBtn.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => null),
+    userMenu.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => null),
+  ]);
+  if (await loginBtn.isVisible().catch(() => false)) {
     await loginBtn.click();
-    await page.waitForTimeout(600);
   }
-  await page.waitForSelector('.user-menu-button', { timeout: 20_000 });
+  await page.waitForSelector('.user-menu-button', { timeout: 30_000 });
   await page.waitForSelector('#role-switch', { timeout: 30_000 });
 }
 
@@ -36,6 +40,33 @@ export async function gotoHash(page: Page, hash: string): Promise<void> {
     window.location.hash = h;
   }, hash);
   await page.waitForTimeout(800);
+}
+
+/** 取第一条真实存在的 catalog_code（用于异议 spec 等需要真值 ID 的场景）。 */
+export async function firstCatalogCode(page: Page): Promise<string | null> {
+  const resp = await page.request.post(`${E2E_BASE_URL}/api/skills/catalog.entry.query`, {
+    data: { role: 'ROLE_ORGAN_OPERATER', limit: 1, confirmed: true },
+  });
+  if (!resp.ok()) return null;
+  const body = (await resp.json()) as { items?: Array<{ catalog_code?: string }> };
+  return body.items?.[0]?.catalog_code ?? null;
+}
+
+/** 取第一条交付任务的 request_id；可选传 status filter，凭据三语样例需要 'granted' 才有 credential。 */
+export async function firstDeliveryRequestId(
+  page: Page,
+  statusFilter?: string,
+): Promise<string | null> {
+  const resp = await page.request.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
+  if (!resp.ok()) return null;
+  const body = (await resp.json()) as Record<string, unknown>;
+  const tasks = (body.delivery_tasks ?? []) as Array<Record<string, unknown>>;
+  for (const t of tasks) {
+    if (statusFilter && String(t.status ?? '') !== statusFilter) continue;
+    const reqId = String(t.requestId ?? t.request_id ?? '');
+    if (reqId) return reqId;
+  }
+  return null;
 }
 
 /** 确保至少一条待发布目录；多轮 e2e 发布后队列为空时自动从 pending_review 补一条。 */

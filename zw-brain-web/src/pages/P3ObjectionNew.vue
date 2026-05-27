@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { authFetch } from '@/composables/useAuth';
@@ -26,13 +27,21 @@ const TARGET_TYPES: TargetTypeConfig[] = [
   { value: 'resource', zh: OBJECTION_TYPE_ZH.resource, hint: '从资源库选一条', search: true, objectionKind: 'resource_quality' },
   { value: 'delivery', zh: OBJECTION_TYPE_ZH.delivery, hint: '从交付任务选一条', search: true, objectionKind: 'usage' },
   { value: 'authorization', zh: OBJECTION_TYPE_ZH.authorization, hint: '手填授权 ID（不在已列举库内不校验）', search: false, objectionKind: 'authorization' },
+  { value: 'content', zh: OBJECTION_TYPE_ZH.content, hint: '手填内容/记录 ID（如 record_id、字段内容指纹）', search: false, objectionKind: 'resource_quality' },
+  { value: 'use', zh: OBJECTION_TYPE_ZH.use, hint: '手填使用上下文 ID（如调用编号、消费方任务 ID）', search: false, objectionKind: 'usage' },
   { value: 'alert', zh: OBJECTION_TYPE_ZH.alert, hint: '手填告警事件 ID', search: false, objectionKind: 'resource_quality' },
 ];
 
 const role = getProductRole();
-const title = ref('');
-const targetType = ref<string>('catalog');
-const targetId = ref('');
+const route = useRoute();
+// query string 预填：?type=<dim>&id=<x>&title=<...>
+// P4 段「提资源异议」「提交付异议」入口跳来时一键带上上下文，避免用户手填
+// 用 ref 初值赋好，避免 watch(targetType) 触发清空 targetId
+const queryType = String(route.query.type ?? '');
+const validQueryType = TARGET_TYPES.some((t) => t.value === queryType) ? queryType : 'catalog';
+const title = ref(String(route.query.title ?? ''));
+const targetType = ref<string>(validQueryType);
+const targetId = ref(String(route.query.id ?? ''));
 const basis = ref('字段描述与底册不一致');
 const creating = ref(false);
 

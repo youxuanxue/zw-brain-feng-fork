@@ -48,6 +48,7 @@ async function reconcile(id: string) {
         :meta="headerMeta"
         :links="[
           { label: '申请进度', href: '#/request-flow' },
+          { label: '提异议', href: '#/request-flow/objection/new' },
           { label: '审计回放', href: '#/compliance-ops' },
         ]"
       />

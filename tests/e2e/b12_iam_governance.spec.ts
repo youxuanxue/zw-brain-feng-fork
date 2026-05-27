@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
+import { E2E_BASE_URL, gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
 
 test.describe('B1.2 身份治理验收 (#109)', () => {
   test.beforeEach(async ({ page }, testInfo) => {
@@ -38,12 +38,27 @@ test.describe('B1.2 身份治理验收 (#109)', () => {
   });
 
   test('P0: 待审核筛选 + 驳回所选', async ({ page }) => {
+    // 状态修改后的幂等性：动态取当前列表里的第一条 pending_review，禁止硬编码 ACCEPT-TEST-002
+    // （上轮 run 把它 reject 掉后，再 run 就找不到 → 死循环卡死）。每轮拿当前第一条就行。
+    const listResp = await page.request.post(`${E2E_BASE_URL}/api/skills/governance.policy_candidate.list`, {
+      data: {
+        role: 'ROLE_BUSIAUDIT',
+        confirmed: true,
+        limit: 5,
+        candidate_status: 'pending_review',
+      },
+    });
+    test.skip(!listResp.ok(), 'governance.policy_candidate.list not reachable');
+    const body = (await listResp.json()) as { items?: Array<{ legacy_permission_ref?: string }> };
+    const targetRef = body.items?.[0]?.legacy_permission_ref;
+    test.skip(!targetRef, 'no pending_review policy_candidate available to reject');
+
     await setRole(page, 'ROLE_BUSIAUDIT');
     await gotoHash(page, '#/integration-admin/iam-governance');
     await page.locator('.filter-row select.role-select').selectOption('pending_review');
     await page.waitForTimeout(1200);
-    await expect(page.locator('body')).toContainText('ACCEPT-TEST-002');
-    const row = page.locator('tr', { hasText: 'ACCEPT-TEST-002' });
+    await expect(page.locator('body')).toContainText(targetRef!);
+    const row = page.locator('tr', { hasText: targetRef! });
     await row.locator('input[type="checkbox"]').check();
     await page.getByRole('button', { name: '驳回所选' }).click();
     await page.waitForTimeout(1500);

@@ -17,6 +17,7 @@ export default defineConfig({
     'twin_browser_pages.spec.ts',
     'customer_acceptance_checklist.spec.ts',
     'b12_iam_governance.spec.ts',
+    'permission_invisibility.spec.ts',
   ],
   fullyParallel: false,
   workers: 1,

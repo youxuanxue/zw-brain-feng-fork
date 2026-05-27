@@ -13,6 +13,10 @@ const CSRF_HEADER = 'X-CSRF-Token';
 const BROADCAST_CHANNEL_NAME = 'zw-brain-auth';
 const REFRESH_CHECK_MS = 5 * 60 * 1000;
 const REFRESH_THRESHOLD_SECONDS = 60;
+// 任何业务 fetch 上限 15s：超时 → AbortError → 上层 composable catch → fixture/error toast。
+// 唯一 chokepoint，避免 17+ composable 各自补 timeout。escape hatch：调用方传
+// init.signal=null 显式禁用（当前无 long-poll/SSE 场景）。
+export const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 const PRODUCT_ROLE_CODES = [
   'ROLE_ORGAN_OPERATER',
   'ROLE_ORGAN_MANAGER',
@@ -296,6 +300,16 @@ export async function authFetch(input: string, init?: RequestInit): Promise<Resp
     headers.set(CSRF_HEADER, String(snapshot.csrf_token));
   }
   options.headers = headers;
+  // 注入 DEFAULT_FETCH_TIMEOUT_MS 上限；与调用方自带 signal 合并（任一中断即整体中断）。
+  // init.signal === null 时显式跳过 timeout（escape hatch，预留给未来 long-poll/SSE）。
+  if (init?.signal !== null) {
+    const timeoutSignal = AbortSignal.timeout(DEFAULT_FETCH_TIMEOUT_MS);
+    options.signal = init?.signal
+      ? AbortSignal.any([init.signal, timeoutSignal])
+      : timeoutSignal;
+  } else {
+    delete options.signal;
+  }
   const resp = await fetch(input, options);
   if (resp.status === 401) _clearSnapshot();
   return resp;

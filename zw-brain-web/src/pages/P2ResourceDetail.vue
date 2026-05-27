@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router';
 import { useResourceDetail } from '@/composables/useResourceDetail';
 import { invokeActionStub } from '@/composables/useActionStub';
 import { navigateToRequestDetail, resolveRequestIdFromAction } from '@/composables/useRequestNavigation';
+import { getProductRole } from '@/composables/useProductRole';
+import { canPerformAction } from '@/lib/pageAccess';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
@@ -12,6 +14,8 @@ import { mapDetailRows } from '@/lib/detailDisplay';
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
 const { resource, source, loading, fetchError } = useResourceDetail(() => id.value);
+// request.create 仅 OPERATER；MANAGER/BUSIAUDIT/SECURITY_AUDIT 在 P2 详情页不渲染「发起复用申请」
+const canApply = computed(() => canPerformAction('request.create', getProductRole().value));
 
 const displayName = computed(() => {
   const r = resource.value;
@@ -80,7 +84,7 @@ async function apply() {
         </ul>
       </section>
       <DetailActions>
-        <button type="button" class="gov-btn gov-btn-primary" data-skill="request.create" @click="apply">发起复用申请</button>
+        <button v-if="canApply" type="button" class="gov-btn gov-btn-primary" data-skill="request.create" @click="apply">发起复用申请</button>
         <a href="#/zones-pack" class="gov-btn gov-btn-secondary">看专题</a>
       </DetailActions>
     </section>

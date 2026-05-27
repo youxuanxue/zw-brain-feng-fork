@@ -17,6 +17,8 @@ import P4Delivery from '@/pages/P4Delivery.vue';
 import P4Credential from '@/pages/P4Credential.vue';
 import P4DeliveryTaskDetail from '@/pages/P4DeliveryTaskDetail.vue';
 import P5Provider from '@/pages/P5Provider.vue';
+import P5InlineCatalogWizard from '@/pages/P5InlineCatalogWizard.vue';
+import P5CatalogReviewInbox from '@/pages/P5CatalogReviewInbox.vue';
 import P5ReverseCatalogWizard from '@/pages/P5ReverseCatalogWizard.vue';
 import P5ApiServiceWizard from '@/pages/P5ApiServiceWizard.vue';
 import P5QualityRuleWizard from '@/pages/P5QualityRuleWizard.vue';
@@ -68,6 +70,8 @@ const routes: RouteRecordRaw[] = [
 
   // P5 提供方管理
   { path: '/provider', name: 'P5-provider', component: P5Provider, meta: { page: 'P5', title: 'P5 提供方管理' } },
+  { path: '/provider/wizard/inline-catalog', component: P5InlineCatalogWizard, meta: { page: 'P5', title: 'P5 在线编制目录' } },
+  { path: '/provider/inbox/catalog-review', component: P5CatalogReviewInbox, meta: { page: 'P5', title: 'P5 目录审核收件箱' } },
   { path: '/provider/wizard/reverse-catalog', component: P5ReverseCatalogWizard, meta: { page: 'P5', title: 'P5 反向编目向导' } },
   { path: '/provider/wizard/api-service', component: P5ApiServiceWizard, meta: { page: 'P5', title: 'P5 API 服务化向导' } },
   { path: '/provider/wizard/quality-rule', component: P5QualityRuleWizard, meta: { page: 'P5', title: 'P5 质量规则向导' } },
@@ -107,7 +111,9 @@ const router = createRouter({
 router.beforeEach((to) => {
   const role = getProductRole().value;
   if (isRouteAllowedForRole(to.path, role)) return true;
-  const fallback = defaultRouteForRole(role);
+  // 用 to.path 作 fromPath：用户主动想去这个路径，被拦时优先落到
+  // 同业务流水线的"对位下一站"（ROUTE_ROLE_OVERRIDES.redirectIfDenied）。
+  const fallback = defaultRouteForRole(role, to.path);
   if (to.path === fallback) return true;
   pushToast({ kind: 'warn', title: '无权访问该页面', detail: '已跳转到当前岗位可用入口' });
   return { path: fallback, replace: true };

@@ -7,6 +7,8 @@ import DetailActions from '@/components/DetailActions.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { deriveDemandMatches } from '@/lib/providerProjection';
 import { invokeActionStub } from '@/composables/useActionStub';
+import { getProductRole } from '@/composables/useProductRole';
+import { canPerformAction } from '@/lib/pageAccess';
 import { mapDetailRows } from '@/lib/detailDisplay';
 
 const route = useRoute();
@@ -17,6 +19,8 @@ const { source } = useSnapshot();
 const item = computed(() =>
   deriveDemandMatches(provider.value as Record<string, unknown>).find((d) => d.id === id.value),
 );
+// request.create 仅 OPERATER；MANAGER/BUSIAUDIT 见不到「受理并起草申请」
+const canAcceptDemand = computed(() => canPerformAction('request.create', getProductRole().value));
 
 const rows = computed(() => {
   const it = item.value;
@@ -60,7 +64,7 @@ async function acceptDemand() {
         <DetailPanel title="需求详情" :rows="rows" />
         <DetailActions>
           <button type="button" class="gov-btn gov-btn-secondary" @click="matchCatalog">检索匹配目录</button>
-          <button type="button" class="gov-btn gov-btn-primary" @click="acceptDemand">受理并起草申请</button>
+          <button v-if="canAcceptDemand" type="button" class="gov-btn gov-btn-primary" @click="acceptDemand">受理并起草申请</button>
         </DetailActions>
       </template>
       <p v-else-if="source === 'live'" class="focus-empty">未找到该需求编号。</p>

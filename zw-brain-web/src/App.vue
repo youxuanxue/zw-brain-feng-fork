@@ -92,7 +92,7 @@ async function onRoleChange(event: Event) {
   }
   const roleLabel = PRODUCT_ROLE_LABELS[chosen] ?? chosen;
   if (!isRouteAllowedForRole(router.currentRoute.value.path, currentRole.value)) {
-    const dest = defaultRouteForRole(currentRole.value);
+    const dest = defaultRouteForRole(currentRole.value, router.currentRoute.value.path);
     await router.replace(dest);
     pushToast({
       kind: 'info',

@@ -1,5 +1,6 @@
-node_modules/
-dist-vite/
+# 无尾斜杠：worktree 中常 `ln -s` 复用主 checkout，symlink 不被 `dir/` 匹配
+node_modules
+dist-vite
 .vite/
 *.local
 .DS_Store

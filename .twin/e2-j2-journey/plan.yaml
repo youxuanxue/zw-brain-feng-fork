@@ -109,15 +109,16 @@ items:
   - tests/test_wave1_customer_demo_j2.py — 6 passed（真库 seed 就位后）
   - provider/objection/p5 回归 pytest 12 passed + preflight PASS
   - tests/e2e/wave1_j2_provider_p5_smoke.py — exit 0（本 worktree dist-vite + 8801）
+  - '[2026-05-27] 业务方 sign-off 落盘——J2 business-signoff 人类关卡闭合'
   depends_on:
   - F1
   - F2
   - F3
   - F4
   - F5
-  status: pending
-  next_action: 业务方 sign-off（PR comment 或 issue label business-signoff）
-  blocked_reason: 业务方签字未落盘
+  status: completed
+  next_action: ''
+  blocked_reason: null
 - id: F7
   deliverable: provider snapshot 投影补全（field_decisions / hookup_reviews / demand_matches）
   scope: system.snapshot 或 web_snapshot_redaction 输出与 P5Provider.vue 契约对齐

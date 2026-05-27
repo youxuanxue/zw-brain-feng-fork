@@ -38,7 +38,8 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     key: 'provider',
     navLabel: '维护数据供给',
     to: '/provider',
-    roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
+    // ROLE_ORGAN_OPERATER：roles §66 / J2 §166 明确「在线编制」属操作员职责，须能进 /provider shell。
+    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   },
   {
     key: 'compliance-ops',

@@ -3,6 +3,8 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { lookupRequest, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
+import { getProductRole } from '@/composables/useProductRole';
+import { canPerformAction } from '@/lib/pageAccess';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
@@ -52,6 +54,8 @@ const headerMeta = computed(() => {
 });
 
 const rawStatus = computed(() => String(req.value?.status ?? '').trim());
+// request.submit 仅 OPERATER；MANAGER 进申请详情时不渲染「补件 / 重新提交」按钮
+const canSubmitRequest = computed(() => canPerformAction('request.submit', getProductRole().value));
 const canResubmit = computed(() => rawStatus.value === 'need-fix');
 const canWithdraw = computed(() => ['pending', 'need-fix', 'draft'].includes(rawStatus.value));
 
@@ -98,6 +102,7 @@ async function supplement() {
       </p>
       <DetailActions>
         <button
+          v-if="canSubmitRequest"
           type="button"
           class="gov-btn gov-btn-primary"
           @click="supplement"

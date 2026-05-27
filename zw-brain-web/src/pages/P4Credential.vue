@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import { authFetch } from '@/composables/useAuth';
 import { invokeActionStub } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
+import { canPerformAction } from '@/lib/pageAccess';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
@@ -35,6 +36,8 @@ const reqId = computed(() => String(route.params.id ?? ''));
 const credentialView = ref<CredentialQueryView | null>(null);
 const sampleView = ref<SampleRenderView | null>(null);
 const error = ref<string | null>(null);
+// 共性「无权 = 不可见」：credential.issue 仅 MANAGER+BUSIAUDIT，OPERATER 不应看到「重新签发」按钮
+const canReissue = computed(() => canPerformAction('credential.issue', getProductRole().value));
 
 async function load() {
   error.value = null;
@@ -88,6 +91,22 @@ const curlSample = computed(() => sampleView.value?.samples?.curl ?? '');
 const pythonSample = computed(() => sampleView.value?.samples?.python ?? '');
 const javaSample = computed(() => sampleView.value?.samples?.java ?? '');
 
+// 「提异议」入口拆两路：资源维度（带 resource_id）+ 交付维度（带 request_id）。
+// resource_id 在 view 装载后才有，未到位时只给交付维度入口。
+const objectionLinks = computed(() => {
+  const links: { label: string; href: string }[] = [];
+  const req = encodeURIComponent(reqId.value);
+  if (req) {
+    links.push({ label: '提交付异议', href: `#/request-flow/objection/new?type=delivery&id=${req}` });
+  }
+  const resId = credentialView.value?.resource_id;
+  if (resId) {
+    const r = encodeURIComponent(String(resId));
+    links.push({ label: '提资源异议', href: `#/request-flow/objection/new?type=resource&id=${r}` });
+  }
+  return links;
+});
+
 async function reissue() {
   await invokeActionStub({
     skillId: 'credential.issue',
@@ -102,7 +121,11 @@ async function reissue() {
   <main class="focus-page focus-detail">
     <nav class="crumbs"><a href="#/delivery-exchange">← 交付任务</a></nav>
     <section class="panel">
-      <PageFocusHeader :title="`${reqId} 凭据`" meta="API Key · 调用样例 · 配额与监控" />
+      <PageFocusHeader
+        :title="`${reqId} 凭据`"
+        meta="API Key · 调用样例 · 配额与监控"
+        :links="objectionLinks"
+      />
       <p v-if="error" class="focus-empty">{{ error }}</p>
       <DetailPanel v-if="rows.length" title="凭据要素" :rows="rows" />
 
@@ -124,7 +147,7 @@ async function reissue() {
         <a :href="sampleView.monitoring_link" target="_blank" rel="noopener noreferrer">打开运维监控</a>
       </p>
       </section>
-      <DetailActions>
+      <DetailActions v-if="canReissue">
         <button type="button" class="gov-btn gov-btn-primary" @click="reissue">重新签发</button>
       </DetailActions>
     </section>

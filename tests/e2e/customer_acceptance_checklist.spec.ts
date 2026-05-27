@@ -1,5 +1,14 @@
 import { test, expect } from '@playwright/test';
-import { E2E_BASE_URL, ensurePublishQueue, gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
+import {
+  E2E_BASE_URL,
+  ensurePublishQueue,
+  firstCatalogCode,
+  firstDeliveryRequestId,
+  gotoHash,
+  setRole,
+  skipUnlessBackend,
+  waitAppReady,
+} from './helpers';
 
 /**
  * PR #108 客户验收清单 — 逐条映射上帝视角验收表。
@@ -45,10 +54,13 @@ test.describe('客户验收 — 部门操作员 J1', () => {
   });
 
   test('P3 异议：新建 → 详情 → 提交至平台', async ({ page }) => {
+    // D11：target_id 必须存在于库内；动态取第一条真实 catalog_code，禁止硬编码 fixture id
+    const code = await firstCatalogCode(page);
+    test.skip(!code, 'no catalog row available in DB to anchor objection');
     const title = `验收异议-${Date.now()}`;
     await gotoHash(page, '#/request-flow/objection/new');
     await page.locator('#title').fill(title);
-    await page.locator('#target').fill('CAT-ACCEPT-001');
+    await page.locator('#target').fill(code!);
     await page.getByRole('button', { name: '创建异议' }).click();
     await expect(page).toHaveURL(/#\/request-flow\/objection\/[^/]+$/, { timeout: 10_000 });
     await expect(page.getByRole('button', { name: '提交至平台' })).toBeVisible();
@@ -91,8 +103,11 @@ test.describe('客户验收 — 部门操作员 J1', () => {
   });
 
   test('P4 凭据三语样例可读', async ({ page }) => {
-    await gotoHash(page, '#/delivery-exchange/credential/REQ-2026-05-25-0001');
-    await expect(page.getByRole('heading', { name: /REQ-2026-05-25-0001.*凭据/ })).toBeVisible();
+    // D11：request_id 必须存在于库内；三语样例仅在 credential 已签发（status=granted）时返回
+    const reqId = await firstDeliveryRequestId(page, 'granted');
+    test.skip(!reqId, 'no granted delivery_task with issued credential in snapshot');
+    await gotoHash(page, `#/delivery-exchange/credential/${reqId}`);
+    await expect(page.getByRole('heading', { name: new RegExp(`${reqId}.*凭据`) })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'curl', exact: true })).toBeVisible({ timeout: 12_000 });
     await expect(page.getByRole('heading', { name: 'Python', exact: true })).toBeVisible();
     await expect(page.locator('.code-block').first()).toContainText('curl');
@@ -107,12 +122,15 @@ test.describe('客户验收 — 部门管理员 J2', () => {
     await setRole(page, 'ROLE_ORGAN_MANAGER');
   });
 
-  test('P5 四卡待办非零且可点', async ({ page }) => {
+  test('P5 J2 可见待办卡非零且可点', async ({ page }) => {
+    // J2-7 chokepoint：MANAGER 在 P5Provider 仅可见自己有权进的待办卡（demand-match + objection），
+    // 不再固定四卡 — 数量由 filterByRouteAccess 决定。
     await gotoHash(page, '#/provider');
     await expect(page.getByRole('heading', { name: '提供方管理' })).toBeVisible();
     const cards = page.locator('.stat-card');
-    await expect(cards).toHaveCount(4);
-    for (let i = 0; i < 4; i++) {
+    const count = await cards.count();
+    expect(count).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
       const card = cards.nth(i);
       const n = await card.locator('strong').textContent();
       expect(Number(n ?? 0)).toBeGreaterThan(0);

@@ -14,7 +14,16 @@ from typing import Any
 _DISCOVERY = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"})
 _REQUEST = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"})
 _DELIVERY = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"})
-_PROVIDER = frozenset({"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"})
+# provider snapshot 是 "shell + sub-key" 两层鉴权：
+#   _PROVIDER_FULL：见全部 sub-keys（catalogs + 各 reviewer/responder 待办）。
+#   _PROVIDER_PARTIAL：只看 _PROVIDER_PARTIAL_KEYS 列出的 sub-keys（J2 在线编制 OPERATER 视角）。
+#   其他 role：整个 provider dict empty。
+# 与 zw-brain-web/src/lib/pageAccess.ts ROUTE_ROLE_OVERRIDES 对齐：
+# MANAGER/BUSIAUDIT 进所有 /provider/inbox/*；OPERATER 只进 /provider + /provider/wizard/inline-catalog，
+# wizard 提交后 P5Provider 顶层展示「我的目录」，故只需 catalogs。
+_PROVIDER_FULL = frozenset({"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"})
+_PROVIDER_PARTIAL = frozenset({"ROLE_ORGAN_OPERATER"})
+_PROVIDER_PARTIAL_KEYS = frozenset({"catalogs"})
 _COMPLIANCE = frozenset(
     {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SECURITY_ADMIN", "ROLE_SYSTEM"}
 )
@@ -64,7 +73,17 @@ def redact_webui_snapshot(full: dict[str, Any], role: str) -> dict[str, Any]:
         out["approvals"] = []
     if role not in _DELIVERY:
         out["delivery_tasks"] = []
-    if role not in _PROVIDER:
+    if role in _PROVIDER_FULL:
+        pass  # 保留完整 provider 视图
+    elif role in _PROVIDER_PARTIAL:
+        # 仅保留 _PROVIDER_PARTIAL_KEYS 列出的 sub-keys，其余清空到 _EMPTY_PROVIDER 默认。
+        current = out.get("provider") or {}
+        partial = copy.deepcopy(_EMPTY_PROVIDER)
+        for key in _PROVIDER_PARTIAL_KEYS:
+            if key in current:
+                partial[key] = current[key]
+        out["provider"] = partial
+    else:
         out["provider"] = copy.deepcopy(_EMPTY_PROVIDER)
     if role not in _COMPLIANCE:
         out["disputes"] = []

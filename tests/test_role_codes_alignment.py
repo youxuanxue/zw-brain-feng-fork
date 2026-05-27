@@ -49,7 +49,13 @@ def test_server_bypass_roles_aligned_with_role_codes():
 def test_web_snapshot_redaction_uses_only_known_roles():
     from zw_brain.domain import role_codes, web_snapshot_redaction
     known = set(role_codes.BUSINESS_ROLE_CODES)
-    for frozenset_name in ("_DISCOVERY", "_REQUEST", "_DELIVERY", "_PROVIDER", "_COMPLIANCE", "_ZONES", "_CAPABILITY", "_OPS"):
+    # provider 拆为 _PROVIDER_FULL（MANAGER+BUSIAUDIT 见所有 sub-keys）
+    # 与 _PROVIDER_PARTIAL（OPERATER 仅见 catalogs），两个 frozenset 都需对齐角色码。
+    for frozenset_name in (
+        "_DISCOVERY", "_REQUEST", "_DELIVERY",
+        "_PROVIDER_FULL", "_PROVIDER_PARTIAL",
+        "_COMPLIANCE", "_ZONES", "_CAPABILITY", "_OPS",
+    ):
         s = getattr(web_snapshot_redaction, frozenset_name)
         unknown = set(s) - known
         assert not unknown, (

@@ -34,6 +34,12 @@ const headerMeta = computed(() => {
   return formatTodoStatus(String(taskRef.value.status ?? ''));
 });
 
+// 「提异议」入口默认带 type=delivery+id；用户在 P3ObjectionNew 仍可改维度
+const objectionLink = computed(() => {
+  const tid = encodeURIComponent(id.value);
+  return `#/request-flow/objection/new?type=delivery&id=${tid}`;
+});
+
 async function openCredential() {
   const reqId = String(taskRef.value?.requestId ?? '');
   if (reqId) window.location.hash = `#/delivery-exchange/credential/${reqId}`;
@@ -52,7 +58,11 @@ async function reconcile() {
   <main class="focus-page focus-detail">
     <nav class="crumbs"><a href="#/delivery-exchange">← 交付任务列表</a></nav>
     <section class="panel">
-      <PageFocusHeader :title="`交付任务 ${id}`" :meta="headerMeta" />
+      <PageFocusHeader
+        :title="`交付任务 ${id}`"
+        :meta="headerMeta"
+        :links="[{ label: '提异议', href: objectionLink }]"
+      />
       <DetailPanel v-if="rows.length" title="任务详情" :rows="rows" />
       <p v-else-if="source === 'live'" class="focus-empty">未找到该交付任务。</p>
       <p v-else class="focus-empty">等待数据装载……</p>
