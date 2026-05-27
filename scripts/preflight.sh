@@ -96,6 +96,7 @@ done <<'CHECKS'
 段 41	scripts/check_no_silent_error_swallow_in_adapter.py	no-silent-error-swallow-in-adapter (CLAUDE.md §2 — mapper add_issue+continue 必须经 finish_run 写 error_summary)
 段 42	scripts/check_pipeline_middleware_order.py	pipeline-middleware-order (SkillPipeline middleware 顺序与 MIDDLEWARE_ORDER 一致 — Action B)
 段 43	scripts/check_handler_uses_pipeline.py	handler-uses-pipeline (handler 不得调 brain._mutate / _invoke_traced_read / _append_audit_feed，必须走 deps.pipeline — Action B)
+段 44	scripts/check_approved_doc_drift.py	approved-doc-drift (D32.d — D-编号决策真值源回灌守卫，PR-mode WARN-only)
 CHECKS
 
 echo ""
