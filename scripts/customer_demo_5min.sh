@@ -2,7 +2,8 @@
 # zw-brain 5 分钟客户演示路径（ITEM-02 of customer-delivery-final-mile）
 #
 # 一条命令把客户从 zero 带到『真数据找到 → 申请提交 → 审批通过 → 审计可证』。
-# 5 段真数据 curl：R1 浏览 → R1 详情 → R1 申请 → R2 审批 → R8 审计。
+# 5 段真数据 curl：ROLE_ORGAN_OPERATER 浏览 → 详情 → 申请 → ROLE_ORGAN_MANAGER 审批 → ROLE_BUSIAUDIT 审计。
+# 角色码遵循 D23（2026-05-19）：r1-r8 退役，BSP 7-code ROLE_* 体系。
 #
 # Stop conditions:
 #   - 任一 step 5xx 或 jq 解析失败 → exit 1
@@ -135,17 +136,17 @@ call() {
 }
 
 # ---------- 5 steps ----------
-step "[1/5] R1 浏览：真目录（catalog.browse）"
+step "[1/5] ROLE_ORGAN_OPERATER 浏览：真目录（catalog.browse）"
 # Jobs 视角：客户老板第一眼必须看到真业务目录（医保码信息 / 停车场信息 / 医疗救助信息 等），
 # 不能看到 legacy 测试条目（'dhhddhhdddddd' / UUID hex 字符串）。
 # 真业务目录名 99% 含『信息』关键字（见 .experiences/README.md 样例清单），用 query=信息 精准锁定。
 # fallback：若 query 命中 0，退回原默认浏览。
-BROWSE=$(call GET "$API/catalog.browse?lifecycle=all&limit=10&query=%E4%BF%A1%E6%81%AF&role=r1") \
+BROWSE=$(call GET "$API/catalog.browse?lifecycle=all&limit=10&query=%E4%BF%A1%E6%81%AF&role=ROLE_ORGAN_OPERATER") \
   || fail "catalog.browse 失败" "确认 canonical db 存在且非空 (re-run scripts/customer_acceptance_up.sh)"
 TOTAL=$(printf '%s' "$BROWSE" | jq -r '.total // 0')
 if (( TOTAL == 0 )); then
   note "query=信息 命中 0，回退到默认浏览"
-  BROWSE=$(call GET "$API/catalog.browse?lifecycle=all&limit=10&role=r1")
+  BROWSE=$(call GET "$API/catalog.browse?lifecycle=all&limit=10&role=ROLE_ORGAN_OPERATER")
   TOTAL=$(printf '%s' "$BROWSE" | jq -r '.total // 0')
 fi
 # 选 active 中首条；title 在 query=信息 模式下已 implicit 过滤为真业务名
@@ -154,12 +155,12 @@ FIRST_CATALOG=$(printf '%s' "$BROWSE" | jq -r \
 FIRST_NAME=$(printf '%s' "$BROWSE" | jq -r \
   --arg c "$FIRST_CATALOG" 'first(.items[] | select((.catalog_code // .id) == $c) | (.title // .name)) // "(无)"')
 printf '%s' "$BROWSE" | jq '{total, head: (.items[:3] | map({code: (.catalog_code // .id), title: (.title // .name), lifecycle_status, owner_org_id}))}'
-ok "真目录命中=$TOTAL（query=信息）; 演示首选='$FIRST_NAME' ($FIRST_CATALOG)"
+ok "真目录命中=${TOTAL}（query=信息）; 演示首选='${FIRST_NAME}' (${FIRST_CATALOG})"
 (( TOTAL > 0 )) || fail "catalog 为空" "重跑 scripts/customer_acceptance_up.sh"
 [[ -n "$FIRST_CATALOG" ]] || fail "无 catalog_code" "看上一步 BROWSE 原文，可能 schema 变了"
 
-step "[2/5] R1 详情：$FIRST_CATALOG 真目录字段（catalog.resource_view）"
-VIEW_BODY=$(jq -n --arg rid "$FIRST_CATALOG" '{resource_id:$rid,role:"r1"}')
+step "[2/5] ROLE_ORGAN_OPERATER 详情：$FIRST_CATALOG 真目录字段（catalog.resource_view）"
+VIEW_BODY=$(jq -n --arg rid "$FIRST_CATALOG" '{resource_id:$rid,role:"ROLE_ORGAN_OPERATER"}')
 DETAIL=$(call POST "$API/catalog.resource_view" "$VIEW_BODY") \
   || fail "catalog.resource_view 失败 (resource_id=$FIRST_CATALOG)" \
      "在上一步输出里 jq '.items[].catalog_code' 看可用 code"
@@ -167,14 +168,14 @@ printf '%s' "$DETAIL" | jq '{id, name, status, fields_count: (.fields // [] | le
 FIELD_COUNT=$(printf '%s' "$DETAIL" | jq '.fields // [] | length')
 ok "真目录详情字段数=$FIELD_COUNT (status=$(printf '%s' "$DETAIL" | jq -r .status))"
 
-step "[3/5] R1 申请：res-market-activity（application.resource.submit）"
+step "[3/5] ROLE_ORGAN_OPERATER 申请：res-market-activity（application.resource.submit）"
 SUBMIT_RESOURCE="res-market-activity"
 SUBMIT_BODY=$(jq -n --arg rid "$SUBMIT_RESOURCE" --arg q "5 分钟客户演示 — 市营商环境专班复用市场主体活跃度" \
-  '{resource_id:$rid,role:"r1",confirmed:true,query:$q}')
+  '{resource_id:$rid,role:"ROLE_ORGAN_OPERATER",confirmed:true,query:$q}')
 # 演示幂等：DB 跨重启保留 pending request。若 res-market-activity 已有 pending，复用之，跳过 submit。
 REUSED=0
 REQ_ID=""
-LIST=$(call GET "$API/request.list?role=r1" 2>/dev/null || printf '{}')
+LIST=$(call GET "$API/request.list?role=ROLE_ORGAN_OPERATER" 2>/dev/null || printf '{}')
 EXISTING=$(printf '%s' "$LIST" | jq -r --arg rid "$SUBMIT_RESOURCE" \
   '.items[]? | select((.resourceId // .resource_id // "") == $rid and (.status // "") == "pending") | (.id // .request_id) // empty' | head -1)
 if [[ -n "$EXISTING" ]]; then
@@ -190,29 +191,29 @@ else
 fi
 ok "$([[ $REUSED -eq 1 ]] && echo "复用 pending 申请" || echo "新建申请"): request_id=$REQ_ID"
 
-step "[4/5] R2 审批：通过申请（approval.review_decide）"
+step "[4/5] ROLE_ORGAN_MANAGER 审批：通过申请（approval.review_decide）"
 APPROVE_BODY=$(jq -n --arg rid "$REQ_ID" \
-  '{request_id:$rid,decision:"approve",role:"r2",confirmed:true}')
+  '{request_id:$rid,decision:"approve",role:"ROLE_ORGAN_MANAGER",confirmed:true}')
 APPROVE=$(call POST "$API/approval.review_decide" "$APPROVE_BODY") \
   || fail "approval.review_decide 失败" "确认 request_id=$REQ_ID 仍为 pending（被多次审批会拒）"
 printf '%s' "$APPROVE" | jq '{ok, audit_id, decision: .result.decision, status: .result.status}'
 ok "审批通过：audit_id=$(printf '%s' "$APPROVE" | jq -r '.audit_id // "n/a"')"
 
-step "[5/5] R8 审计：审计事件流（audit.list）"
-AUDIT=$(call POST "$API/audit.list" '{"role":"r8"}') \
+step "[5/5] ROLE_BUSIAUDIT 审计：审计事件流（audit.list）"
+AUDIT=$(call POST "$API/audit.list" '{"role":"ROLE_BUSIAUDIT"}') \
   || fail "audit.list 失败" "审计落库异常 → 排查 brain_state.json / audit repo"
 EVT_COUNT=$(printf '%s' "$AUDIT" | jq '.items | length')
 printf '%s' "$AUDIT" | jq '{count: (.items | length), tail5: (.items[-5:] | map({audit_id: .id, type, actor, time, target}))}'
-ok "审计事件总数=$EVT_COUNT (含本次 R1 提交/R2 审批/R8 查询)"
+ok "审计事件总数=$EVT_COUNT (含本次 OPERATER 提交/MANAGER 审批/BUSIAUDIT 查询)"
 
 # ---------- summary ----------
 step "demo done — 一句话总结"
 cat <<EOF
-  R1 浏览到 ${TOTAL} 条真目录条目（含 ${FIRST_NAME} 等）；
-  R1 看到 ${FIRST_CATALOG} 详情（${FIELD_COUNT} 字段）；
-  R1 提交申请 ${REQ_ID}；
-  R2 一键通过；
-  R8 审计回看到 ${EVT_COUNT} 条事件链。
+  ROLE_ORGAN_OPERATER 浏览到 ${TOTAL} 条真目录条目（含 ${FIRST_NAME} 等）；
+  ROLE_ORGAN_OPERATER 看到 ${FIRST_CATALOG} 详情（${FIELD_COUNT} 字段）；
+  ROLE_ORGAN_OPERATER 提交申请 ${REQ_ID}；
+  ROLE_ORGAN_MANAGER 一键通过；
+  ROLE_BUSIAUDIT 审计回看到 ${EVT_COUNT} 条事件链。
   浏览器入口：http://${REST_HOST}:${REST_PORT}/  (用 dev-bypass 登录)
   剧本：docs/release-notes/customer-demo-5min.md
   完整 log：${LOG}

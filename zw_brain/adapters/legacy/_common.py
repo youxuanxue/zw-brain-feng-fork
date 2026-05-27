@@ -34,7 +34,21 @@ class ImportStats:
     def bump_target(self, target: str) -> None:
         self.target_counts[target] = self.target_counts.get(target, 0) + 1
 
-    def add_issue(self, issue_type: str, table: str, legacy_ref: Any, detail: dict[str, Any] | None = None) -> None:
+    def add_issue(
+        self,
+        issue_type: str,
+        table: str,
+        legacy_ref: Any,
+        detail: dict[str, Any] | None = None,
+        *,
+        severity: str = "error",
+    ) -> None:
+        # severity="warn" means business-level fail-closed (e.g. missing_manifest rows skipped on
+        # purpose); these don't contribute to adapter_run_record.failure_count and don't bump the
+        # run to partial_failure, but they DO appear in error_summary so the receipt is never silent.
+        # severity="error" is the default (technical issues — malformed row, unmapped permission).
+        if severity not in {"error", "warn"}:
+            raise ValueError(f"invalid issue severity: {severity!r}")
         self.issues.append(
             safe_json(
                 {
@@ -42,6 +56,7 @@ class ImportStats:
                     "table": table,
                     "legacy_ref": str(legacy_ref or ""),
                     "detail": detail or {},
+                    "severity": severity,
                 }
             )
         )
@@ -137,11 +152,21 @@ def finish_run(
     """Write the AdapterRunRecord that closes a mapper's import batch.
 
     Identical block repeated in every mapper before this helper existed.
+
+    `error_summary` is **always** populated when any issue exists (errors OR warns),
+    so partial_failure runs never carry `error_summary=None` (silent swallow ban —
+    CLAUDE.md §2). warn-level issues (business-level fail-closed, e.g. missing_manifest
+    rows skipped on purpose) DO NOT contribute to failure_count and the run stays
+    `succeeded`; they appear in error_summary's `business_skips` section for audit.
     """
     schema = schema_from_dump_name(dump_path.name)
     finished_at = datetime.now(UTC)
-    failure_count = sum(v for k, v in stats.counts.items() if k.endswith(".errors")) + len(stats.issues)
+    error_issues = [item for item in stats.issues if item.get("severity", "error") == "error"]
+    warn_issues = [item for item in stats.issues if item.get("severity", "error") == "warn"]
+    technical_error_rows = sum(v for k, v in stats.counts.items() if k.endswith(".errors"))
+    failure_count = technical_error_rows + len(error_issues)
     imported_count = sum(v for k, v in stats.counts.items() if k.endswith(".imported"))
+    error_summary = _build_error_summary(error_issues, warn_issues, technical_error_rows)
     adapter_repo.upsert_run_record(
         {
             "adapter_slug": adapter_slug,
@@ -157,7 +182,46 @@ def finish_run(
                 "started_at": started_at.isoformat(),
                 "finished_at": finished_at.isoformat(),
             },
+            "error_summary": error_summary,
             "finished_at": finished_at,
         },
         tenant_id=tenant_id,
     )
+
+
+def _build_error_summary(
+    error_issues: list[dict[str, Any]],
+    warn_issues: list[dict[str, Any]],
+    technical_error_rows: int,
+) -> str | None:
+    """Compose a text breakdown for adapter_run_record.error_summary.
+
+    Returns None only when nothing is wrong (no issues + zero .errors rows).
+    Otherwise returns multi-line text with two sections so downstream can tell
+    "rows silently dropped fail-closed" from "rows failed to import":
+
+        technical_errors: <N> (<table>.<type>=<count>, ...)
+        business_skips: <M> (<table>.<type>=<count>, ...)
+    """
+    if not error_issues and not warn_issues and technical_error_rows == 0:
+        return None
+
+    def _breakdown(items: list[dict[str, Any]]) -> str:
+        if not items:
+            return ""
+        counts: dict[str, int] = {}
+        for item in items:
+            key = f"{item.get('table', '?')}.{item.get('type', '?')}"
+            counts[key] = counts.get(key, 0) + 1
+        parts = [f"{key}={value}" for key, value in sorted(counts.items())]
+        return ", ".join(parts)
+
+    error_line = f"technical_errors: {technical_error_rows + len(error_issues)}"
+    error_detail = _breakdown(error_issues)
+    if error_detail:
+        error_line = f"{error_line} ({error_detail})"
+    warn_line = f"business_skips: {len(warn_issues)}"
+    warn_detail = _breakdown(warn_issues)
+    if warn_detail:
+        warn_line = f"{warn_line} ({warn_detail})"
+    return f"{error_line}\n{warn_line}"

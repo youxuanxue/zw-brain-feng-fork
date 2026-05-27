@@ -138,11 +138,17 @@ class GovernanceMapper:
                     if defer_pub_identity:
                         # 由 _map_pub_governance / _import_pub_role_permission_candidates 统一消化
                         continue
+                    # business-level fail-closed (warn): rows are intentionally dropped because
+                    # the manifest isn't in this batch. Filed in stats.issues so error_summary
+                    # records it; doesn't count toward failure_count or bump status to
+                    # partial_failure. Customer dumps without manifest land here on 7980/52241
+                    # governance rows — strict 模式不该卡在这里。
                     stats.add_issue(
                         "missing_manifest",
                         table_name,
                         "",
                         {"reason": "pub_governance_relation_requires_manifest", "row_count": len(rows)},
+                        severity="warn",
                     )
                     continue
                 if defer_pub_identity and table_name in self._PUB_IDENTITY_TABLES:
@@ -298,7 +304,14 @@ class GovernanceMapper:
     def _map_apps(self, row: dict[str, Any], stats: ImportStats, legacy_system: str, *, dry_run: bool = False) -> None:
         secret = _row_value(row, "SECRET")
         if secret not in (None, ""):
-            stats.add_issue("sensitive_field_blocked", "pub_apps", _string_value(row, "CODE", "ID"), {"field": "SECRET"})
+            # warn: sanitization heads-up; the pub_apps row IS still bumped below.
+            stats.add_issue(
+                "sensitive_field_blocked",
+                "pub_apps",
+                _string_value(row, "CODE", "ID"),
+                {"field": "SECRET"},
+                severity="warn",
+            )
         stats.bump("pub_apps")
 
     def _map_pub_governance(
@@ -329,11 +342,16 @@ class GovernanceMapper:
         }
         for manifest_table, present in manifest_tables_present.items():
             if not present:
+                # warn-level: the manifest's absence is by-design fail-closed; downstream
+                # per-row issues will surface as iam_account_missing / unmapped_role etc.
+                # Recording this at the top of the receipt makes the root cause auditable
+                # without bumping the run to partial_failure.
                 stats.add_issue(
                     "missing_manifest",
                     manifest_table,
                     "",
                     {"reason": "m0_baseline_manifest_absent", "pub_governance_will_fail_closed": True},
+                    severity="warn",
                 )
 
         binding_index = _binding_index(rows_by_table.get("iaf_binding_manifest", []))
@@ -415,7 +433,15 @@ class GovernanceMapper:
             if not iaf_sub:
                 issue_status = "iam_account_missing"
                 status = "iam_account_missing"
-                stats.add_issue("iam_account_missing", "pub_user", user_id, {"account": account, "user_code": user_code})
+                # warn: actor is upserted with status='iam_account_missing' sentinel; row is not lost,
+                # just tagged. Bumping failure_count for these is per-row business marker noise.
+                stats.add_issue(
+                    "iam_account_missing",
+                    "pub_user",
+                    user_id,
+                    {"account": account, "user_code": user_code},
+                    severity="warn",
+                )
                 for legacy_role in _split_role_codes(row.get("ROLE_VALUE") or row.get("ROLE_CODE")):
                     _normalize_legacy_role(legacy_role, role_mapping, stats, table="pub_user", legacy_ref=user_id)
             elif status != "active":
@@ -424,7 +450,14 @@ class GovernanceMapper:
             elif not binding_specs:
                 issue_status = "unmatched"
                 status = "unmatched"
-                stats.add_issue("missing_org_relationship", "pub_user", user_id, {"account": account, "user_code": user_code})
+                # warn: actor upserted with status='unmatched'; row recorded, just no org binding.
+                stats.add_issue(
+                    "missing_org_relationship",
+                    "pub_user",
+                    user_id,
+                    {"account": account, "user_code": user_code},
+                    severity="warn",
+                )
             else:
                 role_codes = sorted({item["role_code"] for item in binding_specs})
                 main_org = next((item["org_code"] for item in binding_specs), main_org)
@@ -526,7 +559,15 @@ class GovernanceMapper:
             mapped_role = role_code["role_code"] if role_code else legacy_role
             capability = capability_index.get(permission_ref)
             if not capability or not capability.get("capability_id"):
-                stats.add_issue("unmapped_permission", relation_table, f"{legacy_role}:{permission_ref}", {"role_ref": mapped_role, "permission_ref": permission_ref})
+                # warn: relation row IS bumped; only the legacy_policy_mapping_candidate is skipped
+                # (no capability_mapping_manifest entry for this permission). Per-row business info.
+                stats.add_issue(
+                    "unmapped_permission",
+                    relation_table,
+                    f"{legacy_role}:{permission_ref}",
+                    {"role_ref": mapped_role, "permission_ref": permission_ref},
+                    severity="warn",
+                )
                 stats.bump(relation_table)
                 continue
             evidence = _scrub_profile(
@@ -600,12 +641,14 @@ class GovernanceMapper:
                 issue_status = "iam_account_missing"
                 status = "iam_account_missing"
                 role_codes = []
-                stats.add_issue("iam_account_missing", "sys_user", user_id, {"account": account})
+                # warn: row IS upserted with sentinel status; same as pub_user path.
+                stats.add_issue("iam_account_missing", "sys_user", user_id, {"account": account}, severity="warn")
             elif not org_codes:
                 issue_status = "unmatched"
                 status = "unmatched"
                 role_codes = []
-                stats.add_issue("missing_org_relationship", "sys_user", user_id, {"account": account})
+                # warn: row IS upserted with status='unmatched'.
+                stats.add_issue("missing_org_relationship", "sys_user", user_id, {"account": account}, severity="warn")
             actor_ref = iaf_sub or user_id
             payload = {
                 "external_actor_id": actor_ref,
@@ -778,7 +821,15 @@ class GovernanceMapper:
             permission_ref = str(permission.get("permission_ref") or permission_id)
             capability = capability_index.get(permission_ref) or capability_index.get(permission_id)
             if not capability or not capability.get("capability_id"):
-                stats.add_issue("unmapped_permission", "sys_role_permission", f"{role_id}:{permission_id}", {"role_ref": role_code, "permission_ref": permission_ref})
+                # warn: relation row IS bumped; only legacy_policy_mapping_candidate emission
+                # skipped because capability_mapping_manifest doesn't cover this permission.
+                stats.add_issue(
+                    "unmapped_permission",
+                    "sys_role_permission",
+                    f"{role_id}:{permission_id}",
+                    {"role_ref": role_code, "permission_ref": permission_ref},
+                    severity="warn",
+                )
                 stats.bump("sys_role_permission")
                 continue
             capability_id = str(capability["capability_id"])
@@ -974,22 +1025,25 @@ def _binding_index(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
 
 
 def _role_mapping_index(rows: list[dict[str, Any]], stats: ImportStats) -> dict[str, dict[str, Any]]:
+    # All `unmapped_role` calls here are warn-severity: the role_mapping_manifest row
+    # is bumped (accounted for); only the index entry is skipped on bad metadata.
+    # Downstream per-row will surface "missing_role_mapping" with same severity.
     out: dict[str, dict[str, Any]] = {}
     for row in rows:
         legacy_role_ref = _string_value(row, "LEGACY_ROLE_REF", "LEGACY_ROLE_CODE", "ROLE_CODE", "ROLE_VALUE", "VALUE")
         if not legacy_role_ref:
-            stats.add_issue("unmapped_role", "role_mapping_manifest", "", {"reason": "missing_legacy_role_ref"})
+            stats.add_issue("unmapped_role", "role_mapping_manifest", "", {"reason": "missing_legacy_role_ref"}, severity="warn")
             stats.bump("role_mapping_manifest")
             continue
         target_type = str(_row_value(row, "TARGET_TYPE") or "role").lower()
         target_role_code = _string_value(row, "TARGET_ROLE_CODE")
         target_tag = _string_value(row, "TARGET_TAG")
         if target_type == "tag" and target_tag not in {TAG_LEAD_DEPT}:
-            stats.add_issue("unmapped_role", "role_mapping_manifest", legacy_role_ref, {"reason": "unsupported_target_tag", "target_tag": target_tag})
+            stats.add_issue("unmapped_role", "role_mapping_manifest", legacy_role_ref, {"reason": "unsupported_target_tag", "target_tag": target_tag}, severity="warn")
             stats.bump("role_mapping_manifest")
             continue
         if target_type == "role" and target_role_code in _FORBIDDEN_IMPORT_ROLE_CODES:
-            stats.add_issue("unmapped_role", "role_mapping_manifest", legacy_role_ref, {"reason": "forbidden_technical_role", "target_role_code": target_role_code})
+            stats.add_issue("unmapped_role", "role_mapping_manifest", legacy_role_ref, {"reason": "forbidden_technical_role", "target_role_code": target_role_code}, severity="warn")
             stats.bump("role_mapping_manifest")
             continue
         out[legacy_role_ref] = {
@@ -1011,30 +1065,33 @@ def _normalize_legacy_role(
     legacy_ref: str,
     allow_unmapped_role: bool = False,
 ) -> dict[str, Any] | None:
+    # All `unmapped_role` issues here are warn-severity: the caller's row is still
+    # imported (with empty role_codes or fallback); this function only signals
+    # "this particular legacy role can't be normalized" per-call, not a row drop.
     normalized = str(legacy_role or "").strip()
     if not normalized:
         return None
     lowered = normalized.lower()
     if lowered in LEGACY_ROLE_CODES:
-        stats.add_issue("unmapped_role", table, legacy_ref, {"reason": "legacy_r1_r8_blocked", "legacy_role": normalized})
+        stats.add_issue("unmapped_role", table, legacy_ref, {"reason": "legacy_r1_r8_blocked", "legacy_role": normalized}, severity="warn")
         return None
     mapping = role_mapping.get(normalized)
     if mapping is None:
-        stats.add_issue("unmapped_role", table, legacy_ref, {"reason": "missing_role_mapping", "legacy_role": normalized})
+        stats.add_issue("unmapped_role", table, legacy_ref, {"reason": "missing_role_mapping", "legacy_role": normalized}, severity="warn")
         return None
     target_type = str(mapping.get("target_type") or "role")
     target_role_code = str(mapping.get("target_role_code") or "")
     if target_type == "tag":
         if target_role_code not in _PRODUCT_ROLE_ALLOWLIST:
-            stats.add_issue("unmapped_role", table, legacy_ref, {"reason": "tag_requires_product_role", "target_role_code": target_role_code})
+            stats.add_issue("unmapped_role", table, legacy_ref, {"reason": "tag_requires_product_role", "target_role_code": target_role_code}, severity="warn")
             return None
         tag = mapping.get("target_tag")
         return {"role_code": target_role_code, "tags_json": {tag: True} if tag else {}}
     if target_role_code in _FORBIDDEN_IMPORT_ROLE_CODES:
-        stats.add_issue("unmapped_role", table, legacy_ref, {"reason": "forbidden_technical_role", "legacy_role": normalized})
+        stats.add_issue("unmapped_role", table, legacy_ref, {"reason": "forbidden_technical_role", "legacy_role": normalized}, severity="warn")
         return None
     if target_role_code not in _PRODUCT_ROLE_ALLOWLIST:
-        stats.add_issue("unmapped_role", table, legacy_ref, {"reason": "role_not_in_product_allowlist", "legacy_role": normalized, "target_role_code": target_role_code})
+        stats.add_issue("unmapped_role", table, legacy_ref, {"reason": "role_not_in_product_allowlist", "legacy_role": normalized, "target_role_code": target_role_code}, severity="warn")
         return None if not allow_unmapped_role else {"role_code": target_role_code, "tags_json": {}}
     return {"role_code": target_role_code, "tags_json": {}}
 
