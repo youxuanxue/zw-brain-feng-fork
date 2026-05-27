@@ -27,6 +27,8 @@ def case_to_dict(item: Any) -> dict[str, Any]:
         "expected_result": item.expected_result,
         "status": item.status,
         "resolved_summary": item.resolved_summary,
+        "created_at": item.created_at.isoformat() if item.created_at else None,
+        "updated_at": item.updated_at.isoformat() if item.updated_at else None,
         "closed_at": item.closed_at.isoformat() if item.closed_at else None,
     }
 

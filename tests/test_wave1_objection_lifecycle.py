@@ -359,13 +359,26 @@ def _invoke(brain, skill_id: str, payload: dict) -> dict:
 
 
 def test_brain_dispatch_catalog_lifecycle_audit_chain(repo, brain):
-    """通过 brain.invoke_skill 跑 catalog 维度 lifecycle，断言 snapshot audit_events 链含 7 节点."""
+    """通过 brain.invoke_skill 跑 catalog 维度 lifecycle，断言 snapshot audit_events 链含 7 节点.
+
+    target_id 必须取 SHADOW_DB 内真实 catalog_code — handler `_create_objection_case`
+    新校验拒绝凭空 ID（PR #134 R-002 修），避免回潮到 "C-LIFE" 类 fake fixture。
+    """
+    from zw_brain.domain.models import CatalogEntryRecord
+    from zw_brain.shared.db import create_session_factory
+    with create_session_factory()() as session:
+        from sqlalchemy import select
+        real_catalog = session.execute(
+            select(CatalogEntryRecord.catalog_code).where(
+                CatalogEntryRecord.tenant_id == "sd-default"
+            ).limit(1)
+        ).scalar_one()
     create_payload = {
         "role": "ROLE_ORGAN_OPERATER",
         "confirmed": True,
         "objection_kind": "catalog_quality",
         "target_type": "catalog",
-        "target_id": "C-LIFE",
+        "target_id": real_catalog,
         "title": "F3 brain-dispatch lifecycle",
         "complainant_org_id": "U_LIFECYCLE_OP",
         "provider_org_id": "U_LIFECYCLE_MGR",

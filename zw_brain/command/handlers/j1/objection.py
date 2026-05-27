@@ -8,12 +8,85 @@ if TYPE_CHECKING:
     pass
 
 
+from sqlalchemy import select
+
 from zw_brain.command.brain import InvalidStateError, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import objection as objection_ser
+from zw_brain.domain.models import (
+    CatalogEntryRecord,
+    DeliveryTaskRecord,
+    LegacyObjectMappingRecord,
+    ResourceAssetRecord,
+)
+from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
+
+# Target types that must reference an existing entity. authorization/alert are
+# auto-issued by upstream events and not enumerable through a clean lookup;
+# they pass validation but caller-supplied ids are still trusted.
+_VALIDATED_TARGET_TYPES = {"catalog", "resource", "delivery"}
+_KNOWN_TARGET_TYPES = _VALIDATED_TARGET_TYPES | {"authorization", "alert", "content", "use"}
+
+
+def _target_exists(target_type: str, target_id: str, tenant_id: str) -> bool:
+    """True if target_id matches an existing entity for the given type.
+
+    Accepts canonical PK (uuid), canonical business code (catalog_code/
+    resource_code/delivery_code), or legacy_object_ref (旧平台主键 — kept
+    by M0 import on objection.target_id).
+    """
+    if target_type not in _VALIDATED_TARGET_TYPES:
+        return True  # authorization/alert/content/use — caller-supplied id, no enumerable lookup
+    if not target_id:
+        return False  # validated type with blank id — reject
+    SessionLocal = create_session_factory()
+    with SessionLocal() as session:
+        if target_type == "catalog":
+            hit = session.execute(
+                select(CatalogEntryRecord.id).where(
+                    CatalogEntryRecord.tenant_id == tenant_id,
+                    (CatalogEntryRecord.id == target_id) | (CatalogEntryRecord.catalog_code == target_id),
+                ).limit(1)
+            ).first()
+            if hit:
+                return True
+            legacy_types = ("data_catalog",)
+            canonical_type = "catalog_entry"
+        elif target_type == "resource":
+            hit = session.execute(
+                select(ResourceAssetRecord.id).where(
+                    ResourceAssetRecord.tenant_id == tenant_id,
+                    (ResourceAssetRecord.id == target_id) | (ResourceAssetRecord.resource_code == target_id),
+                ).limit(1)
+            ).first()
+            if hit:
+                return True
+            legacy_types = ("data_resource",)
+            canonical_type = "resource_asset"
+        else:  # delivery
+            hit = session.execute(
+                select(DeliveryTaskRecord.id).where(
+                    DeliveryTaskRecord.tenant_id == tenant_id,
+                    (DeliveryTaskRecord.id == target_id) | (DeliveryTaskRecord.delivery_code == target_id),
+                ).limit(1)
+            ).first()
+            if hit:
+                return True
+            legacy_types = ("data_apply",)
+            canonical_type = "delivery_task"
+        # legacy id fallback — M0 keeps 旧平台 PK on objection.target_id
+        legacy_hit = session.execute(
+            select(LegacyObjectMappingRecord.id).where(
+                LegacyObjectMappingRecord.tenant_id == tenant_id,
+                LegacyObjectMappingRecord.legacy_object_type.in_(legacy_types),
+                LegacyObjectMappingRecord.legacy_object_ref == target_id,
+                LegacyObjectMappingRecord.canonical_type == canonical_type,
+            ).limit(1)
+        ).first()
+        return bool(legacy_hit)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -24,6 +97,17 @@ def _create_objection_case(brain, deps, ctx, payload: dict[str, Any]) -> dict[st
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
+
+    target_type = str(payload.get("target_type") or "").strip()
+    target_id = str(payload.get("target_id") or "").strip()
+    if target_type not in _KNOWN_TARGET_TYPES:
+        raise InvalidStateError(
+            f"未知对象类型 {target_type!r}；允许 {sorted(_KNOWN_TARGET_TYPES)}"
+        )
+    if not _target_exists(target_type, target_id, _DEFAULT_TENANT_ID):
+        raise InvalidStateError(
+            f"对象不存在：{target_type}={target_id!r}（请从下拉选已存在的对象编号）"
+        )
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         repo = deps.repos.objection

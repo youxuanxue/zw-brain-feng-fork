@@ -13,6 +13,8 @@ export interface DetailRow {
   raw?: string;
   state?: string;
   source?: string;
+  /** 若提供，value 渲染为可跳转链接（同源 hash 路由） */
+  href?: string;
 }
 
 const STATUS_LABELS = new Set(['当前状态', '状态', '处理状态']);
@@ -44,12 +46,13 @@ export function inferDetailRow(label: string, value: string): DetailRow {
 }
 
 export function mapDetailRows(
-  rows: { label: string; value: string; state?: string; source?: string }[]
+  rows: { label: string; value: string; state?: string; source?: string; href?: string }[]
 ): DetailRow[] {
   return rows.map((r) => ({
     ...inferDetailRow(r.label, r.value),
     state: r.state,
     source: r.source,
+    href: r.href,
   }));
 }
 

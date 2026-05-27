@@ -9,6 +9,7 @@ import { invokeActionStub } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import { formatTodoStatus } from '@/lib/statusLabels';
+import { formatObjectionType, objectionTargetHref } from '@/lib/objectionLabels';
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
@@ -42,15 +43,18 @@ async function loadCase() {
 onMounted(() => { void loadCase(); });
 
 const status = computed(() => String(caseRow.value?.status ?? ''));
+
 const rows = computed(() => {
   const c = caseRow.value;
   if (!c) return mapDetailRows([{ label: '异议编号', value: id.value }, { label: '状态', value: '未找到' }]);
+  const tType = String(c.target_type ?? c.targetType ?? '—');
+  const tId = String(c.target_id ?? c.targetId ?? '—');
   return mapDetailRows([
     { label: '异议编号', value: id.value },
     { label: '标题', value: String(c.title ?? '—') },
     { label: '状态', value: formatTodoStatus(status.value) },
-    { label: '对象类型', value: String(c.target_type ?? c.targetType ?? '—') },
-    { label: '对象编号', value: String(c.target_id ?? c.targetId ?? '—') },
+    { label: '对象类型', value: formatObjectionType(tType) },
+    { label: '对象编号', value: tId, href: objectionTargetHref(tType, tId) },
   ]);
 });
 

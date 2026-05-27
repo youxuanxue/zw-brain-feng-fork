@@ -384,11 +384,14 @@ items:
   - 停止条件：业务方签字
   actual_evidence:
   - customer_demo_j1.py / headless_j1_demo.sh 脚本链路已可 sign-off 材料之一（CLI 非浏览器等价）
+  - '[2026-05-27] 业务方逐 AC 浏览器走查 + 当场 review fix 后 sign-off AC1'
+  - 'AC1（异议 5 维度）3 轮迭代 land：(1) 列表拆类型+对象 / 8 列排序 / 类型+状态筛选 / 提交+更新时间；(2) 后端校验对象存在 + 详情页对象跳转链接 + 发起异议改 picker；(3) 对象筛选+对象编号合并 datalist 单 input'
+  - 'AC1 旧平台覆盖率：8 张 data_objection_* 表字段 100% 进 zw-brain 模型；7 节点 lifecycle / 5 维度独立状态机 / 处理过程 / 评价 三维评分全覆盖；差距 4 项（附件 UI / 批量导出 / 驳回原因枚举 / 代为提出）为 nice-to-have'
   depends_on:
   - F10
-  status: pending
-  next_action: 组织 30 分钟浏览器演示；材料 docs/customer-demo-j1.md + browser-acceptance-2026-05-25.md
-  blocked_reason: 业务方签字未落盘（代码与浏览器链路已就绪）
+  status: in_progress
+  next_action: AC2-AC5 继续业务方逐条 sign-off
+  blocked_reason: AC1 已 sign-off；AC2-AC5 待业务方 review
 
 - id: F12
   deliverable: P3 供需对接 6 步浏览器可见入口
