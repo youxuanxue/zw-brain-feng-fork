@@ -18,7 +18,7 @@ fact_source:
 > **形态**：Gherkin/BDD（Feature / Background / Scenario / Given-When-Then）。
 > **维度**：Wave 主轴 + cross-cutting 横切附录。
 >
-> **在飞轮中的位置**：本目录是飞轮齿轮组的 **Spec 层**（What + R13 签字）。Plan 层在 `.twin/*`，Verification 层在 `tests/*` + `zw-brain-web/tests/e2e/*` + preflight。三者通过三角字段（`# Owner` / `# Pytest` / `# Twin-F` + `spec_ref`）机械连接，由 preflight 段 37 守住。完整飞轮设计：[`docs/approved/zw-brain-flywheel.md`](../docs/approved/zw-brain-flywheel.md)。
+> **在飞轮中的位置**：本目录是飞轮齿轮组的 **Spec 层**（What + R13 签字）。Plan 层在 `.twin/*`，Verification 层在 `tests/*` + `zw-brain-web/tests/e2e/*` + preflight。三者通过三角字段（`# Owner` / `# Pytest` / `# Twin-F` + `spec_ref`）机械连接，由 preflight 段 38 守住。完整飞轮设计：[`docs/approved/zw-brain-flywheel.md`](../docs/approved/zw-brain-flywheel.md)。
 
 ## 目录结构
 
@@ -83,7 +83,7 @@ fact_source:
   - `eN.FX` — 明确的 F-item 承接
   - `cross` — 横切类（cross-cutting / 跨多 F-item / 系统级护栏），不归属单一 F
   - `pending` — 等 PR 接力 OR 该 feature 所在 Wave 整体 deferred
-- preflight 段 37（PR2 落地）会三向校验上述字段；任意失配 commit 拦下
+- preflight 段 38 会三向校验上述字段；任意失配 commit 拦下
 
 `Trace` 行**必须**引用至少一个权威源：
 

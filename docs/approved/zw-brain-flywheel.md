@@ -33,7 +33,7 @@ phase_after_approval: Phase 0 后期 — 飞轮势能完成、齿轮组连接、
 | **本文回答** | zw-brain 怎么从"做一个政务大脑"升级为"做能让 N 个政务大脑上线的飞轮" |
 | **不回答** | 产品形态（基线 §五）/ 数据模型（data-model）/ 角色（roles）|
 | **读者顺序** | 产品 / 架构 / PM 先读本文 §一-§三；工程读 §四-§六；运维读 §七-§十 |
-| **机械连接** | 三角字段规范（附录 B）由 preflight 段 37 守；飞轮速度指标由 `scripts/flywheel_velocity_report.sh` 出 |
+| **机械连接** | 三角字段规范（附录 B）由 preflight 段 38 守；飞轮速度指标由 `scripts/flywheel_velocity_report.sh` 出 |
 
 ## 一、飞轮叙事（核心论点）
 
@@ -91,7 +91,7 @@ phase_after_approval: Phase 0 后期 — 飞轮势能完成、齿轮组连接、
             ║       │  R13 sign-off label   │          ║
             ║       └──────────────────────┘           ║
             ╚════════════════╤═════════════════════════╝
-                             │ 三角硬化连接（preflight 段 37）
+                             │ 三角硬化连接（preflight 段 38）
                              ↓
                   ┌──────────────────────────────┐
                   │   动能层：客户上线             │
@@ -195,10 +195,10 @@ xlsx 是**唯一一份"业务方亲手写、旧平台已生产验证、用业务
 
 | 守卫 | 实现 | 段号 |
 |---|---|---|
-| feature `# Owner` 指向的 worker 存在 | `scripts/check_trace_triangle.py` | preflight 段 37 |
+| feature `# Owner` 指向的 worker 存在 | `scripts/check_trace_triangle.py` | preflight 段 38 |
 | feature `# Pytest` 指向的文件存在且反向引用 | 同上 | 同上 |
 | feature `# Twin-F` 在 plan.yaml `spec_ref` 列出 | 同上 | 同上 |
-| xlsx 行号 normalize | `scripts/check_legacy_smoke_row_numbers.py` | preflight 段 38 |
+| xlsx 行号 normalize | `scripts/check_legacy_smoke_row_numbers.py` | preflight 段 39 |
 
 **断三角 = commit 拦下**。这条不做，前面所有动作都是"靠自觉"。
 
@@ -321,12 +321,12 @@ Ship gate (Wave 0+1+2 全 Verified): K / 34
 **目标**：势能积累完成 + 三角硬化连接。
 
 **完成度判据**：
-- [ ] 5 类真值源齐全（已完成）
-- [ ] 飞轮文档 land（本 PR）
-- [ ] 三角字段加上（本 PR）
-- [ ] preflight 段 37/38 守住（PR2）
-- [ ] xlsx → `legacy_smoke.yaml`（PR2）
-- [ ] 50 ❌ 不复刻清单待签字（本 PR 生成）
+- [x] 5 类真值源齐全
+- [x] 飞轮文档 land（#123）
+- [x] 三角字段加上（#123）
+- [x] preflight 段 38/39 守住（#125）
+- [x] xlsx → `legacy_smoke.yaml`（#125）
+- [ ] 50 ❌ 不复刻清单业务方签字（清单已生成 → `docs/legacy-not-reproduce-signoff.md`，待下次 review）
 - [ ] 业务方 review 节奏固化（每月一次）
 
 ### 第 1 圈 — 首客户上线（2026-06 → 2026-08）
@@ -365,7 +365,7 @@ Ship gate (Wave 0+1+2 全 Verified): K / 34
 |---|---|---|---|
 | 1 | 客户机房专用 fixture / 专用 mapper | 飞轮第二圈与第一圈同速 | 反 per-tenant fork（R8）+ M0 mapper 唯一源 |
 | 2 | 业务方 review 不签字 / 不批量签字 | 30 Draft 永远不 Verified | R13 通道走通（`promote_signoff.py` + 月度 review 固化）|
-| 3 | spec 改了 test 没跟（或反之）| 三角断裂，spec/test 各自漂移 | preflight 段 37 三向 trace 守 |
+| 3 | spec 改了 test 没跟（或反之）| 三角断裂，spec/test 各自漂移 | preflight 段 38 三向 trace 守 |
 | 4 | 不回灌客户反馈到真值源 | 飞轮停转 | 上线 ritual 把"回灌"作为硬步骤（§5.2）|
 | 5 | 三引擎走捷径硬编码客户差异 | R14 不兑现，飞轮加速器失效 | preflight 段 25 写禁区 + Wave 2 AC5 验收 |
 | 6 | xlsx 128 条只引用不验证 | 客户上线发现"旧的能新的不能" | 60 条等价回归 pytest 必跑 |
@@ -411,14 +411,14 @@ $ scripts/promote_signoff.py --customer N
 | §八 外部能力集成 | AgentRuntime + 三引擎 | 飞轮加速器 2 + 长尾承接 |
 | §十 实施路线图 | Wave 0-4 节奏 | 飞轮启动节奏（§八）的执行视图 |
 | §十一 R 主张 | R8 反 fork + R13 sign-off + R14 三引擎 | 飞轮的硬约束载体 |
-| §附录 C 软→硬映射 | preflight 段 37/38 | 飞轮三角守卫的实现 |
+| §附录 C 软→硬映射 | preflight 段 38/39 | 飞轮三角守卫的实现 |
 | **D-编号决策** | 真值源 #2 | 飞轮势能来源 |
 
 ### A.5 xlsx 128 用例的飞轮路径（明示）
 
 ```
 old/共享平台V5.0.2-冒烟.xlsx
-       ↓ scripts/extract_legacy_smoke_xlsx.py (PR2)
+       ↓ scripts/extract_legacy_smoke_xlsx.py
 tests/fixtures/legacy_smoke.yaml
        ↓ pytest parametrize
 tests/test_legacy_smoke_equivalence.py
@@ -492,7 +492,7 @@ legacy 写入口可关闭
 ## 附录 C — 飞轮维护原则
 
 1. **真值源不可删**：5 类真值源任一删除等于飞轮势能丢失。
-2. **三角连接不可断**：preflight 段 37 是硬约束。
+2. **三角连接不可断**：preflight 段 38 是硬约束。
 3. **回灌 ritual 不可省**：客户上线 30 天内必做（§十）。
 4. **加速器 3 个都不可缺**：缺 1 个飞轮第 N 圈与第 1 圈同速。
 5. **反模式 8 条立即拆**：见 §九，发现一条拆一条。

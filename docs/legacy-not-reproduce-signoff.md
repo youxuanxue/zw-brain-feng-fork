@@ -21,7 +21,7 @@ driven_by:
 >
 > **签字方式**：业务方在评审会上确认；PR comment 加 label `business-signoff: legacy-not-reproduce`；或本文末尾签字段亲签后扫描归档。
 >
-> **机械化路径**：本文与 `.testing/cross-cutting/legacy-128-mapping.md` ❌ 行一一对应；`scripts/check_legacy_retirement_ready.py`（PR2 落地）会校验本文签字状态。
+> **机械化路径**：本文与 `.testing/cross-cutting/legacy-128-mapping.md` ❌ 行一一对应；`scripts/check_legacy_retirement_ready.py` 会校验本文签字状态。
 
 ## 一、签字汇总（业务方一次性确认）
 
@@ -149,7 +149,7 @@ driven_by:
 | 123 | 应用发布 | 最高 | 同上 |
 | （服务变更残项）| 部分 | 部分 | 服务概念合并 |
 
-合计：**50 条 ❌ 不复刻**（与 `.testing/cross-cutting/legacy-128-mapping.md` 一致；行号双轨漂移由 PR2 `scripts/check_legacy_smoke_row_numbers.py` 一次性硬化）。
+合计：**50 条 ❌ 不复刻**（与 `.testing/cross-cutting/legacy-128-mapping.md` 一致；行号双轨漂移由 `scripts/check_legacy_smoke_row_numbers.py` 守 preflight 段 39）。
 
 ## 三、复活的代价（业务方决策辅助）
 
