@@ -136,8 +136,8 @@ xlsx 是**唯一一份"业务方亲手写、旧平台已生产验证、用业务
 
 - **客户期望底线**：旧能做的新必须能做，或明示不复刻（业务方签字接受）
 - **回归基线**：防 ship 后客户回头骂"重构把我用的弄没了"
-- **退役判据硬指标**：60 ✅ 等价回归 + 50 ❌ 签字接受 + 12 ⏸ 处置 + 6 ⚠ 外部 = legacy 可关闭写入口（Wave 4）
-- **机械化路径**：xlsx → `tests/fixtures/legacy_smoke.yaml` → `tests/test_legacy_smoke_equivalence.py` parametrize → 60 条等价回归
+- **退役判据硬指标**（处置完整度 = 116/131 = 89%）：✅ 等价回归 73 + ❌ 接受不复刻 16 + ⏸ 占位延后 / 复活待立项 23 + ⚠ 外部依赖 4 = 116 已处置；unmapped 15 是 mapping doc 未登记 gap（待真值源回灌补足，不计入退役公式）。分布由 `tests/fixtures/legacy_smoke.yaml` 实时维护，看板由 `scripts/check_legacy_retirement_ready.py` 输出（D31 业务方 PR #129 触发 24 条 ❌ → ⏸ 复活）
+- **机械化路径**：xlsx → `tests/fixtures/legacy_smoke.yaml` → `tests/test_legacy_smoke_equivalence.py` parametrize → mapped 条目等价回归（当前 73；分布由 yaml 实时维护）
 
 详见 `.testing/cross-cutting/legacy-128-mapping.md` + 本文附录 A.5。
 
@@ -212,7 +212,7 @@ xlsx 是**唯一一份"业务方亲手写、旧平台已生产验证、用业务
 1. M0 CLI 灌库         scripts/import_legacy_dumps + verify
    ─────────          客户机房 dump → sd-default 等价 schema
 2. 等价回归            pytest tests/test_legacy_smoke_equivalence.py
-   ─────────          60 条 xlsx 用例在客户 dump 上跑通
+   ─────────          mapped xlsx 用例（当前 73）在客户 dump 上跑通
 3. 项目级差异配置       三引擎（审批流 / 表单 / 推荐）
    ─────────          配置 + AI 草稿，不改代码
 4. 验收脚本            scripts/customer_demo_j1.py / customer_demo_j2.py
@@ -326,7 +326,7 @@ Ship gate (Wave 0+1+2 全 Verified): K / 34
 - [x] 三角字段加上（#123）
 - [x] preflight 段 38/39 守住（#125）
 - [x] xlsx → `legacy_smoke.yaml`（#125）
-- [x] 50 ❌ 不复刻清单业务方签字（PR [#129](https://github.com/feng222666888/zw-brain/pull/129) → `docs/legacy-not-reproduce-signoff.md` `status: approved`）
+- [x] 原 50 条 ❌ 不复刻清单业务方签字（PR [#129](https://github.com/feng222666888/zw-brain/pull/129) → `docs/legacy-not-reproduce-signoff.md` `status: approved`；D31 后：26 接受 + 24 复活转 ⏸ 待 Wave 2.x+ 立项）
 - [ ] 业务方 review 节奏固化（每月一次）
 
 ### 第 1 圈 — 首客户上线（2026-06 → 2026-08）
@@ -368,7 +368,7 @@ Ship gate (Wave 0+1+2 全 Verified): K / 34
 | 3 | spec 改了 test 没跟（或反之）| 三角断裂，spec/test 各自漂移 | preflight 段 38 三向 trace 守 |
 | 4 | 不回灌客户反馈到真值源 | 飞轮停转 | 上线 ritual 把"回灌"作为硬步骤（§5.2）|
 | 5 | 三引擎走捷径硬编码客户差异 | R14 不兑现，飞轮加速器失效 | preflight 段 25 写禁区 + Wave 2 AC5 验收 |
-| 6 | xlsx 128 条只引用不验证 | 客户上线发现"旧的能新的不能" | 60 条等价回归 pytest 必跑 |
+| 6 | xlsx 128 条只引用不验证 | 客户上线发现"旧的能新的不能" | mapped 条目等价回归 pytest 必跑（当前 73；分布由 yaml 实时维护）|
 | 7 | 把"全部 feature 全 Verified"当 ship 判据 | 永远 ship 不出去（Wave 4 结构上不可能）| ship 判据 = Wave 0+1+2 Verified + 首客户机房 dry-run |
 | 8 | 用 GWT 写 SLI 监控判据（Wave 4 老错配）| 永远到不了 Verified | 90 天 SLI 移到 `docs/customer-readiness/` + 监控 cron |
 
@@ -423,11 +423,13 @@ tests/fixtures/legacy_smoke.yaml
        ↓ pytest parametrize
 tests/test_legacy_smoke_equivalence.py
        ↓ 每客户机房 dump 上跑
-60 ✅ 等价回归绿
+mapped 等价回归绿（当前 73 条）
        +
 docs/legacy-not-reproduce-signoff.md
-       ↓ 业务方签字
-50 ❌ 签字接受
+       ↓ 业务方签字（PR #129）
+not_reproduce 签字接受（当前 16 条；24 条 D31 复活转 ⏸）
+       +
+deferred 占位 / 复活待立项（当前 23 条）+ external 外部依赖（4 条）有处置
        =
 Wave 4 退役判据闭合
        ↓

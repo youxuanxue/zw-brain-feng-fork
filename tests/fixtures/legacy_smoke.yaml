@@ -20,9 +20,9 @@
     1. 进入资源申请页面
     2. 提示必填信息未填写
     3. 提示暂存成功
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: '不复刻（代理服务不进 IA，§5.6 #1 #11'
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（代理服务不进 IA，§5.6 #1 #11'
 - xlsx_row: 2
   name: 代理服务资源申请-有期限
   system: 门户
@@ -65,9 +65,9 @@
     14. 文本内容填写成功
     15. 附件选择成功
     16. 接口资源申请提交成功
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: 同上
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（同上'
 - xlsx_row: 3
   name: 库表资源申请暂存
   system: 门户
@@ -166,9 +166,9 @@
     14. 文本内容填写成功
     15. 附件选择成功
     16. 接口资源申请提交成功
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: '融合服务不进 IA（§5.6 #12'
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（融合服务不进 IA（§5.6 #12'
 - xlsx_row: 6
   name: 通用服务资源申请暂存
   system: 门户
@@ -185,9 +185,9 @@
     1. 进入资源申请页面
     2. 提示必填信息未填写
     3. 提示暂存成功
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: '通用服务不进 IA（§5.6 #12'
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（通用服务不进 IA（§5.6 #12'
 - xlsx_row: 7
   name: 通用服务资源申请-有期限
   system: 门户
@@ -230,9 +230,9 @@
     14. 文本内容填写成功
     15. 附件选择成功
     16. 接口资源申请提交成功
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: 同上
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（同上'
 - xlsx_row: 8
   name: 文件夹资源申请暂存
   system: 门户
@@ -542,9 +542,9 @@
   preconditions: 打开政务数据服务门户页面
   steps: 1. 查看融合服务列表展示
   expected: 1. 列表服务展示正确
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: '§5.6 #12'
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（§5.6 #12'
 - xlsx_row: 23
   name: 通用服务列表查看
   system: 门户
@@ -555,9 +555,9 @@
   preconditions: 打开政务数据服务门户页面
   steps: 1. 查看通用服务列表展示
   expected: 1. 列表服务展示正确
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: 同上
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（同上'
 - xlsx_row: 24
   name: 服务申请
   system: 门户
@@ -576,9 +576,9 @@
     2. 资源确认显示正确
     3. 申请信息填写正确
     4. 提交成功
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: .testing/waves/wave-1-j1-j2-closed-loop/features/j2-resource-mount.feature
-  rationale: '"服务"概念合并到 resource.api 物化（§3.3 / §5.6'
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（"服务"概念合并到 resource.api 物化（§3.3 / §5.6'
 - xlsx_row: 25
   name: 首页
   system: 门户
@@ -610,9 +610,9 @@
     2. 资源确认显示正确
     3. 申请信息填写正确
     4. 提交成功
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: '"数购车" 是应用中心子能力（§5.6 #11'
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（"数购车" 是应用中心子能力（§5.6 #11'
 - xlsx_row: 27
   name: 应用列表查看
   system: 门户
@@ -1742,9 +1742,9 @@
     3. 信息填写准确
     4. 创建的代理服务以草稿的形式保存
     5. 服务名称、数据来源部门和联系人等信息均已保存
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: 代理服务不进 IA
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（代理服务不进 IA'
 - xlsx_row: 72
   name: 单个注册服务审核通过
   system: 融合服务
@@ -1803,9 +1803,9 @@
     3. 提示未选中服务
     4. 弹出确认提示框
     5. 服务发布成功
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: 通用服务不进 IA
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（通用服务不进 IA'
 - xlsx_row: 75
   name: 代理服务申请变更
   system: 申请审核
@@ -1828,9 +1828,9 @@
     4. 修改正确，输入框字符长度校验成功
     5. 提交成功，弹窗关闭
     6. 不展示变更按钮
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: 代理服务不进 IA
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（代理服务不进 IA'
 - xlsx_row: 76
   name: 库表申请变更
   system: 申请审核
@@ -1909,9 +1909,9 @@
     4. 修改正确，输入框字符长度校验成功
     5. 提交成功，弹窗关闭
     6. 不展示变更按钮
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: 通用服务不进 IA
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（通用服务不进 IA'
 - xlsx_row: 79
   name: 文件夹申请变更
   system: 申请审核
@@ -2059,9 +2059,9 @@
     2. 申请评价成功
     3. 文本框内容填写成功
     4. 资源申请审核通过
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: 融合服务不进 IA
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（融合服务不进 IA'
 - xlsx_row: 85
   name: 待审核融合服务受理
   system: 申请授权
@@ -2080,9 +2080,9 @@
     2. 申请评价成功
     3. 文本框内容填写成功
     4. 资源申请受理通过
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: 同上
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（同上'
 - xlsx_row: 86
   name: 待审核资源驳回
   system: 申请授权
@@ -2341,9 +2341,9 @@
     3、维护不认领原因、是否提供资源等信息
     4、提交认领意见
   expected: 认领提交成功
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: '"主题库" 不复造（§5.6 #11'
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（"主题库" 不复造（§5.6 #11'
 - xlsx_row: 99
   name: 数据资源关联
   system: 供需系统
@@ -2500,9 +2500,9 @@
     4. 处理进度跟踪更新正确
     5. 业务需求关系图谱展示准确
     6. 处理进度表显示正确
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: '"主题库" 不复造（§5.6 #11'
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（"主题库" 不复造（§5.6 #11'
 - xlsx_row: 105
   name: 已办任务详情查看
   system: 供需系统
@@ -2540,9 +2540,9 @@
   expected: |-
     1. 弹出二次确认窗口
     2. 主题库提交成功
-  disposition: not_reproduce
+  disposition: deferred
   feature_ref: null
-  rationale: '§5.6 #11'
+  rationale: 'D31 业务方 PR #129 复活，待 Wave 2.x+ 立项（§5.6 #11'
 - xlsx_row: 107
   name: 库表订阅
   system: 数据交换
