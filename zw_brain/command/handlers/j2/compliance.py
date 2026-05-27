@@ -25,7 +25,7 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 # ──────────────────────────────────────────────────────────────────────────
 
 def _configure_compliance_rule(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     rule_id = str(payload["rule_id"])
 
@@ -50,7 +50,7 @@ def _configure_compliance_rule(brain, deps, ctx, payload: dict[str, Any]) -> dic
     return deps.write(ctx, payload, mutation)
 
 def _open_compliance_case(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     case_id = str(payload.get("case_id") or payload.get("dispute_id") or f"CMP-{ids.new_audit_id()}")
 
@@ -81,7 +81,7 @@ def _open_compliance_case(brain, deps, ctx, payload: dict[str, Any]) -> dict[str
     return deps.write(ctx, payload | {"case_id": case_id}, mutation)
 
 def _transition_compliance_case(brain, deps, ctx, case_id: str, status: str, action: str, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     case = next((item for item in deps.brain_legacy._snapshot.setdefault("disputes", []) if item.get("id") == case_id), None)
     if case is None:

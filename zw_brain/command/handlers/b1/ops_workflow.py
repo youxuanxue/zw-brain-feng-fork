@@ -23,7 +23,7 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 
 def _create_ops_ticket(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     """安全审计员 创建运维工单（告警处理 / 巡检 / 拨测 / 安全 / 其他）。"""
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     ticket_type = str(payload.get("ticket_type", "alert"))
     title = str(payload.get("title", "")).strip() or "运维工单"
@@ -47,7 +47,7 @@ def _create_ops_ticket(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, A
     return deps.write(ctx, payload, mutation)
 
 def _close_ops_ticket(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     ticket_id = str(payload.get("ticket_id", "")).strip()
 
@@ -65,7 +65,7 @@ def _close_ops_ticket(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, An
 
 def _submit_shift_handover(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     """安全审计员 交接班 — 记录本班通报事项 + 待跟进工单 + 接班人。"""
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     summary = str(payload.get("summary", "")).strip()
     pending = payload.get("pending_tickets") or []

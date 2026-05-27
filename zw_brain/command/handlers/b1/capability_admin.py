@@ -25,7 +25,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # ──────────────────────────────────────────────────────────────────────────
 
 def _register_capability_package(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     package_id = str(payload.get("package_id") or payload.get("id") or f"PKG-{payload['slug']}")
     slug = str(payload["slug"])

@@ -23,7 +23,7 @@ from zw_brain.command.serializers import ops_metrics as ops_metrics_ser
 # ──────────────────────────────────────────────────────────────────────────
 
 def _ingest_gateway_heartbeat(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     status = str(payload.get("status", "online"))
     if status not in {"online", "warning", "offline"}:
@@ -57,7 +57,7 @@ def _ingest_gateway_heartbeat(brain, deps, ctx, payload: dict[str, Any]) -> dict
     return deps.write(ctx, gateway_payload, mutation)
 
 def _anchor_gateway_log(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     gateway_log_ref = str(payload["gateway_log_ref"])
     evidence = brain._safe_json(payload.get("evidence_json", {}))

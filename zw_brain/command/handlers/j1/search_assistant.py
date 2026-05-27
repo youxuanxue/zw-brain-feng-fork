@@ -252,7 +252,7 @@ def _inference_based_parse(query: str, request_id: str) -> dict[str, Any] | None
 
 
 def _parse_search_intent(brain, deps, ctx, query: str, role: str, *, enabled: bool, request_id: str) -> dict[str, Any]:
-    actor = str(brain._ui_state.get("actor", "system")) if hasattr(brain, "_ui_state") else "system"
+    actor = ctx.actor or "system"
     audit_target = query[:80] if query else "<empty>"
 
     if not enabled:

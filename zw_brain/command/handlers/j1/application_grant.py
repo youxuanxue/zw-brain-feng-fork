@@ -18,10 +18,10 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 def _approve_application_grant(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     decision = str(payload["decision"])
     if decision == "approve":
-        return brain.grant_delivery_access(str(payload["task_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+        return brain.grant_delivery_access(str(payload["task_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
     if decision in {"reject", "return_for_fix"}:
         task_id = str(payload["task_id"])
-        role = str(payload.get("role", brain._ui_state["role"]))
+        role = str(payload.get("role", ctx.role))
         confirmed = bool(payload.get("confirmed"))
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
@@ -38,7 +38,7 @@ def _approve_application_grant(brain, deps, ctx, payload: dict[str, Any]) -> dic
 
 def _renew_application_grant(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     # Customer surface forwards `delivery_task_id`; the legacy contract used
     # `task_id`. Accept either so the same skill works from both call sites.
@@ -57,7 +57,7 @@ def _renew_application_grant(brain, deps, ctx, payload: dict[str, Any]) -> dict[
 
 def _suspend_application_grant(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     """审批人 暂停已生效的授权 — 申请人 暂时无法访问但授权不失效，可恢复。"""
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     request_id = str(payload.get("request_id") or payload.get("delivery_task_id") or "")
 
@@ -73,7 +73,7 @@ def _suspend_application_grant(brain, deps, ctx, payload: dict[str, Any]) -> dic
 
 def _revoke_application_grant(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     """审批人 收回已生效的授权 — 永久收回，申请人 需重新申请。"""
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     request_id = str(payload.get("request_id") or payload.get("delivery_task_id") or "")
 

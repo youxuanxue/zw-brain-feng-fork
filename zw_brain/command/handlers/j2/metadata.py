@@ -139,7 +139,7 @@ def _query_metadata_gather_evidence(brain, deps, ctx, *, resource_code: Any = No
     return {"items": items, "total": len(items)}
 
 def _upsert_metadata_schema_snapshot(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
@@ -151,7 +151,7 @@ def _upsert_metadata_schema_snapshot(brain, deps, ctx, payload: dict[str, Any]) 
     return deps.write(ctx, payload, mutation)
 
 def _upsert_metadata_gather_evidence(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
@@ -163,7 +163,7 @@ def _upsert_metadata_gather_evidence(brain, deps, ctx, payload: dict[str, Any]) 
     return deps.write(ctx, payload, mutation)
 
 def _upsert_metadata_lineage(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:

@@ -110,7 +110,7 @@ def _create_request(
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         request_id = brain._new_request_id()
         task_id = brain._delivery_task_id_for_request(request_id)
-        query_text = query.strip() or brain._ui_state.get("discoveryQuery") or DEFAULT_DISCOVERY_QUERY
+        query_text = query.strip() or DEFAULT_DISCOVERY_QUERY
         fields = brain._requested_application_fields(resource, options)
         gap_fields = brain._application_gap_fields(options)
         time_window = brain._application_time_window(options)
@@ -382,12 +382,12 @@ def handler_application_resource_submit(deps: HandlerDeps, ctx: SkillContext, pa
     skill_id = ctx.skill_id
     if "purpose" in payload and not str(payload.get("purpose") or "").strip():
         raise InvalidStateError("application.resource.submit: purpose 必填，不能为空字符串")
-    return _create_request(brain, deps, ctx, str(payload["resource_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), str(payload.get("query", brain._ui_state.get("discoveryQuery", ""))), "application.resource.submit", payload)
+    return _create_request(brain, deps, ctx, str(payload["resource_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), str(payload.get("query", DEFAULT_DISCOVERY_QUERY)), "application.resource.submit", payload)
 
 def handler_request_create(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _create_request(brain, deps, ctx, str(payload["resource_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), str(payload.get("query", brain._ui_state.get("discoveryQuery", ""))), options=payload)
+    return _create_request(brain, deps, ctx, str(payload["resource_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), str(payload.get("query", DEFAULT_DISCOVERY_QUERY)), options=payload)
 
 def handler_request_submit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.

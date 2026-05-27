@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 import copy
 
 import zw_brain.shared.clock as clock
-from zw_brain.command.brain import InvalidStateError, NotFoundError
+from zw_brain.command.brain import DEFAULT_DISCOVERY_QUERY, InvalidStateError, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.shared.sanitization import safe_json
@@ -23,10 +23,10 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # ──────────────────────────────────────────────────────────────────────────
 
 def _submit_requirement_intent(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    return brain.create_request(str(payload.get("resource_id") or "res-jbxx-ledger"), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), str(payload.get("intent") or payload.get("title") or brain._ui_state.get("discoveryQuery", "")), "require.intent.submit")
+    return brain.create_request(str(payload.get("resource_id") or "res-jbxx-ledger"), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), str(payload.get("intent") or payload.get("title") or DEFAULT_DISCOVERY_QUERY), "require.intent.submit")
 
 def _refine_requirement_intent(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     request_id = str(payload["request_id"])
 
@@ -41,10 +41,10 @@ def _refine_requirement_intent(brain, deps, ctx, payload: dict[str, Any]) -> dic
     return deps.write(ctx, payload, mutation)
 
 def _review_requirement_intent(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    return brain.review_request(str(payload["request_id"]), str(payload["decision"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), "require.intent.review")
+    return brain.review_request(str(payload["request_id"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "require.intent.review")
 
 def _dispatch_require_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     application_code = str(payload["application_code"])
 
@@ -76,7 +76,7 @@ def _dispatch_require_resource(brain, deps, ctx, payload: dict[str, Any]) -> dic
     return deps.write(ctx, payload, mutation)
 
 def _match_requirement_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     request_id = str(payload["request_id"])
 
@@ -91,7 +91,7 @@ def _match_requirement_resource(brain, deps, ctx, payload: dict[str, Any]) -> di
     return deps.write(ctx, payload, mutation)
 
 def _handoff_require_task(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     application_code = str(payload["application_code"])
 

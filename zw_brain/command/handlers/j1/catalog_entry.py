@@ -23,7 +23,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # ──────────────────────────────────────────────────────────────────────────
 
 def _create_catalog_entry_draft(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     catalog_code = str(payload["catalog_code"])
 
@@ -229,7 +229,7 @@ def _suggest_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, An
     }
 
 def _create_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     catalog_code = str(payload["catalog_code"])
 
@@ -260,7 +260,7 @@ def _create_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any
     return deps.write(ctx, payload, mutation)
 
 def _confirm_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     catalog_code = str(payload["catalog_code"])
 
@@ -285,7 +285,7 @@ def _confirm_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, An
     return deps.write(ctx, payload, mutation)
 
 def _reject_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     catalog_code = str(payload["catalog_code"])
     reason = str(payload["reject_reason"])
@@ -342,7 +342,7 @@ def _submit_catalog_entry_review(brain, deps, ctx, catalog_code: str, role: str,
     return _transition_catalog_entry(brain, deps, ctx, catalog_code, "pending_review", "catalog.entry.submit_review", role, confirmed)
 
 def _update_catalog_entry(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     catalog_code = str(payload["catalog_code"])
 

@@ -26,7 +26,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 
 def _configure_topic_package(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     package_code = str(payload["package_code"])
 
@@ -42,7 +42,7 @@ def _configure_topic_package(brain, deps, ctx, payload: dict[str, Any]) -> dict[
 
 def _transition_topic_package(brain, deps, ctx, package_code: str, next_status: str, action_type: str, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
@@ -63,7 +63,7 @@ def _transition_topic_package(brain, deps, ctx, package_code: str, next_status: 
 
 def _update_topic_package_policy(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     package_code = str(payload["package_code"])
 
@@ -79,7 +79,7 @@ def _update_topic_package_policy(brain, deps, ctx, payload: dict[str, Any]) -> d
 
 def _subscribe_topic_package(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     package_code = str(payload["package_code"])
     subscription = {
@@ -116,7 +116,7 @@ def _subscribe_topic_package(brain, deps, ctx, payload: dict[str, Any]) -> dict[
 
 def _attach_topic_package_evidence(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     package_code = str(payload["package_code"])
 

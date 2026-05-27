@@ -71,7 +71,7 @@ def _get_governance_iam_overview(brain, deps, ctx, payload: dict[str, Any]) -> d
                 "tenant_id": tenant_id,
                 "capability_id": sample_policy["package_slug"],
                 "surface": str(payload.get("surface", "api")),
-                "role": str(payload.get("role", (actor_snapshot.get("role_codes") or [brain._ui_state["role"]])[0])),
+                "role": str(payload.get("role", (actor_snapshot.get("role_codes") or [ctx.role])[0])),
                 "actor_snapshot": actor_snapshot,
                 "org_snapshot": copy.deepcopy(sample_org or {}),
                 "risk_context": brain._safe_json(payload.get("risk_context") or {}),
@@ -142,7 +142,7 @@ def _list_policy_mapping_candidates(brain, deps, ctx, payload: dict[str, Any]) -
 
 def _review_policy_mapping_candidates(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     decision = str(payload.get("decision") or "").strip().lower()
     if decision not in {"approve", "reject", "approve_and_apply", "apply"}:

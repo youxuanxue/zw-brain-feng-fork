@@ -46,7 +46,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 
 
 def _rollback_package(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     package_id = str(payload["package_id"])
     item = deps.view.packages.find_by_id(package_id)
@@ -103,7 +103,7 @@ def handler_package_rollback(deps: HandlerDeps, ctx: SkillContext, payload: dict
 
 
 def _update_package_trust_level(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     package_id = str(payload["package_id"])
     target_trust = str(payload["trust_level"])

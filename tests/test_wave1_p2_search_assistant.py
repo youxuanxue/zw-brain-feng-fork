@@ -218,12 +218,18 @@ def test_disabled_skips_inference_no_call(brain, monkeypatch):
 
 def test_audit_chain_records_intent_parse(brain):
     _invoke(brain, {"query": "audit-test-医保码", "role": "ROLE_ORGAN_OPERATER", "enabled": False})
-    feed_types = [
-        e["type"]
+    events = [
+        e
         for e in brain.snapshot()["audit_events"]
-        if "audit-test-医保码" in e.get("target", "")
+        if "audit-test-医保码" in e.get("target", "") and e["type"] == "search.intent.parse"
     ]
-    assert "search.intent.parse" in feed_types
+    assert events, "search.intent.parse not written to audit feed"
+    # Action F lock: handler must attribute the audit feed to the per-request
+    # role-derived actor (ctx.actor), never the dead `_ui_state["actor"]` constant
+    # "system" — guards against a silent regression of audit attribution.
+    actor = events[-1]["actor"]
+    assert actor != "system"
+    assert actor.startswith("user:gov:ROLE_ORGAN_OPERATER:"), actor
 
 
 # ──────────────────────────────────────────────────────────────────────

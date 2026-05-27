@@ -184,7 +184,7 @@ def _do_explain(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("delivery_code or application_code is required")
     enabled = bool(payload.get("enabled", True))
     request_id = str(payload.get("request_id") or f"delivery-explain-{abs(hash(delivery_code or application_code)) & 0xFFFFFFFF:08x}")
-    actor = str(brain._ui_state.get("actor", "system")) if hasattr(brain, "_ui_state") else "system"
+    actor = ctx.actor or "system"
 
     task = _load_delivery_task(brain, deps, ctx, delivery_code=delivery_code, application_code=application_code)
     if task is None:

@@ -131,6 +131,14 @@ class _UIStateProxy(MutableMapping[str, Any]):
     (``_ui_state["role"]`` / ``.get("role", d)`` / ``_ui_state["role"] = x``)
     work unchanged and become concurrency-safe for free.
 
+    Action F: per-request role lives in ``shared.ui_request_context`` ContextVar
+    and is the authoritative read site for handlers/helpers (via ``ctx.role``).
+    ``_ui_state`` is retained only as the persistence-shaped snapshot dict (for
+    ``snapshot()`` / ``StateStore.save()`` round-tripping); no NEW handler code
+    should access it — segment 46 (``check_handler_no_ui_state.py``) enforces
+    this invariant. The single legitimate handler-side user (read+write) is
+    ``b1/system_ops.py`` (process-global ``brainOutage`` toggle).
+
     Invariant locked by ``scripts/check_brain_no_request_state_singleton.py``:
     the backing dict must never seed a ``role`` key.
     """

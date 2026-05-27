@@ -35,7 +35,7 @@ def _stop_delivery_exchange(brain, deps, ctx, payload: dict[str, Any]) -> dict[s
 
 def _ingest_delivery_receipt(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     task_id = str(payload["task_id"])
 
@@ -101,7 +101,7 @@ def _reconcile_delivery_receipt(brain, deps, ctx, task_id: str, role: str, confi
     return deps.write(ctx, {"task_id": task_id}, mutation)
 
 def _replace_or_cancel_delivery(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     delivery_code = str(payload["delivery_code"])
     action = str(payload["action"])
@@ -141,7 +141,7 @@ def _replace_or_cancel_delivery(brain, deps, ctx, payload: dict[str, Any]) -> di
 
 def _manage_delivery_subscription(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     action = str(payload["action"])
     if action not in {"create", "activate", "pause", "resume", "cancel"}:

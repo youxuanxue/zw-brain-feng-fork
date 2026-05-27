@@ -162,7 +162,7 @@ def _query_catalog_model_fields(brain, deps, ctx, model_code: str) -> dict[str, 
     return {"items": fields, "total": len(fields)}
 
 def _upsert_catalog_model(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
@@ -176,7 +176,7 @@ def _upsert_catalog_model(brain, deps, ctx, payload: dict[str, Any]) -> dict[str
     return deps.write(ctx, payload, mutation)
 
 def _bind_catalog_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     # F2 (E2 J2)：物化形式（table/file/api 等）由调用方在 payload 显式声明，
     # 仓库层不增列，handler 在 return 反射给前端 / e2e 判定。
@@ -226,7 +226,7 @@ def _get_resource(brain, deps, ctx, resource_id: str, *, context: _RequestBatchC
     return resource
 
 def _upsert_catalog_schema_mapping(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:

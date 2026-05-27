@@ -31,7 +31,7 @@ def _evaluate_tenant_policy(brain, deps, ctx, payload: dict[str, Any]) -> dict[s
     capability_id = str(payload.get("capability_id", payload.get("skill_id", payload.get("capability_slug", ""))))
     surface = str(payload.get("surface", "webui"))
     target_ref = payload.get("target_ref")
-    role_code = str(payload.get("role_code", payload.get("role", brain._ui_state["role"])))
+    role_code = str(payload.get("role_code", payload.get("role", ctx.role)))
     actor_snapshot = brain._safe_json(payload.get("actor_snapshot") or {})
     org_snapshot = brain._safe_json(payload.get("org_snapshot") or {})
     risk_context = brain._safe_json(payload.get("risk_context") or {})

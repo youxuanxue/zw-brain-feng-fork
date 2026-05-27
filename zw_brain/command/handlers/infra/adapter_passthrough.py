@@ -35,7 +35,7 @@ def handler_health_probe(deps: HandlerDeps, ctx: SkillContext, payload: dict[str
 
 def _record_adapter_operation(brain, deps, ctx: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:

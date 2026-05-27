@@ -28,7 +28,7 @@ from zw_brain.shared.db import create_session_factory
 
 
 def _commit_schema(brain, deps, ctx: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     tenant_id = str(payload.get("tenant_id") or "")
     schema_id = str(payload.get("schema_id") or "")
@@ -57,7 +57,7 @@ def _commit_schema(brain, deps, ctx: BrainService, skill_id: str, payload: dict[
 
 
 def _nl_draft(brain, deps, ctx: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed", True))  # manifest 不要求 human confirm，默认通过
     tenant_id = str(payload.get("tenant_id") or "")
     schema_code = str(payload.get("schema_code") or "")
@@ -103,7 +103,7 @@ def _nl_draft(brain, deps, ctx: BrainService, skill_id: str, payload: dict[str, 
 
 
 def _promote_to_preview(brain, deps, ctx: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     tenant_id = str(payload.get("tenant_id") or "")
     schema_id = str(payload.get("schema_id") or "")
@@ -131,7 +131,7 @@ def _promote_to_preview(brain, deps, ctx: BrainService, skill_id: str, payload: 
 
 
 def _revert_to_draft(brain, deps, ctx: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     tenant_id = str(payload.get("tenant_id") or "")
     schema_id = str(payload.get("schema_id") or "")

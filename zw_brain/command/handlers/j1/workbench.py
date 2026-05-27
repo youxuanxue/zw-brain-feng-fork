@@ -28,7 +28,7 @@ def _get_workbench(brain, deps, ctx, role: str) -> dict[str, Any]:
 
 def _submit_service_rating(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     """申请人 完成交付后为本次共享服务打分（写入审计供 安全审计员 督查可见）。"""
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     task_id = str(payload.get("task_id") or payload.get("delivery_task_id") or "")
     score = int(payload.get("score", 5))
@@ -49,7 +49,7 @@ def _submit_service_rating(brain, deps, ctx, payload: dict[str, Any]) -> dict[st
     return deps.write(ctx, payload, mutation)
 
 def _terminate_subscription(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     subscription_code = str(payload["subscription_code"])
     reason = str(payload["reason"])

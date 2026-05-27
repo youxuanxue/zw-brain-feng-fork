@@ -18,7 +18,7 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 # ──────────────────────────────────────────────────────────────────────────
 
 def _upsert_quality_rule(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     rule_code = str(payload["rule_code"])
 
@@ -48,7 +48,7 @@ def _upsert_quality_rule(brain, deps, ctx, payload: dict[str, Any]) -> dict[str,
     return deps.write(ctx, payload, mutation)
 
 def _run_quality_task(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     rule_code = str(payload["rule_code"])
 
@@ -76,7 +76,7 @@ def _run_quality_task(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, An
     return deps.write(ctx, payload, mutation)
 
 def _replay_quality_task(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     rule_code = str(payload["rule_code"])
     previous_task_ref = str(payload["previous_task_ref"])

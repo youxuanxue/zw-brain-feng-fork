@@ -170,7 +170,7 @@ def _do_draft_suggest(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, An
     use_case = str(payload.get("use_case") or "").strip()
     enabled = bool(payload.get("enabled", True))
     request_id = str(payload.get("request_id") or f"app-draft-{abs(hash(resource_name + applicant_org)) & 0xFFFFFFFF:08x}")
-    actor = str(brain._ui_state.get("actor", "system")) if hasattr(brain, "_ui_state") else "system"
+    actor = ctx.actor or "system"
     audit_target = f"{resource_name[:40]}|{applicant_org[:20]}"
 
     if not enabled:
@@ -335,7 +335,7 @@ def _do_evidence_summarize(brain, deps, ctx, payload: dict[str, Any]) -> dict[st
         raise ValueError("application_id is required")
     enabled = bool(payload.get("enabled", True))
     request_id = str(payload.get("request_id") or f"app-evidence-{abs(hash(application_id)) & 0xFFFFFFFF:08x}")
-    actor = str(brain._ui_state.get("actor", "system")) if hasattr(brain, "_ui_state") else "system"
+    actor = ctx.actor or "system"
 
     application = _load_application(brain, deps, ctx, application_id)
     if application is None:

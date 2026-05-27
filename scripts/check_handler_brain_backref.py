@@ -59,13 +59,18 @@ HANDLER_WHITELIST: dict[str, str] = {
     "brain.invoke_skill": "credential auto-issue re-entry via invoke_skill; Action D",
     # Remaining residual surface — kept here so reviewers can see the explicit
     # "still to migrate" list. Each is harmless today but should empty out as
-    # Action D / Action F lift these helpers out of BrainService.
-    "brain._exchange_metric_summary": "BrainService static helper; Action F pulls into shared",
+    # Action D lifts these helpers out of BrainService into domain services.
+    "brain._exchange_metric_summary": "BrainService static helper; Action D pulls into shared",
     "brain._mutate": "legacy.bsp/infra path with multi-line literal; Action D",
-    "brain._safe_json": "thin wrapper over shared.sanitization.safe_json; trivial inline candidate, Action F",
-    "brain._build_m0_work_queue_cards": "BrainService @staticmethod aggregator; Action F pulls into shared",
+    "brain._safe_json": "thin wrapper over shared.sanitization.safe_json; trivial inline candidate, Action D",
+    "brain._build_m0_work_queue_cards": "BrainService @staticmethod aggregator; Action D pulls into shared",
     "brain.grant_delivery_access": "PR#86 delegate shim — Action D retires shims",
-    "brain._ui_state": "request.py default brain alias 兜底 in tests/CLI; preserved fallback semantics — Action F",
+
+    # ── Pre-Action-F historical (retired by Action F) ───────────────────────
+    # ``brain._ui_state``: retired by Action F (segment 46 forbids handler access;
+    # role → ctx.role, actor → ctx.actor, discoveryQuery → DEFAULT_DISCOVERY_QUERY).
+    # The one legitimate access path (b1/system_ops.py outage toggle) is allowlisted
+    # in scripts/check_handler_no_ui_state.LEGITIMATE_USERS.
 
     # ── Pre-Action-C historical (kept for diff readability) ──────────────────
     # These entries were retired by Action C (snapshot reads → deps.view facade,

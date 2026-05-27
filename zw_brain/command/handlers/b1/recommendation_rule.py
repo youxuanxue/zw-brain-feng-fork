@@ -20,7 +20,7 @@ from zw_brain.shared.db import create_session_factory
 
 
 def _commit_rule(brain, deps, ctx: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     tenant_id = str(payload.get("tenant_id") or "")
     rule_id = str(payload.get("rule_id") or "")

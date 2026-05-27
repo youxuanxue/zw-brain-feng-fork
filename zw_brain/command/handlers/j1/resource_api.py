@@ -23,7 +23,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # ──────────────────────────────────────────────────────────────────────────
 
 def _register_api_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     resource = brain._api_payload(payload, default_status="draft")
 
@@ -38,7 +38,7 @@ def _register_api_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[st
     return deps.write(ctx, resource, mutation)
 
 def _change_api_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     resource = brain._api_payload(payload, default_status="draft")
 
@@ -110,7 +110,7 @@ def _transition_api_resource(brain, deps, ctx, resource_code: str, status: str, 
     return deps.write(ctx, {"resource_code": resource_code, "status": status}, mutation)
 
 def _test_api_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     resource_code = str(payload["resource_code"])
     test_result = str(payload["test_result"])
@@ -160,7 +160,7 @@ def _test_api_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, A
     return deps.write(ctx, test_payload, mutation)
 
 def _update_api_resource_policy(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     resource_code = str(payload["resource_code"])
     binding_code = str(payload["binding_code"])

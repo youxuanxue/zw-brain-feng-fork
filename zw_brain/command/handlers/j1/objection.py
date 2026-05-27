@@ -95,7 +95,7 @@ def _target_exists(target_type: str, target_id: str, tenant_id: str) -> bool:
 
 def _create_objection_case(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
 
     target_type = str(payload.get("target_type") or "").strip()
@@ -126,7 +126,7 @@ def _create_objection_case(brain, deps, ctx, payload: dict[str, Any]) -> dict[st
 
 def _transition_objection_case(brain, deps, ctx, objection_id: str, next_status: str, action_type: str, node_name: str, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
@@ -155,7 +155,7 @@ def _transition_objection_case(brain, deps, ctx, objection_id: str, next_status:
 
 def _evaluate_objection_case(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     objection_id = str(payload["objection_id"])
 
@@ -225,7 +225,7 @@ def _query_objection_cases(
 
 def _reply_objection_case(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     objection_id = str(payload["objection_id"])
 

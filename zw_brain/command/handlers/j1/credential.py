@@ -186,7 +186,7 @@ def _render_credential_samples(brain, deps, ctx, request_id: str, role: str) -> 
     monitoring_link = _MONITORING_DASHBOARD_LINK.format(app_key=app_key)
 
     deps.append_audit_feed("credential.sample.render", request_id, "ok",
-                             str(brain._ui_state.get("actor", "system")))
+                             ctx.actor or "system")
 
     return {
         "request_id": request_id,
