@@ -17,6 +17,20 @@ from zw_brain.shared.sanitization import safe_json
 _PRODUCT_ROLE_ALLOWLIST = frozenset(BUSINESS_ROLE_CODES)
 _FORBIDDEN_IMPORT_ROLE_CODES = frozenset(SYSTEM_ROLE_CODES)
 
+# `iaf-sd-<sha1>` 是 build_m0_sd_default_fixtures.py 生成的占位 sub（基线 §1.4：
+# iaf_sub 必须来自 IAF directory，占位 sub 进 canonical 会污染 actor_projection 且
+# 无法过 OIDC 验签）。mapper 解析 binding 后立即归一化为空，由下游 fail-closed
+# 路径统一处理为 iam_account_missing —— 不再依赖手工跑 ingest_iam_sub_backfill 拦截。
+_IAF_SUB_PLACEHOLDER_PREFIX = "iaf-sd-"
+
+
+def _normalize_iaf_sub(raw: str) -> str:
+    """Strip + 占位前缀检测；占位视同未注入返回空字符串。"""
+    sub = (raw or "").strip()
+    if not sub or sub.startswith(_IAF_SUB_PLACEHOLDER_PREFIX):
+        return ""
+    return sub
+
 REAL_SECRET_FIELDS = {
     "password",
     "pwd",
@@ -352,7 +366,7 @@ class GovernanceMapper:
             user_code = _string_value(row, "USER_CODE", "ID") or user_id
             account = _string_value(row, "ACCOUNT")
             binding = binding_index.get(f"id:{user_id}") or binding_index.get(f"code:{user_code}") or binding_index.get(f"account:{account}")
-            iaf_sub = _string_value(binding or {}, "IAF_SUB", "SUB", "IAM_SUB", "USER_SUB")
+            iaf_sub = _normalize_iaf_sub(_string_value(binding or {}, "IAF_SUB", "SUB", "IAM_SUB", "USER_SUB"))
             status = _status_flag(row.get("STATUS"))
             binding_specs: list[dict[str, Any]] = []
             binding_by_key: dict[tuple[str, str], dict[str, Any]] = {}
@@ -579,7 +593,7 @@ class GovernanceMapper:
             role_codes = [roles[role_id]["role_code"] for role_id in user_roles.get(user_id, []) if role_id in roles]
             org_codes = _org_codes_for_user(row, user_departments.get(user_id, []), departments)
             binding = binding_index.get(f"id:{user_id}") or binding_index.get(f"account:{account}")
-            iaf_sub = _string_value(binding or {}, "IAF_SUB", "SUB", "IAM_SUB", "USER_SUB")
+            iaf_sub = _normalize_iaf_sub(_string_value(binding or {}, "IAF_SUB", "SUB", "IAM_SUB", "USER_SUB"))
             status = _status_flag(_row_value(row, "STATUS", "ENABLED", "STATE"))
             issue_status = None
             if not iaf_sub:

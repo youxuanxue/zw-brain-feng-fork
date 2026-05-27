@@ -18,13 +18,19 @@
 - 旧平台导出包：目录、目录项、资源、资源字段、元数据快照、申请、审批、授权、质量、血缘、审计流转。
 - 结构依据：`old/12-datastructure/*` 中的旧表结构。
 - 脱敏样例：`old/10示例数据/*` 中可用于演示和验收的样例。
-- 用户角色 / 权限承接 baseline manifest：`tests/fixtures/m0-sd-default/{iaf-binding,role-mapping,capability-mapping}-manifest.json`（基于 `old/10示例数据/dump-dsp_bsp-202604271139.sql` 构造，由 `scripts/build_m0_sd_default_fixtures.py` 幂等生成；M0 实施现场可调整后回流）。e2e 验证：`tests/test_bsp_sd_default_real_dump_e2e.py`。
+- 用户角色 / 权限承接 baseline manifest：`tests/fixtures/m0-sd-default/{iaf-binding,role-mapping,capability-mapping}-manifest.json`（基于 `old/10示例数据/dump-dsp_bsp-202604271139.sql` 构造，由 `scripts/build_m0_sd_default_fixtures.py` 幂等生成；M0 实施现场可调整后回流）。`iaf-binding-manifest.json` 中 `iaf_sub` 字段是 `iaf-sd-<sha1>` **占位**，必须经 IAM 团队批量注入后由 `scripts/ingest_iam_sub_backfill.py` 替换为真实 IAM directory sub。e2e 验证：`tests/test_bsp_sd_default_real_dump_e2e.py`。
 - 迁移状态：待导出、导出完成、脱敏通过、导入中、迁移待核验、迁移通过、迁移回滚。
 - 核验证据：`legacy_object_mapping`、导入批次号、schema 快照、目录项-资源字段绑定、quality projection、lineage projection、审计回执。
 - 旧→新状态映射：旧 `dump-dsp_catalog` 中目录状态为 `草稿(0)/待审核(1)/审批通过(2)/审批驳回(3)/已发布(4)/下线(5)` 六档 + 独立 `revoke_status` 字段，M0 必须把这些映射到新平台 `draft/pending_review/approved_pending_publish/active/suspended/revoked`，并对没有旧值的扩展态 `changing` 做"无旧值"标记，以 catalog3-metadata3 重构方案 §八 为基线。
 - 单租户单省锚定：所有迁入目录、资源、申请、授权、组织、区划默认 `tenant_id=sd-default`、`region_code=370000000000`（山东省）；上级通道下发的跨省目录单独标 `external_channel_origin`，不与 sd-default canonical 混淆。
 
 ## 一条主旅程
+
+> **认证职责分界**（基线 §1.4 / G1 / G7）：zw-brain **不**写 IAF IAM 的密码 / 用户表 / token；IAM 账号开通是 IAM 团队职责。zw-brain 只做两件事：（a）输出"开通清单 csv"给 IAM 团队；（b）接收 IAM 回填的真实 sub 后替换 manifest 占位。step 0a / 0b 处理 A 线传送带（认证信息）；step 1–12 处理 B 线（业务身份 / 角色 / 权限 / 目录 / 资源等）。
+
+0a. 跑 `uv run python scripts/export_iam_provisioning_request.py --dump <客户 dump 路径>` 把 `iaf-binding-manifest.json` + dump 派生为脱敏 csv（默认落 `tests/fixtures/m0-sd-default/iam-provisioning-request.csv`），把该 csv + 客户 HR 提供的**明文**花名册（明文不入仓）一起交给 IAM 团队批量开通账号；本轮补迁可加 `--diff <上次 csv>` 只产出增量行。
+
+0b. IAM 团队按 csv 在 IAF directory 注入账号后，回填一份 `legacy_user_id,iaf_sub[,binding_status]` 的 csv 交给 zw-brain 实施工程师，跑 `uv run python scripts/ingest_iam_sub_backfill.py <回填 csv>`（可加 `--dry-run` 预演不写盘）。脚本机械门禁：`not_found_in_manifest>0` → 退出码 1；仍有 `iaf-sd-` 占位 sub → 退出码 2；仅退出码 0 才落库。落库后 `binding_status=iam_account_missing` 计数即"IAM 未开通"用户数；必须为 0（或经客户授权显式接受残缺）才进入 step 1。
 
 1. 在客户现场发起一键导出，按目录、资源、元数据、申请审批、授权、质量、血缘和审计流转生成同一批次的脱敏导出包。
 2. 先做完整性检查：关键旧表、主外键、目录 ID、资源 ID、目录项 ID、字段 ID、申请 ID、审批流转是否能被识别。
@@ -43,6 +49,7 @@
 
 | 工作队列 | 何时进 | 谁批 | 何时出 | 留在哪 |
 | --- | --- | --- | --- | --- |
+| IAM 账号注入 | step 0a 导出清单 → IAM 团队开通 → step 0b 回填 | M0 实施人 + IAM 团队 + 客户授权 | `iam_account_missing` 计数清零或客户显式接受残缺 | `iam-provisioning-request.csv` + IAM 回填 csv + 更新后的 `iaf-binding-manifest.json` |
 | 一键导出 | 客户现场启动迁移、补迁批次 | M0 实施人 + 客户授权 | 导出完成、脱敏通过 | 导出包 + 脱敏回执 |
 | 批量导入 | 导出包已脱敏 | M0 实施人 | 批次成功或停在缺口报告 | import batch + `legacy_object_mapping` |
 | 对象映射核验 | 批次导入完成 | M0 实施人 + `ROLE_ORGAN_MANAGER` + `ROLE_BUSIAUDIT` 抽样 | 旧对象逐一回指或缺口列出 | mapping evidence + 缺口清单 |
@@ -69,6 +76,8 @@
 
 ## 异常分支
 
+- **IAM 回填 csv 含 manifest 不存在的 `legacy_user_id`**：`ingest_iam_sub_backfill.py` 退出码 1，不落库；修正 typo 或换 manifest 后重跑 step 0b。
+- **IAM 团队回填漏了用户 / 未在 directory 开通**：`ingest_iam_sub_backfill.py` 校验通过后落库，仍扫到任何 `iaf-sd-<sha1>` 占位 sub 残留即退出码 2，无逃生口。先与客户确认这些用户是否本期不开通；若是则在 backfill csv 把这些 `legacy_user_id` 行的 `iaf_sub` 留空（ingest `_classify` 会自动把 `binding_status` 转 `iam_account_missing` 并清空占位 sub），重跑 ingest 即可通过；若非则催 IAM 团队补开通后重跑 step 0b。占位 sub 有**两道闸门**：ingest 落库前扫描（exit 2）+ `legacy.bsp.mapping.import` 的 governance mapper 把 `iaf-sd-` 前缀视同未注入并 fail-closed 为 `iam_account_missing`（不写 active binding / 不泄漏占位 sub 进 `external_actor_id`）。即便侥幸进入 canonical，IAF directory 无对应 sub 也会让 OIDC 验签失败、用户无法登录。
 - **导出缺表或缺字段**：停止导入该批次，输出缺口清单；不猜测旧结构，也不手工补造来源。
 - **字段枚举无法识别**：保留原始枚举摘要，进入迁移待核验，不直接映射为 active 状态。
 - **schema 冲突**：同一旧资源多版本字段不一致时，保留版本快照，默认只激活通过核验的稳定版本。

@@ -88,6 +88,43 @@ def cmd_verify(args: argparse.Namespace) -> int:
     return 0
 
 
+# P0-C：现场最常需要补 manifest 的 issue 类型（其他 issue 是数据/流程问题，落 csv 帮助小）
+_DEFAULT_UNMAPPED_ISSUE_TYPES: tuple[str, ...] = (
+    "unmapped_permission",       # 旧权限未在 capability-mapping-manifest 命中 → 补 manifest
+    "missing_role_mapping",      # 旧 role 未在 role-mapping-manifest 命中 → 补 manifest
+    "iam_account_missing",       # IAM 未注入 / 占位 sub fail-closed → 走 ingest 流程或催 IAM
+    "missing_org_relationship",  # 用户无组织绑定 → 补 pub_user_organ 数据或人工裁决
+)
+
+
+def _filter_issues(issues: list[dict], allowed_types: set[str]) -> list[dict]:
+    if "all" in allowed_types:
+        return list(issues)
+    return [i for i in issues if str(i.get("type") or "") in allowed_types]
+
+
+def _write_unmapped_csv(path: Path, issues: list[dict]) -> int:
+    """落 csv，按 (type, table, legacy_ref) 排序便于 diff。返回行数。"""
+    import csv
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    rows = sorted(
+        issues,
+        key=lambda i: (str(i.get("type") or ""), str(i.get("table") or ""), str(i.get("legacy_ref") or "")),
+    )
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=["issue_type", "table", "legacy_ref", "detail_json"], lineterminator="\n")
+        writer.writeheader()
+        for issue in rows:
+            writer.writerow({
+                "issue_type": str(issue.get("type") or ""),
+                "table": str(issue.get("table") or ""),
+                "legacy_ref": str(issue.get("legacy_ref") or ""),
+                "detail_json": json.dumps(issue.get("detail") or {}, ensure_ascii=False),
+            })
+    return len(rows)
+
+
 def cmd_import(args: argparse.Namespace) -> int:
     from zw_brain.shared.migrate import ensure_runtime_schema
 
@@ -99,6 +136,20 @@ def cmd_import(args: argparse.Namespace) -> int:
         return 1
     stats_list = result if isinstance(result, list) else [result]
     payloads = [(s.to_dict() if hasattr(s, "to_dict") else s) for s in stats_list]
+
+    # P0-C：可选落 unmapped csv 供现场补 manifest
+    if args.unmapped_csv is not None:
+        allowed_types = set((args.issue_types or ",".join(_DEFAULT_UNMAPPED_ISSUE_TYPES)).split(","))
+        allowed_types = {t.strip() for t in allowed_types if t.strip()}
+        all_issues: list[dict] = []
+        for payload in payloads:
+            all_issues.extend(_filter_issues(list(payload.get("issues") or []), allowed_types))
+        count = _write_unmapped_csv(args.unmapped_csv, all_issues)
+        print(
+            f"unmapped csv: {args.unmapped_csv} ({count} issue(s); types={sorted(allowed_types)})",
+            file=sys.stderr,
+        )
+
     if args.json:
         print(json.dumps(payloads if len(payloads) > 1 else payloads[0], ensure_ascii=False))
         return 0
@@ -136,6 +187,18 @@ def main(argv: list[str] | None = None) -> int:
     p_import = sub.add_parser("import", help="Run the registered mapper for one schema")
     p_import.add_argument("schema", help="Schema name (currently: dsp_bsp)")
     p_import.add_argument("--json", action="store_true", help="Emit JSON instead of human text")
+    p_import.add_argument(
+        "--unmapped-csv",
+        type=Path,
+        default=None,
+        help="把 mapper 产出的 issue 落 csv 方便现场补 manifest（默认范围："
+             "unmapped_permission / missing_role_mapping / iam_account_missing / missing_org_relationship）",
+    )
+    p_import.add_argument(
+        "--issue-types",
+        default=None,
+        help="逗号分隔的 issue type（覆盖默认范围）；写 'all' 输出全部 issue。仅当 --unmapped-csv 设置时生效。",
+    )
 
     p_verify = sub.add_parser("verify", help="Sample legacy_object_mapping → confirm canonical_ref resolves")
     p_verify.add_argument("--tenant", default="sd-default", help="Tenant id (default: sd-default)")

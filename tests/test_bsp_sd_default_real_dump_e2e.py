@@ -38,11 +38,38 @@ FIXTURE_DIR = REPO_ROOT / "tests/fixtures/m0-sd-default"
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 
-def _load_manifest_sql() -> str:
-    """读 3 张 JSON manifest，转为 MySQL CREATE/INSERT 块。"""
+_TEST_SUB_PREFIX = "IAM-TEST-"
+
+
+def _simulate_iam_backfill(iaf_entries: list[dict]) -> list[dict]:
+    """模拟 ingest_iam_sub_backfill 跑完后的 fixture 形态：iaf-sd-<sha1> 占位 → IAM-TEST-<sha1>。
+
+    P0-B 后 mapper 把 `iaf-sd-` 前缀归一化为空（fail-closed 触发 iam_account_missing），
+    fixture baseline 仍持占位（IAM 未注入前的原始形态）。e2e 在加载时模拟"IAM 团队已注入"。
+    单独的 fail-closed 测试 test_sd_default_real_dump_fail_closed_on_placeholder_sub 保留
+    占位形态验证 mapper 守卫生效。
+    """
+    out: list[dict] = []
+    for entry in iaf_entries:
+        copy = dict(entry)
+        sub = str(copy.get("iaf_sub") or "")
+        if sub.startswith("iaf-sd-"):
+            copy["iaf_sub"] = _TEST_SUB_PREFIX + sub[len("iaf-sd-"):]
+        out.append(copy)
+    return out
+
+
+def _load_manifest_sql(*, simulate_backfill: bool = True) -> str:
+    """读 3 张 JSON manifest，转为 MySQL CREATE/INSERT 块。
+
+    simulate_backfill=True（默认）：模拟 IAM 注入回填，iaf-sd- 占位 → IAM-TEST-；
+    simulate_backfill=False：保留占位形态，给 fail-closed 回归测试用。
+    """
     from build_m0_sd_default_fixtures import manifest_sql_for_test
 
     iaf = json.loads((FIXTURE_DIR / "iaf-binding-manifest.json").read_text(encoding="utf-8"))["entries"]
+    if simulate_backfill:
+        iaf = _simulate_iam_backfill(iaf)
     role = json.loads((FIXTURE_DIR / "role-mapping-manifest.json").read_text(encoding="utf-8"))["rows"]
     capability = json.loads(
         (FIXTURE_DIR / "capability-mapping-manifest.json").read_text(encoding="utf-8")
@@ -103,8 +130,10 @@ def test_sd_default_real_dump_iaf_to_role_policy_e2e() -> None:
         actors = gov.list_actors(tenant_id="sd-default")
         assert len(actors) == 710, f"应导入 710 actor，实得 {len(actors)}"
 
-        # synthetic iaf_sub 命中：external_actor_id 应以 "iaf-sd-" 开头（manifest 投影成 iaf_sub）
-        bound = [a for a in actors if a.external_actor_id.startswith("iaf-sd-")]
+        # synthetic iaf_sub 命中：e2e 在 fixture 加载时模拟 IAM 注入回填（_simulate_iam_backfill），
+        # 把 iaf-sd-<sha1> 占位换成 IAM-TEST-<sha1>。P0-B 后 mapper 把 iaf-sd- 前缀归一化为空
+        # （fail-closed），baseline fixture 仍持占位 — 见 test_sd_default_real_dump_fail_closed_on_placeholder_sub
+        bound = [a for a in actors if a.external_actor_id.startswith(_TEST_SUB_PREFIX)]
         assert len(bound) > 600, (
             f"应有 >600 actor 通过 iaf_binding_manifest 拿到 iaf_sub，实得 {len(bound)}/{len(actors)}"
         )
@@ -226,3 +255,54 @@ def test_sd_default_real_dump_fail_closed_without_manifest() -> None:
         # 必须 emit `missing_manifest` issue（fail-closed 标记）
         missing_manifest_issues = [i for i in report["issues"] if i["type"] == "missing_manifest"]
         assert missing_manifest_issues, "缺 manifest 时必须 emit missing_manifest issue"
+
+
+@pytest.mark.skipif(not REAL_DUMP.exists(), reason="real BSP dump absent on this checkout")
+def test_sd_default_real_dump_fail_closed_on_placeholder_sub() -> None:
+    """P0-B 回归：fixture iaf-sd-* 占位 sub 进 mapper 必须 fail-closed（iam_account_missing
+    + 0 active binding），不能写入 actor_projection 业务字段或 binding。
+
+    设计意图：占位 sub 是 build_m0_sd_default_fixtures.py 生成的合成 hash，永远不可能
+    通过真实 IAF OIDC 验签。如果允许占位 sub 进 canonical：
+      - actor_projection.external_actor_id = iaf-sd-<sha1> 污染数据
+      - 真实用户登录时 IAF 给的真 sub 不匹配，找不到投影 → 二次写一份新 actor，孤儿数据
+    所以 mapper 必须把占位前缀视同未注入。
+    """
+    from zw_brain.adapters.legacy.mappers.governance import GovernanceMapper
+    from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
+
+    with TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        _bootstrap_service(tmp)
+        dump_dir = tmp / "dumps"
+        dump_dir.mkdir(parents=True, exist_ok=True)
+        merged = dump_dir / "dump-dsp_bsp-202604271139-placeholder-sub.sql"
+        # 关键：simulate_backfill=False 保留 iaf-sd-* 占位形态
+        merged.write_text(
+            REAL_DUMP.read_text(encoding="utf-8") + "\n\n" + _load_manifest_sql(simulate_backfill=False),
+            encoding="utf-8",
+        )
+
+        stats = GovernanceMapper().import_dump(merged, dry_run=False)
+        report = stats.to_dict()
+        gov = GovernanceProjectionRepository()
+
+        # 全 710 actor 必须 fail-closed 为 iam_account_missing（manifest 全是占位，mapper 归一化为空）
+        actors = gov.list_actors(tenant_id="sd-default")
+        assert len(actors) == 710, f"actor 行数应仍为 710 (留 evidence)，实得 {len(actors)}"
+        missing = [a for a in actors if a.status == "iam_account_missing"]
+        assert len(missing) == 710, (
+            f"占位 sub 全员应 fail-closed 为 iam_account_missing，实得 {len(missing)}/{len(actors)}"
+        )
+
+        # 必须有 iam_account_missing issue（不是默默接受占位）
+        missing_issues = [i for i in report["issues"] if i["type"] == "iam_account_missing"]
+        assert missing_issues, "占位 sub 进 mapper 必须 emit iam_account_missing issue"
+
+        # 不能写任何 active binding（占位 sub 不应触发 binding 路径）
+        bindings = gov.list_actor_org_role_bindings(tenant_id="sd-default", binding_status="active")
+        assert not bindings, f"占位 sub 不应写 binding，实得 {len(bindings)}"
+
+        # 不能有任何 actor 的 external_actor_id 以 iaf-sd- 开头（mapper 归一化生效）
+        leaked = [a for a in actors if a.external_actor_id.startswith("iaf-sd-")]
+        assert not leaked, f"占位 sub 不应进 external_actor_id，实得 {len(leaked)} 条泄漏"
