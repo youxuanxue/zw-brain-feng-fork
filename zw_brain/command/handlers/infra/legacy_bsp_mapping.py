@@ -5,15 +5,18 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 
 
-def handler(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    role = str(payload.get("role", brain._ui_state["role"]))
+def handler(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
 
     def _normalize_candidates(input_payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -50,7 +53,7 @@ def handler(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
             raise BrainServiceError(f"unsupported import mode: {mode}")
         dry_run = mode in {"dry-run", "dry_run"}
         tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
-        repo = brain._governance_projection_repo()
+        repo = deps.repos.governance_projection
         capability_manifests = brain.manifests()
 
         candidates_payload = _normalize_candidates(payload)
@@ -141,7 +144,7 @@ def handler(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
                 }
             )
 
-        brain._append_audit_feed("legacy.bsp.mapping.import", "legacy_policy_mapping_candidate", "warning" if counters["failure_count"] else "ok", actor)
+        deps.append_audit_feed("legacy.bsp.mapping.import", "legacy_policy_mapping_candidate", "warning" if counters["failure_count"] else "ok", actor)
         return {
             "mode": "dry-run" if dry_run else "apply",
             "tenant_id": tenant_id,
@@ -151,4 +154,4 @@ def handler(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
             "summary": counters | {"blockers": block_issues},
         }
 
-    return brain._mutate("legacy.bsp.mapping.import", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)

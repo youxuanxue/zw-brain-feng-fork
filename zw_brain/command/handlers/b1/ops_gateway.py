@@ -9,12 +9,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 import copy
 from datetime import datetime
 
 from zw_brain.command.brain import BrainServiceError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import ops_metrics as ops_metrics_ser
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -89,9 +90,13 @@ def _anchor_gateway_log(brain, payload: dict[str, Any]) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_ops_gateway_heartbeat_ingest(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_ops_gateway_heartbeat_ingest(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _ingest_gateway_heartbeat(brain, payload)
 
-def handler_ops_gateway_log_anchor(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_ops_gateway_log_anchor(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _anchor_gateway_log(brain, payload)
 

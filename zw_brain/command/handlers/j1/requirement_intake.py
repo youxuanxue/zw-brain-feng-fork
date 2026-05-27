@@ -5,12 +5,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 import copy
 
 import zw_brain.shared.clock as clock
 from zw_brain.command.brain import InvalidStateError, NotFoundError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.shared.sanitization import safe_json
 
@@ -225,30 +226,48 @@ def _confirm_backflow(brain, task_id: str, role: str, confirmed: bool) -> dict[s
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_require_intent_submit(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_require_intent_submit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _submit_requirement_intent(brain, payload)
 
-def handler_require_intent_refine(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_require_intent_refine(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _refine_requirement_intent(brain, payload)
 
-def handler_require_intent_review(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_require_intent_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _review_requirement_intent(brain, payload)
 
-def handler_require_resource_dispatch(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_require_resource_dispatch(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _dispatch_require_resource(brain, payload)
 
-def handler_require_resource_match(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_require_resource_match(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _match_requirement_resource(brain, payload)
 
-def handler_require_task_handoff(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_require_task_handoff(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _handoff_require_task(brain, payload)
 
-def handler_supplement_submit(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _submit_supplement(brain, str(payload["request_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_supplement_submit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _submit_supplement(brain, str(payload["request_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_summary_confirm(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _confirm_summary(brain, str(payload["request_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_summary_confirm(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _confirm_summary(brain, str(payload["request_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_backflow_confirm(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _confirm_backflow(brain, str(payload["task_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_backflow_confirm(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _confirm_backflow(brain, str(payload["task_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 

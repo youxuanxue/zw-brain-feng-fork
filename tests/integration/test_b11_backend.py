@@ -25,6 +25,7 @@ from typing import Any
 
 import pytest
 
+from tests._handler_call import call_handler
 from zw_brain.command.handlers.b1 import audit as audit_handlers
 from zw_brain.command.handlers.b1 import investigation as inv_handlers
 from zw_brain.domain.policy import DomainAccessDeniedError
@@ -102,7 +103,7 @@ def test_statistics_time_bucket(store: AuditStore, bucket: str) -> None:
             audit_class="write-critical",
         )
 
-    out = audit_handlers.handler_audit_event_statistics(
+    out = call_handler(audit_handlers.handler_audit_event_statistics,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.statistics",
         payload={"bucket": bucket, "dimension": "audit_class", "tenant_id": TENANT, "limit": 1000},
@@ -121,7 +122,7 @@ def test_statistics_dimension_actor(store: AuditStore) -> None:
     _emit(request_id="R-2", actor="alice", skill_id="application.grant.approve", phase="commit")
     _emit(request_id="R-3", actor="bob", skill_id="application.grant.approve", phase="commit")
 
-    out = audit_handlers.handler_audit_event_statistics(
+    out = call_handler(audit_handlers.handler_audit_event_statistics,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.statistics",
         payload={"dimension": "actor", "tenant_id": TENANT},
@@ -145,7 +146,7 @@ def test_anomaly_high_failure_rate(store: AuditStore) -> None:
             payload={"error": "DomainAccessDeniedError"},
         )
 
-    out = audit_handlers.handler_audit_event_anomaly(
+    out = call_handler(audit_handlers.handler_audit_event_anomaly,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.anomaly",
         payload={"tenant_id": TENANT, "min_failure_count": 3, "top_n": 20},
@@ -167,7 +168,7 @@ def test_anomaly_repeated_denied(store: AuditStore) -> None:
             payload={"outcome": "denied", "attempt": i},
         )
 
-    out = audit_handlers.handler_audit_event_anomaly(
+    out = call_handler(audit_handlers.handler_audit_event_anomaly,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.anomaly",
         payload={"tenant_id": TENANT},
@@ -204,7 +205,7 @@ def test_anomaly_cross_tenant_read(store: AuditStore) -> None:
         )
     )
 
-    out = audit_handlers.handler_audit_event_anomaly(
+    out = call_handler(audit_handlers.handler_audit_event_anomaly,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.anomaly",
         payload={"tenant_id": TENANT},
@@ -246,7 +247,7 @@ def test_accountability_returns_denied_chains_sanitized(store: AuditStore) -> No
         payload={"outcome": "denied", "api_key": secret_value},
     )
 
-    out = audit_handlers.handler_audit_event_accountability(
+    out = call_handler(audit_handlers.handler_audit_event_accountability,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.accountability",
         payload={"actor": actor, "tenant_id": TENANT, "limit": 50},
@@ -299,7 +300,7 @@ def test_investigation_summary_uses_inference_client_and_sanitizes(monkeypatch, 
         ]
     }
 
-    out = inv_handlers.handler_assistant_investigation_summary(
+    out = call_handler(inv_handlers.handler_assistant_investigation_summary,
         brain=None,  # type: ignore[arg-type]
         skill_id="assistant.investigation_summary",
         payload={
@@ -328,7 +329,7 @@ def test_investigation_summary_falls_back_when_inference_fails(monkeypatch, stor
         raise InferenceError("inference unavailable")
 
     monkeypatch.setattr(inv_handlers.inference_client, "chat", _boom)
-    out = inv_handlers.handler_assistant_investigation_summary(
+    out = call_handler(inv_handlers.handler_assistant_investigation_summary,
         brain=None,  # type: ignore[arg-type]
         skill_id="assistant.investigation_summary",
         payload={
@@ -359,7 +360,7 @@ def test_investigation_summary_falls_back_when_inference_fails(monkeypatch, stor
 )
 def test_cross_tenant_access_is_denied_across_all_b11_handlers(store: AuditStore, fn, kwargs) -> None:
     with pytest.raises(DomainAccessDeniedError):
-        fn(brain=None, **kwargs)  # type: ignore[arg-type]
+        call_handler(fn, brain=None, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -397,7 +398,7 @@ def test_sd_default_e2e_b11_full_panel_chain(monkeypatch, store: AuditStore) -> 
         )
 
     # statistics by skill
-    stats = audit_handlers.handler_audit_event_statistics(
+    stats = call_handler(audit_handlers.handler_audit_event_statistics,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.statistics",
         payload={"bucket": "day", "dimension": "skill_id", "tenant_id": TENANT},
@@ -405,7 +406,7 @@ def test_sd_default_e2e_b11_full_panel_chain(monkeypatch, store: AuditStore) -> 
     assert stats["totals"].get(skill) == len(rows)
 
     # anomaly: should detect high-failure-rate（operator 3 次 denied 达阈值）
-    anomaly = audit_handlers.handler_audit_event_anomaly(
+    anomaly = call_handler(audit_handlers.handler_audit_event_anomaly,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.anomaly",
         payload={"tenant_id": TENANT, "min_failure_count": 3, "top_n": 10},
@@ -415,7 +416,7 @@ def test_sd_default_e2e_b11_full_panel_chain(monkeypatch, store: AuditStore) -> 
     assert any(operator_actor in a["actor"] for a in high_failure)
 
     # accountability: denied 链
-    account = audit_handlers.handler_audit_event_accountability(
+    account = call_handler(audit_handlers.handler_audit_event_accountability,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.accountability",
         payload={"actor": operator_actor, "tenant_id": TENANT},
@@ -434,7 +435,7 @@ def test_sd_default_e2e_b11_full_panel_chain(monkeypatch, store: AuditStore) -> 
         )
 
     monkeypatch.setattr(inv_handlers.inference_client, "chat", _mock_chat)
-    summary = inv_handlers.handler_assistant_investigation_summary(
+    summary = call_handler(inv_handlers.handler_assistant_investigation_summary,
         brain=None,  # type: ignore[arg-type]
         skill_id="assistant.investigation_summary",
         payload={

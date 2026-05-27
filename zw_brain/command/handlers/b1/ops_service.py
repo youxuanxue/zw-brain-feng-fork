@@ -9,10 +9,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 import copy
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import ops_metrics as ops_metrics_ser
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -73,9 +74,13 @@ def _query_service_report(brain) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_ops_service_invocation_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_ops_service_invocation_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_service_invocations(brain, resource_code=payload.get("resource_code"), capability_id=payload.get("capability_id"), metric_scope=payload.get("metric_scope"))
 
-def handler_ops_service_report_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_ops_service_report_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_service_report(brain)
 

@@ -170,6 +170,11 @@ class _UIStateProxy(MutableMapping[str, Any]):
 
 
 class BrainService:
+    # Cached HandlerDeps built lazily on first invoke_skill (Action A); the
+    # container is process-wide stable except for `brain_legacy=self`, so a
+    # one-time build is correct.
+    _handler_deps: Any = None
+
     def __init__(self, state_store: StateStore | None = None) -> None:
         self._state_store = state_store or StateStore()
         self._snapshot = self._state_store.load()
@@ -286,18 +291,52 @@ class BrainService:
         role = self._resolve_role(payload)
         self._ui_state["role"] = role
         self._enforce_manifest_policy(skill_id, manifest, role, payload)
+        # Action A: build per-call SkillContext + cached HandlerDeps. Handlers
+        # signature is `(deps, ctx, payload)`; brain reverse-access goes
+        # through deps.brain_legacy.X (preflight 段 38 whitelists allowed surface).
+        ctx = self._build_skill_context(skill_id, role, payload, manifest)
+        deps = self._get_handler_deps()
         if manifest.get("audit_required") and not manifest.get("side_effects"):
-            return self._invoke_traced_read(skill_id, role, payload, lambda: self._dispatch_skill(skill_id, payload))
-        return self._dispatch_skill(skill_id, payload)
+            return self._invoke_traced_read(skill_id, role, payload, lambda: self._dispatch_skill(deps, ctx, payload))
+        return self._dispatch_skill(deps, ctx, payload)
 
-    def _dispatch_skill(self, skill_id: str, payload: dict[str, Any]) -> Any:
+    def _build_skill_context(self, skill_id: str, role: str, payload: dict[str, Any], manifest: dict[str, Any]) -> Any:
+        """Build SkillContext for a call — used by commit-2+ migration; commit 1 only.
+
+        Public on BrainService so tests and runtime can construct contexts
+        without touching internals.
+        """
+        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+        return SkillContext(
+            skill_id=skill_id,
+            role=role,
+            actor=self._actor_for_role(role),
+            confirmed=bool(payload.get("confirmed")),
+            manifest=manifest,
+        )
+
+    def _get_handler_deps(self) -> Any:
+        """Lazy-build cached HandlerDeps — commit-1 introduces; commits 2+ use.
+
+        Cached because brain_legacy=self and repos are bound to the same store
+        for the lifetime of this BrainService. runtime.reset_service() rebuilds
+        both together.
+        """
+        if self._handler_deps is None:
+            from zw_brain.command.deps import HandlerDeps  # noqa: PLC0415
+            self._handler_deps = HandlerDeps.from_brain(self)
+        return self._handler_deps
+
+    def _dispatch_skill(self, deps: Any, ctx: Any, payload: dict[str, Any]) -> Any:
         # F1 split (turn 6 收官): 全 185 cap 已注册到 DISPATCH_TABLE；命中即 return，未注册视为 unknown skill。
+        # Action A 升级 2026-05-27: handler 接收 (deps, ctx, payload) 而非 (brain, skill_id, payload)；
+        # 未迁的 god-object surface 通过 deps.brain_legacy.X escape hatch（preflight 段 38 受控）。
         # Lazy import to break circular dep (brain → dispatch → handlers → brain.exceptions).
         from zw_brain.command import dispatch as _dispatch  # noqa: PLC0415
-        handler = _dispatch.lookup(skill_id)
+        handler = _dispatch.lookup(ctx.skill_id)
         if handler is None:
-            raise UnknownSkillError(skill_id)
-        return handler(self, skill_id, payload)
+            raise UnknownSkillError(ctx.skill_id)
+        return handler(deps, ctx, payload)
 
     def _objection_repo(self):
         store = self._state_store.database_store

@@ -22,6 +22,7 @@ from pathlib import Path
 
 import pytest
 
+from tests._handler_call import call_handler
 from tests._trusted_payload import invoke_trusted
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -293,8 +294,8 @@ def test_exposure_matrix_cross_tenant_denied(brain_with_audit) -> None:
     from zw_brain.domain.policy import DomainAccessDeniedError
 
     with pytest.raises(DomainAccessDeniedError):
-        intake_handlers.handler_package_exposure_matrix_query(
-            brain=None,  # type: ignore[arg-type]
+        call_handler(intake_handlers.handler_package_exposure_matrix_query,
+        brain=None,  # type: ignore[arg-type]
             skill_id="package.exposure.matrix.query",
             payload={"tenant_id": "other-tenant"},
         )

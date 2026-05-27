@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
@@ -70,8 +71,9 @@ def _project_search(brain: BrainService, tenant_id: str) -> dict[str, Any]:
 
 
 def _project_topic_package(brain: BrainService, tenant_id: str) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     """共享专题 = TopicPackageRecord（含 basesubject + dsp_example 主题包）。"""
-    packages = brain._topic_package_repo().list_packages(tenant_id=tenant_id)
+    packages = deps.repos.topic_package.list_packages(tenant_id=tenant_id)
     failures = [p for p in packages if p.status in _TOPIC_FAILED_STATUSES]
     latest = max((p.updated_at for p in packages if p.updated_at is not None), default=None)
     return {
@@ -228,7 +230,9 @@ def _derive_overall_health(projections: list[dict[str, Any]]) -> str:
     return "green"
 
 
-def handler_projection_status_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_projection_status_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     tenant_id = str(payload.get("tenant_id") or _DEFAULT_TENANT_ID)
     projections = [
         _project_search(brain, tenant_id),

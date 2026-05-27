@@ -9,9 +9,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 from zw_brain.command.brain import BrainServiceError, NotFoundError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -49,6 +50,8 @@ def _publish_or_suspend_service(brain, service_id: str, action: str, role: str, 
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_service_publish_or_suspend(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _publish_or_suspend_service(brain, str(payload["service_id"]), str(payload["action"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_service_publish_or_suspend(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _publish_or_suspend_service(brain, str(payload["service_id"]), str(payload["action"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 

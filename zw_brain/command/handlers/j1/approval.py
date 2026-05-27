@@ -5,10 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 import copy
 
 from zw_brain.command.brain import _DEFAULT_TENANT_ID, BrainServiceError, NotFoundError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -97,15 +98,23 @@ def _review_request(brain, request_id: str, decision: str, role: str, confirmed:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_approval_view(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_approval_view(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _get_approval(brain, str(payload["request_id"]))
 
-def handler_application_resource_review(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _review_request(brain, str(payload["request_id"]), str(payload["decision"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), "application.resource.review")
+def handler_application_resource_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _review_request(brain, str(payload["request_id"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "application.resource.review")
 
-def handler_approval_case_decide(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _review_request(brain, str(payload["request_id"]), str(payload["decision"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), "approval.case.decide")
+def handler_approval_case_decide(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _review_request(brain, str(payload["request_id"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "approval.case.decide")
 
-def handler_approval_review_decide(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _review_request(brain, str(payload["request_id"]), str(payload["decision"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_approval_review_decide(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _review_request(brain, str(payload["request_id"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 

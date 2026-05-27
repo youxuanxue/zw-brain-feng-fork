@@ -10,13 +10,14 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 import copy
 from datetime import datetime, timedelta
 
 import zw_brain.shared.clock as clock
 from zw_brain.command.brain import DEFAULT_DISCOVERY_QUERY, InvalidStateError, NotFoundError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.approval_flow_baseline import start_approval_workflow_from_baseline
 from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
@@ -371,20 +372,30 @@ def _get_request(brain, request_id: str) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_application_resource_submit(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_application_resource_submit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     if "purpose" in payload and not str(payload.get("purpose") or "").strip():
         raise InvalidStateError("application.resource.submit: purpose 必填，不能为空字符串")
-    return _create_request(brain, str(payload["resource_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), str(payload.get("query", brain._ui_state.get("discoveryQuery", ""))), "application.resource.submit", payload)
+    return _create_request(brain, str(payload["resource_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), str(payload.get("query", brain._ui_state.get("discoveryQuery", ""))), "application.resource.submit", payload)
 
-def handler_request_create(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _create_request(brain, str(payload["resource_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), str(payload.get("query", brain._ui_state.get("discoveryQuery", ""))), options=payload)
+def handler_request_create(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _create_request(brain, str(payload["resource_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), str(payload.get("query", brain._ui_state.get("discoveryQuery", ""))), options=payload)
 
-def handler_request_submit(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _submit_request(brain, str(payload["request_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_request_submit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _submit_request(brain, str(payload["request_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_request_view(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_request_view(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _get_request(brain, str(payload["request_id"]))
 
-def handler_request_list(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_request_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return {"items": brain.list_requests()}
 

@@ -5,11 +5,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 import copy
 
 from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoundError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import catalog as catalog_ser
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
@@ -381,20 +382,26 @@ def _update_catalog_entry(brain, payload: dict[str, Any]) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_catalog_entry_create(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_entry_create(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _create_catalog_entry_draft(brain, payload)
 
-def handler_catalog_entry_create_draft(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_entry_create_draft(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _create_catalog_entry_draft(brain, payload)
 
-def handler_catalog_entry_publish(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_entry_publish(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     # F3 (E2 J2)：发布前自动跑 catalog.duplicate.check skill；非硬拦——warnings 透传到
     # publish envelope.result.duplicate_warnings 字段供 UI 展示，**不阻断** publish。
     # 走 brain.invoke_skill 而非 helper：让 duplicate.check capability_call 独立落账
     # （F3 evidence_plan: 提醒事件 audit）。catalog 不存在时跳过预检，让下面的 _transition
     # 抛 NotFoundError 保持错误语义单一。
     code = str(payload["catalog_code"])
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     duplicate_warnings: list[dict[str, Any]] = []
     try:
@@ -411,10 +418,14 @@ def handler_catalog_entry_publish(brain: BrainService, skill_id: str, payload: d
         envelope["result"]["duplicate_warnings"] = duplicate_warnings
     return envelope
 
-def handler_catalog_entry_withdraw(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _transition_catalog_entry(brain, str(payload["catalog_code"]), "retired", "catalog.entry.withdraw", str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_catalog_entry_withdraw(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _transition_catalog_entry(brain, str(payload["catalog_code"]), "retired", "catalog.entry.withdraw", str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_catalog_entry_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_entry_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_catalog_entries(
         brain,
         query=payload.get("query"),
@@ -425,24 +436,38 @@ def handler_catalog_entry_query(brain: BrainService, skill_id: str, payload: dic
         offset=payload.get("offset"),
     )
 
-def handler_catalog_entry_reverse_draft_suggest(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_entry_reverse_draft_suggest(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _suggest_catalog_entry_reverse_draft(brain, payload)
 
-def handler_catalog_entry_reverse_draft_create(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_entry_reverse_draft_create(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _create_catalog_entry_reverse_draft(brain, payload)
 
-def handler_catalog_entry_reverse_draft_confirm(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_entry_reverse_draft_confirm(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _confirm_catalog_entry_reverse_draft(brain, payload)
 
-def handler_catalog_entry_reverse_draft_reject(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_entry_reverse_draft_reject(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _reject_catalog_entry_reverse_draft(brain, payload)
 
-def handler_catalog_entry_review(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _review_catalog_entry(brain, str(payload["catalog_code"]), str(payload["decision"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_catalog_entry_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _review_catalog_entry(brain, str(payload["catalog_code"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_catalog_entry_submit_review(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _submit_catalog_entry_review(brain, str(payload["catalog_code"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_catalog_entry_submit_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _submit_catalog_entry_review(brain, str(payload["catalog_code"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_catalog_entry_update(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_entry_update(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _update_catalog_entry(brain, payload)
 

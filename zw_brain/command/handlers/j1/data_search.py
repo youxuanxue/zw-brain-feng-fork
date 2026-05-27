@@ -8,12 +8,15 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 
 
-def handler(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     query = str(payload.get("query", ""))
     page = int(payload.get("page", 1))
     return search_resources(brain, query, page)

@@ -16,9 +16,10 @@ import json
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 import zw_brain.shared.audit as audit_bus
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.policy import DomainAccessDeniedError, tenant_for_role
 from zw_brain.shared.inference import client as inference_client
 from zw_brain.shared.inference.client import ChatMessage, InferenceError
@@ -145,7 +146,9 @@ def _fallback_investigation_summary(panel: str, sanitized: dict[str, Any], diges
     }
 
 
-def handler_assistant_investigation_summary(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_assistant_investigation_summary(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     """F3 assistant.investigation_summary —— 脱敏 panel + chat() + meta-audit。
 
     成功路径：返回 {summary, model, sanitized_input_digest, usage}。

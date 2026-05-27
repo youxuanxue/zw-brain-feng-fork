@@ -10,8 +10,9 @@ import copy
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import governance as governance_ser
 from zw_brain.domain import policy
 from zw_brain.domain.policy import DomainAccessDeniedError
@@ -25,6 +26,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # ──────────────────────────────────────────────────────────────────────────
 
 def _evaluate_tenant_policy(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
     capability_id = str(payload.get("capability_id", payload.get("skill_id", payload.get("capability_slug", ""))))
     surface = str(payload.get("surface", "webui"))
@@ -80,7 +82,7 @@ def _evaluate_tenant_policy(brain, payload: dict[str, Any]) -> dict[str, Any]:
 
     candidates = [
         governance_ser.legacy_policy_candidate_to_dict(item)
-        for item in brain._governance_projection_repo().list_policy_candidates(tenant_id=tenant_id)
+        for item in deps.repos.governance_projection.list_policy_candidates(tenant_id=tenant_id)
         if item.capability_id == capability_id and (item.surface is None or item.surface == surface)
     ]
 
@@ -195,6 +197,8 @@ def _evaluate_tenant_policy(brain, payload: dict[str, Any]) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_tenant_policy_evaluate(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_tenant_policy_evaluate(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _evaluate_tenant_policy(brain, payload)
 

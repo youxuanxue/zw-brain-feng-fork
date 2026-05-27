@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 
 
@@ -18,6 +18,7 @@ import copy
 import zw_brain.shared.clock as clock
 import zw_brain.shared.ids as ids
 from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoundError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -170,27 +171,43 @@ def _investigate_dispute(brain, dispute_id: str, action: str, role: str, confirm
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_compliance_case_open(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_compliance_case_open(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _open_compliance_case(brain, payload)
 
-def handler_compliance_case_assign(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_compliance_case_assign(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _transition_compliance_case(brain, str(payload["case_id"]), "assigned", "assign", payload)
 
-def handler_compliance_case_close(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_compliance_case_close(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _transition_compliance_case(brain, str(payload["case_id"]), "closed", "close", payload)
 
-def handler_compliance_case_resolve(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_compliance_case_resolve(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _transition_compliance_case(brain, str(payload["case_id"]), "resolved", "resolve", payload)
 
-def handler_compliance_case_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_compliance_case_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_compliance_cases(brain, status=payload.get("status"), severity=payload.get("severity"))
 
-def handler_compliance_metric_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_compliance_metric_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_compliance_metrics(brain)
 
-def handler_compliance_rule_configure(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_compliance_rule_configure(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _configure_compliance_rule(brain, payload)
 
-def handler_compliance_investigate_case(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _investigate_dispute(brain, str(payload["dispute_id"]), str(payload["action"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_compliance_investigate_case(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _investigate_dispute(brain, str(payload["dispute_id"]), str(payload["action"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 

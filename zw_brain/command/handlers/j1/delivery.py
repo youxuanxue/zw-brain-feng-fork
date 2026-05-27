@@ -5,12 +5,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 import copy
 
 import zw_brain.shared.clock as clock
 from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoundError, _mask
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
@@ -33,6 +34,7 @@ def _stop_delivery_exchange(brain, payload: dict[str, Any]) -> dict[str, Any]:
     return brain._record_delivery_attempt(payload, "delivery.exchange.stop", "stopped", "stop")
 
 def _ingest_delivery_receipt(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     task_id = str(payload["task_id"])
@@ -44,7 +46,7 @@ def _ingest_delivery_receipt(brain, payload: dict[str, Any]) -> dict[str, Any]:
             task["receiptNo"] = payload.get("receipt", {}).get("receipt_no") or payload.get("receipt_no") or task.get("receiptNo")
             task["updatedAt"] = clock.now_datetime()
             task.setdefault("history", []).append({"time": clock.now_short_time(), "state": "回执已接收", "detail": f"交付回执状态：{payload['receipt_status']}。"})
-        receipt = brain._delivery_repo().append_receipt(
+        receipt = deps.repos.delivery.append_receipt(
             {
                 "delivery_code": task_id,
                 "receipt_type": "exchange",
@@ -54,7 +56,7 @@ def _ingest_delivery_receipt(brain, payload: dict[str, Any]) -> dict[str, Any]:
             }
         )
         if payload.get("attempt_id"):
-            brain._delivery_repo().add_execution_evidence(
+            deps.repos.delivery.add_execution_evidence(
                 {
                     "evidence_ref": audit_id,
                     "delivery_code": task_id,
@@ -66,7 +68,7 @@ def _ingest_delivery_receipt(brain, payload: dict[str, Any]) -> dict[str, Any]:
                 }
             )
         if isinstance(payload.get("metrics"), dict):
-            brain._delivery_repo().upsert_exchange_metric(payload["metrics"] | {"delivery_code": task_id, "status": payload["receipt_status"]})
+            deps.repos.delivery.upsert_exchange_metric(payload["metrics"] | {"delivery_code": task_id, "status": payload["receipt_status"]})
         brain._append_audit_feed("delivery.receipt.ingest", task_id, "ok", actor)
         return {"task_id": task_id, "receipt_status": receipt.receipt_status, "receipt_id": receipt.id, "audit_id": audit_id}
 
@@ -138,6 +140,7 @@ def _replace_or_cancel_delivery(brain, payload: dict[str, Any]) -> dict[str, Any
     return brain._mutate("delivery.replace_or_cancel", role, confirmed, payload, mutation)
 
 def _manage_delivery_subscription(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     action = str(payload["action"])
@@ -147,7 +150,7 @@ def _manage_delivery_subscription(brain, payload: dict[str, Any]) -> dict[str, A
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         task = brain._delivery_by_id(str(payload["task_id"]))
         status = {"create": "active", "activate": "active", "pause": "paused", "resume": "active", "cancel": "cancelled"}[action]
-        subscription = brain._delivery_repo().upsert_subscription({"subscription_code": payload.get("subscription_id"), "delivery_code": task["id"], "resource_code": task.get("resourceId") or task.get("access", {}).get("resource_code"), "status": status, "schedule_ref": payload.get("schedule_ref") or {}, "policy_snapshot": payload.get("policy_snapshot") or {}, "legacy_status_snapshot": {"action": action, "task_status": task.get("status")}})
+        subscription = deps.repos.delivery.upsert_subscription({"subscription_code": payload.get("subscription_id"), "delivery_code": task["id"], "resource_code": task.get("resourceId") or task.get("access", {}).get("resource_code"), "status": status, "schedule_ref": payload.get("schedule_ref") or {}, "policy_snapshot": payload.get("policy_snapshot") or {}, "legacy_status_snapshot": {"action": action, "task_status": task.get("status")}})
         task.setdefault("history", []).append({"time": clock.now_short_time(), "state": "订阅策略已更新", "detail": f"订阅状态：{status}"})
         brain._append_audit_feed("delivery.subscription.manage", task["id"], "ok", actor)
         return {"subscription_code": subscription.subscription_code, "status": subscription.status, "audit_id": audit_id}
@@ -237,39 +240,63 @@ def _get_delivery_task(brain, task_id: str) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_delivery_exchange_plan(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_delivery_exchange_plan(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _plan_delivery_exchange(brain, payload)
 
-def handler_delivery_exchange_publish(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_delivery_exchange_publish(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _publish_delivery_exchange(brain, payload)
 
-def handler_delivery_exchange_start(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_delivery_exchange_start(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _start_delivery_exchange(brain, payload)
 
-def handler_delivery_exchange_stop(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_delivery_exchange_stop(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _stop_delivery_exchange(brain, payload)
 
-def handler_delivery_receipt_ingest(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_delivery_receipt_ingest(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _ingest_delivery_receipt(brain, payload)
 
-def handler_delivery_reconcile_receipt(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _reconcile_delivery_receipt(brain, str(payload["task_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_delivery_reconcile_receipt(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _reconcile_delivery_receipt(brain, str(payload["task_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_delivery_replace_or_cancel(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_delivery_replace_or_cancel(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _replace_or_cancel_delivery(brain, payload)
 
-def handler_delivery_subscription_manage(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_delivery_subscription_manage(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _manage_delivery_subscription(brain, payload)
 
-def handler_delivery_trigger_recovery(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _trigger_delivery_recovery(brain, str(payload["task_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_delivery_trigger_recovery(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _trigger_delivery_recovery(brain, str(payload["task_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_delivery_view(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_delivery_view(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _get_delivery_task(brain, str(payload["task_id"]))
 
-def handler_delivery_access_grant(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return brain.grant_delivery_access(str(payload["task_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_delivery_access_grant(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return brain.grant_delivery_access(str(payload["task_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_delivery_list(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_delivery_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return {"items": brain.list_delivery_tasks()}
 

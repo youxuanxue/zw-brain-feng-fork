@@ -5,22 +5,25 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import topic_package as topic_package_ser
 
 
-def handler(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    role = str(payload.get("role", brain._ui_state["role"]))
+def handler(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        record = brain._topic_package_repo().create_package(
+        record = deps.repos.topic_package.create_package(
             payload | {"actor_snapshot_json": {"actor": actor, "role": role}}
         )
-        brain._append_audit_feed("topic.package.create", record.package_code, "ok", actor)
+        deps.append_audit_feed("topic.package.create", record.package_code, "ok", actor)
         return topic_package_ser.topic_package_to_dict(record) | {"audit_id": audit_id}
 
-    return brain._mutate("topic.package.create", role, confirmed, payload, mutation)
+    return deps.write(ctx, payload, mutation)

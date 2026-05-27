@@ -5,12 +5,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 import copy
 
 import zw_brain.shared.clock as clock
 from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoundError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import resource_api as resource_api_ser
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
@@ -260,45 +261,73 @@ def _manage_resource_asset(
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_resource_api_register(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_resource_api_register(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _register_api_resource(brain, payload)
 
-def handler_resource_api_change(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_resource_api_change(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _change_api_resource(brain, payload)
 
-def handler_resource_api_submit_review(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _submit_api_resource_review(brain, str(payload["resource_code"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_resource_api_submit_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _submit_api_resource_review(brain, str(payload["resource_code"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_resource_asset_submit_review(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _submit_api_resource_review(brain, str(payload["resource_code"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), "resource.asset.submit_review")
+def handler_resource_asset_submit_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _submit_api_resource_review(brain, str(payload["resource_code"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "resource.asset.submit_review")
 
-def handler_resource_api_review(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _review_api_resource(brain, str(payload["resource_code"]), str(payload["decision"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_resource_api_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _review_api_resource(brain, str(payload["resource_code"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_resource_asset_review(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _review_api_resource(brain, str(payload["resource_code"]), str(payload["decision"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), "resource.asset.review")
+def handler_resource_asset_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _review_api_resource(brain, str(payload["resource_code"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "resource.asset.review")
 
-def handler_resource_api_publish(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _transition_api_resource(brain, str(payload["resource_code"]), "active", "resource.api.publish", str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_resource_api_publish(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _transition_api_resource(brain, str(payload["resource_code"]), "active", "resource.api.publish", str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_resource_api_revoke(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _transition_api_resource(brain, str(payload["resource_code"]), "revoked", "resource.api.revoke", str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_resource_api_revoke(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _transition_api_resource(brain, str(payload["resource_code"]), "revoked", "resource.api.revoke", str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_resource_api_withdraw(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _transition_api_resource(brain, str(payload["resource_code"]), "retired", "resource.api.withdraw", str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_resource_api_withdraw(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _transition_api_resource(brain, str(payload["resource_code"]), "retired", "resource.api.withdraw", str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_resource_asset_publish(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _transition_api_resource(brain, str(payload["resource_code"]), "active", "resource.asset.publish", str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_resource_asset_publish(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _transition_api_resource(brain, str(payload["resource_code"]), "active", "resource.asset.publish", str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_resource_api_test(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_resource_api_test(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _test_api_resource(brain, payload)
 
-def handler_resource_api_policy_update(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_resource_api_policy_update(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _update_api_resource_policy(brain, payload)
 
-def handler_resource_asset_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_resource_asset_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_resource_assets(brain, resource_code=payload.get("resource_code"))
 
-def handler_resource_manage_asset(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _manage_resource_asset(brain, str(payload["resource_id"]), str(payload["action"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), payload)
+def handler_resource_manage_asset(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _manage_resource_asset(brain, str(payload["resource_id"]), str(payload["action"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), payload)
 

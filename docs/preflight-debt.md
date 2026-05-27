@@ -268,3 +268,31 @@ trigger 关闭即可删除字段。
   (b) Wave 2 测试 pyramid 整改窗口期，主动 retrofit。
 - **No mechanical preflight check (now)**: 检测"集成测试是否经过 trust-stamp"需要 AST 分析或测试
   覆盖率打标，复杂度高于价值。Debt 条目兜底，加 R-001 类点护栏。
+
+## 2026-05-27 — customer_acceptance_up.sh strict 模式与真实 dump 设计脱节
+
+- **Where**: `scripts/customer_acceptance_up.sh` 用 `MigrationOptions(strict=True)` 重建 `.data/zw_brain.db`；
+  `legacy.bsp.governance` adapter 在真实 `old/10示例数据/dump-dsp_bsp-202604271139.sql` 上 52241 行
+  → 44261 ok / 7980 跳过（15%）→ status=`partial_failure` → strict 抛 `MigrationError`。
+  `adapter_run_record.error_summary = None`（**silent swallow**——失败原因不被记录）。
+- **Root cause**: `governance.py:141` 对 `_PUB_GOVERNANCE_TABLES` 缺 `iaf_binding_manifest` /
+  `role_mapping_manifest` 的行调 `stats.add_issue("missing_manifest", ...)` 然后 `continue`，
+  跳过的行计入 `failure_count` 但不写 `error_summary`。**设计上是 fail-closed**，但 strict 永远拒
+  绝任何 missing_manifest——除非 dump 完美（不现实）。
+- **Implication**: (a) 任何人在本机用 `scripts/customer_acceptance_up.sh` 重建 seed DB 都会失败；
+  (b) error_summary=None 违反 CLAUDE.md §2 「禁止 silent error swallow」。**但 canonical 投影 0
+  conflicted / J1+J2 demo 全过 / verify report failed=False —— 业务零影响**。
+- **Why deferred**: 修复方向有两个，都超 PR #128（god-object 解耦）范围：
+  (a) 改 `customer_acceptance_up.sh` 默认 non-strict + warn（保留 strict-flag 给完美 dump）
+  (b) 修 governance adapter 让 missing_manifest 写 `adapter_run_record.error_summary`（消除 silent
+  swallow），同时维持 fail-closed 语义。
+- **CI 为何 PASS**: `.github/workflows/ci.yml` 的 `legacy-import-smoke` 用合成 dump (10 行
+  dsp_example)，不跑真实 445MB dump corpus —— CI **不抓** 这条 debt。
+- **Trigger to re-evaluate**: (a) 客户现场用真实 dump 部署时 strict 卡住 → P0 fix；
+  (b) 下次有 PR 触动 `zw_brain/adapters/legacy/mappers/governance.py` 或
+  `customer_acceptance_up.sh` 时顺手清理；(c) 主动 retrofit 修 silent swallow（CLAUDE.md
+  全局宪法明禁，应排在 next refactor wave 优先位）。
+- **No mechanical preflight check (now)**: preflight 不跑真实 dump（CI 也不跑），加 check 等于强
+  推 1.3GB seed DB 进 CI runner。Debt 条目兜底，单独 PR 修。
+- **Reserved names (taken)**: 无（修复方向是改 script 默认 flag + 加 error_summary 字段填充逻辑，
+  不引入新字段/枚举）。

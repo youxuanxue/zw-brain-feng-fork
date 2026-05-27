@@ -9,11 +9,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 import copy
 
 from zw_brain.command.brain import BrainServiceError, InvalidStateError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
@@ -265,39 +266,63 @@ def _disable_tenant_capability(brain, package_id: str, role: str, confirmed: boo
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_capability_package_register(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_capability_package_register(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _register_capability_package(brain, payload)
 
-def handler_capability_version_submit(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _register_package_version(brain, str(payload["package_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), "capability.version.submit")
+def handler_capability_version_submit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _register_package_version(brain, str(payload["package_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "capability.version.submit")
 
-def handler_package_register_version(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _register_package_version(brain, str(payload["package_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_package_register_version(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _register_package_version(brain, str(payload["package_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_capability_version_review(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _review_package(brain, str(payload["package_id"]), str(payload["decision"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), "capability.version.review")
+def handler_capability_version_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _review_package(brain, str(payload["package_id"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "capability.version.review")
 
-def handler_package_review_decide(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _review_package(brain, str(payload["package_id"]), str(payload["decision"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_package_review_decide(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _review_package(brain, str(payload["package_id"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_capability_exposure_configure(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _configure_package_exposure(brain, str(payload["package_id"]), str(payload["mode"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), "capability.exposure.configure")
+def handler_capability_exposure_configure(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _configure_package_exposure(brain, str(payload["package_id"]), str(payload["mode"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "capability.exposure.configure")
 
-def handler_package_configure_exposure(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _configure_package_exposure(brain, str(payload["package_id"]), str(payload["mode"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_package_configure_exposure(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _configure_package_exposure(brain, str(payload["package_id"]), str(payload["mode"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_package_apply_tenant_policy(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _apply_package_tenant_policy(brain, str(payload["package_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), tenant_id=str(payload.get("tenant_id", _DEFAULT_TENANT_ID)))
+def handler_package_apply_tenant_policy(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _apply_package_tenant_policy(brain, str(payload["package_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), tenant_id=str(payload.get("tenant_id", _DEFAULT_TENANT_ID)))
 
-def handler_tenant_capability_enable(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _apply_package_tenant_policy(brain, str(payload["package_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), "tenant.capability.enable", str(payload.get("tenant_id", _DEFAULT_TENANT_ID)))
+def handler_tenant_capability_enable(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _apply_package_tenant_policy(brain, str(payload["package_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "tenant.capability.enable", str(payload.get("tenant_id", _DEFAULT_TENANT_ID)))
 
-def handler_package_list(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_package_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return {"items": _list_packages(brain)}
 
-def handler_package_view(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_package_view(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _get_package(brain, str(payload["package_id"]))
 
-def handler_tenant_capability_disable(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _disable_tenant_capability(brain, str(payload["package_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), str(payload.get("tenant_id", _DEFAULT_TENANT_ID)))
+def handler_tenant_capability_disable(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _disable_tenant_capability(brain, str(payload["package_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), str(payload.get("tenant_id", _DEFAULT_TENANT_ID)))
 

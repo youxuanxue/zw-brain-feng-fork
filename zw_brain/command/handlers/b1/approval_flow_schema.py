@@ -5,7 +5,7 @@ F3：approval_flow.nl_draft（一句话生成 draft）
     + approval_flow.schema.promote_to_preview（draft → preview）
     + approval_flow.schema.revert_to_draft（preview → draft）。
 
-handler 签名：def handler(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any
+handler 签名：def handler(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.approval_flow_nl_draft import (
     ApprovalFlowDraftSourceError,
     generate_draft,
@@ -157,25 +158,25 @@ def _revert_to_draft(brain: BrainService, skill_id: str, payload: dict[str, Any]
     return brain._mutate(skill_id, role, confirmed, payload, mutation)
 
 
-def handler_approval_flow_schema_commit(
-    brain: BrainService, skill_id: str, payload: dict[str, Any]
-) -> Any:
+def handler_approval_flow_schema_commit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _commit_schema(brain, skill_id, payload)
 
 
-def handler_approval_flow_nl_draft(
-    brain: BrainService, skill_id: str, payload: dict[str, Any]
-) -> Any:
+def handler_approval_flow_nl_draft(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _nl_draft(brain, skill_id, payload)
 
 
-def handler_approval_flow_schema_promote_to_preview(
-    brain: BrainService, skill_id: str, payload: dict[str, Any]
-) -> Any:
+def handler_approval_flow_schema_promote_to_preview(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _promote_to_preview(brain, skill_id, payload)
 
 
-def handler_approval_flow_schema_revert_to_draft(
-    brain: BrainService, skill_id: str, payload: dict[str, Any]
-) -> Any:
+def handler_approval_flow_schema_revert_to_draft(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _revert_to_draft(brain, skill_id, payload)

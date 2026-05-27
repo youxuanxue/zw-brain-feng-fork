@@ -8,8 +8,13 @@
 2. 在本文件 DISPATCH_TABLE 注册 `"<capability_id>": <module>.<handler_fn>`
 3. 在 `handlers/_CATEGORIZATION.md` 补一行 bucket 归属
 
-handler 签名：
-    def handler(brain: 'BrainService', skill_id: str, payload: dict[str, Any]) -> Any
+handler 签名（Action A 升级 2026-05-27）：
+    def handler(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any
+
+历史签名 ``handler(brain, skill_id, payload)`` 已退役；handler 通过
+``deps.repos.*`` / ``deps.write(ctx, ...)`` / ``ctx.role`` 等访问能力。未迁的
+god-object surface 通过 ``deps.brain_legacy.X`` escape hatch（preflight 段 38
+白名单受控；commit 6 起强制收口）。
 
 共享 method（如 transition_objection_case 服务 7 cap、record_adapter_operation
 17 cap 共用）：handler 内派生不同参数后调同一 module-level fn，详见各 handler 模块。
@@ -83,9 +88,9 @@ from zw_brain.command.handlers.j2 import (
 )
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    from zw_brain.command.deps import HandlerDeps, SkillContext
 
-Handler = Callable[["BrainService", str, dict[str, Any]], Any]
+Handler = Callable[["HandlerDeps", "SkillContext", dict[str, Any]], Any]
 
 _PASSTHROUGH_CAPS = (
     "adapter.cascade.consume",

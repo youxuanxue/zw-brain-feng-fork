@@ -9,9 +9,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 import zw_brain.shared.clock as clock
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import quality as quality_ser
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
@@ -89,12 +90,18 @@ def _query_catalog_statistics(brain) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_ops_catalog_quality_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_ops_catalog_quality_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_catalog_quality(brain, target_type=payload.get("target_type"), target_ref=payload.get("target_ref"))
 
-def handler_ops_catalog_quality_upsert(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_ops_catalog_quality_upsert(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _upsert_catalog_quality_evidence(brain, payload)
 
-def handler_ops_catalog_statistics_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_ops_catalog_statistics_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_catalog_statistics(brain)
 

@@ -5,10 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 import zw_brain.shared.clock as clock
 from zw_brain.command.brain import BrainServiceError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -36,6 +37,7 @@ def _approve_application_grant(brain, payload: dict[str, Any]) -> dict[str, Any]
     raise BrainServiceError(f"unsupported grant decision: {decision}")
 
 def _renew_application_grant(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     # Customer surface forwards `delivery_task_id`; the legacy contract used
@@ -47,7 +49,7 @@ def _renew_application_grant(brain, payload: dict[str, Any]) -> dict[str, Any]:
         task.setdefault("access", {})["renew_until"] = payload.get("renew_until")
         task["updatedAt"] = clock.now_datetime()
         task.setdefault("history", []).append({"time": clock.now_short_time(), "state": "授权已续期", "detail": str(payload.get("reason", "访问授权续期完成。"))})
-        brain._delivery_repo().add_execution_evidence({"evidence_ref": audit_id, "delivery_code": task_id, "executor_kind": "grant_policy", "evidence_kind": "grant_renewal", "result_status": "renewed", "payload_json": payload})
+        deps.repos.delivery.add_execution_evidence({"evidence_ref": audit_id, "delivery_code": task_id, "executor_kind": "grant_policy", "evidence_kind": "grant_renewal", "result_status": "renewed", "payload_json": payload})
         brain._append_audit_feed("application.grant.renew", task_id, "ok", actor)
         return {"task_id": task_id, "renew_until": payload.get("renew_until"), "audit_id": audit_id}
 
@@ -91,15 +93,23 @@ def _revoke_application_grant(brain, payload: dict[str, Any]) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_application_grant_approve(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_application_grant_approve(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _approve_application_grant(brain, payload)
 
-def handler_application_grant_renew(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_application_grant_renew(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _renew_application_grant(brain, payload)
 
-def handler_application_grant_suspend(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_application_grant_suspend(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _suspend_application_grant(brain, payload)
 
-def handler_application_grant_revoke(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_application_grant_revoke(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _revoke_application_grant(brain, payload)
 

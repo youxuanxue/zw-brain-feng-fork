@@ -5,13 +5,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 
 import copy
 
 import zw_brain.shared.clock as clock
 from zw_brain.command.brain import _DEFAULT_TENANT_ID, NotFoundError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -80,12 +81,18 @@ def _terminate_subscription(brain, payload: dict[str, Any]) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_workbench_view(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _get_workbench(brain, str(payload.get("role", brain._ui_state["role"])))
+def handler_workbench_view(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _get_workbench(brain, str(payload.get("role", ctx.role)))
 
-def handler_service_rating_submit(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_service_rating_submit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _submit_service_rating(brain, payload)
 
-def handler_subscription_terminate(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_subscription_terminate(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _terminate_subscription(brain, payload)
 

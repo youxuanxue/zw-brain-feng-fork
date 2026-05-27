@@ -9,12 +9,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 
 
 
 import zw_brain.shared.clock as clock
+from zw_brain.command.deps import HandlerDeps, SkillContext
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -90,12 +91,18 @@ def _submit_shift_handover(brain, payload: dict[str, Any]) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_ops_ticket_create(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_ops_ticket_create(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _create_ops_ticket(brain, payload)
 
-def handler_ops_ticket_close(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_ops_ticket_close(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _close_ops_ticket(brain, payload)
 
-def handler_ops_shift_handover_submit(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_ops_shift_handover_submit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _submit_shift_handover(brain, payload)
 

@@ -17,8 +17,9 @@ import json as _json
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.shared.inference.client import (
     ChatMessage,
     InferenceError,
@@ -199,7 +200,9 @@ def _do_draft_suggest(brain, payload: dict[str, Any]) -> dict[str, Any]:
     return fallback
 
 
-def handler_application_draft_suggest(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_application_draft_suggest(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _do_draft_suggest(brain, payload)
 
 
@@ -375,5 +378,7 @@ def _do_evidence_summarize(brain, payload: dict[str, Any]) -> dict[str, Any]:
     return fallback
 
 
-def handler_approval_evidence_summarize(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_approval_evidence_summarize(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _do_evidence_summarize(brain, payload)

@@ -11,9 +11,10 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 from zw_brain.command.brain import BrainServiceError, _count_by
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import adapter as adapter_ser
 from zw_brain.command.serializers import governance as governance_ser
 from zw_brain.domain import policy
@@ -28,11 +29,12 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # ──────────────────────────────────────────────────────────────────────────
 
 def _get_governance_iam_overview(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
     status_filter = str(payload.get("binding_status", payload.get("status", "")) or "")
     capability_filter = str(payload.get("capability_id", payload.get("capability_slug", "")) or "")
     issue_filter = str(payload.get("issue_type", "") or "")
-    repo = brain._governance_projection_repo()
+    repo = deps.repos.governance_projection
     store = brain._state_store.database_store
     tenants = [governance_ser.tenant_projection_to_dict(item) for item in repo.list_tenants() if not tenant_id or item.tenant_id == tenant_id]
     orgs = [governance_ser.org_projection_to_dict(item) for item in repo.list_orgs(tenant_id=tenant_id)]
@@ -51,7 +53,7 @@ def _get_governance_iam_overview(brain, payload: dict[str, Any]) -> dict[str, An
     candidates = [governance_ser.legacy_policy_candidate_to_dict(item) for item in repo.list_policy_candidates(tenant_id=tenant_id)]
     if capability_filter:
         candidates = [item for item in candidates if item.get("capability_id") == capability_filter]
-    adapter_runs = [adapter_ser.adapter_run_to_dict(item) for item in brain._external_adapter_repo().list_run_records(tenant_id=tenant_id, adapter_slug="legacy.bsp.governance")]
+    adapter_runs = [adapter_ser.adapter_run_to_dict(item) for item in deps.repos.external_adapter.list_run_records(tenant_id=tenant_id, adapter_slug="legacy.bsp.governance")]
     issues = brain._governance_import_issues(adapter_runs)
     if issue_filter:
         issues = [item for item in issues if item.get("type") == issue_filter]
@@ -103,8 +105,9 @@ def _get_governance_iam_overview(brain, payload: dict[str, Any]) -> dict[str, An
     }
 
 def _list_policy_mapping_candidates(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
-    repo = brain._governance_projection_repo()
+    repo = deps.repos.governance_projection
     records = repo.list_policy_candidates(
         tenant_id=tenant_id,
         candidate_status=str(payload.get("candidate_status") or payload.get("status") or "") or None,
@@ -138,6 +141,7 @@ def _list_policy_mapping_candidates(brain, payload: dict[str, Any]) -> dict[str,
     }
 
 def _review_policy_mapping_candidates(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     decision = str(payload.get("decision") or "").strip().lower()
@@ -168,7 +172,7 @@ def _review_policy_mapping_candidates(brain, payload: dict[str, Any]) -> dict[st
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
         review_note = str(payload.get("review_note") or "")
-        repo = brain._governance_projection_repo()
+        repo = deps.repos.governance_projection
         manifests = brain.manifests()
         review_rows = _normalize_review_items(payload)
         if not review_rows:
@@ -338,7 +342,7 @@ def _review_policy_mapping_candidates(brain, payload: dict[str, Any]) -> dict[st
 
         applied_policies: list[dict[str, Any]] = []
         for capability_id, applied in apply_plans:
-            policy_record = brain._capability_package_repo().set_tenant_policy_status(
+            policy_record = deps.repos.capability_package.set_tenant_policy_status(
                 {
                     "slug": capability_id,
                     "status": "approved",
@@ -383,12 +387,18 @@ def _review_policy_mapping_candidates(brain, payload: dict[str, Any]) -> dict[st
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_governance_iam_overview(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_governance_iam_overview(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _get_governance_iam_overview(brain, payload)
 
-def handler_governance_policy_candidate_list(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_governance_policy_candidate_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _list_policy_mapping_candidates(brain, payload)
 
-def handler_governance_policy_candidate_review(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_governance_policy_candidate_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _review_policy_mapping_candidates(brain, payload)
 

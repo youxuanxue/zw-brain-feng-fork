@@ -23,10 +23,11 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 import zw_brain.shared.audit as audit_bus
 from zw_brain.command.brain import BrainServiceError, InvalidStateError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.policy import DomainAccessDeniedError, tenant_for_role
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.skill_registration.runtime import (
@@ -90,7 +91,9 @@ def _rollback_package(brain, payload: dict[str, Any]) -> dict[str, Any]:
     return brain._mutate("package.rollback", role, confirmed, payload, mutation)
 
 
-def handler_package_rollback(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_package_rollback(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _rollback_package(brain, payload)
 
 
@@ -139,7 +142,9 @@ def _update_package_trust_level(brain, payload: dict[str, Any]) -> dict[str, Any
     return brain._mutate("package.trust_level.update", role, confirmed, payload, mutation)
 
 
-def handler_package_trust_level_update(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_package_trust_level_update(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _update_package_trust_level(brain, payload)
 
 
@@ -213,7 +218,9 @@ def _matrix_row_from_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def handler_package_exposure_matrix_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_package_exposure_matrix_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     """F4 package.exposure.matrix.query —— 只读 manifest × 5 消费面暴露矩阵。
 
     投影派生自 zw_brain/skill_registration/registered/*.json，不复制 manifest

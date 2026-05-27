@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
 from zw_brain.command.brain import NotFoundError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
@@ -77,5 +78,7 @@ def check_catalog_duplicate(brain: BrainService, catalog_code: str) -> dict[str,
     }
 
 
-def handler_catalog_duplicate_check(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_duplicate_check(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return check_catalog_duplicate(brain, str(payload["catalog_code"]))

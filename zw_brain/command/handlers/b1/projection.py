@@ -9,8 +9,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import governance as governance_ser
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
@@ -23,11 +24,12 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # ──────────────────────────────────────────────────────────────────────────
 
 def _sync_org_projection(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        repo = brain._governance_projection_repo()
+        repo = deps.repos.governance_projection
         tenant = repo.upsert_tenant(payload.get("tenant") or payload)
         tenant_id = tenant.tenant_id
         regions = [repo.upsert_region(item, tenant_id=tenant_id) for item in payload.get("regions") or []]
@@ -46,11 +48,12 @@ def _sync_org_projection(brain, payload: dict[str, Any]) -> dict[str, Any]:
     return brain._mutate("org.projection.sync", role, confirmed, payload, mutation)
 
 def _sync_actor_projection(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        repo = brain._governance_projection_repo()
+        repo = deps.repos.governance_projection
         actors_payload = payload.get("actors") or [payload]
         actors: list[Any] = []
         actor_snapshots: list[dict[str, Any]] = []
@@ -110,9 +113,13 @@ def _sync_actor_projection(brain, payload: dict[str, Any]) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_org_projection_sync(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_org_projection_sync(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _sync_org_projection(brain, payload)
 
-def handler_actor_projection_sync(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_actor_projection_sync(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _sync_actor_projection(brain, payload)
 

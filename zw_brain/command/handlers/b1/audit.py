@@ -18,9 +18,10 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 import zw_brain.shared.audit as audit_bus
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.policy import DomainAccessDeniedError, tenant_for_role
 from zw_brain.shared.audit import index as audit_index
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
@@ -107,13 +108,17 @@ def _replay_evidence_chain(brain, dispute_id: str) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_audit_list(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_audit_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return {
         "items": _list_audit_events(brain),
         "summary": copy.deepcopy(brain._snapshot["audit_ai"]),
     }
 
-def handler_audit_replay_evidence_chain(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_audit_replay_evidence_chain(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _replay_evidence_chain(brain, str(payload["dispute_id"]))
 
 
@@ -206,7 +211,9 @@ def _event_to_dict(ev: Any, *, include_payload: bool) -> dict[str, Any]:
     return out
 
 
-def handler_audit_event_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_audit_event_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     """F2 audit.event.query — 按维度查审计事件 + 聚合摘要。
 
     强制单租户 tenant_scope；不外泄 payload 原文（output items 只含 metadata）。
@@ -257,7 +264,9 @@ def handler_audit_event_query(brain: BrainService, skill_id: str, payload: dict[
     return {"items": items, "summary": summary}
 
 
-def handler_audit_event_replay(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_audit_event_replay(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     """F2 audit.event.replay — 按 request_id 回放一条审批链所有 phase 的事件序列。
 
     与 query 不同：replay 把 payload 透传给 caller（安全审计员需要看原文复盘），
@@ -326,7 +335,9 @@ def _dimension_value(ev: Any, dimension: str) -> str:
     raise ValueError(f"unknown dimension: {dimension!r}")
 
 
-def handler_audit_event_statistics(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_audit_event_statistics(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     """F3 audit.event.statistics — 按时间桶 + 维度聚合事件计数。"""
     tenant_id = _enforce_tenant_scope(payload)
     bucket = str(payload.get("bucket") or "day")
@@ -482,7 +493,9 @@ def _detect_repeated_denied(events: list[Any]) -> list[dict[str, Any]]:
     return anomalies
 
 
-def handler_audit_event_anomaly(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_audit_event_anomaly(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     """F3 audit.event.anomaly — rule-based Top-N 异常事件扫描。
 
     输出按 severity (high→medium→low) + occurrence_count 倒序，截断到 top_n。
@@ -555,7 +568,9 @@ def _sanitize_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def handler_audit_event_accountability(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_audit_event_accountability(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     """F3 audit.event.accountability — 按 actor 拉所有 outcome=denied 的 chain。
 
     返回 sanitized 链路（敏感字段 hash 化）；按 denied_at 倒序。

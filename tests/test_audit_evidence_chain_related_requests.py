@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests._handler_call import call_handler
 from zw_brain.command.brain import BrainService
 from zw_brain.command.handlers.b1.audit import handler_audit_replay_evidence_chain
 from zw_brain.shared.state_store import StateStore
@@ -39,10 +40,11 @@ def test_replay_evidence_chain_includes_dispute_related_request_ids(tmp_path: Pa
         ]
     )
 
-    out = handler_audit_replay_evidence_chain(
-        brain,
-        "audit.replay_evidence_chain",
-        {"dispute_id": "DSP-2026-04-25-0003"},
+    out = call_handler(
+        handler_audit_replay_evidence_chain,
+        brain=brain,
+        skill_id="audit.replay_evidence_chain",
+        payload={"dispute_id": "DSP-2026-04-25-0003"},
     )
 
     targets = {item["target"] for item in out["auditEvents"]}
@@ -59,10 +61,11 @@ def test_replay_evidence_chain_without_related_request_ids_does_not_pull_demo_re
         ]
     )
 
-    out = handler_audit_replay_evidence_chain(
-        brain,
-        "audit.replay_evidence_chain",
-        {"dispute_id": "DSP-2026-04-24-0006"},
+    out = call_handler(
+        handler_audit_replay_evidence_chain,
+        brain=brain,
+        skill_id="audit.replay_evidence_chain",
+        payload={"dispute_id": "DSP-2026-04-24-0006"},
     )
 
     targets = {item["target"] for item in out["auditEvents"]}

@@ -23,6 +23,7 @@ from typing import Any
 
 import pytest
 
+from tests._handler_call import call_handler
 from zw_brain.command.handlers.b1 import audit as audit_handlers
 from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.shared import audit as audit_bus
@@ -113,7 +114,7 @@ def test_query_by_actor_skill_and_time_window(store: AuditStore) -> None:
     )
 
     # by actor
-    out = audit_handlers.handler_audit_event_query(
+    out = call_handler(audit_handlers.handler_audit_event_query,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.query",
         payload={
@@ -129,7 +130,7 @@ def test_query_by_actor_skill_and_time_window(store: AuditStore) -> None:
     assert out["summary"]["by_skill"]["governance.policy_candidate.review"] == 3
 
     # by skill
-    out = audit_handlers.handler_audit_event_query(
+    out = call_handler(audit_handlers.handler_audit_event_query,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.query",
         payload={
@@ -142,7 +143,7 @@ def test_query_by_actor_skill_and_time_window(store: AuditStore) -> None:
 
     # time window: future since → empty
     later = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
-    out = audit_handlers.handler_audit_event_query(
+    out = call_handler(audit_handlers.handler_audit_event_query,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.query",
         payload={"tenant_id": TENANT, "since": later, "limit": 100},
@@ -160,7 +161,7 @@ def test_query_emits_meta_audit_with_sanitized_payload(store: AuditStore) -> Non
         audit_class="write-critical",
     )
 
-    audit_handlers.handler_audit_event_query(
+    call_handler(audit_handlers.handler_audit_event_query,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.query",
         payload={
@@ -191,8 +192,8 @@ def test_query_emits_meta_audit_with_sanitized_payload(store: AuditStore) -> Non
 
 def test_cross_tenant_query_is_denied(store: AuditStore) -> None:
     with pytest.raises(DomainAccessDeniedError):
-        audit_handlers.handler_audit_event_query(
-            brain=None,  # type: ignore[arg-type]
+        call_handler(audit_handlers.handler_audit_event_query,
+        brain=None,  # type: ignore[arg-type]
             skill_id="audit.event.query",
             payload={"tenant_id": "other-tenant"},
         )
@@ -200,8 +201,8 @@ def test_cross_tenant_query_is_denied(store: AuditStore) -> None:
 
 def test_cross_tenant_replay_is_denied(store: AuditStore) -> None:
     with pytest.raises(DomainAccessDeniedError):
-        audit_handlers.handler_audit_event_replay(
-            brain=None,  # type: ignore[arg-type]
+        call_handler(audit_handlers.handler_audit_event_replay,
+        brain=None,  # type: ignore[arg-type]
             skill_id="audit.event.replay",
             payload={"request_id": "REQ-X", "tenant_id": "other-tenant"},
         )
@@ -215,7 +216,7 @@ def test_omitted_tenant_id_falls_back_to_runtime_tenant(store: AuditStore) -> No
         skill_id="application.grant.approve",
         phases=["commit"],
     )
-    out = audit_handlers.handler_audit_event_query(
+    out = call_handler(audit_handlers.handler_audit_event_query,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.query",
         payload={},
@@ -238,7 +239,7 @@ def test_replay_returns_full_phase_sequence(store: AuditStore) -> None:
         audit_class="write-critical",
     )
 
-    out = audit_handlers.handler_audit_event_replay(
+    out = call_handler(audit_handlers.handler_audit_event_replay,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.replay",
         payload={"request_id": "REQ-CHAIN-001", "tenant_id": TENANT},
@@ -255,8 +256,8 @@ def test_replay_returns_full_phase_sequence(store: AuditStore) -> None:
 
 def test_replay_rejects_empty_request_id(store: AuditStore) -> None:
     with pytest.raises(ValueError):
-        audit_handlers.handler_audit_event_replay(
-            brain=None,  # type: ignore[arg-type]
+        call_handler(audit_handlers.handler_audit_event_replay,
+        brain=None,  # type: ignore[arg-type]
             skill_id="audit.event.replay",
             payload={"request_id": "   ", "tenant_id": TENANT},
         )
@@ -286,7 +287,7 @@ def test_replay_filters_cross_tenant_events_in_chain(store: AuditStore) -> None:
         )
     )
 
-    out = audit_handlers.handler_audit_event_replay(
+    out = call_handler(audit_handlers.handler_audit_event_replay,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.replay",
         payload={"request_id": "REQ-MIXED", "tenant_id": TENANT},
@@ -349,8 +350,8 @@ def test_sd_default_real_approval_chain_e2e(store: AuditStore) -> None:
 
     # 逐条 replay 验证 phase 序列完整
     for rid, row in zip(request_ids, sample, strict=False):
-        out = audit_handlers.handler_audit_event_replay(
-            brain=None,  # type: ignore[arg-type]
+        out = call_handler(audit_handlers.handler_audit_event_replay,
+        brain=None,  # type: ignore[arg-type]
             skill_id="audit.event.replay",
             payload={"request_id": rid, "tenant_id": TENANT, "limit": 100},
         )
@@ -362,7 +363,7 @@ def test_sd_default_real_approval_chain_e2e(store: AuditStore) -> None:
         assert out["summary"]["total"] == len(expected_phases)
 
     # 聚合 query：按 skill 拉所有 commit phase 的事件
-    out_query = audit_handlers.handler_audit_event_query(
+    out_query = call_handler(audit_handlers.handler_audit_event_query,
         brain=None,  # type: ignore[arg-type]
         skill_id="audit.event.query",
         payload={

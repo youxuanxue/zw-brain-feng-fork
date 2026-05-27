@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 
 import copy
@@ -13,6 +13,7 @@ import json as _json
 
 import zw_brain.shared.clock as clock
 from zw_brain.command.brain import InvalidStateError, NotFoundError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 
 # 监控入口：链接到 §3.4 集团运维监控（不内嵌 dashboard），由 IT 资源运维直观接管
 _MONITORING_DASHBOARD_LINK = "https://ops.gov-data.local/monitoring/credential-call?app_key={app_key}"
@@ -209,12 +210,18 @@ def _render_credential_samples(brain, request_id: str, role: str) -> dict[str, A
     }
 
 
-def handler_credential_issue(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _issue_credential(brain, str(payload["request_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")), reissue=bool(payload.get("reissue", False)))
+def handler_credential_issue(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _issue_credential(brain, str(payload["request_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), reissue=bool(payload.get("reissue", False)))
 
-def handler_credential_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _get_credential(brain, str(payload["request_id"]), str(payload.get("role", brain._ui_state["role"])))
+def handler_credential_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _get_credential(brain, str(payload["request_id"]), str(payload.get("role", ctx.role)))
 
-def handler_credential_sample_render(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _render_credential_samples(brain, str(payload["request_id"]), str(payload.get("role", brain._ui_state["role"])))
+def handler_credential_sample_render(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _render_credential_samples(brain, str(payload["request_id"]), str(payload.get("role", ctx.role)))
 

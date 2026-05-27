@@ -10,9 +10,10 @@ import copy
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 from zw_brain.command.brain import NotFoundError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -57,12 +58,18 @@ def _publish_zone_topic_projection(brain, zone_id: str, role: str, confirmed: bo
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_zone_list(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_zone_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return {"items": _list_zones(brain)}
 
-def handler_zone_view(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_zone_view(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _get_zone(brain, str(payload["zone_id"]))
 
-def handler_zone_publish_topic_projection(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _publish_zone_topic_projection(brain, str(payload["zone_id"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_zone_publish_topic_projection(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _publish_zone_topic_projection(brain, str(payload["zone_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 

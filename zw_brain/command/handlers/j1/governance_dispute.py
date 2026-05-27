@@ -5,11 +5,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 import copy
 
 from zw_brain.command.brain import _DEFAULT_TENANT_ID, NotFoundError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -102,9 +103,13 @@ def _get_dispute(brain, dispute_id: str) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_governance_dispute_list(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_governance_dispute_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _list_governance_disputes(brain)
 
-def handler_governance_dispute_view(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_governance_dispute_view(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _get_dispute(brain, str(payload["dispute_id"]))
 

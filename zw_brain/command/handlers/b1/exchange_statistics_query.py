@@ -5,15 +5,18 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import delivery as delivery_ser
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 
 
-def handler(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     filters: dict[str, Any] = {}
     if payload.get("metric_scope") is not None:
         filters["metric_scope"] = payload.get("metric_scope")
@@ -23,6 +26,6 @@ def handler(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
         filters["delivery_code"] = payload.get("delivery_code")
     metrics = [
         delivery_ser.exchange_metric_to_dict(item)
-        for item in brain._delivery_repo().list_exchange_metrics(**filters, tenant_id=_DEFAULT_TENANT_ID)
+        for item in deps.repos.delivery.list_exchange_metrics(**filters, tenant_id=_DEFAULT_TENANT_ID)
     ]
     return {"items": metrics, "summary": brain._exchange_metric_summary(metrics)}

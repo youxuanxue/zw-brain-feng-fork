@@ -12,14 +12,19 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import adapter as adapter_ser
 
 
-def handler(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _record_adapter_operation(brain, skill_id, payload)
 
 
-def handler_health_probe(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_health_probe(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     enriched = {
         "adapter_slug": payload.get("adapter_slug", "adapter-health"),
         "operation": "health_probe",
@@ -29,11 +34,12 @@ def handler_health_probe(brain: BrainService, skill_id: str, payload: dict[str, 
 
 
 def _record_adapter_operation(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        repo = brain._external_adapter_repo()
+        repo = deps.repos.external_adapter
         adapter_slug, operation, direction = brain._adapter_operation_from_skill(skill_id, payload)
         idempotency_key = str(payload.get("idempotency_key") or brain._adapter_idempotency_key(skill_id, payload))
         run = repo.upsert_run_record(

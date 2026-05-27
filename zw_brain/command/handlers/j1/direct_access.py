@@ -5,8 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
@@ -85,9 +86,13 @@ def _list_direct_access_delivery(brain, payload: dict[str, Any]) -> dict[str, An
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_direct_access_catalog_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_direct_access_catalog_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_direct_access_catalog(brain, payload)
 
-def handler_direct_access_delivery_list(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_direct_access_delivery_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _list_direct_access_delivery(brain, payload)
 

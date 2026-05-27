@@ -9,8 +9,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import metadata as metadata_ser
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
@@ -182,27 +183,43 @@ def _upsert_metadata_lineage(brain, payload: dict[str, Any]) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_metadata_schema_discover(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_metadata_schema_discover(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _discover_metadata_schema(brain, payload)
 
-def handler_metadata_schema_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_metadata_schema_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_metadata_schema(brain, resource_code=payload.get("resource_code"), binding_code=payload.get("binding_code"))
 
-def handler_metadata_catalog_item_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_metadata_catalog_item_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_metadata_catalog_items(brain, resource_code=payload.get("resource_code"), catalog_code=payload.get("catalog_code"), include_inactive=payload.get("include_inactive", True))
 
-def handler_metadata_lineage_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_metadata_lineage_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_metadata_lineage(brain, resource_code=payload.get("resource_code"), relation_scope=payload.get("relation_scope"))
 
-def handler_metadata_gather_evidence_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_metadata_gather_evidence_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_metadata_gather_evidence(brain, resource_code=payload.get("resource_code"), status=payload.get("status"))
 
-def handler_metadata_schema_snapshot_upsert(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_metadata_schema_snapshot_upsert(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _upsert_metadata_schema_snapshot(brain, payload)
 
-def handler_metadata_gather_evidence_upsert(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_metadata_gather_evidence_upsert(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _upsert_metadata_gather_evidence(brain, payload)
 
-def handler_metadata_lineage_upsert(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_metadata_lineage_upsert(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _upsert_metadata_lineage(brain, payload)
 

@@ -8,8 +8,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
+
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 
 
@@ -27,6 +29,8 @@ def _export_registry_artifacts(brain) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_registry_artifact_export(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_registry_artifact_export(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _export_registry_artifacts(brain)
 

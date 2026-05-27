@@ -5,11 +5,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 import copy
 
 from zw_brain.command.brain import InvalidStateError, NotFoundError, _RequestBatchContext
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import catalog as catalog_ser
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
@@ -89,6 +90,7 @@ def _browse_catalog_entries(
     return {"items": items, "total": total, "page": page, "limit": limit}
 
 def _query_catalog_groups(brain) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     catalogs = copy.deepcopy(brain._snapshot.get("provider", {}).get("catalogs", []))
     groups: dict[str, dict[str, Any]] = {}
     for catalog in catalogs:
@@ -100,7 +102,7 @@ def _query_catalog_groups(brain) -> dict[str, Any]:
         return {"items": list(groups.values()), "total": len(groups)}
     packages = [
         brain._topic_package_list_projection(item)
-        for item in brain._topic_package_repo().list_packages(tenant_id=_DEFAULT_TENANT_ID)
+        for item in deps.repos.topic_package.list_packages(tenant_id=_DEFAULT_TENANT_ID)
         if brain._topic_projection_kind(item) == "catalog_group"
     ]
     if packages:
@@ -239,6 +241,7 @@ def _upsert_catalog_schema_mapping(brain, payload: dict[str, Any]) -> dict[str, 
     return brain._mutate("catalog.schema.mapping.upsert", role, confirmed, payload, mutation)
 
 def _query_catalog_share_zones(brain) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     store = brain._state_store.database_store
     if store is None:
         zones = []
@@ -255,7 +258,7 @@ def _query_catalog_share_zones(brain) -> dict[str, Any]:
         return {"items": zones, "total": len(zones)}
     packages = [
         brain._topic_package_list_projection(item)
-        for item in brain._topic_package_repo().list_packages(tenant_id=_DEFAULT_TENANT_ID)
+        for item in deps.repos.topic_package.list_packages(tenant_id=_DEFAULT_TENANT_ID)
         if brain._topic_projection_kind(item) in {"catalog_group", "share_zone"}
     ]
     return {
@@ -269,33 +272,53 @@ def _query_catalog_share_zones(brain) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_catalog_browse(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_browse(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _browse_catalog_entries(brain, page=payload.get("page"), limit=payload.get("limit"), lifecycle=payload.get("lifecycle"), kind=payload.get("kind"), owner_org_id=payload.get("owner_org_id"), query=payload.get("query"))
 
-def handler_catalog_group_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_group_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_catalog_groups(brain)
 
-def handler_catalog_manage_entry(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _manage_catalog_entry(brain, str(payload["catalog_id"]), str(payload["action"]), str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_catalog_manage_entry(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _manage_catalog_entry(brain, str(payload["catalog_id"]), str(payload["action"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_catalog_model_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_model_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_catalog_models(brain, model_code=payload.get("model_code"))
 
-def handler_catalog_model_field_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_model_field_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_catalog_model_fields(brain, str(payload["model_code"]))
 
-def handler_catalog_model_upsert(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_model_upsert(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _upsert_catalog_model(brain, payload)
 
-def handler_catalog_resource_bind(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_resource_bind(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _bind_catalog_resource(brain, payload)
 
-def handler_catalog_resource_view(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_resource_view(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _get_resource(brain, str(payload["resource_id"]))
 
-def handler_catalog_schema_mapping_upsert(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_schema_mapping_upsert(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _upsert_catalog_schema_mapping(brain, payload)
 
-def handler_catalog_share_zone_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_catalog_share_zone_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_catalog_share_zones(brain)
 

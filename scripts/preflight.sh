@@ -92,6 +92,7 @@ done <<'CHECKS'
 段 37	scripts/check_brain_no_record_to_dict.py	brain-no-record-to-dict (record_to_dict 纯函数住 command/serializers/，不得回潮到 BrainService — Phase 1.1)
 段 38	scripts/check_trace_triangle.py	trace-triangle (飞轮 §四 — .feature # Owner/# Pytest/# Twin-F + plan.yaml spec_ref 三角连接守卫)
 段 39	scripts/check_legacy_smoke_row_numbers.py	legacy-smoke-rows (飞轮 §三.2 — .feature 引用旧 xlsx 行号必须在 mapping doc 出现)
+段 40	scripts/check_handler_brain_backref.py	handler-brain-backref (handler body 不得反向访问 BrainService — Action A，白名单受控)
 CHECKS
 
 echo ""

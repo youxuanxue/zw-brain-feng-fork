@@ -16,8 +16,9 @@ import re
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.shared.inference.client import (
     ChatMessage,
     InferenceError,
@@ -286,9 +287,11 @@ def _parse_search_intent(brain, query: str, role: str, *, enabled: bool, request
     return fallback
 
 
-def handler_search_intent_parse(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_search_intent_parse(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     query = str(payload.get("query") or "")
-    role = str(payload.get("role", brain._ui_state["role"]))
+    role = str(payload.get("role", ctx.role))
     enabled = bool(payload.get("enabled", True))
     request_id = str(payload.get("request_id") or f"search-intent-{abs(hash(query)) & 0xFFFFFFFF:08x}")
     return _parse_search_intent(brain, query, role, enabled=enabled, request_id=request_id)

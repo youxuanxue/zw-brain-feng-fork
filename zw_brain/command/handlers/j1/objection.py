@@ -5,10 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
 
 from zw_brain.command.brain import InvalidStateError, NotFoundError
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import objection as objection_ser
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
@@ -20,11 +21,12 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 # ──────────────────────────────────────────────────────────────────────────
 
 def _create_objection_case(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        repo = brain._objection_repo()
+        repo = deps.repos.objection
         record = repo.create_case(
             payload
             | {
@@ -39,11 +41,12 @@ def _create_objection_case(brain, payload: dict[str, Any]) -> dict[str, Any]:
     return brain._mutate("objection.case.create", role, confirmed, payload, mutation)
 
 def _transition_objection_case(brain, objection_id: str, next_status: str, action_type: str, node_name: str, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        repo = brain._objection_repo()
+        repo = deps.repos.objection
         try:
             record = repo.transition_case(
                 objection_id,
@@ -67,12 +70,13 @@ def _transition_objection_case(brain, objection_id: str, next_status: str, actio
     return brain._mutate(f"objection.case.{action_type}", role, confirmed, {"objection_id": objection_id, "next_status": next_status} | payload, mutation)
 
 def _evaluate_objection_case(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     objection_id = str(payload["objection_id"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        repo = brain._objection_repo()
+        repo = deps.repos.objection
         try:
             evaluation = repo.evaluate_case(
                 objection_id,
@@ -96,12 +100,13 @@ def _query_objection_cases(
     target_org_id: Any = None,
     dimension: Any = None,
 ) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     # F4 (E2 J2)：扩 3 个可选 filter 供 J2 提供方收件箱 + 5 维度报表用。
     # target_ref 精确匹配 case.target_id（异议直接挂的实体 ref，如 catalog_code）；
     # target_org_id 精确匹配 case.provider_org_id（异议归属的提供方部门，对 J2 收件箱语义）；
     # dimension 走 objection_state.dimension_of(record, evidences) 推断，对齐 5 维度报表口径。
     # 全部 optional：未传 = 与 PR #90 行为完全一致。
-    repo = brain._objection_repo()
+    repo = deps.repos.objection
     raw_records = list(repo.list_cases(tenant_id=_DEFAULT_TENANT_ID))
     records = [objection_ser.case_to_dict(item) for item in raw_records]
     if status:
@@ -133,12 +138,13 @@ def _query_objection_cases(
     return {"items": records, "total": len(records)}
 
 def _reply_objection_case(brain, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
     objection_id = str(payload["objection_id"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        repo = brain._objection_repo()
+        repo = deps.repos.objection
         try:
             record = repo.add_process(
                 objection_id,
@@ -158,7 +164,8 @@ def _reply_objection_case(brain, payload: dict[str, Any]) -> dict[str, Any]:
     return brain._mutate("objection.case.reply", role, confirmed, payload, mutation)
 
 def _query_objection_metrics(brain) -> dict[str, Any]:
-    cases = [objection_ser.case_to_dict(item) for item in brain._objection_repo().list_cases(tenant_id=_DEFAULT_TENANT_ID)]
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
+    cases = [objection_ser.case_to_dict(item) for item in deps.repos.objection.list_cases(tenant_id=_DEFAULT_TENANT_ID)]
     by_status: dict[str, int] = {}
     for item in cases:
         by_status[item["status"]] = by_status.get(item["status"], 0) + 1
@@ -173,11 +180,12 @@ def _query_objection_metrics(brain) -> dict[str, Any]:
     }
 
 def _query_objection_process(brain, objection_id: str) -> dict[str, Any]:
-    if brain._objection_repo().get_case(objection_id, tenant_id=_DEFAULT_TENANT_ID) is None:
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
+    if deps.repos.objection.get_case(objection_id, tenant_id=_DEFAULT_TENANT_ID) is None:
         raise NotFoundError(objection_id)
     return {
-        "items": [objection_ser.process_to_dict(item) for item in brain._objection_repo().list_processes(objection_id)],
-        "evidence": [objection_ser.evidence_to_dict(item) for item in brain._objection_repo().list_evidence(objection_id)],
+        "items": [objection_ser.process_to_dict(item) for item in deps.repos.objection.list_processes(objection_id)],
+        "evidence": [objection_ser.evidence_to_dict(item) for item in deps.repos.objection.list_evidence(objection_id)],
     }
 
 
@@ -185,37 +193,57 @@ def _query_objection_process(brain, objection_id: str) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_objection_case_create(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_objection_case_create(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _create_objection_case(brain, payload)
 
-def handler_objection_case_accept(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_objection_case_accept(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _transition_objection_case(brain, str(payload["objection_id"]), "accepted", "accept", "受理异议", payload)
 
-def handler_objection_case_assign(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_objection_case_assign(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     target_status = str(payload.get("target_status", "provider_investigating"))
     return _transition_objection_case(brain, str(payload["objection_id"]), target_status, "assign", "分发核查", payload)
 
-def handler_objection_case_close(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_objection_case_close(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _transition_objection_case(brain, str(payload["objection_id"]), "closed", "close", "关闭异议", payload)
 
-def handler_objection_case_escalate(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_objection_case_escalate(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _transition_objection_case(brain, str(payload["objection_id"]), "escalated", "escalate", "升级督办", {"action_result": "escalated"} | payload)
 
-def handler_objection_case_reject(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_objection_case_reject(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _transition_objection_case(brain, str(payload["objection_id"]), "rejected", "reject", "驳回异议", payload)
 
-def handler_objection_case_review(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_objection_case_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     decision = str(payload["decision"])
     next_status = "resolved" if decision == "resolve" else "provider_investigating"
     return _transition_objection_case(brain, str(payload["objection_id"]), next_status, "review", "复核异议", payload)
 
-def handler_objection_case_submit(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_objection_case_submit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _transition_objection_case(brain, str(payload["objection_id"]), "submitted", "submit", "提交异议", payload)
 
-def handler_objection_case_evaluate(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_objection_case_evaluate(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _evaluate_objection_case(brain, payload)
 
-def handler_objection_case_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_objection_case_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_objection_cases(
         brain,
         status=payload.get("status"),
@@ -225,12 +253,18 @@ def handler_objection_case_query(brain: BrainService, skill_id: str, payload: di
         dimension=payload.get("dimension"),
     )
 
-def handler_objection_case_reply(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_objection_case_reply(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _reply_objection_case(brain, payload)
 
-def handler_objection_metric_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_objection_metric_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_objection_metrics(brain)
 
-def handler_objection_process_query(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_objection_process_query(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _query_objection_process(brain, str(payload["objection_id"]))
 

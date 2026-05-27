@@ -30,12 +30,13 @@ def _shadow_db() -> None:
 
 
 def test_system_snapshot_delivery_tasks_matches_list_delivery_tasks() -> None:
+    from tests._handler_call import call_handler
     from zw_brain.command.brain import BrainService
     from zw_brain.command.handlers.b1.system_ops import handler_system_snapshot
 
     brain = BrainService()
     listed = brain.list_delivery_tasks()
-    snap = handler_system_snapshot(brain, "system.snapshot", {"role": "ROLE_ORGAN_OPERATER"})
+    snap = call_handler(handler_system_snapshot, brain=brain, skill_id="system.snapshot", payload={"role": "ROLE_ORGAN_OPERATER"})
     snap_tasks = snap.get("delivery_tasks") or []
     assert len(snap_tasks) == len(listed)
     assert len(snap_tasks) >= 1

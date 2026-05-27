@@ -19,7 +19,7 @@
 
 ## `zw_brain/command/handlers/j2/metadata.py`
 
-### `zw_brain/command/handlers/j2/metadata.py:45`
+### `zw_brain/command/handlers/j2/metadata.py:46`
 
 **Reason**: summary_json.source 是 JSON 列上的 reverse-source 过滤；
 

@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
 import zw_brain.shared.ids as ids
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.recommendation_engine import RecommendationEngine
 from zw_brain.shared.db import create_session_factory
 
@@ -61,7 +62,7 @@ def _suggest(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> dic
     }
 
 
-def handler_recommendation_similar_catalog_suggest(
-    brain: BrainService, skill_id: str, payload: dict[str, Any]
-) -> Any:
+def handler_recommendation_similar_catalog_suggest(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _suggest(brain, skill_id, payload)

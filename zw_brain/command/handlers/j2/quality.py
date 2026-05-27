@@ -9,8 +9,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -112,12 +113,18 @@ def _replay_quality_task(brain, payload: dict[str, Any]) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_quality_rule_upsert(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_quality_rule_upsert(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _upsert_quality_rule(brain, payload)
 
-def handler_quality_task_run(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_quality_task_run(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _run_quality_task(brain, payload)
 
-def handler_quality_task_replay(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_quality_task_replay(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _replay_quality_task(brain, payload)
 

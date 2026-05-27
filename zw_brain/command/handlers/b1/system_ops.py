@@ -9,8 +9,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
+    pass
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.dispute_snapshot_projection import enrich_disputes_snapshot
 from zw_brain.domain.provider_snapshot_projection import enrich_provider_snapshot, enrich_zones_snapshot
 from zw_brain.domain.schemas import describe_schemas
@@ -39,11 +40,15 @@ def _toggle_outage(brain, role: str, confirmed: bool) -> dict[str, Any]:
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
-def handler_system_toggle_outage(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    return _toggle_outage(brain, str(payload.get("role", brain._ui_state["role"])), bool(payload.get("confirmed")))
+def handler_system_toggle_outage(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _toggle_outage(brain, str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
 
-def handler_system_snapshot(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
-    role = str(payload.get("role", brain._ui_state.get("role", "ROLE_ORGAN_OPERATER")))
+def handler_system_snapshot(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    role = str(payload.get("role", ctx.role))
     tenant_id = str(payload.get("tenant_id") or get_runtime_tenant_id())
     enriched = enrich_provider_snapshot(brain.snapshot(), tenant_id=tenant_id)
     enriched = enrich_zones_snapshot(enriched, tenant_id=tenant_id)
@@ -52,6 +57,8 @@ def handler_system_snapshot(brain: BrainService, skill_id: str, payload: dict[st
         enriched["delivery_tasks"] = brain.list_delivery_tasks()
     return redact_webui_snapshot(enriched, role)
 
-def handler_system_schema_info(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
+def handler_system_schema_info(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return {"schemas": describe_schemas()}
 

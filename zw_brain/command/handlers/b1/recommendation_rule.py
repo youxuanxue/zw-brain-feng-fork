@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.recommendation_rule import (
     RecommendationRuleRepo,
     RecommendationRuleTransitionError,
@@ -47,7 +48,7 @@ def _commit_rule(brain: BrainService, skill_id: str, payload: dict[str, Any]) ->
     return brain._mutate(skill_id, role, confirmed, payload, mutation)
 
 
-def handler_recommendation_rule_commit(
-    brain: BrainService, skill_id: str, payload: dict[str, Any]
-) -> Any:
+def handler_recommendation_rule_commit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
     return _commit_rule(brain, skill_id, payload)
