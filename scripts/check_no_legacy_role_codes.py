@@ -93,6 +93,9 @@ ALLOWED_LINE_MARKERS = (
     # 段 33 live-builtin-budget 文档与引用 — 架构约束 R7/R4 namespace 显式标注
     "架构约束 R7",
     "架构约束 R4",
+    # data-model.md §1.5 唯一一处架构 R-编号引用（R8 反 per-tenant fork）
+    # 与已退役 R1-R8 用户角色码不同 namespace；单处出现用精确行 marker 而非整文件白名单（PR #139）
+    "R8 反 per-tenant fork",
 )
 
 # 允许整文件白名单（这些文件本身就是描述 R1-R8 退役的权威源）

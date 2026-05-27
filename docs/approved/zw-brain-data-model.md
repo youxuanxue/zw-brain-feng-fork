@@ -79,6 +79,19 @@ phase_after_approval: Wave 0（先打通 Catalog → Application → Approval �
 
 因此，本文的优化目标不是“数据库越完整越好”，而是：**让最少的持久化边界支撑最完整的核心旅程与五消费面投影**。
 
+### 1.5 D31 / D32 复活承接来源链
+
+> 本节回灌来源（D32.d meta finding）：data-model 多处把 `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md` 作为单一事实源（§6.1.9 / §6.2.5 / §6.2.6 / §8.2 / §9.6），其触发链原本散落在 CLAUDE.md 与架构基线、飞轮，data-model 自身不显式回引会让读者无从理解为什么把外部 plan 提升到"单一事实源"地位。
+
+- **D31（2026-05-27）**：业务方 PR [#129](https://github.com/feng222666888/zw-brain/pull/129) 对 50 条 ❌ 不复刻清单逐条签字，A 类融合 / 通用 / 代理服务 20 条复活（106 案例提出页除外）；D 类主题库 / 专题库 / 数购车 4 条复活。原 D10 "重激活前必走 product-dev.mdc 流程"承诺由此 PR 兑现。
+- **D32（2026-05-27）**：D31.b 三选一关闭 → (d) **既存 reconstruction plan 接管**：A 类 20 条按 `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md` 落地（Wave 0 网关心跳 + 调用统计 / Wave 1 API 资源化 / Wave 2 R14 三引擎审批 / Wave 3 编排外部化）；D 类 4 条按 `docs/reconstructs/dsp-sharezone-topic-package-reconstruction-plan-v1.md` 落地（Wave 2 P7）。两份 plan 从 "deferred-trigger" 升级为 **active 落地路径**。
+- **D32.d（2026-05-27）**：暴露 D31 P0 真值源回灌漏洞 — D31 PR #130 覆盖 7 文件但漏改 data-model.md；写 `scripts/check_approved_doc_drift.py`（preflight 段 44）兜底，未来 D-编号决策必须 explicit 引用既存 plan。本节即首次实战扫描兜底产物。
+
+承重含义：
+
+- data-model §6.1.9 `resource_asset` 资源本体设计、§6.2.5 `gateway_runtime_status_projection`、§6.2.6 `service_invocation_metric_projection`、§8.2 索引推荐与 §9.6 服务治理补充映射在字段语义、来源证据与验收规则上，**以 dsp-dataservice plan 为单一事实源**；本基线只约束 canonical 聚合与投影边界。
+- "API 资源化 → resource_asset + resource_channel_binding"、"网关心跳与调用统计只作为 B1.1 读侧投影"等设计承诺均由 D32 决策驱动，**不复刻旧 BSP / 旧门户结构**（R8 反 per-tenant fork + R14 三引擎 + §1.3 标准服务禁区合并守护）。
+
 ---
 
 ## 二、核心旅程、页面与五消费面覆盖矩阵
@@ -1429,6 +1442,8 @@ resolved  → closed
 | `block_catalog` / `block_apply` / `block_resource` | `audit_receipt` 的 payload 来源 | 作为外链确认，不作为主业务状态机 |
 
 ### 9.6 dsp-dataservice 服务治理补充映射
+
+> 来源链（见 §1.5）：D31 业务方 PR #129 触发 A 类 20 条复活 → D32 决策"按 plan 落地"将本节引用的 plan 升级为 active 真值源。
 
 `dsp-dataservice` 的服务治理迁移映射、旧结构数据证据、字段级规则和能力边界，以 `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md` 为单一事实源。本基线只约束它必须落入以下 canonical 聚合与投影边界：
 
