@@ -326,7 +326,7 @@ Ship gate (Wave 0+1+2 全 Verified): K / 34
 - [x] 三角字段加上（#123）
 - [x] preflight 段 38/39 守住（#125）
 - [x] xlsx → `legacy_smoke.yaml`（#125）
-- [ ] 50 ❌ 不复刻清单业务方签字（清单已生成 → `docs/legacy-not-reproduce-signoff.md`，待下次 review）
+- [x] 50 ❌ 不复刻清单业务方签字（PR [#129](https://github.com/feng222666888/zw-brain/pull/129) → `docs/legacy-not-reproduce-signoff.md` `status: approved`）
 - [ ] 业务方 review 节奏固化（每月一次）
 
 ### 第 1 圈 — 首客户上线（2026-06 → 2026-08）

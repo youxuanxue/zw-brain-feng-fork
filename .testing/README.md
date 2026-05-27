@@ -134,7 +134,7 @@ Background:
 
 ### 6. 业务方 sign-off 标记
 
-涉及 R13 元规则（角色 / 业务流程 / 状态机）的 Scenario，文件头 `Status:` 必须为 `Draft` 直到业务方（红军，海若产品部业务方）确认；sign-off 后改为 `Ready`，对应决策落 D-编号。
+涉及 R13 元规则（角色 / 业务流程 / 状态机）的 Scenario，文件头 `Status:` 必须为 `Draft` 直到海若产品部业务方确认；sign-off 后改为 `Ready`，对应决策落 D-编号。
 
 ## 测试金字塔与本目录关系
 
@@ -192,7 +192,7 @@ Background:
 - pytest 实现入口 → `tests/`（19 个 wave PR 已 land + Wave 2/3 接力）
 - Playwright e2e → `zw-brain-web/tests/e2e/`（12 spec / 62 passed）
 - Worker plan → `.twin/eN/plan.yaml`（spec_ref 反向引用本目录）
-- 不复刻清单（待签字）→ `docs/legacy-not-reproduce-signoff.md`
+- 不复刻清单（已签字 PR #129）→ `docs/legacy-not-reproduce-signoff.md`
 - Wave 4 SLI 看板 → `docs/customer-readiness/wave4-cutoff-criteria.md`
 - 一次性档案 → `cleanup-plan.md`（merge 后 30 天可删）
 

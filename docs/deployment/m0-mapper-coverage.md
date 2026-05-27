@@ -193,7 +193,7 @@
 
 ## §7 评审签收
 
-- [x] 业务方（红军 / 产品负责人）已 sign-off §5（dsp_require 分层 / data_resource 触发式 / dsp_block adapter）
+- [x] 海若产品部业务方 / 产品负责人已 sign-off §5（dsp_require 分层 / data_resource 触发式 / dsp_block adapter）
 - [x] 业务方已 sign-off §4 漏做 2 项的优先级（M0 必接 basesubject + graph_lineage 已落地）
 - [x] §3 复造 4 项（§1.3 forbidden）业务方无异议（含 dsp_block §5.3）
 - [ ] preflight 段 16（mapper 完整性）保持通过 — 本表的判定不要求改动现有 mapper

@@ -122,7 +122,7 @@ GATE-1 通过后立即收尾动作：
 
 ### [2026-05-19] GATE-1.1 retrofit：业务 review 触发的产品定义重置
 
-2026-05-19 业务方（红军，旧平台产研负责人）线上视频 review zw-brain 当前角色旅程（`.experiences/R1-R8`），提出 18 条业务问题 + 3 条 UX 问题（原始材料：`old/20260519/`）。综合 Jobs 视角诊断：GATE-1 设计基线犯了三个根本性错误（角色矩阵化拍平、流程图当设计常量、AI 包装旧菜单 ≠ AI 原生）。本批 D23-D29 决策驱动一次性重写，**不留兼容**。
+2026-05-19 海若产品部业务方（旧平台产研负责人）线上视频 review zw-brain 当前角色旅程（`.experiences/R1-R8`），提出 18 条业务问题 + 3 条 UX 问题（原始材料：`old/20260519/`）。综合 Jobs 视角诊断：GATE-1 设计基线犯了三个根本性错误（角色矩阵化拍平、流程图当设计常量、AI 包装旧菜单 ≠ AI 原生）。本批 D23-D29 决策驱动一次性重写，**不留兼容**。
 
 主评审材料：`docs/approved/zw-brain-architecture.md`；新角色规范：`docs/approved/zw-brain-roles.md`；新 IA：`docs/approved/zw-brain-architecture.md`；基线附录 D：`docs/approved/zw-brain-architecture.md`。
 

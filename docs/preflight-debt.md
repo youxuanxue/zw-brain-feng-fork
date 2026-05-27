@@ -183,7 +183,7 @@ trigger 关闭即可删除字段。
 - **What remains**: 代码侧已交付；**未完成的是 T1 真实客户演练验证**——用三引擎在 ≤1 周内不改代码
   完成"鞍山 4 级审批 + 四川 7 字段表单 + 荆州 5 条推荐规则"项目级定制，由业务方 sign-off。
   acceptance 材料 `docs/wave2-acceptance/SIGN_OFF.md`（tracked，PR reviewer 可见）已备，等真人门禁（属 R13 业务流程类决策）。
-- **Trigger to re-evaluate**: 首位真实客户演练。届时跑通三引擎项目级定制并由业务方（红军 / 海若产品部）
+- **Trigger to re-evaluate**: 首位真实客户演练。届时跑通三引擎项目级定制并由海若产品部业务方
   sign-off → 本 entry 关闭并写入 D-编号；若演练暴露引擎缺口（节点/字段/推荐规则不够表达）→ 升级为 P1 fix。
 - **No mechanical preflight check (now)**: `config_change_class` 取值已由 `validate_manifest` 强制校验
   （∈ {live, preview, draft}）；三引擎 preview/draft 实例增减不需要新增 preflight 段。
@@ -244,7 +244,7 @@ trigger 关闭即可删除字段。
   并重新生成 5 surface 投影。
 - **Why deferred**: PR #75 (P0-04) 落地时业务方未现场 sign-off；提前一刀切到 external 会误伤实际业务报表场景。
   Jobs 风格的可逆决策：保留 live + 走 debt 跟踪，比预先砍掉再回来补成本低。
-- **Trigger to re-evaluate**: (a) 业务方（红军 / 旧平台产研负责人）下次 IA review 对 5 条逐一 sign-off；
+- **Trigger to re-evaluate**: (a) 海若产品部业务方（旧平台产研负责人）下次 IA review 对 5 条逐一 sign-off；
   (b) 任何客户实际反对场景出现——立即翻 status=external + 重新跑 `python scripts/export_agent_contract.py`
   让 5 surface 同步剔除。
 - **No mechanical preflight check (now)**: 段 22 不收录"borderline 业务报表" 前缀（不在 §1.3 已观察禁区前缀清单内）；
