@@ -18,12 +18,17 @@ plan**（dsp-dataservice / dsp-sharezone-topic-package）。这种"D-编号网�
 1. **仅在 PR-mode 下启用**（PREFLIGHT_BASE 指向 origin/main 等基线分支时）；
    本地 main 分支或 worktree 头 == base 时直接 skip（无新 D-编号需要校验）。
 2. **从 CLAUDE.md diff 提取本分支新增的 D-编号决策段**（形如 `- [date] DXX:`）。
-3. **提取每段决策内的"关键引用"**（启发式三类）：
+3. **提取每段决策内的"关键引用"**（启发式四类）：
      (a) 反引号包围的 markdown 路径（`docs/.../*.md`）
      (b) "A 类 / D 类 / B 类" 等业务方分类代号
      (c) 业务方 PR 引用 `PR #N`
+     (d) 反引号包围的 Capability 命名空间（`ops.gateway.*` / `topic.package.{x,y}` /
+         `resource.api.{...}`）— PR #140 增强（D32.d 启发式盲区修复）
 4. **全仓 grep 这些引用**（在 docs/ + .testing/ + tests/fixtures/ + CLAUDE.md
    范围内），找出**出现 ≥3 次该引用但未提到新 D-编号**的文件 = 候选漂移点。
+   **Namespace 漂移**：D-编号引入的 Capability 命名空间根（如 `ops.service`）若在
+   `docs/approved/*.md` 全部 0 次出现 → 漂移候选（架构基线 §6.6 命名空间预算
+   / 飞轮 §四 应该至少提一次）。
 5. **以 WARN-only 模式输出报告**（exit 0，不阻塞主线）。
 
 为何 WARN-only
@@ -97,6 +102,14 @@ BACKTICK_PATH_RE = re.compile(r"`([^`]+\.md)`")
 CATEGORY_LABEL_RE = re.compile(r"([A-Z])\s*类")
 # PR 引用
 PR_REF_RE = re.compile(r"PR\s*#(\d+)")
+# 反引号包围的 Capability 命名空间（PR #140 D32.d 启发式盲区修复）
+# 匹配形态：
+#   `ops.gateway.*`                       → namespace root = "ops.gateway"
+#   `topic.package.policy.update`         → namespace root = "topic.package"
+#   `resource.api.{register,change}`      → namespace root = "resource.api"
+#   `ops.gateway.heartbeat.ingest`        → namespace root = "ops.gateway"
+# 仅取前两段（root + sub-domain）作为命名空间根，足够定位漂移。
+BACKTICK_NAMESPACE_RE = re.compile(r"`([a-z_]+\.[a-z_]+)\.[\w*{},.\s/]+`")
 
 # 高密度引用阈值：某关键引用在文件内出现 ≥N 次才算"高密度"（过滤偶发提及）
 HIGH_DENSITY_REF_THRESHOLD = 3
@@ -107,6 +120,16 @@ SCAN_PATH_PREFIXES = ("docs/", ".testing/", "tests/fixtures/")
 # 路径自引用排除（plan 文件自身不需要回引 D-编号）
 # 启发式：如果文件路径本身 == 被提取的反引号路径，则该文件天然是引用目标，
 # 不算"应该自我回引 D-编号"的漂移候选。
+
+# 命名空间漂移扫描范围：D-编号引入的 Capability 命名空间根应至少在主 approved
+# 文档中出现一次（架构基线 §6.6 命名空间预算 / 飞轮 §四 / 等）。完全 0 次出现 =
+# 漂移候选（PR #140 增强）。
+APPROVED_DOCS = [
+    "docs/approved/zw-brain-architecture.md",
+    "docs/approved/zw-brain-flywheel.md",
+    "docs/approved/zw-brain-roles.md",
+    "docs/approved/zw-brain-data-model.md",
+]
 
 
 def _validate_base(base: str) -> tuple[bool, str]:
@@ -180,12 +203,16 @@ def _extract_new_d_numbers(diff_text: str) -> dict[str, list[str]]:
     return new_blocks
 
 
-def _extract_keywords(block_lines: list[str]) -> tuple[set[str], set[str], set[str]]:
-    """从一个 D-编号段提取 (paths, categories, prs).
+def _extract_keywords(
+    block_lines: list[str],
+) -> tuple[set[str], set[str], set[str], set[str]]:
+    """从一个 D-编号段提取 (paths, categories, prs, namespaces).
 
     paths: 反引号包围的 *.md 路径，去 leading `./`，仅保留 SCAN_PATH_PREFIXES 白名单内
     categories: A 类 / D 类 等 (返回 {"A", "D"})；当前仅用于 verbose log，不参与扫描
     prs: PR #129 等 (返回 {"129"})
+    namespaces: 反引号 Capability 命名空间根（PR #140 增强），形如 "ops.gateway" /
+                "topic.package" / "resource.api"。仅取根两段，避免子能力组合爆炸。
     """
     text = "\n".join(block_lines)
     paths: set[str] = set()
@@ -199,7 +226,8 @@ def _extract_keywords(block_lines: list[str]) -> tuple[set[str], set[str], set[s
             paths.add(path)
     categories = {m.group(1) for m in CATEGORY_LABEL_RE.finditer(text)}
     prs = {m.group(1) for m in PR_REF_RE.finditer(text)}
-    return paths, categories, prs
+    namespaces = {m.group(1) for m in BACKTICK_NAMESPACE_RE.finditer(text)}
+    return paths, categories, prs, namespaces
 
 
 def _scan_repo_for_keyword(keyword: str) -> dict[Path, int]:
@@ -260,8 +288,29 @@ def _file_excluded_self_reference(fp: Path, path_keyword: str) -> bool:
     return rel == path_keyword
 
 
+def _namespace_missing_from_approved_docs(namespace: str) -> bool:
+    """检查 namespace 是否在主 approved 文档中**完全 0 次出现**。
+
+    PR #140 增强（D32.d 启发式盲区修复）：D-编号决策引入新 Capability 命名空间
+    （如 ops.service / topic.package），但架构基线 §6.6 命名空间预算 / 飞轮 §四 类
+    "软规则名组织的表格"不会自然提反引号 path — 只有 namespace 这种命名约定能扫到。
+
+    返回 True = 完全 0 次出现 = 漂移候选；False = 至少 1 次 OK。
+    """
+    for rel in APPROVED_DOCS:
+        doc = REPO / rel
+        if not doc.is_file():
+            continue
+        try:
+            if namespace in doc.read_text(encoding="utf-8"):
+                return False  # 至少 1 次出现，OK
+        except (OSError, UnicodeDecodeError):
+            continue
+    return True  # 全 0 = 漂移候选
+
+
 def _find_drift_candidates(
-    d_number: str, paths: set[str], prs: set[str]
+    d_number: str, paths: set[str], prs: set[str], namespaces: set[str]
 ) -> list[str]:
     """对一个新 D-编号，返回漂移候选报告行。
 
@@ -270,6 +319,8 @@ def _find_drift_candidates(
       - 该文件如果同时未引用 d_number（或其 root D 编号）→ 候选漂移
       - 排除 self-reference（文件就是 path 自身）
       - PR ref 同理
+      - **Namespace 漂移**（PR #140）：D-编号引入的 Capability 命名空间根
+        若在 docs/approved/*.md 全部 0 次出现 → 候选漂移
 
     注：categories（A 类 / D 类）单字符太宽，false-positive 多，不进入本扫描；
     仅在 verbose log 输出供 debug。
@@ -300,6 +351,13 @@ def _find_drift_candidates(
             rel = fp.relative_to(REPO).as_posix()
             findings.append(
                 f"  {d_number} → {rel}: 提到 'PR #{pr}' {n} 次但未引用 {d_number}"
+            )
+    # Capability 命名空间漂移（PR #140 D32.d 启发式盲区修复）
+    for ns in sorted(namespaces):
+        if _namespace_missing_from_approved_docs(ns):
+            findings.append(
+                f"  {d_number} → namespace `{ns}.*` 在 docs/approved/*.md 完全 0 次出现"
+                f"；D-编号引入的 Capability 命名空间应在架构基线 §6.6 / 飞轮 §四 至少出现一次"
             )
     return findings
 
@@ -353,21 +411,25 @@ def main() -> int:
     all_findings: list[str] = []
     summary: list[str] = []
     for d_number, block_lines in sorted(new_blocks.items()):
-        paths, categories, prs = _extract_keywords(block_lines)
+        paths, categories, prs, namespaces = _extract_keywords(block_lines)
         if args.verbose:
             print(
                 f"  [verbose] {d_number}: paths={sorted(paths)} "
-                f"categories={sorted(categories)} prs={sorted(prs)}"
+                f"categories={sorted(categories)} prs={sorted(prs)} "
+                f"namespaces={sorted(namespaces)}"
             )
-        if not paths and not prs:
-            summary.append(f"  {d_number}: 未提取到反引号路径或 PR ref（无需校验）")
+        if not paths and not prs and not namespaces:
+            summary.append(
+                f"  {d_number}: 未提取到反引号路径 / PR ref / namespace（无需校验）"
+            )
             continue
-        findings = _find_drift_candidates(d_number, paths, prs)
+        findings = _find_drift_candidates(d_number, paths, prs, namespaces)
         if findings:
             all_findings.extend(findings)
         else:
             summary.append(
-                f"  {d_number}: {len(paths)} path / {len(prs)} PR ref，无漂移候选"
+                f"  {d_number}: {len(paths)} path / {len(prs)} PR ref / "
+                f"{len(namespaces)} namespace，无漂移候选"
             )
 
     if all_findings:

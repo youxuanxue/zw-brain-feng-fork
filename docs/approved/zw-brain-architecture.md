@@ -307,6 +307,8 @@ zw-brain 的工作是：
 
 **注**：旧 BSP 内嵌的 API 网关子模块（`dsp_service` 27 表）+ 应用中心子模块（`dsp_app_center` 15 表）的本地业务治理由 zw-brain Governance 承担，IAM 由 IAF IAM 外部化；具体边界以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。
 
+**注 / D32 边界澄清**：旧 dsp-dataservice 网关心跳（`/openapi/report` 57% 流量）→ zw-brain 内部投影 `gateway_runtime_status_projection`（plan §3.3）+ Capability `ops.gateway.heartbeat.ingest` —— 是 zw-brain Governance 的**内部职责**，**不是集团运维监控外部依赖**。集团运维监控只**消费**监控数据（B1.1 / B1.2 panel 拉数据），不承担网关本身。详见 `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md` §3.3-3.4 + D32（CLAUDE.md）。
+
 **C. 一表通（基层补报对接）的边界：**
 
 立项会议业务方强调"数据不一定来自基层"；一表通从默认路径**降级为可选预填 adapter**；`ROLE_ORGAN_OPERATER` 旅程改为"接到补差任务才出现"。详见 [docs/approved/research-yibiaotong.md](research-yibiaotong.md)。
@@ -699,6 +701,16 @@ legacy 门户的信息架构只能作为遗留能力索引，不再作为新 Web
 基线契约：所有落入上表 7 类禁区前缀的 manifest，必须 `status != live` 或 `execution_binding != builtin`——任意把禁区 manifest 改回 `live + builtin` 的 commit 必然被段 22 拦下；回归保障由 `tests/test_capability_boundary.py` 自动化覆盖（6 个场景）。具体数字（当前禁区 manifest 数量、live/deferred 分布）属运行时事实，由脚本输出，不在本文裸写——参考 `scripts/check_capability_boundary.py --report` 或 `bash scripts/sync-stats.sh --check`。
 
 **与 §5.2 主入口枚举的关系**：§5.2 主入口枚举是 UI 层"什么进主导航"的产品边界；本节段 22 禁区前缀回潮防护是 capability 层"什么能成为 builtin live 能力"的产品边界。两者一上一下，共同杜绝旧平台"全菜单全能力"的形态复刻。
+
+**D32 触发的活跃命名空间（非禁区，真值源声明）：**
+
+下列命名空间是 D31/D32 业务方 PR #129 触发的 A/D 类复活范围，由既存 `docs/reconstructs/*` plan 接管；**不属上文禁区前缀**——在此声明以便 reviewer 区分"`ops.*` 前缀的禁区 vs 合法 J1/J2/B1.1 投影"。
+
+| slug pattern | 来源 plan / 章节 |
+|---|---|
+| `ops.service.*` | `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md` §3.5（服务调用统计 + 报告查询，归 B1.1）|
+| `topic.package.*` | `docs/reconstructs/dsp-sharezone-topic-package-reconstruction-plan-v1.md` §四（P7 共享专区主题包，归 J1 / J2）|
+| `resource.api.*` | `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md` §3.5（API 服务资源生命周期：注册 / 变更 / 审核 / 发布 / 撤回 / 撤销 / 测试 / 策略，归 J1 申请审批 / J2 发布审核）|
 
 ---
 
@@ -1248,6 +1260,9 @@ Wave 2 必达三引擎（审批流可视化引擎 + 表单 schema 化引擎 + �
 | Capability 的确认边界不得被 UI / Agent 绕过 | trigger 化 pending | 触发条件 = 出现绕过案例 OR §8.6 T1 外部 Agent 接入；届时新增 contract-to-runtime 一致性检查 |
 | 反 per-tenant fork | trigger 化 pending | 触发条件 = 出现第二个真实租户 OR 客户提出 fork 后端意图；当前单租户 `sd-default`，无 fork 风险 |
 | 控制面不得出现多处手维护投影（F4） | 已 wired | preflight 段 29 `scripts/check_no_hand_maintained_projection.py` —— 5 消费面投影禁止 "AUTO-GENERATED; DO NOT EDIT" banner 之外的手工 patch 痕迹 |
+| spec / plan / tests 三角连接（飞轮 §四） | 已 wired（D32 / PR #125）| preflight 段 38 `scripts/check_trace_triangle.py` —— .feature `# Owner/# Pytest/# Twin-F` + plan.yaml `spec_ref` 三向校验 |
+| 旧 xlsx 行号引用一致性（飞轮 §三.2）| 已 wired（D32 / PR #125）| preflight 段 39 `scripts/check_legacy_smoke_row_numbers.py` —— .feature Trace 引用旧 xlsx 行号必须在 mapping doc 出现 |
+| D-编号决策真值源回灌（D32.d）| 已 wired（PR #136）| preflight 段 44 `scripts/check_approved_doc_drift.py` PR-mode WARN —— 新增 D-编号必须在所有相关 `docs/reconstructs/*.md` 真值源同步 |
 
 ### C.1 preflight 段全集
 

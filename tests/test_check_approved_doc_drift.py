@@ -140,7 +140,7 @@ def test_path_prefix_whitelist_accepts_three_roots(tmp_path: Path) -> None:
             "- [2026-05-27] D99：refer to `docs/foo.md` and `.testing/bar.md` "
             "and `tests/fixtures/baz.md` and `../outside.md`",
         ]
-        paths, _, _ = mod._extract_keywords(block)
+        paths, _, _, _ = mod._extract_keywords(block)
         assert "docs/foo.md" in paths
         assert ".testing/bar.md" in paths
         assert "tests/fixtures/baz.md" in paths
@@ -188,7 +188,125 @@ def test_find_drift_candidates_flags_high_density_without_d_ref(
     monkeypatch.setattr(mod, "SCAN_ROOTS", [tmp_path / "docs"])
     monkeypatch.setattr(mod, "SCAN_FILES", [])
 
-    findings = mod._find_drift_candidates("D99", {target}, set())
+    findings = mod._find_drift_candidates("D99", {target}, set(), set())
     # 被 flag 的文件出现在 "→ <rel>:" 位置
     flagged = {f.split("→", 1)[1].split(":", 1)[0].strip() for f in findings}
     assert flagged == {"docs/other.md"}, f"got {flagged}"
+
+
+# ── Namespace 漂移启发式（PR #140 D32.d 启发式盲区修复） ─────────────────
+
+
+def test_namespace_extraction_from_d32_block() -> None:
+    """D32 段内反引号 namespace 形态全提取（pattern 边界 test）。
+
+    样本来自 CLAUDE.md D32 实际段，覆盖 4 种典型形态：
+      - `resource.api.{register,change,...}` → root "resource.api"
+      - `ops.gateway.{heartbeat.ingest,log.anchor}` → root "ops.gateway"
+      - `ops.service.{report.query,invocation.query}` → root "ops.service"
+      - `topic.package.*` → root "topic.package"
+    """
+    mod = _load_mod()
+    block = [
+        "- [2026-05-27] D99：A 类 → 按 plan §3.5 12 capability "
+        "(`resource.api.{register,change,submit_review,review,publish,withdraw,"
+        "revoke,test,policy.update}` + `ops.gateway.{heartbeat.ingest,log.anchor}` + "
+        "`ops.service.{report.query,invocation.query}`)；D 类 → "
+        "`topic.package.*` 系列；H 类按 §H.1 不复活。"
+    ]
+    _, _, _, namespaces = mod._extract_keywords(block)
+    # 仅提取 root 两段（避免子能力组合爆炸）
+    assert namespaces == {
+        "resource.api",
+        "ops.gateway",
+        "ops.service",
+        "topic.package",
+    }, f"got {namespaces}"
+
+
+def test_namespace_missing_from_approved_flags_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """namespace 在 docs/approved/*.md 完全 0 次出现 → 漂移候选。
+
+    PR #140 启发式盲区原本场景：D32 引入 ops.service.*，架构基线 §6.6 未列；
+    段 44 原版扫不到，加 namespace 启发式后能抓到。
+    """
+    mod = _load_mod()
+    arch = tmp_path / "docs" / "approved" / "zw-brain-architecture.md"
+    arch.parent.mkdir(parents=True)
+    # 架构基线只列了 ops.gateway，没有 ops.service / topic.package
+    arch.write_text("§6.6 命名空间预算：`ops.gateway.*`、`ops.shift_handover.*`")
+    monkeypatch.setattr(mod, "REPO", tmp_path)
+    monkeypatch.setattr(
+        mod,
+        "APPROVED_DOCS",
+        ["docs/approved/zw-brain-architecture.md"],
+    )
+    findings = mod._find_drift_candidates(
+        "D99",
+        set(),
+        set(),
+        {"ops.gateway", "ops.service", "topic.package"},
+    )
+    # ops.gateway 在 doc 中出现过 → 不报；ops.service / topic.package 全 0 → 报
+    flagged_ns = {
+        f.split("namespace `", 1)[1].split(".*", 1)[0]
+        for f in findings
+        if "namespace `" in f
+    }
+    assert flagged_ns == {"ops.service", "topic.package"}, f"got {flagged_ns}"
+
+
+def test_namespace_present_in_any_approved_doc_is_ok(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """namespace 在任一 approved doc 出现 ≥1 次 → 不报（即使其他 doc 没提）。
+
+    这避免误报：approved doc 是多文件构成的 set，命名空间在 §6.6 一处提即可。
+    """
+    mod = _load_mod()
+    arch = tmp_path / "docs" / "approved" / "zw-brain-architecture.md"
+    fly = tmp_path / "docs" / "approved" / "zw-brain-flywheel.md"
+    arch.parent.mkdir(parents=True)
+    arch.write_text("§6.6 命名空间预算：`ops.service.*`")  # 唯一提到 ops.service 的地方
+    fly.write_text("飞轮 §四 没提 ops.service")
+    monkeypatch.setattr(mod, "REPO", tmp_path)
+    monkeypatch.setattr(
+        mod,
+        "APPROVED_DOCS",
+        [
+            "docs/approved/zw-brain-architecture.md",
+            "docs/approved/zw-brain-flywheel.md",
+        ],
+    )
+    findings = mod._find_drift_candidates(
+        "D99", set(), set(), {"ops.service"}
+    )
+    assert findings == [], f"unexpected findings: {findings}"
+
+
+def test_namespace_drift_independent_of_path_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """namespace 漂移与 path 漂移独立累加（同一 D-编号可两类同时报）。"""
+    mod = _load_mod()
+    # 接路径漂移侧：高密度 path 引用 + 未引用 D99
+    target = "docs/foo-plan.md"
+    drifting = tmp_path / "docs" / "approved" / "zw-brain-architecture.md"
+    drifting.parent.mkdir(parents=True)
+    # arch 同时：高密度 path 引用未提 D99 + 未提 ops.service namespace
+    drifting.write_text("\n".join([f"see `{target}`"] * 4))
+    monkeypatch.setattr(mod, "REPO", tmp_path)
+    monkeypatch.setattr(mod, "SCAN_ROOTS", [tmp_path / "docs"])
+    monkeypatch.setattr(mod, "SCAN_FILES", [])
+    monkeypatch.setattr(
+        mod, "APPROVED_DOCS", ["docs/approved/zw-brain-architecture.md"]
+    )
+    findings = mod._find_drift_candidates(
+        "D99", {target}, set(), {"ops.service"}
+    )
+    # 应有 2 条：path 漂移 + namespace 漂移
+    assert len(findings) == 2, f"expected 2 findings, got {findings}"
+    assert any("namespace" in f for f in findings)
+    assert any(target in f for f in findings)
