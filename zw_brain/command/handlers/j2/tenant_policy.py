@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+from zw_brain.command.serializers import governance as governance_ser
 from zw_brain.domain import policy
 from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
@@ -78,7 +79,7 @@ def _evaluate_tenant_policy(brain, payload: dict[str, Any]) -> dict[str, Any]:
     policy_snapshot: dict[str, Any] | None = None
 
     candidates = [
-        brain._legacy_policy_candidate_record_to_dict(item)
+        governance_ser.legacy_policy_candidate_to_dict(item)
         for item in brain._governance_projection_repo().list_policy_candidates(tenant_id=tenant_id)
         if item.capability_id == capability_id and (item.surface is None or item.surface == surface)
     ]

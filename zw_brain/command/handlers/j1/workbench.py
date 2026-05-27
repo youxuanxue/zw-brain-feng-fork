@@ -7,8 +7,10 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+
 import copy
 
+import zw_brain.shared.clock as clock
 from zw_brain.command.brain import _DEFAULT_TENANT_ID, NotFoundError
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -35,8 +37,8 @@ def _submit_service_rating(brain, payload: dict[str, Any]) -> dict[str, Any]:
             task["rating"]["score"] = score
             task["rating"]["comment"] = comment
             task["rating"]["ratedBy"] = actor
-            task["rating"]["ratedAt"] = brain._now_datetime()
-            task.setdefault("history", []).append({"time": brain._now_short_time(), "state": f"服务评价：{score} 星", "detail": comment or "—"})
+            task["rating"]["ratedAt"] = clock.now_datetime()
+            task.setdefault("history", []).append({"time": clock.now_short_time(), "state": f"服务评价：{score} 星", "detail": comment or "—"})
         brain._append_audit_feed("service.rating.submit", task_id, "ok", actor)
         return {"task_id": task_id, "score": score, "comment": comment, "audit_id": audit_id}
 

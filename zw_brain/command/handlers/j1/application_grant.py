@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
+
+import zw_brain.shared.clock as clock
 from zw_brain.command.brain import BrainServiceError
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -24,9 +26,9 @@ def _approve_application_grant(brain, payload: dict[str, Any]) -> dict[str, Any]
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             task = brain._delivery_by_id(task_id)
             task["status"] = "warning"
-            task["updatedAt"] = brain._now_datetime()
+            task["updatedAt"] = clock.now_datetime()
             task["note"] = str(payload.get("reason", "授权申请未通过。"))
-            task.setdefault("history", []).append({"time": brain._now_short_time(), "state": "授权未通过", "detail": task["note"]})
+            task.setdefault("history", []).append({"time": clock.now_short_time(), "state": "授权未通过", "detail": task["note"]})
             brain._append_audit_feed("application.grant.approve", task_id, "warning", actor)
             return {"task_id": task_id, "decision": decision, "status": task["status"], "audit_id": audit_id}
 
@@ -43,8 +45,8 @@ def _renew_application_grant(brain, payload: dict[str, Any]) -> dict[str, Any]:
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         task = brain._delivery_by_id(task_id)
         task.setdefault("access", {})["renew_until"] = payload.get("renew_until")
-        task["updatedAt"] = brain._now_datetime()
-        task.setdefault("history", []).append({"time": brain._now_short_time(), "state": "授权已续期", "detail": str(payload.get("reason", "访问授权续期完成。"))})
+        task["updatedAt"] = clock.now_datetime()
+        task.setdefault("history", []).append({"time": clock.now_short_time(), "state": "授权已续期", "detail": str(payload.get("reason", "访问授权续期完成。"))})
         brain._delivery_repo().add_execution_evidence({"evidence_ref": audit_id, "delivery_code": task_id, "executor_kind": "grant_policy", "evidence_kind": "grant_renewal", "result_status": "renewed", "payload_json": payload})
         brain._append_audit_feed("application.grant.renew", task_id, "ok", actor)
         return {"task_id": task_id, "renew_until": payload.get("renew_until"), "audit_id": audit_id}
@@ -61,7 +63,7 @@ def _suspend_application_grant(brain, payload: dict[str, Any]) -> dict[str, Any]
         request = brain._request_by_id(request_id) if request_id.startswith("REQ-") else None
         if request is not None:
             request.setdefault("grant", {})["suspended"] = True
-            request.setdefault("timeline", []).append({"label": "授权已暂停", "time": brain._now_datetime(), "note": str(payload.get("reason", "审批人 临时暂停以核实使用边界。"))})
+            request.setdefault("timeline", []).append({"label": "授权已暂停", "time": clock.now_datetime(), "note": str(payload.get("reason", "审批人 临时暂停以核实使用边界。"))})
         brain._append_audit_feed("application.grant.suspend", request_id, "ok", actor)
         return {"request_id": request_id, "suspended": True, "audit_id": audit_id}
 
@@ -78,7 +80,7 @@ def _revoke_application_grant(brain, payload: dict[str, Any]) -> dict[str, Any]:
         if request is not None:
             request.setdefault("grant", {})["revoked"] = True
             request["status"] = "revoked"
-            request.setdefault("timeline", []).append({"label": "授权已收回", "time": brain._now_datetime(), "note": str(payload.get("reason", "审批人 收回授权，需重新申请。"))})
+            request.setdefault("timeline", []).append({"label": "授权已收回", "time": clock.now_datetime(), "note": str(payload.get("reason", "审批人 收回授权，需重新申请。"))})
         brain._append_audit_feed("application.grant.revoke", request_id, "ok", actor)
         return {"request_id": request_id, "revoked": True, "audit_id": audit_id}
 

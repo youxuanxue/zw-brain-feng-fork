@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+from zw_brain.command.serializers import adapter as adapter_ser
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
@@ -15,7 +16,7 @@ _DEFAULT_TENANT_ID = get_runtime_tenant_id()
 def handler(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
     adapter_slug = payload.get("adapter_slug")
     runs = [
-        brain._adapter_run_record_to_dict(item)
+        adapter_ser.adapter_run_to_dict(item)
         for item in brain._external_adapter_repo().list_run_records(
             tenant_id=_DEFAULT_TENANT_ID,
             adapter_slug=str(adapter_slug) if adapter_slug else None,

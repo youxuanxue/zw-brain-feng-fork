@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+import zw_brain.shared.clock as clock
+from zw_brain.command.serializers import quality as quality_ser
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
@@ -27,7 +29,7 @@ def _query_catalog_quality(brain, *, target_type: Any = None, target_ref: Any = 
     if store is None:
         return {"items": [], "total": 0}
     items = [
-        brain._quality_record_to_dict(item)
+        quality_ser.quality_to_dict(item)
         for item in store.metadata_evidence_repo.list_quality_evidence(
             target_type=str(target_type) if target_type else None,
             target_ref=str(target_ref) if target_ref else None,
@@ -59,7 +61,7 @@ def _query_catalog_statistics(brain) -> dict[str, Any]:
                 "schemaMappingCount": 0,
                 "qualityEvidenceCount": 0,
                 "source_ref": "seed_snapshot",
-                "generated_at": brain._now_datetime(),
+                "generated_at": clock.now_datetime(),
                 "projection_only": True,
             }
         }
@@ -67,7 +69,7 @@ def _query_catalog_statistics(brain) -> dict[str, Any]:
     resource_count = len(store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID))
     schema_mapping_count = len(store.metadata_evidence_repo.list_schema_mappings(tenant_id=_DEFAULT_TENANT_ID))
     quality_count = len(store.metadata_evidence_repo.list_quality_evidence(tenant_id=_DEFAULT_TENANT_ID))
-    generated_at = brain._now_datetime()
+    generated_at = clock.now_datetime()
     source_ref = "canonical_projection"
     return {
         "summary": {

@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 import copy
 from datetime import datetime, timedelta
 
+import zw_brain.shared.clock as clock
 from zw_brain.command.brain import DEFAULT_DISCOVERY_QUERY, InvalidStateError, NotFoundError
 from zw_brain.domain.approval_flow_baseline import start_approval_workflow_from_baseline
 from zw_brain.shared.db import create_session_factory
@@ -140,7 +141,7 @@ def _create_request(
             },
             "expectedBy": (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"),
             "status": "pending",
-            "submittedAt": brain._now_datetime(),
+            "submittedAt": clock.now_datetime(),
             "auditId": audit_id,
             "chainAnchor": "pending",
             "templateCoverage": resource.get("coverage", "—"),
@@ -166,22 +167,22 @@ def _create_request(
             "timeline": [
                 {
                     "label": "已发现可复用模板",
-                    "time": brain._now_datetime(),
+                    "time": clock.now_datetime(),
                     "note": f"系统识别当前需求优先命中 {resource['name']}。",
                 },
                 {
                     "label": "已生成共享申请",
-                    "time": brain._now_datetime(),
+                    "time": clock.now_datetime(),
                     "note": f"进入受控准入并生成 audit_id {audit_id}",
                 },
                 {
                     "label": "待审批承接人员判定",
-                    "time": brain._now_datetime(),
+                    "time": clock.now_datetime(),
                     "note": review_note,
                 },
                 {
                     "label": "待交付任务生成",
-                    "time": brain._now_datetime(),
+                    "time": clock.now_datetime(),
                     "note": f"交付期望：{delivery_expectation}",
                 },
                 {
@@ -254,11 +255,11 @@ def _create_request(
             "channel": "受控交付 + 审计回执",
             "status": "pending",
             "owner": "申请方 → 审批承接 → 交付执行",
-            "updatedAt": brain._now_datetime(),
+            "updatedAt": clock.now_datetime(),
             "note": delivery_expectation,
             "history": [
                 {
-                    "time": brain._now_short_time(),
+                    "time": clock.now_short_time(),
                     "state": "待受理",
                     "detail": "已生成最小必要申请，等待审批承接人员受理。",
                 }
@@ -312,13 +313,13 @@ def _submit_request(brain, request_id: str, role: str, confirmed: bool) -> dict[
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         request["status"] = "pending"
-        request["submittedAt"] = brain._now_datetime()
+        request["submittedAt"] = clock.now_datetime()
         request["auditId"] = audit_id
         request["chainAnchor"] = "pending"
         request["timeline"].append(
             {
                 "label": "已补齐后重新提交",
-                "time": brain._now_datetime(),
+                "time": clock.now_datetime(),
                 "note": "申请已重新进入受控准入，等待审批承接人员判定。",
             }
         )
@@ -327,11 +328,11 @@ def _submit_request(brain, request_id: str, role: str, confirmed: bool) -> dict[
         delivery = brain._delivery_by_request_id(request_id)
         if delivery:
             delivery["status"] = "warning"
-            delivery["updatedAt"] = brain._now_datetime()
+            delivery["updatedAt"] = clock.now_datetime()
             delivery["note"] = "申请已重新提交，等待准入判定后再决定是否进入基层补录链路。"
             delivery["history"].append(
                 {
-                    "time": brain._now_short_time(),
+                    "time": clock.now_short_time(),
                     "state": "重新提交待判定",
                     "detail": "补齐后重新进入受控准入，未直接下发基层任务。",
                 }

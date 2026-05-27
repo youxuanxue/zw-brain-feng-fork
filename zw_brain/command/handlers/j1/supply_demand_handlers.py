@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+import zw_brain.shared.clock as clock
 from zw_brain.command.brain import InvalidStateError, NotFoundError
 from zw_brain.domain.repositories.supply_demand import SupplyDemandRepository
 from zw_brain.domain.supply_demand_phase import SupplyDemandPhaseError
@@ -24,7 +25,7 @@ def handler_demand_register(brain: BrainService, skill_id: str, payload: dict[st
     confirmed = bool(payload.get("confirmed"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        demand_id = str(payload.get("demand_id") or f"DM-{brain._now_datetime().replace(' ', '-').replace(':', '')}")
+        demand_id = str(payload.get("demand_id") or f"DM-{clock.now_datetime().replace(' ', '-').replace(':', '')}")
         record = _repo().register_demand(
             demand_id=demand_id,
             title=str(payload["title"]),

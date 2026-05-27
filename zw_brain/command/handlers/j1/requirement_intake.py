@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 import copy
 
+import zw_brain.shared.clock as clock
 from zw_brain.command.brain import InvalidStateError, NotFoundError
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.shared.sanitization import safe_json
@@ -30,7 +31,7 @@ def _refine_requirement_intent(brain, payload: dict[str, Any]) -> dict[str, Any]
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         request = brain._request_by_id(request_id)
-        request.setdefault("timeline", []).append({"label": "需求已细化", "time": brain._now_datetime(), "note": str(payload.get("refine_note", "已补充需求意图与资源范围。"))})
+        request.setdefault("timeline", []).append({"label": "需求已细化", "time": clock.now_datetime(), "note": str(payload.get("refine_note", "已补充需求意图与资源范围。"))})
         request["purpose"] = str(payload.get("refine_note") or request.get("purpose"))
         request["aiStatus"]["summary"] = "需求意图已细化，仍保持受控准入链路。"
         brain._append_audit_feed("require.intent.refine", request_id, "ok", actor)
@@ -82,7 +83,7 @@ def _match_requirement_resource(brain, payload: dict[str, Any]) -> dict[str, Any
         request = brain._request_by_id(request_id)
         candidates = payload.get("candidate_resources") or ([payload["resource_id"]] if payload.get("resource_id") else [])
         request["matchedResources"] = safe_json(candidates)
-        request.setdefault("timeline", []).append({"label": "资源匹配完成", "time": brain._now_datetime(), "note": str(payload.get("match_note", "已生成候选资源匹配结果。"))})
+        request.setdefault("timeline", []).append({"label": "资源匹配完成", "time": clock.now_datetime(), "note": str(payload.get("match_note", "已生成候选资源匹配结果。"))})
         brain._append_audit_feed("require.resource.match", request_id, "ok", actor)
         return {"request_id": request_id, "candidate_count": len(candidates), "audit_id": audit_id}
 
@@ -114,14 +115,14 @@ def _submit_supplement(brain, request_id: str, role: str, confirmed: bool) -> di
         request["status"] = "summary-pending"
         request["diffFields"] = [
             {"label": "经营状态", "value": "正常经营", "reason": "现场状态变化快", "owner": "基层填报人 补录", "state": "已补录"},
-            {"label": "最近走访时间", "value": brain._now_date(), "reason": "共享池无现场时间", "owner": "村社区填报人 补录", "state": "已补录"},
+            {"label": "最近走访时间", "value": clock.now_date(), "reason": "共享池无现场时间", "owner": "村社区填报人 补录", "state": "已补录"},
             {"label": "现场备注", "value": "已完成走访核验，无新增异常。", "reason": "仅末端掌握", "owner": "基层填报人 补录", "state": "已补录"},
         ]
         request["summaryResult"]["note"] = "基层差异字段已全部回收，系统已生成自动汇总结果，待 审核汇总人 确认异常项。"
         request["timeline"].append(
             {
                 "label": "差异补录已提交",
-                "time": brain._now_datetime(),
+                "time": clock.now_datetime(),
                 "note": "基层已提交现场差异字段，系统已自动进入汇总确认阶段。",
             }
         )
@@ -130,11 +131,11 @@ def _submit_supplement(brain, request_id: str, role: str, confirmed: bool) -> di
         delivery = brain._delivery_by_request_id(request_id)
         if delivery:
             delivery["status"] = "reconciling"
-            delivery["updatedAt"] = brain._now_datetime()
+            delivery["updatedAt"] = clock.now_datetime()
             delivery["note"] = "基层补录已完成，自动汇总结果待审核汇总人员确认。"
             delivery["history"].append(
                 {
-                    "time": brain._now_short_time(),
+                    "time": clock.now_short_time(),
                     "state": "基层补录完成",
                     "detail": "差异字段已回收，系统已生成汇总草稿和回流候选。",
                 }
@@ -161,7 +162,7 @@ def _confirm_summary(brain, request_id: str, role: str, confirmed: bool) -> dict
         request["timeline"].append(
             {
                 "label": "已确认自动汇总",
-                "time": brain._now_datetime(),
+                "time": clock.now_datetime(),
                 "note": "异常项已处理完成，回流候选进入供给侧确认阶段。",
             }
         )
@@ -170,11 +171,11 @@ def _confirm_summary(brain, request_id: str, role: str, confirmed: bool) -> dict
         delivery = brain._delivery_by_request_id(request_id)
         if delivery:
             delivery["status"] = "reconciling"
-            delivery["updatedAt"] = brain._now_datetime()
+            delivery["updatedAt"] = clock.now_datetime()
             delivery["note"] = "汇总已确认，等待 数据提供方 / 业务运营员 决定回流是否正式生效。"
             delivery["history"].append(
                 {
-                    "time": brain._now_short_time(),
+                    "time": clock.now_short_time(),
                     "state": "汇总确认完成",
                     "detail": "异常项已由 审核汇总人 确认，任务转入回流确认。",
                 }
@@ -199,11 +200,11 @@ def _confirm_backflow(brain, task_id: str, role: str, confirmed: bool) -> dict[s
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         task["status"] = "completed"
-        task["updatedAt"] = brain._now_datetime()
+        task["updatedAt"] = clock.now_datetime()
         task["note"] = "高频差异字段已确认纳入停车场信息共享目录回流候选。"
         task["history"].append(
             {
-                "time": brain._now_short_time(),
+                "time": clock.now_short_time(),
                 "state": "回流确认完成",
                 "detail": "本地泊位开放状态与最新开放时间已正式纳入停车场信息目录回流候选。",
             }

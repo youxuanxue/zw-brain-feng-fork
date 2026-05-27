@@ -8,6 +8,10 @@ if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
 
+
+from zw_brain.command.serializers import topic_package as topic_package_ser
+
+
 def handler(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
@@ -17,6 +21,6 @@ def handler(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
             payload | {"actor_snapshot_json": {"actor": actor, "role": role}}
         )
         brain._append_audit_feed("legacy.sharezone.mapping.import", record.package_code, "ok", actor)
-        return brain._topic_package_record_to_dict(record) | {"audit_id": audit_id}
+        return topic_package_ser.topic_package_to_dict(record) | {"audit_id": audit_id}
 
     return brain._mutate("legacy.sharezone.mapping.import", role, confirmed, payload, mutation)

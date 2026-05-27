@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+from zw_brain.command.serializers import delivery as delivery_ser
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
@@ -21,7 +22,7 @@ def handler(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
     if payload.get("delivery_code") is not None:
         filters["delivery_code"] = payload.get("delivery_code")
     metrics = [
-        brain._exchange_metric_record_to_dict(item)
+        delivery_ser.exchange_metric_to_dict(item)
         for item in brain._delivery_repo().list_exchange_metrics(**filters, tenant_id=_DEFAULT_TENANT_ID)
     ]
     return {"items": metrics, "summary": brain._exchange_metric_summary(metrics)}

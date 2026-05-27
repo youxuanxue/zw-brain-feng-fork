@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -22,8 +23,17 @@ def _find_ruff() -> str | None:
 def main() -> int:
     ruff = _find_ruff()
     if ruff is None:
-        print("[ruff] skip: ruff not installed (no .venv/bin/ruff and not on PATH)")
-        return 0
+        # PR #124 review 暴露：silent skip 让 16 个 I001 import-order 错误漂过本地门禁
+        # 直到 CI 才挡下——正是本脚本头注释要避免的反模式。改为 fail-with-hint：
+        # 默认硬挡，dev 显式 opt-out 才放过。
+        if os.environ.get("ZW_BRAIN_PREFLIGHT_SKIP_RUFF") == "1":
+            print("[ruff] skip: ruff not installed; ZW_BRAIN_PREFLIGHT_SKIP_RUFF=1 explicit opt-out")
+            return 0
+        print("[ruff] FAIL: ruff not installed (no .venv/bin/ruff and not on PATH)")
+        print("  hint: 安装 — `uv sync --extra dev` 或 `pip install ruff`")
+        print("  hint: 仅本机临时跳过 — `export ZW_BRAIN_PREFLIGHT_SKIP_RUFF=1`")
+        print("  rationale: silent skip 曾让 PR #124 16 个 I001 错误漂到 CI（PR review 暴露）")
+        return 1
     result = subprocess.run([ruff, "check", "."], cwd=REPO_ROOT, capture_output=True, text=True)
     if result.returncode != 0:
         print("[ruff] FAIL:")

@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+from zw_brain.command.serializers import adapter as adapter_ser
+
 
 def handler(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> Any:
     return _record_adapter_operation(brain, skill_id, payload)
@@ -70,8 +72,8 @@ def _record_adapter_operation(brain: BrainService, skill_id: str, payload: dict[
             )
         brain._append_audit_feed(skill_id, idempotency_key, "ok", actor)
         return {
-            "run": brain._adapter_run_record_to_dict(run),
-            "mapping": brain._external_mapping_record_to_dict(mapping) if mapping is not None else None,
+            "run": adapter_ser.adapter_run_to_dict(run),
+            "mapping": adapter_ser.external_mapping_to_dict(mapping) if mapping is not None else None,
             "audit_id": audit_id,
         }
 

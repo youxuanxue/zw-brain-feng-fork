@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 import copy
 
 from zw_brain.command.brain import InvalidStateError, NotFoundError, _RequestBatchContext
+from zw_brain.command.serializers import catalog as catalog_ser
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
@@ -84,7 +85,7 @@ def _browse_catalog_entries(
     total = len(records)
     start = (page - 1) * limit
     end = start + limit
-    items = [brain._catalog_entry_record_to_dict(r) for r in records[start:end]]
+    items = [catalog_ser.catalog_entry_to_dict(r) for r in records[start:end]]
     return {"items": items, "total": total, "page": page, "limit": limit}
 
 def _query_catalog_groups(brain) -> dict[str, Any]:
@@ -147,7 +148,7 @@ def _manage_catalog_entry(brain, catalog_id: str, action: str, role: str, confir
 def _query_catalog_models(brain, *, model_code: Any = None) -> dict[str, Any]:
     store = brain._state_store.database_store
     repo = store.catalog_repo if store is not None else CatalogRepository()
-    models = [brain._catalog_model_record_to_dict(item) for item in repo.list_models(tenant_id=_DEFAULT_TENANT_ID)]
+    models = [catalog_ser.catalog_model_to_dict(item) for item in repo.list_models(tenant_id=_DEFAULT_TENANT_ID)]
     if model_code:
         models = [item for item in models if item["model_code"] == str(model_code)]
     return {"items": models, "total": len(models)}
@@ -155,7 +156,7 @@ def _query_catalog_models(brain, *, model_code: Any = None) -> dict[str, Any]:
 def _query_catalog_model_fields(brain, model_code: str) -> dict[str, Any]:
     store = brain._state_store.database_store
     repo = store.catalog_repo if store is not None else CatalogRepository()
-    fields = [brain._catalog_model_field_record_to_dict(item) for item in repo.list_model_fields(model_code, tenant_id=_DEFAULT_TENANT_ID)]
+    fields = [catalog_ser.catalog_model_field_to_dict(item) for item in repo.list_model_fields(model_code, tenant_id=_DEFAULT_TENANT_ID)]
     return {"items": fields, "total": len(fields)}
 
 def _upsert_catalog_model(brain, payload: dict[str, Any]) -> dict[str, Any]:

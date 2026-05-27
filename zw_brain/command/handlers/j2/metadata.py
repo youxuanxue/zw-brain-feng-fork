@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+from zw_brain.command.serializers import metadata as metadata_ser
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
@@ -69,7 +70,7 @@ def _query_metadata_schema(brain, *, resource_code: Any = None, binding_code: An
     if store is None:
         return {"items": [], "total": 0}
     items = [
-        brain._schema_snapshot_record_to_dict(item)
+        metadata_ser.schema_snapshot_to_dict(item)
         for item in store.metadata_evidence_repo.list_schema_snapshots(
             resource_code=str(resource_code) if resource_code else None,
             binding_code=str(binding_code) if binding_code else None,
@@ -114,7 +115,7 @@ def _query_metadata_lineage(brain, *, resource_code: Any = None, relation_scope:
     if store is None:
         return {"items": [], "total": 0}
     items = [
-        brain._lineage_record_to_dict(item)
+        metadata_ser.lineage_to_dict(item)
         for item in store.metadata_evidence_repo.list_lineage_relations(
             resource_code=str(resource_code) if resource_code else None,
             relation_scope=str(relation_scope) if relation_scope else None,
@@ -128,7 +129,7 @@ def _query_metadata_gather_evidence(brain, *, resource_code: Any = None, status:
     if store is None:
         return {"items": [], "total": 0}
     items = [
-        brain._gather_evidence_record_to_dict(item)
+        metadata_ser.gather_evidence_to_dict(item)
         for item in store.metadata_evidence_repo.list_gather_evidence(
             resource_code=str(resource_code) if resource_code else None,
             status=str(status) if status else None,

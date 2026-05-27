@@ -89,6 +89,7 @@ done <<'CHECKS'
 段 34	scripts/check_wave_snapshot_sync.py	wave-snapshot-sync (E1 — §〇.1 反向链接锚点解析 + debt 反向覆盖)
 段 35	scripts/check_brain_no_request_state_singleton.py	brain-no-request-state-singleton (per-request role 必走 ContextVar，不得 seed 到 _ui_state 单例)
 段 36	scripts/check_no_demo_id_literals.py	no-demo-id-literals (REQ-/DLV-/PKG- demo id 限 demo_state_sync.py，不得入 brain.py/handlers)
+段 37	scripts/check_brain_no_record_to_dict.py	brain-no-record-to-dict (record_to_dict 纯函数住 command/serializers/，不得回潮到 BrainService — Phase 1.1)
 CHECKS
 
 echo ""

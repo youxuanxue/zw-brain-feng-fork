@@ -10,7 +10,10 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
+
 import copy
+
+from zw_brain.command.serializers import ops_metrics as ops_metrics_ser
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -34,7 +37,7 @@ def _query_service_invocations(
             metrics = [item for item in metrics if item.get("metric_scope") == metric_scope]
     else:
         metrics = [
-            brain._metric_record_to_dict(item)
+            ops_metrics_ser.metric_to_dict(item)
             for item in store.service_invocation_repo.list_metrics(
                 resource_code=str(resource_code) if resource_code else None,
                 capability_id=str(capability_id) if capability_id else None,
@@ -49,8 +52,8 @@ def _query_service_report(brain) -> dict[str, Any]:
         gateways = copy.deepcopy(brain._snapshot.get("gateway_runtime_statuses", []))
         metrics = copy.deepcopy(brain._snapshot.get("service_invocation_metrics", []))
     else:
-        gateways = [brain._gateway_record_to_dict(item) for item in store.gateway_runtime_repo.list_statuses()]
-        metrics = [brain._metric_record_to_dict(item) for item in store.service_invocation_repo.list_metrics()]
+        gateways = [ops_metrics_ser.gateway_to_dict(item) for item in store.gateway_runtime_repo.list_statuses()]
+        metrics = [ops_metrics_ser.metric_to_dict(item) for item in store.service_invocation_repo.list_metrics()]
     offline = sum(1 for item in gateways if item.get("status") != "online")
     metric_summary = brain._metric_summary(metrics)
     return {

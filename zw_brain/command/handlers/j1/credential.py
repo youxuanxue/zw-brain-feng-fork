@@ -7,9 +7,11 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+
 import copy
 import json as _json
 
+import zw_brain.shared.clock as clock
 from zw_brain.command.brain import InvalidStateError, NotFoundError
 
 # 监控入口：链接到 §3.4 集团运维监控（不内嵌 dashboard），由 IT 资源运维直观接管
@@ -48,11 +50,11 @@ def _issue_credential(brain, request_id: str, role: str, confirmed: bool, *, rei
         grant_snapshot = copy.deepcopy(delivery.get("accessGrantSnapshot") or {})
         grant_snapshot["credential"] = credential
         grant_snapshot["issued_audit_id"] = audit_id
-        grant_snapshot["issued_at"] = brain._now_datetime()
+        grant_snapshot["issued_at"] = clock.now_datetime()
         grant_snapshot["issued_by"] = actor
         delivery["accessGrantSnapshot"] = grant_snapshot
         delivery.setdefault("history", []).append({
-            "time": brain._now_short_time(),
+            "time": clock.now_short_time(),
             "state": "凭据已签发" if not existing else "凭据已重新签发（旧 secret 立即失效）",
             "detail": f"app_key={credential['app_key']}（demo 凭据），可在 P4 凭据领取页查看。",
         })

@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 
 from zw_brain.command.brain import InvalidStateError, NotFoundError
+from zw_brain.command.serializers import objection as objection_ser
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
@@ -33,7 +34,7 @@ def _create_objection_case(brain, payload: dict[str, Any]) -> dict[str, Any]:
             tenant_id=_DEFAULT_TENANT_ID,
         )
         brain._append_audit_feed("objection.case.create", record.id, "ok", actor)
-        return brain._objection_record_to_dict(record) | {"audit_id": audit_id}
+        return objection_ser.case_to_dict(record) | {"audit_id": audit_id}
 
     return brain._mutate("objection.case.create", role, confirmed, payload, mutation)
 
@@ -61,7 +62,7 @@ def _transition_objection_case(brain, objection_id: str, next_status: str, actio
         except ValueError as exc:
             raise InvalidStateError(str(exc)) from exc
         brain._append_audit_feed(f"objection.case.{action_type}", objection_id, "ok", actor)
-        return brain._objection_record_to_dict(record) | {"audit_id": audit_id}
+        return objection_ser.case_to_dict(record) | {"audit_id": audit_id}
 
     return brain._mutate(f"objection.case.{action_type}", role, confirmed, {"objection_id": objection_id, "next_status": next_status} | payload, mutation)
 
@@ -82,7 +83,7 @@ def _evaluate_objection_case(brain, payload: dict[str, Any]) -> dict[str, Any]:
         except ValueError as exc:
             raise InvalidStateError(str(exc)) from exc
         brain._append_audit_feed("objection.case.evaluate", objection_id, "ok", actor)
-        return brain._evaluation_record_to_dict(evaluation) | {"audit_id": audit_id}
+        return objection_ser.evaluation_to_dict(evaluation) | {"audit_id": audit_id}
 
     return brain._mutate("objection.case.evaluate", role, confirmed, payload, mutation)
 
@@ -102,7 +103,7 @@ def _query_objection_cases(
     # 全部 optional：未传 = 与 PR #90 行为完全一致。
     repo = brain._objection_repo()
     raw_records = list(repo.list_cases(tenant_id=_DEFAULT_TENANT_ID))
-    records = [brain._objection_record_to_dict(item) for item in raw_records]
+    records = [objection_ser.case_to_dict(item) for item in raw_records]
     if status:
         records = [item for item in records if item["status"] == str(status)]
     if target_type:
@@ -152,12 +153,12 @@ def _reply_objection_case(brain, payload: dict[str, Any]) -> dict[str, Any]:
         except KeyError as exc:
             raise NotFoundError(objection_id) from exc
         brain._append_audit_feed("objection.case.reply", objection_id, "ok", actor)
-        return brain._objection_record_to_dict(record) | {"audit_id": audit_id}
+        return objection_ser.case_to_dict(record) | {"audit_id": audit_id}
 
     return brain._mutate("objection.case.reply", role, confirmed, payload, mutation)
 
 def _query_objection_metrics(brain) -> dict[str, Any]:
-    cases = [brain._objection_record_to_dict(item) for item in brain._objection_repo().list_cases(tenant_id=_DEFAULT_TENANT_ID)]
+    cases = [objection_ser.case_to_dict(item) for item in brain._objection_repo().list_cases(tenant_id=_DEFAULT_TENANT_ID)]
     by_status: dict[str, int] = {}
     for item in cases:
         by_status[item["status"]] = by_status.get(item["status"], 0) + 1
@@ -175,8 +176,8 @@ def _query_objection_process(brain, objection_id: str) -> dict[str, Any]:
     if brain._objection_repo().get_case(objection_id, tenant_id=_DEFAULT_TENANT_ID) is None:
         raise NotFoundError(objection_id)
     return {
-        "items": [brain._process_record_to_dict(item) for item in brain._objection_repo().list_processes(objection_id)],
-        "evidence": [brain._evidence_record_to_dict(item) for item in brain._objection_repo().list_evidence(objection_id)],
+        "items": [objection_ser.process_to_dict(item) for item in brain._objection_repo().list_processes(objection_id)],
+        "evidence": [objection_ser.evidence_to_dict(item) for item in brain._objection_repo().list_evidence(objection_id)],
     }
 
 

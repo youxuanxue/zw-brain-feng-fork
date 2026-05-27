@@ -9,7 +9,9 @@ if TYPE_CHECKING:
 
 import copy
 
+import zw_brain.shared.clock as clock
 from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoundError
+from zw_brain.command.serializers import resource_api as resource_api_ser
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
@@ -70,7 +72,7 @@ def _transition_api_resource(brain, resource_code: str, status: str, skill_id: s
             if resource is None:
                 raise NotFoundError(resource_code)
             resource["lifecycle_status"] = status
-            resource["updated_at"] = brain._now_datetime()
+            resource["updated_at"] = clock.now_datetime()
             result = brain._upsert_api_resource(resource)
         else:
             record = store.resource_api_repo.transition_asset(resource_code, status)
@@ -100,7 +102,7 @@ def _transition_api_resource(brain, resource_code: str, status: str, skill_id: s
                 audit_id=audit_id,
                 decision="return" if status in {"draft", "test_failed"} else None,
             )
-            result = brain._resource_asset_record_to_dict(record)
+            result = resource_api_ser.resource_asset_to_dict(record)
         brain._append_audit_feed(skill_id, resource_code, "ok", actor)
         return result | {"audit_id": audit_id}
 
@@ -131,10 +133,10 @@ def _test_api_resource(brain, payload: dict[str, Any]) -> dict[str, Any]:
             if resource is None:
                 raise NotFoundError(resource_code)
             resource["lifecycle_status"] = next_status
-            resource["updated_at"] = brain._now_datetime()
+            resource["updated_at"] = clock.now_datetime()
             result = brain._upsert_api_resource(resource)
             tests = brain._snapshot.setdefault("api_resource_tests", [])
-            test_record = test_payload | {"test_ref": audit_id, "tested_by": actor, "tested_at": brain._now_datetime()}
+            test_record = test_payload | {"test_ref": audit_id, "tested_by": actor, "tested_at": clock.now_datetime()}
             tests.append(test_record)
         else:
             record = store.resource_api_repo.transition_asset(resource_code, next_status)
@@ -149,8 +151,8 @@ def _test_api_resource(brain, payload: dict[str, Any]) -> dict[str, Any]:
                 audit_id=audit_id,
                 decision="return" if next_status == "test_failed" else None,
             )
-            result = brain._resource_asset_record_to_dict(record)
-            test_record = brain._api_test_projection_record_to_dict(projection)
+            result = resource_api_ser.resource_asset_to_dict(record)
+            test_record = resource_api_ser.api_test_projection_to_dict(projection)
         brain._append_audit_feed("resource.api.test", resource_code, "ok", actor)
         return result | {"audit_id": audit_id, "test_projection": test_record}
 
@@ -183,7 +185,7 @@ def _query_resource_assets(brain, *, resource_code: Any = None) -> dict[str, Any
         if resource_code:
             resources = [item for item in resources if item.get("resource_code") == resource_code]
     else:
-        resources = [brain._resource_asset_record_to_dict(item) for item in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID)]
+        resources = [resource_api_ser.resource_asset_to_dict(item) for item in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID)]
         if resource_code:
             resources = [item for item in resources if item["resource_code"] == str(resource_code)]
         resources = [brain._enrich_provider_resource_asset(item, store) for item in resources]
@@ -245,7 +247,7 @@ def _manage_resource_asset(
             }[action]
             snapshot_resource["status"] = status
             snapshot_resource["governanceLocked"] = True
-            snapshot_resource["updatedAt"] = brain._now_date()
+            snapshot_resource["updatedAt"] = clock.now_date()
             snapshot_resource.setdefault("evidence", {})[action] = {"audit_id": audit_id, "actor": actor}
         provider["aiGovernance"]["summary"] = "资源治理状态已更新，当前应确认专区是否只消费可见资产。"
         brain._append_audit_feed(event_type, resource_id, "ok", actor)

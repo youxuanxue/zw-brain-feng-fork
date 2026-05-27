@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+import zw_brain.shared.ids as ids
 from zw_brain.domain.recommendation_engine import RecommendationEngine
 from zw_brain.shared.db import create_session_factory
 
@@ -51,7 +52,7 @@ def _suggest(brain: BrainService, skill_id: str, payload: dict[str, Any]) -> dic
     return {
         "ok": True,
         "skill_id": skill_id,
-        "audit_id": brain._new_audit_id(),
+        "audit_id": ids.new_audit_id(),
         "result": {
             "candidates": candidate_dicts,
             "fallback_required": fallback_required,

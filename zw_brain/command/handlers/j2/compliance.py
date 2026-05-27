@@ -11,8 +11,12 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+
+
 import copy
 
+import zw_brain.shared.clock as clock
+import zw_brain.shared.ids as ids
 from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoundError
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -33,7 +37,7 @@ def _configure_compliance_rule(brain, payload: dict[str, Any]) -> dict[str, Any]
             "status": str(payload.get("status", "active")),
             "severity": str(payload.get("severity", "mid")),
             "rule_json": brain._safe_json(payload.get("rule_json") or {}),
-            "updatedAt": brain._now_datetime(),
+            "updatedAt": clock.now_datetime(),
         }
         if rule is None:
             rules.append(rule_payload)
@@ -47,7 +51,7 @@ def _configure_compliance_rule(brain, payload: dict[str, Any]) -> dict[str, Any]
 def _open_compliance_case(brain, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", brain._ui_state["role"]))
     confirmed = bool(payload.get("confirmed"))
-    case_id = str(payload.get("case_id") or payload.get("dispute_id") or f"CMP-{brain._new_audit_id()}")
+    case_id = str(payload.get("case_id") or payload.get("dispute_id") or f"CMP-{ids.new_audit_id()}")
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         cases = brain._snapshot.setdefault("disputes", [])
@@ -62,7 +66,7 @@ def _open_compliance_case(brain, payload: dict[str, Any]) -> dict[str, Any]:
                 "owner": str(payload.get("owner", payload.get("owner_org_id", "合规治理组"))),
                 "timeline": [
                     {
-                        "time": brain._now_datetime(),
+                        "time": clock.now_datetime(),
                         "label": "打开合规事件",
                         "note": str(payload.get("summary", payload.get("note", "已登记合规信号并进入最小闭环。"))),
                     }
@@ -97,7 +101,7 @@ def _transition_compliance_case(brain, case_id: str, status: str, action: str, p
         if payload.get("owner") or payload.get("owner_org_id"):
             case["owner"] = str(payload.get("owner", payload.get("owner_org_id")))
         label = {"assign": "分派合规处置", "resolve": "完成合规处置", "close": "关闭合规事件"}[action]
-        case.setdefault("timeline", []).append({"time": brain._now_datetime(), "label": label, "note": str(payload.get("opinion", payload.get("summary", label)))})
+        case.setdefault("timeline", []).append({"time": clock.now_datetime(), "label": label, "note": str(payload.get("opinion", payload.get("summary", label)))})
         case["aiSummary"] = str(payload.get("aiSummary", payload.get("summary", f"合规事件已{label}，证据链保留在统一审计与快照中。")))
         brain._append_audit_feed(f"compliance.case.{action}", case_id, "ok", actor)
         return {"case_id": case_id, "status": case["status"], "audit_id": audit_id}
@@ -133,7 +137,7 @@ def _investigate_dispute(brain, dispute_id: str, action: str, role: str, confirm
         if action == "progress":
             dispute["timeline"].append(
                 {
-                    "time": brain._now_datetime(),
+                    "time": clock.now_datetime(),
                     "label": "推进调查",
                     "note": "已补充核查当前绕行与责任链证据，等待进一步治理决定。",
                 }
@@ -147,7 +151,7 @@ def _investigate_dispute(brain, dispute_id: str, action: str, role: str, confirm
             dispute["owner"] = "区台账治理组"
             dispute["timeline"].append(
                 {
-                    "time": brain._now_datetime(),
+                    "time": clock.now_datetime(),
                     "label": "升级治理",
                     "note": "已升级到模板治理与制度治理联动处置，要求供给侧与减负治理协同收口。",
                 }

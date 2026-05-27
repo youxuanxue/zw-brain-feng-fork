@@ -10,10 +10,12 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
+
 import copy
 from datetime import datetime
 
 from zw_brain.command.brain import BrainServiceError
+from zw_brain.command.serializers import ops_metrics as ops_metrics_ser
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -47,7 +49,7 @@ def _ingest_gateway_heartbeat(brain, payload: dict[str, Any]) -> dict[str, Any]:
                 current.update(copy.deepcopy(gateway_payload))
             result = copy.deepcopy(current)
         else:
-            result = brain._gateway_record_to_dict(store.gateway_runtime_repo.upsert_heartbeat(gateway_payload))
+            result = ops_metrics_ser.gateway_to_dict(store.gateway_runtime_repo.upsert_heartbeat(gateway_payload))
         brain._append_audit_feed("ops.gateway.heartbeat", gateway_payload["gateway_instance_id"], "ok", actor)
         return result | {"audit_id": audit_id}
 

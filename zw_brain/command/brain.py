@@ -16,6 +16,13 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import zw_brain.shared.audit as audit_bus
+import zw_brain.shared.clock as clock
+import zw_brain.shared.ids as ids
+from zw_brain.command.serializers import delivery as delivery_ser
+from zw_brain.command.serializers import metadata as metadata_ser
+from zw_brain.command.serializers import quality as quality_ser
+from zw_brain.command.serializers import resource_api as resource_api_ser
+from zw_brain.command.serializers import topic_package as topic_package_ser
 from zw_brain.domain import policy
 from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.domain.repositories.delivery import DeliveryRepository
@@ -453,29 +460,6 @@ class BrainService:
             return False
         return True
 
-    def _tenant_projection_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {"tenant_id": item.tenant_id, "tenant_name": item.tenant_name, "status": item.status, "source_ref": item.source_ref, "profile_json": copy.deepcopy(item.profile_json)}
-
-    def _org_projection_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {"org_code": item.org_code, "org_name": item.org_name, "parent_org_code": item.parent_org_code, "region_code": item.region_code, "status": item.status, "source_ref": item.source_ref, "profile_json": copy.deepcopy(item.profile_json)}
-
-    def _region_projection_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {"region_code": item.region_code, "region_name": item.region_name, "parent_region_code": item.parent_region_code, "region_level": item.region_level, "status": item.status, "source_ref": item.source_ref, "profile_json": copy.deepcopy(item.profile_json)}
-
-    def _role_projection_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {"role_code": item.role_code, "role_name": item.role_name, "status": item.status, "source_ref": item.source_ref, "profile_json": copy.deepcopy(item.profile_json)}
-
-    def _actor_projection_record_to_dict(self, item: Any) -> dict[str, Any]:
-        # display_name + profile_json may carry person names / phone / email /
-        # id_card / address — mask before egress per [2026-05-06] policy.
-        return _mask({"external_actor_id": item.external_actor_id, "display_name": item.display_name, "org_code": item.org_code, "role_codes_json": copy.deepcopy(item.role_codes_json), "status": item.status, "source_ref": item.source_ref, "profile_json": copy.deepcopy(item.profile_json)})
-
-    def _legacy_policy_candidate_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {"legacy_system": item.legacy_system, "legacy_permission_ref": item.legacy_permission_ref, "legacy_role_ref": item.legacy_role_ref, "capability_id": item.capability_id, "surface": item.surface, "candidate_status": item.candidate_status, "evidence_json": copy.deepcopy(item.evidence_json)}
-
-    def _tenant_policy_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {"tenant_id": item.tenant_id, "package_slug": item.package_slug, "policy_status": item.policy_status, "policy_json": copy.deepcopy(item.policy_json)}
-
     def _governance_import_issues(self, adapter_runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         issues: list[dict[str, Any]] = []
         for run in adapter_runs:
@@ -519,45 +503,23 @@ class BrainService:
                 events.append({"id": item.request_id, "skill_id": item.skill_id, "phase": item.phase, "actor": item.actor, "occurred_at": item.occurred_at.isoformat(), "payload_json": copy.deepcopy(payload)})
         return events
 
-    def _topic_package_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return _mask({"package_code": item.package_code, "title": item.title, "scenario": item.scenario, "owner_org_id": item.owner_org_id, "owner_org_snapshot_json": copy.deepcopy(item.owner_org_snapshot_json), "status": item.status, "display_snapshot_json": copy.deepcopy(item.display_snapshot_json), "metric_snapshot_json": copy.deepcopy(item.metric_snapshot_json), "source_ref": item.source_ref})
-
     def _topic_package_list_projection(self, item: Any) -> dict[str, Any]:
         repo = self._topic_package_repo()
-        items = [self._topic_item_record_to_dict(record) for record in repo.list_items(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
-        visibility = [self._topic_visibility_record_to_dict(record) for record in repo.list_visibility(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
-        return self._topic_package_record_to_dict(item) | self._topic_projection_summary(item, items, visibility)
+        items = [topic_package_ser.topic_item_to_dict(record) for record in repo.list_items(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
+        visibility = [topic_package_ser.topic_visibility_to_dict(record) for record in repo.list_visibility(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
+        return topic_package_ser.topic_package_to_dict(item) | self._topic_projection_summary(item, items, visibility)
 
     def _topic_package_detail_to_dict(self, item: Any) -> dict[str, Any]:
         repo = self._topic_package_repo()
-        items = [self._topic_item_record_to_dict(record) for record in repo.list_items(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
-        visibility = [self._topic_visibility_record_to_dict(record) for record in repo.list_visibility(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
-        return self._topic_package_record_to_dict(item) | self._topic_projection_summary(item, items, visibility) | {
+        items = [topic_package_ser.topic_item_to_dict(record) for record in repo.list_items(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
+        visibility = [topic_package_ser.topic_visibility_to_dict(record) for record in repo.list_visibility(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
+        return topic_package_ser.topic_package_to_dict(item) | self._topic_projection_summary(item, items, visibility) | {
             "items": items,
             "visibility": visibility,
             "catalogProjectionItems": self._topic_catalog_projection_items(items),
-            "reviews": [self._topic_review_record_to_dict(record) for record in repo.list_review_records(item.package_code, tenant_id=_DEFAULT_TENANT_ID)],
-            "evidence": [self._topic_evidence_record_to_dict(record) for record in repo.list_evidence(item.package_code, tenant_id=_DEFAULT_TENANT_ID)],
-            "metrics": [self._topic_metric_record_to_dict(record) for record in repo.list_metrics(item.package_code, tenant_id=_DEFAULT_TENANT_ID)],
-        }
-
-    def _topic_item_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {"item_code": item.item_code, "ref_type": item.ref_type, "ref_id": item.ref_id, "ref_status": item.ref_status, "title": item.title, "display_order": item.display_order, "summary_json": copy.deepcopy(item.summary_json)}
-
-    def _topic_visibility_record_to_dict(self, item: Any) -> dict[str, Any]:
-        condition = copy.deepcopy(item.condition_json)
-        return {
-            "visibility_code": item.visibility_code,
-            "org_code": item.org_code,
-            "role_code": item.role_code,
-            "region_code": item.region_code,
-            "surface": item.surface,
-            "intent": item.intent,
-            "policy_status": item.policy_status,
-            "condition_json": condition,
-            "source": condition.get("source") if isinstance(condition, dict) else None,
-            "visible_org": item.org_code or item.role_code or item.region_code or "tenant-wide",
-            "applicationBoundary": self._topic_visibility_boundary(item),
+            "reviews": [topic_package_ser.topic_review_to_dict(record) for record in repo.list_review_records(item.package_code, tenant_id=_DEFAULT_TENANT_ID)],
+            "evidence": [topic_package_ser.topic_evidence_to_dict(record) for record in repo.list_evidence(item.package_code, tenant_id=_DEFAULT_TENANT_ID)],
+            "metrics": [topic_package_ser.topic_metric_to_dict(record) for record in repo.list_metrics(item.package_code, tenant_id=_DEFAULT_TENANT_ID)],
         }
 
     def _topic_projection_summary(self, item: Any, items: list[dict[str, Any]], visibility: list[dict[str, Any]]) -> dict[str, Any]:
@@ -599,17 +561,6 @@ class BrainService:
     def _topic_projection_kind(self, item: Any) -> str:
         display = item.display_snapshot_json if isinstance(item.display_snapshot_json, dict) else {}
         return str(display.get("projection_kind") or display.get("source") or "topic_package")
-
-    def _topic_visibility_boundary(self, item: Any) -> dict[str, Any]:
-        condition = item.condition_json if isinstance(item.condition_json, dict) else {}
-        return {
-            "policyStatus": item.policy_status,
-            "intent": item.intent,
-            "surface": item.surface,
-            "condition": copy.deepcopy(condition),
-            "source": condition.get("source"),
-            "requiresApplicationReview": item.policy_status != "approved" or item.intent not in {"view", "discover"},
-        }
 
     def _topic_application_boundary(self, visibility: list[dict[str, Any]]) -> dict[str, Any]:
         sources = sorted({str(record.get("source")) for record in visibility if record.get("source")})
@@ -704,107 +655,13 @@ class BrainService:
     def _catalog_topic_projection_cards(self, catalog_code: str, store: Any) -> list[dict[str, Any]]:
         cards: list[dict[str, Any]] = []
         for package in self._topic_package_repo().list_packages(tenant_id=_DEFAULT_TENANT_ID):
-            items = [self._topic_item_record_to_dict(record) for record in self._topic_package_repo().list_items(package.package_code, tenant_id=_DEFAULT_TENANT_ID)]
+            items = [topic_package_ser.topic_item_to_dict(record) for record in self._topic_package_repo().list_items(package.package_code, tenant_id=_DEFAULT_TENANT_ID)]
             if not any(item.get("ref_type") == "catalog_entry" and item.get("ref_id") == catalog_code for item in items):
                 continue
-            visibility = [self._topic_visibility_record_to_dict(record) for record in self._topic_package_repo().list_visibility(package.package_code, tenant_id=_DEFAULT_TENANT_ID)]
+            visibility = [topic_package_ser.topic_visibility_to_dict(record) for record in self._topic_package_repo().list_visibility(package.package_code, tenant_id=_DEFAULT_TENANT_ID)]
             summary = self._topic_projection_summary(package, items, visibility)
             cards.append({"package_code": package.package_code, "title": package.title, "projectionStatus": summary["projectionStatus"], "visibleOrgCount": summary["visibleOrgCount"], "projectionFailureReasons": summary["projectionFailureReasons"]})
         return cards
-
-    def _topic_review_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {"action_type": item.action_type, "action_result": item.action_result, "from_status": item.from_status, "to_status": item.to_status, "reviewer_snapshot_json": copy.deepcopy(item.reviewer_snapshot_json), "opinion": item.opinion, "evidence_json": copy.deepcopy(item.evidence_json), "created_at": item.created_at.isoformat()}
-
-    def _topic_evidence_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {"id": item.id, "evidence_type": item.evidence_type, "title": item.title, "related_ref_type": item.related_ref_type, "related_ref_id": item.related_ref_id, "content_json": copy.deepcopy(item.content_json), "submitted_by_json": copy.deepcopy(item.submitted_by_json), "created_at": item.created_at.isoformat()}
-
-    def _topic_metric_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {"metric_key": item.metric_key, "metric_value": item.metric_value, "metric_json": copy.deepcopy(item.metric_json)}
-
-    def _objection_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {
-            "id": item.id,
-            "tenant_id": item.tenant_id,
-            "objection_kind": item.objection_kind,
-            "target_type": item.target_type,
-            "target_id": item.target_id,
-            "related_application_id": item.related_application_id,
-            "title": item.title,
-            "complainant_org_id": item.complainant_org_id,
-            "provider_org_id": item.provider_org_id,
-            "basis_text": item.basis_text,
-            "expected_result": item.expected_result,
-            "status": item.status,
-            "resolved_summary": item.resolved_summary,
-            "closed_at": item.closed_at.isoformat() if item.closed_at else None,
-        }
-
-    def _process_record_to_dict(self, item: Any) -> dict[str, Any]:
-        # handler_snapshot_json may carry handler_name + handler_phone — mask.
-        return _mask({
-            "id": item.id,
-            "objection_id": item.objection_id,
-            "node_name": item.node_name,
-            "handler_org_id": item.handler_org_id,
-            "handler_snapshot_json": copy.deepcopy(item.handler_snapshot_json),
-            "action_type": item.action_type,
-            "action_result": item.action_result,
-            "opinion": item.opinion,
-            "created_at": item.created_at.isoformat(),
-        })
-
-    def _evidence_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {
-            "id": item.id,
-            "objection_id": item.objection_id,
-            "evidence_type": item.evidence_type,
-            "content_json": copy.deepcopy(item.content_json),
-            "submitted_by_json": copy.deepcopy(item.submitted_by_json),
-            "created_at": item.created_at.isoformat(),
-        }
-
-    def _evaluation_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {
-            "id": item.id,
-            "objection_id": item.objection_id,
-            "evaluator_snapshot_json": copy.deepcopy(item.evaluator_snapshot_json),
-            "solved_flag": item.solved_flag,
-            "overall_score": item.overall_score,
-            "timeliness_score": item.timeliness_score,
-            "result_score": item.result_score,
-            "comment": item.comment,
-        }
-
-    def _adapter_run_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {
-            "id": item.id,
-            "adapter_slug": item.adapter_slug,
-            "operation": item.operation,
-            "direction": item.direction,
-            "source_ref": item.source_ref,
-            "idempotency_key": item.idempotency_key,
-            "status": item.status,
-            "target_count": item.target_count,
-            "success_count": item.success_count,
-            "failure_count": item.failure_count,
-            "receipt_json": copy.deepcopy(item.receipt_json),
-            "error_summary": item.error_summary,
-        }
-
-    def _external_mapping_record_to_dict(self, item: Any) -> dict[str, Any]:
-        return {
-            "id": item.id,
-            "external_system": item.external_system,
-            "direction": item.direction,
-            "local_aggregate_type": item.local_aggregate_type,
-            "local_aggregate_id": item.local_aggregate_id,
-            "external_object_type": item.external_object_type,
-            "external_object_id": item.external_object_id,
-            "protocol_version": item.protocol_version,
-            "batch_no": item.batch_no,
-            "status": item.status,
-            "last_receipt_json": copy.deepcopy(item.last_receipt_json),
-        }
 
     def _adapter_operation_from_skill(self, skill_id: str, payload: dict[str, Any]) -> tuple[str, str, str]:
         if payload.get("adapter_slug") or payload.get("operation"):
@@ -1213,13 +1070,13 @@ class BrainService:
     ) -> dict[str, Any]:
         if context is not None:
             direct = [
-                self._quality_record_to_dict(item)
+                quality_ser.quality_to_dict(item)
                 for target_type, target_ref in (("catalog", catalog_code), ("resource", resource_id))
                 for item in context.quality_by_target.get((target_type, str(target_ref)), [])
             ]
         else:
             direct = [
-                self._quality_record_to_dict(item)
+                quality_ser.quality_to_dict(item)
                 for target_type, target_ref in (("catalog", catalog_code), ("resource", resource_id))
                 for item in store.metadata_evidence_repo.list_quality_evidence(
                     target_type=target_type,
@@ -1294,8 +1151,8 @@ class BrainService:
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             task = self._delivery_by_id(task_id)
             attempt = self._delivery_repo().upsert_attempt({"attempt_code": payload.get("attempt_id") or f"{task_id}:{attempt_kind}:{audit_id}", "delivery_code": task_id, "subscription_code": payload.get("subscription_id"), "attempt_kind": attempt_kind, "state": state, "executor_ref": payload.get("executor_ref"), "evidence_ref": audit_id, "payload_json": payload.get("plan") or payload})
-            task["updatedAt"] = self._now_datetime()
-            task.setdefault("history", []).append({"time": self._now_short_time(), "state": f"交换交付{state}", "detail": str(payload.get("reason") or payload.get("mode") or attempt_kind)})
+            task["updatedAt"] = clock.now_datetime()
+            task.setdefault("history", []).append({"time": clock.now_short_time(), "state": f"交换交付{state}", "detail": str(payload.get("reason") or payload.get("mode") or attempt_kind)})
             self._delivery_repo().add_execution_evidence({"evidence_ref": audit_id, "delivery_code": task_id, "attempt_code": attempt.attempt_code, "executor_kind": "builtin_exchange", "executor_ref": payload.get("executor_ref"), "evidence_kind": attempt_kind, "result_status": state, "payload_json": payload})
             self._delivery_repo().upsert_exchange_metric({"metric_scope": "delivery", "delivery_code": task_id, "resource_code": payload.get("resource_id") or task.get("resourceId"), "subscription_code": payload.get("subscription_id"), "status": state, "success_count": 1 if state in {"published", "running", "planned"} else 0, "failed_count": 1 if state == "stopped" else 0, "summary_json": {"skill_id": skill_id, "state": state}})
             self._append_audit_feed(skill_id, task_id, "ok", actor)
@@ -1347,7 +1204,7 @@ class BrainService:
                 current.update(copy.deepcopy(resource))
                 current.setdefault("channel_bindings", bindings)
             return copy.deepcopy(current)
-        return self._resource_asset_record_to_dict(store.resource_api_repo.upsert_asset(resource))
+        return resource_api_ser.resource_asset_to_dict(store.resource_api_repo.upsert_asset(resource))
 
     def _upsert_api_binding(self, binding: dict[str, Any]) -> dict[str, Any]:
         payload = {
@@ -1378,7 +1235,7 @@ class BrainService:
             else:
                 current.update(copy.deepcopy(payload))
             return copy.deepcopy(current)
-        return self._binding_record_to_dict(store.resource_api_repo.upsert_binding(payload))
+        return resource_api_ser.binding_to_dict(store.resource_api_repo.upsert_binding(payload))
 
     def _find_api_resource(self, resource_code: str) -> dict[str, Any] | None:
         store = self._state_store.database_store
@@ -1386,7 +1243,7 @@ class BrainService:
             item = next((item for item in self._snapshot.get("api_resources", []) if item["resource_code"] == resource_code), None)
             return copy.deepcopy(item) if item is not None else None
         record = store.resource_api_repo.get_asset(resource_code)
-        return self._resource_asset_record_to_dict(record) if record is not None else None
+        return resource_api_ser.resource_asset_to_dict(record) if record is not None else None
 
     def _find_api_binding(self, binding_code: str) -> dict[str, Any] | None:
         store = self._state_store.database_store
@@ -1397,7 +1254,7 @@ class BrainService:
                     return copy.deepcopy(binding)
             return None
         record = store.resource_api_repo.get_binding(binding_code)
-        return self._binding_record_to_dict(record) if record is not None else None
+        return resource_api_ser.binding_to_dict(record) if record is not None else None
 
     def _metric_summary(self, metrics: list[dict[str, Any]]) -> dict[str, Any]:
         return {
@@ -1413,50 +1270,6 @@ class BrainService:
             "successCount": sum(int(item.get("success_count", 0)) for item in metrics),
             "failedCount": sum(int(item.get("failed_count", 0)) for item in metrics),
             "recordCount": sum(int(item.get("record_count", 0)) for item in metrics),
-        }
-
-    def _delivery_attempt_record_to_dict(self, record: Any) -> dict[str, Any]:
-        return {
-            "attempt_code": record.attempt_code,
-            "delivery_code": record.delivery_code,
-            "subscription_code": record.subscription_code,
-            "attempt_kind": record.attempt_kind,
-            "state": record.state,
-            "executor_ref": record.executor_ref,
-            "evidence_ref": record.evidence_ref,
-            "payload_json": copy.deepcopy(record.payload_json),
-        }
-
-    def _delivery_evidence_record_to_dict(self, record: Any) -> dict[str, Any]:
-        return {
-            "evidence_ref": record.evidence_ref,
-            "delivery_code": record.delivery_code,
-            "attempt_code": record.attempt_code,
-            "executor_kind": record.executor_kind,
-            "executor_ref": record.executor_ref,
-            "evidence_kind": record.evidence_kind,
-            "result_status": record.result_status,
-            "sanitized_payload_json": copy.deepcopy(record.sanitized_payload_json),
-        }
-
-    def _exchange_metric_record_to_dict(self, record: Any) -> dict[str, Any]:
-        return {
-            "metric_scope": record.metric_scope,
-            "resource_code": record.resource_code,
-            "delivery_code": record.delivery_code,
-            "subscription_code": record.subscription_code,
-            "provider_org_id": record.provider_org_id,
-            "consumer_org_id": record.consumer_org_id,
-            "bucket_granularity": record.bucket_granularity,
-            "time_bucket": record.time_bucket,
-            "exchange_count": record.exchange_count,
-            "success_count": record.success_count,
-            "failed_count": record.failed_count,
-            "record_count": record.record_count,
-            "file_count": record.file_count,
-            "table_count": record.table_count,
-            "last_error_code": record.last_error_code,
-            "summary_json": copy.deepcopy(record.summary_json),
         }
 
     def _safe_json(self, value: dict[str, Any]) -> dict[str, Any]:
@@ -1601,38 +1414,6 @@ class BrainService:
         contexts = contexts_from_bindings(bindings, fallback_org_code=str(actor_snapshot.get("org_code") or "") or None)
         return apply_runtime_context(actor_snapshot, contexts, preferred_org_code=str(actor_snapshot.get("org_code") or "") or None)
 
-    def _catalog_model_record_to_dict(self, record: Any) -> dict[str, Any]:
-        return {
-            "model_code": record.model_code,
-            "title": record.title,
-            "status": record.status,
-            "owner_org_id": record.owner_org_id,
-            "model_schema_json": copy.deepcopy(record.model_schema_json),
-            "source_ref": record.source_ref,
-        }
-
-    def _catalog_model_field_record_to_dict(self, record: Any) -> dict[str, Any]:
-        return {
-            "model_code": record.model_code,
-            "field_code": record.field_code,
-            "title": record.title,
-            "data_type": record.data_type,
-            "sensitive_level": record.sensitive_level,
-            "field_policy_json": copy.deepcopy(record.field_policy_json),
-            "display_order": record.display_order,
-            "source_ref": record.source_ref,
-        }
-
-    def _catalog_entry_record_to_dict(self, record: Any) -> dict[str, Any]:
-        return {
-            "catalog_code": record.catalog_code,
-            "title": record.title,
-            "lifecycle_status": record.lifecycle_status,
-            "owner_org_id": record.owner_org_id,
-            "region_code": record.region_code,
-            "summary_json": _mask(copy.deepcopy(record.summary_json)),
-        }
-
     def _catalog_record_to_card_dict(self, record: Any) -> dict[str, Any]:
         summary = _mask(copy.deepcopy(record.summary_json or {}))
         body = self._catalog_summary_body(summary)
@@ -1643,7 +1424,7 @@ class BrainService:
         # (planning-date semantics in dsp_catalog). Clamp to today so the customer
         # never sees "更新于 2026-08-19" on a UI rendered 2026-05-22.
         raw_updated = summary.get("updatedAt") or summary.get("updated_at") or summary.get("update_time") or record.updated_at.date().isoformat()
-        today_iso = self._now_date()
+        today_iso = clock.now_date()
         if str(raw_updated)[:10] > today_iso:
             raw_updated = today_iso
         return {
@@ -1694,7 +1475,7 @@ class BrainService:
         else:
             asset_records = [item for item in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID) if item.catalog_code == catalog_code]
         resources = [
-            self._resource_asset_record_to_dict(item)
+            resource_api_ser.resource_asset_to_dict(item)
             for item in asset_records
             if not focused_resource_code or item.resource_code == focused_resource_code
         ]
@@ -1707,7 +1488,7 @@ class BrainService:
             ]
         else:
             snapshot_records = [item for item in store.metadata_evidence_repo.list_schema_snapshots(tenant_id=_DEFAULT_TENANT_ID) if item.resource_code in resource_codes]
-        snapshots = [self._schema_snapshot_record_to_dict(item) for item in snapshot_records]
+        snapshots = [metadata_ser.schema_snapshot_to_dict(item) for item in snapshot_records]
         legacy_refs = self._legacy_mapping_refs(store, "catalog_entry", catalog_code, context=context)
         legacy_refs.extend(self._legacy_mapping_refs(store, "catalog_item", [field["item_code"] for field in fields], context=context))
         legacy_refs.extend(self._legacy_mapping_refs(store, "resource_schema_mapping", [item["mapping_code"] for item in mappings["items"]], context=context))
@@ -1848,88 +1629,8 @@ class BrainService:
             return "山东省"
         return text
 
-    def _schema_snapshot_record_to_dict(self, record: Any) -> dict[str, Any]:
-        return {
-            "snapshot_ref": record.snapshot_ref,
-            "resource_code": record.resource_code,
-            "binding_code": record.binding_code,
-            "schema_json": copy.deepcopy(record.schema_json),
-            "source_ref": record.source_ref,
-            "schema_hash": record.schema_hash,
-            "captured_at": record.captured_at.isoformat(),
-        }
-
-    def _schema_mapping_record_to_dict(self, record: Any) -> dict[str, Any]:
-        source_schema_ref = self._mask_schema_mapping_payload(copy.deepcopy(record.source_schema_ref))
-        if not isinstance(source_schema_ref, dict):
-            source_schema_ref = {"value": source_schema_ref} if source_schema_ref else {}
-        mapping_rule_json = self._mask_schema_mapping_payload(copy.deepcopy(record.mapping_rule_json))
-        if not isinstance(mapping_rule_json, dict):
-            mapping_rule_json = {"value": mapping_rule_json} if mapping_rule_json else {}
-        source_column = self._schema_mapping_source_column(source_schema_ref)
-        diagnosis = self._schema_mapping_diagnosis(record)
-        replay_steps = [
-            {"step": "catalog_item", "ref": record.catalog_item_code, "status": "resolved", "detail": f"目录项 {record.catalog_item_code}"},
-            {"step": "resource_binding", "ref": record.binding_code, "status": "resolved", "detail": f"资源 {record.resource_code} / 通道 {record.binding_code}"},
-            {"step": "source_field", "ref": source_column, "status": "resolved" if source_column else "missing", "detail": source_schema_ref},
-            {"step": "evidence", "ref": record.evidence_ref, "status": "resolved" if record.evidence_ref else "missing", "detail": "legacy/import evidence ref"},
-        ]
-        return {
-            "mapping_code": record.mapping_code,
-            "catalog_code": record.catalog_code,
-            "catalog_item_code": record.catalog_item_code,
-            "resource_code": record.resource_code,
-            "binding_code": record.binding_code,
-            "source_schema_ref": source_schema_ref,
-            "mapping_rule_json": mapping_rule_json,
-            "confidence_level": record.confidence_level,
-            "evidence_ref": record.evidence_ref,
-            "source_ref": record.evidence_ref,
-            "status": record.status,
-            "confirmed_by": record.confirmed_by,
-            "confirmed_at": record.confirmed_at.isoformat() if record.confirmed_at else None,
-            "generated_at": record.updated_at.isoformat(),
-            "explain": {
-                "summary": f"目录项 {record.catalog_item_code} 通过资源 {record.resource_code} 的 {record.binding_code} 通道绑定到来源字段。",
-                "source_column": source_column,
-                "mapping_rule": mapping_rule_json or {"method": "direct"},
-                "confidence": record.confidence_level,
-            },
-            "replay": {"mapping_code": record.mapping_code, "steps": replay_steps},
-            "diagnosis": diagnosis,
-        }
-
-    def _schema_mapping_source_column(self, source_schema_ref: Any) -> Any:
-        if not isinstance(source_schema_ref, dict):
-            return None
-        return source_schema_ref.get("column") or source_schema_ref.get("table_column_id") or source_schema_ref.get("field")
-
-    def _mask_schema_mapping_payload(self, value: Any) -> Any:
-        return apply_field_masks(
-            value,
-            role=_DEFAULT_MASK_ROLE,
-            field_policy={"address": "", "column": "", "table_column_id": "", "field": ""},
-        )
-
-    def _schema_mapping_diagnosis(self, record: Any) -> dict[str, Any]:
-        issues: list[dict[str, str]] = []
-        if record.status != "active":
-            issues.append({"stage": "status", "reason": "inactive_mapping", "detail": f"mapping status is {record.status}"})
-        if not self._schema_mapping_source_column(record.source_schema_ref):
-            issues.append({"stage": "source_field", "reason": "missing_source_schema_ref", "detail": "source_schema_ref has no column/table_column_id/field"})
-        if not record.evidence_ref:
-            issues.append({"stage": "evidence", "reason": "missing_evidence_ref", "detail": "evidence_ref is empty"})
-        if record.confidence_level in {"conflicted", "low"}:
-            issues.append({"stage": "confidence", "reason": "mapping_conflict", "detail": f"confidence_level is {record.confidence_level}"})
-        return {
-            "ok": not issues,
-            "stage": "ready" if not issues else issues[0]["stage"],
-            "reason": None if not issues else issues[0]["reason"],
-            "issues": issues,
-        }
-
     def _mapping_diagnostics(self, records: list[Any], *, store: Any | None = None, context: _RequestBatchContext | None = None) -> dict[str, Any]:
-        items = [self._schema_mapping_record_to_dict(item) for item in records]
+        items = [metadata_ser.schema_mapping_to_dict(item) for item in records]
         if store is not None:
             source_column_titles = self._source_column_titles_for_mappings(items, store, context=context)
             catalog_codes = {item["catalog_code"] for item in items}
@@ -1949,7 +1650,7 @@ class BrainService:
                         item.item_code: {
                             "item_code": item.item_code,
                             "title": item.title,
-                            "summary_json": self._mask_schema_mapping_payload(copy.deepcopy(item.summary_json or {})),
+                            "summary_json": metadata_ser.mask_schema_mapping_payload(copy.deepcopy(item.summary_json or {})),
                         }
                         for item in source_items
                     }
@@ -1993,80 +1694,10 @@ class BrainService:
                     out[ref] = schema.get("column_name") or schema.get("name_en") or schema.get("name_cn") or ref
         return out
 
-    def _gather_evidence_record_to_dict(self, record: Any) -> dict[str, Any]:
-        source_ref = record.source_system_ref or record.gather_task_ref
-        generated_at = record.generated_at.isoformat()
-        return {
-            "gather_task_ref": record.gather_task_ref,
-            "resource_code": record.resource_code,
-            "source_system_ref": record.source_system_ref,
-            "source_ref": source_ref,
-            "schema_snapshot_ref": record.schema_snapshot_ref,
-            "status": record.status,
-            "error_summary": record.error_summary,
-            "evidence_json": copy.deepcopy(record.evidence_json),
-            "started_at": record.started_at.isoformat() if hasattr(record.started_at, "isoformat") else record.started_at,
-            "finished_at": record.finished_at.isoformat() if hasattr(record.finished_at, "isoformat") else record.finished_at,
-            "generated_at": generated_at,
-            "projection_only": True,
-            "evidence": {"source_ref": source_ref, "generated_at": generated_at, "projection_only": True},
-        }
-
-    def _lineage_record_to_dict(self, record: Any) -> dict[str, Any]:
-        source_ref = record.source_evidence_ref or record.relation_ref
-        generated_at = record.generated_at.isoformat()
-        return {
-            "relation_ref": record.relation_ref,
-            "relation_scope": record.relation_scope,
-            "source_resource_code": record.source_resource_code,
-            "source_schema_ref": record.source_schema_ref,
-            "target_resource_code": record.target_resource_code,
-            "target_schema_ref": record.target_schema_ref,
-            "relation_type": record.relation_type,
-            "relation_rule_json": copy.deepcopy(record.relation_rule_json),
-            "source_evidence_ref": record.source_evidence_ref,
-            "source_ref": source_ref,
-            "generated_at": generated_at,
-            "projection_only": True,
-            "evidence": {"source_ref": source_ref, "generated_at": generated_at, "projection_only": True},
-        }
-
-    def _quality_record_to_dict(self, record: Any) -> dict[str, Any]:
-        source_ref = record.source_ref or record.quality_ref
-        generated_at = record.generated_at.isoformat()
-        return {
-            "quality_ref": record.quality_ref,
-            "target_type": record.target_type,
-            "target_ref": record.target_ref,
-            "quality_status": record.quality_status,
-            "score": record.score,
-            "evidence_json": copy.deepcopy(record.evidence_json),
-            "source_ref": source_ref,
-            "generated_at": generated_at,
-            "projection_only": True,
-            "evidence": {"source_ref": source_ref, "generated_at": generated_at, "projection_only": True},
-        }
-
-    def _resource_asset_record_to_dict(self, record: Any) -> dict[str, Any]:
-        return {
-            "resource_code": record.resource_code,
-            "resource_kind": record.resource_kind,
-            "title": record.title,
-            "lifecycle_status": record.lifecycle_status,
-            "owner_org_id": record.owner_org_id,
-            "owner_org_snapshot_json": _mask(copy.deepcopy(record.owner_org_snapshot_json)),
-            "region_code": record.region_code,
-            "catalog_code": record.catalog_code,
-            "access_policy_json": _mask(copy.deepcopy(record.access_policy_json)),
-            "qos_policy_json": copy.deepcopy(record.qos_policy_json),
-            "source_ref": record.source_ref,
-            "summary_json": _mask(copy.deepcopy(record.summary_json)),
-        }
-
     def _enrich_provider_resource_asset(self, item: dict[str, Any], store: Any) -> dict[str, Any]:
         resource_code = str(item["resource_code"])
         bindings = [
-            self._binding_record_to_dict(record)
+            resource_api_ser.binding_to_dict(record)
             for record in store.resource_api_repo.list_bindings(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID)
         ]
         mappings = store.metadata_evidence_repo.list_schema_mappings(
@@ -2075,27 +1706,27 @@ class BrainService:
             tenant_id=_DEFAULT_TENANT_ID,
         )
         schema_snapshots = [
-            self._schema_snapshot_record_to_dict(record)
+            metadata_ser.schema_snapshot_to_dict(record)
             for record in store.metadata_evidence_repo.list_schema_snapshots(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID)
         ]
         gather_evidence = [
-            self._gather_evidence_record_to_dict(record)
+            metadata_ser.gather_evidence_to_dict(record)
             for record in store.metadata_evidence_repo.list_gather_evidence(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID)
         ]
         lineage = [
-            self._lineage_record_to_dict(record)
+            metadata_ser.lineage_to_dict(record)
             for record in store.metadata_evidence_repo.list_lineage_relations(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID)
         ]
         quality = [
-            self._quality_record_to_dict(record)
+            quality_ser.quality_to_dict(record)
             for record in store.metadata_evidence_repo.list_quality_evidence(target_type="resource_asset", target_ref=resource_code, tenant_id=_DEFAULT_TENANT_ID)
         ]
         attempts = [
-            self._delivery_attempt_record_to_dict(record)
+            delivery_ser.delivery_attempt_to_dict(record)
             for record in store.delivery_repo.list_attempts(delivery_code=f"provider-external:{resource_code}", tenant_id=_DEFAULT_TENANT_ID)
         ]
         execution_evidence = [
-            self._delivery_evidence_record_to_dict(record)
+            delivery_ser.delivery_evidence_to_dict(record)
             for record in store.delivery_repo.list_execution_evidence(delivery_code=f"provider-external:{resource_code}", tenant_id=_DEFAULT_TENANT_ID)
         ]
         legacy_mappings = [
@@ -2142,76 +1773,6 @@ class BrainService:
         if item.get("lifecycle_status") not in {"active", "approved_pending_publish", "pending_review"}:
             issues.append({"stage": "lifecycle", "reason": "not_ready_for_share", "detail": f"resource lifecycle is {item.get('lifecycle_status')}"})
         return {"ok": not issues, "issues": issues}
-
-    def _binding_record_to_dict(self, record: Any) -> dict[str, Any]:
-        return {
-            "binding_code": record.binding_code,
-            "resource_code": record.resource_code,
-            "channel_kind": record.channel_kind,
-            "route_ref": record.route_ref,
-            "endpoint_ref": copy.deepcopy(record.endpoint_ref),
-            "schema_ref": copy.deepcopy(record.schema_ref),
-            "auth_ref": record.auth_ref,
-            "request_schema_json": copy.deepcopy(record.request_schema_json),
-            "response_schema_json": copy.deepcopy(record.response_schema_json),
-            "gateway_policy_json": copy.deepcopy(record.gateway_policy_json),
-            "lifecycle_status": record.lifecycle_status,
-            "source_ref": record.source_ref,
-        }
-
-    def _api_test_projection_record_to_dict(self, record: Any) -> dict[str, Any]:
-        return {
-            "test_ref": record.test_ref,
-            "resource_code": record.resource_code,
-            "binding_code": record.binding_code,
-            "test_result": record.test_result,
-            "lifecycle_status": record.lifecycle_status,
-            "source_ref": record.source_ref,
-            "evidence_json": copy.deepcopy(record.evidence_json),
-            "tested_by": record.tested_by,
-            "tested_at": record.tested_at.isoformat(),
-        }
-
-    def _gateway_record_to_dict(self, record: Any) -> dict[str, Any]:
-        return {
-            "gateway_instance_id": record.gateway_instance_id,
-            "runtime_profile": record.runtime_profile,
-            "status": record.status,
-            "last_reported_at": record.last_reported_at.isoformat(),
-            "source_ref": record.source_ref,
-            "summary_json": copy.deepcopy(record.summary_json),
-            "generated_at": record.generated_at.isoformat(),
-        }
-
-    def _metric_record_to_dict(self, record: Any) -> dict[str, Any]:
-        return {
-            "metric_scope": record.metric_scope,
-            "resource_code": record.resource_code,
-            "capability_id": record.capability_id,
-            "provider_org_id": record.provider_org_id,
-            "consumer_org_id": record.consumer_org_id,
-            "provider_region_code": record.provider_region_code,
-            "consumer_region_code": record.consumer_region_code,
-            "consumer_region": record.consumer_region,
-            "consumer_app_ref": record.consumer_app_ref,
-            "bucket_granularity": record.bucket_granularity,
-            "time_bucket": record.time_bucket,
-            "invoke_count": record.invoke_count,
-            "success_count": record.success_count,
-            "failed_count": record.failed_count,
-            "provider_error_count": record.provider_error_count,
-            "consumer_error_count": record.consumer_error_count,
-            "gateway_error_count": record.gateway_error_count,
-            "other_error_count": record.other_error_count,
-            "error_count": record.error_count,
-            "apply_count": record.apply_count,
-            "avg_latency_ms": record.avg_latency_ms,
-            "p95_latency_ms": record.p95_latency_ms,
-            "last_error_code": record.last_error_code,
-            "last_error_at": record.last_error_at.isoformat() if record.last_error_at else None,
-            "source_event_ref": record.source_event_ref,
-            "summary_json": copy.deepcopy(record.summary_json),
-        }
 
     def _review_application_record(self, request_id: str, decision: str, role: str, confirmed: bool, skill_id: str) -> dict[str, Any]:
         store = self._state_store.database_store
@@ -2464,7 +2025,7 @@ class BrainService:
                     "summary_json": snapshot_resource,
                 }
             resource["lifecycle_status"] = status
-            resource["updated_at"] = self._now_datetime()
+            resource["updated_at"] = clock.now_datetime()
             result = self._upsert_api_resource(resource)
         else:
             if record is None:
@@ -2493,7 +2054,7 @@ class BrainService:
                 decision="return" if status in {"draft", "suspended"} else None,
                 tenant_id=_DEFAULT_TENANT_ID,
             )
-            result = self._resource_asset_record_to_dict(record)
+            result = resource_api_ser.resource_asset_to_dict(record)
         return {"resource_id": resource_id, "lifecycle_status": status, "asset": result, "result": "published" if status == "active" else "suspended"}
 
     def _request_provider_external_execution(
@@ -2573,14 +2134,14 @@ class BrainService:
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             task["status"] = "completed"
             task["receiptStatus"] = task.get("receiptStatus") or "granted"
-            task["updatedAt"] = self._now_datetime()
+            task["updatedAt"] = clock.now_datetime()
             task["note"] = "访问授权已生效，交付事实已写入可回放任务链。"
             task.setdefault("access", {})
             task["access"]["grant_ref"] = task["access"].get("grant_ref") or f"grant-{task_id}"
             task["access"]["status"] = "effective"
             task["history"].append(
                 {
-                    "time": self._now_short_time(),
+                    "time": clock.now_short_time(),
                     "state": "授权已生效",
                     "detail": "核心审批后的授权交付已完成，并保留审计锚定。",
                 }
@@ -2608,7 +2169,7 @@ class BrainService:
             request["timeline"].append(
                 {
                     "label": "审批通过并下发补录",
-                    "time": self._now_datetime(),
+                    "time": clock.now_datetime(),
                     "note": "已进入镇街 / 社区差异补录阶段，基层只需补现场差异字段。",
                 }
             )
@@ -2618,11 +2179,11 @@ class BrainService:
             approval["impact"] = "已创建基层预填任务，待补录完成后进入自动汇总确认。"
             if delivery:
                 delivery["status"] = "supplementing"
-                delivery["updatedAt"] = self._now_datetime()
+                delivery["updatedAt"] = clock.now_datetime()
                 delivery["note"] = "预填任务已下发，等待 镇街填报人 / 村社区填报人 完成差异补录。"
                 delivery["history"].append(
                     {
-                        "time": self._now_short_time(),
+                        "time": clock.now_short_time(),
                         "state": "预填任务已下发",
                         "detail": "系统已把共享模板字段下发到基层，只保留差异字段待补录。",
                     }
@@ -2653,7 +2214,7 @@ class BrainService:
             request["timeline"].append(
                 {
                     "label": "已退回补正",
-                    "time": self._now_datetime(),
+                    "time": clock.now_datetime(),
                     "note": "要求重新说明差异字段责任边界或补齐异常项说明。",
                 }
             )
@@ -2663,11 +2224,11 @@ class BrainService:
             approval["impact"] = "退回补正后，补录与汇总链路暂停，不继续向前推进。"
             if delivery:
                 delivery["status"] = "warning"
-                delivery["updatedAt"] = self._now_datetime()
+                delivery["updatedAt"] = clock.now_datetime()
                 delivery["note"] = "当前链路已退回补正，未继续推进补录或汇总。"
                 delivery["history"].append(
                     {
-                        "time": self._now_short_time(),
+                        "time": clock.now_short_time(),
                         "state": "退回补正",
                         "detail": "因责任边界或异常项说明不足，链路暂停。",
                     }
@@ -2692,7 +2253,7 @@ class BrainService:
             request["timeline"].append(
                 {
                     "label": "已驳回申请",
-                    "time": self._now_datetime(),
+                    "time": clock.now_datetime(),
                     "note": "因重复要数或越界采集风险被终止。",
                 }
             )
@@ -2700,11 +2261,11 @@ class BrainService:
             request["aiStatus"]["nextAction"] = "如需继续，请改为模板复用 + 差异补录模式重新发起。"
             if delivery:
                 delivery["status"] = "warning"
-                delivery["updatedAt"] = self._now_datetime()
+                delivery["updatedAt"] = clock.now_datetime()
                 delivery["note"] = "申请已驳回，链路终止。"
                 delivery["history"].append(
                     {
-                        "time": self._now_short_time(),
+                        "time": clock.now_short_time(),
                         "state": "申请驳回",
                         "detail": "因重复要数或越界采集风险，任务未继续推进。",
                     }
@@ -2730,7 +2291,7 @@ class BrainService:
             request["timeline"].append(
                 {
                     "label": "已转供给侧口径确认",
-                    "time": self._now_datetime(),
+                    "time": clock.now_datetime(),
                     "note": "需要 数据提供方 / 业务运营员 确认目录字段口径或资源授权边界后再继续准入。",
                 }
             )
@@ -2740,11 +2301,11 @@ class BrainService:
             approval["impact"] = "转办期间暂停补录和交付，避免在口径未确认时扩大授权。"
             if delivery:
                 delivery["status"] = "warning"
-                delivery["updatedAt"] = self._now_datetime()
+                delivery["updatedAt"] = clock.now_datetime()
                 delivery["note"] = "已转供给侧口径确认，未生成新授权。"
                 delivery["history"].append(
                     {
-                        "time": self._now_short_time(),
+                        "time": clock.now_short_time(),
                         "state": "转口径确认",
                         "detail": "审批人 要求 数据提供方 / 业务运营员 先确认目录字段口径或授权边界。",
                     }
@@ -2789,7 +2350,7 @@ class BrainService:
         if store is None:
             return operation()
         actor = self._actor_for_role(role)
-        audit_id = self._new_audit_id()
+        audit_id = ids.new_audit_id()
         started_at = datetime.now()
         self._emit_audit(audit_id, actor, skill_id, "before", payload)
         try:
@@ -2817,7 +2378,7 @@ class BrainService:
         if manifest.get("human_confirmation_required") and not confirmed:
             raise ConfirmationRequiredError(skill_id)
         actor = self._actor_for_role(role)
-        audit_id = self._new_audit_id()
+        audit_id = ids.new_audit_id()
         started_at = datetime.now()
         self._emit_audit(audit_id, actor, skill_id, "before", payload)
         try:
@@ -2961,8 +2522,8 @@ class BrainService:
     def _append_audit_feed(self, event_type: str, target: str, result: str, actor: str) -> None:
         self._snapshot["audit_events"].append(
             {
-                "id": self._new_audit_id(),
-                "time": self._month_day_time(),
+                "id": ids.new_audit_id(),
+                "time": clock.month_day_time(),
                 "actor": actor,
                 "type": event_type,
                 "target": target,
@@ -3274,16 +2835,7 @@ class BrainService:
                 self._upsert_todo("ROLE_ORGAN_MANAGER", request_id, f"{resource_name}汇总/准入处理", self._request_status_text(request, "summarizer"), f"#/request-flow/review/{request_id}", category="summary")
 
     def _new_request_id(self) -> str:
-        prefix = f"REQ-{datetime.now():%Y-%m-%d}-"
-        seq = 1
-        for item in self._snapshot["requests"]:
-            item_id = str(item.get("id", ""))
-            if item_id.startswith(prefix):
-                try:
-                    seq = max(seq, int(item_id.rsplit("-", 1)[-1]) + 1)
-                except ValueError:
-                    continue
-        return f"{prefix}{seq:04d}"
+        return ids.next_request_id(str(item.get("id", "")) for item in self._snapshot["requests"])
 
     def _delivery_task_id_for_request(self, request_id: str) -> str:
         return request_id.replace("REQ-", "DLV-", 1)
@@ -3387,9 +2939,6 @@ class BrainService:
             },
         ]
 
-    def _new_audit_id(self) -> str:
-        now = datetime.now()
-        return f"AE-{now:%Y-%m-%d-%H%M%S%f}"
 
     # ============== J1 凭据签发与查询（D27/U-3 处置承诺的凭据领取闭环） ==============
 
@@ -3408,7 +2957,7 @@ class BrainService:
         digest = hashlib.sha256(seed_material.encode("utf-8")).hexdigest()
         app_key = f"AK-DEMO-{request_id}-{digest[:8].upper()}"
         app_secret = f"SK-DEMO-{digest[8:32]}"
-        valid_from = self._now_date()
+        valid_from = clock.now_date()
         valid_to = (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d")
         return {
             "app_key": app_key,
@@ -3446,14 +2995,3 @@ class BrainService:
             "confirmed": True,
         })
 
-    def _month_day_time(self) -> str:
-        return datetime.now().strftime("%m-%d %H:%M")
-
-    def _now_date(self) -> str:
-        return datetime.now().strftime("%Y-%m-%d")
-
-    def _now_datetime(self) -> str:
-        return datetime.now().strftime("%Y-%m-%d %H:%M")
-
-    def _now_short_time(self) -> str:
-        return datetime.now().strftime("%H:%M")

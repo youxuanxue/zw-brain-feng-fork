@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+from zw_brain.command.serializers import governance as governance_ser
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _DEFAULT_TENANT_ID = get_runtime_tenant_id()
@@ -35,10 +36,10 @@ def _sync_org_projection(brain, payload: dict[str, Any]) -> dict[str, Any]:
         roles = [repo.upsert_role(item, tenant_id=tenant_id) for item in payload.get("roles") or []]
         brain._append_audit_feed("org.projection.sync", tenant.tenant_id, "ok", actor)
         return {
-            "tenant": brain._tenant_projection_record_to_dict(tenant),
-            "orgs": [brain._org_projection_record_to_dict(item) for item in orgs],
-            "regions": [brain._region_projection_record_to_dict(item) for item in regions],
-            "roles": [brain._role_projection_record_to_dict(item) for item in roles],
+            "tenant": governance_ser.tenant_projection_to_dict(tenant),
+            "orgs": [governance_ser.org_projection_to_dict(item) for item in orgs],
+            "regions": [governance_ser.region_projection_to_dict(item) for item in regions],
+            "roles": [governance_ser.role_projection_to_dict(item) for item in roles],
             "audit_id": audit_id,
         }
 
@@ -96,7 +97,7 @@ def _sync_actor_projection(brain, payload: dict[str, Any]) -> dict[str, Any]:
             actor_snapshots.append(brain._actor_snapshot_from_projection(actor_record, claims=claims_payload))
         brain._append_audit_feed("actor.projection.sync", actors[0].external_actor_id if actors else "actor_projection", "ok", actor)
         return {
-            "items": [brain._actor_projection_record_to_dict(item) for item in actors],
+            "items": [governance_ser.actor_projection_to_dict(item) for item in actors],
             "actor_snapshots": actor_snapshots,
             "total": len(actors),
             "audit_id": audit_id,

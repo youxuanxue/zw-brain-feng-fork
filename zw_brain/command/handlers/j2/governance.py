@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
 from zw_brain.command.brain import BrainServiceError, _count_by
+from zw_brain.command.serializers import adapter as adapter_ser
+from zw_brain.command.serializers import governance as governance_ser
 from zw_brain.domain import policy
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.skill_registration.runtime import get_manifest
@@ -32,24 +34,24 @@ def _get_governance_iam_overview(brain, payload: dict[str, Any]) -> dict[str, An
     issue_filter = str(payload.get("issue_type", "") or "")
     repo = brain._governance_projection_repo()
     store = brain._state_store.database_store
-    tenants = [brain._tenant_projection_record_to_dict(item) for item in repo.list_tenants() if not tenant_id or item.tenant_id == tenant_id]
-    orgs = [brain._org_projection_record_to_dict(item) for item in repo.list_orgs(tenant_id=tenant_id)]
-    regions = [brain._region_projection_record_to_dict(item) for item in repo.list_regions(tenant_id=tenant_id)]
-    roles = [brain._role_projection_record_to_dict(item) for item in repo.list_roles(tenant_id=tenant_id)]
+    tenants = [governance_ser.tenant_projection_to_dict(item) for item in repo.list_tenants() if not tenant_id or item.tenant_id == tenant_id]
+    orgs = [governance_ser.org_projection_to_dict(item) for item in repo.list_orgs(tenant_id=tenant_id)]
+    regions = [governance_ser.region_projection_to_dict(item) for item in repo.list_regions(tenant_id=tenant_id)]
+    roles = [governance_ser.role_projection_to_dict(item) for item in repo.list_roles(tenant_id=tenant_id)]
     raw_actors = repo.list_actors(tenant_id=tenant_id)
-    actors = [brain._actor_projection_record_to_dict(item) | {"actor_snapshot": brain._actor_snapshot_from_projection(item, claims={})} for item in raw_actors]
+    actors = [governance_ser.actor_projection_to_dict(item) | {"actor_snapshot": brain._actor_snapshot_from_projection(item, claims={})} for item in raw_actors]
     role_filter = str(payload.get("role_code", "") or "")
     actor_filter = str(payload.get("actor_id", payload.get("external_actor_id", "")) or "")
     if role_filter:
         roles = [item for item in roles if item.get("role_code") == role_filter]
     actors = [item for item in actors if brain._filter_governance_actor(item, status_filter=status_filter, role_filter=role_filter, actor_filter=actor_filter)]
-    policies = [brain._tenant_policy_record_to_dict(item) for item in store.capability_package_repo.list_policies(tenant_id=tenant_id)] if store is not None else []
+    policies = [governance_ser.tenant_policy_to_dict(item) for item in store.capability_package_repo.list_policies(tenant_id=tenant_id)] if store is not None else []
     if capability_filter:
         policies = [item for item in policies if item.get("package_slug") == capability_filter]
-    candidates = [brain._legacy_policy_candidate_record_to_dict(item) for item in repo.list_policy_candidates(tenant_id=tenant_id)]
+    candidates = [governance_ser.legacy_policy_candidate_to_dict(item) for item in repo.list_policy_candidates(tenant_id=tenant_id)]
     if capability_filter:
         candidates = [item for item in candidates if item.get("capability_id") == capability_filter]
-    adapter_runs = [brain._adapter_run_record_to_dict(item) for item in brain._external_adapter_repo().list_run_records(tenant_id=tenant_id, adapter_slug="legacy.bsp.governance")]
+    adapter_runs = [adapter_ser.adapter_run_to_dict(item) for item in brain._external_adapter_repo().list_run_records(tenant_id=tenant_id, adapter_slug="legacy.bsp.governance")]
     issues = brain._governance_import_issues(adapter_runs)
     if issue_filter:
         issues = [item for item in issues if item.get("type") == issue_filter]
@@ -111,7 +113,7 @@ def _list_policy_mapping_candidates(brain, payload: dict[str, Any]) -> dict[str,
         capability_id=str(payload.get("capability_id") or payload.get("capability_slug") or "") or None,
         surface=str(payload.get("surface") or "") or None,
     )
-    items = [brain._legacy_policy_candidate_record_to_dict(item) for item in records]
+    items = [governance_ser.legacy_policy_candidate_to_dict(item) for item in records]
     status_counts: dict[str, int] = {}
     for item in items:
         status = str(item.get("candidate_status") or "unknown")
@@ -351,7 +353,7 @@ def _review_policy_mapping_candidates(brain, payload: dict[str, Any]) -> dict[st
                 enabled=True,
                 exposed_surfaces=applied["exposed_surfaces"],
             )
-            applied_policies.append(brain._tenant_policy_record_to_dict(policy_record))
+            applied_policies.append(governance_ser.tenant_policy_to_dict(policy_record))
 
         failure_count = sum(1 for item in results if item.get("result") == "failed")
         brain._append_audit_feed(

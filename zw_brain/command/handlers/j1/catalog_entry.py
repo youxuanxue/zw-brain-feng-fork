@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 import copy
 
 from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoundError
+from zw_brain.command.serializers import catalog as catalog_ser
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
@@ -172,7 +173,7 @@ def _query_catalog_entries(
         else:
             total = len(records)
 
-    entries = [brain._catalog_entry_record_to_dict(item) for item in records]
+    entries = [catalog_ser.catalog_entry_to_dict(item) for item in records]
     if catalog_code:
         wanted_code = str(catalog_code)
         entries = [item for item in entries if item["catalog_code"] == wanted_code]

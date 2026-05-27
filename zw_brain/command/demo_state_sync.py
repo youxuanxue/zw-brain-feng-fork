@@ -24,6 +24,10 @@ if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
 
+
+import zw_brain.shared.clock as clock
+
+
 def sync_demo_state_views(brain: BrainService) -> None:
     request0011 = brain._maybe_request("REQ-2026-04-25-0011")
     request0007 = brain._maybe_request("REQ-2026-04-24-0007")
@@ -52,7 +56,7 @@ def sync_demo_state_views(brain: BrainService) -> None:
         if not provider["catalogs"][1].get("governanceLocked"):
             provider["catalogs"][1]["status"] = "已发布" if confirmed else "待质检"
             provider["catalogs"][1]["issue"] = "默认复用入口已更新" if confirmed else "需更新默认复用入口说明"
-        provider["resources"][0]["updatedAt"] = brain._now_date() if confirmed else "2026-04-25"
+        provider["resources"][0]["updatedAt"] = clock.now_date() if confirmed else "2026-04-25"
         if not provider["resources"][1].get("governanceLocked"):
             provider["resources"][1]["status"] = "可共享" if confirmed else "待审核"
         provider["aiGovernance"]["summary"] = (
@@ -62,7 +66,7 @@ def sync_demo_state_views(brain: BrainService) -> None:
         )
         discovery = brain._resource_by_id("res-jbxx-ledger")
         discovery["coverage"] = "89%" if confirmed else "82%"
-        discovery["updatedAt"] = brain._now_date() if confirmed else "2026-04-25"
+        discovery["updatedAt"] = clock.now_date() if confirmed else "2026-04-25"
         discovery["explain"] = [
             "当前需求可直接复用 v1.3 模板，基层补录字段进一步收缩",
             "经营状态与最近走访时间已纳入正式字段",

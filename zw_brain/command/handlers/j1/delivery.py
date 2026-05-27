@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 import copy
 
+import zw_brain.shared.clock as clock
 from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoundError, _mask
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
@@ -41,8 +42,8 @@ def _ingest_delivery_receipt(brain, payload: dict[str, Any]) -> dict[str, Any]:
         if task is not None:
             task["receiptStatus"] = str(payload["receipt_status"])
             task["receiptNo"] = payload.get("receipt", {}).get("receipt_no") or payload.get("receipt_no") or task.get("receiptNo")
-            task["updatedAt"] = brain._now_datetime()
-            task.setdefault("history", []).append({"time": brain._now_short_time(), "state": "回执已接收", "detail": f"交付回执状态：{payload['receipt_status']}。"})
+            task["updatedAt"] = clock.now_datetime()
+            task.setdefault("history", []).append({"time": clock.now_short_time(), "state": "回执已接收", "detail": f"交付回执状态：{payload['receipt_status']}。"})
         receipt = brain._delivery_repo().append_receipt(
             {
                 "delivery_code": task_id,
@@ -81,11 +82,11 @@ def _reconcile_delivery_receipt(brain, task_id: str, role: str, confirmed: bool)
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         task["receiptStatus"] = "reconciled"
         task["receiptNo"] = f"RCPT-{task_id.split('-')[-1]}"
-        task["updatedAt"] = brain._now_datetime()
+        task["updatedAt"] = clock.now_datetime()
         task["note"] = "交付回执已对账确认，当前可继续等待回流或治理动作。"
         task["history"].append(
             {
-                "time": brain._now_short_time(),
+                "time": clock.now_short_time(),
                 "state": "回执已对账",
                 "detail": "平台已完成交付回执核对并保留审计留痕。",
             }
@@ -147,7 +148,7 @@ def _manage_delivery_subscription(brain, payload: dict[str, Any]) -> dict[str, A
         task = brain._delivery_by_id(str(payload["task_id"]))
         status = {"create": "active", "activate": "active", "pause": "paused", "resume": "active", "cancel": "cancelled"}[action]
         subscription = brain._delivery_repo().upsert_subscription({"subscription_code": payload.get("subscription_id"), "delivery_code": task["id"], "resource_code": task.get("resourceId") or task.get("access", {}).get("resource_code"), "status": status, "schedule_ref": payload.get("schedule_ref") or {}, "policy_snapshot": payload.get("policy_snapshot") or {}, "legacy_status_snapshot": {"action": action, "task_status": task.get("status")}})
-        task.setdefault("history", []).append({"time": brain._now_short_time(), "state": "订阅策略已更新", "detail": f"订阅状态：{status}"})
+        task.setdefault("history", []).append({"time": clock.now_short_time(), "state": "订阅策略已更新", "detail": f"订阅状态：{status}"})
         brain._append_audit_feed("delivery.subscription.manage", task["id"], "ok", actor)
         return {"subscription_code": subscription.subscription_code, "status": subscription.status, "audit_id": audit_id}
 
@@ -160,11 +161,11 @@ def _trigger_delivery_recovery(brain, task_id: str, role: str, confirmed: bool) 
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         task["status"] = "warning"
-        task["updatedAt"] = brain._now_datetime()
+        task["updatedAt"] = clock.now_datetime()
         task["note"] = "已触发恢复流程，等待审计链修复后重新对账。"
         task["history"].append(
             {
-                "time": brain._now_short_time(),
+                "time": clock.now_short_time(),
                 "state": "恢复已触发",
                 "detail": "平台已显式登记恢复动作，等待后续重试与回执。",
             }

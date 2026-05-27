@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
 from zw_brain.command.brain import InvalidStateError, NotFoundError
+from zw_brain.command.serializers import topic_package as topic_package_ser
 from zw_brain.domain.repositories.topic_package import TopicPackageStateError
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
@@ -33,7 +34,7 @@ def _configure_topic_package(brain, payload: dict[str, Any]) -> dict[str, Any]:
         except KeyError as exc:
             raise NotFoundError(package_code) from exc
         brain._append_audit_feed("topic.package.configure", package_code, "ok", actor)
-        return brain._topic_package_record_to_dict(record) | {"audit_id": audit_id}
+        return topic_package_ser.topic_package_to_dict(record) | {"audit_id": audit_id}
 
     return brain._mutate("topic.package.configure", role, confirmed, payload, mutation)
 
@@ -53,7 +54,7 @@ def _transition_topic_package(brain, package_code: str, next_status: str, action
         except TopicPackageStateError as exc:
             raise InvalidStateError(str(exc)) from exc
         brain._append_audit_feed(f"topic.package.{action_type}", package_code, "ok", actor)
-        return brain._topic_package_record_to_dict(record) | {"audit_id": audit_id}
+        return topic_package_ser.topic_package_to_dict(record) | {"audit_id": audit_id}
 
     return brain._mutate(f"topic.package.{action_type}", role, confirmed, {"package_code": package_code, "next_status": next_status} | payload, mutation)
 
@@ -68,7 +69,7 @@ def _update_topic_package_policy(brain, payload: dict[str, Any]) -> dict[str, An
         except KeyError as exc:
             raise NotFoundError(package_code) from exc
         brain._append_audit_feed("topic.package.policy.update", package_code, "ok", actor)
-        return {"items": [brain._topic_visibility_record_to_dict(item) for item in records], "total": len(records), "audit_id": audit_id}
+        return {"items": [topic_package_ser.topic_visibility_to_dict(item) for item in records], "total": len(records), "audit_id": audit_id}
 
     return brain._mutate("topic.package.policy.update", role, confirmed, payload, mutation)
 
@@ -101,7 +102,7 @@ def _subscribe_topic_package(brain, payload: dict[str, Any]) -> dict[str, Any]:
         brain._append_audit_feed("topic.package.subscribe", package_code, "ok", actor)
         return {
             "package_code": package_code,
-            "items": [brain._topic_visibility_record_to_dict(item) for item in records],
+            "items": [topic_package_ser.topic_visibility_to_dict(item) for item in records],
             "total": len(records),
             "audit_id": audit_id,
         }
@@ -119,7 +120,7 @@ def _attach_topic_package_evidence(brain, payload: dict[str, Any]) -> dict[str, 
         except KeyError as exc:
             raise NotFoundError(package_code) from exc
         brain._append_audit_feed("topic.package.evidence.attach", package_code, "ok", actor)
-        return brain._topic_evidence_record_to_dict(record) | {"audit_id": audit_id}
+        return topic_package_ser.topic_evidence_to_dict(record) | {"audit_id": audit_id}
 
     return brain._mutate("topic.package.evidence.attach", role, confirmed, payload, mutation)
 
@@ -143,7 +144,7 @@ def _query_topic_package_metrics(brain, *, package_code: Any = None) -> dict[str
     packages = [item for item in packages if item is not None]
     metrics = []
     for package in packages:
-        metrics.extend(brain._topic_metric_record_to_dict(item) for item in repo.list_metrics(package.package_code))
+        metrics.extend(topic_package_ser.topic_metric_to_dict(item) for item in repo.list_metrics(package.package_code))
     return {
         "items": metrics,
         "summary": {
