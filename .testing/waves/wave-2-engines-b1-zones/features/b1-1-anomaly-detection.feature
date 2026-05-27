@@ -6,6 +6,9 @@
 # Trace: 基线 §5.6 业务反馈 #14 (B1 后台旁路抽查 "长期无人申请的目录"诊断), §10.3
 # Priority: P1
 # Status: Draft
+# Owner: e4
+# Pytest: pending
+# Twin-F: e4.F3
 
 Feature: B1.1 长期无人申请目录诊断（旁路抽查）
   As a 业务运营员

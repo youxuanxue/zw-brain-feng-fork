@@ -6,6 +6,8 @@ items:
   scope: 写后端事件流 + 存储 schema + 索引；不含 UI；不含回放（F2）
   covers_ac:
   - AC1
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/infra-audit-bus.feature
   evidence_plan:
   - 证据预算：tests/integration/test_audit_bus.py 全绿 + 三级事件流真实写入 + 索引查询性能 e2e
   - 停止条件：51 LOC stub 替换为生产代码；段 audit-must-block 不报红
@@ -26,6 +28,8 @@ items:
   scope: 回放 API + 查询 API；不含 UI（F3 做 UI）
   covers_ac:
   - AC1
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/infra-audit-bus.feature
   evidence_plan:
   - 证据预算：tests/integration/test_audit_replay.py + 真实 sd-default 一条审批链回放
   - 停止条件：能按 actor/skill/tenant/time 查询并回放
@@ -48,6 +52,9 @@ items:
   scope: 审计回放/统计/异常/追责 4 panel；含调查摘要 AI 助手；UI 等 E5 webui 重建后接入
   covers_ac:
   - AC2
+  spec_ref:
+  - .testing/waves/wave-2-engines-b1-zones/features/b1-1-compliance-audit.feature
+  - .testing/waves/wave-2-engines-b1-zones/features/b1-1-anomaly-detection.feature
   evidence_plan:
   - 证据预算：B1.1 4 panel 截图 + tests/e2e/b11_compliance.spec.ts + 710 用户真实回放演示
   - 停止条件：4 panel 都能展示真实 sd-default 数据；助手不覆盖原始证据
@@ -78,6 +85,9 @@ items:
   scope: 能力包审核/注册/启停/回滚 + 暴露矩阵 + 租户策略 + trust_level 升降级；不含 AgentRuntime T1 触发字段
   covers_ac:
   - AC3
+  spec_ref:
+  - .testing/waves/wave-2-engines-b1-zones/features/b1-2-package-registration.feature
+  - .testing/waves/wave-2-engines-b1-zones/features/b1-2-trust-level-upgrade.feature
   evidence_plan:
   - 证据预算：tests/integration/test_b12_intake.py + 200 manifest 矩阵展示
   - 停止条件：能力包全生命周期可跑
@@ -101,6 +111,9 @@ items:
   scope: B1.2 主框架 + 容器 slot 留给 E3 三引擎；UI 等 E5 webui 重建后接入
   covers_ac:
   - AC3
+  spec_ref:
+  - .testing/waves/wave-2-engines-b1-zones/features/b1-2-package-registration.feature
+  - .testing/waves/wave-2-engines-b1-zones/features/b1-2-trust-level-upgrade.feature
   evidence_plan:
   - 证据预算：B1.2 主流程 e2e + 与 E3 协商的 slot 接口文档
   - 停止条件：三引擎管理员页能嵌入 B1.2
@@ -125,6 +138,10 @@ items:
     commit 主干）；T1 真实触发再 land
   covers_ac:
   - AC4
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/infra-agentruntime-embedded.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/ext-agent-pilot.feature
+  - .testing/waves/wave-3-protocol-tenant-national/features/agentruntime-standalone-http.feature
   evidence_plan:
   - 证据预算：docs/agent-runtime-t1-readiness.md 预案 + 脚本骨架 spike 在 worker 本地 + 触发时 1 天落地能力证明
   - 停止条件：T1 未触发时 deferred；T1 触发时 1 天内 PR land + preflight 加段
@@ -147,6 +164,7 @@ items:
     / ops.service.report.query）；判定 live 或翻 external
   covers_ac:
   - AC5
+  spec_ref: []  # cross-feature / 无单一 .feature 对应
   evidence_plan:
   - 证据预算：业务方 sign-off 记录 + status 翻转后 export_agent_contract.py --check 零漂移 + preflight
     段 22 一致
@@ -165,6 +183,9 @@ items:
   scope: B1.1 真实数据回放 + B1.2 能力包审核完整跑通；sign-off
   covers_ac:
   - AC6
+  spec_ref:
+  - .testing/waves/wave-2-engines-b1-zones/features/b1-1-compliance-audit.feature
+  - .testing/waves/wave-2-engines-b1-zones/features/b1-2-package-registration.feature
   evidence_plan:
   - 证据预算：scripts/customer_demo_b1.sh + 安全审计员 + 业务方 sign-off
   - 停止条件：双方签字；任一卡点 needs_human

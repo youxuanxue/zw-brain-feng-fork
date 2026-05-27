@@ -6,6 +6,8 @@ items:
   scope: 仅 catalog 维度；不动 content/resource/use/authz 4 维度；不做 UI 嵌入
   covers_ac:
   - AC1
+  spec_ref:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-catalog.feature
   evidence_plan:
   - 证据预算：tests/test_wave1_objection_5dim_state.py 中 catalog 维度用例全绿 + 真实 dump 一条 catalog
     异议从发起到归档的 audit_event 序列
@@ -30,6 +32,11 @@ items:
   scope: 4 维度逐一过；不做 evaluate/process 辅助流程
   covers_ac:
   - AC1
+  spec_ref:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-authz.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-content.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-resource.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-use.feature
   evidence_plan:
   - 证据预算：tests/test_wave1_objection_5dim_state.py 4 维度用例全绿 + 每维度真实 dump 异议一条 e2e
   - 停止条件：4 维度状态机全绿；若 mapper 缺字段映射则提 M0 PR 后 needs_human
@@ -56,6 +63,9 @@ items:
   scope: evaluate 评价 + process 处理过程 2 张流程辅助表；UI 仅 P3 嵌入；P5 嵌入由 E2 协作完成不在本项
   covers_ac:
   - AC1
+  spec_ref:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-content.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-use.feature
   evidence_plan:
   - 证据预算：tests/e2e/objection_lifecycle.spec.ts（新增）+ P3 异议响应面截图
   - 停止条件：异议响应 → 评价回写 audit_event 链通；UI 工程术语黑名单 preflight 段 24 不报红
@@ -89,6 +99,8 @@ items:
   scope: meta 合并而非数据合并；不含部门匹配 AI 推荐（归 E3 Wave 2）；先内置规则匹配
   covers_ac:
   - AC2
+  spec_ref:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-supply-demand-meta-merge.feature
   evidence_plan:
   - 证据预算：.testing/waves/wave-1-j1-j2-closed-loop/features/j1-supply-demand-meta-merge.feature
     转 pytest 全绿
@@ -128,6 +140,9 @@ items:
   scope: 凭据生成 + 三语样例渲染 + 配额展示；监控入口仅链接到 §3.4 集团运维监控；不做监控 dashboard 内嵌
   covers_ac:
   - AC3
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/j1-credential-issue.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-credential-revoke.feature
   evidence_plan:
   - 证据预算：P4 页面截图 + 真实 sd-default 资源的 curl 一次成功调用 log + audit_event 凭据下发记录
   - 停止条件：凭据下发能审计 + 三语样例可复制粘贴跑通
@@ -167,6 +182,8 @@ items:
   scope: 减摩组件；不替代目录树、筛选器、资源详情（§5.4.4 反约束）；调用走 shared/inference/client
   covers_ac:
   - AC4
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/j1-resource-discovery.feature
   evidence_plan:
   - 证据预算：P2 助手 5 种典型一句话查询的解析结果 + 推理调用走 inference/client 的 log 证据
   - 停止条件：减摩组件可见、可关闭、可降级；preflight 段 10 不报红
@@ -203,6 +220,8 @@ items:
   scope: 草拟助手预填 + 风险预估；审批助手归纳依据 + 反事实；都不替人提交
   covers_ac:
   - AC4
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/j1-application-draft.feature
   evidence_plan:
   - 证据预算：P3 双助手页面截图 + 草拟 5 个真实 sd-default 申请样例 + 审批助手对 5 个真实历史申请的归纳输出
   - 停止条件：助手输出回落结构化字段；不直接触发写操作
@@ -239,6 +258,8 @@ items:
   scope: 仅解释阶段、异常原因、影响范围；不替代时间线、回执
   covers_ac:
   - AC4
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/j1-api-call-monitoring.feature
   evidence_plan:
   - 证据预算：P4 助手对 5 个真实 sd-default 交付任务的解释输出
   - 停止条件：解释带证据来源；不评价
@@ -279,6 +300,13 @@ items:
   scope: 包含 J1 检索→草稿→审批→凭据→调用→异议 5 维度任一全链路；纯 sd-default 真数据；无 mock
   covers_ac:
   - AC5
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/j1-resource-discovery.feature
+  - .testing/waves/wave-0-golden-path/features/j1-application-draft.feature
+  - .testing/waves/wave-0-golden-path/features/j1-approval-unconditional.feature
+  - .testing/waves/wave-0-golden-path/features/j1-approval-conditional.feature
+  - .testing/waves/wave-0-golden-path/features/j1-credential-issue.feature
+  - .testing/waves/wave-0-golden-path/features/j1-api-call-monitoring.feature
   evidence_plan:
   - 证据预算：scripts/customer_demo_j1.sh 退出码 0 + 业务方 sign-off（PR comment 或 issue label）+
     30 分钟时长记录
@@ -328,6 +356,10 @@ items:
   - AC1
   - AC3
   - AC4
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/j1-approval-conditional.feature
+  - .testing/waves/wave-0-golden-path/features/j1-credential-issue.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-authz.feature
   evidence_plan:
   - 证据预算：Playwright J1 冒烟（搜→申→批→凭据→异议）+ P3 异议入口截图
   - 停止条件：浏览器写路径全绿；异议可从 UI 发起一条 catalog 维度并跟踪至 closed
@@ -346,6 +378,7 @@ items:
   scope: 组织 30 分钟浏览器演示；不含改后端
   covers_ac:
   - AC5
+  spec_ref: []  # cross-feature / 无单一 .feature 对应
   evidence_plan:
   - 证据预算：PR comment 或 issue label business-signoff + 演示录屏/时长
   - 停止条件：业务方签字
@@ -362,6 +395,8 @@ items:
   scope: 与 E5 F14 协作；最小「找不到数据→登记需求→订阅」UI；不含 Wave 2 智能推荐编辑器
   covers_ac:
   - AC2
+  spec_ref:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-supply-demand-meta-merge.feature
   evidence_plan:
   - 证据预算：P3 面板截图 + Playwright 登记一条 demand 并可见 phase 推进
   - 停止条件：用户能在 P3 发现入口并完成 6 步主路径之一（不必覆盖 BR 全分支）

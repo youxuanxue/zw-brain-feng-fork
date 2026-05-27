@@ -6,6 +6,9 @@
 # Trace: R8 / R14, 基线 §10.3 审批流可视化引擎, 业务反馈 #4 (鞍山"编制→二级部门审→一级部门审→发布")
 # Priority: P1
 # Status: InTest
+# Owner: e3
+# Pytest: tests/integration/test_wave2_three_engines_acceptance.py
+# Twin-F: e3.F1 + e3.F2 + e3.F3
 # Unfreeze-Note: PR #92 (2026-06-X) — Wave-2 三引擎落地：审批流引擎 commit / promote / revert
 #   capability + nl_draft 推理路径 + schema lifecycle (draft → preview → live → tombstoned)。
 #   pytest:

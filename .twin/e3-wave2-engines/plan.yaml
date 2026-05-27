@@ -6,6 +6,8 @@ items:
   scope: 数据模型 + 状态机；不含 NL 草稿生成；不含 UI
   covers_ac:
   - AC1
+  spec_ref:
+  - .testing/waves/wave-2-engines-b1-zones/features/engine-approval-flow.feature
   evidence_plan:
   - 证据预算：tests/integration/test_approval_flow_engine.py 数据模型用例 + 状态机可达性证明
   - 停止条件：模型可序列化、可校验、可入库；config_change_class:draft/preview/live 三态可流转
@@ -31,6 +33,8 @@ items:
   scope: 两种基线流程入库；E1 的 J1 申请走基线流程；不含项目级定制
   covers_ac:
   - AC1
+  spec_ref:
+  - .testing/waves/wave-2-engines-b1-zones/features/engine-approval-flow.feature
   evidence_plan:
   - 证据预算：tests/integration/test_approval_flow_baseline.py + 与 E1 J1 集成 e2e
   - 停止条件：J1 申请按 shared_type=1/2 自动选择对应基线流程
@@ -53,6 +57,9 @@ items:
   scope: NL 调用经 shared/inference/client；草稿不直接生效；管理员确认才入库
   covers_ac:
   - AC1
+  spec_ref:
+  - .testing/waves/wave-2-engines-b1-zones/features/engine-approval-flow.feature
+  - .testing/waves/wave-2-engines-b1-zones/features/engine-ai-config-draft.feature
   evidence_plan:
   - 证据预算：tests/integration/test_approval_flow_nl_draft.py + 鞍山 4 级流程从一句话到入库的 e2e
   - 停止条件：NL 草稿可生成 + 管理员可编辑预览 + 入库后立即生效
@@ -78,6 +85,8 @@ items:
   scope: 字段 + 校验 + 布局 schema；不含 NL 草稿；不含 UI
   covers_ac:
   - AC2
+  spec_ref:
+  - .testing/waves/wave-2-engines-b1-zones/features/engine-form-schema.feature
   evidence_plan:
   - 证据预算：tests/integration/test_form_schema_engine.py 数据模型用例 + 校验规则覆盖
   - 停止条件：表单 schema 可被 J1/J2 表单页面消费
@@ -102,6 +111,9 @@ items:
   scope: NL 走 shared/inference/client；草稿不直接生效
   covers_ac:
   - AC2
+  spec_ref:
+  - .testing/waves/wave-2-engines-b1-zones/features/engine-form-schema.feature
+  - .testing/waves/wave-2-engines-b1-zones/features/engine-ai-config-draft.feature
   evidence_plan:
   - 证据预算：tests/integration/test_form_schema_nl_draft.py + 四川 7 字段从一句话到入库 e2e
   - 停止条件：NL 生成 + 管理员入库
@@ -126,6 +138,8 @@ items:
   scope: 相似目录推荐 + 推荐失败转人工需求登记；不做实时学习
   covers_ac:
   - AC3
+  spec_ref:
+  - .testing/waves/wave-2-engines-b1-zones/features/engine-recommend-prefer.feature
   evidence_plan:
   - 证据预算：tests/integration/test_recommendation_engine.py + 真实 dump-dsp_require 5 条历史申请的推荐输出
     + 命中率报告
@@ -151,6 +165,8 @@ items:
   scope: 三引擎入口 + 草稿/预览/入库三步；UI 工程术语黑名单遵守
   covers_ac:
   - AC4
+  spec_ref:
+  - .testing/waves/wave-2-engines-b1-zones/features/p7-shared-zones.feature
   evidence_plan:
   - 证据预算：三引擎配置页 e2e + R12 工程术语黑名单 preflight 段 24 不报红
   - 停止条件：管理员能完整跑三步配置
@@ -174,6 +190,10 @@ items:
   scope: 鞍山 4 级审批 + 四川 7 字段表单 + 荆州 5 条推荐规则全部入库且生效；时长 ≤1 周
   covers_ac:
   - AC5
+  spec_ref:
+  - .testing/waves/wave-2-engines-b1-zones/features/engine-approval-flow.feature
+  - .testing/waves/wave-2-engines-b1-zones/features/engine-form-schema.feature
+  - .testing/waves/wave-2-engines-b1-zones/features/engine-recommend-prefer.feature
   evidence_plan:
   - 证据预算：三个配置示例入库 + 时长记录 + 业务方 sign-off
   - 停止条件：三个示例端到端运行；业务方签字

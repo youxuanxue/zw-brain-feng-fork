@@ -6,6 +6,9 @@
 # Trace: 基线 §10.2 J2 部门审, 旧 xlsx 行 [43..44] 目录审核 (批量+单条), [62..63] 资源审核 (提交审核+发布审核)
 # Priority: P1
 # Status: Draft
+# Owner: e2
+# Pytest: tests/test_wave1_j2_pipeline.py
+# Twin-F: e2.F1
 
 Feature: J2 部门内审（catalog / resource）
   As a 部门管理员 ROLE_ORGAN_MANAGER

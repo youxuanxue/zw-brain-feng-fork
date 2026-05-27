@@ -112,6 +112,12 @@ ALLOWED_FILES = (
     # P0-01 capability registry classification 文档引用 §11 架构约束 R7/R8/R10/R14/R15
     # 完全不同 namespace（与已退役 R1-R8 用户角色码无关），整文件白名单
     "docs/reconstructs/p0-contract-classification.md",
+    # 飞轮设计基线引用架构 R1-R15 与"反 R1 多 SPA"等架构主张
+    # 与已退役 R1-R8 用户角色码完全不同 namespace，整文件白名单
+    "docs/approved/zw-brain-flywheel.md",
+    # 旧 xlsx 50 条不复刻清单引用旧角色 + 架构 R1 反 SPA 反模式
+    # 与已退役 R1-R8 用户角色码完全不同 namespace（讨论的是旧平台/架构约束），整文件白名单
+    "docs/legacy-not-reproduce-signoff.md",
 )
 
 

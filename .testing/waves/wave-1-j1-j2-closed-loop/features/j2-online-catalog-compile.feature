@@ -6,6 +6,9 @@
 # Trace: 基线 §3.2 目录管理 23 页, §3.3 CatalogModel 双轨编制, §10.2 J2 在线编制, 旧 xlsx 行 [35..38] 反向编目+在线编制+导入+编辑 (45-53 国家目录治理 ⏸ Wave 3)
 # Priority: P1
 # Status: Draft
+# Owner: e2
+# Pytest: tests/test_wave1_j2_pipeline.py
+# Twin-F: e2.F1
 
 Feature: J2 在线编制目录（含国家扩展要素双轨）
   As a 部门操作员 ROLE_ORGAN_OPERATER（编目员）

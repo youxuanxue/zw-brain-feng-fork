@@ -6,6 +6,9 @@
 # Trace: 基线 §10.2, R10/R11
 # Priority: P1
 # Status: Draft
+# Owner: e1
+# Pytest: tests/test_wave1_j1_credential.py
+# Twin-F: e1.F5
 
 Feature: J1 凭据撤回 / 暂停
   As a 业务运营员 ROLE_BUSIAUDIT 或 申请人本人

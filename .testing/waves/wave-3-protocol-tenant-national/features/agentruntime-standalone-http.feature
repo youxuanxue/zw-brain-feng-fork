@@ -6,6 +6,9 @@
 # Trace: R15, 基线 §8.2 决策表 "Standalone HTTP 留 Wave 3+ 评估", §10.4
 # Priority: P2
 # Status: Draft
+# Owner: e4
+# Pytest: pending
+# Twin-F: e4.F6
 
 Feature: AgentRuntime Standalone HTTP 形态评估
   As a 平台运维员

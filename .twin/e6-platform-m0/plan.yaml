@@ -6,6 +6,7 @@ items:
   scope: 纯重构 + 接口不变 + 测试 100% 不退化；不动业务逻辑
   covers_ac:
   - AC1
+  spec_ref: []  # cross-feature / 无单一 .feature 对应
   evidence_plan:
   - 证据预算：拆分 PR diff + tests 全绿 + 各 handler 子目录 LOC 报告
   - 停止条件：dispatch.py ≤500 LOC + brain.py 内 0 case dispatcher（grep -c "^case " = 0）+ 18 tests/test_*.py 100% 不退化（AC1 真实意图=dispatch 不臃肿，brain.py 本身不卡 LOC 上限，见 docs/approved/zw-brain-architecture.md §10.2；BrainService 残留读路径方法群下沉见 preflight-debt 2026-05-26 entry）
@@ -30,6 +31,8 @@ items:
   scope: 真实 SDK 接入 + mock 模式开关；不含三引擎 NL 调用（归 E3 消费）
   covers_ac:
   - AC2
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/infra-inference-gateway.feature
   evidence_plan:
   - 证据预算：tests/integration/test_inference_client.py + 真实调用 e2e + preflight 段 10 不报红
   - 停止条件：真实模式 + mock 模式双跑通；preflight 不报红
@@ -48,6 +51,7 @@ items:
   scope: docs/deployment/m0-mapper-coverage.md 新增；漏做项各自补 mapper PR（按需）
   covers_ac:
   - AC4
+  spec_ref: []  # cross-feature / 无单一 .feature 对应
   evidence_plan:
   - 证据预算：判定表完整 + 7 dump 字段逐一过 + 漏做项 PR 链接
   - 停止条件：7 dump 全部判定且补完
@@ -79,6 +83,8 @@ items:
   scope: search / 共享专题 / 质量 / 血缘 / 运营统计 投影状态 API + 失败摘要；不含 B1.1 UI（归 E4 F3）
   covers_ac:
   - AC5
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/infra-contract-projection.feature
   evidence_plan:
   - 证据预算：tests/integration/test_projection_status.py + B1.1 投影状态 API 端到端
   - 停止条件：5 类投影状态 + 失败摘要可被 B1.1 消费
@@ -95,6 +101,7 @@ items:
   scope: 用户 2026-05-25 确认 M0 不需要 web 页面；12 步主旅程保持 CLI（import/verify）+ m0-site-migration.md
   covers_ac:
   - AC3
+  spec_ref: []  # cross-feature / 无单一 .feature 对应
   evidence_plan:
   - 证据预算：N/A（scope 撤销）
   - 停止条件：N/A
@@ -111,6 +118,7 @@ items:
   scope: 提取 tests/_trusted_payload.py + 所有 mutate skill 集成测试改走该 helper
   covers_ac:
   - AC6
+  spec_ref: []  # cross-feature / 无单一 .feature 对应
   evidence_plan:
   - 证据预算：tests/_trusted_payload.py + 至少 10 个 mutate skill 集成测试改造 + 解决 PR
   - 停止条件：mutate skill 集成测试不再绕过 trust-stamp
@@ -129,6 +137,10 @@ items:
   scope: .testing/waves/wave-{2,3,4} 全部 features 填充 + 关键 features 转 pytest
   covers_ac:
   - AC6
+  spec_ref:
+  - .testing/waves/wave-2-engines-b1-zones/features/engine-approval-flow.feature
+  - .testing/waves/wave-3-protocol-tenant-national/features/multi-tenant-policy.feature
+  - .testing/waves/wave-4-legacy-retirement/features/legacy-write-entry-deprecation.feature
   evidence_plan:
   - 证据预算：3 wave features 文件 + 至少 5 个 features 转 pytest 全绿
   - 停止条件：3 wave features 不再仅有 README
@@ -150,6 +162,8 @@ items:
   scope: staging 部署 + 灰度 + 回滚 + 监控 adapter；不含 legacy retirement
   covers_ac:
   - AC7
+  spec_ref:
+  - .testing/waves/wave-3-protocol-tenant-national/features/observability-cost-quota.feature
   evidence_plan:
   - 证据预算：scripts/deploy_*.sh + Dockerfile_v1.0.0 升级 + 客户机房 dry-run + 监控 dashboard
     接入证据
@@ -166,6 +180,7 @@ items:
   scope: 跨 worker 的 M0 PR review；不主动写 M0 业务逻辑（响应式）
   covers_ac:
   - AC4
+  spec_ref: []  # cross-feature / 无单一 .feature 对应
   evidence_plan:
   - 证据预算：已 review 的 M0 PR 列表（GitHub PR comment + reviewer 记录）
   - 停止条件：本 worker 持续承担直到全部 wave 验收
@@ -181,6 +196,10 @@ items:
   scope: scripts/headless_j1_demo.sh exit 语义；审批步参数修正
   covers_ac:
   - AC6
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/j1-resource-discovery.feature
+  - .testing/waves/wave-0-golden-path/features/j1-application-draft.feature
+  - .testing/waves/wave-0-golden-path/features/j1-credential-issue.feature
   evidence_plan:
   - 证据预算：失败步 exit 1；与 customer_demo_j1.py 行为一致
   - 停止条件：CI/本地脚本不再掩盖 E2-pending
@@ -198,6 +217,7 @@ items:
   scope: scripts/start-local.sh 一行 echo；本地 curl 502 排障（http_proxy 环境）
   covers_ac:
   - AC7
+  spec_ref: []  # cross-feature / 无单一 .feature 对应
   evidence_plan:
   - 证据预算：启动日志含 NO_PROXY 提示
   - 停止条件：文档化本地 curl 502 排障

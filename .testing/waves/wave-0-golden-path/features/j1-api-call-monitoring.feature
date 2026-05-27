@@ -6,6 +6,9 @@
 # Trace: R1 / R3, 基线 §5.2 P4 调用监控入口, 基线 §10.1
 # Priority: P0
 # Status: InTest
+# Owner: e1
+# Pytest: tests/test_wave0_j1_credential_call.py + tests/test_wave1_p4_delivery_explain.py
+# Twin-F: e1.F8
 # InTest-Scope: 3 个 Scenario 由 tests/test_wave0_j1_credential_call.py 数据层覆盖（按 actor 过滤 /
 #   最小字段集 schema 探测 / 真数据 status 分布 ≥744 行 succeeded）；
 #   curl 实调端到端 / 配额耗尽 429 / QPS 限流 / 过期 401 + scope 403 / AI 不替代时间线 + 工程术语黑名单

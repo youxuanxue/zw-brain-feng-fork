@@ -6,6 +6,9 @@
 # Trace: 基线 §3.4 (IAF IAM 外部依赖), docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md
 # Priority: P0
 # Status: InTest
+# Owner: e6
+# Pytest: pending
+# Twin-F: pending
 # InTest-Scope: tests/test_wave0_infra.py 覆盖 7 项（OIDC 端点派生 / 缺 auth_server_url 报错 /
 #   realm_access.roles → role_codes 映射 / 未知角色码不静默扩权 / 默认租户 sd-default /
 #   会话生命周期 + token 不回传浏览器体 / 无 bearer 401）；

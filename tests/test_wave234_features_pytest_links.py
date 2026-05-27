@@ -7,9 +7,12 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-_WAVE_DIRS = (
+# wave-2/3 要求 ≥3 feature；wave-4 飞轮反模式 #8 拆分后仅留 1 个机械测 feature（其余 SLI 看板转 docs/customer-readiness/wave4-cutoff-criteria.md）
+_WAVE_DIRS_MIN3 = (
     REPO_ROOT / ".testing" / "waves" / "wave-2-engines-b1-zones" / "features",
     REPO_ROOT / ".testing" / "waves" / "wave-3-protocol-tenant-national" / "features",
+)
+_WAVE_DIRS_MIN1 = (
     REPO_ROOT / ".testing" / "waves" / "wave-4-legacy-retirement" / "features",
 )
 
@@ -30,11 +33,16 @@ def _scenario_count(feature_text: str) -> int:
 
 
 def test_wave234_each_has_at_least_three_feature_files_with_scenarios() -> None:
-    for wave_dir in _WAVE_DIRS:
+    for wave_dir in _WAVE_DIRS_MIN3:
         features = sorted(wave_dir.glob("*.feature"))
         assert len(features) >= 3, f"{wave_dir.name}: need ≥3 .feature files, got {len(features)}"
         with_scenarios = [f for f in features if _scenario_count(f.read_text(encoding="utf-8")) >= 1]
         assert len(with_scenarios) >= 3, f"{wave_dir.name}: need ≥3 features with Scenario blocks"
+    for wave_dir in _WAVE_DIRS_MIN1:
+        features = sorted(wave_dir.glob("*.feature"))
+        assert len(features) >= 1, f"{wave_dir.name}: need ≥1 .feature file (Wave 4 形态学拆分后), got {len(features)}"
+        with_scenarios = [f for f in features if _scenario_count(f.read_text(encoding="utf-8")) >= 1]
+        assert len(with_scenarios) >= 1, f"{wave_dir.name}: need ≥1 feature with Scenario blocks"
 
 
 def test_f7_linked_pytest_modules_exist_and_importable() -> None:

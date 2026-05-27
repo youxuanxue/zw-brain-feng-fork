@@ -6,6 +6,9 @@
 # Trace: 基线 §10.5 退役判据 #4 "legacy 是否仍承担唯一写入口"
 # Priority: P0
 # Status: Draft
+# Owner: e6
+# Pytest: pending
+# Twin-F: e6.F7
 
 Feature: legacy 写入口关闭
   As a 平台运维员

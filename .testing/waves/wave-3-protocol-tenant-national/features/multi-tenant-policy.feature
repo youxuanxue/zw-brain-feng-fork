@@ -6,6 +6,9 @@
 # Trace: R8, 基线 §3.3 (多级区划), §10.4 多租户深化
 # Priority: P1
 # Status: Draft
+# Owner: e6
+# Pytest: tests/test_wave3_protocol_tenant.py
+# Twin-F: pending
 
 Feature: 多租户 / 多部门 / 多区域策略深化
   As a 平台架构师 + 客户运营

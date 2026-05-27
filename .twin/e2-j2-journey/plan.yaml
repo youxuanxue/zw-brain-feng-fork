@@ -6,6 +6,9 @@ items:
   scope: 仅 3 层默认流程，不含项目级定制；不动 J1 申请流程
   covers_ac:
   - AC1
+  spec_ref:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j2-online-catalog-compile.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j2-department-review.feature
   evidence_plan:
   - 证据预算：tests/test_wave1_j2_pipeline.py 全绿 + 真实目录 audit_event 序列
   - 停止条件：3 层审批可达性测试通过
@@ -21,6 +24,8 @@ items:
   scope: 3 物化各 1 个真实 sd-default 资源 e2e
   covers_ac:
   - AC2
+  spec_ref:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j2-resource-mount.feature
   evidence_plan:
   - 证据预算：3 物化各一条 dump-data_resource 发布 e2e
   - 停止条件：3 物化绑定可见、可发布
@@ -37,6 +42,8 @@ items:
   scope: catalog.duplicate.check + publish 路径自动触发
   covers_ac:
   - AC2
+  spec_ref:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j2-platform-publish.feature
   evidence_plan:
   - 证据预算：故意重复目录 e2e + capability_call 落账
   - 停止条件：提醒可见、可忽略、可继续发布
@@ -55,6 +62,9 @@ items:
   scope: 提供方接收 + 响应 + 评价回写；P5 异议 inbox/detail 子路由
   covers_ac:
   - AC3
+  spec_ref:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-resource.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-content.feature
   evidence_plan:
   - 证据预算：tests/e2e/wave1_j2_provider_p5_smoke.py 含异议页 + reply/review pytest
   - 停止条件：提供方响应能更新异议状态
@@ -73,6 +83,8 @@ items:
   scope: manifest 标 deferred + preflight 段 22 防回潮
   covers_ac:
   - AC4
+  spec_ref:
+  - .testing/waves/wave-3-protocol-tenant-national/features/national-ext-elements.feature
   evidence_plan:
   - 证据预算：manifest deferred + tests/test_capability_boundary.py
   - 停止条件：preflight 段 22 不报红
@@ -87,6 +99,7 @@ items:
   scope: scripts/customer_demo_j2.* 后端链路；浏览器 P5 演示待 F7/F8
   covers_ac:
   - AC5
+  spec_ref: []  # cross-feature / 无单一 .feature 对应
   evidence_plan:
   - 证据预算：customer_demo_j2.sh exit 0 + business-signoff
   - 停止条件：业务方签字
@@ -111,6 +124,8 @@ items:
   covers_ac:
   - AC1
   - AC2
+  spec_ref:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j2-platform-publish.feature
   evidence_plan:
   - 证据预算：/api/snapshot provider 含非零计数 + P5 截图
   - 停止条件：P5 三待办卡片数字来自 live 数据
@@ -133,6 +148,10 @@ items:
   covers_ac:
   - AC1
   - AC3
+  spec_ref:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j2-online-catalog-compile.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j2-resource-mount.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j2-department-review.feature
   evidence_plan:
   - 证据预算：Playwright ROLE_ORGAN_MANAGER 下 3 子页非「功能建设中」截图
   - 停止条件：J2 编制→挂接→审→发布可在 WebUI 点通主路径

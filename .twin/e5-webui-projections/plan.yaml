@@ -6,6 +6,7 @@ items:
   scope: 选型 + 1 个 spike 页面（P1 工作台）跑通；不含其他 7 页面
   covers_ac:
   - AC1
+  spec_ref: []  # cross-feature / 无单一 .feature 对应
   evidence_plan:
   - 证据预算：选型 PR + spike P1 截图 + npm run dev 热重载演示 + 构建产物大小对比
   - 停止条件：选型 sign-off + spike 页面能装载真实 P1 待办数据
@@ -22,6 +23,7 @@ items:
   scope: vite 完整构建管线 + 等价替换现有 bundle；不含 8 页面完整重写
   covers_ac:
   - AC1
+  spec_ref: []  # cross-feature / 无单一 .feature 对应
   evidence_plan:
   - 证据预算：构建产物与现有 bundle 功能等价 e2e + 部署清单更新
   - 停止条件：现有 zw-brain-web 路由全部跑通；用户登录 + 8 页面可达
@@ -39,6 +41,7 @@ items:
   scope: 8 主页面骨架 + 真实数据接入；13 个子路由仍 PagePlaceholder（wizard/inbox/详情页）
   covers_ac:
   - AC2
+  spec_ref: []  # cross-feature / 无单一 .feature 对应
   evidence_plan:
   - 证据预算：8 页面截图（含真实数据）+ check_ui_spec_b + check_ui_term_blacklist 双绿
   - 停止条件：8 主页面可达 + 真实数据可见 + 工程术语黑名单不报红
@@ -58,6 +61,8 @@ items:
     patch
   covers_ac:
   - AC3
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/infra-contract-projection.feature
   evidence_plan:
   - 证据预算：5 投影目录全自动生成 + AUTO-GENERATED banner + check_no_hand_maintained_projection
     不报红
@@ -74,6 +79,10 @@ items:
   scope: CLI 命令树 + headless 完整路径；脚本不得假绿
   covers_ac:
   - AC4
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/j1-resource-discovery.feature
+  - .testing/waves/wave-0-golden-path/features/j1-credential-issue.feature
+  - .testing/waves/wave-0-golden-path/features/j1-api-call-monitoring.feature
   evidence_plan:
   - 证据预算：scripts/headless_j1_demo.sh 输出 + 失败步非零退出
   - 停止条件：CLI 能跑通 J1 检索→申请→审批→凭据→调用
@@ -93,6 +102,9 @@ items:
   scope: MCP server + A2A card；不含 AgentRuntime（归 E4）
   covers_ac:
   - AC4
+  spec_ref:
+  - .testing/waves/wave-3-protocol-tenant-national/features/mcp-hardening.feature
+  - .testing/waves/wave-3-protocol-tenant-national/features/a2a-hardening.feature
   evidence_plan:
   - 证据预算：MCP server Cursor 实测连通 + A2A card 可发现日志
   - 停止条件：外部 IDE/Agent 能调通至少 5 个 J1 高频 capability
@@ -111,6 +123,11 @@ items:
   scope: §5.4.4 减摩组件 UI 框架 + 4 处嵌入位；NL 后端接线归 E1/E3 cap
   covers_ac:
   - AC5
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/j1-resource-discovery.feature
+  - .testing/waves/wave-0-golden-path/features/j1-application-draft.feature
+  - .testing/waves/wave-2-engines-b1-zones/features/b1-1-compliance-audit.feature
+  - .testing/waves/wave-2-engines-b1-zones/features/b1-2-package-registration.feature
   evidence_plan:
   - 证据预算：4 组件截图 + live 解析（非 fixture）+ §5.4.6 六问自检
   - 停止条件：组件不替代主页面 + 后端 cap 可达时走 live
@@ -132,6 +149,7 @@ items:
   scope: 与 E1/E2/E3/E4 UI 协作 PR merged
   covers_ac:
   - AC6
+  spec_ref: []  # cross-feature / 无单一 .feature 对应
   evidence_plan:
   - 证据预算：≥2 个其他 worker 的 UI PR merged
   - 停止条件：解锁验证通过
@@ -150,6 +168,7 @@ items:
   scope: 所有 POST /api/skills/* 写操作与
   covers_ac:
   - AC2
+  spec_ref: []  # cross-feature / 无单一 .feature 对应
   evidence_plan:
   - 证据预算：Playwright — 切 ROLE_ORGAN_MANAGER 后 P3「通过」返回 200 + toast ok
   - 停止条件：浏览器写操作岗位与顶栏一致
@@ -167,6 +186,8 @@ items:
   scope: UI 传 approve_reuse / reject_duplicate / return_for_fix；不含审批流引擎定制
   covers_ac:
   - AC2
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/j1-approval-conditional.feature
   evidence_plan:
   - 证据预算：Playwright 审批通过一步 + API body decision 字段断言
   - 停止条件：不再出现 unsupported review decision
@@ -185,6 +206,8 @@ items:
   scope: statusLabels issued→已签发；路由守卫 fallback 时 toast 说明无权访问
   covers_ac:
   - AC2
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/j1-credential-issue.feature
   evidence_plan:
   - 证据预算：P4 凭据页 issued 显示「已签发」截图 + OPERATER 访问 P5 时出现提示而非静默跳工作台
   - 停止条件：不再出现「有 Key 却显示待处理」
@@ -205,6 +228,7 @@ items:
   scope: '''@playwright/test'' + 基于 2026-05-25 验收脚本固化 P1-P4/B1.1 冒烟；不含全量视觉回归'
   covers_ac:
   - AC6
+  spec_ref: []  # cross-feature / 无单一 .feature 对应
   evidence_plan:
   - 证据预算：npm run e2e 或 pytest 包装 playwright + CI job 绿
   - 停止条件：b11_compliance.spec.ts 从 PLACEHOLDER 变为可执行
@@ -223,6 +247,11 @@ items:
   scope: P3RequestFlow 或 P3RequestDetail 嵌入：发起 catalog 维异议 + 状态跟踪 + evaluate；R12 合规
   covers_ac:
   - AC2
+  spec_ref:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-authz.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-content.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-resource.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-use.feature
   evidence_plan:
   - 证据预算：Playwright 从 P3 发起一条异议并跟踪至 closed + 截图
   - 停止条件：浏览器等价 customer_demo_j1 STEP-7~12（至少 catalog 维）
@@ -239,6 +268,8 @@ items:
   scope: 最小「找不到数据→登记需求→订阅」；复用 E1 supply_demand cap；不含 Wave 2 推荐编辑器
   covers_ac:
   - AC2
+  spec_ref:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-supply-demand-meta-merge.feature
   evidence_plan:
   - 证据预算：Playwright 登记 demand 并可见 phase + 截图
   - 停止条件：P3 用户可发现并完成主路径一步
@@ -255,6 +286,8 @@ items:
   scope: 交付任务详情页实装 + delivery_tasks 分页或全量策略；statusLabels 补 delivery 枚举
   covers_ac:
   - AC2
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/j1-credential-issue.feature
   evidence_plan:
   - 证据预算：点击任务编号进详情非占位；列表条数与 API 策略一致截图
   - 停止条件：不再「点编号进死胡同」；未知 slug 不一律「待处理」
@@ -272,6 +305,7 @@ items:
   scope: P2 catalog-browse、B1.2 package/:id 实装或从导航移除 dead link；/engines-admin 加 Wave2 预览 banner
   covers_ac:
   - AC2
+  spec_ref: []  # cross-feature / 无单一 .feature 对应
   evidence_plan:
   - 证据预算：占位路由清单归零或显式 deferred；B13 非目标用户带预览提示
   - 停止条件：用户主路径无「功能建设中」死胡同
@@ -288,6 +322,8 @@ items:
   scope: 将 b12_intake.spec.ts placeholder 12 条清单转 it()；confirm/prompt mock
   covers_ac:
   - AC6
+  spec_ref:
+  - .testing/waves/wave-2-engines-b1-zones/features/b1-2-package-registration.feature
   evidence_plan:
   - 证据预算：npm run e2e 含 b12 ≥3 用例 + CI 绿
   - 停止条件：写操作二次确认 + 3 tab 切换有运行时断言

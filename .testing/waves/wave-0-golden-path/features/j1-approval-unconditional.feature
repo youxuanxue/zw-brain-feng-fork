@@ -6,6 +6,9 @@
 # Trace: R10 / R11, 基线 §10.1（必含有条件/无条件两种分支）, 旧 xlsx 行 [86..90] 服务审核 (资源驳回/受理/审核) + [83] 我的申请
 # Priority: P0
 # Status: InTest
+# Owner: e1
+# Pytest: tests/test_wave0_j1_approval.py
+# Twin-F: e1.F9
 
 Feature: J1 无条件共享分支 — 平台直接审批
   As a 部门管理员 (ROLE_ORGAN_MANAGER，省/市大数据局)

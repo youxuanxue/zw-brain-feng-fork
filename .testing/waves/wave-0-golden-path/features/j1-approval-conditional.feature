@@ -6,6 +6,9 @@
 # Trace: R10 / R11, 基线 §10.1（有条件共享审批分支）, 旧 xlsx 行 [86..90] 服务审核 + [91] 申请变更复用主审批流, 业务反馈 #4
 # Priority: P0
 # Status: InTest
+# Owner: e1
+# Pytest: tests/test_wave0_j1_approval.py + tests/test_wave0_j1_approval_conditional.py
+# Twin-F: e1.F9
 # Unfreeze-Note: G1.5 (2026-05-23) — ExchangeMapper.data_apply_dept_approve mapper 落地，
 #   sd-default 真数据已有 4 行 approval_step.decision_mode='department'
 #   （3 行有 decision: 2 approved + 1 rejected, 1 行 pending）。

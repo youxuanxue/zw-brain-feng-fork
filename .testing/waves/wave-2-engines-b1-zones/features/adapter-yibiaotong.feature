@@ -6,6 +6,9 @@
 # Trace: 基线 §3.4 C 一表通边界 + research-yibiaotong.md, project_integration_yibiaotong_bridge (memory)
 # Priority: P2
 # Status: Draft
+# Owner: e3
+# Pytest: pending
+# Twin-F: pending
 
 Feature: 一表通可选预填 adapter（基层补差任务出现时）
   As a 部门操作员（基层归口）

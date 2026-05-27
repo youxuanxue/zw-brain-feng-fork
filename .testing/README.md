@@ -11,12 +11,14 @@ fact_source:
   - docs/approved/zw-brain-data-model.md
 ---
 
-# zw-brain 测试用例总入口
+# zw-brain Feature Spec 总入口
 
-> **权威性**：`docs/approved/zw-brain-architecture.md` §10 五个 Wave 决定了测试节奏。
-> 本目录是 zw-brain 各阶段测试用例的**唯一权威设计文档**（不是可运行代码，pytest 实现按 Wave 节奏单独 PR 接力）。
+> **权威性**：`docs/approved/zw-brain-architecture.md` §10 五个 Wave 决定了 spec 节奏。
+> 本目录是 zw-brain 各阶段 **Feature Spec 规约**的**唯一权威设计文档**（命名为 `.testing/` 是历史遗留 — 实质是 **business spec 库**，不是可运行测试代码）。
 > **形态**：Gherkin/BDD（Feature / Background / Scenario / Given-When-Then）。
 > **维度**：Wave 主轴 + cross-cutting 横切附录。
+>
+> **在飞轮中的位置**：本目录是飞轮齿轮组的 **Spec 层**（What + R13 签字）。Plan 层在 `.twin/*`，Verification 层在 `tests/*` + `zw-brain-web/tests/e2e/*` + preflight。三者通过三角字段（`# Owner` / `# Pytest` / `# Twin-F` + `spec_ref`）机械连接，由 preflight 段 37 守住。完整飞轮设计：[`docs/approved/zw-brain-flywheel.md`](../docs/approved/zw-brain-flywheel.md)。
 
 ## 目录结构
 
@@ -50,14 +52,14 @@ fact_source:
 | **Wave 1** | J1 闭环深化 + J2 最小闭环 + 首个外部 Agent | 12 | J1 异议 5 维度 / 供需对接 / J2 4 步 | J2 部门可独立完成"编制 → 挂接 → 审核 → 发布"；J1 异议任一维度可独立闭环 |
 | **Wave 2** | 三引擎 + B1 合规 + 共享专区 + 一表通 | 10 | 三引擎 + B1.1/B1.2 + P7 | 项目级流程 / 表单 / 推荐通过配置完成，不改代码；B1 合规底线最小可用 |
 | **Wave 3** | MCP/A2A 硬化 + 多租户 + 国家通道 | 7 | MCP/A2A + 国家直达 + 国家扩展要素 | 5 消费面对同一 Capability 的投影一致；国家通道独立子旅程可用 |
-| **Wave 4** | legacy 退役判据 | 5 | J1/J2/B1 + 长尾 + 写入口 | legacy 已无唯一写入口；客户主旅程稳定运行 90 天 |
+| **Wave 4** | legacy 退役判据 | 1 (+ docs/customer-readiness/) | 写入口（机械测）+ 4 类 SLI（看板）| legacy 已无唯一写入口；客户主旅程稳定运行 90 天（SLI 由 `docs/customer-readiness/wave4-cutoff-criteria.md` 承接，飞轮反模式 #8 拆分）|
 | **cross-cutting** | 横切回归 + 角色/消费面/状态机/负向矩阵 | 6 文档 | All | 每 Wave PR 必扫；旧 xlsx 131 数据行 → 128 distinct 用例全量映射 |
 
 ## Gherkin 写法规范
 
 每个 `.feature` 文件 **必须** 满足：
 
-### 1. 文件头注释（Trace 元数据）
+### 1. 文件头注释（Trace 元数据 + 三角字段）
 
 ```gherkin
 # Wave: 0 | 1 | 2 | 3 | 4
@@ -68,7 +70,20 @@ fact_source:
 # Trace: R[1-15] / D-XX / 业务反馈 #N / 旧 xlsx 行 [N..M]
 # Priority: P0 (黄金链路必跑) | P1 (Wave 完成判据) | P2 (回归/边界)
 # Status: Draft | Ready | InTest | Done
+# Owner: e1 | e2 | e3 | e4 | e5 | e6                       ← 三角字段：哪个 worker owns
+# Pytest: tests/test_waveN_xxx.py 或 pending               ← 三角字段：哪个 pytest 实现
+# Twin-F: eN.FX 或 cross 或 pending                         ← 三角字段：哪个 F-item 承接
 ```
+
+**三角字段说明**：
+
+- `Owner` 指向 `.twin/eN-*/` 中存在的 worker；与 `.twin/eN/plan.yaml` `spec_ref` 双向绑定
+- `Pytest` 指向 `tests/` 或 `zw-brain-web/tests/e2e/` 中实际存在的文件；写 `pending` 表示等实施 PR 接力
+- `Twin-F` 3 种合法值：
+  - `eN.FX` — 明确的 F-item 承接
+  - `cross` — 横切类（cross-cutting / 跨多 F-item / 系统级护栏），不归属单一 F
+  - `pending` — 等 PR 接力 OR 该 feature 所在 Wave 整体 deferred
+- preflight 段 37（PR2 落地）会三向校验上述字段；任意失配 commit 拦下
 
 `Trace` 行**必须**引用至少一个权威源：
 
@@ -172,6 +187,24 @@ Background:
 ## 入口清单
 
 - 本目录架构问题 → 基线 `docs/approved/zw-brain-architecture.md`
+- **飞轮设计 / 三角连接** → `docs/approved/zw-brain-flywheel.md`
 - 测试质量门禁脚本 → `user-stories/verify_quality.py`（dev-rules 提供，不动）
-- pytest 实现入口 → `tests/`（保留 4 个机械 + Wave 实施 PR 接力）
+- pytest 实现入口 → `tests/`（19 个 wave PR 已 land + Wave 2/3 接力）
+- Playwright e2e → `zw-brain-web/tests/e2e/`（12 spec / 62 passed）
+- Worker plan → `.twin/eN/plan.yaml`（spec_ref 反向引用本目录）
+- 不复刻清单（待签字）→ `docs/legacy-not-reproduce-signoff.md`
+- Wave 4 SLI 看板 → `docs/customer-readiness/wave4-cutoff-criteria.md`
 - 一次性档案 → `cleanup-plan.md`（merge 后 30 天可删）
+
+## Owner 责任映射
+
+| Worker | 负责 .feature 范围 |
+|---|---|
+| `e1` | wave-0/j1-* (除审批二段) + wave-1/j1-objection-* + wave-1/j1-supply-demand-* + wave-1/j1-credential-revoke |
+| `e2` | wave-1/j2-* |
+| `e3` | wave-2/engine-* + wave-2/p7-* + wave-2/adapter-* |
+| `e4` | wave-2/b1-* + wave-1/ext-agent-pilot + wave-0/infra-agentruntime-embedded + wave-0/infra-audit-bus + wave-3/agentruntime-* |
+| `e5` | wave-0/infra-contract-projection + wave-3/mcp-* + wave-3/a2a-* |
+| `e6` | wave-0/infra-inference-gateway + wave-0/infra-iam-session + wave-3/multi-tenant + wave-3/national-* + wave-3/observability-* + wave-4/* + cross-cutting |
+
+详见飞轮文档附录 B.4。

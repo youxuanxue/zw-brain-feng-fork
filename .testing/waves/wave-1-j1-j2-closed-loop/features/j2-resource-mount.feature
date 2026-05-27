@@ -6,6 +6,9 @@
 # Trace: 基线 §3.3 3 物化形式 (data_resource_table / file / api), §10.2 J2 资源挂接, 旧 xlsx 行 [57..61] 资源注册 (库表/链接/文件/文件夹/库表-视图) + [66] 目录物化
 # Priority: P1
 # Status: Draft
+# Owner: e2
+# Pytest: tests/test_wave1_j2_pipeline.py
+# Twin-F: e2.F2
 
 Feature: J2 资源挂接（3 物化形式：table / file / api）
   As a 部门操作员 ROLE_ORGAN_OPERATER

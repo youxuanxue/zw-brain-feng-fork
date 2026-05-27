@@ -6,6 +6,9 @@
 # Trace: R15, 基线 §8.3 Registry 最小字段, §8.4 注册流水线 UI 化, §10.3
 # Priority: P1
 # Status: InTest
+# Owner: e4
+# Pytest: pending
+# Twin-F: e4.F4
 # Unfreeze-Note: PR #91 (E4 B1.2 后端) + PR #97 (B1.2 UI panel)：能力包审核注册流水线
 #   (manifest → lint → audit → 注册) 后端 capability + UI panel 落地。
 #   pytest:

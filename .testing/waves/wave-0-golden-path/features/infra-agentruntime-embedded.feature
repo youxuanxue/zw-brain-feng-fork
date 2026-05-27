@@ -6,6 +6,9 @@
 # Trace: D2 / R15 / 基线 §八 AgentRuntime 声明式协议 / §10.1
 # Priority: P0
 # Status: Deferred
+# Owner: e4
+# Pytest: pending
+# Twin-F: e4.F6
 # Defer-Reason: AgentRuntime Embedded SDK 完全未实现（agents/ 目录不存在、AGENT.yaml 无、validate/doctor CLI 无）。
 #   J1 找数→用数黄金链路不依赖内置 AgentRuntime；Wave1 ext-agent-pilot.feature 已引 AGENT.yaml，
 #   与 a2a-hardening 天然同期立项 AgentRuntime。提前 Wave 0 内建违反 R7「不为假设的未来需求设计」。

@@ -6,6 +6,9 @@
 # Trace: R7 / R15, 基线 §8.4 注册流水线 7 步, §10.2 首个外部 Agent 接入端到端验证
 # Priority: P1
 # Status: Draft
+# Owner: e4
+# Pytest: pending
+# Twin-F: e4.F6
 
 Feature: 首个外部 Agent 接入端到端（§8.4 流水线 7 步）
   As a 平台运维员 ROLE_SYSTEM + 业务方

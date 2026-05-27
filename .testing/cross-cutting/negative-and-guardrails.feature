@@ -6,6 +6,9 @@
 # Trace: 基线 §5.4.5 一票否决项 + §5.5 R12 + §4.4 AI 不能承担清单
 # Priority: P0
 # Status: Draft
+# Owner: e6
+# Pytest: preflight 段 10/24/25 + tests/test_capability_boundary.py
+# Twin-F: cross
 
 Feature: 系统级护栏 + AI 一票否决项（跨 wave 回归）
   As a 平台架构师

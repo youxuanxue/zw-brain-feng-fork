@@ -6,6 +6,9 @@
 # Trace: 基线 §3.3 异议 5 维度 (data_objection_authz 54 表), §9.2 ObjectionAggregate, §10.2
 # Priority: P1
 # Status: Draft
+# Owner: e1
+# Pytest: tests/test_wave1_objection_5dim_state.py + tests/test_wave1_objection_lifecycle.py
+# Twin-F: e1.F2
 
 Feature: J1 授权异议（authz 维度独立状态机）
   As a 部门操作员（申请方）
