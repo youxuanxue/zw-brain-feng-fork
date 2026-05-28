@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
@@ -156,6 +156,27 @@ function applyPreset(preset: EnginePreset) {
   titleInput.value[k] = preset.schemaTitleHint;
 }
 
+// 进页面 / 切 tab 时若三字段全空则自动套用第一个示例 — 避免 placeholder
+// 灰字被误认为已填值；用户手动改过的字段不会被覆盖（仅在 empty 时填）。
+function autoFillIfEmpty() {
+  const k = activeKey.value;
+  const engine = activeEngine();
+  const preset = engine.examplePresets[0];
+  if (!preset) return;
+  const empty =
+    !schemaCodeInput.value[k].trim() &&
+    !titleInput.value[k].trim() &&
+    !intentInput.value[k].trim();
+  if (empty) {
+    intentInput.value[k] = preset.intent;
+    schemaCodeInput.value[k] = preset.schemaCodeHint;
+    titleInput.value[k] = preset.schemaTitleHint;
+  }
+}
+
+onMounted(() => { autoFillIfEmpty(); });
+watch(activeKey, () => { autoFillIfEmpty(); });
+
 const NL_PRESETS_ENGINES = ENGINES.flatMap((e) => e.examplePresets.map((p) => p.title));
 
 function consumeNLAction(action: StructuredAction) {
@@ -281,15 +302,29 @@ async function onCommitLive() {
   const engine = activeEngine();
   const k = activeKey.value;
   const sid = schemaIdInput.value[k].trim();
-  if (!sid) {
+  // 推荐规则按设计无独立草稿步骤：UI 没 rule_id 时把 rule_code 一并传后端，
+  // 后端按 (tenant, rule_code) 复用最新 payload 自动创建 v=max+1 并 commit。
+  const isRecommendation = k === 'recommendation';
+  if (!sid && !isRecommendation) {
     pushToast({ kind: 'warn', title: '缺少标识', detail: '请先生成或填入待入库的编号。' });
     return;
   }
   const payload: Record<string, unknown> = {
     tenant_id: tenantId.value,
-    [engine.schemaIdField]: sid,
     confirmed: true,
   };
+  if (sid) {
+    payload[engine.schemaIdField] = sid;
+  } else if (isRecommendation) {
+    const code = schemaCodeInput.value[k].trim();
+    if (!code) {
+      pushToast({ kind: 'warn', title: '缺少标识', detail: '请填入规则编码（或点示例预填）。' });
+      return;
+    }
+    payload.rule_code = code;
+    payload.title = titleInput.value[k].trim();
+    payload.draft_source_text = intentInput.value[k].trim();
+  }
   const res = await invokeActionStub({
     skillId: engine.commitSkill,
     payload,
@@ -298,7 +333,12 @@ async function onCommitLive() {
     pendingBackend: 'E3 三引擎',
   });
   if (res.ok && res.data && typeof res.data === 'object') {
-    lastResultPayload.value[k] = ((res.data as Record<string, unknown>).result ?? {}) as Record<string, unknown>;
+    const result = ((res.data as Record<string, unknown>).result ?? {}) as Record<string, unknown>;
+    lastResultPayload.value[k] = result;
+    const newId = String(result.rule_id ?? result.schema_id ?? '');
+    if (newId && !sid) {
+      schemaIdInput.value[k] = newId;
+    }
   }
 }
 
@@ -367,7 +407,7 @@ function lastResultText(): string {
               v-model="schemaCodeInput[activeKey]"
               type="text"
               class="form-input"
-              :placeholder="activeEngine().examplePresets[0]?.schemaCodeHint"
+              placeholder="输入唯一编码，或点上方示例预填"
             />
           </label>
           <label class="form-row">
@@ -376,7 +416,7 @@ function lastResultText(): string {
               v-model="titleInput[activeKey]"
               type="text"
               class="form-input"
-              :placeholder="activeEngine().examplePresets[0]?.schemaTitleHint"
+              placeholder="输入名称，或点上方示例预填"
             />
           </label>
           <label class="form-row form-row-tall">
@@ -385,7 +425,7 @@ function lastResultText(): string {
               v-model="intentInput[activeKey]"
               class="form-input form-textarea"
               rows="3"
-              :placeholder="activeEngine().examplePresets[0]?.intent"
+              placeholder="一句话描述意向，或点上方示例预填"
             />
           </label>
           <label class="form-row">
@@ -399,10 +439,28 @@ function lastResultText(): string {
           </label>
         </div>
 
+        <p v-if="!activeEngine().draftSkill" class="engine-direct-edit-hint">
+          本引擎按设计仅支持「管理员直接编辑后入库」 — 三步流程的「草稿 / 预览 / 回退」对本引擎不适用，请直接点「入库生效」。
+        </p>
         <div class="action-row">
-          <button type="button" class="gov-btn gov-btn-primary" @click="onGenerateDraft">生成草稿</button>
-          <button type="button" class="gov-btn" @click="onPromotePreview">提交预览</button>
-          <button type="button" class="gov-btn" @click="onRevertToDraft">回退到草稿</button>
+          <button
+            v-if="activeEngine().draftSkill"
+            type="button"
+            class="gov-btn gov-btn-primary"
+            @click="onGenerateDraft"
+          >生成草稿</button>
+          <button
+            v-if="activeEngine().promoteSkill"
+            type="button"
+            class="gov-btn"
+            @click="onPromotePreview"
+          >提交预览</button>
+          <button
+            v-if="activeEngine().revertSkill"
+            type="button"
+            class="gov-btn"
+            @click="onRevertToDraft"
+          >回退到草稿</button>
           <button type="button" class="gov-btn gov-btn-strong" @click="onCommitLive">入库生效</button>
         </div>
 
@@ -421,6 +479,11 @@ function lastResultText(): string {
 
 <style scoped>
 .engine-hint { margin: 0 0 14px; font-size: 14px; line-height: 1.6; color: var(--b-muted, #5c6370); }
+.engine-direct-edit-hint {
+  margin: 8px 0 12px; padding: 8px 12px; font-size: 13px; line-height: 1.5;
+  color: var(--b-text, #1f2937);
+  background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px;
+}
 .tab-row { display: flex; gap: 8px; margin: 0 0 16px; padding-bottom: 12px; border-bottom: 1px solid var(--b-border, #d4e2f4); }
 .tab-btn {
   padding: 8px 16px; border: none; background: transparent; cursor: pointer; font-size: 14px;

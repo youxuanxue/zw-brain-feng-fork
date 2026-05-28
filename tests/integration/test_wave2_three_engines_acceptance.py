@@ -50,6 +50,41 @@ def _shadow_db() -> None:
     yield
 
 
+_PRESERVE_DEFAULTS = (
+    "| 业务方 (e3 F8 三引擎) | _待填",  # § 0 default
+    "| 鞍山 4 级审批流配置示例 |  |  |  |",  # § 3 row 1 default
+    "| 四川 7 字段申请表配置示例 |  |  |  |",
+    "| 荆州 5 条推荐规则配置示例 |  |  |  |",
+    "| 「1 周内不改代码」承诺 |  |  |  |",
+)
+
+
+def _preserve_signed_rows(new_lines: list[str], existing_lines: list[str]) -> list[str]:
+    """Preserve § 0 / § 3 表中已被业务方手填的行，避免 acceptance test 重跑覆盖。
+
+    每个 _PRESERVE_DEFAULTS 是一行 default sentinel。对应位置在 new_lines 与
+    existing_lines 内通过 "| <prefix> |" 锚匹配；当 existing 行不以 default
+    sentinel 开头时视为"已签"，替换 new 行同位。其余 (§ 1/§ 2/§ 4/§ 5) 仍走
+    auto-gen 覆盖。R-001 fix (2026-05-28)，见 docs/preflight-debt.md。
+    """
+    anchor_to_new_idx: dict[str, int] = {}
+    for default in _PRESERVE_DEFAULTS:
+        prefix = default.split("|")[1].strip()  # e.g. "业务方 (e3 F8 三引擎)"
+        anchor = f"| {prefix} |"
+        for idx, line in enumerate(new_lines):
+            if line.startswith(anchor):
+                anchor_to_new_idx[anchor] = idx
+                break
+    out = list(new_lines)
+    for line in existing_lines:
+        for anchor, idx in anchor_to_new_idx.items():
+            if line.startswith(anchor) and not any(
+                line.startswith(d) for d in _PRESERVE_DEFAULTS
+            ):
+                out[idx] = line
+    return out
+
+
 def _new_brain():
     import zw_brain.domain.approval_flow_nl_draft as af_nl
     import zw_brain.domain.form_schema_nl_draft as fs_nl
@@ -513,6 +548,13 @@ def test_three_engines_consolidated_acceptance() -> None:
     # 单一权威；JSON artifact（consolidated/anshan_approval/sichuan_form/jinzhou_recommendation）
     # 仍走 .data/（不进 git，本地复跑后生成），二者职责分明。
     sign_off_path = SIGN_OFF_DIR / "SIGN_OFF.md"
+    # R-001 fix (2026-05-28): preserve 业务方手填的 § 0 抬头 + § 3 sign-off 表行，
+    # 避免每次重跑 acceptance test 把签字数据擦回 default "_待填_" / 空。检测条件：
+    # 已存在 SIGN_OFF.md 且 § 0 / § 3 默认 sentinel 行不再出现 → 取现有内容覆盖
+    # 同位 md_lines。判定见 docs/preflight-debt.md。
+    if sign_off_path.exists():
+        existing_lines = sign_off_path.read_text(encoding="utf-8").splitlines()
+        md_lines = _preserve_signed_rows(md_lines, existing_lines)
     sign_off_path.write_text("\n".join(md_lines), encoding="utf-8")
     assert sign_off_path.exists()
     assert summary["audit_event_count"] >= 6, f"审计事件数 {summary['audit_event_count']} 过低"

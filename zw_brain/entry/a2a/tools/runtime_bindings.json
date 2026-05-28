@@ -8051,7 +8051,6 @@
       "type": "object",
       "required": [
         "tenant_id",
-        "rule_id",
         "confirmed"
       ],
       "properties": {
@@ -8059,6 +8058,15 @@
           "type": "string"
         },
         "rule_id": {
+          "type": "string"
+        },
+        "rule_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "draft_source_text": {
           "type": "string"
         },
         "confirmed": {

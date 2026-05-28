@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from zw_brain.domain.models import (
@@ -98,12 +98,18 @@ class RecommendationRuleRepo:
         created_by: str,
     ) -> RecommendationRuleRecord:
         _validate_payload(payload)
+        # 自增 version：同 (tenant, rule_code) 已有记录时新建 v=max+1 草稿。
+        existing_max = self._session.execute(
+            select(func.max(RecommendationRuleRecord.version))
+            .where(RecommendationRuleRecord.tenant_id == tenant_id)
+            .where(RecommendationRuleRecord.rule_code == rule_code)
+        ).scalar() or 0
         record = RecommendationRuleRecord(
             tenant_id=tenant_id,
             rule_code=rule_code,
             title=title,
             status="draft",
-            version=1,
+            version=existing_max + 1,
             source_kind=source_kind,
             draft_source_text=draft_source_text,
             payload_json=payload,
@@ -145,9 +151,15 @@ class RecommendationRuleRepo:
                 f"commit_to_live requires status=preview, got {record.status!r}"
             )
         _validate_payload(record.payload_json)
+        # debt(A方案 2026-05-28): 同 approval_flow / form — max+1 避免历史鬼数据撞 UNIQUE。
+        existing_max = self._session.execute(
+            select(func.max(RecommendationRuleRecord.version))
+            .where(RecommendationRuleRecord.tenant_id == record.tenant_id)
+            .where(RecommendationRuleRecord.rule_code == record.rule_code)
+        ).scalar() or 0
         now = _now()
         record.status = "live"
-        record.version = (record.version or 1) + 1
+        record.version = max(existing_max + 1, (record.version or 1) + 1)
         record.committed_at = now
         record.updated_at = now
         self._session.commit()
@@ -165,6 +177,22 @@ class RecommendationRuleRepo:
             .order_by(RecommendationRuleRecord.created_at)
         )
         return list(self._session.execute(stmt).scalars())
+
+    def latest_by_code(self, tenant_id: str, rule_code: str) -> RecommendationRuleRecord | None:
+        """按 (tenant, rule_code) 返回 version 最大的一条；不存在返 None。
+
+        用于 commit handler 无 rule_id 时按 code "复入"（复用 payload 自增 v 重新发布）。
+        """
+        stmt = (
+            select(RecommendationRuleRecord)
+            .where(
+                RecommendationRuleRecord.tenant_id == tenant_id,
+                RecommendationRuleRecord.rule_code == rule_code,
+            )
+            .order_by(RecommendationRuleRecord.version.desc())
+            .limit(1)
+        )
+        return self._session.execute(stmt).scalars().first()
 
     def list_live(self, tenant_id: str) -> list[RecommendationRuleRecord]:
         stmt = (

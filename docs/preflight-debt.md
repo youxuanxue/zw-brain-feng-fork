@@ -18,6 +18,33 @@ trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / �
 目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
 trigger 关闭即可删除字段。
 
+## 2026-05-28 — 三引擎 commit_to_live A 方案 hack（版本号膨胀）
+
+- **Where**: `zw_brain/domain/{approval_flow_schema,form_schema,recommendation_rule}.py`
+  的 `commit_to_live(...)` 三处。原写 `record.version = (record.version or 1) + 1`，
+  E3 F8 业务方浏览器走查时撞 `UNIQUE (tenant_id, code, version)` — 因为 commit 时
+  `+1` 后的 version 已被历史鬼数据占用。当场 hack 改为
+  `record.version = max(existing_max + 1, (record.version or 1) + 1)` 让 demo 跑通。
+- **Implication**: 业务方判定保留"每次点入库自动 version+1"语义（A 方案）。代价是
+  **version 号膨胀且无业务含义**——同一 schema_code 在 sd-default 内重复 demo 几次
+  后 version 可能达 8 / 10 / 12+。版本号本应反映"配置真实演化次数"，目前与 demo
+  操作次数耦合，对客户"为什么我的鞍山审批流是 v=11"无法解释。
+- **Why deferred**: 业务方在 E3 F8 sign-off 时明确选择 A：先 hack 让 demo 跑通，
+  **真实版本语义后续业务方决策**。备选 B/C：B = 一个 schema_code 同 tenant 只一份
+  live + 编辑产生新版（v 累计有意义）；C = schema_code 全局唯一不可重复
+  （v=1 不可重入，要改名）。三选一需要业务方/产品 30 分钟单独 review。
+- **Trigger to re-evaluate**（任一触发即升级 P0）：
+  - (a) 首个客户接入前——客户问"为什么版本号跳跃 / 是否每个版本可审计回放"
+        必须给出明确语义；
+  - (b) `select count(*) from approval_flow_schema where tenant_id='sd-default'
+        and schema_code='anshan_4level_v1'` ≥ 20（demo 摸索多了膨胀失控）；
+  - (c) Wave 2.x R14 三引擎 1 周客户落地实测——客户实际改配置 ≥ 3 次时需要
+        "看历史版本" / "回退到 v2" 真实业务诉求，B 方案就要落地。
+- **No mechanical guardrail (now)**: 不加 version 上限门禁——上限是版本演化的
+  业务问题，不是工程红线；门禁会逼出"刷分式重置"反模式。等 A/B/C 决策后再加
+  对应守卫（B 决策：preflight 段扫"同 code 多份 live"；C 决策：扫"重复 commit
+  同 schema_code"）。
+
 ## 2026-05-27 — J2-4 资源挂接 OPERATER 提交侧 wizard 立项延后
 
 - **Where**: `.testing/waves/wave-1-j1-j2-closed-loop/features/j2-resource-mount.feature`

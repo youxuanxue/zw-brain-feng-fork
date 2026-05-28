@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from zw_brain.domain.models import (
@@ -167,12 +167,19 @@ class ApprovalFlowSchemaRepo:
         created_by: str,
     ) -> ApprovalFlowSchemaRecord:
         _validate_payload(payload)
+        # 自增 version：同 (tenant, schema_code) 已有记录时新建 v=max+1 草稿，
+        # 不与 UNIQUE 约束 (tenant_id, schema_code, version) 冲突。
+        existing_max = self._session.execute(
+            select(func.max(ApprovalFlowSchemaRecord.version))
+            .where(ApprovalFlowSchemaRecord.tenant_id == tenant_id)
+            .where(ApprovalFlowSchemaRecord.schema_code == schema_code)
+        ).scalar() or 0
         record = ApprovalFlowSchemaRecord(
             tenant_id=tenant_id,
             schema_code=schema_code,
             title=title,
             status="draft",
-            version=1,
+            version=existing_max + 1,
             source_kind=source_kind,
             draft_source_text=draft_source_text,
             payload_json=payload,
@@ -215,9 +222,17 @@ class ApprovalFlowSchemaRepo:
             )
         _validate_payload(record.payload_json)
         _assert_reachable(record.payload_json)
+        # debt(A方案 2026-05-28): 取同 (tenant, schema_code) 当前最大 version + 1，
+        # 避免 commit 时 +1 撞上历史鬼数据。真正的版本语义（A/B/C 三选一）由后续
+        # 业务方决策决定；当前为让 demo 反复跑通做的 hack。
+        existing_max = self._session.execute(
+            select(func.max(ApprovalFlowSchemaRecord.version))
+            .where(ApprovalFlowSchemaRecord.tenant_id == record.tenant_id)
+            .where(ApprovalFlowSchemaRecord.schema_code == record.schema_code)
+        ).scalar() or 0
         now = _now()
         record.status = "live"
-        record.version = (record.version or 1) + 1
+        record.version = max(existing_max + 1, (record.version or 1) + 1)
         record.committed_at = now
         record.updated_at = now
         self._session.commit()

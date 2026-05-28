@@ -5065,18 +5065,33 @@
           "type": "boolean"
         },
         {
+          "name": "draft_source_text",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "role",
           "required": false,
           "type": "string"
         },
         {
+          "name": "rule_code",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "rule_id",
-          "required": true,
+          "required": false,
           "type": "string"
         },
         {
           "name": "tenant_id",
           "required": true,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
           "type": "string"
         }
       ]

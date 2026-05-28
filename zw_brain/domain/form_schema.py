@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from zw_brain.domain.models import (
@@ -172,12 +172,18 @@ class FormSchemaRepo:
         created_by: str,
     ) -> FormSchemaRecord:
         _validate_payload(payload)
+        # 自增 version：同 (tenant, form_code) 已有记录时新建 v=max+1 草稿。
+        existing_max = self._session.execute(
+            select(func.max(FormSchemaRecord.version))
+            .where(FormSchemaRecord.tenant_id == tenant_id)
+            .where(FormSchemaRecord.form_code == form_code)
+        ).scalar() or 0
         record = FormSchemaRecord(
             tenant_id=tenant_id,
             form_code=form_code,
             title=title,
             status="draft",
-            version=1,
+            version=existing_max + 1,
             source_kind=source_kind,
             draft_source_text=draft_source_text,
             payload_json=payload,
@@ -219,9 +225,15 @@ class FormSchemaRepo:
                 f"commit_to_live requires status=preview, got {record.status!r}"
             )
         _validate_payload(record.payload_json)
+        # debt(A方案 2026-05-28): 同 approval_flow_schema — 取 max+1 避免历史鬼数据撞 UNIQUE。
+        existing_max = self._session.execute(
+            select(func.max(FormSchemaRecord.version))
+            .where(FormSchemaRecord.tenant_id == record.tenant_id)
+            .where(FormSchemaRecord.form_code == record.form_code)
+        ).scalar() or 0
         now = _now()
         record.status = "live"
-        record.version = (record.version or 1) + 1
+        record.version = max(existing_max + 1, (record.version or 1) + 1)
         record.committed_at = now
         record.updated_at = now
         self._session.commit()
