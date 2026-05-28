@@ -62,9 +62,17 @@ HANDLER_WHITELIST: dict[str, str] = {
     # Action D lifts these helpers out of BrainService into domain services.
     "brain._exchange_metric_summary": "BrainService static helper; Action D pulls into shared",
     "brain._mutate": "legacy.bsp/infra path with multi-line literal; Action D",
-    "brain._safe_json": "thin wrapper over shared.sanitization.safe_json; trivial inline candidate, Action D",
     "brain._build_m0_work_queue_cards": "BrainService @staticmethod aggregator; Action D pulls into shared",
     "brain.grant_delivery_access": "PR#86 delegate shim — Action D retires shims",
+
+    # ── Pre-Action-E historical (retired by Action E commit 4) ─────────────
+    # ``brain._safe_json``: retired by Action E (handlers import safe_json from
+    # zw_brain.shared.sanitization directly; brain.py wrapper removed).
+    # ``brain._request_by_id`` / ``brain._delivery_by_id`` /
+    # ``brain._delivery_by_request_id`` / ``brain._find_api_resource``: retired
+    # by Action E (handlers + tests call deps.services.X.Y / deps.view.X.find_by_id).
+    # ``brain._package_by_id``: retired by Action E (view.packages.find_by_id
+    # inlines the snapshot scan; tests updated).
 
     # ── Pre-Action-F historical (retired by Action F) ───────────────────────
     # ``brain._ui_state``: retired by Action F (segment 46 forbids handler access;

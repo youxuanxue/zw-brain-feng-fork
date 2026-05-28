@@ -44,10 +44,31 @@ The chain has two entry shapes:
 - ``pipeline.write(ctx, payload, fn)`` — full chain (mutation + persist + anchor)
 - ``pipeline.read(ctx, payload, fn)`` — chain skipping Persist + Anchor (audit-only)
 
-Each middleware delegates the actual operation to BrainService for now
-(``brain_legacy._actor_for_role`` / ``_emit_audit`` / etc.); Action D
-will lift those operations into proper domain services. The middleware
-boundary is what stays stable across that work — handlers never see it.
+Action E middleware dependency model
+------------------------------------
+Before Action E each middleware held a ``self._brain`` reference and delegated
+the actual operation through BrainService methods. Action E lifts the
+cross-cutting bodies into ``zw_brain.command.pipeline_ops`` and re-types each
+middleware around the minimum surface it actually needs:
+
+- ``PolicyMiddleware``: keeps ``brain`` (calls ``_enforce_manifest_policy`` —
+  domain-bound; lives on BrainService until policy.enforce_manifest_policy gains
+  the AccessDeniedError translation).
+- ``IdentityMiddleware``: keeps ``brain`` (calls ``_actor_for_role`` — depends
+  on ``policy.actor_for_role`` + ``auth_context``).
+- ``AuditEmitMiddleware``: drops brain; takes ``audit_bus`` + ``manifest_getter``
+  + ``decision_reason_fn`` + ``target_ref_fn``; routes through ``pipeline_ops.emit_audit``.
+- ``CapabilityCallMiddleware``: drops brain; takes ``state_store`` + ``target_ref_fn``;
+  routes through ``pipeline_ops.record_capability_call``.
+- ``PersistMiddleware``: keeps ``brain`` (``_sync_state_views`` + ``_persist`` —
+  snapshot-model consolidation debt — docs/preflight-debt.md 2026-05-28;
+  demo_state_sync coupling).
+- ``AnchorMiddleware``: keeps ``brain`` (``_sync_database_aggregates`` reads
+  ``self._snapshot``) PLUS takes ``state_store`` + ``queue`` for ``pipeline_ops.enqueue_anchor``.
+
+``build_default_pipeline(brain)`` materializes the explicit deps from the
+brain instance once at HandlerDeps construction — this remains the single
+brain-touching factory.
 """
 from __future__ import annotations
 
@@ -56,8 +77,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
+from zw_brain.command import pipeline_ops
+
 if TYPE_CHECKING:
     from zw_brain.command.deps import SkillContext
+    from zw_brain.shared.state_store import StateStore
 
 
 # Innermost function the handler provides. (audit_id, actor) → result dict.
@@ -108,9 +132,7 @@ class Middleware(Protocol):
 
 
 # ───────────────────────────────────────────────────────────────────────────
-# Concrete middlewares (each delegates the heavy lifting to BrainService for
-# now; Action D will lift the operations into domain services / shared infra
-# without changing the middleware boundary).
+# Concrete middlewares — Action E re-typed dependency surface.
 # ───────────────────────────────────────────────────────────────────────────
 
 
@@ -121,6 +143,12 @@ class PolicyMiddleware:
     block at the top of ``BrainService._mutate``. Read-only ``pipeline.read``
     path already had policy enforced by ``invoke_skill`` before dispatch, so
     this middleware short-circuits on ``not pctx.is_write``.
+
+    Holds ``brain`` because ``_enforce_manifest_policy`` translates the domain
+    ``DomainAccessDeniedError`` into the BrainService-exported
+    ``AccessDeniedError`` (kept stable for API consumers); lifting the
+    translation into policy is part of the snapshot-model consolidation debt
+    (docs/preflight-debt.md 2026-05-28).
     """
     def __init__(self, brain: Any) -> None:
         self._brain = brain
@@ -133,7 +161,7 @@ class PolicyMiddleware:
                 pctx.payload | {"confirmed": pctx.skill.confirmed},
             )
             if manifest.get("human_confirmation_required") and not pctx.skill.confirmed:
-                from zw_brain.command.brain import ConfirmationRequiredError  # noqa: PLC0415
+                from zw_brain.domain.errors import ConfirmationRequiredError  # noqa: PLC0415
                 raise ConfirmationRequiredError(pctx.skill.skill_id)
         return next_(pctx)
 
@@ -147,6 +175,11 @@ class IdentityMiddleware:
         actor = self._actor_for_role(role)
         audit_id = ids.new_audit_id()
         started_at = datetime.now()
+
+    Holds ``brain`` because ``_actor_for_role`` resolves through
+    ``policy.actor_for_role`` *plus* applies the auth_context dev-IAM-bypass
+    suffix; pulling the suffix logic out is part of the snapshot-model
+    consolidation debt (docs/preflight-debt.md 2026-05-28).
     """
     def __init__(self, brain: Any) -> None:
         self._brain = brain
@@ -164,31 +197,44 @@ class AuditEmitMiddleware:
 
     Wraps the handler call in try/except — replaces the body of both
     ``_mutate`` and ``_invoke_traced_read`` between the identity step and
-    the persist step. ``BrainService._emit_audit`` still owns the payload
-    enrichment logic (10 branches: actor_snapshot / dev_iam_bypass / 5
-    enrichment fields); this middleware only sequences the phase calls.
+    the persist step. The 10-branch payload enrichment lives in
+    ``pipeline_ops.emit_audit``; this middleware only sequences the phase
+    calls. Action E dropped the ``brain`` reference: ``audit_bus`` +
+    ``manifest_getter`` + the two resolver callables are sufficient.
     """
-    def __init__(self, brain: Any) -> None:
-        self._brain = brain
+    def __init__(
+        self,
+        audit_bus: Any,
+        manifest_getter: pipeline_ops.ManifestGetter,
+        decision_reason_fn: pipeline_ops.DecisionReasonFn,
+        target_ref_fn: pipeline_ops.TargetRefFn,
+    ) -> None:
+        self._audit_bus = audit_bus
+        self._manifest_getter = manifest_getter
+        self._decision_reason_fn = decision_reason_fn
+        self._target_ref_fn = target_ref_fn
 
     def __call__(self, pctx: PipelineContext, next_: NextFn) -> dict[str, Any]:
-        self._brain._emit_audit(
-            pctx.audit_id, pctx.actor, pctx.skill.skill_id, "before", pctx.payload,
-        )
+        self._emit(pctx, "before", pctx.payload)
         try:
             result = next_(pctx)
         except Exception as exc:
-            self._brain._emit_audit(
-                pctx.audit_id, pctx.actor, pctx.skill.skill_id, "error",
+            self._emit(
+                pctx, "error",
                 {"error": exc.__class__.__name__, "message": str(exc)},
             )
             raise
         # ``result`` may be a non-dict (read-only skills sometimes return list).
         after_payload = result if isinstance(result, dict) else {"result": result}
-        self._brain._emit_audit(
-            pctx.audit_id, pctx.actor, pctx.skill.skill_id, "after", after_payload,
-        )
+        self._emit(pctx, "after", after_payload)
         return result
+
+    def _emit(self, pctx: PipelineContext, phase: str, payload: dict[str, Any]) -> None:
+        pipeline_ops.emit_audit(
+            self._audit_bus, self._manifest_getter,
+            self._decision_reason_fn, self._target_ref_fn,
+            pctx.audit_id, pctx.actor, pctx.skill.skill_id, phase, payload,
+        )
 
 
 class CapabilityCallMiddleware:
@@ -196,16 +242,24 @@ class CapabilityCallMiddleware:
 
     Wraps next_() so that failure also records — replaces the explicit
     ``_record_capability_call(..., status="failed")`` in the except clause
-    of _mutate / _invoke_traced_read.
+    of _mutate / _invoke_traced_read. Action E routes through
+    ``pipeline_ops.record_capability_call``; the middleware no longer
+    needs a brain reference.
     """
-    def __init__(self, brain: Any) -> None:
-        self._brain = brain
+    def __init__(
+        self,
+        state_store: StateStore,
+        target_ref_fn: pipeline_ops.TargetRefFn,
+    ) -> None:
+        self._state_store = state_store
+        self._target_ref_fn = target_ref_fn
 
     def __call__(self, pctx: PipelineContext, next_: NextFn) -> dict[str, Any]:
         try:
             result = next_(pctx)
         except Exception as exc:
-            self._brain._record_capability_call(
+            pipeline_ops.record_capability_call(
+                self._state_store, self._target_ref_fn,
                 pctx.audit_id, pctx.actor, pctx.skill.role, pctx.skill.skill_id,
                 pctx.payload,
                 {"error": exc.__class__.__name__, "message": str(exc)},
@@ -213,7 +267,8 @@ class CapabilityCallMiddleware:
             )
             raise
         record_payload = result if isinstance(result, dict) else {"result": result}
-        self._brain._record_capability_call(
+        pipeline_ops.record_capability_call(
+            self._state_store, self._target_ref_fn,
             pctx.audit_id, pctx.actor, pctx.skill.role, pctx.skill.skill_id,
             pctx.payload, record_payload, pctx.started_at,
         )
@@ -224,6 +279,13 @@ class PersistMiddleware:
     """``sync_state_views`` + ``persist`` after a successful mutation.
 
     Read path skips this middleware entirely (no snapshot changes to persist).
+
+    Holds ``brain`` because ``_sync_state_views`` cascades into
+    ``demo_state_sync.sync_demo_state_views(brain)`` which reads several
+    snapshot keys (``provider`` / ``zones`` / ``workbench`` / ``requests``)
+    and ``_persist`` writes ``self._snapshot`` + ``self._ui_state``. Lifting
+    the state model into ``state_store.snapshot`` is the snapshot-model
+    consolidation debt (docs/preflight-debt.md 2026-05-28).
     """
     def __init__(self, brain: Any) -> None:
         self._brain = brain
@@ -243,15 +305,27 @@ class AnchorMiddleware:
     writes skip the heavy lifting.
 
     Fail-soft per docs/approved/zw-brain-architecture.md D4: "审计总线强制同步落库；
-    区块链锚定通过可插拔 adapter 异步执行（外链 down 不阻塞业务）". If ``_enqueue_anchor``
-    raises (e.g. queue unavailable, asyncio loop conflict), we log a warning and
-    swallow the exception so the surrounding transaction (mutation + persist +
-    capability_call) still commits and ``emit_audit("after")`` still fires —
-    same fail-soft semantics as the legacy ``_mutate`` path where anchor was the
-    last step and any exception was effectively isolated to the caller's stack.
+    区块链锚定通过可插拔 adapter 异步执行（外链 down 不阻塞业务）". If anchor
+    enqueue raises (e.g. queue unavailable, asyncio loop conflict), we log a
+    warning and swallow the exception so the surrounding transaction (mutation +
+    persist + capability_call) still commits and ``emit_audit("after")`` still
+    fires — same fail-soft semantics as the legacy ``_mutate`` path where
+    anchor was the last step and any exception was effectively isolated to the
+    caller's stack.
+
+    Holds ``brain`` for ``_sync_database_aggregates`` (reads ``self._snapshot``);
+    ``state_store`` + ``queue`` are explicit so ``pipeline_ops.enqueue_anchor``
+    can take them directly.
     """
-    def __init__(self, brain: Any) -> None:
+    def __init__(
+        self,
+        brain: Any,
+        state_store: StateStore,
+        queue: Any,
+    ) -> None:
         self._brain = brain
+        self._state_store = state_store
+        self._queue = queue
 
     def __call__(self, pctx: PipelineContext, next_: NextFn) -> dict[str, Any]:
         result = next_(pctx)
@@ -259,7 +333,8 @@ class AnchorMiddleware:
             anchor_payload = pctx.payload | (result if isinstance(result, dict) else {"result": result})
             try:
                 self._brain._sync_database_aggregates()
-                self._brain._enqueue_anchor(
+                pipeline_ops.enqueue_anchor(
+                    self._queue, self._state_store,
                     pctx.audit_id, pctx.actor, pctx.skill.skill_id, anchor_payload,
                 )
             except Exception as exc:  # noqa: BLE001 — D4 fail-soft contract
@@ -353,15 +428,34 @@ def _bind(mw: Middleware, next_: NextFn) -> NextFn:
 def build_default_pipeline(brain: Any) -> SkillPipeline:
     """Construct the default 6-middleware chain bound to a BrainService.
 
-    The fixed order matches ``MIDDLEWARE_ORDER`` and is verified by preflight
-    segment 41. ``brain`` is passed positionally to each middleware; Action D
-    will replace this with explicit domain service injection.
+    Action E: each middleware takes the minimum-viable dependency surface
+    rather than a generic ``brain`` reference. ``audit_bus`` / ``queue`` /
+    ``state_store`` / ``get_manifest`` are materialized here once; the
+    decision-reason / target-ref resolvers default to ``pipeline_ops``
+    canonical implementations (callers can swap via custom factory if
+    needed for testing).
     """
+    import zw_brain.shared.audit as audit_bus  # noqa: PLC0415
+    from zw_brain.shared import queue  # noqa: PLC0415
+    from zw_brain.skill_registration.runtime import get_manifest  # noqa: PLC0415
+
     return SkillPipeline(middlewares=(
         PolicyMiddleware(brain),
         IdentityMiddleware(brain),
-        AuditEmitMiddleware(brain),
-        CapabilityCallMiddleware(brain),
+        AuditEmitMiddleware(
+            audit_bus,
+            get_manifest,
+            pipeline_ops.default_decision_reason,
+            pipeline_ops.default_target_ref,
+        ),
+        CapabilityCallMiddleware(
+            brain._state_store,
+            pipeline_ops.default_target_ref,
+        ),
         PersistMiddleware(brain),
-        AnchorMiddleware(brain),
+        AnchorMiddleware(
+            brain,
+            brain._state_store,
+            queue,
+        ),
     ))

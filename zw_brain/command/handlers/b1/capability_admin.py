@@ -16,6 +16,7 @@ import copy
 from zw_brain.command.brain import BrainServiceError, InvalidStateError
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
+from zw_brain.shared.sanitization import safe_json
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -45,10 +46,10 @@ def _register_capability_package(brain, deps, ctx, payload: dict[str, Any]) -> d
                 "safe": ["统一契约", "不直接改写主事实"],
                 "draft": "登记结论：已收件，等待版本审核。",
             },
-            "contract": brain._safe_json(payload.get("contract") or {}),
-            "tenantPolicy": brain._safe_json(payload.get("tenantPolicy") or {"scope": "tenant-bound", "writeCanonicalState": False, "allowedWritebacks": []}),
-            "failureWriteback": brain._safe_json(payload.get("failureWriteback") or {"target": "audit_event", "mode": "failure_summary"}),
-            "runtimeBinding": brain._safe_json(payload.get("runtimeBinding") or {"protocol": "brain_service", "sideEffects": ["audit_only"]}),
+            "contract": safe_json(payload.get("contract") or {}),
+            "tenantPolicy": safe_json(payload.get("tenantPolicy") or {"scope": "tenant-bound", "writeCanonicalState": False, "allowedWritebacks": []}),
+            "failureWriteback": safe_json(payload.get("failureWriteback") or {"target": "audit_event", "mode": "failure_summary"}),
+            "runtimeBinding": safe_json(payload.get("runtimeBinding") or {"protocol": "brain_service", "sideEffects": ["audit_only"]}),
         }
         if item is None:
             packages.append(package_payload)

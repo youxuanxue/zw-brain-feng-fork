@@ -14,6 +14,7 @@ from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoun
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import resource_api as resource_api_ser
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
+from zw_brain.shared.sanitization import safe_json
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -120,7 +121,7 @@ def _test_api_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, A
         "test_result": test_result,
         "lifecycle_status": next_status,
         "source_ref": payload.get("source_ref") or f"resource.api.test:{resource_code}",
-        "evidence_json": brain._safe_json(payload.get("evidence_json") or {}),
+        "evidence_json": safe_json(payload.get("evidence_json") or {}),
         "legacy_object_ref": payload.get("legacy_object_ref"),
     }
 
@@ -161,7 +162,7 @@ def _update_api_resource_policy(brain, deps, ctx, payload: dict[str, Any]) -> di
     confirmed = bool(payload.get("confirmed"))
     resource_code = str(payload["resource_code"])
     binding_code = str(payload["binding_code"])
-    policy_payload = brain._safe_json(payload.get("gateway_policy_json", {}))
+    policy_payload = safe_json(payload.get("gateway_policy_json", {}))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         if deps.view.resources.get_api_resource(resource_code) is None:

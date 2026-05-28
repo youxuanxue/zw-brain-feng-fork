@@ -100,8 +100,8 @@ def _new_package(brain) -> str:
 def test_existing_review_lifecycle_still_works_under_multiplex_sink(brain_with_audit) -> None:
     brain = brain_with_audit
     pkg_id = _new_package(brain)
-    brain._package_by_id(pkg_id)["status"] = "pending"
-    brain._package_by_id(pkg_id)["versionStatus"] = "draft"
+    brain._get_handler_deps().view.packages.find_by_id(pkg_id)["status"] = "pending"
+    brain._get_handler_deps().view.packages.find_by_id(pkg_id)["versionStatus"] = "draft"
 
     out = invoke_trusted(
         brain,
@@ -110,7 +110,7 @@ def test_existing_review_lifecycle_still_works_under_multiplex_sink(brain_with_a
         role="ROLE_BUSIAUDIT",
     )
     assert out["ok"] is True
-    assert brain._package_by_id(pkg_id)["status"] == "approved"
+    assert brain._get_handler_deps().view.packages.find_by_id(pkg_id)["status"] == "approved"
 
 
 # ---------------------------------------------------------------------------
@@ -123,7 +123,7 @@ def test_tenant_capability_enable_writes_audit_under_multiplex_sink(brain_with_a
     brain = brain_with_audit
     pkg_id = _new_package(brain)
     # package needs registered version + approved status to enable
-    item = brain._package_by_id(pkg_id)
+    item = brain._get_handler_deps().view.packages.find_by_id(pkg_id)
     item["status"] = "approved"
     item["versionStatus"] = "registered"
     item["registeredVersion"] = item.get("registeredVersion") or "v1.0.0"
@@ -159,7 +159,7 @@ def test_package_rollback_swaps_active_and_previous_version(brain_with_audit) ->
     assert out["ok"] is True
     assert out["result"]["previous_version"] == "v1.2.0"
     assert out["result"]["rolled_back_to"] == "v1.1.0"
-    item = brain._package_by_id(pkg_id)
+    item = brain._get_handler_deps().view.packages.find_by_id(pkg_id)
     assert item["registeredVersion"] == "v1.1.0"
     assert item["rollbackTarget"] == "v1.2.0"
     assert item["status"] == "rolled-back"
@@ -170,7 +170,7 @@ def test_package_rollback_rejects_when_no_rollback_target(brain_with_audit) -> N
 
     brain = brain_with_audit
     pkg_id = _new_package(brain)
-    brain._package_by_id(pkg_id)["rollbackTarget"] = ""
+    brain._get_handler_deps().view.packages.find_by_id(pkg_id)["rollbackTarget"] = ""
     with pytest.raises(InvalidStateError):
         invoke_trusted(
             brain,
@@ -247,7 +247,7 @@ def test_package_trust_level_update_changes_metadata(brain_with_audit) -> None:
     assert out["ok"] is True
     assert out["result"]["previous_trust_level"] == "baseline"
     assert out["result"]["new_trust_level"] == "reviewed"
-    assert brain._package_by_id(pkg_id)["trustLevel"] == "reviewed"
+    assert brain._get_handler_deps().view.packages.find_by_id(pkg_id)["trustLevel"] == "reviewed"
 
 
 def test_package_trust_level_rejects_unknown_level(brain_with_audit) -> None:

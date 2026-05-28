@@ -153,7 +153,7 @@ class RequestsView(SnapshotView):
 
         Raises ``NotFoundError`` if no request matches.
         """
-        return self.brain._request_by_id(request_id)
+        return self.brain._get_handler_deps().services.request.by_id(request_id)
 
 
 @dataclass(frozen=True)
@@ -175,13 +175,13 @@ class DeliveryView(SnapshotView):
 
         Raises ``NotFoundError`` if no task matches.
         """
-        return self.brain._delivery_by_id(task_id)
+        return self.brain._get_handler_deps().services.delivery.by_id(task_id)
 
     def find_by_request_id(self, request_id: str) -> dict[str, Any] | None:
         """Return the live snapshot reference for the delivery task of a given request,
         or ``None`` if no delivery is bound to that request (see module docstring §B).
         """
-        return self.brain._delivery_by_request_id(request_id)
+        return self.brain._get_handler_deps().services.delivery.by_request_id(request_id)
 
 
 @dataclass(frozen=True)
@@ -204,13 +204,13 @@ class ResourcesView(SnapshotView):
     def get_api_resource(self, resource_id: str) -> dict[str, Any] | None:
         """Return a deepcopy / fresh-dict view of an API resource, or ``None`` if absent.
 
-        Name follows the §A "get_*" → deepcopy convention. ``brain._find_api_resource``
+        Name follows the §A "get_*" → deepcopy convention. ``provider.find_api_resource``
         deepcopies the in-memory fallback path and returns a freshly-serialized dict
         for DB-backed lookups, so mutations on the returned dict do NOT propagate to
         the live snapshot. Use ``deps.repos.resource_api`` if a live SQL-backed
         write path is required.
         """
-        return self.brain._find_api_resource(resource_id)
+        return self.brain._get_handler_deps().services.provider.find_api_resource(resource_id)
 
 
 @dataclass(frozen=True)
@@ -263,8 +263,16 @@ class PackagesView(SnapshotView):
         """Return the live snapshot reference for a capability package (mutable — see module docstring §B).
 
         Raises ``NotFoundError`` if no package matches.
+
+        Action E: lookup inlined here (the ``capability_packages`` snapshot key
+        does not have a dedicated domain service yet; if a service emerges,
+        retire this inline scan in its favour).
         """
-        return self.brain._package_by_id(package_id)
+        from zw_brain.domain.errors import NotFoundError  # noqa: PLC0415
+        for item in self.brain._snapshot["capability_packages"]:
+            if item["id"] == package_id:
+                return item
+        raise NotFoundError(package_id)
 
 
 @dataclass(frozen=True)

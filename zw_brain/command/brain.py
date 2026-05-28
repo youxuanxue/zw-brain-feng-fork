@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import base64
 import copy
 import hashlib
@@ -16,7 +15,6 @@ from typing import Any
 
 import zw_brain.shared.audit as audit_bus
 import zw_brain.shared.clock as clock
-import zw_brain.shared.ids as ids
 from zw_brain.command.serializers import metadata as metadata_ser
 from zw_brain.command.serializers import resource_api as resource_api_ser
 from zw_brain.domain import policy
@@ -713,13 +711,13 @@ class BrainService:
             "title": str(payload.get("title", resource_code)),
             "lifecycle_status": str(payload.get("lifecycle_status", default_status)),
             "owner_org_id": payload.get("owner_org_id"),
-            "owner_org_snapshot_json": self._safe_json(payload.get("owner_org_snapshot_json") or {}),
+            "owner_org_snapshot_json": safe_json(payload.get("owner_org_snapshot_json") or {}),
             "region_code": payload.get("region_code"),
             "catalog_code": payload.get("catalog_code"),
-            "access_policy_json": self._safe_json(payload.get("access_policy_json") or {}),
-            "qos_policy_json": self._safe_json(payload.get("qos_policy_json") or {}),
+            "access_policy_json": safe_json(payload.get("access_policy_json") or {}),
+            "qos_policy_json": safe_json(payload.get("qos_policy_json") or {}),
             "source_ref": payload.get("source_ref"),
-            "summary_json": self._safe_json(payload.get("summary_json") or {"title": payload.get("title", resource_code)}),
+            "summary_json": safe_json(payload.get("summary_json") or {"title": payload.get("title", resource_code)}),
         }
 
     def _upsert_api_resource(self, resource: dict[str, Any]) -> dict[str, Any]:
@@ -744,12 +742,12 @@ class BrainService:
             "resource_code": str(binding["resource_code"]),
             "channel_kind": str(binding.get("channel_kind", "api_gateway")),
             "route_ref": binding.get("route_ref"),
-            "endpoint_ref": self._safe_json(binding.get("endpoint_ref", {})),
-            "schema_ref": self._safe_json(binding.get("schema_ref", {})),
+            "endpoint_ref": safe_json(binding.get("endpoint_ref", {})),
+            "schema_ref": safe_json(binding.get("schema_ref", {})),
             "auth_ref": binding.get("auth_ref"),
-            "request_schema_json": self._safe_json(binding.get("request_schema_json", {})),
-            "response_schema_json": self._safe_json(binding.get("response_schema_json", {})),
-            "gateway_policy_json": self._safe_json(binding.get("gateway_policy_json", {})),
+            "request_schema_json": safe_json(binding.get("request_schema_json", {})),
+            "response_schema_json": safe_json(binding.get("response_schema_json", {})),
+            "gateway_policy_json": safe_json(binding.get("gateway_policy_json", {})),
             "lifecycle_status": str(binding.get("lifecycle_status", "draft")),
             "source_ref": binding.get("source_ref"),
         }
@@ -769,13 +767,7 @@ class BrainService:
             return copy.deepcopy(current)
         return resource_api_ser.binding_to_dict(store.resource_api_repo.upsert_binding(payload))
 
-    def _find_api_resource(self, resource_code: str) -> dict[str, Any] | None:
-        store = self._state_store.database_store
-        if store is None:
-            item = next((item for item in self._snapshot.get("api_resources", []) if item["resource_code"] == resource_code), None)
-            return copy.deepcopy(item) if item is not None else None
-        record = store.resource_api_repo.get_asset(resource_code)
-        return resource_api_ser.resource_asset_to_dict(record) if record is not None else None
+    # Action E: _find_api_resource retired — call deps.services.provider.find_api_resource directly.
 
     def _find_api_binding(self, binding_code: str) -> dict[str, Any] | None:
         store = self._state_store.database_store
@@ -804,12 +796,9 @@ class BrainService:
             "recordCount": sum(int(item.get("record_count", 0)) for item in metrics),
         }
 
-    def _safe_json(self, value: dict[str, Any]) -> dict[str, Any]:
-        return safe_json(value)
-
     def _decode_iaf_claims(self, iaf_claims: Any) -> dict[str, Any]:
         if isinstance(iaf_claims, dict):
-            return self._safe_json(iaf_claims)
+            return safe_json(iaf_claims)
         token = str(iaf_claims or "")
         if not token:
             raise InvalidTokenError("missing token claims")
@@ -824,7 +813,7 @@ class BrainService:
             raise InvalidTokenError("invalid jwt payload") from exc
         if not isinstance(payload, dict):
             raise InvalidTokenError("invalid jwt claims type")
-        return self._safe_json(payload)
+        return safe_json(payload)
 
     def _validate_iaf_claims(self, claims: dict[str, Any], *, expected_state: Any = None, expected_nonce: Any = None) -> None:
         now_ts = int(datetime.now(UTC).timestamp())
@@ -1173,7 +1162,7 @@ class BrainService:
         return self._get_handler_deps().services.provider.request_external_execution(resource_id, payload, actor, audit_id)
 
     def grant_delivery_access(self, task_id: str, role: str, confirmed: bool) -> dict[str, Any]:
-        task = self._delivery_by_id(task_id)
+        task = self._get_handler_deps().services.delivery.by_id(task_id)
         if task["status"] not in {"pending", "warning", "reconciling", "supplementing"}:
             raise InvalidStateError("delivery task cannot grant access in current state")
 
@@ -1243,42 +1232,40 @@ class BrainService:
             raise AccessDeniedError(str(exc)) from exc
 
     def _invoke_traced_read(self, skill_id: str, role: str, payload: dict[str, Any], operation: Any) -> Any:
-        """Legacy entry — Action B routes through SkillPipeline.read.
+        """Legacy shim — delegates to ``pipeline_ops.run_traced_read``.
 
-        Kept as a thin adapter for callers that still hold a BrainService
-        reference (test fixtures, in-process scripts). Commits 3-4 sweep
-        handler-side ``brain._invoke_traced_read(...)`` calls to
-        ``deps.pipeline.read(ctx, payload, fn)`` directly.
-
-        Fallback: if no database_store (legacy in-memory mode), skip the
-        audit pipeline and just run the operation — production / CI always
-        have a database_store so this branch is dev-only.
+        Action E: cross-cutting body lives in ``zw_brain.command.pipeline_ops``.
+        Kept on BrainService as a thin adapter for in-process callers (test
+        fixtures, scripts) that still construct skill_id/role/operation
+        positionally rather than going through ``deps.pipeline.read``.
         """
-        store = self._state_store.database_store
-        if store is None:
-            return operation()
+        from zw_brain.command import pipeline_ops  # noqa: PLC0415
         from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+
         ctx = SkillContext(
             skill_id=skill_id, role=role, actor=self._actor_for_role(role),
             confirmed=False, manifest=get_manifest(skill_id),
         )
         deps = self._get_handler_deps()
-        return deps.pipeline.read(ctx, payload, lambda _audit_id, _actor: operation())
+        return pipeline_ops.run_traced_read(deps.pipeline, self._state_store, ctx, payload, operation)
 
     def _mutate(self, skill_id: str, role: str, confirmed: bool, payload: dict[str, Any], mutation: Any) -> dict[str, Any]:
-        """Legacy entry — Action B routes through SkillPipeline.write.
+        """Legacy shim — delegates to ``pipeline_ops.run_mutation``.
 
-        Kept as a thin adapter so existing callers don't need to construct
-        a SkillContext + call ``deps.pipeline.write`` themselves. Commits
-        3-4 sweep handler-side ``brain._mutate(...)`` calls to the new API.
+        Action E: cross-cutting body lives in ``zw_brain.command.pipeline_ops``.
+        Kept on BrainService as a thin adapter for legacy callers that pass
+        skill_id/role/confirmed positionally rather than going through
+        ``deps.pipeline.write``.
         """
+        from zw_brain.command import pipeline_ops  # noqa: PLC0415
         from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+
         ctx = SkillContext(
             skill_id=skill_id, role=role, actor=self._actor_for_role(role),
             confirmed=confirmed, manifest=get_manifest(skill_id),
         )
         deps = self._get_handler_deps()
-        return deps.pipeline.write(ctx, payload, mutation)
+        return pipeline_ops.run_mutation(deps.pipeline, ctx, payload, mutation)
 
     def _record_capability_call(
         self,
@@ -1292,147 +1279,82 @@ class BrainService:
         *,
         status: str = "succeeded",
     ) -> None:
-        store = self._state_store.database_store
-        if store is None:
-            return
-        store.append_capability_call(
-            {
-                "call_ref": audit_id,
-                "tenant_id": str(payload.get("tenant_id", _DEFAULT_TENANT_ID)),
-                "skill_id": skill_id,
-                "actor": actor,
-                "role_code": role,
-                "status": status,
-                "request_ref": self._audit_target_from_payload(audit_id, payload),
-                "input_json": safe_json(payload),
-                "output_json": safe_json(result),
-                "started_at": started_at,
-                "completed_at": datetime.now(),
-            }
+        """Legacy shim — delegates to ``pipeline_ops.record_capability_call``."""
+        from zw_brain.command import pipeline_ops  # noqa: PLC0415
+
+        pipeline_ops.record_capability_call(
+            self._state_store, self._audit_target_from_payload,
+            audit_id, actor, role, skill_id, payload, result, started_at, status=status,
         )
 
     def _persist(self) -> None:
-        self._state_store.save(self._snapshot, self._ui_state.persistable_view())
+        """Legacy shim — delegates to ``sync.persist``."""
+        from zw_brain.command import sync as state_sync  # noqa: PLC0415
+        state_sync.persist(self._state_store, self._snapshot, self._ui_state.persistable_view())
 
     def _emit_audit(self, request_id: str, actor: str, skill_id: str, phase: str, payload: dict[str, Any]) -> None:
-        manifest = get_manifest(skill_id)
-        actor_parts = actor.split(":", 3)
-        payload_with_evidence = safe_json(payload)
-        if isinstance(payload_with_evidence.get("actor_snapshot"), dict) and payload_with_evidence["actor_snapshot"]:
-            actor_snapshot = copy.deepcopy(payload_with_evidence["actor_snapshot"])
-        else:
-            actor_snapshot = {"actor": actor}
-            if len(actor_parts) >= 3 and actor_parts[:2] == ["user", "gov"]:
-                actor_snapshot["role_code"] = actor_parts[2]
-        ctx = get_auth_context()
-        if ctx is not None and ctx.development_iam_bypass:
-            actor_snapshot["development_iam_bypass"] = True
-            payload_with_evidence["development_iam_bypass"] = True
-        payload_with_evidence["skill_id"] = skill_id
-        payload_with_evidence["audit_class"] = payload_with_evidence.get("audit_class") or manifest.get("audit_class")
-        payload_with_evidence["actor_snapshot"] = actor_snapshot
-        payload_with_evidence["policy_version"] = payload_with_evidence.get("policy_version") or manifest.get("version")
-        payload_with_evidence["decision_reason"] = payload_with_evidence.get("decision_reason") or self._audit_decision_reason(phase, payload)
-        payload_with_evidence["target_ref"] = payload_with_evidence.get("target_ref") or self._audit_target_from_payload(request_id, payload)
-        audit_bus.emit(
-            audit_bus.AuditEvent(
-                request_id=request_id,
-                actor=actor,
-                skill_id=skill_id,
-                phase=phase,
-                payload=payload_with_evidence,
-            )
+        """Legacy shim — delegates to ``pipeline_ops.emit_audit``.
+
+        Action E: 10-branch payload enrichment lives in
+        ``zw_brain.command.pipeline_ops.emit_audit``. The two small resolvers
+        (``_audit_decision_reason`` / ``_audit_target_from_payload``) are
+        passed as callables so callers that need custom resolution can
+        override; default path uses the legacy resolvers verbatim.
+        """
+        from zw_brain.command import pipeline_ops  # noqa: PLC0415
+
+        pipeline_ops.emit_audit(
+            audit_bus,
+            get_manifest,
+            self._audit_decision_reason,
+            self._audit_target_from_payload,
+            request_id, actor, skill_id, phase, payload,
         )
 
     def _audit_decision_reason(self, phase: str, payload: dict[str, Any]) -> str:
-        value = payload.get("decision_reason") or payload.get("decision") or payload.get("error") or phase
-        return str(value)
+        from zw_brain.command import pipeline_ops  # noqa: PLC0415
+        return pipeline_ops.default_decision_reason(phase, payload)
 
     def _enqueue_anchor(self, request_id: str, actor: str, skill_id: str, payload: dict[str, Any]) -> None:
-        # safe_json strips the trust sentinel and other process-local objects that
-        # cannot cross a JSON boundary. Without it, _mutate's `payload | result`
-        # carries _TRUSTED_SESSION_MARKER (object()) and json.dumps below raises
-        # TypeError → REST returns 500 to the caller.
-        sanitized_payload = safe_json(payload)
-        content_hash = hashlib.sha256(
-            json.dumps(
-                {
-                    "request_id": request_id,
-                    "actor": actor,
-                    "skill_id": skill_id,
-                    "payload": sanitized_payload,
-                },
-                ensure_ascii=False,
-                sort_keys=True,
-            ).encode("utf-8")
-        ).hexdigest()
-        store = self._state_store.database_store
-        if store is not None:
-            store.append_anchor_outbox(request_id, skill_id, content_hash, "mock-chain")
-        asyncio.run(
-            queue.enqueue(
-                "blockchain.anchor",
-                {
-                    "request_id": request_id,
-                    "skill_id": skill_id,
-                    "actor": actor,
-                    "content_hash": content_hash,
-                    "chain_id": "mock-chain",
-                },
-            )
-        )
+        """Legacy shim — delegates to ``pipeline_ops.enqueue_anchor``.
+
+        Action E: content hash + outbox row + asyncio.run(queue.enqueue)
+        body lives in ``zw_brain.command.pipeline_ops.enqueue_anchor``. Fail-
+        soft semantics (per D4) live in ``AnchorMiddleware`` — this shim
+        propagates any exception verbatim.
+        """
+        from zw_brain.command import pipeline_ops  # noqa: PLC0415
+        pipeline_ops.enqueue_anchor(queue, self._state_store, request_id, actor, skill_id, payload)
 
     def _sync_reference_tables(self) -> None:
-        store = self._state_store.database_store
-        if store is None:
-            return
-        store.sync_reference_tables(self.snapshot())
+        """Legacy shim — delegates to ``sync.sync_reference_tables``."""
+        from zw_brain.command import sync as state_sync  # noqa: PLC0415
+        state_sync.sync_reference_tables(self._state_store, self.snapshot())
 
     def _sync_database_aggregates(self) -> None:
-        store = self._state_store.database_store
-        if store is None:
-            return
-        store.sync_aggregate_tables(self.snapshot())
+        """Legacy shim — delegates to ``sync.sync_database_aggregates``."""
+        from zw_brain.command import sync as state_sync  # noqa: PLC0415
+        state_sync.sync_database_aggregates(self._state_store, self.snapshot())
 
     def _append_audit_feed(self, event_type: str, target: str, result: str, actor: str) -> None:
-        self._snapshot["audit_events"].append(
-            {
-                "id": ids.new_audit_id(),
-                "time": clock.month_day_time(),
-                "actor": actor,
-                "type": event_type,
-                "target": target,
-                "result": result,
-                "chain": "pending" if result != "failed" else "n/a",
-            }
-        )
+        """Legacy shim — delegates to ``pipeline_ops.append_audit_feed``."""
+        from zw_brain.command import pipeline_ops  # noqa: PLC0415
+        pipeline_ops.append_audit_feed(self._snapshot, event_type, target, result, actor)
 
     def _audit_target_from_payload(self, request_id: str, payload: dict[str, Any]) -> str:
-        for fld in (
-            "dispute_id",
-            "request_id",
-            "task_id",
-            "package_id",
-            "resource_id",
-            "catalog_id",
-            "catalog_code",
-            "resource_code",
-            "service_id",
-            "zone_id",
-            "target_ref",
-            "id",
-        ):
-            value = payload.get(fld)
-            if value:
-                return str(value)
-        return request_id
+        from zw_brain.command import pipeline_ops  # noqa: PLC0415
+        return pipeline_ops.default_target_ref(request_id, payload)
 
     def _sync_state_views(self) -> None:
-        self._sync_request_todos()
-        # Demo-seed cascades live in a dedicated module (no demo entity IDs in core).
-        # Lazy import breaks the demo_state_sync → brain module cycle.
-        from zw_brain.command.demo_state_sync import sync_demo_state_views  # noqa: PLC0415
-        sync_demo_state_views(self)
+        """Legacy shim — delegates to ``sync.sync_state_views``.
+
+        ``brain`` parameter is required because the demo cascade in
+        ``demo_state_sync.sync_demo_state_views`` still expects a BrainService
+        instance — snapshot-model consolidation debt
+        (docs/preflight-debt.md 2026-05-28).
+        """
+        from zw_brain.command import sync as state_sync  # noqa: PLC0415
+        state_sync.sync_state_views(self)
 
     # R-005 fix: 折叠后多个旧角色映射到同一 ROLE_*，原本不同语境（申请进度 vs 差异补录 vs 现场补录 vs 汇总）
     # 的同 item_id 待办若仅按 (role, item_id) 去重会互相覆盖。引入 category 作为第二维度。
@@ -1475,8 +1397,10 @@ class BrainService:
             return f"{actor}[bypass]"
         return actor
 
-    def _request_by_id(self, request_id: str) -> dict[str, Any]:
-        return self._get_handler_deps().services.request.by_id(request_id)
+    # Action E: _request_by_id / _delivery_by_id / _delivery_by_request_id /
+    # _find_api_resource retired — call deps.services.{request,delivery,provider}.X
+    # or deps.view.<entity>.find_by_id directly. _maybe_* helpers kept because
+    # demo_state_sync / brain.py internal call sites tolerate None on miss.
 
     def _maybe_request(self, request_id: str) -> dict[str, Any] | None:
         return self._get_handler_deps().services.request.maybe_by_id(request_id)
@@ -1486,12 +1410,6 @@ class BrainService:
 
     def _maybe_approval(self, request_id: str) -> dict[str, Any] | None:
         return self._get_handler_deps().services.request.maybe_approval_by_id(request_id)
-
-    def _delivery_by_request_id(self, request_id: str) -> dict[str, Any] | None:
-        return self._get_handler_deps().services.delivery.by_request_id(request_id)
-
-    def _delivery_by_id(self, task_id: str) -> dict[str, Any]:
-        return self._get_handler_deps().services.delivery.by_id(task_id)
 
     def _maybe_delivery(self, task_id: str) -> dict[str, Any] | None:
         return self._get_handler_deps().services.delivery.maybe_by_id(task_id)
@@ -1583,15 +1501,16 @@ class BrainService:
 
         raise NotFoundError(resource_id)
 
-    def _package_by_id(self, package_id: str) -> dict[str, Any]:
-        for item in self._snapshot["capability_packages"]:
-            if item["id"] == package_id:
-                return item
-        raise NotFoundError(package_id)
-
     def _maybe_package(self, package_id: str) -> dict[str, Any] | None:
+        """Return a live snapshot reference for a capability package, or None.
+
+        Action E: ``_package_by_id`` retired; views.PackagesView.find_by_id
+        owns the canonical lookup (raises NotFoundError on miss). This
+        ``_maybe_*`` variant returns None for the demo_state_sync caller
+        which tolerates an absent package.
+        """
         try:
-            return self._package_by_id(package_id)
+            return self._get_handler_deps().view.packages.find_by_id(package_id)
         except NotFoundError:
             return None
 
@@ -1616,17 +1535,9 @@ class BrainService:
         bucket["todos"].insert(0, {"id": item_id, "title": title, "status": status, "href": href, "category": category})
 
     def _sync_request_todos(self) -> None:
-        for request in self._snapshot["requests"]:
-            request_id = request["id"]
-            resource_name = request.get("resourceName", request_id)
-            # R-002/R-005 fix: perspective + category 双维度（perspective 决定文案，category 区分同 REQ 在同 role 下的多个待办语境）
-            self._upsert_todo("ROLE_ORGAN_OPERATER", request_id, f"{resource_name}复用申请进度跟踪", self._request_status_text(request, "applicant"), f"#/request-flow/request/{request_id}", category="apply-progress")
-            self._upsert_todo("ROLE_ORGAN_MANAGER", request_id, f"{resource_name}复用申请待判定", self._request_status_text(request, "reviewer"), f"#/request-flow/review/{request_id}", category="review")
-            if request["status"] in {"supplementing", "summary-pending", "completed", "need-fix"}:
-                self._upsert_todo("ROLE_ORGAN_OPERATER", request_id, f"{resource_name}差异补录任务", self._request_status_text(request, "filler"), f"#/request-flow/request/{request_id}", category="supplement-township")
-                self._upsert_todo("ROLE_ORGAN_OPERATER", request_id, f"{resource_name}现场补录任务", self._request_status_text(request, "filler"), f"#/request-flow/request/{request_id}", category="supplement-village")
-            if request["status"] in {"pending", "summary-pending", "completed", "need-fix", "rejected"}:
-                self._upsert_todo("ROLE_ORGAN_MANAGER", request_id, f"{resource_name}汇总/准入处理", self._request_status_text(request, "summarizer"), f"#/request-flow/review/{request_id}", category="summary")
+        """Legacy shim — delegates to ``sync.sync_request_todos``."""
+        from zw_brain.command import sync as state_sync  # noqa: PLC0415
+        state_sync.sync_request_todos(self)
 
     def _new_request_id(self) -> str:
         return self._get_handler_deps().services.request.new_request_id()
@@ -1702,7 +1613,7 @@ class BrainService:
         - 无对应 delivery → 安全跳过（审批通过但无 delivery 投影是 demo 边界 case）
         - 已有 credential → 安全跳过（重复进入审批通过路径不重签）
         """
-        delivery = self._delivery_by_request_id(request_id)
+        delivery = self._get_handler_deps().services.delivery.by_request_id(request_id)
         if delivery is None:
             return
         if (delivery.get("accessGrantSnapshot") or {}).get("credential"):

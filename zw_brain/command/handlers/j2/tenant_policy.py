@@ -17,6 +17,7 @@ from zw_brain.command.serializers import governance as governance_ser
 from zw_brain.domain import policy
 from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
+from zw_brain.shared.sanitization import safe_json
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -29,9 +30,9 @@ def _evaluate_tenant_policy(brain, deps, ctx, payload: dict[str, Any]) -> dict[s
     surface = str(payload.get("surface", "webui"))
     target_ref = payload.get("target_ref")
     role_code = str(payload.get("role_code", payload.get("role", ctx.role)))
-    actor_snapshot = brain._safe_json(payload.get("actor_snapshot") or {})
-    org_snapshot = brain._safe_json(payload.get("org_snapshot") or {})
-    risk_context = brain._safe_json(payload.get("risk_context") or {})
+    actor_snapshot = safe_json(payload.get("actor_snapshot") or {})
+    org_snapshot = safe_json(payload.get("org_snapshot") or {})
+    risk_context = safe_json(payload.get("risk_context") or {})
     requested_role_codes = [str(item) for item in payload.get("role_codes") or []]
 
     role_codes = sorted({role_code, *requested_role_codes, *[str(item) for item in actor_snapshot.get("role_codes") or []]})

@@ -320,6 +320,33 @@ trigger 关闭即可删除字段。
 - **No mechanical preflight check (now)**: 检测"集成测试是否经过 trust-stamp"需要 AST 分析或测试
   覆盖率打标，复杂度高于价值。Debt 条目兜底，加 R-001 类点护栏。
 
+## 2026-05-28 — BrainService snapshot model 抽离 (Action E follow-up)
+
+- **Where**: `zw_brain/command/sync.py` (`sync_state_views` / `sync_request_todos` 仍签名为
+  `(brain: BrainService) -> None`)；`zw_brain/command/pipeline.py`（`PolicyMiddleware` /
+  `IdentityMiddleware` / `PersistMiddleware` / `AnchorMiddleware` 仍持 `brain` 引用）；
+  `zw_brain/command/demo_state_sync.py`（继续读 `brain._snapshot` / 写 `brain._set_todo_status`）；
+  `zw_brain/domain/services/provider_service.py::find_api_resource` 等读 `self.brain._snapshot`。
+- **Implication**: BrainService 内 `_snapshot` 字典 + `_ui_state` proxy 仍是 sync / projection /
+  view 的隐式 SoT。Action E 已把跨切关注（pipeline_ops）和 IO 同步（sync.persist/sync_*）拉成
+  module-level helper，但 projection cascade（`_sync_state_views` → `demo_state_sync` →
+  `brain._set_todo_status` / `brain._upsert_todo`）和 `_actor_for_role` 内的 auth_context 后缀
+  逻辑、`_enforce_manifest_policy` 内的 `DomainAccessDeniedError → AccessDeniedError` 翻译
+  仍住在 BrainService 实例方法上——middleware 不能完全甩掉 `brain` 引用。
+- **Why deferred**: 拉出来需要 (a) 把 `_snapshot` dict 从 BrainService 实例属性提升为
+  `state_store.snapshot()` 一等公民、retarget 全部 reader 与 demo cascade；(b) 把
+  `_actor_for_role` 拆为 `policy.actor_for_role` + auth_context 后缀两段；(c) 把
+  `_enforce_manifest_policy` 翻译层下沉到 `policy.enforce_manifest_policy` 内部。
+  ≥300 LOC 改动 + 触动 demo_state_sync + 重写 4 middleware 构造，单 PR 内做超出 Action E 范围。
+- **Trigger to re-evaluate**: (a) 下一次需要在 middleware 注入新跨切（rate limit / OTLP /
+  circuit breaker）发现 brain ref 阻碍单测构造时；(b) demo_state_sync 因 cascade 复杂度再次
+  踩坑（snapshot 写顺序错乱 / projection drift）；(c) Wave 2.x R14 三引擎落地需要 state-store-
+  keyed projection 模型时。
+- **No mechanical preflight check (now)**: preflight 段 48 (`brain-no-cross-cutting`) 已守
+  cross-cutting / state-sync helper 的 shim shape，反向不允许把 body 写回 BrainService；
+  本条目跟踪的是把 `brain` 参数本身从 sync.py / pipeline.py middleware 拉掉，属于结构性后续改造，
+  当前没有"误回潮"风险点可机械化拦截。
+
 ## 2026-05-27 — customer_acceptance_up.sh strict 模式与真实 dump 设计脱节 — **已 closed 2026-05-27**
 
 > 历史条目保留审计链。修复落地：`ImportStats.add_issue` 加 `severity`（默认 `"error"`，

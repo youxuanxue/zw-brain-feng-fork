@@ -19,6 +19,7 @@ import zw_brain.shared.clock as clock
 import zw_brain.shared.ids as ids
 from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
+from zw_brain.shared.sanitization import safe_json
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -37,7 +38,7 @@ def _configure_compliance_rule(brain, deps, ctx, payload: dict[str, Any]) -> dic
             "title": str(payload.get("title", rule_id)),
             "status": str(payload.get("status", "active")),
             "severity": str(payload.get("severity", "mid")),
-            "rule_json": brain._safe_json(payload.get("rule_json") or {}),
+            "rule_json": safe_json(payload.get("rule_json") or {}),
             "updatedAt": clock.now_datetime(),
         }
         if rule is None:

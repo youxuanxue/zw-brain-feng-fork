@@ -14,6 +14,7 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import catalog as catalog_ser
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
+from zw_brain.shared.sanitization import safe_json
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -34,7 +35,7 @@ def _create_catalog_entry_draft(brain, deps, ctx, payload: dict[str, Any]) -> di
             "region_code": payload.get("region_code"),
             "source_ref": payload.get("source_ref"),
             "legacy_object_ref": payload.get("legacy_object_ref") or catalog_code,
-            "summary_json": brain._safe_json(payload.get("summary_json") or {}),
+            "summary_json": safe_json(payload.get("summary_json") or {}),
         }
         repo = deps.repos.catalog if store is not None else CatalogRepository()
         repo.upsert_from_resource(catalog_payload, tenant_id=_DEFAULT_TENANT_ID)
@@ -351,7 +352,7 @@ def _update_catalog_entry(brain, deps, ctx, payload: dict[str, Any]) -> dict[str
         repo.upsert_from_resource(
             {
                 **copy.deepcopy(existing.summary_json),
-                **brain._safe_json(payload.get("summary_json") or {}),
+                **safe_json(payload.get("summary_json") or {}),
                 "id": catalog_code,
                 "name": str(payload.get("title", existing.title)),
                 "status": existing.lifecycle_status,

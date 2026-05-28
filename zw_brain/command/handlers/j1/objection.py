@@ -21,6 +21,7 @@ from zw_brain.domain.models import (
 )
 from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
+from zw_brain.shared.sanitization import safe_json
 
 # Target types that must reference an existing entity. authorization/alert are
 # auto-issued by upstream events and not enumerable through a clean lookup;
@@ -137,7 +138,7 @@ def _transition_objection_case(brain, deps, ctx, objection_id: str, next_status:
                 node_name=node_name,
                 action_result=str(payload.get("action_result", "pass")),
                 handler_org_id=payload.get("handler_org_id"),
-                handler_snapshot_json={"actor": actor, "role": role} | brain._safe_json(payload.get("handler_snapshot_json") or {}),
+                handler_snapshot_json={"actor": actor, "role": role} | safe_json(payload.get("handler_snapshot_json") or {}),
                 opinion=payload.get("opinion") or payload.get("decision_reason") or payload.get("resolved_summary"),
                 resolved_summary=payload.get("resolved_summary"),
                 evidence=payload.get("evidence") or [],
@@ -162,7 +163,7 @@ def _evaluate_objection_case(brain, deps, ctx, payload: dict[str, Any]) -> dict[
         try:
             evaluation = repo.evaluate_case(
                 objection_id,
-                payload | {"evaluator_snapshot_json": {"actor": actor, "role": role} | brain._safe_json(payload.get("evaluator_snapshot_json") or {})},
+                payload | {"evaluator_snapshot_json": {"actor": actor, "role": role} | safe_json(payload.get("evaluator_snapshot_json") or {})},
             )
         except KeyError as exc:
             raise NotFoundError(objection_id) from exc
@@ -236,7 +237,7 @@ def _reply_objection_case(brain, deps, ctx, payload: dict[str, Any]) -> dict[str
                 action_type="reply",
                 action_result=str(payload.get("action_result", "submitted")),
                 handler_org_id=payload.get("handler_org_id"),
-                handler_snapshot_json={"actor": actor, "role": role} | brain._safe_json(payload.get("handler_snapshot_json") or {}),
+                handler_snapshot_json={"actor": actor, "role": role} | safe_json(payload.get("handler_snapshot_json") or {}),
                 opinion=payload.get("opinion"),
                 evidence=payload.get("evidence") or [],
             )

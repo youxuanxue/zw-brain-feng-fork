@@ -19,6 +19,7 @@ from zw_brain.domain.serializers import metadata as metadata_ser
 from zw_brain.domain.serializers import quality as quality_ser
 from zw_brain.domain.serializers import resource_api as resource_api_ser
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
+from zw_brain.shared.sanitization import safe_json
 
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
@@ -38,6 +39,27 @@ class ProviderService:
             if isinstance(item, dict) and item.get("id"):
                 return str(item["id"])
         return None
+
+    def find_api_resource(self, resource_code: str) -> dict[str, Any] | None:
+        """Lookup an API resource by resource_code.
+
+        Action E: lifted from ``BrainService._find_api_resource``. Returns a
+        deepcopy of the in-memory snapshot fallback or a freshly-serialized
+        dict for DB-backed lookups, so mutations on the returned dict do
+        NOT propagate to the live snapshot.
+        """
+        store = self.brain._state_store.database_store
+        if store is None:
+            item = next(
+                (
+                    item for item in self.brain._snapshot.get("api_resources", [])
+                    if item["resource_code"] == resource_code
+                ),
+                None,
+            )
+            return copy.deepcopy(item) if item is not None else None
+        record = store.resource_api_repo.get_asset(resource_code)
+        return resource_api_ser.resource_asset_to_dict(record) if record is not None else None
 
     def focus_delivery(self) -> dict[str, Any]:
         """Pick the focus delivery task (backflow candidates) for provider summary."""
@@ -59,9 +81,9 @@ class ProviderService:
             "action": action,
             "tenant_id": payload.get("tenant_id", _DEFAULT_TENANT_ID),
             "target_ref": resource_id,
-            "field_evidence": self.brain._safe_json(payload.get("field_evidence") or {}),
-            "binding_confirmations": self.brain._safe_json(payload.get("binding_confirmations") or []),
-            "external_execution": self.brain._safe_json(payload.get("external_execution") or {}),
+            "field_evidence": safe_json(payload.get("field_evidence") or {}),
+            "binding_confirmations": safe_json(payload.get("binding_confirmations") or []),
+            "external_execution": safe_json(payload.get("external_execution") or {}),
         } | ({"role": payload["role"]} if "role" in payload else {})
 
     def enrich_resource_asset(self, item: dict[str, Any], store: Any) -> dict[str, Any]:
@@ -155,7 +177,7 @@ class ProviderService:
         store = self.brain._state_store.database_store
         record = store.resource_api_repo.transition_asset(resource_id, status, tenant_id=_DEFAULT_TENANT_ID) if store is not None else None
         if store is None:
-            resource = self.brain._find_api_resource(resource_id)
+            resource = self.find_api_resource(resource_id)
             if resource is None:
                 snapshot_resource = next((item for item in self.brain._snapshot.get("provider", {}).get("resources", []) if item.get("id") == resource_id), None)
                 if snapshot_resource is None:
@@ -209,11 +231,11 @@ class ProviderService:
         audit_id: str,
     ) -> dict[str, Any]:
         """Confirm field evidence for resource asset; sync schema snapshots."""
-        field_evidence = self.brain._safe_json(payload.get("field_evidence") or {})
+        field_evidence = safe_json(payload.get("field_evidence") or {})
         if not field_evidence:
             raise BrainServiceError("field_evidence is required")
         store = self.brain._state_store.database_store
-        resource = self.brain._find_api_resource(resource_id)
+        resource = self.find_api_resource(resource_id)
         if resource is None:
             raise NotFoundError(resource_id)
         summary = copy.deepcopy(resource.get("summary_json") or {})
@@ -270,7 +292,7 @@ class ProviderService:
         store = self.brain._state_store.database_store
         if store is None:
             raise BrainServiceError("database store is required for provider binding confirmation")
-        if self.brain._find_api_resource(resource_id) is None:
+        if self.find_api_resource(resource_id) is None:
             raise NotFoundError(resource_id)
         mapping_codes: list[str] = []
         for confirmation in confirmations:
@@ -302,14 +324,14 @@ class ProviderService:
         audit_id: str,
     ) -> dict[str, Any]:
         """Request external execution (metadata_gather / schema_structure / exchange)."""
-        execution = self.brain._safe_json(payload.get("external_execution") or {})
+        execution = safe_json(payload.get("external_execution") or {})
         execution_kind = str(execution.get("execution_kind") or execution.get("kind") or "schema_structure")
         if execution_kind not in {"metadata_gather", "schema_structure", "materialize", "exchange"}:
             raise BrainServiceError(f"unsupported external execution kind: {execution_kind}")
         store = self.brain._state_store.database_store
         if store is None:
             raise BrainServiceError("database store is required for external execution receipts")
-        if self.brain._find_api_resource(resource_id) is None:
+        if self.find_api_resource(resource_id) is None:
             raise NotFoundError(resource_id)
         attempt_code = str(execution.get("attempt_code") or f"provider-external:{resource_id}:{execution_kind}:{audit_id}")
         delivery_code = str(execution.get("delivery_code") or f"provider-external:{resource_id}")

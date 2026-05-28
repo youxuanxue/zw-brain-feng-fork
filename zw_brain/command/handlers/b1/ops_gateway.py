@@ -17,6 +17,7 @@ from datetime import datetime
 from zw_brain.command.brain import BrainServiceError
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import ops_metrics as ops_metrics_ser
+from zw_brain.shared.sanitization import safe_json
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -60,7 +61,7 @@ def _anchor_gateway_log(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, 
     role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     gateway_log_ref = str(payload["gateway_log_ref"])
-    evidence = brain._safe_json(payload.get("evidence_json", {}))
+    evidence = safe_json(payload.get("evidence_json", {}))
     anchor_payload = {
         "gateway_log_ref": gateway_log_ref,
         "resource_code": payload.get("resource_code"),

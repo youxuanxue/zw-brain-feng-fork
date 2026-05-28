@@ -19,6 +19,7 @@ from zw_brain.command.serializers import adapter as adapter_ser
 from zw_brain.command.serializers import governance as governance_ser
 from zw_brain.domain import policy
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
+from zw_brain.shared.sanitization import safe_json
 from zw_brain.skill_registration.runtime import get_manifest
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -71,7 +72,7 @@ def _get_governance_iam_overview(brain, deps, ctx, payload: dict[str, Any]) -> d
                 "role": str(payload.get("role", (actor_snapshot.get("role_codes") or [ctx.role])[0])),
                 "actor_snapshot": actor_snapshot,
                 "org_snapshot": copy.deepcopy(sample_org or {}),
-                "risk_context": brain._safe_json(payload.get("risk_context") or {}),
+                "risk_context": safe_json(payload.get("risk_context") or {}),
             }
         )
     return {

@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
+from zw_brain.shared.sanitization import safe_json
 
 
 def handler(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
@@ -68,7 +69,7 @@ def handler(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> An
         for item in candidates_payload:
             manifest_version = str(item.get("manifest_version") or "inline-v1")
             manifest_source_ref = str(item.get("manifest_source_ref") or "legacy:bsp:mapping-manifest:inline-v1")
-            raw_evidence = brain._safe_json(item.get("evidence_json") or {})
+            raw_evidence = safe_json(item.get("evidence_json") or {})
             reviewable_evidence = {
                 key: value
                 for key, value in raw_evidence.items()

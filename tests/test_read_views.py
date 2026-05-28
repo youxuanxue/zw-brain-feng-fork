@@ -165,19 +165,19 @@ def test_delivery_find_by_request_id_returns_live_or_none(brain: BrainService, v
 
 
 def test_requests_find_by_id_raises_on_miss(brain: BrainService, views: ReadViews) -> None:
-    """RequestsView.find_by_id delegates to brain._request_by_id which raises NotFoundError."""
+    """RequestsView.find_by_id (Action E: deps.services.request.by_id) raises NotFoundError."""
     with pytest.raises(NotFoundError):
         views.requests.find_by_id("REQ-DOES-NOT-EXIST")
 
 
 def test_packages_find_by_id_raises_on_miss(brain: BrainService, views: ReadViews) -> None:
-    """PackagesView.find_by_id delegates to brain._package_by_id which raises NotFoundError."""
+    """PackagesView.find_by_id (Action E: inline snapshot scan) raises NotFoundError."""
     with pytest.raises(NotFoundError):
         views.packages.find_by_id("PKG-DOES-NOT-EXIST")
 
 
 def test_delivery_find_by_id_raises_on_miss(brain: BrainService, views: ReadViews) -> None:
-    """DeliveryView.find_by_id delegates to brain._delivery_by_id which raises NotFoundError."""
+    """DeliveryView.find_by_id (Action E: deps.services.delivery.by_id) raises NotFoundError."""
     with pytest.raises(NotFoundError):
         views.delivery.find_by_id("DLV-DOES-NOT-EXIST")
 
@@ -230,10 +230,11 @@ def test_resources_get_api_resource_returns_deepcopy_not_live(
     """ResourcesView.get_api_resource must return deepcopy / fresh dict (no in-place propagation).
 
     R-010 renamed ``ResourcesView.find_api_resource`` → ``get_api_resource``
-    because the underlying ``brain._find_api_resource`` deepcopies the
-    in-memory fallback and returns a freshly-serialized dict for DB-backed
-    lookups. This test pins both behaviors so a future Action D rewrite
-    can't silently flip semantics.
+    because the underlying ``provider.find_api_resource`` (Action E:
+    lifted from brain._find_api_resource) deepcopies the in-memory fallback
+    and returns a freshly-serialized dict for DB-backed lookups. This test
+    pins both behaviors so a future Action D/E rewrite can't silently flip
+    semantics.
     """
     items = brain._snapshot.get("api_resources", [])
     if not items:
