@@ -42,6 +42,29 @@
 
 - **.twin/ schema 检查 (preflight 段 26)**：[scripts/check_twin_workspaces.py](../scripts/check_twin_workspaces.py) 调 `scripts.twin validate` 守 12 yaml schema。2026-05-24 PR #85 落地——触发事件：e6 supervisor 启动时 F8.deliverable 与 AC7.statement 文本重合致运行期校验失败，README 原 trigger 已 fire。
 
+## 已 sign-off 标记（避免反复 sign-off）
+
+业务方对某 F-item 完成 sign-off 后，在 `plan.yaml` 该 F-item 的 `actual_evidence` 末段追加一行**结构化 sentinel**：
+
+```
+- '[SIGNOFF-CLOSED YYYY-MM-DD] covers AC[X] | by <身份> | vehicle <PR/issue 评论引用> | status=completed → 不重签'
+```
+
+**机器查询**：`grep -rn "SIGNOFF-CLOSED" .twin/` 列出全量已签 F-item；任何 supervisor / agent 看到此 sentinel 即跳过 sign-off 步骤，不重复触发会议或催签。
+
+**人类查询**：直接看 `plan.yaml` F-item.status — `completed` 且 actual_evidence 末段有 `[SIGNOFF-CLOSED ...]` 即定论。原 free-form 叙事 evidence 行保留（场景细节、当场修复记录），sentinel 行只承担"机器可识别"的关单职责。
+
+**当前已签清单（截 2026-05-28）**：
+
+| Worker | F-item | covers AC | 签字方 | 载体 |
+|---|---|---|---|---|
+| E1 J1 | F11 | AC5 | 海若产品部产品负责人 | PR #143/#147 |
+| E2 J2 | F6 | AC5 | 海若产品部产品负责人 | PR #143 |
+| E4 B1+Runtime | F8 | AC6 | 业务方 + 安全审计员（双签）| PR #147 |
+| E3 Wave2 三引擎 | F8 | AC5 | 海若产品部产品负责人 | PR #151 |
+
+E3 F9（D32.a 主题包立项）、E4 F7（5 borderline B1 报表）等仍 pending 项**无** sentinel 行。
+
 ## 2026-05-25 浏览器端到端验收快照（PR #108 / feature/e5-f13-f17-browser-closure）
 
 本地 `bash scripts/start-local.sh`（`127.0.0.1:8800`，`NO_PROXY=127.0.0.1,localhost`）+ Playwright + Jobs 逐页走查；详见 `.twin/attachments/browser-acceptance-2026-05-25.md`。

@@ -197,6 +197,7 @@ items:
     rollback v1.2.0→v1.1.0 status=rolled-back
   - E5 F17 b12 Playwright e2e 3 it() executable（陈旧 blocked_reason 已勘正）
   - '[2026-05-28] 业务方 + 安全审计员双签完成（P0/P1 批量 sign-off 会议）—— B1.1 四 panel 脱敏 + 双异常规则命中 (high-failure-rate + repeated-denied) + 拒绝链可读 / B1.2 review→enable→matrix→trust_level→rollback 全链路绿；customer_demo_b1.sh 报告字段全过；business-signoff 人类关卡闭合，AC6 通过'
+  - '[SIGNOFF-CLOSED 2026-05-28] covers AC6 | by 海若产品部产品负责人 + 安全审计员（双签）| vehicle PR #147 评论 business-signoff | status=completed → 不重签'
   depends_on:
   - F1
   - F2

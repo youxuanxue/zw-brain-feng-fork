@@ -220,9 +220,11 @@ items:
     [2026-05-28] entry）；(5) RecommendationRuleRepo.latest_by_code 新增；
     (6) recommendation handler 已支持无 rule_id 时按 rule_code 自动 reapply。'
   - '[2026-05-28] 业务方 sign-off 4 子项全 ✓ 通过：鞍山 4 级审批 / 四川 7
-    字段表单 / 荆州 5 条推荐规则 / 「1 周内不改代码」承诺。SIGN_OFF.md § 0
-    抬头 + § 3 表填字落盘；业务方 = 海若产品部产品负责人；签字载体 = PR 评论
-    business-signoff: 业务方 2026-05-28（与 J1 F11/J2 F6/E4 F8 同模式）'
+    字段表单 / 荆州 5 条推荐规则 / 「1 周内不改代码」承诺。业务方 = 海若产品部
+    产品负责人；签字载体 = PR #151 评论 business-signoff（2026-05-28 PR #154
+    退役 docs/wave2-acceptance/SIGN_OFF.md tracked，derived 证据收归
+    .data/wave2-acceptance/ artifact，与 J1 F11/J2 F6/E4 F8 同模式）'
+  - '[SIGNOFF-CLOSED 2026-05-28] covers AC5 | by 海若产品部产品负责人 | vehicle PR #151 评论 business-signoff | status=completed → 不重签'
   depends_on:
   - F2
   - F3

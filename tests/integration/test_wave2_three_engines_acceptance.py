@@ -1,18 +1,21 @@
 # Wave: 2
 # Engine: 三引擎客户落地 sign-off（E3 F8 验收）
 # Covers: AC5（≤1 周不改代码完成鞍山+四川+荆州三个项目级定制）
-"""F8 — E3 Wave-2 三引擎客户落地 sign-off 材料生成。
+"""F8 — E3 Wave-2 三引擎客户落地证据材料生成。
 
-技术 sign-off：跑 3 个端到端用例 + 1 个 consolidated；产出 `docs/wave2-acceptance/
-SIGN_OFF.md`（tracked，PR reviewer 可见）+ `.data/wave2-acceptance/*.json`（artifact，
-本地复跑后生成；不进 git）。每个 e2e 测量 NL→draft→preview→commit→live 总耗时。
+技术证据：跑 3 个端到端用例 + 1 个 consolidated；产出 `.data/wave2-acceptance/
+SIGN_OFF.md` + `.data/wave2-acceptance/*.json`（**全是 artifact，不进 git**，本地
+复跑后生成）。每个 e2e 测量 NL→draft→preview→commit→live 总耗时。
 
-R-003 fix（2026-05-24）：SIGN_OFF.md 路径从 `.data/wave2-acceptance/` 迁到
-`docs/wave2-acceptance/`，使 PR reviewer 与业务方无需 checkout + 跑 test 即可读签字材料。
+2026-05-28 重构（业务方第二次 Jobs 视角穿透）：SIGN_OFF.md 是 derived 产物，与
+consolidated.json 同性质，按 "derived 不入 git" 规矩**不再 tracked**——原 R-003
+fix（迁到 docs/）和 PR #144 D17 确定性化（让重复跑产物 byte-identical）都是为
+让 tracked 状态稳定打的补丁，根本病是"derived 产物本就不该 tracked"。
 
-2026-05-26 收口：删除 `.data/wave2-acceptance/SIGN_OFF.md` 副本写入路径。tracked
-`docs/wave2-acceptance/SIGN_OFF.md` 是**单一权威**；JSON artifact（consolidated 等）仍
-留在 `.data/` 作为本地复跑产物（gitignored）。
+**sign-off 状态权威源 = `.twin/e3-wave2-engines/plan.yaml` F8.status +
+F8.actual_evidence**（业务方身份 / 签字载体 / 4 子项判定 / 日期全量住此字段）。
+reviewer 看证据：(a) plan.yaml F8.actual_evidence；(b) 本地跑本 test 生成
+`.data/wave2-acceptance/` 下完整证据；(c) PR 评论 `business-signoff: <角色> <日期>`。
 """
 from __future__ import annotations
 
@@ -28,9 +31,9 @@ from tests._trusted_payload import invoke_trusted
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SHADOW_DB = REPO_ROOT / ".data" / "test_F8_wave2_acceptance_shadow.db"
-# R-003 fix: SIGN_OFF.md 走 docs/（PR reviewer 可见），数据 artifact 走 .data/（不进 git）
+# 2026-05-28 重构：SIGN_OFF.md 与 consolidated.json 同入 .data/（artifact，
+# gitignored）；权威 sign-off 状态住 .twin/e3-wave2-engines/plan.yaml F8。
 ACCEPTANCE_DIR = REPO_ROOT / ".data" / "wave2-acceptance"
-SIGN_OFF_DIR = REPO_ROOT / "docs" / "wave2-acceptance"
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
 
 
@@ -38,7 +41,6 @@ FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
 def _shadow_db() -> None:
     SHADOW_DB.parent.mkdir(parents=True, exist_ok=True)
     ACCEPTANCE_DIR.mkdir(parents=True, exist_ok=True)
-    SIGN_OFF_DIR.mkdir(parents=True, exist_ok=True)
     if SHADOW_DB.exists():
         SHADOW_DB.unlink()
     os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
@@ -48,41 +50,6 @@ def _shadow_db() -> None:
     from zw_brain.shared.migrate import reset_and_upgrade
     reset_and_upgrade()
     yield
-
-
-_PRESERVE_DEFAULTS = (
-    "| 业务方 (e3 F8 三引擎) | _待填",  # § 0 default
-    "| 鞍山 4 级审批流配置示例 |  |  |  |",  # § 3 row 1 default
-    "| 四川 7 字段申请表配置示例 |  |  |  |",
-    "| 荆州 5 条推荐规则配置示例 |  |  |  |",
-    "| 「1 周内不改代码」承诺 |  |  |  |",
-)
-
-
-def _preserve_signed_rows(new_lines: list[str], existing_lines: list[str]) -> list[str]:
-    """Preserve § 0 / § 3 表中已被业务方手填的行，避免 acceptance test 重跑覆盖。
-
-    每个 _PRESERVE_DEFAULTS 是一行 default sentinel。对应位置在 new_lines 与
-    existing_lines 内通过 "| <prefix> |" 锚匹配；当 existing 行不以 default
-    sentinel 开头时视为"已签"，替换 new 行同位。其余 (§ 1/§ 2/§ 4/§ 5) 仍走
-    auto-gen 覆盖。R-001 fix (2026-05-28)，见 docs/preflight-debt.md。
-    """
-    anchor_to_new_idx: dict[str, int] = {}
-    for default in _PRESERVE_DEFAULTS:
-        prefix = default.split("|")[1].strip()  # e.g. "业务方 (e3 F8 三引擎)"
-        anchor = f"| {prefix} |"
-        for idx, line in enumerate(new_lines):
-            if line.startswith(anchor):
-                anchor_to_new_idx[anchor] = idx
-                break
-    out = list(new_lines)
-    for line in existing_lines:
-        for anchor, idx in anchor_to_new_idx.items():
-            if line.startswith(anchor) and not any(
-                line.startswith(d) for d in _PRESERVE_DEFAULTS
-            ):
-                out[idx] = line
-    return out
 
 
 def _new_brain():
@@ -502,18 +469,13 @@ def test_three_engines_consolidated_acceptance() -> None:
         "  评分（embedding / TF-IDF 等），均属 Wave 2.x+ 立项。",
         "- 命中明细见 `.data/wave2-acceptance/jinzhou_recommendation.json`（本地复跑后生成）。",
         "",
-        "## § 3 业务方 sign-off 栏（待签字）",
+        "## § 3 业务方 sign-off 状态",
         "",
-        "> 签字渠道：PR 评论 `business-signoff: <角色> <日期>` 或打 `business-signoff` issue label；",
-        "> 截图归入 `docs/approved/` 或 PR 评论永久附属。任一项「业务方意见」=「需修改」则",
-        "> needs_human 升级，按 R13 元规则触发新一轮 review。",
-        "",
-        "| 项 | 业务方意见 | 签字 | 日期 |",
-        "|---|---|---|---|",
-        "| 鞍山 4 级审批流配置示例 |  |  |  |",
-        "| 四川 7 字段申请表配置示例 |  |  |  |",
-        "| 荆州 5 条推荐规则配置示例 |  |  |  |",
-        "| 「1 周内不改代码」承诺 |  |  |  |",
+        "> **权威源**：`.twin/e3-wave2-engines/plan.yaml` F8.status + F8.actual_evidence；",
+        "> 本节不持有签字数据（derived 产物不入 git，避免「同信息存两处需手同步」）。",
+        "> 业务方判定 4 子项（鞍山 4 级审批流 / 四川 7 字段申请表 / 荆州 5 条推荐规则 /",
+        "> 「1 周内不改代码」承诺）的结果落在 plan.yaml F8.actual_evidence 末段 sign-off 条；",
+        "> 任一子项 = 「需修改」按 R13 元规则触发新一轮 review。",
         "",
         "## § 4 已知 deferred 项",
         "",
@@ -543,18 +505,10 @@ def test_three_engines_consolidated_acceptance() -> None:
         "`pytest tests/integration/test_wave2_three_engines_acceptance.py -v` 后回写。",
         "",
     ]
-    # R-003 fix（2026-05-24）：SIGN_OFF.md 走 docs/ tracked 路径（PR reviewer 可见）。
-    # 2026-05-26 收口：移除 .data/wave2-acceptance/SIGN_OFF.md 副本。tracked 路径是
-    # 单一权威；JSON artifact（consolidated/anshan_approval/sichuan_form/jinzhou_recommendation）
-    # 仍走 .data/（不进 git，本地复跑后生成），二者职责分明。
-    sign_off_path = SIGN_OFF_DIR / "SIGN_OFF.md"
-    # R-001 fix (2026-05-28): preserve 业务方手填的 § 0 抬头 + § 3 sign-off 表行，
-    # 避免每次重跑 acceptance test 把签字数据擦回 default "_待填_" / 空。检测条件：
-    # 已存在 SIGN_OFF.md 且 § 0 / § 3 默认 sentinel 行不再出现 → 取现有内容覆盖
-    # 同位 md_lines。判定见 docs/preflight-debt.md。
-    if sign_off_path.exists():
-        existing_lines = sign_off_path.read_text(encoding="utf-8").splitlines()
-        md_lines = _preserve_signed_rows(md_lines, existing_lines)
+    # 2026-05-28 重构：SIGN_OFF.md 与 consolidated.json 同入 .data/（gitignored
+    # artifact）。sign-off 状态权威源住 .twin/e3-wave2-engines/plan.yaml F8。
+    # 无 preserve 逻辑——本文档纯 auto-gen 证据材料，无需保护"手填行"。
+    sign_off_path = ACCEPTANCE_DIR / "SIGN_OFF.md"
     sign_off_path.write_text("\n".join(md_lines), encoding="utf-8")
     assert sign_off_path.exists()
     assert summary["audit_event_count"] >= 6, f"审计事件数 {summary['audit_event_count']} 过低"

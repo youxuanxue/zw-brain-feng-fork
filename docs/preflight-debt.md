@@ -260,7 +260,10 @@ trigger 关闭即可删除字段。
   流已激活（当前 preview 2 / draft 4）。
 - **What remains**: 代码侧已交付；**未完成的是 T1 真实客户演练验证**——用三引擎在 ≤1 周内不改代码
   完成"鞍山 4 级审批 + 四川 7 字段表单 + 荆州 5 条推荐规则"项目级定制，由业务方 sign-off。
-  acceptance 材料 `docs/wave2-acceptance/SIGN_OFF.md`（tracked，PR reviewer 可见）已备，等真人门禁（属 R13 业务流程类决策）。
+  sign-off 权威源住 `.twin/e3-wave2-engines/plan.yaml` F8.actual_evidence；reviewer
+  本地跑 `pytest tests/integration/test_wave2_three_engines_acceptance.py -v` 生成
+  `.data/wave2-acceptance/` 下 SIGN_OFF.md + consolidated.json artifact（gitignored）。
+  等真人门禁（属 R13 业务流程类决策）。
 - **Trigger to re-evaluate**: 首位真实客户演练。届时跑通三引擎项目级定制并由海若产品部业务方
   sign-off → 本 entry 关闭并写入 D-编号；若演练暴露引擎缺口（节点/字段/推荐规则不够表达）→ 升级为 P1 fix。
 - **No mechanical preflight check (now)**: `config_change_class` 取值已由 `validate_manifest` 强制校验

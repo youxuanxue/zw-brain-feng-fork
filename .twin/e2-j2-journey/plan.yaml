@@ -110,6 +110,7 @@ items:
   - provider/objection/p5 回归 pytest 12 passed + preflight PASS
   - tests/e2e/wave1_j2_provider_p5_smoke.py — exit 0（本 worktree dist-vite + 8801）
   - '[2026-05-27] 业务方 sign-off 落盘——J2 business-signoff 人类关卡闭合'
+  - '[SIGNOFF-CLOSED 2026-05-27] covers AC5 | by 海若产品部产品负责人 | vehicle PR #143 评论 business-signoff | status=completed → 不重签'
   depends_on:
   - F1
   - F2

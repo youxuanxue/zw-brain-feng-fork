@@ -12,10 +12,9 @@
 
 ## 一、F8 sign-off 落盘检查（启动前必做）
 
-- [ ] `docs/wave2-acceptance/SIGN_OFF.md` § 3 业务方签字栏 4 项全部签字（鞍山 4
-      级审批流 / 四川 7 字段表单 / 荆州 5 条推荐规则 / 「1 周内不改代码」承诺）
-- [ ] `.twin/e3-wave2-engines/plan.yaml` F8 status: completed + actual_evidence
-      追加 sign-off commit ID
+- [ ] `.twin/e3-wave2-engines/plan.yaml` F8.status: `completed` + F8.actual_evidence
+      末段为 sign-off 落盘条（业务方身份 / 签字载体 / 4 子项判定 / 日期，覆盖鞍山 4
+      级审批流 / 四川 7 字段申请表 / 荆州 5 条推荐规则 / 「1 周内不改代码」承诺）
 - [ ] PR 评论或 issue label 留 `business-signoff: <角色> <日期>` 永久附属
 
 任一项未满足 → **不启动 F9**，回 R13 元规则等下次 review。
