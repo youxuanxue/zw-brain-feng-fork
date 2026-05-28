@@ -2,8 +2,17 @@
 #   cd /path/to/zw-brain
 #   docker build -t zw-brain:1.0.0 .
 #
+# WebUI：web-builder 阶段自动 npm ci + npm run build → zw-brain-web/dist-vite/
 # AgentRuntime 来自 vendor 离线包：
 #   vendor/agent-runtime/release/v0.1/agent-runtime-0.1.0-py312-pyc-only.tar.gz
+
+FROM node:20-bookworm-slim AS web-builder
+
+WORKDIR /build/zw-brain-web
+COPY zw-brain-web/package.json zw-brain-web/package-lock.json ./
+RUN npm ci
+COPY zw-brain-web/ ./
+RUN npm run build
 
 FROM python:3.12-slim AS builder
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -27,6 +36,7 @@ RUN cd /tmp && \
     ./install.sh
 
 COPY . /build/zw-brain/
+COPY --from=web-builder /build/zw-brain-web/dist-vite /build/zw-brain/zw-brain-web/dist-vite
 WORKDIR /build/zw-brain
 RUN uv build --wheel --out-dir /dist
 

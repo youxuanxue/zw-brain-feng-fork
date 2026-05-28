@@ -22,6 +22,7 @@ dist
 *.egg-info
 
 node_modules
+zw-brain-web/dist-vite
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

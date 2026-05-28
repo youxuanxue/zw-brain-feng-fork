@@ -20,7 +20,8 @@ docker build -t zw-brain:1.0.0 .
 
 离线包路径与升级说明见 [`vendor/agent-runtime/README.md`](../../vendor/agent-runtime/README.md)。
 
-> 构建阶段会解压 tar.gz、执行 `./install.sh` 并安装 `requirements.txt` 中的运行时依赖；镜像内 `agent.schema.json` 来自仓库 `schemas/`。
+> 构建阶段会解压 tar.gz、执行 `./install.sh` 并安装 `requirements.txt` 中的运行时依赖；镜像内 `agent.schema.json` 来自仓库 `schemas/`。  
+> **WebUI**：`Dockerfile` 的 `web-builder` 阶段在镜像内执行 `npm ci` + `npm run build`，生成 `zw-brain-web/dist-vite/` 并打入 Python wheel；**无需**在宿主机先手动构建前端。本地非 Docker 开发仍可用 `scripts/start-local.sh`（缺产物时自动 build）或 `cd zw-brain-web && npm ci && npm run build`。
 
 镜像默认启动 `zw-brain-rest`，同时内置以下运行入口，可通过 `docker run ... <command>` 覆盖：
 
