@@ -11,19 +11,23 @@ import json
 # read. Set ZW_BRAIN_MASK_ROLE=internal_admin to opt up (audit replay only).
 import os as _os
 from collections.abc import Iterator, MutableMapping
-from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import zw_brain.shared.audit as audit_bus
 import zw_brain.shared.clock as clock
 import zw_brain.shared.ids as ids
-from zw_brain.command.serializers import delivery as delivery_ser
 from zw_brain.command.serializers import metadata as metadata_ser
-from zw_brain.command.serializers import quality as quality_ser
 from zw_brain.command.serializers import resource_api as resource_api_ser
-from zw_brain.command.serializers import topic_package as topic_package_ser
 from zw_brain.domain import policy
+from zw_brain.domain.errors import AccessDeniedError as AccessDeniedError  # R-016 re-export
+from zw_brain.domain.errors import BrainServiceError as BrainServiceError  # R-016 re-export
+from zw_brain.domain.errors import ConfirmationRequiredError as ConfirmationRequiredError  # R-016 re-export
+from zw_brain.domain.errors import InvalidStateError as InvalidStateError  # R-016 re-export
+from zw_brain.domain.errors import InvalidTokenError as InvalidTokenError  # R-016 re-export
+from zw_brain.domain.errors import NotFoundError as NotFoundError  # R-016 re-export
+from zw_brain.domain.errors import UnknownSkillError as UnknownSkillError  # R-016 re-export
+from zw_brain.domain.errors import _RequestBatchContext as _RequestBatchContext  # R-016 re-export
 from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.domain.repositories.delivery import DeliveryRepository
 from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
@@ -32,15 +36,16 @@ from zw_brain.domain.repositories.topic_package import TopicPackageRepository
 from zw_brain.shared import queue
 from zw_brain.shared.auth_context import get_auth_context
 from zw_brain.shared.runtime_config import get_dev_iam_bypass_enabled
-from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
+from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 from zw_brain.shared.sanitization import safe_json
-from zw_brain.shared.sensitive_mask import apply_field_masks
+from zw_brain.shared.sensitive_mask import (
+    DEFAULT_MASK_ROLE,
+    apply_field_masks,
+    mask_default,
+)
 from zw_brain.shared.state_store import StateStore
 from zw_brain.shared.ui_request_context import get_current_role, set_current_role
 from zw_brain.skill_registration.runtime import get_manifest, load_manifests
-
-_DEFAULT_MASK_ROLE = _os.environ.get("ZW_BRAIN_MASK_ROLE", "external")
-_DEFAULT_TENANT_ID = get_runtime_tenant_id()
 
 
 def _expected_iaf_issuer() -> str:
@@ -59,65 +64,20 @@ def _count_by(items: list[dict[str, Any]], key: str) -> dict[str, int]:
     return dict(sorted(counts.items()))
 
 
-def _mask(payload: Any) -> Any:
-    """Apply default-role mask to a serializer's outgoing payload."""
-    return apply_field_masks(payload, role=_DEFAULT_MASK_ROLE)
+# Module-level alias kept for callers that still reference `_mask` from brain.py
+# (a few serializer-call lines in this file). Domain services should import
+# ``mask_default`` from ``zw_brain.shared.sensitive_mask`` directly.
+_mask = mask_default
 
 
 DEFAULT_DISCOVERY_QUERY = "停车场信息"
 
 
-class BrainServiceError(RuntimeError):
-    pass
-
-
-class UnknownSkillError(BrainServiceError):
-    pass
-
-
-class AccessDeniedError(BrainServiceError):
-    pass
-
-
-class ConfirmationRequiredError(BrainServiceError):
-    pass
-
-
-class InvalidStateError(BrainServiceError):
-    pass
-
-
-class NotFoundError(BrainServiceError):
-    pass
-
-
-class InvalidTokenError(BrainServiceError):
-    pass
-
-
-@dataclass
-class _RequestBatchContext:
-    """Prefetched indices for list_requests N+1 elimination (D-9).
-
-    Why: list_requests previously called delivery_repo.list_tasks() /
-    application_repo.list_records() / legacy_mapping_repo.list_mappings() /
-    resource_api_repo.list_assets() / metadata_evidence_repo.list_schema_*()
-    once per item (deep N+1 through get_resource → _enrich_catalog_detail),
-    ~37s on the customer browser replay. This context bundles prefetched
-    indices that helpers consult instead of re-fetching.
-    """
-
-    delivery_by_appcode: dict[str, Any] = field(default_factory=dict)
-    application_records: list[Any] = field(default_factory=list)
-    legacy_mappings_by_ref: dict[tuple[str, str], list[Any]] = field(default_factory=dict)
-    quality_by_target: dict[tuple[str, str], list[Any]] = field(default_factory=dict)
-    resource_cache: dict[str, dict[str, Any]] = field(default_factory=dict)
-    # Enrichment-layer prefetches (consumed by _enrich_catalog_detail / _mapping_diagnostics).
-    resource_assets_by_catalog: dict[str, list[Any]] = field(default_factory=dict)
-    schema_mappings_by_catalog: dict[str, list[Any]] = field(default_factory=dict)
-    schema_snapshots_by_resource: dict[str, list[Any]] = field(default_factory=dict)
-    catalog_items_by_catalog: dict[str, list[Any]] = field(default_factory=dict)
-    catalog_items_by_item_code: dict[str, Any] = field(default_factory=dict)
+# R-016: BrainServiceError + 6 subclasses + _RequestBatchContext moved to
+# zw_brain.domain.errors; re-exported above via ``import X as X`` for handler /
+# test call sites that still spell ``from zw_brain.command.brain import
+# NotFoundError``. The domain layer no longer pays the cost of 25 lazy imports
+# per service body to dodge a circular dependency.
 
 
 class _UIStateProxy(MutableMapping[str, Any]):
@@ -178,14 +138,15 @@ class _UIStateProxy(MutableMapping[str, Any]):
 
 
 class BrainService:
-    # Cached HandlerDeps built lazily on first invoke_skill (Action A); the
-    # container is process-wide stable except for `brain_legacy=self`, so a
-    # one-time build is correct.
-    _handler_deps: Any = None
-
     def __init__(self, state_store: StateStore | None = None) -> None:
         self._state_store = state_store or StateStore()
         self._snapshot = self._state_store.load()
+        # Cached HandlerDeps built lazily on first invoke_skill (Action A); the
+        # container is process-wide stable except for `brain_legacy=self`, so a
+        # one-time build is correct. Declared here (not as class attr) so each
+        # BrainService instance has its own cache and reset_service() always
+        # returns a fresh one.
+        self._handler_deps: Any = None
         # role is per-request → ContextVar via _UIStateProxy; only true-global
         # keys are seeded on the backing dict (see _UIStateProxy docstring).
         self._ui_state = _UIStateProxy({
@@ -452,347 +413,71 @@ class BrainService:
             return store.capability_package_repo
         return __import__("zw_brain.domain.repositories.capability_package", fromlist=["CapabilityPackageRepository"]).CapabilityPackageRepository()
 
-    @staticmethod
+    # --- Action D commit 2: governance methods migrated to GovernanceService ---
+    # Note: _build_m0_work_queue_cards was a @staticmethod; now a regular shim
+    # so it can be called via the handler_deps.services.governance instance.
+
     def _build_m0_work_queue_cards(
+        self,
         *,
         totals: dict[str, int],
         by_canonical: dict[str, dict[str, int]],
         adapter_runs: list[dict[str, Any]],
         rollbacks: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
-        """Project aggregated state onto the 11 fixed M0 work-queue cards.
-
-        Each card has a deterministic status (ready / partial / pending / failed)
-        derived only from what we already loaded — no extra queries.
-        """
-        succeeded_runs = sum(1 for r in adapter_runs if r["status"] == "succeeded")
-        failed_runs = sum(1 for r in adapter_runs if r["status"] == "failed")
-        has_runs = bool(adapter_runs)
-        has_mappings = totals["mappings"] > 0
-        any_conflicted = totals.get("conflicted", 0) > 0
-        any_rolled_back = totals.get("rolled_back", 0) > 0
-        catalog_count = by_canonical.get("catalog_entry", {}).get("total", 0)
-        resource_count = (
-            by_canonical.get("ResourceAssetRecord", {}).get("total", 0)
-            + by_canonical.get("resource_asset", {}).get("total", 0)
+        return self._get_handler_deps().services.governance.build_m0_work_queue_cards(
+            totals=totals, by_canonical=by_canonical, adapter_runs=adapter_runs, rollbacks=rollbacks,
         )
-        application_count = by_canonical.get("application_record", {}).get("total", 0)
-        topic_count = by_canonical.get("TopicPackageRecord", {}).get("total", 0)
-        objection_count = by_canonical.get("ObjectionCaseRecord", {}).get("total", 0)
-        delivery_count = by_canonical.get("DeliveryTaskRecord", {}).get("total", 0)
-
-        def status(condition_ready: bool, condition_partial: bool = False) -> str:
-            if condition_ready:
-                return "ready"
-            if condition_partial:
-                return "partial"
-            return "pending"
-
-        return [
-            {
-                "id": "export",
-                "title": "一键导出",
-                "owner": "M0 + 客户授权",
-                "status": "ready" if has_runs else "pending",
-                "summary": f"已识别 {len(adapter_runs)} 次最近导入运行" if has_runs else "等待客户现场导出",
-            },
-            {
-                "id": "import",
-                "title": "批量导入",
-                "owner": "M0 实施人",
-                "status": status(succeeded_runs >= 5, has_runs),
-                "summary": f"{succeeded_runs} 个 adapter 已成功，{failed_runs} 个失败",
-            },
-            {
-                "id": "mapping_verify",
-                "title": "对象映射核验",
-                "owner": "M0 + 数据提供方 / 业务运营员 抽样",
-                "status": status(has_mappings and not any_conflicted, has_mappings),
-                "summary": f"映射 {totals['mappings']} 条；冲突 {totals.get('conflicted', 0)}",
-            },
-            {
-                "id": "catalog_migration_review",
-                "title": "目录迁移审核",
-                "owner": "M0 + 业务运营员 抽样",
-                "status": status(catalog_count > 0, False),
-                "summary": f"catalog_entry 映射 {catalog_count} 条",
-            },
-            {
-                "id": "schema_mapping",
-                "title": "schema 快照与挂接核验",
-                "owner": "M0 + 数据提供方 抽样",
-                "status": status(resource_count > 0, False),
-                "summary": f"resource_asset 映射 {resource_count} 条",
-            },
-            {
-                "id": "application_history",
-                "title": "申请审批授权历史核验",
-                "owner": "M0 + 审批人 抽样",
-                "status": status(application_count > 0 and delivery_count > 0, application_count > 0),
-                "summary": f"application_record {application_count} / delivery_task {delivery_count}",
-            },
-            {
-                "id": "projection",
-                "title": "投影生成",
-                "owner": "M0 自动 + 失败摘要",
-                "status": status((topic_count + objection_count) > 0, has_runs),
-                "summary": f"topic_package {topic_count} / objection_case {objection_count}",
-            },
-            {
-                "id": "compliance_sample",
-                "title": "合规与断链抽查",
-                "owner": "安全审计员 抽样",
-                "status": status(objection_count > 0, has_mappings),
-                "summary": f"已建立 objection_case {objection_count} 条样本" if objection_count else "等待 安全审计员 抽查",
-            },
-            {
-                "id": "handover",
-                "title": "验收移交",
-                "owner": "客户验收人 + M0 实施人",
-                "status": status(
-                    has_mappings and not any_conflicted and succeeded_runs >= 5,
-                    has_mappings,
-                ),
-                "summary": "等待客户验收签字" if not has_mappings else "可移交（缺口请检查冲突映射）",
-            },
-            {
-                "id": "gap_reimport",
-                "title": "缺口补迁",
-                "owner": "M0 + 客户授权",
-                "status": "ready" if has_runs else "pending",
-                "summary": "支持按 schema 递增追加，回指旧对象",
-            },
-            {
-                "id": "rollback",
-                "title": "回滚",
-                "owner": "M0 + 客户授权",
-                "status": "ready" if any_rolled_back or has_runs else "pending",
-                "summary": (
-                    f"已记录 {len(rollbacks)} 次 rollback；最近 actor={rollbacks[0]['actor']}"
-                    if rollbacks
-                    else "尚未触发"
-                ),
-            },
-        ]
-
-    # ----- W1 skill implementations (reverse-cataloging, quality tasks, direct
-    # access, require dispatch, withdrawal handling). These follow the existing
-    # _mutate / get_manifest write-path or the read-only query path used by
-    # legacy.migration.status.query. Each method is intentionally compact —
-    # heavier business logic lives in dedicated repositories in W2/W3 if needed.
 
     def _filter_governance_actor(self, item: dict[str, Any], *, status_filter: str, role_filter: str, actor_filter: str) -> bool:
-        profile = item.get("profile_json") if isinstance(item.get("profile_json"), dict) else {}
-        if status_filter and item.get("status") != status_filter and profile.get("binding_status") != status_filter:
-            return False
-        if role_filter and role_filter not in (item.get("role_codes_json") or []):
-            return False
-        if actor_filter and item.get("external_actor_id") != actor_filter:
-            return False
-        return True
+        return self._get_handler_deps().services.governance.filter_actor(
+            item, status_filter=status_filter, role_filter=role_filter, actor_filter=actor_filter,
+        )
 
     def _governance_import_issues(self, adapter_runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        issues: list[dict[str, Any]] = []
-        for run in adapter_runs:
-            receipt = run.get("receipt_json") if isinstance(run.get("receipt_json"), dict) else {}
-            for issue in receipt.get("issues") or []:
-                if not isinstance(issue, dict):
-                    continue
-                issues.append(copy.deepcopy(issue) | {"adapter_run_id": run.get("id"), "adapter_status": run.get("status"), "source_ref": run.get("source_ref")})
-        store = self._state_store.database_store
-        if store is not None:
-            for call in store.list_capability_calls():
-                if call.skill_id != "legacy.bsp.mapping.import":
-                    continue
-                for item in call.output_json.get("items") or []:
-                    if isinstance(item, dict) and item.get("reason"):
-                        issues.append({"type": item["reason"], "table": "legacy.bsp.mapping.import", "legacy_ref": item.get("legacy_permission_ref"), "detail": {"legacy_role_ref": item.get("legacy_role_ref"), "capability_id": item.get("capability_id")}, "capability_call_ref": call.call_ref})
-        return issues
+        return self._get_handler_deps().services.governance.import_issues(adapter_runs)
 
     def _governance_audit_events(self, *, tenant_id: str, capability_filter: str = "", actor_filter: str = "") -> list[dict[str, Any]]:
-        store = self._state_store.database_store
-        if store is None:
-            return []
-        events = []
-        for item in store.list_audit_events():
-            payload = item.payload_json if isinstance(item.payload_json, dict) else {}
-            if payload.get("tenant_id") not in {None, "", tenant_id}:
-                continue
-            if capability_filter and payload.get("capability_id") != capability_filter and payload.get("capability_slug") != capability_filter:
-                continue
-            if actor_filter and actor_filter not in {str(payload.get("external_actor_id", "")), str(payload.get("actor_id", "")), str(payload.get("actor_snapshot", {}).get("subject", "")) if isinstance(payload.get("actor_snapshot"), dict) else ""}:
-                continue
-            if item.skill_id in {
-                "tenant.policy.evaluate",
-                "legacy.bsp.mapping.import",
-                "org.projection.sync",
-                "actor.projection.sync",
-                "governance.iam_overview",
-                "governance.policy_candidate.list",
-                "governance.policy_candidate.review",
-            }:
-                events.append({"id": item.request_id, "skill_id": item.skill_id, "phase": item.phase, "actor": item.actor, "occurred_at": item.occurred_at.isoformat(), "payload_json": copy.deepcopy(payload)})
-        return events
+        return self._get_handler_deps().services.governance.audit_events(
+            tenant_id=tenant_id, capability_filter=capability_filter, actor_filter=actor_filter,
+        )
+
+    # --- Action D commit 2: topic_package methods migrated to TopicPackageService ---
 
     def _topic_package_list_projection(self, item: Any) -> dict[str, Any]:
-        repo = self._topic_package_repo()
-        items = [topic_package_ser.topic_item_to_dict(record) for record in repo.list_items(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
-        visibility = [topic_package_ser.topic_visibility_to_dict(record) for record in repo.list_visibility(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
-        return topic_package_ser.topic_package_to_dict(item) | self._topic_projection_summary(item, items, visibility)
+        return self._get_handler_deps().services.topic_package.list_projection(item)
 
     def _topic_package_detail_to_dict(self, item: Any) -> dict[str, Any]:
-        repo = self._topic_package_repo()
-        items = [topic_package_ser.topic_item_to_dict(record) for record in repo.list_items(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
-        visibility = [topic_package_ser.topic_visibility_to_dict(record) for record in repo.list_visibility(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
-        return topic_package_ser.topic_package_to_dict(item) | self._topic_projection_summary(item, items, visibility) | {
-            "items": items,
-            "visibility": visibility,
-            "catalogProjectionItems": self._topic_catalog_projection_items(items),
-            "reviews": [topic_package_ser.topic_review_to_dict(record) for record in repo.list_review_records(item.package_code, tenant_id=_DEFAULT_TENANT_ID)],
-            "evidence": [topic_package_ser.topic_evidence_to_dict(record) for record in repo.list_evidence(item.package_code, tenant_id=_DEFAULT_TENANT_ID)],
-            "metrics": [topic_package_ser.topic_metric_to_dict(record) for record in repo.list_metrics(item.package_code, tenant_id=_DEFAULT_TENANT_ID)],
-        }
+        return self._get_handler_deps().services.topic_package.detail_to_dict(item)
 
     def _topic_projection_summary(self, item: Any, items: list[dict[str, Any]], visibility: list[dict[str, Any]]) -> dict[str, Any]:
-        approved_visibility = [record for record in visibility if record.get("policy_status") == "approved"]
-        catalog_items = [record for record in items if record.get("ref_type") == "catalog_entry"]
-        catalog_projection_items = self._topic_catalog_projection_items(catalog_items)
-        visible_catalog_items = [record for record in catalog_projection_items if record.get("visible")]
-        active_catalog_items = [record for record in catalog_projection_items if record.get("lifecycle_status") == "active"]
-        authorization = self._topic_authorization_summary(catalog_items)
-        failure_reasons: list[str] = []
-        if item.status != "published":
-            failure_reasons.append(f"topic_status:{item.status}")
-        if catalog_items and not active_catalog_items:
-            failure_reasons.append("no_active_catalog_item")
-        if catalog_items and len(active_catalog_items) < len(catalog_items):
-            failure_reasons.append("inactive_catalog_item_hidden")
-        if active_catalog_items and not visible_catalog_items:
-            failure_reasons.append("resource_binding_has_no_visible_fields")
-        if active_catalog_items and any(record.get("resource_count", 0) > 0 and record.get("field_count", 0) == 0 for record in active_catalog_items):
-            failure_reasons.append("resource_attached_but_no_visible_fields")
-        if not approved_visibility:
-            failure_reasons.append("no_approved_visibility")
-        if authorization["effectiveGrantCount"] == 0:
-            failure_reasons.append("authorization_not_effective")
-        projection_status = "projected" if item.status == "published" and visible_catalog_items and approved_visibility else "blocked"
-        return {
-            "projectionKind": self._topic_projection_kind(item),
-            "projectionStatus": projection_status,
-            "projectionFailureReasons": failure_reasons,
-            "visibleOrgCount": len(approved_visibility),
-            "visibleOrgs": [record["visible_org"] for record in approved_visibility],
-            "applicationBoundary": self._topic_application_boundary(approved_visibility),
-            "authorizationStatus": authorization,
-            "activeCatalogCount": len(active_catalog_items),
-            "hiddenCatalogCount": max(0, len(catalog_items) - len(visible_catalog_items)),
-            "sourceFact": "share_zone/share_group legacy tables are empty; this projection is derived from data_catalog_group/data_group_permission only.",
-        }
+        return self._get_handler_deps().services.topic_package.projection_summary(item, items, visibility)
 
     def _topic_projection_kind(self, item: Any) -> str:
-        display = item.display_snapshot_json if isinstance(item.display_snapshot_json, dict) else {}
-        return str(display.get("projection_kind") or display.get("source") or "topic_package")
+        return self._get_handler_deps().services.topic_package.projection_kind(item)
 
     def _topic_application_boundary(self, visibility: list[dict[str, Any]]) -> dict[str, Any]:
-        sources = sorted({str(record.get("source")) for record in visibility if record.get("source")})
-        return {
-            "visibilitySource": sources or ["none"],
-            "approvedViewPolicyCount": sum(1 for record in visibility if record.get("policy_status") == "approved" and record.get("intent") == "view"),
-            "conditions": [record.get("condition_json") or {} for record in visibility],
-            "rule": "目录专题只解释可见与申请边界；实际资源申请仍走 application.resource.submit/application.resource.review。",
-        }
+        return self._get_handler_deps().services.topic_package.application_boundary(visibility)
 
     def _topic_catalog_projection_items(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        out: list[dict[str, Any]] = []
-        store = self._state_store.database_store
-        for item in items:
-            if item.get("ref_type") != "catalog_entry":
-                continue
-            catalog_code = str(item.get("ref_id"))
-            status = self._catalog_entry_status(catalog_code)
-            field_count = 0
-            resource_count = 0
-            if store is not None:
-                assets = [asset for asset in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID) if asset.catalog_code == catalog_code]
-                resource_codes = {asset.resource_code for asset in assets}
-                catalog_field_count = len(store.catalog_repo.list_items(catalog_code, tenant_id=_DEFAULT_TENANT_ID))
-                mapping_field_count = len(store.metadata_evidence_repo.list_schema_mappings(catalog_code=catalog_code, tenant_id=_DEFAULT_TENANT_ID))
-                snapshot_field_count = sum(
-                    len(store.metadata_evidence_repo.list_schema_snapshots(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID))
-                    for resource_code in resource_codes
-                )
-                field_count = catalog_field_count + mapping_field_count + snapshot_field_count
-                resource_count = len(assets)
-            out.append(
-                item | {
-                    "catalog_code": catalog_code,
-                    "lifecycle_status": status,
-                    "visible": status == "active" and field_count > 0,
-                    "field_count": field_count,
-                    "resource_count": resource_count,
-                    "hidden_reason": None if status == "active" and field_count > 0 else ("catalog_not_active" if status != "active" else "resource_binding_has_no_visible_fields"),
-                }
-            )
-        return out
+        return self._get_handler_deps().services.topic_package.catalog_projection_items(items)
 
     def _topic_authorization_summary(self, items: list[dict[str, Any]]) -> dict[str, Any]:
-        store = self._state_store.database_store
-        catalog_codes = {str(item.get("ref_id")) for item in items if item.get("ref_type") == "catalog_entry" and item.get("ref_id")}
-        resource_codes: set[str] = set()
-        effective_grants = []
-        pending_grants = []
-        if store is not None:
-            for asset in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID):
-                if asset.catalog_code in catalog_codes:
-                    resource_codes.add(asset.resource_code)
-            for delivery in store.delivery_repo.list_tasks(tenant_id=_DEFAULT_TENANT_ID):
-                payload = delivery.payload_json if isinstance(delivery.payload_json, dict) else {}
-                if payload.get("resource_id") not in resource_codes:
-                    continue
-                grant = payload.get("access_grant") or {}
-                row = {
-                    "delivery_code": delivery.delivery_code,
-                    "resource_code": payload.get("resource_id"),
-                    "state": delivery.state,
-                    "channel": delivery.channel,
-                    "access_grant": _mask(copy.deepcopy(grant)),
-                }
-                if delivery.state == "granted" and grant:
-                    effective_grants.append(row)
-                else:
-                    pending_grants.append(row)
-        return {
-            "effectiveGrantCount": len(effective_grants),
-            "pendingOrInactiveGrantCount": len(pending_grants),
-            "resourceCodes": sorted(resource_codes),
-            "effectiveGrants": effective_grants,
-            "pendingOrInactiveGrants": pending_grants,
-            "renewalBoundary": "真实 data_apply_renewal 无行；不伪造续期成功路径。",
-        }
+        return self._get_handler_deps().services.topic_package.authorization_summary(items)
+
+    # --- Action D commit 2: catalog methods migrated to CatalogService ---
+    # Body lives in zw_brain/domain/services/catalog_service.py; these are one-line
+    # delegation shims so existing callers (test fixtures, sibling helpers) keep
+    # working. Commit 5 retires the shims after the handler sweep is complete.
 
     def _catalog_entry_status(self, catalog_code: Any) -> str | None:
-        store = self._state_store.database_store
-        if store is None or not catalog_code:
-            return None
-        record = store.catalog_repo.get_entry(str(catalog_code), tenant_id=_DEFAULT_TENANT_ID)
-        return record.lifecycle_status if record is not None else None
+        return self._get_handler_deps().services.catalog.entry_status(catalog_code)
 
     def _catalog_is_discoverable(self, record: Any, store: Any) -> bool:
-        if record.lifecycle_status != "active":
-            return False
-        projections = self._catalog_topic_projection_cards(record.catalog_code, store)
-        return any(projection.get("projectionStatus") == "projected" for projection in projections) or not projections
+        return self._get_handler_deps().services.catalog.is_discoverable(record, store)
 
     def _catalog_topic_projection_cards(self, catalog_code: str, store: Any) -> list[dict[str, Any]]:
-        cards: list[dict[str, Any]] = []
-        for package in self._topic_package_repo().list_packages(tenant_id=_DEFAULT_TENANT_ID):
-            items = [topic_package_ser.topic_item_to_dict(record) for record in self._topic_package_repo().list_items(package.package_code, tenant_id=_DEFAULT_TENANT_ID)]
-            if not any(item.get("ref_type") == "catalog_entry" and item.get("ref_id") == catalog_code for item in items):
-                continue
-            visibility = [topic_package_ser.topic_visibility_to_dict(record) for record in self._topic_package_repo().list_visibility(package.package_code, tenant_id=_DEFAULT_TENANT_ID)]
-            summary = self._topic_projection_summary(package, items, visibility)
-            cards.append({"package_code": package.package_code, "title": package.title, "projectionStatus": summary["projectionStatus"], "visibleOrgCount": summary["visibleOrgCount"], "projectionFailureReasons": summary["projectionFailureReasons"]})
-        return cards
+        return self._get_handler_deps().services.catalog.topic_projection_cards(catalog_code, store)
 
     def _adapter_operation_from_skill(self, skill_id: str, payload: dict[str, Any]) -> tuple[str, str, str]:
         if payload.get("adapter_slug") or payload.get("operation"):
@@ -852,73 +537,10 @@ class BrainService:
                 items.append(self._application_record_to_request(record, store, context=context))
         return items
 
+    # --- Action D commit 3: request methods migrated to RequestService ---
+
     def _build_request_batch_context(self, store: Any, application_records: list[Any]) -> _RequestBatchContext:
-        """Prefetch four indices and a resource cache for list_requests (D-9).
-
-        Cost: 1 delivery_repo.list_tasks + 2 legacy_mapping_repo.list_mappings
-        (one per canonical_type) + 1 metadata_evidence_repo.list_quality_evidence
-        + 0 application_repo.list_records (reuses caller's already-fetched list).
-        Replaces ~5N per-item scans with O(1) lookups.
-        """
-        delivery_by_appcode: dict[str, Any] = {}
-        for delivery in store.delivery_repo.list_tasks(tenant_id=_DEFAULT_TENANT_ID):
-            delivery_by_appcode[delivery.application_code] = delivery
-            delivery_by_appcode[delivery.delivery_code] = delivery
-
-        legacy_mappings_by_ref: dict[tuple[str, str], list[Any]] = {}
-        # 8 canonical_types are touched by enrichment + request projection.
-        for canonical_type in (
-            "application_record",
-            "DeliveryTaskRecord",
-            "catalog_entry",
-            "catalog_item",
-            "resource_schema_mapping",
-            "resource_asset",
-            "approval_step",
-            "approval_decision",
-        ):
-            for mapping in store.legacy_mapping_repo.list_mappings(
-                tenant_id=_DEFAULT_TENANT_ID,
-                canonical_type=canonical_type,
-            ):
-                key = (canonical_type, str(mapping.canonical_ref))
-                legacy_mappings_by_ref.setdefault(key, []).append(mapping)
-
-        quality_by_target: dict[tuple[str, str], list[Any]] = {}
-        for item in store.metadata_evidence_repo.list_quality_evidence(tenant_id=_DEFAULT_TENANT_ID):
-            key = (str(item.target_type), str(item.target_ref))
-            quality_by_target.setdefault(key, []).append(item)
-
-        resource_assets_by_catalog: dict[str, list[Any]] = {}
-        for asset in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID):
-            resource_assets_by_catalog.setdefault(asset.catalog_code, []).append(asset)
-
-        schema_mappings_by_catalog: dict[str, list[Any]] = {}
-        for mapping in store.metadata_evidence_repo.list_schema_mappings(tenant_id=_DEFAULT_TENANT_ID):
-            schema_mappings_by_catalog.setdefault(mapping.catalog_code, []).append(mapping)
-
-        schema_snapshots_by_resource: dict[str, list[Any]] = {}
-        for snapshot in store.metadata_evidence_repo.list_schema_snapshots(tenant_id=_DEFAULT_TENANT_ID):
-            schema_snapshots_by_resource.setdefault(snapshot.resource_code, []).append(snapshot)
-
-        catalog_items_by_catalog: dict[str, list[Any]] = {}
-        catalog_items_by_item_code: dict[str, Any] = {}
-        for item in store.catalog_repo.list_items(tenant_id=_DEFAULT_TENANT_ID):
-            catalog_items_by_catalog.setdefault(item.catalog_code, []).append(item)
-            catalog_items_by_item_code[item.item_code] = item
-
-        return _RequestBatchContext(
-            delivery_by_appcode=delivery_by_appcode,
-            application_records=list(application_records),
-            legacy_mappings_by_ref=legacy_mappings_by_ref,
-            quality_by_target=quality_by_target,
-            resource_cache={},
-            resource_assets_by_catalog=resource_assets_by_catalog,
-            schema_mappings_by_catalog=schema_mappings_by_catalog,
-            schema_snapshots_by_resource=schema_snapshots_by_resource,
-            catalog_items_by_catalog=catalog_items_by_catalog,
-            catalog_items_by_item_code=catalog_items_by_item_code,
-        )
+        return self._get_handler_deps().services.request.build_batch_context(store, application_records)
 
     def _audit_event_target(self, item: Any) -> str:
         payload = item.payload_json if isinstance(item.payload_json, dict) else {}
@@ -952,23 +574,13 @@ class BrainService:
                 tasks.append(task)
         return tasks
 
+    # --- Action D commit 4: provider methods migrated to ProviderService ---
+
     def _provider_primary_resource_id(self) -> str | None:
-        provider = self._snapshot.get("provider", {})
-        resources = provider.get("resources", []) if isinstance(provider, dict) else []
-        for item in resources:
-            if isinstance(item, dict) and item.get("id"):
-                return str(item["id"])
-        return None
+        return self._get_handler_deps().services.provider.primary_resource_id()
 
     def _provider_focus_delivery(self) -> dict[str, Any]:
-        tasks = self.list_delivery_tasks()
-        for item in tasks:
-            backflow = item.get("backflow", {}) if isinstance(item, dict) else {}
-            if isinstance(backflow, dict) and backflow.get("candidateFields"):
-                return self.get_delivery_task(item["id"])
-        if tasks:
-            return self.get_delivery_task(tasks[0]["id"])
-        return {}
+        return self._get_handler_deps().services.provider.focus_delivery()
 
     def _overlay_application_record(
         self,
@@ -978,12 +590,12 @@ class BrainService:
         *,
         context: _RequestBatchContext | None = None,
     ) -> None:
-        enriched = self._application_record_to_request(record, store, context=context)
-        request.update(enriched)
+        return self._get_handler_deps().services.application.overlay_record(request, record, store, context=context)
 
     def _request_from_application_record(self, request_id: str, store: Any) -> dict[str, Any] | None:
-        record = next((item for item in store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID) if item.application_code == request_id), None)
-        return self._application_record_to_request(record, store) if record is not None else None
+        return self._get_handler_deps().services.application.request_from_record(request_id, store)
+
+    # --- Action D commit 3: application_record_to_request migrated to ApplicationService ---
 
     def _application_record_to_request(
         self,
@@ -992,107 +604,9 @@ class BrainService:
         *,
         context: _RequestBatchContext | None = None,
     ) -> dict[str, Any]:
-        payload = _mask(copy.deepcopy(record.payload_json or {}))
-        resource_id = str(payload.get("resourceId") or payload.get("resource_id") or "")
-        catalog_id = str(payload.get("catalog_id") or "")
-        try:
-            if context is not None and resource_id:
-                cached = context.resource_cache.get(resource_id)
-                if cached is None:
-                    cached = self.get_resource(resource_id, context=context)
-                    context.resource_cache[resource_id] = cached
-                resource = cached
-            else:
-                resource = self.get_resource(resource_id) if resource_id else {}
-        except NotFoundError:
-            resource = {}
-        catalog_code = resource.get("repository", {}).get("catalogCode") or catalog_id
-        bound_item_codes = {item.get("catalog_item_code") for item in resource.get("fieldBindings", []) if item.get("catalog_item_code")}
-        requested_items = [
-            {"item_code": item.get("item_code"), "title": item.get("title"), "sensitive_level": (item.get("summary_json") or {}).get("sensitive_level")}
-            for item in resource.get("catalogFields", [])
-            if not bound_item_codes or item.get("item_code") in bound_item_codes
-        ]
-        if not requested_items and payload.get("use_item"):
-            requested_items = [{"item_code": str(payload.get("use_item")), "title": str(payload.get("use_item"))}]
-        original_materials = payload.get("applicationMaterials") if isinstance(payload.get("applicationMaterials"), dict) else {}
-        if original_materials.get("requestedItems"):
-            requested_items = copy.deepcopy(original_materials["requestedItems"])
-        gap_fields = list(original_materials.get("gapFields") or (resource.get("reuseGapHint") or {}).get("gapFields") or [])
-        delivery = self._delivery_task_from_record(record.application_code, store, context=context)
-        legacy_mappings = self._legacy_mapping_refs(store, "application_record", record.application_code, context=context)
-        legacy_mappings.extend(self._legacy_mapping_refs(store, "DeliveryTaskRecord", record.application_code, context=context))
-        source_evidence = self._application_source_evidence(resource, requested_items)
-        historical_context = self._application_history_context(record, store, resource_id, catalog_code, context=context)
-        quality_evidence = self._application_quality_evidence(store, resource, catalog_code, resource_id, context=context)
-        applicant_snapshot = _mask({"applicant_name": record.applicant_name, "applicant_org": record.applicant_org})
-        materials = {
-            "purpose": original_materials.get("purpose") or payload.get("use_reason") or payload.get("apply_basis") or "复用已有目录资源办理业务事项",
-            "timeWindow": original_materials.get("timeWindow") or payload.get("service_usetime") or "按授权期执行",
-            "scope": original_materials.get("scope") or payload.get("use_region") or resource.get("regionCode") or payload.get("applicant_org_name") or "山东省",
-            "catalogCode": original_materials.get("catalogCode") or catalog_code,
-            "resourceId": original_materials.get("resourceId") or resource_id,
-            "requestedItems": requested_items,
-            "gapFields": gap_fields,
-            "deliveryExpectation": original_materials.get("deliveryExpectation") or payload.get("delivery_expectation") or payload.get("deliveryExpectation") or "审批通过后按授权边界交付，并保留审计回放。",
-            "frequency": {
-                "times": str(payload.get("service_times") or ""),
-                "mostTimes": str(payload.get("service_most_times") or ""),
-                "timeWindow": payload.get("service_usetime"),
-                "useDays": str(payload.get("service_usedays") or ""),
-            },
-            "minimal": True,
-        }
-        request = {
-            "id": record.application_code,
-            "resourceId": resource_id,
-            "resourceName": payload.get("resource_name") or resource.get("name") or record.application_code,
-            "applicant": applicant_snapshot["applicant_name"],
-            "applicantDept": applicant_snapshot["applicant_org"],
-            "purpose": materials["purpose"],
-            "range": materials["scope"],
-            "timeWindow": materials["timeWindow"],
-            "requestedItems": requested_items,
-            "gapFields": gap_fields,
-            "deliveryExpectation": materials["deliveryExpectation"],
-            "applicationMaterials": materials,
-            "expectedBy": self._delivery_due_hint(delivery),
-            "status": record.status,
-            "submittedAt": payload.get("create_time") or record.created_at.isoformat(),
-            "taskId": delivery["id"] if delivery else None,
-            "sourceEvidence": source_evidence,
-            "reuseCandidate": {
-                "catalogCode": catalog_code,
-                "resourceId": resource_id,
-                "resourceName": resource.get("name") or payload.get("resource_name"),
-                "fieldBindingSummary": copy.deepcopy(resource.get("fieldBindingSummary") or {}),
-                "reuseGapHint": copy.deepcopy(resource.get("reuseGapHint") or {}),
-                "resourceStatus": resource.get("status"),
-                "accessPolicy": copy.deepcopy(resource.get("accessPolicy") or {}),
-            },
-            "fieldBindings": copy.deepcopy(resource.get("fieldBindings") or []),
-            "fieldBindingSummary": copy.deepcopy(resource.get("fieldBindingSummary") or {}),
-            "schemaSnapshots": copy.deepcopy(resource.get("schemaSnapshots") or []),
-            "sensitivePolicy": copy.deepcopy(resource.get("sensitivePolicy") or {}),
-            "resourceAssets": copy.deepcopy(resource.get("resourceAssets") or []),
-            "accessPolicy": copy.deepcopy(resource.get("accessPolicy") or {}),
-            "historicalContext": historical_context,
-            "qualityEvidence": quality_evidence,
-            "legacyMappings": legacy_mappings,
-            "repository": {
-                "application_code": record.application_code,
-                "status": record.status,
-            },
-            "statusTimeline": [],
-            "reviewBoundary": _mask(copy.deepcopy((delivery or {}).get("r2Review") or {})),
-            "aiStatus": {
-                "summary": "该申请已命中真实旧平台申请、目录、资源、字段绑定和授权证据。",
-                "nextAction": "审批承接人员核对复用范围、敏感字段、授权边界和历史重复线索。",
-                "evidence": ["真实 data_apply 导入", "字段绑定可回放", "授权边界可回放"],
-            },
-        }
-        request["statusTimeline"] = self._request_status_timeline(request, delivery)
-        return request
+        return self._get_handler_deps().services.application.record_to_request(record, store, context=context)
+
+    # --- Action D commit 3: delivery methods migrated to DeliveryService ---
 
     def _delivery_task_from_record(
         self,
@@ -1101,61 +615,13 @@ class BrainService:
         *,
         context: _RequestBatchContext | None = None,
     ) -> dict[str, Any] | None:
-        if context is not None:
-            record = context.delivery_by_appcode.get(request_id)
-        else:
-            record = next((item for item in store.delivery_repo.list_tasks(tenant_id=_DEFAULT_TENANT_ID) if item.delivery_code == request_id or item.application_code == request_id), None)
-        if record is None:
-            return None
-        payload = record.payload_json or {}
-        grant = _mask(copy.deepcopy(payload.get("access_grant") or {}))
-        return {
-            "id": record.delivery_code,
-            "requestId": record.application_code,
-            "name": payload.get("resource_name") or f"{record.delivery_code} 交付任务",
-            "channel": record.channel,
-            "status": record.state,
-            "owner": "审批承接 → 交付执行",
-            "updatedAt": record.updated_at.isoformat(),
-            "note": "真实旧平台授权导入生成的交付边界。",
-            "history": [
-                {"time": record.created_at.strftime("%m-%d %H:%M"), "state": record.state, "detail": "授权边界已从 data_apply_authrization 导入。"}
-            ],
-            "aiSummary": {
-                "summary": "已导入真实旧平台授权边界，交付侧按字段范围、频次和授权期回放。",
-                "nextAction": "核对交付范围和续期缺口，不新增超出审批意见的授权。",
-                "cause": "授权来自 data_apply_authrization，并可回指 legacy_object_mapping。",
-                "impact": "通过、退回或驳回都能在审计链路中追溯到责任节点。",
-            },
-            "backflow": {
-                "candidateObject": payload.get("resource_name") or record.delivery_code,
-                "candidateFields": [],
-                "status": "不适用",
-                "note": "本任务来自既有授权回放；不把无真实续期行伪造成回流或续期成功。",
-            },
-            "accessGrantSnapshot": grant,
-            "authorizationBoundary": self._authorization_boundary(grant),
-            "r2Review": _mask(copy.deepcopy(payload.get("r2_review") or {})),
-            "grantBoundary": _mask(copy.deepcopy(payload.get("grant_boundary") or {})),
-            "supplementBoundary": _mask(copy.deepcopy(payload.get("supplement_boundary") or {})),
-            "nonGrantBoundary": _mask(copy.deepcopy(payload.get("non_grant_boundary") or {})),
-            "renewalBoundary": payload.get("renewal_boundary") or "真实 data_apply_renewal 无行；不伪造续期成功路径。",
-            "repository": {"delivery_code": record.delivery_code, "application_code": record.application_code, "channel": record.channel},
-        }
+        return self._get_handler_deps().services.delivery.task_from_record(request_id, store, context=context)
 
     def _delivery_grant_evidence(self, delivery: dict[str, Any] | None) -> dict[str, Any]:
-        if not delivery:
-            return {"state": "pending", "accessGrant": {}}
-        return {"state": delivery.get("status"), "accessGrant": copy.deepcopy(delivery.get("accessGrantSnapshot") or {})}
+        return self._get_handler_deps().services.delivery.grant_evidence(delivery)
 
     def _authorization_boundary(self, grant: dict[str, Any]) -> dict[str, Any]:
-        return {
-            "limitDays": grant.get("limit_day"),
-            "resourceType": grant.get("res_type"),
-            "applyStatus": grant.get("apply_status"),
-            "renewalSourceRows": 0,
-            "renewalPolicy": "真实 data_apply_renewal 无行；不伪造续期成功路径。",
-        }
+        return self._get_handler_deps().services.delivery.authorization_boundary(grant)
 
     def _application_history_context(
         self,
@@ -1166,29 +632,7 @@ class BrainService:
         *,
         context: _RequestBatchContext | None = None,
     ) -> dict[str, Any]:
-        source = context.application_records if context is not None else store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID)
-        records = [
-            item
-            for item in source
-            if (item.payload_json or {}).get("kind") == "apply"
-            and (
-                str((item.payload_json or {}).get("resourceId") or "") == resource_id
-                or str((item.payload_json or {}).get("catalog_id") or "") == catalog_code
-                or item.application_code == record.application_code
-            )
-        ]
-        in_flight = [
-            item.application_code
-            for item in records
-            if item.application_code != record.application_code and item.status in {"submitted", "pending", "supplementing", "summary-pending"}
-        ]
-        return {
-            "relatedApplicationCount": len(records),
-            "inFlightDuplicateCount": len(in_flight),
-            "inFlightDuplicateIds": in_flight,
-            "duplicateConclusion": "无在途重复申请，可按复用授权边界继续审批。" if not in_flight else "存在在途重复申请，需先缩小范围或驳回重复需求。",
-            "message": "历史申请、审批过程和授权记录已通过 legacy_object_mapping 串联。",
-        }
+        return self._get_handler_deps().services.application.history_context(record, store, resource_id, catalog_code, context=context)
 
     def _application_quality_evidence(
         self,
@@ -1199,46 +643,17 @@ class BrainService:
         *,
         context: _RequestBatchContext | None = None,
     ) -> dict[str, Any]:
-        if context is not None:
-            direct = [
-                quality_ser.quality_to_dict(item)
-                for target_type, target_ref in (("catalog", catalog_code), ("resource", resource_id))
-                for item in context.quality_by_target.get((target_type, str(target_ref)), [])
-            ]
-        else:
-            direct = [
-                quality_ser.quality_to_dict(item)
-                for target_type, target_ref in (("catalog", catalog_code), ("resource", resource_id))
-                for item in store.metadata_evidence_repo.list_quality_evidence(
-                    target_type=target_type,
-                    target_ref=target_ref,
-                    tenant_id=_DEFAULT_TENANT_ID,
-                )
-            ]
-        summary = resource.get("fieldBindingSummary") or {}
-        if direct:
-            status = "ready" if all(item.get("quality_status") in {"passed", "ok", "ready"} for item in direct) else "attention_required"
-            return {"status": status, "summary": f"已有 {len(direct)} 条质量投影证据。", "source": "quality_evidence_projection", "items": direct}
-        if summary.get("diagnosis") == "ok":
-            return {
-                "status": "ready",
-                "summary": f"字段绑定 {summary.get('active', summary.get('total', 0))} 项均可回放，作为当前质量投影。",
-                "source": "schema_mapping_projection",
-                "items": [],
-            }
-        return {"status": "attention_required", "summary": "字段绑定或质量投影仍需目录管理员确认。", "source": "schema_mapping_projection", "items": []}
+        return self._get_handler_deps().services.application.quality_evidence(store, resource, catalog_code, resource_id, context=context)
 
     def _mask_actor_payload(self, value: Any) -> Any:
         return apply_field_masks(
             value,
-            role=_DEFAULT_MASK_ROLE,
+            role=DEFAULT_MASK_ROLE,
             field_policy={"user_name": "name", "approve_person": "name", "handler_name": "name"},
         )
 
     def _delivery_due_hint(self, delivery: dict[str, Any] | None) -> str:
-        grant = (delivery or {}).get("accessGrantSnapshot") or {}
-        limit_day = grant.get("limit_day")
-        return f"授权 {limit_day} 天内有效" if limit_day else "按审批授权边界执行"
+        return self._get_handler_deps().services.delivery.due_hint(delivery)
 
     def _approval_recommendation(self, approval: dict[str, Any], request: dict[str, Any], delivery: dict[str, Any] | None) -> dict[str, Any]:
         gap_fields = request.get("gapFields") or []
@@ -1275,21 +690,7 @@ class BrainService:
         }
 
     def _record_delivery_attempt(self, payload: dict[str, Any], skill_id: str, state: str, attempt_kind: str) -> dict[str, Any]:
-        role = str(payload.get("role", self._ui_state["role"]))
-        confirmed = bool(payload.get("confirmed"))
-        task_id = str(payload["task_id"])
-
-        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-            task = self._delivery_by_id(task_id)
-            attempt = self._delivery_repo().upsert_attempt({"attempt_code": payload.get("attempt_id") or f"{task_id}:{attempt_kind}:{audit_id}", "delivery_code": task_id, "subscription_code": payload.get("subscription_id"), "attempt_kind": attempt_kind, "state": state, "executor_ref": payload.get("executor_ref"), "evidence_ref": audit_id, "payload_json": payload.get("plan") or payload})
-            task["updatedAt"] = clock.now_datetime()
-            task.setdefault("history", []).append({"time": clock.now_short_time(), "state": f"交换交付{state}", "detail": str(payload.get("reason") or payload.get("mode") or attempt_kind)})
-            self._delivery_repo().add_execution_evidence({"evidence_ref": audit_id, "delivery_code": task_id, "attempt_code": attempt.attempt_code, "executor_kind": "builtin_exchange", "executor_ref": payload.get("executor_ref"), "evidence_kind": attempt_kind, "result_status": state, "payload_json": payload})
-            self._delivery_repo().upsert_exchange_metric({"metric_scope": "delivery", "delivery_code": task_id, "resource_code": payload.get("resource_id") or task.get("resourceId"), "subscription_code": payload.get("subscription_id"), "status": state, "success_count": 1 if state in {"published", "running", "planned"} else 0, "failed_count": 1 if state == "stopped" else 0, "summary_json": {"skill_id": skill_id, "state": state}})
-            self._append_audit_feed(skill_id, task_id, "ok", actor)
-            return {"task_id": task_id, "attempt_code": attempt.attempt_code, "state": attempt.state, "audit_id": audit_id}
-
-        return self._mutate(skill_id, role, confirmed, payload, mutation)
+        return self._get_handler_deps().services.delivery.record_attempt(payload, skill_id, state, attempt_kind)
 
     def _delivery_repo(self) -> DeliveryRepository:
         store = self._state_store.database_store
@@ -1546,118 +947,13 @@ class BrainService:
         return apply_runtime_context(actor_snapshot, contexts, preferred_org_code=str(actor_snapshot.get("org_code") or "") or None)
 
     def _catalog_record_to_card_dict(self, record: Any) -> dict[str, Any]:
-        summary = _mask(copy.deepcopy(record.summary_json or {}))
-        body = self._catalog_summary_body(summary)
-        provider = body.get("org_name") or body.get("imported_by_org_name") or record.owner_org_id or summary.get("provider", "—")
-        desc = body.get("description") or body.get("source_service_item_catalog_name") or summary.get("desc") or record.title
-        access_policy = self._catalog_access_policy(body, record)
-        # Legacy migration occasionally carries an updated_at that is in the future
-        # (planning-date semantics in dsp_catalog). Clamp to today so the customer
-        # never sees "更新于 2026-08-19" on a UI rendered 2026-05-22.
-        raw_updated = summary.get("updatedAt") or summary.get("updated_at") or summary.get("update_time") or record.updated_at.date().isoformat()
-        today_iso = clock.now_date()
-        if str(raw_updated)[:10] > today_iso:
-            raw_updated = today_iso
-        return {
-            "id": record.catalog_code,
-            "name": record.title,
-            "status": record.lifecycle_status,
-            "provider": provider,
-            "zone": summary.get("zone") or self._region_label(record.region_code) or "官方目录推荐",
-            "updatedAt": str(raw_updated),
-            "coverage": summary.get("coverage", "真实旧平台目录"),
-            "score": int(summary.get("score", 80 if record.catalog_code.startswith("basic-elem:") else 75)),
-            "desc": str(desc),
-            "fields": list(summary.get("fields", [])),
-            "explain": list(summary.get("explain", ["已匹配真实旧平台目录", f"目录状态：{record.lifecycle_status}"])),
-            "nextHints": list(summary.get("nextHints", ["先看字段证据", "只申请必要字段"])),
-            "kind": summary.get("kind", "catalog_entry"),
-            "regionCode": record.region_code,
-            "accessPolicy": access_policy,
-            "sensitivePolicy": self._catalog_sensitive_policy([]),
-            "reuseGapHint": self._reuse_gap_hint([], []),
-            "repository": {
-                "catalogCode": record.catalog_code,
-                "lifecycleStatus": record.lifecycle_status,
-                "ownerOrgId": record.owner_org_id,
-                "regionCode": record.region_code,
-            },
-        }
+        return self._get_handler_deps().services.catalog.record_to_card_dict(record)
 
     def _enrich_catalog_detail(self, detail: dict[str, Any], record: Any, store: Any, *, focused_resource_code: str | None = None, context: _RequestBatchContext | None = None) -> None:
-        catalog_code = record.catalog_code
-        fields = self._catalog_field_dicts(catalog_code, store, context=context)
-        if context is not None:
-            mapping_records = list(context.schema_mappings_by_catalog.get(catalog_code, []))
-        else:
-            mapping_records = list(store.metadata_evidence_repo.list_schema_mappings(catalog_code=catalog_code, tenant_id=_DEFAULT_TENANT_ID))
-        if focused_resource_code:
-            # Focused-resource lookup is a tiny set; one filtered SQL is cheap.
-            mapping_by_code = {item.mapping_code: item for item in mapping_records}
-            for item in store.metadata_evidence_repo.list_schema_mappings(resource_code=focused_resource_code, tenant_id=_DEFAULT_TENANT_ID):
-                mapping_by_code[item.mapping_code] = item
-            mapping_records = list(mapping_by_code.values())
-        mappings = self._mapping_diagnostics(mapping_records, store=store, context=context)
-        if focused_resource_code:
-            mappings["items"] = [item for item in mappings["items"] if item["resource_code"] == focused_resource_code]
-            mappings["summary"] = self._mapping_summary(mappings["items"])
-        if context is not None:
-            asset_records = context.resource_assets_by_catalog.get(catalog_code, [])
-        else:
-            asset_records = [item for item in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID) if item.catalog_code == catalog_code]
-        resources = [
-            resource_api_ser.resource_asset_to_dict(item)
-            for item in asset_records
-            if not focused_resource_code or item.resource_code == focused_resource_code
-        ]
-        resource_codes = {item["resource_code"] for item in resources} | {item["resource_code"] for item in mappings["items"]}
-        if context is not None:
-            snapshot_records = [
-                snapshot
-                for code in resource_codes
-                for snapshot in context.schema_snapshots_by_resource.get(code, [])
-            ]
-        else:
-            snapshot_records = [item for item in store.metadata_evidence_repo.list_schema_snapshots(tenant_id=_DEFAULT_TENANT_ID) if item.resource_code in resource_codes]
-        snapshots = [metadata_ser.schema_snapshot_to_dict(item) for item in snapshot_records]
-        legacy_refs = self._legacy_mapping_refs(store, "catalog_entry", catalog_code, context=context)
-        legacy_refs.extend(self._legacy_mapping_refs(store, "catalog_item", [field["item_code"] for field in fields], context=context))
-        legacy_refs.extend(self._legacy_mapping_refs(store, "resource_schema_mapping", [item["mapping_code"] for item in mappings["items"]], context=context))
-        legacy_refs.extend(self._legacy_mapping_refs(store, "resource_asset", list(resource_codes), context=context))
-        detail["fields"] = [field["title"] for field in fields] or detail.get("fields", [])
-        detail["catalogFields"] = fields
-        detail["fieldBindings"] = mappings["items"]
-        detail["fieldBindingSummary"] = mappings["summary"]
-        detail["resourceAssets"] = resources
-        detail["schemaSnapshots"] = snapshots
-        detail["legacyMappings"] = legacy_refs
-        detail["accessPolicy"] = self._catalog_access_policy(self._catalog_summary_body(_mask(copy.deepcopy(record.summary_json or {}))), record)
-        detail["sensitivePolicy"] = self._catalog_sensitive_policy(fields)
-        detail["reuseGapHint"] = self._reuse_gap_hint(fields, mappings["items"])
-        detail["repository"] = detail.get("repository", {}) | {
-            "catalogCode": catalog_code,
-            "canonicalType": "catalog_entry",
-            "legacyMappingCount": len(legacy_refs),
-            "resourceCount": len(resources),
-            "schemaSnapshotCount": len(snapshots),
-        }
-        detail["explain"] = self._catalog_explain(detail, fields, mappings["summary"])
-        detail["nextHints"] = self._catalog_next_hints(fields, mappings["summary"])
+        return self._get_handler_deps().services.catalog.enrich_detail(detail, record, store, focused_resource_code=focused_resource_code, context=context)
 
     def _catalog_field_dicts(self, catalog_code: str, store: Any, *, context: _RequestBatchContext | None = None) -> list[dict[str, Any]]:
-        source = context.catalog_items_by_catalog.get(catalog_code, []) if context is not None else store.catalog_repo.list_items(catalog_code, tenant_id=_DEFAULT_TENANT_ID)
-        return [
-            {
-                "item_code": item.item_code,
-                "catalog_code": item.catalog_code,
-                "title": item.title,
-                "item_kind": item.item_kind,
-                "display_order": item.display_order,
-                "summary_json": _mask(copy.deepcopy(item.summary_json or {})),
-                "source_ref": item.source_ref,
-            }
-            for item in source
-        ]
+        return self._get_handler_deps().services.catalog.field_dicts(catalog_code, store, context=context)
 
     def _legacy_mapping_refs(
         self,
@@ -1693,27 +989,13 @@ class BrainService:
         return rows
 
     def _catalog_summary_body(self, summary: dict[str, Any]) -> dict[str, Any]:
-        nested = summary.get("summary")
-        return nested if isinstance(nested, dict) else summary
+        return self._get_handler_deps().services.catalog.summary_body(summary)
 
     def _catalog_access_policy(self, summary: dict[str, Any], record: Any) -> dict[str, Any]:
-        return {
-            "shareType": summary.get("shared_type"),
-            "shareWay": summary.get("shared_way"),
-            "shareCondition": summary.get("shared_condition") or "未登记附加共享条件，按受控申请审批。",
-            "openType": summary.get("open_type"),
-            "openCondition": summary.get("open_condition") or "未登记公开条件。",
-            "regionCode": record.region_code,
-            "provider": summary.get("org_name") or summary.get("imported_by_org_name") or record.owner_org_id,
-        }
+        return self._get_handler_deps().services.catalog.access_policy(summary, record)
 
     def _catalog_sensitive_policy(self, fields: list[dict[str, Any]]) -> dict[str, Any]:
-        levels = sorted({str((field.get("summary_json") or {}).get("sensitive_level")) for field in fields if (field.get("summary_json") or {}).get("sensitive_level") not in {None, ""}})
-        return {
-            "fieldSensitiveLevels": levels,
-            "display": "查询与导出侧按字段敏感级别脱敏；申请侧只勾选必要字段。",
-            "maskedOnRead": True,
-        }
+        return self._get_handler_deps().services.catalog.sensitive_policy(fields)
 
     def _reuse_gap_hint(self, fields: list[dict[str, Any]], mappings: list[dict[str, Any]]) -> dict[str, Any]:
         mapped_codes = {item.get("catalog_item_code") for item in mappings}
@@ -1726,18 +1008,10 @@ class BrainService:
         }
 
     def _catalog_explain(self, detail: dict[str, Any], fields: list[dict[str, Any]], mapping_summary: dict[str, Any]) -> list[str]:
-        out = ["已命中真实旧平台目录", f"提供方：{detail.get('provider') or '—'}"]
-        if fields:
-            out.append(f"字段清单 {len(fields)} 项")
-        if mapping_summary.get("total"):
-            out.append(f"字段绑定证据 {mapping_summary['total']} 条，可回放到 legacy_object_mapping")
-        return out
+        return self._get_handler_deps().services.catalog.explain(detail, fields, mapping_summary)
 
     def _catalog_next_hints(self, fields: list[dict[str, Any]], mapping_summary: dict[str, Any]) -> list[str]:
-        hints = ["先看字段口径和敏感级别", "只选择本次确需字段"]
-        if not fields or mapping_summary.get("diagnosis") != "ok":
-            hints.append("把未绑定字段写入缺口说明")
-        return hints
+        return self._get_handler_deps().services.catalog.next_hints(fields, mapping_summary)
 
     def _mapping_summary(self, items: list[dict[str, Any]]) -> dict[str, Any]:
         missing = [item for item in items if any(issue["reason"] == "missing_source_schema_ref" for issue in item["diagnosis"]["issues"])]
@@ -1826,66 +1100,7 @@ class BrainService:
         return out
 
     def _enrich_provider_resource_asset(self, item: dict[str, Any], store: Any) -> dict[str, Any]:
-        resource_code = str(item["resource_code"])
-        bindings = [
-            resource_api_ser.binding_to_dict(record)
-            for record in store.resource_api_repo.list_bindings(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID)
-        ]
-        mappings = store.metadata_evidence_repo.list_schema_mappings(
-            resource_code=resource_code,
-            include_inactive=True,
-            tenant_id=_DEFAULT_TENANT_ID,
-        )
-        schema_snapshots = [
-            metadata_ser.schema_snapshot_to_dict(record)
-            for record in store.metadata_evidence_repo.list_schema_snapshots(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID)
-        ]
-        gather_evidence = [
-            metadata_ser.gather_evidence_to_dict(record)
-            for record in store.metadata_evidence_repo.list_gather_evidence(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID)
-        ]
-        lineage = [
-            metadata_ser.lineage_to_dict(record)
-            for record in store.metadata_evidence_repo.list_lineage_relations(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID)
-        ]
-        quality = [
-            quality_ser.quality_to_dict(record)
-            for record in store.metadata_evidence_repo.list_quality_evidence(target_type="resource_asset", target_ref=resource_code, tenant_id=_DEFAULT_TENANT_ID)
-        ]
-        attempts = [
-            delivery_ser.delivery_attempt_to_dict(record)
-            for record in store.delivery_repo.list_attempts(delivery_code=f"provider-external:{resource_code}", tenant_id=_DEFAULT_TENANT_ID)
-        ]
-        execution_evidence = [
-            delivery_ser.delivery_evidence_to_dict(record)
-            for record in store.delivery_repo.list_execution_evidence(delivery_code=f"provider-external:{resource_code}", tenant_id=_DEFAULT_TENANT_ID)
-        ]
-        legacy_mappings = [
-            {
-                "legacy_system": record.legacy_system,
-                "legacy_object_type": record.legacy_object_type,
-                "legacy_object_ref": record.legacy_object_ref,
-                "canonical_type": record.canonical_type,
-                "canonical_ref": record.canonical_ref,
-                "mapping_status": record.mapping_status,
-                "source_ref": record.source_ref,
-            }
-            for record in store.legacy_mapping_repo.list_mappings(tenant_id=_DEFAULT_TENANT_ID, canonical_ref=resource_code)
-        ]
-        diagnostics = self._mapping_diagnostics(mappings, store=store)
-        return item | {
-            "channel_bindings": bindings,
-            "schema_snapshots": schema_snapshots,
-            "schema_mappings": diagnostics["items"],
-            "mapping_summary": diagnostics["summary"],
-            "gather_evidence": gather_evidence,
-            "lineage_evidence": lineage,
-            "quality_evidence": quality,
-            "external_execution_tasks": attempts,
-            "external_execution_receipts": execution_evidence,
-            "legacy_object_mappings": legacy_mappings,
-            "provider_diagnostics": self._provider_asset_diagnostics(item, bindings, diagnostics["summary"], schema_snapshots),
-        }
+        return self._get_handler_deps().services.provider.enrich_resource_asset(item, store)
 
     def _provider_asset_diagnostics(
         self,
@@ -1894,122 +1109,10 @@ class BrainService:
         mapping_summary: dict[str, Any],
         schema_snapshots: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        issues: list[dict[str, str]] = []
-        if not bindings:
-            issues.append({"stage": "channel", "reason": "missing_channel_binding", "detail": "resource has no channel binding"})
-        if mapping_summary.get("diagnosis") != "ok":
-            issues.append({"stage": "schema_mapping", "reason": str(mapping_summary.get("diagnosis")), "detail": "catalog item to resource field mapping needs attention"})
-        if not schema_snapshots:
-            issues.append({"stage": "schema_snapshot", "reason": "missing_schema_snapshot", "detail": "resource has no schema snapshot evidence"})
-        if item.get("lifecycle_status") not in {"active", "approved_pending_publish", "pending_review"}:
-            issues.append({"stage": "lifecycle", "reason": "not_ready_for_share", "detail": f"resource lifecycle is {item.get('lifecycle_status')}"})
-        return {"ok": not issues, "issues": issues}
+        return self._get_handler_deps().services.provider.asset_diagnostics(item, bindings, mapping_summary, schema_snapshots)
 
     def _review_application_record(self, request_id: str, decision: str, role: str, confirmed: bool, skill_id: str) -> dict[str, Any]:
-        store = self._state_store.database_store
-        if store is None:
-            raise NotFoundError(request_id)
-        request = self.get_request(request_id)
-        delivery = self._delivery_task_from_record(request_id, store)
-        if delivery is None:
-            raise NotFoundError(request_id)
-        existing_review = delivery.get("r2Review") if isinstance(delivery.get("r2Review"), dict) else {}
-        if request["status"] != "pending" and existing_review.get("decision"):
-            raise InvalidStateError("request is not pending approval")
-        reason = self._r2_review_reason(decision, request)
-        evidence = self._r2_review_evidence(decision, request, delivery)
-        result_status = {
-            "approve_reuse": "granted",
-            "approve_with_supplement": "supplementing",
-            "return_for_fix": "need-fix",
-            "reject_duplicate": "rejected",
-            "route_to_provider_or_catalog_admin": "pending-provider-confirmation",
-        }[decision]
-
-        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-            store.approval_repo.append_application_review_decision(
-                request_id,
-                decision=decision,
-                reason=reason,
-                evidence=evidence,
-                actor=actor,
-                skill_id=skill_id,
-                audit_id=audit_id,
-                status=result_status,
-                tenant_id=_DEFAULT_TENANT_ID,
-            )
-            payload_patch = {
-                "r2_review": {
-                    "decision": decision,
-                    "reason": reason,
-                    "evidence": evidence,
-                    "actor": actor,
-                    "audit_id": audit_id,
-                },
-                "renewal_boundary": "真实 data_apply_renewal 无行；不伪造续期成功路径。",
-            }
-            grant_snapshot = copy.deepcopy(delivery.get("accessGrantSnapshot") or {})
-            common_boundary = {
-                "field_scope": [item.get("title") for item in request.get("requestedItems", [])],
-                "sensitive_levels": copy.deepcopy(request.get("sensitivePolicy", {}).get("fieldSensitiveLevels") or []),
-                "frequency": copy.deepcopy(request.get("applicationMaterials", {}).get("frequency") or {}),
-                "limit_day": grant_snapshot.get("limit_day"),
-                "access_grant_snapshot": grant_snapshot,
-            }
-            if decision == "approve_reuse":
-                payload_patch["grant_boundary"] = {
-                    **common_boundary,
-                    "mode": "reuse_existing_authorization",
-                    "source": "data_apply_authrization",
-                }
-                delivery_state = "granted"
-            elif decision == "approve_with_supplement":
-                payload_patch["supplement_boundary"] = {
-                    **common_boundary,
-                    "mode": "local_supplement_before_delivery",
-                    "gap_fields": copy.deepcopy(request.get("gapFields") or []),
-                    "source": "application.resource.review",
-                }
-                delivery_state = "supplementing"
-            else:
-                payload_patch["non_grant_boundary"] = {"mode": decision, "no_new_grant": True}
-                delivery_state = "blocked"
-            snapshot_request = self._maybe_request(request_id)
-            if snapshot_request is not None:
-                snapshot_request["status"] = result_status
-            snapshot_delivery = self._delivery_by_request_id(request_id)
-            if snapshot_delivery is not None:
-                snapshot_delivery["status"] = delivery_state
-                snapshot_delivery["r2_review"] = copy.deepcopy(payload_patch["r2_review"])
-                snapshot_delivery["r2Review"] = copy.deepcopy(payload_patch["r2_review"])
-                snapshot_delivery["renewal_boundary"] = payload_patch["renewal_boundary"]
-                snapshot_delivery["renewalBoundary"] = payload_patch["renewal_boundary"]
-                if "grant_boundary" in payload_patch:
-                    snapshot_delivery["grant_boundary"] = copy.deepcopy(payload_patch["grant_boundary"])
-                    snapshot_delivery["grantBoundary"] = copy.deepcopy(payload_patch["grant_boundary"])
-                if "supplement_boundary" in payload_patch:
-                    snapshot_delivery["supplement_boundary"] = copy.deepcopy(payload_patch["supplement_boundary"])
-                    snapshot_delivery["supplementBoundary"] = copy.deepcopy(payload_patch["supplement_boundary"])
-                if "non_grant_boundary" in payload_patch:
-                    snapshot_delivery["non_grant_boundary"] = copy.deepcopy(payload_patch["non_grant_boundary"])
-                    snapshot_delivery["nonGrantBoundary"] = copy.deepcopy(payload_patch["non_grant_boundary"])
-            store.application_repo.update_status(request_id, result_status, tenant_id=_DEFAULT_TENANT_ID)
-            store.delivery_repo.update_task_payload(delivery["id"], state=delivery_state, payload_patch=payload_patch, tenant_id=_DEFAULT_TENANT_ID)
-            self._append_audit_feed("application.resource.review", f"{request_id}:{decision}", "ok" if decision.startswith("approve") else "warning", actor)
-            return {
-                "request_id": request_id,
-                "status": result_status,
-                "decision": decision,
-                "reason": reason,
-                "evidence": evidence,
-                "delivery_state": delivery_state,
-            }
-
-        result = self._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision, "reason": reason, "evidence": evidence}, mutation)
-        # R-006 fix: 凭据签发作为审批之后的独立动作；audit 失败不污染审批 mutation
-        if decision in {"approve_reuse", "approve_with_supplement"}:
-            self._auto_issue_credential_on_approval(request_id, role, self._actor_for_role(role))
-        return result
+        return self._get_handler_deps().services.request.review_application_record(request_id, decision, role, confirmed, skill_id)
 
     def _r2_review_reason(self, decision: str, request: dict[str, Any]) -> str:
         labels = {
@@ -2037,15 +1140,7 @@ class BrainService:
         }
 
     def _provider_manage_payload(self, resource_id: str, action: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return {
-            "resource_id": resource_id,
-            "action": action,
-            "tenant_id": payload.get("tenant_id", _DEFAULT_TENANT_ID),
-            "target_ref": resource_id,
-            "field_evidence": self._safe_json(payload.get("field_evidence") or {}),
-            "binding_confirmations": self._safe_json(payload.get("binding_confirmations") or []),
-            "external_execution": self._safe_json(payload.get("external_execution") or {}),
-        } | ({"role": payload["role"]} if "role" in payload else {})
+        return self._get_handler_deps().services.provider.manage_payload(resource_id, action, payload)
 
     def _complete_provider_field_evidence(
         self,
@@ -2054,52 +1149,7 @@ class BrainService:
         actor: str,
         audit_id: str,
     ) -> dict[str, Any]:
-        field_evidence = self._safe_json(payload.get("field_evidence") or {})
-        if not field_evidence:
-            raise BrainServiceError("field_evidence is required")
-        store = self._state_store.database_store
-        resource = self._find_api_resource(resource_id)
-        if resource is None:
-            raise NotFoundError(resource_id)
-        summary = copy.deepcopy(resource.get("summary_json") or {})
-        existing_evidence = copy.deepcopy(summary.get("field_evidence") or {})
-        existing_evidence.update(field_evidence)
-        summary["field_evidence"] = existing_evidence
-        summary["field_evidence_confirmed_by"] = actor
-        summary["field_evidence_audit_ref"] = audit_id
-        updated_resource = self._upsert_api_resource({**resource, "summary_json": summary})
-        snapshot_refs: list[str] = []
-        if store is not None:
-            for field_ref, evidence in field_evidence.items():
-                evidence_payload = evidence if isinstance(evidence, dict) else {"value": evidence}
-                snapshot = store.metadata_evidence_repo.upsert_schema_snapshot(
-                    {
-                        "snapshot_ref": f"{resource_id}:provider-field:{field_ref}",
-                        "resource_code": resource_id,
-                        "binding_code": payload.get("binding_code"),
-                        "schema_json": {
-                            "field_ref": field_ref,
-                            "name_cn": evidence_payload.get("name_cn") or evidence_payload.get("title"),
-                            "data_format": evidence_payload.get("data_format") or evidence_payload.get("format"),
-                            "length": evidence_payload.get("length"),
-                            "sensitive_level": evidence_payload.get("sensitive_level"),
-                            "masking_policy": evidence_payload.get("masking_policy") or evidence_payload.get("mask_rule"),
-                            "source_note": evidence_payload.get("source_note") or evidence_payload.get("source"),
-                            "provider_confirmed_by": actor,
-                            "provider_audit_ref": audit_id,
-                        },
-                        "source_ref": f"resource.manage_asset:field_evidence:{audit_id}:{field_ref}",
-                        "legacy_object_ref": field_ref,
-                    },
-                    tenant_id=_DEFAULT_TENANT_ID,
-                )
-                snapshot_refs.append(snapshot.snapshot_ref)
-        return {
-            "resource_id": resource_id,
-            "lifecycle_status": updated_resource.get("lifecycle_status"),
-            "field_evidence_count": len(field_evidence),
-            "schema_snapshot_refs": snapshot_refs,
-        }
+        return self._get_handler_deps().services.provider.complete_field_evidence(resource_id, payload, actor, audit_id)
 
     def _confirm_provider_field_binding(
         self,
@@ -2108,85 +1158,10 @@ class BrainService:
         actor: str,
         audit_id: str,
     ) -> dict[str, Any]:
-        confirmations = payload.get("binding_confirmations") or []
-        if not isinstance(confirmations, list) or not confirmations:
-            raise BrainServiceError("binding_confirmations is required")
-        store = self._state_store.database_store
-        if store is None:
-            raise BrainServiceError("database store is required for provider binding confirmation")
-        if self._find_api_resource(resource_id) is None:
-            raise NotFoundError(resource_id)
-        mapping_codes: list[str] = []
-        for confirmation in confirmations:
-            if not isinstance(confirmation, dict):
-                raise BrainServiceError("binding confirmation must be an object")
-            if str(confirmation.get("resource_code") or resource_id) != resource_id:
-                raise AccessDeniedError("binding confirmation resource mismatch")
-            mapping = store.metadata_evidence_repo.upsert_schema_mapping(
-                {
-                    **confirmation,
-                    "resource_code": resource_id,
-                    "confidence_level": confirmation.get("confidence_level", "confirmed"),
-                    "status": confirmation.get("status", "active"),
-                    "evidence_ref": confirmation.get("evidence_ref") or audit_id,
-                    "source_ref": confirmation.get("source_ref") or f"resource.manage_asset:binding_confirmation:{audit_id}",
-                    "legacy_object_ref": confirmation.get("legacy_object_ref") or confirmation.get("mapping_code"),
-                    "confirmed_by": actor,
-                },
-                tenant_id=_DEFAULT_TENANT_ID,
-            )
-            mapping_codes.append(mapping.mapping_code)
-        return {"resource_id": resource_id, "confirmed_mapping_codes": mapping_codes, "binding_confirmation_count": len(mapping_codes)}
+        return self._get_handler_deps().services.provider.confirm_field_binding(resource_id, payload, actor, audit_id)
 
     def _transition_provider_resource(self, resource_id: str, status: str, actor: str, audit_id: str) -> dict[str, Any]:
-        store = self._state_store.database_store
-        record = store.resource_api_repo.transition_asset(resource_id, status, tenant_id=_DEFAULT_TENANT_ID) if store is not None else None
-        if store is None:
-            resource = self._find_api_resource(resource_id)
-            if resource is None:
-                snapshot_resource = next((item for item in self._snapshot.get("provider", {}).get("resources", []) if item.get("id") == resource_id), None)
-                if snapshot_resource is None:
-                    raise NotFoundError(resource_id)
-                resource = {
-                    "resource_code": resource_id,
-                    "title": snapshot_resource.get("name", resource_id),
-                    "resource_kind": "dataset",
-                    "lifecycle_status": status,
-                    "source_ref": snapshot_resource.get("source_ref") or f"provider:resource:{resource_id}",
-                    "summary_json": snapshot_resource,
-                }
-            resource["lifecycle_status"] = status
-            resource["updated_at"] = clock.now_datetime()
-            result = self._upsert_api_resource(resource)
-        else:
-            if record is None:
-                snapshot_resource = next((item for item in self._snapshot.get("provider", {}).get("resources", []) if item.get("id") == resource_id), None)
-                if snapshot_resource is None:
-                    raise NotFoundError(resource_id)
-                record = store.resource_api_repo.upsert_asset(
-                    {
-                        "resource_code": resource_id,
-                        "title": snapshot_resource.get("name", resource_id),
-                        "resource_kind": "dataset",
-                        "lifecycle_status": status,
-                        "owner_org_id": snapshot_resource.get("owner_org_id"),
-                        "source_ref": snapshot_resource.get("source_ref") or f"provider:resource:{resource_id}",
-                        "legacy_object_ref": snapshot_resource.get("legacy_object_ref") or resource_id,
-                        "summary_json": snapshot_resource,
-                    },
-                    tenant_id=_DEFAULT_TENANT_ID,
-                )
-            store.approval_repo.upsert_api_resource_lifecycle(
-                resource_id,
-                status,
-                actor=actor,
-                skill_id="resource.manage_asset",
-                audit_id=audit_id,
-                decision="return" if status in {"draft", "suspended"} else None,
-                tenant_id=_DEFAULT_TENANT_ID,
-            )
-            result = resource_api_ser.resource_asset_to_dict(record)
-        return {"resource_id": resource_id, "lifecycle_status": status, "asset": result, "result": "published" if status == "active" else "suspended"}
+        return self._get_handler_deps().services.provider.transition_resource(resource_id, status, actor, audit_id)
 
     def _request_provider_external_execution(
         self,
@@ -2195,67 +1170,7 @@ class BrainService:
         actor: str,
         audit_id: str,
     ) -> dict[str, Any]:
-        execution = self._safe_json(payload.get("external_execution") or {})
-        execution_kind = str(execution.get("execution_kind") or execution.get("kind") or "schema_structure")
-        if execution_kind not in {"metadata_gather", "schema_structure", "materialize", "exchange"}:
-            raise BrainServiceError(f"unsupported external execution kind: {execution_kind}")
-        store = self._state_store.database_store
-        if store is None:
-            raise BrainServiceError("database store is required for external execution receipts")
-        if self._find_api_resource(resource_id) is None:
-            raise NotFoundError(resource_id)
-        attempt_code = str(execution.get("attempt_code") or f"provider-external:{resource_id}:{execution_kind}:{audit_id}")
-        delivery_code = str(execution.get("delivery_code") or f"provider-external:{resource_id}")
-        callback_skill_id = str(
-            execution.get("callback_skill_id")
-            or ("metadata.schema.snapshot.upsert" if execution_kind in {"metadata_gather", "schema_structure"} else "delivery.receipt.ingest")
-        )
-        contract_skill_id = "external.schema.structure.apply" if execution_kind in {"metadata_gather", "schema_structure", "materialize"} else "external.exchange.executor.execute"
-        attempt = store.delivery_repo.upsert_attempt(
-            {
-                "attempt_code": attempt_code,
-                "delivery_code": delivery_code,
-                "attempt_kind": execution_kind,
-                "state": "planned",
-                "executor_ref": execution.get("executor_ref") or contract_skill_id,
-                "evidence_ref": audit_id,
-                "payload_json": {
-                    "resource_code": resource_id,
-                    "contract_skill_id": contract_skill_id,
-                    "callback_skill_id": callback_skill_id,
-                    "change_plan_json": execution.get("change_plan_json") or {},
-                    "canonical_write_policy": "callback_only",
-                },
-            },
-            tenant_id=_DEFAULT_TENANT_ID,
-        )
-        evidence = store.delivery_repo.add_execution_evidence(
-            {
-                "evidence_ref": f"{audit_id}:external-receipt",
-                "delivery_code": delivery_code,
-                "attempt_code": attempt.attempt_code,
-                "executor_kind": "external_contract",
-                "executor_ref": contract_skill_id,
-                "evidence_kind": "executor_task_receipt",
-                "result_status": "planned",
-                "sanitized_payload_json": {
-                    "resource_code": resource_id,
-                    "attempt_code": attempt.attempt_code,
-                    "callback_skill_id": callback_skill_id,
-                    "canonical_write_policy": "callback_only",
-                },
-            },
-            tenant_id=_DEFAULT_TENANT_ID,
-        )
-        return {
-            "resource_id": resource_id,
-            "attempt_code": attempt.attempt_code,
-            "delivery_code": delivery_code,
-            "executor_contract": contract_skill_id,
-            "callback_skill_id": callback_skill_id,
-            "receipt_ref": evidence.evidence_ref,
-            "core_state_unchanged": True,
-        }
+        return self._get_handler_deps().services.provider.request_external_execution(resource_id, payload, actor, audit_id)
 
     def grant_delivery_access(self, task_id: str, role: str, confirmed: bool) -> dict[str, Any]:
         task = self._delivery_by_id(task_id)
@@ -2288,165 +1203,16 @@ class BrainService:
         return self._mutate("delivery.access.grant", role, confirmed, {"task_id": task_id}, mutation)
 
     def _approve_request(self, request_id: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide", *, decision: str = "approve_reuse") -> dict[str, Any]:
-        request = self._request_by_id(request_id)
-        approval = self._approval_by_id(request_id)
-        delivery = self._delivery_by_request_id(request_id)
-        if request["status"] != "pending":
-            raise InvalidStateError("current request cannot be approved")
-
-        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-            request["status"] = "supplementing"
-            request["chainAnchor"] = "pending"
-            request["timeline"].append(
-                {
-                    "label": "审批通过并下发补录",
-                    "time": clock.now_datetime(),
-                    "note": "已进入镇街 / 社区差异补录阶段，基层只需补现场差异字段。",
-                }
-            )
-            request["aiStatus"]["summary"] = "申请已通过准入判定，系统正在按模板预填并等待基层补录差异字段。"
-            request["aiStatus"]["nextAction"] = "请 镇街填报人 / 村社区填报人 核对预填字段后提交差异补录。"
-            approval["suggestion"] = "建议通过"
-            approval["impact"] = "已创建基层预填任务，待补录完成后进入自动汇总确认。"
-            if delivery:
-                delivery["status"] = "supplementing"
-                delivery["updatedAt"] = clock.now_datetime()
-                delivery["note"] = "预填任务已下发，等待 镇街填报人 / 村社区填报人 完成差异补录。"
-                delivery["history"].append(
-                    {
-                        "time": clock.now_short_time(),
-                        "state": "预填任务已下发",
-                        "detail": "系统已把共享模板字段下发到基层，只保留差异字段待补录。",
-                    }
-                )
-                delivery["aiSummary"]["summary"] = "任务已进入“预填下发 → 差异补录”阶段，当前不需要人工拼表。"
-                delivery["aiSummary"]["nextAction"] = "请基层完成经营状态、最近走访时间和现场备注补录。"
-                delivery["aiSummary"]["cause"] = "审批已通过，模板字段可直接作为补录底座。"
-                delivery["aiSummary"]["impact"] = "补录完成后会自动生成汇总结果并沉淀回流候选。"
-                delivery["backflow"]["status"] = "待补录完成"
-                delivery["backflow"]["note"] = "待基层补录和审核汇总完成后，再决定是否纳入模板。"
-            self._append_audit_feed("request.approve", request_id, "ok", actor)
-            return {"request_id": request_id, "status": request["status"]}
-
-        result = self._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision}, mutation)
-        # R-006 fix: 凭据签发作为审批之后的独立动作；audit 失败不污染审批 mutation
-        self._auto_issue_credential_on_approval(request_id, role, self._actor_for_role(role))
-        return result
+        return self._get_handler_deps().services.request.approve(request_id, role, confirmed, skill_id, decision=decision)
 
     def _return_request_for_fix(self, request_id: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide", *, decision: str = "return_for_fix") -> dict[str, Any]:
-        request = self._request_by_id(request_id)
-        approval = self._approval_by_id(request_id)
-        delivery = self._delivery_by_request_id(request_id)
-        if request["status"] not in {"pending", "summary-pending"}:
-            raise InvalidStateError("current request cannot be returned for fix")
-
-        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-            request["status"] = "need-fix"
-            request["timeline"].append(
-                {
-                    "label": "已退回补正",
-                    "time": clock.now_datetime(),
-                    "note": "要求重新说明差异字段责任边界或补齐异常项说明。",
-                }
-            )
-            request["aiStatus"]["summary"] = "申请已退回补正，当前不进入下一状态。"
-            request["aiStatus"]["nextAction"] = "请补齐差异字段说明后重新提交。"
-            approval["suggestion"] = "建议补正"
-            approval["impact"] = "退回补正后，补录与汇总链路暂停，不继续向前推进。"
-            if delivery:
-                delivery["status"] = "warning"
-                delivery["updatedAt"] = clock.now_datetime()
-                delivery["note"] = "当前链路已退回补正，未继续推进补录或汇总。"
-                delivery["history"].append(
-                    {
-                        "time": clock.now_short_time(),
-                        "state": "退回补正",
-                        "detail": "因责任边界或异常项说明不足，链路暂停。",
-                    }
-                )
-                delivery["aiSummary"]["summary"] = "这不是执行失败，而是人工决定链路回退补正。"
-                delivery["aiSummary"]["nextAction"] = "请申请方或基层先补齐说明，再重新进入下一步。"
-                delivery["backflow"]["status"] = "不适用"
-                delivery["backflow"]["note"] = "当前未形成可确认的回流候选。"
-            self._append_audit_feed("request.return-for-fix", request_id, "warning", actor)
-            return {"request_id": request_id, "status": request["status"]}
-
-        return self._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision}, mutation)
+        return self._get_handler_deps().services.request.return_for_fix(request_id, role, confirmed, skill_id, decision=decision)
 
     def _reject_request(self, request_id: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide", *, decision: str = "reject_duplicate") -> dict[str, Any]:
-        request = self._request_by_id(request_id)
-        delivery = self._delivery_by_request_id(request_id)
-        if request["status"] not in {"pending", "summary-pending"}:
-            raise InvalidStateError("current request cannot be rejected")
-
-        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-            request["status"] = "rejected"
-            request["timeline"].append(
-                {
-                    "label": "已驳回申请",
-                    "time": clock.now_datetime(),
-                    "note": "因重复要数或越界采集风险被终止。",
-                }
-            )
-            request["aiStatus"]["summary"] = "该申请已被明确驳回，不再继续进入补录和汇总链路。"
-            request["aiStatus"]["nextAction"] = "如需继续，请改为模板复用 + 差异补录模式重新发起。"
-            if delivery:
-                delivery["status"] = "warning"
-                delivery["updatedAt"] = clock.now_datetime()
-                delivery["note"] = "申请已驳回，链路终止。"
-                delivery["history"].append(
-                    {
-                        "time": clock.now_short_time(),
-                        "state": "申请驳回",
-                        "detail": "因重复要数或越界采集风险，任务未继续推进。",
-                    }
-                )
-                delivery["aiSummary"]["summary"] = "这是一次被明确终止的链路，不应伪装成业务成功。"
-                delivery["aiSummary"]["nextAction"] = "如需重启，请先回到模板复用起点重新收敛需求。"
-                delivery["backflow"]["status"] = "不适用"
-                delivery["backflow"]["note"] = "驳回后不生成回流候选。"
-            self._append_audit_feed("request.reject", request_id, "warning", actor)
-            return {"request_id": request_id, "status": request["status"]}
-
-        return self._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision}, mutation)
+        return self._get_handler_deps().services.request.reject(request_id, role, confirmed, skill_id, decision=decision)
 
     def _route_request_for_catalog_confirmation(self, request_id: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide") -> dict[str, Any]:
-        request = self._request_by_id(request_id)
-        approval = self._approval_by_id(request_id)
-        delivery = self._delivery_by_request_id(request_id)
-        if request["status"] not in {"pending", "summary-pending"}:
-            raise InvalidStateError("current request cannot be routed for catalog confirmation")
-
-        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-            request["status"] = "pending-provider-confirmation"
-            request["timeline"].append(
-                {
-                    "label": "已转供给侧口径确认",
-                    "time": clock.now_datetime(),
-                    "note": "需要 数据提供方 / 业务运营员 确认目录字段口径或资源授权边界后再继续准入。",
-                }
-            )
-            request["aiStatus"]["summary"] = "申请已转 数据提供方 / 业务运营员 口径确认，当前不生成新授权。"
-            request["aiStatus"]["nextAction"] = "请供给侧确认目录字段口径、资源状态和授权边界。"
-            approval["suggestion"] = "建议转口径确认"
-            approval["impact"] = "转办期间暂停补录和交付，避免在口径未确认时扩大授权。"
-            if delivery:
-                delivery["status"] = "warning"
-                delivery["updatedAt"] = clock.now_datetime()
-                delivery["note"] = "已转供给侧口径确认，未生成新授权。"
-                delivery["history"].append(
-                    {
-                        "time": clock.now_short_time(),
-                        "state": "转口径确认",
-                        "detail": "审批人 要求 数据提供方 / 业务运营员 先确认目录字段口径或授权边界。",
-                    }
-                )
-                delivery["backflow"]["status"] = "不适用"
-                delivery["backflow"]["note"] = "转办确认前不形成回流候选或授权变更。"
-            self._append_audit_feed("request.route-to-provider-or-catalog-admin", request_id, "warning", actor)
-            return {"request_id": request_id, "status": request["status"]}
-
-        return self._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": "route_to_provider_or_catalog_admin"}, mutation)
+        return self._get_handler_deps().services.request.route_for_catalog_confirmation(request_id, role, confirmed, skill_id)
 
     def _resolve_role(self, payload: dict[str, Any]) -> str:
         from zw_brain.shared.session_context import (
@@ -2680,70 +1446,10 @@ class BrainService:
                 return
 
     def _request_status_timeline(self, request: dict[str, Any], delivery: dict[str, Any] | None) -> list[dict[str, Any]]:
-        decision = "已通过" if request.get("status") in {"supplementing", "summary-pending", "completed"} else "待审批结论"
-        delivery_state = delivery.get("status") if delivery else "pending"
-        return [
-            {"stage": "待受理", "status": "done", "ref": request.get("id"), "label": "申请已提交"},
-            {"stage": "审核中", "status": "done" if request.get("status") != "pending" else "current", "ref": request.get("id"), "label": self._request_status_text(request, "reviewer")},
-            {"stage": "审批结论", "status": "done" if decision == "已通过" else "pending", "ref": request.get("id"), "label": decision},
-            {"stage": "delivery_task", "status": delivery_state, "ref": delivery.get("id") if delivery else None, "label": delivery_state},
-        ]
+        return self._get_handler_deps().services.request.status_timeline(request, delivery)
 
-    # R-002 fix: 文案不再按 role 单维区分（折叠后同一 ROLE_* 无法承载"申请人 vs 填报人"双语义）。
-    # 改为按业务视角（perspective）显示文案；调用方在每个待办语境下显式声明视角。
-    # perspective 取值：
-    #   "applicant"  — 申请人视角（看自己的申请进度）
-    #   "reviewer"   — 审批人/审核人视角（看待我审批的项）
-    #   "filler"     — 基层填报人视角（看待我补录的差异/现场任务）
-    #   "summarizer" — 汇总审核人视角（看待我确认的异常项）
     def _request_status_text(self, item: dict[str, Any], perspective: str = "reviewer") -> str:
-        status = item["status"]
-        if status == "pending":
-            return {"applicant": "审批中", "reviewer": "待审批", "filler": "等待审批", "summarizer": "等待审批"}.get(perspective, "待审批")
-        if status == "supplementing":
-            return {"applicant": "补录中", "reviewer": "补录中", "filler": "待补录", "summarizer": "补录中"}.get(perspective, "补录中")
-        if status == "summary-pending":
-            return {"summarizer": "待汇总确认"}.get(perspective, "待汇总确认")
-        if status == "completed":
-            return "已汇总"
-        if status == "need-fix":
-            return "待补正"
-        if status == "rejected":
-            return "已驳回"
-        if status == "approved":
-            return {
-                "applicant": "已通过",
-                "reviewer": "已通过",
-                "filler": "待补录",
-                "summarizer": "待汇总确认",
-            }.get(perspective, "已通过")
-        if status == "in_delivery":
-            return {
-                "applicant": "交付中",
-                "reviewer": "交付中",
-                "filler": "交付中",
-                "summarizer": "交付中",
-            }.get(perspective, "交付中")
-        if status == "granted":
-            return "已授权"
-        if status == "revoked":
-            return "已撤销"
-        _fallback = {
-            "draft": "草稿",
-            "open": "待处理",
-            "reconciling": "待对账",
-            "warning": "需关注",
-            "failed": "失败",
-            "online": "在线",
-            "escalated": "已升级",
-            "resolved": "已解决",
-            "provider_investigating": "提供方核查中",
-        }
-        if status in _fallback:
-            return _fallback[status]
-        if isinstance(status, str) and status.isascii() and status.replace("-", "").replace("_", "").isalnum() and status == status.lower():
-            return "待处理"
-        return str(status)
+        return self._get_handler_deps().services.request.status_text(item, perspective)
 
     def _package_status_text(self, item: dict[str, Any]) -> str:
         if item["status"] == "pending":
@@ -2770,46 +1476,25 @@ class BrainService:
         return actor
 
     def _request_by_id(self, request_id: str) -> dict[str, Any]:
-        for item in self._snapshot["requests"]:
-            if item["id"] == request_id:
-                return item
-        raise NotFoundError(request_id)
+        return self._get_handler_deps().services.request.by_id(request_id)
 
     def _maybe_request(self, request_id: str) -> dict[str, Any] | None:
-        try:
-            return self._request_by_id(request_id)
-        except NotFoundError:
-            return None
+        return self._get_handler_deps().services.request.maybe_by_id(request_id)
 
     def _approval_by_id(self, request_id: str) -> dict[str, Any]:
-        for item in self._snapshot["approvals"]:
-            if item["id"] == request_id:
-                return item
-        raise NotFoundError(request_id)
+        return self._get_handler_deps().services.request.approval_by_id(request_id)
 
     def _maybe_approval(self, request_id: str) -> dict[str, Any] | None:
-        try:
-            return self._approval_by_id(request_id)
-        except NotFoundError:
-            return None
+        return self._get_handler_deps().services.request.maybe_approval_by_id(request_id)
 
     def _delivery_by_request_id(self, request_id: str) -> dict[str, Any] | None:
-        for item in self._snapshot["delivery_tasks"]:
-            if item["requestId"] == request_id:
-                return item
-        return None
+        return self._get_handler_deps().services.delivery.by_request_id(request_id)
 
     def _delivery_by_id(self, task_id: str) -> dict[str, Any]:
-        for item in self._snapshot["delivery_tasks"]:
-            if item["id"] == task_id:
-                return item
-        raise NotFoundError(task_id)
+        return self._get_handler_deps().services.delivery.by_id(task_id)
 
     def _maybe_delivery(self, task_id: str) -> dict[str, Any] | None:
-        try:
-            return self._delivery_by_id(task_id)
-        except NotFoundError:
-            return None
+        return self._get_handler_deps().services.delivery.maybe_by_id(task_id)
 
     def _resource_by_id(self, resource_id: str) -> dict[str, Any]:
         for item in self._snapshot["discovery"]["resources"]:
@@ -2944,109 +1629,34 @@ class BrainService:
                 self._upsert_todo("ROLE_ORGAN_MANAGER", request_id, f"{resource_name}汇总/准入处理", self._request_status_text(request, "summarizer"), f"#/request-flow/review/{request_id}", category="summary")
 
     def _new_request_id(self) -> str:
-        return ids.next_request_id(str(item.get("id", "")) for item in self._snapshot["requests"])
+        return self._get_handler_deps().services.request.new_request_id()
 
     def _delivery_task_id_for_request(self, request_id: str) -> str:
-        return request_id.replace("REQ-", "DLV-", 1)
+        return self._get_handler_deps().services.delivery.task_id_for_request(request_id)
 
     def _requested_application_fields(self, resource: dict[str, Any], options: dict[str, Any]) -> list[dict[str, Any]]:
-        raw = options.get("requested_items") or options.get("requestedItems") or options.get("fields")
-        catalog_fields = resource.get("catalogFields") or []
-        requested: list[dict[str, Any]] = []
-        if isinstance(raw, list) and raw:
-            for item in raw:
-                if isinstance(item, dict):
-                    code = str(item.get("item_code") or item.get("code") or item.get("field") or item.get("title") or "")
-                    title = str(item.get("title") or item.get("name") or item.get("field") or code)
-                else:
-                    code = str(item)
-                    matched = next((field for field in catalog_fields if code in {str(field.get("item_code")), str(field.get("title"))}), None)
-                    title = str((matched or {}).get("title") or code)
-                if code:
-                    requested.append({"item_code": code, "title": title})
-        elif catalog_fields:
-            first = catalog_fields[0]
-            requested.append({"item_code": str(first.get("item_code") or first.get("title")), "title": str(first.get("title") or first.get("item_code"))})
-        else:
-            for title in (resource.get("fields") or [])[:1]:
-                requested.append({"item_code": str(title), "title": str(title)})
-        return requested[:5]
+        return self._get_handler_deps().services.application.requested_fields(resource, options)
 
     def _application_gap_fields(self, options: dict[str, Any]) -> list[str]:
-        raw = options.get("gap_fields") or options.get("gapFields") or ["统计时间窗", "区县范围"]
-        if not isinstance(raw, list):
-            raw = [raw]
-        return [str(item.get("title") if isinstance(item, dict) else item) for item in raw if str(item.get("title") if isinstance(item, dict) else item).strip()]
+        return self._get_handler_deps().services.application.gap_fields(options)
 
     def _application_time_window(self, options: dict[str, Any]) -> dict[str, Any]:
-        raw = options.get("time_window") or options.get("timeWindow") or {}
-        if isinstance(raw, dict):
-            return {"start": raw.get("start") or raw.get("from") or "2025-01-01", "end": raw.get("end") or raw.get("to") or "2025-12-31"}
-        return {"label": str(raw)}
+        return self._get_handler_deps().services.application.time_window(options)
 
     def _application_scope(self, resource: dict[str, Any], options: dict[str, Any]) -> str:
-        return str(options.get("application_scope") or options.get("scope") or resource.get("regionCode") or resource.get("zone") or "山东省")
+        return self._get_handler_deps().services.application.scope(resource, options)
 
     def _diff_fields_for_gap(self, gap_fields: list[str]) -> list[dict[str, Any]]:
-        return [
-            {"label": field, "value": "待补充", "reason": "本次申请仍需明确", "owner": "申请人 补充说明 / 审批人 审核确认"}
-            for field in gap_fields
-        ]
+        return self._get_handler_deps().services.application.diff_fields_for_gap(gap_fields)
 
     def _application_source_evidence(self, resource: dict[str, Any], fields: list[dict[str, Any]]) -> dict[str, Any]:
-        return {
-            "catalogCode": resource.get("repository", {}).get("catalogCode") or resource.get("id"),
-            "legacyMappings": copy.deepcopy(resource.get("legacyMappings") or []),
-            "fieldBindings": copy.deepcopy(resource.get("fieldBindings") or []),
-            "resourceAssets": copy.deepcopy(resource.get("resourceAssets") or []),
-            "requestedItemCodes": [field["item_code"] for field in fields],
-        }
+        return self._get_handler_deps().services.application.source_evidence(resource, fields)
 
     def _prefilled_fields_for_resource(self, resource: dict[str, Any], requested_fields: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
-        samples = {
-            "统一社会信用代码": "91370000MA3XXXXXX1",
-            "企业名称": "山东云启科技有限公司",
-            "法定代表人": "李某某",
-            "行业代码": "I6510",
-            "成立日期": "2020-08-18",
-            "登记机关": "市市场监管局",
-            "经营场所": "高新区软件园 A 座",
-            "注册资本": "500 万元",
-        }
-        fields = []
-        source_fields = [item["title"] for item in requested_fields] if requested_fields else resource.get("fields", [])[:5]
-        for fld in source_fields[:5]:
-            fields.append(
-                {
-                    "label": fld,
-                    "value": samples.get(fld, "已带出"),
-                    "source": "共享资源池 / 字段证据",
-                    "state": "已预填",
-                }
-            )
-        return fields
+        return self._get_handler_deps().services.application.prefilled_fields(resource, requested_fields)
 
     def _default_diff_fields(self) -> list[dict[str, Any]]:
-        return [
-            {
-                "label": "经营状态",
-                "value": "待镇街确认",
-                "reason": "现场状态变化快",
-                "owner": "基层填报人 补录",
-            },
-            {
-                "label": "最近走访时间",
-                "value": "待补录",
-                "reason": "共享池无现场时间",
-                "owner": "村社区填报人 补录",
-            },
-            {
-                "label": "现场备注",
-                "value": "待补录",
-                "reason": "仅末端掌握",
-                "owner": "基层填报人 补录",
-            },
-        ]
+        return self._get_handler_deps().services.application.default_diff_fields()
 
 
     # ============== J1 凭据签发与查询（D27/U-3 处置承诺的凭据领取闭环） ==============

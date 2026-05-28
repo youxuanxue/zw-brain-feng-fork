@@ -29,16 +29,15 @@ import zw_brain.shared.audit as audit_bus
 from zw_brain.command.brain import BrainServiceError, InvalidStateError
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.policy import DomainAccessDeniedError, tenant_for_role
-from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
+from zw_brain.shared.runtime_tenant import (
+    get_runtime_tenant_id,
+)
 from zw_brain.skill_registration.runtime import (
     PACKAGE_TRUST_LEVELS,
     load_manifests,
     package_trust_levels,
     validate_package_lifecycle_transition,
 )
-
-_DEFAULT_TENANT_ID = get_runtime_tenant_id()
-
 
 # ──────────────────────────────────────────────────────────────────────────
 # package.rollback —— 写敏感，走 brain._mutate（自动 audit_required=true）

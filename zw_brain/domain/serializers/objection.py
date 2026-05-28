@@ -9,7 +9,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from zw_brain.command.serializers._common import mask
+from zw_brain.domain.serializers._common import mask
 
 
 def case_to_dict(item: Any) -> dict[str, Any]:

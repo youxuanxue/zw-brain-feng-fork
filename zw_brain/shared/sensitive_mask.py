@@ -265,3 +265,23 @@ def apply_field_masks(
         if kind is not None:
             return mask_value(value, kind, role=role)
     return value
+
+
+# Captured once at module load — same semantic as the previous BrainService and
+# per-service ``_mask`` helpers, so every read surface uses one consistent default
+# mask role for the process lifetime. Tests that flip the env should re-import.
+import os as _os  # noqa: E402 — kept colocated with the env-derived constant
+
+DEFAULT_MASK_ROLE = _os.environ.get("ZW_BRAIN_MASK_ROLE", DEFAULT_ROLE)
+
+
+def mask_default(payload: Any) -> Any:
+    """Apply ``apply_field_masks`` with the env-configured default role.
+
+    Single source of truth for "mask an outbound payload with the default role"
+    — replaces the per-module ``_mask`` helpers that previously lived inside
+    ``zw_brain/command/brain.py`` and each ``zw_brain/domain/services/*.py``
+    file. Centralized so adding a new service or changing the env-read policy
+    is a one-line edit, not an N-file sweep.
+    """
+    return apply_field_masks(payload, role=DEFAULT_MASK_ROLE)

@@ -13,10 +13,7 @@ import zw_brain.shared.clock as clock
 from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import resource_api as resource_api_ser
-from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
-
-_DEFAULT_TENANT_ID = get_runtime_tenant_id()
-
+from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -189,7 +186,7 @@ def _query_resource_assets(brain, deps, ctx, *, resource_code: Any = None) -> di
         resources = [resource_api_ser.resource_asset_to_dict(item) for item in deps.repos.resource_api.list_assets(tenant_id=_DEFAULT_TENANT_ID)]
         if resource_code:
             resources = [item for item in resources if item["resource_code"] == str(resource_code)]
-        resources = [brain._enrich_provider_resource_asset(item, store) for item in resources]
+        resources = [deps.services.provider.enrich_resource_asset(item, store) for item in resources]
     return {"items": resources, "total": len(resources)}
 
 def _manage_resource_asset(
@@ -225,22 +222,22 @@ def _manage_resource_asset(
         if snapshot_resource is None and resource_record is None:
             raise NotFoundError(resource_id)
         if action == "complete_field_evidence":
-            result = brain._complete_provider_field_evidence(resource_id, payload, actor, audit_id)
+            result = deps.services.provider.complete_field_evidence(resource_id, payload, actor, audit_id)
             event_type = "resource.field_evidence.complete"
         elif action == "confirm_field_binding":
-            result = brain._confirm_provider_field_binding(resource_id, payload, actor, audit_id)
+            result = deps.services.provider.confirm_field_binding(resource_id, payload, actor, audit_id)
             event_type = "resource.field_binding.confirm"
         elif action == "submit_review":
-            result = brain._transition_provider_resource(resource_id, "pending_review", actor, audit_id)
+            result = deps.services.provider.transition_resource(resource_id, "pending_review", actor, audit_id)
             event_type = "resource.submit_review"
         elif action == "request_external_execution":
-            result = brain._request_provider_external_execution(resource_id, payload, actor, audit_id)
+            result = deps.services.provider.request_external_execution(resource_id, payload, actor, audit_id)
             event_type = "resource.external_execution.request"
         elif action == "publish":
-            result = brain._transition_provider_resource(resource_id, "active", actor, audit_id)
+            result = deps.services.provider.transition_resource(resource_id, "active", actor, audit_id)
             event_type = "resource.publish"
         else:
-            result = brain._transition_provider_resource(resource_id, "suspended", actor, audit_id)
+            result = deps.services.provider.transition_resource(resource_id, "suspended", actor, audit_id)
             event_type = "resource.suspend"
         if snapshot_resource is not None:
             status = {
@@ -259,7 +256,7 @@ def _manage_resource_asset(
         deps.append_audit_feed(event_type, resource_id, "ok", actor)
         return result | {"audit_id": audit_id}
 
-    return deps.write(ctx, brain._provider_manage_payload(resource_id, action, payload), mutation)
+    return deps.write(ctx, deps.services.provider.manage_payload(resource_id, action, payload), mutation)
 
 
 # ──────────────────────────────────────────────────────────────────────────

@@ -12,10 +12,7 @@ import copy
 from zw_brain.command.brain import InvalidStateError, NotFoundError, _RequestBatchContext
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import catalog as catalog_ser
-from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
-
-_DEFAULT_TENANT_ID = get_runtime_tenant_id()
-
+from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -100,9 +97,9 @@ def _query_catalog_groups(brain, deps, ctx) -> dict[str, Any]:
     if store is None:
         return {"items": list(groups.values()), "total": len(groups)}
     packages = [
-        brain._topic_package_list_projection(item)
+        deps.services.topic_package.list_projection(item)
         for item in deps.repos.topic_package.list_packages(tenant_id=_DEFAULT_TENANT_ID)
-        if brain._topic_projection_kind(item) == "catalog_group"
+        if deps.services.topic_package.projection_kind(item) == "catalog_group"
     ]
     if packages:
         return {"items": packages, "total": len(packages)}
@@ -211,15 +208,15 @@ def _get_resource(brain, deps, ctx, resource_id: str, *, context: _RequestBatchC
         return resource
     record = deps.repos.catalog.get_entry(resource_id, tenant_id=_DEFAULT_TENANT_ID)
     if record is not None:
-        detail = brain._catalog_record_to_card_dict(record)
-        brain._enrich_catalog_detail(detail, record, store, context=context)
+        detail = deps.services.catalog.record_to_card_dict(record)
+        deps.services.catalog.enrich_detail(detail, record, store, context=context)
         return detail
     asset = deps.repos.resource_api.get_asset(resource_id, tenant_id=_DEFAULT_TENANT_ID)
     if asset is not None and asset.catalog_code:
         record = deps.repos.catalog.get_entry(asset.catalog_code, tenant_id=_DEFAULT_TENANT_ID)
         if record is not None:
-            detail = brain._catalog_record_to_card_dict(record)
-            brain._enrich_catalog_detail(detail, record, store, focused_resource_code=asset.resource_code, context=context)
+            detail = deps.services.catalog.record_to_card_dict(record)
+            deps.services.catalog.enrich_detail(detail, record, store, focused_resource_code=asset.resource_code, context=context)
             return detail
     if snapshot_miss:
         raise NotFoundError(resource_id)
@@ -254,9 +251,9 @@ def _query_catalog_share_zones(brain, deps, ctx) -> dict[str, Any]:
             )
         return {"items": zones, "total": len(zones)}
     packages = [
-        brain._topic_package_list_projection(item)
+        deps.services.topic_package.list_projection(item)
         for item in deps.repos.topic_package.list_packages(tenant_id=_DEFAULT_TENANT_ID)
-        if brain._topic_projection_kind(item) in {"catalog_group", "share_zone"}
+        if deps.services.topic_package.projection_kind(item) in {"catalog_group", "share_zone"}
     ]
     return {
         "items": packages,

@@ -23,9 +23,12 @@ import zw_brain.shared.audit as audit_bus
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.policy import DomainAccessDeniedError, tenant_for_role
 from zw_brain.shared.audit import index as audit_index
-from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
-
-_DEFAULT_TENANT_ID = get_runtime_tenant_id()
+from zw_brain.shared.runtime_tenant import (
+    DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID,
+)
+from zw_brain.shared.runtime_tenant import (
+    get_runtime_tenant_id,
+)
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies

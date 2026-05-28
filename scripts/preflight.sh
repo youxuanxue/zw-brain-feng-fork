@@ -99,6 +99,7 @@ done <<'CHECKS'
 段 44	scripts/check_approved_doc_drift.py	approved-doc-drift (D32.d — D-编号决策真值源回灌守卫，PR-mode WARN-only)
 段 45	scripts/check_handler_no_direct_snapshot_read.py	handler-no-direct-snapshot-read (handler 不得直接读 brain._snapshot / brain._state_store.database_store / brain._{request,package,delivery}_by_*，必须走 deps.view / deps.repos — Action C)
 段 46	scripts/check_handler_no_ui_state.py	handler-no-ui-state (handler/helper 不得反向读 brain._ui_state，role 走 ctx.role / actor 走 ctx.actor — Action F)
+段 47	scripts/check_brain_no_domain_method.py	brain-no-domain-method (BrainService 域方法必须是 1 行 delegate shim，实现住 zw_brain/domain/services/ — Action D)
 CHECKS
 
 echo ""

@@ -11,7 +11,7 @@ Why this exists:
   Carrying them on the BrainService god-object made every handler import
   the whole service, inflating the API surface and blocking unit-testability.
 - handler call sites switch from ``brain._X_record_to_dict(rec)`` to
-  ``from zw_brain.command.serializers import <aggregate>;
+  ``from zw_brain.domain.serializers import <aggregate>;
   <aggregate>.X_to_dict(rec)``. No ``self`` shim is kept on BrainService —
   see PR #86 for the anti-pattern this avoids.
 - A preflight guard (``scripts/check_brain_no_record_to_dict.py``) prevents

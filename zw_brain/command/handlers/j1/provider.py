@@ -29,8 +29,8 @@ def _get_provider_view(brain, deps, ctx) -> dict[str, Any]:
     if store is None:
         return provider
     packages = brain.list_packages()
-    delivery = brain._provider_focus_delivery()
-    resource_id = brain._provider_primary_resource_id()
+    delivery = deps.services.provider.focus_delivery()
+    resource_id = deps.services.provider.primary_resource_id()
     resource = brain.get_resource(resource_id) if resource_id else {}
     provider["overview"][2]["value"] = str(len(delivery.get("backflow", {}).get("candidateFields", [])))
     if provider.get("resources"):

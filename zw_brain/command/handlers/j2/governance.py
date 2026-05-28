@@ -18,11 +18,8 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import adapter as adapter_ser
 from zw_brain.command.serializers import governance as governance_ser
 from zw_brain.domain import policy
-from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
+from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 from zw_brain.skill_registration.runtime import get_manifest
-
-_DEFAULT_TENANT_ID = get_runtime_tenant_id()
-
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -46,7 +43,7 @@ def _get_governance_iam_overview(brain, deps, ctx, payload: dict[str, Any]) -> d
     actor_filter = str(payload.get("actor_id", payload.get("external_actor_id", "")) or "")
     if role_filter:
         roles = [item for item in roles if item.get("role_code") == role_filter]
-    actors = [item for item in actors if brain._filter_governance_actor(item, status_filter=status_filter, role_filter=role_filter, actor_filter=actor_filter)]
+    actors = [item for item in actors if deps.services.governance.filter_actor(item, status_filter=status_filter, role_filter=role_filter, actor_filter=actor_filter)]
     policies = [governance_ser.tenant_policy_to_dict(item) for item in deps.repos.capability_package.list_policies(tenant_id=tenant_id)] if store is not None else []
     if capability_filter:
         policies = [item for item in policies if item.get("package_slug") == capability_filter]
@@ -54,10 +51,10 @@ def _get_governance_iam_overview(brain, deps, ctx, payload: dict[str, Any]) -> d
     if capability_filter:
         candidates = [item for item in candidates if item.get("capability_id") == capability_filter]
     adapter_runs = [adapter_ser.adapter_run_to_dict(item) for item in deps.repos.external_adapter.list_run_records(tenant_id=tenant_id, adapter_slug="legacy.bsp.governance")]
-    issues = brain._governance_import_issues(adapter_runs)
+    issues = deps.services.governance.import_issues(adapter_runs)
     if issue_filter:
         issues = [item for item in issues if item.get("type") == issue_filter]
-    audit_events = brain._governance_audit_events(tenant_id=tenant_id, capability_filter=capability_filter, actor_filter=actor_filter)
+    audit_events = deps.services.governance.audit_events(tenant_id=tenant_id, capability_filter=capability_filter, actor_filter=actor_filter)
     sample_actor = actors[0] if actors else None
     sample_policy = policies[0] if policies else None
     sample_org = next((item for item in orgs if sample_actor and item.get("org_code") == sample_actor.get("org_code")), orgs[0] if orgs else None)

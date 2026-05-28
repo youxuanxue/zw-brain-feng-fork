@@ -13,7 +13,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from zw_brain.command.serializers._common import DEFAULT_MASK_ROLE
+from zw_brain.domain.serializers._common import DEFAULT_MASK_ROLE
 from zw_brain.shared.sensitive_mask import apply_field_masks
 
 

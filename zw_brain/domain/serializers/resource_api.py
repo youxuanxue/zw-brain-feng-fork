@@ -7,7 +7,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from zw_brain.command.serializers._common import mask
+from zw_brain.domain.serializers._common import mask
 
 
 def resource_asset_to_dict(record: Any) -> dict[str, Any]:

@@ -27,8 +27,8 @@ def _get_approval(brain, deps, ctx, request_id: str) -> dict[str, Any]:
         raise NotFoundError(request_id)
     approval["requestId"] = request_id
     request = brain.get_request(request_id)
-    delivery = deps.view.delivery.find_by_request_id(request_id) or brain._delivery_task_from_record(request_id, store)
-    approval["statusTimeline"] = brain._request_status_timeline(request, delivery)
+    delivery = deps.view.delivery.find_by_request_id(request_id) or deps.services.delivery.task_from_record(request_id, store)
+    approval["statusTimeline"] = deps.services.request.status_timeline(request, delivery)
     approval["applicationMaterials"] = copy.deepcopy(request.get("applicationMaterials", {}))
     approval["reuseCandidate"] = copy.deepcopy(request.get("reuseCandidate", {}))
     approval["fieldEvidence"] = {
@@ -71,7 +71,7 @@ def _get_approval(brain, deps, ctx, request_id: str) -> dict[str, Any]:
         approval["legacyMappings"].extend(brain._legacy_mapping_refs(store, "approval_step", [str(item.id) for item in step_records]))
         approval["legacyMappings"].extend(brain._legacy_mapping_refs(store, "approval_decision", [str(item.id) for item in decision_records]))
     if delivery is not None:
-        approval["grantEvidence"] = brain._delivery_grant_evidence(delivery)
+        approval["grantEvidence"] = deps.services.delivery.grant_evidence(delivery)
     approval["recommendedDecision"] = brain._approval_recommendation(approval, request, delivery)
     for key, value in brain._approval_business_defaults(request, delivery).items():
         approval.setdefault(key, value)
@@ -81,7 +81,7 @@ def _review_request(brain, deps, ctx, request_id: str, decision: str, role: str,
     normalized = {"approve": "approve_reuse", "reject": "reject_duplicate"}.get(decision, decision)
     if normalized in {"approve_reuse", "approve_with_supplement", "return_for_fix", "reject_duplicate", "route_to_provider_or_catalog_admin"}:
         store = deps.state_store.database_store
-        if store is not None and brain._request_from_application_record(request_id, store) is not None:
+        if store is not None and deps.services.application.request_from_record(request_id, store) is not None:
             return brain._review_application_record(request_id, normalized, role, confirmed, skill_id)
     if normalized in {"approve_reuse", "approve_with_supplement"}:
         return brain._approve_request(request_id, role, confirmed, skill_id, decision=normalized)

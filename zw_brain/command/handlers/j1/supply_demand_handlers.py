@@ -12,9 +12,7 @@ from zw_brain.command.brain import InvalidStateError, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.repositories.supply_demand import SupplyDemandRepository
 from zw_brain.domain.supply_demand_phase import SupplyDemandPhaseError
-from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
-
-_DEFAULT_TENANT_ID = get_runtime_tenant_id()
+from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 
 def _repo() -> SupplyDemandRepository:

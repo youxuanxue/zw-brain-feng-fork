@@ -13,10 +13,7 @@ if TYPE_CHECKING:
 
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import metadata as metadata_ser
-from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
-
-_DEFAULT_TENANT_ID = get_runtime_tenant_id()
-
+from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -94,7 +91,7 @@ def _query_metadata_catalog_items(brain, deps, ctx, *, resource_code: Any = None
         store=store,
     )
     if catalog_code_text:
-        catalog_fields = brain._catalog_field_dicts(catalog_code_text, store)
+        catalog_fields = deps.services.catalog.field_dicts(catalog_code_text, store)
         for item in diagnostics["items"]:
             if item.get("catalog_item_title"):
                 continue

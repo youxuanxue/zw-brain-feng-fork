@@ -12,26 +12,23 @@ import copy
 import zw_brain.shared.clock as clock
 from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoundError, _mask
 from zw_brain.command.deps import HandlerDeps, SkillContext
-from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
-
-_DEFAULT_TENANT_ID = get_runtime_tenant_id()
-
+from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
 def _plan_delivery_exchange(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    return brain._record_delivery_attempt(payload, "delivery.exchange.plan", "planned", "plan")
+    return deps.services.delivery.record_attempt(payload, "delivery.exchange.plan", "planned", "plan")
 
 def _publish_delivery_exchange(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    return brain._record_delivery_attempt(payload, "delivery.exchange.publish", "published", "publish")
+    return deps.services.delivery.record_attempt(payload, "delivery.exchange.publish", "published", "publish")
 
 def _start_delivery_exchange(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    return brain._record_delivery_attempt(payload, "delivery.exchange.start", "running", "exchange")
+    return deps.services.delivery.record_attempt(payload, "delivery.exchange.start", "running", "exchange")
 
 def _stop_delivery_exchange(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
-    return brain._record_delivery_attempt(payload, "delivery.exchange.stop", "stopped", "stop")
+    return deps.services.delivery.record_attempt(payload, "delivery.exchange.stop", "stopped", "stop")
 
 def _ingest_delivery_receipt(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
@@ -186,7 +183,7 @@ def _get_delivery_task(brain, deps, ctx, task_id: str) -> dict[str, Any]:
     if task is None:
         if store is None:
             raise NotFoundError(task_id)
-        task = brain._delivery_task_from_record(task_id, store)
+        task = deps.services.delivery.task_from_record(task_id, store)
         if task is None:
             raise NotFoundError(task_id)
     else:
@@ -194,11 +191,11 @@ def _get_delivery_task(brain, deps, ctx, task_id: str) -> dict[str, Any]:
     if store is None:
         return task
     record = next((item for item in deps.repos.delivery.list_tasks(tenant_id=_DEFAULT_TENANT_ID) if item.delivery_code == task_id), None)
-    request = brain._maybe_request(task.get("requestId", "")) or brain._request_from_application_record(task.get("requestId", ""), store)
+    request = brain._maybe_request(task.get("requestId", "")) or deps.services.application.request_from_record(task.get("requestId", ""), store)
     if request is not None:
         task["applicationMaterials"] = copy.deepcopy(request.get("applicationMaterials", {}))
         task["applicationMaterials"].setdefault("frequency", {"times": "", "mostTimes": "", "timeWindow": None, "useDays": ""})
-        task["statusTimeline"] = brain._request_status_timeline(request, task)
+        task["statusTimeline"] = deps.services.request.status_timeline(request, task)
         task["schemaEvidence"] = {
             "fieldBindingSummary": copy.deepcopy(request.get("fieldBindingSummary", {})),
             "fieldBindings": copy.deepcopy(request.get("fieldBindings", [])),
@@ -214,7 +211,7 @@ def _get_delivery_task(brain, deps, ctx, task_id: str) -> dict[str, Any]:
         }
         payload = record.payload_json or {}
         task["accessGrantSnapshot"] = _mask(copy.deepcopy(payload.get("access_grant") or {}))
-        task["authorizationBoundary"] = brain._authorization_boundary(task["accessGrantSnapshot"])
+        task["authorizationBoundary"] = deps.services.delivery.authorization_boundary(task["accessGrantSnapshot"])
         task["r2Review"] = _mask(copy.deepcopy(payload.get("r2_review") or {}))
         task["grantBoundary"] = _mask(copy.deepcopy(payload.get("grant_boundary") or {}))
         task["supplementBoundary"] = _mask(copy.deepcopy(payload.get("supplement_boundary") or {}))

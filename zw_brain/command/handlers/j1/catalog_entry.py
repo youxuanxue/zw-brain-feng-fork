@@ -13,10 +13,7 @@ from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoun
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import catalog as catalog_ser
 from zw_brain.domain.repositories.catalog import CatalogRepository
-from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
-
-_DEFAULT_TENANT_ID = get_runtime_tenant_id()
-
+from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies

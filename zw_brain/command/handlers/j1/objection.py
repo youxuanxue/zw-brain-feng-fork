@@ -20,9 +20,7 @@ from zw_brain.domain.models import (
     ResourceAssetRecord,
 )
 from zw_brain.shared.db import create_session_factory
-from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
-
-_DEFAULT_TENANT_ID = get_runtime_tenant_id()
+from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 # Target types that must reference an existing entity. authorization/alert are
 # auto-issued by upstream events and not enumerable through a clean lookup;

@@ -20,9 +20,8 @@ from zw_brain.command.brain import DEFAULT_DISCOVERY_QUERY, InvalidStateError, N
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.approval_flow_baseline import start_approval_workflow_from_baseline
 from zw_brain.shared.db import create_session_factory
-from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
+from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
-_DEFAULT_TENANT_ID = get_runtime_tenant_id()
 _logger = logging.getLogger(__name__)
 
 
@@ -108,13 +107,13 @@ def _create_request(
         raise InvalidStateError(f"active request already exists for resource {canonical_id}: {existing['id']}")
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        request_id = brain._new_request_id()
-        task_id = brain._delivery_task_id_for_request(request_id)
+        request_id = deps.services.request.new_request_id()
+        task_id = deps.services.delivery.task_id_for_request(request_id)
         query_text = query.strip() or DEFAULT_DISCOVERY_QUERY
-        fields = brain._requested_application_fields(resource, options)
-        gap_fields = brain._application_gap_fields(options)
-        time_window = brain._application_time_window(options)
-        scope = brain._application_scope(resource, options)
+        fields = deps.services.application.requested_fields(resource, options)
+        gap_fields = deps.services.application.gap_fields(options)
+        time_window = deps.services.application.time_window(options)
+        scope = deps.services.application.scope(resource, options)
         delivery_expectation = str(options.get("delivery_expectation") or options.get("deliveryExpectation") or "审批通过后以库表/文件资源交付，并保留交付回执与审计回放。")
         purpose = str(options.get("purpose") or query_text or f"复用 {resource['name']}，只申请本次确需字段。")
         review_note = f"围绕 {resource['name']} 发起最小必要申请：{', '.join(item['title'] for item in fields) or '待确认字段'}；缺口：{', '.join(gap_fields) or '暂无'}。"
@@ -148,9 +147,9 @@ def _create_request(
             "auditId": audit_id,
             "chainAnchor": "pending",
             "templateCoverage": resource.get("coverage", "—"),
-            "prefilledFields": brain._prefilled_fields_for_resource(resource, fields),
-            "diffFields": brain._diff_fields_for_gap(gap_fields),
-            "sourceEvidence": brain._application_source_evidence(resource, fields),
+            "prefilledFields": deps.services.application.prefilled_fields(resource, fields),
+            "diffFields": deps.services.application.diff_fields_for_gap(gap_fields),
+            "sourceEvidence": deps.services.application.source_evidence(resource, fields),
             "reviewFocus": [
                 "申请字段是否保持最小必要",
                 "缺口字段是否需要补充说明",
@@ -359,17 +358,17 @@ def _get_request(brain, deps, ctx, request_id: str) -> dict[str, Any]:
         record = next((item for item in deps.repos.application.list_records(tenant_id=_DEFAULT_TENANT_ID) if item.application_code == request_id), None)
         if record is None:
             raise NotFoundError(request_id)
-        return brain._application_record_to_request(record, store)
+        return deps.services.application.record_to_request(record, store)
     request = copy.deepcopy(request)
     if store is None:
         return request
     for record in deps.repos.application.list_records(tenant_id=_DEFAULT_TENANT_ID):
         if record.application_code == request_id:
-            brain._overlay_application_record(request, record, store)
+            deps.services.application.overlay_record(request, record, store)
             break
-    delivery = deps.view.delivery.find_by_request_id(request_id) or brain._delivery_task_from_record(request_id, store)
+    delivery = deps.view.delivery.find_by_request_id(request_id) or deps.services.delivery.task_from_record(request_id, store)
     request["taskId"] = delivery["id"] if delivery else None
-    request["statusTimeline"] = brain._request_status_timeline(request, delivery)
+    request["statusTimeline"] = deps.services.request.status_timeline(request, delivery)
     return request
 
 

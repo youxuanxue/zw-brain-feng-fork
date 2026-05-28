@@ -9,9 +9,7 @@ if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
 from zw_brain.command.deps import HandlerDeps, SkillContext
-from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
-
-_DEFAULT_TENANT_ID = get_runtime_tenant_id()
+from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 
 def handler(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
@@ -106,9 +104,9 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
             haystack = query.lower()
             records = deps.repos.catalog.search_entries(query, tenant_id=_DEFAULT_TENANT_ID)
             resources = [
-                brain._catalog_record_to_card_dict(record) | {"topicProjections": brain._catalog_topic_projection_cards(record.catalog_code, store)}
+                deps.services.catalog.record_to_card_dict(record) | {"topicProjections": deps.services.catalog.topic_projection_cards(record.catalog_code, store)}
                 for record in records
-                if brain._catalog_is_discoverable(record, store)
+                if deps.services.catalog.is_discoverable(record, store)
             ]
             existing_ids = {r["id"] for r in resources}
             for item in deps.view.discovery.get_resources():  # Action C — read facade

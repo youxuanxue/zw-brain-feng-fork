@@ -15,10 +15,7 @@ from zw_brain.command.brain import InvalidStateError, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import topic_package as topic_package_ser
 from zw_brain.domain.repositories.topic_package import TopicPackageStateError
-from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
-
-_DEFAULT_TENANT_ID = get_runtime_tenant_id()
-
+from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -137,10 +134,10 @@ def _query_topic_packages(brain, deps, ctx, *, package_code: Any = None, status:
         record = repo.get_package(str(package_code), tenant_id=_DEFAULT_TENANT_ID)
         if record is None:
             raise NotFoundError(str(package_code))
-        items = [brain._topic_package_detail_to_dict(record)]
+        items = [deps.services.topic_package.detail_to_dict(record)]
     else:
         items = [
-            brain._topic_package_list_projection(item)
+            deps.services.topic_package.list_projection(item)
             for item in repo.list_packages(tenant_id=_DEFAULT_TENANT_ID, status=str(status) if status else None)
         ]
     return {"items": items, "total": len(items)}

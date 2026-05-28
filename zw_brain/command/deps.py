@@ -63,6 +63,7 @@ if TYPE_CHECKING:
     from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
     from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
     from zw_brain.domain.repositories.topic_package import TopicPackageRepository
+    from zw_brain.domain.services import DomainServices
     from zw_brain.shared.state_store import StateStore
 
 
@@ -154,6 +155,7 @@ class HandlerDeps:
     queue: Any  # zw_brain.shared.queue module
     pipeline: SkillPipeline  # Action B — see zw_brain/command/pipeline.py
     view: ReadViews  # Action C — see zw_brain/command/views.py
+    services: DomainServices  # Action D — see zw_brain/domain/services/__init__.py
     brain_legacy: BrainService  # preflight 段 40 whitelisted escape hatch
 
     # ------------------------------------------------------------------
@@ -222,6 +224,7 @@ class HandlerDeps:
         import zw_brain.shared.audit as audit_bus
         from zw_brain.command.pipeline import build_default_pipeline
         from zw_brain.command.views import ReadViews
+        from zw_brain.domain.services import DomainServices
         from zw_brain.shared import queue
 
         store = brain._state_store
@@ -284,5 +287,6 @@ class HandlerDeps:
             queue=queue,
             pipeline=build_default_pipeline(brain),
             view=ReadViews.from_brain(brain),
+            services=DomainServices.from_brain(brain),
             brain_legacy=brain,
         )
