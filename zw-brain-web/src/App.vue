@@ -147,7 +147,7 @@ watch(
         <span class="gov-logo-mark" aria-hidden="true"></span>
         <div>
           <div class="brand-title">政务数据大脑</div>
-          <div class="brand-subtitle">让数据共享少填、快办、可追溯</div>
+          <div class="brand-subtitle">一脑通数智，万事惠民生</div>
         </div>
       </RouterLink>
       <div v-if="deploymentLabel" class="deployment-label">{{ deploymentLabel }}</div>
