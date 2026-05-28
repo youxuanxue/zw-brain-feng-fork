@@ -634,6 +634,34 @@
       "sideEffects": []
     },
     {
+      "id": "platform.docs.read",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
+      "id": "platform.docs.search",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
       "id": "projection.status.query",
       "mode": "read",
       "humanConfirmationRequired": false,

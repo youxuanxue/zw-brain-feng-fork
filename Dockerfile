@@ -41,7 +41,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     ZW_BRAIN_DB_PATH=/data/zw-brain/zw_brain.db \
     ZW_BRAIN_AGENTS_DIR=/app/agents \
     ZW_BRAIN_AGENT_RUNTIME_CONFIG=/app/agent-runtime.yaml \
-    ZW_BRAIN_AGENT_RUNTIME_SCHEMA=/app/schemas/agent.schema.json
+    ZW_BRAIN_AGENT_RUNTIME_SCHEMA=/app/schemas/agent.schema.json \
+    ZW_BRAIN_PLATFORM_DOCS_ROOTS=/app/docs
 
 WORKDIR /app
 
@@ -59,6 +60,7 @@ RUN cd /tmp && \
 
 COPY schemas /app/schemas
 COPY agents /app/agents
+COPY docs /app/docs
 COPY agent-runtime.yaml /app/agent-runtime.yaml
 COPY --from=builder /dist/*.whl /tmp/
 

@@ -38,6 +38,9 @@ def test_list_builtin_agents_includes_capabilities() -> None:
     helper = next(a for a in agents if a["agent_id"] == "zw-search-helper")
     assert "search.intent.parse" in helper["capability_skills"]
     assert "data.search" in helper["capability_skills"]
+    guide = next(a for a in agents if a["agent_id"] == "zw-platform-guide")
+    assert "platform.docs.search" in guide["capability_skills"]
+    assert "platform.docs.read" in guide["capability_skills"]
 
 
 def test_start_agent_task_requires_enable_flag(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -33,3 +33,9 @@ yarn-error.log*
 
 .Dockerfile
 .Dockerfile_v1.0.0
+
+# R-005 防御深度：决策基线 / 重构计划 / 技术债是研发态 SoT，不进入客户面镜像；
+# 也避免平台指南 Agent 经路径泄露内部产物。
+docs/approved
+docs/reconstructs
+docs/preflight-debt.md

@@ -141,6 +141,8 @@
 | POST | `/api/skills/package.rollback` | 回滚能力包版本 | `post_package_rollback` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/package.trust_level.update` | 升降能力包信任级 | `post_package_trust_level_update` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/package.view` | 查看能力包详情 | `get_package_view` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/platform.docs.read` | 平台文档全文读取 | `get_platform_docs_read` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/platform.docs.search` | 平台文档关键词检索 | `get_platform_docs_search` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/projection.status.query` | 查询 5 类投影状态 + 失败摘要 | `get_projection_status_query` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/provider.view` | 查看供给侧治理 | `get_provider_view` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/recommendation.rule.commit` | 提交推荐规则入库 | `post_recommendation_rule_commit` | `zw_brain/entry/rest/openapi.json` |
@@ -260,6 +262,8 @@
 | `package.exposure.matrix.query` | read | False | 返回全量 capability manifest × 5 消费面（webui/api/cli/mcp/a2a）暴露矩阵；只读、按 journey/status/binding 维度筛选。数据派生自 zw_brain/skill_registration/registered/*.json 的 compatibility / product_scope / execution_binding 字段，不重新计算。handler 自身写一条 read-sensitive sanitized meta-audit（与 F2/F3 同 pattern）。 | True | `zw_brain/entry/mcp/tools/package.exposure.matrix.query.json` |
 | `package.list` | read | False | 查看待审核和已处理的能力注册包列表。 | True | `zw_brain/entry/mcp/tools/package.list.json` |
 | `package.view` | read | False | 查看单个能力包的暴露面、审核状态和 AI 评审结果。 | True | `zw_brain/entry/mcp/tools/package.view.json` |
+| `platform.docs.read` | read | False | 按相对路径读取 zw-brain 仓库内已授权 Markdown 文档正文（只读，带长度上限），供平台问答 Agent 核对细节。 | True | `zw_brain/entry/mcp/tools/platform.docs.read.json` |
+| `platform.docs.search` | read | False | 在 zw-brain 仓库 docs/ 等只读文档中按关键词检索，返回路径、标题与摘要片段，供平台问答 Agent 定位资料。 | True | `zw_brain/entry/mcp/tools/platform.docs.search.json` |
 | `projection.status.query` | read | False | 聚合 search / 共享专题 / 质量 / 血缘 / 运营统计 5 类投影 record，按类型返回 total_rows / latest_updated_at / failed_count / failure_summary，给 业务运营员 / 安全审计员 看投影 pipeline 健康度。只读，零 side effect。 | True | `zw_brain/entry/mcp/tools/projection.status.query.json` |
 | `provider.view` | read | False | 查看模板版本、目录状态、资源与治理建议。 | True | `zw_brain/entry/mcp/tools/provider.view.json` |
 | `request.list` | read | False | 查看黄金链路中的申请清单和当前状态。 | True | `zw_brain/entry/mcp/tools/request.list.json` |
@@ -285,7 +289,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 185 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 187 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -421,6 +425,8 @@
 | `package.rollback` | 回滚能力包版本 | 1.0.0 | audit, db_write, state_machine_transition | `zw_brain/skill_registration/registered/package.rollback.json` |
 | `package.trust_level.update` | 升降能力包信任级 | 1.0.0 | audit, db_write, state_machine_transition | `zw_brain/skill_registration/registered/package.trust_level.update.json` |
 | `package.view` | 查看能力包详情 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/package.view.json` |
+| `platform.docs.read` | 平台文档全文读取 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/platform.docs.read.json` |
+| `platform.docs.search` | 平台文档关键词检索 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/platform.docs.search.json` |
 | `projection.status.query` | 查询 5 类投影状态 + 失败摘要 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/projection.status.query.json` |
 | `provider.view` | 查看供给侧治理 | 1.0.0 | (read-only) | `zw_brain/skill_registration/registered/provider.view.json` |
 | `recommendation.rule.commit` | 提交推荐规则入库 | 1.0.0 | audit, db_write | `zw_brain/skill_registration/registered/recommendation.rule.commit.json` |
@@ -481,9 +487,9 @@
 
 ## Statistics
 
-- REST endpoints: 194
+- REST endpoints: 196
 - CLI entries: 1
-- MCP tools: 60
+- MCP tools: 62
 - A2A agent cards: 1
-- Registered Skills (live): 185 / 230 on-disk
+- Registered Skills (live): 187 / 232 on-disk
 

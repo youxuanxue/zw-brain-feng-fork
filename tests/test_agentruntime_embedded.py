@@ -137,6 +137,7 @@ async def test_embedded_sdk_task_with_fake_core(tmp_path: Path, monkeypatch: pyt
     # exposes_chat=false 的内置 Agent 不会出现在 list_agents()（仅 chat 发现面）
     agent_ids = {m.agent_id for m in runtime._registry.list_manifests()}  # noqa: SLF001
     assert "zw-search-helper" in agent_ids
+    assert "zw-platform-guide" in agent_ids
 
     from agent_runtime.runtime.models import CreateSessionRequest, StartTaskRequest
 

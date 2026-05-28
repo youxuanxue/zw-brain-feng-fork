@@ -1191,6 +1191,71 @@
       ]
     },
     {
+      "skill_id": "platform.docs.read",
+      "title": "平台文档全文读取",
+      "description": "按相对路径读取 zw-brain 仓库内已授权 Markdown 文档正文（只读，带长度上限），供平台问答 Agent 核对细节。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "max_chars",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "path",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "rel_path",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "request_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "platform.docs.search",
+      "title": "平台文档关键词检索",
+      "description": "在 zw-brain 仓库 docs/ 等只读文档中按关键词检索，返回路径、标题与摘要片段，供平台问答 Agent 定位资料。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "limit",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "query",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "request_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
       "skill_id": "projection.status.query",
       "title": "查询 5 类投影状态 + 失败摘要",
       "description": "聚合 search / 共享专题 / 质量 / 血缘 / 运营统计 5 类投影 record，按类型返回 total_rows / latest_updated_at / failed_count / failure_summary，给 业务运营员 / 安全审计员 看投影 pipeline 健康度。只读，零 side effect。",

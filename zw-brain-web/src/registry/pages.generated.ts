@@ -216,4 +216,4 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
   ] },
 ];
 
-export const UNMAPPED_WEBUI_SKILLS: string[] = ["assistant.investigation_summary", "demand.list", "demand.phase.advance", "demand.register", "projection.status.query", "search.intent.parse"];
+export const UNMAPPED_WEBUI_SKILLS: string[] = ["assistant.investigation_summary", "demand.list", "demand.phase.advance", "demand.register", "platform.docs.read", "platform.docs.search", "projection.status.query", "search.intent.parse"];

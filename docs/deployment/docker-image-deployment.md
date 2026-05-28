@@ -132,6 +132,9 @@ http://<服务器IP>:8800/
 | `ZW_BRAIN_AGENT_RUNTIME_SCHEMA` | `agent.schema.json` 路径 | 镜像内 `/app/schemas/agent.schema.json` |
 | `INSPUR_INFERENCE_BASE_URL` | Embedded Agent 经集团推理网关（与 zw-brain LLM 同一约束） | 启用 AgentRuntime 时必填 |
 | `INSPUR_INFERENCE_MODEL` | 推理模型名 | 启用 AgentRuntime 时必填 |
+| `INSPUR_INFERENCE_API_KEY` | 集团推理网关 API Key（或 `AUTH_TOKEN`）；Embedded 启动时写入 `OPENAI_COMPATIBLE_API_KEY` | 网关需鉴权时必填；不鉴权可设任意非空占位（如 `unused`）或配合 `ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL=1` |
+| `ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL` | `1` 表示网关不要求 API Key，自动使用占位 `unused` | 未设置 |
+| `ZW_BRAIN_PLATFORM_DOCS_ROOTS` | 平台指南 Agent 可读文档根目录（`os.pathsep` 分隔）；Docker 默认 `/app/docs` | 未设置时为本机仓库 `docs/` |
 
 如需接入 IAF/OIDC、外部数据库或集团推理平台，应通过环境变量注入对应配置，不要把密钥、连接串或证书写入镜像。内网部署若 IAF 使用自签名证书，优先挂载 CA bundle（`ZW_BRAIN_IAF_CA_FILE`）；仅在无法提供证书时才使用 `ZW_BRAIN_IAF_VERIFY_SSL=false`。
 
@@ -144,6 +147,10 @@ docker run -d \
   -e ZW_BRAIN_AGENT_RUNTIME_PROFILE=embedded_single_tenant \
   -e INSPUR_INFERENCE_BASE_URL=https://<集团推理网关>/v1 \
   -e INSPUR_INFERENCE_MODEL=<模型名> \
+  -e INSPUR_INFERENCE_API_KEY=unused \
+  # 或网关需鉴权：-e INSPUR_INFERENCE_API_KEY=<真实密钥>
+  # 或不鉴权且不想传 Key：-e ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL=1
+  # 注意：docker -e 用 VAR=value，不要写 VAR=='value'（会把引号传入容器）
   zw-brain:1.0.0
 ```
 

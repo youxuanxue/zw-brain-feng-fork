@@ -51,6 +51,7 @@ from zw_brain.command.handlers.infra import (
     legacy_bsp_mapping,
     legacy_migration_status,
     legacy_sharezone_mapping,
+    platform_docs,
 )
 from zw_brain.command.handlers.j1 import (
     application_assistants,
@@ -125,6 +126,8 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "legacy.bsp.mapping.import": legacy_bsp_mapping.handler,
     "legacy.migration.status.query": legacy_migration_status.handler,
     "legacy.sharezone.mapping.import": legacy_sharezone_mapping.handler,
+    "platform.docs.search": platform_docs.handler_search,
+    "platform.docs.read": platform_docs.handler_read,
     # F3 (E2 J2): J2 — duplicate_check (1 cap; 发布前重复率检测，read-only 非硬拦)
     "catalog.duplicate.check": duplicate_check.handler_catalog_duplicate_check,
     # turn 4: J2 — compliance (8 cap)

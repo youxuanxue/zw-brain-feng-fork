@@ -58,26 +58,91 @@ def is_agent_runtime_enabled() -> bool:
     }
 
 
+# AgentRuntime openai_compatible 适配器在任务执行期读 os.environ，不只读 for_product(env=...) 入参。
+_OPENAI_BRIDGE_ENV_KEYS = (
+    "OPENAI_COMPATIBLE_API_KEY",
+    "OPENAI_API_KEY",
+    "OPENAI_COMPATIBLE_BASE_URL",
+    "OPENAI_BASE_URL",
+)
+
+# 网关不要求鉴权时，占位 Bearer（须非空字符串才能通过 AgentRuntime 校验）。
+_DEFAULT_OPTIONAL_INFERENCE_API_KEY = "unused"
+
+
 def embedded_runtime_env() -> dict[str, str]:
     """构建 Embedded SDK 用的环境变量，避免旧 agent-runtime/.env.local 里的路径覆盖 zw-brain 配置。
 
     若 shell 中曾 `source` 过旧环境的 ``AGENT_RUNTIME_*``（指向 /data/xuanzhaofeng/...），
     直接传入 ``os.environ`` 会让 Runtime 加载错误 agents 目录或 schema。此处剔除路径类
     覆盖项，保留模型网关（OPENAI_* / INSPUR_*）等仍可能需要的项。
+
+    AgentRuntime ``openai_compatible`` 适配器只认 ``OPENAI_COMPATIBLE_*`` / ``OPENAI_*``；
+    zw-brain 统一使用 ``INSPUR_INFERENCE_*``（D6）。在显式未设置 OPENAI 变量时，从 Inspur
+    网关变量桥接，避免平台指南等 Embedded 任务在真实 LLM 路径下缺 key/base_url。
     """
-    blocked_prefixes = (
-        "AGENT_RUNTIME_AGENTS_DIR",
-        "AGENT_RUNTIME_SCHEMA_PATH",
-        "AGENT_RUNTIME_WORKSPACE_ROOT",
-        "AGENT_RUNTIME_CONFIG_PATH",
-        "AGENT_RUNTIME_LOG_DIR",
-        "AGENT_RUNTIME_DATABASE_URL",
+    # 精确匹配（不是 prefix）—— 这些 key 在旧 agent-runtime/.env.local 里指向其他工作区，
+    # 误漂到 zw-brain 进程会让 Runtime 加载错 agents 目录 / schema。
+    blocked_env_keys = frozenset(
+        (
+            "AGENT_RUNTIME_AGENTS_DIR",
+            "AGENT_RUNTIME_SCHEMA_PATH",
+            "AGENT_RUNTIME_WORKSPACE_ROOT",
+            "AGENT_RUNTIME_CONFIG_PATH",
+            "AGENT_RUNTIME_LOG_DIR",
+            "AGENT_RUNTIME_DATABASE_URL",
+        )
     )
     env = dict(os.environ)
     for key in list(env):
-        if key in blocked_prefixes or key.startswith("AGENT_RUNTIME_AGENTS_DIR"):
+        if key in blocked_env_keys:
             env.pop(key, None)
+    _bridge_inspur_inference_to_openai_compatible(env)
     return env
+
+
+def apply_embedded_runtime_env_to_process() -> dict[str, str]:
+    """构建 Embedded 环境并写入进程 os.environ（供 AgentRuntime 模型适配器读取）。"""
+    env = embedded_runtime_env()
+    for key in _OPENAI_BRIDGE_ENV_KEYS:
+        bridged = (env.get(key) or "").strip()
+        if not bridged:
+            continue
+        current = (os.environ.get(key) or "").strip()
+        if not current:
+            os.environ[key] = bridged
+    return env
+
+
+def _env_str(env: dict[str, str], name: str) -> str:
+    return (env.get(name) or "").strip()
+
+
+def _inference_api_key_optional(env: dict[str, str]) -> bool:
+    flag = _env_str(env, "ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL").lower()
+    return flag in {"1", "true", "yes", "on"}
+
+
+def _bridge_inspur_inference_to_openai_compatible(env: dict[str, str]) -> None:
+    """Map zw-brain Inspur gateway env → AgentRuntime openai_compatible adapter env."""
+    if not _env_str(env, "OPENAI_COMPATIBLE_API_KEY") and not _env_str(env, "OPENAI_API_KEY"):
+        api_key = _env_str(env, "INSPUR_INFERENCE_API_KEY") or _env_str(env, "AUTH_TOKEN") or _env_str(
+            env, "ZW_BRAIN_INFERENCE_API_KEY"
+        )
+        if not api_key and _inference_api_key_optional(env):
+            placeholder = _env_str(env, "ZW_BRAIN_INFERENCE_API_KEY_PLACEHOLDER")
+            api_key = placeholder or _DEFAULT_OPTIONAL_INFERENCE_API_KEY
+        if api_key:
+            env["OPENAI_COMPATIBLE_API_KEY"] = api_key
+            if not _env_str(env, "OPENAI_API_KEY"):
+                env["OPENAI_API_KEY"] = api_key
+
+    if not _env_str(env, "OPENAI_COMPATIBLE_BASE_URL") and not _env_str(env, "OPENAI_BASE_URL"):
+        base_url = _env_str(env, "INSPUR_INFERENCE_BASE_URL") or _env_str(env, "BASE_URL")
+        if base_url:
+            env["OPENAI_COMPATIBLE_BASE_URL"] = base_url
+            if not _env_str(env, "OPENAI_BASE_URL"):
+                env["OPENAI_BASE_URL"] = base_url
 
 
 def agent_runtime_profile() -> str:

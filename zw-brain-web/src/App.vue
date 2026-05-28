@@ -15,6 +15,7 @@ import {
 import { loadSnapshot, useWebUiConfig, useSnapshot } from '@/composables/useSnapshot';
 import { pushToast } from '@/composables/useActionStub';
 import ActionToast from '@/components/ActionToast.vue';
+import PlatformGuideChatPanel from '@/components/PlatformGuideChatPanel.vue';
 import ProductTopNav from '@/components/ProductTopNav.vue';
 import { getProductRole, setProductRole } from '@/composables/useProductRole';
 import { defaultRouteForRole, isRouteAllowedForRole } from '@/lib/pageAccess';
@@ -243,6 +244,7 @@ watch(
   </footer>
 
   <ActionToast />
+  <PlatformGuideChatPanel v-if="user && !isLoginRoute" />
 </template>
 
 <style scoped>

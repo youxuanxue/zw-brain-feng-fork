@@ -202,6 +202,31 @@ def diagnose_agent_bundle(agent_yaml: Path, *, production: bool = False) -> list
             )
         )
 
+    api_key = (
+        os.environ.get("INSPUR_INFERENCE_API_KEY")
+        or os.environ.get("AUTH_TOKEN")
+        or os.environ.get("OPENAI_COMPATIBLE_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+    )
+    optional_key = (os.environ.get("ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if api_key:
+        diagnoses.append(("OK", "inference", "inference API key configured"))
+    elif optional_key:
+        diagnoses.append(("OK", "inference", "ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL=1 (placeholder key at runtime)"))
+    else:
+        diagnoses.append(
+            (
+                "WARN" if not production else "FAIL",
+                "inference",
+                "INSPUR_INFERENCE_API_KEY (or AUTH_TOKEN) not set; openai_compatible models need a gateway key",
+            )
+        )
+
     auth_mode = sidecar.get("auth_mode")
     if auth_mode == "none":
         diagnoses.append(

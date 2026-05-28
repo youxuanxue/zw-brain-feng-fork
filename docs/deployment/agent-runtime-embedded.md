@@ -50,6 +50,9 @@ pip install -e ".[dev]"
 |------|------|
 | `INSPUR_INFERENCE_BASE_URL` | 集团推理网关 OpenAI 兼容地址 |
 | `INSPUR_INFERENCE_MODEL` | 模型名 |
+| `INSPUR_INFERENCE_API_KEY` | 集团推理网关 API Key（或 `AUTH_TOKEN`）；Embedded 启动时**写入进程** `OPENAI_COMPATIBLE_API_KEY`（AgentRuntime 模型层只读 `os.environ`） |
+| `ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL` | 设为 `1` 时，未配置 Key 则使用占位值 `unused`（适用于网关不校验 Bearer 的环境） |
+| `ZW_BRAIN_INFERENCE_API_KEY_PLACEHOLDER` | 可选，覆盖上述占位字符串（默认 `unused`） |
 
 测试/无网关时可设 `ZW_BRAIN_TEST_MODE=1` + `ZW_BRAIN_AGENT_RUNTIME_PROFILE=local_dev`（使用 fake core，不发起真实 LLM 调用）。
 
@@ -70,6 +73,7 @@ Standalone 跑 AgentRuntime 服务时请为本环境单独配置；zw-brain Embe
 | 目录 | Agent ID | 绑定 Capability |
 |------|----------|-----------------|
 | `agents/zw_search_helper/` | `zw-search-helper` | `search.intent.parse`、`data.search` |
+| `agents/zw_platform_guide/` | `zw-platform-guide` | `platform.docs.search`、`platform.docs.read`（`exposes_chat: true`，Web 全局「平台指南」浮窗） |
 
 侧车清单：`agents/zw_search_helper/capabilities.json`（Registry 四字段在 T1 外部 Agent 接入时再写入 manifest）。
 
@@ -79,6 +83,7 @@ Standalone 跑 AgentRuntime 服务时请为本环境单独配置；zw-brain Embe
 # 在 zw-brain 仓库根目录执行
 export INSPUR_INFERENCE_BASE_URL=http://<集团网关>/v1
 export INSPUR_INFERENCE_MODEL=<模型名>
+export INSPUR_INFERENCE_API_KEY=<网关密钥>
 
 python scripts/agentruntime_validate.py agents/zw_search_helper/AGENT.yaml
 python scripts/agentruntime_doctor.py agents/zw_search_helper/ --target dev

@@ -246,12 +246,14 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `risk.event.ingest` | infra | `record_adapter_operation` | 827 |
 | `security.scan.result.sync` | infra | `record_adapter_operation` | 827 |
 | `standard.asset.recommend` | infra | `record_adapter_operation` | 827 |
+| `platform.docs.search` | infra | `do_platform_docs_search` | infra/platform_docs.py |
+| `platform.docs.read` | infra | `do_platform_docs_read` | infra/platform_docs.py |
 
 ## 总计
 
 - J1: 95 caps
 - J2: 37 caps
 - B1: 42 caps
-- infra: 22 caps
+- infra: 24 caps
 - 未归类: 0 caps
-- **合计：205 caps**
+- **合计：207 caps**

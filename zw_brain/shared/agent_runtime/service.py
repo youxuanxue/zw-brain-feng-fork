@@ -15,7 +15,7 @@ from zw_brain.shared.agent_runtime.config import (
     agent_runtime_profile,
     agent_runtime_schema_env,
     agents_dir,
-    embedded_runtime_env,
+    apply_embedded_runtime_env_to_process,
     is_agent_runtime_enabled,
     resolve_schema_path,
     zw_brain_repo_root,
@@ -87,10 +87,11 @@ async def get_agent_runtime():
             )
 
         repo_root = zw_brain_repo_root()
+        runtime_env = apply_embedded_runtime_env_to_process()
         runtime = RuntimeService.for_product(
             product,
             repo_root=repo_root,
-            env=embedded_runtime_env(),
+            env=runtime_env,
             dynamic_capability_providers=providers,
         )
         await runtime.initialize()
