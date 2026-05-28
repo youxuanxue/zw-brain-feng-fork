@@ -138,12 +138,21 @@ class IafOidcStateStore:
         self._states[login_state.state] = login_state
         return login_state
 
-    def consume(self, state: str) -> IafOidcLoginState:
-        login_state = self._states.pop(str(state or ""), None)
+    def get(self, state: str) -> IafOidcLoginState:
+        login_state = self._states.get(str(state or ""))
         if login_state is None:
             raise IafOidcStateError("state mismatch")
         if time.time() - login_state.issued_at > self._ttl_seconds:
+            self._states.pop(str(state or ""), None)
             raise IafOidcStateError("state expired")
+        return login_state
+
+    def discard(self, state: str) -> None:
+        self._states.pop(str(state or ""), None)
+
+    def consume(self, state: str) -> IafOidcLoginState:
+        login_state = self.get(state)
+        self.discard(state)
         return login_state
 
     @staticmethod

@@ -140,3 +140,22 @@ def test_redis_key_uses_json_payload(fake_redis) -> None:
     payload = json.loads(raw)
     assert payload["session_id"] == created.session_id
     assert "access_token" not in created.public_payload()
+
+
+def test_public_payload_includes_safe_claims_only() -> None:
+    session = InMemoryAuthSessionStore().create(
+        token_payload={"access_token": "secret-at", "refresh_token": "secret-rt", "expires_in": 300, "refresh_expires_in": 3600},
+        claims={
+            "sub": "user-1",
+            "preferred_username": "zhangsan",
+            "email": "zhangsan@example.com",
+            "resource_access": {"zw-brain": {"roles": ["ROLE_ORGAN_OPERATER"]}},
+        },
+        actor_snapshot={"subject": "user-1", "current_role": "ROLE_ORGAN_OPERATER"},
+        audit_id="audit-1",
+    )
+    public = session.public_payload()
+    assert public["claims"]["preferred_username"] == "zhangsan"
+    assert public["claims"]["resource_access"]["zw-brain"]["roles"] == ["ROLE_ORGAN_OPERATER"]
+    assert "access_token" not in public
+    assert "access_token" not in public["claims"]

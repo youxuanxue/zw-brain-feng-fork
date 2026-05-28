@@ -6,6 +6,8 @@
 > - 评审决策记录：`docs/approved/zw-brain-architecture.md`
 > - 原版 R 编号见 git blame。
 
+**文档用途**：供版本升级或鉴权相关重构时对照实现细节与回归锚点；角色/产品语义以 `docs/approved/zw-brain-roles.md` 为准，本文件偏 **BFF 实现、授权调用链与测试**。旧平台权限对照见 `docs/roles-permissions-old-platform-vs-zw-brain-handoff.md`。
+
 本文描述当前 zw-brain 基于 IAM/IAF 的用户登录、会话刷新、请求鉴权、用户信息展示、首次登录落库与退出登录实现。
 
 > 演进基线：本实现自 PR #53（feat: BFF session cookie + 多标签页 auth 同步）起采用 **BFF 模型**——
@@ -279,11 +281,27 @@ REST 端点：
 
 ## 13. 测试覆盖
 
+### 静态消费面（防前端回退）
+
+- `tests/test_login_page_web_surface.py`：登录门、OAuth bootstrap 顺序、logout 必须跳转 `logout_url`、多标签/无岗位壳等**源码结构**断言。
+
+### REST 行为（mock IAF + 本地 REST）
+
+- `tests/test_iaf_auth_boundaries.py`：logout 删 session / 清 cookie、logout 后 API 401、CSRF 负向、伪造 cookie、refresh CSRF。
+- `tests/test_trusted_session_context.py`：Cookie 会话提权拒绝、trusted sentinel、Bearer smuggle、审计序列化。
+- `tests/_iaf_rest_http.py`：上述 REST 集成测试共用 HTTP/server 夹具。
+
+### 存储与基础设施
+
 - `tests/test_auth_session_redis.py`：Redis 会话 CRUD、双实例共享、prod deploy guard。
 - `tests/test_wave0_infra.py::test_infra_iam_session_lifecycle`：内存会话 public payload 不含 token。
-- `tests/test_trusted_session_context.py`：Cookie 会话提权拒绝、trusted payload 边界。
+- `tests/test_iaf_oidc_state_store.py`：OAuth `state` TTL / consume 语义。
+
+### 其它
+
 - `tests/test_entry_surfaces.py::test_a2a_serve_refuses_without_dev_bypass`：bypass 双因子。
-- `tests/test_iam_governance_web_surface.py` / `tests/e2e/b12_iam_governance.spec.ts`：BFF 写路径 CSRF + 身份治理 Web 消费面。
+- `tests/test_role_codes_alignment.py`：前后端 `PRODUCT_ROLE_CODES` 对齐。
+- `tests/test_iam_governance_web_surface.py` / `tests/e2e/b12_iam_governance.spec.ts`：身份治理 Web 消费面（e2e 多依赖 dev bypass）。
 
 ## 14. 会话存储（多副本）
 
@@ -292,3 +310,141 @@ REST 端点：
   `RedisAuthSessionStore` 共享 BFF 会话；`ZW_BRAIN_DEPLOY_MODE=prod` 时未配置会拒绝启动。
 - 可选 `ZW_BRAIN_SESSION_REDIS_KEY_PREFIX`（默认 `zw-brain:session:`）。
 - 测试：`tests/test_auth_session_redis.py`。
+
+## 15. 授权层（Authorization）
+
+认证（Authentication）解决「你是谁」；授权解决「你能做什么」。二者在 zw-brain 中分层：
+
+```mermaid
+flowchart LR
+  subgraph entry [REST BFF]
+    trusted[build_trusted_skill_payload]
+  end
+  subgraph command [Command]
+    resolve[BrainService._resolve_role]
+    invoke[invoke_skill]
+  end
+  subgraph domain [Domain]
+    policy[enforce_manifest_policy]
+  end
+  trusted --> resolve --> invoke --> policy
+```
+
+### 角色权威源
+
+- 产品/审批基线：`docs/approved/zw-brain-roles.md`（D23 后 7 个 `ROLE_*` + 标签位 `tag_lead_dept`）。
+- 代码常量：`zw_brain/domain/role_codes.py`（`BUSINESS_ROLE_CODES`、`ROLE_HIERARCHY`、`TAG_LEAD_DEPT`）。
+- 前端展示：`zw-brain-web/src/composables/useProductRole.ts` 的 `PRODUCT_ROLE_CODES` / `PRODUCT_ROLE_LABELS`（须与后端对齐，`tests/test_role_codes_alignment.py` 机械校验）。
+
+### Skill 权限裁决
+
+`zw_brain/domain/policy.py`：
+
+- `PERMISSION_ROLES`：权限字符串 → 允许角色集合（含 `admin` / `system` 超级角色）。
+- `permissions_for_role(role)`：展开 `ROLE_HIERARCHY` 继承后的有效权限集。
+- `enforce_manifest_policy(skill_id, manifest, role, payload)`：在调用 Skill 前检查：
+  - manifest 声明的 `permissions` ⊆ 角色权限；
+  - 租户 scope、`confirmed` 等业务规则；
+  - `tag_lead_dept` 等标签位运行时约束。
+
+拒绝时抛出 `DomainAccessDeniedError`，REST 映射为 403 `access_denied`。
+
+### 可信会话与角色解析
+
+`zw_brain/shared/session_context.py`：
+
+| 函数 | 作用 |
+|------|------|
+| `contexts_from_bindings` / `contexts_from_role_codes` | IAM binding 或 role 列表 → `available_contexts` |
+| `apply_runtime_context` | 写入 `current_org_code`、`current_role`、`actor_tags` |
+| `resolve_trusted_role` | 在会话允许集合内解析请求 body 的 `role`（拒绝提权） |
+| `build_trusted_skill_payload` | BFF Cookie 路径：附 `TRUSTED_SESSION_CONTEXT_KEY` 进程内 sentinel |
+| `is_trusted_session_payload` | 必须 `payload[key] is _TRUSTED_SESSION_MARKER`（`is` 比较，防 JSON smuggle） |
+
+`zw_brain/command/brain.py` 的 `_resolve_role`：
+
+- Cookie BFF 路径：`is_trusted_session_payload` 为真 → `resolve_trusted_role`（角色来自服务端 session 快照）。
+- Bearer / MCP / CLI：剥离客户端伪造的 marker → `policy.resolve_role(payload.role, default)`。
+
+### 前端页面 ACL（非 Skill 权限）
+
+- `zw-brain-web/src/lib/pageAccess.ts` + `config/productShellNav.ts`：岗位 → 主导航/路由可见性。
+- `zw-brain-web/src/router/index.ts` 的 `beforeEach`：**仅**做岗位路由 ACL；`/login`、`/profile` 等为公开前缀。
+- **登录守卫不在 router**：`App.vue` 的 `refreshAll()` 在未登录时 `router.replace('/login')`；无产品岗位时留在 `/workbench` 并显示拦截 UI。
+- 后端快照字段裁剪须与 shell 配置同步：`zw_brain/domain/web_snapshot_redaction.py`（见 `pageAccess.ts` 文件头注释）。
+
+## 16. 三条鉴权路径对照
+
+`zw_brain/entry/rest/server.py` 中 `_with_authenticated_request` 按以下优先级处理 `/api/*` 与受保护的 agent-runtime 写路径：
+
+| 路径 | 触发条件 | 角色来源 | Skill payload 是否 trusted |
+|------|----------|----------|---------------------------|
+| Cookie BFF | `Cookie: zw_brain_session` 且 store 命中；写操作另需 `X-CSRF-Token` | `resolve_trusted_role` + `actor_snapshot` | 是 |
+| Dev IAM bypass | 双因子 env 启用；可无 cookie（Path 2）或 bypass session（Path 1 分支） | 合成 claims / bypass profile | 否（标 `development_iam_bypass`） |
+| Bearer JWT | `Authorization: Bearer <jwt>` | `policy.resolve_role(payload.role, …)` | 否（剥离 smuggle marker） |
+
+每条 Cookie/Bearer 路径的非 bypass 请求均执行：**IAM token-healthz** + **本地 RS256/JWKS 验签**（PR #45 双层防御）。
+
+### 受保护路由（须通过 `_with_authenticated_request`）
+
+| Method | Path |
+|--------|------|
+| GET | `/api/snapshot` |
+| GET/POST | `/api/skills/*` |
+| GET | `/api/agent-runtime/agents` |
+| POST | `/api/agent-runtime/tasks` |
+
+### 公开或半公开路由
+
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/health` | 存活探针 |
+| GET | `/api/agent-runtime/status` | 运行时状态（无用户身份） |
+| GET | `/auth/iaf/config` | IAM 公开配置 |
+| GET | `/auth/iaf/login` | 启动 OAuth（JSON 或 302） |
+| POST | `/auth/iaf/token` | 授权码换会话 |
+| GET | `/auth/iaf/session` | 凭 cookie 读 public payload；无会话 401 |
+| POST | `/auth/iaf/refresh` | cookie + CSRF 刷新 |
+| GET | `/auth/iaf/logout` | 删 session、清 cookie、返回 IAM logout URL |
+| POST | `/auth/iaf/dev-bypass-login` | 仅 bypass 启用时；否则 404 |
+
+静态资源、`/openapi.json` 等由 `do_GET` 其它分支处理，不走 Skill 鉴权。
+
+## 17. 关键模块索引（重构防丢失）
+
+删改下列模块时，须同步检查右侧「联动项」。
+
+| 模块路径 | 职责 | 删改时联动项 |
+|----------|------|----------------|
+| `zw-brain-web/src/composables/useAuth.ts` | bootstrap、login/logout/refresh、`authFetch`、BroadcastChannel | `test_login_page_web_surface.py`；`docs/agent_integration.md`（契约导出） |
+| `zw-brain-web/src/App.vue` | 登录守卫、无岗位壳、顶栏退出 | 同上 + e2e `conftest` 登录门 |
+| `zw-brain-web/src/pages/PLogin.vue` | IAM / dev bypass 登录门 | 静态测试 `login-gate-*` id |
+| `zw-brain-web/src/composables/useProductRole.ts` | 当前产品岗位（内存，不持久化） | `test_role_codes_alignment.py` |
+| `zw-brain-web/src/lib/pageAccess.ts` | 岗位 → 路由 ACL | `productShellNav.ts`、`web_snapshot_redaction.py` |
+| `zw_brain/entry/rest/server.py` | 路由、cookie/CSRF、IAF 握手、`_with_authenticated_request` | `test_iaf_auth_boundaries.py`、`test_trusted_session_context.py` |
+| `zw_brain/shared/auth_session.py` | `AuthSession`、内存/Redis store | `test_auth_session_redis.py`、docker 多副本文档 |
+| `zw_brain/shared/iaf_oidc.py` | OIDC、JWKS、healthz | `test_wave0_infra.py`、env 文档 |
+| `zw_brain/shared/session_context.py` | trusted payload、角色解析 | `test_trusted_session_context.py` |
+| `zw_brain/shared/auth_context.py` | 请求级 `AuthContext` ContextVar | 审计 actor 溯源 |
+| `zw_brain/domain/policy.py` | `PERMISSION_ROLES`、`enforce_manifest_policy` | `test_domain_policy.py`、Skill manifest |
+| `zw_brain/command/brain.py` | `_resolve_role`、Skill 编排 | trusted + manifest 集成测试 |
+| `zw_brain/domain/web_snapshot_redaction.py` | 按角色裁剪快照字段 | 与 `pageAccess` / shell nav 一致 |
+
+环境变量速查仍见 §10–§11 与 §14；IAF 必填项：`ZW_BRAIN_IAF_AUTH_SERVER_URL`、`ZW_BRAIN_IAF_CLIENT_ID`、client secret（或 `ZW_BRAIN_IAF_CLIENT_SECRET_ENV` 指向的变量名）。
+
+## 18. 已知回归与修复锚点（Regression registry）
+
+重构时逐条核对：**现象 → 根因 → 必须保留的行为 → 测试**。
+
+| ID | 现象 | 根因 | 必须保留的行为 | 测试锚点 |
+|----|------|------|----------------|----------|
+| R-LOGOUT-SSO | 点击退出后再次 IAM 登录仍免密旧账号 | 仅清本地页、未走 IAM RP-Initiated Logout | 前端 `logout()` 以 `data.logout_url` 做 `window.location.href`；BFF `delete` session + `Set-Cookie` Max-Age=0 | `test_logout_redirects_to_iaf_logout_url`；`test_logout_returns_iaf_logout_url_when_not_bypass` |
+| R-LOGOUT-API | 退出后业务 API 仍 200 | 服务端 session 未删或 cookie 仍有效 | logout 后同 cookie 调 `/auth/iaf/session` 或 `/api/snapshot` → 401 | `test_logout_deletes_server_session_and_clears_cookie`；`test_session_get_after_logout_returns_401` |
+| R-MULTI-TAB | 新标签重复 OAuth、覆盖 cookie | 空 sessionStorage 下 reload 重入授权流 | `GET /auth/iaf/session` + BroadcastChannel `login` 不调全页 reload | `test_auth_fetch_waits_for_bootstrap` 等 web_surface 测试 |
+| R-OAUTH-ORDER | bootstrap 双消费 `state` | code 交换与会话探测并发 | `_completeOAuthCallback` 先于 `_readCurrentSession`；`_bootstrapInFlight` | `test_bootstrap_exchanges_oauth_code_before_session_probe` |
+| R-CSRF | 写操作无 CSRF 仍可改状态 | 仅依赖 cookie | POST/PUT/PATCH/DELETE 缺/错 `X-CSRF-Token` → 403 `csrf_token_invalid` | `test_post_skill_without_csrf_returns_403`；`test_refresh_with_invalid_csrf_returns_403` |
+| R-TRUST-ESC | Cookie 会话在 body 里自称高权角色 | 信任客户端 `role` 字段 | `resolve_trusted_role` 限制在 `available_contexts` | `test_cookie_session_rejects_privilege_escalation_in_skill_body` |
+| R-TRUST-SMUGGLE | Bearer 路径塞 `_trusted_session_context: true` | truthy 检查而非 sentinel | 仅 `build_trusted_skill_payload` 写入的对象 identity 通过 `is` 检查 | `test_bearer_path_rejects_smuggled_*`；`test_is_trusted_session_payload_only_accepts_server_sentinel` |
+| R-NO-AUTO-BYPASS | 生产误用 dev bypass 登录 | bootstrap/login 自动走 bypass | `login()` / `bootstrap()` 不得调用 `_devBypassLogin()` | `test_login_does_not_auto_pick_dev_bypass`；`test_bootstrap_does_not_auto_dev_bypass` |
+| R-NO-ROLE | 无产品岗位仍进业务页 | 路由未拦、仅 UI 漏拦截 | 无 `hasAllowedProductRoles()` 时 App 留 `/workbench` + 全页拦截 + 可退出 | `test_app_blocks_home_when_no_product_role` |
+| R-AUDIT-SENTINEL | trusted marker 进 JSON 导致 500 | 审计/anchor 序列化未剥离 sentinel | `safe_json` / `_enqueue_anchor` 路径剥离 marker | `test_safe_json_strips_trust_sentinel_*`；`test_mutate_skill_with_trusted_payload_persists_anchor_outbox` |

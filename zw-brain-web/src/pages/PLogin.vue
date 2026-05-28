@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import {
   bootstrap,
   getCurrentUser,
+  hasAllowedProductRoles,
   loginWithDevBypass,
   loginWithIam,
   isAuthLoading,
@@ -21,6 +22,10 @@ const configLoading = ref(true);
 const submitting = ref<'iam' | 'dev' | null>(null);
 
 async function finishLoginEntry(): Promise<void> {
+  if (!hasAllowedProductRoles()) {
+    await router.replace('/workbench');
+    return;
+  }
   await loadSnapshot(getProductRole().value);
   await router.replace('/workbench');
 }

@@ -81,7 +81,7 @@ def apply_runtime_context(
                 current_org, current_role = next(iter((str(o), str(r)) for o, r in allowed))
         else:
             current_org, current_role = next(iter((str(o), str(r)) for o, r in allowed))
-    if not current_role:
+    if not current_role and allowed:
         allowed_roles = {role for _, role in allowed}
         current_role = _pick_default_role(allowed_roles)
         if not current_org and available:
@@ -89,6 +89,7 @@ def apply_runtime_context(
                 if item["role_code"] == current_role:
                     current_org = str(item.get("org_code") or "")
                     break
+    # 无产品岗位时仍允许建立 BFF 会话（current_role 留空）；Skill 调用由 resolve_trusted_role 拒绝。
 
     current_ctx = next(
         (item for item in available if str(item.get("org_code") or "") == current_org and item["role_code"] == current_role),

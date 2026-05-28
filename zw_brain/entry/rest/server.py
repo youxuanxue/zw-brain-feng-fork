@@ -15,8 +15,8 @@ from socketserver import ThreadingMixIn
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+from urllib.request import HTTPSHandler, ProxyHandler, build_opener
 from urllib.request import Request as UrlRequest
-from urllib.request import urlopen
 
 from zw_brain.command.brain import (
     AccessDeniedError,
@@ -166,15 +166,21 @@ def _iaf_ssl_context() -> ssl.SSLContext:
     return ssl.create_default_context(cafile=cafile)
 
 
+def _iaf_http_opener():
+    # Ambient http(s)_proxy breaks internal IAM URLs in many dev containers; IAF calls bypass proxy.
+    return build_opener(ProxyHandler({}), HTTPSHandler(context=_iaf_ssl_context()))
+
+
 def _default_transport(request: HttpRequest) -> HttpResponse:
     url_request = UrlRequest(request.url, data=request.body, headers=request.headers, method=request.method)
     try:
-        with urlopen(url_request, timeout=5, context=_iaf_ssl_context()) as response:
+        with _iaf_http_opener().open(url_request, timeout=5) as response:
             return HttpResponse(status_code=response.status, body=response.read(), headers=dict(response.headers.items()))
     except HTTPError as exc:
         return HttpResponse(status_code=exc.code, body=exc.read(), headers=dict(exc.headers.items()))
     except URLError as exc:
-        raise IafOidcError("IAF token endpoint unavailable") from exc
+        reason = getattr(exc, "reason", exc)
+        raise IafOidcError(f"IAF token endpoint unavailable ({request.url}): {reason}") from exc
 
 
 def _fetch_jwks(client: IafOidcClient) -> dict[str, Any]:
@@ -449,10 +455,14 @@ class RestHandler(BaseHTTPRequestHandler):
             payload = self._read_json_body()
             code = str(payload.get("code") or "")
             state = str(payload.get("state") or "")
-            login_state = _IAF_STATE_STORE.consume(state)
+            # Peek first: transient IAF failures must not burn the state so the browser can retry.
+            login_state = _IAF_STATE_STORE.get(state)
             redirect_uri = login_state.redirect_uri or self._request_url("/")
             client = IafOidcClient()
             token_payload = client.exchange_authorization_code(code=code, redirect_uri=redirect_uri, transport=_IAF_TRANSPORT or _default_transport)
+            # IAF success means the authz code is now burned at IAF — any later failure cannot be
+            # retried with the same state/code, so discard immediately to minimize the stale-state window.
+            _IAF_STATE_STORE.discard(state)
             if not str(token_payload.get("access_token") or ""):
                 raise IafOidcTokenError("token response missing access_token")
             claims = self._claims_from_token_payload(client, token_payload, expected_nonce=login_state.nonce)
@@ -627,7 +637,7 @@ class RestHandler(BaseHTTPRequestHandler):
                 self._respond_with_logout({"logout_url": self._same_origin_url(redirect_uri, default_path="/"), "local_auth_cleared": True})
                 return
             config = IafOidcClient().config
-            params: dict[str, str] = {}
+            params: dict[str, str] = {"client_id": config.client_id}
             if redirect_uri:
                 params["post_logout_redirect_uri"] = self._same_origin_url(redirect_uri, default_path="/")
             if id_token_hint:

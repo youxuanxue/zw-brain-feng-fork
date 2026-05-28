@@ -1,6 +1,6 @@
 import { ref, onMounted, watch, type Ref } from 'vue';
 import { WORKBENCH_FIXTURE, type WorkbenchView } from '@/fixtures/workbench-fixture';
-import { authFetch } from './useAuth';
+import { authFetch, hasAllowedProductRoles } from './useAuth';
 import { getProductRole } from './useProductRole';
 
 export type WorkbenchSource = 'live' | 'fixture' | 'loading';
@@ -26,6 +26,12 @@ export function useWorkbench(roleOverride?: string): UseWorkbenchResult {
   }
 
   async function refresh(): Promise<void> {
+    if (!hasAllowedProductRoles()) {
+      source.value = 'loading';
+      error.value = null;
+      data.value = null;
+      return;
+    }
     const role = resolveRole();
     source.value = 'loading';
     error.value = null;

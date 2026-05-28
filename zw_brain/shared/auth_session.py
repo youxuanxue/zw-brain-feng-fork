@@ -55,7 +55,19 @@ class AuthSession:
             "expires_at": int(self.expires_at),
             "csrf_token": self.csrf_token,
             "development_iam_bypass": self.development_iam_bypass,
+            "claims": self._public_claims(),
         }
+
+    def _public_claims(self) -> dict[str, Any]:
+        claims = self.claims if isinstance(self.claims, dict) else {}
+        public: dict[str, Any] = {}
+        for key in ("sub", "preferred_username", "email", "org_code", "exp"):
+            if claims.get(key) is not None:
+                public[key] = claims[key]
+        for key in ("realm_access", "resource_access"):
+            if isinstance(claims.get(key), (dict, list)):
+                public[key] = safe_json(claims[key])
+        return public
 
     def to_storage_dict(self) -> dict[str, Any]:
         return asdict(self)

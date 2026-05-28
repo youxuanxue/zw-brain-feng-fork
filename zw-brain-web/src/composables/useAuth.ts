@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue';
+import { setProductRole } from './useProductRole';
 
 // 与旧 js/auth.js BFF 模型对齐：
 //   - access / refresh / id token 永远不到浏览器；BFF cookie 走 HttpOnly。
@@ -28,6 +29,7 @@ const PRODUCT_ROLE_CODES = [
 
 let _refreshTimer: number | null = null;
 let _broadcastChannel: BroadcastChannel | null = null;
+let _bootstrapInFlight: Promise<AuthSnapshot | null> | null = null;
 
 export interface AuthUser {
   subject: string;
@@ -99,6 +101,7 @@ function _writeSnapshot(body: Record<string, unknown>): AuthSnapshot {
     window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
   } catch (_) { /* ignore */ }
   _state.value = snapshot;
+  syncProductRoleFromSession();
   return snapshot;
 }
 
@@ -186,16 +189,25 @@ export async function login(): Promise<AuthSnapshot | null> {
 
 export async function logout(): Promise<void> {
   const redirectUri = `${window.location.origin}/`;
+  let logoutUrl = redirectUri;
   try {
-    await fetch(`/auth/iaf/logout?redirect_uri=${encodeURIComponent(redirectUri)}`, {
+    const resp = await fetch(`/auth/iaf/logout?redirect_uri=${encodeURIComponent(redirectUri)}`, {
       headers: { Accept: 'application/json' },
       credentials: 'include',
     });
+    let data: Record<string, unknown> = {};
+    try {
+      data = (await resp.json()) as Record<string, unknown>;
+    } catch (_) { /* ignore */ }
+    if (resp.ok && data.logout_url) {
+      logoutUrl = String(data.logout_url);
+    }
   } catch (_) { /* ignore */ }
   _clearSnapshot();
   _stopRefreshTimer();
   _broadcast('logout');
-  window.location.href = redirectUri;
+  // 必须跳转 IAM logout_url 清除 SSO 会话；仅回本地页会导致下次统一身份登录免密复用旧账号。
+  window.location.href = logoutUrl;
 }
 
 function _openBroadcastChannel(): BroadcastChannel | null {
@@ -273,10 +285,74 @@ function _stopRefreshTimer(): void {
   }
 }
 
-export async function bootstrap(): Promise<AuthSnapshot | null> {
+function _oauthParamsFromUrl(): { code: string; state: string } | null {
+  const fromSearch = new URLSearchParams(window.location.search);
+  const code = fromSearch.get('code');
+  const state = fromSearch.get('state');
+  if (code && state) return { code, state };
+  const hash = window.location.hash;
+  const qIdx = hash.indexOf('?');
+  if (qIdx < 0) return null;
+  const fromHash = new URLSearchParams(hash.slice(qIdx + 1));
+  const hashCode = fromHash.get('code');
+  const hashState = fromHash.get('state');
+  if (hashCode && hashState) return { code: hashCode, state: hashState };
+  return null;
+}
+
+function _stripOAuthParamsFromUrl(): void {
+  const url = new URL(window.location.href);
+  for (const key of ['code', 'state', 'session_state']) {
+    url.searchParams.delete(key);
+  }
+  if (url.hash.includes('?')) {
+    const [hashPath, hashQuery] = url.hash.split('?');
+    const hp = new URLSearchParams(hashQuery ?? '');
+    for (const key of ['code', 'state', 'session_state']) {
+      hp.delete(key);
+    }
+    const rest = hp.toString();
+    url.hash = rest ? `${hashPath}?${rest}` : hashPath;
+  }
+  const next = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState({}, document.title, next);
+}
+
+export async function exchangeCodeForToken(code: string, state: string): Promise<AuthSnapshot> {
+  const resp = await fetch('/auth/iaf/token', {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ code, state }),
+  });
+  const data = await _readJson(resp);
+  return _writeSnapshot(data);
+}
+
+export function hasPendingOAuthCallback(): boolean {
+  return _oauthParamsFromUrl() !== null;
+}
+
+async function _completeOAuthCallback(oauth: { code: string; state: string }): Promise<AuthSnapshot> {
+  try {
+    const snapshot = await exchangeCodeForToken(oauth.code, oauth.state);
+    _broadcast('login');
+    _startRefreshTimer();
+    return snapshot;
+  } finally {
+    // 无论换票成功或失败都剥离 URL 中的 code/state，避免授权码被二次提交触发 IAF HTTP 400。
+    _stripOAuthParamsFromUrl();
+  }
+}
+
+async function _runBootstrap(): Promise<AuthSnapshot | null> {
   _loading.value = true;
   _openBroadcastChannel();
   try {
+    const oauth = _oauthParamsFromUrl();
+    if (oauth) {
+      return await _completeOAuthCallback(oauth);
+    }
     let snapshot = _readLocalSnapshot();
     if (snapshot && (snapshot.expires_at === 0 || snapshot.expires_at * 1000 > Date.now())) {
       _state.value = snapshot;
@@ -291,7 +367,23 @@ export async function bootstrap(): Promise<AuthSnapshot | null> {
   }
 }
 
+export async function bootstrap(): Promise<AuthSnapshot | null> {
+  if (!_bootstrapInFlight) {
+    _bootstrapInFlight = _runBootstrap().finally(() => {
+      _bootstrapInFlight = null;
+    });
+  }
+  return _bootstrapInFlight;
+}
+
+export async function waitForAuthBootstrap(): Promise<void> {
+  if (_bootstrapInFlight) {
+    await _bootstrapInFlight.catch(() => null);
+  }
+}
+
 export async function authFetch(input: string, init?: RequestInit): Promise<Response> {
+  await waitForAuthBootstrap();
   const snapshot = _state.value ?? _readLocalSnapshot();
   const options: RequestInit = { ...(init ?? {}), credentials: 'include' };
   const headers = new Headers(options.headers ?? {});
@@ -311,7 +403,7 @@ export async function authFetch(input: string, init?: RequestInit): Promise<Resp
     delete options.signal;
   }
   const resp = await fetch(input, options);
-  if (resp.status === 401) _clearSnapshot();
+  if (resp.status === 401 && snapshot?.authenticated) _clearSnapshot();
   return resp;
 }
 
@@ -326,6 +418,18 @@ export function getSession() {
 export function getAllowedProductRoles(): string[] {
   const snapshot = _state.value;
   if (!snapshot) return [];
+  return _allowedProductRolesFromSnapshot(snapshot);
+}
+
+/** 当前会话是否具备至少一个可用产品岗位（开发 bypass 始终视为有）。 */
+export function hasAllowedProductRoles(): boolean {
+  const snapshot = _state.value;
+  if (!snapshot?.authenticated) return false;
+  if (snapshot.development_iam_bypass) return true;
+  return _allowedProductRolesFromSnapshot(snapshot).length > 0;
+}
+
+function _allowedProductRolesFromSnapshot(snapshot: AuthSnapshot): string[] {
   if (snapshot.development_iam_bypass) return [...PRODUCT_ROLE_CODES];
   const actor = snapshot.actor_snapshot ?? {};
   const fromCtx = Array.isArray((actor as { available_contexts?: unknown }).available_contexts)
@@ -333,12 +437,30 @@ export function getAllowedProductRoles(): string[] {
         .map((it) => String(it.role_code ?? ''))
         .filter((c) => (PRODUCT_ROLE_CODES as readonly string[]).includes(c))
     : [];
-  if (fromCtx.length) return Array.from(new Set(fromCtx));
   const actorRoles = Array.isArray((actor as { role_codes?: unknown }).role_codes)
     ? ((actor as { role_codes: string[] }).role_codes).filter((c) => (PRODUCT_ROLE_CODES as readonly string[]).includes(c))
     : [];
   const userRoles = (snapshot.user?.roles ?? []).filter((c) => (PRODUCT_ROLE_CODES as readonly string[]).includes(c));
-  return Array.from(new Set([...actorRoles, ...userRoles]));
+  const sessionRole = String((actor as { current_role?: string }).current_role ?? '');
+  const roles = [...fromCtx, ...actorRoles, ...userRoles];
+  if (sessionRole && (PRODUCT_ROLE_CODES as readonly string[]).includes(sessionRole)) {
+    roles.push(sessionRole);
+  }
+  return Array.from(new Set(roles));
+}
+
+/** 登录后会话 actor_snapshot.current_role → 顶栏岗位与路由守卫。 */
+export function syncProductRoleFromSession(): void {
+  const snapshot = _state.value;
+  if (!snapshot?.authenticated) return;
+  const roles = _allowedProductRolesFromSnapshot(snapshot);
+  const actor = snapshot.actor_snapshot ?? {};
+  const sessionRole = String((actor as { current_role?: string }).current_role ?? '');
+  if (sessionRole && roles.includes(sessionRole)) {
+    setProductRole(sessionRole);
+    return;
+  }
+  if (roles.length) setProductRole(roles[0]);
 }
 
 export function isAuthLoading() {

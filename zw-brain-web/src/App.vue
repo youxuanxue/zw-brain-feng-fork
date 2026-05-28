@@ -6,6 +6,8 @@ import {
   getCurrentUser,
   getSession,
   getAllowedProductRoles,
+  hasAllowedProductRoles,
+  hasPendingOAuthCallback,
   isAuthLoading,
   logout,
   PRODUCT_ROLE_LABELS,
@@ -48,16 +50,32 @@ const allowedRoles = computed(() => {
   return getAllowedProductRoles();
 });
 
+const currentRoleLabel = computed(() => PRODUCT_ROLE_LABELS[currentRole.value] ?? currentRole.value);
+
+const showRoleControl = computed(() => Boolean(user.value && !isLoginRoute.value && currentRoleLabel.value));
+const canSwitchRole = computed(() => allowRoleSwitch.value && allowedRoles.value.length > 1);
+
+const missingProductRole = computed(
+  () => Boolean(user.value && !isLoginRoute.value && !hasAllowedProductRoles())
+);
+
 async function refreshAll() {
+  initError.value = null;
   try {
     await bootstrapAuth();
     if (!user.value) {
       if (!isLoginRoute.value) await router.replace('/login');
       return;
     }
+    if (!hasAllowedProductRoles()) {
+      if (route.path !== '/workbench') await router.replace('/workbench');
+      return;
+    }
     await loadSnapshot(currentRole.value);
   } catch (e) {
-    initError.value = e instanceof Error ? e.message : String(e);
+    const detail = e instanceof Error ? e.message : String(e);
+    initError.value = detail;
+    if (!user.value && !isLoginRoute.value) await router.replace('/login');
   }
 }
 
@@ -115,6 +133,8 @@ onMounted(() => {
 watch(
   () => route.path,
   (path) => {
+    // IAM 回跳时 onMounted 与路由重定向会并发 bootstrap；跳过二次换票以免 state 被提前消费。
+    if (hasPendingOAuthCallback()) return;
     if (path !== '/login' && !user.value) void refreshAll();
   }
 );
@@ -147,30 +167,58 @@ watch(
           <button type="button" class="user-menu-logout" @click="logout">退出</button>
         </div>
         <div v-else-if="!isLoginRoute" class="identity-label" aria-live="polite">当前账号</div>
-        <div v-if="allowRoleSwitch && allowedRoles.length && !isLoginRoute" class="role-control">
+        <div v-if="showRoleControl && !missingProductRole" class="role-control">
           <span>当前岗位</span>
-          <label class="sr-only" for="role-switch">切换岗位身份</label>
-          <select
-            id="role-switch"
-            class="role-select"
-            :class="{ 'role-select-busy': roleSwitchBusy }"
-            :value="currentRole"
-            :disabled="roleSwitchBusy"
-            @change="onRoleChange"
-          >
-            <option
-              v-for="code in allowedRoles"
-              :key="code"
-              :value="code"
-            >{{ PRODUCT_ROLE_LABELS[code] || code }}</option>
-          </select>
+          <template v-if="canSwitchRole">
+            <label class="sr-only" for="role-switch">切换岗位身份</label>
+            <select
+              id="role-switch"
+              class="role-select"
+              :class="{ 'role-select-busy': roleSwitchBusy }"
+              :value="currentRole"
+              :disabled="roleSwitchBusy"
+              @change="onRoleChange"
+            >
+              <option
+                v-for="code in allowedRoles"
+                :key="code"
+                :value="code"
+              >{{ PRODUCT_ROLE_LABELS[code] || code }}</option>
+            </select>
+          </template>
+          <span v-else class="role-readonly" :title="currentRole">{{ currentRoleLabel }}</span>
         </div>
       </div>
     </div>
   </header>
 
   <main class="app-shell-main">
-    <section class="app-frame app-frame-live">
+    <section v-if="missingProductRole" class="app-frame app-frame-live no-product-role-shell">
+      <div class="login-gate-wrap">
+        <section class="login-gate-card no-product-role-card" aria-labelledby="no-product-role-title">
+          <header class="login-gate-card-header">
+            <h1 id="no-product-role-title" class="login-gate-card-title">暂无可用岗位权限</h1>
+            <p class="login-gate-card-sub">
+              您的账号已登录，但尚未分配政务数据大脑的产品岗位。请联系系统管理员在身份治理中为您的账号添加用户角色权限后，再重新登录使用。
+            </p>
+          </header>
+          <div class="login-gate-card-body">
+            <div class="login-gate-iam-box no-product-role-hint">
+              若您刚完成 IAM 绑定，请等待管理员同步岗位后刷新页面；仍无法进入时请提供登录账号与所属组织，便于管理员排查。
+            </div>
+            <div class="login-gate-actions">
+              <button
+                id="no-product-role-logout"
+                type="button"
+                class="gov-btn gov-btn-primary"
+                @click="logout"
+              >退出登录</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+    <section v-else class="app-frame app-frame-live">
       <div id="app-router" class="min-w-0">
         <div
           v-if="!isLoginRoute && snapSource === 'loading' && !roleSwitchBusy"
@@ -179,9 +227,10 @@ watch(
         <div v-else-if="snapSource === 'error'" class="boot-banner boot-banner-warn">
           数据暂不可达。请确认 brain REST（8800）已启动后刷新。
         </div>
-        <ProductTopNav v-if="!isLoginRoute" :role="currentRole" />
-        <RouterView />
-        <div v-if="initError" class="boot-banner boot-banner-warn">初始化告警：{{ initError }}</div>
+        <ProductTopNav v-if="!isLoginRoute && !authLoading" :role="currentRole" />
+        <div v-if="authLoading && !isLoginRoute" class="boot-banner boot-banner-info">正在完成登录…</div>
+        <RouterView v-if="!authLoading || isLoginRoute" />
+        <div v-if="initError && !missingProductRole" class="boot-banner boot-banner-warn">初始化告警：{{ initError }}</div>
       </div>
     </section>
   </main>
@@ -249,5 +298,24 @@ watch(
 .role-select-busy {
   opacity: 0.65;
   cursor: wait;
+}
+.role-readonly {
+  font-size: 13px;
+  color: var(--b-text, #1a1a1a);
+  padding: 4px 8px;
+  border: 1px solid var(--b-border, #d4e2f4);
+  border-radius: 6px;
+  background: #f7faff;
+}
+.no-product-role-shell {
+  display: flex;
+  justify-content: center;
+  padding-top: 48px;
+}
+.no-product-role-card {
+  max-width: 560px;
+}
+.no-product-role-hint {
+  color: var(--b-muted, #5c6370);
 }
 </style>
