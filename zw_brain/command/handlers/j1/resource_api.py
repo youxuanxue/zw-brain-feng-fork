@@ -23,13 +23,13 @@ from zw_brain.shared.sanitization import safe_json
 def _register_api_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
-    resource = brain._api_payload(payload, default_status="draft")
+    resource = deps.services.provider.api_payload(payload, default_status="draft")
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        result = brain._upsert_api_resource(resource)
+        result = deps.services.provider.upsert_api_resource(resource)
         binding = payload.get("channel_binding")
         if isinstance(binding, dict):
-            brain._upsert_api_binding({**binding, "resource_code": resource["resource_code"]})
+            deps.services.provider.upsert_api_binding({**binding, "resource_code": resource["resource_code"]})
         deps.append_audit_feed("resource.api.register", resource["resource_code"], "ok", actor)
         return result | {"audit_id": audit_id}
 
@@ -38,16 +38,16 @@ def _register_api_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[st
 def _change_api_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
-    resource = brain._api_payload(payload, default_status="draft")
+    resource = deps.services.provider.api_payload(payload, default_status="draft")
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         existing = deps.view.resources.get_api_resource(resource["resource_code"])
         if existing is None:
             raise NotFoundError(resource["resource_code"])
-        result = brain._upsert_api_resource({**existing, **resource})
+        result = deps.services.provider.upsert_api_resource({**existing, **resource})
         binding = payload.get("channel_binding")
         if isinstance(binding, dict):
-            brain._upsert_api_binding({**binding, "resource_code": resource["resource_code"]})
+            deps.services.provider.upsert_api_binding({**binding, "resource_code": resource["resource_code"]})
         deps.append_audit_feed("resource.api.change", resource["resource_code"], "ok", actor)
         return result | {"audit_id": audit_id}
 
@@ -72,7 +72,7 @@ def _transition_api_resource(brain, deps, ctx, resource_code: str, status: str, 
                 raise NotFoundError(resource_code)
             resource["lifecycle_status"] = status
             resource["updated_at"] = clock.now_datetime()
-            result = brain._upsert_api_resource(resource)
+            result = deps.services.provider.upsert_api_resource(resource)
         else:
             record = deps.repos.resource_api.transition_asset(resource_code, status)
             if record is None:
@@ -133,7 +133,7 @@ def _test_api_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, A
                 raise NotFoundError(resource_code)
             resource["lifecycle_status"] = next_status
             resource["updated_at"] = clock.now_datetime()
-            result = brain._upsert_api_resource(resource)
+            result = deps.services.provider.upsert_api_resource(resource)
             tests = deps.brain_legacy._snapshot.setdefault("api_resource_tests", [])
             test_record = test_payload | {"test_ref": audit_id, "tested_by": actor, "tested_at": clock.now_datetime()}
             tests.append(test_record)
@@ -167,11 +167,11 @@ def _update_api_resource_policy(brain, deps, ctx, payload: dict[str, Any]) -> di
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         if deps.view.resources.get_api_resource(resource_code) is None:
             raise NotFoundError(resource_code)
-        binding = brain._find_api_binding(binding_code)
+        binding = deps.services.provider.find_api_binding(binding_code)
         if binding is None or binding.get("resource_code") != resource_code:
             raise NotFoundError(binding_code)
         binding["gateway_policy_json"] = policy_payload
-        result = brain._upsert_api_binding(binding)
+        result = deps.services.provider.upsert_api_binding(binding)
         deps.append_audit_feed("resource.api.policy.update", resource_code, "ok", actor)
         return result | {"audit_id": audit_id}
 

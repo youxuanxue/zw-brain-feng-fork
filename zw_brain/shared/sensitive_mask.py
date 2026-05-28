@@ -285,3 +285,18 @@ def mask_default(payload: Any) -> Any:
     is a one-line edit, not an N-file sweep.
     """
     return apply_field_masks(payload, role=DEFAULT_MASK_ROLE)
+
+
+def mask_actor_payload(value: Any) -> Any:
+    """Apply mask policy specific to actor-like payloads (user_name / approve_person / handler_name).
+
+    Used by approval projections (P3 audit responses) where the underlying
+    fields carry PII (审批人 / 处理人 / 申请人). Action H commit 4: lifted from
+    ``BrainService._mask_actor_payload`` so the policy lives next to the
+    masking primitives instead of as a 1-line method on BrainService.
+    """
+    return apply_field_masks(
+        value,
+        role=DEFAULT_MASK_ROLE,
+        field_policy={"user_name": "name", "approve_person": "name", "handler_name": "name"},
+    )

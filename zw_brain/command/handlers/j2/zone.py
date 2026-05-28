@@ -38,7 +38,7 @@ def _get_zone(brain, deps, ctx, zone_id: str) -> dict[str, Any]:
     raise NotFoundError(zone_id)
 
 def _publish_zone_topic_projection(brain, deps, ctx, zone_id: str, role: str, confirmed: bool) -> dict[str, Any]:
-    zone = brain._zone_by_id(zone_id)
+    zone = deps.view.zones.find_by_id(zone_id)
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         zone["status"] = "已发布"

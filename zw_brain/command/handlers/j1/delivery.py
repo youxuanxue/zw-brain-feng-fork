@@ -12,6 +12,7 @@ import copy
 import zw_brain.shared.clock as clock
 from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoundError, _mask
 from zw_brain.command.deps import HandlerDeps, SkillContext
+from zw_brain.domain.serializers.legacy_mapping import legacy_mapping_refs
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -37,7 +38,7 @@ def _ingest_delivery_receipt(brain, deps, ctx, payload: dict[str, Any]) -> dict[
     task_id = str(payload["task_id"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        task = brain._maybe_delivery(task_id)
+        task = deps.services.delivery.maybe_by_id(task_id)
         if task is not None:
             task["receiptStatus"] = str(payload["receipt_status"])
             task["receiptNo"] = payload.get("receipt", {}).get("receipt_no") or payload.get("receipt_no") or task.get("receiptNo")
@@ -179,7 +180,7 @@ def _trigger_delivery_recovery(brain, deps, ctx, task_id: str, role: str, confir
 
 def _get_delivery_task(brain, deps, ctx, task_id: str) -> dict[str, Any]:
     store = deps.state_store.database_store
-    task = brain._maybe_delivery(task_id)
+    task = deps.services.delivery.maybe_by_id(task_id)
     if task is None:
         if store is None:
             raise NotFoundError(task_id)
@@ -191,7 +192,7 @@ def _get_delivery_task(brain, deps, ctx, task_id: str) -> dict[str, Any]:
     if store is None:
         return task
     record = next((item for item in deps.repos.delivery.list_tasks(tenant_id=_DEFAULT_TENANT_ID) if item.delivery_code == task_id), None)
-    request = brain._maybe_request(task.get("requestId", "")) or deps.services.application.request_from_record(task.get("requestId", ""), store)
+    request = deps.services.request.maybe_by_id(task.get("requestId", "")) or deps.services.application.request_from_record(task.get("requestId", ""), store)
     if request is not None:
         task["applicationMaterials"] = copy.deepcopy(request.get("applicationMaterials", {}))
         task["applicationMaterials"].setdefault("frequency", {"times": "", "mostTimes": "", "timeWindow": None, "useDays": ""})
@@ -217,7 +218,7 @@ def _get_delivery_task(brain, deps, ctx, task_id: str) -> dict[str, Any]:
         task["supplementBoundary"] = _mask(copy.deepcopy(payload.get("supplement_boundary") or {}))
         task["nonGrantBoundary"] = _mask(copy.deepcopy(payload.get("non_grant_boundary") or {}))
         task["renewalBoundary"] = payload.get("renewal_boundary") or "真实 data_apply_renewal 无行；不伪造续期成功路径。"
-        task["legacyMappings"] = brain._legacy_mapping_refs(store, "DeliveryTaskRecord", record.delivery_code)
+        task["legacyMappings"] = legacy_mapping_refs(store, "DeliveryTaskRecord", record.delivery_code)
         task["receipts"] = [
             {
                 "receiptType": item.receipt_type,

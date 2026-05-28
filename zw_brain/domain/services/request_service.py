@@ -95,6 +95,98 @@ class RequestService:
             catalog_items_by_item_code=catalog_items_by_item_code,
         )
 
+    # --- Approval recommendation / business defaults ---
+
+    def approval_recommendation(
+        self,
+        approval: dict[str, Any],
+        request: dict[str, Any],
+        delivery: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Build the recommended decision summary for an approval card.
+
+        Action H commit 3: lifted from ``BrainService._approval_recommendation``;
+        callers route through ``deps.services.request.approval_recommendation(...)``.
+        """
+        gap_fields = request.get("gapFields") or []
+        grant = (delivery or {}).get("accessGrantSnapshot") or {}
+        return {
+            "primary": "approve_reuse" if not gap_fields else "approve_reuse_with_gap_attention",
+            "reason": [
+                "已有目录、资源、字段和 schema 绑定证据",
+                "历史申请与授权可通过 legacy_object_mapping 回指",
+                "申请字段保持最小必要范围",
+            ],
+            "alternatives": ["return_for_fix", "reject_duplicate", "route_to_provider_or_catalog_admin"],
+            "grantBoundary": {"limit_day": grant.get("limit_day"), "res_type": grant.get("res_type"), "apply_status": grant.get("apply_status")},
+            "renewalBoundary": "真实 data_apply_renewal 无行；不伪造续期成功路径。",
+        }
+
+    def credential_for_request(
+        self, request_id: str, seed: str | None = None
+    ) -> dict[str, Any]:
+        """Demo credential — 同一 (request_id, seed) 永远生成同一凭据。
+
+        Action H commit 4: lifted from ``BrainService._credential_for_request``.
+        Pure derivation; no instance state used (kept on the service for
+        cohesion with the rest of the request approval flow).
+
+        seed=None：首次签发（auto-on-approval），用 request_id 作种子；
+        seed=<audit_id>：reissue 路径每次重签都产生不同 app_secret
+        （旧 secret 立即失效语义；与生产 IAM reissue 行为对齐）.
+        """
+        import hashlib  # noqa: PLC0415
+        from datetime import datetime, timedelta  # noqa: PLC0415
+
+        import zw_brain.shared.clock as clock  # noqa: PLC0415
+
+        seed_material = (
+            f"d23-credential-{request_id}"
+            if seed is None
+            else f"d23-credential-{request_id}-reissue-{seed}"
+        )
+        digest = hashlib.sha256(seed_material.encode("utf-8")).hexdigest()
+        app_key = f"AK-DEMO-{request_id}-{digest[:8].upper()}"
+        app_secret = f"SK-DEMO-{digest[8:32]}"
+        valid_from = clock.now_date()
+        valid_to = (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d")
+        return {
+            "app_key": app_key,
+            "app_secret": app_secret,
+            "valid_from": valid_from,
+            "valid_to": valid_to,
+            "quota_per_day": 1000,
+            "invoke_url_template": f"https://api.gov-data.local/v1/services/<resource_code>?app_key={app_key}",
+        }
+
+    def approval_business_defaults(
+        self,
+        request: dict[str, Any],
+        delivery: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Build the business-default narrative / risk / draft note for an approval card.
+
+        Action H commit 3: lifted from ``BrainService._approval_business_defaults``;
+        callers route through ``deps.services.request.approval_business_defaults(...)``.
+        """
+        recommendation = self.approval_recommendation({}, request, delivery)
+        resource_name = request.get("resourceName") or request.get("id")
+        return {
+            "suggestion": "建议通过复用" if recommendation["primary"] == "approve_reuse" else "建议通过并关注缺口",
+            "confidence": 0.9,
+            "reason": recommendation["reason"],
+            "risk": [
+                "若申请方扩大字段范围，应退回缩小到最小必要字段。",
+                "若对资源口径有争议，应转 数据提供方 / 业务运营员 做口径确认。",
+            ],
+            "counterfactual": "如果发现同一资源存在在途重复申请，应驳回重复需求或合并到既有申请。",
+            "impact": "通过后只按授权边界交付；退回或驳回也会保留理由、证据和责任节点。",
+            "actions": ["通过复用", "退回缩小范围", "驳回重复需求", "转口径确认"],
+            "draftNote": f"建议审批意见：{resource_name} 已具备目录、字段、资源和授权证据，按最小必要范围复用；续期无真实来源行，不在本次审批中伪造续期结论。",
+            "exceptionItems": ["续期来源行缺失，仅回放既有授权边界。"],
+            "autoSummary": "审批证据链已汇总到申请材料、字段绑定、历史线索、授权边界和旧平台回指。",
+        }
+
     # --- Status timeline / text ---
 
     def status_timeline(

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import copy
-import hashlib
 import json
 
 # Default read-side mask role. Per [2026-05-06] sensitive-field policy: business-
@@ -10,13 +9,12 @@ import json
 # read. Set ZW_BRAIN_MASK_ROLE=internal_admin to opt up (audit replay only).
 import os as _os
 from collections.abc import Iterator, MutableMapping
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 import zw_brain.shared.audit as audit_bus
 import zw_brain.shared.clock as clock
 from zw_brain.command.serializers import metadata as metadata_ser
-from zw_brain.command.serializers import resource_api as resource_api_ser
 from zw_brain.domain import policy
 from zw_brain.domain.errors import AccessDeniedError as AccessDeniedError  # R-016 re-export
 from zw_brain.domain.errors import BrainServiceError as BrainServiceError  # R-016 re-export
@@ -36,11 +34,7 @@ from zw_brain.shared.auth_context import get_auth_context
 from zw_brain.shared.runtime_config import get_dev_iam_bypass_enabled
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 from zw_brain.shared.sanitization import safe_json
-from zw_brain.shared.sensitive_mask import (
-    DEFAULT_MASK_ROLE,
-    apply_field_masks,
-    mask_default,
-)
+from zw_brain.shared.sensitive_mask import mask_default
 from zw_brain.shared.state_store import StateStore
 from zw_brain.shared.ui_request_context import get_current_role, set_current_role
 from zw_brain.skill_registration.runtime import get_manifest, load_manifests
@@ -477,43 +471,18 @@ class BrainService:
     def _catalog_topic_projection_cards(self, catalog_code: str, store: Any) -> list[dict[str, Any]]:
         return self._get_handler_deps().services.catalog.topic_projection_cards(catalog_code, store)
 
+    # Action H commit 4: bodies lifted to zw_brain.command.adapter_routing.
     def _adapter_operation_from_skill(self, skill_id: str, payload: dict[str, Any]) -> tuple[str, str, str]:
-        if payload.get("adapter_slug") or payload.get("operation"):
-            return str(payload.get("adapter_slug", skill_id.rsplit(".", 1)[0])), str(payload.get("operation", skill_id.rsplit(".", 1)[1])), str(payload.get("direction", "inbound"))
-        if skill_id.startswith("adapter.cascade"):
-            operation = "replay" if skill_id.endswith("replay") else "consume"
-            return "cascade", operation, str(payload.get("direction", "inbound"))
-        if skill_id.startswith("standard.asset"):
-            return "standard_asset", skill_id.rsplit(".", 1)[1], str(payload.get("direction", "inbound"))
-        if skill_id.startswith("security.scan"):
-            return "security_scan", "result_sync", str(payload.get("direction", "inbound"))
-        if skill_id.startswith("risk.event"):
-            return "risk_event", "ingest", str(payload.get("direction", "inbound"))
-        if skill_id.startswith("compliance.signal"):
-            return "compliance_signal", "ingest", str(payload.get("direction", "inbound"))
-        parts = skill_id.split(".")
-        operation = parts[-1]
-        if operation in {"pull", "receive", "reconcile", "sync"}:
-            direction = "inbound" if operation in {"pull", "receive"} else str(payload.get("direction", "inbound"))
-        else:
-            direction = str(payload.get("direction", "outbound"))
-        return "national", operation, direction
+        from zw_brain.command.adapter_routing import adapter_operation_from_skill  # noqa: PLC0415
+        return adapter_operation_from_skill(skill_id, payload)
 
     def _aggregate_type_from_skill(self, skill_id: str) -> str:
-        for value in ("catalog", "resource", "application", "delivery", "objection", "topic"):
-            if f".{value}." in skill_id:
-                return "topic_package" if value == "topic" else value
-        return "external"
+        from zw_brain.command.adapter_routing import aggregate_type_from_skill  # noqa: PLC0415
+        return aggregate_type_from_skill(skill_id)
 
     def _adapter_idempotency_key(self, skill_id: str, payload: dict[str, Any]) -> str:
-        return ":".join(
-            [
-                skill_id,
-                str(payload.get("local_aggregate_type") or self._aggregate_type_from_skill(skill_id)),
-                str(payload.get("local_aggregate_id") or payload.get("external_object_id") or payload.get("source_ref") or "pending"),
-                str(payload.get("external_system") or "national_platform"),
-            ]
-        )
+        from zw_brain.command.adapter_routing import adapter_idempotency_key  # noqa: PLC0415
+        return adapter_idempotency_key(skill_id, payload)
 
 
     def list_requests(self) -> list[dict[str, Any]]:
@@ -644,48 +613,20 @@ class BrainService:
         return self._get_handler_deps().services.application.quality_evidence(store, resource, catalog_code, resource_id, context=context)
 
     def _mask_actor_payload(self, value: Any) -> Any:
-        return apply_field_masks(
-            value,
-            role=DEFAULT_MASK_ROLE,
-            field_policy={"user_name": "name", "approve_person": "name", "handler_name": "name"},
-        )
+        """Legacy shim — Action H commit 4 lifted to shared.sensitive_mask.mask_actor_payload."""
+        from zw_brain.shared.sensitive_mask import mask_actor_payload  # noqa: PLC0415
+        return mask_actor_payload(value)
 
     def _delivery_due_hint(self, delivery: dict[str, Any] | None) -> str:
         return self._get_handler_deps().services.delivery.due_hint(delivery)
 
     def _approval_recommendation(self, approval: dict[str, Any], request: dict[str, Any], delivery: dict[str, Any] | None) -> dict[str, Any]:
-        gap_fields = request.get("gapFields") or []
-        grant = (delivery or {}).get("accessGrantSnapshot") or {}
-        return {
-            "primary": "approve_reuse" if not gap_fields else "approve_reuse_with_gap_attention",
-            "reason": [
-                "已有目录、资源、字段和 schema 绑定证据",
-                "历史申请与授权可通过 legacy_object_mapping 回指",
-                "申请字段保持最小必要范围",
-            ],
-            "alternatives": ["return_for_fix", "reject_duplicate", "route_to_provider_or_catalog_admin"],
-            "grantBoundary": {"limit_day": grant.get("limit_day"), "res_type": grant.get("res_type"), "apply_status": grant.get("apply_status")},
-            "renewalBoundary": "真实 data_apply_renewal 无行；不伪造续期成功路径。",
-        }
+        """Legacy shim — Action H commit 3 lifted to request_service.approval_recommendation."""
+        return self._get_handler_deps().services.request.approval_recommendation(approval, request, delivery)
 
     def _approval_business_defaults(self, request: dict[str, Any], delivery: dict[str, Any] | None) -> dict[str, Any]:
-        recommendation = self._approval_recommendation({}, request, delivery)
-        resource_name = request.get("resourceName") or request.get("id")
-        return {
-            "suggestion": "建议通过复用" if recommendation["primary"] == "approve_reuse" else "建议通过并关注缺口",
-            "confidence": 0.9,
-            "reason": recommendation["reason"],
-            "risk": [
-                "若申请方扩大字段范围，应退回缩小到最小必要字段。",
-                "若对资源口径有争议，应转 数据提供方 / 业务运营员 做口径确认。",
-            ],
-            "counterfactual": "如果发现同一资源存在在途重复申请，应驳回重复需求或合并到既有申请。",
-            "impact": "通过后只按授权边界交付；退回或驳回也会保留理由、证据和责任节点。",
-            "actions": ["通过复用", "退回缩小范围", "驳回重复需求", "转口径确认"],
-            "draftNote": f"建议审批意见：{resource_name} 已具备目录、字段、资源和授权证据，按最小必要范围复用；续期无真实来源行，不在本次审批中伪造续期结论。",
-            "exceptionItems": ["续期来源行缺失，仅回放既有授权边界。"],
-            "autoSummary": "审批证据链已汇总到申请材料、字段绑定、历史线索、授权边界和旧平台回指。",
-        }
+        """Legacy shim — Action H commit 3 lifted to request_service.approval_business_defaults."""
+        return self._get_handler_deps().services.request.approval_business_defaults(request, delivery)
 
     def _record_delivery_attempt(self, payload: dict[str, Any], skill_id: str, state: str, attempt_kind: str) -> dict[str, Any]:
         return self._get_handler_deps().services.delivery.record_attempt(payload, skill_id, state, attempt_kind)
@@ -695,106 +636,32 @@ class BrainService:
         return store.delivery_repo if store is not None else DeliveryRepository()
 
     def _discovery_summary(self, query: str, resources: list[dict[str, Any]]) -> dict[str, Any]:
-        base = copy.deepcopy(self._snapshot["discovery"]["aiCopilot"])
-        if resources and query:
-            base["summary"] = f"已按“{query}”找到 {len(resources)} 条可复用目录或基础要素。先看字段、共享条件和字段证据；仍缺的字段再进入最小申请。"
-            base["missingQuestions"] = ["是否限定使用区域或时间窗？", "本次只需要哪些字段，哪些字段属于缺口？"]
-            base["nextActions"] = ["打开资源详情", "核对字段口径", "整理最小申请字段"]
-            base["evidence"] = [item.get("name", item.get("id", "")) for item in resources[:3]]
-        return base
+        """Legacy shim — Action H commit 3 lifted body to catalog_service.discovery_summary."""
+        return self._get_handler_deps().services.catalog.discovery_summary(query, resources)
 
     def _api_payload(self, payload: dict[str, Any], *, default_status: str) -> dict[str, Any]:
-        resource_code = str(payload["resource_code"])
-        return {
-            "resource_code": resource_code,
-            "resource_kind": "api",
-            "title": str(payload.get("title", resource_code)),
-            "lifecycle_status": str(payload.get("lifecycle_status", default_status)),
-            "owner_org_id": payload.get("owner_org_id"),
-            "owner_org_snapshot_json": safe_json(payload.get("owner_org_snapshot_json") or {}),
-            "region_code": payload.get("region_code"),
-            "catalog_code": payload.get("catalog_code"),
-            "access_policy_json": safe_json(payload.get("access_policy_json") or {}),
-            "qos_policy_json": safe_json(payload.get("qos_policy_json") or {}),
-            "source_ref": payload.get("source_ref"),
-            "summary_json": safe_json(payload.get("summary_json") or {"title": payload.get("title", resource_code)}),
-        }
+        """Legacy shim — Action H commit 3 lifted body to provider_service.api_payload."""
+        return self._get_handler_deps().services.provider.api_payload(payload, default_status=default_status)
 
+    # Action H commit 2: bodies lifted to provider_service / ops_metrics serializers.
     def _upsert_api_resource(self, resource: dict[str, Any]) -> dict[str, Any]:
-        store = self._state_store.database_store
-        if store is None:
-            resources = self._snapshot.setdefault("api_resources", [])
-            current = next((item for item in resources if item["resource_code"] == resource["resource_code"]), None)
-            if current is None:
-                current = copy.deepcopy(resource)
-                current.setdefault("channel_bindings", [])
-                resources.append(current)
-            else:
-                bindings = current.get("channel_bindings", [])
-                current.update(copy.deepcopy(resource))
-                current.setdefault("channel_bindings", bindings)
-            return copy.deepcopy(current)
-        return resource_api_ser.resource_asset_to_dict(store.resource_api_repo.upsert_asset(resource))
+        return self._get_handler_deps().services.provider.upsert_api_resource(resource)
 
     def _upsert_api_binding(self, binding: dict[str, Any]) -> dict[str, Any]:
-        payload = {
-            "binding_code": str(binding["binding_code"]),
-            "resource_code": str(binding["resource_code"]),
-            "channel_kind": str(binding.get("channel_kind", "api_gateway")),
-            "route_ref": binding.get("route_ref"),
-            "endpoint_ref": safe_json(binding.get("endpoint_ref", {})),
-            "schema_ref": safe_json(binding.get("schema_ref", {})),
-            "auth_ref": binding.get("auth_ref"),
-            "request_schema_json": safe_json(binding.get("request_schema_json", {})),
-            "response_schema_json": safe_json(binding.get("response_schema_json", {})),
-            "gateway_policy_json": safe_json(binding.get("gateway_policy_json", {})),
-            "lifecycle_status": str(binding.get("lifecycle_status", "draft")),
-            "source_ref": binding.get("source_ref"),
-        }
-        store = self._state_store.database_store
-        if store is None:
-            resources = self._snapshot.setdefault("api_resources", [])
-            resource = next((item for item in resources if item["resource_code"] == payload["resource_code"]), None)
-            if resource is None:
-                raise NotFoundError(payload["resource_code"])
-            bindings = resource.setdefault("channel_bindings", [])
-            current = next((item for item in bindings if item["binding_code"] == payload["binding_code"]), None)
-            if current is None:
-                current = copy.deepcopy(payload)
-                bindings.append(current)
-            else:
-                current.update(copy.deepcopy(payload))
-            return copy.deepcopy(current)
-        return resource_api_ser.binding_to_dict(store.resource_api_repo.upsert_binding(payload))
+        return self._get_handler_deps().services.provider.upsert_api_binding(binding)
 
     # Action E: _find_api_resource retired — call deps.services.provider.find_api_resource directly.
 
     def _find_api_binding(self, binding_code: str) -> dict[str, Any] | None:
-        store = self._state_store.database_store
-        if store is None:
-            for resource in self._snapshot.get("api_resources", []):
-                binding = next((item for item in resource.get("channel_bindings", []) if item["binding_code"] == binding_code), None)
-                if binding is not None:
-                    return copy.deepcopy(binding)
-            return None
-        record = store.resource_api_repo.get_binding(binding_code)
-        return resource_api_ser.binding_to_dict(record) if record is not None else None
+        return self._get_handler_deps().services.provider.find_api_binding(binding_code)
 
     def _metric_summary(self, metrics: list[dict[str, Any]]) -> dict[str, Any]:
-        return {
-            "invokeCount": sum(int(item.get("invoke_count", 0)) for item in metrics),
-            "successCount": sum(int(item.get("success_count", 0)) for item in metrics),
-            "failedCount": sum(int(item.get("failed_count", item.get("failure_count", 0))) for item in metrics),
-            "errorCount": sum(int(item.get("error_count", 0)) for item in metrics),
-        }
+        from zw_brain.domain.serializers.ops_metrics import metric_summary  # noqa: PLC0415
+        return metric_summary(metrics)
 
     def _exchange_metric_summary(self, metrics: list[dict[str, Any]]) -> dict[str, Any]:
-        return {
-            "exchangeCount": sum(int(item.get("exchange_count", 0)) for item in metrics),
-            "successCount": sum(int(item.get("success_count", 0)) for item in metrics),
-            "failedCount": sum(int(item.get("failed_count", 0)) for item in metrics),
-            "recordCount": sum(int(item.get("record_count", 0)) for item in metrics),
-        }
+        from zw_brain.domain.serializers.ops_metrics import exchange_metric_summary  # noqa: PLC0415
+        return exchange_metric_summary(metrics)
 
     def _decode_iaf_claims(self, iaf_claims: Any) -> dict[str, Any]:
         if isinstance(iaf_claims, dict):
@@ -952,30 +819,9 @@ class BrainService:
         *,
         context: _RequestBatchContext | None = None,
     ) -> list[dict[str, Any]]:
-        refs = canonical_ref if isinstance(canonical_ref, list) else [canonical_ref]
-        rows: list[dict[str, Any]] = []
-        for ref in refs:
-            if context is not None:
-                items = context.legacy_mappings_by_ref.get((canonical_type, str(ref)), [])
-            else:
-                items = store.legacy_mapping_repo.list_mappings(
-                    canonical_type=canonical_type,
-                    canonical_ref=str(ref),
-                    tenant_id=_DEFAULT_TENANT_ID,
-                )
-            for item in items:
-                rows.append(
-                    {
-                        "legacy_system": item.legacy_system,
-                        "legacy_object_type": item.legacy_object_type,
-                        "legacy_object_ref": item.legacy_object_ref,
-                        "canonical_type": item.canonical_type,
-                        "canonical_ref": item.canonical_ref,
-                        "source_ref": item.source_ref,
-                        "mapping_status": item.mapping_status,
-                    }
-                )
-        return rows
+        """Legacy shim — Action H commit 2 lifted body to serializers/legacy_mapping.py."""
+        from zw_brain.domain.serializers.legacy_mapping import legacy_mapping_refs  # noqa: PLC0415
+        return legacy_mapping_refs(store, canonical_type, canonical_ref, context=context)
 
     def _catalog_summary_body(self, summary: dict[str, Any]) -> dict[str, Any]:
         return self._get_handler_deps().services.catalog.summary_body(summary)
@@ -1348,24 +1194,20 @@ class BrainService:
     def _sync_state_views(self) -> None:
         """Legacy shim — delegates to ``sync.sync_state_views``.
 
-        ``brain`` parameter is required because the demo cascade in
-        ``demo_state_sync.sync_demo_state_views`` still expects a BrainService
-        instance — snapshot-model consolidation debt
-        (docs/preflight-debt.md 2026-05-28).
+        Action H: ``sync_state_views`` now takes the snapshot dict and a
+        pure ``status_text`` callback; no BrainService reference required
+        inside the sync module.
         """
         from zw_brain.command import sync as state_sync  # noqa: PLC0415
-        state_sync.sync_state_views(self)
+        state_sync.sync_state_views(self._snapshot, self._get_handler_deps().services.request.status_text)
 
     # R-005 fix: 折叠后多个旧角色映射到同一 ROLE_*，原本不同语境（申请进度 vs 差异补录 vs 现场补录 vs 汇总）
     # 的同 item_id 待办若仅按 (role, item_id) 去重会互相覆盖。引入 category 作为第二维度。
+    # Action H: thin delegate to demo_state_sync module-level helper; remaining
+    # call sites in handlers/j2/compliance.py + demo cascade are unchanged.
     def _set_todo_status(self, role: str, item_id: str, status: str, *, category: str = "") -> None:
-        bucket = self._snapshot["workbench"].get(role)
-        if not bucket:
-            return
-        for todo in bucket["todos"]:
-            if todo["id"] == item_id and todo.get("category", "") == category:
-                todo["status"] = status
-                return
+        from zw_brain.command import demo_state_sync  # noqa: PLC0415
+        demo_state_sync.set_todo_status(self._snapshot, role, item_id, status, category=category)
 
     def _request_status_timeline(self, request: dict[str, Any], delivery: dict[str, Any] | None) -> list[dict[str, Any]]:
         return self._get_handler_deps().services.request.status_timeline(request, delivery)
@@ -1374,15 +1216,9 @@ class BrainService:
         return self._get_handler_deps().services.request.status_text(item, perspective)
 
     def _package_status_text(self, item: dict[str, Any]) -> str:
-        if item["status"] == "pending":
-            return "待审核"
-        if item["status"] == "pending-fix":
-            return "待补正"
-        if item["status"] == "approved":
-            return "已上线"
-        if item["status"] == "rejected":
-            return "已驳回"
-        return str(item["status"])
+        """Legacy shim — delegates to demo_state_sync.package_status_text (Action H)."""
+        from zw_brain.command import demo_state_sync  # noqa: PLC0415
+        return demo_state_sync.package_status_text(item)
 
     def _actor_for_role(self, role: str) -> str:
         try:
@@ -1415,91 +1251,13 @@ class BrainService:
         return self._get_handler_deps().services.delivery.maybe_by_id(task_id)
 
     def _resource_by_id(self, resource_id: str) -> dict[str, Any]:
-        for item in self._snapshot["discovery"]["resources"]:
-            if item["id"] == resource_id:
-                return item
-        raise NotFoundError(resource_id)
+        """Legacy shim — delegates to demo_state_sync.resource_by_id (Action H)."""
+        from zw_brain.command import demo_state_sync  # noqa: PLC0415
+        return demo_state_sync.resource_by_id(self._snapshot, resource_id)
 
     def _resolve_resource_for_application(self, resource_id: str) -> dict[str, Any]:
-        """Resolve catalog/provider aliases (e.g. cat-parking) to canonical discovery.resources rows."""
-        provider_cat = next(
-            (c for c in self._snapshot.get("provider", {}).get("catalogs", []) if c.get("id") == resource_id),
-            None,
-        )
-        provider_canonical_id = (provider_cat or {}).get("canonical_resource_id") or (provider_cat or {}).get("application_resource_id")
-        if provider_canonical_id:
-            try:
-                return copy.deepcopy(self._resource_by_id(str(provider_canonical_id)))
-            except NotFoundError as exc:
-                raise BrainServiceError(
-                    f"catalog {resource_id!r} declares canonical_resource_id {provider_canonical_id!r} but no matching discovery.resources entry exists"
-                ) from exc
-        try:
-            return copy.deepcopy(self._resource_by_id(resource_id))
-        except NotFoundError:
-            pass
-
-        store = self._state_store.database_store
-        catalog_record = store.catalog_repo.get_entry(resource_id, tenant_id=_DEFAULT_TENANT_ID) if store is not None else None
-
-        summary: dict[str, Any] = {}
-        if catalog_record is not None:
-            sr = catalog_record.summary_json
-            summary = sr if isinstance(sr, dict) else {}
-            if not summary.get("canonical_resource_id") and not summary.get("application_resource_id"):
-                return self.get_resource(resource_id)
-
-        if store is not None and store.resource_api_repo.get_asset(resource_id, tenant_id=_DEFAULT_TENANT_ID) is not None:
-            return self.get_resource(resource_id)
-
-        canonical_id = (
-            summary.get("canonical_resource_id")
-            or summary.get("application_resource_id")
-            or (provider_cat or {}).get("canonical_resource_id")
-            or (provider_cat or {}).get("application_resource_id")
-        )
-        if canonical_id:
-            try:
-                return copy.deepcopy(self._resource_by_id(str(canonical_id)))
-            except NotFoundError as exc:
-                raise BrainServiceError(
-                    f"catalog {resource_id!r} declares canonical_resource_id {canonical_id!r} but no matching discovery.resources entry exists"
-                ) from exc
-
-        legacy_ref = summary.get("legacy_object_ref") or summary.get("legacyId")
-        if provider_cat:
-            legacy_ref = legacy_ref or provider_cat.get("legacy_object_ref")
-
-        if legacy_ref:
-            matches = [
-                item
-                for item in self._snapshot["discovery"]["resources"]
-                if (item.get("trueData") or {}).get("catalog_code") == legacy_ref or item.get("legacyId") == legacy_ref
-            ]
-            if len(matches) == 1:
-                return copy.deepcopy(matches[0])
-            if len(matches) > 1:
-                raise BrainServiceError(
-                    f"ambiguous legacy mapping for catalog or alias {resource_id!r}: {len(matches)} discovery.resources "
-                    f"match legacy_object_ref {legacy_ref!r}; set canonical_resource_id on the catalog entry to a single discovery.resources id"
-                )
-
-        if catalog_record is not None:
-            cc = catalog_record.catalog_code
-            matches = [
-                item
-                for item in self._snapshot["discovery"]["resources"]
-                if (item.get("trueData") or {}).get("catalog_code") == cc
-            ]
-            if len(matches) == 1:
-                return copy.deepcopy(matches[0])
-            if len(matches) > 1:
-                raise BrainServiceError(
-                    f"ambiguous catalog_code mapping for {resource_id!r}: {len(matches)} resources share catalog_code {cc!r}; "
-                    f"set canonical_resource_id on the catalog entry"
-                )
-
-        raise NotFoundError(resource_id)
+        """Legacy shim — Action H commit 4 lifted to catalog_service.resolve_resource_for_application."""
+        return self._get_handler_deps().services.catalog.resolve_resource_for_application(resource_id)
 
     def _maybe_package(self, package_id: str) -> dict[str, Any] | None:
         """Return a live snapshot reference for a capability package, or None.
@@ -1515,29 +1273,25 @@ class BrainService:
             return None
 
     def _zone_by_id(self, zone_id: str) -> dict[str, Any]:
-        for item in self._snapshot["zones"]:
-            if item["id"] == zone_id:
-                return item
-        raise NotFoundError(zone_id)
+        """Legacy shim — delegates to demo_state_sync.zone_by_id (Action H)."""
+        from zw_brain.command import demo_state_sync  # noqa: PLC0415
+        return demo_state_sync.zone_by_id(self._snapshot, zone_id)
 
 
     # R-005 fix: 同 R-005 — 待办按 (role, item_id, category) 唯一；折叠后多个语境的同 item_id 可共存。
+    # Action H: thin delegate to demo_state_sync module-level helper.
     def _upsert_todo(self, role: str, item_id: str, title: str, status: str, href: str, *, category: str = "") -> None:
-        bucket = self._snapshot["workbench"].get(role)
-        if not bucket:
-            return
-        for todo in bucket["todos"]:
-            if todo["id"] == item_id and todo.get("category", "") == category:
-                todo["title"] = title
-                todo["status"] = status
-                todo["href"] = href
-                return
-        bucket["todos"].insert(0, {"id": item_id, "title": title, "status": status, "href": href, "category": category})
+        from zw_brain.command import demo_state_sync  # noqa: PLC0415
+        demo_state_sync.upsert_todo(self._snapshot, role, item_id, title, status, href, category=category)
 
     def _sync_request_todos(self) -> None:
-        """Legacy shim — delegates to ``sync.sync_request_todos``."""
+        """Legacy shim — delegates to ``sync.sync_request_todos``.
+
+        Action H: takes snapshot dict + status_text callback; no BrainService
+        reference required inside the sync module.
+        """
         from zw_brain.command import sync as state_sync  # noqa: PLC0415
-        state_sync.sync_request_todos(self)
+        state_sync.sync_request_todos(self._snapshot, self._get_handler_deps().services.request.status_text)
 
     def _new_request_id(self) -> str:
         return self._get_handler_deps().services.request.new_request_id()
@@ -1573,30 +1327,8 @@ class BrainService:
     # ============== J1 凭据签发与查询（D27/U-3 处置承诺的凭据领取闭环） ==============
 
     def _credential_for_request(self, request_id: str, seed: str | None = None) -> dict[str, Any]:
-        """Demo credential — 同一 (request_id, seed) 永远生成同一凭据；不依赖 IAM 密钥管理。
-
-        seed=None：首次签发（auto-on-approval），用 request_id 作种子，凭据可被 demo 用户重现。
-        seed=<audit_id>：reissue 路径传入 audit_id 作种子，**每次重签都产生不同 app_secret**
-        （旧 secret 立即失效语义；与生产 IAM reissue 行为对齐）。
-
-        前缀 AK-DEMO- / SK-DEMO- 让 preflight 与 audit 一眼能区分 demo vs 生产。
-        生产对接 IAM 时：替换本方法的实现 + 调用方在 reissue 路径必须传新 seed
-        （已由 issue_credential 实现保障）。
-        """
-        seed_material = f"d23-credential-{request_id}" if seed is None else f"d23-credential-{request_id}-reissue-{seed}"
-        digest = hashlib.sha256(seed_material.encode("utf-8")).hexdigest()
-        app_key = f"AK-DEMO-{request_id}-{digest[:8].upper()}"
-        app_secret = f"SK-DEMO-{digest[8:32]}"
-        valid_from = clock.now_date()
-        valid_to = (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d")
-        return {
-            "app_key": app_key,
-            "app_secret": app_secret,
-            "valid_from": valid_from,
-            "valid_to": valid_to,
-            "quota_per_day": 1000,
-            "invoke_url_template": f"https://api.gov-data.local/v1/services/<resource_code>?app_key={app_key}",
-        }
+        """Legacy shim — Action H commit 4 lifted to request_service.credential_for_request."""
+        return self._get_handler_deps().services.request.credential_for_request(request_id, seed=seed)
 
     def _auto_issue_credential_on_approval(self, request_id: str, role: str, actor: str) -> None:
         """审批通过路径的内部钩子 — 通过 credential.issue skill 完成签发.

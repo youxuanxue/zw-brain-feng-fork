@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import delivery as delivery_ser
+from zw_brain.domain.serializers.ops_metrics import exchange_metric_summary
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 
@@ -26,4 +27,4 @@ def handler(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> An
         delivery_ser.exchange_metric_to_dict(item)
         for item in deps.repos.delivery.list_exchange_metrics(**filters, tenant_id=_DEFAULT_TENANT_ID)
     ]
-    return {"items": metrics, "summary": brain._exchange_metric_summary(metrics)}
+    return {"items": metrics, "summary": exchange_metric_summary(metrics)}

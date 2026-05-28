@@ -93,7 +93,7 @@ def _create_request(
     options: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     options = options or {}
-    resource = brain._resolve_resource_for_application(resource_id)
+    resource = deps.services.catalog.resolve_resource_for_application(resource_id)
     canonical_id = resource["id"]
     existing = next(
         (
@@ -351,7 +351,7 @@ def _submit_request(brain, deps, ctx, request_id: str, role: str, confirmed: boo
 
 def _get_request(brain, deps, ctx, request_id: str) -> dict[str, Any]:
     store = deps.state_store.database_store
-    request = brain._maybe_request(request_id)
+    request = deps.services.request.maybe_by_id(request_id)
     if request is None:
         if store is None:
             raise NotFoundError(request_id)

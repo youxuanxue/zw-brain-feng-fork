@@ -60,10 +60,15 @@ HANDLER_WHITELIST: dict[str, str] = {
     # Remaining residual surface — kept here so reviewers can see the explicit
     # "still to migrate" list. Each is harmless today but should empty out as
     # Action D lifts these helpers out of BrainService into domain services.
-    "brain._exchange_metric_summary": "BrainService static helper; Action D pulls into shared",
-    "brain._mutate": "legacy.bsp/infra path with multi-line literal; Action D",
-    "brain._build_m0_work_queue_cards": "BrainService @staticmethod aggregator; Action D pulls into shared",
     "brain.grant_delivery_access": "PR#86 delegate shim — Action D retires shims",
+    # ── Action H commit 4 retired (no handler-body caller left) ──────────
+    # ``brain._exchange_metric_summary``: handlers now import
+    # ``exchange_metric_summary`` from ``zw_brain.domain.serializers.ops_metrics``.
+    # ``brain._mutate``: handler bodies use ``deps.write`` (Action B); the 2
+    # remaining mentions in ``b1/intake.py`` are docstring comments (commit 3
+    # updated to ``deps.write``).
+    # ``brain._build_m0_work_queue_cards``: no handler-body caller after the
+    # M0 work-queue removal.
 
     # ── Pre-Action-E historical (retired by Action E commit 4) ─────────────
     # ``brain._safe_json``: retired by Action E (handlers import safe_json from

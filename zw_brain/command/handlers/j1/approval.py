@@ -10,6 +10,8 @@ import copy
 
 from zw_brain.command.brain import _DEFAULT_TENANT_ID, BrainServiceError, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
+from zw_brain.domain.serializers.legacy_mapping import legacy_mapping_refs
+from zw_brain.shared.sensitive_mask import mask_actor_payload
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -17,7 +19,7 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 
 def _get_approval(brain, deps, ctx, request_id: str) -> dict[str, Any]:
     store = deps.state_store.database_store
-    approval = copy.deepcopy(brain._approval_by_id(request_id)) if brain._maybe_approval(request_id) is not None else {"id": request_id}
+    approval = copy.deepcopy(deps.services.request.approval_by_id(request_id)) if deps.services.request.maybe_approval_by_id(request_id) is not None else {"id": request_id}
     if store is None:
         if "requestId" not in approval:
             raise NotFoundError(request_id)
@@ -55,7 +57,7 @@ def _get_approval(brain, deps, ctx, request_id: str) -> dict[str, Any]:
                 "stepName": item.step_name,
                 "decisionMode": item.decision_mode,
                 "status": item.status,
-                "approverScope": brain._mask_actor_payload(copy.deepcopy(item.approver_scope_json)),
+                "approverScope": mask_actor_payload(copy.deepcopy(item.approver_scope_json)),
             }
             for item in step_records
         ]
@@ -63,17 +65,17 @@ def _get_approval(brain, deps, ctx, request_id: str) -> dict[str, Any]:
             {
                 "decision": item.decision,
                 "decisionReason": item.decision_reason,
-                "actorSnapshot": brain._mask_actor_payload(copy.deepcopy(item.actor_snapshot_json)),
+                "actorSnapshot": mask_actor_payload(copy.deepcopy(item.actor_snapshot_json)),
                 "evidence": copy.deepcopy(item.evidence_json),
             }
             for item in decision_records
         ]
-        approval["legacyMappings"].extend(brain._legacy_mapping_refs(store, "approval_step", [str(item.id) for item in step_records]))
-        approval["legacyMappings"].extend(brain._legacy_mapping_refs(store, "approval_decision", [str(item.id) for item in decision_records]))
+        approval["legacyMappings"].extend(legacy_mapping_refs(store, "approval_step", [str(item.id) for item in step_records]))
+        approval["legacyMappings"].extend(legacy_mapping_refs(store, "approval_decision", [str(item.id) for item in decision_records]))
     if delivery is not None:
         approval["grantEvidence"] = deps.services.delivery.grant_evidence(delivery)
-    approval["recommendedDecision"] = brain._approval_recommendation(approval, request, delivery)
-    for key, value in brain._approval_business_defaults(request, delivery).items():
+    approval["recommendedDecision"] = deps.services.request.approval_recommendation(approval, request, delivery)
+    for key, value in deps.services.request.approval_business_defaults(request, delivery).items():
         approval.setdefault(key, value)
     return approval
 
@@ -82,15 +84,15 @@ def _review_request(brain, deps, ctx, request_id: str, decision: str, role: str,
     if normalized in {"approve_reuse", "approve_with_supplement", "return_for_fix", "reject_duplicate", "route_to_provider_or_catalog_admin"}:
         store = deps.state_store.database_store
         if store is not None and deps.services.application.request_from_record(request_id, store) is not None:
-            return brain._review_application_record(request_id, normalized, role, confirmed, skill_id)
+            return deps.services.request.review_application_record(request_id, normalized, role, confirmed, skill_id)
     if normalized in {"approve_reuse", "approve_with_supplement"}:
-        return brain._approve_request(request_id, role, confirmed, skill_id, decision=normalized)
+        return deps.services.request.approve(request_id, role, confirmed, skill_id, decision=normalized)
     if normalized == "return_for_fix":
-        return brain._return_request_for_fix(request_id, role, confirmed, skill_id, decision=normalized)
+        return deps.services.request.return_for_fix(request_id, role, confirmed, skill_id, decision=normalized)
     if normalized == "reject_duplicate":
-        return brain._reject_request(request_id, role, confirmed, skill_id, decision=normalized)
+        return deps.services.request.reject(request_id, role, confirmed, skill_id, decision=normalized)
     if normalized == "route_to_provider_or_catalog_admin":
-        return brain._route_request_for_catalog_confirmation(request_id, role, confirmed, skill_id)
+        return deps.services.request.route_for_catalog_confirmation(request_id, role, confirmed, skill_id)
     raise BrainServiceError(f"unsupported review decision: {decision}")
 
 

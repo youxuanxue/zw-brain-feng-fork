@@ -12,6 +12,11 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+from zw_brain.command.adapter_routing import (
+    adapter_idempotency_key,
+    adapter_operation_from_skill,
+    aggregate_type_from_skill,
+)
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import adapter as adapter_ser
 
@@ -40,8 +45,8 @@ def _record_adapter_operation(brain, deps, ctx: BrainService, skill_id: str, pay
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         repo = deps.repos.external_adapter
-        adapter_slug, operation, direction = brain._adapter_operation_from_skill(skill_id, payload)
-        idempotency_key = str(payload.get("idempotency_key") or brain._adapter_idempotency_key(skill_id, payload))
+        adapter_slug, operation, direction = adapter_operation_from_skill(skill_id, payload)
+        idempotency_key = str(payload.get("idempotency_key") or adapter_idempotency_key(skill_id, payload))
         run = repo.upsert_run_record(
             {
                 "adapter_slug": adapter_slug,
@@ -63,11 +68,11 @@ def _record_adapter_operation(brain, deps, ctx: BrainService, skill_id: str, pay
                 {
                     "external_system": payload.get("external_system") or ("cascade_down" if skill_id.startswith("adapter.cascade") else "national_platform"),
                     "direction": direction,
-                    "local_aggregate_type": payload.get("local_aggregate_type") or brain._aggregate_type_from_skill(skill_id),
+                    "local_aggregate_type": payload.get("local_aggregate_type") or aggregate_type_from_skill(skill_id),
                     "local_aggregate_id": payload.get("local_aggregate_id") or "",
                     "legacy_table": payload.get("legacy_table"),
                     "legacy_id": payload.get("legacy_id"),
-                    "external_object_type": payload.get("external_object_type") or brain._aggregate_type_from_skill(skill_id),
+                    "external_object_type": payload.get("external_object_type") or aggregate_type_from_skill(skill_id),
                     "external_object_id": payload.get("external_object_id") or payload.get("legacy_id") or idempotency_key,
                     "protocol_version": payload.get("protocol_version", "v0.55"),
                     "batch_no": payload.get("batch_no"),

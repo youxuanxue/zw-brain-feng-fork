@@ -17,6 +17,7 @@ import copy
 
 import zw_brain.shared.clock as clock
 import zw_brain.shared.ids as ids
+from zw_brain.command import demo_state_sync
 from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.shared.sanitization import safe_json
@@ -131,7 +132,8 @@ def _query_compliance_metrics(brain, deps, ctx) -> dict[str, Any]:
 def _investigate_dispute(brain, deps, ctx, dispute_id: str, action: str, role: str, confirmed: bool) -> dict[str, Any]:
     # Action C — read-then-mutate (dispute["timeline"].append below); use brain_legacy
     # escape hatch so in-place mutation is preserved until Action D retires the dict.
-    dispute = next((item for item in deps.brain_legacy._snapshot["disputes"] if item["id"] == dispute_id), None)
+    snapshot = deps.brain_legacy._snapshot
+    dispute = next((item for item in snapshot["disputes"] if item["id"] == dispute_id), None)
     if dispute is None:
         raise NotFoundError(dispute_id)
     if action not in {"progress", "escalate"}:
@@ -147,8 +149,8 @@ def _investigate_dispute(brain, deps, ctx, dispute_id: str, action: str, role: s
                 }
             )
             dispute["aiSummary"] = "调查已推进：当前已补充责任链与证据核查，下一步判断是否需要升级到模板或制度治理。"
-            brain._set_todo_status("ROLE_SECURITY_AUDIT", dispute_id, "处理中")
-            brain._set_todo_status("ROLE_ORGAN_MANAGER", dispute_id, "待核查")
+            demo_state_sync.set_todo_status(snapshot, "ROLE_SECURITY_AUDIT", dispute_id, "处理中")
+            demo_state_sync.set_todo_status(snapshot, "ROLE_ORGAN_MANAGER", dispute_id, "待核查")
             event_type = "compliance.investigate-case"
         else:
             dispute["status"] = "escalated"
@@ -161,8 +163,8 @@ def _investigate_dispute(brain, deps, ctx, dispute_id: str, action: str, role: s
                 }
             )
             dispute["aiSummary"] = "争议已升级：当前不再停留在个案调查，而是转入模板治理与制度治理联动处置。"
-            brain._set_todo_status("ROLE_SECURITY_AUDIT", dispute_id, "已升级")
-            brain._set_todo_status("ROLE_ORGAN_MANAGER", dispute_id, "已升级")
+            demo_state_sync.set_todo_status(snapshot, "ROLE_SECURITY_AUDIT", dispute_id, "已升级")
+            demo_state_sync.set_todo_status(snapshot, "ROLE_ORGAN_MANAGER", dispute_id, "已升级")
             event_type = "compliance.escalate-case"
         deps.append_audit_feed(event_type, dispute_id, "ok", actor)
         return {"dispute_id": dispute_id, "status": dispute["status"], "action": action}

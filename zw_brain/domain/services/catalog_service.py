@@ -240,3 +240,138 @@ class CatalogService:
         if not fields or mapping_summary.get("diagnosis") != "ok":
             hints.append("把未绑定字段写入缺口说明")
         return hints
+
+    def discovery_summary(self, query: str, resources: list[dict[str, Any]]) -> dict[str, Any]:
+        """Build the discovery aiCopilot summary card from the matched resources.
+
+        Action H commit 3: lifted from ``BrainService._discovery_summary``;
+        callers route through ``deps.services.catalog.discovery_summary(...)``.
+        """
+        base = copy.deepcopy(self.brain._snapshot["discovery"]["aiCopilot"])
+        if resources and query:
+            base["summary"] = f"已按“{query}”找到 {len(resources)} 条可复用目录或基础要素。先看字段、共享条件和字段证据；仍缺的字段再进入最小申请。"
+            base["missingQuestions"] = ["是否限定使用区域或时间窗？", "本次只需要哪些字段，哪些字段属于缺口？"]
+            base["nextActions"] = ["打开资源详情", "核对字段口径", "整理最小申请字段"]
+            base["evidence"] = [item.get("name", item.get("id", "")) for item in resources[:3]]
+        return base
+
+    def resolve_resource_for_application(self, resource_id: str) -> dict[str, Any]:
+        """Resolve catalog/provider aliases (e.g. cat-parking) to canonical discovery.resources rows.
+
+        Action H commit 4: lifted from ``BrainService._resolve_resource_for_application``;
+        callers route through ``deps.services.catalog.resolve_resource_for_application(...)``.
+
+        R-001 fix (PR #149 local-acceptance): inline the discovery-resources lookup
+        instead of calling ``zw_brain.command.demo_state_sync.resource_by_id`` —
+        that was a runtime ``domain → command`` reverse-layer import (the only
+        residual one after Action H). The 4-line lookup belongs naturally on the
+        catalog service since it's a domain query over ``snapshot["discovery"]``.
+        """
+        from zw_brain.domain.errors import BrainServiceError, NotFoundError  # noqa: PLC0415
+
+        snapshot = self.brain._snapshot
+
+        def _discovery_resource_by_id(rid: str) -> dict[str, Any]:
+            """Look up a discovery resource by id; raise NotFoundError when absent.
+
+            Inlined from ``demo_state_sync.resource_by_id`` to keep the catalog
+            service free of the ``domain → command`` reverse-layer import.
+            """
+            for item in snapshot["discovery"]["resources"]:
+                if item["id"] == rid:
+                    return item
+            raise NotFoundError(rid)
+
+        provider_cat = next(
+            (
+                c
+                for c in snapshot.get("provider", {}).get("catalogs", [])
+                if c.get("id") == resource_id
+            ),
+            None,
+        )
+        provider_canonical_id = (
+            (provider_cat or {}).get("canonical_resource_id")
+            or (provider_cat or {}).get("application_resource_id")
+        )
+        if provider_canonical_id:
+            try:
+                return copy.deepcopy(_discovery_resource_by_id(str(provider_canonical_id)))
+            except NotFoundError as exc:
+                raise BrainServiceError(
+                    f"catalog {resource_id!r} declares canonical_resource_id {provider_canonical_id!r} but no matching discovery.resources entry exists"
+                ) from exc
+        try:
+            return copy.deepcopy(_discovery_resource_by_id(resource_id))
+        except NotFoundError:
+            pass
+
+        store = self.brain._state_store.database_store
+        catalog_record = (
+            store.catalog_repo.get_entry(resource_id, tenant_id=_DEFAULT_TENANT_ID)
+            if store is not None
+            else None
+        )
+
+        summary: dict[str, Any] = {}
+        if catalog_record is not None:
+            sr = catalog_record.summary_json
+            summary = sr if isinstance(sr, dict) else {}
+            if not summary.get("canonical_resource_id") and not summary.get("application_resource_id"):
+                return self.brain.get_resource(resource_id)
+
+        if (
+            store is not None
+            and store.resource_api_repo.get_asset(resource_id, tenant_id=_DEFAULT_TENANT_ID) is not None
+        ):
+            return self.brain.get_resource(resource_id)
+
+        canonical_id = (
+            summary.get("canonical_resource_id")
+            or summary.get("application_resource_id")
+            or (provider_cat or {}).get("canonical_resource_id")
+            or (provider_cat or {}).get("application_resource_id")
+        )
+        if canonical_id:
+            try:
+                return copy.deepcopy(_discovery_resource_by_id(str(canonical_id)))
+            except NotFoundError as exc:
+                raise BrainServiceError(
+                    f"catalog {resource_id!r} declares canonical_resource_id {canonical_id!r} but no matching discovery.resources entry exists"
+                ) from exc
+
+        legacy_ref = summary.get("legacy_object_ref") or summary.get("legacyId")
+        if provider_cat:
+            legacy_ref = legacy_ref or provider_cat.get("legacy_object_ref")
+
+        if legacy_ref:
+            matches = [
+                item
+                for item in snapshot["discovery"]["resources"]
+                if (item.get("trueData") or {}).get("catalog_code") == legacy_ref
+                or item.get("legacyId") == legacy_ref
+            ]
+            if len(matches) == 1:
+                return copy.deepcopy(matches[0])
+            if len(matches) > 1:
+                raise BrainServiceError(
+                    f"ambiguous legacy mapping for catalog or alias {resource_id!r}: {len(matches)} discovery.resources "
+                    f"match legacy_object_ref {legacy_ref!r}; set canonical_resource_id on the catalog entry to a single discovery.resources id"
+                )
+
+        if catalog_record is not None:
+            cc = catalog_record.catalog_code
+            matches = [
+                item
+                for item in snapshot["discovery"]["resources"]
+                if (item.get("trueData") or {}).get("catalog_code") == cc
+            ]
+            if len(matches) == 1:
+                return copy.deepcopy(matches[0])
+            if len(matches) > 1:
+                raise BrainServiceError(
+                    f"ambiguous catalog_code mapping for {resource_id!r}: {len(matches)} resources share catalog_code {cc!r}; "
+                    f"set canonical_resource_id on the catalog entry"
+                )
+
+        raise NotFoundError(resource_id)

@@ -140,6 +140,20 @@ class DiscoveryView(SnapshotView):
         """Return a deepcopy of the NL recall dictionary (read-only)."""
         return copy.deepcopy(self._read("discovery", {}).get("recallDictionary", {}))
 
+    def find_by_id(self, resource_id: str) -> dict[str, Any]:
+        """Return the live snapshot reference for a discovery resource (mutable — see module docstring §B).
+
+        Raises ``NotFoundError`` if no resource matches.
+
+        Action H commit 3: lookup lifted from ``BrainService._resource_by_id``;
+        callers route through ``deps.view.discovery.find_by_id(...)``.
+        """
+        from zw_brain.domain.errors import NotFoundError  # noqa: PLC0415
+        for item in self.brain._snapshot["discovery"]["resources"]:
+            if item["id"] == resource_id:
+                return item
+        raise NotFoundError(resource_id)
+
 
 @dataclass(frozen=True)
 class RequestsView(SnapshotView):
@@ -250,6 +264,20 @@ class ZonesView(SnapshotView):
     """共享专区视图 (P7 zones)."""
     def list_all(self) -> list[dict[str, Any]]:
         return copy.deepcopy(self._read("zones", []))
+
+    def find_by_id(self, zone_id: str) -> dict[str, Any]:
+        """Return the live snapshot reference for a zone (mutable — see module docstring §B).
+
+        Raises ``NotFoundError`` if no zone matches.
+
+        Action H commit 3: lookup lifted from ``BrainService._zone_by_id``;
+        callers route through ``deps.view.zones.find_by_id(...)``.
+        """
+        from zw_brain.domain.errors import NotFoundError  # noqa: PLC0415
+        for item in self.brain._snapshot["zones"]:
+            if item["id"] == zone_id:
+                return item
+        raise NotFoundError(zone_id)
 
 
 @dataclass(frozen=True)

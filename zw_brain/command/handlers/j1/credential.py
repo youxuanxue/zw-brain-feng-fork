@@ -47,7 +47,7 @@ def _issue_credential(brain, deps, ctx, request_id: str, role: str, confirmed: b
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         # R-002 fix: reissue 路径传 audit_id 作 seed → 真生成新 app_secret（旧 secret 立即失效语义）
         seed = audit_id if existing else None
-        credential = brain._credential_for_request(request_id, seed=seed)
+        credential = deps.services.request.credential_for_request(request_id, seed=seed)
         grant_snapshot = copy.deepcopy(delivery.get("accessGrantSnapshot") or {})
         grant_snapshot["credential"] = credential
         grant_snapshot["issued_audit_id"] = audit_id

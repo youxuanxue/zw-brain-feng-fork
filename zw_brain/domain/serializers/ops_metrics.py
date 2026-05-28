@@ -1,11 +1,34 @@
 """Ops / metrics serializers — gateway_runtime / service_metric.
 
 Extracted from ``BrainService._<name>_record_to_dict`` (Phase 1.1).
+Action H commit 2: ``metric_summary`` / ``exchange_metric_summary`` aggregate
+helpers moved here from BrainService — pure data-shape transforms with no
+domain context (called by b1/ops_service.py + b1/exchange_statistics_query.py).
 """
 from __future__ import annotations
 
 import copy
 from typing import Any
+
+
+def metric_summary(metrics: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate service_invocation metrics into invoke/success/failed/error totals."""
+    return {
+        "invokeCount": sum(int(item.get("invoke_count", 0)) for item in metrics),
+        "successCount": sum(int(item.get("success_count", 0)) for item in metrics),
+        "failedCount": sum(int(item.get("failed_count", item.get("failure_count", 0))) for item in metrics),
+        "errorCount": sum(int(item.get("error_count", 0)) for item in metrics),
+    }
+
+
+def exchange_metric_summary(metrics: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate exchange_metric rows into exchange/success/failed/record totals."""
+    return {
+        "exchangeCount": sum(int(item.get("exchange_count", 0)) for item in metrics),
+        "successCount": sum(int(item.get("success_count", 0)) for item in metrics),
+        "failedCount": sum(int(item.get("failed_count", 0)) for item in metrics),
+        "recordCount": sum(int(item.get("record_count", 0)) for item in metrics),
+    }
 
 
 def gateway_to_dict(record: Any) -> dict[str, Any]:

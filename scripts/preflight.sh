@@ -101,6 +101,7 @@ done <<'CHECKS'
 段 46	scripts/check_handler_no_ui_state.py	handler-no-ui-state (handler/helper 不得反向读 brain._ui_state，role 走 ctx.role / actor 走 ctx.actor — Action F)
 段 47	scripts/check_brain_no_domain_method.py	brain-no-domain-method (BrainService 域方法必须是 1 行 delegate shim，实现住 zw_brain/domain/services/ — Action D)
 段 48	scripts/check_brain_no_cross_cutting.py	brain-no-cross-cutting (BrainService 跨切关注 / 状态同步 helper 必须是 shim，实现住 zw_brain/command/{pipeline_ops,sync}.py — Action E)
+段 49	scripts/check_domain_no_command_import.py	domain-no-command-import (zw_brain/domain/ 不得 runtime import zw_brain.command — 4 层 entry→command→domain→shared，Action H R-001)
 CHECKS
 
 echo ""

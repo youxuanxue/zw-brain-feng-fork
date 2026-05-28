@@ -198,7 +198,7 @@ def _get_resource(brain, deps, ctx, resource_id: str, *, context: _RequestBatchC
     store = deps.state_store.database_store
     snapshot_miss = False
     try:
-        resource = copy.deepcopy(brain._resource_by_id(resource_id))
+        resource = copy.deepcopy(deps.view.discovery.find_by_id(resource_id))
     except NotFoundError:
         if store is None:
             raise

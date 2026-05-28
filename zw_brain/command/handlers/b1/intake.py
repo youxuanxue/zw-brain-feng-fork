@@ -40,7 +40,7 @@ from zw_brain.skill_registration.runtime import (
 )
 
 # ──────────────────────────────────────────────────────────────────────────
-# package.rollback —— 写敏感，走 brain._mutate（自动 audit_required=true）
+# package.rollback —— 写敏感，走 deps.write（自动 audit_required=true）
 # ──────────────────────────────────────────────────────────────────────────
 
 
@@ -97,7 +97,7 @@ def handler_package_rollback(deps: HandlerDeps, ctx: SkillContext, payload: dict
 
 
 # ──────────────────────────────────────────────────────────────────────────
-# package.trust_level.update —— 写敏感，走 brain._mutate
+# package.trust_level.update —— 写敏感，走 deps.write
 # ──────────────────────────────────────────────────────────────────────────
 
 

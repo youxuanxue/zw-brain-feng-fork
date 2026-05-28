@@ -61,6 +61,131 @@ class ProviderService:
         record = store.resource_api_repo.get_asset(resource_code)
         return resource_api_ser.resource_asset_to_dict(record) if record is not None else None
 
+    def api_payload(self, payload: dict[str, Any], *, default_status: str) -> dict[str, Any]:
+        """Normalize a resource.api.* mutation payload into the persistence shape.
+
+        Action H commit 3: lifted from ``BrainService._api_payload``;
+        callers route through ``deps.services.provider.api_payload(...)``.
+        """
+        resource_code = str(payload["resource_code"])
+        return {
+            "resource_code": resource_code,
+            "resource_kind": "api",
+            "title": str(payload.get("title", resource_code)),
+            "lifecycle_status": str(payload.get("lifecycle_status", default_status)),
+            "owner_org_id": payload.get("owner_org_id"),
+            "owner_org_snapshot_json": safe_json(payload.get("owner_org_snapshot_json") or {}),
+            "region_code": payload.get("region_code"),
+            "catalog_code": payload.get("catalog_code"),
+            "access_policy_json": safe_json(payload.get("access_policy_json") or {}),
+            "qos_policy_json": safe_json(payload.get("qos_policy_json") or {}),
+            "source_ref": payload.get("source_ref"),
+            "summary_json": safe_json(
+                payload.get("summary_json") or {"title": payload.get("title", resource_code)}
+            ),
+        }
+
+    def find_api_binding(self, binding_code: str) -> dict[str, Any] | None:
+        """Lookup an API binding by binding_code.
+
+        Action H commit 2: lifted from ``BrainService._find_api_binding``;
+        callers route through ``deps.services.provider.find_api_binding(...)``.
+        """
+        store = self.brain._state_store.database_store
+        if store is None:
+            for resource in self.brain._snapshot.get("api_resources", []):
+                binding = next(
+                    (
+                        item for item in resource.get("channel_bindings", [])
+                        if item["binding_code"] == binding_code
+                    ),
+                    None,
+                )
+                if binding is not None:
+                    return copy.deepcopy(binding)
+            return None
+        record = store.resource_api_repo.get_binding(binding_code)
+        return resource_api_ser.binding_to_dict(record) if record is not None else None
+
+    def upsert_api_resource(self, resource: dict[str, Any]) -> dict[str, Any]:
+        """Insert or update an API resource (lifecycle / metadata / policy).
+
+        Action H commit 2: lifted from ``BrainService._upsert_api_resource``;
+        callers route through ``deps.services.provider.upsert_api_resource(...)``.
+        """
+        store = self.brain._state_store.database_store
+        if store is None:
+            resources = self.brain._snapshot.setdefault("api_resources", [])
+            current = next(
+                (
+                    item for item in resources
+                    if item["resource_code"] == resource["resource_code"]
+                ),
+                None,
+            )
+            if current is None:
+                current = copy.deepcopy(resource)
+                current.setdefault("channel_bindings", [])
+                resources.append(current)
+            else:
+                bindings = current.get("channel_bindings", [])
+                current.update(copy.deepcopy(resource))
+                current.setdefault("channel_bindings", bindings)
+            return copy.deepcopy(current)
+        return resource_api_ser.resource_asset_to_dict(
+            store.resource_api_repo.upsert_asset(resource)
+        )
+
+    def upsert_api_binding(self, binding: dict[str, Any]) -> dict[str, Any]:
+        """Insert or update an API channel binding (gateway / endpoint / schema).
+
+        Action H commit 2: lifted from ``BrainService._upsert_api_binding``;
+        callers route through ``deps.services.provider.upsert_api_binding(...)``.
+        """
+        payload = {
+            "binding_code": str(binding["binding_code"]),
+            "resource_code": str(binding["resource_code"]),
+            "channel_kind": str(binding.get("channel_kind", "api_gateway")),
+            "route_ref": binding.get("route_ref"),
+            "endpoint_ref": safe_json(binding.get("endpoint_ref", {})),
+            "schema_ref": safe_json(binding.get("schema_ref", {})),
+            "auth_ref": binding.get("auth_ref"),
+            "request_schema_json": safe_json(binding.get("request_schema_json", {})),
+            "response_schema_json": safe_json(binding.get("response_schema_json", {})),
+            "gateway_policy_json": safe_json(binding.get("gateway_policy_json", {})),
+            "lifecycle_status": str(binding.get("lifecycle_status", "draft")),
+            "source_ref": binding.get("source_ref"),
+        }
+        store = self.brain._state_store.database_store
+        if store is None:
+            resources = self.brain._snapshot.setdefault("api_resources", [])
+            resource = next(
+                (
+                    item for item in resources
+                    if item["resource_code"] == payload["resource_code"]
+                ),
+                None,
+            )
+            if resource is None:
+                raise NotFoundError(payload["resource_code"])
+            bindings = resource.setdefault("channel_bindings", [])
+            current = next(
+                (
+                    item for item in bindings
+                    if item["binding_code"] == payload["binding_code"]
+                ),
+                None,
+            )
+            if current is None:
+                current = copy.deepcopy(payload)
+                bindings.append(current)
+            else:
+                current.update(copy.deepcopy(payload))
+            return copy.deepcopy(current)
+        return resource_api_ser.binding_to_dict(
+            store.resource_api_repo.upsert_binding(payload)
+        )
+
     def focus_delivery(self) -> dict[str, Any]:
         """Pick the focus delivery task (backflow candidates) for provider summary."""
         tasks = self.brain.list_delivery_tasks()
@@ -192,7 +317,7 @@ class ProviderService:
                 }
             resource["lifecycle_status"] = status
             resource["updated_at"] = clock.now_datetime()
-            result = self.brain._upsert_api_resource(resource)
+            result = self.upsert_api_resource(resource)
         else:
             if record is None:
                 snapshot_resource = next((item for item in self.brain._snapshot.get("provider", {}).get("resources", []) if item.get("id") == resource_id), None)
@@ -244,7 +369,7 @@ class ProviderService:
         summary["field_evidence"] = existing_evidence
         summary["field_evidence_confirmed_by"] = actor
         summary["field_evidence_audit_ref"] = audit_id
-        updated_resource = self.brain._upsert_api_resource({**resource, "summary_json": summary})
+        updated_resource = self.upsert_api_resource({**resource, "summary_json": summary})
         snapshot_refs: list[str] = []
         if store is not None:
             for field_ref, evidence in field_evidence.items():

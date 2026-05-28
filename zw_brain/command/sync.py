@@ -1,4 +1,4 @@
-"""State sync helpers — Action E module-level functions.
+"""State sync helpers — Action E module-level functions; Action H snapshot decoupling.
 
 Background
 ----------
@@ -14,50 +14,48 @@ Before Action E, the 5 state-sync helpers (``_persist`` /
    no implicit ``self.brain`` backref needed.
 
 2. **In-memory snapshot projection** — ``_sync_state_views`` cascades into
-   ``demo_state_sync.sync_demo_state_views(brain)`` which reads ~6 snapshot
-   keys (provider / zones / workbench / requests / etc.) and calls back into
-   ``brain._set_todo_status`` / ``brain._upsert_todo`` /
-   ``brain._request_status_text``. ``_sync_request_todos`` similarly walks
-   ``brain._snapshot["requests"]`` and writes via ``brain._upsert_todo``.
-   These functions must still pass through ``brain`` because the projection
-   layer is tightly coupled to BrainService instance attrs and the bypass
-   surface (``brain._snapshot`` / ``brain._ui_state``) cannot be lifted out
-   without redesigning the snapshot model itself.
+   ``demo_state_sync.sync_demo_state_views`` which reads ~6 snapshot keys
+   (provider / zones / workbench / requests / etc.) and writes via
+   ``set_todo_status`` / ``upsert_todo``. ``_sync_request_todos`` similarly
+   walks ``snapshot["requests"]`` and writes via ``upsert_todo``.
 
-Action E scope: lift the 5 helpers into ``sync.py`` module-level functions
-with the **minimum-viable signature**. The two pure-IO functions (``persist``
-/ ``sync_reference_tables`` / ``sync_database_aggregates``) take explicit
-``state_store`` + ``snapshot`` (dict); the three projection functions
-(``sync_state_views`` / ``sync_request_todos``) take ``brain`` because the
-demo cascade owns that backref. Lifting the brain dependency entirely is
-**snapshot-model consolidation debt** (docs/preflight-debt.md 2026-05-28) (snapshot model + ui_state_view consolidation).
+Action E lifted (1) into module-level functions (``persist`` /
+``sync_reference_tables`` / ``sync_database_aggregates``); Action H now lifts
+(2) too — ``sync_state_views`` and ``sync_request_todos`` take the
+``snapshot`` dict directly + a ``status_text`` callback (the projection
+primitives live in :mod:`zw_brain.command.demo_state_sync` as
+``set_todo_status`` / ``upsert_todo`` etc.). Neither function needs a
+``BrainService`` reference anymore.
 
 BrainService retains a one-line delegate shim per migrated helper so existing
-in-process callers (test fixtures, scripts) still work; preflight segment
-48 enforces the shim shape.
+in-process callers (test fixtures, scripts) still work; preflight segment 48
+enforces the shim shape.
 
 What lives here
 ---------------
 - ``persist`` — state_store.save(snapshot, ui_state_view).
 - ``sync_reference_tables`` — store.sync_reference_tables(snapshot).
 - ``sync_database_aggregates`` — store.sync_aggregate_tables(snapshot).
-- ``sync_request_todos`` — projects request workbench todos for 4 roles.
+- ``sync_request_todos`` — projects request workbench todos for 2 roles.
 - ``sync_state_views`` — composite: sync_request_todos + demo_state_sync cascade.
 
 What stays on BrainService
 --------------------------
-- ``_upsert_todo`` / ``_set_todo_status`` — in-place writers to
-  ``self._snapshot["workbench"]``. They mutate the snapshot dict directly
-  and are called from both ``sync_request_todos`` (via brain) and
-  ``demo_state_sync`` (via brain). Lifting them out requires the same
-  snapshot-model consolidation debt (docs/preflight-debt.md 2026-05-28).
+- ``_snapshot`` / ``_ui_state`` / ``_state_store`` — lifecycle owners.
+- ``_set_todo_status`` / ``_upsert_todo`` / ``_request_status_text`` /
+  ``_package_status_text`` — kept as 1-line shims to the demo_state_sync
+  module-level functions for back-compat (handlers in compliance.py and
+  catalog_meta.py still spell them via ``brain.X``; Action H scope keeps the
+  shim names rather than rewriting the handlers in the same commit).
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from zw_brain.command import demo_state_sync
+
 if TYPE_CHECKING:
-    from zw_brain.command.brain import BrainService
     from zw_brain.shared.state_store import StateStore
 
 
@@ -101,76 +99,81 @@ def sync_database_aggregates(state_store: StateStore, snapshot: dict[str, Any]) 
 
 
 # ───────────────────────────────────────────────────────────────────────────
-# Projection sync helpers — keep brain backref pending snapshot-model consolidation
+# Projection sync helpers — Action H: snapshot dict + status_text callback,
+# no BrainService reference.
 # ───────────────────────────────────────────────────────────────────────────
 
 
-def sync_request_todos(brain: BrainService) -> None:
-    """Project request workbench todos for the 4 active roles.
+def sync_request_todos(
+    snapshot: dict[str, Any],
+    status_text: Callable[[dict[str, Any], str], str],
+) -> None:
+    """Project request workbench todos for the 2 active roles.
 
-    Replaces ``BrainService._sync_request_todos``. Keeps the ``brain``
-    parameter because ``_upsert_todo`` and ``_request_status_text`` are
-    instance methods that read/write ``self._snapshot`` and route through
-    the request_service. Lifting them out is **snapshot-model consolidation debt** (docs/preflight-debt.md 2026-05-28) — same
-    snapshot redesign as ``sync_state_views``.
+    Replaces ``BrainService._sync_request_todos``. Action H: takes the
+    ``snapshot`` dict directly + a pure ``status_text`` callback (typically
+    ``request_service.status_text``). No BrainService reference required.
 
     R-002/R-005 fix: perspective + category 双维度（perspective 决定文案，
     category 区分同 REQ 在同 role 下的多个待办语境）.
     """
-    for request in brain._snapshot["requests"]:
+    for request in snapshot["requests"]:
         request_id = request["id"]
         resource_name = request.get("resourceName", request_id)
-        brain._upsert_todo(
+        demo_state_sync.upsert_todo(
+            snapshot,
             "ROLE_ORGAN_OPERATER", request_id,
             f"{resource_name}复用申请进度跟踪",
-            brain._request_status_text(request, "applicant"),
+            status_text(request, "applicant"),
             f"#/request-flow/request/{request_id}",
             category="apply-progress",
         )
-        brain._upsert_todo(
+        demo_state_sync.upsert_todo(
+            snapshot,
             "ROLE_ORGAN_MANAGER", request_id,
             f"{resource_name}复用申请待判定",
-            brain._request_status_text(request, "reviewer"),
+            status_text(request, "reviewer"),
             f"#/request-flow/review/{request_id}",
             category="review",
         )
         if request["status"] in {"supplementing", "summary-pending", "completed", "need-fix"}:
-            brain._upsert_todo(
+            demo_state_sync.upsert_todo(
+                snapshot,
                 "ROLE_ORGAN_OPERATER", request_id,
                 f"{resource_name}差异补录任务",
-                brain._request_status_text(request, "filler"),
+                status_text(request, "filler"),
                 f"#/request-flow/request/{request_id}",
                 category="supplement-township",
             )
-            brain._upsert_todo(
+            demo_state_sync.upsert_todo(
+                snapshot,
                 "ROLE_ORGAN_OPERATER", request_id,
                 f"{resource_name}现场补录任务",
-                brain._request_status_text(request, "filler"),
+                status_text(request, "filler"),
                 f"#/request-flow/request/{request_id}",
                 category="supplement-village",
             )
         if request["status"] in {"pending", "summary-pending", "completed", "need-fix", "rejected"}:
-            brain._upsert_todo(
+            demo_state_sync.upsert_todo(
+                snapshot,
                 "ROLE_ORGAN_MANAGER", request_id,
                 f"{resource_name}汇总/准入处理",
-                brain._request_status_text(request, "summarizer"),
+                status_text(request, "summarizer"),
                 f"#/request-flow/review/{request_id}",
                 category="summary",
             )
 
 
-def sync_state_views(brain: BrainService) -> None:
+def sync_state_views(
+    snapshot: dict[str, Any],
+    status_text: Callable[[dict[str, Any], str], str],
+) -> None:
     """Composite snapshot projection — request todos + demo cascade.
 
-    Replaces ``BrainService._sync_state_views``. ``brain`` parameter is
-    required because ``demo_state_sync.sync_demo_state_views`` expects a
-    BrainService instance (reads ``brain._snapshot``, writes via
-    ``brain._set_todo_status``). Pulling the demo cascade off the brain
-    reference is **snapshot-model consolidation debt** (docs/preflight-debt.md 2026-05-28) (it would require a registry-of-snapshot-
-    writers + state-store-keyed projection model).
-
-    Lazy import breaks the demo_state_sync → brain module cycle.
+    Replaces ``BrainService._sync_state_views``. Action H: takes the
+    ``snapshot`` dict directly + a pure ``status_text`` callback; the demo
+    cascade (``demo_state_sync.sync_demo_state_views``) is now fully
+    decoupled from the BrainService instance.
     """
-    sync_request_todos(brain)
-    from zw_brain.command.demo_state_sync import sync_demo_state_views  # noqa: PLC0415
-    sync_demo_state_views(brain)
+    sync_request_todos(snapshot, status_text)
+    demo_state_sync.sync_demo_state_views(snapshot, status_text)

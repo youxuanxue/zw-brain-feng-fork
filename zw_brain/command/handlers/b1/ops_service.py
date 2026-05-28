@@ -15,6 +15,7 @@ import copy
 
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import ops_metrics as ops_metrics_ser
+from zw_brain.domain.serializers.ops_metrics import metric_summary as _metric_summary
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -47,7 +48,7 @@ def _query_service_invocations(
                 metric_scope=str(metric_scope) if metric_scope else None,
             )
         ]
-    return {"items": metrics, "summary": brain._metric_summary(metrics)}
+    return {"items": metrics, "summary": _metric_summary(metrics)}
 
 def _query_service_report(brain, deps, ctx) -> dict[str, Any]:
     store = deps.state_store.database_store
@@ -58,16 +59,16 @@ def _query_service_report(brain, deps, ctx) -> dict[str, Any]:
         gateways = [ops_metrics_ser.gateway_to_dict(item) for item in deps.repos.gateway_runtime.list_statuses()]
         metrics = [ops_metrics_ser.metric_to_dict(item) for item in deps.repos.service_invocation.list_metrics()]
     offline = sum(1 for item in gateways if item.get("status") != "online")
-    metric_summary = brain._metric_summary(metrics)
+    summary = _metric_summary(metrics)
     return {
         "gateways": gateways,
         "metrics": metrics,
         "summary": {
             "gatewayCount": len(gateways),
             "gatewayWarnings": offline,
-            "invokeCount": metric_summary["invokeCount"],
-            "failedCount": metric_summary["failedCount"],
-            "errorCount": metric_summary["errorCount"],
+            "invokeCount": summary["invokeCount"],
+            "failedCount": summary["failedCount"],
+            "errorCount": summary["errorCount"],
         },
     }
 

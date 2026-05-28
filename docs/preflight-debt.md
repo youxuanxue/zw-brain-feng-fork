@@ -320,32 +320,38 @@ trigger 关闭即可删除字段。
 - **No mechanical preflight check (now)**: 检测"集成测试是否经过 trust-stamp"需要 AST 分析或测试
   覆盖率打标，复杂度高于价值。Debt 条目兜底，加 R-001 类点护栏。
 
-## 2026-05-28 — BrainService snapshot model 抽离 (Action E follow-up)
+## 2026-05-28 — BrainService snapshot model 抽离 (Action E follow-up; Action H partial close)
 
-- **Where**: `zw_brain/command/sync.py` (`sync_state_views` / `sync_request_todos` 仍签名为
-  `(brain: BrainService) -> None`)；`zw_brain/command/pipeline.py`（`PolicyMiddleware` /
-  `IdentityMiddleware` / `PersistMiddleware` / `AnchorMiddleware` 仍持 `brain` 引用）；
-  `zw_brain/command/demo_state_sync.py`（继续读 `brain._snapshot` / 写 `brain._set_todo_status`）；
+- **Where (Action H 后剩余)**: `zw_brain/command/pipeline.py`（`PolicyMiddleware` /
+  `IdentityMiddleware` 仍持 `brain` 引用；`PersistMiddleware` / `AnchorMiddleware` 已不需要
+  通过 `brain._sync_state_views` 间接调，直接传 snapshot 给 module-level sync helper）；
   `zw_brain/domain/services/provider_service.py::find_api_resource` 等读 `self.brain._snapshot`。
-- **Implication**: BrainService 内 `_snapshot` 字典 + `_ui_state` proxy 仍是 sync / projection /
-  view 的隐式 SoT。Action E 已把跨切关注（pipeline_ops）和 IO 同步（sync.persist/sync_*）拉成
-  module-level helper，但 projection cascade（`_sync_state_views` → `demo_state_sync` →
-  `brain._set_todo_status` / `brain._upsert_todo`）和 `_actor_for_role` 内的 auth_context 后缀
-  逻辑、`_enforce_manifest_policy` 内的 `DomainAccessDeniedError → AccessDeniedError` 翻译
-  仍住在 BrainService 实例方法上——middleware 不能完全甩掉 `brain` 引用。
-- **Why deferred**: 拉出来需要 (a) 把 `_snapshot` dict 从 BrainService 实例属性提升为
-  `state_store.snapshot()` 一等公民、retarget 全部 reader 与 demo cascade；(b) 把
-  `_actor_for_role` 拆为 `policy.actor_for_role` + auth_context 后缀两段；(c) 把
-  `_enforce_manifest_policy` 翻译层下沉到 `policy.enforce_manifest_policy` 内部。
-  ≥300 LOC 改动 + 触动 demo_state_sync + 重写 4 middleware 构造，单 PR 内做超出 Action E 范围。
+- **Action H 落地 (2026-05-28)**: ✅ `sync.sync_state_views(snapshot, status_text)` /
+  `sync.sync_request_todos(snapshot, status_text)` 签名改为 snapshot dict + 纯 callback，
+  不再取 BrainService 引用；✅ `demo_state_sync.sync_demo_state_views(snapshot, status_text)`
+  完全脱离 BrainService — 7 个 module-level helper (`set_todo_status` / `upsert_todo` /
+  `maybe_request` / `maybe_delivery` / `maybe_package` / `resource_by_id` / `zone_by_id` /
+  `package_status_text`) 全部接受 snapshot dict；✅ `BrainService._set_todo_status` /
+  `_upsert_todo` / `_resource_by_id` / `_zone_by_id` / `_package_status_text` 收为 1 行
+  delegate shim（segment 48 允许）；✅ PersistMiddleware 直接调 `state_sync.sync_state_views(self._brain._snapshot, ...)`
+  + `state_sync.persist(self._brain._state_store, ...)`，不再经过 BrainService 的 sync 方法。
+- **Implication (剩余)**: BrainService 内 `_snapshot` 字典 + `_ui_state` proxy 仍是 sync /
+  projection / view 的 SoT 持有者，但只有 4 middleware 中 2 个 (`PolicyMiddleware` /
+  `IdentityMiddleware`) 还需要 `brain` 引用来调 `_enforce_manifest_policy` /
+  `_actor_for_role`。Action H 完成了「demo cascade 脱离 brain」与「sync helper 脱离 brain」
+  两条线，剩余的 brain 引用是 policy/identity 跨切，与 snapshot model 无关。
+- **Why deferred (剩余 policy/identity 部分)**: 拉出来需要 (a) 把 `_actor_for_role` 拆为
+  `policy.actor_for_role` + auth_context 后缀两段；(b) 把 `_enforce_manifest_policy` 翻译层
+  下沉到 `policy.enforce_manifest_policy` 内部（DomainAccessDeniedError → AccessDeniedError）。
+  这两点是 policy 层去耦合，不属 snapshot 模型范畴。
 - **Trigger to re-evaluate**: (a) 下一次需要在 middleware 注入新跨切（rate limit / OTLP /
-  circuit breaker）发现 brain ref 阻碍单测构造时；(b) demo_state_sync 因 cascade 复杂度再次
-  踩坑（snapshot 写顺序错乱 / projection drift）；(c) Wave 2.x R14 三引擎落地需要 state-store-
-  keyed projection 模型时。
+  circuit breaker）发现 brain ref 阻碍单测构造时；(b) Wave 2.x R14 三引擎落地需要 state-store-
+  keyed projection 模型时；(c) provider_service 因多 worker merge 撞车需要把 snapshot
+  访问从 service 拉到 brain.py 之外时。
 - **No mechanical preflight check (now)**: preflight 段 48 (`brain-no-cross-cutting`) 已守
   cross-cutting / state-sync helper 的 shim shape，反向不允许把 body 写回 BrainService；
-  本条目跟踪的是把 `brain` 参数本身从 sync.py / pipeline.py middleware 拉掉，属于结构性后续改造，
-  当前没有"误回潮"风险点可机械化拦截。
+  Action H 改 demo_state_sync 后该段仍 PASS（5 state-sync shim 均 ≤3 stmt）。本条目跟踪的
+  剩余 policy/identity 解耦改造，结构性的，当前没有"误回潮"风险点可机械化拦截。
 
 ## 2026-05-27 — customer_acceptance_up.sh strict 模式与真实 dump 设计脱节 — **已 closed 2026-05-27**
 

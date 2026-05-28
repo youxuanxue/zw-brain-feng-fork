@@ -280,12 +280,12 @@ class PersistMiddleware:
 
     Read path skips this middleware entirely (no snapshot changes to persist).
 
-    Holds ``brain`` because ``_sync_state_views`` cascades into
-    ``demo_state_sync.sync_demo_state_views(brain)`` which reads several
-    snapshot keys (``provider`` / ``zones`` / ``workbench`` / ``requests``)
-    and ``_persist`` writes ``self._snapshot`` + ``self._ui_state``. Lifting
-    the state model into ``state_store.snapshot`` is the snapshot-model
-    consolidation debt (docs/preflight-debt.md 2026-05-28).
+    Holds ``brain`` because the BrainService instance is the lifecycle owner
+    of ``_snapshot`` / ``_ui_state`` / ``_state_store``. Action H: the
+    ``sync_state_views`` / ``persist`` module-level functions take explicit
+    dependencies (snapshot dict + status_text callback + state_store) and no
+    longer reach back into BrainService — middleware passes them through
+    explicitly.
     """
     def __init__(self, brain: Any) -> None:
         self._brain = brain
@@ -293,8 +293,17 @@ class PersistMiddleware:
     def __call__(self, pctx: PipelineContext, next_: NextFn) -> dict[str, Any]:
         result = next_(pctx)
         if pctx.is_write:
-            self._brain._sync_state_views()
-            self._brain._persist()
+            # Action H: call sync module-level fns with explicit deps; the
+            # legacy shims on BrainService still work but going through them
+            # would defeat the point of the decoupling.
+            from zw_brain.command import sync as state_sync  # noqa: PLC0415
+            status_text = self._brain._get_handler_deps().services.request.status_text
+            state_sync.sync_state_views(self._brain._snapshot, status_text)
+            state_sync.persist(
+                self._brain._state_store,
+                self._brain._snapshot,
+                self._brain._ui_state.persistable_view(),
+            )
         return result
 
 

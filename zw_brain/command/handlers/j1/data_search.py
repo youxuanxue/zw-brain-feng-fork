@@ -192,5 +192,5 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
         "page": page,
         "results": resources[start:end],
         "total": len(resources),
-        "summary": brain._discovery_summary(query, resources),
+        "summary": deps.services.catalog.discovery_summary(query, resources),
     }
