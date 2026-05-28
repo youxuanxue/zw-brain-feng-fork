@@ -1,0 +1,122 @@
+{
+  "slug": "external.tenant.field_projection.configure",
+  "title": "外部客户字段投影配置契约",
+  "description": "声明客户专属字段展示和投影配置的外部扩展边界；字段必须进入模型或投影配置，不允许后端 per-tenant fork 或写入敏感明文。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "projection_ref",
+      "target_type",
+      "field_projection_json",
+      "tenant_id"
+    ],
+    "properties": {
+      "projection_ref": {
+        "type": "string"
+      },
+      "target_type": {
+        "type": "string"
+      },
+      "target_ref": {
+        "type": "string"
+      },
+      "field_projection_json": {
+        "type": "object"
+      },
+      "callback_skill_id": {
+        "type": "string",
+        "const": "metadata.gather.evidence.upsert"
+      },
+      "tenant_id": {
+        "type": "string"
+      },
+      "actor_ref": {
+        "type": "string"
+      },
+      "idempotency_key": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "status",
+      "callback_skill_id"
+    ],
+    "properties": {
+      "projection_ref": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "config_digest": {
+        "type": "string"
+      },
+      "error_summary": {
+        "type": "string"
+      },
+      "evidence_json": {
+        "type": "object"
+      },
+      "callback_skill_id": {
+        "type": "string"
+      },
+      "failure_callback_json": {
+        "type": "object",
+        "properties": {
+          "callback_skill_id": {
+            "type": "string"
+          },
+          "error_summary": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "side_effects": [
+    "external_execution",
+    "audit",
+    "evidence_callback"
+  ],
+  "tenant_scope": "tenant",
+  "auth_policy": "service",
+  "human_confirmation_required": false,
+  "audit_class": "external-execution",
+  "execution_binding": "external_capability",
+  "config_change_class": "live",
+  "compatibility": [],
+  "runtime_binding": {
+    "kind": "external_capability",
+    "surface_entry": "registered_external_executor",
+    "method": "external.tenant.field_projection.configure",
+    "callback_skill_id": "metadata.gather.evidence.upsert",
+    "canonical_write_policy": "callback_only",
+    "failure_callback_required": true
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "external_contract",
+  "tags": [
+    "external",
+    "tenant",
+    "field-projection",
+    "contract"
+  ],
+  "product_scope": {
+    "journey": "external",
+    "status": "external"
+  }
+}

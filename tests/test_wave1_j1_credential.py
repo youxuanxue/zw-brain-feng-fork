@@ -6,7 +6,7 @@
 # Trace:
 #   .twin/e1-j1-journey/plan.yaml F5
 #   zw_brain/command/handlers/j1/credential.py
-#   zw_brain/skill_registration/registered/credential.sample.render.json
+#   zw_brain/capability_registry/registered/credential.sample.render.json
 """F5: P4 凭据领取生产化 — credential.issue → query → sample.render 三语样例 + audit chain.
 
 数据隔离：shadow DB（与 W0/F1-F4 一致）。

@@ -5,8 +5,8 @@
     "owner": ".twin/e4-b1-agentruntime/spike/",
     "land_on_trigger": "T1（首个真实外部 Agent 接入需求）",
     "land_target_files": [
-      "zw_brain/skill_registration/runtime.py（validate_manifest 加 4 字段校验）",
-      "zw_brain/skill_registration/registered/<external.*>.json（外部 Agent 注册时由 validate 工具填充）"
+      "zw_brain/capability_registry/runtime.py（validate_manifest 加 4 字段校验）",
+      "zw_brain/capability_registry/registered/<external.*>.json（外部 Agent 注册时由 validate 工具填充）"
     ],
     "not_for": "本 spike 不影响 main 仓 manifest schema；F4 test_trust_level_is_NOT_agentruntime_registry_field 合同护栏正是在防 spike 字段提前泄漏到 main"
   },

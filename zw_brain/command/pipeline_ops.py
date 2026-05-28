@@ -66,7 +66,7 @@ if TYPE_CHECKING:
 # Type aliases — handler functions and lazy helpers
 # ───────────────────────────────────────────────────────────────────────────
 
-# Manifest getter — caller supplies ``zw_brain.skill_registration.runtime.get_manifest``
+# Manifest getter — caller supplies ``zw_brain.capability_registry.runtime.get_manifest``
 ManifestGetter = Callable[[str], dict[str, Any]]
 # Decision-reason resolver — phase + payload → decision reason string
 DecisionReasonFn = Callable[[str, dict[str, Any]], str]
@@ -112,7 +112,7 @@ def emit_audit(
 
     ``audit_bus`` is the ``zw_brain.shared.audit`` module (passed by caller so
     tests can stub it). ``manifest_getter`` is ``get_manifest`` from the
-    skill_registration runtime (passed for the same reason).
+    capability_registry runtime (passed for the same reason).
     """
     manifest = manifest_getter(skill_id)
     actor_parts = actor.split(":", 3)

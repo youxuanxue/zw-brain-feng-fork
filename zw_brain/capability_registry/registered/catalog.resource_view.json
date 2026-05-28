@@ -1,0 +1,86 @@
+{
+  "title": "查看资源详情",
+  "description": "查看模板或资源的覆盖率、字段和复用解释，用于 申请人 先复用模板。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "resource_id"
+    ],
+    "properties": {
+      "resource_id": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "status",
+      "fields",
+      "coverage"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "fields": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "coverage": {
+        "type": "string"
+      }
+    }
+  },
+  "side_effects": [],
+  "audit_required": true,
+  "permissions": [
+    "catalog.resource_view.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "catalog",
+    "resource",
+    "golden-path"
+  ],
+  "slug": "catalog.resource_view",
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-default",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "catalog.resource_view"
+  },
+  "rollback_target": null,
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
+}

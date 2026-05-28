@@ -1,0 +1,73 @@
+{
+  "slug": "direct_access.catalog.query",
+  "title": "数据直达目录只读视图",
+  "description": "只读：列已发布且 summary_json.direct_access_eligible=true 的 catalog_entry，作为旧 dc_catalog 的 zw-brain 投影。事实源仍是 catalog_entry，dc_catalog 本身锁只读；任何想直接写 dc_catalog 的请求都退回 application_record 主链路。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "limit": {
+        "type": "integer",
+        "default": 50
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "total": {
+        "type": "integer"
+      }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-trace",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "direct_access.catalog.query"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [
+    "direct_access.catalog.query.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "direct_access",
+    "catalog",
+    "read"
+  ],
+  "product_scope": {
+    "journey": "national",
+    "status": "deferred:wave-3"
+  }
+}

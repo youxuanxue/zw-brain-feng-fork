@@ -430,7 +430,7 @@ def test_anshan_4_level_e2e_one_sentence_to_live(monkeypatch):
 
 
 def test_manifest_load_passes() -> None:
-    from zw_brain.skill_registration.runtime import load_manifests
+    from zw_brain.capability_registry.runtime import load_manifests
 
     m = load_manifests()
     for sid, expected_ccc in [

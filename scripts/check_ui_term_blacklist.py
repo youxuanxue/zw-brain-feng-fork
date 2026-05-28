@@ -10,7 +10,7 @@ R12 工程术语不进 UI 守卫（设计基线 §5.5 / R12）。
     2. 剥掉所有 HTML 属性值 `attr="..."` / `attr='...'`
     3. 剥掉单行注释与块注释
     4. 在剩余文本里查 blacklist 命中——但只有命中**位于含非 ASCII 字符的字符串字面值内**
-       才视为 UI 漏出（skill_id slug / 路由 / 标识符都是纯 ASCII，不构成 UI）。
+       才视为 UI 漏出（capability slug / 路由 / 标识符都是纯 ASCII，不构成 UI）。
     5. HTML 文件额外扫 `>...<` text content（同一非 ASCII 规则）。
 
 退出码：0 = 全部通过；1 = 至少一处 UI 漏出

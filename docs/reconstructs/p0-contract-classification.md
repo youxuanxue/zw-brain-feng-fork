@@ -3,7 +3,7 @@ status: working
 plan_item: P0-01
 goal_id: p0-contract-boundary
 sources:
-  - zw_brain/skill_registration/registered/*.json (<!-- stat:zwbrain.manifest-total -->232<!-- /stat --> manifests)
+  - zw_brain/capability_registry/registered/*.json (<!-- stat:zwbrain.manifest-total -->232<!-- /stat --> manifests)
   - docs/approved/zw-brain-architecture.md §1.3 §5.1 §5.2 §5.2.1 §10.1-10.6 §11 R7/R10/R14/R15
   - tests/test_wave0_*.py + tests/e2e/wave0_j1_golden_path.py
 ---
@@ -577,10 +577,10 @@ P0-03 worker 执行前先核对本节：本节列出的 skill_id 一律**不进 
 ## 附录 A — manifest 计数脚本输出
 
 ```
-$ ls zw_brain/skill_registration/registered/*.json | wc -l
+$ ls zw_brain/capability_registry/registered/*.json | wc -l
 200
 
-$ for f in zw_brain/skill_registration/registered/*.json; do
+$ for f in zw_brain/capability_registry/registered/*.json; do
     jq -r '[.skill_id, .execution_binding, .registry_source] | @tsv' "$f"
   done | awk -F'\t' '{print $2}' | sort | uniq -c
   186 builtin

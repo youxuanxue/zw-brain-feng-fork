@@ -33,7 +33,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-REGISTERED = REPO / "zw_brain" / "skill_registration" / "registered"
+REGISTERED = REPO / "zw_brain" / "capability_registry" / "registered"
 
 # (zone_label, predicate) — predicate 入参 skill_id 返回 bool
 FORBIDDEN_ZONES: tuple[tuple[str, Callable[[str], bool]], ...] = (
@@ -69,7 +69,7 @@ def main() -> int:
         except (OSError, json.JSONDecodeError) as exc:
             print(f"[capability-boundary] FAIL: {path.name}: {exc}")
             return 1
-        sid = data.get("skill_id") or path.stem
+        sid = data.get("slug") or path.stem
         zone = classify_zone(sid)
         if zone is None:
             continue

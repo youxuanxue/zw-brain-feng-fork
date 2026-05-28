@@ -2,7 +2,7 @@
 """check_no_hand_maintained_projection.py — preflight 段 29
 
 F4 落地：5 消费面投影器（WebUI 页面注册 / REST OpenAPI / CLI 命令树 / MCP 工具 / A2A 卡）
-都派生自 zw_brain/skill_registration/registered/*.json。
+都派生自 zw_brain/capability_registry/registered/*.json。
 本守卫保证：
   (1) export_agent_contract.py --check 通过（产物与代码 fresh），
   (2) 新增的 *.generated.* 投影文件头部含 AUTO-GENERATED banner（防止手改后通过 byte-diff
@@ -88,7 +88,7 @@ def main() -> int:
         print(REGEN_HINT, file=sys.stderr)
         return 1
 
-    manifest_dir = REPO / "zw_brain" / "skill_registration" / "registered"
+    manifest_dir = REPO / "zw_brain" / "capability_registry" / "registered"
     mcp_dir = REPO / "zw_brain" / "entry" / "mcp" / "tools"
     manifest_count = sum(1 for _ in manifest_dir.glob("*.json")) if manifest_dir.exists() else 0
     mcp_count = sum(1 for _ in mcp_dir.glob("*.json")) if mcp_dir.exists() else 0

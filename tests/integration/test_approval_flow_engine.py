@@ -286,7 +286,7 @@ def test_commit_via_skill_dispatch_returns_ok_and_audit_id(session):
 
 def test_manifest_registered_and_validates() -> None:
     """commit manifest 通过 validate_manifest 且 config_change_class=live。"""
-    from zw_brain.skill_registration.runtime import load_manifests
+    from zw_brain.capability_registry.runtime import load_manifests
 
     manifests = load_manifests()
     assert "approval_flow.schema.commit" in manifests

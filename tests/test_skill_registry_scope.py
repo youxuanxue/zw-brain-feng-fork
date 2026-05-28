@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from zw_brain.skill_registration.runtime import (
+from zw_brain.capability_registry.runtime import (
     JOURNEYS,
     STATUS_DEFERRED_RE,
     STATUS_LITERALS,
@@ -17,7 +17,7 @@ from zw_brain.skill_registration.runtime import (
 
 def _base_manifest(**overrides):
     manifest = {
-        "skill_id": "test.skill",
+        "slug": "test.skill",
         "compatibility": ["api"],
         "runtime_binding": {
             "kind": "brain_service",

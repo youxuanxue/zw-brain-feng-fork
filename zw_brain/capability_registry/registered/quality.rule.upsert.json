@@ -1,0 +1,90 @@
+{
+  "slug": "quality.rule.upsert",
+  "title": "维护自动检测规则",
+  "description": "提供方部门 维护检测规则（必填率/格式/值域/字段一致性/挂接一致性等）。规则按 rule_code 幂等 upsert；变更产生新版本，旧版本检测结论作为历史 evidence 保留。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "rule_code",
+      "rule_name",
+      "rule_kind",
+      "confirmed"
+    ],
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      },
+      "rule_code": {
+        "type": "string"
+      },
+      "rule_name": {
+        "type": "string"
+      },
+      "rule_kind": {
+        "type": "string",
+        "description": "completeness / format / value-range / consistency / mapping"
+      },
+      "rule_payload_json": {
+        "type": "object"
+      },
+      "target_catalog_codes": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object"
+  },
+  "side_effects": [
+    "audit",
+    "db_write"
+  ],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": true,
+  "audit_class": "write-default",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "quality.rule.upsert"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [
+    "quality.rule.upsert.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "quality",
+    "rule",
+    "ROLE_ORGAN_MANAGER",
+    "write"
+  ],
+  "product_scope": {
+    "journey": "external",
+    "status": "external"
+  }
+}

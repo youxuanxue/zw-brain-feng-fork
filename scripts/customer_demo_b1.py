@@ -101,6 +101,11 @@ def _invoke_trusted(brain, skill_id: str, client_payload: dict[str, Any], *, rol
     return {"ok": True, "result": out}
 
 
+def _demo_package_by_id(brain, package_id: str) -> dict[str, Any]:
+    """Live snapshot ref for demo state tweaks (Action E retired BrainService._package_by_id)."""
+    return brain._get_handler_deps().view.packages.find_by_id(package_id)
+
+
 def _seed_audit_events() -> None:
     """合成 4 类共 13 条审计事件供 B1.1 4 panel 演示——不依赖任何 J1/J2 演示先跑。
 
@@ -250,7 +255,7 @@ def run_demo(seed_db: Path, shadow_db: Path, shadow_audit_db: Path) -> dict[str,
         role="ROLE_BUSIAUDIT")
     if not review["ok"]:
         raise RuntimeError(f"package.review_decide 未 ok：{review}")
-    pkg_after_review = brain._package_by_id(DEMO_PACKAGE_ID)
+    pkg_after_review = _demo_package_by_id(brain, DEMO_PACKAGE_ID)
     if pkg_after_review["status"] != "approved":
         raise RuntimeError(f"review 后 status 不是 approved：{pkg_after_review['status']}")
 
@@ -286,13 +291,13 @@ def run_demo(seed_db: Path, shadow_db: Path, shadow_audit_db: Path) -> dict[str,
     _log("STEP-11.B12", "package.rollback v1.2.0 → v1.1.0")
     # rollback handler 只在 status=active 时转 rolled-back（生产是 enable 完成 →
     # capability.version.submit 把 status 推到 active 后才 rollback；演示直接置位）。
-    brain._package_by_id(DEMO_PACKAGE_ID)["status"] = "active"
+    _demo_package_by_id(brain, DEMO_PACKAGE_ID)["status"] = "active"
     rollback = _invoke_trusted(brain, "package.rollback",
         {"package_id": DEMO_PACKAGE_ID, "reason": "F8 演示版本回滚", "confirmed": True},
         role="ROLE_BUSIAUDIT")
     if not rollback["ok"]:
         raise RuntimeError(f"package.rollback 未 ok：{rollback}")
-    pkg_after_rollback = brain._package_by_id(DEMO_PACKAGE_ID)
+    pkg_after_rollback = _demo_package_by_id(brain, DEMO_PACKAGE_ID)
     if pkg_after_rollback["registeredVersion"] != "v1.1.0":
         raise RuntimeError(f"rollback 后 registeredVersion 不对：{pkg_after_rollback['registeredVersion']}")
     if pkg_after_rollback["status"] != "rolled-back":

@@ -22,8 +22,8 @@
       "compute": "grep -cE '^class (ComplianceCase|ComplianceRule|RiskEventProjection|HealthSignalProjection|StandardAssetProjection|MetricDefinitionProjection)Record\\b' zw_brain/domain/models.py | tr -d ' '"
     },
     "zwbrain.manifest-total": {
-      "description": "zw-brain: skill_registration on-disk manifest 总数 (live + deferred + external)。仅供 preflight-debt 等 transient context 引用——不是契约。若某条 prose 必须写一个 manifest 数字，wrap 这个 stat；多数情况下应反问数字该不该出现。",
-      "compute": "if [ -d zw_brain/skill_registration/registered ]; then ls zw_brain/skill_registration/registered/*.json 2>/dev/null | wc -l | tr -d ' '; else echo 0; fi"
+      "description": "zw-brain: capability_registry on-disk manifest 总数 (live + deferred + external)。仅供 preflight-debt 等 transient context 引用——不是契约。若某条 prose 必须写一个 manifest 数字，wrap 这个 stat；多数情况下应反问数字该不该出现。",
+      "compute": "if [ -d zw_brain/capability_registry/registered ]; then ls zw_brain/capability_registry/registered/*.json 2>/dev/null | wc -l | tr -d ' '; else echo 0; fi"
     }
   }
 }

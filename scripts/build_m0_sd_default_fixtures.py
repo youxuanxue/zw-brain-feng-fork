@@ -217,7 +217,7 @@ def _iter_table_rows(table: str) -> list[dict[str, object]]:
 
 def _registered_skill_ids() -> set[str]:
     out: set[str] = set()
-    reg_dir = REPO_ROOT / "zw_brain/skill_registration/registered"
+    reg_dir = REPO_ROOT / "zw_brain/capability_registry/registered"
     for path in reg_dir.glob("*.json"):
         try:
             out.add(json.loads(path.read_text(encoding="utf-8")).get("skill_id", ""))

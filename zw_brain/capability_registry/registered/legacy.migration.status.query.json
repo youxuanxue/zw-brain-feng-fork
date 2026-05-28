@@ -1,0 +1,112 @@
+{
+  "slug": "legacy.migration.status.query",
+  "title": "查询 M0 迁移验收状态",
+  "description": "聚合 legacy_object_mapping、adapter_run_record 与 migration.* 审计事件，给 业务运营员 / 安全审计员 看 M0 验收 11 张工作队列卡片状态、按 canonical_type 分布的映射计数和最近一次 rollback 摘要。只读，零 side effect。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "role": {
+        "type": "string"
+      },
+      "tenant_id": {
+        "type": "string"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "totals": {
+        "type": "object",
+        "properties": {
+          "mappings": {
+            "type": "integer"
+          },
+          "mapped": {
+            "type": "integer"
+          },
+          "conflicted": {
+            "type": "integer"
+          },
+          "rolled_back": {
+            "type": "integer"
+          }
+        }
+      },
+      "by_canonical_type": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "by_legacy_system": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "recent_adapter_runs": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "recent_rollbacks": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "work_queue_cards": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-trace",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "legacy.migration.status.query"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [
+    "legacy.migration.status.query.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "legacy",
+    "m0",
+    "migration",
+    "acceptance",
+    "read"
+  ],
+  "product_scope": {
+    "journey": "infra",
+    "status": "live"
+  }
+}

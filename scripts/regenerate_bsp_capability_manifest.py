@@ -8,7 +8,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 SAMPLE = REPO / ".local/用户权限体系-new/bsp-permission-sample-20260520"
-REG_DIR = REPO / "zw_brain/skill_registration/registered"
+REG_DIR = REPO / "zw_brain/capability_registry/registered"
 
 FUNC_MAP: dict[str, str | None] = {
     "FUNC_CATALOG_QUERY": "catalog.entry.query",

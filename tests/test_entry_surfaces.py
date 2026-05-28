@@ -112,8 +112,8 @@ def test_cli_invoke_injects_sticky_confirmed(monkeypatch: pytest.MonkeyPatch) ->
 
         return _Svc()
 
+    from zw_brain.capability_registry import runtime as reg_runtime
     from zw_brain.command import runtime as cmd_runtime
-    from zw_brain.skill_registration import runtime as reg_runtime
 
     monkeypatch.setattr(cmd_runtime, "get_service", fake_get_service)
     monkeypatch.setattr(reg_runtime, "require_surface", lambda *_a, **_kw: None)

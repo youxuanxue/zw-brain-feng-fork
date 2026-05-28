@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 from urllib.request import HTTPSHandler, ProxyHandler, build_opener
 from urllib.request import Request as UrlRequest
 
+from zw_brain.capability_registry.runtime import SurfaceNotEnabledError, require_surface
 from zw_brain.command.brain import (
     AccessDeniedError,
     BrainServiceError,
@@ -57,7 +58,6 @@ from zw_brain.shared.runtime_config import (
     get_rest_port,
 )
 from zw_brain.shared.session_context import build_trusted_skill_payload
-from zw_brain.skill_registration.runtime import SurfaceNotEnabledError, require_surface
 
 _LOGGER = logging.getLogger(__name__)
 _JWKS_CACHE_TTL_SECONDS = 600

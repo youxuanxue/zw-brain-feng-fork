@@ -31,9 +31,9 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from zw_brain.capability_registry.runtime import require_surface
 from zw_brain.command.runtime import get_service
 from zw_brain.shared.runtime_config import get_dev_iam_bypass_enabled
-from zw_brain.skill_registration.runtime import require_surface
 
 CARD_PATH = Path(__file__).with_name("agent_card.json")
 BINDINGS_PATH = Path(__file__).with_name("tools") / "runtime_bindings.json"

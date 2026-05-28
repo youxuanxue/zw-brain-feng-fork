@@ -1,0 +1,137 @@
+{
+  "slug": "audit.event.accountability",
+  "title": "审计事件追责反查",
+  "description": "按 actor 反查所有 outcome=denied 的 request_id + 关联完整 audit 链；用于 B1.1 追责 panel。返回链路 metadata + sanitized payload（敏感字段 hash 化）；不返回原始 payload 全文。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "actor"
+    ],
+    "properties": {
+      "actor": {
+        "type": "string",
+        "minLength": 1
+      },
+      "tenant_id": {
+        "type": "string"
+      },
+      "since": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "until": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000,
+        "default": 100
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "actor",
+      "denied_chains",
+      "total"
+    ],
+    "properties": {
+      "actor": {
+        "type": "string"
+      },
+      "denied_chains": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "request_id",
+            "skill_id",
+            "denied_at",
+            "events"
+          ],
+          "properties": {
+            "request_id": {
+              "type": "string"
+            },
+            "skill_id": {
+              "type": "string"
+            },
+            "denied_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "events": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "phase",
+                  "occurred_at",
+                  "sanitized_payload"
+                ],
+                "properties": {
+                  "phase": {
+                    "type": "string"
+                  },
+                  "occurred_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "sanitized_payload": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "total": {
+        "type": "integer"
+      }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-sensitive",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "audit.event.accountability"
+  },
+  "rollback_target": null,
+  "audit_required": false,
+  "permissions": [
+    "audit.event.accountability.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "audit",
+    "read",
+    "compliance",
+    "accountability"
+  ],
+  "product_scope": {
+    "journey": "b1",
+    "status": "live"
+  }
+}

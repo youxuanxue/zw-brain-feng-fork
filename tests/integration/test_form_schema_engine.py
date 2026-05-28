@@ -400,7 +400,7 @@ def test_to_json_schema_emits_valid_draft07(session):
 
 
 def test_manifest_registered_and_validates() -> None:
-    from zw_brain.skill_registration.runtime import load_manifests
+    from zw_brain.capability_registry.runtime import load_manifests
 
     manifests = load_manifests()
     assert "form_schema.commit" in manifests

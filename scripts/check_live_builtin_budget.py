@@ -40,7 +40,7 @@ from collections import Counter
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-DEFAULT_REGISTERED = REPO / "zw_brain" / "skill_registration" / "registered"
+DEFAULT_REGISTERED = REPO / "zw_brain" / "capability_registry" / "registered"
 DEFAULT_EXEMPTIONS = REPO / "scripts" / ".live_builtin_budget_exemptions.json"
 
 # Budget threshold — single prefix live+builtin count limit
@@ -72,7 +72,7 @@ def count_live_builtin_by_prefix(registered_dir: Path) -> Counter[str]:
             continue
         if data.get("execution_binding") != "builtin":
             continue
-        sid = data.get("skill_id") or f.stem
+        sid = data.get("slug") or f.stem
         prefix = sid.split(".")[0]
         counts[prefix] += 1
     return counts
@@ -84,7 +84,7 @@ def main(argv: list[str] | None = None) -> int:
         "--registered-dir",
         type=Path,
         default=DEFAULT_REGISTERED,
-        help="目录路径（默认 zw_brain/skill_registration/registered/）",
+        help="目录路径（默认 zw_brain/capability_registry/registered/）",
     )
     parser.add_argument(
         "--exemptions",

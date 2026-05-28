@@ -100,8 +100,8 @@ def cmd_describe(skill_id: str, data: dict[str, Any]) -> int:
 
 def _invoke_inprocess(skill_id: str, payload: dict[str, Any]) -> tuple[int, Any]:
     """In-process invoke (no HTTP); needs project deps + dev IAM bypass for auth."""
+    from zw_brain.capability_registry.runtime import require_surface
     from zw_brain.command.runtime import get_service
-    from zw_brain.skill_registration.runtime import require_surface
     try:
         require_surface(skill_id, "cli")
     except KeyError:

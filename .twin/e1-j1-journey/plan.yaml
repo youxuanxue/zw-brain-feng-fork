@@ -149,7 +149,7 @@ items:
   actual_evidence:
   - zw_brain/command/handlers/j1/credential.py — 新增 _render_credential_samples + handler_credential_sample_render
     (curl/Python/Java 三语样例 + 配额展示 + 监控入口外链 §3.4 集团运维监控)
-  - zw_brain/skill_registration/registered/credential.sample.render.json — 新 manifest
+  - zw_brain/capability_registry/registered/credential.sample.render.json — 新 manifest
     (audit_class=read / permissions=credential.sample.render.execute / runtime_binding=brain_service)
   - zw_brain/command/dispatch.py + _CATEGORIZATION.md + policy.py — 3 处同步 (cap 数 185
     → 186)
@@ -164,7 +164,7 @@ items:
   - 'commit (新增) — feat(j1): F5 P4 凭据三语调用样例 + 配额 + 监控入口'
   - preflight 段 10/22/24/25/27/28/29 + ruff + export_agent_contract --check 全 OK
   - zw_brain/command/handlers/j1/credential.py — 新增 _render_credential_samples + handler_credential_sample_render
-  - zw_brain/skill_registration/registered/credential.sample.render.json — 新 cap（audit_class=read,
+  - zw_brain/capability_registry/registered/credential.sample.render.json — 新 cap（audit_class=read,
     runtime_binding=brain_service, 4 角色 read 权限）
   - '5 消费面投影 regenerate: REST=169/CLI=1/MCP=53/A2A=1/Skills=160；186 cap × 3 处一致'
   - tests/test_wave1_j1_credential.py — 9 passed（issue+query+sample.render 三语+真 sd-default
@@ -190,7 +190,7 @@ items:
   actual_evidence:
   - zw_brain/command/handlers/j1/search_assistant.py — handler_search_intent_parse
     + _rule_based_parse + _inference_based_parse 双路径（推理优先，失败降级；可关闭 enabled=false）
-  - zw_brain/skill_registration/registered/search.intent.parse.json — manifest (audit_class=read,
+  - zw_brain/capability_registry/registered/search.intent.parse.json — manifest (audit_class=read,
     runtime_binding=brain_service, 4 角色 read 权限)
   - zw_brain/command/dispatch.py + _CATEGORIZATION.md + policy.py — 3 处同步 (cap 数 186
     → 187)
@@ -229,7 +229,7 @@ items:
   - zw_brain/command/handlers/j1/application_assistants.py — 双 handler + _draft_fallback
     / _draft_inference / _evidence_fallback / _evidence_inference + 历史样例 loader (沿
     F6 三层降级套路)
-  - zw_brain/skill_registration/registered/application.draft.suggest.json + approval.evidence.summarize.json
+  - zw_brain/capability_registry/registered/application.draft.suggest.json + approval.evidence.summarize.json
     — 2 新 manifest (audit_class=read, runtime_binding=brain_service)
   - zw_brain/command/dispatch.py + _CATEGORIZATION.md + policy.py — 3 处同步 (cap 187
     → 189; draft 给 OP/MGR/BUSIAUDIT，evidence 给 MGR/BUSIAUDIT/SECURITY_AUDIT)
@@ -267,7 +267,7 @@ items:
   - zw_brain/command/handlers/j1/delivery_explain.py — handler_delivery_status_explain
     + _do_explain_fallback + _do_explain_inference + _load_delivery_task (沿 F6/F7
     三层降级)
-  - zw_brain/skill_registration/registered/delivery.status.explain.json — 新 manifest
+  - zw_brain/capability_registry/registered/delivery.status.explain.json — 新 manifest
     (audit_class=read, runtime_binding=brain_service, 4 角色 read 权限)
   - zw_brain/command/dispatch.py + _CATEGORIZATION.md + policy.py — 3 处同步 (cap 数 189
     → 190)

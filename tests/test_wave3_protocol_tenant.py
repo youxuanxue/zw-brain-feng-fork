@@ -22,7 +22,7 @@ MCP_TOOLS_DIR = REPO_ROOT / "zw_brain" / "entry" / "mcp" / "tools"
 def test_wave3_mcp_hardening_live_skills_match_openapi_and_tool_files() -> None:
     """mcp-hardening.feature: MCP tool 列表与 OpenAPI capability 一致（live skills）。"""
     from scripts.export_agent_contract import build_rest_openapi, discover_skills
-    from zw_brain.skill_registration.runtime import is_surface_enabled
+    from zw_brain.capability_registry.runtime import is_surface_enabled
 
     skills = {s["skill_id"]: s for s in discover_skills() if "error" not in s}
     live_mcp = {

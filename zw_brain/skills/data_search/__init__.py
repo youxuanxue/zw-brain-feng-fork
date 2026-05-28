@@ -2,7 +2,7 @@
 
 The canonical runtime implementation lives in
 `zw_brain/command/handlers/j1/data_search.py` (F1 split, turn 2). Registered manifest
-under `zw_brain/skill_registration/registered/data.search.json`. This module remains a
+under `zw_brain/capability_registry/registered/data.search.json`. This module remains a
 lightweight compatibility shim for direct imports.
 """
 from __future__ import annotations

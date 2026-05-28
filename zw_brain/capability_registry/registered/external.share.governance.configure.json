@@ -1,0 +1,122 @@
+{
+  "slug": "external.share.governance.configure",
+  "title": "外部共享治理配置契约",
+  "description": "声明共享分组维护、共享专区授权和专题可见性配置的外部治理边界；配置只影响投影和策略解释，不创建第二套权限或目录事实源。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "governance_ref",
+      "share_zone_ref",
+      "scope_json",
+      "tenant_id"
+    ],
+    "properties": {
+      "governance_ref": {
+        "type": "string"
+      },
+      "share_zone_ref": {
+        "type": "string"
+      },
+      "scope_json": {
+        "type": "object"
+      },
+      "policy_digest_json": {
+        "type": "object"
+      },
+      "callback_skill_id": {
+        "type": "string",
+        "const": "metadata.gather.evidence.upsert"
+      },
+      "tenant_id": {
+        "type": "string"
+      },
+      "actor_ref": {
+        "type": "string"
+      },
+      "idempotency_key": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "status",
+      "callback_skill_id"
+    ],
+    "properties": {
+      "governance_ref": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "projection_ref": {
+        "type": "string"
+      },
+      "error_summary": {
+        "type": "string"
+      },
+      "evidence_json": {
+        "type": "object"
+      },
+      "callback_skill_id": {
+        "type": "string"
+      },
+      "failure_callback_json": {
+        "type": "object",
+        "properties": {
+          "callback_skill_id": {
+            "type": "string"
+          },
+          "error_summary": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "side_effects": [
+    "external_execution",
+    "audit",
+    "evidence_callback"
+  ],
+  "tenant_scope": "tenant",
+  "auth_policy": "service",
+  "human_confirmation_required": false,
+  "audit_class": "external-execution",
+  "execution_binding": "external_capability",
+  "config_change_class": "live",
+  "compatibility": [],
+  "runtime_binding": {
+    "kind": "external_capability",
+    "surface_entry": "registered_external_executor",
+    "method": "external.share.governance.configure",
+    "callback_skill_id": "metadata.gather.evidence.upsert",
+    "canonical_write_policy": "callback_only",
+    "failure_callback_required": true
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "external_contract",
+  "tags": [
+    "external",
+    "share",
+    "governance",
+    "contract"
+  ],
+  "product_scope": {
+    "journey": "external",
+    "status": "external"
+  }
+}

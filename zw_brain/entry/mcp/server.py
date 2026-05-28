@@ -24,8 +24,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from zw_brain.capability_registry.runtime import require_surface
 from zw_brain.command.runtime import get_service
-from zw_brain.skill_registration.runtime import require_surface
 
 TOOLS_DIR = Path(__file__).with_name("tools")
 

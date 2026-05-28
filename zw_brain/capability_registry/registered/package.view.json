@@ -1,0 +1,79 @@
+{
+  "title": "查看能力包详情",
+  "description": "查看单个能力包的暴露面、审核状态和 AI 评审结果。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "package_id"
+    ],
+    "properties": {
+      "package_id": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "id",
+      "slug",
+      "status",
+      "aiReview"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "slug": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "aiReview": {
+        "type": "object"
+      }
+    }
+  },
+  "side_effects": [],
+  "audit_required": true,
+  "permissions": [
+    "package.view.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "package",
+    "registry",
+    "read"
+  ],
+  "slug": "package.view",
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-default",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "package.view"
+  },
+  "rollback_target": null,
+  "product_scope": {
+    "journey": "b1",
+    "status": "live"
+  }
+}

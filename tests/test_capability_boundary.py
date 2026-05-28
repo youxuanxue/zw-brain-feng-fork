@@ -161,13 +161,13 @@ def test_catalog_national_ext_elem_deferred_wave3_no_regression() -> None:
     任一条退化即视为回潮，应红灯并要求改 wave-3 实装走正式 GATE。
     """
     repo_root = Path(__file__).resolve().parent.parent
-    manifest_path = repo_root / "zw_brain" / "skill_registration" / "registered" / "catalog.national_ext_elem.compile.json"
+    manifest_path = repo_root / "zw_brain" / "capability_registry" / "registered" / "catalog.national_ext_elem.compile.json"
     dispatch_path = repo_root / "zw_brain" / "command" / "dispatch.py"
     categorization_path = repo_root / "zw_brain" / "command" / "handlers" / "_CATEGORIZATION.md"
 
     assert manifest_path.exists(), f"F5 manifest 缺失：{manifest_path}"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert manifest["skill_id"] == "catalog.national_ext_elem.compile"
+    assert manifest["slug"] == "catalog.national_ext_elem.compile"
     scope = manifest.get("product_scope") or {}
     assert scope.get("journey") == "j2", scope
     assert scope.get("status") == "deferred:wave-3", scope

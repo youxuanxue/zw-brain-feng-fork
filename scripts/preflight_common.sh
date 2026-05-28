@@ -23,9 +23,29 @@ FIX_MODE=0
 [ "${1:-}" = "--fix" ] && FIX_MODE=1
 
 # Python for scripts that import zw_brain (needs project deps). Override with PYTHON_BIN.
+# worktree fallback: 用 git rev-parse --git-common-dir 找主仓 root + 共享 .venv（D33 retrofit）。
+_worktree_main_venv_python() {
+    local common_dir main_root
+    common_dir="$(git rev-parse --git-common-dir 2>/dev/null)"
+    [ -z "$common_dir" ] && return 1
+    main_root="$(dirname "$(cd "$common_dir" && pwd)")"
+    if [ -x "$main_root/.venv/bin/python" ]; then
+        printf '%s' "$main_root/.venv/bin/python"
+        return 0
+    fi
+    return 1
+}
+
 repo_python() {
     if [ -n "${PYTHON_BIN:-}" ]; then
         "$PYTHON_BIN" "$@"
+        return $?
+    fi
+    # worktree fallback 先于 REPO_ROOT/.venv —— worktree 自动生成的 .venv 是裸 python
+    # 解释器（symlink 到 uv 缓存），缺项目依赖（如 jwt / sqlalchemy）；主仓 venv 才有完整依赖。
+    local main_venv
+    if main_venv="$(_worktree_main_venv_python)"; then
+        "$main_venv" "$@"
         return $?
     fi
     if [ -x "$REPO_ROOT/.venv/bin/python" ]; then

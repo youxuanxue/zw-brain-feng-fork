@@ -1,0 +1,78 @@
+{
+  "slug": "require.task.handoff",
+  "title": "业务运营员 → 审核汇总人 任务交接审计",
+  "description": "记录 业务运营员 把派发后的任务转给 审核汇总人 接管的责任快照；只写审计与责任快照，不修改业务字段。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "application_code",
+      "handoff_to_role",
+      "confirmed"
+    ],
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      },
+      "application_code": {
+        "type": "string"
+      },
+      "handoff_to_role": {
+        "type": "string"
+      },
+      "handoff_note": {
+        "type": "string"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object"
+  },
+  "side_effects": [
+    "audit"
+  ],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": true,
+  "audit_class": "write-default",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "require.task.handoff"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [
+    "require.task.handoff.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "require",
+    "handoff",
+    "ROLE_BUSIAUDIT",
+    "write"
+  ],
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
+}

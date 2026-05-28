@@ -14,6 +14,7 @@ from typing import Any
 
 import zw_brain.shared.audit as audit_bus
 import zw_brain.shared.clock as clock
+from zw_brain.capability_registry.runtime import get_manifest, load_manifests
 from zw_brain.command.serializers import metadata as metadata_ser
 from zw_brain.domain import policy
 from zw_brain.domain.errors import AccessDeniedError as AccessDeniedError  # R-016 re-export
@@ -37,7 +38,6 @@ from zw_brain.shared.sanitization import safe_json
 from zw_brain.shared.sensitive_mask import mask_default
 from zw_brain.shared.state_store import StateStore
 from zw_brain.shared.ui_request_context import get_current_role, set_current_role
-from zw_brain.skill_registration.runtime import get_manifest, load_manifests
 
 
 def _expected_iaf_issuer() -> str:

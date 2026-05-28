@@ -14,7 +14,7 @@
 write-critical / write-normal / read-sensitive
 ```
 
-但现实采样 200 个 capability manifest（`zw_brain/skill_registration/registered/*.json`）实际使用了 10 个取值：
+但现实采样 200 个 capability manifest（`zw_brain/capability_registry/registered/*.json`）实际使用了 10 个取值：
 
 | 取值 | 出现次数 |
 | --- | --- |

@@ -1,0 +1,91 @@
+{
+  "slug": "objection.metric.query",
+  "title": "查询异议指标",
+  "description": "查询异议状态分布和闭环指标投影。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      }
+    },
+    "required": []
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "total": {
+        "type": "integer"
+      },
+      "result": {
+        "type": "object"
+      },
+      "run": {
+        "type": "object"
+      },
+      "mapping": {
+        "type": [
+          "object",
+          "null"
+        ]
+      },
+      "summary": {
+        "type": "object"
+      },
+      "audit_id": {
+        "type": "string"
+      }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-default",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "objection.metric.query"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [
+    "objection.metric.query.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "objection",
+    "metric",
+    "read"
+  ],
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
+}

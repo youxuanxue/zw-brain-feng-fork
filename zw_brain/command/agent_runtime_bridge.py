@@ -74,7 +74,7 @@ def start_agent_task(
     for binding in bindings:
         skill_id = binding["skill_id"]
         try:
-            from zw_brain.skill_registration.runtime import get_manifest
+            from zw_brain.capability_registry.runtime import get_manifest
 
             manifest = get_manifest(skill_id)
         except KeyError as exc:

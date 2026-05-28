@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     pass
 
+from zw_brain.capability_registry.runtime import get_manifest
 from zw_brain.command.brain import BrainServiceError, _count_by
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import adapter as adapter_ser
@@ -20,7 +21,6 @@ from zw_brain.command.serializers import governance as governance_ser
 from zw_brain.domain import policy
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 from zw_brain.shared.sanitization import safe_json
-from zw_brain.skill_registration.runtime import get_manifest
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies

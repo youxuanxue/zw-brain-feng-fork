@@ -21,7 +21,7 @@ items:
   - reset_and_upgrade() 跑通，4 张新表 approval_flow_schema/node/selection_rule/branch 建立；ensure_runtime_schema()
     63 表通过
   - 新增/修改 18 文件：zw_brain/domain/{models.py,approval_flow_schema.py,policy.py}, zw_brain/command/{dispatch.py,handlers/_CATEGORIZATION.md,handlers/b1/approval_flow_schema.py},
-    zw_brain/skill_registration/registered/approval_flow.schema.commit.json, zw_brain/shared/migrate.py,
+    zw_brain/capability_registry/registered/approval_flow.schema.commit.json, zw_brain/shared/migrate.py,
     tests/integration/{__init__.py,test_approval_flow_engine.py}, 5 surface 投影派生产物
     + 2 stat 块同步
   depends_on: []
@@ -100,7 +100,7 @@ items:
     + required 聚合 + regex/range/length/enum/file_size/custom_expression validator
     注入）
   - 新增 zw_brain/domain/form_schema.py / zw_brain/command/handlers/b1/form_schema.py
-    / zw_brain/skill_registration/registered/form_schema.commit.json + 4 models +
+    / zw_brain/capability_registry/registered/form_schema.commit.json + 4 models +
     dispatch+policy+_CATEGORIZATION + tests + 5 surface 投影 regen + 2 stat 块 sync
   depends_on: []
   status: completed

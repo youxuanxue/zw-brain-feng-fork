@@ -445,8 +445,8 @@ def build_default_pipeline(brain: Any) -> SkillPipeline:
     needed for testing).
     """
     import zw_brain.shared.audit as audit_bus  # noqa: PLC0415
+    from zw_brain.capability_registry.runtime import get_manifest  # noqa: PLC0415
     from zw_brain.shared import queue  # noqa: PLC0415
-    from zw_brain.skill_registration.runtime import get_manifest  # noqa: PLC0415
 
     return SkillPipeline(middlewares=(
         PolicyMiddleware(brain),

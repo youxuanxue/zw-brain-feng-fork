@@ -271,7 +271,7 @@ def test_trust_level_is_NOT_agentruntime_registry_field(brain_with_audit) -> Non
     本测试是合同护栏：以后 F6 land 时如果手抖把字段塞到主 manifest schema 里，
     此测试会立刻红。
     """
-    from zw_brain.skill_registration.runtime import load_manifests
+    from zw_brain.capability_registry.runtime import load_manifests
     manifests = load_manifests()
     rollback_manifest = manifests["package.rollback"]
     # F4 不动 Registry 字段：4 个字段当前不应存在
@@ -307,7 +307,7 @@ def test_exposure_matrix_cross_tenant_denied(brain_with_audit) -> None:
 
 
 def test_validate_package_lifecycle_transition_allows_known() -> None:
-    from zw_brain.skill_registration.runtime import validate_package_lifecycle_transition
+    from zw_brain.capability_registry.runtime import validate_package_lifecycle_transition
 
     # 合法迁移
     validate_package_lifecycle_transition("pending", "approved")
@@ -319,7 +319,7 @@ def test_validate_package_lifecycle_transition_allows_known() -> None:
 
 
 def test_validate_package_lifecycle_transition_rejects_illegal() -> None:
-    from zw_brain.skill_registration.runtime import validate_package_lifecycle_transition
+    from zw_brain.capability_registry.runtime import validate_package_lifecycle_transition
 
     with pytest.raises(ValueError):
         validate_package_lifecycle_transition("pending", "active")
@@ -330,6 +330,6 @@ def test_validate_package_lifecycle_transition_rejects_illegal() -> None:
 
 
 def test_package_trust_levels_enum_stable() -> None:
-    from zw_brain.skill_registration.runtime import package_trust_levels
+    from zw_brain.capability_registry.runtime import package_trust_levels
 
     assert package_trust_levels() == ("baseline", "reviewed", "restricted", "revoked")

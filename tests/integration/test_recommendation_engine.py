@@ -512,7 +512,7 @@ def test_suggest_against_5_real_dsp_require_history_hits_at_least_one(session, c
 
 
 def test_manifests_registered_and_validate() -> None:
-    from zw_brain.skill_registration.runtime import load_manifests
+    from zw_brain.capability_registry.runtime import load_manifests
 
     manifests = load_manifests()
     assert "recommendation.rule.commit" in manifests

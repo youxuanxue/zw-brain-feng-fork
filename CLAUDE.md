@@ -180,3 +180,38 @@ D31 子项 D31.b 原文："复活范围归属待定：(a) 进 Wave 2.x / (b) 进
 - [2026-05-27] D32.b：**两份 plan 状态从"待业务方触发"升级为"D31/D32 已触发，active"**。plan 文件头加 D31/D32 触发注明；mapping doc 24 条 disposition 注明对应 plan 路径；signoff doc 加"批准后归属"段。
 - [2026-05-27] D32.c：**D31.b 三选一关闭**：不是 (a)(b)(c) 任一，是 (d) **既存 reconstruction plan 接管，散落到 Wave 0/1/2/3 + 外部能力包**。A 类的 dsp-service-orchestrator 走 (c) 外部能力包，其余 19 条按 plan §3.5 拆到 J1/J2/B1.1；D 类按 P7 落地（与 plan 既定 Wave 2 一致）。
 - [2026-05-27] D32.d：**V3 暴露 D31 P0 真值源回灌漏洞**：D31 P0 覆盖 7 文件（CLAUDE.md / 架构基线 §1.3/§3.1/§5.6 / 飞轮 / mapping doc / yaml / Wave 4 README），漏引用 `docs/reconstructs/` 内 2 份核心 plan。D32 补回灌 + meta finding：写 `scripts/check_approved_doc_drift.py` 扫"D-编号引用是否涵盖所有相关 reconstructs/*.md"，未来 D-编号决策必须 explicit 引用既存 plan。
+
+### [2026-05-28] D33 retrofit：skill→capability 命名收敛 + AgentRuntime T1 触发前夜准备
+
+**触发背景**：业务方启动首个外部 Agent 接入（T1 触发预告），按 D30 (2026-05-24) "AgentRuntime runtime 触发式延后"承诺，Registry 4 字段须在 T1 触发当日 land；同时跨边界审视发现 zw-brain 内部 "skill" 与 AgentRuntime `AGENT.yaml` `skills:` 段**同名异义**——zw-brain 内 skill ≡ capability（能力本体，230 manifest 中 `skill_id` 与 `slug` 值始终相等的冗余字段）；AgentRuntime `skills:` ≠ capability（外部 Agent 声明对 zw-brain capability 的消费引用）。命名歧义会随接入 Agent 数量线性扩散。Jobs 式裁决：「一个概念一个名字。外部协议不能改（D6 集团推理平台 + ANP 协议），那就让内部让路」。
+
+- [2026-05-28] D33：**zw-brain 内部 "skill" 词整体退役 → 统一 "capability"**。
+  - 目录 rename：`zw_brain/skill_registration/` → `zw_brain/capability_registry/`
+  - manifest 顶层 `skill_id` 字段删除（与 `slug` 值始终相等的冗余）；保留 `slug` 作为唯一标识
+  - Python 类名 / 函数名 / 模块 import 全部 rename（138 处标识符跨 39 文件 + 25 处 import）
+  - preflight 段 22 内部命名已是 `capability-boundary`，仅同步引用路径
+  - **范围裁决（关键）**：保留 `BrainService.invoke_skill()` 方法名 + envelope 返回字段 `skill_id` + `output_schema.properties.skill_id`——这些是 5 消费面投影（webui/api/cli/mcp/a2a）API surface，改它需同步前端/MCP/CLI 客户端，远超 D33 命名收敛初衷。envelope 字段名 `skill_id` 在新代码注释中明确为「等同于 capability slug；下一迭代统一」
+  - **Why**：第一个外部 Agent 接入后，每个 Agent 作者开 AGENT.yaml 写 `skills:` 再翻 zw-brain 文档看 skill 会本能误判语义；命名收敛在 T1 触发**前**做边际成本最低（盘点：230 manifest + 138 标识符 + 25 import + 30 test 文件 + 11 preflight + 文档 1286 行）
+  - **How to apply**：未来在 `zw_brain/` 代码下新增标识符时，禁止使用 `skill` 词（白名单外）；D33.c 新增 preflight 段机械守卫
+- [2026-05-28] D33.a（**撤回，延后下一 PR**）：**`trust_level` 同名冲突解决 — 包级改名 `package.review_status`**。
+  - 原计划：zw-brain `PACKAGE_TRUST_LEVELS = (baseline/reviewed/restricted/revoked)` → `PACKAGE_REVIEW_STATUSES`，字段名 `package.trust_level` → `package.review_status`
+  - **撤回原因（执行中发现）**：`trust_level` 不仅是 manifest 字段名，还是完整 capability `package.trust_level.update` 的 slug + permission (`package.trust_level.update.execute`) + input/output_schema 字段 (`trust_level` / `previous_trust_level` / `new_trust_level`)。完整 rename 是 5 消费面（webui/api/cli/mcp/a2a）API breaking change，超出本 PR 的命名收敛初衷；半 rename（只改 Python 常量保留 manifest 字段）反而留下命名不一致
+  - **现状继续守住**：runtime.py:17-22 反污染注释 + manifest_checks.py:15 ALLOWED_TRUST_LEVELS 隔离 namespace + 新人代码 review 时人工核对
+  - **下一 PR 议题**：D33.a-followup — 完整 rename（capability slug + permission + schema + Python 常量同期 ship）+ 同期更新 5 消费面投影
+  - AgentRuntime `metadata.trust_level (platform/verified/untrusted)` **不动**（外部协议字段）
+- [2026-05-28] D33.b：**D30 触发式 4 字段中 runtime_spec_version validate + 工具链接入 preflight 持续守卫（最小可行；其余 3 字段延后）**。
+  - 执行中盘点发现 4 字段中 `runtime_spec_version` 已在 `manifest_checks.py:43-49` 实装（从 AGENT.yaml schema_version / sidecar.runtime_spec_version / metadata.runtime_spec_version 多源提取并 validate）；其余 3 字段（`agent_yaml_ref` / `connection_trust_level` / `workspace_required`）是给 **未来 external-register 类型 Registry entry** 用的 schema 预留，**本 PR 不实装**（按"不为假需求盖楼"原则不强行填空值，T1 触发当日按届时实际需要扩展）
+  - **本 PR 真实落地**：scripts/agentruntime_validate.py / agentruntime_doctor.py 已 246+52+54 行就位，新增 preflight 段 51 `scripts/check_agentruntime_bundles.py` 持续扫 `agents/*/AGENT.yaml`，T0 起即守住 schema 漂移
+  - **下一 PR 议题**：T1 真触发（首个 source_type=external-register 接入）时，按需补 3 字段 schema + 230 manifest 默认值不需要填（external entry 是新 manifest，不是改老）
+  - **Why**：D30 承诺「T1 触发当日落地」核心是 validate/doctor 工具链可跑——已通过 preflight 段 51 接入持续守卫，T1 来临时只需补外部 Agent bundle 即可，不需要再开 PR 做基础设施
+  - **How to apply**：T1 触发当日，在 `agents/` 下新建外部 Agent 目录 + AGENT.yaml + capabilities.json，preflight 段 51 自动校验；如需 Registry 端字段 `agent_yaml_ref` 等，按届时实际需要 schema 扩展
+- [2026-05-28] D33.c：**防回潮机械守卫 — preflight 段新增**。
+  - 新增 `scripts/check_no_skill_identifier_in_zw_brain.py`：扫 `zw_brain/` 下 Python 文件，禁止新增包含 `skill` 字符串的 `class`/`def` 定义
+  - 白名单（明确的 API surface contract）：`BrainService.invoke_skill` 方法、envelope 字段 `skill_id` 字符串字面量、引用 AgentRuntime AGENT.yaml `skills:` 字段的字符串字面量、`output_schema.properties.skill_id` 引用
+  - **Why**：D17 / D18 / D22 已多次确立「软规则配套机械检查」原则；命名规则不机械化必回潮
+  - **How to apply**：新代码若必须用 `skill` 词，须在 white_list 显式注册 + 注释说明 contract surface 理由
+- [2026-05-28] D33.d：**元规则承诺 — GATE 决策必同步审视外部协议词汇边界（脚本延后）**。
+  - 凡新增 / 修订 D-编号决策，须 explicit 审视与外部协议（AgentRuntime / MCP / A2A / 集团推理平台 SDK / ANP）的命名冲突
+  - 长期目标：写 `scripts/check_external_protocol_term_drift.py` 扫 zw-brain 代码标识符与 `docs/agent-runtime/*` 协议字段的同名异义
+  - 本 PR 仅落决策承诺；脚本随首次实操（下次 GATE 决策时手工审视，回炉成脚本）
+  - **Why**：D33 是事后补救，根因是 GATE-1 没在「契约形态」决策时审视外部协议；元规则升级避免再现

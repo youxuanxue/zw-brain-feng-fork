@@ -18,6 +18,26 @@ trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / �
 目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
 trigger 关闭即可删除字段。
 
+## 2026-05-28 — D33.d 元规则脚本（外部协议词汇漂移扫描）trigger 化延后
+
+- **Where**: CLAUDE.md D33.d 子项承诺写 `scripts/check_external_protocol_term_drift.py`，
+  扫 zw-brain 代码标识符与 `docs/agent-runtime/*` 协议字段的同名异义；本 D33 PR 未实装。
+- **Implication**: 当前防 skill ↔ AgentRuntime skills 同名异义靠 preflight 段 50
+  `check_no_skill_identifier_in_zw_brain.py`（D33.c 落地）单一方向守住——zw_brain/
+  代码标识符不出现新 skill 命名。但反方向漂移（AgentRuntime 协议更新 / 新增 MCP /
+  A2A / ANP 字段，意外与 zw_brain 现有标识符撞名）目前**无机械守卫**。
+- **Why deferred**: D33.d 是元规则承诺（GATE 决策必同步审视外部协议词汇边界），脚本
+  实现需要协议字段抽取器 + 标识符 namespace 比对器，工程量超出 D33 命名收敛 PR 范围；
+  且当前仅 AgentRuntime AGENT.yaml 一个外部协议在用，未到「多协议同名风险高发」拐点。
+- **Trigger to re-evaluate**（任一触发即升级 P0）：
+  - (a) 接入第二个外部协议（如 MCP server / 国家平台 / 集团推理平台 SDK 新增声明式 schema）；
+  - (b) D33 baseline 之后下一次 GATE 决策（按 D33.d 元规则承诺手工审视一遍外部协议词汇，
+        回炉成脚本）；
+  - (c) AgentRuntime 协议 spec_version 升级（anp-agent/v1.3+），新增字段命名意外撞 zw_brain
+        现有标识符。
+- **No mechanical guardrail (now)**: 本 PR 防回潮段 50 单方向已足够防住 zw_brain 内部
+  skill 命名回潮；多协议反方向漂移在拐点前不值得提前盖楼。
+
 ## 2026-05-28 — 三引擎 commit_to_live A 方案 hack（版本号膨胀）
 
 - **Where**: `zw_brain/domain/{approval_flow_schema,form_schema,recommendation_rule}.py`
@@ -255,7 +275,7 @@ trigger 关闭即可删除字段。
 ## 2026-05-24 — Wave 2 R14 三引擎已落地，待 T1 客户演练验证（D-31d，2026-05-25 更新）
 
 - **Status (2026-05-25 更新)**: 不再是 "0% 实现 / deferred"。三引擎已在 **PR #92** 落地：检索
-  `zw_brain/skill_registration/registered/` 现有 10 个三引擎 capability（`approval_flow.*` 4 +
+  `zw_brain/capability_registry/registered/` 现有 10 个三引擎 capability（`approval_flow.*` 4 +
   `form_schema.*` 4 + `recommendation.*` 2；总 manifest <!-- stat:zwbrain.manifest-total -->232<!-- /stat -->）。`config_change_class` preview/draft
   流已激活（当前 preview 2 / draft 4）。
 - **What remains**: 代码侧已交付；**未完成的是 T1 真实客户演练验证**——用三引擎在 ≤1 周内不改代码

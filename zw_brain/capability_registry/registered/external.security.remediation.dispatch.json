@@ -1,0 +1,119 @@
+{
+  "slug": "external.security.remediation.dispatch",
+  "title": "外部安全整改分发契约",
+  "description": "声明外部漏洞修补/中间件适配执行器的输入输出边界；整改结果只能沉淀脱敏证据，不得修改核心目录、资源、授权状态。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "remediation_ref",
+      "target_ref",
+      "risk_summary_json",
+      "tenant_id"
+    ],
+    "properties": {
+      "remediation_ref": {
+        "type": "string"
+      },
+      "target_ref": {
+        "type": "string"
+      },
+      "risk_summary_json": {
+        "type": "object"
+      },
+      "callback_skill_id": {
+        "type": "string",
+        "const": "metadata.gather.evidence.upsert"
+      },
+      "tenant_id": {
+        "type": "string"
+      },
+      "actor_ref": {
+        "type": "string"
+      },
+      "idempotency_key": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "status",
+      "callback_skill_id"
+    ],
+    "properties": {
+      "remediation_ref": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "receipt_ref": {
+        "type": "string"
+      },
+      "error_summary": {
+        "type": "string"
+      },
+      "evidence_json": {
+        "type": "object"
+      },
+      "callback_skill_id": {
+        "type": "string"
+      },
+      "failure_callback_json": {
+        "type": "object",
+        "properties": {
+          "callback_skill_id": {
+            "type": "string"
+          },
+          "error_summary": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "side_effects": [
+    "external_execution",
+    "audit",
+    "evidence_callback"
+  ],
+  "tenant_scope": "tenant",
+  "auth_policy": "service",
+  "human_confirmation_required": false,
+  "audit_class": "external-execution",
+  "execution_binding": "external_capability",
+  "config_change_class": "live",
+  "compatibility": [],
+  "runtime_binding": {
+    "kind": "external_capability",
+    "surface_entry": "registered_external_executor",
+    "method": "external.security.remediation.dispatch",
+    "callback_skill_id": "metadata.gather.evidence.upsert",
+    "canonical_write_policy": "callback_only",
+    "failure_callback_required": true
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "external_contract",
+  "tags": [
+    "external",
+    "security",
+    "remediation",
+    "contract"
+  ],
+  "product_scope": {
+    "journey": "external",
+    "status": "external"
+  }
+}

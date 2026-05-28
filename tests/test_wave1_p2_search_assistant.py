@@ -6,7 +6,7 @@
 # Trace:
 #   .twin/e1-j1-journey/plan.yaml F6
 #   zw_brain/command/handlers/j1/search_assistant.py
-#   zw_brain/skill_registration/registered/search.intent.parse.json
+#   zw_brain/capability_registry/registered/search.intent.parse.json
 #   docs/approved/zw-brain-architecture.md §5.4.4 (减摩组件反约束)
 """F6: P2 搜索上下文助手 — 意图解析 + 缺口追问 + 推荐理由 + 推理失败降级.
 

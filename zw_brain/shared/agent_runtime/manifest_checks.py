@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 
 import yaml
 
-from zw_brain.skill_registration.runtime import load_manifests
+from zw_brain.capability_registry.runtime import load_manifests
 
 ALLOWED_SPEC_VERSIONS = ("anp-agent/v1.1", "anp-agent/v1.2")
 ALLOWED_AUTH_MODES = ("static_api_key", "trusted_gateway")

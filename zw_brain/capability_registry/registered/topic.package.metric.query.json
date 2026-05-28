@@ -1,0 +1,89 @@
+{
+  "slug": "topic.package.metric.query",
+  "title": "查询专题包指标",
+  "description": "查询专题包复用、发布和治理指标投影。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "required": [],
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "package_code": {
+        "type": "string"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "ok": {
+        "type": "boolean"
+      },
+      "skill_id": {
+        "type": "string"
+      },
+      "audit_id": {
+        "type": "string"
+      },
+      "result": {
+        "type": "object"
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "total": {
+        "type": "integer"
+      },
+      "summary": {
+        "type": "object"
+      }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-trace",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "topic.package.metric.query"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [
+    "topic.package.metric.query.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "topic",
+    "package",
+    "metric",
+    "read"
+  ],
+  "product_scope": {
+    "journey": "j2",
+    "status": "live"
+  }
+}

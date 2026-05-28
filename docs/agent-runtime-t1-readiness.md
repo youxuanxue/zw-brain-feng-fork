@@ -38,7 +38,7 @@
 | 1 | 开分支 | `git checkout -b agentruntime-t1-fire` from `main` | 0.1 |
 | 2 | 拷贝 spike 到 main | `cp .twin/e4-b1-agentruntime/spike/agentruntime_validate.py.skeleton scripts/agentruntime_validate.py` + `chmod +x`；同理 `doctor` | 0.2 |
 | 3 | 在 spike 骨架基础上补真实校验 | 解开 `# === T1 fire 时实装 ===` 注释，加 `import yaml` + 真实 `safe_load`；补 `Optional[str]` → `str` 严格化；补 5 条 validate_rules（见 §3）；运行 `python scripts/agentruntime_validate.py spike/sample_AGENT.yaml --json` 单步验证 | 1.5 |
-| 4 | 加 Registry 4 字段到 schema | edit `zw_brain/skill_registration/runtime.py::validate_manifest()`：source_type='external-register' 分支强制 4 字段（diff 见 [`spike/registry_schema_diff.json`](../.twin/e4-b1-agentruntime/spike/registry_schema_diff.json)） | 0.5 |
+| 4 | 加 Registry 4 字段到 schema | edit `zw_brain/capability_registry/runtime.py::validate_manifest()`：source_type='external-register' 分支强制 4 字段（diff 见 [`spike/registry_schema_diff.json`](../.twin/e4-b1-agentruntime/spike/registry_schema_diff.json)） | 0.5 |
 | 5 | 加 source_type 字段到现有 manifest schema | 把 `source_type: builtin` 缺省填充到现有 209 manifest（一次性 patch；export_agent_contract.py 可加 `--migrate-source-type` flag） | 0.5 |
 | 6 | 第一个 AGENT.yaml fixture 入库 | `cp .twin/e4-b1-agentruntime/spike/sample_AGENT.yaml fixtures/agentruntime/sample-builtin.AGENT.yaml`；**移除** `_spike_marker` 段；真实 builtin Agent 业务名 + 真 capability 列表 | 1.0 |
 | 7 | 加 preflight 新段 30 | `scripts/check_external_register_metadata.py`：对 source_type=external-register 强制 4 字段就位；接入 `scripts/preflight.sh`；详见 §5 反提前盖楼护栏 | 1.0 |
@@ -200,7 +200,7 @@ FORBIDDEN_FOR_BUILTIN = ("runtime_spec_version", "agent_yaml_ref")
 
 ### 5.3 反向校验示例
 
-T1 fire 之前任何手抖把 Registry 字段加进 `zw_brain/skill_registration/
+T1 fire 之前任何手抖把 Registry 字段加进 `zw_brain/capability_registry/
 registered/<某 builtin>.json` 都会被 F4 既有合同 test 拦下；T1 fire 之后
 段 30 接管。两道防线无缝接续，**没有 window of vulnerability**。
 

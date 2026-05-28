@@ -11,6 +11,23 @@ set -u
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
+# worktree fallback：worktree 默认 .venv 是 uv 缓存裸 python 解释器（无项目依赖），
+# 把主仓 venv 加进 PATH 让所有 shebang `#!/usr/bin/env python3` 走主仓 venv，
+# 并 export PYTHON_BIN 让 Python 子脚本（如 check_no_hand_maintained_projection.py 内部 _repo_python()）
+# 也走主仓 venv（D33 retrofit）。只在 worktree 且 worktree venv 缺关键依赖时触发。
+# canary 选 jwt：PyJWT 是 IAM auth 必需依赖（zw_brain.shared.iaf_oidc），项目生命周期
+# 内不太可能去除；若 IAM 重构去掉 jwt 依赖，同步更新此 canary 为新核心依赖名。
+if [ ! -x "$REPO_ROOT/.venv/bin/python3" ] || ! "$REPO_ROOT/.venv/bin/python3" -c "import jwt" >/dev/null 2>&1; then
+    _d33_common_dir="$(git rev-parse --git-common-dir 2>/dev/null)"
+    if [ -n "$_d33_common_dir" ]; then
+        _d33_main_root="$(dirname "$(cd "$_d33_common_dir" && pwd)")"
+        if [ -x "$_d33_main_root/.venv/bin/python3" ] && [ "$_d33_main_root" != "$REPO_ROOT" ]; then
+            export PATH="$_d33_main_root/.venv/bin:$PATH"
+            export PYTHON_BIN="$_d33_main_root/.venv/bin/python3"
+        fi
+    fi
+fi
+
 # ── 1) 通用段（approved / stat 等使用本仓库 scripts/，CI 不依赖 dev-rules 检出）──
 "$REPO_ROOT/scripts/preflight_common.sh" "$@"
 template_exit=$?
@@ -47,8 +64,26 @@ run_check() {
     if [ ! -x "$script_path" ]; then
         chmod +x "$script_path" 2>/dev/null || true
     fi
+    # 如果 .py 脚本，用 PYTHON_BIN（preflight.sh 顶部 worktree fallback 已 export）
+    # 或 REPO_ROOT/.venv/bin/python（main repo 场景），避免走 shebang 命中 system python3
+    # 缺项目依赖（sqlalchemy / jwt / yaml）。worktree 场景下 PATH 也已包含主仓 venv 第一位，
+    # 即使 shebang 也会走对——run_check 内的显式 invoker 是定向安全网。
+    local invoker=""
+    if [[ "$script_path" == *.py ]]; then
+        if [ -n "${PYTHON_BIN:-}" ] && [ -x "${PYTHON_BIN}" ]; then
+            invoker="$PYTHON_BIN"
+        elif [ -x "$REPO_ROOT/.venv/bin/python" ]; then
+            invoker="$REPO_ROOT/.venv/bin/python"
+        fi
+    fi
     # shellcheck disable=SC2086
-    if "$script_path" $script_args; then
+    if [ -n "$invoker" ]; then
+        if "$invoker" "$script_path" $script_args; then
+            ok_proj "$desc"
+        else
+            fail_proj "$desc"
+        fi
+    elif "$script_path" $script_args; then
         ok_proj "$desc"
     else
         fail_proj "$desc"
@@ -102,6 +137,8 @@ done <<'CHECKS'
 段 47	scripts/check_brain_no_domain_method.py	brain-no-domain-method (BrainService 域方法必须是 1 行 delegate shim，实现住 zw_brain/domain/services/ — Action D)
 段 48	scripts/check_brain_no_cross_cutting.py	brain-no-cross-cutting (BrainService 跨切关注 / 状态同步 helper 必须是 shim，实现住 zw_brain/command/{pipeline_ops,sync}.py — Action E)
 段 49	scripts/check_domain_no_command_import.py	domain-no-command-import (zw_brain/domain/ 不得 runtime import zw_brain.command — 4 层 entry→command→domain→shared，Action H R-001)
+段 50	scripts/check_no_skill_identifier_in_zw_brain.py	no-skill-identifier-in-zw-brain (D33 — 防 skill 命名回潮，新增 class/def 标识符须在白名单)
+段 51	scripts/check_agentruntime_bundles.py	agentruntime-bundles (D33.b / D30 — agents/*/AGENT.yaml + capabilities.json schema 持续守卫)
 CHECKS
 
 echo ""

@@ -202,7 +202,11 @@ def main() -> int:
         if child.is_dir():
             owner_key = child.name.split("-")[0]
             if owner_key in VALID_OWNERS:
-                plan_cache[owner_key] = _load_plan(child) or {}
+                loaded = _load_plan(child) or {}
+                # 同 owner 多 workspace 时（如 e6-f12f13-ops-new 无 plan.yaml），
+                # 空 plan 不得覆盖已有完整 plan（e6-platform-m0）。
+                if loaded.get("items") or owner_key not in plan_cache:
+                    plan_cache[owner_key] = loaded
 
     all_violations: list[str] = []
     scanned = 0

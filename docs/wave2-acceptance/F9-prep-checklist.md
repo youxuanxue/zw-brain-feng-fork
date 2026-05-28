@@ -38,7 +38,7 @@
 
 ## 三、10 Capability slug 注册起手位置（参 plan §四 L202-211）
 
-注册路径：`zw_brain/skill_registration/registered/topic.package.*.json` ×10：
+注册路径：`zw_brain/capability_registry/registered/topic.package.*.json` ×10：
 
 写类：
 - [ ] `topic.package.create` (write-trace)

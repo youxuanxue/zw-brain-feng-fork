@@ -3,7 +3,7 @@
 decision: instead of hiding non-core skills during demos, assert that every
 registered skill stays callable on demo data.
 
-For every manifest under zw_brain/skill_registration/registered/*.json:
+For every manifest under zw_brain/capability_registry/registered/*.json:
   - POST {} to http://<host>:<port>/api/skills/<skill_id>
   - status < 500 and JSON-parseable body  → healthy (callable; input validation
     or runtime returns a structured response, even if it's an error or empty)
@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-REGISTRY_DIR = REPO_ROOT / "zw_brain" / "skill_registration" / "registered"
+REGISTRY_DIR = REPO_ROOT / "zw_brain" / "capability_registry" / "registered"
 
 
 def call_skill(host: str, port: int, skill_id: str, timeout: float) -> dict[str, Any]:
@@ -104,7 +104,7 @@ def main() -> int:
         except Exception as e:
             print(f"[smoke_skills] WARN: cannot read {sf.name}: {e}", file=sys.stderr)
             continue
-        skill_id = manifest.get("skill_id") or manifest.get("slug")
+        skill_id = manifest.get("slug")
         if not skill_id or skill_id in seen_ids:
             continue
         seen_ids.add(skill_id)

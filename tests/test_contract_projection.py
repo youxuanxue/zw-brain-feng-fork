@@ -11,8 +11,8 @@ from scripts.export_agent_contract import (
     discover_skills,
     is_live,
 )
+from zw_brain.capability_registry.runtime import SURFACES, is_surface_enabled
 from zw_brain.command.brain import BrainService, UnknownSkillError
-from zw_brain.skill_registration.runtime import SURFACES, is_surface_enabled
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 

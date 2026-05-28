@@ -1,0 +1,122 @@
+{
+  "slug": "external.quality.scan.execute",
+  "title": "外部质量检测执行契约",
+  "description": "声明外部质量检测器的输入输出边界；检测结果只能回写 ops.catalog.quality.upsert 投影，不得回退目录、资源或授权状态。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "quality_ref",
+      "target_type",
+      "target_ref",
+      "tenant_id"
+    ],
+    "properties": {
+      "quality_ref": {
+        "type": "string"
+      },
+      "target_type": {
+        "type": "string"
+      },
+      "target_ref": {
+        "type": "string"
+      },
+      "rule_set_ref": {
+        "type": "string"
+      },
+      "callback_skill_id": {
+        "type": "string",
+        "const": "ops.catalog.quality.upsert"
+      },
+      "tenant_id": {
+        "type": "string"
+      },
+      "actor_ref": {
+        "type": "string"
+      },
+      "idempotency_key": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "status",
+      "callback_skill_id"
+    ],
+    "properties": {
+      "quality_ref": {
+        "type": "string"
+      },
+      "quality_status": {
+        "type": "string"
+      },
+      "score": {
+        "type": "number"
+      },
+      "error_summary": {
+        "type": "string"
+      },
+      "evidence_json": {
+        "type": "object"
+      },
+      "callback_skill_id": {
+        "type": "string"
+      },
+      "failure_callback_json": {
+        "type": "object",
+        "properties": {
+          "callback_skill_id": {
+            "type": "string"
+          },
+          "error_summary": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "side_effects": [
+    "external_execution",
+    "audit",
+    "evidence_callback"
+  ],
+  "tenant_scope": "tenant",
+  "auth_policy": "service",
+  "human_confirmation_required": false,
+  "audit_class": "external-execution",
+  "execution_binding": "external_capability",
+  "config_change_class": "live",
+  "compatibility": [],
+  "runtime_binding": {
+    "kind": "external_capability",
+    "surface_entry": "registered_external_executor",
+    "method": "external.quality.scan.execute",
+    "callback_skill_id": "ops.catalog.quality.upsert",
+    "canonical_write_policy": "callback_only",
+    "failure_callback_required": true
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "external_contract",
+  "tags": [
+    "external",
+    "quality",
+    "scan",
+    "contract"
+  ],
+  "product_scope": {
+    "journey": "external",
+    "status": "external"
+  }
+}

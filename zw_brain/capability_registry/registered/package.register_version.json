@@ -1,0 +1,91 @@
+{
+  "slug": "package.register_version",
+  "title": "登记能力包版本",
+  "description": "在审核通过后把能力包版本登记到统一 registry 事实源。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "package_id",
+      "confirmed"
+    ],
+    "properties": {
+      "package_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "role": {
+        "type": "string"
+      },
+      "confirmed": {
+        "type": "boolean"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "ok",
+      "skill_id",
+      "audit_id",
+      "result"
+    ],
+    "properties": {
+      "ok": {
+        "type": "boolean"
+      },
+      "skill_id": {
+        "type": "string"
+      },
+      "audit_id": {
+        "type": "string"
+      },
+      "result": {
+        "type": "object"
+      }
+    }
+  },
+  "side_effects": [
+    "audit",
+    "db_write",
+    "state_machine_transition",
+    "blockchain_anchor"
+  ],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": true,
+  "audit_class": "write-critical",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "package.register_version"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [
+    "package.register_version.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "package",
+    "registry",
+    "write",
+    "integration-admin"
+  ],
+  "product_scope": {
+    "journey": "b1",
+    "status": "live"
+  }
+}

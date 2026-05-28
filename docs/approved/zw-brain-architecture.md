@@ -355,6 +355,8 @@ zw-brain 的工作是：
 
 页面、REST、CLI、MCP、A2A 都只是同一 Capability 的投影。
 
+> **命名规则（D33，2026-05-28）**：内部唯一最小单位词是 **Capability**；不要在新代码标识符里用 `skill` 词（envelope contract 历史抽象除外，见 §6.2）。详见 [CLAUDE.md D33 条目](../../CLAUDE.md) + preflight 段 50。
+
 ### 4.2 五个消费面共享契约，但不要求同速成熟
 
 - **契约层必须统一**
@@ -647,6 +649,8 @@ legacy 门户的信息架构只能作为遗留能力索引，不再作为新 Web
 
 **与 AgentRuntime `AGENT.yaml` 的关系**：`Capability` 是 zw-brain 内部最小单位（描述「平台能做什么」）；`AGENT.yaml`（`anp-agent/v1.2`）是外部 Agent 声明式协议（描述「外部 Agent 需要什么能力 + 如何被运行」）。外部 Agent 通过 `AGENT.yaml` 中的 `tools` / `mcp_servers` / `skills` / `permissions` 段消费 zw-brain Capability；Registry 维护映射并裁剪有效工具集。两者不可互换（详见 §八 / R15）。
 
+**命名收敛规则（D33，2026-05-28）**：zw-brain 内部唯一最小单位词是 **Capability**；manifest 顶层标识字段是 `slug`（不再用冗余的 `skill_id`）。**`skill` 一词在 zw-brain 中保留为 envelope contract / 内部抽象（如 `BrainService.invoke_skill` / `SkillContext` / `SkillPipeline` / `UnknownSkillError`）**——这些是 5 消费面 API surface 与之一致的命名，新增此类标识符须显式登记到 `scripts/check_no_skill_identifier_in_zw_brain.py::ALLOWED_SKILL_IDENTIFIERS` 白名单。AgentRuntime AGENT.yaml 的 `skills:` 段是**外部协议消费侧**词汇（描述外部 Agent 引用 zw-brain 的哪些 capability），与 zw-brain 内部 capability 本体语义完全不同——preflight 段 50 机械守住此命名边界。
+
 ### 6.3 投影原则
 
 - WebUI：把 Capability 组装成页面与旅程
@@ -678,11 +682,11 @@ legacy 门户的信息架构只能作为遗留能力索引，不再作为新 Web
 
 **已发现禁区前缀的回潮防护（preflight 段 22）：**
 
-`scripts/check_capability_boundary.py` 按 skill_id prefix 把 manifest 分类到**当前已观察到曾出现 builtin 越界**的 7 类禁区前缀（血缘 / 质量 / 运维监控 / 工单 / 国家通道 / 国家直达 / 标准服务）。判定规则：
+`scripts/check_capability_boundary.py` 按 capability slug prefix 把 manifest 分类到**当前已观察到曾出现 builtin 越界**的 7 类禁区前缀（血缘 / 质量 / 运维监控 / 工单 / 国家通道 / 国家直达 / 标准服务）。判定规则：
 
-| skill_id prefix / 形态 | 归属禁区前缀 |
+| slug prefix / 形态 | 归属禁区前缀 |
 |---|---|
-| `metadata.lineage.*`（仅此前缀，不含 skill_id 其它位置的 `lineage` 段） | §1.3 血缘 |
+| `metadata.lineage.*`（仅此前缀，不含 slug 其它位置的 `lineage` 段） | §1.3 血缘 |
 | `quality.*` / `ops.catalog.quality.*` | §1.3 质量 |
 | `ops.gateway.*` / `ops.shift_handover.*` / `ops.exchange.diagnose` | §1.3 运维监控 |
 | `ops.ticket.*` | §1.3 工单（外部消息中心） |
@@ -694,7 +698,7 @@ legacy 门户的信息架构只能作为遗留能力索引，不再作为新 Web
 
 **作用边界（避免误解）：**
 
-- 段 22 只防"主 zw-brain 自建 builtin"回潮，**不阻止通过 `execution_binding == external_capability` 桥接外部系统消费同域能力**——例如 `external.lineage.graph.build` / `external.quality.scan.execute` / `external.notification.workorder.dispatch` 均为合法形态，正是 §1.3 "集团中心已做" 的消费桥接。血缘禁区**刻意不用「skill_id 含 `lineage` 段」宽匹配**：`external.lineage.*` 等桥接能力靠 `status` + `execution_binding` 区分，段 22 只锁 `metadata.lineage.*` 曾出现的 builtin 回潮。
+- 段 22 只防"主 zw-brain 自建 builtin"回潮，**不阻止通过 `execution_binding == external_capability` 桥接外部系统消费同域能力**——例如 `external.lineage.graph.build` / `external.quality.scan.execute` / `external.notification.workorder.dispatch` 均为合法形态，正是 §1.3 "集团中心已做" 的消费桥接。血缘禁区**刻意不用「slug 含 `lineage` 段」宽匹配**：`external.lineage.*` 等桥接能力靠 `status` + `execution_binding` 区分，段 22 只锁 `metadata.lineage.*` 曾出现的 builtin 回潮。
 - 段 22 是**事后防回潮**，把 P0 已清理的越界 manifest 集合锁死；**不是 §1.3 完整 10 类的事前防违建**。伪装成核心旅程（j1/j2/b1/infra）的新建 builtin 无法靠 prefix 拦下，那属架构约束「能力扩展唯一路径 = Skill 注册」+「高频核心走 builtin、长尾默认外部化」+ reviewer 判断范畴。
 - §1.3 出现新的 builtin 越界前缀时（例如未来若有 `dashboard.*` / `desensitize.*` 等），需同步更新 `check_capability_boundary.py::FORBIDDEN_ZONES`。
 
@@ -1251,7 +1255,7 @@ Wave 2 必达三引擎（审批流可视化引擎 + 表单 schema 化引擎 + �
 | 统一能力契约由单一来源派生 | 已有基础 | 继续依赖 `export_agent_contract.py --check` |
 | 模型调用只能走集团推理平台 | 已 wired | 继续依赖 preflight 段 10 |
 | 角色码不得出现 r1-r8 字面值（R10） | 已 wired | `policy.assert_no_legacy_role_codes()` 启动检查 + preflight 段做仓库级 grep |
-| 工程术语不得出现在前端 UI（R12） | 已 wired（D30）| preflight 段 24 `scripts/check_ui_term_blacklist.py` —— 扫 `zw-brain-web/` 9 词黑名单，剥离 ${...} / HTML 属性 / skill_id slug 后查残留 UI 文本 |
+| 工程术语不得出现在前端 UI（R12） | 已 wired（D30）| preflight 段 24 `scripts/check_ui_term_blacklist.py` —— 扫 `zw-brain-web/` 9 词黑名单，剥离 ${...} / HTML 属性 / capability slug 后查残留 UI 文本 |
 | 角色 / 业务流程 / 状态机决策必须业务方 sign-off（R13） | 软约束 | preflight 暂不强制（涉及人工审批，硬化收益低） |
 | 项目级可配置物必须经管理员"草稿→预览→确认入库"三步（R14 / Wave 2） | 字段就位（D30）；三引擎 Wave 2 落地 | manifest schema 已增加 `config_change_class: live\|preview\|draft`（默认 `live`），由 `validate_manifest` 强制；Wave 2 三引擎落地时由配置 capability 显式改 `preview` / `draft` |
 | 外部引用悬空不得合并 | 已 wired | 继续依赖 preflight 段 14 |

@@ -36,7 +36,7 @@ def test_infra_projection_j1_skill_consistent_across_five_surfaces():
         build_rest_openapi,
         build_runtime_bindings,
     )
-    from zw_brain.skill_registration.runtime import is_surface_enabled
+    from zw_brain.capability_registry.runtime import is_surface_enabled
 
     skills = _skills_by_id()
     # data.search 是 J1 找数 read 能力，五消费面全开
@@ -84,7 +84,7 @@ def test_infra_projection_export_check_has_no_drift():
 
 def test_infra_projection_single_capability_registry_dir():
     """仓库中仅一个目录定义 Capability（确定性自动化运营和运维单一事实源约束）."""
-    registry = REPO_ROOT / "zw_brain" / "skill_registration" / "registered"
+    registry = REPO_ROOT / "zw_brain" / "capability_registry" / "registered"
     assert registry.is_dir()
     assert list(registry.glob("*.json")), "registered/ 下应有 capability 契约 JSON"
 

@@ -26,17 +26,17 @@ if TYPE_CHECKING:
     pass
 
 import zw_brain.shared.audit as audit_bus
+from zw_brain.capability_registry.runtime import (
+    PACKAGE_TRUST_LEVELS,
+    load_manifests,
+    package_trust_levels,
+    validate_package_lifecycle_transition,
+)
 from zw_brain.command.brain import BrainServiceError, InvalidStateError
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.policy import DomainAccessDeniedError, tenant_for_role
 from zw_brain.shared.runtime_tenant import (
     get_runtime_tenant_id,
-)
-from zw_brain.skill_registration.runtime import (
-    PACKAGE_TRUST_LEVELS,
-    load_manifests,
-    package_trust_levels,
-    validate_package_lifecycle_transition,
 )
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ def _emit_meta_audit(
 def _matrix_row_from_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     product_scope = manifest.get("product_scope") or {}
     return {
-        "skill_id": manifest["skill_id"],
+        "skill_id": manifest["slug"],
         "journey": str(product_scope.get("journey") or ""),
         "status": str(product_scope.get("status") or ""),
         "execution_binding": str(manifest.get("execution_binding") or ""),
@@ -222,7 +222,7 @@ def handler_package_exposure_matrix_query(deps: HandlerDeps, ctx: SkillContext, 
     skill_id = ctx.skill_id
     """F4 package.exposure.matrix.query —— 只读 manifest × 5 消费面暴露矩阵。
 
-    投影派生自 zw_brain/skill_registration/registered/*.json，不复制 manifest
+    投影派生自 zw_brain/capability_registry/registered/*.json，不复制 manifest
     内容；handler 自身写 sanitized meta-audit（与 F2/F3 同 pattern）。
     """
     tenant_id = _enforce_tenant_scope(payload)

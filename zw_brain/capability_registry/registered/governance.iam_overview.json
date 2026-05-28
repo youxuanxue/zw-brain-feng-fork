@@ -1,0 +1,174 @@
+{
+  "slug": "governance.iam_overview",
+  "title": "查看 IAM 治理总览",
+  "description": "查看 IAF 绑定状态、投影、租户能力策略、旧 BSP 导入问题、审计证据和策略裁决结果。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "binding_status": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "role_code": {
+        "type": "string"
+      },
+      "actor_id": {
+        "type": "string"
+      },
+      "external_actor_id": {
+        "type": "string"
+      },
+      "capability_id": {
+        "type": "string"
+      },
+      "capability_slug": {
+        "type": "string"
+      },
+      "issue_type": {
+        "type": "string"
+      },
+      "surface": {
+        "type": "string"
+      },
+      "risk_context": {
+        "type": "object"
+      },
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "tenant_id",
+      "summary",
+      "actors",
+      "tenant_policies",
+      "import_issues",
+      "audit_events"
+    ],
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "filters": {
+        "type": "object"
+      },
+      "summary": {
+        "type": "object"
+      },
+      "tenants": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "orgs": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "regions": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "actors": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "roles": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "tenant_policies": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "legacy_policy_candidates": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "import_issues": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "adapter_runs": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "audit_events": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "policy_probe": {
+        "type": [
+          "object",
+          "null"
+        ]
+      }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-sensitive",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "governance.iam_overview"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [
+    "governance.iam_overview.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "governance",
+    "iam",
+    "projection",
+    "read"
+  ],
+  "product_scope": {
+    "journey": "b1",
+    "status": "live"
+  }
+}

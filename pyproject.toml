@@ -51,7 +51,7 @@ include = [
   "zw_brain/entry/mcp/tools/*.json",
   "zw_brain/entry/a2a/agent_card.json",
   "zw_brain/entry/a2a/tools/*.json",
-  "zw_brain/skill_registration/registered/*.json",
+  "zw_brain/capability_registry/registered/*.json",
   "zw_brain/domain/seed_snapshot.json",
 ]
 
