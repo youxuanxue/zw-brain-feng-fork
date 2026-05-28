@@ -376,11 +376,18 @@ def test_jinzhou_recommendation_one_week_landing() -> None:
 
 
 def test_three_engines_consolidated_acceptance() -> None:
+    from datetime import UTC, datetime
+
     from sqlalchemy import select
 
     from zw_brain.domain.models import AuditEventRecord
     from zw_brain.shared.db import create_session_factory
 
+    # D17 确定性：在跑 3 个 e2e 前打 UTC marker（AuditEventRecord.occurred_at 也是
+    # UTC），consolidated audit_total 仅计本次三场景产生的事件，不受
+    # test_anshan/test_sichuan/test_jinzhou 个体用例先跑的影响（避免「全套跑」vs
+    # 「单跑 consolidated」count 漂移 → SIGN_OFF.md 漂移）。
+    consolidated_t0 = datetime.now(UTC)
     t0 = time.perf_counter()
     anshan = _run_anshan_e2e()
     sichuan = _run_sichuan_e2e()
@@ -389,7 +396,9 @@ def test_three_engines_consolidated_acceptance() -> None:
 
     SessionLocal = create_session_factory()
     with SessionLocal() as s:
-        audit_rows = s.execute(select(AuditEventRecord)).all()
+        audit_rows = s.execute(
+            select(AuditEventRecord).where(AuditEventRecord.occurred_at >= consolidated_t0)
+        ).all()
         audit_total = len(audit_rows)
 
     summary = {
@@ -411,14 +420,26 @@ def test_three_engines_consolidated_acceptance() -> None:
         "",
         "> 自动生成自 `tests/integration/test_wave2_three_engines_acceptance.py`。",
         "> 业务方在 § 3 签字后此条状态可从 pending 升 completed。",
+        "> **确定性**：本文档不嵌入随机 UUID / 精确耗时数（每次 e2e 重跑会漂；",
+        "> 违反 D17 数字漂移防御层）；精确 schema_id 与 duration 走 `.data/wave2-acceptance/*.json`。",
+        "",
+        "## § 0 签字身份与载体（签字前先填）",
+        "",
+        "| 角色 | 具体身份 | 签字载体 |",
+        "|---|---|---|",
+        "| 业务方 (e3 F8 三引擎) | _待填，例：海若产品部产品负责人 / 客户验收方 IT 主管_ | _待填，例：PR #144 评论 / 邮件归档 / 验收报告盖章扫描件_ |",
+        "",
+        "> § 3 / § 4 表内\"签字\"列填具体人名与日期；本节抬头先把\"业务方=谁、签字证据以什么形式保存\"",
+        "> 定下来，避免每次 review 重新讨论这个 meta 问题。线下盖章 / 邮件确认场景下，",
+        "> 把扫描件 / 邮件截图归入 `docs/approved/` 并在 § 3 备注链接。",
         "",
         "## § 1 三引擎技术证据",
         "",
-        "| 引擎 | 场景 | 入库 schema_id | version | 总耗时 (秒) | 状态机 |",
-        "|---|---|---|---:|---:|---|",
-        f"| 审批流 | {anshan['scenario']} | `{anshan['schema_id']}` | {anshan['version']} | {anshan['duration_seconds']['total']} | draft→preview→live |",
-        f"| 申请表单 | {sichuan['scenario']} | `{sichuan['schema_id']}` | {sichuan['version']} | {sichuan['duration_seconds']['total']} | draft→preview→live |",
-        f"| 推荐规则 | {jinzhou['scenario']} | (5 rules) | live | {jinzhou['duration_seconds']['total']} | draft→preview→live |",
+        "| 引擎 | 场景 | 入库 | version | 状态机 |",
+        "|---|---|:--:|---:|---|",
+        f"| 审批流 | {anshan['scenario']} | ✓ | {anshan['version']} | draft→preview→live |",
+        f"| 申请表单 | {sichuan['scenario']} | ✓ | {sichuan['version']} | draft→preview→live |",
+        f"| 推荐规则 | {jinzhou['scenario']} | 5 rules live | live | draft→preview→live |",
         "",
         "**相关 commit**：",
         "",
@@ -438,9 +459,19 @@ def test_three_engines_consolidated_acceptance() -> None:
         "  （`tests/fixtures/dsp_require_sample.json`）同期手工编排（如 `残疾人` keyword 命中 `残疾人信息资源`），",
         "  此命中率是端到端 pipeline 跑通的烟雾测度，**不是**推荐质量的可外推度量。",
         "  真实质量评估需待客户接入后用未见 records 跑 holdout / cross-validation。",
+        "- **per_record 同 top_candidate 现象说明**：jinzhou_recommendation.json 显示 5 query",
+        "  共享同一 top_candidate `cat-disabled-info-001`，**非 bug，是 fixture 关键字 + 引擎",
+        "  `keyword_match` OR-逻辑的协同产物**——title 含「残疾」的 catalog 对任意 query 自动加",
+        "  1.5 分，其他 catalog 缺差异化得分源全部输给该项。要做有区分度的多样化推荐，需 (a)",
+        "  补 fixture rules 让每条 query 有独立得分源，或 (b) 引擎引入 query-catalog 相关性",
+        "  评分（embedding / TF-IDF 等），均属 Wave 2.x+ 立项。",
         "- 命中明细见 `.data/wave2-acceptance/jinzhou_recommendation.json`（本地复跑后生成）。",
         "",
         "## § 3 业务方 sign-off 栏（待签字）",
+        "",
+        "> 签字渠道：PR 评论 `business-signoff: <角色> <日期>` 或打 `business-signoff` issue label；",
+        "> 截图归入 `docs/approved/` 或 PR 评论永久附属。任一项「业务方意见」=「需修改」则",
+        "> needs_human 升级，按 R13 元规则触发新一轮 review。",
         "",
         "| 项 | 业务方意见 | 签字 | 日期 |",
         "|---|---|---|---|",
@@ -463,11 +494,13 @@ def test_three_engines_consolidated_acceptance() -> None:
         "",
         "## § 5 1 周硬上限",
         "",
-        f"- 自动化 e2e 实测总耗时：**{round(total_duration, 3)}s**（鞍山+四川+荆州 端到端）",
+        "- 自动化 e2e 实测总耗时：**单场景 <60s 演示上限内**（每场景 assert duration < 60.0；",
+        "  跨场景 consolidated 走架构约束 R7 反假绿）；精确数走 `.data/wave2-acceptance/consolidated.json`。",
         "- 远低于 1 周 (604800s) 硬上限。",
         "- 真实工作量评估（业务方判断含调研、需求确认、人工 review）请在 § 3 填补。",
         "",
-        f"- 审计事件总数：**{audit_total}** 条（写态 skill 全部经 audit bus 同步落库；D4）。",
+        f"- 审计事件总数：**{audit_total}** 条（写态 skill 全部经 audit bus 同步落库；D4 — 计数",
+        "  随 e2e 路径稳定，不随机生成）。",
         "",
         "---",
         "",

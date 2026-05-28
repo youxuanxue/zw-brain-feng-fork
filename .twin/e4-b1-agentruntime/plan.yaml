@@ -189,7 +189,14 @@ items:
   evidence_plan:
   - 证据预算：scripts/customer_demo_b1.sh + 安全审计员 + 业务方 sign-off
   - 停止条件：双方签字；任一卡点 needs_human
-  actual_evidence: []
+  actual_evidence:
+  - scripts/customer_demo_b1.sh + scripts/customer_demo_b1.py + docs/customer-demo-b1.md
+    落地；端到端 3s 跑通 11 步（B1.1 4 panel + investigation_summary + B1.2 review→enable→matrix→trust_level→rollback）
+  - 报告字段：13 audit_events / anomaly 2 rules (high-failure-rate + repeated-denied) /
+    accountability 3 chains + 敏感字段脱敏 / matrix 230 manifests × 5 surface /
+    rollback v1.2.0→v1.1.0 status=rolled-back
+  - 业务方 + 安全审计员 sign-off ⏳ 待发起（双签流程见 docs/customer-demo-b1.md §sign-off）
+  - E5 F17 b12 Playwright e2e 3 it() executable（陈旧 blocked_reason 已勘正）
   depends_on:
   - F1
   - F2
@@ -198,5 +205,5 @@ items:
   - F5
   - F7
   status: pending
-  next_action: F7 业务判定后写 scripts/customer_demo_b1.sh；2026-05-25 浏览器 B1.1 四 panel + 调查助手 + B1.2 三 tab live（b11 2 e2e 绿，b12 仍 placeholder→E5 F17）
-  blocked_reason: b12 Playwright 未实装（F7 borderline 报表已 2026-05-27 业务方 sign-off 解除）
+  next_action: 业务方 + 安全审计员双签；任一方 needs_human 阻塞时升级
+  blocked_reason: 双签未发起（脚本 + 浏览器 e2e 已就位；b12 Playwright 实装 E5 F17 已 completed，原陈旧 blocked_reason 勘正）

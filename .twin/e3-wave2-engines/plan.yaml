@@ -202,10 +202,14 @@ items:
   - tests/integration/test_wave2_three_engines_acceptance.py 4 passed in 1.13s; full
     pytest 176 passed/12 skipped
   - bash scripts/preflight.sh PASS (29 段)
-  - .data/wave2-acceptance/SIGN_OFF.md 生成 + anshan_approval.json + sichuan_form.json
-    + jinzhou_recommendation.json + consolidated.json
-  - e2e 总耗时 0.275s（远 < 1 周 604800s 硬上限）; 荆州 hit-rate 40% (2/5)
-  - 审计事件 24 条经 audit bus 同步落库（D4 哲学满足）
+  - docs/wave2-acceptance/SIGN_OFF.md 生成 + .data/wave2-acceptance/{anshan_approval,sichuan_form,jinzhou_recommendation,consolidated}.json
+  - e2e 单场景 <60s 演示上限内（assert duration < 60.0），1 周 604800s 硬上限
+    远超；荆州 hit-rate 40% (2/5)
+  - 审计事件 12 条经 audit bus 同步落库（D4 哲学满足）
+  - '[2026-05-28] SIGN_OFF.md 确定性化（D17 数字漂移防御层）：移除随机
+    UUID schema_id + 精确耗时；audit_event_count 按 consolidated_t0 UTC marker
+    过滤到本次三场景生成的事件，跨「全套跑」/「单跑 consolidated」run scope
+    字节级一致；prose 增 § 3 签字渠道说明 + R13 回路'
   depends_on:
   - F2
   - F3
@@ -213,8 +217,8 @@ items:
   - F6
   - F7
   status: pending
-  next_action: 等业务方 sign-off；2026-05-25 浏览器 `/engines-admin` 三 tab 可达（ROLE_BUSIAUDIT），E5 F16 wave2 预览 banner 已加
-  blocked_reason: 业务方签字未落盘
+  next_action: 业务方 sign-off；2026-05-25 浏览器 `/engines-admin` 三 tab 可达（ROLE_BUSIAUDIT），E5 F16 wave2 预览 banner 已加
+  blocked_reason: 业务方签字未落盘（SIGN_OFF.md 现已确定性化，PR reviewer 可见单一权威）
 - id: F9
   deliverable: Wave 2 P7 D32.a 触发 — TopicPackage 6 表 + 10 capability + sd-default 山东标杆（AC5 stretch 复用 — D32.a 触发的 D 类复活专属 AC 由下次业务方 review 产生，CLAUDE.md D28 元规则）
   scope: 落地 plan §三.1 TopicPackage 6 张投影表 + §四 10 Capability slug + §6.1 三维可见性策略 + §6.2 从专题包发起复用的黄金路径；首批 sd-default 山东省高频跨部门政务标杆 3 个专题包（医疗救助 / 医保码 / 异地就医）；不动 catalog_entry / resource_asset / catalog_model / dsp_basesubject 81 表事实源；不复造旧专区后台 / 旧示范应用门户 / 旧基础主题库页面引擎
@@ -226,8 +230,11 @@ items:
   evidence_plan:
   - 证据预算：tests/integration/test_wave2_topic_package_discovery.py + tests/integration/test_wave2_topic_package_curation.py 全绿 + sd-default 山东 3 高频专题完整落地
   - 停止条件：(a) TopicPackage 6 张物理表通过 Base.metadata.create_all 建出且不进 alembic（基线 §9.6）；(b) 10 个 capability slug 注册（plan §四 L202-211：create / configure / submit / review / publish / policy.update / subscribe / evidence.attach / query / metric.query）+ 5 消费面投影 + export_agent_contract.py --check 无 drift；(c) 6 态发布状态机（draft→configuring→configured→submitted→published / rejected→offline_pending→offline）可流转；(d) 三维可见性策略（组织 + 角色 + 消费面）写入 tenant_capability_policy；(e) preflight 段 25 (adapter-write-ban) + 段 22 (capability-boundary) + 段 28 (三一致) 全 PASS；(f) basesubject 81 表硬保护回归（D7 forbidden-zone / §5.6 #13）
-  actual_evidence: []
+  actual_evidence:
+  - 'docs/wave2-acceptance/F9-prep-checklist.md — F8 sign-off 落盘后的 8 段
+    起手清单（6 表 schema + 10 cap slug + 山东 3 标杆 fixture + 5 消费面 + 3 e2e
+    + sign-off 准入 + 不做清单），不立项不动代码、仅照亮路径'
   depends_on: []
   status: pending
-  next_action: Wave 2 三引擎 F8 sign-off 落盘后立即启动（与 PR #135 A 类 Wave 0 立项卡片对称；Wave 2 三引擎 land 后 D32.a 触发的 D 类复活进入执行）
-  blocked_reason: Wave 2 三引擎业务方签字未落盘（F8 blocked）
+  next_action: Wave 2 三引擎 F8 sign-off 落盘后立即启动（与 PR #135 A 类 Wave 0 立项卡片对称；Wave 2 三引擎 land 后 D32.a 触发的 D 类复活进入执行）。起手按 docs/wave2-acceptance/F9-prep-checklist.md 八段走
+  blocked_reason: Wave 2 三引擎业务方签字未落盘（F8 blocked；F9 prep-checklist 已就位）

@@ -12,12 +12,35 @@ test.describe('B1.2 身份治理验收 (#109)', () => {
     await waitAppReady(page);
   });
 
-  test('P0: 业务运营员可进身份治理且列表 live', async ({ page }) => {
+  test('P0: 业务运营员可进身份治理且列表渲染候选', async ({ page }) => {
+    // 自包含：注入确定性 list 响应，断言不依赖生产库恰好 seed 了某条候选。
+    // 真实后端数据流由 pytest 集成套 + 「待审核筛选」用例覆盖；本用例只验渲染路径。
+    await page.route('**/api/skills/governance.policy_candidate.list**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          tenant_id: 'sd-default',
+          summary: { total: 1, status_counts: { pending_review: 1 } },
+          items: [
+            {
+              legacy_system: 'dsp-bsp',
+              legacy_permission_ref: 'ACCEPT-TEST',
+              legacy_role_ref: 'ROLE_BUSIAUDIT',
+              capability_id: 'zone.publish_topic_projection',
+              surface: 'webui',
+              candidate_status: 'pending_review',
+              evidence_json: { source: 'e2e-injected' },
+            },
+          ],
+        }),
+      })
+    );
     await setRole(page, 'ROLE_BUSIAUDIT');
     await gotoHash(page, '#/integration-admin/iam-governance');
     await expect(page.getByRole('heading', { name: '身份治理' })).toBeVisible();
     await expect(page.getByText('映射候选列表')).toBeVisible();
-    await expect(page.locator('.data-source-badge')).toContainText(/实时数据|演示数据/);
+    await expect(page.locator('.data-source-badge')).toContainText('实时数据');
     await expect(page.locator('body')).toContainText('ACCEPT-TEST');
   });
 
