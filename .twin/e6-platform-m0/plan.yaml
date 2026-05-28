@@ -229,3 +229,36 @@ items:
   status: completed
   next_action: ''
   blocked_reason: null
+- id: F12
+  deliverable: "A 类 D32 触发 Wave 0 第一刀（一）：网关运行状态投影 ops.gateway.heartbeat.ingest"
+  scope: 落地 dsp-dataservice-reconstruction-plan-v1.md §3.3 `gateway_runtime_status_projection` 表 + Capability `ops.gateway.heartbeat.ingest` 注册；不动旧网关后台；adapter 只读（plan §5.2）；ops.gateway.log.anchor 留待独立立项卡片（plan Wave 2 治理动作 / 与 anchor_outbox + audit_receipt 同期）
+  covers_ac:
+  - AC5
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/ops-gateway-heartbeat.feature
+  evidence_plan:
+  - 证据预算：tests/test_wave0_ops_gateway.py 新增（UNIQUE/INDEX/超时判定/跨租户隔离）+ projection 派生 e2e + 5 消费面契约导出无 drift
+  - 停止条件：preflight 段 28 capability-registration 三处一致；段 38 三角守卫合法；段 25 adapter-write-ban 拦下 projection 直写
+  actual_evidence: []
+  depends_on:
+  - F2
+  status: pending
+  next_action: Wave 0 sign-off 通过后立即启动（业务方 PR #129 + D32 已触发）
+  blocked_reason: null
+- id: F13
+  deliverable: "A 类 D32 触发 Wave 0 第一刀（二）：服务调用统计投影 ops.service.invocation.query"
+  scope: 落地 dsp-dataservice-reconstruction-plan-v1.md §3.4 `service_invocation_metric_projection` 表 + Capability `ops.service.invocation.query` 注册；多 metric_scope 派生 + 多 bucket_granularity 重算覆盖；adapter 只读（plan §5.2 "业务状态不允许由统计表反推"）；ops.service.report.query 留待与汇总报表查询语义明确区分时单独立项
+  covers_ac:
+  - AC5
+  spec_ref:
+  - .testing/waves/wave-0-golden-path/features/ops-service-invocation.feature
+  evidence_plan:
+  - 证据预算：tests/test_wave0_ops_service.py 新增（UNIQUE 9 列约束/5 metric_scope 派生/3 bucket_granularity 重算/跨租户/孤儿 capability_slug）+ projection 派生 e2e + 5 消费面契约导出无 drift
+  - 停止条件：preflight 段 28 capability-registration 三处一致；段 38 三角守卫合法；段 25 adapter-write-ban 拦下 projection 直写或反推业务状态
+  actual_evidence: []
+  depends_on:
+  - F2
+  - F12
+  status: pending
+  next_action: Wave 0 sign-off 通过后立即启动（业务方 PR #129 + D32 已触发）
+  blocked_reason: null
