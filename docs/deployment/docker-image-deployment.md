@@ -11,11 +11,16 @@
 
 ## 1. 构建镜像
 
-在仓库根目录执行：
+镜像默认内置 **agent-runtime**（Embedded SDK 依赖，来自 `vendor/agent-runtime/release/v0.1/` 离线包）与 `agents/`。在 **zw-brain 仓库根目录** 构建即可，**无需**同级 `agent-runtime` 源码仓库：
 
 ```bash
+cd /path/to/zw-brain
 docker build -t zw-brain:1.0.0 .
 ```
+
+离线包路径与升级说明见 [`vendor/agent-runtime/README.md`](../../vendor/agent-runtime/README.md)。
+
+> 构建阶段会解压 tar.gz、执行 `./install.sh` 并安装 `requirements.txt` 中的运行时依赖；镜像内 `agent.schema.json` 来自仓库 `schemas/`。
 
 镜像默认启动 `zw-brain-rest`，同时内置以下运行入口，可通过 `docker run ... <command>` 覆盖：
 
@@ -25,7 +30,8 @@ docker build -t zw-brain:1.0.0 .
 - `zw-brain-a2a`：A2A 入口
 - `zw-brain-migrate-legacy`：旧平台数据迁移入口
 
-> 外部 Agent 接入不需独立容器入口：通过 `AGENT.yaml` 经 AgentRuntime 内核运行（基线 §8.1 / R15），协议规范以 `docs/agent-runtime/*` 为准；如未来出 Standalone HTTP 形态再扩入口。
+> 外部 Agent 接入不需独立容器入口：通过 `AGENT.yaml` 经 AgentRuntime 内核运行（基线 §8.1 / R15），协议规范以 `docs/agent-runtime/*` 为准；如未来出 Standalone HTTP 形态再扩入口。  
+> Embedded 启用与环境变量见 [`agent-runtime-embedded.md`](agent-runtime-embedded.md)（勿直接 `source` 旧环境 `agent-runtime/.env.local` 中的路径项）。
 
 ## 2. 导出与导入镜像文件
 
@@ -119,8 +125,29 @@ http://<服务器IP>:8800/
 | `ZW_BRAIN_SESSION_REDIS_URL` | BFF 会话 Redis URL；**多 REST 副本 / 生产必填**（例如 `redis://redis:6379/0`） | 未设置（单 worker 内存会话） |
 | `ZW_BRAIN_SESSION_REDIS_KEY_PREFIX` | Redis session key 前缀 | `zw-brain:session:` |
 | `ZW_BRAIN_DEPLOY_MODE` | 设为 `prod` / `production` 时强制要求 `ZW_BRAIN_SESSION_REDIS_URL` | 未设置 |
+| `ZW_BRAIN_AGENT_RUNTIME_ENABLED` | 启用 Embedded AgentRuntime 与 `/api/agent-runtime/*` 任务接口 | 未设置（关闭） |
+| `ZW_BRAIN_AGENT_RUNTIME_PROFILE` | `local_dev` 或 `embedded_single_tenant` | 镜像内按环境配置 |
+| `ZW_BRAIN_AGENT_RUNTIME_CONFIG` | `agent-runtime.yaml` 路径 | 镜像内 `/app/agent-runtime.yaml` |
+| `ZW_BRAIN_AGENTS_DIR` | 内置 Agent 清单目录 | 镜像内 `/app/agents` |
+| `ZW_BRAIN_AGENT_RUNTIME_SCHEMA` | `agent.schema.json` 路径 | 镜像内 `/app/schemas/agent.schema.json` |
+| `INSPUR_INFERENCE_BASE_URL` | Embedded Agent 经集团推理网关（与 zw-brain LLM 同一约束） | 启用 AgentRuntime 时必填 |
+| `INSPUR_INFERENCE_MODEL` | 推理模型名 | 启用 AgentRuntime 时必填 |
 
 如需接入 IAF/OIDC、外部数据库或集团推理平台，应通过环境变量注入对应配置，不要把密钥、连接串或证书写入镜像。内网部署若 IAF 使用自签名证书，优先挂载 CA bundle（`ZW_BRAIN_IAF_CA_FILE`）；仅在无法提供证书时才使用 `ZW_BRAIN_IAF_VERIFY_SSL=false`。
+
+启用 Embedded AgentRuntime 示例（在 §4 `docker run` 基础上追加）：
+
+```bash
+docker run -d \
+  ... \
+  -e ZW_BRAIN_AGENT_RUNTIME_ENABLED=1 \
+  -e ZW_BRAIN_AGENT_RUNTIME_PROFILE=embedded_single_tenant \
+  -e INSPUR_INFERENCE_BASE_URL=https://<集团推理网关>/v1 \
+  -e INSPUR_INFERENCE_MODEL=<模型名> \
+  zw-brain:1.0.0
+```
+
+校验：`curl http://127.0.0.1:8800/health` 的 `agent_runtime.enabled` 应为 `true`；`curl http://127.0.0.1:8800/api/agent-runtime/status` 列出内置 Agent（需 IAM 会话或 dev bypass，见 [`agent-runtime-embedded.md`](agent-runtime-embedded.md)）。
 
 REST WebUI 登录采用 **IAM 授权码 + BFF 会话**（详见 `docs/iam-login-logout-implementation.md`）：前端 URL 无 `code` 且后端 `/auth/iaf/session` 未返回有效会话时会跳转到 IAM 授权端点；回跳后由后端 `/auth/iaf/token` 代理 code 换取 IAM token 并写入服务端 session。浏览器仅通过 `zw_brain_session` HttpOnly cookie 携带不透明 session id；前端 JavaScript 只保存公开会话摘要与 CSRF token，**不接收、不保存、不发送** IAM access token 或 refresh token。前端每 5 分钟请求 `/auth/iaf/refresh` 由后端刷新 session 内 token；所有 `/api/*` 浏览器请求使用同源 cookie 鉴权，写请求额外携带 `X-CSRF-Token`，后端仍透传 session 内 access token 到 `{ZW_BRAIN_IAF_AUTH_SERVER_URL}/v1/token-healthz` 校验并本地 RS256 验签，校验不可用时按 503 失败关闭。退出登录会清理服务端 session 与 HttpOnly cookie，再跳转 IAM `/protocol/openid-connect/logout?redirect_uri=...` 清除 SSO 会话。
 

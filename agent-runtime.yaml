@@ -1,0 +1,13 @@
+# zw-brain Embedded AgentRuntime（架构 §8.2 Phase 1）
+# 安装：解压 vendor/agent-runtime/release/v0.1/*.tar.gz 后执行 ./install.sh（见 vendor/agent-runtime/README.md）
+product_name: zw-brain
+profile: embedded_single_tenant
+context_mode: minimal
+tenant_mode: single
+auth_mode: trusted_gateway
+agents_dir: agents
+schema_path: schemas/agent.schema.json
+workspace_root: .data/agent-runtime/workspaces
+log_dir: .data/agent-runtime/logs
+default_model_provider: openai_compatible
+default_model: ${env:INSPUR_INFERENCE_MODEL}

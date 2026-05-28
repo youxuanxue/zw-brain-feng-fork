@@ -1,0 +1,6 @@
+# agent-runtime[deepagents] — 与 agent-runtime 0.1.0 pyproject optional-dependencies 对齐
+langchain
+langchain-openai
+langgraph
+deepagents>=0.5.4
+langchain-mcp-adapters>=0.2.2

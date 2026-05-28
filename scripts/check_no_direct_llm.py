@@ -80,10 +80,19 @@ WHITELIST_DIRS = {
 # ── 白名单：唯一合法的 LLM 出口模块（D14 → D6 内部实现）────────────────
 ALLOWED_LLM_GATEWAY = "zw_brain.shared.inference.client"
 
+# ── 白名单：反向定义"禁止 host"的防御性代码（D6 校验器自身）────────────
+# 这些文件持有 BLACKLIST 字面量是用于拒绝 AGENT.yaml manifest 引用第三方 LLM，
+# 不是真实调用。豁免它们以避免反向引用被误判为违规。
+WHITELIST_FILES = {
+    "zw_brain/shared/agent_runtime/manifest_checks.py",
+}
+
 
 def should_skip(path: Path, repo_root: Path) -> bool:
-    """是否跳过该路径（命中白名单目录或非 .py 文件）。"""
+    """是否跳过该路径（命中白名单目录/文件或非 .py 文件）。"""
     rel = path.relative_to(repo_root)
+    if str(rel) in WHITELIST_FILES:
+        return True
     parts = rel.parts
     # 白名单目录 prefix 匹配
     for wd in WHITELIST_DIRS:

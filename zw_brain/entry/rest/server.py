@@ -61,6 +61,13 @@ from zw_brain.skill_registration.runtime import SurfaceNotEnabledError, require_
 
 _LOGGER = logging.getLogger(__name__)
 _JWKS_CACHE_TTL_SECONDS = 600
+
+
+def _agent_runtime_bridge():
+    """延迟加载 AgentRuntime 桥接模块，避免未安装 agent-runtime 时阻塞 REST 启动。"""
+    from zw_brain.command import agent_runtime_bridge as bridge
+
+    return bridge
 # R-008/R-009: 从单一来源 role_codes 派生（含 admin / system）
 from zw_brain.domain.role_codes import ALL_ROLE_CODES as _DEV_IAM_BYPASS_ROLES  # noqa: E402
 
@@ -252,7 +259,15 @@ class RestHandler(BaseHTTPRequestHandler):
             self._handle_iaf_session()
             return
         if parsed.path == "/health":
-            self._json(200, {"status": "ok", "service": "zw-brain-rest"})
+            body: dict[str, Any] = {"status": "ok", "service": "zw-brain-rest"}
+            body["agent_runtime"] = _agent_runtime_bridge().runtime_status()
+            self._json(200, body)
+            return
+        if parsed.path == "/api/agent-runtime/agents":
+            self._with_authenticated_request(lambda claims: self._handle_agent_runtime_agents(claims))
+            return
+        if parsed.path == "/api/agent-runtime/status":
+            self._json(200, _agent_runtime_bridge().runtime_status())
             return
         if parsed.path == "/openapi.json":
             self._serve_file(OPENAPI_PATH)
@@ -296,7 +311,60 @@ class RestHandler(BaseHTTPRequestHandler):
         if parsed.path.startswith("/api/skills/"):
             self._with_authenticated_request(lambda claims: self._handle_api_skill_post(parsed, claims))
             return
+        if parsed.path == "/api/agent-runtime/tasks":
+            self._with_authenticated_request(lambda claims: self._handle_agent_runtime_task_post(claims))
+            return
         self._json(404, {"error": "not_found", "path": parsed.path})
+
+    def _handle_agent_runtime_agents(self, _claims: dict[str, Any]) -> None:
+        try:
+            self._json(200, {"agents": _agent_runtime_bridge().list_builtin_agents()})
+        except Exception as exc:  # noqa: BLE001
+            self._handle_error(exc)
+
+    def _handle_agent_runtime_task_post(self, _claims: dict[str, Any]) -> None:
+        bridge = _agent_runtime_bridge()
+        try:
+            payload = self._read_json_body()
+            agent_id = str(payload.get("agent_id") or "").strip()
+            user_input = str(payload.get("input") or "").strip()
+            if not agent_id or not user_input:
+                self._json(400, {"error": "agent_id and input are required"})
+                return
+            session = self._get_cookie_session()
+            requested_role = str(payload.get("role") or "")
+            if session is not None:
+                trusted = self._trusted_skill_payload(session, payload)
+                role = str(trusted.get("role") or "")
+                payload = trusted
+            else:
+                # No cookie session (Bearer / dev-bypass): the authorization role MUST come
+                # from the verified identity, never the request body — otherwise any
+                # authenticated caller could claim ROLE_SYSTEM. Honor a requested role only
+                # if the token actually grants it.
+                role = self._role_from_verified_identity(requested_role)
+            if not role:
+                self._json(403, {"error": "no_product_role_for_identity"})
+                return
+            result = bridge.start_agent_task(
+                brain=get_service(),
+                role=role,
+                agent_id=agent_id,
+                user_input=user_input,
+                request_id=str(payload.get("request_id") or "") or None,
+                metadata={
+                    k: v
+                    for k, v in payload.items()
+                    if k not in {"agent_id", "input", "role"}
+                },
+            )
+            self._json(200, result)
+        except bridge.AgentRuntimeNotEnabledError as exc:
+            self._json(503, {"error": "agent_runtime_disabled", "detail": str(exc)})
+        except bridge.AgentRuntimeNotFoundError as exc:
+            self._json(404, {"error": "agent_not_found", "detail": str(exc)})
+        except Exception as exc:  # noqa: BLE001
+            self._handle_error(exc)
 
     def _handle_iaf_config(self) -> None:
         development_iam_bypass_enabled = get_dev_iam_bypass_enabled()
@@ -356,6 +424,21 @@ class RestHandler(BaseHTTPRequestHandler):
         if session is not None:
             payload = self._trusted_skill_payload(session, payload)
         self._json(200, get_service().invoke_skill(skill_id, payload))
+
+    def _role_from_verified_identity(self, requested_role: str) -> str:
+        """Resolve an authorization role from the verified auth context (not the request body).
+
+        Returns the requested role only when the token's claims actually grant it; otherwise
+        falls back to the first product role the identity holds, or "" if it holds none.
+        """
+        from zw_brain.domain.policy import filter_product_role_codes
+        from zw_brain.shared.auth_context import get_auth_context
+
+        ctx = get_auth_context()
+        allowed = filter_product_role_codes(list(ctx.role_codes)) if ctx is not None else []
+        if requested_role and requested_role in allowed:
+            return requested_role
+        return allowed[0] if allowed else ""
 
     def _trusted_skill_payload(self, session: AuthSession, client_payload: dict[str, Any] | None) -> dict[str, Any]:
         snapshot = dict(session.actor_snapshot)

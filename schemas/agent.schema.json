@@ -1,0 +1,1792 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anp.example.com/schemas/agent/agent.schema.json",
+  "title": "AgentRuntime · AGENT manifest",
+  "description": "Declarative manifest for an AgentRuntime Agent. anp-agent/v1.1 and anp-agent/v1.2 manifests are accepted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "metadata", "model"],
+  "allOf": [
+    {
+      "oneOf": [
+        {
+          "required": ["instructions"],
+          "not": { "required": ["instructions_template"] }
+        },
+        {
+          "required": ["instructions_template"],
+          "not": { "required": ["instructions"] }
+        }
+      ]
+    },
+    {
+      "if": {
+        "properties": { "schema_version": { "enum": ["anp-agent/v1.1", "anp-agent/v1.2"] } },
+        "required": ["schema_version"]
+      },
+      "then": {
+        "properties": {
+          "tools": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/AgentAuthoredTool" }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["anp-agent/v1.1", "anp-agent/v1.2"],
+      "description": "Schema version. anp-agent/v1.2 separates Agent-authored capability requests from Runtime/operator effective configuration."
+    },
+    "kind": {
+      "type": "string",
+      "const": "Agent",
+      "description": "Resource kind. Only 'Agent' is valid in AgentRuntime v1.0."
+    },
+    "metadata": { "$ref": "#/$defs/Metadata" },
+    "model": { "$ref": "#/$defs/ModelConfig" },
+    "instructions": {
+      "type": "string",
+      "minLength": 1,
+      "description": "System prompt for the Agent. Multi-line YAML string is encouraged for readability. Mutually exclusive with instructions_template."
+    },
+    "instructions_template": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Template with {{platform.*}} / {{caller.*}} placeholders. Mutually exclusive with instructions."
+    },
+    "instructions_format": {
+      "type": "string",
+      "enum": ["plain"],
+      "default": "plain",
+      "description": "Template engine. Only plain is supported in AgentRuntime v1.x."
+    },
+    "required_caller_keys": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "When using instructions_template, keys that must appear in StartTaskRequest.dynamic_context."
+    },
+    "tools": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Tool" },
+      "description": "Tools exposed to the Agent. In accepted on-disk manifests this contains API, A2A, or Runtime tool declarations only. Declare MCP servers under mcp_servers and Skills under skills[]."
+    },
+    "mcp_servers": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$" },
+      "additionalProperties": { "$ref": "#/$defs/McpServerConfig" },
+      "description": "v1.1 MCP server dependencies. Runtime discovers and freezes tool schemas at Task start without rewriting original MCP tool names."
+    },
+    "skills": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/SkillDeclaration" },
+      "description": "v1.1 Skill resource or registry declarations. Runtime mounts resources and validates dependencies, and may activate declared Skills into context according to activation metadata."
+    },
+    "quality": { "$ref": "#/$defs/QualityConfig" },
+    "subagents": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/SubAgentRef" },
+      "description": "Sub-agents invocable via DeepAgents `task` tool. State is always forked (LangGraph subgraph), workspace is shared by default."
+    },
+    "resources": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Resource" },
+      "description": "Static resource directories bundled with the Agent and mounted into the Agent virtual filesystem. Paths are relative to AGENT.yaml."
+    },
+    "prompt": { "$ref": "#/$defs/PromptConfig" },
+    "context": { "$ref": "#/$defs/ContextConfig" },
+    "tool_policy": { "$ref": "#/$defs/ToolPolicyConfig" },
+    "session_state": { "$ref": "#/$defs/SessionStateConfig" },
+    "workspace": { "$ref": "#/$defs/WorkspaceConfig" },
+    "memory": { "$ref": "#/$defs/MemoryConfig" },
+    "permissions": { "$ref": "#/$defs/PermissionsConfig" },
+    "limits": { "$ref": "#/$defs/LimitsConfig" },
+    "capabilities": { "$ref": "#/$defs/CapabilitiesConfig" },
+    "budgets": { "$ref": "#/$defs/BudgetsConfig" },
+    "acceptance": { "$ref": "#/$defs/AcceptanceConfig" },
+    "orchestration": { "$ref": "#/$defs/OrchestrationConfig" }
+  },
+
+  "$defs": {
+    "Metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "version", "trust_level"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-_.]{0,62}[a-z0-9]$",
+          "description": "Unique Agent identifier. Lowercase letters, digits, hyphen, underscore, dot. 2-64 chars."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Human-friendly display name."
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$",
+          "description": "Semver. Used for manifest snapshot and durable Task resume stability."
+        },
+        "trust_level": {
+          "enum": ["platform", "verified", "untrusted"],
+          "description": "Agent-declared trust level upper bound. Runtime may lower it per Session or caller request, but cannot raise above this."
+        },
+        "owner": {
+          "type": "string",
+          "description": "Opaque owner identifier. Runtime does not interpret — pure passthrough for business systems."
+        },
+        "exposes_a2a": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this Agent can be invoked via POST /a2a/invoke from external callers."
+        },
+        "exposes_chat": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this Agent is exposed as a top-level chat Agent in GET /agents and can be selected by a frontend or caller via agent_id."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Free-form labels for discovery / routing."
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]*$"
+          },
+          "uniqueItems": true,
+          "description": "Discovery/UI capability tags. These are not security permissions."
+        },
+        "protocol_version": {
+          "type": "string",
+          "enum": ["anp-agent/v1.1"],
+          "description": "Optional display/discovery protocol version. schema_version remains the authoritative validator switch."
+        }
+      }
+    },
+
+    "ModelConfig": {
+      "type": "object",
+      "required": ["model"],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "description": "Optional LangChain chat model provider or built-in runtime adapter. If omitted, runtime fills it from AGENT_RUNTIME_DEFAULT_MODEL_PROVIDER. Any provider supported by langchain.chat_models.init_chat_model() can pass through. Built-in/common values: dashscope, openai_compatible, openai, anthropic, bedrock, azure_openai, ollama, vllm, qwen, zhipu.",
+          "examples": ["dashscope", "openai_compatible", "openai", "anthropic", "bedrock", "ollama", "vllm"]
+        },
+        "model": {
+          "type": "string",
+          "description": "Model name within the provider.",
+          "examples": ["gpt-5.2", "claude-opus-4-7", "llama3.2:70b", "qwen3-72b"]
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "top_p": { "type": "number", "minimum": 0, "maximum": 1 },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400,
+          "description": "Provider request timeout in seconds."
+        },
+        "max_retries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "description": "Automatic retries within the same provider/model before the Runtime classifies the model error."
+        },
+        "capabilities": { "$ref": "#/$defs/ModelCapabilities" },
+        "fallback_chain": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ModelFallback" },
+          "description": "Explicit model fallbacks. Runtime does not perform implicit model switching."
+        },
+        "extra": {
+          "type": "object",
+          "description": "Additional provider-specific kwargs forwarded to init_chat_model()."
+        }
+      }
+    },
+
+    "ModelCapabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tool_calling": { "type": "boolean" },
+        "structured_output": { "type": "boolean" },
+        "streaming": { "type": "boolean" },
+        "vision": { "type": "boolean" },
+        "json_mode": { "type": "boolean" }
+      }
+    },
+
+    "ModelFallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "model": { "type": "string", "minLength": 1 },
+        "when": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "model_platform_error",
+              "model_auth_config_error",
+              "model_rate_limited",
+              "model_output_error",
+              "model_policy_error"
+            ]
+          },
+          "uniqueItems": true,
+          "description": "Error classes that permit this explicit fallback."
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Provider-specific fallback parameters. Values must not contain resolved secrets."
+        }
+      }
+    },
+
+    "Tool": {
+      "oneOf": [
+        { "$ref": "#/$defs/ApiTool" },
+        { "$ref": "#/$defs/A2ATool" },
+        { "$ref": "#/$defs/RuntimeTool" },
+        { "$ref": "#/$defs/McpTool" },
+        { "$ref": "#/$defs/SkillTool" }
+      ]
+    },
+
+    "AgentAuthoredTool": {
+      "oneOf": [
+        { "$ref": "#/$defs/ApiTool" },
+        { "$ref": "#/$defs/A2ATool" },
+        { "$ref": "#/$defs/RuntimeTool" }
+      ]
+    },
+
+    "V11Tool": { "$ref": "#/$defs/AgentAuthoredTool" },
+
+    "ApiTool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name"],
+      "properties": {
+        "kind": { "const": "api" },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+          "description": "Tool name exposed to the LLM. Must be a valid Python identifier."
+        },
+        "description": { "type": "string" },
+        "spec_url": {
+          "type": "string",
+          "description": "Path or URL to OpenAPI spec (YAML/JSON).",
+          "examples": ["./skills/web_search/openapi.yaml", "https://example.com/api/openapi.json"]
+        },
+        "registry": { "type": "string", "minLength": 1 },
+        "ref": {
+          "$ref": "#/$defs/ApiRegistryRef",
+          "description": "Version-pinned registry reference, e.g. api:weather-query:2.0.0."
+        },
+        "auth": { "$ref": "#/$defs/AuthConfig" },
+        "resolved": {
+          "type": "object",
+          "description": "Offline-frozen resolved registry definition. Written by Runtime export/freeze; never contains resolved secret values."
+        },
+        "checksum": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "Checksum of the offline-frozen resolved registry definition."
+        }
+      },
+      "oneOf": [
+        { "required": ["spec_url"] },
+        { "required": ["registry", "ref"] }
+      ]
+    },
+
+    "A2ATool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "endpoint"],
+      "properties": {
+        "kind": { "const": "a2a" },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+          "description": "A2A external tool name exposed to the Agent."
+        },
+        "description": { "type": "string" },
+        "endpoint": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A2A endpoint URL or ${env:...} reference."
+        },
+        "auth": { "$ref": "#/$defs/AuthConfig" },
+        "async_result": {
+          "enum": ["external_result"],
+          "default": "external_result",
+          "description": "A2A asynchronous results resume the pending tool call as an external_result."
+        }
+      }
+    },
+
+    "RuntimeTool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name"],
+      "properties": {
+        "kind": { "const": "runtime" },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+        },
+        "description": { "type": "string" },
+        "capability": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Runtime-provided capability to bind, such as workspace.file_read or memory.search."
+        },
+        "config": {
+          "type": "object",
+          "description": "Optional Runtime-tool configuration. Runtime policy may ignore or tighten it."
+        }
+      }
+    },
+
+    "McpTool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "server_url"],
+      "properties": {
+        "kind": { "const": "mcp" },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+        },
+        "description": { "type": "string" },
+        "server_url": {
+          "type": "string",
+          "description": "MCP server URL. Supports stdio:// (local process) and http(s):// (remote).",
+          "examples": ["stdio:///usr/local/bin/mcp-github", "https://mcp.example.com/sse"]
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Optional prefix added to all tool names exported from this MCP server."
+        },
+        "allowed_tools": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Whitelist of MCP tool names exposed to the LLM. If omitted, all MCP tools are exposed."
+        }
+      }
+    },
+
+    "SkillTool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "path"],
+      "properties": {
+        "kind": { "const": "skill" },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+        },
+        "description": { "type": "string" },
+        "path": {
+          "type": "string",
+          "description": "Relative path to a DeepAgents Skill directory (containing SKILL.md)."
+        },
+        "required_mcp_tools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*\\.[a-zA-Z_][a-zA-Z0-9_]*$"
+          },
+          "uniqueItems": true,
+          "description": "MCP tools required by this Skill, using '<mcp_name>.<tool_name>' format. AgentLoader verifies the MCP server exists and the tool is exposed by allowed_tools."
+        }
+      }
+    },
+
+    "McpServerConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "preset": {
+          "enum": ["playwright"],
+          "description": "Runtime-provided MCP preset. The runtime expands this to a trusted transport configuration."
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether this MCP server declaration is enabled. Defaults to true."
+        },
+        "isolation": {
+          "enum": ["task"],
+          "description": "Isolation level for preset MCP instances. Playwright currently supports task isolation only."
+        },
+        "allowed_hosts": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Host allowlist for Playwright preset MCP browser access."
+        },
+        "allowed_domains": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Compatibility alias for allowed_hosts."
+        },
+        "max_concurrent_instances": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Requested max concurrent Playwright preset instances, clamped by runtime policy."
+        },
+        "concurrency_overflow": {
+          "enum": ["queue", "fail_fast"],
+          "description": "Behavior when the Playwright preset concurrency limit is reached."
+        },
+        "concurrency_timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Queue wait timeout for Playwright preset concurrency acquisition."
+        },
+        "artifact_retention": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "keep_on_success": { "type": "boolean" },
+            "keep_on_failure": { "type": "boolean" },
+            "keep_on_cancel": { "type": "boolean" },
+            "keep_on_error": { "type": "boolean" }
+          },
+          "description": "Retention policy for Playwright preset browser artifacts."
+        },
+        "transport": {
+          "enum": ["stdio", "sse", "streamable_http"],
+          "description": "Supported MCP transports. New Agents should prefer streamable_http."
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "description": "MCP endpoint URL, command URI/profile, or ${env:...} reference."
+        },
+        "description": { "type": "string" },
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional stdio command or trusted profile reference. Deployment policy must allow it."
+        },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              { "$ref": "#/$defs/EnvRef" },
+              { "$ref": "#/$defs/SecretRef" },
+              { "type": "string" }
+            ]
+          },
+          "description": "Environment for stdio MCP servers. Sensitive values should use ${secret:...}."
+        },
+        "registry": { "type": "string", "minLength": 1 },
+        "ref": { "$ref": "#/$defs/McpRegistryRef" },
+        "auth": { "$ref": "#/$defs/McpAuthConfig" },
+        "allowed_tools": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Optional allowlist of original MCP tool names."
+        },
+        "namespace": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+          "description": "Optional prefix added to all tool names exported from this MCP server."
+        },
+        "resources": {
+          "enum": ["not_supported", "resource_ref_mapping"],
+          "default": "resource_ref_mapping",
+          "description": "MCP resource exposure strategy. Runtime never dumps remote resources directly into model context."
+        },
+        "resolved": {
+          "type": "object",
+          "description": "Offline-frozen resolved registry definition. Written by Runtime export/freeze; never contains resolved secret values."
+        },
+        "checksum": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "Checksum of the offline-frozen resolved registry definition."
+        }
+      },
+      "oneOf": [
+        { "required": ["preset"] },
+        { "required": ["transport"] },
+        { "required": ["registry", "ref"] }
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": { "transport": { "enum": ["sse", "streamable_http"] } },
+            "required": ["transport"]
+          },
+          "then": { "required": ["url"] }
+        },
+        {
+          "if": {
+            "properties": { "transport": { "const": "stdio" } },
+            "required": ["transport"]
+          },
+          "then": { "required": ["command"] }
+        }
+      ]
+    },
+
+    "McpAuthConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "server": { "$ref": "#/$defs/McpServerAuthBinding" },
+        "user": { "$ref": "#/$defs/McpUserAuthBinding" }
+      }
+    },
+
+    "McpServerAuthBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["none", "bearer", "api_key", "basic"] },
+        "token": { "$ref": "#/$defs/SecretOrEnvRef" },
+        "api_key": { "$ref": "#/$defs/SecretOrEnvRef" },
+        "username": { "$ref": "#/$defs/SecretOrEnvRef" },
+        "password": { "$ref": "#/$defs/SecretOrEnvRef" },
+        "header_name": { "type": "string", "default": "Authorization" },
+        "extra_headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["credential_field"],
+            "properties": {
+              "credential_field": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+
+    "McpUserAuthBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "provider", "credential"],
+      "properties": {
+        "type": { "enum": ["oauth", "api_token", "session_token"] },
+        "provider": { "type": "string", "minLength": 1 },
+        "credential": { "$ref": "#/$defs/UserCredentialRef" },
+        "scopes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "SkillDeclaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$"
+        },
+        "description": { "type": "string" },
+        "activation": { "$ref": "#/$defs/SkillActivationConfig" },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Relative path to a Skill directory in the Agent package."
+        },
+        "registry": { "type": "string", "minLength": 1 },
+        "ref": { "$ref": "#/$defs/SkillRegistryRef" },
+        "required_mcp_tools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*\\.[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "uniqueItems": true,
+          "description": "Required MCP tools using '<mcp_server_id>.<original_tool_name>'."
+        },
+        "required_tools": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "resolved": {
+          "type": "object",
+          "description": "Offline-frozen resolved Skill definition or local path metadata. Written by Runtime export/freeze; never contains resolved secret values."
+        },
+        "checksum": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "Checksum of the offline-frozen Skill dependency."
+        }
+      },
+      "oneOf": [
+        { "required": ["path"] },
+        { "required": ["registry", "ref"] }
+      ]
+    },
+
+    "SkillActivationConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["auto", "always", "manual"], "default": "auto" },
+        "required_when": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "QualityConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "skill_outputs": { "$ref": "#/$defs/SkillOutputQualityConfig" }
+      }
+    },
+
+    "SkillOutputQualityConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "when": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "require_evals": { "enum": ["auto", "always", "never"], "default": "auto" },
+        "gates": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "AuthConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["none", "api_key", "bearer", "basic", "oauth2_cc"] },
+        "env_var": {
+          "type": "string",
+          "description": "Environment variable name holding the credential. Runtime reads at startup."
+        },
+        "header_name": { "type": "string", "default": "Authorization" },
+        "token": {
+          "$ref": "#/$defs/SecretOrEnvRef",
+          "description": "Bearer/API token reference. Must be ${secret:...} or ${env:...}, never a resolved token."
+        },
+        "api_key": { "$ref": "#/$defs/SecretOrEnvRef" },
+        "username": { "$ref": "#/$defs/SecretOrEnvRef" },
+        "password": { "$ref": "#/$defs/SecretOrEnvRef" },
+        "scopes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "EnvRef": {
+      "type": "string",
+      "pattern": "^\\$\\{env:[A-Za-z_][A-Za-z0-9_]*\\}$"
+    },
+
+    "SecretRef": {
+      "type": "string",
+      "pattern": "^\\$\\{secret:[A-Za-z_][A-Za-z0-9_./:-]*\\}$"
+    },
+
+    "UserCredentialRef": {
+      "type": "string",
+      "pattern": "^\\$\\{user_credential:[A-Za-z0-9][A-Za-z0-9_.:-]*\\}$"
+    },
+
+    "SecretOrEnvRef": {
+      "oneOf": [
+        { "$ref": "#/$defs/SecretRef" },
+        { "$ref": "#/$defs/EnvRef" },
+        { "$ref": "#/$defs/UserCredentialRef" }
+      ]
+    },
+
+    "RegistryRef": {
+      "type": "string",
+      "pattern": "^(api|mcp|skill|agent):[a-zA-Z0-9][a-zA-Z0-9_.-]*:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?|sha256:[0-9a-f]{64})$",
+      "not": { "pattern": ":latest$" },
+      "description": "Version- or digest-pinned registry ref in type:id:version format."
+    },
+
+    "ApiRegistryRef": {
+      "allOf": [
+        { "$ref": "#/$defs/RegistryRef" },
+        { "pattern": "^api:" }
+      ]
+    },
+
+    "McpRegistryRef": {
+      "allOf": [
+        { "$ref": "#/$defs/RegistryRef" },
+        { "pattern": "^mcp:" }
+      ]
+    },
+
+    "SkillRegistryRef": {
+      "allOf": [
+        { "$ref": "#/$defs/RegistryRef" },
+        { "pattern": "^skill:" }
+      ]
+    },
+
+    "AgentRegistryRef": {
+      "allOf": [
+        { "$ref": "#/$defs/RegistryRef" },
+        { "pattern": "^agent:" }
+      ]
+    },
+
+    "Resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "path", "mount"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$",
+          "description": "Stable resource identifier within this Agent."
+        },
+        "type": {
+          "enum": ["directory", "file"],
+          "description": "Resource kind. AgentRuntime mounts static package resources as virtual files or directories."
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Resource path relative to AGENT.yaml. Runtime rejects paths that escape the Agent directory."
+        },
+        "mount": {
+          "type": "string",
+          "pattern": "^/[A-Za-z0-9._/-]+$",
+          "not": { "pattern": "^/workspace(/.*)?$" },
+          "description": "Absolute virtual path exposed to the Agent, such as /knowledge. Runtime-owned mounts such as /workspace cannot be declared as static resources."
+        },
+        "readonly": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the mounted resource is read-only. Static Agent resources should normally stay read-only."
+        },
+        "include_in_export": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this resource is included when creating an agent-export.zip."
+        },
+        "checksum": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "Optional content checksum. Loader computes it when omitted before freezing Task snapshots."
+        }
+      }
+    },
+
+    "SubAgentRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-_.]{0,62}[a-z0-9]$"
+        },
+        "manifest": {
+          "type": "string",
+          "description": "Path to a separate AGENT.yaml for this sub-agent. Mutually exclusive with ref and inline fields."
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "v1.1 path to a self-resolvable subagent AGENT.yaml."
+        },
+        "registry": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Registry resolver name for a version-pinned subagent ref."
+        },
+        "ref": {
+          "type": "string",
+          "oneOf": [
+            {
+              "pattern": "^registry://[a-z0-9][a-z0-9-_.]{0,62}[a-z0-9]$",
+              "description": "Legacy v1 registry ref."
+            },
+            { "$ref": "#/$defs/AgentRegistryRef" }
+          ],
+          "description": "Reference to a self-resolvable subagent. v1.1 refs use agent:id:version and must be paired with registry."
+        },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "instructions": { "type": "string" },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": ["string", "number", "integer", "boolean", "object", "array", "null"]
+          },
+          "description": "Static subagent routing and discovery metadata such as capabilityTags and entrypoint. Not an authorization mechanism."
+        },
+        "tools": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Tool" }
+        },
+        "skills": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SkillDeclaration" },
+          "description": "Inline subagent Skill declarations. Prefer a separate self-resolvable subagent manifest for non-trivial subagents."
+        },
+        "trust_level": {
+          "enum": ["platform", "verified", "untrusted"],
+          "description": "SubAgent trust upper bound. Effective trust = min(parent_trust, this_value)."
+        },
+        "workspace_mode": {
+          "enum": ["shared", "isolated"],
+          "default": "shared",
+          "description": "shared (default): sub-agent uses parent Workspace (same Daytona sandbox or workspace_root). isolated: fresh sandbox. State is always forked regardless (DeepAgents subgraph native semantics)."
+        },
+        "response_format": {
+          "type": ["object", "string"],
+          "description": "DeepAgents structured output schema or schema_ref resolved by Runtime before graph build."
+        },
+        "interrupt_on": {
+          "type": "object",
+          "description": "DeepAgents HITL interrupt policy for this subagent."
+        },
+        "middleware": {
+          "type": "array",
+          "description": "DeepAgents middleware objects supplied by trusted runtime resolution."
+        },
+        "permissions": {
+          "type": "array",
+          "description": "DeepAgents subagent permissions override."
+        },
+        "type": {
+          "enum": ["compiled_graph", "compiled_subagent", "async_subagent"],
+          "description": "DeepAgents compiled subagent declaration type."
+        },
+        "graph_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Reference to a runtime-registered compiled graph or runnable."
+        },
+        "required_permissions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Permissions the sub-agent requires to function. Enforced at call time: effective = parent ∩ declared."
+        },
+        "resolved": {
+          "type": "object",
+          "description": "Offline-frozen resolved subagent manifest or registry definition. Written by Runtime export/freeze."
+        },
+        "checksum": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "Checksum of the offline-frozen subagent dependency."
+        }
+      },
+      "allOf": [
+        {
+          "comment": "Either legacy 'manifest', v1.1 'path', registry ref, OR at least (name + instructions) inline",
+          "oneOf": [
+            { "required": ["manifest"] },
+            { "required": ["path"] },
+            { "required": ["registry", "ref"] },
+            { "required": ["ref"], "not": { "required": ["registry"] } },
+            { "required": ["graph_ref"] },
+            { "required": ["name", "instructions"] }
+          ]
+        }
+      ]
+    },
+
+    "SessionStateConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "isolation_policy": {
+          "enum": ["shared_all", "shared_messages_only", "isolated_fork"],
+          "default": "shared_all",
+          "description": "Cross-Task state sharing policy within the same Session. Does not affect SubAgent state fork, which is always forked."
+        }
+      }
+    },
+
+    "PromptConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "runtime_profile": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Built-in AgentRuntime context profile. It expands to runtime dynamic sections; execution remains delegated to the runtime core."
+        },
+        "runtime_profile_overrides": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": ["string", "number", "integer", "boolean", "object", "array", "null"]
+            }
+          }
+        },
+        "sections": { "$ref": "#/$defs/DeclarativePromptSectionsConfig" }
+      }
+    },
+
+    "DeclarativePromptSectionsConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "static": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/StaticPromptSection" }
+        }
+      }
+    },
+
+    "StaticPromptSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "content"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "content": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "ContextChannelsConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "system": { "$ref": "#/$defs/SystemContextChannelConfig" },
+        "message": { "$ref": "#/$defs/MessageContextChannelConfig" }
+      }
+    },
+
+    "SystemContextChannelConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "appendSystemContext": { "type": "boolean", "default": false },
+        "sources": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "MessageContextChannelConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prependUserContextReminder": { "type": "boolean", "default": false },
+        "sources": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "ContextCompactionConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "strategy": {
+          "enum": ["summary_plus_recent_window", "runtime_default"],
+          "default": "runtime_default"
+        },
+        "preserveRecentTurns": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "maxContextTokens": { "type": "integer", "minimum": 1 },
+        "max_retries": { "type": "integer", "minimum": 0, "maximum": 3 }
+      }
+    },
+
+    "ToolPolicyConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capabilityToolUniverse": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ToolPolicyEntry" }
+        },
+        "defaultAllowlist": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "ToolPolicyEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name"],
+      "properties": {
+        "kind": { "enum": ["runtime", "api", "a2a", "mcp", "skill"] },
+        "name": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "ContextConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "engineering": { "$ref": "#/$defs/ContextEngineeringConfig" },
+        "session_history": { "$ref": "#/$defs/SessionHistoryConfig" },
+        "prompt_sections": { "$ref": "#/$defs/PromptSectionsConfig" },
+        "dynamic_context": { "$ref": "#/$defs/DynamicContextConfig" },
+        "channels": { "$ref": "#/$defs/ContextChannelsConfig" },
+        "priority": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Context injection priority hints. Runtime owns ordering, truncation, and conflict handling."
+        },
+        "compaction": { "$ref": "#/$defs/ContextCompactionConfig" },
+        "summary": { "$ref": "#/$defs/ContextSummaryConfig" },
+        "token_guard": { "$ref": "#/$defs/ContextTokenGuardConfig" },
+        "large_tool_results": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "enum": ["summary_resource_ref"],
+              "default": "summary_resource_ref"
+            },
+            "target": {
+              "type": "string",
+              "pattern": "^workspace://",
+              "default": "workspace://.runtime/context/"
+            }
+          }
+        }
+      }
+    },
+
+    "ContextEngineeringConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": ["refs_first", "legacy_runtime_context"],
+          "default": "refs_first"
+        }
+      }
+    },
+
+    "SessionHistoryConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "scope": {
+          "enum": ["same_session_all_agents", "same_session_same_agent", "current_task_only"],
+          "default": "same_session_all_agents"
+        },
+        "strategy": {
+          "enum": ["runtime_summary_recent", "recent_only"],
+          "default": "runtime_summary_recent"
+        },
+        "summary_store": {
+          "enum": ["context_summary_store"],
+          "default": "context_summary_store"
+        },
+        "max_messages": { "type": "integer", "minimum": 1 },
+        "recent_messages": { "type": "integer", "minimum": 1 },
+        "limit": { "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "PromptSectionsConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "order": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "overrides": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Agent-owned prompt section overrides. Runtime-owned sections cannot be overridden by policy."
+        }
+      }
+    },
+
+    "DynamicContextConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/DynamicContextField" }
+        },
+        "missing_required": {
+          "enum": ["user_clarification"],
+          "default": "user_clarification"
+        }
+      }
+    },
+
+    "DynamicContextField": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required": { "type": "boolean", "default": false },
+        "type": {
+          "enum": ["string", "number", "integer", "boolean", "object", "array"]
+        },
+        "description": { "type": "string" },
+        "sensitive": { "type": "boolean", "default": false }
+      }
+    },
+
+    "ContextSummaryConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": ["hierarchical_summary", "runtime_summary_recent"],
+          "default": "hierarchical_summary"
+        },
+        "visibility": {
+          "enum": ["internal_only_api_hidden"],
+          "default": "internal_only_api_hidden"
+        },
+        "enabled": { "type": "boolean", "default": true },
+        "auto_update": { "type": "boolean", "default": true },
+        "max_messages": { "type": "integer", "minimum": 1, "maximum": 500, "default": 50 },
+        "trigger_min_messages": { "type": "integer", "minimum": 1, "maximum": 500, "default": 8 },
+        "trigger_at_context_ratio": { "type": "number", "minimum": 0.1, "maximum": 1.0, "default": 0.65 },
+        "emergency_at_context_ratio": { "type": "number", "minimum": 0.1, "maximum": 1.0, "default": 0.85 },
+        "target_tokens": { "type": "integer", "minimum": 128, "maximum": 2000, "default": 800 },
+        "max_summaries": { "type": "integer", "minimum": 1, "maximum": 10, "default": 3 }
+      }
+    },
+
+    "ContextTokenGuardConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "threshold": { "type": "number", "minimum": 0.1, "maximum": 1.0, "default": 1.0 },
+        "mode": { "enum": ["compact_or_fail"], "default": "compact_or_fail" }
+      }
+    },
+
+    "WorkspaceConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "isolation": {
+          "enum": ["session_shared", "task_isolated"],
+          "default": "session_shared"
+        },
+        "expose_file_tools": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the Agent requests file tools. Runtime policy may still tighten this."
+        },
+        "retention": {
+          "enum": ["session", "task", "runtime_default"],
+          "default": "runtime_default"
+        }
+      }
+    },
+
+
+    "CommandPolicyConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "executables": { "$ref": "#/$defs/CommandAllowDenyList" },
+        "patterns": { "$ref": "#/$defs/CommandAllowDenyList" },
+        "dynamic_install": { "$ref": "#/$defs/DynamicInstallCommandPolicy" }
+      }
+    },
+
+    "DynamicInstallCommandPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "network_mode": { "enum": ["block_all", "allowlist", "full"] },
+        "workspace_prefixes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "allow_global": { "type": "boolean", "default": false }
+      }
+    },
+
+    "CommandAllowDenyList": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allow": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "deny": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "MemoryConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "scope": {
+          "enum": ["user_agent", "user_global", "session_scoped"],
+          "default": "user_agent"
+        },
+        "retrieval": { "$ref": "#/$defs/MemoryRetrievalConfig" },
+        "write": { "$ref": "#/$defs/MemoryWriteConfig" },
+        "default_ttl": {
+          "oneOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "null" }
+          ],
+          "default": null
+        }
+      }
+    },
+
+    "MemoryRetrievalConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": ["explicit_tool", "pre_task", "disabled"],
+          "default": "explicit_tool"
+        },
+        "pre_task": { "type": "boolean", "default": false }
+      }
+    },
+
+    "MemoryWriteConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": ["explicit_tool", "runtime_auto_extract", "disabled"],
+          "default": "explicit_tool"
+        },
+        "runtime_auto_extract": { "type": "boolean", "default": false }
+      }
+    },
+
+    "PermissionsConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "network": { "$ref": "#/$defs/NetworkPermission" },
+        "filesystem": { "$ref": "#/$defs/FilesystemPermission" },
+        "approval_required_tools": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Tool names that require approval before execution."
+        }
+      }
+    },
+
+    "NetworkPermission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "enum": ["block_all", "allowlist", "full"],
+          "description": "untrusted defaults to block_all, verified to allowlist, platform to full."
+        },
+        "allowed_domains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(\\*\\.)?[a-zA-Z0-9][a-zA-Z0-9.-]*\\.[a-zA-Z]{2,}$"
+          },
+          "description": "Required if mode=allowlist. Wildcard *. prefix allowed for subdomain wildcards."
+        },
+        "denied_domains": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "mode": { "const": "allowlist" } }, "required": ["mode"] },
+          "then": { "required": ["allowed_domains"] }
+        }
+      ]
+    },
+
+    "FilesystemPermission": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "workspace_quota_mb": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000,
+          "default": 100
+        },
+        "max_file_size_mb": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 10
+        },
+        "readonly_paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+
+
+    "LimitsConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_tokens_per_task": {
+          "type": "integer",
+          "minimum": 100,
+          "default": 100000
+        },
+        "max_tool_calls_per_task": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 50
+        },
+        "max_tool_calls": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "v1.1 alias for max_tool_calls_per_task."
+        },
+        "max_subagent_calls_per_task": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 10
+        },
+        "max_subagent_depth": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum nested subagent depth enforced by ExecutionLimitMiddleware."
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400,
+          "default": 600,
+          "description": "Wall-clock timeout for a single Task. durable Tasks waiting on input do NOT count toward this timeout."
+        },
+        "workspace_isolation": {
+          "type": "string",
+          "enum": ["session_shared", "task_isolated"],
+          "description": "When task_isolated, each Task gets a dedicated workspace namespace (task-{task_id}) unless an explicit workspace_id overrides it (spec 2026-04-29 §8)."
+        }
+      }
+    },
+
+    "CapabilitiesConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Agent-authored capability requests. These are requests, not grants; Runtime/operator policy resolves effective permissions at Task start.",
+      "properties": {
+        "workspace": { "$ref": "#/$defs/WorkspaceCapability" },
+        "code": { "$ref": "#/$defs/CodeCapability" },
+        "network": { "$ref": "#/$defs/NetworkCapability" },
+        "memory": { "$ref": "#/$defs/MemoryCapability" },
+        "artifacts": { "$ref": "#/$defs/ArtifactsCapability" },
+        "delegation": { "$ref": "#/$defs/DelegationCapability" }
+      }
+    },
+
+    "WorkspaceCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required": { "type": "boolean", "default": false },
+        "access": { "$ref": "#/$defs/WorkspaceAccessCapability" },
+        "isolation_minimum": {
+          "enum": ["session_shared", "task_isolated"],
+          "default": "session_shared"
+        }
+      }
+    },
+
+    "WorkspaceAccessCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "read": { "type": "boolean", "default": true },
+        "write": { "type": "boolean", "default": false },
+        "delete": { "type": "boolean", "default": false }
+      }
+    },
+
+    "CodeCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required": { "type": "boolean", "default": false },
+        "languages": {
+          "type": "array",
+          "items": { "enum": ["python", "bash", "node", "typescript", "go", "rust"] },
+          "uniqueItems": true
+        },
+        "commands": { "$ref": "#/$defs/CommandPolicyConfig" },
+        "needs_network": { "type": "boolean", "default": false },
+        "preferred_backend": {
+          "enum": ["daytona", "subprocess"],
+          "description": "Preferred execution backend. Runtime policy must still allow it. Use subprocess for host-only local tools such as macOS stdio MCP agents."
+        }
+      }
+    },
+
+    "NetworkCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required": { "type": "boolean", "default": false },
+        "domains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "anyOf": [
+              { "const": "*" },
+              { "pattern": "^(\\*\\.)?[a-zA-Z0-9][a-zA-Z0-9.-]*\\.[a-zA-Z]{2,}$" }
+            ]
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "MemoryCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required": { "type": "boolean", "default": false },
+        "retrieval": { "enum": ["disabled", "explicit", "pre_task"], "default": "disabled" },
+        "write": { "enum": ["disabled", "explicit", "auto_extract"], "default": "disabled" },
+        "scope": {
+          "enum": ["user_agent", "user_global", "session_scoped"],
+          "default": "user_agent"
+        },
+        "default_ttl_days": {
+          "oneOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "null" }
+          ],
+          "default": null
+        }
+      }
+    },
+
+    "ArtifactsCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required": { "type": "boolean", "default": false },
+        "output_paths": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^/[A-Za-z0-9._/-]+$" },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "DelegationCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "allow_runtime_agents": { "type": "boolean", "default": false },
+        "max_depth": { "type": "integer", "minimum": 0, "default": 1 },
+        "allowed_agent_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "denied_agent_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "BudgetsConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Agent-authored budget hints. Runtime/operator policy clamps these to effective limits.",
+      "properties": {
+        "suggested_max_tool_calls": { "type": "integer", "minimum": 1 },
+        "suggested_timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 86400 },
+        "suggested_max_subagent_calls": { "type": "integer", "minimum": 0 },
+        "suggested_max_subagent_depth": { "type": "integer", "minimum": 0 },
+        "workspace": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "suggested_quota_mb": { "type": "integer", "minimum": 1 },
+            "suggested_max_file_size_mb": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    },
+
+    "OrchestrationConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Agent-authored high-level orchestration intent. Runtime policy resolves and clamps effective behavior at Task start.",
+      "properties": {
+        "execution_mode": {
+          "enum": ["planner_first", "direct_execute"],
+          "default": "planner_first"
+        },
+        "plan_approval": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "enum": ["always", "risky_only", "never"],
+              "default": "risky_only"
+            }
+          }
+        },
+        "delegation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "routing_mode": {
+              "enum": ["capability_match", "static"],
+              "default": "capability_match"
+            },
+            "max_parallel": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32,
+              "default": 3
+            },
+            "preferred_specialists": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            },
+            "denied_specialists": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            }
+          }
+        },
+        "failure_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "on_subtask_failure": {
+              "enum": ["replan", "retry", "escalate", "fail_fast"],
+              "default": "replan"
+            },
+            "retry": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "max_attempts": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 5,
+                  "default": 2
+                },
+                "backoff": {
+                  "enum": ["linear", "exponential"],
+                  "default": "linear"
+                }
+              }
+            }
+          }
+        },
+        "governance": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "approval_required_actions": {
+              "type": "array",
+              "items": { "enum": ["execute", "external_post", "cross_system_write", "high_risk_tool"] },
+              "uniqueItems": true
+            },
+            "external_action_approval": { "$ref": "#/$defs/ExternalActionApprovalConfig" }
+          }
+        },
+        "output": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "assembly_mode": {
+              "enum": ["structured", "narrative"],
+              "default": "structured"
+            },
+            "include_execution_summary": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        }
+      }
+    },
+
+    "ExternalActionApprovalConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "tools": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ExternalActionApprovalRule" }
+        },
+        "default_risk_level": {
+          "enum": ["low", "medium", "high", "critical"],
+          "default": "high"
+        },
+        "default_affected_resources": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "prompt_template": { "type": "string", "minLength": 1 },
+        "question_template": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "ExternalActionApprovalRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "action": { "enum": ["execute", "external_post", "cross_system_write", "high_risk_tool"] },
+        "tools": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "resource_markers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "side_effect_markers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "match": {
+          "enum": ["all_marker_groups", "any_marker"],
+          "default": "all_marker_groups"
+        },
+        "affected_resources": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "risk_level": { "enum": ["low", "medium", "high", "critical"] },
+        "reason_code": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "AcceptanceConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional acceptance criteria checked before a Task transitions to completed.",
+      "properties": {
+        "required_files": {
+          "type": "array",
+          "description": "Workspace files that must exist when the Task completes.",
+          "items": { "$ref": "#/$defs/RequiredFile" }
+        }
+      }
+    },
+
+    "RequiredFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Workspace artifact glob. Paths are workspace-relative by default; an explicit /output/... path is treated as an artifact alias only when requested by acceptance or runtime resource configuration."
+        },
+        "type": {
+          "enum": ["any", "pptx", "docx", "xlsx", "pdf", "csv", "json", "md"],
+          "default": "any",
+          "description": "File type used for optional structural validation."
+        },
+        "min_size_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Minimum file size in bytes; smaller files are rejected."
+        }
+      }
+    }
+  }
+}

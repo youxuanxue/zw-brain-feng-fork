@@ -1,8 +1,7 @@
 # Wave: 0
 # Journey: Cross (infrastructure)
 # Covers: infra-contract-projection / infra-audit-bus / infra-inference-gateway / infra-iam-session
-# Not covered (needs_human): infra-agentruntime-embedded —— AgentRuntime Embedded SDK + AGENT.yaml +
-#   agentruntime validate/doctor CLI 完全未实现（infra skill 缺位，非 bug）。见 W0-06-deferred-additions.md。
+# infra-agentruntime-embedded：见 tests/test_agentruntime_embedded.py
 """Wave 0 基础设施横切 .feature 的数据层 / 单元层验收。
 
 仅断言**已实现**的 infra 行为；UI 渲染 / 未实现的富字段场景 skip 并注明归属。
@@ -371,13 +370,15 @@ def test_start_local_defaults_inference_mock_and_documents_mode():
 
 
 # ======================================================================
-# infra-agentruntime-embedded —— Deferred → Wave 1（infra skill 完全缺位，sign-off 2026-05-22）
+# infra-agentruntime-embedded —— 实现见 tests/test_agentruntime_embedded.py
 # ======================================================================
 
-@pytest.mark.skip(reason="Deferred → Wave 1（产品负责人 sign-off 2026-05-22）：AgentRuntime Embedded SDK "
-                         "（agents/zw_search_helper/AGENT.yaml + agentruntime validate/doctor CLI）本期不实现。"
-                         "J1 找数→用数黄金链路不依赖内置 AgentRuntime；与 Wave1 ext-agent-pilot（已引 AGENT.yaml）"
-                         "+ a2a-hardening 同期立项。提前 Wave0 内建违反『不为假设的未来需求提前设计』原则。"
-                         "详见 .data/customer-acceptance/wave0/W0-06-deferred-additions.md → D-6。")
 def test_infra_agentruntime_embedded_validate_and_doctor():
-    pass
+    """薄封装：wave-0 feature 文件引用同一验收。"""
+    from tests.test_agentruntime_embedded import (
+        test_agentruntime_doctor_dev_target,
+        test_agentruntime_validate_zw_search_helper,
+    )
+
+    test_agentruntime_validate_zw_search_helper()
+    test_agentruntime_doctor_dev_target()

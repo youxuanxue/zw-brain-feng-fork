@@ -1,0 +1,36 @@
+{
+  "runtime_spec_version": "anp-agent/v1.2",
+  "trust_level": "platform",
+  "source_type": "builtin",
+  "auth_mode": "trusted_gateway",
+  "tenant_id": "sd-default",
+  "context_policy": "regulated_minimal",
+  "capability_tools": [
+    {
+      "skill_id": "search.intent.parse",
+      "name": "search_intent_parse",
+      "description": "P2 搜索意图解析：自然语言 → 结构化检索辅助字段（只读，走统一推理或规则回落）。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string", "description": "用户一句话搜索" },
+          "enabled": { "type": "boolean" }
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "skill_id": "data.search",
+      "name": "data_search",
+      "description": "按关键词检索共享数据资源目录（只读）。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string" },
+          "limit": { "type": "integer" }
+        },
+        "required": ["query"]
+      }
+    }
+  ]
+}

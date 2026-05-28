@@ -1,0 +1,31 @@
+schema_version: anp-agent/v1.2
+kind: Agent
+metadata:
+  id: zw-search-helper
+  name: zw Search Helper
+  description: |
+    zw-brain 内置搜索副驾 Agent（P2 找数→用数）。
+    通过 Embedded AgentRuntime 调用已注册的 zw-brain Capability，不内嵌领域逻辑。
+  version: 1.0.0
+  trust_level: platform
+  owner: zw-brain
+  exposes_chat: false
+  exposes_a2a: false
+  labels:
+    zw_brain_builtin: "true"
+    journey: j1
+model:
+  provider: openai_compatible
+  model: ${env:INSPUR_INFERENCE_MODEL}
+  temperature: 0.2
+  max_tokens: 4000
+instructions: |
+  你是 zw-brain 数据共享网关的内置搜索助手。
+  根据用户检索意图，优先调用 search_intent_parse 解析意图，再按需调用 data_search 检索资源。
+  只读辅助，不提交申请、不审批、不写目录。
+  输出简洁中文，不编造未检索到的资源。
+memory:
+  enabled: false
+# 真实工具列表来自 capabilities.json（capability_tools），由 ZwBrainCapabilityProvider
+# 在 Embedded Runtime 启动时通过 dynamic_capability_providers 注入；本字段保持为空。
+tools: []

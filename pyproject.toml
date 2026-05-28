@@ -9,6 +9,7 @@ readme = "docs/deployment/sd-default-onboarding.md"
 dependencies = [
   "SQLAlchemy>=2.0",
   "PyJWT[crypto]>=2.10",
+  "PyYAML>=6.0",
 ]
 
 [project.scripts]
@@ -22,6 +23,11 @@ zw-brain-migrate-legacy = "zw_brain.entry.legacy_migration.main:main"
 redis = [
   "redis>=5.0",
 ]
+# vendor 离线包是唯一交付路径（见 vendor/agent-runtime/README.md）；extra 严格 pin 到 tarball 同版本
+# 防 `pip install zw-brain[agentruntime]` 拉到不兼容的上游版本
+agentruntime = [
+  "agent-runtime==0.1.0",
+]
 dev = [
   "pytest>=9.0.3",      # CVE-2025-71176 fixed in 9.0.3
   "ruff>=0.5",
@@ -34,9 +40,13 @@ dev = [
 requires = ["hatchling>=1.21"]
 build-backend = "hatchling.build"
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.hatch.build.targets.wheel]
 packages = ["zw_brain"]
 include = [
+  "agents/**",
   "zw_brain/entry/rest/openapi.json",
   "zw_brain/entry/mcp/tools/*.json",
   "zw_brain/entry/a2a/agent_card.json",

@@ -24,6 +24,9 @@ build/
 .mypy_cache/
 dist/
 
+# ── AgentRuntime 离线包解压目录（保留 tar.gz）────────────────────
+vendor/agent-runtime/release/**/agent-runtime-*-py312-pyc-only/
+
 # ── Test / coverage artifacts ─────────────────────────────────
 .coverage
 .coverage.*
