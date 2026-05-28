@@ -52,6 +52,10 @@ const copyLegacyStaticToDist = (): Plugin => ({
   async closeBundle() {
     const root = path.dirname(fileURLToPath(import.meta.url));
     const outDir = path.join(root, 'dist-vite');
+    // F-001 防御：outDir 在 vite 自身 build 出错或被外部清理时可能不存在；
+    // fs.cp 不会 recursive 创建父目录，会以 ENOENT 失败且错误信息指回 closeBundle，
+    // 让用户误以为是 vite 配置 bug。先 mkdir recursive 兜底。
+    await fs.mkdir(outDir, { recursive: true });
     for (const dir of ['css', 'assets']) {
       const from = path.join(root, dir);
       const to = path.join(outDir, dir);

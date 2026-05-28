@@ -69,11 +69,27 @@ def _agent_runtime_bridge():
 
     return bridge
 # R-008/R-009: 从单一来源 role_codes 派生（含 admin / system）
-from zw_brain.domain.role_codes import ALL_ROLE_CODES as _DEV_IAM_BYPASS_ROLES  # noqa: E402
+from zw_brain.domain.role_codes import ALL_ROLE_CODES as _DEV_IAM_BYPASS_ROLES_DEFAULT  # noqa: E402
 
 _DEV_IAM_BYPASS_SUBJECT = "dev-iam-bypass"
 _DEV_IAM_BYPASS_USERNAME = "dev_iam_bypass"
 _DEV_IAM_BYPASS_DISPLAY_NAME = "本地调试"
+
+
+def _dev_iam_bypass_role_codes() -> list[str]:
+    """Resolve the role list for dev-iam-bypass.
+
+    `ZW_BRAIN_DEV_IAM_BYPASS_ROLES` overrides the default ALL_ROLE_CODES so the
+    无产品岗位 (A3) and 单一岗位 acceptance scenarios are reproducible without
+    spinning up a real IAM. Conventions:
+      - env unset  → ALL_ROLE_CODES (default; backward compatible)
+      - env =""    → empty list (无产品岗位 path: 该用户登入后看「联系管理员」)
+      - env ="ROLE_ORGAN_OPERATER,ROLE_BUSIAUDIT" → exactly those (含 admin/system 也支持)
+    """
+    raw = os.environ.get("ZW_BRAIN_DEV_IAM_BYPASS_ROLES")
+    if raw is None:
+        return list(_DEV_IAM_BYPASS_ROLES_DEFAULT)
+    return [item.strip() for item in raw.split(",") if item.strip()]
 
 
 def _web_root() -> Path:
@@ -112,16 +128,18 @@ def _iaf_client_id() -> str:
 def _dev_iam_bypass_user_profile() -> dict[str, Any]:
     from zw_brain.shared.session_context import apply_runtime_context, contexts_from_role_codes
 
+    role_codes = _dev_iam_bypass_role_codes()
     snapshot = {
         "subject": _DEV_IAM_BYPASS_SUBJECT,
         "username": _DEV_IAM_BYPASS_USERNAME,
         "display_name": _DEV_IAM_BYPASS_DISPLAY_NAME,
         "tenant_id": "sd-default",
         "org_code": "dev",
-        "role_codes": list(_DEV_IAM_BYPASS_ROLES),
+        "role_codes": role_codes,
     }
-    contexts = contexts_from_role_codes(snapshot["role_codes"], org_code="dev")
-    return apply_runtime_context(snapshot, contexts, preferred_org_code="dev", preferred_role_code="ROLE_ORGAN_OPERATER")
+    contexts = contexts_from_role_codes(role_codes, org_code="dev")
+    preferred_role = "ROLE_ORGAN_OPERATER" if "ROLE_ORGAN_OPERATER" in role_codes else (role_codes[0] if role_codes else None)
+    return apply_runtime_context(snapshot, contexts, preferred_org_code="dev", preferred_role_code=preferred_role)
 
 
 def _dev_iam_bypass_claims() -> dict[str, Any]:
@@ -132,7 +150,7 @@ def _dev_iam_bypass_claims() -> dict[str, Any]:
         "project_id": "sd-default",
         "org_code": "dev",
         "realm_access": {"roles": ["DEV_IAM_BYPASS"]},
-        "resource_access": {client_id: {"roles": list(_DEV_IAM_BYPASS_ROLES)}},
+        "resource_access": {client_id: {"roles": _dev_iam_bypass_role_codes()}},
         "development_iam_bypass": True,
     }
 
@@ -863,10 +881,18 @@ class RestHandler(BaseHTTPRequestHandler):
 
 def log_iaf_runtime_warnings() -> None:
     if get_dev_iam_bypass_enabled():
+        codes = _dev_iam_bypass_role_codes()
+        if not codes:
+            granted = "no product roles (ZW_BRAIN_DEV_IAM_BYPASS_ROLES=\"\")"
+        elif len(codes) == len(_DEV_IAM_BYPASS_ROLES_DEFAULT):
+            granted = f"all {len(codes)} ROLE_* roles"
+        else:
+            granted = f"{len(codes)} role(s): {','.join(codes)}"
         _LOGGER.warning(
             "ZW_BRAIN_DEV_IAM_BYPASS=1 is active — IAM auth is fully bypassed and every "
-            "request runs as a synthetic %s user with all 6 ROLE_* roles. DEVELOPMENT ONLY.",
+            "request runs as a synthetic %s user with %s. DEVELOPMENT ONLY.",
             _DEV_IAM_BYPASS_SUBJECT,
+            granted,
         )
     elif os.environ.get("ZW_BRAIN_DEV_IAM_BYPASS", "").strip() == "1":
         _LOGGER.warning(

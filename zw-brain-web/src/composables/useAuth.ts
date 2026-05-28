@@ -425,12 +425,13 @@ export function getAllowedProductRoles(): string[] {
 export function hasAllowedProductRoles(): boolean {
   const snapshot = _state.value;
   if (!snapshot?.authenticated) return false;
-  if (snapshot.development_iam_bypass) return true;
+  // dev-bypass 不再 blanket-true：必须看真实 actor.role_codes，否则
+  // ZW_BRAIN_DEV_IAM_BYPASS_ROLES="" 重现 A3 时，前端会假装用户有岗位
+  // 而后端 403 — UX 错位。改为统一从 snapshot 派生。
   return _allowedProductRolesFromSnapshot(snapshot).length > 0;
 }
 
 function _allowedProductRolesFromSnapshot(snapshot: AuthSnapshot): string[] {
-  if (snapshot.development_iam_bypass) return [...PRODUCT_ROLE_CODES];
   const actor = snapshot.actor_snapshot ?? {};
   const fromCtx = Array.isArray((actor as { available_contexts?: unknown }).available_contexts)
     ? ((actor as { available_contexts: { role_code?: string }[] }).available_contexts)

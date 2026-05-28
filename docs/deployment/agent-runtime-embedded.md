@@ -17,6 +17,18 @@
 
 ## 2. 安装
 
+### 2.1 一键脚本（本机推荐）
+
+```bash
+bash scripts/setup-py312-venv.sh           # 全量装齐（uv venv + vendor wheel + zw-brain[dev]）
+bash scripts/setup-py312-venv.sh --check   # 只检查不修改
+bash scripts/setup-py312-venv.sh --force   # 强制删旧重建
+```
+
+脚本会在仓库根创建独立 `.venv-py312/`（不动主 `.venv` 的 py3.13），自动校验 vendor tar.gz sha256、装 zw-brain + dev extras、解包 vendor agent-runtime、跑 `import agent_runtime` + `agentruntime_validate.py` 烟测。完成后按提示 `export ZW_BRAIN_PYTHON_BIN=$PWD/.venv-py312/bin/python` 再 `bash scripts/start-local.sh`。
+
+### 2.2 手工步骤（脚本不可用时回退）
+
 在 zw-brain 仓库根目录安装 **vendor 离线包**（Python 3.12），再安装 zw-brain：
 
 ```bash

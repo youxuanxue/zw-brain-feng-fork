@@ -5,7 +5,8 @@
 
 下游消费者（必须从本文件导入而非自行硬编码）：
 - zw_brain.domain.policy.ACTOR_NAMES (权限矩阵权威源)
-- zw_brain.entry.rest.server._DEV_IAM_BYPASS_ROLES
+- zw_brain.entry.rest.server._DEV_IAM_BYPASS_ROLES_DEFAULT（运行时由 _dev_iam_bypass_role_codes() 派生，
+  可被 ZW_BRAIN_DEV_IAM_BYPASS_ROLES env 覆盖以重现 A3 无产品岗位等场景）
 - zw_brain.domain.web_snapshot_redaction
 - 前端：通过 export_agent_contract.py 生成的 OpenAPI enum（system.snapshot.role）派生
 

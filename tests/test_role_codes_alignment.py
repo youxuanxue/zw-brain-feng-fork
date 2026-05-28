@@ -5,7 +5,7 @@
 
 测试覆盖：
 - policy.ACTOR_NAMES ⇔ role_codes.ROLE_DISPLAY_NAMES_ZH（dict 同步）
-- server._DEV_IAM_BYPASS_ROLES ⇔ role_codes.ALL_ROLE_CODES
+- server._DEV_IAM_BYPASS_ROLES_DEFAULT ⇔ role_codes.ALL_ROLE_CODES
 - web_snapshot_redaction frozensets ⊆ role_codes.ALL_ROLE_CODES（只读裁剪可以是子集）
 - 前端 app.js / pages.js 通过 JSON 解析对比（避免手维护漂移）
 
@@ -41,9 +41,29 @@ def test_policy_actor_names_aligned_with_role_codes():
 def test_server_bypass_roles_aligned_with_role_codes():
     from zw_brain.domain import role_codes
     from zw_brain.entry.rest import server
-    assert set(server._DEV_IAM_BYPASS_ROLES) == set(role_codes.ALL_ROLE_CODES), (
-        "server._DEV_IAM_BYPASS_ROLES 必须与 role_codes.ALL_ROLE_CODES 同步"
+    assert set(server._DEV_IAM_BYPASS_ROLES_DEFAULT) == set(role_codes.ALL_ROLE_CODES), (
+        "server._DEV_IAM_BYPASS_ROLES_DEFAULT 必须与 role_codes.ALL_ROLE_CODES 同步"
     )
+
+
+def test_dev_iam_bypass_role_codes_env_override(monkeypatch):
+    """ZW_BRAIN_DEV_IAM_BYPASS_ROLES env 必须按约定覆写：
+
+    - 未设置 → 默认全角色（向后兼容）
+    - 空串 ""  → []（A3 无产品岗位重现）
+    - "ROLE_X,ROLE_Y" → 精确两项
+    """
+    from zw_brain.domain import role_codes
+    from zw_brain.entry.rest import server
+
+    monkeypatch.delenv("ZW_BRAIN_DEV_IAM_BYPASS_ROLES", raising=False)
+    assert set(server._dev_iam_bypass_role_codes()) == set(role_codes.ALL_ROLE_CODES)
+
+    monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS_ROLES", "")
+    assert server._dev_iam_bypass_role_codes() == []
+
+    monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS_ROLES", "ROLE_ORGAN_OPERATER, ROLE_BUSIAUDIT")
+    assert server._dev_iam_bypass_role_codes() == ["ROLE_ORGAN_OPERATER", "ROLE_BUSIAUDIT"]
 
 
 def test_web_snapshot_redaction_uses_only_known_roles():

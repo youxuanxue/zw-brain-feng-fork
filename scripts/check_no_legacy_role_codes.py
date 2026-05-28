@@ -46,6 +46,7 @@ EXTENSIONS = (".py", ".js", ".json", ".md")
 # 跳过路径（gitignored / cache / build artifacts / 旧平台只读资料）
 SKIP_PATH_FRAGMENTS = (
     "/.venv/",
+    "/.venv-py312/",  # A5' AgentRuntime 全链路本机回放专用 venv（vendor wheel py312-only），与 .venv 同源、同 gitignored
     "/.git/",
     "/node_modules/",
     "/__pycache__/",

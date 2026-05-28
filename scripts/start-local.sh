@@ -3,7 +3,9 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PYTHON_BIN="$REPO_ROOT/.venv/bin/python"
+# 默认 .venv/bin/python；可用 ZW_BRAIN_PYTHON_BIN 切换到其它解释器
+# （例如本机要跑 AgentRuntime 全链路时切到 .venv-py312/bin/python — vendor wheel 是 py312-only）
+PYTHON_BIN="${ZW_BRAIN_PYTHON_BIN:-$REPO_ROOT/.venv/bin/python}"
 
 # 单一 canonical DB：`.data/zw_brain.db`。M0 一键导入（customer_acceptance_up.sh）
 # 与日常 REST 写读用同一份；不再分裂为 customer_acceptance.db。
@@ -110,7 +112,17 @@ PY
 }
 
 ensure_webui_build() {
-    local dist_index="$REPO_ROOT/zw-brain-web/dist-vite/index.html"
+    local dist_path="$REPO_ROOT/zw-brain-web/dist-vite"
+    local dist_index="$dist_path/index.html"
+    # F-001 防御：worktree 切换 / 历史会话残留可能在 zw-brain-web/dist-vite 留下
+    # 指向已删 worktree 的 dangling symlink。vite/rollup 写产物时 follow 这个链接
+    # 会 ENOENT，错误信息却指向 closeBundle 钩子，定位困难。任何形态的符号链接
+    # 这里都不可信（即便它指向其它有效 worktree，build 写入另一个 worktree 也是
+    # 混乱），统一 rm 让 vite 在 build 时新建真实目录。
+    if [[ -L "$dist_path" ]]; then
+        echo "[start-local] removing pre-existing dist-vite symlink (worktree leftover)"
+        rm "$dist_path"
+    fi
     local needs_build=0
     if [[ ! -f "$dist_index" ]]; then
         needs_build=1
