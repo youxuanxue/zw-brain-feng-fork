@@ -1,4 +1,4 @@
-"""Embedded AgentRuntime 配置：Inspur 网关环境变量桥接。"""
+"""Embedded AgentRuntime 配置：``ZW_BRAIN_INFERENCE_*`` 网关环境变量桥接。"""
 
 from __future__ import annotations
 
@@ -19,41 +19,44 @@ def _clear_openai_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "OPENAI_API_KEY",
         "OPENAI_COMPATIBLE_BASE_URL",
         "OPENAI_BASE_URL",
-        "INSPUR_INFERENCE_API_KEY",
-        "INSPUR_INFERENCE_BASE_URL",
+        "ZW_BRAIN_INFERENCE_API_KEY",
+        "ZW_BRAIN_INFERENCE_GATEWAY_URL",
         "AUTH_TOKEN",
         "BASE_URL",
     ):
         monkeypatch.delenv(key, raising=False)
 
 
-def test_embedded_runtime_env_bridges_inspur_api_key_and_base_url(
+def test_embedded_runtime_env_bridges_zw_brain_api_key_and_base_url(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("INSPUR_INFERENCE_API_KEY", "inspur-secret")
-    monkeypatch.setenv("INSPUR_INFERENCE_BASE_URL", "http://inspur-gateway.local/v1")
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_API_KEY", "zw-secret")
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_GATEWAY_URL", "http://inspur-gateway.local/v1")
 
     env = embedded_runtime_env()
 
-    assert env["OPENAI_COMPATIBLE_API_KEY"] == "inspur-secret"
+    assert env["OPENAI_COMPATIBLE_API_KEY"] == "zw-secret"
     assert env["OPENAI_COMPATIBLE_BASE_URL"] == "http://inspur-gateway.local/v1"
 
 
-def test_embedded_runtime_env_bridges_auth_token_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_embedded_runtime_env_does_not_bridge_legacy_auth_token_or_base_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # 兜底已退役：仅 ZW_BRAIN_INFERENCE_* 被桥接，AUTH_TOKEN / BASE_URL 不再生效。
     monkeypatch.setenv("AUTH_TOKEN", "token-from-auth")
     monkeypatch.setenv("BASE_URL", "http://legacy-base/v1")
 
     env = embedded_runtime_env()
 
-    assert env["OPENAI_COMPATIBLE_API_KEY"] == "token-from-auth"
-    assert env["OPENAI_COMPATIBLE_BASE_URL"] == "http://legacy-base/v1"
+    assert env.get("OPENAI_COMPATIBLE_API_KEY", "") == ""
+    assert env.get("OPENAI_COMPATIBLE_BASE_URL", "") == ""
 
 
 def test_embedded_runtime_env_does_not_override_explicit_openai_vars(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("INSPUR_INFERENCE_API_KEY", "inspur-secret")
-    monkeypatch.setenv("INSPUR_INFERENCE_BASE_URL", "http://inspur-gateway.local/v1")
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_API_KEY", "zw-secret")
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_GATEWAY_URL", "http://inspur-gateway.local/v1")
     monkeypatch.setenv("OPENAI_COMPATIBLE_API_KEY", "explicit-key")
     monkeypatch.setenv("OPENAI_COMPATIBLE_BASE_URL", "http://explicit/v1")
 
@@ -68,8 +71,8 @@ def test_apply_embedded_runtime_env_writes_openai_keys_to_process(
 ) -> None:
     monkeypatch.delenv("OPENAI_COMPATIBLE_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_COMPATIBLE_BASE_URL", raising=False)
-    monkeypatch.setenv("INSPUR_INFERENCE_API_KEY", "Bear")
-    monkeypatch.setenv("INSPUR_INFERENCE_BASE_URL", "http://inspur-gateway.local/v1")
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_API_KEY", "Bear")
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_GATEWAY_URL", "http://inspur-gateway.local/v1")
 
     apply_embedded_runtime_env_to_process()
 
@@ -79,7 +82,7 @@ def test_apply_embedded_runtime_env_writes_openai_keys_to_process(
 
 def test_embedded_runtime_env_optional_api_key_placeholder(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL", "1")
-    monkeypatch.setenv("INSPUR_INFERENCE_BASE_URL", "http://inspur-gateway.local/v1")
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_GATEWAY_URL", "http://inspur-gateway.local/v1")
 
     env = embedded_runtime_env()
 

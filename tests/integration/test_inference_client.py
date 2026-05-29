@@ -14,10 +14,9 @@ from zw_brain.shared.inference.client import (
 
 @pytest.fixture(autouse=True)
 def _reset_inference_singleton(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("INSPUR_INFERENCE_BASE_URL", raising=False)
-    monkeypatch.delenv("BASE_URL", raising=False)
-    monkeypatch.delenv("INSPUR_INFERENCE_API_KEY", raising=False)
-    monkeypatch.delenv("AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("ZW_BRAIN_INFERENCE_GATEWAY_URL", raising=False)
+    monkeypatch.delenv("ZW_BRAIN_INFERENCE_API_KEY", raising=False)
+    monkeypatch.delenv("ZW_BRAIN_INFERENCE_MODEL", raising=False)
     reset_default_client()
 
 
@@ -61,3 +60,26 @@ def test_mock_mode_still_requires_request_id(monkeypatch: pytest.MonkeyPatch) ->
     client = InferenceClient(mode="mock")
     with pytest.raises(InferenceError, match="request_id is required"):
         client.chat([ChatMessage(role="user", content="hi")], model="qwen-7b", request_id=None)
+
+
+def test_client_ignores_legacy_base_url_env_prefixes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """D36 负向守卫：InferenceClient 的 base_url 只认 ZW_BRAIN_INFERENCE_GATEWAY_URL；
+    旧 INSPUR_INFERENCE_BASE_URL / 裸 BASE_URL 一律不兜底 → 平台模式缺 base_url 即报错。"""
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_MODE", "platform")
+    monkeypatch.setenv("INSPUR_INFERENCE_BASE_URL", "http://legacy-gw/v1")
+    monkeypatch.setenv("BASE_URL", "http://legacy-base/v1")
+    client = InferenceClient()
+    with pytest.raises(InferenceError, match="base_url is required"):
+        client.chat([ChatMessage(role="user", content="hi")], model="m", request_id="REQ-D36-BASE")
+
+
+def test_client_ignores_legacy_api_key_env_prefixes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """D36 负向守卫：base_url 由 ZW_BRAIN_INFERENCE_GATEWAY_URL 提供时，api_key 只认
+    ZW_BRAIN_INFERENCE_API_KEY；旧 INSPUR_INFERENCE_API_KEY / AUTH_TOKEN 不兜底 → 缺 auth token 报错。"""
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_MODE", "platform")
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_GATEWAY_URL", "http://gw/v1")
+    monkeypatch.setenv("INSPUR_INFERENCE_API_KEY", "legacy-key")
+    monkeypatch.setenv("AUTH_TOKEN", "legacy-token")
+    client = InferenceClient()
+    with pytest.raises(InferenceError, match="auth token is required"):
+        client.chat([ChatMessage(role="user", content="hi")], model="m", request_id="REQ-D36-KEY")

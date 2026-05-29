@@ -18,8 +18,8 @@ AGENT_YAML = REPO_ROOT / "agents" / "zw_search_helper" / "AGENT.yaml"
 def _agent_runtime_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ZW_BRAIN_TEST_MODE", "1")
     monkeypatch.setenv("ZW_BRAIN_AGENT_RUNTIME_ENABLED", "1")
-    monkeypatch.setenv("INSPUR_INFERENCE_BASE_URL", "http://inspur-inference-gateway.local/v1")
-    monkeypatch.setenv("INSPUR_INFERENCE_MODEL", "claude-sonnet-4-7")
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_GATEWAY_URL", "http://inspur-inference-gateway.local/v1")
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_MODEL", "claude-sonnet-4-7")
 
 
 def test_agentruntime_validate_zw_search_helper() -> None:

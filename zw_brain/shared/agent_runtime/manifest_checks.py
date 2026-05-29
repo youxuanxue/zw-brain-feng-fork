@@ -155,9 +155,9 @@ def _model_provider_allowed(model: dict[str, Any]) -> bool:
             env_val = os.environ.get(env_name, "")
             if _url_is_inspur_gateway(env_val):
                 return True
-            if env_name in {"INSPUR_INFERENCE_BASE_URL", "BASE_URL"} and env_val:
+            if env_name == "ZW_BRAIN_INFERENCE_GATEWAY_URL" and env_val:
                 return True
-    gateway = os.environ.get("INSPUR_INFERENCE_BASE_URL") or os.environ.get("BASE_URL") or ""
+    gateway = os.environ.get("ZW_BRAIN_INFERENCE_GATEWAY_URL") or ""
     return bool(gateway and _url_is_inspur_gateway(gateway))
 
 
@@ -190,7 +190,7 @@ def diagnose_agent_bundle(agent_yaml: Path, *, production: bool = False) -> list
     elif trust == "untrusted":
         diagnoses.append(("HINT", "trust_level", "trust_level=untrusted; B1.2 can promote to verified"))
 
-    gateway = os.environ.get("INSPUR_INFERENCE_BASE_URL") or os.environ.get("BASE_URL")
+    gateway = os.environ.get("ZW_BRAIN_INFERENCE_GATEWAY_URL")
     if gateway:
         diagnoses.append(("OK", "inference", f"gateway env configured ({gateway})"))
     else:
@@ -198,13 +198,12 @@ def diagnose_agent_bundle(agent_yaml: Path, *, production: bool = False) -> list
             (
                 "WARN" if not production else "FAIL",
                 "inference",
-                "INSPUR_INFERENCE_BASE_URL not set; model calls need group inference gateway (D6)",
+                "ZW_BRAIN_INFERENCE_GATEWAY_URL not set; model calls need group inference gateway (D6)",
             )
         )
 
     api_key = (
-        os.environ.get("INSPUR_INFERENCE_API_KEY")
-        or os.environ.get("AUTH_TOKEN")
+        os.environ.get("ZW_BRAIN_INFERENCE_API_KEY")
         or os.environ.get("OPENAI_COMPATIBLE_API_KEY")
         or os.environ.get("OPENAI_API_KEY")
     )
@@ -223,7 +222,7 @@ def diagnose_agent_bundle(agent_yaml: Path, *, production: bool = False) -> list
             (
                 "WARN" if not production else "FAIL",
                 "inference",
-                "INSPUR_INFERENCE_API_KEY (or AUTH_TOKEN) not set; openai_compatible models need a gateway key",
+                "ZW_BRAIN_INFERENCE_API_KEY not set; openai_compatible models need a gateway key",
             )
         )
 

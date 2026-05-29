@@ -10,4 +10,4 @@ schema_path: schemas/agent.schema.json
 workspace_root: .data/agent-runtime/workspaces
 log_dir: .data/agent-runtime/logs
 default_model_provider: openai_compatible
-default_model: ${env:INSPUR_INFERENCE_MODEL}
+default_model: ${env:ZW_BRAIN_INFERENCE_MODEL}

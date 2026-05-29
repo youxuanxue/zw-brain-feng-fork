@@ -16,7 +16,7 @@ metadata:
     journey: infra
 model:
   provider: openai_compatible
-  model: ${env:INSPUR_INFERENCE_MODEL}
+  model: ${env:ZW_BRAIN_INFERENCE_MODEL}
   temperature: 0.1
   max_tokens: 6000
 instructions: |

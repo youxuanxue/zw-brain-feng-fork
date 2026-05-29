@@ -37,19 +37,31 @@ ACCEPTANCE_DIR = REPO_ROOT / ".data" / "wave2-acceptance"
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
 
 
+def _remove_shadow_db_files() -> None:
+    # WAL 模式（db.py PRAGMA journal_mode=WAL）会留 `-wal` / `-shm` 旁路文件。
+    # 只删 `.db` 而留下旧 WAL，会让新建的 `.db` 重挂不匹配的 WAL → SQLite 间歇报
+    # "database disk image is malformed"（取决于上次 run / 被 kill 的 run 是否留下旁路）。
+    # 必须三件一起删；调用前须先 dispose 引擎，释放可能仍持旧 inode 的连接。
+    for suffix in ("", "-wal", "-shm"):
+        (SHADOW_DB.parent / f"{SHADOW_DB.name}{suffix}").unlink(missing_ok=True)
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _shadow_db() -> None:
     SHADOW_DB.parent.mkdir(parents=True, exist_ok=True)
     ACCEPTANCE_DIR.mkdir(parents=True, exist_ok=True)
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
+    from zw_brain.shared import db as _db
+    _db.reset_engine_cache()  # 先释放旧连接，再删文件（含 WAL/SHM 旁路）
+    _remove_shadow_db_files()
     os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
     os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
     _db.reset_engine_cache()
     from zw_brain.shared.migrate import reset_and_upgrade
     reset_and_upgrade()
     yield
+    # 收尾：释放引擎并清掉 shadow DB 三件套，不给后续 run 留脏 WAL
+    _db.reset_engine_cache()
+    _remove_shadow_db_files()
 
 
 def _new_brain():

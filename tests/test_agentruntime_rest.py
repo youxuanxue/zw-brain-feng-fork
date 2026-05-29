@@ -22,8 +22,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 def _env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ZW_BRAIN_AGENT_RUNTIME_ENABLED", "1")
     monkeypatch.setenv("ZW_BRAIN_TEST_MODE", "1")
-    monkeypatch.setenv("INSPUR_INFERENCE_BASE_URL", "http://inspur-inference-gateway.local/v1")
-    monkeypatch.setenv("INSPUR_INFERENCE_MODEL", "claude-sonnet-4-7")
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_GATEWAY_URL", "http://inspur-inference-gateway.local/v1")
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_MODEL", "claude-sonnet-4-7")
 
 
 def test_runtime_status_only_exposes_enable_bit() -> None:

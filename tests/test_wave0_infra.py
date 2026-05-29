@@ -362,7 +362,7 @@ def test_start_local_defaults_inference_mock_and_documents_mode():
     script = (REPO_ROOT / "scripts" / "start-local.sh").read_text(encoding="utf-8")
     assert "ZW_BRAIN_INFERENCE_MODE=mock" in script
     assert "ZW_BRAIN_INFERENCE_MODE=${ZW_BRAIN_INFERENCE_MODE}" in script
-    assert "INSPUR_INFERENCE_BASE_URL" in script
+    assert "ZW_BRAIN_INFERENCE_GATEWAY_URL" in script
     # mock 须在 start_rest 调用之前 export（函数定义行 start_rest() 不算）
     mock_block = script.find('if [[ -z "${ZW_BRAIN_INFERENCE_MODE:-}" ]]; then')
     start_call = script.find("\nstart_rest\n")

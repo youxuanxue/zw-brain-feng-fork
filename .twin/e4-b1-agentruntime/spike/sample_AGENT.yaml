@@ -33,8 +33,8 @@ context:
 
 model:
   provider: inspur-inference-gateway
-  base_url_env: INSPUR_INFERENCE_BASE_URL
-  api_key_env: INSPUR_INFERENCE_API_KEY
+  base_url_env: ZW_BRAIN_INFERENCE_GATEWAY_URL
+  api_key_env: ZW_BRAIN_INFERENCE_API_KEY
   default_model: claude-sonnet-4-7
 
 permissions:

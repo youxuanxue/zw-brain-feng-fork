@@ -29,7 +29,7 @@ INFERENCE_MODE_ENV = "ZW_BRAIN_INFERENCE_MODE"
 _MOCK_EMBED_DIM = 8
 
 
-def resolve_inference_mode(*, base_url: str, api_key: str | None) -> str:
+def resolve_inference_mode() -> str:
     """Return ``mock`` or ``platform``. Explicit env wins; default is strict platform."""
     explicit = (os.getenv(INFERENCE_MODE_ENV) or "").strip().lower()
     if explicit in {"mock", "platform"}:
@@ -66,11 +66,11 @@ class InferenceClient:
         timeout_seconds: float = 30.0,
         mode: str | None = None,
     ) -> None:
-        self._base_url = (base_url or os.getenv("INSPUR_INFERENCE_BASE_URL") or os.getenv("BASE_URL") or "").rstrip("/")
-        self._api_key = api_key or os.getenv("INSPUR_INFERENCE_API_KEY") or os.getenv("AUTH_TOKEN")
-        self._model = model or os.getenv("INSPUR_INFERENCE_MODEL") or os.getenv("MODEL") or DEFAULT_INFERENCE_MODEL
+        self._base_url = (base_url or os.getenv("ZW_BRAIN_INFERENCE_GATEWAY_URL") or "").rstrip("/")
+        self._api_key = api_key or os.getenv("ZW_BRAIN_INFERENCE_API_KEY")
+        self._model = model or os.getenv("ZW_BRAIN_INFERENCE_MODEL") or DEFAULT_INFERENCE_MODEL
         self._timeout_seconds = timeout_seconds
-        self._mode = mode or resolve_inference_mode(base_url=self._base_url, api_key=self._api_key)
+        self._mode = mode or resolve_inference_mode()
 
     @property
     def mode(self) -> str:
@@ -214,10 +214,7 @@ _default_client: InferenceClient | None = None
 
 def get_client() -> InferenceClient:
     global _default_client
-    mode = resolve_inference_mode(
-        base_url=(os.getenv("INSPUR_INFERENCE_BASE_URL") or os.getenv("BASE_URL") or "").rstrip("/"),
-        api_key=os.getenv("INSPUR_INFERENCE_API_KEY") or os.getenv("AUTH_TOKEN"),
-    )
+    mode = resolve_inference_mode()
     if _default_client is None or _default_client.mode != mode:
         _default_client = InferenceClient(mode=mode)
     return _default_client

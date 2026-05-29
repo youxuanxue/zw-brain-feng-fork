@@ -60,9 +60,9 @@ pip install -e ".[dev]"
 
 | 变量 | 说明 |
 |------|------|
-| `INSPUR_INFERENCE_BASE_URL` | 集团推理网关 OpenAI 兼容地址 |
-| `INSPUR_INFERENCE_MODEL` | 模型名 |
-| `INSPUR_INFERENCE_API_KEY` | 集团推理网关 API Key（或 `AUTH_TOKEN`）；Embedded 启动时**写入进程** `OPENAI_COMPATIBLE_API_KEY`（AgentRuntime 模型层只读 `os.environ`） |
+| `ZW_BRAIN_INFERENCE_GATEWAY_URL` | 集团推理网关 OpenAI 兼容地址 |
+| `ZW_BRAIN_INFERENCE_MODEL` | 模型名 |
+| `ZW_BRAIN_INFERENCE_API_KEY` | 集团推理网关 API Key；Embedded 启动时**写入进程** `OPENAI_COMPATIBLE_API_KEY`（AgentRuntime 模型层只读 `os.environ`） |
 | `ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL` | 设为 `1` 时，未配置 Key 则使用占位值 `unused`（适用于网关不校验 Bearer 的环境） |
 | `ZW_BRAIN_INFERENCE_API_KEY_PLACEHOLDER` | 可选，覆盖上述占位字符串（默认 `unused`） |
 
@@ -93,9 +93,9 @@ Standalone 跑 AgentRuntime 服务时请为本环境单独配置；zw-brain Embe
 
 ```bash
 # 在 zw-brain 仓库根目录执行
-export INSPUR_INFERENCE_BASE_URL=http://<集团网关>/v1
-export INSPUR_INFERENCE_MODEL=<模型名>
-export INSPUR_INFERENCE_API_KEY=<网关密钥>
+export ZW_BRAIN_INFERENCE_GATEWAY_URL=http://<集团网关>/v1
+export ZW_BRAIN_INFERENCE_MODEL=<模型名>
+export ZW_BRAIN_INFERENCE_API_KEY=<网关密钥>
 
 python scripts/agentruntime_validate.py agents/zw_search_helper/AGENT.yaml
 python scripts/agentruntime_doctor.py agents/zw_search_helper/ --target dev

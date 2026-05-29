@@ -411,3 +411,19 @@ trigger 关闭即可删除字段。
 > `customer_acceptance_up.sh` 默认 non-strict + `--strict` flag + warn 行打印；preflight 段 41
 > `check_no_silent_error_swallow_in_adapter.py` 守 mapper add_issue+continue 必经 finish_run。
 > 详见 PR（独立于 #128 / Action A）。
+
+## 2026-05-29 — request.list 性能基准断言负载敏感（间歇 flaky）
+
+- **Where**: `tests/test_wave0_j1_request_list_perf.py::test_request_list_under_one_second_real_data`
+  断言 `worst_ms <= 1000`（D-9 perf 回归预算，对真实 `.data/zw_brain.db` 跑 request.list 3 次取最差）。
+- **Implication**: 机器高负载（如 CI runner 抢占 / 本地并行跑多套件）时单次采样会冲到 ~1500ms
+  触发 FAIL，全量套件间歇红；正常单跑稳定在 ~680-710ms，远低于预算。属负载敏感、非功能回归。
+  PR #163 xj-review 全量连跑时复现（样本 708/684/**1510**ms），与本 PR（推理 env 收敛 D36）无因果。
+- **Why deferred**: 修法是 perf 测试设计取舍（抬预算留余量 / 改 p50 而非 worst / 加 warmup 丢弃首样 /
+  降级为非门禁基准只记录不断言），属性能测试专项决策，不该塞进推理 env 收敛 PR；且 CI 单跑通常过，
+  红了按"瞬态/负载"`gh run rerun` 即可。
+- **Trigger to re-evaluate**: (a) CI 上该用例**非负载场景**稳定超 1000ms（=真实 perf 回归，立即 P0 查
+  request.list 读路径）；(b) 该 flaky 在 CI 反复 rerun 仍频繁红影响交付节奏 → 立项做 perf 测试设计
+  （warmup + p50 + 带余量预算或迁出门禁）。
+- **No mechanical preflight check (now)**: 负载敏感阈值本身无法机械区分"瞬态尖刺"与"真回归"；
+  需人工或 CI 趋势观察，不强行脚本化（避免 `|| true` 类伪绿）。

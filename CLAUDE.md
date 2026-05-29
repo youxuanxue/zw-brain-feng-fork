@@ -237,3 +237,29 @@ D34 这次 review 的所有问题（概念漂移 / 选择依据未验真 / 假�
 - [2026-05-29] D35.d：**元规则升级（接 D28/D32.b）**：今后业务方 sign-off 材料必须走 D35.a 模板并通过段 53/54。F9 材料包补 frontmatter 成为首个模板对齐样本（dogfood）。
 - **外部协议词汇审视（D33.d）**：本决策新增标识符 `check_signoff_package` / `check_signoff_landed` / `business-signoff:<scope>` label 均为 zw-brain preflight/CI 内部，与 AgentRuntime / MCP / A2A / ANP 协议无同名异义。
 - **范围**：zw-brain 内（证明有效后再议上提 dev-rules global，惠及 industry-brain / PetroMind 等）。
+
+### [2026-05-29] D36 retrofit：推理网关 env 契约收敛 `INSPUR_INFERENCE_*` → `ZW_BRAIN_INFERENCE_*` + 兜底清零
+
+> **编号说明**：本节随 PR #163 落地，原拟编号 D34；合并 main 时发现 D34（F9 共享专区）/ D35（sign-off 模式）已被 PR #162 占用，故顺延为 **D36**。PR #163 早期 commit message 与测试 `request_id`（`REQ-D36-*`）可能仍现 "D34" 字样——以本编号 D36 为准。
+
+**触发背景**：审视 `zw_brain/shared/inference/client.py` 取值链时发现推理平台连接变量散落两套前缀（公司级 `INSPUR_INFERENCE_*` + 项目级 `ZW_BRAIN_INFERENCE_*`）且层层裸名兜底（`AUTH_TOKEN` / `BASE_URL` / `MODEL`），与项目自有 env namespace（`ZW_BRAIN_*`，如 `ZW_BRAIN_INFERENCE_MODE` / `ZW_BRAIN_DEV_IAM_BYPASS`）不一致；裸名兜底还会在多工作区 shell 污染下静默取错密钥/网关。Jobs 式裁决：「一个东西一个名字，前缀随项目 namespace 收敛，不接受任何隐式兜底」。
+
+- [2026-05-29] D36：**推理网关连接变量统一为 `ZW_BRAIN_INFERENCE_*`，删除一切其他前缀/裸名兜底**。
+  - 连接三变量定型：`ZW_BRAIN_INFERENCE_GATEWAY_URL`（网关地址）/ `ZW_BRAIN_INFERENCE_API_KEY`（解析后的字面密钥）/ `ZW_BRAIN_INFERENCE_MODEL`（模型名）
+  - **删除的兜底**：`client.py` / `config.py` 桥接 / `manifest_checks.py` doctor 内的 `INSPUR_INFERENCE_*`、`os.getenv("AUTH_TOKEN")`、裸 `os.getenv("BASE_URL")`、裸 `os.getenv("MODEL")` 全部删除；连接变量只认唯一 `ZW_BRAIN_INFERENCE_*` 键，取不到即按既有 `InferenceError` / doctor FAIL 路径显式报错
+  - **保留**：`DEFAULT_INFERENCE_MODEL`（代码缺省模型常量，非竞争前缀的 env 兜底）；`OPENAI_COMPATIBLE_*` / `OPENAI_*`（AgentRuntime 适配器原生下游变量，是桥接目标与显式配置逃生口，非 zw-brain 前缀兜底）；`ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL` / `_PLACEHOLDER`（占位 feature）
+  - **同步面**：`agent-runtime.yaml` + 2 个内置 `agents/*/AGENT.yaml`（`${env:ZW_BRAIN_INFERENCE_MODEL}`）+ `scripts/start-local.sh` + 部署文档（docker / embedded）+ 5 个测试文件 + `.twin/` spike 残留
+  - **Why**：与 D6「模型调用收口集团推理平台」属同一契约面；项目 env namespace 单一化降低运维与多工作区误配风险；裸名兜底违反 D17/D18/D22「不靠自觉、软规则配套机械守卫」精神（兜底=隐式取值=回潮温床）
+  - **How to apply**：未来在 `zw_brain/` 内新增模型服务取值，禁止读取 `INSPUR_INFERENCE_*` / `AUTH_TOKEN` / 裸 `BASE_URL`/`MODEL`；只读 `ZW_BRAIN_INFERENCE_*`
+- [2026-05-29] D36.a：**密钥引用间接层保留 — `_API_KEY_REF`（指针）与 `_API_KEY`（字面值）严格区分，禁止合并**。
+  - `ZW_BRAIN_INFERENCE_API_KEY_REF` = 部署期配置的**密钥引用指针**（`arn:secrets:...` / `vault:...`），与 `ZW_BRAIN_IAF_CLIENT_SECRET_REF` / `ZW_BRAIN_BLOCKCHAIN_KEY_REF` 同套约定；仅存于 3 份部署文档，**密钥材料不进入镜像/版本控制**
+  - `ZW_BRAIN_INFERENCE_API_KEY` = 部署层解析 `_REF` 后注入进程的**字面密钥**，运行时代码（`client.py` / 桥接 / doctor）实际读取
+  - 解析流向：`_API_KEY_REF=arn:...` →（部署层/密钥库解析）→ 字面 `ZW_BRAIN_INFERENCE_API_KEY` → 代码读取
+  - **现状边界**：仓内仅有文档契约，`_REF` 无代码 reader、解析属外部部署层（与改动前一致，也与 IAF/blockchain `_REF` 同样未在仓内解析）。若未来需仓内轻量 ref 解析器，另立 PR
+  - **Why**：合并两者会把"指针"赋给"字面密钥"变量（`arn:...` 整串当 Bearer token 发出→鉴权失败 + 合规告警），破坏既有密钥不落明文的安全姿态
+  - **How to apply**：禁止把 `_API_KEY_REF` 与 `_API_KEY` 视为同义；新增任何外部凭证 env 一律遵循 `*_REF`（指针）/ 字面值（运行时）二元命名
+- [2026-05-29] D36.b：**回潮机械守卫由负向测试承担**。`tests/test_agentruntime_config.py::test_embedded_runtime_env_does_not_bridge_legacy_auth_token_or_base_url` 断言 `AUTH_TOKEN` / `BASE_URL` 不再被桥接，锁死 D36 兜底清零；未来若有人重新引入兜底即测试红。`tests/integration/test_inference_client.py` env 清理同步只清 `ZW_BRAIN_INFERENCE_*`。
+- [2026-05-29] D36.c（上帝视角 re-review 触发）：**两项边界显式化**。
+  - **客户端层负向守卫补齐**：D36.b 的兜底守卫原仅覆盖 `config.py` 桥接层；新增 `tests/integration/test_inference_client.py::test_client_ignores_legacy_{base_url,api_key}_env_prefixes`，在 `InferenceClient` 本体也机械锁死「连接变量只认 `ZW_BRAIN_INFERENCE_*`」——设 `INSPUR_INFERENCE_*` / `AUTH_TOKEN` / 裸 `BASE_URL` 后平台模式仍报 `base_url/auth token is required`，证明旧前缀不被读取。**Why**：D36 头号承诺是 client.py 不兜底，但守卫此前只在 bridge 层，client 层规则形同 prose（D17/D18/D22）。
+  - **`INSPUR_*` 代码标识符保留是 deliberate，非漏改**：`manifest_checks.py` 的 `INSPUR_GATEWAY_MARKERS` / `_url_is_inspur_gateway` / sample `provider: inspur-inference-gateway` 保留 `inspur` 命名——它们识别的是**物理集团网关 host**（如 `inference.inspur.com`，见 `docs/deployment/sd-default-onboarding.md`），不是 env 变量名；marker `"inspur"` 对真实网关 host 探测是**承重**的，改名会破坏 D6 网关识别。**How to apply**：禁止以「命名一致性」为由把这些 `inspur` 标识符改成 `zw_brain`；env 变量前缀（配置句柄）与网关 host 身份（物理系统）是两个维度，D36 只收敛前者。
+- [2026-05-29] D36.d（xj-review R-002 触发）：**wave2 验收测试 shadow DB 隔离修复（WAL/SHM 旁路清理）**。`tests/integration/test_wave2_three_engines_acceptance.py::_shadow_db` 原只 `unlink()` `.db`，遗留 WAL 模式 `-wal`/`-shm` 旁路 → 新建 `.db` 重挂不匹配旧 WAL → `sqlite3.DatabaseError: database disk image is malformed`（间歇）。修复：setup 先 `reset_engine_cache()` 再删 `.db`+`-wal`+`-shm` 三件套，teardown 同样清理。**性能基准 flaky**（`test_wave0_j1_request_list_perf` 负载敏感超 1000ms 预算）属另一类，记 `docs/preflight-debt.md`，不在本 PR 修。

@@ -29,7 +29,7 @@
       [OK]    spec=anp-agent/v1.2
       [WARN]  workspace_required=true，但当前部署清单未挂载 workspace volume
       [FAIL]  inference gateway BASE_URL 不可达：http://gateway.internal/health -> timeout
-              fix: 配置 INSPUR_INFERENCE_BASE_URL + INSPUR_INFERENCE_API_KEY
+              fix: 配置 ZW_BRAIN_INFERENCE_GATEWAY_URL + ZW_BRAIN_INFERENCE_API_KEY
       [HINT]  trust_level=untrusted（默认安全态）；B1.2 审核通过后升 verified
 
 【实装骨架】
@@ -61,12 +61,12 @@ def _diagnose(parsed: dict[str, Any], yaml_path: Path) -> list[tuple[str, str, s
         diagnoses.append(("FAIL", "spec", f"spec={spec!r} 不在白名单"))
 
     # inference gateway 探活
-    gateway = os.getenv("INSPUR_INFERENCE_BASE_URL") or os.getenv("BASE_URL")
+    gateway = os.getenv("ZW_BRAIN_INFERENCE_GATEWAY_URL")
     if not gateway:
         diagnoses.append((
             "FAIL",
             "inference",
-            "INSPUR_INFERENCE_BASE_URL 未配置；fix: 设置环境变量指向集团推理平台 gateway"
+            "ZW_BRAIN_INFERENCE_GATEWAY_URL 未配置；fix: 设置环境变量指向集团推理平台 gateway"
         ))
     # === T1 fire 时实装 urllib HEAD 探活 ===
     # else:

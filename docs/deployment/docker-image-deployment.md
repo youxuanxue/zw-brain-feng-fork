@@ -118,7 +118,7 @@ http://<服务器IP>:8800/
 | `ZW_BRAIN_REST_BASE_URL` | REST 对外基础 URL，用于契约投影等场景 | `http://127.0.0.1:<REST端口>` |
 | `ZW_BRAIN_TENANT_ID` | 默认租户标识；Phase 1 固定 `sd-default`（单租户单省山东；基线 §8.2） | `sd-default` |
 | `ZW_BRAIN_INFERENCE_GATEWAY_URL` | 集团推理平台 gateway URL；所有 LLM / Embedding / ASR / Rerank / OCR 调用必须经此入口（基线 §3.4 + preflight 段 10） | 必填（生产环境） |
-| `ZW_BRAIN_INFERENCE_API_KEY_REF` | 集团推理平台 API key 引用（密钥引用，非明文）；密钥材料不进入镜像 | 必填（生产环境） |
+| `ZW_BRAIN_INFERENCE_API_KEY_REF` | 集团推理平台 API key 引用（密钥引用，非明文）；密钥材料不进入镜像；部署层解析后注入字面 `ZW_BRAIN_INFERENCE_API_KEY` 供运行时读取 | 必填（生产环境） |
 | `ZW_BRAIN_IAF_CA_FILE` | IAF HTTPS 自定义 CA 证书文件路径（容器内路径），用于挂载内部 CA bundle | 未设置（使用系统默认信任链） |
 | `ZW_BRAIN_IAF_VERIFY_SSL` | 设为 `false` 时完全跳过 IAF 端点 SSL 验证（仅限测试/内网无证书环境） | `true` |
 | `ZW_BRAIN_DEV_IAM_BYPASS` | 研发期 IAM 网络不可达时临时跳过登录与 token-healthz；须与 `ZW_BRAIN_DEV_IAM_BYPASS_ACK=development-only` 同时设置才生效；生产部署不得设置 | 未设置 |
@@ -131,9 +131,9 @@ http://<服务器IP>:8800/
 | `ZW_BRAIN_AGENT_RUNTIME_CONFIG` | `agent-runtime.yaml` 路径 | 镜像内 `/app/agent-runtime.yaml` |
 | `ZW_BRAIN_AGENTS_DIR` | 内置 Agent 清单目录 | 镜像内 `/app/agents` |
 | `ZW_BRAIN_AGENT_RUNTIME_SCHEMA` | `agent.schema.json` 路径 | 镜像内 `/app/schemas/agent.schema.json` |
-| `INSPUR_INFERENCE_BASE_URL` | Embedded Agent 经集团推理网关（与 zw-brain LLM 同一约束） | 启用 AgentRuntime 时必填 |
-| `INSPUR_INFERENCE_MODEL` | 推理模型名 | 启用 AgentRuntime 时必填 |
-| `INSPUR_INFERENCE_API_KEY` | 集团推理网关 API Key（或 `AUTH_TOKEN`）；Embedded 启动时写入 `OPENAI_COMPATIBLE_API_KEY` | 网关需鉴权时必填；不鉴权可设任意非空占位（如 `unused`）或配合 `ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL=1` |
+| `ZW_BRAIN_INFERENCE_GATEWAY_URL` | Embedded Agent 经集团推理网关（与 zw-brain LLM 同一约束） | 启用 AgentRuntime 时必填 |
+| `ZW_BRAIN_INFERENCE_MODEL` | 推理模型名 | 启用 AgentRuntime 时必填 |
+| `ZW_BRAIN_INFERENCE_API_KEY` | 集团推理网关 API Key；Embedded 启动时写入 `OPENAI_COMPATIBLE_API_KEY` | 网关需鉴权时必填；不鉴权可设任意非空占位（如 `unused`）或配合 `ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL=1` |
 | `ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL` | `1` 表示网关不要求 API Key，自动使用占位 `unused` | 未设置 |
 | `ZW_BRAIN_PLATFORM_DOCS_ROOTS` | 平台指南 Agent 可读文档根目录（`os.pathsep` 分隔）；Docker 默认 `/app/docs` | 未设置时为本机仓库 `docs/` |
 
@@ -146,10 +146,10 @@ docker run -d \
   ... \
   -e ZW_BRAIN_AGENT_RUNTIME_ENABLED=1 \
   -e ZW_BRAIN_AGENT_RUNTIME_PROFILE=embedded_single_tenant \
-  -e INSPUR_INFERENCE_BASE_URL=https://<集团推理网关>/v1 \
-  -e INSPUR_INFERENCE_MODEL=<模型名> \
-  -e INSPUR_INFERENCE_API_KEY=unused \
-  # 或网关需鉴权：-e INSPUR_INFERENCE_API_KEY=<真实密钥>
+  -e ZW_BRAIN_INFERENCE_GATEWAY_URL=https://<集团推理网关>/v1 \
+  -e ZW_BRAIN_INFERENCE_MODEL=<模型名> \
+  -e ZW_BRAIN_INFERENCE_API_KEY=unused \
+  # 或网关需鉴权：-e ZW_BRAIN_INFERENCE_API_KEY=<真实密钥>
   # 或不鉴权且不想传 Key：-e ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL=1
   # 注意：docker -e 用 VAR=value，不要写 VAR=='value'（会把引号传入容器）
   zw-brain:1.0.0

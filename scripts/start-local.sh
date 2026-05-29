@@ -176,7 +176,7 @@ start_rest
 
 wait_for_health "http://$REST_HOST:$REST_PORT/health" "REST"
 
-echo "[start-local] inference: ZW_BRAIN_INFERENCE_MODE=${ZW_BRAIN_INFERENCE_MODE} (mock=本机无网关; platform=需 INSPUR_INFERENCE_BASE_URL+API_KEY)"
+echo "[start-local] inference: ZW_BRAIN_INFERENCE_MODE=${ZW_BRAIN_INFERENCE_MODE} (mock=本机无网关; platform=需 ZW_BRAIN_INFERENCE_GATEWAY_URL+API_KEY)"
 
 # F11：本地 curl 502 常见原因是 shell 全局 http_proxy 把 127.0.0.1 也走代理
 if [[ -n "${http_proxy:-}" || -n "${HTTP_PROXY:-}" || -n "${https_proxy:-}" || -n "${HTTPS_PROXY:-}" ]]; then
