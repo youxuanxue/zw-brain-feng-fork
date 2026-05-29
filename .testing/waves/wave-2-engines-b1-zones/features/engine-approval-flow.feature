@@ -5,7 +5,7 @@
 # Roles: ROLE_SYSTEM (配置) | ROLE_BUSIAUDIT (复核)
 # Trace: R8 / R14, 基线 §10.3 审批流可视化引擎, 业务反馈 #4 (鞍山"编制→二级部门审→一级部门审→发布")
 # Priority: P1
-# Status: InTest
+# Status: Ready
 # Owner: e3
 # Pytest: tests/integration/test_wave2_three_engines_acceptance.py
 # Twin-F: e3.F1 + e3.F2 + e3.F3

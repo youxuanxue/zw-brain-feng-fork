@@ -5,7 +5,7 @@
 # Roles: ROLE_ORGAN_OPERATER
 # Trace: R1, 基线 §5.2 P4「必含凭据领取页（授权码 / API Key + curl/Python/Java 调用样例 + 配额 + 监控入口）」
 # Priority: P0
-# Status: InTest
+# Status: Ready
 # Owner: e1
 # Pytest: tests/test_wave0_j1_credential_call.py + tests/test_wave1_j1_credential.py
 # Twin-F: e1.F5

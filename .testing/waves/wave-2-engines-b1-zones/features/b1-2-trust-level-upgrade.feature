@@ -5,7 +5,7 @@
 # Roles: ROLE_SYSTEM | ROLE_SECURITY_AUDIT (协同)
 # Trace: R15, 基线 §8.2 trust_level 三级 + "可覆盖收紧不可放宽", §10.3
 # Priority: P1
-# Status: InTest
+# Status: Ready
 # Owner: e4
 # Pytest: pending
 # Twin-F: e4.F4

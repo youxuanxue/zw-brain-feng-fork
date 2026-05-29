@@ -283,3 +283,26 @@ D37 建的验收守卫的首个真实使用。e5（WebUI 8 页面 + 5 消费面 
 
 - [2026-05-29] D38：**e5 效果验收通过**。机器证据(`.testing/acceptance/e5/evidence.json`)：投影零漂移 / pytest exit 0 / e2e `customer_acceptance_checklist` 15 passed-1 skipped 三项现场实测 pass。业务方 A/B/C 清单(客户买方视角 6 项 + 7 角色日常活 + 4 跨切非谈判项)全过(详见 `docs/acceptance/e5-acceptance-package.md`)。载体 = PR #164 label `business-signoff: e5`(`promote_signoff` 翻 e5 全部 `e5.F*` .feature InTest→Ready)；plan.yaml F3 `[SIGNOFF-CLOSED 2026-05-29] covers e5`。本文 status→approved。
 - [2026-05-29] D38.a：**证据 provenance 受限,记 debt 不阻塞**。验收证据在共享主仓(sibling commit `3383562`)采集 → 段 55 如实 WARN「git_sha 非本分支祖先」。**已验证 worktree 内重采得到正确 sha 但 pytest 因 bare-worktree 无 venv 而 fail** —— 即"绿 pytest"与"正确 sha"在当前 env 拓扑下二选一。真正修法：**CI 在 PR commit 上 emit evidence.json**（消除人工采集的 env 依赖）。登记 `docs/preflight-debt.md`「2026-05-29 — 验收证据 CI 化采集」，trigger=下个验收签字 / CI evidence job 立项。WARN 非阻塞,approved 记录保留该 provenance 注记。
+
+### [2026-05-29] D39：IA 二次反转业务方二次 sign-off — 信息架构定型为 2 旅程 + B1 后台
+
+闭合 **D24 明文「pending R13 业务方下次 review 二次 sign-off」**。GATE-1.1（2026-05-19）业务方签的是 3 旅程；产品侧二次反转为 2 旅程 + B1 后台（J3 退役、K12 大屏退役），WebUI 已按此建成并经 e5 验收（D38），但反转本身未经业务方二次签。本次走 D35 决策签字模板补签，**业务方 2026-05-29 全部同意**。
+
+- [2026-05-29] D39：**信息架构定型 = 2 旅程（J1 找数→用数 / J2 挂数→维数）+ B1 后台支撑面**。业务方 sign-off 3 决策点全接受：① J3「看全局→处异常」退为 B1 后台（仅大数据局管理员/审计员，能力不减只是重新归类）；② K12 可视化大屏本期退役（复活走外部能力包 / Wave 3+）；③ ≤8 主入口 2旅程+B1 形态定型。载体 = PR #165 label `business-signoff: ia-2journey-b1`；plan.yaml e5 F3 `[SIGNOFF-CLOSED 2026-05-29] covers ia-2journey-b1`（锚 e5，WebUI 体现该 IA）。材料 `docs/decisions/ia-2journey-b1-business-review-package.md`。
+- [2026-05-29] D39.a：**D24「pending 二次 sign-off」债闭合**。GATE-1.1 的 3 旅程历史快照保留为档案；当前 IA 真值源 = 架构基线 §1.2/§7.3（已是 2+B1）。
+- **外部协议词汇审视（D33.d）**：scope `ia-2journey-b1` 为 zw-brain 内部 signoff 标识，与外部协议无同名异义。
+
+### [2026-05-29] D40：A 类「数据服务能力面」设计业务方 sign-off — 20 条复活落地形态定型
+
+闭合 **D31/D32 遗留的 A 类「服务能力面」设计 review**（D 类主题库/专题包已 F9 落地；A 类 20 条复活的设计此前"暂未发出"）。据 `dsp-dataservice-reconstruction-plan-v1.md`，**业务方 2026-05-29 全部同意**。
+
+- [2026-05-29] D40：**A 类 20 条复活 = 数据服务能力面，按 dsp-dataservice plan 落地**。业务方 sign-off 5 决策点全接受：① 重设计为服务能力面、不复刻旧 BSP/门户/服务后台；② API 服务资源化（进 J1 主旅程 P2/P3/P4，不切独立后台）；③ 网关心跳/调用统计 = B1.1 只读投影 + 对接集团运维（不重造业务报表/熔断大屏）；④ orchestrator 走外部能力包、hystrix 不迁入；⑤ 106 案例提出页保持不复活（D31.a 确认）。Wave 节奏全认可（Wave 0 网关心跳 / Wave 1 API 资源化 / Wave 2 服务发布审批复用 R14 / Wave 3 编排外部化）。载体 = PR #165 label `business-signoff: aclass-dataservice`；plan.yaml e6 F1 `[SIGNOFF-CLOSED 2026-05-29] covers aclass-dataservice`。材料 `docs/decisions/aclass-dataservice-capability-business-review-package.md`。
+- [2026-05-29] D40.a：**dsp-dataservice plan 升级为"业务方设计 sign-off 完成"**。A 类此后按 plan + Wave 节奏执行，禁止绕过 plan 直接立项（D32 元规则）。
+- **外部协议词汇审视（D33.d）**：`resource.api.*` / `ops.gateway.*` / `ops.service.*` capability slug 均 zw-brain 内部，与 AgentRuntime / MCP / A2A / ANP 协议无同名异义。
+
+### [2026-05-29] D41：B1 borderline 报表 capability 定性 — 5 条确认留 live（关 2026-05-23 债）
+
+闭合 `preflight-debt.md`「2026-05-23 — 5 个 borderline B1 业务报表 capability 仍 live，待业务方 sign-off」，其触发条件 (a) = "业务方下次 IA review 对 5 条逐一 sign-off"，本次 IA review（D39）即该时机。**业务方 2026-05-29 全部同意留 live**。
+
+- [2026-05-29] D41：**5 条 B1 capability 定性 = 业务运营报表，留 `status: live`**（非运维监控、不转 external）：`service.rating.submit` / `ops.catalog.statistics.query` / `ops.exchange.statistics.query` / `ops.service.invocation.query` / `ops.service.report.query`。判据：均基于 zw-brain 自有业务事实（申请/调用/评价），非网关/主机运行指标；运维监控（CPU/存活/熔断）才归集团（基线 §3.4）。与 D40 A 类「业务报表内建 + 运维指标外接」边界一致。载体 = PR #165 label `business-signoff: b1-borderline-reports`；plan.yaml e6 F1 `[SIGNOFF-CLOSED 2026-05-29] covers b1-borderline-reports`。`preflight-debt.md` 2026-05-23 债条删除。材料 `docs/decisions/b1-borderline-reports-business-review-package.md`。
+- **外部协议词汇审视（D33.d）**：scope `b1-borderline-reports` 为 zw-brain 内部 signoff 标识，与外部协议无同名异义。

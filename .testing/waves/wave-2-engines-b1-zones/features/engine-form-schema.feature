@@ -5,7 +5,7 @@
 # Roles: ROLE_SYSTEM | ROLE_BUSIAUDIT
 # Trace: R8 / R14, 基线 §10.3 表单 schema 化引擎, 业务反馈 #17 (四川 / 荆州都改表单)
 # Priority: P1
-# Status: InTest
+# Status: Ready
 # Owner: e3
 # Pytest: tests/integration/test_wave2_three_engines_acceptance.py
 # Twin-F: e3.F4 + e3.F5

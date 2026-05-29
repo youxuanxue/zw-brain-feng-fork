@@ -5,7 +5,7 @@
 # Roles: ROLE_ORGAN_OPERATER
 # Trace: R14, 基线 §10.3 智能推荐前置, 业务反馈 #6 (一开始不确定要哪些目录时应有推荐)
 # Priority: P1
-# Status: InTest
+# Status: Ready
 # Owner: e3
 # Pytest: tests/integration/test_wave2_three_engines_acceptance.py
 # Twin-F: e3.F6

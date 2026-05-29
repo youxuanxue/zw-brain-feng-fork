@@ -5,7 +5,7 @@
 # Roles: All
 # Trace: D4 / R4 / 基线 §2.3 合规内建 / §10.1
 # Priority: P0
-# Status: InTest
+# Status: Ready
 # Owner: e4
 # Pytest: pending
 # Twin-F: e4.F1

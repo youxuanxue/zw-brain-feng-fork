@@ -1,5 +1,7 @@
 # dsp-dataservice 相关模块重构方案 v1
 
+> **状态（2026-05-29 D40 业务方设计 sign-off 完成）**：A 类 20 条复活的「数据服务能力面」设计经业务方 2026-05-29 全部同意（PR #165 label `business-signoff: aclass-dataservice`，详见 `docs/decisions/aclass-dataservice-capability-business-review-package.md`）。此后按本 plan + Wave 0-3 节奏执行。
+>
 > **状态（2026-05-27 D32 升级为 active）**：业务方 PR #129 sign-off A 类 20 条复活（D31）触发本 plan 从 "deferred-trigger" 升级为 **active 落地路径**。CLAUDE.md D32 决策明文："A 类 20 条复活 → 按本 plan 落地"。本 plan §3.5 12 Capability + §二.1 5 模块映射 + §二.3 Pareto P0-P3 是 A 类复活的唯一执行真值源；新设计禁止绕过本 plan 直接立项。
 >
 > 范围：旧平台 `old/old_codes/dsp-dataservice`（3.16.15）、外部调用分析 `old/old_codes_analyse/dsp-dataservice-apis.md` 与旧结构数据 `old/12-datastructure`。

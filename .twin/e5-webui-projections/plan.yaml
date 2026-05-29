@@ -54,6 +54,10 @@ items:
     | evidence=.testing/acceptance/e5/evidence.json（投影零漂移 / pytest exit 0 / e2e
     15 passed）+ 业务方 A/B/C 清单全过 | vehicle PR #164 评论 business-signoff: e5
     | 详见 docs/acceptance/e5-acceptance-package.md → 验收通过'
+  - '[SIGNOFF-CLOSED 2026-05-29] covers ia-2journey-b1 | 决策签字（D24 二次反转业务方二次 sign-off）
+    | by 海若产品部业务方 | IA 定型为 2 旅程（J1+J2）+ B1 后台（J3 退役 / K12 大屏退役）
+    | vehicle PR #165 评论 business-signoff: ia-2journey-b1 | 锚 e5（WebUI 体现该 IA）
+    | 详见 docs/decisions/ia-2journey-b1-business-review-package.md + CLAUDE.md D39'
   depends_on:
   - F2
   status: completed

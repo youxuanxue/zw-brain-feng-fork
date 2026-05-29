@@ -5,7 +5,7 @@
 # Roles: ROLE_ORGAN_OPERATER
 # Trace: R1 / R9 / R12, 基线 §5.4.4 P2 反约束, 旧 xlsx 行 [1..12]
 # Priority: P0
-# Status: InTest
+# Status: Ready
 # Owner: e1
 # Pytest: tests/test_wave0_j1_discover_draft.py + tests/test_wave1_p2_search_assistant.py
 # Twin-F: e1.F6

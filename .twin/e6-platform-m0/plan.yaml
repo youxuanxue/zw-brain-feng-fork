@@ -22,6 +22,15 @@ items:
   - brain.py 3462 LOC 残留 BrainService class / 6 exception class / helpers — stop condition
     `≤500 LOC` 按 dispatch.py 而非 brain.py 收尾（见 docs/approved/zw-brain-architecture.md
     §10.2 入档）
+  - '[SIGNOFF-CLOSED 2026-05-29] covers aclass-dataservice | 决策签字（A 类 20 条复活服务能力面设计）
+    | by 海若产品部业务方 | 形态=服务能力面非旧 BSP/门户 + API 资源化 + 监控只读投影 + orchestrator
+    外部包 + 106 案例不复活 + Wave 0-3 节奏 | vehicle PR #165 评论 business-signoff: aclass-dataservice
+    | 按 docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md 执行 | 详见
+    docs/decisions/aclass-dataservice-capability-business-review-package.md + CLAUDE.md D40'
+  - '[SIGNOFF-CLOSED 2026-05-29] covers b1-borderline-reports | 决策签字（5 条 B1 报表 capability 定性留 live）
+    | by 海若产品部业务方 | service.rating.submit / ops.{catalog,exchange}.statistics.query /
+    ops.service.{invocation,report}.query 均业务运营报表非运维监控 | vehicle PR #165
+    | 关 preflight-debt 2026-05-23 债 | 详见 docs/decisions/b1-borderline-reports-business-review-package.md + CLAUDE.md D41'
   depends_on: []
   status: completed
   next_action: ''

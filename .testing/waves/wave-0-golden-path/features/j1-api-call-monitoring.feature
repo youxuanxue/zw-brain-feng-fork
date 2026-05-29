@@ -5,7 +5,7 @@
 # Roles: ROLE_ORGAN_OPERATER
 # Trace: R1 / R3, 基线 §5.2 P4 调用监控入口, 基线 §10.1
 # Priority: P0
-# Status: InTest
+# Status: Ready
 # Owner: e1
 # Pytest: tests/test_wave0_j1_credential_call.py + tests/test_wave1_p4_delivery_explain.py
 # Twin-F: e1.F8

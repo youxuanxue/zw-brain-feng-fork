@@ -348,26 +348,6 @@ trigger 关闭即可删除字段。
   3. **段 23 preflight scan**（commit-time，G1.4 新增）
   这三条层叠兜底；不再加 prose 软提醒。
 
-## 2026-05-23 — 5 个 borderline B1 业务报表 capability 仍 live，待业务方 sign-off
-
-- **Where**: 5 个 manifest 当前 `product_scope = {journey: b1, status: live}`：
-  - `service.rating.submit` (服务评价提交)
-  - `ops.catalog.statistics.query` (目录资源统计)
-  - `ops.exchange.statistics.query` (交换统计)
-  - `ops.service.invocation.query` (服务调用统计)
-  - `ops.service.report.query` (服务运行态势)
-- **Implication**: 这 5 条按 `docs/reconstructs/p0-contract-classification.md` §2.5 / §2.8 判定语义是
-  "**业务运营报表**"（基于 capability_call / rating 业务事实），不是 §1.3 "运行监控" 禁区。当前保留 live B1。
-  若业务方下次 review 判定其中任何一条更接近"运维监控"或"应用案例评分"形态，需翻转 status → external，
-  并重新生成 5 surface 投影。
-- **Why deferred**: PR #75 (P0-04) 落地时业务方未现场 sign-off；提前一刀切到 external 会误伤实际业务报表场景。
-  Jobs 风格的可逆决策：保留 live + 走 debt 跟踪，比预先砍掉再回来补成本低。
-- **Trigger to re-evaluate**: (a) 海若产品部业务方（旧平台产研负责人）下次 IA review 对 5 条逐一 sign-off；
-  (b) 任何客户实际反对场景出现——立即翻 status=external + 重新跑 `python scripts/export_agent_contract.py`
-  让 5 surface 同步剔除。
-- **No mechanical preflight check (now)**: 段 22 不收录"borderline 业务报表" 前缀（不在 §1.3 已观察禁区前缀清单内）；
-  这是设计 intent，避免 false positive 误伤合法报表能力。debt 条目本身就是兜底跟踪。
-
 ## 2026-05-23 — 集成测试用 `brain.invoke_skill()` 直调，绕过 trust-stamp 路径
 
 - **Where**: `tests/test_wave1_j2_pipeline.py`、其他通过 `_call(brain, skill, payload)` →

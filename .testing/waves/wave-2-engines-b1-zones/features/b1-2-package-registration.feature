@@ -5,7 +5,7 @@
 # Roles: ROLE_SYSTEM
 # Trace: R15, 基线 §8.3 Registry 最小字段, §8.4 注册流水线 UI 化, §10.3
 # Priority: P1
-# Status: InTest
+# Status: Ready
 # Owner: e4
 # Pytest: pending
 # Twin-F: e4.F4
