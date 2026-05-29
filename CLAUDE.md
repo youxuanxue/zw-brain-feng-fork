@@ -263,3 +263,23 @@ D34 这次 review 的所有问题（概念漂移 / 选择依据未验真 / 假�
   - **客户端层负向守卫补齐**：D36.b 的兜底守卫原仅覆盖 `config.py` 桥接层；新增 `tests/integration/test_inference_client.py::test_client_ignores_legacy_{base_url,api_key}_env_prefixes`，在 `InferenceClient` 本体也机械锁死「连接变量只认 `ZW_BRAIN_INFERENCE_*`」——设 `INSPUR_INFERENCE_*` / `AUTH_TOKEN` / 裸 `BASE_URL` 后平台模式仍报 `base_url/auth token is required`，证明旧前缀不被读取。**Why**：D36 头号承诺是 client.py 不兜底，但守卫此前只在 bridge 层，client 层规则形同 prose（D17/D18/D22）。
   - **`INSPUR_*` 代码标识符保留是 deliberate，非漏改**：`manifest_checks.py` 的 `INSPUR_GATEWAY_MARKERS` / `_url_is_inspur_gateway` / sample `provider: inspur-inference-gateway` 保留 `inspur` 命名——它们识别的是**物理集团网关 host**（如 `inference.inspur.com`，见 `docs/deployment/sd-default-onboarding.md`），不是 env 变量名；marker `"inspur"` 对真实网关 host 探测是**承重**的，改名会破坏 D6 网关识别。**How to apply**：禁止以「命名一致性」为由把这些 `inspur` 标识符改成 `zw_brain`；env 变量前缀（配置句柄）与网关 host 身份（物理系统）是两个维度，D36 只收敛前者。
 - [2026-05-29] D36.d（xj-review R-002 触发）：**wave2 验收测试 shadow DB 隔离修复（WAL/SHM 旁路清理）**。`tests/integration/test_wave2_three_engines_acceptance.py::_shadow_db` 原只 `unlink()` `.db`，遗留 WAL 模式 `-wal`/`-shm` 旁路 → 新建 `.db` 重挂不匹配旧 WAL → `sqlite3.DatabaseError: database disk image is malformed`（间歇）。修复：setup 先 `reset_engine_cache()` 再删 `.db`+`-wal`+`-shm` 三件套，teardown 同样清理。**性能基准 flaky**（`test_wave0_j1_request_list_perf` 负载敏感超 1000ms 预算）属另一类，记 `docs/preflight-debt.md`，不在本 PR 修。
+### [2026-05-29] D37：效果验收签字守卫 — 锚在可机读证据产物（确定性自动化）
+
+> **编号说明**：本节原拟 D36；合并 main 时 PR #163 的「推理 env 契约收敛」已占 D36，故顺延为 **D37**（e5 验收顺延 D38）。早期 commit message / 文件内 `(D36)` 字样以本编号 D37 为准。
+
+D35 覆盖**决策**签字（"该不该做",查数据真不真）；本批补**效果验收**签字（"做完的真能跑没"，查功能真跑过没）。触发：扫 zw-brain 发现 e5（WebUI/5 消费面，17 feature completed）与 e6 交付已久但 **0 验收签字**；走 e5 一遍暴露验收侧"靠人、无护栏"（结构无模板 / 证据声称无机核 / 状态滞后手搬 / 标签语法无整 epic scope）。
+
+- [2026-05-29] D37.a：**验收证据锚在产物,禁 prose 裸断言**。`scripts/capture_acceptance_evidence.py` **现场跑** contract(`export_agent_contract --check`)+pytest(exit 码)+e2e(解析 Playwright 日志),写 **tracked** 产物 `.testing/acceptance/<scope>/evidence.json`(`.data/` 是 gitignore 派生区,不放,否则 CI 查不到)。记 git_sha + captured_at。
+- [2026-05-29] D37.b：**段 55 `check_acceptance_package.py`**。Layer1 证据真实性:frontmatter.evidence 指向的产物必须存在 + 每条 check result=pass + git_sha 是 HEAD 祖先(否则 WARN 异线/陈旧);验收点表每条引用的 evidence 标签必须在产物 checks 里找得到(声称必有背书)。Layer2 结构:强制「验收范围」节 + 每验收点挂 evidence 标签(禁裸"已验证") + 禁过程数字。
+- [2026-05-29] D37.c：**补两处糙点**。`promote_signoff.py` 支持整 epic scope `eN`(翻该 epic 全部 `eN.F*` .feature);`check_signoff_landed.py`(段 54)同时认 `*acceptance-package*.md`,与决策包共用落盘三角。
+- [2026-05-29] D37.d：**dogfood e5（机制验证）**。`docs/acceptance/e5-acceptance-package.md` + `.testing/acceptance/e5/evidence.json`:contract 零漂移 / pytest exit 0 / e2e 15 passed-1 skipped 三项 **现场实测 pass**。段 55 正向 OK、负向(改 fail / 删 evidence 标签)精确拦下。
+- **dogfood 暴露真实约束(已记 e5 包 + 待办)**:(1) **证据 provenance** —— worktree 无 venv,本次在共享主仓(sibling commit)采集,evidence git_sha 非本分支祖先 → 段 55 如实 WARN「异线」;正常流程在 PR commit 上采集即无 WARN;待办:让 worktree 可跑验证 / CI 在 PR commit 重采。(2) **采集隔离** —— e2e 活跑把共享 dev DB 撑到 200MB+,拖慢随后 pytest + 与他人 pytest 抢 sqlite 锁;验收采集应用独立/临时 DB。
+- **元规则升级(接 D28/D35.d)**：效果验收签字材料走 D37 模板 + 段 55；与决策签字(D35)区分但共用段 54 落盘三角。
+- **外部协议词汇审视(D33.d)**：新增标识符 `capture_acceptance_evidence` / `check_acceptance_package` / scope `eN` 均 zw-brain preflight/CI 内部,与外部协议无同名异义。
+
+### [2026-05-29] D38：e5 WebUI / 5 消费面投影 — 效果验收通过（D37 守卫首个真验收）
+
+D37 建的验收守卫的首个真实使用。e5（WebUI 8 页面 + 5 消费面 + NL 加速器，plan 17 feature completed、0 验收签字）走 D37 流程完成效果验收，**业务方 2026-05-29 全过**。
+
+- [2026-05-29] D38：**e5 效果验收通过**。机器证据(`.testing/acceptance/e5/evidence.json`)：投影零漂移 / pytest exit 0 / e2e `customer_acceptance_checklist` 15 passed-1 skipped 三项现场实测 pass。业务方 A/B/C 清单(客户买方视角 6 项 + 7 角色日常活 + 4 跨切非谈判项)全过(详见 `docs/acceptance/e5-acceptance-package.md`)。载体 = PR #164 label `business-signoff: e5`(`promote_signoff` 翻 e5 全部 `e5.F*` .feature InTest→Ready)；plan.yaml F3 `[SIGNOFF-CLOSED 2026-05-29] covers e5`。本文 status→approved。
+- [2026-05-29] D38.a：**证据 provenance 受限,记 debt 不阻塞**。验收证据在共享主仓(sibling commit `3383562`)采集 → 段 55 如实 WARN「git_sha 非本分支祖先」。**已验证 worktree 内重采得到正确 sha 但 pytest 因 bare-worktree 无 venv 而 fail** —— 即"绿 pytest"与"正确 sha"在当前 env 拓扑下二选一。真正修法：**CI 在 PR commit 上 emit evidence.json**（消除人工采集的 env 依赖）。登记 `docs/preflight-debt.md`「2026-05-29 — 验收证据 CI 化采集」，trigger=下个验收签字 / CI evidence job 立项。WARN 非阻塞,approved 记录保留该 provenance 注记。

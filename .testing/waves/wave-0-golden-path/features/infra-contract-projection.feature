@@ -5,7 +5,7 @@
 # Roles: All
 # Trace: R3 / R6 / 基线 §6 统一能力契约 / §10.1
 # Priority: P0
-# Status: InTest
+# Status: Ready
 # Owner: e5
 # Pytest: tests/test_contract_projection.py
 # Twin-F: e5.F4

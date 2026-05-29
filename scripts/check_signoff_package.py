@@ -29,20 +29,13 @@ import re
 import sys
 from pathlib import Path
 
+from signoff_lib import BANNED_NUMBER_PATTERNS, parse_tables
+
 REPO = Path(__file__).resolve().parent.parent
 SEED_JSON = REPO / "zw_brain" / "domain" / "seed_snapshot.json"
 DUMP_GLOB = "old/10示例数据/dump-dsp_catalog-*.sql"
 
 LEGACY_TERMS = ["共享专区", "专题包", "主题库", "示范应用", "数购车"]
-
-# 过程/估算数字（漂移 + 逼读者心算，且不改变决策）——禁。
-BANNED_NUMBER_PATTERNS = [
-    (re.compile(r"\d+\s*分钟"), "会议/过程时长（N 分钟）"),
-    (re.compile(r"(?<![A-Za-z])\d+\s*min(?![A-Za-z])"), "过程时长（N min）"),
-    (re.compile(r"\d+\s*[-–~]\s*\d+\s*(?:天|工作日|人天|worker)"), "估算工期（N-M 天/worker）"),
-    (re.compile(r"\d+\s*[-–]?\s*\d*\s*worker[··•]?day", re.IGNORECASE), "worker·day 估算"),
-    (re.compile(r"(?<![\w>])\d+\s*态(?!\s*-->)"), "未 stat-wrap 的状态计数（N 态）"),
-]
 
 CJK = r"一-鿿"
 
@@ -91,29 +84,6 @@ def _classify(reality_cell: str) -> str:
     return "SKIP"
 
 
-def _parse_tables(text: str) -> list[dict]:
-    """提取 markdown 表：返回 [{header:[...], rows:[[cells...]]}]。"""
-    tables, cur = [], None
-    for line in text.splitlines():
-        if line.lstrip().startswith("|"):
-            cells = [c.strip() for c in line.strip().strip("|").split("|")]
-            if cur is None:
-                cur = {"header": cells, "rows": []}
-            elif re.fullmatch(r"[:\-\s|]+", line.strip().strip("|").replace("|", "")):
-                continue  # 分隔行
-            elif set("".join(cells)) <= set(":- "):
-                continue
-            else:
-                cur["rows"].append(cells)
-        else:
-            if cur is not None:
-                tables.append(cur)
-                cur = None
-    if cur is not None:
-        tables.append(cur)
-    return tables
-
-
 def _load(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8")
@@ -138,7 +108,7 @@ def check_doc(path: Path, seed_text: str, dump_text: str | None, verbose: bool) 
             ln = text[: m.start()].count("\n") + 1
             fails.append(f"{rel}:{ln}: 禁用{desc} → 「{m.group(0).strip()}」（删除或改为 stat 块/定性描述）")
 
-    tables = _parse_tables(text)
+    tables = parse_tables(text)
 
     # ---- Layer 2: 判定表必须有「建议」列 ----
     for t in tables:

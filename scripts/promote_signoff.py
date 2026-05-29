@@ -87,6 +87,12 @@ def _feature_matches_scope(feature_path: Path, scope: str, content: str) -> bool
         if twin_f_match:
             return scope in twin_f_match.group(1)
         return False
+    # scope 是整 epic eN（D36：效果验收常按 epic 整批签）——命中该 epic 全部 .feature
+    if re.match(r"^e[1-6]$", scope):
+        twin_f_match = TWIN_F_RE.search(content)
+        if twin_f_match:
+            return bool(re.match(rf"^{re.escape(scope)}\.F\d+", twin_f_match.group(1)))
+        return False
     # scope 是 feature 文件名
     return feature_path.stem == scope
 

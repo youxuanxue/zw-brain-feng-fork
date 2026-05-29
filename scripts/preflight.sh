@@ -142,6 +142,7 @@ done <<'CHECKS'
 段 52	scripts/check_webui_capability_rendered.py	webui-capability-rendered (god's-eye #161 — live+webui 能力须有 .vue/.ts 渲染消费者，baseline 棘轮防净新增"声称UI无渲染"漂移；台账 scripts/webui_capability_rendered_exemptions.txt)
 段 53	scripts/check_signoff_package.py	signoff-package-lint (D35 — 业务方 sign-off 材料包三层守卫：数据真实性 + 禁过程数字 + 强制节/建议列)
 段 54	scripts/check_signoff_landed.py	signoff-landed (D35 — approved sign-off 文档 ↔ plan.yaml evidence + CLAUDE.md D-编号 + label 一致，关「C/D 靠人记忆」债)
+段 55	scripts/check_acceptance_package.py	acceptance-package-lint (D37 — 效果验收材料包：证据产物 result=pass + 来自当前历史 + 每验收点挂 evidence 标签 + 禁过程数字)
 CHECKS
 
 echo ""

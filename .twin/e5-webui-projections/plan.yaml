@@ -50,6 +50,10 @@ items:
   - F13-F16 收敛 P3 异议/供需、P4 任务详情、P2 catalog-browse、B1.2 package 详情
   - router PagePlaceholder 降至 login/profile/migration/iam-governance 4 条
   - npm run e2e 33 passed @ 8800（feature/e5-f13-f17-browser-closure）
+  - '[SIGNOFF-CLOSED 2026-05-29] covers e5 | 效果验收 | by 海若产品部业务方
+    | evidence=.testing/acceptance/e5/evidence.json（投影零漂移 / pytest exit 0 / e2e
+    15 passed）+ 业务方 A/B/C 清单全过 | vehicle PR #164 评论 business-signoff: e5
+    | 详见 docs/acceptance/e5-acceptance-package.md → 验收通过'
   depends_on:
   - F2
   status: completed

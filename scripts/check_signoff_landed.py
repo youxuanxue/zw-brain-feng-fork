@@ -25,21 +25,10 @@ import re
 import sys
 from pathlib import Path
 
+from signoff_lib import read_frontmatter
+
 REPO = Path(__file__).resolve().parent.parent
 CLAUDE_MD = REPO / "CLAUDE.md"
-
-
-def _frontmatter(text: str) -> dict:
-    """解析文首 --- ... --- 之间的简单 key: value。"""
-    m = re.match(r"^---\s*\n(.*?)\n---\s*\n", text, re.S)
-    if not m:
-        return {}
-    fm = {}
-    for line in m.group(1).splitlines():
-        mm = re.match(r"^([A-Za-z_][\w-]*):\s*(.*)$", line)
-        if mm:
-            fm[mm.group(1)] = mm.group(2).strip()
-    return fm
 
 
 def _plan_yaml_texts() -> str:
@@ -57,21 +46,24 @@ def main() -> int:
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
-    docs = [
-        p for p in REPO.glob("docs/**/*business-review-package*.md")
+    # 决策签字（business-review-package, D35）+ 效果验收签字（acceptance-package, D36）
+    # 共用同一落盘三角（plan.yaml evidence + CLAUDE.md D-编号）。
+    docs = sorted({
+        p for pat in ("*business-review-package*.md", "*acceptance-package*.md")
+        for p in REPO.glob(f"docs/**/{pat}")
         if "templates" not in p.parts
-    ]
+    })
     plan_text = _plan_yaml_texts()
     claude_text = CLAUDE_MD.read_text(encoding="utf-8") if CLAUDE_MD.exists() else ""
 
     fails: list[str] = []
     checked = 0
     for doc in sorted(docs):
-        fm = _frontmatter(doc.read_text(encoding="utf-8"))
+        fm = read_frontmatter(doc.read_text(encoding="utf-8"))
         status = fm.get("status", "")
         if status != "approved":
             if args.verbose:
-                print(f"  [skip] {doc.relative_to(REPO)} status={status or '无 frontmatter'}（未落盘，段 53 管内容）")
+                print(f"  [skip] {doc.relative_to(REPO)} status={status or '无 frontmatter'}（未落盘，内容由段 53/55 管）")
             continue
         checked += 1
         rel = doc.relative_to(REPO)

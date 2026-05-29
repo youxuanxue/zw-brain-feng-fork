@@ -18,6 +18,23 @@ trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / �
 目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
 trigger 关闭即可删除字段。
 
+## 2026-05-29 — 验收证据 CI 化采集（消除人工采集 env 依赖）
+
+- **Where**: `scripts/capture_acceptance_evidence.py` 当前由人在本机手跑；段 55
+  `check_acceptance_package.py` 校验 evidence.json 的 `git_sha` 是否 HEAD 祖先。
+- **Implication**: 人工采集时 env 拓扑导致"绿 pytest"与"正确 sha"二选一 ——
+  bare worktree 无 venv → pytest fail；主仓 venv 在 sibling commit → sha 非祖先。
+  D38 e5 验收据此落在 sibling sha,段 55 永久 WARN「异线」(非阻塞,但 approved 记录带注记)。
+- **Why deferred**: D37 本期只建守卫 + dogfood；CI emit evidence job 是独立工程,
+  且首个真验收(e5)已能在 WARN 下完成,不阻塞。
+- **Trigger to re-evaluate**（任一触发即升级）:
+  - (a) 下一个效果验收签字(eN)启动 —— 届时若仍人工采集会再现 WARN;
+  - (b) CI evidence job 立项(在 PR commit 上跑 contract+pytest+e2e 并 emit evidence.json,
+    git_sha 天然 = PR HEAD,WARN 自动消除);
+  - (c) 段 55 provenance WARN 累积到多个 approved 包(噪声超过信号)。
+- **No mechanical guardrail (now)**: 段 55 WARN 已机械标记 provenance 缺口,召回有保证;
+  补齐(CI 采集)是 trigger 化工程,非靠自觉。
+
 ## 2026-05-28 — D33.d 元规则脚本（外部协议词汇漂移扫描）trigger 化延后
 
 - **Where**: CLAUDE.md D33.d 子项承诺写 `scripts/check_external_protocol_term_drift.py`，
@@ -418,7 +435,7 @@ trigger 关闭即可删除字段。
   断言 `worst_ms <= 1000`（D-9 perf 回归预算，对真实 `.data/zw_brain.db` 跑 request.list 3 次取最差）。
 - **Implication**: 机器高负载（如 CI runner 抢占 / 本地并行跑多套件）时单次采样会冲到 ~1500ms
   触发 FAIL，全量套件间歇红；正常单跑稳定在 ~680-710ms，远低于预算。属负载敏感、非功能回归。
-  PR #163 xj-review 全量连跑时复现（样本 708/684/**1510**ms），与本 PR（推理 env 收敛 D36）无因果。
+  PR #163 xj-review 全量连跑时复现（样本 708/684/**1510**ms），与本 PR（推理 env 收敛 D37）无因果。
 - **Why deferred**: 修法是 perf 测试设计取舍（抬预算留余量 / 改 p50 而非 worst / 加 warmup 丢弃首样 /
   降级为非门禁基准只记录不断言），属性能测试专项决策，不该塞进推理 env 收敛 PR；且 CI 单跑通常过，
   红了按"瞬态/负载"`gh run rerun` 即可。

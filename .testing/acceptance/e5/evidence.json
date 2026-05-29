@@ -1,0 +1,27 @@
+{
+  "scope": "e5",
+  "deliverable": "WebUI 8 页面 + 5 消费面投影 + NL 加速器",
+  "git_sha": "33835629a5a630fc361d3c78d68d5b6bfa823ba5",
+  "captured_at": "2026-05-29T07:41:54Z",
+  "captured_by": "薛娇（产品研发负责人）",
+  "checks": [
+    {
+      "name": "5 消费面投影一致",
+      "kind": "contract",
+      "result": "pass",
+      "detail": "[contract] OK: docs/agent_integration.md in sync with discovered entries (REST=196 CLI=1 MCP=62 A2A=1 Skills=187)"
+    },
+    {
+      "name": "后端 / 契约测试套",
+      "kind": "pytest",
+      "result": "pass",
+      "detail": "exit 0（本仓 summary 抑制,以退出码为准）"
+    },
+    {
+      "name": "WebUI 活跑验收（customer_acceptance_checklist）",
+      "kind": "e2e",
+      "result": "pass",
+      "detail": "15 passed / 0 failed / 1 skipped"
+    }
+  ]
+}

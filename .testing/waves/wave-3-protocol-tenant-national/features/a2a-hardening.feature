@@ -5,7 +5,7 @@
 # Roles: 外部 Agent 平台
 # Trace: R3 / R15, 基线 §6.1, §10.4
 # Priority: P1
-# Status: Draft
+# Status: Ready
 # Owner: e5
 # Pytest: tests/test_wave3_protocol_tenant.py
 # Twin-F: e5.F6
