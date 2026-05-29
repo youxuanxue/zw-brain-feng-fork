@@ -275,10 +275,17 @@ items:
   evidence_plan:
   - 证据预算：tests/test_wave0_ops_service.py 新增（UNIQUE 9 列约束/5 metric_scope 派生/3 bucket_granularity 重算/跨租户/孤儿 capability_slug）+ projection 派生 e2e + 5 消费面契约导出无 drift
   - 停止条件：preflight 段 28 capability-registration 三处一致；段 38 三角守卫合法；段 25 adapter-write-ban 拦下 projection 直写或反推业务状态
-  actual_evidence: []
+  actual_evidence:
+  - '[2026-05-29 实地核对] 代码已落地：models.py service_invocation_metric_projection
+    表存在；capability ops.service.invocation.query + ops.service.report.query 已注册
+    (_CATEGORIZATION + DISPATCH + MCP/A2A 投影)；tests/test_wave0_ops_service 相关 9 测试通过；
+    D41 业务方签 ops.service.* 留 live'
+  - '[2026-05-29] 未完：ops-service-invocation.feature 仍 Status:Draft；真实调用数据 e2e
+    依赖 F2（真集团网关数据流入 projection）——F2 外部凭据未到前无法跑真数据派生 e2e'
   depends_on:
   - F2
   - F12
-  status: pending
-  next_action: Wave 0 sign-off 通过后立即启动（业务方 PR #129 + D32 已触发）
+  status: in_progress
+  next_action: 代码侧投影表+capability+单元测试已就绪；待 F2 真网关数据流入后跑 projection
+    派生 e2e + 把 .feature Draft→Ready（实地核对 stale pending→in_progress，2026-05-29）
   blocked_reason: null

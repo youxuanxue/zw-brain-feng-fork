@@ -258,10 +258,17 @@ items:
     | vehicle PR #162 评论 business-signoff: e3.F9 | priorities=Z1:P0,Z2:P1,Z3:P1
     | offline_pending=保留 | policy.update=双签 | boundary=8行全接受
     | seq=Z1先行,Z2/Z3待catalog补种进seed | → 准入通过，启动 F9 delivery（worker 另起 worktree）'
+  - '[2026-05-29 实地核对] delivery 已大半建成（worktree e3-f9-topicpackage 落地）：
+    models.py 6 张表（topic_package / _item / _visibility / _review_record / _evidence /
+    _metric_projection）；10 capability（topic.package.{create,configure,submit,review,publish,
+    withdraw?,policy.update,evidence.attach,query,metric.query,subscribe}）注册；handlers
+    j2/topic_package*.py；2 .feature(discovery/curation) Status:Ready；topic 测试通过；
+    P7 专题订阅 e2e 现场跑过（customer_acceptance_checklist）'
+  - '[2026-05-29] 未完：缺 3 个 sd-default 山东标杆 fixture（tests/fixtures/topic_package/ 不存在）——
+    Z1 可做（目录在 seed），Z2/Z3 卡 catalog 真数据补种（与 D11/真数据缺口同源）'
   depends_on: []
-  status: pending
-  next_action: '启动 sign-off 已落盘（PR #162 label business-signoff e3.F9）。立即起 F9
-    delivery worker（另起 worktree，按 docs/wave2-acceptance/F9-prep-checklist.md 八段）；
-    执行顺序遵 SIGNOFF-CLOSED seq —— Z1 医疗救助（目录已全在 seed）先做，Z2 医保码 / Z3
-    异地就医待 catalog 线把对应目录补种进 seed 后做'
+  status: in_progress
+  next_action: '核心机械已就绪（6 表 + 10 cap + handlers + 2 feature + 测试 + P7 e2e）。
+    收尾：补 3 sd-default fixture（Z1 先；Z2/Z3 待 catalog 线补种医保码/异地就医目录进 seed）
+    + 第 3 个 e2e + .feature 维持 Ready。实地核对 stale pending→in_progress（2026-05-29）'
   blocked_reason: null
