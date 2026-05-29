@@ -74,22 +74,36 @@ sudo mkdir -p /opt/zw-brain/data
 
 项目统一使用 uv 进行 Python 构建与包管理，因此容器镜像也沿用 uv，保证本地、CI 和生产工具链一致。
 
+**推荐：用 `--env-file` 读同一份 `.env`**（与本机 `start-local.sh` 共用 `.env.example` 契约，
+单一事实来源，避免 docker 与本机两套 `-e` 手维护漂移）：
+
 ```bash
+# 由 .env.example 派生：cp .env.example .env && 填真实值（.env 不进版本库/镜像）
 docker run -d \
   --name zw-brain-rest \
   --restart unless-stopped \
-  --add-host iaf.example.internal:127.0.0.1 \
   -p 8800:8800 \
   -v /opt/zw-brain/data:/data/zw-brain \
-  -e ZW_BRAIN_DB_PATH=/data/zw-brain/zw_brain.db \
-  -e ZW_BRAIN_IAF_AUTH_SERVER_URL=https://iaf.example.internal/auth \
-  -e ZW_BRAIN_IAF_REALM=replace-me-realm \
-  -e ZW_BRAIN_IAF_CLIENT_ID=replace-me-client-id \
-  -e ZW_BRAIN_IAF_CLIENT_SECRET=replace-me-client-secret \
+  --env-file /opt/zw-brain/.env \
   zw-brain:1.0.0
 ```
 
-其中 `--add-host` 和 IAF 相关变量仅用于本地或联调示例；生产环境应按实际 DNS、证书和密钥管理方案替换，不要把真实密钥写入文档或镜像。
+> `.env` 里至少填：`ZW_BRAIN_INFERENCE_GATEWAY_URL` / `ZW_BRAIN_INFERENCE_API_KEY`(或 `_REF`) /
+> `ZW_BRAIN_INFERENCE_MODEL` + IAF 一组 + 生产的 `ZW_BRAIN_SESSION_REDIS_URL`；清单见 `.env.example`。
+> 单条覆盖可继续追加 `-e KEY=VALUE`（`-e` 优先于 `--env-file`）。
+
+个别变量临时覆盖示例（在 `--env-file` 基础上追加）：
+
+```bash
+docker run -d --name zw-brain-rest -p 8800:8800 \
+  -v /opt/zw-brain/data:/data/zw-brain \
+  --env-file /opt/zw-brain/.env \
+  -e ZW_BRAIN_DB_PATH=/data/zw-brain/zw_brain.db \
+  zw-brain:1.0.0
+```
+
+其中 IAF 相关地址/密钥仅为示例；生产环境按实际 DNS、证书和密钥管理方案替换（密钥走 `*_REF` 指针，
+不把真实密钥写入文档或镜像）。`.env.example` 是本机与 docker 共用的外部变量单一清单。
 
 健康检查：
 

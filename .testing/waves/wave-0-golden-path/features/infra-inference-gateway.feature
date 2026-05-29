@@ -5,7 +5,7 @@
 # Roles: All
 # Trace: D6 / D14 / 基线 §3.4 (集团推理平台外部依赖) / §10.1 / preflight 段 10
 # Priority: P0
-# Status: InTest
+# Status: Ready
 # Owner: e6
 # Pytest: pending
 # Twin-F: e6.F2

@@ -51,10 +51,17 @@ items:
   - tests/integration/test_inference_client.py mock/platform/request_id 4 cases PASS
   - start-local.sh 默认 export ZW_BRAIN_INFERENCE_MODE=mock + echo 说明（无网关本机 dev）
   - test_wave0_infra::test_start_local_defaults_inference_mock_and_documents_mode PASS
+  - '[2026-05-29 真网关 e2e 通过] 业务方提供凭据并填入 .env（gitignored），platform 模式经
+    真实集团推理网关 chat completions 返回真实模型输出（is_mock=False），F2 deliverable 完成'
+  - '[2026-05-29 修复] client.py 端点路径去掉硬编码版本前缀：/v1/chat/completions →
+    /chat/completions、/v1/embeddings → /embeddings；版本前缀（如 /v1）改由
+    ZW_BRAIN_INFERENCE_GATEWAY_URL base_url 携带，与 OpenAI SDK / AgentRuntime
+    OPENAI_COMPATIBLE_BASE_URL 约定一致。原硬编码 /v1 与部分网关版本段不符导致 404'
+  - '[2026-05-29] .env.example 新增外部变量契约 + start-local 自动加载 + docker --env-file（PR #167）'
   depends_on: []
-  status: blocked
-  next_action: 等集团推理平台网关凭据/endpoint → 跑真实调用 e2e + preflight 段 10 真网关验证（代码路径已就绪，无需再写实现）
-  blocked_reason: 外部依赖——集团推理平台网关凭据/endpoint 未提供；platform HTTP 代码路径已实装（client.py:146-209），仅缺真实网关 e2e 验证，非工程内可推进项
+  status: completed
+  next_action: ''
+  blocked_reason: null
 - id: F3
   deliverable: M0 mapper 覆盖判定表（7 个未做 dump 逐一确认 §3.4/§5.6 不复造 or 漏做）
   scope: docs/deployment/m0-mapper-coverage.md 新增；漏做项各自补 mapper PR（按需）

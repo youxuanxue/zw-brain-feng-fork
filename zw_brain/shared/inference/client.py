@@ -66,9 +66,12 @@ class InferenceClient:
         timeout_seconds: float = 30.0,
         mode: str | None = None,
     ) -> None:
-        self._base_url = (base_url or os.getenv("ZW_BRAIN_INFERENCE_GATEWAY_URL") or "").rstrip("/")
-        self._api_key = api_key or os.getenv("ZW_BRAIN_INFERENCE_API_KEY")
-        self._model = model or os.getenv("ZW_BRAIN_INFERENCE_MODEL") or DEFAULT_INFERENCE_MODEL
+        # 连接值统一 strip()：env / .env / docker --env-file 常带尾随空白/换行，
+        # 否则 URL 含控制字符直接 InvalidURL（真网关 live 探针实测，2026-05-29）。
+        self._base_url = (base_url or os.getenv("ZW_BRAIN_INFERENCE_GATEWAY_URL") or "").strip().rstrip("/")
+        _api_key = api_key or os.getenv("ZW_BRAIN_INFERENCE_API_KEY")
+        self._api_key = _api_key.strip() if _api_key else _api_key
+        self._model = (model or os.getenv("ZW_BRAIN_INFERENCE_MODEL") or DEFAULT_INFERENCE_MODEL).strip()
         self._timeout_seconds = timeout_seconds
         self._mode = mode or resolve_inference_mode()
 
@@ -165,7 +168,10 @@ class InferenceClient:
         if max_tokens is not None:
             payload["max_tokens"] = max_tokens
 
-        response = self._post_json("/v1/chat/completions", payload, request_id=request_id)
+        # 端点路径只追加 /chat/completions；版本前缀（如 /v1，个别网关版本段不同）由
+        # ZW_BRAIN_INFERENCE_GATEWAY_URL 携带（base_url 含前缀），与 OpenAI SDK / AgentRuntime
+        # OPENAI_COMPATIBLE_BASE_URL 约定一致。
+        response = self._post_json("/chat/completions", payload, request_id=request_id)
         choices = response.get("choices")
         if not isinstance(choices, list) or not choices:
             raise InferenceError("inference response missing choices")
@@ -196,7 +202,7 @@ class InferenceClient:
         resolved_model = self._resolve_model(model)
         if self._mode == "mock":
             return self._mock_embed(texts, model=resolved_model)
-        response = self._post_json("/v1/embeddings", {"model": resolved_model, "input": texts})
+        response = self._post_json("/embeddings", {"model": resolved_model, "input": texts})
         rows = response.get("data")
         if not isinstance(rows, list):
             raise InferenceError("inference embeddings response missing data")

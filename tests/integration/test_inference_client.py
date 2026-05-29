@@ -83,3 +83,16 @@ def test_client_ignores_legacy_api_key_env_prefixes(monkeypatch: pytest.MonkeyPa
     client = InferenceClient()
     with pytest.raises(InferenceError, match="auth token is required"):
         client.chat([ChatMessage(role="user", content="hi")], model="m", request_id="REQ-D36-KEY")
+
+
+def test_connection_values_stripped_of_whitespace(monkeypatch: pytest.MonkeyPatch) -> None:
+    """F2 live-probe 实测：env/.env/docker --env-file 值常带尾随空白/换行；
+    base_url/api_key/model 必须 strip，否则 URL 含控制字符 → InvalidURL（2026-05-29）。"""
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_MODE", "platform")
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_GATEWAY_URL", "https://gw.example/v1   ")
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_API_KEY", " sk-abc \n")
+    monkeypatch.setenv("ZW_BRAIN_INFERENCE_MODEL", "  qwen-7b  ")
+    client = InferenceClient()
+    assert client._base_url == "https://gw.example/v1"
+    assert client._api_key == "sk-abc"
+    assert client._model == "qwen-7b"

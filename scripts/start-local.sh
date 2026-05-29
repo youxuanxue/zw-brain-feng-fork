@@ -3,6 +3,22 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# 自动加载 .env（若存在）：cp .env.example .env 填好即可一键起。
+# 安全加载——只导出 KEY=VALUE 行，跳过注释/空行，不 source 执行（半填的占位 `<...>` 不会炸）。
+# 已存在的 shell 环境变量优先（不覆盖显式 export），与下方 ${VAR:-default} 语义一致。
+if [ -f "$REPO_ROOT/.env" ]; then
+    while IFS='=' read -r _envk _envv; do
+        case "$_envk" in ''|'#'*) continue ;; esac
+        # 剥行内 ` # 注释` + 尾随空白：否则注释/空白混进值（如 URL 末尾），连接报控制字符。
+        # 仅剥"空白+#"（真注释），不动 a#b 这类值内 #。
+        _envv=$(printf '%s' "$_envv" | sed -E 's/[[:space:]]+#.*$//; s/[[:space:]]+$//')
+        # 已在环境里的变量优先（不覆盖显式 export / CLI 传入）；printenv 在 bash 3.2 下安全
+        printenv "$_envk" >/dev/null 2>&1 || export "$_envk=$_envv"
+    done < <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$REPO_ROOT/.env")
+    unset _envk _envv
+fi
+
 # 默认 .venv/bin/python；可用 ZW_BRAIN_PYTHON_BIN 切换到其它解释器
 # （例如本机要跑 AgentRuntime 全链路时切到 .venv-py312/bin/python — vendor wheel 是 py312-only）
 PYTHON_BIN="${ZW_BRAIN_PYTHON_BIN:-$REPO_ROOT/.venv/bin/python}"
