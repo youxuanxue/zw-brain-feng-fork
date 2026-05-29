@@ -782,6 +782,26 @@
       ],
       "sample_titles": [
         {
+          "title": "医保码信息",
+          "owner_org_id": "360002222211",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "异地就医统筹区开通信息",
+          "owner_org_id": "360002222211",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "异地就医定点医疗机构信息",
+          "owner_org_id": "360002222211",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "异地就医经办机构信息",
+          "owner_org_id": "360002222211",
+          "lifecycle_status": "active"
+        },
+        {
           "title": "师资培训（乡村教师支持计划_师范生实习支教）经费预算指标分配",
           "owner_org_id": "36010000876",
           "lifecycle_status": "active"
@@ -1900,8 +1920,32 @@
           "reported_at": "2026-04-20"
         },
         {
-          "catalog_code": "370000307013000000/000045",
+          "catalog_code": "basic-elem:0b26783950004ed882ec9309fae73310",
           "title": "医疗救助信息",
+          "status": "待上报",
+          "reported_at": null
+        },
+        {
+          "catalog_code": "basic-elem:53ae5c5d94e5426c94466dd56479f1f6",
+          "title": "医保码信息",
+          "status": "待上报",
+          "reported_at": null
+        },
+        {
+          "catalog_code": "basic-elem:833e72ddfa0649508f0d105d26bf0016",
+          "title": "异地就医统筹区开通信息",
+          "status": "待上报",
+          "reported_at": null
+        },
+        {
+          "catalog_code": "basic-elem:c34b1c9f55814530833ed63a8f20e597",
+          "title": "异地就医定点医疗机构信息",
+          "status": "待上报",
+          "reported_at": null
+        },
+        {
+          "catalog_code": "basic-elem:cf5280723b0e4bf88a2b41f9cfa90042",
+          "title": "异地就医经办机构信息",
           "status": "待上报",
           "reported_at": null
         }

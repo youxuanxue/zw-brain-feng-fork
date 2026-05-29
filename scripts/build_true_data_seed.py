@@ -405,6 +405,20 @@ def _build_a2_catalog_tree(con: sqlite3.Connection, total_topic_packages: int) -
     ]
 
 
+# F9 Z2/Z3 catalog-line seeding (D34.c): deterministically surface these real
+# sd-default medical-insurance catalogs in the recall dictionary so J1 找数
+# search recalls them. They are real `catalog_entry` rows (basic_element class);
+# without an explicit include the 5-char "医保码信息" falls below the length>=6
+# sampler floor and the 异地就医* titles may miss the top-25 length-ordered cut.
+# Fields are read from the DB (real owner_org_id / lifecycle_status) — no invention.
+PRIORITY_RECALL_TITLES = [
+    "医保码信息",
+    "异地就医统筹区开通信息",
+    "异地就医定点医疗机构信息",
+    "异地就医经办机构信息",
+]
+
+
 def _build_a2_recall_dictionary(con: sqlite3.Connection) -> dict:
     """NL-skill recall dictionary: top categories + sample titles.
 
@@ -415,6 +429,26 @@ def _build_a2_recall_dictionary(con: sqlite3.Connection) -> dict:
 
     sample_titles: list[dict] = []
     seen: set[str] = set()
+
+    # Priority include (deterministic): real medical-insurance catalogs from DB.
+    for title in PRIORITY_RECALL_TITLES:
+        row = con.execute(
+            "SELECT title, owner_org_id, lifecycle_status FROM catalog_entry "
+            "WHERE title = ? AND lifecycle_status IN ('active', 'approved_pending_publish') "
+            "LIMIT 1",
+            (title,),
+        ).fetchone()
+        if row is None or row["title"] in seen:
+            continue
+        seen.add(row["title"])
+        sample_titles.append(
+            {
+                "title": row["title"],
+                "owner_org_id": row["owner_org_id"],
+                "lifecycle_status": row["lifecycle_status"],
+            }
+        )
+
     for r in con.execute(
         "SELECT title, owner_org_id, lifecycle_status FROM catalog_entry "
         "WHERE title IS NOT NULL AND length(title) BETWEEN 6 AND 30 "
