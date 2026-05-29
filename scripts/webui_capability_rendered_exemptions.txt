@@ -1,0 +1,122 @@
+# webui-capability-rendered 豁免台账（baseline 棘轮 — 段 52）
+#
+# 本文件登记的是 status=live 且 compatibility 含 "webui"，但当前 zw-brain-web/src
+# 下无任何 .vue/.ts 字面量渲染消费者的能力 slug —— 即「契约声称大堂供应、实际没
+# 渲染」的净存量债务（#161 上帝视角穿透发现，详见 docs/webui-capability-render-debt.md）。
+#
+# 规则：
+#   - 守卫只拦【净新增】：新加的 live+webui 能力若无渲染消费者且不在本清单 → 红灯。
+#   - 还债 = 给它接真实面板渲染（接好后从本清单删除，否则守卫报「台账过期」），
+#     或确认其经 NL 加速器/通用派发可达 → 在该行 # 后标注 "NL 可达" 理由。
+#   - 字面量 grep 有假阴性：本清单是「疑似未渲染」，不是「铁定死能力」。
+#
+# 禁止：为了消红灯把新能力随手塞进本清单而不写理由。新增豁免须 PR 描述说明。
+#
+# baseline 生成于 2026-05-29（god's-eye retrofit）。每行：slug  # 理由/待办（可选）
+
+actor.projection.sync
+adapter.external.mapping.query
+adapter.health.probe
+application.grant.renew
+application.grant.revoke
+application.grant.suspend
+application.resource.submit
+approval.review_decide
+backflow.confirm
+capability.exposure.configure
+capability.package.register
+capability.version.submit
+catalog.duplicate.check
+catalog.entry.withdraw
+catalog.group.query
+catalog.manage_entry
+catalog.model.field.query
+catalog.model.query
+catalog.model.upsert
+catalog.resource.bind
+catalog.schema.mapping.upsert
+catalog.share_zone.query
+compliance.case.assign
+compliance.case.close
+compliance.case.open
+compliance.case.query
+compliance.case.resolve
+compliance.investigate_case
+compliance.metric.query
+compliance.rule.configure
+compliance.signal.ingest
+delivery.access.grant
+delivery.exchange.plan
+delivery.exchange.publish
+delivery.exchange.start
+delivery.exchange.stop
+delivery.receipt.ingest
+delivery.replace_or_cancel
+delivery.status.explain
+delivery.subscription.manage
+delivery.view
+governance.dispute_list
+governance.dispute_view
+governance.iam_overview
+legacy.bsp.mapping.import
+legacy.migration.status.query
+legacy.sharezone.mapping.import
+metadata.catalog_item.query
+metadata.gather.evidence.query
+metadata.gather.evidence.upsert
+metadata.schema.discover
+metadata.schema.query
+metadata.schema.snapshot.upsert
+objection.case.accept
+objection.case.assign
+objection.case.reject
+objection.metric.query
+objection.process.query
+ops.catalog.statistics.query  # 运营投影读能力，待 B1.1 后续面板承接
+ops.exchange.statistics.query  # 运营投影读能力，待 B1.1 后续面板承接
+ops.service.invocation.query  # 平行能力（服务调用统计），本刀（#161）只闭合网关运行状态，待后续接 B1.1 面板
+org.projection.sync
+package.apply_tenant_policy
+package.configure_exposure
+package.register_version
+platform.docs.read
+platform.docs.search
+projection.status.query
+provider.view
+recommendation.similar_catalog.suggest
+registry.artifact.export
+request.view
+require.intent.refine
+require.intent.review
+require.intent.submit
+require.resource.dispatch
+require.resource.match
+require.task.handoff
+resource.api.change
+resource.api.policy.update
+resource.api.revoke
+resource.api.withdraw
+resource.asset.publish
+resource.asset.submit_review
+resource.manage_asset
+risk.event.ingest
+security.scan.result.sync
+service.rating.submit
+subscription.terminate
+summary.confirm
+supplement.submit
+system.schema_info
+system.snapshot
+system.toggle_outage
+tenant.policy.evaluate
+topic.package.configure
+topic.package.create
+topic.package.evidence.attach
+topic.package.metric.query
+topic.package.policy.update
+topic.package.publish
+topic.package.query
+topic.package.review
+topic.package.submit
+zone.list
+zone.view

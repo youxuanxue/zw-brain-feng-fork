@@ -1,13 +1,13 @@
 # Wave: 0
 # Journey: B1.1
-# Pages: None (infrastructure / B1.1 only-read)
+# Pages: B1.1（网关运行只读面板 — /compliance-ops 第 5 个 tab）
 # Consumer-faces: WebUI | API | CLI | MCP | A2A
 # Roles: ROLE_SYSTEM | ROLE_BUSIAUDIT
 # Trace: D31 / D32 / 业务反馈 #PR129 / 基线 §3.4 / dsp-dataservice-reconstruction-plan-v1.md §3.3 / §3.5 / §六 Wave 0 / 旧 xlsx 行 [63..70]（A 类批次锚定，非业务面对照）
 # Priority: P0
 # Status: Draft
 # Owner: e6
-# Pytest: pending
+# Pytest: tests/test_wave0_ops_gateway.py
 # Twin-F: e6.F12
 
 Feature: Wave 0 网关运行状态投影（ops.gateway.heartbeat.ingest）
@@ -26,12 +26,12 @@ Feature: Wave 0 网关运行状态投影（ops.gateway.heartbeat.ingest）
 
   Scenario: 正向 — 网关每分钟上报心跳，projection 写入并标 online（旧 xlsx 行 65 创建代理服务派生）
     Given 不存在 (tenant_id="sd-default", gateway_instance_id="gw-zone-a-001") 的投影记录
-    When 网关实例 `gw-zone-a-001` 携带 gateway_address=`10.0.x.x:8080` / runtime_profile=`zone-a-prod` 通过 `ops.gateway.heartbeat.ingest` 上报心跳
+    When 网关实例 `gw-zone-a-001` 携带 gateway_address_ref=`10.0.x.x:8080` / runtime_profile=`zone-a-prod` 通过 `ops.gateway.heartbeat.ingest` 上报心跳
     Then `gateway_runtime_status_projection` 出现一条记录：
       | 字段                  | 期望                          |
       | tenant_id            | sd-default                    |
       | gateway_instance_id  | gw-zone-a-001                 |
-      | gateway_address      | 10.0.x.x:8080                 |
+      | gateway_address_ref  | 10.0.x.x:8080                 |
       | runtime_profile      | zone-a-prod                   |
       | status               | online                        |
       | source_ref           | 形如 adapter:dsp_dataservice_gateway_runtime 或 redis:GATEWAY_REPORT |
@@ -53,6 +53,15 @@ Feature: Wave 0 网关运行状态投影（ops.gateway.heartbeat.ingest）
     Then 在 B1.1 读侧查询时，projection 中该实例 `status=offline`
     And 该实例 `last_reported_at` 仍为 T0（不被人为修改，只是 status 派生失效）
     And `INDEX (tenant_id, status, last_reported_at DESC)` 能直接按 status=offline 命中
+
+  Scenario: 正向 — B1.1 网关运行只读面板展示在线/降级/离线计数与实例列表（③ 闭合到人）
+    Given 授权角色（ROLE_ORGAN_MANAGER / ROLE_BUSIAUDIT / ROLE_SECURITY_AUDIT 之一，policy.py ops.service.report.query.execute）
+    And `gateway_runtime_status_projection` 已有若干实例（在线 / 降级 / 离线混合）
+    When 该角色进入 B1.1 合规与运营页（`/compliance-ops`）并切到「网关运行」tab
+    Then 顶部计数条显示 在线 / 降级 / 离线 三类数量（由 `ops.service.report.query` 返回的 gateways[] 派生）
+    And 只读实例列表逐行显示 网关实例 / 运行模式 / 状态（中文）/ 最近心跳 / 来源
+    And 面板无任何写操作入口（read model，与 S9 一致）
+    And 后端不可达时面板回退 fixture 切片并标注数据来源 pill = fixture
 
   Scenario: 负向 — 缺 tenant_id 的上报被拒（无主投影）
     When 网关实例上报心跳但 payload 不含 tenant_id 字段
@@ -77,7 +86,7 @@ Feature: Wave 0 网关运行状态投影（ops.gateway.heartbeat.ingest）
   Scenario: 回归 — Capability `ops.gateway.heartbeat.ingest` 投影到 5 消费面一致（R15 桥接面 / plan §〇）
     When 我导出 WebUI 路由表 / OpenAPI / CLI commands / MCP tool manifest / A2A agent card
     Then 五份导出文件中**同一业务能力**指向同一 capability slug `ops.gateway.heartbeat.ingest`
-    And 五消费面的 input_schema 字段集合一致（含 tenant_id / gateway_instance_id / gateway_address / runtime_profile）
+    And 五消费面的 input_schema 字段集合一致（含 tenant_id / gateway_instance_id / gateway_address_ref / runtime_profile）
     And `export_agent_contract.py --check` 无 drift
 
   Scenario: 回归 — 工程术语黑名单（R12 / 基线 §5.5）

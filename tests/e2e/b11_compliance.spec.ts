@@ -106,4 +106,24 @@ test.describe('B1.1 合规与运营 smoke', () => {
     await gotoHash(page, '#/compliance-ops');
     await expect.poll(() => page.url(), { timeout: 10_000 }).not.toMatch(/#\/compliance-ops/);
   });
+
+  // #161 god's-eye 收尾：B1.1「网关运行」只读面板（消费 ops.service.report.query）。
+  test('SECURITY_AUDIT 看到「网关运行」tab 并展示在线/降级/离线计数', async ({ page }) => {
+    const gwTab = page.getByRole('tab', { name: '网关运行' });
+    await expect(gwTab).toBeVisible();
+    await gwTab.click();
+    await expect(gwTab).toHaveAttribute('aria-selected', 'true');
+    // 计数条（在线/降级/离线）渲染 —— live 或 fixture 回退都应呈现三类
+    await expect(page.getByRole('group', { name: '网关运行状态汇总' })).toBeVisible();
+  });
+
+  // 无权限即不可见（tab 级，非路由级）：SECURITY_ADMIN 的 shell roles 含 /compliance-ops，
+  // 但缺 ops.service.report.query.execute（policy.py:106）→ 「网关运行」tab 不渲染，
+  // 而非"可见但禁用"或"可见点击 403"。
+  test('SECURITY_ADMIN 进得了合规页但看不到「网关运行」tab', async ({ page }) => {
+    await setRole(page, 'ROLE_SECURITY_ADMIN');
+    await gotoHash(page, '#/compliance-ops');
+    await expect(page.getByRole('heading', { name: '合规与运营' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: '网关运行' })).toHaveCount(0);
+  });
 });

@@ -139,6 +139,7 @@ done <<'CHECKS'
 段 49	scripts/check_domain_no_command_import.py	domain-no-command-import (zw_brain/domain/ 不得 runtime import zw_brain.command — 4 层 entry→command→domain→shared，Action H R-001)
 段 50	scripts/check_no_skill_identifier_in_zw_brain.py	no-skill-identifier-in-zw-brain (D33 — 防 skill 命名回潮，新增 class/def 标识符须在白名单)
 段 51	scripts/check_agentruntime_bundles.py	agentruntime-bundles (D33.b / D30 — agents/*/AGENT.yaml + capabilities.json schema 持续守卫)
+段 52	scripts/check_webui_capability_rendered.py	webui-capability-rendered (god's-eye #161 — live+webui 能力须有 .vue/.ts 渲染消费者，baseline 棘轮防净新增"声称UI无渲染"漂移；台账 scripts/webui_capability_rendered_exemptions.txt)
 CHECKS
 
 echo ""

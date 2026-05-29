@@ -24,6 +24,10 @@
     "zwbrain.manifest-total": {
       "description": "zw-brain: capability_registry on-disk manifest 总数 (live + deferred + external)。仅供 preflight-debt 等 transient context 引用——不是契约。若某条 prose 必须写一个 manifest 数字，wrap 这个 stat；多数情况下应反问数字该不该出现。",
       "compute": "if [ -d zw_brain/capability_registry/registered ]; then ls zw_brain/capability_registry/registered/*.json 2>/dev/null | wc -l | tr -d ' '; else echo 0; fi"
+    },
+    "zwbrain.webui-render-debt": {
+      "description": "zw-brain: status=live 且 compatibility 含 webui，但 zw-brain-web/src 无 .vue/.ts 渲染消费者的能力数（『契约声称大堂供应、实际没渲染』净存量债务）。事实源 = scripts/webui_capability_rendered_exemptions.txt 非注释行数；preflight 段 52 check_webui_capability_rendered.py 守净新增=0，本 stat 让债务总量在 docs/webui-capability-render-debt.md 可见且防漂移。还债（接面板）后该数下降。",
+      "compute": "if [ -f scripts/webui_capability_rendered_exemptions.txt ]; then grep -vcE '^[[:space:]]*(#|$)' scripts/webui_capability_rendered_exemptions.txt | tr -d ' '; else echo 0; fi"
     }
   }
 }

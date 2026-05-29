@@ -230,20 +230,24 @@ items:
   next_action: ''
   blocked_reason: null
 - id: F12
-  deliverable: "A 类 D32 触发 Wave 0 第一刀（一）：网关运行状态投影 ops.gateway.heartbeat.ingest"
-  scope: 落地 dsp-dataservice-reconstruction-plan-v1.md §3.3 `gateway_runtime_status_projection` 表 + Capability `ops.gateway.heartbeat.ingest` 注册；不动旧网关后台；adapter 只读（plan §5.2）；ops.gateway.log.anchor 留待独立立项卡片（plan Wave 2 治理动作 / 与 anchor_outbox + audit_receipt 同期）
+  deliverable: "A 类 D32 触发 Wave 0 第一刀（一）：补 ops.gateway.heartbeat.ingest 验收 evidence + 读侧 staleness 派生"
+  scope: 既有 `gateway_runtime_status_projection` 表 + Capability `ops.gateway.heartbeat.ingest` 注册由前序 PR 落地（D33 #157 之前）；本卡片补 .feature 9 scenario 中 7 项可达验收（S1/S2/S3/S4/S5/S7 + 权限 + 审计 + envelope），并在 read-side 引入 stale → offline 派生（ops_metrics_ser.derive_runtime_status，阈值 ZW_BRAIN_GATEWAY_STALE_SECONDS 默认 180s）；S6 WebUI 不渲染入口归 webui 仓库测试栈；S8/S9 由 preflight 段 24/25 机械守卫；adapter 只读（plan §5.2）；ops.gateway.log.anchor 留待独立立项卡片（plan Wave 2 治理动作 / 与 anchor_outbox + audit_receipt 同期）
   covers_ac:
   - AC5
   spec_ref:
   - .testing/waves/wave-0-golden-path/features/ops-gateway-heartbeat.feature
   evidence_plan:
-  - 证据预算：tests/test_wave0_ops_gateway.py 新增（UNIQUE/INDEX/超时判定/跨租户隔离）+ projection 派生 e2e + 5 消费面契约导出无 drift
-  - 停止条件：preflight 段 28 capability-registration 三处一致；段 38 三角守卫合法；段 25 adapter-write-ban 拦下 projection 直写
-  actual_evidence: []
+  - 证据预算：tests/test_wave0_ops_gateway.py 新增（UNIQUE/INDEX/超时判定/跨租户隔离 + 5 消费面契约导出回归）+ projection 派生 e2e + read-side stale → offline 派生
+  - 停止条件：preflight 段 28 capability-registration 三处一致；段 38 三角守卫合法（.feature # Pytest 指向真实 pytest 文件）；段 25 adapter-write-ban 拦下 projection 直写
+  actual_evidence:
+  - "tests/test_wave0_ops_gateway.py PASS — 9 scenario（含 stale 派生纯函数 + e2e + 跨租户隔离 + 5 消费面契约 zero-drift 回归）"
+  - "preflight 51 段全 PASS（段 27 ruff / 段 28 capability-registration / 段 29 no-hand-maintained-projection / 段 38 trace-triangle / 段 25 adapter-write-ban 全绿）"
+  - "scripts/export_agent_contract.py --check 零漂移（REST=196 / CLI=1 / MCP=62 / A2A=1 / Skills=187）— 由 test_5_consumer_contract_export_no_drift 在 CI 回归"
+  - "PR #161 — feature/e6-f12-ops-gateway-heartbeat → main"
   depends_on:
   - F2
-  status: pending
-  next_action: Wave 0 sign-off 通过后立即启动（业务方 PR #129 + D32 已触发）
+  status: completed
+  next_action: ''
   blocked_reason: null
 - id: F13
   deliverable: "A 类 D32 触发 Wave 0 第一刀（二）：服务调用统计投影 ops.service.invocation.query"

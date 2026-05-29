@@ -231,3 +231,51 @@ export const SUMMARY_FIXTURE: InvestigationSummaryResult = {
   sanitized_input_digest: 'sha1:b11-fixture-stable',
   usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
 };
+
+// 网关运行状态只读切片 —— 字段镜像后端 ops.service.report.query 的 gateways[]
+// （zw_brain/domain/serializers/ops_metrics.py::gateway_to_dict）。状态值取后端
+// 原始枚举（online / warning / offline），页面侧映射为在线 / 降级 / 离线。
+export interface GatewayRuntimeRow {
+  gateway_instance_id: string;
+  runtime_profile: string;
+  status: string;
+  last_reported_at: string;
+  source_ref: string;
+}
+
+export interface GatewayRuntimeResult {
+  gateways: GatewayRuntimeRow[];
+}
+
+export const GATEWAY_RUNTIME_FIXTURE: GatewayRuntimeResult = {
+  gateways: [
+    {
+      gateway_instance_id: 'gw-sd-gov-01',
+      runtime_profile: 'sd-prod',
+      status: 'online',
+      last_reported_at: '2026-05-29T10:42:08Z',
+      source_ref: 'redis:GATEWAY_REPORT',
+    },
+    {
+      gateway_instance_id: 'gw-sd-gov-02',
+      runtime_profile: 'sd-prod',
+      status: 'online',
+      last_reported_at: '2026-05-29T10:41:55Z',
+      source_ref: 'redis:GATEWAY_REPORT',
+    },
+    {
+      gateway_instance_id: 'gw-sd-exchange-01',
+      runtime_profile: 'sd-exchange',
+      status: 'warning',
+      last_reported_at: '2026-05-29T10:38:12Z',
+      source_ref: 'redis:GATEWAY_REPORT',
+    },
+    {
+      gateway_instance_id: 'gw-sd-edge-07',
+      runtime_profile: 'sd-edge',
+      status: 'offline',
+      last_reported_at: '2026-05-29T09:51:03Z',
+      source_ref: 'adapter:dsp_dataservice_gateway_runtime',
+    },
+  ],
+};

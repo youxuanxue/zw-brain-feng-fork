@@ -51,7 +51,13 @@ def _ingest_gateway_heartbeat(brain, deps, ctx, payload: dict[str, Any]) -> dict
                 current.update(copy.deepcopy(gateway_payload))
             result = copy.deepcopy(current)
         else:
-            result = ops_metrics_ser.gateway_to_dict(deps.repos.gateway_runtime.upsert_heartbeat(gateway_payload))
+            # Write echo: derive_stale=False — the row was just written, its
+            # status is the authoritative just-ingested value; running staleness
+            # here would couple the write envelope to the read threshold env var.
+            result = ops_metrics_ser.gateway_to_dict(
+                deps.repos.gateway_runtime.upsert_heartbeat(gateway_payload),
+                derive_stale=False,
+            )
         deps.append_audit_feed("ops.gateway.heartbeat", gateway_payload["gateway_instance_id"], "ok", actor)
         return result | {"audit_id": audit_id}
 

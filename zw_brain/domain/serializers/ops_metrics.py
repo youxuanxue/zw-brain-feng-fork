@@ -8,7 +8,50 @@ domain context (called by b1/ops_service.py + b1/exchange_statistics_query.py).
 from __future__ import annotations
 
 import copy
+import os
+from datetime import UTC, datetime, timedelta
 from typing import Any
+
+# e6.F12 R-001a — read-side staleness derivation.
+# .feature S3 / plan.yaml F12.evidence_plan 承诺 "心跳超时 → status 自动转 offline"。
+# 因业务方 dashboard 以"实际可达性"为决策依据，stale 派生在 read side 做，
+# 不回写 projection（projection 保留 last_reported_at 真值不被人为修改 — .feature S3 末）。
+DEFAULT_GATEWAY_STALE_SECONDS = 180  # 3 分钟，与 .feature S3 阈值对齐
+
+
+def _stale_threshold_seconds() -> int:
+    raw = os.environ.get("ZW_BRAIN_GATEWAY_STALE_SECONDS")
+    if not raw:
+        return DEFAULT_GATEWAY_STALE_SECONDS
+    try:
+        value = int(raw)
+    except ValueError:
+        return DEFAULT_GATEWAY_STALE_SECONDS
+    return value if value > 0 else DEFAULT_GATEWAY_STALE_SECONDS
+
+
+def derive_runtime_status(
+    stored_status: str,
+    last_reported_at: datetime,
+    *,
+    now: datetime | None = None,
+    threshold_seconds: int | None = None,
+) -> str:
+    """Return effective status after stale-heartbeat derivation.
+
+    Already-offline rows stay offline (terminal). Otherwise:
+    if (now - last_reported_at) > threshold → "offline", else stored_status.
+    Pure function — no I/O, no env reads except via threshold_seconds default.
+    """
+    if stored_status == "offline":
+        return "offline"
+    if threshold_seconds is None:
+        threshold_seconds = _stale_threshold_seconds()
+    now = now or datetime.now(UTC)
+    reported = last_reported_at if last_reported_at.tzinfo else last_reported_at.replace(tzinfo=UTC)
+    if now - reported > timedelta(seconds=threshold_seconds):
+        return "offline"
+    return stored_status
 
 
 def metric_summary(metrics: list[dict[str, Any]]) -> dict[str, Any]:
@@ -31,11 +74,31 @@ def exchange_metric_summary(metrics: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def gateway_to_dict(record: Any) -> dict[str, Any]:
+def gateway_to_dict(
+    record: Any,
+    *,
+    now: datetime | None = None,
+    threshold_seconds: int | None = None,
+    derive_stale: bool = True,
+) -> dict[str, Any]:
+    """Serialize a gateway projection row, deriving stale → offline on read.
+
+    ``derive_stale=False`` returns the stored status verbatim (used by the
+    ingest write-path where the just-written record's last_reported_at is
+    almost always within threshold — derivation would be a no-op but still
+    couple write echo to the env var).
+    """
+    effective_status = (
+        derive_runtime_status(
+            record.status, record.last_reported_at, now=now, threshold_seconds=threshold_seconds,
+        )
+        if derive_stale
+        else record.status
+    )
     return {
         "gateway_instance_id": record.gateway_instance_id,
         "runtime_profile": record.runtime_profile,
-        "status": record.status,
+        "status": effective_status,
         "last_reported_at": record.last_reported_at.isoformat(),
         "source_ref": record.source_ref,
         "summary_json": copy.deepcopy(record.summary_json),
