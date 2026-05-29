@@ -215,3 +215,25 @@ D31 子项 D31.b 原文："复活范围归属待定：(a) 进 Wave 2.x / (b) 进
   - 长期目标：写 `scripts/check_external_protocol_term_drift.py` 扫 zw-brain 代码标识符与 `docs/agent-runtime/*` 协议字段的同名异义
   - 本 PR 仅落决策承诺；脚本随首次实操（下次 GATE 决策时手工审视，回炉成脚本）
   - **Why**：D33 是事后补救，根因是 GATE-1 没在「契约形态」决策时审视外部协议；元规则升级避免再现
+
+### [2026-05-29] D34：F9 P7 共享专区 / TopicPackage 启动 sign-off（业务方全采纳建议）
+
+业务方（海若产品部）对 `docs/wave2-acceptance/F9-business-review-package.md` 4 项业务决策点 sign-off，**全采纳建议**。载体 = PR #162 label `business-signoff: e3.F9`（`promote_signoff.py` 已将 topic-package-discovery/curation 两 feature Draft→Ready）；plan.yaml F9 `[SIGNOFF-CLOSED 2026-05-29]` 落盘。本次 review 用「上帝视角 Jobs」据**真实数据**（`old/10示例数据` dump + `seed_snapshot.json`）逐条验证，产出四条实质裁决（满足 D28/D32.b 元规则：状态机 / 可见性属 sign-off 范围）：
+
+- [2026-05-29] D34.a：**共享专区 = 运营方策展容器 ≠ 主题分类**。旧定义据 `old/12-datastructure/dsp_catalog.xml` `share_zone*` 系列表（专区=运营方挑选目录的命名容器 + 组织授权 + 上线审核 + 统计）；真实 dump 中 `share_zone*` **实例=0**（仅 schema 无数据）→ 首批 sd-default 专区由运营方**新建策展**，无真实专区可镜像。专区只**引用**目录（`topic_package_item → catalog_entry`）不持有；目录自带的「主题/分类」（`data_catalog_category`）归 **catalog 线**的 `catalog_entry.subject_tags`，**不进 F9 专区**。纠正本会话前期把「主题包」误当「按 subject 聚类全部目录」的概念漂移。
+- [2026-05-29] D34.b：**`topic.package.policy.update` 默认双签**。可见性策略写权限默认收紧为「`ROLE_BUSIAUDIT` + 大数据局领导双签」，业务方主动放开才独立——政务安全产品敏感写权限默认从严。
+- [2026-05-29] D34.c：**seed 上游依赖 sequencing**。专区只引用不造目录 → Z1 医疗救助（目录已全在 `seed_snapshot.json`）**P0 先行**；Z2 医保码 / Z3 异地就医引用的目录真实 dump 有、**未进 seed**，须 **catalog 线先补种**后做（采纳路径 a）。F9 delivery worker 启动顺序受此约束。
+- [2026-05-29] D34.d：**残疾人两项补贴排除**。真实 dump 未命中 → 守 D11（禁 Mock 业务数据）默认排除，有真实数据源再加。
+- **外部协议词汇审视（D33.d 元规则）**：`topic.package.*` / `policy.update` 均为 zw-brain capability 内部 slug，与 AgentRuntime `skills:` / MCP / A2A / ANP 协议字段无同名异义。
+- **下一步（不在本决策范围）**：F9 delivery（6 表 + capability + fixture + e2e）另起 worktree 执行；catalog 线补种 Z2/Z3 目录是其前置。
+
+### [2026-05-29] D35：sign-off 模式升级 — 模板 + 两段机械守卫（确定性自动化）
+
+D34 这次 review 的所有问题（概念漂移 / 选择依据未验真 / 假数字 / 硬前置埋没 / 权限默认反向）**全靠人仔细读抓出来，无一被机器拦**——违背宪法 §5「靠自觉反复出现必须硬化」。**dogfood 当场再证**：即便经 Jobs 视角逐条审 + 业务方 sign-off，段 53 仍机械捕获到「特困人员救助供养信息」被误标 dump 命中（"特困"仅见于医疗救助申请材料文本，无独立目录）→ 已更正为排除（D11）。故把三类质量保障沉淀为 zw-brain 可复用机制：
+
+- [2026-05-29] D35.a：**sign-off 材料包统一模板** `docs/templates/business-signoff-package.md`。强制节：① 启动硬前置（sequencing，列上游依赖，无则显式"无"）；② 每个「业务方判定」表配「建议」列 + 一句理由（预填**安全方向**默认）；③ 触及 legacy 概念必带「概念边界」澄清 + 旧 schema 引用。真实性标签词表：`seed 真实` / `dump 命中` / `dump 未命中` / `evidence 关联`。禁过程/估算数字（N 分钟 / N-M 天 / worker·day / 未 stat-wrap 的 N 态）。
+- [2026-05-29] D35.b：**段 53 `check_signoff_package.py`（检测层）**。Layer 1 数据真实性：标 seed/dump 命中的行必须真的在 `seed_snapshot.json` / `old/10示例数据` dump 命中，否则 FAIL（dump 缺位显式 skip，不 `|| true` 静默吞错，遵 D22）；Layer 2 完整性：禁过程数字 + 强制「启动硬前置」节 + 判定表必配「建议」列；Layer 3 概念边界 WARN。
+- [2026-05-29] D35.c：**段 54 `check_signoff_landed.py`（落盘层）**。材料包 frontmatter `status: approved` 时，校验 `.twin/**/plan.yaml` 有匹配 `[SIGNOFF-CLOSED ... <scope>]` evidence + CLAUDE.md 有提及 `<scope>` 的 D-编号；缺则 FAIL。**关闭 F9 §5.3 自陈的「C/D 落盘靠人记忆」债**（不再 debt 化）。
+- [2026-05-29] D35.d：**元规则升级（接 D28/D32.b）**：今后业务方 sign-off 材料必须走 D35.a 模板并通过段 53/54。F9 材料包补 frontmatter 成为首个模板对齐样本（dogfood）。
+- **外部协议词汇审视（D33.d）**：本决策新增标识符 `check_signoff_package` / `check_signoff_landed` / `business-signoff:<scope>` label 均为 zw-brain preflight/CI 内部，与 AgentRuntime / MCP / A2A / ANP 协议无同名异义。
+- **范围**：zw-brain 内（证明有效后再议上提 dev-rules global，惠及 industry-brain / PetroMind 等）。

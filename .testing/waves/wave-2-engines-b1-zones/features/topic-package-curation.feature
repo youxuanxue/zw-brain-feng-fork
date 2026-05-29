@@ -5,7 +5,7 @@
 # Roles: ROLE_BUSIAUDIT | ROLE_ORGAN_MANAGER | ROLE_ORGAN_OPERATER
 # Trace: D31 / D32 / D32.a / 业务反馈 #PR129 / 基线 §5.2 P7 / dsp-sharezone-topic-package-reconstruction-plan-v1.md §3.2 / §3.3 / §四 / 旧 xlsx 行 100 (主题库信息提交) / 基线 §5.6 #13 basesubject 硬保护
 # Priority: P1
-# Status: Draft
+# Status: Ready
 # Owner: e3
 # Pytest: pending
 # Twin-F: e3.F9

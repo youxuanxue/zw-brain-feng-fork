@@ -249,7 +249,19 @@ items:
   - 'docs/wave2-acceptance/F9-prep-checklist.md — F8 sign-off 落盘后的 8 段
     起手清单（6 表 schema + 10 cap slug + 山东 3 标杆 fixture + 5 消费面 + 3 e2e
     + sign-off 准入 + 不做清单），不立项不动代码、仅照亮路径'
+  - 'docs/wave2-acceptance/F9-business-review-package.md — 业务方 review 材料包（4
+    决策点，每点预填 Jobs 视角建议）。本会话据真实数据（old/10示例数据 dump +
+    seed_snapshot.json）逐条验证后修正：共享专区=运营方策展容器≠主题分类（旧定义据
+    dsp_catalog.xml share_zone*，真实 dump share_zone 实例=0）、policy.update 默认双签、
+    seed 上游依赖 sequencing、残疾人两项补贴排除（真实 dump 未命中，D11）'
+  - '[SIGNOFF-CLOSED 2026-05-29] covers F9-launch | by 海若产品部业务方 | 全采纳建议
+    | vehicle PR #162 评论 business-signoff: e3.F9 | priorities=Z1:P0,Z2:P1,Z3:P1
+    | offline_pending=保留 | policy.update=双签 | boundary=8行全接受
+    | seq=Z1先行,Z2/Z3待catalog补种进seed | → 准入通过，启动 F9 delivery（worker 另起 worktree）'
   depends_on: []
   status: pending
-  next_action: Wave 2 三引擎 F8 sign-off 落盘后立即启动（与 PR #135 A 类 Wave 0 立项卡片对称；Wave 2 三引擎 land 后 D32.a 触发的 D 类复活进入执行）。起手按 docs/wave2-acceptance/F9-prep-checklist.md 八段走
-  blocked_reason: Wave 2 三引擎业务方签字未落盘（F8 blocked；F9 prep-checklist 已就位）
+  next_action: '启动 sign-off 已落盘（PR #162 label business-signoff e3.F9）。立即起 F9
+    delivery worker（另起 worktree，按 docs/wave2-acceptance/F9-prep-checklist.md 八段）；
+    执行顺序遵 SIGNOFF-CLOSED seq —— Z1 医疗救助（目录已全在 seed）先做，Z2 医保码 / Z3
+    异地就医待 catalog 线把对应目录补种进 seed 后做'
+  blocked_reason: null

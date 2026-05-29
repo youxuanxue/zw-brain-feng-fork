@@ -140,6 +140,8 @@ done <<'CHECKS'
 段 50	scripts/check_no_skill_identifier_in_zw_brain.py	no-skill-identifier-in-zw-brain (D33 — 防 skill 命名回潮，新增 class/def 标识符须在白名单)
 段 51	scripts/check_agentruntime_bundles.py	agentruntime-bundles (D33.b / D30 — agents/*/AGENT.yaml + capabilities.json schema 持续守卫)
 段 52	scripts/check_webui_capability_rendered.py	webui-capability-rendered (god's-eye #161 — live+webui 能力须有 .vue/.ts 渲染消费者，baseline 棘轮防净新增"声称UI无渲染"漂移；台账 scripts/webui_capability_rendered_exemptions.txt)
+段 53	scripts/check_signoff_package.py	signoff-package-lint (D35 — 业务方 sign-off 材料包三层守卫：数据真实性 + 禁过程数字 + 强制节/建议列)
+段 54	scripts/check_signoff_landed.py	signoff-landed (D35 — approved sign-off 文档 ↔ plan.yaml evidence + CLAUDE.md D-编号 + label 一致，关「C/D 靠人记忆」债)
 CHECKS
 
 echo ""
