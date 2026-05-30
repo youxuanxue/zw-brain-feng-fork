@@ -136,6 +136,8 @@ items:
     F9 5 医保目录录入主表可检索。真实库验证：学生课程信息→9资源 / 医保目录→诚实空。'
   - '[SIGNOFF-CLOSED 2026-05-30] covers j1-catalog-drilldown | 效果验收 | evidence=.testing/acceptance/j1-catalog-drilldown/evidence.json
     | by 海若产品部业务方 | 本地全集真实库逐页走查（目录浏览资源数/责任方 + 钻取 + F9 诚实空）全部通过 | vehicle PR #171 → published'
+  - '[SIGNOFF-CLOSED 2026-05-30] covers j1-data-gap | 效果验收 | evidence=.testing/acceptance/j1-data-gap/evidence.json
+    | by 海若产品部业务方 | D43.c(1) 全局数据缺位修复：requests/approvals/discovery 全量真实库投影 + 发现页可用过滤(186→75) + 卡片密度/共享类型色chip；本地全集真实库逐页走查全部通过 | vehicle PR #173'
   depends_on: []
   status: completed
   next_action: ''

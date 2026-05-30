@@ -12,6 +12,11 @@ if TYPE_CHECKING:
     pass
 
 from zw_brain.command.deps import HandlerDeps, SkillContext
+from zw_brain.domain.discovery_snapshot_projection import (
+    enrich_approvals_snapshot,
+    enrich_discovery_resources_snapshot,
+    enrich_requests_snapshot,
+)
 from zw_brain.domain.dispute_snapshot_projection import enrich_disputes_snapshot
 from zw_brain.domain.provider_snapshot_projection import enrich_provider_snapshot, enrich_zones_snapshot
 from zw_brain.domain.schemas import describe_schemas
@@ -53,6 +58,10 @@ def handler_system_snapshot(deps: HandlerDeps, ctx: SkillContext, payload: dict[
     enriched = enrich_provider_snapshot(brain.snapshot(), tenant_id=tenant_id)
     enriched = enrich_zones_snapshot(enriched, tenant_id=tenant_id)
     enriched = enrich_disputes_snapshot(enriched, tenant_id=tenant_id)
+    # D45 — J1 列表字段全量真实库投影（DB 有行替换 / 空库保留 seed）
+    enriched = enrich_requests_snapshot(enriched, tenant_id=tenant_id)
+    enriched = enrich_approvals_snapshot(enriched, tenant_id=tenant_id)
+    enriched = enrich_discovery_resources_snapshot(enriched, tenant_id=tenant_id)
     if role in {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"}:
         enriched["delivery_tasks"] = brain.list_delivery_tasks()
     return redact_webui_snapshot(enriched, role)

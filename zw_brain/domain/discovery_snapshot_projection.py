@@ -1,0 +1,180 @@
+"""Live J1 list projections for WebUI snapshot — merge full real-DB lists.
+
+D45 / 关 D43.c(1)：``system.snapshot`` 的 J1 核心列表字段（``requests`` /
+``approvals`` / ``discovery.resources``）此前停在 ``seed_snapshot.json`` 静态精选
+（5 / 5 / 12 条），真实库有数百条 → 页面只显示 demo。本模块在每次 ``system.snapshot``
+时把 DB 全量真实列表投影进去（与 provider / zones / disputes 三个既有 enrich 同范式）。
+
+merge 策略：**DB 有行 → 替换为全量真实；DB 空（CI 无 seed DB）→ 保留 seed**。
+（不用 disputes 的 append-merge：seed demo id 非真实 dump id，append 会留幻影行；
+replace-when-nonempty 在全量真实库给干净全量、在空库给原 seed，两端都对。）
+
+轻量 serializer：只产页面列表**真正读**的字段，不做 per-record resource / delivery /
+legacy 查找——那是 ``application_service.record_to_request`` 详情序列化器的活，对数百条
+列表会炸 D-9 perf 预算。详情页仍走重序列化器，本模块只喂收件箱/发现列表。
+"""
+
+from __future__ import annotations
+
+import copy
+from typing import Any
+
+from zw_brain.domain.repositories.application import ApplicationRepository
+from zw_brain.domain.repositories.approval import ApprovalRepository
+from zw_brain.domain.repositories.resource_api import ResourceApiRepository
+from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
+from zw_brain.shared.sensitive_mask import mask_default
+
+# application_record.payload_json.kind：apply / None = 申请（有 resource_name，进 P3 在途申请）；
+# require / original_require = 需求（无 resource_name，属 J2 供需匹配线，不进 P3 申请收件箱）。
+_DEMAND_KINDS = frozenset({"require", "original_require"})
+
+# resource_asset.lifecycle_status → 发现页展示态
+_RESOURCE_STATUS_DISPLAY = {
+    "active": "可复用",
+    "approved_pending_publish": "待发布",
+    "pending_review": "审核中",
+    "draft": "草稿",
+    "suspended": "已暂停",
+    "expired": "已过期",
+    "revoked": "已下线",
+}
+
+# 发现页默认只展示「可用」资源（D45.b 业务裁决，反转 D45「不在发现层过滤」）：
+# active（可复用）+ approved_pending_publish（待发布）。草稿/审核中/已暂停/已下线/已过期
+# 非「可复用数据」语义，不进默认发现视图（详情/目录线仍可达）。
+_DISCOVERABLE_STATUSES = frozenset({"active", "approved_pending_publish"})
+
+# 无意义 desc 占位值（真实库 res_desc 82% 是空/「无」/标题复读 → 卡片不渲染噪声）
+_DESC_NOISE = frozenset({"", "无", "-", "暂无", "无。"})
+
+# 共享类型 access_policy_json.share_type → 中文（决策信号：能不能拿、要不要审批）。
+# **权威来源 = 源表 dc_resource_base_info DDL 注释「1：无条件共享 2：有条件共享 3：不予共享」
+# + 真实数据双重确认**（人口信息=2=有条件 / 学校名单=1=无条件）。注意：approval_flow_baseline 的
+# SHARED_TYPE 常量是反的（1=有条件），那是审批流另一码空间，**禁止用于资源卡**。
+_SHARE_TYPE_DISPLAY = {
+    "1": "无条件共享",
+    "2": "有条件共享",
+    "3": "不予共享",
+    "unconditional": "无条件共享",
+    "conditional": "有条件共享",
+}
+# 卡片色级：无条件=畅通 / 有条件=需审批 / 不予=不可得
+_SHARE_TYPE_LEVEL = {"无条件共享": "open", "有条件共享": "conditional", "不予共享": "closed"}
+
+
+# ───────────────────────────────────────────────────────────────────────────
+# requests — P3RequestFlow 在途申请 + P3RequestDetail 预填底座
+# ───────────────────────────────────────────────────────────────────────────
+
+def _record_to_request_card(record: Any) -> dict[str, Any]:
+    """application_record → 轻量申请卡（snake→camel；applicant PII 走 mask_default）。"""
+    payload = copy.deepcopy(record.payload_json or {})
+    applicant = mask_default(
+        {"applicant_name": record.applicant_name, "applicant_org": record.applicant_org}
+    )
+    return {
+        "id": payload.get("id") or record.application_code,
+        "resourceId": payload.get("resourceId") or payload.get("resource_id") or "",
+        "resourceName": payload.get("resource_name") or payload.get("resourceName") or "",
+        "applicant": applicant["applicant_name"],
+        "applicantDept": payload.get("applicantDept")
+        or payload.get("applicant_org_name")
+        or applicant["applicant_org"],
+        "purpose": payload.get("purpose")
+        or payload.get("use_reason")
+        or payload.get("apply_basis")
+        or payload.get("use_item")
+        or "",
+        "status": payload.get("status") or "",
+        "submittedAt": payload.get("submittedAt") or payload.get("create_time") or "",
+        "sharingType": payload.get("sharingType"),
+    }
+
+
+def enrich_requests_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None = None) -> dict[str, Any]:
+    """Replace snapshot['requests'] with the full real **application** list (deep copy).
+
+    只取申请类（kind ∉ _DEMAND_KINDS）；需求类记录无 resource_name、属 J2 供需线，
+    不进 P3「在途申请」收件箱。DB 有申请行才替换，否则保留 seed。
+    """
+    out = copy.deepcopy(snapshot)
+    records = [
+        r
+        for r in ApplicationRepository().list_records(tenant_id=tenant_id or get_runtime_tenant_id())
+        if (r.payload_json or {}).get("kind") not in _DEMAND_KINDS
+    ]
+    if records:
+        out["requests"] = [_record_to_request_card(r) for r in records]
+    return out
+
+
+# ───────────────────────────────────────────────────────────────────────────
+# approvals — P3RequestFlow 审批人收件箱（按 id 交叉引用 requests 取状态/资源名）
+# ───────────────────────────────────────────────────────────────────────────
+
+def _case_to_approval_card(record: Any) -> dict[str, Any]:
+    # P3RequestFlow 只读 it.id + (it.suggestion ?? '待审')；状态/资源从 requests 交叉引用。
+    return {"id": record.application_code, "suggestion": "待审"}
+
+
+def enrich_approvals_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None = None) -> dict[str, Any]:
+    """Replace snapshot['approvals'] with the full real approval_case list (deep copy)."""
+    out = copy.deepcopy(snapshot)
+    cases = ApprovalRepository().list_cases(tenant_id=tenant_id or get_runtime_tenant_id())
+    if cases:
+        out["approvals"] = [_case_to_approval_card(c) for c in cases]
+    return out
+
+
+# ───────────────────────────────────────────────────────────────────────────
+# discovery.resources — P2Discovery 「可复用资源」（资源中心，架构 §5.2.1）
+# ───────────────────────────────────────────────────────────────────────────
+
+def _asset_to_resource_card(record: Any) -> dict[str, Any]:
+    owner = record.owner_org_snapshot_json or {}
+    summary = record.summary_json or {}
+    access = record.access_policy_json or {}
+    raw_desc = str(summary.get("res_desc") or "").strip()
+    desc = "" if raw_desc in _DESC_NOISE or raw_desc == (record.title or "").strip() else raw_desc
+    share_type = _SHARE_TYPE_DISPLAY.get(str(access.get("share_type")).strip().lower(), "")
+    return {
+        "id": record.resource_code,
+        "name": record.title,
+        "status": _RESOURCE_STATUS_DISPLAY.get(record.lifecycle_status, record.lifecycle_status),
+        "shareType": share_type,
+        "shareLevel": _SHARE_TYPE_LEVEL.get(share_type, ""),
+        "provider": owner.get("org_name") or owner.get("owner_org_name") or record.owner_org_id or "",
+        "providerOrgCode": record.owner_org_id or "",
+        "regionCode": record.region_code or "",
+        "catalogCode": record.catalog_code or "",
+        "desc": desc,
+        "updatedAt": record.updated_at.strftime("%Y-%m-%d") if getattr(record, "updated_at", None) else "",
+        "kind": record.resource_kind,
+    }
+
+
+def project_resource_cards(*, tenant_id: str | None = None) -> list[dict[str, Any]]:
+    """发现页「可复用资源」卡片 — 共享给 snapshot enrich + data.search 空 query。
+
+    只投影**可用**资源（D45.b：active + approved_pending_publish）；草稿/审核中/已暂停/
+    已下线/已过期不进默认发现视图。
+    """
+    records = ResourceApiRepository().list_assets(tenant_id=tenant_id or get_runtime_tenant_id())
+    return [
+        _asset_to_resource_card(r)
+        for r in records
+        if r.lifecycle_status in _DISCOVERABLE_STATUSES
+    ]
+
+
+def enrich_discovery_resources_snapshot(
+    snapshot: dict[str, Any], *, tenant_id: str | None = None
+) -> dict[str, Any]:
+    """Replace snapshot['discovery']['resources'] with the full real resource_asset list (deep copy)."""
+    out = copy.deepcopy(snapshot)
+    cards = project_resource_cards(tenant_id=tenant_id)
+    if cards:
+        discovery = out.setdefault("discovery", {})
+        discovery["resources"] = cards
+    return out

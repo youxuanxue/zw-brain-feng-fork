@@ -13,6 +13,7 @@ export default defineConfig({
     'j1_objection_browser.spec.ts',
     'j1_supply_demand_browser.spec.ts',
     'j1_catalog_drilldown.spec.ts',
+    'j1_data_gap.spec.ts',
     'p4_delivery_detail.spec.ts',
     'p5_duplicate_warnings.spec.ts',
     'twin_browser_pages.spec.ts',

@@ -1,0 +1,27 @@
+{
+  "scope": "j1-data-gap",
+  "deliverable": "J1 列表全量真实库投影（requests/approvals/discovery）+ 发现页可用过滤 + 卡片密度/共享类型（D45）",
+  "git_sha": "176ae51df1c17f9d9e753b1b90090dbe96807ce4",
+  "captured_at": "2026-05-30T08:19:16Z",
+  "captured_by": "薛娇（产品研发负责人）",
+  "checks": [
+    {
+      "name": "5 消费面投影一致",
+      "kind": "contract",
+      "result": "pass",
+      "detail": "[contract] OK: docs/agent_integration.md in sync with discovered entries (REST=197 CLI=1 MCP=63 A2A=1 Skills=188)"
+    },
+    {
+      "name": "后端 / 契约测试套",
+      "kind": "pytest",
+      "result": "pass",
+      "detail": "exit 0（本仓 summary 抑制,以退出码为准）"
+    },
+    {
+      "name": "WebUI 活跑验收（j1_data_gap（真实库实跑））",
+      "kind": "e2e",
+      "result": "pass",
+      "detail": "3 passed / 0 failed / 0 skipped"
+    }
+  ]
+}

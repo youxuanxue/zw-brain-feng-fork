@@ -6,8 +6,19 @@ const props = defineProps<{
   showAction?: boolean;
 }>();
 
+// resource_kind → 中文物化形态徽标（库表 / 文件 / 接口 …），让每张卡一眼可辨资源类型。
+const KIND_LABELS: Record<string, string> = {
+  table: '库表',
+  file: '文件',
+  api: '接口',
+  service: '服务',
+  folder: '文件夹',
+  url: '链接',
+};
+
 const item = computed(() => {
   const r = props.resource as Record<string, unknown>;
+  const kind = String(r.kind ?? r.resource_kind ?? '');
   return {
     id: String(r.id ?? ''),
     name: String(r.name ?? r.title ?? ''),
@@ -19,7 +30,11 @@ const item = computed(() => {
     fields: Array.isArray(r.fields) ? (r.fields as string[]) : [],
     subscribers: r.subscribers,
     coverage: r.coverage,
-    kind: String(r.kind ?? ''),
+    kind,
+    kindLabel: KIND_LABELS[kind] ?? '',
+    updatedAt: String(r.updatedAt ?? r.updated_at ?? ''),
+    shareType: String(r.shareType ?? ''),
+    shareLevel: String(r.shareLevel ?? ''),
   };
 });
 
@@ -39,19 +54,22 @@ const emit = defineEmits<{
 <template>
   <article class="res-card">
     <header class="res-head">
-      <a v-if="!isRecallCandidate" :href="`#/discovery/resource/${encodeURIComponent(item.id)}`" class="res-title">
+      <component
+        :is="isRecallCandidate ? 'span' : 'a'"
+        v-bind="isRecallCandidate ? {} : { href: `#/discovery/resource/${encodeURIComponent(item.id)}` }"
+        class="res-title"
+      >
+        <span v-if="item.kindLabel" class="res-kind">{{ item.kindLabel }}</span>
         <strong>{{ item.name || item.id }}</strong>
         <span v-if="item.status" class="res-status">{{ item.status }}</span>
-      </a>
-      <span v-else class="res-title">
-        <strong>{{ item.name || item.id }}</strong>
-        <span v-if="item.status" class="res-status">{{ item.status }}</span>
-      </span>
-      <div v-if="item.provider || item.zone" class="res-meta">
+        <span v-if="item.shareType" class="res-share" :class="`res-share--${item.shareLevel}`">{{ item.shareType }}</span>
+      </component>
+      <div v-if="item.provider || item.zone || item.updatedAt" class="res-meta">
         <span v-if="item.provider">{{ item.provider }}</span>
         <span v-if="item.zone"> · {{ item.zone }}</span>
         <span v-if="item.subscribers !== undefined"> · 订阅 {{ item.subscribers }}</span>
         <span v-if="item.coverage"> · 覆盖 {{ item.coverage }}</span>
+        <span v-if="item.updatedAt"> · 更新 {{ item.updatedAt }}</span>
       </div>
     </header>
     <p v-if="item.desc" class="res-desc">{{ item.desc }}</p>
@@ -69,11 +87,16 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-.res-card { border: 1px solid var(--b-border, #d4e2f4); border-radius: 10px; padding: 16px; background: #fff; display: grid; gap: 8px; }
+.res-card { border: 1px solid var(--b-border, #d4e2f4); border-radius: 10px; padding: 14px 16px; background: #fff; display: grid; gap: 6px; align-content: start; }
 .res-head { display: grid; gap: 4px; }
-.res-title { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: inherit; }
-.res-title strong { font-size: 16px; }
-.res-status { background: var(--b-bg-subtle, #e8f2fc); color: var(--b-primary, #006be6); font-size: 12px; padding: 2px 8px; border-radius: 999px; }
+.res-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; text-decoration: none; color: inherit; }
+.res-title strong { font-size: 15px; line-height: 1.35; }
+.res-kind { background: var(--b-bg-page, #eef4fb); color: var(--b-muted, #5c6370); font-size: 11px; padding: 1px 7px; border-radius: 4px; flex: none; }
+.res-status { background: var(--b-bg-subtle, #e8f2fc); color: var(--b-primary, #006be6); font-size: 12px; padding: 2px 8px; border-radius: 999px; flex: none; }
+.res-share { font-size: 12px; padding: 2px 8px; border-radius: 999px; flex: none; border: 1px solid transparent; }
+.res-share--open { background: #e8f7ee; color: #1a7f47; border-color: #b7e3c8; }
+.res-share--conditional { background: #fff4e3; color: #9a6212; border-color: #f3d9a8; }
+.res-share--closed { background: #f5e9e9; color: #a3322f; border-color: #e6c3c1; }
 .res-meta { font-size: 12px; color: var(--b-muted, #5c6370); }
 .res-pending { font-size: 12px; color: var(--b-muted, #5c6370); margin: 4px 0 0; font-style: italic; }
 .res-desc { font-size: 14px; color: var(--b-neutral-text, #1a1d21); margin: 0; line-height: 1.6; }

@@ -18,6 +18,49 @@ trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / �
 目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
 trigger 关闭即可删除字段。
 
+## 2026-05-30 — P3RequestDetail 真实申请详情缺 prefilledFields（D45 轻量卡的 by-design 取舍）
+
+- **Where**: `zw-brain-web/src/pages/P3RequestDetail.vue:34` 读 `req.value.prefilledFields`（来自
+  `lookupRequest` → snapshot.requests，无 detail API fallback）；D45 `enrich_requests_snapshot` 的
+  **轻量卡**只产 id/resourceId/resourceName/applicant/applicantDept/purpose/status/submittedAt/sharingType，
+  **不含** `prefilledFields`（及 timeline/diffFields/reviewFocus 等富字段）。
+- **Implication**: 真实申请的详情页「预填字段」区为空。**注意是净改善非回潮**——D45 前真实申请 id 不在 seed-5
+  → `lookupRequest` 全空（resourceName/status 也空，详情页等于打不开）；D45 后 resourceName/purpose/status
+  全可见，仅 prefilledFields 缺。富字段由重序列化器 `application_service.record_to_request` /
+  `prefilled_fields()` 产出，轻量卡刻意不调它（97 条重序列化炸 D-9 perf 预算，见 CLAUDE.md D45）。
+- **Why deferred**: 富详情正解 = P3RequestDetail 走一个 detail 取数（新 `request.detail` capability 或复用
+  `request.list` 单条），而非靠 snapshot 预填——属前端 + 可能新 capability 的独立工作，超 D45 后端投影范畴。
+  在轻量卡里廉价拼 prefilledFields 会与重序列化器口径分叉，不做。
+- **Trigger to re-evaluate**: (a) 业务反馈真实申请详情页「预填字段」缺失影响验收；
+  (b) P3RequestDetail 立项接 detail API（届时富字段从 API 取，snapshot 卡只做列表/兜底）。
+- **No mechanical guardrail (now)**: 富字段完整性属前端渲染判断，无机械检查项；本 debt + CLAUDE.md D45 登记防遗忘。
+
+## 2026-05-30 — 资源卡 update_cycle（更新周期）码→中文映射缺权威源（附录4 未在仓）
+
+- **Where**: `resource_asset.qos_policy_json.update_cycle`（码 1-7，覆盖 73/75 可用资源）。源表
+  `dc_resource_base_info` DDL 注释为「更新周期（见附录4更新周期）」——映射在外部附录4，**代码库无权威
+  code→中文表**，仓内 `old/` dump 也无该 code 字典。
+- **Implication**: D45.c 卡片本可加「更新周期（实时/每日/每月…）」做数据新鲜度信号（用户 sign-off「A」要的两字段之一），
+  但码义不确定。常见 GB/T 政务标准是 1实时/2每日/3每周/4每月/5每季/6每半年/7每年，但**未经附录4 确认**；
+  政务产品上标错更新频率是误导。守 D11「不猜测、不 Mock」→ **本批不展示 update_cycle**，只上已双重确认的共享类型。
+- **Why deferred**: 缺附录4 权威映射；猜测有合规/误导风险。
+- **Trigger to re-evaluate**: 业务给出附录4（或确认 GB/T 标准映射）→ 在 `_asset_to_resource_card` 加
+  `_UPDATE_CYCLE_DISPLAY` 码表 + 卡片 meta 行补「更新 {date} · {cycle}」（前端已预留 meta 行）。
+- **No mechanical guardrail (now)**: 数据语义需业务确认，无可机械化项；本 debt + CLAUDE.md D45.c 登记防遗忘。
+
+## 2026-05-30 — data.search typed query 返回目录而非资源（P2Discovery 资源中心语义不一致）
+
+- **Where**: `zw_brain/command/handlers/j1/data_search.py` —— 有 query 时走 `deps.repos.catalog.search_entries`
+  搜 `catalog_entry`（**目录**），空 query（D45 已修）走 `project_resource_cards` 返 `resource_asset`（**资源**）。
+- **Implication**: P2Discovery 是资源中心页（架构 §5.2.1，渲染「可复用资源」ResourceCard），但 typed
+  搜索返回的是目录命中——**空搜索看资源、打字搜目录**的语义割裂。**预存 smell、非 D45 引入**（D45 只修空 query
+  默认视图缺位 + 资源中心裁决）。
+- **Why deferred**: 改 typed query 搜资源 = 搜索语义重构（resource_asset 全文检索 + 召回字典 + API 资源融合
+  逻辑重排），远超「数据缺位修复」范畴；且需业务确认 P2Discovery 搜索目标到底是资源还是"目录+资源混合"。
+- **Trigger to re-evaluate**: (a) 业务确认 P2Discovery 搜索应搜资源 → 立项搜索语义重构；
+  (b) 客户反馈"搜出来的和默认看到的不是一类东西"。
+- **No mechanical guardrail (now)**: 语义判断，无可机械化检查项；本 debt + CLAUDE.md D45.a 登记防遗忘。
+
 ## 2026-05-30 — F9 专题包引用目录未录入 catalog_entry 主表（不可检索 / 无详情页）
 
 - **Where**: F9 三标杆专题包引用的 5 个目录（医疗救助 / 医保码 / 异地就医统筹区·定点机构·经办机构）

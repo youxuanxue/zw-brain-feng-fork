@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
 from zw_brain.command.deps import HandlerDeps, SkillContext
+from zw_brain.domain.discovery_snapshot_projection import project_resource_cards
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 
@@ -99,7 +100,10 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
                 )
     else:
         if not query:
-            resources = deps.view.discovery.get_resources()  # Action C — already deepcopied
+            # D45 — 空搜索默认视图：DB 有真实资源则展现全量真实库（与 system.snapshot
+            # discovery.resources enrich 同源），空库回退 seed 精选。
+            real = project_resource_cards(tenant_id=_DEFAULT_TENANT_ID)
+            resources = real if real else deps.view.discovery.get_resources()  # Action C — already deepcopied
         else:
             haystack = query.lower()
             records = deps.repos.catalog.search_entries(query, tenant_id=_DEFAULT_TENANT_ID)

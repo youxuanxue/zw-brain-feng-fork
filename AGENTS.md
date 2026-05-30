@@ -17,7 +17,7 @@ Codex 不自动加载 `.cursor/rules/*.mdc`；需要时按下表路径读取对�
 - （本项目 `.cursor/skills/` 暂无技能）
 
 ## 命令
-- `/twin <workspace>|status [workspace]|respond <text>` — 运行 xuejiao persona supervisor 驱动 worker；底层入口 `python3 -m scripts.twin`（见 `dev-rules/commands/twin.md`）。
-- `/xj-review [范围]` — 项目代码审查；机械门禁先跑 `preflight.sh`，契约见 `dev-rules/commands/xj-review.md`。
+- `/twin <workspace>|status [workspace]|respond <text>` — 运行 xuejiao persona supervisor 驱动 worker；底层入口 `python3 -m scripts.twin`（见 `dev-rules/commands/twin.md`）。Claude-Code-only。
+- 代码审查走三端通用 skill `xj-review`（上面技能索引里）：先跑 `preflight.sh` 取 ground-truth，再按风险分级审；Codex 里描述"review 这个 diff/PR"即触发。
 
 <!-- dev-rules:codex END -->

@@ -1,8 +1,35 @@
 # 全局数据缺位审计 — snapshot 字段 seed 精选 vs 真实库
 
-> **状态**：审计结论 + 修复 backlog。2026-05-30 本地验收（全集真实库）逐个发现"页面显示 seed
+> **状态（2026-05-30 D45 更新）**：本审计 backlog 已由 **D45** 处置——穿透代码事实把 5 项缺位
+> **收敛为 3 项 alive 并修复**，其余 3 项判定为 #171/F9 后的**死消费者、不做**（详见下「D45 处置」节）。
+> 原始审计结论保留在下文作上下文。
+>
+> **审计原状态**：审计结论 + 修复 backlog。2026-05-30 本地验收（全集真实库）逐个发现"页面显示 seed
 > 精选 demo 而非真实库全量"后，做的系统性全局审计。**不在 PR #171（钻取链路）范围**——
 > 钻取已独立完整合入；本文供**另起的「全局数据缺位修复」PR** 用。
+
+## D45 处置（2026-05-30，关本 backlog）
+
+穿透前端消费者代码事实，审计的 5 项缺位**收敛为 3 项 alive**（其余已是死消费者）：
+
+| 字段 | 处置 | 说明 |
+|---|---|---|
+| `requests` | ✅ **已修**（`enrich_requests_snapshot`） | 真实库**申请类 97 条**（排除 166 需求类 require/original_require → 属 J2 供需线）。审计原写"263"是含需求的 naive 计数。 |
+| `approvals` | ✅ **已修**（`enrich_approvals_snapshot`） | 真实库 267 approval_case，轻量 `{id, suggestion}`，P3 按 id 交叉引用 requests。 |
+| `discovery.resources` | ✅ **已修**（`enrich_discovery_resources_snapshot`） | 真实库 **resource_asset 186**（资源中心，架构 §5.2.1；P2CatalogBrowse #171 已独占目录浏览）。**D45.b**：默认只展示「可用」= active+待发布 = **75**（草稿/审核/暂停/下线/过期不进默认视图）。**D45.c**：卡片信息密度优化（多列 + 类型徽标 + 更新日 + 清洗 desc 噪声）。 |
+| `provider.catalogs` | ❌ **不做（近死）** | 仅 P5 `deriveFieldDecisions` fallback，已被 DB `field_decisions`（`enrich_provider_snapshot`）取代。 |
+| `topic_packages` | ❌ **不做（死）** | P7 已走 live `topic.package.query`（F9），零 snapshot 消费者。 |
+| `discovery.catalogTree` / `recallDictionary` | ❌ **不做（死）** | 零前端消费者。 |
+
+实现：`zw_brain/domain/discovery_snapshot_projection.py`（3 enrich + `project_resource_cards`）；接线
+`system_ops.py` snapshot handler + `data.search` 空 query。merge = **DB 有行替换 / 空库保留 seed**（CI 不变）。
+轻量 serializer（禁用 `record_to_request` 重序列化器，护 D-9 perf）。详见 CLAUDE.md **D45**。
+
+**follow-up（D45.a，未做）**：`data.search` **typed** query 返回 `catalog_entry`（目录）而非 resource——
+与 P2Discovery 资源中心语义的预存不一致；属搜索语义重构，记 `docs/preflight-debt.md`。
+
+---
+
 > **数据策略前提**：本地验收/演示用全集真实库（customer_acceptance_up 导入，catalog_entry
 > 1222 / resource_asset 186）；CI 用 seed 最小真实对。本文针对的是"产品默认页展示 seed 精选
 > 而非真实库"的缺位。
