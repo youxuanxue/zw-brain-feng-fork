@@ -262,13 +262,25 @@ items:
     models.py 6 张表（topic_package / _item / _visibility / _review_record / _evidence /
     _metric_projection）；10 capability（topic.package.{create,configure,submit,review,publish,
     withdraw?,policy.update,evidence.attach,query,metric.query,subscribe}）注册；handlers
-    j2/topic_package*.py；2 .feature(discovery/curation) Status:Ready；topic 测试通过；
-    P7 专题订阅 e2e 现场跑过（customer_acceptance_checklist）'
-  - '[2026-05-29] 未完：缺 3 个 sd-default 山东标杆 fixture（tests/fixtures/topic_package/ 不存在）——
-    Z1 可做（目录在 seed），Z2/Z3 卡 catalog 真数据补种（与 D11/真数据缺口同源）'
+    j2/topic_package*.py；2 .feature(discovery/curation) Status:Ready。【收尾 PR 订正】当时
+    实为「核心代码已建、但无 F9 专测/专 fixture」——「topic 测试通过」是既有 three_engines
+    套擦边，非 F9 专测；# Pytest 锚仍 pending。真专测/fixture/真端到端由收尾 PR 落地（见下条）'
+  - '[2026-05-29 收尾 PR M1-M5] 真端到端落地：① tests/fixtures/topic_package/{z1_yiliao_jiuzhu,
+    z2_yibao_code,z3_yidi_jiuyi}.json 引用 #168 真 catalog（守 D11/D34.a）+ seed_snapshot.json
+    topic_packages 注入（database_store._seed_topic_packages：全新库 brain 启动 create→configure
+    →publish，已验 fresh-db 注入）；② tests/integration/test_wave2_topic_package_{discovery,
+    curation}.py 12 测试全绿（真 invoke_trusted：10 capability + 8 态状态机 + publish 前置校验 +
+    三维可见性 + D11 ref 反向断言）；③ P7ZonesPack/P7ZoneDetail 真接 topic.package.query/subscribe
+    （消 webui-render query 债，段 52 净新增漂移 0）；④ P7 e2e 4 全绿（真端到端，全新 seed 库实跑）'
+  - '[2026-05-30 本地验收 + 诚实收口] 业务方本地走查三反馈处理：① 列表 3 标杆通过；
+    ② 订阅诚实回显（isSubscribed，按钮态「订阅/已订阅」，不盖楼——旧平台专区订阅真实使用=0）；
+    ③ 目录链接撤回（F9 引用目录在 catalog_entry 主表 0 条可检索、无详情页，无处可跳）改诚实
+    展示「待 J1 目录主表录入后开放」。顺修 P2 召回候选卡片既有 422（recall: id 无真实 resource，
+    去坏按钮改诚实降级）。根因记 preflight-debt（下个 PR 打通目录主表录入 + 概念 B 数据供给契约待立项）'
+  - '[SIGNOFF-CLOSED 2026-05-30] covers e3.F9 | 效果验收 | evidence=.testing/acceptance/e3.F9/evidence.json
+    | by 海若产品部业务方 | 本地部署逐条走查（①列表 3 标杆 ②订阅诚实回显 ③目录诚实展示 ④召回候选
+    422 修复）全部通过 | vehicle PR #170 → published'
   depends_on: []
-  status: in_progress
-  next_action: '核心机械已就绪（6 表 + 10 cap + handlers + 2 feature + 测试 + P7 e2e）。
-    收尾：补 3 sd-default fixture（Z1 先；Z2/Z3 待 catalog 线补种医保码/异地就医目录进 seed）
-    + 第 3 个 e2e + .feature 维持 Ready。实地核对 stale pending→in_progress（2026-05-29）'
+  status: completed
+  next_action: ''
   blocked_reason: null

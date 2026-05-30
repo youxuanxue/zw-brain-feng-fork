@@ -1,37 +1,99 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
-import { useZones, useSnapshot } from '@/composables/useSnapshot';
-import { invokeActionStub } from '@/composables/useActionStub';
+import { useSnapshot } from '@/composables/useSnapshot';
+import { authFetch } from '@/composables/useAuth';
+import { pushToast } from '@/composables/useActionStub';
+import { getProductRole } from '@/composables/useProductRole';
+import { formatTodoStatus } from '@/lib/statusLabels';
 
-const zones = useZones();
+// F9 真端到端：P7 直读 topic.package 后端（topic.package.query / subscribe），
+// 不再读 snapshot.zones 静态字段（参照 P5CatalogReviewInbox 真 API 范式）。
 const { source } = useSnapshot();
-const items = computed(() =>
-  zones.value.map((z) => {
-    const it = z as Record<string, unknown>;
-    return {
-      id: String(it.id ?? ''),
-      packageCode: String(it.package_code ?? it.id ?? ''),
-      name: String(it.name ?? ''),
-      desc: String(it.desc ?? it.description ?? ''),
-      status: String(it.status ?? ''),
-      assets: Array.isArray(it.assets) ? (it.assets as string[]) : [],
-    };
-  })
-);
+const role = getProductRole();
+
+interface TopicPackageRow {
+  packageCode: string;
+  name: string;
+  desc: string;
+  status: string;
+  catalogCount: number;
+  isSubscribed: boolean;
+}
+
+const items = ref<TopicPackageRow[]>([]);
+const loading = ref(false);
+const errorMsg = ref('');
+const subscribing = ref<Set<string>>(new Set());
+
+async function loadPackages(): Promise<void> {
+  loading.value = true;
+  errorMsg.value = '';
+  try {
+    const resp = await authFetch('/api/skills/topic.package.query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ role: role.value, status: 'published' }),
+    });
+    if (!resp.ok) {
+      items.value = [];
+      errorMsg.value = `加载失败：HTTP ${resp.status}`;
+      return;
+    }
+    const body = (await resp.json()) as { items?: Array<Record<string, unknown>> };
+    items.value = (body.items ?? [])
+      .map((it) => ({
+        packageCode: String(it.package_code ?? ''),
+        name: String(it.title ?? it.package_code ?? ''),
+        desc: String(it.scenario ?? ''),
+        status: String(it.status ?? ''),
+        catalogCount: Number(it.activeCatalogCount ?? 0),
+        isSubscribed: Boolean(it.isSubscribed),
+      }))
+      .filter((it) => it.packageCode);
+  } finally {
+    loading.value = false;
+  }
+}
 
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
+  if (errorMsg.value) return errorMsg.value;
   return items.value.length ? `${items.value.length} 个专题可订阅` : '暂无专题包';
 });
 
-async function subscribe(packageCode: string) {
-  await invokeActionStub({
-    skillId: 'topic.package.subscribe',
-    payload: { package_code: packageCode },
-    successTitle: '已订阅专题',
-  });
+async function subscribe(packageCode: string): Promise<void> {
+  if (subscribing.value.has(packageCode)) return;
+  subscribing.value.add(packageCode);
+  try {
+    const resp = await authFetch('/api/skills/topic.package.subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ role: role.value, confirmed: true, package_code: packageCode }),
+    });
+    if (resp.ok) {
+      pushToast({ kind: 'ok', title: '已订阅专题' });
+      void loadPackages();
+    } else if (resp.status === 404 || resp.status === 405 || resp.status === 501) {
+      pushToast({ kind: 'warn', title: '暂不可用', detail: '该操作尚未在本环境开通，请稍后再试。' });
+    } else {
+      const data = (await resp.json().catch(() => ({}))) as Record<string, unknown>;
+      pushToast({ kind: 'info', title: '操作未完成', detail: String(data.detail ?? '请检查当前岗位权限或稍后重试。') });
+    }
+  } catch (e) {
+    pushToast({ kind: 'error', title: '调用失败', detail: e instanceof Error ? e.message : String(e) });
+  } finally {
+    subscribing.value.delete(packageCode);
+  }
 }
+
+watch(source, (live) => {
+  if (live === 'live') void loadPackages();
+}, { immediate: true });
+
+watch(role, () => {
+  void loadPackages();
+});
 </script>
 
 <template>
@@ -47,15 +109,21 @@ async function subscribe(packageCode: string) {
       />
 
       <div v-if="source === 'live' && items.length" class="zone-grid">
-        <article v-for="z in items" :key="z.id" class="zone-card">
+        <article v-for="z in items" :key="z.packageCode" class="zone-card">
           <header>
-            <a :href="`#/zones-pack/zone/${encodeURIComponent(z.id)}`" class="zone-title"><strong>{{ z.name || z.id }}</strong></a>
-            <span v-if="z.status" class="zone-status">{{ z.status }}</span>
+            <a :href="`#/zones-pack/zone/${encodeURIComponent(z.packageCode)}`" class="zone-title"><strong>{{ z.name || z.packageCode }}</strong></a>
+            <span v-if="z.status" class="zone-status">{{ formatTodoStatus(z.status) }}</span>
           </header>
           <p v-if="z.desc" class="zone-desc">{{ z.desc }}</p>
+          <p v-if="z.catalogCount" class="zone-meta">关联目录 {{ z.catalogCount }} 个</p>
           <footer class="row-actions">
-            <button type="button" class="gov-btn gov-btn-primary" @click="subscribe(z.packageCode)">订阅专题</button>
-            <a :href="`#/zones-pack/zone/${encodeURIComponent(z.id)}`" class="gov-btn gov-btn-secondary">详情</a>
+            <button
+              type="button"
+              class="gov-btn gov-btn-primary"
+              :disabled="subscribing.has(z.packageCode) || z.isSubscribed"
+              @click="subscribe(z.packageCode)"
+            >{{ subscribing.has(z.packageCode) ? '订阅中……' : z.isSubscribed ? '已订阅' : '订阅专题' }}</button>
+            <a :href="`#/zones-pack/zone/${encodeURIComponent(z.packageCode)}`" class="gov-btn gov-btn-secondary">详情</a>
           </footer>
         </article>
       </div>
@@ -72,7 +140,9 @@ async function subscribe(packageCode: string) {
 .zone-title { text-decoration: none; color: inherit; }
 .zone-status { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--b-bg-subtle, #e8f2fc); color: var(--b-primary, #006be6); }
 .zone-desc { font-size: 13px; color: var(--b-muted, #5c6370); margin: 0; }
+.zone-meta { font-size: 12px; color: var(--b-muted, #5c6370); margin: 0; }
 .gov-btn { padding: 4px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid transparent; text-decoration: none; display: inline-flex; align-items: center; }
 .gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
+.gov-btn-primary:disabled { opacity: 0.6; cursor: default; }
 .gov-btn-secondary { background: #fff; border-color: var(--b-border, #d4e2f4); }
 </style>

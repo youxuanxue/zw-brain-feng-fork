@@ -7,7 +7,7 @@
 # Priority: P1
 # Status: Ready
 # Owner: e3
-# Pytest: pending
+# Pytest: tests/integration/test_wave2_topic_package_curation.py
 # Twin-F: e3.F9
 
 Feature: Wave 2 P7 专题包编制

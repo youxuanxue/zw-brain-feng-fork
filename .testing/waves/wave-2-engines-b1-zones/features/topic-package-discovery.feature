@@ -7,7 +7,7 @@
 # Priority: P1
 # Status: Ready
 # Owner: e3
-# Pytest: pending
+# Pytest: tests/integration/test_wave2_topic_package_discovery.py
 # Twin-F: e3.F9
 
 Feature: Wave 2 P7 主题包发现

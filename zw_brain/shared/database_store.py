@@ -246,6 +246,20 @@ class DatabaseStore:
                     },
                     tenant_id=get_runtime_tenant_id(),
                 )
+        # F9 (D32.a) — sd-default 山东标杆专题包：create→configure(items+visibility)→publish。
+        # 与上面 zones 注入分开、per-package 幂等（已存在则跳过），引用真 catalog_entry（守 D11）。
+        self._seed_topic_packages(snapshot.get("topic_packages", []))
+
+    def _seed_topic_packages(self, packages: list[dict[str, Any]]) -> None:
+        tenant_id = get_runtime_tenant_id()
+        for pkg in packages:
+            code = str(pkg["package_code"])
+            if self.topic_package_repo.get_package(code, tenant_id=tenant_id) is not None:
+                continue
+            self.topic_package_repo.create_package(pkg, tenant_id=tenant_id)
+            self.topic_package_repo.configure_package(code, pkg, tenant_id=tenant_id)
+            self.topic_package_repo.transition_package(code, "submitted", {"action_type": "submit"}, tenant_id=tenant_id)
+            self.topic_package_repo.transition_package(code, "published", {"action_type": "publish"}, tenant_id=tenant_id)
 
     def sync_aggregate_tables(self, snapshot: dict[str, Any]) -> None:
         self.sync_reference_tables(snapshot)

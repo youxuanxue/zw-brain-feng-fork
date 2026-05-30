@@ -18,6 +18,59 @@ trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / �
 目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
 trigger 关闭即可删除字段。
 
+## 2026-05-30 — F9 专题包引用目录未录入 catalog_entry 主表（不可检索 / 无详情页）
+
+- **Where**: F9 三标杆专题包引用的 5 个目录（医疗救助 / 医保码 / 异地就医统筹区·定点机构·经办机构）
+  只存在于：① NL 召回字典 `discovery.recallDictionary.sample_titles`（软提示，`data_search.py`
+  造 `id="recall:<标题>"` 候选）；② 专题包 `topic_package_item.ref_id`（引用）。**`catalog_entry`
+  主表 0 条可检索**（`catalog.entry.query` keyword 搜不到），且**无 `catalog.entry.detail` 能力**
+  （目录本身无详情页）。
+- **Implication**: 本地验收（2026-05-30）暴露：① P2 发现页召回候选卡片点「查看详情」→
+  `catalog.resource_view?resource_id=recall:...` → `entity_not_found`/422；② P7 专题详情想给目录
+  「加链接跳转查看」无处可跳。本 PR #170 已诚实收口：召回候选改占位态（去坏按钮）、P7 目录项改纯
+  文本 + 注「目录详情与检索入口待 J1 目录主表录入后开放」——不假装有去处。
+- **Why deferred**: 把这些目录录入 catalog_entry 主表（可检索）+ 加 `catalog.entry.detail` 能力 +
+  目录详情页，是 **J1 找数→用数**的真功能，跨模块（seed/后端能力/前端页），不在 F9 专题包范围。
+- **Trigger to re-evaluate**（下个 PR 即修）:
+  - (a) 下个 PR 专项打通「F9 引用目录录入主表 + 目录详情页」—— 届时 P7 目录项恢复可达链接、
+    召回候选卡片可点进真目录；
+  - (b) J1 找数能力整体立项时一并纳入。
+- **No mechanical guardrail (now)**: 召回候选↔主表的可达性无机械校验；本 debt + 诚实占位 UI 防误导。
+
+## 2026-05-30 — 概念 B「部门级数据供给契约」（真业务订阅）待立项
+
+- **Where**: F9 本地验收发现 P7「订阅专题」是旧平台**弱概念 A（专区收藏，真实使用=0）**的退化实现，
+  本期已降级为诚实回显（isSubscribed，无下游业务）。真正有价值的是**概念 B**：部门向部门/上级/
+  国家平台建立**持续数据供给契约**（旧表 `dc_subscribe` / `subscribe_job` / `exchange_pipelines_subscribe`，
+  驱动同步任务 + 供给统计 + 国家平台回执 `up_sub_id`）。完整分析见
+  `docs/decisions/subscription-business-analysis.md`。
+- **Implication**: 概念 B 的载体是 J1 找数→用数 + 交换线（一表通/上下级交换），**不属 P7 专区、
+  不在 F9**。当前 P7 订阅按钮只是诚实标记关注。
+- **Why deferred**: 概念 B 跨 J1+交换线、需独立设计 + 业务方 GATE；旧平台真实订阅数据 ≈ 0
+  （`dc_subscribe` 仅 1 条演示），需先确认数据局是否有真实运营诉求；守 D11 不提前建复杂度。
+- **Trigger to re-evaluate**（任一触发即升级）:
+  - (a) 业务方/数据局明确「部门级数据供给契约」真实诉求 → 走 R13+GATE 立项产生新 D-编号；
+  - (b) 交换线（一表通/上下级交换）立项时一并评估订阅入口归属。
+- **No mechanical guardrail (now)**: 业务概念待澄清，无可机械化检查项；本 debt + 分析文档登记防遗忘。
+
+## 2026-05-29 — build_true_data_seed.py 生成器 recall sample_titles 25-total-cap vs 手编 seed 29 条偏差
+
+- **Where**: `scripts/build_true_data_seed.py` 的 `_build_a2_recall_dictionary` 封顶 25 条
+  （`PRIORITY_RECALL_TITLES` 4 条优先 + 采样补到 25 **总**上限）；`zw_brain/domain/seed_snapshot.json`
+  `discovery.recallDictionary.sample_titles` 现手编 29 条（#168 在既有 25 条之上追加 4 条医保/异地就医）。
+- **Implication**: 干净 DB 重跑 generator 会得 25 条（4 优先 + 21 采样），与手编的 29 条不一致 ——
+  committed seed 与 generator 输出不可逐字复现。#168 的核心目标（4 条医保目录确定性进召回）由
+  `PRIORITY_RECALL_TITLES` 已达成，偏差仅是 4 条非医保 sample_titles 多出。
+- **Why deferred**: #168 PR body 已明文「generator 逻辑改动留作干净 DB 重生成对齐」；本机 `.data/zw_brain.db`
+  撑肥，generator 本就无法在本机复现 committed seed（与该 debt 同源）；强改封顶语义会二次猜测一个
+  文档化的合理推迟。
+- **Trigger to re-evaluate**（任一触发即升级）:
+  - (a) 下次 catalog 真数据补种进 seed（新增目录）—— 届时重跑 generator，顺带把封顶语义改为
+    「优先项 additive、采样封顶 25」使输出 == committed 29，或反向把手编裁到 25；
+  - (b) `build_true_data_seed.py` 任何改动 —— 必须同时消解 25-cap vs 29 偏差。
+- **No mechanical guardrail (now)**: 无脚本校验 committed seed == generator 输出（跨撑肥/干净库异构）；
+  本 debt 登记保证 recall 偏差有据可查，trigger 化对齐而非靠自觉。
+
 ## 2026-05-29 — 验收证据 CI 化采集（消除人工采集 env 依赖）
 
 - **Where**: `scripts/capture_acceptance_evidence.py` 当前由人在本机手跑；段 55

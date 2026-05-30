@@ -308,3 +308,12 @@ D37 建的验收守卫的首个真实使用。e5（WebUI 8 页面 + 5 消费面 
 
 - [2026-05-29] D41：**5 条 B1 capability 定性 = 业务运营报表，留 `status: live`**（非运维监控、不转 external）：`service.rating.submit` / `ops.catalog.statistics.query` / `ops.exchange.statistics.query` / `ops.service.invocation.query` / `ops.service.report.query`。判据：均基于 zw-brain 自有业务事实（申请/调用/评价），非网关/主机运行指标；运维监控（CPU/存活/熔断）才归集团（基线 §3.4）。与 D40 A 类「业务报表内建 + 运维指标外接」边界一致。载体 = PR #165 label `business-signoff: b1-borderline-reports`；plan.yaml e6 F1 `[SIGNOFF-CLOSED 2026-05-29] covers b1-borderline-reports`。`preflight-debt.md` 2026-05-23 债条删除。材料 `docs/decisions/b1-borderline-reports-business-review-package.md`。
 - **外部协议词汇审视（D33.d）**：scope `b1-borderline-reports` 为 zw-brain 内部 signoff 标识，与外部协议无同名异义。
+
+### [2026-05-30] D42：F9 P7 共享专区 / 专题包 — 效果验收通过（D37 守卫 + 本地部署逐条走查）
+
+闭合 F9（D34.c 启动准入 → 收尾 PR 真端到端 → 本地验收）。e3.F9（TopicPackage 6 表 + 10 capability + sd-default 3 标杆 + P7 前端真接）走 D37 效果验收 + 业务方本地部署逐条走查，**2026-05-30 全部通过**。载体 = PR #170。
+
+- [2026-05-30] D42：**e3.F9 效果验收通过**。机器证据（`.testing/acceptance/e3.F9/evidence.json`）：投影零漂移 / pytest exit 0 / P7 e2e 4 passed 三项现场实测 pass（git_sha 对齐 HEAD，段 55 无 WARN）。业务方本地部署逐条走查全过：① P7 列表真拉 3 标杆；② 订阅诚实回显（isSubscribed，按钮态「订阅/已订阅」）；③ 目录诚实展示；④ 召回候选 422 修复。plan.yaml e3 F9 `[SIGNOFF-CLOSED 2026-05-30] covers e3.F9` + status→completed。材料 `docs/acceptance/e3-f9-topicpackage-acceptance-package.md`。
+- [2026-05-30] D42.a：**订阅降级为诚实信号（概念 A），概念 B 待立项**。P7「订阅专题」是旧平台弱概念 A（专区收藏，旧平台真实使用=0）的实现，本期只做 isSubscribed 诚实回显、无下游业务。真业务价值的「部门级数据供给契约」（概念 B：`dc_subscribe` / 持续供给 + 国家平台回执，属 J1 找数 + 交换线）记 `preflight-debt.md` 待立项，**不在 F9**。守 D11 不为伪需求建复杂度。
+- [2026-05-30] D42.b：**F9 引用目录主表不可达 → 诚实展示 + 下个 PR 打通**。F9 三标杆引用的 5 个目录在 `catalog_entry` 主表 0 条可检索、无详情页（只在召回字典 + 专题包 ref_id）。本期 P7 目录项改诚实文本「待 J1 目录主表录入后开放」、P2 召回候选卡片去坏按钮（修既有 422），不假装有去处。根因记 `preflight-debt.md`，下个 PR 专项打通「目录主表录入 + 目录详情页」（属 J1 找数能力）。
+- **外部协议词汇审视（D33.d）**：scope `e3.F9` / `isSubscribed` / `recall_dictionary` 均 zw-brain 内部标识，与 AgentRuntime / MCP / A2A / ANP 协议无同名异义。

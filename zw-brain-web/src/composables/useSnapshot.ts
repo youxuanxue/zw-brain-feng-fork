@@ -84,9 +84,6 @@ export function useDeliveryTasks() {
 export function useDisputes() {
   return computed(() => (_data.value?.disputes as unknown[] | undefined) ?? []);
 }
-export function useZones() {
-  return computed(() => (_data.value?.zones as unknown[] | undefined) ?? []);
-}
 export function useProvider() {
   return computed(() => (_data.value?.provider as Record<string, unknown> | undefined) ?? {});
 }
@@ -122,9 +119,6 @@ export function lookupApproval(id: string) {
 }
 export function lookupDeliveryTask(id: string) {
   return computed(() => _findById((_data.value?.delivery_tasks as unknown[]) ?? [], id));
-}
-export function lookupZone(id: string) {
-  return computed(() => _findById((_data.value?.zones as unknown[]) ?? [], id));
 }
 export function lookupDispute(id: string) {
   return computed(() => _findById((_data.value?.disputes as unknown[]) ?? [], id));

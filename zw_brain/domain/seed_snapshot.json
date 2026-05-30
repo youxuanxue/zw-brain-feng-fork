@@ -2209,6 +2209,55 @@
       "summary": "适用于高频差异补录字段是否纳入正式模板版本的评估场景。"
     }
   ],
+  "topic_packages": [
+    {
+      "package_code": "tp-yiliao-jiuzhu",
+      "title": "医疗救助信息专题包",
+      "scenario": "跨民政 + 医保的困难群众医疗救助数据复用",
+      "owner_org_id": "360002222211",
+      "owner_org_snapshot_json": {"org_code": "360002222211", "org_name": "省医保局"},
+      "source_ref": "f9:topic_package:tp-yiliao-jiuzhu",
+      "display_snapshot_json": {"projection_kind": "topic_package", "region": "sd-default"},
+      "items": [
+        {"ref_type": "catalog_entry", "ref_id": "basic-elem:0b26783950004ed882ec9309fae73310", "title": "医疗救助信息", "display_order": 0, "summary_json": {"owner_org_id": "360002222211", "source": "catalog_entry"}}
+      ],
+      "visibility": [
+        {"org_code": "360002222211", "role_code": "ROLE_ORGAN_OPERATER", "region_code": "370000000000", "surface": "webui", "intent": "view", "policy_status": "approved"}
+      ]
+    },
+    {
+      "package_code": "tp-yibao-code",
+      "title": "医保码信息专题包",
+      "scenario": "医保码跨区核验与便民出示",
+      "owner_org_id": "360002222211",
+      "owner_org_snapshot_json": {"org_code": "360002222211", "org_name": "省医保局"},
+      "source_ref": "f9:topic_package:tp-yibao-code",
+      "display_snapshot_json": {"projection_kind": "topic_package", "region": "sd-default"},
+      "items": [
+        {"ref_type": "catalog_entry", "ref_id": "basic-elem:53ae5c5d94e5426c94466dd56479f1f6", "title": "医保码信息", "display_order": 0, "summary_json": {"owner_org_id": "360002222211", "source": "catalog_entry"}}
+      ],
+      "visibility": [
+        {"org_code": "360002222211", "role_code": "ROLE_ORGAN_OPERATER", "region_code": "370000000000", "surface": "webui", "intent": "view", "policy_status": "approved"}
+      ]
+    },
+    {
+      "package_code": "tp-yidi-jiuyi",
+      "title": "异地就医专题包",
+      "scenario": "异地就医统筹区开通 + 定点机构 + 经办机构一站发现",
+      "owner_org_id": "360002222211",
+      "owner_org_snapshot_json": {"org_code": "360002222211", "org_name": "省医保局"},
+      "source_ref": "f9:topic_package:tp-yidi-jiuyi",
+      "display_snapshot_json": {"projection_kind": "topic_package", "region": "sd-default"},
+      "items": [
+        {"ref_type": "catalog_entry", "ref_id": "basic-elem:833e72ddfa0649508f0d105d26bf0016", "title": "异地就医统筹区开通信息", "display_order": 0, "summary_json": {"owner_org_id": "360002222211", "source": "catalog_entry"}},
+        {"ref_type": "catalog_entry", "ref_id": "basic-elem:c34b1c9f55814530833ed63a8f20e597", "title": "异地就医定点医疗机构信息", "display_order": 1, "summary_json": {"owner_org_id": "360002222211", "source": "catalog_entry"}},
+        {"ref_type": "catalog_entry", "ref_id": "basic-elem:cf5280723b0e4bf88a2b41f9cfa90042", "title": "异地就医经办机构信息", "display_order": 2, "summary_json": {"owner_org_id": "360002222211", "source": "catalog_entry"}}
+      ],
+      "visibility": [
+        {"org_code": "360002222211", "role_code": "ROLE_ORGAN_OPERATER", "region_code": "370000000000", "surface": "webui", "intent": "view", "policy_status": "approved"}
+      ]
+    }
+  ],
   "zones": [
     {
       "id": "business",

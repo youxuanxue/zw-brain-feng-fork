@@ -140,6 +140,15 @@ test('P5 质量规则向导保存不报缺字段', async ({ page }) => {
   await expect(page.locator('body')).not.toContainText('missing required input field');
 });
 
+test('P7 列表真接 topic.package.query 展示 sd-default 3 标杆', async ({ page }) => {
+  await setRole(page, 'ROLE_ORGAN_OPERATER');
+  await gotoHash(page, '#/zones-pack');
+  await page.waitForTimeout(800);
+  await expect(page.getByText('医疗救助信息专题包')).toBeVisible();
+  await expect(page.getByText('医保码信息专题包')).toBeVisible();
+  await expect(page.getByText('异地就医专题包')).toBeVisible();
+});
+
 test('P7 订阅专题走 topic.package.subscribe', async ({ page }) => {
   await setRole(page, 'ROLE_ORGAN_OPERATER');
   await gotoHash(page, '#/zones-pack');
@@ -147,10 +156,16 @@ test('P7 订阅专题走 topic.package.subscribe', async ({ page }) => {
   await page.waitForTimeout(800);
   await expect(page.locator('body')).toContainText('已订阅专题');
   await expect(page.locator('body')).not.toContainText('missing required input field');
+  // V1 诚实回显：订阅后按钮变「已订阅」态
+  await expect(page.getByRole('button', { name: '已订阅' }).first()).toBeVisible();
 });
 
-test('P7 专题详情去占位', async ({ page }) => {
+test('P7 专题详情真接 topic.package.query 渲染标杆', async ({ page }) => {
   await setRole(page, 'ROLE_ORGAN_OPERATER');
-  await gotoHash(page, '#/zones-pack/zone/business');
-  await expect(page.getByRole('heading', { name: '城市运行专区' })).toBeVisible();
+  await gotoHash(page, '#/zones-pack/zone/tp-yiliao-jiuzhu');
+  await expect(page.getByRole('heading', { name: '医疗救助信息专题包' })).toBeVisible();
+  await expect(page.locator('body')).toContainText('包含目录');
+  // 目录项诚实展示（纯文本，无链接）：目录尚未录入主表，无可达详情/检索入口
+  await expect(page.locator('body')).toContainText('医疗救助信息');
+  await expect(page.locator('body')).toContainText('目录详情与检索入口待 J1 目录主表录入后开放');
 });

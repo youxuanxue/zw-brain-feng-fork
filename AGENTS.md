@@ -1,0 +1,23 @@
+<!-- dev-rules:codex BEGIN — generated, do not edit by hand -->
+
+本节由 `dev-rules/sync.sh` 经 `scripts/gen_codex_agents.py` 确定性生成；请勿手工编辑标记之间的内容（手写说明放到标记之外）。
+
+## 工作宪法（单一事实来源）
+- 会话级硬纪律与身份：见 [`dev-rules/global/CLAUDE.md`](dev-rules/global/CLAUDE.md)。Codex 与 Claude Code、Cursor 共用同一份宪法。
+
+## 行为规则（按需展开阅读）
+Codex 不自动加载 `.cursor/rules/*.mdc`；需要时按下表路径读取对应文件：
+
+- [`.cursor/rules/agent-contract-enforcement.mdc`](.cursor/rules/agent-contract-enforcement.mdc) — Enforce agent contract consistency and safety baselines
+- [`.cursor/rules/dev-rules-convention.mdc`](.cursor/rules/dev-rules-convention.mdc) — dev-rules submodule 约定：规则的单一事实来源管理规范
+- [`.cursor/rules/product-dev.mdc`](.cursor/rules/product-dev.mdc) — IT 产品研发工作流规则，默认单 PR，按风险升级到高风险审批路径
+- [`.cursor/rules/test-philosophy.mdc`](.cursor/rules/test-philosophy.mdc) — 按风险匹配 Story 与测试强度；默认先补核心测试，高风险再进入完整 Story 闭环。
+
+## 可用技能（progressive disclosure）
+- （本项目 `.cursor/skills/` 暂无技能）
+
+## 命令
+- `/twin <workspace>|status [workspace]|respond <text>` — 运行 xuejiao persona supervisor 驱动 worker；底层入口 `python3 -m scripts.twin`（见 `dev-rules/commands/twin.md`）。
+- `/xj-review [范围]` — 项目代码审查；机械门禁先跑 `preflight.sh`，契约见 `dev-rules/commands/xj-review.md`。
+
+<!-- dev-rules:codex END -->

@@ -240,9 +240,14 @@ test.describe('客户验收 — P7 专题', () => {
     await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, '#/zones-pack');
     await expect(page.getByRole('heading', { name: /共享专区|专题包/ })).toBeVisible();
-    const subBtn = page.getByRole('button', { name: /订阅/i }).first();
-    await expect(subBtn).toBeVisible();
-    await subBtn.click();
-    await expect(page.getByText(/已|订阅/i).first()).toBeVisible({ timeout: 8_000 });
+    // V1 起订阅持久化：未订阅的专题按钮可点订阅，已订阅的按钮置灰显示「已订阅」。
+    // 优先点一个还可订阅的；若全部已订阅（库被前序测试订过），则验证「已订阅」诚实回显。
+    const subscribeBtn = page.getByRole('button', { name: '订阅专题' }).first();
+    if (await subscribeBtn.count() > 0) {
+      await subscribeBtn.click();
+      await expect(page.getByText('已订阅专题').first()).toBeVisible({ timeout: 8_000 });
+    } else {
+      await expect(page.getByRole('button', { name: '已订阅' }).first()).toBeVisible();
+    }
   });
 });

@@ -1,0 +1,27 @@
+{
+  "scope": "e3.F9",
+  "deliverable": "F9 P7 共享专区/专题包 — TopicPackage 真端到端（前端真接 + 订阅诚实回显 + 召回候选诚实降级 + 10 capability + 状态机 + sd-default 3 标杆）",
+  "git_sha": "51cc826eec95916b85818cab624b4997839a689e",
+  "captured_at": "2026-05-30T01:05:25Z",
+  "captured_by": "薛娇（产品研发负责人）",
+  "checks": [
+    {
+      "name": "5 消费面投影一致",
+      "kind": "contract",
+      "result": "pass",
+      "detail": "[contract] OK: docs/agent_integration.md in sync with discovered entries (REST=196 CLI=1 MCP=62 A2A=1 Skills=187)"
+    },
+    {
+      "name": "后端 / 契约测试套",
+      "kind": "pytest",
+      "result": "pass",
+      "detail": "exit 0（本仓 summary 抑制,以退出码为准）"
+    },
+    {
+      "name": "WebUI 活跑验收（webui_smoke P7（真端到端））",
+      "kind": "e2e",
+      "result": "pass",
+      "detail": "4 passed / 0 failed / 0 skipped"
+    }
+  ]
+}

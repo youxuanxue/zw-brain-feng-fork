@@ -115,7 +115,6 @@ topic.package.evidence.attach
 topic.package.metric.query
 topic.package.policy.update
 topic.package.publish
-topic.package.query
 topic.package.review
 topic.package.submit
 zone.list
