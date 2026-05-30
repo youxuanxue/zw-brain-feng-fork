@@ -7,7 +7,8 @@
 #   .testing/waves/wave-0-golden-path/features/j1-approval-unconditional.feature
 #   .testing/waves/wave-0-golden-path/features/j1-approval-conditional.feature  (Deferred → W0-08)
 #   docs/reconstructs/wave0-import-coverage.md
-#   .data/customer-acceptance/wave0/W0-02-counts.txt (approval_case=268 / approval_step=886 / approval_decision=886)
+#   稳定态真值（clean 全量真实库，sd-default）：approval_case=267 / step=889 / decision=888
+#     （历史 W0-02-counts.txt stat 文件已删除；baseline floor 取稳健 200/600/600，详见 D44）
 #   .data/customer-acceptance/wave0/W0-04-deferred-additions.md
 """W0-04 J1 审批（无条件分支）pytest（真数据，sd-default）
 
@@ -35,7 +36,9 @@ SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
 SHADOW_DB = REPO_ROOT / ".data" / "test_W0-04_shadow.db"
 TENANT = "sd-default"
 
-require_real_seed({"approval_case": 262})
+# 稳健 floor（CLAUDE.md D44）：稳定态 approval_case=267，floor 取 200（约 75%），
+# 容忍真实库行数漂移，仍能区分全量真实库 vs 空/部分库。
+require_real_seed({"approval_case": 200})
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -95,16 +98,18 @@ def test_j1_approval_baseline_seed_present(baseline_counts):
     """Background：approval_case / step / decision 真数据已在 sd-default 下就位
     （W0-02 灌库前提，证据 .data/customer-acceptance/wave0/W0-02-counts.txt）。"""
     # Post-#76 idempotency baseline: ExchangeMapper dedups by application_code,
-    # so the chain is 6 cases shorter than the pre-dedup W0-02 snapshot
-    # (268/886/886 → 262/884/883). Floors guard "enough real data", not exact counts.
-    assert baseline_counts["approval_case"] >= 262, (
-        f"approval_case seed expected ≥262, got {baseline_counts['approval_case']}"
+    # so the chain is shorter than the pre-dedup W0-02 snapshot.
+    # D44 (2026-05-30): 旧 floor 262/884/883 贴稳定态（实测 267/889/888）仅 ~5 行余量 →
+    # 改稳健 floor 200/600/600（约 70-75%），容忍漂移。Floors guard "enough real data",
+    # not exact counts.
+    assert baseline_counts["approval_case"] >= 200, (
+        f"approval_case 真实库 floor ≥200, got {baseline_counts['approval_case']}"
     )
-    assert baseline_counts["approval_step"] >= 884, (
-        f"approval_step seed expected ≥884, got {baseline_counts['approval_step']}"
+    assert baseline_counts["approval_step"] >= 600, (
+        f"approval_step 真实库 floor ≥600, got {baseline_counts['approval_step']}"
     )
-    assert baseline_counts["approval_decision"] >= 883, (
-        f"approval_decision seed expected ≥883, got {baseline_counts['approval_decision']}"
+    assert baseline_counts["approval_decision"] >= 600, (
+        f"approval_decision 真实库 floor ≥600, got {baseline_counts['approval_decision']}"
     )
 
 

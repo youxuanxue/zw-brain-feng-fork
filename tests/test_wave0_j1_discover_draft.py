@@ -7,8 +7,9 @@
 #   .testing/waves/wave-0-golden-path/features/j1-resource-discovery.feature
 #   .testing/waves/wave-0-golden-path/features/j1-application-draft.feature
 #   docs/reconstructs/wave0-import-coverage.md
-#   .data/customer-acceptance/wave0/W0-02-counts.txt (历史 stat 文件已删除；F4 reconcile：
-#   application_record baseline 由 264 调至 258，详见 test_j1_application_draft_baseline_seed_present)
+#   稳定态真值（clean 全量真实库，sd-default）：catalog_entry=1222 / application_record=263。
+#   baseline floor 取稳健值（catalog_entry≥1000 / application_record≥200，约 80%），容忍漂移；
+#   历史 W0-02-counts.txt stat 文件已删除（详见 test_j1_application_draft_baseline_seed_present + D44）。
 """W0-03 J1 资源发现 + 申请草稿 pytest（真数据，sd-default）
 
 数据隔离策略（shadow DB）：
@@ -34,7 +35,9 @@ SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
 SHADOW_DB = REPO_ROOT / ".data" / "test_W0-03_shadow.db"
 TENANT = "sd-default"
 
-require_real_seed({"catalog_entry": 1222})
+# 稳健 floor（CLAUDE.md D44）：稳定态 catalog_entry=1222，floor 取 1000（约 82%，
+# 与 test_wave1_j2_pipeline 同），容忍真实库行数漂移，仍能区分全量真实库 vs 空/部分库。
+require_real_seed({"catalog_entry": 1000})
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -103,8 +106,9 @@ TERM_BLACKLIST = (
 
 def test_j1_resource_discovery_baseline_seed_present(baseline_counts):
     """Background：catalog_entry 真数据已在 sd-default 下就位（W0-02 灌库前提）。"""
-    assert baseline_counts["catalog_entry"] >= 1222, (
-        f"catalog_entry seed expected ≥1222, got {baseline_counts['catalog_entry']}"
+    # 稳健 floor（CLAUDE.md D44）：稳定态 1222，floor 1000 容忍漂移、仍证全量真实库。
+    assert baseline_counts["catalog_entry"] >= 1000, (
+        f"catalog_entry 真实库 floor ≥1000, got {baseline_counts['catalog_entry']}"
     )
 
 
@@ -279,14 +283,13 @@ def test_j1_resource_discovery_ai_veto():
 def test_j1_application_draft_baseline_seed_present(baseline_counts):
     """Background：application_record 真数据已在 sd-default 下就位。
 
-    F4 reconcile (2026-05-24)：baseline 由 ≥264 调到 ≥258。
-    原值 264 来自已删除的 .data/customer-acceptance/wave0/W0-02-counts.txt（历史 stat
-    文件），M0 实际去重后 application_code 计数为 258（exchange mapper 558 source
-    rows → upsert 后 258 unique application_code：99 original_require + 67 require
-    + 92 apply）。Mapper 并无字段缺失（参见 F4 supply_demand 真实数据回归断言）。
+    F4 reconcile (2026-05-24)：原 baseline 由 ≥264 调到 ≥258（M0 去重后 application_code
+    计数：exchange mapper 558 source rows → upsert 后 258 unique）。
+    D44 (2026-05-30)：258 贴稳定态（实测 263）仅 5 行余量 → 改稳健 floor 200（约 76%），
+    容忍真实库行数漂移，仍证全量真实库。Mapper 字段完整性见 F4 supply_demand 回归断言。
     """
-    assert baseline_counts["application_record"] >= 258, (
-        f"application_record seed expected ≥258, got {baseline_counts['application_record']}"
+    assert baseline_counts["application_record"] >= 200, (
+        f"application_record 真实库 floor ≥200, got {baseline_counts['application_record']}"
     )
 
 
@@ -347,7 +350,7 @@ def test_j1_application_draft_temporarily_store_idempotent(application_repo):
     rec = _fetch_application(application_repo, draft_id)
     assert rec is not None
     assert rec.status == "draft"
-    # 幂等：只新增 1 行（基线 258 + 至多 2 行 TEST_W0-03_* 新建）
+    # 幂等：真实库基线之上至多新增 2 行 TEST_W0-03_*（断言只看 TEST 前缀，与基线计数无关）
     all_with_test_prefix = [
         r for r in application_repo.list_records(tenant_id=TENANT)
         if r.application_code.startswith("TEST_W0-03_")

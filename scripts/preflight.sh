@@ -144,6 +144,7 @@ done <<'CHECKS'
 段 54	scripts/check_signoff_landed.py	signoff-landed (D35 — approved sign-off 文档 ↔ plan.yaml evidence + CLAUDE.md D-编号 + label 一致，关「C/D 靠人记忆」债)
 段 55	scripts/check_acceptance_package.py	acceptance-package-lint (D37 — 效果验收材料包：证据产物 result=pass + 来自当前历史 + 每验收点挂 evidence 标签 + 禁过程数字)
 段 56	scripts/check_no_legacy_inference_env.py	no-legacy-inference-env (D36.e — 禁已退役推理网关 INSPUR 系 env 前缀回潮；allowlist=CLAUDE.md D36 记录 + 负向守卫测试 + 守卫自身)
+段 57	scripts/check_require_real_seed_sanity.py	require-real-seed-sanity (D44 — 禁 require_real_seed gate 运行时累积表 capability_call/audit_event/anchor_outbox/audit_receipt；运行时数据靠 fixture 自产不靠 seed 门槛)
 CHECKS
 
 echo ""
