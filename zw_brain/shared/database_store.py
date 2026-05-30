@@ -287,9 +287,12 @@ class DatabaseStore:
                     {
                         "resource_code": resource["id"],
                         "title": resource.get("name", resource["id"]),
-                        "resource_kind": "dataset",
-                        "lifecycle_status": "approved_pending_publish" if resource.get("status") != "可共享" else "active",
+                        "resource_kind": resource.get("resource_kind", "dataset"),
+                        "lifecycle_status": resource.get("lifecycle_status")
+                        or ("approved_pending_publish" if resource.get("status") != "可共享" else "active"),
                         "owner_org_id": resource.get("owner_org_id"),
+                        # 目录归属：让 seed 资源能挂到目录（catalog.resource.list 钻取依赖此）
+                        "catalog_code": resource.get("catalog_code"),
                         "source_ref": resource.get("source_ref") or f"provider:resource:{resource['id']}",
                         "legacy_object_ref": resource.get("legacy_object_ref") or resource["id"],
                         "summary_json": resource,

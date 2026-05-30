@@ -33,6 +33,7 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     {"skillId": "catalog.group.query", "mode": "read", "auditClass": "read-trace", "humanConfirmationRequired": false, "roles": [], "permissions": ["catalog.group.query.execute"]},
     {"skillId": "catalog.model.field.query", "mode": "read", "auditClass": "read-trace", "humanConfirmationRequired": false, "roles": [], "permissions": ["catalog.model.field.query.execute"]},
     {"skillId": "catalog.model.query", "mode": "read", "auditClass": "read-trace", "humanConfirmationRequired": false, "roles": [], "permissions": ["catalog.model.query.execute"]},
+    {"skillId": "catalog.resource.list", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["catalog.resource.list.execute"]},
     {"skillId": "catalog.resource_view", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["catalog.resource_view.execute"]},
     {"skillId": "data.search", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["data.search.execute"]},
     {"skillId": "metadata.catalog_item.query", "mode": "read", "auditClass": "read-trace", "humanConfirmationRequired": false, "roles": [], "permissions": ["metadata.catalog_item.query.execute"]},

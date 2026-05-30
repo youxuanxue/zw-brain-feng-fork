@@ -12,6 +12,7 @@ import copy
 from zw_brain.command.brain import InvalidStateError, NotFoundError, _RequestBatchContext
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import catalog as catalog_ser
+from zw_brain.command.serializers import resource_api as resource_api_ser
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -82,8 +83,62 @@ def _browse_catalog_entries(
     total = len(records)
     start = (page - 1) * limit
     end = start + limit
-    items = [catalog_ser.catalog_entry_to_dict(r) for r in records[start:end]]
+    window = records[start:end]
+
+    # 批量算每个目录的资源挂载数（list_assets 一次 + 按 catalog_code 分组，避免 N+1；
+    # 范式同 request_service.build_batch_context）。让列表页直接展示「资源数」，
+    # 用户一眼看到哪些目录有内容、有多少，不必逐个点进去（97/154 active 目录无资源）。
+    counts: dict[str, int] = {}
+    for asset in deps.repos.resource_api.list_assets(tenant_id=_DEFAULT_TENANT_ID):
+        if asset.catalog_code:
+            counts[asset.catalog_code] = counts.get(asset.catalog_code, 0) + 1
+
+    items = []
+    for r in window:
+        item = catalog_ser.catalog_entry_to_dict(r)
+        summary = item.get("summary_json") if isinstance(item.get("summary_json"), dict) else {}
+        inner = summary.get("summary") if isinstance(summary.get("summary"), dict) else {}
+        item["resourceCount"] = counts.get(r.catalog_code, 0)
+        # 责任方机构名（summary.org_name 为真实机构名，如"省大数据局"；回退到 org_id 代码）
+        item["ownerName"] = inner.get("org_name") or summary.get("org_name") or item.get("owner_org_id") or "—"
+        item["description"] = inner.get("description") or ""
+        items.append(item)
     return {"items": items, "total": total, "page": page, "limit": limit}
+
+def _list_catalog_resources(
+    brain,
+    deps,
+    ctx,
+    catalog_code: str,
+    *,
+    page: Any = None,
+    limit: Any = None,
+    lifecycle: Any = None,
+) -> dict[str, Any]:
+    """钻取：给定目录，列出该目录下挂载的资源（resource_asset，一对多）。
+
+    目录存在但挂 0 资源 → 返回 items:[] total:0 + catalog 信息（诚实空态，不 raise）。
+    目录不存在 → NotFoundError（404）。两者语义分明。
+    """
+    page = max(int(page or 1), 1)
+    limit = max(min(int(limit or 20), 100), 1)
+    entry = deps.repos.catalog.get_entry(catalog_code, tenant_id=_DEFAULT_TENANT_ID)
+    if entry is None:
+        raise NotFoundError(catalog_code)
+    lifecycle_status = None if str(lifecycle or "all") == "all" else str(lifecycle)
+    assets = deps.repos.resource_api.list_assets_by_catalog(
+        catalog_code, tenant_id=_DEFAULT_TENANT_ID, lifecycle_status=lifecycle_status
+    )
+    total = len(assets)
+    start = (page - 1) * limit
+    window = assets[start : start + limit]
+    return {
+        "catalog": catalog_ser.catalog_entry_to_dict(entry),
+        "items": [resource_api_ser.resource_asset_to_dict(a) for a in window],
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
 
 def _query_catalog_groups(brain, deps, ctx) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
@@ -305,6 +360,14 @@ def handler_catalog_resource_view(deps: HandlerDeps, ctx: SkillContext, payload:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
     return _get_resource(brain, deps, ctx, str(payload["resource_id"]))
+
+def handler_catalog_resource_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _list_catalog_resources(
+        brain, deps, ctx, str(payload["catalog_code"]),
+        page=payload.get("page"), limit=payload.get("limit"), lifecycle=payload.get("lifecycle"),
+    )
 
 def handler_catalog_schema_mapping_upsert(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.

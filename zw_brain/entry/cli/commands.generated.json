@@ -494,6 +494,41 @@
       ]
     },
     {
+      "skill_id": "catalog.resource.list",
+      "title": "列目录下的资源",
+      "description": "给定 catalog_code，钻取列出该目录关联的所有 resource_asset（一对多）。目录存在但无资源时返回空列表（诚实空态），目录不存在返回 404。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "catalog_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "lifecycle",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "page",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
       "skill_id": "catalog.resource_view",
       "title": "查看资源详情",
       "description": "查看模板或资源的覆盖率、字段和复用解释，用于 申请人 先复用模板。",

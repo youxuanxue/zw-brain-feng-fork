@@ -131,7 +131,7 @@
         # trigger: 资源量万级或多租户时改 paged + 默认 lifecycle 过滤
 ```
 
-### `zw_brain/domain/repositories/resource_api.py:213`
+### `zw_brain/domain/repositories/resource_api.py:235`
 
 **Reason**: resource_code 可选；None 时 tenant-only 全量 channel binding
 

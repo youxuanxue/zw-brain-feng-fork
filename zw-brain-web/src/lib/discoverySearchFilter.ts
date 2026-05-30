@@ -1,12 +1,5 @@
 /** P2 资源发现：本地即时筛选 + 相关性排序（与 data.search 结果形状一致）。 */
 
-/** 目录浏览页 → 发现页：按桶名映射可检索关键词（走统一 data.search，不做精选过滤）。 */
-export function catalogTreeDiscoveryQuery(name: string): string | null {
-  if (/共享目录|dsp_catalog/i.test(name)) return '目录';
-  if (/政务案例|dsp_example|案例库/i.test(name)) return '案例';
-  return null;
-}
-
 export function resourceHaystack(resource: Record<string, unknown>): string {
   return [
     resource.name,

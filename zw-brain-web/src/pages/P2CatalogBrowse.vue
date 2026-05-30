@@ -1,57 +1,65 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { useSnapshot } from '@/composables/useSnapshot';
-import { catalogTreeDiscoveryQuery } from '@/lib/discoverySearchFilter';
+import { authFetch } from '@/composables/useAuth';
+import { getProductRole } from '@/composables/useProductRole';
 
-interface CatalogTreeRow {
-  key: string;
-  name: string;
-  count: number;
-  hint: string;
-  searchQuery: string | null;
+// 目录浏览：真接 catalog.browse 列真 catalog_entry，每行可钻取到目录详情（看目录下资源）。
+const { source } = useSnapshot();
+const role = getProductRole();
+
+interface CatalogRow {
+  catalogCode: string;
+  title: string;
+  resourceCount: number;
+  owner: string;
+  description: string;
 }
 
-const { data, source } = useSnapshot();
+const rows = ref<CatalogRow[]>([]);
+const total = ref(0);
+const loading = ref(false);
+const errorMsg = ref('');
 
-const tree = computed((): CatalogTreeRow[] => {
-  const discovery = data.value?.discovery as Record<string, unknown> | undefined;
-  const nodes = (discovery?.catalogTree as unknown[] | undefined) ?? [];
-  return nodes.map((node, index) => {
-    const n = node as Record<string, unknown>;
-    const name = String(n.name ?? n.label ?? '—');
-    const count =
-      typeof n.count === 'number'
-        ? n.count
-        : Array.isArray(n.children)
-          ? (n.children as unknown[]).length
-          : 0;
-    const hint = String(n.hint ?? '');
-    const href = n.href;
-    const isMasterData =
-      Boolean(hint) ||
-      href === null ||
-      /组织|区划|主数据|projection/i.test(name);
-    return {
-      key: `${index}-${name}`,
-      name,
-      count,
-      hint,
-      searchQuery: isMasterData ? null : catalogTreeDiscoveryQuery(name),
-    };
-  });
-});
+async function load(): Promise<void> {
+  loading.value = true;
+  errorMsg.value = '';
+  try {
+    const resp = await authFetch('/api/skills/catalog.browse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ role: role.value, lifecycle: 'active', limit: 100 }),
+    });
+    if (!resp.ok) {
+      rows.value = [];
+      errorMsg.value = `加载失败：HTTP ${resp.status}`;
+      return;
+    }
+    const body = (await resp.json()) as { items?: Array<Record<string, unknown>>; total?: number };
+    rows.value = (body.items ?? [])
+      .map((it) => ({
+        catalogCode: String(it.catalog_code ?? ''),
+        title: String(it.title ?? it.catalog_code ?? ''),
+        resourceCount: Number(it.resourceCount ?? 0),
+        owner: String(it.ownerName ?? it.owner_org_id ?? '—'),
+        description: String(it.description ?? ''),
+      }))
+      .filter((it) => it.catalogCode);
+    total.value = Number(body.total ?? rows.value.length);
+  } finally {
+    loading.value = false;
+  }
+}
 
 const headerMeta = computed(() => {
-  if (source.value !== 'live') return '正在加载目录树……';
-  if (!tree.value.length) return '暂无目录节点';
-  const total = tree.value.reduce((sum, row) => sum + row.count, 0);
-  return `${tree.value.length} 个顶级目录 · 合计约 ${total.toLocaleString()} 条`;
+  if (source.value !== 'live') return '正在加载目录……';
+  if (errorMsg.value) return errorMsg.value;
+  return rows.value.length ? `${total.value} 个目录` : '暂无目录';
 });
 
-function discoveryHref(query: string): string {
-  return `#/discovery?q=${encodeURIComponent(query)}`;
-}
+watch(source, (live) => { if (live === 'live') void load(); }, { immediate: true });
+watch(role, () => { void load(); });
 </script>
 
 <template>
@@ -59,20 +67,18 @@ function discoveryHref(query: string): string {
     <nav class="crumbs"><a href="#/discovery">← 资源发现</a></nav>
     <section class="panel">
       <PageFocusHeader title="目录浏览" :meta="headerMeta" />
-      <table v-if="source === 'live' && tree.length" class="focus-table">
+      <table v-if="source === 'live' && rows.length" class="focus-table">
         <thead>
-          <tr><th>目录名称</th><th>规模</th><th>说明</th><th>操作</th></tr>
+          <tr><th>目录名称</th><th>资源数</th><th>责任方</th><th>说明</th><th>操作</th></tr>
         </thead>
         <tbody>
-          <tr v-for="row in tree" :key="row.key">
-            <td>{{ row.name }}</td>
-            <td>{{ row.count.toLocaleString() }}</td>
-            <td class="hint-cell">{{ row.hint || '—' }}</td>
+          <tr v-for="row in rows" :key="row.catalogCode">
+            <td>{{ row.title }}</td>
+            <td><span class="res-count" :class="{ 'res-count-zero': row.resourceCount === 0 }">{{ row.resourceCount }}</span></td>
+            <td>{{ row.owner }}</td>
+            <td class="hint-cell">{{ row.description || '—' }}</td>
             <td>
-              <a v-if="row.searchQuery" :href="discoveryHref(row.searchQuery)" class="row-link">
-                在发现页检索「{{ row.searchQuery }}」
-              </a>
-              <span v-else class="row-muted">{{ row.hint || '主数据自动同步，不在此检索' }}</span>
+              <a :href="`#/discovery/catalog/${encodeURIComponent(row.catalogCode)}`" class="row-link">查看目录资源</a>
             </td>
           </tr>
         </tbody>
@@ -86,6 +92,7 @@ function discoveryHref(query: string): string {
 <style scoped>
 .row-link { color: var(--b-primary, #006be6); font-size: 13px; text-decoration: none; }
 .row-link:hover { text-decoration: underline; }
-.row-muted { color: var(--b-muted, #5c6370); font-size: 12px; }
-.hint-cell { max-width: 220px; color: var(--b-muted, #5c6370); font-size: 12px; }
+.hint-cell { max-width: 280px; color: var(--b-muted, #5c6370); font-size: 12px; }
+.res-count { font-weight: 600; color: var(--b-primary, #006be6); }
+.res-count-zero { color: var(--b-muted, #5c6370); font-weight: 400; }
 </style>

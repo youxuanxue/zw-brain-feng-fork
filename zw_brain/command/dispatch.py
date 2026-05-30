@@ -263,6 +263,7 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "catalog.model.upsert": catalog_meta.handler_catalog_model_upsert,
     "catalog.resource.bind": catalog_meta.handler_catalog_resource_bind,
     "catalog.resource_view": catalog_meta.handler_catalog_resource_view,
+    "catalog.resource.list": catalog_meta.handler_catalog_resource_list,
     "catalog.schema.mapping.upsert": catalog_meta.handler_catalog_schema_mapping_upsert,
     "catalog.share_zone.query": catalog_meta.handler_catalog_share_zone_query,
     # turn 6: J1 — credential (3 cap: F5 added sample.render)

@@ -64,6 +64,7 @@
 | GET | `/api/skills/catalog.model.query` | 查询目录模型 | `get_catalog_model_query` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/catalog.model.upsert` | 维护目录模型 | `post_catalog_model_upsert` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/catalog.resource.bind` | 绑定目录资源字段 | `post_catalog_resource_bind` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/catalog.resource.list` | 列目录下的资源 | `get_catalog_resource_list` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/catalog.resource_view` | 查看资源详情 | `get_catalog_resource_view` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/catalog.schema.mapping.upsert` | 确认目录字段映射 | `post_catalog_schema_mapping_upsert` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/catalog.share_zone.query` | 查询共享专区投影 | `get_catalog_share_zone_query` | `zw_brain/entry/rest/openapi.json` |
@@ -238,6 +239,7 @@
 | `catalog.group.query` | read | False | 查询目录分组投影，仅服务发现、专题和权限解释。 | True | `zw_brain/entry/mcp/tools/catalog.group.query.json` |
 | `catalog.model.field.query` | read | False | 查询目录/台账模板字段口径、敏感级别和策略摘要。 | True | `zw_brain/entry/mcp/tools/catalog.model.field.query.json` |
 | `catalog.model.query` | read | False | 查询目录/台账模板模型定义。 | True | `zw_brain/entry/mcp/tools/catalog.model.query.json` |
+| `catalog.resource.list` | read | False | 给定 catalog_code，钻取列出该目录关联的所有 resource_asset（一对多）。目录存在但无资源时返回空列表（诚实空态），目录不存在返回 404。 | True | `zw_brain/entry/mcp/tools/catalog.resource.list.json` |
 | `catalog.resource_view` | read | False | 查看模板或资源的覆盖率、字段和复用解释，用于 申请人 先复用模板。 | True | `zw_brain/entry/mcp/tools/catalog.resource_view.json` |
 | `catalog.share_zone.query` | read | False | 查询共享专区专题入口和信任说明，不创建第二套目录事实源。 | True | `zw_brain/entry/mcp/tools/catalog.share_zone.query.json` |
 | `data.search` | read | False | 按关键词 / 部门 / 主题域检索共享数据资源目录，返回命中清单与结构化摘要。 | True | `zw_brain/entry/mcp/tools/data.search.json` |
@@ -289,7 +291,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 187 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 188 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -348,6 +350,7 @@
 | `catalog.model.query` | 查询目录模型 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/catalog.model.query.json` |
 | `catalog.model.upsert` | 维护目录模型 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/catalog.model.upsert.json` |
 | `catalog.resource.bind` | 绑定目录资源字段 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/catalog.resource.bind.json` |
+| `catalog.resource.list` | 列目录下的资源 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/catalog.resource.list.json` |
 | `catalog.resource_view` | 查看资源详情 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/catalog.resource_view.json` |
 | `catalog.schema.mapping.upsert` | 确认目录字段映射 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/catalog.schema.mapping.upsert.json` |
 | `catalog.share_zone.query` | 查询共享专区投影 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/catalog.share_zone.query.json` |
@@ -487,9 +490,9 @@
 
 ## Statistics
 
-- REST endpoints: 196
+- REST endpoints: 197
 - CLI entries: 1
-- MCP tools: 62
+- MCP tools: 63
 - A2A agent cards: 1
-- Registered Skills (live): 187 / 232 on-disk
+- Registered Skills (live): 188 / 233 on-disk
 

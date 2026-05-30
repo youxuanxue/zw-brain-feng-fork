@@ -1,4 +1,4 @@
-# handlers — capability 分桶清单（210 cap，SoT）
+# handlers — capability 分桶清单（211 cap，SoT）
 
 每个 capability 一行；新增 capability 必须同步本表 + [`zw_brain/command/dispatch.py`](../dispatch.py) DISPATCH_TABLE + 对应桶 handler 模块（基线 §11 反 per-tenant fork + R10/R11/R12 三层依赖）。
 
@@ -13,7 +13,7 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 - **B1（后台支撑）**：ops/iam/projection/audit/system/registry/capability/package(cap-pkg)/tenant.capability
 - **infra**：adapter.* / record_adapter_operation 透传 / legacy.* 迁移
 
-## J1 找数→用数 — 95 caps
+## J1 找数→用数 — 96 caps
 
 | capability_id | bucket | method_name | method_lines |
 |---|---|---|---|
@@ -50,6 +50,7 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `catalog.model.upsert` | j1 | `upsert_catalog_model` | 4696 |
 | `catalog.resource.bind` | j1 | `bind_catalog_resource` | 4897 |
 | `catalog.resource_view` | j1 | `get_resource` | 3281 |
+| `catalog.resource.list` | j1 | `list_catalog_resources` | 0 |
 | `catalog.schema.mapping.upsert` | j1 | `upsert_catalog_schema_mapping` | 4711 |
 | `catalog.share_zone.query` | j1 | `query_catalog_share_zones` | 4345 |
 | `credential.issue` | j1 | `issue_credential` | 8037 |

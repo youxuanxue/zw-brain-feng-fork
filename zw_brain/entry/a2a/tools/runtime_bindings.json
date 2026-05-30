@@ -893,6 +893,63 @@
     "auth_strategy": "none"
   },
   {
+    "tool_name": "catalog.resource.list",
+    "description": "给定 catalog_code，钻取列出该目录关联的所有 resource_asset（一对多）。目录存在但无资源时返回空列表（诚实空态），目录不存在返回 404。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.resource.list",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "catalog_code"
+      ],
+      "properties": {
+        "catalog_code": {
+          "type": "string"
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        },
+        "lifecycle": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "read",
+      "side_effects": [],
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "audit_class": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "permissions": [
+        "catalog.resource.list.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "none"
+  },
+  {
     "tool_name": "catalog.resource_view",
     "description": "查看模板或资源的覆盖率、字段和复用解释，用于 申请人 先复用模板。",
     "protocol_type": "builtin_skill",

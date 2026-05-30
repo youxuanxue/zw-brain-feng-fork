@@ -6,6 +6,7 @@ import P1Workbench from '@/pages/P1Workbench.vue';
 import P2Discovery from '@/pages/P2Discovery.vue';
 import P2ResourceDetail from '@/pages/P2ResourceDetail.vue';
 import P2CatalogBrowse from '@/pages/P2CatalogBrowse.vue';
+import P2CatalogDetail from '@/pages/P2CatalogDetail.vue';
 import P3RequestFlow from '@/pages/P3RequestFlow.vue';
 import P3RequestDetail from '@/pages/P3RequestDetail.vue';
 import P3ReviewDetail from '@/pages/P3ReviewDetail.vue';
@@ -53,6 +54,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/discovery', name: 'P2-discovery', component: P2Discovery, meta: { page: 'P2', title: 'P2 资源发现' } },
   { path: '/discovery/catalog-browse', component: P2CatalogBrowse, meta: { page: 'P2', title: 'P2 目录浏览' } },
   { path: '/discovery/resource/:id', component: P2ResourceDetail, meta: { page: 'P2', title: 'P2 资源详情' } },
+  { path: '/discovery/catalog/:code', component: P2CatalogDetail, meta: { page: 'P2', title: 'P2 目录详情' } },
 
   // P3 申请 / 审批 / 跟踪
   { path: '/request-flow', name: 'P3-request-flow', component: P3RequestFlow, meta: { page: 'P3', title: 'P3 申请 · 审批 · 跟踪' } },

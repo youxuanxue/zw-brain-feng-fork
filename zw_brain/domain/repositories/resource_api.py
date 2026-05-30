@@ -39,6 +39,28 @@ class ResourceApiRepository:
                 statement = statement.where(ResourceAssetRecord.lifecycle_status == lifecycle_status)
             return list(session.execute(statement).scalars())
 
+    def list_assets_by_catalog(
+        self,
+        catalog_code: str,
+        *,
+        tenant_id: str = "sd-default",
+        lifecycle_status: str | None = None,
+    ) -> list[ResourceAssetRecord]:
+        # indexed-ok: catalog_code 等值过滤；一目录挂 N 资源（个位~十位级，撑肥库最多 9）
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            statement = (
+                select(ResourceAssetRecord)
+                .where(
+                    ResourceAssetRecord.tenant_id == tenant_id,
+                    ResourceAssetRecord.catalog_code == catalog_code,
+                )
+                .order_by(ResourceAssetRecord.resource_code)
+            )
+            if lifecycle_status:
+                statement = statement.where(ResourceAssetRecord.lifecycle_status == lifecycle_status)
+            return list(session.execute(statement).scalars())
+
     def has_assets(self, *, tenant_id: str = "sd-default") -> bool:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:

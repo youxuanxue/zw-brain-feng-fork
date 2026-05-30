@@ -131,6 +131,11 @@ items:
   - 'commit 3055474 — feat(j1): F4 J1 供需对接 6 步状态机 + meta 合并 + baseline reconcile'
   - M0 真数据：application_record 258 (99+67+92) / 最大同标题簇≥4 (房地产开发项目信息 10 条)；preflight
     + contract --check 零漂移
+  - '[2026-05-30 D42.b 兑现] J1 目录→资源钻取链路：catalog.resource.list 能力 + P2CatalogDetail
+    目录详情页 + 目录浏览接真 API（catalog.browse）+ 目录浏览资源数/责任方机构名/摘要增强；
+    F9 5 医保目录录入主表可检索。真实库验证：学生课程信息→9资源 / 医保目录→诚实空。'
+  - '[SIGNOFF-CLOSED 2026-05-30] covers j1-catalog-drilldown | 效果验收 | evidence=.testing/acceptance/j1-catalog-drilldown/evidence.json
+    | by 海若产品部业务方 | 本地全集真实库逐页走查（目录浏览资源数/责任方 + 钻取 + F9 诚实空）全部通过 | vehicle PR #171 → published'
   depends_on: []
   status: completed
   next_action: ''

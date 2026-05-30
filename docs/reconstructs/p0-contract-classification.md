@@ -3,7 +3,7 @@ status: working
 plan_item: P0-01
 goal_id: p0-contract-boundary
 sources:
-  - zw_brain/capability_registry/registered/*.json (<!-- stat:zwbrain.manifest-total -->232<!-- /stat --> manifests)
+  - zw_brain/capability_registry/registered/*.json (<!-- stat:zwbrain.manifest-total -->233<!-- /stat --> manifests)
   - docs/approved/zw-brain-architecture.md §1.3 §5.1 §5.2 §5.2.1 §10.1-10.6 §11 R7/R10/R14/R15
   - tests/test_wave0_*.py + tests/e2e/wave0_j1_golden_path.py
 ---

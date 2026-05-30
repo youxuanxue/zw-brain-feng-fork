@@ -317,3 +317,13 @@ D37 建的验收守卫的首个真实使用。e5（WebUI 8 页面 + 5 消费面 
 - [2026-05-30] D42.a：**订阅降级为诚实信号（概念 A），概念 B 待立项**。P7「订阅专题」是旧平台弱概念 A（专区收藏，旧平台真实使用=0）的实现，本期只做 isSubscribed 诚实回显、无下游业务。真业务价值的「部门级数据供给契约」（概念 B：`dc_subscribe` / 持续供给 + 国家平台回执，属 J1 找数 + 交换线）记 `preflight-debt.md` 待立项，**不在 F9**。守 D11 不为伪需求建复杂度。
 - [2026-05-30] D42.b：**F9 引用目录主表不可达 → 诚实展示 + 下个 PR 打通**。F9 三标杆引用的 5 个目录在 `catalog_entry` 主表 0 条可检索、无详情页（只在召回字典 + 专题包 ref_id）。本期 P7 目录项改诚实文本「待 J1 目录主表录入后开放」、P2 召回候选卡片去坏按钮（修既有 422），不假装有去处。根因记 `preflight-debt.md`，下个 PR 专项打通「目录主表录入 + 目录详情页」（属 J1 找数能力）。
 - **外部协议词汇审视（D33.d）**：scope `e3.F9` / `isSubscribed` / `recall_dictionary` 均 zw-brain 内部标识，与 AgentRuntime / MCP / A2A / ANP 协议无同名异义。
+
+### [2026-05-30] D43：J1 目录→资源钻取链路 — D42.b 兑现 + 效果验收通过
+
+闭合 **D42.b**（F9 验收时记的"下个 PR 打通目录主表录入 + 目录详情页"）。本地验收发现「资源发现没区分目录/资源、点目录看不到目录下资源」缺口，本 PR（#171）补全 J1 找数的目录→资源钻取链路 + 真实数据充分展现，业务方 2026-05-30 本地全集真实库逐页走查通过。
+
+- [2026-05-30] D43：**目录→资源钻取链路落地 + 效果验收通过**。新增 `catalog.resource.list` 能力（列目录下 resource_asset；目录挂0资源→诚实空列表、不存在→404）+ `ResourceApiRepository.list_assets_by_catalog` + `P2CatalogDetail` 目录详情页（`#/discovery/catalog/:code`）+ `P2CatalogBrowse` 接 `catalog.browse` 真 API 真钻取（修软搜索假钻取）。机器证据（`.testing/acceptance/j1-catalog-drilldown/evidence.json`）：投影零漂移 / pytest exit 0（干净全量真实库）/ e2e 3 passed，git_sha 对齐 HEAD。载体 = PR #171 label `business-signoff: j1-catalog-drilldown`；plan.yaml e1 F4 `[SIGNOFF-CLOSED 2026-05-30] covers j1-catalog-drilldown`。材料 `docs/acceptance/j1-catalog-drilldown-acceptance-package.md`。
+- [2026-05-30] D43.a：**目录浏览页信息增强（本地验收反馈）**。`_browse_catalog_entries` 批量算 resource_count（list_assets 一次 + 按 catalog_code 分组，避免 N+1）+ enrich ownerName（summary.org_name 真实机构名）+ description。前端列：目录名/资源数/责任方机构名/说明/操作（去状态列，都是 active 无意义）。解决"97/154 active 目录无资源、逐个点进去才知道"的体验缺口。
+- [2026-05-30] D43.b：**F9 5 医保目录录入 catalog_entry 主表（兑现 D42.b）**。seed `provider.catalogs` 追加 5 个 `basic-elem:*` 医保目录 + database_store sync 补 `catalog_code` 映射断点。它们挂0资源（basic-element 本就无资源，数据真相）→ 详情页诚实空列表。F9 目录从"召回字典软提示"升级为"主表可检索 + 可点进目录详情"。
+- [2026-05-30] D43.c：**全局数据缺位 + 真数据脆测试 → 另起 PR**。本 PR 验收时系统性审计发现：(1) 多个 snapshot 字段（资源发现/申请/审批/专题包列表）仍 seed 精选 demo 而非真实库全量（`docs/decisions/global-data-gap-audit.md`）；(2) 真数据 baseline 脆测试一批（`require_real_seed` 用运行时累积量当门槛 + 阈值>稳定态）。两者均 **与 #171 钻取无关、预存问题**，记录后另起专项 PR，不混入本 PR。
+- **外部协议词汇审视（D33.d）**：scope `j1-catalog-drilldown` / slug `catalog.resource.list` 均 zw-brain 内部标识，与 AgentRuntime / MCP / A2A / ANP 协议无同名异义。

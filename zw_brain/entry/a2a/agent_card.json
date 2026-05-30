@@ -246,6 +246,20 @@
       "sideEffects": []
     },
     {
+      "id": "catalog.resource.list",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
       "id": "catalog.resource_view",
       "mode": "read",
       "humanConfirmationRequired": false,
