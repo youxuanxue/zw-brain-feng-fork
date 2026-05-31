@@ -5,5 +5,7 @@ severity: medium
 owner: 产品研发负责人
 trigger: "与「feature 测量产物 CI 自动刷新」同批做——CI 加 e2e job（起栈 + capture --with-e2e + 持久化产物）"
 assert:
-  # 纯立项/业务决策门延后，无 code 条件可断言（external 须 owner+trigger，trigger 触发即升级）。
-  kind: external
+  # 现算（D46.g）：CI workflow 未起栈跑 capture --with-e2e → open；接上即 stale-fixed。
+  kind: grep_absent
+  file: .github/workflows/ci.yml
+  pattern: "with-e2e"

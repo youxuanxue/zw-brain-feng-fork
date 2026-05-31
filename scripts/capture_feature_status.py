@@ -14,8 +14,11 @@
 为什么纳入 e2e：webui 类 feature 只有 .spec.ts、pytest 轴看不到，旧版把 .ts 记 `web-skip`
 导致它们永远非绿、即便签字也卡死 Ready。现在 green() 信任产物里的聚合 result，与 runner 无关。
 
+每 feature 还写 `fingerprint`（`.feature`+引用测试文件内容哈希，D46.g 信任锚）。green() 据此判新鲜：
+指纹失配即非绿、逼重采；**squash 免疫**（不再依赖 git_sha 是否 HEAD 祖先）。
+
 产物：`.testing/status/measurement/<git_sha>.json`（**tracked + banner**，preflight 段 60 读，
-`.data/` 是 gitignore 派生区不放这里）。preflight 不跑测试，只读本产物且 git_sha 须 HEAD 祖先。
+`.data/` 是 gitignore 派生区不放这里）。`git_sha`/`captured_at` 仅作 provenance，不再当信任锚。
 
 Usage:
     ./scripts/capture_feature_status.py [--captured-by "ci@<sha>"] [--with-e2e]
@@ -35,6 +38,7 @@ from feature_status_lib import (  # noqa: E402
     MEASUREMENT_DIR,
     REPO,
     all_features,
+    feature_fingerprint,
     feature_rel,
     test_refs,
 )
@@ -56,22 +60,34 @@ def _py() -> str:
     return str(p) if p.exists() else sys.executable
 
 
+# 单测试上限：防一个挂死测试（如真推理网关缺失时 test_inference_client 的网络 connect 吊死）
+# 把整次 capture 吊死成僵尸。超时 → fail-closed（标 fail，绝不冒绿），capture 必然终止。
+_MODULE_TIMEOUT_S = 900
+_E2E_TIMEOUT_S = 600
+
+
 def _run_module(module: str) -> tuple[str, str]:
-    """跑单个 pytest 模块；返回 (pass|fail, detail)。退出码即事实。"""
-    p = subprocess.run(
-        [_py(), "-m", "pytest", module, "-q", "-p", "no:cacheprovider"],
-        cwd=REPO, capture_output=True, text=True,
-    )
+    """跑单个 pytest 模块；返回 (pass|fail, detail)。退出码即事实；超时→fail-closed。"""
+    try:
+        p = subprocess.run(
+            [_py(), "-m", "pytest", module, "-q", "-p", "no:cacheprovider"],
+            cwd=REPO, capture_output=True, text=True, timeout=_MODULE_TIMEOUT_S,
+        )
+    except subprocess.TimeoutExpired:
+        return "fail", f"timeout >{_MODULE_TIMEOUT_S}s（疑挂死，fail-closed）"
     tail = (p.stdout + p.stderr).strip().splitlines()
     return ("pass" if p.returncode == 0 else "fail"), (tail[-1] if tail else f"exit {p.returncode}")
 
 
 def _run_e2e_spec(spec: str) -> tuple[str, str]:
-    """跑单个 Playwright e2e spec（需 :8800 全栈在跑）；返回 (pass|fail, detail)。退出码即事实。"""
-    p = subprocess.run(
-        ["npx", "playwright", "test", spec, "--reporter=list"],
-        cwd=REPO, capture_output=True, text=True,
-    )
+    """跑单个 Playwright e2e spec（需 :8800 全栈在跑）；返回 (pass|fail, detail)。超时→fail-closed。"""
+    try:
+        p = subprocess.run(
+            ["npx", "playwright", "test", spec, "--reporter=list"],
+            cwd=REPO, capture_output=True, text=True, timeout=_E2E_TIMEOUT_S,
+        )
+    except subprocess.TimeoutExpired:
+        return "fail", f"timeout >{_E2E_TIMEOUT_S}s（疑挂死，fail-closed）"
     tail = (p.stdout + p.stderr).strip().splitlines()
     return ("pass" if p.returncode == 0 else "fail"), (tail[-1] if tail else f"exit {p.returncode}")
 
@@ -83,11 +99,14 @@ def main() -> int:
                     help="实跑 .spec.ts Playwright e2e（需 :8800 全栈，见 start-local.sh）；不开则记 e2e-not-run")
     args = ap.parse_args()
 
-    # feature → 其测试 refs（.py + .spec.ts）
+    # feature → 其测试 refs（.py + .spec.ts）+ 内容指纹（信任锚，D46.g）
     feat_refs: dict[str, list[str]] = {}
+    feat_fp: dict[str, str] = {}
     for path in all_features():
         _, pytest_val, _ = _parse_feature_header(path)
-        feat_refs[feature_rel(path)] = test_refs(pytest_val)
+        rel = feature_rel(path)
+        feat_refs[rel] = test_refs(pytest_val)
+        feat_fp[rel] = feature_fingerprint(path)
 
     # 唯一 .py 模块实跑（pytest）
     py_modules = sorted({r for refs in feat_refs.values() for r in refs if r.endswith(".py")})
@@ -120,7 +139,8 @@ def main() -> int:
             else:  # 无 fail，但有 e2e-not-run
                 result = "e2e-not-run"
                 detail = f"e2e 未实跑 {[r for r, s in zip(refs, statuses, strict=True) if s == 'e2e-not-run']}"
-        features[rel] = {"test_refs": refs, "result": result, "detail": detail}
+        features[rel] = {"test_refs": refs, "result": result, "detail": detail,
+                         "fingerprint": feat_fp[rel]}
 
     sha = _git_sha()
     artifact = {

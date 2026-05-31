@@ -34,17 +34,17 @@
 - data-search [medium] (2026-05-30) — data.search typed query 返回目录而非资源（P2Discovery 资源中心语义不一致）
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务确认 P2Discovery 搜索应搜资源 → 立项搜索语义重构；
 - e2e [medium] (2026-05-31) — e2e 测量产物靠本地手跑，CI 未自动接（D46.f，与上方 D46 测量 CI 条合并）
-  - assert: external → external — owner=产品研发负责人; trigger=与「feature 测量产物 CI 自动刷新」同批做——CI 加 e2e job（起栈 + capture --with-e2e + 持久化产物）
+  - assert: grep_absent → pattern absent in .github/workflows/ci.yml
 - env [medium] (2026-05-29) — 验收证据 CI 化采集（消除人工采集 env 依赖）
   - assert: external → external — owner=推理平台（集团）; trigger=见 docs/preflight-debt.md 历史归档
 - feature [medium] (2026-05-30) — feature 测量产物 CI 自动刷新未接（D46）
-  - assert: external → external — owner=产品研发负责人; trigger=测量陈旧致状态视图误判被发现，或首客上线前需"状态视图实时反映 HEAD"——届时在 ci.yml test job 后接 capture + 产物持久化（与 2026-05-29 验收证据 CI 化条合并做）
+  - assert: grep_absent → pattern absent in .github/workflows/ci.yml
 - j1-api-call-monitoring [medium] (2026-05-31) — j1-api-call-monitoring 无 P4 调用监控 UI（本地走查，留 InTest）
   - assert: external → external — owner=产品研发负责人; trigger=铺 P4 调用监控 UI（接 capability_call 查询 + 配额/QPS 展示）→ 走查 → 往 .testing/signoff/ 追加 covers → 翻 Done。属 webui-capability-render-debt 一类
 - j1-approval-conditional [medium] (2026-05-31) — j1-approval-conditional 两步条件审批运行时未铺（Wave1 延后，留 InTest）
   - assert: external → external — owner=产品研发负责人; trigger=Wave1 立项条件审批运行时（dept_approve→platform_approve handler + P3 两步 UI + decision_mode 暴露）→ 走查两步真跑 → 追加 covers → 翻 Done
 - j1-credential-revoke [medium] (2026-05-31) — j1-credential-revoke WebUI 撤回入口未铺（本地走查 #8，选 B 留 InTest）
-  - assert: external → external — owner=产品研发负责人; trigger=铺好 P4/P3 撤回 UI（接 application.grant.revoke/suspend + 确认弹窗 + 申请人侧红色通知）→ 本地走查通过 → 往 .testing/signoff/ 追加 covers j1-credential-revoke → 现算自动翻 Done。属 webui-capability-render-debt（docs/webui-capability-render-debt.md）一类
+  - assert: grep_present → pattern present in scripts/webui_capability_rendered_exemptions.txt
 - j2-4 [medium] (2026-05-27) — J2-4 资源挂接 OPERATER 提交侧 wizard 立项延后
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务方提出"在线提交挂接"演示需求 → 走 product-dev.mdc
 - p3requestdetail [medium] (2026-05-30) — P3RequestDetail 真实申请详情缺 prefilledFields（D45 轻量卡的 by-design 取舍）

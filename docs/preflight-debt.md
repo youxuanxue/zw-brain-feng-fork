@@ -25,6 +25,39 @@ trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / �
 目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
 trigger 关闭即可删除字段。
 
+## 2026-06-01 — webui e2e 本机 --with-e2e 不能干净复现（2 超时 + 1 真断言失败）
+
+- **Where**: `scripts/capture_feature_status.py --with-e2e` 在本机全栈（:8800 + mock 推理）实跑 15 个 Playwright spec：
+  - `customer_acceptance_checklist.spec.ts`（webui-pages-real-data 引用）→ **timeout >600s**（单 spec 跑 10+min 未完）
+  - `twin_browser_pages.spec.ts`（webui-routing-cleanup 引用）→ **timeout >600s**
+  - `permission_invisibility.spec.ts:79`（webui-action-role-binding 引用）→ **真断言失败**：
+    「P5DemandMatchDetail 受理并起草申请：OPERATER 可见 / MANAGER 不渲染」
+- **Implication**: 这 3 个 webui feature 在本机 `--with-e2e` 测量轴非绿 → 指纹机制如实算它们**非 Done**（fail-closed 正确工作，未被环境噪声骗过）。因此本 PR（D46.g）终态保持 **Done 29 / Ready 3**——`webui-action-role-binding` / `webui-routing-cleanup` / `webui-pages-real-data` 不冒绿。
+- **两类根因要分开**:
+  - **(a) e2e 套件本机太慢**（customer_acceptance_checklist / twin_browser_pages 串行 >10min/spec）→ e2e 健壮性/提速债，与 `webui-pages-real-data`（2026-05-31 条）同类。CI 上这些 spec 标 `browser_e2e` 被跳过，故 CI 绿不代表本机 e2e 能跑完。
+  - **(b) permission_invisibility:79 真断言失败**：MANAGER 角色下 P5DemandMatchDetail 仍渲染（或 OPERATER 不可见）——触及「无权限=不可见」安全语义，**值得查是测试脆还是 P5 真回归**。决策：本 PR 范围只登记，作独立 follow-up（产品研发负责人 2026-06-01 选 A）。
+- **Why deferred**: D46.g 的目标是测量轴信任锚（已达成、CI 绿、机制经 --with-e2e 实跑验证）；webui Done 抬升依赖 e2e 能干净跑通,属独立工作面,不塞进信任锚 PR。
+- **Trigger to re-evaluate**: (a) e2e 提速/分片使 customer_acceptance_checklist+twin_browser_pages 能在超时内跑完;(b) 查清 permission_invisibility:79——若 P5 真回归则 P0 修(关乎权限可见性安全语义),若测试脆则修断言;三者齐后 `capture --with-e2e` 全绿 → 现算自动抬 3 webui 回 Done(→31)。
+- **No mechanical guardrail (now)**: e2e 能否本机跑完属环境/性能,无可机械化项;本 debt + CLAUDE.md D46.g 登记防遗忘。
+
+## 2026-05-31 — 测量轴信任锚 git_sha → 内容指纹（D46.g，跳出孤儿/陈旧两难）
+
+- **根因**：feature-status 测量产物以 `<git_sha>.json` 命名、段60 以「git_sha 须 HEAD 祖先」判新鲜。
+  本仓 squash-merge（`(#NNN)`）下，**任何分支上采的测量一合并即孤儿**（`ad35667` = D46 分支被
+  squash 掉的 commit，`git log --all --contains` 查无）→ 段60 永久 WARN（狼来了）+ green() 对
+  存在但陈旧的产物把旧 `result==pass` 当真 → **可误标 Done**（fail-closed 只保护"测量缺失"）。
+  实证危害：曾把 `request_service.by_id` DB 回源误报"未做"（实则 f96b7fb 已落）。
+- **修复**：信任锚改为**被测内容指纹** `feature_fingerprint = sha256(.feature + 引用测试文件内容)`
+  （`scripts/feature_status_lib.py`）。capture 写入每 feature 的 fingerprint；`green()` 要求
+  指纹匹配才算绿；段60 改为"绿但指纹陈旧 → FAIL"。**squash 免疫**（squash 不动文件内容）、
+  **可安全 FAIL 不炸 main**（只在测试/规格真变没重采时触发，本地重采即解）。
+- **执行点**：CI（`ci.yml:55` 每 PR + push-to-main 跑 preflight）做指纹**检查**（便宜、不需 seed）；
+  指纹**重采**（重活、真数据 feature 需 seed）本地做。**ops 待办**：开 main 分支保护
+  「require CI green」把"合后变红"升级为"硬阻断"（当前无 branch protection）。
+- **与 D11 的边界**：本修复让状态视图**不再说谎**，但指纹只保证"测试/规格自上次真过未变"，
+  **不保证"只改实现没破坏真数据 feature"**——那仍归 D11「真数据测试进 CI 跑」独立轨（见下方
+  2026-05-25 条），D11/`feature`/`e2e` debt 不再是"状态诚实"的前置，仅是"抓真数据回归"。
+
 ## 2026-05-30 — feature 测量产物 CI 自动刷新未接（D46）
 
 - **Where**: `.testing/status/measurement/<sha>.json` 由 `scripts/capture_feature_status.py` 实跑 pytest 产出；本期靠 PR 提交基线 + 合并前本地手跑刷新，CI（push-to-main）未自动跑 capture 并持久化产物。
@@ -70,9 +103,9 @@ trigger 关闭即可删除字段。
 - **Trigger / 正解**: ① 修 seed 完整性——customer_acceptance_up / 凭据签发链确保 `granted` 交付必有 credential 记录（M0 seed 一致性，根治 P4）；② P2 改任一分类断言、P7 改按钮态断言（保留行为，去硬编码值）；③ 三者齐后重跑 `capture_feature_status.py --with-e2e` → 全绿 → 现算自动 Ready→Done。属 M0 seed 一致性 + e2e 健壮性聚焦改动，非本轮仓促弱化签字测试。
 - **2026-05-31 深挖根因（比上更深更广，部分已修）**：P4 422 的真根因不止"无凭据"，是**系统性「内存快照 vs DB」陈旧 + M0 数据不一致**三层：
   - **(已修 Fix B)** `delivery_service.by_request_id` 只读 `brain._snapshot["delivery_tasks"]` 内存基底，DB 导入的交付（M0 dump）不在其中 → NotFoundError → credential.query 422。改为内存未命中回 DB（`task_from_record`，与 system.snapshot 同源）。422 → 优雅 200 not_issued。
-  - **(未修，更广)** `request_service.by_id` 同样只读 `brain._snapshot["requests"]`，DB 导入的 application_record（如 86013a7a）运行时 lookup 漏查 → credential.issue 也 entity_not_found。这是**跨多视图（requests/delivery/可能更多）的系统性快照层陈旧**，根治=视图层 DB 回源（Action-C 式，多 feature 依赖，有回归风险，须带测试）。
+  - **(已修 f96b7fb，2026-05-31 校正)** `request_service.by_id` 原只读 `brain._snapshot["requests"]`，DB 导入的 application_record（如 86013a7a）运行时 lookup 漏查 → credential.issue entity_not_found。**HEAD 已加 DB 回源**（`zw_brain/domain/services/request_service.py:261-277`：内存未命中回 `store.application_repo.get_record → record_to_request`，与 system.snapshot 同源），并带 `tests/wave_p4/test_request_db_fallback.py` 守卫。**此前本条标"未修"系测量轴对孤儿 sha 陈旧所致的误判（D46.g 修复对象）**。「可能更多」视图的系统性排查仍开放。
   - **(M0 数据)** 67 交付 0 个有 credential；2 个 granted 里 86013a7a↔approved（有效，仅缺签发）、46f0↔**withdrawn**（granted 交付绑已撤回申请，M0 导入状态不一致）。
-  - **本轮处置**：Fix B 已落（真 bug，消除 DB 交付 422）；其余（requests 视图 DB 回源 + M0 凭据签发 + granted/withdrawn 一致性 + P4 测试取"有凭据"交付）= 聚焦后端 PR，不在收敛会话尾仓促改核心快照层。webui-pages-real-data 仍 Ready。
+  - **处置进展**：Fix B（delivery DB 回源）+ requests 视图 DB 回源**均已落地**（f96b7fb）；剩余 = M0 凭据签发链 + granted/withdrawn 一致性 + P4 测试取"有凭据"交付 + 「可能更多」视图排查。webui-pages-real-data 当前因 e2e 未在本期测量内实跑而 Ready（指纹轴下：签字∧未绿=Ready），morning `capture --with-e2e` 后按真实 e2e 结果现算。
 
 ## 2026-05-31 — e2e 测量产物靠本地手跑，CI 未自动接（D46.f，与上方 D46 测量 CI 条合并）
 

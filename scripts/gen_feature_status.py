@@ -66,9 +66,13 @@ def build() -> str:
         "> **Done** = 测试真绿 ∧ 业务签字；**Ready** = 已签未绿；**InTest** = 绿/在测但未签（代码完成待签字）；"
         "**Draft** = 纯意图；**Backlog** = 排期外（`# Deferred:`）。\n"
     )
-    sha = (m or {}).get("git_sha", "—")
     cap = (m or {}).get("captured_at", "—")
-    lines.append(f"> 测量基线：git_sha=`{sha[:12]}` captured_at=`{cap}`\n")
+    green_n = sum(1 for r in rows if r["green"])
+    tested_n = sum(1 for r in rows if r["refs"])
+    lines.append(
+        f"> 测量基线：captured_at=`{cap}` · 指纹新鲜绿 {green_n}/{tested_n}"
+        "（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）\n"
+    )
     order = ["Done", "Ready", "InTest", "Draft", "Backlog"]
     summary = " / ".join(f"{k} {total.get(k, 0)}" for k in order)
     lines.append(f"> 合计 {len(rows)}：{summary}\n")

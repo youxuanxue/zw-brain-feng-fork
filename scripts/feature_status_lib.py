@@ -20,11 +20,14 @@
   else                  -> Draft    # 纯意图
   `# Deferred:` 存在      -> Backlog  # 不可派生的排期外意图，单列、不进 4 值阶梯
 
-green(f) 只信 HEAD 祖先 SHA 的 committed 测量产物里 result==pass（fail-closed）；
+green(f) 只信 committed 测量产物里 result==pass **且内容指纹仍匹配当前文件**（fail-closed）；
+信任锚是**被测内容指纹**（`.feature` + 引用测试文件哈希），不是 git_sha——squash-merge
+改写历史但不动文件内容 → 指纹不变 → 不孤儿；测试/规格真变了 → 指纹失配 → 自动非绿（D46.g）。
 绝不读 plan.yaml 的 `status:`（决策 a：那是 supervisor 执行态，且会重蹈 F13 谎报）。
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -88,6 +91,28 @@ def test_refs(pytest_val: str | None) -> list[str]:
     return out
 
 
+def feature_fingerprint(path: Path) -> str:
+    """内容指纹 = sha256(`.feature` 规格 + 其引用的每个测试文件内容)。
+
+    信任锚（D46.g）：与 git 历史无关 → **squash-merge 免疫**（squash 改写历史不动文件内容，
+    指纹不变）；测试或规格**真的变了**才变（→ green() 自动失效，逼重采）。缺失的测试文件也计入
+    （→ 指纹变 → 非绿），所以删测试不会悄悄留住旧 pass。refs 排序后入哈希，结果确定、与克隆深度无关。
+    """
+    h = hashlib.sha256()
+    try:
+        h.update(path.read_bytes())
+    except OSError:
+        h.update(b"<missing-feature-spec>")
+    _, pytest_val, _ = _parse_feature_header(path)
+    for ref in sorted(test_refs(pytest_val)):
+        h.update(b"\x00" + ref.encode("utf-8") + b"\x00")
+        try:
+            h.update((REPO / ref).read_bytes())
+        except OSError:
+            h.update(b"<missing-test-file>")
+    return h.hexdigest()
+
+
 def load_measurement() -> dict | None:
     """选 captured_at 最新的 committed 测量产物；无则 None。
 
@@ -139,17 +164,27 @@ def load_signoff_features() -> set[str]:
     return signed
 
 
-def green(rel: str, refs: list[str], measurement: dict | None) -> bool:
-    """测量轴（test-runner 无关）：该 feature 的测试（pytest 或 e2e）被实跑且 result==pass。
+def green(rel: str, refs: list[str], measurement: dict | None,
+          fingerprint: str | None = None) -> bool:
+    """测量轴（test-runner 无关）：该 feature 的测试（pytest 或 e2e）被实跑且 result==pass，
+    **且测量记录的内容指纹仍匹配当前文件**（D46.g 新鲜度门）。
 
     capture_feature_status.py 把 .py（pytest 退出码）与 .spec.ts（Playwright 退出码）统一回填进
     同一测量产物的 features[rel].result；green() 只读这一个聚合结果，不关心用哪个 runner。
     e2e 未跑（e2e-not-run）的 feature result≠pass，fail-closed 不算绿。
+
+    指纹门（fail-closed）：传入 `fingerprint`（当前 feature_fingerprint）时，测量记录里存的
+    `fingerprint` 必须逐字相等才算绿——记录无指纹（旧格式/孤儿产物）或测试/规格已变 → 非绿，
+    逼重采。不传 fingerprint（历史调用）时退化为只看 result（不应再出现，compute_status 必传）。
     """
     if not refs or not measurement:
         return False
     rec = (measurement.get("features") or {}).get(rel)
-    return bool(rec) and rec.get("result") == "pass"
+    if not rec or rec.get("result") != "pass":
+        return False
+    if fingerprint is not None:
+        return rec.get("fingerprint") == fingerprint
+    return True
 
 
 def has_tests(refs: list[str]) -> bool:
@@ -177,7 +212,7 @@ def compute_status(
     if signed_features is None:
         signed_features = load_signoff_features()
 
-    g = green(rel, refs, measurement)
+    g = green(rel, refs, measurement, feature_fingerprint(path))
     s = rel in signed_features
 
     if s and g:
