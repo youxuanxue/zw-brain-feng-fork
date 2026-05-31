@@ -1,5 +1,12 @@
 # preflight-debt
 
+> **现算账本（debt-as-function，D46 同构）**：每条 debt 的 open/stale-fixed/invalid 状态不再靠人读本文判断，
+> 由 `.testing/debt/<slug>.debt.yaml` 的 assert 对活树**现算**派生，机器视图见 `.testing/debt/debt-status.md`
+> （`scripts/gen_debt_status.py` 生成、段 64/65 守卫）。本文档**保留为散文归档 + 段 34 wave-snapshot 反向链接
+> 锚点源 + 各 `# full-scan-ok:` / `# trigger:` 代码注释的回链目标**，不再作为「哪些 debt 还开着」的真相源。
+> 已僵死被关的条目（如 BFF in-memory→Redis、customer_acceptance_up.sh strict）其 `.debt.yaml` 现算为
+> stale-fixed 后已从 `.testing/debt/` 移除，散文条目留此处作审计链。
+
 Outstanding items intentionally deferred from the current preflight gate set. Each entry must list
 the symptom, the deferred decision, and the trigger that forces a re-evaluation.
 

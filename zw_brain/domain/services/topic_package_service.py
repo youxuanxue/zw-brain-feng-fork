@@ -107,6 +107,12 @@ class TopicPackageService:
         """For each catalog_entry item, compute field/resource counts and visibility."""
         out: list[dict[str, Any]] = []
         store = self.brain._state_store.database_store
+        # N+1 消除：一次性取全部 asset 并按 catalog_code 分组，替代旧的「每目录项重复
+        # list_assets 全表扫」。N 个目录项原本触发 N 次全表扫 → 1 次。
+        assets_by_catalog: dict[str, list[Any]] = {}
+        if store is not None:
+            for asset in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID):
+                assets_by_catalog.setdefault(asset.catalog_code, []).append(asset)
         for item in items:
             if item.get("ref_type") != "catalog_entry":
                 continue
@@ -115,7 +121,7 @@ class TopicPackageService:
             field_count = 0
             resource_count = 0
             if store is not None:
-                assets = [asset for asset in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID) if asset.catalog_code == catalog_code]
+                assets = assets_by_catalog.get(catalog_code, [])
                 resource_codes = {asset.resource_code for asset in assets}
                 catalog_field_count = len(store.catalog_repo.list_items(catalog_code, tenant_id=_DEFAULT_TENANT_ID))
                 mapping_field_count = len(store.metadata_evidence_repo.list_schema_mappings(catalog_code=catalog_code, tenant_id=_DEFAULT_TENANT_ID))

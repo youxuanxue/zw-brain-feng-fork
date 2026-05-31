@@ -153,8 +153,12 @@ class ApplicationService:
         request.update(enriched)
 
     def request_from_record(self, request_id: str, store: Any) -> dict[str, Any] | None:
-        """Lookup application record by id and project to request dict."""
-        record = next((item for item in store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID) if item.application_code == request_id), None)
+        """Lookup application record by id and project to request dict.
+
+        按 application_code 索引 get（store.application_repo.get_record），
+        替代旧 next(...list_records()...) 全表扫。
+        """
+        record = store.application_repo.get_record(request_id, tenant_id=_DEFAULT_TENANT_ID)
         return self.record_to_request(record, store) if record is not None else None
 
     # --- Evidence / boundary computation ---

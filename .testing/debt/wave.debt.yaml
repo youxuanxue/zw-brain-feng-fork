@@ -1,0 +1,9 @@
+slug: wave
+title: "Wave 2 R14 三引擎已落地，待 T1 客户演练验证（D-31d，2026-05-25 更新）"
+date: 2026-05-24
+severity: medium
+owner: 产品研发负责人
+trigger: "首位真实客户演练。届时跑通三引擎项目级定制并由海若产品部业务方"
+assert:
+  # 纯立项/业务决策门延后，无 code 条件可断言（external 须 owner+trigger，trigger 触发即升级）。
+  kind: external

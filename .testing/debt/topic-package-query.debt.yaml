@@ -1,0 +1,14 @@
+slug: topic-package-query
+title: "topic.package.query 列表跑详情级投影（P7 性能）"
+date: 2026-05-31
+severity: medium
+owner: 产品研发负责人
+trigger: "客户现场 P7 包数增长致首屏明显卡，或下个 J2/F9 迭代——届时做真正的轻量列表投影（list 不调 projection_summary，只算 active count）+ 前后延迟实测"
+assert:
+  # 本 PR 已把 catalog_projection_items 的 per-item list_assets 全表扫提到循环外（N→1，
+  # 见 045dad1）；但列表路径 list_projection 仍走 projection_summary 详情级聚合，未做真正
+  # 的轻量列表投影。open ⇔ list_projection 仍调 projection_summary（详情级）；改成轻量
+  # list-card 后该耦合消失 → stale-fixed。
+  kind: grep_present
+  file: zw_brain/domain/services/topic_package_service.py
+  pattern: "return topic_package_ser.topic_package_to_dict\\(item\\) \\| self.projection_summary"

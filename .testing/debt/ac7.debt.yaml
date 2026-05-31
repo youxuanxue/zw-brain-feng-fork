@@ -1,0 +1,9 @@
+slug: ac7
+title: "客户机房部署 + 监控对接未落地（E6 AC7）"
+date: 2026-05-25
+severity: medium
+owner: 产品研发负责人
+trigger: "首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；"
+assert:
+  # 纯立项/业务决策门延后，无 code 条件可断言（external 须 owner+trigger，trigger 触发即升级）。
+  kind: external

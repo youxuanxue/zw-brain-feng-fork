@@ -1,0 +1,9 @@
+slug: j1-approval-conditional
+title: "j1-approval-conditional 两步条件审批运行时未铺（Wave1 延后，留 InTest）"
+date: 2026-05-31
+severity: medium
+owner: 产品研发负责人
+trigger: "Wave1 立项条件审批运行时（dept_approve→platform_approve handler + P3 两步 UI + decision_mode 暴露）→ 走查两步真跑 → 追加 covers → 翻 Done"
+assert:
+  # 纯立项/业务决策门延后，无 code 条件可断言（external 须 owner+trigger，trigger 触发即升级）。
+  kind: external

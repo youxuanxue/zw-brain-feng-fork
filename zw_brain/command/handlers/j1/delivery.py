@@ -219,15 +219,7 @@ def _get_delivery_task(brain, deps, ctx, task_id: str) -> dict[str, Any]:
         task["nonGrantBoundary"] = _mask(copy.deepcopy(payload.get("non_grant_boundary") or {}))
         task["renewalBoundary"] = payload.get("renewal_boundary") or "真实 data_apply_renewal 无行；不伪造续期成功路径。"
         task["legacyMappings"] = legacy_mapping_refs(store, "DeliveryTaskRecord", record.delivery_code)
-        task["receipts"] = [
-            {
-                "receiptType": item.receipt_type,
-                "receiptNo": item.receipt_no,
-                "receiptStatus": item.receipt_status,
-                "payload": copy.deepcopy(item.payload_json),
-            }
-            for item in deps.repos.delivery.list_receipts(task_id)
-        ]
+        task["receipts"] = deps.services.delivery.receipts_for(deps.repos.delivery, task_id)
         if task["receipts"]:
             task["receiptStatus"] = task["receipts"][-1]["receiptStatus"]
             task["receiptNo"] = task["receipts"][-1]["receiptNo"]

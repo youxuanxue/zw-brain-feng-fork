@@ -1,0 +1,9 @@
+slug: webui-pages-real-data
+title: "webui-pages-real-data e2e 因 dump 重建 seed 数据不一致未绿（D46.f；2026-05-31 复核根因）"
+date: 2026-05-31
+severity: medium
+owner: 产品研发负责人
+trigger: "① 修 seed 完整性——customer_acceptance_up / 凭据签发链确保 `granted` 交付必有 credential 记录（M0 seed 一致性，根治 P4）；② P2 改任一分类断言、P7 改按钮态断言（保留行为，去硬编码值）；③ 三者齐后重跑 `capture_feature_status.py --with-e2e` → 全绿 → 现算自动 Ready→Done。属 M0 seed 一致性 + e2e 健壮性聚焦改动，非本轮仓促弱化签字测试"
+assert:
+  # 纯立项/业务决策门延后，无 code 条件可断言（external 须 owner+trigger，trigger 触发即升级）。
+  kind: external

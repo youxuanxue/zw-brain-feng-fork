@@ -1,0 +1,9 @@
+slug: brain-invoke-skill
+title: "集成测试用 `brain.invoke_skill()` 直调，绕过 trust-stamp 路径"
+date: 2026-05-23
+severity: medium
+owner: 产品研发负责人
+trigger: "(a) 再出现一次\"e2e 抓到、pytest 没抓到\"的 production 现场——立即把"
+assert:
+  # 纯立项/业务决策门延后，无 code 条件可断言（external 须 owner+trigger，trigger 触发即升级）。
+  kind: external

@@ -1,0 +1,11 @@
+slug: tenant-only
+title: "读路径热表 tenant-only 全扫白名单（PR #113 同模式残留）"
+date: 2026-05-26
+severity: medium
+owner: 产品研发负责人
+trigger: "申请/投递量进入万级 或 第二个租户接入 —— 届时把 list_records/list_tasks 等改 paged + 状态过滤；现以 # full-scan-ok 白名单 + 段 32b 同步守卫登记"
+assert:
+  # open ⇔ 仍有 `# full-scan-ok:` 白名单全扫点（本债追踪它们的存在）；全部消除 → stale-fixed。
+  kind: grep_present
+  file: zw_brain/domain/repositories/delivery.py
+  pattern: "# full-scan-ok:"

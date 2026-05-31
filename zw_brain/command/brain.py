@@ -521,10 +521,9 @@ class BrainService:
         if store is None:
             return tasks
         records = {record.delivery_code: record for record in store.delivery_repo.list_tasks(tenant_id=_DEFAULT_TENANT_ID)}
-        receipts = {
-            task_id: self.get_delivery_task(task_id).get("receipts", [])
-            for task_id in [item["id"] for item in tasks]
-        }
+        # N+1 消除：旧实现逐 task 调 self.get_delivery_task(task_id)（每次重建整张 task
+        # dict + 重扫内存快照）只为取 receipts。改成直接 list_receipts（已按 delivery_code
+        # 索引）+ 复用上面已预取的 records，不再每条重建任务。
         for task in tasks:
             record = records.pop(task["id"], None)
             if record is not None:
@@ -534,9 +533,12 @@ class BrainService:
                     "applicationCode": record.application_code,
                     "channel": record.channel,
                 }
-                task["receipts"] = receipts.get(task["id"], [])
+                task["receipts"] = self._get_handler_deps().services.delivery.receipts_for(
+                    store.delivery_repo, task["id"]
+                )
+        # DB-only 交付（M0 dump granted，不在内存快照里）：直传已预取的 record，不再全表扫。
         for record in records.values():
-            task = self._delivery_task_from_record(record.delivery_code, store)
+            task = self._delivery_task_from_record(record.delivery_code, store, record=record)
             if task is not None:
                 tasks.append(task)
         return tasks
@@ -581,8 +583,9 @@ class BrainService:
         store: Any,
         *,
         context: _RequestBatchContext | None = None,
+        record: Any | None = None,
     ) -> dict[str, Any] | None:
-        return self._get_handler_deps().services.delivery.task_from_record(request_id, store, context=context)
+        return self._get_handler_deps().services.delivery.task_from_record(request_id, store, context=context, record=record)
 
     def _delivery_grant_evidence(self, delivery: dict[str, Any] | None) -> dict[str, Any]:
         return self._get_handler_deps().services.delivery.grant_evidence(delivery)

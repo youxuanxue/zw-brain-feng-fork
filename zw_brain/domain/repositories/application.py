@@ -51,6 +51,20 @@ class ApplicationRepository:
                 ).scalars()
             )
 
+    def get_record(self, application_code: str, *, tenant_id: str = "sd-default") -> ApplicationRecord | None:
+        """Single application record by code — indexed lookup (no full scan).
+
+        替代 next(...list_records()...) 全表扫；用于 by_id / request_from_record 回源 DB。
+        """
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            return session.execute(
+                select(ApplicationRecord).where(
+                    ApplicationRecord.tenant_id == tenant_id,
+                    ApplicationRecord.application_code == application_code,
+                )
+            ).scalar_one_or_none()
+
     def update_status(self, application_code: str, status: str, *, tenant_id: str = "sd-default") -> None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:

@@ -33,12 +33,22 @@ class DeliveryService:
         store: Any,
         *,
         context: Any | None = None,
+        record: Any | None = None,
     ) -> dict[str, Any] | None:
-        """Build delivery task dict from a delivery record + payload + boundaries."""
-        if context is not None:
-            record = context.delivery_by_appcode.get(request_id)
-        else:
-            record = next((item for item in store.delivery_repo.list_tasks(tenant_id=_DEFAULT_TENANT_ID) if item.delivery_code == request_id or item.application_code == request_id), None)
+        """Build delivery task dict from a delivery record + payload + boundaries.
+
+        ``record`` 由调用方预取直传时跳过任何查找（N+1 消除：list_delivery_tasks
+        已一次性取全部 records，逐条投影时无需每条再全表扫 list_tasks）。
+        """
+        if record is None:
+            if context is not None:
+                record = context.delivery_by_appcode.get(request_id)
+            else:
+                # 旧实现按 (delivery_code OR application_code) 全表扫 next(...)；
+                # 改成两次索引 get（先 delivery_code 再 application_code），保 OR 语义、去全表扫。
+                record = store.delivery_repo.get_task(request_id, tenant_id=_DEFAULT_TENANT_ID)
+                if record is None:
+                    record = store.delivery_repo.get_task_by_application_code(request_id, tenant_id=_DEFAULT_TENANT_ID)
         if record is None:
             return None
         payload = record.payload_json or {}
@@ -75,7 +85,27 @@ class DeliveryService:
             "nonGrantBoundary": _mask(copy.deepcopy(payload.get("non_grant_boundary") or {})),
             "renewalBoundary": payload.get("renewal_boundary") or "真实 data_apply_renewal 无行；不伪造续期成功路径。",
             "repository": {"delivery_code": record.delivery_code, "application_code": record.application_code, "channel": record.channel},
+            # DB-only 交付（M0 dump granted）也带 receipts，与内存快照 task 行为一致
+            # （修真 bug：旧实现该路径产出的 task 无 receipts 键，前端拿不到回执）。
+            "receipts": self.receipts_for(store.delivery_repo, record.delivery_code),
         }
+
+    @staticmethod
+    def receipts_for(delivery_repo: Any, delivery_code: str) -> list[dict[str, Any]]:
+        """单一事实源：交付回执记录 → dict 投影。
+
+        brain.list_delivery_tasks（列表态）与 handlers/j1/delivery._get_delivery_task
+        （详情态）共用，避免同一投影复制两份手同步（R-001）。
+        """
+        return [
+            {
+                "receiptType": item.receipt_type,
+                "receiptNo": item.receipt_no,
+                "receiptStatus": item.receipt_status,
+                "payload": copy.deepcopy(item.payload_json),
+            }
+            for item in delivery_repo.list_receipts(delivery_code)
+        ]
 
     def grant_evidence(self, delivery: dict[str, Any] | None) -> dict[str, Any]:
         """Compact grant evidence for the approval review screen."""

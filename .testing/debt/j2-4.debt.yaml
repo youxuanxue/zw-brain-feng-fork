@@ -1,0 +1,9 @@
+slug: j2-4
+title: "J2-4 资源挂接 OPERATER 提交侧 wizard 立项延后"
+date: 2026-05-27
+severity: medium
+owner: 产品研发负责人
+trigger: "(a) 业务方提出\"在线提交挂接\"演示需求 → 走 product-dev.mdc"
+assert:
+  # 纯立项/业务决策门延后，无 code 条件可断言（external 须 owner+trigger，trigger 触发即升级）。
+  kind: external

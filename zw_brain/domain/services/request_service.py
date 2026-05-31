@@ -259,11 +259,22 @@ class RequestService:
     # --- Snapshot lookups ---
 
     def by_id(self, request_id: str) -> dict[str, Any]:
-        """Snapshot request by id; raises NotFoundError when absent."""
+        """Request by id; raises NotFoundError when absent.
 
+        先查内存快照（demo/seed 即时态），未命中再回 DB
+        （application_repo.get_record → record_to_request）。修真 bug：M0 dump 导入的
+        申请不在内存快照基底里，旧实现只读 brain._snapshot 漏查 → credential.issue 路径
+        NotFoundError → P3 凭据签发 422。与 delivery_service.by_request_id 同范式
+        （Fix B），DB 是真相。
+        """
         for item in self.brain._snapshot["requests"]:
             if item["id"] == request_id:
                 return item
+        store = getattr(getattr(self.brain, "_state_store", None), "database_store", None)
+        if store is not None:
+            record = store.application_repo.get_record(request_id, tenant_id=_DEFAULT_TENANT_ID)
+            if record is not None:
+                return self.brain._get_handler_deps().services.application.record_to_request(record, store)
         raise NotFoundError(request_id)
 
     def maybe_by_id(self, request_id: str) -> dict[str, Any] | None:

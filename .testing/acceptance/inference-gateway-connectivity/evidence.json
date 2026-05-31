@@ -1,0 +1,16 @@
+{
+  "scope": "inference-gateway-connectivity",
+  "deliverable": "ac2 闭合 — 集团推理网关 platform 模式真连通验证(真凭据真请求,非 mock)。关联 infra-inference-gateway.feature(已 Done),补其签字时未覆盖的真网关链路维度。",
+  "git_sha": "10d2584f68fb6293fea3b5e9dfde6a42077b643e",
+  "captured_at": "2026-05-31T10:51:44Z",
+  "captured_by": "薛娇（产品研发负责人）",
+  "note": "证据脱敏:不含网关 host / API key / 响应原文,仅留可复现的元信号。环境:platform 模式 + 直连(非代理) + .env GATEWAY_URL path 修正为 /api/v3。",
+  "checks": [
+    {"name": "mode==platform", "kind": "config", "result": "pass", "detail": "ZW_BRAIN_INFERENCE_MODE=platform"},
+    {"name": "chat() 真连通成功(POST /api/v3/chat/completions)", "kind": "connectivity", "result": "pass", "detail": "HTTP 200,无 InferenceError"},
+    {"name": "返回非 mock(无 [mock-inference 前缀)", "kind": "connectivity", "result": "pass", "detail": "真实模型响应,非本机假推理"},
+    {"name": "有 token usage 计数(真网关特征)", "kind": "connectivity", "result": "pass", "detail": "total_tokens=146"},
+    {"name": "model / finish_reason 合法", "kind": "connectivity", "result": "pass", "detail": "model 非空,finish_reason=stop"}
+  ],
+  "result": "pass"
+}

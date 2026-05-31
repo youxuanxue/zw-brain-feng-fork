@@ -1,0 +1,9 @@
+slug: b1-1-a
+title: "B1.1-A 长期无人申请目录诊断立项延后"
+date: 2026-05-27
+severity: medium
+owner: 产品研发负责人
+trigger: "(a) 业务方 sign-off Wave-2 ready 时优先考虑；"
+assert:
+  # 纯立项/业务决策门延后，无 code 条件可断言（external 须 owner+trigger，trigger 触发即升级）。
+  kind: external

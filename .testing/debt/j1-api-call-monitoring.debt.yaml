@@ -1,0 +1,9 @@
+slug: j1-api-call-monitoring
+title: "j1-api-call-monitoring 无 P4 调用监控 UI（本地走查，留 InTest）"
+date: 2026-05-31
+severity: medium
+owner: 产品研发负责人
+trigger: "铺 P4 调用监控 UI（接 capability_call 查询 + 配额/QPS 展示）→ 走查 → 往 .testing/signoff/ 追加 covers → 翻 Done。属 webui-capability-render-debt 一类"
+assert:
+  # 纯立项/业务决策门延后，无 code 条件可断言（external 须 owner+trigger，trigger 触发即升级）。
+  kind: external

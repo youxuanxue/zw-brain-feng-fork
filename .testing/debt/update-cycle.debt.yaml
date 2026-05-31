@@ -1,0 +1,9 @@
+slug: update-cycle
+title: "资源卡 update_cycle（更新周期）码→中文映射缺权威源（附录4 未在仓）"
+date: 2026-05-30
+severity: medium
+owner: 产品研发负责人
+trigger: "业务给出附录4（或确认 GB/T 标准映射）→ 在 `_asset_to_resource_card` 加"
+assert:
+  # 纯立项/业务决策门延后，无 code 条件可断言（external 须 owner+trigger，trigger 触发即升级）。
+  kind: external

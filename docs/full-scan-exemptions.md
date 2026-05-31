@@ -97,7 +97,7 @@
         # trigger: J1 申请量进入万级或第二个租户接入时改 paged + 状态过滤。
 ```
 
-### `zw_brain/domain/repositories/delivery.py:59`
+### `zw_brain/domain/repositories/delivery.py:81`
 
 **Reason**: delivery_code/attempt_code 可选；双 None 时 tenant-only 全量 attempt
 

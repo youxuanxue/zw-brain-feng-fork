@@ -1,0 +1,9 @@
+slug: brainservice-2
+title: "BrainService snapshot model 抽离 (Action E follow-up; Action H partial close)"
+date: 2026-05-28
+severity: medium
+owner: 产品研发负责人
+trigger: "(a) 下一次需要在 middleware 注入新跨切（rate limit / OTLP /"
+assert:
+  # 纯立项/业务决策门延后，无 code 条件可断言（external 须 owner+trigger，trigger 触发即升级）。
+  kind: external

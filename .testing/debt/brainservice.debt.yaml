@@ -1,0 +1,9 @@
+slug: brainservice
+title: "BrainService 残留读路径方法群下沉（brain.py god-class）"
+date: 2026-05-26
+severity: medium
+owner: 产品研发负责人
+trigger: "(a) 出现一次 brain.py 读路径方法的多 worker merge 撞车 → 把撞车簇"
+assert:
+  # 纯立项/业务决策门延后，无 code 条件可断言（external 须 owner+trigger，trigger 触发即升级）。
+  kind: external

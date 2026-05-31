@@ -36,6 +36,28 @@ class DeliveryRepository:
                 ).scalars()
             )
 
+    def get_task(self, delivery_code: str, *, tenant_id: str = "sd-default") -> DeliveryTaskRecord | None:
+        """Single delivery task by delivery_code — indexed lookup (no full scan)."""
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            return session.execute(
+                select(DeliveryTaskRecord).where(
+                    DeliveryTaskRecord.tenant_id == tenant_id,
+                    DeliveryTaskRecord.delivery_code == delivery_code,
+                )
+            ).scalar_one_or_none()
+
+    def get_task_by_application_code(self, application_code: str, *, tenant_id: str = "sd-default") -> DeliveryTaskRecord | None:
+        """Single delivery task by application_code — indexed lookup (no full scan)."""
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            return session.execute(
+                select(DeliveryTaskRecord).where(
+                    DeliveryTaskRecord.tenant_id == tenant_id,
+                    DeliveryTaskRecord.application_code == application_code,
+                )
+            ).scalar_one_or_none()
+
     def list_receipts(self, delivery_code: str) -> list[DeliveryReceiptRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:

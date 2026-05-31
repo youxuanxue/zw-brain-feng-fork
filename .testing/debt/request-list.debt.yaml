@@ -1,0 +1,9 @@
+slug: request-list
+title: "request.list 性能基准断言负载敏感（间歇 flaky）"
+date: 2026-05-29
+severity: medium
+owner: 产品研发负责人
+trigger: "(a) CI 上该用例**非负载场景**稳定超 1000ms（=真实 perf 回归，立即 P0 查"
+assert:
+  # 纯立项/业务决策门延后，无 code 条件可断言（external 须 owner+trigger，trigger 触发即升级）。
+  kind: external

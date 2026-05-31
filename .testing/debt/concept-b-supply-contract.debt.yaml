@@ -1,0 +1,9 @@
+slug: concept-b-supply-contract
+title: "概念 B「部门级数据供给契约」（真业务订阅）待立项"
+date: 2026-05-30
+severity: medium
+owner: 产品研发负责人
+trigger: "业务方对「部门级数据供给契约 / 真业务订阅」立项 —— 届时落地订阅实体 + 履约状态机；现仅诚实信号 isSubscribed（D42.a）"
+assert:
+  # 纯立项延后，无 code 条件（业务决策门）。external 须 owner+trigger。
+  kind: external

@@ -1,0 +1,9 @@
+slug: build-true-data-seed-py
+title: "build_true_data_seed.py 生成器 recall sample_titles 25-total-cap vs 手编 seed 29 条偏差"
+date: 2026-05-29
+severity: medium
+owner: 产品研发负责人
+trigger: "见 docs/preflight-debt.md 历史归档"
+assert:
+  # 纯立项/业务决策门延后，无 code 条件可断言（external 须 owner+trigger，trigger 触发即升级）。
+  kind: external

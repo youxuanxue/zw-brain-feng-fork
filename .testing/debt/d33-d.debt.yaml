@@ -1,0 +1,9 @@
+slug: d33-d
+title: "D33.d 元规则脚本（外部协议词汇漂移扫描）trigger 化延后"
+date: 2026-05-28
+severity: medium
+owner: 产品研发负责人
+trigger: "见 docs/preflight-debt.md 历史归档"
+assert:
+  # 纯立项/业务决策门延后，无 code 条件可断言（external 须 owner+trigger，trigger 触发即升级）。
+  kind: external

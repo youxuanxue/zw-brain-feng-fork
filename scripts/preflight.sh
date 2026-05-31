@@ -148,6 +148,8 @@ done <<'CHECKS'
 段 61	scripts/gen_feature_status.py --check	feature-status-gen (单一事实源 — feature status 现算不存储：.testing/status/feature-status.md 须与 SPEC+MEASUREMENT+SIGN-OFF 现算字节一致，禁手改)
 段 62	scripts/check_no_hand_typed_status.py	no-hand-typed-status (全局宪法 §5 — .feature 禁手写 # Status/状态词，status 由 gen_feature_status.py 现算；排期外用 # Deferred；替原段 58 对账守卫，使漂移结构性消失)
 段 63	scripts/check_signoff_ledger.py	signoff-ledger (D46 — .testing/signoff/ 签字唯一权威源：每账本 schema 合法 + covers 的 .feature 存在 + evidence 非空禁空签；decision_only 须 covers 空)
+段 64	scripts/check_debt_status.py	debt-status (debt-as-function 单一事实源 — .testing/debt/*.debt.yaml schema 合法 + 每条 assert 现算；invalid→FAIL、stale-fixed→WARN（PREFLIGHT_DEBT_STRICT=1 转 FAIL）；空账本绿)
+段 65	scripts/gen_debt_status.py --check	debt-status-gen (debt-as-function 单一事实源 — .testing/debt/debt-status.md 须与各 debt assert 现算字节一致，禁手改)
 CHECKS
 
 echo ""
