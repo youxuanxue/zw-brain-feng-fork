@@ -5,10 +5,8 @@
 # Roles: IDE/Claude/Cursor 类 Agent + 外部业务调用方
 # Trace: R3, 基线 §6.1 五消费面, §10.4 MCP/A2A 生产级硬化
 # Priority: P1
-# Status: Ready
 # Owner: e5
 # Pytest: tests/test_wave3_protocol_tenant.py
-# Twin-F: e5.F6
 
 Feature: MCP 投影生产级硬化
   As a IDE/Claude/Cursor 类 Agent 用户

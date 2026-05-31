@@ -5,10 +5,8 @@
 # Roles: All
 # Trace: R3 / R6 / 基线 §6 统一能力契约 / §10.1
 # Priority: P0
-# Status: Ready
 # Owner: e5
 # Pytest: tests/test_contract_projection.py
-# Twin-F: e5.F4
 # InTest-Scope: tests/test_wave0_infra.py 数据层覆盖 4 项（J1 skill 五面 slug 一致 / input_schema 单一源 /
 #   export_agent_contract.py --check 无 drift / 单一 capability registry 目录）；
 #   human_confirmation 五面统一标注的 WebUI 二次弹窗渲染归 W0-07 浏览器侧。

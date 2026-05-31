@@ -1,0 +1,8 @@
+scope: j1-supply-demand
+signed_by: 薛娇（产品研发负责人）
+date: 2026-05-31
+kind: 效果验收
+evidence: 2026-05-31 本地部署（ZW_BRAIN_DEV_IAM_BYPASS）走查确认 — 业务运营员 #/provider/inbox/demand-match「供需对接收件箱」4 条真实供需待办（DM-2026-05-31-*，状态已登记）+「对接」操作可走；Playwright 截图核对 + 产品研发负责人本地走查；后端 test_wave1_j1_supply_demand.py 全绿（measurement ad35667）
+decision_only: false
+covers:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-supply-demand-meta-merge.feature

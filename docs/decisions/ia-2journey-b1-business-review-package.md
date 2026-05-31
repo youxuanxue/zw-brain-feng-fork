@@ -69,9 +69,8 @@ driven_by:
 
 ## 落盘（业务方 sign-off 后）
 
-- [x] **A**：架构基线 §1.2/§7.3 已是 2+B1（无需改代码）+ `.twin/e5-webui-projections/plan.yaml`
-      F3 追加 `[SIGNOFF-CLOSED 2026-05-29] covers ia-2journey-b1`
-- [x] **B**：PR #165 加 label `business-signoff: ia-2journey-b1`（决策签字 evidence marker；无 .feature 翻转）
+- [x] **A**：架构基线 §1.2/§7.3 已是 2+B1（无需改代码）；签字落 `.testing/signoff/ia-2journey-b1.signoff.yaml` 账本（D46.b 单一权威源；decision_only=true，covers 空）
+- [x] **B**：PR #165 加 label `signoff:ia-2journey-b1`（决策签字，合并自动落账本）
 - [x] **C**：CLAUDE.md D39（D24 二次反转业务方二次 sign-off 完成，IA 定型为 2+B1）
 - [x] **D**：本文 `status: approved`
 

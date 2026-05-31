@@ -1,0 +1,7 @@
+scope: legacy-not-reproduce
+signed_by: 海若产品部业务方
+date: 2026-05-27
+kind: 决策签字
+evidence: PR #129 业务方对旧平台 V5.0.2 冒烟 128 条中 50 条边界用例的处置一次性按 8 类别签字（A 融合/通用/代理服务+应用案例 21：20 复活 + 106 案例提出页不复活；B 大屏 4 接受不复刻；C 数据质量/元数据采集 2 接受；D 主题库/专题库/数购车 4 复活；E 栏目管理 4 接受；F 知识中心 1 并入 B1.1；G 多 SPA 拼接 1 接受；H 应用中心/服务发布/申请变更 13 接受）。风险语义=客户上线"旧能新不能"由业务方接受。明细 docs/legacy-not-reproduce-signoff.md §一；Wave 4 退役准备度判据 D（scripts/check_legacy_retirement_ready.py）的签字输入。
+decision_only: true
+covers: []

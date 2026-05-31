@@ -112,7 +112,6 @@ done <<'CHECKS'
 段 24	scripts/check_ui_term_blacklist.py	ui-term-blacklist (R12 工程术语不进 UI — 9 词黑名单)
 段 24b	scripts/check_webui_user_facing_en.py	webui user-facing EN leak (页面模板禁裸枚举)
 段 25	scripts/check_adapter_write_ban.py	adapter-write-ban (§9.5 adapter 禁止成为新写入口)
-段 26	scripts/check_twin_workspaces.py	twin-workspaces (.twin/ 6 workspace goal+plan schema valid)
 段 27	scripts/check_ruff.py	ruff (与 CI lint job 对齐，F821/F401/I001/E402)
 段 28	scripts/check_capability_registration.py	capability-registration (DISPATCH_TABLE + handlers + _CATEGORIZATION.md 三处一致)
 段 29	scripts/check_no_hand_maintained_projection.py	no-hand-maintained-projection (F4 5 消费面投影派生自单一 Registry)
@@ -125,7 +124,7 @@ done <<'CHECKS'
 段 35	scripts/check_brain_no_request_state_singleton.py	brain-no-request-state-singleton (per-request role 必走 ContextVar，不得 seed 到 _ui_state 单例)
 段 36	scripts/check_no_demo_id_literals.py	no-demo-id-literals (REQ-/DLV-/PKG- demo id 限 demo_state_sync.py，不得入 brain.py/handlers)
 段 37	scripts/check_brain_no_record_to_dict.py	brain-no-record-to-dict (record_to_dict 纯函数住 command/serializers/，不得回潮到 BrainService — Phase 1.1)
-段 38	scripts/check_trace_triangle.py	trace-triangle (飞轮 §四 — .feature # Owner/# Pytest/# Twin-F + plan.yaml spec_ref 三角连接守卫)
+段 38	scripts/check_trace_triangle.py	trace-triangle (飞轮 §四 — .feature # Owner/# Pytest ←→ tests 连接守卫；.twin 退役后收敛为 SPEC↔test 双边 D46.e)
 段 39	scripts/check_legacy_smoke_row_numbers.py	legacy-smoke-rows (飞轮 §三.2 — .feature 引用旧 xlsx 行号必须在 mapping doc 出现)
 段 40	scripts/check_handler_brain_backref.py	handler-brain-backref (handler body 不得反向访问 BrainService — Action A，白名单受控)
 段 41	scripts/check_no_silent_error_swallow_in_adapter.py	no-silent-error-swallow-in-adapter (CLAUDE.md §2 — mapper add_issue+continue 必须经 finish_run 写 error_summary)
@@ -141,10 +140,14 @@ done <<'CHECKS'
 段 51	scripts/check_agentruntime_bundles.py	agentruntime-bundles (D33.b / D30 — agents/*/AGENT.yaml + capabilities.json schema 持续守卫)
 段 52	scripts/check_webui_capability_rendered.py	webui-capability-rendered (god's-eye #161 — live+webui 能力须有 .vue/.ts 渲染消费者，baseline 棘轮防净新增"声称UI无渲染"漂移；台账 scripts/webui_capability_rendered_exemptions.txt)
 段 53	scripts/check_signoff_package.py	signoff-package-lint (D35 — 业务方 sign-off 材料包三层守卫：数据真实性 + 禁过程数字 + 强制节/建议列)
-段 54	scripts/check_signoff_landed.py	signoff-landed (D35 — approved sign-off 文档 ↔ plan.yaml evidence + CLAUDE.md D-编号 + label 一致，关「C/D 靠人记忆」债)
+段 54	scripts/check_signoff_landed.py	signoff-landed (D46.b — approved sign-off 文档 scope ↔ .testing/signoff/<scope>.signoff.yaml 账本单源，关「C/D 靠人记忆」债)
 段 55	scripts/check_acceptance_package.py	acceptance-package-lint (D37 — 效果验收材料包：证据产物 result=pass + 来自当前历史 + 每验收点挂 evidence 标签 + 禁过程数字)
 段 56	scripts/check_no_legacy_inference_env.py	no-legacy-inference-env (D36.e — 禁已退役推理网关 INSPUR 系 env 前缀回潮；allowlist=CLAUDE.md D36 记录 + 负向守卫测试 + 守卫自身)
 段 57	scripts/check_require_real_seed_sanity.py	require-real-seed-sanity (D44 — 禁 require_real_seed gate 运行时累积表 capability_call/audit_event/anchor_outbox/audit_receipt；运行时数据靠 fixture 自产不靠 seed 门槛)
+段 60	scripts/check_feature_measurement.py	feature-measurement (单一事实源 — MEASUREMENT 产物 .testing/status/measurement/<sha>.json schema+banner 合法 + git_sha 须 HEAD 祖先才信任；preflight 不跑 pytest 只读产物，缺/红则 green() fail-closed)
+段 61	scripts/gen_feature_status.py --check	feature-status-gen (单一事实源 — feature status 现算不存储：.testing/status/feature-status.md 须与 SPEC+MEASUREMENT+SIGN-OFF 现算字节一致，禁手改)
+段 62	scripts/check_no_hand_typed_status.py	no-hand-typed-status (全局宪法 §5 — .feature 禁手写 # Status/状态词，status 由 gen_feature_status.py 现算；排期外用 # Deferred；替原段 58 对账守卫，使漂移结构性消失)
+段 63	scripts/check_signoff_ledger.py	signoff-ledger (D46 — .testing/signoff/ 签字唯一权威源：每账本 schema 合法 + covers 的 .feature 存在 + evidence 非空禁空签；decision_only 须 covers 空)
 CHECKS
 
 echo ""

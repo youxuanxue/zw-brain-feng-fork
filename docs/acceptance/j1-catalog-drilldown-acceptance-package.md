@@ -53,8 +53,8 @@ driven_by:
 
 ## 落盘（验收通过后 — 2026-05-30 业务方本地验收全部通过）
 
-- [x] **A**：plan.yaml `[SIGNOFF-CLOSED 2026-05-30] covers j1-catalog-drilldown`
-- [x] **B**：PR #171 加 label `business-signoff: j1-catalog-drilldown`
+- [x] **A**：签字落 `.testing/signoff/j1-catalog-drilldown.signoff.yaml` 账本（D46.b 单一权威源）
+- [x] **B**：PR #171 加 label `signoff:j1-catalog-drilldown`（合并自动落账本）
 - [x] **C**：CLAUDE.md 追加 `D43` 决策条
 - [x] **D**：本文 frontmatter `status: approved`
 

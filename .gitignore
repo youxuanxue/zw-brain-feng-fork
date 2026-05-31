@@ -67,12 +67,5 @@ old/
 
 .xuejiao-twin*
 
-# .twin/ 6 worker workspace runtime artifacts (goal/plan tracked; runtime ignored)
-.twin/*/supervisor_state.json
-.twin/*/CURRENT.md
-.twin/*/human_response.json
-.twin/*/workspace_events.jsonl
-.twin/*/runs/
-
 tests/test_temp_token.py
 test-results/

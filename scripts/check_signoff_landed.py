@@ -1,89 +1,86 @@
 #!/usr/bin/env python3
-"""check_signoff_landed.py — preflight 段 54
+"""check_signoff_landed.py — preflight 段 54（D46 收敛为账本单源）
 
-业务方 sign-off 落盘一致性守卫（D35）。关掉 F9 §5.3 自陈的「C/D 靠人记忆」债：
+业务方 sign-off 落盘一致性守卫。**D46 起收敛**：签字唯一权威源 = `.testing/signoff/`
+账本（append-only、来源无关）；本守卫不再对账 plan.yaml `[SIGNOFF-CLOSED]` + CLAUDE.md
+D-编号三处副本（那是"靠守卫同步副本"的老味道，与段 58 同类，已随 D46 消除）。
 
-当一份 sign-off 材料包（`docs/**/*business-review-package*.md`）frontmatter 标
-`status: approved` 时，意味着业务方已签字，则其落盘三角必须齐全：
+收敛后规则：一份 sign-off 材料包（`docs/**/*business-review-package*.md` 或
+`*acceptance-package*.md`）frontmatter 标 `status: approved` 时，其 `scope` 必须在
+`.testing/signoff/<scope>.signoff.yaml` 有对应账本（单源落盘）。缺 → FAIL。
 
-  A（evidence）：某 `.twin/**/plan.yaml` 有 `[SIGNOFF-CLOSED ...] ... <scope>` 行
-  C（决策）：CLAUDE.md 有提及该 scope 的 D-编号决策
-
-缺任一 → FAIL。B（PR label）是 GitHub 侧开关，离线不可验，由 promote_signoff.py 消费，不在此校验。
+`.twin` 历史 `[SIGNOFF-CLOSED]` 行保留作执行归档，不再被任何守卫当事实源。
+CLAUDE.md D-编号保留作决策史（D1–D46），不再作签字三角的一角。
 
 Exit：0 = OK；1 = FAIL。
-
-Usage:
-    ./scripts/check_signoff_landed.py [--verbose]
-
+Usage: ./scripts/check_signoff_landed.py [--verbose]
 接入：scripts/preflight.sh 段 54
 """
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from pathlib import Path
 
+import yaml
 from signoff_lib import read_frontmatter
 
 REPO = Path(__file__).resolve().parent.parent
-CLAUDE_MD = REPO / "CLAUDE.md"
+SIGNOFF_DIR = REPO / ".testing" / "signoff"
 
 
-def _plan_yaml_texts() -> str:
-    raw = "".join(
-        p.read_text(encoding="utf-8", errors="ignore")
-        for p in REPO.glob(".twin/**/plan.yaml")
-    )
-    # YAML 折叠标量跨多行——把列表项内的续行（非 '- ' 开头的缩进行）并回单逻辑行，
-    # 这样 [SIGNOFF-CLOSED ...] 与同一条 evidence 里的 scope 落在同一行可被匹配。
-    return re.sub(r"\n(?!\s*-\s)[ \t]+", " ", raw)
+def _ledger_scopes() -> set[str]:
+    scopes: set[str] = set()
+    if not SIGNOFF_DIR.is_dir():
+        return scopes
+    for fp in SIGNOFF_DIR.glob("*.signoff.yaml"):
+        try:
+            d = yaml.safe_load(fp.read_text(encoding="utf-8")) or {}
+        except (yaml.YAMLError, OSError):
+            continue
+        if str(d.get("scope", "")).strip():
+            scopes.add(str(d["scope"]).strip())
+    return scopes
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="sign-off 落盘一致性守卫（D35 / 段 54）")
+    ap = argparse.ArgumentParser(description="sign-off 落盘一致性守卫（D35 / D46 段 54）")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
-    # 决策签字（business-review-package, D35）+ 效果验收签字（acceptance-package, D36）
-    # 共用同一落盘三角（plan.yaml evidence + CLAUDE.md D-编号）。
     docs = sorted({
         p for pat in ("*business-review-package*.md", "*acceptance-package*.md")
         for p in REPO.glob(f"docs/**/{pat}")
         if "templates" not in p.parts
     })
-    plan_text = _plan_yaml_texts()
-    claude_text = CLAUDE_MD.read_text(encoding="utf-8") if CLAUDE_MD.exists() else ""
+    ledger = _ledger_scopes()
 
     fails: list[str] = []
     checked = 0
-    for doc in sorted(docs):
+    for doc in docs:
         fm = read_frontmatter(doc.read_text(encoding="utf-8"))
-        status = fm.get("status", "")
-        if status != "approved":
+        if fm.get("status", "") != "approved":
             if args.verbose:
-                print(f"  [skip] {doc.relative_to(REPO)} status={status or '无 frontmatter'}（未落盘，内容由段 53/55 管）")
+                print(f"  [skip] {doc.relative_to(REPO)} status={fm.get('status') or '无 frontmatter'}")
             continue
         checked += 1
         rel = doc.relative_to(REPO)
         scope = fm.get("scope", "").strip()
         if not scope:
-            fails.append(f"{rel}: status=approved 但 frontmatter 缺 scope（无法校验落盘三角）")
+            fails.append(f"{rel}: status=approved 但 frontmatter 缺 scope（无法定位账本）")
             continue
-        # A: plan.yaml SIGNOFF-CLOSED evidence
-        if not re.search(r"\[SIGNOFF-CLOSED[^\]]*\][^\n]*" + re.escape(scope), plan_text):
-            fails.append(f"{rel}: status=approved（scope={scope}）但 .twin/**/plan.yaml 无匹配 [SIGNOFF-CLOSED ... {scope}] evidence（落盘 A 缺）")
-        # C: CLAUDE.md D-编号
-        if scope not in claude_text:
-            fails.append(f"{rel}: status=approved（scope={scope}）但 CLAUDE.md 无提及 {scope} 的 D-编号决策（落盘 C 缺）")
+        if scope not in ledger:
+            fails.append(
+                f"{rel}: status=approved（scope={scope}）但 .testing/signoff/ 无对应账本 "
+                f"{scope}.signoff.yaml（D46：签字唯一权威源是账本，请追加签字文件）"
+            )
 
     if fails:
         print(f"[signoff-landed] FAIL: {len(fails)} 项（检 {checked} 份已签材料包）：")
         for f in fails:
             print(f"  {f}")
         return 1
-    print(f"[signoff-landed] OK: {checked} 份已签材料包落盘三角齐全")
+    print(f"[signoff-landed] OK: {checked} 份已签材料包均在 .testing/signoff/ 账本落盘（单源）")
     return 0
 
 

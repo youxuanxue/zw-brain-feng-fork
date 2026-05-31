@@ -1,0 +1,7 @@
+scope: ia-2journey-b1
+signed_by: 海若产品部业务方
+date: 2026-05-29
+kind: 决策签字
+evidence: PR #165 评论 business-signoff: ia-2journey-b1 / docs/decisions/ia-2journey-b1-business-review-package.md / CLAUDE.md D39
+decision_only: true
+covers: []

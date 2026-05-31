@@ -5,10 +5,8 @@
 # Roles: All users
 # Trace: D9 (从砍掉清单移出，升级为 K11 必保留功能), 基线 §5.2 P7 共享专区
 # Priority: P1
-# Status: Draft
 # Owner: e3
-# Pytest: pending
-# Twin-F: e3.F7
+# Pytest: tests/integration/test_wave2_topic_package_discovery.py + tests/integration/test_wave2_topic_package_curation.py
 
 Feature: P7 共享专区 / 专题包订阅
   As a 部门操作员 / 部门管理员

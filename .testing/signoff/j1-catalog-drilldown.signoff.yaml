@@ -1,0 +1,10 @@
+scope: j1-catalog-drilldown
+signed_by: 海若产品部业务方
+date: 2026-05-30
+kind: 效果验收
+evidence: PR #171 / .testing/acceptance/j1-catalog-drilldown/evidence.json
+decision_only: true
+covers: []
+# 注：本次效果验收针对 J1 目录浏览/钻取页面与全局数据展现，
+# 这部分 UI/数据工作无独立 .feature（无 feature 入飞轮），故 covers 留空、不抬任何 feature 状态。
+# 旧 plan e1.F4 把本 SIGNOFF 行挂在 j1-supply-demand-meta-merge.feature 下纯属落位巧合，非真签该 feature。

@@ -5,10 +5,8 @@
 # Roles: ROLE_ORGAN_OPERATER
 # Trace: R1, 基线 §5.2 P4「必含凭据领取页（授权码 / API Key + curl/Python/Java 调用样例 + 配额 + 监控入口）」
 # Priority: P0
-# Status: Ready
 # Owner: e1
 # Pytest: tests/test_wave0_j1_credential_call.py + tests/test_wave1_j1_credential.py
-# Twin-F: e1.F5
 # InTest-Scope: 5 个 Scenario 由 tests/test_wave0_j1_credential_call.py 覆盖（凭据签发幂等 /
 #   撤销 / expires_at 携带 / 签发后状态机 / payload 工程术语黑名单——以 delivery_repo.upsert_from_delivery
 #   合成数据走 canonical runtime contract）；

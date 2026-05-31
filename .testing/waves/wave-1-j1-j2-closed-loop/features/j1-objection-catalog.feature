@@ -5,10 +5,8 @@
 # Roles: ROLE_ORGAN_OPERATER (申请方) | ROLE_ORGAN_MANAGER (编目部门) | ROLE_BUSIAUDIT
 # Trace: 基线 §3.3 异议 5 维度 (data_objection_catalog 74 表), §9.2 ObjectionAggregate
 # Priority: P1
-# Status: Draft
 # Owner: e1
 # Pytest: tests/test_wave1_objection_5dim_state.py + tests/test_wave1_objection_lifecycle.py
-# Twin-F: e1.F1
 
 Feature: J1 目录异议（catalog 维度独立状态机）
   As a 部门操作员（任意用户）

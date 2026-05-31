@@ -4,7 +4,6 @@
 # Consumer-faces: API (brain.invoke_skill)
 # Roles: ROLE_ORGAN_OPERATER (申请人) | ROLE_ORGAN_MANAGER (审批人) | ROLE_BUSIAUDIT
 # Trace:
-#   .twin/e1-j1-journey/plan.yaml F7
 #   zw_brain/command/handlers/j1/application_assistants.py
 #   docs/approved/zw-brain-architecture.md §5.4.4 (减摩组件反约束)
 """F7: P3 申请双助手 — 草拟 + 审批依据 + 推理降级 + 不替人提交/决策守卫."""

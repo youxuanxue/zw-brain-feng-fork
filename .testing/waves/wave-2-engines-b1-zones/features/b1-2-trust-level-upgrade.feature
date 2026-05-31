@@ -5,10 +5,8 @@
 # Roles: ROLE_SYSTEM | ROLE_SECURITY_AUDIT (协同)
 # Trace: R15, 基线 §8.2 trust_level 三级 + "可覆盖收紧不可放宽", §10.3
 # Priority: P1
-# Status: Ready
 # Owner: e4
-# Pytest: pending
-# Twin-F: e4.F4
+# Pytest: tests/integration/test_b12_intake.py
 # Unfreeze-Note: PR #91 (E4 B1.2 后端) — trust_level 升降级 capability + 「可收紧不可放宽」
 #   约束 + Registry 字段守恒（trust_level 是 Registry 字段，不进 AgentRuntime）。
 #   pytest:

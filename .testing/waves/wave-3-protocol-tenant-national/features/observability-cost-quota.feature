@@ -5,10 +5,8 @@
 # Roles: ROLE_SYSTEM
 # Trace: 基线 §10.4 观测告警, §3.4 集团统一运维监控（外部依赖）
 # Priority: P1
-# Status: Draft
 # Owner: e6
-# Pytest: pending
-# Twin-F: e6.F8
+# Pytest: tests/test_wave3_protocol_tenant.py
 
 Feature: 观测 / 成本 / 性能 / 调用配额 / 告警
   As a 平台运维员 ROLE_SYSTEM

@@ -5,10 +5,8 @@
 # Roles: ROLE_BUSIAUDIT
 # Trace: 基线 §3.2 数据直达 36 页, §10.4 国家数据直达独立子旅程 (P2), §5.6 #8
 # Priority: P2
-# Status: Draft
 # Owner: e6
 # Pytest: pending
-# Twin-F: pending
 
 Feature: 国家数据直达独立子旅程
   As a 业务运营员 ROLE_BUSIAUDIT

@@ -5,10 +5,8 @@
 # Roles: All
 # Trace: D4 / R4 / 基线 §2.3 合规内建 / §10.1
 # Priority: P0
-# Status: Ready
 # Owner: e4
-# Pytest: pending
-# Twin-F: e4.F1
+# Pytest: tests/test_wave0_infra.py
 # InTest-Scope: tests/test_wave0_infra.py 覆盖 D4 核心判据 5 项（写入失败熔断 raise / 未配置 sink raise /
 #   必填字段缺失 raise / 成功落 sink + 缓冲 / 区块链锚定异步 outbox 表结构）；
 #   audit_event 12 富字段 + actor_role 7 角色码 CHECK 约束属富 schema 目标态（富字段现落 capability_call 表），

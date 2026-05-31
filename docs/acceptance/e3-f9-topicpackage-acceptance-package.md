@@ -10,7 +10,7 @@ sign_off_required:
   - 海若产品部业务方
 vehicle_pr: "#170"
 driven_by:
-  - .twin/e3-wave2-engines/plan.yaml F9
+  - "e3.F9 共享专区 / 专题包能力面"
   - .testing/waves/wave-2-engines-b1-zones/features/topic-package-discovery.feature
   - .testing/waves/wave-2-engines-b1-zones/features/topic-package-curation.feature
   - docs/reconstructs/dsp-sharezone-topic-package-reconstruction-plan-v1.md
@@ -57,12 +57,11 @@ driven_by:
 
 测试与投影计数为事实计数，住 `evidence.json`（脚本采集），prose 不裸写易漂移数字。
 
-## 落盘（验收通过后 — 2026-05-30 业务方本地验收全部通过，A/C/D 已落，B label 待合并前加）
+## 落盘（验收通过后 — 2026-05-30 业务方本地验收全部通过）
 
-- [x] **A**：plan.yaml F9 `actual_evidence` 追加 `[SIGNOFF-CLOSED 2026-05-30] covers e3.F9 | 效果验收 | evidence=.testing/acceptance/e3.F9/evidence.json | by 海若产品部业务方 | vehicle PR #170 → published`；F9 status→completed
-- [x] **B**：PR #170 加 label `business-signoff: e3.F9`（promote_signoff 翻 topic-package-{discovery,curation}.feature → Verified）
-- [x] **C**：CLAUDE.md 追加 `D42` 决策条
-- [x] **D**：本文 frontmatter `status: approved` / `signed_off_at: 2026-05-30`
+- [x] **A**：签字落 `.testing/signoff/e3.F9.signoff.yaml` 账本，`covers` 含 `topic-package-{discovery,curation}.feature`（D46.b 单一权威源；status 由账本现算翻 Done，无 plan.yaml 副本 / 无 promote 翻转）
+- [x] **B**：CLAUDE.md 追加 `D42` 决策条
+- [x] **C**：本文 frontmatter `status: approved` / `signed_off_at: 2026-05-30`
 
-> A/C 由段 54 校验；本文证据真实性 + 结构由段 55 校验。
+> A 由段 54（approved scope ↔ 账本）+ 段 63（账本 schema/covers/evidence）校验；本文证据真实性 + 结构由段 55 校验。
 > 业务方 2026-05-30 本地部署逐条走查（①列表 3 标杆 ②订阅诚实回显 ③目录诚实展示 ④召回候选 422 修复）全部通过。合并到 main 仍待产品负责人指令。

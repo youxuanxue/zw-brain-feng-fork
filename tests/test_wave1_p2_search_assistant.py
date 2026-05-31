@@ -4,7 +4,6 @@
 # Consumer-faces: API (brain.invoke_skill)
 # Roles: ROLE_ORGAN_OPERATER
 # Trace:
-#   .twin/e1-j1-journey/plan.yaml F6
 #   zw_brain/command/handlers/j1/search_assistant.py
 #   zw_brain/capability_registry/registered/search.intent.parse.json
 #   docs/approved/zw-brain-architecture.md §5.4.4 (减摩组件反约束)

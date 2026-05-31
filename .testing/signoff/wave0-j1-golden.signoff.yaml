@@ -1,0 +1,11 @@
+scope: wave0-j1-golden
+signed_by: 薛娇（产品研发负责人）
+date: 2026-05-31
+kind: 效果验收
+evidence: 2026-05-31 本地部署（ZW_BRAIN_DEV_IAM_BYPASS）走查确认 J1 主旅程（找数→申请→审批→凭据）—— 部门操作员 #/discovery「可复用资源」满屏真实资源卡可检索可进详情发起申请；#/request-flow「在途申请」真实申请列表可见进度；部门管理员 #/request-flow「待我审批」满屏待审申请可查看可一步通过、状态流转；部门操作员 #/delivery-exchange「交付任务」真实凭据可读（API Key + 三语样例）。Playwright 截图核对 + 产品研发负责人本地走查；后端 test_wave0_j1_discover_draft.py / test_wave0_j1_approval.py / test_wave0_j1_credential_call.py 等全绿（measurement ad35667）
+decision_only: false
+covers:
+  - .testing/waves/wave-0-golden-path/features/j1-resource-discovery.feature
+  - .testing/waves/wave-0-golden-path/features/j1-application-draft.feature
+  - .testing/waves/wave-0-golden-path/features/j1-approval-unconditional.feature
+  - .testing/waves/wave-0-golden-path/features/j1-credential-issue.feature

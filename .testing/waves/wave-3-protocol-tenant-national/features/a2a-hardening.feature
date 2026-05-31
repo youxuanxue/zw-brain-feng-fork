@@ -5,10 +5,9 @@
 # Roles: 外部 Agent 平台
 # Trace: R3 / R15, 基线 §6.1, §10.4
 # Priority: P1
-# Status: Ready
 # Owner: e5
-# Pytest: tests/test_wave3_protocol_tenant.py
-# Twin-F: e5.F6
+# Pytest: pending
+# Deferred: Wave3 A2A 协议硬化未实装 — 原挂 test_wave3_protocol_tenant.py 但该文件无任何 a2a 用例（mcp/multi-tenant/observability 三测，零 a2a）；discover→invoke 端到端/多轮会话/trust_level 工具裁剪均待 Wave3 立项（真相优先校准 D46.f：挂名不测的 ref 不抬状态）
 
 Feature: A2A 投影生产级硬化（agent skill 模型）
   As a 外部 Agent 平台

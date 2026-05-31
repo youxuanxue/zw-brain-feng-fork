@@ -1,0 +1,27 @@
+scope: wave0-infra
+signed_by: 薛娇（产品研发负责人）
+date: 2026-05-31
+kind: 决策签字
+evidence: >
+  2026-05-31 工程决策签收（非业务走查——基础设施无业务页，依据=测试绿+机械守卫+被已签 J1/J2 走查运行时验证）。
+  6 个 wave-0 基础设施 feature 测量全绿（measurement ad35667）且各有 preflight 机械守卫持续护航：
+  infra-audit-bus（段7a audit-must-block，审计同步落库写失败熔断；本期=审计传输+熔断+缓冲 drain）；
+  infra-contract-projection（段29 no-hand-maintained-projection，5 消费面+63 MCP 描述符派生自单一 Registry；
+  #176 补 drift 注入负向测试证明「该报错时报错」）；
+  infra-iam-session（段17 iam-doc-freshness + 段35 ContextVar 守卫，本期=OIDC 登录+session 生命周期+角色上下文，
+  J1/J2 走查全程登录/切角色即其运行时验证）；
+  infra-inference-gateway（段10 no-direct-llm，本期=推理单一出口收口 D6 + request_id）；
+  ops-gateway-heartbeat（test_wave0_ops_gateway.py，本期=心跳 ingest + 运行时状态投影）；
+  negative-and-guardrails（段10/22/24/25 + test_capability_boundary，本期=能力边界/推理收口/R12术语/adapter写禁区 机械守卫）。
+  并经本轮已签 J1 主旅程 + J2 走查运行时间接验证（每次能力调用落审计、AI 助手走网关、页面由 5 消费面投影驱动）。
+  延后（已记 docs/preflight-debt.md / 各 Wave）：audit-bus 跨能力链路+12富字段+actor_role约束（W0-07）；
+  iam-session 多组织切换+token刷新+realm同步（Wave1/D-2 冻结）；inference-gateway 审计+降级+提示注入防御（W0-07/Wave1）；
+  ops-gateway S4 e2e 面板（W0-07）；negative-and-guardrails UI 一票否决场景（W0-07 浏览器）。本次签收=本期工程 scope，非全场景。
+decision_only: false
+covers:
+  - .testing/waves/wave-0-golden-path/features/infra-audit-bus.feature
+  - .testing/waves/wave-0-golden-path/features/infra-contract-projection.feature
+  - .testing/waves/wave-0-golden-path/features/infra-iam-session.feature
+  - .testing/waves/wave-0-golden-path/features/infra-inference-gateway.feature
+  - .testing/waves/wave-0-golden-path/features/ops-gateway-heartbeat.feature
+  - .testing/cross-cutting/negative-and-guardrails.feature

@@ -5,10 +5,8 @@
 # Roles: ROLE_SYSTEM | ROLE_BUSIAUDIT
 # Trace: D31 / D32 / 业务反馈 #PR129 / 基线 §3.4 / dsp-dataservice-reconstruction-plan-v1.md §3.3 / §3.5 / §六 Wave 0 / 旧 xlsx 行 [63..70]（A 类批次锚定，非业务面对照）
 # Priority: P0
-# Status: Draft
 # Owner: e6
 # Pytest: tests/test_wave0_ops_gateway.py
-# Twin-F: e6.F12
 
 Feature: Wave 0 网关运行状态投影（ops.gateway.heartbeat.ingest）
   As a 平台守门人 / 运营审计 (ROLE_SYSTEM / ROLE_BUSIAUDIT)

@@ -149,8 +149,17 @@ class DeliveryService:
             return None
 
     def by_request_id(self, request_id: str) -> dict[str, Any] | None:
-        """Snapshot delivery task by application/request id; None when absent."""
+        """Delivery task by application/request id; None when absent.
+
+        先查内存快照（demo/seed 即时态），未命中再回 DB（task_from_record）。
+        修真 bug：DB 导入的交付（如 M0 dump 的 granted 授权）不在内存快照基底里，
+        旧实现只读 brain._snapshot 漏查 → credential.query 抛 NotFoundError → P4 凭据页 422。
+        DB 是真相（system.snapshot 也用 brain.list_delivery_tasks() 回源），与之同源。
+        """
         for item in self.brain._snapshot["delivery_tasks"]:
             if item["requestId"] == request_id:
                 return item
+        store = getattr(getattr(self.brain, "_state_store", None), "database_store", None)
+        if store is not None:
+            return self.task_from_record(request_id, store)
         return None

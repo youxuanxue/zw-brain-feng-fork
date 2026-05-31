@@ -82,8 +82,8 @@ driven_by:
 
 ## 落盘（业务方 sign-off 后）
 
-- [x] **A**：`.twin/e6-platform-m0/plan.yaml` F1 追加 `[SIGNOFF-CLOSED 2026-05-29] covers aclass-dataservice`
-- [x] **B**：PR #165 加 label `business-signoff: aclass-dataservice`（决策签字 evidence marker）
+- [x] **A**：`.testing/signoff/aclass-dataservice.signoff.yaml` 账本（D46.b 单一权威源；kind=决策签字，decision_only=true）
+- [x] **B**：PR #165 加 label `signoff:aclass-dataservice`（决策签字，合并自动落账本）
 - [x] **C**：CLAUDE.md D40（A 类服务能力面设计业务方 sign-off 完成，按 plan + Wave 节奏执行）
 - [x] **D**：本文 `status: approved`；`dsp-dataservice-reconstruction-plan-v1.md` 头注"业务方设计 sign-off 完成"
 

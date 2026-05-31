@@ -1,0 +1,95 @@
+name: signoff-ledger
+
+# D46.d — PR 合并自动落账：业务方在 PR 上签字（label `signoff:<scope>` + PR body 的
+# <!-- signoff ... --> 机读块），合并时把签字落成 .testing/signoff/<scope>.signoff.yaml
+# 提交回 main。GitHub 是录入口，账本（git 内）才是真相；此后 signed() 只读仓库、离线可验。
+#
+# 形式：
+#   1) PR 加 label `signoff:<scope>`（如 signoff:e3.F9）
+#   2) PR body 含：
+#        <!-- signoff
+#        scope: e3.F9
+#        kind: 效果验收            # 决策签字 | 效果验收 | 双签
+#        covers:                   # decision_only:true 则留空
+#          - .testing/waves/.../some.feature
+#        -->
+#   3) 合并 → 本 workflow 取 approvers/merged_at/PR# 自动生成账本文件并提交回 main
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write          # 需写权限把账本 commit 回 main（main 无分支保护）
+  pull-requests: read
+
+jobs:
+  land-signoff:
+    if: >-
+      github.event.pull_request.merged == true &&
+      contains(toJSON(github.event.pull_request.labels.*.name), 'signoff:')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Collect PR approvers
+        id: approvers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          # 取 APPROVED review 的提交者 login（GitHub 权威"谁批的"）
+          approvers=$(gh api "repos/${{ github.repository }}/pulls/${PR}/reviews" \
+            --jq '[.[] | select(.state=="APPROVED") | .user.login] | unique | join(",")' 2>/dev/null || echo "")
+          echo "list=${approvers}" >> "$GITHUB_OUTPUT"
+
+      - name: Build PR event payload
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+          MERGED_AT: ${{ github.event.pull_request.merged_at }}
+          URL: ${{ github.event.pull_request.html_url }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          APPROVERS: ${{ steps.approvers.outputs.list }}
+        run: |
+          python - <<'PY'
+          import json, os
+          approvers = [a for a in (os.environ.get("APPROVERS") or "").split(",") if a]
+          event = {
+              "number": int(os.environ["NUMBER"]),
+              "merged": True,
+              "merged_at": os.environ.get("MERGED_AT", ""),
+              "html_url": os.environ.get("URL", ""),
+              "labels": json.loads(os.environ.get("LABELS") or "[]"),
+              "approvers": approvers,
+              "body": os.environ.get("BODY") or "",
+          }
+          with open("/tmp/pr-event.json", "w", encoding="utf-8") as f:
+              json.dump(event, f, ensure_ascii=False)
+          PY
+
+      - name: Generate signoff ledger file
+        run: python scripts/signoff_from_pr.py --event /tmp/pr-event.json
+
+      - name: Commit ledger to main (if new)
+        run: |
+          if git diff --quiet -- .testing/signoff/; then
+            echo "no new signoff file — nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .testing/signoff/
+          git commit -m "chore(signoff): land sign-off ledger from PR #${{ github.event.pull_request.number }} [skip ci]"
+          git push origin main

@@ -51,12 +51,12 @@ echo "    - 设计: docs/approved/zw-brain-flywheel.md §七.1 / §十"
 echo
 echo "  反模式监测（飞轮 §九）："
 echo "    [ ] #1 客户机房专用 fixture / mapper（preflight 段 25 + R8 反 fork 守）"
-echo "    [ ] #2 业务方 review 不签字（promote_signoff.py + 月度 review 固化）"
+echo "    [ ] #2 业务方 review 不签字（往 .testing/signoff/<scope>.signoff.yaml 追加 covers + 月度 review 固化；status 由 gen_feature_status.py 现算，D46）"
 echo "    [ ] #3 spec/test trace 漂移（preflight 段 38 守）"
 echo "    [ ] #4 不回灌真值源（上线 ritual 硬步骤 §十）"
 echo "    [ ] #5 三引擎走捷径硬编码（preflight 段 25 + Wave 2 AC5）"
 echo "    [ ] #6 xlsx 128 条只引用不验证（tests/test_legacy_smoke_equivalence.py）"
-echo "    [ ] #7 把全 feature Verified 当 ship 判据（ship gate = Wave 0+1+2 Verified）"
+echo "    [ ] #7 把全 feature Done 当 ship 判据（ship gate = Wave 0+1+2 Done）"
 echo "    [ ] #8 Wave 4 SLI 当 GWT 用（docs/customer-readiness/wave4-cutoff-criteria.md）"
 
 echo

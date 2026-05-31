@@ -1,0 +1,11 @@
+scope: e3-engines
+signed_by: 海若产品部产品负责人
+date: 2026-05-28
+kind: 双签
+evidence: PR #151 评论 business-signoff（covers AC5）
+decision_only: false
+covers:
+  - .testing/waves/wave-2-engines-b1-zones/features/engine-approval-flow.feature
+  - .testing/waves/wave-2-engines-b1-zones/features/engine-form-schema.feature
+  - .testing/waves/wave-2-engines-b1-zones/features/engine-recommend-prefer.feature
+  - .testing/waves/wave-2-engines-b1-zones/features/engine-ai-config-draft.feature

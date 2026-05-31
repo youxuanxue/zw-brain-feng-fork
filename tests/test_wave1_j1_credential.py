@@ -4,7 +4,6 @@
 # Consumer-faces: API (brain.invoke_skill)
 # Roles: ROLE_ORGAN_OPERATER (申请人 / 凭据所有者) | ROLE_ORGAN_MANAGER (审批人)
 # Trace:
-#   .twin/e1-j1-journey/plan.yaml F5
 #   zw_brain/command/handlers/j1/credential.py
 #   zw_brain/capability_registry/registered/credential.sample.render.json
 """F5: P4 凭据领取生产化 — credential.issue → query → sample.render 三语样例 + audit chain.

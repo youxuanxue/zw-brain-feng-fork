@@ -329,3 +329,34 @@ def test_external_capability_contracts_are_not_brain_service_invokable() -> None
         pass
     else:
         raise AssertionError("external capability contracts must not be direct BrainService writes")
+
+
+def test_check_projection_drift_catches_tampered_projection() -> None:
+    """负向一票否决（feature「手维护引发 drift 必须被拦截」）.
+
+    收敛 test-sufficiency 审计 gap：原 12 测试全是 happy-path（干净时投影一致），
+    从不证明 drift 时 check_projection_drift 真能拦下。本测试取完整 expected 投影集，
+    干净态断言无 drift；再把其中一个文件的 expected 内容篡改一字节（模拟磁盘上的生成产物
+    与重生成结果不一致 = 有人手改了生成文件），断言守卫报 `projection drift` 并指出该文件。
+    这才证明 5 消费面单一事实源守卫「该报错时报错」，而非只「不该报错时不报错」。
+
+    注：守卫按设计比对「已知投影文件内容是否被改」+「多余 MCP 描述符」；
+    「registry 新增能力但从未投影」不在 expected_files key 内、本守卫检测不到，
+    由 preflight 段 28 capability-registration 兜底（三处一致），互补。见诚实账 debt。
+    """
+    from scripts.export_agent_contract import (
+        check_projection_drift,
+        discover_skills,
+        expected_projection_files,
+    )
+
+    files, expected_mcp_paths, *_ = expected_projection_files(discover_skills())
+    assert check_projection_drift(files, expected_mcp_paths) == [], "干净态不应有 drift"
+
+    # 篡改一个 expected 投影内容（其磁盘内容仍是旧的 → current != expected → drift）
+    victim = next(iter(files))
+    tampered = dict(files)
+    tampered[victim] = files[victim] + "\n<!-- drift-probe -->\n"
+    errors = check_projection_drift(tampered, expected_mcp_paths)
+    assert errors, "已生成投影与重生成内容不一致时，守卫必须报 drift；返回空 = 守卫形同虚设"
+    assert any("projection drift" in e for e in errors), errors

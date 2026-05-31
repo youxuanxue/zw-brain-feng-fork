@@ -60,8 +60,8 @@ driven_by:
 - **C1 申请详情**：真实申请可开，复用资源 / 申请人(脱敏) / 用途 / 状态 / 时间全可见。
 - **纠错保障**：共享类型映射用源表 DDL 权威（纠正 `approval_flow_baseline` 反向常量陷阱，避免把有条件标成无条件的合规风险）。
 
-## 落盘三角
+## 落盘（账本单源）
 
-- **A（evidence）**：`.twin/e1-j1-journey/plan.yaml` `[SIGNOFF-CLOSED 2026-05-30 ... covers j1-data-gap]`。
-- **B（PR label）**：PR #173 label `business-signoff: j1-data-gap`。
+- **A（evidence）**：`.testing/signoff/j1-data-gap.signoff.yaml` 账本（D46.b 单一权威源；decision_only=true，covers 空——本验收针对无独立 .feature 的 UI/数据工作）。
+- **B（PR label）**：PR #173 label `signoff:j1-data-gap`（合并自动落账本）。
 - **C（决策）**：CLAUDE.md D45 / D45.a / D45.b / D45.c（含 scope `j1-data-gap`）。

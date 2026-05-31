@@ -1,0 +1,9 @@
+scope: e3.F9
+signed_by: 海若产品部业务方
+date: 2026-05-30
+kind: 效果验收
+evidence: PR #170 / .testing/acceptance/e3.F9/evidence.json / PR #162（F9-launch 准入）
+decision_only: false
+covers:
+  - .testing/waves/wave-2-engines-b1-zones/features/topic-package-discovery.feature
+  - .testing/waves/wave-2-engines-b1-zones/features/topic-package-curation.feature

@@ -8,7 +8,7 @@ sign_off_required:
   - 海若产品部业务方
 vehicle_pr: <PR 号>
 driven_by:
-  - <plan.yaml / feature 列表>
+  - <被验收 .feature 列表 / 真值源文档>
 ---
 
 # <Scope> 效果验收材料包 — <交付物一句话>
@@ -49,11 +49,10 @@ driven_by:
 - 禁过程/估算数字（N 分钟 / N-M 天 / worker·day）；测试数量这类**事实计数**写进
   evidence.json（由脚本采集），prose 不裸写易漂移的数字。
 
-## 落盘（验收通过后）
+## 落盘（验收通过后 — D46.b/d，账本是唯一权威源）
 
-- [ ] **A**：plan.yaml 对应 feature `actual_evidence` 追加 `[SIGNOFF-CLOSED <日期>] covers <scope> | 验收 | evidence=.testing/acceptance/<scope>/evidence.json | by <角色> | vehicle PR <#> → <状态>`
-- [ ] **B**：PR 加 label `business-signoff: <scope>`（整 epic 用 `eN`，promote_signoff 翻该 epic 全部 .feature InTest→Ready/Verified）
-- [ ] **C**：CLAUDE.md 追加 `D<编号>` 决策条
-- [ ] **D**：本文 frontmatter `status: approved`
+- [ ] **A**：vehicle PR 加 label `signoff:<scope>` + PR body 写 `<!-- signoff ... -->` 机读块（`scope` / `kind: 效果验收` / `covers`（被验收 .feature 相对路径列表）/ `decision_only: false`）。合并时 `signoff-ledger.yml` 调 `signoff_from_pr.py` 自动落 `.testing/signoff/<scope>.signoff.yaml` 账本（`signed_by`=approvers，`date`=merged_at，`evidence`=PR#）。status 由账本现算（无 `# Status` 翻转、无 `Verified` 态）。
+- [ ] **B**：CLAUDE.md 追加 `D<编号>` 决策条。
+- [ ] **C**：本文 frontmatter `status: approved`。
 
-> A/C 由 **段 54**（`check_signoff_landed.py`）校验；本文证据真实性 + 结构由 **段 55** 校验。
+> A 由 **段 54**（`check_signoff_landed.py`：approved scope ↔ 账本）+ **段 63**（账本 schema/covers/evidence）校验；本文证据真实性 + 结构由 **段 55** 校验。

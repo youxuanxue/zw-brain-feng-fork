@@ -23,9 +23,9 @@ driven_by:
 
 > **本文用途**：旧平台 V5.0.2 冒烟用例 128 条中，**50 条 ❌ 不复刻**需要业务方亲笔签字接受。不签字 = 客户上线后发现"旧的能新的不能"的风险责任不明。
 >
-> **签字方式**：业务方在评审会上确认；PR comment 加 label `business-signoff: legacy-not-reproduce`；或本文末尾签字段亲签后扫描归档。
+> **签字方式**：业务方在评审会上确认；PR 加 label `signoff:legacy-not-reproduce` + body 机读块（`kind: 决策签字`）→ 合并自动落 `.testing/signoff/legacy-not-reproduce.signoff.yaml` 账本（D46.b 单一权威源）。本文降为签字明细材料，**签字事实以账本为准，不以本文 header 为准**。
 >
-> **机械化路径**：本文与 `.testing/cross-cutting/legacy-128-mapping.md` ❌ 行一一对应；`scripts/check_legacy_retirement_ready.py` 会校验本文签字状态。
+> **机械化路径**：本文与 `.testing/cross-cutting/legacy-128-mapping.md` ❌ 行一一对应；Wave 4 退役准备度看板 `scripts/check_legacy_retirement_ready.py` 读**账本**判据 D 的签字输入（看板 `--check` 始终 exit 0、显示态，未接 preflight gate；Wave 4 启动、监控 SLI 接入后才有阻塞意义）。
 
 ## 一、签字汇总（业务方一次性确认）
 

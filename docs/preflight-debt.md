@@ -18,6 +18,61 @@ trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / �
 目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
 trigger 关闭即可删除字段。
 
+## 2026-05-30 — feature 测量产物 CI 自动刷新未接（D46）
+
+- **Where**: `.testing/status/measurement/<sha>.json` 由 `scripts/capture_feature_status.py` 实跑 pytest 产出；本期靠 PR 提交基线 + 合并前本地手跑刷新，CI（push-to-main）未自动跑 capture 并持久化产物。
+- **Implication**: 新增/改测试后若未重跑 capture，测量产物对新 feature 陈旧；状态函数 green() 对缺产物 fail-closed（算 InTest/Draft 不会误标 Done），段 60 对陈旧仅 WARN，不阻断。
+- **Why deferred**: CI 内 auto-commit 产物需写权限 + bot 提交链路，风险高于本期收益；与 capture_acceptance_evidence 同人在环模型，先手跑。
+- **Trigger to re-evaluate**: 测量陈旧致状态视图误判被发现，或首客上线前需"状态视图实时反映 HEAD"——届时在 ci.yml test job 后接 capture + 产物持久化（与 2026-05-29 验收证据 CI 化条合并做）。
+
+## 2026-05-31 — j1-api-call-monitoring 无 P4 调用监控 UI（本地走查，留 InTest）
+
+- **Where**: capability_call 数据层已实现+测试绿（CapabilityCallRecord + record_capability_call 中间件），但 P4 `#/delivery-exchange` **无调用监控视图**（无 curl 调用历史 / 配额 / QPS 展示 tab）。feature 7 个 Scenario 多标延后 W0-07（浏览器）/ Wave1+（配额引擎）。
+- **Implication**: feature 声明 WebUI 面但 P4 监控 UI 未铺；2026-05-31 本地走查产品研发负责人确认看不到监控视图 → 留 **InTest**，不签。数据层/API 可用。
+- **Trigger**: 铺 P4 调用监控 UI（接 capability_call 查询 + 配额/QPS 展示）→ 走查 → 往 .testing/signoff/ 追加 covers → 翻 Done。属 webui-capability-render-debt 一类。
+
+## 2026-05-31 — j1-approval-conditional 两步条件审批运行时未铺（Wave1 延后，留 InTest）
+
+- **Where**: 条件审批（部门审→平台复核两步，`ApprovalStepRecord.decision_mode`）的**运行时分派未 wired**——`application.dept_approve` / `application.platform_approve` 不在 dispatch、approval handler 无两步逻辑、snapshot/P3 待审列表不暴露 decision_mode（区分不出条件审批项）。本期只落了 legacy 导入 mapper（`ExchangeMapper.data_apply_dept_approve`，G1.5 2026-05-23 Unfreeze-Note）+ 8 个数据层测试（test_wave0_j1_approval_conditional.py 测导入态/状态机合法集，非运行时流转）。
+- **Implication**: feature 的本期可交付 = legacy 条件审批数据导入（已测绿），但**两步条件审批业务运行时按 D-4 属 Wave1 延后**，UI 里走不了（无项可辨、无 handler 可走）。2026-05-31 本地走查无法演示两步 → 留 **InTest**，不签。
+- **Trigger**: Wave1 立项条件审批运行时（dept_approve→platform_approve handler + P3 两步 UI + decision_mode 暴露）→ 走查两步真跑 → 追加 covers → 翻 Done。
+
+## 2026-05-31 — topic.package.query 列表跑详情级投影，87 包 ~1.4s（P7 性能）
+
+- **Where**: `zw_brain/domain/services/topic_package_service.py` `list_projection` → `projection_summary` → `catalog_projection_items`：列表每个专题包都跑**详情级**投影；`catalog_projection_items`（line ~118）对**每个目录项**调 `store.resource_api_repo.list_assets(tenant_id)` **全表加载再 Python 过滤** + 逐项查 `catalog_repo.list_items` / `list_schema_mappings` / `list_schema_snapshots`。87 包 × 每包目录项 × 全表扫 → `topic.package.query{status:published}` 实测 ~1.4s（本地）。
+- **Implication**: P7「共享专题包」首屏加载慢（~2s 才出卡片）；快速点入会先看到加载态（已修 UX：加载期显「加载中」不再误显「暂无专题包」，commit 同批）。列表页实际只用 `activeCatalogCount` + title/scenario/status/isSubscribed，不需要 field_count/资源计数等详情字段。
+- **Fix direction**: 给 `list_projection` 走**轻量投影**——`activeCatalogCount` 仅按 `entry_status` 数 active 目录项（不算 field_count）；`visibleOrgCount/visibleOrgs/applicationBoundary` 来自 visibility（已便宜）；跳过 `catalog_projection_items` 的 list_assets 全表扫 + mapping/snapshot 逐项查（那是 detail_to_dict 的事）。或把 `list_assets` 按 catalog_code 下推到 SQL / 一次性加载复用。**需带契约测试 + 实测前后延迟验证**（响应形状变化要核 topic.package.query 的投影测试与 5 消费面）。
+- **Why deferred**: 改 domain service + 可能动 list 响应形状，需聚焦改动 + 测量验证，不在本次走查会话仓促重构。UX 误显已先修（症状消除）。
+- **Trigger**: 客户现场 P7 包数增长致首屏明显卡，或下个 J2/F9 迭代——届时按 fix direction 做轻量列表投影 + 前后延迟实测。
+
+## 2026-05-31 — j1-credential-revoke WebUI 撤回入口未铺（本地走查 #8，选 B 留 InTest）
+
+- **Where**: `application.grant.revoke` / `application.grant.suspend` 能力已注册（write-critical + humanConfirmationRequired）且后端测试绿（tests/test_wave1_j1_credential.py + tests/test_wave0_j1_credential_call.py 含 revoke 断言），但 **webui 无任何撤回 UI 触发**：P4 凭据页（P4*.vue）无撤回入口；P3RequestDetail「撤回申请」按钮显示"撤回申请能力尚未在本环境开通"。
+- **Implication**: feature `j1-credential-revoke` 声明 `# Consumer-faces: WebUI | API`，但 WebUI 面未铺 UI。2026-05-31 本地走查产品研发负责人**选 B**：声明 WebUI 面就该有 UI，无 UI 不签字 → 留 **InTest**（不走 D46 sign-off）。API/能力面已可用。
+- **Why deferred**: 不按"能力绿就签"放水；WebUI 撤回入口（BUSIAUDIT 撤回授权 + 申请人主动放弃）作为明确待铺项。
+- **Trigger to re-evaluate**: 铺好 P4/P3 撤回 UI（接 application.grant.revoke/suspend + 确认弹窗 + 申请人侧红色通知）→ 本地走查通过 → 往 .testing/signoff/ 追加 covers j1-credential-revoke → 现算自动翻 Done。属 webui-capability-render-debt（docs/webui-capability-render-debt.md）一类。
+
+## 2026-05-31 — webui-pages-real-data e2e 因 dump 重建 seed 数据不一致未绿（D46.f；2026-05-31 复核根因）
+
+- **Where**: `tests/e2e/customer_acceptance_checklist.spec.ts`（webui-pages-real-data # Pytest 指向的**整套** J1/J2/P7 验收）3 条 ✘，复核根因（非单纯断言脆）：
+  - **P2**（line 34）：seed 无「案例」分类 → catalog-browse 无 `在发现页检索「案例」` 快捷链接。**真数据基线脆**（应断言任一分类）。
+  - **P4**（line 105）：`credential.query` 返回 **HTTP 422 `entity_not_found`** —— delivery_task.status=`granted` 但**无对应 credential 记录**（dump 重建 seed 数据不一致：granted 交付未配套凭据实体）。**真 seed 数据不一致**，非测试脆、非 UI bug；凭据样例无从渲染。
+  - **P7**（line 236）：`topic.package.subscribe` API 真成功（ok+audit_id，87 订阅按钮渲染），仅点击后「已订阅专题」提示文案断言脆。**唯一真 test-brittle**。
+- **Implication**: webui-pages-real-data 现算停 Ready（已签 e5 + e2e 未全绿），非 Done。e5 在其 seed 上记 15 passed → 功能没坏，是 dump 重建 seed 内容/一致性差异。
+- **Why deferred（不冒绿）**: P4 是真 seed 不一致——弱化测试让它过 = 掩盖 granted-无-credential 的数据缺陷，违背 truth-first。留 Ready 最诚实。
+- **Trigger / 正解**: ① 修 seed 完整性——customer_acceptance_up / 凭据签发链确保 `granted` 交付必有 credential 记录（M0 seed 一致性，根治 P4）；② P2 改任一分类断言、P7 改按钮态断言（保留行为，去硬编码值）；③ 三者齐后重跑 `capture_feature_status.py --with-e2e` → 全绿 → 现算自动 Ready→Done。属 M0 seed 一致性 + e2e 健壮性聚焦改动，非本轮仓促弱化签字测试。
+- **2026-05-31 深挖根因（比上更深更广，部分已修）**：P4 422 的真根因不止"无凭据"，是**系统性「内存快照 vs DB」陈旧 + M0 数据不一致**三层：
+  - **(已修 Fix B)** `delivery_service.by_request_id` 只读 `brain._snapshot["delivery_tasks"]` 内存基底，DB 导入的交付（M0 dump）不在其中 → NotFoundError → credential.query 422。改为内存未命中回 DB（`task_from_record`，与 system.snapshot 同源）。422 → 优雅 200 not_issued。
+  - **(未修，更广)** `request_service.by_id` 同样只读 `brain._snapshot["requests"]`，DB 导入的 application_record（如 86013a7a）运行时 lookup 漏查 → credential.issue 也 entity_not_found。这是**跨多视图（requests/delivery/可能更多）的系统性快照层陈旧**，根治=视图层 DB 回源（Action-C 式，多 feature 依赖，有回归风险，须带测试）。
+  - **(M0 数据)** 67 交付 0 个有 credential；2 个 granted 里 86013a7a↔approved（有效，仅缺签发）、46f0↔**withdrawn**（granted 交付绑已撤回申请，M0 导入状态不一致）。
+  - **本轮处置**：Fix B 已落（真 bug，消除 DB 交付 422）；其余（requests 视图 DB 回源 + M0 凭据签发 + granted/withdrawn 一致性 + P4 测试取"有凭据"交付）= 聚焦后端 PR，不在收敛会话尾仓促改核心快照层。webui-pages-real-data 仍 Ready。
+
+## 2026-05-31 — e2e 测量产物靠本地手跑，CI 未自动接（D46.f，与上方 D46 测量 CI 条合并）
+
+- **Where**: `capture_feature_status.py --with-e2e` 实跑 Playwright 需 :8800 全栈 + 干净 seed 库 + vite build；本期本地手跑产出测量产物，CI（`-m "not browser_e2e"`）不跑 e2e。
+- **Implication**: e2e 结果靠人工在干净栈刷新；新 webui 改动后若未手跑 capture --with-e2e，e2e 轴对其陈旧（green() fail-closed 不误标 Done）。
+- **Trigger to re-evaluate**: 与「feature 测量产物 CI 自动刷新」同批做——CI 加 e2e job（起栈 + capture --with-e2e + 持久化产物）。
+
 ## 2026-05-30 — P3RequestDetail 真实申请详情缺 prefilledFields（D45 轻量卡的 by-design 取舍）
 
 - **Where**: `zw-brain-web/src/pages/P3RequestDetail.vue:34` 读 `req.value.prefilledFields`（来自
@@ -393,7 +448,7 @@ trigger 关闭即可删除字段。
   流已激活（当前 preview 2 / draft 4）。
 - **What remains**: 代码侧已交付；**未完成的是 T1 真实客户演练验证**——用三引擎在 ≤1 周内不改代码
   完成"鞍山 4 级审批 + 四川 7 字段表单 + 荆州 5 条推荐规则"项目级定制，由业务方 sign-off。
-  sign-off 权威源住 `.twin/e3-wave2-engines/plan.yaml` F8.actual_evidence；reviewer
+  sign-off 权威源 = `.testing/signoff/e3-engines.signoff.yaml` 账本（D46.b）；reviewer
   本地跑 `pytest tests/integration/test_wave2_three_engines_acceptance.py -v` 生成
   `.data/wave2-acceptance/` 下 SIGN_OFF.md + consolidated.json artifact（gitignored）。
   等真人门禁（属 R13 业务流程类决策）。

@@ -5,10 +5,8 @@
 # Roles: ROLE_BUSIAUDIT | ROLE_SECURITY_AUDIT
 # Trace: 基线 §10.3 B1.1 最小可用（异常发现 + 抽查 + 督查三段）, §5.4.4 B1.1 反约束
 # Priority: P1
-# Status: Draft
 # Owner: e4
-# Pytest: pending
-# Twin-F: e4.F3
+# Pytest: tests/integration/test_b11_backend.py
 
 Feature: B1.1 合规与运营 — 异常 + 抽查 + 督查三段
   As a 业务运营员 / 安全审计员

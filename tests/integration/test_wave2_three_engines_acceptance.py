@@ -12,7 +12,7 @@ consolidated.json 同性质，按 "derived 不入 git" 规矩**不再 tracked**�
 fix（迁到 docs/）和 PR #144 D17 确定性化（让重复跑产物 byte-identical）都是为
 让 tracked 状态稳定打的补丁，根本病是"derived 产物本就不该 tracked"。
 
-**sign-off 状态权威源 = `.twin/e3-wave2-engines/plan.yaml` F8.status +
+**sign-off 权威源 = `.testing/signoff/e3-engines.signoff.yaml` 账本（D46.b）；历史也曾记于
 F8.actual_evidence**（业务方身份 / 签字载体 / 4 子项判定 / 日期全量住此字段）。
 reviewer 看证据：(a) plan.yaml F8.actual_evidence；(b) 本地跑本 test 生成
 `.data/wave2-acceptance/` 下完整证据；(c) PR 评论 `business-signoff: <角色> <日期>`。
@@ -32,7 +32,7 @@ from tests._trusted_payload import invoke_trusted
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SHADOW_DB = REPO_ROOT / ".data" / "test_F8_wave2_acceptance_shadow.db"
 # 2026-05-28 重构：SIGN_OFF.md 与 consolidated.json 同入 .data/（artifact，
-# gitignored）；权威 sign-off 状态住 .twin/e3-wave2-engines/plan.yaml F8。
+# gitignored）；权威 sign-off 住 .testing/signoff/e3-engines.signoff.yaml 账本（D46.b）。
 ACCEPTANCE_DIR = REPO_ROOT / ".data" / "wave2-acceptance"
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
 
@@ -483,7 +483,7 @@ def test_three_engines_consolidated_acceptance() -> None:
         "",
         "## § 3 业务方 sign-off 状态",
         "",
-        "> **权威源**：`.twin/e3-wave2-engines/plan.yaml` F8.status + F8.actual_evidence；",
+        "> **权威源**：`.testing/signoff/e3-engines.signoff.yaml` 账本（D46.b 单源）；",
         "> 本节不持有签字数据（derived 产物不入 git，避免「同信息存两处需手同步」）。",
         "> 业务方判定 4 子项（鞍山 4 级审批流 / 四川 7 字段申请表 / 荆州 5 条推荐规则 /",
         "> 「1 周内不改代码」承诺）的结果落在 plan.yaml F8.actual_evidence 末段 sign-off 条；",
@@ -518,7 +518,7 @@ def test_three_engines_consolidated_acceptance() -> None:
         "",
     ]
     # 2026-05-28 重构：SIGN_OFF.md 与 consolidated.json 同入 .data/（gitignored
-    # artifact）。sign-off 状态权威源住 .twin/e3-wave2-engines/plan.yaml F8。
+    # artifact）。sign-off 权威源住 .testing/signoff/e3-engines.signoff.yaml 账本（D46.b）。
     # 无 preserve 逻辑——本文档纯 auto-gen 证据材料，无需保护"手填行"。
     sign_off_path = ACCEPTANCE_DIR / "SIGN_OFF.md"
     sign_off_path.write_text("\n".join(md_lines), encoding="utf-8")

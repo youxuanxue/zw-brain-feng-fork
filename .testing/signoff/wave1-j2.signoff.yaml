@@ -1,0 +1,10 @@
+scope: wave1-j2
+signed_by: 薛娇（产品研发负责人）
+date: 2026-05-31
+kind: 效果验收
+evidence: 2026-05-31 本地部署（ZW_BRAIN_DEV_IAM_BYPASS）走查确认 — #/provider/wizard/reverse-catalog 反向编目向导（8 目录可编目 + 创建草稿）/ #/provider/inbox 挂接审核 6 + 字段裁决 11 待办 / #/provider 待发布 2 项 + 发布按钮；Playwright 截图核对 + 产品研发负责人本地走查；后端 test_wave1_j2_pipeline.py 26 测试全绿（measurement ad35667）
+decision_only: false
+covers:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j2-online-catalog-compile.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j2-department-review.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j2-platform-publish.feature

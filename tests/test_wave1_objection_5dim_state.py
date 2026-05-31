@@ -5,7 +5,6 @@
 # Roles: ROLE_ORGAN_OPERATER (申请方) | ROLE_ORGAN_MANAGER (部门) | ROLE_BUSIAUDIT | ROLE_SECURITY_AUDIT
 # Trace:
 #   .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-{catalog,authz,content,resource,use}.feature
-#   .twin/e1-j1-journey/plan.yaml F1 (catalog) + F2 (content/use/resource/authz)
 #   zw_brain/domain/objection_state.py
 """F1 + F2: 异议 5 维度状态机闭环 — 真实数据可达性 + sd-default e2e + 跨维度路由.
 

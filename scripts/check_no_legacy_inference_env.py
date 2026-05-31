@@ -4,8 +4,8 @@
 D36 (2026-05-29) 决策：推理网关连接变量统一为 ``ZW_BRAIN_INFERENCE_*``，删除一切
 ``INSPUR_INFERENCE_*`` / ``AUTH_TOKEN`` / 裸 ``BASE_URL``/``MODEL`` 兜底（见 CLAUDE.md D36）。
 此前守卫只在 client 层有负向测试（D36.c），**没有仓库级机械防线**阻止已退役的
-``INSPUR_INFERENCE_*`` env 前缀在文档 / `.twin` / 配置里回潮——PR #160 即活案例
-（差点把失效契约钉进 twin 证据源 + 运维债务文档，preflight 全绿却放过）。
+``INSPUR_INFERENCE_*`` env 前缀在文档 / 配置里回潮——PR #160 即活案例
+（差点把失效契约钉进证据源 + 运维债务文档，preflight 全绿却放过）。
 
 本守卫：扫全仓 tracked 文件，禁止已退役 env 前缀字面量 ``INSPUR_INFERENCE_``。
 

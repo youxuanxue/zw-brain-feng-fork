@@ -5,10 +5,8 @@
 # Roles: ROLE_BUSIAUDIT (主管部门需求汇总)
 # Trace: 基线 §3.2 供需对接 36 页, §10.2 (供需对接子流程，meta 合并非数据合并)
 # Priority: P1
-# Status: Draft
 # Owner: e1
 # Pytest: tests/test_wave1_j1_supply_demand.py
-# Twin-F: e1.F4
 
 Feature: J1 供需对接子流程（meta 合并 6 步）
   As a 业务运营员 ROLE_BUSIAUDIT（主管部门）

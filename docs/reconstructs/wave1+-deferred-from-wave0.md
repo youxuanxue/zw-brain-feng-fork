@@ -143,9 +143,9 @@ W0-07 浏览器 e2e 是 **J1 正向 happy-path**（P1→B1.1 渲染 + 找数→�
 
 ### 验收基准（AC1-AC5）状态
 
-> AC1-AC5 定义见 `.claude/twin-workspaces/wave0-real-data/goal.yaml`；本表对齐 goal.yaml 原始编号。
+> AC1-AC5 = Wave 0 真数据验收基准；本表即权威记录（含完整定义），保留 Wave 0 当期原始编号。
 
-| AC | 内容（按 goal.yaml） | 状态 |
+| AC | 内容 | 状态 |
 |---|---|---|
 | AC1 | legacy 真数据导入 canonical + 核心表行数 > 0（catalog_entry=1222，sd-default）| ✓ 达成（D-3 行差为幂等语义，非缺陷）|
 | AC2 | 11 .feature 配套 pytest 全 Green + Status 推进 | ✓ 达成（4 pytest 50P/25S/0F + 11 .feature 头标更新；infra 5 个 .feature 同期数据层断言一并落 test_wave0_infra.py）|

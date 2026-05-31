@@ -8,12 +8,14 @@ docs/customer-readiness/wave4-cutoff-criteria.md 5 类判据机械化：
   D. 长尾外部能力包覆盖           — 业务方签字 + 客户回访
   E. Legacy 写入口已切断          — preflight 段 + 客户机房 API gateway 日志
 
-本脚本以 yaml + signoff doc 状态为输入，输出退役准备度百分比。
+本脚本以 yaml + 签字账本状态为输入，输出退役准备度百分比。
+签字唯一权威源 = .testing/signoff/legacy-not-reproduce.signoff.yaml 账本（D46.b），
+不再 grep docs/legacy-not-reproduce-signoff.md 的 header status（那是 D46 要消灭的
+"签字寄生在 doc header" 模式）；该 doc 降为签字明细材料。
 """
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from pathlib import Path
 
@@ -21,7 +23,7 @@ import yaml
 
 REPO = Path(__file__).resolve().parent.parent
 LEGACY_SMOKE_YAML = REPO / "tests" / "fixtures" / "legacy_smoke.yaml"
-SIGNOFF_DOC = REPO / "docs" / "legacy-not-reproduce-signoff.md"
+SIGNOFF_LEDGER = REPO / ".testing" / "signoff" / "legacy-not-reproduce.signoff.yaml"
 CUTOFF_DOC = REPO / "docs" / "customer-readiness" / "wave4-cutoff-criteria.md"
 
 
@@ -31,12 +33,15 @@ def _load_smoke_entries() -> list[dict]:
     return yaml.safe_load(LEGACY_SMOKE_YAML.read_text(encoding="utf-8")) or []
 
 
-def _signoff_doc_status() -> str:
-    if not SIGNOFF_DOC.is_file():
-        return "missing"
-    text = SIGNOFF_DOC.read_text(encoding="utf-8")
-    m = re.search(r"^status:\s*(\S+)", text, flags=re.MULTILINE)
-    return m.group(1) if m else "unknown"
+def _signoff_status() -> str:
+    """签字状态读自账本单源（D46.b）：账本存在且 evidence 非空 = approved。"""
+    if not SIGNOFF_LEDGER.is_file():
+        return "pending"
+    try:
+        d = yaml.safe_load(SIGNOFF_LEDGER.read_text(encoding="utf-8")) or {}
+    except (yaml.YAMLError, OSError):
+        return "invalid"
+    return "approved" if str(d.get("evidence", "")).strip() else "pending"
 
 
 def _criterion_a_j1_sli() -> tuple[int, int, str]:
@@ -93,7 +98,7 @@ def main() -> int:
     args = parser.parse_args()
 
     entries = _load_smoke_entries()
-    signoff_status = _signoff_doc_status()
+    signoff_status = _signoff_status()
 
     print("═" * 87)
     print("Legacy Retirement Readiness — Wave 4 退役准备度")

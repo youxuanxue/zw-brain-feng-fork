@@ -1,0 +1,10 @@
+scope: e4-b1
+signed_by: 海若产品部产品负责人 + 安全审计员（双签）
+date: 2026-05-28
+kind: 双签
+evidence: PR #147 评论 business-signoff（covers AC6）
+decision_only: false
+covers:
+  - .testing/waves/wave-2-engines-b1-zones/features/b1-1-compliance-audit.feature
+  - .testing/waves/wave-2-engines-b1-zones/features/b1-2-package-registration.feature
+  - .testing/waves/wave-2-engines-b1-zones/features/b1-2-trust-level-upgrade.feature

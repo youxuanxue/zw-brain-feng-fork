@@ -5,10 +5,8 @@
 # Roles: ROLE_SYSTEM | ROLE_BUSIAUDIT
 # Trace: R14, 基线 §4.4 第 4 类 AI 配置生成, §5.4.4 P3/B1.2 反约束, §10.3
 # Priority: P1
-# Status: Draft
 # Owner: e3
 # Pytest: tests/integration/test_wave2_three_engines_acceptance.py
-# Twin-F: e3.F3 + e3.F5
 
 Feature: 三引擎共享 — AI 配置草稿生成 (草稿 → 预览 → 确认入库)
   As a 平台运维员 / 业务运营员

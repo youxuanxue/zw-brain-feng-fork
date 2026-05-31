@@ -11,7 +11,7 @@
 - **模型调用边界**：M0 不调用 LLM；若 mapper 后续启用 schema 描述补全等 AI 能力，必须走 `shared/inference/client` 经集团推理平台（基线 §3.4 / preflight 段 10）。
 - **外部依赖**：IAF IAM（认证）/ 集团数据治理中心 / 集团数据安全中心 / 集团运维监控 / 区块链 adapter 均为外部依赖；M0 不复造（基线 §3.4）。
 - **产品形态**：M0 不打包大屏 / 指挥中心 / 演示页面入口（基线 §1.3）。
-- **实施界面 = CLI（by design）**：M0 现场实施走命令行（`scripts/import_legacy_dumps.py import <schema>` / `verify` 等）；**不建独立浏览器实施面**。用户 2026-05-25 确认「M0 不需要 web 页面」，故 `.twin/e6-platform-m0` AC3「12 步主旅程浏览器可视化」**非缺口**，不再作为待办跟踪。
+- **实施界面 = CLI（by design）**：M0 现场实施走命令行（`scripts/import_legacy_dumps.py import <schema>` / `verify` 等）；**不建独立浏览器实施面**。用户 2026-05-25 确认「M0 不需要 web 页面」，故 M0「12 步主旅程浏览器可视化」（原 e6-platform-m0 AC3）**非缺口**，不再作为待办跟踪。
 
 ## 你手上拿到的真实输入
 

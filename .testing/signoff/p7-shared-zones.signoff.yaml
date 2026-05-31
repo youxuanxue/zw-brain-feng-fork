@@ -1,0 +1,8 @@
+scope: p7-shared-zones
+signed_by: 薛娇（产品研发负责人）
+date: 2026-05-31
+kind: 效果验收
+evidence: 2026-05-31 本地部署（ZW_BRAIN_DEV_IAM_BYPASS）走查确认 — P7「共享专题包」#/zones-pack 渲染 87 个 published 真专题包（含 sd-default 真实数据「停车场信息统一查询应用推广案例」等，链路 专题包→真目录项(data_example_item cata_id+res_id)→真资源 完整），订阅/详情入口可走；产品研发负责人确认（前 e3.F9 后端已签 topic-package-discovery/curation）。Playwright 截图核对 87 卡渲染；后端 tests/integration/test_wave2_topic_package_{discovery,curation}.py 全绿（measurement ad35667）。加载期 UX 已修（不再误显「暂无专题包」）
+decision_only: false
+covers:
+  - .testing/waves/wave-2-engines-b1-zones/features/p7-shared-zones.feature

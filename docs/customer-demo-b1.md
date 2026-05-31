@@ -97,10 +97,7 @@ B1 涉及合规审计 + 能力包治理两个权责域，需 **业务方 + 安�
 3. **业务方 review** B1.2 能力包 lifecycle 5 步 + 暴露矩阵投影是否符合接入扩展中心预期
 4. **安全审计员 review** B1.1 4 panel 是否能识别合成的高失败率 + repeated-denied + 敏感
    字段脱敏是否生效（accountability 响应里不能出现 credential 原文）
-5. **sign-off 凭证**：
-   - **方式 A**：PR 留 `business-signoff: <角色> <日期>` 评论 +
-     `security-audit-signoff: <角色> <日期>` 评论
-   - **方式 B**：PR 打 `business-signoff` + `security-audit-signoff` 双 issue label
+5. **sign-off 凭证**（D46.d，账本是真相）：PR 加 label `signoff:<scope>` + body `<!-- signoff ... -->` 机读块（`kind: 双签` — 业务方 + 安全审计员；`covers`: 被签 .feature）。合并时 `signoff_from_pr.py` 自动落 `.testing/signoff/<scope>.signoff.yaml` 账本，`signed_by`=PR approvers（两位 reviewer）
 6. **审计留档**：sign-off 截图归入 `docs/approved/` 或 PR comment 永久附属
 
 ## 已知非阻塞约束

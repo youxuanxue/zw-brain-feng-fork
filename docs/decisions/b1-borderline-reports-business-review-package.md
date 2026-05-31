@@ -51,8 +51,8 @@ driven_by:
 
 ## 落盘（业务方 sign-off 后）
 
-- [x] **A**：`.twin/e6-platform-m0/plan.yaml` F1 追加 `[SIGNOFF-CLOSED 2026-05-29] covers b1-borderline-reports`
-- [x] **B**：PR #165 加 label `business-signoff: b1-borderline-reports`
+- [x] **A**：`.testing/signoff/b1-borderline-reports.signoff.yaml` 账本（D46.b 单一权威源；kind=决策签字，decision_only=true）
+- [x] **B**：PR #165 加 label `signoff:b1-borderline-reports`（合并自动落账本）
 - [x] **C**：CLAUDE.md D41；删除 `preflight-debt.md`「2026-05-23 — 5 个 borderline B1」债条
 - [x] **D**：本文 `status: approved`
 

@@ -5,10 +5,9 @@
 # Roles: ROLE_BUSIAUDIT
 # Trace: 基线 §5.6 业务反馈 #14 (B1 后台旁路抽查 "长期无人申请的目录"诊断), §10.3
 # Priority: P1
-# Status: Backlog
+# Deferred: catalog.dormant.diagnose 能力 + B1.1 面板立项延后（preflight-debt.md 2026-05-27）
 # Owner: e4
 # Pytest: pending (preflight-debt.md 2026-05-27 — catalog.dormant.diagnose skill + B1.1 panel 立项延后)
-# Twin-F: e4.F3
 
 Feature: B1.1 长期无人申请目录诊断（旁路抽查）
   As a 业务运营员

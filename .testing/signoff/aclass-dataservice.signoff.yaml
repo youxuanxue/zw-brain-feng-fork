@@ -1,0 +1,7 @@
+scope: aclass-dataservice
+signed_by: 海若产品部业务方 / PM 业务方
+date: 2026-05-29
+kind: 决策签字
+evidence: PR #165 评论 business-signoff: aclass-dataservice / docs/decisions/aclass-dataservice-capability-business-review-package.md / CLAUDE.md D40
+decision_only: true
+covers: []

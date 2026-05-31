@@ -5,10 +5,8 @@
 # Roles: All
 # Trace: D6 / D14 / 基线 §3.4 (集团推理平台外部依赖) / §10.1 / preflight 段 10
 # Priority: P0
-# Status: Ready
 # Owner: e6
-# Pytest: pending
-# Twin-F: e6.F2
+# Pytest: tests/test_wave0_infra.py
 # InTest-Scope: tests/test_wave0_infra.py 覆盖 4 项（check_no_direct_llm.py 段 10 守卫通过 / 单一 client 出口
 #   文件无第三方 host 字面量 / chat 强制 request_id D4 审计 / 缺 gateway 配置 raise 不回退第三方）；
 #   circuit-breaker 降级 + 各 AI 减摩点 fallback + 提示词注入系统前缀归 W0-07/Wave1。

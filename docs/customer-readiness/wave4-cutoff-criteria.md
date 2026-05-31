@@ -126,7 +126,7 @@ Scenario: 客户上线 90 天每日 ≥10 次申请
 - Status 永远 Draft（无法 InTest）
 - 没有任何 commit 能让它绿
 - 占用 R13 sign-off 槽位但永远不能签字
-- 让"45 个 feature 全 Verified"的成熟度指标永远到不了 100%
+- 让"45 个 feature 全 Done"的成熟度指标永远到不了 100%
 
 **形态学正确的做法**：时间序列 SLI 走监控 cron + 看板；GWT 形态留给"立即可验证"判据。
 

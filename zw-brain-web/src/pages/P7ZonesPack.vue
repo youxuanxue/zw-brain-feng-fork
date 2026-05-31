@@ -59,6 +59,7 @@ async function loadPackages(): Promise<void> {
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
   if (errorMsg.value) return errorMsg.value;
+  if (loading.value) return '加载中……';
   return items.value.length ? `${items.value.length} 个专题可订阅` : '暂无专题包';
 });
 
@@ -127,6 +128,7 @@ watch(role, () => {
           </footer>
         </article>
       </div>
+      <p v-else-if="source === 'live' && loading" class="focus-empty">加载中……</p>
       <p v-else-if="source === 'live'" class="focus-empty">暂无专题包。</p>
       <p v-else class="focus-empty">等待数据装载……</p>
     </section>

@@ -8,7 +8,6 @@
 #   docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md §3.3 / §3.5
 #   docs/approved/zw-brain-architecture.md §1.3（D32 边界澄清）
 #   CLAUDE.md D32 — A 类 20 条复活按 plan 落地
-#   .twin/e6-platform-m0/plan.yaml F12（本文件 = F12.evidence_plan 主证据）
 """Wave 0 第一刀（e6.F12）：ops.gateway.heartbeat.ingest 验收。
 
 承接旧 `/openapi/report`（362,407 调用，Pareto P0）→ plan §3.3

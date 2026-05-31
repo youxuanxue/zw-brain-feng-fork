@@ -1,0 +1,10 @@
+scope: e5
+signed_by: 海若产品部业务方
+date: 2026-05-29
+kind: 效果验收
+evidence: PR #164 / .testing/acceptance/e5/evidence.json（投影零漂移 / pytest exit 0 / e2e 15 passed）/ docs/acceptance/e5-acceptance-package.md / 业务方 A/B/C 清单全过
+decision_only: false
+covers:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/webui-pages-real-data.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/webui-action-role-binding.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/webui-routing-cleanup.feature

@@ -5,10 +5,8 @@
 # Roles: ROLE_ORGAN_OPERATER
 # Trace: R9, 基线 §5.4.4 P3 申请草拟助手反约束, 旧 xlsx 行 [3..4] 库表 + [8..11] 文件夹/文件 (代理服务/融合服务/通用服务申请 ❌ 不复刻，详见 cross-cutting/legacy-128-mapping.md), 业务反馈 #17
 # Priority: P0
-# Status: Ready
 # Owner: e1
 # Pytest: tests/test_wave0_j1_discover_draft.py + tests/test_wave1_p3_application_assistants.py
-# Twin-F: e1.F7
 
 Feature: J1 申请草稿（P3 申请/审批/跟踪页）
   As a 部门操作员 (ROLE_ORGAN_OPERATER)

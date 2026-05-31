@@ -5,7 +5,6 @@
 # Roles: ROLE_ORGAN_OPERATER (申请方) | ROLE_ORGAN_MANAGER (部门) | ROLE_BUSIAUDIT | ROLE_SECURITY_AUDIT
 # Trace:
 #   .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-{catalog,authz,content,resource,use}.feature
-#   .twin/e1-j1-journey/plan.yaml F3
 #   zw_brain/domain/repositories/objection.py:evaluate_case + add_process
 #   zw_brain/command/handlers/j1/objection.py
 """F3: 异议 evaluate/process 辅助流程闭环 — 5 维度完整 lifecycle + audit chain.

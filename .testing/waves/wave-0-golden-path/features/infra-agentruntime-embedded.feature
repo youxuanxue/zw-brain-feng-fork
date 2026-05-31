@@ -5,15 +5,13 @@
 # Roles: ROLE_SYSTEM
 # Trace: D2 / R15 / 基线 §八 AgentRuntime 声明式协议 / §10.1
 # Priority: P0
-# Status: Deferred
 # Owner: e4
 # Pytest: pending
-# Twin-F: e4.F6
-# Defer-Reason: AgentRuntime Embedded SDK 完全未实现（agents/ 目录不存在、AGENT.yaml 无、validate/doctor CLI 无）。
-#   J1 找数→用数黄金链路不依赖内置 AgentRuntime；Wave1 ext-agent-pilot.feature 已引 AGENT.yaml，
-#   与 a2a-hardening 天然同期立项 AgentRuntime。提前 Wave 0 内建违反 R7「不为假设的未来需求设计」。
-#   Jobs-style 决策（supervisor 自主权 per feedback_jobs_autonomy_in_twin，不属 freeze/IA/credentials 红线）：
-#   选 path (b) 降级 Wave1。
+# Landed-Note: AgentRuntime Embedded SDK 最小集成已落地（PR #152/#155）：agents/zw_search_helper +
+#   agents/zw_platform_guide 两份 AGENT.yaml + capabilities.json（anp-agent/v1.2，validate OK），
+#   scripts/agentruntime_validate.py / scripts/check_agentruntime_bundles.py 持续守卫（preflight 段 51）。
+#   首个真实外部 Agent 接入端到端 pilot（AGENT.yaml→validate→审核→Registry→投影→调用→审计）仍按 D30
+#   触发式延后（T1 未到不实装），见 ext-agent-pilot.feature / agentruntime-standalone-http.feature。
 # Defer-Tracker: .data/customer-acceptance/wave0/W0-06-deferred-additions.md → D-6
 
 Feature: Infra — AgentRuntime Embedded SDK 最小集成

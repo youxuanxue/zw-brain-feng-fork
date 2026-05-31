@@ -80,9 +80,7 @@ cp .data/customer-demo-j1-shadow.db .data/customer-demo-j1-backup-<reason>.db
 1. **本地或 CI 跑通** `bash scripts/customer_demo_j1.sh` 退出码 0
 2. **PR 描述** 贴最新 `.data/customer-demo-j1/demo-<ts>.json` 关键字段
 3. **业务方 review** 在 PR 评论中确认演示路径与 sd-default 数据真实性
-4. **sign-off 凭证**：
-   - **方式 A**：业务方在 PR 留 `business-signoff: <角色> <日期>` 评论
-   - **方式 B**：PR 打 `business-signoff` issue label（GitHub 维护方 admin 操作）
+4. **sign-off 凭证**（D46.d，账本是真相）：PR 加 label `signoff:<scope>` + body `<!-- signoff ... -->` 机读块（`scope` / `kind: 效果验收` / `covers`）。合并时 `signoff_from_pr.py` 自动落 `.testing/signoff/<scope>.signoff.yaml` 账本（`signed_by`=approvers，`date`=merged_at）
 5. **审计留档**：sign-off 截图归入 `docs/approved/` 或 PR comment 永久附属
 
 ## 已知非阻塞约束

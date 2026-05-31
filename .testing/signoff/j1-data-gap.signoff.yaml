@@ -1,0 +1,10 @@
+scope: j1-data-gap
+signed_by: 海若产品部业务方
+date: 2026-05-30
+kind: 效果验收
+evidence: PR #173 / .testing/acceptance/j1-data-gap/evidence.json
+decision_only: true
+covers: []
+# 注：D43.c(1) 全局数据缺位修复（requests/approvals/discovery 全量真实库投影 + 发现页可用过滤
+# + 卡片密度/共享类型色 chip），这部分 UI/数据工作无独立 .feature，故 covers 留空、不抬任何 feature 状态。
+# 同 j1-catalog-drilldown：旧 plan e1.F4 落位巧合，非真签 j1-supply-demand-meta-merge。

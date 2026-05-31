@@ -88,7 +88,7 @@
 - 已退役资产禁回潮：旧 R1-R8 角色矩阵（→7 角色码）、K12 可视化大屏、alembic（D23/D29/D15，段 20 + role/feature 守卫）
 - `require_real_seed` 门槛禁用运行时累积表（capability_call/audit_event/anchor_outbox/audit_receipt）当 seed 门槛；floor 取稳定态~75%（D44，段 57）
 - 业务数据禁 Mock，一律真实库回归（D11）
-- 业务 sign-off（角色/流程/状态机类）走 D35 模板 + 段 53/54；效果验收走 D37 模板 + 段 55；落盘三角 = plan.yaml `[SIGNOFF-CLOSED]` + CLAUDE.md D-编号 + PR label
+- 业务 sign-off（角色/流程/状态机类）走 D35 模板 + 段 53/54；效果验收走 D37 模板 + 段 55；落盘单源 = `.testing/signoff/<scope>.signoff.yaml` 账本（D46.b；PR 合并时 label `signoff:<scope>` + body 机读块自动落账 D46.d），status 由账本现算（不再 plan.yaml `[SIGNOFF-CLOSED]` 三处副本对账）
 - GATE 元规则（D28/D33.d）：角色/流程/状态机决策须业务方 sign-off 才进 D-编号；每条 D 须审视与外部协议（AgentRuntime/MCP/A2A/ANP/推理 SDK）的命名冲突
 
 ### 早期双引擎与规则基建（2026-04）
@@ -145,7 +145,7 @@
 - D34 [05-29] **e3.F9**：F9 P7 共享专区/TopicPackage 启动 sign-off（业务方全采纳）；专区=运营方策展容器≠主题分类（D34.a）；`topic.package.policy.update` 默认双签（D34.b）；seed 上游 sequencing，Z1 先行、Z2/Z3 待 catalog 补种（D34.c）；残疾人两项补贴排除（D34.d）
 - D35 [05-29]：sign-off 模式升级——统一模板 `docs/templates/business-signoff-package.md` + 段 53 检测层 + 段 54 落盘层
 - D36 [05-29]：推理网关 env 契约收敛 `INSPUR_INFERENCE_*` → `ZW_BRAIN_INFERENCE_*` + 删一切兜底；`_API_KEY_REF`(指针)/`_API_KEY`(字面)严格区分（D36.a）；负向测试守卫（D36.b/c）；`INSPUR` 网关 host 标识保留是 deliberate（D36.c）；段 56 仓库级回潮守卫（D36.e）
-- D37 [05-29]：效果验收签字守卫——证据锚在 `.testing/acceptance/<scope>/evidence.json` 产物 + 段 55；与决策签字共用段 54 落盘三角
+- D37 [05-29]：效果验收签字守卫——证据锚在 `.testing/acceptance/<scope>/evidence.json` 产物 + 段 55；与决策签字共用段 54 落盘（D46.b 后收敛为 `.testing/signoff/` 账本单源）
 - D38 [05-29] **e5**：e5 WebUI / 5 消费面投影效果验收通过（D37 守卫首验）；证据 provenance 受限记 debt（D38.a）
 - D39 [05-29] **ia-2journey-b1**：信息架构定型 = 2 旅程（J1/J2）+ B1 后台；J3 退役、K12 退役；闭合 D24 pending 二次 sign-off
 - D40 [05-29] **aclass-dataservice**：A 类 20 条复活 = 数据服务能力面，按 dsp-dataservice plan 落地（不复刻旧 BSP/门户）；106 案例页保持不复活
@@ -154,3 +154,4 @@
 - D43 [05-30] **j1-catalog-drilldown**：J1 目录→资源钻取链路（`catalog.resource.list` + 目录详情页），兑现 D42.b；目录浏览页信息增强（D43.a）；5 医保目录录入主表（D43.b）；全局数据缺位 + 脆测试另起 PR（D43.c）
 - D44 [05-30]：真数据 baseline 脆测试批量修，兑现 D43.c(2)；段 57 禁运行时累积量当 seed 门槛（D44.a）
 - D45 [05-30] **j1-data-gap**：J1 列表字段（requests/approvals/discovery.resources）enrich 全量真实库，兑现 D43.c(1)；发现页默认只展示可用资源（D45.b）；资源卡片信息密度 + 共享类型色 chip（D45.c）；效果验收通过（D45.d）
+- D46 [05-30] **feature-status-as-function**（架构门，pending 产品研发负责人 sign-off）：status 不存储，由 SPEC(.feature)+MEASUREMENT(.testing/status/measurement)+SIGN-OFF(.testing/signoff/ 账本 covers) 现算（feature_status_lib.py）；删 .feature 全部 # Status（Backlog→# Deferred）+ 删段58对账守卫 + promote_signoff；加段60/61/62（测量校验/生成--check/禁手写）；Done=绿∧签字（现算 8 Done/28 InTest 绿未签/10 Draft/2 Backlog）；plan.yaml status 留作 supervisor 执行态不入函数（D46.a）；SIGN-OFF 独立账本 .testing/signoff/ 修签字寄生 twin 破洞（来源无关 + 修误标 supply-demand/漏签 trust-level）+ 段63 账本守卫 + 段54 收敛为账本单源（D46.b）；SPEC 是进飞轮唯一入口、无 .feature 不进状态、立规则不加守卫（D46.c）；PR 合并自动落账（D46.d：label signoff:<scope> + body 机读块 → signoff-ledger.yml 调 signoff_from_pr.py 取 approvers/merged_at/PR# 生成账本提交回 main，GitHub 是录入口账本是真相，单测兜底）；.twin/ 整体退役（D46.e：执行计划不再承载真相 → git rm -r .twin + 补 e5 3 webui feature + 段38 三角收敛 SPEC↔test 双边 + 删 # Twin-F + 删段26 check_twin_workspaces；不留历史兼容）；测量轴 test-runner 无关化（D46.f：green() 纳入 e2e — test_refs 认 tests/**.spec.ts + capture --with-e2e 实跑 Playwright 回填同一产物，修 webui 因 pytest 轴盲永卡 Ready；全 38 non-Done feature 逐个代码核实校正 workflow 过度悲观，唯一过度声称 a2a-hardening（挂名不测）→ Backlog，其余 InTest 对本期核心诚实、业务深度 by-design 延后；干净 seed 库实跑 webui×3：action-role-binding+routing-cleanup→Done，pages-real-data 因 seed 数据脆留 Ready 不冒绿；现算 11 Done/1 Ready/26 InTest/8 Draft/3 Backlog；全文 docs/decisions/test-sufficiency-convergence.md 第二轮）；全文 docs/decisions/feature-status-as-function-architecture.md

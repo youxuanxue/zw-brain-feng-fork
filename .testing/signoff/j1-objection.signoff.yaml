@@ -1,0 +1,12 @@
+scope: j1-objection
+signed_by: 薛娇（产品研发负责人）
+date: 2026-05-31
+kind: 效果验收
+evidence: 2026-05-31 本地部署（ZW_BRAIN_DEV_IAM_BYPASS）走查确认 — #/request-flow/objection「我的异议」列表 31 真实 case，编目维（catalog）+ 授权维（authorization）case 可见、状态流转可走；使用/内容/资源维（use/content/resource）经 #/request-flow/objection/new 对象类型分别选「使用」「内容」「资源」可创建（UI 创建流验证，确认弹窗走通；表单支持 7 类对象类型）；Playwright 截图核对 + 产品研发负责人本地走查；后端 test_wave1_objection_5dim_state.py（5 维参数化）+ test_wave1_objection_lifecycle.py 全绿（measurement ad35667）
+decision_only: false
+covers:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-catalog.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-authz.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-use.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-content.feature
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-objection-resource.feature

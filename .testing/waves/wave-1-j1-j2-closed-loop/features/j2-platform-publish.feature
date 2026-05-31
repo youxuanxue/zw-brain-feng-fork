@@ -5,10 +5,8 @@
 # Roles: ROLE_BUSIAUDIT
 # Trace: 基线 §10.2 J2 平台发布, 基线 §5.2 P5 重复率检测提醒, 旧 xlsx 行 [40..42] 目录发布 (发布+批量+删除/下线) + [64..65] 资源发布 (单条+批量)
 # Priority: P1
-# Status: Draft
 # Owner: e2
 # Pytest: tests/test_wave1_j2_pipeline.py
-# Twin-F: e2.F3
 
 Feature: J2 平台发布（目录 + 资源最终上架）
   As a 业务运营员 ROLE_BUSIAUDIT（数据主管部门）

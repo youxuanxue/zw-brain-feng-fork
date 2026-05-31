@@ -129,9 +129,7 @@ cp .data/customer-demo-j2-shadow.db .data/customer-demo-j2-backup-<reason>.db
    - `ok: true` / `elapsed_seconds` / `catalog_code` / `objection_id`
    - `quality_flags`（业务方关注 f1/f3/f4 必 true；f2 file/api 当前 false 是已知 partial）
 3. **业务方 review** 在 PR 评论中确认演示路径与 sd-default 数据真实性
-4. **sign-off 凭证**：
-   - **方式 A**：业务方在 PR 留 `business-signoff: <角色> <日期>` 评论
-   - **方式 B**：PR 打 `business-signoff` issue label（GitHub 维护方 admin 操作）
+4. **sign-off 凭证**（D46.d，账本是真相）：PR 加 label `signoff:<scope>` + body `<!-- signoff ... -->` 机读块（`scope` / `kind: 效果验收` / `covers`）。合并时 `signoff_from_pr.py` 自动落 `.testing/signoff/<scope>.signoff.yaml` 账本（`signed_by`=approvers，`date`=merged_at）
 5. **审计留档**：sign-off 截图归入 `docs/approved/` 或 PR comment 永久附属
 
 ### 业务方现场填写区段（sign-off 时由业务方手动填）

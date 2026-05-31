@@ -58,14 +58,16 @@ phase_after_approval: Phase 0（先打通首条黄金链路 J1 找数→用数�
 
 ## 〇.1 当前真相表（Wave Status Snapshot）
 
-> 本表是当前真相的索引面；下文 §十路线图保留设计意图、§十一 R 主张保留架构约束，本表负责让 reviewer 不必交叉读两份文档就能看到 Wave 当前停在哪一步。
+> 本表是 **Wave 级路线图索引**（粗粒度，下文 §十路线图保留设计意图、§十一 R 主张保留架构约束）。
+>
+> **逐 feature 的真相（Done / Ready / InTest / Draft / Backlog）不在本文件手存**（D46）——由 `scripts/gen_feature_status.py` 从 SPEC（`.feature`）+ MEASUREMENT（`.testing/status/measurement/<sha>.json` 实跑 pytest）+ SIGN-OFF（`.testing/signoff/<scope>.signoff.yaml` 账本的 `covers`，D46.b 单一权威源）**机械现算**，权威视图见 `.testing/status/feature-status.md`（`Done = 测试真绿 ∧ 业务签字`）。本表 Wave 级 `状态` 列是路线图标签（用户决策：不机械生成滚动标签），与逐 feature 真值冲突时以生成视图为准。
 
 | Wave | 状态 | 真人 sign-off | 阻塞 / 触发式延后 |
 |---|---|---|---|
 | Wave 0（机械守卫 + J1 黄金链路） | `shipped` | 工程交付（preflight 全段绿 + tests/test_wave0_* 套件存在） | — |
 | Wave 1（J1 闭环深化 + J2 挂数→维数） | `partially-shipped` | 工程交付 PR #90 / #98 / #103-#106 / #108 / #109；AgentRuntime 子项触发式延后 | AgentRuntime runtime 子项：[preflight-debt §2026-05-24 AgentRuntime](../preflight-debt.md)（T1/T2/T3 任一触发即升级 P0）；读路径 6 处全扫白名单：[preflight-debt §2026-05-26 PR #113 同模式残留](../preflight-debt.md) |
-| Wave 2（三引擎 + B1 合规 + 共享专区） | `partially-shipped` | 代码侧 PR #92 已落地（三引擎 10 个 capability）；真人 sign-off 待业务方现场演练 | 真人 sign-off 待业务方现场演练：[preflight-debt §2026-05-24 Wave 2 R14 三引擎](../preflight-debt.md)；borderline 5 capability：[preflight-debt §2026-05-23 5 个 B1 业务报表](../preflight-debt.md) |
-| Wave 3（协议硬化 + 多租户 + 国家通道） | `not-started` | — | 阻塞 = Wave 2 客户演练 sign-off；多租户支线另需触发：[preflight-debt §2026-05-24 反 per-tenant fork](../preflight-debt.md) |
+| Wave 2（三引擎 + B1 合规 + 共享专区） | `shipped` | 真人 sign-off 已闭合 —— 三引擎 E3.F8 [SIGNOFF-CLOSED 2026-05-28] PR #151、B1.1/B1.2 E4.F8 双签 [SIGNOFF-CLOSED 2026-05-28] PR #147、共享专区/专题包 E3.F9 效果验收 [SIGNOFF-CLOSED 2026-05-30] PR #170（D34/D42）；sign-off 权威源 = `.testing/signoff/` 账本（D46.b）| borderline 5 capability：[preflight-debt §2026-05-23 5 个 B1 业务报表](../preflight-debt.md)；真订阅概念 B / 资源挂载 wizard / 目录休眠诊断为 Wave 2 后续独立立项 |
+| Wave 3（协议硬化 + 多租户 + 国家通道） | `not-started` | — | 触发 = 首客上线后协议硬化 / 多租户 / 国家通道真实需求（Wave 2 sign-off 已闭合，不再是阻塞）；多租户支线另需触发：[preflight-debt §2026-05-24 反 per-tenant fork](../preflight-debt.md) |
 | Wave 4（legacy 退役） | `not-started` | — | 阻塞 = Wave 3 多协议硬化 + 真数据回归进 CI：[preflight-debt §2026-05-25 真数据](../preflight-debt.md) / [§2026-05-25 推理 mock](../preflight-debt.md) / [§2026-05-25 客户机房部署](../preflight-debt.md)；附录 C 4 项触发式 pending：[preflight-debt §2026-05-24 附录 C 4 项](../preflight-debt.md) |
 
 **单一权威路径声明**：当本表与 §十路线图 / `docs/preflight-debt.md` 任一处冲突时，**以本表为准**——本表是当前真相的统一索引面。
@@ -678,7 +680,7 @@ legacy 门户的信息架构只能作为遗留能力索引，不再作为新 Web
 | `product_scope.journey` | `j1` / `j2` / `b1` / `infra` / `external` / `national` | 该能力服务于哪条 §5.1 旅程或后台支撑面；非核心旅程必须显式声明 |
 | `product_scope.status` | `live` / `deferred:wave-{1..4}` / `external` | `live` 才进 5 消费面投影；`deferred` 与 `external` 由 `export_agent_contract.py` 机械过滤掉，UI 不可达 |
 
-> 此前的 per-journey live capability 预算曾被写为"drift = GATE 决策"的硬契约（4 个 stat 数字）。现实里增删一个 capability 是日常工程动作，无人为单点漂移开 GATE——属假契约。已删除：真正的产品边界由本节段 22 禁区前缀回潮防护 + §7.3 entry→command→domain→shared 分层 + reviewer 判断共同承担。
+> 产品边界由本节段 22 禁区前缀回潮防护 + §7.3 entry→command→domain→shared 分层 + reviewer 判断共同承担——增删一个 capability 是日常工程动作，不设"单点漂移 = GATE 决策"的假契约（无人为此开 GATE）。
 
 **已发现禁区前缀的回潮防护（preflight 段 22）：**
 
@@ -1087,7 +1089,7 @@ PR #110 之后（数据基于 `zw_brain/shared/auth_session.py` + `zw_brain/entr
 
 **三引擎与 AgentRuntime 的关系**：审批流 / 表单 schema / 推荐三引擎本身仍是 zw-brain 内建 Capability（不外部化）；外部 Agent 可作为「配置草稿生成器」接入（自然语言 → schema 草稿 → 管理员确认入库），但**不直接修改生产配置**（与 §8.5 边界一致）。
 
-**Wave 2 客户落地 sign-off 材料**（E3 F8 自动产出）：tracked 路径 `docs/wave2-acceptance/SIGN_OFF.md`（**单一权威**——PR reviewer 与业务方直接读，无需 checkout + 跑 test），由 `tests/integration/test_wave2_three_engines_acceptance.py` 跑过即重生成；包含鞍山 4 级审批 / 四川 7 字段表单 / 荆州 5 条推荐规则三例的 e2e 入库证据、duration 时长记录、真实历史 hit-rate、§ 3 业务方签字栏（待业务方填）。JSON 中间产物（consolidated / anshan_approval / sichuan_form / jinzhou_recommendation）仍走 `.data/wave2-acceptance/`（gitignored，本地复跑后生成）。业务方签字后此 Wave 2 「客户落地 ≤ 1 周」承诺由 pending 升 completed。
+**Wave 2 客户落地 sign-off 材料**：sign-off **单一权威源 = `.testing/signoff/<scope>.signoff.yaml` 账本**（D46.b）。客户落地证据材料含鞍山 4 级审批 / 四川 7 字段表单 / 荆州 5 条推荐规则三例的 e2e 入库证据、duration 时长记录、真实历史 hit-rate，由 `tests/integration/test_wave2_three_engines_acceptance.py` 跑出写入 `.data/`（gitignored 复算产物，非 tracked）。业务方签字**已闭合**（E3.F8 [SIGNOFF-CLOSED 2026-05-28] PR #151），Wave 2「客户落地 ≤ 1 周」承诺 **completed**。
 
 ### 10.4 Wave 3：协议扩展硬化 + 多租户深化 + 国家通道独立子旅程
 

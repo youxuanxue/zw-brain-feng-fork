@@ -12,7 +12,7 @@ related_docs:
   - docs/approved/zw-brain-roles.md
   - docs/approved/zw-brain-data-model.md
   - .testing/README.md
-  - .twin/README.md
+  - .testing/signoff/README.md
 related_prs: []
 related_commits: []
 phase_after_approval: Phase 0 后期 — 飞轮势能完成、齿轮组连接、首客户上线启动
@@ -72,26 +72,24 @@ phase_after_approval: Phase 0 后期 — 飞轮势能完成、齿轮组连接、
             ┌════════════════════┼════════════════════┐
             ║   齿轮组：三角闭环                       ║
             ║                                          ║
-            ║       ┌──────────────────────┐           ║
-            ║       │  Spec (.testing/*)    │          ║
-            ║       │  What + R13 签字      │           ║
-            ║       └────────┬─────────────┘           ║
-            ║                │ spec_ref                ║
-            ║       ┌────────↓─────────────┐           ║
-            ║       │  Plan (.twin/*)       │          ║
-            ║       │  6 worker × F-item    │          ║
-            ║       └────────┬─────────────┘           ║
-            ║                │ actual_evidence         ║
-            ║       ┌────────↓─────────────┐           ║
-            ║       │  Tests (tests/*)      │          ║
-            ║       │  CI 绿 + Playwright   │          ║
-            ║       └────────┬─────────────┘           ║
-            ║                │ status promote          ║
-            ║       ┌────────↑─────────────┐           ║
-            ║       │  R13 sign-off label   │          ║
-            ║       └──────────────────────┘           ║
+            ║   status = f( SPEC, MEASUREMENT, SIGN-OFF ) 现算（不存储，D46）║
+            ║                                          ║
+            ║   ┌─ SPEC ─────────────┐                 ║
+            ║   │ .testing/*.feature │ # Owner/# Pytest║
+            ║   │ What + R13          │                 ║
+            ║   └─────────┬──────────┘                 ║
+            ║             │ # Pytest                    ║
+            ║   ┌─ MEASUREMENT ──────┐                  ║
+            ║   │ tests/* + e2e 实跑 │ → .testing/      ║
+            ║   │ CI 绿 + Playwright │   status/        ║
+            ║   └─────────┬──────────┘   measurement/   ║
+            ║             │                             ║
+            ║   ┌─ SIGN-OFF ─────────┐                  ║
+            ║   │ .testing/signoff/  │ 账本 covers（D46.b║
+            ║   │ 单一权威源、来源无关│ append-only 人判）║
+            ║   └────────────────────┘                  ║
             ╚════════════════╤═════════════════════════╝
-                             │ 三角硬化连接（preflight 段 38）
+                             │ SPEC↔test 双边硬化（段38）+ status 现算守卫（段60/61/62/63）
                              ↓
                   ┌──────────────────────────────┐
                   │   动能层：客户上线             │
@@ -153,37 +151,31 @@ xlsx 是**唯一一份"业务方亲手写、旧平台已生产验证、用业务
 | 谁有权改？ | 业务方 / 架构 GATE | 任意工程师 |
 | 改了会触发回灌吗？ | ✓ 触发 spec/test 更新 | ✗ 改了只影响自己 |
 
-`.testing/*.feature` / `.twin/plan.yaml` / `tests/*.py` **都不是真值源** — 它们是真值源的衍生物。
+`.testing/*.feature` / `tests/*.py` **都不是真值源** — 它们是真值源的衍生物。
 
-## 四、齿轮组：三角闭环
+## 四、齿轮组：status 现算三角（SPEC + MEASUREMENT + SIGN-OFF）
 
 ### 4.1 三轴定位
 
-| 文件 | 真实身份 | 节奏 | 谁签字 |
+> status 不存储，由三个不可再分原料现算（D46）：`STATUS(f) = f(SPEC, MEASUREMENT, SIGN-OFF)`，由 `scripts/gen_feature_status.py` 算出权威视图 `.testing/status/feature-status.md`。
+
+| 原料 | 文件 | 真实身份 | 谁写 |
 |---|---|---|---|
-| `.testing/*.feature` | **业务 Spec 规约**（GWT 形态）| Wave 节奏 | 业务方（R13）|
-| `.twin/eN/plan.yaml` | **Worker 执行计划**（goal + F-item）| 冲刺节奏 | Worker owner |
-| `tests/*` + `zw-brain-web/tests/e2e/*` | **运行验证证据** | Commit 节奏 | CI（pytest/Playwright/preflight 绿即签字）|
+| **SPEC** | `.testing/*.feature` | 业务 Spec 规约（GWT + `# Owner`/`# Pytest`）| 业务方（R13）|
+| **MEASUREMENT** | `.testing/status/measurement/<sha>.json` | 机器实跑 pytest/e2e 的 pass/fail（带 git_sha，禁手写）| `capture_feature_status.py` |
+| **SIGN-OFF** | `.testing/signoff/<scope>.signoff.yaml` | 账本 `covers`（**单一权威源、来源无关、append-only**，D46.b）| 业务方（人判）|
 
 **关键认知**：`.testing/` 的命名误导 — 它不是测试库，是 **feature spec 库**。重命名是大手术（多文件硬编码引用），心智模型先正过来。
 
-### 4.2 三角连接的 3 个字段
+### 4.2 SPEC↔test 双边连接字段
 
-详见**附录 B 三角字段规范**。摘要：
-
-```yaml
-# .feature header（spec 端）
-# Owner: e1                                # 哪个 worker owns 这个 feature
-# Pytest: tests/test_wave1_objection_5dim_state.py    # 哪个 pytest 实现它
-# Twin-F: e1.F2                            # 哪个 F-item 承接它
-```
+详见**附录 B 字段规范**。摘要（`.feature` header 自带 SPEC↔test 双边，无 plan 端）：
 
 ```yaml
-# .twin/eN/plan.yaml F-item（plan 端）
-- id: F2
-  spec_ref:                                # 反向引用 spec
-    - .testing/waves/wave-1/.../j1-objection-content.feature
-    - .testing/waves/wave-1/.../j1-objection-use.feature
+# .feature header（SPEC 端）
+# Owner: e1                                          # 哪个 worker owns（归属标签）
+# Pytest: tests/test_wave1_objection_5dim_state.py   # 哪个测试实现（.py 或 tests/e2e/*.spec.ts）
+# Deferred: <理由>                                    # 可选：排期外 → Backlog
 ```
 
 ```python
@@ -193,13 +185,12 @@ xlsx 是**唯一一份"业务方亲手写、旧平台已生产验证、用业务
 #   .testing/waves/wave-1/.../j1-objection-5dim.feature
 ```
 
-### 4.3 三角的 4 个机械守卫
+### 4.3 机械守卫
 
 | 守卫 | 实现 | 段号 |
 |---|---|---|
-| feature `# Owner` 指向的 worker 存在 | `scripts/check_trace_triangle.py` | preflight 段 38 |
-| feature `# Pytest` 指向的文件存在且反向引用 | 同上 | 同上 |
-| feature `# Twin-F` 在 plan.yaml `spec_ref` 列出 | 同上 | 同上 |
+| feature `# Owner` ∈ e1–e6 + `# Pytest` 指向的文件存在（或 pending）| `scripts/check_trace_triangle.py`（SPEC↔test 双边）| preflight 段 38 |
+| status 现算不存储：`feature-status.md` 与 SPEC+MEASUREMENT+SIGN-OFF 字节一致；禁手写 status；MEASUREMENT 产物合法；账本合法 | `gen_feature_status.py --check` / `check_no_hand_typed_status` / `check_feature_measurement` / `check_signoff_ledger` | 段 60/61/62/63 |
 | xlsx 行号 normalize | `scripts/check_legacy_smoke_row_numbers.py` | preflight 段 39 |
 
 **断三角 = commit 拦下**。这条不做，前面所有动作都是"靠自觉"。
@@ -296,13 +287,13 @@ Flywheel Velocity = 1 / (单客户上线 worker·week)
 辅助指标，对每 Wave 维度分子分母：
 
 ```
-Wave 0  J1 主路径:     11 设计 ✓ / N InTest / M Ready / K Verified
+Wave 0  J1 主路径:     11 设计 ✓ / N InTest / M Ready / K Done
 Wave 1  J1 深化+J2:    13 设计 ✓ / ...
 Wave 2  三引擎+B1:     10 设计 ✓ / ...
 Wave 3  [delayed]      本期不做
 Wave 4  [post-ship]    客户上线后
 
-Ship gate (Wave 0+1+2 全 Verified): K / 34
+Ship gate (Wave 0+1+2 全 Done): K / 34
 ```
 
 实现：`scripts/product_maturity_report.sh`。
@@ -337,9 +328,9 @@ Ship gate (Wave 0+1+2 全 Verified): K / 34
 
 | 节点 | 里程碑 | 出口标准 |
 |---|---|---|
-| 6 月初 | Wave 0 Verified | 11 个 feature 全 Ready（业务方签字）|
-| 6 月底 | Wave 1 Verified | 13 个 feature 全 Ready（J2 + 异议 + 供需）|
-| 7 月 | Wave 2 Verified | 三引擎 + B1 在鞍山/四川/荆州配置示例跑通 |
+| 6 月初 | Wave 0 Done | 11 个 feature 全 Done（测试真绿 ∧ 业务方签字）|
+| 6 月底 | Wave 1 Done | 13 个 feature 全 Done（J2 + 异议 + 供需）|
+| 7 月 | Wave 2 Done | 三引擎 + B1 在鞍山/四川/荆州配置示例跑通 |
 | 8 月 | 首客户机房 | M0 灌库 + dry-run + 上线 + 90 天 SLI 启动 |
 
 **第一圈耗时长是正常的** — 这一圈在搭飞轮本体。
@@ -366,13 +357,13 @@ Ship gate (Wave 0+1+2 全 Verified): K / 34
 | # | 反模式 | 后果 | 拆解 |
 |---|---|---|---|
 | 1 | 客户机房专用 fixture / 专用 mapper | 飞轮第二圈与第一圈同速 | 反 per-tenant fork（R8）+ M0 mapper 唯一源 |
-| 2 | 业务方 review 不签字 / 不批量签字 | 30 Draft 永远不 Verified | R13 通道走通（`promote_signoff.py` + 月度 review 固化）|
+| 2 | 业务方 review 不签字 / 不批量签字 | InTest 永远翻不到 Done | 签字通道走通（PR 加 `signoff:<scope>` label + body 机读块 → 合并自动落 `.testing/signoff/` 账本，D46.d；月度 review 固化）|
 | 3 | spec 改了 test 没跟（或反之）| 三角断裂，spec/test 各自漂移 | preflight 段 38 三向 trace 守 |
 | 4 | 不回灌客户反馈到真值源 | 飞轮停转 | 上线 ritual 把"回灌"作为硬步骤（§5.2）|
 | 5 | 三引擎走捷径硬编码客户差异 | R14 不兑现，飞轮加速器失效 | preflight 段 25 写禁区 + Wave 2 AC5 验收 |
 | 6 | xlsx 128 条只引用不验证 | 客户上线发现"旧的能新的不能" | mapped 条目等价回归 pytest 必跑（当前 73；分布由 yaml 实时维护）|
-| 7 | 把"全部 feature 全 Verified"当 ship 判据 | 永远 ship 不出去（Wave 4 结构上不可能）| ship 判据 = Wave 0+1+2 Verified + 首客户机房 dry-run |
-| 8 | 用 GWT 写 SLI 监控判据（Wave 4 老错配）| 永远到不了 Verified | 90 天 SLI 移到 `docs/customer-readiness/` + 监控 cron |
+| 7 | 把"全部 feature 全 Done"当 ship 判据 | 永远 ship 不出去（Wave 4 结构上不可能）| ship 判据 = Wave 0+1+2 Done + 首客户机房 dry-run |
+| 8 | 用 GWT 写 SLI 监控判据（Wave 4 老错配）| 永远到不了 Done | 90 天 SLI 移到 `docs/customer-readiness/` + 监控 cron |
 
 ## 十、回灌 ritual（上线后强制步骤）
 
@@ -396,7 +387,9 @@ $ scripts/flywheel_velocity_report.sh
 - 对照 §九 8 条反模式逐一确认本次无新增
 
 # 5. 业务方 sign-off ritual
-$ scripts/promote_signoff.py --customer N
+# 5. 业务方 sign-off ritual（D46 起）
+# 往 .testing/signoff/<scope>.signoff.yaml 追加签字账本（covers 列被签 feature）；
+# status 由 scripts/gen_feature_status.py 现算（绿∧签字=Done），不再手改/按 label 升级。
 ```
 
 **ritual 不做完不算客户上线**。这是飞轮自加速的最关键步骤。
@@ -440,7 +433,7 @@ legacy 写入口可关闭
 
 ## 附录 B — 三角字段规范
 
-### B.1 `.feature` header 字段（3 个新增）
+### B.1 `.feature` header 字段（SPEC↔test 双边：`# Owner` / `# Pytest`）
 
 ```gherkin
 # Wave: 0 | 1 | 2 | 3 | 4 | Cross
@@ -450,29 +443,14 @@ legacy 写入口可关闭
 # Roles: ROLE_ORGAN_OPERATER | ROLE_ORGAN_MANAGER | ROLE_BUSIAUDIT | ROLE_SECURITY_ADMIN | ROLE_SECURITY_AUDIT | ROLE_SYSTEM
 # Trace: R-N / D-N / 业务反馈 #N / 旧 xlsx 行 N
 # Priority: P0 | P1 | P2
-# Status: Draft | Ready | InTest | Done
-# Owner: e1 | e2 | e3 | e4 | e5 | e6      ← 三角字段 1（新增）
-# Pytest: tests/test_waveN_xxx.py         ← 三角字段 2（新增；如无对应实现写 "pending"）
-# Twin-F: eN.FX                           ← 三角字段 3（新增；如无对应 F-item 写 "pending"）
+# Owner: e1 | e2 | e3 | e4 | e5 | e6      ← SPEC↔test 连接：worker 归属标签
+# Pytest: tests/test_waveN_xxx.py         ← SPEC↔test 连接（如无对应实现写 "pending"；e2e 用 tests/e2e/*.spec.ts）
+# Deferred: <理由/ref>                     ← 可选：排期外意图 → Backlog
 ```
 
-### B.2 `.twin/eN/plan.yaml` F-item 字段（1 个新增）
+> `# Status` 不写进 header —— 状态由 `gen_feature_status.py` 现算（D46 / 段 62 禁手写）。
 
-```yaml
-- id: F2
-  deliverable: ...
-  scope: ...
-  covers_ac: [AC1]
-  spec_ref:                               # ← 新增
-    - .testing/waves/wave-1/.../feature-X.feature
-    - .testing/waves/wave-1/.../feature-Y.feature
-  evidence_plan: [...]
-  actual_evidence: [...]
-  depends_on: []
-  status: completed | in_progress | pending | blocked
-```
-
-### B.3 `tests/test_waveN_*.py` 文件头（1 个新增）
+### B.2 `tests/test_waveN_*.py` 文件头（1 个新增）
 
 ```python
 # Wave: 1
@@ -482,7 +460,7 @@ legacy 写入口可关闭
 """..."""
 ```
 
-### B.4 Owner 映射表（worker × 责任域）
+### B.3 Owner 映射表（worker × 责任域）
 
 | Worker | 负责 .feature 范围 |
 |---|---|

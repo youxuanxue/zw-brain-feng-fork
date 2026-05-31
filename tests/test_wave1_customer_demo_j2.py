@@ -4,7 +4,6 @@
 # Consumer-faces: API (brain.invoke_skill)
 # Roles: ROLE_ORGAN_OPERATER / ROLE_ORGAN_MANAGER / ROLE_BUSIAUDIT
 # Trace:
-#   .twin/e2-j2-journey/plan.yaml F6
 #   scripts/customer_demo_j2.py
 #   docs/customer-demo-j2.md
 """F6 J2 客户演示集成测试 — 通过 Python driver 跑全链路 + 断言 audit 覆盖 + 时长预算."""
@@ -108,8 +107,8 @@ def test_docs_customer_demo_j2_md_exists():
     md_path = REPO_ROOT / "docs" / "customer-demo-j2.md"
     assert md_path.exists()
     content = md_path.read_text(encoding="utf-8")
-    # sign-off 流程必须在文档中
-    assert "business-signoff" in content
+    # sign-off 流程必须在文档中（D46.d：label signoff:<scope> + 机读块落账本）
+    assert "signoff:" in content
     assert "回滚" in content
     assert "退出码" in content or "exit code" in content.lower()
     # F2 partial 警示必须显式

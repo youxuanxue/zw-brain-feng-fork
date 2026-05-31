@@ -10,7 +10,7 @@ signed_off_by: 海若产品部业务方
 signed_off_at: 2026-05-29
 vehicle_pr: "#164"
 driven_by:
-  - .twin/e5-webui-projections/plan.yaml（17 feature completed，0 验收签字 → 本次补签）
+  - "e5 WebUI / 5 消费面投影（17 feature，本次补效果验收签字）"
 ---
 
 # e5 WebUI / 5 消费面投影 — 效果验收材料包
@@ -75,8 +75,8 @@ driven_by:
 
 ## 落盘（业务方 2026-05-29 验收通过）
 
-- [x] **A**：`.twin/e5-webui-projections/plan.yaml` 追加 `[SIGNOFF-CLOSED 2026-05-29] covers e5`
-- [x] **B**：PR #164 加 label `business-signoff: e5`（promote_signoff 翻 e5 全部 .feature InTest→Ready）
+- [x] **A**：签字落 `.testing/signoff/e5.signoff.yaml` 账本，`covers` 列被签 feature（D46.b 单一权威源；status 由账本现算，无 promote 翻转）
+- [x] **B**：vehicle PR 加 label `signoff:e5` + body 机读块（合并自动落账本）
 - [x] **C**：CLAUDE.md 追加 D38
 - [x] **D**：本文 `status: approved`
 

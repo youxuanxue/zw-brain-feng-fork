@@ -5,7 +5,6 @@
 # Roles: ROLE_BUSIAUDIT (主管部门需求汇总) | ROLE_ORGAN_OPERATER (申请方)
 # Trace:
 #   .testing/waves/wave-1-j1-j2-closed-loop/features/j1-supply-demand-meta-merge.feature
-#   .twin/e1-j1-journey/plan.yaml F4
 #   zw_brain/domain/supply_demand_phase.py
 #   zw_brain/domain/repositories/supply_demand.py
 """F4: J1 供需对接子流程 6 步实装 + meta 合并 + sd-default 真实需求历史回归.

@@ -1,11 +1,11 @@
 ---
 doc_id: <feature-slug>-business-review-package
-status: awaiting-signoff   # awaiting-signoff → approved（由 promote_signoff.py + label 翻转）
+status: awaiting-signoff   # awaiting-signoff → approved（业务方 sign-off 后人工改；PR 合并时 label signoff:<scope> 自动落 .testing/signoff/ 账本，D46.d）
 gate: pending              # pending → signed
 sign_off_required:
   - 海若产品部业务方
 vehicle_pr: <PR 号，如 #162>
-scope: <eN.FX，如 e3.F9 — 与 business-signoff 标签 scope 一致>
+scope: <eN.FX，如 e3.F9 — 与 PR label signoff:<scope> 一致>
 driven_by:
   - <真值源文档 / plan / 旧 schema>
 ---
@@ -19,7 +19,7 @@ driven_by:
 > **三层质量保障**（D35）：
 > - 预防：本模板让"证据 + 建议 + 边界 + 硬前置"成为默认结构。
 > - 检测：段 53 校验数据真实性标签、禁过程数字、强制节、建议列。
-> - 落盘：段 54 校验 sign-off 后 plan.yaml evidence + CLAUDE.md D-编号 + label 一致。
+> - 落盘：段 54 校验 approved 材料包的 `scope` 在 `.testing/signoff/<scope>.signoff.yaml` 账本有对应记录（D46.b 单一权威源）。
 
 ## 0. 背景速览（开会前先读）
 
@@ -67,20 +67,31 @@ driven_by:
   它们会漂移、逼读者心算，且不改变任何决策。
 - 真需计数 → 走 `.stats.json` + `<!-- stat:NAME -->值<!-- /stat -->`（D17），由 `sync-stats.sh --check` 校验。
 
-## 落盘（sign-off 后，段 54 机械验证）
+## 落盘（sign-off 后 — D46.b/d，账本是唯一权威源）
 
-业务方对全部决策点 sign-off 后：
+业务方对全部决策点 sign-off 后，签字事实落进 `.testing/signoff/<scope>.signoff.yaml` 账本（append-only、来源无关）；status 由账本现算、不写第二份（无 `# Status` 翻转、无 `Verified` 态）：
 
-- [ ] **A**：plan.yaml 对应 feature `actual_evidence` 追加
-      `[SIGNOFF-CLOSED <日期>] covers <scope> | by <角色> | vehicle PR <#> 评论 business-signoff: <scope> | <关键决策摘要> → <下一步>`
-- [ ] **B**：PR 加 label `business-signoff: <scope>`（`promote_signoff.py` 翻 .feature Status + 本文 status→approved）
-- [ ] **C**：CLAUDE.md 追加 `D<编号>` 决策条（记**实质裁决**，非空泛"通过"）
-- [ ] **D**：（如需）另起 worktree 启动 delivery worker
+- [ ] **A**：vehicle PR 加 label `signoff:<scope>`（如 `signoff:e3.F9`）+ PR body 写 `<!-- signoff ... -->` 机读块（YAML：`scope` / `kind`（`决策签字` / `效果验收` / `双签`）/ `covers`（被签 `.feature` 相对路径列表）/ `decision_only`）。合并时 `signoff-ledger.yml` 调 `signoff_from_pr.py` 自动生成账本（`signed_by`=PR approvers，`date`=merged_at，`evidence`=PR#）提交回 main。
+- [ ] **B**：本文 frontmatter `status: approved`。
+- [ ] **C**：CLAUDE.md 追加 `D<编号>` 决策条（记**实质裁决**，非空泛"通过"）。
 
-> A/B/C 一致性由 **段 54** 自动校验：本文 `status: approved` 时，plan.yaml 必须有
-> 匹配 `[SIGNOFF-CLOSED]` evidence + CLAUDE.md 必须有对应 D-编号；缺则 FAIL（关掉"靠人记忆"）。
+> 一致性由 **段 54 + 段 63** 校验：本文 `status: approved` 时，`scope` 必须在 `.testing/signoff/<scope>.signoff.yaml` 账本有对应记录（covers 的 .feature 存在、evidence 非空）；缺则 FAIL。**不再**对账 plan.yaml `[SIGNOFF-CLOSED]` 三处副本（D46 起 .twin/plan.yaml 退役，账本即真相）。
 
-## sign-off PR 评论模板（业务方填空 / 全采纳建议一键贴）
+## sign-off PR body 机读块 + 评论模板（业务方填空 / 全采纳建议一键贴）
+
+PR body（合并时被 `signoff_from_pr.py` 消费）：
+
+```
+<!-- signoff
+scope: <scope，与 label signoff:<scope> 一致>
+kind: 决策签字          # 决策签字 / 效果验收 / 双签
+decision_only: false   # 决策签字且不绑具体 feature 时 true（covers 留空）
+covers:
+  - .testing/waves/<wave>/features/<feature>.feature
+-->
+```
+
+PR 评论（人读）：
 
 ```
 [<scope> launch sign-off | by <角色> | <日期>] 全采纳建议

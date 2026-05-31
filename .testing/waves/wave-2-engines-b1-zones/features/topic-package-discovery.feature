@@ -5,10 +5,8 @@
 # Roles: ROLE_ORGAN_OPERATER | ROLE_ORGAN_MANAGER | ROLE_BUSIAUDIT
 # Trace: D31 / D32 / D32.a / 业务反馈 #PR129 / 基线 §5.2 P7 / dsp-sharezone-topic-package-reconstruction-plan-v1.md §3.1 / §3.2 / §六 / 旧 xlsx 行 26 (数购车申请) / 行 98 (事项/主题库查看)
 # Priority: P1
-# Status: Ready
 # Owner: e3
 # Pytest: tests/integration/test_wave2_topic_package_discovery.py
-# Twin-F: e3.F9
 
 Feature: Wave 2 P7 主题包发现
   As a 部门操作员 / 部门管理员 (ROLE_ORGAN_OPERATER / ROLE_ORGAN_MANAGER)

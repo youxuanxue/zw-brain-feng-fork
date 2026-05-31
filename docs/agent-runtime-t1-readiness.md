@@ -1,6 +1,6 @@
 # AgentRuntime T1 Readiness 预案
 
-> F6 deliverable（.twin/e4-b1-agentruntime/plan.yaml#F6）；本预案不 land
+> 原 e4-b1 agentruntime F6 deliverable 预案（执行计划已随 D46.e 退役）；本预案不 land
 > 主仓 Registry schema 字段，按架构 §8.6「触发式实现」原则准备好工具链
 > spike，让 T1/T2/T3 任一触发当日 1 天内可 land。
 >
@@ -11,7 +11,7 @@
 > - 触发式延后 debt entry：[docs/preflight-debt.md](preflight-debt.md) §「2026-05-24 — AgentRuntime runtime 触发式延后」
 > - F4 trust_level 字段边界护栏：tests/integration/test_b12_intake.py
 >   `test_trust_level_is_NOT_agentruntime_registry_field`
-> - Spike 文件：[.twin/e4-b1-agentruntime/spike/](../.twin/e4-b1-agentruntime/spike/)
+> - Spike 文件：`git 历史 cf9dd10^:.twin/e4-b1-agentruntime/spike/`（随 D46.e 退役，从历史取）
 
 ---
 
@@ -36,11 +36,11 @@
 | # | 步骤 | 命令 / 文件 | 估时 |
 |---|---|---|---|
 | 1 | 开分支 | `git checkout -b agentruntime-t1-fire` from `main` | 0.1 |
-| 2 | 拷贝 spike 到 main | `cp .twin/e4-b1-agentruntime/spike/agentruntime_validate.py.skeleton scripts/agentruntime_validate.py` + `chmod +x`；同理 `doctor` | 0.2 |
+| 2 | 拷贝 spike 到 main | spike 文件原在 git 历史 cf9dd10^ 的 `.twin/e4-b1-agentruntime/spike/`，需从 git 历史 cf9dd10^ 取 `agentruntime_validate.py.skeleton` → `scripts/agentruntime_validate.py` + `chmod +x`；同理 `doctor` | 0.2 |
 | 3 | 在 spike 骨架基础上补真实校验 | 解开 `# === T1 fire 时实装 ===` 注释，加 `import yaml` + 真实 `safe_load`；补 `Optional[str]` → `str` 严格化；补 5 条 validate_rules（见 §3）；运行 `python scripts/agentruntime_validate.py spike/sample_AGENT.yaml --json` 单步验证 | 1.5 |
-| 4 | 加 Registry 4 字段到 schema | edit `zw_brain/capability_registry/runtime.py::validate_manifest()`：source_type='external-register' 分支强制 4 字段（diff 见 [`spike/registry_schema_diff.json`](../.twin/e4-b1-agentruntime/spike/registry_schema_diff.json)） | 0.5 |
+| 4 | 加 Registry 4 字段到 schema | edit `zw_brain/capability_registry/runtime.py::validate_manifest()`：source_type='external-register' 分支强制 4 字段（diff 见 `spike/registry_schema_diff.json`（git 历史 cf9dd10^ 的 spike/ 取）） | 0.5 |
 | 5 | 加 source_type 字段到现有 manifest schema | 把 `source_type: builtin` 缺省填充到现有 209 manifest（一次性 patch；export_agent_contract.py 可加 `--migrate-source-type` flag） | 0.5 |
-| 6 | 第一个 AGENT.yaml fixture 入库 | `cp .twin/e4-b1-agentruntime/spike/sample_AGENT.yaml fixtures/agentruntime/sample-builtin.AGENT.yaml`；**移除** `_spike_marker` 段；真实 builtin Agent 业务名 + 真 capability 列表 | 1.0 |
+| 6 | 第一个 AGENT.yaml fixture 入库 | 从 git 历史 cf9dd10^ 取 `.twin/e4-b1-agentruntime/spike/sample_AGENT.yaml` → `fixtures/agentruntime/sample-builtin.AGENT.yaml`；**移除** `_spike_marker` 段；真实 builtin Agent 业务名 + 真 capability 列表 | 1.0 |
 | 7 | 加 preflight 新段 30 | `scripts/check_external_register_metadata.py`：对 source_type=external-register 强制 4 字段就位；接入 `scripts/preflight.sh`；详见 §5 反提前盖楼护栏 | 1.0 |
 | 8 | 跑 preflight 全段 | `bash scripts/preflight.sh`：21 段 + 段 30 共 22 段全绿 | 0.3 |
 | 9 | 跑 pytest 全量 | `pytest --tb=short`：baseline 157 + agentruntime 单测 不退化 | 0.3 |
@@ -54,7 +54,7 @@
 
 ## 3. Registry Schema Diff 详解
 
-详细 schema patch 见 [`spike/registry_schema_diff.json`](../.twin/e4-b1-agentruntime/spike/registry_schema_diff.json)。
+详细 schema patch 见 `spike/registry_schema_diff.json`（git 历史 cf9dd10^ 的 spike/ 取）。
 
 4 个新字段（仅对 `source_type=external-register` 强制）：
 
@@ -221,7 +221,7 @@ T1 触发后下列 6 项全过才进 land（在 PR 描述中逐项打勾）：
 
 ## 7. 本预案与 F6 / e4 plan 关系
 
-- **本预案 = F6 deliverable**：`.twin/e4-b1-agentruntime/plan.yaml#F6`
+- **本预案 = F6 deliverable**：原 e4-b1 F6 deliverable 预案（D46.e 退役）
   `actual_evidence` 字段在本 round commit 后填上：本文档路径 +
   spike 目录路径 + commit sha + 与 debt entry 交叉引用确认
 - **本 round 不 land 主仓**：架构 §8.6 + debt entry 明确 trigger
@@ -256,10 +256,10 @@ T1/T2/T3 任一 fire 后：
 
 | 文件 | 用途 | T1 fire 时去向 |
 |---|---|---|
-| [`registry_schema_diff.json`](../.twin/e4-b1-agentruntime/spike/registry_schema_diff.json) | 4 字段最小 schema patch + 校验规则 + 5 步 rollout strategy | 参考 patch；不直接拷贝（手动 apply） |
-| [`agentruntime_validate.py.skeleton`](../.twin/e4-b1-agentruntime/spike/agentruntime_validate.py.skeleton) | validate 命令骨架（注释中标记 `=== T1 fire 时实装 ===` 段） | `cp` → `scripts/agentruntime_validate.py` + 补真实 yaml 解析 + `chmod +x` |
-| [`agentruntime_doctor.py.skeleton`](../.twin/e4-b1-agentruntime/spike/agentruntime_doctor.py.skeleton) | doctor 命令骨架（同上） | `cp` → `scripts/agentruntime_doctor.py` + 补 gateway/OCI 探活 + `chmod +x` |
-| [`sample_AGENT.yaml`](../.twin/e4-b1-agentruntime/spike/sample_AGENT.yaml) | 最小内置 Agent 样本（含 `_spike_marker` 段） | `cp` → `fixtures/agentruntime/sample-builtin.AGENT.yaml`；**删除** `_spike_marker` 段；真实业务字段填充 |
+| `registry_schema_diff.json`（git 历史 cf9dd10^ 的 spike/ 取） | 4 字段最小 schema patch + 校验规则 + 5 步 rollout strategy | 参考 patch；不直接拷贝（手动 apply） |
+| `agentruntime_validate.py.skeleton`（git 历史 cf9dd10^ 的 spike/ 取） | validate 命令骨架（注释中标记 `=== T1 fire 时实装 ===` 段） | `cp` → `scripts/agentruntime_validate.py` + 补真实 yaml 解析 + `chmod +x` |
+| `agentruntime_doctor.py.skeleton`（git 历史 cf9dd10^ 的 spike/ 取） | doctor 命令骨架（同上） | `cp` → `scripts/agentruntime_doctor.py` + 补 gateway/OCI 探活 + `chmod +x` |
+| `sample_AGENT.yaml`（git 历史 cf9dd10^ 的 spike/ 取） | 最小内置 Agent 样本（含 `_spike_marker` 段） | `cp` → `fixtures/agentruntime/sample-builtin.AGENT.yaml`；**删除** `_spike_marker` 段；真实业务字段填充 |
 
 spike 后缀 `.skeleton` 保证 Python 不可直接 import，preflight 段 27 ruff /
 段 28 capability-registration 等都不会拾取；spike `_spike_marker` yaml 段

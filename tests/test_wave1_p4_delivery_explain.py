@@ -4,7 +4,6 @@
 # Consumer-faces: API (brain.invoke_skill)
 # Roles: ROLE_ORGAN_OPERATER (申请人) | ROLE_ORGAN_MANAGER (提供方) | ROLE_BUSIAUDIT
 # Trace:
-#   .twin/e1-j1-journey/plan.yaml F8
 #   zw_brain/command/handlers/j1/delivery_explain.py
 #   docs/approved/zw-brain-architecture.md §5.4.4 (减摩组件反约束)
 """F8: P4 交付状态解释助手 — 5 真实 sd-default 交付任务 + 推理降级 + §5.4.4 反约束守卫."""

@@ -18,7 +18,7 @@ fact_source:
 > **形态**：Gherkin/BDD（Feature / Background / Scenario / Given-When-Then）。
 > **维度**：Wave 主轴 + cross-cutting 横切附录。
 >
-> **在飞轮中的位置**：本目录是飞轮齿轮组的 **Spec 层**（What + R13 签字）。Plan 层在 `.twin/*`，Verification 层在 `tests/*` + `zw-brain-web/tests/e2e/*` + preflight。三者通过三角字段（`# Owner` / `# Pytest` / `# Twin-F` + `spec_ref`）机械连接，由 preflight 段 38 守住。完整飞轮设计：[`docs/approved/zw-brain-flywheel.md`](../docs/approved/zw-brain-flywheel.md)。
+> **在飞轮中的位置**：本目录是飞轮齿轮组的 **Spec 层**（What + R13 签字）。Verification 层在 `tests/*` + `zw-brain-web/tests/e2e/*` + preflight；SIGN-OFF 住 `.testing/signoff/` 账本（D46.b 单源）。两者通过 **SPEC↔test 双边**（`# Owner` / `# Pytest`）机械连接，由 preflight 段 38 守住。完整飞轮设计：[`docs/approved/zw-brain-flywheel.md`](../docs/approved/zw-brain-flywheel.md)。
 
 ## 目录结构
 
@@ -69,21 +69,18 @@ fact_source:
 # Roles: ROLE_ORGAN_OPERATER | ROLE_ORGAN_MANAGER | ROLE_BUSIAUDIT | ROLE_SECURITY_ADMIN | ROLE_SECURITY_AUDIT | ROLE_SYSTEM
 # Trace: R[1-15] / D-XX / 业务反馈 #N / 旧 xlsx 行 [N..M]
 # Priority: P0 (黄金链路必跑) | P1 (Wave 完成判据) | P2 (回归/边界)
-# Status: Draft | Ready | InTest | Done
-# Owner: e1 | e2 | e3 | e4 | e5 | e6                       ← 三角字段：哪个 worker owns
-# Pytest: tests/test_waveN_xxx.py 或 pending               ← 三角字段：哪个 pytest 实现
-# Twin-F: eN.FX 或 cross 或 pending                         ← 三角字段：哪个 F-item 承接
+# Owner: e1 | e2 | e3 | e4 | e5 | e6                       ← SPEC↔test 连接：worker 归属标签
+# Pytest: tests/test_waveN_xxx.py（或 tests/e2e/*.spec.ts）或 pending ← SPEC↔test 连接：测试实现
+# Deferred: <理由/ref>（可选）                              ← 排期外意图 → Backlog（不进 4 值阶梯）
 ```
 
-**三角字段说明**：
+> **status 不写进 header**：feature 状态（Draft / Ready / InTest / Done / Backlog）由 `scripts/gen_feature_status.py` 从 SPEC + MEASUREMENT + SIGN-OFF **现算**，禁手写（D46 / preflight 段 62）；排期外意图用 `# Deferred:`。
 
-- `Owner` 指向 `.twin/eN-*/` 中存在的 worker；与 `.twin/eN/plan.yaml` `spec_ref` 双向绑定
-- `Pytest` 指向 `tests/` 或 `zw-brain-web/tests/e2e/` 中实际存在的文件；写 `pending` 表示等实施 PR 接力
-- `Twin-F` 3 种合法值：
-  - `eN.FX` — 明确的 F-item 承接
-  - `cross` — 横切类（cross-cutting / 跨多 F-item / 系统级护栏），不归属单一 F
-  - `pending` — 等 PR 接力 OR 该 feature 所在 Wave 整体 deferred
-- preflight 段 38 会三向校验上述字段；任意失配 commit 拦下
+**SPEC↔test 双边字段说明**：
+
+- `Owner` = `e1`–`e6` 归属标签（preflight 段 38 校验合法值，不要求任何目录存在）
+- `Pytest` 指向 `tests/`（pytest）或 `tests/e2e/` / `zw-brain-web/tests/e2e/`（Playwright）中实际存在的文件；写 `pending` 表示等实施 PR 接力
+- preflight 段 38 校验上述双边（`# Owner` 合法 + `# Pytest` 文件存在或 pending）；失配 commit 拦下
 
 `Trace` 行**必须**引用至少一个权威源：
 
@@ -191,7 +188,7 @@ Background:
 - 测试质量门禁脚本 → `user-stories/verify_quality.py`（dev-rules 提供，不动）
 - pytest 实现入口 → `tests/`（19 个 wave PR 已 land + Wave 2/3 接力）
 - Playwright e2e → `zw-brain-web/tests/e2e/`（12 spec / 62 passed）
-- Worker plan → `.twin/eN/plan.yaml`（spec_ref 反向引用本目录）
+- SIGN-OFF 账本（业务签字唯一权威源，D46.b）→ `.testing/signoff/<scope>.signoff.yaml`（`covers` 列被签 feature）
 - 不复刻清单（已签字 PR #129）→ `docs/legacy-not-reproduce-signoff.md`
 - Wave 4 SLI 看板 → `docs/customer-readiness/wave4-cutoff-criteria.md`
 - 一次性档案 → `cleanup-plan.md`（merge 后 30 天可删）

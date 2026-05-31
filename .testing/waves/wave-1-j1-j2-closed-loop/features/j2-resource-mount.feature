@@ -5,10 +5,9 @@
 # Roles: ROLE_ORGAN_OPERATER
 # Trace: 基线 §3.3 3 物化形式 (data_resource_table / file / api), §10.2 J2 资源挂接, 旧 xlsx 行 [57..61] 资源注册 (库表/链接/文件/文件夹/库表-视图) + [66] 目录物化
 # Priority: P1
-# Status: Backlog
+# Deferred: OPERATER 提交侧挂载 wizard + resource.mount 能力立项延后（preflight-debt.md 2026-05-27）
 # Owner: e2
 # Pytest: pending (preflight-debt.md 2026-05-27 — OPERATER 提交侧 wizard + resource.mount skill 立项延后)
-# Twin-F: e2.F2
 
 Feature: J2 资源挂接（3 物化形式：table / file / api）
   As a 部门操作员 ROLE_ORGAN_OPERATER
