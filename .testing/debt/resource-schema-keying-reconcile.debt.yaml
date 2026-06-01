@@ -1,0 +1,20 @@
+slug: resource-schema-keying-reconcile
+title: "字段数据模型只读视图实际覆盖率≈2.7%：resource_schema_snapshot 键未与 resource_asset.resource_code 对齐"
+date: 2026-06-02
+severity: medium
+owner: 产品研发负责人
+# PR #185 本地实地走查发现（业务方同意方案 A：① 照常合 + 挂此债，不按「最高杠杆已铺通」叙事）：
+# metadata.schema.query / P2 「字段数据模型」视图按 resource_code 查 resource_schema_snapshot，
+# 但 seed 库里 schema 快照是用 dsp_metaresource 自有 id 入库的（5560 行 / 2693 distinct code，
+# 多为 32-hex），与 resource_asset.resource_code 既不等、也不经 source_ref / catalog_code 相连
+# （三键 join 均 0 命中）。只有 5 条 dashed-UUID 资源恰好同键 → 186 个 resource_asset 里仅 5
+# （2.7%）能渲染字段表，发现页 75 资源里仅约 3（4%）。用户点开的多数资源（如「历年GDP信息」
+# 0862582d…）落到诚实空态「该资源暂无登记的字段数据模型」——空态本身正确（非误显、非静默吞错），
+# 但产品价值被键对齐缺陷限制在 2.7%。
+# 注：① 的 UI + 能力 + 诚实态 + 权限闸门均已验证正确；e2e resource_schema_view 因「探测任一可
+# join 资源再测那一个」永远绿，对覆盖率盲——故必须靠本债显式记账，不靠绿门禁兜底。
+# 这是 legacy-import 一次性引导的直接后果（project_legacy_import_migration_only），非 #185 引入。
+trigger: "legacy mapper 把 resource_schema_snapshot 的键 reconcile 到 resource_asset（搞清 schema 源 dump 与 resource_asset 的映射关系——大概率经 dsp_metaresource→resource_asset 的源系统 id 对照，或 source_ref 解析），属 §9.5 adapter 写区的独立 PR；reconcile 后覆盖率应从 5/186 升到接近全量。修复落地后把本 assert 从 external 升级为现算（如 grep_present 对账新增的 reconcile mapper，或 SQL join 命中率门槛）并关债。"
+assert:
+  # 纯数据/适配层 reconcile 依赖，无单文件机械锚点；保持 external，由 trigger 人工升级为现算。
+  kind: external

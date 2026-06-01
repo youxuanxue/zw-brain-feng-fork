@@ -1356,9 +1356,6 @@ class BrainService:
     def _prefilled_fields_for_resource(self, resource: dict[str, Any], requested_fields: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
         return self._get_handler_deps().services.application.prefilled_fields(resource, requested_fields)
 
-    def _default_diff_fields(self) -> list[dict[str, Any]]:
-        return self._get_handler_deps().services.application.default_diff_fields()
-
 
     # ============== J1 凭据签发与查询（D27/U-3 处置承诺的凭据领取闭环） ==============
 

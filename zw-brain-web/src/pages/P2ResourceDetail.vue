@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useResourceDetail } from '@/composables/useResourceDetail';
+import { useResourceSchema } from '@/composables/useResourceSchema';
 import { invokeActionStub } from '@/composables/useActionStub';
 import { navigateToRequestDetail, resolveRequestIdFromAction } from '@/composables/useRequestNavigation';
 import { getProductRole } from '@/composables/useProductRole';
@@ -16,6 +17,20 @@ const id = computed(() => String(route.params.id ?? ''));
 const { resource, source, loading, fetchError } = useResourceDetail(() => id.value);
 // request.create 仅 OPERATER；MANAGER/BUSIAUDIT/SECURITY_AUDIT 在 P2 详情页不渲染「发起复用申请」
 const canApply = computed(() => canPerformAction('request.create', getProductRole().value));
+
+// 字段数据模型（只读）：metadata.schema.query → MANAGER / BUSIAUDIT / SECURITY_AUDIT。
+// 无权岗位（OPERATER）整块不渲染（无权=不可见），也不发请求。
+const canViewSchema = computed(() => canPerformAction('metadata.schema.query', getProductRole().value));
+const {
+  columns: schemaColumns,
+  loading: schemaLoading,
+  fetchError: schemaError,
+  isEmpty: schemaEmpty,
+} = useResourceSchema(
+  () => id.value,
+  () => canViewSchema.value,
+  () => getProductRole().value,
+);
 
 const displayName = computed(() => {
   const r = resource.value;
@@ -77,6 +92,38 @@ async function apply() {
           <li v-for="f in fields.slice(0, 12)" :key="f">{{ f }}</li>
         </ul>
       </section>
+      <section v-if="canViewSchema" class="detail-block" data-testid="resource-schema-block">
+        <h2 class="detail-block-title">字段数据模型</h2>
+        <p v-if="schemaLoading" class="schema-state">正在加载字段数据模型……</p>
+        <p v-else-if="schemaError" class="schema-state schema-state-error">
+          字段数据模型加载失败：{{ schemaError }}
+        </p>
+        <p v-else-if="schemaEmpty" class="schema-state">该资源暂无登记的字段数据模型。</p>
+        <table v-else-if="schemaColumns.length" class="schema-table" data-testid="resource-schema-table">
+          <thead>
+            <tr>
+              <th>字段</th>
+              <th>释义</th>
+              <th>格式</th>
+              <th>长度</th>
+              <th>约束</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="col in schemaColumns" :key="col.column">
+              <td class="schema-col">{{ col.column }}</td>
+              <td>{{ col.comment || '—' }}</td>
+              <td>{{ col.format || '—' }}</td>
+              <td>{{ col.length || '—' }}</td>
+              <td>
+                <span v-if="col.isPrimaryKey" class="schema-tag schema-tag-pk">主键</span>
+                <span v-if="!col.nullable" class="schema-tag">必填</span>
+                <span v-if="col.needEncrypt" class="schema-tag schema-tag-enc">需加密</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
       <section v-if="explain.length" class="detail-block">
         <h2 class="detail-block-title">复用提示</h2>
         <ul class="hint-list">
@@ -96,4 +143,13 @@ async function apply() {
 .chip-list li { font-size: 12px; padding: 2px 10px; background: var(--b-bg-page, #f2f7fd); border: 1px solid var(--b-border, #d4e2f4); border-radius: 999px; }
 .hint-list { padding-left: 20px; margin: 8px 0 0; font-size: 14px; line-height: 1.6; }
 .hint-list li { padding: 4px 0; }
+.schema-state { margin: 8px 0 0; font-size: 13px; color: var(--b-text-muted, #5b6b7f); }
+.schema-state-error { color: var(--b-danger, #c0392b); }
+.schema-table { width: 100%; margin: 8px 0 0; border-collapse: collapse; font-size: 13px; }
+.schema-table th, .schema-table td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--b-border, #e3ebf5); vertical-align: top; }
+.schema-table th { font-weight: 600; color: var(--b-text-muted, #5b6b7f); background: var(--b-bg-page, #f7fafe); }
+.schema-col { font-family: var(--b-mono, ui-monospace, SFMono-Regular, Menlo, monospace); }
+.schema-tag { display: inline-block; font-size: 11px; padding: 1px 8px; margin: 0 4px 2px 0; border-radius: 999px; background: var(--b-bg-page, #f2f7fd); border: 1px solid var(--b-border, #d4e2f4); }
+.schema-tag-pk { background: #eaf4ff; border-color: #b6d8ff; }
+.schema-tag-enc { background: #fff3e6; border-color: #ffd5a8; }
 </style>

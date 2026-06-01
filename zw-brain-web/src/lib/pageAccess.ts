@@ -130,6 +130,8 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   // P3 供需 / 交付
   'delivery.trigger_recovery': ['ROLE_ORGAN_MANAGER'],
   'service.publish_or_suspend': ['ROLE_ORGAN_MANAGER'],
+  // P2ResourceDetail 字段数据模型（只读）— metadata.schema.query.execute
+  'metadata.schema.query': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
 };
 
 export function canPerformAction(action: keyof typeof ACTION_ROLE_GATES | string, role: string): boolean {

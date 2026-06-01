@@ -306,49 +306,41 @@ class ApplicationService:
         resource: dict[str, Any],
         requested_fields: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
-        """Demo prefilled fields for J1 / U-3 credential issue flow."""
-        samples = {
-            "统一社会信用代码": "91370000MA3XXXXXX1",
-            "企业名称": "山东云启科技有限公司",
-            "法定代表人": "李某某",
-            "行业代码": "I6510",
-            "成立日期": "2020-08-18",
-            "登记机关": "市市场监管局",
-            "经营场所": "高新区软件园 A 座",
-            "注册资本": "500 万元",
-        }
-        fields = []
-        source_fields = [item["title"] for item in requested_fields] if requested_fields else resource.get("fields", [])[:5]
-        for fld in source_fields[:5]:
-            fields.append(
+        """Prefilled rows for the J1 application material panel.
+
+        诚实化（禁 Mock，D11）：本期共享资源池只承载字段**元数据**（item_code /
+        title / 来源目录），不承载某个申请人的字段**取值**——之前这里写死了一家
+        虚构企业（山东云启…/假信用代码/假法人）当作「已预填」，会在真实凭据签发流
+        里向用户展示捏造的企业数据，是产品事故。
+
+        现行：逐条带出**真实请求字段**（来自目录元数据），取值留空并标注「请填写」，
+        source 指向该字段真实可得的目录证据；绝不再编造取值。未来 adapter-yibiaotong
+        接通后由真源回填（见 .testing/.../adapter-yibiaotong.feature，本期未建 Draft）。
+        """
+        catalog_code = resource.get("repository", {}).get("catalogCode") or resource.get("id") or ""
+        # 真实请求字段：优先用上游归一化后的 requested_fields（{item_code,title}），
+        # 否则回落资源自带的字段标题列表。两者都来自真实目录元数据，无捏造。
+        rows: list[dict[str, Any]] = []
+        if requested_fields:
+            source_fields = [
+                (str(item.get("title") or item.get("item_code") or ""), str(item.get("item_code") or ""))
+                for item in requested_fields
+            ]
+        else:
+            source_fields = [(str(title), "") for title in (resource.get("fields") or [])[:5]]
+        for title, item_code in source_fields[:5]:
+            if not title:
+                continue
+            ref = f"共享目录字段 {item_code}".strip() if item_code else "共享目录字段"
+            source = f"{ref}（{catalog_code}）" if catalog_code else ref
+            rows.append(
                 {
-                    "label": fld,
-                    "value": samples.get(fld, "已带出"),
-                    "source": "共享资源池 / 字段证据",
-                    "state": "已预填",
+                    "label": title,
+                    # 诚实留空：共享池无该字段取值，待申请人/经办人填写。
+                    "value": "",
+                    "placeholder": "请填写",
+                    "source": source,
+                    "state": "待填写",
                 }
             )
-        return fields
-
-    def default_diff_fields(self) -> list[dict[str, Any]]:
-        """Default 3 diff fields for grass-roots supplement demo."""
-        return [
-            {
-                "label": "经营状态",
-                "value": "待镇街确认",
-                "reason": "现场状态变化快",
-                "owner": "基层填报人 补录",
-            },
-            {
-                "label": "最近走访时间",
-                "value": "待补录",
-                "reason": "共享池无现场时间",
-                "owner": "村社区填报人 补录",
-            },
-            {
-                "label": "现场备注",
-                "value": "待补录",
-                "reason": "仅末端掌握",
-                "owner": "基层填报人 补录",
-            },
-        ]
+        return rows
