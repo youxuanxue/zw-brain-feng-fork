@@ -25,6 +25,31 @@ trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / �
 目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
 trigger 关闭即可删除字段。
 
+## 2026-06-02 — P0/P1 收尾 PR 判定不通宵改的 P2（记债不静默）
+
+> 本批 P0(MCP/CLI prod 护栏) + P1(governance 下推 / grant 守卫 / 冷启动锁) 修复见
+> `docs/acceptance/p0p1-remediation-walkthrough.md`。下列项经判定**通宵改不安全或属 #185**，
+> 不纳入本 PR，机械账本见 `.testing/debt/*.debt.yaml`（现算 open/stale-fixed）：
+
+- **prefilled 假企业数据**（`application_service.py` ~:312）：归 **PR #185（OPEN，验收中）**，标题即
+  「prefilled 停止捏造企业数据」、diff 含该文件 + test_application_prefilled_honesty.py。本 PR 铁律
+  不碰 #185 文件，仅记债交叉指向。账本 `prefilled-fake-enterprise-data`（grep "山东云启科技有限公司"，
+  #185 合并移除即转 stale-fixed）。
+- **approval_case 投影对 71 条 legacy hex 记录陈旧**：legacy 导入的 approval_case 从不进
+  `sync_aggregate_tables` 的 snapshot 投影循环 → 投影态可陈旧；用户侧 status 读 application_record
+  故被掩盖（现网无可见 bug）。结构性重构 blast-radius 大，通宵不安全。账本
+  `approval-case-projection-stale`（external，无单一稳定 grep 锚）。
+- **shared→command 反向层依赖**（`shared/agent_runtime/service.py:8` + `capability_provider.py:8`
+  eager import command）：违反 entry→command→domain→shared；preflight 段 49 只扫 `domain/` 不扫
+  `shared/` 故未捕获。**未顺带加 shared 扫描守卫**——直接扩会立刻红（这两处即违例），需先给
+  agent_runtime 加白名单（=把 prose 例外写进 config，未消债只静音），故记债跟踪、触发时一并解耦 + 扩守卫。
+  账本 `shared-command-reverse-dep`（grep "from zw_brain.command"）。
+- **brain.py god-object debt 计数陈旧**：原写 3462 LOC / ~192 方法，**已更正为 1425 LOC / 152 方法**
+  （见下方 2026-05-26 条目 Where/Implication）。
+- **死层残骸**：`skills/data_search/__init__.py` 死且签名错的 shim（run() 调 _handler 签名不一致）+
+  空 `agents/` + 空 `orchestrator/` 占位包。不通宵删保持 PR 聚焦（删前须 grep configs，见 MEMORY
+  「Delete-file grep must include configs」）。账本 `dead-layer-remnants`（grep "BrainService"）。
+
 ## 2026-06-01 — H2 区块链锚定 worker 部署形态：单副本 in-process（选 A，多副本前再评估）
 
 > 产品研发负责人 2026-06-01 **选 A**（维持现状，本期无代码动作）。本条登记 PR #183 §5 的待决策。
@@ -360,14 +385,14 @@ trigger 关闭即可删除字段。
 
 ## 2026-05-26 — BrainService 残留读路径方法群下沉（brain.py god-class）
 
-- **Where**: `zw_brain/command/brain.py`（3462 LOC）拆分后 185 cap dispatcher 全迁出至 `dispatch.py`
-  + `handlers/{j1,j2,b1,infra}/`，但 `BrainService` 类本身仍持有 **~192 方法**，其中绝大多数是
-  `_*_record_to_dict` / `_*_projection` / `_topic_*` / `_governance_*` / `_delivery_*` 读路径
-  映射 + 投影 helper（语义上属 projection / repository 层，非编排层）。
+- **Where**: `zw_brain/command/brain.py`（**1425 LOC**，截至 2026-06-02 复核）拆分后 185 cap
+  dispatcher 全迁出至 `dispatch.py` + `handlers/{j1,j2,b1,infra}/`，但 `BrainService` 类本身仍持有
+  **152 方法**，其中绝大多数是 `_*_record_to_dict` / `_*_projection` / `_topic_*` / `_governance_*` /
+  `_delivery_*` 读路径映射 + 投影 helper（语义上属 projection / repository 层，非编排层）。
 - **Implication**: §10.2 已 re-scope —— AC1 真实意图「dispatch 不臃肿」由 `dispatch.py` 360 LOC +
-  brain.py 内 0 case dispatcher 达成，brain.py 不再卡 LOC 上限。但 192 方法 god-class 仍是真实债：
+  brain.py 内 0 case dispatcher 达成，brain.py 不再卡 LOC 上限。但 152 方法 god-class 仍是真实债：
   多 worker 若同时改读路径投影方法仍会在此文件 merge 撞车；类体过大降低可读性。
-- **Why deferred**: 当前无活跃功能需要这些方法搬家；把 ~3000 LOC 读路径方法盲搬到 projection/domain
+- **Why deferred**: 当前无活跃功能需要这些方法搬家；把读路径方法盲搬到 projection/domain
   层是高 blast-radius 的投机式重构（违反「不为假设造复杂度」）。re-scope 已入档 §10.2，状态板不再
   谎报 ≤500。
 - **Trigger to re-evaluate**: (a) 出现一次 brain.py 读路径方法的多 worker merge 撞车 → 把撞车簇

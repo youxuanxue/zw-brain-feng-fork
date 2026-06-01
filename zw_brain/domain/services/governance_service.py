@@ -14,6 +14,21 @@ if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
 
+# Fixed whitelist of governance-scoped skill_ids surfaced by the audit view. Kept as a
+# module constant so it can be pushed to SQL (list_audit_events_for_capabilities) — the LIMIT then
+# applies AFTER this filter, instead of a 500-row cap silently dropping older matches.
+_GOVERNANCE_AUDIT_SKILL_IDS = (
+    "tenant.policy.evaluate",
+    "legacy.bsp.mapping.import",
+    "org.projection.sync",
+    "actor.projection.sync",
+    "governance.iam_overview",
+    "governance.policy_candidate.list",
+    "governance.policy_candidate.review",
+)
+_IMPORT_ISSUES_SKILL_ID = "legacy.bsp.mapping.import"
+
+
 @dataclass(frozen=True)
 class GovernanceService:
     """Governance helpers (B1 audit / J2 governance / M0 work queue)."""
@@ -49,9 +64,9 @@ class GovernanceService:
                 issues.append(copy.deepcopy(issue) | {"adapter_run_id": run.get("id"), "adapter_status": run.get("status"), "source_ref": run.get("source_ref")})
         store = self.brain._state_store.database_store
         if store is not None:
-            for call in store.list_capability_calls():
-                if call.skill_id != "legacy.bsp.mapping.import":
-                    continue
+            # P1-2: push the skill_id filter to SQL instead of hydrating the whole
+            # unbounded capability_call table then filtering one skill_id in Python.
+            for call in store.list_capability_calls_for_capability(_IMPORT_ISSUES_SKILL_ID):
                 for item in call.output_json.get("items") or []:
                     if isinstance(item, dict) and item.get("reason"):
                         issues.append({"type": item["reason"], "table": "legacy.bsp.mapping.import", "legacy_ref": item.get("legacy_permission_ref"), "detail": {"legacy_role_ref": item.get("legacy_role_ref"), "capability_id": item.get("capability_id")}, "capability_call_ref": call.call_ref})
@@ -69,7 +84,11 @@ class GovernanceService:
         if store is None:
             return []
         events = []
-        for item in store.list_audit_events():
+        # P1-2 completeness fix: push the governance skill_id whitelist to SQL so the LIMIT
+        # applies AFTER it. The old code capped the table at 500 *then* filtered to the
+        # whitelist in Python — once audit_event exceeded 500 rows, a matching older
+        # governance event was silently truncated away. Response shape is unchanged.
+        for item in store.list_audit_events_for_capabilities(list(_GOVERNANCE_AUDIT_SKILL_IDS)):
             payload = item.payload_json if isinstance(item.payload_json, dict) else {}
             if payload.get("tenant_id") not in {None, "", tenant_id}:
                 continue
@@ -77,16 +96,7 @@ class GovernanceService:
                 continue
             if actor_filter and actor_filter not in {str(payload.get("external_actor_id", "")), str(payload.get("actor_id", "")), str(payload.get("actor_snapshot", {}).get("subject", "")) if isinstance(payload.get("actor_snapshot"), dict) else ""}:
                 continue
-            if item.skill_id in {
-                "tenant.policy.evaluate",
-                "legacy.bsp.mapping.import",
-                "org.projection.sync",
-                "actor.projection.sync",
-                "governance.iam_overview",
-                "governance.policy_candidate.list",
-                "governance.policy_candidate.review",
-            }:
-                events.append({"id": item.request_id, "skill_id": item.skill_id, "phase": item.phase, "actor": item.actor, "occurred_at": item.occurred_at.isoformat(), "payload_json": copy.deepcopy(payload)})
+            events.append({"id": item.request_id, "skill_id": item.skill_id, "phase": item.phase, "actor": item.actor, "occurred_at": item.occurred_at.isoformat(), "payload_json": copy.deepcopy(payload)})
         return events
 
     def build_m0_work_queue_cards(

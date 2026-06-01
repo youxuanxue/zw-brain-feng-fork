@@ -11,8 +11,16 @@ F6：把 F4 派生的 zw_brain/entry/mcp/tools/*.json (53 个 tool spec) 暴露�
     tools/call  → dispatch 到 brain.invoke_skill(skill_id, payload)
 - 兼容性范围：MCP 2024-11-05 spec 核心 + 必要的 ping。Cursor 默认 stdio。
 
+鉴权（本期实际状态 — dev-only daemon，与 A2A 同模型）：
+- 每次 call_tool 绑定 dev-iam-bypass 合成身份（让共享 C1/N1 边界 resolver 对 MCP 面
+  和 REST 一样强制 role-holding）；但合成身份「无真实鉴权、持全角色」。
+- 因此 serve_stdio 启动门禁镜像 A2A `serve_http`：`get_dev_iam_bypass_enabled()`
+  在 `ZW_BRAIN_DEPLOY_MODE in {prod,production}` 下抛 `DevBypassInProductionError`，
+  daemon 拒绝以非零退出码启动 → M5「prod fail-closed」不变量在 MCP 面强制（否则
+  MCP 面会带全角色 bypass 启动，C1/N1 resolver 成 no-op，伪造 role 永被放行）。
+
 子命令：
-    serve [--transport stdio]   stdio JSON-RPC daemon（默认 stdio）
+    serve [--transport stdio]   stdio JSON-RPC daemon（默认 stdio，启动门禁同上）
     list-tools                  print all tool descriptors (existing)
     call-tool NAME --payload    one-shot invoke (existing)
 """
@@ -30,6 +38,10 @@ from zw_brain.shared.auth_context import (
     dev_iam_bypass_auth_context,
     reset_auth_context,
     set_auth_context,
+)
+from zw_brain.shared.runtime_config import (
+    DevBypassInProductionError,
+    get_dev_iam_bypass_enabled,
 )
 
 TOOLS_DIR = Path(__file__).with_name("tools")
@@ -127,7 +139,19 @@ def serve_stdio() -> int:
     """Read JSON-RPC messages line by line on stdin; write responses on stdout.
 
     Notifications (no id) get no response. EOF on stdin → exit 0.
+
+    M5 prod guard (mirrors A2A ``serve_http``): every ``tools/call`` binds the
+    dev-iam-bypass synthetic identity, which holds all roles with no real
+    authentication. If that bypass would leak into a prod deploy mode the shared
+    C1/N1 boundary resolver becomes a no-op (a forged role is always honored).
+    Evaluate the gate up-front and refuse to start (exit 2) instead of failing
+    open — identical to the A2A daemon's start-up gate.
     """
+    try:
+        get_dev_iam_bypass_enabled()
+    except DevBypassInProductionError as exc:
+        sys.stderr.write(f"[mcp] refusing to start: {exc}\n")
+        return 2
     sys.stderr.write(f"[mcp] {SERVER_NAME} {SERVER_VERSION} stdio ready ({len(list_tools())} tools)\n")
     sys.stderr.flush()
     for raw in sys.stdin:

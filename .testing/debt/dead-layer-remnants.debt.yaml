@@ -1,0 +1,23 @@
+slug: dead-layer-remnants
+title: "死层残骸：data_search 死 shim（签名错）+ 空 agents/ + 空 orchestrator/"
+date: 2026-06-02
+severity: low
+owner: 产品研发负责人
+trigger: >
+  (a) 下一次有人误 import zw_brain.skills.data_search 触发签名错运行期异常；
+  或 (b) 任一目录窗口期顺手清理（按 D33 capability 收口方向）。
+# Where:
+#   - zw_brain/skills/data_search/__init__.py：legacy "shim"，run() 内
+#     `_handler(service, "data.search", {...})` 与 handlers/j1/data_search.py 真实
+#     handler 签名不一致（死且签名错）；canonical 实现已在 handlers/j1，无人经此 shim 调用。
+#   - zw_brain/agents/__init__.py、zw_brain/orchestrator/__init__.py：仅占位 docstring 的空包，
+#     无实现（D3 编排走能力注册，未在此落地）。
+# Implication: 死代码增加认知噪音 + D33「能力本体统一 capability」收口未尽；签名错 shim 是潜在
+#   运行期陷阱（误 import 即崩）。非安全/正确性缺陷，不影响在用路径。
+# Why deferred: 本 PR 聚焦 P0/P1 安全/正确性收尾，通宵删目录易扩散到 import 图 + __init__ 副作用
+#   核查（参见 MEMORY「Delete-file grep must include configs」），保持 PR 聚焦。删前须 grep
+#   *.toml/*.cfg + pyproject/setup/Dockerfile 确认无引用。
+assert:
+  kind: grep_present
+  file: zw_brain/skills/data_search/__init__.py
+  pattern: "BrainService"

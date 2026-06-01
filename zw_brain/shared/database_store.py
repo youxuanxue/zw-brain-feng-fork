@@ -147,6 +147,33 @@ class DatabaseStore:
             records.reverse()  # 调用方期望 ascending by time
             return records
 
+    def list_audit_events_for_capabilities(
+        self, skill_ids: list[str], *, limit: int = 500
+    ) -> list[AuditEventRecord]:
+        """Most-recent audit events restricted to ``skill_ids`` (pushed to SQL WHERE).
+
+        P1-2 completeness fix: the governance audit view only ever consumes a fixed
+        whitelist of skill_ids. Filtering them in SQL (indexed ``skill_id`` column) means
+        the LIMIT applies *after* the whitelist — so a matching older event is never
+        silently dropped because 500 newer non-whitelisted events sat ahead of it. The
+        plain ``list_audit_events`` capped first and filtered in Python, which truncated
+        matches once the table exceeded the cap (a completeness defect, not just perf).
+        """
+        if not skill_ids:
+            return []
+        SessionLocal = self._session_factory()
+        with SessionLocal() as session:
+            statement = (
+                select(AuditEventRecord)
+                .where(AuditEventRecord.skill_id.in_(skill_ids))
+                .order_by(AuditEventRecord.occurred_at.desc())
+            )
+            if limit and limit > 0:
+                statement = statement.limit(limit)
+            records = list(session.execute(statement).scalars())
+            records.reverse()  # 调用方期望 ascending by time
+            return records
+
     def count_audit_events(self) -> int:
         from sqlalchemy import func
         SessionLocal = self._session_factory()
@@ -158,6 +185,27 @@ class DatabaseStore:
         with SessionLocal() as session:
             session.add(CapabilityCallRecord(**payload))
             session.commit()
+
+    def list_capability_calls_for_capability(
+        self, skill_id: str, *, limit: int = 2000
+    ) -> list[CapabilityCallRecord]:
+        """Capability calls for a single ``skill_id`` (pushed to SQL WHERE + bounded).
+
+        P1-2 perf fix: ``capability_call`` is an unbounded runtime-accumulating table.
+        ``import_issues`` previously hydrated the whole table then filtered one skill_id in
+        Python. Push the indexed ``skill_id`` filter to SQL and cap the row count so the
+        governance import-issues view stays O(matching rows), not O(all calls ever made).
+        """
+        SessionLocal = self._session_factory()
+        with SessionLocal() as session:
+            statement = (
+                select(CapabilityCallRecord)
+                .where(CapabilityCallRecord.skill_id == skill_id)
+                .order_by(CapabilityCallRecord.started_at)
+            )
+            if limit and limit > 0:
+                statement = statement.limit(limit)
+            return list(session.execute(statement).scalars())
 
     def list_capability_calls(self) -> list[CapabilityCallRecord]:
         SessionLocal = self._session_factory()

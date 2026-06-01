@@ -39,6 +39,16 @@ from zw_brain.shared.sensitive_mask import mask_default
 from zw_brain.shared.state_store import StateStore
 from zw_brain.shared.ui_request_context import get_current_role, set_current_role
 
+# P1-3: terminal-negative application statuses. Granting delivery access against an
+# application in one of these states is the 46f0 cross-aggregate hole (access still
+# grantable after the bound application was withdrawn/rejected/revoked). Only unambiguous
+# terminal-negative states are listed — `suspended` (reversible) and `expired` (not in the
+# application_record APPLY_STATUS_MAP) are deliberately excluded to avoid blocking legit
+# flows. Values are the runtime application_record.status vocabulary (legacy import
+# APPLY_STATUS_MAP {-1:"withdrawn",7/8/12:"rejected",15:"revoked"} +
+# request_service reject_duplicate→"rejected"/revoked).
+_TERMINAL_NEGATIVE_APPLICATION_STATUSES = frozenset({"withdrawn", "rejected", "revoked"})
+
 
 def _expected_iaf_issuer() -> str:
     return _os.environ.get("ZW_BRAIN_IAF_ISSUER", "")
@@ -1014,6 +1024,26 @@ class BrainService:
         task = self._get_handler_deps().services.delivery.by_id(task_id)
         if task["status"] not in {"pending", "warning", "reconciling", "supplementing"}:
             raise InvalidStateError("delivery task cannot grant access in current state")
+
+        # P1-3 cross-aggregate fail-closed guard (46f0): the delivery task status alone does
+        # not reflect the bound application being withdrawn/rejected/revoked. Re-check the
+        # bound application's status against the terminal-negative set before granting; a
+        # terminal-negative application can no longer authorize delivery. (Lookup miss →
+        # do not invent a new failure mode; the task-status gate above still applies.)
+        application_code = task.get("requestId")
+        store = self._state_store.database_store
+        if application_code and store is not None:
+            bound_application = store.application_repo.get_record(
+                application_code, tenant_id=_DEFAULT_TENANT_ID
+            )
+            if (
+                bound_application is not None
+                and bound_application.status in _TERMINAL_NEGATIVE_APPLICATION_STATUSES
+            ):
+                raise InvalidStateError(
+                    "cannot grant delivery access: bound application is in a terminal-negative "
+                    f"state ({bound_application.status})"
+                )
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             task["status"] = "completed"

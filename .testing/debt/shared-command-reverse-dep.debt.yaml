@@ -1,0 +1,24 @@
+slug: shared-command-reverse-dep
+title: "shared→command 反向层依赖（agent_runtime eager import command）"
+date: 2026-06-02
+severity: medium
+owner: 产品研发负责人
+trigger: >
+  (a) agent_runtime 真实接入需求落地、重排其与 command 层关系时一并解耦；
+  或 (b) 把分层守卫扩到 shared（需先给 agent_runtime 加显式白名单，否则即红）。
+# Where: zw_brain/shared/agent_runtime/service.py:8 `from zw_brain.command.runtime import
+#   get_service`；capability_provider.py:8 `from zw_brain.command.brain import BrainService`
+#   —— 均为 shared→command 反向层依赖（eager import，非 TYPE_CHECKING）。
+# Implication: 违反 entry→command→domain→shared 单向；preflight 段 49
+#   (check_domain_no_command_import) 只扫 zw_brain/domain/，不扫 shared，故此违例未被门禁捕获。
+#   agent_runtime 作为「可插拔外部 Agent 运行时桥」本就需要回调 BrainService/get_service，
+#   是有意的 adapter 反向引用，但当前层位（shared/）放错——应位于 command 或独立 adapter 层。
+# Why deferred: 把 agent_runtime 整体上移/抽 adapter 层是 blast-radius 较大的结构搬迁；
+#   D30 已把 AgentRuntime runtime 触发式延后，当前无活跃功能依赖其层位正确性。通宵搬迁不安全。
+# Why not extend 段49 to shared now: 直接把 shared 纳入扫描会立刻红（这两处 eager import 即违例），
+#   需先给 agent_runtime 加显式白名单——那等于把 prose 例外写进 config，未消除债只是静音。
+#   故记债跟踪，触发时一并解耦 + 扩守卫。
+assert:
+  kind: grep_present
+  file: zw_brain/shared/agent_runtime/service.py
+  pattern: "from zw_brain\\.command"

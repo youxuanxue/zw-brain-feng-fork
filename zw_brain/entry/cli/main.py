@@ -107,6 +107,25 @@ def _invoke_inprocess(skill_id: str, payload: dict[str, Any]) -> tuple[int, Any]
         reset_auth_context,
         set_auth_context,
     )
+    from zw_brain.shared.runtime_config import (
+        DevBypassInProductionError,
+        get_dev_iam_bypass_enabled,
+    )
+
+    # M5 prod guard (symmetric with A2A serve_http / MCP serve_stdio): the in-process
+    # invoke path below binds the dev-iam-bypass synthetic full-role identity. Refuse to
+    # run it under a prod deploy mode instead of failing open — calling the gate raises
+    # DevBypassInProductionError only when ZW_BRAIN_DEPLOY_MODE is prod/production AND the
+    # bypass env is present; non-prod returns normally regardless. (--list / --describe /
+    # --endpoint HTTP paths never reach here, so they stay usable.)
+    try:
+        get_dev_iam_bypass_enabled()
+    except DevBypassInProductionError as exc:
+        return EXIT_INVOKE_FAILED, {
+            "error": "DevBypassInProductionError",
+            "detail": str(exc),
+            "skill_id": skill_id,
+        }
     try:
         require_surface(skill_id, "cli")
     except KeyError:

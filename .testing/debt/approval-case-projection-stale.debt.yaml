@@ -1,0 +1,22 @@
+slug: approval-case-projection-stale
+title: "approval_case 投影对 legacy 导入记录陈旧（不进 snapshot sync 循环）"
+date: 2026-06-02
+severity: medium
+owner: 产品研发负责人
+trigger: >
+  (a) 出现一次 approval_case 投影 status 与真实审批态背离的用户可见 bug；
+  或 (b) Wave 2/3 审批读路径重构窗口期，把 legacy 导入记录纳入统一投影 sync。
+# Where: legacy 导入（exchange mapper → ApprovalCaseRecord）写入约 71 条 hex-id approval_case
+#   记录；database_store.sync_aggregate_tables 的投影 sync 循环只遍历 snapshot 实体
+#   （catalog/resource/application/approval-by-request-id），legacy 导入的 approval_case 从不进
+#   该 sync 循环 → 其投影态可能与真实审批态陈旧背离。
+# Implication: 用户侧 status 读 application_record（被 application 投影掩盖），故现网未暴露为
+#   可见 bug；但 approval_case 投影本身不被刷新是结构性缺口，一旦有读路径直接消费 approval_case
+#   status 即会读到陈旧值。
+# Why deferred: 把 legacy 导入记录接入统一 snapshot/projection sync 是审批读路径的结构性重构
+#   （触及 import 路径 + sync 循环 + 投影一致性），blast-radius 大，通宵改不安全。当前用户侧读
+#   application_record 掩盖该陈旧，无紧迫正确性回归。
+# No mechanical assert: 「投影陈旧」无单一稳定 grep 锚（需跨 import 记录 vs sync 循环覆盖比对，
+#   属 script 级，本期不立守卫，external 跟踪）。
+assert:
+  kind: external

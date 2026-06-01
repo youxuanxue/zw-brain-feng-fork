@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from datetime import UTC, datetime
 from typing import Any
 
@@ -15,6 +16,12 @@ from zw_brain.shared.migrate import ensure_runtime_schema
 from zw_brain.shared.state_store import StateStore
 
 _service: BrainService | None = None
+# P1-4: guards the cold-start init below. ThreadingHTTPServer serves each request on its
+# own thread, so concurrent first requests could both observe `_service is None` and each
+# build a BrainService + run sync_aggregate_tables(full=True) (~528 upserts). Idempotent but
+# wasteful and not synchronized. A module-level lock + double-checked `is None` makes init
+# happen exactly once.
+_service_lock = threading.Lock()
 
 
 def _make_multiplex_sink(database_store: DatabaseStore):
@@ -50,23 +57,32 @@ def _make_multiplex_sink(database_store: DatabaseStore):
 
 def get_service() -> BrainService:
     global _service
+    # Double-checked locking: the common hot path (service already built) reads the module
+    # global with no lock; only the cold-start window takes the lock, and the second
+    # `is None` check inside it ensures the heavy init runs exactly once under concurrency.
     if _service is None:
-        database_store = DatabaseStore()
-        database_store.initialize()
-        ensure_runtime_schema()
-        engine = create_engine(get_database_url(), future=True)
-        Base.metadata.create_all(bind=engine)
-        audit_bus.configure_sink(_make_multiplex_sink(database_store))
-        _service = BrainService(state_store=StateStore(database_store=database_store))
-        database_store.replace_capability_manifests(_service.manifests())
-        # Authoritative startup sync (re-asserts every aggregate row); full=True
-        # so it ignores the fingerprint cache the constructor already primed and
-        # guarantees a complete projection before serving the first request.
-        database_store.sync_aggregate_tables(_service.snapshot(), full=True)
+        with _service_lock:
+            if _service is None:
+                database_store = DatabaseStore()
+                database_store.initialize()
+                ensure_runtime_schema()
+                engine = create_engine(get_database_url(), future=True)
+                Base.metadata.create_all(bind=engine)
+                audit_bus.configure_sink(_make_multiplex_sink(database_store))
+                service = BrainService(state_store=StateStore(database_store=database_store))
+                database_store.replace_capability_manifests(service.manifests())
+                # Authoritative startup sync (re-asserts every aggregate row); full=True
+                # so it ignores the fingerprint cache the constructor already primed and
+                # guarantees a complete projection before serving the first request.
+                database_store.sync_aggregate_tables(service.snapshot(), full=True)
+                # Publish only after init fully completes so a concurrent reader can never
+                # observe a partially-initialized service through the global.
+                _service = service
     return _service
 
 
 def reset_service() -> None:
     global _service
-    _service = None
-    audit_bus.clear_sink()
+    with _service_lock:
+        _service = None
+        audit_bus.clear_sink()
