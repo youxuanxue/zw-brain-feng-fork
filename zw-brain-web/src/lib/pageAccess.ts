@@ -109,6 +109,11 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   // P2ResourceDetail / P3RequestDetail
   'request.create': ['ROLE_ORGAN_OPERATER'],
   'request.submit': ['ROLE_ORGAN_OPERATER'],
+  // P3RequestDetail 撤回 / 暂停授权（write-critical）。j1-credential-revoke 决策 A（已签字）：
+  // 撤回 = 业务运营员合规驱动 + 申请人本人主动放弃（owner 校验在后端）；暂停 = 业务运营员。
+  // 与后端 policy.py 严格 set-equal（test_role_codes_alignment 守）。
+  'application.grant.revoke': ['ROLE_BUSIAUDIT', 'ROLE_ORGAN_OPERATER'],
+  'application.grant.suspend': ['ROLE_BUSIAUDIT'],
   // P5 编目工坊
   'catalog.entry.create_draft': ['ROLE_ORGAN_OPERATER'],
   'catalog.entry.update': ['ROLE_ORGAN_OPERATER'],

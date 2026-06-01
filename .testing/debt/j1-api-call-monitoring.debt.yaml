@@ -1,11 +1,16 @@
 slug: j1-api-call-monitoring
-title: "j1-api-call-monitoring 无 P4 调用监控 UI（本地走查，留 InTest）"
+title: "j1-api-call-monitoring P4 调用记录段已铺但恒空（res→api_id 调用指标映射缺失，留 InTest）"
 date: 2026-05-31
 severity: medium
 owner: 产品研发负责人
-trigger: "铺 P4 调用监控 UI（接 capability_call 查询 + 配额/QPS 展示）→ 走查 → 往 .testing/signoff/ 追加 covers → 翻 Done。属 webui-capability-render-debt 一类"
+# 本地走查（PR #181 后）现状：P4 调用记录段已铺（接 ops.service.invocation.query +
+# 岗位门 + 诚实空态），但翻 Done 仍受阻——专题包/发现资源凭据（res-tp-* / res-jbxx-*）
+# 与遗留网关调用指标（service_invocation_metric_projection 的 hex api_id）是两套不相连
+# 实体，凭据 invoke_url 也只带 res-* slug，无任何 join；按 resource_code=res-* 过滤恒 0。
+trigger: "补 res 资源 → 网关 api_id 映射（数据/业务侧给对应关系，落 legacy_object_mapping / resource_channel_binding）→ P4 改按映射出的 api_id 查 ops.service.invocation.query → 干净全量真实库实测非空表 → 往 .testing/signoff/ 追加 covers → 翻 Done。属 webui-capability-render-debt 一类"
 assert:
-  # 评估（D46.g）：拟转 grep 但 capability_call 非 live+webui 能力、不在渲染豁免台账，
-  # 无干净单文件锚点；硬转 grep vue 树会制造假信号（注释命中即误判已铺）。故保持 external，
-  # 由 trigger（铺 P4 监控 UI → 追加 signoff covers）人工升级。
+  # 评估（D46.g）：UI 已铺、slug 已在 P4Credential.vue 渲染（render-debt 不回潮），
+  # 真正卡点是 res→api_id 调用指标映射缺失，非单文件锚点可表达；硬转 grep vue 树会制造
+  # 假信号（段落已渲染即误判已 Done）。故保持 external，由 trigger（补映射 → 实测非空 →
+  # 追加 signoff covers）人工升级。
   kind: external

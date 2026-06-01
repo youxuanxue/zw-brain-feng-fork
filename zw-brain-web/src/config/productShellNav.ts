@@ -26,7 +26,9 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     key: 'request-flow',
     navLabel: '办共享申请',
     to: '/request-flow',
-    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
+    // ROLE_BUSIAUDIT：j1-credential-revoke 决策 A —— 业务运营员在 P3 申请详情合规收回/暂停授权。
+    // 审批等 action 仍由 action-gate 限 MANAGER（无权不可见），BUSIAUDIT 只多出收回/暂停。
+    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   },
   {
     key: 'delivery-exchange',

@@ -12,7 +12,10 @@ from typing import Any
 # D23 (2026-05-19): R1-R8 退役。Mirrors zw-brain-web/js/pages.js `window.ZW_PAGE_ACCESS` — update both when nav roles change.
 # 新角色码：ROLE_BUSIAUDIT / ROLE_ORGAN_MANAGER / ROLE_ORGAN_OPERATER / ROLE_SECURITY_ADMIN / ROLE_SECURITY_AUDIT / ROLE_SYSTEM
 _DISCOVERY = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"})
-_REQUEST = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"})
+# ROLE_BUSIAUDIT：j1-credential-revoke 决策 A —— 业务运营员合规收回/暂停授权需在 P3 申请详情
+# 操作，故须能预载 requests（与 productShellNav「办共享申请」shell 对齐）；否则 shell 进得去但
+# 申请列表/详情空（lookupRequest → 未找到该申请），合规撤回入口不可达。
+_REQUEST = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"})
 _DELIVERY = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"})
 # provider snapshot 是 "shell + sub-key" 两层鉴权：
 #   _PROVIDER_FULL：见全部 sub-keys（catalogs + 各 reviewer/responder 待办）。

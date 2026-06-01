@@ -18,8 +18,6 @@ actor.projection.sync
 adapter.external.mapping.query
 adapter.health.probe
 application.grant.renew
-application.grant.revoke
-application.grant.suspend
 application.resource.submit
 approval.review_decide
 backflow.confirm
@@ -74,7 +72,6 @@ objection.metric.query
 objection.process.query
 ops.catalog.statistics.query  # 运营投影读能力，待 B1.1 后续面板承接
 ops.exchange.statistics.query  # 运营投影读能力，待 B1.1 后续面板承接
-ops.service.invocation.query  # 平行能力（服务调用统计），本刀（#161）只闭合网关运行状态，待后续接 B1.1 面板
 org.projection.sync
 package.apply_tenant_policy
 package.configure_exposure

@@ -20,6 +20,7 @@ export default defineConfig({
     'customer_acceptance_checklist.spec.ts',
     'b12_iam_governance.spec.ts',
     'permission_invisibility.spec.ts',
+    'j1_credential_revoke_monitoring.spec.ts',
   ],
   fullyParallel: false,
   workers: 1,

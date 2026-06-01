@@ -9,7 +9,7 @@
 
 > 测量基线：captured_at=`2026-06-01T05:59:41Z` · 指纹新鲜绿 38/38（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
 
-> 合计 49：Done 32 / Ready 0 / InTest 6 / Draft 8 / Backlog 3
+> 合计 49：Done 33 / Ready 0 / InTest 5 / Draft 8 / Backlog 3
 
 
 ## Wave 0 · 机械守卫 + J1 黄金链路  （Done 9 · InTest 2 · Draft 2）
@@ -30,12 +30,12 @@
 | ops-gateway-heartbeat.feature | **Done** | 测量=绿 / 签字=已签 |
 | ops-service-invocation.feature | **Draft** | 测量=待测 / 签字=未签 |
 
-## Wave 1 · J1 闭环 + J2 挂数  （Done 12 · InTest 1 · Draft 1 · Backlog 1）
+## Wave 1 · J1 闭环 + J2 挂数  （Done 13 · Draft 1 · Backlog 1）
 
 | feature | status | 依据 |
 |---|---|---|
 | ext-agent-pilot.feature | **Draft** | 测量=待测 / 签字=未签 |
-| j1-credential-revoke.feature | **InTest** | 测量=绿 / 签字=未签 |
+| j1-credential-revoke.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-objection-authz.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-objection-catalog.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-objection-content.feature | **Done** | 测量=绿 / 签字=已签 |

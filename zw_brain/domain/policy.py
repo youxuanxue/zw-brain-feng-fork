@@ -340,8 +340,11 @@ PERMISSION_ROLES = {
     # 申请授权（grant）
     "application.grant.approve.execute": {"ROLE_ORGAN_MANAGER"},
     "application.grant.renew.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
-    "application.grant.suspend.execute": {"ROLE_ORGAN_MANAGER"},
-    "application.grant.revoke.execute": {"ROLE_ORGAN_MANAGER"},
+    # j1-credential-revoke 决策 A（已签字 docs/decisions/j1-credential-revoke-semantics-*）：
+    # 撤回 = 业务运营员合规驱动 + 申请人本人主动放弃（owner 校验在 handler）；暂停 = 业务运营员。
+    # 收回 MANAGER（提供方部门管理员不直接撤回，SPEC 负向场景）。
+    "application.grant.suspend.execute": {"ROLE_BUSIAUDIT"},
+    "application.grant.revoke.execute": {"ROLE_BUSIAUDIT", "ROLE_ORGAN_OPERATER"},
 
     # 服务评价
     "service.rating.submit.execute": {"ROLE_ORGAN_OPERATER"},

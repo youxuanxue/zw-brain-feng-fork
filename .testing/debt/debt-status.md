@@ -37,12 +37,12 @@
   - assert: external → external — owner=推理平台（集团）; trigger=见 docs/preflight-debt.md 历史归档
 - feature [medium] (2026-05-30) — feature 测量产物 CI 自动刷新未接（D46）
   - assert: grep_absent → pattern absent in .github/workflows/ci.yml
-- j1-api-call-monitoring [medium] (2026-05-31) — j1-api-call-monitoring 无 P4 调用监控 UI（本地走查，留 InTest）
-  - assert: external → external — owner=产品研发负责人; trigger=铺 P4 调用监控 UI（接 capability_call 查询 + 配额/QPS 展示）→ 走查 → 往 .testing/signoff/ 追加 covers → 翻 Done。属 webui-capability-render-debt 一类
+- j1-api-call-monitoring [medium] (2026-05-31) — j1-api-call-monitoring P4 调用记录段已铺但恒空（res→api_id 调用指标映射缺失，留 InTest）
+  - assert: external → external — owner=产品研发负责人; trigger=补 res 资源 → 网关 api_id 映射（数据/业务侧给对应关系，落 legacy_object_mapping / resource_channel_binding）→ P4 改按映射出的 api_id 查 ops.service.invocation.query → 干净全量真实库实测非空表 → 往 .testing/signoff/ 追加 covers → 翻 Done。属 webui-capability-render-debt 一类
 - j1-approval-conditional [medium] (2026-05-31) — j1-approval-conditional 两步条件审批运行时未铺（Wave1 延后，留 InTest）
   - assert: external → external — owner=产品研发负责人; trigger=Wave1 立项条件审批运行时（dept_approve→platform_approve handler + P3 两步 UI + decision_mode 暴露）→ 走查两步真跑 → 追加 covers → 翻 Done
-- j1-credential-revoke [medium] (2026-05-31) — j1-credential-revoke WebUI 撤回入口未铺（本地走查 #8，选 B 留 InTest）
-  - assert: grep_present → pattern present in scripts/webui_capability_rendered_exemptions.txt
+- j1-legacy-record-actionability [medium] (2026-06-01) — M0 导入的真实申请缺运行时实体图（无 delivery task / 不在内存快照）→ 凭据页 422、动作面半残
+  - assert: external → external — owner=产品研发负责人; trigger=业务/架构裁决历史导入申请的可动作性 → 若需在线动作则回填 delivery task / grant snapshot 等运行时实体（或建 application_record→delivery 的解析回源）；若定性只读则 UI 对历史导入申请隐藏撤回/暂停/凭据入口（无权/不适用=不可见）。裁决落 D-编号后据此收口。
 - j2-4 [medium] (2026-05-27) — J2-4 资源挂接 OPERATER 提交侧 wizard 立项延后
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务方提出"在线提交挂接"演示需求 → 走 product-dev.mdc
 - p3requestdetail [medium] (2026-05-30) — P3RequestDetail 真实申请详情缺 prefilledFields（D45 轻量卡的 by-design 取舍）
