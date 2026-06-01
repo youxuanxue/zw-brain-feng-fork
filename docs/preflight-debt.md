@@ -27,6 +27,12 @@ trigger 关闭即可删除字段。
 
 ## 2026-06-01 — webui e2e 本机 --with-e2e 不能干净复现（2 超时 + 1 真断言失败）
 
+- **✅ RESOLVED 2026-06-01（fix/webui-done-ci-status-loop）**：根因坐实为 e2e harness 盲等
+  （`helpers.setRole/gotoHash` 用 `waitForTimeout` + 同 hash 重导航 no-op）+ 2 处 stale/race
+  断言，**非「无权限可见」安全回归**（P5DemandMatchDetail v-if 正确门控）。修 helpers 去盲等
+  （同 hash bounce 经哨兵 hash 强制 remount）+ P2 改钻取断言 / P7 改持久态断言，2 大 spec
+  从 >600s → checklist 45.9s、twin 24.1s；permission 连跑 3× 全稳。干净真库重採 --with-e2e
+  全绿 → 3 webui feature 现算 Ready→Done。原始症状记录留作审计链：
 - **Where**: `scripts/capture_feature_status.py --with-e2e` 在本机全栈（:8800 + mock 推理）实跑 15 个 Playwright spec：
   - `customer_acceptance_checklist.spec.ts`（webui-pages-real-data 引用）→ **timeout >600s**（单 spec 跑 10+min 未完）
   - `twin_browser_pages.spec.ts`（webui-routing-cleanup 引用）→ **timeout >600s**
@@ -94,6 +100,11 @@ trigger 关闭即可删除字段。
 
 ## 2026-05-31 — webui-pages-real-data e2e 因 dump 重建 seed 数据不一致未绿（D46.f；2026-05-31 复核根因）
 
+- **✅ RESOLVED 2026-06-01（fix/webui-done-ci-status-loop，machine debt .debt.yaml 已删）**：三 trigger
+  齐活 → ① M0 seed 一致性：legacy 迁移 granted 分支补签 demo 凭据（granted ⟹ credential，
+  根治 P4 422，并由段66 `check_credential_grant_invariant` 机械化）；② P2 改真目录钻取断言、
+  P7 改持久「已订阅」态断言（去硬编码值，保留行为）；③ 干净真库重採 `--with-e2e` 全绿 →
+  现算自动 Ready→Done。原始 3 ✘ 根因留作审计链：
 - **Where**: `tests/e2e/customer_acceptance_checklist.spec.ts`（webui-pages-real-data # Pytest 指向的**整套** J1/J2/P7 验收）3 条 ✘，复核根因（非单纯断言脆）：
   - **P2**（line 34）：seed 无「案例」分类 → catalog-browse 无 `在发现页检索「案例」` 快捷链接。**真数据基线脆**（应断言任一分类）。
   - **P4**（line 105）：`credential.query` 返回 **HTTP 422 `entity_not_found`** —— delivery_task.status=`granted` 但**无对应 credential 记录**（dump 重建 seed 数据不一致：granted 交付未配套凭据实体）。**真 seed 数据不一致**，非测试脆、非 UI bug；凭据样例无从渲染。

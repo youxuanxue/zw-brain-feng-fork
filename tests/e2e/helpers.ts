@@ -1,4 +1,4 @@
-import type { Page, TestInfo } from '@playwright/test';
+import { expect, type Page, type TestInfo } from '@playwright/test';
 
 export const E2E_BASE_URL = process.env.ZW_E2E_BASE_URL ?? 'http://127.0.0.1:8800';
 
@@ -32,14 +32,32 @@ export async function waitAppReady(page: Page): Promise<void> {
 export async function setRole(page: Page, role: string): Promise<void> {
   await page.waitForSelector('#role-switch', { timeout: 20_000 });
   await page.selectOption('#role-switch', role);
-  await page.waitForTimeout(1200);
+  // Deterministic: assert the switch actually holds the new role, then let the
+  // role-triggered snapshot refetch settle (bounded). Replaces a blind 1200ms
+  // sleep that could sample transient pre-refetch state.
+  await expect(page.locator('#role-switch')).toHaveValue(role);
+  await page.waitForLoadState('networkidle', { timeout: 4_000 }).catch(() => undefined);
 }
 
 export async function gotoHash(page: Page, hash: string): Promise<void> {
+  // Force a real hashchange even when the target equals the current hash:
+  // Vue router no-ops on an identical hash, so re-navigating to the same
+  // detail route after a role switch would keep the previous role's rendered
+  // view (stale v-if) — the root cause of the permission re-render flake. We
+  // bounce through a sentinel hash first to guarantee a remount.
+  await page.evaluate((h) => {
+    if (window.location.hash === h) {
+      window.location.hash = '#/__nav_reset__';
+    }
+  }, hash);
   await page.evaluate((h) => {
     window.location.hash = h;
   }, hash);
-  await page.waitForTimeout(800);
+  // NB: do NOT assert the hash equals the target — permission-guarded routes
+  // intentionally redirect away (the no-access bounce), so the final hash may
+  // differ by design. Callers assert on the resulting DOM / url. Detail views
+  // fetch on mount; let the route's data settle (bounded).
+  await page.waitForLoadState('networkidle', { timeout: 4_000 }).catch(() => undefined);
 }
 
 /** 取第一条真实存在的 catalog_code（用于异议 spec 等需要真值 ID 的场景）。 */

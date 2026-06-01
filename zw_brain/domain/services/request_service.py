@@ -19,6 +19,45 @@ if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
 
+def derive_demo_credential(request_id: str, seed: str | None = None) -> dict[str, Any]:
+    """Deterministic demo credential — 同一 (request_id, seed) 永远生成同一凭据。
+
+    Single source for the demo-credential shape, shared by
+    ``RequestService.credential_for_request`` (auto-issue on approval / reissue)
+    and the legacy exchange mapper (granted-delivery materialization). Keeps the
+    invariant *granted ⟹ credential* satisfied by construction; legacy real
+    ``app_key`` is scrubbed at the boundary (PII), so a granted access gets the
+    same demo credential the approval flow would have issued.
+
+    seed=None：首次签发（auto-on-approval），用 request_id 作种子；
+    seed=<audit_id>：reissue 路径每次重签都产生不同 app_secret
+    （旧 secret 立即失效语义；与生产 IAM reissue 行为对齐）.
+    """
+    import hashlib  # noqa: PLC0415
+    from datetime import datetime, timedelta  # noqa: PLC0415
+
+    import zw_brain.shared.clock as clock  # noqa: PLC0415
+
+    seed_material = (
+        f"d23-credential-{request_id}"
+        if seed is None
+        else f"d23-credential-{request_id}-reissue-{seed}"
+    )
+    digest = hashlib.sha256(seed_material.encode("utf-8")).hexdigest()
+    app_key = f"AK-DEMO-{request_id}-{digest[:8].upper()}"
+    app_secret = f"SK-DEMO-{digest[8:32]}"
+    valid_from = clock.now_date()
+    valid_to = (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d")
+    return {
+        "app_key": app_key,
+        "app_secret": app_secret,
+        "valid_from": valid_from,
+        "valid_to": valid_to,
+        "quota_per_day": 1000,
+        "invoke_url_template": f"https://api.gov-data.local/v1/services/<resource_code>?app_key={app_key}",
+    }
+
+
 @dataclass(frozen=True)
 class RequestService:
     """Request approval flow + status (P3 application + B1 review)."""
@@ -134,30 +173,11 @@ class RequestService:
         seed=None：首次签发（auto-on-approval），用 request_id 作种子；
         seed=<audit_id>：reissue 路径每次重签都产生不同 app_secret
         （旧 secret 立即失效语义；与生产 IAM reissue 行为对齐）.
+
+        Delegates to the module-level :func:`derive_demo_credential` so the
+        credential shape has a single source shared with the legacy mapper.
         """
-        import hashlib  # noqa: PLC0415
-        from datetime import datetime, timedelta  # noqa: PLC0415
-
-        import zw_brain.shared.clock as clock  # noqa: PLC0415
-
-        seed_material = (
-            f"d23-credential-{request_id}"
-            if seed is None
-            else f"d23-credential-{request_id}-reissue-{seed}"
-        )
-        digest = hashlib.sha256(seed_material.encode("utf-8")).hexdigest()
-        app_key = f"AK-DEMO-{request_id}-{digest[:8].upper()}"
-        app_secret = f"SK-DEMO-{digest[8:32]}"
-        valid_from = clock.now_date()
-        valid_to = (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d")
-        return {
-            "app_key": app_key,
-            "app_secret": app_secret,
-            "valid_from": valid_from,
-            "valid_to": valid_to,
-            "quota_per_day": 1000,
-            "invoke_url_template": f"https://api.gov-data.local/v1/services/<resource_code>?app_key={app_key}",
-        }
+        return derive_demo_credential(request_id, seed)
 
     def approval_business_defaults(
         self,

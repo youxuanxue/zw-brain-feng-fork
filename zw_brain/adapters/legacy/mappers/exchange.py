@@ -684,6 +684,18 @@ class ExchangeMapper:
                 "res_type": row.get("res_type"),
                 "create_time": coerce_time(row.get("create_time")),
             })
+            if delivery_state == "granted":
+                # Invariant: a granted access in zw-brain always carries an issued
+                # credential. Legacy app_key is scrubbed at the boundary (PII,
+                # APPLY_DROP_FIELDS), so we materialize the deterministic demo
+                # credential here — the SAME factory the approval flow uses
+                # (single source: derive_demo_credential). Keyed on apply_id for
+                # stability. Enforced by scripts/check_credential_grant_invariant.py.
+                from zw_brain.domain.services.request_service import (  # noqa: PLC0415
+                    derive_demo_credential,
+                )
+
+                grant_snapshot["credential"] = derive_demo_credential(apply_id)
             payload = {"access_grant": grant_snapshot, "kind": "apply_grant"}
             channel = row.get("res_type") or "exchange"
             if task is None:

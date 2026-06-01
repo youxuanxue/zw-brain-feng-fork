@@ -7,9 +7,9 @@
 > status = f(SPEC, MEASUREMENT, SIGN-OFF)，每次 preflight 现算，不手敲、不存第二份。
 > **Done** = 测试真绿 ∧ 业务签字；**Ready** = 已签未绿；**InTest** = 绿/在测但未签（代码完成待签字）；**Draft** = 纯意图；**Backlog** = 排期外（`# Deferred:`）。
 
-> 测量基线：captured_at=`2026-05-31T14:54:45Z` · 指纹新鲜绿 35/38（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
+> 测量基线：captured_at=`2026-06-01T05:59:41Z` · 指纹新鲜绿 38/38（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
 
-> 合计 49：Done 29 / Ready 3 / InTest 6 / Draft 8 / Backlog 3
+> 合计 49：Done 32 / Ready 0 / InTest 6 / Draft 8 / Backlog 3
 
 
 ## Wave 0 · 机械守卫 + J1 黄金链路  （Done 9 · InTest 2 · Draft 2）
@@ -30,7 +30,7 @@
 | ops-gateway-heartbeat.feature | **Done** | 测量=绿 / 签字=已签 |
 | ops-service-invocation.feature | **Draft** | 测量=待测 / 签字=未签 |
 
-## Wave 1 · J1 闭环 + J2 挂数  （Done 9 · Ready 3 · InTest 1 · Draft 1 · Backlog 1）
+## Wave 1 · J1 闭环 + J2 挂数  （Done 12 · InTest 1 · Draft 1 · Backlog 1）
 
 | feature | status | 依据 |
 |---|---|---|
@@ -46,9 +46,9 @@
 | j2-online-catalog-compile.feature | **Done** | 测量=绿 / 签字=已签 |
 | j2-platform-publish.feature | **Done** | 测量=绿 / 签字=已签 |
 | j2-resource-mount.feature | **Backlog** | 延期：OPERATER 提交侧挂载 wizard + resource.mount 能力立项延后（preflight-debt.md 2026-05-27） |
-| webui-action-role-binding.feature | **Ready** | 测量=未绿 / 签字=已签 |
-| webui-pages-real-data.feature | **Ready** | 测量=未绿 / 签字=已签 |
-| webui-routing-cleanup.feature | **Ready** | 测量=未绿 / 签字=已签 |
+| webui-action-role-binding.feature | **Done** | 测量=绿 / 签字=已签 |
+| webui-pages-real-data.feature | **Done** | 测量=绿 / 签字=已签 |
+| webui-routing-cleanup.feature | **Done** | 测量=绿 / 签字=已签 |
 
 ## Wave 2 · 三引擎 + B1 + 共享专区  （Done 10 · Draft 1 · Backlog 1）
 

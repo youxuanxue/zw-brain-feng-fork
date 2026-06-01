@@ -31,17 +31,16 @@ test.describe('客户验收 — 部门操作员 J1', () => {
     await expect(applyBtn).toBeVisible();
   });
 
-  test('P2 目录浏览 → 发现页检索有结果', async ({ page }) => {
+  test('P2 目录浏览 → 列真实目录并可钻取资源', async ({ page }) => {
+    // D43 后目录浏览页改为真 catalog_entry 列表 + 逐行钻取到目录详情看资源
+    // （旧「在发现页检索「案例」」分类快捷链接已随改版移除；断言当前真实行为，
+    // 不再硬编码已不存在的分类链接 / seed 依赖的「案例」分类）。
     await gotoHash(page, '#/discovery/catalog-browse');
     await expect(page.getByRole('heading', { name: '目录浏览' })).toBeVisible();
-    const link = page.getByRole('link', { name: /在发现页检索「案例」/ });
-    await expect(link).toBeVisible();
-    await link.click();
-    await expect(page.getByRole('heading', { name: '可复用资源' })).toBeVisible();
-    await expect(page.locator('#p2-search')).toHaveValue('案例');
-    await expect(page.locator('.card-grid .resource-card, .card-grid article').first()).toBeVisible({
-      timeout: 10_000,
-    });
+    const drill = page.getByRole('link', { name: '查看目录资源' }).first();
+    await expect(drill).toBeVisible({ timeout: 10_000 });
+    await drill.click();
+    await expect(page).toHaveURL(/#\/discovery\/catalog\//, { timeout: 8_000 });
   });
 
   test('P2 NL 加速器 → 自动搜索出资源', async ({ page }) => {
@@ -242,10 +241,17 @@ test.describe('客户验收 — P7 专题', () => {
     await expect(page.getByRole('heading', { name: /共享专区|专题包/ })).toBeVisible();
     // V1 起订阅持久化：未订阅的专题按钮可点订阅，已订阅的按钮置灰显示「已订阅」。
     // 优先点一个还可订阅的；若全部已订阅（库被前序测试订过），则验证「已订阅」诚实回显。
+    // 列表投影较重（87 published 专题包，detail 级投影 ~1.4s），先等任一订阅态按钮
+    // 渲染再分支——否则 count() 在列表加载完成前快照即取 0（原 race，与 helpers 去脆无关）。
+    await expect(page.getByRole('button', { name: /订阅专题|已订阅/ }).first()).toBeVisible({
+      timeout: 15_000,
+    });
     const subscribeBtn = page.getByRole('button', { name: '订阅专题' }).first();
     if (await subscribeBtn.count() > 0) {
       await subscribeBtn.click();
-      await expect(page.getByText('已订阅专题').first()).toBeVisible({ timeout: 8_000 });
+      // 行为断言（去硬编码 toast 文案）：订阅后该专题持久置为「已订阅」态，
+      // 而非断言一闪而过的 toast 文字（05-31 复核：唯一真 test-brittle）。
+      await expect(page.getByRole('button', { name: '已订阅' }).first()).toBeVisible({ timeout: 8_000 });
     } else {
       await expect(page.getByRole('button', { name: '已订阅' }).first()).toBeVisible();
     }

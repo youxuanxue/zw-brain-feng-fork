@@ -2,7 +2,7 @@
 
 # Preflight Debt Status (computed)
 
-## open (30)
+## open (28)
 - ac7 [medium] (2026-05-25) — 客户机房部署 + 监控对接未落地（E6 AC7）
   - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
 - agentruntime [medium] (2026-05-24) — AgentRuntime runtime 触发式延后（D30 retrofit）
@@ -25,8 +25,6 @@
   - assert: external → external — owner=产品研发负责人; trigger=见 docs/preflight-debt.md 历史归档
 - concept-b-supply-contract [medium] (2026-05-30) — 概念 B「部门级数据供给契约」（真业务订阅）待立项
   - assert: external → external — owner=产品研发负责人; trigger=业务方对「部门级数据供给契约 / 真业务订阅」立项 —— 届时落地订阅实体 + 履约状态机；现仅诚实信号 isSubscribed（D42.a）
-- credential-grant-invariant [medium] (2026-05-31) — 凭据签发不变量未机械化（credential ⟺ accessGrantSnapshot）
-  - assert: grep_absent → pattern absent in scripts/preflight.sh
 - d11 [medium] (2026-05-25) — 真数据回归不在 CI 自动门禁（D11 张力）
   - assert: external → external — owner=产品研发负责人; trigger=见 docs/preflight-debt.md 历史归档
 - d33-d [medium] (2026-05-28) — D33.d 元规则脚本（外部协议词汇漂移扫描）trigger 化延后
@@ -61,5 +59,3 @@
   - assert: external → external — owner=产品研发负责人; trigger=业务给出附录4（或确认 GB/T 标准映射）→ 在 `_asset_to_resource_card` 加
 - wave [medium] (2026-05-24) — Wave 2 R14 三引擎已落地，待 T1 客户演练验证（D-31d，2026-05-25 更新）
   - assert: external → external — owner=产品研发负责人; trigger=首位真实客户演练。届时跑通三引擎项目级定制并由海若产品部业务方
-- webui-pages-real-data [medium] (2026-05-31) — webui-pages-real-data e2e 因 dump 重建 seed 数据不一致未绿（D46.f；2026-05-31 复核根因）
-  - assert: external → external — owner=产品研发负责人; trigger=① 修 seed 完整性——customer_acceptance_up / 凭据签发链确保 `granted` 交付必有 credential 记录（M0 seed 一致性，根治 P4）；② P2 改任一分类断言、P7 改按钮态断言（保留行为，去硬编码值）；③ 三者齐后重跑 `capture_feature_status.py --with-e2e` → 全绿 → 现算自动 Ready→Done。属 M0 seed 一致性 + e2e 健壮性聚焦改动，非本轮仓促弱化签字测试
