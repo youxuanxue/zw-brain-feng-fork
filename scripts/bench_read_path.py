@@ -43,11 +43,12 @@ def _reset_db() -> None:
     reset_and_upgrade()
 
 
-def _seed(packages: int, catalogs: int) -> None:
+def _seed(packages: int, catalogs: int, legacy_tail: int = 60000) -> None:
     """Seed a representative-scale DB through the real repositories."""
     from zw_brain.domain.repositories import (
         CatalogRepository,
         DeliveryRepository,
+        LegacyObjectMappingRepository,
         ResourceApiRepository,
         TopicPackageRepository,
     )
@@ -55,6 +56,7 @@ def _seed(packages: int, catalogs: int) -> None:
     cat_repo = CatalogRepository()
     asset_repo = ResourceApiRepository()
     tp_repo = TopicPackageRepository()
+    legacy_repo = LegacyObjectMappingRepository()
     DeliveryRepository()
 
     # Catalog entries + items + assets. Each catalog gets 1 asset + 3 items.
@@ -103,6 +105,35 @@ def _seed(packages: int, catalogs: int) -> None:
                 tenant_id=TENANT,
             )
 
+    # Legacy object mappings: one resource_asset mapping per asset (keyed by
+    # resource_code) + a fat unrelated tail so the full-table prefetch the
+    # scope-pushdown eliminates is measurable (production legacy_object_mapping
+    # is ~68925 rows; default tail mirrors that scale).
+    for ci in range(catalogs):
+        legacy_repo.upsert_mapping(
+            {
+                "source_ref": f"bench:legacy:resource_asset:{ci}",
+                "legacy_system": "DSP",
+                "legacy_object_type": "dsp_resource",
+                "legacy_object_ref": f"legacy-res-bench-{ci:04d}",
+                "canonical_type": "resource_asset",
+                "canonical_ref": f"res-bench-{ci:04d}",
+            },
+            tenant_id=TENANT,
+        )
+    for ti in range(legacy_tail):
+        legacy_repo.upsert_mapping(
+            {
+                "source_ref": f"bench:legacy:tail:{ti}",
+                "legacy_system": "DSP",
+                "legacy_object_type": "service_invocation_metric",
+                "legacy_object_ref": f"tail-{ti}",
+                "canonical_type": "service_invocation_metric_projection",
+                "canonical_ref": f"metric-{ti}",
+            },
+            tenant_id=TENANT,
+        )
+
     # Topic packages: each references 2 catalog entries, published, with 1 approved visibility.
     for pi in range(packages):
         code = f"tp-bench-{pi:04d}"
@@ -134,6 +165,33 @@ def _seed(packages: int, catalogs: int) -> None:
         )
         tp_repo.transition_package(code, "submitted", {"action_type": "submit"}, tenant_id=TENANT)
         tp_repo.transition_package(code, "published", {"action_type": "publish"}, tenant_id=TENANT)
+
+
+class _LegacyRowCounter:
+    """Count legacy_object_mapping rows list_mappings materializes (HIGH-1 / MEDIUM-1).
+
+    The scope-pushdown win shows up here: a full-table prefetch loads ~68k
+    rows; the scoped prefetch loads only the rows the page references.
+    """
+
+    def __enter__(self):
+        import zw_brain.domain.repositories.legacy_mapping as lm
+
+        self.rows = 0
+        self._orig = lm.LegacyObjectMappingRepository.list_mappings
+        counter = self
+
+        def wrapped(repo_self, **kw):
+            out = counter._orig(repo_self, **kw)
+            counter.rows += len(out)
+            return out
+
+        lm.LegacyObjectMappingRepository.list_mappings = wrapped  # type: ignore[method-assign]
+        self._lm = lm
+        return self
+
+    def __exit__(self, *exc):
+        self._lm.LegacyObjectMappingRepository.list_mappings = self._orig  # type: ignore[method-assign]
 
 
 class _SessionCounter:
@@ -230,6 +288,22 @@ def main() -> None:
     def run_data_search():
         return data_search.search_resources(brain, args.query, 1)
 
+    def run_resource_api_query():
+        # resource.api.query (no resource_code) → provider asset list enrich.
+        # This is the HIGH-1 path: it previously prefetched the whole
+        # legacy_object_mapping table on every render.
+        from zw_brain.command.deps import SkillContext
+        from zw_brain.command.handlers.j1 import resource_api
+        deps = brain._get_handler_deps()
+        ctx = SkillContext(
+            skill_id="resource.api.query",
+            role="ROLE_ORGAN_OPERATER",
+            actor="bench-actor",
+            confirmed=False,
+            manifest={},
+        )
+        return resource_api._query_resource_assets(brain, deps, ctx, resource_code=None)
+
     # session counts
     with _SessionCounter() as c:
         out = run_tp_query()
@@ -241,17 +315,34 @@ def main() -> None:
     ds_sessions = c.count
     ds_total = out2["total"]
 
+    # resource.api.query: count both sessions AND legacy_object_mapping rows
+    # loaded (HIGH-1 scope pushdown headline metric).
+    with _LegacyRowCounter() as lc:
+        ra_out = run_resource_api_query()
+    ra_legacy_rows = lc.rows
+    ra_items = len(ra_out.get("items", []))
+
     tp_ms = _time(run_tp_query) * 1000
     ds_ms = _time(run_data_search) * 1000
+    ra_ms = _time(run_resource_api_query) * 1000
 
-    print("=" * 64)
-    print(f"{'query':<34}{'latency(ms)':>14}{'sessions':>12}")
-    print("-" * 64)
+    full_table = len(brain._state_store.database_store.legacy_mapping_repo.list_mappings(tenant_id=TENANT))
+
+    print("=" * 78)
+    print(f"{'query':<34}{'latency(ms)':>14}{'sessions':>12}{'legacy rows':>16}")
+    print("-" * 78)
     tp_label = "topic.package.query{published}"
     ds_label = f'data.search("{args.query}")'
-    print(f"{tp_label:<34}{tp_ms:>14.1f}{tp_sessions:>12}  ({tp_items} items)")
-    print(f"{ds_label:<34}{ds_ms:>14.1f}{ds_sessions:>12}  ({ds_total} hits)")
-    print("=" * 64)
+    ra_label = "resource.api.query{list}"
+    print(f"{tp_label:<34}{tp_ms:>14.1f}{tp_sessions:>12}{'—':>16}  ({tp_items} items)")
+    print(f"{ds_label:<34}{ds_ms:>14.1f}{ds_sessions:>12}{'—':>16}  ({ds_total} hits)")
+    print(f"{ra_label:<34}{ra_ms:>14.1f}{'—':>12}{ra_legacy_rows:>16}  ({ra_items} assets)")
+    print("=" * 78)
+    print(
+        f"legacy_object_mapping full table = {full_table} rows; "
+        f"resource.api.query scoped prefetch loaded {ra_legacy_rows} "
+        f"(HIGH-1: was full-table on every render)"
+    )
 
 
 if __name__ == "__main__":

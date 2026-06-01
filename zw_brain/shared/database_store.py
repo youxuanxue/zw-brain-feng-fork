@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import UTC, datetime
 from typing import Any
 
@@ -45,6 +47,18 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
+def _content_fingerprint(*parts: Any) -> str:
+    """Stable content hash of the exact inputs an aggregate upsert consumes.
+
+    ``json.dumps(sort_keys=True, default=str)`` mirrors the ``safe_json``
+    shape the repositories persist, so a matching fingerprint guarantees the
+    upsert would write byte-identical column values (a no-op) — which is what
+    makes skipping it observationally identical to running it.
+    """
+    blob = json.dumps(parts, sort_keys=True, default=str, ensure_ascii=False)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
 class DatabaseStore:
     def __init__(self) -> None:
         self.catalog_repo = CatalogRepository()
@@ -61,6 +75,18 @@ class DatabaseStore:
         self.resource_api_repo = ResourceApiRepository()
         self.service_invocation_repo = ServiceInvocationMetricRepository()
         self.topic_package_repo = TopicPackageRepository()
+        # HIGH-2 — per-write aggregate sync is O(snapshot) by design (it
+        # re-upserts every request/approval/delivery/api_resource each write).
+        # On the H3 write-lock hot path that means ~528 transactions per write
+        # on a populated snapshot, all serialized inside the global write lock.
+        # ``_aggregate_fingerprints`` lets ``sync_aggregate_tables`` skip the
+        # upsert for any entity whose content is byte-identical to the last
+        # sync — a re-upsert of unchanged content is a no-op, so skipping is
+        # observationally identical while collapsing the per-write cost to
+        # O(entities this write actually touched). Process-local cache keyed by
+        # (kind, tenant_id, entity_id) → content sha256; mirrors the
+        # process-singleton snapshot's lifecycle (rebuilt on a fresh store).
+        self._aggregate_fingerprints: dict[tuple[str, str, str], str] = {}
 
     def initialize(self) -> None:
         ensure_parent_dir()
@@ -230,9 +256,18 @@ class DatabaseStore:
                 record.delivered = True
                 session.commit()
 
-    def sync_reference_tables(self, snapshot: dict[str, Any]) -> None:
+    def sync_reference_tables(self, snapshot: dict[str, Any], *, full: bool = False) -> None:
+        tenant_id = get_runtime_tenant_id()
         for pkg in snapshot.get("capability_packages", []):
-            self.capability_package_repo.upsert_from_package(pkg)
+            # Reference data (capability manifests) rarely changes per write;
+            # fingerprint-gate the re-upsert so the per-write hot path doesn't
+            # re-write every package each time (HIGH-2 same root cause).
+            changed = self._aggregate_changed(
+                "capability_package", str(pkg.get("slug") or id(pkg)),
+                _content_fingerprint(pkg, tenant_id), tenant_id=tenant_id,
+            )
+            if full or changed:
+                self.capability_package_repo.upsert_from_package(pkg)
         if not self.topic_package_repo.list_packages(tenant_id=get_runtime_tenant_id()):
             for zone in snapshot.get("zones", []):
                 self.topic_package_repo.create_package(
@@ -261,8 +296,32 @@ class DatabaseStore:
             self.topic_package_repo.transition_package(code, "submitted", {"action_type": "submit"}, tenant_id=tenant_id)
             self.topic_package_repo.transition_package(code, "published", {"action_type": "publish"}, tenant_id=tenant_id)
 
-    def sync_aggregate_tables(self, snapshot: dict[str, Any]) -> None:
-        self.sync_reference_tables(snapshot)
+    def _aggregate_changed(self, kind: str, entity_id: str, fingerprint: str, *, tenant_id: str) -> bool:
+        """Check-and-update the per-entity fingerprint cache.
+
+        Always records ``fingerprint`` as the latest synced value for
+        ``(kind, tenant_id, entity_id)`` (so a ``full`` sweep primes the cache
+        too), and returns whether it *differs* from the previously cached one.
+        HIGH-2: callers upsert iff ``full or changed`` — turning the per-write
+        O(snapshot) re-upsert sweep into O(entities this write changed) without
+        altering DB state (a skipped no-op upsert would have written
+        byte-identical columns).
+        """
+        key = (kind, tenant_id, entity_id)
+        changed = self._aggregate_fingerprints.get(key) != fingerprint
+        self._aggregate_fingerprints[key] = fingerprint
+        return changed
+
+    def sync_aggregate_tables(self, snapshot: dict[str, Any], *, full: bool = False) -> None:
+        """Mirror aggregate-shaped snapshot slices into the DB.
+
+        ``full=True`` (startup / first sync) bypasses the fingerprint delta and
+        unconditionally upserts every entity, priming the fingerprint cache so
+        subsequent per-write syncs (``full=False``, the H3 write-lock hot path)
+        only touch entities whose content changed. The persisted DB state is
+        identical either way — the delta only elides no-op re-upserts.
+        """
+        self.sync_reference_tables(snapshot, full=full)
         tenant_id = get_runtime_tenant_id()
         should_seed_static_projection = not (self.resource_api_repo.has_assets(tenant_id=tenant_id) or self.catalog_repo.list_entries(tenant_id=tenant_id))
 
@@ -302,17 +361,38 @@ class DatabaseStore:
             for item in snapshot.get("catalog_items", []) + snapshot.get("discovery", {}).get("catalog_items", []) + snapshot.get("provider", {}).get("catalog_items", []):
                 self.catalog_repo.upsert_item(item, tenant_id=tenant_id)
 
+        # Per-write hot loops — fingerprint-gated delta when not a full sync.
+        # ``application_record`` + ``approval`` share the request dict (approval
+        # upsert keys off the same request id), so their fingerprint spans both
+        # request and approval payloads; skipping requires *both* unchanged.
         approvals = {item["id"]: item for item in snapshot.get("approvals", [])}
         for request in snapshot.get("requests", []):
-            self.application_repo.upsert_from_request(request, tenant_id=tenant_id)
-            self.approval_repo.upsert_from_request_and_approval(request, approvals.get(request["id"], {}), tenant_id=tenant_id)
+            approval = approvals.get(request["id"], {})
+            changed = self._aggregate_changed(
+                "request_approval", str(request["id"]),
+                _content_fingerprint(request, approval), tenant_id=tenant_id,
+            )
+            if full or changed:
+                self.application_repo.upsert_from_request(request, tenant_id=tenant_id)
+                self.approval_repo.upsert_from_request_and_approval(request, approval, tenant_id=tenant_id)
 
         for delivery in snapshot.get("delivery_tasks", []):
-            self.delivery_repo.upsert_from_delivery(delivery, tenant_id=tenant_id)
+            changed = self._aggregate_changed(
+                "delivery", str(delivery.get("id") or delivery.get("deliveryCode") or id(delivery)),
+                _content_fingerprint(delivery), tenant_id=tenant_id,
+            )
+            if full or changed:
+                self.delivery_repo.upsert_from_delivery(delivery, tenant_id=tenant_id)
 
         for resource in snapshot.get("api_resources", []):
             existing_asset = self.resource_api_repo.get_asset(resource["resource_code"], tenant_id=tenant_id)
             if existing_asset is not None and not should_seed_static_projection:
+                continue
+            changed = self._aggregate_changed(
+                "api_resource", str(resource["resource_code"]),
+                _content_fingerprint(resource), tenant_id=tenant_id,
+            )
+            if not (full or changed):
                 continue
             self.resource_api_repo.upsert_asset(resource, tenant_id=tenant_id)
             for binding in resource.get("channel_bindings", []):
@@ -327,4 +407,9 @@ class DatabaseStore:
                 self.service_invocation_repo.upsert_metric(metric, tenant_id=tenant_id)
 
         for dispute in snapshot.get("disputes", []):
-            self.objection_repo.upsert_from_dispute(dispute, tenant_id=tenant_id)
+            changed = self._aggregate_changed(
+                "dispute", str(dispute.get("id") or dispute.get("case_code") or id(dispute)),
+                _content_fingerprint(dispute), tenant_id=tenant_id,
+            )
+            if full or changed:
+                self.objection_repo.upsert_from_dispute(dispute, tenant_id=tenant_id)

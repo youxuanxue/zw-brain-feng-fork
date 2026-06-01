@@ -66,13 +66,33 @@ class RequestService:
 
     # --- Batch prefetch (D-9 N+1 elimination) ---
 
-    def build_batch_context(self, store: Any, application_records: list[Any]) -> Any:
+    def build_batch_context(
+        self, store: Any, application_records: list[Any], *, canonical_refs: list[str] | None = None
+    ) -> Any:
         """Build _RequestBatchContext with prefetched indices for list_requests.
 
-        Cost: 1 delivery_repo.list_tasks + 2 legacy_mapping_repo.list_mappings
+        Cost: 1 delivery_repo.list_tasks + 8 legacy_mapping_repo.list_mappings
         (one per canonical_type) + 1 metadata_evidence_repo.list_quality_evidence
         + 0 application_repo.list_records (reuses caller's already-fetched list).
         Replaces ~5N per-item scans with O(1) lookups.
+
+        ``canonical_refs`` (MEDIUM-1 scope pushdown): the legacy_object_mapping
+        table holds ~68k rows. Even type-filtered, catalog_item / approval_*
+        each carry ~1.4k rows the request page rarely touches. When the caller
+        knows the exact set of canonical_refs in scope (e.g. the provider asset
+        path — every consumed ref is one of the page's resource_codes), pass it
+        so every legacy-mapping query pushes ``canonical_refs IN (...)`` down
+        and the prefetch fetches only referenced rows.
+
+        When ``canonical_refs is None`` (request-list path, where catalog /
+        resource refs are discovered lazily during nested enrichment and cannot
+        be enumerated up front), the two request-keyed types
+        (application_record / DeliveryTaskRecord) are still scoped to the
+        page's application_codes — those refs ARE known here — while the
+        catalog / resource / approval types keep their type-filtered scan. The
+        consumed map slices are byte-identical in both modes (the map
+        default-returns ``[]`` for absent keys; scoping only drops rows no
+        ``.get`` ever reads).
         """
         delivery_by_appcode: dict[str, Any] = {}
         for delivery in store.delivery_repo.list_tasks(tenant_id=_DEFAULT_TENANT_ID):
@@ -81,6 +101,10 @@ class RequestService:
 
         legacy_mappings_by_ref: dict[tuple[str, str], list[Any]] = {}
         # 8 canonical_types are touched by enrichment + request projection.
+        # request-keyed types are scoped to the page's application_codes when
+        # no explicit canonical_refs scope is given.
+        application_codes = [str(record.application_code) for record in application_records]
+        request_keyed_types = {"application_record", "DeliveryTaskRecord"}
         for canonical_type in (
             "application_record",
             "DeliveryTaskRecord",
@@ -91,9 +115,16 @@ class RequestService:
             "approval_step",
             "approval_decision",
         ):
+            if canonical_refs is not None:
+                refs_scope = canonical_refs
+            elif canonical_type in request_keyed_types:
+                refs_scope = application_codes
+            else:
+                refs_scope = None
             for mapping in store.legacy_mapping_repo.list_mappings(
                 tenant_id=_DEFAULT_TENANT_ID,
                 canonical_type=canonical_type,
+                canonical_refs=refs_scope,
             ):
                 key = (canonical_type, str(mapping.canonical_ref))
                 legacy_mappings_by_ref.setdefault(key, []).append(mapping)

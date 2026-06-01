@@ -59,7 +59,10 @@ def get_service() -> BrainService:
         audit_bus.configure_sink(_make_multiplex_sink(database_store))
         _service = BrainService(state_store=StateStore(database_store=database_store))
         database_store.replace_capability_manifests(_service.manifests())
-        database_store.sync_aggregate_tables(_service.snapshot())
+        # Authoritative startup sync (re-asserts every aggregate row); full=True
+        # so it ignores the fingerprint cache the constructor already primed and
+        # guarantees a complete projection before serving the first request.
+        database_store.sync_aggregate_tables(_service.snapshot(), full=True)
     return _service
 
 

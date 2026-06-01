@@ -86,16 +86,23 @@ def sync_reference_tables(state_store: StateStore, snapshot: dict[str, Any]) -> 
     store.sync_reference_tables(snapshot)
 
 
-def sync_database_aggregates(state_store: StateStore, snapshot: dict[str, Any]) -> None:
+def sync_database_aggregates(state_store: StateStore, snapshot: dict[str, Any], *, full: bool = False) -> None:
     """Mirror aggregate-table-shaped snapshot slices into the database_store.
 
     Replaces ``BrainService._sync_database_aggregates``. Silent skip when
     ``database_store`` is None.
+
+    ``full=True`` (startup / authoritative sync) forces every entity to be
+    upserted and primes the fingerprint cache; the per-write hot path uses the
+    default ``full=False`` so each write only re-syncs the entities it changed
+    (HIGH-2). On a cold store the delta path is already complete (every entity
+    is a cache miss), so ``full`` only matters as an explicit "re-assert all
+    rows, ignoring cached fingerprints" on an already-warm store.
     """
     store = state_store.database_store
     if store is None:
         return
-    store.sync_aggregate_tables(snapshot)
+    store.sync_aggregate_tables(snapshot, full=full)
 
 
 # ───────────────────────────────────────────────────────────────────────────

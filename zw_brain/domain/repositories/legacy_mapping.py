@@ -69,16 +69,27 @@ class LegacyObjectMappingRepository:
         tenant_id: str = "sd-default",
         canonical_type: str | None = None,
         canonical_ref: str | None = None,
+        canonical_refs: list[str] | None = None,
         legacy_object_types: list[str] | None = None,
         limit: int | None = None,
     ) -> list[LegacyObjectMappingRecord]:
         """List legacy mappings filtered server-side.
 
-        legacy_object_types / limit are perf knobs: M0 imports ~50k mappings;
-        SELECT all + Python-filter is the classic load-all-then-filter
-        antipattern that takes 60+ seconds on the audit timeline page. Push
-        the IN(...) filter and LIMIT down into SQL.
+        ``canonical_refs`` / legacy_object_types / limit are perf knobs: M0
+        imports ~68k mappings into legacy_object_mapping; SELECT all +
+        Python-group-by is the classic load-all-then-filter antipattern
+        (60+ seconds on the audit timeline page; a full-table materialize on
+        every ``resource.api.query`` / request-list render). Push the IN(...)
+        filter and LIMIT down into SQL so a batch prefetch only fetches the
+        canonical_refs the current page actually references.
+
+        ``canonical_ref`` (singular ``==``) and ``canonical_refs`` (plural
+        ``IN``) compose with AND; pass one or the other. An empty
+        ``canonical_refs`` list means "no refs in scope" → returns ``[]``
+        without issuing a query (the batch caller has nothing to enrich).
         """
+        if canonical_refs is not None and not canonical_refs:
+            return []
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(LegacyObjectMappingRecord).where(LegacyObjectMappingRecord.tenant_id == tenant_id)
@@ -86,6 +97,8 @@ class LegacyObjectMappingRepository:
                 statement = statement.where(LegacyObjectMappingRecord.canonical_type == canonical_type)
             if canonical_ref:
                 statement = statement.where(LegacyObjectMappingRecord.canonical_ref == canonical_ref)
+            if canonical_refs:
+                statement = statement.where(LegacyObjectMappingRecord.canonical_ref.in_(canonical_refs))
             if legacy_object_types:
                 statement = statement.where(LegacyObjectMappingRecord.legacy_object_type.in_(legacy_object_types))
             statement = statement.order_by(LegacyObjectMappingRecord.mapped_at)

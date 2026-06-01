@@ -224,11 +224,22 @@ class ProviderService:
         if store is None or not items:
             return [self.enrich_resource_asset(item, store) for item in items]
 
-        prefetch = self._build_asset_enrich_prefetch(store)
+        resource_codes = [str(item["resource_code"]) for item in items]
+        prefetch = self._build_asset_enrich_prefetch(store, resource_codes)
         return [self.enrich_resource_asset(item, store, prefetch=prefetch) for item in items]
 
-    def _build_asset_enrich_prefetch(self, store: Any) -> dict[str, Any]:
-        """One-pass prefetch of every per-resource table enrich_resource_asset reads."""
+    def _build_asset_enrich_prefetch(self, store: Any, resource_codes: list[str]) -> dict[str, Any]:
+        """One-pass prefetch of every per-resource table enrich_resource_asset reads.
+
+        ``resource_codes`` scopes the legacy_object_mapping prefetch (HIGH-1):
+        ``enrich_resource_asset`` only reads ``legacy_by_ref[resource_code]``
+        for the codes on *this* page, so fetching the whole ~68k-row
+        legacy_object_mapping table and grouping it in Python is wasted work.
+        Pushing ``canonical_refs IN (page resource_codes)`` down keeps the
+        consumed map slices byte-identical while the SELECT returns only rows
+        the page can reference (same scope the per-call path already used:
+        ``list_mappings(canonical_ref=resource_code)``).
+        """
         bindings_by_resource: dict[str, list[Any]] = {}
         for record in store.resource_api_repo.list_bindings(tenant_id=_DEFAULT_TENANT_ID):
             bindings_by_resource.setdefault(record.resource_code, []).append(record)
@@ -254,7 +265,9 @@ class ProviderService:
         for record in store.delivery_repo.list_execution_evidence(tenant_id=_DEFAULT_TENANT_ID):
             evidence_by_delivery.setdefault(record.delivery_code, []).append(record)
         legacy_by_ref: dict[str, list[Any]] = {}
-        for record in store.legacy_mapping_repo.list_mappings(tenant_id=_DEFAULT_TENANT_ID):
+        for record in store.legacy_mapping_repo.list_mappings(
+            tenant_id=_DEFAULT_TENANT_ID, canonical_refs=resource_codes
+        ):
             legacy_by_ref.setdefault(record.canonical_ref, []).append(record)
         return {
             "bindings_by_resource": bindings_by_resource,
@@ -266,7 +279,15 @@ class ProviderService:
             "attempts_by_delivery": attempts_by_delivery,
             "evidence_by_delivery": evidence_by_delivery,
             "legacy_by_ref": legacy_by_ref,
-            "batch_context": self.brain._get_handler_deps().services.request.build_batch_context(store, []),
+            # batch_context here only feeds ``_mapping_diagnostics`` (catalog
+            # source-column titles); it carries no application rows, so scope
+            # its legacy_object_mapping prefetch to this page's resource_codes
+            # too (resource_schema_mapping / resource_asset refs derive from
+            # the resources on the page). MEDIUM-1 root cause shared with the
+            # request-list path below.
+            "batch_context": self.brain._get_handler_deps().services.request.build_batch_context(
+                store, [], canonical_refs=resource_codes
+            ),
         }
 
     def enrich_resource_asset(
