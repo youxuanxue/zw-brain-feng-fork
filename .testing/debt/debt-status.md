@@ -49,8 +49,8 @@
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务反馈真实申请详情页「预填字段」缺失影响验收；
 - request-list [medium] (2026-05-29) — request.list 性能基准断言负载敏感（间歇 flaky）
   - assert: external → external — owner=产品研发负责人; trigger=(a) CI 上该用例**非负载场景**稳定超 1000ms（=真实 perf 回归，立即 P0 查
-- resource-schema-keying-reconcile [medium] (2026-06-02) — 字段数据模型只读视图实际覆盖率≈2.7%：resource_schema_snapshot 键未与 resource_asset.resource_code 对齐
-  - assert: external → external — owner=产品研发负责人; trigger=legacy mapper 把 resource_schema_snapshot 的键 reconcile 到 resource_asset（搞清 schema 源 dump 与 resource_asset 的映射关系——大概率经 dsp_metaresource→resource_asset 的源系统 id 对照，或 source_ref 解析），属 §9.5 adapter 写区的独立 PR；reconcile 后覆盖率应从 5/186 升到接近全量。修复落地后把本 assert 从 external 升级为现算（如 grep_present 对账新增的 reconcile mapper，或 SQL join 命中率门槛）并关债。
+- resource-schema-keying-reconcile [medium] (2026-06-02) — 字段数据模型视图覆盖率残留：read-path bridge 已把 2%→27%，余 73% 资源源 dump 无 schema 映射（上游数据缺供）
+  - assert: external → external — owner=产品研发负责人; trigger=数据/业务侧在上游补齐 138 个无 schema 映射资源的 dsp_metaresource→catalog 资源列级 link（或补 dump 后重导），使 resource_schema_mapping 覆盖更多 resource_asset；补齐后桥接自动放大覆盖率（读路径已就绪，无需再改代码）。届时把本 assert 从 external 升级为现算（如 SQL join 命中率门槛）并按实际覆盖率关债或降级。
 - tenant-only [medium] (2026-05-26) — 读路径热表 tenant-only 全扫白名单（PR #113 同模式残留）
   - assert: grep_present → pattern present in zw_brain/domain/repositories/delivery.py
 - topic-package-query [medium] (2026-05-31) — topic.package.query 列表跑详情级投影（P7 性能）

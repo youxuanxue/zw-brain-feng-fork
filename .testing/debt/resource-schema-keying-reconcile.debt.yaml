@@ -1,20 +1,21 @@
 slug: resource-schema-keying-reconcile
-title: "字段数据模型只读视图实际覆盖率≈2.7%：resource_schema_snapshot 键未与 resource_asset.resource_code 对齐"
+title: "字段数据模型视图覆盖率残留：read-path bridge 已把 2%→27%，余 73% 资源源 dump 无 schema 映射（上游数据缺供）"
 date: 2026-06-02
 severity: medium
 owner: 产品研发负责人
-# PR #185 本地实地走查发现（业务方同意方案 A：① 照常合 + 挂此债，不按「最高杠杆已铺通」叙事）：
-# metadata.schema.query / P2 「字段数据模型」视图按 resource_code 查 resource_schema_snapshot，
-# 但 seed 库里 schema 快照是用 dsp_metaresource 自有 id 入库的（5560 行 / 2693 distinct code，
-# 多为 32-hex），与 resource_asset.resource_code 既不等、也不经 source_ref / catalog_code 相连
-# （三键 join 均 0 命中）。只有 5 条 dashed-UUID 资源恰好同键 → 186 个 resource_asset 里仅 5
-# （2.7%）能渲染字段表，发现页 75 资源里仅约 3（4%）。用户点开的多数资源（如「历年GDP信息」
-# 0862582d…）落到诚实空态「该资源暂无登记的字段数据模型」——空态本身正确（非误显、非静默吞错），
-# 但产品价值被键对齐缺陷限制在 2.7%。
-# 注：① 的 UI + 能力 + 诚实态 + 权限闸门均已验证正确；e2e resource_schema_view 因「探测任一可
-# join 资源再测那一个」永远绿，对覆盖率盲——故必须靠本债显式记账，不靠绿门禁兜底。
+# 【已部分修复 — read-path bridge】PR #185 实地走查发现：metadata.schema.query / P2「字段数据
+# 模型」按 resource_code 直查 resource_schema_snapshot，但 snapshot 按 db_meta_table.meta_id 入库，
+# 与 resource_asset.resource_code 不同键 → 直查仅 5/186（2.7%）命中。
+# 后续 PR（fix/resource-schema-keying-bridge）在**读路径**（_query_metadata_schema + 新 repo
+# list_schema_snapshots_by_binding_codes）加桥接：直查空时经 resource_schema_mapping(active)
+# 的 binding_code → resource_schema_snapshot.binding_code 解析 → 覆盖率 5→52/186（≈27%，10×）。
+# 该桥接是只读查询，不碰 §9.5 adapter 写区、不重导入。
+# 【残留 — 上游数据缺供，本债保留项】186 资源里仅 48 条有任何 resource_schema_mapping 行；其余
+# 138 条（73%）在源 dump 里根本没有 schema 映射 → 读路径无法解决，这些资源仍诚实显「该资源暂无
+# 登记的字段数据模型」（空态正确，非误显/非静默吞错）。要再提升须数据/业务侧在上游补 schema 映射
+# （dsp_metaresource 与 catalog 资源的列级 link）或补 dump，非工程读路径可解。
 # 这是 legacy-import 一次性引导的直接后果（project_legacy_import_migration_only），非 #185 引入。
-trigger: "legacy mapper 把 resource_schema_snapshot 的键 reconcile 到 resource_asset（搞清 schema 源 dump 与 resource_asset 的映射关系——大概率经 dsp_metaresource→resource_asset 的源系统 id 对照，或 source_ref 解析），属 §9.5 adapter 写区的独立 PR；reconcile 后覆盖率应从 5/186 升到接近全量。修复落地后把本 assert 从 external 升级为现算（如 grep_present 对账新增的 reconcile mapper，或 SQL join 命中率门槛）并关债。"
+trigger: "数据/业务侧在上游补齐 138 个无 schema 映射资源的 dsp_metaresource→catalog 资源列级 link（或补 dump 后重导），使 resource_schema_mapping 覆盖更多 resource_asset；补齐后桥接自动放大覆盖率（读路径已就绪，无需再改代码）。届时把本 assert 从 external 升级为现算（如 SQL join 命中率门槛）并按实际覆盖率关债或降级。"
 assert:
-  # 纯数据/适配层 reconcile 依赖，无单文件机械锚点；保持 external，由 trigger 人工升级为现算。
+  # 残留是上游数据缺供（138 资源源 dump 无 schema 映射），无单文件机械锚点；保持 external，由数据侧补齐后人工升级为现算。
   kind: external

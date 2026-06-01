@@ -76,6 +76,31 @@ def resource_code_with_schema() -> str:
     return row[0]
 
 
+@pytest.fixture(scope="module")
+def resource_code_bridged_only() -> str:
+    """挑一个「resource_code 直查 schema_snapshot 命中=0、但有 active schema_mapping」的 resource_asset。
+
+    这正是键对齐 bridge 要救的多数资源：snapshot 按 db_meta_table.meta_id 入库、与
+    resource_asset.resource_code 不同键，只能经 resource_schema_mapping.binding_code 桥接到
+    resource_schema_snapshot.binding_code。无此类资源则跳过（seed 形态变化时不误失败）。
+    """
+    conn = sqlite3.connect(SHADOW_DB)
+    try:
+        row = conn.execute(
+            "select ra.resource_code, count(*) c "
+            "from resource_asset ra "
+            "join resource_schema_mapping m on m.resource_code = ra.resource_code and m.status = 'active' "
+            "join resource_schema_snapshot s on s.binding_code = m.binding_code "
+            "where ra.resource_code not in (select distinct resource_code from resource_schema_snapshot) "
+            "group by ra.resource_code order by c desc limit 1"
+        ).fetchone()
+    finally:
+        conn.close()
+    if row is None:
+        pytest.skip("seed 库无「直查空但可经 binding 桥接」的资源（数据形态变化）")
+    return row[0]
+
+
 def _result(out: object) -> dict:
     if isinstance(out, dict) and "result" in out:
         return out["result"]
@@ -105,6 +130,37 @@ def test_manager_reads_real_field_schema(brain, resource_code_with_schema) -> No
     assert any(c.get("comment") or c.get("format") for c in column_rows), (
         "真实 schema 快照应携带注释/格式元数据"
     )
+
+
+def test_bridge_resolves_schema_via_mapping_binding_code(brain, resource_code_bridged_only) -> None:
+    """键对齐 bridge：resource_code 直查 schema_snapshot 命中=0 的资源，经 schema_mapping
+    的 binding_code 桥接后应能查到真实列级 schema（2%→27% 覆盖率提升的核心路径）。"""
+    # 前提：该资源直查确实为空（否则测的不是 bridge 路径）。
+    conn = sqlite3.connect(SHADOW_DB)
+    try:
+        direct = conn.execute(
+            "select count(*) from resource_schema_snapshot where resource_code = ?",
+            (resource_code_bridged_only,),
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    assert direct == 0, "fixture 应挑选直查为空的资源，才能验证 bridge"
+
+    out = invoke_trusted(
+        brain,
+        "metadata.schema.query",
+        {"resource_code": resource_code_bridged_only},
+        role="ROLE_ORGAN_MANAGER",
+    )
+    res = _result(out)
+    items = res.get("items", [])
+    assert res.get("total", 0) > 0, "经 binding_code 桥接应查到 schema（bridge 失效则回归 2% 覆盖率）"
+    column_rows = [
+        it.get("schema_json")
+        for it in items
+        if isinstance(it.get("schema_json"), dict) and (it.get("schema_json") or {}).get("column_name")
+    ]
+    assert column_rows, "桥接结果应含至少一列携带 column_name 的真实字段"
 
 
 def test_operater_denied_field_schema(brain, resource_code_with_schema) -> None:

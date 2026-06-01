@@ -141,6 +141,30 @@ class MetadataEvidenceRepository:
                 statement = statement.where(ResourceSchemaSnapshotRecord.binding_code == binding_code)
             return list(session.execute(statement.order_by(ResourceSchemaSnapshotRecord.captured_at)).scalars())
 
+    def list_schema_snapshots_by_binding_codes(self, binding_codes: list[str], *, tenant_id: str = "sd-default") -> list[ResourceSchemaSnapshotRecord]:
+        """Batched binding_code lookup (single IN-query, no per-code N+1).
+
+        Used by the schema-view bridge: a resource_asset.resource_code rarely keys
+        resource_schema_snapshot directly (snapshots are keyed by db_meta_table.meta_id),
+        but resource_schema_mapping.binding_code does match snapshot.binding_code. The
+        handler resolves a resource's active mapping binding_codes, then fetches all
+        snapshots for them here in one query (in_()) to avoid N+1 on the read path.
+        """
+        codes = [c for c in dict.fromkeys(binding_codes) if c]
+        if not codes:
+            return []
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            statement = (
+                select(ResourceSchemaSnapshotRecord)
+                .where(
+                    ResourceSchemaSnapshotRecord.tenant_id == tenant_id,
+                    ResourceSchemaSnapshotRecord.binding_code.in_(codes),
+                )
+                .order_by(ResourceSchemaSnapshotRecord.captured_at)
+            )
+            return list(session.execute(statement).scalars())
+
     def list_gather_evidence(self, *, resource_code: str | None = None, status: str | None = None, tenant_id: str = "sd-default") -> list[MetadataGatherEvidenceProjectionRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:

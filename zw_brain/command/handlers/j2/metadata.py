@@ -66,14 +66,34 @@ def _query_metadata_schema(brain, deps, ctx, *, resource_code: Any = None, bindi
     store = deps.state_store.database_store
     if store is None:
         return {"items": [], "total": 0}
-    items = [
-        metadata_ser.schema_snapshot_to_dict(item)
-        for item in deps.repos.metadata_evidence.list_schema_snapshots(
-            resource_code=str(resource_code) if resource_code else None,
-            binding_code=str(binding_code) if binding_code else None,
-            tenant_id=_DEFAULT_TENANT_ID,
-        )
-    ]
+    repo = deps.repos.metadata_evidence
+    rc = str(resource_code) if resource_code else None
+    snapshots = repo.list_schema_snapshots(
+        resource_code=rc,
+        binding_code=str(binding_code) if binding_code else None,
+        tenant_id=_DEFAULT_TENANT_ID,
+    )
+    # Bridge fallback: resource_asset.resource_code rarely keys resource_schema_snapshot
+    # directly (snapshots are keyed by db_meta_table.meta_id). When the direct lookup is
+    # empty, resolve the resource's *active* schema mappings → their binding_codes →
+    # snapshots sharing that binding_code (which IS the table_meta_id snapshots are keyed by).
+    # Lifts the 字段数据模型 view from ~5/186 resources to ~52/186; the rest have no schema
+    # mapping in the source dumps (upstream data gap, tracked in the debt ledger).
+    if not snapshots and rc and binding_code is None:
+        binding_codes = [
+            m.binding_code
+            for m in repo.list_schema_mappings(resource_code=rc, include_inactive=False, tenant_id=_DEFAULT_TENANT_ID)
+            if m.binding_code
+        ]
+        snapshots = repo.list_schema_snapshots_by_binding_codes(binding_codes, tenant_id=_DEFAULT_TENANT_ID)
+    # Dedupe by snapshot_ref (a binding_code can be shared; keep first/earliest by captured_at).
+    seen: set[str] = set()
+    items: list[dict[str, Any]] = []
+    for item in snapshots:
+        if item.snapshot_ref in seen:
+            continue
+        seen.add(item.snapshot_ref)
+        items.append(metadata_ser.schema_snapshot_to_dict(item))
     return {"items": items, "total": len(items)}
 
 def _query_metadata_catalog_items(brain, deps, ctx, *, resource_code: Any = None, catalog_code: Any = None, include_inactive: Any = True) -> dict[str, Any]:
