@@ -33,7 +33,15 @@ from urllib.parse import urlparse
 
 from zw_brain.capability_registry.runtime import require_surface
 from zw_brain.command.runtime import get_service
-from zw_brain.shared.runtime_config import get_dev_iam_bypass_enabled
+from zw_brain.shared.auth_context import (
+    dev_iam_bypass_auth_context,
+    reset_auth_context,
+    set_auth_context,
+)
+from zw_brain.shared.runtime_config import (
+    DevBypassInProductionError,
+    get_dev_iam_bypass_enabled,
+)
 
 CARD_PATH = Path(__file__).with_name("agent_card.json")
 BINDINGS_PATH = Path(__file__).with_name("tools") / "runtime_bindings.json"
@@ -50,9 +58,22 @@ def get_runtime_bindings() -> list[dict[str, Any]]:
     return json.loads(BINDINGS_PATH.read_text(encoding="utf-8"))
 
 
+def _invoke_under_dev_identity(skill_id: str, payload: dict[str, Any]) -> Any:
+    """Invoke with the dev-bypass AuthContext bound (see MCP server for rationale).
+
+    The A2A daemon only starts under dev-IAM-bypass; binding the synthetic identity lets
+    the shared C1/N1 boundary resolver enforce role-holding for A2A like it does for REST.
+    """
+    token = set_auth_context(dev_iam_bypass_auth_context())
+    try:
+        return get_service().invoke_skill(skill_id, payload)
+    finally:
+        reset_auth_context(token)
+
+
 def invoke(skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     require_surface(skill_id, "a2a")
-    result = get_service().invoke_skill(skill_id, payload)
+    result = _invoke_under_dev_identity(skill_id, payload)
     return {"skill_id": skill_id, "result": result}
 
 
@@ -136,7 +157,7 @@ class _A2AHandler(BaseHTTPRequestHandler):
             self._json(404, {"error": "UnknownSkill", "skill_id": skill_id})
             return
         try:
-            result = get_service().invoke_skill(skill_id, payload)
+            result = _invoke_under_dev_identity(skill_id, payload)
         except Exception as e:  # noqa: BLE001
             self._json(500, {"error": type(e).__name__, "detail": str(e), "skill_id": skill_id})
             return
@@ -148,7 +169,13 @@ def serve_http(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> int:
     # validation; the only access control is the start-up gate below. Refuse to start
     # unless both ZW_BRAIN_DEV_IAM_BYPASS=1 and ZW_BRAIN_DEV_IAM_BYPASS_ACK=development-only
     # are set, mirroring REST policy (zw_brain/shared/runtime_config.py).
-    if not get_dev_iam_bypass_enabled():
+    try:
+        bypass_enabled = get_dev_iam_bypass_enabled()
+    except DevBypassInProductionError as exc:
+        # M5: dev bypass env present under a prod deploy mode → fail closed (refuse to start).
+        sys.stderr.write(f"[a2a] refusing to start: {exc}\n")
+        return 2
+    if not bypass_enabled:
         sys.stderr.write(
             "[a2a] refusing to start: A2A daemon currently has no per-request auth and "
             "must run only with ZW_BRAIN_DEV_IAM_BYPASS=1 + "

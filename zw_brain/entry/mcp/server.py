@@ -26,8 +26,27 @@ from typing import Any
 
 from zw_brain.capability_registry.runtime import require_surface
 from zw_brain.command.runtime import get_service
+from zw_brain.shared.auth_context import (
+    dev_iam_bypass_auth_context,
+    reset_auth_context,
+    set_auth_context,
+)
 
 TOOLS_DIR = Path(__file__).with_name("tools")
+
+
+def _invoke_under_dev_identity(name: str, payload: dict[str, Any]) -> Any:
+    """Invoke a capability with the dev-bypass AuthContext bound.
+
+    The MCP daemon is gated to start only under dev-IAM-bypass; binding the synthetic
+    identity lets the shared C1/N1 boundary resolver enforce role-holding for MCP exactly
+    as it does for REST, instead of treating the call as unchecked system-origin.
+    """
+    token = set_auth_context(dev_iam_bypass_auth_context())
+    try:
+        return get_service().invoke_skill(name, payload)
+    finally:
+        reset_auth_context(token)
 
 # MCP protocol version we implement (anchor for client compatibility checks).
 MCP_PROTOCOL_VERSION = "2024-11-05"
@@ -44,7 +63,7 @@ def list_tools() -> list[dict[str, Any]]:
 
 def call_tool(name: str, payload: dict[str, Any]) -> dict[str, Any]:
     require_surface(name, "mcp")
-    result = get_service().invoke_skill(name, payload)
+    result = _invoke_under_dev_identity(name, payload)
     return {"tool": name, "result": result}
 
 
@@ -89,7 +108,7 @@ def _handle_tools_call(id_: Any, params: dict[str, Any]) -> dict[str, Any]:
     except Exception as e:  # noqa: BLE001 — SurfaceNotEnabledError + others
         return _err(id_, -32601, f"tool unavailable: {name} — {type(e).__name__}: {e}")
     try:
-        result = get_service().invoke_skill(name, arguments)
+        result = _invoke_under_dev_identity(name, arguments)
     except Exception as e:  # noqa: BLE001
         return _err(id_, -32000, f"{type(e).__name__}: {e}", {"tool": name})
     # MCP tools/call 返回 content[] 包装 text；这里把 JSON 结果序列化为 text content

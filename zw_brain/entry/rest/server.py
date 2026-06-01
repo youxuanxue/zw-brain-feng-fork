@@ -51,7 +51,9 @@ from zw_brain.shared.iaf_oidc import (
     verify_iaf_access_token,
 )
 from zw_brain.shared.runtime_config import (
+    DevBypassInProductionError,
     get_dev_iam_bypass_enabled,
+    get_dev_iam_bypass_role_codes,
     get_iaf_insecure_tls_dev_ack,
     get_iaf_verify_ssl,
     get_rest_host,
@@ -77,19 +79,15 @@ _DEV_IAM_BYPASS_DISPLAY_NAME = "本地调试"
 
 
 def _dev_iam_bypass_role_codes() -> list[str]:
-    """Resolve the role list for dev-iam-bypass.
+    """Resolve the role list for dev-iam-bypass (delegates to the shared SoT).
 
     `ZW_BRAIN_DEV_IAM_BYPASS_ROLES` overrides the default ALL_ROLE_CODES so the
     无产品岗位 (A3) and 单一岗位 acceptance scenarios are reproducible without
-    spinning up a real IAM. Conventions:
-      - env unset  → ALL_ROLE_CODES (default; backward compatible)
-      - env =""    → empty list (无产品岗位 path: 该用户登入后看「联系管理员」)
-      - env ="ROLE_ORGAN_OPERATER,ROLE_BUSIAUDIT" → exactly those (含 admin/system 也支持)
+    spinning up a real IAM. The canonical implementation now lives in
+    ``shared.runtime_config.get_dev_iam_bypass_role_codes`` so REST / MCP / A2A / CLI
+    all build the identical dev-bypass AuthContext (C1/N1 boundary uniformity).
     """
-    raw = os.environ.get("ZW_BRAIN_DEV_IAM_BYPASS_ROLES")
-    if raw is None:
-        return list(_DEV_IAM_BYPASS_ROLES_DEFAULT)
-    return [item.strip() for item in raw.split(",") if item.strip()]
+    return get_dev_iam_bypass_role_codes()
 
 
 def _web_root() -> Path:
@@ -454,10 +452,19 @@ class RestHandler(BaseHTTPRequestHandler):
             # C1 fix: bearer / dev-bypass POST must derive role from the verified identity,
             # never a client-supplied "role" in the body (which would let a low-privilege
             # token claim ROLE_SYSTEM and run privileged write capabilities).
-            payload = self._apply_verified_identity_role(payload)
+            # N1 fix: a POST may target a *write* (side_effects) capability; pass skill_id
+            # so a forged write role is NOT silently degraded but surfaced to the shared
+            # boundary resolver (brain._resolve_role → IdentityRoleForbiddenError → 403).
+            if not isinstance(payload, dict):
+                # M7 fix: non-dict JSON body (list/str/int) reaches _apply_verified_identity_role
+                # which calls .get → AttributeError → 500. A2A/CLI already return 400 here; REST
+                # must too. (GET params are always a dict, so this guard lives on the POST path.)
+                self._json(400, {"error": "bad_request", "detail": "request body must be a JSON object"})
+                return
+            payload = self._apply_verified_identity_role(payload, skill_id=skill_id)
         self._json(200, get_service().invoke_skill(skill_id, payload))
 
-    def _apply_verified_identity_role(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def _apply_verified_identity_role(self, payload: dict[str, Any], *, skill_id: str | None = None) -> dict[str, Any]:
         """Stamp the identity-derived authorization role into a no-cookie-session payload.
 
         C1 fix. For bearer-token / dev-bypass requests (no BFF cookie session), the
@@ -467,10 +474,25 @@ class RestHandler(BaseHTTPRequestHandler):
         identity's first product role is used. If the identity holds no product role the
         request is rejected with 403 instead of silently falling back to a default role.
 
+        N1 fix. For a *write* capability (``side_effects`` declared in its manifest) the
+        forged-role case is NOT degraded here: the requested role is preserved and handed
+        to the shared boundary resolver (``brain._resolve_role`` →
+        ``resolve_role_from_identity``), which denies acting as an unheld role on a write
+        (forged actor / corrupt audit attribution). Reads keep least-privilege degrade.
+
         The dev-IAM-bypass synthetic user holds all role codes, so its derived role
         equals any (valid) requested role — A2A/MCP daemons and local CLI keep working.
         """
         requested_role = str(payload.get("role") or "")
+        if skill_id is not None and self._capability_has_side_effects(skill_id):
+            # Write path: don't pre-resolve/degrade. Require the identity to hold *some*
+            # product role (else 403), then let the shared resolver enforce the held-role
+            # rule against the requested write role.
+            if not self._role_from_verified_identity(""):
+                raise AccessDeniedError("no_product_role_for_identity")
+            stamped = dict(payload)
+            stamped["role"] = requested_role
+            return stamped
         role = self._role_from_verified_identity(requested_role)
         if not role:
             # 403 via _handle_error mapping — identity authenticated but holds no product role.
@@ -479,6 +501,16 @@ class RestHandler(BaseHTTPRequestHandler):
         # Overwrite (never trust) the client-supplied role with the identity-derived one.
         stamped["role"] = role
         return stamped
+
+    @staticmethod
+    def _capability_has_side_effects(skill_id: str) -> bool:
+        # skill_id param name is the D33 API-surface envelope key (matches invoke_skill);
+        # the helper itself is capability-named per D33 internal-naming rule.
+        from zw_brain.capability_registry.runtime import get_manifest
+        try:
+            return bool((get_manifest(skill_id) or {}).get("side_effects"))
+        except KeyError:
+            return False
 
     def _role_from_verified_identity(self, requested_role: str) -> str:
         """Resolve an authorization role from the verified auth context (not the request body).
@@ -605,7 +637,14 @@ class RestHandler(BaseHTTPRequestHandler):
                 raise IafOidcTokenError("token response missing access_token")
             claims = self._claims_from_token_payload(client, token_payload, expected_nonce=login_state.nonce)
             actor_result = self._sync_actor_from_claims(claims)
-            actor_snapshot = get_service().enrich_actor_snapshot_for_session(actor_result["result"]["actor_snapshots"][0])
+            # M7 fix: actor.projection.sync can legitimately return an empty actor_snapshots list
+            # (e.g. an IAM identity that projects to no product actor). Indexing [0] blindly →
+            # IndexError → 500. Treat "authenticated but no projected actor" as 403, not a crash.
+            snapshots = ((actor_result or {}).get("result") or {}).get("actor_snapshots") or []
+            if not snapshots:
+                self._json(403, {"error": "no_product_role_for_identity"})
+                return
+            actor_snapshot = get_service().enrich_actor_snapshot_for_session(snapshots[0])
             audit_id = str(actor_result.get("audit_id") or "")
             session = _AUTH_SESSION_STORE.create(
                 token_payload=token_payload,
@@ -752,15 +791,19 @@ class RestHandler(BaseHTTPRequestHandler):
         # IAM-initiated first-login projection is a system-origin write, not a ROLE_BUSIAUDIT user action;
         # using role="system" keeps the audit/capability_call actor honest. The "system" role is granted
         # exactly the actor.projection.sync.execute permission in zw_brain/domain/policy.py.
+        # mark_system_origin: this runs while the request AuthContext holds the *user's* identity
+        # (which does not personally hold "system"); the in-process system-origin sentinel exempts it
+        # from the verified-identity role boundary (C1/N1) without weakening it for client calls.
+        from zw_brain.shared.auth_context import mark_system_origin
         return get_service().invoke_skill(
             "actor.projection.sync",
-            {
+            mark_system_origin({
                 "iaf_claims": claims,
                 "tenant_id": str(claims.get("project_id") or "sd-default"),
                 "org_code": claims.get("org_code"),
                 "role": "system",
                 "confirmed": True,
-            },
+            }),
         )
 
     def _handle_iaf_logout(self, parsed) -> None:  # type: ignore[no-untyped-def]
@@ -947,6 +990,13 @@ def log_iaf_runtime_warnings() -> None:
 
 def main(host: str | None = None, port: int | None = None) -> None:
     validate_session_store_for_deploy()
+    # M5: fail-closed at startup if the dev IAM bypass env leaks into a prod deploy mode.
+    # get_dev_iam_bypass_enabled() raises DevBypassInProductionError in that case; surface it
+    # as a clean non-zero exit (refuse to boot) rather than running with auth fully open.
+    try:
+        get_dev_iam_bypass_enabled()
+    except DevBypassInProductionError as exc:
+        raise SystemExit(str(exc)) from exc
     log_iaf_runtime_warnings()
     # H2: bring up the in-process blockchain-anchor worker as part of the service
     # lifecycle so the durable anchor_outbox table is drained into audit_receipt.

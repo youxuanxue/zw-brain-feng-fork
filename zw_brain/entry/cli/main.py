@@ -102,12 +102,21 @@ def _invoke_inprocess(skill_id: str, payload: dict[str, Any]) -> tuple[int, Any]
     """In-process invoke (no HTTP); needs project deps + dev IAM bypass for auth."""
     from zw_brain.capability_registry.runtime import require_surface
     from zw_brain.command.runtime import get_service
+    from zw_brain.shared.auth_context import (
+        dev_iam_bypass_auth_context,
+        reset_auth_context,
+        set_auth_context,
+    )
     try:
         require_surface(skill_id, "cli")
     except KeyError:
         return EXIT_UNKNOWN_SKILL, {"error": "UnknownSkill", "detail": skill_id, "skill_id": skill_id}
     except Exception as e:  # noqa: BLE001
         return EXIT_INVOKE_FAILED, {"error": type(e).__name__, "detail": str(e), "skill_id": skill_id}
+    # Bind the dev-bypass synthetic identity so the shared C1/N1 boundary resolver enforces
+    # role-holding for CLI in-process calls (a forged --role is rejected for writes / degraded
+    # for reads) exactly as for REST/MCP/A2A. CLI runs only under dev-IAM-bypass.
+    token = set_auth_context(dev_iam_bypass_auth_context())
     try:
         result = get_service().invoke_skill(skill_id, payload)
         return EXIT_OK, result
@@ -121,6 +130,8 @@ def _invoke_inprocess(skill_id: str, payload: dict[str, Any]) -> tuple[int, Any]
             "detail": str(e),
             "skill_id": skill_id,
         }
+    finally:
+        reset_auth_context(token)
 
 
 def _invoke_http(endpoint: str, skill_id: str, payload: dict[str, Any]) -> tuple[int, Any]:

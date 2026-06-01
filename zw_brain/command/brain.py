@@ -333,7 +333,7 @@ class BrainService:
         except KeyError as exc:
             raise UnknownSkillError(skill_id) from exc
         self._validate_required_input(skill_id, manifest, payload)
-        role = self._resolve_role(payload)
+        role = self._resolve_role(payload, manifest=manifest)
         self._ui_state["role"] = role
         self._enforce_manifest_policy(skill_id, manifest, role, payload)
         # Action A: build per-call SkillContext + cached HandlerDeps. Handlers
@@ -1052,7 +1052,13 @@ class BrainService:
     def _route_request_for_catalog_confirmation(self, request_id: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide") -> dict[str, Any]:
         return self._get_handler_deps().services.request.route_for_catalog_confirmation(request_id, role, confirmed, skill_id)
 
-    def _resolve_role(self, payload: dict[str, Any]) -> str:
+    def _resolve_role(self, payload: dict[str, Any], *, manifest: dict[str, Any] | None = None) -> str:
+        from zw_brain.shared.auth_context import (
+            SYSTEM_ORIGIN_KEY,
+            IdentityRoleForbiddenError,
+            is_system_origin_payload,
+            resolve_role_from_identity,
+        )
         from zw_brain.shared.session_context import (
             TRUSTED_SESSION_CONTEXT_KEY,
             is_trusted_session_payload,
@@ -1061,16 +1067,43 @@ class BrainService:
 
         try:
             if is_trusted_session_payload(payload):
+                # Cookie BFF path: role already stamped from the verified session by
+                # build_trusted_skill_payload. The trusted-session branch is exempt from
+                # the identity-boundary resolver below and stays unchanged.
                 snapshot = payload.get("actor_snapshot")
                 if not isinstance(snapshot, dict):
                     raise AccessDeniedError("trusted session requires actor_snapshot")
                 return resolve_trusted_role(payload, actor_snapshot=snapshot)
+            # System-origin / internal already-authorized call (in-process sentinel; a
+            # remote client cannot forge `is`-equality): act as the supplied infra role
+            # (e.g. "system" for IAM first-login projection) without the identity boundary.
+            # policy.resolve_role + enforce_manifest_policy still validate the role/perms.
+            system_origin = is_system_origin_payload(payload)
             # Client-supplied payloads (Bearer / A2A / MCP / CLI entry paths) cannot
             # claim trust: only `build_trusted_skill_payload` stamps the in-process
             # sentinel. Strip any smuggled value so downstream copies / audit dumps
             # don't surface a misleading "_trusted_session_context: True".
             payload.pop(TRUSTED_SESSION_CONTEXT_KEY, None)
-            return policy.resolve_role(payload.get("role"), self._ui_state.get("role", "ROLE_ORGAN_OPERATER"))
+            payload.pop(SYSTEM_ORIGIN_KEY, None)
+            if system_origin:
+                return policy.resolve_role(payload.get("role"), self._ui_state.get("role", "ROLE_ORGAN_OPERATER"))
+            # C1/N1 shared boundary: the role a non-cookie caller may act as is governed
+            # by the *verified identity* in the request-scoped AuthContext, NOT by the
+            # literal payload["role"]. Every authenticated consumer surface (REST bearer,
+            # MCP, A2A, CLI) establishes an AuthContext (real token claims, or the
+            # dev-bypass synthetic full-role identity), so this one resolver protects all
+            # of them. In-process / system-origin calls set no AuthContext and keep legacy
+            # resolution. side_effects → write semantics (forge of an unheld role is denied,
+            # not degraded). filter validity / unknown-role checks stay in policy.resolve_role.
+            side_effects = bool((manifest or {}).get("side_effects"))
+            candidate = resolve_role_from_identity(
+                str(payload.get("role") or ""),
+                self._ui_state.get("role", "ROLE_ORGAN_OPERATER"),
+                is_write=side_effects,
+            )
+            return policy.resolve_role(candidate, self._ui_state.get("role", "ROLE_ORGAN_OPERATER"))
+        except IdentityRoleForbiddenError as exc:
+            raise AccessDeniedError(str(exc)) from exc
         except DomainAccessDeniedError as exc:
             raise AccessDeniedError(str(exc)) from exc
 

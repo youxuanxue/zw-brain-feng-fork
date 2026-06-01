@@ -571,7 +571,22 @@ trigger 关闭即可删除字段。
   1. `start-local.sh` 的 prod-mode 拦截（运行时）
   2. `customer_demo_5min.sh` 的 127.0.0.1 绑定（网络层）
   3. **段 23 preflight scan**（commit-time，G1.4 新增）
-  这三条层叠兜底；不再加 prose 软提醒。
+  4. **运行时 fail-closed**（2026-06-01 C1-hardening 落地）：
+     `shared/runtime_config.get_dev_iam_bypass_enabled()` 在
+     `ZW_BRAIN_DEPLOY_MODE in {prod,production}` 且 bypass env 在场时抛
+     `DevBypassInProductionError`（不再 fail-open 静默放行）。REST `main()` /
+     A2A `serve_http()` 在启动期捕获该异常并拒绝启动（SystemExit / exit 2），
+     即「两 env 漏进生产」从「全角色鉴权全开」收敛为「进程拒绝启动」。
+     复用既有 `ZW_BRAIN_DEPLOY_MODE` 信号（与 `validate_session_store_for_deploy`
+     同源），**未新造 prod 标记**。守卫 `tests/test_c1n1_shared_resolver_and_guards.py`。
+  这四条层叠兜底；不再加 prose 软提醒。
+- **Status update (2026-06-01)**: 「prod guard deferred to first customer deployment」中
+  **「启动期 fail-closed」这一最危险面已落地**（上述第 4 条）；**剩余 debt** = 删除 bypass
+  代码层路径本体（`start-local.sh`/`customer_demo_5min.sh`/e2e 仍依赖），仍延后至首位真实
+  客户上线。即本护栏把「泄漏即鉴权全开」降级为「泄漏即拒绝启动」，债部分收口、未全清。
+  待决策：`ZW_BRAIN_DEPLOY_MODE in {prod,production}` 作为 prod 信号是否为团队约定的
+  权威 prod 标记（当前与 session-store deploy guard 共用，本 PR 复用而非新造）— 请产品研发
+  负责人 / 运维确认。
 
 ## 2026-05-23 — 集成测试用 `brain.invoke_skill()` 直调，绕过 trust-stamp 路径
 
