@@ -75,6 +75,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
+from threading import RLock
 from typing import TYPE_CHECKING, Any, Protocol
 
 from zw_brain.command import pipeline_ops
@@ -380,26 +381,48 @@ class SkillPipeline:
     BrainService). Middleware list is immutable; injecting a new
     cross-cutting requires rebuilding the pipeline (Action B does not yet
     expose a public ``insert_after``; Wave 2 cross-cuttings can request it).
+
+    H3 fix — concurrency: the process-singleton ``BrainService._snapshot`` is a
+    shared mutable dict that write handlers edit in place, and ``PersistMiddleware``
+    then read-modify-writes the whole snapshot JSON into the single ``id=1``
+    runtime-state row. Under ``ThreadingMixIn`` two concurrent writes would
+    interleave "mutate snapshot → persist", so a request based on a stale
+    snapshot could silently clobber another's committed change (last-writer-wins
+    on requests list / audit feed / todos). ``_write_lock`` serializes the entire
+    mutate→persist critical section at this single write choke point — every
+    write path (``deps.write`` and ``pipeline_ops.run_mutation``) funnels through
+    ``write`` below. The lock lives in the command/orchestration layer on purpose
+    (the storage primitive ``database_store.save_runtime_state`` is intentionally
+    left untouched). ``RLock`` (not ``Lock``) so a handler that re-enters the
+    write path in-process — e.g. ``catalog.entry.create_draft`` → nested
+    ``duplicate.check`` envelope — does not self-deadlock. Read path is unlocked:
+    it neither mutates the snapshot nor persists.
     """
     middlewares: tuple[Middleware, ...]
+    _write_lock: RLock = field(default_factory=RLock, repr=False, compare=False)
 
     def write(self, ctx: SkillContext, payload: dict[str, Any], fn: HandlerFn) -> dict[str, Any]:
-        """Mutation path — runs all 6 middlewares.
+        """Mutation path — runs all 6 middlewares under the write lock.
 
         Equivalent to legacy ``brain._mutate(ctx.skill_id, ctx.role, ctx.confirmed, payload, fn)``.
 
         ``fn(audit_id, actor)`` returns the handler-specific result dict;
         the pipeline wraps it with the standard envelope
         ``{"ok": True, "skill_id": ..., "audit_id": ..., "result": ...}``.
+
+        H3: the lock spans the whole chain (handler mutate + PersistMiddleware
+        sync_state_views + persist), so concurrent writes serialize instead of
+        racing on the shared snapshot / id=1 runtime-state row.
         """
-        pctx = PipelineContext(skill=ctx, payload=payload, is_write=True)
-        result = self._invoke(pctx, fn)
-        return {
-            "ok": True,
-            "skill_id": ctx.skill_id,
-            "audit_id": pctx.audit_id,
-            "result": result,
-        }
+        with self._write_lock:
+            pctx = PipelineContext(skill=ctx, payload=payload, is_write=True)
+            result = self._invoke(pctx, fn)
+            return {
+                "ok": True,
+                "skill_id": ctx.skill_id,
+                "audit_id": pctx.audit_id,
+                "result": result,
+            }
 
     def read(self, ctx: SkillContext, payload: dict[str, Any], fn: HandlerFn) -> Any:
         """Read path — middleware chain without Persist + Anchor side-effects.

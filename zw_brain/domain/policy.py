@@ -440,16 +440,33 @@ def enforce_manifest_policy(skill_id: str, manifest: dict[str, Any], role: str, 
         if requested_tenant != tenant_for_role(role):
             raise DomainAccessDeniedError(f"tenant scope violation for {skill_id}: {requested_tenant}")
 
+    # C1 fix (security): permission enforcement runs against the *resolved* role for
+    # EVERY capability that declares ``permissions`` — read-only or write, role key in
+    # the original payload or not. The previous `if not side_effects and "role" not in
+    # payload: return` escape conflated "caller omitted a role key" with "trusted
+    # internal call", so a low-privilege bearer/CLI/MCP/A2A caller could read sensitive
+    # SECURITY_AUDIT/BUSIAUDIT capabilities (e.g. audit.event.query) just by NOT sending
+    # a role — the resolved fallback role's permissions were never checked. The boundary
+    # responsibility is now sharp: the *entry layer* must derive `role` from the verified
+    # identity (cookie BFF: build_trusted_skill_payload; bearer/CLI: identity-derived
+    # role stamped into payload), and this enforce step never skips for permissioned caps.
+    #
+    # Capabilities with NO declared permissions are public-by-design; for them the
+    # permission set is empty and the check below is a no-op, so behavior is unchanged.
+    required_permissions = set(manifest.get("permissions", []))
+    if required_permissions:
+        missing_permissions = sorted(required_permissions - permissions_for_role(role))
+        if missing_permissions:
+            raise DomainAccessDeniedError(
+                f"role {role} lacks permissions for {skill_id}: {', '.join(missing_permissions)}"
+            )
+
+    # Confirmation gate runs *after* permission enforcement: an unauthorized caller must
+    # be denied (403), never handed a "needs confirmation" envelope it could use to probe
+    # capability existence. Authorized-but-unconfirmed writes still short-circuit here so
+    # the confirmation round-trip (→ 409 ConfirmationRequired) is preserved for them.
     if manifest.get("human_confirmation_required") and not bool(payload.get("confirmed")):
         return
-
-    if not manifest.get("side_effects") and "role" not in payload:
-        return
-
-    required_permissions = set(manifest.get("permissions", []))
-    missing_permissions = sorted(required_permissions - permissions_for_role(role))
-    if missing_permissions:
-        raise DomainAccessDeniedError(f"role {role} lacks permissions for {skill_id}: {', '.join(missing_permissions)}")
 
     # R-014 fix: 标签位运行时校验 — tag_lead_dept 标记的权限只允许持有该标签的 actor 调用。
     # actor.tags 通过 payload.actor_tags 传入（IAM session 或上层注入）；未传时默认无标签。

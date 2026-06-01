@@ -422,7 +422,10 @@ class RestHandler(BaseHTTPRequestHandler):
         if session is not None:
             params = self._trusted_skill_payload(session, params)
         else:
-            params.setdefault("role", (qs.get("role") or ["ROLE_ORGAN_OPERATER"])[-1])
+            # No cookie session (bearer / dev-bypass): the authorization role MUST come
+            # from the verified identity, never a client-supplied ?role= — otherwise a
+            # low-privilege token holder could claim a role they don't hold. C1 fix.
+            params = self._apply_verified_identity_role(params)
         self._json(200, get_service().invoke_skill("system.snapshot", params))
 
     def _handle_api_skill_get(self, parsed, _claims: dict[str, Any]) -> None:  # type: ignore[no-untyped-def]
@@ -432,6 +435,12 @@ class RestHandler(BaseHTTPRequestHandler):
         session = self._get_cookie_session()
         if session is not None:
             params = self._trusted_skill_payload(session, params)
+        else:
+            # C1 fix: bearer / dev-bypass GET reads must derive role from the verified
+            # identity, never the client-supplied ?role=. Without this, a low-privilege
+            # token holder could read SECURITY_AUDIT-only capabilities (e.g.
+            # audit.event.query) by omitting / spoofing the role query param.
+            params = self._apply_verified_identity_role(params)
         self._json(200, get_service().invoke_skill(skill_id, params))
 
     def _handle_api_skill_post(self, parsed, _claims: dict[str, Any]) -> None:  # type: ignore[no-untyped-def]
@@ -441,7 +450,35 @@ class RestHandler(BaseHTTPRequestHandler):
         session = self._get_cookie_session()
         if session is not None:
             payload = self._trusted_skill_payload(session, payload)
+        else:
+            # C1 fix: bearer / dev-bypass POST must derive role from the verified identity,
+            # never a client-supplied "role" in the body (which would let a low-privilege
+            # token claim ROLE_SYSTEM and run privileged write capabilities).
+            payload = self._apply_verified_identity_role(payload)
         self._json(200, get_service().invoke_skill(skill_id, payload))
+
+    def _apply_verified_identity_role(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Stamp the identity-derived authorization role into a no-cookie-session payload.
+
+        C1 fix. For bearer-token / dev-bypass requests (no BFF cookie session), the
+        authorization role is derived from the verified auth context — NOT trusted from
+        the client. A client-supplied ``role`` is honored only when the verified identity
+        actually holds it (``_role_from_verified_identity`` enforces that); otherwise the
+        identity's first product role is used. If the identity holds no product role the
+        request is rejected with 403 instead of silently falling back to a default role.
+
+        The dev-IAM-bypass synthetic user holds all role codes, so its derived role
+        equals any (valid) requested role — A2A/MCP daemons and local CLI keep working.
+        """
+        requested_role = str(payload.get("role") or "")
+        role = self._role_from_verified_identity(requested_role)
+        if not role:
+            # 403 via _handle_error mapping — identity authenticated but holds no product role.
+            raise AccessDeniedError("no_product_role_for_identity")
+        stamped = dict(payload)
+        # Overwrite (never trust) the client-supplied role with the identity-derived one.
+        stamped["role"] = role
+        return stamped
 
     def _role_from_verified_identity(self, requested_role: str) -> str:
         """Resolve an authorization role from the verified auth context (not the request body).
@@ -911,7 +948,19 @@ def log_iaf_runtime_warnings() -> None:
 def main(host: str | None = None, port: int | None = None) -> None:
     validate_session_store_for_deploy()
     log_iaf_runtime_warnings()
-    ThreadingRestServer((host or get_rest_host(), port or get_rest_port()), RestHandler).serve_forever()
+    # H2: bring up the in-process blockchain-anchor worker as part of the service
+    # lifecycle so the durable anchor_outbox table is drained into audit_receipt.
+    # Env-gated (ZW_BRAIN_ANCHOR_WORKER) and auto-off under pytest; the test
+    # harness constructs ThreadingRestServer directly and never reaches here.
+    from zw_brain.background_tasks import start_anchor_worker, stop_anchor_worker  # noqa: PLC0415
+
+    start_anchor_worker()
+    server = ThreadingRestServer((host or get_rest_host(), port or get_rest_port()), RestHandler)
+    try:
+        server.serve_forever()
+    finally:
+        stop_anchor_worker()
+        server.server_close()
 
 
 if __name__ == "__main__":

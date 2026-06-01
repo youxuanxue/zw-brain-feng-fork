@@ -199,6 +199,32 @@ def establish_session(port: int, keys: KeyFixture, *, extra_roles: list[str] | N
     return session_id, body["csrf_token"]  # type: ignore[index]
 
 
+def mint_bearer(keys: KeyFixture, *, roles: list[str], sub: str = "bearer-user") -> str:
+    """Mint a standalone RS256 access token (no cookie session) for the Bearer path.
+
+    Wires the IAF runtime transport to serve this fixture's JWKS so the server's
+    per-request RS256 verification (Path 3 in `_with_authenticated_request`) succeeds.
+    Used by C1 tests to exercise the no-cookie bearer surface with a chosen role set.
+    """
+    def transport(request: HttpRequest) -> HttpResponse:
+        # Bearer path only needs JWKS for signature verification (no token endpoint).
+        return HttpResponse(status_code=200, body=json.dumps(keys.jwks).encode(), headers={})
+
+    configure_iaf_auth_runtime(transport=transport, jwks=keys.jwks)
+    claims = {
+        "sub": sub,
+        "iss": "https://iaf.example/auth/realms/picp",
+        "aud": ["zw-brain"],
+        "exp": int((datetime.now(UTC) + timedelta(minutes=10)).timestamp()),
+        "preferred_username": sub,
+        "project_id": "sd-default",
+        "org_code": "ORG-A",
+        "realm_access": {"roles": list(roles)},
+        "resource_access": {"zw-brain": {"roles": list(roles)}},
+    }
+    return keys.encode(claims)
+
+
 def stop_server(server: ThreadingRestServer, thread: Thread) -> None:
     server.shutdown()
     server.server_close()

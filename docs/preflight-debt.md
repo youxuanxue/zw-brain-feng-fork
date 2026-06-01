@@ -25,6 +25,29 @@ trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / �
 目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
 trigger 关闭即可删除字段。
 
+## 2026-06-01 — H2 区块链锚定 worker 部署形态：单副本 in-process（选 A，多副本前再评估）
+
+> 产品研发负责人 2026-06-01 **选 A**（维持现状，本期无代码动作）。本条登记 PR #183 §5 的待决策。
+
+- **Where**: `zw_brain/background_tasks/__init__.py`（`AnchorWorker` + `start_anchor_worker` / `stop_anchor_worker`）；
+  `zw_brain/entry/rest/server.py::main()` 拉起 + finally 停；env `ZW_BRAIN_ANCHOR_WORKER` 门控、pytest 默认关。
+  来源 = PR #183（H2 锚定回路根治）§5 待决策。
+- **Implication**: in-process daemon 线程与 REST 进程同生命周期，drain 持久 `anchor_outbox` 表 → `audit_receipt`。
+  **当前单副本（sd-default 单租户单省）+ mock `blockchain_adapter` 下安全、无重复**。多副本部署时每个副本各跑一个
+  worker，共享同一张 `anchor_outbox` 表且**无行锁 / SELECT FOR UPDATE / leader 选举** → 同一 pending 行可能被两副本
+  各 drain 一次 = 重复 anchor（mock adapter 幂等无害；真实链 = 重复链上交易 / 回执）。
+- **Why deferred**: 当前部署单副本、adapter 为 mock，下方两触发条件均不成立；默认**可逆**（删 `start_anchor_worker()`
+  调用或 `ZW_BRAIN_ANCHOR_WORKER=0` 即退回原状），晚定无沉没成本。独立 worker 进程 / 行级锁去重会增运维与工程面，
+  未到拐点不提前盖楼（确定性自动化运营和运维：只为真实需求建复杂度）。
+- **Trigger to re-evaluate**（**两条件同时成立**即升级 P0）:
+  - (a) `blockchain_adapter` 从 mock 换成真实链；**且**
+  - (b) REST 服务部署为多副本 / 非 sticky LB。
+  - 任一单独不触发；二者齐 → 落地 `anchor_outbox` 行级锁（`SELECT ... FOR UPDATE SKIP LOCKED`）或拆**独立 worker
+    进程 + leader 选举**（PR #183 §5 作者建议的 B+C 组合）。与「BFF session Redis backend」「dev-iam-bypass 生产守卫」
+    「真数据进 CI」同属「多副本 / 首客上线前」批次，可一并评估。
+- **No mechanical guardrail (now)**: 「真链 + 多副本」是运行时部署拓扑，无法在 commit 时机械检测；
+  本 debt + PR #183 §5 登记防遗忘，trigger 触发当日按上述正解落地。
+
 ## 2026-06-01 — webui e2e 本机 --with-e2e 不能干净复现（2 超时 + 1 真断言失败）
 
 - **✅ RESOLVED 2026-06-01（fix/webui-done-ci-status-loop）**：根因坐实为 e2e harness 盲等

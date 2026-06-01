@@ -59,7 +59,10 @@ def test_enforce_manifest_policy_rejects_falsy_tenant_payload(tenant_id: object)
         enforce_manifest_policy("request.create", manifest, "ROLE_ORGAN_OPERATER", {"confirmed": True, "tenant_id": tenant_id})
 
 
-def test_enforce_manifest_policy_allows_unscoped_read_without_role_payload() -> None:
+def test_enforce_manifest_policy_allows_authorized_read_without_role_payload() -> None:
+    # C1: a permissioned read-only cap passes with an EMPTY payload (no "role" key) ONLY
+    # because the RESOLVED role is authorized for it — not because the check is skipped.
+    # ROLE_ORGAN_OPERATER holds data.search.execute, so it passes.
     manifest = {
         "tenant_scope": "tenant",
         "side_effects": [],
@@ -67,3 +70,17 @@ def test_enforce_manifest_policy_allows_unscoped_read_without_role_payload() -> 
         "permissions": ["data.search.execute"],
     }
     enforce_manifest_policy("data.search", manifest, "ROLE_ORGAN_OPERATER", {})
+
+
+def test_enforce_manifest_policy_denies_underprivileged_read_without_role_payload() -> None:
+    # C1 negative: the same empty-payload (no "role" key) read is DENIED when the resolved
+    # role lacks the permission. Previously the `"role" not in payload` escape skipped the
+    # check entirely, letting low-privilege callers read SECURITY_AUDIT-only capabilities.
+    manifest = {
+        "tenant_scope": "global",
+        "side_effects": [],
+        "human_confirmation_required": False,
+        "permissions": ["audit.event.query.execute"],
+    }
+    with pytest.raises(DomainAccessDeniedError):
+        enforce_manifest_policy("audit.event.query", manifest, "ROLE_ORGAN_OPERATER", {})

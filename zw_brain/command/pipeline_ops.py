@@ -43,7 +43,6 @@ What stays in BrainService
 """
 from __future__ import annotations
 
-import asyncio
 import copy
 import hashlib
 import json
@@ -202,13 +201,24 @@ def enqueue_anchor(
     skill_id: str,
     payload: dict[str, Any],
 ) -> None:
-    """Compute content hash, write anchor_outbox row, enqueue blockchain anchor.
+    """Compute content hash and write the durable ``anchor_outbox`` row.
 
     Replaces ``BrainService._enqueue_anchor``. Fail-soft semantics live in
     the calling middleware (``AnchorMiddleware``) per D4 contract.
 
-    ``queue`` is the ``zw_brain.shared.queue`` module (passed for testability).
+    H2 fix: the durable ``anchor_outbox`` table is the single source of truth
+    for pending anchors — the in-process anchor worker
+    (``zw_brain.background_tasks.run_outbox_once``) drains it and writes
+    ``audit_receipt`` rows. The previous ``asyncio.run(queue.enqueue(...))`` per
+    business write was a double anti-pattern: (1) it spun up a fresh event loop
+    on every mutation inside a synchronous ThreadingHTTPServer worker thread,
+    and (2) it pushed onto a process-local, non-durable in-memory list that was
+    lost on restart and never reliably drained. Removing it means the anchor
+    loop depends only on the durable outbox, closing the "anchor silently never
+    enqueued / never delivered" gap. ``queue`` is retained in the signature for
+    call-site stability but is no longer written on the business path.
     """
+    del queue  # H2: durable outbox is the truth; no per-write in-memory enqueue.
     # safe_json strips the trust sentinel and other process-local objects that
     # cannot cross a JSON boundary. Without it, the payload may carry the
     # _TRUSTED_SESSION_MARKER (object()) and json.dumps below raises TypeError.
@@ -228,18 +238,6 @@ def enqueue_anchor(
     store = state_store.database_store
     if store is not None:
         store.append_anchor_outbox(request_id, skill_id, content_hash, "mock-chain")
-    asyncio.run(
-        queue.enqueue(
-            "blockchain.anchor",
-            {
-                "request_id": request_id,
-                "skill_id": skill_id,
-                "actor": actor,
-                "content_hash": content_hash,
-                "chain_id": "mock-chain",
-            },
-        )
-    )
 
 
 # ───────────────────────────────────────────────────────────────────────────
