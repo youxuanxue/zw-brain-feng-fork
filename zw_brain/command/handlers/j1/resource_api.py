@@ -187,7 +187,8 @@ def _query_resource_assets(brain, deps, ctx, *, resource_code: Any = None) -> di
         resources = [resource_api_ser.resource_asset_to_dict(item) for item in deps.repos.resource_api.list_assets(tenant_id=_DEFAULT_TENANT_ID)]
         if resource_code:
             resources = [item for item in resources if item["resource_code"] == str(resource_code)]
-        resources = [deps.services.provider.enrich_resource_asset(item, store) for item in resources]
+        # N+1 消除：批量富化（一次性预取 per-resource 表）替代 per-asset 各 ~9 查询。
+        resources = deps.services.provider.enrich_resource_assets(resources, store)
     return {"items": resources, "total": len(resources)}
 
 def _manage_resource_asset(

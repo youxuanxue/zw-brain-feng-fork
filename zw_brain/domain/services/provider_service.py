@@ -211,42 +211,122 @@ class ProviderService:
             "external_execution": safe_json(payload.get("external_execution") or {}),
         } | ({"role": payload["role"]} if "role" in payload else {})
 
-    def enrich_resource_asset(self, item: dict[str, Any], store: Any) -> dict[str, Any]:
-        """Enrich a provider resource asset with bindings/mappings/snapshots/quality."""
+    def enrich_resource_assets(self, items: list[dict[str, Any]], store: Any) -> list[dict[str, Any]]:
+        """Batch-enrich a page of provider resource assets (N+1 elimination).
+
+        `resource.api.query` (no resource_code) previously enriched every asset
+        via `enrich_resource_asset`, each issuing ~9 per-resource filtered
+        queries → N×9 sessions. This driver prefetches every per-resource table
+        once (grouped by resource_code) + one `_RequestBatchContext` for
+        `_mapping_diagnostics`, then enriches each asset from O(1) dicts. Same
+        prefetch shape as request/topic_package list paths.
+        """
+        if store is None or not items:
+            return [self.enrich_resource_asset(item, store) for item in items]
+
+        prefetch = self._build_asset_enrich_prefetch(store)
+        return [self.enrich_resource_asset(item, store, prefetch=prefetch) for item in items]
+
+    def _build_asset_enrich_prefetch(self, store: Any) -> dict[str, Any]:
+        """One-pass prefetch of every per-resource table enrich_resource_asset reads."""
+        bindings_by_resource: dict[str, list[Any]] = {}
+        for record in store.resource_api_repo.list_bindings(tenant_id=_DEFAULT_TENANT_ID):
+            bindings_by_resource.setdefault(record.resource_code, []).append(record)
+        mappings_by_resource: dict[str, list[Any]] = {}
+        for record in store.metadata_evidence_repo.list_schema_mappings(tenant_id=_DEFAULT_TENANT_ID):
+            mappings_by_resource.setdefault(record.resource_code, []).append(record)
+        snapshots_by_resource: dict[str, list[Any]] = {}
+        for record in store.metadata_evidence_repo.list_schema_snapshots(tenant_id=_DEFAULT_TENANT_ID):
+            snapshots_by_resource.setdefault(record.resource_code, []).append(record)
+        gather_by_resource: dict[str, list[Any]] = {}
+        for record in store.metadata_evidence_repo.list_gather_evidence(tenant_id=_DEFAULT_TENANT_ID):
+            gather_by_resource.setdefault(record.resource_code, []).append(record)
+        lineage_by_resource: dict[str, list[Any]] = {}
+        for record in store.metadata_evidence_repo.list_lineage_relations(tenant_id=_DEFAULT_TENANT_ID):
+            lineage_by_resource.setdefault(record.resource_code, []).append(record)
+        quality_by_ref: dict[str, list[Any]] = {}
+        for record in store.metadata_evidence_repo.list_quality_evidence(target_type="resource_asset", tenant_id=_DEFAULT_TENANT_ID):
+            quality_by_ref.setdefault(record.target_ref, []).append(record)
+        attempts_by_delivery: dict[str, list[Any]] = {}
+        for record in store.delivery_repo.list_attempts(tenant_id=_DEFAULT_TENANT_ID):
+            attempts_by_delivery.setdefault(record.delivery_code, []).append(record)
+        evidence_by_delivery: dict[str, list[Any]] = {}
+        for record in store.delivery_repo.list_execution_evidence(tenant_id=_DEFAULT_TENANT_ID):
+            evidence_by_delivery.setdefault(record.delivery_code, []).append(record)
+        legacy_by_ref: dict[str, list[Any]] = {}
+        for record in store.legacy_mapping_repo.list_mappings(tenant_id=_DEFAULT_TENANT_ID):
+            legacy_by_ref.setdefault(record.canonical_ref, []).append(record)
+        return {
+            "bindings_by_resource": bindings_by_resource,
+            "mappings_by_resource": mappings_by_resource,
+            "snapshots_by_resource": snapshots_by_resource,
+            "gather_by_resource": gather_by_resource,
+            "lineage_by_resource": lineage_by_resource,
+            "quality_by_ref": quality_by_ref,
+            "attempts_by_delivery": attempts_by_delivery,
+            "evidence_by_delivery": evidence_by_delivery,
+            "legacy_by_ref": legacy_by_ref,
+            "batch_context": self.brain._get_handler_deps().services.request.build_batch_context(store, []),
+        }
+
+    def enrich_resource_asset(
+        self, item: dict[str, Any], store: Any, *, prefetch: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Enrich a provider resource asset with bindings/mappings/snapshots/quality.
+
+        ``prefetch`` supplied (page-level, via ``enrich_resource_assets``): all
+        per-resource reads resolve from O(1) dicts. ``None``: original per-call
+        query path (single-resource detail).
+        """
         resource_code = str(item["resource_code"])
-        bindings = [
-            resource_api_ser.binding_to_dict(record)
-            for record in store.resource_api_repo.list_bindings(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID)
-        ]
-        mappings = store.metadata_evidence_repo.list_schema_mappings(
-            resource_code=resource_code,
-            include_inactive=True,
-            tenant_id=_DEFAULT_TENANT_ID,
-        )
-        schema_snapshots = [
-            metadata_ser.schema_snapshot_to_dict(record)
-            for record in store.metadata_evidence_repo.list_schema_snapshots(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID)
-        ]
-        gather_evidence = [
-            metadata_ser.gather_evidence_to_dict(record)
-            for record in store.metadata_evidence_repo.list_gather_evidence(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID)
-        ]
-        lineage = [
-            metadata_ser.lineage_to_dict(record)
-            for record in store.metadata_evidence_repo.list_lineage_relations(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID)
-        ]
-        quality = [
-            quality_ser.quality_to_dict(record)
-            for record in store.metadata_evidence_repo.list_quality_evidence(target_type="resource_asset", target_ref=resource_code, tenant_id=_DEFAULT_TENANT_ID)
-        ]
-        attempts = [
-            delivery_ser.delivery_attempt_to_dict(record)
-            for record in store.delivery_repo.list_attempts(delivery_code=f"provider-external:{resource_code}", tenant_id=_DEFAULT_TENANT_ID)
-        ]
-        execution_evidence = [
-            delivery_ser.delivery_evidence_to_dict(record)
-            for record in store.delivery_repo.list_execution_evidence(delivery_code=f"provider-external:{resource_code}", tenant_id=_DEFAULT_TENANT_ID)
-        ]
+        delivery_code = f"provider-external:{resource_code}"
+        if prefetch is not None:
+            bindings = [resource_api_ser.binding_to_dict(record) for record in prefetch["bindings_by_resource"].get(resource_code, [])]
+            mappings = prefetch["mappings_by_resource"].get(resource_code, [])
+            schema_snapshots = [metadata_ser.schema_snapshot_to_dict(record) for record in prefetch["snapshots_by_resource"].get(resource_code, [])]
+            gather_evidence = [metadata_ser.gather_evidence_to_dict(record) for record in prefetch["gather_by_resource"].get(resource_code, [])]
+            lineage = [metadata_ser.lineage_to_dict(record) for record in prefetch["lineage_by_resource"].get(resource_code, [])]
+            quality = [quality_ser.quality_to_dict(record) for record in prefetch["quality_by_ref"].get(resource_code, [])]
+            attempts = [delivery_ser.delivery_attempt_to_dict(record) for record in prefetch["attempts_by_delivery"].get(delivery_code, [])]
+            execution_evidence = [delivery_ser.delivery_evidence_to_dict(record) for record in prefetch["evidence_by_delivery"].get(delivery_code, [])]
+            legacy_records = prefetch["legacy_by_ref"].get(resource_code, [])
+            diagnostics = self.brain._mapping_diagnostics(mappings, store=store, context=prefetch["batch_context"])
+        else:
+            bindings = [
+                resource_api_ser.binding_to_dict(record)
+                for record in store.resource_api_repo.list_bindings(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID)
+            ]
+            mappings = store.metadata_evidence_repo.list_schema_mappings(
+                resource_code=resource_code,
+                include_inactive=True,
+                tenant_id=_DEFAULT_TENANT_ID,
+            )
+            schema_snapshots = [
+                metadata_ser.schema_snapshot_to_dict(record)
+                for record in store.metadata_evidence_repo.list_schema_snapshots(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID)
+            ]
+            gather_evidence = [
+                metadata_ser.gather_evidence_to_dict(record)
+                for record in store.metadata_evidence_repo.list_gather_evidence(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID)
+            ]
+            lineage = [
+                metadata_ser.lineage_to_dict(record)
+                for record in store.metadata_evidence_repo.list_lineage_relations(resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID)
+            ]
+            quality = [
+                quality_ser.quality_to_dict(record)
+                for record in store.metadata_evidence_repo.list_quality_evidence(target_type="resource_asset", target_ref=resource_code, tenant_id=_DEFAULT_TENANT_ID)
+            ]
+            attempts = [
+                delivery_ser.delivery_attempt_to_dict(record)
+                for record in store.delivery_repo.list_attempts(delivery_code=delivery_code, tenant_id=_DEFAULT_TENANT_ID)
+            ]
+            execution_evidence = [
+                delivery_ser.delivery_evidence_to_dict(record)
+                for record in store.delivery_repo.list_execution_evidence(delivery_code=delivery_code, tenant_id=_DEFAULT_TENANT_ID)
+            ]
+            legacy_records = store.legacy_mapping_repo.list_mappings(tenant_id=_DEFAULT_TENANT_ID, canonical_ref=resource_code)
+            diagnostics = self.brain._mapping_diagnostics(mappings, store=store)
         legacy_mappings = [
             {
                 "legacy_system": record.legacy_system,
@@ -257,9 +337,8 @@ class ProviderService:
                 "mapping_status": record.mapping_status,
                 "source_ref": record.source_ref,
             }
-            for record in store.legacy_mapping_repo.list_mappings(tenant_id=_DEFAULT_TENANT_ID, canonical_ref=resource_code)
+            for record in legacy_records
         ]
-        diagnostics = self.brain._mapping_diagnostics(mappings, store=store)
         return item | {
             "channel_bindings": bindings,
             "schema_snapshots": schema_snapshots,

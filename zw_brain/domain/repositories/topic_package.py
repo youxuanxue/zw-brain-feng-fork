@@ -226,6 +226,58 @@ class TopicPackageRepository:
         with SessionLocal() as session:
             return list(session.execute(select(TopicPackageItemRecord).where(TopicPackageItemRecord.tenant_id == tenant_id, TopicPackageItemRecord.package_code == package_code).order_by(TopicPackageItemRecord.display_order)).scalars())
 
+    def list_all_items(self, *, tenant_id: str = "sd-default") -> list[TopicPackageItemRecord]:
+        """All topic-package items for the tenant in one query (batch prefetch).
+
+        Lets list-projection callers group items by package_code once instead of
+        issuing one `list_items` per package (the topic.package.query N+1). Mirrors
+        the request/delivery `build_batch_context` prefetch pattern (D-9).
+        """
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            return list(
+                session.execute(
+                    select(TopicPackageItemRecord)
+                    .where(TopicPackageItemRecord.tenant_id == tenant_id)
+                    .order_by(TopicPackageItemRecord.package_code, TopicPackageItemRecord.display_order)
+                ).scalars()
+            )
+
+    def list_packages_referencing(
+        self, ref_type: str, ref_id: str, *, tenant_id: str = "sd-default"
+    ) -> list[str]:
+        """package_codes whose items reference (ref_type, ref_id).
+
+        Uses the existing `ref_type` / `ref_id` indexes (models.py:837-838) to
+        answer catalog→package reverse lookup with a single indexed SELECT,
+        replacing the brute-force "scan every package's items" walk in
+        CatalogService.topic_projection_cards (P3).
+        """
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            rows = session.execute(
+                select(TopicPackageItemRecord.package_code)
+                .where(
+                    TopicPackageItemRecord.tenant_id == tenant_id,
+                    TopicPackageItemRecord.ref_type == ref_type,
+                    TopicPackageItemRecord.ref_id == ref_id,
+                )
+                .distinct()
+            ).scalars()
+            return list(rows)
+
+    def list_all_visibility(self, *, tenant_id: str = "sd-default") -> list[TopicPackageVisibilityRecord]:
+        """All visibility rows for the tenant in one query (batch prefetch)."""
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            return list(
+                session.execute(
+                    select(TopicPackageVisibilityRecord)
+                    .where(TopicPackageVisibilityRecord.tenant_id == tenant_id)
+                    .order_by(TopicPackageVisibilityRecord.package_code, TopicPackageVisibilityRecord.visibility_code)
+                ).scalars()
+            )
+
     def list_visibility(self, package_code: str, *, tenant_id: str = "sd-default") -> list[TopicPackageVisibilityRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
@@ -245,6 +297,23 @@ class TopicPackageRepository:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(session.execute(select(TopicPackageMetricProjectionRecord).where(TopicPackageMetricProjectionRecord.tenant_id == tenant_id, TopicPackageMetricProjectionRecord.package_code == package_code).order_by(TopicPackageMetricProjectionRecord.metric_key)).scalars())
+
+    def list_all_metrics(self, *, tenant_id: str = "sd-default") -> list[TopicPackageMetricProjectionRecord]:
+        """All metric projections for the tenant in one query (batch prefetch).
+
+        Lets `topic.package.metric.query` over all packages group metrics by
+        package_code once instead of `list_metrics` per package (P4, bounded but
+        same N+1 shape).
+        """
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            return list(
+                session.execute(
+                    select(TopicPackageMetricProjectionRecord)
+                    .where(TopicPackageMetricProjectionRecord.tenant_id == tenant_id)
+                    .order_by(TopicPackageMetricProjectionRecord.package_code, TopicPackageMetricProjectionRecord.metric_key)
+                ).scalars()
+            )
 
     def import_legacy_sharezone(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> TopicPackageRecord:
         status_map = {"0": "draft", "1": "configuring", "2": "configured", "3": "submitted", "4": "published", "6": "rejected", "-1": "offline"}

@@ -47,20 +47,130 @@ class CatalogService:
         if record.lifecycle_status != "active":
             return False
         projections = self.topic_projection_cards(record.catalog_code, store)
+        return self._discoverable_from_cards(record, projections)
+
+    def is_discoverable_with_cards(self, record: Any, projections: list[dict[str, Any]]) -> bool:
+        """Card-aware discoverability — reuses already-computed projection cards.
+
+        Same predicate as `is_discoverable` but takes the projection cards the
+        caller already batch-computed (P1 fix), so it never re-queries the topic
+        packages. Keeps the projection computation single-sourced.
+        """
+        return self._discoverable_from_cards(record, projections)
+
+    @staticmethod
+    def _discoverable_from_cards(record: Any, projections: list[dict[str, Any]]) -> bool:
+        if record.lifecycle_status != "active":
+            return False
         return any(projection.get("projectionStatus") == "projected" for projection in projections) or not projections
 
     def topic_projection_cards(self, catalog_code: str, store: Any) -> list[dict[str, Any]]:
-        """List of topic projection cards referencing this catalog code."""
-        cards: list[dict[str, Any]] = []
+        """List of topic projection cards referencing this catalog code.
+
+        Uses the catalog→package reverse index (`list_packages_referencing`,
+        indexed on `ref_type`/`ref_id`) so only packages that actually reference
+        this catalog are loaded, instead of walking every package's items
+        (P1/P3 N+1 engine). For the matched packages, item/visibility prefetch
+        + projection_summary reuse the topic_package list batch context, so a
+        catalog referenced by K packages costs ~3 + K queries, not 116×items.
+        """
         topic_repo = self.brain._topic_package_repo()
-        for package in topic_repo.list_packages(tenant_id=_DEFAULT_TENANT_ID):
-            items = [topic_package_ser.topic_item_to_dict(record) for record in topic_repo.list_items(package.package_code, tenant_id=_DEFAULT_TENANT_ID)]
-            if not any(item.get("ref_type") == "catalog_entry" and item.get("ref_id") == catalog_code for item in items):
-                continue
-            visibility = [topic_package_ser.topic_visibility_to_dict(record) for record in topic_repo.list_visibility(package.package_code, tenant_id=_DEFAULT_TENANT_ID)]
-            summary = self.brain._get_handler_deps().services.topic_package.projection_summary(package, items, visibility)
-            cards.append({"package_code": package.package_code, "title": package.title, "projectionStatus": summary["projectionStatus"], "visibleOrgCount": summary["visibleOrgCount"], "projectionFailureReasons": summary["projectionFailureReasons"]})
+        referencing_codes = set(
+            topic_repo.list_packages_referencing("catalog_entry", catalog_code, tenant_id=_DEFAULT_TENANT_ID)
+        )
+        if not referencing_codes:
+            return []
+        packages = [
+            package
+            for package in topic_repo.list_packages(tenant_id=_DEFAULT_TENANT_ID)
+            if package.package_code in referencing_codes
+        ]
+        if not packages:
+            return []
+        topic_service = self.brain._get_handler_deps().services.topic_package
+        context = topic_service.build_list_batch_context(store)
+        cards: list[dict[str, Any]] = []
+        for package in packages:
+            items = [
+                topic_package_ser.topic_item_to_dict(record)
+                for record in context.items_by_package.get(package.package_code, [])
+            ]
+            visibility = [
+                topic_package_ser.topic_visibility_to_dict(record)
+                for record in context.visibility_by_package.get(package.package_code, [])
+            ]
+            summary = topic_service.projection_summary(package, items, visibility, context=context)
+            cards.append(
+                {
+                    "package_code": package.package_code,
+                    "title": package.title,
+                    "projectionStatus": summary["projectionStatus"],
+                    "visibleOrgCount": summary["visibleOrgCount"],
+                    "projectionFailureReasons": summary["projectionFailureReasons"],
+                }
+            )
         return cards
+
+    def topic_projection_cards_by_catalog(
+        self, catalog_codes: list[str], store: Any
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Batch variant of `topic_projection_cards` for a set of catalog codes.
+
+        Builds the catalog→package reverse map + topic_package list batch context
+        ONCE for the whole page, then projects each referenced package once. This
+        is the P1 fix: `data.search` over K hits previously called
+        `topic_projection_cards` K× (each walking all 116 packages → K×116×items
+        sessions). Here the whole search costs a fixed handful of queries +
+        per-referenced-package projection, regardless of K.
+
+        Returns ``{catalog_code: [cards]}``; absent codes map to ``[]``.
+        """
+        result: dict[str, list[dict[str, Any]]] = {code: [] for code in catalog_codes}
+        if store is None or not catalog_codes:
+            return result
+        topic_repo = self.brain._topic_package_repo()
+        topic_service = self.brain._get_handler_deps().services.topic_package
+        # 1 indexed query gets every (package, catalog) reference for the page.
+        wanted = set(catalog_codes)
+        catalog_to_packages: dict[str, set[str]] = {code: set() for code in catalog_codes}
+        all_items = topic_repo.list_all_items(tenant_id=_DEFAULT_TENANT_ID)
+        referenced_package_codes: set[str] = set()
+        for record in all_items:
+            if record.ref_type == "catalog_entry" and record.ref_id in wanted:
+                catalog_to_packages[record.ref_id].add(record.package_code)
+                referenced_package_codes.add(record.package_code)
+        if not referenced_package_codes:
+            return result
+        packages = [
+            package
+            for package in topic_repo.list_packages(tenant_id=_DEFAULT_TENANT_ID)
+            if package.package_code in referenced_package_codes
+        ]
+        context = topic_service.build_list_batch_context(store)
+        # Project each referenced package exactly once, then fan out to codes.
+        card_by_package: dict[str, dict[str, Any]] = {}
+        for package in packages:
+            items = [
+                topic_package_ser.topic_item_to_dict(rec)
+                for rec in context.items_by_package.get(package.package_code, [])
+            ]
+            visibility = [
+                topic_package_ser.topic_visibility_to_dict(rec)
+                for rec in context.visibility_by_package.get(package.package_code, [])
+            ]
+            summary = topic_service.projection_summary(package, items, visibility, context=context)
+            card_by_package[package.package_code] = {
+                "package_code": package.package_code,
+                "title": package.title,
+                "projectionStatus": summary["projectionStatus"],
+                "visibleOrgCount": summary["visibleOrgCount"],
+                "projectionFailureReasons": summary["projectionFailureReasons"],
+            }
+        # sorted() so topicProjections card order is deterministic across processes
+        # (package_codes is a set; set iteration of strings is hash-seed dependent).
+        for code, package_codes in catalog_to_packages.items():
+            result[code] = [card_by_package[pc] for pc in sorted(package_codes) if pc in card_by_package]
+        return result
 
     # --- Card / detail projection ---
 

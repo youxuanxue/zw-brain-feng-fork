@@ -80,3 +80,34 @@ class _RequestBatchContext:
     schema_snapshots_by_resource: dict[str, list[Any]] = field(default_factory=dict)
     catalog_items_by_catalog: dict[str, list[Any]] = field(default_factory=dict)
     catalog_items_by_item_code: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class _TopicPackageBatchContext:
+    """Prefetched indices for topic.package.query list-projection N+1 elimination.
+
+    Why: ``list_projection`` → ``projection_summary`` → ``catalog_projection_items``
+    + ``authorization_summary`` previously re-scanned the *whole*
+    resource_asset + delivery_task tables, plus issued per-catalog-item
+    list_items / list_schema_mappings / list_schema_snapshots / get_entry, *once
+    per package* (~1.4 s / 1252 sessions for ~90 packages). This context bundles
+    one-pass prefetched indices that the projection helpers consult instead of
+    re-fetching — the same shape of fix already applied to list_requests /
+    list_delivery_tasks (D-9, request_service.build_batch_context).
+
+    Built once by ``TopicPackageService.build_list_batch_context`` and threaded
+    through ``list_projection`` for the whole page; ``None`` means "no context,
+    fall back to per-call queries" (single-package detail path keeps its old
+    behaviour, which is already cheap).
+    """
+
+    # topic-package side
+    items_by_package: dict[str, list[Any]] = field(default_factory=dict)
+    visibility_by_package: dict[str, list[Any]] = field(default_factory=dict)
+    # catalog / resource side (shared across all packages on the page)
+    assets_by_catalog: dict[str, list[Any]] = field(default_factory=dict)
+    deliveries: list[Any] = field(default_factory=list)
+    catalog_entry_status_by_code: dict[str, str | None] = field(default_factory=dict)
+    catalog_item_count_by_catalog: dict[str, int] = field(default_factory=dict)
+    schema_mapping_count_by_catalog: dict[str, int] = field(default_factory=dict)
+    schema_snapshot_count_by_resource: dict[str, int] = field(default_factory=dict)
