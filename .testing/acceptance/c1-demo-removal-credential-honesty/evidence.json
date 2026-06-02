@@ -1,0 +1,21 @@
+{
+  "scope": "c1-demo-removal-credential-honesty",
+  "deliverable": "C-1 删演示单（seed 清空捏造演示记录 + sync_demo_state_views cascade 退役 + 段36 零 allow-list）+ 凭据诚实化（legacy granted 停 derive_demo_credential 捏造，真实授权表无 per-grant 凭据 → 诚实 not_issued；段66 重定向；新建在产单 approve 自动签发保留）",
+  "git_sha": "ece093b98e47dfffbfe9d9b88db0f87f2bc11b93",
+  "captured_at": "2026-06-02T11:52:37Z",
+  "captured_by": "薛娇（产品研发负责人）",
+  "checks": [
+    {
+      "name": "5 消费面投影一致",
+      "kind": "contract",
+      "result": "pass",
+      "detail": "[contract] OK: docs/agent_integration.md in sync with discovered entries (REST=197 CLI=1 MCP=63 A2A=1 Skills=188)"
+    },
+    {
+      "name": "后端 / 契约测试套",
+      "kind": "pytest",
+      "result": "pass",
+      "detail": "exit 0（本仓 summary 抑制,以退出码为准）"
+    }
+  ]
+}

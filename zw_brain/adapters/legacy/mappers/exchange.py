@@ -693,17 +693,18 @@ class ExchangeMapper:
                 "create_time": coerce_time(row.get("create_time")),
             })
             if delivery_state == "granted":
-                # Invariant: a granted access in zw-brain always carries an issued
-                # credential. Legacy app_key is scrubbed at the boundary (PII,
-                # APPLY_DROP_FIELDS), so we materialize the deterministic demo
-                # credential here — the SAME factory the approval flow uses
-                # (single source: derive_demo_credential). Keyed on apply_id for
-                # stability. Enforced by scripts/check_credential_grant_invariant.py.
-                from zw_brain.domain.services.request_service import (  # noqa: PLC0415
-                    derive_demo_credential,
+                # C-1 凭据诚实化：真实授权表 data_apply_authrization **无 per-grant 凭据列**，
+                # 真凭据在网关域 dsp_service.api_service_app.SECRET、且与 apply_id 无绑定供数
+                # （见 docs/preflight-debt.md）。旧实现在此 derive_demo_credential 捏造 AK-DEMO
+                # 糊住「granted⟹凭据」——已停止。改为**诚实标记未签发**：credential.query 自然
+                # 返回 not_issued（handler 已就绪），P4 显「未签发/需重新签发」而非假凭据。
+                # 段 66 守卫此处显式处理凭据态（不静默、不回潮捏造）。
+                grant_snapshot["credential"] = None
+                grant_snapshot["credential_status"] = "not_issued"
+                grant_snapshot["credential_status_reason"] = (
+                    "历史授权未携带凭据（旧授权表无凭据列，真凭据在网关域、待 apply_id↔service↔app "
+                    "绑定供数）；如需可重新签发。"
                 )
-
-                grant_snapshot["credential"] = derive_demo_credential(apply_id)
             payload = {"access_grant": grant_snapshot, "kind": "apply_grant"}
             channel = row.get("res_type") or "exchange"
             if task is None:

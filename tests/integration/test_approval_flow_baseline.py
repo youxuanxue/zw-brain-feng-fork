@@ -221,13 +221,26 @@ def _new_brain_and_seed():
     brain = BrainService(state_store=ss)
     # 清空 seed snapshot 中的 pending requests，避免与新建申请冲突
     brain._snapshot["requests"] = []
+    # C-1 删演示单后 seed 无演示资源；本测试关注审批基线（shared_type→条件/无条件），
+    # 资源只是载体——注入一个**自包含**的合成可解析资源（不依赖已删的 res-jbxx-ledger）。
+    brain._snapshot.setdefault("discovery", {})["resources"] = [
+        {
+            "id": _TEST_RESOURCE_ID,
+            "name": "审批基线测试资源",
+            "coverage": "—",
+            "repository": {"catalogCode": _TEST_RESOURCE_ID},
+        }
+    ]
     return brain, audit_bus
 
 
+_TEST_RESOURCE_ID = "res-test-approval-baseline"
+
+
 def _next_resource_id() -> str:
-    # res-jbxx-ledger 是 seed_snapshot.discovery.resources 内可解析的资源；
-    # 用 _new_brain_and_seed 先清 snapshot.requests 避免 "active request already exists" 冲突
-    return "res-jbxx-ledger"
+    # 自包含合成资源（由 _new_brain_and_seed 注入 discovery.resources），
+    # 不依赖 seed 演示资源；先清 snapshot.requests 避免 "active request already exists" 冲突。
+    return _TEST_RESOURCE_ID
 
 
 def _submit_and_get_case(brain, shared_type, resource_id: str | None = None):

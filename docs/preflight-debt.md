@@ -41,10 +41,13 @@ trigger 关闭即可删除字段。
     audit/alerts。**注意**：`demo_state_sync.py` 非纯演示件——`upsert_todo/set_todo_status/resource_by_id/
     zone_by_id` 是工作台/合规承重助手，只有其中**硬编码 REQ-* 的 cascade**（`sync_demo_state_views`）可退役；
     不可整文件删。段 36 `check_no_demo_id_literals` 待删演示单后收紧（届时全仓零 demo id 字面）。
-  - **凭据诚实化**：移除 legacy 导入 granted 分支的 `derive_demo_credential` 捏造（真实授权表
-    `data_apply_authrization` **无 per-grant 凭据**，真凭据在 `dsp_service.api_service_app.SECRET` 网关域、
-    与 apply_id 无绑定供数）；P4 对 granted-无真凭据显「未签发」；段 66 放宽为「granted ⟹ 真凭据 OR
-    诚实未签发」。**业务待确认**：J1 凭据取网关 SECRET 口径 + `apply_id↔service↔app` 绑定供数（上游缺供）。
+  - **凭据诚实化（✅ 跟进 PR 块A 已落）**：legacy 导入 granted 分支移除 `derive_demo_credential`
+    捏造，改写 `credential=None` + `credential_status="not_issued"`（真实授权表
+    `data_apply_authrization` **无 per-grant 凭据**，真凭据在 `dsp_service.api_service_app.SECRET`
+    网关域、与 apply_id 无绑定供数）；`credential.query`/P4 已就绪诚实显「未签发」；段 66 重定向为
+    「granted 分支显式处理凭据态(credential+credential_status) + 禁回潮捏造」。守卫测试
+    `tests/test_credential_honesty_legacy_granted.py`。**仍待业务确认**：J1 凭据取网关 SECRET 口径 +
+    `apply_id↔service↔app` 绑定供数（上游缺供）= 真凭据接入另一轨。
   - **历史单动作（混合裁决）**：P3/P4 动作入口按「DB 能否解析出完整运行时实体」门控（`legacy_id` 已就绪
     可判），历史导入单标「仅存档」、隐藏撤回/暂停/凭据动作（无权/不适用=不可见）。承接
     `j1-legacy-record-actionability`（2026-06-01）裁决落地。

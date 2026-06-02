@@ -274,19 +274,24 @@ def test_runtime_delivery_issue_contract():
     对一个已审批待交付的 demo delivery_task 走 BrainService.grant_delivery_access
     （delivery.access.grant skill 入口）forward grant，断言 delivery_task 行落库为
     已签发终态。证明新系统 forward flow 完整，与 D-5 legacy 历史缺口正交。
-    注：forward 入口寻址 in-memory snapshot（DLV- demo 行可写，legacy hash-id 行只读）；
-    grant 终态为 state='completed' + receiptStatus='granted'。
+    注：forward 入口寻址 in-memory snapshot（可写交付行；legacy hash-id 行只读）。
+    C-1 删演示单后无 DLV- 演示交付，本测试**自注入**一个可写合成交付作 forward 契约入口
+    （证明新系统 forward grant 完整，与历史导入只读正交）；grant 终态 state='completed'。
     """
     from zw_brain.command.runtime import get_service, reset_service
     reset_service()
     svc = get_service()
-    grantable = [
-        t for t in svc.list_delivery_tasks()
-        if str(t.get("id", "")).startswith("DLV-")
-        and t.get("status") in ("pending", "warning", "reconciling", "supplementing")
-    ]
-    assert grantable, "应至少 1 个待交付 demo delivery_task 作为 forward 契约入口"
-    task = grantable[0]
+    # 自包含 forward 入口：注入一个可写合成交付（非 demo seed、非 legacy hash-id 只读行）。
+    task = {
+        "id": "DLV-TEST-FWD-1",
+        "requestId": "REQ-TEST-FWD-1",
+        "status": "pending",
+        "name": "forward 契约测试交付",
+        "channel": "exchange",
+        "history": [],
+        "aiSummary": {},
+    }
+    svc._snapshot["delivery_tasks"].append(task)
     svc.grant_delivery_access(task["id"], "ROLE_ORGAN_MANAGER", True)
     conn = sqlite3.connect(SHADOW_DB)
     try:

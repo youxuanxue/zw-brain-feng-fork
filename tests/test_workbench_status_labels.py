@@ -26,6 +26,13 @@ def test_request_status_text_maps_delivery_states() -> None:
 
 def test_workbench_todos_never_expose_raw_request_slugs() -> None:
     brain = _brain()
+    # C-1 删演示单后 seed 无演示申请；本测试关注 todo status 必须中文化（非 slug 泄漏），
+    # 自注入合成申请（非 demo-id）使 _sync_request_todos 产出 todos 再校验本意。
+    brain._snapshot["requests"] = [
+        {"id": "REQ-TEST-WB-1", "status": "approved", "resourceName": "测试资源甲"},
+        {"id": "REQ-TEST-WB-2", "status": "pending", "resourceName": "测试资源乙"},
+        {"id": "REQ-TEST-WB-3", "status": "in_delivery", "resourceName": "测试资源丙"},
+    ]
     brain._sync_request_todos()
     wb = brain._snapshot["workbench"]["ROLE_ORGAN_OPERATER"]
     statuses = [str(t["status"]) for t in wb["todos"]]

@@ -5,7 +5,11 @@
 # 任一步 capability 非 0 退出 → exit 1（去假绿）。
 # 链路：catalog.browse → request.create → approval.case.decide → credential.query → delivery.list
 #
-# 幂等：seed/CI 若 res-jbxx-ledger 已有在途或已批准申请，复用既有 request_id 继续后续步。
+# 资源动态发现（C-1 删演示单后）：不再硬编码演示资源 res-jbxx-ledger，改从 data.search
+# 取一条真实可用资源（resolve_resource_for_application 经 resource_asset DB 解析），
+# 一切围绕真实导入。无真实资源（空库）→ 优雅跳过（exit 0 + SKIP 标记，非假绿）。
+#
+# 幂等：seed/CI 若该资源已有在途或已批准申请，复用既有 request_id 继续后续步。
 
 set -u
 
@@ -58,13 +62,32 @@ extract_req_from_text() {
     python3 -c 'import re,sys; m=re.search(r"REQ-[A-Z0-9-]+", sys.stdin.read()); print(m.group(0) if m else "")'
 }
 
+extract_first_resource_id() {
+    python3 -c 'import json,sys
+try: d=json.load(sys.stdin)
+except Exception: print(""); sys.exit()
+r=d.get("result") or d
+items=r.get("results") or r.get("items") or []
+print(items[0].get("id","") if items and isinstance(items[0],dict) else "")'
+}
+
 # ---- STEP 1 ----
 OUT=$(invoke_skill catalog.browse '{"limit":3,"lifecycle":"active","kind":"real"}')
 RC=$?
 report_step 1 "检索" catalog.browse "$RC" "$OUT" || true
 
+# ---- 资源发现（动态，去演示硬编码）----
+OUT=$(invoke_skill data.search '{"query":"","limit":1}')
+RESOURCE_ID=$(printf '%s' "$OUT" | extract_first_resource_id)
+if [ -z "$RESOURCE_ID" ]; then
+    echo "[demo] SKIP: 无真实可用资源（data.search 空）——空库/未导入真实 dump；headless J1 demo 跳过。"
+    echo "=== demo 跳过（无真实数据，非失败）==="
+    exit 0
+fi
+echo "[demo] 选用真实资源 resource_id=${RESOURCE_ID} (动态发现，非演示硬编码)"
+
 # ---- STEP 2 ----
-OUT=$(invoke_skill request.create '{"resource_id":"res-jbxx-ledger","purpose":"J1 headless demo","confirmed":true}')
+OUT=$(invoke_skill request.create "{\"resource_id\":\"$RESOURCE_ID\",\"purpose\":\"J1 headless demo\",\"confirmed\":true}")
 RC=$?
 REQ_ID=""
 if [ "$RC" -eq 0 ]; then

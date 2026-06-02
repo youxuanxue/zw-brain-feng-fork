@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """check_no_demo_id_literals.py — preflight 段 36
 
-Demo-seed entity ids (REQ-/DLV-/PKG-YYYY-MM-DD-NNNN) must not be hardcoded in the
-orchestration core or handlers. They couple core logic to the sd-default demo
-seed and ran on every mutation (see Commit 2: demo cascades extracted to
-`zw_brain/command/demo_state_sync.py`). This guard keeps them from leaking back.
+Demo-seed entity ids (REQ-/DLV-/PKG-YYYY-MM-DD-NNNN) must not be hardcoded
+anywhere under the orchestration layer. They coupled core logic to the
+sd-default demo seed.
 
-Scope: every `*.py` under `zw_brain/command/` (orchestration core + handlers).
-Allow-list:
-  - `zw_brain/command/demo_state_sync.py` — the single sanctioned home.
-  - any line carrying a `# demo-id-ok:` marker (justify inline).
+C-1 删演示单 (2026-06-02): the demo 演示单 are gone from seed_snapshot.json and
+the `sync_demo_state_views` cascade in `demo_state_sync.py` is retired to a
+no-op, so there is no longer any sanctioned home for these literals. The
+allow-list is now **empty** (`ALLOWED_FILES = set()`) — zero demo-id literals
+under `zw_brain/command/`.
+
+Scope: every `*.py` under `zw_brain/command/`.
+Allow-list: none. (`# demo-id-ok:` line marker still honored for any deliberate
+future exception, but none exists.)
 
 退出码：0 = PASS；1 = 违规。
 """
@@ -24,7 +28,8 @@ COMMAND = REPO / "zw_brain" / "command"
 
 DEMO_ID = re.compile(r"\b(?:REQ|DLV|PKG)-\d{4}-\d{2}-\d{2}-\d+\b")
 LINE_EXEMPT = "# demo-id-ok:"
-ALLOWED_FILES = {COMMAND / "demo_state_sync.py"}
+# C-1 删演示单：零 allow-list（demo 演示单已删、cascade 已退役为 no-op）。
+ALLOWED_FILES: set[Path] = set()
 
 
 def _targets() -> list[Path]:
