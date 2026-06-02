@@ -28,6 +28,17 @@ class ApprovalRepository:
                 ).scalars()
             )
 
+    def get_case(self, application_code: str, *, tenant_id: str = "sd-default") -> ApprovalCaseRecord | None:
+        """Single approval case by application_code (C-1 read-path DB fallback)."""
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            return session.execute(
+                select(ApprovalCaseRecord).where(
+                    ApprovalCaseRecord.tenant_id == tenant_id,
+                    ApprovalCaseRecord.application_code == application_code,
+                )
+            ).scalar_one_or_none()
+
     def list_steps(self, application_code: str) -> list[ApprovalStepRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:

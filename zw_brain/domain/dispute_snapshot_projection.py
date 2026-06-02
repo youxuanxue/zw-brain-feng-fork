@@ -1,4 +1,4 @@
-"""Live disputes projection for WebUI snapshot — merge DB objection cases."""
+"""Live disputes projection for WebUI snapshot — DB objection cases are the single SoT."""
 
 from __future__ import annotations
 
@@ -29,27 +29,15 @@ def _case_to_dispute_item(record: Any) -> dict[str, Any]:
 
 
 def enrich_disputes_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None = None) -> dict[str, Any]:
-    """Merge live objection cases into snapshot disputes (deep copy)."""
+    """Project snapshot['disputes'] from the real objection_case table (DB single SoT).
+
+    **无条件替换**（C-1，去双轨）：空库 → 空列表（不再 append-merge 保留 seed 演示 DSP，
+    那会留幻影行）。disputes 与 requests/approvals/discovery 一致，全部以 DB 现算为准。
+    """
     out = copy.deepcopy(snapshot)
-    items: list[dict[str, Any]] = copy.deepcopy(out.get("disputes") or [])
-    by_id = {str(item.get("id")): item for item in items if item.get("id")}
-
     repo = ObjectionRepository()
-    for record in repo.list_cases(tenant_id=tenant_id or get_runtime_tenant_id()):
-        live = _case_to_dispute_item(record)
-        existing = by_id.get(record.id)
-        if existing is None:
-            items.append(live)
-            by_id[record.id] = live
-            continue
-        existing["status"] = live["status"]
-        existing["title"] = live["title"]
-        existing["topic"] = live["topic"]
-        existing["type"] = live["type"]
-        existing["targetType"] = live["targetType"]
-        existing["targetId"] = live["targetId"]
-        existing["owner"] = live["owner"]
-        existing["repository"] = live["repository"]
-
-    out["disputes"] = items
+    out["disputes"] = [
+        _case_to_dispute_item(record)
+        for record in repo.list_cases(tenant_id=tenant_id or get_runtime_tenant_id())
+    ]
     return out

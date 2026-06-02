@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""Preflight segment 49 — domain layer must not runtime-import command layer.
+"""Preflight segment 49 — lower layers must not runtime-import upper layers.
 
 Architecture baseline §架构约束 (CLAUDE.md root) requires the 4-layer order:
-``entry → command → domain → shared``. Reverse imports (domain → command) at
-runtime break this layer rule and entangle the domain layer with editorial /
-orchestration concerns that should be one direction up.
+``entry → command → domain → shared``. Reverse imports at runtime break this
+layer rule and entangle a lower layer with editorial / orchestration concerns
+that belong one direction up. This guard scans both ``zw_brain/domain/`` and
+``zw_brain/shared/`` and forbids runtime imports of ``zw_brain.command`` and
+``zw_brain.entry`` (TYPE_CHECKING-only imports are allowed).
+
+shared/ scan added 2026-06 after ``shared/agent_runtime/{service,capability_provider}.py``
+were caught eager-importing ``zw_brain.command``; the fix uses IoC
+(``register_brain_provider``) + a TYPE_CHECKING-only annotation, with **no whitelist**.
 
 Action D (#142) introduced ``zw_brain/domain/errors.py`` to retire
 ``from zw_brain.command.brain import NotFoundError`` reverse imports inside
@@ -40,6 +46,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DOMAIN_DIR = REPO_ROOT / "zw_brain" / "domain"
+SHARED_DIR = REPO_ROOT / "zw_brain" / "shared"
+SCAN_DIRS = (DOMAIN_DIR, SHARED_DIR)
+# Upper layers a lower layer must not runtime-import (entry → command → domain → shared).
+FORBIDDEN_PREFIXES = ("zw_brain.command", "zw_brain.entry")
 
 
 def _is_in_type_checking(node: ast.AST, type_checking_blocks: list[tuple[int, int]]) -> bool:
@@ -76,15 +86,18 @@ def _scan_file(path: Path) -> list[tuple[int, str]]:
     tc_blocks = _find_type_checking_blocks(tree)
     violations: list[tuple[int, str]] = []
 
+    def _forbidden(mod: str) -> bool:
+        return any(mod == p or mod.startswith(p + ".") for p in FORBIDDEN_PREFIXES)
+
     def visit(node: ast.AST) -> None:
         if isinstance(node, ast.ImportFrom):
             mod = node.module or ""
-            if mod.startswith("zw_brain.command") and not _is_in_type_checking(node, tc_blocks):
+            if _forbidden(mod) and not _is_in_type_checking(node, tc_blocks):
                 names = ", ".join(a.name for a in node.names)
                 violations.append((node.lineno, f"from {mod} import {names}"))
         elif isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name.startswith("zw_brain.command") and not _is_in_type_checking(node, tc_blocks):
+                if _forbidden(alias.name) and not _is_in_type_checking(node, tc_blocks):
                     violations.append((node.lineno, f"import {alias.name}"))
         for child in ast.iter_child_nodes(node):
             visit(child)
@@ -94,42 +107,41 @@ def _scan_file(path: Path) -> list[tuple[int, str]]:
 
 
 def main() -> int:
-    if not DOMAIN_DIR.exists():
-        print(f"[domain-no-command-import] SKIP: {DOMAIN_DIR} not present (fresh checkout)")
+    present = [d for d in SCAN_DIRS if d.exists()]
+    if not present:
+        print("[layer-no-reverse-import] SKIP: no zw_brain/{domain,shared}/ present (fresh checkout)")
         return 0
 
     all_violations: list[tuple[Path, int, str]] = []
-    for path in sorted(DOMAIN_DIR.rglob("*.py")):
-        if "__pycache__" in path.parts:
-            continue
-        for lineno, stmt in _scan_file(path):
-            all_violations.append((path.relative_to(REPO_ROOT), lineno, stmt))
+    for base_dir in present:
+        for path in sorted(base_dir.rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            for lineno, stmt in _scan_file(path):
+                all_violations.append((path.relative_to(REPO_ROOT), lineno, stmt))
 
     if not all_violations:
         print(
-            "[domain-no-command-import] OK: zw_brain/domain/ has no runtime "
-            "imports from zw_brain.command (TYPE_CHECKING-only imports allowed)."
+            "[layer-no-reverse-import] OK: zw_brain/domain/ + zw_brain/shared/ have no "
+            "runtime imports from zw_brain.command / zw_brain.entry (TYPE_CHECKING-only allowed)."
         )
         return 0
 
     print(
-        f"[domain-no-command-import] FAIL: {len(all_violations)} runtime "
-        f"domain → command import(s) found:"
+        f"[layer-no-reverse-import] FAIL: {len(all_violations)} runtime "
+        f"reverse-layer import(s) found (domain/shared → command/entry):"
     )
     for path, lineno, stmt in all_violations:
         print(f"  {path}:{lineno}: {stmt}")
     print()
     print(
-        "  hint: domain layer must not depend on command layer at runtime "
+        "  hint: domain/shared must not depend on command/entry at runtime "
         "(architecture baseline §架构约束: entry → command → domain → shared)."
     )
     print(
-        "  fix: either inline the called helper into the domain method, or "
-        "move the helper to zw_brain/domain/ (if it's pure domain logic),"
-    )
-    print(
-        "  or restructure the call so command calls domain (not the reverse). "
-        "TYPE_CHECKING-only imports are fine."
+        "  fix: inline the helper, move pure logic down a layer, or invert the "
+        "dependency (let the upper layer register a provider — see "
+        "shared/agent_runtime register_brain_provider). TYPE_CHECKING-only imports are fine."
     )
     return 1
 

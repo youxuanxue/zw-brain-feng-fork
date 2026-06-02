@@ -5,11 +5,15 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from zw_brain.command.brain import BrainService
 from zw_brain.shared.agent_runtime.config import agents_dir
 
 if TYPE_CHECKING:
     from agent_runtime.runtime.dynamic_capabilities import DynamicCapabilityContext
+
+    # TYPE_CHECKING-only: shared/ must not eager-import command/ at runtime
+    # (layer order entry→command→domain→shared; preflight 段 49). The provider
+    # only duck-types brain.invoke_skill(), so no runtime symbol is needed.
+    from zw_brain.command.brain import BrainService
 
 _LOGGER = logging.getLogger(__name__)
 _BUILTIN_ACTOR_ROLE = "ROLE_ORGAN_OPERATER"

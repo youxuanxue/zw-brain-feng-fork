@@ -9,6 +9,7 @@ from sqlalchemy import create_engine
 import zw_brain.shared.audit as audit_bus
 from zw_brain.command.brain import BrainService
 from zw_brain.domain.models import Base
+from zw_brain.shared.agent_runtime.service import register_brain_provider
 from zw_brain.shared.audit.store import StoredAuditEvent, get_default_store
 from zw_brain.shared.database_store import DatabaseStore
 from zw_brain.shared.db import get_database_url
@@ -86,3 +87,9 @@ def reset_service() -> None:
     with _service_lock:
         _service = None
         audit_bus.clear_sink()
+
+
+# IoC wiring: register the brain factory with the embedded agent runtime so that
+# shared/agent_runtime never imports command/ (layer order entry→command→domain→shared;
+# preflight 段 49). Any path that touches the command layer registers this provider.
+register_brain_provider(get_service)

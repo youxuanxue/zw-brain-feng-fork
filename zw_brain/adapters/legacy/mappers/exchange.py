@@ -401,11 +401,16 @@ class ExchangeMapper:
                     current_status=decision if step_status == "completed" else "pending_decision",
                     current_step=0,
                     decision_payload_json={"source": f"{legacy_system}:data_apply_course"},
+                    # Honest legacy lineage: back-ref the source course row; flow_schema_*
+                    # stay None — these pre-date the flow engine (no template governed them).
+                    legacy_id=f"{legacy_system}:data_apply_course:{course_id}",
                 )
                 session.add(case)
                 session.flush()
             else:
                 case.current_status = decision if step_status == "completed" else "pending_decision"
+                if case.legacy_id is None:
+                    case.legacy_id = f"{legacy_system}:data_apply_course:{course_id}"
 
             step_name = scrubbed.get("node_name") or course_id
             step = session.execute(
@@ -541,9 +546,12 @@ class ExchangeMapper:
                     current_status=decision if (decision and step_status == "completed") else "pending_decision",
                     current_step=0,
                     decision_payload_json={"source": f"{legacy_system}:data_apply_dept_approve"},
+                    legacy_id=f"{legacy_system}:data_apply_dept_approve:{dept_approve_id}",
                 )
                 session.add(case)
                 session.flush()
+            elif case.legacy_id is None:
+                case.legacy_id = f"{legacy_system}:data_apply_dept_approve:{dept_approve_id}"
             # step_name 用部门名标识，department 分支与 course 的 node_name single 步分离
             step_name = f"部门审-{approve_org_name}"
             step = session.execute(

@@ -110,6 +110,47 @@ def test_worker_thread_start_stop_drains() -> None:
             worker.stop()
 
 
+def test_claim_is_atomic_and_prevents_double_anchor() -> None:
+    """C-2: a claimed-but-not-delivered row must not be anchored a second time.
+
+    Two concurrent drain loops both see the row in ``list_pending`` (delivered is
+    still False), but only the claim winner anchors it — the loser skips. This
+    prevents a duplicate (potentially real) chain tx under multi-replica deploys.
+    """
+    with TemporaryDirectory() as tmp, bootstrap_iaf_runtime(tmp):
+        store = runtime._service._state_store.database_store  # type: ignore[union-attr]
+        assert store is not None
+
+        _write_creates_outbox("C2-CLAIM-1")
+        pending = store.list_pending_anchor_outbox()
+        assert len(pending) == 1
+        content_hash = pending[0].content_hash
+
+        # First claim wins; an immediate second claim loses (fresh lease held).
+        assert store.claim_anchor_outbox(content_hash) is True
+        assert store.claim_anchor_outbox(content_hash) is False
+
+        # A drain pass now finds the row still pending but already claimed → it
+        # skips, so no receipt is written and the chain adapter is not re-invoked.
+        assert run_outbox_once(store) == 0
+        assert len(store.list_audit_receipts()) == 0
+
+
+def test_stale_lease_is_reclaimable() -> None:
+    """C-2: a row claimed but never delivered (worker crash) is retried once the
+    lease goes stale — it must not be stranded forever."""
+    with TemporaryDirectory() as tmp, bootstrap_iaf_runtime(tmp):
+        store = runtime._service._state_store.database_store  # type: ignore[union-attr]
+        assert store is not None
+
+        _write_creates_outbox("C2-STALE-1")
+        content_hash = store.list_pending_anchor_outbox()[0].content_hash
+        assert store.claim_anchor_outbox(content_hash) is True
+
+        # Re-claim with a zero-second lease == treat any prior claim as stale.
+        assert store.claim_anchor_outbox(content_hash, lease_seconds=0) is True
+
+
 def test_audit_bus_still_fail_closed() -> None:
     """D4 upper-half invariant: a failing audit sink must raise AuditWriteError —
     the H2 anchor change must not have softened the synchronous audit bus."""

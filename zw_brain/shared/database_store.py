@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select, update
 
 from zw_brain.domain.models import (
     AnchorOutboxRecord,
@@ -45,6 +45,12 @@ DEFAULT_PERSISTABLE_UI_STATE: dict[str, Any] = {
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+# C-2: anchor-outbox claim lease. A row claimed but not delivered within this
+# window (worker crash / chain timeout) becomes reclaimable. Generous vs the
+# ~5s drain interval so a healthy slow anchor is never double-fired.
+_ANCHOR_CLAIM_LEASE_SECONDS = 300.0
 
 
 def _content_fingerprint(*parts: Any) -> str:
@@ -295,6 +301,37 @@ class DatabaseStore:
         SessionLocal = self._session_factory()
         with SessionLocal() as session:
             return list(session.execute(select(AuditReceiptRecord).order_by(AuditReceiptRecord.confirmed_at)).scalars())
+
+    def claim_anchor_outbox(self, content_hash: str, *, lease_seconds: float = _ANCHOR_CLAIM_LEASE_SECONDS) -> bool:
+        """Atomically claim a pending outbox row for the calling worker (C-2).
+
+        Returns True iff this call won the row — i.e. it was ``delivered=False``
+        and had no fresh lease. The single conditional UPDATE is atomic under
+        SQLite's serialized writer (and ``SELECT ... FOR UPDATE``-equivalent on
+        Postgres via the WHERE guard), so two concurrent workers/replicas never
+        both claim the same row; the (possibly real) chain anchor therefore fires
+        at most once per row. A drain that crashes after claiming but before
+        ``mark_anchor_delivered`` leaves ``claimed_at`` set; the row becomes
+        reclaimable once the lease goes stale (``claimed_at <= now - lease``).
+        """
+        now = _now()
+        stale_cutoff = now - timedelta(seconds=lease_seconds)
+        SessionLocal = self._session_factory()
+        with SessionLocal() as session:
+            result = session.execute(
+                update(AnchorOutboxRecord)
+                .where(
+                    AnchorOutboxRecord.content_hash == content_hash,
+                    AnchorOutboxRecord.delivered.is_(False),
+                    or_(
+                        AnchorOutboxRecord.claimed_at.is_(None),
+                        AnchorOutboxRecord.claimed_at <= stale_cutoff,
+                    ),
+                )
+                .values(claimed_at=now)
+            )
+            session.commit()
+            return bool(result.rowcount == 1)
 
     def mark_anchor_delivered(self, content_hash: str) -> None:
         SessionLocal = self._session_factory()

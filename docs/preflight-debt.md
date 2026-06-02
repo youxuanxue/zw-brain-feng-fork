@@ -25,6 +25,36 @@ trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / �
 目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
 trigger 关闭即可删除字段。
 
+## 2026-06-02 — C-1「去 snapshot↔DB 双轨」拆 PR：本 PR 收读路径单一事实源，删演示单/凭据诚实化另起
+
+> 上帝视角审视裁出 3 关键缺陷（C-1 双轨割裂 / C-2 锚定重复 / C-3 反向依赖）。本 PR 落地
+> **C-2 + C-3 + 数据模型地基（ApprovalCaseRecord.legacy_id/flow_schema）+ 读路径单一事实源**；
+> 执行中坐实「删演示单」比计划更纠缠，与产品研发负责人确认**拆 PR**，余下登记于此。
+
+- **本 PR 已落（读路径单一事实源）**：`discovery_snapshot_projection` / `dispute_snapshot_projection`
+  三件 enrich 改**无条件以 DB 投影为准**（空库→诚实空，不再「DB 非空才替换/否则保留 seed」的半双轨）；
+  `request_service.approval_by_id` / `delivery_service.by_id` 补 DB 回源（真实导入记录不再因不在内存
+  快照而读不到）。**read 侧的 `approval-case-projection-stale` 已被单一事实源消解**（approvals 现算自
+  `ApprovalRepository.list_cases`，legacy hex 审批不再陈旧）；该账本的 write 侧投影循环重构仍 external 开着。
+- **Deferred to follow-up PR（删演示单 + 凭据诚实化 + 写路径收口）**：
+  - **删演示单**：`seed_snapshot.json` 的 `REQ-/DLV-/DSP-/PKG-` 业务记录 + workbench todos + 演示
+    audit/alerts。**注意**：`demo_state_sync.py` 非纯演示件——`upsert_todo/set_todo_status/resource_by_id/
+    zone_by_id` 是工作台/合规承重助手，只有其中**硬编码 REQ-* 的 cascade**（`sync_demo_state_views`）可退役；
+    不可整文件删。段 36 `check_no_demo_id_literals` 待删演示单后收紧（届时全仓零 demo id 字面）。
+  - **凭据诚实化**：移除 legacy 导入 granted 分支的 `derive_demo_credential` 捏造（真实授权表
+    `data_apply_authrization` **无 per-grant 凭据**，真凭据在 `dsp_service.api_service_app.SECRET` 网关域、
+    与 apply_id 无绑定供数）；P4 对 granted-无真凭据显「未签发」；段 66 放宽为「granted ⟹ 真凭据 OR
+    诚实未签发」。**业务待确认**：J1 凭据取网关 SECRET 口径 + `apply_id↔service↔app` 绑定供数（上游缺供）。
+  - **历史单动作（混合裁决）**：P3/P4 动作入口按「DB 能否解析出完整运行时实体」门控（`legacy_id` 已就绪
+    可判），历史导入单标「仅存档」、隐藏撤回/暂停/凭据动作（无权/不适用=不可见）。承接
+    `j1-legacy-record-actionability`（2026-06-01）裁决落地。
+  - **真数据基线**：删演示单后绿门禁需切「fresh DB import 缩小版真 dump 子集」+ 迁移依赖演示单的测试
+    （`test_discovery_snapshot_projection` 等已先行改「空库→诚实空」）+ `capture --with-e2e` 重采。
+- **Why split**：读路径单一事实源是干净可合闭环；删演示单触及真库重建 + 大面积测试迁移 + e2e 重采，
+  blast-radius 大，单独成 PR 易 review/回滚（符合「避免一次性大 PR」）。
+- **Trigger**：跟进 PR 立项 —— 按上述四点落地，关 `approval-case-projection-stale` write 侧 +
+  `prefilled-fake-enterprise-data` + `j1-legacy-record-actionability` + `p3requestdetail`。
+
 ## 2026-06-02 — P0/P1 收尾 PR 判定不通宵改的 P2（记债不静默）
 
 > 本批 P0(MCP/CLI prod 护栏) + P1(governance 下推 / grant 守卫 / 冷启动锁) 修复见
@@ -53,6 +83,15 @@ trigger 关闭即可删除字段。
 ## 2026-06-01 — H2 区块链锚定 worker 部署形态：单副本 in-process（选 A，多副本前再评估）
 
 > 产品研发负责人 2026-06-01 **选 A**（维持现状，本期无代码动作）。本条登记 PR #183 §5 的待决策。
+>
+> **✅ 2026-06-02 部分解决（C-2，本 PR）**：原「无行锁 → 多副本重复 anchor」的**急性风险已闭合**——
+> drain 前对每行做**原子认领**（`DatabaseStore.claim_anchor_outbox`：`UPDATE anchor_outbox SET
+> claimed_at=now WHERE content_hash=? AND delivered=0 AND (claimed_at IS NULL OR claimed_at<=stale)`，
+> 仅 `rowcount==1` 才调 adapter）。SQLite 串行写下原子、Postgres 经 WHERE guard 等效，多副本不再双发；
+> 失败的 anchor 留租约过期可重认领（`_ANCHOR_CLAIM_LEASE_SECONDS=300`，新增 `claimed_at` 列 + 列级模型
+> 改动属 drop&recreate）。守卫测试见 `tests/test_h2_anchor_worker.py::test_claim_is_atomic_and_prevents_double_anchor`
+> / `::test_stale_lease_is_reclaimable`。**剩余**=若「真链 + 多副本」仍想要更强的 leader 选举/独立
+> worker 进程（PR #183 §5 的 B+C），按下方 trigger 评估；但重复链上交易这一核心危害已由认领消除。
 
 - **Where**: `zw_brain/background_tasks/__init__.py`（`AnchorWorker` + `start_anchor_worker` / `stop_anchor_worker`）；
   `zw_brain/entry/rest/server.py::main()` 拉起 + finally 停；env `ZW_BRAIN_ANCHOR_WORKER` 门控、pytest 默认关。

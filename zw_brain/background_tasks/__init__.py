@@ -39,9 +39,18 @@ _DEFAULT_INTERVAL_SECONDS = 5.0
 
 
 async def _drain_outbox(store: DatabaseStore) -> int:
-    """Anchor every pending outbox row and write its receipt (idempotent)."""
+    """Anchor every pending outbox row and write its receipt (idempotent).
+
+    Each row is atomically *claimed* before the chain adapter is invoked (C-2);
+    a row another worker/replica already holds a fresh lease on is skipped, so
+    the (possibly real) anchor tx fires at most once per row even under multiple
+    drain loops. ``mark_anchor_delivered`` runs only after a successful anchor;
+    a failed anchor leaves the lease to expire so the row can be retried later.
+    """
     processed = 0
     for record in store.list_pending_anchor_outbox():
+        if not store.claim_anchor_outbox(record.content_hash):
+            continue  # another worker/replica owns this row's lease
         receipt = await _anchor(record.content_hash, chain_id=record.chain_id)
         store.append_anchor_receipt(record, receipt)
         store.mark_anchor_delivered(record.content_hash)
@@ -93,6 +102,8 @@ async def run_once() -> int:
     for record in store.list_pending_anchor_outbox():
         if record.content_hash in seen_hashes:
             continue
+        if not store.claim_anchor_outbox(record.content_hash):
+            continue  # another worker/replica owns this row's lease (C-2)
         receipt = await _anchor(record.content_hash, chain_id=record.chain_id)
         store.append_anchor_receipt(record, receipt)
         store.mark_anchor_delivered(record.content_hash)

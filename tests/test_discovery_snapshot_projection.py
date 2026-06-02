@@ -112,17 +112,18 @@ def test_enrich_requests_replaces_seed_with_db_applications(temp_db: Path) -> No
     assert card["applicant"] != "张三", "applicant 应经 mask_default 脱敏"
 
 
-def test_enrich_requests_keeps_seed_when_db_empty(temp_db: Path) -> None:
+def test_enrich_requests_empty_when_db_empty(temp_db: Path) -> None:
+    # C-1 单一事实源：空库 → 诚实空列表（不再回退 seed 演示单）。
     seed = {"requests": [{"id": "SEED-1", "resourceName": "seed 申请"}]}
     out = enrich_requests_snapshot(seed, tenant_id=TENANT)
-    assert out["requests"] == seed["requests"], "空库应保留 seed 不动"
+    assert out["requests"] == [], "空库应给诚实空列表，不保留 seed 演示单"
 
 
 def test_enrich_requests_excludes_demand_kinds(temp_db: Path) -> None:
     _seed_application("DEM-A", kind="require", resource_name="")
     _seed_application("DEM-B", kind="original_require", resource_name="")
     out = enrich_requests_snapshot({"requests": [{"id": "SEED"}]}, tenant_id=TENANT)
-    assert out["requests"] == [{"id": "SEED"}], "全是需求类 → 无申请 → 保留 seed"
+    assert out["requests"] == [], "全是需求类 → 无申请类 → 诚实空列表（不回退 seed）"
 
 
 # ── approvals ─────────────────────────────────────────────────────────────────
@@ -136,10 +137,11 @@ def test_enrich_approvals_replaces_seed_with_db_cases(temp_db: Path) -> None:
     assert all(a["suggestion"] == "待审" for a in out["approvals"])
 
 
-def test_enrich_approvals_keeps_seed_when_db_empty(temp_db: Path) -> None:
+def test_enrich_approvals_empty_when_db_empty(temp_db: Path) -> None:
+    # C-1 单一事实源：空库 → 诚实空列表。
     seed = {"approvals": [{"id": "SEED-A", "suggestion": "x"}]}
     out = enrich_approvals_snapshot(seed, tenant_id=TENANT)
-    assert out["approvals"] == seed["approvals"]
+    assert out["approvals"] == []
 
 
 # ── discovery.resources ───────────────────────────────────────────────────────
@@ -166,10 +168,11 @@ def test_enrich_discovery_resources_only_discoverable_statuses(temp_db: Path) ->
     assert cards["RES-3"]["shareLevel"] == "conditional"
 
 
-def test_enrich_discovery_resources_keeps_seed_when_db_empty(temp_db: Path) -> None:
+def test_enrich_discovery_resources_empty_when_db_empty(temp_db: Path) -> None:
+    # C-1 单一事实源：空库 → 诚实空发现列表。
     seed = {"discovery": {"resources": [{"id": "seed-res", "name": "seed"}]}}
     out = enrich_discovery_resources_snapshot(seed, tenant_id=TENANT)
-    assert out["discovery"]["resources"] == seed["discovery"]["resources"]
+    assert out["discovery"]["resources"] == []
 
 
 # ── data.search 空 query（走 service + trust-stamp）─────────────────────────────

@@ -3,9 +3,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from collections.abc import Callable
 from typing import Any
 
-from zw_brain.command.runtime import get_service
 from zw_brain.shared.agent_runtime.capability_provider import (
     ZwBrainCapabilityProvider,
     agent_directory_for_id,
@@ -25,6 +25,33 @@ _LOGGER = logging.getLogger(__name__)
 _runtime: Any | None = None
 _runtime_lock = asyncio.Lock()
 
+# IoC: the command layer registers its BrainService factory here so that shared/
+# never imports command/. This keeps the layer order entry→command→domain→shared
+# intact (preflight 段 49) — agent_runtime lives in shared/ but needs a BrainService,
+# and reaching up via `from zw_brain.command...` (even lazily) is a reverse-dependency.
+_brain_provider: Callable[[], Any] | None = None
+
+
+def register_brain_provider(provider: Callable[[], Any]) -> None:
+    """Register the command-layer BrainService factory (e.g. ``get_service``).
+
+    Called at command-layer import time. Lets the embedded agent runtime obtain a
+    brain without shared/ importing command/.
+    """
+    global _brain_provider
+    _brain_provider = provider
+
+
+def _resolve_brain(brain: Any | None) -> Any:
+    if brain is not None:
+        return brain
+    if _brain_provider is not None:
+        return _brain_provider()
+    raise RuntimeError(
+        "no BrainService available for the embedded agent runtime: pass brain= "
+        "or ensure the command layer registered a provider via register_brain_provider()"
+    )
+
 
 def _require_agent_runtime():
     try:
@@ -38,8 +65,12 @@ def _require_agent_runtime():
     return RuntimeService, ProductRuntimeConfig, load_product_runtime_config
 
 
-async def get_agent_runtime():
-    """Lazy singleton Embedded RuntimeService (in-process, no HTTP server)."""
+async def get_agent_runtime(brain: Any | None = None):
+    """Lazy singleton Embedded RuntimeService (in-process, no HTTP server).
+
+    ``brain`` is the BrainService to bridge capabilities from; when omitted it is
+    resolved from the command-layer provider registered via ``register_brain_provider``.
+    """
     global _runtime
     if _runtime is not None:
         return _runtime
@@ -75,14 +106,14 @@ async def get_agent_runtime():
                 tenant_mode="single",
             )
 
-        brain = get_service()
+        resolved_brain = _resolve_brain(brain)
         providers: dict[str, ZwBrainCapabilityProvider] = {}
         for agent_yaml in sorted(agents_dir().glob("*/AGENT.yaml")):
             agent_id = _agent_id_from_yaml(agent_yaml)
             if not agent_id:
                 continue
             providers[agent_id] = ZwBrainCapabilityProvider(
-                brain,
+                resolved_brain,
                 agent_dir=agent_directory_for_id(agent_id),
             )
 
@@ -135,10 +166,11 @@ async def run_agent_task(
     user_input: str,
     session_title: str | None = None,
     metadata: dict[str, Any] | None = None,
+    brain: Any | None = None,
 ) -> dict[str, Any]:
     from agent_runtime.runtime.models import CreateSessionRequest, StartTaskRequest
 
-    runtime = await get_agent_runtime()
+    runtime = await get_agent_runtime(brain=brain)
     session = await runtime.create_session(
         CreateSessionRequest(
             agent_id=agent_id,
@@ -185,3 +217,12 @@ def run_agent_task_sync(**kwargs: Any) -> dict[str, Any]:
     if not is_agent_runtime_enabled():
         raise RuntimeError("ZW_BRAIN_AGENT_RUNTIME_ENABLED is not set")
     return asyncio.run(run_agent_task(**kwargs))
+
+
+__all__ = [
+    "get_agent_runtime",
+    "register_brain_provider",
+    "reset_agent_runtime",
+    "run_agent_task",
+    "run_agent_task_sync",
+]

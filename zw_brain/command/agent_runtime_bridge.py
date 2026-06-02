@@ -95,6 +95,7 @@ def start_agent_task(
         agent_id=agent_id,
         user_input=user_input,
         metadata=task_metadata,
+        brain=brain,
     )
 
 

@@ -337,11 +337,26 @@ class RequestService:
             return None
 
     def approval_by_id(self, request_id: str) -> dict[str, Any]:
-        """Snapshot approval row by request id; raises NotFoundError."""
+        """Approval row by request id; raises NotFoundError when absent.
 
+        快照命中（demo-shaped / 新建在产申请的富审批卡）优先；未命中回 DB approval_case
+        现算一张**只读展示卡**（C-1 单一事实源：真实导入审批不再因不在内存快照而读不到）。
+        DB 展示卡只供详情/收件箱显示——真实导入审批的两步流转动作由 UI 按运行时实体可解析性
+        门控（历史导入=只读），不走这里 mutate。
+        """
         for item in self.brain._snapshot["approvals"]:
             if item["id"] == request_id:
                 return item
+        store = getattr(getattr(self.brain, "_state_store", None), "database_store", None)
+        if store is not None:
+            case = store.approval_repo.get_case(request_id, tenant_id=_DEFAULT_TENANT_ID)
+            if case is not None:
+                return {
+                    "id": case.application_code,
+                    "status": case.current_status,
+                    "suggestion": "待审",
+                    "legacyImport": bool(getattr(case, "legacy_id", None)),
+                }
         raise NotFoundError(request_id)
 
     def maybe_approval_by_id(self, request_id: str) -> dict[str, Any] | None:

@@ -65,6 +65,11 @@ class AnchorOutboxRecord(Base):
     content_hash: Mapped[str] = mapped_column(String(128), unique=True)
     chain_id: Mapped[str] = mapped_column(String(64), default="mock-chain")
     delivered: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # Lease for concurrency-safe drain (C-2): a worker atomically stamps claimed_at
+    # before calling the chain adapter; a second worker/replica sees a fresh lease and
+    # skips the row, so the (possibly real) anchor tx fires at most once. A crashed
+    # drain (claimed but never delivered) is reclaimable once the lease goes stale.
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
 
@@ -518,6 +523,14 @@ class ApprovalCaseRecord(Base):
     current_status: Mapped[str] = mapped_column(String(32), index=True)
     current_step: Mapped[int] = mapped_column(Integer, default=1)
     decision_payload_json: Mapped[dict] = mapped_column(JSON)
+    # C-1 honest back-ref: link an imported approval case to its legacy source row
+    # (`data_apply_course` / `data_apply_dept_approve` id) and to the approval-flow
+    # template that governs it. Both nullable — runtime-born cases and pre-flow-engine
+    # legacy imports legitimately have neither. Surfaces the real "this case has no
+    # flow template / no legacy lineage" instead of papering over it.
+    legacy_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    flow_schema_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    flow_schema_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 

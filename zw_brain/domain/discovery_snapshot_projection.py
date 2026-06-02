@@ -1,13 +1,12 @@
-"""Live J1 list projections for WebUI snapshot — merge full real-DB lists.
+"""Live J1 list projections for WebUI snapshot — DB is the single source of truth.
 
-D45 / 关 D43.c(1)：``system.snapshot`` 的 J1 核心列表字段（``requests`` /
-``approvals`` / ``discovery.resources``）此前停在 ``seed_snapshot.json`` 静态精选
-（5 / 5 / 12 条），真实库有数百条 → 页面只显示 demo。本模块在每次 ``system.snapshot``
-时把 DB 全量真实列表投影进去（与 provider / zones / disputes 三个既有 enrich 同范式）。
+C-1（去 snapshot↔DB 双轨）：``system.snapshot`` 的 J1 核心列表字段（``requests`` /
+``approvals`` / ``discovery.resources``）**始终从 DB 现算投影**，不再以 ``seed_snapshot.json``
+的演示记录为基底。
 
-merge 策略：**DB 有行 → 替换为全量真实；DB 空（CI 无 seed DB）→ 保留 seed**。
-（不用 disputes 的 append-merge：seed demo id 非真实 dump id，append 会留幻影行；
-replace-when-nonempty 在全量真实库给干净全量、在空库给原 seed，两端都对。）
+投影策略：**无条件以 DB 投影为准**——DB 有行给全量真实，DB 空 → **诚实空列表**（不回退
+演示单）。这是「DB 单一事实源」的落点：内存快照不再承载可与 DB 分歧的业务真相，演示单随
+seed 删除一并消失，真实数据的字段缺口/冲突自然浮出而非被 demo 掩盖。
 
 轻量 serializer：只产页面列表**真正读**的字段，不做 per-record resource / delivery /
 legacy 查找——那是 ``application_service.record_to_request`` 详情序列化器的活，对数百条
@@ -93,10 +92,10 @@ def _record_to_request_card(record: Any) -> dict[str, Any]:
 
 
 def enrich_requests_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None = None) -> dict[str, Any]:
-    """Replace snapshot['requests'] with the full real **application** list (deep copy).
+    """Project snapshot['requests'] from the real **application** table (DB single SoT).
 
     只取申请类（kind ∉ _DEMAND_KINDS）；需求类记录无 resource_name、属 J2 供需线，
-    不进 P3「在途申请」收件箱。DB 有申请行才替换，否则保留 seed。
+    不进 P3「在途申请」收件箱。**无条件替换**：空库 → 空列表（诚实空，不回退 seed 演示单）。
     """
     out = copy.deepcopy(snapshot)
     records = [
@@ -104,8 +103,7 @@ def enrich_requests_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None 
         for r in ApplicationRepository().list_records(tenant_id=tenant_id or get_runtime_tenant_id())
         if (r.payload_json or {}).get("kind") not in _DEMAND_KINDS
     ]
-    if records:
-        out["requests"] = [_record_to_request_card(r) for r in records]
+    out["requests"] = [_record_to_request_card(r) for r in records]
     return out
 
 
@@ -119,11 +117,14 @@ def _case_to_approval_card(record: Any) -> dict[str, Any]:
 
 
 def enrich_approvals_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None = None) -> dict[str, Any]:
-    """Replace snapshot['approvals'] with the full real approval_case list (deep copy)."""
+    """Project snapshot['approvals'] from the real approval_case table (DB single SoT).
+
+    **无条件替换**：空库 → 空列表（诚实空，不回退 seed）。legacy 导入的 approval_case
+    经此现算投影，不再陈旧（关 approval-case-projection-stale）。
+    """
     out = copy.deepcopy(snapshot)
     cases = ApprovalRepository().list_cases(tenant_id=tenant_id or get_runtime_tenant_id())
-    if cases:
-        out["approvals"] = [_case_to_approval_card(c) for c in cases]
+    out["approvals"] = [_case_to_approval_card(c) for c in cases]
     return out
 
 
@@ -174,7 +175,7 @@ def enrich_discovery_resources_snapshot(
     """Replace snapshot['discovery']['resources'] with the full real resource_asset list (deep copy)."""
     out = copy.deepcopy(snapshot)
     cards = project_resource_cards(tenant_id=tenant_id)
-    if cards:
-        discovery = out.setdefault("discovery", {})
-        discovery["resources"] = cards
+    # DB single SoT: 无条件替换（空库 → 空发现列表，不回退 seed 演示资源）。
+    discovery = out.setdefault("discovery", {})
+    discovery["resources"] = cards
     return out

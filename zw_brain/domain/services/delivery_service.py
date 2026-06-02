@@ -165,10 +165,19 @@ class DeliveryService:
         return request_id.replace("REQ-", "DLV-", 1)
 
     def by_id(self, task_id: str) -> dict[str, Any]:
-        """Snapshot delivery task by task_id; raises NotFoundError when absent."""
+        """Delivery task by task_id; raises NotFoundError when absent.
+
+        快照命中优先；未命中回 DB（task_from_record 按 delivery_code 索引）。C-1 单一事实源：
+        真实导入的交付任务（M0 dump granted）不在内存快照基底里，需回 DB 才读得到。
+        """
         for item in self.brain._snapshot["delivery_tasks"]:
             if item["id"] == task_id:
                 return item
+        store = getattr(getattr(self.brain, "_state_store", None), "database_store", None)
+        if store is not None:
+            task = self.task_from_record(task_id, store)
+            if task is not None:
+                return task
         raise NotFoundError(task_id)
 
     def maybe_by_id(self, task_id: str) -> dict[str, Any] | None:
