@@ -1,0 +1,13 @@
+scope: open-network-prefix
+signed_by: 海若产品部业务方
+date: 2026-06-02
+kind: 效果验收
+evidence: PR #184 / .testing/acceptance/open-network-prefix/evidence.json
+decision_only: true
+covers: []
+# 注：反代前缀（/zw-brain/）属部署形态工作，无独立 .feature 入飞轮
+# （infra-contract-projection.feature 是五消费面契约一致性、非本前缀交付物），
+# 故 covers 留空、不抬任何 feature 状态（沿用 j1-catalog-drilldown 先例）。
+# 业务方 2026-06-02 本地全栈 /zw-brain/ 走查通过（见 docs/acceptance/open-network-prefix-acceptance-package.md
+# 人验栏 + .testing/acceptance/open-network-prefix/evidence.json）。PR #184 合并时
+# signoff-ledger 自动落账因未走 GitHub Approve review（signed_by 未取到）而 no-op，本 PR 手工补账本。

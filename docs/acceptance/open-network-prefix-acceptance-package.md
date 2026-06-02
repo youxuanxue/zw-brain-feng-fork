@@ -1,9 +1,11 @@
 ---
 doc_id: open-network-prefix-acceptance-package
-status: awaiting-signoff
-gate: pending
+status: approved
+gate: signed
 scope: open-network-prefix
 evidence: .testing/acceptance/open-network-prefix/evidence.json
+signed_off_by: 海若产品部业务方
+signed_off_at: 2026-06-02
 sign_off_required:
   - 海若产品部业务方
 vehicle_pr: "#184"
