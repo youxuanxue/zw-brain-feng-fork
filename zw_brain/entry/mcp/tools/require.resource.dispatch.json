@@ -1,6 +1,6 @@
 {
   "name": "require.resource.dispatch",
-  "description": "业务运营员 判定 申请人 业务需求不可用现有目录复用 → 按区域/字段/时间窗切片 → 派 审核汇总人 任务。写一次 application_record.status='dispatched' + 一次 supplement 任务草案。",
+  "description": "业务运营员 判定 申请人 业务需求不可用现有目录复用 → 按区域/字段/时间窗切片 → 派 审核汇总人 任务。写一次 application_record.status='dispatched' + 一次 supplement 任务草案。 [Requires user confirmation]",
   "inputSchema": {
     "type": "object",
     "required": [

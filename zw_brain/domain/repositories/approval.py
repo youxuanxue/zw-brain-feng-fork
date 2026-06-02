@@ -265,6 +265,83 @@ class ApprovalRepository:
             session.refresh(record)
             return record
 
+    def append_conditional_step(
+        self,
+        application_code: str,
+        *,
+        decision_mode: str,
+        step_name: str,
+        step_status: str,
+        decision: str,
+        reason: str,
+        actor: str,
+        actor_role: str,
+        approver_scope: dict[str, Any],
+        skill_id: str,
+        audit_id: str,
+        case_status: str,
+        tenant_id: str = "sd-default",
+    ) -> ApprovalDecisionRecord:
+        """Append one conditional-approval step (department or platform) + its decision.
+
+        Two-step conditional flow (j1-approval-conditional): the department step
+        (decision_mode='department') and the platform step (decision_mode='single')
+        are *appended* to the same approval_case — a prior department step is never
+        rewritten or soft-deleted when the platform step lands (SPEC Scenario 4:
+        "部门审通过的记录仍保留"). ``approver_scope`` carries the R11 direction
+        fields (owner_org_code / approve_org_code) that policy.py routes on.
+        """
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            case = session.execute(
+                select(ApprovalCaseRecord).where(
+                    ApprovalCaseRecord.tenant_id == tenant_id,
+                    ApprovalCaseRecord.application_code == application_code,
+                )
+            ).scalar_one_or_none()
+            if case is None:
+                case = ApprovalCaseRecord(
+                    tenant_id=tenant_id,
+                    application_code=application_code,
+                    current_status=case_status,
+                    current_step=0,
+                    decision_payload_json={},
+                )
+                session.add(case)
+                session.flush()
+            else:
+                case.current_status = case_status
+            existing_steps = list(
+                session.execute(
+                    select(ApprovalStepRecord).where(ApprovalStepRecord.approval_case_id == case.id)
+                ).scalars()
+            )
+            step_no = len(existing_steps) + 1
+            case.current_step = step_no
+            step = ApprovalStepRecord(
+                approval_case_id=case.id,
+                step_no=step_no,
+                step_name=step_name,
+                decision_mode=decision_mode,
+                status=step_status,
+                approver_scope_json={**approver_scope, "roles": [actor_role], "request_id": application_code, "audit_id": audit_id},
+                started_at=_now(),
+                completed_at=_now() if step_status == "completed" else None,
+            )
+            session.add(step)
+            session.flush()
+            record = ApprovalDecisionRecord(
+                step_id=step.id,
+                decision=decision,
+                decision_reason=reason,
+                actor_snapshot_json={"actor": actor, "role_code": actor_role, "skill_id": skill_id, **{k: v for k, v in approver_scope.items() if k in ("approve_org_code", "approve_org_name", "owner_org_code")}},
+                evidence_json={"audit_id": audit_id, "skill_id": skill_id, "decision_mode": decision_mode, "case_status": case_status},
+            )
+            session.add(record)
+            session.commit()
+            session.refresh(record)
+            return record
+
     def upsert_from_request_and_approval(self, request: dict[str, Any], approval: dict[str, Any], *, tenant_id: str = "sd-default") -> None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:

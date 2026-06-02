@@ -28,6 +28,8 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `approval.case.decide` | j1 | `review_request` | 6245 |
 | `approval.evidence.summarize` | j1 | `do_approval_evidence_summarize` | 0 |
 | `approval.review_decide` | j1 | `review_request` | 6245 |
+| `application.dept_approve` | j1 | `handler_application_dept_approve` | j1-approval-conditional 两步第一步（部门审 + 补件重提） |
+| `application.platform_approve` | j1 | `handler_application_platform_approve` | j1-approval-conditional 两步第二步（平台复核） |
 | `approval.view` | j1 | `get_approval` | 3455 |
 | `backflow.confirm` | j1 | `confirm_backflow` | 6478 |
 | `catalog.browse` | j1 | `browse_catalog_entries` | 4420 |

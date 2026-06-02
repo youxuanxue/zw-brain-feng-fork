@@ -23,6 +23,8 @@ from zw_brain.domain.errors import ConfirmationRequiredError as ConfirmationRequ
 from zw_brain.domain.errors import InvalidStateError as InvalidStateError  # R-016 re-export
 from zw_brain.domain.errors import InvalidTokenError as InvalidTokenError  # R-016 re-export
 from zw_brain.domain.errors import NotFoundError as NotFoundError  # R-016 re-export
+from zw_brain.domain.errors import QuotaExceededError as QuotaExceededError  # R-016 re-export
+from zw_brain.domain.errors import TrustLevelInsufficientError as TrustLevelInsufficientError  # R-016 re-export
 from zw_brain.domain.errors import UnknownSkillError as UnknownSkillError  # R-016 re-export
 from zw_brain.domain.errors import _RequestBatchContext as _RequestBatchContext  # R-016 re-export
 from zw_brain.domain.policy import DomainAccessDeniedError
@@ -324,26 +326,44 @@ class BrainService:
                             confirmed=False, manifest={})
         return _list_zones(self, deps, ctx, *args, **kwargs)
 
-    def invoke_skill(self, skill_id: str, payload: dict[str, Any] | None = None) -> Any:
+    def invoke_skill(
+        self, skill_id: str, payload: dict[str, Any] | None = None, *, source: str | None = None
+    ) -> Any:
         payload = payload or {}
         try:
             manifest = get_manifest(skill_id)
         except KeyError as exc:
             raise UnknownSkillError(skill_id) from exc
         self._validate_required_input(skill_id, manifest, payload)
+        # mcp-hardening S2: stamp the calling surface into the payload so the
+        # audit_event + capability_call rows carry provenance. A client-supplied
+        # ``source`` key in the payload is NOT trusted — only the entry layer's
+        # explicit ``source`` arg sets it (caller-controlled, never wire-controlled).
+        if source is not None:
+            payload = {**payload, "source": str(source)}
         role = self._resolve_role(payload, manifest=manifest)
         self._ui_state["role"] = role
         self._enforce_manifest_policy(skill_id, manifest, role, payload)
         # Action A: build per-call SkillContext + cached HandlerDeps. Handlers
         # signature is `(deps, ctx, payload)`; brain reverse-access goes
         # through deps.brain_legacy.X (preflight 段 40 whitelists allowed surface).
-        ctx = self._build_skill_context(skill_id, role, payload, manifest)
+        ctx = self._build_skill_context(skill_id, role, payload, manifest, source=source)
         deps = self._get_handler_deps()
         if manifest.get("audit_required") and not manifest.get("side_effects"):
-            return self._invoke_traced_read(skill_id, role, payload, lambda: self._dispatch_skill(deps, ctx, payload))
+            # Route the traced read through the source-carrying ctx (not a rebuilt one),
+            # so AuditEmitMiddleware stamps source=mcp on every phase (S2). _invoke_traced_read
+            # stays as the legacy positional shim for in-process callers.
+            from zw_brain.command import pipeline_ops  # noqa: PLC0415
+            return pipeline_ops.run_traced_read(
+                deps.pipeline, self._state_store, ctx, payload,
+                lambda: self._dispatch_skill(deps, ctx, payload),
+            )
         return self._dispatch_skill(deps, ctx, payload)
 
-    def _build_skill_context(self, skill_id: str, role: str, payload: dict[str, Any], manifest: dict[str, Any]) -> Any:
+    def _build_skill_context(
+        self, skill_id: str, role: str, payload: dict[str, Any], manifest: dict[str, Any],
+        *, source: str | None = None,
+    ) -> Any:
         """Build SkillContext for a call — used by commit-2+ migration; commit 1 only.
 
         Public on BrainService so tests and runtime can construct contexts
@@ -356,6 +376,7 @@ class BrainService:
             actor=self._actor_for_role(role),
             confirmed=bool(payload.get("confirmed")),
             manifest=manifest,
+            source=source,
         )
 
     def _get_handler_deps(self) -> Any:

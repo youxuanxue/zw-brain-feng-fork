@@ -119,6 +119,11 @@ class SkillContext:
     actor: str
     confirmed: bool
     manifest: dict[str, Any]
+    # mcp-hardening S2: the consumer surface this call entered through
+    # ('mcp' / 'webui' / 'api' / 'cli' / 'a2a'). Default None preserves every
+    # existing in-process / test caller; entry layers stamp it explicitly so
+    # audit_event + capability_call rows carry provenance (source=mcp).
+    source: str | None = None
 
     @property
     def is_write(self) -> bool:

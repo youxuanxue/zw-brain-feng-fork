@@ -32,8 +32,18 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from zw_brain.capability_registry.runtime import require_surface
+from zw_brain.capability_registry.runtime import (
+    SurfaceNotEnabledError,
+    require_surface,
+)
 from zw_brain.command.runtime import get_service
+from zw_brain.domain.errors import (
+    AccessDeniedError,
+    ConfirmationRequiredError,
+    NotFoundError,
+    QuotaExceededError,
+    TrustLevelInsufficientError,
+)
 from zw_brain.shared.auth_context import (
     dev_iam_bypass_auth_context,
     reset_auth_context,
@@ -42,9 +52,125 @@ from zw_brain.shared.auth_context import (
 from zw_brain.shared.runtime_config import (
     DevBypassInProductionError,
     get_dev_iam_bypass_enabled,
+    get_mcp_caller_trust_level,
+    mcp_trust_level_allows_write,
 )
 
 TOOLS_DIR = Path(__file__).with_name("tools")
+
+# mcp-hardening S2: every capability invoked through this daemon is attributed to the
+# MCP consumer surface in audit_event + capability_call rows.
+MCP_SOURCE = "mcp"
+
+# mcp-hardening S4: per-process MCP tool-call quota. A misbehaving Agent that hammers
+# tools is throttled at the entry layer (protocol hardening — protects the backend) and
+# the over-limit call returns a STRUCTURED quota error with retry_after rather than a
+# black-box failure. Window + ceiling are env-tunable; the default ceiling is high enough
+# never to affect interactive use. Counter is in-process (the stdio daemon is single-
+# process); ``reset_mcp_quota`` lets tests drive the cut deterministically.
+_QUOTA_WINDOW_SECONDS = 60
+_mcp_call_window: dict[str, list[float]] = {}
+
+
+def _mcp_quota_limit() -> int:
+    import os  # noqa: PLC0415
+
+    raw = (os.environ.get("ZW_BRAIN_MCP_TOOL_QUOTA_PER_MINUTE") or "").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        return 0
+    return value if value > 0 else 0
+
+
+def reset_mcp_quota() -> None:
+    """Clear the in-process MCP tool-call window (test hook / daemon restart)."""
+    _mcp_call_window.clear()
+
+
+def _enforce_mcp_quota(name: str) -> None:
+    """Sliding-window per-tool call quota (S4). No-op unless the env ceiling is set.
+
+    Raises ``QuotaExceededError`` (with retry_after) when the per-minute ceiling for
+    this tool is exceeded; the structured projection happens in the JSON-RPC handler.
+    """
+    import time  # noqa: PLC0415
+
+    limit = _mcp_quota_limit()
+    if limit <= 0:
+        return
+    now = time.monotonic()
+    window = [t for t in _mcp_call_window.get(name, []) if now - t < _QUOTA_WINDOW_SECONDS]
+    if len(window) >= limit:
+        oldest = min(window)
+        retry_after = max(1, int(_QUOTA_WINDOW_SECONDS - (now - oldest)) + 1)
+        _mcp_call_window[name] = window
+        raise QuotaExceededError(
+            f"MCP tool {name} exceeded {limit} calls / {_QUOTA_WINDOW_SECONDS}s",
+            retry_after=retry_after,
+            scope="mcp_tool_call",
+        )
+    window.append(now)
+    _mcp_call_window[name] = window
+
+
+def _is_responsibility_bearing(manifest: dict[str, Any]) -> bool:
+    """A capability is a responsibility-bearing write when it has side effects or
+    requires human confirmation (mcp-hardening S6 / §5.4.5).
+
+    These are exactly the operations an untrusted external Agent must not trigger
+    directly through MCP.
+    """
+    return bool(manifest.get("side_effects")) or bool(manifest.get("human_confirmation_required"))
+
+
+def _enforce_caller_trust(name: str, manifest: dict[str, Any], *, caller_trust_level: str) -> None:
+    """Trust-level cut for the MCP surface (S6).
+
+    Untrusted callers may exercise read / non-responsibility capabilities, but a
+    responsibility-bearing write (e.g. application.* approve / delivery mutate) is
+    refused with a structured ``trust_level_insufficient`` reason. The rejection is
+    audited (reject phase) before raising so the denial is observable.
+    """
+    if not _is_responsibility_bearing(manifest):
+        return
+    if mcp_trust_level_allows_write(caller_trust_level):
+        return
+    _emit_mcp_reject_audit(name, caller_trust_level)
+    raise TrustLevelInsufficientError(
+        f"MCP caller trust_level={caller_trust_level!r} cannot invoke responsibility-bearing "
+        f"capability {name!r}",
+        trust_level=caller_trust_level,
+    )
+
+
+def _emit_mcp_reject_audit(name: str, caller_trust_level: str) -> None:
+    """Record an audit_event for an MCP trust-level rejection (S6).
+
+    D4 (段 7a): an audit emit failure MUST abort rather than be swallowed — a denial
+    that left no audit trail is itself a compliance gap. The daemon always has the
+    durable sink configured (``get_service`` wires it on first build), so this emit
+    succeeds on every real path; if the sink is genuinely unavailable ``audit_bus.emit``
+    raises ``AuditWriteError`` and the call aborts (fail-closed), which is the correct
+    D4 outcome for a security-relevant reject.
+    """
+    import zw_brain.shared.audit as audit_bus  # noqa: PLC0415
+
+    audit_bus.emit(
+        audit_bus.AuditEvent(
+            request_id=f"mcp-reject:{name}",
+            actor=f"mcp:agent:{caller_trust_level}",
+            skill_id=name,
+            phase="reject",
+            payload={
+                "source": MCP_SOURCE,
+                "decision": "reject",
+                "reason": TrustLevelInsufficientError.reason,
+                "trust_level": caller_trust_level,
+                "audit_class": "read-sensitive",
+            },
+        )
+    )
 
 
 def _invoke_under_dev_identity(name: str, payload: dict[str, Any]) -> Any:
@@ -53,10 +179,13 @@ def _invoke_under_dev_identity(name: str, payload: dict[str, Any]) -> Any:
     The MCP daemon is gated to start only under dev-IAM-bypass; binding the synthetic
     identity lets the shared C1/N1 boundary resolver enforce role-holding for MCP exactly
     as it does for REST, instead of treating the call as unchecked system-origin.
+
+    mcp-hardening S2: ``source='mcp'`` is stamped so the audit_event + capability_call
+    rows carry the MCP provenance.
     """
     token = set_auth_context(dev_iam_bypass_auth_context())
     try:
-        return get_service().invoke_skill(name, payload)
+        return get_service().invoke_skill(name, payload, source=MCP_SOURCE)
     finally:
         reset_auth_context(token)
 
@@ -73,10 +202,50 @@ def list_tools() -> list[dict[str, Any]]:
     return tools
 
 
+def resolve_tool_manifest(name: str, *, caller_trust_level: str | None = None) -> dict[str, Any]:
+    """Resolve a live, MCP-exposed manifest + apply the trust-level cut.
+
+    Raises:
+      - ``KeyError`` — no such capability registered (→ tool_not_found, S5).
+      - ``SurfaceNotEnabledError`` — capability exists but not exposed on MCP or not
+        live (→ tool_not_found, S5 exposure filter).
+      - ``TrustLevelInsufficientError`` — responsibility-bearing write refused for an
+        untrusted caller (→ trust_level_insufficient, S6).
+    """
+    trust = caller_trust_level if caller_trust_level is not None else get_mcp_caller_trust_level()
+    manifest = require_surface(name, "mcp")  # KeyError / SurfaceNotEnabledError
+    _enforce_caller_trust(name, manifest, caller_trust_level=trust)
+    return manifest
+
+
+def invoke_tool(
+    name: str, payload: dict[str, Any], *, caller_trust_level: str | None = None
+) -> dict[str, Any]:
+    """Single entry shared by the one-shot CLI and the stdio tools/call handler.
+
+    Applies the S5 exposure gate + S6 trust cut, then invokes under the dev identity
+    with ``source='mcp'`` (S2). human_confirmation_required capabilities surface a
+    structured ``pending_confirmation`` envelope instead of committing (S3).
+    """
+    resolve_tool_manifest(name, caller_trust_level=caller_trust_level)
+    _enforce_mcp_quota(name)
+    try:
+        result = _invoke_under_dev_identity(name, payload)
+    except ConfirmationRequiredError:
+        # S3: do NOT silently swallow / commit — hand the client a structured
+        # "待确认" envelope it must re-issue with confirmed=true to commit.
+        return {
+            "tool": name,
+            "status": "pending_confirmation",
+            "confirmation_required": True,
+            "message": "Requires user confirmation — re-invoke with confirmed=true to commit.",
+            "retry_with": {"confirmed": True},
+        }
+    return {"tool": name, "status": "ok", "result": result}
+
+
 def call_tool(name: str, payload: dict[str, Any]) -> dict[str, Any]:
-    require_surface(name, "mcp")
-    result = _invoke_under_dev_identity(name, payload)
-    return {"tool": name, "result": result}
+    return invoke_tool(name, payload)
 
 
 # ─── stdio JSON-RPC ────────────────────────────────────────────────────────
@@ -108,21 +277,101 @@ def _handle_tools_list(id_: Any) -> dict[str, Any]:
     return _ok(id_, {"tools": list_tools()})
 
 
+# mcp-hardening S4 — JSON-RPC error codes for the known, machine-actionable failure
+# classes. The IDE/Agent reads ``error.data.reason`` to branch deterministically instead
+# of treating every failure as an opaque -32000 / HTTP 500. -326xx are protocol-reserved;
+# the application errors use the -320xx server-error band with distinct ``data.reason``.
+_RPC_TOOL_NOT_FOUND = -32601  # protocol: method/tool not found (also S5 exposure cut)
+_RPC_INVALID_PARAMS = -32602  # protocol: invalid params
+_RPC_TRUST_DENIED = -32003    # app: trust_level_insufficient (S6)
+_RPC_ACCESS_DENIED = -32004   # app: role / permission / tenant policy denial
+_RPC_QUOTA_EXCEEDED = -32005  # app: quota_exceeded (+ retry_after) (S4)
+_RPC_NOT_FOUND = -32006       # app: referenced domain entity missing
+_RPC_INTERNAL = -32000        # app: unclassified server error (last resort)
+
+
+def _structured_invocation_error(id_: Any, name: str, exc: Exception) -> dict[str, Any]:
+    """Map a known capability-invocation exception to a structured JSON-RPC error (S4).
+
+    Every branch carries ``data.reason`` so the client can dispatch on a stable code;
+    quota additionally carries ``retry_after``. Unknown exceptions fall through to a
+    classified-as-internal error that still names the type (never a bare black box).
+    """
+    if isinstance(exc, QuotaExceededError):
+        return _err(
+            id_, _RPC_QUOTA_EXCEEDED, f"quota exceeded for tool {name}",
+            {"tool": name, "reason": "quota_exceeded", "retry_after": exc.retry_after,
+             "scope": exc.scope or "mcp_tool_call"},
+        )
+    if isinstance(exc, TrustLevelInsufficientError):
+        # Subclass of AccessDeniedError; checked first so it gets the trust-specific code.
+        return _err(
+            id_, _RPC_TRUST_DENIED, f"{type(exc).__name__}: {exc}",
+            {"tool": name, "reason": exc.reason, "trust_level": exc.trust_level},
+        )
+    if isinstance(exc, NotFoundError):
+        return _err(
+            id_, _RPC_NOT_FOUND, f"{type(exc).__name__}: {exc}",
+            {"tool": name, "reason": "entity_not_found"},
+        )
+    if isinstance(exc, AccessDeniedError):
+        # Message keeps the type-name prefix so existing consumer-surface assertions
+        # (e.g. C1/N1 suite) that branch on 'AccessDenied' still hold; the machine-
+        # actionable signal is the stable ``data.reason``.
+        return _err(
+            id_, _RPC_ACCESS_DENIED, f"{type(exc).__name__}: {exc}",
+            {"tool": name, "reason": "access_denied"},
+        )
+    return _err(
+        id_, _RPC_INTERNAL, f"{type(exc).__name__}: {exc}",
+        {"tool": name, "reason": "internal_error"},
+    )
+
+
 def _handle_tools_call(id_: Any, params: dict[str, Any]) -> dict[str, Any]:
     name = (params or {}).get("name", "")
     arguments = (params or {}).get("arguments", {}) or {}
     if not name:
-        return _err(id_, -32602, "missing tool name", {"received": params})
+        return _err(id_, _RPC_INVALID_PARAMS, "missing tool name", {"received": params})
+    # S5 exposure cut: KeyError (no such capability) and SurfaceNotEnabledError
+    # (registered but not exposed on MCP / not live) both project to tool_not_found.
     try:
-        require_surface(name, "mcp")
-    except KeyError:
-        return _err(id_, -32601, f"unknown tool: {name}")
-    except Exception as e:  # noqa: BLE001 — SurfaceNotEnabledError + others
-        return _err(id_, -32601, f"tool unavailable: {name} — {type(e).__name__}: {e}")
+        resolve_tool_manifest(name)
+    except (KeyError, SurfaceNotEnabledError):
+        return _err(
+            id_, _RPC_TOOL_NOT_FOUND, f"tool_not_found: {name}",
+            {"tool": name, "reason": "tool_not_found"},
+        )
+    except TrustLevelInsufficientError as e:  # S6
+        return _structured_invocation_error(id_, name, e)
+    # S4: entry-layer quota throttle → structured quota_exceeded + retry_after.
+    try:
+        _enforce_mcp_quota(name)
+    except QuotaExceededError as e:
+        return _structured_invocation_error(id_, name, e)
     try:
         result = _invoke_under_dev_identity(name, arguments)
-    except Exception as e:  # noqa: BLE001
-        return _err(id_, -32000, f"{type(e).__name__}: {e}", {"tool": name})
+    except ConfirmationRequiredError:
+        # S3: structured "待确认" — NOT a silent None and NOT a committed write.
+        # Surfaced as a successful tools/call result the client can branch on; isError
+        # stays False because needing confirmation is a normal, expected protocol turn.
+        confirmation = {
+            "tool": name,
+            "status": "pending_confirmation",
+            "confirmation_required": True,
+            "message": "Requires user confirmation — re-invoke with confirmed=true to commit.",
+            "retry_with": {"confirmed": True},
+        }
+        return _ok(
+            id_,
+            {
+                "content": [{"type": "text", "text": json.dumps(confirmation, ensure_ascii=False)}],
+                "isError": False,
+                "structuredContent": confirmation,
+            },
+        )
+    except Exception as e:  # noqa: BLE001 — classified into structured S4 errors
+        return _structured_invocation_error(id_, name, e)
     # MCP tools/call 返回 content[] 包装 text；这里把 JSON 结果序列化为 text content
     return _ok(
         id_,

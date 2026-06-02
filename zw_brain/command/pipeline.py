@@ -231,6 +231,12 @@ class AuditEmitMiddleware:
         return result
 
     def _emit(self, pctx: PipelineContext, phase: str, payload: dict[str, Any]) -> None:
+        # mcp-hardening S2: ``source`` is request-scoped provenance — it must be stamped
+        # on EVERY phase (before/after/error), not just the phases whose payload happens
+        # to be the original request payload. The 'after' phase payload is the handler's
+        # result dict (no source), so inject it from the call-scoped SkillContext here.
+        if pctx.skill.source and "source" not in payload:
+            payload = {**payload, "source": pctx.skill.source}
         pipeline_ops.emit_audit(
             self._audit_bus, self._manifest_getter,
             self._decision_reason_fn, self._target_ref_fn,

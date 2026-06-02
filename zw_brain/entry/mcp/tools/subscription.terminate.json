@@ -1,6 +1,6 @@
 {
   "name": "subscription.terminate",
-  "description": "把 delivery_subscription.status 显式设为 terminated 并把影响摘要写入 audit_event；避免目录撤回时订阅悄悄失效。",
+  "description": "把 delivery_subscription.status 显式设为 terminated 并把影响摘要写入 audit_event；避免目录撤回时订阅悄悄失效。 [Requires user confirmation]",
   "inputSchema": {
     "type": "object",
     "required": [

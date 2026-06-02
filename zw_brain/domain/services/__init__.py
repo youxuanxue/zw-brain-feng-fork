@@ -48,6 +48,7 @@ from typing import TYPE_CHECKING
 
 from zw_brain.domain.services.application_service import ApplicationService
 from zw_brain.domain.services.catalog_service import CatalogService
+from zw_brain.domain.services.conditional_approval import ConditionalApprovalService
 from zw_brain.domain.services.delivery_service import DeliveryService
 from zw_brain.domain.services.governance_service import GovernanceService
 from zw_brain.domain.services.provider_service import ProviderService
@@ -73,6 +74,7 @@ class DomainServices:
     request: RequestService
     provider: ProviderService
     governance: GovernanceService
+    conditional_approval: ConditionalApprovalService
 
     @classmethod
     def from_brain(cls, brain: BrainService) -> DomainServices:
@@ -90,12 +92,14 @@ class DomainServices:
             request=RequestService(brain=brain),
             provider=ProviderService(brain=brain),
             governance=GovernanceService(brain=brain),
+            conditional_approval=ConditionalApprovalService(brain=brain),
         )
 
 
 __all__ = [
     "ApplicationService",
     "CatalogService",
+    "ConditionalApprovalService",
     "DeliveryService",
     "DomainServices",
     "GovernanceService",

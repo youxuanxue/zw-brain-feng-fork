@@ -1667,6 +1667,46 @@
       ]
     },
     {
+      "skill_id": "application.dept_approve",
+      "title": "部门管理员审核（有条件共享第一步）",
+      "description": "有条件共享资源申请第一步：提供方部门管理员审核通过/驳回，申请人补件重提。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "note",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
       "skill_id": "application.draft.suggest",
       "title": "P3 申请草拟助手（预填字段 + 风险预估）",
       "description": "P3 申请页减摩组件。基于资源名称、申请方、使用场景与历史相似申请，预填申请字段（purpose / use_reason / use_item / service_times / use_region 等）并给出风险评分。仅作辅助建议，绝不调用申请提交接口。推理走集团推理平台统一通道；推理失败时回落本地规则。",
@@ -1847,6 +1887,46 @@
         {
           "name": "request_id",
           "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "application.platform_approve",
+      "title": "平台运营员复核（有条件共享第二步）",
+      "description": "有条件共享资源申请第二步：省大数据局业务运营员合规复核，通过授权或驳回。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "note",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "request_id",
+          "required": true,
           "type": "string"
         },
         {

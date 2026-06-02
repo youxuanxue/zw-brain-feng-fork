@@ -1,6 +1,6 @@
 {
   "name": "catalog.entry.reverse_draft.confirm",
-  "description": "业务运营员 半边：对反向编目草稿做字段口径裁决（中英文/敏感等级/类型）。通过后 catalog_entry.lifecycle_status 从 draft 推进到 pending_review；提供方部门 再做正式挂接。",
+  "description": "业务运营员 半边：对反向编目草稿做字段口径裁决（中英文/敏感等级/类型）。通过后 catalog_entry.lifecycle_status 从 draft 推进到 pending_review；提供方部门 再做正式挂接。 [Requires user confirmation]",
   "inputSchema": {
     "type": "object",
     "required": [

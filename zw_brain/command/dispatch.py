@@ -238,6 +238,9 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "application.resource.review": approval.handler_application_resource_review,
     "approval.case.decide": approval.handler_approval_case_decide,
     "approval.review_decide": approval.handler_approval_review_decide,
+    # j1-approval-conditional: 有条件共享两步审批（dept.approve → platform.approve / reject + resubmit）
+    "application.dept_approve": approval.handler_application_dept_approve,
+    "application.platform_approve": approval.handler_application_platform_approve,
     # F7: J1 P3 双助手 (减摩组件，走 shared/inference/client + 三层降级)
     "application.draft.suggest": application_assistants.handler_application_draft_suggest,
     "approval.evidence.summarize": application_assistants.handler_approval_evidence_summarize,

@@ -6,12 +6,14 @@
 # Trace: R10 / R11, 基线 §10.1（有条件共享审批分支）, 旧 xlsx 行 [86..90] 服务审核 + [91] 申请变更复用主审批流, 业务反馈 #4
 # Priority: P0
 # Owner: e1
-# Pytest: tests/test_wave0_j1_approval.py + tests/test_wave0_j1_approval_conditional.py
-# Unfreeze-Note: G1.5 (2026-05-23) — ExchangeMapper.data_apply_dept_approve mapper 落地，
-#   sd-default 真数据已有 4 行 approval_step.decision_mode='department'
-#   （3 行有 decision: 2 approved + 1 rejected, 1 行 pending）。
-#   pytest: tests/test_wave0_j1_approval_conditional.py
-#   e2e: tests/e2e/wave0_j1_golden_path_conditional.py
+# Pytest: tests/test_wave0_j1_approval.py + tests/test_wave0_j1_approval_conditional.py + tests/test_wave0_j1_approval_conditional_runtime.py
+# Unfreeze-Note: 两步条件审批运行时已落地 — dept_approve→platform_approve handler
+#   + ConditionalApprovalService 状态机（submitted→dept_approved→granted/rejected,
+#   rejected→submitted round+1）+ self_approval / R11 方向 guard。
+#   ExchangeMapper.data_apply_dept_approve 灌入 sd-default 真实 department step（数据底座层）。
+#   pytest 覆盖：test_wave0_j1_approval_conditional_runtime.py 驱动真实 handler 真写库断言
+#   状态迁移 / step / decision / 审计；test_wave0_j1_approval_conditional.py 断数据底座。
+#   留债：e2e 两步点击穿透（P3 部门队列→平台复核队列）超本次成本，未覆盖。
 
 Feature: J1 有条件共享分支 — 部门审 + 平台复核两步
   As a 部门管理员 (ROLE_ORGAN_MANAGER 提供方部门) + 业务运营员 (ROLE_BUSIAUDIT)

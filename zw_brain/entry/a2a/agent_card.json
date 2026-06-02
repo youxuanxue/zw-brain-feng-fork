@@ -905,6 +905,24 @@
       ]
     },
     {
+      "id": "application.dept_approve",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
+    },
+    {
       "id": "application.draft.suggest",
       "mode": "write",
       "humanConfirmationRequired": false,
@@ -987,6 +1005,24 @@
         "audit",
         "db_write",
         "state_machine_transition"
+      ]
+    },
+    {
+      "id": "application.platform_approve",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
       ]
     },
     {

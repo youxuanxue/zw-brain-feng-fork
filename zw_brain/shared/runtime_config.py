@@ -110,6 +110,38 @@ def get_dev_iam_bypass_role_codes() -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
+# mcp-hardening S6 — caller trust ladder for the MCP surface.
+# An IDE/Cursor/Claude agent reaching the stdio daemon is an *external* caller; by
+# default it is treated as ``untrusted`` and may only invoke read / non-responsibility
+# capabilities. B1.2 can promote a deployment's MCP caller to ``verified`` / ``platform``
+# (e.g. a hardened internal relay) via ``ZW_BRAIN_MCP_CALLER_TRUST_LEVEL`` — mirrors the
+# AgentRuntime Registry trust ladder vocabulary (manifest_checks.py: untrusted/verified/
+# platform) rather than inventing a parallel one.
+MCP_TRUST_LEVELS: tuple[str, ...] = ("untrusted", "verified", "platform")
+_MCP_TRUST_RANK: dict[str, int] = {level: rank for rank, level in enumerate(MCP_TRUST_LEVELS)}
+# Responsibility-bearing writes require at least this level via MCP. ``untrusted`` external
+# agents are cut here (§5.4.5: AI 不能直接触发责任性写操作).
+MCP_MIN_WRITE_TRUST_LEVEL = "verified"
+
+
+def get_mcp_caller_trust_level() -> str:
+    """Resolve the trust level of the current MCP caller (default ``untrusted``).
+
+    Overridable via ``ZW_BRAIN_MCP_CALLER_TRUST_LEVEL``; unknown values fall back to
+    ``untrusted`` (fail-closed). The stdio daemon has no per-message client identity
+    today, so this is a deployment-level knob — tests inject it to construct the
+    untrusted/verified cut deterministically.
+    """
+    raw = (os.environ.get("ZW_BRAIN_MCP_CALLER_TRUST_LEVEL") or "").strip().lower()
+    return raw if raw in _MCP_TRUST_RANK else "untrusted"
+
+
+def mcp_trust_level_allows_write(caller_trust_level: str) -> bool:
+    """True when ``caller_trust_level`` clears ``MCP_MIN_WRITE_TRUST_LEVEL``."""
+    caller_rank = _MCP_TRUST_RANK.get((caller_trust_level or "").strip().lower(), 0)
+    return caller_rank >= _MCP_TRUST_RANK[MCP_MIN_WRITE_TRUST_LEVEL]
+
+
 def get_iaf_verify_ssl() -> bool:
     return os.environ.get("ZW_BRAIN_IAF_VERIFY_SSL", "true").strip().lower() != "false"
 

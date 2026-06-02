@@ -10,8 +10,16 @@ import copy
 
 from zw_brain.command.brain import _DEFAULT_TENANT_ID, BrainServiceError, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
+from zw_brain.domain.errors import AccessDeniedError
 from zw_brain.domain.serializers.legacy_mapping import legacy_mapping_refs
 from zw_brain.shared.sensitive_mask import mask_actor_payload
+
+# j1-approval-conditional 第一步部门审的可信角色门控（R-001 fix）：
+# application.dept_approve.execute 的 PERMISSION_ROLES 含 OPERATER 仅为 resubmit（申请人补件
+# 重提）复用同一 capability。非 resubmit 路径（approve/reject）= 部门审，SPEC 角色边界是
+# 「仅提供方部门管理员」，必须按 ctx.role（BFF 可信身份）二次门控，不能让 OPERATER 用
+# decision='approve' 经 dept_approve 审批路径越权。
+ROLE_ORGAN_MANAGER = "ROLE_ORGAN_MANAGER"
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -119,4 +127,68 @@ def handler_approval_review_decide(deps: HandlerDeps, ctx: SkillContext, payload
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
     return _review_request(brain, deps, ctx, str(payload["request_id"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+
+
+def _actor_org_code(ctx: SkillContext, payload: dict[str, Any]) -> str:
+    """Resolve the acting org_code from the trusted payload (BFF current_org_code).
+
+    build_trusted_skill_payload stamps current_org_code → payload['org_code']; the
+    actor_snapshot is also available for the multi-context case. R11 direction +
+    self_approval guard both read this org.
+    """
+    snapshot = payload.get("actor_snapshot") if isinstance(payload.get("actor_snapshot"), dict) else {}
+    return str(
+        payload.get("org_code")
+        or payload.get("current_org_code")
+        or snapshot.get("current_org_code")
+        or snapshot.get("org_code")
+        or ""
+    )
+
+
+def handler_application_dept_approve(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    """J1 有条件共享第一步：部门管理员审核（submitted → dept_approved / rejected）。
+
+    decision='resubmit' 走申请人补件重提（rejected → submitted, round+1）。
+    """
+    svc = deps.services.conditional_approval
+    request_id = str(payload["request_id"])
+    decision = str(payload.get("decision", "approve"))
+    role = str(payload.get("role", ctx.role))
+    confirmed = bool(payload.get("confirmed"))
+    actor_org = _actor_org_code(ctx, payload)
+    if decision == "resubmit":
+        return svc.applicant_resubmit(request_id, role, confirmed, actor_org_code=actor_org, skill_id=ctx.skill_id)
+    # R-001 fix: 部门审（approve/reject）= 仅提供方部门管理员。application.dept_approve.execute
+    # 的 PERMISSION_ROLES 含 OPERATER 仅为 resubmit 复用同 capability；非 resubmit 路径按 ctx.role
+    # （BFF 可信身份，非 payload.role）门控为 ROLE_ORGAN_MANAGER，否则越权（OPERATER 用
+    # decision='approve' 本可经 dept_approve 走审批路径，仅被 org 方向 / self-approval 拦）。
+    if ctx.role != ROLE_ORGAN_MANAGER:
+        raise AccessDeniedError(
+            f"application.dept_approve decision={decision!r} (部门审) requires role "
+            f"{ROLE_ORGAN_MANAGER}; got {ctx.role!r}"
+        )
+    return svc.dept_approve(
+        request_id,
+        role,
+        confirmed,
+        actor_org_code=actor_org,
+        decision=decision,
+        note=str(payload.get("note") or payload.get("reason") or ""),
+        skill_id=ctx.skill_id,
+    )
+
+
+def handler_application_platform_approve(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    """J1 有条件共享第二步：平台运营员复核（dept_approved → granted / rejected）。"""
+    svc = deps.services.conditional_approval
+    return svc.platform_decide(
+        str(payload["request_id"]),
+        str(payload.get("role", ctx.role)),
+        bool(payload.get("confirmed")),
+        actor_org_code=_actor_org_code(ctx, payload),
+        decision=str(payload.get("decision", "approve")),
+        note=str(payload.get("note") or payload.get("reason") or ""),
+        skill_id=ctx.skill_id,
+    )
 

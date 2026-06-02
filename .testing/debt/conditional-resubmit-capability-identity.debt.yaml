@@ -1,0 +1,14 @@
+slug: conditional-resubmit-capability-identity
+title: "resubmit 复用 application.dept_approve 的审计 capability 身份（capability_call 聚合不精确）"
+date: 2026-06-02
+severity: low
+owner: 产品研发负责人
+# R-002 (PR #193 review)：j1-approval-conditional 的申请人补件重提（decision='resubmit'）复用
+# application.dept_approve 这个 skill_id 发起 capability_call / audit_event，与部门审（approve/
+# reject）共用同一审计 capability 身份 → 按 capability 聚合审计量时 resubmit 与部门审混在一起，
+# 不精确。当前 audit detail 带 ':resubmit' 后缀可人工区分，且无现成 request.resubmit / application
+# .resubmit capability 可复用；专设独立 capability 属未来清理。诚实记债，不在本期重构。
+trigger: "专设 application.resubmit（或 request.resubmit）capability 立项 → resubmit 走独立 skill_id，capability_call 审计身份与部门审分离 → 关债。"
+assert:
+  # 纯产品/审计口径裁决依赖，无单文件机械锚点；保持 external，由 trigger 人工升级。
+  kind: external

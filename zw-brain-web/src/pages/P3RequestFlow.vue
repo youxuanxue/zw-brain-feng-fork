@@ -7,7 +7,7 @@ import { getProductRole } from '@/composables/useProductRole';
 import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
 import type { StructuredAction } from '@/composables/useNLAccelerator';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
-import { canReviewRequests } from '@/lib/requestFlowRoles';
+import { canReviewRequests, canPlatformReviewRequests } from '@/lib/requestFlowRoles';
 
 const NL_PRESETS_P3 = ['我待审的有几条', '催办昨天提交的申请', '驳回所有 30 天未跟进'];
 
@@ -24,6 +24,7 @@ const approvals = useApprovals();
 const { source } = useSnapshot();
 const role = getProductRole();
 const isReviewer = computed(() => canReviewRequests(role.value));
+const isPlatformReviewer = computed(() => canPlatformReviewRequests(role.value));
 
 const requestStatusById = computed(() => {
   const map = new Map<string, string>();
@@ -71,8 +72,33 @@ const pendingApprovalItems = computed(() => {
     });
 });
 
+// J1 有条件共享第二步「平台复核」队列：dept 已同意(dept_approved)、等待省大数据局
+// 业务运营员复核的申请。仅 ROLE_BUSIAUDIT 可见（无权限不渲染）。
+const platformReviewItems = computed(() => {
+  return approvals.value
+    .map((a) => {
+      const it = a as Record<string, unknown>;
+      const id = String(it.id ?? '');
+      const status = requestStatusById.value.get(id) ?? '';
+      const req = requests.value.find((r) => String((r as Record<string, unknown>).id ?? '') === id) as
+        | Record<string, unknown>
+        | undefined;
+      return {
+        id,
+        suggestion: String(it.suggestion ?? '待复核'),
+        status,
+        resource: String(req?.resourceName ?? '—'),
+      };
+    })
+    .filter((row) => row.status.trim().toLowerCase() === 'dept_approved');
+});
+
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
+  if (isPlatformReviewer.value) {
+    const n = platformReviewItems.value.length;
+    return n ? `${n} 条待平台复核` : '暂无待复核申请';
+  }
   if (isReviewer.value) {
     const n = pendingApprovalItems.value.length;
     return n ? `${n} 条待我审批` : '暂无待审申请';
@@ -81,7 +107,11 @@ const headerMeta = computed(() => {
   return n ? `${n} 条在途` : '暂无在途申请，可从资源发现发起';
 });
 
-const pageTitle = computed(() => (isReviewer.value ? '待我审批' : '在途申请'));
+const pageTitle = computed(() => {
+  if (isPlatformReviewer.value) return '平台复核';
+  if (isReviewer.value) return '我作为提供方';
+  return '在途申请';
+});
 
 function viewRequest(id: string) {
   window.location.hash = `#/request-flow/request/${id}`;
@@ -125,7 +155,30 @@ async function quickResubmit(id: string) {
         </template>
       </PageFocusHeader>
 
-      <template v-if="isReviewer">
+      <template v-if="isPlatformReviewer">
+        <table v-if="source === 'live' && platformReviewItems.length" class="focus-table">
+          <thead>
+            <tr><th>申请编号</th><th>资源</th><th>状态</th><th>复核建议</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="it in platformReviewItems" :key="it.id">
+              <td><code>{{ it.id }}</code></td>
+              <td>{{ it.resource || '—' }}</td>
+              <td>
+                <span class="status-pill" :class="todoStatusTone(it.status)">{{ formatTodoStatus(it.status) }}</span>
+              </td>
+              <td>{{ it.suggestion }}</td>
+              <td class="table-actions">
+                <a :href="`#/request-flow/review/${it.id}`" class="row-link">去复核</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-else-if="source === 'live'" class="focus-empty">暂无待平台复核的申请。</p>
+        <p v-else class="focus-empty">等待数据装载……</p>
+      </template>
+
+      <template v-else-if="isReviewer">
         <table v-if="source === 'live' && pendingApprovalItems.length" class="focus-table">
           <thead>
             <tr><th>申请编号</th><th>资源</th><th>状态</th><th>审批建议</th><th>操作</th></tr>

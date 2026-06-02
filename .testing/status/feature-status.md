@@ -7,12 +7,12 @@
 > status = f(SPEC, MEASUREMENT, SIGN-OFF)，每次 preflight 现算，不手敲、不存第二份。
 > **Done** = 测试真绿 ∧ 业务签字；**Ready** = 已签未绿；**InTest** = 绿/在测但未签（代码完成待签字）；**Draft** = 纯意图；**Backlog** = 排期外（`# Deferred:`）。
 
-> 测量基线：captured_at=`2026-06-02T08:47:41Z` · 指纹新鲜绿 38/38（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
+> 测量基线：captured_at=`2026-06-02T15:12:56Z` · 指纹新鲜绿 38/38（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
 
-> 合计 49：Done 33 / Ready 0 / InTest 5 / Draft 8 / Backlog 3
+> 合计 49：Done 35 / Ready 0 / InTest 3 / Draft 8 / Backlog 3
 
 
-## Wave 0 · 机械守卫 + J1 黄金链路  （Done 9 · InTest 2 · Draft 2）
+## Wave 0 · 机械守卫 + J1 黄金链路  （Done 10 · InTest 1 · Draft 2）
 
 | feature | status | 依据 |
 |---|---|---|
@@ -23,7 +23,7 @@
 | infra-inference-gateway.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-api-call-monitoring.feature | **InTest** | 测量=绿 / 签字=未签 |
 | j1-application-draft.feature | **Done** | 测量=绿 / 签字=已签 |
-| j1-approval-conditional.feature | **InTest** | 测量=绿 / 签字=未签 |
+| j1-approval-conditional.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-approval-unconditional.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-credential-issue.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-resource-discovery.feature | **Done** | 测量=绿 / 签字=已签 |
@@ -67,13 +67,13 @@
 | topic-package-curation.feature | **Done** | 测量=绿 / 签字=已签 |
 | topic-package-discovery.feature | **Done** | 测量=绿 / 签字=已签 |
 
-## Wave 3 · 协议硬化 + 多租户 + 国家通道  （InTest 3 · Draft 3 · Backlog 1）
+## Wave 3 · 协议硬化 + 多租户 + 国家通道  （Done 1 · InTest 2 · Draft 3 · Backlog 1）
 
 | feature | status | 依据 |
 |---|---|---|
 | a2a-hardening.feature | **Backlog** | 延期：Wave3 A2A 协议硬化未实装 — 原挂 test_wave3_protocol_tenant.py 但该文件无任何 a2a 用例（mcp/multi-tenant/observability 三测，零 a2a）；discover→invoke 端到端/多轮会话/trust_level 工具裁剪均待 Wave3 立项（真相优先校准 D46.f：挂名不测的 ref 不抬状态） |
 | agentruntime-standalone-http.feature | **Draft** | 测量=待测 / 签字=未签 |
-| mcp-hardening.feature | **InTest** | 测量=绿 / 签字=未签 |
+| mcp-hardening.feature | **Done** | 测量=绿 / 签字=已签 |
 | multi-tenant-policy.feature | **InTest** | 测量=绿 / 签字=未签 |
 | national-direct.feature | **Draft** | 测量=待测 / 签字=未签 |
 | national-ext-elements.feature | **Draft** | 测量=待测 / 签字=未签 |

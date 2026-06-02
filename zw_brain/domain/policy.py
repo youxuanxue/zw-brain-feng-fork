@@ -160,6 +160,13 @@ PERMISSION_ROLES = {
     # D-7 align (G1.2): 无条件共享审批 = 资源提供部门管理员单步通过；前端
     # ZW_PAGE_ACCESS.reviewDetail + .feature 头标已同步收敛到 ROLE_ORGAN_MANAGER。
     "application.resource.review.execute": {"ROLE_ORGAN_MANAGER"},
+    # j1-approval-conditional 有条件共享两步审批：
+    #   第一步部门审 = 提供方部门管理员；resubmit（补件重提）由申请人 OPERATER 发起，
+    #   两动作共用 application.dept_approve.execute，运行时 self_approval / R11 方向 /
+    #   applicant 校验在 ConditionalApprovalService + policy guard 内做细粒度门控。
+    "application.dept_approve.execute": {"ROLE_ORGAN_MANAGER", "ROLE_ORGAN_OPERATER"},
+    #   第二步平台复核 = 省大数据局业务运营员（数据主管部门合规复核权）。
+    "application.platform_approve.execute": {"ROLE_BUSIAUDIT"},
     "delivery.access.grant.execute": {"ROLE_ORGAN_MANAGER"},
     # J1 凭据签发 — 审批通过自动触发；手工补签由审批人/主管部门触发
     "credential.issue.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
@@ -485,6 +492,53 @@ def enforce_manifest_policy(skill_id: str, manifest: dict[str, Any], role: str, 
                 f"skill {skill_id} requires tag_lead_dept=True (bool); "
                 f"actor lacks the tag — needed for permissions: {', '.join(sorted(tagged_permissions))}"
             )
+
+
+class SelfApprovalNotAllowedError(DomainAccessDeniedError):
+    """Raised when an actor tries to approve their own application (J1 conditional)."""
+
+
+class ApprovalDirectionError(DomainAccessDeniedError):
+    """Raised when a department manager outside the providing org tries to act (R11)."""
+
+
+def enforce_self_approval_guard(applicant_org_code: object, actor_org_code: object) -> None:
+    """Reject self-approval: the applicant org cannot approve its own request.
+
+    J1 有条件审批 Scenario 6. The legacy platform never enforced this (省大数据局
+    既申请又自审 × 4 真数据 anomaly, documented in the conditional pytest); the new
+    brain enforces it at the policy layer. Empty / unknown orgs do not match
+    (cannot prove a self-approval), so they pass — direction is enforced separately.
+    """
+    applicant = str(applicant_org_code or "")
+    actor = str(actor_org_code or "")
+    if applicant and actor and applicant == actor:
+        raise SelfApprovalNotAllowedError("self_approval_not_allowed")
+
+
+def enforce_dept_approval_direction(owner_org_code: object, actor_org_code: object) -> None:
+    """Reject a department manager whose org ≠ the resource's providing org (R11).
+
+    Scenario 5: 提供方部门外的 ORGAN_MANAGER 不能审批此申请。Direction is computed
+    from owner_org_code; an unknown owner cannot be matched and is therefore rejected
+    (fail-closed: a request with no resolvable provider org is not actionable by any
+    department manager).
+    """
+    owner = str(owner_org_code or "")
+    actor = str(actor_org_code or "")
+    if not owner or owner != actor:
+        raise ApprovalDirectionError(
+            f"approval_direction_mismatch: owner_org_code={owner!r} actor_org_code={actor!r}"
+        )
+
+
+def can_dept_manager_see_request(owner_org_code: object, actor_org_code: object) -> bool:
+    """R11 visibility: a department manager only sees requests for resources their
+    org provides. Used by the '我作为提供方' queue filter (no-permission = invisible).
+    """
+    owner = str(owner_org_code or "")
+    actor = str(actor_org_code or "")
+    return bool(owner) and owner == actor
 
 
 # 模块加载时立即检查；任何 r1-r8 残留导致 import 失败（fail-fast）

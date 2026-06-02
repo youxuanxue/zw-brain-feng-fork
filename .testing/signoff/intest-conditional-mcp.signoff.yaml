@@ -1,0 +1,14 @@
+scope: intest-conditional-mcp
+signed_by: 产品研发负责人
+date: 2026-06-03
+kind: 决策签字
+evidence: PR #193 / 本地真实库全栈走查（两步条件审批 6 门控 + MCP S2-S7 17 例真跑）/ docs/decisions/j1-approval-conditional-business-review-package.md + docs/decisions/mcp-hardening-business-review-package.md
+decision_only: false
+covers:
+  - .testing/waves/wave-0-golden-path/features/j1-approval-conditional.feature
+  - .testing/waves/wave-3-protocol-tenant-national/features/mcp-hardening.feature
+# 产品研发负责人 2026-06-03 经本地干净 seed 真实库全栈走查后明确「全部签字」。
+# 手工补账本（Method B）：本仓单作者 PR 走不了 GitHub Approve review（不能自批己建 PR），
+# merge 自动落账会 no-op signed_by（沿用 open-network-prefix / PR #190 先例）。
+# 决策性质：条件审批=状态机决策（D28 GATE 须业务方 sign-off）；MCP=协议硬化（§5.4.5 反约束 + trust 分级）。
+# D35 材料包见 covers 对应 docs/decisions/*-business-review-package.md；测量绿见 .testing/status/measurement/。

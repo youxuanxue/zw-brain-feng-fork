@@ -57,6 +57,38 @@ class InvalidTokenError(BrainServiceError):
     pass
 
 
+class QuotaExceededError(BrainServiceError):
+    """Raised when a per-tenant / per-credential call quota is exhausted.
+
+    Carries ``retry_after`` (seconds) so a structured, machine-actionable error
+    can be projected to consumer surfaces (MCP / REST) instead of a 500 black box
+    (mcp-hardening S4). ``scope`` names what was throttled (e.g. ``"mcp_tool_call"``).
+    """
+
+    def __init__(self, message: str, *, retry_after: int = 60, scope: str = "") -> None:
+        super().__init__(message)
+        self.retry_after = int(retry_after)
+        self.scope = scope
+
+
+class TrustLevelInsufficientError(AccessDeniedError):
+    """Raised when a caller's trust level is too low for a responsibility-bearing write.
+
+    mcp-hardening S6: an external agent at ``trust_level=untrusted`` reaching a
+    side-effecting / human-confirmation capability through MCP is denied here.
+    Subclasses ``AccessDeniedError`` so existing 403 mapping holds, but carries
+    the structured ``reason`` ('trust_level_insufficient') + the offending level
+    so the MCP layer can project a typed error and the audit layer can stamp it.
+    """
+
+    reason = "trust_level_insufficient"
+
+    def __init__(self, message: str, *, trust_level: str = "untrusted", required: str = "verified") -> None:
+        super().__init__(message)
+        self.trust_level = trust_level
+        self.required = required
+
+
 @dataclass
 class _RequestBatchContext:
     """Prefetched indices for list_requests N+1 elimination (D-9).

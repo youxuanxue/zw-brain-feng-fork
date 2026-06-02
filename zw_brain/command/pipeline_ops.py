@@ -127,6 +127,10 @@ def emit_audit(
         actor_snapshot["development_iam_bypass"] = True
         payload_with_evidence["development_iam_bypass"] = True
     payload_with_evidence["skill_id"] = skill_id
+    # mcp-hardening S2: preserve the calling-surface provenance the entry layer
+    # stamped into the payload (brain.invoke_skill(..., source=...)). Defaults to
+    # 'in_process' when no surface was set so every audit row is attributable.
+    payload_with_evidence["source"] = payload.get("source") or payload_with_evidence.get("source") or "in_process"
     payload_with_evidence["audit_class"] = payload_with_evidence.get("audit_class") or manifest.get("audit_class")
     payload_with_evidence["actor_snapshot"] = actor_snapshot
     payload_with_evidence["policy_version"] = payload_with_evidence.get("policy_version") or manifest.get("version")

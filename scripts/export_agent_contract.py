@@ -518,10 +518,22 @@ def rest_entries_from_openapi(openapi: dict[str, Any]) -> list[dict[str, Any]]:
     return entries
 
 
+# mcp-hardening S3: a human_confirmation_required tool's description must carry an
+# explicit, client-visible "Requires user confirmation" marker so an IDE/Agent renders
+# the confirmation affordance before the (rejected-until-confirmed) call. Appended to the
+# generated description — single source remains the manifest.
+_MCP_CONFIRMATION_NOTE = "Requires user confirmation"
+
+
 def build_mcp_tool_descriptor(skill: dict[str, Any]) -> dict[str, Any]:
+    base_description = skill.get("description") or skill.get("title", "")
+    if skill.get("human_confirmation_required"):
+        description = f"{base_description} [{_MCP_CONFIRMATION_NOTE}]"
+    else:
+        description = base_description
     return {
         "name": skill["skill_id"],
-        "description": skill.get("description") or skill.get("title", ""),
+        "description": description,
         "inputSchema": skill.get("input_schema", {}),
         "annotations": {
             "mode": "write" if skill.get("side_effects") else "read",

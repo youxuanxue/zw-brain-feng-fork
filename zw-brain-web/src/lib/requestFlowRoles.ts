@@ -16,8 +16,16 @@ export const CATALOG_DEPT_REVIEWER_ROLES = ['ROLE_ORGAN_MANAGER'] as const;
 /** J2 平台审目录（catalog.entry.review 第 2 层，pending_platform_review → approved_pending_publish）。 */
 export const CATALOG_PLATFORM_REVIEWER_ROLES = ['ROLE_BUSIAUDIT'] as const;
 
+/** J1 有条件共享平台复核（application.platform_approve，第 2 步，dept_approved → granted/rejected）。 */
+export const REQUEST_FLOW_PLATFORM_REVIEWER_ROLES = ['ROLE_BUSIAUDIT'] as const;
+
 export function canReviewRequests(role: string): boolean {
   return (REQUEST_FLOW_REVIEWER_ROLES as readonly string[]).includes(role);
+}
+
+/** J1 有条件共享第二步平台复核 = 省大数据局业务运营员（与 policy application.platform_approve.execute 对齐）。 */
+export function canPlatformReviewRequests(role: string): boolean {
+  return (REQUEST_FLOW_PLATFORM_REVIEWER_ROLES as readonly string[]).includes(role);
 }
 
 export function canDecideFieldDrafts(role: string): boolean {

@@ -16,11 +16,13 @@
 | POST | `/api/skills/actor.projection.sync` | 同步用户角色投影 | `post_actor_projection_sync` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/adapter.external.mapping.query` | 查询外部对象映射 | `get_adapter_external_mapping_query` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/adapter.health.probe` | 探测适配器健康 | `post_adapter_health_probe` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/application.dept_approve` | 部门管理员审核（有条件共享第一步） | `post_application_dept_approve` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/application.draft.suggest` | P3 申请草拟助手（预填字段 + 风险预估） | `post_application_draft_suggest` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/application.grant.approve` | 审批资源授权 | `post_application_grant_approve` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/application.grant.renew` | 申请授权续期 | `post_application_grant_renew` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/application.grant.revoke` | 收回授权 | `post_application_grant_revoke` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/application.grant.suspend` | 暂停授权 | `post_application_grant_suspend` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/application.platform_approve` | 平台运营员复核（有条件共享第二步） | `post_application_platform_approve` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/application.resource.review` | 审批资源申请 | `post_application_resource_review` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/application.resource.submit` | 提交资源申请 | `post_application_resource_submit` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/approval.case.decide` | 裁决审批案件 | `post_approval_case_decide` | `zw_brain/entry/rest/openapi.json` |
@@ -291,7 +293,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 188 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 190 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -302,11 +304,13 @@
 | `actor.projection.sync` | 同步用户角色投影 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/actor.projection.sync.json` |
 | `adapter.external.mapping.query` | 查询外部对象映射 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/adapter.external.mapping.query.json` |
 | `adapter.health.probe` | 探测适配器健康 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/adapter.health.probe.json` |
+| `application.dept_approve` | 部门管理员审核（有条件共享第一步） | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/application.dept_approve.json` |
 | `application.draft.suggest` | P3 申请草拟助手（预填字段 + 风险预估） | 1.0.0 | audit | `zw_brain/capability_registry/registered/application.draft.suggest.json` |
 | `application.grant.approve` | 审批资源授权 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/application.grant.approve.json` |
 | `application.grant.renew` | 申请授权续期 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/application.grant.renew.json` |
 | `application.grant.revoke` | 收回授权 | 1.0.0 | audit, db_write, state_machine_transition | `zw_brain/capability_registry/registered/application.grant.revoke.json` |
 | `application.grant.suspend` | 暂停授权 | 1.0.0 | audit, db_write, state_machine_transition | `zw_brain/capability_registry/registered/application.grant.suspend.json` |
+| `application.platform_approve` | 平台运营员复核（有条件共享第二步） | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/application.platform_approve.json` |
 | `application.resource.review` | 审批资源申请 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/application.resource.review.json` |
 | `application.resource.submit` | 提交资源申请 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/application.resource.submit.json` |
 | `approval.case.decide` | 裁决审批案件 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/approval.case.decide.json` |
@@ -490,9 +494,9 @@
 
 ## Statistics
 
-- REST endpoints: 197
+- REST endpoints: 199
 - CLI entries: 1
 - MCP tools: 63
 - A2A agent cards: 1
-- Registered Skills (live): 188 / 233 on-disk
+- Registered Skills (live): 190 / 235 on-disk
 
