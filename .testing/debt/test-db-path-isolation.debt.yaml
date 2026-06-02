@@ -1,0 +1,15 @@
+slug: test-db-path-isolation
+title: "~30 个测试 fixture 裸改 ZW_BRAIN_DB_PATH 无 teardown → 跨模块 DB 泄漏"
+date: 2026-06-02
+severity: medium
+owner: 产品研发负责人
+trigger: >
+  批量清理测试隔离债时落地：给每个用裸 os.environ["ZW_BRAIN_DB_PATH"]=... 的 fixture
+  补 post-yield 还原（env + 清 zw_brain.shared.db._ENGINE_CACHE），或加 tests/conftest.py
+  级 autouse 隔离 fixture 统一兜底；同时把依赖"环境默认 seed DB"的消费测试 pin 到 SEED_DB
+  （已对 test_provider_snapshot_projection 的 2 条做了示范修法）。触发时机：再有 leak 受害
+  测试在全套 pytest 暴露，或专项测试健壮性立项。
+assert:
+  # 现算无法廉价精确判定（"fixture 是否还原"需 AST 级分析，裸 grep 会误判——如 _iaf_rest_http.py
+  # 实际用 saved_env+finally 还原却被字符串启发式误标）。external：owner+trigger 触发即升级。
+  kind: external

@@ -182,7 +182,9 @@ def test_webui_uses_registry_gateways_only() -> None:
     use_action = (web_src / "composables" / "useActionStub.ts").read_text(encoding="utf-8")
     use_snap = (web_src / "composables" / "useSnapshot.ts").read_text(encoding="utf-8")
     use_wb = (web_src / "composables" / "useWorkbench.ts").read_text(encoding="utf-8")
-    assert "authFetch(`/api/skills/${" in use_action
+    # skill id 插值进 /api/skills/ 路径，经 apiUrl() 单一前缀源后由 authFetch（registry gateway）出口。
+    assert "/api/skills/${" in use_action, "useActionStub must dispatch skill id into an /api/skills/ path"
+    assert "authFetch(apiUrl(" in use_action, "skill dispatch must go through authFetch(apiUrl(...)) gateway"
     assert "authFetch(" in use_snap and "/api/snapshot" in use_snap
     assert "authFetch(" in use_wb and "/api/skills/workbench.view" in use_wb
 

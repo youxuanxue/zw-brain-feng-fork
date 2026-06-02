@@ -22,6 +22,28 @@ from zw_brain.shared.migrate import ensure_runtime_schema
 from zw_brain.shared.state_store import StateStore
 
 TENANT = "sd-default"
+SEED_DB = Path(__file__).resolve().parent.parent / ".data" / "zw_brain.db"
+
+
+@pytest.fixture()
+def seed_db(monkeypatch: pytest.MonkeyPatch) -> Path:
+    """显式钉到真实 seed DB + 隔离 engine cache。
+
+    这两条 enrich 断言依赖真实库的已发布专题包/反向草稿字段。它们原先靠"环境里
+    ZW_BRAIN_DB_PATH 默认指向 .data/zw_brain.db"的隐式约定——但仓内约 30 个 fixture
+    用裸 os.environ 改 ZW_BRAIN_DB_PATH 且无 teardown（见 .testing/debt 登记），上游某条
+    real-data 测试泄漏后会把这里指向空库 → "no such table"。pin + monkeypatch 自动还原
+    使其对上游泄漏免疫，并声明真实依赖（与同模块 temp_db / 邻居 _shadow_db 同模式）。
+    """
+    if not SEED_DB.is_file():
+        pytest.skip("seed db missing — 跑 scripts/customer_acceptance_up.sh 重建")
+    monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(SEED_DB))
+    monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
+    with db_module._CACHE_LOCK:
+        db_module._ENGINE_CACHE.clear()
+    yield SEED_DB
+    with db_module._CACHE_LOCK:
+        db_module._ENGINE_CACHE.clear()
 
 
 @pytest.fixture()
@@ -170,7 +192,7 @@ def test_redact_empty_provider_includes_inbox_keys() -> None:
     assert redacted["provider"] == _EMPTY_PROVIDER
 
 
-def test_enrich_zones_snapshot_attaches_package_code() -> None:
+def test_enrich_zones_snapshot_attaches_package_code(seed_db: Path) -> None:
     from zw_brain.domain.provider_snapshot_projection import enrich_zones_snapshot
 
     snap = enrich_zones_snapshot(
@@ -181,7 +203,7 @@ def test_enrich_zones_snapshot_attaches_package_code() -> None:
     assert zone.get("package_code"), "P7 订阅应拿到 DB 中已发布专题包的 package_code"
 
 
-def test_enrich_provider_catalogs_attach_reverse_draft_fields() -> None:
+def test_enrich_provider_catalogs_attach_reverse_draft_fields(seed_db: Path) -> None:
     from zw_brain.domain.provider_snapshot_projection import enrich_provider_snapshot
 
     snap = enrich_provider_snapshot(

@@ -14,9 +14,10 @@
 // 计修正：confirmed 必须由调用栈显式传递）。
 
 import { authFetch } from './useAuth';
+import { apiUrl } from './useApiBase';
 
 export async function postSkill<T>(skill: string, payload: Record<string, unknown>): Promise<T> {
-  const resp = await authFetch(`/api/skills/${skill}`, {
+  const resp = await authFetch(apiUrl(`/api/skills/${skill}`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify(payload),

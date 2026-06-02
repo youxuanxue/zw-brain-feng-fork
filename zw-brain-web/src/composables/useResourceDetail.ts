@@ -1,6 +1,7 @@
 import { computed, ref, watch } from 'vue';
 import { authFetch } from './useAuth';
 import { lookupResource, useSnapshot } from './useSnapshot';
+import { apiUrl } from './useApiBase';
 
 /** 资源详情：优先 snapshot；缺失时 GET catalog.resource_view 拉全库条目。 */
 export function useResourceDetail(resourceId: () => string, role = 'ROLE_ORGAN_OPERATER') {
@@ -16,7 +17,7 @@ export function useResourceDetail(resourceId: () => string, role = 'ROLE_ORGAN_O
     fetchError.value = null;
     try {
       const resp = await authFetch(
-        `/api/skills/catalog.resource_view?role=${encodeURIComponent(role)}&resource_id=${encodeURIComponent(id)}`,
+        apiUrl(`/api/skills/catalog.resource_view?role=${encodeURIComponent(role)}&resource_id=${encodeURIComponent(id)}`),
         { headers: { Accept: 'application/json' } },
       );
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);

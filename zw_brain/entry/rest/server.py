@@ -113,6 +113,21 @@ WEB_ROOT = _web_root()
 WEB_PUBLIC_ROOT = _web_public_root(WEB_ROOT)
 OPENAPI_PATH = Path(__file__).with_name("openapi.json")
 _IAF_STATE_STORE = IafOidcStateStore()
+
+# 反向代理可在 /zw-brain 下挂载本服务（前端 vite base 同值）。后端前缀单一事实源在此，
+# 路由前统一剥前缀；前端从 import.meta.env.BASE_URL 派生，禁止各处硬编码字面量。
+APP_PATH_PREFIX = "/zw-brain"
+# 前缀部署下 SPA 入口与登录/登出回落路径。
+APP_DEFAULT_PATH = f"{APP_PATH_PREFIX}/"
+
+
+def _strip_app_prefix(path: str) -> str:
+    """剥掉 APP_PATH_PREFIX 前缀；仅命中精确前缀或其下子路径，避免 /zw-brainfoo 被误剥。"""
+    if path == APP_PATH_PREFIX:
+        return "/"
+    if path.startswith(f"{APP_PATH_PREFIX}/"):
+        return path[len(APP_PATH_PREFIX):]
+    return path
 _IAF_TRANSPORT: Callable[[HttpRequest], HttpResponse] | None = None
 _IAF_JWKS: dict[str, Any] | None = None
 _IAF_JWKS_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
@@ -197,7 +212,7 @@ def _iaf_http_opener():
 def _default_transport(request: HttpRequest) -> HttpResponse:
     url_request = UrlRequest(request.url, data=request.body, headers=request.headers, method=request.method)
     try:
-        with _iaf_http_opener().open(url_request, timeout=5) as response:
+        with _iaf_http_opener().open(url_request, timeout=10) as response:
             return HttpResponse(status_code=response.status, body=response.read(), headers=dict(response.headers.items()))
     except HTTPError as exc:
         return HttpResponse(status_code=exc.code, body=exc.read(), headers=dict(exc.headers.items()))
@@ -262,51 +277,53 @@ class RestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
-        if parsed.path == "/auth/iaf/config":
+        path = _strip_app_prefix(parsed.path)
+
+        if path == "/auth/iaf/config":
             self._handle_iaf_config()
             return
-        if parsed.path == "/auth/iaf/login":
+        if path == "/auth/iaf/login":
             self._handle_iaf_login(parsed)
             return
-        if parsed.path == "/auth/iaf/logout":
+        if path == "/auth/iaf/logout":
             self._handle_iaf_logout(parsed)
             return
-        if parsed.path == "/auth/iaf/session":
+        if path == "/auth/iaf/session":
             self._handle_iaf_session()
             return
-        if parsed.path == "/health":
+        if path == "/health":
             body: dict[str, Any] = {"status": "ok", "service": "zw-brain-rest"}
             body["agent_runtime"] = _agent_runtime_bridge().runtime_status()
             self._json(200, body)
             return
-        if parsed.path == "/api/agent-runtime/agents":
+        if path == "/api/agent-runtime/agents":
             self._with_authenticated_request(lambda claims: self._handle_agent_runtime_agents(claims))
             return
-        if parsed.path == "/api/agent-runtime/status":
+        if path == "/api/agent-runtime/status":
             self._json(200, _agent_runtime_bridge().runtime_status())
             return
-        if parsed.path == "/openapi.json":
+        if path == "/openapi.json":
             self._serve_file(OPENAPI_PATH)
             return
-        if parsed.path == "/favicon.ico":
+        if path == "/favicon.ico":
             self._empty(204, "image/x-icon")
             return
-        if parsed.path == "/api/snapshot":
+        if path == "/api/snapshot":
             self._with_authenticated_request(lambda claims: self._handle_api_snapshot(parsed, claims))
             return
-        if parsed.path.startswith("/api/skills/"):
+        if path.startswith("/api/skills/"):
             self._with_authenticated_request(lambda claims: self._handle_api_skill_get(parsed, claims))
             return
-        if parsed.path in {"/", "/index.html"}:
+        if path in {"/", "/index.html"}:
             self._serve_file(WEB_PUBLIC_ROOT / "index.html")
             return
         if (
-            parsed.path.startswith("/css/")
-            or parsed.path.startswith("/js/")
-            or parsed.path.startswith("/assets/")
-            or parsed.path.startswith("/src/")
+            path.startswith("/css/")
+            or path.startswith("/js/")
+            or path.startswith("/assets/")
+            or path.startswith("/src/")
         ):
-            rel = parsed.path.lstrip("/")
+            rel = path.lstrip("/")
             # Dev index references /src/*.ts — only resolvable from source tree, not dist-vite.
             serve_root = WEB_ROOT if rel.startswith("src/") else WEB_PUBLIC_ROOT
             self._serve_file(serve_root / rel, enforce_web_root=True)
@@ -315,19 +332,21 @@ class RestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
-        if parsed.path == "/auth/iaf/token":
+        path = _strip_app_prefix(parsed.path)
+
+        if path == "/auth/iaf/token":
             self._handle_iaf_token()
             return
-        if parsed.path == "/auth/iaf/refresh":
+        if path == "/auth/iaf/refresh":
             self._handle_iaf_refresh()
             return
-        if parsed.path == "/auth/iaf/dev-bypass-login":
+        if path == "/auth/iaf/dev-bypass-login":
             self._handle_iaf_dev_bypass_login()
             return
-        if parsed.path.startswith("/api/skills/"):
+        if path.startswith("/api/skills/"):
             self._with_authenticated_request(lambda claims: self._handle_api_skill_post(parsed, claims))
             return
-        if parsed.path == "/api/agent-runtime/tasks":
+        if path == "/api/agent-runtime/tasks":
             self._with_authenticated_request(lambda claims: self._handle_agent_runtime_task_post(claims))
             return
         self._json(404, {"error": "not_found", "path": parsed.path})
@@ -403,7 +422,7 @@ class RestHandler(BaseHTTPRequestHandler):
     def _handle_iaf_login(self, parsed) -> None:  # type: ignore[no-untyped-def]
         try:
             qs = parse_qs(parsed.query)
-            redirect_uri = self._same_origin_url((qs.get("redirect_uri") or [""])[-1], default_path="/")
+            redirect_uri = self._same_origin_url((qs.get("redirect_uri") or [""])[-1], default_path=APP_DEFAULT_PATH)
             login_state = _IAF_STATE_STORE.issue(redirect_uri=redirect_uri)
             auth = IafOidcClient().authorization_request(redirect_uri=redirect_uri, login_state=login_state)
             if self._iaf_login_returns_json_envelope(qs):
@@ -427,7 +446,7 @@ class RestHandler(BaseHTTPRequestHandler):
         self._json(200, get_service().invoke_skill("system.snapshot", params))
 
     def _handle_api_skill_get(self, parsed, _claims: dict[str, Any]) -> None:  # type: ignore[no-untyped-def]
-        skill_id = parsed.path[len("/api/skills/"):]
+        skill_id = _strip_app_prefix(parsed.path)[len("/api/skills/"):]
         params = {k: v[-1] for k, v in parse_qs(parsed.query).items()}
         require_surface(skill_id, "api")
         session = self._get_cookie_session()
@@ -442,7 +461,7 @@ class RestHandler(BaseHTTPRequestHandler):
         self._json(200, get_service().invoke_skill(skill_id, params))
 
     def _handle_api_skill_post(self, parsed, _claims: dict[str, Any]) -> None:  # type: ignore[no-untyped-def]
-        skill_id = parsed.path[len("/api/skills/"):]
+        skill_id = _strip_app_prefix(parsed.path)[len("/api/skills/"):]
         payload = self._read_json_body()
         require_surface(skill_id, "api")
         session = self._get_cookie_session()
@@ -815,12 +834,12 @@ class RestHandler(BaseHTTPRequestHandler):
             if session is not None:
                 _AUTH_SESSION_STORE.delete(session.session_id)
             if get_dev_iam_bypass_enabled() or (session is not None and session.development_iam_bypass):
-                self._respond_with_logout({"logout_url": self._same_origin_url(redirect_uri, default_path="/"), "local_auth_cleared": True})
+                self._respond_with_logout({"logout_url": self._same_origin_url(redirect_uri, default_path=APP_DEFAULT_PATH), "local_auth_cleared": True})
                 return
             config = IafOidcClient().config
             params: dict[str, str] = {"client_id": config.client_id}
             if redirect_uri:
-                params["post_logout_redirect_uri"] = self._same_origin_url(redirect_uri, default_path="/")
+                params["post_logout_redirect_uri"] = self._same_origin_url(redirect_uri, default_path=APP_DEFAULT_PATH)
             if id_token_hint:
                 params["id_token_hint"] = id_token_hint
             logout_url = config.endpoints.logout_endpoint
@@ -840,8 +859,20 @@ class RestHandler(BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
     def _request_url(self, path: str) -> str:
-        scheme = "https" if self.headers.get("X-Forwarded-Proto") == "https" else "http"
-        host = self.headers.get("Host") or f"{get_rest_host()}:{get_rest_port()}"
+        # 优先使用 X-Forwarded-Proto 和 X-Forwarded-Host（nginx 代理时）
+        forwarded_proto = (self.headers.get("X-Forwarded-Proto") or "").lower()
+        scheme = forwarded_proto if forwarded_proto in ("http", "https") else "http"
+        # X-Forwarded-Host 可能包含端口，如 "aip.inspurcloud.cn:9443"
+        forwarded_host = self.headers.get("X-Forwarded-Host")
+        if forwarded_host:
+            host = forwarded_host
+        else:
+            # 从 Host header 获取，可能没有端口
+            host = self.headers.get("Host") or f"{get_rest_host()}:{get_rest_port()}"
+            # 尝试从 X-Forwarded-Port 获取端口
+            forwarded_port = self.headers.get("X-Forwarded-Port")
+            if forwarded_port and ":" not in host:
+                host = f"{host}:{forwarded_port}"
         return f"{scheme}://{host}{path}"
 
     def _same_origin_url(self, candidate: str, *, default_path: str) -> str:
@@ -851,6 +882,9 @@ class RestHandler(BaseHTTPRequestHandler):
         current = urlparse(fallback)
         parsed = urlparse(candidate)
         if parsed.scheme and parsed.netloc:
+            # 精确比对 scheme+netloc(host:port)。nginx 反代下外部端口经 _request_url 的
+            # X-Forwarded-Host/Port 还原进 current.netloc，故合法回路仍精确相等；
+            # 不放宽端口——同 host 异端口可能是攻击者可控的旁路服务（开放重定向风险）。
             if parsed.scheme != current.scheme or parsed.netloc != current.netloc:
                 raise IafOidcStateError("redirect origin mismatch")
             return candidate

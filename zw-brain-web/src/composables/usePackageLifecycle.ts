@@ -8,6 +8,7 @@ import {
   type PackageListResult,
 } from '@/fixtures/b12-fixture';
 import { normalizePackageRow } from '@/lib/packageDisplay';
+import { apiUrl } from './useApiBase';
 
 // B1.2 接入扩展中心后端调用封装：
 // - package.list（既有 capability_admin handler）
@@ -125,7 +126,7 @@ async function invokeMutate(
     return { ok: false, error: `${skill}: caller did not pass confirmed=true; backend gate would reject` };
   }
   try {
-    const resp = await authFetch(`/api/skills/${skill}`, {
+    const resp = await authFetch(apiUrl(`/api/skills/${skill}`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({

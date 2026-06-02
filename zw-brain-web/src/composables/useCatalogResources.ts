@@ -1,6 +1,7 @@
 import { ref, watch } from 'vue';
 import { authFetch } from './useAuth';
 import { useSnapshot } from './useSnapshot';
+import { apiUrl } from './useApiBase';
 
 /** 目录下资源：调 catalog.resource.list 列出某目录关联的 resource_asset（钻取链路）。 */
 export function useCatalogResources(catalogCode: () => string, role = 'ROLE_ORGAN_OPERATER') {
@@ -27,7 +28,7 @@ export function useCatalogResources(catalogCode: () => string, role = 'ROLE_ORGA
     loading.value = true;
     fetchError.value = null;
     try {
-      const resp = await authFetch('/api/skills/catalog.resource.list', {
+      const resp = await authFetch(apiUrl('/api/skills/catalog.resource.list'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ role, catalog_code: code, limit: 50 }),

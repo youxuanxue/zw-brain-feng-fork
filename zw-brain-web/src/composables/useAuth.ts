@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue';
 import { setProductRole } from './useProductRole';
+import { apiUrl, appOrigin } from './useApiBase';
 
 // 与旧 js/auth.js BFF 模型对齐：
 //   - access / refresh / id token 永远不到浏览器；BFF cookie 走 HttpOnly。
@@ -133,12 +134,12 @@ async function _readJson(resp: Response): Promise<Record<string, unknown>> {
 }
 
 async function _readAuthConfig(): Promise<{ development_iam_bypass_enabled?: boolean }> {
-  const resp = await fetch('/auth/iaf/config', { headers: { Accept: 'application/json' }, credentials: 'include' });
+  const resp = await fetch(apiUrl('/auth/iaf/config'), { headers: { Accept: 'application/json' }, credentials: 'include' });
   return (await _readJson(resp)) as { development_iam_bypass_enabled?: boolean };
 }
 
 async function _devBypassLogin(): Promise<AuthSnapshot> {
-  const resp = await fetch('/auth/iaf/dev-bypass-login', {
+  const resp = await fetch(apiUrl('/auth/iaf/dev-bypass-login'), {
     method: 'POST',
     headers: { Accept: 'application/json' },
     credentials: 'include',
@@ -148,15 +149,15 @@ async function _devBypassLogin(): Promise<AuthSnapshot> {
 }
 
 async function _readCurrentSession(): Promise<AuthSnapshot | null> {
-  const resp = await fetch('/auth/iaf/session', { headers: { Accept: 'application/json' }, credentials: 'include' });
+  const resp = await fetch(apiUrl('/auth/iaf/session'), { headers: { Accept: 'application/json' }, credentials: 'include' });
   if (resp.status === 401) return null;
   const data = await _readJson(resp);
   return _writeSnapshot(data);
 }
 
 export async function startLogin(): Promise<void> {
-  const redirectUri = `${window.location.origin}/`;
-  const resp = await fetch(`/auth/iaf/login?redirect_uri=${encodeURIComponent(redirectUri)}&format=json`, {
+  const redirectUri = appOrigin();
+  const resp = await fetch(apiUrl(`/auth/iaf/login?redirect_uri=${encodeURIComponent(redirectUri)}&format=json`), {
     headers: { Accept: 'application/json' },
     credentials: 'include',
   });
@@ -188,10 +189,10 @@ export async function login(): Promise<AuthSnapshot | null> {
 }
 
 export async function logout(): Promise<void> {
-  const redirectUri = `${window.location.origin}/`;
+  const redirectUri = appOrigin();
   let logoutUrl = redirectUri;
   try {
-    const resp = await fetch(`/auth/iaf/logout?redirect_uri=${encodeURIComponent(redirectUri)}`, {
+    const resp = await fetch(apiUrl(`/auth/iaf/logout?redirect_uri=${encodeURIComponent(redirectUri)}`), {
       headers: { Accept: 'application/json' },
       credentials: 'include',
     });
@@ -253,7 +254,7 @@ async function _refreshIfNeeded(force = false): Promise<AuthSnapshot | null> {
   const csrf = s.csrf_token;
   if (!csrf) return s;
   try {
-    const resp = await fetch('/auth/iaf/refresh', {
+    const resp = await fetch(apiUrl('/auth/iaf/refresh'), {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json', [CSRF_HEADER]: csrf },
       credentials: 'include',
@@ -319,7 +320,7 @@ function _stripOAuthParamsFromUrl(): void {
 }
 
 export async function exchangeCodeForToken(code: string, state: string): Promise<AuthSnapshot> {
-  const resp = await fetch('/auth/iaf/token', {
+  const resp = await fetch(apiUrl('/auth/iaf/token'), {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     credentials: 'include',

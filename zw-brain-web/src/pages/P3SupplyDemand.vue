@@ -8,6 +8,7 @@ import { invokeActionStub } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
+import { apiUrl } from '@/composables/useApiBase';
 
 interface DemandRow {
   id: string;
@@ -62,7 +63,7 @@ function sortDemands(rows: DemandRow[]): DemandRow[] {
 async function loadDemands() {
   loading.value = true;
   try {
-    const resp = await authFetch('/api/skills/demand.list', {
+    const resp = await authFetch(apiUrl('/api/skills/demand.list'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ role: getProductRole().value }),

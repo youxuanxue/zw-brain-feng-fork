@@ -9,6 +9,7 @@ import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { mapDetailRows } from '@/lib/detailDisplay';
+import { apiUrl } from '@/composables/useApiBase';
 
 interface CredentialQueryView {
   request_id: string;
@@ -67,7 +68,7 @@ async function load() {
   sampleView.value = null;
   try {
     const resp = await authFetch(
-      `/api/skills/credential.query?role=${encodeURIComponent(getProductRole().value)}&request_id=${encodeURIComponent(reqId.value)}`,
+      apiUrl(`/api/skills/credential.query?role=${encodeURIComponent(getProductRole().value)}&request_id=${encodeURIComponent(reqId.value)}`),
       { headers: { Accept: 'application/json' } },
     );
     if (!resp.ok) {
@@ -84,7 +85,7 @@ async function load() {
     credentialView.value = (await resp.json()) as CredentialQueryView;
 
     if (credentialView.value.credential) {
-      const sresp = await authFetch('/api/skills/credential.sample.render', {
+      const sresp = await authFetch(apiUrl('/api/skills/credential.sample.render'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ request_id: reqId.value, role: getProductRole().value, confirmed: true }),

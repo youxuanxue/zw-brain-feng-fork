@@ -2,6 +2,7 @@ import { ref } from 'vue';
 import { authFetch } from './useAuth';
 import { getProductRole } from './useProductRole';
 import { newRequestId } from './useApiClient';
+import { apiUrl } from './useApiBase';
 
 export const PLATFORM_GUIDE_AGENT_ID = 'zw-platform-guide';
 
@@ -43,7 +44,7 @@ export function usePlatformGuideChat() {
 
   async function probeRuntime(): Promise<boolean> {
     try {
-      const resp = await authFetch('/health');
+      const resp = await authFetch(apiUrl('/health'));
       if (!resp.ok) {
         runtimeEnabled.value = false;
         return false;
@@ -72,7 +73,7 @@ export function usePlatformGuideChat() {
         throw new Error('AgentRuntime 未启用，问答不可用。请联系平台管理员开启。');
       }
 
-      const resp = await authFetch('/api/agent-runtime/tasks', {
+      const resp = await authFetch(apiUrl('/api/agent-runtime/tasks'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({

@@ -67,7 +67,7 @@ const copyLegacyStaticToDist = (): Plugin => ({
 });
 
 export default defineConfig({
-  base: '/',
+  base: '/zw-brain/',
   plugins: [vue(), serveLegacyStatic(), copyLegacyStaticToDist()],
   resolve: {
     alias: {
@@ -79,8 +79,11 @@ export default defineConfig({
     proxy: {
       // brain REST 默认端口 8800（zw_brain/shared/runtime_config.py::DEFAULT_REST_PORT）。
       // 启动方式：ZW_BRAIN_DEV_IAM_BYPASS=1 python -m zw_brain.entry.rest.server
-      '/api': { target: 'http://127.0.0.1:8800', changeOrigin: true },
-      '/auth': { target: 'http://127.0.0.1:8800', changeOrigin: true },
+      '/zw-brain/api': { target: 'http://127.0.0.1:8800', changeOrigin: true },
+      '/zw-brain/auth': { target: 'http://127.0.0.1:8800', changeOrigin: true },
+      '/zw-brain/health': { target: 'http://127.0.0.1:8800', changeOrigin: true },
+      '/zw-brain/assets': { target: 'http://127.0.0.1:8800', changeOrigin: true },
+      '/zw-brain/css': { target: 'http://127.0.0.1:8800', changeOrigin: true },
     },
   },
   build: {

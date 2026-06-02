@@ -7,6 +7,7 @@ import { authFetch } from '@/composables/useAuth';
 import { invokeActionStub } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { OBJECTION_TYPE_ZH } from '@/lib/objectionLabels';
+import { apiUrl } from '@/composables/useApiBase';
 
 interface CandidateOption {
   code: string;
@@ -76,7 +77,7 @@ async function loadCandidates() {
     };
     const cfg = skillByType[targetType.value];
     if (!cfg) return;
-    const resp = await authFetch(`/api/skills/${cfg.skill}`, {
+    const resp = await authFetch(apiUrl(`/api/skills/${cfg.skill}`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ role: role.value, limit: 200, confirmed: true }),

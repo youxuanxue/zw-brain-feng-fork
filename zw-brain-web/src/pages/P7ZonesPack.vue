@@ -6,6 +6,7 @@ import { authFetch } from '@/composables/useAuth';
 import { pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { formatTodoStatus } from '@/lib/statusLabels';
+import { apiUrl } from '@/composables/useApiBase';
 
 // F9 真端到端：P7 直读 topic.package 后端（topic.package.query / subscribe），
 // 不再读 snapshot.zones 静态字段（参照 P5CatalogReviewInbox 真 API 范式）。
@@ -30,7 +31,7 @@ async function loadPackages(): Promise<void> {
   loading.value = true;
   errorMsg.value = '';
   try {
-    const resp = await authFetch('/api/skills/topic.package.query', {
+    const resp = await authFetch(apiUrl('/api/skills/topic.package.query'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ role: role.value, status: 'published' }),
@@ -67,7 +68,7 @@ async function subscribe(packageCode: string): Promise<void> {
   if (subscribing.value.has(packageCode)) return;
   subscribing.value.add(packageCode);
   try {
-    const resp = await authFetch('/api/skills/topic.package.subscribe', {
+    const resp = await authFetch(apiUrl('/api/skills/topic.package.subscribe'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ role: role.value, confirmed: true, package_code: packageCode }),

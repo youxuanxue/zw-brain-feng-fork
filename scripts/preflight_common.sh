@@ -110,10 +110,10 @@ git_sub() {
     )
 }
 
-section "branch naming (prototype/|feature/|fix/|chore/|docs/|merge/|cursor/|main|master)"
+section "branch naming (prototype/|feature/|feat/|fix/|chore/|docs/|merge/|cursor/|main|master)"
 branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
 case "$branch" in
-    main|master|prototype/*|feature/*|fix/*|chore/*|docs/*|merge/*|cursor/*|HEAD)
+    main|master|prototype/*|feature/*|feat/*|fix/*|chore/*|docs/*|merge/*|cursor/*|HEAD)
         ok "branch '$branch'"
         ;;
     *)

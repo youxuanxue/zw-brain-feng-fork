@@ -2,6 +2,7 @@ import { ref, onMounted, watch, type Ref } from 'vue';
 import { WORKBENCH_FIXTURE, type WorkbenchView } from '@/fixtures/workbench-fixture';
 import { authFetch, hasAllowedProductRoles } from './useAuth';
 import { getProductRole } from './useProductRole';
+import { apiUrl } from './useApiBase';
 
 export type WorkbenchSource = 'live' | 'fixture' | 'loading';
 
@@ -36,7 +37,7 @@ export function useWorkbench(roleOverride?: string): UseWorkbenchResult {
     source.value = 'loading';
     error.value = null;
     try {
-      const resp = await authFetch(`/api/skills/workbench.view?role=${encodeURIComponent(role)}`, {
+      const resp = await authFetch(apiUrl(`/api/skills/workbench.view?role=${encodeURIComponent(role)}`), {
         headers: { Accept: 'application/json' },
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);

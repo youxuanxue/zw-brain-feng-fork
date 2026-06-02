@@ -5,6 +5,7 @@ import { authFetch } from '@/composables/useAuth';
 import { getProductRole } from '@/composables/useProductRole';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 import { OBJECTION_TYPE_ZH, formatObjectionType } from '@/lib/objectionLabels';
+import { apiUrl } from '@/composables/useApiBase';
 
 interface ObjectionRow {
   id: string;
@@ -50,7 +51,7 @@ async function load() {
   loading.value = true;
   error.value = null;
   try {
-    const resp = await authFetch('/api/skills/objection.case.query', {
+    const resp = await authFetch(apiUrl('/api/skills/objection.case.query'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ role: getProductRole().value, confirmed: true }),

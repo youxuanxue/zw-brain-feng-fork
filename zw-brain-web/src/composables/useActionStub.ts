@@ -2,6 +2,7 @@ import { ref } from 'vue';
 import { authFetch } from './useAuth';
 import { loadSnapshot } from './useSnapshot';
 import { getProductRole } from './useProductRole';
+import { apiUrl } from './useApiBase';
 
 // F3 业务交互 stub：把 7 主页面 + 6 子页的 onClick 收口到此处。
 // 真正 land 的业务 handler（E1/E2/E4 输出）通过 /api/skills/<skill_id> 调到；
@@ -52,7 +53,7 @@ export interface ActionStubOptions {
 export async function invokeActionStub(opts: ActionStubOptions): Promise<{ ok: boolean; status: number; data?: unknown }> {
   const role = opts.role ?? getProductRole().value;
   try {
-    const resp = await authFetch(`/api/skills/${opts.skillId}`, {
+    const resp = await authFetch(apiUrl(`/api/skills/${opts.skillId}`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ role, confirmed: true, ...(opts.payload ?? {}) }),

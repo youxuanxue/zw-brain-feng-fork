@@ -12,6 +12,7 @@ import {
 import { loadSnapshot } from '@/composables/useSnapshot';
 import { getProductRole } from '@/composables/useProductRole';
 import { pushToast } from '@/composables/useActionStub';
+import { apiUrl } from '@/composables/useApiBase';
 
 const router = useRouter();
 const user = getCurrentUser();
@@ -69,7 +70,7 @@ async function enterWithDevBypass(): Promise<void> {
 onMounted(async () => {
   await bootstrap();
   try {
-    const resp = await fetch('/auth/iaf/config', { headers: { Accept: 'application/json' }, credentials: 'include' });
+    const resp = await fetch(apiUrl('/auth/iaf/config'), { headers: { Accept: 'application/json' }, credentials: 'include' });
     if (resp.ok) {
       const cfg = (await resp.json()) as {
         configured?: boolean;

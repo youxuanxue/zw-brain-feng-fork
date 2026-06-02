@@ -2,7 +2,7 @@
 
 # Preflight Debt Status (computed)
 
-## open (32)
+## open (33)
 - ac7 [medium] (2026-05-25) — 客户机房部署 + 监控对接未落地（E6 AC7）
   - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
 - agentruntime [medium] (2026-05-24) — AgentRuntime runtime 触发式延后（D30 retrofit）
@@ -60,6 +60,9 @@
   - assert: grep_present → pattern present in zw_brain/shared/agent_runtime/service.py
 - tenant-only [medium] (2026-05-26) — 读路径热表 tenant-only 全扫白名单（PR #113 同模式残留）
   - assert: grep_present → pattern present in zw_brain/domain/repositories/delivery.py
+- test-db-path-isolation [medium] (2026-06-02) — ~30 个测试 fixture 裸改 ZW_BRAIN_DB_PATH 无 teardown → 跨模块 DB 泄漏
+  - assert: external → external — owner=产品研发负责人; trigger=批量清理测试隔离债时落地：给每个用裸 os.environ["ZW_BRAIN_DB_PATH"]=... 的 fixture 补 post-yield 还原（env + 清 zw_brain.shared.db._ENGINE_CACHE），或加 tests/conftest.py 级 autouse 隔离 fixture 统一兜底；同时把依赖"环境默认 seed DB"的消费测试 pin 到 SEED_DB （已对 test_provider_snapshot_projection 的 2 条做了示范修法）。触发时机：再有 leak 受害 测试在全套 pytest 暴露，或专项测试健壮性立项。
+
 - topic-package-query [medium] (2026-05-31) — topic.package.query 列表跑详情级投影（P7 性能）
   - assert: grep_present → pattern present in zw_brain/domain/services/topic_package_service.py
 - trigger [medium] (2026-05-24) — 附录 C 4 项 trigger 化 pending（D30 retrofit）

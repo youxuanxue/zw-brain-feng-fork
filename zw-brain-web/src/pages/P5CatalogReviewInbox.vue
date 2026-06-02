@@ -6,6 +6,7 @@ import { authFetch } from '@/composables/useAuth';
 import { invokeActionStub } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { canReviewCatalogDept, canReviewCatalogPlatform } from '@/lib/requestFlowRoles';
+import { apiUrl } from '@/composables/useApiBase';
 
 const { source } = useSnapshot();
 const role = getProductRole();
@@ -58,7 +59,7 @@ async function loadInbox(): Promise<void> {
   loading.value = true;
   errorMsg.value = '';
   try {
-    const resp = await authFetch('/api/skills/catalog.entry.query', {
+    const resp = await authFetch(apiUrl('/api/skills/catalog.entry.query'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({

@@ -111,11 +111,38 @@ docker run -d --name zw-brain-rest -p 8800:8800 \
 curl http://127.0.0.1:8800/health
 ```
 
-WebUI 访问地址：
+WebUI 访问地址（前缀部署，见 §4.1）：
 
 ```text
-http://<服务器IP>:8800/
+http://<服务器IP>:8800/zw-brain/
 ```
+
+> WebUI 构建 base 为 `/zw-brain/`（`zw-brain-web/vite.config.ts`），正规入口带 `/zw-brain/` 前缀。
+> 直连容器访问裸 `/` 仍可打开（后端对无前缀路径保留 back-compat），但反代网关后必须走前缀，见下。
+
+## 4.1 反代前缀部署（/zw-brain/）
+
+本服务设计为可挂在反向代理子路径 `/zw-brain/` 下（前后端前缀单一事实源：
+前端 `vite base=/zw-brain/`、后端 `zw_brain/entry/rest/server.py::APP_PATH_PREFIX`）。
+网关（如 nginx）需满足两点，否则 WebUI 资产或 OIDC 登录回跳会失败：
+
+1. **把 `/zw-brain/` 子路径转发到容器 8800**（路径前缀保留，不要 strip）：
+
+```nginx
+location /zw-brain/ {
+    proxy_pass http://127.0.0.1:8800;          # 末尾不加 /，保留 /zw-brain/ 前缀
+    proxy_set_header Host              $host;
+    proxy_set_header X-Forwarded-Host  $host;   # 含外部端口，如 aip.example.cn:9443
+    proxy_set_header X-Forwarded-Port  $server_port;
+    proxy_set_header X-Forwarded-Proto $scheme; # https 时务必为 https
+}
+```
+
+2. **必须转发 `X-Forwarded-Host` / `X-Forwarded-Port` / `X-Forwarded-Proto`**：后端用它们还原
+   外部 origin 来做 OIDC `redirect_uri` 同源校验（精确比对 scheme+host:port）。缺失会导致登录回跳
+   被判 `redirect origin mismatch`。IAF 侧 `redirect_uri` 白名单也要登记到外部 `https://<host>:<port>/zw-brain/`。
+
+> 健康检查在反代后为 `https://<host>:<port>/zw-brain/health`；裸 `/health` 仅供容器内直连探活。
 
 ## 5. 常用环境变量
 

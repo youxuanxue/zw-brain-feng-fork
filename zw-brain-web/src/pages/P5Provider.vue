@@ -7,6 +7,7 @@ import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { providerTodoCounts } from '@/lib/providerProjection';
 import { canPerformAction, filterByRouteAccess } from '@/lib/pageAccess';
+import { apiUrl } from '@/composables/useApiBase';
 
 const provider = useProvider();
 const { source } = useSnapshot();
@@ -47,7 +48,7 @@ async function loadPublishQueue(): Promise<void> {
   publishQueueLoading.value = true;
   try {
     const role = getProductRole().value;
-    const resp = await authFetch('/api/skills/catalog.entry.query', {
+    const resp = await authFetch(apiUrl('/api/skills/catalog.entry.query'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ role, lifecycle_status: 'approved_pending_publish', limit: 5 }),

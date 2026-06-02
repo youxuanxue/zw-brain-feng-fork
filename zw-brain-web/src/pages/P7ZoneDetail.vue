@@ -10,6 +10,7 @@ import { pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
+import { apiUrl } from '@/composables/useApiBase';
 
 // F9 真端到端：详情直读 topic.package.query（带 package_code），渲染真 items / visibility / metrics。
 const route = useRoute();
@@ -25,7 +26,7 @@ async function loadDetail(): Promise<void> {
   if (!id.value) return;
   loading.value = true;
   try {
-    const resp = await authFetch('/api/skills/topic.package.query', {
+    const resp = await authFetch(apiUrl('/api/skills/topic.package.query'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ role: role.value, package_code: id.value }),
@@ -96,7 +97,7 @@ async function subscribe(): Promise<void> {
   if (subscribing.value) return;
   subscribing.value = true;
   try {
-    const resp = await authFetch('/api/skills/topic.package.subscribe', {
+    const resp = await authFetch(apiUrl('/api/skills/topic.package.subscribe'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ role: role.value, confirmed: true, package_code: id.value }),

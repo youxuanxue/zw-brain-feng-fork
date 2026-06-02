@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue';
 import { authFetch } from './useAuth';
+import { apiUrl } from './useApiBase';
 
 // 全量 snapshot 加载——对齐旧 js/app.js::refreshSnapshot()，把 /api/snapshot 返回的
 // 各类 RUNTIME_* 暴露为响应式 ref，供 7 个 F2 占位页面读出基础计数 / 列表。
@@ -29,7 +30,7 @@ const _cache = new Map<string, Snapshot>();
 let _initialHydrated = false;
 
 async function _fetchSnapshot(role: string): Promise<Snapshot> {
-  const resp = await authFetch(`/api/snapshot?role=${encodeURIComponent(role)}`, {
+  const resp = await authFetch(apiUrl(`/api/snapshot?role=${encodeURIComponent(role)}`), {
     headers: { Accept: 'application/json' },
   });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);

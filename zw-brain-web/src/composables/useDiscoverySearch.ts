@@ -2,6 +2,7 @@ import { computed, ref, watch } from 'vue';
 import { authFetch } from './useAuth';
 import { useDiscoveryResources, useSnapshot } from './useSnapshot';
 import { mergeDiscoveryResults } from '@/lib/discoverySearchFilter';
+import { apiUrl } from './useApiBase';
 
 /** P2 搜索：空 query 用 snapshot 精选；有关键词时本地即时筛选 + data.search 全库检索。 */
 export function useDiscoverySearch(role = 'ROLE_ORGAN_OPERATER') {
@@ -24,7 +25,7 @@ export function useDiscoverySearch(role = 'ROLE_ORGAN_OPERATER') {
     searching.value = true;
     searchError.value = null;
     try {
-      const resp = await authFetch('/api/skills/data.search', {
+      const resp = await authFetch(apiUrl('/api/skills/data.search'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ query: trimmed, page: 1, role }),

@@ -106,7 +106,10 @@ const routes: RouteRecordRaw[] = [
 ];
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  // base = vite import.meta.env.BASE_URL（/zw-brain/）：hash 模式下 URL 形如 <base>#<route>，
+  // 不传 base 会退回 '/'，SPA 跳转后丢掉 /zw-brain/ 段（→ localhost:8800/#/login），
+  // 真实 nginx 只路由 /zw-brain/* 时该裸路径会 404。
+  history: createWebHashHistory(import.meta.env.BASE_URL),
   routes,
 });
 

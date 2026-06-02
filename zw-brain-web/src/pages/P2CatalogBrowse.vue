@@ -4,6 +4,7 @@ import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { useSnapshot } from '@/composables/useSnapshot';
 import { authFetch } from '@/composables/useAuth';
 import { getProductRole } from '@/composables/useProductRole';
+import { apiUrl } from '@/composables/useApiBase';
 
 // 目录浏览：真接 catalog.browse 列真 catalog_entry，每行可钻取到目录详情（看目录下资源）。
 const { source } = useSnapshot();
@@ -26,7 +27,7 @@ async function load(): Promise<void> {
   loading.value = true;
   errorMsg.value = '';
   try {
-    const resp = await authFetch('/api/skills/catalog.browse', {
+    const resp = await authFetch(apiUrl('/api/skills/catalog.browse'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ role: role.value, lifecycle: 'active', limit: 100 }),

@@ -1,0 +1,21 @@
+{
+  "scope": "open-network-prefix",
+  "deliverable": "统一为 WebUI + 后端所有接口增加 /zw-brain/ 反代部署前缀（前缀单一事实源 + router base + OIDC 同源边界精确化）",
+  "git_sha": "f03395c0d6ad7a905355efc993b19af00e3d9212",
+  "captured_at": "2026-06-02T02:50:33Z",
+  "captured_by": "薛娇（产品研发负责人）",
+  "checks": [
+    {
+      "name": "5 消费面投影一致",
+      "kind": "contract",
+      "result": "pass",
+      "detail": "[contract] OK: docs/agent_integration.md in sync with discovered entries (REST=197 CLI=1 MCP=63 A2A=1 Skills=188)"
+    },
+    {
+      "name": "后端 / 契约测试套",
+      "kind": "pytest",
+      "result": "pass",
+      "detail": "exit 0（本仓 summary 抑制,以退出码为准）"
+    }
+  ]
+}
