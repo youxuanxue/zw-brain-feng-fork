@@ -25,6 +25,56 @@ trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / �
 目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
 trigger 关闭即可删除字段。
 
+## 2026-06-02 — 结构性技术债清扫（struct-debt-sweep）：brain.py 死委托清除 + 死层残骸删除 + 三条已修债现算关闭归档 + #4 写侧投影评估后延后
+
+> 承接 #191（读路径单一事实源）/ #192（删演示单 + 凭据诚实化）/ #185（prefilled 停止捏造）之后的纯结构清扫，
+> 不引入业务变更、不碰 #185 文件。范围：`zw_brain/command/brain.py` + `zw_brain/skills/data_search/` +
+> `.testing/debt/` 账本 hygiene + 本文归档。
+
+- **brain.py 死委托 shim 清除**：`zw_brain/command/brain.py` god-object 从 1422 LOC / 154 def 降到
+  1181 LOC / 100 def。删除 **54 个零调用纯委托 shim**（每个仅 `return self._get_handler_deps().services.X.Y(...)`
+  或转 domain serializer，真实实现已在 `domain/services/*` + `command/handlers/*`）。判定方法：AST 枚举每个 def，
+  跨 `zw_brain/` + `tests/` + `registered/*.json` + dispatch 表 + 字符串字面量（动态 dispatch）grep caller，
+  仅删「brain.py 内零内部调用 ∧ 全仓零外部引用 ∧ 非字符串 dispatch 命中」者。首轮删 52；`/xj-review` 复核坐实
+  `_diff_fields_for_gap` / `_prefilled_fields_for_resource` 两个 brain shim 本身亦零调用（live 读路径是
+  domain-service 的 `application_service.diff_fields_for_gap/.prefilled_fields`，非 brain shim），补删 → 共 54。
+  顺带删 `_external_adapter_repo` 唯一持有的 `ExternalAdapterRepository` import（ruff F401 清零）。
+  验证：A/B（git stash）确认全部测试失败均为 main 既有的 test-isolation/DB-pollution 失败，本次删除**零新增失败**；
+  `import zw_brain.command.brain` OK；`ruff` clean。承接 `.testing/debt/brainservice.debt.yaml` 的 god-class 下沉方向（仍 open）。
+- **死层残骸删除（data_search）**：删 `zw_brain/skills/data_search/`（签名错的 legacy 兼容 shim，
+  `run()` 内 `_handler(service,"data.search",{...})` 与 canonical `command/handlers/j1/data_search.py` 签名不符）。
+  grep 确认零 importer（唯一引用是其自身 `__init__.py`；configs `pyproject packages=["zw_brain"]` 无显式枚举）；
+  删后 `zw_brain.skills`（含 live 的 `blockchain_adapter`）+ `background_tasks` import 均 OK。
+  `.testing/debt/dead-layer-remnants.debt.yaml` anchor 现算 absent → 整条 debt 关闭（见下「三条债现算关闭」）。
+- **空包 agents/ + orchestrator/ 刻意保留**：产品研发负责人决定保留两空包（D3 编排保留命名空间 + docstring），不删。
+- **standard.asset.sync.json 保留（监督者裁决：KEEP）**：`registered/standard.asset.sync.json`
+  确认**无 dispatch 接线**（不在 `DISPATCH_TABLE` 亦不在 `_PASSTHROUGH_CAPS`）、P0-04 投影过滤已使其不出现于
+  openapi/a2a/agent_card/runtime_bindings/mcp。审计把它列为「死注册/死层残骸」属**误判**——它不是死层残骸，而是
+  `p0-contract-classification.md` P0-03（line 444）明确裁定的 **`deferred:wave-4` 设计完整性保留契约**
+  （「保留 deferred:wave-4 + debt，retire trigger=Wave 4 legacy 退役期统一清理」；P0-04 投影过滤后与物理删除
+  **业务效果等价**：UI 不可达 / 5 surface 不投影）。物理删除会反转该现行产品决策、且需改写**本任务所有权之外**
+  的生成件 `docs/agent_integration.md`（footer 计数 233→232）。**监督者裁决 KEEP**：归属 P0-03 既有 debt 轨道
+  （retire trigger=Wave 4），不在本结构清扫范围；本次仅删确凿死件 data_search。
+- **三条债现算关闭并归档（无 code fix，仅验证 + anchor 修正 + 关债 rm）**：
+  - `shared-command-reverse-dep`：#5 确认 `capability_provider.py` 的 `from zw_brain.command.brain import BrainService`
+    在 `if TYPE_CHECKING:` 下（annotation-only）、`service.py` 改 IoC（`register_brain_provider`）不再 eager import；
+    `check_domain_no_command_import.py` 已 `SCAN_DIRS=(domain, shared)` 且 PASS（exit 0）。原 anchor
+    `pattern:"from zw_brain\.command"` 误命中 service.py 注释（永久假阳 open），收紧为行首 import 语句锚
+    `^from zw_brain\.command` → grep absent → **stale-fixed**。
+  - `prefilled-fake-enterprise-data`：#6 确认 PR #185（commit 98853b7）已在 main，`prefilled_fields()` 现返回
+    诚实空值（value=""/「请填写」/「待填写」），捏造串「山东云启科技有限公司」仅残于 docstring + 诚实守卫测试；
+    全字符串 anchor grep absent → **stale-fixed**；`test_application_prefilled_honesty.py` 4/4 pass。**未碰 #185 文件**。
+  - `dead-layer-remnants`：#3 中确凿死件 `skills/data_search/__init__.py` 已删 → anchor 现算 absent。
+    该 debt 原覆盖三件（data_search shim + agents/orchestrator 空包 + standard.asset.sync）：data_search 已删、
+    agents/orchestrator 刻意保留（D3 reserved）、standard.asset.sync 归 P0-03 deferred:wave-4 轨道——三件均已
+    fixed-or-reclassified，故整条 debt 关闭。
+- **#4 `approval-case-projection-stale` 评估后刻意不动（保持 open，external）**：read 侧已被 #191 单一事实源消解
+  （approvals 现算自 `ApprovalRepository.list_cases`，71 条 legacy hex 审批不再陈旧、现网无可见 bug）；write 侧
+  `sync_aggregate_tables` 投影循环重构 blast-radius 大、已立项归 C-1 跟进 PR（见下方 2026-06-02 C-1 条 Trigger）。
+  在本结构清扫 PR 内重构 write 侧会与该跟进 PR 撞车、违「避免一次性大 PR」，故**不纳入**；账本保持 open。
+- 账本现算结果：`scripts/check_debt_status.py` → **open=31 stale-fixed=0 invalid=0**；`debt-status.md` 已 regen。
+  三条已 fixed 的 debt 由监督者按 debt-as-function 终态动作 `git rm <slug>.debt.yaml` **关闭**（散文条目留此处作审计链）。
+
 ## 2026-06-02 — C-1「去 snapshot↔DB 双轨」拆 PR：本 PR 收读路径单一事实源，删演示单/凭据诚实化另起
 
 > 上帝视角审视裁出 3 关键缺陷（C-1 双轨割裂 / C-2 锚定重复 / C-3 反向依赖）。本 PR 落地

@@ -2,7 +2,7 @@
 
 # Preflight Debt Status (computed)
 
-## open (33)
+## open (31)
 - ac7 [medium] (2026-05-25) — 客户机房部署 + 监控对接未落地（E6 AC7）
   - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
 - agentruntime [medium] (2026-05-24) — AgentRuntime runtime 触发式延后（D30 retrofit）
@@ -34,8 +34,6 @@
   - assert: external → external — owner=产品研发负责人; trigger=见 docs/preflight-debt.md 历史归档
 - data-search [medium] (2026-05-30) — data.search typed query 返回目录而非资源（P2Discovery 资源中心语义不一致）
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务确认 P2Discovery 搜索应搜资源 → 立项搜索语义重构；
-- dead-layer-remnants [low] (2026-06-02) — 死层残骸：data_search 死 shim（签名错）+ 空 agents/ + 空 orchestrator/
-  - assert: grep_present → pattern present in zw_brain/skills/data_search/__init__.py
 - e2e [medium] (2026-05-31) — e2e 测量产物靠本地手跑，CI 未自动接（D46.f，与上方 D46 测量 CI 条合并）
   - assert: grep_absent → pattern absent in .github/workflows/ci.yml
 - env [medium] (2026-05-29) — 验收证据 CI 化采集（消除人工采集 env 依赖）
@@ -56,8 +54,6 @@
   - assert: external → external — owner=产品研发负责人; trigger=(a) CI 上该用例**非负载场景**稳定超 1000ms（=真实 perf 回归，立即 P0 查
 - resource-schema-keying-reconcile [medium] (2026-06-02) — 字段数据模型视图覆盖率残留：read-path bridge 已把 2%→27%，余 73% 资源源 dump 无 schema 映射（上游数据缺供）
   - assert: external → external — owner=产品研发负责人; trigger=数据/业务侧在上游补齐 138 个无 schema 映射资源的 dsp_metaresource→catalog 资源列级 link（或补 dump 后重导），使 resource_schema_mapping 覆盖更多 resource_asset；补齐后桥接自动放大覆盖率（读路径已就绪，无需再改代码）。届时把本 assert 从 external 升级为现算（如 SQL join 命中率门槛）并按实际覆盖率关债或降级。
-- shared-command-reverse-dep [medium] (2026-06-02) — shared→command 反向层依赖（agent_runtime eager import command）
-  - assert: grep_present → pattern present in zw_brain/shared/agent_runtime/service.py
 - tenant-only [medium] (2026-05-26) — 读路径热表 tenant-only 全扫白名单（PR #113 同模式残留）
   - assert: grep_present → pattern present in zw_brain/domain/repositories/delivery.py
 - test-db-path-isolation [medium] (2026-06-02) — ~30 个测试 fixture 裸改 ZW_BRAIN_DB_PATH 无 teardown → 跨模块 DB 泄漏
@@ -71,7 +67,3 @@
   - assert: external → external — owner=产品研发负责人; trigger=业务给出附录4（或确认 GB/T 标准映射）→ 在 `_asset_to_resource_card` 加
 - wave [medium] (2026-05-24) — Wave 2 R14 三引擎已落地，待 T1 客户演练验证（D-31d，2026-05-25 更新）
   - assert: external → external — owner=产品研发负责人; trigger=首位真实客户演练。届时跑通三引擎项目级定制并由海若产品部业务方
-
-## stale-fixed (1)
-- prefilled-fake-enterprise-data [medium] (2026-06-02) — J1/U-3 凭据流 prefilled 字段捏造企业数据（归 PR #185 在验收中）
-  - assert: grep_present → pattern absent in zw_brain/domain/services/application_service.py

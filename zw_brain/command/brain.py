@@ -27,7 +27,6 @@ from zw_brain.domain.errors import UnknownSkillError as UnknownSkillError  # R-0
 from zw_brain.domain.errors import _RequestBatchContext as _RequestBatchContext  # R-016 re-export
 from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.domain.repositories.delivery import DeliveryRepository
-from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
 from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.domain.repositories.topic_package import TopicPackageRepository
 from zw_brain.shared import queue
@@ -325,17 +324,6 @@ class BrainService:
                             confirmed=False, manifest={})
         return _list_zones(self, deps, ctx, *args, **kwargs)
 
-    def update_topic_package_policy(self, *args: Any, **kwargs: Any) -> Any:
-        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
-        from zw_brain.command.handlers.j2.topic_package import _update_topic_package_policy  # noqa: PLC0415
-        deps = self._get_handler_deps()
-        # Delegate-shim ctx is a stub: callers may not have a skill_id in scope.
-        # Helper body's ctx use is for ctx.role fallback (handled via payload.get) and
-        # pipeline.write skill_id (which gets routed through brain._mutate adapter anyway).
-        ctx = SkillContext(skill_id="", role=self._ui_state.get("role", ""), actor="",
-                            confirmed=False, manifest={})
-        return _update_topic_package_policy(self, deps, ctx, *args, **kwargs)
-
     def invoke_skill(self, skill_id: str, payload: dict[str, Any] | None = None) -> Any:
         payload = payload or {}
         try:
@@ -393,14 +381,6 @@ class BrainService:
             raise UnknownSkillError(ctx.skill_id)
         return handler(deps, ctx, payload)
 
-    def _objection_repo(self):
-        store = self._state_store.database_store
-        return store.objection_repo if store is not None else __import__("zw_brain.domain.repositories.objection", fromlist=["ObjectionRepository"]).ObjectionRepository()
-
-    def _external_adapter_repo(self) -> ExternalAdapterRepository:
-        store = self._state_store.database_store
-        return store.external_adapter_repo if store is not None else ExternalAdapterRepository()
-
     def _governance_projection_repo(self) -> GovernanceProjectionRepository:
         store = self._state_store.database_store
         return store.governance_projection_repo if store is not None else GovernanceProjectionRepository()
@@ -409,35 +389,7 @@ class BrainService:
         store = self._state_store.database_store
         return store.topic_package_repo if store is not None else TopicPackageRepository()
 
-    def _capability_package_repo(self):
-        store = self._state_store.database_store
-        if store is not None:
-            return store.capability_package_repo
-        return __import__("zw_brain.domain.repositories.capability_package", fromlist=["CapabilityPackageRepository"]).CapabilityPackageRepository()
-
     # --- Action D commit 2: governance methods migrated to GovernanceService ---
-    # Note: _build_m0_work_queue_cards was a @staticmethod; now a regular shim
-    # so it can be called via the handler_deps.services.governance instance.
-
-    def _build_m0_work_queue_cards(
-        self,
-        *,
-        totals: dict[str, int],
-        by_canonical: dict[str, dict[str, int]],
-        adapter_runs: list[dict[str, Any]],
-        rollbacks: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
-        return self._get_handler_deps().services.governance.build_m0_work_queue_cards(
-            totals=totals, by_canonical=by_canonical, adapter_runs=adapter_runs, rollbacks=rollbacks,
-        )
-
-    def _filter_governance_actor(self, item: dict[str, Any], *, status_filter: str, role_filter: str, actor_filter: str) -> bool:
-        return self._get_handler_deps().services.governance.filter_actor(
-            item, status_filter=status_filter, role_filter=role_filter, actor_filter=actor_filter,
-        )
-
-    def _governance_import_issues(self, adapter_runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        return self._get_handler_deps().services.governance.import_issues(adapter_runs)
 
     def _governance_audit_events(self, *, tenant_id: str, capability_filter: str = "", actor_filter: str = "") -> list[dict[str, Any]]:
         return self._get_handler_deps().services.governance.audit_events(
@@ -452,34 +404,13 @@ class BrainService:
     def _topic_package_detail_to_dict(self, item: Any) -> dict[str, Any]:
         return self._get_handler_deps().services.topic_package.detail_to_dict(item)
 
-    def _topic_projection_summary(self, item: Any, items: list[dict[str, Any]], visibility: list[dict[str, Any]]) -> dict[str, Any]:
-        return self._get_handler_deps().services.topic_package.projection_summary(item, items, visibility)
-
-    def _topic_projection_kind(self, item: Any) -> str:
-        return self._get_handler_deps().services.topic_package.projection_kind(item)
-
-    def _topic_application_boundary(self, visibility: list[dict[str, Any]]) -> dict[str, Any]:
-        return self._get_handler_deps().services.topic_package.application_boundary(visibility)
-
-    def _topic_catalog_projection_items(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        return self._get_handler_deps().services.topic_package.catalog_projection_items(items)
-
-    def _topic_authorization_summary(self, items: list[dict[str, Any]]) -> dict[str, Any]:
-        return self._get_handler_deps().services.topic_package.authorization_summary(items)
-
     # --- Action D commit 2: catalog methods migrated to CatalogService ---
     # Body lives in zw_brain/domain/services/catalog_service.py; these are one-line
     # delegation shims so existing callers (test fixtures, sibling helpers) keep
     # working. Commit 5 retires the shims after the handler sweep is complete.
 
-    def _catalog_entry_status(self, catalog_code: Any) -> str | None:
-        return self._get_handler_deps().services.catalog.entry_status(catalog_code)
-
     def _catalog_is_discoverable(self, record: Any, store: Any) -> bool:
         return self._get_handler_deps().services.catalog.is_discoverable(record, store)
-
-    def _catalog_topic_projection_cards(self, catalog_code: str, store: Any) -> list[dict[str, Any]]:
-        return self._get_handler_deps().services.catalog.topic_projection_cards(catalog_code, store)
 
     # Action H commit 4: bodies lifted to zw_brain.command.adapter_routing.
     def _adapter_operation_from_skill(self, skill_id: str, payload: dict[str, Any]) -> tuple[str, str, str]:
@@ -555,12 +486,6 @@ class BrainService:
 
     # --- Action D commit 4: provider methods migrated to ProviderService ---
 
-    def _provider_primary_resource_id(self) -> str | None:
-        return self._get_handler_deps().services.provider.primary_resource_id()
-
-    def _provider_focus_delivery(self) -> dict[str, Any]:
-        return self._get_handler_deps().services.provider.focus_delivery()
-
     def _overlay_application_record(
         self,
         request: dict[str, Any],
@@ -570,9 +495,6 @@ class BrainService:
         context: _RequestBatchContext | None = None,
     ) -> None:
         return self._get_handler_deps().services.application.overlay_record(request, record, store, context=context)
-
-    def _request_from_application_record(self, request_id: str, store: Any) -> dict[str, Any] | None:
-        return self._get_handler_deps().services.application.request_from_record(request_id, store)
 
     # --- Action D commit 3: application_record_to_request migrated to ApplicationService ---
 
@@ -597,41 +519,10 @@ class BrainService:
     ) -> dict[str, Any] | None:
         return self._get_handler_deps().services.delivery.task_from_record(request_id, store, context=context, record=record)
 
-    def _delivery_grant_evidence(self, delivery: dict[str, Any] | None) -> dict[str, Any]:
-        return self._get_handler_deps().services.delivery.grant_evidence(delivery)
-
-    def _authorization_boundary(self, grant: dict[str, Any]) -> dict[str, Any]:
-        return self._get_handler_deps().services.delivery.authorization_boundary(grant)
-
-    def _application_history_context(
-        self,
-        record: Any,
-        store: Any,
-        resource_id: str,
-        catalog_code: str,
-        *,
-        context: _RequestBatchContext | None = None,
-    ) -> dict[str, Any]:
-        return self._get_handler_deps().services.application.history_context(record, store, resource_id, catalog_code, context=context)
-
-    def _application_quality_evidence(
-        self,
-        store: Any,
-        resource: dict[str, Any],
-        catalog_code: str,
-        resource_id: str,
-        *,
-        context: _RequestBatchContext | None = None,
-    ) -> dict[str, Any]:
-        return self._get_handler_deps().services.application.quality_evidence(store, resource, catalog_code, resource_id, context=context)
-
     def _mask_actor_payload(self, value: Any) -> Any:
         """Legacy shim — Action H commit 4 lifted to shared.sensitive_mask.mask_actor_payload."""
         from zw_brain.shared.sensitive_mask import mask_actor_payload  # noqa: PLC0415
         return mask_actor_payload(value)
-
-    def _delivery_due_hint(self, delivery: dict[str, Any] | None) -> str:
-        return self._get_handler_deps().services.delivery.due_hint(delivery)
 
     def _approval_recommendation(self, approval: dict[str, Any], request: dict[str, Any], delivery: dict[str, Any] | None) -> dict[str, Any]:
         """Legacy shim — Action H commit 3 lifted to request_service.approval_recommendation."""
@@ -640,9 +531,6 @@ class BrainService:
     def _approval_business_defaults(self, request: dict[str, Any], delivery: dict[str, Any] | None) -> dict[str, Any]:
         """Legacy shim — Action H commit 3 lifted to request_service.approval_business_defaults."""
         return self._get_handler_deps().services.request.approval_business_defaults(request, delivery)
-
-    def _record_delivery_attempt(self, payload: dict[str, Any], skill_id: str, state: str, attempt_kind: str) -> dict[str, Any]:
-        return self._get_handler_deps().services.delivery.record_attempt(payload, skill_id, state, attempt_kind)
 
     def _delivery_repo(self) -> DeliveryRepository:
         store = self._state_store.database_store
@@ -671,10 +559,6 @@ class BrainService:
     def _metric_summary(self, metrics: list[dict[str, Any]]) -> dict[str, Any]:
         from zw_brain.domain.serializers.ops_metrics import metric_summary  # noqa: PLC0415
         return metric_summary(metrics)
-
-    def _exchange_metric_summary(self, metrics: list[dict[str, Any]]) -> dict[str, Any]:
-        from zw_brain.domain.serializers.ops_metrics import exchange_metric_summary  # noqa: PLC0415
-        return exchange_metric_summary(metrics)
 
     def _decode_iaf_claims(self, iaf_claims: Any) -> dict[str, Any]:
         if isinstance(iaf_claims, dict):
@@ -836,15 +720,6 @@ class BrainService:
         from zw_brain.domain.serializers.legacy_mapping import legacy_mapping_refs  # noqa: PLC0415
         return legacy_mapping_refs(store, canonical_type, canonical_ref, context=context)
 
-    def _catalog_summary_body(self, summary: dict[str, Any]) -> dict[str, Any]:
-        return self._get_handler_deps().services.catalog.summary_body(summary)
-
-    def _catalog_access_policy(self, summary: dict[str, Any], record: Any) -> dict[str, Any]:
-        return self._get_handler_deps().services.catalog.access_policy(summary, record)
-
-    def _catalog_sensitive_policy(self, fields: list[dict[str, Any]]) -> dict[str, Any]:
-        return self._get_handler_deps().services.catalog.sensitive_policy(fields)
-
     def _reuse_gap_hint(self, fields: list[dict[str, Any]], mappings: list[dict[str, Any]]) -> dict[str, Any]:
         mapped_codes = {item.get("catalog_item_code") for item in mappings}
         missing = [field["title"] for field in fields if field["item_code"] not in mapped_codes]
@@ -854,12 +729,6 @@ class BrainService:
             "gapFields": missing,
             "message": "已有目录字段和资源绑定证据，可先复用；未绑定字段作为缺口说明进入最小申请。" if missing else "已有字段证据可复用，申请时只选择本次确需字段。",
         }
-
-    def _catalog_explain(self, detail: dict[str, Any], fields: list[dict[str, Any]], mapping_summary: dict[str, Any]) -> list[str]:
-        return self._get_handler_deps().services.catalog.explain(detail, fields, mapping_summary)
-
-    def _catalog_next_hints(self, fields: list[dict[str, Any]], mapping_summary: dict[str, Any]) -> list[str]:
-        return self._get_handler_deps().services.catalog.next_hints(fields, mapping_summary)
 
     def _mapping_summary(self, items: list[dict[str, Any]]) -> dict[str, Any]:
         missing = [item for item in items if any(issue["reason"] == "missing_source_schema_ref" for issue in item["diagnosis"]["issues"])]
@@ -947,21 +816,6 @@ class BrainService:
                     out[ref] = schema.get("column_name") or schema.get("name_en") or schema.get("name_cn") or ref
         return out
 
-    def _enrich_provider_resource_asset(self, item: dict[str, Any], store: Any) -> dict[str, Any]:
-        return self._get_handler_deps().services.provider.enrich_resource_asset(item, store)
-
-    def _provider_asset_diagnostics(
-        self,
-        item: dict[str, Any],
-        bindings: list[dict[str, Any]],
-        mapping_summary: dict[str, Any],
-        schema_snapshots: list[dict[str, Any]],
-    ) -> dict[str, Any]:
-        return self._get_handler_deps().services.provider.asset_diagnostics(item, bindings, mapping_summary, schema_snapshots)
-
-    def _review_application_record(self, request_id: str, decision: str, role: str, confirmed: bool, skill_id: str) -> dict[str, Any]:
-        return self._get_handler_deps().services.request.review_application_record(request_id, decision, role, confirmed, skill_id)
-
     def _r2_review_reason(self, decision: str, request: dict[str, Any]) -> str:
         labels = {
             "approve_reuse": "同意按既有授权复用，不扩大字段范围。",
@@ -986,39 +840,6 @@ class BrainService:
             "access_grant_source": "data_apply_authrization" if delivery.get("accessGrantSnapshot") else None,
             "renewal_source_rows": 0,
         }
-
-    def _provider_manage_payload(self, resource_id: str, action: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._get_handler_deps().services.provider.manage_payload(resource_id, action, payload)
-
-    def _complete_provider_field_evidence(
-        self,
-        resource_id: str,
-        payload: dict[str, Any],
-        actor: str,
-        audit_id: str,
-    ) -> dict[str, Any]:
-        return self._get_handler_deps().services.provider.complete_field_evidence(resource_id, payload, actor, audit_id)
-
-    def _confirm_provider_field_binding(
-        self,
-        resource_id: str,
-        payload: dict[str, Any],
-        actor: str,
-        audit_id: str,
-    ) -> dict[str, Any]:
-        return self._get_handler_deps().services.provider.confirm_field_binding(resource_id, payload, actor, audit_id)
-
-    def _transition_provider_resource(self, resource_id: str, status: str, actor: str, audit_id: str) -> dict[str, Any]:
-        return self._get_handler_deps().services.provider.transition_resource(resource_id, status, actor, audit_id)
-
-    def _request_provider_external_execution(
-        self,
-        resource_id: str,
-        payload: dict[str, Any],
-        actor: str,
-        audit_id: str,
-    ) -> dict[str, Any]:
-        return self._get_handler_deps().services.provider.request_external_execution(resource_id, payload, actor, audit_id)
 
     def grant_delivery_access(self, task_id: str, role: str, confirmed: bool) -> dict[str, Any]:
         task = self._get_handler_deps().services.delivery.by_id(task_id)
@@ -1069,18 +890,6 @@ class BrainService:
             return {"task_id": task_id, "status": task["status"], "grant_ref": task["access"]["grant_ref"]}
 
         return self._mutate("delivery.access.grant", role, confirmed, {"task_id": task_id}, mutation)
-
-    def _approve_request(self, request_id: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide", *, decision: str = "approve_reuse") -> dict[str, Any]:
-        return self._get_handler_deps().services.request.approve(request_id, role, confirmed, skill_id, decision=decision)
-
-    def _return_request_for_fix(self, request_id: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide", *, decision: str = "return_for_fix") -> dict[str, Any]:
-        return self._get_handler_deps().services.request.return_for_fix(request_id, role, confirmed, skill_id, decision=decision)
-
-    def _reject_request(self, request_id: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide", *, decision: str = "reject_duplicate") -> dict[str, Any]:
-        return self._get_handler_deps().services.request.reject(request_id, role, confirmed, skill_id, decision=decision)
-
-    def _route_request_for_catalog_confirmation(self, request_id: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide") -> dict[str, Any]:
-        return self._get_handler_deps().services.request.route_for_catalog_confirmation(request_id, role, confirmed, skill_id)
 
     def _resolve_role(self, payload: dict[str, Any], *, manifest: dict[str, Any] | None = None) -> str:
         from zw_brain.shared.auth_context import (
@@ -1275,9 +1084,6 @@ class BrainService:
         from zw_brain.command import demo_state_sync  # noqa: PLC0415
         demo_state_sync.set_todo_status(self._snapshot, role, item_id, status, category=category)
 
-    def _request_status_timeline(self, request: dict[str, Any], delivery: dict[str, Any] | None) -> list[dict[str, Any]]:
-        return self._get_handler_deps().services.request.status_timeline(request, delivery)
-
     def _request_status_text(self, item: dict[str, Any], perspective: str = "reviewer") -> str:
         return self._get_handler_deps().services.request.status_text(item, perspective)
 
@@ -1304,18 +1110,6 @@ class BrainService:
     # or deps.view.<entity>.find_by_id directly. _maybe_* helpers kept because
     # demo_state_sync / brain.py internal call sites tolerate None on miss.
 
-    def _maybe_request(self, request_id: str) -> dict[str, Any] | None:
-        return self._get_handler_deps().services.request.maybe_by_id(request_id)
-
-    def _approval_by_id(self, request_id: str) -> dict[str, Any]:
-        return self._get_handler_deps().services.request.approval_by_id(request_id)
-
-    def _maybe_approval(self, request_id: str) -> dict[str, Any] | None:
-        return self._get_handler_deps().services.request.maybe_approval_by_id(request_id)
-
-    def _maybe_delivery(self, task_id: str) -> dict[str, Any] | None:
-        return self._get_handler_deps().services.delivery.maybe_by_id(task_id)
-
     def _resource_by_id(self, resource_id: str) -> dict[str, Any]:
         """Legacy shim — delegates to demo_state_sync.resource_by_id (Action H)."""
         from zw_brain.command import demo_state_sync  # noqa: PLC0415
@@ -1324,19 +1118,6 @@ class BrainService:
     def _resolve_resource_for_application(self, resource_id: str) -> dict[str, Any]:
         """Legacy shim — Action H commit 4 lifted to catalog_service.resolve_resource_for_application."""
         return self._get_handler_deps().services.catalog.resolve_resource_for_application(resource_id)
-
-    def _maybe_package(self, package_id: str) -> dict[str, Any] | None:
-        """Return a live snapshot reference for a capability package, or None.
-
-        Action E: ``_package_by_id`` retired; views.PackagesView.find_by_id
-        owns the canonical lookup (raises NotFoundError on miss). This
-        ``_maybe_*`` variant returns None for the demo_state_sync caller
-        which tolerates an absent package.
-        """
-        try:
-            return self._get_handler_deps().view.packages.find_by_id(package_id)
-        except NotFoundError:
-            return None
 
     def _zone_by_id(self, zone_id: str) -> dict[str, Any]:
         """Legacy shim — delegates to demo_state_sync.zone_by_id (Action H)."""
@@ -1364,28 +1145,6 @@ class BrainService:
 
     def _delivery_task_id_for_request(self, request_id: str) -> str:
         return self._get_handler_deps().services.delivery.task_id_for_request(request_id)
-
-    def _requested_application_fields(self, resource: dict[str, Any], options: dict[str, Any]) -> list[dict[str, Any]]:
-        return self._get_handler_deps().services.application.requested_fields(resource, options)
-
-    def _application_gap_fields(self, options: dict[str, Any]) -> list[str]:
-        return self._get_handler_deps().services.application.gap_fields(options)
-
-    def _application_time_window(self, options: dict[str, Any]) -> dict[str, Any]:
-        return self._get_handler_deps().services.application.time_window(options)
-
-    def _application_scope(self, resource: dict[str, Any], options: dict[str, Any]) -> str:
-        return self._get_handler_deps().services.application.scope(resource, options)
-
-    def _diff_fields_for_gap(self, gap_fields: list[str]) -> list[dict[str, Any]]:
-        return self._get_handler_deps().services.application.diff_fields_for_gap(gap_fields)
-
-    def _application_source_evidence(self, resource: dict[str, Any], fields: list[dict[str, Any]]) -> dict[str, Any]:
-        return self._get_handler_deps().services.application.source_evidence(resource, fields)
-
-    def _prefilled_fields_for_resource(self, resource: dict[str, Any], requested_fields: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
-        return self._get_handler_deps().services.application.prefilled_fields(resource, requested_fields)
-
 
     # ============== J1 凭据签发与查询（D27/U-3 处置承诺的凭据领取闭环） ==============
 
