@@ -102,7 +102,7 @@
 **Reason**: delivery_code/attempt_code 可选；双 None 时 tenant-only 全量 attempt
 
 ```python
-    def list_attempts(self, delivery_code: str | None = None, attempt_code: str | None = None, *, tenant_id: str = "sd-default") -> list[DeliveryAttemptRecord]:
+    def list_attempts(self, delivery_code: str | None = None, attempt_code: str | None = None, *, delivery_codes: list[str] | None = None, tenant_id: str = "sd-default") -> list[DeliveryAttemptRecord]:
         # full-scan-ok: delivery_code/attempt_code 可选；双 None 时 tenant-only 全量 attempt
         # trigger: J1 投递量万级或多租户时改 paged + 必填 delivery_code
 ```
@@ -136,7 +136,7 @@
 **Reason**: resource_code 可选；None 时 tenant-only 全量 channel binding
 
 ```python
-    def list_bindings(self, resource_code: str | None = None, *, tenant_id: str = "sd-default") -> list[ResourceChannelBindingRecord]:
+    def list_bindings(self, resource_code: str | None = None, *, resource_codes: list[str] | None = None, tenant_id: str = "sd-default") -> list[ResourceChannelBindingRecord]:
         # full-scan-ok: resource_code 可选；None 时 tenant-only 全量 channel binding
         # trigger: 绑定量万级或多租户时改 paged + 必填 resource_code
 ```

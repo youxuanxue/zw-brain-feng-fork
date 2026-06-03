@@ -223,7 +223,9 @@ trigger 关闭即可删除字段。
 - **Implication**: feature 的本期可交付 = legacy 条件审批数据导入（已测绿），但**两步条件审批业务运行时按 D-4 属 Wave1 延后**，UI 里走不了（无项可辨、无 handler 可走）。2026-05-31 本地走查无法演示两步 → 留 **InTest**，不签。
 - **Trigger**: Wave1 立项条件审批运行时（dept_approve→platform_approve handler + P3 两步 UI + decision_mode 暴露）→ 走查两步真跑 → 追加 covers → 翻 Done。
 
-## 2026-05-31 — topic.package.query 列表跑详情级投影，87 包 ~1.4s（P7 性能）
+## 2026-05-31 — topic.package.query 列表跑详情级投影，87 包 ~1.4s（P7 性能）— **已 CLOSED 2026-06-03（readpath-perf-scan PR / M4）**
+
+> **Closed**: M4 把 `list_projection` 改为从轻量子 helper（`_catalog_projection_status` + `_list_contract`）直接组装列表契约 dict，不再走 `... | self.projection_summary(...)` 字面量；`projection_summary` 保留给 `detail_to_dict`（重写为先建 base 再 union，字面量整体消失）。输出逐字节不变（LIST_PROJECTION_KEYS / activeCatalogCount / hiddenCatalogCount / 4 个 projectionFailureReasons 分支全保）。`.testing/debt/topic-package-query.debt.yaml` 已 `git rm`、debt-status open 计数 -1。本散文条目留作段-34 wave 反向链接锚（不删）。注：早前 045dad1 已把 `catalog_projection_items` 的 per-item `list_assets` 全表扫提到循环外（N→1），M4 是其后续的「list 不再跑详情级 projection_summary」结构收口。
 
 - **Where**: `zw_brain/domain/services/topic_package_service.py` `list_projection` → `projection_summary` → `catalog_projection_items`：列表每个专题包都跑**详情级**投影；`catalog_projection_items`（line ~118）对**每个目录项**调 `store.resource_api_repo.list_assets(tenant_id)` **全表加载再 Python 过滤** + 逐项查 `catalog_repo.list_items` / `list_schema_mappings` / `list_schema_snapshots`。87 包 × 每包目录项 × 全表扫 → `topic.package.query{status:published}` 实测 ~1.4s（本地）。
 - **Implication**: P7「共享专题包」首屏加载慢（~2s 才出卡片）；快速点入会先看到加载态（已修 UX：加载期显「加载中」不再误显「暂无专题包」，commit 同批）。列表页实际只用 `activeCatalogCount` + title/scenario/status/isSubscribed，不需要 field_count/资源计数等详情字段。

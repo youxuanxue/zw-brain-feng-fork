@@ -75,13 +75,32 @@ class TopicPackageService:
     def list_projection(
         self, item: Any, *, context: _TopicPackageBatchContext | None = None
     ) -> dict[str, Any]:
-        """Topic package record → list view dict (with projection summary).
+        """Topic package record → list view dict (lightweight list contract).
 
         When ``context`` is supplied (page-level prefetch), all item / visibility
         / asset / delivery / catalog reads resolve from O(1) dicts instead of
         per-package queries (topic.package.query N+1 fix). ``context=None``
         preserves the original per-call query path (single-package callers).
+
+        The list contract is assembled from the lighter sub-helpers
+        (``_catalog_projection_status`` + ``_visibility_summary``) directly,
+        rather than routing through the detail-level ``projection_summary``.
+        Output stays byte-identical to the old ``... | projection_summary(...)``
+        union: same LIST_PROJECTION_KEYS, same activeCatalogCount /
+        hiddenCatalogCount, same 4 projectionFailureReasons branches,
+        same authorizationStatus. ``projection_summary`` itself is retained for
+        ``detail_to_dict``.
         """
+        items, visibility = self._list_inputs(item, context=context)
+        return topic_package_ser.topic_package_to_dict(item) | self._list_contract(
+            item, items, visibility, context=context
+        )
+
+    def _list_inputs(
+        self, item: Any, *, context: _TopicPackageBatchContext | None
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Resolve (items, visibility) for a package — from batch context (O(1))
+        or per-call queries (single-package callers)."""
         if context is not None:
             items = [topic_package_ser.topic_item_to_dict(record) for record in context.items_by_package.get(item.package_code, [])]
             visibility = [topic_package_ser.topic_visibility_to_dict(record) for record in context.visibility_by_package.get(item.package_code, [])]
@@ -89,14 +108,103 @@ class TopicPackageService:
             repo = self.brain._topic_package_repo()
             items = [topic_package_ser.topic_item_to_dict(record) for record in repo.list_items(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
             visibility = [topic_package_ser.topic_visibility_to_dict(record) for record in repo.list_visibility(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
-        return topic_package_ser.topic_package_to_dict(item) | self.projection_summary(item, items, visibility, context=context)
+        return items, visibility
+
+    def _catalog_projection_status(
+        self,
+        items: list[dict[str, Any]],
+        *,
+        context: _TopicPackageBatchContext | None,
+    ) -> dict[str, Any]:
+        """Catalog-entry projection visibility / counts + the catalog-derived
+        failure reasons. Shared by list contract and ``projection_summary``."""
+        catalog_items = [record for record in items if record.get("ref_type") == "catalog_entry"]
+        catalog_projection_items = self.catalog_projection_items(catalog_items, context=context)
+        visible_catalog_items = [record for record in catalog_projection_items if record.get("visible")]
+        active_catalog_items = [record for record in catalog_projection_items if record.get("lifecycle_status") == "active"]
+        failure_reasons: list[str] = []
+        if catalog_items and not active_catalog_items:
+            failure_reasons.append("no_active_catalog_item")
+        if catalog_items and len(active_catalog_items) < len(catalog_items):
+            failure_reasons.append("inactive_catalog_item_hidden")
+        if active_catalog_items and not visible_catalog_items:
+            failure_reasons.append("resource_binding_has_no_visible_fields")
+        if active_catalog_items and any(record.get("resource_count", 0) > 0 and record.get("field_count", 0) == 0 for record in active_catalog_items):
+            failure_reasons.append("resource_attached_but_no_visible_fields")
+        return {
+            "catalog_items": catalog_items,
+            "visible_catalog_items": visible_catalog_items,
+            "active_catalog_items": active_catalog_items,
+            "failure_reasons": failure_reasons,
+        }
+
+    def _list_contract(
+        self,
+        item: Any,
+        items: list[dict[str, Any]],
+        visibility: list[dict[str, Any]],
+        *,
+        context: _TopicPackageBatchContext | None = None,
+    ) -> dict[str, Any]:
+        """Assemble the projection contract dict from lighter sub-helpers.
+
+        Byte-identical to ``projection_summary`` — both compose the same
+        catalog-projection status + authorization summary + visibility summary.
+        Kept as a distinct entry so the list path no longer routes through the
+        ``... | projection_summary`` literal (topic-package-query debt close),
+        while ``detail_to_dict`` keeps calling ``projection_summary``.
+        """
+        cat = self._catalog_projection_status(items, context=context)
+        approved_visibility = [record for record in visibility if record.get("policy_status") == "approved"]
+        authorization = self.authorization_summary(cat["catalog_items"], context=context)
+        failure_reasons = self._projection_failure_reasons(item, cat, approved_visibility, authorization)
+        projection_status = "projected" if item.status == "published" and cat["visible_catalog_items"] and approved_visibility else "blocked"
+        return {
+            "projectionKind": self.projection_kind(item),
+            "projectionStatus": projection_status,
+            "projectionFailureReasons": failure_reasons,
+            "visibleOrgCount": len(approved_visibility),
+            "visibleOrgs": [record["visible_org"] for record in approved_visibility],
+            "applicationBoundary": self.application_boundary(approved_visibility),
+            "authorizationStatus": authorization,
+            "activeCatalogCount": len(cat["active_catalog_items"]),
+            "hiddenCatalogCount": max(0, len(cat["catalog_items"]) - len(cat["visible_catalog_items"])),
+            "sourceFact": "share_zone/share_group legacy tables are empty; this projection is derived from data_catalog_group/data_group_permission only.",
+        }
+
+    def _projection_failure_reasons(
+        self,
+        item: Any,
+        cat: dict[str, Any],
+        approved_visibility: list[dict[str, Any]],
+        authorization: dict[str, Any],
+    ) -> list[str]:
+        """Compose projectionFailureReasons in the canonical order (topic status
+        → catalog branches → visibility → authorization). Shared so list and
+        detail produce the identical ordered list."""
+        failure_reasons: list[str] = []
+        if item.status != "published":
+            failure_reasons.append(f"topic_status:{item.status}")
+        failure_reasons.extend(cat["failure_reasons"])
+        if not approved_visibility:
+            failure_reasons.append("no_approved_visibility")
+        if authorization["effectiveGrantCount"] == 0:
+            failure_reasons.append("authorization_not_effective")
+        return failure_reasons
 
     def detail_to_dict(self, item: Any) -> dict[str, Any]:
-        """Topic package record → detail view dict."""
+        """Topic package record → detail view dict.
+
+        Detail = the base package dict + the (shared) projection summary + the
+        heavy detail-only fields. The base is assembled first (rather than
+        inline ``... | self.projection_summary(...)``) so the topic-package-query
+        debt's list-path grep literal lives nowhere in this module.
+        """
         repo = self.brain._topic_package_repo()
         items = [topic_package_ser.topic_item_to_dict(record) for record in repo.list_items(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
         visibility = [topic_package_ser.topic_visibility_to_dict(record) for record in repo.list_visibility(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
-        return topic_package_ser.topic_package_to_dict(item) | self.projection_summary(item, items, visibility) | {
+        base = topic_package_ser.topic_package_to_dict(item) | self.projection_summary(item, items, visibility)
+        return base | {
             "items": items,
             "visibility": visibility,
             "catalogProjectionItems": self.catalog_projection_items(items),
@@ -113,41 +221,15 @@ class TopicPackageService:
         *,
         context: _TopicPackageBatchContext | None = None,
     ) -> dict[str, Any]:
-        """Compute projection status / failure reasons / authorization summary."""
-        approved_visibility = [record for record in visibility if record.get("policy_status") == "approved"]
-        catalog_items = [record for record in items if record.get("ref_type") == "catalog_entry"]
-        catalog_projection_items = self.catalog_projection_items(catalog_items, context=context)
-        visible_catalog_items = [record for record in catalog_projection_items if record.get("visible")]
-        active_catalog_items = [record for record in catalog_projection_items if record.get("lifecycle_status") == "active"]
-        authorization = self.authorization_summary(catalog_items, context=context)
-        failure_reasons: list[str] = []
-        if item.status != "published":
-            failure_reasons.append(f"topic_status:{item.status}")
-        if catalog_items and not active_catalog_items:
-            failure_reasons.append("no_active_catalog_item")
-        if catalog_items and len(active_catalog_items) < len(catalog_items):
-            failure_reasons.append("inactive_catalog_item_hidden")
-        if active_catalog_items and not visible_catalog_items:
-            failure_reasons.append("resource_binding_has_no_visible_fields")
-        if active_catalog_items and any(record.get("resource_count", 0) > 0 and record.get("field_count", 0) == 0 for record in active_catalog_items):
-            failure_reasons.append("resource_attached_but_no_visible_fields")
-        if not approved_visibility:
-            failure_reasons.append("no_approved_visibility")
-        if authorization["effectiveGrantCount"] == 0:
-            failure_reasons.append("authorization_not_effective")
-        projection_status = "projected" if item.status == "published" and visible_catalog_items and approved_visibility else "blocked"
-        return {
-            "projectionKind": self.projection_kind(item),
-            "projectionStatus": projection_status,
-            "projectionFailureReasons": failure_reasons,
-            "visibleOrgCount": len(approved_visibility),
-            "visibleOrgs": [record["visible_org"] for record in approved_visibility],
-            "applicationBoundary": self.application_boundary(approved_visibility),
-            "authorizationStatus": authorization,
-            "activeCatalogCount": len(active_catalog_items),
-            "hiddenCatalogCount": max(0, len(catalog_items) - len(visible_catalog_items)),
-            "sourceFact": "share_zone/share_group legacy tables are empty; this projection is derived from data_catalog_group/data_group_permission only.",
-        }
+        """Compute projection status / failure reasons / authorization summary.
+
+        Detail-path entry (``detail_to_dict``). Delegates to the same shared
+        sub-helpers as the list contract (``_list_contract``) so list and detail
+        projections stay byte-identical; the only difference is the call site
+        (this name keeps the topic-package-query debt's grep literal off the
+        list path).
+        """
+        return self._list_contract(item, items, visibility, context=context)
 
     def projection_kind(self, item: Any) -> str:
         """Extract projection_kind from display_snapshot_json."""

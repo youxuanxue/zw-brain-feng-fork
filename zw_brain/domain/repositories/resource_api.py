@@ -231,14 +231,20 @@ class ResourceApiRepository:
             session.refresh(record)
             return record
 
-    def list_bindings(self, resource_code: str | None = None, *, tenant_id: str = "sd-default") -> list[ResourceChannelBindingRecord]:
+    def list_bindings(self, resource_code: str | None = None, *, resource_codes: list[str] | None = None, tenant_id: str = "sd-default") -> list[ResourceChannelBindingRecord]:
         # full-scan-ok: resource_code 可选；None 时 tenant-only 全量 channel binding
         # trigger: 绑定量万级或多租户时改 paged + 必填 resource_code
+        # resource_codes (plural IN) perf knob mirrors legacy_mapping.list_mappings(canonical_refs=):
+        # 空 list → "no codes in scope" → 不发查询直接 []; None → 维持 tenant-only 全量。
+        if resource_codes is not None and not resource_codes:
+            return []
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(ResourceChannelBindingRecord).where(ResourceChannelBindingRecord.tenant_id == tenant_id)
             if resource_code:
                 statement = statement.where(ResourceChannelBindingRecord.resource_code == resource_code)
+            if resource_codes:
+                statement = statement.where(ResourceChannelBindingRecord.resource_code.in_(resource_codes))
             return list(session.execute(statement.order_by(ResourceChannelBindingRecord.binding_code)).scalars())
 
     def get_binding(self, binding_code: str, *, tenant_id: str = "sd-default") -> ResourceChannelBindingRecord | None:

@@ -245,7 +245,11 @@ class CatalogService:
         if context is not None:
             asset_records = context.resource_assets_by_catalog.get(catalog_code, [])
         else:
-            asset_records = [item for item in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID) if item.catalog_code == catalog_code]
+            # indexed getter (resource_api.py:42, # indexed-ok) pushes the
+            # catalog_code equality into SQL instead of loading every tenant
+            # asset and filtering in Python. Byte-identical: same tenant +
+            # catalog_code equality, same order_by(resource_code).
+            asset_records = store.resource_api_repo.list_assets_by_catalog(catalog_code, tenant_id=_DEFAULT_TENANT_ID)
         resources = [
             resource_api_ser.resource_asset_to_dict(item)
             for item in asset_records

@@ -77,24 +77,36 @@ class DeliveryRepository:
                 statement = statement.where(DeliverySubscriptionRecord.delivery_code == delivery_code)
             return list(session.execute(statement.order_by(DeliverySubscriptionRecord.updated_at)).scalars())
 
-    def list_attempts(self, delivery_code: str | None = None, attempt_code: str | None = None, *, tenant_id: str = "sd-default") -> list[DeliveryAttemptRecord]:
+    def list_attempts(self, delivery_code: str | None = None, attempt_code: str | None = None, *, delivery_codes: list[str] | None = None, tenant_id: str = "sd-default") -> list[DeliveryAttemptRecord]:
         # full-scan-ok: delivery_code/attempt_code 可选；双 None 时 tenant-only 全量 attempt
         # trigger: J1 投递量万级或多租户时改 paged + 必填 delivery_code
+        # delivery_codes (plural IN) perf knob mirrors legacy_mapping.list_mappings(canonical_refs=):
+        # 空 list → 不发查询直接 []; None → 维持上述 tenant-only 全量（基链不变，注释保留）。
+        if delivery_codes is not None and not delivery_codes:
+            return []
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(DeliveryAttemptRecord).where(DeliveryAttemptRecord.tenant_id == tenant_id)
             if delivery_code:
                 statement = statement.where(DeliveryAttemptRecord.delivery_code == delivery_code)
+            if delivery_codes:
+                statement = statement.where(DeliveryAttemptRecord.delivery_code.in_(delivery_codes))
             if attempt_code:
                 statement = statement.where(DeliveryAttemptRecord.attempt_code == attempt_code)
             return list(session.execute(statement.order_by(DeliveryAttemptRecord.updated_at)).scalars())
 
-    def list_execution_evidence(self, delivery_code: str | None = None, attempt_code: str | None = None, *, tenant_id: str = "sd-default") -> list[DeliveryExecutionEvidenceRecord]:
+    def list_execution_evidence(self, delivery_code: str | None = None, attempt_code: str | None = None, *, delivery_codes: list[str] | None = None, tenant_id: str = "sd-default") -> list[DeliveryExecutionEvidenceRecord]:
+        # delivery_codes (plural IN) perf knob mirrors legacy_mapping.list_mappings(canonical_refs=):
+        # 空 list → 不发查询直接 []; None → 维持 tenant-only 全量。
+        if delivery_codes is not None and not delivery_codes:
+            return []
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(DeliveryExecutionEvidenceRecord).where(DeliveryExecutionEvidenceRecord.tenant_id == tenant_id)
             if delivery_code:
                 statement = statement.where(DeliveryExecutionEvidenceRecord.delivery_code == delivery_code)
+            if delivery_codes:
+                statement = statement.where(DeliveryExecutionEvidenceRecord.delivery_code.in_(delivery_codes))
             if attempt_code:
                 statement = statement.where(DeliveryExecutionEvidenceRecord.attempt_code == attempt_code)
             return list(session.execute(statement.order_by(DeliveryExecutionEvidenceRecord.captured_at)).scalars())

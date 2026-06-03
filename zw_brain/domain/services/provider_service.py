@@ -231,38 +231,46 @@ class ProviderService:
     def _build_asset_enrich_prefetch(self, store: Any, resource_codes: list[str]) -> dict[str, Any]:
         """One-pass prefetch of every per-resource table enrich_resource_asset reads.
 
-        ``resource_codes`` scopes the legacy_object_mapping prefetch (HIGH-1):
-        ``enrich_resource_asset`` only reads ``legacy_by_ref[resource_code]``
-        for the codes on *this* page, so fetching the whole ~68k-row
-        legacy_object_mapping table and grouping it in Python is wasted work.
-        Pushing ``canonical_refs IN (page resource_codes)`` down keeps the
-        consumed map slices byte-identical while the SELECT returns only rows
-        the page can reference (same scope the per-call path already used:
-        ``list_mappings(canonical_ref=resource_code)``).
+        ``resource_codes`` scopes every per-resource prefetch (HIGH-1):
+        ``enrich_resource_asset`` only reads each map at the codes on *this*
+        page (``<map>.get(resource_code, [])`` / ``.get(delivery_code, [])``),
+        so loading whole tenant tables and grouping them in Python is wasted
+        work. Each call pushes its scope down via the M1 IN-filter knobs so the
+        SELECT returns only rows the page can reference, keeping the consumed
+        ``.get(code, [])`` slices byte-identical:
+          - resource-keyed tables → ``resource_codes=resource_codes``
+          - quality (target_ref-keyed) → ``target_refs=resource_codes``
+          - delivery-keyed tables → ``delivery_codes=[provider-external:{c}]``
+            (``enrich_resource_asset`` looks up ``provider-external:{code}``,
+            NOT the raw resource_code — must mirror that key transform).
+          - legacy_object_mapping → ``canonical_refs=resource_codes`` (HIGH-1)
+        Empty ``resource_codes`` (empty page) → every knob returns [] (the
+        guards short-circuit; correct, an empty page fetches nothing).
         """
+        delivery_codes = [f"provider-external:{code}" for code in resource_codes]
         bindings_by_resource: dict[str, list[Any]] = {}
-        for record in store.resource_api_repo.list_bindings(tenant_id=_DEFAULT_TENANT_ID):
+        for record in store.resource_api_repo.list_bindings(tenant_id=_DEFAULT_TENANT_ID, resource_codes=resource_codes):
             bindings_by_resource.setdefault(record.resource_code, []).append(record)
         mappings_by_resource: dict[str, list[Any]] = {}
-        for record in store.metadata_evidence_repo.list_schema_mappings(tenant_id=_DEFAULT_TENANT_ID):
+        for record in store.metadata_evidence_repo.list_schema_mappings(tenant_id=_DEFAULT_TENANT_ID, resource_codes=resource_codes):
             mappings_by_resource.setdefault(record.resource_code, []).append(record)
         snapshots_by_resource: dict[str, list[Any]] = {}
-        for record in store.metadata_evidence_repo.list_schema_snapshots(tenant_id=_DEFAULT_TENANT_ID):
+        for record in store.metadata_evidence_repo.list_schema_snapshots(tenant_id=_DEFAULT_TENANT_ID, resource_codes=resource_codes):
             snapshots_by_resource.setdefault(record.resource_code, []).append(record)
         gather_by_resource: dict[str, list[Any]] = {}
-        for record in store.metadata_evidence_repo.list_gather_evidence(tenant_id=_DEFAULT_TENANT_ID):
+        for record in store.metadata_evidence_repo.list_gather_evidence(tenant_id=_DEFAULT_TENANT_ID, resource_codes=resource_codes):
             gather_by_resource.setdefault(record.resource_code, []).append(record)
         lineage_by_resource: dict[str, list[Any]] = {}
-        for record in store.metadata_evidence_repo.list_lineage_relations(tenant_id=_DEFAULT_TENANT_ID):
+        for record in store.metadata_evidence_repo.list_lineage_relations(tenant_id=_DEFAULT_TENANT_ID, resource_codes=resource_codes):
             lineage_by_resource.setdefault(record.resource_code, []).append(record)
         quality_by_ref: dict[str, list[Any]] = {}
-        for record in store.metadata_evidence_repo.list_quality_evidence(target_type="resource_asset", tenant_id=_DEFAULT_TENANT_ID):
+        for record in store.metadata_evidence_repo.list_quality_evidence(target_type="resource_asset", tenant_id=_DEFAULT_TENANT_ID, target_refs=resource_codes):
             quality_by_ref.setdefault(record.target_ref, []).append(record)
         attempts_by_delivery: dict[str, list[Any]] = {}
-        for record in store.delivery_repo.list_attempts(tenant_id=_DEFAULT_TENANT_ID):
+        for record in store.delivery_repo.list_attempts(tenant_id=_DEFAULT_TENANT_ID, delivery_codes=delivery_codes):
             attempts_by_delivery.setdefault(record.delivery_code, []).append(record)
         evidence_by_delivery: dict[str, list[Any]] = {}
-        for record in store.delivery_repo.list_execution_evidence(tenant_id=_DEFAULT_TENANT_ID):
+        for record in store.delivery_repo.list_execution_evidence(tenant_id=_DEFAULT_TENANT_ID, delivery_codes=delivery_codes):
             evidence_by_delivery.setdefault(record.delivery_code, []).append(record)
         legacy_by_ref: dict[str, list[Any]] = {}
         for record in store.legacy_mapping_repo.list_mappings(

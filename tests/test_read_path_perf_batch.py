@@ -61,6 +61,12 @@ def _shadow_db():
     SHADOW_DB.parent.mkdir(parents=True, exist_ok=True)
     from zw_brain.shared import db as _db
 
+    # Save prior env so teardown RESTORES it (not blindly pops) — keeps this
+    # module from polluting later tests that rely on the default seed DB or on
+    # an outer fixture's ZW_BRAIN_DB_PATH (test-db-path-isolation debt).
+    prior_db_path = os.environ.get("ZW_BRAIN_DB_PATH")
+    prior_db_url = os.environ.get("ZW_BRAIN_DATABASE_URL")
+
     _db.reset_engine_cache()
     _remove_shadow_db_files()
     os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
@@ -71,9 +77,16 @@ def _shadow_db():
     reset_and_upgrade()
     _seed(packages=24, catalogs=40)
     yield
-    _db.reset_engine_cache()
     _remove_shadow_db_files()
-    os.environ.pop("ZW_BRAIN_DB_PATH", None)
+    # Restore env to its prior state, THEN reset the cache last so the next
+    # consumer rebuilds the engine against the restored path.
+    if prior_db_path is None:
+        os.environ.pop("ZW_BRAIN_DB_PATH", None)
+    else:
+        os.environ["ZW_BRAIN_DB_PATH"] = prior_db_path
+    if prior_db_url is not None:
+        os.environ["ZW_BRAIN_DATABASE_URL"] = prior_db_url
+    _db.reset_engine_cache()
 
 
 def _seed(*, packages: int, catalogs: int) -> None:
@@ -225,7 +238,47 @@ def test_topic_query_list_sessions_sublinear():
     # get_entry/list_items/schema_mappings/schema_snapshots + full asset + full delivery
     # re-scan, ×N). New impl: a fixed batch prefetch (≈ a dozen queries) regardless of N.
     assert c.count < n, f"list path issued {c.count} sessions for {n} packages — N+1 regressed"
-    assert c.count <= 20, f"list path should be a fixed handful of queries, got {c.count}"
+    # M4 lightweight list contract: the page is a fixed handful of batch queries.
+    # Measured 9 on the seed; lock a tight ceiling so a regression that re-introduces
+    # any per-package query (e.g. list_projection drifting back to a per-call path)
+    # trips this.
+    assert c.count <= 12, f"list path should be a fixed handful of queries, got {c.count}"
+
+
+def test_list_projection_decoupled_from_projection_summary():
+    """M4 structural guard (topic-package-query debt close): the list path must
+    assemble its contract from the lightweight sub-helpers, NOT route through the
+    detail-level ``projection_summary``. We assert the byte-identical equivalence
+    holds (list contract == package_to_dict | projection_summary for the same
+    inputs) AND that ``list_projection`` does not literally delegate to
+    ``projection_summary`` (which would re-couple list to the detail path and
+    revive the debt grep)."""
+    import inspect
+
+    from zw_brain.domain.services.topic_package_service import TopicPackageService
+
+    # Strip the docstring (which legitimately *mentions* projection_summary in
+    # prose) and assert there is no actual `self.projection_summary(` call.
+    fn = TopicPackageService.list_projection
+    body = inspect.getsource(fn)
+    doc = fn.__doc__ or ""
+    body_no_doc = body.replace(doc, "")
+    assert "self.projection_summary(" not in body_no_doc, (
+        "list_projection must not call projection_summary (lightweight list contract)"
+    )
+
+    # Equivalence: the list contract dict must equal the package dict unioned with
+    # the (shared) projection summary for the same inputs — byte-identical output.
+    from zw_brain.domain.serializers import topic_package as tp_ser
+
+    brain = _new_brain()
+    svc = brain._get_handler_deps().services.topic_package
+    repo = brain._state_store.database_store.topic_package_repo
+    record = repo.get_package("tp-t-0000", tenant_id=TENANT)
+    items, visibility = svc._list_inputs(record, context=None)
+    list_dict = svc.list_projection(record, context=None)
+    expected = tp_ser.topic_package_to_dict(record) | svc.projection_summary(record, items, visibility)
+    assert list_dict == expected, "list_projection output drifted from package_to_dict | projection_summary"
 
 
 # ── 2. catalog→package reverse index correctness ──

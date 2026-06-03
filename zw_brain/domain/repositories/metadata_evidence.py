@@ -98,15 +98,22 @@ class MetadataEvidenceRepository:
         self,
         *,
         resource_code: str | None = None,
+        resource_codes: list[str] | None = None,
         catalog_code: str | None = None,
         include_inactive: bool = True,
         tenant_id: str = "sd-default",
     ) -> list[ResourceSchemaMappingRecord]:
+        # resource_codes (plural IN) perf knob mirrors legacy_mapping.list_mappings(canonical_refs=):
+        # 空 list → 不发查询直接 []; None → 维持 tenant-only 全量。
+        if resource_codes is not None and not resource_codes:
+            return []
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(ResourceSchemaMappingRecord).where(ResourceSchemaMappingRecord.tenant_id == tenant_id)
             if resource_code:
                 statement = statement.where(ResourceSchemaMappingRecord.resource_code == resource_code)
+            if resource_codes:
+                statement = statement.where(ResourceSchemaMappingRecord.resource_code.in_(resource_codes))
             if catalog_code:
                 statement = statement.where(ResourceSchemaMappingRecord.catalog_code == catalog_code)
             if not include_inactive:
@@ -131,12 +138,18 @@ class MetadataEvidenceRepository:
             session.commit()
             return len(records)
 
-    def list_schema_snapshots(self, *, resource_code: str | None = None, binding_code: str | None = None, tenant_id: str = "sd-default") -> list[ResourceSchemaSnapshotRecord]:
+    def list_schema_snapshots(self, *, resource_code: str | None = None, resource_codes: list[str] | None = None, binding_code: str | None = None, tenant_id: str = "sd-default") -> list[ResourceSchemaSnapshotRecord]:
+        # resource_codes (plural IN) perf knob mirrors legacy_mapping.list_mappings(canonical_refs=):
+        # 空 list → 不发查询直接 []; None → 维持 tenant-only 全量。
+        if resource_codes is not None and not resource_codes:
+            return []
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(ResourceSchemaSnapshotRecord).where(ResourceSchemaSnapshotRecord.tenant_id == tenant_id)
             if resource_code:
                 statement = statement.where(ResourceSchemaSnapshotRecord.resource_code == resource_code)
+            if resource_codes:
+                statement = statement.where(ResourceSchemaSnapshotRecord.resource_code.in_(resource_codes))
             if binding_code:
                 statement = statement.where(ResourceSchemaSnapshotRecord.binding_code == binding_code)
             return list(session.execute(statement.order_by(ResourceSchemaSnapshotRecord.captured_at)).scalars())
@@ -165,12 +178,18 @@ class MetadataEvidenceRepository:
             )
             return list(session.execute(statement).scalars())
 
-    def list_gather_evidence(self, *, resource_code: str | None = None, status: str | None = None, tenant_id: str = "sd-default") -> list[MetadataGatherEvidenceProjectionRecord]:
+    def list_gather_evidence(self, *, resource_code: str | None = None, resource_codes: list[str] | None = None, status: str | None = None, tenant_id: str = "sd-default") -> list[MetadataGatherEvidenceProjectionRecord]:
+        # resource_codes (plural IN) perf knob mirrors legacy_mapping.list_mappings(canonical_refs=):
+        # 空 list → 不发查询直接 []; None → 维持 tenant-only 全量。
+        if resource_codes is not None and not resource_codes:
+            return []
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(MetadataGatherEvidenceProjectionRecord).where(MetadataGatherEvidenceProjectionRecord.tenant_id == tenant_id)
             if resource_code:
                 statement = statement.where(MetadataGatherEvidenceProjectionRecord.resource_code == resource_code)
+            if resource_codes:
+                statement = statement.where(MetadataGatherEvidenceProjectionRecord.resource_code.in_(resource_codes))
             if status:
                 statement = statement.where(MetadataGatherEvidenceProjectionRecord.status == status)
             return list(session.execute(statement.order_by(MetadataGatherEvidenceProjectionRecord.generated_at)).scalars())
@@ -325,7 +344,12 @@ class MetadataEvidenceRepository:
             session.refresh(record)
             return record
 
-    def list_lineage_relations(self, *, resource_code: str | None = None, relation_scope: str | None = None, tenant_id: str = "sd-default") -> list[LineageRelationProjectionRecord]:
+    def list_lineage_relations(self, *, resource_code: str | None = None, resource_codes: list[str] | None = None, relation_scope: str | None = None, tenant_id: str = "sd-default") -> list[LineageRelationProjectionRecord]:
+        # resource_codes (plural IN) perf knob mirrors legacy_mapping.list_mappings(canonical_refs=);
+        # 保留 OR(source|target) 语义同单数 resource_code。
+        # 空 list → 不发查询直接 []; None → 维持 tenant-only 全量。
+        if resource_codes is not None and not resource_codes:
+            return []
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(LineageRelationProjectionRecord).where(LineageRelationProjectionRecord.tenant_id == tenant_id)
@@ -334,11 +358,21 @@ class MetadataEvidenceRepository:
                     (LineageRelationProjectionRecord.source_resource_code == resource_code)
                     | (LineageRelationProjectionRecord.target_resource_code == resource_code)
                 )
+            if resource_codes:
+                statement = statement.where(
+                    LineageRelationProjectionRecord.source_resource_code.in_(resource_codes)
+                    | LineageRelationProjectionRecord.target_resource_code.in_(resource_codes)
+                )
             if relation_scope:
                 statement = statement.where(LineageRelationProjectionRecord.relation_scope == relation_scope)
             return list(session.execute(statement.order_by(LineageRelationProjectionRecord.relation_ref)).scalars())
 
-    def list_quality_evidence(self, *, target_type: str | None = None, target_ref: str | None = None, tenant_id: str = "sd-default") -> list[QualityEvidenceProjectionRecord]:
+    def list_quality_evidence(self, *, target_type: str | None = None, target_ref: str | None = None, target_refs: list[str] | None = None, tenant_id: str = "sd-default") -> list[QualityEvidenceProjectionRecord]:
+        # target_refs (plural IN) perf knob mirrors legacy_mapping.list_mappings(canonical_refs=);
+        # keyed by target_ref (NOT resource_code); 与 target_type 单数过滤组合 AND。
+        # 空 list → 不发查询直接 []; None → 维持 tenant-only 全量。
+        if target_refs is not None and not target_refs:
+            return []
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             statement = select(QualityEvidenceProjectionRecord).where(QualityEvidenceProjectionRecord.tenant_id == tenant_id)
@@ -346,6 +380,8 @@ class MetadataEvidenceRepository:
                 statement = statement.where(QualityEvidenceProjectionRecord.target_type == target_type)
             if target_ref:
                 statement = statement.where(QualityEvidenceProjectionRecord.target_ref == target_ref)
+            if target_refs:
+                statement = statement.where(QualityEvidenceProjectionRecord.target_ref.in_(target_refs))
             return list(session.execute(statement.order_by(QualityEvidenceProjectionRecord.generated_at)).scalars())
 
     def upsert_quality_evidence(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> QualityEvidenceProjectionRecord:
