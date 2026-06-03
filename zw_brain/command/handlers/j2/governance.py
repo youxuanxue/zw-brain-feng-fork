@@ -203,6 +203,7 @@ def _review_policy_mapping_candidates(brain, deps, ctx, payload: dict[str, Any])
                 "result": "failed",
                 "reason": None,
             }
+            # scan-to-one-ok: list_policy_candidates 已按 tenant+legacy_system+capability_id 三维 SQL 下推，残余按 permission_ref 选一条为有界小集，非全表扫
             existing = next(
                 (
                     item

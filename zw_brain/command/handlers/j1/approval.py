@@ -32,7 +32,7 @@ def _get_approval(brain, deps, ctx, request_id: str) -> dict[str, Any]:
         if "requestId" not in approval:
             raise NotFoundError(request_id)
         return approval
-    case = next((item for item in deps.repos.approval.list_cases(tenant_id=_DEFAULT_TENANT_ID) if item.application_code == request_id), None)
+    case = deps.repos.approval.get_case(request_id, tenant_id=_DEFAULT_TENANT_ID)
     if case is None and "requestId" not in approval:
         raise NotFoundError(request_id)
     approval["requestId"] = request_id

@@ -355,17 +355,16 @@ def _get_request(brain, deps, ctx, request_id: str) -> dict[str, Any]:
     if request is None:
         if store is None:
             raise NotFoundError(request_id)
-        record = next((item for item in deps.repos.application.list_records(tenant_id=_DEFAULT_TENANT_ID) if item.application_code == request_id), None)
+        record = deps.repos.application.get_record(request_id, tenant_id=_DEFAULT_TENANT_ID)
         if record is None:
             raise NotFoundError(request_id)
         return deps.services.application.record_to_request(record, store)
     request = copy.deepcopy(request)
     if store is None:
         return request
-    for record in deps.repos.application.list_records(tenant_id=_DEFAULT_TENANT_ID):
-        if record.application_code == request_id:
-            deps.services.application.overlay_record(request, record, store)
-            break
+    record = deps.repos.application.get_record(request_id, tenant_id=_DEFAULT_TENANT_ID)
+    if record is not None:
+        deps.services.application.overlay_record(request, record, store)
     delivery = deps.view.delivery.find_by_request_id(request_id) or deps.services.delivery.task_from_record(request_id, store)
     request["taskId"] = delivery["id"] if delivery else None
     request["statusTimeline"] = deps.services.request.status_timeline(request, delivery)

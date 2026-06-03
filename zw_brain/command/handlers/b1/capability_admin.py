@@ -199,6 +199,7 @@ def _get_package(brain, deps, ctx, package_id: str) -> dict[str, Any]:
     store = deps.state_store.database_store
     if store is None:
         return package
+    # scan-to-one-ok: 能力包是有界引用集（段 33 live+builtin 单 prefix ≤25），匹配键 manifest_json.get("id") 在 JSON 内不可索引——无 get_ 可替代
     for record in deps.repos.capability_package.list_packages():
         if record.manifest_json.get("id") == package_id or record.package_slug == package.get("slug"):
             package["status"] = record.review_status

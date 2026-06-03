@@ -290,20 +290,20 @@ def _evidence_inference(
 def _load_application(brain, deps, ctx, application_id: str) -> dict[str, Any] | None:
     from zw_brain.domain.repositories.application import ApplicationRepository
     repo = ApplicationRepository()
-    for record in repo.list_records(tenant_id="sd-default"):
-        if record.application_code == application_id:
-            payload = record.payload_json if isinstance(record.payload_json, dict) else {}
-            return {
-                "application_code": record.application_code,
-                "status": record.status,
-                "resource_name": payload.get("resource_name") or payload.get("resourceName"),
-                "purpose": payload.get("purpose") or payload.get("use_reason"),
-                "use_reason": payload.get("use_reason"),
-                "use_item": payload.get("use_item"),
-                "service_times": payload.get("service_times"),
-                "applicant_org_name": payload.get("applicant_org_name"),
-            }
-    return None
+    record = repo.get_record(application_id, tenant_id="sd-default")
+    if record is None:
+        return None
+    payload = record.payload_json if isinstance(record.payload_json, dict) else {}
+    return {
+        "application_code": record.application_code,
+        "status": record.status,
+        "resource_name": payload.get("resource_name") or payload.get("resourceName"),
+        "purpose": payload.get("purpose") or payload.get("use_reason"),
+        "use_reason": payload.get("use_reason"),
+        "use_item": payload.get("use_item"),
+        "service_times": payload.get("service_times"),
+        "applicant_org_name": payload.get("applicant_org_name"),
+    }
 
 
 def _load_historical_for_review(brain, deps, ctx, resource_name: str, exclude_id: str, limit: int = 5) -> list[dict[str, Any]]:

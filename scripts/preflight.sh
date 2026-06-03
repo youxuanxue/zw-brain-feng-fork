@@ -119,6 +119,7 @@ done <<'CHECKS'
 段 31	scripts/check_trusted_payload_usage.py	trusted-payload-usage (tests 走 invoke_trusted 不直接 brain.invoke_skill — F6 防回潮)
 段 32	scripts/check_read_path_full_scan.py	read-path-full-scan (PR #113 教训机械化)
 段 32b	scripts/generate_full_scan_exemptions.py --check	full-scan-exemptions-sync (E2 豁免清单与代码同步)
+段 32c	scripts/check_read_path_scan_to_one.py	read-path-scan-to-one (god's-eye 详情页 N+1 — handler/service 禁 list_*() 全表筛一条；改用索引 getter get_record/get_case/get_task；与段 32 互补，豁免 # scan-to-one-ok:)
 段 33	scripts/check_live_builtin_budget.py	live-builtin-budget (架构约束 R7 单 prefix > 25 触发 review)
 段 34	scripts/check_wave_snapshot_sync.py	wave-snapshot-sync (E1 — §〇.1 反向链接锚点解析 + debt 反向覆盖)
 段 35	scripts/check_brain_no_request_state_singleton.py	brain-no-request-state-singleton (per-request role 必走 ContextVar，不得 seed 到 _ui_state 单例)

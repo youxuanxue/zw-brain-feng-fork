@@ -191,7 +191,7 @@ def _get_delivery_task(brain, deps, ctx, task_id: str) -> dict[str, Any]:
         task = copy.deepcopy(task)
     if store is None:
         return task
-    record = next((item for item in deps.repos.delivery.list_tasks(tenant_id=_DEFAULT_TENANT_ID) if item.delivery_code == task_id), None)
+    record = deps.repos.delivery.get_task(task_id, tenant_id=_DEFAULT_TENANT_ID)
     request = deps.services.request.maybe_by_id(task.get("requestId", "")) or deps.services.application.request_from_record(task.get("requestId", ""), store)
     if request is not None:
         task["applicationMaterials"] = copy.deepcopy(request.get("applicationMaterials", {}))
