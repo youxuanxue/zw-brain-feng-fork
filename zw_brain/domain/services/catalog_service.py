@@ -263,7 +263,10 @@ class CatalogService:
                 for snapshot in context.schema_snapshots_by_resource.get(code, [])
             ]
         else:
-            snapshot_records = [item for item in store.metadata_evidence_repo.list_schema_snapshots(tenant_id=_DEFAULT_TENANT_ID) if item.resource_code in resource_codes]
+            # PERF: push resource_code filter into SQL (.in_()) instead of scanning
+            # every tenant snapshot (~5560 rows) and filtering in Python. 空 set →
+            # repo 直接返回 []（同语义）。
+            snapshot_records = store.metadata_evidence_repo.list_schema_snapshots(resource_codes=list(resource_codes), tenant_id=_DEFAULT_TENANT_ID)
         snapshots = [metadata_ser.schema_snapshot_to_dict(item) for item in snapshot_records]
         legacy_refs = self.brain._legacy_mapping_refs(store, "catalog_entry", catalog_code, context=context)
         legacy_refs.extend(self.brain._legacy_mapping_refs(store, "catalog_item", [field["item_code"] for field in fields], context=context))

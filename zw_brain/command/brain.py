@@ -827,7 +827,9 @@ class BrainService:
                 for snapshot in context.schema_snapshots_by_resource.get(code, [])
             ]
         else:
-            snapshots_iter = [snapshot for snapshot in store.metadata_evidence_repo.list_schema_snapshots(tenant_id=_DEFAULT_TENANT_ID) if snapshot.resource_code in resource_codes]
+            # PERF: push resource_code filter into SQL (.in_()) — see catalog_service
+            # 同款收口；空 set → repo 直接返回 []。
+            snapshots_iter = store.metadata_evidence_repo.list_schema_snapshots(resource_codes=list(resource_codes), tenant_id=_DEFAULT_TENANT_ID)
         out: dict[Any, Any] = {}
         for snapshot in snapshots_iter:
             schema = snapshot.schema_json if isinstance(snapshot.schema_json, dict) else {}

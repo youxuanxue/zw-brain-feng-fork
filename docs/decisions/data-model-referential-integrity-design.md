@@ -42,7 +42,7 @@ related_prototype: docs/prototypes/data_model_integrity_prototype.py
 
 | 缺陷 | 级别 | 裁决 | 一句话 |
 | --- | --- | --- | --- |
-| 1 零外键约束 | B-高 | **已落地（M1 FK + M3 守卫）；C 类 honest 降级守卫兜底** | A 类 12 + B 类 5（复合）= 17 条边已建 FK + ON DELETE CASCADE（M1）。C 类 7 条边经 M2 写入侧核实：父行写子时不保证存在（实证 receipt 父可缺位）→ NOT-NULL FK 不可行、nullable FK 零强制收益，**honest 降级为 M3 孤儿守卫全边兜底**（§2.5）。 |
+| 1 零外键约束 | B-高 | **已落地（M1 FK + M3 守卫）；C 类 honest 降级守卫兜底** | A 类 12 + B 类 5（复合）= 17 条边已建 FK + ON DELETE CASCADE（M1）。C 类 9 条边（含 [06-03 amendment] 补 catalog_item/delivery_subscription.resource_code 两条原裸奔软引用边）经 M2 写入侧核实：父行写子时不保证存在（实证 receipt 父可缺位）→ NOT-NULL FK 不可行、nullable FK 零强制收益，**honest 降级为 M3 孤儿守卫登记边兜底**（§2.5；覆盖=常量登记边集合非 schema 全反射）。 |
 | 4 catalog_entry 引用完整性 | B-中 | **设计-only 待审批（已聚焦）** | 本方案**只管完整性**：删包/删目录时悬挂 ref 走应用层守卫（多态 ref 无法单建 SQL FK）。**可检索补录 + `catalog.entry.detail` 详情页剥离回 J1 立项**，不在本方案。 |
 | 2 凭据未建模为实体 | B-中 | **记债暂停（上游缺供 + 业务待确认，D47.a）** | 真凭据在网关域 `dsp_service.api_service_app.SECRET`、与 apply_id 无绑定供数；只产出 schema-readiness 设计，**禁实现、禁捏造**。 |
 | 3 resource_schema_mapping 覆盖率 27% | B-中 | **记债暂停（上游缺供）** | 已核实读路径桥接就绪、补数自动放大，**无需改码**，等上游补 schema dump。 |
@@ -168,7 +168,13 @@ related_prototype: docs/prototypes/data_model_integrity_prototype.py
 
 ### 2.5 功能实现阶段·M2 写入侧核实结论（C 类边 honest 降级）
 
-> **本节是功能实现阶段对 §2.3 写入侧前提的真实核实产出**，按任务「核实写入次序可行性…honest 降级、不硬凑」执行。结论：**7 条 C 类边全部 honest 降级为「§六 M3 孤儿守卫全边兜底」，不加 NOT-NULL `*_id` FK**。下列证据支撑该裁决（非纪律松懈，是机制诚实）。
+> **本节是功能实现阶段对 §2.3 写入侧前提的真实核实产出**，按任务「核实写入次序可行性…honest 降级、不硬凑」执行。结论：**C 类边全部 honest 降级为「§六 M3 孤儿守卫登记边兜底」，不加 NOT-NULL `*_id` FK**。下列证据支撑该裁决（非纪律松懈，是机制诚实）。
+>
+> **[2026-06-03 amendment · D48 补边 + 措辞收敛]** 上帝视角 review 指出守卫自称"全边/全部父子边"实为闭枚举（彼时 A12+B5+C7=24 边），≥2 条真实软引用边裸奔。处置（产品研发负责人 sign-off）：
+> - **补边**：`catalog_item.resource_code → resource_asset.resource_code`、`delivery_subscription.resource_code → resource_asset.resource_code` 两条原裸奔软引用边纳入 `C_CLASS_EDGES`（干净 seed 实证 0 孤儿）；C 类 7→9 条。
+> - **措辞收敛**：守卫覆盖 = **常量登记边集合**（单一事实源 = `check_orphan_rows.py` 的 `*_EDGES`，**非 schema 自动反射**），全文"全边"语义统一为"登记边兜底"——承诺不再超出实现。新增父子边须在此登记方被覆盖。
+> - **刻意排除**：`objection_case.related_application_id` 系无 live deref 的松散可选标注（legacy mapper 恒写 `None`、command/services 无任何 join 消费方），**不构成参照边**；强行纳入 = 虚构系统并不维护的约束，故不加（诚实的反方向亦是不诚实）。
+> - **防回潮测试待补**：补边正确性当前由 preflight 段67 每次提交实跑兜底（实证 0 孤儿）；但"边被悄摘"只能由单测捕获。该回归测试归属 `negative-and-guardrails.feature`（已 `# Pytest:` 引 `test_data_model_referential_integrity.py`），加测会改其内容指纹需 `--with-e2e` 全栈重采，**留待下次 CI 重采时随该 feature 一并落入**（不在本地 PR-A 强加，避免无 node_modules 环境伪绿）。
 
 **核实事实（只读探索 git grep + 读码）**：
 
@@ -182,7 +188,7 @@ related_prototype: docs/prototypes/data_model_integrity_prototype.py
 - **Nullable `*_id` FK 多数为 NULL → 不产生任何被强制的完整性**（NULL FK 不被 DB 约束），只增 schema 噪声 + 七处写点改造，**零完整性收益**——是 cargo-cult convergence，违背简洁/精品。
 - §六 已明确：**FK 覆盖不到的边由 M3 孤儿守卫全边兜底**，「无孤儿」保证完整。故 C 类边走守卫兜底是**方案内既定路径**，非缺口。
 
-**结论**：7 条 C 类边（4 delivery 子→delivery_task、delivery_task→application_record、approval_case→application_record、catalog_entry_version→catalog_entry）**不加 FK，业务码列保留作可读自然键**，参照完整性由 §六 M3 `check_orphan_rows.py` 对全部边 LEFT JOIN 扫孤儿兜底。M3 守卫的边定义已含这 7 条 C 类边。
+**结论**：原 7 条 C 类边（4 delivery 子→delivery_task、delivery_task→application_record、approval_case→application_record、catalog_entry_version→catalog_entry）**不加 FK，业务码列保留作可读自然键**，参照完整性由 §六 M3 `check_orphan_rows.py` 对**登记边** `NOT EXISTS` 扫孤儿兜底。M3 守卫的边定义已含这 7 条；[06-03 amendment] 另补 catalog_item/delivery_subscription.resource_code 两条，C 类共 9 条。
 
 > **真正消解 C 类孤儿的上游解（记债，不在本期）**：清理 `delivery_code` 装 id 的混用 + 让父行先落地是「写入次序治理」立项，承接 `j1-legacy-record-actionability`（D47.b）同源的运行时实体解析债。本期不做、不捏造 FK。
 
@@ -272,7 +278,7 @@ related_prototype: docs/prototypes/data_model_integrity_prototype.py
 > **乔布斯收敛**：守卫不是审批附属项，是这个产品保证**唯一可信的兑现方式**——"无孤儿"靠机制强制、不靠开发者纪律（设计即工作方式）。FK 覆盖到的边由 DB 兜底，FK 覆盖不到的边由孤儿守卫兜底，**两者合起来才是完整保证**（精品意识：不留 27% 缺口）。
 > 注：守卫**接进 `scripts/preflight.sh` 主路径仍需负责人审批段号**（对齐 D46.c「立规则不预先强加守卫」）；本 worktree 不私自接入。脊柱指的是它在方案中的地位，不是绕过审批。
 
-1. **孤儿扫描守卫（缺陷 1，可机械化）**：`scripts/check_orphan_rows.py`（**已落地，接 preflight 段 67**）——对 A/B/C 三类边逐条 `NOT EXISTS` 扫孤儿子行，>0 即 FAIL。**自建干净 seed 库**（临时目录 drop&recreate + `DatabaseStore().initialize()`）扫，CI 可跑、便宜、不需真库、不污染本地；`--db-path` 可对真实 seed 库做一次性体检（M5 用）。既作 FK 化前的**存量体检**，也作 FK 未覆盖的 C 类 7 条边的**唯一长期兜底**（§2.5）。
+1. **孤儿扫描守卫（缺陷 1，可机械化）**：`scripts/check_orphan_rows.py`（**已落地，接 preflight 段 67**）——对 A/B/C 三类边逐条 `NOT EXISTS` 扫孤儿子行，>0 即 FAIL。**自建干净 seed 库**（临时目录 drop&recreate + `DatabaseStore().initialize()`）扫，CI 可跑、便宜、不需真库、不污染本地；`--db-path` 可对真实 seed 库做一次性体检（M5 用）。既作 FK 化前的**存量体检**，也作 FK 未覆盖的 C 类登记边（9 条，§2.5 amendment 后）的**唯一长期兜底**。
 2. **FK 回潮守卫（缺陷 1，可机械化）**：`check_orphan_rows.py` 内置 `len([fk …]) >= 22` 断言（A 类 12 + B 类复合 10），防 FK 被悄悄摘掉退回字符串引用。
 3. **catalog_entry 可达性守卫（缺陷 4，可机械化）**：`check_orphan_rows.py` 扫 `topic_package_item(ref_type=catalog_entry)` 的 `ref_id` 是否都在 `catalog_entry`（按 tenant+catalog_code）命中；悬挂引用 → FAIL（防「引用了却没录入主表」回潮）。
 4. **凭据捏造防回潮（缺陷 2，已存在）**：D47 段 66 已守 granted 分支禁捏造凭据；本方案不新增，沿用。

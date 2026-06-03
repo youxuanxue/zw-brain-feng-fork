@@ -2,12 +2,15 @@
 """check_orphan_rows.py — preflight 段 67（数据模型参照完整性·方案脊柱 §六）.
 
 产品保证：「zw-brain 永不留孤儿行——删父级联或拒绝，由系统机制强制」。
-本守卫是该保证**唯一覆盖全部父子边**的兑现方式（设计 §六.1）：
+本守卫覆盖**下方常量枚举登记的** A/B/C 三类父子边（单一事实源 = 下方 *_EDGES，
+**非 schema 自动反射**；新增父子边须在此登记才被覆盖）。覆盖范围 = 登记边集合，
+不等于"模型里一切引用列"——未登记的松散可选引用（无 live deref、无 FK）刻意不纳入，
+见 design §六.1 + §2.5：
 
-  1. **孤儿扫描（全边）**：对 A/B/C 三类父子边逐条 `NOT EXISTS` 扫孤儿子行。
+  1. **孤儿扫描（枚举边）**：对 A/B/C 三类登记的父子边逐条 `NOT EXISTS` 扫孤儿子行。
      - A 类 12 + B 类 5（复合）= 17 条已建 FK + CASCADE（M1），DB 已兜底；本守卫
        仍扫作回潮哨兵（FK 被摘也能查出孤儿）。
-     - C 类 7 条边无 FK（M2 honest 降级，父写子时不保证存在，见 design §2.5），
+     - C 类 9 条边无 FK（M2 honest 降级，父写子时不保证存在，见 design §2.5），
        **本守卫是其唯一参照完整性兜底**。
      - 任一边孤儿 > 0 → FAIL。
   2. **FK 回潮断言**：`Base.metadata` 的 FK 列数须 ≥ 已落地边数（22 = A12 + B5×2 复合），
@@ -73,7 +76,8 @@ B_CLASS_EDGES: list[tuple[str, tuple[str, str], str, tuple[str, str]]] = [
     )
 ]
 
-# C 类 7 条边：业务码引用，M2 honest 降级（无 FK）→ 本守卫是唯一兜底（design §2.5）。
+# C 类 9 条边：业务码引用，M2 honest 降级（无 FK）→ 本守卫是唯一兜底（design §2.5）。
+# （末两条 catalog_item/delivery_subscription.resource_code 系 D48 amendment 补边，原裸奔。）
 # 这些边按业务码匹配父行；空/NULL 子列视为「不引用」跳过，不算孤儿。
 #
 # **多态码列豁免前缀**（M5 真库实证，design §2.6）：部分 C 类码列是**多态主体码**，
@@ -95,6 +99,10 @@ C_CLASS_EDGES: list[tuple] = [
     ("delivery_task", "application_code", "application_record", "application_code"),
     ("approval_case", "application_code", "application_record", "application_code", ("resource-review:",)),
     ("catalog_entry_version", "catalog_code", "catalog_entry", "catalog_code"),
+    # 补边（D48 amendment）：两条 resource_code 软引用，过去裸奔——子表 nullable 码列
+    # 引用 resource_asset.resource_code，无 FK（M2 honest 降级），本守卫兜底。NULL 跳过。
+    ("catalog_item", "resource_code", "resource_asset", "resource_code"),
+    ("delivery_subscription", "resource_code", "resource_asset", "resource_code"),
 ]
 
 # 已落地 FK 列数下限（A 类 12 单列 + B 类 5 复合×2 列 = 22）。

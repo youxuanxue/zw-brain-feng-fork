@@ -19,15 +19,12 @@ if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
 
-def derive_demo_credential(request_id: str, seed: str | None = None) -> dict[str, Any]:
-    """Deterministic demo credential — 同一 (request_id, seed) 永远生成同一凭据。
+def derive_platform_credential(request_id: str, seed: str | None = None) -> dict[str, Any]:
+    """Deterministic platform self-signed credential — 同一 (request_id, seed) 永生同一凭据。
 
-    Single source for the demo-credential shape, shared by
-    ``RequestService.credential_for_request`` (auto-issue on approval / reissue)
-    and the legacy exchange mapper (granted-delivery materialization). Keeps the
-    invariant *granted ⟹ credential* satisfied by construction; legacy real
-    ``app_key`` is scrubbed at the boundary (PII), so a granted access gets the
-    same demo credential the approval flow would have issued.
+    在产单审批通过时**平台自签**签发的真实凭据（D47：平台自签合法）。前缀 ``AK-SELF-``
+    诚实标识"平台自签"，**不再打 ``AK-DEMO-`` 假证牌**——这是真实已签发凭据，不是演示物。
+    legacy 导入的 granted 授权**不**走此路径（D47：诚实标 not_issued，见 exchange mapper）。
 
     seed=None：首次签发（auto-on-approval），用 request_id 作种子；
     seed=<audit_id>：reissue 路径每次重签都产生不同 app_secret
@@ -44,8 +41,8 @@ def derive_demo_credential(request_id: str, seed: str | None = None) -> dict[str
         else f"d23-credential-{request_id}-reissue-{seed}"
     )
     digest = hashlib.sha256(seed_material.encode("utf-8")).hexdigest()
-    app_key = f"AK-DEMO-{request_id}-{digest[:8].upper()}"
-    app_secret = f"SK-DEMO-{digest[8:32]}"
+    app_key = f"AK-SELF-{request_id}-{digest[:8].upper()}"
+    app_secret = f"SK-SELF-{digest[8:32]}"
     valid_from = clock.now_date()
     valid_to = (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d")
     return {
@@ -195,7 +192,7 @@ class RequestService:
     def credential_for_request(
         self, request_id: str, seed: str | None = None
     ) -> dict[str, Any]:
-        """Demo credential — 同一 (request_id, seed) 永远生成同一凭据。
+        """Platform self-signed credential — 同一 (request_id, seed) 永生同一凭据。
 
         Action H commit 4: lifted from ``BrainService._credential_for_request``.
         Pure derivation; no instance state used (kept on the service for
@@ -205,10 +202,10 @@ class RequestService:
         seed=<audit_id>：reissue 路径每次重签都产生不同 app_secret
         （旧 secret 立即失效语义；与生产 IAM reissue 行为对齐）.
 
-        Delegates to the module-level :func:`derive_demo_credential` so the
-        credential shape has a single source shared with the legacy mapper.
+        Delegates to the module-level :func:`derive_platform_credential`（前缀
+        AK-SELF，平台自签真实凭据，非演示物）。
         """
-        return derive_demo_credential(request_id, seed)
+        return derive_platform_credential(request_id, seed)
 
     def approval_business_defaults(
         self,

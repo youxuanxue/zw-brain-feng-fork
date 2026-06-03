@@ -168,3 +168,30 @@ def test_enrich_detail_no_context_index_getter_le_tenant_total():
         scoped = store.resource_api_repo.list_assets_by_catalog(catalog, tenant_id=TENANT)
         assert len(scoped) <= tenant_total
         assert len(scoped) < tenant_total, "per-catalog subset must be strictly smaller than tenant total"
+
+
+def test_enrich_detail_no_context_snapshots_pushdown(monkeypatch):
+    """PERF-1: no-context 分支取 schema snapshots 必须下推 resource_codes（SQL IN），
+    不再全表扫整租户 snapshot 后 Python 过滤。守 catalog_service.py 调用点不回潮。"""
+    from zw_brain.domain.repositories import MetadataEvidenceRepository
+
+    calls: list[dict] = []
+    orig = MetadataEvidenceRepository.list_schema_snapshots
+
+    def _spy(self, *args, **kwargs):
+        calls.append(kwargs)
+        return orig(self, *args, **kwargs)
+
+    monkeypatch.setattr(MetadataEvidenceRepository, "list_schema_snapshots", _spy)
+
+    store = _store()
+    svc = _catalog_service(store)
+    record = store.catalog_repo.get_entry(CATALOGS[0], tenant_id=TENANT)
+    assert record is not None
+    svc.enrich_detail({}, record, store, context=None)
+
+    snap_calls = [c for c in calls if "resource_codes" in c]
+    assert snap_calls, f"list_schema_snapshots 未被下推调用（疑全表扫回潮）：{calls}"
+    for c in calls:
+        # 裸全表扫 fallback 会省略 resource_codes kwarg → None；下推必非 None。
+        assert c.get("resource_codes") is not None, f"全表扫 fallback 残留：{c}"

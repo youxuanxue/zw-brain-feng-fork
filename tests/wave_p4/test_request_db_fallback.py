@@ -126,4 +126,4 @@ def test_credential_issue_no_longer_422_for_db_only_request(brain):
     )
     result = out["result"] if isinstance(out, dict) and "result" in out and "audit_id" in out else out
     assert result is not None
-    assert result["credential"]["app_key"].startswith("AK-DEMO-")
+    assert result["credential"]["app_key"].startswith("AK-SELF-")

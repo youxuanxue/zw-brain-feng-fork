@@ -57,7 +57,7 @@ def _issue_credential(brain, deps, ctx, request_id: str, role: str, confirmed: b
         delivery.setdefault("history", []).append({
             "time": clock.now_short_time(),
             "state": "凭据已签发" if not existing else "凭据已重新签发（旧 secret 立即失效）",
-            "detail": f"app_key={credential['app_key']}（demo 凭据），可在 P4 凭据领取页查看。",
+            "detail": f"app_key={credential['app_key']}（平台自签凭据），可在 P4 凭据领取页查看。",
         })
         deps.append_audit_feed("credential.issue", request_id, "ok", actor)
         return {

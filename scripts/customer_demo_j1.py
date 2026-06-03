@@ -189,7 +189,7 @@ def run_demo(seed_db: Path, shadow_db: Path, *, dry_run: bool = False) -> dict[s
         "role": "ROLE_ORGAN_MANAGER",
         "confirmed": True,
     })
-    assert cred["credential"]["app_key"].startswith("AK-DEMO-"), cred
+    assert cred["credential"]["app_key"].startswith("AK-SELF-"), cred
     _log("STEP-5.P4", "凭据三语样例渲染（R-001 fix: 申请人本人渲染，避免审计角色读取明文 app_secret）")
     samples = _invoke(brain, "credential.sample.render", {
         "request_id": request_id,

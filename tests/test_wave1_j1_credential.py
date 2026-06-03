@@ -124,8 +124,8 @@ def test_credential_issue_writes_app_key_and_secret(brain, real_resource):
         "confirmed": True,
     })
     cred = result["credential"]
-    assert cred["app_key"].startswith("AK-DEMO-")
-    assert cred["app_secret"].startswith("SK-DEMO-")
+    assert cred["app_key"].startswith("AK-SELF-")
+    assert cred["app_secret"].startswith("SK-SELF-")
     assert cred["quota_per_day"] == 1000
     assert "valid_from" in cred and "valid_to" in cred
     assert cred["invoke_url_template"].startswith("https://")
@@ -140,7 +140,7 @@ def test_credential_query_returns_issued_credential(brain, real_resource):
         "request_id": "REQ-F5-002", "role": "ROLE_ORGAN_OPERATER",
     })
     assert result["status"] == "issued"
-    assert result["credential"]["app_key"].startswith("AK-DEMO-")
+    assert result["credential"]["app_key"].startswith("AK-SELF-")
     assert result["issued_audit_id"] is not None
 
 
@@ -271,7 +271,7 @@ def test_quota_default_is_1000_per_day(brain, real_resource):
 
 def test_sample_does_not_leak_foreign_credentials(brain, real_resource):
     """守卫样例不混入任何异源生产密钥串（ssh-rsa / aws_secret / private key 等）。
-    注：sample 本身按设计渲染用户自己的 demo prefix AK-DEMO/SK-DEMO；本测试只防异源 secret 串。
+    注：sample 本身按设计渲染用户自己的平台自签 prefix AK-SELF/SK-SELF；本测试只防异源 secret 串。
     用户自己 app_secret 的跨角色暴露由 policy.py credential.sample.render.execute 收敛到
     ROLE_ORGAN_OPERATER 保证（见下方 test_sample_render_denies_non_applicant_role）。"""
     _inject_approved_request(brain, "REQ-F5-NOLEAK", real_resource)

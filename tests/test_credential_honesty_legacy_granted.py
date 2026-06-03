@@ -2,9 +2,10 @@
 
 真实授权表 data_apply_authrization 无 per-grant 凭据列（真凭据在网关域
 dsp_service.api_service_app.SECRET、与 apply_id 无绑定供数）。旧实现在 granted 分支
-derive_demo_credential 捏造 AK-DEMO 糊住「granted⟹凭据」——已停止。本测试守住：
-granted 导入后 access_grant.credential 为 None 且 credential_status="not_issued"，
-credential.query 因此诚实返回 not_issued（非假 AK-DEMO）。
+凭据工厂（旧名 derive_demo_credential，今 derive_platform_credential）捏造 AK-DEMO
+糊住「granted⟹凭据」——已停止。本测试守住：granted 导入后 access_grant.credential
+为 None 且 credential_status="not_issued"，credential.query 因此诚实返回 not_issued
+（非任何捏造凭据，含旧 AK-DEMO / 今 AK-SELF 自签前缀）。
 """
 
 from __future__ import annotations
@@ -64,5 +65,7 @@ def test_legacy_granted_import_does_not_fabricate_credential(temp_db: Path) -> N
     # 诚实：无捏造凭据
     assert grant.get("credential") is None, "granted 导入不得捏造凭据（真实授权表无凭据列）"
     assert grant.get("credential_status") == "not_issued", "须显式标 not_issued（不静默缺键）"
-    # 反捏造：不得出现 AK-DEMO 假凭据
-    assert "AK-DEMO" not in str(task.payload_json), "不得回潮 AK-DEMO 捏造凭据"
+    # 反捏造：granted 分支不得出现任何捏造凭据（旧 AK-DEMO / 今 AK-SELF 平台自签前缀皆禁）
+    payload_str = str(task.payload_json)
+    assert "AK-DEMO" not in payload_str, "不得回潮 AK-DEMO 捏造凭据"
+    assert "AK-SELF" not in payload_str, "granted 分支不得自签 AK-SELF 凭据（应诚实 not_issued）"

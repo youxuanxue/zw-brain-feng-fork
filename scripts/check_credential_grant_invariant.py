@@ -9,6 +9,7 @@
 `dsp_service.api_service_app.SECRET`、与 apply_id 无绑定供数（见 docs/preflight-debt.md）。
 旧实现曾在 granted 分支 `derive_demo_credential` **捏造 AK-DEMO** 糊住「granted⟹凭据」——
 已停止（C-1）。真实历史 granted 单**本就没有凭据**，应诚实显 not_issued。
+（凭据工厂后续诚实化重命名为 `derive_platform_credential`、前缀 AK-SELF；本守卫追新名。）
 
 新不变量（写边界静态确认，CI 友好不需 seed DB）：`_map_data_apply_authrization`
 的 granted 分支必须
@@ -16,8 +17,8 @@
 1. 存在对字符串 `"granted"` 的比较（granted 分支判定）；
 2. **显式处理凭据态**：对下标 `["credential"]` 与 `["credential_status"]` 都有赋值
    （不静默——要么真签发、要么诚实标 not_issued）；
-3. **不得回潮捏造**：granted 分支不得再调 `derive_demo_credential`
-   （防 AK-DEMO 假凭据重新糊回 granted）。
+3. **不得回潮捏造**：granted 分支不得再调凭据工厂 `derive_platform_credential`
+   （原 `derive_demo_credential`；防任何自签/假凭据重新糊回 granted）。
 
 任一违反 → FAIL（有人删掉诚实标记、或重新引入捏造即被拦下）。
 
@@ -35,7 +36,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 EXCHANGE_PATH = REPO / "zw_brain" / "adapters" / "legacy" / "mappers" / "exchange.py"
 FUNC_NAME = "_map_data_apply_authrization"
-FACTORY_NAME = "derive_demo_credential"
+# 凭据工厂函数名（granted 分支不得调）。原名 derive_demo_credential，诚实化重命名为
+# derive_platform_credential（前缀 AK-SELF，平台自签真实凭据）；守卫随之追名。
+FACTORY_NAME = "derive_platform_credential"
 
 
 def _find_func(tree: ast.AST, name: str) -> ast.FunctionDef | None:
@@ -123,7 +126,7 @@ def main() -> int:
         violations.append(
             f"{rel}:{func.lineno}: `{FUNC_NAME}` calls `{FACTORY_NAME}` — credential "
             "fabrication regressed. Real legacy granted carries NO credential (gateway-domain "
-            "secret, no apply_id binding); do not paper over with an AK-DEMO credential."
+            "secret, no apply_id binding); do not paper over with a self-signed credential."
         )
 
     if violations:
@@ -134,7 +137,7 @@ def main() -> int:
 
     print(
         f"[OK] credential honesty invariant: `{FUNC_NAME}` granted branch marks credential "
-        "state explicitly (not_issued) and does not fabricate (no derive_demo_credential).",
+        f"state explicitly (not_issued) and does not fabricate (no {FACTORY_NAME}).",
         file=sys.stdout,
     )
     return 0

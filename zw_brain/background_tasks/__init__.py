@@ -28,9 +28,9 @@ import logging
 import os
 import threading
 
+from zw_brain.adapters.blockchain_adapter import anchor as _anchor
 from zw_brain.shared import queue as _queue
 from zw_brain.shared.database_store import DatabaseStore
-from zw_brain.skills.blockchain_adapter import anchor as _anchor
 
 _LOGGER = logging.getLogger(__name__)
 
