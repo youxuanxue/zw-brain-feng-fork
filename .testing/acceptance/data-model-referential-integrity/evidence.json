@@ -1,0 +1,34 @@
+{
+  "scope": "data-model-referential-integrity",
+  "deliverable": "数据模型参照完整性：A类12+B类5(复合)=17 边 FK+ON DELETE CASCADE（M1）；C类7边 honest 降级守卫兜底（M2/M5 真库实证父不保证存在）；scripts/check_orphan_rows.py 全边孤儿守卫接 preflight 段67（M3）；缺陷4 悬挂 catalog_entry 引用诚实信号 ref_status=dangling 只读派生（M4）；真库 drop&recreate + deferred-executor-write 防孤儿 → 孤儿=0、迁移幂等（M5）",
+  "git_sha": "120ceb725d1276c719092852dd35ffa18bbea1d1",
+  "captured_at": "2026-06-03T02:25:17Z",
+  "captured_by": "Claude Opus 4.8 (1M context) — 高级系统架构师（worktree 功能实现，待 Gate-2 产品研发负责人 sign-off）",
+  "note": "证据 = 真实 legacy dump（old/10示例数据）drop&recreate 全栈导入后的真库体检 + 全测试套。git_sha 为 M4 终态（M5 提交后成其祖先）。本产物是采集的验收证据，非 Gate-2 签字账本——签字由产品研发负责人走 Method B 手工补 .testing/signoff/。",
+  "checks": [
+    {
+      "name": "真库孤儿体检=0",
+      "kind": "orphan-rows",
+      "result": "pass",
+      "detail": "scripts/check_orphan_rows.py --db-path .data/real_seed_integrity.db（真实 legacy dump 全量导入库）：A12+B5+C7 条父子边孤儿=0，FK 列数 22≥22，catalog_entry 无悬挂引用，退出码 0。首扫曾报 approval_case 170(resource-review:* 多态码)/delivery_execution_evidence 10(materialize:*)/delivery_attempt 16(10 materialize + 6 真孤儿)——多态码守卫前缀豁免、6 真孤儿由 deferred-executor-write 源头不写（父 subscribe_job 缺供），逐条诚实裁决见 design §2.6。"
+    },
+    {
+      "name": "真库迁移成功 + repeat-apply 幂等",
+      "kind": "migration",
+      "result": "pass",
+      "detail": "run_acceptance_migration(reset_db=True, strict=False) STATUS=succeeded, errors=[], idempotency.verified=True（canonical_counts_and_adapter_run_records_stable）。deferred-executor-write（缓冲 executor 待 subscribe_job 全入再写、父在才建 attempt）既防孤儿又保持 apply↔repeat_apply 幂等（无写-后-删）。"
+    },
+    {
+      "name": "FK + CASCADE 落地 + 回潮 floor",
+      "kind": "pytest",
+      "result": "pass",
+      "detail": "tests/test_data_model_referential_integrity.py：A类12 FK+CASCADE / B类5 复合 FK+CASCADE / ghost 父拒绝 / 删父级联孤儿=0（A/B）/ FK floor≥22 / 孤儿守卫干净库 PASS + C类孤儿 FAIL + 悬挂 catalog FAIL / 悬挂诚实信号纯函数 + 序列化 / executor 父缺位跳过不造孤儿——全绿。"
+    },
+    {
+      "name": "全后端/契约测试套",
+      "kind": "pytest",
+      "result": "pass",
+      "detail": "pytest 全量：690 passed, 43 skipped, 73 xfailed, 0 failed（退出码 0；本仓 summary 抑制，以退出码与计数为准）。M1-M5 改动不破坏既有读/写/导入路径。"
+    }
+  ]
+}

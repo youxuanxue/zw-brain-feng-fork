@@ -146,6 +146,7 @@ done <<'CHECKS'
 段 56	scripts/check_no_legacy_inference_env.py	no-legacy-inference-env (D36.e — 禁已退役推理网关 INSPUR 系 env 前缀回潮；allowlist=CLAUDE.md D36 记录 + 负向守卫测试 + 守卫自身)
 段 57	scripts/check_require_real_seed_sanity.py	require-real-seed-sanity (D44 — 禁 require_real_seed gate 运行时累积表 capability_call/audit_event/anchor_outbox/audit_receipt；运行时数据靠 fixture 自产不靠 seed 门槛)
 段 66	scripts/check_credential_grant_invariant.py	credential-honesty-invariant (C-1 凭据诚实化：legacy exchange granted 分支须**显式处理凭据态**——credential + credential_status 都赋值，且**不得**调 derive_demo_credential 捏造；真实授权表无 per-grant 凭据→诚实 not_issued。新建在产单 approve 自动签发不在此约束)
+段 67	scripts/check_orphan_rows.py	orphan-rows (数据模型参照完整性脊柱 §六 — 自建干净 seed 库扫 A12+B5+C7 全父子边孤儿=0 + FK 回潮 floor≥22 + catalog_entry 可达性；A/B 走 M1 FK+CASCADE、C 类 honest 降级由本守卫唯一兜底 design §2.5)
 段 60	scripts/check_feature_measurement.py	feature-measurement (单一事实源 — MEASUREMENT 产物 schema+banner 合法 + **内容指纹新鲜**：绿 feature 的存档指纹须 == 当前 .feature+测试文件指纹（D46.g 信任锚，非 git_sha；squash 免疫）；陈旧→FAIL；preflight 不跑 pytest 只读产物，缺则 green() fail-closed)
 段 61	scripts/gen_feature_status.py --check	feature-status-gen (单一事实源 — feature status 现算不存储：.testing/status/feature-status.md 须与 SPEC+MEASUREMENT+SIGN-OFF 现算字节一致，禁手改)
 段 62	scripts/check_no_hand_typed_status.py	no-hand-typed-status (全局宪法 §5 — .feature 禁手写 # Status/状态词，status 由 gen_feature_status.py 现算；排期外用 # Deferred；替原段 58 对账守卫，使漂移结构性消失)

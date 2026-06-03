@@ -200,8 +200,16 @@ class TopicPackageService:
         inline ``... | self.projection_summary(...)``) so the topic-package-query
         debt's list-path grep literal lives nowhere in this module.
         """
+        from zw_brain.domain.repositories.catalog import CatalogRepository
+
         repo = self.brain._topic_package_repo()
-        items = [topic_package_ser.topic_item_to_dict(record) for record in repo.list_items(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
+        # 缺陷 4 / §三.3：一次性取主表已录入 catalog_code，让 catalog_entry 引用的
+        # 悬挂 item 在详情页诚实降级 ref_status=dangling（只读派生，不写库）。
+        present_catalog_codes = CatalogRepository().present_catalog_codes(tenant_id=_DEFAULT_TENANT_ID)
+        items = [
+            topic_package_ser.topic_item_to_dict(record, present_catalog_codes=present_catalog_codes)
+            for record in repo.list_items(item.package_code, tenant_id=_DEFAULT_TENANT_ID)
+        ]
         visibility = [topic_package_ser.topic_visibility_to_dict(record) for record in repo.list_visibility(item.package_code, tenant_id=_DEFAULT_TENANT_ID)]
         base = topic_package_ser.topic_package_to_dict(item) | self.projection_summary(item, items, visibility)
         return base | {

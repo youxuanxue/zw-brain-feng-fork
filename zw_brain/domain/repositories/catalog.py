@@ -245,6 +245,21 @@ class CatalogRepository:
                 )
             return int(session.execute(statement).scalar_one())
 
+    def present_catalog_codes(self, *, tenant_id: str = "sd-default") -> set[str]:
+        """租户内已录入 catalog_entry 主表的 catalog_code 集合（单查询，O(rows)）。
+
+        供 topic_package_item 的悬挂引用诚实信号（缺陷 4 / §三.3）做命中判定，
+        避免逐 item N+1 查主表。只读，不写库。
+        """
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            rows = session.execute(
+                select(CatalogEntryRecord.catalog_code).where(
+                    CatalogEntryRecord.tenant_id == tenant_id
+                )
+            ).scalars()
+            return {code for code in rows if code}
+
     def list_entries(
         self,
         *,

@@ -3,7 +3,17 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from zw_brain.shared.db import Base
@@ -539,7 +549,11 @@ class ApprovalStepRecord(Base):
     __tablename__ = "approval_step"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    approval_case_id: Mapped[str] = mapped_column(String(36), index=True)
+    approval_case_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("approval_case.id", ondelete="CASCADE"),
+        index=True,
+    )
     step_no: Mapped[int] = mapped_column(Integer, default=1)
     step_name: Mapped[str] = mapped_column(String(128))
     decision_mode: Mapped[str] = mapped_column(String(32), default="single")
@@ -556,7 +570,11 @@ class ApprovalDecisionRecord(Base):
     __tablename__ = "approval_decision"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    step_id: Mapped[str] = mapped_column(String(36), index=True)
+    step_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("approval_step.id", ondelete="CASCADE"),
+        index=True,
+    )
     decision: Mapped[str] = mapped_column(String(32), index=True)
     decision_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     actor_snapshot_json: Mapped[dict] = mapped_column(JSON)
@@ -841,7 +859,15 @@ class TopicPackageRecord(Base):
 
 class TopicPackageItemRecord(Base):
     __tablename__ = "topic_package_item"
-    __table_args__ = (UniqueConstraint("tenant_id", "package_code", "item_code", name="uq_topic_package_item_tenant_code"),)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "package_code", "item_code", name="uq_topic_package_item_tenant_code"),
+        ForeignKeyConstraint(
+            ["tenant_id", "package_code"],
+            ["topic_package.tenant_id", "topic_package.package_code"],
+            ondelete="CASCADE",
+            name="fk_topic_package_item_package",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     tenant_id: Mapped[str] = mapped_column(String(64), index=True)
@@ -858,7 +884,15 @@ class TopicPackageItemRecord(Base):
 
 class TopicPackageVisibilityRecord(Base):
     __tablename__ = "topic_package_visibility"
-    __table_args__ = (UniqueConstraint("tenant_id", "package_code", "visibility_code", name="uq_topic_visibility_tenant_code"),)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "package_code", "visibility_code", name="uq_topic_visibility_tenant_code"),
+        ForeignKeyConstraint(
+            ["tenant_id", "package_code"],
+            ["topic_package.tenant_id", "topic_package.package_code"],
+            ondelete="CASCADE",
+            name="fk_topic_package_visibility_package",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     tenant_id: Mapped[str] = mapped_column(String(64), index=True)
@@ -876,6 +910,14 @@ class TopicPackageVisibilityRecord(Base):
 
 class TopicPackageReviewRecord(Base):
     __tablename__ = "topic_package_review_record"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "package_code"],
+            ["topic_package.tenant_id", "topic_package.package_code"],
+            ondelete="CASCADE",
+            name="fk_topic_package_review_package",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     tenant_id: Mapped[str] = mapped_column(String(64), index=True)
@@ -892,6 +934,14 @@ class TopicPackageReviewRecord(Base):
 
 class TopicPackageEvidenceRecord(Base):
     __tablename__ = "topic_package_evidence"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "package_code"],
+            ["topic_package.tenant_id", "topic_package.package_code"],
+            ondelete="CASCADE",
+            name="fk_topic_package_evidence_package",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     tenant_id: Mapped[str] = mapped_column(String(64), index=True)
@@ -907,7 +957,15 @@ class TopicPackageEvidenceRecord(Base):
 
 class TopicPackageMetricProjectionRecord(Base):
     __tablename__ = "topic_package_metric_projection"
-    __table_args__ = (UniqueConstraint("tenant_id", "package_code", "metric_key", name="uq_topic_metric_tenant_key"),)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "package_code", "metric_key", name="uq_topic_metric_tenant_key"),
+        ForeignKeyConstraint(
+            ["tenant_id", "package_code"],
+            ["topic_package.tenant_id", "topic_package.package_code"],
+            ondelete="CASCADE",
+            name="fk_topic_package_metric_package",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     tenant_id: Mapped[str] = mapped_column(String(64), index=True)
@@ -946,7 +1004,11 @@ class ObjectionEvidenceRecord(Base):
     __tablename__ = "objection_evidence"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    objection_id: Mapped[str] = mapped_column(String(36), index=True)
+    objection_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("objection_case.id", ondelete="CASCADE"),
+        index=True,
+    )
     evidence_type: Mapped[str] = mapped_column(String(32), index=True)
     content_json: Mapped[dict] = mapped_column(JSON)
     submitted_by_json: Mapped[dict] = mapped_column(JSON)
@@ -957,7 +1019,11 @@ class ObjectionProcessRecord(Base):
     __tablename__ = "objection_process"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    objection_id: Mapped[str] = mapped_column(String(36), index=True)
+    objection_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("objection_case.id", ondelete="CASCADE"),
+        index=True,
+    )
     node_name: Mapped[str] = mapped_column(String(128))
     handler_org_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     handler_snapshot_json: Mapped[dict] = mapped_column(JSON)
@@ -971,7 +1037,11 @@ class ObjectionEvaluationRecord(Base):
     __tablename__ = "objection_evaluation"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    objection_id: Mapped[str] = mapped_column(String(36), index=True)
+    objection_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("objection_case.id", ondelete="CASCADE"),
+        index=True,
+    )
     evaluator_snapshot_json: Mapped[dict] = mapped_column(JSON)
     solved_flag: Mapped[bool] = mapped_column(Boolean, default=False)
     overall_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -1144,7 +1214,11 @@ class ApprovalFlowNodeRecord(Base):
     __tablename__ = "approval_flow_node"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    schema_id: Mapped[str] = mapped_column(String(36), index=True)
+    schema_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("approval_flow_schema.id", ondelete="CASCADE"),
+        index=True,
+    )
     node_code: Mapped[str] = mapped_column(String(64), index=True)
     node_name: Mapped[str] = mapped_column(String(200))
     node_type: Mapped[str] = mapped_column(String(32), index=True)
@@ -1157,7 +1231,11 @@ class ApprovalFlowSelectionRuleRecord(Base):
     __tablename__ = "approval_flow_selection_rule"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    schema_id: Mapped[str] = mapped_column(String(36), index=True)
+    schema_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("approval_flow_schema.id", ondelete="CASCADE"),
+        index=True,
+    )
     rule_code: Mapped[str] = mapped_column(String(64), index=True)
     rule_kind: Mapped[str] = mapped_column(String(32), index=True)
     rule_payload_json: Mapped[dict] = mapped_column(JSON)
@@ -1168,7 +1246,11 @@ class ApprovalFlowBranchRecord(Base):
     __tablename__ = "approval_flow_branch"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    schema_id: Mapped[str] = mapped_column(String(36), index=True)
+    schema_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("approval_flow_schema.id", ondelete="CASCADE"),
+        index=True,
+    )
     from_node_code: Mapped[str] = mapped_column(String(64), index=True)
     to_node_code: Mapped[str] = mapped_column(String(64), index=True)
     condition_kind: Mapped[str] = mapped_column(String(32), index=True, default="always")
@@ -1213,7 +1295,11 @@ class FormSectionRecord(Base):
     __tablename__ = "form_section"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    form_schema_id: Mapped[str] = mapped_column(String(36), index=True)
+    form_schema_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("form_schema.id", ondelete="CASCADE"),
+        index=True,
+    )
     section_code: Mapped[str] = mapped_column(String(64), index=True)
     title: Mapped[str] = mapped_column(String(200))
     order_index: Mapped[int] = mapped_column(Integer, default=0)
@@ -1225,7 +1311,11 @@ class FormFieldRecord(Base):
     __tablename__ = "form_field"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    form_schema_id: Mapped[str] = mapped_column(String(36), index=True)
+    form_schema_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("form_schema.id", ondelete="CASCADE"),
+        index=True,
+    )
     section_code: Mapped[str] = mapped_column(String(64), index=True)
     field_code: Mapped[str] = mapped_column(String(64), index=True)
     field_name: Mapped[str] = mapped_column(String(200))
@@ -1242,7 +1332,11 @@ class FormValidatorRecord(Base):
     __tablename__ = "form_validator"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    form_schema_id: Mapped[str] = mapped_column(String(36), index=True)
+    form_schema_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("form_schema.id", ondelete="CASCADE"),
+        index=True,
+    )
     validator_code: Mapped[str] = mapped_column(String(64), index=True)
     applies_to_field_code: Mapped[str] = mapped_column(String(64), index=True)
     validator_kind: Mapped[str] = mapped_column(String(32), index=True)
@@ -1289,7 +1383,11 @@ class RecommendationRuleClauseRecord(Base):
     __tablename__ = "recommendation_rule_clause"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    rule_id: Mapped[str] = mapped_column(String(36), index=True)
+    rule_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("recommendation_rule.id", ondelete="CASCADE"),
+        index=True,
+    )
     clause_code: Mapped[str] = mapped_column(String(64), index=True)
     clause_kind: Mapped[str] = mapped_column(String(32), index=True)
     clause_payload_json: Mapped[dict] = mapped_column(JSON)

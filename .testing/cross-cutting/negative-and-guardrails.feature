@@ -6,7 +6,7 @@
 # Trace: 基线 §5.4.5 一票否决项 + §5.5 R12 + §4.4 AI 不能承担清单
 # Priority: P0
 # Owner: e6
-# Pytest: preflight 段 10/24/25 + tests/test_capability_boundary.py
+# Pytest: preflight 段 10/24/25/67 + tests/test_capability_boundary.py + tests/test_data_model_referential_integrity.py
 
 Feature: 系统级护栏 + AI 一票否决项（跨 wave 回归）
   As a 平台架构师
@@ -100,6 +100,16 @@ Feature: 系统级护栏 + AI 一票否决项（跨 wave 回归）
     And HTTP 返回 5xx
     And **不存在**"审计失败但业务继续"代码路径
     And wave-0 infra-audit-bus.feature 是细化覆盖
+
+  # ========== 数据参照完整性（D48 / 段67 脊柱） ==========
+
+  Scenario: D48 — 删父不留孤儿子行 + 悬挂引用诚实可见
+    Given 任意父子边（审批 / 交付 / 表单 / 专题包 / 目录版本）
+    When 删除父行
+    Then A类12 + B类5(复合) 边由 FK + ON DELETE CASCADE 随父级联删子
+    And C类7 业务码边（父写子时不保证存在）由 preflight 段 67 孤儿守卫全边兜底，孤儿=0
+    And topic_package_item 悬挂 catalog_entry 引用以 ref_status=dangling 诚实可见，不伪装可达
+    And preflight 段 67（check_orphan_rows.py）对全部父子边持续守卫（FK 回潮 floor≥22）
 
   # ========== 敏感数据脱敏 ==========
 

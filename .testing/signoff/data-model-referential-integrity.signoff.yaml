@@ -1,0 +1,18 @@
+scope: data-model-referential-integrity
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-03
+kind: 决策签字
+evidence: >
+  架构门 D48 工程决策签收 + 2026-06-03 产品研发负责人本地走查。依据=FK 机制 + preflight
+  段67 机械守卫 + 真库回归全绿（数据完整性）。机器证据：
+  .testing/acceptance/data-model-referential-integrity/evidence.json（4 check 全 pass）/
+  全栈 e2e 重采使 negative-and-guardrails 折入段67 转绿（35 Done 无回归）/
+  docs/decisions/data-model-referential-integrity-design.md（机制全文 + §3.3 现状局限）/ CLAUDE.md D48。
+  **本地走查实证（:8801 probe P7 悬挂 case + :8800 干净对照）**：M4 ref_status=dangling 仅
+  topic.package 详情序列化路径计算、当前 webui/消费面无 surface 调用 → 用户侧不可见、目录项无跳转；
+  据此把 M4 如实重定性为**数据层就绪信号、非用户侧可见功能**（用户可见悬挂呈现 + 可点目录详情随 J1）。
+  整合价值（FK 17 边 + 段67 全边孤儿守卫 + 真库孤儿=0 + ref_status 备 J1）经走查确认，批准合并。
+  上游缺供/待立项（subscribe_job 缺供、码列多态 D47.b、缺陷2 凭据 D47.a、缺陷3 schema 覆盖）记债，不在本范围。
+decision_only: false
+covers:
+  - .testing/cross-cutting/negative-and-guardrails.feature

@@ -67,6 +67,14 @@ class PipelinesMapper:
         stats = ImportStats(schema=schema, dump_path=dump_path)
         started_at = datetime.now(UTC)
 
+        # 参照完整性（数据模型完整性方案 M5 / design §2.6）：exchange_executor 在 dump 里
+        # **早于** subscribe_job 出现，行级建 DeliveryAttempt 会撞「父 DeliveryTask 尚未导入」
+        # → 造孤儿子行（C 类边无 FK，DB 拦不住）。故**缓冲 executor 行，待整个 dump 行循环跑完
+        # （所有 subscribe_job 已落库）再写**——父在则建 attempt、父缺位（subscribe_job 被删/
+        # 缺供）则跳过 + warn-level 审计（不静默、进 error_summary）。**无写-后-删**，故对
+        # apply↔repeat_apply 幂等（同一 dump 输入恒产同一 DB 末态）。写在 §9.5 合法写区。
+        deferred_executors: list[dict[str, Any]] = []
+
         for table, row in MysqldumpParser(dump_path).iter_rows():
             if table not in self.HANDLED_TABLES:
                 stats.skip(table)
@@ -75,13 +83,20 @@ class PipelinesMapper:
                 if table == "subscribe_job":
                     self._map_subscribe_job(row, legacy_system)
                 elif table == "exchange_executor":
-                    self._map_exchange_executor(row, legacy_system)
+                    deferred_executors.append(row)
                 elif table == "exchange_pipelines":
                     self._map_exchange_pipelines(row, legacy_system)
                 stats.bump(table)
             except KeyError as exc:
                 stats.bump(table, "errors")
                 key = f"{table}.missing_field:{exc.args[0]}"
+                stats.skipped[key] = stats.skipped.get(key, 0) + 1
+
+        for row in deferred_executors:
+            try:
+                self._map_exchange_executor(row, legacy_system, stats)
+            except KeyError as exc:
+                key = f"exchange_executor.missing_field:{exc.args[0]}"
                 stats.skipped[key] = stats.skipped.get(key, 0) + 1
 
         finish_run(self.adapter_repo, stats, adapter_slug=self.ADAPTER_SLUG, dump_path=dump_path, started_at=started_at, tenant_id=self.tenant_id)
@@ -174,11 +189,27 @@ class PipelinesMapper:
             },
         )
 
-    def _map_exchange_executor(self, row: dict[str, Any], legacy_system: str) -> None:
+    def _map_exchange_executor(self, row: dict[str, Any], legacy_system: str, stats: ImportStats) -> None:
         executor_id = row["executor_id"]
         obj_id = row.get("obj_id")
         if not obj_id or coerce_int(row.get("obj_type")) != 1:
             # obj_type != 1 means non-subscription executor (e.g. ad-hoc) — skip
+            return
+        # 参照完整性守门（design §2.6）：此方法在 dump 行循环跑完后执行，所有 subscribe_job
+        # 已落库。obj_id = subscribe_job = DeliveryTask.delivery_code；父缺位（subscribe_job
+        # 被删/缺供）则跳过写 attempt，避免造孤儿；warn-level 审计（进 error_summary 不静默）。
+        parent = self.delivery_repo.get_task(str(obj_id), tenant_id=self.tenant_id)
+        if parent is None:
+            stats.add_issue(
+                "orphan_skip_missing_parent",
+                "exchange_executor",
+                executor_id,
+                {"obj_id": obj_id, "reason": "no DeliveryTask for obj_id (subscribe_job absent in dump)"},
+                severity="warn",
+            )
+            stats.skipped["exchange_executor.skipped_orphan"] = (
+                stats.skipped.get("exchange_executor.skipped_orphan", 0) + 1
+            )
             return
         self.delivery_repo.upsert_attempt(
             {

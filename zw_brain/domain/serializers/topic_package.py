@@ -30,12 +30,45 @@ def topic_package_to_dict(item: Any) -> dict[str, Any]:
     })
 
 
-def topic_item_to_dict(item: Any) -> dict[str, Any]:
+# 悬挂引用诚实信号（缺陷 4 / 设计 §三.3）：ref_type=catalog_entry 的 item 若 ref_id
+# 未录入 catalog_entry 主表，参照完整性不可达——复用现成 ref_status 列，派生为
+# "dangling"（诚实信号，不假装 active）。这是**只读派生**，不写库（无新写入口，§9.5）；
+# 所以始终与主表现状一致、无漂移。功能（补录可检索 + 详情页）已剥离回 J1 立项。
+DANGLING_REF_STATUS = "dangling"
+
+
+def effective_ref_status(
+    ref_type: str,
+    ref_id: str | None,
+    stored_status: str,
+    *,
+    present_catalog_codes: set[str] | None,
+) -> str:
+    """item 的有效 ref_status：catalog_entry 引用悬挂时降级为 dangling 诚实信号。
+
+    present_catalog_codes=None → 调用方未提供完整性上下文，原样返回（不臆断）。
+    仅对 ref_type=catalog_entry 生效；其它多态 ref（resource/bs_resource…）不在本守卫。
+    """
+    if present_catalog_codes is None:
+        return stored_status
+    if ref_type == "catalog_entry" and ref_id and ref_id not in present_catalog_codes:
+        return DANGLING_REF_STATUS
+    return stored_status
+
+
+def topic_item_to_dict(
+    item: Any, *, present_catalog_codes: set[str] | None = None
+) -> dict[str, Any]:
+    eff_status = effective_ref_status(
+        item.ref_type, item.ref_id, item.ref_status, present_catalog_codes=present_catalog_codes
+    )
     return {
         "item_code": item.item_code,
         "ref_type": item.ref_type,
         "ref_id": item.ref_id,
-        "ref_status": item.ref_status,
+        "ref_status": eff_status,
+        # 诚实可达信号：仅在调用方提供完整性上下文时给出（None=未校验）。
+        "ref_resolvable": None if present_catalog_codes is None else eff_status != DANGLING_REF_STATUS,
         "title": item.title,
         "display_order": item.display_order,
         "summary_json": copy.deepcopy(item.summary_json),
