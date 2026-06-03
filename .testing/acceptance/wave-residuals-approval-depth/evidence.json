@@ -1,0 +1,34 @@
+{
+  "scope": "wave-residuals-approval-depth",
+  "kind": "效果验收(走查)",
+  "runner": "local-walkthrough 真栈:8800 真API",
+  "date": "2026-06-03",
+  "stack": "同上 + 预置自定义 live schema anshan_custom_v1(scope shared_type=1/project=anshan, 2级串行)",
+  "summary": "4/4 PASS（自定义 schema 真驱动 J1 + baseline 非回归）",
+  "checks": [
+    {
+      "id": "B1",
+      "desc": "自定义 schema 驱动 J1 起 approval_case",
+      "pass": true,
+      "evidence": "approval_case_id=02eaf370-…"
+    },
+    {
+      "id": "B2",
+      "desc": "用自定义 schema(非 baseline)",
+      "pass": true,
+      "evidence": "flow_schema_code=anshan_custom_v1, source=custom_schema"
+    },
+    {
+      "id": "B3",
+      "desc": "走查器串行步骤来自自定义 schema",
+      "pass": true,
+      "evidence": "steps=[鞍山二级部门审, 鞍山发布复核]"
+    },
+    {
+      "id": "B4",
+      "desc": "无匹配自定义→回落 baseline 4 级(非回归)",
+      "pass": true,
+      "evidence": "flow_schema_code=None, steps=[业务管理员审核,数据管理员审核,申请单位部门审,部门负责人终审]"
+    }
+  ]
+}

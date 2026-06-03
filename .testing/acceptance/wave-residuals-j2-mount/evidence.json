@@ -1,0 +1,76 @@
+{
+  "scope": "wave-residuals-j2-mount",
+  "kind": "效果验收(走查)",
+  "runner": "local-walkthrough 真栈:8800 真API",
+  "date": "2026-06-03",
+  "stack": "start-local.sh dev+mock，控制态 seed(base 6 catalogs + 审批 baseline + 自定义 schema)",
+  "summary": "10/11 PASS（A8 属控制态 seed 的 data.search 未填充，发现闭环已在全量真库走查实证：walk-tbl-1 J1 search 可发现『可复用』）",
+  "checks": [
+    {
+      "id": "A1",
+      "desc": "库表挂接成功 resource_kind=table",
+      "pass": true,
+      "evidence": "kind=table"
+    },
+    {
+      "id": "A2",
+      "desc": "字段映射完整性真算 mapping_ready=true",
+      "pass": true,
+      "evidence": "mapping_ready=True"
+    },
+    {
+      "id": "A3",
+      "desc": "连通性诚实 not_probed（不伪绿）",
+      "pass": true,
+      "evidence": "connectivity=not_probed"
+    },
+    {
+      "id": "A4",
+      "desc": "库口令去敏不入库",
+      "pass": true,
+      "evidence": "connection_ref 仅 host/database，无 password"
+    },
+    {
+      "id": "A5",
+      "desc": "状态机 submit→review→publish→active",
+      "pass": true,
+      "evidence": "lifecycle_status=active"
+    },
+    {
+      "id": "A6",
+      "desc": "文件挂接+内容指纹",
+      "pass": true,
+      "evidence": "content_fingerprint=sha256:acc"
+    },
+    {
+      "id": "A7",
+      "desc": "多形态挂同目录(table+file)",
+      "pass": true,
+      "evidence": "kinds={acc-tbl:table, acc-file:file}"
+    },
+    {
+      "id": "A8",
+      "desc": "发布库表 J1 search 可发现(挂数→用数闭环)",
+      "pass": "N/A-on-this-seed",
+      "evidence": "控制态 seed data.search 空(empty query n=0，非 acc-tbl 专属)；闭环已在全量真库走查实证 walk-tbl-1『可复用』可发现"
+    },
+    {
+      "id": "A9",
+      "desc": "跨 org 目录挂接拒(R-001)",
+      "pass": true,
+      "evidence": "access_denied"
+    },
+    {
+      "id": "A10",
+      "desc": "省略 owner 挂有归属目录拒(R-001 堵漏)",
+      "pass": true,
+      "evidence": "access_denied"
+    },
+    {
+      "id": "A11",
+      "desc": "缺字段映射阻断提交复核",
+      "pass": true,
+      "evidence": "invalid_state"
+    }
+  ]
+}

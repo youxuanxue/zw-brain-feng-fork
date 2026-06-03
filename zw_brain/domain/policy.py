@@ -150,6 +150,9 @@ PERMISSION_ROLES = {
     # 资源资产
     "resource.asset.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "resource.asset.submit_review.execute": {"ROLE_ORGAN_OPERATER"},
+    # 库表 / 文件 物化资源挂接（提交侧）— OPERATER 创建草稿；复核/发布沿用 resource.asset.* 角色门
+    "resource.mount.table.prepare.execute": {"ROLE_ORGAN_OPERATER"},
+    "resource.mount.file.prepare.execute": {"ROLE_ORGAN_OPERATER"},
     # R-007 fix: 审核类权限保留交叉审（仅 BUSIAUDIT）
     "resource.asset.review.execute": {"ROLE_BUSIAUDIT"},
     # R-001 fix: r6 (映射到 ROLE_ORGAN_MANAGER) 是提供方部门管理员，应保留对自家资源的发布权

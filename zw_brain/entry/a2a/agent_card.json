@@ -2734,6 +2734,42 @@
       ]
     },
     {
+      "id": "resource.mount.file.prepare",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
+    },
+    {
+      "id": "resource.mount.table.prepare",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ]
+    },
+    {
       "id": "risk.event.ingest",
       "mode": "write",
       "humanConfirmationRequired": true,

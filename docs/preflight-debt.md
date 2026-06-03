@@ -25,6 +25,44 @@ trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / �
 目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
 trigger 关闭即可删除字段。
 
+## 2026-06-03 — wave-residuals：补三条 shipped/partial wave 各藏的真产品残差（PR 代码已落，测量重采待 e2e 环境）
+
+> 上帝视角对账发现每个 `shipped`/`partially-shipped` wave 各藏一条已具备地基、卡在最后一截的残差。
+> 本 PR（commits A–D）补齐三条**代码 + 单测**；`.feature` un-defer + 测量重采 + 业务 sign-off 收尾见下。
+
+- **Wave 1 — j2-resource-mount（J2-4 trigger 已触发）**：实现 `resource.mount.{table,file}.prepare`
+  能力 + `command/handlers/j1/resource_mount.py`（诚实结构校验：mapping_ready 真算、库连通性
+  not_probed 不伪造、库口令去敏不入库）+ `P5HookupSubmitWizard.vue`（仅 table/file，砍 api tab，
+  债务文档预留名 + route `/provider/wizard/hookup-submit`）+ P2CatalogDetail 物化形式选择尾巴
+  （闭合挂数→用数端到端）。**顺带修潜伏 bug**：resource.asset submit_review/review 经 brain shim
+  传空 skill_id 致 audit KeyError（直连 ctx 修复）。单测 `tests/test_resource_mount.py`(10)。
+  **下方 2026-05-27 J2-4 条 trigger=(a) 已兑现**，该条转本条收口。
+- **Wave 2 — 审批引擎执行深度**：`domain/approval_flow_walker.py` 让 committed 自定义 live schema
+  真正驱动 J1（always/on_decision 串行，expression 边 deliberately fail-closed——零业务需求，不做
+  求值器）+ `ApprovalFlowSchemaRepo.find_live_for_scope` 项目级选择；request.py 优先自定义否则
+  **原样回落 baseline（2 baseline 路径零改动，golden 回归钉死）**。单测
+  `tests/integration/test_approval_flow_schema_drives_j1.py`(8)。
+- **Wave 3 — a2a 线级测试（纯测试债）**：`tests/_iaf_a2a_http.py` + `tests/test_a2a_wire.py`(4) 补
+  5 消费面之一零 over-socket 覆盖（discover→invoke / 多轮 audit 链 / trust 裁剪 / 投影一致性）+
+  `entry/a2a/server.py` trust 旋钮（`ZW_BRAIN_A2A_CALLER_TRUST_LEVEL`，**部署级 env、非 per-caller
+  身份**，诚实标注同 MCP）。**无需业务 sign-off**（协议测试 + 部署旋钮）。
+
+- **收尾（✅ 已做 — 本地全栈 e2e 走查 + 测量重采）**：负责人指示「本地部署把 e2e 走查做了」，遂软链
+  主仓 `node_modules`(playwright 1.60)+ 拷主仓 125MB 真库为 seed + `start-local.sh` 起 :8800 全栈
+  (dev bypass + mock 推理)，跑 87 e2e：**76 passed / 6 failed / 5 skipped**。6 红逐一查实**全非本 PR 回归**——
+  5 个在 main 同库同 spec 复现（依赖 D47 已删演示单如 `REQ-2026-05-25-0002` / 累积库态），1 个(twin)单跑
+  14/14 绿属 87 连跑 flake。继而 `capture_feature_status.py --with-e2e`（per-spec 单跑，twin 不 flake）：
+  **28 pytest + 3 e2e 全绿，0 fail**。三 `.feature` 去 deferred + 绑 pytest ref（j2-resource-mount→
+  test_resource_mount.py / a2a-hardening→test_a2a_wire.py / engine-approval-flow 加 schema-drives ref），
+  `gen_feature_status` → **j2-resource-mount + a2a-hardening 翻 InTest，engine-approval-flow 保持 Done**
+  （Backlog 6→4）。a2a trust 场景标「部署级旋钮非 per-caller」、场景4/5 trigger-deferred（不抬全 SPEC，D46.f）。
+  - **Done gate（D28）剩余**：j2-mount + 审批执行深度 = 流程/状态机决策，仍须业务方 sign-off（scope
+    `wave-residuals-j2-mount` / `wave-residuals-approval-depth`）才从 InTest 翻 Done；a2a 测试债不进业务 signoff scope。
+
+- **A2A scenario 4/5 trigger-deferred（新登）**：
+  - 场景5 跨租户隔离 → **Trigger**：第二个租户/省接入（同 multi-tenant-policy）。
+  - 场景4 anp-schema 必经 AgentRuntime 门控 → **Trigger**：首个外部 Agent 接入（AgentRuntime pilot，D30 T1）。
+
 ## 2026-06-02 — 结构性技术债清扫（struct-debt-sweep）：brain.py 死委托清除 + 死层残骸删除 + 三条已修债现算关闭归档 + #4 写侧投影评估后延后
 
 > 承接 #191（读路径单一事实源）/ #192（删演示单 + 凭据诚实化）/ #185（prefilled 停止捏造）之后的纯结构清扫，
@@ -637,7 +675,7 @@ trigger 关闭即可删除字段。
 
 - **Status (2026-05-25 更新)**: 不再是 "0% 实现 / deferred"。三引擎已在 **PR #92** 落地：检索
   `zw_brain/capability_registry/registered/` 现有 10 个三引擎 capability（`approval_flow.*` 4 +
-  `form_schema.*` 4 + `recommendation.*` 2；总 manifest <!-- stat:zwbrain.manifest-total -->235<!-- /stat -->）。`config_change_class` preview/draft
+  `form_schema.*` 4 + `recommendation.*` 2；总 manifest <!-- stat:zwbrain.manifest-total -->237<!-- /stat -->）。`config_change_class` preview/draft
   流已激活（当前 preview 2 / draft 4）。
 - **What remains**: 代码侧已交付；**未完成的是 T1 真实客户演练验证**——用三引擎在 ≤1 周内不改代码
   完成"鞍山 4 级审批 + 四川 7 字段表单 + 荆州 5 条推荐规则"项目级定制，由业务方 sign-off。

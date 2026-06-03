@@ -107,12 +107,7 @@ async function publishDraft(catalogCode: string) {
           { label: '目录审核', href: '#/provider/inbox/catalog-review' },
           { label: '反向编目', href: '#/provider/wizard/reverse-catalog' },
           { label: 'API 服务化', href: '#/provider/wizard/api-service' },
-          {
-            label: '资源挂接（Wave-1 ⏳）',
-            href: '#',
-            disabledReason:
-              '为已发布目录补挂 table / file 物化资源 的提交侧 wizard 待立项；当前 OPERATER 只能挂 api（走「API 服务化」入口）。详见 docs/preflight-debt.md 2026-05-27 J2-4 条目。',
-          },
+          { label: '资源挂接', href: '#/provider/wizard/hookup-submit' },
           { label: '质量规则', href: '#/provider/wizard/quality-rule' },
         ]"
       />

@@ -5,9 +5,14 @@
 # Roles: ROLE_ORGAN_OPERATER
 # Trace: 基线 §3.3 3 物化形式 (data_resource_table / file / api), §10.2 J2 资源挂接, 旧 xlsx 行 [57..61] 资源注册 (库表/链接/文件/文件夹/库表-视图) + [66] 目录物化
 # Priority: P1
-# Deferred: OPERATER 提交侧挂载 wizard + resource.mount 能力立项延后（preflight-debt.md 2026-05-27）
 # Owner: e2
-# Pytest: pending (preflight-debt.md 2026-05-27 — OPERATER 提交侧 wizard + resource.mount skill 立项延后)
+# Pytest: tests/test_resource_mount.py
+# Landing-Note: PR #200 (2026-06-03 wave-residuals) — OPERATER 提交侧库表/文件挂接落地：
+#   resource.mount.{table,file}.prepare 能力 + handlers/j1/resource_mount.py（诚实结构校验
+#   mapping_ready/connectivity=not_probed/库口令去敏）+ P5HookupSubmitWizard.vue（仅 table/file，砍 api tab）
+#   + P2CatalogDetail 物化形式选择尾巴（闭合挂数→用数）。复用 kind-agnostic 资产状态机
+#   submit_review→review→publish（顺带修空 skill_id audit 潜伏 bug）。本地真栈走查：挂接→发布→J1 可发现
+#   全链路 + 跨 org/省略 owner 拒。api 物化沿用既有「API 服务化」入口（不重复造，故本 feature 聚焦 table/file）。
 
 Feature: J2 资源挂接（3 物化形式：table / file / api）
   As a 部门操作员 ROLE_ORGAN_OPERATER

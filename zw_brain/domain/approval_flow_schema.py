@@ -251,6 +251,50 @@ class ApprovalFlowSchemaRepo:
         )
         return list(self._session.execute(stmt).scalars())
 
+    def find_live_for_scope(
+        self,
+        tenant_id: str,
+        shared_type: Any,
+        project_code: str | None = None,
+    ) -> ApprovalFlowSchemaRecord | None:
+        """选自定义 live schema 驱动 J1（baseline 之外的项目级覆盖）。
+
+        自定义 schema 在 payload_json["scope"] 携带 {shared_type, project_code?}；
+        baseline / 未 scope 的 schema 无该键 → 自然被排除（baseline 路径不受影响，
+        golden 回归安全）。匹配语义：
+        - scope.project_code 缺省 → 该 shared_type 的所有项目通配；
+        - scope.project_code == X → 仅当请求 project_code == X 命中。
+        精确项目匹配优先于通配；同档取最高 version。无命中返 None（调用方回落 baseline）。
+
+        live schema 是配置态（数量极小、非热路径），Python 侧过滤可接受，避开
+        SQLite JSON-path 查询。
+        """
+        st = str(shared_type)
+        stmt = (
+            select(ApprovalFlowSchemaRecord)
+            .where(
+                ApprovalFlowSchemaRecord.tenant_id == tenant_id,
+                ApprovalFlowSchemaRecord.status == "live",
+            )
+            .order_by(ApprovalFlowSchemaRecord.version.desc())
+        )
+        exact: ApprovalFlowSchemaRecord | None = None
+        wildcard: ApprovalFlowSchemaRecord | None = None
+        for record in self._session.execute(stmt).scalars():
+            scope = (record.payload_json or {}).get("scope")
+            if not isinstance(scope, dict):
+                continue  # baseline / unscoped — 不作项目级覆盖
+            if str(scope.get("shared_type")) != st:
+                continue
+            sc_proj = scope.get("project_code")
+            if sc_proj is None:
+                if wildcard is None:
+                    wildcard = record
+            elif project_code is not None and sc_proj == project_code:
+                if exact is None:
+                    exact = record
+        return exact or wildcard
+
     # ---- internal ---------------------------------------------------------
 
     def _require(self, schema_id: str) -> ApprovalFlowSchemaRecord:

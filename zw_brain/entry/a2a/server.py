@@ -31,8 +31,9 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from zw_brain.capability_registry.runtime import require_surface
+from zw_brain.capability_registry.runtime import get_manifest, require_surface
 from zw_brain.command.runtime import get_service
+from zw_brain.domain.errors import TrustLevelInsufficientError
 from zw_brain.shared.auth_context import (
     dev_iam_bypass_auth_context,
     reset_auth_context,
@@ -40,7 +41,9 @@ from zw_brain.shared.auth_context import (
 )
 from zw_brain.shared.runtime_config import (
     DevBypassInProductionError,
+    get_a2a_caller_trust_level,
     get_dev_iam_bypass_enabled,
+    mcp_trust_level_allows_write,
 )
 
 CARD_PATH = Path(__file__).with_name("agent_card.json")
@@ -48,6 +51,33 @@ BINDINGS_PATH = Path(__file__).with_name("tools") / "runtime_bindings.json"
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8801
+A2A_SOURCE = "a2a"
+
+
+def _is_responsibility_bearing(manifest: dict[str, Any]) -> bool:
+    """责任性写：有副作用或需人确认 —— 外部 Agent 经 A2A 不得直接触发（同 MCP S6）。"""
+    return bool(manifest.get("side_effects")) or bool(manifest.get("human_confirmation_required"))
+
+
+def _emit_a2a_reject_audit(skill_id: str, caller_trust_level: str) -> None:
+    """trust-level 拒绝落审计（D4：拒绝必须可观测，emit 失败则 fail-closed 中断）。"""
+    import zw_brain.shared.audit as audit_bus  # noqa: PLC0415
+
+    audit_bus.emit(
+        audit_bus.AuditEvent(
+            request_id=f"a2a-reject:{skill_id}",
+            actor=f"a2a:agent:{caller_trust_level}",
+            skill_id=skill_id,
+            phase="reject",
+            payload={
+                "source": A2A_SOURCE,
+                "decision": "reject",
+                "reason": TrustLevelInsufficientError.reason,
+                "trust_level": caller_trust_level,
+                "audit_class": "read-sensitive",
+            },
+        )
+    )
 
 
 def get_agent_card() -> dict[str, Any]:
@@ -66,7 +96,7 @@ def _invoke_under_dev_identity(skill_id: str, payload: dict[str, Any]) -> Any:
     """
     token = set_auth_context(dev_iam_bypass_auth_context())
     try:
-        return get_service().invoke_skill(skill_id, payload)
+        return get_service().invoke_skill(skill_id, payload, source=A2A_SOURCE)
     finally:
         reset_auth_context(token)
 
@@ -155,6 +185,21 @@ class _A2AHandler(BaseHTTPRequestHandler):
             require_surface(skill_id, "a2a")
         except KeyError:
             self._json(404, {"error": "UnknownSkill", "skill_id": skill_id})
+            return
+        # trust-level 工具裁剪（与 MCP S6 同构）：责任性写（有副作用/需人确认）要求 caller
+        # trust_level≥verified，否则 403 + 落 reject 审计。诚实口径：trust_level 取自
+        # ZW_BRAIN_A2A_CALLER_TRUST_LEVEL 部署级旋钮、非 per-caller 身份（见 runtime_config）。
+        caller_trust = get_a2a_caller_trust_level()
+        manifest = get_manifest(skill_id)
+        if _is_responsibility_bearing(manifest) and not mcp_trust_level_allows_write(caller_trust):
+            _emit_a2a_reject_audit(skill_id, caller_trust)
+            self._json(403, {
+                "error": "TrustLevelInsufficient",
+                "reason": TrustLevelInsufficientError.reason,
+                "detail": f"A2A caller trust_level={caller_trust!r} 不可调用责任性写能力 {skill_id!r}",
+                "trust_level": caller_trust,
+                "skill_id": skill_id,
+            })
             return
         try:
             result = _invoke_under_dev_identity(skill_id, payload)

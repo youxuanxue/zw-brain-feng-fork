@@ -54,13 +54,26 @@ def _change_api_resource(brain, deps, ctx, payload: dict[str, Any]) -> dict[str,
     return deps.write(ctx, resource, mutation)
 
 def _submit_api_resource_review(brain, deps, ctx, resource_code: str, role: str, confirmed: bool, skill_id: str = "resource.api.submit_review") -> dict[str, Any]:
-    return brain.transition_api_resource(resource_code, "pending_review", skill_id, role, confirmed)
+    # 挂接校验门（kind-scoped）：库表资源字段映射未就绪 → 允许存草稿、阻断提交复核。
+    # 仅对 resource_kind=="table" 生效；api / file 路径不受影响（无 mapping_ready 要求）。
+    asset = deps.services.provider.find_api_resource(resource_code)
+    if asset is not None and asset.get("resource_kind") == "table":
+        summary = asset.get("summary_json") or {}
+        if not summary.get("mapping_ready"):
+            raise InvalidStateError(
+                f"库表资源 {resource_code} 字段映射未就绪，不能提交复核（请先补全字段映射）"
+            )
+    # 直连 _transition_api_resource（real ctx），不走 brain.transition_api_resource 委托 shim：
+    # 该 shim 建 skill_id="" 的 stub ctx，经 pipeline emit_audit → get_manifest("") → KeyError
+    # （潜伏 bug，submit_review/review 此前无 end-to-end 测试故未暴露；publish 本就直连 ctx 正确）。
+    return _transition_api_resource(brain, deps, ctx, resource_code, "pending_review", skill_id, role, confirmed)
 
 def _review_api_resource(brain, deps, ctx, resource_code: str, decision: str, role: str, confirmed: bool, skill_id: str = "resource.api.review") -> dict[str, Any]:
+    # 同 _submit_api_resource_review：直连 _transition_api_resource（real ctx）修空 skill_id 潜伏 bug。
     if decision == "approve":
-        return brain.transition_api_resource(resource_code, "approved_pending_publish", skill_id, role, confirmed)
+        return _transition_api_resource(brain, deps, ctx, resource_code, "approved_pending_publish", skill_id, role, confirmed)
     if decision == "return_for_fix":
-        return brain.transition_api_resource(resource_code, "draft", skill_id, role, confirmed)
+        return _transition_api_resource(brain, deps, ctx, resource_code, "draft", skill_id, role, confirmed)
     raise BrainServiceError(f"unsupported api resource review decision: {decision}")
 
 def _transition_api_resource(brain, deps, ctx, resource_code: str, status: str, skill_id: str, role: str, confirmed: bool) -> dict[str, Any]:

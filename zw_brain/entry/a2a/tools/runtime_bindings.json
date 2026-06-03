@@ -9993,6 +9993,150 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "resource.mount.file.prepare",
+    "description": "为已发布目录挂接文件（file）物化资源，产出 resource_kind=file 草稿；捕获内容指纹（content_fingerprint）作完整性锚。后续 submit_review/review/publish 复用资源资产状态机。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/resource.mount.file.prepare",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "resource_code": {
+          "type": "string"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "file_name": {
+          "type": "string"
+        },
+        "access_path": {
+          "type": "string"
+        },
+        "content_hash": {
+          "type": "string"
+        },
+        "update_frequency": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "resource_code",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "resource.mount.file.prepare.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "resource.mount.table.prepare",
+    "description": "为已发布目录挂接库表（database table）物化资源，产出 resource_kind=table 草稿；字段映射完整性真算，库连通性诚实标 not_probed（发布激活时校验）。后续 submit_review/review/publish 复用资源资产状态机。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/resource.mount.table.prepare",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "resource_code": {
+          "type": "string"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "owner_org_id": {
+          "type": "string"
+        },
+        "table_name": {
+          "type": "string"
+        },
+        "connection": {
+          "type": "object"
+        },
+        "field_mappings": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "resource_code",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write",
+        "state_machine_transition",
+        "blockchain_anchor"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "resource.mount.table.prepare.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "risk.event.ingest",
     "description": "接收风险事件并沉淀运行回执，不直接改写主事实。",
     "protocol_type": "builtin_skill",

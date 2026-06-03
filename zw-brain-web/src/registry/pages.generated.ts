@@ -119,6 +119,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     {"skillId": "resource.asset.review", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["resource.asset.review.execute"]},
     {"skillId": "resource.asset.submit_review", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["resource.asset.submit_review.execute"]},
     {"skillId": "resource.manage_asset", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["resource.manage_asset.execute"]},
+    {"skillId": "resource.mount.file.prepare", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["resource.mount.file.prepare.execute"]},
+    {"skillId": "resource.mount.table.prepare", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["resource.mount.table.prepare.execute"]},
     {"skillId": "service.publish_or_suspend", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["service.publish_or_suspend.execute"]},
     {"skillId": "service.rating.submit", "mode": "write", "auditClass": "write-normal", "humanConfirmationRequired": true, "roles": [], "permissions": ["service.rating.submit.execute"]},
   ] },

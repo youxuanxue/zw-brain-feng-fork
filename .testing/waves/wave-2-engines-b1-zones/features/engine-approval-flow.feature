@@ -6,7 +6,12 @@
 # Trace: R8 / R14, 基线 §10.3 审批流可视化引擎, 业务反馈 #4 (鞍山"编制→二级部门审→一级部门审→发布")
 # Priority: P1
 # Owner: e3
-# Pytest: tests/integration/test_wave2_three_engines_acceptance.py
+# Pytest: tests/integration/test_wave2_three_engines_acceptance.py tests/integration/test_approval_flow_schema_drives_j1.py
+# Landing-Note: PR #200 (2026-06-03 wave-residuals) — 执行层缝闭合：committed 自定义 live schema 此前
+#   能存却驱动不了 J1（request.py 只问 baseline）。现 approval_flow_walker.py 走查 live schema 为有序
+#   ApprovalStep；request.py 优先 find_live_for_scope(项目级) → schema 驱动，否则原样回落 baseline
+#   （baseline 零改动、golden 钉死）。expression 边本期 deliberately fail-closed 走默认 always（鞍山 +
+#   所有场景纯串行多级、零条件路由需求，求值器属镀金）。本地真栈走查：J1 提交 → baseline 4 级有条件实跑。
 # Unfreeze-Note: PR #92 (2026-06-X) — Wave-2 三引擎落地：审批流引擎 commit / promote / revert
 #   capability + nl_draft 推理路径 + schema lifecycle (draft → preview → live → tombstoned)。
 #   pytest:

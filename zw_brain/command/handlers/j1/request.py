@@ -19,6 +19,11 @@ import zw_brain.shared.clock as clock
 from zw_brain.command.brain import DEFAULT_DISCOVERY_QUERY, InvalidStateError, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.approval_flow_baseline import start_approval_workflow_from_baseline
+from zw_brain.domain.approval_flow_schema import ApprovalFlowSchemaRepo
+from zw_brain.domain.approval_flow_walker import (
+    ApprovalFlowWalkError,
+    start_approval_workflow_from_schema,
+)
 from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
@@ -40,19 +45,64 @@ def _extract_shared_type(options: dict[str, Any], resource: dict[str, Any]) -> A
     return None
 
 
-def _maybe_start_baseline_workflow(
+def _extract_project_code(options: dict[str, Any], resource: dict[str, Any]) -> str | None:
+    """抽 project_code（项目级审批 schema 选择用）；不存在返 None → 通配/回落 baseline。"""
+    for key in ("project_code", "projectCode", "project_id", "projectId"):
+        value = options.get(key)
+        if value:
+            return str(value)
+    repository = resource.get("repository") if isinstance(resource, dict) else None
+    if isinstance(repository, dict):
+        for key in ("project_code", "projectCode", "project_id", "projectId"):
+            value = repository.get(key)
+            if value:
+                return str(value)
+    return None
+
+
+def _maybe_start_approval_workflow(
     *,
     application_code: str,
     tenant_id: str,
     shared_type: Any,
+    project_code: str | None,
     submitted_by: str,
 ) -> str | None:
-    """从 baseline 启动审批工作流；任何异常以 logger.warning 记录后返 None（D4：不破业务主路径，但保留可观测）。"""
+    """启动审批工作流：优先用项目级自定义 live schema 驱动（R14 兑现），无命中或走查失败
+    则原样回落 baseline。任何异常以 logger.warning 记录后返 None（D4：不破业务主路径，
+    但保留可观测）。baseline 路径行为零变化。"""
     if shared_type is None:
         return None
     SessionLocal = create_session_factory()
     try:
         with SessionLocal() as session:
+            custom = ApprovalFlowSchemaRepo(session).find_live_for_scope(
+                tenant_id, shared_type, project_code
+            )
+            if custom is not None:
+                try:
+                    case = start_approval_workflow_from_schema(
+                        session,
+                        application_code=application_code,
+                        tenant_id=tenant_id,
+                        schema=custom,
+                        submitted_by=submitted_by,
+                        context={"shared_type": shared_type, "project_code": project_code},
+                    )
+                    if case is not None:
+                        return case.id
+                except ApprovalFlowWalkError as walk_exc:
+                    # 自定义 schema 结构问题（环/不可达/无步骤）→ fail-closed 回落 baseline。
+                    # 走查在 DB 写入前发生，无半截 case；rollback 以防万一。
+                    session.rollback()
+                    _logger.warning(
+                        "approval_flow.schema.walk.failed.fallback_baseline",
+                        extra={
+                            "application_code": application_code,
+                            "schema_code": custom.schema_code,
+                            "error_msg": str(walk_exc)[:500],
+                        },
+                    )
             case = start_approval_workflow_from_baseline(
                 session,
                 application_code=application_code,
@@ -63,7 +113,7 @@ def _maybe_start_baseline_workflow(
             return case.id if case is not None else None
     except Exception as exc:  # noqa: BLE001 — hook 不破业务，但失败必须可观测（R-001 fix）
         _logger.warning(
-            "approval_flow.baseline.hook.failed",
+            "approval_flow.hook.failed",
             extra={
                 "application_code": application_code,
                 "tenant_id": tenant_id,
@@ -288,11 +338,12 @@ def _create_request(
         deps.brain_legacy._snapshot["delivery_tasks"].insert(0, delivery)
         deps.append_audit_feed(skill_id, request_id, "ok", actor)
 
-        # E3 Wave-2 F2 hook：按 shared_type 自动启动审批流基线（不破业务主路径）
-        approval_case_id = _maybe_start_baseline_workflow(
+        # E3 Wave-2 F2 hook：优先项目级自定义 live schema 驱动，否则回落 baseline（不破业务主路径）
+        approval_case_id = _maybe_start_approval_workflow(
             application_code=request_id,
             tenant_id=_DEFAULT_TENANT_ID,
             shared_type=_extract_shared_type(options, resource),
+            project_code=_extract_project_code(options, resource),
             submitted_by=actor,
         )
         result: dict[str, Any] = {"request_id": request_id, "task_id": task_id, "status": request["status"]}

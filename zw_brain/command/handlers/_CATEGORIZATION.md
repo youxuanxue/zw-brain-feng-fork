@@ -118,6 +118,8 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `resource.asset.review` | j1 | `review_api_resource` | 4946 |
 | `resource.asset.submit_review` | j1 | `submit_api_resource_review` | 4943 |
 | `resource.manage_asset` | j1 | `manage_resource_asset` | 6628 |
+| `resource.mount.file.prepare` | j1 | `prepare_file` | 0 |
+| `resource.mount.table.prepare` | j1 | `prepare_table` | 0 |
 | `service.rating.submit` | j1 | `submit_service_rating` | 3945 |
 | `subscription.terminate` | j1 | `terminate_subscription` | 2546 |
 | `summary.confirm` | j1 | `confirm_summary` | 6437 |

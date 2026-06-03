@@ -142,6 +142,18 @@ def mcp_trust_level_allows_write(caller_trust_level: str) -> bool:
     return caller_rank >= _MCP_TRUST_RANK[MCP_MIN_WRITE_TRUST_LEVEL]
 
 
+def get_a2a_caller_trust_level() -> str:
+    """Resolve the trust level of the current A2A caller (default ``untrusted``).
+
+    Overridable via ``ZW_BRAIN_A2A_CALLER_TRUST_LEVEL``; unknown → ``untrusted`` (fail-closed).
+    诚实口径：与 MCP 同构，这是 **deployment-level 旋钮、非 per-caller 身份裁剪**——A2A daemon
+    当前无 per-message 外部 Agent 身份（同 module docstring 的 dev-only 鉴权状态），真正的按外部
+    Agent 身份裁剪待 AgentRuntime 接入（D30 trigger）。复用 MCP 的 rank/写阈值（trust 语义一致）。
+    """
+    raw = (os.environ.get("ZW_BRAIN_A2A_CALLER_TRUST_LEVEL") or "").strip().lower()
+    return raw if raw in _MCP_TRUST_RANK else "untrusted"
+
+
 def get_iaf_verify_ssl() -> bool:
     return os.environ.get("ZW_BRAIN_IAF_VERIFY_SSL", "true").strip().lower() != "false"
 

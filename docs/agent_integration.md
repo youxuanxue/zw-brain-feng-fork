@@ -175,6 +175,8 @@
 | POST | `/api/skills/resource.asset.review` | 审核资源资产 | `post_resource_asset_review` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/resource.asset.submit_review` | 提交资源审核 | `post_resource_asset_submit_review` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/resource.manage_asset` | 治理资源资产 | `post_resource_manage_asset` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/resource.mount.file.prepare` | 挂接文件资源（草稿） | `post_resource_mount_file_prepare` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/resource.mount.table.prepare` | 挂接库表资源（草稿） | `post_resource_mount_table_prepare` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/risk.event.ingest` | 接收风险事件 | `post_risk_event_ingest` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/search.intent.parse` | P2 搜索上下文助手（意图解析 + 缺口追问 + 推荐理由） | `post_search_intent_parse` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/security.scan.result.sync` | 同步安全扫描结果 | `post_security_scan_result_sync` | `zw_brain/entry/rest/openapi.json` |
@@ -293,7 +295,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 190 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 192 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -463,6 +465,8 @@
 | `resource.asset.review` | 审核资源资产 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/resource.asset.review.json` |
 | `resource.asset.submit_review` | 提交资源审核 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/resource.asset.submit_review.json` |
 | `resource.manage_asset` | 治理资源资产 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/resource.manage_asset.json` |
+| `resource.mount.file.prepare` | 挂接文件资源（草稿） | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/resource.mount.file.prepare.json` |
+| `resource.mount.table.prepare` | 挂接库表资源（草稿） | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/resource.mount.table.prepare.json` |
 | `risk.event.ingest` | 接收风险事件 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/risk.event.ingest.json` |
 | `search.intent.parse` | P2 搜索上下文助手（意图解析 + 缺口追问 + 推荐理由） | 1.0.0 | audit | `zw_brain/capability_registry/registered/search.intent.parse.json` |
 | `security.scan.result.sync` | 同步安全扫描结果 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/security.scan.result.sync.json` |
@@ -494,9 +498,9 @@
 
 ## Statistics
 
-- REST endpoints: 199
+- REST endpoints: 201
 - CLI entries: 1
 - MCP tools: 63
 - A2A agent cards: 1
-- Registered Skills (live): 190 / 235 on-disk
+- Registered Skills (live): 192 / 237 on-disk
 

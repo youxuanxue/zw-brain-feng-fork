@@ -6417,6 +6417,121 @@
       ]
     },
     {
+      "skill_id": "resource.mount.file.prepare",
+      "title": "挂接文件资源（草稿）",
+      "description": "为已发布目录挂接文件（file）物化资源，产出 resource_kind=file 草稿；捕获内容指纹（content_fingerprint）作完整性锚。后续 submit_review/review/publish 复用资源资产状态机。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "access_path",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "catalog_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "content_hash",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "file_name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "update_frequency",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "resource.mount.table.prepare",
+      "title": "挂接库表资源（草稿）",
+      "description": "为已发布目录挂接库表（database table）物化资源，产出 resource_kind=table 草稿；字段映射完整性真算，库连通性诚实标 not_probed（发布激活时校验）。后续 submit_review/review/publish 复用资源资产状态机。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "catalog_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "connection",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "field_mappings",
+          "required": false,
+          "type": "array"
+        },
+        {
+          "name": "owner_org_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resource_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "table_name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
       "skill_id": "risk.event.ingest",
       "title": "接收风险事件",
       "description": "接收风险事件并沉淀运行回执，不直接改写主事实。",

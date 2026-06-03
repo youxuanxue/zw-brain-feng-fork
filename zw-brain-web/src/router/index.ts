@@ -22,6 +22,7 @@ import P5InlineCatalogWizard from '@/pages/P5InlineCatalogWizard.vue';
 import P5CatalogReviewInbox from '@/pages/P5CatalogReviewInbox.vue';
 import P5ReverseCatalogWizard from '@/pages/P5ReverseCatalogWizard.vue';
 import P5ApiServiceWizard from '@/pages/P5ApiServiceWizard.vue';
+import P5HookupSubmitWizard from '@/pages/P5HookupSubmitWizard.vue';
 import P5QualityRuleWizard from '@/pages/P5QualityRuleWizard.vue';
 import P5FieldDecisionInbox from '@/pages/P5FieldDecisionInbox.vue';
 import P5FieldDecisionDetail from '@/pages/P5FieldDecisionDetail.vue';
@@ -76,6 +77,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/provider/inbox/catalog-review', component: P5CatalogReviewInbox, meta: { page: 'P5', title: 'P5 目录审核收件箱' } },
   { path: '/provider/wizard/reverse-catalog', component: P5ReverseCatalogWizard, meta: { page: 'P5', title: 'P5 反向编目向导' } },
   { path: '/provider/wizard/api-service', component: P5ApiServiceWizard, meta: { page: 'P5', title: 'P5 API 服务化向导' } },
+  { path: '/provider/wizard/hookup-submit', component: P5HookupSubmitWizard, meta: { page: 'P5', title: 'P5 资源挂接向导' } },
   { path: '/provider/wizard/quality-rule', component: P5QualityRuleWizard, meta: { page: 'P5', title: 'P5 质量规则向导' } },
   { path: '/provider/inbox/field-decision', component: P5FieldDecisionInbox, meta: { page: 'P5', title: 'P5 字段裁决收件箱' } },
   { path: '/provider/inbox/field-decision/:id', component: P5FieldDecisionDetail, meta: { page: 'P5', title: 'P5 字段裁决详情' } },

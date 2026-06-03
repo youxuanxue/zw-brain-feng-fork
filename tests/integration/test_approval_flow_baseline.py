@@ -364,8 +364,9 @@ def test_j1_application_submit_continues_if_baseline_hook_fails(monkeypatch, cap
     # hook 失败 → 不返 approval_case_id，但业务主路径不破
     assert "approval_case_id" not in result["result"]
     # R-001：必须有 logger.warning 记录，含 error_class / shared_type / application_code
-    warnings = [r for r in caplog.records if r.levelname == "WARNING" and "approval_flow.baseline.hook.failed" in r.getMessage()]
-    assert warnings, "expected logger.warning approval_flow.baseline.hook.failed (R-001 fix)"
+    # 注：钩子 2026-06-03 统一为 approval_flow.hook.failed（自定义 schema + baseline fallback 同一外层 except）。
+    warnings = [r for r in caplog.records if r.levelname == "WARNING" and "approval_flow.hook.failed" in r.getMessage()]
+    assert warnings, "expected logger.warning approval_flow.hook.failed (R-001 fix)"
     warn = warnings[0]
     assert getattr(warn, "error_class", None) == "RuntimeError"
     assert getattr(warn, "shared_type", None) == 1

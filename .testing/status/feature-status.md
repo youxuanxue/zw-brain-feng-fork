@@ -7,9 +7,9 @@
 > status = f(SPEC, MEASUREMENT, SIGN-OFF)，每次 preflight 现算，不手敲、不存第二份。
 > **Done** = 测试真绿 ∧ 业务签字；**Ready** = 已签未绿；**InTest** = 绿/在测但未签（代码完成待签字）；**Draft** = 纯意图；**Backlog** = 排期外（`# Deferred:`）。
 
-> 测量基线：captured_at=`2026-06-03T03:43:47Z` · 指纹新鲜绿 35/35（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
+> 测量基线：captured_at=`2026-06-03T09:32:40Z` · 指纹新鲜绿 37/37（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
 
-> 合计 49：Done 35 / Ready 0 / InTest 0 / Draft 8 / Backlog 6
+> 合计 49：Done 36 / Ready 0 / InTest 1 / Draft 8 / Backlog 4
 
 
 ## Wave 0 · 机械守卫 + J1 黄金链路  （Done 10 · Draft 2 · Backlog 1）
@@ -30,7 +30,7 @@
 | ops-gateway-heartbeat.feature | **Done** | 测量=绿 / 签字=已签 |
 | ops-service-invocation.feature | **Draft** | 测量=待测 / 签字=未签 |
 
-## Wave 1 · J1 闭环 + J2 挂数  （Done 13 · Draft 1 · Backlog 1）
+## Wave 1 · J1 闭环 + J2 挂数  （Done 14 · Draft 1）
 
 | feature | status | 依据 |
 |---|---|---|
@@ -45,7 +45,7 @@
 | j2-department-review.feature | **Done** | 测量=绿 / 签字=已签 |
 | j2-online-catalog-compile.feature | **Done** | 测量=绿 / 签字=已签 |
 | j2-platform-publish.feature | **Done** | 测量=绿 / 签字=已签 |
-| j2-resource-mount.feature | **Backlog** | 延期：OPERATER 提交侧挂载 wizard + resource.mount 能力立项延后（preflight-debt.md 2026-05-27） |
+| j2-resource-mount.feature | **Done** | 测量=绿 / 签字=已签 |
 | webui-action-role-binding.feature | **Done** | 测量=绿 / 签字=已签 |
 | webui-pages-real-data.feature | **Done** | 测量=绿 / 签字=已签 |
 | webui-routing-cleanup.feature | **Done** | 测量=绿 / 签字=已签 |
@@ -67,11 +67,11 @@
 | topic-package-curation.feature | **Done** | 测量=绿 / 签字=已签 |
 | topic-package-discovery.feature | **Done** | 测量=绿 / 签字=已签 |
 
-## Wave 3 · 协议硬化 + 多租户 + 国家通道  （Done 1 · Draft 3 · Backlog 3）
+## Wave 3 · 协议硬化 + 多租户 + 国家通道  （Done 1 · InTest 1 · Draft 3 · Backlog 2）
 
 | feature | status | 依据 |
 |---|---|---|
-| a2a-hardening.feature | **Backlog** | 延期：Wave3 A2A 协议硬化未实装 — 原挂 test_wave3_protocol_tenant.py 但该文件无任何 a2a 用例（mcp/multi-tenant/observability 三测，零 a2a）；discover→invoke 端到端/多轮会话/trust_level 工具裁剪均待 Wave3 立项（真相优先校准 D46.f：挂名不测的 ref 不抬状态） |
+| a2a-hardening.feature | **InTest** | 测量=绿 / 签字=未签 |
 | agentruntime-standalone-http.feature | **Draft** | 测量=待测 / 签字=未签 |
 | mcp-hardening.feature | **Done** | 测量=绿 / 签字=已签 |
 | multi-tenant-policy.feature | **Backlog** | 延期：触发=第二个租户/省接入（真实数据 + IAM realm）→ 届时 ~14 表补 tenant_id + 读路径下推 + R8 反 fork 守卫 + 跨租户写拒 + 隔离传递性验证。当前单租户 sd-default，规模前不建多租户设施（R8≠现在就建满隔离；按客户节奏放量）。catalog_entry 隔离单测已绿，但 9 场景全 SPEC 待第二租户现实，故不抬状态 |

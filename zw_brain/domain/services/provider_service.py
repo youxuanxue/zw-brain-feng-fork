@@ -61,16 +61,20 @@ class ProviderService:
         record = store.resource_api_repo.get_asset(resource_code)
         return resource_api_ser.resource_asset_to_dict(record) if record is not None else None
 
-    def api_payload(self, payload: dict[str, Any], *, default_status: str) -> dict[str, Any]:
-        """Normalize a resource.api.* mutation payload into the persistence shape.
+    def asset_payload(
+        self, payload: dict[str, Any], *, kind: str, default_status: str
+    ) -> dict[str, Any]:
+        """Normalize a resource asset mutation payload into the persistence shape.
 
-        Action H commit 3: lifted from ``BrainService._api_payload``;
-        callers route through ``deps.services.provider.api_payload(...)``.
+        kind-agnostic（api / table / file 共用）：resource_kind 由调用方显式传入，
+        kind-specific 元数据（库连接 / 字段映射 / 文件指纹）由调用方塞进 summary_json。
+        资产状态机（submit_review / review / publish）对 resource_code 通用，挂接只补
+        创建 + 校验，复用同一持久化 shape。
         """
         resource_code = str(payload["resource_code"])
         return {
             "resource_code": resource_code,
-            "resource_kind": "api",
+            "resource_kind": kind,
             "title": str(payload.get("title", resource_code)),
             "lifecycle_status": str(payload.get("lifecycle_status", default_status)),
             "owner_org_id": payload.get("owner_org_id"),
@@ -84,6 +88,15 @@ class ProviderService:
                 payload.get("summary_json") or {"title": payload.get("title", resource_code)}
             ),
         }
+
+    def api_payload(self, payload: dict[str, Any], *, default_status: str) -> dict[str, Any]:
+        """Normalize a resource.api.* mutation payload into the persistence shape.
+
+        Action H commit 3: lifted from ``BrainService._api_payload``;
+        callers route through ``deps.services.provider.api_payload(...)``。
+        现委托 asset_payload(kind="api")（去硬编码 kind，table/file 挂接共用同一 shape）。
+        """
+        return self.asset_payload(payload, kind="api", default_status=default_status)
 
     def find_api_binding(self, binding_code: str) -> dict[str, Any] | None:
         """Lookup an API binding by binding_code.

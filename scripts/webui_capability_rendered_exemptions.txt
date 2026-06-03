@@ -93,7 +93,6 @@ resource.api.policy.update
 resource.api.revoke
 resource.api.withdraw
 resource.asset.publish
-resource.asset.submit_review
 resource.manage_asset
 risk.event.ingest
 security.scan.result.sync

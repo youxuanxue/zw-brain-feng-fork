@@ -1,0 +1,10 @@
+scope: wave-residuals-approval-depth
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-03
+kind: 决策签字
+evidence: PR #200 / .testing/acceptance/wave-residuals-approval-depth/evidence.json / 本地真栈走查 4/4（自定义 live schema anshan_custom_v1 真驱动 J1：flow_schema_code=anshan_custom_v1 source=custom_schema 2 级串行鞍山流程 + 无匹配回落 baseline 4 级非回归）；test_approval_flow_schema_drives_j1.py 8 测全绿（含 golden baseline 钉死）
+decision_only: true
+covers: []
+# 注：审批执行深度（committed 自定义 live schema 真正驱动 J1，串行版）属状态机变更（D28），
+# 本账本记产品研发负责人 2026-06-03 决策认可。engine-approval-flow.feature 本就 Done（E3.F8 已签），
+# covers 留空不重复抬状态；expression 条件求值器按零业务需求 deliberately 不做（鞍山 + 全场景纯串行多级）。

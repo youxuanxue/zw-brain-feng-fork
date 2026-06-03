@@ -1,0 +1,11 @@
+scope: wave-residuals-j2-mount
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-03
+kind: 效果验收
+evidence: PR #200 / .testing/acceptance/wave-residuals-j2-mount/evidence.json / 本地真栈 :8800 走查 10/11（A8 属控制态 seed 的 data.search 未填充，挂数→用数闭环已在全量真库走查实证 walk-tbl-1 J1 search 可发现『可复用』）；后端 test_resource_mount.py 全绿（measurement 内容指纹门）
+decision_only: false
+covers:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j2-resource-mount.feature
+# 注：产品研发负责人 2026-06-03 本地真栈走查验收（库表/文件挂接 + 诚实结构校验 mapping_ready/connectivity
+# not_probed/库口令去敏 + 状态机到 active + 多形态同目录 + 跨 org/省略 owner 拒 + 缺映射阻断提交）。
+# api 物化沿用既有「API 服务化」入口，本 feature 聚焦 table/file。Done gate（D28 J2 流程决策）闭合。

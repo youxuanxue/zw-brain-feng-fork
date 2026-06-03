@@ -6,8 +6,13 @@
 # Trace: R3 / R15, 基线 §6.1, §10.4
 # Priority: P1
 # Owner: e5
-# Pytest: pending
-# Deferred: Wave3 A2A 协议硬化未实装 — 原挂 test_wave3_protocol_tenant.py 但该文件无任何 a2a 用例（mcp/multi-tenant/observability 三测，零 a2a）；discover→invoke 端到端/多轮会话/trust_level 工具裁剪均待 Wave3 立项（真相优先校准 D46.f：挂名不测的 ref 不抬状态）
+# Pytest: tests/test_a2a_wire.py
+# Landing-Note: PR #200 (2026-06-03 wave-residuals) — A2A 线级 over-socket 测试 + trust 旋钮落地：
+#   tests/_iaf_a2a_http.py + test_a2a_wire.py 起真 socket daemon，覆盖 discover→invoke / 多轮 audit 链 /
+#   trust 裁剪 / 投影一致性 4 场景。trust 取 ZW_BRAIN_A2A_CALLER_TRUST_LEVEL = **部署级 env 旋钮、非
+#   per-caller 身份裁剪**（同 MCP，诚实标注）。**仍 trigger-deferred**（不抬全 SPEC，D46.f）：
+#   场景5 跨租户隔离 = 第二租户接入触发；场景4 anp-schema 必经 AgentRuntime 门控 = 首个外部 Agent 接入
+#   (AgentRuntime pilot D30 T1) 触发。本 feature InTest = 线级核心 4 场景绿，业务深度场景按 trigger 延后。
 
 Feature: A2A 投影生产级硬化（agent skill 模型）
   As a 外部 Agent 平台
