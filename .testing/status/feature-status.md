@@ -7,12 +7,12 @@
 > status = f(SPEC, MEASUREMENT, SIGN-OFF)，每次 preflight 现算，不手敲、不存第二份。
 > **Done** = 测试真绿 ∧ 业务签字；**Ready** = 已签未绿；**InTest** = 绿/在测但未签（代码完成待签字）；**Draft** = 纯意图；**Backlog** = 排期外（`# Deferred:`）。
 
-> 测量基线：captured_at=`2026-06-02T15:12:56Z` · 指纹新鲜绿 38/38（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
+> 测量基线：captured_at=`2026-06-02T23:52:56Z` · 指纹新鲜绿 35/35（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
 
-> 合计 49：Done 35 / Ready 0 / InTest 3 / Draft 8 / Backlog 3
+> 合计 49：Done 35 / Ready 0 / InTest 0 / Draft 8 / Backlog 6
 
 
-## Wave 0 · 机械守卫 + J1 黄金链路  （Done 10 · InTest 1 · Draft 2）
+## Wave 0 · 机械守卫 + J1 黄金链路  （Done 10 · Draft 2 · Backlog 1）
 
 | feature | status | 依据 |
 |---|---|---|
@@ -21,7 +21,7 @@
 | infra-contract-projection.feature | **Done** | 测量=绿 / 签字=已签 |
 | infra-iam-session.feature | **Done** | 测量=绿 / 签字=已签 |
 | infra-inference-gateway.feature | **Done** | 测量=绿 / 签字=已签 |
-| j1-api-call-monitoring.feature | **InTest** | 测量=绿 / 签字=未签 |
+| j1-api-call-monitoring.feature | **Backlog** | 延期：触发=首次真实生产部署，网关供 res→api_id 映射 + 真实 API 调用流量（同 D47.a 网关域缺供）→ P4 调用记录非空 + 429/限流/401/403 由网关执行可观测。当前零真实 API 消费者，规模前不建配额引擎（按客户节奏放量；debt ac7 + j1-api-call-monitoring）。下方 InTest-Scope 数据层 3 场景已绿，但全 SPEC 待触发，故不抬状态（D46.f：无现实的 ref 不抬状态） |
 | j1-application-draft.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-approval-conditional.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-approval-unconditional.feature | **Done** | 测量=绿 / 签字=已签 |
@@ -67,17 +67,17 @@
 | topic-package-curation.feature | **Done** | 测量=绿 / 签字=已签 |
 | topic-package-discovery.feature | **Done** | 测量=绿 / 签字=已签 |
 
-## Wave 3 · 协议硬化 + 多租户 + 国家通道  （Done 1 · InTest 2 · Draft 3 · Backlog 1）
+## Wave 3 · 协议硬化 + 多租户 + 国家通道  （Done 1 · Draft 3 · Backlog 3）
 
 | feature | status | 依据 |
 |---|---|---|
 | a2a-hardening.feature | **Backlog** | 延期：Wave3 A2A 协议硬化未实装 — 原挂 test_wave3_protocol_tenant.py 但该文件无任何 a2a 用例（mcp/multi-tenant/observability 三测，零 a2a）；discover→invoke 端到端/多轮会话/trust_level 工具裁剪均待 Wave3 立项（真相优先校准 D46.f：挂名不测的 ref 不抬状态） |
 | agentruntime-standalone-http.feature | **Draft** | 测量=待测 / 签字=未签 |
 | mcp-hardening.feature | **Done** | 测量=绿 / 签字=已签 |
-| multi-tenant-policy.feature | **InTest** | 测量=绿 / 签字=未签 |
+| multi-tenant-policy.feature | **Backlog** | 延期：触发=第二个租户/省接入（真实数据 + IAM realm）→ 届时 ~14 表补 tenant_id + 读路径下推 + R8 反 fork 守卫 + 跨租户写拒 + 隔离传递性验证。当前单租户 sd-default，规模前不建多租户设施（R8≠现在就建满隔离；按客户节奏放量）。catalog_entry 隔离单测已绿，但 9 场景全 SPEC 待第二租户现实，故不抬状态 |
 | national-direct.feature | **Draft** | 测量=待测 / 签字=未签 |
 | national-ext-elements.feature | **Draft** | 测量=待测 / 签字=未签 |
-| observability-cost-quota.feature | **InTest** | 测量=绿 / 签字=未签 |
+| observability-cost-quota.feature | **Backlog** | 延期：触发=首个客户机房部署 + 集团监控平台对接（debt ac7）→ /metrics 端点 + 9 指标暴露 + auth。当前无 scraper、无生产流量可观测，外部依赖（集团统一监控）未就位，规模前建 /metrics 是维护无消费者的代码（按客户节奏放量）。quota_remaining_per_credential 同网关域缺供（D47.a）；现仅"无 alertmanager"负向 + 凭据 quota 字段查询绿，全 SPEC 待触发 |
 
 ## Wave 4 · legacy 退役  （Draft 1）
 

@@ -7,6 +7,7 @@
 # Priority: P1
 # Owner: e6
 # Pytest: tests/test_wave3_protocol_tenant.py
+# Deferred: 触发=首个客户机房部署 + 集团监控平台对接（debt ac7）→ /metrics 端点 + 9 指标暴露 + auth。当前无 scraper、无生产流量可观测，外部依赖（集团统一监控）未就位，规模前建 /metrics 是维护无消费者的代码（按客户节奏放量）。quota_remaining_per_credential 同网关域缺供（D47.a）；现仅"无 alertmanager"负向 + 凭据 quota 字段查询绿，全 SPEC 待触发
 
 Feature: 观测 / 成本 / 性能 / 调用配额 / 告警
   As a 平台运维员 ROLE_SYSTEM

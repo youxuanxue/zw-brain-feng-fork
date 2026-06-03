@@ -7,6 +7,7 @@
 # Priority: P1
 # Owner: e6
 # Pytest: tests/test_wave3_protocol_tenant.py
+# Deferred: 触发=第二个租户/省接入（真实数据 + IAM realm）→ 届时 ~14 表补 tenant_id + 读路径下推 + R8 反 fork 守卫 + 跨租户写拒 + 隔离传递性验证。当前单租户 sd-default，规模前不建多租户设施（R8≠现在就建满隔离；按客户节奏放量）。catalog_entry 隔离单测已绿，但 9 场景全 SPEC 待第二租户现实，故不抬状态
 
 Feature: 多租户 / 多部门 / 多区域策略深化
   As a 平台架构师 + 客户运营

@@ -7,6 +7,7 @@
 # Priority: P0
 # Owner: e1
 # Pytest: tests/test_wave0_j1_credential_call.py + tests/test_wave1_p4_delivery_explain.py
+# Deferred: 触发=首次真实生产部署，网关供 res→api_id 映射 + 真实 API 调用流量（同 D47.a 网关域缺供）→ P4 调用记录非空 + 429/限流/401/403 由网关执行可观测。当前零真实 API 消费者，规模前不建配额引擎（按客户节奏放量；debt ac7 + j1-api-call-monitoring）。下方 InTest-Scope 数据层 3 场景已绿，但全 SPEC 待触发，故不抬状态（D46.f：无现实的 ref 不抬状态）
 # InTest-Scope: 3 个 Scenario 由 tests/test_wave0_j1_credential_call.py 数据层覆盖（按 actor 过滤 /
 #   最小字段集 schema 探测 / 真数据 status 分布 ≥744 行 succeeded）；
 #   curl 实调端到端 / 配额耗尽 429 / QPS 限流 / 过期 401 + scope 403 / AI 不替代时间线 + 工程术语黑名单
