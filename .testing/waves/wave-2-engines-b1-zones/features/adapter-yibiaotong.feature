@@ -7,6 +7,7 @@
 # Priority: P2
 # Owner: e3
 # Pytest: pending
+# Deferred: 触发=基层补差任务出现（一表通可选预填需求落地）。§3.4 C 一表通边界为可选 adapter，当前无基层补差现实业务、上游一表通供数契约未到，需求出现前不建预填管道（project_integration_yibiaotong_bridge）
 
 Feature: 一表通可选预填 adapter（基层补差任务出现时）
   As a 部门操作员（基层归口）

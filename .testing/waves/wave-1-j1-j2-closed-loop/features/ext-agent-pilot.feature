@@ -7,6 +7,7 @@
 # Priority: P1
 # Owner: e4
 # Pytest: pending
+# Deferred: 触发=D30 T1 首个真实外部 Agent 接入（§8.4 7 步流水线 validate→审核→Registry→投影→调用→审计）。内置 Embedded SDK 已跑通（见 infra-agentruntime-embedded），外部 pilot 待真实低风险长尾 Agent 候选出现才实装，规模前不预建
 
 Feature: 首个外部 Agent 接入端到端（§8.4 流水线 7 步）
   As a 平台运维员 ROLE_SYSTEM + 业务方

@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from datetime import UTC, datetime
@@ -56,6 +57,13 @@ def _git_sha() -> str:
 
 
 def _py() -> str:
+    # ZW_BRAIN_CAPTURE_PYTHON 覆盖：SDK 门控的 feature（如 infra-agentruntime-embedded 的
+    # tests/test_agentruntime_embedded.py importorskip agent_runtime）只在 py312 + vendored
+    # SDK 环境真跑（vendor wheel 是 py312-pyc-only，见 vendor/agent-runtime/README.md）；
+    # 此时把整套采量指向 .venv-py312/bin/python（与 start-local.sh 的 ZW_BRAIN_PYTHON_BIN 同源）。
+    override = os.environ.get("ZW_BRAIN_CAPTURE_PYTHON", "").strip()
+    if override:
+        return override
     p = REPO / ".venv" / "bin" / "python"
     return str(p) if p.exists() else sys.executable
 

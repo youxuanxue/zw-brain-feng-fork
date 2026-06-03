@@ -30,6 +30,7 @@ agentruntime = [
 ]
 dev = [
   "pytest>=9.0.3",      # CVE-2025-71176 fixed in 9.0.3
+  "pytest-asyncio>=0.24",  # 仓内唯一异步测试 tests/test_agentruntime_embedded.py（Embedded SDK 进程内能力调用）需此插件才真跑；不装→该用例 fail
   "ruff>=0.5",
   "fakeredis>=2.0",
   "PyYAML>=6.0",        # preflight 段 26 cross-field check（PR #117）

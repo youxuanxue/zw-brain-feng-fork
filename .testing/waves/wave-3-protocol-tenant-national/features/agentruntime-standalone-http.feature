@@ -7,6 +7,7 @@
 # Priority: P2
 # Owner: e4
 # Pytest: pending
+# Deferred: 触发=基线 §8.2 决策表"Standalone HTTP 留 Wave 3+ 评估"。Phase 1 默认 Embedded SDK 进程内形态（已跑通，见 infra-agentruntime-embedded），远程 HTTP Agent 形态待 Wave 3+ 评估，当前不实装
 
 Feature: AgentRuntime Standalone HTTP 形态评估
   As a 平台运维员

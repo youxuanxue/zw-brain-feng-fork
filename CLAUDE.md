@@ -113,7 +113,7 @@
 - D11：所有能力以旧平台真实业务数据（脱敏）回归，禁 Mock
 - D12：与数据治理/区块链/国家平台/推理平台保持外部依赖，不复造
 - D13：外部 Agent/能力接入是合法扩展路径（A2A + 注册），协议待业务侧同步
-- D14：推理平台 SDK 形态待同步，Phase 0 先 mock `shared/inference/client.py`
+- D14：推理平台 SDK 形态待同步，Phase 0 先 mock `shared/inference/client.py`；**[已兑现] client.py 默认 platform 模式真连集团网关（HTTP→`ZW_BRAIN_INFERENCE_GATEWAY_URL`，mock 仅 `ZW_BRAIN_INFERENCE_MODE=mock` 开发档），见 infra-inference-gateway(Done) / D36 env 收口**
 - D15：原"不做大屏"反转为 K12 必保留；**[05-20] 二次反转：K12 大屏本期退役**（删 dashboard 全套 + 段 11）
 - D16：数据模型章加 URN 小白解释，新文档首次出现 URN 须回链 §4.4.2
 - D17：散文档数值漂移用 stat 块包裹，注册 `scripts/.stats.json`，sync-stats --check 校验

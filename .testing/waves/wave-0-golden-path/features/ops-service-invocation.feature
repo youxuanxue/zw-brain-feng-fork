@@ -7,6 +7,7 @@
 # Priority: P0
 # Owner: e6
 # Pytest: pending
+# Deferred: 触发=首次真实生产部署 + 网关供 res→api_id 映射 + 真实 API 调用流量（同兄弟 j1-api-call-monitoring / D47.a 网关域缺供）→ service_invocation_metric_projection 派生场景非空可验。当前零真实 API 调用流量，派生器无可派生输入，规模前不抬状态（与 j1-api-call-monitoring 同一触发；debt ac7）
 
 Feature: Wave 0 服务调用统计投影（ops.service.invocation.query）
   As a 平台守门人 / 运营审计 (ROLE_SYSTEM / ROLE_BUSIAUDIT)

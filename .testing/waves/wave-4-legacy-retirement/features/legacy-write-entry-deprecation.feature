@@ -7,6 +7,7 @@
 # Priority: P0
 # Owner: e6
 # Pytest: pending
+# Deferred: 触发=Wave 4 退役判据 #4——legacy 不再承担唯一写入口时关闭（基线 §10.5）。当前 legacy 仍是一次性迁移写入口（project_legacy_import_migration_only），退役前置条件未到，当前不实装关闭闸
 
 Feature: legacy 写入口关闭
   As a 平台运维员

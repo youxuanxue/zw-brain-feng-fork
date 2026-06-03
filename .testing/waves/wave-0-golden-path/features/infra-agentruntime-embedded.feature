@@ -6,7 +6,7 @@
 # Trace: D2 / R15 / 基线 §八 AgentRuntime 声明式协议 / §10.1
 # Priority: P0
 # Owner: e4
-# Pytest: pending
+# Pytest: tests/test_agentruntime_embedded.py
 # Landed-Note: AgentRuntime Embedded SDK 最小集成已落地（PR #152/#155）：agents/zw_search_helper +
 #   agents/zw_platform_guide 两份 AGENT.yaml + capabilities.json（anp-agent/v1.2，validate OK），
 #   scripts/agentruntime_validate.py / scripts/check_agentruntime_bundles.py 持续守卫（preflight 段 51）。

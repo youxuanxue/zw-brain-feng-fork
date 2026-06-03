@@ -7,16 +7,16 @@
 > status = f(SPEC, MEASUREMENT, SIGN-OFF)，每次 preflight 现算，不手敲、不存第二份。
 > **Done** = 测试真绿 ∧ 业务签字；**Ready** = 已签未绿；**InTest** = 绿/在测但未签（代码完成待签字）；**Draft** = 纯意图；**Backlog** = 排期外（`# Deferred:`）。
 
-> 测量基线：captured_at=`2026-06-03T10:44:11Z` · 指纹新鲜绿 37/37（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
+> 测量基线：captured_at=`2026-06-03T14:44:09Z` · 指纹新鲜绿 38/38（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
 
-> 合计 49：Done 36 / Ready 0 / InTest 1 / Draft 8 / Backlog 4
+> 合计 49：Done 37 / Ready 0 / InTest 1 / Draft 0 / Backlog 11
 
 
-## Wave 0 · 机械守卫 + J1 黄金链路  （Done 10 · Draft 2 · Backlog 1）
+## Wave 0 · 机械守卫 + J1 黄金链路  （Done 11 · Backlog 2）
 
 | feature | status | 依据 |
 |---|---|---|
-| infra-agentruntime-embedded.feature | **Draft** | 测量=待测 / 签字=未签 |
+| infra-agentruntime-embedded.feature | **Done** | 测量=绿 / 签字=已签 |
 | infra-audit-bus.feature | **Done** | 测量=绿 / 签字=已签 |
 | infra-contract-projection.feature | **Done** | 测量=绿 / 签字=已签 |
 | infra-iam-session.feature | **Done** | 测量=绿 / 签字=已签 |
@@ -28,13 +28,13 @@
 | j1-credential-issue.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-resource-discovery.feature | **Done** | 测量=绿 / 签字=已签 |
 | ops-gateway-heartbeat.feature | **Done** | 测量=绿 / 签字=已签 |
-| ops-service-invocation.feature | **Draft** | 测量=待测 / 签字=未签 |
+| ops-service-invocation.feature | **Backlog** | 延期：触发=首次真实生产部署 + 网关供 res→api_id 映射 + 真实 API 调用流量（同兄弟 j1-api-call-monitoring / D47.a 网关域缺供）→ service_invocation_metric_projection 派生场景非空可验。当前零真实 API 调用流量，派生器无可派生输入，规模前不抬状态（与 j1-api-call-monitoring 同一触发；debt ac7） |
 
-## Wave 1 · J1 闭环 + J2 挂数  （Done 14 · Draft 1）
+## Wave 1 · J1 闭环 + J2 挂数  （Done 14 · Backlog 1）
 
 | feature | status | 依据 |
 |---|---|---|
-| ext-agent-pilot.feature | **Draft** | 测量=待测 / 签字=未签 |
+| ext-agent-pilot.feature | **Backlog** | 延期：触发=D30 T1 首个真实外部 Agent 接入（§8.4 7 步流水线 validate→审核→Registry→投影→调用→审计）。内置 Embedded SDK 已跑通（见 infra-agentruntime-embedded），外部 pilot 待真实低风险长尾 Agent 候选出现才实装，规模前不预建 |
 | j1-credential-revoke.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-objection-authz.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-objection-catalog.feature | **Done** | 测量=绿 / 签字=已签 |
@@ -50,11 +50,11 @@
 | webui-pages-real-data.feature | **Done** | 测量=绿 / 签字=已签 |
 | webui-routing-cleanup.feature | **Done** | 测量=绿 / 签字=已签 |
 
-## Wave 2 · 三引擎 + B1 + 共享专区  （Done 10 · Draft 1 · Backlog 1）
+## Wave 2 · 三引擎 + B1 + 共享专区  （Done 10 · Backlog 2）
 
 | feature | status | 依据 |
 |---|---|---|
-| adapter-yibiaotong.feature | **Draft** | 测量=待测 / 签字=未签 |
+| adapter-yibiaotong.feature | **Backlog** | 延期：触发=基层补差任务出现（一表通可选预填需求落地）。§3.4 C 一表通边界为可选 adapter，当前无基层补差现实业务、上游一表通供数契约未到，需求出现前不建预填管道（project_integration_yibiaotong_bridge） |
 | b1-1-anomaly-detection.feature | **Backlog** | 延期：catalog.dormant.diagnose 能力 + B1.1 面板立项延后（preflight-debt.md 2026-05-27） |
 | b1-1-compliance-audit.feature | **Done** | 测量=绿 / 签字=已签 |
 | b1-2-package-registration.feature | **Done** | 测量=绿 / 签字=已签 |
@@ -67,23 +67,23 @@
 | topic-package-curation.feature | **Done** | 测量=绿 / 签字=已签 |
 | topic-package-discovery.feature | **Done** | 测量=绿 / 签字=已签 |
 
-## Wave 3 · 协议硬化 + 多租户 + 国家通道  （Done 1 · InTest 1 · Draft 3 · Backlog 2）
+## Wave 3 · 协议硬化 + 多租户 + 国家通道  （Done 1 · InTest 1 · Backlog 5）
 
 | feature | status | 依据 |
 |---|---|---|
 | a2a-hardening.feature | **InTest** | 测量=绿 / 签字=未签 |
-| agentruntime-standalone-http.feature | **Draft** | 测量=待测 / 签字=未签 |
+| agentruntime-standalone-http.feature | **Backlog** | 延期：触发=基线 §8.2 决策表"Standalone HTTP 留 Wave 3+ 评估"。Phase 1 默认 Embedded SDK 进程内形态（已跑通，见 infra-agentruntime-embedded），远程 HTTP Agent 形态待 Wave 3+ 评估，当前不实装 |
 | mcp-hardening.feature | **Done** | 测量=绿 / 签字=已签 |
 | multi-tenant-policy.feature | **Backlog** | 延期：触发=第二个租户/省接入（真实数据 + IAM realm）→ 届时 ~14 表补 tenant_id + 读路径下推 + R8 反 fork 守卫 + 跨租户写拒 + 隔离传递性验证。当前单租户 sd-default，规模前不建多租户设施（R8≠现在就建满隔离；按客户节奏放量）。catalog_entry 隔离单测已绿，但 9 场景全 SPEC 待第二租户现实，故不抬状态 |
-| national-direct.feature | **Draft** | 测量=待测 / 签字=未签 |
-| national-ext-elements.feature | **Draft** | 测量=待测 / 签字=未签 |
+| national-direct.feature | **Backlog** | 延期：触发=Wave 3 国家平台对接立项（数据直达子旅程，§3.2/§10.4）。adapter.national.* 整条线 deferred:wave-3（当前 passthrough record-only 无真实 I/O），待国家平台对接现实，规模前不实装独立子旅程页 |
+| national-ext-elements.feature | **Backlog** | 延期：触发=Wave 3 国家扩展要素双轨编制立项（§3.3/§10.4）。同 national 对接线，依赖国家平台扩展要素契约，待 Wave 3 现实，当前不实装独立子旅程页 |
 | observability-cost-quota.feature | **Backlog** | 延期：触发=首个客户机房部署 + 集团监控平台对接（debt ac7）→ /metrics 端点 + 9 指标暴露 + auth。当前无 scraper、无生产流量可观测，外部依赖（集团统一监控）未就位，规模前建 /metrics 是维护无消费者的代码（按客户节奏放量）。quota_remaining_per_credential 同网关域缺供（D47.a）；现仅"无 alertmanager"负向 + 凭据 quota 字段查询绿，全 SPEC 待触发 |
 
-## Wave 4 · legacy 退役  （Draft 1）
+## Wave 4 · legacy 退役  （Backlog 1）
 
 | feature | status | 依据 |
 |---|---|---|
-| legacy-write-entry-deprecation.feature | **Draft** | 测量=待测 / 签字=未签 |
+| legacy-write-entry-deprecation.feature | **Backlog** | 延期：触发=Wave 4 退役判据 #4——legacy 不再承担唯一写入口时关闭（基线 §10.5）。当前 legacy 仍是一次性迁移写入口（project_legacy_import_migration_only），退役前置条件未到，当前不实装关闭闸 |
 
 ## Cross-cutting · 跨 wave 回归  （Done 1）
 
