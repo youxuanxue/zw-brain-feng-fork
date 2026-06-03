@@ -1,0 +1,15 @@
+scope: wave3-a2a-hardening
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-04
+kind: 效果验收
+evidence: >
+  A2A 投影生产级硬化线级核心 4 场景绿（tests/test_a2a_wire.py + tests/_iaf_a2a_http.py 起真
+  socket daemon，PR #200 wave-residuals）：discover→invoke 端到端 / 多轮会话 audit 链 /
+  trust 裁剪与 trust_level 强联动 / A2A 投影与 MCP 投影来自同一 registry 一致。
+  测量=绿（measurement 5009d55，内容指纹门 D46.g）。
+  trust 取 ZW_BRAIN_A2A_CALLER_TRUST_LEVEL = 部署级 env 旋钮（同 MCP，诚实标注非 per-caller 身份裁剪）。
+  残差 trigger-deferred（D46.f 不抬全 SPEC）：场景5 跨租户隔离 = 第二租户接入触发；
+  场景4 anp-schema 必经 AgentRuntime 门控 = 首个外部 Agent 接入（AgentRuntime pilot D30 T1）触发。
+decision_only: false
+covers:
+  - .testing/waves/wave-3-protocol-tenant-national/features/a2a-hardening.feature

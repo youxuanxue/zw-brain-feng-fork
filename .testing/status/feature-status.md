@@ -7,12 +7,12 @@
 > status = f(SPEC, MEASUREMENT, SIGN-OFF)，每次 preflight 现算，不手敲、不存第二份。
 > **Done** = 测试真绿 ∧ 业务签字；**Ready** = 已签未绿；**InTest** = 绿/在测但未签（代码完成待签字）；**Draft** = 纯意图；**Backlog** = 排期外（`# Deferred:`）。
 
-> 测量基线：captured_at=`2026-06-03T14:44:09Z` · 指纹新鲜绿 38/38（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
+> 测量基线：captured_at=`2026-06-03T22:11:06Z` · 指纹新鲜绿 39/39（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
 
-> 合计 49：Done 37 / Ready 0 / InTest 1 / Draft 0 / Backlog 11
+> 合计 49：Done 39 / Ready 0 / InTest 0 / Draft 0 / Backlog 10
 
 
-## Wave 0 · 机械守卫 + J1 黄金链路  （Done 11 · Backlog 2）
+## Wave 0 · 机械守卫 + J1 黄金链路  （Done 12 · Backlog 1）
 
 | feature | status | 依据 |
 |---|---|---|
@@ -28,7 +28,7 @@
 | j1-credential-issue.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-resource-discovery.feature | **Done** | 测量=绿 / 签字=已签 |
 | ops-gateway-heartbeat.feature | **Done** | 测量=绿 / 签字=已签 |
-| ops-service-invocation.feature | **Backlog** | 延期：触发=首次真实生产部署 + 网关供 res→api_id 映射 + 真实 API 调用流量（同兄弟 j1-api-call-monitoring / D47.a 网关域缺供）→ service_invocation_metric_projection 派生场景非空可验。当前零真实 API 调用流量，派生器无可派生输入，规模前不抬状态（与 j1-api-call-monitoring 同一触发；debt ac7） |
+| ops-service-invocation.feature | **Done** | 测量=绿 / 签字=已签 |
 
 ## Wave 1 · J1 闭环 + J2 挂数  （Done 14 · Backlog 1）
 
@@ -67,11 +67,11 @@
 | topic-package-curation.feature | **Done** | 测量=绿 / 签字=已签 |
 | topic-package-discovery.feature | **Done** | 测量=绿 / 签字=已签 |
 
-## Wave 3 · 协议硬化 + 多租户 + 国家通道  （Done 1 · InTest 1 · Backlog 5）
+## Wave 3 · 协议硬化 + 多租户 + 国家通道  （Done 2 · Backlog 5）
 
 | feature | status | 依据 |
 |---|---|---|
-| a2a-hardening.feature | **InTest** | 测量=绿 / 签字=未签 |
+| a2a-hardening.feature | **Done** | 测量=绿 / 签字=已签 |
 | agentruntime-standalone-http.feature | **Backlog** | 延期：触发=基线 §8.2 决策表"Standalone HTTP 留 Wave 3+ 评估"。Phase 1 默认 Embedded SDK 进程内形态（已跑通，见 infra-agentruntime-embedded），远程 HTTP Agent 形态待 Wave 3+ 评估，当前不实装 |
 | mcp-hardening.feature | **Done** | 测量=绿 / 签字=已签 |
 | multi-tenant-policy.feature | **Backlog** | 延期：触发=第二个租户/省接入（真实数据 + IAM realm）→ 届时 ~14 表补 tenant_id + 读路径下推 + R8 反 fork 守卫 + 跨租户写拒 + 隔离传递性验证。当前单租户 sd-default，规模前不建多租户设施（R8≠现在就建满隔离；按客户节奏放量）。catalog_entry 隔离单测已绿，但 9 场景全 SPEC 待第二租户现实，故不抬状态 |

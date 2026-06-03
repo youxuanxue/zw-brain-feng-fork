@@ -6,8 +6,21 @@
 # Trace: D31 / D32 / 业务反馈 #PR129 / 基线 §3.4 / dsp-dataservice-reconstruction-plan-v1.md §3.4 / §3.5 / §六 Wave 0 / 旧 xlsx 行 [63..70]（A 类批次锚定，非业务面对照）
 # Priority: P0
 # Owner: e6
-# Pytest: pending
-# Deferred: 触发=首次真实生产部署 + 网关供 res→api_id 映射 + 真实 API 调用流量（同兄弟 j1-api-call-monitoring / D47.a 网关域缺供）→ service_invocation_metric_projection 派生场景非空可验。当前零真实 API 调用流量，派生器无可派生输入，规模前不抬状态（与 j1-api-call-monitoring 同一触发；debt ac7）
+# Pytest: tests/test_wave0_ops_service_invocation.py + tests/e2e/ops_invocation_visibility.spec.ts
+# Landed-Note: 承接旧 `/openapi/getServiceInvokedBySystemStatisticInfos`（173,072 次）已由 legacy 导入回填——
+#   mapper zw_brain/adapters/legacy/mappers/service.py 把 `api_service_times` → ServiceInvocationMetricProjectionRecord,
+#   真库实证 **18,946 行真实投影**（source_event_ref=dsp-dataservice:api_service_times:N, scope=service, 非测试桩；
+#   源 dump-dsp_service-*.sql）。历史统计投影在真实数据上**已可用、可按 5 维查询**。与 j1-api-call-monitoring
+#   （监控 LIVE API 流量 429/限流, 零真实消费者→真延后）**本质不同、不共享触发**；#205 误判「同触发、派生器无可
+#   派生输入」Backlog, 本 PR 据真库 18,946 行实证校正回 InTest（D46.f：有现实 ref 即抬状态）。
+# InTest-Scope: 真覆盖切面：
+#   tests/test_wave0_ops_service_invocation.py（14 用例，真库 drop&recreate 无 mock）真覆盖投影派生 /
+#   5 metric_scope / 多桶可重算 / 未注册 slug 跳过 / 跨租户隔离 / 未授权 deny 无数据泄漏 / 业务状态禁反推 /
+#   5 消费面一致 / R12 黑名单 / source_event_ref 可解释；tests/e2e/ops_invocation_visibility.spec.ts
+#   真浏览器验「调用记录」段 no-permission=invisible（setup 走真 J1 流程铸 AK-SELF 凭据使 hasCredential=True，
+#   授权岗渲染 / OPERATER 整段 toHaveCount(0)）。残差（部分覆盖, 非 overclaim）：S1「LIVE capability_call →
+#   投影增量派生」路径无活流量可验（历史投影来自导入回填非 live）, 由单测合成构造覆盖、待真实调用流量自然增量；
+#   S6 deny-audit 见 .testing/debt/ops-deny-audit.debt.yaml。
 
 Feature: Wave 0 服务调用统计投影（ops.service.invocation.query）
   As a 平台守门人 / 运营审计 (ROLE_SYSTEM / ROLE_BUSIAUDIT)

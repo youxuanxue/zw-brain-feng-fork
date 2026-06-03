@@ -1,0 +1,21 @@
+scope: wave0-ops-service-invocation
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-04
+kind: 效果验收
+evidence: >
+  据真库 18,946 行（legacy api_service_times → service_invocation_metric_projection，
+  source_event_ref=dsp-dataservice:api_service_times:N）实证校正 #205 误判 Backlog→InTest——
+  ops 是承接旧 /openapi/getServiceInvokedBySystemStatisticInfos(173,072 次) 历史统计投影、已可
+  按 5 维查询，与 j1-api-call-monitoring（监控 LIVE 流量）本质不同、不共享触发。
+  测量=绿（干净全采 42/49、0 回退，measurement 5009d55，内容指纹门 D46.g）：
+  tests/test_wave0_ops_service_invocation.py 14 用例真库 drop&recreate 无 mock（投影派生 /
+  5 metric_scope / 多桶可重算 / 未注册 slug 跳过 / 跨租户隔离 / 未授权 deny 无数据泄漏 /
+  业务状态禁反推 / 5 消费面一致 / R12 黑名单 / source_event_ref）；
+  tests/e2e/ops_invocation_visibility.spec.ts 真浏览器验「调用记录」段 no-permission=invisible
+  （setup 走真 J1 流程铸 AK-SELF 凭据，授权岗渲染 / OPERATER 整段 toHaveCount(0)，截图）。
+  后端走查 REST 200(授权 18,946 items) / 403(OPERATER deny)。
+  残差：S1 LIVE capability_call 增量派生待真实流量（单测合成覆盖）；
+  S6 deny-audit 见 .testing/debt/ops-deny-audit.debt.yaml。
+decision_only: false
+covers:
+  - .testing/waves/wave-0-golden-path/features/ops-service-invocation.feature

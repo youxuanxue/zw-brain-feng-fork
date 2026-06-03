@@ -2,7 +2,7 @@
 
 # Preflight Debt Status (computed)
 
-## open (31)
+## open (32)
 - ac7 [medium] (2026-05-25) — 客户机房部署 + 监控对接未落地（E6 AC7）
   - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
 - agentruntime [medium] (2026-05-24) — AgentRuntime runtime 触发式延后（D30 retrofit）
@@ -50,6 +50,8 @@
   - assert: external → external — owner=产品研发负责人; trigger=业务/架构裁决历史导入申请的可动作性 → 若需在线动作则回填 delivery task / grant snapshot 等运行时实体（或建 application_record→delivery 的解析回源）；若定性只读则 UI 对历史导入申请隐藏撤回/暂停/凭据入口（无权/不适用=不可见）。裁决落 D-编号后据此收口。
 - j2-4 [medium] (2026-05-27) — J2-4 资源挂接 OPERATER 提交侧 wizard 立项延后
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务方提出"在线提交挂接"演示需求 → 走 product-dev.mdc
+- ops-deny-audit [medium] (2026-06-03) — policy 门 deny 不发审计事件（越权尝试无痕；ops-service-invocation S6 残差）
+  - assert: external → external — owner=产品研发负责人; trigger=共用 policy 门审计化立项 → 在 policy 门/entry 边界统一发射 policy decision=deny 审计事件 + 决定熔断语义 + 业务方 sign-off。
 - p3requestdetail [medium] (2026-05-30) — P3RequestDetail 真实申请详情缺 prefilledFields（D45 轻量卡的 by-design 取舍）
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务反馈真实申请详情页「预填字段」缺失影响验收；
 - request-list [medium] (2026-05-29) — request.list 性能基准断言负载敏感（间歇 flaky）

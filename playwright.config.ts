@@ -22,6 +22,7 @@ export default defineConfig({
     'permission_invisibility.spec.ts',
     'resource_schema_view.spec.ts',
     'j1_credential_revoke_monitoring.spec.ts',
+    'ops_invocation_visibility.spec.ts',
   ],
   fullyParallel: false,
   workers: 1,
