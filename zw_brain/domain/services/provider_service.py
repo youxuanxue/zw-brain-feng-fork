@@ -262,7 +262,13 @@ class ProviderService:
             gather_by_resource.setdefault(record.resource_code, []).append(record)
         lineage_by_resource: dict[str, list[Any]] = {}
         for record in store.metadata_evidence_repo.list_lineage_relations(tenant_id=_DEFAULT_TENANT_ID, resource_codes=resource_codes):
-            lineage_by_resource.setdefault(record.resource_code, []).append(record)
+            # 一条血缘连两头：资源的血缘 = 它作为 source 或 target 的所有关系，
+            # 镜像 repo 单数 list_lineage_relations(resource_code=) 的 OR(source|target) 语义。
+            # （LineageRelationProjectionRecord 无 .resource_code 字段——旧 record.resource_code
+            #  分组会 AttributeError，仅因无 lineage 数据从未触发；按两端归组修复。）
+            for endpoint in (record.source_resource_code, record.target_resource_code):
+                if endpoint and record not in lineage_by_resource.setdefault(endpoint, []):
+                    lineage_by_resource[endpoint].append(record)
         quality_by_ref: dict[str, list[Any]] = {}
         for record in store.metadata_evidence_repo.list_quality_evidence(target_type="resource_asset", tenant_id=_DEFAULT_TENANT_ID, target_refs=resource_codes):
             quality_by_ref.setdefault(record.target_ref, []).append(record)
