@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import copy
 import json
+import logging
 
 # Default read-side mask role. Per [2026-05-06] sensitive-field policy: business-
 # visible PII (name / phone / email / id / address) is ingested raw, masked on
@@ -31,7 +32,7 @@ from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.domain.repositories.delivery import DeliveryRepository
 from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.domain.repositories.topic_package import TopicPackageRepository
-from zw_brain.shared import queue
+from zw_brain.shared import ids, queue
 from zw_brain.shared.auth_context import get_auth_context
 from zw_brain.shared.runtime_config import get_dev_iam_bypass_enabled
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
@@ -49,6 +50,8 @@ from zw_brain.shared.ui_request_context import get_current_role, set_current_rol
 # APPLY_STATUS_MAP {-1:"withdrawn",7/8/12:"rejected",15:"revoked"} +
 # request_service reject_duplicate→"rejected"/revoked).
 _TERMINAL_NEGATIVE_APPLICATION_STATUSES = frozenset({"withdrawn", "rejected", "revoked"})
+
+_LOGGER = logging.getLogger("zw_brain.command.brain")
 
 
 def _national_channel_webui_state() -> dict[str, Any]:
@@ -1001,7 +1004,45 @@ class BrainService:
         try:
             policy.enforce_manifest_policy(skill_id, manifest, role, payload)
         except DomainAccessDeniedError as exc:
-            raise AccessDeniedError(str(exc)) from exc
+            # ops-deny-audit (D4 审计脊柱): 越权 deny 此前无痕 —— deny 在 PolicyMiddleware
+            # 最外层抛出，AuditEmitMiddleware（更内层）的 try/except 看不到，故零审计事件。
+            # _enforce_manifest_policy 是读/写两条路径策略门的唯一收口点（invoke_skill 读前 +
+            # PolicyMiddleware 写前都经此），在此统一发 decision=deny 审计事件，覆盖 5 消费面。
+            denied = AccessDeniedError(str(exc))
+            try:
+                self._emit_deny_audit(skill_id, role, payload, str(exc))
+            except Exception as audit_exc:  # noqa: BLE001
+                # 非阻塞：deny 审计写失败仅告警，不把既有 deny→403 契约改成 500。
+                # 「deny 审计写失败是否熔断」是状态机决策，须业务方 sign-off（debt ops-deny-audit），
+                # 本期不擅改 —— 保守保留 deny 响应不变，仍抛 deny（满足 D4 段7a「不得吞错继续」：
+                # 此处不静默继续，而是抛出 deny）。成功路径既有熔断语义一字未动。
+                _LOGGER.warning(
+                    "deny-audit emit failed (deny still enforced): skill=%s role=%s err=%s",
+                    skill_id, role, audit_exc,
+                )
+                raise denied from exc
+            raise denied from exc
+
+    def _emit_deny_audit(self, skill_id: str, role: str, payload: dict[str, Any], reason: str) -> None:
+        """Emit a synchronous ``decision=deny`` audit event for a refused capability.
+
+        Reuses the canonical ``_emit_audit`` path (pipeline_ops.emit_audit 10-branch
+        enrichment) so deny rows carry the same actor_snapshot / audit_class /
+        source provenance as success-path rows. ``phase="error"`` mirrors the
+        AuditEmitMiddleware error-phase shape; ``decision="deny"`` makes the row
+        queryable as an authorization refusal. ``payload`` is passed through
+        ``safe_json`` inside emit_audit (trust sentinel stripped); only the attempted
+        skill + refusal reason are added — no widening of what gets logged.
+        """
+        actor = self._actor_for_role(role)
+        deny_payload = {
+            **payload,
+            "decision": "deny",
+            "decision_reason": reason,
+            "outcome": "denied",
+            "attempted_skill_id": skill_id,
+        }
+        self._emit_audit(ids.new_audit_id(), actor, skill_id, "error", deny_payload)
 
     def _invoke_traced_read(self, skill_id: str, role: str, payload: dict[str, Any], operation: Any) -> Any:
         """Legacy shim — delegates to ``pipeline_ops.run_traced_read``.

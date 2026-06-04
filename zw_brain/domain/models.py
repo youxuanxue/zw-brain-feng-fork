@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     Integer,
     String,
     Text,
@@ -385,6 +386,19 @@ class ServiceInvocationMetricProjectionRecord(Base):
             "time_bucket",
             name="uq_service_invocation_metric_identity",
         ),
+        # 热读路径 list_metrics(): WHERE tenant_id [+ metric_scope] [+ resource_code]
+        # ORDER BY time_bucket（ops.service.invocation.query / P4 调用记录）。18946 行。
+        # (tenant,scope,resource) 等值 seek 已被上面 uq 的 autoindex 前缀覆盖，但 uq 在
+        # resource_code 与 time_bucket 间夹着 capability_id 等列 → 留 USE TEMP B-TREE FOR
+        # ORDER BY。本复合索引把 time_bucket 紧跟其后，消除该排序（EXPLAIN 实证：加索引后
+        # 计划去掉 USE TEMP B-TREE）。随调用记录增长（每 bucket 一行）排序收益放大。
+        Index(
+            "ix_service_invocation_metric_list",
+            "tenant_id",
+            "metric_scope",
+            "resource_code",
+            "time_bucket",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
@@ -429,6 +443,19 @@ class LegacyObjectMappingRecord(Base):
             "canonical_type",
             "canonical_ref",
             name="uq_legacy_object_mapping_identity",
+        ),
+        # 批量预取 list_mappings(): WHERE tenant_id [+ canonical_type] [+ canonical_ref IN(...)]
+        # （request_service 批量 enrich，D-9 IN 下推）。canonical_type 是上面 UniqueConstraint
+        # 的第 5 列，故无 autoindex 能服务 (tenant,canonical_type) 前缀 → 原退化为单列
+        # ix_*_tenant_id 全扫 ~68k 单租户行 + temp b-tree 排序。本复合索引让 (tenant,type,ref)
+        # 直接 seek（EXPLAIN 实证 SCAN→SEARCH USING ix_legacy_object_mapping_batch）。
+        # 注：resolve_canonical_ref 的 5 列等值路径已被 uq 的 autoindex 前缀覆盖（EXPLAIN
+        # 证实加不加专用索引计划相同），故不另建，避免冗余写放大。
+        Index(
+            "ix_legacy_object_mapping_batch",
+            "tenant_id",
+            "canonical_type",
+            "canonical_ref",
         ),
     )
 

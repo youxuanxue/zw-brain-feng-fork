@@ -25,6 +25,29 @@ trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / �
 目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
 trigger 关闭即可删除字段。
 
+## 2026-06-04 — 高杠杆三连（DB 复合索引 / CI 接 e2e+测量 / policy deny 审计化）
+
+> 上帝视角审视裁出三条「测量绿掩盖不到」的低成本高杠杆欠账，一个 PR 三 commit 收。
+
+- **DB 复合索引（commit 1，纯收益已落）**：`legacy_object_mapping`(68916 行) 加
+  `ix_legacy_object_mapping_batch(tenant_id,canonical_type,canonical_ref)` —— EXPLAIN 实证
+  BEFORE 单列 `ix_*_tenant_id` 全扫单租户~68k 行 + temp b-tree → AFTER 三列 SEARCH seek；
+  `service_invocation_metric_projection`(18946 行) 加 `ix_service_invocation_metric_list
+  (tenant_id,metric_scope,resource_code,time_bucket)` —— 消除 list_metrics 的 USE TEMP
+  B-TREE。**诚实剔除** `ix_*_resolve`：EXPLAIN 实证其 5 列等值路径已被 uq autoindex 前缀
+  覆盖（加不加计划相同），建之只是冗余写放大。无 alembic，索引随 create_all 在 fresh DB 建。
+
+- **policy deny 审计化（commit 2，发射半已落）**：见下方 `ops-deny-audit` 债条 Status——
+  发射在 `_enforce_manifest_policy` 收口，非阻塞，护栏 `tests/test_policy_deny_audit.py`；
+  熔断语义 + 业务方 sign-off 仍 open（D28 状态机门，本期不擅改）。
+
+- **CI 接 e2e + 测量（commit 3）**：`.github/workflows/ci.yml` 新增 `e2e-measurement` job——
+  真栈(mock 推理 + IAM bypass + committed `seed_snapshot.json`，**不需** 500MB dump)起 :8800，
+  跑 `capture_feature_status.py --with-e2e` **限 seed-light 规格**，CI 当**验证者不当提交者**
+  （不 commit-back，避免 push 循环）。诚实范围：dump-依赖的 e2e 规格（catalog drilldown /
+  ops invocation / national 等）留本地，CI 只覆盖 seed-light 子集，**绝不假绿**——见 ci.yml
+  job 注释 allowlist。关 `e2e`/`feature` 两 debt（ci.yml 现含 `with-e2e` + `capture_feature_status`）。
+
 ## 2026-06-03 — wave-residuals：补三条 shipped/partial wave 各藏的真产品残差（PR 代码已落，测量重采待 e2e 环境）
 
 > 上帝视角对账发现每个 `shipped`/`partially-shipped` wave 各藏一条已具备地基、卡在最后一截的残差。

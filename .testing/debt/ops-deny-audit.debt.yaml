@@ -1,19 +1,23 @@
 slug: ops-deny-audit
-title: "policy 门 deny 不发审计事件（越权尝试无痕；ops-service-invocation S6 残差）"
+title: "policy deny 审计化：发射半已落（decision=deny），剩熔断语义 + 业务方 sign-off"
 date: 2026-06-03
 severity: medium
 owner: 产品研发负责人
-# Where:       zw_brain/domain/policy.py enforce_manifest_policy（brain.py:346 调用）
-#              —— 所有 read/write capability 共用的 policy 门。
-# Implication: 未授权角色访问被拒时，enforce_manifest_policy 在任何审计发射（run_traced_read）
-#              之前就 raise AccessDeniedError，故 deny 不产生 policy-decision 审计事件。
-#              一次越权尝试在系统不留任何审计痕迹 —— 与 ROLE_SECURITY_AUDIT「越权可追溯」预设
-#              冲突（精品意识缺口）。注：D4 字面约束「有审计事件时强制同步落库（写失败熔断）」，
-#              未规定「每次 deny 必须产生事件」，故现状非 D4 硬违反，属可记账延后项。
-# Why deferred: 补 deny-audit 要动共用 policy 门，blast radius = 每个 capability 的每次 deny；
-#              且涉及 deny 审计在 deny 早期 sink 是否就绪、deny 审计写失败要不要把 deny 本身
-#              一并熔断（D4 熔断语义）等真问题。这是独立架构决策，不该夹带进 Wave 0 P0 接线 PR。
-trigger: "共用 policy 门审计化立项 → 在 policy 门/entry 边界统一发射 policy decision=deny 审计事件 + 决定熔断语义 + 业务方 sign-off。"
+# Status (2026-06-04 半关 — 发射半已落):
+#   [done] 发射：BrainService._enforce_manifest_policy（读/写两路策略门唯一收口点）现统一发一条
+#      phase="error" / decision="deny" 审计事件（_emit_deny_audit → 复用 _emit_audit/pipeline_ops
+#      10 branch 富化），越权不再 traceless，覆盖 5 消费面。护栏 tests/test_policy_deny_audit.py。
+#   [open] 剩余（仍 open，须本条 trigger）：(1) 熔断语义——deny 审计写失败是否把 deny→403 改成 500
+#      （状态机决策，D28 GATE 须业务方 sign-off）；本期取保守**非阻塞**（写失败仅告警、deny 契约
+#      不变），未擅改成状态机。(2) 业务方对该最终熔断语义 sign-off。
+#   注：ops-service-invocation.feature S6 的 honesty 注释（test_wave0_ops_service_invocation.py
+#      L290-296「deny 不假断言审计事件」）现已被本发射 superseded；该注释将在下次自然触碰该
+#      feature-backed 文件时一并订正（避免为改注释触发无关 e2e 重采，记此不静默）。
+# Where:       zw_brain/command/brain.py _enforce_manifest_policy / _emit_deny_audit（发射已落）；
+#              熔断语义决策点同函数 except 分支注释。
+# Why still open: 熔断语义是独立状态机决策（deny 审计失败的失败模式），按 D28 须业务方 sign-off，
+#              不夹带进本工程 PR。
+trigger: "业务方对「deny 审计写失败是否熔断」最终语义 sign-off → 据裁决（非阻塞保留 / 升级熔断）固化 + 落 .testing/signoff/，关本债。"
 assert:
-  # 决策门延后，无可机械断言的 code 条件（external 须 owner+trigger，trigger 触发即升级）。
+  # 剩余=纯决策门（熔断语义 + sign-off），无可机械断言的 code 条件（external 须 owner+trigger）。
   kind: external

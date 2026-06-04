@@ -105,7 +105,15 @@ def main() -> int:
     ap.add_argument("--captured-by", default="", help="采集人/CI 标识")
     ap.add_argument("--with-e2e", action="store_true",
                     help="实跑 .spec.ts Playwright e2e（需 :8800 全栈，见 start-local.sh）；不开则记 e2e-not-run")
+    ap.add_argument("--e2e-allowlist", default="",
+                    help="逗号分隔的 e2e spec 基名（如 webui_smoke.spec.ts）；仅实跑清单内 spec，"
+                         "清单外记 e2e-not-run（CI seed-light：committed seed_snapshot.json 能干净跑的子集，"
+                         "dump-依赖 spec 留本地，绝不假绿）。空=不限（实跑全部 e2e）。")
+    ap.add_argument("--e2e-only", action="store_true",
+                    help="只跑 e2e 轴、跳过 pytest 模块（CI 的 test job 已覆盖 pytest，避免重复 ~10min）；"
+                         "feature 结果仅按 e2e ref 评，产物为 CI 验证态（不入库提交）。")
     args = ap.parse_args()
+    e2e_allow = {s.strip() for s in args.e2e_allowlist.split(",") if s.strip()}
 
     # feature → 其测试 refs（.py + .spec.ts）+ 内容指纹（信任锚，D46.g）
     feat_refs: dict[str, list[str]] = {}
@@ -116,28 +124,38 @@ def main() -> int:
         feat_refs[rel] = test_refs(pytest_val)
         feat_fp[rel] = feature_fingerprint(path)
 
-    # 唯一 .py 模块实跑（pytest）
+    # 唯一 .py 模块实跑（pytest）；--e2e-only 跳过（CI test job 已覆盖）
     py_modules = sorted({r for refs in feat_refs.values() for r in refs if r.endswith(".py")})
     module_result: dict[str, tuple[str, str]] = {}
-    for m in py_modules:
-        module_result[m] = _run_module(m)
-        print(f"  [{module_result[m][0]}] {m}: {module_result[m][1]}")
+    if not args.e2e_only:
+        for m in py_modules:
+            module_result[m] = _run_module(m)
+            print(f"  [{module_result[m][0]}] {m}: {module_result[m][1]}")
 
-    # 唯一 .spec.ts e2e：仅 --with-e2e 实跑，否则记 e2e-not-run（fail-closed）
+    # 唯一 .spec.ts e2e：仅 --with-e2e 实跑，否则记 e2e-not-run（fail-closed）。
+    # --e2e-allowlist 非空时，清单外 spec 记 e2e-not-run（CI seed-light 范围，不假绿）。
     ts_specs = sorted({r for refs in feat_refs.values() for r in refs if r.endswith(".spec.ts")})
     for s in ts_specs:
-        if args.with_e2e:
-            module_result[s] = _run_e2e_spec(s)
-        else:
+        spec_name = s.rsplit("/", 1)[-1]
+        if not args.with_e2e:
             module_result[s] = ("e2e-not-run", "未开 --with-e2e（e2e 需 :8800 全栈实跑）")
+        elif e2e_allow and spec_name not in e2e_allow:
+            module_result[s] = ("e2e-not-run", "不在 CI seed-light allowlist（dump-依赖，留本地实跑）")
+        else:
+            module_result[s] = _run_e2e_spec(s)
         print(f"  [{module_result[s][0]}] {s}: {module_result[s][1]}")
 
-    # 回填每 feature：绿 = 全部 ref pass；任一未跑/未绿 → 非绿
+    # 回填每 feature：绿 = 全部 ref pass；任一未跑/未绿 → 非绿。
+    # --e2e-only：只按 e2e ref 评（pytest 轴由 test job 覆盖），pytest-only feature 记 e2e-axis-skip。
     features: dict[str, dict] = {}
     for rel, refs in feat_refs.items():
-        if not refs:
+        eval_refs = [r for r in refs if r.endswith(".spec.ts")] if args.e2e_only else refs
+        if args.e2e_only and not eval_refs:
+            result, detail = "e2e-axis-skip", "e2e-only：本 feature 无 e2e ref（pytest 轴由 test job 评）"
+        elif not eval_refs:
             result, detail = "no-tests", "无测试 ref（pending）"
         else:
+            refs = eval_refs
             statuses = [module_result.get(r, ("fail", ""))[0] for r in refs]
             if all(s == "pass" for s in statuses):
                 result, detail = "pass", "全部测试 ref 绿"
@@ -157,11 +175,21 @@ def main() -> int:
         "captured_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "captured_by": args.captured_by,
         "with_e2e": args.with_e2e,
+        "e2e_only": args.e2e_only,
+        "e2e_allowlist": sorted(e2e_allow),
         "module_results": {m: {"result": r, "detail": d} for m, (r, d) in module_result.items()},
         "features": features,
     }
     MEASUREMENT_DIR.mkdir(parents=True, exist_ok=True)
-    out = MEASUREMENT_DIR / f"{sha}.json"
+    # 范围受限运行（CI seed-light / e2e-only）写 ci-scoped/ 子目录，绝不覆盖、也不被
+    # check_feature_measurement 的 MEASUREMENT_DIR.glob("*.json")（非递归）当成权威测量产物
+    # ——canonical {sha}.json（作者本地全量采集 + 提交入库的那份）才是单一事实源。
+    scoped = args.e2e_only or bool(e2e_allow)
+    if scoped:
+        (MEASUREMENT_DIR / "ci-scoped").mkdir(parents=True, exist_ok=True)
+        out = MEASUREMENT_DIR / "ci-scoped" / f"{sha}.json"
+    else:
+        out = MEASUREMENT_DIR / f"{sha}.json"
     out.write_text(json.dumps(artifact, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     mod_fail = sum(1 for r, _ in module_result.values() if r == "fail")

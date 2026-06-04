@@ -2,7 +2,7 @@
 
 # Preflight Debt Status (computed)
 
-## open (32)
+## open (30)
 - ac7 [medium] (2026-05-25) — 客户机房部署 + 监控对接未落地（E6 AC7）
   - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
 - agentruntime [medium] (2026-05-24) — AgentRuntime runtime 触发式延后（D30 retrofit）
@@ -36,12 +36,8 @@
   - assert: external → external — owner=产品研发负责人; trigger=见 docs/preflight-debt.md 历史归档
 - data-search [medium] (2026-05-30) — data.search typed query 返回目录而非资源（P2Discovery 资源中心语义不一致）
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务确认 P2Discovery 搜索应搜资源 → 立项搜索语义重构；
-- e2e [medium] (2026-05-31) — e2e 测量产物靠本地手跑，CI 未自动接（D46.f，与上方 D46 测量 CI 条合并）
-  - assert: grep_absent → pattern absent in .github/workflows/ci.yml
 - env [medium] (2026-05-29) — 验收证据 CI 化采集（消除人工采集 env 依赖）
   - assert: external → external — owner=推理平台（集团）; trigger=见 docs/preflight-debt.md 历史归档
-- feature [medium] (2026-05-30) — feature 测量产物 CI 自动刷新未接（D46）
-  - assert: grep_absent → pattern absent in .github/workflows/ci.yml
 - j1-api-call-monitoring [medium] (2026-05-31) — j1-api-call-monitoring P4 调用记录段已铺但恒空（res→api_id 调用指标映射缺失，留 InTest）
   - assert: external → external — owner=产品研发负责人; trigger=补 res 资源 → 网关 api_id 映射（数据/业务侧给对应关系，落 legacy_object_mapping / resource_channel_binding）→ P4 改按映射出的 api_id 查 ops.service.invocation.query → 干净全量真实库实测非空表 → 往 .testing/signoff/ 追加 covers → 翻 Done。属 webui-capability-render-debt 一类
 - j1-approval-conditional [medium] (2026-05-31) — j1-approval-conditional 两步条件审批运行时未铺（Wave1 延后，留 InTest）
@@ -50,8 +46,8 @@
   - assert: external → external — owner=产品研发负责人; trigger=业务/架构裁决历史导入申请的可动作性 → 若需在线动作则回填 delivery task / grant snapshot 等运行时实体（或建 application_record→delivery 的解析回源）；若定性只读则 UI 对历史导入申请隐藏撤回/暂停/凭据入口（无权/不适用=不可见）。裁决落 D-编号后据此收口。
 - j2-4 [medium] (2026-05-27) — J2-4 资源挂接 OPERATER 提交侧 wizard 立项延后
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务方提出"在线提交挂接"演示需求 → 走 product-dev.mdc
-- ops-deny-audit [medium] (2026-06-03) — policy 门 deny 不发审计事件（越权尝试无痕；ops-service-invocation S6 残差）
-  - assert: external → external — owner=产品研发负责人; trigger=共用 policy 门审计化立项 → 在 policy 门/entry 边界统一发射 policy decision=deny 审计事件 + 决定熔断语义 + 业务方 sign-off。
+- ops-deny-audit [medium] (2026-06-03) — policy deny 审计化：发射半已落（decision=deny），剩熔断语义 + 业务方 sign-off
+  - assert: external → external — owner=产品研发负责人; trigger=业务方对「deny 审计写失败是否熔断」最终语义 sign-off → 据裁决（非阻塞保留 / 升级熔断）固化 + 落 .testing/signoff/，关本债。
 - p3requestdetail [medium] (2026-05-30) — P3RequestDetail 真实申请详情缺 prefilledFields（D45 轻量卡的 by-design 取舍）
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务反馈真实申请详情页「预填字段」缺失影响验收；
 - request-list [medium] (2026-05-29) — request.list 性能基准断言负载敏感（间歇 flaky）

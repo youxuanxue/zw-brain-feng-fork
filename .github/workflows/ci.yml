@@ -133,3 +133,66 @@ jobs:
           python scripts/import_legacy_dumps.py parse-stats --schema dsp_example
           python scripts/import_legacy_dumps.py import dsp_example
           python scripts/import_legacy_dumps.py verify --tenant sd-default --strict
+
+  e2e-measurement:
+    # D46 测量诚实性闭环：让机器独立把「状态现算」的 e2e 轴跑出来，不再只靠工程师本地手跑。
+    # 真浏览器 + 真栈（mock 推理 + dev IAM bypass），seed = 仓内已提交的真实导入派生
+    # seed_snapshot.json（37KB，守 D11 零造假），**不需** 500MB dump。
+    #
+    # 诚实范围（绝不假绿）：committed seed 只能干净驱动 seed-light e2e 规格；dump-依赖的
+    # e2e（catalog drilldown / ops invocation / national / customer_acceptance 等）留本地
+    # 实跑，**不**纳入 CI allowlist —— capture 把清单外 e2e 记 e2e-not-run（fail-closed
+    # 哨兵，非 pass）。CI 当**验证者不当提交者**：产物写 ci-scoped/（gitignored，不
+    # commit-back，不覆盖作者本地全量采集的 canonical {sha}.json 单一事实源）。
+    #
+    # allowlist 现仅 twin_browser_pages.spec.ts —— 本机 seed-light 实测（fresh DB + mock +
+    # bypass，:8801）该 spec 14 passed（5 角色×主路径页面真渲染无占位）。**刻意不收**
+    # permission_invisibility.spec.ts：seed-light 下它 4 全 skipped（需真凭据/资源前置，
+    # dump-依赖），而全 skipped 的 playwright 退出码=0 会被 capture 误记 pass = 假绿；故留
+    # 本地。放量纪律：候选 spec 须在 seed-light 真 RUN 且 passed（非 skipped）才入清单。
+    name: e2e + feature measurement (seed-light)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+      - run: uv pip install -e '.[dev]'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: build webui (vite → dist-vite，REST 直接服务)
+        run: cd zw-brain-web && npm ci && npm run build
+      - name: install playwright chromium
+        run: npm ci && npx playwright install --with-deps chromium
+      - name: start REST stack (mock 推理 + dev IAM bypass，无 dump → seed_snapshot 种子)
+        env:
+          ZW_BRAIN_INFERENCE_MODE: mock
+          ZW_BRAIN_DEV_IAM_BYPASS: '1'
+          ZW_BRAIN_DEV_IAM_BYPASS_ACK: development-only
+        run: |
+          set -o pipefail
+          nohup python -m zw_brain.entry.rest.server > "${{ runner.temp }}/rest.log" 2>&1 &
+          echo "REST_PID=$!" >> "$GITHUB_ENV"
+          for i in $(seq 1 60); do
+            if curl -fsS --noproxy '*' http://127.0.0.1:8800/health >/dev/null 2>&1; then
+              echo "REST healthy after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "REST failed to become healthy"; cat "${{ runner.temp }}/rest.log"; exit 1
+      - name: capture feature status (--with-e2e, seed-light allowlist)
+        env:
+          ZW_E2E_BASE_URL: http://127.0.0.1:8800
+        run: |
+          set -o pipefail
+          python scripts/capture_feature_status.py \
+            --with-e2e --e2e-only \
+            --e2e-allowlist twin_browser_pages.spec.ts \
+            --captured-by "ci@${{ github.sha }}"
+      - name: dump REST log on failure
+        if: failure()
+        run: cat "${{ runner.temp }}/rest.log" || true

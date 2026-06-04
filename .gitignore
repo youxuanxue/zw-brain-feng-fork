@@ -69,3 +69,6 @@ old/
 
 tests/test_temp_token.py
 test-results/
+
+# CI-scoped (seed-light/e2e-only) measurement — 验证态非权威，绝不入库
+.testing/status/measurement/ci-scoped/
