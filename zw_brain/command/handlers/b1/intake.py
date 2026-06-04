@@ -205,6 +205,10 @@ def _matrix_row_from_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     product_scope = manifest.get("product_scope") or {}
     return {
         "skill_id": manifest["slug"],
+        # 人话名 + 说明：238 manifest 全部自带 title/description；投影出来让 UI 去 slug、上人话
+        # （现场反馈：开放范围全是技术术语看不懂）。仍只读 manifest，不重算。
+        "name": str(manifest.get("title") or manifest.get("name") or ""),
+        "description": str(manifest.get("description") or manifest.get("summary") or ""),
         "journey": str(product_scope.get("journey") or ""),
         "status": str(product_scope.get("status") or ""),
         "execution_binding": str(manifest.get("execution_binding") or ""),

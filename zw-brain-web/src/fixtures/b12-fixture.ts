@@ -19,6 +19,9 @@ export interface PackageListResult {
 
 export interface ExposureMatrixRow {
   skill_id: string;
+  /** 人话名 / 说明（后端投影自 manifest title/description）；去 slug 上人话用。 */
+  name?: string;
+  description?: string;
   journey: string;
   status: string;
   execution_binding: string;
