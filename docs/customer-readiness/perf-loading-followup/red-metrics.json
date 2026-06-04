@@ -1,0 +1,81 @@
+{
+  "baseUrl": "http://127.0.0.1:8807",
+  "capturedAt": "2026-06-04T13:42:38.421Z",
+  "boot": {
+    "readyMs": 1,
+    "totalMs": 2328
+  },
+  "currentRole": {
+    "role": "ROLE_ORGAN_OPERATER",
+    "snapshot": 1,
+    "workbenchView": 1
+  },
+  "siblingPrefetch": {
+    "count": 5,
+    "coverage": [
+      {
+        "role": "ROLE_ORGAN_MANAGER",
+        "snapshot": 0,
+        "workbenchView": 0
+      },
+      {
+        "role": "ROLE_BUSIAUDIT",
+        "snapshot": 0,
+        "workbenchView": 0
+      },
+      {
+        "role": "ROLE_SECURITY_ADMIN",
+        "snapshot": 0,
+        "workbenchView": 0
+      },
+      {
+        "role": "ROLE_SECURITY_AUDIT",
+        "snapshot": 0,
+        "workbenchView": 0
+      },
+      {
+        "role": "ROLE_SYSTEM",
+        "snapshot": 0,
+        "workbenchView": 0
+      }
+    ]
+  },
+  "roleSwitch": [
+    {
+      "role": "ROLE_ORGAN_MANAGER",
+      "readyMs": 2,
+      "wallMs": 20
+    },
+    {
+      "role": "ROLE_BUSIAUDIT",
+      "readyMs": 1,
+      "wallMs": 235
+    }
+  ],
+  "pageNav": [
+    {
+      "hash": "#/discovery",
+      "ms": 33,
+      "snapshotDelta": 0,
+      "workbenchViewDelta": 0
+    },
+    {
+      "hash": "#/request-flow",
+      "ms": 22,
+      "snapshotDelta": 0,
+      "workbenchViewDelta": 0
+    },
+    {
+      "hash": "#/delivery",
+      "ms": 5,
+      "snapshotDelta": 0,
+      "workbenchViewDelta": 0
+    },
+    {
+      "hash": "#/provider",
+      "ms": 5,
+      "snapshotDelta": 0,
+      "workbenchViewDelta": 0
+    }
+  ]
+}

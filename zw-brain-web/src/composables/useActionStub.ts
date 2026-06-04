@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { authFetch } from './useAuth';
-import { loadSnapshot } from './useSnapshot';
+import { loadSnapshot, invalidateSnapshot } from './useSnapshot';
+import { invalidateWorkbench } from './useWorkbench';
 import { getProductRole } from './useProductRole';
 import { apiUrl } from './useApiBase';
 
@@ -62,6 +63,10 @@ export async function invokeActionStub(opts: ActionStubOptions): Promise<{ ok: b
       const data = await resp.json().catch(() => undefined);
       pushToast({ kind: 'ok', title: opts.successTitle ?? '已提交' });
       if (opts.refreshSnapshotAfter !== false) {
+        // FU-3 写后失效：写能力改了真实库积压，作废该 role 的快照 + 工作台缓存再拉新——
+        //   工作台待办（workbench_backlog_projection 现算）不再停在写前的陈旧值。
+        invalidateSnapshot(role);
+        invalidateWorkbench(role);
         void loadSnapshot(role);
       }
       return { ok: true, status: resp.status, data };

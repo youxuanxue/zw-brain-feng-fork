@@ -12,7 +12,8 @@ import {
   logout,
   PRODUCT_ROLE_LABELS,
 } from '@/composables/useAuth';
-import { loadSnapshot, useWebUiConfig, useSnapshot } from '@/composables/useSnapshot';
+import { loadSnapshot, prefetchSnapshot, useWebUiConfig, useSnapshot } from '@/composables/useSnapshot';
+import { prefetchWorkbench } from '@/composables/useWorkbench';
 import { pushToast } from '@/composables/useActionStub';
 import ActionToast from '@/components/ActionToast.vue';
 import PlatformGuideChatPanel from '@/components/PlatformGuideChatPanel.vue';
@@ -75,12 +76,38 @@ async function refreshAll() {
       if (route.path !== '/workbench') await router.replace('/workbench');
       return;
     }
-    await loadSnapshot(currentRole.value);
+    // FU-2 并行拉取：snapshot 与当前岗位工作台两个独立读并发，不再串行等
+    //（P1Workbench 挂载时缓存已热 → 命中即时，消除 #126「串行等 2 个 API」那截）。
+    // FU-4 兄弟岗位预取不在此显式触发——快照变 'live' 的 watch（见下）是唯一触发器，
+    //   天然覆盖本路径与 PLogin 开发免登录路径。
+    await Promise.all([loadSnapshot(currentRole.value), prefetchWorkbench(currentRole.value)]);
   } catch (e) {
     const detail = e instanceof Error ? e.message : String(e);
     initError.value = detail;
     if (!user.value && !isLoginRoute.value) await router.replace('/login');
   }
+}
+
+// FU-4：用 requestIdleCallback（不可用则 setTimeout）在主线程空闲时静默预取兄弟岗位。
+// 仅在允许切角色时预取；每岗位只取一次（prefetch* 内置缓存命中即跳过 + FU-1 在途合并，
+// 与用户主动切角色绝不重复发请求）。
+let _prefetchScheduled = false;
+function scheduleSiblingPrefetch(): void {
+  if (_prefetchScheduled) return;
+  if (!allowRoleSwitch.value) return;
+  const siblings = getAllowedProductRoles().filter((r) => r !== currentRole.value);
+  if (siblings.length === 0) return;
+  _prefetchScheduled = true;
+  const run = () => {
+    for (const role of siblings) {
+      void prefetchSnapshot(role);
+      void prefetchWorkbench(role);
+    }
+  };
+  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => void })
+    .requestIdleCallback;
+  if (typeof ric === 'function') ric(run);
+  else window.setTimeout(run, 200);
 }
 
 watch(
@@ -129,6 +156,13 @@ async function onRoleChange(event: Event) {
     detail: `当前身份：${roleLabel}。页面与权限已按新岗位刷新。`,
   });
 }
+
+// FU-4：预取触发与登录路径解耦——IAM 回跳走 refreshAll、开发免登录走 PLogin，
+//   两条路最终都让快照变 'live'。这里统一监听：快照就绪且用户有岗位即调度一次
+//   （scheduleSiblingPrefetch 内 _prefetchScheduled 守卫保证全会话仅一次）。
+watch(snapSource, (s) => {
+  if (s === 'live' && hasAllowedProductRoles()) scheduleSiblingPrefetch();
+});
 
 onMounted(() => {
   void refreshAll();

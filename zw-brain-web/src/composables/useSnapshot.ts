@@ -27,14 +27,27 @@ const _data = ref<Snapshot | null>(null);
 const _source = ref<Source>('idle');
 const _error = ref<string | null>(null);
 const _cache = new Map<string, Snapshot>();
+// FU-1 并发去重：同一 role 的在途请求合并到同一个 promise，boot/切角色/空闲预取
+// 的并发触发不再放大成多次 /api/snapshot。settle 后清除。
+const _inflight = new Map<string, Promise<Snapshot>>();
 let _initialHydrated = false;
 
 async function _fetchSnapshot(role: string): Promise<Snapshot> {
-  const resp = await authFetch(apiUrl(`/api/snapshot?role=${encodeURIComponent(role)}`), {
-    headers: { Accept: 'application/json' },
-  });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return (await resp.json()) as Snapshot;
+  const existing = _inflight.get(role);
+  if (existing) return existing;
+  const p = (async () => {
+    const resp = await authFetch(apiUrl(`/api/snapshot?role=${encodeURIComponent(role)}`), {
+      headers: { Accept: 'application/json' },
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return (await resp.json()) as Snapshot;
+  })();
+  _inflight.set(role, p);
+  try {
+    return await p;
+  } finally {
+    _inflight.delete(role);
+  }
 }
 
 export async function loadSnapshot(
@@ -62,6 +75,25 @@ export async function loadSnapshot(
     if (!cached) _source.value = 'error';
     _initialHydrated = true;
     return cached ?? null;
+  }
+}
+
+// FU-3 写后失效：写能力成功后，受影响 role 的快照缓存作废，下次 loadSnapshot 拉新
+// （不裸显陈旧数据）。无参=清全部。
+export function invalidateSnapshot(role?: string): void {
+  if (role) _cache.delete(role);
+  else _cache.clear();
+}
+
+// FU-4 空闲预取：把某 role 的快照拉进缓存，**不触动**当前展示的 _data/_source/_error
+// （后台静默，切到该岗位即命中缓存秒显）。复用 FU-1 在途合并，绝不与主动加载重复发请求。
+export async function prefetchSnapshot(role: string): Promise<void> {
+  if (_cache.has(role)) return;
+  try {
+    const payload = await _fetchSnapshot(role);
+    _cache.set(role, payload);
+  } catch {
+    // 预取失败静默——主动切角色时 loadSnapshot 会正常重试并显错。
   }
 }
 

@@ -11,6 +11,7 @@ import {
   readAuthConfig,
 } from '@/composables/useAuth';
 import { loadSnapshot } from '@/composables/useSnapshot';
+import { prefetchWorkbench } from '@/composables/useWorkbench';
 import { getProductRole } from '@/composables/useProductRole';
 import { pushToast } from '@/composables/useActionStub';
 
@@ -27,7 +28,9 @@ async function finishLoginEntry(): Promise<void> {
     await router.replace('/workbench');
     return;
   }
-  await loadSnapshot(getProductRole().value);
+  // FU-2 并行拉取：登录落地时快照与当前岗位工作台并发预热，进 /workbench 即命中缓存。
+  const role = getProductRole().value;
+  await Promise.all([loadSnapshot(role), prefetchWorkbench(role)]);
   await router.replace('/workbench');
 }
 

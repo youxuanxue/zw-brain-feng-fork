@@ -29,6 +29,7 @@ export default defineConfig({
     'r12_rendered_language.spec.ts',
     'typed_resource_detail.spec.ts',
     'role_projection_views.spec.ts',
+    'perf_loading.spec.ts',
   ],
   fullyParallel: false,
   workers: 1,
