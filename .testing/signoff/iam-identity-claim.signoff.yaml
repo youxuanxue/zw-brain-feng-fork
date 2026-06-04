@@ -1,0 +1,19 @@
+scope: iam-identity-claim
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-04
+kind: 决策签字
+evidence: >-
+  存量用户首次 IAM 登录的「单行身份认领」策略经负责人裁定（2026-06-04 对话内 sign-off）：
+  ① sub 优先匹配，命中既有行原地刷新；② 辅助字段（account/phone/email）**唯一**命中 status∈{iam_account_missing,unmatched}
+  的存量行即**自动认领**——就地 rekey 该行到真实 sub（同 PK、保留 legacy profile、同事务搬移 actor_org_role_binding
+  与 legacy_object_mapping），消除"两套用户数据"；③ 命中多条 → fail-closed（ActorMatchError → 登录 403
+  actor_identity_ambiguous），绝不自动认领；④ 绝不认领 disabled 行（不继承其角色绑定）；⑤ 登录只在认领时一次性搬移
+  binding，绝不新写/禁用（守 wave-0 D-2 deferral）。证据：tests/test_iam_identity_claim.py 6 测全绿 +
+  tests/test_repair_actor_identity_duplicates.py 4 测全绿（隔离临时库逐条钉死单行不变量）；存量脏数据用
+  scripts/repair_actor_identity_duplicates.py（dry-run→apply→幂等复核）清，runbook 见
+  docs/deployment/m0-site-migration.md「存量用户首登产生两套用户数据」节。
+decision_only: true
+covers: []
+# 注：身份认领策略属 D28 流程/状态机变更（角色↔IAM 关联规则），本账本记产品研发负责人 2026-06-04 决策认可。
+# infra-iam-session.feature 本就 Done 且由 wave0-infra.signoff.yaml 覆盖；新增 6 scenario + backing test
+# 仍属同一 IAM 认证/会话边界，covers 留空不重复抬状态（纯记决策史，遵 wave-residuals-approval-depth 先例）。

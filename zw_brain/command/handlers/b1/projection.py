@@ -64,8 +64,7 @@ def _sync_actor_projection(brain, deps, ctx, payload: dict[str, Any]) -> dict[st
                     if isinstance(claims, dict)
                     else brain._decode_iaf_claims(claims)
                 )
-                existing = repo.find_actor_for_iaf_claims(claims_payload, tenant_id=tenant_id)
-                actor_payload = actor_payload | brain._build_actor_projection_from_claims(
+                built = brain._build_actor_projection_from_claims(
                     claims=claims,
                     expected_state=actor_payload.get("expected_state"),
                     expected_nonce=actor_payload.get("expected_nonce"),
@@ -74,24 +73,22 @@ def _sync_actor_projection(brain, deps, ctx, payload: dict[str, Any]) -> dict[st
                     fallback_roles=actor_payload.get("role_codes") or actor_payload.get("iam_role_codes") or [],
                     display_name=actor_payload.get("display_name"),
                 )
-                if existing is not None and not (actor_payload.get("role_codes") or []):
-                    role_codes = [str(role) for role in (existing.role_codes_json or [])]
-                    if not role_codes:
-                        role_codes = sorted(
-                            {
-                                str(ctx["role_code"])
-                                for ctx in repo.list_active_actor_contexts(
-                                    tenant_id=tenant_id,
-                                    external_actor_id=str(existing.external_actor_id),
-                                )
-                                if ctx.get("role_code")
-                            }
-                        )
-                    if role_codes:
-                        actor_payload["role_codes"] = role_codes
-                    if not actor_payload.get("org_code"):
-                        actor_payload["org_code"] = existing.org_code
-            actor_record = repo.upsert_actor(actor_payload, tenant_id=tenant_id)
+                # Claim a single identity row: rekey an existing legacy twin in place (carrying its
+                # bindings) instead of inserting a parallel sub-keyed row — the duplicate-user bug.
+                # Login never disables bindings; only this one-time rekey-move touches them. An
+                # ambiguous auxiliary match raises ActorMatchError → entry layer turns it into 403.
+                actor_record, _outcome = repo.claim_legacy_actor_by_iaf(
+                    iaf_sub=str(built["external_actor_id"]),
+                    match_claims=claims_payload,
+                    claims_profile=built.get("profile_json") or {},
+                    token_role_codes=[str(role) for role in (built.get("role_codes") or [])],
+                    display_name=built.get("display_name"),
+                    org_code=built.get("org_code"),
+                    source_ref=built.get("source_ref") or "iaf:claims",
+                    tenant_id=tenant_id,
+                )
+            else:
+                actor_record = repo.upsert_actor(actor_payload, tenant_id=tenant_id)
             actors.append(actor_record)
             actor_snapshots.append(brain._actor_snapshot_from_projection(actor_record, claims=claims_payload))
         deps.append_audit_feed("actor.projection.sync", actors[0].external_actor_id if actors else "actor_projection", "ok", actor)

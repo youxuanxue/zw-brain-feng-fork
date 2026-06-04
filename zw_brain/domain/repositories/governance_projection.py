@@ -26,6 +26,12 @@ def _now() -> datetime:
 
 _FAIL_CLOSED_STATUSES = {"disabled", "unmatched", "iam_account_missing"}
 _SENSITIVE_MATCH_KEYS = {"phone", "mobile", "email"}
+# Only legacy rows in these statuses may be claimed (rekeyed) by a first IAM login.
+# `disabled` is deliberately excluded — a disabled legacy user must never lend its
+# org-role bindings to an incoming IAM identity.
+_CLAIMABLE_STATUSES = {"iam_account_missing", "unmatched"}
+# Auxiliary identity match: IAF claim key → actor_projection.profile_json key.
+_AUX_MATCH_KEYS = [("preferred_username", "account"), ("phone", "phone"), ("phone", "mobile"), ("email", "email")]
 
 
 def _profile_without_unsafe_auth_fields(profile: dict[str, Any]) -> dict[str, Any]:
@@ -125,6 +131,275 @@ class GovernanceProjectionRepository:
         else:
             self._sync_actor_role_bindings(record)
         return record
+
+    def claim_legacy_actor_by_iaf(
+        self,
+        *,
+        iaf_sub: str,
+        match_claims: dict[str, Any] | None = None,
+        claims_profile: dict[str, Any] | None = None,
+        token_role_codes: list[str] | None = None,
+        display_name: str | None = None,
+        org_code: str | None = None,
+        legacy_actor_ref: str | None = None,
+        source_ref: str | None = None,
+        tenant_id: str = "sd-default",
+    ) -> tuple[ActorProjectionRecord, str]:
+        """Resolve an IAF `sub` to a single actor_projection row — claiming an existing
+        legacy row in place rather than inserting a parallel one.
+
+        Outcomes (second tuple element):
+          - "updated_existing_sub": the sub already keyed a row; profile/roles refreshed.
+          - "rekeyed_legacy": a claimable legacy row was rekeyed to the sub (id preserved),
+            its bindings + legacy_object_mapping moved in the SAME transaction.
+          - "inserted_fresh": no claimable legacy row; a new sub-keyed row was inserted.
+
+        The whole rekey (actor row + bindings + mapping) happens in one session/commit so it
+        is atomic — any failure rolls everything back (fail-closed). Login must NOT mutate
+        bindings beyond this one-time move (wave-0 D-2 deferral); imported bindings stay SoT.
+        """
+        iaf_sub = str(iaf_sub or "")
+        if not iaf_sub:
+            raise ActorMatchError("iaf sub is required")
+        match_claims = match_claims or {}
+        claims_profile = claims_profile or {}
+        token_role_codes = [str(role) for role in (token_role_codes or []) if str(role)]
+        source_ref = source_ref or "iaf:claims"
+
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            # 1. sub already owns a row → refresh in place, never touch bindings.
+            current = session.execute(
+                select(ActorProjectionRecord).where(
+                    ActorProjectionRecord.tenant_id == tenant_id,
+                    ActorProjectionRecord.external_actor_id == iaf_sub,
+                )
+            ).scalar_one_or_none()
+            if current is not None:
+                self._apply_claim_to_actor(
+                    current,
+                    iaf_sub=iaf_sub,
+                    claims_profile=claims_profile,
+                    token_role_codes=token_role_codes,
+                    display_name=display_name,
+                    org_code=org_code,
+                    match_evidence={"method": "iaf_sub", "result": "existing_sub"},
+                )
+                session.commit()
+                session.refresh(current)
+                return current, "updated_existing_sub"
+
+            # 2. resolve a legacy row to claim.
+            legacy: ActorProjectionRecord | None = None
+            method = "no_match"
+            if legacy_actor_ref:
+                legacy = session.execute(
+                    select(ActorProjectionRecord).where(
+                        ActorProjectionRecord.tenant_id == tenant_id,
+                        ActorProjectionRecord.external_actor_id == str(legacy_actor_ref),
+                    )
+                ).scalar_one_or_none()
+                method = "legacy_actor_ref"
+            else:
+                legacy, method = self._match_legacy_actor_in_session(session, match_claims, tenant_id=tenant_id)
+
+            if legacy is not None and legacy.status in _CLAIMABLE_STATUSES:
+                old_external = legacy.external_actor_id
+                self._apply_claim_to_actor(
+                    legacy,
+                    iaf_sub=iaf_sub,
+                    claims_profile=claims_profile,
+                    token_role_codes=token_role_codes,
+                    display_name=display_name,
+                    org_code=org_code,
+                    match_evidence={"method": method, "result": "rekeyed_legacy", "legacy_actor_ref": old_external},
+                    preserve_legacy=True,
+                )
+                legacy.external_actor_id = iaf_sub
+                self._rekey_bindings_in_session(session, tenant_id=tenant_id, old_external=old_external, new_external=iaf_sub)
+                self._rekey_actor_object_mapping_in_session(session, tenant_id=tenant_id, old_ref=old_external, new_ref=iaf_sub)
+                session.commit()
+                session.refresh(legacy)
+                return legacy, "rekeyed_legacy"
+
+            # 3. no claimable legacy twin (none found, or only a disabled row) → fresh sub-keyed row.
+            record = self._insert_fresh_iaf_actor(
+                session,
+                iaf_sub=iaf_sub,
+                claims_profile=claims_profile,
+                token_role_codes=token_role_codes,
+                display_name=display_name,
+                org_code=org_code,
+                source_ref=source_ref,
+                tenant_id=tenant_id,
+            )
+            session.commit()
+            session.refresh(record)
+            return record, "inserted_fresh"
+
+    def _match_legacy_actor_in_session(
+        self, session: Session, claims: dict[str, Any], *, tenant_id: str
+    ) -> tuple[ActorProjectionRecord | None, str]:
+        matches: list[ActorProjectionRecord] = []
+        for claim_key, profile_key in _AUX_MATCH_KEYS:
+            value = claims.get(claim_key)
+            if not value:
+                continue
+            matches.extend(self._find_actors_by_profile_value_in_session(session, profile_key, str(value), tenant_id=tenant_id))
+        unique = {item.external_actor_id: item for item in matches}
+        claimable = {key: rec for key, rec in unique.items() if rec.status in _CLAIMABLE_STATUSES}
+        if len(claimable) > 1:
+            raise ActorMatchError("iaf auxiliary claims matched multiple claimable actors")
+        if len(claimable) == 1:
+            return next(iter(claimable.values())), "auxiliary_claim"
+        # No claimable match. A single non-claimable (e.g. disabled) match is returned so the
+        # caller falls through to a fresh insert without inheriting that row's roles.
+        if len(unique) == 1:
+            return next(iter(unique.values())), "auxiliary_claim"
+        return None, "no_match"
+
+    def _apply_claim_to_actor(
+        self,
+        record: ActorProjectionRecord,
+        *,
+        iaf_sub: str,
+        claims_profile: dict[str, Any],
+        token_role_codes: list[str],
+        display_name: str | None,
+        org_code: str | None,
+        match_evidence: dict[str, Any],
+        preserve_legacy: bool = False,
+    ) -> None:
+        base = record.profile_json if isinstance(record.profile_json, dict) else {}
+        merged = dict(base)
+        for key, value in (claims_profile or {}).items():
+            if value is not None:
+                merged[key] = value
+        merged["iaf_sub"] = iaf_sub
+        merged["binding_status"] = "bound"
+        merged["match_evidence"] = safe_json(match_evidence)
+        if preserve_legacy and not merged.get("legacy_actor_ref"):
+            merged["legacy_actor_ref"] = record.external_actor_id
+        record.profile_json = _profile_without_unsafe_auth_fields(merged)
+        record.status = "active"
+        # Only overwrite role_codes_json when the IAM token actually carried product roles;
+        # otherwise keep the imported value (roles flow from actor_org_role_binding either way).
+        if token_role_codes:
+            record.role_codes_json = safe_json(token_role_codes)
+        if display_name:
+            record.display_name = str(display_name)
+        if org_code:
+            record.org_code = org_code
+        record.updated_at = _now()
+
+    def _insert_fresh_iaf_actor(
+        self,
+        session: Session,
+        *,
+        iaf_sub: str,
+        claims_profile: dict[str, Any],
+        token_role_codes: list[str],
+        display_name: str | None,
+        org_code: str | None,
+        source_ref: str,
+        tenant_id: str,
+    ) -> ActorProjectionRecord:
+        profile = dict(claims_profile or {})
+        profile["iaf_sub"] = iaf_sub
+        profile["binding_status"] = "bound"
+        record = ActorProjectionRecord(
+            tenant_id=tenant_id,
+            external_actor_id=iaf_sub,
+            display_name=str(display_name or claims_profile.get("username") or iaf_sub),
+            org_code=org_code,
+            role_codes_json=safe_json(token_role_codes or []),
+            status="active",
+            source_ref=source_ref,
+            profile_json=_profile_without_unsafe_auth_fields(profile),
+        )
+        session.add(record)
+        session.flush()
+        return record
+
+    def _rekey_bindings_in_session(self, session: Session, *, tenant_id: str, old_external: str, new_external: str) -> int:
+        if old_external == new_external:
+            return 0
+        existing_new = {
+            (item.org_code, item.role_code): item
+            for item in session.execute(
+                select(ActorOrgRoleBindingRecord).where(
+                    ActorOrgRoleBindingRecord.tenant_id == tenant_id,
+                    ActorOrgRoleBindingRecord.external_actor_id == new_external,
+                )
+            ).scalars()
+        }
+        moved = 0
+        for item in session.execute(
+            select(ActorOrgRoleBindingRecord).where(
+                ActorOrgRoleBindingRecord.tenant_id == tenant_id,
+                ActorOrgRoleBindingRecord.external_actor_id == old_external,
+            )
+        ).scalars():
+            if (item.org_code, item.role_code) in existing_new:
+                # Target identity already owns this (org, role) → disable the stale duplicate
+                # rather than violate uq_actor_org_role_binding_identity.
+                item.binding_status = "disabled"
+                item.updated_at = _now()
+            else:
+                item.external_actor_id = new_external
+                item.updated_at = _now()
+                moved += 1
+        return moved
+
+    def _rekey_actor_object_mapping_in_session(self, session: Session, *, tenant_id: str, old_ref: str, new_ref: str) -> int:
+        if old_ref == new_ref:
+            return 0
+        updated = 0
+        for item in session.execute(
+            select(LegacyObjectMappingRecord).where(
+                LegacyObjectMappingRecord.tenant_id == tenant_id,
+                LegacyObjectMappingRecord.canonical_type == "ActorProjectionRecord",
+                LegacyObjectMappingRecord.canonical_ref == old_ref,
+            )
+        ).scalars():
+            item.canonical_ref = new_ref
+            item.mapped_at = _now()
+            updated += 1
+        return updated
+
+    def _find_actors_by_profile_value_in_session(
+        self, session: Session, profile_key: str, value: str, *, tenant_id: str
+    ) -> list[ActorProjectionRecord]:
+        candidates = list(
+            session.execute(
+                select(ActorProjectionRecord).where(
+                    ActorProjectionRecord.tenant_id == tenant_id,
+                    ActorProjectionRecord.profile_json[profile_key].as_string() == value,
+                )
+            ).scalars()
+        )
+        if profile_key in _SENSITIVE_MATCH_KEYS:
+            return [item for item in candidates if (item.profile_json or {}).get(profile_key) == value]
+        return candidates
+
+    def delete_actor_row(self, external_actor_id: str, *, tenant_id: str = "sd-default", source_ref_guard: str | None = "iaf:claims") -> bool:
+        """Delete a single actor_projection row, guarded so the repair tool can only remove
+        the thin login-created `iaf:claims` twins, never a legacy/imported row."""
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            record = session.execute(
+                select(ActorProjectionRecord).where(
+                    ActorProjectionRecord.tenant_id == tenant_id,
+                    ActorProjectionRecord.external_actor_id == external_actor_id,
+                )
+            ).scalar_one_or_none()
+            if record is None:
+                return False
+            if source_ref_guard is not None and str(record.source_ref or "") != source_ref_guard:
+                raise ActorMatchError(f"refuse to delete actor row source_ref={record.source_ref!r} (guard={source_ref_guard!r})")
+            session.delete(record)
+            session.commit()
+            return True
 
     def import_legacy_policy_candidate(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> LegacyPolicyMappingCandidateRecord:
         data = {
@@ -233,47 +508,24 @@ class GovernanceProjectionRepository:
         return None
 
     def bind_actor_to_iaf_claims(self, claims: dict[str, Any], *, tenant_id: str = "sd-default") -> ActorProjectionRecord:
+        """Thin wrapper kept for API symmetry — the single-row claim/rekey logic now lives in
+        `claim_legacy_actor_by_iaf` so that login, re-import and the repair tool share one path."""
         iaf_sub = str(claims.get("sub") or "")
         if not iaf_sub:
             raise ActorMatchError("iaf sub is required")
-        actor = self.find_actor_for_iaf_claims(claims, tenant_id=tenant_id)
-        if actor is None:
-            return self.upsert_actor(
-                {
-                    "iaf_sub": iaf_sub,
-                    "display_name": claims.get("preferred_username") or iaf_sub,
-                    "status": "iam_account_missing",
-                    "source_ref": "iaf:claims",
-                    "profile_json": {
-                        "iaf_sub": iaf_sub,
-                        "username": claims.get("preferred_username"),
-                        "binding_status": "iam_account_missing",
-                        "match_evidence": {"method": "iaf_sub", "result": "no_local_projection"},
-                    },
-                },
-                tenant_id=tenant_id,
-            )
-        if actor.external_actor_id == iaf_sub:
-            return actor
-        profile = dict(actor.profile_json or {})
-        evidence = {
-            "method": "auxiliary_claim",
-            "preferred_username_matched": bool(claims.get("preferred_username") and claims.get("preferred_username") == profile.get("account")),
-            "phone_matched": bool(claims.get("phone") and claims.get("phone") in {profile.get("phone"), profile.get("mobile")}),
-            "email_matched": bool(claims.get("email") and claims.get("email") == profile.get("email")),
+        claims_profile = {
+            "username": claims.get("preferred_username"),
+            "email": claims.get("email"),
+            "phone": claims.get("phone"),
         }
-        return self.upsert_actor(
-            {
-                "iaf_sub": iaf_sub,
-                "display_name": actor.display_name,
-                "org_code": actor.org_code,
-                "role_codes": actor.role_codes_json,
-                "status": "active",
-                "source_ref": actor.source_ref,
-                "profile_json": profile | {"legacy_actor_ref": actor.external_actor_id, "match_evidence": evidence},
-            },
+        record, _outcome = self.claim_legacy_actor_by_iaf(
+            iaf_sub=iaf_sub,
+            match_claims=claims,
+            claims_profile={key: value for key, value in claims_profile.items() if value is not None},
+            display_name=claims.get("preferred_username") or iaf_sub,
             tenant_id=tenant_id,
         )
+        return record
 
     def mark_legacy_actor_unmatched(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> ActorProjectionRecord:
         legacy_ref = str(payload.get("legacy_actor_ref") or payload.get("external_actor_id") or payload.get("legacy_user_id") or "")
