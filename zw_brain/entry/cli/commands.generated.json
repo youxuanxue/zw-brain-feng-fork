@@ -1747,6 +1747,46 @@
       ]
     },
     {
+      "skill_id": "application.escalate_national",
+      "title": "转报国家平台",
+      "description": "业务运营员把本级已审核通过的申请转报到国家平台（国家直达子旅程）。打应用层计算态「国家通道转报中」并经国家通道适配出站，不污染 J1 主状态枚举。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "action",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "application_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
       "skill_id": "application.grant.approve",
       "title": "审批资源授权",
       "description": "审批授权、收回授权或频次变更，审批通过后才能形成授权快照。",
@@ -2917,6 +2957,46 @@
         {
           "name": "title",
           "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "catalog.national_ext_elem.compile",
+      "title": "国家扩展要素目录编制",
+      "description": "国家扩展要素目录编制（Wave 3 — 国家扩展元素同步落地后开放）。本期仅占 IA 占位 + manifest deferred，无 handler / 无 dispatch / 不投影到任何 surface。详见架构基线 §3.4 业务流 #9 与 §9.2 CatalogModel 双轨编制。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "catalog_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "compile_task_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "ext_elem_payload",
+          "required": false,
+          "type": "object"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
           "type": "string"
         }
       ]

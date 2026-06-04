@@ -86,6 +86,10 @@ def _record_to_request_card(record: Any) -> dict[str, Any]:
         or payload.get("use_item")
         or "",
         "status": payload.get("status") or "",
+        # 国家通道指示（C9）：channel_class=='national' 标识「请求国家级数据」的申请，
+        # 供 P3 国家通道 tab 筛「待转报」队列（dept_approved ∩ national），不再误列 own-items。
+        # 真实信号取 payload_json["channel_class"]（supply_demand §scenario 5 占位口径）；缺省 internal。
+        "channelClass": str(payload.get("channel_class") or "internal"),
         "submittedAt": payload.get("submittedAt") or payload.get("create_time") or "",
         "sharingType": payload.get("sharingType"),
     }

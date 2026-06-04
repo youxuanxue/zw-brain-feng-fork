@@ -11627,6 +11627,205 @@
         ]
       }
     },
+    "/api/skills/application.escalate_national": {
+      "post": {
+        "summary": "转报国家平台",
+        "description": "业务运营员把本级已审核通过的申请转报到国家平台（国家直达子旅程）。打应用层计算态「国家通道转报中」并经国家通道适配出站，不污染 J1 主状态枚举。",
+        "operationId": "post_application_escalate_national",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "application.escalate_national",
+        "x-zwbrain-side-effects": [
+          "audit",
+          "adapter_receipt"
+        ],
+        "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "adapter-write",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
+        "x-zwbrain-permissions": [
+          "application.escalate_national.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "application_code": {
+                      "type": "string"
+                    },
+                    "national_channel_stage": {
+                      "type": "string"
+                    },
+                    "display_status": {
+                      "type": "string"
+                    },
+                    "national_channel": {
+                      "type": "object"
+                    },
+                    "run": {
+                      "type": [
+                        "object",
+                        "null"
+                      ]
+                    },
+                    "audit_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill id, skill surface disabled, or HTTP route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Referenced domain entity missing (error=entity_not_found); distinct from route/skill 404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (e.g. csrf_token_invalid on cookie-authenticated writes)"
+          },
+          "409": {
+            "description": "Confirmation required or invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid session cookie or Bearer token, or token expired"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenant_id": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  },
+                  "application_code": {
+                    "type": "string"
+                  },
+                  "action": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "confirmed",
+                  "application_code"
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/skills/application.grant.approve": {
       "post": {
         "summary": "审批资源授权",
@@ -17767,6 +17966,192 @@
                     "type": "boolean"
                   }
                 }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/skills/catalog.national_ext_elem.compile": {
+      "post": {
+        "summary": "国家扩展要素目录编制",
+        "description": "国家扩展要素目录编制（Wave 3 — 国家扩展元素同步落地后开放）。本期仅占 IA 占位 + manifest deferred，无 handler / 无 dispatch / 不投影到任何 surface。详见架构基线 §3.4 业务流 #9 与 §9.2 CatalogModel 双轨编制。",
+        "operationId": "post_catalog_national_ext_elem_compile",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "catalog.national_ext_elem.compile",
+        "x-zwbrain-side-effects": [
+          "audit",
+          "db_write"
+        ],
+        "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "catalog-write",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
+        "x-zwbrain-permissions": [
+          "catalog.national_ext_elem.compile.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "compile_task_code": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "audit_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill id, skill surface disabled, or HTTP route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Referenced domain entity missing (error=entity_not_found); distinct from route/skill 404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (e.g. csrf_token_invalid on cookie-authenticated writes)"
+          },
+          "409": {
+            "description": "Confirmation required or invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid session cookie or Bearer token, or token expired"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenant_id": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  },
+                  "catalog_code": {
+                    "type": "string"
+                  },
+                  "compile_task_code": {
+                    "type": "string"
+                  },
+                  "ext_elem_payload": {
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "confirmed"
+                ]
               }
             }
           }

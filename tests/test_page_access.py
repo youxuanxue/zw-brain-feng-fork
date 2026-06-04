@@ -76,6 +76,8 @@ _ROUTE_ROLE_OVERRIDES: list[tuple[str, frozenset[str], str | None]] = [
     ("/provider/inbox/field-decision", frozenset({"ROLE_BUSIAUDIT"}), None),
     ("/provider/inbox/hookup-review", frozenset({"ROLE_BUSIAUDIT"}), None),
     ("/provider/inbox/objection", frozenset({"ROLE_ORGAN_MANAGER"}), None),
+    # C5（D50）国家扩展要素编制（角色门；flag 门在前端 hub/页内另把守）。
+    ("/provider/national-ext-elem", frozenset({"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}), None),
 ]
 
 
@@ -204,6 +206,13 @@ def test_provider_inbox_objection_manager_only() -> None:
     assert not _is_route_allowed(
         "/provider/inbox/objection/xyz", "ROLE_BUSIAUDIT"
     )
+
+
+def test_national_ext_elem_manager_and_busiaudit_only() -> None:
+    # C5：部门管理员 + 业务运营员可进国家扩展要素编制；操作员不可见。
+    assert _is_route_allowed("/provider/national-ext-elem", "ROLE_ORGAN_MANAGER")
+    assert _is_route_allowed("/provider/national-ext-elem", "ROLE_BUSIAUDIT")
+    assert not _is_route_allowed("/provider/national-ext-elem", "ROLE_ORGAN_OPERATER")
 
 
 def test_reverse_catalog_wizard_manager_only() -> None:

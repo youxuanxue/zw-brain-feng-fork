@@ -104,6 +104,10 @@ class ApplicationService:
             "applicationMaterials": materials,
             "expectedBy": self.brain._get_handler_deps().services.delivery.due_hint(delivery),
             "status": record.status,
+            # 国家通道指示（C9）：channel_class=='national' 标识「请求国家级数据」的申请。
+            # 真实信号取 payload_json["channel_class"]（supply_demand §scenario 5 占位口径）；
+            # P3 国家通道 tab 据此筛「待转报」队列（dept_approved ∩ national），不再误列 own-items。
+            "channelClass": str(payload.get("channel_class") or "internal"),
             "submittedAt": payload.get("create_time") or record.created_at.isoformat(),
             "taskId": delivery["id"] if delivery else None,
             "sourceEvidence": source_evidence,

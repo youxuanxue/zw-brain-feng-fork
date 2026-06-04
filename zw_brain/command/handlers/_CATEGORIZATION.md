@@ -30,6 +30,7 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `approval.review_decide` | j1 | `review_request` | 6245 |
 | `application.dept_approve` | j1 | `handler_application_dept_approve` | j1-approval-conditional 两步第一步（部门审 + 补件重提） |
 | `application.platform_approve` | j1 | `handler_application_platform_approve` | j1-approval-conditional 两步第二步（平台复核） |
+| `application.escalate_national` | j1 | `handler_application_escalate_national` | j1/escalate.py（C6 国家直达转报，计算态不入主状态机） |
 | `approval.view` | j1 | `get_approval` | 3455 |
 | `backflow.confirm` | j1 | `confirm_backflow` | 6478 |
 | `catalog.browse` | j1 | `browse_catalog_entries` | 4420 |
@@ -155,6 +156,7 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `quality.task.run` | j2 | `run_quality_task` | 2335 |
 | `service.publish_or_suspend` | j2 | `publish_or_suspend_service` | 6985 |
 | `tenant.policy.evaluate` | j2 | `evaluate_tenant_policy` | 1379 |
+| `catalog.national_ext_elem.compile` | j2 | `handler_national_ext_elem_compile` | j2/national_ext_elem.py |
 | `topic.package.configure` | j2 | `configure_topic_package` | 1778 |
 | `topic.package.create` | j2 | `create_topic_package` | 1767 |
 | `topic.package.evidence.attach` | j2 | `attach_topic_package_evidence` | 1841 |
@@ -256,9 +258,9 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 
 ## 总计
 
-- J1: 95 caps
-- J2: 37 caps
+- J1: 96 caps
+- J2: 38 caps
 - B1: 42 caps
 - infra: 24 caps
 - 未归类: 0 caps
-- **合计：207 caps**
+- **合计：209 caps**

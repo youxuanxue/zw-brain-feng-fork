@@ -51,6 +51,33 @@ from zw_brain.shared.ui_request_context import get_current_role, set_current_rol
 _TERMINAL_NEGATIVE_APPLICATION_STATUSES = frozenset({"withdrawn", "rejected", "revoked"})
 
 
+def _national_channel_webui_state() -> dict[str, Any]:
+    """国家通道运行三态投影到 snapshot.webui（C5b / D50 §二运行门）。
+
+    单一事实源 = shared.national.resolve_national_channel_state（gate 与前端共用）。
+    前端用 enabled 决定 P5「国家扩展要素」入口是否渲染（off→不渲染，承「无权=不可见」），
+    用 provisioned 决定「发布/同步国家平台」按钮是否可用（未配置→置灰、草拟仍可）。
+    notice 用人话（R12，禁 flag/binding/provision/endpoint 工程术语）；不含任何密钥。
+    """
+    from zw_brain.shared.national import (  # noqa: PLC0415  (避免模块级反向依赖)
+        NationalChannelState,
+        resolve_national_channel_state,
+    )
+
+    state = resolve_national_channel_state()
+    notice = {
+        NationalChannelState.OFF: "国家通道未开启",
+        NationalChannelState.ON_UNPROVISIONED: "国家通道待配置接入信息",
+        NationalChannelState.ON_PROVISIONED: "国家通道已就绪",
+    }[state]
+    return {
+        "enabled": state is not NationalChannelState.OFF,
+        "provisioned": state is NationalChannelState.ON_PROVISIONED,
+        "status": state.value,
+        "notice": notice,
+    }
+
+
 def _expected_iaf_issuer() -> str:
     return _os.environ.get("ZW_BRAIN_IAF_ISSUER", "")
 
@@ -177,6 +204,7 @@ class BrainService:
             "identityLabel": _os.environ.get("ZW_BRAIN_WEBUI_IDENTITY_LABEL", "当前账号").strip() or "当前账号",
             "allowRoleSwitch": _allow_role_switch,
             "iafIam": {"configured": bool(_iaf_url), "developmentBypassEnabled": _dev_bypass},
+            "nationalChannel": _national_channel_webui_state(),
         }
         return state
 

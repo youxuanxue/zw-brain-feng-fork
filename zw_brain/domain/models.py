@@ -509,6 +509,110 @@ class AdapterRunRecord(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 
 
+class NationalResourceCredentialRecord(Base):
+    """国家资源网关凭据（对应真实库 dc_resource_api_auth_info「网关授权api资源信息表」）。
+
+    诚实纪律（承 D47/D50）：凭据由国家平台签发后才落；**未接入客户前绝不捏造**——
+    ``credential_status`` 默认字符串 ``"not_issued"``，``state_appkey`` / ``state_sid``
+    （国家平台返回的密钥/服务标识）默认 ``None``。本期无真实国家端点可联调，这些字段
+    保持空，是 honest-pending 的产品上限，不是 bug。
+
+    父聚合 = ``ApplicationRecord``：真实库 ``apply_id``（申请id，required）即资源申请单，
+    一个申请单可有多条资源 API 授权（一对多）。删申请单级联删凭据
+    （``ON DELETE CASCADE``，承 D48 参照完整性；干净库 drop&recreate 即带 FK，
+    边登记进 scripts/check_orphan_rows.py A 类）。
+    """
+
+    __tablename__ = "national_resource_credential"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    # 父聚合：apply_id（申请id）→ 资源申请单。删申请单级联删凭据。
+    application_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("application_record.id", ondelete="CASCADE"),
+        index=True,
+    )
+    # 国家端回执侧标识（up_apply_id，上报后国家平台回填）；未上报为空。
+    up_apply_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    # 网关/国家返回的请求路径（配置生成）；未配置为空。
+    gateway_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    state_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    # 凭据敏感字段（国家平台签发后才落）：未签发即 None，**绝不捏造**（承 D47）。
+    # 仅建模生命周期，运行期密钥经 env 注入、不落库 repr/日志/snapshot（D50 §二运行门）。
+    state_appkey: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    state_sid: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # not_issued（未签发，默认）/ issued（已授权）/ revoked（取消授权）。
+    credential_status: Mapped[str] = mapped_column(
+        String(32), default="not_issued", index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class NationalBasicElemCatalogRecord(Base):
+    """国家基本要素目录（对应真实库 data_basic_elem_catalog「基本要素目录表」，国家下发后本地导入）。
+
+    扩展要素编制（national-ext-elements 子旅程）的源：先导入基本要素目录，再编制扩展要素。
+    与政务目录主线（``catalog_entry`` / ``catalog_item``）**完全分离**——这是另一套表、
+    另一套状态机（D50 §三硬约束 + national-ext-elements.feature 场景4）。
+    """
+
+    __tablename__ = "national_basic_elem_catalog"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    # cata_id：基本要素目录ID（国家下发）；version：处理多次导入（真实库复合自然键）。
+    cata_id: Mapped[str] = mapped_column(String(64), index=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    cata_title: Mapped[str] = mapped_column(String(256))
+    category_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    domain_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    level: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    imported_by_org_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class NationalExtElemCompileTaskRecord(Base):
+    """国家扩展要素目录编制任务（对应真实库 data_ext_elem_catalog_compile_task）。
+
+    **硬约束（D50 §三 + 场景4）**：自有编制状态机，与 ``catalog_entry`` 政务目录主线
+    **完全独立**——绝不复用/写入政务目录表。``compile_status`` 取真实「目录编制」页
+    生命周期枚举（草稿→待业务部门审核→待主管部门审核→已发布；历史目录处理=变更/撤销），
+    由 ``national_ext_elem_walker`` 驱动；2 级审核复用 approval_flow_walker。
+
+    父聚合 = ``NationalBasicElemCatalogRecord``（basic_elem_catalog_id，真实库 required=false
+    故 nullable）：删基本要素目录级联删其编制任务（``ON DELETE CASCADE``，承 D48；
+    边登记进 check_orphan_rows.py A 类，NULL 子列视为不引用、不算孤儿）。
+    """
+
+    __tablename__ = "national_ext_elem_compile_task"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    # 编制目录业务码（如 C_NAT_001），租户内唯一标识一条编制任务。
+    task_code: Mapped[str] = mapped_column(String(64), index=True)
+    title: Mapped[str] = mapped_column(String(256))
+    # 父：关联的基本要素目录（国家下发后导入）。nullable（真实库 required=false）。
+    basic_elem_catalog_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("national_basic_elem_catalog.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    # 编制生命周期态（national_ext_elem_walker 单一事实源；独立于 data_catalog 主线）。
+    compile_status: Mapped[str] = mapped_column(String(48), default="draft", index=True)
+    task_create_organ_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    task_receiver_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # 2 级审核当前步（1=业务部门 / 2=主管部门）；draft/published 态为空。
+    current_review_step: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    payload_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
 class ApplicationRecord(Base):
     __tablename__ = "application_record"
 

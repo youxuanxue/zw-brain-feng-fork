@@ -1,0 +1,18 @@
+scope: national-platform-access
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-04
+kind: 双签
+evidence: >-
+  PR #204 / docs/decisions/national-platform-access-D50.md /
+  .testing/acceptance/national-platform-access/evidence.json /
+  负责人 2026-06-04 本地真 UI 走查通过（:8801 flag-on 真栈）：P5 国家扩展要素（MANAGER 入口可见/OPERATER 不渲染/未配置发布置灰草拟可达/诚实「待配置接入信息」）+
+  P3 国家通道（BUSIAUDIT tab 可见/OPERATER 不渲染/C9 待转报单 A_7001 可见/点「审核通过+转报国家平台」→「国家通道转报中」诚实 pending 不伪造回流）；
+  national e2e 真实 Chromium 4 passed + national pytest 全绿 + CI #204 5/5 SUCCESS。
+decision_only: false
+covers:
+  - .testing/waves/wave-3-protocol-tenant-national/features/national-direct.feature
+  - .testing/waves/wave-3-protocol-tenant-national/features/national-ext-elements.feature
+# 双签 = D50 GATE 决策签字（反转基线 §10.4「国家通道本期不实施」立项启用，D28）+ 效果验收。
+# 诚实边界（接受为本期交付上限，记 docs/preflight-debt.md）：国家平台外部依赖、本期无真实端点联调 →
+# 已配置时只记意图+「待国家平台回执」、不伪造回流；C9 待转报队列真实库基数=0（legacy 无国家级标记）、
+# 走查用 seed 样例 A_7001 验链路，上游补标记/客户上线接真数据另立项。

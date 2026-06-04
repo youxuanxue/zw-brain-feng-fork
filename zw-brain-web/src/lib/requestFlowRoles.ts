@@ -47,3 +47,19 @@ export function canReviewCatalogDept(role: string): boolean {
 export function canReviewCatalogPlatform(role: string): boolean {
   return (CATALOG_PLATFORM_REVIEWER_ROLES as readonly string[]).includes(role);
 }
+
+/** C5（D50）国家扩展要素编制：部门管理员编制 + 业务运营员主管审核（与后端 policy
+ *  catalog.national_ext_elem.compile.execute 对齐）。flag 门另由 snapshot.webui.nationalChannel.enabled 把守。 */
+export const NATIONAL_EXT_ELEM_ROLES = ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'] as const;
+
+export function canCompileNationalExtElem(role: string): boolean {
+  return (NATIONAL_EXT_ELEM_ROLES as readonly string[]).includes(role);
+}
+
+/** C6（D50）国家直达转报：仅业务运营员可见「国家通道」tab + 办转报（与后端 policy
+ *  application.escalate_national.execute 对齐）。flag 门另由 snapshot.webui.nationalChannel.enabled 把守。 */
+export const NATIONAL_DIRECT_ROLES = ['ROLE_BUSIAUDIT'] as const;
+
+export function canViewNationalChannel(role: string): boolean {
+  return (NATIONAL_DIRECT_ROLES as readonly string[]).includes(role);
+}

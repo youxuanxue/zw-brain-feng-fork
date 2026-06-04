@@ -6,8 +6,7 @@
 # Trace: 基线 §3.3 双轨编制, §10.4 国家扩展要素 (P2), §5.6 #9
 # Priority: P2
 # Owner: e6
-# Pytest: pending
-# Deferred: 触发=Wave 3 国家扩展要素双轨编制立项（§3.3/§10.4）。同 national 对接线，依赖国家平台扩展要素契约，待 Wave 3 现实，当前不实装独立子旅程页
+# Pytest: tests/test_national_ext_elem.py + tests/test_national_channel_webui_snapshot.py + tests/e2e/national_channel.spec.ts
 
 Feature: 国家扩展要素目录编制独立子旅程
   As a 部门管理员 / 业务运营员

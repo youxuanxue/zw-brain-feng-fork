@@ -8,12 +8,12 @@
 见 design §六.1 + §2.5：
 
   1. **孤儿扫描（枚举边）**：对 A/B/C 三类登记的父子边逐条 `NOT EXISTS` 扫孤儿子行。
-     - A 类 12 + B 类 5（复合）= 17 条已建 FK + CASCADE（M1），DB 已兜底；本守卫
-       仍扫作回潮哨兵（FK 被摘也能查出孤儿）。
+     - A 类 14 + B 类 5（复合）= 19 条已建 FK + CASCADE（M1 + D50/C2 + D50/C5），DB 已兜底；
+       本守卫仍扫作回潮哨兵（FK 被摘也能查出孤儿）。
      - C 类 9 条边无 FK（M2 honest 降级，父写子时不保证存在，见 design §2.5），
        **本守卫是其唯一参照完整性兜底**。
      - 任一边孤儿 > 0 → FAIL。
-  2. **FK 回潮断言**：`Base.metadata` 的 FK 列数须 ≥ 已落地边数（22 = A12 + B5×2 复合），
+  2. **FK 回潮断言**：`Base.metadata` 的 FK 列数须 ≥ 已落地边数（24 = A14 + B5×2 复合），
      防 FK 被悄摘退回字符串引用（设计 §六.2）。
   3. **catalog_entry 可达性**：`topic_package_item(ref_type=catalog_entry)` 的 `ref_id`
      须都在 `catalog_entry`（按 tenant_id+catalog_code）命中；悬挂引用 → FAIL（§六.3）。
@@ -61,6 +61,11 @@ A_CLASS_EDGES: list[tuple[str, str, str, str]] = [
     ("approval_flow_selection_rule", "schema_id", "approval_flow_schema", "id"),
     ("approval_flow_branch", "schema_id", "approval_flow_schema", "id"),
     ("recommendation_rule_clause", "rule_id", "recommendation_rule", "id"),
+    # 国家通道（D50/C2）：资源网关凭据 → 资源申请单（apply_id 真实语义），删父级联删凭据。
+    ("national_resource_credential", "application_id", "application_record", "id"),
+    # 国家扩展要素（D50/C5）：编制任务 → 基本要素目录，删基本要素目录级联删编制任务。
+    # basic_elem_catalog_id nullable（真实库 required=false），NULL 子列视为不引用、不算孤儿。
+    ("national_ext_elem_compile_task", "basic_elem_catalog_id", "national_basic_elem_catalog", "id"),
 ]
 
 # B 类 5 条复合边：子.(tenant_id,package_code) → topic_package.(tenant_id,package_code)
@@ -105,8 +110,10 @@ C_CLASS_EDGES: list[tuple] = [
     ("delivery_subscription", "resource_code", "resource_asset", "resource_code"),
 ]
 
-# 已落地 FK 列数下限（A 类 12 单列 + B 类 5 复合×2 列 = 22）。
-FK_FLOOR = 22
+# 已落地 FK 列数下限（A 类 14 单列 + B 类 5 复合×2 列 = 24）。
+# （A 类含国家通道 national_resource_credential.application_id D50/C2 +
+#  national_ext_elem_compile_task.basic_elem_catalog_id D50/C5。）
+FK_FLOOR = 24
 
 
 def _orphan_count_single(
@@ -263,7 +270,7 @@ def main() -> int:
     if not fk_ok:
         violations.append(
             f"FK 回潮: metadata FK 列数 {fk_n} < 下限 {FK_FLOOR}"
-            "（A 类 12 + B 类复合 10）—— FK 被摘除，参照完整性退化"
+            "（A 类 14 + B 类复合 10）—— FK 被摘除，参照完整性退化"
         )
     elif args.verbose:
         print(f"  ok: FK 列数 {fk_n} ≥ {FK_FLOOR}")

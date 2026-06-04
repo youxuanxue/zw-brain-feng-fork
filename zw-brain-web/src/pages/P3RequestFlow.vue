@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
-import { useRequests, useApprovals, useSnapshot } from '@/composables/useSnapshot';
+import { useRequests, useApprovals, useSnapshot, useWebUiConfig } from '@/composables/useSnapshot';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
 import type { StructuredAction } from '@/composables/useNLAccelerator';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
-import { canReviewRequests, canPlatformReviewRequests } from '@/lib/requestFlowRoles';
+import { canReviewRequests, canPlatformReviewRequests, canViewNationalChannel } from '@/lib/requestFlowRoles';
 
 const NL_PRESETS_P3 = ['我待审的有几条', '催办昨天提交的申请', '驳回所有 30 天未跟进'];
 
@@ -25,6 +25,36 @@ const { source } = useSnapshot();
 const role = getProductRole();
 const isReviewer = computed(() => canReviewRequests(role.value));
 const isPlatformReviewer = computed(() => canPlatformReviewRequests(role.value));
+
+// 国家直达转报：「国家通道」tab 仅 BUSIAUDIT 可见 ∧ flag 门
+// （snapshot.webui.nationalChannel.enabled）。两者任一不满足 → tab 入口完全不渲染（承「无权=不可见」）。
+const webui = useWebUiConfig();
+const nationalChannel = computed(
+  () => (webui.value.nationalChannel as Record<string, unknown> | undefined) ?? {},
+);
+const nationalChannelEnabled = computed(() => nationalChannel.value.enabled === true);
+const nationalProvisioned = computed(() => nationalChannel.value.provisioned === true);
+const nationalNotice = computed(() => String(nationalChannel.value.notice ?? '国家通道待配置接入信息'));
+const showNationalTab = computed(() => canViewNationalChannel(role.value) && nationalChannelEnabled.value);
+const activeTab = ref<'main' | 'national'>('main');
+
+// 转报后就地显示计算态 overlay（不污染主 status；后端不持久化主状态，本期诚实「待回执」）。
+const escalateStageById = ref<Record<string, string>>({});
+
+async function escalateToNational(id: string) {
+  const result = await invokeActionStub({
+    skillId: 'application.escalate_national',
+    payload: { application_code: id, action: 'escalate' },
+    successTitle: '已转报国家平台，待回执',
+  });
+  if (!result.ok) return;
+  const data = (result.data ?? {}) as Record<string, unknown>;
+  const inner = (data.result ?? data) as Record<string, unknown>;
+  escalateStageById.value = {
+    ...escalateStageById.value,
+    [id]: String(inner.display_status ?? '国家通道转报中'),
+  };
+}
 
 const requestStatusById = computed(() => {
   const map = new Map<string, string>();
@@ -93,6 +123,33 @@ const platformReviewItems = computed(() => {
     .filter((row) => row.status.trim().toLowerCase() === 'dept_approved');
 });
 
+// 国家通道「待转报」队列（C9）：请求国家级数据(channelClass==='national')且已到本级
+// 审核通过(dept_approved)、可由业务运营员转报国家平台的申请。**不是** own-items——
+// 业务运营员转报的是「别人请求国家级数据」的待办，不是自己在途申请。
+//
+// 口径 = requests ∩ channelClass==='national' ∩ status==='dept_approved'。直接遍历
+// requests（卡片自带 channelClass + status，record→card 透自 payload_json["channel_class"]/
+// status），不经 approvals 卡——approvals 由 approval_case 表现算投影，legacy apply 记录
+// 通常无对应 approval_case，故待转报队列以 requests 为单一事实源。深层口径/缺口见
+// commit landing-note 与 docs/preflight-debt.md C9 条。
+const nationalEscalateItems = computed(() => {
+  return requests.value
+    .map((r) => {
+      const it = r as Record<string, unknown>;
+      return {
+        id: String(it.id ?? ''),
+        resource: String(it.resourceName ?? it.resource_id ?? '—'),
+        purpose: String(it.purpose ?? it.title ?? '—'),
+        status: String(it.status ?? ''),
+        channelClass: String(it.channelClass ?? 'internal'),
+      };
+    })
+    .filter(
+      (row) =>
+        row.channelClass === 'national' && row.status.trim().toLowerCase() === 'dept_approved',
+    );
+});
+
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
   if (isPlatformReviewer.value) {
@@ -155,6 +212,18 @@ async function quickResubmit(id: string) {
         </template>
       </PageFocusHeader>
 
+      <nav v-if="showNationalTab" class="channel-tabs" aria-label="申请分类">
+        <button
+          type="button" class="channel-tab" :class="{ active: activeTab === 'main' }"
+          data-testid="p3-tab-main" @click="activeTab = 'main'"
+        >主流程</button>
+        <button
+          type="button" class="channel-tab" :class="{ active: activeTab === 'national' }"
+          data-testid="p3-tab-national" @click="activeTab = 'national'"
+        >国家通道</button>
+      </nav>
+
+      <div v-show="!showNationalTab || activeTab === 'main'">
       <template v-if="isPlatformReviewer">
         <table v-if="source === 'live' && platformReviewItems.length" class="focus-table">
           <thead>
@@ -234,6 +303,36 @@ async function quickResubmit(id: string) {
         <p v-else-if="source === 'live'" class="focus-empty">暂无在途申请。</p>
         <p v-else class="focus-empty">等待数据装载……</p>
       </template>
+      </div>
+
+      <div v-if="showNationalTab" v-show="activeTab === 'national'" class="national-pane" data-testid="p3-national-pane">
+        <p class="national-notice" :class="{ pending: !nationalProvisioned }">{{ nationalNotice }}</p>
+        <table v-if="source === 'live' && nationalEscalateItems.length" class="focus-table">
+          <thead>
+            <tr><th>申请编号</th><th>资源</th><th>用途</th><th>国家通道</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="it in nationalEscalateItems" :key="it.id">
+              <td><code>{{ it.id }}</code></td>
+              <td>{{ it.resource || '—' }}</td>
+              <td>{{ it.purpose || '—' }}</td>
+              <td>
+                <span v-if="escalateStageById[it.id]" class="status-pill warn">{{ escalateStageById[it.id] }}</span>
+                <span v-else class="muted">待转报</span>
+              </td>
+              <td class="table-actions">
+                <button
+                  type="button" class="gov-btn gov-btn-primary"
+                  data-testid="p3-escalate-btn"
+                  @click="escalateToNational(it.id)"
+                >审核通过 + 转报国家平台</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-else-if="source === 'live'" class="focus-empty">暂无待转报的国家级申请。</p>
+        <p v-else class="focus-empty">等待数据装载……</p>
+      </div>
     </section>
   </main>
 </template>
@@ -244,4 +343,11 @@ async function quickResubmit(id: string) {
 .gov-btn-secondary { background: #fff; border-color: var(--b-border, #d4e2f4); }
 .row-link { color: var(--b-primary, #006be6); font-size: 13px; text-decoration: none; font-weight: 500; }
 .row-link:hover { text-decoration: underline; }
+.channel-tabs { display: flex; gap: 6px; margin: 4px 0 12px; border-bottom: 1px solid var(--b-border, #d4e2f4); }
+.channel-tab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 6px 14px; cursor: pointer; font-size: 13px; color: var(--b-muted, #5c6370); }
+.channel-tab.active { color: var(--b-primary, #006be6); border-bottom-color: var(--b-primary, #006be6); font-weight: 600; }
+.national-notice { font-size: 13px; padding: 8px 12px; border-radius: 6px; background: #eef4fb; color: var(--b-primary, #006be6); margin: 0 0 12px; }
+.national-notice.pending { background: #fff7e0; color: #8a6d00; }
+.status-pill.warn { background: #fff7e0; color: #8a6d00; }
+.muted { color: var(--b-muted, #9aa0a6); font-size: 12px; }
 </style>

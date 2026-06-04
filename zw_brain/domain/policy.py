@@ -279,6 +279,10 @@ PERMISSION_ROLES = {
     "adapter.national.delivery.receipt.sync.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "adapter.national.objection.sync.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "adapter.national.topic.report.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # 国家扩展要素编制（D50/C5，J2 子旅程）：部门管理员编制 + 业务运营员主管审核（SPEC 角色）。
+    "catalog.national_ext_elem.compile.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    # 国家直达转报（D50/C6，J1 子旅程）：仅业务运营员转报本级申请到国家平台（SPEC 角色）。
+    "application.escalate_national.execute": {"ROLE_BUSIAUDIT"},
 
     # adapter 级联消费
     "adapter.cascade.consume.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},

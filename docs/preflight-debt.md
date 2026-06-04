@@ -675,7 +675,7 @@ trigger 关闭即可删除字段。
 
 - **Status (2026-05-25 更新)**: 不再是 "0% 实现 / deferred"。三引擎已在 **PR #92** 落地：检索
   `zw_brain/capability_registry/registered/` 现有 10 个三引擎 capability（`approval_flow.*` 4 +
-  `form_schema.*` 4 + `recommendation.*` 2；总 manifest <!-- stat:zwbrain.manifest-total -->237<!-- /stat -->）。`config_change_class` preview/draft
+  `form_schema.*` 4 + `recommendation.*` 2；总 manifest <!-- stat:zwbrain.manifest-total -->238<!-- /stat -->）。`config_change_class` preview/draft
   流已激活（当前 preview 2 / draft 4）。
 - **What remains**: 代码侧已交付；**未完成的是 T1 真实客户演练验证**——用三引擎在 ≤1 周内不改代码
   完成"鞍山 4 级审批 + 四川 7 字段表单 + 荆州 5 条推荐规则"项目级定制，由业务方 sign-off。
@@ -821,3 +821,67 @@ trigger 关闭即可删除字段。
   （warmup + p50 + 带余量预算或迁出门禁）。
 - **No mechanical preflight check (now)**: 负载敏感阈值本身无法机械区分"瞬态尖刺"与"真回归"；
   需人工或 CI 趋势观察，不强行脚本化（避免 `|| true` 类伪绿）。
+
+## 2026-06-03 — national-platform-access HONESTLY-PENDING（D50 / C7；国家平台外部依赖）
+
+> 国家通道两条子旅程（national-direct 转报 / national-ext-elements 编制）工程已落地（C1-C6，
+> flag 默认 off、per-tenant 启用）。国家平台是**外部依赖**，本期无真实端点/凭据可联调——以下
+> 为诚实上限，绝不伪造回流（承 D50 §四 + D11 桩≠业务 mock）。两条 feature 现态 = **InTest**
+> （有测试∧未签），等产品研发负责人本地真 UI 走查后签字转 Done。
+
+- **Where**: `zw_brain/shared/national/`（client/gate）、`zw_brain/command/handlers/{infra/national_channel_gate,j1/escalate,j2/national_ext_elem}.py`、
+  `zw_brain/capability_registry/registered/{adapter.national.*,catalog.national_ext_elem.compile,application.escalate_national}.json`。
+- **Implication / 诚实上限**:
+  1. **无真实国家端点可联调** → 已配置（provisioned）时对外只记意图 + 「待国家平台回执」；
+     真实回流（A_7001 转报中 → 6 已授权 / 3 驳回）与回执对账**本期无法验证**，绝不伪造。
+  2. **凭据基数/生命周期 + sid↔接口 NAME 映射** = 客户上线时由国家平台下发配置
+     （接口规范 v0.55 附录C：rid/appkey/appsecret/每接口 sid/接口 NAME），本期 `not_issued`、不捏造。
+  3. **flag-off→入口不渲染** 面由单测覆盖（`tests/test_national_channel_webui_snapshot.py` 三态 +
+     `tests/test_page_access.py` 路由角色门）；真实 UI e2e（`tests/e2e/national_channel.spec.ts`）
+     跑的是 **flag-on 角色门面**（BUSIAUDIT 可见 / OPERATER toHaveCount(0) / 未配置发布置灰），不假装跑了 flag-off。
+- **签字账本本轮未落**: `.testing/signoff/` schema 禁空签（signed_by 必填非空），故本轮**不落** national-platform-access
+  签字账本——待产品研发负责人**本地真 WebUI 走查**后按 D35/D37 模板签字（覆盖两条 feature）。
+  工程证据已落 `.testing/acceptance/national-platform-access/evidence.json`（真实 UI e2e 3 passed + 后端单测真绿）。
+- **测量未全量重采（D46.f e2e 环境债）**: worktree 薄 seed 下全量 `capture_feature_status.py --with-e2e`
+  会让大量 real-data 单测/e2e 假失败（非本任务回归），故未 bulk 重采 shared 测量产物；national e2e
+  已在本机 flag-on 全栈**真跑真绿**（证据见 evidence.json）。两条 feature 经 refs 现算为 InTest，不依赖该测量。
+- **10 adapter standalone live 注册=future external-bridge 工作**（C8 修订 2026-06-03）: 国家出站已
+  收口到 `escalate(j1)`/`compile(j2)` handler 经 `national_channel_gate` + `NationalDirectClient`，
+  10 个 `adapter.national.*` 保持 `deferred:wave-3` scaffolding（仍在 `_PASSTHROUGH_CAPS`，
+  `require_surface()` 拒非 live、不可外呼、无害）。把它们注册为 standalone live 需 binding
+  `external_capability`（§1.3 禁 `adapter.national.* live && builtin`），但 external_capability 是严格
+  契约（`compatibility==[]`/非 surface/`callback_only`/`failure_callback`/external_execution），10 adapter
+  不满足 → 误配破 `test_contract_projection` 契约投影守卫（C4 曾误配致 CI 红，C8 回退）。standalone
+  external-bridge 注册留作 future（届时让 10 adapter 满足 external_capability 契约或新增 bridge binding 类型）。
+- **Why deferred**: 国家平台端点/凭据是客户上线期外部输入，非本期可控；伪造回流违背 D50 诚实脊柱。
+- **Trigger to re-evaluate**: (a) 客户上线下发真实接入凭据 → 配 env 后 provisioned 真实联调，验回流对账 +
+  补真实回流 e2e；(b) 产品研发负责人真 UI 走查通过 → 落 `.testing/signoff/national-platform-access.signoff.yaml`
+  + docs/acceptance 效果验收包，两条 feature 转 Done。
+
+## 2026-06-04 — C9 国家通道「待转报队列」取数口径（national-direct；HONESTLY-PARTIAL）
+
+> 负责人本地真 UI 走查发现 P3「国家通道」pane 原列的是用户自己在途申请（own-items）→
+> 业务运营员自己 items 通常空、转报入口点不到单。C9 修取数口径：待转报队列 = 请求
+> 国家级数据(channel_class=='national')且本级审核通过(dept_approved)的申请，不是 own-items。
+
+- **Where**: `zw-brain-web/src/pages/P3RequestFlow.vue`(`nationalEscalateItems`)、
+  `zw_brain/domain/discovery_snapshot_projection.py`(`_record_to_request_card` 透 `channelClass`)、
+  `zw_brain/domain/services/application_service.py`(`record_to_request` 同透，详情页一致)、
+  `scripts/seed_national_escalate_fixture.py`(e2e 造数)。
+- **最终口径**: requests ∩ `channelClass==='national'` ∩ `status==='dept_approved'`。直接遍历
+  requests（卡片自带 channelClass+status），**不经 approvals 卡**——approvals 由 `approval_case`
+  表现算投影，legacy apply 记录通常无对应 approval_case，故以 requests 为待转报队列单一事实源。
+- **诚实上限 / 残留缺口**:
+  1. **national 信号来源**: `channel_class` 存于 `application_record.payload_json["channel_class"]`
+     （supply_demand §scenario 5 占位口径）。真实旧平台导入的 apply 记录**当前无该字段**
+     （legacy 无「请求国家级数据」标记位）→ 真库里 national 待转报单基数 = 0，待上游补「国家级
+     数据请求」语义标记或客户上线据真实流程产生。本期 e2e 经 seed 注入确定性样例验证链路可点通。
+  2. **dept_approved↔channel=national 组合无法经 in-memory request API 造出**（`_create_request`
+     写内存快照非 DB；`dept_approve` 要 DB 记录在 submitted→dept_approved）→ e2e 直接 upsert DB
+     apply 记录（`scripts/seed_national_escalate_fixture.py`），honest 造数、非业务 mock。
+  3. 转报动作沿用 C6 `application.escalate_national`：未配置(provisioned=false)下诚实 pending
+     「国家通道转报中」计算态 overlay，不污染主 status、不伪造回流（承 D50）。
+- **No mechanical check**: 「上游补 national 标记」属外部数据语义，非本期可机械门禁；e2e 经 seed
+  覆盖前端取数口径正确性即可，真实基数缺口由 trigger 触发。
+- **Trigger to re-evaluate**: 上游（旧平台/客户）补「请求国家级数据」标记位，或国家平台上线后据真实
+  转报流程产生 channel_class=national 申请 → 去 seed、真库直接出待转报单。

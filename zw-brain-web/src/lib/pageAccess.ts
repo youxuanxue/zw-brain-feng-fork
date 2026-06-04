@@ -53,6 +53,9 @@ export const ROUTE_ROLE_OVERRIDES: ReadonlyArray<{
   { prefix: '/provider/inbox/hookup-review', roles: ['ROLE_BUSIAUDIT'] },
   // 异议响应（pages/P5ObjectionDetail.vue → role: ROLE_ORGAN_MANAGER）
   { prefix: '/provider/inbox/objection', roles: ['ROLE_ORGAN_MANAGER'] },
+  // C5（D50）国家扩展要素编制（pages/P5NationalExtElem.vue → canCompileNationalExtElem）。
+  // 角色门：MANAGER+BUSIAUDIT；flag 门（snapshot.webui.nationalChannel.enabled）在 hub/页内另把守。
+  { prefix: '/provider/national-ext-elem', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'] },
 ];
 
 function _matchOverride(
@@ -132,6 +135,10 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   'service.publish_or_suspend': ['ROLE_ORGAN_MANAGER'],
   // P2ResourceDetail 字段数据模型（只读）— metadata.schema.query.execute
   'metadata.schema.query': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+  // C5（D50）P5 国家扩展要素编制 — 与后端 policy catalog.national_ext_elem.compile.execute set-equal。
+  'catalog.national_ext_elem.compile': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
+  // C6（D50）P3 国家直达转报 — 与后端 policy application.escalate_national.execute set-equal。
+  'application.escalate_national': ['ROLE_BUSIAUDIT'],
 };
 
 export function canPerformAction(action: keyof typeof ACTION_ROLE_GATES | string, role: string): boolean {

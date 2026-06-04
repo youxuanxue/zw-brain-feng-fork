@@ -1,0 +1,61 @@
+{
+    "scope": "national-platform-access",
+    "deliverable": "C1-C7 国家数据平台接入（national-direct 转报 + national-ext-elements 编制两条独立子旅程）；flag 默认 off、未配置即诚实 pending（非 404）、已配置只记意图+待回执不伪造回流；凭据 not_issued 不捏造；协议桩≠业务数据 mock",
+    "git_sha": "be18e6b",
+    "captured_at": "2026-06-04T08:15:00Z",
+    "captured_by": "Claude Opus 4.8 worker（工程证据；效果验收待产品研发负责人本地真 UI 走查后签字）",
+    "note": "本产物为**工程证据**（真实 UI Playwright + 后端单测真跑真绿）。效果验收（D37 业务签字）与 signoff 账本本轮**未落**——须产品研发负责人真 UI 走查后签字（见 docs/preflight-debt.md national-platform-access 条）。两条 feature 现态=InTest（有测试∧未签）。",
+    "checks": [
+        {
+            "name": "国家通道真实 UI e2e（角色门 + flag 门 + 未配置发布置灰）",
+            "kind": "e2e",
+            "result": "pass",
+            "detail": "tests/e2e/national_channel.spec.ts 真实 Chromium 3 passed（flag-on 栈 ZW_BRAIN_NATIONAL_CHANNEL_ENABLED=1 provisioned=false）：P3 国家通道 tab BUSIAUDIT 可见/OPERATER toHaveCount(0)；P5 国家扩展要素入口 MANAGER 可见/OPERATER 0；未配置下经真实 UI 新建草稿→提交→业务审核→主管发布按钮 toBeDisabled（草拟可用）"
+        },
+        {
+            "name": "national-direct 后端（escalate 计算态不污染 J1 + gate 三态）",
+            "kind": "pytest",
+            "result": "pass",
+            "detail": "tests/test_national_escalate.py + tests/test_national_channel_gate.py 全绿（escalate 不写 application 聚合 AST 守 / 计算态不入主状态机 / off→pending 非 404 / provisioned+协议桩→真实出站 4 签名头）"
+        },
+        {
+            "name": "national-ext-elements 后端（独立状态机 + 双轨硬隔离 + 2 级审核复用）",
+            "kind": "pytest",
+            "result": "pass",
+            "detail": "tests/test_national_ext_elem.py + tests/test_national_channel_webui_snapshot.py 全绿（编制态机/复用 approval_flow_walker/场景4 负向不写 data_catalog/snapshot.webui 三态）"
+        },
+        {
+            "name": "5 消费面投影一致 + 能力边界 + 参照完整性",
+            "kind": "contract",
+            "result": "pass",
+            "detail": "段22 边界(238 manifests 0 live+builtin)/段28(223 cap 三处一致)/段29(投影同步)/段52(净新增漂移=0)/段67(孤儿=0 FK 24)全绿"
+        },
+        {
+            "name": "产品研发负责人本地真 UI 走查 + 签字（双签：D50 决策 + 效果验收）",
+            "kind": "manual-walkthrough",
+            "result": "pass",
+            "detail": "2026-06-04 :8801 flag-on 走查；两 feature 测量绿(e2e 4 passed)+双签→Done"
+        }
+    ],
+    "honest_boundary": {
+        "real": [
+            "协议合规 client（envelope/HMAC-SHA256 签名/返回码域枚举）真跑",
+            "未配置即静默 pending（非 404）、记意图不出站",
+            "两套独立状态机 + 双轨硬隔离负向守",
+            "5 消费面投影 + 角色/flag 不可见性真实 UI 验证"
+        ],
+        "honestly_pending": [
+            "无真实国家平台端点可联调 → 已配置时只记意图+待回执、回流对账未验证、不伪造回流",
+            "每资源凭据基数/生命周期 + sid↔接口 NAME 映射 = 客户上线时配置，本期无法验证",
+            "flag-off→入口不渲染 面由 test_national_channel_webui_snapshot/test_page_access 单测覆盖（e2e 跑的是 flag-on 角色门面）",
+            "shared 测量产物未在 worktree 薄 seed 下全量重采（D46.f e2e 环境债）；national e2e 已本地真跑真绿（本产物）"
+        ]
+    },
+    "signoff": {
+        "signed_by": "薛娇（产品研发负责人）",
+        "date": "2026-06-04",
+        "kind": "双签",
+        "ledger": ".testing/signoff/national-platform-access.signoff.yaml",
+        "walkthrough": "本地 :8801 flag-on 真栈真 UI 走查通过：P5 国家扩展要素 + P3 国家通道 A_7001 待转报单 + 转报「国家通道转报中」诚实 pending + 角色/flag 不可见性；national e2e 4 passed"
+    }
+}

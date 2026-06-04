@@ -3164,6 +3164,64 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "application.escalate_national",
+    "description": "业务运营员把本级已审核通过的申请转报到国家平台（国家直达子旅程）。打应用层计算态「国家通道转报中」并经国家通道适配出站，不污染 J1 主状态枚举。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/application.escalate_national",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "application_code": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmed",
+        "application_code"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "adapter_receipt"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "application.escalate_national.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "application.grant.approve",
     "description": "审批授权、收回授权或频次变更，审批通过后才能形成授权快照。",
     "protocol_type": "builtin_skill",
@@ -5043,6 +5101,63 @@
       ],
       "permissions": [
         "catalog.model.upsert.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "catalog.national_ext_elem.compile",
+    "description": "国家扩展要素目录编制（Wave 3 — 国家扩展元素同步落地后开放）。本期仅占 IA 占位 + manifest deferred，无 handler / 无 dispatch / 不投影到任何 surface。详见架构基线 §3.4 业务流 #9 与 §9.2 CatalogModel 双轨编制。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/catalog.national_ext_elem.compile",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "catalog_code": {
+          "type": "string"
+        },
+        "compile_task_code": {
+          "type": "string"
+        },
+        "ext_elem_payload": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "catalog-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "catalog.national_ext_elem.compile.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",

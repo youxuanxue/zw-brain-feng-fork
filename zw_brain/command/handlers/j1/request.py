@@ -193,6 +193,9 @@ def _create_request(
             },
             "expectedBy": (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"),
             "status": "pending",
+            # 国家通道指示（C9）：申请方声明请求国家级数据时透传 channel_class=national，
+            # 供 P3 国家通道 tab 据此筛「待转报」队列；缺省 internal（本省内共享）。
+            "channelClass": str(options.get("channel_class") or "internal"),
             "submittedAt": clock.now_datetime(),
             "auditId": audit_id,
             "chainAnchor": "pending",

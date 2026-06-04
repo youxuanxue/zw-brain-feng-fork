@@ -64,6 +64,7 @@ from zw_brain.command.handlers.j1 import (
     delivery,
     delivery_explain,
     direct_access,
+    escalate,
     governance_dispute,
     objection,
     provider,
@@ -81,6 +82,7 @@ from zw_brain.command.handlers.j2 import (
     duplicate_check,
     governance,
     metadata,
+    national_ext_elem,
     quality,
     service_lifecycle,
     tenant_policy,
@@ -173,6 +175,8 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "zone.publish_topic_projection": zone.handler_zone_publish_topic_projection,
     # turn 4: J2 — tenant_policy (1 cap)
     "tenant.policy.evaluate": tenant_policy.handler_tenant_policy_evaluate,
+    # C5 (D50): J2 — 国家扩展要素编制（1 cap，独立于 data_catalog；C5b 立项 live）
+    "catalog.national_ext_elem.compile": national_ext_elem.handler_national_ext_elem_compile,
     # turn 4: J2 — service_lifecycle (1 cap)
     "service.publish_or_suspend": service_lifecycle.handler_service_publish_or_suspend,
     # turn 5: B1 — projection (2 cap)
@@ -289,6 +293,8 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "delivery.list": delivery.handler_delivery_list,
     # F8: J1 P4 状态解释助手（减摩组件，走 shared/inference/client + 三层降级）
     "delivery.status.explain": delivery_explain.handler_delivery_status_explain,
+    # C6 (D50): J1 — 国家直达转报（1 cap，计算态不污染 J1 主状态枚举）
+    "application.escalate_national": escalate.handler_application_escalate_national,
     # turn 6: J1 — direct_access (2 cap)
     "direct_access.catalog.query": direct_access.handler_direct_access_catalog_query,
     "direct_access.delivery.list": direct_access.handler_direct_access_delivery_list,

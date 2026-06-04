@@ -6,8 +6,7 @@
 # Trace: 基线 §3.2 数据直达 36 页, §10.4 国家数据直达独立子旅程 (P2), §5.6 #8
 # Priority: P2
 # Owner: e6
-# Pytest: pending
-# Deferred: 触发=Wave 3 国家平台对接立项（数据直达子旅程，§3.2/§10.4）。adapter.national.* 整条线 deferred:wave-3（当前 passthrough record-only 无真实 I/O），待国家平台对接现实，规模前不实装独立子旅程页
+# Pytest: tests/test_national_escalate.py + tests/test_national_channel_gate.py + tests/e2e/national_channel.spec.ts
 
 Feature: 国家数据直达独立子旅程
   As a 业务运营员 ROLE_BUSIAUDIT

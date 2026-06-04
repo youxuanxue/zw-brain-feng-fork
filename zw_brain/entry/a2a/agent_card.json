@@ -938,6 +938,22 @@
       ]
     },
     {
+      "id": "application.escalate_national",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "adapter-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "adapter_receipt"
+      ]
+    },
+    {
       "id": "application.grant.approve",
       "mode": "write",
       "humanConfirmationRequired": true,
@@ -1471,6 +1487,22 @@
         "audit",
         "db_write",
         "blockchain_anchor"
+      ]
+    },
+    {
+      "id": "catalog.national_ext_elem.compile",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "catalog-write",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
       ]
     },
     {

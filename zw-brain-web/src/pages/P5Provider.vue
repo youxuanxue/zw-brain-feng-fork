@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
-import { useProvider, useSnapshot } from '@/composables/useSnapshot';
+import { useProvider, useSnapshot, useWebUiConfig } from '@/composables/useSnapshot';
 import { authFetch } from '@/composables/useAuth';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { providerTodoCounts } from '@/lib/providerProjection';
 import { canPerformAction, filterByRouteAccess } from '@/lib/pageAccess';
+import { canCompileNationalExtElem } from '@/lib/requestFlowRoles';
 import { apiUrl } from '@/composables/useApiBase';
 
 const provider = useProvider();
@@ -35,6 +36,16 @@ const visibleStatCards = computed(() =>
 );
 
 const canPublishCatalog = computed(() => canPerformAction('catalog.entry.publish', role.value));
+
+// 国家扩展要素编制入口：角色门（MANAGER+BUSIAUDIT）∧ flag 门
+// （snapshot.webui.nationalChannel.enabled）。flag-off / 无权 → 入口完全不渲染（承「无权=不可见」）。
+const webui = useWebUiConfig();
+const nationalChannelEnabled = computed(
+  () => ((webui.value.nationalChannel as Record<string, unknown> | undefined)?.enabled === true),
+);
+const showNationalExtElem = computed(
+  () => canCompileNationalExtElem(role.value) && nationalChannelEnabled.value,
+);
 
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
@@ -118,6 +129,16 @@ async function publishDraft(catalogCode: string) {
           <em>{{ c.label }}</em>
         </a>
       </div>
+
+      <a
+        v-if="showNationalExtElem"
+        href="#/provider/national-ext-elem"
+        class="nat-ext-entry"
+        data-testid="national-ext-elem-entry"
+      >
+        <strong>国家扩展要素编制</strong>
+        <em>与政务目录编制双轨独立，走业务部门→主管部门审核后同步国家平台</em>
+      </a>
       <section v-if="source === 'live' && canPublishCatalog" class="publish-card" aria-label="待发布目录">
         <header class="publish-card-head">
           <h3 class="section-title">待发布目录</h3>
@@ -159,6 +180,9 @@ async function publishDraft(catalogCode: string) {
 .stat-card { display: grid; gap: 4px; padding: 14px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; text-decoration: none; color: inherit; background: #fff; }
 .stat-card strong { font-size: 22px; color: var(--b-primary, #006be6); }
 .stat-card em { font-style: normal; font-size: 13px; color: var(--b-muted, #5c6370); }
+.nat-ext-entry { display: grid; gap: 4px; margin-top: 12px; padding: 14px 16px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; text-decoration: none; color: inherit; background: #f5f9fe; }
+.nat-ext-entry strong { font-size: 14px; color: var(--b-primary, #006be6); }
+.nat-ext-entry em { font-style: normal; font-size: 12px; color: var(--b-muted, #5c6370); }
 .gov-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; }
 .gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
 .publish-card { margin-top: 16px; padding: 14px 16px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; background: #fff; }

@@ -18,6 +18,7 @@
 | POST | `/api/skills/adapter.health.probe` | 探测适配器健康 | `post_adapter_health_probe` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/application.dept_approve` | 部门管理员审核（有条件共享第一步） | `post_application_dept_approve` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/application.draft.suggest` | P3 申请草拟助手（预填字段 + 风险预估） | `post_application_draft_suggest` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/application.escalate_national` | 转报国家平台 | `post_application_escalate_national` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/application.grant.approve` | 审批资源授权 | `post_application_grant_approve` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/application.grant.renew` | 申请授权续期 | `post_application_grant_renew` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/application.grant.revoke` | 收回授权 | `post_application_grant_revoke` | `zw_brain/entry/rest/openapi.json` |
@@ -65,6 +66,7 @@
 | GET | `/api/skills/catalog.model.field.query` | 查询目录模型字段 | `get_catalog_model_field_query` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/catalog.model.query` | 查询目录模型 | `get_catalog_model_query` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/catalog.model.upsert` | 维护目录模型 | `post_catalog_model_upsert` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/catalog.national_ext_elem.compile` | 国家扩展要素目录编制 | `post_catalog_national_ext_elem_compile` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/catalog.resource.bind` | 绑定目录资源字段 | `post_catalog_resource_bind` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/catalog.resource.list` | 列目录下的资源 | `get_catalog_resource_list` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/catalog.resource_view` | 查看资源详情 | `get_catalog_resource_view` | `zw_brain/entry/rest/openapi.json` |
@@ -295,7 +297,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 192 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 194 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -308,6 +310,7 @@
 | `adapter.health.probe` | 探测适配器健康 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/adapter.health.probe.json` |
 | `application.dept_approve` | 部门管理员审核（有条件共享第一步） | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/application.dept_approve.json` |
 | `application.draft.suggest` | P3 申请草拟助手（预填字段 + 风险预估） | 1.0.0 | audit | `zw_brain/capability_registry/registered/application.draft.suggest.json` |
+| `application.escalate_national` | 转报国家平台 | 1.0.0 | audit, adapter_receipt | `zw_brain/capability_registry/registered/application.escalate_national.json` |
 | `application.grant.approve` | 审批资源授权 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/application.grant.approve.json` |
 | `application.grant.renew` | 申请授权续期 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/application.grant.renew.json` |
 | `application.grant.revoke` | 收回授权 | 1.0.0 | audit, db_write, state_machine_transition | `zw_brain/capability_registry/registered/application.grant.revoke.json` |
@@ -355,6 +358,7 @@
 | `catalog.model.field.query` | 查询目录模型字段 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/catalog.model.field.query.json` |
 | `catalog.model.query` | 查询目录模型 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/catalog.model.query.json` |
 | `catalog.model.upsert` | 维护目录模型 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/catalog.model.upsert.json` |
+| `catalog.national_ext_elem.compile` | 国家扩展要素目录编制 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/catalog.national_ext_elem.compile.json` |
 | `catalog.resource.bind` | 绑定目录资源字段 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/catalog.resource.bind.json` |
 | `catalog.resource.list` | 列目录下的资源 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/catalog.resource.list.json` |
 | `catalog.resource_view` | 查看资源详情 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/catalog.resource_view.json` |
@@ -498,9 +502,9 @@
 
 ## Statistics
 
-- REST endpoints: 201
+- REST endpoints: 203
 - CLI entries: 1
 - MCP tools: 63
 - A2A agent cards: 1
-- Registered Skills (live): 192 / 237 on-disk
+- Registered Skills (live): 194 / 238 on-disk
 

@@ -18,6 +18,7 @@ import P4Delivery from '@/pages/P4Delivery.vue';
 import P4Credential from '@/pages/P4Credential.vue';
 import P4DeliveryTaskDetail from '@/pages/P4DeliveryTaskDetail.vue';
 import P5Provider from '@/pages/P5Provider.vue';
+import P5NationalExtElem from '@/pages/P5NationalExtElem.vue';
 import P5InlineCatalogWizard from '@/pages/P5InlineCatalogWizard.vue';
 import P5CatalogReviewInbox from '@/pages/P5CatalogReviewInbox.vue';
 import P5ReverseCatalogWizard from '@/pages/P5ReverseCatalogWizard.vue';
@@ -73,6 +74,7 @@ const routes: RouteRecordRaw[] = [
 
   // P5 提供方管理
   { path: '/provider', name: 'P5-provider', component: P5Provider, meta: { page: 'P5', title: 'P5 提供方管理' } },
+  { path: '/provider/national-ext-elem', component: P5NationalExtElem, meta: { page: 'P5', title: 'P5 国家扩展要素编制' } },
   { path: '/provider/wizard/inline-catalog', component: P5InlineCatalogWizard, meta: { page: 'P5', title: 'P5 在线编制目录' } },
   { path: '/provider/inbox/catalog-review', component: P5CatalogReviewInbox, meta: { page: 'P5', title: 'P5 目录审核收件箱' } },
   { path: '/provider/wizard/reverse-catalog', component: P5ReverseCatalogWizard, meta: { page: 'P5', title: 'P5 反向编目向导' } },
