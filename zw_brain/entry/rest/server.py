@@ -29,6 +29,7 @@ from zw_brain.command.brain import (
 )
 from zw_brain.command.runtime import get_service
 from zw_brain.domain.policy import DomainAccessDeniedError
+from zw_brain.domain.repositories.governance_projection import ActorMatchError
 from zw_brain.shared.auth_context import auth_context_from_claims, reset_auth_context, set_auth_context
 from zw_brain.shared.auth_session import (
     CSRF_HEADER_NAME,
@@ -938,6 +939,11 @@ class RestHandler(BaseHTTPRequestHandler):
             return
         if isinstance(exc, (AccessDeniedError, DomainAccessDeniedError)):
             self._json(403, {"error": "access_denied", "detail": str(exc)})
+            return
+        if isinstance(exc, ActorMatchError):
+            # First IAM login matched more than one claimable legacy actor — fail closed rather
+            # than auto-claim the wrong identity. Clean 403, never a 500; no claims PII in body.
+            self._json(403, {"error": "actor_identity_ambiguous", "detail": str(exc)})
             return
         if isinstance(exc, ConfirmationRequiredError):
             self._json(409, {"error": "confirmation_required", "skill_id": str(exc)})

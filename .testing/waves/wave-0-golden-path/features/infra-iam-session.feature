@@ -6,12 +6,16 @@
 # Trace: 基线 §3.4 (IAF IAM 外部依赖), docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md
 # Priority: P0
 # Owner: e6
-# Pytest: tests/test_wave0_infra.py
+# Pytest: tests/test_wave0_infra.py, tests/test_iam_identity_claim.py
 # InTest-Scope: tests/test_wave0_infra.py 覆盖 7 项（OIDC 端点派生 / 缺 auth_server_url 报错 /
 #   realm_access.roles → role_codes 映射 / 未知角色码不静默扩权 / 默认租户 sd-default /
 #   会话生命周期 + token 不回传浏览器体 / 无 bearer 401）；
-#   D-2 红线：session → actor_org_role_binding 投影写入 + valid_to 软删除依赖 D-2 解冻（GovernanceMapper
-#   投影 0 行），本期 skip 不实现；id_token RS256 全链路验签需 jwks 加密 fixture，归 W0-07。
+#   tests/test_iam_identity_claim.py 覆盖「存量用户首登单行身份认领」6 项（sub/account 认领既有行不增行 /
+#   保 legacy profile + 搬 binding+mapping / 多命中 fail-closed / 不认领 disabled 行 / 登录不 disable 导入 binding /
+#   同 sub 二次登录幂等）；
+#   D-2 红线：session 主动写 actor_org_role_binding 投影 + valid_to 软删除依赖 D-2 解冻（GovernanceMapper
+#   投影 0 行），本期 skip 不实现——登录只在「认领既有 legacy 行」时一次性搬移 binding，绝不新写/禁用；
+#   id_token RS256 全链路验签需 jwks 加密 fixture，归 W0-07。
 
 Feature: Infra — IAM 认证 + 会话生命周期
   As a 平台架构师
@@ -73,3 +77,39 @@ Feature: Infra — IAM 认证 + 会话生命周期
   Scenario: 回归 — IAM 是外部依赖，zw-brain 不实现密码 / MFA 等认证逻辑
     Then 仓库代码不包含 password hashing / MFA / OTP / 第三方 social login 实现
     And 仅保留 OIDC code 交换 + token 校验 + realm_roles → role_codes 映射
+
+  # ── 存量用户首次 IAM 登录：单行身份认领（消除两套用户数据，D28 负责人 sign-off）──
+  Scenario: 正向 — 存量用户首登按 sub 认领既有行，actor_projection 不增行
+    Given 存量用户 L1 由 legacy import 落为 actor_projection 一行（external_actor_id=pub_user.ID，status=iam_account_missing）
+    And IAM 已为 L1 注入真实 sub（其 external_actor_id 已是该 sub）
+    When L1 二次/换票登录，claims.sub 命中该行
+    Then 该行原地刷新（同 PK），不新建第二行
+    And actor_projection 该租户行数不变
+
+  Scenario: 正向 — 缺 sub 时按 account 辅助匹配唯一命中即就地 rekey
+    Given 存量用户 L2 落为 actor_projection（external_actor_id=pub_user.ID，profile.account=L2 账号，已挂角色绑定）
+    When L2 首次 IAM 登录，claims.preferred_username 唯一匹配 profile.account
+    Then 该存量行被 rekey 到 claims.sub（同 PK，保留 account/legacy_actor_ref/region 等 legacy profile）
+    And 其 actor_org_role_binding 与 legacy_object_mapping 同事务搬到新 sub 键
+    And **不**产生第二行（修复"两套用户数据"）
+
+  Scenario: 负向 — 辅助匹配命中多条存量行，fail-closed 不自动认领
+    Given 两条 status∈{iam_account_missing,unmatched} 的存量行 profile.account 相同
+    When 某 IAM 身份按该 account 辅助匹配
+    Then 抛 ActorMatchError，登录接口返回 403 error="actor_identity_ambiguous"
+    And 不新建行、不 rekey 任何行（等人工裁决）
+
+  Scenario: 负向 — 不认领 disabled 存量行（不继承其角色）
+    Given 一条 status=disabled 的存量行 profile.account 与某 IAM 身份匹配
+    When 该 IAM 身份首次登录
+    Then disabled 行保持不变（不被 rekey）
+    And 登录身份落为全新 sub 键行，不继承 disabled 行的任何角色绑定
+
+  Scenario: 回归 — 登录认领不禁用 import 写入的多组织绑定
+    Given 存量用户 L3 由 import 写入多条 actor_org_role_binding（多组织/多角色）
+    When L3 首次 IAM 登录被认领（token 未携带产品角色）
+    Then L3 的全部导入绑定原样搬到 sub 键且仍 active（登录不 disable 任何 binding）
+
+  Scenario: 回归 — 同 sub 二次登录幂等
+    When 同一 sub 连续两次登录
+    Then 第二次为"原地刷新既有 sub 行"，actor_projection 不增行，绑定不变

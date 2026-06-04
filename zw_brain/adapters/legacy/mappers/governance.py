@@ -490,7 +490,22 @@ class GovernanceMapper:
                 if binding_specs:
                     stats.target_counts["actor_org_role_binding"] = stats.target_counts.get("actor_org_role_binding", 0) + len(binding_specs)
             else:
-                actor = self.governance_repo.upsert_actor(payload, tenant_id=self.tenant_id)
+                if iaf_sub and status == "active":
+                    # Backfill → re-import: a real sub now exists for a user previously imported
+                    # as iam_account_missing (keyed by legacy user_id). Rekey that row in place
+                    # rather than letting upsert_actor insert a second sub-keyed row (dup users).
+                    actor, _outcome = self.governance_repo.claim_legacy_actor_by_iaf(
+                        iaf_sub=iaf_sub,
+                        legacy_actor_ref=user_id,
+                        claims_profile=payload["profile_json"],
+                        token_role_codes=role_codes,
+                        display_name=payload["display_name"],
+                        org_code=main_org,
+                        source_ref=payload["source_ref"],
+                        tenant_id=self.tenant_id,
+                    )
+                else:
+                    actor = self.governance_repo.upsert_actor(payload, tenant_id=self.tenant_id)
                 if binding_specs and actor.status == "active":
                     self.governance_repo.sync_actor_bindings(actor, binding_specs, batch_no=batch_no)
             self._write_legacy_mapping(

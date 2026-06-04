@@ -78,6 +78,13 @@
 
 - **IAM 回填 csv 含 manifest 不存在的 `legacy_user_id`**：`ingest_iam_sub_backfill.py` 退出码 1，不落库；修正 typo 或换 manifest 后重跑 step 0b。
 - **IAM 团队回填漏了用户 / 未在 directory 开通**：`ingest_iam_sub_backfill.py` 校验通过后落库，仍扫到任何 `iaf-sd-<sha1>` 占位 sub 残留即退出码 2，无逃生口。先与客户确认这些用户是否本期不开通；若是则在 backfill csv 把这些 `legacy_user_id` 行的 `iaf_sub` 留空（ingest `_classify` 会自动把 `binding_status` 转 `iam_account_missing` 并清空占位 sub），重跑 ingest 即可通过；若非则催 IAM 团队补开通后重跑 step 0b。占位 sub 有**两道闸门**：ingest 落库前扫描（exit 2）+ `legacy.bsp.mapping.import` 的 governance mapper 把 `iaf-sd-` 前缀视同未注入并 fail-closed 为 `iam_account_missing`（不写 active binding / 不泄漏占位 sub 进 `external_actor_id`）。即便侥幸进入 canonical，IAF directory 无对应 sub 也会让 OIDC 验签失败、用户无法登录。
+- **存量用户首登产生两套用户数据（历史脏数据修复）**：修复前的登录链路对存量用户首次 IAM 登录会按真实 `sub` 另插一行（`source_ref='iaf:claims'`）、不 rekey 原 legacy 行 → 同一人在 `actor_projection` 留下两行（一行 legacy user_id 键含完整 profile+绑定，一行登录薄行只有 claims 字段）。页面用薄行+token 角色照常工作，肉眼看不出，但库里是两套数据。**代码侧根因已修复**（登录/重导入统一走 `claim_legacy_actor_by_iaf`：sub 优先、辅助字段唯一命中即就地 rekey 存量行并搬移 binding+mapping，多命中 fail-closed 403 `actor_identity_ambiguous`，不认领 disabled 行）；**存量脏数据用一次性脚本清**：
+  1. **先备份库**（`cp zw_brain.db zw_brain.db.bak-<日期>` 或 `pg_dump`）。
+  2. 预演：`uv run python scripts/repair_actor_identity_duplicates.py --db-url <库URL> --dry-run --json-report /tmp/repair.json` —— 打印 `planned_rekey / unmatched / ambiguous` 计数；退出码 0=无双行/全可合并，1=有 unmatched 或 ambiguous（需人工核对 username/phone/email），2=apply 抛错。
+  3. 人工审 `/tmp/repair.json`：`detail.unmatched`（薄行匹配不到存量行——多半是 account/phone/email 对不上，人工确认是否同一人）与 `detail.ambiguous`（薄行命中多条存量行——绝不自动合并，人工裁决）。
+  4. 执行：`... --apply`（删薄行→把存量行 rekey 到 sub，单行收口）。脚本删除经 `delete_actor_row(source_ref_guard='iaf:claims')` 守卫，只能删登录薄行、永不误删 legacy 行。
+  5. 复核：再跑一次 `--dry-run`，期望 `thin_rows=0 planned_rekey=0`（幂等）；并核对 `actor_projection` 行数下降量 == `deleted_thin`、被认领行的 `external_actor_id` 已是真实 sub 且 `binding` 完整。
+  > unmatched/ambiguous 不阻断已成功合并的行；它们只是需要人工跟进的尾巴，处理完再单独重跑即可。
 - **导出缺表或缺字段**：停止导入该批次，输出缺口清单；不猜测旧结构，也不手工补造来源。
 - **字段枚举无法识别**：保留原始枚举摘要，进入迁移待核验，不直接映射为 active 状态。
 - **schema 冲突**：同一旧资源多版本字段不一致时，保留版本快照，默认只激活通过核验的稳定版本。
