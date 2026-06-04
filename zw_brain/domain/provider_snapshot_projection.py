@@ -76,6 +76,13 @@ def project_provider_inbox(*, tenant_id: str | None = None) -> dict[str, list[di
         _entry_to_field_decision(record)
         for record in catalog_repo.list_entries(tenant_id=tenant_id, lifecycle_status="pending_review")
     ]
+    # 待发布目录（业务运营员待办，业务方原话锚点）：已审过待发布的目录。
+    publish_queue = [
+        _entry_to_field_decision(record)
+        for record in catalog_repo.list_entries(
+            tenant_id=tenant_id, lifecycle_status="approved_pending_publish"
+        )
+    ]
     hookup_reviews = [
         _asset_to_hookup_review(record)
         for record in resource_repo.list_assets(tenant_id=tenant_id, lifecycle_status="pending_review")
@@ -91,6 +98,7 @@ def project_provider_inbox(*, tenant_id: str | None = None) -> dict[str, list[di
     ]
     return {
         "field_decisions": field_decisions,
+        "publish_queue": publish_queue,
         "hookup_reviews": hookup_reviews,
         "demand_matches": demand_matches,
         "objection_cases": objection_cases,
@@ -151,6 +159,7 @@ def enrich_provider_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None 
     provider = out.setdefault("provider", {})
     inbox = project_provider_inbox(tenant_id=tenant_id)
     provider["field_decisions"] = inbox["field_decisions"]
+    provider["publish_queue"] = inbox["publish_queue"]
     provider["hookup_reviews"] = inbox["hookup_reviews"]
     provider["demand_matches"] = inbox["demand_matches"]
     provider["objection_cases"] = inbox["objection_cases"]

@@ -1,5 +1,6 @@
 import { computed, ref, watch } from 'vue';
 import { authFetch } from './useAuth';
+import { apiUrl } from './useApiBase';
 
 /**
  * 资源「字段数据模型」只读视图 — 接通 `metadata.schema.query` 能力。
@@ -85,7 +86,13 @@ export function useResourceSchema(
     loaded.value = false;
     try {
       const resp = await authFetch(
-        `/api/skills/metadata.schema.query?role=${encodeURIComponent(role())}&resource_code=${encodeURIComponent(code)}`,
+        // 缺陷 3 修复：必须经 apiUrl() 拼上部署前缀（/zw-brain/）。此前是全仓唯一漏拼前缀的
+        // skills 调用 → 反代部署下请求落到 /api/skills/...（缺前缀）命不中路由 → 后端 404
+        // （非真错，资源有无 schema 后端都返 200）。改用 apiUrl() 与其它 composable 对齐：
+        // 有 schema 真展示，无 schema 走 isEmpty 诚实空态，零 404。
+        apiUrl(
+          `/api/skills/metadata.schema.query?role=${encodeURIComponent(role())}&resource_code=${encodeURIComponent(code)}`,
+        ),
         { headers: { Accept: 'application/json' } },
       );
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);

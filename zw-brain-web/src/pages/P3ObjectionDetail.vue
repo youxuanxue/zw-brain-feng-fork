@@ -30,7 +30,7 @@ async function loadCase() {
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ role: role.value, confirmed: true }),
     });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    if (!resp.ok) throw new Error('暂时无法加载异议详情，请稍后再试。');
     const payload = (await resp.json()) as { items?: Record<string, unknown>[] };
     caseRow.value =
       (payload.items ?? []).find((row) => String(row.id ?? '') === id.value) ?? null;

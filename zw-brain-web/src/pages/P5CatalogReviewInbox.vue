@@ -70,7 +70,7 @@ async function loadInbox(): Promise<void> {
     });
     if (!resp.ok) {
       items.value = [];
-      errorMsg.value = `加载失败：HTTP ${resp.status}`;
+      errorMsg.value = '暂时无法加载待审目录，请稍后再试。';
       return;
     }
     const body = (await resp.json()) as { items?: Array<Record<string, unknown>> };

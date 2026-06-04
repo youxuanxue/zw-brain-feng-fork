@@ -47,7 +47,7 @@ export const ROUTE_ROLE_OVERRIDES: ReadonlyArray<{
   },
   // 反向编目（pages/P5ReverseCatalogWizard.vue → canCreateDraft）
   { prefix: '/provider/wizard/reverse-catalog', roles: ['ROLE_ORGAN_MANAGER'] },
-  // 字段裁决（pages/P5FieldDecisionDetail.vue → canDecide）
+  // 字段审核（pages/P5FieldDecisionDetail.vue → canDecide；路由 slug 仍 field-decision）
   { prefix: '/provider/inbox/field-decision', roles: ['ROLE_BUSIAUDIT'] },
   // 挂接审核（pages/P5HookupReviewInbox.vue → canApprove）
   { prefix: '/provider/inbox/hookup-review', roles: ['ROLE_BUSIAUDIT'] },

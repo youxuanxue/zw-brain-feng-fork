@@ -4,6 +4,7 @@ import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { useDeliveryTasks, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub } from '@/composables/useActionStub';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
+import { deriveRecordName, formatChannel, formatTime, shortId } from '@/lib/userLanguage';
 
 const tasks = useDeliveryTasks();
 const { source } = useSnapshot();
@@ -11,14 +12,17 @@ const items = computed(() =>
   tasks.value.map((t) => {
     const it = t as Record<string, unknown>;
     const status = String(it.status ?? '');
+    const id = String(it.id ?? '');
     return {
-      id: String(it.id ?? ''),
-      name: String(it.name ?? ''),
+      id,
+      idShort: shortId(id),
+      // 名缺失 / 名本身是裸 hex → 派生「交付任务 …末6位」，不裸出 32 位 hex 主文本。
+      name: deriveRecordName(it.name, id, '交付任务'),
       requestId: String(it.requestId ?? ''),
-      channel: String(it.channel ?? ''),
+      channel: formatChannel(it.channel),
       status,
       statusLabel: formatTodoStatus(status),
-      updatedAt: String(it.updatedAt ?? ''),
+      updatedAt: formatTime(it.updatedAt),
     };
   })
 );
@@ -53,6 +57,10 @@ async function reconcile(id: string) {
         ]"
       />
 
+      <p class="page-intro">
+        本页办理审批通过后的数据交付：「领凭据」获取访问数据的授权密钥，「对账回执」核对本次受控交付的明细与结果。
+      </p>
+
       <table v-if="source === 'live' && items.length" class="focus-table">
         <thead>
           <tr>
@@ -66,11 +74,11 @@ async function reconcile(id: string) {
         </thead>
         <tbody>
           <tr v-for="t in items" :key="t.id">
-            <td><a :href="`#/delivery-exchange/task/${t.id}`"><code>{{ t.id }}</code></a></td>
-            <td>{{ t.name || '—' }}</td>
-            <td>{{ t.channel || '—' }}</td>
+            <td><a :href="`#/delivery-exchange/task/${t.id}`"><code>{{ t.idShort }}</code></a></td>
+            <td>{{ t.name }}</td>
+            <td>{{ t.channel }}</td>
             <td><span class="status-pill" :class="todoStatusTone(t.status)">{{ t.statusLabel }}</span></td>
-            <td>{{ t.updatedAt || '—' }}</td>
+            <td>{{ t.updatedAt }}</td>
             <td class="table-actions">
               <div class="table-actions-inner">
                 <button type="button" class="gov-btn gov-btn-secondary" @click="openCredential(t.requestId)">领凭据</button>
@@ -87,6 +95,7 @@ async function reconcile(id: string) {
 </template>
 
 <style scoped>
+.page-intro { margin: 8px 0 14px; font-size: 13px; line-height: 1.7; color: var(--b-muted, #5c6370); }
 .gov-btn { padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid transparent; }
 .gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
 .gov-btn-secondary { background: #fff; border-color: var(--b-border, #d4e2f4); }

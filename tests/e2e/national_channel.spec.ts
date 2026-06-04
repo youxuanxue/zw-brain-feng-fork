@@ -56,7 +56,8 @@ test.describe('国家通道 角色门 + flag 门', () => {
     await setRole(page, 'ROLE_BUSIAUDIT');
     await gotoHash(page, '#/request-flow');
     await expect(page.getByTestId('p3-tab-national')).toBeVisible();
-    await expect(page.getByTestId('p3-tab-main')).toBeVisible();
+    // 主流程入口 = 「我的申请」视图 tab（三视图重构后；国家通道为独立 tab 共存）。
+    await expect(page.getByTestId('p3-view-mine')).toBeVisible();
 
     await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, '#/request-flow');

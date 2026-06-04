@@ -8,6 +8,7 @@ import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import { canDecideFieldDrafts } from '@/lib/requestFlowRoles';
+import { shortId } from '@/lib/userLanguage';
 
 const route = useRoute();
 const role = getProductRole();
@@ -16,7 +17,7 @@ const canDecide = computed(() => canDecideFieldDrafts(role.value));
 
 const rows = computed(() =>
   mapDetailRows([
-    { label: '裁决编号', value: id.value },
+    { label: '审核编号', value: shortId(id.value) },
     { label: '目录编码', value: id.value },
     { label: '范围', value: '山东省 sd-default' },
     { label: '处理时限', value: '5 个工作日' },
@@ -27,8 +28,8 @@ async function approve() {
   if (!canDecide.value) {
     pushToast({
       kind: 'info',
-      title: '暂无裁决权限',
-      detail: '字段口径裁决由业务运营员办理；部门管理员请在反向编目向导创建草稿。',
+      title: '暂无审核权限',
+      detail: '字段口径审核由业务运营员办理；部门管理员请在反向编目向导创建草稿。',
     });
     return;
   }
@@ -44,8 +45,8 @@ async function reject() {
   if (!canDecide.value) {
     pushToast({
       kind: 'info',
-      title: '暂无裁决权限',
-      detail: '字段口径裁决由业务运营员办理。',
+      title: '暂无审核权限',
+      detail: '字段口径审核由业务运营员办理。',
     });
     return;
   }
@@ -60,13 +61,13 @@ async function reject() {
 
 <template>
   <main class="focus-page focus-detail">
-    <nav class="crumbs"><a href="#/provider/inbox/field-decision">← 字段裁决收件箱</a></nav>
+    <nav class="crumbs"><a href="#/provider/inbox/field-decision">← 字段审核收件箱</a></nav>
     <section class="panel">
-      <PageFocusHeader :title="`裁决 ${id}`" meta="提交后进入审计链，不可静默撤销" />
+      <PageFocusHeader :title="`字段审核 ${shortId(id)}`" meta="提交后进入审计链，不可静默撤销" />
       <DetailPanel title="基本信息" :rows="rows" />
-      <p v-if="!canDecide" class="role-hint">当前岗位无权在此裁决；请切换为业务运营员。</p>
+      <p v-if="!canDecide" class="role-hint">当前岗位无权在此审核；请切换为业务运营员。</p>
       <DetailActions v-if="canDecide">
-        <button type="button" class="gov-btn gov-btn-primary" @click="approve">通过裁决</button>
+        <button type="button" class="gov-btn gov-btn-primary" @click="approve">通过审核</button>
         <button type="button" class="gov-btn gov-btn-danger" @click="reject">驳回</button>
       </DetailActions>
     </section>

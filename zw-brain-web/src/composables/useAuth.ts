@@ -133,9 +133,22 @@ async function _readJson(resp: Response): Promise<Record<string, unknown>> {
   throw Object.assign(new Error(message), { status: resp.status, payload: data });
 }
 
-async function _readAuthConfig(): Promise<{ development_iam_bypass_enabled?: boolean }> {
-  const resp = await fetch(apiUrl('/auth/iaf/config'), { headers: { Accept: 'application/json' }, credentials: 'include' });
-  return (await _readJson(resp)) as { development_iam_bypass_enabled?: boolean };
+// 模块级 memo：auth 配置静态且登录页/bypass 登录各取一次（冷启动重复 RT，体检实证）。
+let _authConfigPromise: Promise<{ configured?: boolean; development_iam_bypass_enabled?: boolean }> | null = null;
+
+async function _readAuthConfig(): Promise<{ configured?: boolean; development_iam_bypass_enabled?: boolean }> {
+  if (!_authConfigPromise) {
+    _authConfigPromise = (async () => {
+      const resp = await fetch(apiUrl('/auth/iaf/config'), { headers: { Accept: 'application/json' }, credentials: 'include' });
+      return (await _readJson(resp)) as { configured?: boolean; development_iam_bypass_enabled?: boolean };
+    })().catch((e) => { _authConfigPromise = null; throw e; });
+  }
+  return _authConfigPromise;
+}
+
+/** 登录页等 UI 共用的配置读取（与 bypass 登录共享同一 in-flight promise，不重复请求）。 */
+export async function readAuthConfig(): Promise<{ configured?: boolean; development_iam_bypass_enabled?: boolean }> {
+  return _readAuthConfig();
 }
 
 async function _devBypassLogin(): Promise<AuthSnapshot> {

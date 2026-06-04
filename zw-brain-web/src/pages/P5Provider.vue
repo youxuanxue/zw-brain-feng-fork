@@ -6,13 +6,22 @@ import { authFetch } from '@/composables/useAuth';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { providerTodoCounts } from '@/lib/providerProjection';
+import { supplierDataQualityRows } from '@/lib/roleProjection';
 import { canPerformAction, filterByRouteAccess } from '@/lib/pageAccess';
 import { canCompileNationalExtElem } from '@/lib/requestFlowRoles';
 import { apiUrl } from '@/composables/useApiBase';
+import { deriveRecordName, shortId } from '@/lib/userLanguage';
 
 const provider = useProvider();
-const { source } = useSnapshot();
+const { source, data: snapshot } = useSnapshot();
 const role = getProductRole();
+
+// 缺陷 3：用途脏值的真实导入单 = 供方数据质量待办（不是需方噪音）。
+// 仅业务运营员（数据质量 owner）可见；其余岗位完全不渲染（无权=不可见）。
+const canSeeDataQuality = computed(() => role.value === 'ROLE_BUSIAUDIT');
+const dataQualityRows = computed(() =>
+  canSeeDataQuality.value ? supplierDataQualityRows(snapshot.value) : [],
+);
 const publishWarnings = ref<Array<Record<string, unknown>>>([]);
 const publishQueue = ref<Array<{ catalog_code: string; title: string }>>([]);
 const publishQueueLoading = ref(false);
@@ -22,7 +31,7 @@ const counts = computed(() => providerTodoCounts(provider.value as Record<string
 const statCards = computed(() => {
   const c = counts.value;
   return [
-    { key: 'field-decision', label: '字段裁决', value: c.fieldDec, href: '#/provider/inbox/field-decision' },
+    { key: 'field-decision', label: '字段审核', value: c.fieldDec, href: '#/provider/inbox/field-decision' },
     { key: 'hookup-review', label: '挂接审核', value: c.hookup, href: '#/provider/inbox/hookup-review' },
     { key: 'demand-match', label: '供需对接', value: c.demand, href: '#/provider/inbox/demand-match' },
     { key: 'objection', label: '异议响应', value: c.objection, href: '#/provider/inbox/objection' },
@@ -70,10 +79,14 @@ async function loadPublishQueue(): Promise<void> {
     }
     const body = (await resp.json()) as { items?: Array<Record<string, unknown>> };
     publishQueue.value = (body.items ?? [])
-      .map((item) => ({
-        catalog_code: String(item.catalog_code ?? ''),
-        title: String(item.title ?? item.catalog_code ?? '—'),
-      }))
+      .map((item) => {
+        const code = String(item.catalog_code ?? '');
+        return {
+          catalog_code: code,
+          // 名缺失时不裸出目录编码当标题 → 派生「数据目录 …末6位」。
+          title: deriveRecordName(item.title, code, '数据目录'),
+        };
+      })
       .filter((item) => item.catalog_code);
   } finally {
     publishQueueLoading.value = false;
@@ -150,7 +163,7 @@ async function publishDraft(catalogCode: string) {
           <li v-for="item in publishQueue" :key="item.catalog_code" class="publish-row">
             <div class="publish-row-meta">
               <span class="publish-row-title" :title="item.title">{{ item.title }}</span>
-              <code class="publish-row-code" :title="item.catalog_code">{{ item.catalog_code }}</code>
+              <code class="publish-row-code" :title="item.catalog_code">{{ shortId(item.catalog_code) }}</code>
             </div>
             <button
               type="button"
@@ -164,33 +177,57 @@ async function publishDraft(catalogCode: string) {
           <h4 class="warn-title">重复率提醒 · {{ publishWarnings.length }} 条</h4>
           <ul>
             <li v-for="(w, idx) in publishWarnings" :key="idx">
-              {{ String(w.title ?? w.catalog_code ?? w.code ?? '—') }}
+              {{ deriveRecordName(w.title, w.catalog_code ?? w.code, '数据目录') }}
               <span v-if="w.similarity_score"> · 相似度 {{ w.similarity_score }}</span>
             </li>
           </ul>
         </div>
       </section>
+      <section
+        v-if="source === 'live' && canSeeDataQuality"
+        class="publish-card"
+        aria-label="数据质量待补全"
+        data-testid="data-quality-queue"
+      >
+        <header class="publish-card-head">
+          <h3 class="section-title">待补全的申请用途</h3>
+          <span class="publish-count" data-testid="data-quality-count">{{ dataQualityRows.length }} 项</span>
+        </header>
+        <p class="dq-hint">以下历史导入单的用途缺失或无效，建议联系申请部门补全，以便审计与统计准确。</p>
+        <p v-if="!dataQualityRows.length" class="focus-empty">暂无待补全的申请用途。</p>
+        <ul v-else class="publish-list">
+          <li v-for="row in dataQualityRows" :key="row.id" class="publish-row">
+            <div class="publish-row-meta">
+              <span class="publish-row-title" :title="row.resource">{{ row.resource || '—' }}</span>
+              <span class="dq-missing">{{ row.purpose }}</span>
+            </div>
+            <a :href="`#/request-flow/request/${row.id}`" class="row-link">查看</a>
+          </li>
+        </ul>
+      </section>
+
       <p v-else-if="source !== 'live'" class="focus-empty">等待数据装载……</p>
     </section>
   </main>
 </template>
 
 <style scoped>
-.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 8px; }
-.stat-card { display: grid; gap: 4px; padding: 14px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; text-decoration: none; color: inherit; background: #fff; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; margin-top: 16px; }
+.stat-card { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; text-decoration: none; color: inherit; background: #fff; }
 .stat-card strong { font-size: 22px; color: var(--b-primary, #006be6); }
 .stat-card em { font-style: normal; font-size: 13px; color: var(--b-muted, #5c6370); }
-.nat-ext-entry { display: grid; gap: 4px; margin-top: 12px; padding: 14px 16px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; text-decoration: none; color: inherit; background: #f5f9fe; }
+.nat-ext-entry { display: grid; gap: 4px; margin-top: 20px; padding: 14px 16px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; text-decoration: none; color: inherit; background: #f5f9fe; }
 .nat-ext-entry strong { font-size: 14px; color: var(--b-primary, #006be6); }
 .nat-ext-entry em { font-style: normal; font-size: 12px; color: var(--b-muted, #5c6370); }
 .gov-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; }
 .gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
-.publish-card { margin-top: 16px; padding: 14px 16px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; background: #fff; }
-.publish-card-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.publish-card { margin-top: 32px; padding: 16px 18px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; background: #fff; }
+.publish-card-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
 .section-title { margin: 0; font-size: 14px; font-weight: 600; }
 .publish-count { font-size: 12px; color: var(--b-muted, #5c6370); }
 .publish-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.publish-row { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 6px; background: var(--b-bg-subtle, #f5f9fe); }
+.publish-row + .publish-row { margin-top: 8px; }
+.publish-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 6px; background: var(--b-bg-subtle, #f5f9fe); }
 .publish-row-meta { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
 .publish-row-title { font-size: 13px; color: var(--b-neutral-text, #1a1d21); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .publish-row-code { font-size: 11px; color: var(--b-muted, #5c6370); font-family: ui-monospace, 'SF Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -198,4 +235,8 @@ async function publishDraft(catalogCode: string) {
 .warn-panel { margin-top: 12px; padding: 10px 12px; border-radius: 6px; border: 1px solid #f0d080; background: #fff8e6; font-size: 13px; }
 .warn-title { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #6b4e00; }
 .warn-panel ul { margin: 0; padding-left: 18px; }
+.dq-hint { font-size: 12px; color: var(--b-muted, #5c6370); margin: 0 0 10px; }
+.dq-missing { font-size: 12px; color: var(--b-muted, #9aa0a6); font-style: italic; }
+.row-link { color: var(--b-primary, #006be6); font-size: 13px; text-decoration: none; font-weight: 500; flex-shrink: 0; }
+.row-link:hover { text-decoration: underline; }
 </style>

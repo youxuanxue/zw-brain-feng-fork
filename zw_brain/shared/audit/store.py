@@ -149,7 +149,9 @@ class AuditStore:
             event_type TEXT NOT NULL,
             phase TEXT NOT NULL,
             occurred_at TEXT NOT NULL,
-            payload_json TEXT NOT NULL
+            payload_json TEXT NOT NULL,
+            outcome TEXT,
+            has_error INTEGER NOT NULL DEFAULT 0
         );
         CREATE INDEX IF NOT EXISTS ix_audit_event_request_id ON audit_event(request_id);
         CREATE INDEX IF NOT EXISTS ix_audit_event_actor_time ON audit_event(actor, occurred_at);
@@ -180,9 +182,35 @@ class AuditStore:
             isolation_level=None,  # autocommit；我们手动控制事务边界
         )
         self._conn.executescript(self._SCHEMA)
+        self._migrate_materialized_columns()
         self._post_persist_hook = post_persist_hook
 
     # -------- write path --------
+
+    def _migrate_materialized_columns(self) -> None:
+        """outcome/has_error 物化列迁移 + 一次性回填（存量审计库）。
+
+        异常扫描此前在查询时对每行 payload（实测累积库平均 ~68KB、极值 17MB）做
+        json_extract——0604 试用「查审计 9 秒」的最终根因。物化为真实列后查询零
+        JSON 解析；回填只在升级后首次打开时发生一次。
+        """
+        cols = {row[1] for row in self._conn.execute("PRAGMA table_info(audit_event)")}
+        altered = False
+        if "outcome" not in cols:
+            self._conn.execute("ALTER TABLE audit_event ADD COLUMN outcome TEXT")
+            altered = True
+        if "has_error" not in cols:
+            self._conn.execute(
+                "ALTER TABLE audit_event ADD COLUMN has_error INTEGER NOT NULL DEFAULT 0"
+            )
+            altered = True
+        if altered:
+            self._conn.execute(
+                "UPDATE audit_event SET "
+                "outcome = json_extract(payload_json, '$.outcome'), "
+                "has_error = (json_extract(payload_json, '$.error') IS NOT NULL)"
+            )
+            self._conn.commit()
 
     def append(self, event: StoredAuditEvent | AuditEventLike) -> StoredAuditEvent:
         """同步写一条事件，失败 raise AuditWriteError。
@@ -244,8 +272,9 @@ class AuditStore:
                     """
                     INSERT INTO audit_event(
                         request_id, actor, skill_id, tenant_id, audit_class,
-                        event_type, phase, occurred_at, payload_json
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        event_type, phase, occurred_at, payload_json,
+                        outcome, has_error
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         stored.request_id,
@@ -257,6 +286,8 @@ class AuditStore:
                         stored.phase,
                         stored.occurred_at.isoformat(),
                         payload_text,
+                        payload.get("outcome") if isinstance(payload.get("outcome"), str) else None,
+                        1 if payload.get("error") is not None else 0,
                     ),
                 )
             except sqlite3.Error as exc:
@@ -361,6 +392,49 @@ class AuditStore:
                 )
             )
         return out
+
+    def query_outcome_rows(
+        self,
+        *,
+        tenant_id: str | None = None,
+        audit_class: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        limit: int = 10000,
+    ) -> list[tuple[str, str, str, str, str, str | None, int]]:
+        """轻量行查询 — (request_id, actor, skill_id, tenant_id, phase, outcome, has_error)。
+
+        异常扫描（audit.event.anomaly）三条规则只消费这五个字段；此前走 ``query()``
+        把上万条 payload 全量 ``json.loads``（实测 10k 行 ≈ 2.4s，且随审计累积线性
+        恶化——0604 试用「查审计页 9 秒」根因）。outcome 用 SQLite ``json_extract``
+        在 SQL 侧取出，**不水合 payload**，扫描成本回到毫秒级。
+        """
+        clauses: list[str] = []
+        params: list[Any] = []
+        if tenant_id is not None:
+            clauses.append("tenant_id = ?")
+            params.append(tenant_id)
+        if audit_class is not None:
+            clauses.append("audit_class = ?")
+            params.append(normalize_audit_class(audit_class))
+        if since is not None:
+            clauses.append("occurred_at >= ?")
+            params.append(since.isoformat())
+        if until is not None:
+            clauses.append("occurred_at <= ?")
+            params.append(until.isoformat())
+        sql = (
+            "SELECT request_id, actor, skill_id, tenant_id, phase, "
+            "outcome, has_error FROM audit_event"
+        )
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+        sql += " ORDER BY occurred_at ASC, id ASC"
+        if limit and limit > 0:
+            sql += " LIMIT ?"
+            params.append(int(limit))
+        with self._lock:
+            return list(self._conn.execute(sql, params))
 
     def count(self) -> int:
         with self._lock:

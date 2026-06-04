@@ -37,7 +37,7 @@ test.describe('权限不可见 共性回归', () => {
     await expect(page.getByRole('button', { name: '重新签发' })).toBeVisible();
   });
 
-  test('P2ResourceDetail 发起复用申请：OPERATER 可见 / MANAGER 不渲染', async ({ page }) => {
+  test('P2ResourceDetail 申请资源：OPERATER 可见 / MANAGER 不渲染', async ({ page }) => {
     // P2 shell 含 OPERATER/MANAGER/BUSIAUDIT/SECURITY_AUDIT；但 request.create 仅 OPERATER。
     // 从 snapshot.discovery.resources 直接取第一条真实 id（同 firstDeliveryRequestId 的 GET 路径，避开
     // page.request.post 在某些代理设置下被吞的边角情况）。
@@ -51,11 +51,11 @@ test.describe('权限不可见 共性回归', () => {
 
     await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, `#/discovery/resource/${resId}`);
-    await expect(page.getByRole('button', { name: '发起复用申请' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '申请资源' })).toBeVisible();
 
     await setRole(page, 'ROLE_ORGAN_MANAGER');
     await gotoHash(page, `#/discovery/resource/${resId}`);
-    await expect(page.getByRole('button', { name: '发起复用申请' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '申请资源' })).toHaveCount(0);
   });
 
   test('P3RequestDetail 补件/重新提交：OPERATER 可见 / MANAGER 不渲染', async ({ page }) => {

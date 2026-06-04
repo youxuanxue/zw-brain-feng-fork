@@ -16,7 +16,7 @@ import { loadSnapshot, useWebUiConfig, useSnapshot } from '@/composables/useSnap
 import { pushToast } from '@/composables/useActionStub';
 import ActionToast from '@/components/ActionToast.vue';
 import PlatformGuideChatPanel from '@/components/PlatformGuideChatPanel.vue';
-import ProductTopNav from '@/components/ProductTopNav.vue';
+import ProductSideNav from '@/components/ProductSideNav.vue';
 import { getProductRole, setProductRole } from '@/composables/useProductRole';
 import { defaultRouteForRole, isRouteAllowedForRole } from '@/lib/pageAccess';
 
@@ -59,6 +59,9 @@ const canSwitchRole = computed(() => allowRoleSwitch.value && allowedRoles.value
 const missingProductRole = computed(
   () => Boolean(user.value && !isLoginRoute.value && !hasAllowedProductRoles())
 );
+
+// 侧边栏（旅程分组主导航）：登录页 / 登录中不渲染；与旧 ProductTopNav 渲染条件一致。
+const showSideNav = computed(() => !isLoginRoute.value && !authLoading.value);
 
 async function refreshAll() {
   initError.value = null;
@@ -220,18 +223,22 @@ watch(
       </div>
     </section>
     <section v-else class="app-frame app-frame-live">
-      <div id="app-router" class="min-w-0">
-        <div
-          v-if="!isLoginRoute && snapSource === 'loading' && !roleSwitchBusy"
-          class="boot-banner boot-banner-info"
-        >正在加载数据……</div>
-        <div v-else-if="snapSource === 'error'" class="boot-banner boot-banner-warn">
-          数据暂不可达。请确认 brain REST（8800）已启动后刷新。
+      <div id="app-router" class="min-w-0" :class="{ 'app-router--shell': showSideNav }">
+        <aside v-if="showSideNav" class="app-router-aside">
+          <ProductSideNav :role="currentRole" />
+        </aside>
+        <div class="app-router-main">
+          <div
+            v-if="!isLoginRoute && snapSource === 'loading' && !roleSwitchBusy"
+            class="boot-banner boot-banner-info"
+          >正在加载数据……</div>
+          <div v-else-if="snapSource === 'error'" class="boot-banner boot-banner-warn">
+            数据暂不可达。请确认 brain REST（8800）已启动后刷新。
+          </div>
+          <div v-if="authLoading && !isLoginRoute" class="boot-banner boot-banner-info">正在完成登录…</div>
+          <RouterView v-if="!authLoading || isLoginRoute" />
+          <div v-if="initError && !missingProductRole" class="boot-banner boot-banner-warn">初始化告警：{{ initError }}</div>
         </div>
-        <ProductTopNav v-if="!isLoginRoute && !authLoading" :role="currentRole" />
-        <div v-if="authLoading && !isLoginRoute" class="boot-banner boot-banner-info">正在完成登录…</div>
-        <RouterView v-if="!authLoading || isLoginRoute" />
-        <div v-if="initError && !missingProductRole" class="boot-banner boot-banner-warn">初始化告警：{{ initError }}</div>
       </div>
     </section>
   </main>
@@ -248,6 +255,25 @@ watch(
 </template>
 
 <style scoped>
+/* 旅程分组侧边栏 + 主内容两栏布局（设计即工作方式：左导航带业务描述，
+   替代旧 9 tab 顶部词墙）。窄屏由 ProductSideNav 自身退化为顶部横条。 */
+.app-router--shell {
+  display: grid;
+  grid-template-columns: 216px minmax(0, 1fr);
+  gap: 36px;
+  align-items: start;
+}
+.app-router-aside {
+  min-width: 0;
+}
+.app-router-main {
+  min-width: 0;
+}
+@media (max-width: 960px) {
+  .app-router--shell {
+    display: block;
+  }
+}
 .boot-banner {
   padding: 8px 12px;
   border-radius: 8px;

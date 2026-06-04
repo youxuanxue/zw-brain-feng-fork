@@ -34,10 +34,12 @@ test('P3 审批中申请点击补件给出中文提示', async ({ page }) => {
   await expect(page.locator('body')).not.toContainText('resource_id');
 });
 
-test('P3 在途申请页可达', async ({ page }) => {
+test('P3 办共享申请页可达（我的申请视图）', async ({ page }) => {
   await setRole(page, 'ROLE_ORGAN_OPERATER');
   await gotoHash(page, '#/request-flow');
-  await expect(page.getByRole('heading', { name: '在途申请' })).toBeVisible();
+  // 三视图重构：页标题统一「办共享申请」，需方默认落「我的申请」视图。
+  await expect(page.getByRole('heading', { name: '办共享申请' })).toBeVisible();
+  await expect(page.getByTestId('p3-view-mine')).toBeVisible();
 });
 
 test('P3 部门操作员查看在途申请不进审批页', async ({ page }) => {
@@ -60,10 +62,12 @@ test('P3 部门操作员直达审批路由会回到申请详情', async ({ page 
   await expect(page.getByRole('button', { name: '通过' })).toHaveCount(0);
 });
 
-test('P3 部门管理员看待我审批', async ({ page }) => {
+test('P3 部门管理员看待我办理（审批队列）', async ({ page }) => {
   await setRole(page, 'ROLE_ORGAN_MANAGER');
   await gotoHash(page, '#/request-flow');
-  await expect(page.getByRole('heading', { name: '待我审批' })).toBeVisible();
+  // 三视图重构：审批角色见「待我办理」tab；点开后审批队列含去审批深链。
+  await expect(page.getByTestId('p3-view-todo')).toBeVisible();
+  await page.getByTestId('p3-view-todo').click();
   await expect(page.locator('a[href*="#/request-flow/review/"]').first()).toBeVisible();
 });
 

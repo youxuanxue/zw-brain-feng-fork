@@ -49,6 +49,22 @@ def query(
     )
 
 
+def query_outcome_rows(
+    *,
+    store: AuditStore | None = None,
+    tenant_id: str | None = None,
+    audit_class: str | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    limit: int = 10000,
+) -> list[tuple]:
+    """轻量行查询（不水合 payload）——异常扫描专用，见 AuditStore.query_outcome_rows。"""
+    target = store or get_default_store()
+    return target.query_outcome_rows(
+        tenant_id=tenant_id, audit_class=audit_class, since=since, until=until, limit=limit
+    )
+
+
 def list_by_request_id(
     request_id: str,
     *,

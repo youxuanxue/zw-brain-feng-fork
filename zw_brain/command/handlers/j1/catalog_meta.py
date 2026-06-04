@@ -132,8 +132,22 @@ def _list_catalog_resources(
     total = len(assets)
     start = (page - 1) * limit
     window = assets[start : start + limit]
+    # 反馈 5：目录详情不能少于旧平台编制规范。把目录的编制规范字段（catalogMeta）+
+    # 共享/开放语义（accessPolicy）单源投影附在 catalog 上，前端目录详情页直接渲染
+    # 首屏决策字段 + 折叠编目字段全集，不在前端二次解析 summary_json。
+    import copy as _copy  # noqa: PLC0415
+
+    from zw_brain.shared.sensitive_mask import mask_default as _mask  # noqa: PLC0415
+
+    catalog_dict = catalog_ser.catalog_entry_to_dict(entry)
+    masked_summary = _mask(_copy.deepcopy(entry.summary_json or {}))
+    catalog_service = deps.services.catalog
+    catalog_dict["catalogMeta"] = catalog_service.catalog_meta(masked_summary, entry)
+    catalog_dict["accessPolicy"] = catalog_service.access_policy(
+        catalog_service.summary_body(masked_summary), entry
+    )
     return {
-        "catalog": catalog_ser.catalog_entry_to_dict(entry),
+        "catalog": catalog_dict,
         "items": [resource_api_ser.resource_asset_to_dict(a) for a in window],
         "total": total,
         "page": page,

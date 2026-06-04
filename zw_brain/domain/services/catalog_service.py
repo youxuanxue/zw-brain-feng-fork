@@ -14,11 +14,57 @@ from typing import TYPE_CHECKING, Any
 from zw_brain.domain.serializers import metadata as metadata_ser
 from zw_brain.domain.serializers import resource_api as resource_api_ser
 from zw_brain.domain.serializers import topic_package as topic_package_ser
+from zw_brain.domain.serializers import typed_resource_detail as typed_resource_detail_ser
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 from zw_brain.shared.sensitive_mask import mask_default as _mask
 
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
+
+
+# 旧平台编制规范码 → 中文（反馈 5：目录详情按编制规范展示，码值不直接示人）。
+_SHARE_TYPE_LABELS: dict[str, str] = {
+    "1": "无条件共享",
+    "2": "有条件共享",
+    "3": "不予共享",
+}
+_OPEN_TYPE_LABELS: dict[str, str] = {
+    "1": "无条件开放",
+    "2": "有条件开放",
+    "3": "不予开放",
+}
+# 业务/数据更新周期码 → 中文（旧平台 update_cycle 枚举）。
+_UPDATE_CYCLE_LABELS: dict[str, str] = {
+    "1": "实时",
+    "2": "每日",
+    "3": "每周",
+    "4": "每月",
+    "5": "每季度",
+    "6": "每半年",
+    "7": "每年",
+    "8": "不定期",
+    "9": "不更新",
+}
+# 信息资源格式码 → 中文（旧平台 resource_format 枚举，常见档位）。
+_RESOURCE_FORMAT_LABELS: dict[str, str] = {
+    "0100": "结构化数据",
+    "0200": "库表",
+    "0300": "非结构化数据",
+    "0310": "文件",
+    "0320": "文件夹",
+    "0400": "接口",
+    "0500": "链接",
+}
+# 信息资源格式码 → 物化形态 kind（与 resource_asset.resource_kind / ResourceCard 徽标同口径）。
+# 反馈 7 资源类型筛选维度。结构化/库表 → table；文件 → file；文件夹 → folder；接口 → api；链接 → url。
+_RESOURCE_FORMAT_TO_KIND: dict[str, str] = {
+    "0100": "table",
+    "0200": "table",
+    "0310": "file",
+    "0320": "folder",
+    "0400": "api",
+    "0500": "url",
+}
 
 
 
@@ -197,13 +243,16 @@ class CatalogService:
             "provider": provider,
             "zone": summary.get("zone") or self.brain._region_label(record.region_code) or "官方目录推荐",
             "updatedAt": str(raw_updated),
-            "coverage": summary.get("coverage", "真实旧平台目录"),
+            "coverage": summary.get("coverage", ""),  # 无业务值不渲染（前端 v-if），不给工程出处话术
             "score": int(summary.get("score", 80 if record.catalog_code.startswith("basic-elem:") else 75)),
             "desc": str(desc),
             "fields": list(summary.get("fields", [])),
-            "explain": list(summary.get("explain", ["已匹配真实旧平台目录", f"目录状态：{record.lifecycle_status}"])),
+            "explain": list(summary.get("explain", ["来源：省一体化大数据平台共享目录"])),
             "nextHints": list(summary.get("nextHints", ["先看字段证据", "只申请必要字段"])),
             "kind": summary.get("kind", "catalog_entry"),
+            # 反馈 7 — 资源类型筛选维度：从目录 resource_format 派生物化形态
+            # （库表/文件/文件夹/接口/链接），让发现页按资源类型筛选。缺则 None（不参与筛选）。
+            "materializationKind": _RESOURCE_FORMAT_TO_KIND.get(str(body.get("resource_format"))),
             "regionCode": record.region_code,
             "accessPolicy": access_policy,
             "sensitivePolicy": self.sensitive_policy([]),
@@ -268,6 +317,27 @@ class CatalogService:
             # repo 直接返回 []（同语义）。
             snapshot_records = store.metadata_evidence_repo.list_schema_snapshots(resource_codes=list(resource_codes), tenant_id=_DEFAULT_TENANT_ID)
         snapshots = [metadata_ser.schema_snapshot_to_dict(item) for item in snapshot_records]
+        # 反馈 6 — 资源分型详情：给 focused 资源拉其 channel binding（文件/库表/接口/链接
+        # 的类型化事实），投影为 typedDetail 块。focused 路径是单资源（resource_view），
+        # list_bindings(resource_code=) 一条索引查询，无 N+1。列表路径（context 批量）此处
+        # 不展开 typedDetail（卡片不需要），保持读路径成本不变。
+        if focused_resource_code:
+            focused_asset = next(
+                (item for item in resources if item["resource_code"] == focused_resource_code),
+                None,
+            )
+            if focused_asset is not None:
+                binding_records = store.resource_api_repo.list_bindings(
+                    resource_code=focused_resource_code, tenant_id=_DEFAULT_TENANT_ID
+                )
+                binding_dicts = [resource_api_ser.binding_to_dict(b) for b in binding_records]
+                detail["focusedResourceCode"] = focused_resource_code
+                detail["resourceKind"] = focused_asset.get("resource_kind")
+                detail["resourceBindings"] = binding_dicts
+                detail["typedDetail"] = typed_resource_detail_ser.typed_resource_detail(
+                    resource_kind=focused_asset.get("resource_kind"),
+                    bindings=binding_dicts,
+                )
         legacy_refs = self.brain._legacy_mapping_refs(store, "catalog_entry", catalog_code, context=context)
         legacy_refs.extend(self.brain._legacy_mapping_refs(store, "catalog_item", [field["item_code"] for field in fields], context=context))
         legacy_refs.extend(self.brain._legacy_mapping_refs(store, "resource_schema_mapping", [item["mapping_code"] for item in mappings["items"]], context=context))
@@ -279,7 +349,9 @@ class CatalogService:
         detail["resourceAssets"] = resources
         detail["schemaSnapshots"] = snapshots
         detail["legacyMappings"] = legacy_refs
-        detail["accessPolicy"] = self.access_policy(self.summary_body(_mask(copy.deepcopy(record.summary_json or {}))), record)
+        masked_summary = _mask(copy.deepcopy(record.summary_json or {}))
+        detail["accessPolicy"] = self.access_policy(self.summary_body(masked_summary), record)
+        detail["catalogMeta"] = self.catalog_meta(masked_summary, record)
         detail["sensitivePolicy"] = self.sensitive_policy(fields)
         detail["reuseGapHint"] = self.brain._reuse_gap_hint(fields, mappings["items"])
         detail["repository"] = detail.get("repository", {}) | {
@@ -318,15 +390,53 @@ class CatalogService:
         return nested if isinstance(nested, dict) else summary
 
     def access_policy(self, summary: dict[str, Any], record: Any) -> dict[str, Any]:
-        """Catalog access policy dict for share / open semantics."""
+        """Catalog access policy dict for share / open semantics.
+
+        ``shareType`` / ``openType`` 保留旧平台原始码（既有 consumer 依赖，不破坏）；
+        额外投影 ``shareTypeLabel`` / ``openTypeLabel`` 旧平台编制规范中文（无条件共享/
+        有条件共享/不予共享 等），UI 渲染用 label、机器逻辑用码。
+        """
         return {
             "shareType": summary.get("shared_type"),
+            "shareTypeLabel": _SHARE_TYPE_LABELS.get(str(summary.get("shared_type")), summary.get("shared_type")),
             "shareWay": summary.get("shared_way"),
             "shareCondition": summary.get("shared_condition") or "未登记附加共享条件，按受控申请审批。",
             "openType": summary.get("open_type"),
+            "openTypeLabel": _OPEN_TYPE_LABELS.get(str(summary.get("open_type")), summary.get("open_type")),
             "openCondition": summary.get("open_condition") or "未登记公开条件。",
             "regionCode": record.region_code,
             "provider": summary.get("org_name") or summary.get("imported_by_org_name") or record.owner_org_id,
+        }
+
+    def catalog_meta(self, summary: dict[str, Any], record: Any) -> dict[str, Any]:
+        """目录编制规范字段全集（反馈 5 — 不能少于旧平台目录编制规范）.
+
+        旧平台「目录编制/目录维护」字段：数据资源分类、目录名称、来源系统、目录代码、
+        内部部门、提供方、所属领域、应用场景、信息资源格式、业务/数据更新周期、共享方式、
+        共享类型、共享条件、开放类型、开放条件、摘要。把它们从 summary_json 一次投影成
+        机读 dict（缺则 None，前端诚实空态）。决策字段（共享/更新/提供方/摘要）由 accessPolicy
+        + card 承载并占首屏；本块承载「次屏/折叠编目字段」全量，一个不少但不抢首屏。
+        """
+        body = self.summary_body(summary)
+        provider = body.get("org_name") or body.get("imported_by_org_name") or record.owner_org_id
+        resource_format = body.get("resource_format")
+        update_cycle = body.get("update_cycle")
+        return {
+            "catalogName": record.title,
+            "catalogCode": record.catalog_code,
+            "catalogType": body.get("catalog_type"),
+            "provider": provider,
+            "internalDept": body.get("internal_org_name"),
+            "domain": body.get("domain") or body.get("theme_group_id"),
+            "sourceSystem": body.get("source_system") or body.get("from_system_name"),
+            "resourceFormat": resource_format,
+            "resourceFormatLabel": _RESOURCE_FORMAT_LABELS.get(str(resource_format), resource_format),
+            "updateCycle": update_cycle,
+            "updateCycleLabel": _UPDATE_CYCLE_LABELS.get(str(update_cycle), update_cycle),
+            "catalogVersion": body.get("cata_version"),
+            "publishedTime": body.get("published_time"),
+            "summary": body.get("description"),
+            "regionCode": record.region_code,
         }
 
     def sensitive_policy(self, fields: list[dict[str, Any]]) -> dict[str, Any]:
@@ -342,11 +452,11 @@ class CatalogService:
         self, detail: dict[str, Any], fields: list[dict[str, Any]], mapping_summary: dict[str, Any]
     ) -> list[str]:
         """Human-readable explain lines for a catalog detail."""
-        out = ["已命中真实旧平台目录", f"提供方：{detail.get('provider') or '—'}"]
+        out = ["来源：省一体化大数据平台共享目录", f"提供方：{detail.get('provider') or '—'}"]
         if fields:
             out.append(f"字段清单 {len(fields)} 项")
         if mapping_summary.get("total"):
-            out.append(f"字段绑定证据 {mapping_summary['total']} 条，可回放到 legacy_object_mapping")
+            out.append(f"字段绑定证据 {mapping_summary['total']} 条（可审计回放）")
         return out
 
     def next_hints(

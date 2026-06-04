@@ -401,7 +401,7 @@ def handler_audit_event_statistics(deps: HandlerDeps, ctx: SkillContext, payload
     }
 
 
-def _detect_cross_tenant_read(events: list[Any], tenant_id: str) -> list[dict[str, Any]]:
+def _detect_cross_tenant_read(rows: list[tuple], tenant_id: str) -> list[dict[str, Any]]:
     """Rule 1 — 单 actor 在多个 tenant_id 上有 read-sensitive 事件即异常。
 
     输入 events 已被 tenant_id 过滤；这里我们重新拉一份*不限 tenant* 的事件，按
@@ -409,16 +409,16 @@ def _detect_cross_tenant_read(events: list[Any], tenant_id: str) -> list[dict[st
     本租户内 actor → 跨 tenant_id 的痕迹（适用于 store 中残留的跨租户事件，
     与 F2 test_replay_filters_cross_tenant_events_in_chain 同一类攻击场景）。
     """
-    all_events = audit_index.query(
+    all_rows = audit_index.query_outcome_rows(
         tenant_id=None,
         audit_class="read-sensitive",
         limit=10000,
     )
     actors_to_tenants: dict[str, set[str]] = {}
     actors_to_evidence: dict[str, list[str]] = {}
-    for ev in all_events:
-        actors_to_tenants.setdefault(ev.actor, set()).add(ev.tenant_id)
-        actors_to_evidence.setdefault(ev.actor, []).append(ev.request_id)
+    for request_id_v, actor_v, _skill, tenant_v, _phase, _outcome, _err in all_rows:
+        actors_to_tenants.setdefault(actor_v, set()).add(tenant_v)
+        actors_to_evidence.setdefault(actor_v, []).append(request_id_v)
     anomalies: list[dict[str, Any]] = []
     for actor, tenants in actors_to_tenants.items():
         if len(tenants) > 1:
@@ -437,32 +437,29 @@ def _detect_cross_tenant_read(events: list[Any], tenant_id: str) -> list[dict[st
     return anomalies
 
 
-def _detect_high_failure_rate(events: list[Any], min_failure_count: int) -> list[dict[str, Any]]:
+def _detect_high_failure_rate(rows: list[tuple], min_failure_count: int) -> list[dict[str, Any]]:
     """Rule 2 — 单 actor 在窗口内失败次数超过阈值即异常。
 
     判定失败：payload.error 字段存在 OR payload.outcome == "denied" OR
     phase == "error"。
     """
-    failures: dict[str, list[Any]] = {}
-    for ev in events:
-        if (
-            ev.phase == "error"
-            or ev.payload.get("outcome") == "denied"
-            or ev.payload.get("error") is not None
-        ):
-            failures.setdefault(ev.actor, []).append(ev)
+    failures: dict[str, list[tuple]] = {}
+    for row in rows:
+        _rid, actor_v, _skill, _tenant, phase_v, outcome_v, has_error = row
+        if phase_v == "error" or outcome_v == "denied" or has_error:
+            failures.setdefault(actor_v, []).append(row)
     anomalies: list[dict[str, Any]] = []
     for actor, evs in failures.items():
         if len(evs) >= min_failure_count:
-            evidence = list(dict.fromkeys(ev.request_id for ev in evs))[:5]
-            skills = sorted({ev.skill_id for ev in evs})
+            evidence = list(dict.fromkeys(r[0] for r in evs))[:5]
+            skills = sorted({r[2] for r in evs})
             anomalies.append(
                 {
                     "rule": "high-failure-rate",
                     "severity": "medium" if len(evs) < min_failure_count * 2 else "high",
                     "actor": actor,
                     "skill_id": ",".join(skills[:3]),
-                    "tenant_id": evs[0].tenant_id,
+                    "tenant_id": evs[0][3],
                     "evidence_request_ids": evidence,
                     "occurrence_count": len(evs),
                     "summary": f"actor {actor} 在窗口内失败 {len(evs)} 次（阈值 {min_failure_count}）",
@@ -471,12 +468,12 @@ def _detect_high_failure_rate(events: list[Any], min_failure_count: int) -> list
     return anomalies
 
 
-def _detect_repeated_denied(events: list[Any]) -> list[dict[str, Any]]:
+def _detect_repeated_denied(rows: list[tuple]) -> list[dict[str, Any]]:
     """Rule 3 — 同一 request_id 反复出现 denied 即异常（暴力重试）。"""
-    denied_by_request: dict[str, list[Any]] = {}
-    for ev in events:
-        if ev.payload.get("outcome") == "denied":
-            denied_by_request.setdefault(ev.request_id, []).append(ev)
+    denied_by_request: dict[str, list[tuple]] = {}
+    for row in rows:
+        if row[5] == "denied":
+            denied_by_request.setdefault(row[0], []).append(row)
     anomalies: list[dict[str, Any]] = []
     for request_id, evs in denied_by_request.items():
         if len(evs) >= 2:
@@ -484,9 +481,9 @@ def _detect_repeated_denied(events: list[Any]) -> list[dict[str, Any]]:
                 {
                     "rule": "repeated-denied",
                     "severity": "high",
-                    "actor": evs[0].actor,
-                    "skill_id": evs[0].skill_id,
-                    "tenant_id": evs[0].tenant_id,
+                    "actor": evs[0][1],
+                    "skill_id": evs[0][2],
+                    "tenant_id": evs[0][3],
                     "evidence_request_ids": [request_id],
                     "occurrence_count": len(evs),
                     "summary": f"request_id {request_id} 反复 denied {len(evs)} 次",
@@ -508,7 +505,9 @@ def handler_audit_event_anomaly(deps: HandlerDeps, ctx: SkillContext, payload: d
     top_n = int(payload.get("top_n") or 20)
     min_failure_count = int(payload.get("min_failure_count") or 3)
 
-    in_scope = audit_index.query(
+    # 轻量扫描：三条规则只消费 5 个标量字段——绝不水合 10k 条 payload
+    # （0604 试用「查审计 9 秒」根因：10k×json.loads≈2.4s/次 且随累积线性恶化）。
+    in_scope = audit_index.query_outcome_rows(
         tenant_id=tenant_id,
         since=since,
         until=until,

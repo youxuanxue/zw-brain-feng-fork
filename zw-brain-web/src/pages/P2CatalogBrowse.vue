@@ -5,6 +5,7 @@ import { useSnapshot } from '@/composables/useSnapshot';
 import { authFetch } from '@/composables/useAuth';
 import { getProductRole } from '@/composables/useProductRole';
 import { apiUrl } from '@/composables/useApiBase';
+import { deriveRecordName } from '@/lib/userLanguage';
 
 // 目录浏览：真接 catalog.browse 列真 catalog_entry，每行可钻取到目录详情（看目录下资源）。
 const { source } = useSnapshot();
@@ -34,18 +35,24 @@ async function load(): Promise<void> {
     });
     if (!resp.ok) {
       rows.value = [];
-      errorMsg.value = `加载失败：HTTP ${resp.status}`;
+      errorMsg.value = '暂时无法加载目录，请稍后再试。';
       return;
     }
     const body = (await resp.json()) as { items?: Array<Record<string, unknown>>; total?: number };
     rows.value = (body.items ?? [])
-      .map((it) => ({
-        catalogCode: String(it.catalog_code ?? ''),
-        title: String(it.title ?? it.catalog_code ?? ''),
-        resourceCount: Number(it.resourceCount ?? 0),
-        owner: String(it.ownerName ?? it.owner_org_id ?? '—'),
-        description: String(it.description ?? ''),
-      }))
+      .map((it) => {
+        const catalogCode = String(it.catalog_code ?? '');
+        // 名缺失时不裸出目录编码当标题 → 派生「数据目录 …末6位」。
+        const rawTitle = String(it.title ?? '');
+        return {
+          catalogCode,
+          title: rawTitle || deriveRecordName('', catalogCode, '数据目录'),
+          resourceCount: Number(it.resourceCount ?? 0),
+          // owner 名缺失时回落部门 id 也不直出，统一显示「—」。
+          owner: String(it.ownerName ?? '') || '—',
+          description: String(it.description ?? ''),
+        };
+      })
       .filter((it) => it.catalogCode);
     total.value = Number(body.total ?? rows.value.length);
   } finally {

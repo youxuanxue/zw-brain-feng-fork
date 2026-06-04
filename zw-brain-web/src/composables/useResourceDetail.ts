@@ -35,12 +35,17 @@ export function useResourceDetail(resourceId: () => string, role = 'ROLE_ORGAN_O
     (id) => {
       fetched.value = null;
       fetchError.value = null;
-      if (!lookupResource(id).value && id) void loadFromApi(id);
+      // 详情页始终拉 API 富集详情（typedDetail/catalogMeta/分型块 + accessPolicy）。
+      // snapshot 卡片只承载列表态薄字段（id/name/provider/status），不含分型/编制规范字段；
+      // 若仅用 snapshot，详情页会缺反馈 5/6 的分型与编目内容。snapshot 作首屏快照，
+      // API 富集后覆盖（DB 非空时替换，对齐 snapshot enrich 既有模式）。
+      if (id) void loadFromApi(id);
     },
     { immediate: true },
   );
 
-  const resource = computed(() => snapshotResource.value ?? fetched.value);
+  // API 富集详情优先（含分型/编制规范）；未到达前用 snapshot 卡片快照首屏。
+  const resource = computed(() => fetched.value ?? snapshotResource.value);
 
   return { resource, source, loading, fetchError };
 }

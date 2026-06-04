@@ -2,69 +2,112 @@
  * 与旧 js/pages.js `PRODUCT_SHELL_NAV` 对齐（E5 Vue 重建时补回主导航）。
  * 同步更新 zw_brain/domain/web_snapshot_redaction.py 中对应 frozenset。
  */
+/** 旅程分组：左侧侧边栏按「用数 / 供数 / 后台」三段组织（信息架构 = D39 2 旅程 + B1 后台）。 */
+export type JourneyGroup = 'use' | 'supply' | 'admin';
+
+export const JOURNEY_GROUP_LABEL: Record<JourneyGroup, string> = {
+  use: '用数据',
+  supply: '供数据',
+  admin: '后台与审计',
+};
+
 export interface ShellNavItem {
   key: string;
   navLabel: string;
+  /** 侧边栏每项的一行业务说明（设计即工作方式：让人知道这里办什么）。 */
+  navDesc: string;
   to: string;
+  group: JourneyGroup;
   roles: readonly string[];
 }
 
 export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
   {
     key: 'workbench',
-    navLabel: '数据共享工作台',
+    navLabel: '工作台',
+    navDesc: '今日待办与办理建议一屏看清',
     to: '/workbench',
+    group: 'use',
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT', 'ROLE_SYSTEM'],
   },
   {
     key: 'discovery',
-    navLabel: '找可复用数据',
+    navLabel: '找数据',
+    navDesc: '搜索可复用的政务数据资源',
     to: '/discovery',
+    group: 'use',
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
   },
   {
     key: 'request-flow',
-    navLabel: '办共享申请',
+    navLabel: '办申请',
+    navDesc: '发起、跟进与审批共享申请',
     to: '/request-flow',
+    group: 'use',
     // ROLE_BUSIAUDIT：j1-credential-revoke 决策 A —— 业务运营员在 P3 申请详情合规收回/暂停授权。
     // 审批等 action 仍由 action-gate 限 MANAGER（无权不可见），BUSIAUDIT 只多出收回/暂停。
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   },
   {
     key: 'delivery-exchange',
-    navLabel: '看交付回执',
+    navLabel: '领数据',
+    navDesc: '领取访问凭据、核对交付回执',
     to: '/delivery-exchange',
+    group: 'use',
+    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+  },
+  {
+    key: 'zones-pack',
+    navLabel: '专题包',
+    navDesc: '按场景订阅成套共享数据',
+    to: '/zones-pack',
+    group: 'use',
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
   },
   {
     key: 'provider',
-    navLabel: '维护数据供给',
+    navLabel: '供数据',
+    navDesc: '维护本部门对外提供的数据',
     to: '/provider',
+    group: 'supply',
     // ROLE_ORGAN_OPERATER：roles §66 / J2 §166 明确「在线编制」属操作员职责，须能进 /provider shell。
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   },
   {
     key: 'compliance-ops',
-    navLabel: '查审计证据',
+    navLabel: '查审计',
+    navDesc: '审计证据回放与合规核查',
     to: '/compliance-ops',
+    group: 'admin',
     roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT', 'ROLE_SECURITY_ADMIN', 'ROLE_SYSTEM'],
   },
   {
-    key: 'zones-pack',
-    navLabel: '进专题包',
-    to: '/zones-pack',
-    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
-  },
-  {
     key: 'integration-admin',
-    navLabel: '管受控接入',
+    navLabel: '接入管理',
+    navDesc: '管理受控接入与扩展能力',
     to: '/integration-admin',
+    group: 'admin',
     roles: ['ROLE_BUSIAUDIT', 'ROLE_SYSTEM'],
   },
 ];
 
 export function visibleShellNav(role: string): ShellNavItem[] {
   return PRODUCT_SHELL_NAV.filter((item) => item.roles.includes(role));
+}
+
+/** 把有权项按旅程分组（用数 / 供数 / 后台），空组不返回。 */
+export function visibleShellNavByGroup(
+  role: string,
+): Array<{ group: JourneyGroup; label: string; items: ShellNavItem[] }> {
+  const order: JourneyGroup[] = ['use', 'supply', 'admin'];
+  const visible = visibleShellNav(role);
+  return order
+    .map((group) => ({
+      group,
+      label: JOURNEY_GROUP_LABEL[group],
+      items: visible.filter((it) => it.group === group),
+    }))
+    .filter((g) => g.items.length > 0);
 }
 
 /** 与旧 `ZW_PAGE_SHELL` 路由前缀 → shell key 映射一致。 */

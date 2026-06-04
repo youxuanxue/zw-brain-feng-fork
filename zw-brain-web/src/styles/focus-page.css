@@ -19,12 +19,26 @@
 .focus-page .p1-layout > .panel,
 .focus-page .p1-layout > aside.panel {
   margin: 0;
-  padding: 20px 24px;
+  padding: 22px 26px;
   box-sizing: border-box;
 }
 .focus-page .panel > .panel-body,
 .focus-page .panel > :not(.focus-head):not(header) {
   margin-top: 0;
+}
+/* 框与框的留白：panel 内并列的带框区块（统计卡网格 / publish-card / 卡片网格）
+   之间用空气分隔。上面的归零规则特异性高于 Vue scoped，故在此处以更高特异性
+   显式声明（margin 被静默吃掉曾导致框线贴死，负责人三次指出——根因即此）。 */
+.focus-page .panel > div.stat-grid,
+.focus-page .panel > div.card-grid,
+.focus-page .panel > div.zone-grid {
+  margin-top: 16px;
+}
+.focus-page .panel > section.publish-card {
+  margin-top: 24px;
+}
+.focus-page .panel > a.nat-ext-entry {
+  margin-top: 20px;
 }
 .focus-empty {
   margin: 16px 0 8px;
@@ -45,7 +59,7 @@
 }
 .focus-table th,
 .focus-table td {
-  padding: 10px 8px;
+  padding: 11px 9px;
   text-align: left;
   font-size: 13px;
   border-bottom: 1px solid var(--b-border, #d4e2f4);

@@ -68,7 +68,7 @@ async function loadDemands() {
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ role: getProductRole().value }),
     });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    if (!resp.ok) throw new Error('暂时无法加载需求列表，请稍后再试。');
     const payload = (await resp.json()) as { items?: Record<string, unknown>[] };
     items.value = sortDemands((payload.items ?? []).map(mapDemandRow));
   } finally {

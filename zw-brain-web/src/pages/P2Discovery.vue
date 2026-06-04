@@ -11,8 +11,24 @@ import type { StructuredAction } from '@/composables/useNLAccelerator';
 
 const NL_PRESETS_P2 = ['查省营商环境相关数据', '近 7 天高使用资源', '关联水电气交叉数据'];
 
+// 物化形态 kind → 中文（与 ResourceCard 徽标 / 资源详情分型同口径）。
+const KIND_FILTER_LABELS: Record<string, string> = {
+  table: '库表',
+  file: '文件',
+  folder: '文件夹',
+  api: '接口',
+  url: '链接',
+};
+
 function consumeNLAction(action: StructuredAction) {
   if (action.kind === 'filter' && action.payload) {
+    // NL 解析出的资源类型 / 提供部门也落入同一筛选状态（与三件套共存不打架）。
+    if (typeof action.payload.kind === 'string' && KIND_FILTER_LABELS[action.payload.kind]) {
+      filters.kind = action.payload.kind;
+    }
+    if (typeof action.payload.provider === 'string' && action.payload.provider.trim()) {
+      filters.provider = action.payload.provider.trim();
+    }
     const next =
       typeof action.payload.query === 'string'
         ? action.payload.query
@@ -23,6 +39,7 @@ function consumeNLAction(action: StructuredAction) {
       query.value = next.trim();
       return;
     }
+    if (filters.kind || filters.provider) return;
   }
   if (action.kind === 'invoke' && action.target) {
     void invokeActionStub({ skillId: action.target, payload: action.payload, successTitle: action.label });
@@ -32,7 +49,17 @@ function consumeNLAction(action: StructuredAction) {
 }
 
 const route = useRoute();
-const { query, displayed, searching, searchError, source, isSearchMode } = useDiscoverySearch();
+const {
+  query,
+  filters,
+  displayed,
+  searching,
+  searchError,
+  source,
+  isSearchMode,
+  providerOptions,
+  kindOptions,
+} = useDiscoverySearch();
 
 onMounted(() => {
   const fromQuery = route.query.q ?? route.query.catalog;
@@ -53,7 +80,7 @@ const headerMeta = computed(() => {
 async function applyTo(id: string) {
   const result = await invokeActionStub({
     skillId: 'request.create',
-    payload: { resource_id: id, purpose: '来自资源发现页发起复用申请' },
+    payload: { resource_id: id, purpose: '通过资源发现页申请资源' },
     successTitle: '复用申请已起草',
   });
   const requestId = resolveRequestIdFromAction(result);
@@ -76,8 +103,8 @@ async function applyTo(id: string) {
         <template #aside>
           <NLAcceleratorPanel page-anchor="P2" :presets="NL_PRESETS_P2" @action="consumeNLAction" />
         </template>
-        <form role="search" @submit.prevent>
-          <label class="sr-only" for="p2-search">搜索资源</label>
+        <form role="search" class="discovery-filters" @submit.prevent>
+          <label class="sr-only" for="p2-search">按名称检索资源</label>
           <input
             id="p2-search"
             v-model="query"
@@ -86,6 +113,18 @@ async function applyTo(id: string) {
             placeholder="例如：停车场信息 / 营商环境 / 一表通"
             autocomplete="off"
           />
+          <!-- 反馈 7：资源类型筛选（库表/文件/文件夹/接口/链接，从结果集现算） -->
+          <label class="sr-only" for="p2-kind">按资源类型筛选</label>
+          <select id="p2-kind" v-model="filters.kind" class="focus-filter" data-testid="filter-kind">
+            <option value="">全部资源类型</option>
+            <option v-for="k in kindOptions" :key="k" :value="k">{{ KIND_FILTER_LABELS[k] ?? k }}</option>
+          </select>
+          <!-- 反馈 7：提供部门筛选（真实库 distinct 提供方，不写死） -->
+          <label class="sr-only" for="p2-provider">按提供部门筛选</label>
+          <select id="p2-provider" v-model="filters.provider" class="focus-filter" data-testid="filter-provider">
+            <option value="">全部提供部门</option>
+            <option v-for="p in providerOptions" :key="p" :value="p">{{ p }}</option>
+          </select>
         </form>
       </PageFocusHeader>
 
@@ -105,6 +144,9 @@ async function applyTo(id: string) {
 </template>
 
 <style scoped>
-.card-grid { display: grid; gap: 12px; margin-top: 8px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); align-items: start; }
+.card-grid { display: grid; gap: 18px; margin-top: 14px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.discovery-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.discovery-filters .focus-search { flex: 1 1 240px; min-width: 200px; }
+.focus-filter { flex: 0 0 auto; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--b-border, #d4e2f4); background: #fff; font-size: 13px; color: var(--b-neutral-text, #1a1d21); cursor: pointer; }
 </style>

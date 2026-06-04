@@ -166,7 +166,7 @@ const TRUST_LABELS: Record<string, string> = {
 <template>
   <main class="focus-page">
     <section class="panel panel-stack">
-      <PageFocusHeader title="接入扩展中心" meta="能力包 · 暴露矩阵 · 信任级">
+      <PageFocusHeader title="接入扩展中心" meta="面向平台管理员：审批外部系统接入的能力、设定它们允许使用的范围，并配置审批与表单流程">
         <template #aside>
           <a class="gov-btn gov-btn-secondary" href="#/integration-admin/iam-governance">身份治理</a>
           <NLAcceleratorPanel page-anchor="B1.2" :presets="NL_PRESETS_B12" @action="consumeNLAction" />
@@ -185,7 +185,7 @@ const TRUST_LABELS: Record<string, string> = {
             :aria-selected="activeTab === t"
             @click="switchTab(t)"
           >
-            {{ t === 'list' ? '能力包注册' : t === 'matrix' ? '暴露范围矩阵' : '三引擎入口' }}
+            {{ t === 'list' ? '能力接入' : t === 'matrix' ? '开放范围' : '流程与表单配置' }}
           </button>
         </nav>
         <button type="button" class="focus-tab refresh-btn" @click="refreshActive">刷新</button>
@@ -193,7 +193,8 @@ const TRUST_LABELS: Record<string, string> = {
 
       <section v-show="activeTab === 'list'" class="focus-section">
         <header class="focus-section-head">
-          <h2 class="focus-section-title">能力包注册表</h2>
+          <h2 class="focus-section-title">已接入能力</h2>
+          <p class="focus-section-hint">外部系统（如网关、诊断工具）带来的能力需经平台审批后才能启用——在此批准、停用或回退。</p>
           <DataSourceBadge :source="packages.source.value" />
         </header>
         <p class="disclaimer">
@@ -232,7 +233,8 @@ const TRUST_LABELS: Record<string, string> = {
 
       <section v-show="activeTab === 'matrix'" class="focus-section">
         <header class="focus-section-head">
-          <h2 class="focus-section-title">暴露范围矩阵</h2>
+          <h2 class="focus-section-title">开放范围</h2>
+          <p class="focus-section-hint">控制每项已接入能力允许出现在哪些业务环节——范围之外一律不可见、不可调用。</p>
           <div class="focus-section-controls">
           <label>所属旅程：
             <select v-model="matrixJourneyFilter" @change="matrix.load({ journey: matrixJourneyFilter || undefined, status: matrixStatusFilter || undefined })">
@@ -288,11 +290,11 @@ const TRUST_LABELS: Record<string, string> = {
 
       <section v-show="activeTab === 'engines'" class="focus-section">
         <header class="focus-section-head">
-          <h2 class="focus-section-title">三引擎入口</h2>
+          <h2 class="focus-section-title">流程与表单配置</h2>
         </header>
       <p class="disclaimer">
-        三引擎（审批流 / 表单 / 智能推荐前置）的管理员配置面已集中在本节子页
-        <a href="#/integration-admin/engines">三引擎配置</a>；本面板仅提供入口链接。
+        审批流程、申请表单与智能推荐的配置集中在
+        <a href="#/integration-admin/engines">配置页</a>；本面板提供快捷入口。
       </p>
       <div class="slot-grid">
         <a v-for="slot in slots" :key="slot.key" :href="slot.href" class="slot-card">
@@ -348,4 +350,5 @@ const TRUST_LABELS: Record<string, string> = {
 .slot-card h3 { margin: 0 0 6px; font-size: 14px; color: var(--b-primary, #006be6); }
 .slot-card p { margin: 4px 0; font-size: 12px; color: var(--b-muted, #5c6370); }
 .slot-status { font-weight: 600; }
+.focus-section-hint { margin: 4px 0 10px; font-size: 13px; color: var(--b-muted, #5c6370); }
 </style>

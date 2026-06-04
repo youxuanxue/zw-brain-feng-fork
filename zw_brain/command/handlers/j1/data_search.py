@@ -13,6 +13,64 @@ from zw_brain.domain.discovery_snapshot_projection import project_resource_cards
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 
+def _recall_candidates(deps: Any, haystack: str, seen_ids: set[str]) -> list[dict[str, Any]]:
+    """NL 召回字典命中 → 卡片（单一真相：0604 试用「两个入口效果不一样」修复）。
+
+    召回项先回查目录库：**查得到 → 给真卡**（真 id、详情可达、真实状态中文标签——与
+    目录浏览入口同一真相，哪怕该状态不在 D45.b 默认发现集合，显式搜索命中即如实呈现）；
+    查不到才给「录入中」诚实 stub（白话文案，无工程 token；前端按 recall_dictionary
+    渲染为无链接软候选）。
+    """
+    from zw_brain.domain.discovery_snapshot_projection import (  # noqa: PLC0415
+        _RESOURCE_STATUS_DISPLAY,
+    )
+
+    out: list[dict[str, Any]] = []
+    recall = deps.view.discovery.get_recall_dictionary()
+    for entry in recall.get("sample_titles", []):
+        title = entry.get("title", "")
+        if not title or haystack not in title.lower():
+            continue
+        record = next(
+            (
+                r
+                for r in deps.repos.catalog.search_entries(title, tenant_id=_DEFAULT_TENANT_ID)
+                if r.title == title
+            ),
+            None,
+        )
+        if record is not None:
+            card = deps.services.catalog.record_to_card_dict(record)
+            raw_status = str(card.get("status") or "")
+            card["status"] = _RESOURCE_STATUS_DISPLAY.get(raw_status, raw_status)
+            if card["id"] not in seen_ids:
+                seen_ids.add(card["id"])
+                out.append(card)
+            continue
+        cand_id = f"recall:{title}"
+        if cand_id in seen_ids:
+            continue
+        seen_ids.add(cand_id)
+        out.append(
+            {
+                "id": cand_id,
+                "name": title,
+                "provider": entry.get("owner_org_id", "") or "—",
+                "zone": "官方目录推荐",
+                "status": "录入中",
+                "desc": "该目录已收录于官方目录字典，正在录入。",
+                "kind": "recall_dictionary",
+                "score": 60,
+                "repository": {
+                    "catalogCode": cand_id,
+                    "lifecycleStatus": entry.get("lifecycle_status", "active"),
+                    "ownerOrgId": entry.get("owner_org_id") or "",
+                },
+            }
+        )
+    return out
+
+
 def handler(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
@@ -72,32 +130,7 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
         # non-empty (would otherwise add 25 thin cards to every page load).
         if haystack:
             seen_ids = {r["id"] for r in resources}
-            recall = deps.view.discovery.get_recall_dictionary()
-            for entry in recall.get("sample_titles", []):
-                title = entry.get("title", "")
-                if not title or haystack not in title.lower():
-                    continue
-                cand_id = f"recall:{title}"
-                if cand_id in seen_ids:
-                    continue
-                seen_ids.add(cand_id)
-                resources.append(
-                    {
-                        "id": cand_id,
-                        "name": title,
-                        "provider": entry.get("owner_org_id", "") or "—",
-                        "zone": "官方目录推荐",
-                        "status": entry.get("lifecycle_status", "active"),
-                        "desc": f"NL 召回字典命中（来自 dsp_catalog 真数据，{entry.get('lifecycle_status','active')}）。",
-                        "kind": "recall_dictionary",
-                        "score": 60,
-                        "repository": {
-                            "catalogCode": cand_id,
-                            "lifecycleStatus": entry.get("lifecycle_status", "active"),
-                            "ownerOrgId": entry.get("owner_org_id") or "",
-                        },
-                    }
-                )
+            resources.extend(_recall_candidates(deps, haystack, seen_ids))
     else:
         if not query:
             # D45 — 空搜索默认视图：DB 有真实资源则展现全量真实库（与 system.snapshot
@@ -171,32 +204,7 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
                         "resource_kind": api_res.get("resource_kind"),
                     }
                 )
-            recall = deps.view.discovery.get_recall_dictionary()
-            for entry in recall.get("sample_titles", []):
-                title = entry.get("title", "")
-                if not title or haystack not in title.lower():
-                    continue
-                cand_id = f"recall:{title}"
-                if cand_id in existing_ids:
-                    continue
-                existing_ids.add(cand_id)
-                resources.append(
-                    {
-                        "id": cand_id,
-                        "name": title,
-                        "provider": entry.get("owner_org_id", "") or "—",
-                        "zone": "官方目录推荐",
-                        "status": entry.get("lifecycle_status", "active"),
-                        "desc": f"NL 召回字典命中（来自 dsp_catalog 真数据，{entry.get('lifecycle_status','active')}）。",
-                        "kind": "recall_dictionary",
-                        "score": 60,
-                        "repository": {
-                            "catalogCode": cand_id,
-                            "lifecycleStatus": entry.get("lifecycle_status", "active"),
-                            "ownerOrgId": entry.get("owner_org_id") or "",
-                        },
-                    }
-                )
+            resources.extend(_recall_candidates(deps, haystack, existing_ids))
     page = max(page, 1)
     page_size = 20
     start = (page - 1) * page_size

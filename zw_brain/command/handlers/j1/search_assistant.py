@@ -40,6 +40,14 @@ ALL_INTENTS = (
     INTENT_UNKNOWN,
 )
 
+# R12：意图回显给用户时必须是业务人话，绝不裸出 intent token（discover_resource 等）。
+_INTENT_ZH: dict[str, str] = {
+    INTENT_DISCOVER_RESOURCE: "查找可复用数据",
+    INTENT_REGISTER_DEMAND: "登记数据需求",
+    INTENT_QUERY_APPLICATION: "查看我的申请进度",
+    INTENT_UNKNOWN: "理解你的诉求",
+}
+
 # 关键词 → intent 的本地规则字典（fallback 路径用）
 _INTENT_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     (INTENT_REGISTER_DEMAND, ("找不到", "没有", "缺", "没数据", "需要数据", "登记需求")),
@@ -162,8 +170,9 @@ def _rule_based_parse(query: str) -> dict[str, Any]:
     if intent == INTENT_QUERY_APPLICATION:
         missing_fields.append("申请单提交时间窗")
 
+    _kw_text = "、".join(keywords[:3]) if keywords else "你输入的内容"
     reason = (
-        f"基于关键词 {keywords[:3]} 推断为「{intent}」；"
+        f"已根据「{_kw_text}」帮你{_INTENT_ZH.get(intent, _INTENT_ZH[INTENT_UNKNOWN])}；"
         f"如想看其他主题数据，可在搜索框追加更多关键词。"
     )
     follow_ups = []

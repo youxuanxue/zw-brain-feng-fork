@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
+import { shortId } from '@/lib/userLanguage';
 
 const provider = useProvider();
 const { source } = useSnapshot();
@@ -41,7 +42,7 @@ const headerMeta = computed(() => {
         </thead>
         <tbody>
           <tr v-for="it in items" :key="it.id">
-            <td><code>{{ it.id }}</code></td>
+            <td><code>{{ shortId(it.id) }}</code></td>
             <td>{{ it.title }}</td>
             <td><span :class="todoStatusTone(it.status)">{{ formatTodoStatus(it.status) }}</span></td>
             <td><a :href="`#/provider/inbox/objection/${it.id}`">响应</a></td>

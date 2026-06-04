@@ -325,7 +325,7 @@ def test_page_focus_header_filters_links_by_role() -> None:
     assert "visibleLinks" in src, (
         "PageFocusHeader.vue 必须用 visibleLinks 计算属性渲染 <a>，不能直接遍历 links"
     )
-    assert 'v-for="(link, i) in visibleLinks"' in src, (
+    assert 'in visibleLinks"' in src, (
         "PageFocusHeader.vue 模板 v-for 必须基于 visibleLinks，否则 sub-nav 不会按 role 过滤"
     )
 
@@ -333,7 +333,7 @@ def test_page_focus_header_filters_links_by_role() -> None:
 def test_p5_provider_filters_stat_cards_and_publish_action() -> None:
     """P5Provider.vue 必须按 role 过滤 inbox 计数卡 + 按 action 闸 publish 按钮。
 
-    背景：J2-7 OPERATER 看到「字段裁决/挂接审核/供需对接/异议响应」4 张待办卡 +
+    背景：J2-7 OPERATER 看到「字段审核/挂接审核/供需对接/异议响应」4 张待办卡 +
     3 个「发布「xxx」」按钮全亮（点击只弹 toast）。前 3 张卡 href 指向无权 inbox 路由；
     发布按钮走 catalog.entry.publish action（后端 policy.py 限 MANAGER+BUSIAUDIT）。
     chokepoint：

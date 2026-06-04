@@ -100,7 +100,7 @@ def run() -> int:
             )
 
             goto_vue_hash(page, f"#/discovery/resource/{REAL_RESOURCE_ID}")
-            page.wait_for_selector("button:has-text('发起复用申请')", timeout=CONFIG.nav_timeout_ms)
+            page.wait_for_selector("button:has-text('申请资源')", timeout=CONFIG.nav_timeout_ms)
             title_seen = page.locator(".page-hero-title").first.inner_text()
             s = shot(page, "03-resource-detail.png")
             _log(
@@ -110,7 +110,7 @@ def run() -> int:
                 REAL_RESOURCE_TITLE in title_seen or REAL_RESOURCE_ID in title_seen,
             )
 
-            page.click("button:has-text('发起复用申请')")
+            page.click("button:has-text('申请资源')")
             page.wait_for_function(
                 "() => location.hash.startsWith('#/request-flow/request/')",
                 timeout=CONFIG.nav_timeout_ms,

@@ -34,7 +34,7 @@ test('B1.2 接入中心 3 tab 可达（ROLE_BUSIAUDIT）', async ({ page }) => {
   await setRole(page, 'ROLE_BUSIAUDIT');
   await gotoHash(page, '#/integration-admin');
   await expect(page.getByRole('heading', { name: '接入扩展中心' })).toBeVisible();
-  await expect(page.getByRole('tab', { name: '能力包注册' })).toBeVisible();
-  await page.getByRole('tab', { name: '暴露范围矩阵' }).click();
-  await expect(page.getByRole('heading', { name: '暴露范围矩阵' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: '能力接入' })).toBeVisible();
+  await page.getByRole('tab', { name: '开放范围' }).click();
+  await expect(page.getByRole('heading', { name: '开放范围' })).toBeVisible();
 });

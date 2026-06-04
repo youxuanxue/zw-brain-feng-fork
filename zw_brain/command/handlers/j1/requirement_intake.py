@@ -165,7 +165,7 @@ def _confirm_summary(brain, deps, ctx, request_id: str, role: str, confirmed: bo
             }
         )
         request["aiStatus"]["summary"] = "自动汇总已确认，当前只剩回流候选是否正式纳入模板。"
-        request["aiStatus"]["nextAction"] = "请 数据提供方 / 业务运营员 确认回流候选并同步模板版本与专题入口。"
+        request["aiStatus"]["nextAction"] = "请数据提供方 / 业务运营员确认这批高频字段是否纳入目录，并更新对应的填报模板。"
         delivery = deps.view.delivery.find_by_request_id(request_id)
         if delivery:
             delivery["status"] = "reconciling"
@@ -208,7 +208,7 @@ def _confirm_backflow(brain, deps, ctx, task_id: str, role: str, confirmed: bool
             }
         )
         task["aiSummary"]["summary"] = "这条链路已经从一次性补录沉淀成下一次可直接复用的模板能力。"
-        task["aiSummary"]["nextAction"] = "请回到 P5 / P7 检查模板版本与专题入口是否同步完成。"
+        task["aiSummary"]["nextAction"] = "请到“维护数据供给”和“专题包”里确认填报模板和目录归集是否已更新到位。"
         task["aiSummary"]["cause"] = "高频差异字段已经过一次真实业务验证，并具备明确来源与责任方。"
         task["aiSummary"]["impact"] = "下次类似需求将进一步减少基层补录工作量。"
         task["backflow"]["status"] = "已确认"

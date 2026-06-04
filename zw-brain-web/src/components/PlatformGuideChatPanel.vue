@@ -3,9 +3,9 @@ import { onMounted, ref } from 'vue';
 import { usePlatformGuideChat } from '@/composables/usePlatformGuideChat';
 
 const PRESETS = [
-  '我的角色权限范围是什么？',
-  '申请数据资源需要哪些字段？',
-  'Docker 如何启用平台问答？',
+  '我的岗位能办哪些事？',
+  '申请共享数据需要填哪些信息？',
+  '怎么查看我的申请进度？',
 ] as const;
 
 const open = ref(false);
@@ -78,7 +78,7 @@ onMounted(() => {
           v-model="draft"
           class="guide-input"
           rows="3"
-          placeholder="例如：REST 默认端口？如何配置 IAF？"
+          placeholder="例如：我的岗位能办哪些事？申请共享数据要填哪些信息？"
           :disabled="loading"
         />
         <button type="submit" class="guide-submit" :disabled="loading || runtimeEnabled === false">

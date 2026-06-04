@@ -13,6 +13,7 @@ import copy
 import zw_brain.shared.clock as clock
 from zw_brain.command.brain import _DEFAULT_TENANT_ID, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
+from zw_brain.domain.workbench_backlog_projection import enrich_workbench_backlog
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -24,7 +25,11 @@ def _get_workbench(brain, deps, ctx, role: str) -> dict[str, Any]:
     # hatch to keep the existence check. (Will retire with snapshot dict in Action D.)
     if role not in deps.brain_legacy._snapshot["workbench"]:
         raise NotFoundError(role)
-    return deps.view.workbench.get_for_role(role)
+    view = deps.view.workbench.get_for_role(role)
+    # 缺陷 2 修复：业务运营员（ROLE_BUSIAUDIT）待办从真实库现算（待发布/待审核目录 + 待审核
+    # 资源 + 待受理申请），每条深链到既有办理页；DB 有积压才生成（无空死链），并清掉删演示单
+    # 后遗留的陈旧 subtitle/aiSummary。其它角色 view 原样（待办由 sync_request_todos 真投影）。
+    return enrich_workbench_backlog(view, role)
 
 def _submit_service_rating(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     """申请人 完成交付后为本次共享服务打分（写入审计供 安全审计员 督查可见）。"""

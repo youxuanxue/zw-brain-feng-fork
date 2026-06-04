@@ -13,7 +13,7 @@ test.describe('B1.2 接入扩展中心 e2e', () => {
 
   test('3 tab 切换与 aria-selected 同步', async ({ page }) => {
     await expect(page.getByRole('heading', { name: '接入扩展中心' })).toBeVisible();
-    for (const label of ['能力包注册', '暴露范围矩阵', '三引擎入口'] as const) {
+    for (const label of ['能力接入', '开放范围', '流程与表单配置'] as const) {
       await page.getByRole('tab', { name: label }).click();
       await expect(page.getByRole('tab', { name: label })).toHaveAttribute('aria-selected', 'true');
     }

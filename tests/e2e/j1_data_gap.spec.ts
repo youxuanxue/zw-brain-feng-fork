@@ -43,23 +43,26 @@ test.describe('J1 数据缺位修复（D45）', () => {
     }
   });
 
-  test('P3 在途申请：展现全量真实申请（非 seed 5 条）', async ({ page }) => {
+  test('P3 我的申请：展现全量真实申请（非 seed 5 条）', async ({ page }) => {
     await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, '#/request-flow');
     await page.waitForTimeout(1500);
-    const rows = page.locator('.focus-table tbody tr');
+    // 三视图重构：需方默认落「我的申请」视图，展现全量真实申请。
+    const rows = page.getByTestId('p3-pane-mine').locator('.focus-table tbody tr');
     await expect(rows.first()).toBeVisible({ timeout: 10_000 });
-    expect(await rows.count(), '在途申请应全量真实（远超 seed 5）').toBeGreaterThan(40);
+    expect(await rows.count(), '我的申请应全量真实（远超 seed 5）').toBeGreaterThan(40);
     // 每行有资源名（申请类，非需求噪声）。
     await expect(rows.first()).not.toBeEmpty();
   });
 
-  test('P3 待我审批：审批角色见全量真实待审', async ({ page }) => {
+  test('P3 待我办理：审批角色见全量真实待审', async ({ page }) => {
     await setRole(page, 'ROLE_ORGAN_MANAGER');
     await gotoHash(page, '#/request-flow');
+    // 三视图重构：审批角色切到「待我办理」视图看待审队列。
+    await page.getByTestId('p3-view-todo').click();
     await page.waitForTimeout(1500);
-    const rows = page.locator('.focus-table tbody tr');
+    const rows = page.getByTestId('p3-pane-todo').locator('.focus-table tbody tr');
     await expect(rows.first()).toBeVisible({ timeout: 10_000 });
-    expect(await rows.count(), '待我审批应全量真实（远超 seed 5）').toBeGreaterThan(10);
+    expect(await rows.count(), '待我办理应全量真实（远超 seed 5）').toBeGreaterThan(10);
   });
 });

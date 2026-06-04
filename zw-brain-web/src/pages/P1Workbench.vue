@@ -2,7 +2,12 @@
 import { computed } from 'vue';
 import { useWorkbench } from '@/composables/useWorkbench';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
+import { humanizeTitle } from '@/lib/userLanguage';
 
+// 缺陷 2（业务方试用反馈）：业务运营员待办「不对路」。机制单源 = 后端 workbench_backlog_projection
+// （真实库现算、每条带深链，第二组）；角色 → 待办语义（白话类目，第四组）已下沉到该
+// 后端投影（语义定义见 docs/decisions/role-projection-views-business-review-package.md），
+// 前端只渲染、不自算（避免两套口径漂移）。
 const { data, source, error, refresh } = useWorkbench();
 
 const todoCount = computed(() => data.value?.todos.length ?? 0);
@@ -34,17 +39,29 @@ const urgentCount = computed(
     <div v-if="data" class="p1-layout">
       <section class="panel p1-card">
         <h2 class="p1-block-title">今日待办</h2>
-        <ul class="p1-list p1-list--todo">
-          <li v-for="(todo, idx) in data.todos" :key="`${todo.id}-${idx}`" class="p1-row">
+        <ul v-if="data.todos.length" class="p1-list p1-list--todo">
+          <li
+            v-for="(todo, idx) in data.todos"
+            :key="`${todo.id}-${idx}`"
+            class="p1-row"
+            data-testid="workbench-todo"
+          >
             <div class="p1-row-main">
-              <a v-if="todo.href" :href="todo.href" class="p1-row-title">{{ todo.title }}</a>
-              <span v-else class="p1-row-title">{{ todo.title }}</span>
+              <a
+                v-if="todo.href"
+                :href="todo.href"
+                class="p1-row-title"
+                data-testid="workbench-todo-link"
+                >{{ humanizeTitle(todo.title) }}</a
+              >
+              <span v-else class="p1-row-title">{{ humanizeTitle(todo.title) }}</span>
             </div>
             <span class="p1-status" :class="todoStatusTone(String(todo.status))">
               {{ formatTodoStatus(String(todo.status)) }}
             </span>
           </li>
         </ul>
+        <p v-else class="p1-empty">当前岗位暂无待办事项。</p>
       </section>
 
       <aside class="panel p1-side">
@@ -72,7 +89,7 @@ const urgentCount = computed(
 .p1-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 .p1-hero {
   background: linear-gradient(180deg, #f4f9ff 0%, #ffffff 100%);
@@ -112,7 +129,7 @@ const urgentCount = computed(
 .p1-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr);
-  gap: 16px;
+  gap: 20px;
   align-items: start;
 }
 .p1-card--span {
@@ -138,6 +155,11 @@ const urgentCount = computed(
 .p1-list--bullets {
   list-style: disc;
   padding-left: 1.25rem;
+}
+.p1-empty {
+  margin: 0;
+  font-size: 14px;
+  color: var(--b-muted, #5c6370);
 }
 .p1-row {
   display: flex;

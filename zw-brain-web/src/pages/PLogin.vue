@@ -8,11 +8,11 @@ import {
   loginWithDevBypass,
   loginWithIam,
   isAuthLoading,
+  readAuthConfig,
 } from '@/composables/useAuth';
 import { loadSnapshot } from '@/composables/useSnapshot';
 import { getProductRole } from '@/composables/useProductRole';
 import { pushToast } from '@/composables/useActionStub';
-import { apiUrl } from '@/composables/useApiBase';
 
 const router = useRouter();
 const user = getCurrentUser();
@@ -70,15 +70,10 @@ async function enterWithDevBypass(): Promise<void> {
 onMounted(async () => {
   await bootstrap();
   try {
-    const resp = await fetch(apiUrl('/auth/iaf/config'), { headers: { Accept: 'application/json' }, credentials: 'include' });
-    if (resp.ok) {
-      const cfg = (await resp.json()) as {
-        configured?: boolean;
-        development_iam_bypass_enabled?: boolean;
-      };
-      devBypass.value = cfg.development_iam_bypass_enabled === true;
-      iafConfigured.value = cfg.configured !== false;
-    }
+    // 共享 useAuth 的 memo（与 bypass 登录同一 in-flight promise——冷启动不再重复拉 config）。
+    const cfg = await readAuthConfig();
+    devBypass.value = cfg.development_iam_bypass_enabled === true;
+    iafConfigured.value = cfg.configured !== false;
   } catch {
     devBypass.value = false;
     iafConfigured.value = false;

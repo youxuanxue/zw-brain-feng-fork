@@ -26,8 +26,8 @@
 | `#/provider/wizard/reverse-catalog`  | `PAGES.providerWizardReverseCatalog` | P5 反向编目向导    | J2   |
 | `#/provider/wizard/api-service`      | `PAGES.providerWizardApiService`     | P5 API 服务化向导  | J2   |
 | `#/provider/wizard/quality-rule`     | `PAGES.providerWizardQualityRule`    | P5 质量规则向导    | J2   |
-| `#/provider/inbox/field-decision`        | `PAGES.providerInboxFieldDecision`        | P5 字段裁决收件箱 | J2 |
-| `#/provider/inbox/field-decision/:id`    | `PAGES.providerInboxFieldDecisionDetail`  | P5 字段裁决详情   | J2 |
+| `#/provider/inbox/field-decision`        | `PAGES.providerInboxFieldDecision`        | P5 字段审核收件箱 | J2 |
+| `#/provider/inbox/field-decision/:id`    | `PAGES.providerInboxFieldDecisionDetail`  | P5 字段审核详情   | J2 |
 | `#/provider/inbox/hookup-review`         | `PAGES.providerInboxHookupReview`         | P5 挂接审核收件箱  | J2 |
 | `#/provider/inbox/demand-match`          | `PAGES.providerInboxDemandMatch`          | P5 供需对接收件箱  | J2 |
 | `#/provider/inbox/demand-match/:id`      | `PAGES.providerInboxDemandMatchDetail`    | P5 供需对接详情   | J2 |

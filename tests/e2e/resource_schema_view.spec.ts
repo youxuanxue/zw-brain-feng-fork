@@ -42,6 +42,30 @@ async function resourceCodeWithSchema(page: import('@playwright/test').Page): Pr
   return null;
 }
 
+/** 找一个真实库里**确实没有**字段模型的可见资源（用于断言诚实空态、非 404）。 */
+async function resourceCodeWithoutSchema(
+  page: import('@playwright/test').Page,
+): Promise<string | null> {
+  const role = 'ROLE_ORGAN_MANAGER';
+  const snap = await page.request.get(`${E2E_BASE_URL}/api/snapshot?role=${role}`);
+  if (!snap.ok()) return null;
+  const body = (await snap.json()) as Record<string, unknown>;
+  const discovery = (body.discovery ?? {}) as Record<string, unknown>;
+  const resources = (discovery.resources ?? []) as Array<Record<string, unknown>>;
+  for (const r of resources) {
+    const code = String(r.id ?? '');
+    if (!code) continue;
+    const schemaResp = await page.request.get(
+      `${E2E_BASE_URL}/api/skills/metadata.schema.query?role=${role}&resource_code=${encodeURIComponent(code)}`,
+    );
+    // 缺陷 3 守护点：后端对无 schema 资源也必须返 200（诚实空），绝不 404。
+    expect(schemaResp.status(), `metadata.schema.query must never 404 for ${code}`).toBe(200);
+    const schemaBody = (await schemaResp.json()) as Record<string, unknown>;
+    if (!hasColumnRows((schemaBody.result ?? schemaBody) as Record<string, unknown>)) return code;
+  }
+  return null;
+}
+
 test.describe('P2 资源详情 · 字段数据模型只读块', () => {
   test.beforeEach(async ({ page }, testInfo) => {
     await skipUnlessBackend(page, testInfo);
@@ -68,5 +92,19 @@ test.describe('P2 资源详情 · 字段数据模型只读块', () => {
     await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, `#/discovery/resource/${resId}`);
     await expect(page.locator('[data-testid="resource-schema-block"]')).toHaveCount(0);
+  });
+
+  test('无 schema 资源 → 诚实空态（非 404 错误态）', async ({ page }) => {
+    const resId = await resourceCodeWithoutSchema(page);
+    test.skip(!resId, 'no discovery resource lacking field schema in this DB');
+
+    await setRole(page, 'ROLE_ORGAN_MANAGER');
+    await gotoHash(page, `#/discovery/resource/${resId}`);
+
+    // 块仍渲染（授权岗位），但走诚实空态——不是「加载失败：HTTP 404」错误态。
+    await expect(page.locator('[data-testid="resource-schema-block"]')).toBeVisible();
+    await expect(page.locator('[data-testid="resource-schema-empty"]')).toBeVisible();
+    await expect(page.locator('[data-testid="resource-schema-error"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="resource-schema-table"]')).toHaveCount(0);
   });
 });

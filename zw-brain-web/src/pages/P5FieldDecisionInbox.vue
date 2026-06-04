@@ -4,6 +4,7 @@ import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { deriveFieldDecisions } from '@/lib/providerProjection';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
+import { shortId } from '@/lib/userLanguage';
 
 const provider = useProvider();
 const { source } = useSnapshot();
@@ -13,9 +14,9 @@ const items = computed(() => deriveFieldDecisions(provider.value as Record<strin
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
   const n = items.value.length;
-  if (!n) return '暂无待裁决字段';
+  if (!n) return '暂无待审核字段';
   const fromProjection = items.value.some((i) => i.source === 'projection');
-  return fromProjection ? `${n} 条待裁决` : `${n} 条来自目录待补说明`;
+  return fromProjection ? `${n} 条待审核` : `${n} 条来自目录待补说明`;
 });
 </script>
 
@@ -23,7 +24,7 @@ const headerMeta = computed(() => {
   <main class="focus-page">
     <section class="panel">
       <PageFocusHeader
-        title="字段裁决收件箱"
+        title="字段审核收件箱"
         :meta="headerMeta"
         :links="[
           { label: '提供方管理', href: '#/provider' },
@@ -33,11 +34,11 @@ const headerMeta = computed(() => {
 
       <table v-if="source === 'live' && items.length" class="focus-table">
         <thead>
-          <tr><th>编号</th><th>关联目录</th><th>待裁决事项</th><th>状态</th><th>操作</th></tr>
+          <tr><th>编号</th><th>关联目录</th><th>待审核事项</th><th>状态</th><th>操作</th></tr>
         </thead>
         <tbody>
           <tr v-for="it in items" :key="it.id">
-            <td><code>{{ it.id }}</code></td>
+            <td><code>{{ shortId(it.id) }}</code></td>
             <td>{{ it.catalog }}</td>
             <td>{{ it.title }}</td>
             <td><span class="status-pill" :class="todoStatusTone(it.status)">{{ formatTodoStatus(it.status) }}</span></td>
@@ -47,7 +48,7 @@ const headerMeta = computed(() => {
       </table>
 
       <p v-else-if="source === 'live'" class="focus-empty">
-        暂无待裁决字段。完成反向编目并提交后，待裁决事项会出现在此列表。
+        暂无待审核字段。完成反向编目并提交后，待审核事项会出现在此列表。
       </p>
       <p v-else class="focus-empty">等待数据装载……</p>
     </section>

@@ -7,6 +7,7 @@ import { pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { formatTodoStatus } from '@/lib/statusLabels';
 import { apiUrl } from '@/composables/useApiBase';
+import { deriveRecordName, topicPackageDesc } from '@/lib/userLanguage';
 
 // F9 真端到端：P7 直读 topic.package 后端（topic.package.query / subscribe），
 // 不再读 snapshot.zones 静态字段（参照 P5CatalogReviewInbox 真 API 范式）。
@@ -38,19 +39,25 @@ async function loadPackages(): Promise<void> {
     });
     if (!resp.ok) {
       items.value = [];
-      errorMsg.value = `加载失败：HTTP ${resp.status}`;
+      errorMsg.value = '暂时无法加载专题包，请稍后再试。';
       return;
     }
     const body = (await resp.json()) as { items?: Array<Record<string, unknown>> };
     items.value = (body.items ?? [])
-      .map((it) => ({
-        packageCode: String(it.package_code ?? ''),
-        name: String(it.title ?? it.package_code ?? ''),
-        desc: String(it.scenario ?? ''),
-        status: String(it.status ?? ''),
-        catalogCount: Number(it.activeCatalogCount ?? 0),
-        isSubscribed: Boolean(it.isSubscribed),
-      }))
+      .map((it) => {
+        const packageCode = String(it.package_code ?? '');
+        const catalogCount = Number(it.activeCatalogCount ?? 0);
+        return {
+          packageCode,
+          // 标题缺失 / 是裸编码 → 派生「专题包 …末6位」，不裸出编码当标题。
+          name: deriveRecordName(it.title, packageCode, '专题包'),
+          // 描述为空 / 是工程内部文案 → 由关联目录数派生诚实描述（兜底见 userLanguage）。
+          desc: topicPackageDesc(it.scenario, catalogCount),
+          status: String(it.status ?? ''),
+          catalogCount,
+          isSubscribed: Boolean(it.isSubscribed),
+        };
+      })
       .filter((it) => it.packageCode);
   } finally {
     loading.value = false;
@@ -113,10 +120,10 @@ watch(role, () => {
       <div v-if="source === 'live' && items.length" class="zone-grid">
         <article v-for="z in items" :key="z.packageCode" class="zone-card">
           <header>
-            <a :href="`#/zones-pack/zone/${encodeURIComponent(z.packageCode)}`" class="zone-title"><strong>{{ z.name || z.packageCode }}</strong></a>
+            <a :href="`#/zones-pack/zone/${encodeURIComponent(z.packageCode)}`" class="zone-title"><strong>{{ z.name }}</strong></a>
             <span v-if="z.status" class="zone-status">{{ formatTodoStatus(z.status) }}</span>
           </header>
-          <p v-if="z.desc" class="zone-desc">{{ z.desc }}</p>
+          <p class="zone-desc">{{ z.desc }}</p>
           <p v-if="z.catalogCount" class="zone-meta">关联目录 {{ z.catalogCount }} 个</p>
           <footer class="row-actions">
             <button
@@ -137,13 +144,14 @@ watch(role, () => {
 </template>
 
 <style scoped>
-.zone-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 8px; }
-.zone-card { border: 1px solid var(--b-border, #d4e2f4); border-radius: 10px; padding: 14px; background: #fff; display: grid; gap: 8px; }
+.zone-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; margin-top: 14px; }
+.zone-card { border: 1px solid var(--b-border, #d4e2f4); border-radius: 10px; padding: 14px 16px; background: #fff; display: flex; flex-direction: column; gap: 8px; }
 .zone-card header { display: flex; align-items: center; gap: 8px; }
 .zone-title { text-decoration: none; color: inherit; }
 .zone-status { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--b-bg-subtle, #e8f2fc); color: var(--b-primary, #006be6); }
 .zone-desc { font-size: 13px; color: var(--b-muted, #5c6370); margin: 0; }
 .zone-meta { font-size: 12px; color: var(--b-muted, #5c6370); margin: 0; }
+.zone-card .row-actions { margin-top: auto; padding-top: 8px; }
 .gov-btn { padding: 4px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid transparent; text-decoration: none; display: inline-flex; align-items: center; }
 .gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
 .gov-btn-primary:disabled { opacity: 0.6; cursor: default; }

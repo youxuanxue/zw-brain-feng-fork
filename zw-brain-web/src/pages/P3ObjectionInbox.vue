@@ -4,6 +4,7 @@ import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { authFetch } from '@/composables/useAuth';
 import { getProductRole } from '@/composables/useProductRole';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
+import { shortId } from '@/lib/userLanguage';
 import { OBJECTION_TYPE_ZH, formatObjectionType } from '@/lib/objectionLabels';
 import { apiUrl } from '@/composables/useApiBase';
 
@@ -56,7 +57,7 @@ async function load() {
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ role: getProductRole().value, confirmed: true }),
     });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    if (!resp.ok) throw new Error('暂时无法加载异议列表，请稍后再试。');
     const payload = (await resp.json()) as { items?: Record<string, unknown>[] };
     items.value = (payload.items ?? []).map((row) => ({
       id: String(row.id ?? ''),
@@ -172,10 +173,10 @@ function clearFilters() {
         </thead>
         <tbody>
           <tr v-for="it in sorted" :key="it.id">
-            <td><code>{{ it.id }}</code></td>
+            <td><code>{{ shortId(it.id) }}</code></td>
             <td>{{ it.title }}</td>
             <td>{{ formatObjectionType(it.targetType) }}</td>
-            <td><code class="target-id">{{ it.targetId }}</code></td>
+            <td><code class="target-id">{{ shortId(it.targetId) }}</code></td>
             <td><span class="status-pill" :class="todoStatusTone(it.status)">{{ formatTodoStatus(it.status) }}</span></td>
             <td>{{ formatTime(it.createdAt) }}</td>
             <td>{{ formatTime(it.updatedAt) }}</td>

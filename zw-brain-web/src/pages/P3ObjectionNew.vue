@@ -88,7 +88,7 @@ async function loadCandidates() {
         candidatesError.value = '当前岗位无权限列出候选；可手填对象编号，后端会校验存在。';
         return;
       }
-      throw new Error(`HTTP ${resp.status}`);
+      throw new Error('暂时无法加载候选对象，请稍后再试。');
     }
     const payload = (await resp.json()) as { items?: Record<string, unknown>[] };
     candidates.value = (payload.items ?? []).map((row) => ({

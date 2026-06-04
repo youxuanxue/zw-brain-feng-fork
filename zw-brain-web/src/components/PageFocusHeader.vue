@@ -47,15 +47,14 @@ const visibleLinks = computed<FocusLink[]>(() => {
         <p v-if="meta" class="focus-meta">{{ meta }}</p>
       </div>
       <nav v-if="visibleLinks.length" class="focus-links" aria-label="相关入口">
-        <template v-for="(link, i) in visibleLinks" :key="link.href + link.label">
-          <span v-if="i > 0" class="focus-sep" aria-hidden="true">·</span>
+        <template v-for="link in visibleLinks" :key="link.href + link.label">
           <span
             v-if="link.disabledReason"
-            class="focus-link-disabled"
+            class="focus-link-pill focus-link-disabled"
             :title="link.disabledReason"
             :aria-disabled="true"
           >{{ link.label }}</span>
-          <a v-else :href="link.href">{{ link.label }}</a>
+          <a v-else class="focus-link-pill" :href="link.href">{{ link.label }}</a>
         </template>
       </nav>
       <div v-if="$slots.aside" class="focus-aside">
@@ -72,7 +71,7 @@ const visibleLinks = computed<FocusLink[]>(() => {
 .focus-head {
   padding-bottom: 12px;
   border-bottom: 1px solid var(--b-border, #d4e2f4);
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 .focus-head-row {
   display: flex;
@@ -101,21 +100,27 @@ const visibleLinks = computed<FocusLink[]>(() => {
   flex-shrink: 0;
   font-size: 13px;
 }
-.focus-links a {
+.focus-link-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 14px;
+  border: 1px solid var(--b-border, #d4e2f4);
+  border-radius: 999px;
+  background: #fff;
   color: var(--b-primary, #006be6);
   text-decoration: none;
   font-weight: 500;
+  line-height: 1.2;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
-.focus-links a:hover {
-  text-decoration: underline;
+a.focus-link-pill:hover {
+  background: var(--b-bg-subtle, #e8f2fc);
+  border-color: var(--b-primary, #006be6);
+  text-decoration: none;
 }
 .focus-link-disabled {
   color: var(--b-muted-soft, #9aa3b2);
   cursor: not-allowed;
-  font-weight: 500;
-}
-.focus-sep {
-  color: var(--b-muted-soft, #6f7786);
 }
 .focus-aside {
   flex-shrink: 0;

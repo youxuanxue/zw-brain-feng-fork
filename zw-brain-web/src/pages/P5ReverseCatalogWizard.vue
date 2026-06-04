@@ -69,7 +69,7 @@ async function createDraft() {
     pushToast({
       kind: 'info',
       title: '暂无创建权限',
-      detail: '创建反向编目草稿由部门管理员办理；业务运营员请在字段裁决收件箱审核草稿。',
+      detail: '创建反向编目草稿由部门管理员办理；业务运营员请在字段审核收件箱审核草稿。',
     });
     return;
   }
@@ -100,7 +100,7 @@ async function suggestFields() {
       <PageFocusHeader
         title="反向编目向导"
         :meta="headerMeta"
-        :links="[{ label: '字段裁决收件箱', href: '#/provider/inbox/field-decision' }]"
+        :links="[{ label: '字段审核收件箱', href: '#/provider/inbox/field-decision' }]"
       />
 
       <template v-if="source === 'live' && catalogs.length">
@@ -114,7 +114,7 @@ async function suggestFields() {
 
         <p v-if="selected && !canCreateDraft" class="role-hint">
           业务运营员可生成字段建议；创建草稿请切换为部门管理员，或到
-          <a href="#/provider/inbox/field-decision">字段裁决收件箱</a> 审核已有草稿。
+          <a href="#/provider/inbox/field-decision">字段审核收件箱</a> 审核已有草稿。
         </p>
 
         <DetailActions v-if="selected">

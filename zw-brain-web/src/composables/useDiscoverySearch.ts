@@ -1,7 +1,13 @@
-import { computed, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { authFetch } from './useAuth';
 import { useDiscoveryResources, useSnapshot } from './useSnapshot';
-import { mergeDiscoveryResults } from '@/lib/discoverySearchFilter';
+import {
+  mergeDiscoveryResults,
+  applyDiscoveryFilters,
+  distinctProviders,
+  presentKinds,
+  type DiscoveryFilters,
+} from '@/lib/discoverySearchFilter';
 import { apiUrl } from './useApiBase';
 
 /** P2 搜索：空 query 用 snapshot 精选；有关键词时本地即时筛选 + data.search 全库检索。 */
@@ -54,12 +60,35 @@ export function useDiscoverySearch(role = 'ROLE_ORGAN_OPERATER') {
     }, 350);
   });
 
-  const displayed = computed(() => {
+  // 反馈 7 — 资源类型 + 提供部门筛选状态。NL 加速器解析结果也写入此 filters，三件套共存。
+  const filters = reactive<DiscoveryFilters>({ kind: '', provider: '' });
+
+  // 名称检索 merge 后的全集（未按类型/部门收窄）——用于现算筛选选项，避免「筛完没选项」。
+  const nameMatched = computed(() => {
     const snapshot = snapshotResources.value as Record<string, unknown>[];
     return mergeDiscoveryResults(snapshot, searchResults.value, query.value);
   });
 
-  const isSearchMode = computed(() => Boolean(query.value.trim()));
+  const displayed = computed(() => applyDiscoveryFilters(nameMatched.value, filters));
 
-  return { query, displayed, searching, searchError, source, isSearchMode };
+  // 提供部门下拉从当前名称命中集现算（真实库 distinct，不写死）。
+  const providerOptions = computed(() => distinctProviders(nameMatched.value));
+  // 资源类型筛选项 = 结果集里真实出现的类型（库表/文件/文件夹/接口/链接）。
+  const kindOptions = computed(() => presentKinds(nameMatched.value));
+
+  const isSearchMode = computed(
+    () => Boolean(query.value.trim()) || Boolean(filters.kind) || Boolean(filters.provider),
+  );
+
+  return {
+    query,
+    filters,
+    displayed,
+    searching,
+    searchError,
+    source,
+    isSearchMode,
+    providerOptions,
+    kindOptions,
+  };
 }

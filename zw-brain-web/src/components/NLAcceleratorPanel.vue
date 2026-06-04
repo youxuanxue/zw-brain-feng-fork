@@ -63,16 +63,16 @@ function triggerAction(action: StructuredAction) {
     <button
       type="button"
       class="nl-trigger"
-      :title="open ? '收起自然语言加速器' : '展开自然语言加速器'"
+      :title="open ? '收起智能检索' : '展开智能检索'"
       @click="toggle"
     >
       <span aria-hidden="true">{{ open ? '×' : '⌘' }}</span>
-      <span class="nl-trigger-text">自然语言加速器</span>
+      <span class="nl-trigger-text">智能检索</span>
     </button>
 
-    <aside v-if="open" class="nl-drawer" role="complementary" aria-label="自然语言加速器">
+    <aside v-if="open" class="nl-drawer" role="complementary" aria-label="智能检索">
       <header class="nl-head">
-        <strong>自然语言加速器</strong>
+        <strong>智能检索</strong>
         <p class="nl-hint">输入一句话，解析后会自动填入下方搜索并展示结果。</p>
       </header>
 

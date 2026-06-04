@@ -61,7 +61,9 @@ const emit = defineEmits<{
       >
         <span v-if="item.kindLabel" class="res-kind">{{ item.kindLabel }}</span>
         <strong>{{ item.name || item.id }}</strong>
-        <span v-if="item.status" class="res-status">{{ item.status }}</span>
+        <!-- 反馈4（试用反馈）：默认发现视图本就只展示可复用（发现页可用性过滤决策），
+             「可复用」标签是同义反复——抑制之；非默认态（待发布等）有信息量，保留。 -->
+        <span v-if="item.status && item.status !== '可复用'" class="res-status">{{ item.status }}</span>
         <span v-if="item.shareType" class="res-share" :class="`res-share--${item.shareLevel}`">{{ item.shareType }}</span>
       </component>
       <div v-if="item.provider || item.zone || item.updatedAt" class="res-meta">
@@ -76,10 +78,10 @@ const emit = defineEmits<{
     <ul v-if="item.fields.length" class="res-fields">
       <li v-for="f in item.fields.slice(0, 8)" :key="f">{{ f }}</li>
     </ul>
-    <p v-if="isRecallCandidate" class="res-pending">该目录已在官方召回字典、录入中，暂无详情与申请入口。</p>
+    <p v-if="isRecallCandidate" class="res-pending">该目录已收录，正在录入，暂无详情与申请入口。</p>
     <footer v-if="showAction && !isRecallCandidate" class="res-foot">
       <button type="button" class="gov-btn gov-btn-primary" data-skill="request.create" @click="emit('apply', item.id)">
-        发起复用申请
+        申请资源
       </button>
       <a :href="`#/discovery/resource/${encodeURIComponent(item.id)}`" class="gov-btn gov-btn-secondary">查看详情</a>
     </footer>
@@ -87,7 +89,7 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-.res-card { border: 1px solid var(--b-border, #d4e2f4); border-radius: 10px; padding: 14px 16px; background: #fff; display: grid; gap: 6px; align-content: start; }
+.res-card { border: 1px solid var(--b-border, #d4e2f4); border-radius: 10px; padding: 14px 16px; background: #fff; display: flex; flex-direction: column; gap: 6px; }
 .res-head { display: grid; gap: 4px; }
 .res-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; text-decoration: none; color: inherit; }
 .res-title strong { font-size: 15px; line-height: 1.35; }
@@ -102,7 +104,7 @@ const emit = defineEmits<{
 .res-desc { font-size: 14px; color: var(--b-neutral-text, #1a1d21); margin: 0; line-height: 1.6; }
 .res-fields { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .res-fields li { font-size: 12px; background: var(--b-bg-page, #f2f7fd); border: 1px solid var(--b-border, #d4e2f4); border-radius: 999px; padding: 2px 10px; }
-.res-foot { display: flex; gap: 8px; margin-top: 8px; }
+.res-foot { display: flex; gap: 8px; margin-top: auto; padding-top: 8px; }
 .gov-btn { display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 6px; font-size: 13px; text-decoration: none; cursor: pointer; border: 1px solid transparent; }
 .gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
 .gov-btn-primary:hover { background: var(--b-primary-hover, #0056c7); }

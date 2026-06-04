@@ -4,6 +4,7 @@ import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { deriveHookupReviews } from '@/lib/providerProjection';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
+import { shortId } from '@/lib/userLanguage';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { canApproveHookup } from '@/lib/requestFlowRoles';
@@ -49,7 +50,7 @@ async function approve(resourceCode: string) {
         :meta="headerMeta"
         :links="[
           { label: '提供方管理', href: '#/provider' },
-          { label: '字段裁决', href: '#/provider/inbox/field-decision' },
+          { label: '字段审核', href: '#/provider/inbox/field-decision' },
         ]"
       />
 
@@ -63,7 +64,7 @@ async function approve(resourceCode: string) {
         </thead>
         <tbody>
           <tr v-for="it in items" :key="it.id">
-            <td><code>{{ it.id }}</code></td>
+            <td><code>{{ shortId(it.id) }}</code></td>
             <td>{{ it.catalog }}</td>
             <td>{{ it.title }}</td>
             <td><span class="status-pill" :class="todoStatusTone(it.status)">{{ formatTodoStatus(it.status) }}</span></td>

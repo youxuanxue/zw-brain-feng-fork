@@ -11,6 +11,14 @@ import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { mapDetailRows } from '@/lib/detailDisplay';
+import { deriveRecordName, formatTime } from '@/lib/userLanguage';
+import {
+  typedSectionsToRows,
+  decisionRows,
+  compilationRows,
+  catalogSummary,
+} from '@/lib/typedDetailDisplay';
+import { ref } from 'vue';
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
@@ -45,7 +53,7 @@ const rows = computed(() => {
   if (r.provider) out.push({ label: '提供方', value: String(r.provider) });
   if (r.zone) out.push({ label: '归属专题', value: String(r.zone) });
   if (r.status) out.push({ label: '当前状态', value: String(r.status) });
-  if (r.updatedAt) out.push({ label: '最近更新', value: String(r.updatedAt) });
+  if (r.updatedAt) out.push({ label: '最近更新', value: formatTime(r.updatedAt) });
   if (r.subscribers !== undefined) out.push({ label: '订阅量', value: String(r.subscribers) });
   if (r.coverage) out.push({ label: '字段覆盖', value: String(r.coverage) });
   if (r.approvalRate) out.push({ label: '审批通过率', value: String(r.approvalRate) });
@@ -55,14 +63,33 @@ const rows = computed(() => {
 const fields = computed(() => (Array.isArray(resource.value?.fields) ? (resource.value!.fields as string[]) : []));
 const explain = computed(() => (Array.isArray(resource.value?.explain) ? (resource.value!.explain as string[]) : []));
 
+// 反馈 6 — 分型块（库表→库表信息 / 文件→文件信息 / 接口→接口信息 / 链接→链接信息）。
+const typedSections = computed(() =>
+  typedSectionsToRows(resource.value?.typedDetail as Parameters<typeof typedSectionsToRows>[0]),
+);
+const typedDetailRows = computed(() =>
+  typedSections.value.map((sec) => ({ title: sec.title, rows: mapDetailRows(sec.rows) })),
+);
+const kindLabel = computed(() => String((resource.value?.typedDetail as Record<string, unknown> | undefined)?.kindLabel ?? ''));
+
+// 反馈 5 — 首屏决策字段 + 折叠编目字段（编制规范全集）+ 摘要。
+const accessPolicy = computed(() => (resource.value?.accessPolicy as Record<string, unknown> | undefined) ?? null);
+const catalogMeta = computed(() => (resource.value?.catalogMeta as Record<string, unknown> | undefined) ?? null);
+const decisionDetailRows = computed(() => decisionRows(accessPolicy.value, catalogMeta.value));
+const compilationDetailRows = computed(() => compilationRows(catalogMeta.value));
+const summaryText = computed(() => catalogSummary(catalogMeta.value));
+
+// 编目字段默认折叠（不抢首屏决策视野），点击展开看全量编制规范字段。
+const showCompilation = ref(false);
+
 const headerTitle = computed(() => {
-  if (resource.value) return displayName.value || id.value;
+  if (resource.value) return deriveRecordName(displayName.value, id.value, '数据资源');
   if (loading.value) return '正在加载……';
-  return id.value;
+  return deriveRecordName('', id.value, '数据资源');
 });
 const headerMeta = computed(() => {
   if (resource.value && resource.value.desc) return String(resource.value.desc);
-  if (fetchError.value) return `加载失败：${fetchError.value}`;
+  if (fetchError.value) return '暂时无法加载资源详情，请稍后再试。';
   if (source.value !== 'live') return '正在加载资源详情……';
   if (!resource.value) return '未找到该资源';
   return '';
@@ -72,7 +99,7 @@ async function apply() {
   const result = await invokeActionStub({
     skillId: 'request.create',
     payload: { resource_id: id.value },
-    successTitle: '复用申请已起草',
+    successTitle: '申请已起草',
     pendingBackend: 'E2 申请管理 (e2/plan.yaml F4)',
   });
   const requestId = resolveRequestIdFromAction(result);
@@ -84,8 +111,34 @@ async function apply() {
   <main class="focus-page focus-detail">
     <nav class="crumbs"><a href="#/discovery">← 资源发现</a></nav>
     <section class="panel">
-      <PageFocusHeader :title="headerTitle" :meta="headerMeta" />
+      <PageFocusHeader :title="headerTitle" :meta="headerMeta">
+        <template v-if="kindLabel" #aside>
+          <span class="kind-badge" data-testid="resource-kind-badge">{{ kindLabel }}</span>
+        </template>
+      </PageFocusHeader>
       <DetailPanel v-if="rows.length" title="基本信息" :rows="rows" />
+
+      <!-- 反馈 5 首屏：决策字段（共享/更新/提供方）+ 摘要，用户看完即可决定要不要申请 -->
+      <DetailPanel
+        v-if="decisionDetailRows.length"
+        title="共享与复用"
+        :rows="decisionDetailRows"
+        data-testid="decision-block"
+      />
+      <section v-if="summaryText" class="detail-block" data-testid="summary-block">
+        <h2 class="detail-block-title">数据资源摘要</h2>
+        <p class="summary-text">{{ summaryText }}</p>
+      </section>
+
+      <!-- 反馈 6 分型块：按资源类型展示各自详情（文件信息 / 库表信息 / 接口信息 / 链接信息） -->
+      <DetailPanel
+        v-for="sec in typedDetailRows"
+        :key="sec.title"
+        :title="sec.title"
+        :rows="sec.rows"
+        data-testid="typed-detail-block"
+      />
+
       <section v-if="fields.length" class="detail-block">
         <h2 class="detail-block-title">字段清单（前 12 项）</h2>
         <ul class="chip-list">
@@ -94,11 +147,11 @@ async function apply() {
       </section>
       <section v-if="canViewSchema" class="detail-block" data-testid="resource-schema-block">
         <h2 class="detail-block-title">字段数据模型</h2>
-        <p v-if="schemaLoading" class="schema-state">正在加载字段数据模型……</p>
-        <p v-else-if="schemaError" class="schema-state schema-state-error">
-          字段数据模型加载失败：{{ schemaError }}
+        <p v-if="schemaLoading" class="schema-state" data-testid="resource-schema-loading">正在加载字段数据模型……</p>
+        <p v-else-if="schemaError" class="schema-state schema-state-error" data-testid="resource-schema-error">
+          字段信息暂未提供，请稍后再试或联系数据提供方。
         </p>
-        <p v-else-if="schemaEmpty" class="schema-state">该资源暂无登记的字段数据模型。</p>
+        <p v-else-if="schemaEmpty" class="schema-state" data-testid="resource-schema-empty">该资源暂无登记的字段数据模型。</p>
         <table v-else-if="schemaColumns.length" class="schema-table" data-testid="resource-schema-table">
           <thead>
             <tr>
@@ -130,8 +183,23 @@ async function apply() {
           <li v-for="e in explain" :key="e">{{ e }}</li>
         </ul>
       </section>
+      <!-- 反馈 5 折叠：编制规范编目字段全集（目录代码/格式/来源/领域 …），默认收起不抢首屏 -->
+      <section v-if="compilationDetailRows.length" class="detail-block" data-testid="compilation-block">
+        <button
+          type="button"
+          class="collapse-toggle"
+          :aria-expanded="showCompilation"
+          data-testid="compilation-toggle"
+          @click="showCompilation = !showCompilation"
+        >
+          <span>编目信息（目录编制规范字段）</span>
+          <span class="collapse-arrow">{{ showCompilation ? '收起' : '展开' }}</span>
+        </button>
+        <DetailPanel v-if="showCompilation" :rows="compilationDetailRows" />
+      </section>
+
       <DetailActions>
-        <button v-if="canApply" type="button" class="gov-btn gov-btn-primary" data-skill="request.create" @click="apply">发起复用申请</button>
+        <button v-if="canApply" type="button" class="gov-btn gov-btn-primary" data-skill="request.create" @click="apply">申请资源</button>
         <a href="#/zones-pack" class="gov-btn gov-btn-secondary">看专题</a>
       </DetailActions>
     </section>
@@ -152,4 +220,8 @@ async function apply() {
 .schema-tag { display: inline-block; font-size: 11px; padding: 1px 8px; margin: 0 4px 2px 0; border-radius: 999px; background: var(--b-bg-page, #f2f7fd); border: 1px solid var(--b-border, #d4e2f4); }
 .schema-tag-pk { background: #eaf4ff; border-color: #b6d8ff; }
 .schema-tag-enc { background: #fff3e6; border-color: #ffd5a8; }
+.kind-badge { display: inline-block; font-size: 13px; padding: 3px 12px; border-radius: 999px; background: var(--b-bg-subtle, #e8f2fc); color: var(--b-primary, #006be6); border: 1px solid var(--b-border, #d4e2f4); }
+.summary-text { margin: 8px 0 0; font-size: 14px; line-height: 1.7; color: var(--b-neutral-text, #1a1d21); }
+.collapse-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 0; background: none; border: none; cursor: pointer; font-size: 15px; font-weight: 600; color: var(--b-neutral-text, #1a1d21); }
+.collapse-arrow { font-size: 13px; font-weight: 400; color: var(--b-primary, #006be6); }
 </style>

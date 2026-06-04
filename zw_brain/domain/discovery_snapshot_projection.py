@@ -18,6 +18,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from zw_brain.domain.data_quality import classify_purpose, is_dirty_purpose, purpose_from_payload
 from zw_brain.domain.repositories.application import ApplicationRepository
 from zw_brain.domain.repositories.approval import ApprovalRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
@@ -67,25 +68,39 @@ _SHARE_TYPE_LEVEL = {"无条件共享": "open", "有条件共享": "conditional"
 # ───────────────────────────────────────────────────────────────────────────
 
 def _record_to_request_card(record: Any) -> dict[str, Any]:
-    """application_record → 轻量申请卡（snake→camel；applicant PII 走 mask_default）。"""
+    """application_record → 轻量申请卡（snake→camel；applicant PII 走 mask_default）。
+
+    本组（数据呈现规范化 + 角色投影）追加 3 个**诚实信号**，供前端三视图 / 供方质量队列：
+      - ``isLegacyImport``：源自旧平台导入（payload 有 source_ref / legacy_object_ref）
+        ⇒ 列表给克制的「历史导入」次要标识，帮用户理解为何有 2023 年的单子（缺陷 3）。
+        D47.b：历史导入单的**在线动作混合门控**是已记账债，本组只做呈现层区分、不做动作门控。
+      - ``purposeQuality`` / ``purposeDirty``：用途脏值机械化判定（data_quality 单源）；
+        前端据此降级显示「未填写用途」，脏单计入供方数据质量队列（缺陷 3）。
+    """
     payload = copy.deepcopy(record.payload_json or {})
     applicant = mask_default(
         {"applicant_name": record.applicant_name, "applicant_org": record.applicant_org}
     )
+    raw_purpose = purpose_from_payload(payload)
+    is_legacy_import = bool(payload.get("source_ref") or payload.get("legacy_object_ref"))
     return {
         "id": payload.get("id") or record.application_code,
         "resourceId": payload.get("resourceId") or payload.get("resource_id") or "",
         "resourceName": payload.get("resource_name") or payload.get("resourceName") or "",
         "applicant": applicant["applicant_name"],
+        "applicantOrgId": payload.get("applicant_org_id") or "",
         "applicantDept": payload.get("applicantDept")
         or payload.get("applicant_org_name")
         or applicant["applicant_org"],
-        "purpose": payload.get("purpose")
-        or payload.get("use_reason")
-        or payload.get("apply_basis")
-        or payload.get("use_item")
-        or "",
+        "providerOrgId": payload.get("provider_org_id") or "",
+        "providerOrgName": payload.get("provider_org_name") or "",
+        "purpose": raw_purpose,
+        # 用途脏值诚实信号（data_quality 单源；前端 dataQuality.ts 镜像降级渲染）。
+        "purposeQuality": classify_purpose(raw_purpose),
+        "purposeDirty": is_dirty_purpose(raw_purpose),
         "status": payload.get("status") or "",
+        # 来源诚实标识（缺陷 3）：旧平台导入 vs 在产单视觉区分。
+        "isLegacyImport": is_legacy_import,
         # 国家通道指示（C9）：channel_class=='national' 标识「请求国家级数据」的申请，
         # 供 P3 国家通道 tab 筛「待转报」队列（dept_approved ∩ national），不再误列 own-items。
         # 真实信号取 payload_json["channel_class"]（supply_demand §scenario 5 占位口径）；缺省 internal。

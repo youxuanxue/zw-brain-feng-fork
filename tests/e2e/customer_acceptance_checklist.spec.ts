@@ -45,7 +45,7 @@ test.describe('客户验收 — 部门操作员 J1', () => {
 
   test('P2 NL 加速器 → 自动搜索出资源', async ({ page }) => {
     await gotoHash(page, '#/discovery');
-    await page.getByRole('button', { name: '自然语言加速器' }).click();
+    await page.getByRole('button', { name: '智能检索' }).click();
     await page.getByRole('button', { name: '查省营商环境相关数据' }).click();
     await expect(page.locator('#p2-search')).toHaveValue('营商环境', { timeout: 8_000 });
     // C-1 删演示单后真实库未必有「营商环境」命中：断言 NL 加速器真实驱动了搜索

@@ -33,7 +33,7 @@ def _publish_or_suspend_service(brain, deps, ctx, service_id: str, action: str, 
         if action == "publish":
             service["status"] = "在线"
             service["note"] = f"已由 {actor} 确认发布，保持对主旅程的稳定供给。"
-            provider["aiGovernance"]["summary"] = "供给侧关键服务已发布，当前可继续推进模板版本与专区入口治理。"
+            provider["aiGovernance"]["summary"] = "这项关键数据服务已上线，接下来可以继续完善填报模板、把目录挂到对应专区，方便办事人查到。"
             event_type = "service.publish"
             result = "published"
         else:
