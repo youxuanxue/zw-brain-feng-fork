@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { RouterLink } from 'vue-router';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DataSourceBadge from '@/components/DataSourceBadge.vue';
 import { usePolicyCandidates } from '@/composables/usePolicyCandidates';
@@ -100,16 +99,11 @@ onMounted(() => {
 <template>
   <main class="focus-page">
     <section class="panel panel-stack">
-      <PageFocusHeader title="身份治理" meta="旧权限映射候选 · 人工审核 · 租户策略">
-        <template #aside>
-          <RouterLink class="gov-btn gov-btn-secondary" to="/integration-admin">返回接入中心</RouterLink>
-        </template>
-      </PageFocusHeader>
+      <PageFocusHeader title="身份治理" meta="旧权限映射候选 · 人工审核 · 租户策略" />
 
       <p class="disclaimer">
-        本页消费 <span class="tech-id">governance.policy_candidate.list</span> 与
-        <span class="tech-id">governance.policy_candidate.review</span>：BSP 导入产生的旧权限映射候选须经人工审核后，
-        方可合并写入租户能力策略。未审核前租户策略评估仍会拒绝放行。
+        历史系统导入产生的旧权限映射候选，须经人工审核后才能合并写入本租户的能力策略。
+        未审核前，租户策略评估仍会拒绝放行。
       </p>
 
       <div class="focus-tab-row">

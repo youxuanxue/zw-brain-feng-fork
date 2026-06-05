@@ -82,10 +82,32 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT', 'ROLE_SECURITY_ADMIN', 'ROLE_SYSTEM'],
   },
   {
+    // 「接入扩展中心」容器解体（负责人 2026-06-05 裁）：后台四模块各自独立成导航——
+    // 查审计 / 外部系统 / 流程表单 / 身份治理。短标签为全名字面收缩，不造新词。
     key: 'integration-admin',
-    navLabel: '接入管理',
-    navDesc: '管理受控接入与扩展能力',
+    navLabel: '外部系统',
+    navDesc: '外来系统接入审批、信任评估与启停',
     to: '/integration-admin',
+    group: 'admin',
+    roles: ['ROLE_BUSIAUDIT', 'ROLE_SYSTEM'],
+  },
+  {
+    // 流程与表单配置独立为导航模块（第一轮 ruled-but-staged「配置轴升独立主导航」兑现）。
+    // 路由仍为 /integration-admin/engines（零路由churn），页头保留全名「流程与表单配置」。
+    key: 'engines',
+    navLabel: '流程表单',
+    navDesc: '审批流程、申请表单与智能推荐配置',
+    to: '/integration-admin/engines',
+    group: 'admin',
+    roles: ['ROLE_BUSIAUDIT', 'ROLE_SYSTEM'],
+  },
+  {
+    // 身份治理独立为左侧导航项（负责人 2026-06-05 裁 Q1）。
+    // 路由仍为 /integration-admin/iam-governance（契约测试不破），角色门同 capability。
+    key: 'iam-governance',
+    navLabel: '身份治理',
+    navDesc: '旧权限映射候选审核与租户策略',
+    to: '/integration-admin/iam-governance',
     group: 'admin',
     roles: ['ROLE_BUSIAUDIT', 'ROLE_SYSTEM'],
   },
@@ -119,6 +141,9 @@ export function activeShellKey(path: string): string {
   if (p.startsWith('/provider')) return 'provider';
   if (p.startsWith('/compliance-ops')) return 'compliance-ops';
   if (p.startsWith('/zones-pack')) return 'zones-pack';
+  // 身份治理 / 流程表单 独立导航项：须在 /integration-admin 前缀判断之前命中，否则被吸附回外部系统高亮。
+  if (p.startsWith('/integration-admin/iam-governance')) return 'iam-governance';
+  if (p.startsWith('/integration-admin/engines')) return 'engines';
   if (p.startsWith('/integration-admin')) return 'integration-admin';
   if (p.startsWith('/workbench') || p === '/profile' || p.startsWith('/login')) return 'workbench';
   return 'workbench';

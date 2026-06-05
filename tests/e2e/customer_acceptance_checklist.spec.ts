@@ -189,9 +189,9 @@ test.describe('客户验收 — 业务运营 B1', () => {
     await setRole(page, 'ROLE_BUSIAUDIT');
   });
 
-  test('B1.2 接入中心 → 身份治理中心', async ({ page }) => {
+  test('身份治理独立左导航可达（Q1 裁决：不再寄居接入中心 tab 栏）', async ({ page }) => {
     await gotoHash(page, '#/integration-admin');
-    await expect(page.getByRole('heading', { name: '接入扩展中心' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '外部系统', exact: true })).toBeVisible();
     await expect(page.getByText('功能建设中')).toHaveCount(0);
     await expect(page.getByRole('link', { name: '身份治理' })).toBeVisible();
     await page.getByRole('link', { name: '身份治理' }).click();
@@ -217,10 +217,11 @@ test.describe('客户验收 — 业务运营 B1', () => {
     expect(page.url()).not.toMatch(/#\/integration-admin\/iam-governance/);
   });
 
-  test('B1.2 三引擎子页 Wave2 预览 banner', async ({ page }) => {
+  test('B1.2 流程与表单配置子页可达（去黑话：无三引擎/Wave 字样）', async ({ page }) => {
     await gotoHash(page, '#/integration-admin/engines');
-    await expect(page.getByRole('heading', { name: '三引擎配置' })).toBeVisible();
-    await expect(page.getByText(/Wave\s*2|预览|草稿/i).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: '流程与表单配置' })).toBeVisible();
+    await expect(page.getByText(/预览|草稿/).first()).toBeVisible();
+    await expect(page.getByText(/三引擎|Wave\s*2/i)).toHaveCount(0);
   });
 });
 

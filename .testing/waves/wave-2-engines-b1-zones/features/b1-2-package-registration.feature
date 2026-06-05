@@ -17,11 +17,11 @@
 
 Feature: B1.2 能力包审核注册（UI 化的 §8.4 流水线）
   As a 平台运维员
-  I want 在 B1.2 接入扩展中心 UI 完整地审核 + 注册外部 Agent 能力包
+  I want 在 B1.2 外部系统模块 UI 完整地审核 + 注册外部 Agent 能力包
   So that 不需要命令行能完成 7 步流水线（基线 §8.4）
 
   Background:
-    Given 我以 ROLE_SYSTEM 登录，进入 B1.2 接入扩展中心
+    Given 我以 ROLE_SYSTEM 登录，进入 B1.2 外部系统模块
     And 已收到一份外部 Agent AGENT.yaml (runtime_spec_version=anp-agent/v1.2)
 
   Scenario: 正向 — UI 完整完成 7 步流水线

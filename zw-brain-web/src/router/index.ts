@@ -97,11 +97,12 @@ const routes: RouteRecordRaw[] = [
   { path: '/compliance-ops', name: 'B1.1-compliance', component: B11ComplianceOps, meta: { page: 'B1.1', title: 'B1.1 合规与运营' } },
   { path: '/compliance-ops/dispute/:id', component: B11DisputeDetail, meta: { page: 'B1.1', title: 'B1.1 异议详情' } },
 
-  // B1.2 平台接入与扩展中心（后台） —— 含 (a) 接入 (b) 三引擎配置 (c) 身份治理
-  { path: '/integration-admin', name: 'B1.2-integration', component: B12IntegrationAdmin, meta: { page: 'B1.2', title: 'B1.2 平台接入与扩展中心' } },
-  { path: '/integration-admin/engines', component: EnginesAdmin, meta: { page: 'B1.2', title: 'B1.2 三引擎配置' } },
-  { path: '/integration-admin/iam-governance', component: B12IamGovernance, meta: { page: 'B1.2', title: 'B1.2 身份治理' } },
-  { path: '/integration-admin/package/:id', component: B12PackageDetail, meta: { page: 'B1.2', title: 'B1.2 能力包详情' } },
+  // 后台四模块（「接入扩展中心」容器解体，2026-06-05 负责人裁）：外部系统 / 流程与表单配置 / 身份治理
+  // 各自独立左导航；路径保留 /integration-admin 前缀（零路由 churn，契约测试不破）。
+  { path: '/integration-admin', name: 'B1.2-integration', component: B12IntegrationAdmin, meta: { page: 'B1.2', title: '外部系统' } },
+  { path: '/integration-admin/engines', component: EnginesAdmin, meta: { page: 'B1.2', title: '流程与表单配置' } },
+  { path: '/integration-admin/iam-governance', component: B12IamGovernance, meta: { page: 'B1.2', title: '身份治理' } },
+  { path: '/integration-admin/package/:id', component: B12PackageDetail, meta: { page: 'B1.2', title: '外部系统详情' } },
 
   // 辅助页
   { path: '/login', component: PLogin, meta: { title: '登录' } },

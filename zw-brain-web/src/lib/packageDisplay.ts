@@ -15,7 +15,8 @@ export function normalizePackageRow(raw: Record<string, unknown>): PackageRow {
   const slug = String(raw.slug ?? '');
   return {
     id: String(raw.id ?? ''),
-    name: String(raw.name ?? raw.desc ?? slug),
+    // 名字绝不退化成整段描述：有 name 用 name，否则退到技术编号（slug），描述单列在 desc 字段。
+    name: String(raw.name ?? slug),
     slug,
     status: String(raw.status ?? ''),
     version: String(raw.version ?? raw.registeredVersion ?? '—'),

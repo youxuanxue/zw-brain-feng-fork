@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
-import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
-import type { StructuredAction } from '@/composables/useNLAccelerator';
 
 // E3 Wave-2 F7 三引擎配置（收编为 B1.2 子页 /integration-admin/engines）：
 // 审批流 / 表单 / 推荐 三 tab 共享「草稿 → 预览 → 入库」三步。
@@ -52,10 +50,10 @@ const ENGINES: EngineConfig[] = [
     intentLabel: '审批流意向',
     examplePresets: [
       {
-        title: '鞍山 4 级审批流程',
-        intent: '鞍山审批流程：编制→二级部门审→一级部门审→发布',
-        schemaCodeHint: 'anshan_4level_v1',
-        schemaTitleHint: '鞍山 4 级审批流',
+        title: '标准 4 级审批流程',
+        intent: '标准审批流程：编制→二级部门审→一级部门审→发布',
+        schemaCodeHint: 'std_4level_v1',
+        schemaTitleHint: '标准 4 级审批流',
       },
       {
         title: '简化 2 级审批',
@@ -80,10 +78,10 @@ const ENGINES: EngineConfig[] = [
     intentLabel: '字段意向',
     examplePresets: [
       {
-        title: '四川 7 字段申请表',
-        intent: '四川申请表单：姓名、身份证号、联系电话、单位、申请事由、申请日期、附件',
-        schemaCodeHint: 'sichuan_7field_v1',
-        schemaTitleHint: '四川 7 字段申请表',
+        title: '完整 7 字段申请表',
+        intent: '申请表单：姓名、身份证号、联系电话、单位、申请事由、申请日期、附件',
+        schemaCodeHint: 'full_7field_v1',
+        schemaTitleHint: '完整 7 字段申请表',
       },
       {
         title: '极简申请表',
@@ -108,10 +106,10 @@ const ENGINES: EngineConfig[] = [
     intentLabel: '规则意向',
     examplePresets: [
       {
-        title: '荆州 5 条推荐规则',
-        intent: '荆州数据共享推荐规则：覆盖关键词 / 分类 / 机构 / 高频 / 文本相似 5 类',
-        schemaCodeHint: 'jinzhou_5rules_v1',
-        schemaTitleHint: '荆州 5 条推荐规则',
+        title: '标准 5 条推荐规则',
+        intent: '数据共享推荐规则：覆盖关键词 / 分类 / 机构 / 高频 / 文本相似 5 类',
+        schemaCodeHint: 'std_5rules_v1',
+        schemaTitleHint: '标准 5 条推荐规则',
       },
     ],
   },
@@ -176,21 +174,6 @@ function autoFillIfEmpty() {
 
 onMounted(() => { autoFillIfEmpty(); });
 watch(activeKey, () => { autoFillIfEmpty(); });
-
-const NL_PRESETS_ENGINES = ENGINES.flatMap((e) => e.examplePresets.map((p) => p.title));
-
-function consumeNLAction(action: StructuredAction) {
-  if (action.kind === 'invoke' && action.target) {
-    void invokeActionStub({ skillId: action.target, payload: action.payload, successTitle: action.label });
-  } else if (action.kind === 'filter' || action.kind === 'draft') {
-    pushToast({ kind: 'info', title: '已应用', detail: action.label });
-  }
-}
-
-const headerLinks = [
-  { label: '合规与运营', href: '#/compliance-ops' },
-  { label: '平台接入', href: '#/integration-admin' },
-];
 
 async function onGenerateDraft() {
   const engine = activeEngine();
@@ -353,17 +336,12 @@ function lastResultText(): string {
   <main class="focus-page">
     <section class="panel panel-stack">
       <PageFocusHeader
-        title="三引擎配置"
+        title="流程与表单配置"
         meta="审批流 · 申请表单 · 推荐规则（草稿→预览→入库）"
-        :links="headerLinks"
-      >
-        <template #aside>
-          <NLAcceleratorPanel page-anchor="B1.2" :presets="NL_PRESETS_ENGINES" @action="consumeNLAction" />
-        </template>
-      </PageFocusHeader>
+      />
 
       <p class="wave2-banner" role="note">
-        Wave 2 预览：本页配置能力处于草稿→预览→入库流程，正式启用待业务方确认（E3 sign-off）。
+        本页配置处于「草稿 → 预览 → 入库」流程，正式启用前可反复预览修改。
       </p>
 
       <section class="focus-section">

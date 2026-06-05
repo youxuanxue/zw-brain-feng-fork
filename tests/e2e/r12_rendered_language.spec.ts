@@ -30,7 +30,7 @@ const PAGE_MATRIX: Array<{ role: string; hash: string; note: string }> = [
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider/inbox/objection', note: '异议响应收件箱' },
   { role: 'ROLE_BUSIAUDIT', hash: '#/provider/inbox/field-decision', note: '字段审核收件箱（原字段裁决）' },
   { role: 'ROLE_SECURITY_AUDIT', hash: '#/compliance-ops', note: '合规与运营' },
-  { role: 'ROLE_BUSIAUDIT', hash: '#/integration-admin', note: '接入扩展中心' },
+  { role: 'ROLE_BUSIAUDIT', hash: '#/integration-admin', note: '外部系统' },
 ];
 
 test.describe('R12 渲染层无工程语言泄漏', () => {

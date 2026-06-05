@@ -15,8 +15,8 @@ const PAGE_MATRIX: Array<{ role: string; hash: string; heading: RegExp | string 
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider/wizard/reverse-catalog', heading: '反向编目向导' },
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider/inbox/objection', heading: '异议响应收件箱' },
   { role: 'ROLE_SECURITY_AUDIT', hash: '#/compliance-ops', heading: '合规与运营' },
-  { role: 'ROLE_BUSIAUDIT', hash: '#/integration-admin', heading: '接入扩展中心' },
-  { role: 'ROLE_BUSIAUDIT', hash: '#/integration-admin/engines', heading: '三引擎配置' },
+  { role: 'ROLE_BUSIAUDIT', hash: '#/integration-admin', heading: /^外部系统$/ },
+  { role: 'ROLE_BUSIAUDIT', hash: '#/integration-admin/engines', heading: '流程与表单配置' },
 ];
 
 test.describe('Twin 主路径页面无占位', () => {

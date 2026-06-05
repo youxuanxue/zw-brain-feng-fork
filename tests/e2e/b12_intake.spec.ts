@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
 
-test.describe('B1.2 接入扩展中心 e2e', () => {
+test.describe('B1.2 外部系统模块 e2e（接入扩展中心容器已解体）', () => {
   test.beforeEach(async ({ page }, testInfo) => {
     await skipUnlessBackend(page, testInfo);
     page.on('dialog', (dialog) => dialog.accept());
@@ -11,12 +11,18 @@ test.describe('B1.2 接入扩展中心 e2e', () => {
     await gotoHash(page, '#/integration-admin');
   });
 
-  test('3 tab 切换与 aria-selected 同步', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: '接入扩展中心' })).toBeVisible();
-    for (const label of ['能力接入', '开放范围', '流程与表单配置'] as const) {
-      await page.getByRole('tab', { name: label }).click();
-      await expect(page.getByRole('tab', { name: label })).toHaveAttribute('aria-selected', 'true');
-    }
+  test('外部系统模块页：系统表，一页到底无内部 tab', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: '外部系统', exact: true })).toBeVisible();
+    await expect(page.locator('.pkg-table tbody tr').first()).toBeVisible();
+    // 瘦身：系统表只剩 外部系统/状态/信任级/操作 四列（无版本/技术编号列）。
+    await expect(page.locator('.pkg-table thead th')).toHaveCount(4);
+    // 容器解体：页内不再有 tablist（身份治理 / 流程表单 走左导航）。
+    await expect(page.getByRole('tab')).toHaveCount(0);
+  });
+
+  test('左导航直达流程表单（独立模块）', async ({ page }) => {
+    await page.getByRole('link', { name: '流程表单' }).click();
+    await expect(page.getByRole('heading', { name: '流程与表单配置' })).toBeVisible();
   });
 
   test('信任级 disclaimer 可见', async ({ page }) => {

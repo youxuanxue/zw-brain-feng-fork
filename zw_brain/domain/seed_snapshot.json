@@ -779,6 +779,7 @@
   "capability_packages": [
     {
       "id": "PKG-DSP-GATEWAY-RUNTIME",
+      "name": "网关运行时",
       "slug": "dsp.gateway.runtime.adapter",
       "source": "外部接入 / 网关运行时",
       "status": "approved",
@@ -834,6 +835,7 @@
     },
     {
       "id": "PKG-DSP-DIAGNOSTICS",
+      "name": "环境诊断",
       "slug": "dsp.environment.diagnostics.adapter",
       "source": "外部接入 / 运维诊断执行器",
       "status": "approved",
@@ -885,6 +887,7 @@
     },
     {
       "id": "PKG-DSP-TICKET-CMDB-WIKI",
+      "name": "工单·CMDB·知识库",
       "slug": "dsp.ticket.cmdb.wiki.adapter",
       "source": "外部接入 / 工单与知识系统 adapter",
       "status": "approved",
@@ -939,6 +942,7 @@
     },
     {
       "id": "PKG-DSP-WSDL-IMPORT",
+      "name": "接口契约导入",
       "slug": "dsp.wsdl.import.adapter",
       "source": "外部接入 / 特殊协议导入器",
       "status": "approved",
@@ -989,6 +993,7 @@
     },
     {
       "id": "PKG-DSP-ORCHESTRATOR-HTTP-DATASERVICE",
+      "name": "外部任务编排",
       "slug": "dsp.orchestrator.http.dataservice.adapter",
       "source": "外部接入 / 编排运行时",
       "status": "approved",

@@ -30,11 +30,9 @@ test('P5 供需对接列表可点进详情', async ({ page }) => {
   await expect(page.locator('.focus-detail')).toBeVisible();
 });
 
-test('B1.2 接入中心 3 tab 可达（ROLE_BUSIAUDIT）', async ({ page }) => {
+test('B1.2 外部系统模块可达（ROLE_BUSIAUDIT）', async ({ page }) => {
   await setRole(page, 'ROLE_BUSIAUDIT');
   await gotoHash(page, '#/integration-admin');
-  await expect(page.getByRole('heading', { name: '接入扩展中心' })).toBeVisible();
-  await expect(page.getByRole('tab', { name: '能力接入' })).toBeVisible();
-  await page.getByRole('tab', { name: '开放范围' }).click();
-  await expect(page.getByRole('heading', { name: '开放范围' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '外部系统', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '已接入的外部系统' })).toBeVisible();
 });

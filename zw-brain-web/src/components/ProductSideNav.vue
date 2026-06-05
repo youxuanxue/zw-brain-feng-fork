@@ -39,6 +39,10 @@ const active = computed(() => activeShellKey(route.path));
   flex-direction: column;
   gap: 18px;
   padding: 4px 0;
+  /* 自身封顶可滚动：导航项再多也不溢出视口，点底部项不再把右侧标题顶走（字号/内边距保持原状）。 */
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .side-nav-group {
   display: flex;

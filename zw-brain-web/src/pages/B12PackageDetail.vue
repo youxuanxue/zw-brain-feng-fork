@@ -63,7 +63,7 @@ const rows = computed(() => {
       label: '内置信任级',
       value: TRUST_LABELS[String(p.trust_level ?? '')] ?? String(p.trust_level ?? '—'),
     },
-    { label: '描述', value: String(p.description ?? p.summary ?? '—') },
+    { label: '描述', value: String(p.desc ?? p.description ?? p.summary ?? '—') },
   ]);
 });
 
@@ -108,15 +108,15 @@ const scope = computed<ScopeView | null>(() => {
 const headerMeta = computed(() => {
   if (error.value) return error.value;
   if (source.value === 'loading') return '正在加载……';
-  return String(pkg.value?.name ?? '能力包详情');
+  return String(pkg.value?.name ?? '外部系统详情');
 });
 </script>
 
 <template>
   <main class="focus-page focus-detail">
-    <nav class="crumbs"><a href="#/integration-admin">← 接入扩展中心</a></nav>
+    <nav class="crumbs"><a href="#/integration-admin">← 外部系统</a></nav>
     <section class="panel">
-      <PageFocusHeader :title="headerMeta" meta="能力包注册详情">
+      <PageFocusHeader :title="headerMeta" meta="外部系统注册详情">
         <template #aside>
           <DataSourceBadge :source="source" />
         </template>
