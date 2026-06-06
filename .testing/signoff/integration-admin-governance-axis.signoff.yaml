@@ -1,0 +1,11 @@
+scope: integration-admin-governance-axis
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-05
+kind: 决策签字
+evidence: PR #214（来源叙事 A）+ PR #216（四刀重做→一词一概念→容器解体→瘦身，squash 42a0cf6）合并到 main；docs/decisions/integration-admin-governance-axis-refactor.md §六/§七 决策全文；本地真栈走查（dev-bypass :8800 + dumps 全量真库）逐页点验：后台四模块独立左导航（查审计/外部系统/流程表单/身份治理）高亮正确、外部系统页一标题+一句诚实+四列真治理表（外部系统/状态/信任级/操作，操作 v-if 仅渲染当前可执行项）、无 三引擎/Wave2/生 slug/跨省样例、侧栏 10 项滚动封顶不顶动右标题；全量 capture --with-e2e（py312 + 干净全量真库）35 pytest + 6 e2e 0 fail，45/50 feature 绿、零失绿（.testing/status/measurement/7528ad0…json）
+decision_only: true
+covers: []
+# 属 D28 GATE（IA + 角色可见性确认）。本账本一并补登 #214 的 ratify（合并时漏落）+ #216 三轮重做。
+# 登记为 D52（CLAUDE.md 决策索引）。covers 留空：本次是 IA/导航/角色可见性的产品判断，
+# 不抬任何 .feature 状态（webui 三页本就 Done，b12_intake/p5_b12_unlock 仅断言更新非新增能力）。
+# Q3 价值切面分类方向认可但缓行（无 owner 的分类法会腐烂成谎言），不进本次决策、待平台能力地图立项。

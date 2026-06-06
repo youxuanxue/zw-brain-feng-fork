@@ -1,7 +1,7 @@
 ---
 title: 接入扩展中心重构 — 能力来源叙事 + 外部接入治理 + 身份治理融入（诚实化）
 scope: integration-admin-governance-axis
-status: proposed  # IA + 角色可见性确认（D28 GATE）：本 PR 提议，最终由产品研发负责人在合并时 ratify → 届时登记 D52 + 落 .testing/signoff 账本
+status: ratified  # IA + 角色可见性确认（D28 GATE）：产品研发负责人 2026-06-05 sign-off → 登记 D52 + 落 .testing/signoff/integration-admin-governance-axis.signoff.yaml；PR #214（A）+ #216（四刀/解体/瘦身）已合并 main
 date: 2026-06-04
 deciders: 海若产品部产品研发负责人（GATE 决策门 / 上帝视角乔布斯）
 authors:
@@ -77,9 +77,10 @@ evidence:
 - 人话浏览的搜索/分页:本期封顶 40 条 + 计数,搜索后续。
 - 配置轴升独立主导航 / 角色集精化收紧:更重 IA·角色变更,留后续。
 
-## 五 · Sign-off（待合并时 ratify）
-属 **D28 GATE（IA + 角色可见性确认）**。实现已完成并真 UI 验证,**决策待产品研发负责人在合并门 ratify**——
-届时登记 **D52** + 落 `.testing/signoff/integration-admin-governance-axis.signoff.yaml`(decision_only)。合并永远人工。ratify 前 `status: proposed`。
+## 五 · Sign-off（已 ratify）
+属 **D28 GATE（IA + 角色可见性确认）**。产品研发负责人 **2026-06-05 sign-off**——
+登记 **D52**（CLAUDE.md 决策索引，含 §六/§七）+ 落 `.testing/signoff/integration-admin-governance-axis.signoff.yaml`(decision_only)。
+PR #214（来源叙事 A）+ #216（四刀重做→一词一概念→容器解体→瘦身，squash 42a0cf6）已合并 main。`status: ratified`。
 
 ## 六 · 第二轮重做（2026-06-05，负责人实地走查后）
 
