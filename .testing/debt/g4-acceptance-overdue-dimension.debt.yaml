@@ -1,0 +1,23 @@
+slug: g4-acceptance-overdue-dimension
+title: "G4「受理已过期」待办维度无上游截止期字段：ApplicationRecord 无受理截止期/办理时限，approval_step.due_at 全仓零写入 → 记债等上游补供"
+date: 2026-06-06
+severity: medium
+owner: 产品研发负责人
+# 反馈 G4（6.4#10 P3）的过期维度。批次 2 的 G4 做「分类型行动句」但不含过期；本项核查「受理已过期」
+# 维度可行性。真库核查结论（纯源码 + seed 实证）：
+#   - ApplicationRecord(zw_brain/domain/models.py) 字段 = id/tenant_id/application_code/status/
+#     applicant_name/applicant_org/payload_json/submitted_at/created_at/updated_at —— **无受理
+#     截止期/超时/有效期字段**。
+#   - 唯一 due_at 在 ApprovalStepRecord（审批步骤级，非受理级），且**全仓零写入**（无任何 writer，
+#     seed_snapshot.json 零 due_at）。
+#   - 旧 dc_resource_apply_info 亦无受理截止期（仅授权后接口使用期限 use_days + apply_time/audit_time
+#     时间戳，非 pending 受理超时）。
+# 结论：G4「受理已过期」维度无真实上游截止期数据可算；硬造截止期=虚构 SLA，违 D11（业务数据禁 Mock）
+# / D22（不静默吞错）。**本债不改批次 2 拥有的 workbench_backlog_projection.py。**
+trigger: "上游（旧平台/客户）补「受理截止期/办理时限」字段（或 approval_step.due_at 被真实流程写入）→ application/resource 携带截止期 → 据真实截止期算 expired 维度 + workbench 待办过期提醒（aiSummary 增「N 条已过期待受理」行动句）→ 关债。"
+assert:
+  # open ⇔ ApplicationRecord 无受理截止期字段（纯源码静态现算，不需 live DB）。上游补字段后
+  # predicate 返 False → stale-fixed → 关债。
+  kind: script
+  module: scripts/check_g4_acceptance_deadline.py
+  predicate: acceptance_deadline_debt_open

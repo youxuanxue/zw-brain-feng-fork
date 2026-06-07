@@ -1,0 +1,21 @@
+slug: b2-field-metadata-10col
+title: "B2 库表资源字段元数据 10 列分期：ResourceSchemaMapping 仅承载源→目标 2 列映射，缺字段级元数据 10 列（对标 dc_resource_table_column）→ 下期补"
+date: 2026-06-06
+severity: medium
+owner: 产品研发负责人
+# 反馈 B2（6.5#5 P0）字段对齐的**分期剩余**。批次 3 的 B2 补「业务基本信息块」（业务化 label +
+# access_policy/summary）；本项是字段级元数据 10 列分期。对标旧 dc_resource_table_column（18 列），
+# 其字段级元数据 10 列 = 字段名(name_en) / 目录信息项(catalog_item_id) / 字段类型(type) /
+# 长度精度(length) / 主键(is_pk) / 可空(is_null) / 更新主键(is_up_id) / 更新时间(is_up_time) /
+# 数据标准 / 数据字典。当前 zw-brain 挂接由 ResourceSchemaMappingRecord 承载，仅 source_schema_ref
+# （源字段）+ mapping_rule_json（映射规则）≈ 源字段→目标字段 2 列映射，不承载字段级 10 列元数据。
+# 分期理由：批次 3 先补业务基本信息块；字段级 10 列若全补属 L 上限，下期立项。
+# **本债不改批次 3 拥有的 P5HookupSubmitWizard.vue / resource_mount.py。**
+trigger: "下期立项库表字段级元数据 10 列：模型加字段级 metadata 承载（ResourceSchemaMapping 扩列或新建字段元数据表）+ 表单/向导补录 + 对标 dc_resource_table_column 10 列（字段名/目录信息项/类型/长度精度/主键/可空/更新主键/更新时间/数据标准/数据字典）→ 现算覆盖维度 ≥10 → 关债。"
+assert:
+  # open ⇔ ResourceSchemaMappingRecord 承载的字段级元数据维度数 < 10（纯源码静态现算，不需 live DB）。
+  # 覆盖 ≥10 维度后 predicate 返 False → stale-fixed → 关债。锚点宽松（任意同义命中即记一类），
+  # 下期实现可用不同命名，只要承载语义即关债。
+  kind: script
+  module: scripts/check_b2_field_metadata_columns.py
+  predicate: field_metadata_debt_open

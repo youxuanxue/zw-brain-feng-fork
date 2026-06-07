@@ -25,6 +25,62 @@ trigger 触发时会撞名的标识符（字段名 / enum 值 / slug 前缀 / �
 目的：防止 trigger 触发当日才发现撞名再返工选 rename 路径。"已占名"清单与 entry 同生命周期，
 trigger 关闭即可删除字段。
 
+## 2026-06-06 — 0605 反馈批次 4：外部依赖立项 + 记债（F6 库表交换 ETL / B2 字段元数据 10 列 / G4 过期维度）
+
+> 三项均依赖外部底座/上游字段缺供，本期不做完整实现——交付物 = 债账本 + 立项 proposal，把"为什么
+> 不做、做需要什么、何时重启"确定性固化。现算状态见 `.testing/debt/debt-status.md`（assert 现算）。
+
+- **F6 库表交换 ETL（立项 + 记债，最实质）** — debt `f6-library-table-exchange-etl`（外部依赖，assert=grep_present 现算）+
+  立项 `docs/decisions/library-table-exchange-etl-external-integration-proposal.md`：
+  - **Where**：`zw_brain/command/handlers/j1/delivery.py`（`delivery.exchange.{plan,publish,start,stop}`
+    四 handler）→ `zw_brain/domain/services/delivery_service.py:134` `record_attempt`（仅记 planned/
+    published/running/stopped 状态到 delivery_attempt / delivery_exchange_metric / 审计，
+    `executor_kind="builtin_exchange"`，**不跑真实 ETL**）。
+  - **Implication**：F6「交换 ETL 打通」不能在 zw-brain 内闭环——真实抽取/转换/装载是 NiFi 驱动的外部
+    交换底座（旧 `subscribe_job` / `exchange_executor` / `exchange_pipelines.nifi_group_id` /
+    `dc_subscribe_table`，`dsp_pipelines` 50 表）；架构 §3.4-B 既定为集团数据治理中心，**不复造**。
+    zw-brain 诚实形态 = 下发订阅意图 + 展示交换状态/对账回执薄壳。
+  - **Why deferred**：真实 ETL 在边界外，且须先与数据治理侧确认三类接口契约（订阅下发 / 状态回流 /
+    对账数据，立项文档 §四 C1/C2/C3）——zw-brain 单侧无法定义外部底座 API。
+  - **Trigger to re-evaluate**：(a) 数据治理侧确认 C1/C2/C3 三契约；(b) 负责人 sign-off（D28 外部依赖 +
+    交付状态机门）→ 实现 `exchange_channel_gate` + `resolve_exchange_channel_state` 三态（复用 D50 双门）+
+    订阅意图编排 + 回流/对账接入，env 注入外部底座端点真实联调 + 真实回流 e2e → 关债。
+  - **现算锚点**：assert=grep_present `services\.delivery\.record_attempt\(payload, "delivery\.exchange\.` ⇒
+    薄壳仍在即 open；真实打通后 handler 改走外部交换门 → 失配 → stale-fixed → 关债。
+
+- **B2 字段元数据 10 列（记债，分期）** — debt `b2-field-metadata-10col`（script 现算）：
+  - **Where**：`zw_brain/domain/models.py` `ResourceSchemaMappingRecord`（`source_schema_ref` 列 +
+    `mapping_rule_json` ≈ 源字段→目标字段映射）。对标旧 `dc_resource_table_column`（18 列，含字段级
+    元数据 10 列：字段名 `name_en` / 目录信息项 `catalog_item_id` / 类型 `type` / 长度精度 `length` /
+    主键 `is_pk` / 可空 `is_null` / 更新主键 `is_up_id` / 更新时间 `is_up_time` / 数据标准 / 数据字典）。
+  - **Implication**：当前挂接只承载源→目标 2 列映射，不承载字段级 10 列元数据（类型/长度精度/主键/
+    可空/更新主键/更新时间/数据标准/数据字典）。
+  - **Why deferred**：批次 3 的 B2 先补「业务基本信息块」（业务化 label + access/summary）；字段级 10 列
+    元数据若全补属 L 上限，**分期到下期**（先业务字段、后字段级元数据）。**不改批次 3 拥有的
+    `P5HookupSubmitWizard.vue` / `resource_mount.py`。**
+  - **Trigger to re-evaluate**：批次 3 业务基本信息块落地后，下期立项库表字段级元数据 10 列（模型加
+    字段级 metadata 承载 + 表单/向导补录 + 对标 `dc_resource_table_column` 10 列）→ 现算列数 ≥10 → 关债。
+  - **现算锚点**：assert=script `check_b2_field_metadata_columns.field_metadata_debt_open()` ⇒
+    `ResourceSchemaMappingRecord` 承载的字段级元数据列数 < 10 即 open（覆盖 ≥10 列 → stale-fixed）。
+
+- **G4 过期维度（核查 + 记债）** — debt `g4-acceptance-overdue-dimension`（script 现算）：
+  - **Where（真库核查结论）**：`zw_brain/domain/models.py` `ApplicationRecord` 字段 =
+    id/tenant_id/application_code/status/applicant_name/applicant_org/payload_json/submitted_at/
+    created_at/updated_at —— **无受理截止期/超时/有效期字段**。唯一 `due_at` 在 `ApprovalStepRecord`
+    （审批步骤级），且**全仓零写入**（无任何 writer，seed_snapshot.json 零 due_at）。旧
+    `dc_resource_apply_info` 亦无受理截止期（只有授权后接口使用期限 `use_days` + `apply_time`/`audit_time`
+    时间戳，非 pending 受理超时）。
+  - **Implication**：G4「受理已过期」维度（`_backlog_todos` 无 expired）**无真实上游截止期数据可算**——
+    硬造截止期会虚构 SLA，违 D11（业务数据禁 Mock）/ D22（不静默吞错）。
+  - **Why deferred**：依赖 application/resource 受理截止期字段；当前真库无该字段，需上游补供或客户上线接
+    真数据。**不改批次 2 拥有的 `workbench_backlog_projection.py`。**
+  - **Trigger to re-evaluate**：上游（旧平台/客户）补「受理截止期/办理时限」字段（或 `approval_step.due_at`
+    被真实流程写入）→ application/resource 携带截止期 → 据真实截止期算 expired 维度 + workbench 待办过期
+    提醒 → 关债。
+  - **现算锚点**：assert=script `check_g4_acceptance_deadline.acceptance_deadline_debt_open()` ⇒
+    `ApplicationRecord` 无受理截止期字段（`due_at`/`deadline`/`expire`/`valid_until` 任一缺）即 open
+    （补字段后 → stale-fixed）。
+
 ## 2026-06-04 — 高杠杆三连（DB 复合索引 / CI 接 e2e+测量 / policy deny 审计化）
 
 > 上帝视角审视裁出三条「测量绿掩盖不到」的低成本高杠杆欠账，一个 PR 三 commit 收。

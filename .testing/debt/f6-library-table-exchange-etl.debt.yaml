@@ -1,0 +1,23 @@
+slug: f6-library-table-exchange-etl
+title: "库表交换 ETL 真实执行依赖外部交换底座（NiFi/dsp_pipelines §3.4 外部依赖）；delivery.exchange.* 仅记意图/状态，未对接外部底座 → 立项 + 记债"
+date: 2026-06-06
+severity: medium
+owner: 产品研发负责人
+# 反馈 F6（6.5#9 P0 → 立项 + 记债）。架构 §3.4-B 既定边界：dsp_pipelines 50 + dsp_perform 16 +
+# dsp_metaresource 5 = 71+ 表 = 集团数据治理中心，不复造。旧 NiFi 驱动的真实 ETL 底座
+# （subscribe_job / exchange_executor / exchange_pipelines.nifi_group_id / dc_subscribe_table）在
+# zw-brain 边界外。当前 delivery.exchange.{plan,publish,start,stop} 全部委托
+# delivery_service.record_attempt(...)（只把一次"尝试"以 planned/published/running/stopped 状态写进
+# delivery_attempt / delivery_exchange_metric / 审计 feed，executor_kind="builtin_exchange"），
+# 不连真实抽取引擎、不读源库、不写目标前置库 → 是状态记录薄壳，非 ETL 执行器。
+# 立项方案：docs/decisions/library-table-exchange-etl-external-integration-proposal.md
+# （薄壳=下发订阅意图 + 展示交换状态/对账回执，真实 ETL 外部底座；双门复用 D50）。
+# 须先与数据治理侧确认三类契约：C1 订阅下发 / C2 状态回流 / C3 对账数据（见立项文档 §四）。
+trigger: "(a) 集团数据治理侧确认订阅下发/状态回流/对账数据三契约（立项文档 §四 C1/C2/C3）；(b) 产品研发负责人 sign-off（D28 外部依赖 + 交付状态机门）→ 实现 exchange_channel_gate + resolve_exchange_channel_state 三态 + 订阅意图编排 + 回流/对账接入，env 注入外部底座端点真实联调，补真实回流 e2e → 关债。"
+assert:
+  # open ⇔ delivery.exchange.* 仍是 record_attempt 薄壳（未对接外部交换底座）。锚点=四个交换 handler
+  # 仍委托 record_attempt。真实打通后这些 handler 改走 exchange_channel_gate / 外部交换客户端，
+  # 此 grep 失配 → 现算 stale-fixed → 关债。
+  kind: grep_present
+  file: zw_brain/command/handlers/j1/delivery.py
+  pattern: "services\\.delivery\\.record_attempt\\(payload, \"delivery\\.exchange\\."

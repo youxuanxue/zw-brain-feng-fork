@@ -2,7 +2,7 @@
 
 # Preflight Debt Status (computed)
 
-## open (31)
+## open (34)
 - ac7 [medium] (2026-05-25) — 客户机房部署 + 监控对接未落地（E6 AC7）
   - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
 - agentruntime [medium] (2026-05-24) — AgentRuntime runtime 触发式延后（D30 retrofit）
@@ -12,6 +12,8 @@
 
 - b1-1-a [medium] (2026-05-27) — B1.1-A 长期无人申请目录诊断立项延后
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务方 sign-off Wave-2 ready 时优先考虑；
+- b2-field-metadata-10col [medium] (2026-06-06) — B2 库表资源字段元数据 10 列分期：ResourceSchemaMapping 仅承载源→目标 2 列映射，缺字段级元数据 10 列（对标 dc_resource_table_column）→ 下期补
+  - assert: script → scripts/check_b2_field_metadata_columns.py:field_metadata_debt_open()
 - bff [medium] (2026-05-26) — BFF session Redis backend（P0-E 关闭）
   - assert: external → external — owner=产品研发负责人; trigger=见 docs/preflight-debt.md 历史归档
 - brain-invoke-skill [medium] (2026-05-23) — 集成测试用 `brain.invoke_skill()` 直调，绕过 trust-stamp 路径
@@ -40,6 +42,10 @@
   - assert: external → external — owner=推理平台（集团）; trigger=见 docs/preflight-debt.md 历史归档
 - f4-file-download-source-bytes [medium] (2026-06-07) — F4 文件资源真实字节交付依赖外部源存储底座（本期只做受控下载请求登记 + 下载日志）
   - assert: external → external — owner=产品研发负责人; trigger=数据治理侧确认文件源存储（中心库/对象存储）取数接口契约后，delivery.file.download 接真实字节流/直达地址，P4 跳转真实下载
+- f6-library-table-exchange-etl [medium] (2026-06-06) — 库表交换 ETL 真实执行依赖外部交换底座（NiFi/dsp_pipelines §3.4 外部依赖）；delivery.exchange.* 仅记意图/状态，未对接外部底座 → 立项 + 记债
+  - assert: grep_present → pattern present in zw_brain/command/handlers/j1/delivery.py
+- g4-acceptance-overdue-dimension [medium] (2026-06-06) — G4「受理已过期」待办维度无上游截止期字段：ApplicationRecord 无受理截止期/办理时限，approval_step.due_at 全仓零写入 → 记债等上游补供
+  - assert: script → scripts/check_g4_acceptance_deadline.py:acceptance_deadline_debt_open()
 - j1-api-call-monitoring [medium] (2026-05-31) — j1-api-call-monitoring P4 调用记录段已铺但恒空（res→api_id 调用指标映射缺失，留 InTest）
   - assert: external → external — owner=产品研发负责人; trigger=补 res 资源 → 网关 api_id 映射（数据/业务侧给对应关系，落 legacy_object_mapping / resource_channel_binding）→ P4 改按映射出的 api_id 查 ops.service.invocation.query → 干净全量真实库实测非空表 → 往 .testing/signoff/ 追加 covers → 翻 Done。属 webui-capability-render-debt 一类
 - j1-approval-conditional [medium] (2026-05-31) — j1-approval-conditional 两步条件审批运行时未铺（Wave1 延后，留 InTest）
