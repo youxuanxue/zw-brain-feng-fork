@@ -6,14 +6,13 @@ const props = defineProps<{
   showAction?: boolean;
 }>();
 
-// resource_kind → 中文物化形态徽标（库表 / 文件 / 接口 …），让每张卡一眼可辨资源类型。
+// resource_kind → 中文物化形态徽标。资源类型收敛为「库表 / 文件 / API」——
+// 文件夹/链接已退役（归一化阶段 folder→file、移除 link/url）。service = API 的历史别名，保留。
 const KIND_LABELS: Record<string, string> = {
   table: '库表',
   file: '文件',
   api: '接口',
   service: '服务',
-  folder: '文件夹',
-  url: '链接',
 };
 
 const item = computed(() => {
@@ -40,7 +39,7 @@ const item = computed(() => {
 
 // 召回候选（NL 召回字典命中，id="recall:<标题>"）是"提示有这个目录"的软候选：
 // 该目录还未录入 catalog_entry 主表（搜不到）、也没有详情页（catalog.resource_view
-// 会 entity_not_found）。诚实降级——不渲染会坏的标题链接/查看详情/发起复用申请，
+// 会 entity_not_found）。诚实降级——不渲染会坏的标题链接/查看详情/申请资源，
 // 只标注"已在官方召回字典、录入中，暂无详情/申请入口"。根因（召回字典↔主表脱节）记 backlog。
 const isRecallCandidate = computed(
   () => item.value.kind === 'recall_dictionary' || item.value.id.startsWith('recall:'),
@@ -80,7 +79,15 @@ const emit = defineEmits<{
     </ul>
     <p v-if="isRecallCandidate" class="res-pending">该目录已收录，正在录入，暂无详情与申请入口。</p>
     <footer v-if="showAction && !isRecallCandidate" class="res-foot">
-      <button type="button" class="gov-btn gov-btn-primary" data-skill="request.create" @click="emit('apply', item.id)">
+      <!-- A1（0605#1）：只有「已发布（可复用）」资源可申请。发现页投影已只返已发布态，
+           此处再以 status 门控为纵深防御——任何非可复用态（待发布等）不渲染申请按钮。 -->
+      <button
+        v-if="item.status === '可复用'"
+        type="button"
+        class="gov-btn gov-btn-primary"
+        data-skill="request.create"
+        @click="emit('apply', item.id)"
+      >
         申请资源
       </button>
       <a :href="`#/discovery/resource/${encodeURIComponent(item.id)}`" class="gov-btn gov-btn-secondary">查看详情</a>

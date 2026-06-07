@@ -82,18 +82,25 @@ def _seed_approval(app_id: str, status: str = "pending") -> None:
     ApprovalRepository().upsert_from_request_and_approval({"id": app_id, "status": status}, {}, tenant_id=TENANT)
 
 
-def _seed_asset(code: str, *, title: str, status: str = "active", share_type: object = "1") -> None:
-    ResourceApiRepository().upsert_asset(
-        {
-            "resource_code": code,
-            "title": title,
-            "lifecycle_status": status,
-            "owner_org_id": "11370000MB284651XL",
-            "owner_org_snapshot_json": {"org_name": "省大数据局"},
-            "access_policy_json": {"share_type": share_type},
-        },
-        tenant_id=TENANT,
-    )
+def _seed_asset(
+    code: str,
+    *,
+    title: str,
+    status: str = "active",
+    share_type: object = "1",
+    resource_kind: object = None,
+) -> None:
+    asset: dict[str, object] = {
+        "resource_code": code,
+        "title": title,
+        "lifecycle_status": status,
+        "owner_org_id": "11370000MB284651XL",
+        "owner_org_snapshot_json": {"org_name": "省大数据局"},
+        "access_policy_json": {"share_type": share_type},
+    }
+    if resource_kind is not None:
+        asset["resource_kind"] = resource_kind
+    ResourceApiRepository().upsert_asset(asset, tenant_id=TENANT)
 
 
 # ── requests ────────────────────────────────────────────────────────────────
@@ -147,25 +154,44 @@ def test_enrich_approvals_empty_when_db_empty(temp_db: Path) -> None:
 # ── discovery.resources ───────────────────────────────────────────────────────
 
 def test_enrich_discovery_resources_only_discoverable_statuses(temp_db: Path) -> None:
-    # D45.b：发现页默认只展示「可用」资源 = active + 待发布；草稿/审核/暂停/下线/过期排除。
+    # D53①（反转 D45.b，2026-06-06）：发现页只展示「已发布(active)」资源；
+    # 待发布(approved_pending_publish)/草稿/审核/暂停/下线/过期均退出发现视图。
     _seed_asset("RES-1", title="停车场信息共享目录", status="active", share_type="1")
-    _seed_asset("RES-2", title="已下线资源", status="revoked")  # 非可用 → 排除
-    _seed_asset("RES-3", title="待发布资源", status="approved_pending_publish", share_type="2")
-    _seed_asset("RES-4", title="草稿资源", status="draft")  # 非可用 → 排除
+    _seed_asset("RES-2", title="已下线资源", status="revoked")  # 非已发布 → 排除
+    _seed_asset("RES-3", title="待发布资源", status="approved_pending_publish", share_type="2")  # 待发布 → 退出发现
+    _seed_asset("RES-4", title="草稿资源", status="draft")  # 非已发布 → 排除
     out = enrich_discovery_resources_snapshot(
         {"discovery": {"resources": [{"id": "seed-res", "name": "seed"}]}}, tenant_id=TENANT
     )
     cards = {c["id"]: c for c in out["discovery"]["resources"]}
-    assert set(cards) == {"RES-1", "RES-3"}, "只展示 active + 待发布，排除 revoked / draft"
+    assert set(cards) == {"RES-1"}, "只展示已发布 active，待发布/revoked/draft 均排除"
+    assert "RES-3" not in cards, "待发布资源必须退出发现视图（D53①）"
     assert cards["RES-1"]["name"] == "停车场信息共享目录"
     assert cards["RES-1"]["status"] == "可复用"  # active → 中文展示态
-    assert cards["RES-3"]["status"] == "待发布"  # approved_pending_publish
     assert cards["RES-1"]["provider"] == "省大数据局"
     # 共享类型（源表 DDL 权威：1=无条件 / 2=有条件）+ 色级
     assert cards["RES-1"]["shareType"] == "无条件共享"
     assert cards["RES-1"]["shareLevel"] == "open"
-    assert cards["RES-3"]["shareType"] == "有条件共享"
-    assert cards["RES-3"]["shareLevel"] == "conditional"
+
+
+def test_enrich_discovery_resources_folds_legacy_kind(temp_db: Path) -> None:
+    # Bug2（读路径折叠，D53）：存量库残留 legacy resource_kind='folder'/'url'/'link'/'service'
+    # 的 active 行，发现卡 kind 必须折叠到 库表/文件/API，绝不把 folder/url 泄漏到「资源类型」筛选/徽标。
+    _seed_asset("RK-FOLDER", title="文件夹资源", resource_kind="folder")
+    _seed_asset("RK-URL", title="链接资源", resource_kind="url")
+    _seed_asset("RK-SERVICE", title="融合服务资源", resource_kind="service")
+    _seed_asset("RK-TABLE", title="库表资源", resource_kind="table")
+    out = enrich_discovery_resources_snapshot(
+        {"discovery": {"resources": [{"id": "seed-res", "name": "seed"}]}}, tenant_id=TENANT
+    )
+    cards = {c["id"]: c for c in out["discovery"]["resources"]}
+    assert cards["RK-FOLDER"]["kind"] == "file", "folder → file（文件夹退役并入文件）"
+    assert cards["RK-URL"]["kind"] == "file", "url → file（链接退役并入文件）"
+    assert cards["RK-SERVICE"]["kind"] == "api", "service → api（历史别名）"
+    assert cards["RK-TABLE"]["kind"] == "table"
+    # 关键不变量：发现卡 kind 取值集合 ⊆ 收敛三态，绝无 folder/url 泄漏
+    kinds = {c.get("kind") for c in out["discovery"]["resources"] if c.get("kind")}
+    assert kinds <= {"table", "file", "api"}, f"发现卡资源类型必须收敛，泄漏：{kinds}"
 
 
 def test_enrich_discovery_resources_empty_when_db_empty(temp_db: Path) -> None:

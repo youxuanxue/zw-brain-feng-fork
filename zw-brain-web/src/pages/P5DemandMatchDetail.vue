@@ -85,7 +85,7 @@ async function acceptDemand() {
     pushToast({
       kind: 'info',
       title: '请先匹配目录',
-      detail: '需先点「检索匹配目录」命中一条本地资源，再起草复用申请。',
+      detail: '需先点「检索匹配目录」命中一条本地资源，再起草资源申请。',
     });
     return;
   }
@@ -104,7 +104,7 @@ async function acceptDemand() {
   <main class="focus-page focus-detail">
     <nav class="crumbs"><a href="#/provider/inbox/demand-match">← 供需对接</a></nav>
     <section class="panel">
-      <PageFocusHeader :title="item?.title ?? `需求 ${id}`" meta="匹配本地目录后起草复用申请" />
+      <PageFocusHeader :title="item?.title ?? `需求 ${id}`" meta="匹配本地目录后起草资源申请" />
 
       <template v-if="source === 'live' && item">
         <DetailPanel title="需求详情" :rows="rows" />
@@ -122,7 +122,7 @@ async function acceptDemand() {
             受理并起草申请
           </button>
         </DetailActions>
-        <p v-if="canAcceptDemand && !matchedResourceId" class="hint">先检索匹配本地目录，命中后方可起草复用申请。</p>
+        <p v-if="canAcceptDemand && !matchedResourceId" class="hint">先检索匹配本地目录，命中后方可起草资源申请。</p>
       </template>
       <p v-else-if="source === 'live'" class="focus-empty">未找到该需求编号。</p>
       <p v-else class="focus-empty">等待数据装载……</p>

@@ -50,7 +50,7 @@ async function approve(resourceCode: string) {
         :meta="headerMeta"
         :links="[
           { label: '提供方管理', href: '#/provider' },
-          { label: '字段审核', href: '#/provider/inbox/field-decision' },
+          { label: '反向编目审核', href: '#/provider/inbox/field-decision' },
         ]"
       />
 

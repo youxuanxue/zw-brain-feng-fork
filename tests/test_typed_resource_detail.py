@@ -28,6 +28,7 @@ import pytest
 
 from tests._seed_guard import require_real_seed
 from tests._trusted_payload import invoke_trusted
+from zw_brain.domain.serializers.typed_resource_detail import typed_resource_detail
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
@@ -132,19 +133,15 @@ def test_table_resource_renders_table_info(brain) -> None:
     assert rows["物理表名"], "真实库表资源应有物理表名"
 
 
-def test_url_resource_renders_link_info(brain) -> None:
-    code = _resource_with_binding("url", "url")
-    if not code:
-        pytest.skip("seed 库无带 url binding 的链接资源")
-    detail = _view(brain, code)
-    assert detail.get("resourceKind") == "url"
-    typed = detail.get("typedDetail")
-    assert typed and typed["kind"] == "url"
-    assert typed["kindLabel"] == "链接"
-    section = typed["sections"][0]
-    assert section["title"] == "链接信息"
-    rows = {r["label"]: r["value"] for r in section["rows"]}
-    assert rows.get("链接名称"), "真实链接资源应有链接名称"
+def test_url_kind_folds_into_file(brain) -> None:
+    """资源类型收敛为 库表/文件/API（D53）：链接/文件夹退役，归一化折叠为 file。
+    任何残留 url/folder kind 在分型层防御性归入文件分型，不再单列「链接信息」块。"""
+    detail = typed_resource_detail(resource_kind="url", bindings=[])
+    assert detail["kind"] == "file"
+    assert detail["kindLabel"] == "文件"
+    assert detail["sections"][0]["title"] == "文件信息"
+    folder = typed_resource_detail(resource_kind="folder", bindings=[])
+    assert folder["kind"] == "file"
 
 
 def test_api_resource_template_present_even_when_data_thin(brain) -> None:
@@ -223,8 +220,8 @@ def test_discovery_card_carries_materialization_kind(brain) -> None:
     # 至少一张卡片带 materializationKind（真实库 resource_format 已填充档位）
     kinds = {str(c.get("materializationKind")) for c in cards if c.get("materializationKind")}
     assert kinds, "发现页卡片应至少有一类携带物化形态（资源类型筛选维度）"
-    # 物化形态取值落在 table/file/folder/api/url 合法集合内
-    assert kinds <= {"table", "file", "folder", "api", "url"}
+    # 物化形态取值落在收敛后的合法集合内：库表/文件/API（D53；folder/url 已退役折叠为 file）
+    assert kinds <= {"table", "file", "api", "service"}
 
 
 def test_catalog_access_policy_share_open_semantics(brain) -> None:

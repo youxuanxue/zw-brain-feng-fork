@@ -31,7 +31,11 @@ const counts = computed(() => providerTodoCounts(provider.value as Record<string
 const statCards = computed(() => {
   const c = counts.value;
   return [
-    { key: 'field-decision', label: '字段审核', value: c.fieldDec, href: '#/provider/inbox/field-decision' },
+    // E3（6.4#16）：去工程黑话「字段审核/字段裁决」。该收件箱办理的是「反向编目草稿」的口径审核
+    // （动作 catalog.entry.reverse_draft.confirm/reject），与页头「目录审核」(catalog-review 正向编目
+    // 部门审/平台审) 是不同工作流——故按操作实体命名「反向编目审核」，与「反向编目向导」同词、不与
+    // 「目录审核」撞名（一词一概念）。
+    { key: 'field-decision', label: '反向编目审核', value: c.fieldDec, href: '#/provider/inbox/field-decision' },
     { key: 'hookup-review', label: '挂接审核', value: c.hookup, href: '#/provider/inbox/hookup-review' },
     { key: 'demand-match', label: '供需对接', value: c.demand, href: '#/provider/inbox/demand-match' },
     { key: 'objection', label: '异议响应', value: c.objection, href: '#/provider/inbox/objection' },

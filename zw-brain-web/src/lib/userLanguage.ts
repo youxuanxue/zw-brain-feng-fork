@@ -20,13 +20,21 @@
 // ── 渠道 token → 业务用语 ────────────────────────────────────────────────
 const CHANNEL_ZH: Record<string, string> = {
   exchange: '交换通道',
+  recurring_exchange: '交换通道', // F2：周期交换也归「交换通道」，不落泛化「数据通道」。
   internal: '内部直达',
   external: '外部对接',
   national: '国家通道',
   share: '共享交付',
   api: '接口服务',
+  service: '接口服务',
   file: '文件交付',
+  folder: '文件交付',
   db: '库表交付',
+  // F2（6.4#15）：legacy 交付渠道可能直接是 res_type（table 等），补齐映射避免落到泛化「数据通道」。
+  table: '库表交付',
+  // F2：审批通过新建在产单的 channel 是复合态「受控交付 + 审计回执」（request.py 落库），
+  // 收敛为简洁的「受控交付」（审计回执语义已由「对账回执」操作承载，渠道列不重复啰嗦）。
+  '受控交付 + 审计回执': '受控交付',
 };
 
 /** 交付 / 申请渠道 token → 中文；未登记的 ASCII slug 兜底为「数据通道」。 */
@@ -39,9 +47,31 @@ export function formatChannel(raw: unknown): string {
   return key;
 }
 
+// ── 资源生命周期态 → 业务用语（与后端 _RESOURCE_STATUS_DISPLAY 同口径）──────────
+// 发现快照已映射成中文（可复用 等），但 catalog.resource_view 富集回原始 lifecycle（draft/active…）；
+// 资源详情细条统一经此映射，绝不裸出工程态（R12）。已是中文则原样。
+const RESOURCE_STATUS_ZH: Record<string, string> = {
+  active: '可复用',
+  approved_pending_publish: '待发布',
+  pending_review: '审核中',
+  draft: '草稿',
+  suspended: '已暂停',
+  expired: '已过期',
+  revoked: '已下线',
+};
+
+/** 资源生命周期 status → 中文展示态；已是中文原样返回，未知 ASCII slug 兜底「未知状态」。 */
+export function formatResourceStatus(raw: unknown): string {
+  const key = String(raw ?? '').trim();
+  if (!key) return '—';
+  if (RESOURCE_STATUS_ZH[key]) return RESOURCE_STATUS_ZH[key];
+  if (/[一-鿿]/.test(key)) return key;
+  return '未知状态';
+}
+
 // ── 意图名 → 业务用语 ────────────────────────────────────────────────────
 const INTENT_ZH: Record<string, string> = {
-  discover_resource: '查找可复用数据',
+  discover_resource: '查找可申请数据',
   query_application: '查看我的申请进度',
   register_demand: '登记数据需求',
   unknown: '理解你的诉求',

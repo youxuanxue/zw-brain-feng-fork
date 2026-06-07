@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.discovery_snapshot_projection import project_resource_cards
+from zw_brain.domain.resource_kind import canonical_resource_kind
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 
@@ -122,7 +123,8 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
                         "status": api_res.get("lifecycle_status", "active"),
                         "desc": str(summary.get("desc") or summary.get("domain") or api_res.get("title", "")),
                         "kind": "api",
-                        "resource_kind": api_res.get("resource_kind"),
+                        # 读路径折叠（D53）：service/未知 → api，绝不裸出 legacy kind 到「资源类型」筛选。
+                        "resource_kind": canonical_resource_kind(api_res.get("resource_kind")) or "api",
                     }
                 )
         # NL recall — append real-catalog candidates from the recall dictionary
@@ -201,7 +203,8 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
                         "status": api_res.get("lifecycle_status", "active"),
                         "desc": str(summary.get("desc") or summary.get("domain") or api_res.get("title", "")),
                         "kind": "api",
-                        "resource_kind": api_res.get("resource_kind"),
+                        # 读路径折叠（D53）：service/未知 → api，绝不裸出 legacy kind 到「资源类型」筛选。
+                        "resource_kind": canonical_resource_kind(api_res.get("resource_kind")) or "api",
                     }
                 )
             resources.extend(_recall_candidates(deps, haystack, existing_ids))

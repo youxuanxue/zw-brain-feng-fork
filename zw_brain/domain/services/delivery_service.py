@@ -11,12 +11,30 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from zw_brain.domain.errors import NotFoundError
+from zw_brain.domain.resource_kind import canonical_resource_kind
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 from zw_brain.shared.sensitive_mask import mask_default as _mask
 
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
+
+def _delivery_resource_kind(res_type: Any, channel: Any = None) -> str | None:
+    """交付资源类型归一（D53 收敛 库表/文件/API），驱动 F3 操作分流。
+
+    存量 data_apply_authrization 多无 per-grant res_type → 用交付渠道 channel 兜底推导
+    （channel 即编码了交付形态：table/db/exchange→库表、file/folder→文件、service/api→接口），
+    否则 62/64 行 resourceKind=None、F3「领凭据 vs 查看授权」永不分流。仍推不出→None（默认双按钮）。
+    """
+    for raw in (res_type, channel):
+        if not raw:
+            continue
+        kind = canonical_resource_kind(raw)
+        if kind:
+            return kind
+        if str(raw).strip().lower() in {"db", "exchange", "recurring_exchange"}:
+            return "table"
+    return None
 
 
 @dataclass(frozen=True)
@@ -56,8 +74,15 @@ class DeliveryService:
         return {
             "id": record.delivery_code,
             "requestId": record.application_code,
+            # F2：resource_name 缺供（上游 D11 不伪造资源名）时退「交付任务」，不再把 hex 编号
+            # 重复拼进名称（编号列已单独展示 id），避免「<hex> 交付任务」的乱码观感。
             "name": payload.get("resource_name") or f"{record.delivery_code} 交付任务",
             "channel": record.channel,
+            # F3（6.5#9）：交付侧资源类型，供前端按类型分流操作——API 交付无「对账回执」概念、
+            # 其凭据语义是「查看授权」。收敛口径同 D53（folder/url→file、service→api）；res_type 缺供
+            # 时用 channel 兜底推导（见 _delivery_resource_kind）。
+            # （渠道/时间/编号的白话化由前端 formatChannel/formatTime/shortId 统一承接，后端保持原始值。）
+            "resourceKind": _delivery_resource_kind(grant.get("res_type"), record.channel),
             "status": record.state,
             "owner": "审批承接 → 交付执行",
             "updatedAt": record.updated_at.isoformat(),

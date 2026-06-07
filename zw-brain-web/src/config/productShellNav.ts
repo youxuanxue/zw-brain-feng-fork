@@ -33,7 +33,7 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
   {
     key: 'discovery',
     navLabel: '找数据',
-    navDesc: '搜索可复用的政务数据资源',
+    navDesc: '搜索可申请的政务数据资源',
     to: '/discovery',
     group: 'use',
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
@@ -54,7 +54,9 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     navDesc: '领取访问凭据、核对交付回执',
     to: '/delivery-exchange',
     group: 'use',
-    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+    // F1（6.4#15）：交付回执收窄到「部门管理员」（查看本部门申请通过资源的授权）+ 审计只读。
+    // 业务运营员（BUSIAUDIT）无该场景、部门操作员（OPERATER）经管理员承接，均不再进入领数据。
+    roles: ['ROLE_ORGAN_MANAGER', 'ROLE_SECURITY_AUDIT'],
   },
   {
     key: 'zones-pack',

@@ -42,7 +42,7 @@ ALL_INTENTS = (
 
 # R12：意图回显给用户时必须是业务人话，绝不裸出 intent token（discover_resource 等）。
 _INTENT_ZH: dict[str, str] = {
-    INTENT_DISCOVER_RESOURCE: "查找可复用数据",
+    INTENT_DISCOVER_RESOURCE: "查找可申请数据",
     INTENT_REGISTER_DEMAND: "登记数据需求",
     INTENT_QUERY_APPLICATION: "查看我的申请进度",
     INTENT_UNKNOWN: "理解你的诉求",

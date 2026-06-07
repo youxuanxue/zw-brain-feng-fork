@@ -28,7 +28,7 @@ const PAGE_MATRIX: Array<{ role: string; hash: string; note: string }> = [
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/zones-pack', note: '专题包（描述占位）' },
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider', note: '提供方管理' },
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider/inbox/objection', note: '异议响应收件箱' },
-  { role: 'ROLE_BUSIAUDIT', hash: '#/provider/inbox/field-decision', note: '字段审核收件箱（原字段裁决）' },
+  { role: 'ROLE_BUSIAUDIT', hash: '#/provider/inbox/field-decision', note: '反向编目审核收件箱（原字段审核/字段裁决）' },
   { role: 'ROLE_SECURITY_AUDIT', hash: '#/compliance-ops', note: '合规与运营' },
   { role: 'ROLE_BUSIAUDIT', hash: '#/integration-admin', note: '外部系统' },
 ];
@@ -67,4 +67,32 @@ test.describe('R12 渲染层无工程语言泄漏', () => {
       ).toEqual([]);
     });
   }
+
+  // 资源详情页（#/discovery/resource/:id）：资源 id 运行时来自真实库（seed-light 空库无资源），
+  // 故经发现页「查看详情」入口动态进入；无资源时 skip（诚实，同 dump-依赖 spec 的留本地纪律）。
+  // 守 A2 细条状态映射（状态 draft 等 lifecycle 不得裸出，formatResourceStatus）+ 分型块语言层。
+  test('ROLE_ORGAN_OPERATER 资源详情页 — 渲染层无工程语言泄漏', async ({ page }) => {
+    await setRole(page, 'ROLE_ORGAN_OPERATER');
+    await gotoHash(page, '#/discovery');
+    await page.waitForTimeout(800);
+    const detailLink = page.locator('a[href^="#/discovery/resource/"]').first();
+    if ((await detailLink.count()) === 0) {
+      test.skip(true, 'seed-light 空库无可申请资源 → 无资源详情可巡检（需真实库副本）');
+      return;
+    }
+    await detailLink.click();
+    await page.waitForLoadState('networkidle', { timeout: 6000 }).catch(() => undefined);
+    await page.waitForTimeout(1200); // 等 catalog.resource_view 富集覆盖快照（draft/active 等原始态）
+
+    const text = (await page.locator('#app-router').innerText().catch(() => '')) || '';
+    const hits = scanForbidden(text);
+    if (hits.length) {
+      // eslint-disable-next-line no-console
+      console.error(`R12 泄漏 @ 资源详情:\n${hits.map((h) => `  · [${h.patternId}] "${h.sample}"`).join('\n')}`);
+    }
+    expect(
+      hits,
+      `资源详情渲染层工程语言泄漏：\n${hits.map((h) => `[${h.patternId}] ${h.sample}`).join('; ')}`,
+    ).toEqual([]);
+  });
 });

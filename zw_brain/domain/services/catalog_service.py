@@ -11,6 +11,7 @@ import copy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from zw_brain.domain.resource_kind import canonical_resource_kind
 from zw_brain.domain.serializers import metadata as metadata_ser
 from zw_brain.domain.serializers import resource_api as resource_api_ser
 from zw_brain.domain.serializers import topic_package as topic_package_ser
@@ -56,14 +57,15 @@ _RESOURCE_FORMAT_LABELS: dict[str, str] = {
     "0500": "链接",
 }
 # 信息资源格式码 → 物化形态 kind（与 resource_asset.resource_kind / ResourceCard 徽标同口径）。
-# 反馈 7 资源类型筛选维度。结构化/库表 → table；文件 → file；文件夹 → folder；接口 → api；链接 → url。
+# 资源类型收敛为「库表 / 文件 / API」（D53）：结构化/库表→table；文件→file；接口→api。
+# 文件夹(0320)/链接(0500) 不再单列物化类型，折叠为 file（与归一化闸门 folder/url→file 一致）。
 _RESOURCE_FORMAT_TO_KIND: dict[str, str] = {
     "0100": "table",
     "0200": "table",
     "0310": "file",
-    "0320": "folder",
+    "0320": "file",
     "0400": "api",
-    "0500": "url",
+    "0500": "file",
 }
 
 
@@ -332,7 +334,8 @@ class CatalogService:
                 )
                 binding_dicts = [resource_api_ser.binding_to_dict(b) for b in binding_records]
                 detail["focusedResourceCode"] = focused_resource_code
-                detail["resourceKind"] = focused_asset.get("resource_kind")
+                # 读路径折叠（D53）：存量 folder/url/link → file，绝不裸出 legacy kind 到详情徽标。
+                detail["resourceKind"] = canonical_resource_kind(focused_asset.get("resource_kind"))
                 detail["resourceBindings"] = binding_dicts
                 detail["typedDetail"] = typed_resource_detail_ser.typed_resource_detail(
                     resource_kind=focused_asset.get("resource_kind"),
@@ -476,7 +479,7 @@ class CatalogService:
         """
         base = copy.deepcopy(self.brain._snapshot["discovery"]["aiCopilot"])
         if resources and query:
-            base["summary"] = f"已按“{query}”找到 {len(resources)} 条可复用目录或基础要素。先看字段、共享条件和字段证据；仍缺的字段再进入最小申请。"
+            base["summary"] = f"已按“{query}”找到 {len(resources)} 条可申请目录或基础要素。先看字段、共享条件和字段证据；仍缺的字段再进入最小申请。"
             base["missingQuestions"] = ["是否限定使用区域或时间窗？", "本次只需要哪些字段，哪些字段属于缺口？"]
             base["nextActions"] = ["打开资源详情", "核对字段口径", "整理最小申请字段"]
             base["evidence"] = [item.get("name", item.get("id", "")) for item in resources[:3]]

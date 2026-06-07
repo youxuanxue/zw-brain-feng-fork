@@ -111,10 +111,14 @@ async function submitReview() {
     <section class="panel">
       <PageFocusHeader title="资源挂接向导" meta="为已发布目录补挂 库表 / 文件 物化资源（API 走「API 服务化」入口）" />
 
-      <label class="field-label">物化形式</label>
-      <div class="seg">
-        <button type="button" class="seg-btn" :class="{ active: kind === 'table' }" @click="kind = 'table'">库表</button>
-        <button type="button" class="seg-btn" :class="{ active: kind === 'file' }" @click="kind = 'file'">文件</button>
+      <!-- C2（0605#4 截图）：标签与切换器同行，避免内容宽度的切换器单独占一行、
+           右侧留出大片空白带的观感问题（资源类型已收敛为 库表/文件，API 走独立入口）。 -->
+      <div class="seg-row">
+        <label class="field-label">物化形式</label>
+        <div class="seg">
+          <button type="button" class="seg-btn" :class="{ active: kind === 'table' }" @click="kind = 'table'">库表</button>
+          <button type="button" class="seg-btn" :class="{ active: kind === 'file' }" @click="kind = 'file'">文件</button>
+        </div>
       </div>
 
       <div class="grid2">
@@ -180,7 +184,9 @@ async function submitReview() {
 .field-label { display: block; font-size: 13px; margin-bottom: 6px; color: var(--b-muted, #5c6370); }
 .gov-input { width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--b-border, #d4e2f4); box-sizing: border-box; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-.seg { display: inline-flex; margin-bottom: 16px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 6px; overflow: hidden; }
+.seg-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.seg-row .field-label { margin: 0; }
+.seg { display: inline-flex; border: 1px solid var(--b-border, #d4e2f4); border-radius: 6px; overflow: hidden; }
 .seg-btn { padding: 6px 18px; border: none; background: #fff; cursor: pointer; font-size: 13px; }
 .seg-btn.active { background: var(--b-primary, #006be6); color: #fff; }
 .map-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }

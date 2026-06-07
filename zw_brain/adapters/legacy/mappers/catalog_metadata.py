@@ -1076,15 +1076,16 @@ def _resource_flow_decision(raw: Any) -> str:
 
 
 def _normalize_resource_kind(raw: Any) -> str:
+    # 资源类型收敛为「库表 / 文件 / API」（D53）——唯一入库闸门。
+    # 文件夹/链接退役：folder/url/link 折叠归并为 file（文件夹按文件处理；链接真实数据近零）。
+    # service = 旧融合/代理服务，属 API 范畴的历史别名，保留。
     if not raw:
         return "table"
     text = str(raw).strip().lower()
-    if text in {"table", "file", "folder", "service", "api", "url", "link"}:
-        if text == "service":
-            return "service"
-        if text == "link":
-            return "url"
+    if text in {"table", "file", "api", "service"}:
         return text
+    if text in {"folder", "url", "link"}:
+        return "file"
     return "table"
 
 

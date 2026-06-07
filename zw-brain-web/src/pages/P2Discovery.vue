@@ -12,12 +12,11 @@ import type { StructuredAction } from '@/composables/useNLAccelerator';
 const NL_PRESETS_P2 = ['查省营商环境相关数据', '近 7 天高使用资源', '关联水电气交叉数据'];
 
 // 物化形态 kind → 中文（与 ResourceCard 徽标 / 资源详情分型同口径）。
+// 资源类型收敛为「库表 / 文件 / API」——文件夹/链接退役。
 const KIND_FILTER_LABELS: Record<string, string> = {
   table: '库表',
   file: '文件',
-  folder: '文件夹',
   api: '接口',
-  url: '链接',
 };
 
 function consumeNLAction(action: StructuredAction) {
@@ -72,7 +71,7 @@ const headerMeta = computed(() => {
   if (searching.value) return '正在检索……';
   if (searchError.value && isSearchMode.value) return `检索失败：${searchError.value}`;
   if (source.value === 'live') {
-    return displayed.value.length ? `命中 ${displayed.value.length} 条可复用资源` : '未命中，可换关键词或浏览专题包';
+    return displayed.value.length ? `命中 ${displayed.value.length} 条可申请资源` : '未命中，可换关键词或浏览专题包';
   }
   return '正在加载资源目录……';
 });
@@ -81,7 +80,7 @@ async function applyTo(id: string) {
   const result = await invokeActionStub({
     skillId: 'request.create',
     payload: { resource_id: id, purpose: '通过资源发现页申请资源' },
-    successTitle: '复用申请已起草',
+    successTitle: '资源申请已起草',
   });
   const requestId = resolveRequestIdFromAction(result);
   if (requestId) navigateToRequestDetail(requestId);
@@ -92,7 +91,7 @@ async function applyTo(id: string) {
   <main class="focus-page">
     <section class="panel">
       <PageFocusHeader
-        title="可复用资源"
+        title="可申请资源"
         :meta="headerMeta"
         :links="[
           { label: '专题包', href: '#/zones-pack' },

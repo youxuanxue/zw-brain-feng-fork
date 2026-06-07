@@ -14,7 +14,7 @@ const items = computed(() => deriveFieldDecisions(provider.value as Record<strin
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
   const n = items.value.length;
-  if (!n) return '暂无待审核字段';
+  if (!n) return '暂无待审核草稿';
   const fromProjection = items.value.some((i) => i.source === 'projection');
   return fromProjection ? `${n} 条待审核` : `${n} 条来自目录待补说明`;
 });
@@ -24,7 +24,7 @@ const headerMeta = computed(() => {
   <main class="focus-page">
     <section class="panel">
       <PageFocusHeader
-        title="字段审核收件箱"
+        title="反向编目审核收件箱"
         :meta="headerMeta"
         :links="[
           { label: '提供方管理', href: '#/provider' },
@@ -48,7 +48,7 @@ const headerMeta = computed(() => {
       </table>
 
       <p v-else-if="source === 'live'" class="focus-empty">
-        暂无待审核字段。完成反向编目并提交后，待审核事项会出现在此列表。
+        暂无待审核草稿。完成反向编目并提交后，待审核事项会出现在此列表。
       </p>
       <p v-else class="focus-empty">等待数据装载……</p>
     </section>

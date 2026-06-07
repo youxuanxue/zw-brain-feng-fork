@@ -22,6 +22,7 @@ from zw_brain.domain.data_quality import classify_purpose, is_dirty_purpose, pur
 from zw_brain.domain.repositories.application import ApplicationRepository
 from zw_brain.domain.repositories.approval import ApprovalRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
+from zw_brain.domain.resource_kind import canonical_resource_kind
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.shared.sensitive_mask import mask_default
 
@@ -40,10 +41,11 @@ _RESOURCE_STATUS_DISPLAY = {
     "revoked": "已下线",
 }
 
-# 发现页默认只展示「可用」资源（D45.b 业务裁决，反转 D45「不在发现层过滤」）：
-# active（可复用）+ approved_pending_publish（待发布）。草稿/审核中/已暂停/已下线/已过期
-# 非「可复用数据」语义，不进默认发现视图（详情/目录线仍可达）。
-_DISCOVERABLE_STATUSES = frozenset({"active", "approved_pending_publish"})
+# 发现页只展示「已发布」资源（D53① 业务裁决 2026-06-06，反转 D45.b）：仅 active（可复用/已发布）。
+# 待发布 approved_pending_publish 退出默认发现视图——未发布不应在消费端可见、更不可申请
+# （用户反馈 0605#1：只有已发布才可供申请使用）。草稿/审核中/待发布/已暂停/已下线/已过期
+# 均不进发现视图（资源详情/目录线仍可达，仅不在「找数据」列表 + 不可申请）。
+_DISCOVERABLE_STATUSES = frozenset({"active"})
 
 # 无意义 desc 占位值（真实库 res_desc 82% 是空/「无」/标题复读 → 卡片不渲染噪声）
 _DESC_NOISE = frozenset({"", "无", "-", "暂无", "无。"})
@@ -170,7 +172,9 @@ def _asset_to_resource_card(record: Any) -> dict[str, Any]:
         "catalogCode": record.catalog_code or "",
         "desc": desc,
         "updatedAt": record.updated_at.strftime("%Y-%m-%d") if getattr(record, "updated_at", None) else "",
-        "kind": record.resource_kind,
+        # 读路径折叠（D53）：存量库 legacy folder/url/link 经 canonical 归入 file，绝不泄漏到
+        # 发现卡徽标 / 「资源类型」筛选项（写侧 _normalize_resource_kind 只管新入库行）。
+        "kind": canonical_resource_kind(record.resource_kind),
     }
 
 

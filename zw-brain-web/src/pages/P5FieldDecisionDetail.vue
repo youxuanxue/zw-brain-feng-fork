@@ -29,7 +29,7 @@ async function approve() {
     pushToast({
       kind: 'info',
       title: '暂无审核权限',
-      detail: '字段口径审核由业务运营员办理；部门管理员请在反向编目向导创建草稿。',
+      detail: '反向编目草稿审核由业务运营员办理；部门管理员请在反向编目向导创建草稿。',
     });
     return;
   }
@@ -46,13 +46,13 @@ async function reject() {
     pushToast({
       kind: 'info',
       title: '暂无审核权限',
-      detail: '字段口径审核由业务运营员办理。',
+      detail: '反向编目草稿审核由业务运营员办理。',
     });
     return;
   }
   await invokeActionStub({
     skillId: 'catalog.entry.reverse_draft.reject',
-    payload: { catalog_code: id.value, reject_reason: '字段口径需补充证据后重新提交' },
+    payload: { catalog_code: id.value, reject_reason: '目录口径需补充证据后重新提交' },
     successTitle: '已驳回',
     role: 'ROLE_BUSIAUDIT',
   });
@@ -61,9 +61,9 @@ async function reject() {
 
 <template>
   <main class="focus-page focus-detail">
-    <nav class="crumbs"><a href="#/provider/inbox/field-decision">← 字段审核收件箱</a></nav>
+    <nav class="crumbs"><a href="#/provider/inbox/field-decision">← 反向编目审核收件箱</a></nav>
     <section class="panel">
-      <PageFocusHeader :title="`字段审核 ${shortId(id)}`" meta="提交后进入审计链，不可静默撤销" />
+      <PageFocusHeader :title="`反向编目审核 ${shortId(id)}`" meta="提交后进入审计链，不可静默撤销" />
       <DetailPanel title="基本信息" :rows="rows" />
       <p v-if="!canDecide" class="role-hint">当前岗位无权在此审核；请切换为业务运营员。</p>
       <DetailActions v-if="canDecide">

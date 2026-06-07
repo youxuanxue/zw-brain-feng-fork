@@ -48,7 +48,7 @@ export function deriveFieldDecisions(provider: Record<string, unknown>): Provide
       const it = asRecord(row);
       return {
         id: String(it.id ?? ''),
-        title: safeRecordTitle(it.title ?? it.field_name ?? it.summary, it.id, '字段审核'),
+        title: safeRecordTitle(it.title ?? it.field_name ?? it.summary, it.id, '反向编目审核'),
         catalog: safeCatalogName(it.catalog_name, it.catalog_id),
         status: String(it.status ?? 'pending'),
         source: 'projection' as const,

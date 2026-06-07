@@ -31,7 +31,7 @@ SMOKE_DIR = CONFIG.screenshot_dir.parents[1] / "wave1" / "screenshots" / "provid
 PLACEHOLDER_MARK = "功能建设中"
 
 ROUTES: tuple[tuple[str, str], ...] = (
-    ("#/provider/inbox/field-decision", "字段审核收件箱"),
+    ("#/provider/inbox/field-decision", "反向编目审核收件箱"),
     ("#/provider/inbox/hookup-review", "挂接审核收件箱"),
     ("#/provider/inbox/demand-match", "供需对接收件箱"),
     ("#/provider/inbox/objection", "异议响应收件箱"),

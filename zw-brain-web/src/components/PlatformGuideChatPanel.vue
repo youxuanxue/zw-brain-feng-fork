@@ -1,12 +1,21 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { usePlatformGuideChat } from '@/composables/usePlatformGuideChat';
+import { getProductRole } from '@/composables/useProductRole';
 
-const PRESETS = [
+// G3（6.4#9）：快捷问题按岗位给业务化提示（不同角色关注的事不同），去工程/部署黑话。
+const DEFAULT_PRESETS = [
   '我的岗位能办哪些事？',
   '申请共享数据需要填哪些信息？',
   '怎么查看我的申请进度？',
-] as const;
+];
+const ROLE_PRESETS: Record<string, readonly string[]> = {
+  ROLE_BUSIAUDIT: ['平台已发布多少个数据目录？', '当前有多少条数据申请待办理？', '怎么查看我的申请进度？'],
+  ROLE_ORGAN_MANAGER: ['如何注册一个数据目录？', '如何申请共享数据？', '怎么查看我的申请进度？'],
+  ROLE_ORGAN_OPERATER: ['如何注册一个数据目录？', '如何把资源挂接到目录？', '申请共享数据需要填哪些信息？'],
+  ROLE_SECURITY_AUDIT: ['如何查看平台监控与告警信息？', '怎么审计一次数据交付？', '合规检查从哪里看？'],
+};
+const presets = computed(() => ROLE_PRESETS[getProductRole().value] ?? DEFAULT_PRESETS);
 
 const open = ref(false);
 const draft = ref('');
@@ -52,7 +61,7 @@ onMounted(() => {
     <aside v-if="open" class="guide-drawer" role="dialog" aria-label="平台指南问答">
       <header class="guide-head">
         <strong>平台指南</strong>
-        <p class="guide-hint">基于项目文档回答部署、权限与使用问题；答案以仓库 Markdown 为准。</p>
+        <p class="guide-hint">按你的岗位回答找数、申请、办理与查看进度等使用问题。</p>
         <p v-if="runtimeEnabled === false" class="guide-warn">
           AgentRuntime 未启用，问答不可用。请联系平台管理员开启。
         </p>
@@ -89,7 +98,7 @@ onMounted(() => {
       <div class="guide-presets">
         <span class="guide-preset-label">快捷：</span>
         <button
-          v-for="p in PRESETS"
+          v-for="p in presets"
           :key="p"
           type="button"
           class="guide-chip"

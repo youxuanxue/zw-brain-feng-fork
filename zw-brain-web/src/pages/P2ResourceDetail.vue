@@ -11,7 +11,7 @@ import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { mapDetailRows } from '@/lib/detailDisplay';
-import { deriveRecordName, formatTime } from '@/lib/userLanguage';
+import { deriveRecordName, formatResourceStatus, formatTime } from '@/lib/userLanguage';
 import {
   typedSectionsToRows,
   decisionRows,
@@ -23,8 +23,17 @@ import { ref } from 'vue';
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
 const { resource, source, loading, fetchError } = useResourceDetail(() => id.value);
-// request.create 仅 OPERATER；MANAGER/BUSIAUDIT/SECURITY_AUDIT 在 P2 详情页不渲染「发起复用申请」
-const canApply = computed(() => canPerformAction('request.create', getProductRole().value));
+// request.create 仅 OPERATER；MANAGER/BUSIAUDIT/SECURITY_AUDIT 在 P2 详情页不渲染「申请资源」。
+// A1（0605#1）：详情页对「待发布」资源仍可达，但只有「已发布（active）」才可申请——
+// 叠加状态门控，未发布态不渲染申请按钮（守「只有已发布才可供申请使用」）。
+// 详情 status 可能是原始 lifecycle（record_to_card_dict 给 "active"）或展示词（快照回退给 "可复用"），
+// 两种来源都接受，非已发布态（approved_pending_publish/待发布 等）一律拦下。
+const APPLICABLE_STATUSES = new Set(['active', '可复用']);
+const canApply = computed(
+  () =>
+    canPerformAction('request.create', getProductRole().value) &&
+    APPLICABLE_STATUSES.has(String(resource.value?.status ?? '')),
+);
 
 // 字段数据模型（只读）：metadata.schema.query → MANAGER / BUSIAUDIT / SECURITY_AUDIT。
 // 无权岗位（OPERATER）整块不渲染（无权=不可见），也不发请求。
@@ -46,18 +55,19 @@ const displayName = computed(() => {
   return String(r.name ?? r.title ?? '');
 });
 
-const rows = computed(() => {
+// A2（0605#2）：去掉与「共享与复用」字段重复的「基本信息」缩略块（提供方等已在决策块），
+// 只把真正独有、轻量的事实（状态/最近更新/订阅量）收进 header 下一行细条，
+// 首屏直达决策视图，消除「先缩略再详情」的跳跃感。
+const headerFacts = computed(() => {
   const r = resource.value;
-  if (!r) return [];
-  const out: { label: string; value: string }[] = [];
-  if (r.provider) out.push({ label: '提供方', value: String(r.provider) });
-  if (r.zone) out.push({ label: '归属专题', value: String(r.zone) });
-  if (r.status) out.push({ label: '当前状态', value: String(r.status) });
-  if (r.updatedAt) out.push({ label: '最近更新', value: formatTime(r.updatedAt) });
-  if (r.subscribers !== undefined) out.push({ label: '订阅量', value: String(r.subscribers) });
-  if (r.coverage) out.push({ label: '字段覆盖', value: String(r.coverage) });
-  if (r.approvalRate) out.push({ label: '审批通过率', value: String(r.approvalRate) });
-  return mapDetailRows(out);
+  if (!r) return [] as string[];
+  const out: string[] = [];
+  // R12：status 可能是快照中文（可复用）或 resource_view 富集回的原始 lifecycle（draft/active…），
+  // 统一经 formatResourceStatus 映射，绝不裸出工程态。
+  if (r.status) out.push(`状态 ${formatResourceStatus(r.status)}`);
+  if (r.updatedAt) out.push(`最近更新 ${formatTime(r.updatedAt)}`);
+  if (r.subscribers !== undefined) out.push(`订阅 ${String(r.subscribers)}`);
+  return out;
 });
 
 const fields = computed(() => (Array.isArray(resource.value?.fields) ? (resource.value!.fields as string[]) : []));
@@ -116,7 +126,7 @@ async function apply() {
           <span class="kind-badge" data-testid="resource-kind-badge">{{ kindLabel }}</span>
         </template>
       </PageFocusHeader>
-      <DetailPanel v-if="rows.length" title="基本信息" :rows="rows" />
+      <p v-if="headerFacts.length" class="detail-facts" data-testid="detail-facts">{{ headerFacts.join(' · ') }}</p>
 
       <!-- 反馈 5 首屏：决策字段（共享/更新/提供方）+ 摘要，用户看完即可决定要不要申请 -->
       <DetailPanel
@@ -140,7 +150,7 @@ async function apply() {
       />
 
       <section v-if="fields.length" class="detail-block">
-        <h2 class="detail-block-title">字段清单（前 12 项）</h2>
+        <h2 class="detail-block-title">{{ fields.length > 12 ? `字段清单（前 12 项，共 ${fields.length} 项）` : `字段清单（${fields.length} 项）` }}</h2>
         <ul class="chip-list">
           <li v-for="f in fields.slice(0, 12)" :key="f">{{ f }}</li>
         </ul>
@@ -221,6 +231,7 @@ async function apply() {
 .schema-tag-pk { background: #eaf4ff; border-color: #b6d8ff; }
 .schema-tag-enc { background: #fff3e6; border-color: #ffd5a8; }
 .kind-badge { display: inline-block; font-size: 13px; padding: 3px 12px; border-radius: 999px; background: var(--b-bg-subtle, #e8f2fc); color: var(--b-primary, #006be6); border: 1px solid var(--b-border, #d4e2f4); }
+.detail-facts { margin: 4px 0 0; font-size: 13px; color: var(--b-text-muted, #5b6b7f); }
 .summary-text { margin: 8px 0 0; font-size: 14px; line-height: 1.7; color: var(--b-neutral-text, #1a1d21); }
 .collapse-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 0; background: none; border: none; cursor: pointer; font-size: 15px; font-weight: 600; color: var(--b-neutral-text, #1a1d21); }
 .collapse-arrow { font-size: 13px; font-weight: 400; color: var(--b-primary, #006be6); }

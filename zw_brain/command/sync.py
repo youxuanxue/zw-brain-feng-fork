@@ -130,7 +130,7 @@ def sync_request_todos(
         demo_state_sync.upsert_todo(
             snapshot,
             "ROLE_ORGAN_OPERATER", request_id,
-            f"{resource_name}复用申请进度跟踪",
+            f"{resource_name}资源申请进度跟踪",
             status_text(request, "applicant"),
             f"#/request-flow/request/{request_id}",
             category="apply-progress",
@@ -138,7 +138,7 @@ def sync_request_todos(
         demo_state_sync.upsert_todo(
             snapshot,
             "ROLE_ORGAN_MANAGER", request_id,
-            f"{resource_name}复用申请待判定",
+            f"{resource_name}资源申请待判定",
             status_text(request, "reviewer"),
             f"#/request-flow/review/{request_id}",
             category="review",

@@ -15,13 +15,12 @@ from __future__ import annotations
 from typing import Any
 
 # resource_kind → 政务白话物化形态（R12：禁工程术语，纯中文）。
+# 资源类型收敛为「库表 / 文件 / API」（D53）——文件夹/链接退役，归一化已折叠为 file。
 KIND_LABELS: dict[str, str] = {
     "table": "库表",
     "file": "文件",
-    "folder": "文件夹",
     "api": "接口",
     "service": "接口",
-    "url": "链接",
 }
 
 # file_store_type 旧平台枚举 → 中文（centerStore=中心库存储 等）。
@@ -119,19 +118,6 @@ def _api_section(bindings: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _url_section(bindings: list[dict[str, Any]]) -> dict[str, Any]:
-    """链接资源：外链信息（链接名称/链接说明）。"""
-    binding = _first_binding(bindings, channel_kind="url") or _first_binding(bindings)
-    endpoint = binding.get("endpoint_ref") or {}
-    return {
-        "title": "链接信息",
-        "rows": [
-            _row("链接名称", endpoint.get("url_name") or binding.get("route_ref")),
-            _row("链接说明", endpoint.get("url_description")),
-        ],
-    }
-
-
 def typed_resource_detail(
     *,
     resource_kind: str | None,
@@ -143,15 +129,14 @@ def typed_resource_detail(
     rows value=None 诚实空态，绝不造假数据 D11）。未知 kind 回退库表模板。
     """
     kind = str(resource_kind or "table").lower()
+    # 资源类型收敛为 库表/文件/API（D53）：folder/url 已在归一化折叠为 file；
+    # 此处对任何残留 folder/url 也防御性归入文件分型（canonical=file），不再单列。
     if kind in {"api", "service"}:
         section = _api_section(bindings)
         canonical = "api"
-    elif kind == "file" or kind == "folder":
+    elif kind in {"file", "folder", "url"}:
         section = _file_section(bindings)
-        canonical = kind
-    elif kind == "url":
-        section = _url_section(bindings)
-        canonical = "url"
+        canonical = "file"
     else:
         section = _table_section(bindings)
         canonical = "table"

@@ -23,6 +23,8 @@ const items = computed(() =>
       status,
       statusLabel: formatTodoStatus(status),
       updatedAt: formatTime(it.updatedAt),
+      // F3：交付资源类型（table/file/api），驱动操作按钮分流。
+      resourceKind: String(it.resourceKind ?? ''),
     };
   })
 );
@@ -81,8 +83,20 @@ async function reconcile(id: string) {
             <td>{{ t.updatedAt }}</td>
             <td class="table-actions">
               <div class="table-actions-inner">
-                <button type="button" class="gov-btn gov-btn-secondary" @click="openCredential(t.requestId)">领凭据</button>
-                <button type="button" class="gov-btn gov-btn-primary" @click="reconcile(t.id)">对账回执</button>
+                <!-- F3（6.5#9）：API 交付的凭据语义是「查看授权」（网关 appkey/secret），
+                     库表/文件交付仍是「领凭据」。 -->
+                <button type="button" class="gov-btn gov-btn-secondary" @click="openCredential(t.requestId)">
+                  {{ t.resourceKind === 'api' ? '查看授权' : '领凭据' }}
+                </button>
+                <!-- F3：「对账回执」是受控数据交付的对账语义，对 API 接口授权不成立——API 不渲染。 -->
+                <button
+                  v-if="t.resourceKind !== 'api'"
+                  type="button"
+                  class="gov-btn gov-btn-primary"
+                  @click="reconcile(t.id)"
+                >
+                  对账回执
+                </button>
               </div>
             </td>
           </tr>
