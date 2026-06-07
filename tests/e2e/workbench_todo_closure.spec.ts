@@ -7,8 +7,10 @@ import { gotoHash, setRole, skipUnlessBackend, waitAppReady, E2E_BASE_URL } from
  * 守护点：
  *   - 业务运营员（ROLE_BUSIAUDIT）的每条待办都是**可点的深链**（<a href>，非纯文本死项）。
  *   - 点击任一待办**落到可办理页面**（非 404、非原地不动；目标 shell 渲染出来）。
- *   - 待办数据**从真实库现算**（待发布/待审核目录 + 待审核资源 + 待受理申请），与
+ *   - 待办数据**从真实库现算**（待发布目录/资源 + 待受理申请/异议 + 待汇总需求），与
  *     catalog.entry.query / resource.asset.query / 申请态的真实积压一致，而非 seed 写死文案。
+ *   - 业务运营员真实职责 = **发布 / 受理 / 汇总**；审核（目录/资源审批）属部门管理员，
+ *     **不**进业务运营员工作台（E2，0605 反馈 6.4#11 + D53）。
  */
 
 interface WorkbenchTodo {
@@ -87,30 +89,33 @@ test.describe('业务运营员工作台 · 待办零死端 + 真实库现算', (
     }
   });
 
-  test('待办计数与真实库积压一致（待发布/待审核目录）', async ({ page }) => {
+  test('待办计数与真实库积压一致（待发布目录）+ 审核类不入运营员工作台（E2）', async ({ page }) => {
     const wb = await fetchWorkbench(page, 'ROLE_BUSIAUDIT');
     test.skip(!wb, 'workbench.view unreachable');
     const todos = wb!.todos ?? [];
 
     const pendingPublish = await countCatalog(page, 'approved_pending_publish');
-    const pendingReview = await countCatalog(page, 'pending_review');
-    test.skip(pendingPublish < 0 || pendingReview < 0, 'catalog.entry.query unreachable');
+    test.skip(pendingPublish < 0, 'catalog.entry.query unreachable');
 
     const publishTodo = todos.find((t) => t.id === 'backlog-catalog-publish');
-    const reviewTodo = todos.find((t) => t.id === 'backlog-catalog-review');
 
-    // 现算口径：DB 有积压才出待办；待办标题数字 = 真实库该生命周期态计数。
+    // 现算口径：DB 有积压才出待办；待办标题数字 = 真实库该生命周期态计数（待发布属运营员职责）。
     if (pendingPublish > 0) {
       expect(publishTodo, '待发布目录积压>0 应有对应待办').toBeTruthy();
       expect(publishTodo!.title).toContain(String(pendingPublish));
     } else {
       expect(publishTodo, '待发布目录零积压则无对应待办（无空死链）').toBeFalsy();
     }
-    if (pendingReview > 0) {
-      expect(reviewTodo, '待审核目录积压>0 应有对应待办').toBeTruthy();
-      expect(reviewTodo!.title).toContain(String(pendingReview));
-    } else {
-      expect(reviewTodo).toBeFalsy();
-    }
+
+    // E2 职责口径：审核（目录/资源审批）属部门管理员——业务运营员工作台**绝不**出现审核类待办，
+    // 无论真实库有多少待审核积压（与发布/受理/汇总职责正交，0605 反馈 6.4#11 + D53）。
+    expect(
+      todos.find((t) => t.id === 'backlog-catalog-review'),
+      '审核类（待审核目录）不应进业务运营员工作台（E2）',
+    ).toBeFalsy();
+    expect(
+      todos.find((t) => t.id === 'backlog-resource-review'),
+      '审核类（待审核资源）不应进业务运营员工作台（E2）',
+    ).toBeFalsy();
   });
 });

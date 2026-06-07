@@ -54,8 +54,10 @@ const headerMeta = computed(() => {
 });
 
 const rawStatus = computed(() => String(req.value?.status ?? '').trim());
-// request.submit 仅 OPERATER；MANAGER 进申请详情时不渲染「补件 / 重新提交」按钮
+// request.submit 仅 OPERATER；MANAGER 进申请详情时不渲染「确认提交 / 重新提交」按钮
 const canSubmitRequest = computed(() => canPerformAction('request.submit', getProductRole().value));
+// 草稿态（0605#8）：从 P2「申请资源」生成的草稿单，用户在此查看无误后「确认提交申请」才进审批。
+const isDraft = computed(() => rawStatus.value === 'draft');
 const canResubmit = computed(() => rawStatus.value === 'need-fix');
 
 // 撤回 / 暂停授权：write-critical。j1-credential-revoke 决策 A（已签字）——
@@ -126,6 +128,19 @@ async function suspendGrant() {
   }
 }
 
+// 草稿确认提交（0605#8）：draft → pending，此刻才启动审批工作流（后端 request.submit 接 draft）。
+async function submitDraft() {
+  if (!isDraft.value) return;
+  const res = await invokeActionStub({
+    skillId: 'request.submit',
+    payload: { request_id: id.value },
+    successTitle: '申请已提交，进入审批',
+  });
+  if (res.ok) {
+    pushToast({ kind: 'info', title: '已提交申请', detail: '申请已进入受控准入，可在「我的申请」跟踪审批进度。' });
+  }
+}
+
 async function supplement() {
   if (!canResubmit.value) {
     pushToast({
@@ -162,7 +177,16 @@ async function supplement() {
         v-if="canSubmitRequest || (canSuspendGrant && grantActive) || (canRevokeGrant && grantActive)"
       >
         <button
-          v-if="canSubmitRequest"
+          v-if="canSubmitRequest && isDraft"
+          type="button"
+          class="gov-btn gov-btn-primary"
+          data-testid="submit-draft-btn"
+          @click="submitDraft"
+        >
+          确认提交申请
+        </button>
+        <button
+          v-if="canSubmitRequest && !isDraft"
           type="button"
           class="gov-btn gov-btn-primary"
           @click="supplement"

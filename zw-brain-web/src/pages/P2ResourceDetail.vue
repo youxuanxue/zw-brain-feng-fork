@@ -105,12 +105,13 @@ const headerMeta = computed(() => {
   return '';
 });
 
+// 申请采草稿流（0605#8）：先生成草稿单（不直接提交），跳到申请详情页让用户查看 / 确认，
+// 确认无误后在详情页手动「确认提交申请」才进入审批。
 async function apply() {
   const result = await invokeActionStub({
     skillId: 'request.create',
     payload: { resource_id: id.value },
-    successTitle: '申请已起草',
-    pendingBackend: 'E2 申请管理 (e2/plan.yaml F4)',
+    successTitle: '申请草稿已生成，请在详情页确认后提交',
   });
   const requestId = resolveRequestIdFromAction(result);
   if (requestId) navigateToRequestDetail(requestId);

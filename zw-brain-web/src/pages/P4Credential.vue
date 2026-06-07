@@ -20,6 +20,7 @@ interface CredentialQueryView {
   issued_by?: string;
   resource_id?: string;
   resource_name?: string;
+  resource_kind?: string;
 }
 
 interface SampleRenderView {
@@ -30,6 +31,7 @@ interface SampleRenderView {
   monitoring_hint?: string;
   credential_excerpt?: Record<string, unknown>;
   invoke_url?: string;
+  resource_kind?: string;
 }
 
 interface InvocationMetric {
@@ -138,6 +140,17 @@ onMounted(() => { void load(); });
 
 const cred = computed(() => credentialView.value?.credential ?? null);
 
+// F5（0605#9）：API 资源把「领凭据/凭据」按「查看授权/授权码」呈现——网关 App Key/Secret
+// 即调用授权要素，curl/Python/Java 样例就是授权后的调用方式。非 API（库表/文件）或未知
+// 形态保持「凭据」通用词（诚实不臆断）。
+const isApiResource = computed(() => String(credentialView.value?.resource_kind ?? '').toLowerCase() === 'api');
+const authNoun = computed(() => (isApiResource.value ? '授权' : '凭据'));
+const authPanelTitle = computed(() => (isApiResource.value ? '授权要素（网关授权码）' : '凭据要素'));
+const headerNoun = computed(() => (isApiResource.value ? '授权' : '凭据'));
+const headerSubMeta = computed(() =>
+  isApiResource.value ? '网关授权码（App Key / Secret）· 调用样例 · 配额与监控' : 'App Key · 调用样例 · 配额与监控',
+);
+
 const rows = computed(() => {
   const c = cred.value;
   const view = credentialView.value;
@@ -145,8 +158,8 @@ const rows = computed(() => {
   const out: { label: string; value: string }[] = [];
   if (view?.status) out.push({ label: '状态', value: view.status });
   if (view?.resource_name) out.push({ label: '资源', value: String(view.resource_name) });
-  if (c?.app_key) out.push({ label: 'App Key', value: String(c.app_key) });
-  if (c?.app_secret) out.push({ label: 'App Secret', value: String(c.app_secret) });
+  if (c?.app_key) out.push({ label: isApiResource.value ? '网关 App Key' : 'App Key', value: String(c.app_key) });
+  if (c?.app_secret) out.push({ label: isApiResource.value ? '网关 App Secret' : 'App Secret', value: String(c.app_secret) });
   if (c?.quota_per_day !== undefined) out.push({ label: '日配额', value: String(c.quota_per_day) });
   if (c?.valid_from) out.push({ label: '生效', value: String(c.valid_from) });
   if (c?.valid_to) out.push({ label: '失效', value: String(c.valid_to) });
@@ -189,7 +202,7 @@ async function reissue() {
   await invokeActionStub({
     skillId: 'credential.issue',
     payload: { request_id: reqId.value },
-    successTitle: '已重发凭据',
+    successTitle: `已重发${authNoun.value}`,
   });
   await load();
 }
@@ -200,12 +213,12 @@ async function reissue() {
     <nav class="crumbs"><a href="#/delivery-exchange">← 交付任务</a></nav>
     <section class="panel">
       <PageFocusHeader
-        :title="`${reqId} 凭据`"
-        meta="API Key · 调用样例 · 配额与监控"
+        :title="`${reqId} ${headerNoun}`"
+        :meta="headerSubMeta"
         :links="objectionLinks"
       />
       <p v-if="error" class="focus-empty">{{ error }}</p>
-      <DetailPanel v-if="rows.length" title="凭据要素" :rows="rows" />
+      <DetailPanel v-if="rows.length" :title="authPanelTitle" :rows="rows" />
 
       <section v-if="curlSample || pythonSample || javaSample" class="detail-block">
       <div v-if="curlSample" class="code-wrap">
@@ -263,7 +276,7 @@ async function reissue() {
       </section>
 
       <DetailActions v-if="canReissue">
-        <button type="button" class="gov-btn gov-btn-primary" @click="reissue">重新签发</button>
+        <button type="button" class="gov-btn gov-btn-primary" @click="reissue">重新签发{{ headerNoun }}</button>
       </DetailActions>
     </section>
   </main>

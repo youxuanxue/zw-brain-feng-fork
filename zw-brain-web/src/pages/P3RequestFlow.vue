@@ -168,6 +168,11 @@ async function quickResubmit(id: string) {
   }
   await invokeActionStub({ skillId: 'request.submit', payload: { request_id: id }, successTitle: '已重新提交' });
 }
+
+// 草稿单一键提交（0605#8）：draft → pending（后端 request.submit 接 draft，提交才启动审批）。
+async function quickSubmitDraft(id: string) {
+  await invokeActionStub({ skillId: 'request.submit', payload: { request_id: id }, successTitle: '申请已提交，进入审批' });
+}
 </script>
 
 <template>
@@ -233,6 +238,7 @@ async function quickResubmit(id: string) {
               <td class="table-actions">
                 <div class="table-actions-inner">
                   <button type="button" class="gov-btn gov-btn-secondary" @click="viewRequest(it.id)">查看</button>
+                  <button v-if="it.status === 'draft'" type="button" class="gov-btn gov-btn-primary" data-testid="quick-submit-draft" @click="quickSubmitDraft(it.id)">提交申请</button>
                   <button v-if="it.status === 'need-fix'" type="button" class="gov-btn gov-btn-primary" @click="quickResubmit(it.id)">重新提交</button>
                 </div>
               </td>

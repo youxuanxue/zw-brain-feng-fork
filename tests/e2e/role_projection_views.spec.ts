@@ -6,7 +6,8 @@ import { gotoHash, setRole, skipUnlessBackend, waitAppReady, E2E_BASE_URL } from
  *
  * 守护点：
  *   - 缺陷 1：P3「办共享申请」拆三视图（我的申请 / 待我办理 / 我的授权）；待我办理无权角色不渲染。
- *   - 缺陷 2：业务运营员工作台待办 = 待受理 / 待发布目录 / 待发布资源 / 数据质量（角色待办注册表）。
+ *   - 缺陷 2：业务运营员工作台待办 = 待发布目录/资源 + 待受理申请/异议 + 待汇总需求（发布/受理/汇总
+ *     真实职责；审核类属部门管理员、不入此台 — E2 / 0605 反馈 6.4#11 + D53）。
  *   - 缺陷 3：用途脏值（测试 / 167）不裸奔在需方视图；供方数据质量队列计数正确。
  *
  * 投影源：zw-brain-web/src/lib/{roleProjection,dataQuality}.ts + 后端 workbench_backlog_projection.py（待办语义机制单源）
@@ -80,22 +81,22 @@ test.describe('角色投影三视图 + 数据呈现规范化', () => {
     }
   });
 
-  test('缺陷2 — 业务运营员工作台待办 = 待受理/待发布/数据质量类目（非错配内容）', async ({ page }) => {
+  test('缺陷2 — 业务运营员工作台待办 = 待发布/待受理/待汇总（发布·受理·汇总职责，非审核错配）', async ({ page }) => {
     await setRole(page, 'ROLE_BUSIAUDIT');
     await gotoHash(page, '#/workbench');
     // 业务运营员待办注册表类目（计数 0 的不渲染，故用「出现的都属正确类目」+「错配内容不出现」双断言）。
     const todoTitles = await page.locator('.p1-row-title').allInnerTexts();
-    // 错配内容（业务方原话指出的「不对路」示例）必须不在工作台待办出现。
-    for (const wrong of ['ledger.entity.base.read', 'capability', 'projection']) {
+    // 错配内容必须不在工作台待办出现：①工程黑话（业务方原话「不对路」示例）；
+    // ②审核类（目录/资源审批属部门管理员职责，E2 已从业务运营员台移除）。
+    for (const wrong of ['ledger.entity.base.read', 'capability', 'projection', '待审核', '审核']) {
       expect(todoTitles.join(' ')).not.toContain(wrong);
     }
-    // 出现的待办标题应落在业务运营员注册表词表内（白话动宾）。
-    // 集成裁决：机制单源 = 后端 workbench_backlog_projection（真实库现算），其类目含
-    // 待审核目录/资源（亦属业务运营员平台侧职责，业务方原话「待发布目录、资源、待受理申请等」
-    // 的「等」），词表相应纳入「待审核」；类目归属的最终裁定随 D28 sign-off 包等业务方签字。
-    const allowed = ['待受理', '待发布', '待审核', '待补全', '数据质量', '用途'];
+    // 出现的待办标题应落在业务运营员真实职责词表内（发布 / 受理 / 汇总，白话动宾）。
+    // 机制单源 = 后端 workbench_backlog_projection（真实库现算）：待发布目录/资源、待受理申请/异议、
+    // 待汇总需求（E2 / 0605 反馈 6.4#11 + D53——审核类已剔除，归部门管理员）。
+    const allowed = ['待发布', '待受理', '待汇总'];
     for (const title of todoTitles) {
-      expect(allowed.some((a) => title.includes(a))).toBeTruthy();
+      expect(allowed.some((a) => title.includes(a)), `工作台待办「${title}」应属发布/受理/汇总职责`).toBeTruthy();
     }
   });
 

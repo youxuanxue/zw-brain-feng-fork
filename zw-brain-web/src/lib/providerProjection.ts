@@ -164,3 +164,58 @@ export function providerTodoCounts(provider: Record<string, unknown>): {
     objection: deriveObjectionCases(provider).length,
   };
 }
+
+/** 供数侧「目录管理 / 资源管理」概览：按生命周期态分桶计数（真实 snapshot 数据派生）。
+ *  让供数人进页即看到本部门「编了多少 / 在审多少 / 待发布多少 / 已发布多少」的管理态，
+ *  而非只看审批待办（0605 反馈 6.4#8 供数 IA 重排，负责人加注：呈现目录/资源管理情况）。 */
+export interface AssetStatusSummary {
+  total: number;
+  draft: number;
+  reviewing: number;
+  pendingPublish: number;
+  published: number;
+  /** 已停用 / 下线 / 过期等非四态活跃流转的兜底计数——保证 total = 各桶之和自洽，
+   *  不让「本部门 N 项」配四桶全 0 时出现「另外几项去哪了」的观感矛盾（R-007）。 */
+  inactive: number;
+}
+
+const _DRAFT = new Set(['draft', '草稿']);
+const _REVIEWING = new Set(['pending_review', '审核中', '待审核']);
+const _PENDING_PUBLISH = new Set(['approved_pending_publish', '待发布']);
+const _PUBLISHED = new Set(['active', '已发布', '已上线', 'published']);
+
+type _ActiveBucket = 'draft' | 'reviewing' | 'pendingPublish' | 'published';
+
+function _bucketStatus(raw: unknown): _ActiveBucket | null {
+  const s = String(raw ?? '').trim();
+  if (_DRAFT.has(s)) return 'draft';
+  if (_REVIEWING.has(s)) return 'reviewing';
+  if (_PENDING_PUBLISH.has(s)) return 'pendingPublish';
+  if (_PUBLISHED.has(s)) return 'published';
+  return null;
+}
+
+function _summarize(rows: unknown[]): AssetStatusSummary {
+  const out: AssetStatusSummary = { total: 0, draft: 0, reviewing: 0, pendingPublish: 0, published: 0, inactive: 0 };
+  for (const row of rows) {
+    const it = asRecord(row);
+    const bucket = _bucketStatus(it.lifecycle_status ?? it.status);
+    out.total += 1;
+    // 四态之外（已停用/下线/过期/空）归 inactive，保证 total = 各桶之和（R-007）。
+    if (bucket) out[bucket] += 1;
+    else out.inactive += 1;
+  }
+  return out;
+}
+
+/** 本部门目录管理概览（来自 provider.catalogs 真实 snapshot）。 */
+export function providerCatalogSummary(provider: Record<string, unknown>): AssetStatusSummary {
+  const catalogs = Array.isArray(provider.catalogs) ? provider.catalogs : [];
+  return _summarize(catalogs);
+}
+
+/** 本部门资源管理概览（来自 provider.resources 真实 snapshot）。 */
+export function providerResourceSummary(provider: Record<string, unknown>): AssetStatusSummary {
+  const resources = Array.isArray(provider.resources) ? provider.resources : [];
+  return _summarize(resources);
+}

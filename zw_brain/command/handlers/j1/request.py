@@ -141,14 +141,39 @@ def _create_request(
     query: str = "",
     skill_id: str = "request.create",
     options: dict[str, Any] | None = None,
+    *,
+    as_draft: bool = False,
 ) -> dict[str, Any]:
+    """创建资源申请。``as_draft=True``（G2，request.create 走查路径）→ 落 status='draft'，
+    用户可在详情页查看 / 确认后手动 submit；草稿**不触发审批工作流**（草稿不该进审批）。
+    ``as_draft=False``（application.resource.submit 直提路径，如供方受理起草）→ 落 'pending'
+    并即时触发审批工作流（行为零变化）。"""
     options = options or {}
     resource = deps.services.catalog.resolve_resource_for_application(resource_id)
     canonical_id = resource["id"]
-    existing = next(
+    # G2：已存在同资源「草稿」→ 直接重入该草稿（幂等，避免重复点「申请」刷出一堆草稿单），
+    # 不报错；用户回到既有草稿继续编辑/确认提交。
+    existing_draft = next(
         (
             item
             for item in deps.view.requests.list_all()  # Action C — read facade
+            if item.get("resourceId") == canonical_id and item.get("status") == "draft"
+        ),
+        None,
+    )
+    if existing_draft is not None:
+        task = deps.view.delivery.find_by_request_id(existing_draft["id"])
+        return {
+            "request_id": existing_draft["id"],
+            "task_id": task["id"] if task else None,
+            "status": existing_draft["status"],
+            "reused_draft": True,
+        }
+    # 已提交在办的申请（pending/补录/汇总中）仍拦——不允许对同资源重复发起在办申请。
+    existing = next(
+        (
+            item
+            for item in deps.view.requests.list_all()
             if item.get("resourceId") == canonical_id and item["status"] in {"pending", "supplementing", "summary-pending"}
         ),
         None,
@@ -167,6 +192,8 @@ def _create_request(
         delivery_expectation = str(options.get("delivery_expectation") or options.get("deliveryExpectation") or "审批通过后以库表/文件资源交付，并保留交付回执与审计回放。")
         purpose = str(options.get("purpose") or query_text or f"复用 {resource['name']}，只申请本次确需字段。")
         review_note = f"围绕 {resource['name']} 发起最小必要申请：{', '.join(item['title'] for item in fields) or '待确认字段'}；缺口：{', '.join(gap_fields) or '暂无'}。"
+        # G2：草稿态 vs 直提态——request.create 走查路径落「草稿」，application.resource.submit 直提落「审批中」。
+        initial_status = "draft" if as_draft else "pending"
         request = {
             "id": request_id,
             "resourceId": canonical_id,
@@ -192,7 +219,7 @@ def _create_request(
                 "minimal": True,
             },
             "expectedBy": (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"),
-            "status": "pending",
+            "status": initial_status,
             # 国家通道指示（C9）：申请方声明请求国家级数据时透传 channel_class=national，
             # 供 P3 国家通道 tab 据此筛「待转报」队列；缺省 internal（本省内共享）。
             "channelClass": str(options.get("channel_class") or "internal"),
@@ -341,14 +368,17 @@ def _create_request(
         deps.brain_legacy._snapshot["delivery_tasks"].insert(0, delivery)
         deps.append_audit_feed(skill_id, request_id, "ok", actor)
 
-        # E3 Wave-2 F2 hook：优先项目级自定义 live schema 驱动，否则回落 baseline（不破业务主路径）
-        approval_case_id = _maybe_start_approval_workflow(
-            application_code=request_id,
-            tenant_id=_DEFAULT_TENANT_ID,
-            shared_type=_extract_shared_type(options, resource),
-            project_code=_extract_project_code(options, resource),
-            submitted_by=actor,
-        )
+        # E3 Wave-2 F2 hook：优先项目级自定义 live schema 驱动，否则回落 baseline（不破业务主路径）。
+        # G2：草稿不触发审批工作流——审批在用户手动 submit（draft→pending）时才启动。
+        approval_case_id = None
+        if not as_draft:
+            approval_case_id = _maybe_start_approval_workflow(
+                application_code=request_id,
+                tenant_id=_DEFAULT_TENANT_ID,
+                shared_type=_extract_shared_type(options, resource),
+                project_code=_extract_project_code(options, resource),
+                submitted_by=actor,
+            )
         result: dict[str, Any] = {"request_id": request_id, "task_id": task_id, "status": request["status"]}
         if approval_case_id is not None:
             result["approval_case_id"] = approval_case_id
@@ -365,10 +395,17 @@ def _create_request(
     }
     return deps.write(ctx, audit_payload, mutation)
 
+# 可手动提交（→ pending）的来源态：草稿（G2 首次提交）+ 待补正（退回后重新提交）。
+_SUBMITTABLE_STATUSES = {"draft", "need-fix"}
+
+
 def _submit_request(brain, deps, ctx, request_id: str, role: str, confirmed: bool) -> dict[str, Any]:
     request = deps.view.requests.find_by_id(request_id)
-    if request["status"] != "need-fix":
-        raise InvalidStateError("current request is not in resubmission state")
+    from_status = request.get("status")
+    if from_status not in _SUBMITTABLE_STATUSES:
+        raise InvalidStateError("current request is not in a submittable state (draft / need-fix)")
+    # G2：草稿首次提交 vs 退回补正后重提，文案区分（语义诚实）。
+    is_draft_submit = from_status == "draft"
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         request["status"] = "pending"
@@ -377,29 +414,78 @@ def _submit_request(brain, deps, ctx, request_id: str, role: str, confirmed: boo
         request["chainAnchor"] = "pending"
         request["timeline"].append(
             {
-                "label": "已补齐后重新提交",
+                "label": "已提交申请" if is_draft_submit else "已补齐后重新提交",
                 "time": clock.now_datetime(),
-                "note": "申请已重新进入受控准入，等待审批承接人员判定。",
+                "note": (
+                    "草稿已确认提交，进入受控准入，等待审批承接人员判定。"
+                    if is_draft_submit
+                    else "申请已重新进入受控准入，等待审批承接人员判定。"
+                ),
             }
         )
-        request["aiStatus"]["summary"] = "申请已按“模板复用 + 差异补录”方式重新提交，当前重新回到受控准入阶段。"
-        request["aiStatus"]["nextAction"] = "建议审批承接人员重新核对差异字段责任边界。"
+        request["aiStatus"]["summary"] = (
+            "申请已确认提交并进入受控准入，等待 审批人 判定最小字段范围。"
+            if is_draft_submit
+            else "申请已按“模板复用 + 差异补录”方式重新提交，当前重新回到受控准入阶段。"
+        )
+        request["aiStatus"]["nextAction"] = (
+            "建议审批承接人员核对用途、时间窗、申请字段与缺口字段。"
+            if is_draft_submit
+            else "建议审批承接人员重新核对差异字段责任边界。"
+        )
         delivery = deps.view.delivery.find_by_request_id(request_id)
         if delivery:
-            delivery["status"] = "warning"
+            delivery["status"] = "pending" if is_draft_submit else "warning"
             delivery["updatedAt"] = clock.now_datetime()
-            delivery["note"] = "申请已重新提交，等待准入判定后再决定是否进入基层补录链路。"
+            delivery["note"] = (
+                "申请已提交，等待审批承接人员受理。"
+                if is_draft_submit
+                else "申请已重新提交，等待准入判定后再决定是否进入基层补录链路。"
+            )
             delivery["history"].append(
                 {
                     "time": clock.now_short_time(),
-                    "state": "重新提交待判定",
-                    "detail": "补齐后重新进入受控准入，未直接下发基层任务。",
+                    "state": "已提交待受理" if is_draft_submit else "重新提交待判定",
+                    "detail": (
+                        "草稿确认提交，进入受控准入，等待审批承接人员受理。"
+                        if is_draft_submit
+                        else "补齐后重新进入受控准入，未直接下发基层任务。"
+                    ),
                 }
             )
-            delivery["aiSummary"]["summary"] = "当前仍处于准入判定前，不应提前下发基层任务。"
+            delivery["aiSummary"]["summary"] = "当前处于准入判定前，不应提前下发基层任务。"
             delivery["aiSummary"]["nextAction"] = "请先完成审批承接，再决定是否进入补录链路。"
-        deps.append_audit_feed("request.resubmit", request_id, "ok", actor)
-        return {"request_id": request_id, "status": request["status"]}
+        deps.append_audit_feed(
+            "request.submit" if is_draft_submit else "request.resubmit", request_id, "ok", actor
+        )
+        # G2：草稿确认提交 → 此刻才启动审批工作流（承接 _create_request 草稿不触发的搬移）。
+        # 解析资源用于抽 shared_type/project_code；best-effort——资源若已下线/移除，
+        # 审批 hook 跳过即可（同 _maybe_start_approval_workflow 的 D4「不破业务主路径」契约），
+        # 不让一张陈旧草稿因资源消失而无法提交。
+        approval_case_id = None
+        if is_draft_submit:
+            resource = None
+            try:
+                resource = deps.services.catalog.resolve_resource_for_application(
+                    request.get("resourceId") or request_id
+                )
+            except Exception as exc:  # noqa: BLE001 — 审批 hook 旁路，解析失败不破提交主路径
+                _logger.warning(
+                    "approval_flow.resource_resolve.failed.skip_workflow",
+                    extra={"application_code": request_id, "error_msg": str(exc)[:500]},
+                )
+            if resource is not None:
+                approval_case_id = _maybe_start_approval_workflow(
+                    application_code=request_id,
+                    tenant_id=_DEFAULT_TENANT_ID,
+                    shared_type=_extract_shared_type({}, resource),
+                    project_code=_extract_project_code({}, resource),
+                    submitted_by=actor,
+                )
+        out: dict[str, Any] = {"request_id": request_id, "status": request["status"]}
+        if approval_case_id is not None:
+            out["approval_case_id"] = approval_case_id
+        return out
 
     return deps.write(ctx, {"request_id": request_id}, mutation)
 
@@ -439,7 +525,8 @@ def handler_application_resource_submit(deps: HandlerDeps, ctx: SkillContext, pa
 def handler_request_create(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _create_request(brain, deps, ctx, str(payload["resource_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), str(payload.get("query", DEFAULT_DISCOVERY_QUERY)), options=payload)
+    # G2：request.create = P2「申请资源」走查入口 → 落草稿（可查看可编辑），用户确认后手动 submit。
+    return _create_request(brain, deps, ctx, str(payload["resource_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), str(payload.get("query", DEFAULT_DISCOVERY_QUERY)), options=payload, as_draft=True)
 
 def handler_request_submit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.

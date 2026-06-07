@@ -6,17 +6,23 @@ seed_snapshot.json 里 C-1 删演示单后**遗留的陈旧文案**（subtitle /
 
 本模块把业务运营员的待办**从真实库的真实积压现算**，与 ``system.snapshot`` 的 J1 列表
 enrich（``discovery_snapshot_projection``）同源同模式：DB 有积压则生成待办，每条**深链到
-既有的可办理页面**（P5 提供方工作台 / 目录审核收件箱 / 申请审批收件箱），积压为 0 时
+既有的可办理页面**（P5 提供方工作台 / 申请审批收件箱 / 异议收件箱），积压为 0 时
 **不生成该条待办**（无空死链）。
 
-业务运营员核心积压口径（与既有 P5 收件箱 / catalog.entry.query 过滤口径一致）：
+业务运营员**真实职责**待办口径（0605 反馈 6.4#11 业务答复背书 + D53 方向裁决）：
+审核（目录/资源审批）是**部门管理员**职责，业务运营员的工作重心是**发布 / 受理 / 汇总**。
+此前把「待审核目录 / 待审核资源 / 待补全用途」放进业务运营员工作台属职责错配，本次纠正：
   - 待发布目录 = catalog_entry.lifecycle_status == 'approved_pending_publish'  → P5 提供方（发布卡）
-  - 待审核目录 = catalog_entry.lifecycle_status == 'pending_review'             → 目录审核收件箱
-  - 待审核资源 = resource_asset.lifecycle_status == 'pending_review'            → P5 提供方
-  - 待受理申请 = application_record.status ∈ {submitted, under_review}          → 申请·审批·跟踪
+  - 待发布资源 = resource_asset.lifecycle_status == 'approved_pending_publish' → P5 提供方
+  - 待受理申请 = 申请单（kind=apply）status ∈ {submitted, under_review}        → 申请·审批·跟踪
+  - 待受理异议 = objection_case.status == 'submitted'（待受理，未进入核查）       → 异议收件箱
+  - 待汇总需求 = 需求登记（kind=demand）处于供方待汇总相位                       → 供需对接收件箱
 
-这不改任何角色/流程/状态机语义——只把**既有的真实积压**投影成**可点的待办**，
-深链目标全是**已存在**的路由与收件箱（无新页面、无新流转）。
+一张 application_record 表混存「申请 / 需求登记 / 业务需求」三类（kind 存 payload_json），
+故「待受理申请」必须按 kind=apply 过滤、「待汇总需求」走需求相位口径，两条口径不互串。
+
+这不改任何角色/流程/状态机语义——只把**既有的真实积压**按业务运营员真实职责投影成
+**可点的待办**，深链目标全是**已存在**的路由与收件箱（无新页面、无新流转）。
 """
 
 from __future__ import annotations
@@ -24,17 +30,42 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from zw_brain.domain.data_quality import is_dirty_purpose, purpose_from_payload
 from zw_brain.domain.repositories.application import ApplicationRepository
 from zw_brain.domain.repositories.catalog import CatalogRepository
+from zw_brain.domain.repositories.objection import ObjectionRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
+from zw_brain.domain.repositories.supply_demand import SupplyDemandRepository
+from zw_brain.domain.supply_demand_phase import (
+    PHASE_MANUAL_REGISTERED,
+    PHASE_RECOMMEND_FAILED,
+    PHASE_REGISTERED,
+)
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 # 业务运营员角色码（旧平台 7 角色码之一，D23）。
 _BUSIAUDIT_ROLE = "ROLE_BUSIAUDIT"
 
-# 待受理申请：提交后未终结、等待业务运营员受理/审批的申请态。
-_APPLICATION_BACKLOG_STATUSES = ["submitted", "under_review"]
+# 待受理申请：提交后未终结、等待受理/审批的**申请单**态（kind=apply，不含需求登记）。
+_APPLICATION_BACKLOG_STATUSES = frozenset({"submitted", "under_review"})
+
+# 待汇总需求：需求登记进入供方侧、等待业务运营员汇总响应的相位（同 provider_snapshot 口径）。
+_DEMAND_PROVIDER_PHASES = frozenset(
+    {PHASE_REGISTERED, PHASE_MANUAL_REGISTERED, PHASE_RECOMMEND_FAILED}
+)
+
+
+def _count_pending_applications(application_repo: ApplicationRepository, tenant_id: str) -> int:
+    """待受理申请 = kind=apply 且 status∈受理态的申请单数。
+
+    application_record 表混存 申请/需求/业务需求三类（kind 存 payload_json），不按 kind 过滤会把
+    登记需求误算进「待受理申请」。需求另归「待汇总需求」，两条口径互不串。
+    """
+    return sum(
+        1
+        for record in application_repo.list_records(tenant_id=tenant_id)
+        if (record.payload_json or {}).get("kind", "apply") == "apply"
+        and record.status in _APPLICATION_BACKLOG_STATUSES
+    )
 
 
 def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
@@ -42,45 +73,50 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
     catalog_repo = CatalogRepository()
     resource_repo = ResourceApiRepository()
     application_repo = ApplicationRepository()
+    objection_repo = ObjectionRepository()
+    supply_repo = SupplyDemandRepository()
 
     pending_publish = catalog_repo.count_entries(
         tenant_id=tenant_id, lifecycle_status="approved_pending_publish"
     )
-    pending_catalog_review = catalog_repo.count_entries(
-        tenant_id=tenant_id, lifecycle_status="pending_review"
+    pending_resource_publish = len(
+        resource_repo.list_assets(tenant_id=tenant_id, lifecycle_status="approved_pending_publish")
     )
-    pending_resource_review = len(
-        resource_repo.list_assets(tenant_id=tenant_id, lifecycle_status="pending_review")
-    )
-    pending_applications = application_repo.count_by_statuses(
-        statuses=_APPLICATION_BACKLOG_STATUSES, tenant_id=tenant_id
-    )
-    # 待补全用途（数据质量）：脏用途申请单数。第四组「角色待办语义注册表」的数据质量类目
-    # 下沉至此（机制单源 = 本投影；脏值口径 = data_quality 单源，与 J1 列表降级 /
-    # 供方质量队列同源同算）。
-    dirty_purpose = sum(
+    pending_applications = _count_pending_applications(application_repo, tenant_id)
+    pending_objections = len(objection_repo.list_cases(tenant_id=tenant_id, status="submitted"))
+    pending_demands = sum(
         1
-        for record in application_repo.list_records(tenant_id=tenant_id)
-        if is_dirty_purpose(purpose_from_payload(record.payload_json))
+        for item in supply_repo.list_demands(tenant_id=tenant_id)
+        if item.get("demand_phase") in _DEMAND_PROVIDER_PHASES
     )
 
-    # (item_id, 文案前缀, count, 后缀状态, 深链) — count==0 的不生成（无空死链）。
-    candidates: list[tuple[str, str, int, str, str]] = [
-        ("backlog-catalog-publish", "待发布目录", pending_publish, "待发布", "#/provider"),
+    # (item_id, 文案前缀, count, 后缀状态, 深链, 行动句模板) — count==0 的不生成（无空死链）。
+    # 行动句模板（G4，0605 反馈 6.4#10）：按类型给「N 条 X 待办」的自然动作分句，
+    # 供 aiSummary 拼成「有 N 条申请待受理、M 条资源尚未发布，请尽快处理」式的分类型行动建议。
+    candidates: list[tuple[str, str, int, str, str, str]] = [
+        ("backlog-catalog-publish", "待发布目录", pending_publish, "待发布", "#/provider", "{n} 个目录待发布"),
+        ("backlog-resource-publish", "待发布资源", pending_resource_publish, "待发布", "#/provider", "{n} 个资源待发布"),
+        ("backlog-application", "待受理申请", pending_applications, "待受理", "#/request-flow", "{n} 条申请待受理"),
         (
-            "backlog-catalog-review",
-            "待审核目录",
-            pending_catalog_review,
-            "待审核",
-            "#/provider/inbox/catalog-review",
+            "backlog-objection",
+            "待受理异议",
+            pending_objections,
+            "待受理",
+            "#/provider/inbox/objection",
+            "{n} 条异议待受理",
         ),
-        ("backlog-resource-review", "待审核资源", pending_resource_review, "待审核", "#/provider"),
-        ("backlog-application", "待受理申请", pending_applications, "待受理", "#/request-flow"),
-        ("backlog-purpose-quality", "待补全用途", dirty_purpose, "数据质量", "#/provider"),
+        (
+            "backlog-demand",
+            "待汇总需求",
+            pending_demands,
+            "待汇总",
+            "#/provider/inbox/demand-match",
+            "{n} 项需求待汇总",
+        ),
     ]
 
     todos: list[dict[str, Any]] = []
-    for item_id, label, count, status, href in candidates:
+    for item_id, label, count, status, href, action_tmpl in candidates:
         if count <= 0:
             continue
         todos.append(
@@ -90,6 +126,8 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
                 "status": status,
                 "href": href,
                 "category": "backlog",
+                # G4：分类型行动分句（已带 count），aiSummary 据此拼分类型行动句。
+                "action": action_tmpl.format(n=count),
             }
         )
     return todos
@@ -119,15 +157,18 @@ def enrich_workbench_backlog(
         out["subtitle"] = f"你有 {total} 条真实积压待办：{parts}。"
     else:
         out["subtitle"] = "当前没有待办积压。"
-    # aiSummary 也据现算重写——清掉删演示单后遗留的「专区待纳入 / 能力包待审核」陈旧引用。
+    # G4（0605 反馈 6.4#10）：办理建议从笼统总数改为**分类型行动句**——按真实积压类型给
+    # 「有 N 条申请待受理、M 个资源待发布……，请尽快处理」的具体动作建议，而非「共 N 条积压」。
+    # 各分句已带 count（单源 = _backlog_todos 的 action 字段），零积压给诚实空态。
+    action_clauses = [str(t["action"]) for t in todos if t.get("action")]
     out["aiSummary"] = {
         "summary": (
-            f"当前共有 {total} 条真实积压待办，点击任一待办可直达对应办理页处理。"
-            if todos
-            else "当前没有待办积压，目录发布与资源审核队列均已清空。"
+            f"有{('、'.join(action_clauses))}，请尽快处理。"
+            if action_clauses
+            else "当前没有待办积压，发布与受理队列均已清空。"
         ),
         "actions": [t["title"] for t in todos],
-        "basis": ["待办数据从真实库现算（目录/资源生命周期态 + 申请受理态）"],
+        "basis": ["待办数据从真实库现算（目录/资源发布态 + 申请/异议受理态 + 需求汇总相位）"],
     }
     out["highlights"] = []
     return out

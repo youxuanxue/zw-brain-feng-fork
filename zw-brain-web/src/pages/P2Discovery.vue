@@ -77,10 +77,11 @@ const headerMeta = computed(() => {
 });
 
 async function applyTo(id: string) {
+  // 采草稿流（0605#8）：生成草稿 → 跳详情确认 → 用户手动提交才进审批。
   const result = await invokeActionStub({
     skillId: 'request.create',
     payload: { resource_id: id, purpose: '通过资源发现页申请资源' },
-    successTitle: '资源申请已起草',
+    successTitle: '申请草稿已生成，请在详情页确认后提交',
   });
   const requestId = resolveRequestIdFromAction(result);
   if (requestId) navigateToRequestDetail(requestId);

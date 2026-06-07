@@ -14,9 +14,50 @@ import json as _json
 import zw_brain.shared.clock as clock
 from zw_brain.command.brain import InvalidStateError, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
+from zw_brain.domain.resource_kind import canonical_resource_kind
 
 # 监控入口：链接到 §3.4 集团运维监控（不内嵌 dashboard），由 IT 资源运维直观接管
 _MONITORING_DASHBOARD_LINK = "https://ops.gov-data.local/monitoring/credential-call?app_key={app_key}"
+
+
+def _resolve_resource_kind(deps, resource_id: str | None) -> str | None:
+    """据交付资源 id 反查物化形态（库表/文件/API）；用于「查看授权」按类型化呈现（F5）。
+
+    经 ``canonical_resource_kind`` 读路径折叠（D53 单一事实源）——存量库 legacy
+    ``service`` 归 ``api``、``folder/url/link`` 归 ``file``，未知/空 → None（诚实未知，
+    前端按通用「凭据」兜底，不臆断为 API）。不折叠则 legacy ``service`` 形态的接口资源
+    会漏判成非 API、前端显通用「凭据」而非「网关授权码」。
+    """
+    if not resource_id:
+        return None
+    repo = getattr(deps.repos, "resource_api", None)
+    if repo is None:
+        return None
+    try:
+        asset = repo.get_asset(str(resource_id))
+    except Exception:  # noqa: BLE001 — 只读旁路，查不到不破凭据主路径
+        return None
+    if asset is None:
+        return None
+    return canonical_resource_kind(getattr(asset, "resource_kind", None))
+
+
+def _credential_resource_kind(deps, delivery: dict[str, Any], resource_id: str | None = None) -> str | None:
+    """凭据页资源类型(库表/文件/API) — 优先用交付任务已归一的 ``resourceKind``(F3 同源，
+    含 channel 兜底)，保证「领数据」列表与凭据页**口径一致**(同一任务两页不会一边 API 一边
+    凭据)；缺则反查资源主表(canonical 折叠)。两路都查不到 → None(前端按通用「凭据」诚实
+    兜底，不臆断为 API)。"""
+    kind = canonical_resource_kind(delivery.get("resourceKind"))
+    if kind is not None:
+        return kind
+    return _resolve_resource_kind(deps, resource_id if resource_id is not None else delivery.get("resourceId"))
+
+
+def _credential_unissued_hint(kind: str | None) -> str:
+    """未签发文案随资源类型走(F5-W1) — API 资源凭据语义即「授权(网关授权码)」，其余库表/
+    文件是「凭据」。与页头名词(authNoun)同源，避免「凭据」页面配「授权尚未签发」自相矛盾。"""
+    noun = "授权" if kind == "api" else "凭据"
+    return f"{noun}尚未签发；请等待审批通过或联系审批人手工签发。"
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -78,11 +119,13 @@ def _get_credential(brain, deps, ctx, request_id: str, role: str) -> dict[str, A
     snapshot = delivery.get("accessGrantSnapshot") or {}
     credential = snapshot.get("credential")
     if not credential:
+        kind = _credential_resource_kind(deps, delivery)
         return {
             "request_id": request_id,
             "credential": None,
             "status": "not_issued",
-            "hint": "凭据尚未签发；请等待审批通过或联系审批人手工签发。",
+            "resource_kind": kind,
+            "hint": _credential_unissued_hint(kind),
         }
     resource_id = delivery.get("resourceId")
     resource_name = delivery.get("resourceName")
@@ -100,6 +143,9 @@ def _get_credential(brain, deps, ctx, request_id: str, role: str) -> dict[str, A
         "issued_by": snapshot.get("issued_by"),
         "resource_id": resource_id,
         "resource_name": resource_name,
+        # F5：物化形态——API 资源把「凭据」按「网关授权码」呈现，前端据此切换文案。
+        # 与交付列表同源(F3 resourceKind 优先)，保证两页口径一致。
+        "resource_kind": _credential_resource_kind(deps, delivery, resource_id),
     }
 
 
@@ -191,6 +237,8 @@ def _render_credential_samples(brain, deps, ctx, request_id: str, role: str) -> 
     return {
         "request_id": request_id,
         "status": "rendered",
+        # F5：透传物化形态，前端「查看授权」样例区按 API 口径呈现网关调用示例。
+        "resource_kind": credential_view.get("resource_kind"),
         "credential_excerpt": {
             "app_key": app_key,
             "valid_from": cred.get("valid_from"),
