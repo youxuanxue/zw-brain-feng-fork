@@ -1782,6 +1782,22 @@
       ]
     },
     {
+      "id": "delivery.file.download",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
       "id": "delivery.receipt.ingest",
       "mode": "write",
       "humanConfirmationRequired": true,

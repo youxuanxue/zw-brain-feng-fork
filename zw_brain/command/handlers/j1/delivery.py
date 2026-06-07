@@ -31,6 +31,13 @@ def _start_delivery_exchange(brain, deps, ctx, payload: dict[str, Any]) -> dict[
 def _stop_delivery_exchange(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     return deps.services.delivery.record_attempt(payload, "delivery.exchange.stop", "stopped", "stop")
 
+def _download_delivery_file(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
+    """F4 文件资源下载：产签名下载链接 + 下载日志（对齐旧 resource_file_download_log）。
+
+    委托 DeliveryService.record_file_download —— zw-brain 内自闭环，不依赖外部交换底座。
+    """
+    return deps.services.delivery.record_file_download(payload, "delivery.file.download")
+
 def _ingest_delivery_receipt(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
     role = str(payload.get("role", ctx.role))
@@ -259,6 +266,11 @@ def handler_delivery_reconcile_receipt(deps: HandlerDeps, ctx: SkillContext, pay
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
     return _reconcile_delivery_receipt(brain, deps, ctx, str(payload["task_id"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+
+def handler_delivery_file_download(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
+    skill_id = ctx.skill_id
+    return _download_delivery_file(brain, deps, ctx, payload)
 
 def handler_delivery_replace_or_cancel(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.

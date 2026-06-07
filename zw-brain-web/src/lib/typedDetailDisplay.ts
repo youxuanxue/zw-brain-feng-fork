@@ -70,6 +70,12 @@ export function compilationRows(catalogMeta: Record<string, unknown> | null | un
   push('来源系统', cm.sourceSystem);
   push('内部部门', cm.internalDept);
   push('所属领域', cm.domain);
+  // B3（反馈 6.4#5）：旧平台编制规范有「应用场景 / 业务更新周期 / 数据更新周期」三字段，
+  // 此前缺位。应用场景独立成行；两个更新周期与首屏「更新周期」决策行不重复（首屏是合并值，
+  // 此处是编制规范全集的业务/数据细分）。
+  push('应用场景', cm.applicationScenario);
+  push('业务更新周期', str(cm.businessUpdateCycleLabel) || str(cm.businessUpdateCycle));
+  push('数据更新周期', str(cm.dataUpdateCycleLabel) || str(cm.dataUpdateCycle));
   push('目录版本', cm.catalogVersion);
   push('发布时间', cm.publishedTime);
   return out.map((r) => ({ label: r.label, value: r.value, kind: 'text' as const }));

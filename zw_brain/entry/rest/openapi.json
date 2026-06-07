@@ -21383,6 +21383,200 @@
         ]
       }
     },
+    "/api/skills/delivery.file.download": {
+      "post": {
+        "summary": "文件资源下载",
+        "description": "为文件类交付任务生成受控下载链接并登记下载日志（链接/文件名/大小/下载时间/下载方）。",
+        "operationId": "post_delivery_file_download",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "delivery.file.download",
+        "x-zwbrain-side-effects": [
+          "audit",
+          "db_write"
+        ],
+        "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-default",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
+        "x-zwbrain-permissions": [
+          "delivery.file.download.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "skill_id",
+                    "audit_id",
+                    "result"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    },
+                    "audit_id": {
+                      "type": "string"
+                    },
+                    "result": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill id, skill surface disabled, or HTTP route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Referenced domain entity missing (error=entity_not_found); distinct from route/skill 404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (e.g. csrf_token_invalid on cookie-authenticated writes)"
+          },
+          "409": {
+            "description": "Confirmation required or invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid session cookie or Bearer token, or token expired"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "task_id",
+                  "confirmed"
+                ],
+                "properties": {
+                  "task_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "file_name": {
+                    "type": "string"
+                  },
+                  "file_size": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/skills/delivery.receipt.ingest": {
       "post": {
         "summary": "摄取交付回执",

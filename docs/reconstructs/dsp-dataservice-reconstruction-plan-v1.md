@@ -357,6 +357,18 @@ legacy 对应：`ApiServiceStatistic`、`ApiServiceTimes`、网关调用日志�
 - 服务目录/分组 → `catalog_entry` 与搜索投影。
 - 服务发布/撤回 → `approval_case` + 审计回执。
 
+> **Landing-Note（0605 批次 3 · D1/D2，承 D53 方向）**：`P5ApiServiceWizard.vue`
+> 由「选已有 API」演示壳（下拉读 `seed_snapshot.json` 写死 2 条服务 + 仅 submit_review/test）
+> **重写为「代理服务注册向导」**——用户自助输入**原始接口地址**，经 `resource.api.register`
+> 落 `channel_binding.endpoint_ref.proxy_url`（代理地址）+ `route_ref`（代理路由），对标旧
+> 「融合服务管理系统 → 创建代理服务」四步（基本信息 / 网络 / 配置 / 技术支持）。字段映射：
+> 共享/开放/授权/数据分级 → `access_policy_json`；超时/缓存 → `qos_policy_json` 与
+> `channel_binding.gateway_policy_json`；来源系统/技术支持 → `summary_json`。**无新表**。
+> D2：已注册 API 服务列表改读真实 `resource_asset(kind=api)`（`provider_snapshot_projection.
+> project_api_services`），**移除 seed 演示 services**（承 D47 演示诚实化），注册产出即时可见、
+> 可经 `resource.api.change` 编辑。属本计划 Wave 1（资源化）+ Wave 2（服务注册/代理导入能力化）
+> 的 WebUI 投影落地。
+
 ### Wave 2：治理动作收敛与外化能力注册
 
 目标：把高价值服务管理动作变成 Capability，把长尾执行动作收敛为 ANP / 外部 Capability，而不是复刻后台。

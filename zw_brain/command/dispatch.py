@@ -283,6 +283,7 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "delivery.exchange.publish": delivery.handler_delivery_exchange_publish,
     "delivery.exchange.start": delivery.handler_delivery_exchange_start,
     "delivery.exchange.stop": delivery.handler_delivery_exchange_stop,
+    "delivery.file.download": delivery.handler_delivery_file_download,
     "delivery.receipt.ingest": delivery.handler_delivery_receipt_ingest,
     "delivery.reconcile_receipt": delivery.handler_delivery_reconcile_receipt,
     "delivery.replace_or_cancel": delivery.handler_delivery_replace_or_cancel,

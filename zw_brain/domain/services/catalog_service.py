@@ -423,7 +423,14 @@ class CatalogService:
         body = self.summary_body(summary)
         provider = body.get("org_name") or body.get("imported_by_org_name") or record.owner_org_id
         resource_format = body.get("resource_format")
+        # 旧平台「业务更新周期 + 数据更新周期」是两字段（B3 反馈 6.4#5）。旧导入只有单
+        # update_cycle 时，业务/数据周期回落到它（一个不漏，且老数据不空态）；在线编制（B1）
+        # 起两字段分别录入。
         update_cycle = body.get("update_cycle")
+        business_update_cycle = body.get("business_update_cycle") or update_cycle
+        data_update_cycle = body.get("data_update_cycle") or update_cycle
+        # 应用场景：在线编制必填、旧导入可能落 use_desc / application_scenario 任一键。
+        application_scenario = body.get("application_scenario") or body.get("use_desc")
         return {
             "catalogName": record.title,
             "catalogCode": record.catalog_code,
@@ -431,11 +438,18 @@ class CatalogService:
             "provider": provider,
             "internalDept": body.get("internal_org_name"),
             "domain": body.get("domain") or body.get("theme_group_id"),
+            "applicationScenario": application_scenario,
             "sourceSystem": body.get("source_system") or body.get("from_system_name"),
             "resourceFormat": resource_format,
             "resourceFormatLabel": _RESOURCE_FORMAT_LABELS.get(str(resource_format), resource_format),
+            # updateCycle 保留单值（既有 consumer / decisionRows「更新周期」依赖），额外投影
+            # 业务/数据双周期供编制规范折叠块（B3）。
             "updateCycle": update_cycle,
             "updateCycleLabel": _UPDATE_CYCLE_LABELS.get(str(update_cycle), update_cycle),
+            "businessUpdateCycle": business_update_cycle,
+            "businessUpdateCycleLabel": _UPDATE_CYCLE_LABELS.get(str(business_update_cycle), business_update_cycle),
+            "dataUpdateCycle": data_update_cycle,
+            "dataUpdateCycleLabel": _UPDATE_CYCLE_LABELS.get(str(data_update_cycle), data_update_cycle),
             "catalogVersion": body.get("cata_version"),
             "publishedTime": body.get("published_time"),
             "summary": body.get("description"),

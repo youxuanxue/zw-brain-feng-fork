@@ -66,6 +66,7 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `delivery.exchange.publish` | j1 | `publish_delivery_exchange` | 3867 |
 | `delivery.exchange.start` | j1 | `start_delivery_exchange` | 3864 |
 | `delivery.exchange.stop` | j1 | `stop_delivery_exchange` | 3870 |
+| `delivery.file.download` | j1 | `download_delivery_file` | 0 |
 | `delivery.list` | j1 | `list_delivery_tasks` | 3146 |
 | `delivery.status.explain` | j1 | `do_delivery_status_explain` | 0 |
 | `delivery.receipt.ingest` | j1 | `ingest_delivery_receipt` | 3809 |

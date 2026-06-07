@@ -3642,6 +3642,41 @@
       ]
     },
     {
+      "skill_id": "delivery.file.download",
+      "title": "文件资源下载",
+      "description": "为文件类交付任务生成受控下载链接并登记下载日志（链接/文件名/大小/下载时间/下载方）。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "file_name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "file_size",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "task_id",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
       "skill_id": "delivery.receipt.ingest",
       "title": "摄取交付回执",
       "description": "摄取交换执行、下载、授权或订阅回执，只写回执、证据和投影。",

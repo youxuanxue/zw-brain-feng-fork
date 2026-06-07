@@ -451,22 +451,7 @@
       }
     ],
     "catalog_items": [],
-    "services": [
-      {
-        "id": "svc-ledger-prefill",
-        "name": "停车场信息目录预填服务",
-        "qps": 28,
-        "status": "在线",
-        "note": "支撑镇街 / 社区差异补录任务"
-      },
-      {
-        "id": "svc-ledger-backflow",
-        "name": "模板回流候选生成服务",
-        "qps": 9,
-        "status": "在线",
-        "note": "按补录热区生成字段回流建议"
-      }
-    ],
+    "services": [],
     "aiGovernance": {
       "summary": "建议优先把“本地泊位开放状态”“最新开放时间”纳入停车场信息目录回流候选；其次更新城市运行专题目录中的默认复用入口说明。",
       "priorities": [

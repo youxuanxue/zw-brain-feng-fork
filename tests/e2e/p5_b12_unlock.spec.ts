@@ -7,10 +7,12 @@ test.beforeEach(async ({ page }, testInfo) => {
   await waitAppReady(page);
 });
 
-test('P5 API 服务化向导可达', async ({ page }) => {
+test('P5 代理服务注册向导可达', async ({ page }) => {
+  // D1（反馈 6.5#6）：「API 服务化向导」演示壳重写为「代理服务注册向导」——用户自助输入
+  // 原始接口地址，代理到平台共享、关联数据目录。
   await setRole(page, 'ROLE_ORGAN_MANAGER');
   await gotoHash(page, '#/provider/wizard/api-service');
-  await expect(page.getByRole('heading', { name: 'API 服务化向导' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '代理服务注册向导' })).toBeVisible();
 });
 
 test('P5 挂接审核收件箱有 live 待办', async ({ page }) => {

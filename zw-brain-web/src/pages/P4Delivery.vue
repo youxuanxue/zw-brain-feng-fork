@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { useDeliveryTasks, useSnapshot } from '@/composables/useSnapshot';
-import { invokeActionStub } from '@/composables/useActionStub';
+import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 import { deriveRecordName, formatChannel, formatTime, shortId } from '@/lib/userLanguage';
 
@@ -23,7 +23,7 @@ const items = computed(() =>
       status,
       statusLabel: formatTodoStatus(status),
       updatedAt: formatTime(it.updatedAt),
-      // F3：交付资源类型（table/file/api），驱动操作按钮分流。
+      // F3 + F4：交付资源类型（table/file/api），驱动操作按钮分流（API=查看授权、file=下载、对账回执非API）。
       resourceKind: String(it.resourceKind ?? ''),
     };
   })
@@ -42,6 +42,30 @@ async function reconcile(id: string) {
     skillId: 'delivery.reconcile_receipt',
     payload: { task_id: id },
     successTitle: '已触发对账',
+  });
+}
+// F4 文件资源下载：登记受控下载请求 + 落下载日志（文件名/大小/时间/领取方，对齐旧
+// resource_file_download_log）。zw-brain 仅持有文件元数据；文件字节由源存储交付——与 F6
+// 库表交换同属外部数据治理底座边界（架构 §3.4）。本期诚实：仅当源存储返回真实可直达地址
+// （http/https）才跳转下载，否则如实告知「经源存储交付、对接中」，不把内部受控锚伪造成直链。
+async function downloadFile(id: string, name: string) {
+  const res = await invokeActionStub({
+    skillId: 'delivery.file.download',
+    payload: { task_id: id, file_name: name },
+    successTitle: '已登记文件下载请求',
+  });
+  if (!res.ok) return;
+  const root = (res.data ?? {}) as Record<string, unknown>;
+  const inner = (root.result ?? root) as Record<string, unknown>;
+  const link = String(inner.file_link ?? '');
+  if (/^https?:\/\//i.test(link)) {
+    window.open(link, '_blank', 'noopener');
+    return;
+  }
+  pushToast({
+    kind: 'info',
+    title: '下载请求已登记',
+    detail: '已记录受控下载日志（文件名 / 大小 / 时间 / 领取方）。文件内容由源存储交付，平台正在对接，完成后即可直接下载。',
   });
 }
 </script>
@@ -87,6 +111,15 @@ async function reconcile(id: string) {
                      库表/文件交付仍是「领凭据」。 -->
                 <button type="button" class="gov-btn gov-btn-secondary" @click="openCredential(t.requestId)">
                   {{ t.resourceKind === 'api' ? '查看授权' : '领凭据' }}
+                </button>
+                <!-- F4：文件类资源显「下载」（受控下载请求 + 下载日志）。 -->
+                <button
+                  v-if="t.resourceKind === 'file'"
+                  type="button"
+                  class="gov-btn gov-btn-primary"
+                  @click="downloadFile(t.id, t.name)"
+                >
+                  下载
                 </button>
                 <!-- F3：「对账回执」是受控数据交付的对账语义，对 API 接口授权不成立——API 不渲染。 -->
                 <button

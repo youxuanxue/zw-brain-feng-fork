@@ -98,6 +98,7 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     {"skillId": "delivery.exchange.publish", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["delivery.exchange.publish.execute"]},
     {"skillId": "delivery.exchange.start", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["delivery.exchange.start.execute"]},
     {"skillId": "delivery.exchange.stop", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["delivery.exchange.stop.execute"]},
+    {"skillId": "delivery.file.download", "mode": "write", "auditClass": "write-default", "humanConfirmationRequired": true, "roles": [], "permissions": ["delivery.file.download.execute"]},
     {"skillId": "delivery.receipt.ingest", "mode": "write", "auditClass": "write-normal", "humanConfirmationRequired": true, "roles": [], "permissions": ["delivery.receipt.ingest.execute"]},
     {"skillId": "delivery.reconcile_receipt", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["delivery.reconcile_receipt.execute"]},
     {"skillId": "delivery.replace_or_cancel", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["delivery.replace_or_cancel.execute"]},

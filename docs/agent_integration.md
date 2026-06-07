@@ -90,6 +90,7 @@
 | POST | `/api/skills/delivery.exchange.publish` | 发布交换任务 | `post_delivery_exchange_publish` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/delivery.exchange.start` | 启动交换任务 | `post_delivery_exchange_start` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/delivery.exchange.stop` | 停止交换任务 | `post_delivery_exchange_stop` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/delivery.file.download` | 文件资源下载 | `post_delivery_file_download` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/delivery.list` | 查看交付任务列表 | `get_delivery_list` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/delivery.receipt.ingest` | 摄取交付回执 | `post_delivery_receipt_ingest` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/delivery.reconcile_receipt` | 对账交付回执 | `post_delivery_reconcile_receipt` | `zw_brain/entry/rest/openapi.json` |
@@ -297,7 +298,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 194 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 195 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -382,6 +383,7 @@
 | `delivery.exchange.publish` | 发布交换任务 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/delivery.exchange.publish.json` |
 | `delivery.exchange.start` | 启动交换任务 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/delivery.exchange.start.json` |
 | `delivery.exchange.stop` | 停止交换任务 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/delivery.exchange.stop.json` |
+| `delivery.file.download` | 文件资源下载 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/delivery.file.download.json` |
 | `delivery.list` | 查看交付任务列表 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/delivery.list.json` |
 | `delivery.receipt.ingest` | 摄取交付回执 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/delivery.receipt.ingest.json` |
 | `delivery.reconcile_receipt` | 对账交付回执 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/delivery.reconcile_receipt.json` |
@@ -502,9 +504,9 @@
 
 ## Statistics
 
-- REST endpoints: 203
+- REST endpoints: 204
 - CLI entries: 1
 - MCP tools: 63
 - A2A agent cards: 1
-- Registered Skills (live): 194 / 238 on-disk
+- Registered Skills (live): 195 / 239 on-disk
 

@@ -65,6 +65,48 @@ def _case_to_objection_inbox(record: Any) -> dict[str, Any]:
     }
 
 
+# API 服务资源生命周期 → 政务白话状态（R12，与 statusLabels 同口径）。
+_API_SERVICE_STATUS_LABELS = {
+    "draft": "草稿",
+    "pending_review": "待审核",
+    "approved": "已通过",
+    "approved_pending_publish": "待发布",
+    "test_failed": "测试未通过",
+    "active": "已发布",
+    "suspended": "已暂停",
+    "revoked": "已撤销",
+    "retired": "已退役",
+}
+
+
+def _api_asset_to_service(record: Any) -> dict[str, Any]:
+    """真实 API 服务资产 → P5 API 服务列表/详情卡（D2，去 seed 演示服务）。
+
+    id=resource_code（向导/列表/详情同锚），name=title，status=白话化生命周期，
+    note=来源系统/描述（缺则空，诚实空态 D11）。qps 旧平台无此真实运行量 → 不伪造，留空。
+    """
+    summary = record.summary_json if isinstance(record.summary_json, dict) else {}
+    return {
+        "id": record.resource_code,
+        "name": record.title or record.resource_code,
+        "status": _API_SERVICE_STATUS_LABELS.get(str(record.lifecycle_status), record.lifecycle_status),
+        "lifecycle_status": record.lifecycle_status,
+        "catalog_code": record.catalog_code,
+        "note": summary.get("desc") or summary.get("description") or summary.get("source_system") or "",
+    }
+
+
+def project_api_services(*, tenant_id: str | None = None) -> list[dict[str, Any]]:
+    """真实 resource_asset(kind=api) → API 服务列表（D2）。无则空（不回退演示 seed）。"""
+    tenant_id = tenant_id or get_runtime_tenant_id()
+    repo = ResourceApiRepository()
+    return [
+        _api_asset_to_service(record)
+        for record in repo.list_assets(tenant_id=tenant_id)
+        if str(getattr(record, "resource_kind", "")) in {"api", "service"}
+    ]
+
+
 def project_provider_inbox(*, tenant_id: str | None = None) -> dict[str, list[dict[str, Any]]]:
     tenant_id = tenant_id or get_runtime_tenant_id()
     catalog_repo = CatalogRepository()
@@ -163,6 +205,9 @@ def enrich_provider_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None 
     provider["hookup_reviews"] = inbox["hookup_reviews"]
     provider["demand_matches"] = inbox["demand_matches"]
     provider["objection_cases"] = inbox["objection_cases"]
+    # D2：API 服务列表来自真实 resource_asset(kind=api)，不再读 seed 写死的演示 services
+    # （承 D47 演示诚实化）。注册产出（resource.api.register）即时在此可见。
+    provider["services"] = project_api_services(tenant_id=tenant_id)
     catalogs = provider.get("catalogs")
     if isinstance(catalogs, list):
         provider["catalogs"] = [

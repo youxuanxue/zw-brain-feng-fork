@@ -201,7 +201,14 @@ def test_catalog_meta_carries_compilation_spec_fields(brain) -> None:
         "updateCycle",
         "catalogVersion",
         "summary",
+        # B3（反馈 6.4#5）：补「应用场景 / 业务更新周期 / 数据更新周期」三键。
+        "applicationScenario",
+        "businessUpdateCycle",
+        "dataUpdateCycle",
     }
+    # B3：旧导入只有单 update_cycle 时，业务/数据周期回落到它（一个不漏、老数据不空态）。
+    assert meta["businessUpdateCycle"] == meta["updateCycle"] or meta["businessUpdateCycle"] is not None
+    assert meta["dataUpdateCycle"] == meta["updateCycle"] or meta["dataUpdateCycle"] is not None
     # 关键字段真值非空（用真实有值目录做锚）
     assert meta["catalogName"], "目录名称应非空"
     assert meta["catalogCode"], "目录代码应非空"

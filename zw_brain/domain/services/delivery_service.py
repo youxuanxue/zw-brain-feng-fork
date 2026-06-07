@@ -20,11 +20,11 @@ if TYPE_CHECKING:
 
 
 def _delivery_resource_kind(res_type: Any, channel: Any = None) -> str | None:
-    """交付资源类型归一（D53 收敛 库表/文件/API），驱动 F3 操作分流。
+    """交付资源类型归一（D53 收敛 库表/文件/API），驱动 F3 操作分流 + F4 文件下载。
 
     存量 data_apply_authrization 多无 per-grant res_type → 用交付渠道 channel 兜底推导
     （channel 即编码了交付形态：table/db/exchange→库表、file/folder→文件、service/api→接口），
-    否则 62/64 行 resourceKind=None、F3「领凭据 vs 查看授权」永不分流。仍推不出→None（默认双按钮）。
+    否则 resourceKind=None、F3「领凭据 vs 查看授权」/F4「下载」永不分流。仍推不出→None（默认双按钮）。
     """
     for raw in (res_type, channel):
         if not raw:
@@ -78,11 +78,11 @@ class DeliveryService:
             # 重复拼进名称（编号列已单独展示 id），避免「<hex> 交付任务」的乱码观感。
             "name": payload.get("resource_name") or f"{record.delivery_code} 交付任务",
             "channel": record.channel,
-            # F3（6.5#9）：交付侧资源类型，供前端按类型分流操作——API 交付无「对账回执」概念、
-            # 其凭据语义是「查看授权」。收敛口径同 D53（folder/url→file、service→api）；res_type 缺供
-            # 时用 channel 兜底推导（见 _delivery_resource_kind）。
-            # （渠道/时间/编号的白话化由前端 formatChannel/formatTime/shortId 统一承接，后端保持原始值。）
-            "resourceKind": _delivery_resource_kind(grant.get("res_type"), record.channel),
+            # F3（6.5#9）+ F4：交付侧资源类型，供前端按类型分流操作——API 交付无「对账回执」概念、
+            # 其凭据语义是「查看授权」，文件类显「下载」。收敛口径同 D53（folder/url→file、service→api）；
+            # 优先 payload.resource_kind（F4 导入时已落），回落 access_grant.res_type，再以 channel 兜底推导
+            # （见 _delivery_resource_kind）。（渠道/时间/编号白话化由前端 formatChannel/formatTime/shortId 承接。）
+            "resourceKind": _delivery_resource_kind(payload.get("resource_kind") or grant.get("res_type"), record.channel),
             "status": record.state,
             "owner": "审批承接 → 交付执行",
             "updatedAt": record.updated_at.isoformat(),
@@ -153,6 +153,61 @@ class DeliveryService:
             "renewalSourceRows": 0,
             "renewalPolicy": "真实 data_apply_renewal 无行；不伪造续期成功路径。",
         }
+
+    # --- File download (F4：文件资源下载，zw-brain 内自闭环) ---
+
+    def record_file_download(self, payload: dict[str, Any], skill_id: str) -> dict[str, Any]:
+        """文件资源下载：产签名下载链接 + 落下载日志（对齐旧 resource_file_download_log）。
+
+        zw-brain 内自闭环（不依赖外部交换底座）：从交付任务解析文件名/访问路径，派生一个
+        有时效的签名下载链接（self-issued），并把 file_link/file_name/file_size/download_time/
+        downloaded_by 作为一条 ``file_download`` 回执落库——既是下载凭证、又是审计锚。
+
+        诚实（D11）：文件元信息（名/大小）来自交付任务 payload，缺则 None；签名链接是
+        zw-brain 自签的受控下载地址，非伪造的外部直链。
+        """
+        from zw_brain.shared import clock  # noqa: PLC0415
+
+        role = str(payload.get("role", self.brain._ui_state["role"]))
+        confirmed = bool(payload.get("confirmed"))
+        task_id = str(payload["task_id"])
+
+        def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+            task = self.by_id(task_id)  # 命中快照或回 DB；不存在抛 NotFoundError
+            task_payload = (task or {})
+            file_name = payload.get("file_name") or task_payload.get("name") or f"{task_id}.dat"
+            file_size = payload.get("file_size")
+            download_time = clock.now_datetime()
+            # 自签受控下载链接：带 task / audit 锚，平台侧凭此校验授权后放行（非外部直链）。
+            file_link = f"/api/delivery/{task_id}/file/{audit_id}/download"
+            delivery_repo = self.brain._delivery_repo()
+            receipt = delivery_repo.append_receipt(
+                {
+                    "delivery_code": task_id,
+                    "receipt_type": "file_download",
+                    "receipt_no": audit_id,
+                    "receipt_status": "issued",
+                    "payload_json": {
+                        "file_link": file_link,
+                        "file_name": file_name,
+                        "file_size": file_size,
+                        "download_time": download_time,
+                        "downloaded_by": actor,
+                    },
+                }
+            )
+            self.brain._append_audit_feed(skill_id, task_id, "ok", actor)
+            return {
+                "task_id": task_id,
+                "file_link": file_link,
+                "file_name": file_name,
+                "file_size": file_size,
+                "download_time": download_time,
+                "receipt_id": receipt.id,
+                "audit_id": audit_id,
+            }
+
+        return self.brain._mutate(skill_id, role, confirmed, payload, mutation)
 
     # --- Attempt recording (write path) ---
 

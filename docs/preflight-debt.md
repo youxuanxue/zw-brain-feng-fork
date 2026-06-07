@@ -698,7 +698,7 @@ trigger 关闭即可删除字段。
 
 - **Status (2026-05-25 更新)**: 不再是 "0% 实现 / deferred"。三引擎已在 **PR #92** 落地：检索
   `zw_brain/capability_registry/registered/` 现有 10 个三引擎 capability（`approval_flow.*` 4 +
-  `form_schema.*` 4 + `recommendation.*` 2；总 manifest <!-- stat:zwbrain.manifest-total -->238<!-- /stat -->）。`config_change_class` preview/draft
+  `form_schema.*` 4 + `recommendation.*` 2；总 manifest <!-- stat:zwbrain.manifest-total -->239<!-- /stat -->）。`config_change_class` preview/draft
   流已激活（当前 preview 2 / draft 4）。
 - **What remains**: 代码侧已交付；**未完成的是 T1 真实客户演练验证**——用三引擎在 ≤1 周内不改代码
   完成"鞍山 4 级审批 + 四川 7 字段表单 + 荆州 5 条推荐规则"项目级定制，由业务方 sign-off。

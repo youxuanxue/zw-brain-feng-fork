@@ -3,9 +3,14 @@ import { computed, ref } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { invokeActionStub } from '@/composables/useActionStub';
+import {
+  SHARE_TYPE_OPTIONS,
+  OPEN_TYPE_OPTIONS,
+  FILE_STORE_OPTIONS,
+} from '@/lib/catalogCompileFields';
 
 // J2 资源挂接（提交侧）— 为已发布目录补挂 库表 / 文件 物化资源。
-// 只做 table / file 两形态；api 走既有「API 服务化」入口（不重复造）。
+// 只做 table / file 两形态；接口资源走「代理服务注册向导」入口（不重复造）。
 // 调 resource.mount.{table,file}.prepare 建草稿 → resource.asset.submit_review 提交复核。
 
 type Kind = 'table' | 'file';
@@ -15,6 +20,17 @@ const catalogCode = ref('');
 const resourceCode = ref('');
 const title = ref('');
 const ownerOrgId = ref('');
+
+// B2：资源注册业务信息（对标旧平台资源「基本信息」标签页，table/file 共用）。
+const shareType = ref('2'); // 共享类型
+const shareCondition = ref(''); // 共享条件
+const openType = ref('3'); // 开放类型
+const openCondition = ref(''); // 开放条件
+const resourceDesc = ref(''); // 资源描述
+const sourceSystem = ref(''); // 来源系统
+const resourceVersion = ref(''); // 版本号
+const techContact = ref(''); // 技术联系人
+const contactPhone = ref(''); // 联系方式
 
 // 库表（口令不在挂接期收集——挂接只记连接标识，连通性 not_probed 待发布激活时连同凭据校验，
 // 不收集一个当场丢弃的 secret）
@@ -28,6 +44,10 @@ const fileName = ref('');
 const accessPath = ref('');
 const contentHash = ref('');
 const updateFrequency = ref('daily');
+// B2：文件格式/大小/存储类型 → 让资源详情「文件信息」标签页有值（采集端与详情端对齐）。
+const fileFormat = ref('');
+const fileSize = ref('');
+const fileStoreType = ref('centerStore');
 
 const submitting = ref(false);
 
@@ -46,11 +66,25 @@ function removeMapping(i: number) {
 }
 
 function buildPayload(): Record<string, unknown> {
+  // 共享/开放属性 → 后端 access_policy_json；业务信息 → summary_json。空值传 undefined，
+  // 后端落 None、详情端诚实空态展示「未提供」（禁造假）。
+  const business = {
+    shared_type: shareType.value || undefined,
+    shared_condition: shareCondition.value.trim() || undefined,
+    open_type: openType.value || undefined,
+    open_condition: openCondition.value.trim() || undefined,
+    resource_desc: resourceDesc.value.trim() || undefined,
+    source_system: sourceSystem.value.trim() || undefined,
+    resource_version: resourceVersion.value.trim() || undefined,
+    tech_contact: techContact.value.trim() || undefined,
+    contact_phone: contactPhone.value.trim() || undefined,
+  };
   const base = {
     resource_code: resourceCode.value.trim(),
     catalog_code: catalogCode.value.trim(),
     title: title.value.trim() || resourceCode.value.trim(),
     owner_org_id: ownerOrgId.value.trim() || undefined,
+    ...business,
   };
   if (kind.value === 'table') {
     return {
@@ -66,6 +100,9 @@ function buildPayload(): Record<string, unknown> {
     access_path: accessPath.value.trim(),
     content_hash: contentHash.value.trim() || undefined,
     update_frequency: updateFrequency.value,
+    file_format: fileFormat.value.trim() || undefined,
+    file_size: fileSize.value.trim() || undefined,
+    file_store_type: fileStoreType.value || undefined,
   };
 }
 
@@ -109,7 +146,7 @@ async function submitReview() {
   <main class="focus-page focus-detail">
     <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
     <section class="panel">
-      <PageFocusHeader title="资源挂接向导" meta="为已发布目录补挂 库表 / 文件 物化资源（API 走「API 服务化」入口）" />
+      <PageFocusHeader title="资源挂接向导" meta="为已发布目录补挂 库表 / 文件 物化资源（接口资源走「代理服务注册向导」）" />
 
       <!-- C2（0605#4 截图）：标签与切换器同行，避免内容宽度的切换器单独占一行、
            右侧留出大片空白带的观感问题（资源类型已收敛为 库表/文件，API 走独立入口）。 -->
@@ -122,10 +159,34 @@ async function submitReview() {
       </div>
 
       <div class="grid2">
-        <div><label class="field-label">目标目录编码 *</label><input v-model="catalogCode" class="gov-input" placeholder="catalog_code" /></div>
-        <div><label class="field-label">资源编码 *</label><input v-model="resourceCode" class="gov-input" placeholder="resource_code" /></div>
-        <div><label class="field-label">资源名称</label><input v-model="title" class="gov-input" placeholder="资源名称" /></div>
-        <div><label class="field-label">归属机构编码</label><input v-model="ownerOrgId" class="gov-input" placeholder="须与目标目录归属一致（否则挂接被拒）" /></div>
+        <div><label class="field-label">所属数据目录 *</label><input v-model="catalogCode" class="gov-input" placeholder="挂接到哪个已发布目录" /></div>
+        <div><label class="field-label">资源标识 *</label><input v-model="resourceCode" class="gov-input" placeholder="本资源的唯一标识" /></div>
+        <div><label class="field-label">资源名称</label><input v-model="title" class="gov-input" placeholder="例如：养老资源信息" /></div>
+        <div><label class="field-label">归属机构</label><input v-model="ownerOrgId" class="gov-input" placeholder="须与目标目录归属一致（否则挂接被拒）" /></div>
+      </div>
+
+      <!-- B2 资源基本信息（对标旧平台资源注册「基本信息」标签页，库表/文件共用） -->
+      <h3 class="block-title">资源基本信息</h3>
+      <div class="grid2">
+        <div>
+          <label class="field-label">共享类型</label>
+          <select v-model="shareType" class="gov-input">
+            <option v-for="o in SHARE_TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">开放类型</label>
+          <select v-model="openType" class="gov-input">
+            <option v-for="o in OPEN_TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+          </select>
+        </div>
+        <div><label class="field-label">共享条件</label><input v-model="shareCondition" class="gov-input" placeholder="例如：根据个人信息保护要求授权共享" /></div>
+        <div><label class="field-label">开放条件</label><input v-model="openCondition" class="gov-input" placeholder="例如：不可对社会开放" /></div>
+        <div><label class="field-label">来源系统</label><input v-model="sourceSystem" class="gov-input" placeholder="例如：养老保险建模系统" /></div>
+        <div><label class="field-label">版本号</label><input v-model="resourceVersion" class="gov-input" placeholder="例如：V2.0" /></div>
+        <div><label class="field-label">技术联系人</label><input v-model="techContact" class="gov-input" placeholder="例如：王四" /></div>
+        <div><label class="field-label">联系方式</label><input v-model="contactPhone" class="gov-input" placeholder="例如：17890786758" /></div>
+        <div class="span2"><label class="field-label">资源描述</label><input v-model="resourceDesc" class="gov-input" placeholder="一句话说明本资源的数据内容" /></div>
       </div>
 
       <!-- 库表 -->
@@ -168,6 +229,14 @@ async function submitReview() {
               <option value="monthly">每月</option>
             </select>
           </div>
+          <div><label class="field-label">文件格式</label><input v-model="fileFormat" class="gov-input" placeholder="例如：docx" /></div>
+          <div><label class="field-label">文件大小（字节）</label><input v-model="fileSize" class="gov-input" placeholder="例如：17869" /></div>
+          <div>
+            <label class="field-label">存储类型</label>
+            <select v-model="fileStoreType" class="gov-input">
+              <option v-for="o in FILE_STORE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
+          </div>
         </div>
         <p class="status-line neutral">文件完整性：⏳ 挂接时记录内容指纹，发布激活时校验</p>
       </template>
@@ -184,6 +253,8 @@ async function submitReview() {
 .field-label { display: block; font-size: 13px; margin-bottom: 6px; color: var(--b-muted, #5c6370); }
 .gov-input { width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--b-border, #d4e2f4); box-sizing: border-box; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.grid2 .span2 { grid-column: 1 / -1; }
+.block-title { margin: 16px 0 10px; font-size: 14px; font-weight: 600; color: var(--b-text, #1f2733); }
 .seg-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .seg-row .field-label { margin: 0; }
 .seg { display: inline-flex; border: 1px solid var(--b-border, #d4e2f4); border-radius: 6px; overflow: hidden; }

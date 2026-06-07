@@ -31,6 +31,34 @@ from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_
 _CONNECTION_SECRET_KEYS = {"password", "passwd", "secret", "token", "ak", "sk", "access_key", "secret_key"}
 
 
+def _access_policy(payload: dict[str, Any]) -> dict[str, Any]:
+    """共享/开放属性 → access_policy_json（B2，与 resource 详情 accessPolicy 同口径）。
+
+    旧平台资源注册必填 共享类型/共享条件/开放类型/开放条件；落 access_policy_json 供
+    资源详情/发现读路径回显。缺省值不伪造——None 由前端诚实空态承载。
+    """
+    return {
+        "shared_type": payload.get("shared_type"),
+        "shared_condition": payload.get("shared_condition"),
+        "open_type": payload.get("open_type"),
+        "open_condition": payload.get("open_condition"),
+    }
+
+
+def _business_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    """资源注册业务信息 → summary_json 公共块（资源描述/来源系统/版本号/技术联系人/联系方式）。
+
+    对标旧平台资源「基本信息」标签页（库表/文件资源详情对标截图）。table/file 共用。
+    """
+    return {
+        "resource_desc": payload.get("resource_desc"),
+        "source_system": payload.get("source_system"),
+        "resource_version": payload.get("resource_version"),
+        "tech_contact": payload.get("tech_contact"),
+        "contact_phone": payload.get("contact_phone"),
+    }
+
+
 def _mappings_ready(field_mappings: Any) -> bool:
     """字段映射完整性：非空且每条都有 source + target。"""
     if not isinstance(field_mappings, list) or not field_mappings:
@@ -108,15 +136,34 @@ def _prepare_table(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]
         "mapping_ready": mapping_ready,
         # 诚实：provider 真实库连通性属上游缺供，发布激活时校验，不在挂接期伪造成功。
         "connectivity": "not_probed",
+        # B2：资源注册业务信息（资源描述/来源系统/版本号/技术联系人/联系方式）。
+        **{k: v for k, v in _business_summary(payload).items() if v is not None},
     }
     asset = deps.services.provider.asset_payload(
-        {**payload, "summary_json": summary}, kind="table", default_status="draft"
+        {**payload, "summary_json": summary, "access_policy_json": _access_policy(payload)},
+        kind="table",
+        default_status="draft",
     )
     _guard_owner_immutable(deps, asset)
     _guard_catalog_same_org(deps, asset)
 
+    connection = _redact_connection(payload.get("connection"))
+    binding = {
+        "binding_code": f"{resource_code}#table",
+        "resource_code": resource_code,
+        "channel_kind": "table",
+        "route_ref": payload.get("table_name"),
+        "endpoint_ref": {
+            "table_name": payload.get("table_name"),
+            "schema_name": connection.get("database"),
+        },
+        "lifecycle_status": "draft",
+    }
+
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         result = deps.services.provider.upsert_api_resource(asset)
+        # 写库表分型 binding，让资源详情「库表信息」（typed_resource_detail._table_section）有值。
+        deps.services.provider.upsert_api_binding(binding)
         deps.append_audit_feed("resource.mount.table.prepare", resource_code, "ok", actor)
         return result | {
             "audit_id": audit_id,
@@ -137,15 +184,41 @@ def _prepare_file(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any])
         "access_path": payload.get("access_path"),
         "content_fingerprint": fingerprint,
         "update_frequency": payload.get("update_frequency"),
+        # B2：文件采集端补 格式/大小/存储类型 → 与详情端 _file_section 对齐（采集→展示同字段）。
+        "file_format": payload.get("file_format"),
+        "file_size": payload.get("file_size"),
+        "file_store_type": payload.get("file_store_type"),
+        # B2：资源注册业务信息。
+        **{k: v for k, v in _business_summary(payload).items() if v is not None},
     }
     asset = deps.services.provider.asset_payload(
-        {**payload, "summary_json": summary}, kind="file", default_status="draft"
+        {**payload, "summary_json": summary, "access_policy_json": _access_policy(payload)},
+        kind="file",
+        default_status="draft",
     )
     _guard_owner_immutable(deps, asset)
     _guard_catalog_same_org(deps, asset)
 
+    # 文件分型 binding：detail 端 _file_section 从 endpoint_ref(file_name/file_format/
+    # file_store_type) + schema_ref(file_size) 读，故采集端在此把它们写进 binding，
+    # 让「文件信息」标签页不再永远空态（B2 修复点）。
+    binding = {
+        "binding_code": f"{resource_code}#file",
+        "resource_code": resource_code,
+        "channel_kind": "file",
+        "route_ref": payload.get("file_name") or payload.get("access_path"),
+        "endpoint_ref": {
+            "file_name": payload.get("file_name"),
+            "file_format": payload.get("file_format"),
+            "file_store_type": payload.get("file_store_type"),
+        },
+        "schema_ref": {"file_size": payload.get("file_size")},
+        "lifecycle_status": "draft",
+    }
+
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         result = deps.services.provider.upsert_api_resource(asset)
+        deps.services.provider.upsert_api_binding(binding)
         deps.append_audit_feed("resource.mount.file.prepare", resource_code, "ok", actor)
         return result | {"audit_id": audit_id, "content_fingerprint": fingerprint}
 

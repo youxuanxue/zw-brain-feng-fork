@@ -97,6 +97,8 @@ PERMISSION_ROLES = {
     "summary.confirm.execute": {"ROLE_ORGAN_MANAGER"},
     "backflow.confirm.execute": {"ROLE_ORGAN_MANAGER"},
     "delivery.reconcile_receipt.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # F4 文件资源下载：与交付/对账同口径放给办理侧 4 角色（部门管理员牵头领数，操作员/审计可见）。
+    "delivery.file.download.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "delivery.trigger_recovery.execute": {"ROLE_ORGAN_MANAGER"},
     "service.publish_or_suspend.execute": {"ROLE_ORGAN_MANAGER"},
 

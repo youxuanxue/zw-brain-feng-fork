@@ -92,6 +92,20 @@ def _file_payload(resource_code: str, *, owner=ORG, catalog=CAT) -> dict:
     }
 
 
+# B2 资源注册业务字段（对标旧平台资源「基本信息」标签页：库表/文件资源详情对标截图）。
+_BUSINESS_FIELDS = {
+    "shared_type": "2",
+    "shared_condition": "按授权范围共享",
+    "open_type": "3",
+    "open_condition": "不可对社会开放",
+    "resource_desc": "养老保险信息",
+    "source_system": "养老保险建模系统",
+    "resource_version": "V2.0",
+    "tech_contact": "王四",
+    "contact_phone": "17890786758",
+}
+
+
 # ── 库表挂接 ────────────────────────────────────────────────────────────────
 
 def test_table_prepare_creates_draft_asset(brain: BrainService) -> None:
@@ -135,6 +149,46 @@ def test_file_full_state_machine_to_active(brain: BrainService) -> None:
     invoke_trusted(brain, "resource.asset.review", {"resource_code": "res-file-2", "decision": "approve", "confirmed": True}, role=BUSIAUDIT)
     res = invoke_trusted(brain, "resource.asset.publish", {"resource_code": "res-file-2", "confirmed": True}, role=MANAGER)
     assert res["result"]["lifecycle_status"] == "active"
+
+
+# ── B2 资源注册业务字段对齐（共享/开放 → access_policy；描述/来源/联系人 → summary；
+#       文件 格式/大小/存储类型 → 文件分型 binding，喂详情「文件信息」标签页）──────────
+
+def test_table_business_fields_land_in_policy_and_summary(brain: BrainService) -> None:
+    payload = {**_table_payload("res-tbl-biz"), **_BUSINESS_FIELDS}
+    invoke_trusted(brain, "resource.mount.table.prepare", payload, role=OPERATER)
+    asset = invoke_trusted(brain, "resource.asset.query", {"resource_code": "res-tbl-biz"}, role=OPERATER)["items"][0]
+    policy = asset["access_policy_json"]
+    assert policy["shared_type"] == "2"
+    assert policy["open_type"] == "3"
+    assert policy["shared_condition"] == "按授权范围共享"
+    summary = asset["summary_json"]
+    assert summary["source_system"] == "养老保险建模系统"
+    assert summary["resource_version"] == "V2.0"
+    assert summary["tech_contact"] == "王四"
+    assert summary["resource_desc"] == "养老保险信息"
+
+
+def test_file_format_size_store_feed_typed_detail(brain: BrainService) -> None:
+    """文件采集端补 格式/大小/存储类型 → 详情端「文件信息」标签页有值（不再永远空态）。"""
+    payload = {
+        **_file_payload("res-file-typed"),
+        **_BUSINESS_FIELDS,
+        "file_format": "docx",
+        "file_size": "17869",
+        "file_store_type": "centerStore",
+    }
+    invoke_trusted(brain, "resource.mount.file.prepare", payload, role=OPERATER)
+    # 走查 catalog.resource_view（聚焦该资源）应投影出 typedDetail 文件信息块且字段有值。
+    out = invoke_trusted(brain, "catalog.resource_view", {"resource_id": "res-file-typed"}, role=OPERATER)
+    detail = out["result"] if isinstance(out, dict) and "result" in out and "audit_id" in out else out
+    typed = detail["typedDetail"]
+    assert typed["kind"] == "file"
+    rows = {r["label"]: r["value"] for r in typed["sections"][0]["rows"]}
+    assert rows["文件名称"] == "students.csv"
+    assert rows["文件类型"] == "docx"
+    assert rows["文件大小"] == "17.5 KB"  # 17869 字节 → 人类可读
+    assert rows["存储类型"] == "中心库存储"
 
 
 # ── 边界守卫 ────────────────────────────────────────────────────────────────

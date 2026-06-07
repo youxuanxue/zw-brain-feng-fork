@@ -7,7 +7,7 @@
 > status = f(SPEC, MEASUREMENT, SIGN-OFF)，每次 preflight 现算，不手敲、不存第二份。
 > **Done** = 测试真绿 ∧ 业务签字；**Ready** = 已签未绿；**InTest** = 绿/在测但未签（代码完成待签字）；**Draft** = 纯意图；**Backlog** = 排期外（`# Deferred:`）。
 
-> 测量基线：captured_at=`2026-06-07T10:00:00Z` · 指纹新鲜绿 42/42（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
+> 测量基线：captured_at=`2026-06-07T10:05:00Z` · 指纹新鲜绿 42/42（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
 
 > 合计 50：Done 41 / Ready 0 / InTest 1 / Draft 0 / Backlog 8
 

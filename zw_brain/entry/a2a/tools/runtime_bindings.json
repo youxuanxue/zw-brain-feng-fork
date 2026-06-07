@@ -6135,6 +6135,62 @@
     "auth_strategy": "human_confirmation"
   },
   {
+    "tool_name": "delivery.file.download",
+    "description": "为文件类交付任务生成受控下载链接并登记下载日志（链接/文件名/大小/下载时间/下载方）。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/delivery.file.download",
+    "parameters_schema": {
+      "type": "object",
+      "required": [
+        "task_id",
+        "confirmed"
+      ],
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "file_name": {
+          "type": "string"
+        },
+        "file_size": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "delivery.file.download.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
     "tool_name": "delivery.receipt.ingest",
     "description": "摄取交换执行、下载、授权或订阅回执，只写回执、证据和投影。",
     "protocol_type": "builtin_skill",

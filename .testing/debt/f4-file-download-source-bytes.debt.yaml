@@ -1,0 +1,12 @@
+slug: f4-file-download-source-bytes
+title: "F4 文件资源真实字节交付依赖外部源存储底座（本期只做受控下载请求登记 + 下载日志）"
+date: 2026-06-07
+severity: medium
+owner: 产品研发负责人
+trigger: "数据治理侧确认文件源存储（中心库/对象存储）取数接口契约后，delivery.file.download 接真实字节流/直达地址，P4 跳转真实下载"
+assert:
+  # zw-brain 仅持有文件元数据（file_name/format/size），不持有文件字节；文件内容由源存储交付，
+  # 与 F6 库表交换 ETL 同属外部数据治理底座边界（架构 §3.4）。本期 delivery.file.download 诚实
+  # 登记受控下载请求 + 落下载日志（审计锚），P4 不把内部受控锚伪造成可下载直链。无 code 条件可
+  # 断言（external 须 owner+trigger，契约就绪即升级为真实字节交付）。
+  kind: external

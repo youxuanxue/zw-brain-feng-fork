@@ -126,11 +126,14 @@ test('P3 撤回申请不再误调目录 withdraw', async ({ page }) => {
   await expect(page.locator('body')).not.toContainText('catalog_code');
 });
 
-test('P5 API 服务化向导提交不报缺字段', async ({ page }) => {
+test('P5 代理服务注册向导提交不报缺字段', async ({ page }) => {
+  // D1：代理服务注册——填服务名/原始接口地址/描述（≥30字）→ 注册草稿，接 resource.api.register。
   await setRole(page, 'ROLE_ORGAN_MANAGER');
   await gotoHash(page, '#/provider/wizard/api-service');
-  await page.locator('.gov-select').selectOption({ index: 1 });
-  await page.getByRole('button', { name: '探测连通性' }).click();
+  await page.getByPlaceholder('例如：养老保险信息查询服务').fill('养老保险信息查询代理服务');
+  await page.getByPlaceholder('例如：https://10.110.16.133/api/pension/query').fill('https://10.110.16.133/api/pension/query');
+  await page.getByPlaceholder('说明该服务提供什么数据、面向哪些业务场景。').fill('代理养老保险信息查询接口，面向部门间数据共享与资格核验业务场景使用。');
+  await page.getByRole('button', { name: '注册代理服务（草稿）' }).click();
   await page.waitForTimeout(800);
   await expect(page.locator('body')).not.toContainText('missing required input field');
 });
