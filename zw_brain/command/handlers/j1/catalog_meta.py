@@ -88,9 +88,11 @@ def _browse_catalog_entries(
     # 批量算每个目录的资源挂载数（list_assets 一次 + 按 catalog_code 分组，避免 N+1；
     # 范式同 request_service.build_batch_context）。让列表页直接展示「资源数」，
     # 用户一眼看到哪些目录有内容、有多少，不必逐个点进去（97/154 active 目录无资源）。
+    # D53①（找数据只展示已发布）：计数与钻取列表同口径只计 active——否则行上显 N、
+    # 点进少于 N，端到端口径裂缝。
     counts: dict[str, int] = {}
     for asset in deps.repos.resource_api.list_assets(tenant_id=_DEFAULT_TENANT_ID):
-        if asset.catalog_code:
+        if asset.catalog_code and asset.lifecycle_status == "active":
             counts[asset.catalog_code] = counts.get(asset.catalog_code, 0) + 1
 
     items = []

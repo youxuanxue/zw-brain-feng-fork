@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from zw_brain.domain.resource_kind import canonical_resource_kind
+from zw_brain.domain.resource_lifecycle import lifecycle_label
 from zw_brain.domain.serializers import metadata as metadata_ser
 from zw_brain.domain.serializers import resource_api as resource_api_ser
 from zw_brain.domain.serializers import topic_package as topic_package_ser
@@ -241,7 +242,9 @@ class CatalogService:
         return {
             "id": record.catalog_code,
             "name": record.title,
-            "status": record.lifecycle_status,
+            # status = 中文展示态（前端零词表，只读不译）；lifecycleStatus = 机器原值（前端逻辑只比对它）。
+            "status": lifecycle_label(record.lifecycle_status),
+            "lifecycleStatus": record.lifecycle_status,
             "provider": provider,
             "zone": summary.get("zone") or self.brain._region_label(record.region_code) or "官方目录推荐",
             "updatedAt": str(raw_updated),
@@ -334,6 +337,11 @@ class CatalogService:
                 )
                 binding_dicts = [resource_api_ser.binding_to_dict(b) for b in binding_records]
                 detail["focusedResourceCode"] = focused_resource_code
+                # 资源详情展示该 RESOURCE 自身的生命周期，不是其父 catalog 的——否则一个已发布
+                # (active) 资源挂在 draft 目录下时，详情误判未发布、申请门控（D53①）错误地关闭。
+                # status=中文展示态（前端零词表）/ lifecycleStatus=机器原值（前端申请门控只比对它）。
+                detail["status"] = focused_asset.get("lifecycle_label") or detail.get("status")
+                detail["lifecycleStatus"] = focused_asset.get("lifecycle_status") or detail.get("lifecycleStatus")
                 # 读路径折叠（D53）：存量 folder/url/link → file，绝不裸出 legacy kind 到详情徽标。
                 detail["resourceKind"] = canonical_resource_kind(focused_asset.get("resource_kind"))
                 detail["resourceBindings"] = binding_dicts

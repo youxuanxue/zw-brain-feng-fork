@@ -1,15 +1,12 @@
 import { computed, ref, watch } from 'vue';
 import { authFetch } from './useAuth';
-import { lookupResource, useSnapshot } from './useSnapshot';
 import { apiUrl } from './useApiBase';
 
-/** 资源详情：优先 snapshot；缺失时 GET catalog.resource_view 拉全库条目。 */
+/** 资源详情：始终从 API 拉取完整详情（0605#2：不再先用 snapshot 缩略信息首刷，消除视觉跳跃感）。 */
 export function useResourceDetail(resourceId: () => string, role = 'ROLE_ORGAN_OPERATER') {
   const fetched = ref<Record<string, unknown> | null>(null);
   const fetchError = ref<string | null>(null);
   const loading = ref(false);
-  const snapshotResource = computed(() => lookupResource(resourceId()).value);
-  const { source } = useSnapshot();
 
   async function loadFromApi(id: string): Promise<void> {
     if (!id) return;
@@ -35,17 +32,15 @@ export function useResourceDetail(resourceId: () => string, role = 'ROLE_ORGAN_O
     (id) => {
       fetched.value = null;
       fetchError.value = null;
-      // 详情页始终拉 API 富集详情（typedDetail/catalogMeta/分型块 + accessPolicy）。
-      // snapshot 卡片只承载列表态薄字段（id/name/provider/status），不含分型/编制规范字段；
-      // 若仅用 snapshot，详情页会缺反馈 5/6 的分型与编目内容。snapshot 作首屏快照，
-      // API 富集后覆盖（DB 非空时替换，对齐 snapshot enrich 既有模式）。
+      // 详情页始终拉 API 富集详情（typedDetail/catalogMeta/分型块 + accessPolicy + 真实 lifecycle）。
+      // 0605#2：不再以 snapshot 列表态薄字段先首刷再被 API 覆盖——那会造成「先缩略后详情」的跳跃感。
       if (id) void loadFromApi(id);
     },
     { immediate: true },
   );
 
-  // API 富集详情优先（含分型/编制规范）；未到达前用 snapshot 卡片快照首屏。
-  const resource = computed(() => fetched.value ?? snapshotResource.value);
+  // 只展示 API 返回的完整详情数据，不使用 snapshot 缩略信息（避免首刷跳跃感）。
+  const resource = computed(() => fetched.value);
 
-  return { resource, source, loading, fetchError };
+  return { resource, loading, fetchError };
 }

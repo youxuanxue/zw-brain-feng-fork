@@ -43,7 +43,7 @@ interface CatalogReviewRow {
   title: string;
   owner_org_id: string;
   region_code: string;
-  lifecycle_status: string;
+  lifecycle_label: string;
   updated_at: string;
 }
 
@@ -80,7 +80,8 @@ async function loadInbox(): Promise<void> {
         title: String(it.title ?? it.catalog_code ?? '—'),
         owner_org_id: String(it.owner_org_id ?? ''),
         region_code: String(it.region_code ?? ''),
-        lifecycle_status: String(it.lifecycle_status ?? targetLifecycleStatus.value),
+        // 展示态取后端下发的中文 lifecycle_label（前端零词表，R12），不直出机器 slug。
+        lifecycle_label: String(it.lifecycle_label ?? ''),
         updated_at: String(it.updated_at ?? it.updatedAt ?? ''),
       }))
       .filter((it) => it.catalog_code);
@@ -154,7 +155,7 @@ const headerMeta = computed(() => {
               <td>{{ it.title }}</td>
               <td>{{ it.owner_org_id || '—' }}</td>
               <td>{{ it.region_code || '—' }}</td>
-              <td><span class="status-pill">{{ it.lifecycle_status }}</span></td>
+              <td><span class="status-pill">{{ it.lifecycle_label }}</span></td>
               <td>
                 <button
                   type="button"

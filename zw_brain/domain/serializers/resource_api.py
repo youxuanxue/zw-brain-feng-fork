@@ -7,6 +7,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from zw_brain.domain.resource_lifecycle import lifecycle_label
 from zw_brain.domain.serializers._common import mask
 
 
@@ -15,7 +16,9 @@ def resource_asset_to_dict(record: Any) -> dict[str, Any]:
         "resource_code": record.resource_code,
         "resource_kind": record.resource_kind,
         "title": record.title,
+        # lifecycle_status = 机器原值（前端逻辑只比对它）；lifecycle_label = 中文展示态（前端零词表）。
         "lifecycle_status": record.lifecycle_status,
+        "lifecycle_label": lifecycle_label(record.lifecycle_status),
         "owner_org_id": record.owner_org_id,
         "owner_org_snapshot_json": mask(copy.deepcopy(record.owner_org_snapshot_json)),
         "region_code": record.region_code,

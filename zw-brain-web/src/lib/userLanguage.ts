@@ -47,27 +47,9 @@ export function formatChannel(raw: unknown): string {
   return key;
 }
 
-// ── 资源生命周期态 → 业务用语（与后端 _RESOURCE_STATUS_DISPLAY 同口径）──────────
-// 发现快照已映射成中文（可复用 等），但 catalog.resource_view 富集回原始 lifecycle（draft/active…）；
-// 资源详情细条统一经此映射，绝不裸出工程态（R12）。已是中文则原样。
-const RESOURCE_STATUS_ZH: Record<string, string> = {
-  active: '可复用',
-  approved_pending_publish: '待发布',
-  pending_review: '审核中',
-  draft: '草稿',
-  suspended: '已暂停',
-  expired: '已过期',
-  revoked: '已下线',
-};
-
-/** 资源生命周期 status → 中文展示态；已是中文原样返回，未知 ASCII slug 兜底「未知状态」。 */
-export function formatResourceStatus(raw: unknown): string {
-  const key = String(raw ?? '').trim();
-  if (!key) return '—';
-  if (RESOURCE_STATUS_ZH[key]) return RESOURCE_STATUS_ZH[key];
-  if (/[一-鿿]/.test(key)) return key;
-  return '未知状态';
-}
+// 资源生命周期态 → 中文展示态：单一事实源在后端（zw_brain/domain/resource_lifecycle.py），
+// 由 serializer/卡片随记录下发 status(中文)+lifecycleStatus(原值)，前端零词表、只读不译（R12）。
+// 此处原 RESOURCE_STATUS_ZH / formatResourceStatus 镜像词表已退役，避免「两份词表手同步漂移」。
 
 // ── 意图名 → 业务用语 ────────────────────────────────────────────────────
 const INTENT_ZH: Record<string, string> = {

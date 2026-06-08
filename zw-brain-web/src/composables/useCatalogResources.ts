@@ -13,11 +13,13 @@ export function useCatalogResources(catalogCode: () => string, role = 'ROLE_ORGA
   const { source } = useSnapshot();
 
   // resource_asset_to_dict 字段 → ResourceCard 期望键（id/name/status/provider）。
+  // status = 后端中文展示态 lifecycle_label（前端零词表）；lifecycleStatus = 机器原值供逻辑比对。
   function mapAssetToCard(a: Record<string, unknown>): Record<string, unknown> {
     return {
       id: String(a.resource_code ?? ''),
       name: String(a.title ?? a.resource_code ?? ''),
-      status: String(a.lifecycle_status ?? ''),
+      status: String(a.lifecycle_label ?? ''),
+      lifecycleStatus: String(a.lifecycle_status ?? ''),
       provider: String(a.owner_org_id ?? ''),
       kind: String(a.resource_kind ?? ''),
     };
@@ -31,7 +33,7 @@ export function useCatalogResources(catalogCode: () => string, role = 'ROLE_ORGA
       const resp = await authFetch(apiUrl('/api/skills/catalog.resource.list'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ role, catalog_code: code, limit: 50 }),
+        body: JSON.stringify({ role, catalog_code: code, limit: 50, lifecycle: 'active' }),
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const body = (await resp.json()) as {

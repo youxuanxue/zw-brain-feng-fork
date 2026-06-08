@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.discovery_snapshot_projection import project_resource_cards
 from zw_brain.domain.resource_kind import canonical_resource_kind
+from zw_brain.domain.resource_lifecycle import lifecycle_label
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 
@@ -18,14 +19,11 @@ def _recall_candidates(deps: Any, haystack: str, seen_ids: set[str]) -> list[dic
     """NL 召回字典命中 → 卡片（单一真相：0604 试用「两个入口效果不一样」修复）。
 
     召回项先回查目录库：**查得到 → 给真卡**（真 id、详情可达、真实状态中文标签——与
-    目录浏览入口同一真相，哪怕该状态不在 D45.b 默认发现集合，显式搜索命中即如实呈现）；
+    目录浏览入口同一真相，哪怕该状态不在 D53① 默认发现集合（active-only），显式搜索
+    命中即如实呈现——申请入口由前端按机器值门控，未发布不可申请）；
     查不到才给「录入中」诚实 stub（白话文案，无工程 token；前端按 recall_dictionary
     渲染为无链接软候选）。
     """
-    from zw_brain.domain.discovery_snapshot_projection import (  # noqa: PLC0415
-        _RESOURCE_STATUS_DISPLAY,
-    )
-
     out: list[dict[str, Any]] = []
     recall = deps.view.discovery.get_recall_dictionary()
     for entry in recall.get("sample_titles", []):
@@ -41,9 +39,8 @@ def _recall_candidates(deps: Any, haystack: str, seen_ids: set[str]) -> list[dic
             None,
         )
         if record is not None:
+            # record_to_card_dict 已产中文 status + lifecycleStatus 原值（单一事实源），不再二次翻译。
             card = deps.services.catalog.record_to_card_dict(record)
-            raw_status = str(card.get("status") or "")
-            card["status"] = _RESOURCE_STATUS_DISPLAY.get(raw_status, raw_status)
             if card["id"] not in seen_ids:
                 seen_ids.add(card["id"])
                 out.append(card)
@@ -120,7 +117,9 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
                         "name": api_res.get("title", api_res["resource_code"]),
                         "provider": api_res.get("owner_org_id", ""),
                         "zone": "API 资源",
-                        "status": api_res.get("lifecycle_status", "active"),
+                        # status=中文展示态（前端零词表）；lifecycleStatus=原值供前端申请门控比对。
+                        "status": lifecycle_label(api_res.get("lifecycle_status", "active")),
+                        "lifecycleStatus": api_res.get("lifecycle_status", "active"),
                         "desc": str(summary.get("desc") or summary.get("domain") or api_res.get("title", "")),
                         "kind": "api",
                         # 读路径折叠（D53）：service/未知 → api，绝不裸出 legacy kind 到「资源类型」筛选。
@@ -200,7 +199,9 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
                         "name": api_res.get("title", rid),
                         "provider": api_res.get("owner_org_id", ""),
                         "zone": "API 资源",
-                        "status": api_res.get("lifecycle_status", "active"),
+                        # status=中文展示态（前端零词表）；lifecycleStatus=原值供前端申请门控比对。
+                        "status": lifecycle_label(api_res.get("lifecycle_status", "active")),
+                        "lifecycleStatus": api_res.get("lifecycle_status", "active"),
                         "desc": str(summary.get("desc") or summary.get("domain") or api_res.get("title", "")),
                         "kind": "api",
                         # 读路径折叠（D53）：service/未知 → api，绝不裸出 legacy kind 到「资源类型」筛选。

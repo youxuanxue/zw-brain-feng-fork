@@ -9,6 +9,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from zw_brain.domain.resource_lifecycle import lifecycle_label
 from zw_brain.domain.serializers._common import mask
 
 
@@ -40,7 +41,9 @@ def catalog_entry_to_dict(record: Any) -> dict[str, Any]:
     return {
         "catalog_code": record.catalog_code,
         "title": record.title,
+        # lifecycle_status = 机器原值（前端逻辑只比对它）；lifecycle_label = 中文展示态（前端零词表）。
         "lifecycle_status": record.lifecycle_status,
+        "lifecycle_label": lifecycle_label(record.lifecycle_status),
         "owner_org_id": record.owner_org_id,
         "region_code": record.region_code,
         "summary_json": mask(copy.deepcopy(record.summary_json)),

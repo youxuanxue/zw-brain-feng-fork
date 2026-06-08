@@ -167,7 +167,10 @@ def test_enrich_discovery_resources_only_discoverable_statuses(temp_db: Path) ->
     assert set(cards) == {"RES-1"}, "只展示已发布 active，待发布/revoked/draft 均排除"
     assert "RES-3" not in cards, "待发布资源必须退出发现视图（D53①）"
     assert cards["RES-1"]["name"] == "停车场信息共享目录"
-    assert cards["RES-1"]["status"] == "可复用"  # active → 中文展示态
+    # status = 中文展示态（前端零词表，单一事实源 resource_lifecycle.lifecycle_label）；
+    # lifecycleStatus = 机器原值，前端逻辑（申请门控/chip 抑制）只比对它。
+    assert cards["RES-1"]["status"] == "已发布"  # active → 中文展示态（D53①，反转旧词「可复用」）
+    assert cards["RES-1"]["lifecycleStatus"] == "active"
     assert cards["RES-1"]["provider"] == "省大数据局"
     # 共享类型（源表 DDL 权威：1=无条件 / 2=有条件）+ 色级
     assert cards["RES-1"]["shareType"] == "无条件共享"

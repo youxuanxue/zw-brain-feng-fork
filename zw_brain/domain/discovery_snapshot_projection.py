@@ -23,6 +23,7 @@ from zw_brain.domain.repositories.application import ApplicationRepository
 from zw_brain.domain.repositories.approval import ApprovalRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.resource_kind import canonical_resource_kind
+from zw_brain.domain.resource_lifecycle import lifecycle_label
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.shared.sensitive_mask import mask_default
 
@@ -30,18 +31,7 @@ from zw_brain.shared.sensitive_mask import mask_default
 # require / original_require = 需求（无 resource_name，属 J2 供需匹配线，不进 P3 申请收件箱）。
 _DEMAND_KINDS = frozenset({"require", "original_require"})
 
-# resource_asset.lifecycle_status → 发现页展示态
-_RESOURCE_STATUS_DISPLAY = {
-    "active": "可复用",
-    "approved_pending_publish": "待发布",
-    "pending_review": "审核中",
-    "draft": "草稿",
-    "suspended": "已暂停",
-    "expired": "已过期",
-    "revoked": "已下线",
-}
-
-# 发现页只展示「已发布」资源（D53① 业务裁决 2026-06-06，反转 D45.b）：仅 active（可复用/已发布）。
+# 发现页只展示「已发布」资源（D53① 业务裁决 2026-06-06，反转 D45.b）：仅 active（已发布）。
 # 待发布 approved_pending_publish 退出默认发现视图——未发布不应在消费端可见、更不可申请
 # （用户反馈 0605#1：只有已发布才可供申请使用）。草稿/审核中/待发布/已暂停/已下线/已过期
 # 均不进发现视图（资源详情/目录线仍可达，仅不在「找数据」列表 + 不可申请）。
@@ -163,7 +153,10 @@ def _asset_to_resource_card(record: Any) -> dict[str, Any]:
     return {
         "id": record.resource_code,
         "name": record.title,
-        "status": _RESOURCE_STATUS_DISPLAY.get(record.lifecycle_status, record.lifecycle_status),
+        # status = 中文展示态（前端零词表，只读不译，单一事实源 resource_lifecycle.lifecycle_label）；
+        # lifecycleStatus = 机器原值，前端逻辑（申请门控/chip 抑制）只比对它，绝不比中文。
+        "status": lifecycle_label(record.lifecycle_status),
+        "lifecycleStatus": record.lifecycle_status,
         "shareType": share_type,
         "shareLevel": _SHARE_TYPE_LEVEL.get(share_type, ""),
         "provider": owner.get("org_name") or owner.get("owner_org_name") or record.owner_org_id or "",
@@ -181,7 +174,7 @@ def _asset_to_resource_card(record: Any) -> dict[str, Any]:
 def project_resource_cards(*, tenant_id: str | None = None) -> list[dict[str, Any]]:
     """发现页「可复用资源」卡片 — 共享给 snapshot enrich + data.search 空 query。
 
-    只投影**可用**资源（D45.b：active + approved_pending_publish）；草稿/审核中/已暂停/
+    只投影**已发布**资源（D53①，反转 D45.b：仅 active）；待发布/草稿/审核中/已暂停/
     已下线/已过期不进默认发现视图。
     """
     records = ResourceApiRepository().list_assets(tenant_id=tenant_id or get_runtime_tenant_id())

@@ -11,7 +11,7 @@ import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { mapDetailRows } from '@/lib/detailDisplay';
-import { deriveRecordName, formatResourceStatus, formatTime } from '@/lib/userLanguage';
+import { deriveRecordName, formatTime } from '@/lib/userLanguage';
 import {
   typedSectionsToRows,
   decisionRows,
@@ -22,17 +22,14 @@ import { ref } from 'vue';
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
-const { resource, source, loading, fetchError } = useResourceDetail(() => id.value);
+const { resource, loading, fetchError } = useResourceDetail(() => id.value);
 // request.create 仅 OPERATER；MANAGER/BUSIAUDIT/SECURITY_AUDIT 在 P2 详情页不渲染「申请资源」。
-// A1（0605#1）：详情页对「待发布」资源仍可达，但只有「已发布（active）」才可申请——
-// 叠加状态门控，未发布态不渲染申请按钮（守「只有已发布才可供申请使用」）。
-// 详情 status 可能是原始 lifecycle（record_to_card_dict 给 "active"）或展示词（快照回退给 "可复用"），
-// 两种来源都接受，非已发布态（approved_pending_publish/待发布 等）一律拦下。
-const APPLICABLE_STATUSES = new Set(['active', '可复用']);
+// A1（0605#1）：详情页对「待发布」资源仍可达，但只有「已发布（机器值 active）」才可申请——
+// 叠加状态门控（比对机器值 lifecycleStatus 而非中文展示词，单一事实源），非 active 一律拦下。
 const canApply = computed(
   () =>
     canPerformAction('request.create', getProductRole().value) &&
-    APPLICABLE_STATUSES.has(String(resource.value?.status ?? '')),
+    String(resource.value?.lifecycleStatus ?? '') === 'active',
 );
 
 // 字段数据模型（只读）：metadata.schema.query → MANAGER / BUSIAUDIT / SECURITY_AUDIT。
@@ -62,9 +59,8 @@ const headerFacts = computed(() => {
   const r = resource.value;
   if (!r) return [] as string[];
   const out: string[] = [];
-  // R12：status 可能是快照中文（可复用）或 resource_view 富集回的原始 lifecycle（draft/active…），
-  // 统一经 formatResourceStatus 映射，绝不裸出工程态。
-  if (r.status) out.push(`状态 ${formatResourceStatus(r.status)}`);
+  // status 已是后端下发的中文展示态（前端零词表，单一事实源），直接用、绝不裸出工程态（R12）。
+  if (r.status) out.push(`状态 ${String(r.status)}`);
   if (r.updatedAt) out.push(`最近更新 ${formatTime(r.updatedAt)}`);
   if (r.subscribers !== undefined) out.push(`订阅 ${String(r.subscribers)}`);
   return out;
@@ -98,11 +94,10 @@ const headerTitle = computed(() => {
   return deriveRecordName('', id.value, '数据资源');
 });
 const headerMeta = computed(() => {
-  if (resource.value && resource.value.desc) return String(resource.value.desc);
+  if (loading.value) return '正在加载资源详情……';
   if (fetchError.value) return '暂时无法加载资源详情，请稍后再试。';
-  if (source.value !== 'live') return '正在加载资源详情……';
-  if (!resource.value) return '未找到该资源';
-  return '';
+  if (resource.value) return resource.value.desc ? String(resource.value.desc) : '';
+  return '未找到该资源';
 });
 
 // 申请采草稿流（0605#8）：先生成草稿单（不直接提交），跳到申请详情页让用户查看 / 确认，

@@ -59,7 +59,8 @@ const officePhone = ref(''); // 办公电话（summary.office_phone）
 
 const catalogCode = ref('');
 const stage = ref<Stage>('draft_unsubmitted');
-const lifecycleStatus = ref<string>('');
+// 展示态取后端下发的中文 lifecycle_label（前端零词表，R12），不直出机器 slug。
+const lifecycleLabel = ref<string>('');
 const busy = ref(false);
 
 function _newCatalogCode(): string {
@@ -149,7 +150,7 @@ async function createDraft() {
     stage.value = 'draft_unsubmitted';
     const root = (result.data ?? {}) as Record<string, unknown>;
     const inner = (root.result ?? root) as Record<string, unknown>;
-    lifecycleStatus.value = String(inner.lifecycle_status ?? 'draft');
+    lifecycleLabel.value = String(inner.lifecycle_label ?? '草稿');
   } finally {
     busy.value = false;
   }
@@ -177,7 +178,7 @@ async function saveMetadata() {
     stage.value = 'metadata_filled';
     const root = (result.data ?? {}) as Record<string, unknown>;
     const inner = (root.result ?? root) as Record<string, unknown>;
-    lifecycleStatus.value = String(inner.lifecycle_status ?? lifecycleStatus.value);
+    lifecycleLabel.value = String(inner.lifecycle_label ?? lifecycleLabel.value);
   } finally {
     busy.value = false;
   }
@@ -198,7 +199,7 @@ async function submitForReview() {
     stage.value = 'submitted';
     const root = (result.data ?? {}) as Record<string, unknown>;
     const inner = (root.result ?? root) as Record<string, unknown>;
-    lifecycleStatus.value = String(inner.lifecycle_status ?? 'pending_review');
+    lifecycleLabel.value = String(inner.lifecycle_label ?? '审核中');
   } finally {
     busy.value = false;
   }
@@ -229,7 +230,7 @@ function startAnother() {
   contactEmail.value = '';
   officePhone.value = '';
   catalogCode.value = '';
-  lifecycleStatus.value = '';
+  lifecycleLabel.value = '';
   stage.value = 'draft_unsubmitted';
 }
 </script>
@@ -346,7 +347,7 @@ function startAnother() {
           </button>
         </DetailActions>
         <p v-if="catalogCode" class="step-done">
-          已生成目录草稿 · 当前状态：<strong>{{ lifecycleStatus || 'draft' }}</strong>
+          已生成目录草稿 · 当前状态：<strong>{{ lifecycleLabel || '草稿' }}</strong>
         </p>
       </section>
 
@@ -451,7 +452,7 @@ function startAnother() {
           </button>
         </DetailActions>
         <p v-if="stage === 'metadata_filled' || stage === 'submitted'" class="step-done">
-          元数据与信息项已保存，当前状态：<strong>{{ lifecycleStatus }}</strong>
+          元数据与信息项已保存，当前状态：<strong>{{ lifecycleLabel }}</strong>
         </p>
       </section>
 
@@ -471,7 +472,7 @@ function startAnother() {
           </button>
         </DetailActions>
         <p v-if="submitted" class="step-done">
-          已提交，当前状态：<strong>{{ lifecycleStatus }}</strong>。
+          已提交，当前状态：<strong>{{ lifecycleLabel }}</strong>。
           请通知部门管理员到
           <a href="#/provider/inbox/catalog-review">目录审核收件箱</a>
           办理；或继续

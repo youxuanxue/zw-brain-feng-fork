@@ -23,7 +23,10 @@ const item = computed(() => {
     name: String(r.name ?? r.title ?? ''),
     provider: String(r.provider ?? r.providerName ?? ''),
     zone: String(r.zone ?? ''),
+    // status = 后端已下发的中文展示态（前端零词表，只读不译，R12）；
+    // lifecycleStatus = 机器原值，仅供逻辑比对（申请门控 / chip 抑制）。
     status: String(r.status ?? ''),
+    lifecycleStatus: String(r.lifecycleStatus ?? ''),
     score: r.score,
     desc: String(r.desc ?? r.description ?? ''),
     fields: Array.isArray(r.fields) ? (r.fields as string[]) : [],
@@ -60,9 +63,9 @@ const emit = defineEmits<{
       >
         <span v-if="item.kindLabel" class="res-kind">{{ item.kindLabel }}</span>
         <strong>{{ item.name || item.id }}</strong>
-        <!-- 反馈4（试用反馈）：默认发现视图本就只展示可复用（发现页可用性过滤决策），
-             「可复用」标签是同义反复——抑制之；非默认态（待发布等）有信息量，保留。 -->
-        <span v-if="item.status && item.status !== '可复用'" class="res-status">{{ item.status }}</span>
+        <!-- 反馈4（试用反馈）：默认发现视图本就只展示已发布（D53① active-only），
+             「已发布」标签是同义反复——抑制之（比对机器值，不比中文）；非默认态（待发布等）有信息量，保留。 -->
+        <span v-if="item.status && item.lifecycleStatus !== 'active'" class="res-status">{{ item.status }}</span>
         <span v-if="item.shareType" class="res-share" :class="`res-share--${item.shareLevel}`">{{ item.shareType }}</span>
       </component>
       <div v-if="item.provider || item.zone || item.updatedAt" class="res-meta">
@@ -79,10 +82,10 @@ const emit = defineEmits<{
     </ul>
     <p v-if="isRecallCandidate" class="res-pending">该目录已收录，正在录入，暂无详情与申请入口。</p>
     <footer v-if="showAction && !isRecallCandidate" class="res-foot">
-      <!-- A1（0605#1）：只有「已发布（可复用）」资源可申请。发现页投影已只返已发布态，
-           此处再以 status 门控为纵深防御——任何非可复用态（待发布等）不渲染申请按钮。 -->
+      <!-- A1（0605#1）：只有「已发布（机器值 active）」资源可申请。发现页投影已只返已发布态，
+           此处再以机器值门控为纵深防御——任何非 active 态（待发布等）不渲染申请按钮（比机器值不比中文）。 -->
       <button
-        v-if="item.status === '可复用'"
+        v-if="item.lifecycleStatus === 'active'"
         type="button"
         class="gov-btn gov-btn-primary"
         data-skill="request.create"

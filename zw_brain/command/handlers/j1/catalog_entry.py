@@ -13,6 +13,7 @@ from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoun
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import catalog as catalog_ser
 from zw_brain.domain.repositories.catalog import CatalogRepository
+from zw_brain.domain.resource_lifecycle import with_lifecycle_label
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 from zw_brain.shared.sanitization import safe_json
 
@@ -42,7 +43,7 @@ def _create_catalog_entry_draft(brain, deps, ctx, payload: dict[str, Any]) -> di
         for item in payload.get("items") or []:
             repo.upsert_item({**item, "catalog_code": catalog_code}, tenant_id=_DEFAULT_TENANT_ID)
         deps.append_audit_feed("catalog.entry.create_draft", catalog_code, "ok", actor)
-        return {"catalog_code": catalog_code, "lifecycle_status": "draft", "audit_id": audit_id}
+        return with_lifecycle_label({"catalog_code": catalog_code, "lifecycle_status": "draft", "audit_id": audit_id})
 
     return deps.write(ctx, payload, mutation)
 
@@ -92,7 +93,7 @@ def _transition_catalog_entry(brain, deps, ctx, catalog_code: str, status: str, 
             tenant_id=_DEFAULT_TENANT_ID,
         )
         deps.append_audit_feed(skill_id, catalog_code, "ok", actor)
-        return {"catalog_code": catalog_code, "lifecycle_status": status, "audit_id": audit_id}
+        return with_lifecycle_label({"catalog_code": catalog_code, "lifecycle_status": status, "audit_id": audit_id})
 
     return deps.write(ctx, {"catalog_code": catalog_code, "status": status}, mutation)
 
@@ -253,7 +254,7 @@ def _create_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any
             tenant_id=_DEFAULT_TENANT_ID,
         )
         deps.append_audit_feed("catalog.entry.reverse_draft.create", catalog_code, "ok", actor)
-        return {"catalog_code": catalog_code, "lifecycle_status": "draft", "schema_ref": schema_ref, "audit_id": audit_id}
+        return with_lifecycle_label({"catalog_code": catalog_code, "lifecycle_status": "draft", "schema_ref": schema_ref, "audit_id": audit_id})
 
     return deps.write(ctx, payload, mutation)
 
@@ -278,7 +279,7 @@ def _confirm_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, An
         summary["confirmed_by_audit"] = audit_id
         repo.upsert_from_resource(summary, tenant_id=_DEFAULT_TENANT_ID)
         deps.append_audit_feed("catalog.entry.reverse_draft.confirm", catalog_code, "ok", actor)
-        return {"catalog_code": catalog_code, "lifecycle_status": "pending_review", "audit_id": audit_id}
+        return with_lifecycle_label({"catalog_code": catalog_code, "lifecycle_status": "pending_review", "audit_id": audit_id})
 
     return deps.write(ctx, payload, mutation)
 
@@ -301,7 +302,7 @@ def _reject_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any
         summary["rejected_by_audit"] = audit_id
         repo.upsert_from_resource(summary, tenant_id=_DEFAULT_TENANT_ID)
         deps.append_audit_feed("catalog.entry.reverse_draft.reject", catalog_code, "ok", actor)
-        return {"catalog_code": catalog_code, "lifecycle_status": "rejected", "reason": reason, "audit_id": audit_id}
+        return with_lifecycle_label({"catalog_code": catalog_code, "lifecycle_status": "rejected", "reason": reason, "audit_id": audit_id})
 
     return deps.write(ctx, payload, mutation)
 
@@ -366,7 +367,7 @@ def _update_catalog_entry(brain, deps, ctx, payload: dict[str, Any]) -> dict[str
         for item in payload.get("items") or []:
             repo.upsert_item({**item, "catalog_code": catalog_code}, tenant_id=_DEFAULT_TENANT_ID)
         deps.append_audit_feed("catalog.entry.update", catalog_code, "ok", actor)
-        return {"catalog_code": catalog_code, "lifecycle_status": existing.lifecycle_status, "audit_id": audit_id}
+        return with_lifecycle_label({"catalog_code": catalog_code, "lifecycle_status": existing.lifecycle_status, "audit_id": audit_id})
 
     return deps.write(ctx, payload, mutation)
 
