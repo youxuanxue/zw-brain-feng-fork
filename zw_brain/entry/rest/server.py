@@ -266,6 +266,16 @@ class ThreadingRestServer(ThreadingMixIn, HTTPServer):
 
 
 class RestHandler(BaseHTTPRequestHandler):
+    def handle_one_request(self) -> None:  # noqa: N802 — BaseHTTPRequestHandler hook
+        # 客户端在服务端写响应途中提前断开（浏览器取消请求 / 刷新 / 关页）会让 socket 写抛
+        # BrokenPipeError / ConnectionResetError，默认会被 socketserver 当未捕获异常打 traceback
+        # 到 stderr，污染日志。在请求边界**一处**收口，覆盖所有写路径（_json/_serve_file/_redirect/
+        # _empty/_respond_*），断开即静默关连接——比逐方法 try 完整且更简洁。
+        try:
+            super().handle_one_request()
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True  # client gone — drop quietly, no traceback
+
     def _iaf_login_returns_json_envelope(self, qs: dict[str, list[str]]) -> bool:
         """SPA/API expect JSON (authorization_url…); top-level browser navigations use redirects."""
         fmt = str((qs.get("format") or [""])[-1]).strip().lower()
