@@ -1,0 +1,17 @@
+scope: feedback-0605-acceptance-gate
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-08
+kind: 决策签字
+evidence: >-
+  docs/decisions/feedback-0605-acceptance-gate-D54.md（产品研发负责人逐项裁决，2026-06-08）：
+  0605 验收回合两道 D28 GATE——GATE-1 代理服务注册角色口径：注册（resource.api.register/submit_review）=
+  部门操作员+部门管理员（业务运营员退出注册）、审核发布（review/publish/withdraw）= 部门管理员，
+  纠正 policy.py:112 把注册权错配给业务运营员、漏部门操作员的口径错（旧平台角色菜单 v5 实读：服务注册=部门操作员/管理员、融合服务受理=业务运营员）；
+  GATE-2 命名：采纳「反向编目审核」，与正向编目「目录审核」并存区分、守一词一概念（拒绝撞名同名）。
+  核查依据 old/问题反馈/问题反馈-0605/修复任务目标清单-验收回合.md §三（HEAD 代码 file:line 实读 + 旧平台 v5 + dump）。
+  本签字为实现前方向裁决（decision_only，不抬 .feature 状态）；T6/T7/T8、G1 实现落地后各带 D37 效果验收。
+decision_only: true
+covers: []
+# 属 D28 GATE（角色/权限口径变更 + 一词一概念命名）。登记为 D54（CLAUDE.md 决策索引）。
+# 承 D53：D53 裁定「API服务化→代理服务注册」方向，D54 补其下注册/审核角色口径必签项。
+# 承 D52.a：一词一概念，命名拒绝撞名。covers 留空：方向裁决，各修复任务落地后各带测量与 D37。
