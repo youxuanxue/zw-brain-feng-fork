@@ -25,7 +25,8 @@ test.describe('客户验收 — 部门操作员 J1', () => {
 
   test('P2 发现 → 发起申请入口可见', async ({ page }) => {
     await gotoHash(page, '#/discovery');
-    await expect(page.getByRole('heading', { name: '可复用资源' })).toBeVisible();
+    // D53①：找数据页标题随「只展示已发布资源」改版为「可申请资源」（原「可复用资源」退役）。
+    await expect(page.getByRole('heading', { name: '可申请资源' })).toBeVisible();
     await expect(page.getByText('功能建设中')).toHaveCount(0);
     const applyBtn = page.getByRole('button', { name: /发起申请|申请/i }).first();
     await expect(applyBtn).toBeVisible();
@@ -50,7 +51,7 @@ test.describe('客户验收 — 部门操作员 J1', () => {
     await expect(page.locator('#p2-search')).toHaveValue('营商环境', { timeout: 8_000 });
     // C-1 删演示单后真实库未必有「营商环境」命中：断言 NL 加速器真实驱动了搜索
     // （命中 N 条 或 诚实「未命中」状态文案），不依赖已删的演示资源存在。
-    await expect(page.getByText(/命中 \d+ 条可复用资源|未命中/).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/命中 \d+ 条可申请资源|未命中/).first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('P3 异议：新建 → 详情 → 提交至平台', async ({ page }) => {
@@ -86,6 +87,9 @@ test.describe('客户验收 — 部门操作员 J1', () => {
   });
 
   test('P4 任务详情 → 领凭据跳转', async ({ page }) => {
+    // D53⑥（F1/6.4#15）：交付回执收窄到「部门管理员」——P4 交付 / 领凭据归 MANAGER，
+    // OPERATER 已无访问（路由层重定向）。此处切到 MANAGER 走真实交付旅程。
+    await setRole(page, 'ROLE_ORGAN_MANAGER');
     await gotoHash(page, '#/delivery-exchange');
     await expect(page.getByRole('heading', { name: '交付任务' })).toBeVisible();
     const taskLink = page.locator('a[href*="#/delivery-exchange/"]').first();
@@ -111,6 +115,8 @@ test.describe('客户验收 — 部门操作员 J1', () => {
     // D11：request_id 必须存在于库内；动态取第一条 granted 交付。
     // C-1 凭据诚实化：真实授权表无 per-grant 凭据 → legacy granted 诚实显「未签发」，
     // 仅当凭据真实签发时才有 curl/Python 三语样例。断言二者之一，不再假设捏造凭据。
+    // D53⑥：凭据页归「部门管理员」（OPERATER 路由层已重定向）。切 MANAGER 走真实凭据旅程。
+    await setRole(page, 'ROLE_ORGAN_MANAGER');
     const reqId = await firstDeliveryRequestId(page, 'granted');
     test.skip(!reqId, 'no granted delivery_task in snapshot');
     await gotoHash(page, `#/delivery-exchange/credential/${reqId}`);

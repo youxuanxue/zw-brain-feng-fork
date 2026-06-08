@@ -98,7 +98,9 @@ test.describe('ops-service-invocation 调用记录段 no-permission=invisible', 
     const shotDir = process.env.ZW_E2E_SHOT_DIR || '/tmp/zw-e2e-shots';
 
     // 授权岗位：凭据页加载 + 「调用记录」段渲染。
-    for (const role of ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT']) {
+    // D53⑥（F1/6.4#15）：领数据/凭据页收窄到「部门管理员 + 安全审计」——BUSIAUDIT（业务运营员）
+    // 已无该场景、路由层不可达，从授权岗位集合移除。
+    for (const role of ['ROLE_ORGAN_MANAGER', 'ROLE_SECURITY_AUDIT']) {
       await setRole(page, role);
       await gotoHash(page, `#/delivery-exchange/credential/${reqId}`);
       await expect(page.getByRole('heading', { name: credHeading })).toBeVisible();
@@ -108,10 +110,11 @@ test.describe('ops-service-invocation 调用记录段 no-permission=invisible', 
       }
     }
 
-    // 申请人 OPERATER：凭据页仍可见（本人申请），但「调用记录」整段从 DOM 消失。
+    // 申请人 OPERATER：D53⑥ 后经部门管理员承接、不再进入领数据——凭据页 +「调用记录」段
+    // 对其整体不可达（路由层重定向，比页内 v-if 更强；「无权=不可见」在更外层兑现）。
     await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, `#/delivery-exchange/credential/${reqId}`);
-    await expect(page.getByRole('heading', { name: credHeading })).toBeVisible();
+    await expect(page.getByRole('heading', { name: credHeading })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: '调用记录' })).toHaveCount(0);
     await page.screenshot({ path: `${shotDir}/ops-invocations-OPERATER-invisible.png`, fullPage: true });
   });

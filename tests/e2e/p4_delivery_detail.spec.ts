@@ -6,7 +6,8 @@ test.describe('P4 交付任务详情', () => {
     await skipUnlessBackend(page, testInfo);
     await page.goto('/');
     await waitAppReady(page);
-    await setRole(page, 'ROLE_ORGAN_OPERATER');
+    // D53⑥（F1/6.4#15）：交付回执收窄到「部门管理员」——P4 交付页归 MANAGER，OPERATER 路由层重定向。
+    await setRole(page, 'ROLE_ORGAN_MANAGER');
   });
 
   test('点击任务编号进入详情非占位', async ({ page }) => {

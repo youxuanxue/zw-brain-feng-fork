@@ -1,7 +1,8 @@
 import { test, expect, request as pwRequest, type APIRequestContext } from '@playwright/test';
 import { E2E_BASE_URL, gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
 
-// 反馈 5/6：分型资源详情（库表/文件/文件夹/接口）+ 目录详情编制规范字段。
+// 反馈 5/6：分型资源详情（库表/文件/接口）+ 目录详情编制规范字段。
+// 资源类型已收敛为 库表/文件/API（D53②：文件夹/链接退役，folder/url 归一为 file）。
 // 锚点资源/目录全部从真实 seed 库现取（D11 禁 Mock）。
 //
 // 锚点解析（kind→真实 resource_code + 一个挂资源目录）在 beforeAll 用独立 APIRequestContext
@@ -22,9 +23,10 @@ async function resolveAnchors(api: APIRequestContext): Promise<Anchors> {
   if (!browse.ok()) return out;
   const body = (await browse.json()) as { items?: Array<{ catalog_code?: string }> };
   const codes = (body.items ?? []).map((i) => i.catalog_code).filter((c): c is string => Boolean(c));
-  const wanted = new Set(['table', 'file', 'url', 'folder', 'service']);
+  // 资源类型收敛为 库表/文件/API（D53②）——不再解析已退役的 url/folder 锚点。
+  const wanted = new Set(['table', 'file', 'service']);
   for (const code of codes) {
-    if (out.byKind.table && out.byKind.file && out.byKind.url && out.byKind.service) break;
+    if (out.byKind.table && out.byKind.file && out.byKind.service) break;
     const listResp = await api.post(`${E2E_BASE_URL}/api/skills/catalog.resource.list`, {
       data: { role: 'ROLE_ORGAN_MANAGER', catalog_code: code, limit: 50 },
     });
@@ -82,16 +84,9 @@ test.describe('分型资源详情（反馈 6）', () => {
     await expect(block).toContainText('物理表名');
   });
 
-  test('链接资源 → 链接信息分型块', async ({ page }) => {
-    const code = anchors.byKind.url;
-    test.skip(!code, '真实库无链接资源');
-    await gotoHash(page, `#/discovery/resource/${encodeURIComponent(code!)}`);
-    await page.waitForTimeout(800);
-    await expect(page.getByTestId('resource-kind-badge')).toHaveText('链接');
-    await expect(
-      page.getByTestId('typed-detail-block').filter({ hasText: '链接信息' }),
-    ).toBeVisible();
-  });
+  // 「链接资源 → 链接信息分型块」用例随 D53② 链接(url)类型退役一并删除：资源类型只剩
+  // 库表/文件/API，存量 url 行已归一为 file（由 test_discovery_snapshot_projection
+  // ::test_enrich_discovery_resources_folds_legacy_kind 在后端守 folder/url→file 折叠）。
 
   test('接口资源 → 接口信息分型块（数据稀疏也渲染模板，诚实空态）', async ({ page }) => {
     const code = anchors.byKind.service;
