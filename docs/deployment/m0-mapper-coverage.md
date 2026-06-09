@@ -22,7 +22,7 @@
 | `dsp_connect` | 56 | ✅ 已覆盖 | connect（44 dc_* 表） |
 | `dsp_example` | 11 | ✅ 已覆盖 | topic_package（5 data_example_* 表 → TopicPackage） |
 | `dsp_handling` | 10 | ✅ 已覆盖 | objection（8 data_objection_* 表）；data_message_info 复造（§1.3 消息中心） |
-| `dsp_bsp` | 96 | ✅ 已覆盖（主体） | governance（23 表：20 pub_*/sys_* + 3 manifest → Org/Actor/Role）；xxl_job_* / webfinal_log_* 复造（§1.3 调度 / 审计日志由集团统一） |
+| `dsp_bsp` | 96 | ✅ 已覆盖（主体） | governance（24 表：21 pub_*/sys_* + 3 manifest → Org/Actor/Role/Dict）；xxl_job_* / webfinal_log_* 复造（§1.3 调度 / 审计日志由集团统一） |
 | `dsp_service` | 27 | ✅ 已覆盖（核心摘要） | service（8 api_service_* 表 → ResourceApi/CapabilityPackage 摘要）；api_check_info / fuse / proxy 详细配置 复造（§1.3 API 服务网关 forbidden） |
 | `dsp_pipelines` | 62 | ✅ 已覆盖（摘要） | pipelines（3 表 subscribe_job / exchange_executor / exchange_pipelines 摘要）；ETL 任务运行细节 ~59 表 复造（§1.3 数据治理中心 forbidden） |
 | `dsp_perform` | 18 | ✅ 已覆盖（摘要） | projections.PerformMapper（kpi_index_info 1 表摘要）；kpi 详情/计算/规则 ~17 表 复造（§1.3 绩效考核 forbidden — D10） |
@@ -75,7 +75,7 @@
 
 ### 2.5 dsp_bsp（96 表）→ GovernanceMapper 主体 + 大量 forbidden 复造
 
-`governance.py` HANDLED_TABLES = 23 表（20 数据表：`pub_organ`/`pub_region`/`pub_user`/`pub_role`/`pub_user_role`/`pub_user_organ`/`pub_user_organ_role`/`pub_resource`/`pub_function`/`pub_role_function`/`pub_role_resource`/`pub_apps`/`sys_department`/`sys_region`/`sys_user`/`sys_role`/`sys_user_role`/`sys_role_permission`/`sys_user_department`/`sys_permission` + 3 manifest：`iaf_binding_manifest` / `role_mapping_manifest` / `capability_mapping_manifest`）→ `Org` / `Actor` / `Role` / `Capability` 主线。
+`governance.py` HANDLED_TABLES = 24 表（21 数据表：`pub_organ`/`pub_region`/`pub_dict`/`pub_user`/`pub_role`/`pub_user_role`/`pub_user_organ`/`pub_user_organ_role`/`pub_resource`/`pub_function`/`pub_role_function`/`pub_role_resource`/`pub_apps`/`sys_department`/`sys_region`/`sys_user`/`sys_role`/`sys_user_role`/`sys_role_permission`/`sys_user_department`/`sys_permission` + 3 manifest：`iaf_binding_manifest` / `role_mapping_manifest` / `capability_mapping_manifest`）→ `Org` / `Actor` / `Role` / `Capability` / `Dict`（枚举字典，确定性带出 options 真源）主线。
 
 未路由 ~74 表：
 - `xxl_job_*` 8 表 → **复造**（集团统一调度，§1.3）

@@ -65,6 +65,7 @@ class GovernanceMapper:
     HANDLED_TABLES = {
         "pub_organ",
         "pub_region",
+        "pub_dict",
         "pub_user",
         "pub_role",
         "pub_user_role",
@@ -231,6 +232,39 @@ class GovernanceMapper:
             stats=stats,
         )
         stats.bump("pub_region")
+
+    def _map_dict(self, row: dict[str, Any], stats: ImportStats, legacy_system: str, *, dry_run: bool = False) -> None:
+        # pub_dict: KIND 是字典分组（organLine / data_sensity_level / catalog_data_supply_way …），
+        # 一个 KIND 下多条 CODE↔NAME，作枚举字段 options 真源；TYPE 是层级分类，留 profile。
+        dict_type = str(row.get("KIND") or row.get("TYPE") or "").strip()
+        code = str(row["CODE"])
+        if not dict_type:
+            stats.bump("pub_dict", "errors")
+            stats.skipped.setdefault("pub_dict.missing_field:KIND", 0)
+            stats.skipped["pub_dict.missing_field:KIND"] += 1
+            return
+        payload = {
+            "dict_type": dict_type,
+            "code": code,
+            "name": row.get("NAME") or code,
+            "parent_code": row.get("PARENT_CODE") or None,
+            "seq": _int_or_none(row.get("SORT_ORDER")),
+            "status": _status_flag(row.get("STATUS")),
+            "source_ref": f"{legacy_system}:pub_dict:{dict_type}:{code}",
+            "profile_json": {"type": row.get("TYPE"), "app_code": row.get("APP_CODE")},
+        }
+        self._write_projection("dict_projection", dry_run, lambda: self.governance_repo.upsert_dict(payload, tenant_id=self.tenant_id), stats)
+        self._write_legacy_mapping(
+            legacy_system=legacy_system,
+            legacy_object_type="pub_dict",
+            legacy_object_ref=f"{dict_type}:{code}",
+            canonical_type="DictProjectionRecord",
+            canonical_ref=f"{dict_type}:{code}",
+            evidence={"name": row.get("NAME"), "type": dict_type},
+            dry_run=dry_run,
+            stats=stats,
+        )
+        stats.bump("pub_dict")
 
     def _map_user(self, row: dict[str, Any], stats: ImportStats, legacy_system: str, *, dry_run: bool = False) -> None:
         external_id = str(row["ID"])
@@ -928,6 +962,15 @@ def _status_flag(raw: Any) -> str:
     if raw in ("0", 0, False) or normalized in {"inactive", "disabled", "disable", "n", "no"}:
         return "inactive"
     return "unknown"
+
+
+def _int_or_none(raw: Any) -> int | None:
+    if raw is None or raw == "":
+        return None
+    try:
+        return int(str(raw).strip())
+    except (TypeError, ValueError):
+        return None
 
 
 def _parent_from_trace(trace_code: Any, self_code: Any) -> str | None:

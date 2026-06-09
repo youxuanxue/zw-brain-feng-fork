@@ -77,6 +77,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     {"skillId": "approval.review_decide", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["approval.review_decide.execute"]},
     {"skillId": "backflow.confirm", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["backflow.confirm.execute"]},
     {"skillId": "request.create", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["request.create.execute"]},
+    {"skillId": "request.draft.ai_suggest", "mode": "write", "auditClass": "write-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["request.draft.ai_suggest.execute"]},
+    {"skillId": "request.field.update", "mode": "write", "auditClass": "write-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["request.field.update.execute"]},
     {"skillId": "request.submit", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["request.submit.execute"]},
     {"skillId": "require.intent.refine", "mode": "write", "auditClass": "write-normal", "humanConfirmationRequired": true, "roles": [], "permissions": ["require.intent.refine.execute"]},
     {"skillId": "require.intent.review", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["require.intent.review.execute"]},
@@ -224,4 +226,4 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
   ] },
 ];
 
-export const UNMAPPED_WEBUI_SKILLS: string[] = ["assistant.investigation_summary", "demand.list", "demand.phase.advance", "demand.register", "platform.docs.read", "platform.docs.search", "projection.status.query", "search.intent.parse"];
+export const UNMAPPED_WEBUI_SKILLS: string[] = ["assistant.investigation_summary", "demand.list", "demand.phase.advance", "demand.register", "platform.docs.read", "platform.docs.search", "projection.status.query", "reference.dict.options", "reference.organ.options", "reference.region.options", "search.intent.parse"];

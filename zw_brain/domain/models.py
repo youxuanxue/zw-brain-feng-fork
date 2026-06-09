@@ -902,6 +902,28 @@ class RegionProjectionRecord(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 
 
+class DictProjectionRecord(Base):
+    """枚举字典投影（dsp_bsp.pub_dict）。确定性带出枚举字段 options 的真源。
+
+    一个 dict_type（如 organLine）下多条 code↔name，parent_code 支持层级字典。
+    """
+
+    __tablename__ = "dict_projection"
+    __table_args__ = (UniqueConstraint("tenant_id", "dict_type", "code", name="uq_dict_projection_type_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    dict_type: Mapped[str] = mapped_column(String(64), index=True)
+    code: Mapped[str] = mapped_column(String(64), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    parent_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    seq: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), index=True, default="active")
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    profile_json: Mapped[dict] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
 class RoleProjectionRecord(Base):
     __tablename__ = "role_projection"
     __table_args__ = (UniqueConstraint("tenant_id", "role_code", name="uq_role_projection_tenant_code"),)

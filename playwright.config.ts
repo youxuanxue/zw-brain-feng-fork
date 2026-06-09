@@ -31,6 +31,7 @@ export default defineConfig({
     'typed_resource_detail.spec.ts',
     'role_projection_views.spec.ts',
     'perf_loading.spec.ts',
+    'form_autofill.spec.ts',
   ],
   fullyParallel: false,
   workers: 1,

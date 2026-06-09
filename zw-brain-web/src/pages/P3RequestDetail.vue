@@ -8,7 +8,9 @@ import { canPerformAction } from '@/lib/pageAccess';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
+import EditableFormPanel from '@/components/EditableFormPanel.vue';
 import { mapDetailRows } from '@/lib/detailDisplay';
+import type { FormField } from '@/lib/formFields';
 import { formatTodoStatus } from '@/lib/statusLabels';
 
 const route = useRoute();
@@ -41,6 +43,12 @@ const prefilled = computed(() => {
       source: it.source ? String(it.source) : undefined,
     }))
   );
+});
+
+// 表单填报（form-autofill）：草稿/待补正态可原地编辑的字段（含确定性带出 + AI建议 + 锁定）。
+const formFields = computed<FormField[]>(() => {
+  const arr = req.value?.formFields;
+  return Array.isArray(arr) ? (arr as unknown as FormField[]) : [];
 });
 
 const headerMeta = computed(() => {
@@ -167,6 +175,11 @@ async function supplement() {
     <section class="panel">
       <PageFocusHeader :title="id" :meta="headerMeta" />
       <DetailPanel v-if="rows.length" title="基本信息" :rows="rows" />
+      <EditableFormPanel
+        v-if="(isDraft || canResubmit) && formFields.length"
+        :request-id="id"
+        :model-fields="formFields"
+      />
       <DetailPanel v-if="prefilled.length" title="系统预填字段" :rows="prefilled" />
       <p class="aux-links">
         <a href="#/request-flow/objection">我的异议</a>

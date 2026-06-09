@@ -324,6 +324,12 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "request.submit": request.handler_request_submit,
     "request.view": request.handler_request_view,
     "request.list": request.handler_request_list,
+    # 表单填报（form-autofill）：人原地修订（改即锁）+ AI建议填充 + 参照选择器带出 options
+    "request.field.update": request.handler_request_field_update,
+    "request.draft.ai_suggest": request.handler_request_draft_ai_suggest,
+    "reference.organ.options": request.handler_reference_organ_options,
+    "reference.region.options": request.handler_reference_region_options,
+    "reference.dict.options": request.handler_reference_dict_options,
     # J1 — supply demand (3 cap, E5 F14 browser)
     "demand.register": supply_demand_handlers.handler_demand_register,
     "demand.phase.advance": supply_demand_handlers.handler_demand_phase_advance,

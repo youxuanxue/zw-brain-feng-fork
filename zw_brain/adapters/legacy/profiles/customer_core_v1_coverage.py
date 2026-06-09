@@ -22,7 +22,8 @@ from __future__ import annotations
 AUDIT_ONLY_SKIP_ENTRIES: list[dict[str, str]] = [
     # ---- dsp_bsp ----
     {"schema": "dsp_bsp", "table": "base_dict", "reason": "bsp_static_dictionary"},
-    {"schema": "dsp_bsp", "table": "pub_dict", "reason": "bsp_static_dictionary"},
+    # pub_dict 已提升为真导入（GovernanceMapper._map_dict → dict_projection），
+    # 作枚举字段确定性带出 options 真源；不再 audit-only-skip。
     {"schema": "dsp_bsp", "table": "pub_config", "reason": "bsp_static_dictionary"},
     {"schema": "dsp_bsp", "table": "pub_holiday", "reason": "bsp_static_dictionary"},
     {"schema": "dsp_bsp", "table": "pub_icon", "reason": "bsp_static_dictionary"},

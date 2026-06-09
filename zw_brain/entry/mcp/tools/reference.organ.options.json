@@ -1,0 +1,43 @@
+{
+  "name": "reference.organ.options",
+  "description": "机构选择器读取参照主数据（18750 机构）：keyword 模糊匹配名称/编码 + 可选 reference_region_code 区划过滤 + offset/limit 分页（DB 层切片，硬上限 50），返回当前页 options 与命中总数 total。选机构后的区划带出由 request.field.update 服务端完成，本能力不做点查。只读，不写库。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "reference_region_code": {
+        "type": "string"
+      },
+      "keyword": {
+        "type": "string"
+      },
+      "offset": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 50
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-audit-class": "read-default",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "reference.organ.options.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

@@ -1320,6 +1320,71 @@
       "args": []
     },
     {
+      "skill_id": "reference.dict.options",
+      "title": "字典枚举选项",
+      "description": "表单枚举字段下拉读取字典参照（pub_dict KIND 分组，如 organLine / data_sensity_level）：传 dict_type 取该分组下 code↔name 选项。只读，不写库。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "dict_type",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "reference.organ.options",
+      "title": "机构参照选项",
+      "description": "机构选择器读取参照主数据（18750 机构）：keyword 模糊匹配名称/编码 + 可选 reference_region_code 区划过滤 + offset/limit 分页（DB 层切片，硬上限 50），返回当前页 options 与命中总数 total。选机构后的区划带出由 request.field.update 服务端完成，本能力不做点查。只读，不写库。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "keyword",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "offset",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "reference_region_code",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "reference.region.options",
+      "title": "区划参照选项",
+      "description": "表单区划选择器读取行政区划树：传 parent_code 取直接下级区划，逐级下钻。只读，不写库。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "parent_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "parent_region_code",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
       "skill_id": "registry.artifact.export",
       "title": "导出注册工件",
       "description": "只读导出 skill manifest 与能力包注册工件。",
@@ -5461,6 +5526,56 @@
         },
         {
           "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "request.draft.ai_suggest",
+      "title": "AI 建议填充草稿",
+      "description": "对草稿申请的空字段生成 AI 建议值并标记为「AI建议·待确认」；只填空、不覆盖人工填写或确定性带出的字段。AI 建议永不自动提交——人核对修订后手动提交即审批担责。",
+      "mode": "write",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "request.field.update",
+      "title": "原地修订申请字段",
+      "description": "人工原地修订草稿申请的单个字段；改后标记为人工填写并锁定，此后自动填充/AI 建议不再覆盖；修改触发字段重新派生。",
+      "mode": "write",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "field",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "request_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "value",
           "required": false,
           "type": "string"
         }

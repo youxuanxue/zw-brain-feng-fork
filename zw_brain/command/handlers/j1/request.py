@@ -25,10 +25,28 @@ from zw_brain.domain.approval_flow_walker import (
     start_approval_workflow_from_schema,
 )
 from zw_brain.domain.resource_kind import canonical_resource_kind
+from zw_brain.domain.services import field_derivation, form_fill_service
+from zw_brain.domain.services.reference_service import ReferenceService
 from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 _logger = logging.getLogger(__name__)
+
+
+def _reference() -> ReferenceService:
+    return ReferenceService()
+
+
+def _resolve_actor_org(actor: str, reference: ReferenceService) -> dict[str, Any] | None:
+    """身份带出：actor → 其组织（org_code/org_name）。best-effort，未命中返 None（诚实，不捏造）。"""
+    try:
+        rec = reference.repo.get_actor_by_external_id(actor, tenant_id=_DEFAULT_TENANT_ID)
+        if rec is None or not rec.org_code:
+            return None
+        organ = reference.organ(rec.org_code, tenant_id=_DEFAULT_TENANT_ID)
+        return {"org_code": rec.org_code, "org_name": (organ or {}).get("org_name") or rec.org_code}
+    except Exception:  # noqa: BLE001 — 身份带出旁路，失败不破创建主路径
+        return None
 
 
 def _extract_shared_type(options: dict[str, Any], resource: dict[str, Any]) -> Any:
@@ -365,6 +383,23 @@ def _create_request(
             },
             "summaryConfirmed": False,
         }
+        # 表单填报（form-autofill）：装配可编辑字段 + 字段级 provenance。
+        # 确定性带出（身份/机构→区划，derived 权威）+ AI 建议（ai_suggested 待确认，只填空）；
+        # 用户在表单实填的字段=human（此后 autofill/AI 不覆盖）。AI 建议字段经
+        # payload.ai_suggested_fields 显式传入（与用户实填分离，诚实区分来源），缺省 {}。
+        ref = _reference()
+        actor_org = _resolve_actor_org(actor, ref)
+        ai_suggestions = options.get("ai_suggested_fields")
+        ai_suggestions = ai_suggestions if isinstance(ai_suggestions, dict) else {}
+        user_values = {k: options.get(k) for k in form_fill_service.FIELD_KEYS if options.get(k) not in (None, "")}
+        ff_values, ff_prov = form_fill_service.build_initial(
+            user_values, actor_org=actor_org, ai_suggestions=ai_suggestions, reference=ref, tenant_id=_DEFAULT_TENANT_ID
+        )
+        # 只持久化模型（值 + provenance）；formFields 是只读投影，由 _record_to_request_card
+        # 读时现算（单一事实源，避免同值两处需手同步）。
+        request["fieldValues"] = ff_values
+        request["fieldProvenance"] = ff_prov
+
         # Action C — snapshot mutations stay via brain_legacy escape hatch;
         # in-memory snapshot dict elimination is Action D scope. Reading still
         # goes through deps.view.* facades above.
@@ -460,6 +495,10 @@ def _submit_request(brain, deps, ctx, request_id: str, role: str, confirmed: boo
             )
             delivery["aiSummary"]["summary"] = "当前处于准入判定前，不应提前下发基层任务。"
             delivery["aiSummary"]["nextAction"] = "请先完成审批承接，再决定是否进入补录链路。"
+        # 提交担责审计（Q2：人手动提交=审批担责，不强制逐条确认，但留 AI 来源痕迹）。
+        request["submitProvenanceAudit"] = form_fill_service.provenance_audit_snapshot(
+            request.get("fieldProvenance") or {}
+        )
         deps.append_audit_feed(
             "request.submit" if is_draft_submit else "request.resubmit", request_id, "ok", actor
         )
@@ -493,6 +532,117 @@ def _submit_request(brain, deps, ctx, request_id: str, role: str, confirmed: boo
         return out
 
     return deps.write(ctx, {"request_id": request_id}, mutation)
+
+def _update_field(brain, deps, ctx, request_id: str, field: str, value: Any, role: str) -> dict[str, Any]:
+    """人原地修订草稿的一个字段 → 标 human+locked（此后 autofill/AI 不再覆盖），随后重跑派生。
+
+    派生字段（kind=derived）只读、不可人改（派生权威，承方案口径）——拒绝并提示。
+    """
+    if not form_fill_service.is_known_field(field):
+        raise InvalidStateError(f"request.field.update: 未知表单字段 {field}")
+    spec = next((s for s in form_fill_service.FORM_FIELD_SPECS if s["key"] == field), None)
+    if spec and spec["kind"] == "derived":
+        raise InvalidStateError(f"request.field.update: 字段 {field} 为自动带出（派生）值，只读不可手填")
+
+    request = deps.view.requests.find_by_id(request_id)
+    if request is None:
+        raise NotFoundError(request_id)
+    if request.get("status") not in _SUBMITTABLE_STATUSES:
+        raise InvalidStateError("request.field.update: 仅草稿/待补正态可原地修订")
+
+    def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+        values = dict(request.get("fieldValues") or {})
+        provenance = dict(request.get("fieldProvenance") or {})
+        ref = _reference()
+        values, provenance = field_derivation.apply_human_edit(
+            values, provenance, field, value, actor=actor, reference=ref, tenant_id=_DEFAULT_TENANT_ID
+        )
+        # 持久化只存模型；formFields 现算用于本次响应（与 _record_to_request_card 同源）。
+        request["fieldValues"] = values
+        request["fieldProvenance"] = provenance
+        deps.append_audit_feed("request.field.update", request_id, "ok", actor)
+        return {"request_id": request_id, "field": field, "formFields": form_fill_service.assemble_form_fields(values, provenance)}
+
+    return deps.write(ctx, {"request_id": request_id, "field": field}, mutation)
+
+
+def _ai_suggest_draft(brain, deps, ctx, request_id: str, role: str) -> dict[str, Any]:
+    """对草稿空字段生成 AI 建议（标 ai_suggested·待确认）。永不自动提交——人核对/修订后手动提交=担责。
+
+    复用 application.draft.suggest 助手产出建议，经 orchestrate_fill 只填**空且非 human/derived**的
+    可建议字段；人已填/派生字段一律不动（承方案口径）。
+    """
+    from zw_brain.command.handlers.j1 import application_assistants
+
+    request = deps.view.requests.find_by_id(request_id)
+    if request is None:
+        raise NotFoundError(request_id)
+    if request.get("status") not in _SUBMITTABLE_STATUSES:
+        raise InvalidStateError("request.draft.ai_suggest: 仅草稿/待补正态可生成 AI 建议")
+
+    def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+        suggest = application_assistants._do_draft_suggest(
+            brain,
+            deps,
+            ctx,
+            {
+                "resource_name": request.get("resourceName") or "",
+                "applicant_org": request.get("applicantDept") or request.get("applicant") or "",
+                "use_case": request.get("purpose") or "",
+                "request_id": request_id,
+            },
+        )
+        suggested = suggest.get("suggested_fields") or {}
+        values = dict(request.get("fieldValues") or {})
+        provenance = dict(request.get("fieldProvenance") or {})
+        values, provenance = field_derivation.orchestrate_fill(
+            values, provenance, reference=_reference(), tenant_id=_DEFAULT_TENANT_ID, ai_suggestions=suggested
+        )
+        request["fieldValues"] = values
+        request["fieldProvenance"] = provenance
+        deps.append_audit_feed("request.draft.ai_suggest", request_id, "ok", actor)
+        return {
+            "request_id": request_id,
+            "formFields": form_fill_service.assemble_form_fields(values, provenance),
+        }
+
+    return deps.write(ctx, {"request_id": request_id, "kind": "ai_suggest"}, mutation)
+
+
+def _reference_options(deps, kind: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """前端选择器取参照 options：机构(搜索)/区划(下钻)/字典(枚举)。只读，不写库。"""
+    ref = _reference()
+    tenant_id = _DEFAULT_TENANT_ID
+    if kind == "region":
+        parent = str(payload.get("parent_code") or payload.get("parent_region_code") or "")
+        items = ref.region_children(parent, tenant_id=tenant_id) if parent else []
+        return {"kind": "region", "parent_code": parent, "options": items}
+    if kind == "dict":
+        dict_type = str(payload.get("dict_type") or "")
+        if not dict_type:
+            raise InvalidStateError("reference.dict.options: dict_type 必填")
+        return {"kind": "dict", "dict_type": dict_type, "options": ref.dict_options(dict_type, tenant_id=tenant_id)}
+    if kind == "organ":
+        # 选择器机构搜索分页：keyword 模糊 + 可选 reference_region_code 过滤 + offset/limit，DB 层切片。
+        # 注：刻意不收 org_code 做点查——选机构后的区划带出由 request.field.update 服务端
+        # 经 reference.organ() 完成；且 org_code 会与框架注入的 actor 上下文同名字段相撞。
+        # 入参用 reference_region_code，避开注入的 current_org_code/region_code 等上下文键。
+        region_code = str(payload.get("reference_region_code") or "")
+        keyword = str(payload.get("keyword") or "")
+        offset = max(0, int(payload.get("offset") or 0))
+        limit = min(50, max(1, int(payload.get("limit") or 20)))  # 硬上限 50，挡恶意大 limit
+        page = ref.search_organ(keyword=keyword, region_code=region_code, offset=offset, limit=limit, tenant_id=tenant_id)
+        return {
+            "kind": "organ",
+            "region_code": region_code,
+            "keyword": keyword,
+            "options": page["options"],
+            "total": page["total"],
+            "offset": offset,
+            "limit": limit,
+        }
+    raise InvalidStateError(f"reference options: 未知类型 {kind}")
+
 
 def _get_request(brain, deps, ctx, request_id: str) -> dict[str, Any]:
     store = deps.state_store.database_store
@@ -547,4 +697,30 @@ def handler_request_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
     return {"items": brain.list_requests()}
+
+
+def handler_request_field_update(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None
+    return _update_field(
+        brain, deps, ctx,
+        str(payload["request_id"]), str(payload["field"]), payload.get("value", ""),
+        str(payload.get("role", ctx.role)),
+    )
+
+
+def handler_request_draft_ai_suggest(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None
+    return _ai_suggest_draft(brain, deps, ctx, str(payload["request_id"]), str(payload.get("role", ctx.role)))
+
+
+def handler_reference_organ_options(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    return _reference_options(deps, "organ", payload)
+
+
+def handler_reference_region_options(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    return _reference_options(deps, "region", payload)
+
+
+def handler_reference_dict_options(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    return _reference_options(deps, "dict", payload)
 

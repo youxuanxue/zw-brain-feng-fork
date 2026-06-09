@@ -704,6 +704,48 @@
       "sideEffects": []
     },
     {
+      "id": "reference.dict.options",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
+      "id": "reference.organ.options",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
+      "id": "reference.region.options",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
       "id": "registry.artifact.export",
       "mode": "read",
       "humanConfirmationRequired": false,
@@ -2423,6 +2465,38 @@
         "state_machine_transition",
         "task_dispatch",
         "blockchain_anchor"
+      ]
+    },
+    {
+      "id": "request.draft.ai_suggest",
+      "mode": "write",
+      "humanConfirmationRequired": false,
+      "auditClass": "write-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "request.field.update",
+      "mode": "write",
+      "humanConfirmationRequired": false,
+      "auditClass": "write-default",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
       ]
     },
     {

@@ -91,6 +91,13 @@ PERMISSION_ROLES = {
     # J1 申请：发起 → 审 → 授权
     "request.create.execute": {"ROLE_ORGAN_OPERATER"},
     "request.submit.execute": {"ROLE_ORGAN_OPERATER"},
+    # 表单填报（form-autofill）：原地修订与创建同口径（操作员发起/编辑草稿）；
+    # 参照选择器为只读带出，放开给填表/审查角色（同 catalog 只读类口径）。
+    "request.field.update.execute": {"ROLE_ORGAN_OPERATER"},
+    "request.draft.ai_suggest.execute": {"ROLE_ORGAN_OPERATER"},
+    "reference.organ.options.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "reference.region.options.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "reference.dict.options.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "approval.case.decide.execute": {"ROLE_ORGAN_MANAGER"},
     "approval.review_decide.execute": {"ROLE_ORGAN_MANAGER"},
     "supplement.submit.execute": {"ROLE_ORGAN_OPERATER"},

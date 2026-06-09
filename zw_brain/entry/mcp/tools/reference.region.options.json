@@ -1,0 +1,34 @@
+{
+  "name": "reference.region.options",
+  "description": "表单区划选择器读取行政区划树：传 parent_code 取直接下级区划，逐级下钻。只读，不写库。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "parent_code": {
+        "type": "string"
+      },
+      "parent_region_code": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-audit-class": "read-default",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "reference.region.options.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

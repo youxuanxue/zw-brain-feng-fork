@@ -100,6 +100,11 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `demand.list` | j1 | `SupplyDemandRepository.list_demands` | supply_demand_handlers |
 | `request.submit` | j1 | `submit_request` | 6207 |
 | `request.view` | j1 | `get_request` | 3309 |
+| `request.field.update` | j1 | `_update_field` | form-autofill |
+| `request.draft.ai_suggest` | j1 | `_ai_suggest_draft` | form-autofill |
+| `reference.organ.options` | j1 | `_reference_options` | form-autofill |
+| `reference.region.options` | j1 | `_reference_options` | form-autofill |
+| `reference.dict.options` | j1 | `_reference_options` | form-autofill |
 | `require.intent.refine` | j1 | `refine_requirement_intent` | 4035 |
 | `require.intent.review` | j1 | `review_requirement_intent` | 4050 |
 | `require.intent.submit` | j1 | `submit_requirement_intent` | 4032 |

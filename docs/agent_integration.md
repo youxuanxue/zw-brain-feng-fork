@@ -153,8 +153,13 @@
 | GET | `/api/skills/provider.view` | 查看供给侧治理 | `get_provider_view` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/recommendation.rule.commit` | 提交推荐规则入库 | `post_recommendation_rule_commit` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/recommendation.similar_catalog.suggest` | 智能推荐相似目录 | `post_recommendation_similar_catalog_suggest` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/reference.dict.options` | 字典枚举选项 | `get_reference_dict_options` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/reference.organ.options` | 机构参照选项 | `get_reference_organ_options` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/reference.region.options` | 区划参照选项 | `get_reference_region_options` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/registry.artifact.export` | 导出注册工件 | `get_registry_artifact_export` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/request.create` | 发起标准复用申请 | `post_request_create` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/request.draft.ai_suggest` | AI 建议填充草稿 | `post_request_draft_ai_suggest` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/request.field.update` | 原地修订申请字段 | `post_request_field_update` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/request.list` | 查看申请列表 | `get_request_list` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/request.submit` | 重新提交申请 | `post_request_submit` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/request.view` | 查看申请详情 | `get_request_view` | `zw_brain/entry/rest/openapi.json` |
@@ -275,6 +280,9 @@
 | `platform.docs.search` | read | False | 在 zw-brain 仓库 docs/ 等只读文档中按关键词检索，返回路径、标题与摘要片段，供平台问答 Agent 定位资料。 | True | `zw_brain/entry/mcp/tools/platform.docs.search.json` |
 | `projection.status.query` | read | False | 聚合 search / 共享专题 / 质量 / 血缘 / 运营统计 5 类投影 record，按类型返回 total_rows / latest_updated_at / failed_count / failure_summary，给 业务运营员 / 安全审计员 看投影 pipeline 健康度。只读，零 side effect。 | True | `zw_brain/entry/mcp/tools/projection.status.query.json` |
 | `provider.view` | read | False | 查看模板版本、目录状态、资源与治理建议。 | True | `zw_brain/entry/mcp/tools/provider.view.json` |
+| `reference.dict.options` | read | False | 表单枚举字段下拉读取字典参照（pub_dict KIND 分组，如 organLine / data_sensity_level）：传 dict_type 取该分组下 code↔name 选项。只读，不写库。 | True | `zw_brain/entry/mcp/tools/reference.dict.options.json` |
+| `reference.organ.options` | read | False | 机构选择器读取参照主数据（18750 机构）：keyword 模糊匹配名称/编码 + 可选 reference_region_code 区划过滤 + offset/limit 分页（DB 层切片，硬上限 50），返回当前页 options 与命中总数 total。选机构后的区划带出由 request.field.update 服务端完成，本能力不做点查。只读，不写库。 | True | `zw_brain/entry/mcp/tools/reference.organ.options.json` |
+| `reference.region.options` | read | False | 表单区划选择器读取行政区划树：传 parent_code 取直接下级区划，逐级下钻。只读，不写库。 | True | `zw_brain/entry/mcp/tools/reference.region.options.json` |
 | `request.list` | read | False | 查看黄金链路中的申请清单和当前状态。 | True | `zw_brain/entry/mcp/tools/request.list.json` |
 | `request.view` | read | False | 查看申请详情、差异字段、时间线与 AI 解释。 | True | `zw_brain/entry/mcp/tools/request.view.json` |
 | `resource.asset.query` | read | False | 查询资源资产详情、生命周期和策略快照。 | True | `zw_brain/entry/mcp/tools/resource.asset.query.json` |
@@ -298,7 +306,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 195 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 200 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -446,8 +454,13 @@
 | `provider.view` | 查看供给侧治理 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/provider.view.json` |
 | `recommendation.rule.commit` | 提交推荐规则入库 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/recommendation.rule.commit.json` |
 | `recommendation.similar_catalog.suggest` | 智能推荐相似目录 | 1.0.0 | audit | `zw_brain/capability_registry/registered/recommendation.similar_catalog.suggest.json` |
+| `reference.dict.options` | 字典枚举选项 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/reference.dict.options.json` |
+| `reference.organ.options` | 机构参照选项 | 1.1.0 | (read-only) | `zw_brain/capability_registry/registered/reference.organ.options.json` |
+| `reference.region.options` | 区划参照选项 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/reference.region.options.json` |
 | `registry.artifact.export` | 导出注册工件 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/registry.artifact.export.json` |
 | `request.create` | 发起标准复用申请 | 1.0.0 | audit, db_write, state_machine_transition, task_dispatch, blockchain_anchor | `zw_brain/capability_registry/registered/request.create.json` |
+| `request.draft.ai_suggest` | AI 建议填充草稿 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/request.draft.ai_suggest.json` |
+| `request.field.update` | 原地修订申请字段 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/request.field.update.json` |
 | `request.list` | 查看申请列表 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/request.list.json` |
 | `request.submit` | 重新提交申请 | 1.0.0 | audit, db_write, state_machine_transition, task_dispatch, blockchain_anchor | `zw_brain/capability_registry/registered/request.submit.json` |
 | `request.view` | 查看申请详情 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/request.view.json` |
@@ -504,9 +517,9 @@
 
 ## Statistics
 
-- REST endpoints: 204
+- REST endpoints: 209
 - CLI entries: 1
-- MCP tools: 63
+- MCP tools: 66
 - A2A agent cards: 1
-- Registered Skills (live): 195 / 239 on-disk
+- Registered Skills (live): 200 / 244 on-disk
 

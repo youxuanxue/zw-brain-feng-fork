@@ -24,6 +24,7 @@ from zw_brain.domain.repositories.approval import ApprovalRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.resource_kind import canonical_resource_kind
 from zw_brain.domain.resource_lifecycle import lifecycle_label
+from zw_brain.domain.services import form_fill_service
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.shared.sensitive_mask import mask_default
 
@@ -99,6 +100,16 @@ def _record_to_request_card(record: Any) -> dict[str, Any]:
         "channelClass": str(payload.get("channel_class") or "internal"),
         "submittedAt": payload.get("submittedAt") or payload.get("create_time") or "",
         "sharingType": payload.get("sharingType"),
+        # 表单填报（form-autofill）：formFields 是**只读投影**，由模型（fieldValues + fieldProvenance）
+        # 读时现算（单一事实源，payload 不另存 formFields 副本）。
+        # 仅 form-autofill 草稿（payload 带 fieldProvenance 模型）才投影；legacy 导入单 / 旧在产单
+        # 无该模型 → 空列表，不给全量申请单平白塞 9 个空字段（避免快照膨胀 + 语义噪音）。
+        "formFields": (
+            form_fill_service.assemble_form_fields(payload.get("fieldValues") or {}, payload["fieldProvenance"])
+            if payload.get("fieldProvenance")
+            else []
+        ),
+        "fieldProvenance": payload.get("fieldProvenance") or {},
     }
 
 

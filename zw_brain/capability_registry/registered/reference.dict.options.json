@@ -1,0 +1,74 @@
+{
+  "title": "字典枚举选项",
+  "description": "表单枚举字段下拉读取字典参照（pub_dict KIND 分组，如 organLine / data_sensity_level）：传 dict_type 取该分组下 code↔name 选项。只读，不写库。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "dict_type"
+    ],
+    "properties": {
+      "dict_type": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "kind",
+      "options"
+    ],
+    "properties": {
+      "kind": {
+        "type": "string"
+      },
+      "dict_type": {
+        "type": "string"
+      },
+      "options": {
+        "type": "array"
+      }
+    }
+  },
+  "side_effects": [],
+  "audit_required": true,
+  "permissions": [
+    "reference.dict.options.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "reference",
+    "form",
+    "read"
+  ],
+  "slug": "reference.dict.options",
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-default",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "reference.dict.options"
+  },
+  "rollback_target": null,
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
+}

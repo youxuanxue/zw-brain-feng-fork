@@ -3,12 +3,13 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from zw_brain.domain.models import (
     ActorOrgRoleBindingRecord,
     ActorProjectionRecord,
+    DictProjectionRecord,
     LegacyObjectMappingRecord,
     LegacyPolicyMappingCandidateRecord,
     OrgProjectionRecord,
@@ -83,6 +84,24 @@ class GovernanceProjectionRepository:
             "profile_json": safe_json(payload.get("profile_json") or payload.get("profile") or {}),
         }
         return self._upsert(RegionProjectionRecord, [RegionProjectionRecord.tenant_id == tenant_id, RegionProjectionRecord.region_code == data["region_code"]], data)
+
+    def upsert_dict(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> DictProjectionRecord:
+        data = {
+            "tenant_id": tenant_id,
+            "dict_type": str(payload["dict_type"]),
+            "code": str(payload["code"]),
+            "name": str(payload.get("name", payload["code"])),
+            "parent_code": payload.get("parent_code"),
+            "seq": payload.get("seq"),
+            "status": str(payload.get("status", "active")),
+            "source_ref": payload.get("source_ref"),
+            "profile_json": safe_json(payload.get("profile_json") or payload.get("profile") or {}),
+        }
+        return self._upsert(
+            DictProjectionRecord,
+            [DictProjectionRecord.tenant_id == tenant_id, DictProjectionRecord.dict_type == data["dict_type"], DictProjectionRecord.code == data["code"]],
+            data,
+        )
 
     def upsert_role(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> RoleProjectionRecord:
         data = {
@@ -432,6 +451,79 @@ class GovernanceProjectionRepository:
     def list_regions(self, *, tenant_id: str = "sd-default") -> list[RegionProjectionRecord]:
         return self._list(select(RegionProjectionRecord).where(RegionProjectionRecord.tenant_id == tenant_id).order_by(RegionProjectionRecord.region_code))
 
+    def get_org_by_code(self, org_code: str, *, tenant_id: str = "sd-default") -> OrgProjectionRecord | None:
+        """索引点查（uq_org_projection_tenant_code）——派生带出用，避免拉全表 ~1.8 万行。"""
+        items = self._list(
+            select(OrgProjectionRecord).where(OrgProjectionRecord.tenant_id == tenant_id, OrgProjectionRecord.org_code == str(org_code))
+        )
+        return items[0] if items else None
+
+    def get_actor_by_external_id(self, external_actor_id: str, *, tenant_id: str = "sd-default") -> ActorProjectionRecord | None:
+        """身份带出用：按 external_actor_id 点查 actor 投影（含 org_code）。未命中返 None。"""
+        if not external_actor_id:
+            return None
+        return self._get_actor(str(external_actor_id), tenant_id=tenant_id)
+
+    def get_region_by_code(self, region_code: str, *, tenant_id: str = "sd-default") -> RegionProjectionRecord | None:
+        items = self._list(
+            select(RegionProjectionRecord).where(RegionProjectionRecord.tenant_id == tenant_id, RegionProjectionRecord.region_code == str(region_code))
+        )
+        return items[0] if items else None
+
+    def list_region_children(self, parent_region_code: str, *, tenant_id: str = "sd-default") -> list[RegionProjectionRecord]:
+        return self._list(
+            select(RegionProjectionRecord)
+            .where(RegionProjectionRecord.tenant_id == tenant_id, RegionProjectionRecord.parent_region_code == str(parent_region_code))
+            .order_by(RegionProjectionRecord.region_code)
+        )
+
+    def list_orgs_by_region(self, region_code: str, *, tenant_id: str = "sd-default", limit: int = 200) -> list[OrgProjectionRecord]:
+        """选择器用：按区划在 DB 层过滤 + limit（避免 list_orgs 捞全 ~1.8 万行再内存切片）。
+
+        region_code 为空 → 取该租户前 limit 个机构（前端再按需搜索）。
+        """
+        statement = select(OrgProjectionRecord).where(OrgProjectionRecord.tenant_id == tenant_id)
+        if region_code:
+            statement = statement.where(OrgProjectionRecord.region_code == str(region_code))
+        return self._list(statement.order_by(OrgProjectionRecord.org_code).limit(limit))
+
+    def search_orgs(
+        self,
+        *,
+        tenant_id: str = "sd-default",
+        keyword: str = "",
+        region_code: str = "",
+        offset: int = 0,
+        limit: int = 20,
+    ) -> tuple[list[OrgProjectionRecord], int]:
+        """机构选择器搜索分页：keyword 模糊匹 org_name/org_code（大小写不敏感），可叠加 region_code
+        过滤；DB 层 offset/limit + count，返回 (当前页行, total)。避免捞全 ~1.8 万行再内存切片。"""
+        base = select(OrgProjectionRecord).where(OrgProjectionRecord.tenant_id == tenant_id)
+        if region_code:
+            base = base.where(OrgProjectionRecord.region_code == str(region_code))
+        kw = str(keyword or "").strip()
+        if kw:
+            like = f"%{kw}%"
+            base = base.where(
+                or_(
+                    func.lower(OrgProjectionRecord.org_name).like(func.lower(like)),
+                    func.lower(OrgProjectionRecord.org_code).like(func.lower(like)),
+                )
+            )
+        total = self._count(base)
+        rows = self._list(base.order_by(OrgProjectionRecord.org_code).offset(max(0, int(offset))).limit(int(limit)))
+        return rows, total
+
+    def list_dicts(self, dict_type: str, *, tenant_id: str = "sd-default", parent_code: str | None = None) -> list[DictProjectionRecord]:
+        statement = select(DictProjectionRecord).where(
+            DictProjectionRecord.tenant_id == tenant_id,
+            DictProjectionRecord.dict_type == str(dict_type),
+            DictProjectionRecord.status == "active",
+        )
+        if parent_code is not None:
+            statement = statement.where(DictProjectionRecord.parent_code == str(parent_code))
+        return self._list(statement.order_by(DictProjectionRecord.seq, DictProjectionRecord.code))
+
     def list_roles(self, *, tenant_id: str = "sd-default") -> list[RoleProjectionRecord]:
         return self._list(select(RoleProjectionRecord).where(RoleProjectionRecord.tenant_id == tenant_id).order_by(RoleProjectionRecord.role_code))
 
@@ -751,3 +843,9 @@ class GovernanceProjectionRepository:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             return list(session.execute(statement).scalars())
+
+    def _count(self, statement: Any) -> int:
+        """统计某 select 的命中总数（分页 total 用）；以子查询包裹，方言无关。"""
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            return int(session.execute(select(func.count()).select_from(statement.subquery())).scalar() or 0)

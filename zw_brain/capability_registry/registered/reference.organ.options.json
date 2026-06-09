@@ -1,0 +1,89 @@
+{
+  "title": "机构参照选项",
+  "description": "机构选择器读取参照主数据（18750 机构）：keyword 模糊匹配名称/编码 + 可选 reference_region_code 区划过滤 + offset/limit 分页（DB 层切片，硬上限 50），返回当前页 options 与命中总数 total。选机构后的区划带出由 request.field.update 服务端完成，本能力不做点查。只读，不写库。",
+  "version": "1.1.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "reference_region_code": {
+        "type": "string"
+      },
+      "keyword": {
+        "type": "string"
+      },
+      "offset": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 50
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "kind",
+      "options",
+      "total"
+    ],
+    "properties": {
+      "kind": {
+        "type": "string"
+      },
+      "options": {
+        "type": "array"
+      },
+      "total": {
+        "type": "integer"
+      },
+      "offset": {
+        "type": "integer"
+      },
+      "limit": {
+        "type": "integer"
+      }
+    }
+  },
+  "side_effects": [],
+  "audit_required": true,
+  "permissions": [
+    "reference.organ.options.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "reference",
+    "form",
+    "read"
+  ],
+  "slug": "reference.organ.options",
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-default",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "reference.organ.options"
+  },
+  "rollback_target": null,
+  "product_scope": {
+    "journey": "j1",
+    "status": "live"
+  }
+}
