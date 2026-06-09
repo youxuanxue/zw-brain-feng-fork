@@ -23,10 +23,13 @@ const canAuthor = computed(() => canAuthorInlineCatalog(role.value));
 
 type Stage = 'draft_unsubmitted' | 'metadata_filled' | 'submitted';
 
-// 默认归属与脚本 scripts/customer_demo_j2.py 对齐：sd-default 济南公安局 / 区划 370100。
+// 默认归属与脚本 scripts/customer_demo_j2.py 对齐：sd-default / 区划 370100。
 // 归属/区划是机器侧绑定值（owner_org_id / region_code），R12：不作为表单可见字段暴露，
 // 由系统按登录岗位部门注入（此处沿用 demo 默认，业务方现场以真实部门覆盖）。
+// 提供方名称只读回显（T11）：按 seed 真值 11370000MB284651XL → 省大数据局，与 P5ApiServiceWizard
+// 灰色只读部门同模式；无映射时诚实回落 owner_org_id。
 const defaultOwnerOrg = '11370000MB284651XL';
+const defaultOwnerOrgName = '省大数据局';
 const defaultRegion = '370100';
 
 // —— 第 1 步：基本信息（编制规范全集，summary_json 键与 catalog_service.catalog_meta() 同字典）——
@@ -43,7 +46,7 @@ const shareWay = ref('api'); // 共享方式（summary.shared_way）
 const shareType = ref('2'); // 共享类型（summary.shared_type）
 const shareCondition = ref(''); // 共享条件（summary.shared_condition）
 const openType = ref('3'); // 开放类型（summary.open_type）
-const openCondition = ref(''); // 开放条件（summary.open_condition）
+// 旧平台编制第①步只有「开放类型」，无「开放条件」（开放条件属资源注册侧，T3①已删）。
 const description = ref(''); // 数据资源摘要（summary.description）
 
 // —— 第 2 步：信息项维护（写 payload.items[]）——
@@ -57,7 +60,8 @@ const contactPhone = ref(''); // 联系电话（summary.contact_phone）
 const contactEmail = ref(''); // 联系人邮箱（summary.contact_email）
 const officePhone = ref(''); // 办公电话（summary.office_phone）
 
-const catalogCode = ref('');
+const catalogCode = ref(''); // 内部技术 id / 路由键（j2-inline-…）
+const dataCatalogCode = ref(''); // 数据资源目录代码（业务码 DRC-…，创建后由后端派生回显，T3②/T11）
 const stage = ref<Stage>('draft_unsubmitted');
 // 展示态取后端下发的中文 lifecycle_label（前端零词表，R12），不直出机器 slug。
 const lifecycleLabel = ref<string>('');
@@ -91,7 +95,6 @@ function baseSummary(): Record<string, unknown> {
     shared_type: shareType.value || null,
     shared_condition: shareCondition.value.trim() || null,
     open_type: openType.value || null,
-    open_condition: openCondition.value.trim() || null,
     description: description.value.trim() || null,
   };
 }
@@ -151,6 +154,8 @@ async function createDraft() {
     const root = (result.data ?? {}) as Record<string, unknown>;
     const inner = (root.result ?? root) as Record<string, unknown>;
     lifecycleLabel.value = String(inner.lifecycle_label ?? '草稿');
+    // 业务码由后端确定性派生回显（T3②/T11）；缺则诚实留空。
+    dataCatalogCode.value = String(inner.data_catalog_code ?? '');
   } finally {
     busy.value = false;
   }
@@ -220,7 +225,6 @@ function startAnother() {
   shareType.value = '2';
   shareCondition.value = '';
   openType.value = '3';
-  openCondition.value = '';
   description.value = '';
   items.value = [blankCatalogItem()];
   isHandlingResult.value = 'false';
@@ -230,6 +234,7 @@ function startAnother() {
   contactEmail.value = '';
   officePhone.value = '';
   catalogCode.value = '';
+  dataCatalogCode.value = '';
   lifecycleLabel.value = '';
   stage.value = 'draft_unsubmitted';
 }
@@ -265,6 +270,18 @@ function startAnother() {
               placeholder="例如：医疗救助申请人信息"
               :disabled="!canAuthor || Boolean(catalogCode)"
             />
+          </div>
+          <div class="form-row">
+            <label class="field-label">数据资源目录代码<span class="auto-tag">系统自动生成</span></label>
+            <p class="readonly-value" data-testid="inline-catalog-code">
+              {{ dataCatalogCode || '保存草稿后自动生成' }}
+            </p>
+          </div>
+          <div class="form-row">
+            <label class="field-label">数据资源提供方</label>
+            <p class="readonly-value" data-testid="inline-catalog-provider">
+              {{ defaultOwnerOrgName || defaultOwnerOrg }}
+            </p>
           </div>
           <div class="form-row">
             <label class="field-label">数据资源分类</label>
@@ -327,10 +344,6 @@ function startAnother() {
             <input v-model="shareCondition" class="gov-input" type="text" placeholder="例如：根据个人信息保护要求，按授权范围共享" :disabled="!canAuthor || Boolean(catalogCode)" />
           </div>
           <div class="form-row span2">
-            <label class="field-label">开放条件</label>
-            <input v-model="openCondition" class="gov-input" type="text" placeholder="例如：不可对社会开放" :disabled="!canAuthor || Boolean(catalogCode)" />
-          </div>
-          <div class="form-row span2">
             <label class="field-label">数据资源摘要</label>
             <textarea v-model="description" class="gov-textarea" rows="3" placeholder="一句话说明本目录覆盖的数据范围与用途。" :disabled="!canAuthor || Boolean(catalogCode)"></textarea>
           </div>
@@ -354,53 +367,62 @@ function startAnother() {
       <!-- Step 2：信息项维护 -->
       <section class="step" :class="{ 'step-disabled': !catalogCode }">
         <h3 class="step-title">第 2 步 · 信息项维护</h3>
-        <p class="step-hint">逐条登记目录下的字段级信息项（对标旧平台「信息项维护」）。信息项名称必填，其余可空。</p>
-        <div v-for="(it, i) in items" :key="i" class="item-card">
-          <div class="item-grid">
-            <div>
-              <label class="field-label">信息项名称<span class="req">*</span></label>
-              <input v-model="it.title" class="gov-input" placeholder="例如：姓名" :disabled="!canRunStep2" />
-            </div>
-            <div>
-              <label class="field-label">英文名称</label>
-              <input v-model="it.englishName" class="gov-input" placeholder="例如：xm" :disabled="!canRunStep2" />
-            </div>
-            <div>
-              <label class="field-label">信息项类型</label>
-              <select v-model="it.itemType" class="gov-input" :disabled="!canRunStep2">
-                <option v-for="o in ITEM_TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="field-label">信息项长度</label>
-              <input v-model="it.itemLength" class="gov-input" placeholder="例如：50" :disabled="!canRunStep2" />
-            </div>
-            <div>
-              <label class="field-label">共享类型</label>
-              <select v-model="it.shareType" class="gov-input" :disabled="!canRunStep2">
-                <option v-for="o in SHARE_TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="field-label">数据级别</label>
-              <select v-model="it.dataLevel" class="gov-input" :disabled="!canRunStep2">
-                <option v-for="o in DATA_LEVEL_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
-              </select>
-            </div>
-            <div class="item-span2">
-              <label class="field-label">共享条件</label>
-              <input v-model="it.shareCondition" class="gov-input" placeholder="例如：需符合数据应用场景" :disabled="!canRunStep2" />
-            </div>
-            <div class="item-span2">
-              <label class="field-label">备注</label>
-              <input v-model="it.note" class="gov-input" placeholder="可空" :disabled="!canRunStep2" />
-            </div>
-          </div>
-          <div class="item-ops">
-            <button type="button" class="link-btn" :disabled="!canRunStep2 || i === 0" @click="moveItem(i, -1)">上移</button>
-            <button type="button" class="link-btn" :disabled="!canRunStep2 || i === items.length - 1" @click="moveItem(i, 1)">下移</button>
-            <button type="button" class="link-btn danger" :disabled="!canRunStep2 || items.length <= 1" @click="removeItem(i)">删除</button>
-          </div>
+        <p class="step-hint">逐条登记目录下的字段级信息项（对标旧平台「信息项维护」一行一信息项表格）。信息项名称必填，其余可空。</p>
+        <div class="item-table-wrap">
+          <table class="item-table" data-testid="inline-catalog-item-table">
+            <thead>
+              <tr>
+                <th class="col-name">信息项名称<span class="req">*</span></th>
+                <th>英文名称</th>
+                <th>类型</th>
+                <th>长度</th>
+                <th>共享类型</th>
+                <th>共享条件</th>
+                <th>数据级别</th>
+                <th class="col-required">必填</th>
+                <th>备注</th>
+                <th class="col-ops">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(it, i) in items" :key="i">
+                <td><input v-model="it.title" class="gov-input cell-input" placeholder="例如：姓名" :disabled="!canRunStep2" /></td>
+                <td><input v-model="it.englishName" class="gov-input cell-input" placeholder="例如：xm" :disabled="!canRunStep2" /></td>
+                <td>
+                  <select v-model="it.itemType" class="gov-input cell-input" :disabled="!canRunStep2">
+                    <option v-for="o in ITEM_TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+                  </select>
+                </td>
+                <td><input v-model="it.itemLength" class="gov-input cell-input cell-narrow" placeholder="50" :disabled="!canRunStep2" /></td>
+                <td>
+                  <select v-model="it.shareType" class="gov-input cell-input" :disabled="!canRunStep2">
+                    <option v-for="o in SHARE_TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+                  </select>
+                </td>
+                <td><input v-model="it.shareCondition" class="gov-input cell-input" placeholder="需符合应用场景" :disabled="!canRunStep2" /></td>
+                <td>
+                  <select v-model="it.dataLevel" class="gov-input cell-input" :disabled="!canRunStep2">
+                    <option v-for="o in DATA_LEVEL_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+                  </select>
+                </td>
+                <td class="cell-center">
+                  <input
+                    v-model="it.isRequired"
+                    type="checkbox"
+                    class="cell-check"
+                    :disabled="!canRunStep2"
+                    :aria-label="`信息项 ${i + 1} 是否必填`"
+                  />
+                </td>
+                <td><input v-model="it.note" class="gov-input cell-input" placeholder="可空" :disabled="!canRunStep2" /></td>
+                <td class="cell-ops">
+                  <button type="button" class="link-btn" :disabled="!canRunStep2 || i === 0" @click="moveItem(i, -1)">上移</button>
+                  <button type="button" class="link-btn" :disabled="!canRunStep2 || i === items.length - 1" @click="moveItem(i, 1)">下移</button>
+                  <button type="button" class="link-btn danger" :disabled="!canRunStep2 || items.length <= 1" @click="removeItem(i)">删除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
         <button type="button" class="gov-btn gov-btn-secondary add-item" :disabled="!canRunStep2" @click="addItem">+ 增加信息项</button>
       </section>
@@ -505,9 +527,19 @@ function startAnother() {
 .link-btn { background: none; border: 0; color: var(--b-primary, #006be6); cursor: pointer; padding: 0; font-size: 13px; text-decoration: underline; }
 .link-btn:disabled { color: #9aa5b1; cursor: not-allowed; text-decoration: none; }
 .link-btn.danger { color: #c0392b; }
-.item-card { border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; padding: 12px; margin-bottom: 10px; background: #fafcff; }
-.item-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px 12px; }
-.item-span2 { grid-column: span 2; }
-.item-ops { margin-top: 8px; display: flex; gap: 14px; }
-.add-item { margin-top: 4px; }
+.readonly-value { margin: 0; padding: 8px 10px; border: 1px dashed var(--b-border, #d4e2f4); border-radius: 6px; font-size: 14px; color: var(--b-text, #1f2733); background: #f6f9fe; min-height: 20px; box-sizing: border-box; }
+.auto-tag { margin-left: 6px; font-size: 11px; color: #6b7888; background: #eef3fb; border-radius: 4px; padding: 1px 6px; font-weight: 400; }
+.item-table-wrap { overflow-x: auto; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; }
+.item-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 920px; }
+.item-table thead th { background: #f3f7fd; text-align: left; padding: 8px 8px; font-weight: 600; color: var(--b-text, #1f2733); white-space: nowrap; border-bottom: 1px solid var(--b-border, #d4e2f4); }
+.item-table tbody td { padding: 6px 8px; border-bottom: 1px solid #eef3fb; vertical-align: middle; }
+.item-table tbody tr:last-child td { border-bottom: 0; }
+.cell-input { width: 100%; padding: 6px 8px; font-size: 13px; }
+.cell-narrow { max-width: 72px; }
+.cell-center { text-align: center; }
+.cell-check { width: 16px; height: 16px; cursor: pointer; }
+.cell-ops { white-space: nowrap; display: flex; gap: 10px; }
+.col-required { width: 56px; text-align: center; }
+.col-ops { width: 130px; }
+.add-item { margin-top: 8px; }
 </style>

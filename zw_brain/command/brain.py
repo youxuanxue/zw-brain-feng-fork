@@ -32,6 +32,12 @@ from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.domain.repositories.delivery import DeliveryRepository
 from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.domain.repositories.topic_package import TopicPackageRepository
+from zw_brain.domain.services.delivery_service import (
+    RETIRED_RESOURCE_KINDS as _RETIRED_RESOURCE_KINDS,
+)
+from zw_brain.domain.services.delivery_service import (
+    delivery_record_hidden_from_consumer as _delivery_record_hidden_from_consumer,
+)
 from zw_brain.shared import ids, queue
 from zw_brain.shared.auth_context import get_auth_context
 from zw_brain.shared.runtime_config import get_dev_iam_bypass_enabled
@@ -509,17 +515,27 @@ class BrainService:
         return f"{target}:{decision}" if decision else target
 
     def list_delivery_tasks(self) -> list[dict[str, Any]]:
-        tasks = copy.deepcopy(self._snapshot["delivery_tasks"])
+        snapshot_tasks = copy.deepcopy(self._snapshot["delivery_tasks"])
         store = self._state_store.database_store
         if store is None:
-            return tasks
+            return snapshot_tasks
         records = {record.delivery_code: record for record in store.delivery_repo.list_tasks(tenant_id=_DEFAULT_TENANT_ID)}
+        # 消费视图隐藏：退役类型（folder/url/link）来源 + 草稿态（存量交换流水线残留，未激活、含
+        # hex 缺名/重复/测试噪声）。详见 delivery_record_hidden_from_consumer。先一次性建退役码集合。
+        retired_codes = {
+            asset.resource_code
+            for asset in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID)
+            if str(asset.resource_kind).strip().lower() in _RETIRED_RESOURCE_KINDS
+        }
+        tasks: list[dict[str, Any]] = []
         # N+1 消除：旧实现逐 task 调 self.get_delivery_task(task_id)（每次重建整张 task
         # dict + 重扫内存快照）只为取 receipts。改成直接 list_receipts（已按 delivery_code
         # 索引）+ 复用上面已预取的 records，不再每条重建任务。
-        for task in tasks:
+        for task in snapshot_tasks:
             record = records.pop(task["id"], None)
             if record is not None:
+                if _delivery_record_hidden_from_consumer(record, retired_codes):
+                    continue  # 退役类型 / 草稿态残留：不进消费视图
                 task["status"] = record.state
                 task["repository"] = {
                     "deliveryCode": record.delivery_code,
@@ -529,8 +545,11 @@ class BrainService:
                 task["receipts"] = self._get_handler_deps().services.delivery.receipts_for(
                     store.delivery_repo, task["id"]
                 )
+            tasks.append(task)
         # DB-only 交付（M0 dump granted，不在内存快照里）：直传已预取的 record，不再全表扫。
         for record in records.values():
+            if _delivery_record_hidden_from_consumer(record, retired_codes):
+                continue  # 退役类型 / 草稿态残留：不进消费视图
             task = self._delivery_task_from_record(record.delivery_code, store, record=record)
             if task is not None:
                 tasks.append(task)

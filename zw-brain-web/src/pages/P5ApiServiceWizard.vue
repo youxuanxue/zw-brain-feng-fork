@@ -4,6 +4,8 @@ import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
+import { getProductRole } from '@/composables/useProductRole';
+import { canPerformAction } from '@/lib/pageAccess';
 import {
   SHARE_TYPE_OPTIONS,
   OPEN_TYPE_OPTIONS,
@@ -17,6 +19,19 @@ import {
 
 const provider = useProvider();
 const { source } = useSnapshot();
+const role = getProductRole();
+
+// 角色门（0605 验收回合角色口径，业务方 2026-06-08 sign-off）：注册/编辑/提交审核 = 部门操作员 + 部门管理员；
+// 审核发布/下线 = 部门管理员。无权岗位（业务运营员）整段注册表单 + 行内操作均不渲染（守「无权 = 不可见」）。
+const canRegisterApi = computed(() => canPerformAction('resource.api.register', role.value));
+const canSubmitReviewApi = computed(() => canPerformAction('resource.api.submit_review', role.value));
+const canPublishApi = computed(() => canPerformAction('resource.api.publish', role.value));
+// 下线（withdraw→retired）按自身动作键判，与后端 policy.resource.api.withdraw set-equal（归部门管理员）。
+const canWithdrawApi = computed(() => canPerformAction('resource.api.withdraw', role.value));
+// 列表是否需要「操作」列：任一生命周期动作对当前岗位可见才出列（无权岗位列表保持只读）。
+const showServiceActions = computed(
+  () => canSubmitReviewApi.value || canPublishApi.value || canWithdrawApi.value,
+);
 
 // —— 已注册 API 服务列表（真实数据，注册产出即时可见）——
 const services = computed(() => {
@@ -27,6 +42,9 @@ const services = computed(() => {
       id: String(it.id ?? ''),
       name: String(it.name ?? ''),
       status: String(it.status ?? ''),
+      // 原始生命周期码（draft/pending_review/approved_pending_publish/active…）驱动行内操作分流；
+      // status 是白话标签仅供展示，不参与判定。
+      lifecycleStatus: String(it.lifecycle_status ?? ''),
       catalogCode: String(it.catalog_code ?? ''),
       note: String(it.note ?? ''),
     };
@@ -45,7 +63,12 @@ const catalogOptions = computed(() => {
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
   const n = services.value.length;
-  return n ? `已注册 ${n} 个 API 服务 · 可继续注册新代理服务` : '尚无已注册 API 服务 · 在下方注册第一个代理服务';
+  if (!canRegisterApi.value) {
+    // 非注册岗位（业务运营员）：只读查看，不提示「注册」（注册岗位口径，2026-06-08 sign-off）。
+    return n ? `已注册 ${n} 个 API 服务` : '尚无已注册 API 服务';
+  }
+  // T8：表单默认收起，提示点页头主按钮开始。
+  return n ? `已注册 ${n} 个 API 服务 · 可继续注册新代理服务` : '尚无已注册 API 服务 · 点「注册代理服务」开始';
 });
 
 // —— 注册表单（四步基本信息/网络/配置/技术支持，同屏展开，无分步切换）——
@@ -77,6 +100,10 @@ const techPhone = ref('');
 
 const busy = ref(false);
 const newResourceCode = ref('');
+
+// T8（6.5#6）：四步表单默认收起，点页头主按钮才展开——避免常驻列表下方喧宾夺主。
+// 用 v-show 保留已填内容（折叠不清空）。
+const showRegisterForm = ref(false);
 
 function _newResourceCode(): string {
   const ts = Date.now().toString(36);
@@ -146,7 +173,7 @@ async function register() {
       skillId: 'resource.api.register',
       payload,
       successTitle: '代理服务已注册（草稿）',
-      role: 'ROLE_ORGAN_OPERATER',
+      role: role.value,
       refreshSnapshotAfter: true,
     });
     if (!res.ok) return;
@@ -164,11 +191,66 @@ async function submitReview() {
       skillId: 'resource.api.submit_review',
       payload: { resource_code: newResourceCode.value },
       successTitle: '已提交服务化审核',
-      role: 'ROLE_ORGAN_OPERATER',
+      role: role.value,
       refreshSnapshotAfter: true,
     });
   } finally {
     busy.value = false;
+  }
+}
+
+// —— 已注册服务行内生命周期操作（T7，0605 反馈 6.5#6）——
+// 既有能力接线，仅需 resource_code：草稿→提交审核、待发布→发布、已发布→下线。
+// 可见性由 lifecycle_status × 角色门双重决定（无权/不在该态即不渲染）。
+const rowBusy = ref('');
+
+async function submitReviewRow(code: string) {
+  if (!code || rowBusy.value) return;
+  rowBusy.value = code;
+  try {
+    await invokeActionStub({
+      skillId: 'resource.api.submit_review',
+      payload: { resource_code: code },
+      successTitle: '已提交服务化审核',
+      role: role.value,
+      refreshSnapshotAfter: true,
+    });
+  } finally {
+    rowBusy.value = '';
+  }
+}
+
+async function publishRow(code: string) {
+  if (!code || rowBusy.value) return;
+  rowBusy.value = code;
+  try {
+    await invokeActionStub({
+      skillId: 'resource.api.publish',
+      payload: { resource_code: code },
+      successTitle: '代理服务已发布',
+      role: role.value,
+      refreshSnapshotAfter: true,
+    });
+  } finally {
+    rowBusy.value = '';
+  }
+}
+
+async function withdrawRow(code: string, name: string) {
+  if (!code || rowBusy.value) return;
+  // 下线是把已发布服务退役，需用户二次确认（不可一键误触）。
+  if (!window.confirm(`确认下线代理服务「${name || code}」？下线后调用方将无法访问。`)) return;
+  rowBusy.value = code;
+  try {
+    await invokeActionStub({
+      skillId: 'resource.api.withdraw',
+      payload: { resource_code: code },
+      successTitle: '代理服务已下线',
+      role: role.value,
+      refreshSnapshotAfter: true,
+    });
+  } finally {
+    rowBusy.value = '';
   }
 }
 
@@ -210,7 +292,10 @@ function resetForm() {
         <h3 class="block-title">已注册的 API 服务</h3>
         <table class="focus-table">
           <thead>
-            <tr><th>服务名称</th><th>状态</th><th>关联数据目录</th><th>说明</th></tr>
+            <tr>
+              <th>服务名称</th><th>状态</th><th>关联数据目录</th><th>说明</th>
+              <th v-if="showServiceActions">操作</th>
+            </tr>
           </thead>
           <tbody>
             <tr v-for="s in services" :key="s.id">
@@ -218,13 +303,51 @@ function resetForm() {
               <td>{{ s.status }}</td>
               <td>{{ s.catalogCode || '未关联' }}</td>
               <td>{{ s.note || '未提供' }}</td>
+              <td v-if="showServiceActions" class="row-actions">
+                <!-- 草稿：提交审核（操作员/管理员）。 -->
+                <button
+                  v-if="s.lifecycleStatus === 'draft' && canSubmitReviewApi"
+                  type="button" class="gov-btn gov-btn-link" :disabled="Boolean(rowBusy)"
+                  @click="submitReviewRow(s.id)"
+                >提交审核</button>
+                <!-- 待发布：发布（部门管理员）。 -->
+                <button
+                  v-if="s.lifecycleStatus === 'approved_pending_publish' && canPublishApi"
+                  type="button" class="gov-btn gov-btn-link" :disabled="Boolean(rowBusy)"
+                  @click="publishRow(s.id)"
+                >发布</button>
+                <!-- 已发布：下线（部门管理员）。 -->
+                <button
+                  v-if="s.lifecycleStatus === 'active' && canWithdrawApi"
+                  type="button" class="gov-btn gov-btn-link gov-btn-danger" :disabled="Boolean(rowBusy)"
+                  @click="withdrawRow(s.id, s.name)"
+                >下线</button>
+                <!-- 当前态对本岗位无可执行动作时，诚实显短横（不伪造按钮）。 -->
+                <span
+                  v-if="!((s.lifecycleStatus === 'draft' && canSubmitReviewApi) || (s.lifecycleStatus === 'approved_pending_publish' && canPublishApi) || (s.lifecycleStatus === 'active' && canWithdrawApi))"
+                  class="row-actions-none"
+                >—</span>
+              </td>
             </tr>
           </tbody>
         </table>
       </section>
 
-      <!-- 代理服务注册（四步表单） -->
-      <section class="reg-form">
+      <!-- T8+T6：注册入口（默认收起，点击展开）—— 仅注册岗位（部门操作员/管理员）可见（业务方 2026-06-08 sign-off，无权 = 不可见）。 -->
+      <div v-if="canRegisterApi" class="reg-actions">
+        <button
+          type="button"
+          class="gov-btn gov-btn-primary"
+          data-testid="api-register-toggle"
+          @click="showRegisterForm = !showRegisterForm"
+        >
+          {{ showRegisterForm ? '收起注册表单' : '＋ 注册代理服务' }}
+        </button>
+      </div>
+
+      <!-- 代理服务注册（四步表单）—— 注册岗位可见(v-if) + 默认收起(v-show)。 -->
+      <section v-if="canRegisterApi" v-show="showRegisterForm" class="reg-form" data-testid="api-register-form">
+
         <h3 class="block-title">注册新代理服务</h3>
 
         <!-- ① 服务基本信息 -->
@@ -324,6 +447,7 @@ function resetForm() {
 </template>
 
 <style scoped>
+.reg-actions { margin: 18px 0 4px; }
 .block-title { margin: 18px 0 10px; font-size: 15px; font-weight: 600; color: var(--b-text, #1f2733); }
 .step-block { border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; background: #fff; }
 .step-h { margin: 0 0 10px; font-size: 14px; font-weight: 600; color: var(--b-text, #1f2733); }
@@ -342,4 +466,10 @@ function resetForm() {
 .step-done { margin: 10px 0 0; font-size: 13px; color: #2c7a2c; }
 .form-hint { margin: 8px 0 0; font-size: 12px; color: var(--b-muted, #5c6370); }
 .reg-list { margin-bottom: 8px; }
+.row-actions { white-space: nowrap; }
+.row-actions-none { color: var(--b-muted, #8a93a0); }
+.gov-btn-link { background: none; border: none; padding: 2px 6px; margin-right: 4px; color: var(--b-primary, #006be6); cursor: pointer; font-size: 13px; }
+.gov-btn-link:hover:not(:disabled) { text-decoration: underline; }
+.gov-btn-link:disabled { opacity: 0.5; cursor: not-allowed; }
+.gov-btn-danger { color: #c0392b; }
 </style>

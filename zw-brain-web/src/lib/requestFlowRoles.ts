@@ -10,6 +10,20 @@ export const HOOKUP_REVIEW_ROLES = ['ROLE_BUSIAUDIT'] as const;
 /** J2 在线编制目录（catalog.entry.create_draft / update / submit_review，部门操作员）。 */
 export const INLINE_CATALOG_AUTHOR_ROLES = ['ROLE_ORGAN_OPERATER'] as const;
 
+/** 供数侧「目录/资源管理清单」（T9）只读浏览岗位：供数三岗位（部门操作员/部门管理员/业务运营员）
+ *  均可按生命周期浏览本部门已编目目录 / 已挂接资源。操作员=编制者也需看本部门清单跟踪状态
+ *  （业务方 2026-06-09 确认：给操作员只读本部门清单）。清单纯只读、无行内管理动作，故视图门
+ *  比发布岗更宽；发布/变更等写动作仍各自走 ACTION_ROLE_GATES。安全审计不在供数侧、不列入。 */
+export const PROVIDER_ASSET_VIEWER_ROLES = [
+  'ROLE_ORGAN_OPERATER',
+  'ROLE_ORGAN_MANAGER',
+  'ROLE_BUSIAUDIT',
+] as const;
+
+export function canViewProviderAssets(role: string): boolean {
+  return (PROVIDER_ASSET_VIEWER_ROLES as readonly string[]).includes(role);
+}
+
 /** J2 部门审目录（catalog.entry.review 第 1 层，pending_review → pending_platform_review）。 */
 export const CATALOG_DEPT_REVIEWER_ROLES = ['ROLE_ORGAN_MANAGER'] as const;
 

@@ -22,11 +22,16 @@ _DELIVERY = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAU
 #   _PROVIDER_PARTIAL：只看 _PROVIDER_PARTIAL_KEYS 列出的 sub-keys（J2 在线编制 OPERATER 视角）。
 #   其他 role：整个 provider dict empty。
 # 与 zw-brain-web/src/lib/pageAccess.ts ROUTE_ROLE_OVERRIDES 对齐：
-# MANAGER/BUSIAUDIT 进所有 /provider/inbox/*；OPERATER 只进 /provider + /provider/wizard/inline-catalog，
-# wizard 提交后 P5Provider 顶层展示「我的目录」，故只需 catalogs。
+# MANAGER/BUSIAUDIT 进所有 /provider/inbox/*；OPERATER 进 /provider + /provider/wizard/inline-catalog
+# + /provider/wizard/api-service，wizard 提交后 P5Provider/列表展示「我的目录」「我的 API 服务」，
+# 故 OPERATER 需 catalogs + services（D54 GATE-1：代理服务注册 = 部门操作员 + 部门管理员；
+# 操作员注册后须能看到并提交自己的 API 服务草稿）。
+# 另需 resources：T9 供数侧「资源管理清单」只读浏览岗位含部门操作员（业务方 2026-06-09——操作员=
+# 挂接/编制者也需看本部门已挂接资源跟踪状态），故操作员 snapshot 须带 provider.resources（只读，
+# 无行内管理动作；与 requestFlowRoles.PROVIDER_ASSET_VIEWER_ROLES 对齐）。
 _PROVIDER_FULL = frozenset({"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"})
 _PROVIDER_PARTIAL = frozenset({"ROLE_ORGAN_OPERATER"})
-_PROVIDER_PARTIAL_KEYS = frozenset({"catalogs"})
+_PROVIDER_PARTIAL_KEYS = frozenset({"catalogs", "services", "resources"})
 _COMPLIANCE = frozenset(
     {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SECURITY_ADMIN", "ROLE_SYSTEM"}
 )

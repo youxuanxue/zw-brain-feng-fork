@@ -24,6 +24,7 @@ from zw_brain.domain.approval_flow_walker import (
     ApprovalFlowWalkError,
     start_approval_workflow_from_schema,
 )
+from zw_brain.domain.resource_kind import canonical_resource_kind
 from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
@@ -334,6 +335,10 @@ def _create_request(
             "resourceId": canonical_id,
             "resourceName": resource["name"],
             "name": f"{resource['name']} 交付任务",
+            # T12（6.5#9）：新建交付单按资源类型分流（API=查看授权、文件=下载、库表=领凭据/对账回执）。
+            # discovery.resources 行已带规范化 kind（canonical_resource_kind 投影），此处随交付单落字段，
+            # 与 legacy 导入单（delivery_service._delivery_resource_kind）口径统一；缺类型→None（默认双按钮）。
+            "resourceKind": canonical_resource_kind(resource.get("kind")),
             "channel": "受控交付 + 审计回执",
             "status": "pending",
             "owner": "申请方 → 审批承接 → 交付执行",

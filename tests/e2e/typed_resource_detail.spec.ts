@@ -104,7 +104,7 @@ test.describe('分型资源详情（反馈 6）', () => {
     test.skip(!code, '真实库无文件资源');
     await gotoHash(page, `#/discovery/resource/${encodeURIComponent(code!)}`);
     await page.waitForTimeout(800);
-    // 首屏决策块（共享与复用）
+    // 首屏决策块（共享与使用）
     await expect(page.getByTestId('decision-block')).toBeVisible();
     // 编目字段默认折叠 → 展开
     const toggle = page.getByTestId('compilation-toggle');

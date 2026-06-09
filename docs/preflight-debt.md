@@ -10,6 +10,40 @@
 Outstanding items intentionally deferred from the current preflight gate set. Each entry must list
 the symptom, the deferred decision, and the trigger that forces a re-evaluation.
 
+## 2026-06-08 — 0605 验收回合批次 2（T5 目录详情字段核账 / T7 行内编辑暂缓）
+
+> 批次 2 = T6 代理服务注册角色口径纠正（D54 GATE-1，已实现）+ T7 已注册 API 服务操作列（已实现）
+> + T5 目录详情字段核账（= 本节记债）。现算状态见 `.testing/debt/debt-status.md`。
+
+- **T5 目录详情导入富集债** — debt `catalog-detail-import-enrichment`（assert=grep_absent 现算）：
+  - **Where**：`zw_brain/adapters/legacy/mappers/catalog_metadata.py` `_map_data_catalog`(:218-240) summary 字典。
+  - **核账结论**：投影链路 + 渲染**已就位**——`catalog_service.catalog_meta()`(:442-465) 已投影
+    domain/applicationScenario/sourceSystem/resourceFormat/businessUpdateCycle/dataUpdateCycle，
+    `typedDetailDisplay.ts` compilationRows/decisionRows 已渲染。实读 `.data/zw_brain.db`
+    catalog_entry 1222 行（189 条来自 data_catalog 全字段映射）：resource_format(189)/update_cycle/
+    catalog_type/shared_type/open_type/published_time 有值；但 **application_scenario=0 / source_system=0
+    / domain≈0** —— `_map_data_catalog` 未映射 `use_desc`(应用场景)、`domain_id`/`domain_name`(所属领域)、
+    `business_update_cycle`(业务更新周期单列)、`use_claim`、`data_region_range`。
+  - **Implication**：189 条真实目录详情上述字段**诚实空态**（有键无值，D11：不伪造，显空）。非源缺供——
+    旧平台 `old/12-datastructure/dsp_catalog.xml`(data_catalog) 确有这些列（use_desc 应用场景描述 /
+    domain_id 数据所属领域 / business_update_cycle 业务更新周期 / use_claim 使用要求 / data_region_range
+    数据区域范围），是**导入富集缺失，可补**。
+  - **Why deferred**：本期口径=核账 + 记债（承 T5 卡片「不含则属上游导入富集债→记 docs/preflight-debt.md」）；
+    富集回填属上游导入侧工作，且业务方未坚持本轮必补（D53/旧平台事实已锁定口径，无新业务决策）。
+  - **Trigger to re-evaluate**：业务方坚持补这些详情字段，或 T3 在线编制(B1)落地后口径统一 →
+    在 `_map_data_catalog` summary 补 application_scenario/domain/business·data_update_cycle/use_claim/
+    data_region_range，重跑导入富集存量目录 → 详情有值，关债。
+
+- **T7 行内「编辑草稿」暂缓** — debt `api-service-row-inline-edit`（assert=grep_absent 现算）：
+  - **Where**：`zw-brain-web/src/pages/P5ApiServiceWizard.vue`（已注册 API 服务列表操作列）。
+  - **本期落地**：操作列按 lifecycle_status×角色门渲染 提交审核/发布/下线（均一键、仅需 resource_code、
+    接既有能力）——直接解掉验收主诉「71 条草稿无任何动作」。
+  - **Why deferred（编辑）**：`_change_api_resource` 走 `upsert({**existing, **payload})` 合并语义，
+    半截编辑会用表单默认值覆盖未预填字段(clobber)。乔布斯「不出半截功能」：宁缺编辑、不出会丢数据的编辑。
+    且批次 3 的 T8（表单改按钮触发展开）正重构同表单，叠加 edit 模式冲突面大。
+  - **Trigger to re-evaluate**：T8 落地后或业务方要求行内改草稿 → 富集 provider.services 投影携带可编辑
+    字段 + P5ApiServiceWizard 加 edit 模式预填（按钮「保存修改」接 `resource.api.change`），关债。
+
 任何一条 entry 在 trigger 触发时必须升级为 P0 fix 或转化为机械化 preflight check；不允许长期沉淀。
 
 ## entry 必填字段约定（2026-05-26）

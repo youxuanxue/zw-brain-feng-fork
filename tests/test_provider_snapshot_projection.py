@@ -125,6 +125,29 @@ def test_operater_snapshot_includes_provider_for_inline_authoring(brain: BrainSe
     assert "field_decisions" in provider
 
 
+def test_operater_snapshot_includes_registered_api_services(brain: BrainService) -> None:
+    """D54 GATE-1：代理服务注册 = 部门操作员 + 部门管理员。操作员注册 API 服务后，必须能在
+    快照 provider.services 看到自己的服务（含原始 lifecycle_status）以行内提交审核/管理——
+    故 provider.services 不再对 OPERATER redact（_PROVIDER_PARTIAL_KEYS 加 services）。"""
+    resources = ResourceApiRepository()
+    resources.upsert_asset(
+        {
+            "resource_code": "res-api-op-001",
+            "title": "操作员注册的代理服务",
+            "resource_kind": "api",
+            "lifecycle_status": "draft",
+            "owner_org_id": "11370000MB284651XL",
+        },
+        tenant_id=TENANT,
+    )
+    snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_ORGAN_OPERATER"}, role="ROLE_ORGAN_OPERATER")
+    services = snap["provider"]["services"]
+    svc = next((s for s in services if s["id"] == "res-api-op-001"), None)
+    assert svc is not None, "操作员应能看到自己注册的 API 服务（services 未被 redact）"
+    # 行内操作（提交审核/发布/下线）按原始生命周期码分流，故 lifecycle_status 必须透传。
+    assert svc["lifecycle_status"] == "draft"
+
+
 def test_field_decision_projection_item_shape_for_inbox_ui(brain: BrainService) -> None:
     _seed_inbox_rows()
     snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_ORGAN_MANAGER"}, role="ROLE_ORGAN_MANAGER")

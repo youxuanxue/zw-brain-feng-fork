@@ -151,8 +151,17 @@ const headerMeta = computed(() => {
           </thead>
           <tbody>
             <tr v-for="it in items" :key="it.catalog_code">
-              <td><code>{{ it.catalog_code }}</code></td>
-              <td>{{ it.title }}</td>
+              <!-- T10（6.5#8）：编号/名称跳目录详情，审核人看全貌再判通过/驳回（复用 P2 目录详情页）。 -->
+              <td>
+                <a
+                  class="catalog-link"
+                  :href="`#/discovery/catalog/${encodeURIComponent(it.catalog_code)}`"
+                  data-testid="catalog-review-detail-link"
+                ><code>{{ it.catalog_code }}</code></a>
+              </td>
+              <td>
+                <a class="catalog-link" :href="`#/discovery/catalog/${encodeURIComponent(it.catalog_code)}`">{{ it.title }}</a>
+              </td>
               <td>{{ it.owner_org_id || '—' }}</td>
               <td>{{ it.region_code || '—' }}</td>
               <td><span class="status-pill">{{ it.lifecycle_label }}</span></td>
@@ -185,6 +194,9 @@ const headerMeta = computed(() => {
 
 <style scoped>
 .row-link-btn { background: none; border: 0; cursor: pointer; font-size: 13px; text-decoration: underline; margin-right: 12px; padding: 0; }
+.catalog-link { color: var(--b-primary, #006be6); text-decoration: none; }
+.catalog-link:hover { text-decoration: underline; }
+.catalog-link code { color: inherit; }
 .row-link-btn.approve { color: var(--b-primary, #006be6); }
 .row-link-btn.reject { color: #c0392b; }
 .role-hint { font-size: 13px; color: var(--b-muted, #5c6370); margin: 0 0 12px; line-height: 1.5; }

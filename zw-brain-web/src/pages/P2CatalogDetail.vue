@@ -7,7 +7,7 @@ import { getProductRole } from '@/composables/useProductRole';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import ResourceCard from '@/components/ResourceCard.vue';
-import { decisionRows, compilationRows, catalogSummary } from '@/lib/typedDetailDisplay';
+import { decisionRows, compilationRows, catalogSummary, DECISION_SECTION_TITLE } from '@/lib/typedDetailDisplay';
 
 const route = useRoute();
 const code = computed(() => String(route.params.code ?? ''));
@@ -66,7 +66,7 @@ const showCompilation = ref(false);
       <!-- 反馈 5 首屏：决策字段（共享/更新/提供方）+ 数据资源摘要 -->
       <DetailPanel
         v-if="decisionDetailRows.length"
-        title="共享与复用"
+        :title="DECISION_SECTION_TITLE"
         :rows="decisionDetailRows"
         data-testid="catalog-decision-block"
       />

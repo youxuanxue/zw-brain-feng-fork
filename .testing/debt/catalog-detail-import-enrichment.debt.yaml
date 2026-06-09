@@ -1,0 +1,25 @@
+slug: catalog-detail-import-enrichment
+title: "目录详情 6.4#5 字段投影已就位，但旧平台 data_catalog 导入富集 `_map_data_catalog` 丢弃 应用场景/所属领域/业务更新周期 等键 → 189 条真实目录详情诚实空态（T5 核账+记债）"
+date: 2026-06-08
+severity: medium
+owner: 产品研发负责人
+# T5（0605 验收回合 6.4#5）核账结论：catalog_meta()（zw_brain/domain/services/catalog_service.py:442-465）
+# 已投影 domain/applicationScenario/sourceSystem/resourceFormat/businessUpdateCycle/dataUpdateCycle，
+# typedDetailDisplay.ts compilationRows/decisionRows 已渲染——**投影链路 + 渲染就位**。
+# 真实风险=有键无值：实读 .data/zw_brain.db catalog_entry 1222 行（189 条来自 data_catalog 全字段映射，
+# 余为 group/national 族），其 summary_json.summary 含 resource_format(189)/update_cycle/catalog_type/
+# shared_type/open_type/published_time，但 **application_scenario=0 / source_system=0 / domain≈0**：
+#   - `_map_data_catalog`(catalog_metadata.py:218-240) summary 字典 **不映射** use_desc(应用场景描述)、
+#     use_claim(使用要求)、domain_id/domain_name(所属领域)、business_update_cycle(业务更新周期单列)、
+#     data_region_range(数据区域范围)；只映射单 update_cycle（详情靠 fallback 把业务/数据周期回落到它）。
+#   - 旧平台源 old/12-datastructure/dsp_catalog.xml(data_catalog) **确有这些列**（use_desc 应用场景描述 /
+#     domain_id 数据所属领域 / business_update_cycle 业务更新周期 / use_claim 使用要求 / data_region_range
+#     数据区域范围）→ 是导入富集缺失，非源缺供，**可补**。
+# 本期 = 核账 + 记债（D11 诚实空态：键无值即诚实显空，不伪造）；按 D53/旧平台事实，富集回填属上游导入侧工作。
+trigger: "业务方坚持补这些详情字段，或 T3 在线编制(B1)落地后口径统一 → 在 `_map_data_catalog` summary 字典补 application_scenario=row.get('use_desc')、domain=row.get('domain_id'|'domain_name')、business_update_cycle/data_update_cycle、use_claim、data_region_range，重跑导入富集存量目录 → 详情有值，关债。"
+assert:
+  # open ⇔ 导入富集侧仍未映射「应用场景」(use_desc→application_scenario)。锚点=catalog_metadata.py 内
+  # 尚无 application_scenario 标识符；补富集后该词出现（无论作 key 还是注释）→ grep 命中 → 现算 stale-fixed → 关债。
+  kind: grep_absent
+  file: zw_brain/adapters/legacy/mappers/catalog_metadata.py
+  pattern: "application_scenario"

@@ -185,13 +185,13 @@ async function publishDraft(catalogCode: string) {
       </div>
 
       <!-- 目录 / 资源管理概览（负责人加注）：本部门目录 / 资源的管理态全局感（只读现算）。
-           不挂「查看目录/资源」链接——现有 provider 路由只有审核收件箱（仅含「待审」一桶 + 审核动作，
-           与「按生命周期看全部」语义不符，对发布岗也是错配角色动词）；按生命周期浏览全部目录/资源
-           的清单页是独立功能（不在批次2 范围），待立项再补「查看全部」入口，不留语义错配的死链。 -->
+           T9：概览卡标题做成可点入口 → 进 provider 子路由清单页（/provider/catalogs、
+           /provider/resources），按生命周期浏览本部门全部目录/资源（名称/代码/提供方/生命周期/查看）。
+           子路由不进 PRODUCT_SHELL_NAV、不增左导航项（守左导航场景页 ≤10 约束）。 -->
       <section v-if="source === 'live' && canManageAssets" class="manage-grid" aria-label="目录与资源管理概览">
         <div class="manage-card" data-testid="catalog-manage-summary">
           <header class="manage-head">
-            <h3 class="section-title">目录管理</h3>
+            <a href="#/provider/catalogs" class="manage-title-link" data-testid="catalog-manage-link">目录管理 →</a>
           </header>
           <p class="manage-total">本部门目录 {{ catalogSummary.total }} 项</p>
           <ul class="manage-breakdown">
@@ -204,7 +204,7 @@ async function publishDraft(catalogCode: string) {
         </div>
         <div class="manage-card" data-testid="resource-manage-summary">
           <header class="manage-head">
-            <h3 class="section-title">资源管理</h3>
+            <a href="#/provider/resources" class="manage-title-link" data-testid="resource-manage-link">资源管理 →</a>
           </header>
           <p class="manage-total">本部门资源 {{ resourceSummary.total }} 项</p>
           <ul class="manage-breakdown">
@@ -307,6 +307,8 @@ async function publishDraft(catalogCode: string) {
 .manage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 24px; }
 .manage-card { padding: 16px 18px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; background: #fff; }
 .manage-head { display: flex; align-items: baseline; margin-bottom: 8px; }
+.manage-title-link { font-size: 15px; font-weight: 600; color: var(--b-primary, #006be6); text-decoration: none; }
+.manage-title-link:hover { text-decoration: underline; }
 .manage-total { margin: 0 0 10px; font-size: 13px; color: var(--b-muted, #5c6370); }
 .manage-breakdown { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .manage-breakdown li { font-size: 13px; color: var(--b-neutral-text, #1a1d21); }

@@ -60,6 +60,12 @@ export const RESOURCE_FORMAT_OPTIONS: SelectOption[] = [
   { value: '0400', label: '接口' },
 ];
 
+/** 数据提供方式（旧平台 data_resource：周期提供 / 一次性提供）。 */
+export const DATA_PROVISION_OPTIONS: SelectOption[] = [
+  { value: 'periodic', label: '周期提供' },
+  { value: 'one_time', label: '一次性提供' },
+];
+
 /** 信息项类型（旧平台 data_resource_table_column 字段类型，r3 截图枚举）。 */
 export const ITEM_TYPE_OPTIONS: SelectOption[] = [
   { value: 'C', label: '字符串型' },
@@ -105,6 +111,8 @@ export interface CatalogItemDraft {
   shareType: string;
   shareCondition: string;
   dataLevel: string;
+  /** 是否必填（旧平台 data_resource_table_column.is_null_field「是否为空」反向语义）。 */
+  isRequired: boolean;
   note: string;
 }
 
@@ -117,6 +125,7 @@ export function blankCatalogItem(): CatalogItemDraft {
     shareType: '2',
     shareCondition: '',
     dataLevel: '3',
+    isRequired: false,
     note: '',
   };
 }
@@ -137,6 +146,9 @@ export function catalogItemToPayload(item: CatalogItemDraft, catalogCode: string
       shared_type: item.shareType || null,
       shared_condition: item.shareCondition.trim() || null,
       data_level: item.dataLevel || null,
+      // is_null_field 旧平台语义为「是否允许为空」——必填 = 不允许为空 = '0'，可空 = '1'。
+      is_null_field: item.isRequired ? '0' : '1',
+      is_required: item.isRequired,
       note: item.note.trim() || null,
     },
   };

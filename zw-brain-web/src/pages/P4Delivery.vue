@@ -121,9 +121,10 @@ async function downloadFile(id: string, name: string) {
                 >
                   下载
                 </button>
-                <!-- F3：「对账回执」是受控数据交付的对账语义，对 API 接口授权不成立——API 不渲染。 -->
+                <!-- 「对账回执」= 库表受控交换的对账语义，仅库表交付渲染（业务方 2026-06-09 确认）：
+                     API 是接口授权（走「查看授权」）、文件是直接下载（走「下载」），二者均无对账回执概念。 -->
                 <button
-                  v-if="t.resourceKind !== 'api'"
+                  v-if="t.resourceKind === 'table'"
                   type="button"
                   class="gov-btn gov-btn-primary"
                   @click="reconcile(t.id)"

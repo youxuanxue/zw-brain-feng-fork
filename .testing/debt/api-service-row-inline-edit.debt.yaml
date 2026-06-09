@@ -1,0 +1,19 @@
+slug: api-service-row-inline-edit
+title: "已注册 API 服务列表行内「编辑」草稿暂缓——T7 本期落地生命周期推进列（提交审核/发布/下线），编辑需投影富集 + 表单 edit 模式，避免 merge 半截覆盖"
+date: 2026-06-08
+severity: low
+owner: 产品研发负责人
+# T7（0605 验收回合 6.5#6）：已注册 API 服务列表本期补「操作」列——按 lifecycle_status×角色门渲染
+# 提交审核(draft→pending_review)/发布(approved_pending_publish→active)/下线(active→retired)，均一键、
+# 仅需 resource_code、接既有 resource.api.{submit_review,publish,withdraw}，**直接解掉验收主诉「71 条草稿无任何动作」**。
+# 行内「编辑草稿」未做：`_change_api_resource`(handlers/j1/resource_api.py) 走 upsert({**existing, **payload})
+# 合并语义——若不先把整行可编辑字段(summary_json/access_policy_json/qos_policy_json/channel_binding)富集进
+# provider.services 投影并让 P5ApiServiceWizard 进 edit 模式预填，半截编辑会用表单默认值覆盖未预填字段(clobber)。
+# 乔布斯口径「不出半截功能」：宁缺编辑、不出会丢数据的编辑。且批次3 的 T8（表单改按钮触发展开）正重构同表单，
+# 此时叠加 edit 模式冲突面大。故本期记债、与 T8 落地后一并做干净 edit 模式。
+trigger: "T8（注册表单按钮触发展开）落地后，或业务方要求行内改草稿 → 富集 provider.services 投影携带可编辑字段 + P5ApiServiceWizard 加 edit 模式预填（按钮『保存修改』接 resource.api.change），关债。"
+assert:
+  # open ⇔ P5ApiServiceWizard.vue 尚未接 resource.api.change（无行内编辑）。落地 edit 模式后该词出现 → 现算 stale-fixed → 关债。
+  kind: grep_absent
+  file: zw-brain-web/src/pages/P5ApiServiceWizard.vue
+  pattern: "resource.api.change"

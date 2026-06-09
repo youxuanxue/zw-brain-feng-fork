@@ -95,7 +95,7 @@ const ENGINES: EngineConfig[] = [
     key: 'recommendation',
     navTitle: '推荐规则',
     heroTitle: '推荐规则配置',
-    heroHint: '管理员配置项目级推荐规则（关键词 / 分类 / 机构 / 高频 / 文本相似），命中后建议复用已有目录。',
+    heroHint: '管理员配置项目级推荐规则（关键词 / 分类 / 机构 / 高频 / 文本相似），命中后建议沿用已有目录。',
     draftSkill: '',
     promoteSkill: '',
     revertSkill: '',

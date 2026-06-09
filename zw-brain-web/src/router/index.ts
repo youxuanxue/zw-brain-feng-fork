@@ -20,6 +20,8 @@ import P4DeliveryTaskDetail from '@/pages/P4DeliveryTaskDetail.vue';
 import P5Provider from '@/pages/P5Provider.vue';
 import P5NationalExtElem from '@/pages/P5NationalExtElem.vue';
 import P5InlineCatalogWizard from '@/pages/P5InlineCatalogWizard.vue';
+import P5CatalogManageList from '@/pages/P5CatalogManageList.vue';
+import P5ResourceManageList from '@/pages/P5ResourceManageList.vue';
 import P5CatalogReviewInbox from '@/pages/P5CatalogReviewInbox.vue';
 import P5ReverseCatalogWizard from '@/pages/P5ReverseCatalogWizard.vue';
 import P5ApiServiceWizard from '@/pages/P5ApiServiceWizard.vue';
@@ -76,6 +78,10 @@ const routes: RouteRecordRaw[] = [
   { path: '/provider', name: 'P5-provider', component: P5Provider, meta: { page: 'P5', title: 'P5 提供方管理' } },
   { path: '/provider/national-ext-elem', component: P5NationalExtElem, meta: { page: 'P5', title: 'P5 国家扩展要素编制' } },
   { path: '/provider/wizard/inline-catalog', component: P5InlineCatalogWizard, meta: { page: 'P5', title: 'P5 在线编制目录' } },
+  // T9：供数侧目录/资源「管理清单」子路由——由「供数据」概览卡点入，不进 PRODUCT_SHELL_NAV、
+  // 不增左导航项（守左导航场景页 ≤10 约束）；activeShellKey('/provider/*')='provider' → 沿用供数 shell 角色门。
+  { path: '/provider/catalogs', component: P5CatalogManageList, meta: { page: 'P5', title: 'P5 目录管理清单' } },
+  { path: '/provider/resources', component: P5ResourceManageList, meta: { page: 'P5', title: 'P5 资源管理清单' } },
   { path: '/provider/inbox/catalog-review', component: P5CatalogReviewInbox, meta: { page: 'P5', title: 'P5 目录审核收件箱' } },
   { path: '/provider/wizard/reverse-catalog', component: P5ReverseCatalogWizard, meta: { page: 'P5', title: 'P5 反向编目向导' } },
   { path: '/provider/wizard/api-service', component: P5ApiServiceWizard, meta: { page: 'P5', title: 'P5 API 服务化向导' } },

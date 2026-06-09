@@ -17,6 +17,7 @@ import {
   decisionRows,
   compilationRows,
   catalogSummary,
+  DECISION_SECTION_TITLE,
 } from '@/lib/typedDetailDisplay';
 import { ref } from 'vue';
 
@@ -32,9 +33,25 @@ const canApply = computed(
     String(resource.value?.lifecycleStatus ?? '') === 'active',
 );
 
+// 资源物化形态（canonical kind，T4）：字段清单 / 字段数据模型仅对「库表」资源有意义；
+// 文件 / 接口资源不该错显库表字段模型块（旧平台文件资源详情无「字段数据信息」）。
+const resourceKind = computed(() =>
+  String(
+    (resource.value?.typedDetail as Record<string, unknown> | undefined)?.kind ??
+      resource.value?.resourceKind ??
+      '',
+  ),
+);
+const isTable = computed(() => resourceKind.value === 'table');
+
 // 字段数据模型（只读）：metadata.schema.query → MANAGER / BUSIAUDIT / SECURITY_AUDIT。
-// 无权岗位（OPERATER）整块不渲染（无权=不可见），也不发请求。
-const canViewSchema = computed(() => canPerformAction('metadata.schema.query', getProductRole().value));
+// 无权岗位（OPERATER）整块不渲染（无权=不可见），也不发请求。叠加 kind==='table' 门控：
+// 非库表资源既不渲染也不发 schema 请求（T4 消除文件类错显）。
+const canViewSchema = computed(() => canPerformAction('metadata.schema.query', getProductRole().value) && isTable.value);
+// T1（6.5#2）：该块默认折叠——把异步加载推迟到用户点击展开时才发起，从根上消除「与主详情并发
+// 竞速、先渲染加载态再切成表格」的二次撑高（仅有权且库表岗位会渲染本块，正是验收看到跳跃的角色）。
+// enabled 同时门控「有权 ∧ 库表 ∧ 已展开」：折叠态零请求，展开即按需加载。
+const showSchema = ref(false);
 const {
   columns: schemaColumns,
   loading: schemaLoading,
@@ -42,7 +59,7 @@ const {
   isEmpty: schemaEmpty,
 } = useResourceSchema(
   () => id.value,
-  () => canViewSchema.value,
+  () => canViewSchema.value && showSchema.value,
   () => getProductRole().value,
 );
 
@@ -52,7 +69,7 @@ const displayName = computed(() => {
   return String(r.name ?? r.title ?? '');
 });
 
-// A2（0605#2）：去掉与「共享与复用」字段重复的「基本信息」缩略块（提供方等已在决策块），
+// A2（0605#2）：去掉与「共享与使用」字段重复的「基本信息」缩略块（提供方等已在决策块），
 // 只把真正独有、轻量的事实（状态/最近更新/订阅量）收进 header 下一行细条，
 // 首屏直达决策视图，消除「先缩略再详情」的跳跃感。
 const headerFacts = computed(() => {
@@ -127,7 +144,7 @@ async function apply() {
       <!-- 反馈 5 首屏：决策字段（共享/更新/提供方）+ 摘要，用户看完即可决定要不要申请 -->
       <DetailPanel
         v-if="decisionDetailRows.length"
-        title="共享与复用"
+        :title="DECISION_SECTION_TITLE"
         :rows="decisionDetailRows"
         data-testid="decision-block"
       />
@@ -145,14 +162,27 @@ async function apply() {
         data-testid="typed-detail-block"
       />
 
-      <section v-if="fields.length" class="detail-block">
+      <!-- 字段清单 / 字段数据模型仅对库表资源渲染（T4）：文件 / 接口资源无字段模型概念，
+           带 kind==='table' 门控消除文件类错显。 -->
+      <section v-if="isTable && fields.length" class="detail-block">
         <h2 class="detail-block-title">{{ fields.length > 12 ? `字段清单（前 12 项，共 ${fields.length} 项）` : `字段清单（${fields.length} 项）` }}</h2>
         <ul class="chip-list">
           <li v-for="f in fields.slice(0, 12)" :key="f">{{ f }}</li>
         </ul>
       </section>
       <section v-if="canViewSchema" class="detail-block" data-testid="resource-schema-block">
-        <h2 class="detail-block-title">字段数据模型</h2>
+        <!-- T1：默认折叠，点击才异步加载——消除与主详情竞速的二次撑高（对齐下方编目信息折叠块）。 -->
+        <button
+          type="button"
+          class="collapse-toggle"
+          :aria-expanded="showSchema"
+          data-testid="resource-schema-toggle"
+          @click="showSchema = !showSchema"
+        >
+          <span>字段数据模型</span>
+          <span class="collapse-arrow">{{ showSchema ? '收起' : '展开' }}</span>
+        </button>
+        <template v-if="showSchema">
         <p v-if="schemaLoading" class="schema-state" data-testid="resource-schema-loading">正在加载字段数据模型……</p>
         <p v-else-if="schemaError" class="schema-state schema-state-error" data-testid="resource-schema-error">
           字段信息暂未提供，请稍后再试或联系数据提供方。
@@ -182,9 +212,10 @@ async function apply() {
             </tr>
           </tbody>
         </table>
+        </template>
       </section>
       <section v-if="explain.length" class="detail-block">
-        <h2 class="detail-block-title">复用提示</h2>
+        <h2 class="detail-block-title">使用提示</h2>
         <ul class="hint-list">
           <li v-for="e in explain" :key="e">{{ e }}</li>
         </ul>

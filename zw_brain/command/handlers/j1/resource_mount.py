@@ -49,6 +49,8 @@ def _business_summary(payload: dict[str, Any]) -> dict[str, Any]:
     """资源注册业务信息 → summary_json 公共块（资源描述/来源系统/版本号/技术联系人/联系方式）。
 
     对标旧平台资源「基本信息」标签页（库表/文件资源详情对标截图）。table/file 共用。
+    T4 补齐库表权威字段：资源所处位置 / 数据提供方式（周期·一次性）/ 资源更新周期——库表注册
+    采集，文件注册不填则诚实 None；详情端「库表信息」回显（与采集端双向对齐）。
     """
     return {
         "resource_desc": payload.get("resource_desc"),
@@ -56,6 +58,9 @@ def _business_summary(payload: dict[str, Any]) -> dict[str, Any]:
         "resource_version": payload.get("resource_version"),
         "tech_contact": payload.get("tech_contact"),
         "contact_phone": payload.get("contact_phone"),
+        "res_location": payload.get("res_location"),
+        "data_provision_method": payload.get("data_provision_method"),
+        "update_cycle": payload.get("update_cycle"),
     }
 
 

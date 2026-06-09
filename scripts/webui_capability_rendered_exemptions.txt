@@ -91,7 +91,6 @@ require.task.handoff
 resource.api.change
 resource.api.policy.update
 resource.api.revoke
-resource.api.withdraw
 resource.asset.publish
 resource.manage_asset
 risk.event.ingest

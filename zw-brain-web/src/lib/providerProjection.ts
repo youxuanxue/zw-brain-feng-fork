@@ -219,3 +219,83 @@ export function providerResourceSummary(provider: Record<string, unknown>): Asse
   const resources = Array.isArray(provider.resources) ? provider.resources : [];
   return _summarize(resources);
 }
+
+// ── 供数侧目录/资源「管理清单」行投影（T9）──────────────────────────────────
+// 概览卡只算计数；清单页要逐行展示（名称/代码/提供方/生命周期/查看）。同源于
+// provider.catalogs / provider.resources 真实 snapshot，与概览卡口径一致（_bucketStatus）。
+
+const _BUCKET_LABEL: Record<_ActiveBucket, string> = {
+  draft: '草稿',
+  reviewing: '审核中',
+  pendingPublish: '待发布',
+  published: '已发布',
+};
+// 非四态机器值 → 中文（已是中文则原样透传；都不命中诚实回落原值/「—」）。
+const _INACTIVE_LABEL: Record<string, string> = {
+  suspended: '已停用',
+  retired: '已退役',
+  expired: '已过期',
+  offline: '已下线',
+};
+
+/** 生命周期态 → 中文展示标签（R12 前端零词表口径，与概览卡分桶同源）。 */
+function _statusLabel(raw: unknown): string {
+  const s = String(raw ?? '').trim();
+  const bucket = _bucketStatus(s);
+  if (bucket) return _BUCKET_LABEL[bucket];
+  if (/[一-鿿]/.test(s)) return s; // 已是中文（snapshot 部分行直接落中文态）
+  return _INACTIVE_LABEL[s.toLowerCase()] ?? (s || '—');
+}
+
+const _KIND_LABEL: Record<string, string> = { table: '库表', file: '文件', api: '接口', service: '接口' };
+
+export interface ProviderAssetRow {
+  id: string;
+  name: string;
+  /** 目录：数据资源目录代码；资源：所属目录代码。 */
+  code: string;
+  /** 提供方（org 名优先，无映射诚实回落 org id）。 */
+  owner: string;
+  /** 中文生命周期态。 */
+  status: string;
+  /** 资源物化形态中文标签（仅资源行）。 */
+  kind?: string;
+  /** 行内「查看」跳转（复用既有详情路由）。 */
+  viewHref: string;
+}
+
+/** 本部门「已编目目录」管理清单（按生命周期浏览全部，T9）。 */
+export function providerCatalogRows(provider: Record<string, unknown>): ProviderAssetRow[] {
+  const catalogs = Array.isArray(provider.catalogs) ? provider.catalogs : [];
+  return catalogs.map((row) => {
+    const it = asRecord(row);
+    const code = String(it.catalog_code ?? it.id ?? '');
+    return {
+      id: String(it.id ?? ''),
+      name: safeRecordTitle(it.name ?? it.title, it.id, '目录'),
+      code: code || '—',
+      owner: String(it.owner ?? it.owner_org_id ?? '—'),
+      status: _statusLabel(it.status ?? it.lifecycle_status),
+      viewHref: code ? `#/discovery/catalog/${encodeURIComponent(code)}` : '',
+    };
+  });
+}
+
+/** 本部门「已挂接资源」管理清单（按生命周期浏览全部，T9）。 */
+export function providerResourceRows(provider: Record<string, unknown>): ProviderAssetRow[] {
+  const resources = Array.isArray(provider.resources) ? provider.resources : [];
+  return resources.map((row) => {
+    const it = asRecord(row);
+    const id = String(it.id ?? it.resource_code ?? '');
+    const kind = String(it.resource_kind ?? '');
+    return {
+      id,
+      name: safeRecordTitle(it.name ?? it.title, it.id, '资源'),
+      code: String(it.catalog_code ?? '—'),
+      owner: String(it.owner ?? it.owner_org_id ?? '—'),
+      status: _statusLabel(it.lifecycle_status ?? it.status),
+      kind: _KIND_LABEL[kind] || (kind || '—'),
+      viewHref: id ? `#/discovery/resource/${encodeURIComponent(id)}` : '',
+    };
+  });
+}

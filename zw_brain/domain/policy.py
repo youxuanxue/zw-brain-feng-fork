@@ -108,18 +108,22 @@ PERMISSION_ROLES = {
     "ops.service.invocation.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "ops.service.report.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
 
-    # API 资源全生命周期
-    "resource.api.register.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    "resource.api.change.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    "resource.api.submit_review.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    # R-007 fix: 审核类权限保留交叉审（仅 BUSIAUDIT）
-    "resource.api.review.execute": {"ROLE_BUSIAUDIT"},
-    # R-001 fix: r6 (映射到 ROLE_ORGAN_MANAGER) 是提供方部门管理员，应保留对自家 API 资源的发布权
-    "resource.api.publish.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    "resource.api.withdraw.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    "resource.api.revoke.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    "resource.api.test.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    "resource.api.policy.update.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    # API 资源全生命周期 —— 角色口径以旧平台角色菜单 v5 + D54 GATE-1 为准（产品研发负责人 2026-06-08 sign-off，
+    # .testing/signoff/feedback-0605-acceptance-gate.signoff.yaml）：
+    #   注册 / 编辑 / 提交审核 = 部门操作员 + 部门管理员（业务运营员退出注册——其职责是「融合服务受理」≠ 服务注册）；
+    #   审核 / 发布 / 下线 / 撤销 / 策略 = 部门管理员（v5「融合服务审核 = 部门管理员」）；
+    #   测试 = 注册方自测（操作员 + 管理员）。
+    # 撤回此前 R-007（review 交叉审给 BUSIAUDIT）与 R-001 的 BUSIAUDIT 旁路：D54 收口业务运营员
+    # 完全退出 API 资源生命周期（MANAGER 仍保留对自家 API 资源的发布权——R-001 的本意被新口径保留）。
+    "resource.api.register.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    "resource.api.change.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    "resource.api.submit_review.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    "resource.api.review.execute": {"ROLE_ORGAN_MANAGER"},
+    "resource.api.publish.execute": {"ROLE_ORGAN_MANAGER"},
+    "resource.api.withdraw.execute": {"ROLE_ORGAN_MANAGER"},
+    "resource.api.revoke.execute": {"ROLE_ORGAN_MANAGER"},
+    "resource.api.test.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    "resource.api.policy.update.execute": {"ROLE_ORGAN_MANAGER"},
 
     # 目录浏览/搜索
     "catalog.group.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},

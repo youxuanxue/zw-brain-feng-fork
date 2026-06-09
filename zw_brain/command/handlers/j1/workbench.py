@@ -26,9 +26,13 @@ def _get_workbench(brain, deps, ctx, role: str) -> dict[str, Any]:
     if role not in deps.brain_legacy._snapshot["workbench"]:
         raise NotFoundError(role)
     view = deps.view.workbench.get_for_role(role)
-    # 缺陷 2 修复：业务运营员（ROLE_BUSIAUDIT）待办从真实库现算（待发布/待审核目录 + 待审核
-    # 资源 + 待受理申请），每条深链到既有办理页；DB 有积压才生成（无空死链），并清掉删演示单
-    # 后遗留的陈旧 subtitle/aiSummary。其它角色 view 原样（待办由 sync_request_todos 真投影）。
+    # 业务运营员（ROLE_BUSIAUDIT）待办从真实库现算——D53⑤ 收敛为「发布类」五项：待发布目录 /
+    # 待发布资源 / 待受理申请 / 待受理异议 / 待汇总需求（已去错配的「审核类」）；每条带既有办理页
+    # 深链，DB 有积压才生成（无空死链），并清掉删演示单后遗留的陈旧 subtitle/aiSummary。
+    # 待校准：「待受理异议」深链指向的 objection inbox 现仅授权部门管理员（pageAccess），业务运营员
+    # 落点经岗位门重定向——异议受理人角色口径属 D28 GATE，待裁决后校准（投影 or 路由门，二选一）。
+    # 其它角色 view 原样（待办由 sync_request_todos 真投影）。投影口径单一事实源见
+    # workbench_backlog_projection.enrich_workbench_backlog。
     return enrich_workbench_backlog(view, role)
 
 def _submit_service_rating(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:

@@ -1,0 +1,17 @@
+slug: t5-catalog-field-enrichment
+title: "目录详情 应用场景缺值 + 所属领域 theme_group_id 裸码无字典（存量导入上游富集债）"
+date: 2026-06-09
+severity: low
+owner: 产品研发负责人
+# T5（6.4#5 目录详情字段）走查实证：catalog_meta() 投影与 compilationRows 渲染链路已就位，但存量
+# 导入目录两处为「上游缺供」而非代码缺陷——
+#  ① 应用场景：旧导入目录多无 application_scenario / use_desc 键 → 诚实空态省略（在线编制新目录必填、
+#     正常展示）。需数据治理侧补 application_scenario 富集才有值。
+#  ② 所属领域：旧库 domain 空、回落 theme_group_id 为裸码（如 "202,"）。已在读层用 _readable_domain
+#     抑制裸码（R12 不泄漏），但缺「theme_group_id → 领域中文名」字典 → 存量目录所属领域整体省略。
+#     需上游提供主题/领域码字典（dsp_basesubject 不含此映射，archive_column 是数据元非领域字典）。
+# 本债不改 catalog_service 现读路径（裸码已抑制、应用场景已诚实空态）；属上游数据/字典缺供。
+trigger: "数据治理侧补 application_scenario 富集 + 提供 theme_group_id→领域名 字典 → catalog_meta 接字典映射 domainLabel → 存量目录所属领域/应用场景有值即关债。"
+assert:
+  # 纯上游数据/字典缺供，无本仓 code 条件可断言（external：owner+trigger，trigger 触发即升级）。
+  kind: external

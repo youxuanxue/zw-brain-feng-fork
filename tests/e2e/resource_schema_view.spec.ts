@@ -32,6 +32,8 @@ async function resourceCodeWithSchema(page: import('@playwright/test').Page): Pr
   for (const r of resources) {
     const code = String(r.id ?? '');
     if (!code) continue;
+    // T4：字段数据模型块仅对库表资源渲染（文件/接口资源不再错显）。只在库表资源上断言。
+    if (String(r.kind ?? '') !== 'table') continue;
     const schemaResp = await page.request.get(
       `${E2E_BASE_URL}/api/skills/metadata.schema.query?role=${role}&resource_code=${encodeURIComponent(code)}`,
     );
@@ -55,6 +57,8 @@ async function resourceCodeWithoutSchema(
   for (const r of resources) {
     const code = String(r.id ?? '');
     if (!code) continue;
+    // T4：字段数据模型块仅对库表资源渲染——空态断言也只在库表资源上成立（非库表整块不渲染）。
+    if (String(r.kind ?? '') !== 'table') continue;
     const schemaResp = await page.request.get(
       `${E2E_BASE_URL}/api/skills/metadata.schema.query?role=${role}&resource_code=${encodeURIComponent(code)}`,
     );
@@ -77,12 +81,14 @@ test.describe('P2 资源详情 · 字段数据模型只读块', () => {
     const resId = await resourceCodeWithSchema(page);
     test.skip(!resId, 'no discovery resource with field schema snapshot');
 
-    // 授权岗位：看到「字段数据模型」块 + 真实列表。
+    // 授权岗位：看到「字段数据模型」块（T1：默认折叠，点击展开后才异步加载表格）。
     await setRole(page, 'ROLE_ORGAN_MANAGER');
     await gotoHash(page, `#/discovery/resource/${resId}`);
     const block = page.locator('[data-testid="resource-schema-block"]');
     await expect(block).toBeVisible();
-    await expect(page.getByRole('heading', { name: '字段数据模型' })).toBeVisible();
+    const toggle = page.locator('[data-testid="resource-schema-toggle"]');
+    await expect(toggle).toBeVisible();
+    await toggle.click();
     const table = page.locator('[data-testid="resource-schema-table"]');
     await expect(table).toBeVisible();
     // 至少一真实列行（thead + ≥1 tbody 行）。
@@ -101,8 +107,9 @@ test.describe('P2 资源详情 · 字段数据模型只读块', () => {
     await setRole(page, 'ROLE_ORGAN_MANAGER');
     await gotoHash(page, `#/discovery/resource/${resId}`);
 
-    // 块仍渲染（授权岗位），但走诚实空态——不是「加载失败：HTTP 404」错误态。
+    // 块仍渲染（授权岗位）；T1：展开后才发起请求 → 诚实空态，不是「加载失败：HTTP 404」错误态。
     await expect(page.locator('[data-testid="resource-schema-block"]')).toBeVisible();
+    await page.locator('[data-testid="resource-schema-toggle"]').click();
     await expect(page.locator('[data-testid="resource-schema-empty"]')).toBeVisible();
     await expect(page.locator('[data-testid="resource-schema-error"]')).toHaveCount(0);
     await expect(page.locator('[data-testid="resource-schema-table"]')).toHaveCount(0);

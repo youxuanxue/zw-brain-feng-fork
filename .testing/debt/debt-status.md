@@ -2,11 +2,13 @@
 
 # Preflight Debt Status (computed)
 
-## open (34)
+## open (37)
 - ac7 [medium] (2026-05-25) — 客户机房部署 + 监控对接未落地（E6 AC7）
   - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
 - agentruntime [medium] (2026-05-24) — AgentRuntime runtime 触发式延后（D30 retrofit）
   - assert: external → external — owner=产品研发负责人; trigger=见 docs/preflight-debt.md 历史归档
+- api-service-row-inline-edit [low] (2026-06-08) — 已注册 API 服务列表行内「编辑」草稿暂缓——T7 本期落地生命周期推进列（提交审核/发布/下线），编辑需投影富集 + 表单 edit 模式，避免 merge 半截覆盖
+  - assert: grep_absent → pattern absent in zw-brain-web/src/pages/P5ApiServiceWizard.vue
 - approval-case-projection-stale [medium] (2026-06-02) — approval_case 投影对 legacy 导入记录陈旧（不进 snapshot sync 循环）
   - assert: external → external — owner=产品研发负责人; trigger=(a) 出现一次 approval_case 投影 status 与真实审批态背离的用户可见 bug； 或 (b) Wave 2/3 审批读路径重构窗口期，把 legacy 导入记录纳入统一投影 sync。
 
@@ -24,6 +26,8 @@
   - assert: external → external — owner=产品研发负责人; trigger=(a) 下一次需要在 middleware 注入新跨切（rate limit / OTLP /
 - build-true-data-seed-py [medium] (2026-05-29) — build_true_data_seed.py 生成器 recall sample_titles 25-total-cap vs 手编 seed 29 条偏差
   - assert: external → external — owner=产品研发负责人; trigger=见 docs/preflight-debt.md 历史归档
+- catalog-detail-import-enrichment [medium] (2026-06-08) — 目录详情 6.4#5 字段投影已就位，但旧平台 data_catalog 导入富集 `_map_data_catalog` 丢弃 应用场景/所属领域/业务更新周期 等键 → 189 条真实目录详情诚实空态（T5 核账+记债）
+  - assert: grep_absent → pattern absent in zw_brain/adapters/legacy/mappers/catalog_metadata.py
 - catalog-entry [medium] (2026-05-30) — F9 专题包引用目录未录入 catalog_entry 主表（不可检索 / 无详情页）
   - assert: external → external — owner=产品研发负责人; trigger=见 docs/preflight-debt.md 历史归档
 - commit-to-live [medium] (2026-05-28) — 三引擎 commit_to_live A 方案 hack（版本号膨胀）
@@ -62,6 +66,8 @@
   - assert: external → external — owner=产品研发负责人; trigger=(a) CI 上该用例**非负载场景**稳定超 1000ms（=真实 perf 回归，立即 P0 查
 - resource-schema-keying-reconcile [medium] (2026-06-02) — 字段数据模型视图覆盖率残留：read-path bridge 已把 2%→27%，余 73% 资源源 dump 无 schema 映射（上游数据缺供）
   - assert: external → external — owner=产品研发负责人; trigger=数据/业务侧在上游补齐 138 个无 schema 映射资源的 dsp_metaresource→catalog 资源列级 link（或补 dump 后重导），使 resource_schema_mapping 覆盖更多 resource_asset；补齐后桥接自动放大覆盖率（读路径已就绪，无需再改代码）。届时把本 assert 从 external 升级为现算（如 SQL join 命中率门槛）并按实际覆盖率关债或降级。
+- t5-catalog-field-enrichment [low] (2026-06-09) — 目录详情 应用场景缺值 + 所属领域 theme_group_id 裸码无字典（存量导入上游富集债）
+  - assert: external → external — owner=产品研发负责人; trigger=数据治理侧补 application_scenario 富集 + 提供 theme_group_id→领域名 字典 → catalog_meta 接字典映射 domainLabel → 存量目录所属领域/应用场景有值即关债。
 - tenant-only [medium] (2026-05-26) — 读路径热表 tenant-only 全扫白名单（PR #113 同模式残留）
   - assert: grep_present → pattern present in zw_brain/domain/repositories/delivery.py
 - test-db-path-isolation [medium] (2026-06-02) — ~30 个测试 fixture 裸改 ZW_BRAIN_DB_PATH 无 teardown → 跨模块 DB 泄漏

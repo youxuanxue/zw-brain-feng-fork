@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     pass
 
 import copy
+import hashlib
 
 from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
@@ -21,13 +22,31 @@ from zw_brain.shared.sanitization import safe_json
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
+def _derive_data_catalog_code(catalog_code: str, region_code: Any) -> str:
+    """在线编制目录的「数据资源目录代码」业务码（T3②/T11）。
+
+    内部 ``catalog_code`` slug（j2-inline-…）只作技术 id / 路由键 / 资源 join 键；
+    用户面要看一个稳定、可读、明确为本地系统生成的业务码——不伪造 24-hex 国家登记码。
+    格式 ``DRC-{region}-{8 位 slug 派生 hex}``：region 体现属地，hex 由 slug 确定性派生
+    （同一草稿恒等、不每次重算），落 summary_json 单源、详情端按此投影。
+    """
+    region = str(region_code or "000000").strip() or "000000"
+    digest = hashlib.sha256(catalog_code.encode("utf-8")).hexdigest()[:8]
+    return f"DRC-{region}-{digest}"
+
+
 def _create_catalog_entry_draft(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     catalog_code = str(payload["catalog_code"])
+    data_catalog_code = _derive_data_catalog_code(catalog_code, payload.get("region_code"))
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         store = deps.state_store.database_store
+        # 业务码注入资源 dict **顶层**（在线编制起）：upsert_from_resource 把整个 dict 落 record.
+        # summary_json，summary_body() 不剥 `summary_json` 内层键、只读顶层；故 data_catalog_code 须
+        # 与 id/name 平级才被 catalog_meta body.get 读到。update 路径 `**existing.summary_json`
+        # 顶层展开保留它。存量导入目录无此键 → 详情端 catalogCode 回落 record.catalog_code，互不干扰。
         catalog_payload = {
             "id": catalog_code,
             "name": str(payload.get("title", catalog_code)),
@@ -36,6 +55,7 @@ def _create_catalog_entry_draft(brain, deps, ctx, payload: dict[str, Any]) -> di
             "region_code": payload.get("region_code"),
             "source_ref": payload.get("source_ref"),
             "legacy_object_ref": payload.get("legacy_object_ref") or catalog_code,
+            "data_catalog_code": data_catalog_code,
             "summary_json": safe_json(payload.get("summary_json") or {}),
         }
         repo = deps.repos.catalog if store is not None else CatalogRepository()
@@ -43,7 +63,14 @@ def _create_catalog_entry_draft(brain, deps, ctx, payload: dict[str, Any]) -> di
         for item in payload.get("items") or []:
             repo.upsert_item({**item, "catalog_code": catalog_code}, tenant_id=_DEFAULT_TENANT_ID)
         deps.append_audit_feed("catalog.entry.create_draft", catalog_code, "ok", actor)
-        return with_lifecycle_label({"catalog_code": catalog_code, "lifecycle_status": "draft", "audit_id": audit_id})
+        return with_lifecycle_label(
+            {
+                "catalog_code": catalog_code,
+                "data_catalog_code": data_catalog_code,
+                "lifecycle_status": "draft",
+                "audit_id": audit_id,
+            }
+        )
 
     return deps.write(ctx, payload, mutation)
 

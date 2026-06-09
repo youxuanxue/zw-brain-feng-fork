@@ -37,6 +37,52 @@ def _delivery_resource_kind(res_type: Any, channel: Any = None) -> str | None:
     return None
 
 
+# 退役资源类型（D53② 收敛为「库表/文件/API」）：folder/url/link 在类型退役前导入的存量交付单
+# 不进消费视图（交付列表）。全局语义一致——退役类型不在任何消费面以历史交付单形态泄漏
+# （业务方 2026-06-09 确认：交付列表历史「文件夹/链接资源」交付单不显示）。数据保留（只读路径过滤、
+# 不删存量授权），按资源资产「原始 kind」识别（payload 多无 per-grant res_type，canonical 已折叠为
+# file/api 故不能靠投影后的 kind 反推）。
+RETIRED_RESOURCE_KINDS = {"folder", "url", "link"}
+
+
+def delivery_record_is_retired_origin(record: Any, retired_codes: set[str]) -> bool:
+    """该交付记录的底层资源是否为退役类型（folder/url/link）来源。"""
+    channel = str(getattr(record, "channel", "") or "").strip().lower()
+    if channel in RETIRED_RESOURCE_KINDS:
+        return True
+    payload = getattr(record, "payload_json", None) or {}
+    code = payload.get("resource_code") or payload.get("resource_id")
+    if code and code in retired_codes:
+        return True
+    grant = payload.get("access_grant") or {}
+    raw = str(payload.get("resource_kind") or grant.get("res_type") or "").strip().lower()
+    return raw in RETIRED_RESOURCE_KINDS
+
+
+def delivery_record_hidden_from_consumer(record: Any, retired_codes: set[str]) -> bool:
+    """消费侧交付列表（领数据）应隐藏该记录：
+    ① 退役类型（folder/url/link）来源——见 delivery_record_is_retired_origin；
+    ② 草稿态——存量交换流水线（exchange/recurring_exchange）导入残留、从未激活，非真实可领交付
+       （正常审批流交付单初始态是 pending，不存在 draft；草稿态全部是 M0 dump 残留，含 hex 缺名单/
+       重复/测试目录噪声，2026-06-09 走查确认不显示）。只读路径过滤、不删存量授权。
+    """
+    if delivery_record_is_retired_origin(record, retired_codes):
+        return True
+    return str(getattr(record, "state", "") or "").strip().lower() == "draft"
+
+
+# 缺资源名（上游 D11 不伪造）时的可读兜底：用真实 access_grant 字段拼标签，不暴露 hex 交付编号。
+_DELIVERY_KIND_LABELS = {"table": "库表", "file": "文件", "api": "接口服务"}
+
+
+def _delivery_fallback_name(payload: dict[str, Any]) -> str:
+    grant = payload.get("access_grant") or {}
+    org = str(grant.get("org_name") or "").strip()
+    kind = _delivery_resource_kind(payload.get("resource_kind") or grant.get("res_type"), None)
+    base = f"{_DELIVERY_KIND_LABELS.get(kind or '', '')}交付任务" if kind in _DELIVERY_KIND_LABELS else "数据交付任务"
+    return f"{org} · {base}" if org else base
+
+
 @dataclass(frozen=True)
 class DeliveryService:
     """Delivery task lifecycle + projection (P4 delivery)."""
@@ -74,9 +120,9 @@ class DeliveryService:
         return {
             "id": record.delivery_code,
             "requestId": record.application_code,
-            # F2：resource_name 缺供（上游 D11 不伪造资源名）时退「交付任务」，不再把 hex 编号
-            # 重复拼进名称（编号列已单独展示 id），避免「<hex> 交付任务」的乱码观感。
-            "name": payload.get("resource_name") or f"{record.delivery_code} 交付任务",
+            # F2：resource_name 缺供（上游 D11 不伪造资源名）时退可读兜底标签，不再把 hex 编号
+            # 拼进名称（编号列已单独展示 id），避免「<hex> 交付任务」的乱码观感（2026-06-09 走查）。
+            "name": payload.get("resource_name") or _delivery_fallback_name(payload),
             "channel": record.channel,
             # F3（6.5#9）+ F4：交付侧资源类型，供前端按类型分流操作——API 交付无「对账回执」概念、
             # 其凭据语义是「查看授权」，文件类显「下载」。收敛口径同 D53（folder/url→file、service→api）；

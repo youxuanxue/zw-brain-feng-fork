@@ -6,6 +6,8 @@ import { invokeActionStub } from '@/composables/useActionStub';
 import {
   SHARE_TYPE_OPTIONS,
   OPEN_TYPE_OPTIONS,
+  UPDATE_CYCLE_OPTIONS,
+  DATA_PROVISION_OPTIONS,
   FILE_STORE_OPTIONS,
 } from '@/lib/catalogCompileFields';
 
@@ -22,10 +24,10 @@ const title = ref('');
 const ownerOrgId = ref('');
 
 // B2：资源注册业务信息（对标旧平台资源「基本信息」标签页，table/file 共用）。
+// 注：旧平台库表资源注册第一屏只有「开放类型」无「开放条件」（T4 已删 openCondition）。
 const shareType = ref('2'); // 共享类型
 const shareCondition = ref(''); // 共享条件
 const openType = ref('3'); // 开放类型
-const openCondition = ref(''); // 开放条件
 const resourceDesc = ref(''); // 资源描述
 const sourceSystem = ref(''); // 来源系统
 const resourceVersion = ref(''); // 版本号
@@ -34,6 +36,11 @@ const contactPhone = ref(''); // 联系方式
 
 // 库表（口令不在挂接期收集——挂接只记连接标识，连通性 not_probed 待发布激活时连同凭据校验，
 // 不收集一个当场丢弃的 secret）
+// 库表资源注册补齐字段（T4，对标旧平台 data_resource 权威字段集）：资源所处位置 / 数据提供方式
+// （周期·一次性）/ 资源更新周期。采集端与详情端 _table_section 双向对齐。
+const resLocation = ref(''); // 资源所处位置
+const dataProvisionMethod = ref('periodic'); // 数据提供方式（周期/一次性）
+const resUpdateCycle = ref('2'); // 资源更新周期（库表侧；文件侧用 updateFrequency）
 const tableName = ref('');
 const connHost = ref('');
 const connDatabase = ref('');
@@ -72,7 +79,6 @@ function buildPayload(): Record<string, unknown> {
     shared_type: shareType.value || undefined,
     shared_condition: shareCondition.value.trim() || undefined,
     open_type: openType.value || undefined,
-    open_condition: openCondition.value.trim() || undefined,
     resource_desc: resourceDesc.value.trim() || undefined,
     source_system: sourceSystem.value.trim() || undefined,
     resource_version: resourceVersion.value.trim() || undefined,
@@ -89,6 +95,11 @@ function buildPayload(): Record<string, unknown> {
   if (kind.value === 'table') {
     return {
       ...base,
+      // 库表注册业务字段（T4）：资源所处位置 / 数据提供方式 / 资源更新周期 → 后端
+      // _business_summary，详情端「库表信息」回显。
+      res_location: resLocation.value.trim() || undefined,
+      data_provision_method: dataProvisionMethod.value || undefined,
+      update_cycle: resUpdateCycle.value || undefined,
       table_name: tableName.value.trim(),
       connection: { host: connHost.value.trim(), database: connDatabase.value.trim() },
       field_mappings: mappings.value.filter((m) => m.source.trim() && m.target.trim()),
@@ -181,7 +192,6 @@ async function submitReview() {
           </select>
         </div>
         <div><label class="field-label">共享条件</label><input v-model="shareCondition" class="gov-input" placeholder="例如：根据个人信息保护要求授权共享" /></div>
-        <div><label class="field-label">开放条件</label><input v-model="openCondition" class="gov-input" placeholder="例如：不可对社会开放" /></div>
         <div><label class="field-label">来源系统</label><input v-model="sourceSystem" class="gov-input" placeholder="例如：养老保险建模系统" /></div>
         <div><label class="field-label">版本号</label><input v-model="resourceVersion" class="gov-input" placeholder="例如：V2.0" /></div>
         <div><label class="field-label">技术联系人</label><input v-model="techContact" class="gov-input" placeholder="例如：王四" /></div>
@@ -191,6 +201,22 @@ async function submitReview() {
 
       <!-- 库表 -->
       <template v-if="kind === 'table'">
+        <!-- T4：库表资源注册补齐字段（资源所处位置 / 数据提供方式 / 资源更新周期），与详情「库表信息」对齐 -->
+        <div class="grid2">
+          <div><label class="field-label">资源所处位置</label><input v-model="resLocation" class="gov-input" placeholder="例如：省政务云 · 共享交换区" /></div>
+          <div>
+            <label class="field-label">数据提供方式</label>
+            <select v-model="dataProvisionMethod" class="gov-input">
+              <option v-for="o in DATA_PROVISION_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">资源更新周期</label>
+            <select v-model="resUpdateCycle" class="gov-input">
+              <option v-for="o in UPDATE_CYCLE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
+          </div>
+        </div>
         <div class="grid2">
           <div><label class="field-label">表名</label><input v-model="tableName" class="gov-input" placeholder="t_xxx" /></div>
           <div><label class="field-label">库主机</label><input v-model="connHost" class="gov-input" placeholder="host" /></div>

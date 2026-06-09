@@ -221,6 +221,6 @@ const PLACEHOLDER_DESC_RE =
 export function topicPackageDesc(rawDesc: unknown, catalogCount: number): string {
   const desc = String(rawDesc ?? '').trim();
   if (desc && !PLACEHOLDER_DESC_RE.test(desc)) return desc;
-  if (catalogCount > 0) return `已归集 ${catalogCount} 个共享目录，可订阅复用。`;
+  if (catalogCount > 0) return `已归集 ${catalogCount} 个共享目录，可订阅使用。`;
   return '专题包正在归集共享目录。';
 }

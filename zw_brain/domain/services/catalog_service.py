@@ -8,9 +8,11 @@ Owns: catalog entry status / discoverability / projection card / field dicts
 from __future__ import annotations
 
 import copy
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from zw_brain.domain import resource_labels
 from zw_brain.domain.resource_kind import canonical_resource_kind
 from zw_brain.domain.resource_lifecycle import lifecycle_label
 from zw_brain.domain.serializers import metadata as metadata_ser
@@ -35,18 +37,8 @@ _OPEN_TYPE_LABELS: dict[str, str] = {
     "2": "有条件开放",
     "3": "不予开放",
 }
-# 业务/数据更新周期码 → 中文（旧平台 update_cycle 枚举）。
-_UPDATE_CYCLE_LABELS: dict[str, str] = {
-    "1": "实时",
-    "2": "每日",
-    "3": "每周",
-    "4": "每月",
-    "5": "每季度",
-    "6": "每半年",
-    "7": "每年",
-    "8": "不定期",
-    "9": "不更新",
-}
+# 业务/数据更新周期码 → 中文：单源在 resource_labels（catalog_service / typed_resource_detail 同 import）。
+_UPDATE_CYCLE_LABELS = resource_labels.UPDATE_CYCLE_LABELS
 # 信息资源格式码 → 中文（旧平台 resource_format 枚举，常见档位）。
 _RESOURCE_FORMAT_LABELS: dict[str, str] = {
     "0100": "结构化数据",
@@ -57,6 +49,35 @@ _RESOURCE_FORMAT_LABELS: dict[str, str] = {
     "0400": "接口",
     "0500": "链接",
 }
+# 旧平台 resource_format 是层级码（01xx 结构化 / 02xx 库表 / 03xx 非结构化 / 04xx 接口 / 05xx 链接），
+# 真实库存在大量精确档外的子码（0305/0203/0601…）。精确命中优先；否则按 2 位族前缀回落到族标签；
+# 仍不可识别（06xx / 单字符等）返回 None——R12：宁可不展示，绝不把裸码（"0305"）泄漏到 UI。
+_RESOURCE_FORMAT_FAMILY: dict[str, str] = {
+    "01": "结构化数据",
+    "02": "库表",
+    "03": "非结构化数据",
+    "04": "接口",
+    "05": "链接",
+}
+
+
+def _resource_format_label(code: Any) -> str | None:
+    s = str(code or "").strip()
+    if not s:
+        return None
+    if s in _RESOURCE_FORMAT_LABELS:
+        return _RESOURCE_FORMAT_LABELS[s]
+    return _RESOURCE_FORMAT_FAMILY.get(s[:2]) if len(s) >= 2 else None
+
+
+def _readable_domain(*candidates: Any) -> str | None:
+    """所属领域：旧平台 domain/theme_group_id 多是裸码（"202,"）。仅当值像可读名称（非纯
+    数字/逗号码）才展示，否则返回 None——R12 不泄漏裸码、D11 不臆造领域名（缺映射记债）。"""
+    for raw in candidates:
+        s = str(raw or "").strip().strip(",").strip()
+        if s and not re.fullmatch(r"[\d,\s]+", s):
+            return s
+    return None
 # 信息资源格式码 → 物化形态 kind（与 resource_asset.resource_kind / ResourceCard 徽标同口径）。
 # 资源类型收敛为「库表 / 文件 / API」（D53）：结构化/库表→table；文件→file；接口→api。
 # 文件夹(0320)/链接(0500) 不再单列物化类型，折叠为 file（与归一化闸门 folder/url→file 一致）。
@@ -348,6 +369,9 @@ class CatalogService:
                 detail["typedDetail"] = typed_resource_detail_ser.typed_resource_detail(
                     resource_kind=focused_asset.get("resource_kind"),
                     bindings=binding_dicts,
+                    # T4：库表注册业务字段（资源所处位置/数据提供方式/资源更新周期）落在资源
+                    # summary_json，传入供「库表信息」回显（采集端↔详情端双向对齐）。
+                    summary=focused_asset.get("summary_json"),
                 )
         legacy_refs = self.brain._legacy_mapping_refs(store, "catalog_entry", catalog_code, context=context)
         legacy_refs.extend(self.brain._legacy_mapping_refs(store, "catalog_item", [field["item_code"] for field in fields], context=context))
@@ -396,9 +420,8 @@ class CatalogService:
     # --- Policy summaries ---
 
     def summary_body(self, summary: dict[str, Any]) -> dict[str, Any]:
-        """Strip the wrapping ``summary`` key if nested."""
-        nested = summary.get("summary")
-        return nested if isinstance(nested, dict) else summary
+        """Strip the wrapping ``summary`` key if nested（单源 resource_labels.summary_body）。"""
+        return resource_labels.summary_body(summary)
 
     def access_policy(self, summary: dict[str, Any], record: Any) -> dict[str, Any]:
         """Catalog access policy dict for share / open semantics.
@@ -441,15 +464,19 @@ class CatalogService:
         application_scenario = body.get("application_scenario") or body.get("use_desc")
         return {
             "catalogName": record.title,
-            "catalogCode": record.catalog_code,
+            # 在线编制目录显业务码 data_catalog_code（DRC-…，T3②/T11）；存量导入目录无此键 →
+            # 回落 record.catalog_code（自带旧平台真实登记码），互不干扰。
+            "catalogCode": body.get("data_catalog_code") or record.catalog_code,
             "catalogType": body.get("catalog_type"),
             "provider": provider,
             "internalDept": body.get("internal_org_name"),
-            "domain": body.get("domain") or body.get("theme_group_id"),
+            # 所属领域：仅展示可读名称，裸码（theme_group_id="202,"）抑制为 None（R12）。
+            "domain": _readable_domain(body.get("domain"), body.get("theme_group_id")),
             "applicationScenario": application_scenario,
             "sourceSystem": body.get("source_system") or body.get("from_system_name"),
             "resourceFormat": resource_format,
-            "resourceFormatLabel": _RESOURCE_FORMAT_LABELS.get(str(resource_format), resource_format),
+            # 标签可识别才给（精确档 + 2 位族前缀回落）；不可识别返回 None，前端不再回落裸码（R12）。
+            "resourceFormatLabel": _resource_format_label(resource_format),
             # updateCycle 保留单值（既有 consumer / decisionRows「更新周期」依赖），额外投影
             # 业务/数据双周期供编制规范折叠块（B3）。
             "updateCycle": update_cycle,

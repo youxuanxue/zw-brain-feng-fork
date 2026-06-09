@@ -7,6 +7,15 @@
  */
 import type { DetailRow } from '@/lib/detailDisplay';
 
+/**
+ * 首屏决策块标题（共享语义 + 用户使用路径）单一事实源。
+ *
+ * T2（6.4#3）：面向用户去「复用」工程/治理黑话——这块呈现的是「这份数据如何共享、我能否使用」，
+ * 故用「共享与使用」（动作「申请」由块下方按钮承载，标题不重复动词）。资源详情 / 目录详情两页
+ * 共用本常量，避免同一标题在两处模板各写字面量、下轮再各自漂移（R12 单源纪律）。
+ */
+export const DECISION_SECTION_TITLE = '共享与使用';
+
 interface TypedSection {
   title: string;
   rows: { label: string; value: string | null }[];
@@ -66,7 +75,8 @@ export function compilationRows(catalogMeta: Record<string, unknown> | null | un
   };
   push('数据资源目录名称', cm.catalogName);
   push('数据资源目录代码', cm.catalogCode);
-  push('信息资源格式', str(cm.resourceFormatLabel) || str(cm.resourceFormat));
+  // R12：只展示后端给的可读标签；不可识别码后端已返 null → 整行省略，绝不回落裸码（如 "0305"）。
+  push('信息资源格式', cm.resourceFormatLabel);
   push('来源系统', cm.sourceSystem);
   push('内部部门', cm.internalDept);
   push('所属领域', cm.domain);

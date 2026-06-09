@@ -124,11 +124,17 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   'catalog.entry.review': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   // P5 反向 / API / 质量 wizard
   'resource.asset.review': ['ROLE_BUSIAUDIT'],
-  'resource.api.register': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
-  'resource.api.submit_review': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
-  'resource.api.review': ['ROLE_BUSIAUDIT'],
-  'resource.api.publish': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
-  'resource.api.test': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
+  // 代理服务（API）注册口径 D54 GATE-1（业务方 2026-06-08 sign-off）：注册/提交审核 = 部门操作员 + 部门管理员；
+  // 审核/发布 = 部门管理员；业务运营员退出 API 生命周期。须与后端 policy.PERMISSION_ROLES set-equal
+  // （test_action_role_gates_aligned_with_backend_policy 守）。
+  'resource.api.register': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
+  'resource.api.submit_review': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
+  'resource.api.review': ['ROLE_ORGAN_MANAGER'],
+  'resource.api.publish': ['ROLE_ORGAN_MANAGER'],
+  // 下线（withdraw→retired）是已发布服务的写关键动作，列表行内可点 → 显式登记并 set-equal 后端，
+  // 不借 publish gate 代理（避免两者后端口径漂移时 UI 静默跟错）。
+  'resource.api.withdraw': ['ROLE_ORGAN_MANAGER'],
+  'resource.api.test': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
   'quality.rule.upsert': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   // P3 供需 / 交付
   'delivery.trigger_recovery': ['ROLE_ORGAN_MANAGER'],
