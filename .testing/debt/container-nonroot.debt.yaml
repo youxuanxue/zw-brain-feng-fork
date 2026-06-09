@@ -1,0 +1,11 @@
+slug: container-nonroot
+title: "容器非 root 化未落地（漏扫 0609 Layer 2 残留）"
+date: 2026-06-09
+severity: low
+owner: 产品研发负责人
+trigger: "首个客户机房部署或安全基线要求容器非 root → Dockerfile 加 USER + 配套 /data 卷 chown/initContainer，确保首启 drop_all+create_all 建 schema 不因降权失败；落地后带 dry-run 验证。"
+assert:
+  # 纯部署姿态延后：非 root 与 /data 卷首启建 schema 的写权限耦合，引入需配套 chown，
+  # 本期不引入以免破坏首启。无 code 条件可断言（external，trigger 触发即升级）。
+  # 详见 docs/deployment/security-hardening-0609.md §3。
+  kind: external

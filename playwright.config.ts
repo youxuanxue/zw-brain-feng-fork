@@ -5,6 +5,7 @@ const baseURL = process.env.ZW_E2E_BASE_URL ?? 'http://127.0.0.1:8800';
 export default defineConfig({
   testDir: './tests/e2e',
   testMatch: [
+    'security_headers_csp.spec.ts',
     'webui_smoke.spec.ts',
     'b11_compliance.spec.ts',
     'b12_intake.spec.ts',

@@ -39,6 +39,7 @@ from zw_brain.shared.auth_context import (
     reset_auth_context,
     set_auth_context,
 )
+from zw_brain.shared.http_security import SERVER_BANNER, security_headers
 from zw_brain.shared.runtime_config import (
     DevBypassInProductionError,
     get_a2a_caller_trust_level,
@@ -121,6 +122,17 @@ class _A2AHandler(BaseHTTPRequestHandler):
         # quieter default log
         self.server.log_file.write(f"[a2a] {format % args}\n")  # type: ignore[attr-defined]
         self.server.log_file.flush()  # type: ignore[attr-defined]
+
+    def version_string(self) -> str:  # noqa: N802 — BaseHTTPRequestHandler hook
+        # 与 REST 同源问题：去版本化 Server banner，不泄漏 Python 版本（漏扫 0609 Layer 1）。
+        return SERVER_BANNER
+
+    def end_headers(self) -> None:  # noqa: N802 — BaseHTTPRequestHandler hook
+        # 唯一响应头收口点（_json + stdlib 错误页都经此）。A2A 是后端 JSON daemon、非浏览器面，
+        # 不解析 X-Forwarded-Proto，固定 is_https=False（不发 HSTS）。
+        for header, value in security_headers(is_https=False):
+            self.send_header(header, value)
+        super().end_headers()
 
     def _json(self, code: int, body: Any) -> None:
         data = json.dumps(body, ensure_ascii=False).encode("utf-8")

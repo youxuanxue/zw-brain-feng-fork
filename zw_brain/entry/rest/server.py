@@ -39,6 +39,7 @@ from zw_brain.shared.auth_session import (
     create_auth_session_store,
     validate_session_store_for_deploy,
 )
+from zw_brain.shared.http_security import SERVER_BANNER, security_headers
 from zw_brain.shared.iaf_oidc import (
     DEFAULT_IAF_CLIENT_ID,
     HttpRequest,
@@ -275,6 +276,18 @@ class RestHandler(BaseHTTPRequestHandler):
             super().handle_one_request()
         except (BrokenPipeError, ConnectionResetError):
             self.close_connection = True  # client gone — drop quietly, no traceback
+
+    def version_string(self) -> str:  # noqa: N802 — BaseHTTPRequestHandler hook
+        # 去版本化 Server banner：stdlib 默认回 "BaseHTTP/x.y Python/a.b.c" 泄漏 Python 版本，
+        # 扫描器据此匹配 Python DoS / Server type 发现。只暴露产品名。
+        return SERVER_BANNER
+
+    def end_headers(self) -> None:  # noqa: N802 — BaseHTTPRequestHandler hook
+        # 唯一的响应头收口点：所有写路径（_json/_serve_file/_redirect/_empty/会话/登出，
+        # 以及 stdlib send_error 的 501/400 错误页）都经此 flush，故安全头一处注入即全覆盖。
+        for header, value in security_headers(is_https=self._is_https()):
+            self.send_header(header, value)
+        super().end_headers()
 
     def _iaf_login_returns_json_envelope(self, qs: dict[str, list[str]]) -> bool:
         """SPA/API expect JSON (authorization_url…); top-level browser navigations use redirects."""
@@ -648,7 +661,10 @@ class RestHandler(BaseHTTPRequestHandler):
 
     def _is_https(self) -> bool:
         # Behind a TLS-terminating proxy the X-Forwarded-Proto header is the authoritative signal.
-        return (self.headers.get("X-Forwarded-Proto") or "").lower() == "https"
+        # Null-safe: end_headers() injects security headers on the malformed-request 400 path too,
+        # where stdlib calls end_headers before self.headers is parsed (AttributeError otherwise).
+        headers = getattr(self, "headers", None)
+        return ((headers.get("X-Forwarded-Proto") if headers else "") or "").lower() == "https"
 
     def _handle_iaf_token(self) -> None:
         try:

@@ -40,8 +40,16 @@ COPY --from=web-builder /build/zw-brain-web/dist-vite /build/zw-brain/zw-brain-w
 WORKDIR /build/zw-brain
 RUN uv build --wheel --out-dir /dist
 
+# 安全姿态（漏扫 0609 Layer 2，详见 docs/deployment/security-hardening-0609.md）：
+# - CPython "Python DoS" 发现按版本 banner 匹配；真正补丁靠**周期性重建本镜像**拉取最新 python:3.12-slim
+#   （Docker Hub 持续滚动 3.12.x patch）；应用层另已在 stdlib http.server 去版本化 Server banner。
+# - 下面 runtime 阶段加一次性 OS 包安全升级，拉平基础镜像里 openssl/zlib 等系统库 CVE。
+# - 容器非 root 化（USER）与 /data 卷首启建 schema 的权限耦合，列为后续债（docs/preflight-debt.md），本期不引入。
 FROM python:3.12-slim AS runtime
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# 拉取基础镜像 OS 库安全补丁（确定性：构建即固化当时最新补丁层）。
+RUN apt-get update && apt-get upgrade -y && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ARG AGENT_RUNTIME_TARBALL=vendor/agent-runtime/release/v0.1/agent-runtime-0.1.0-py312-pyc-only.tar.gz
 ARG AGENT_RUNTIME_EXTRACT_DIR=agent-runtime-0.1.0-py312-pyc-only

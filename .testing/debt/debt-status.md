@@ -2,7 +2,7 @@
 
 # Preflight Debt Status (computed)
 
-## open (37)
+## open (38)
 - ac7 [medium] (2026-05-25) — 客户机房部署 + 监控对接未落地（E6 AC7）
   - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
 - agentruntime [medium] (2026-05-24) — AgentRuntime runtime 触发式延后（D30 retrofit）
@@ -36,6 +36,8 @@
   - assert: external → external — owner=产品研发负责人; trigger=业务方对「部门级数据供给契约 / 真业务订阅」立项 —— 届时落地订阅实体 + 履约状态机；现仅诚实信号 isSubscribed（D42.a）
 - conditional-resubmit-capability-identity [low] (2026-06-02) — resubmit 复用 application.dept_approve 的审计 capability 身份（capability_call 聚合不精确）
   - assert: external → external — owner=产品研发负责人; trigger=专设 application.resubmit（或 request.resubmit）capability 立项 → resubmit 走独立 skill_id，capability_call 审计身份与部门审分离 → 关债。
+- container-nonroot [low] (2026-06-09) — 容器非 root 化未落地（漏扫 0609 Layer 2 残留）
+  - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署或安全基线要求容器非 root → Dockerfile 加 USER + 配套 /data 卷 chown/initContainer，确保首启 drop_all+create_all 建 schema 不因降权失败；落地后带 dry-run 验证。
 - d11 [medium] (2026-05-25) — 真数据回归不在 CI 自动门禁（D11 张力）
   - assert: external → external — owner=产品研发负责人; trigger=见 docs/preflight-debt.md 历史归档
 - d33-d [medium] (2026-05-28) — D33.d 元规则脚本（外部协议词汇漂移扫描）trigger 化延后
