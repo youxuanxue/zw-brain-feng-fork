@@ -209,9 +209,10 @@ def test_operater_snapshot_redacts_disputes(brain: BrainService) -> None:
 def test_redact_empty_provider_includes_inbox_keys() -> None:
     from zw_brain.domain.web_snapshot_redaction import _EMPTY_PROVIDER
 
-    # Security admin 不属于「数据供给维护」三角色（OPERATER/MANAGER/BUSIAUDIT），
+    # 安全审计员不属于「数据供给维护」三角色（OPERATER/MANAGER/BUSIAUDIT），
     # provider snapshot 应被 redact 为 _EMPTY_PROVIDER。
-    redacted = redact_webui_snapshot({"provider": {}}, "ROLE_SECURITY_ADMIN")
+    # （原用 ROLE_SECURITY_ADMIN，该角色本期退役 D55/P16，改用同样非供给角色 ROLE_SECURITY_AUDIT。）
+    redacted = redact_webui_snapshot({"provider": {}}, "ROLE_SECURITY_AUDIT")
     assert redacted["provider"] == _EMPTY_PROVIDER
 
 

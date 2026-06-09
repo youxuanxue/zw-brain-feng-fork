@@ -1,7 +1,7 @@
 {
   "slug": "package.trust_level.update",
   "title": "升降能力包信任级",
-  "description": "更新能力包的 trust_level 业务字段（基线级 baseline / 已审 reviewed / 严管 restricted / 撤回 revoked 四档）。本字段是 **能力包内置元数据**，描述本平台对该能力包的信任评估；与 AgentRuntime Registry 的 trust_level（F6 T1 触发，描述外部 Agent 来源信任级）不同——前者由 BUSIAUDIT / SECURITY_ADMIN 决定能否启用，后者由 AgentRuntime supervisor 决定能否消费 Agent。本 F4 只处理 manifest 字段；F6 触发后再增 Registry 字段。",
+  "description": "更新能力包的 trust_level 业务字段（基线级 baseline / 已审 reviewed / 严管 restricted / 撤回 revoked 四档）。本字段是 **能力包内置元数据**，描述本平台对该能力包的信任评估；与 AgentRuntime Registry 的 trust_level（F6 T1 触发，描述外部 Agent 来源信任级）不同——前者由 BUSIAUDIT 决定能否启用（原 SECURITY_ADMIN 共决，已随安全管理员本期退役 D55/P16），后者由 AgentRuntime supervisor 决定能否消费 Agent。本 F4 只处理 manifest 字段；F6 触发后再增 Registry 字段。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",

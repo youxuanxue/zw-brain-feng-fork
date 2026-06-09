@@ -23,6 +23,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from zw_brain.capability_registry.runtime import is_surface_enabled, validate_manifest
+from zw_brain.domain.role_codes import BUSINESS_ROLE_CODES
 from zw_brain.shared.runtime_config import get_rest_api_skills_endpoint
 
 DOC_PATH = REPO_ROOT / "docs" / "agent_integration.md"
@@ -463,7 +464,9 @@ def build_rest_openapi(skills: list[dict[str, Any]]) -> dict[str, Any]:
                         "name": "role",
                         "in": "query",
                         "required": False,
-                        "schema": {"type": "string", "enum": ["ROLE_SYSTEM", "ROLE_BUSIAUDIT", "ROLE_ORGAN_MANAGER", "ROLE_ORGAN_OPERATER", "ROLE_SECURITY_ADMIN", "ROLE_SECURITY_AUDIT"]},
+                        # 角色枚举从 role_codes.BUSINESS_ROLE_CODES 派生（单一事实源，避免手维护漂移；
+                        # D55/P16 安全管理员退役后自动收敛为 5 角色）。
+                        "schema": {"type": "string", "enum": list(BUSINESS_ROLE_CODES)},
                         "description": "Web UI role; snapshot lists are redacted server-side to match page access.",
                     }
                 ],

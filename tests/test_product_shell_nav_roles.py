@@ -1,4 +1,7 @@
-"""主导航角色可见性 — ROLE_SYSTEM / ROLE_SECURITY_ADMIN 须有 B1 入口（防顶栏整栏隐藏）."""
+"""主导航角色可见性 — ROLE_SYSTEM 须有 B1 入口（防顶栏整栏隐藏）.
+
+ROLE_SECURITY_ADMIN（安全管理员）本期退役（D55/P16），其可见性断言一并移除。
+"""
 from __future__ import annotations
 
 import re
@@ -21,8 +24,3 @@ def test_role_system_sees_platform_ops_nav() -> None:
     assert "ROLE_SYSTEM" in _roles_for_key("compliance-ops")
     assert "ROLE_SYSTEM" in _roles_for_key("integration-admin")
     assert "ROLE_SYSTEM" not in _roles_for_key("request-flow")
-
-
-def test_role_security_admin_sees_compliance_nav_only() -> None:
-    assert "ROLE_SECURITY_ADMIN" in _roles_for_key("compliance-ops")
-    assert "ROLE_SECURITY_ADMIN" not in _roles_for_key("discovery")

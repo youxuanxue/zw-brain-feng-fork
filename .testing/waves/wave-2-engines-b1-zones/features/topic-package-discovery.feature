@@ -7,6 +7,7 @@
 # Priority: P1
 # Owner: e3
 # Pytest: tests/integration/test_wave2_topic_package_discovery.py
+# Deferred: 专题包整面退出本期（D55/P6，业务方 2026-06-09 sign-off）。下线整面、保数据不删库——capability 注册保留、seed 3 山东标杆数据保留，仅去 PERMISSION_ROLES 角色授权（全员 fail-closed）+ 前端入口/路由。backing 测试已翻为退役不变量（capability 对所有角色 fail-closed + seed 数据仍在）。待专题包重新立项时恢复角色授权与入口、撤本 Deferred。
 
 Feature: Wave 2 P7 主题包发现
   As a 部门操作员 / 部门管理员 (ROLE_ORGAN_OPERATER / ROLE_ORGAN_MANAGER)

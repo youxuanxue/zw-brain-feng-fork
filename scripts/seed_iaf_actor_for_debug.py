@@ -28,13 +28,12 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-# 7 个业务角色（与 docs/approved/zw-brain-roles.md 一致）
+# 5 个业务角色（D55/P16 安全管理员退役后；与 zw_brain.domain.role_codes.BUSINESS_ROLE_CODES 一致）
 VALID_ROLE_CODES = frozenset(
     {
         "ROLE_ORGAN_OPERATER",
         "ROLE_ORGAN_MANAGER",
         "ROLE_BUSIAUDIT",
-        "ROLE_SECURITY_ADMIN",
         "ROLE_SECURITY_AUDIT",
         "ROLE_SYSTEM",
     }

@@ -34,8 +34,7 @@ import P5DemandMatchInbox from '@/pages/P5DemandMatchInbox.vue';
 import P5DemandMatchDetail from '@/pages/P5DemandMatchDetail.vue';
 import P5ObjectionInbox from '@/pages/P5ObjectionInbox.vue';
 import P5ObjectionDetail from '@/pages/P5ObjectionDetail.vue';
-import P7ZonesPack from '@/pages/P7ZonesPack.vue';
-import P7ZoneDetail from '@/pages/P7ZoneDetail.vue';
+// 专题包页面（P7ZonesPack / P7ZoneDetail）退出本期（D55/P6）：路由下线，组件保留于 src/pages 待复活。
 import B11ComplianceOps from '@/pages/B11ComplianceOps.vue';
 import B11DisputeDetail from '@/pages/B11DisputeDetail.vue';
 import B12IntegrationAdmin from '@/pages/B12IntegrationAdmin.vue';
@@ -95,9 +94,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/provider/inbox/objection', component: P5ObjectionInbox, meta: { page: 'P5', title: 'P5 异议响应收件箱' } },
   { path: '/provider/inbox/objection/:id', component: P5ObjectionDetail, meta: { page: 'P5', title: 'P5 异议响应详情' } },
 
-  // P7 共享专区 / 专题包
-  { path: '/zones-pack', name: 'P7-zones-pack', component: P7ZonesPack, meta: { page: 'P7', title: 'P7 共享专区 · 专题包' } },
-  { path: '/zones-pack/zone/:id', component: P7ZoneDetail, meta: { page: 'P7', title: 'P7 专题包详情' } },
+  // P7 共享专区 / 专题包退出本期（D55/P6）：路由下线，组件保留待复活。深链已从 P2/工作台清理。
 
   // B1.1 合规与运营（后台）
   { path: '/compliance-ops', name: 'B1.1-compliance', component: B11ComplianceOps, meta: { page: 'B1.1', title: 'B1.1 合规与运营' } },

@@ -58,14 +58,7 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     // 业务运营员（BUSIAUDIT）无该场景、部门操作员（OPERATER）经管理员承接，均不再进入领数据。
     roles: ['ROLE_ORGAN_MANAGER', 'ROLE_SECURITY_AUDIT'],
   },
-  {
-    key: 'zones-pack',
-    navLabel: '专题包',
-    navDesc: '按场景订阅成套共享数据',
-    to: '/zones-pack',
-    group: 'use',
-    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
-  },
+  // 专题包导航项退出本期（D55/P6）：下线整面，保数据不删库；待复活时恢复 zones-pack 导航。
   {
     key: 'provider',
     navLabel: '供数据',
@@ -81,7 +74,8 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     navDesc: '审计证据回放与合规核查',
     to: '/compliance-ops',
     group: 'admin',
-    roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT', 'ROLE_SECURITY_ADMIN', 'ROLE_SYSTEM'],
+    // ROLE_SECURITY_ADMIN 随安全管理员本期退役而移除（D55/P16）。
+    roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT', 'ROLE_SYSTEM'],
   },
   {
     // 「接入扩展中心」容器解体（负责人 2026-06-05 裁）：后台四模块各自独立成导航——
@@ -142,7 +136,7 @@ export function activeShellKey(path: string): string {
   if (p.startsWith('/delivery-exchange')) return 'delivery-exchange';
   if (p.startsWith('/provider')) return 'provider';
   if (p.startsWith('/compliance-ops')) return 'compliance-ops';
-  if (p.startsWith('/zones-pack')) return 'zones-pack';
+  // /zones-pack 专题包路由退出本期（D55/P6）：路由已下线，不再映射 shell key。
   // 身份治理 / 流程表单 独立导航项：须在 /integration-admin 前缀判断之前命中，否则被吸附回外部系统高亮。
   if (p.startsWith('/integration-admin/iam-governance')) return 'iam-governance';
   if (p.startsWith('/integration-admin/engines')) return 'engines';

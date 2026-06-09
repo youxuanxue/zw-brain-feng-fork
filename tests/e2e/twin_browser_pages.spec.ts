@@ -10,7 +10,8 @@ const PAGE_MATRIX: Array<{ role: string; hash: string; heading: RegExp | string 
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/request-flow/objection', heading: '我的异议' },
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/request-flow/supply-demand', heading: '找不到数据 · 登记需求' },
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/delivery-exchange', heading: '交付任务' },
-  { role: 'ROLE_ORGAN_OPERATER', hash: '#/zones-pack', heading: /共享专区|专题包/ },
+  // #/zones-pack（专题包页）随专题包整面退出本期而下线（D55/P6，F0-B）：路由/导航已删，
+  // 此处同步移除矩阵行，避免导航到已删路由触发 dead-link 失败（本 feature 即「不留 dead link」）。
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider', heading: '提供方管理' },
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider/wizard/reverse-catalog', heading: '反向编目向导' },
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider/inbox/objection', heading: '异议响应收件箱' },

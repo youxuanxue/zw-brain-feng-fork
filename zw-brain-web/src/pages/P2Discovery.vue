@@ -95,7 +95,6 @@ async function applyTo(id: string) {
         title="可申请资源"
         :meta="headerMeta"
         :links="[
-          { label: '专题包', href: '#/zones-pack' },
           { label: '目录浏览', href: '#/discovery/catalog-browse' },
           { label: '我的申请', href: '#/request-flow' },
         ]"

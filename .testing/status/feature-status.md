@@ -7,9 +7,9 @@
 > status = f(SPEC, MEASUREMENT, SIGN-OFF)，每次 preflight 现算，不手敲、不存第二份。
 > **Done** = 测试真绿 ∧ 业务签字；**Ready** = 已签未绿；**InTest** = 绿/在测但未签（代码完成待签字）；**Draft** = 纯意图；**Backlog** = 排期外（`# Deferred:`）。
 
-> 测量基线：captured_at=`2026-06-08T09:52:21Z` · 指纹新鲜绿 42/42（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
+> 测量基线：captured_at=`2026-06-09T14:30:47Z` · 指纹新鲜绿 39/39（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
 
-> 合计 50：Done 41 / Ready 0 / InTest 1 / Draft 0 / Backlog 8
+> 合计 50：Done 38 / Ready 0 / InTest 1 / Draft 0 / Backlog 11
 
 
 ## Wave 0 · 机械守卫 + J1 黄金链路  （Done 12 · Backlog 1）
@@ -51,7 +51,7 @@
 | webui-pages-real-data.feature | **Done** | 测量=绿 / 签字=已签 |
 | webui-routing-cleanup.feature | **Done** | 测量=绿 / 签字=已签 |
 
-## Wave 2 · 三引擎 + B1 + 共享专区  （Done 10 · Backlog 2）
+## Wave 2 · 三引擎 + B1 + 共享专区  （Done 7 · Backlog 5）
 
 | feature | status | 依据 |
 |---|---|---|
@@ -64,9 +64,9 @@
 | engine-approval-flow.feature | **Done** | 测量=绿 / 签字=已签 |
 | engine-form-schema.feature | **Done** | 测量=绿 / 签字=已签 |
 | engine-recommend-prefer.feature | **Done** | 测量=绿 / 签字=已签 |
-| p7-shared-zones.feature | **Done** | 测量=绿 / 签字=已签 |
-| topic-package-curation.feature | **Done** | 测量=绿 / 签字=已签 |
-| topic-package-discovery.feature | **Done** | 测量=绿 / 签字=已签 |
+| p7-shared-zones.feature | **Backlog** | 延期：专题包整面退出本期（D55/P6，业务方 2026-06-09 sign-off）。下线整面、保数据不删库——capability 注册保留、seed 数据保留，仅去 PERMISSION_ROLES 角色授权（全员 fail-closed）+ 前端 zones-pack 入口/路由。backing 测试已翻为退役不变量。待专题包重新立项时恢复角色授权与入口、撤本 Deferred。 |
+| topic-package-curation.feature | **Backlog** | 延期：专题包整面退出本期（D55/P6，业务方 2026-06-09 sign-off）。下线整面、保数据不删库——capability 注册保留、seed 数据保留，仅去 PERMISSION_ROLES 角色授权（全员 fail-closed）+ 前端入口/路由。backing 测试已翻为退役不变量（策展/发布链 capability 对所有角色 fail-closed）。待专题包重新立项时恢复角色授权与入口、撤本 Deferred。 |
+| topic-package-discovery.feature | **Backlog** | 延期：专题包整面退出本期（D55/P6，业务方 2026-06-09 sign-off）。下线整面、保数据不删库——capability 注册保留、seed 3 山东标杆数据保留，仅去 PERMISSION_ROLES 角色授权（全员 fail-closed）+ 前端入口/路由。backing 测试已翻为退役不变量（capability 对所有角色 fail-closed + seed 数据仍在）。待专题包重新立项时恢复角色授权与入口、撤本 Deferred。 |
 
 ## Wave 3 · 协议硬化 + 多租户 + 国家通道  （Done 4 · Backlog 3）
 

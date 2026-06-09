@@ -76,13 +76,6 @@
         ]
       }
     },
-    "ROLE_SECURITY_ADMIN": {
-      "greeting": "安全管理员，上午好（数据安全中心独立模块）",
-      "subtitle": "本台不参与业务流程；只对数据资产施加安全策略。",
-      "todos": [],
-      "highlights": [],
-      "aiSummary": {}
-    },
     "ROLE_SYSTEM": {
       "greeting": "平台运维员，上午好",
       "subtitle": "运维面 — 组织 / 用户 / 网关 / 消息 / 拨测 / 告警。",

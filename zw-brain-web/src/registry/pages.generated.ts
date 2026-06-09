@@ -22,7 +22,7 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
   { anchor: "P1", capabilities: [
     {"skillId": "system.schema_info", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["system.schema_info.execute"]},
     {"skillId": "system.snapshot", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["system.snapshot.execute"]},
-    {"skillId": "workbench.view", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": ["ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SECURITY_ADMIN", "ROLE_SYSTEM"], "permissions": ["workbench.view.execute"]},
+    {"skillId": "workbench.view", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": ["ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"], "permissions": ["workbench.view.execute"]},
     {"skillId": "system.toggle_outage", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["system.toggle_outage.execute"]},
   ] },
   { anchor: "P2", capabilities: [
@@ -131,20 +131,9 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
   ] },
   { anchor: "P7", capabilities: [
     {"skillId": "catalog.share_zone.query", "mode": "read", "auditClass": "read-trace", "humanConfirmationRequired": false, "roles": [], "permissions": ["catalog.share_zone.query.execute"]},
-    {"skillId": "topic.package.metric.query", "mode": "read", "auditClass": "read-trace", "humanConfirmationRequired": false, "roles": [], "permissions": ["topic.package.metric.query.execute"]},
-    {"skillId": "topic.package.query", "mode": "read", "auditClass": "read-trace", "humanConfirmationRequired": false, "roles": [], "permissions": ["topic.package.query.execute"]},
     {"skillId": "zone.list", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["zone.list.execute"]},
     {"skillId": "zone.view", "mode": "read", "auditClass": "read-default", "humanConfirmationRequired": false, "roles": [], "permissions": ["zone.view.execute"]},
     {"skillId": "subscription.terminate", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["subscription.terminate.execute"]},
-    {"skillId": "topic.package.configure", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["topic.package.configure.execute"]},
-    {"skillId": "topic.package.create", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["topic.package.create.execute"]},
-    {"skillId": "topic.package.evidence.attach", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["topic.package.evidence.attach.execute"]},
-    {"skillId": "topic.package.policy.update", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["topic.package.policy.update.execute"]},
-    {"skillId": "topic.package.publish", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["topic.package.publish.execute"]},
-    {"skillId": "topic.package.review", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["topic.package.review.execute"]},
-    {"skillId": "topic.package.submit", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["topic.package.submit.execute"]},
-    {"skillId": "topic.package.subscribe", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["topic.package.subscribe.execute"]},
-    {"skillId": "zone.publish_topic_projection", "mode": "write", "auditClass": "write-critical", "humanConfirmationRequired": true, "roles": [], "permissions": ["zone.publish_topic_projection.execute"]},
   ] },
   { anchor: "B1.1", capabilities: [
     {"skillId": "audit.event.accountability", "mode": "read", "auditClass": "read-sensitive", "humanConfirmationRequired": false, "roles": [], "permissions": ["audit.event.accountability.execute"]},

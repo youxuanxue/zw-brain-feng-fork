@@ -198,19 +198,8 @@
 | POST | `/api/skills/tenant.capability.disable` | 禁用租户能力 | `post_tenant_capability_disable` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/tenant.capability.enable` | 启用租户能力 | `post_tenant_capability_enable` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/tenant.policy.evaluate` | 评估租户能力策略 | `get_tenant_policy_evaluate` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/topic.package.configure` | 配置专题包 | `post_topic_package_configure` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/topic.package.create` | 创建专题包 | `post_topic_package_create` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/topic.package.evidence.attach` | 附加专题包证据 | `post_topic_package_evidence_attach` | `zw_brain/entry/rest/openapi.json` |
-| GET | `/api/skills/topic.package.metric.query` | 查询专题包指标 | `get_topic_package_metric_query` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/topic.package.policy.update` | 更新专题包可见策略 | `post_topic_package_policy_update` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/topic.package.publish` | 发布专题包 | `post_topic_package_publish` | `zw_brain/entry/rest/openapi.json` |
-| GET | `/api/skills/topic.package.query` | 查询专题包 | `get_topic_package_query` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/topic.package.review` | 审核专题包 | `post_topic_package_review` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/topic.package.submit` | 提交专题包审核 | `post_topic_package_submit` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/topic.package.subscribe` | 订阅专题包 | `post_topic_package_subscribe` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/workbench.view` | 查看工作台 | `get_workbench_view` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/zone.list` | 查看专区列表 | `get_zone_list` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/zone.publish_topic_projection` | 发布专区正式投影 | `post_zone_publish_topic_projection` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/zone.view` | 查看专区详情 | `get_zone_view` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/snapshot` | Get system snapshot | `getSystemSnapshot` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/auth/iaf/config` | Get IAF IAM public config | `getIafConfig` | `zw_brain/entry/rest/openapi.json` |
@@ -289,8 +278,6 @@
 | `system.schema_info` | read | False | 返回 brain_core / brain_audit / brain_registry 三个 canonical schema 的用途说明。 | True | `zw_brain/entry/mcp/tools/system.schema_info.json` |
 | `system.snapshot` | read | False | 导出当前运行时快照，供主 WebUI 使用统一事实源。 | True | `zw_brain/entry/mcp/tools/system.snapshot.json` |
 | `tenant.policy.evaluate` | read | False | 基于 brain registry 和租户策略评估指定角色是否可使用能力；旧权限仅作为候选证据。 | True | `zw_brain/entry/mcp/tools/tenant.policy.evaluate.json` |
-| `topic.package.metric.query` | read | False | 查询专题包复用、发布和治理指标投影。 | True | `zw_brain/entry/mcp/tools/topic.package.metric.query.json` |
-| `topic.package.query` | read | False | 查询专题包列表和详情投影。 | True | `zw_brain/entry/mcp/tools/topic.package.query.json` |
 | `workbench.view` | read | False | 按角色查看工作台待办、重点提示和副驾摘要。 | True | `zw_brain/entry/mcp/tools/workbench.view.json` |
 | `zone.list` | read | False | 查看共享专区与专题包列表。 | True | `zw_brain/entry/mcp/tools/zone.list.json` |
 | `zone.view` | read | False | 查看单个共享专区或专题包的资产、信任信息和引导说明。 | True | `zw_brain/entry/mcp/tools/zone.view.json` |
@@ -306,7 +293,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 200 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 189 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -500,26 +487,15 @@
 | `tenant.capability.disable` | 禁用租户能力 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/tenant.capability.disable.json` |
 | `tenant.capability.enable` | 启用租户能力 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/tenant.capability.enable.json` |
 | `tenant.policy.evaluate` | 评估租户能力策略 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/tenant.policy.evaluate.json` |
-| `topic.package.configure` | 配置专题包 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/topic.package.configure.json` |
-| `topic.package.create` | 创建专题包 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/topic.package.create.json` |
-| `topic.package.evidence.attach` | 附加专题包证据 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/topic.package.evidence.attach.json` |
-| `topic.package.metric.query` | 查询专题包指标 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/topic.package.metric.query.json` |
-| `topic.package.policy.update` | 更新专题包可见策略 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/topic.package.policy.update.json` |
-| `topic.package.publish` | 发布专题包 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/topic.package.publish.json` |
-| `topic.package.query` | 查询专题包 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/topic.package.query.json` |
-| `topic.package.review` | 审核专题包 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/topic.package.review.json` |
-| `topic.package.submit` | 提交专题包审核 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/topic.package.submit.json` |
-| `topic.package.subscribe` | 订阅专题包 | 1.0.0 | audit, db_write, blockchain_anchor | `zw_brain/capability_registry/registered/topic.package.subscribe.json` |
 | `workbench.view` | 查看工作台 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/workbench.view.json` |
 | `zone.list` | 查看专区列表 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/zone.list.json` |
-| `zone.publish_topic_projection` | 发布专区正式投影 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/zone.publish_topic_projection.json` |
 | `zone.view` | 查看专区详情 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/zone.view.json` |
 
 ## Statistics
 
-- REST endpoints: 209
+- REST endpoints: 198
 - CLI entries: 1
-- MCP tools: 66
+- MCP tools: 64
 - A2A agent cards: 1
-- Registered Skills (live): 200 / 244 on-disk
+- Registered Skills (live): 189 / 244 on-disk
 

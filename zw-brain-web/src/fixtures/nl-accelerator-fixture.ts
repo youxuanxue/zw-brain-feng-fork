@@ -30,7 +30,7 @@ export const NL_ACCELERATOR_FIXTURES: Record<string, Record<string, NLAccelerato
       parse_status: 'ok',
       actions: [
         { kind: 'filter', label: '应用主题筛选：营商环境', target: 'zone', payload: { zone: '营商环境专区' } },
-        { kind: 'navigate', label: '跳到「营商环境专题包」', target: '#/zones-pack' },
+        // 「跳到营商环境专题包」导航随专题包退出本期而移除（D55/P6）：dev fixture 不留死链。
         { kind: 'invoke', label: '查模板覆盖率（catalog.entry.query）', target: 'catalog.entry.query', payload: { tag: '营商环境' } },
       ],
     },
@@ -43,11 +43,10 @@ export const NL_ACCELERATOR_FIXTURES: Record<string, Record<string, NLAccelerato
       ],
     },
     '关联水电气交叉数据': {
-      summary: '当前未命中水电气交叉数据；建议从「营商环境专题」入口查关联资源',
+      summary: '当前未命中水电气交叉数据；可在「找数据」按主题检索关联资源',
       parse_status: 'partial',
-      actions: [
-        { kind: 'navigate', label: '跳到「营商环境专题」查关联清单', target: '#/zones-pack' },
-      ],
+      // 「跳到营商环境专题」导航随专题包退出本期而移除（D55/P6）：dev fixture 不留死链。
+      actions: [],
     },
   },
   P3: {

@@ -10,7 +10,7 @@ import copy
 from typing import Any
 
 # D23 (2026-05-19): R1-R8 退役。Mirrors zw-brain-web/js/pages.js `window.ZW_PAGE_ACCESS` — update both when nav roles change.
-# 新角色码：ROLE_BUSIAUDIT / ROLE_ORGAN_MANAGER / ROLE_ORGAN_OPERATER / ROLE_SECURITY_ADMIN / ROLE_SECURITY_AUDIT / ROLE_SYSTEM
+# 角色码（D55/P16 安全管理员退役后 5 业务角色）：ROLE_ORGAN_OPERATER / ROLE_ORGAN_MANAGER / ROLE_BUSIAUDIT / ROLE_SECURITY_AUDIT / ROLE_SYSTEM
 _DISCOVERY = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"})
 # ROLE_BUSIAUDIT：j1-credential-revoke 决策 A —— 业务运营员合规收回/暂停授权需在 P3 申请详情
 # 操作，故须能预载 requests（与 productShellNav「办共享申请」shell 对齐）；否则 shell 进得去但
@@ -33,7 +33,8 @@ _PROVIDER_FULL = frozenset({"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"})
 _PROVIDER_PARTIAL = frozenset({"ROLE_ORGAN_OPERATER"})
 _PROVIDER_PARTIAL_KEYS = frozenset({"catalogs", "services", "resources"})
 _COMPLIANCE = frozenset(
-    {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SECURITY_ADMIN", "ROLE_SYSTEM"}
+    # ROLE_SECURITY_ADMIN 随安全管理员本期退役而移除（D55/P16）。
+    {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"}
 )
 _ZONES = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"})
 _CAPABILITY = frozenset({"ROLE_BUSIAUDIT", "ROLE_SYSTEM"})

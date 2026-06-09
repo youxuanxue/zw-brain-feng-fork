@@ -19,11 +19,11 @@ const REFRESH_THRESHOLD_SECONDS = 60;
 // 唯一 chokepoint，避免 17+ composable 各自补 timeout。escape hatch：调用方传
 // init.signal=null 显式禁用（当前无 long-poll/SSE 场景）。
 export const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
+// D55/P16：ROLE_SECURITY_ADMIN（安全管理员）本期退役，5 业务角色（与后端 BUSINESS_ROLE_CODES set-equal）。
 const PRODUCT_ROLE_CODES = [
   'ROLE_ORGAN_OPERATER',
   'ROLE_ORGAN_MANAGER',
   'ROLE_BUSIAUDIT',
-  'ROLE_SECURITY_ADMIN',
   'ROLE_SECURITY_AUDIT',
   'ROLE_SYSTEM',
 ] as const;
@@ -487,6 +487,6 @@ export const PRODUCT_ROLE_LABELS: Record<string, string> = {
   ROLE_ORGAN_MANAGER: '部门管理员',
   ROLE_BUSIAUDIT: '业务运营员',
   ROLE_SECURITY_AUDIT: '安全审计员',
-  ROLE_SECURITY_ADMIN: '安全管理员',
+  // ROLE_SECURITY_ADMIN（安全管理员）本期退役（D55/P16）。
   ROLE_SYSTEM: '平台运维员',
 };

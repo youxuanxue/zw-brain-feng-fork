@@ -2,7 +2,7 @@
   "manifest_type": "role_mapping_manifest",
   "tenant_id": "sd-default",
   "manifest_version": "m0-sd-default-v1",
-  "description": "73 legacy ROLE_* → 6 个产品 BUSINESS_ROLE_CODES baseline；M0 实施工程师可在现场基于客户实际语义微调，结果回流本 fixture。",
+  "description": "legacy ROLE_* → 5 个产品 BUSINESS_ROLE_CODES baseline（D55/P16 安全管理员退役后，ROLE_SECURITY_MANAGER/ROLE_SECRET 暂不承接，下移显式不映射）；M0 实施工程师可在现场基于客户实际语义微调，结果回流本 fixture。",
   "rows": [
     {
       "legacy_role_ref": "ROLE_BUSIAUDIT",
@@ -267,22 +267,6 @@
       "target_tag": null,
       "confidence": "confirmed",
       "rationale": "安全审计员"
-    },
-    {
-      "legacy_role_ref": "ROLE_SECURITY_MANAGER",
-      "target_type": "role",
-      "target_role_code": "ROLE_SECURITY_ADMIN",
-      "target_tag": null,
-      "confidence": "confirmed",
-      "rationale": "安全管理员"
-    },
-    {
-      "legacy_role_ref": "ROLE_SECRET",
-      "target_type": "role",
-      "target_role_code": "ROLE_SECURITY_ADMIN",
-      "target_tag": null,
-      "confidence": "confirmed",
-      "rationale": "安全保密人员"
     },
     {
       "legacy_role_ref": "ROLE_MAINTEN",

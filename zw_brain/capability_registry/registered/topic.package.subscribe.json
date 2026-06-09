@@ -177,6 +177,6 @@
   ],
   "product_scope": {
     "journey": "j1",
-    "status": "live"
+    "status": "deferred:wave-2"
   }
 }

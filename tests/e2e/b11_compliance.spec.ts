@@ -117,11 +117,13 @@ test.describe('B1.1 合规与运营 smoke', () => {
     await expect(page.getByRole('group', { name: '网关运行状态汇总' })).toBeVisible();
   });
 
-  // 无权限即不可见（tab 级，非路由级）：SECURITY_ADMIN 的 shell roles 含 /compliance-ops，
-  // 但缺 ops.service.report.query.execute（policy.py:106）→ 「网关运行」tab 不渲染，
+  // 无权限即不可见（tab 级，非路由级）：ROLE_SYSTEM 的 shell roles 含 /compliance-ops，
+  // 但缺 ops.service.report.query.execute（policy.py）→ 「网关运行」tab 不渲染，
   // 而非"可见但禁用"或"可见点击 403"。
-  test('SECURITY_ADMIN 进得了合规页但看不到「网关运行」tab', async ({ page }) => {
-    await setRole(page, 'ROLE_SECURITY_ADMIN');
+  // （原断言用 ROLE_SECURITY_ADMIN，该角色本期退役 D55/P16；改用同样在合规 shell 内、
+  //  同样不持网关查询权的现行角色 ROLE_SYSTEM，负向意图不变。）
+  test('ROLE_SYSTEM 进得了合规页但看不到「网关运行」tab', async ({ page }) => {
+    await setRole(page, 'ROLE_SYSTEM');
     await gotoHash(page, '#/compliance-ops');
     await expect(page.getByRole('heading', { name: '合规与运营' })).toBeVisible();
     await expect(page.getByRole('tab', { name: '网关运行' })).toHaveCount(0);

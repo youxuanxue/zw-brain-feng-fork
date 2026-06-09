@@ -149,32 +149,17 @@ test('P5 质量规则向导保存不报缺字段', async ({ page }) => {
   await expect(page.locator('body')).not.toContainText('missing required input field');
 });
 
-test('P7 列表真接 topic.package.query 展示 sd-default 3 标杆', async ({ page }) => {
+// 专题包（P7 / zones-pack）退出本期（D55/P6）：下线整面，保数据不删库，仅去入口/可见性。
+// 原 3 条「P7 列表/订阅/详情真接 topic.package.*」走查退役为退役不变量——
+// zones-pack 路由不再有侧栏入口，深链直达也不渲染专题包内容（无权=不可见 / 已下线=不可见）。
+test('专题包退出本期：侧栏无入口 + 深链不渲染专题内容（D55/P6）', async ({ page }) => {
   await setRole(page, 'ROLE_ORGAN_OPERATER');
+  // 1) 侧栏导航无「专题包」入口
+  await gotoHash(page, '#/workbench');
+  await expect(page.getByRole('link', { name: '专题包' })).toHaveCount(0);
+  // 2) 深链直达 zones-pack：路由已下线，不应渲染任何专题包标杆内容
   await gotoHash(page, '#/zones-pack');
   await page.waitForTimeout(800);
-  await expect(page.getByText('医疗救助信息专题包')).toBeVisible();
-  await expect(page.getByText('医保码信息专题包')).toBeVisible();
-  await expect(page.getByText('异地就医专题包')).toBeVisible();
-});
-
-test('P7 订阅专题走 topic.package.subscribe', async ({ page }) => {
-  await setRole(page, 'ROLE_ORGAN_OPERATER');
-  await gotoHash(page, '#/zones-pack');
-  await page.getByRole('button', { name: '订阅专题' }).first().click();
-  await page.waitForTimeout(800);
-  await expect(page.locator('body')).toContainText('已订阅专题');
-  await expect(page.locator('body')).not.toContainText('missing required input field');
-  // V1 诚实回显：订阅后按钮变「已订阅」态
-  await expect(page.getByRole('button', { name: '已订阅' }).first()).toBeVisible();
-});
-
-test('P7 专题详情真接 topic.package.query 渲染标杆', async ({ page }) => {
-  await setRole(page, 'ROLE_ORGAN_OPERATER');
-  await gotoHash(page, '#/zones-pack/zone/tp-yiliao-jiuzhu');
-  await expect(page.getByRole('heading', { name: '医疗救助信息专题包' })).toBeVisible();
-  await expect(page.locator('body')).toContainText('包含目录');
-  // 目录项诚实展示（纯文本，无链接）：目录尚未录入主表，无可达详情/检索入口
-  await expect(page.locator('body')).toContainText('医疗救助信息');
-  await expect(page.locator('body')).toContainText('目录详情与检索入口待 J1 目录主表录入后开放');
+  await expect(page.getByText('医疗救助信息专题包')).toHaveCount(0);
+  await expect(page.getByText('医保码信息专题包')).toHaveCount(0);
 });

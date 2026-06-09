@@ -103,13 +103,5 @@ system.schema_info
 system.snapshot
 system.toggle_outage
 tenant.policy.evaluate
-topic.package.configure
-topic.package.create
-topic.package.evidence.attach
-topic.package.metric.query
-topic.package.policy.update
-topic.package.publish
-topic.package.review
-topic.package.submit
 zone.list
 zone.view

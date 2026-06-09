@@ -6,8 +6,8 @@
 正向 7 步形成「能通过 vs 能拒绝」对照。
 
 Negative scenarios captured:
-  N1 — ROLE_SECURITY_ADMIN 越权访问 P2 discovery → 自动跳转到角色 landing page
-       (前端 ZW_PAGE_ACCESS.discovery 不含 SECURITY_ADMIN)
+  N1 — ROLE_SYSTEM 越权访问 P2 discovery → 自动跳转到角色 landing page
+       (前端 ZW_PAGE_ACCESS.discovery 不含 SYSTEM；原用 SECURITY_ADMIN，该角色本期退役 D55/P16)
   N2 — ROLE_ORGAN_OPERATER 越权访问审批详情 → 自动跳转
        (前端 ZW_PAGE_ACCESS.reviewDetail = [ROLE_ORGAN_MANAGER] only)
   N3 — 申请提交 purpose 显式空字符串 → 后端 InvalidStateError → UI 错误提示
@@ -64,7 +64,7 @@ def wait_app_ready(page) -> None:
 
 def set_role(page, role: str) -> None:
     # dropdown 仅含 4 业务角色（OPERATER/MANAGER/BUSIAUDIT/SECURITY_AUDIT）；
-    # SECURITY_ADMIN / SYSTEM 不在 UI 入口，但 app.js 启动时识别 ?role= URL param
+    # SYSTEM 不在 UI 入口，但 app.js 启动时识别 ?role= URL param
     # 设置 currentRole（dev/QA 路径，line 19-23）。两种入口对 currentRole 都生效，
     # 下游 ZW_PAGE_ACCESS 检查照常起作用。
     options = page.evaluate("() => Array.from(document.querySelectorAll('#role-switch option')).map(o => o.value)")
@@ -113,16 +113,18 @@ def run() -> int:
                 who is not None,
             )
 
-            # ---- N1: SECURITY_ADMIN unauthorized to discovery ----
-            set_role(page, "ROLE_SECURITY_ADMIN")
+            # ---- N1: SYSTEM unauthorized to discovery ----
+            # 原用 ROLE_SECURITY_ADMIN，该角色本期退役（D55/P16）；改用同样不在 discovery 允许列表
+            # 的现行角色 ROLE_SYSTEM（平台运维员不进 J1 找数旅程）。
+            set_role(page, "ROLE_SYSTEM")
             goto_hash(page, "#/discovery")
             page.wait_for_timeout(800)
             final_hash = page.evaluate("() => window.location.hash")
-            # discovery 不在 SECURITY_ADMIN 允许列表 → 应被 fallback 重定向走（hash 不再是 #/discovery）
+            # discovery 不在 SYSTEM 允许列表 → 应被 fallback 重定向走（hash 不再是 #/discovery）
             blocked = not final_hash.startswith("#/discovery") or "暂无可办理入口" in page.content()
-            s = shot(page, "n1-security-admin-blocked-from-discovery.png")
+            s = shot(page, "n1-system-blocked-from-discovery.png")
             _log(
-                "N1 ROLE_SECURITY_ADMIN 越权访问 P2 discovery",
+                "N1 ROLE_SYSTEM 越权访问 P2 discovery",
                 "前端拒绝 / 自动跳转走（不渲染 discovery 内容）",
                 f"final_hash={final_hash!r}, blocked={blocked}, screenshot={s}",
                 blocked,

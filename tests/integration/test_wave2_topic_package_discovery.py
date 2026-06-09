@@ -1,12 +1,16 @@
 # Wave: 2
 # Twin-F: e3.F9
-# Covers: F9 P7 共享专区 / 专题包 — J1 专题发现与订阅
-"""F9 discovery 集成测试 — query / subscribe / metric.query + 三维可见性 + seed 3 标杆。
+# Covers: F9 P7 共享专区 / 专题包 — 专题包退出本期（D55/P6）后的退役契约
+"""F9 专题包退役契约集成测试（D55/P6：专题包退出本期）。
 
-真链路：起 BrainService（__init__ 触发 sync → 种 sd-default 3 标杆专题包），经
-`invoke_trusted`（模拟 BFF 验证后路径）打 topic.package.* capability。守 D11：3 标杆
-引用 #168 已补种的真 catalog_entry，本测试反向断言 seed 定义的 ref_id == query 返回 ref_id
-（标杆数据单一源 = seed_snapshot.json topic_packages，不另存 fixture 副本）。
+专题包整面退出本期：保 capability 静态注册 + seed 数据不删库，仅去 PERMISSION_ROLES
+角色授权与前端入口。本测试因此从「query/subscribe/metric 真链路绿」翻为「退役不变量」：
+
+  1) 退役锁有效：每个 topic.package.* capability 经 `invoke_trusted`（模拟 BFF 验证后路径）
+     对所有现行业务角色都 fail-closed（DomainAccessDeniedError），无人可调。
+  2) 数据/注册保留：seed_snapshot.json 的 3 山东标杆专题包数据仍在（保数据不删库，
+     守 D11 真数据 + D55/P6「保留 capability 注册与数据」），待数据安全中心外的专题包
+     立项复活时可直接恢复角色授权。
 """
 from __future__ import annotations
 
@@ -17,11 +21,31 @@ from pathlib import Path
 import pytest
 
 from tests._trusted_payload import invoke_trusted
+from zw_brain.domain.errors import AccessDeniedError
+from zw_brain.domain.role_codes import BUSINESS_ROLE_CODES
+
+# invoke_skill 把 domain 层 DomainAccessDeniedError 收口为 errors.AccessDeniedError（→403），
+# 故退役锁的可观测异常是 AccessDeniedError（D55/P6 fail-closed 契约）。
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SHADOW_DB = REPO_ROOT / ".data" / "test_F9_topic_discovery_shadow.db"
 SEED = REPO_ROOT / "zw_brain" / "domain" / "seed_snapshot.json"
 BENCHMARKS = ("tp-yiliao-jiuzhu", "tp-yibao-code", "tp-yidi-jiuyi")
+
+# 退役前曾授权的 topic.package.* capability（含 zone.publish_topic_projection），现应全员 fail-closed。
+RETIRED_TOPIC_PACKAGE_CAPABILITIES = (
+    "topic.package.create",
+    "topic.package.configure",
+    "topic.package.submit",
+    "topic.package.review",
+    "topic.package.publish",
+    "topic.package.policy.update",
+    "topic.package.subscribe",
+    "topic.package.evidence.attach",
+    "topic.package.query",
+    "topic.package.metric.query",
+    "zone.publish_topic_projection",
+)
 
 
 def _remove_shadow_db_files() -> None:
@@ -60,85 +84,37 @@ def _new_brain():
     return BrainService(state_store=ss)
 
 
-def _query(brain, payload, role="ROLE_ORGAN_OPERATER"):
-    return invoke_trusted(brain, "topic.package.query", payload, role=role)
+# 覆盖各 capability input_schema.required 的并集，确保调用越过 schema 校验、抵达策略门，
+# 从而真正断言「退役锁」（AccessDeniedError）而非被前置的 schema 校验掩盖。
+_SUPERSET_PAYLOAD = {
+    "confirmed": True,
+    "package_code": "tp-yiliao-jiuzhu",
+    "decision": "approve",
+    "zone_id": "business",
+}
 
 
-def test_seed_injects_three_benchmarks_published() -> None:
-    """M1 seed 注入：3 山东标杆专题包以 published 终态进库，query 可发现。"""
+@pytest.mark.parametrize("capability", RETIRED_TOPIC_PACKAGE_CAPABILITIES)
+def test_topic_package_capability_denied_for_all_business_roles(capability: str) -> None:
+    """退役锁：专题包 capability 对所有现行业务角色 fail-closed（D55/P6）。
+
+    manifest 仍声明 permissions，但 PERMISSION_ROLES 不再授予任何角色 →
+    enforce_manifest_policy 对每个角色都拒绝（invoke_skill 收口为 AccessDeniedError，无人可调）。
+    """
     brain = _new_brain()
-    result = _query(brain, {})
-    by_code = {it["package_code"]: it for it in result["items"]}
-    for code in BENCHMARKS:
-        assert code in by_code, f"{code} 未出现在 topic.package.query 结果"
-        assert by_code[code]["status"] == "published", f"{code} 非 published"
+    for role in BUSINESS_ROLE_CODES:
+        with pytest.raises(AccessDeniedError):
+            invoke_trusted(brain, capability, dict(_SUPERSET_PAYLOAD), role=role)
 
 
-def test_query_status_filter() -> None:
-    """status 过滤维度生效：只返回 published。"""
-    brain = _new_brain()
-    result = _query(brain, {"status": "published"})
-    assert result["items"]
-    assert all(it["status"] == "published" for it in result["items"])
-
-
-def test_detail_items_are_real_catalog_refs() -> None:
-    """守 D11：异地就医专题包详情引用 3 个真 catalog_entry，ref_id 与 seed 定义一致。"""
+def test_seed_topic_package_data_retained() -> None:
+    """保数据不删库（D55/P6 + D11）：seed_snapshot.json 3 山东标杆专题包数据仍在，
+    待复活时可直接恢复角色授权。"""
     seed = json.loads(SEED.read_text(encoding="utf-8"))
-    z3 = next(p for p in seed["topic_packages"] if p["package_code"] == "tp-yidi-jiuyi")
-    expected_refs = {it["ref_id"] for it in z3["items"]}
-
-    brain = _new_brain()
-    detail = _query(brain, {"package_code": "tp-yidi-jiuyi"})["items"][0]
-    got_refs = {it["ref_id"] for it in detail["items"]}
-    assert got_refs == expected_refs
-    assert all(ref.startswith("basic-elem:") for ref in got_refs)
-
-
-def test_three_dimensional_visibility_approved() -> None:
-    """三维可见性（org + role + surface/region）以 approved 落库。"""
-    brain = _new_brain()
-    detail = _query(brain, {"package_code": "tp-yiliao-jiuzhu"})["items"][0]
-    approved = [v for v in detail["visibility"] if v["policy_status"] == "approved"]
-    assert approved, "缺 approved visibility"
-    v = approved[0]
-    assert v["org_code"] and v["role_code"] and v["surface"]
-
-
-def test_subscribe_writes_subscription_visibility() -> None:
-    """订阅真写：OPERATER 订阅 → 新增 subscription surface 的 visibility。"""
-    brain = _new_brain()
-    before = _query(brain, {"package_code": "tp-yibao-code"})["items"][0]
-    assert "subscription" not in {v["surface"] for v in before["visibility"]}
-    assert before["isSubscribed"] is False  # V1 诚实回显：订阅前未订阅
-
-    res = invoke_trusted(
-        brain,
-        "topic.package.subscribe",
-        {
-            "confirmed": True,
-            "package_code": "tp-yibao-code",
-            "org_code": "ORG-A",
-            "role_code": "ROLE_ORGAN_OPERATER",
-            "surface": "subscription",
-            "intent": "use",
-        },
-        role="ROLE_ORGAN_OPERATER",
-    )
-    assert res["ok"] is True
-
-    after = _query(brain, {"package_code": "tp-yibao-code"})["items"][0]
-    assert "subscription" in {v["surface"] for v in after["visibility"]}
-    assert after["isSubscribed"] is True  # V1 诚实回显：订阅后已订阅
-
-
-def test_metric_query_returns_summary() -> None:
-    """metric.query（MANAGER 岗）返回 items + summary 投影。"""
-    brain = _new_brain()
-    res = invoke_trusted(
-        brain,
-        "topic.package.metric.query",
-        {"package_code": "tp-yiliao-jiuzhu"},
-        role="ROLE_ORGAN_MANAGER",
-    )
-    assert "items" in res and "summary" in res
+    by_code = {p["package_code"]: p for p in seed.get("topic_packages", [])}
+    for code in BENCHMARKS:
+        assert code in by_code, f"{code} 标杆专题包 seed 数据缺失（退役应保数据不删库）"
+    # 异地就医专题包详情仍引用真 catalog_entry（守 D11 真数据）。
+    z3 = by_code["tp-yidi-jiuyi"]
+    refs = {it["ref_id"] for it in z3["items"]}
+    assert refs and all(ref.startswith("basic-elem:") for ref in refs)

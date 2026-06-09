@@ -35,12 +35,7 @@ export const WORKBENCH_FIXTURE: WorkbenchView = {
       status: '审批中',
       href: '#/request-flow/request/REQ-2026-04-25-0011',
     },
-    {
-      id: 'ZONE-business-ledger',
-      title: '城市运行专区新增「停车场信息复用」专题包',
-      status: '可查看',
-      href: '#/zones-pack/zone/business',
-    },
+    // 专题包待办随专题包退出本期而移除（D55/P6）：dev fallback fixture 不留指向已下线路由的死链。
     {
       id: 'REQ-2026-04-24-0007',
       title: '专项摸排任务退回补充',

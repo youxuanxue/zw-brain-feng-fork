@@ -7,6 +7,7 @@
 # Priority: P1
 # Owner: e3
 # Pytest: tests/integration/test_wave2_topic_package_discovery.py + tests/integration/test_wave2_topic_package_curation.py
+# Deferred: 专题包整面退出本期（D55/P6，业务方 2026-06-09 sign-off）。下线整面、保数据不删库——capability 注册保留、seed 数据保留，仅去 PERMISSION_ROLES 角色授权（全员 fail-closed）+ 前端 zones-pack 入口/路由。backing 测试已翻为退役不变量。待专题包重新立项时恢复角色授权与入口、撤本 Deferred。
 
 Feature: P7 共享专区 / 专题包订阅
   As a 部门操作员 / 部门管理员

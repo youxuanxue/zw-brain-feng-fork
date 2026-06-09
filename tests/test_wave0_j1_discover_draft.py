@@ -233,18 +233,14 @@ def test_j1_resource_discovery_consumer_face_schema_consistency(catalog_repo):
 def test_j1_resource_discovery_unauthorized_role_rejected():
     """G1.3 #1 — 未授权角色访问 P2（data.search）被拒：policy 层 ground truth。
 
-    sign-off (G1.3)：DEV-IAM-BYPASS 在 e2e 路径授全 6 role；这里在 policy 层
+    sign-off (G1.3)：DEV-IAM-BYPASS 在 e2e 路径授全 5 业务 role；这里在 policy 层
     做权威断言——SECURITY_AUDIT 不持有 data.search.execute 权限，越权应抛
     DomainAccessDeniedError。UI 侧的 403 渲染由 wave0_j1_negative.py 录证。
     """
     from zw_brain.domain.policy import DomainAccessDeniedError, permissions_for_role
 
-    # ROLE_SECURITY_ADMIN 是安全策略管理员（写策略），不参与业务发现流程。
-    # ROLE_SYSTEM 同理，只做平台初始化。两者均不应持有 data.search.execute。
-    security_admin_perms = permissions_for_role("ROLE_SECURITY_ADMIN")
-    assert "data.search.execute" not in security_admin_perms, (
-        f"ROLE_SECURITY_ADMIN 不应持有 data.search.execute；实际：{sorted(security_admin_perms)}"
-    )
+    # ROLE_SECURITY_ADMIN（安全策略管理员）本期退役（D55/P16），原断言一并移除。
+    # ROLE_SYSTEM 只做平台初始化，不参与业务发现流程，不应持有 data.search.execute。
     system_perms = permissions_for_role("ROLE_SYSTEM")
     assert "data.search.execute" not in system_perms, (
         f"ROLE_SYSTEM 不应持有 data.search.execute；实际：{sorted(system_perms)}"

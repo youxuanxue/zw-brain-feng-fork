@@ -71,8 +71,8 @@ def test_proxy_mapping_protocol() -> None:
 
 def test_dict_materialization_reflects_current_contextvar() -> None:
     proxy = _fresh_proxy()
-    proxy["role"] = "ROLE_SECURITY_ADMIN"
-    assert dict(proxy)["role"] == "ROLE_SECURITY_ADMIN"
+    proxy["role"] = "ROLE_SECURITY_AUDIT"
+    assert dict(proxy)["role"] == "ROLE_SECURITY_AUDIT"
 
 
 @pytest.fixture()
@@ -92,7 +92,7 @@ def temp_db(monkeypatch: pytest.MonkeyPatch) -> Path:
 def test_persistable_view_excludes_per_request_role() -> None:
     """role is per-request (ContextVar) — must not leak into durable storage."""
     proxy = _fresh_proxy()
-    proxy["role"] = "ROLE_SECURITY_ADMIN"
+    proxy["role"] = "ROLE_SECURITY_AUDIT"
     view = proxy.persistable_view()
     assert "role" not in view
     assert view == {"discoveryQuery": "q", "brainOutage": False}
@@ -106,10 +106,10 @@ def test_persist_excludes_per_request_role_from_db(temp_db: Path) -> None:
     ds = DatabaseStore()
     ds.initialize()
     brain = BrainService(state_store=StateStore(database_store=ds))
-    brain._ui_state["role"] = "ROLE_SECURITY_ADMIN"
+    brain._ui_state["role"] = "ROLE_SECURITY_AUDIT"
     brain._ui_state["discoveryQuery"] = "persist-me"
 
-    assert brain.snapshot()["state"]["role"] == "ROLE_SECURITY_ADMIN"
+    assert brain.snapshot()["state"]["role"] == "ROLE_SECURITY_AUDIT"
 
     brain._persist()
     _, persisted_ui_state = ds.load_runtime_state()

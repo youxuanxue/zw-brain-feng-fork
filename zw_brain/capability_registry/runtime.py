@@ -16,7 +16,8 @@ CONFIG_CHANGE_CLASSES = {"live", "preview", "draft"}
 
 # F4 — 能力包内置 trust_level（manifest / capability_package 表字段）。
 # **不要与 F6 T1 触发的 AgentRuntime Registry trust_level 混淆**：前者由 BUSIAUDIT
-# / SECURITY_ADMIN 评估，决定能力包能否启用；后者描述外部 Agent 来源可信级。
+# 评估（原 SECURITY_ADMIN 共评，已随安全管理员本期退役而收口，D55/P16），决定能力包能否
+# 启用；后者描述外部 Agent 来源可信级。
 # D33.a (2026-05-28) 撤回：原计划改名 package.review_status 以消除同名异义，
 # 但 package.trust_level.update capability 的 slug + permission + schema 字段相互依赖，
 # 完整 rename 是 5 消费面 API breaking change，超出本 PR 范围。保留现状，靠本注释 +

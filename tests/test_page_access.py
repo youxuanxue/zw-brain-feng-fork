@@ -44,18 +44,11 @@ _SHELL_ROLES: dict[str, frozenset[str]] = {
             "ROLE_ORGAN_MANAGER",
             "ROLE_BUSIAUDIT",
             "ROLE_SECURITY_AUDIT",
-            "ROLE_SECURITY_ADMIN",
+            # ROLE_SECURITY_ADMIN 随安全管理员本期退役而移除（D55/P16）。
             "ROLE_SYSTEM",
         }
     ),
-    "zones-pack": frozenset(
-        {
-            "ROLE_ORGAN_OPERATER",
-            "ROLE_ORGAN_MANAGER",
-            "ROLE_BUSIAUDIT",
-            "ROLE_SECURITY_AUDIT",
-        }
-    ),
+    # zones-pack（专题包）shell 退出本期（D55/P6）：路由下线，不再有 shell 角色门。
     "integration-admin": frozenset({"ROLE_BUSIAUDIT", "ROLE_SYSTEM"}),
 }
 
@@ -93,8 +86,7 @@ def _active_shell_key(path: str) -> str:
         return "provider"
     if p.startswith("/compliance-ops"):
         return "compliance-ops"
-    if p.startswith("/zones-pack"):
-        return "zones-pack"
+    # /zones-pack 专题包路由退出本期（D55/P6）：不再映射 shell key。
     if p.startswith("/integration-admin"):
         return "integration-admin"
     return "workbench"

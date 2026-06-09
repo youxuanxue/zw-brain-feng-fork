@@ -68,8 +68,9 @@ ROLE_MAPPING: list[tuple[str, str, str, str | None, str]] = [
     # —— 安全 ——
     ("ROLE_AUDIT", "role", "ROLE_SECURITY_AUDIT", None, "安全审计人员"),
     ("ROLE_SECURITY_AUDITOR", "role", "ROLE_SECURITY_AUDIT", None, "安全审计员"),
-    ("ROLE_SECURITY_MANAGER", "role", "ROLE_SECURITY_ADMIN", None, "安全管理员"),
-    ("ROLE_SECRET", "role", "ROLE_SECURITY_ADMIN", None, "安全保密人员"),
+    # ROLE_SECURITY_MANAGER / ROLE_SECRET（原映射 ROLE_SECURITY_ADMIN 安全管理员）随安全管理员
+    # 本期退役而下移到「显式不映射」段（D55/P16）：数据安全中心五大模块本期未实现，无 live 工作面，
+    # 这两类安全管理岗暂不承接，待数据安全中心立项时连同 ROLE_SECURITY_ADMIN 一并恢复。
     # —— 运维 ——
     ("ROLE_MAINTEN", "role", "ROLE_SYSTEM", None, "运维管理人员"),
     ("ROLE_FIRST_OPERATION", "role", "ROLE_SYSTEM", None, "一线运维"),
@@ -109,6 +110,8 @@ ROLE_MAPPING: list[tuple[str, str, str, str | None, str]] = [
     #   ROLE_INTEGRATION_ACCEPTER/CREATOR/EXECUTOR — 工单系统（zw-brain 用异议替代）
     #   ROLE_SITE_MESSAGE_RECEIVER — 站内信（外部消息中心）
     #   ROLE_GDRP_BUSINESS_TAG — 数据治理标签管理（外部数据治理中心）
+    #   ROLE_SECURITY_MANAGER / ROLE_SECRET — 安全管理员/保密岗，随安全管理员本期退役（D55/P16），
+    #     数据安全中心立项后恢复
     # 这些 legacy_ref 不出现在 manifest，mapper 记 missing_role_mapping issue，
     # 对应用户的 binding 留空（如果该用户 ONLY 持有这些角色则成"角色未承接"，需 M0 实施工程师人工裁决）
 ]
@@ -383,7 +386,8 @@ def main() -> int:
                 "tenant_id": "sd-default",
                 "manifest_version": "m0-sd-default-v1",
                 "description": (
-                    "73 legacy ROLE_* → 6 个产品 BUSINESS_ROLE_CODES baseline；"
+                    "legacy ROLE_* → 5 个产品 BUSINESS_ROLE_CODES baseline"
+                    "（D55/P16 安全管理员退役后，ROLE_SECURITY_MANAGER/ROLE_SECRET 暂不承接，下移显式不映射）；"
                     "M0 实施工程师可在现场基于客户实际语义微调，结果回流本 fixture。"
                 ),
                 "rows": role,

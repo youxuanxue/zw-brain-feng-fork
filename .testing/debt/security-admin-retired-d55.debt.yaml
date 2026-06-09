@@ -1,0 +1,10 @@
+slug: security-admin-retired-d55
+title: "安全管理员（ROLE_SECURITY_ADMIN）+ 数据安全中心本期退役，待立项恢复（D55/P16）"
+date: 2026-06-09
+severity: medium
+owner: 产品研发负责人
+trigger: "数据安全中心立项（分类分级 / 敏感识别 / 脱敏 / 密钥 / 风险处置 / 资产透视五大模块）→ 恢复 ROLE_SECURITY_ADMIN：重新加入 role_codes.BUSINESS_ROLE_CODES + 显示名 + 各 PERMISSION_ROLES 条目 + 前端四副本 + role-mapping-manifest（ROLE_SECURITY_MANAGER/ROLE_SECRET 从显式不映射段恢复）+ 重生成 agent 契约；security.scan.result.sync / package.* 等本期散权移除项一并校正（P22 Wave 后续）。"
+assert:
+  # 纯立项/业务决策门延后（旧平台「安全管理员=数据安全中心」五大模块本期均未实现，角色无专属工作面）。
+  # 无 code 条件可断言；trigger 触发即升级（external 须 owner+trigger）。
+  kind: external

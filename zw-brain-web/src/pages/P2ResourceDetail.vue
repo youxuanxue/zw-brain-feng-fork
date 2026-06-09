@@ -237,7 +237,7 @@ async function apply() {
 
       <DetailActions>
         <button v-if="canApply" type="button" class="gov-btn gov-btn-primary" data-skill="request.create" @click="apply">申请资源</button>
-        <a href="#/zones-pack" class="gov-btn gov-btn-secondary">看专题</a>
+        <!-- 「看专题」深链随专题包下线而移除，避免空死链。 -->
       </DetailActions>
     </section>
   </main>
