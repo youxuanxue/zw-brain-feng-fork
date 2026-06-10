@@ -1,0 +1,19 @@
+scope: infra-logging
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-10
+kind: 效果验收
+evidence: >-
+  排障日志基建（PR #242，squash 合并 main 199465b5）经负责人验收：① logkit 四件套
+  （setup/context/formatter/redaction，stdlib-only）+ 四入口（REST/CLI/MCP/A2A）一行初始化；
+  ② request_id 全链贯穿——REST 接收/校验/生成/回显 X-Request-Id，CLI --endpoint 贯穿远端，
+  MCP 关联 JSON-RPC id，前端 postSkill 带 UI-* id 且失败挂 requestId 供错误上报串联；
+  ③ 5xx 落完整堆栈而客户端响应逐字不变、CapabilityLogMiddleware 最外层纯旁观
+  （段 7a 回归钉死 AuditWriteError 原样熔断、与审计总线 D4 边界清晰）；④ /api/client-logs
+  前端错误上报只落日志不写库（段 25，模块零 DB 触点断言）+ 体积/白名单/限流三防 +
+  HumanFormatter 换行折叠防 console 伪造。证据：tests/test_infra_logging.py 26 测全绿、
+  测量产物 .testing/status/measurement/fcf149359e0420b0ce6812561c6779f0f6ab70bd.json
+  （--with-e2e 全量，46/51 绿 0 fail）、:8801 隔离栈真链路走查（同一 request_id 串
+  access+capability+client_error 行、密钥探针不泄漏、MCP stdout 纯净）、xj-review 两轮
+  R-001..R-004 修复闭环 + PR CI 6/6 绿；runbook docs/ops/logging.md。
+covers:
+  - .testing/waves/wave-0-golden-path/features/infra-logging.feature
