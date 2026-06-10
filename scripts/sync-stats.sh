@@ -110,7 +110,10 @@ while IFS=$'\t' read -r name cmd; do
                 total_updated=$((total_updated + 1))
             fi
         fi
-    done < <(find_doc_files)
+    # 上游 dev-rules#73 移植：单趟 grep 预过滤——先把候选窄化到真含该 stat 标记的文件，
+    # 不再对全量 md/mdc 逐文件 grep -q（本脚本每次 commit 经 preflight 跑 --check，stat 数 × 文档数放大）。
+    # 循环体内保留逐文件 re-assert（窄化列表上开销可忽略，防预过滤将来变化时循环体失守）。
+    done < <(find_doc_files | tr '\n' '\0' | xargs -0 grep -lE "<!-- stat:$name -->" /dev/null 2>/dev/null)
 done < <(extract_stats)
 
 if [ "$MODE" = "--check" ]; then
