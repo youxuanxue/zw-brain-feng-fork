@@ -2,7 +2,7 @@
 
 # Preflight Debt Status (computed)
 
-## open (40)
+## open (41)
 - ac7 [medium] (2026-05-25) — 客户机房部署 + 监控对接未落地（E6 AC7）
   - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
 - agentruntime [medium] (2026-05-24) — AgentRuntime runtime 触发式延后（D30 retrofit）
@@ -60,6 +60,8 @@
   - assert: external → external — owner=产品研发负责人; trigger=业务/架构裁决历史导入申请的可动作性 → 若需在线动作则回填 delivery task / grant snapshot 等运行时实体（或建 application_record→delivery 的解析回源）；若定性只读则 UI 对历史导入申请隐藏撤回/暂停/凭据入口（无权/不适用=不可见）。裁决落 D-编号后据此收口。
 - j2-4 [medium] (2026-05-27) — J2-4 资源挂接 OPERATER 提交侧 wizard 立项延后
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务方提出"在线提交挂接"演示需求 → 走 product-dev.mdc
+- openssh-version-residual [medium] (2026-06-10) — 宿主 OpenSSH 8.9p1 版本匹配类漏扫发现无法靠 apt 升级清除（漏扫 0610 复扫残留）
+  - assert: external → external — owner=产品研发负责人; trigger=三选一即可关账：(a) 扫描方接受发行版 backport 证明（apt changelog CVE 条目 + 0610 报告 strict-kex 在场实证）将版本匹配类列入豁免；(b) 宿主 OS 大版本升级（OpenSSH ≥9.6）后复扫清零；(c) 安全基线评审明确接受。任一发生 → 关债并在 docs/deployment/security-hardening-0610-rescan.md §2.3 落判定。
 - ops-deny-audit [medium] (2026-06-03) — policy deny 审计化：发射半已落（decision=deny），剩熔断语义 + 业务方 sign-off
   - assert: external → external — owner=产品研发负责人; trigger=业务方对「deny 审计写失败是否熔断」最终语义 sign-off → 据裁决（非阻塞保留 / 升级熔断）固化 + 落 .testing/signoff/，关本债。
 - p3requestdetail [medium] (2026-05-30) — P3RequestDetail 真实申请详情缺 prefilledFields（D45 轻量卡的 by-design 取舍）

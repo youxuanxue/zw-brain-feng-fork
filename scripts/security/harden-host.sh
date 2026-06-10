@@ -25,6 +25,7 @@ set -euo pipefail
 APPLY=0
 KEEP_CUPS=0
 KEEP_RPCBIND=0
+HARDEN_FAILED=0   # 任一步骤失败（含生效值断言）置 1 → 脚本整体退出非零，绝不假报成功
 TS="$(date +%Y%m%d-%H%M%S)"
 SSHD_DROPIN="/etc/ssh/sshd_config.d/50-zw-brain-hardening.conf"
 
@@ -124,6 +125,7 @@ EOF
       c_do "sshd -t 通过"
       if [ "$HAS_SYSTEMD" -eq 1 ]; then systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || c_warn "reload 失败，请手动 systemctl reload ssh"
       else service ssh reload 2>/dev/null || service sshd reload 2>/dev/null || c_warn "reload 失败，请手动 reload sshd"; fi
+      assert_sshd_algos || return 1
     else
       # 回滚本次刚写入的内容，确保下次 sshd 重启不会被坏配置阻断（算法名在旧 sshd 上可能不识别）。
       if [ "$use_dropin" -eq 1 ]; then
@@ -137,6 +139,36 @@ EOF
   else
     c_dry "sshd -t 校验通过后 reload ssh（失败则自动回滚本次写入，绝不留坏配置）"
   fi
+}
+
+# 生效值硬断言 —— 写入成功 ≠ 生效。OpenSSH 对同一指令取**首个出现值**：主配置或
+# 字典序更早的 drop-in 里既有的 KexAlgorithms/Ciphers/MACs 行会让本脚本的收紧静默落空
+# （0610 复扫 .126 即此症状：KEX 变了但 Ciphers/MACs 原样、Terrapin/弱 MAC 仍在）。
+# 断言失败 → 列出定义了相关指令的全部配置文件 → 返回非零，绝不报"加固完成"。
+assert_sshd_algos() {
+  # 局限：sshd -T 不展开 Match 块（需 -C 连接参数）——Match 块内另设的弱算法本断言看不见，
+  # 由下方"列出定义相关指令的文件"诊断兜底，运维人工核对。
+  local eff fail=0
+  if ! eff="$(sshd -T 2>/dev/null)"; then
+    c_warn "sshd -T 不可用，无法断言生效算法；请人工核对 sshd -T 输出。"; return 1
+  fi
+  if printf '%s\n' "$eff" | grep -i '^kexalgorithms ' | grep -qE 'diffie-hellman-'; then
+    c_warn "生效 KexAlgorithms 仍含 diffie-hellman-*（D(HE)ater 未消除）"; fail=1
+  fi
+  if printf '%s\n' "$eff" | grep -i '^ciphers ' | grep -q 'chacha20-poly1305'; then
+    c_warn "生效 Ciphers 仍含 chacha20-poly1305（Terrapin 缓解未生效）"; fail=1
+  fi
+  if printf '%s\n' "$eff" | grep -i '^macs ' | grep -qE 'umac-64|hmac-sha1|hmac-md5'; then
+    c_warn "生效 MACs 仍含弱算法（umac-64 / hmac-sha1 / md5）"; fail=1
+  fi
+  if [ "$fail" -eq 1 ]; then
+    c_warn "断言失败：本脚本写入的值被更早出现的配置覆盖。定义了相关指令的文件："
+    grep -rilE '^[[:space:]]*(KexAlgorithms|Ciphers|MACs)[[:space:]]' \
+      /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null | sed 's/^/        /' || true
+    c_warn "OpenSSH 取首个出现值：请删除/收编上述文件中更早的弱算法行后重跑本脚本。"
+    return 1
+  fi
+  c_do "生效算法断言通过（无 diffie-hellman-* / chacha20-poly1305 / 弱 MAC）"
 }
 
 # ── 2. 关停不需要的服务（CUPS / rpcbind）─────────────────────────────────────
@@ -155,7 +187,8 @@ disable_services() {
   if [ "$KEEP_CUPS" -eq 1 ]; then
     c_warn "--keep-cups：保留 CUPS。请改用防火墙仅放行本机：iptables -A INPUT -p tcp --dport 631 ! -s 127.0.0.1 -j DROP"
   else
-    disable_unit "cups.service"; disable_unit "cups.socket"; disable_unit "cups-browsed.service"
+    # cups.path 会在打印队列出现时把 cups.service 拉起来，必须一并关停。
+    disable_unit "cups.service"; disable_unit "cups.socket"; disable_unit "cups.path"; disable_unit "cups-browsed.service"
   fi
   if [ "$KEEP_RPCBIND" -eq 1 ]; then
     c_warn "--keep-rpcbind：保留 rpcbind（NFS 需要）。请用防火墙限制 111/tcp,udp 源地址。"
@@ -173,6 +206,7 @@ harden_icmp_timestamp() {
       run nft 'add chain inet zw_brain_harden input { type filter hook input priority -10 ; }'
       run nft add rule inet zw_brain_harden input icmp type timestamp-request drop
       run nft add rule inet zw_brain_harden input icmp type timestamp-reply drop
+      c_warn "nft 运行时规则非持久化：重启即失效。请固化进 /etc/nftables.conf（或发行版防火墙服务）并确认 nftables.service 开机启用。"
     else
       c_dry "nft：新建 inet zw_brain_harden 表/链，drop icmp timestamp-request/-reply"
     fi
@@ -214,11 +248,15 @@ verify() {
 }
 
 main() {
-  harden_sshd || c_warn "SSH 加固中止（见上）。"
+  harden_sshd || { HARDEN_FAILED=1; c_warn "SSH 加固中止（见上）。"; }
   disable_services
   harden_icmp_timestamp
   verify
   echo
+  if [ "$HARDEN_FAILED" -eq 1 ]; then
+    printf '\033[1;31m存在失败项（见上 warn，典型为 sshd 生效值断言未通过）：退出码 1，处理后重跑。\033[0m\n'
+    exit 1
+  fi
   if [ "$APPLY" -eq 1 ]; then
     printf '\033[1;32m完成。建议从另一终端验证 SSH 仍可登录后再断开当前会话。\033[0m\n'
   else

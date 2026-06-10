@@ -1,0 +1,12 @@
+slug: openssh-version-residual
+title: "宿主 OpenSSH 8.9p1 版本匹配类漏扫发现无法靠 apt 升级清除（漏扫 0610 复扫残留）"
+date: 2026-06-10
+severity: medium
+owner: 产品研发负责人
+trigger: "三选一即可关账：(a) 扫描方接受发行版 backport 证明（apt changelog CVE 条目 + 0610 报告 strict-kex 在场实证）将版本匹配类列入豁免；(b) 宿主 OS 大版本升级（OpenSSH ≥9.6）后复扫清零；(c) 安全基线评审明确接受。任一发生 → 关债并在 docs/deployment/security-hardening-0610-rescan.md §2.3 落判定。"
+assert:
+  # 宿主层发现（两台被扫 VM，非 zw-brain 容器/代码），仓内无可断言条件。
+  # 发行版 backport 不抬 banner 版本号 → 扫描器版本匹配在 8.9p1 上永远命中（含 2 条 8.1 高危）；
+  # .126 报文中 kex-strict-s-v00 在场实证补丁在吃，"版本旧"≠"未打补丁"。
+  # 详见 docs/deployment/security-hardening-0610-rescan.md §2.3。
+  kind: external
