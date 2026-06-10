@@ -28,7 +28,7 @@ import { trustPillClass } from '@/lib/packageDisplay';
 //
 // 诚实校准：已接入 ≠ 已能跑（待执行桥 AgentRuntime 打通），页头 meta 说一次，不重复。
 //
-// 仅 ROLE_BUSIAUDIT / ROLE_SYSTEM 可见（productShellNav 角色门 + 路由 beforeEach 守卫）。
+// 仅 ROLE_SYSTEM 可见（0609 权限梳理 P2 外部系统收归平台运维员；productShellNav 角色门 + 路由 beforeEach 守卫）。
 
 const NL_PRESETS_B12 = ['未审核能力包', '近 7 天 IAM 失败', '看接入故障'];
 
@@ -47,7 +47,6 @@ function consumeNLAction(action: StructuredAction): void {
     void invokeActionStub({
       skillId: action.target,
       payload: action.payload,
-      role: 'ROLE_BUSIAUDIT',
       successTitle: action.label,
     });
   } else if (action.kind === 'filter' || action.kind === 'draft') {
@@ -178,6 +177,7 @@ const TRUST_LABELS: Record<string, string> = {
             </tr>
           </tbody>
         </table>
+        <p v-else-if="packages.error.value" class="focus-prose focus-prose--muted">外部系统列表加载失败，请稍后重试或联系平台运维员。</p>
         <p v-else class="focus-prose focus-prose--muted">{{ packages.source.value === 'loading' ? '正在加载……' : '暂无接入的外部系统。' }}</p>
       </section>
     </section>

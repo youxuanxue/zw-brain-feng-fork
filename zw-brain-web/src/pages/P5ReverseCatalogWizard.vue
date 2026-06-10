@@ -27,7 +27,11 @@ const canCreateDraft = computed(() =>
 
 const catalogs = computed(() => {
   const list = (provider.value.catalogs as unknown[] | undefined) ?? [];
-  return list.map((c) => mapReverseDraftCatalog(c as Record<string, unknown>));
+  return list
+    .map((c) => mapReverseDraftCatalog(c as Record<string, unknown>))
+    // 只列可发起的（有 schema 引用）：缺 schema_ref 的行（如新编草稿）选中也只会被
+    // validate 拦下，列出来即虚数（headerMeta 计数夸大）——无法操作 = 不出现。
+    .filter((c) => c.schema_ref.trim().length > 0);
 });
 
 watch(catalogs, (list) => {
@@ -72,7 +76,7 @@ async function createDraft() {
     pushToast({
       kind: 'info',
       title: '暂无创建权限',
-      detail: '创建反向编目草稿由部门管理员办理；业务运营员请在反向编目审核收件箱审核草稿。',
+      detail: '创建反向编目草稿由部门操作员、部门管理员办理；业务运营员请在反向编目审核收件箱审核草稿。',
     });
     return;
   }

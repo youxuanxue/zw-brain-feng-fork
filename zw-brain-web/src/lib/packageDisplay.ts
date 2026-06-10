@@ -1,6 +1,20 @@
 /** B1.2 能力包列表：对齐后端 snapshot 字段（camelCase）与 UI 契约（snake_case）。 */
 
-import type { PackageRow } from '@/fixtures/b12-fixture';
+export interface PackageRow {
+  id: string;
+  name: string;
+  slug: string;
+  status: string; // pending / approved / active / rolled-back / suspended / rejected / revoked
+  version: string;
+  rollback_target: string;
+  trust_level: string; // baseline / reviewed / restricted / revoked （B1.2 业务字段）
+  source: string;
+  desc: string;
+}
+
+export interface PackageListResult {
+  items: PackageRow[];
+}
 
 const TRUST_LEVELS = ['baseline', 'reviewed', 'restricted', 'revoked'] as const;
 export type PackageTrustLevel = (typeof TRUST_LEVELS)[number];

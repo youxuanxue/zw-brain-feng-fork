@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DataSourceBadge from '@/components/DataSourceBadge.vue';
+import { getProductRole } from '@/composables/useProductRole';
 import { postSkill } from '@/composables/useApiClient';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import { trustPillClass } from '@/lib/packageDisplay';
@@ -37,8 +38,7 @@ async function load() {
   error.value = null;
   try {
     const payload = await postSkill<Record<string, unknown>>('package.view', {
-      role: 'ROLE_BUSIAUDIT',
-      tenant_id: 'sd-default',
+      role: getProductRole().value,
       package_id: id.value,
     });
     pkg.value = payload;

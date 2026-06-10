@@ -40,9 +40,13 @@ const nextLifecycleHint = computed(() => {
 
 interface CatalogReviewRow {
   catalog_code: string;
+  /** 展示码：业务码（数据资源目录代码 DRC-…）优先，缺则回落内部码。 */
+  display_code: string;
   title: string;
-  owner_org_id: string;
-  region_code: string;
+  /** 责任单位：机构中文名优先（后端 ReferenceService 补名），缺则回落 org id 诚实展示。 */
+  owner: string;
+  /** 区划：中文名优先，缺则回落区划码。 */
+  region: string;
   lifecycle_label: string;
   updated_at: string;
 }
@@ -75,15 +79,19 @@ async function loadInbox(): Promise<void> {
     }
     const body = (await resp.json()) as { items?: Array<Record<string, unknown>> };
     items.value = (body.items ?? [])
-      .map((it) => ({
-        catalog_code: String(it.catalog_code ?? ''),
-        title: String(it.title ?? it.catalog_code ?? '—'),
-        owner_org_id: String(it.owner_org_id ?? ''),
-        region_code: String(it.region_code ?? ''),
-        // 展示态取后端下发的中文 lifecycle_label（前端零词表，R12），不直出机器 slug。
-        lifecycle_label: String(it.lifecycle_label ?? ''),
-        updated_at: String(it.updated_at ?? it.updatedAt ?? ''),
-      }))
+      .map((it) => {
+        const summary = (it.summary_json ?? {}) as Record<string, unknown>;
+        return {
+          catalog_code: String(it.catalog_code ?? ''),
+          display_code: String(summary.data_catalog_code ?? '') || String(it.catalog_code ?? ''),
+          title: String(it.title ?? it.catalog_code ?? '—'),
+          owner: String(it.owner_org_name ?? '') || String(it.owner_org_id ?? ''),
+          region: String(it.region_name ?? '') || String(it.region_code ?? ''),
+          // 展示态取后端下发的中文 lifecycle_label（前端零词表，R12），不直出机器 slug。
+          lifecycle_label: String(it.lifecycle_label ?? ''),
+          updated_at: String(it.updated_at ?? it.updatedAt ?? ''),
+        };
+      })
       .filter((it) => it.catalog_code);
   } finally {
     loading.value = false;
@@ -131,8 +139,7 @@ const headerMeta = computed(() => {
       />
 
       <p v-if="reviewStage === 'none'" class="role-hint">
-        当前岗位为「{{ role }}」；目录审核由「部门管理员（ROLE_ORGAN_MANAGER）」办理部门审、
-        由「业务运营员（ROLE_BUSIAUDIT）」办理平台审。
+        目录审核由部门管理员办理部门审、业务运营员办理平台审；请切换岗位后再办理。
       </p>
 
       <div v-else>
@@ -157,13 +164,13 @@ const headerMeta = computed(() => {
                   class="catalog-link"
                   :href="`#/discovery/catalog/${encodeURIComponent(it.catalog_code)}`"
                   data-testid="catalog-review-detail-link"
-                ><code>{{ it.catalog_code }}</code></a>
+                ><code>{{ it.display_code }}</code></a>
               </td>
               <td>
                 <a class="catalog-link" :href="`#/discovery/catalog/${encodeURIComponent(it.catalog_code)}`">{{ it.title }}</a>
               </td>
-              <td>{{ it.owner_org_id || '—' }}</td>
-              <td>{{ it.region_code || '—' }}</td>
+              <td>{{ it.owner || '—' }}</td>
+              <td>{{ it.region || '—' }}</td>
               <td><span class="status-pill">{{ it.lifecycle_label }}</span></td>
               <td>
                 <button

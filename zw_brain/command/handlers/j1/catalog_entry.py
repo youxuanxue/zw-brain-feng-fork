@@ -205,7 +205,34 @@ def _query_catalog_entries(
         wanted_code = str(catalog_code)
         entries = [item for item in entries if item["catalog_code"] == wanted_code]
         total = len(entries)
+    _attach_reference_names(entries)
     return {"items": entries, "total": total}
+
+
+def _attach_reference_names(entries: list[dict[str, Any]]) -> None:
+    """补机构/区划中文名（owner_org_name / region_name），收件箱等列表面不再裸出
+    org id / 区划码（R12）。ReferenceService fail-soft：未命中留空，前端回落原值诚实展示。
+    唯一码去重后逐个 lookup（一页 ≤20 行、机构/区划基数远小于行数，命中即缓存）。"""
+    if not entries:
+        return
+    from zw_brain.domain.services.reference_service import ReferenceService  # noqa: PLC0415
+
+    ref = ReferenceService()
+    org_cache: dict[str, str] = {}
+    region_cache: dict[str, str] = {}
+    for item in entries:
+        org_id = str(item.get("owner_org_id") or "")
+        if org_id:
+            if org_id not in org_cache:
+                organ = ref.organ(org_id)
+                org_cache[org_id] = str(organ["org_name"]) if organ and organ.get("org_name") else ""
+            item["owner_org_name"] = org_cache[org_id]
+        region_code = str(item.get("region_code") or "")
+        if region_code:
+            if region_code not in region_cache:
+                region = ref.region(region_code)
+                region_cache[region_code] = str(region["region_name"]) if region and region.get("region_name") else ""
+            item["region_name"] = region_cache[region_code]
 
 def _suggest_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     """Return three-tier field suggestions for a given schema snapshot.

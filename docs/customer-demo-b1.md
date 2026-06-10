@@ -5,7 +5,7 @@
 
 ## 演示路径
 
-ROLE_SECURITY_AUDIT 跑 B1.1 审计 4 panel；ROLE_BUSIAUDIT 跑 B1.2 能力包 lifecycle。
+ROLE_SECURITY_AUDIT 跑 B1.1 审计 4 panel；ROLE_SYSTEM（平台运维员）跑 B1.2 能力包 lifecycle（D55/P2 外部系统收归运维员）。
 真实数据来自 M0 一次性迁移产出 (`sd-default` tenant)；审计事件用 audit_bus.emit 合成
 （无 mock LLM）：
 

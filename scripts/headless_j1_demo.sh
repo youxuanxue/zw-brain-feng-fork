@@ -110,7 +110,8 @@ if [ -z "$REQ_ID" ]; then
 fi
 
 # ---- STEP 3 ----
-OUT=$(invoke_skill approval.case.decide "{\"request_id\":\"$REQ_ID\",\"decision\":\"approve_reuse\",\"confirmed\":true}" ROLE_ORGAN_MANAGER)
+# D55/P21：受理（approval.case.decide）= 业务运营员初级审核（无条件受理即终）
+OUT=$(invoke_skill approval.case.decide "{\"request_id\":\"$REQ_ID\",\"decision\":\"approve_reuse\",\"confirmed\":true}" ROLE_BUSIAUDIT)
 RC=$?
 if [ "$RC" -eq 0 ]; then
     report_step 3 "审批" approval.case.decide "$RC" "$OUT" || true

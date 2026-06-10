@@ -230,7 +230,10 @@ def test_enrich_zones_snapshot_attaches_package_code(seed_db: Path) -> None:
     assert zone.get("package_code"), "P7 订阅应拿到 DB 中已发布专题包的 package_code"
 
 
-def test_enrich_provider_catalogs_attach_reverse_draft_fields(seed_db: Path) -> None:
+def test_enrich_provider_catalogs_attach_reverse_draft_fields(temp_db: Path) -> None:
+    """seed 回落路径（DB 无 catalog_entry 行时保留传入 catalogs 并补反向编目字段）。
+
+    T9 诚实化后 DB 非空即整体替换为 live 投影（见下两条测试），本断言只覆盖空库回落。"""
     from zw_brain.domain.provider_snapshot_projection import enrich_provider_snapshot
 
     snap = enrich_provider_snapshot(
@@ -251,3 +254,94 @@ def test_enrich_provider_catalogs_attach_reverse_draft_fields(seed_db: Path) -> 
     cat = snap["provider"]["catalogs"][0]
     assert cat["catalog_code"] == "370000308004000000/000001"
     assert cat["schema_ref"] == "res-jbxx-ledger:legacy:370000308004000000/000001"
+
+
+def test_provider_catalogs_replaced_with_live_rows_when_db_nonempty(temp_db: Path) -> None:
+    """T9 诚实化（承 #191 读路径单源）：DB 有目录行时，provider.catalogs 整体替换为真实库
+    现算行——新编目录即时可见；api-group:*（API 分组）、basic-elem:*（国家基本要素）、
+    retired（历史版本尾巴）不进目录管理清单。owner 经 ReferenceService 解析机构中文名。"""
+    from zw_brain.domain.provider_snapshot_projection import enrich_provider_snapshot
+    from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
+
+    GovernanceProjectionRepository().upsert_org(
+        {"org_code": "11370000MB284651XL", "org_name": "省大数据局"}, tenant_id=TENANT
+    )
+    catalog = CatalogRepository()
+    catalog.upsert_from_resource(
+        {
+            "id": "j2-inline-live-001",
+            "name": "新编医疗救助目录",
+            "status": "draft",
+            "provider": "11370000MB284651XL",
+            "data_catalog_code": "DRC-37-000001",
+        },
+        tenant_id=TENANT,
+    )
+    catalog.upsert_from_resource(
+        {"id": "api-group:legacy-1", "name": "API 分组（不进清单）", "status": "active", "provider": "platform"},
+        tenant_id=TENANT,
+    )
+    catalog.upsert_from_resource(
+        {"id": "basic-elem:nat-1", "name": "国家基本要素（不进清单）", "status": "active", "provider": "platform"},
+        tenant_id=TENANT,
+    )
+    catalog.upsert_from_resource(
+        {"id": "cat-old-version", "name": "退役历史版本", "status": "retired", "provider": "11370000MB284651XL"},
+        tenant_id=TENANT,
+    )
+
+    snap = enrich_provider_snapshot(
+        {"provider": {"catalogs": [{"id": "seed-demo", "name": "seed 演示目录"}]}},
+        tenant_id=TENANT,
+    )
+    catalogs = snap["provider"]["catalogs"]
+    codes = {c["catalog_code"] for c in catalogs}
+    assert "j2-inline-live-001" in codes, "新编目录必须即时进入目录管理清单"
+    assert "seed-demo" not in codes, "DB 非空时不得再展示 seed 演示行"
+    assert not any(code.startswith(("api-group:", "basic-elem:")) for code in codes)
+    assert "cat-old-version" not in codes, "retired 行不进管理清单"
+    row = next(c for c in catalogs if c["catalog_code"] == "j2-inline-live-001")
+    assert row["owner"] == "省大数据局", "owner 应解析为机构中文名（ReferenceService）"
+    assert row["data_catalog_code"] == "DRC-37-000001"
+    assert row["status"] == "draft"
+
+
+def test_provider_resources_replaced_with_live_rows_when_db_nonempty(temp_db: Path) -> None:
+    """T9 诚实化：DB 有资源行时 provider.resources 整体替换为真实库现算行（排除 retired）。"""
+    from zw_brain.domain.provider_snapshot_projection import enrich_provider_snapshot
+
+    resources = ResourceApiRepository()
+    resources.upsert_asset(
+        {
+            "resource_code": "res-live-table-001",
+            "title": "新挂接库表资源",
+            "resource_kind": "table",
+            "lifecycle_status": "pending_review",
+            "owner_org_id": "11370000MB284651XL",
+            "catalog_code": "j2-inline-live-001",
+        },
+        tenant_id=TENANT,
+    )
+    resources.upsert_asset(
+        {
+            "resource_code": "res-live-retired-001",
+            "title": "已退役资源（不进清单）",
+            "resource_kind": "file",
+            "lifecycle_status": "retired",
+            "owner_org_id": "11370000MB284651XL",
+        },
+        tenant_id=TENANT,
+    )
+
+    snap = enrich_provider_snapshot(
+        {"provider": {"resources": [{"id": "seed-res-demo", "name": "seed 演示资源"}]}},
+        tenant_id=TENANT,
+    )
+    rows = snap["provider"]["resources"]
+    ids = {r["id"] for r in rows}
+    assert "res-live-table-001" in ids
+    assert "seed-res-demo" not in ids
+    assert "res-live-retired-001" not in ids
+    row = next(r for r in rows if r["id"] == "res-live-table-001")
+    assert row["resource_kind"] == "table"
+    assert row["catalog_code"] == "j2-inline-live-001"

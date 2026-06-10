@@ -6,21 +6,16 @@ import type { NLAcceleratorParseResult, StructuredAction } from '@/fixtures/nl-a
 
 const REQ_PATTERN = /REQ-[A-Z0-9-]+/i;
 
-const ANCHOR_ROLE: Record<string, string | undefined> = {
-  'B1.1': 'ROLE_SECURITY_AUDIT',
-  'B1.2': 'ROLE_BUSIAUDIT',
-};
-
-export function resolveNLRole(pageAnchor: string, fallbackRole: string): string {
-  return ANCHOR_ROLE[pageAnchor] ?? fallbackRole;
-}
+// NL 查询一律用会话当前岗位：原 ANCHOR_ROLE 表把 B1.1/B1.2 强制覆写为
+// SECURITY_AUDIT/BUSIAUDIT，D55 收权后会让真实单岗位会话（如平台运维员在外部系统页）
+// 被 resolve_trusted_role 拒（403）——后端 policy 才是权限判定单源，前端不替它选角色。
 
 export async function parseNLAcceleratorLive(
   pageAnchor: string,
   query: string,
   role: string,
 ): Promise<NLAcceleratorParseResult> {
-  const effectiveRole = resolveNLRole(pageAnchor, role);
+  const effectiveRole = role;
   switch (pageAnchor) {
     case 'P2':
       return parseP2(query, effectiveRole);

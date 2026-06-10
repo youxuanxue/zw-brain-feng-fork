@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """F8 B1 30 分钟客户演示 — 端到端跑通 B1.1 合规审计 + B1.2 接入扩展中心.
 
-按 e4-b1-agentruntime core_goal: ROLE_SECURITY_AUDIT + ROLE_BUSIAUDIT 在 30 分钟
+按 e4-b1-agentruntime core_goal: ROLE_SECURITY_AUDIT + ROLE_SYSTEM 在 30 分钟
 内 sd-default 真实数据 + 合成审计事件 上跑通：
   B1.1 四 panel (statistics / anomaly / accountability / investigation_summary)
   B1.2 能力包 lifecycle (review → enable → exposure_matrix → trust_level → rollback)
@@ -252,7 +252,7 @@ def run_demo(seed_db: Path, shadow_db: Path, shadow_audit_db: Path) -> dict[str,
     _log("STEP-7.B12", "package.review_decide approve → status=approved")
     review = _invoke_trusted(brain, "package.review_decide",
         {"package_id": DEMO_PACKAGE_ID, "decision": "approve", "confirmed": True},
-        role="ROLE_BUSIAUDIT")
+        role="ROLE_SYSTEM")
     if not review["ok"]:
         raise RuntimeError(f"package.review_decide 未 ok：{review}")
     pkg_after_review = _demo_package_by_id(brain, DEMO_PACKAGE_ID)
@@ -264,7 +264,7 @@ def run_demo(seed_db: Path, shadow_db: Path, shadow_audit_db: Path) -> dict[str,
     pkg_after_review["versionStatus"] = "registered"
     enable = _invoke_trusted(brain, "tenant.capability.enable",
         {"package_id": DEMO_PACKAGE_ID, "tenant_id": TENANT, "confirmed": True},
-        role="ROLE_BUSIAUDIT")
+        role="ROLE_SYSTEM")
     if not enable["ok"]:
         raise RuntimeError(f"tenant.capability.enable 未 ok：{enable}")
 
@@ -272,7 +272,7 @@ def run_demo(seed_db: Path, shadow_db: Path, shadow_audit_db: Path) -> dict[str,
     matrix = _invoke(brain, "package.exposure.matrix.query", {
         "tenant_id": TENANT,
         "limit": 500,
-        "role": "ROLE_BUSIAUDIT",
+        "role": "ROLE_SYSTEM",
     })
     if matrix["totals"]["manifests"] < 200:
         raise RuntimeError(f"matrix manifest 数偏低：{matrix['totals']['manifests']}（应 ≥200）")
@@ -284,7 +284,7 @@ def run_demo(seed_db: Path, shadow_db: Path, shadow_audit_db: Path) -> dict[str,
     trust = _invoke_trusted(brain, "package.trust_level.update",
         {"package_id": DEMO_PACKAGE_ID, "trust_level": "reviewed",
          "reason": "F8 客户演示合规审核通过", "confirmed": True},
-        role="ROLE_BUSIAUDIT")
+        role="ROLE_SYSTEM")
     if not trust["ok"]:
         raise RuntimeError(f"trust_level.update 未 ok：{trust}")
 
@@ -294,7 +294,7 @@ def run_demo(seed_db: Path, shadow_db: Path, shadow_audit_db: Path) -> dict[str,
     _demo_package_by_id(brain, DEMO_PACKAGE_ID)["status"] = "active"
     rollback = _invoke_trusted(brain, "package.rollback",
         {"package_id": DEMO_PACKAGE_ID, "reason": "F8 演示版本回滚", "confirmed": True},
-        role="ROLE_BUSIAUDIT")
+        role="ROLE_SYSTEM")
     if not rollback["ok"]:
         raise RuntimeError(f"package.rollback 未 ok：{rollback}")
     pkg_after_rollback = _demo_package_by_id(brain, DEMO_PACKAGE_ID)

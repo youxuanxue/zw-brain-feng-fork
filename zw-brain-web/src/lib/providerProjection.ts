@@ -236,6 +236,8 @@ const _INACTIVE_LABEL: Record<string, string> = {
   retired: '已退役',
   expired: '已过期',
   offline: '已下线',
+  rejected: '已驳回',
+  revoked: '已撤销',
 };
 
 /** 生命周期态 → 中文展示标签（R12 前端零词表口径，与概览卡分桶同源）。 */
@@ -270,10 +272,12 @@ export function providerCatalogRows(provider: Record<string, unknown>): Provider
   return catalogs.map((row) => {
     const it = asRecord(row);
     const code = String(it.catalog_code ?? it.id ?? '');
+    // 展示码优先业务码（数据资源目录代码 DRC-…，T3②），缺则回落内部码；跳转仍用内部码（路由键）。
+    const displayCode = String(it.data_catalog_code ?? '') || code;
     return {
       id: String(it.id ?? ''),
       name: safeRecordTitle(it.name ?? it.title, it.id, '目录'),
-      code: code || '—',
+      code: displayCode || '—',
       owner: String(it.owner ?? it.owner_org_id ?? '—'),
       status: _statusLabel(it.status ?? it.lifecycle_status),
       viewHref: code ? `#/discovery/catalog/${encodeURIComponent(code)}` : '',

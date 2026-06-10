@@ -5,8 +5,9 @@ export const REQUEST_FLOW_REVIEWER_ROLES = ['ROLE_ORGAN_MANAGER'] as const;
 /** 业务运营员在 P5 反向编目审核收件箱办理反向编目草稿。 */
 export const FIELD_DECISION_ROLES = ['ROLE_BUSIAUDIT'] as const;
 
-/** 挂接审核通过（resource.asset.review 仅 BUSIAUDIT）。 */
-export const HOOKUP_REVIEW_ROLES = ['ROLE_BUSIAUDIT'] as const;
+/** 挂接审核通过（D55/G1 照 v5「资源挂接审核 = 部门管理员」校正，与后端
+ *  resource.asset.review={ROLE_ORGAN_MANAGER} 及路由 /provider/inbox/hookup-review set-equal）。 */
+export const HOOKUP_REVIEW_ROLES = ['ROLE_ORGAN_MANAGER'] as const;
 
 /** J2 在线编制目录（catalog.entry.create_draft / update / submit_review）。
  *  D55/P11：部门操作员 + 部门管理员（管理员经 hierarchy 有 create 权，路由也已开放）。 */

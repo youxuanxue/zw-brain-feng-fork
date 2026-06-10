@@ -66,6 +66,7 @@ ops.exchange.statistics.query  # 运营投影读能力，待 B1.1 后续面板�
 org.projection.sync
 package.apply_tenant_policy
 package.configure_exposure
+package.exposure.matrix.query  # UI 查询面随 D52.c 退役（接入中心瘦身），能力保留给协议面（MCP/CLI）；复活须先有 owner 面板
 package.register_version
 platform.docs.read
 platform.docs.search

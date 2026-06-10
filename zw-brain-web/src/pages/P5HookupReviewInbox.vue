@@ -29,7 +29,7 @@ async function approve(resourceCode: string) {
     pushToast({
       kind: 'info',
       title: '暂无审核权限',
-      detail: '挂接审核由业务运营员办理；部门管理员可先在资源侧完成挂接提交。',
+      detail: '挂接审核由部门管理员办理；部门操作员可先在资源挂接向导完成挂接提交。',
     });
     return;
   }
@@ -37,7 +37,6 @@ async function approve(resourceCode: string) {
     skillId: 'resource.asset.review',
     payload: { resource_code: resourceCode, decision: 'approve' },
     successTitle: '挂接已通过',
-    role: 'ROLE_BUSIAUDIT',
   });
 }
 </script>
@@ -55,7 +54,7 @@ async function approve(resourceCode: string) {
       />
 
       <p v-if="source === 'live' && items.length && !canApprove" class="role-hint">
-        当前岗位为部门管理员；挂接「通过」需切换为业务运营员办理。
+        挂接审核由部门管理员办理；请切换为部门管理员后再操作。
       </p>
 
       <table v-if="source === 'live' && items.length" class="focus-table">

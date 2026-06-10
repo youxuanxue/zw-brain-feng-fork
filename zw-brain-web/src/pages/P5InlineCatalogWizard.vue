@@ -145,7 +145,6 @@ async function createDraft() {
         summary_json: baseSummary(),
       },
       successTitle: '已创建目录草稿',
-      role: 'ROLE_ORGAN_OPERATER',
       refreshSnapshotAfter: false,
     });
     if (!result.ok) return;
@@ -176,7 +175,6 @@ async function saveMetadata() {
         items: itemPayloads(),
       },
       successTitle: '已保存元数据与信息项',
-      role: 'ROLE_ORGAN_OPERATER',
       refreshSnapshotAfter: false,
     });
     if (!result.ok) return;
@@ -197,7 +195,6 @@ async function submitForReview() {
       skillId: 'catalog.entry.submit_review',
       payload: { catalog_code: catalogCode.value },
       successTitle: '已提交部门审核',
-      role: 'ROLE_ORGAN_OPERATER',
       refreshSnapshotAfter: true,
     });
     if (!result.ok) return;
@@ -246,7 +243,7 @@ function startAnother() {
     <section class="panel">
       <PageFocusHeader
         title="在线编制目录"
-        meta="基本信息维护 · 信息项维护 · 其他信息（对标旧平台目录管理在线编制三步）"
+        meta="基本信息维护 · 信息项维护 · 其他信息"
         :links="[
           { label: '目录审核收件箱', href: '#/provider/inbox/catalog-review' },
           { label: '反向编目', href: '#/provider/wizard/reverse-catalog' },
@@ -254,7 +251,7 @@ function startAnother() {
       />
 
       <p v-if="!canAuthor" class="role-hint">
-        在线编制是部门操作员的职责。当前岗位为「{{ role }}」，暂无编制权限；请切换为「部门操作员」后再来此新建目录。
+        在线编制由部门操作员、部门管理员办理。当前岗位暂无编制权限，请切换岗位后再来此新建目录。
       </p>
 
       <!-- Step 1：基本信息维护 -->

@@ -37,7 +37,6 @@ async function approve() {
     skillId: 'catalog.entry.reverse_draft.confirm',
     payload: { catalog_code: id.value },
     successTitle: '已通过',
-    role: 'ROLE_BUSIAUDIT',
   });
 }
 
@@ -54,7 +53,6 @@ async function reject() {
     skillId: 'catalog.entry.reverse_draft.reject',
     payload: { catalog_code: id.value, reject_reason: '目录口径需补充证据后重新提交' },
     successTitle: '已驳回',
-    role: 'ROLE_BUSIAUDIT',
   });
 }
 </script>

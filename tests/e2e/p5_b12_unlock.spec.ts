@@ -16,9 +16,9 @@ test('P5 代理服务注册向导可达', async ({ page }) => {
 });
 
 test('P5 挂接审核收件箱有 live 待办', async ({ page }) => {
-  // pageAccess.ts ROUTE_ROLE_OVERRIDES: /provider/inbox/hookup-review 仅 BUSIAUDIT；
-  // MANAGER 进会被路由守卫重定向，故收件箱页测试必须以 BUSIAUDIT 起。
-  await setRole(page, 'ROLE_BUSIAUDIT');
+  // pageAccess.ts ROUTE_ROLE_OVERRIDES: /provider/inbox/hookup-review 仅 MANAGER
+  // （D55/G1 照 v5「资源挂接审核 = 部门管理员」校正）；其他岗位会被路由守卫重定向。
+  await setRole(page, 'ROLE_ORGAN_MANAGER');
   await gotoHash(page, '#/provider/inbox/hookup-review');
   await expect(page.getByRole('heading', { name: '挂接审核收件箱' })).toBeVisible();
   await expect(page.locator('.focus-table tbody tr').first()).toBeVisible();

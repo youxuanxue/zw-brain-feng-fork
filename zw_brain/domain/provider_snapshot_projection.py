@@ -108,6 +108,121 @@ def project_api_services(*, tenant_id: str | None = None) -> list[dict[str, Any]
     ]
 
 
+# 目录管理清单排除的 catalog_code 前缀（语境收口，一词一概念）：
+#   api-group:*  —— legacy API 分组目录（dsp-dataservice 导入物），其 live 形态由
+#                   「接口服务注册」列表以真实 resource_asset(kind=api) 呈现，不属政务目录管理清单；
+#   basic-elem:* —— 国家基本要素目录（D50 国家通道轨，入口在 P5 国家扩展要素编制），
+#                   与政务目录编制双轨独立。
+_MANAGE_EXCLUDED_CATALOG_PREFIXES = ("api-group:", "basic-elem:")
+
+
+def _org_name_resolver(tenant_id: str):
+    """org_code → 机构中文名（ReferenceService fail-soft：未命中回落 org id，诚实不造假）。"""
+    from zw_brain.domain.services.reference_service import ReferenceService  # noqa: PLC0415
+
+    ref = ReferenceService()
+    cache: dict[str, str] = {}
+
+    def resolve(org_id: Any) -> str:
+        code = str(org_id or "")
+        if not code:
+            return ""
+        if code not in cache:
+            organ = ref.organ(code, tenant_id=tenant_id)
+            cache[code] = str(organ["org_name"]) if organ and organ.get("org_name") else code
+        return cache[code]
+
+    return resolve
+
+
+def project_provider_catalogs(*, tenant_id: str | None = None) -> list[dict[str, Any]]:
+    """真实 catalog_entry → 供数侧「目录管理」清单/概览行（T9 诚实化，承 #191 读路径单源）。
+
+    口径：政务数据目录主线（排除前缀见 _MANAGE_EXCLUDED_CATALOG_PREFIXES）+ 排除已退役行
+    （retired 是导入版本翻转的历史尾巴，不属管理态浏览）。无行时返回 []，由 enrich 回落
+    seed 视图（与其他 enrich_* 的 replace-when-DB-nonempty 同模式）。
+    schema_ref 批量预解析（list_schema_snapshots(resource_codes=…) 单查），保持与
+    _attach_reverse_catalog_fields 同一回落链，反向编目向导零行级 N+1。
+    """
+    tenant_id = tenant_id or get_runtime_tenant_id()
+    repo = CatalogRepository()
+    records = [
+        rec
+        # api-group:* 占行最大（近千行）→ SQL 侧先排，其余 python 侧收口。
+        for rec in repo.list_entries(tenant_id=tenant_id, exclude_catalog_code_prefix="api-group:")
+        if rec.lifecycle_status != "retired"
+        and not str(rec.catalog_code).startswith(_MANAGE_EXCLUDED_CATALOG_PREFIXES)
+    ]
+    if not records:
+        return []
+
+    metadata_repo = MetadataEvidenceRepository()
+    snaps = metadata_repo.list_schema_snapshots(
+        resource_codes=[str(rec.catalog_code) for rec in records], tenant_id=tenant_id
+    )
+    schema_by_code: dict[str, str] = {}
+    for snap in snaps:  # captured_at 升序：首个兜底，table 快照优先（与 _attach 同序）
+        code = str(snap.resource_code)
+        if ":db_meta_table:" in snap.snapshot_ref:
+            schema_by_code[code] = snap.snapshot_ref
+        else:
+            schema_by_code.setdefault(code, snap.snapshot_ref)
+
+    org_name = _org_name_resolver(tenant_id)
+    rows: list[dict[str, Any]] = []
+    for rec in records:
+        summary = rec.summary_json if isinstance(rec.summary_json, dict) else {}
+        code = str(rec.catalog_code)
+        source_ref = str(summary.get("source_ref") or "")
+        rows.append(
+            {
+                "id": code,
+                "catalog_code": code,
+                "data_catalog_code": str(summary.get("data_catalog_code") or ""),
+                "name": rec.title or code,
+                "status": rec.lifecycle_status,
+                "lifecycle_status": rec.lifecycle_status,
+                "owner_org_id": rec.owner_org_id,
+                "owner": org_name(rec.owner_org_id) or str(rec.owner_org_id or ""),
+                "source_ref": source_ref,
+                "legacy_object_ref": str(summary.get("legacy_object_ref") or ""),
+                # 与 _attach_reverse_catalog_fields 同回落链：表快照 > 任一快照 > source_ref；
+                # 都没有则诚实留空（反向编目向导 validate 会拦「缺 schema 引用」）。
+                "schema_ref": schema_by_code.get(code, "") or source_ref,
+            }
+        )
+    return rows
+
+
+def project_provider_resources(*, tenant_id: str | None = None) -> list[dict[str, Any]]:
+    """真实 resource_asset → 供数侧「资源管理」清单/概览行（T9 诚实化）。
+
+    全物化形态（库表/文件/接口）一并呈现、kind 标签区分；排除已退役行。无行返回 []
+    （enrich 回落 seed 视图）。
+    """
+    tenant_id = tenant_id or get_runtime_tenant_id()
+    repo = ResourceApiRepository()
+    org_name = _org_name_resolver(tenant_id)
+    rows: list[dict[str, Any]] = []
+    for rec in repo.list_assets(tenant_id=tenant_id):
+        if rec.lifecycle_status == "retired":
+            continue
+        rows.append(
+            {
+                "id": rec.resource_code,
+                "name": rec.title or rec.resource_code,
+                "status": rec.lifecycle_status,
+                "lifecycle_status": rec.lifecycle_status,
+                "resource_kind": canonical_resource_kind(rec.resource_kind),
+                "catalog_code": rec.catalog_code,
+                "owner_org_id": rec.owner_org_id,
+                "owner": org_name(rec.owner_org_id) or str(rec.owner_org_id or ""),
+                "source_ref": rec.source_ref,
+            }
+        )
+    return rows
+
+
 def project_provider_inbox(*, tenant_id: str | None = None) -> dict[str, list[dict[str, Any]]]:
     tenant_id = tenant_id or get_runtime_tenant_id()
     catalog_repo = CatalogRepository()
@@ -214,10 +329,21 @@ def enrich_provider_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None 
     # D2：API 服务列表来自真实 resource_asset(kind=api)，不再读 seed 写死的演示 services
     # （承 D47 演示诚实化）。注册产出（resource.api.register）即时在此可见。
     provider["services"] = project_api_services(tenant_id=tenant_id)
-    catalogs = provider.get("catalogs")
-    if isinstance(catalogs, list):
-        provider["catalogs"] = [
-            _attach_reverse_catalog_fields(item, tenant_id=tenant_id) if isinstance(item, dict) else item
-            for item in catalogs
-        ]
+    # T9 诚实化（承 #191 读路径单源 / D11）：目录·资源管理清单与概览读真实库现算，
+    # 不再停留在 seed 演示行——新编目录/新挂资源即时可见。DB 空时回落 seed 视图
+    # （replace-when-DB-nonempty，与 discovery/requests 等 enrich 同模式）。
+    live_catalogs = project_provider_catalogs(tenant_id=tenant_id)
+    if live_catalogs:
+        # schema_ref 已在投影内批量预解析（同回落链），不再走行级 _attach（防 N+1）。
+        provider["catalogs"] = live_catalogs
+    else:
+        catalogs = provider.get("catalogs")
+        if isinstance(catalogs, list):
+            provider["catalogs"] = [
+                _attach_reverse_catalog_fields(item, tenant_id=tenant_id) if isinstance(item, dict) else item
+                for item in catalogs
+            ]
+    live_resources = project_provider_resources(tenant_id=tenant_id)
+    if live_resources:
+        provider["resources"] = live_resources
     return out

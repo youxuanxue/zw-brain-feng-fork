@@ -47,7 +47,9 @@ _COMPLIANCE = frozenset(
 # 与后端 audit.event.* / audit.list / audit.replay_evidence_chain 角色集 + compliance-ops nav 一致。
 _AUDIT_LOG = frozenset({"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"})
 _ZONES = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"})
-_CAPABILITY = frozenset({"ROLE_BUSIAUDIT", "ROLE_SYSTEM"})
+# 能力包预载（B1.2 外部系统）：D55/P2 能力面补漏——package.* 全链收归平台运维员，
+# BUSIAUDIT 随之退出预载（与 policy.package.list/view={ROLE_SYSTEM} 对齐）。
+_CAPABILITY = frozenset({"ROLE_SYSTEM"})
 # api_resources 预载（外部系统 / 代理服务 API 面）——本流不动。
 _OPS = frozenset({"ROLE_BUSIAUDIT", "ROLE_SYSTEM"})
 # 服务调用监控（gateway_runtime_statuses / service_invocation_metrics）—— 查审计拆分（D55/P8）：

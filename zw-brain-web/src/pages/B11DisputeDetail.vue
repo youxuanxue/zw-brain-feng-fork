@@ -3,6 +3,8 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { lookupDispute, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub } from '@/composables/useActionStub';
+import { getProductRole } from '@/composables/useProductRole';
+import { canPerformAction } from '@/lib/pageAccess';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
@@ -10,6 +12,10 @@ import { mapDetailRows } from '@/lib/detailDisplay';
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
+// 权限梳理 0609：安全审计员纯只读——升级/解决写动作仅对有权岗位渲染（无权=不可见，非可见+403）。
+const role = getProductRole();
+const canEscalate = computed(() => canPerformAction('objection.case.escalate', role.value));
+const canResolve = computed(() => canPerformAction('objection.case.close', role.value));
 const dispute = lookupDispute(id.value);
 const { source } = useSnapshot();
 
@@ -36,7 +42,6 @@ async function escalate() {
     skillId: 'objection.case.escalate',
     payload: { objection_id: id.value, opinion: '合规运营升级督办' },
     successTitle: '已升级',
-    role: 'ROLE_SECURITY_AUDIT',
   });
 }
 
@@ -45,7 +50,6 @@ async function resolve() {
     skillId: 'objection.case.close',
     payload: { objection_id: id.value, opinion: '经核查已解决' },
     successTitle: '已关闭',
-    role: 'ROLE_SECURITY_AUDIT',
   });
 }
 </script>
@@ -56,9 +60,9 @@ async function resolve() {
     <section class="panel">
       <PageFocusHeader :title="id" :meta="headerMeta" />
       <DetailPanel title="基本信息" :rows="rows" />
-      <DetailActions>
-        <button type="button" class="gov-btn gov-btn-secondary" @click="escalate">升级</button>
-        <button type="button" class="gov-btn gov-btn-primary" @click="resolve">标记解决</button>
+      <DetailActions v-if="canEscalate || canResolve">
+        <button v-if="canEscalate" type="button" class="gov-btn gov-btn-secondary" @click="escalate">升级</button>
+        <button v-if="canResolve" type="button" class="gov-btn gov-btn-primary" @click="resolve">标记解决</button>
       </DetailActions>
     </section>
   </main>

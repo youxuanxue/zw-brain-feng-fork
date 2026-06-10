@@ -1,24 +1,20 @@
 import { ref, type Ref } from 'vue';
 import { authFetch } from './useAuth';
 import { newRequestId, postSkill } from './useApiClient';
-import {
-  EXPOSURE_MATRIX_FIXTURE,
-  PACKAGE_LIST_FIXTURE,
-  type ExposureMatrixResult,
-  type PackageListResult,
-} from '@/fixtures/b12-fixture';
+import { getProductRole } from './useProductRole';
+import type { PackageListResult } from '@/lib/packageDisplay';
 import { normalizePackageRow } from '@/lib/packageDisplay';
 import { apiUrl } from './useApiBase';
 
-// B1.2 接入扩展中心后端调用封装：
+// B1.2 外部系统后端调用封装：
 // - package.list（既有 capability_admin handler）
-// - package.exposure.matrix.query（F4 新增 capability，含 209 manifest × 5 消费面矩阵）
 // - package.review_decide / tenant.capability.enable / tenant.capability.disable /
 //   package.rollback / package.trust_level.update（写敏感，human_confirmation_required=true）
 //
-// 与 F3-UI useAuditPanels 同 pattern：authFetch POST /api/skills/<slug> + fallback
-// fixture；每个调用 UI 端生成 UI-PKG-* 前缀 request_id 让后端元审计 correlate。
-// 共享 BFF 客户端见 useApiClient.ts。
+// 角色一律取会话当前岗位（getProductRole），不再硬编码：D55/P2 外部系统收归平台
+// 运维员后，固定 role payload 会让真实单岗位会话被 resolve_trusted_role 拒（403）。
+// 加载失败不再回落 fixture 假数据——403/失败诚实呈现（D11），fixture 掩盖过整面权限错配。
+// 每个调用 UI 端生成 UI-PKG-* 前缀 request_id 让后端元审计 correlate。
 
 export type PanelSource = 'idle' | 'loading' | 'live' | 'fixture';
 
@@ -36,13 +32,12 @@ export function usePackageList(): UsePackageListResult {
   const source = ref<PanelSource>('idle');
   const error = ref<string | null>(null);
 
-  async function load(role = 'ROLE_BUSIAUDIT'): Promise<void> {
+  async function load(role?: string): Promise<void> {
     source.value = 'loading';
     error.value = null;
     try {
       const payload = await postSkill<PackageListResult>('package.list', {
-        role,
-        tenant_id: 'sd-default',
+        role: role ?? getProductRole().value,
         request_id: newRequestId('UI-PKG-LIST'),
       });
       if (!payload || !Array.isArray(payload.items)) throw new Error('payload shape unexpected');
@@ -53,51 +48,10 @@ export function usePackageList(): UsePackageListResult {
       };
       source.value = 'live';
     } catch (e) {
+      // 诚实失败：不回落 fixture（假数据曾掩盖整面 403），页面按 error 呈现。
       error.value = e instanceof Error ? e.message : String(e);
-      data.value = PACKAGE_LIST_FIXTURE;
-      source.value = 'fixture';
-    }
-  }
-  return { data, source, error, load };
-}
-
-// ---- 暴露矩阵 ----
-
-export interface UseExposureMatrixResult {
-  data: Ref<ExposureMatrixResult | null>;
-  source: Ref<PanelSource>;
-  error: Ref<string | null>;
-  load: (
-    filter: { journey?: string; status?: string; execution_binding?: string; surface?: string },
-    role?: string
-  ) => Promise<void>;
-}
-
-export function useExposureMatrix(): UseExposureMatrixResult {
-  const data = ref<ExposureMatrixResult | null>(null);
-  const source = ref<PanelSource>('idle');
-  const error = ref<string | null>(null);
-
-  async function load(
-    filter: { journey?: string; status?: string; execution_binding?: string; surface?: string } = {},
-    role = 'ROLE_BUSIAUDIT'
-  ): Promise<void> {
-    source.value = 'loading';
-    error.value = null;
-    try {
-      const payload = await postSkill<ExposureMatrixResult>('package.exposure.matrix.query', {
-        role,
-        tenant_id: 'sd-default',
-        request_id: newRequestId('UI-PKG-MAT'),
-        ...filter,
-      });
-      if (!payload || !Array.isArray(payload.matrix)) throw new Error('payload shape unexpected');
-      data.value = payload;
-      source.value = 'live';
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : String(e);
-      data.value = EXPOSURE_MATRIX_FIXTURE;
-      source.value = 'fixture';
+      data.value = null;
+      source.value = 'idle';
     }
   }
   return { data, source, error, load };
@@ -119,7 +73,7 @@ export interface MutateResult {
 async function invokeMutate(
   skill: string,
   payload: Record<string, unknown>,
-  role: string,
+  role: string | undefined,
   confirmed: boolean
 ): Promise<MutateResult> {
   if (!confirmed) {
@@ -130,9 +84,8 @@ async function invokeMutate(
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
-        role,
+        role: role ?? getProductRole().value,
         confirmed: true,
-        tenant_id: 'sd-default',
         request_id: newRequestId(`UI-PKG-${skill.split('.').slice(-1)[0].toUpperCase()}`),
         ...payload,
       }),
@@ -152,7 +105,7 @@ export async function reviewPackage(
   packageId: string,
   decision: 'approve' | 'return_for_fix' | 'reject',
   confirmed: boolean,
-  role = 'ROLE_BUSIAUDIT'
+  role?: string
 ): Promise<MutateResult> {
   return invokeMutate('package.review_decide', { package_id: packageId, decision }, role, confirmed);
 }
@@ -160,7 +113,7 @@ export async function reviewPackage(
 export async function enableTenantCapability(
   packageId: string,
   confirmed: boolean,
-  role = 'ROLE_BUSIAUDIT'
+  role?: string
 ): Promise<MutateResult> {
   return invokeMutate('tenant.capability.enable', { package_id: packageId }, role, confirmed);
 }
@@ -168,7 +121,7 @@ export async function enableTenantCapability(
 export async function disableTenantCapability(
   packageId: string,
   confirmed: boolean,
-  role = 'ROLE_BUSIAUDIT'
+  role?: string
 ): Promise<MutateResult> {
   return invokeMutate('tenant.capability.disable', { package_id: packageId }, role, confirmed);
 }
@@ -177,7 +130,7 @@ export async function rollbackPackage(
   packageId: string,
   reason: string,
   confirmed: boolean,
-  role = 'ROLE_BUSIAUDIT'
+  role?: string
 ): Promise<MutateResult> {
   return invokeMutate('package.rollback', { package_id: packageId, reason }, role, confirmed);
 }
@@ -187,7 +140,7 @@ export async function updatePackageTrustLevel(
   newLevel: 'baseline' | 'reviewed' | 'restricted' | 'revoked',
   reason: string,
   confirmed: boolean,
-  role = 'ROLE_BUSIAUDIT'
+  role?: string
 ): Promise<MutateResult> {
   return invokeMutate(
     'package.trust_level.update',

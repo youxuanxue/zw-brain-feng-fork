@@ -209,7 +209,6 @@ async function onGenerateDraft() {
     skillId: engine.draftSkill,
     payload,
     successTitle: '草稿已生成',
-    role: 'ROLE_ORGAN_MANAGER',
     pendingBackend: 'E3 三引擎',
   });
   if (res.ok && res.data && typeof res.data === 'object') {
@@ -244,7 +243,6 @@ async function onPromotePreview() {
     skillId: engine.promoteSkill,
     payload,
     successTitle: '已提交预览',
-    role: 'ROLE_ORGAN_MANAGER',
     pendingBackend: 'E3 三引擎',
   });
   if (res.ok && res.data && typeof res.data === 'object') {
@@ -273,7 +271,6 @@ async function onRevertToDraft() {
     skillId: engine.revertSkill,
     payload,
     successTitle: '已回退到草稿',
-    role: 'ROLE_ORGAN_MANAGER',
     pendingBackend: 'E3 三引擎',
   });
   if (res.ok && res.data && typeof res.data === 'object') {
@@ -312,7 +309,6 @@ async function onCommitLive() {
     skillId: engine.commitSkill,
     payload,
     successTitle: '已入库生效',
-    role: 'ROLE_ORGAN_MANAGER',
     pendingBackend: 'E3 三引擎',
   });
   if (res.ok && res.data && typeof res.data === 'object') {

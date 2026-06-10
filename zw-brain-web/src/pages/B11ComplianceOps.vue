@@ -79,7 +79,6 @@ function consumeNLAction(action: StructuredAction): void {
     void invokeActionStub({
       skillId: action.target,
       payload: action.payload,
-      role: 'ROLE_SECURITY_AUDIT',
       successTitle: action.label,
     });
   } else if (action.kind === 'filter' || action.kind === 'draft') {

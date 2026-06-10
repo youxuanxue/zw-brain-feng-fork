@@ -152,6 +152,10 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   'service.publish_or_suspend': ['ROLE_ORGAN_MANAGER'],
   // P2ResourceDetail 字段数据模型（只读）— metadata.schema.query.execute
   'metadata.schema.query': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+  // B1.1 异议详情（查审计 shell 含安全审计员，D55/P22 审计纯只读）——升级/解决写动作
+  // 仅业务运营员 + 部门管理员可见，与后端 objection.case.escalate/close set-equal。
+  'objection.case.escalate': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
+  'objection.case.close': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   // C5（D50）P5 国家扩展要素编制 — 与后端 policy catalog.national_ext_elem.compile.execute set-equal。
   'catalog.national_ext_elem.compile': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   // C6（D50）P3 国家直达转报 — 与后端 policy application.escalate_national.execute set-equal。

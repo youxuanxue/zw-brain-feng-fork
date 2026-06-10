@@ -107,7 +107,7 @@ def test_existing_review_lifecycle_still_works_under_multiplex_sink(brain_with_a
         brain,
         "package.review_decide",
         {"package_id": pkg_id, "decision": "approve", "confirmed": True},
-        role="ROLE_BUSIAUDIT",
+        role="ROLE_SYSTEM",
     )
     assert out["ok"] is True
     assert brain._get_handler_deps().view.packages.find_by_id(pkg_id)["status"] == "approved"
@@ -132,7 +132,7 @@ def test_tenant_capability_enable_writes_audit_under_multiplex_sink(brain_with_a
         brain,
         "tenant.capability.enable",
         {"package_id": pkg_id, "tenant_id": TENANT, "confirmed": True},
-        role="ROLE_BUSIAUDIT",
+        role="ROLE_SYSTEM",
     )
     assert out["ok"] is True
     # multiplex sink 应同时落主 DB + F1 AuditStore；这里只校验 AuditStore 至少
@@ -154,7 +154,7 @@ def test_package_rollback_swaps_active_and_previous_version(brain_with_audit) ->
         brain,
         "package.rollback",
         {"package_id": pkg_id, "reason": "regression in v1.2.0", "confirmed": True},
-        role="ROLE_BUSIAUDIT",
+        role="ROLE_SYSTEM",
     )
     assert out["ok"] is True
     assert out["result"]["previous_version"] == "v1.2.0"
@@ -176,7 +176,7 @@ def test_package_rollback_rejects_when_no_rollback_target(brain_with_audit) -> N
             brain,
             "package.rollback",
             {"package_id": pkg_id, "confirmed": True},
-            role="ROLE_BUSIAUDIT",
+            role="ROLE_SYSTEM",
         )
 
 
@@ -191,7 +191,7 @@ def test_exposure_matrix_returns_all_manifests(brain_with_audit) -> None:
         brain,
         "package.exposure.matrix.query",
         {"tenant_id": TENANT},
-        role="ROLE_BUSIAUDIT",
+        role="ROLE_SYSTEM",
     )
     assert out["totals"]["manifests"] >= 200  # 209 currently
     assert "api" in out["totals"]["by_surface"]
@@ -212,7 +212,7 @@ def test_exposure_matrix_filters_by_journey_and_status(brain_with_audit) -> None
         brain,
         "package.exposure.matrix.query",
         {"journey": "b1", "status": "live", "tenant_id": TENANT},
-        role="ROLE_BUSIAUDIT",
+        role="ROLE_SYSTEM",
     )
     assert all(r["journey"] == "b1" and r["status"] == "live" for r in out["matrix"])
     assert out["scanned"] >= 47  # B1 budget after F4 = 50
@@ -224,7 +224,7 @@ def test_exposure_matrix_filters_by_surface(brain_with_audit) -> None:
         brain,
         "package.exposure.matrix.query",
         {"surface": "mcp", "tenant_id": TENANT},
-        role="ROLE_BUSIAUDIT",
+        role="ROLE_SYSTEM",
     )
     assert all("mcp" in r["surfaces"] for r in out["matrix"])
 
@@ -242,7 +242,7 @@ def test_package_trust_level_update_changes_metadata(brain_with_audit) -> None:
         brain,
         "package.trust_level.update",
         {"package_id": pkg_id, "trust_level": "reviewed", "reason": "compliance review approved", "confirmed": True},
-        role="ROLE_BUSIAUDIT",
+        role="ROLE_SYSTEM",
     )
     assert out["ok"] is True
     assert out["result"]["previous_trust_level"] == "baseline"
@@ -260,7 +260,7 @@ def test_package_trust_level_rejects_unknown_level(brain_with_audit) -> None:
             brain,
             "package.trust_level.update",
             {"package_id": pkg_id, "trust_level": "ultra-trusted", "confirmed": True},
-            role="ROLE_BUSIAUDIT",
+            role="ROLE_SYSTEM",
         )
 
 

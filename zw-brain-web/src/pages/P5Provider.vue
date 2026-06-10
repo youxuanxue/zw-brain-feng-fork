@@ -12,7 +12,7 @@ import {
 } from '@/lib/providerProjection';
 import { supplierDataQualityRows } from '@/lib/roleProjection';
 import { canPerformAction, filterByRouteAccess, isRouteAllowedForRole } from '@/lib/pageAccess';
-import { canCompileNationalExtElem } from '@/lib/requestFlowRoles';
+import { canCompileNationalExtElem, canViewProviderAssets } from '@/lib/requestFlowRoles';
 import { apiUrl } from '@/composables/useApiBase';
 import { deriveRecordName, shortId } from '@/lib/userLanguage';
 
@@ -65,7 +65,9 @@ const supplyActions = computed(() => {
 
 // 目录 / 资源管理概览（负责人加注）：本部门「编了多少 / 在审多少 / 待发布 / 已发布」管理态，
 // 让供数人不止看审批待办、还看到自己经手目录与资源的整体情况（真实 snapshot 派生）。
-const canManageAssets = computed(() => canPerformAction('catalog.entry.publish', role.value));
+// 入口门 = 清单页视图门同源（canViewProviderAssets，供数三岗位）：操作员=编制者也需看本部门
+// 清单跟踪状态（业务方 2026-06-09 确认只读浏览），不得用发布权限门把有权浏览的岗位挡在入口外。
+const canViewAssetOverview = computed(() => canViewProviderAssets(role.value));
 const catalogSummary = computed(() => providerCatalogSummary(provider.value as Record<string, unknown>));
 const resourceSummary = computed(() => providerResourceSummary(provider.value as Record<string, unknown>));
 
@@ -190,7 +192,7 @@ async function publishDraft(catalogCode: string) {
            T9：概览卡标题做成可点入口 → 进 provider 子路由清单页（/provider/catalogs、
            /provider/resources），按生命周期浏览本部门全部目录/资源（名称/代码/提供方/生命周期/查看）。
            子路由不进 PRODUCT_SHELL_NAV、不增左导航项（守左导航场景页 ≤10 约束）。 -->
-      <section v-if="source === 'live' && canManageAssets" class="manage-grid" aria-label="目录与资源管理概览">
+      <section v-if="source === 'live' && canViewAssetOverview" class="manage-grid" aria-label="目录与资源管理概览">
         <div class="manage-card" data-testid="catalog-manage-summary">
           <header class="manage-head">
             <a href="#/provider/catalogs" class="manage-title-link" data-testid="catalog-manage-link">目录管理 →</a>

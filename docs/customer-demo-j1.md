@@ -5,7 +5,7 @@
 
 ## 演示路径
 
-ROLE_BUSIAUDIT 角色，sd-default 真实数据（M0 一次性迁移产出），无 mock：
+多岗位协同（部门操作员=申请人/异议方、业务运营员=受理与平台核查、部门管理员=凭据签发与部门回复，D55 权限口径），sd-default 真实数据（M0 一次性迁移产出），无 mock：
 
 1. **P2 搜索** — `search.intent.parse` 解析「医疗救助相关数据」一句话
 2. **P2 命中** — sd-default catalog_entry 真实数据找到 `医疗救助信息` / `医保码信息`

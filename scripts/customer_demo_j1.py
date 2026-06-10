@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """F9 J1 30 分钟客户演示 — 端到端跑通 P2→P3→P4→Objection 全链路.
 
-按 e1-j1-journey core_goal: ROLE_BUSIAUDIT 在 30 分钟内 sd-default 真实数据上跑通
+按 e1-j1-journey core_goal: 多岗位协同（操作员申请/运营员受理/管理员审定）在 30 分钟内 sd-default 真实数据上跑通
 P2 搜索 → P3 草拟+审批 → P4 凭据+样例+解释 → 异议 5 维度任一全闭环。
 
 实际执行不依赖 REST server，直接通过 BrainService.invoke_skill 驱动 dispatch；
@@ -152,7 +152,8 @@ def run_demo(seed_db: Path, shadow_db: Path, *, dry_run: bool = False) -> dict[s
         "resource_name": primary["title"],
         "applicant_org": "省大数据局",
         "use_case": "省大数据局行政依据查询医疗救助分布",
-        "role": "ROLE_BUSIAUDIT",
+        # D55/P7：业务运营员退申请人身份——申请草拟由部门操作员（申请人）发起
+        "role": "ROLE_ORGAN_OPERATER",
         "enabled": False,
     })
     assert draft["suggested_fields"]["use_reason"] in ("行政依据", "审批办理", "信用核查", "其他"), draft
@@ -210,7 +211,8 @@ def run_demo(seed_db: Path, shadow_db: Path, *, dry_run: bool = False) -> dict[s
     real_delivery = row[0]
     explain = _invoke(brain, "delivery.status.explain", {
         "delivery_code": real_delivery,
-        "role": "ROLE_BUSIAUDIT",
+        # 交付面=操作员+管理员（D53⑥ 业务运营员无交付场景；D55/P13·P18）
+        "role": "ROLE_ORGAN_OPERATER",
         "enabled": False,
     })
     assert explain["phase"], explain
@@ -219,13 +221,14 @@ def run_demo(seed_db: Path, shadow_db: Path, *, dry_run: bool = False) -> dict[s
     # ── 异议 catalog 维度全闭环 ───────────────────────────────────────
     _log("STEP-7.OBJ", "创建 catalog 异议", catalog=primary["catalog_code"])
     case = _invoke(brain, "objection.case.create", {
-        "role": "ROLE_BUSIAUDIT",
+        # 异议由用数方（部门操作员）发起；受理/分发/复核仍归业务运营员（common）
+        "role": "ROLE_ORGAN_OPERATER",
         "confirmed": True,
         "objection_kind": "catalog_quality",
         "target_type": "catalog",
         "target_id": primary["catalog_code"],
         "title": f"F9 演示: {primary['title']} 字段描述异议",
-        "complainant_org_id": "U_BUSIAUDIT_DEMO",
+        "complainant_org_id": "U_OPERATER_DEMO",
         "provider_org_id": "U_PROVIDER_DEMO",
         "basis_text": "示例字段描述与底册不一致",
         "evidence": [{"evidence_type": "catalog", "content_json": {"demo": True, "title": primary["title"]}}],
@@ -235,11 +238,11 @@ def run_demo(seed_db: Path, shadow_db: Path, *, dry_run: bool = False) -> dict[s
 
     common = {"role": "ROLE_BUSIAUDIT", "confirmed": True, "objection_id": objection_id}
     _log("STEP-8.OBJ", "提交 → 平台核查 → 分发部门")
-    _invoke(brain, "objection.case.submit", common)
+    _invoke(brain, "objection.case.submit", {**common, "role": "ROLE_ORGAN_OPERATER"})
     _invoke(brain, "objection.case.assign", {**common, "target_status": "platform_investigating"})
     _invoke(brain, "objection.case.assign", {**common, "target_status": "provider_investigating"})
     _log("STEP-9.OBJ", "部门 reply 补充处理材料")
-    _invoke(brain, "objection.case.reply", {**common, "node_name": "部门核查回复", "opinion": "已修正字段描述", "action_result": "submitted"})
+    _invoke(brain, "objection.case.reply", {**common, "role": "ROLE_ORGAN_MANAGER", "node_name": "部门核查回复", "opinion": "已修正字段描述", "action_result": "submitted"})
     _log("STEP-10.OBJ", "平台 review → resolved")
     _invoke(brain, "objection.case.review", {**common, "decision": "resolve", "resolved_summary": "已修正字段描述"})
     _log("STEP-11.OBJ", "申请方 evaluate 评价")

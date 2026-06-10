@@ -59,7 +59,6 @@ async function submitReply() {
       action_result: 'submitted',
     },
     successTitle: '已提交提供方回复',
-    role: 'ROLE_ORGAN_MANAGER',
     refreshSnapshotAfter: true,
   });
 }
@@ -73,7 +72,6 @@ async function markResolved() {
       resolved_summary: opinion.value,
     },
     successTitle: '异议已标记为已解决',
-    role: 'ROLE_ORGAN_MANAGER',
     refreshSnapshotAfter: true,
   });
 }

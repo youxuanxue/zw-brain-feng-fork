@@ -90,15 +90,18 @@ PERMISSION_ROLES = {
     "zone.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "zone.view.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
 
-    # 能力包注册（平台运营侧）
-    "package.list.execute": {"ROLE_BUSIAUDIT"},
-    "package.view.execute": {"ROLE_BUSIAUDIT"},
-    # F4 B1.2 intake：rollback / 暴露矩阵 / trust_level 升降（BUSIAUDIT 主管 + SYSTEM 给运维自动回滚）
+    # 能力包 / 外部系统接入（D55/P2：外部系统收归平台运维员独有，业务运营员退出——
+    # 0609 已签裁决的能力面补漏：P2 当时只改了导航 + redaction，package.* 数据能力漏收，
+    # 致 B1.2 外部系统页对唯一可达角色（ROLE_SYSTEM）整面 403、前端静默回落 fixture 假数据）
+    "package.list.execute": {"ROLE_SYSTEM"},
+    "package.view.execute": {"ROLE_SYSTEM"},
+    # F4 B1.2 intake：rollback / 暴露矩阵 / trust_level 升降
     # 注：原含 SECURITY_ADMIN（数据安全），随安全管理员本期退役而去除（D55/P16）；
-    # trust_level.update 移除 SECURITY_ADMIN 后仅剩 BUSIAUDIT（主管），未变空。
-    "package.rollback.execute": {"ROLE_BUSIAUDIT", "ROLE_SYSTEM"},
-    "package.exposure.matrix.query.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"},
-    "package.trust_level.update.execute": {"ROLE_BUSIAUDIT"},
+    # 后 D55/P2 收权，BUSIAUDIT 全部退出外部系统能力面。
+    "package.rollback.execute": {"ROLE_SYSTEM"},
+    # 暴露矩阵查询：UI 面已随 D52.c 退役，能力保留给协议面（MCP/CLI）；安全审计员只读保留（D55/P22 只读不受限）。
+    "package.exposure.matrix.query.execute": {"ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"},
+    "package.trust_level.update.execute": {"ROLE_SYSTEM"},
 
     # J1 申请：发起 → 审 → 授权
     "request.create.execute": {"ROLE_ORGAN_OPERATER"},
@@ -249,17 +252,18 @@ PERMISSION_ROLES = {
     # permissions，PERMISSION_ROLES 不再授予任何角色 → enforce_manifest_policy 对所有调用方
     # fail-closed（无人可调），数据与注册保留待复活。
     # "zone.publish_topic_projection.execute": {"ROLE_BUSIAUDIT"},  # 退出本期（D55/P6）
-    "package.review_decide.execute": {"ROLE_BUSIAUDIT"},
-    "capability.package.register.execute": {"ROLE_BUSIAUDIT"},
-    "capability.version.submit.execute": {"ROLE_BUSIAUDIT"},
-    "capability.version.review.execute": {"ROLE_BUSIAUDIT"},
-    "capability.exposure.configure.execute": {"ROLE_BUSIAUDIT"},
-    "tenant.capability.enable.execute": {"ROLE_BUSIAUDIT"},
-    "tenant.capability.disable.execute": {"ROLE_BUSIAUDIT"},
-    "registry.artifact.export.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "package.register_version.execute": {"ROLE_BUSIAUDIT"},
-    "package.apply_tenant_policy.execute": {"ROLE_BUSIAUDIT"},
-    "package.configure_exposure.execute": {"ROLE_BUSIAUDIT"},
+    # 外部系统/能力包生命周期全链收归平台运维员（D55/P2 能力面补漏，同上）。
+    "package.review_decide.execute": {"ROLE_SYSTEM"},
+    "capability.package.register.execute": {"ROLE_SYSTEM"},
+    "capability.version.submit.execute": {"ROLE_SYSTEM"},
+    "capability.version.review.execute": {"ROLE_SYSTEM"},
+    "capability.exposure.configure.execute": {"ROLE_SYSTEM"},
+    "tenant.capability.enable.execute": {"ROLE_SYSTEM"},
+    "tenant.capability.disable.execute": {"ROLE_SYSTEM"},
+    "registry.artifact.export.execute": {"ROLE_SYSTEM", "ROLE_SECURITY_AUDIT"},
+    "package.register_version.execute": {"ROLE_SYSTEM"},
+    "package.apply_tenant_policy.execute": {"ROLE_SYSTEM"},
+    "package.configure_exposure.execute": {"ROLE_SYSTEM"},
 
     # E3 Wave-2 三引擎 — 审批流模板入库（平台运维员；D55/P3 反转 D49 配置角色：项目级管理员→平台运维员）
     "approval_flow.schema.commit.execute": {"ROLE_SYSTEM"},
