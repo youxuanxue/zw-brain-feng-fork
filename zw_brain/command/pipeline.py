@@ -32,12 +32,13 @@ the registration order — zero edits to BrainService.
 Middleware order is fixed and machine-verified by preflight segment 42
 (``scripts/check_pipeline_middleware_order.py``):
 
-    1. PolicyMiddleware         — enforce manifest policy + confirmation gate
-    2. IdentityMiddleware       — resolve actor + mint audit_id, freeze into ctx
-    3. AuditEmitMiddleware      — emit before/after/error audit events
-    4. CapabilityCallMiddleware — append capability_call row to DB
-    5. PersistMiddleware        — sync_state_views + persist (write-path only)
-    6. AnchorMiddleware         — blockchain anchor outbox (side_effects only)
+    1. CapabilityLogMiddleware  — troubleshooting log (duration/outcome); transparent
+    2. PolicyMiddleware         — enforce manifest policy + confirmation gate
+    3. IdentityMiddleware       — resolve actor + mint audit_id, freeze into ctx
+    4. AuditEmitMiddleware      — emit before/after/error audit events
+    5. CapabilityCallMiddleware — append capability_call row to DB
+    6. PersistMiddleware        — sync_state_views + persist (write-path only)
+    7. AnchorMiddleware         — blockchain anchor outbox (side_effects only)
 
 The chain has two entry shapes:
 
@@ -72,6 +73,8 @@ brain-touching factory.
 """
 from __future__ import annotations
 
+import logging
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -135,6 +138,57 @@ class Middleware(Protocol):
 # ───────────────────────────────────────────────────────────────────────────
 # Concrete middlewares — Action E re-typed dependency surface.
 # ───────────────────────────────────────────────────────────────────────────
+
+
+_CAP_LOGGER = logging.getLogger("zw_brain.command.capability")
+
+
+class CapabilityLogMiddleware:
+    """Troubleshooting observability — one log line per capability call (duration/outcome).
+
+    Strictly separate from ``AuditEmitMiddleware``: audit events are the durable
+    compliance record (D4, sink failure熔断), this line is a best-effort log that
+    may be lost. MUST stay transparent — exceptions re-raise unchanged, so an
+    audit-bus failure raised by inner middlewares passes through merely observed
+    (段 7a: never downgrade that raise to a log). Outermost on purpose: policy
+    rejections, confirmation gates and audit熔断 all get a duration + outcome
+    line. Logs metadata only — never payload/result bodies (redaction red line).
+    """
+
+    def __call__(self, pctx: PipelineContext, next_: NextFn) -> dict[str, Any]:
+        started = time.monotonic()
+        try:
+            result = next_(pctx)
+        except Exception as exc:
+            self._log(pctx, f"error:{exc.__class__.__name__}", started)
+            raise
+        self._log(pctx, "ok", started)
+        return result
+
+    @staticmethod
+    def _log(pctx: PipelineContext, outcome: str, started: float) -> None:
+        actor = pctx.actor
+        if not actor:
+            # Failure before IdentityMiddleware (e.g. policy rejection) — fall back
+            # to the verified request identity so the line is still attributable.
+            from zw_brain.shared.auth_context import get_auth_context  # noqa: PLC0415
+
+            ctx = get_auth_context()
+            actor = ctx.username if ctx is not None else ""
+        _CAP_LOGGER.info(
+            "capability %s %s",
+            pctx.skill.skill_id,
+            outcome,
+            extra={
+                "event": "capability_call",
+                "skill_id": pctx.skill.skill_id,
+                "is_write": pctx.is_write,
+                "outcome": outcome,
+                "audit_id": pctx.audit_id,
+                "actor": actor,
+                "duration_ms": round((time.monotonic() - started) * 1000, 1),
+            },
+        )
 
 
 class PolicyMiddleware:
@@ -370,6 +424,7 @@ class AnchorMiddleware:
 # Module-level constant so preflight segment 42 can mechanically verify
 # the order at static analysis time (no runtime introspection needed).
 MIDDLEWARE_ORDER: tuple[str, ...] = (
+    "CapabilityLogMiddleware",
     "PolicyMiddleware",
     "IdentityMiddleware",
     "AuditEmitMiddleware",
@@ -464,7 +519,7 @@ def _bind(mw: Middleware, next_: NextFn) -> NextFn:
 
 
 def build_default_pipeline(brain: Any) -> SkillPipeline:
-    """Construct the default 6-middleware chain bound to a BrainService.
+    """Construct the default 7-middleware chain bound to a BrainService.
 
     Action E: each middleware takes the minimum-viable dependency surface
     rather than a generic ``brain`` reference. ``audit_bus`` / ``queue`` /
@@ -478,6 +533,7 @@ def build_default_pipeline(brain: Any) -> SkillPipeline:
     from zw_brain.shared import queue  # noqa: PLC0415
 
     return SkillPipeline(middlewares=(
+        CapabilityLogMiddleware(),
         PolicyMiddleware(brain),
         IdentityMiddleware(brain),
         AuditEmitMiddleware(

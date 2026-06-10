@@ -52,6 +52,13 @@ from zw_brain.shared.iaf_oidc import (
     IafOidcTokenHealthError,
     verify_iaf_access_token,
 )
+from zw_brain.shared.logkit import (
+    bind_request_context,
+    get_request_id,
+    reset_request_context,
+    set_log_actor,
+    setup_logging,
+)
 from zw_brain.shared.runtime_config import (
     DevBypassInProductionError,
     get_dev_iam_bypass_enabled,
@@ -64,6 +71,7 @@ from zw_brain.shared.runtime_config import (
 from zw_brain.shared.session_context import build_trusted_skill_payload
 
 _LOGGER = logging.getLogger(__name__)
+_ACCESS_LOGGER = logging.getLogger("zw_brain.entry.rest.access")
 _JWKS_CACHE_TTL_SECONDS = 600
 
 
@@ -287,7 +295,14 @@ class RestHandler(BaseHTTPRequestHandler):
         # 以及 stdlib send_error 的 501/400 错误页）都经此 flush，故安全头一处注入即全覆盖。
         for header, value in security_headers(is_https=self._is_https()):
             self.send_header(header, value)
+        request_id = get_request_id()
+        if request_id:
+            self.send_header("X-Request-Id", request_id)
         super().end_headers()
+
+    def send_response(self, code: int, message: str | None = None) -> None:  # noqa: N802
+        self._response_status = code  # captured for the access log
+        super().send_response(code, message)
 
     def _iaf_login_returns_json_envelope(self, qs: dict[str, list[str]]) -> bool:
         """SPA/API expect JSON (authorization_url…); top-level browser navigations use redirects."""
@@ -299,7 +314,45 @@ class RestHandler(BaseHTTPRequestHandler):
         first_mt = parts[0].split(";")[0].strip().lower() if parts else ""
         return first_mt == "application/json"
 
+    _STATIC_PREFIXES = ("/css/", "/js/", "/assets/", "/src/")
+
     def do_GET(self) -> None:  # noqa: N802
+        self._dispatch_logged("GET", self._route_get)
+
+    def do_POST(self) -> None:  # noqa: N802
+        self._dispatch_logged("POST", self._route_post)
+
+    def _dispatch_logged(self, method: str, route: Callable[[], None]) -> None:
+        """每请求日志边界：bind request_id（接收或生成）→ 路由 → access log → token reset。
+
+        ThreadingMixIn 下 keep-alive 连接会复用线程，finally 处的 reset 保证上下文
+        不跨请求串味（与 auth_context 同款 token 纪律）。
+        """
+        path = _strip_app_prefix(urlparse(self.path).path)
+        tokens = bind_request_context(self.headers.get("X-Request-Id"), entry="rest")
+        self._response_status = 0
+        started = time.monotonic()
+        try:
+            route()
+        finally:
+            quiet = path.startswith(self._STATIC_PREFIXES) or path == "/favicon.ico"
+            _ACCESS_LOGGER.log(
+                logging.DEBUG if quiet else logging.INFO,
+                "%s %s -> %s",
+                method,
+                path,
+                self._response_status,
+                extra={
+                    "event": "http_access",
+                    "method": method,
+                    "path": path,
+                    "status": self._response_status,
+                    "duration_ms": round((time.monotonic() - started) * 1000, 1),
+                },
+            )
+            reset_request_context(tokens)
+
+    def _route_get(self) -> None:
         parsed = urlparse(self.path)
         path = _strip_app_prefix(parsed.path)
 
@@ -354,10 +407,15 @@ class RestHandler(BaseHTTPRequestHandler):
             return
         self._json(404, {"error": "not_found", "path": parsed.path})
 
-    def do_POST(self) -> None:  # noqa: N802
+    def _route_post(self) -> None:
         parsed = urlparse(self.path)
         path = _strip_app_prefix(parsed.path)
 
+        if path == "/api/client-logs":
+            # 前端错误上报：无鉴权（boot/登录前失败也要可上报），防刷与落日志逻辑
+            # 收在 client_logs 模块；绝不写业务库（段 25）。
+            self._handle_client_logs()
+            return
         if path == "/auth/iaf/token":
             self._handle_iaf_token()
             return
@@ -373,6 +431,7 @@ class RestHandler(BaseHTTPRequestHandler):
         if path == "/api/agent-runtime/tasks":
             self._with_authenticated_request(lambda claims: self._handle_agent_runtime_task_post(claims))
             return
+        self.close_connection = True  # POST body 未消费，防 keep-alive 残留字节毒化下一请求
         self._json(404, {"error": "not_found", "path": parsed.path})
 
     def _handle_agent_runtime_agents(self, _claims: dict[str, Any]) -> None:
@@ -579,6 +638,16 @@ class RestHandler(BaseHTTPRequestHandler):
                 snapshot = dict(updated.actor_snapshot)
         return build_trusted_skill_payload(client_payload, actor_snapshot=snapshot)
 
+    def _bind_auth(
+        self, claims: dict[str, Any], *, client_id: str, development_iam_bypass: bool = False
+    ):
+        """建立 AuthContext 并把已验证身份回填进日志上下文（actor 随 request context 一起 reset）。"""
+        context = auth_context_from_claims(
+            claims, client_id=client_id, development_iam_bypass=development_iam_bypass
+        )
+        set_log_actor(context.username)
+        return set_auth_context(context)
+
     def _with_authenticated_request(self, handler: Callable[[dict[str, Any]], None]) -> None:
         try:
             # Path 1: cookie-bound BFF session is the primary browser surface. Even with the cookie,
@@ -587,19 +656,20 @@ class RestHandler(BaseHTTPRequestHandler):
             session = self._get_cookie_session()
             if session is not None:
                 if self._method_requires_csrf() and not self._csrf_token_matches(session):
+                    self.close_connection = True  # body 未消费，防 keep-alive 残留字节毒化下一请求
                     self._json(403, {"error": "csrf_token_invalid"})
                     return
                 if session.development_iam_bypass:
                     claims = session.claims or _dev_iam_bypass_claims()
-                    context_token = set_auth_context(
-                        auth_context_from_claims(claims, client_id=_iaf_client_id(), development_iam_bypass=True)
+                    context_token = self._bind_auth(
+                        claims, client_id=_iaf_client_id(), development_iam_bypass=True
                     )
                 else:
                     client = IafOidcClient()
                     authorization = f"Bearer {session.access_token}"
                     client.validate_access_token_health(authorization=authorization, transport=_IAF_TRANSPORT or _default_transport)
                     claims = _verify_access_token_with_refresh(client, session.access_token)
-                    context_token = set_auth_context(auth_context_from_claims(claims, client_id=client.config.client_id))
+                    context_token = self._bind_auth(claims, client_id=client.config.client_id)
                 try:
                     handler(claims)
                 finally:
@@ -609,8 +679,8 @@ class RestHandler(BaseHTTPRequestHandler):
             # Path 2: dev IAM bypass without an established cookie session (CLI / first-request bootstrap).
             if get_dev_iam_bypass_enabled():
                 claims = _dev_iam_bypass_claims()
-                context_token = set_auth_context(
-                    auth_context_from_claims(claims, client_id=_iaf_client_id(), development_iam_bypass=True)
+                context_token = self._bind_auth(
+                    claims, client_id=_iaf_client_id(), development_iam_bypass=True
                 )
                 try:
                     handler(claims)
@@ -624,7 +694,7 @@ class RestHandler(BaseHTTPRequestHandler):
             client.validate_access_token_health(authorization=authorization, transport=_IAF_TRANSPORT or _default_transport)
             access_token = authorization.split(None, 1)[1]
             claims = _verify_access_token_with_refresh(client, access_token)
-            context_token = set_auth_context(auth_context_from_claims(claims, client_id=client.config.client_id))
+            context_token = self._bind_auth(claims, client_id=client.config.client_id)
             try:
                 handler(claims)
             finally:
@@ -959,7 +1029,53 @@ class RestHandler(BaseHTTPRequestHandler):
         raw = self.rfile.read(length) if length else b"{}"
         return json.loads(raw or b"{}")
 
+    def _handle_client_logs(self) -> None:
+        from zw_brain.entry.rest.client_logs import MAX_BODY_BYTES, handle_client_log_payload
+
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        if length > MAX_BODY_BYTES:
+            # 不读超限体直接拒——避免无鉴权端点被灌大包；body 未消费，必须断连
+            # 否则 keep-alive 复用时残留字节会毒化下一请求的解析
+            self.close_connection = True
+            self._json(413, {"error": "payload_too_large"})
+            return
+        raw = self.rfile.read(length) if length > 0 else b""
+        status, body = handle_client_log_payload(
+            raw,
+            remote=str(self.client_address[0]) if self.client_address else "",
+            user_agent=self.headers.get("User-Agent", ""),
+        )
+        if status == 204:
+            self._empty(204, "application/json")
+            return
+        self._json(status, body)
+
+    # 下方 isinstance 链已映射的"预期内拒绝"类型——只记一行 INFO；其余是未预期异常，
+    # 落完整堆栈（exception）。日志只加在顶部，映射体与客户端响应保持逐字不变。
+    _EXPECTED_REQUEST_ERRORS = (
+        SurfaceNotEnabledError,
+        DomainAccessDeniedError,
+        ActorMatchError,
+        IafOidcError,
+        BrainServiceError,
+    )
+
     def _handle_error(self, exc: Exception) -> None:
+        path = _strip_app_prefix(urlparse(self.path).path)
+        if isinstance(exc, self._EXPECTED_REQUEST_ERRORS):
+            _LOGGER.info(
+                "request rejected: %s: %s",
+                exc.__class__.__name__,
+                exc,
+                extra={"event": "request_rejected", "method": self.command, "path": path},
+            )
+        else:
+            _LOGGER.exception(
+                "unhandled error on %s %s",
+                self.command,
+                path,
+                extra={"event": "unhandled_error", "method": self.command, "path": path},
+            )
         if isinstance(exc, SurfaceNotEnabledError):
             self._json(404, {"error": "surface_not_enabled", "detail": str(exc)})
             return
@@ -1055,6 +1171,7 @@ def log_iaf_runtime_warnings() -> None:
 
 
 def main(host: str | None = None, port: int | None = None) -> None:
+    setup_logging("rest")
     validate_session_store_for_deploy()
     # M5: fail-closed at startup if the dev IAM bypass env leaks into a prod deploy mode.
     # get_dev_iam_bypass_enabled() raises DevBypassInProductionError in that case; surface it

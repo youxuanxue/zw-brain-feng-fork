@@ -186,6 +186,11 @@ if [[ -z "${ZW_BRAIN_INFERENCE_MODE:-}" ]]; then
     export ZW_BRAIN_INFERENCE_MODE=mock
 fi
 
+# 排障日志落盘：本机默认 .data/logs（已 gitignore），文件侧恒为 JSON lines；
+# 容器场景不设此变量、走 stdout 收集。应用自己写文件并轮转，脚本不 tee。
+export ZW_BRAIN_LOG_DIR="${ZW_BRAIN_LOG_DIR:-$REPO_ROOT/.data/logs}"
+mkdir -p "$ZW_BRAIN_LOG_DIR"
+
 ensure_webui_build
 
 start_rest
@@ -202,6 +207,7 @@ fi
 
 echo "[start-local] REST PID: $REST_PID"
 echo "[start-local] REST URL: http://$REST_HOST:$REST_PORT"
+echo "[start-local] logs: $ZW_BRAIN_LOG_DIR/rest.log  (排障: tail -f | jq .，按 X-Request-Id grep 串全链)"
 echo "[start-local] Press Ctrl+C to stop"
 
 wait "$REST_PID"

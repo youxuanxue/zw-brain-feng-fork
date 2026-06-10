@@ -7,12 +7,12 @@
 > status = f(SPEC, MEASUREMENT, SIGN-OFF)，每次 preflight 现算，不手敲、不存第二份。
 > **Done** = 测试真绿 ∧ 业务签字；**Ready** = 已签未绿；**InTest** = 绿/在测但未签（代码完成待签字）；**Draft** = 纯意图；**Backlog** = 排期外（`# Deferred:`）。
 
-> 测量基线：captured_at=`2026-06-10T08:27:47Z` · 指纹新鲜绿 39/39（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
+> 测量基线：captured_at=`2026-06-10T10:45:39Z` · 指纹新鲜绿 40/40（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
 
-> 合计 50：Done 38 / Ready 0 / InTest 1 / Draft 0 / Backlog 11
+> 合计 51：Done 38 / Ready 0 / InTest 2 / Draft 0 / Backlog 11
 
 
-## Wave 0 · 机械守卫 + J1 黄金链路  （Done 12 · Backlog 1）
+## Wave 0 · 机械守卫 + J1 黄金链路  （Done 12 · InTest 1 · Backlog 1）
 
 | feature | status | 依据 |
 |---|---|---|
@@ -21,6 +21,7 @@
 | infra-contract-projection.feature | **Done** | 测量=绿 / 签字=已签 |
 | infra-iam-session.feature | **Done** | 测量=绿 / 签字=已签 |
 | infra-inference-gateway.feature | **Done** | 测量=绿 / 签字=已签 |
+| infra-logging.feature | **InTest** | 测量=绿 / 签字=未签 |
 | j1-api-call-monitoring.feature | **Backlog** | 延期：触发=首次真实生产部署，网关供 res→api_id 映射 + 真实 API 调用流量（同 D47.a 网关域缺供）→ P4 调用记录非空 + 429/限流/401/403 由网关执行可观测。当前零真实 API 消费者，规模前不建配额引擎（按客户节奏放量；debt ac7 + j1-api-call-monitoring）。下方 InTest-Scope 数据层 3 场景已绿，但全 SPEC 待触发，故不抬状态（D46.f：无现实的 ref 不抬状态） |
 | j1-application-draft.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-approval-conditional.feature | **Done** | 测量=绿 / 签字=已签 |

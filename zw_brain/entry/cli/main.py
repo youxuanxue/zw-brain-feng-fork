@@ -25,6 +25,13 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+from zw_brain.shared.logkit import (
+    bind_request_context,
+    get_request_id,
+    reset_request_context,
+    setup_logging,
+)
+
 CLI_ROOT = Path(__file__).resolve().parent
 COMMANDS_PATH = CLI_ROOT / "commands.generated.json"
 
@@ -156,10 +163,14 @@ def _invoke_inprocess(skill_id: str, payload: dict[str, Any]) -> tuple[int, Any]
 def _invoke_http(endpoint: str, skill_id: str, payload: dict[str, Any]) -> tuple[int, Any]:
     """HTTP invoke against REST gateway (/api/skills/<id> POST)."""
     url = f"{endpoint.rstrip('/')}/api/skills/{skill_id}"
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    if get_request_id():
+        # 贯穿到远端 REST 日志：同一 id 可在 rest.log 里串出服务端链路
+        headers["X-Request-Id"] = get_request_id()
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        headers=headers,
         method="POST",
     )
     try:
@@ -198,10 +209,14 @@ def cmd_invoke(skill_id: str, payload_str: str, role: str, endpoint: str | None,
     # before a destructive op), pass `--payload '{"confirmed":false}'` explicitly.
     payload.setdefault("confirmed", True)
 
-    if endpoint:
-        code, result = _invoke_http(endpoint, skill_id, payload)
-    else:
-        code, result = _invoke_inprocess(skill_id, payload)
+    tokens = bind_request_context(entry="cli")
+    try:
+        if endpoint:
+            code, result = _invoke_http(endpoint, skill_id, payload)
+        else:
+            code, result = _invoke_inprocess(skill_id, payload)
+    finally:
+        reset_request_context(tokens)
 
     if code == EXIT_OK:
         print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -230,6 +245,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    setup_logging("cli")
     parser = build_parser()
     args = parser.parse_args()
     data = _load_commands()

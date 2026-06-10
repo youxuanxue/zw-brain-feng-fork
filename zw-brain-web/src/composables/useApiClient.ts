@@ -17,12 +17,21 @@ import { authFetch } from './useAuth';
 import { apiUrl } from './useApiBase';
 
 export async function postSkill<T>(skill: string, payload: Record<string, unknown>): Promise<T> {
+  // X-Request-Id 让这次调用在服务端 rest.log 里可定位；失败时挂到 Error 上，
+  // 全局错误上报（useErrorReporting）回传同一 id 完成前后端日志串联。
+  const requestId = newRequestId('UI');
   const resp = await authFetch(apiUrl(`/api/skills/${skill}`), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-Request-Id': requestId,
+    },
     body: JSON.stringify(payload),
   });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status} from ${skill}`);
+  if (!resp.ok) {
+    throw Object.assign(new Error(`HTTP ${resp.status} from ${skill}`), { requestId });
+  }
   return (await resp.json()) as T;
 }
 

@@ -4,7 +4,8 @@
 Action B introduced an ordered middleware chain for write/read paths
 (``zw_brain/command/pipeline.py``). The order matters for correctness:
 
-  PolicyMiddleware       — must run before anything else (enforce gates).
+  CapabilityLogMiddleware — outermost troubleshooting log (duration/outcome); transparent.
+  PolicyMiddleware       — first enforcement step (gates before any execution).
   IdentityMiddleware     — must run before AuditEmit (audit needs audit_id + actor).
   AuditEmitMiddleware    — must wrap both successful and failed handler exec.
   CapabilityCallMiddleware — records both success + failure to DB.

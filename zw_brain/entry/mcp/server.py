@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -49,6 +50,7 @@ from zw_brain.shared.auth_context import (
     reset_auth_context,
     set_auth_context,
 )
+from zw_brain.shared.logkit import bind_request_context, reset_request_context, setup_logging
 from zw_brain.shared.runtime_config import (
     DevBypassInProductionError,
     get_dev_iam_bypass_enabled,
@@ -399,6 +401,7 @@ def serve_stdio() -> int:
     try:
         get_dev_iam_bypass_enabled()
     except DevBypassInProductionError as exc:
+        # 启动期 banner 直写 stderr（不走 logger）：拒启诊断必须在 logging 未配置时也可见
         sys.stderr.write(f"[mcp] refusing to start: {exc}\n")
         return 2
     sys.stderr.write(f"[mcp] {SERVER_NAME} {SERVER_VERSION} stdio ready ({len(list_tools())} tools)\n")
@@ -429,7 +432,14 @@ def serve_stdio() -> int:
         elif method == "tools/list":
             resp = _handle_tools_list(id_)
         elif method == "tools/call":
-            resp = _handle_tools_call(id_, params)
+            # request_id 与 JSON-RPC id 关联（含随机后缀防 id 重复），贯穿到日志全链
+            tokens = bind_request_context(
+                f"mcp-{id_}-{uuid.uuid4().hex[:6]}", entry="mcp"
+            )
+            try:
+                resp = _handle_tools_call(id_, params)
+            finally:
+                reset_request_context(tokens)
         elif method == "shutdown":
             resp = _ok(id_, None)
             sys.stdout.write(json.dumps(resp) + "\n")
@@ -447,6 +457,7 @@ def serve_stdio() -> int:
 
 
 def main() -> int:
+    setup_logging("mcp")
     parser = argparse.ArgumentParser(description="zw-brain MCP runtime")
     sub = parser.add_subparsers(dest="command", required=True)
 

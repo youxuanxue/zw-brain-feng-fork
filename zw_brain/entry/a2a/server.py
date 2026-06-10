@@ -24,8 +24,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import sys
+import time
+from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -40,6 +43,12 @@ from zw_brain.shared.auth_context import (
     set_auth_context,
 )
 from zw_brain.shared.http_security import SERVER_BANNER, security_headers
+from zw_brain.shared.logkit import (
+    bind_request_context,
+    get_request_id,
+    reset_request_context,
+    setup_logging,
+)
 from zw_brain.shared.runtime_config import (
     DevBypassInProductionError,
     get_a2a_caller_trust_level,
@@ -115,13 +124,15 @@ def _build_binding_index() -> dict[str, dict[str, Any]]:
     return {item["tool_name"]: item for item in get_runtime_bindings()}
 
 
+_ACCESS_LOGGER = logging.getLogger("zw_brain.entry.a2a.access")
+
+
 class _A2AHandler(BaseHTTPRequestHandler):
     binding_index: dict[str, dict[str, Any]] = {}
 
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
-        # quieter default log
-        self.server.log_file.write(f"[a2a] {format % args}\n")  # type: ignore[attr-defined]
-        self.server.log_file.flush()  # type: ignore[attr-defined]
+        # stdlib 默认请求行日志退役——access log 由 _dispatch_logged 经 logkit 结构化输出
+        return
 
     def version_string(self) -> str:  # noqa: N802 — BaseHTTPRequestHandler hook
         # 与 REST 同源问题：去版本化 Server banner，不泄漏 Python 版本（漏扫 0609 Layer 1）。
@@ -132,7 +143,44 @@ class _A2AHandler(BaseHTTPRequestHandler):
         # 不解析 X-Forwarded-Proto，固定 is_https=False（不发 HSTS）。
         for header, value in security_headers(is_https=False):
             self.send_header(header, value)
+        request_id = get_request_id()
+        if request_id:
+            self.send_header("X-Request-Id", request_id)
         super().end_headers()
+
+    def send_response(self, code: int, message: str | None = None) -> None:  # noqa: N802
+        self._response_status = code  # captured for the access log
+        super().send_response(code, message)
+
+    def do_GET(self) -> None:  # noqa: N802
+        self._dispatch_logged("GET", self._route_get)
+
+    def do_POST(self) -> None:  # noqa: N802
+        self._dispatch_logged("POST", self._route_post)
+
+    def _dispatch_logged(self, method: str, route: Callable[[], None]) -> None:
+        # 与 REST 同款请求日志边界：bind request_id → 路由 → access log → token reset
+        path = urlparse(self.path).path
+        tokens = bind_request_context(self.headers.get("X-Request-Id"), entry="a2a")
+        self._response_status = 0
+        started = time.monotonic()
+        try:
+            route()
+        finally:
+            _ACCESS_LOGGER.info(
+                "%s %s -> %s",
+                method,
+                path,
+                self._response_status,
+                extra={
+                    "event": "http_access",
+                    "method": method,
+                    "path": path,
+                    "status": self._response_status,
+                    "duration_ms": round((time.monotonic() - started) * 1000, 1),
+                },
+            )
+            reset_request_context(tokens)
 
     def _json(self, code: int, body: Any) -> None:
         data = json.dumps(body, ensure_ascii=False).encode("utf-8")
@@ -151,7 +199,7 @@ class _A2AHandler(BaseHTTPRequestHandler):
         except json.JSONDecodeError as e:
             raise ValueError(f"invalid JSON body: {e}") from e
 
-    def do_GET(self) -> None:  # noqa: N802
+    def _route_get(self) -> None:
         path = urlparse(self.path).path
         if path in ("/.well-known/agent.json", "/a2a/agent_card"):
             self._json(200, get_agent_card())
@@ -175,7 +223,7 @@ class _A2AHandler(BaseHTTPRequestHandler):
             return
         self._json(404, {"error": "NotFound", "path": path})
 
-    def do_POST(self) -> None:  # noqa: N802
+    def _route_post(self) -> None:
         path = urlparse(self.path).path
         if not path.startswith("/a2a/skills/") or not path.endswith("/invoke"):
             self._json(404, {"error": "NotFound", "path": path})
@@ -242,7 +290,6 @@ def serve_http(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> int:
         return 2
     _A2AHandler.binding_index = _build_binding_index()
     server = ThreadingHTTPServer((host, port), _A2AHandler)
-    server.log_file = os.fdopen(2, "w")  # type: ignore[attr-defined]
     skill_count = len(_A2AHandler.binding_index)
     sys.stderr.write(f"[a2a] zw-brain A2A http://{host}:{port} ({skill_count} skills)\n")
     sys.stderr.flush()
@@ -256,6 +303,7 @@ def serve_http(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> int:
 
 
 def main() -> int:
+    setup_logging("a2a")
     parser = argparse.ArgumentParser(description="zw-brain A2A runtime")
     sub = parser.add_subparsers(dest="command", required=True)
 

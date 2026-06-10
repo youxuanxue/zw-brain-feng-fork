@@ -105,6 +105,10 @@ docker run -d --name zw-brain-rest -p 8800:8800 \
 其中 IAF 相关地址/密钥仅为示例；生产环境按实际 DNS、证书和密钥管理方案替换（密钥走 `*_REF` 指针，
 不把真实密钥写入文档或镜像）。`.env.example` 是本机与 docker 共用的外部变量单一清单。
 
+> 排障日志：容器内不设 `ZW_BRAIN_LOG_DIR`、设 `ZW_BRAIN_LOG_FORMAT=json`，结构化日志走
+> stdout/stderr 由 `docker logs zw-brain-rest` 收集；落文件需求挂卷后设 `ZW_BRAIN_LOG_DIR`。
+> 字段字典与排障剧本见 [`../ops/logging.md`](../ops/logging.md)。
+
 健康检查：
 
 ```bash
