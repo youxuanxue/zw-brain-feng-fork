@@ -60,7 +60,42 @@ _SHARE_TYPE_LEVEL = {"无条件共享": "open", "有条件共享": "conditional"
 # requests — P3RequestFlow 在途申请 + P3RequestDetail 预填底座
 # ───────────────────────────────────────────────────────────────────────────
 
-def _record_to_request_card(record: Any) -> dict[str, Any]:
+def _shared_type_for(payload: dict[str, Any], share_type_by_resource: dict[str, int] | None) -> int | None:
+    """申请卡共享方式：payload 显式 shared_type 优先；否则按 resourceId 从资源 access_policy 派生。
+
+    返回 None = 两边都取不到（诚实缺位，前端按无条件兜底渲染但不据此声称口径）。
+    """
+    raw = payload.get("shared_type") or payload.get("sharedType")
+    if raw is not None:
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return None
+    rid = str(payload.get("resourceId") or payload.get("resource_id") or "")
+    if rid and share_type_by_resource:
+        return share_type_by_resource.get(rid)
+    return None
+
+
+def _share_type_by_resource(tenant_id: str) -> dict[str, int]:
+    """resource_asset(id/resource_code) → access_policy_json.share_type 一次性预载（避免 N+1）。"""
+    out: dict[str, int] = {}
+    for asset in ResourceApiRepository().list_assets(tenant_id=tenant_id):
+        access = asset.access_policy_json or {}
+        raw = access.get("share_type")
+        try:
+            st = int(raw) if raw is not None else None
+        except (TypeError, ValueError):
+            st = None
+        if st is None:
+            continue
+        for key in (str(asset.id or ""), str(getattr(asset, "resource_code", "") or "")):
+            if key:
+                out[key] = st
+    return out
+
+
+def _record_to_request_card(record: Any, share_type_by_resource: dict[str, int] | None = None) -> dict[str, Any]:
     """application_record → 轻量申请卡（snake→camel；applicant PII 走 mask_default）。
 
     本组（数据呈现规范化 + 角色投影）追加 3 个**诚实信号**，供前端三视图 / 供方质量队列：
@@ -100,6 +135,10 @@ def _record_to_request_card(record: Any) -> dict[str, Any]:
         "channelClass": str(payload.get("channel_class") or "internal"),
         "submittedAt": payload.get("submittedAt") or payload.get("create_time") or "",
         "sharingType": payload.get("sharingType"),
+        # 受理/审核两级（P21）路由信号：有条件共享(=2)走 受理→部门审核 两级、无条件(=1)受理即终。
+        # 真实导入单 payload 不携带 shared_type（旧平台该口径在资源侧）→ 读时从资源
+        # access_policy_json.share_type 派生（单一事实源，payload 显式值优先，在产/测试单可覆写）。
+        "sharedType": _shared_type_for(payload, share_type_by_resource),
         # 表单填报（form-autofill）：formFields 是**只读投影**，由模型（fieldValues + fieldProvenance）
         # 读时现算（单一事实源，payload 不另存 formFields 副本）。
         # 仅 form-autofill 草稿（payload 带 fieldProvenance 模型）才投影；legacy 导入单 / 旧在产单
@@ -120,12 +159,14 @@ def enrich_requests_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None 
     不进 P3「在途申请」收件箱。**无条件替换**：空库 → 空列表（诚实空，不回退 seed 演示单）。
     """
     out = copy.deepcopy(snapshot)
+    tid = tenant_id or get_runtime_tenant_id()
     records = [
         r
-        for r in ApplicationRepository().list_records(tenant_id=tenant_id or get_runtime_tenant_id())
+        for r in ApplicationRepository().list_records(tenant_id=tid)
         if (r.payload_json or {}).get("kind") not in _DEMAND_KINDS
     ]
-    out["requests"] = [_record_to_request_card(r) for r in records]
+    share_map = _share_type_by_resource(tid)
+    out["requests"] = [_record_to_request_card(r, share_map) for r in records]
     return out
 
 

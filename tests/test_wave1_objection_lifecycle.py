@@ -388,8 +388,10 @@ def test_brain_dispatch_catalog_lifecycle_audit_chain(repo, brain):
     objection_id = case["id"]
     assert case["status"] == "draft"
 
-    common = {"role": "ROLE_BUSIAUDIT", "confirmed": True, "objection_id": objection_id}
-    _invoke(brain, "objection.case.submit", common)
+    # D55/P7（Wave 1.5）：提交异议=申请人动作（objection.case.submit 已去 BUSIAUDIT），
+    # 由异议发起方操作员提交；后续处置（assign/reply/review/close）仍由平台/部门侧驱动。
+    common = {"confirmed": True, "objection_id": objection_id}
+    _invoke(brain, "objection.case.submit", {**common, "role": "ROLE_ORGAN_OPERATER"})
     _invoke(brain, "objection.case.assign", {**common, "target_status": "platform_investigating"})
     _invoke(brain, "objection.case.assign", {**common, "target_status": "provider_investigating"})
     _invoke(brain, "objection.case.reply", {**common, "node_name": "部门核查回复", "opinion": "已核实", "action_result": "submitted"})

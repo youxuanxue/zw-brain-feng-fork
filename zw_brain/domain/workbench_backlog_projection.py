@@ -44,6 +44,14 @@ from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 # 业务运营员角色码（旧平台 7 角色码之一，D23）。
 _BUSIAUDIT_ROLE = "ROLE_BUSIAUDIT"
+# 部门管理员角色码。
+_MANAGER_ROLE = "ROLE_ORGAN_MANAGER"
+
+# D55/P10 部门管理员供数侧审核 stage：目录审核 = catalog_entry 处于部门待审 pending_review。
+# 只投部门管理员真实拥有审核权且深链可达的 stage（catalog-review 收件箱 pageAccess 含 MANAGER）；
+# 挂接审核 /provider/inbox/hookup-review 与反向编目审核 /provider/inbox/field-decision 现 roles=
+# [BUSIAUDIT]（resource.asset.review={BUSIAUDIT} 既有口径），MANAGER 深链不可达 → 不投（无空死链）。
+_CATALOG_DEPT_REVIEW_STATUS = "pending_review"
 
 # 待受理申请：提交后未终结、等待受理/审批的**申请单**态（kind=apply，不含需求登记）。
 _APPLICATION_BACKLOG_STATUSES = frozenset({"submitted", "under_review"})
@@ -133,18 +141,80 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
     return todos
 
 
+def _manager_review_todos(tenant_id: str) -> list[dict[str, Any]]:
+    """D55/P10：部门管理员供数侧审核 stage 待办（真实库现算，零积压不投，深链既有收件箱）。
+
+    本期只投「目录审核」一条——catalog_entry.lifecycle_status==pending_review（部门待审，
+    MANAGER 审）→ /provider/inbox/catalog-review（pageAccess 含 MANAGER，深链可达）。其余供数侧
+    审核 stage（挂接审核 / 反向编目审核）的收件箱现仅授权业务运营员（resource.asset.review=
+    {BUSIAUDIT}），MANAGER 深链不可达 → 不投（无空死链）；服务注册审核无既有待审收件箱队列页 →
+    不投。资源审核同口径（resource.asset.review={BUSIAUDIT}）→ 不归 MANAGER。
+    """
+    catalog_repo = CatalogRepository()
+    pending_catalog_review = catalog_repo.count_entries(
+        tenant_id=tenant_id, lifecycle_status=_CATALOG_DEPT_REVIEW_STATUS
+    )
+    candidates: list[tuple[str, str, int, str, str, str]] = [
+        (
+            "backlog-catalog-dept-review",
+            "待审核目录",
+            pending_catalog_review,
+            "待审核",
+            "#/provider/inbox/catalog-review",
+            "{n} 个目录待部门审核",
+        ),
+    ]
+    todos: list[dict[str, Any]] = []
+    for item_id, label, count, status, href, action_tmpl in candidates:
+        if count <= 0:
+            continue
+        todos.append(
+            {
+                "id": item_id,
+                "title": f"{label} {count} 条",
+                "status": status,
+                "href": href,
+                "category": "backlog",
+                "action": action_tmpl.format(n=count),
+            }
+        )
+    return todos
+
+
+def _enrich_manager_backlog(view: dict[str, Any], tenant_id: str) -> dict[str, Any]:
+    """部门管理员（D55/P10）：在既投部门审核待办上叠加供数侧审核待办（目录待部门审）。
+
+    保留 ``sync_request_todos`` 已投的 dept_approved 部门审核待办（可点深链），把现算的供数侧
+    审核待办**前插**（去重 by id）。零积压不投供数审核待办（无空死链）。
+    """
+    review_todos = _manager_review_todos(tenant_id)
+    if not review_todos:
+        return view
+    out = copy.deepcopy(view)
+    existing = out.get("todos") or []
+    existing_ids = {t.get("id") for t in existing}
+    prepended = [t for t in review_todos if t["id"] not in existing_ids]
+    out["todos"] = prepended + existing
+    return out
+
+
 def enrich_workbench_backlog(
     view: dict[str, Any], role: str, *, tenant_id: str | None = None
 ) -> dict[str, Any]:
-    """业务运营员工作台 todos 从真实库现算替换（其余角色原样返回）.
+    """工作台 todos 从真实库现算（业务运营员整体替换；部门管理员叠加供数审核待办）.
 
     与 ``discovery_snapshot_projection`` 同模式：**无条件以 DB 现算为准**——有积压给真实
     待办，零积压给诚实空列表（不回退陈旧 seed 文案）。subtitle/aiSummary 也据现算积压
     重写为诚实信号，消除 C-1 删演示单后遗留的陈旧引用。
 
-    其它角色（部门操作员 / 部门管理员等）待办由 ``sync_request_todos`` 真投影、本身已是
-    可点深链，不在此重算。
+    - 业务运营员（ROLE_BUSIAUDIT）：todos **整体替换**为真实库积压（受理/发布/汇总，单一事实源）。
+    - 部门管理员（ROLE_ORGAN_MANAGER）：在 ``sync_request_todos`` 已投的「部门审核待办（dept_approved）」
+      之上**叠加供数侧审核待办**（目录待部门审 pending_review，深链 catalog-review 收件箱，D55/P10），
+      零积压不投。其余角色（部门操作员）待办由 ``sync_request_todos`` 真投影，不在此重算。
     """
+    tid_for_manager = tenant_id or get_runtime_tenant_id()
+    if role == _MANAGER_ROLE:
+        return _enrich_manager_backlog(view, tid_for_manager)
     if role != _BUSIAUDIT_ROLE:
         return view
     tid = tenant_id or get_runtime_tenant_id()

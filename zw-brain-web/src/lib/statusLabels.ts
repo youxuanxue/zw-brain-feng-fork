@@ -7,7 +7,7 @@ const REQUEST_STATUS_ZH: Record<string, string> = {
   'need-fix': '待补正',
   rejected: '已驳回',
   approved: '已通过',
-  dept_approved: '部门同意',
+  dept_approved: '已受理待审核',
   in_delivery: '交付中',
   granted: '已授权',
   revoked: '已撤销',

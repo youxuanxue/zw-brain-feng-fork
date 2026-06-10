@@ -32,6 +32,7 @@ export default defineConfig({
     'role_projection_views.spec.ts',
     'perf_loading.spec.ts',
     'form_autofill.spec.ts',
+    'wave15_two_stage_walkthrough.spec.ts',
   ],
   fullyParallel: false,
   workers: 1,

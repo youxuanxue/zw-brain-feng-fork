@@ -310,24 +310,28 @@ def test_j1_approval_unconditional_sla_sort_list(application_repo):
 
 
 def test_j1_approval_unconditional_non_busiaudit_role_rejected():
-    """G1.3 #6 — 非 MANAGER 角色拒审：policy 层 ground truth。
+    """G1.3 #6 — 非业务运营员角色拒受理：policy 层 ground truth。
 
-    D-7 已对齐：无条件共享审批 = ROLE_ORGAN_MANAGER 单步。
-    OPERATER / SECURITY_AUDIT 不得持有 application.resource.review.execute。
+    D55/P21 已对齐：无条件共享 = 业务运营员（ROLE_BUSIAUDIT）受理即终（单步）。
+    MANAGER / OPERATER / SECURITY_AUDIT 不得持有 application.resource.review.execute。
     """
     from zw_brain.domain.policy import permissions_for_role
 
+    busiaudit_perms = permissions_for_role("ROLE_BUSIAUDIT")
+    assert "application.resource.review.execute" in busiaudit_perms, (
+        "ROLE_BUSIAUDIT 应持有 application.resource.review.execute（D55/P21 受理即终）"
+    )
     manager_perms = permissions_for_role("ROLE_ORGAN_MANAGER")
-    assert "application.resource.review.execute" in manager_perms, (
-        "ROLE_ORGAN_MANAGER 应持有 application.resource.review.execute（D-7 sign-off）"
+    assert "application.resource.review.execute" not in manager_perms, (
+        f"ROLE_ORGAN_MANAGER 不应能无条件受理（受理=业务运营员）；实际授权：{sorted(manager_perms)}"
     )
     operater_perms = permissions_for_role("ROLE_ORGAN_OPERATER")
     assert "application.resource.review.execute" not in operater_perms, (
-        f"ROLE_ORGAN_OPERATER 不应能审批；实际授权：{sorted(operater_perms)}"
+        f"ROLE_ORGAN_OPERATER 不应能受理；实际授权：{sorted(operater_perms)}"
     )
     audit_perms = permissions_for_role("ROLE_SECURITY_AUDIT")
     assert "application.resource.review.execute" not in audit_perms, (
-        f"ROLE_SECURITY_AUDIT 不应能审批；实际授权：{sorted(audit_perms)}"
+        f"ROLE_SECURITY_AUDIT 不应能受理；实际授权：{sorted(audit_perms)}"
     )
 
 
@@ -366,7 +370,8 @@ def test_j1_approval_unconditional_withdrawn_cannot_be_approved(application_repo
                 "decision": "approve",
                 "confirmed": True,
             },
-            role="ROLE_ORGAN_MANAGER",
+            # D55/P21：无条件受理 = 业务运营员（ROLE_BUSIAUDIT）；持权角色对已撤回单仍被状态守卫拦。
+            role="ROLE_BUSIAUDIT",
         )
 
 

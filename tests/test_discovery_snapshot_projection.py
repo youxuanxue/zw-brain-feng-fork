@@ -211,3 +211,50 @@ def test_data_search_empty_query_returns_real_resources(brain: BrainService) -> 
     result = invoke_trusted(brain, "data.search", {"query": ""}, role="ROLE_ORGAN_OPERATER")
     ids = {r["id"] for r in result["results"]}
     assert "RES-DS-1" in ids, "空搜索应返回 DB 全量真实资源（含新 seed 的 RES-DS-1）"
+
+
+# ── requests.sharedType — 受理/审核两级（P21）路由信号 ──────────────────────
+
+def test_request_card_shared_type_derives_from_resource_access_policy(temp_db: Path) -> None:
+    """真实导入单 payload 不携带 shared_type → 读时按 resourceId 从资源 access_policy 派生。
+
+    走查发现（wave1.5 真 UI 全栈实测）：此前卡片只投 payload.sharingType（恒缺）→
+    有条件单在 P3ReviewDetail 永远被当无条件渲染、两级链路 UI 走不进。
+    """
+    _seed_asset("COND-RES", title="有条件资源", share_type="2")
+    ApplicationRepository().upsert_from_request(
+        {
+            "id": "APP-COND",
+            "status": "submitted",
+            "applicant": "张三",
+            "applicantDept": "市数据局",
+            "kind": "apply",
+            "resource_name": "有条件资源",
+            "resourceId": "COND-RES",
+        },
+        tenant_id=TENANT,
+    )
+    out = enrich_requests_snapshot({"requests": []}, tenant_id=TENANT)
+    card = next(r for r in out["requests"] if r["id"] == "APP-COND")
+    assert card["sharedType"] == 2, "payload 缺位时应从资源 access_policy.share_type 派生"
+
+
+def test_request_card_shared_type_payload_explicit_wins(temp_db: Path) -> None:
+    """payload 显式 shared_type 优先于资源派生（在产单/运行时铸单可覆写）。"""
+    _seed_asset("UNCOND-RES", title="无条件资源", share_type="1")
+    ApplicationRepository().upsert_from_request(
+        {
+            "id": "APP-EXPLICIT",
+            "status": "submitted",
+            "applicant": "张三",
+            "applicantDept": "市数据局",
+            "kind": "apply",
+            "resource_name": "无条件资源",
+            "resourceId": "UNCOND-RES",
+            "shared_type": 2,
+        },
+        tenant_id=TENANT,
+    )
+    out = enrich_requests_snapshot({"requests": []}, tenant_id=TENANT)
+    card = next(r for r in out["requests"] if r["id"] == "APP-EXPLICIT")
+    assert card["sharedType"] == 2, "payload 显式 shared_type 应优先于资源派生"

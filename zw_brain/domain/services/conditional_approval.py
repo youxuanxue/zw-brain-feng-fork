@@ -1,15 +1,25 @@
-"""ConditionalApprovalService — J1 有条件共享分支两步审批运行时.
+"""ConditionalApprovalService — J1 有条件共享分支两级受理/审核运行时.
 
 SPEC: .testing/waves/wave-0-golden-path/features/j1-approval-conditional.feature
 
-有条件共享资源 (shared_type=2) 走两步：
-  1. dept.approve   — 提供方部门管理员 (ROLE_ORGAN_MANAGER)，submitted(1 待审) → dept_approved(4 部门同意)
-  2. platform.approve — 平台运营员 (ROLE_BUSIAUDIT)，dept_approved(4) → granted(6 已授权)
-                       platform.reject → dept_approved(4) → rejected(3 驳回)，部门审记录保留
+D55/P21（受理/审核两级，改 D49 关联）：有条件共享资源 (shared_type=2) 走两级，
+**受理在前、部门审核在后**（与旧序对调）：
+  1. accept（受理，第一级）— 业务运营员 (ROLE_BUSIAUDIT)，submitted(1 待审) → dept_approved(4
+     受理通过/待部门审中间态)；受理驳回 submitted → rejected(3)。受理=初级审核，是平台级动作，
+     不适用 self_approval / R11 方向 guard（业务运营员是省大数据局平台方，无提供方部门方向概念）。
+     复用 application.platform_approve.execute key（API surface 稳定，D33 先例；handler/方法名
+     保留 platform_*，语义已是「受理」）。
+  2. dept_review（部门审核，第二级）— 提供方部门管理员 (ROLE_ORGAN_MANAGER)，dept_approved(4)
+     → granted(6 已授权)；审核驳回 dept_approved → rejected(3)，受理记录保留。self_approval /
+     R11 方向 guard 保留在本部门审核级。复用 application.dept_approve.execute key（resubmit
+     补件重提共用本 key 走申请人路径，OPERATER 发起）。审批通过自动签发凭据在本终审级触发。
+
 驳回后申请人补件重提：rejected(3) → submitted(1)，round +1。
 
-状态机迁移由 ``CONDITIONAL_TRANSITIONS`` 闭包；任何非法迁移 raise InvalidStateError
-（entry 层映射 409）。self_approval / R11 方向 guard 委托 ``zw_brain.domain.policy``。
+**状态字符串与迁移表保持不变**（``dept_approved`` 内部枚举不改名——API surface / 国家转报
+escalate 路径键此态，D33/D48 边稳定；其「含义」由受理通过变为「受理通过待部门审」，用户可见
+文案由 status_text/statusLabels 承载）。状态机迁移由 ``CONDITIONAL_TRANSITIONS`` 闭包；任何
+非法迁移 raise InvalidStateError（entry 层映射 409）。
 
 写库经 ``approval_repo.append_conditional_step`` + ``application_repo.update_status``
 （仅 adapters/legacy 之外的 ORM 写路径走 repo），审计 / capability_call 经
@@ -32,7 +42,7 @@ if TYPE_CHECKING:
 # Canonical application status ↔ legacy int (SPEC 末尾状态机表)
 STATUS_SUBMITTED = "submitted"        # 1 待审
 STATUS_REJECTED = "rejected"          # 3 驳回
-STATUS_DEPT_APPROVED = "dept_approved"  # 4 部门同意（中间态）
+STATUS_DEPT_APPROVED = "dept_approved"  # 4 受理通过/待部门审（中间态；D55/P21 后含义=已受理待部门审核）
 STATUS_GRANTED = "granted"            # 6 已授权
 
 LEGACY_STATUS = {
@@ -44,9 +54,11 @@ LEGACY_STATUS = {
 
 # 合法迁移闭包（基线 §3.3 + SPEC 回归场景表）。actor 维度由 handler 权限 + guard 守，
 # 此表只裁状态对是否合法。
+# D55/P21：迁移对（状态字符串）不变；actor 含义已对调——submitted→dept_approved 现由「受理
+# （业务运营员，第一级）」产生，dept_approved→granted 现由「部门审核（部门管理员，第二级终审）」产生。
 CONDITIONAL_TRANSITIONS: dict[str, set[str]] = {
-    STATUS_SUBMITTED: {STATUS_DEPT_APPROVED, STATUS_REJECTED, STATUS_GRANTED},  # dept.approve / reject / platform.approve(unconditional)
-    STATUS_DEPT_APPROVED: {STATUS_GRANTED, STATUS_REJECTED},                    # platform.approve / platform.reject
+    STATUS_SUBMITTED: {STATUS_DEPT_APPROVED, STATUS_REJECTED, STATUS_GRANTED},  # accept(受理)→受理通过/受理驳回 / 无条件受理即终→granted
+    STATUS_DEPT_APPROVED: {STATUS_GRANTED, STATUS_REJECTED},                    # dept_review(部门审核终审) approve/reject
     STATUS_REJECTED: {STATUS_SUBMITTED},                                        # applicant.resubmit
     STATUS_GRANTED: set(),                                                      # 终态（收回走 grant.revoke，独立 cap）
 }
@@ -107,7 +119,9 @@ class ConditionalApprovalService:
     def applicant_org_code(payload: dict[str, Any], record: Any) -> str:
         return str(payload.get("applicant_org_code") or record.applicant_org or "")
 
-    # --- step 1: 部门管理员审核 --------------------------------------------
+    # --- 第二级: 部门管理员审核（终审） ------------------------------------
+    # D55/P21：方法名 dept_approve 保留（key application.dept_approve）；语义现为「第二级部门
+    # 审核终审」——前置态从 submitted 改为 dept_approved（受理后），target 终审 granted。
 
     def dept_approve(
         self,
@@ -120,16 +134,18 @@ class ConditionalApprovalService:
         note: str = "",
         skill_id: str = "application.dept_approve",
     ) -> dict[str, Any]:
-        """第一步部门审：submitted → dept_approved（通过）/ rejected（驳回）。
+        """第二级部门审核（终审）：dept_approved → granted（通过）/ rejected（驳回）。
 
-        decision ∈ {'approve', 'reject'}。enforce self_approval + R11 方向。
+        decision ∈ {'approve', 'reject'}。enforce self_approval + R11 方向（保留在本级）。
+        前置态须为 dept_approved（业务运营员已受理）；驳回时受理记录保留（append-only）。
+        审批通过自动签发凭据（平台自签，C-1 凭据诚实化）。
         """
         store = self._store()
         record = self._record(store, request_id)
         payload = self._payload(record)
-        if record.status != STATUS_SUBMITTED:
+        if record.status != STATUS_DEPT_APPROVED:
             raise InvalidStateError(
-                f"dept_approve requires status={STATUS_SUBMITTED!r}; got {record.status!r}"
+                f"dept_approve（第二级部门审核）requires status={STATUS_DEPT_APPROVED!r}; got {record.status!r}"
             )
         owner_org = self.owner_org_code(payload)
         applicant_org = self.applicant_org_code(payload, record)
@@ -138,7 +154,7 @@ class ConditionalApprovalService:
         # Scenario 5: 提供方部门外的 ORGAN_MANAGER 不能审批此申请（R11 方向）
         policy.enforce_dept_approval_direction(owner_org, actor_org_code)
 
-        target = STATUS_DEPT_APPROVED if decision == "approve" else STATUS_REJECTED
+        target = STATUS_GRANTED if decision == "approve" else STATUS_REJECTED
         assert_legal_transition(record.status, target)
         approve_org_name = str(payload.get("owner_org_name") or owner_org)
 
@@ -179,9 +195,16 @@ class ConditionalApprovalService:
                 "step": "dept_approve",
             }
 
-        return self.brain._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision}, mutation)
+        result = self.brain._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision}, mutation)
+        if decision == "approve":
+            # 终审通过自动签发凭据（平台自签，C-1 凭据诚实化）。
+            self.brain._auto_issue_credential_on_approval(request_id, role, self.brain._actor_for_role(role))
+        return result
 
-    # --- step 2: 平台运营员复核 --------------------------------------------
+    # --- 第一级: 业务运营员受理（初级审核） --------------------------------
+    # D55/P21：方法名 platform_decide 保留（key application.platform_approve）；语义现为「第一级
+    # 受理（初级审核）」——前置态 submitted，受理通过 → dept_approved 中间态。受理是平台级动作，
+    # 不适用 self_approval / R11 方向 guard。
 
     def platform_decide(
         self,
@@ -194,28 +217,27 @@ class ConditionalApprovalService:
         note: str = "",
         skill_id: str = "application.platform_approve",
     ) -> dict[str, Any]:
-        """第二步平台复核：dept_approved → granted（通过）/ rejected（驳回）。
+        """第一级受理（初级审核）：submitted → dept_approved（受理通过）/ rejected（受理驳回）。
 
-        decision ∈ {'approve', 'reject'}。驳回时部门审记录保留（append-only）。
+        decision ∈ {'approve', 'reject'}。受理是平台级动作，不做 self/方向校验。
         """
         store = self._store()
         record = self._record(store, request_id)
         payload = self._payload(record)
-        if record.status != STATUS_DEPT_APPROVED:
+        if record.status != STATUS_SUBMITTED:
             raise InvalidStateError(
-                f"platform_approve requires status={STATUS_DEPT_APPROVED!r}; got {record.status!r}"
+                f"platform_approve（第一级受理）requires status={STATUS_SUBMITTED!r}; got {record.status!r}"
             )
-        target = STATUS_GRANTED if decision == "approve" else STATUS_REJECTED
+        target = STATUS_DEPT_APPROVED if decision == "approve" else STATUS_REJECTED
         assert_legal_transition(record.status, target)
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             store.approval_repo.append_conditional_step(
                 request_id,
                 decision_mode="single",
-                step_name="平台复核",
+                step_name="受理",
                 step_status="completed",
-                # R-003 fix: platform step decision 与 dept_approve 一致存 "approved"/"rejected"
-                # （下游按 decision=="approved" 过滤不再漏平台通过）。返回 dict 的 decision 仍保留输入值。
+                # decision 存 "approved"/"rejected"（下游按 decision=="approved" 过滤）。
                 decision="approved" if decision == "approve" else "rejected",
                 reason=note,
                 actor=actor,
@@ -224,6 +246,7 @@ class ConditionalApprovalService:
                     "owner_org_code": self.owner_org_code(payload),
                     "approve_org_code": actor_org_code,
                     "platform_review": True,
+                    "stage": "accept",
                 },
                 skill_id=skill_id,
                 audit_id=audit_id,
@@ -245,11 +268,7 @@ class ConditionalApprovalService:
                 "step": "platform_approve",
             }
 
-        result = self.brain._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision}, mutation)
-        if decision == "approve":
-            # 凭据签发作为审批之后的独立动作；审批通过自动签发（平台自签，C-1 凭据诚实化）
-            self.brain._auto_issue_credential_on_approval(request_id, role, self.brain._actor_for_role(role))
-        return result
+        return self.brain._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision}, mutation)
 
     # --- applicant resubmit ------------------------------------------------
 

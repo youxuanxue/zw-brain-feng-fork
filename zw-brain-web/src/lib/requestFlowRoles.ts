@@ -1,4 +1,5 @@
-/** P3 申请流：谁可以审批共享申请（approval.case.decide 与 policy 对齐）。 */
+/** P3 申请流「部门审核」队列（第二级终审，D55/P21）：部门管理员审 dept_approved（受理后）单据。
+ *  有条件共享受理→部门审核两级：本队列 = 第二级。无条件共享无本级（业务运营员受理即终）。 */
 export const REQUEST_FLOW_REVIEWER_ROLES = ['ROLE_ORGAN_MANAGER'] as const;
 
 /** 业务运营员在 P5 反向编目审核收件箱办理反向编目草稿。 */
@@ -31,14 +32,16 @@ export const CATALOG_DEPT_REVIEWER_ROLES = ['ROLE_ORGAN_MANAGER'] as const;
 /** J2 平台审目录（catalog.entry.review 第 2 层，pending_platform_review → approved_pending_publish）。 */
 export const CATALOG_PLATFORM_REVIEWER_ROLES = ['ROLE_BUSIAUDIT'] as const;
 
-/** J1 有条件共享平台复核（application.platform_approve，第 2 步，dept_approved → granted/rejected）。 */
+/** P3 申请流「受理」队列（第一级初级审核，D55/P21）：业务运营员受理 submitted 单据。
+ *  无条件 = 受理即终（submitted→granted）；有条件 = 受理（submitted→dept_approved）后转部门审核。
+ *  与 policy application.platform_approve.execute / application.resource.review.execute 对齐。 */
 export const REQUEST_FLOW_PLATFORM_REVIEWER_ROLES = ['ROLE_BUSIAUDIT'] as const;
 
 export function canReviewRequests(role: string): boolean {
   return (REQUEST_FLOW_REVIEWER_ROLES as readonly string[]).includes(role);
 }
 
-/** J1 有条件共享第二步平台复核 = 省大数据局业务运营员（与 policy application.platform_approve.execute 对齐）。 */
+/** J1 受理队列（第一级，业务运营员）= 省大数据局业务运营员（与 policy 受理类 key 对齐）。 */
 export function canPlatformReviewRequests(role: string): boolean {
   return (REQUEST_FLOW_PLATFORM_REVIEWER_ROLES as readonly string[]).includes(role);
 }

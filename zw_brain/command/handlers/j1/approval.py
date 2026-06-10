@@ -14,10 +14,10 @@ from zw_brain.domain.errors import AccessDeniedError
 from zw_brain.domain.serializers.legacy_mapping import legacy_mapping_refs
 from zw_brain.shared.sensitive_mask import mask_actor_payload
 
-# j1-approval-conditional 第一步部门审的可信角色门控（R-001 fix）：
+# j1-approval-conditional 第二级部门审核的可信角色门控（R-001 fix；D55/P21 后为第二级）：
 # application.dept_approve.execute 的 PERMISSION_ROLES 含 OPERATER 仅为 resubmit（申请人补件
-# 重提）复用同一 capability。非 resubmit 路径（approve/reject）= 部门审，SPEC 角色边界是
-# 「仅提供方部门管理员」，必须按 ctx.role（BFF 可信身份）二次门控，不能让 OPERATER 用
+# 重提）复用同一 capability。非 resubmit 路径（approve/reject）= 部门审核（第二级终审），SPEC
+# 角色边界是「仅提供方部门管理员」，必须按 ctx.role（BFF 可信身份）二次门控，不能让 OPERATER 用
 # decision='approve' 经 dept_approve 审批路径越权。
 ROLE_ORGAN_MANAGER = "ROLE_ORGAN_MANAGER"
 
@@ -147,9 +147,10 @@ def _actor_org_code(ctx: SkillContext, payload: dict[str, Any]) -> str:
 
 
 def handler_application_dept_approve(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
-    """J1 有条件共享第一步：部门管理员审核（submitted → dept_approved / rejected）。
+    """J1 有条件共享第二级（D55/P21）：部门管理员审核终审（dept_approved → granted / rejected）。
 
     decision='resubmit' 走申请人补件重提（rejected → submitted, round+1）。
+    （key application.dept_approve 不改名；语义由「第一步部门审」对调为「第二级部门审核终审」。）
     """
     svc = deps.services.conditional_approval
     request_id = str(payload["request_id"])
@@ -159,13 +160,13 @@ def handler_application_dept_approve(deps: HandlerDeps, ctx: SkillContext, paylo
     actor_org = _actor_org_code(ctx, payload)
     if decision == "resubmit":
         return svc.applicant_resubmit(request_id, role, confirmed, actor_org_code=actor_org, skill_id=ctx.skill_id)
-    # R-001 fix: 部门审（approve/reject）= 仅提供方部门管理员。application.dept_approve.execute
+    # R-001 fix: 部门审核（approve/reject）= 仅提供方部门管理员。application.dept_approve.execute
     # 的 PERMISSION_ROLES 含 OPERATER 仅为 resubmit 复用同 capability；非 resubmit 路径按 ctx.role
     # （BFF 可信身份，非 payload.role）门控为 ROLE_ORGAN_MANAGER，否则越权（OPERATER 用
     # decision='approve' 本可经 dept_approve 走审批路径，仅被 org 方向 / self-approval 拦）。
     if ctx.role != ROLE_ORGAN_MANAGER:
         raise AccessDeniedError(
-            f"application.dept_approve decision={decision!r} (部门审) requires role "
+            f"application.dept_approve decision={decision!r} (部门审核) requires role "
             f"{ROLE_ORGAN_MANAGER}; got {ctx.role!r}"
         )
     return svc.dept_approve(
@@ -180,7 +181,12 @@ def handler_application_dept_approve(deps: HandlerDeps, ctx: SkillContext, paylo
 
 
 def handler_application_platform_approve(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
-    """J1 有条件共享第二步：平台运营员复核（dept_approved → granted / rejected）。"""
+    """J1 有条件共享第一级（D55/P21）：业务运营员受理（submitted → dept_approved / rejected）。
+
+    （key application.platform_approve 不改名；语义由「第二步平台复核」对调为「第一级受理」。
+    受理是平台级动作，角色由 policy application.platform_approve.execute={ROLE_BUSIAUDIT} 门控，
+    不做 self/方向校验。）
+    """
     svc = deps.services.conditional_approval
     return svc.platform_decide(
         str(payload["request_id"]),

@@ -108,8 +108,9 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   'catalog.entry.publish': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   // P4Credential 重新签发
   'credential.issue': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
-  // P3ReviewDetail 通过 / 退回 / 驳回（已被 isReviewer 守护，但显式登记便于 FocusLink 复用）
-  'approval.case.decide': ['ROLE_ORGAN_MANAGER'],
+  // P3ReviewDetail 无条件共享受理即终（D55/P21：受理=业务运营员初级审核单步即终）。
+  // 与后端 policy.approval.case.decide.execute={ROLE_BUSIAUDIT} set-equal。
+  'approval.case.decide': ['ROLE_BUSIAUDIT'],
   // P2ResourceDetail / P3RequestDetail
   'request.create': ['ROLE_ORGAN_OPERATER'],
   'request.submit': ['ROLE_ORGAN_OPERATER'],

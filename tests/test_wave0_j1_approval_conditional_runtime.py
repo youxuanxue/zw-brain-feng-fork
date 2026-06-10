@@ -1,21 +1,25 @@
 # Wave: 0
 # Journey: J1
 # Pages: P3
-# Consumer-faces: API (brain.invoke_skill — 运行时两步条件审批)
-# Roles: ROLE_ORGAN_MANAGER (提供方部门) | ROLE_BUSIAUDIT (省大数据局) | ROLE_ORGAN_OPERATER (申请人)
+# Consumer-faces: API (brain.invoke_skill — 运行时受理/审核两级)
+# Roles: ROLE_BUSIAUDIT (省大数据局，受理第一级) | ROLE_ORGAN_MANAGER (提供方部门，审核第二级) | ROLE_ORGAN_OPERATER (申请人)
 # Trace:
 #   .testing/waves/wave-0-golden-path/features/j1-approval-conditional.feature
 #   zw_brain/domain/services/conditional_approval.py
 #   zw_brain/command/handlers/j1/approval.py (handler_application_{dept,platform}_approve)
-"""j1-approval-conditional 运行时层 pytest — 两步条件审批真写库 + 状态机断言.
+"""j1-approval-conditional 运行时层 pytest — D55/P21 受理/审核两级真写库 + 状态机断言.
 
-与 tests/test_wave0_j1_approval_conditional.py（数据底座层，断 ExchangeMapper 灌入的
-真实 department step）互补：本文件**驱动真实 handler**经 invoke_skill / 服务层真写库后
-断言 application_record.status + approval_step/decision 行 + 审计反馈，覆盖 .feature 的
-两步 flow（数据底座层无法断言运行时迁移）。
+D55/P21（受理/审核两级，改 D49 关联）：有条件共享走「受理（业务运营员，第一级）→ 部门审核
+（部门管理员，第二级终审）」，与旧序对调。capability key 不改名（D33 先例）：
+  - application.platform_approve = 第一级受理（submitted → dept_approved/rejected），业务运营员，
+    平台级动作不做 self/方向校验。
+  - application.dept_approve     = 第二级部门审核终审（dept_approved → granted/rejected），部门管理员，
+    保留 self_approval + R11 方向 guard；resubmit 复用本 key 走申请人路径。
 
-数据隔离：临时 DB + ensure_runtime_schema()（同 tests/test_credential_honesty_legacy_granted.py），
-合成有条件共享申请单（shared_type=2 + owner_org_code）驱动状态机，写不触真实 seed 库。
+中间态字符串 ``dept_approved`` 不改名（API surface / 国家转报路径键此态），含义=「已受理待部门审」。
+
+数据隔离：临时 DB + ensure_runtime_schema()，合成有条件共享申请单（shared_type=2 + owner_org_code）
+驱动状态机，写不触真实 seed 库。
 """
 from __future__ import annotations
 
@@ -132,91 +136,89 @@ def _invoke(brain, skill_id: str, payload: dict[str, Any], *, role: str, org_cod
     return invoke_trusted(brain, skill_id, payload, role=role, snapshot=snap)
 
 
-# ============================================================================
-# Scenario 1: 正向 — 第一步部门管理员审核通过（submitted → dept_approved）
-# ============================================================================
-
-
-def test_dept_approve_advances_submitted_to_dept_approved(brain):
-    code = "A301-COND-1"
-    _seed_conditional_application(code)
-    out = _invoke(
-        brain,
-        "application.dept_approve",
-        {"request_id": code, "decision": "approve", "confirmed": True, "note": "用途合理，限期 90 天"},
-        role="ROLE_ORGAN_MANAGER",
-        org_code=ORG_PROVIDER_B,
-    )["result"]
-    assert out["status"] == STATUS_DEPT_APPROVED
-    assert out["legacy_status"] == 4, "部门同意映射 legacy status 4"
-    assert _status(code) == STATUS_DEPT_APPROVED
-    # 申请单记录 dept_approver_id
-    assert _payload(code).get("dept_approver_id"), "应记录 dept_approver_id"
-    # 部门审 step 落库（decision_mode='department'，decision='approved'）
-    dept_steps = [s for s in _steps(code) if s.decision_mode == "department"]
-    assert len(dept_steps) == 1
-    assert dept_steps[0].status == "completed"
-    decs = _decisions(code)
-    assert any(d.decision == "approved" for d in decs)
-    # 审计反馈记录 capability_call=application.dept_approve
-    feed = brain.snapshot().get("auditFeed") or brain._snapshot.get("audit_events") or []
-    assert any("application.dept_approve" in str(e) for e in feed), f"审计反馈应含 application.dept_approve；feed={feed!r}"
-
-
-# ============================================================================
-# Scenario 2: 正向 — 第二步平台运营员复核通过（dept_approved → granted）
-# ============================================================================
-
-
-def test_platform_approve_advances_dept_approved_to_granted(brain):
-    code = "A301-COND-2"
-    _seed_conditional_application(code)
-    _invoke(
-        brain,
-        "application.dept_approve",
-        {"request_id": code, "decision": "approve", "confirmed": True},
-        role="ROLE_ORGAN_MANAGER",
-        org_code=ORG_PROVIDER_B,
-    )
-    assert _status(code) == STATUS_DEPT_APPROVED
-    out = _invoke(
+def _accept(brain, code: str, *, decision: str = "approve", note: str = "") -> dict[str, Any]:
+    """第一级受理（业务运营员 application.platform_approve）。"""
+    return _invoke(
         brain,
         "application.platform_approve",
-        {"request_id": code, "decision": "approve", "confirmed": True},
+        {"request_id": code, "decision": decision, "confirmed": True, "note": note},
         role="ROLE_BUSIAUDIT",
         org_code=ORG_PLATFORM,
     )["result"]
+
+
+def _dept_review(
+    brain, code: str, *, decision: str = "approve", note: str = "", org_code: str = ORG_PROVIDER_B
+) -> dict[str, Any]:
+    """第二级部门审核（部门管理员 application.dept_approve）。"""
+    return _invoke(
+        brain,
+        "application.dept_approve",
+        {"request_id": code, "decision": decision, "confirmed": True, "note": note},
+        role="ROLE_ORGAN_MANAGER",
+        org_code=org_code,
+    )["result"]
+
+
+# ============================================================================
+# Scenario 1: 正向 — 第一级业务运营员受理通过（submitted → dept_approved 受理通过待审）
+# ============================================================================
+
+
+def test_accept_advances_submitted_to_dept_approved(brain):
+    code = "A301-COND-1"
+    _seed_conditional_application(code)
+    out = _accept(brain, code, note="材料齐全，予以受理")
+    assert out["status"] == STATUS_DEPT_APPROVED
+    assert out["legacy_status"] == 4, "受理通过映射 legacy status 4（待部门审核中间态）"
+    assert _status(code) == STATUS_DEPT_APPROVED
+    # 受理 step 落库（decision_mode='single'，decision='approved'）
+    accept_steps = [s for s in _steps(code) if s.decision_mode == "single"]
+    assert len(accept_steps) == 1
+    assert accept_steps[0].status == "completed"
+    decs = _decisions(code)
+    assert any(d.decision == "approved" for d in decs)
+    # 审计反馈记录 capability_call=application.platform_approve（受理动作复用此 key）
+    feed = brain.snapshot().get("auditFeed") or brain._snapshot.get("audit_events") or []
+    assert any("application.platform_approve" in str(e) for e in feed), f"审计反馈应含 application.platform_approve；feed={feed!r}"
+
+
+# ============================================================================
+# Scenario 2: 正向 — 第二级部门管理员审核通过（dept_approved → granted）
+# ============================================================================
+
+
+def test_dept_review_advances_dept_approved_to_granted(brain):
+    code = "A301-COND-2"
+    _seed_conditional_application(code)
+    _accept(brain, code)
+    assert _status(code) == STATUS_DEPT_APPROVED
+    out = _dept_review(brain, code)
     assert out["status"] == STATUS_GRANTED
     assert out["legacy_status"] == 6, "已授权映射 legacy status 6"
     assert _status(code) == STATUS_GRANTED
-    # 两步共存：department step + single(平台复核) step
+    # 两级共存：single(受理) step + department(部门审核) step
     modes = sorted(s.decision_mode for s in _steps(code))
-    assert modes == ["department", "single"], f"应 department+single 两步共存；got {modes}"
-    # 审计事件链三条：dept_approve + platform_approve（submit 由提交路径产生，本合成单跳过）
+    assert modes == ["department", "single"], f"应 department+single 两级共存；got {modes}"
+    # 审计事件链：platform_approve(受理) + dept_approve(部门审核)
     feed = brain._snapshot.get("audit_events") or brain.snapshot().get("auditFeed") or []
-    assert any("application.dept_approve" in str(e) for e in feed)
     assert any("application.platform_approve" in str(e) for e in feed)
+    assert any("application.dept_approve" in str(e) for e in feed)
 
 
 # ============================================================================
-# Scenario 3: 正向 — 第一步驳回 + 申请人补件重提（rejected → submitted, round+1）
+# Scenario 3: 正向 — 第一级受理驳回 + 申请人补件重提（rejected → submitted, round+1）
 # ============================================================================
 
 
-def test_dept_reject_then_applicant_resubmit_increments_round(brain):
+def test_accept_reject_then_applicant_resubmit_increments_round(brain):
     code = "A301-COND-3"
     _seed_conditional_application(code)
-    out = _invoke(
-        brain,
-        "application.dept_approve",
-        {"request_id": code, "decision": "reject", "confirmed": True, "note": "缺少业务场景说明"},
-        role="ROLE_ORGAN_MANAGER",
-        org_code=ORG_PROVIDER_B,
-    )["result"]
+    out = _accept(brain, code, decision="reject", note="缺少业务场景说明")
     assert out["status"] == STATUS_REJECTED
     assert out["legacy_status"] == 3, "驳回映射 legacy status 3"
     assert _status(code) == STATUS_REJECTED
-    # 申请人补件重提（OPERATER 本人）
+    # 申请人补件重提（OPERATER 本人，复用 dept_approve key 的 resubmit 路径）
     out2 = _invoke(
         brain,
         "application.dept_approve",
@@ -231,98 +233,75 @@ def test_dept_reject_then_applicant_resubmit_increments_round(brain):
 
 
 # ============================================================================
-# Scenario 4: 负向 — 部门审通过后平台驳回（4 → 3，部门审记录保留）
+# Scenario 4: 负向 — 受理通过后部门审核驳回（4 → 3，受理记录保留）
 # ============================================================================
 
 
-def test_platform_reject_after_dept_approve_preserves_dept_step(brain):
+def test_dept_review_reject_after_accept_preserves_accept_step(brain):
     code = "A301-COND-4"
     _seed_conditional_application(code)
-    _invoke(
-        brain,
-        "application.dept_approve",
-        {"request_id": code, "decision": "approve", "confirmed": True},
-        role="ROLE_ORGAN_MANAGER",
-        org_code=ORG_PROVIDER_B,
-    )
-    dept_step_ids_before = sorted(s.id for s in _steps(code) if s.decision_mode == "department")
-    out = _invoke(
-        brain,
-        "application.platform_approve",
-        {"request_id": code, "decision": "reject", "confirmed": True, "note": "近 6 个月调用合规风险高，本次拒绝"},
-        role="ROLE_BUSIAUDIT",
-        org_code=ORG_PLATFORM,
-    )["result"]
+    _accept(brain, code)
+    accept_step_ids_before = sorted(s.id for s in _steps(code) if s.decision_mode == "single")
+    out = _dept_review(brain, code, decision="reject", note="近 6 个月调用合规风险高，本次拒绝")
     assert out["status"] == STATUS_REJECTED
     assert _status(code) == STATUS_REJECTED
-    # 部门审通过的 step 仍保留（append-only，不回退/软删）
-    dept_steps_after = [s for s in _steps(code) if s.decision_mode == "department"]
-    assert sorted(s.id for s in dept_steps_after) == dept_step_ids_before, "部门审 step 应保留"
-    assert all(s.status == "completed" for s in dept_steps_after)
-    dept_dec = [d for d in _decisions(code) if d.decision == "approved"]
-    assert dept_dec, "部门审 approved 决策应保留"
-    plat_dec = [d for d in _decisions(code) if d.decision == "rejected"]
-    assert plat_dec, "平台驳回决策应落库"
+    # 受理 step 仍保留（append-only，不回退/软删）
+    accept_steps_after = [s for s in _steps(code) if s.decision_mode == "single"]
+    assert sorted(s.id for s in accept_steps_after) == accept_step_ids_before, "受理 step 应保留"
+    assert all(s.status == "completed" for s in accept_steps_after)
+    accept_dec = [d for d in _decisions(code) if d.decision == "approved"]
+    assert accept_dec, "受理 approved 决策应保留"
+    review_dec = [d for d in _decisions(code) if d.decision == "rejected"]
+    assert review_dec, "部门审核驳回决策应落库"
 
 
 # ============================================================================
-# Scenario 5: 负向 — 提供方部门外的 ORGAN_MANAGER 不能审批此申请（R11 方向）
+# Scenario 5: 负向 — 提供方部门外的 ORGAN_MANAGER 不能审核此申请（R11 方向，第二级）
 # ============================================================================
 
 
-def test_cross_org_manager_cannot_dept_approve_r11_direction(brain):
+def test_cross_org_manager_cannot_dept_review_r11_direction(brain):
     code = "A301-COND-5"
     _seed_conditional_application(code, owner_org_code=ORG_PROVIDER_B)
+    _accept(brain, code)  # 先受理进入第二级
     # U_DEPT_C_MGR (部门C 自然资源) 不是 owner_org_code(部门B) → 拒绝
     with pytest.raises(ApprovalDirectionError):
-        _invoke(
-            brain,
-            "application.dept_approve",
-            {"request_id": code, "decision": "approve", "confirmed": True},
-            role="ROLE_ORGAN_MANAGER",
-            org_code=ORG_DEPT_C,
-        )
-    # 状态未变（仍 submitted），未越权写
-    assert _status(code) == STATUS_SUBMITTED
-    assert not any(s.decision_mode == "department" for s in _steps(code)), "越权调用不得落部门审 step"
+        _dept_review(brain, code, org_code=ORG_DEPT_C)
+    # 状态未变（仍 dept_approved），未越权写终审
+    assert _status(code) == STATUS_DEPT_APPROVED
+    assert not any(s.decision_mode == "department" for s in _steps(code)), "越权调用不得落部门审核 step"
 
 
 # ============================================================================
-# Scenario 6: 负向 — 申请人本人不能审批自己的申请（self_approval reject + audit）
+# Scenario 6: 负向 — 申请人本人不能审核自己的申请（self_approval reject + audit，第二级）
 # ============================================================================
 
 
-def test_self_approval_rejected(brain):
+def test_self_approval_rejected_at_dept_review(brain):
     code = "A301-COND-6"
     # owner_org_code == applicant_org_code（同一部门既申请又自审 = legacy anomaly）
     _seed_conditional_application(code, owner_org_code=ORG_APPLICANT_A, applicant_org_code=ORG_APPLICANT_A)
+    _accept(brain, code)  # 受理进入第二级
     with pytest.raises(SelfApprovalNotAllowedError) as exc:
-        _invoke(
-            brain,
-            "application.dept_approve",
-            {"request_id": code, "decision": "approve", "confirmed": True},
-            role="ROLE_ORGAN_MANAGER",
-            org_code=ORG_APPLICANT_A,
-        )
+        _dept_review(brain, code, org_code=ORG_APPLICANT_A)
     assert "self_approval_not_allowed" in str(exc.value)
-    assert _status(code) == STATUS_SUBMITTED, "自审被拒，状态不变"
+    assert _status(code) == STATUS_DEPT_APPROVED, "自审被拒，状态不变（仍待部门审）"
 
 
 # ============================================================================
-# Scenario 8: 负向 — OPERATER 用 decision='approve' 不能走部门审路径（R-001 角色门控）
+# Scenario 8: 负向 — OPERATER 用 decision='approve' 不能走部门审核路径（R-001 角色门控）
 # ============================================================================
 
 
-def test_operater_cannot_dept_approve_via_decision_approve_r001(brain):
+def test_operater_cannot_dept_review_via_decision_approve_r001(brain):
     """R-001: application.dept_approve.execute 的 PERMISSION_ROLES 含 OPERATER 仅为
     resubmit 复用同 capability。OPERATER（org==owner_org 使 R11 方向通过、非申请人本人使
-    self-approval 通过）用 decision='approve' 本可走到 dept_approve 审批路径，越过
-    「部门审仅 ROLE_ORGAN_MANAGER」的 SPEC 角色边界。handler 按 ctx.role 二次门控 → 拒绝。
+    self-approval 通过）用 decision='approve' 本可走到部门审核路径，越过「部门审核仅
+    ROLE_ORGAN_MANAGER」的 SPEC 角色边界。handler 按 ctx.role 二次门控 → 拒绝。
     """
     code = "A301-COND-8"
-    # owner=部门B；申请人=部门A。OPERATER 在部门B（owner）发起：方向 guard 通过、
-    # self-approval guard 通过（org != applicant），唯一拦截点是 R-001 的 ctx.role 门控。
     _seed_conditional_application(code, owner_org_code=ORG_PROVIDER_B, applicant_org_code=ORG_APPLICANT_A)
+    _accept(brain, code)  # 受理进入第二级（dept_approved），使 OPERATER 走到部门审核路径
     with pytest.raises(AccessDeniedError) as exc:
         _invoke(
             brain,
@@ -332,9 +311,9 @@ def test_operater_cannot_dept_approve_via_decision_approve_r001(brain):
             org_code=ORG_PROVIDER_B,
         )
     assert "ROLE_ORGAN_MANAGER" in str(exc.value)
-    # 越权调用：状态不变（仍 submitted），不落部门审 step
-    assert _status(code) == STATUS_SUBMITTED, "越权调用，状态不变"
-    assert not any(s.decision_mode == "department" for s in _steps(code)), "越权调用不得落部门审 step"
+    # 越权调用：状态不变（仍 dept_approved），不落部门审核 step
+    assert _status(code) == STATUS_DEPT_APPROVED, "越权调用，状态不变"
+    assert not any(s.decision_mode == "department" for s in _steps(code)), "越权调用不得落部门审核 step"
 
 
 # ============================================================================
@@ -342,46 +321,44 @@ def test_operater_cannot_dept_approve_via_decision_approve_r001(brain):
 # ============================================================================
 
 
-def test_illegal_transition_rejected_platform_on_submitted(brain):
-    """非法迁移：submitted 直接平台复核（跳过部门审）应被状态机拒绝。"""
+def test_illegal_transition_dept_review_on_submitted(brain):
+    """非法迁移：submitted 直接部门审核（跳过受理）应被状态机拒绝。"""
     code = "A301-COND-7A"
     _seed_conditional_application(code)
     with pytest.raises(InvalidStateError):
-        _invoke(
-            brain,
-            "application.platform_approve",
-            {"request_id": code, "decision": "approve", "confirmed": True},
-            role="ROLE_BUSIAUDIT",
-            org_code=ORG_PLATFORM,
-        )
+        _dept_review(brain, code)
     assert _status(code) == STATUS_SUBMITTED
 
 
-def test_illegal_transition_double_platform_approve(brain):
-    """granted 是终态：再次平台复核应被拒（granted 无合法后继）。"""
+def test_illegal_transition_double_dept_review(brain):
+    """granted 是终态：再次部门审核应被拒（granted 无合法后继）。"""
     code = "A301-COND-7B"
     _seed_conditional_application(code)
-    _invoke(brain, "application.dept_approve", {"request_id": code, "decision": "approve", "confirmed": True}, role="ROLE_ORGAN_MANAGER", org_code=ORG_PROVIDER_B)
-    _invoke(brain, "application.platform_approve", {"request_id": code, "decision": "approve", "confirmed": True}, role="ROLE_BUSIAUDIT", org_code=ORG_PLATFORM)
+    _accept(brain, code)
+    _dept_review(brain, code)
     assert _status(code) == STATUS_GRANTED
     with pytest.raises(InvalidStateError):
-        _invoke(brain, "application.platform_approve", {"request_id": code, "decision": "approve", "confirmed": True}, role="ROLE_BUSIAUDIT", org_code=ORG_PLATFORM)
+        _dept_review(brain, code)
     assert _status(code) == STATUS_GRANTED
 
 
 def test_state_machine_legal_transition_table_matches_baseline():
-    """状态机合法迁移表与 .feature 末尾回归场景表一致（纯函数断言，无 DB）。"""
+    """状态机合法迁移表与 .feature 末尾回归场景表一致（纯函数断言，无 DB）。
+
+    D55/P21：迁移对（状态字符串）不变；actor 含义对调（submitted→dept_approved 由受理产生、
+    dept_approved→granted 由部门审核产生）。
+    """
     from zw_brain.domain.services.conditional_approval import (
         CONDITIONAL_TRANSITIONS,
         assert_legal_transition,
     )
 
     # 合法迁移（.feature 状态机表）
-    assert_legal_transition(STATUS_SUBMITTED, STATUS_DEPT_APPROVED)  # dept.approve
-    assert_legal_transition(STATUS_SUBMITTED, STATUS_REJECTED)       # dept.reject
-    assert_legal_transition(STATUS_SUBMITTED, STATUS_GRANTED)        # platform.approve(unconditional)
-    assert_legal_transition(STATUS_DEPT_APPROVED, STATUS_GRANTED)    # platform.approve
-    assert_legal_transition(STATUS_DEPT_APPROVED, STATUS_REJECTED)   # platform.reject
+    assert_legal_transition(STATUS_SUBMITTED, STATUS_DEPT_APPROVED)  # accept(受理)
+    assert_legal_transition(STATUS_SUBMITTED, STATUS_REJECTED)       # accept.reject
+    assert_legal_transition(STATUS_SUBMITTED, STATUS_GRANTED)        # 无条件受理即终
+    assert_legal_transition(STATUS_DEPT_APPROVED, STATUS_GRANTED)    # dept_review(部门审核)
+    assert_legal_transition(STATUS_DEPT_APPROVED, STATUS_REJECTED)   # dept_review.reject
     assert_legal_transition(STATUS_REJECTED, STATUS_SUBMITTED)       # applicant.resubmit
     # granted 终态无后继
     assert CONDITIONAL_TRANSITIONS[STATUS_GRANTED] == set()

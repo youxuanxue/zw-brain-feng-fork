@@ -269,6 +269,9 @@ class RequestService:
             return "待补正"
         if status == "rejected":
             return "已驳回"
+        if status == "dept_approved":
+            # D55/P21：受理通过待部门审核（中间态）。受理人视角=已受理；部门审核人视角=待审核。
+            return {"applicant": "已受理待审核", "reviewer": "待审核", "filler": "已受理待审核", "summarizer": "已受理待审核"}.get(perspective, "已受理待审核")
         if status == "approved":
             return {
                 "applicant": "已通过",

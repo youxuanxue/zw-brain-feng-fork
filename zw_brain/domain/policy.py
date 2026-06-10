@@ -54,7 +54,9 @@ PERMISSION_ROLES = {
     "catalog.resource.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "request.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
     "request.view.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
-    "approval.view.execute": {"ROLE_ORGAN_MANAGER"},
+    # D55/P21：审批/受理详情对受理人（业务运营员）+ 部门审核人（部门管理员）皆可见——
+    # 无条件由业务运营员受理即终；有条件先业务运营员受理、后部门管理员审核，两级皆看详情。
+    "approval.view.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     # D55/P13：领数据回归部门操作员+部门管理员（反转 D53/F1 收窄）；P18 安全审计员退领数据
     "delivery.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
     "delivery.view.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
@@ -107,8 +109,12 @@ PERMISSION_ROLES = {
     "reference.organ.options.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "reference.region.options.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "reference.dict.options.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "approval.case.decide.execute": {"ROLE_ORGAN_MANAGER"},
-    "approval.review_decide.execute": {"ROLE_ORGAN_MANAGER"},
+    # D55/P21：无条件共享受理即终 = 业务运营员（受理=初级审核）。这两个 entry key 与
+    # application.resource.review 同走 _review_request → review_application_record 的单步受理
+    # 路径，角色随之 ROLE_ORGAN_MANAGER → ROLE_BUSIAUDIT（受理即终；有条件两级走 dept/platform
+    # _approve 两 key，不经此路径）。
+    "approval.case.decide.execute": {"ROLE_BUSIAUDIT"},
+    "approval.review_decide.execute": {"ROLE_BUSIAUDIT"},
     "supplement.submit.execute": {"ROLE_ORGAN_OPERATER"},
     "summary.confirm.execute": {"ROLE_ORGAN_MANAGER"},
     "backflow.confirm.execute": {"ROLE_ORGAN_MANAGER"},
@@ -185,15 +191,19 @@ PERMISSION_ROLES = {
 
     # 申请受理（资源端）
     "application.resource.submit.execute": {"ROLE_ORGAN_OPERATER"},
-    # D-7 align (G1.2): 无条件共享审批 = 资源提供部门管理员单步通过；前端
-    # ZW_PAGE_ACCESS.reviewDetail + .feature 头标已同步收敛到 ROLE_ORGAN_MANAGER。
-    "application.resource.review.execute": {"ROLE_ORGAN_MANAGER"},
-    # j1-approval-conditional 有条件共享两步审批：
-    #   第一步部门审 = 提供方部门管理员；resubmit（补件重提）由申请人 OPERATER 发起，
-    #   两动作共用 application.dept_approve.execute，运行时 self_approval / R11 方向 /
-    #   applicant 校验在 ConditionalApprovalService + policy guard 内做细粒度门控。
+    # D55/P21（受理/审核两级，改 D49 关联）：无条件共享 = 业务运营员受理即终（受理=初级审核，
+    # 单步即终）。受理是平台级动作（业务运营员是省大数据局平台方），不适用 self_approval / R11
+    # 方向 guard（无提供方部门方向概念）。资源类受理入口 key 不改名（API surface 稳定，D33 先例），
+    # 仅迁移角色 ROLE_ORGAN_MANAGER → ROLE_BUSIAUDIT。
+    "application.resource.review.execute": {"ROLE_BUSIAUDIT"},
+    # D55/P21 有条件共享两级（stage 顺序对调，改 D49 关联）：受理（第一级）→ 部门审核（第二级）。
+    #   第二级=部门审核 = 提供方部门管理员（复用 application.dept_approve.execute key，状态机
+    #   dept_approved → granted/rejected）；resubmit（补件重提）由申请人 OPERATER 发起，两动作
+    #   共用本 key，运行时 self_approval / R11 方向 / applicant 校验在 ConditionalApprovalService
+    #   + policy guard 内做细粒度门控（self/方向 guard 保留在本部门审核级）。
     "application.dept_approve.execute": {"ROLE_ORGAN_MANAGER", "ROLE_ORGAN_OPERATER"},
-    #   第二步平台复核 = 省大数据局业务运营员（数据主管部门合规复核权）。
+    #   第一级=受理 = 省大数据局业务运营员（初级审核，复用 application.platform_approve.execute
+    #   key，状态机 submitted → dept_approved/rejected）。受理是平台级动作，不适用方向 guard。
     "application.platform_approve.execute": {"ROLE_BUSIAUDIT"},
     "delivery.access.grant.execute": {"ROLE_ORGAN_MANAGER"},
     # J1 凭据签发 — 审批通过自动触发；手工补签由审批人/主管部门触发
@@ -287,8 +297,11 @@ PERMISSION_ROLES = {
     # D55/P22：安全审计员收敛纯只读，移除异议全部写动作（create/submit/accept/reject/assign/
     # reply/review/evaluate/escalate/close 各去 SECURITY_AUDIT，去后非空）；保留 objection.case.query
     # / objection.process.query / objection.metric.query 只读（审计可读异议态，不动）。
-    "objection.case.create.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    "objection.case.submit.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    # D55/P7：业务运营员退申请人身份（「处理别人申请≠提申请」）。提异议=用户侧动作，
+    # 业务运营员退出 create/submit；保留处置侧 accept/reject/assign/reply/review/evaluate/
+    # escalate/close + query（受理/处置异议是业务运营员核心职责）。
+    "objection.case.create.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    "objection.case.submit.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
     "objection.case.accept.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "objection.case.reject.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "objection.case.assign.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
@@ -298,7 +311,11 @@ PERMISSION_ROLES = {
     "objection.case.escalate.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "objection.case.close.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "objection.case.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "demand.register.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    # D55/P7：登记需求=申请人动作，业务运营员退出 demand.register（退申请人身份）。
+    "demand.register.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    # demand.phase.advance / demand.list 保留业务运营员：需求汇总是运营员核心职责，工作台
+    # 「待汇总需求」深链依赖之；去掉会空其汇总工作面（乔布斯决策：保留，与 P7 字面「去 demand.list」
+    # 相左，按最优职责口径——汇总≠提需求）。
     "demand.phase.advance.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "demand.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "objection.process.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},

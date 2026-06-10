@@ -2,30 +2,30 @@
 # Journey: J1
 # Pages: P3
 # Consumer-faces: WebUI
-# Roles: ROLE_ORGAN_MANAGER
-# Trace: R10 / R11, 基线 §10.1（必含有条件/无条件两种分支）, 旧 xlsx 行 [86..90] 服务审核 (资源驳回/受理/审核) + [83] 我的申请
+# Roles: ROLE_BUSIAUDIT
+# Trace: R10 / R11, 基线 §10.1（必含有条件/无条件两种分支）, 旧 xlsx 行 [86..90] 服务审核 (资源驳回/受理/审核) + [83] 我的申请, D55/P21（无条件受理即终）
 # Priority: P0
 # Owner: e1
 # Pytest: tests/test_wave0_j1_approval.py
 
-Feature: J1 无条件共享分支 — 平台直接审批
-  As a 部门管理员 (ROLE_ORGAN_MANAGER，省/市大数据局)
-  I want 对无条件共享资源的申请进行平台侧审批
-  So that 客户能在最短路径走完"申请 → 审批 → 凭据"
+Feature: J1 无条件共享分支 — 业务运营员受理即终
+  As a 业务运营员 (ROLE_BUSIAUDIT，省大数据局)
+  I want 对无条件共享资源的申请进行受理（初级审核即终）
+  So that 客户能在最短路径走完"申请 → 受理 → 凭据"
 
   Background:
     Given 单租户 sd-default 已初始化
     And 资源 C101 已发布，shared_type=1 无条件共享
     And 申请单 A201 已由 ROLE_ORGAN_OPERATER (部门A) 对 C101 提交，application.status=1 待审
-    And 我以 ROLE_ORGAN_MANAGER 登录，org_code=省大数据局
+    And 我以 ROLE_BUSIAUDIT 登录，org_code=省大数据局
 
-  Scenario: 正向 — 平台直接审批通过（无条件共享单步审批）
-    When 我打开 P3 审批列表
+  Scenario: 正向 — 业务运营员受理即终（无条件共享单步受理）
+    When 我打开 P3 受理列表
     Then 我能看到申请单 A201
     And 列表显示：申请人 / 申请部门 / 资源 / shared_type=无条件共享 / 进入时间 / 距离超时
-    When 我打开 A201 详情，点击 "通过"
-    Then application.status 转 6 已授权（无条件分支无部门审 = 跳过 2-5）
-    And 审计总线记录 capability_call=application.approve，approver_role=ROLE_ORGAN_MANAGER，audit_class=write-critical
+    When 我打开 A201 详情，点击 "受理通过"
+    Then application.status 转 6 已授权（无条件受理即终 = 无部门审核第二级）
+    And 审计总线记录 capability_call=application.approve，approver_role=ROLE_BUSIAUDIT，audit_class=write-critical
     And 申请人侧 P1 工作台出现"通过"通知
 
   Scenario: 正向 — 列表按"超时 > 临期 > 普通"排序（基线 §5.2 P1 + P3 列表）

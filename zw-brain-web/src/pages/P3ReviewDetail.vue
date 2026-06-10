@@ -31,21 +31,24 @@ const sharedType = computed(() => {
   return Number(raw ?? 0);
 });
 
-// J1 有条件共享 (shared_type=2) 两步审批：
-//   第一步 提供方部门管理员 (dept_approve)：submitted → dept_approved / rejected
-//   第二步 省大数据局业务运营员 (platform_approve)：dept_approved → granted / rejected
-// 无条件共享走既有单步 approval.case.decide（保留兼容）。
+// J1 有条件共享 (shared_type=2) 受理/审核两级（受理在前）：
+//   第一级 业务运营员受理 (platform_approve)：submitted → dept_approved / rejected
+//   第二级 提供方部门管理员审核 (dept_approve)：dept_approved → granted / rejected
+// 无条件共享 = 业务运营员受理即终（approval.case.decide，单步 submitted/pending → granted）。
 const isConditional = computed(() => sharedType.value === 2);
-const showDeptActions = computed(
-  () => isReviewer.value && isConditional.value && status.value === 'submitted',
+// 第一级受理（业务运营员）：有条件共享 submitted 单据。
+const showAcceptActions = computed(
+  () => isPlatformReviewer.value && isConditional.value && status.value === 'submitted',
 );
-const showPlatformActions = computed(
-  () => isPlatformReviewer.value && status.value === 'dept_approved',
+// 第二级部门审核（部门管理员）：有条件共享受理后 dept_approved 单据。
+const showDeptReviewActions = computed(
+  () => isReviewer.value && status.value === 'dept_approved',
 );
-const showLegacyActions = computed(
+// 无条件共享受理即终（业务运营员）：单步通过/退回/驳回。
+const showUnconditionalAcceptActions = computed(
   () =>
-    isReviewer.value &&
-    !showDeptActions.value &&
+    isPlatformReviewer.value &&
+    !isConditional.value &&
     (status.value === 'pending' || status.value === 'submitted'),
 );
 
@@ -65,47 +68,48 @@ const rows = computed(() => {
 const headerMeta = computed(() => {
   if (req.value) {
     const base = `状态：${formatTodoStatus(String(req.value.status ?? ''))}`;
-    if (showPlatformActions.value) return `${base} · 平台复核（第二步）`;
-    if (showDeptActions.value) return `${base} · 部门审（第一步）`;
+    if (showAcceptActions.value) return `${base} · 受理（第一级）`;
+    if (showDeptReviewActions.value) return `${base} · 部门审核（第二级）`;
+    if (showUnconditionalAcceptActions.value) return `${base} · 受理（无条件即终）`;
     return base;
   }
   if (source.value === 'live') return '未在列表中找到该申请';
   return '正在加载……';
 });
 
-// --- 第一步：部门审（提供方部门管理员）---
-async function deptApprove() {
-  await invokeActionStub({
-    skillId: 'application.dept_approve',
-    payload: { request_id: id.value, decision: 'approve' },
-    successTitle: '部门已同意（待平台复核）',
-  });
-}
-async function deptReject() {
-  await invokeActionStub({
-    skillId: 'application.dept_approve',
-    payload: { request_id: id.value, decision: 'reject' },
-    successTitle: '已驳回',
-  });
-}
-
-// --- 第二步：平台复核（省大数据局业务运营员）---
-async function platformApprove() {
+// --- 第一级：受理（业务运营员）有条件共享 submitted → dept_approved ---
+async function accept() {
   await invokeActionStub({
     skillId: 'application.platform_approve',
     payload: { request_id: id.value, decision: 'approve' },
-    successTitle: '已授权',
+    successTitle: '已受理（待部门审核）',
   });
 }
-async function platformReject() {
+async function acceptReject() {
   await invokeActionStub({
     skillId: 'application.platform_approve',
     payload: { request_id: id.value, decision: 'reject' },
-    successTitle: '平台复核驳回',
+    successTitle: '受理驳回',
   });
 }
 
-// --- 无条件共享：既有单步审批（保留兼容）---
+// --- 第二级：部门审核（提供方部门管理员）dept_approved → granted ---
+async function deptReview() {
+  await invokeActionStub({
+    skillId: 'application.dept_approve',
+    payload: { request_id: id.value, decision: 'approve' },
+    successTitle: '审核通过（已授权）',
+  });
+}
+async function deptReviewReject() {
+  await invokeActionStub({
+    skillId: 'application.dept_approve',
+    payload: { request_id: id.value, decision: 'reject' },
+    successTitle: '部门审核驳回',
+  });
+}
+
+// --- 无条件共享：业务运营员受理即终（单步）---
 async function approve() {
   await invokeActionStub({
     skillId: 'approval.case.decide',
@@ -135,16 +139,16 @@ async function fix() {
     <section class="panel">
       <PageFocusHeader title="审批详情" :meta="headerMeta" />
       <DetailPanel v-if="rows.length" title="审批要点" :rows="rows" />
-      <DetailActions v-if="showDeptActions">
-        <button type="button" class="gov-btn gov-btn-primary" @click="deptApprove">部门同意</button>
-        <button type="button" class="gov-btn gov-btn-danger" @click="deptReject">驳回</button>
+      <DetailActions v-if="showAcceptActions">
+        <button type="button" class="gov-btn gov-btn-primary" @click="accept">受理</button>
+        <button type="button" class="gov-btn gov-btn-danger" @click="acceptReject">驳回</button>
       </DetailActions>
-      <DetailActions v-else-if="showPlatformActions">
-        <button type="button" class="gov-btn gov-btn-primary" @click="platformApprove">通过</button>
-        <button type="button" class="gov-btn gov-btn-danger" @click="platformReject">驳回</button>
+      <DetailActions v-else-if="showDeptReviewActions">
+        <button type="button" class="gov-btn gov-btn-primary" @click="deptReview">审核通过</button>
+        <button type="button" class="gov-btn gov-btn-danger" @click="deptReviewReject">驳回</button>
       </DetailActions>
-      <DetailActions v-else-if="showLegacyActions">
-        <button type="button" class="gov-btn gov-btn-primary" @click="approve">通过</button>
+      <DetailActions v-else-if="showUnconditionalAcceptActions">
+        <button type="button" class="gov-btn gov-btn-primary" @click="approve">受理通过</button>
         <button type="button" class="gov-btn gov-btn-secondary" @click="fix">退回补正</button>
         <button type="button" class="gov-btn gov-btn-danger" @click="reject">驳回</button>
       </DetailActions>

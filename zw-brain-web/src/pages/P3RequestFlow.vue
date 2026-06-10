@@ -10,6 +10,7 @@ import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 import { canReviewRequests, canPlatformReviewRequests, canViewNationalChannel } from '@/lib/requestFlowRoles';
 import { shortId } from '@/lib/userLanguage';
 import { myRequests, myGrants } from '@/lib/roleProjection';
+import { filterByRouteAccess } from '@/lib/pageAccess';
 
 const NL_PRESETS_P3 = ['我待审的有几条', '催办昨天提交的申请', '驳回所有 30 天未跟进'];
 
@@ -32,7 +33,11 @@ const role = getProductRole();
 //   我的授权：我已获得的授权与凭据状态
 const isReviewer = computed(() => canReviewRequests(role.value));
 const isPlatformReviewer = computed(() => canPlatformReviewRequests(role.value));
-// 「待我办理」对位：部门管理员=审批队列；业务运营员=平台复核队列。两者皆无 → tab 不渲染。
+// 业务运营员退申请人身份——只保留受理工作台，隐去「我的申请」「我的授权」与申请人快捷链
+// （无权=不可见）。业务运营员=受理岗（isPlatformReviewer），非申请人/被授权方。
+const isApplicantRole = computed(() => !isPlatformReviewer.value);
+// 「待我办理」对位（受理/审核两级）：业务运营员=受理队列（第一级，submitted）；
+// 部门管理员=部门审核队列（第二级，dept_approved 受理后）。两者皆无 → tab 不渲染。
 const hasTodoQueue = computed(() => isReviewer.value || isPlatformReviewer.value);
 
 // 三视图卡（projection 单源；用途经 dataQuality 降级、来源诚实标识透传）。
@@ -40,10 +45,16 @@ const mineCards = computed(() => myRequests(snapshot.value));
 const grantCards = computed(() => myGrants(snapshot.value));
 
 type ViewTab = 'mine' | 'todo' | 'grants' | 'national';
-const activeView = ref<ViewTab>('mine');
-// 角色切换后若当前 tab 已不该出现（如从业务运营员切到操作员，待我办理/国家通道消失），回落「我的申请」。
-watch(hasTodoQueue, (has) => {
-  if (!has && activeView.value === 'todo') activeView.value = 'mine';
+// 业务运营员（受理岗）落「待我办理」（受理队列），其余角色落「我的申请」。
+const activeView = ref<ViewTab>(isApplicantRole.value ? 'mine' : 'todo');
+// 角色切换后若当前 tab 已不该出现，回落到该角色的默认视图：
+//   - 受理岗（业务运营员）无「我的申请/我的授权」→ 落「待我办理」；
+//   - 申请人角色无「待我办理/国家通道」→ 落「我的申请」。
+watch([hasTodoQueue, isApplicantRole], () => {
+  if (!isApplicantRole.value && (activeView.value === 'mine' || activeView.value === 'grants')) {
+    activeView.value = 'todo';
+  }
+  if (!hasTodoQueue.value && activeView.value === 'todo') activeView.value = 'mine';
 });
 
 // ── 国家直达转报：「国家通道」队列仅业务运营员可见 ∧ flag 门 ──────────
@@ -84,9 +95,9 @@ const requestStatusById = computed(() => {
   return map;
 });
 
-// 待我办理（部门管理员）：审批收件箱。
+// 待我办理（部门管理员）：第二级部门审核队列 = 有条件共享受理后（dept_approved）。
+// 无条件共享业务运营员受理即终、不进本级，故本队列只收 dept_approved。
 const pendingApprovalItems = computed(() => {
-  const pendingKeys = new Set(['pending', 'need-fix', 'supplementing', 'pending_review', 'in_review']);
   return approvals.value
     .map((a) => {
       const it = a as Record<string, unknown>;
@@ -95,28 +106,30 @@ const pendingApprovalItems = computed(() => {
       const req = requests.value.find((r) => String((r as Record<string, unknown>).id ?? '') === id) as
         | Record<string, unknown>
         | undefined;
-      return { id, suggestion: String(it.suggestion ?? '待审'), status, resource: String(req?.resourceName ?? '—') };
+      return { id, suggestion: String(it.suggestion ?? '待审核'), status, resource: String(req?.resourceName ?? '—') };
+    })
+    .filter((row) => row.status.trim().toLowerCase() === 'dept_approved');
+});
+
+// 待我办理（业务运营员）：第一级受理队列 = 待受理 submitted 单据（无条件受理即终、
+// 有条件受理后转部门审核）。受理是申请进入平台后的第一道初级审核。
+const platformReviewItems = computed(() => {
+  const acceptKeys = new Set(['submitted', 'pending', 'need-fix', 'supplementing', 'pending_review', 'in_review']);
+  return approvals.value
+    .map((a) => {
+      const it = a as Record<string, unknown>;
+      const id = String(it.id ?? '');
+      const status = requestStatusById.value.get(id) ?? '';
+      const req = requests.value.find((r) => String((r as Record<string, unknown>).id ?? '') === id) as
+        | Record<string, unknown>
+        | undefined;
+      return { id, suggestion: String(it.suggestion ?? '待受理'), status, resource: String(req?.resourceName ?? '—') };
     })
     .filter((row) => {
       const key = row.status.trim().toLowerCase();
-      if (pendingKeys.has(key)) return true;
-      return /待|补|审/.test(formatTodoStatus(row.status));
+      if (acceptKeys.has(key)) return true;
+      return /待|补|受理/.test(formatTodoStatus(row.status));
     });
-});
-
-// 待我办理（业务运营员）：J1 有条件共享第二步平台复核（dept_approved）。
-const platformReviewItems = computed(() => {
-  return approvals.value
-    .map((a) => {
-      const it = a as Record<string, unknown>;
-      const id = String(it.id ?? '');
-      const status = requestStatusById.value.get(id) ?? '';
-      const req = requests.value.find((r) => String((r as Record<string, unknown>).id ?? '') === id) as
-        | Record<string, unknown>
-        | undefined;
-      return { id, suggestion: String(it.suggestion ?? '待复核'), status, resource: String(req?.resourceName ?? '—') };
-    })
-    .filter((row) => row.status.trim().toLowerCase() === 'dept_approved');
 });
 
 // 国家通道「待转报」队列（C9）：national ∩ dept_approved。
@@ -150,6 +163,21 @@ const headerMeta = computed(() => {
   return mineCards.value.length ? `${mineCards.value.length} 条我的申请` : '暂无申请，可从资源发现发起';
 });
 
+// 页头快捷链（P20：统一过 filterByRouteAccess，无权深链不渲染；P7：资源发现/我的异议/登记需求
+// 是申请人侧入口，受理岗不渲染）。交付回执对受理岗也由路由权限自然过滤掉。
+const headerLinks = computed(() => {
+  const applicantLinks = [
+    { label: '资源发现', href: '#/discovery' },
+    { label: '交付回执', href: '#/delivery-exchange' },
+    { label: '我的异议', href: '#/request-flow/objection' },
+    { label: '登记需求', href: '#/request-flow/supply-demand' },
+  ];
+  const links = isApplicantRole.value
+    ? applicantLinks
+    : applicantLinks.filter((l) => l.href === '#/delivery-exchange');
+  return filterByRouteAccess(links, (l) => l.href, role.value);
+});
+
 function viewRequest(id: string) {
   window.location.hash = `#/request-flow/request/${id}`;
 }
@@ -181,21 +209,18 @@ async function quickSubmitDraft(id: string) {
       <PageFocusHeader
         title="办共享申请"
         :meta="headerMeta"
-        :links="[
-          { label: '资源发现', href: '#/discovery' },
-          { label: '交付回执', href: '#/delivery-exchange' },
-          { label: '我的异议', href: '#/request-flow/objection' },
-          { label: '登记需求', href: '#/request-flow/supply-demand' },
-        ]"
+        :links="headerLinks"
       >
         <template #aside>
           <NLAcceleratorPanel page-anchor="P3" :presets="NL_PRESETS_P3" @action="consumeNLAction" />
         </template>
       </PageFocusHeader>
 
-      <!-- 三视图分栏：一个视图只回答一个问题（缺陷 1）。待我办理无权角色不渲染。 -->
+      <!-- 三视图分栏：一个视图只回答一个问题（缺陷 1）。待我办理无权角色不渲染。
+           受理岗（业务运营员）退申请人身份——「我的申请」「我的授权」不渲染。 -->
       <nav class="view-tabs" aria-label="申请视图">
         <button
+          v-if="isApplicantRole"
           type="button" class="view-tab" :class="{ active: activeView === 'mine' }"
           data-testid="p3-view-mine" @click="activeView = 'mine'"
         >我的申请</button>
@@ -205,6 +230,7 @@ async function quickSubmitDraft(id: string) {
           data-testid="p3-view-todo" @click="activeView = 'todo'"
         >待我办理</button>
         <button
+          v-if="isApplicantRole"
           type="button" class="view-tab" :class="{ active: activeView === 'grants' }"
           data-testid="p3-view-grants" @click="activeView = 'grants'"
         >我的授权</button>
@@ -249,38 +275,38 @@ async function quickSubmitDraft(id: string) {
         <p v-else class="focus-empty">等待数据装载……</p>
       </div>
 
-      <!-- ── 视图 2：待我办理（按角色码：审批 / 平台复核）──────────────────── -->
+      <!-- ── 视图 2：待我办理（受理 / 部门审核 两级）──────────────── -->
       <div v-if="hasTodoQueue" v-show="activeView === 'todo'" data-testid="p3-pane-todo">
         <template v-if="isPlatformReviewer">
           <table v-if="source === 'live' && platformReviewItems.length" class="focus-table">
-            <thead><tr><th>申请编号</th><th>资源</th><th>状态</th><th>复核建议</th><th>操作</th></tr></thead>
+            <thead><tr><th>申请编号</th><th>资源</th><th>状态</th><th>受理建议</th><th>操作</th></tr></thead>
             <tbody>
               <tr v-for="it in platformReviewItems" :key="it.id">
                 <td><code>{{ shortId(it.id) }}</code></td>
                 <td>{{ it.resource || '—' }}</td>
                 <td><span class="status-pill" :class="todoStatusTone(it.status)">{{ formatTodoStatus(it.status) }}</span></td>
                 <td>{{ it.suggestion }}</td>
-                <td class="table-actions"><a :href="`#/request-flow/review/${it.id}`" class="row-link">去复核</a></td>
+                <td class="table-actions"><a :href="`#/request-flow/review/${it.id}`" class="row-link">去受理</a></td>
               </tr>
             </tbody>
           </table>
-          <p v-else-if="source === 'live'" class="focus-empty">暂无待平台复核的申请。</p>
+          <p v-else-if="source === 'live'" class="focus-empty">暂无待受理的申请。</p>
           <p v-else class="focus-empty">等待数据装载……</p>
         </template>
         <template v-else-if="isReviewer">
           <table v-if="source === 'live' && pendingApprovalItems.length" class="focus-table">
-            <thead><tr><th>申请编号</th><th>资源</th><th>状态</th><th>审批建议</th><th>操作</th></tr></thead>
+            <thead><tr><th>申请编号</th><th>资源</th><th>状态</th><th>审核建议</th><th>操作</th></tr></thead>
             <tbody>
               <tr v-for="it in pendingApprovalItems" :key="it.id">
                 <td><code>{{ shortId(it.id) }}</code></td>
                 <td>{{ it.resource || '—' }}</td>
                 <td><span class="status-pill" :class="todoStatusTone(it.status)">{{ formatTodoStatus(it.status) }}</span></td>
                 <td>{{ it.suggestion }}</td>
-                <td class="table-actions"><a :href="`#/request-flow/review/${it.id}`" class="row-link">去审批</a></td>
+                <td class="table-actions"><a :href="`#/request-flow/review/${it.id}`" class="row-link">去审核</a></td>
               </tr>
             </tbody>
           </table>
-          <p v-else-if="source === 'live'" class="focus-empty">暂无待审申请。</p>
+          <p v-else-if="source === 'live'" class="focus-empty">暂无待部门审核的申请。</p>
           <p v-else class="focus-empty">等待数据装载……</p>
         </template>
       </div>

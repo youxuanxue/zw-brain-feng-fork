@@ -3,12 +3,26 @@ import { computed } from 'vue';
 import { useWorkbench } from '@/composables/useWorkbench';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 import { humanizeTitle } from '@/lib/userLanguage';
+import { getProductRole } from '@/composables/useProductRole';
+import { canReviewRequests, canPlatformReviewRequests } from '@/lib/requestFlowRoles';
 
 // 缺陷 2（业务方试用反馈）：业务运营员待办「不对路」。机制单源 = 后端 workbench_backlog_projection
 // （真实库现算、每条带深链，第二组）；角色 → 待办语义（白话类目，第四组）已下沉到该
 // 后端投影（语义定义见 docs/decisions/role-projection-views-business-review-package.md），
 // 前端只渲染、不自算（避免两套口径漂移）。
 const { data, source, error, refresh } = useWorkbench();
+const role = getProductRole();
+
+// P12：部门操作员是申请人（无审批/受理待办），工作台「待办」语境改为「申请进度」——标题/空态/
+// 计数名对齐申请人视角。审批/受理岗（部门管理员/业务运营员）保留「待办」语境。
+const isApplicantOnly = computed(
+  () => !canReviewRequests(role.value) && !canPlatformReviewRequests(role.value),
+);
+const itemNoun = computed(() => (isApplicantOnly.value ? '进度' : '待办'));
+const blockTitle = computed(() => (isApplicantOnly.value ? '我的申请进度' : '今日待办'));
+const emptyText = computed(() =>
+  isApplicantOnly.value ? '暂无进行中的申请。' : '当前岗位暂无待办事项。',
+);
 
 const todoCount = computed(() => data.value?.todos.length ?? 0);
 const urgentCount = computed(
@@ -25,7 +39,7 @@ const urgentCount = computed(
   <main class="focus-page p1-page">
     <header v-if="data" class="panel p1-hero">
       <h1 class="p1-hero-title">
-        {{ data.greeting }}，<span class="p1-count">{{ todoCount }}</span> 项待办
+        {{ data.greeting }}，<span class="p1-count">{{ todoCount }}</span> 项{{ itemNoun }}
         <span v-if="urgentCount" class="p1-urgent">（{{ urgentCount }} 项需尽快处理）</span>
       </h1>
     </header>
@@ -38,7 +52,7 @@ const urgentCount = computed(
 
     <div v-if="data" class="p1-layout">
       <section class="panel p1-card">
-        <h2 class="p1-block-title">今日待办</h2>
+        <h2 class="p1-block-title">{{ blockTitle }}</h2>
         <ul v-if="data.todos.length" class="p1-list p1-list--todo">
           <li
             v-for="(todo, idx) in data.todos"
@@ -61,7 +75,7 @@ const urgentCount = computed(
             </span>
           </li>
         </ul>
-        <p v-else class="p1-empty">当前岗位暂无待办事项。</p>
+        <p v-else class="p1-empty">{{ emptyText }}</p>
       </section>
 
       <aside class="panel p1-side">

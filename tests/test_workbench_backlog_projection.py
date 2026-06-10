@@ -6,7 +6,8 @@
   - 审核类（待审核目录/资源、待补全用途）属部门管理员职责，不再出现在业务运营员工作台
     （E2 纠正职责错配，0605 反馈 6.4#11 + D53）。
   - 待受理申请按 kind=apply 过滤——application_record 表混存申请/需求，需求另归「待汇总需求」。
-  - 其它角色 view 原样（待办由 sync_request_todos 真投影），enrich 不动它们。
+  - 部门管理员（D55/P10）：在 sync_request_todos 已投部门审核待办上叠加供数侧目录审核待办
+    （pending_review 深链 catalog-review），零积压不投。部门操作员 view 原样（enrich 不动）。
   - 零积压不生成待办（无空死链）；办理建议是分类型行动句（G4）。
 """
 
@@ -152,12 +153,40 @@ def test_busiaudit_empty_backlog_is_honest_empty(temp_db: Path) -> None:
     assert "没有待办积压" in out["aiSummary"]["summary"]
 
 
-def test_other_roles_view_untouched(temp_db: Path) -> None:
+def test_operater_view_untouched(temp_db: Path) -> None:
+    """部门操作员（申请人）view 原样返回——待办由 sync_request_todos 真投影，enrich 不动。"""
     _seed_backlog()
     base = {"todos": [{"id": "REQ-x", "title": "申请进度跟踪", "href": "#/request-flow/request/REQ-x"}], "subtitle": "s"}
-    for role in ("ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"):
-        out = enrich_workbench_backlog(base, role, tenant_id=TENANT)
-        assert out is base
+    out = enrich_workbench_backlog(base, "ROLE_ORGAN_OPERATER", tenant_id=TENANT)
+    assert out is base
+
+
+def test_manager_gets_provider_review_backlog_prepended(temp_db: Path) -> None:
+    """D55/P10：部门管理员在既有待办上叠加供数侧目录审核待办（pending_review），深链 catalog-review。"""
+    _seed_backlog()  # 2 条 pending_review catalog
+    base = {
+        "todos": [
+            {"id": "REQ-x", "title": "资源申请待审核", "href": "#/request-flow/review/REQ-x"}
+        ],
+        "subtitle": "s",
+    }
+    out = enrich_workbench_backlog(base, "ROLE_ORGAN_MANAGER", tenant_id=TENANT)
+    todos = {t["id"]: t for t in out["todos"]}
+    # 供数审核待办前插，原有部门审核待办保留
+    assert "backlog-catalog-dept-review" in todos
+    assert todos["backlog-catalog-dept-review"]["title"] == "待审核目录 2 条"
+    assert todos["backlog-catalog-dept-review"]["href"] == "#/provider/inbox/catalog-review"
+    assert "REQ-x" in todos, "原有部门审核待办应保留"
+    # 前插顺序：供数审核待办在原有待办之前
+    assert out["todos"][0]["id"] == "backlog-catalog-dept-review"
+
+
+def test_manager_zero_review_backlog_untouched(temp_db: Path) -> None:
+    """D55/P10：无 pending_review 目录时部门管理员 view 原样返回（零积压不投，无空死链）。"""
+    # 不 seed → 零 pending_review
+    base = {"todos": [{"id": "REQ-y", "title": "x", "href": "#/request-flow/review/REQ-y"}], "subtitle": "s"}
+    out = enrich_workbench_backlog(base, "ROLE_ORGAN_MANAGER", tenant_id=TENANT)
+    assert out is base
 
 
 def test_backlog_todos_count_matches_repo(temp_db: Path) -> None:

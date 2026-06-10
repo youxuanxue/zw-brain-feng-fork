@@ -115,7 +115,7 @@ def sync_request_todos(
     snapshot: dict[str, Any],
     status_text: Callable[[dict[str, Any], str], str],
 ) -> None:
-    """Project request workbench todos for the 2 active roles.
+    """Project request workbench todos per role（受理/审核两级对齐，D55/P21·P21b·P10）.
 
     Replaces ``BrainService._sync_request_todos``. Action H: takes the
     ``snapshot`` dict directly + a pure ``status_text`` callback (typically
@@ -123,10 +123,19 @@ def sync_request_todos(
 
     R-002/R-005 fix: perspective + category 双维度（perspective 决定文案，
     category 区分同 REQ 在同 role 下的多个待办语境）.
+
+    D55/P21·P21b：受理/审核两级——业务运营员（ROLE_BUSIAUDIT）受理第一级（submitted）、部门管理员
+    （ROLE_ORGAN_MANAGER）部门审核第二级（dept_approved）。MANAGER 审核待办由「每单恒投」收敛为
+    「仅 dept_approved 单（受理后）才投」，消除受理前误投部门审核待办；业务运营员受理待办深链受理详情。
+    注：业务运营员 P1 工作台 todos 由 workbench_backlog_projection.enrich_workbench_backlog 整体现算
+    覆盖（待受理申请/异议/需求 + 供数发布），此处对 BUSIAUDIT 的受理待办投影供 P3 受理队列等
+    workbench.todos 读侧消费、并与 enrich 口径一致（enrich 仍是 BUSIAUDIT P1 单一事实源）。
     """
+    _accept_statuses = {"submitted", "pending"}
     for request in snapshot["requests"]:
         request_id = request["id"]
         resource_name = request.get("resourceName", request_id)
+        status = request["status"]
         demo_state_sync.upsert_todo(
             snapshot,
             "ROLE_ORGAN_OPERATER", request_id,
@@ -135,14 +144,26 @@ def sync_request_todos(
             f"#/request-flow/request/{request_id}",
             category="apply-progress",
         )
-        demo_state_sync.upsert_todo(
-            snapshot,
-            "ROLE_ORGAN_MANAGER", request_id,
-            f"{resource_name}资源申请待判定",
-            status_text(request, "reviewer"),
-            f"#/request-flow/review/{request_id}",
-            category="review",
-        )
+        # 第一级受理（业务运营员）：申请进入受理态（submitted/pending）→ 受理待办，深链受理详情。
+        if status in _accept_statuses:
+            demo_state_sync.upsert_todo(
+                snapshot,
+                "ROLE_BUSIAUDIT", request_id,
+                f"{resource_name}资源申请待受理",
+                status_text(request, "reviewer"),
+                f"#/request-flow/review/{request_id}",
+                category="accept",
+            )
+        # 第二级部门审核（部门管理员）：仅受理通过待部门审（dept_approved）才投，深链审核详情。
+        if status == "dept_approved":
+            demo_state_sync.upsert_todo(
+                snapshot,
+                "ROLE_ORGAN_MANAGER", request_id,
+                f"{resource_name}资源申请待审核",
+                status_text(request, "reviewer"),
+                f"#/request-flow/review/{request_id}",
+                category="review",
+            )
         if request["status"] in {"supplementing", "summary-pending", "completed", "need-fix"}:
             demo_state_sync.upsert_todo(
                 snapshot,

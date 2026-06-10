@@ -26,7 +26,9 @@ _SHELL_ROLES: dict[str, frozenset[str]] = {
             "ROLE_SECURITY_AUDIT",
         }
     ),
-    "request-flow": frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"}),
+    # D55/P21·P7：业务运营员（受理岗）在 request-flow shell 内办受理 + 决策A 收回/暂停
+    # （与 productShellNav.ts request-flow.roles 一致，含 BUSIAUDIT）。
+    "request-flow": frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}),
     "delivery-exchange": frozenset(
         {
             "ROLE_ORGAN_OPERATER",
@@ -421,3 +423,78 @@ def test_action_role_gates_aligned_with_backend_policy() -> None:
             f"policy.PERMISSION_ROLES['{be_key}']={sorted(be_roles)} 漂移；"
             f"权威源是后端，请同步前端"
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D55/P20：工作台投影深链 ↔ 路由权限对齐守卫
+# 工作台所有待办/入口深链目标必须对其被投递到的角色 isRouteAllowedForRole=true，
+# 否则会渲染「点了跳无权页」的死链。本守卫把投影的深链口径与 pageAccess 路由门对齐。
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _href_to_path(href: str) -> str:
+    """`#/foo/bar/<id>` → `/foo/bar`（去锚点 + 去末尾 <id> 占位段）。"""
+    path = href[1:] if href.startswith("#") else href
+    # 去掉形如 /<id> 的尾随占位（投影深链里 review/<id> 的 <id> 不影响 shell 归属）。
+    return path
+
+
+# 工作台投影的角色 → 深链目标集合（与 zw_brain/domain/workbench_backlog_projection.py +
+# zw_brain/command/sync.py sync_request_todos 的 href 单源对齐）。
+_PROJECTION_DEEPLINKS: dict[str, frozenset[str]] = {
+    # 业务运营员（受理岗 + 发布/汇总积压）
+    "ROLE_BUSIAUDIT": frozenset(
+        {
+            "/request-flow/review",        # 受理待办（sync_request_todos accept）
+            "/request-flow",               # 待受理申请 backlog
+            "/provider",                   # 待发布目录/资源 backlog
+            "/provider/inbox/demand-match",  # 待汇总需求 backlog
+            # 注：「待受理异议」深链 /provider/inbox/objection 现 ROUTE_ROLE_OVERRIDES=
+            # [ROLE_ORGAN_MANAGER]，对 BUSIAUDIT 不可达——属 D28 GATE 既有债（异议受理人角色
+            # 口径待裁，见 workbench.py 注释 + 下方 known-debt 断言），不纳入本守卫的 must-pass
+            # 集合，但用专门断言锁定其当前为「不可达」状态，口径一旦校准本断言会主动 FAIL 提醒移回。
+        }
+    ),
+    # 部门管理员（部门审核 + 供数侧目录审核）
+    "ROLE_ORGAN_MANAGER": frozenset(
+        {
+            "/request-flow/review",                # 部门审核待办（dept_approved）
+            "/provider/inbox/catalog-review",      # 目录待部门审 backlog（P10）
+        }
+    ),
+    # 部门操作员（申请进度）
+    "ROLE_ORGAN_OPERATER": frozenset(
+        {
+            "/request-flow/request",  # 申请进度跟踪 / 补录任务
+        }
+    ),
+}
+
+
+def test_workbench_projection_deeplinks_route_allowed_for_role() -> None:
+    """D55/P20：工作台投影的每个深链目标必须对其投递角色路由可达（无死链）。
+
+    注：业务运营员「待受理异议」深链 /provider/inbox/objection 现 ROUTE_ROLE_OVERRIDES=
+    [ROLE_ORGAN_MANAGER]（异议受理人角色口径属 D28 GATE 既有债，见 workbench.py 注释），
+    本守卫如实暴露——若该投影深链对 BUSIAUDIT 不可达则 FAIL，迫使口径校准（投影 or 路由门
+    二选一），不放过死链。
+    """
+    failures: list[str] = []
+    for role, hrefs in _PROJECTION_DEEPLINKS.items():
+        for href in hrefs:
+            path = _href_to_path(href)
+            if not _is_route_allowed(path, role):
+                failures.append(f"{role} → {path}（投影深链路由不可达，死链）")
+    assert not failures, "工作台投影深链存在角色不可达的死链：\n" + "\n".join(failures)
+
+
+def test_busiaudit_objection_inbox_known_debt_unreachable() -> None:
+    """D28 GATE 既有债锁定：业务运营员「待受理异议」backlog 深链 /provider/inbox/objection
+    现对 BUSIAUDIT 不可达（异议受理人角色口径待裁，inbox 仅授权 MANAGER）。
+
+    本断言把该「不可达」状态钉死——一旦口径校准（把 objection inbox 开放给 BUSIAUDIT，或把
+    backlog 深链改到 BUSIAUDIT 可达落点），此断言会主动 FAIL，提醒把该链移回上面 must-pass 集合。
+    """
+    assert not _is_route_allowed("/provider/inbox/objection", "ROLE_BUSIAUDIT"), (
+        "业务运营员异议 inbox 已变可达——请把 /provider/inbox/objection 移回 "
+        "_PROJECTION_DEEPLINKS['ROLE_BUSIAUDIT'] must-pass 集合并删除本 known-debt 断言"
+    )
