@@ -35,9 +35,10 @@ export const ROUTE_ROLE_OVERRIDES: ReadonlyArray<{
   redirectIfDenied?: string;
 }> = [
   // J2 在线编制 ↔ 目录审核收件箱（OPERATER 提交后切到 reviewer 应直接看到待办）
+  // D55/P11：管理员也可直接进在线编制（经 hierarchy 有 create 权，加入后不再被踢到 inbox）
   {
     prefix: '/provider/wizard/inline-catalog',
-    roles: ['ROLE_ORGAN_OPERATER'],
+    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
     redirectIfDenied: '/provider/inbox/catalog-review',
   },
   {
@@ -45,8 +46,8 @@ export const ROUTE_ROLE_OVERRIDES: ReadonlyArray<{
     roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
     redirectIfDenied: '/provider/wizard/inline-catalog',
   },
-  // 反向编目（pages/P5ReverseCatalogWizard.vue → canCreateDraft）
-  { prefix: '/provider/wizard/reverse-catalog', roles: ['ROLE_ORGAN_MANAGER'] },
+  // 反向编目（pages/P5ReverseCatalogWizard.vue → canCreateDraft）D55/P14 操作员也可进
+  { prefix: '/provider/wizard/reverse-catalog', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_ORGAN_OPERATER'] },
   // 反向编目审核（pages/P5FieldDecisionDetail.vue → canDecide；路由 slug 仍 field-decision）
   { prefix: '/provider/inbox/field-decision', roles: ['ROLE_BUSIAUDIT'] },
   // 挂接审核（pages/P5HookupReviewInbox.vue → canApprove）

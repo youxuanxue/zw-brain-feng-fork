@@ -245,6 +245,13 @@ def test_j1_resource_discovery_unauthorized_role_rejected():
     assert "data.search.execute" not in system_perms, (
         f"ROLE_SYSTEM 不应持有 data.search.execute；实际：{sorted(system_perms)}"
     )
+    # D55/P17：安全审计员收敛纯只读监督者，非数据使用方（v5 无找数据），退出找数据全链。
+    audit_perms = permissions_for_role("ROLE_SECURITY_AUDIT")
+    for cap in ("data.search.execute", "search.intent.parse.execute",
+                "catalog.resource_view.execute", "catalog.resource.list.execute"):
+        assert cap not in audit_perms, (
+            f"D55/P17：ROLE_SECURITY_AUDIT 不应持有找数据能力 {cap}；实际：{sorted(audit_perms)}"
+        )
     # OPERATER 正向对照，确保 policy 表不是全失能。
     operater_perms = permissions_for_role("ROLE_ORGAN_OPERATER")
     assert "data.search.execute" in operater_perms, (

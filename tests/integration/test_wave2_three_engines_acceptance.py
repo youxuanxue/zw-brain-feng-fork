@@ -116,7 +116,7 @@ def _run_anshan_e2e() -> dict:
                 "intent_text": intent,
                 "created_by": "user:gov:ROLE_ORGAN_MANAGER:f8",
             },
-                    role="ROLE_ORGAN_MANAGER",
+                    role="ROLE_SYSTEM",
                 )
         t_draft = time.perf_counter()
         assert draft["result"]["status"] == "draft"
@@ -124,15 +124,15 @@ def _run_anshan_e2e() -> dict:
         invoke_trusted(
             brain,
             "approval_flow.schema.promote_to_preview",
-            {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_ORGAN_MANAGER"},
-            role="ROLE_ORGAN_MANAGER",
+            {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_SYSTEM"},
+            role="ROLE_SYSTEM",
         )
         t_preview = time.perf_counter()
         committed = invoke_trusted(
                         brain,
                         "approval_flow.schema.commit",
-                        {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_ORGAN_MANAGER"},
-                        role="ROLE_ORGAN_MANAGER",
+                        {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_SYSTEM"},
+                        role="ROLE_SYSTEM",
                     )
         t_live = time.perf_counter()
     finally:
@@ -179,7 +179,7 @@ def _run_sichuan_e2e() -> dict:
                 "intent_text": intent,
                 "created_by": "user:gov:ROLE_ORGAN_MANAGER:f8",
             },
-                    role="ROLE_ORGAN_MANAGER",
+                    role="ROLE_SYSTEM",
                 )
         t_draft = time.perf_counter()
         assert draft["result"]["status"] == "draft"
@@ -187,15 +187,15 @@ def _run_sichuan_e2e() -> dict:
         invoke_trusted(
             brain,
             "form_schema.promote_to_preview",
-            {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_ORGAN_MANAGER"},
-            role="ROLE_ORGAN_MANAGER",
+            {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_SYSTEM"},
+            role="ROLE_SYSTEM",
         )
         t_preview = time.perf_counter()
         committed = invoke_trusted(
                         brain,
                         "form_schema.commit",
-                        {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_ORGAN_MANAGER"},
-                        role="ROLE_ORGAN_MANAGER",
+                        {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_SYSTEM"},
+                        role="ROLE_SYSTEM",
                     )
         t_live = time.perf_counter()
     finally:

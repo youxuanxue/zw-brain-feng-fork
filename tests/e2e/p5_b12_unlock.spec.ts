@@ -32,8 +32,9 @@ test('P5 供需对接列表可点进详情', async ({ page }) => {
   await expect(page.locator('.focus-detail')).toBeVisible();
 });
 
-test('B1.2 外部系统模块可达（ROLE_BUSIAUDIT）', async ({ page }) => {
-  await setRole(page, 'ROLE_BUSIAUDIT');
+test('B1.2 外部系统模块可达（ROLE_SYSTEM）', async ({ page }) => {
+  // D55/P2：外部系统归平台运维员独有（业务运营员退出）。
+  await setRole(page, 'ROLE_SYSTEM');
   await gotoHash(page, '#/integration-admin');
   await expect(page.getByRole('heading', { name: '外部系统', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '已接入的外部系统' })).toBeVisible();

@@ -107,25 +107,47 @@ test.describe('B1.1 合规与运营 smoke', () => {
     await expect.poll(() => page.url(), { timeout: 10_000 }).not.toMatch(/#\/compliance-ops/);
   });
 
-  // #161 god's-eye 收尾：B1.1「网关运行」只读面板（消费 ops.service.report.query）。
-  test('SECURITY_AUDIT 看到「网关运行」tab 并展示在线/降级/离线计数', async ({ page }) => {
-    const gwTab = page.getByRole('tab', { name: '网关运行' });
-    await expect(gwTab).toBeVisible();
-    await gwTab.click();
-    await expect(gwTab).toHaveAttribute('aria-selected', 'true');
-    // 计数条（在线/降级/离线）渲染 —— live 或 fixture 回退都应呈现三类
+  // 查审计拆分（D55/P8·P9，Wave1-S3）：审计日志面收窄到业务运营员 + 安全审计员。
+  // 部门管理员退审计日志（P9）、平台运维员退审计日志（P8）→ 二者无权进 /compliance-ops，
+  // 静默重定向（无权 = 不可见）。网关运行 / 服务调用监控面拆到独立页 /service-ops。
+  test('ROLE_ORGAN_MANAGER 退审计日志：无权静默进入合规页', async ({ page }) => {
+    await setRole(page, 'ROLE_ORGAN_MANAGER');
+    await gotoHash(page, '#/workbench');
+    await gotoHash(page, '#/compliance-ops');
+    await expect.poll(() => page.url(), { timeout: 10_000 }).not.toMatch(/#\/compliance-ops/);
+  });
+
+  test('ROLE_SYSTEM 退审计日志：无权静默进入合规页', async ({ page }) => {
+    await setRole(page, 'ROLE_SYSTEM');
+    await gotoHash(page, '#/workbench');
+    await gotoHash(page, '#/compliance-ops');
+    await expect.poll(() => page.url(), { timeout: 10_000 }).not.toMatch(/#\/compliance-ops/);
+  });
+});
+
+// 服务调用监控（D55/P8）：网关运行只读面拆出独立页 /service-ops。
+// 平台运维员保留服务调用监控（v5），管理员 / 审计只读；审计日志角色（仅安全审计员/业务运营员）
+// 仍可见服务调用监控只读，但「查审计」与「服务调用监控」已是两个独立导航。
+test.describe('B1.3 服务调用监控 smoke', () => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    await skipUnlessBackend(page, testInfo);
+    await page.goto('/');
+    await waitAppReady(page);
+  });
+
+  // #161 god's-eye 收尾迁移：「网关运行」只读面板（消费 ops.service.report.query）。
+  test('ROLE_SYSTEM 进 /service-ops 看到网关运行在线/降级/离线计数', async ({ page }) => {
+    await setRole(page, 'ROLE_SYSTEM');
+    await gotoHash(page, '#/service-ops');
+    await expect(page.getByRole('heading', { name: '服务调用监控' })).toBeVisible();
     await expect(page.getByRole('group', { name: '网关运行状态汇总' })).toBeVisible();
   });
 
-  // 无权限即不可见（tab 级，非路由级）：ROLE_SYSTEM 的 shell roles 含 /compliance-ops，
-  // 但缺 ops.service.report.query.execute（policy.py）→ 「网关运行」tab 不渲染，
-  // 而非"可见但禁用"或"可见点击 403"。
-  // （原断言用 ROLE_SECURITY_ADMIN，该角色本期退役 D55/P16；改用同样在合规 shell 内、
-  //  同样不持网关查询权的现行角色 ROLE_SYSTEM，负向意图不变。）
-  test('ROLE_SYSTEM 进得了合规页但看不到「网关运行」tab', async ({ page }) => {
-    await setRole(page, 'ROLE_SYSTEM');
-    await gotoHash(page, '#/compliance-ops');
-    await expect(page.getByRole('heading', { name: '合规与运营' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: '网关运行' })).toHaveCount(0);
+  // 无权限即不可见（路由级）：部门操作员既无审计日志权也无服务调用监控权 → 无权进 /service-ops。
+  test('ROLE_ORGAN_OPERATER 无权静默进入服务调用监控页', async ({ page }) => {
+    await setRole(page, 'ROLE_ORGAN_OPERATER');
+    await gotoHash(page, '#/workbench');
+    await gotoHash(page, '#/service-ops');
+    await expect.poll(() => page.url(), { timeout: 10_000 }).not.toMatch(/#\/service-ops/);
   });
 });

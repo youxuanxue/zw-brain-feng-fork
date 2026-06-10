@@ -2,7 +2,7 @@
 
 # Preflight Debt Status (computed)
 
-## open (39)
+## open (40)
 - ac7 [medium] (2026-05-25) — 客户机房部署 + 监控对接未落地（E6 AC7）
   - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
 - agentruntime [medium] (2026-05-24) — AgentRuntime runtime 触发式延后（D30 retrofit）
@@ -70,6 +70,8 @@
   - assert: external → external — owner=产品研发负责人; trigger=数据/业务侧在上游补齐 138 个无 schema 映射资源的 dsp_metaresource→catalog 资源列级 link（或补 dump 后重导），使 resource_schema_mapping 覆盖更多 resource_asset；补齐后桥接自动放大覆盖率（读路径已就绪，无需再改代码）。届时把本 assert 从 external 升级为现算（如 SQL join 命中率门槛）并按实际覆盖率关债或降级。
 - security-admin-retired-d55 [medium] (2026-06-09) — 安全管理员（ROLE_SECURITY_ADMIN）+ 数据安全中心本期退役，待立项恢复（D55/P16）
   - assert: external → external — owner=产品研发负责人; trigger=数据安全中心立项（分类分级 / 敏感识别 / 脱敏 / 密钥 / 风险处置 / 资产透视五大模块）→ 恢复 ROLE_SECURITY_ADMIN：重新加入 role_codes.BUSINESS_ROLE_CODES + 显示名 + 各 PERMISSION_ROLES 条目 + 前端四副本 + role-mapping-manifest（ROLE_SECURITY_MANAGER/ROLE_SECRET 从显式不映射段恢复）+ 重生成 agent 契约；security.scan.result.sync / package.* 等本期散权移除项一并校正（P22 Wave 后续）。
+- security-audit-readonly-d55 [medium] (2026-06-09) — 合规调查/风险处置写权随安全管理员退役 + 安全审计员只读化本期退役（D55/P22）
+  - assert: external → external — owner=产品研发负责人; trigger=数据安全中心立项（分类分级 / 敏感识别 / 脱敏 / 密钥 / 风险处置 / 资产透视五大模块）→ 恢复合规调查/风险处置写权能力：compliance.investigate_case / compliance.signal.ingest / risk.event.ingest / compliance.rule.configure / compliance.case.open|assign|resolve|close / security.scan.result.sync 的 manifest product_scope.status 从 deferred:wave-1 恢复 live + PERMISSION_ROLES 重新授予承做角色（届时由数据安全中心 SPEC 角色定义，安全审计员仍仅只读 case.query/metric.query）。安全审计员收敛纯只读（D55/P22 docx「无任何写操作权限」）：本期已清异议写/合规写/谱系质量 upsert/projection 同步/legacy 映射导入/熔断写权，工单巡检改派平台运维员（ROLE_SYSTEM）；恢复需业务方重新 sign-off 审计员是否承担任何写动作。
 - t5-catalog-field-enrichment [low] (2026-06-09) — 目录详情 应用场景缺值 + 所属领域 theme_group_id 裸码无字典（存量导入上游富集债）
   - assert: external → external — owner=产品研发负责人; trigger=数据治理侧补 application_scenario 富集 + 提供 theme_group_id→领域名 字典 → catalog_meta 接字典映射 domainLabel → 存量目录所属领域/应用场景有值即关债。
 - tenant-only [medium] (2026-05-26) — 读路径热表 tenant-only 全扫白名单（PR #113 同模式残留）

@@ -19,8 +19,15 @@ def _roles_for_key(key: str) -> set[str]:
 
 
 def test_role_system_sees_platform_ops_nav() -> None:
-    """平台运维员不进 J1 主旅程，但须有工作台 + B1 合规/接入顶栏（roles.md §ROLE_SYSTEM）。"""
+    """平台运维员不进 J1 主旅程，但须有工作台 + B1 服务调用监控 / 接入顶栏（roles.md §ROLE_SYSTEM）。
+
+    查审计拆分（D55/P8·P9，Wave1-S3）：平台运维员退审计日志（compliance-ops），
+    保服务调用监控（service-ops）。故 B1 顶栏入口从 compliance-ops 迁到 service-ops。
+    """
     assert "ROLE_SYSTEM" in _roles_for_key("workbench")
-    assert "ROLE_SYSTEM" in _roles_for_key("compliance-ops")
+    # 退审计日志：平台运维员不再看到「查审计」导航（无权 = 不可见）。
+    assert "ROLE_SYSTEM" not in _roles_for_key("compliance-ops")
+    # 保服务调用监控：平台运维员看到「服务调用监控」导航（v5 服务调用日志 = 平台运维员）。
+    assert "ROLE_SYSTEM" in _roles_for_key("service-ops")
     assert "ROLE_SYSTEM" in _roles_for_key("integration-admin")
     assert "ROLE_SYSTEM" not in _roles_for_key("request-flow")

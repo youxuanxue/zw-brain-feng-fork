@@ -270,7 +270,7 @@ def test_commit_via_skill_dispatch_returns_ok_and_audit_id(session):
                 "schema_id": record.id,
                 "confirmed": True,
             },
-                     role="ROLE_ORGAN_MANAGER",
+                     role="ROLE_SYSTEM",
                  )
     finally:
         audit_bus.clear_sink()

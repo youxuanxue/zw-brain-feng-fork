@@ -39,12 +39,21 @@ _SHELL_ROLES: dict[str, frozenset[str]] = {
     "provider": frozenset(
         {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}
     ),
+    # 查审计拆分（D55/P8·P9，Wave1-S3）：审计日志面收窄到业务运营员 + 安全审计员。
+    # 部门管理员退审计日志（P9）、平台运维员退审计日志（P8）→ 二者不在 compliance-ops shell。
     "compliance-ops": frozenset(
+        {
+            "ROLE_BUSIAUDIT",
+            "ROLE_SECURITY_AUDIT",
+        }
+    ),
+    # 服务调用监控（D55/P8）：网关运行 / 服务调用统计只读面，从查审计拆出。
+    # 平台运维员保留服务调用监控（v5），管理员 / 审计只读。
+    "service-ops": frozenset(
         {
             "ROLE_ORGAN_MANAGER",
             "ROLE_BUSIAUDIT",
             "ROLE_SECURITY_AUDIT",
-            # ROLE_SECURITY_ADMIN 随安全管理员本期退役而移除（D55/P16）。
             "ROLE_SYSTEM",
         }
     ),
@@ -57,7 +66,7 @@ _SHELL_ROLES: dict[str, frozenset[str]] = {
 _ROUTE_ROLE_OVERRIDES: list[tuple[str, frozenset[str], str | None]] = [
     (
         "/provider/wizard/inline-catalog",
-        frozenset({"ROLE_ORGAN_OPERATER"}),
+        frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"}),
         "/provider/inbox/catalog-review",
     ),
     (
@@ -65,7 +74,7 @@ _ROUTE_ROLE_OVERRIDES: list[tuple[str, frozenset[str], str | None]] = [
         frozenset({"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}),
         "/provider/wizard/inline-catalog",
     ),
-    ("/provider/wizard/reverse-catalog", frozenset({"ROLE_ORGAN_MANAGER"}), None),
+    ("/provider/wizard/reverse-catalog", frozenset({"ROLE_ORGAN_MANAGER", "ROLE_ORGAN_OPERATER"}), None),
     ("/provider/inbox/field-decision", frozenset({"ROLE_BUSIAUDIT"}), None),
     ("/provider/inbox/hookup-review", frozenset({"ROLE_BUSIAUDIT"}), None),
     ("/provider/inbox/objection", frozenset({"ROLE_ORGAN_MANAGER"}), None),
@@ -86,6 +95,8 @@ def _active_shell_key(path: str) -> str:
         return "provider"
     if p.startswith("/compliance-ops"):
         return "compliance-ops"
+    if p.startswith("/service-ops"):
+        return "service-ops"
     # /zones-pack 专题包路由退出本期（D55/P6）：不再映射 shell key。
     if p.startswith("/integration-admin"):
         return "integration-admin"
@@ -125,7 +136,7 @@ def _default_route_for_role(role: str, from_path: str | None = None) -> str:
             return shell_top
     # 否则回落到 role 第一个可见 shell（按 PRODUCT_SHELL_NAV 顺序）
     for sk in ("workbench", "discovery", "request-flow", "delivery-exchange",
-               "provider", "compliance-ops", "zones-pack", "integration-admin"):
+               "provider", "compliance-ops", "service-ops", "zones-pack", "integration-admin"):
         if role in _SHELL_ROLES.get(sk, frozenset()):
             return f"/{sk}"
     return "/workbench"
@@ -153,11 +164,12 @@ def test_operater_can_access_provider_shell_and_inline_wizard() -> None:
     )
 
 
-def test_manager_cannot_access_inline_catalog_wizard() -> None:
-    # 部门管理员从 wizard 切角色应被踢到目录审核收件箱（由 defaultRouteForRole 处理）
-    assert not _is_route_allowed(
+def test_manager_can_access_inline_catalog_wizard() -> None:
+    # D55/P11：管理员也可直接进在线编制（不再被踢到 inbox）
+    assert _is_route_allowed(
         "/provider/wizard/inline-catalog", "ROLE_ORGAN_MANAGER"
     )
+    # BUSIAUDIT 仍不可进（只审不编）
     assert not _is_route_allowed(
         "/provider/wizard/inline-catalog", "ROLE_BUSIAUDIT"
     )
@@ -207,12 +219,17 @@ def test_national_ext_elem_manager_and_busiaudit_only() -> None:
     assert not _is_route_allowed("/provider/national-ext-elem", "ROLE_ORGAN_OPERATER")
 
 
-def test_reverse_catalog_wizard_manager_only() -> None:
+def test_reverse_catalog_wizard_manager_and_operater() -> None:
+    # D55/P14：操作员 + 管理员均可进反向编目向导
     assert _is_route_allowed(
         "/provider/wizard/reverse-catalog", "ROLE_ORGAN_MANAGER"
     )
-    assert not _is_route_allowed(
+    assert _is_route_allowed(
         "/provider/wizard/reverse-catalog", "ROLE_ORGAN_OPERATER"
+    )
+    # BUSIAUDIT 只审核，不进 wizard
+    assert not _is_route_allowed(
+        "/provider/wizard/reverse-catalog", "ROLE_BUSIAUDIT"
     )
 
 

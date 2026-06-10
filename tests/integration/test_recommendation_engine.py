@@ -435,7 +435,7 @@ def test_commit_rule_skill_returns_ok_and_audit_id(session):
                 "rule_id": rec.id,
                 "confirmed": True,
             },
-                     role="ROLE_ORGAN_MANAGER",
+                     role="ROLE_SYSTEM",
                  )
     finally:
         audit_bus.clear_sink()

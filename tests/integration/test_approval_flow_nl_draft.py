@@ -219,7 +219,7 @@ def test_nl_draft_skill_e2e(monkeypatch):
                 "intent_text": "3 级审批流程",
                 "created_by": "user:gov:ROLE_ORGAN_MANAGER:e2e",
             },
-                     role="ROLE_ORGAN_MANAGER",
+                     role="ROLE_SYSTEM",
                  )
     finally:
         audit_bus.clear_sink()
@@ -250,7 +250,7 @@ def test_promote_to_preview_skill_e2e(monkeypatch):
                 "intent_text": "1 级审批",
                 "created_by": "user:gov:ROLE_ORGAN_MANAGER:e2e",
             },
-                    role="ROLE_ORGAN_MANAGER",
+                    role="ROLE_SYSTEM",
                 )
         schema_id = draft["result"]["schema_id"]
         promoted = invoke_trusted(
@@ -261,7 +261,7 @@ def test_promote_to_preview_skill_e2e(monkeypatch):
                 "schema_id": schema_id,
                 "confirmed": True,
             },
-                       role="ROLE_ORGAN_MANAGER",
+                       role="ROLE_SYSTEM",
                    )
     finally:
         audit_bus.clear_sink()
@@ -288,7 +288,7 @@ def test_revert_to_draft_skill_e2e(monkeypatch):
                 "intent_text": "2 级审批",
                 "created_by": "user:gov:ROLE_ORGAN_MANAGER:e2e",
             },
-                    role="ROLE_ORGAN_MANAGER",
+                    role="ROLE_SYSTEM",
                 )
         schema_id = draft["result"]["schema_id"]
         invoke_trusted(
@@ -299,7 +299,7 @@ def test_revert_to_draft_skill_e2e(monkeypatch):
                 "schema_id": schema_id,
                 "confirmed": True,
             },
-            role="ROLE_ORGAN_MANAGER",
+            role="ROLE_SYSTEM",
         )
         reverted = invoke_trusted(
                        brain,
@@ -309,7 +309,7 @@ def test_revert_to_draft_skill_e2e(monkeypatch):
                 "schema_id": schema_id,
                 "confirmed": True,
             },
-                       role="ROLE_ORGAN_MANAGER",
+                       role="ROLE_SYSTEM",
                    )
     finally:
         audit_bus.clear_sink()
@@ -336,21 +336,21 @@ def test_promote_skill_rejects_already_preview(monkeypatch):
                 "intent_text": "2 级审批",
                 "created_by": "user:gov:ROLE_ORGAN_MANAGER:e2e",
             },
-                    role="ROLE_ORGAN_MANAGER",
+                    role="ROLE_SYSTEM",
                 )
         schema_id = draft["result"]["schema_id"]
         invoke_trusted(
             brain,
             "approval_flow.schema.promote_to_preview",
-            {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_ORGAN_MANAGER"},
-            role="ROLE_ORGAN_MANAGER",
+            {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_SYSTEM"},
+            role="ROLE_SYSTEM",
         )
         with pytest.raises(ApprovalFlowTransitionError):
             invoke_trusted(
                 brain,
                 "approval_flow.schema.promote_to_preview",
-                {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_ORGAN_MANAGER"},
-                role="ROLE_ORGAN_MANAGER",
+                {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_SYSTEM"},
+                role="ROLE_SYSTEM",
             )
     finally:
         audit_bus.clear_sink()
@@ -381,21 +381,21 @@ def test_anshan_4_level_e2e_one_sentence_to_live(monkeypatch):
                 "intent_text": intent,
                 "created_by": "user:gov:ROLE_ORGAN_MANAGER:anshan",
             },
-                    role="ROLE_ORGAN_MANAGER",
+                    role="ROLE_SYSTEM",
                 )
         schema_id = draft["result"]["schema_id"]
         assert draft["result"]["payload_summary"]["node_count"] == 6  # start + 4 approval + end
         invoke_trusted(
             brain,
             "approval_flow.schema.promote_to_preview",
-            {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_ORGAN_MANAGER"},
-            role="ROLE_ORGAN_MANAGER",
+            {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_SYSTEM"},
+            role="ROLE_SYSTEM",
         )
         committed = invoke_trusted(
                         brain,
                         "approval_flow.schema.commit",
-                        {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_ORGAN_MANAGER"},
-                        role="ROLE_ORGAN_MANAGER",
+                        {"tenant_id": "sd-default", "schema_id": schema_id, "confirmed": True, "role": "ROLE_SYSTEM"},
+                        role="ROLE_SYSTEM",
                     )
     finally:
         audit_bus.clear_sink()

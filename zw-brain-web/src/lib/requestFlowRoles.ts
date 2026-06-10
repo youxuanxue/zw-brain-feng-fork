@@ -7,8 +7,9 @@ export const FIELD_DECISION_ROLES = ['ROLE_BUSIAUDIT'] as const;
 /** 挂接审核通过（resource.asset.review 仅 BUSIAUDIT）。 */
 export const HOOKUP_REVIEW_ROLES = ['ROLE_BUSIAUDIT'] as const;
 
-/** J2 在线编制目录（catalog.entry.create_draft / update / submit_review，部门操作员）。 */
-export const INLINE_CATALOG_AUTHOR_ROLES = ['ROLE_ORGAN_OPERATER'] as const;
+/** J2 在线编制目录（catalog.entry.create_draft / update / submit_review）。
+ *  D55/P11：部门操作员 + 部门管理员（管理员经 hierarchy 有 create 权，路由也已开放）。 */
+export const INLINE_CATALOG_AUTHOR_ROLES = ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'] as const;
 
 /** 供数侧「目录/资源管理清单」（T9）只读浏览岗位：供数三岗位（部门操作员/部门管理员/业务运营员）
  *  均可按生命周期浏览本部门已编目目录 / 已挂接资源。操作员=编制者也需看本部门清单跟踪状态

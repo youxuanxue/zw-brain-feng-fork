@@ -16,8 +16,11 @@ const PAGE_MATRIX: Array<{ role: string; hash: string; heading: RegExp | string 
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider/wizard/reverse-catalog', heading: '反向编目向导' },
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider/inbox/objection', heading: '异议响应收件箱' },
   { role: 'ROLE_SECURITY_AUDIT', hash: '#/compliance-ops', heading: '合规与运营' },
-  { role: 'ROLE_BUSIAUDIT', hash: '#/integration-admin', heading: /^外部系统$/ },
-  { role: 'ROLE_BUSIAUDIT', hash: '#/integration-admin/engines', heading: '流程与表单配置' },
+  // 外部系统 / 流程与表单配置随 Wave1 收口归平台运维员独有（D55/P2·P3：业务运营员退外部系统、
+  // 流程表单配置反转 D49 收平台运维员）；矩阵行同步把驱动角色从 BUSIAUDIT 改 SYSTEM，
+  // 既修因导航收权产生的 dead-link 失败，也补上运维员后台页面的主路径渲染覆盖。
+  { role: 'ROLE_SYSTEM', hash: '#/integration-admin', heading: /^外部系统$/ },
+  { role: 'ROLE_SYSTEM', hash: '#/integration-admin/engines', heading: '流程与表单配置' },
 ];
 
 test.describe('Twin 主路径页面无占位', () => {

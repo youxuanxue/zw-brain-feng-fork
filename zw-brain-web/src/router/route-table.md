@@ -38,8 +38,9 @@
 
 | 旧 hash 路由                    | 旧 render 函数                          | 新产品页面            | 归属 |
 | ------------------------------ | ------------------------------------- | ---------------- | ---- |
-| `#/compliance-ops`             | `PAGES.complianceOps`                 | **B1.1 合规与运营**   | B1 后台 |
+| `#/compliance-ops`             | `PAGES.complianceOps`                 | **B1.1 合规与运营**（查审计：审计日志/证据回放/审计事件，业务运营员+安全审计员） | B1 后台 |
 | `#/compliance-ops/dispute/:id` | `PAGES.disputeDetail`                 | B1.1 异议详情        | B1 后台 |
+| `#/service-ops`                | `PAGES.serviceOps`                    | **B1.3 服务调用监控**（网关运行只读，平台运维员+业务运营员+管理员/审计只读，D55/P8） | B1 后台 |
 | `#/integration-admin`          | `PAGES.integrationAdmin`              | **B1.2 平台接入与扩展中心** | B1 后台 |
 | `#/integration-admin/engines`        | `PAGES.enginesAdmin`            | B1.2 三引擎配置（审批流 / 表单 / 推荐） | B1 后台 |
 | `#/integration-admin/iam-governance` | `PAGES.iamGovernance`           | B1.2 身份治理        | B1 后台 |

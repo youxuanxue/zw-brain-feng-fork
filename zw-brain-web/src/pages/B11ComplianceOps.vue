@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useAuditAccountability, useAuditAnomaly, useAuditReplay, useAuditStatistics } from '@/composables/useAuditPanels';
-import { useGatewayRuntime } from '@/composables/useGatewayRuntime';
 import { useInvestigationSummary } from '@/composables/useInvestigationSummary';
-import { getProductRole } from '@/composables/useProductRole';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DataSourceBadge from '@/components/DataSourceBadge.vue';
 import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
@@ -15,19 +13,12 @@ import {
   formatSeverity,
 } from '@/lib/auditDisplay';
 
-type PanelKind = 'replay' | 'statistics' | 'anomaly' | 'accountability' | 'gateway';
+// 查审计拆分（P8·P9，Wave1-S3）：网关运行 / 服务调用监控面已拆出独立页 B13ServiceOps.vue
+// （/service-ops，平台运维员 + 业务运营员 + 管理员/审计只读）。本页只保审计日志 / 证据回放 /
+// 审计事件面，角色门收窄到业务运营员 + 安全审计员（productShellNav compliance-ops.roles）。
+type PanelKind = 'replay' | 'statistics' | 'anomaly' | 'accountability';
 
-// 网关运行只读面板的可见角色 —— 与后端 ops.service.report.query.execute 授权集
-// 一致（zw_brain/domain/policy.py:106）。无权限即不可见：非授权角色 tab 不渲染，
-// 而非「可见但禁用」或「可见点击后 403」。
-const GATEWAY_VIEW_ROLES = ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'];
-const currentRole = getProductRole();
-const canViewGateway = computed(() => GATEWAY_VIEW_ROLES.includes(currentRole.value));
-const panelTabs = computed<PanelKind[]>(() =>
-  canViewGateway.value
-    ? ['statistics', 'anomaly', 'accountability', 'replay', 'gateway']
-    : ['statistics', 'anomaly', 'accountability', 'replay'],
-);
+const panelTabs: PanelKind[] = ['statistics', 'anomaly', 'accountability', 'replay'];
 
 const activePanel = ref<PanelKind>('statistics');
 
@@ -37,7 +28,6 @@ const replay = useAuditReplay();
 const statistics = useAuditStatistics();
 const anomaly = useAuditAnomaly();
 const accountability = useAuditAccountability();
-const gateway = useGatewayRuntime();
 const summary = useInvestigationSummary();
 
 const replayRequestId = ref('REQ-SD-GOV-001');
@@ -49,7 +39,6 @@ onMounted(() => {
   void anomaly.load();
   void accountability.load(accountActor.value);
   void replay.load(replayRequestId.value);
-  if (canViewGateway.value) void gateway.load(currentRole.value);
 });
 
 function switchPanel(p: PanelKind): void {
@@ -62,11 +51,10 @@ async function refreshActive(): Promise<void> {
   else if (activePanel.value === 'statistics') await statistics.load(statBucket.value);
   else if (activePanel.value === 'anomaly') await anomaly.load();
   else if (activePanel.value === 'accountability') await accountability.load(accountActor.value);
-  else if (activePanel.value === 'gateway') await gateway.load(currentRole.value);
 }
 
 async function runSummary(): Promise<void> {
-  if (activePanel.value === 'replay' || activePanel.value === 'gateway') {
+  if (activePanel.value === 'replay') {
     pushToast({ kind: 'info', title: '该视图不走 AI 摘要', detail: '请切到统计 / 异常 / 追责再触发摘要' });
     return;
   }
@@ -119,30 +107,6 @@ const accountabilityEmptyText = computed(() => {
   const total = accountability.data.value?.total ?? 0;
   return formatDeniedChainCount(total);
 });
-
-// 网关运行状态：后端原始枚举 → 中文展示（段 24b 禁页面裸枚举）。
-const GATEWAY_STATUS_LABELS: Record<string, string> = {
-  online: '在线',
-  warning: '降级',
-  degraded: '降级',
-  offline: '离线',
-  unknown: '未知',
-};
-function gatewayStatusLabel(s: string): string {
-  return GATEWAY_STATUS_LABELS[s] ?? '未知';
-}
-const gatewayRows = computed(() => gateway.data.value?.gateways ?? []);
-const gatewayCounts = computed(() => {
-  let online = 0;
-  let offline = 0;
-  let degraded = 0;
-  for (const g of gatewayRows.value) {
-    if (g.status === 'online') online += 1;
-    else if (g.status === 'offline') offline += 1;
-    else degraded += 1;
-  }
-  return { online, degraded, offline };
-});
 </script>
 
 <template>
@@ -166,7 +130,7 @@ const gatewayCounts = computed(() => {
             :aria-selected="activePanel === p"
             @click="switchPanel(p)"
           >
-            {{ p === 'statistics' ? '统计' : p === 'anomaly' ? '异常' : p === 'accountability' ? '追责' : p === 'replay' ? '回放' : '网关运行' }}
+            {{ p === 'statistics' ? '统计' : p === 'anomaly' ? '异常' : p === 'accountability' ? '追责' : '回放' }}
           </button>
         </nav>
         <button type="button" class="focus-tab refresh-btn" @click="refreshActive">刷新</button>
@@ -326,33 +290,6 @@ const gatewayCounts = computed(() => {
         <p v-else class="focus-prose focus-prose--muted">等待装载……</p>
       </section>
 
-      <section v-if="canViewGateway" v-show="activePanel === 'gateway'" class="focus-section">
-        <header class="focus-section-head">
-          <h2 class="focus-section-title">网关运行</h2>
-          <DataSourceBadge :source="gateway.source.value" />
-        </header>
-        <div class="gw-count-strip" role="group" aria-label="网关运行状态汇总">
-          <span class="gw-count gw-count--online"><strong>{{ gatewayCounts.online }}</strong> 在线</span>
-          <span class="gw-count gw-count--degraded"><strong>{{ gatewayCounts.degraded }}</strong> 降级</span>
-          <span class="gw-count gw-count--offline"><strong>{{ gatewayCounts.offline }}</strong> 离线</span>
-        </div>
-        <table v-if="gatewayRows.length" class="focus-ops-table">
-          <thead>
-            <tr><th>网关实例</th><th>运行模式</th><th>状态</th><th>最近心跳</th><th>来源</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="g in gatewayRows" :key="g.gateway_instance_id">
-              <td><span class="tech-id">{{ g.gateway_instance_id }}</span></td>
-              <td>{{ g.runtime_profile }}</td>
-              <td><span :class="['gw-status', `gw-status--${g.status}`]">{{ gatewayStatusLabel(g.status) }}</span></td>
-              <td>{{ g.last_reported_at }}</td>
-              <td><span class="tech-id">{{ g.source_ref }}</span></td>
-            </tr>
-          </tbody>
-        </table>
-        <p v-else class="focus-prose focus-prose--muted">暂无网关上报。</p>
-      </section>
-
       <section class="focus-section focus-section--accent">
         <header class="focus-section-head">
           <h2 class="focus-section-title">调查摘要助手 <span class="assistant-tag">AI 辅助</span></h2>
@@ -438,14 +375,4 @@ const gatewayCounts = computed(() => {
 .backlog-strip p { margin: 6px 0 0; line-height: 1.55; }
 .backlog-strip code { font-family: ui-monospace, 'SF Mono', monospace; font-size: 12px; background: #fff; padding: 1px 5px; border-radius: 3px; border: 1px solid #e4e8ef; }
 .backlog-strip em { font-style: normal; color: var(--b-primary, #006be6); }
-.gw-count-strip { display: flex; gap: 10px; margin: 12px 0; flex-wrap: wrap; }
-.gw-count { padding: 8px 14px; border-radius: 6px; font-size: 13px; background: var(--b-bg-subtle, #e8f2fc); color: var(--b-muted, #5c6370); }
-.gw-count strong { font-size: 18px; margin-right: 4px; color: var(--b-neutral-text, #1a1d21); }
-.gw-count--online { border-left: 3px solid #5cb85c; }
-.gw-count--degraded { border-left: 3px solid #f0ad4e; }
-.gw-count--offline { border-left: 3px solid #d9534f; }
-.gw-status { font-size: 12px; padding: 2px 8px; border-radius: 4px; background: var(--b-bg-subtle, #e8f2fc); }
-.gw-status--online { background: #e6f4ea; color: #1e7e34; }
-.gw-status--warning, .gw-status--degraded { background: #fcf3e3; color: #8a6d3b; }
-.gw-status--offline { background: #fdecea; color: #a02622; }
 </style>

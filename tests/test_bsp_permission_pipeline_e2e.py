@@ -200,7 +200,8 @@ def test_pipeline_dry_run_then_apply_review_and_tenant_policy() -> None:
             {
                 "capability_id": "audit.list",
                 "surface": "webui",
-                "role": "ROLE_BUSIAUDIT",
+                "role": "ROLE_SYSTEM",
+                "role_code": "ROLE_BUSIAUDIT",
                 "actor_snapshot": {
                     "subject": "iaf-sub-a",
                     "tenant_id": "sd-default",
@@ -224,7 +225,7 @@ def test_pipeline_dry_run_then_apply_review_and_tenant_policy() -> None:
                         "legacy_system": audit_candidates[0].legacy_system,
                     }
                 ],
-                "role": "ROLE_BUSIAUDIT",
+                "role": "ROLE_SYSTEM",
                 "confirmed": True,
             },
         )
@@ -236,7 +237,8 @@ def test_pipeline_dry_run_then_apply_review_and_tenant_policy() -> None:
             {
                 "capability_id": "audit.list",
                 "surface": "webui",
-                "role": "ROLE_BUSIAUDIT",
+                "role": "ROLE_SYSTEM",
+                "role_code": "ROLE_BUSIAUDIT",
                 "actor_snapshot": {
                     "subject": "iaf-sub-a",
                     "tenant_id": "sd-default",
@@ -251,7 +253,7 @@ def test_pipeline_dry_run_then_apply_review_and_tenant_policy() -> None:
 
         listed = service.invoke_skill(
             "governance.policy_candidate.list",
-            {"candidate_status": "approved", "role": "ROLE_BUSIAUDIT"},
+            {"candidate_status": "approved", "role": "ROLE_SYSTEM"},
         )
         assert listed["summary"]["total"] >= 1
         assert listed["export_report"]["total"] >= 1
@@ -285,7 +287,8 @@ def test_iam_missing_actor_fail_closed_on_policy_evaluate() -> None:
             {
                 "capability_id": "audit.list",
                 "surface": "webui",
-                "role": "ROLE_BUSIAUDIT",
+                "role": "ROLE_SYSTEM",
+                "role_code": "ROLE_BUSIAUDIT",
                 "actor_snapshot": {
                     "subject": missing.external_actor_id,
                     "tenant_id": "sd-default",

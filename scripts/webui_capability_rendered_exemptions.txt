@@ -34,15 +34,8 @@ catalog.model.upsert
 catalog.resource.bind
 catalog.schema.mapping.upsert
 catalog.share_zone.query
-compliance.case.assign
-compliance.case.close
-compliance.case.open
 compliance.case.query
-compliance.case.resolve
-compliance.investigate_case
 compliance.metric.query
-compliance.rule.configure
-compliance.signal.ingest
 delivery.access.grant
 delivery.exchange.plan
 delivery.exchange.publish
@@ -93,8 +86,6 @@ resource.api.policy.update
 resource.api.revoke
 resource.asset.publish
 resource.manage_asset
-risk.event.ingest
-security.scan.result.sync
 service.rating.submit
 subscription.terminate
 summary.confirm

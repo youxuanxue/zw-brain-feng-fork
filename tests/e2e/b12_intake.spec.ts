@@ -7,7 +7,8 @@ test.describe('B1.2 外部系统模块 e2e（接入扩展中心容器已解体�
     page.on('dialog', (dialog) => dialog.accept());
     await page.goto('/');
     await waitAppReady(page);
-    await setRole(page, 'ROLE_BUSIAUDIT');
+    // D55/P2：外部系统模块归平台运维员独有，业务运营员退出（见末尾 OPERATER 无权用例同源守卫）。
+    await setRole(page, 'ROLE_SYSTEM');
     await gotoHash(page, '#/integration-admin');
   });
 

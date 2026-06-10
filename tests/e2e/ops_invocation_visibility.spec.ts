@@ -97,25 +97,26 @@ test.describe('ops-service-invocation 调用记录段 no-permission=invisible', 
 
     const shotDir = process.env.ZW_E2E_SHOT_DIR || '/tmp/zw-e2e-shots';
 
-    // 授权岗位：凭据页加载 + 「调用记录」段渲染。
-    // D53⑥（F1/6.4#15）：领数据/凭据页收窄到「部门管理员 + 安全审计」——BUSIAUDIT（业务运营员）
-    // 已无该场景、路由层不可达，从授权岗位集合移除。
-    for (const role of ['ROLE_ORGAN_MANAGER', 'ROLE_SECURITY_AUDIT']) {
-      await setRole(page, role);
-      await gotoHash(page, `#/delivery-exchange/credential/${reqId}`);
-      await expect(page.getByRole('heading', { name: credHeading })).toBeVisible();
-      await expect(page.getByRole('heading', { name: '调用记录' })).toBeVisible({ timeout: 10_000 });
-      if (role === 'ROLE_ORGAN_MANAGER') {
-        await page.screenshot({ path: `${shotDir}/ops-invocations-MANAGER-visible.png`, fullPage: true });
-      }
-    }
+    // 授权岗位（部门管理员）：凭据页 + 「调用记录」段渲染。D55/P13·P18（反转 D53/F1）：领数据/凭据页
+    // 收窄到「部门操作员 + 部门管理员」、安全审计员退出领数据。领数据可达两岗位中，仅部门管理员
+    // 同时具备 ops.service.invocation.query（部门操作员后端 403）→ 唯一同时能进页 + 看「调用记录」段。
+    await setRole(page, 'ROLE_ORGAN_MANAGER');
+    await gotoHash(page, `#/delivery-exchange/credential/${reqId}`);
+    await expect(page.getByRole('heading', { name: credHeading })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '调用记录' })).toBeVisible({ timeout: 10_000 });
+    await page.screenshot({ path: `${shotDir}/ops-invocations-MANAGER-visible.png`, fullPage: true });
 
-    // 申请人 OPERATER：D53⑥ 后经部门管理员承接、不再进入领数据——凭据页 +「调用记录」段
-    // 对其整体不可达（路由层重定向，比页内 v-if 更强；「无权=不可见」在更外层兑现）。
+    // 申请人 OPERATER：D55 后可进领数据/凭据页，但无 ops.service.invocation.query（后端 403）→
+    // 「调用记录」段须从 DOM 消失（段级 no-permission=invisible，非「可见但内含 403」）。
     await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, `#/delivery-exchange/credential/${reqId}`);
-    await expect(page.getByRole('heading', { name: credHeading })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: credHeading })).toBeVisible();
     await expect(page.getByRole('heading', { name: '调用记录' })).toHaveCount(0);
-    await page.screenshot({ path: `${shotDir}/ops-invocations-OPERATER-invisible.png`, fullPage: true });
+    await page.screenshot({ path: `${shotDir}/ops-invocations-OPERATER-section-invisible.png`, fullPage: true });
+
+    // 安全审计员 SECURITY_AUDIT：D55/P18 退出领数据 → 凭据页整体路由层不可达（页级 no-permission=invisible）。
+    await setRole(page, 'ROLE_SECURITY_AUDIT');
+    await gotoHash(page, `#/delivery-exchange/credential/${reqId}`);
+    await expect(page.getByRole('heading', { name: credHeading })).toHaveCount(0);
   });
 });

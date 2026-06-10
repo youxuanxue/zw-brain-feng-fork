@@ -1,0 +1,11 @@
+slug: security-audit-readonly-d55
+title: "合规调查/风险处置写权随安全管理员退役 + 安全审计员只读化本期退役（D55/P22）"
+date: 2026-06-09
+severity: medium
+owner: 产品研发负责人
+trigger: "数据安全中心立项（分类分级 / 敏感识别 / 脱敏 / 密钥 / 风险处置 / 资产透视五大模块）→ 恢复合规调查/风险处置写权能力：compliance.investigate_case / compliance.signal.ingest / risk.event.ingest / compliance.rule.configure / compliance.case.open|assign|resolve|close / security.scan.result.sync 的 manifest product_scope.status 从 deferred:wave-1 恢复 live + PERMISSION_ROLES 重新授予承做角色（届时由数据安全中心 SPEC 角色定义，安全审计员仍仅只读 case.query/metric.query）。安全审计员收敛纯只读（D55/P22 docx「无任何写操作权限」）：本期已清异议写/合规写/谱系质量 upsert/projection 同步/legacy 映射导入/熔断写权，工单巡检改派平台运维员（ROLE_SYSTEM）；恢复需业务方重新 sign-off 审计员是否承担任何写动作。"
+assert:
+  # 纯立项/业务决策门延后（数据安全中心五大模块本期未实现，合规调查/风险处置无人承做）；
+  # 安全审计员转纯只读监督者后，原 {SECURITY_AUDIT} 独有写能力退役、散写动作去 SECURITY_AUDIT。
+  # 无 code 条件可断言；trigger 触发即升级（external 须 owner+trigger）。
+  kind: external

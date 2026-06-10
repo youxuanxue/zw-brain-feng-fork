@@ -20,7 +20,10 @@ const { source } = useSnapshot();
 const role = getProductRole();
 const selectedCatalogId = ref('');
 
-const canCreateDraft = computed(() => role.value === 'ROLE_ORGAN_MANAGER');
+// 操作员 + 管理员均可发起反向编目草稿（v5 旧平台口径，permission-realignment）
+const canCreateDraft = computed(() =>
+  role.value === 'ROLE_ORGAN_OPERATER' || role.value === 'ROLE_ORGAN_MANAGER',
+);
 
 const catalogs = computed(() => {
   const list = (provider.value.catalogs as unknown[] | undefined) ?? [];

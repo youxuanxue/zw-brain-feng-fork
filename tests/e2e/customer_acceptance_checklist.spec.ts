@@ -187,12 +187,14 @@ test.describe('客户验收 — 业务运营 P5 发布', () => {
   });
 });
 
-test.describe('客户验收 — 业务运营 B1', () => {
+test.describe('客户验收 — 平台运维员 B1', () => {
+  // D55/P2·P3·P4：后台 B1.2（外部系统 / 流程与表单配置 / 身份治理）归平台运维员独有，
+  // 业务运营员退出（见末尾「业务运营员无权进 B1.2」收权用例同源守卫）。
   test.beforeEach(async ({ page }, testInfo) => {
     await skipUnlessBackend(page, testInfo);
     await page.goto('/');
     await waitAppReady(page);
-    await setRole(page, 'ROLE_BUSIAUDIT');
+    await setRole(page, 'ROLE_SYSTEM');
   });
 
   test('身份治理独立左导航可达（Q1 裁决：不再寄居接入中心 tab 栏）', async ({ page }) => {
@@ -223,6 +225,14 @@ test.describe('客户验收 — 业务运营 B1', () => {
     expect(page.url()).not.toMatch(/#\/integration-admin\/iam-governance/);
   });
 
+  test('B1.2 业务运营员无权进 B1.2（D55/P2·P4 收权）', async ({ page }) => {
+    // 收权实证：外部系统 / 身份治理 D55 归平台运维员独有，业务运营员被路由守卫踢出（无权=不可见）。
+    await setRole(page, 'ROLE_BUSIAUDIT');
+    await gotoHash(page, '#/integration-admin');
+    await page.waitForTimeout(1000);
+    expect(page.url()).not.toMatch(/#\/integration-admin/);
+  });
+
   test('B1.2 流程与表单配置子页可达（去黑话：无三引擎/Wave 字样）', async ({ page }) => {
     await gotoHash(page, '#/integration-admin/engines');
     await expect(page.getByRole('heading', { name: '流程与表单配置' })).toBeVisible();
@@ -246,29 +256,5 @@ test.describe('客户验收 — 安全审计 B1.1', () => {
   });
 });
 
-test.describe('客户验收 — P7 专题', () => {
-  test('专题订阅按钮可用', async ({ page }, testInfo) => {
-    await skipUnlessBackend(page, testInfo);
-    await page.goto('/');
-    await waitAppReady(page);
-    await setRole(page, 'ROLE_ORGAN_OPERATER');
-    await gotoHash(page, '#/zones-pack');
-    await expect(page.getByRole('heading', { name: /共享专区|专题包/ })).toBeVisible();
-    // V1 起订阅持久化：未订阅的专题按钮可点订阅，已订阅的按钮置灰显示「已订阅」。
-    // 优先点一个还可订阅的；若全部已订阅（库被前序测试订过），则验证「已订阅」诚实回显。
-    // 列表投影较重（87 published 专题包，detail 级投影 ~1.4s），先等任一订阅态按钮
-    // 渲染再分支——否则 count() 在列表加载完成前快照即取 0（原 race，与 helpers 去脆无关）。
-    await expect(page.getByRole('button', { name: /订阅专题|已订阅/ }).first()).toBeVisible({
-      timeout: 15_000,
-    });
-    const subscribeBtn = page.getByRole('button', { name: '订阅专题' }).first();
-    if (await subscribeBtn.count() > 0) {
-      await subscribeBtn.click();
-      // 行为断言（去硬编码 toast 文案）：订阅后该专题持久置为「已订阅」态，
-      // 而非断言一闪而过的 toast 文字（05-31 复核：唯一真 test-brittle）。
-      await expect(page.getByRole('button', { name: '已订阅' }).first()).toBeVisible({ timeout: 8_000 });
-    } else {
-      await expect(page.getByRole('button', { name: '已订阅' }).first()).toBeVisible();
-    }
-  });
-});
+// 「客户验收 — P7 专题」describe 随专题包整面退出本期而移除（D55/P6，#235）：
+// #/zones-pack 路由已下线、订阅按钮无渲染面，验收项一并退役（待专题包复活时恢复）。

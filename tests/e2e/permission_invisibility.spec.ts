@@ -23,15 +23,15 @@ test.describe('权限不可见 共性回归', () => {
     await waitAppReady(page);
   });
 
-  test('P4Credential 重新签发：SECURITY_AUDIT 不渲染 / MANAGER 可见', async ({ page }) => {
-    // D53⑥（F1/6.4#15）：交付/凭据页归「部门管理员 + 安全审计」（OPERATER 路由层重定向，已无此页）。
-    // 重新签发(credential.issue) 仅 MANAGER+BUSIAUDIT → 同样能进此页的 SECURITY_AUDIT（只读）应无此按钮，
-    // MANAGER 可见。这才是当前角色模型下「同页 / 写按钮按权可见」的有效对照。
+  test('P4Credential 重新签发：OPERATER 不渲染 / MANAGER 可见', async ({ page }) => {
+    // D55/P13·P18（反转 D53/F1）：领数据/凭据页归「部门操作员 + 部门管理员」，安全审计员退出领数据
+    // （路由层重定向、已无此页）。重新签发(credential.issue) 仅 MANAGER+BUSIAUDIT → 同样能进此页的
+    // 部门操作员（只读）应无此按钮，MANAGER 可见。这是当前角色模型下「同页 / 写按钮按权可见」的有效对照。
     await setRole(page, 'ROLE_ORGAN_MANAGER');
     const reqId = await firstDeliveryRequestId(page, 'granted');
     test.skip(!reqId, 'no granted delivery_task with credential');
 
-    await setRole(page, 'ROLE_SECURITY_AUDIT');
+    await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, `#/delivery-exchange/credential/${reqId}`);
     await expect(page.getByRole('heading', { name: new RegExp(`${reqId}.*凭据`) })).toBeVisible();
     await expect(page.getByRole('button', { name: '重新签发' })).toHaveCount(0);

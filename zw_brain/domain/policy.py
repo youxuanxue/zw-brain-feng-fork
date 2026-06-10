@@ -35,9 +35,11 @@ PERMISSION_ROLES = {
     "system.schema_info.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM", "admin"},
 
     # J1 找数→用数：检索/详情/列表
-    "data.search.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    # F6 P2 搜索上下文助手 — 同 data.search 4 角色 read 权限
-    "search.intent.parse.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # D55/P17：安全审计员非数据使用方（旧平台 v5 安全审计员无找数据菜单），Wave 1/S5 收敛纯只读
+    # 监督者后退出找数据全链（data.search / search.intent.parse / catalog.resource_view / .list）。
+    "data.search.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    # F6 P2 搜索上下文助手 — 同 data.search read 权限
+    "search.intent.parse.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     # 平台文档问答（内置 zw-platform-guide Agent）
     "platform.docs.search.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"},
     "platform.docs.read.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"},
@@ -45,35 +47,41 @@ PERMISSION_ROLES = {
     "application.draft.suggest.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     # F7 P3 审批依据助手 — 审批人 + 主管部门 + 审计员 read
     "approval.evidence.summarize.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    # F8 P4 状态解释助手 — 同 delivery.view 4 角色 read
-    "delivery.status.explain.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "catalog.resource_view.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "catalog.resource.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # F8 P4 状态解释助手 — 同 delivery.view 口径（D55/P13：领数据回归操作员+管理员）
+    "delivery.status.explain.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    # D55/P17：找数据详情/列表随安全审计员退出找数据而去 SECURITY_AUDIT。
+    "catalog.resource_view.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "catalog.resource.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "request.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
     "request.view.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
     "approval.view.execute": {"ROLE_ORGAN_MANAGER"},
-    "delivery.list.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "delivery.view.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # D55/P13：领数据回归部门操作员+部门管理员（反转 D53/F1 收窄）；P18 安全审计员退领数据
+    "delivery.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    "delivery.view.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
     "provider.view.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
 
     # B1.1 异议/审计/合规
     "governance.dispute_list.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "governance.dispute_view.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "governance.iam_overview.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "governance.policy_candidate.list.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "governance.policy_candidate.review.execute": {"ROLE_BUSIAUDIT"},
-    "audit.replay_evidence_chain.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "audit.list.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    # F4 5 类投影状态聚合（业务运营员 / 安全审计员 看投影 pipeline 健康度）
+    # 身份治理归平台运维员（D55/P4，Wave1-S1）：IAM 治理 = 平台运维员独有。
+    "governance.iam_overview.execute": {"ROLE_SYSTEM"},
+    "governance.policy_candidate.list.execute": {"ROLE_SYSTEM"},
+    "governance.policy_candidate.review.execute": {"ROLE_SYSTEM"},
+    # 查审计拆分（D55/P8·P9，Wave1-S3）：审计日志/证据回放面收窄到「业务运营员 + 安全审计员」。
+    # 部门管理员（MANAGER）退审计日志（P9）；平台运维员（SYSTEM）退审计日志、保服务调用监控（P8）。
+    "audit.replay_evidence_chain.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "audit.list.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # F4 5 类投影状态聚合（投影 pipeline 健康度）——非审计日志面，本流不动（D55/P8·P9）。
     "projection.status.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    # F2: 正规化审计事件流的查询 + 回放面（安全审计员 / 主管部门 / 系统）
-    "audit.event.query.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT", "ROLE_SYSTEM"},
-    "audit.event.replay.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT", "ROLE_SYSTEM"},
+    # F2: 正规化审计事件流的查询 + 回放面（安全审计员 / 业务运营员）。
+    # 平台运维员（SYSTEM）退审计事件面（D55/P8），不再随审计日志可见。
+    "audit.event.query.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT"},
+    "audit.event.replay.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT"},
     # F3-backend: B1.1 4 panel 后端 capability + 调查摘要助手
-    "audit.event.statistics.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT", "ROLE_SYSTEM"},
-    "audit.event.anomaly.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT", "ROLE_SYSTEM"},
-    "audit.event.accountability.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT", "ROLE_SYSTEM"},
-    "assistant.investigation_summary.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT", "ROLE_SYSTEM"},
+    "audit.event.statistics.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT"},
+    "audit.event.anomaly.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT"},
+    "audit.event.accountability.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT"},
+    "assistant.investigation_summary.execute": {"ROLE_SECURITY_AUDIT", "ROLE_BUSIAUDIT"},
 
     # 区划只读
     "zone.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
@@ -104,17 +112,20 @@ PERMISSION_ROLES = {
     "supplement.submit.execute": {"ROLE_ORGAN_OPERATER"},
     "summary.confirm.execute": {"ROLE_ORGAN_MANAGER"},
     "backflow.confirm.execute": {"ROLE_ORGAN_MANAGER"},
-    "delivery.reconcile_receipt.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    # F4 文件资源下载：与交付/对账同口径放给办理侧 4 角色（部门管理员牵头领数，操作员/审计可见）。
-    "delivery.file.download.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # D55/P18：安全审计员退领数据，对账/下载收窄到操作员+管理员+业务运营员
+    "delivery.reconcile_receipt.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    # F4 文件资源下载：与对账同口径（D55/P18 去 SECURITY_AUDIT）
+    "delivery.file.download.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "delivery.trigger_recovery.execute": {"ROLE_ORGAN_MANAGER"},
     "service.publish_or_suspend.execute": {"ROLE_ORGAN_MANAGER"},
 
     # 运维侧网关/调用监控
     "ops.gateway.heartbeat.ingest.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},
     "ops.gateway.log.anchor.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},
-    "ops.service.invocation.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "ops.service.report.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # 服务调用监控（D55/P8，Wave1-S3）：平台运维员保留服务调用监控（v5 服务调用日志 = 平台运维员 +
+    # 业务运营员），故补 ROLE_SYSTEM；部门管理员 / 安全审计员保留只读（v5 监控只读）。
+    "ops.service.invocation.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"},
+    "ops.service.report.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"},
 
     # API 资源全生命周期 —— 角色口径以旧平台角色菜单 v5 + D54 GATE-1 为准（产品研发负责人 2026-06-08 sign-off，
     # .testing/signoff/feedback-0605-acceptance-gate.signoff.yaml）：
@@ -188,7 +199,8 @@ PERMISSION_ROLES = {
     # J1 凭据签发 — 审批通过自动触发；手工补签由审批人/主管部门触发
     "credential.issue.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     # J1 凭据查询 — 申请人 P4 凭据领取页 + 审批人 / 主管部门 / 审计员
-    "credential.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # D55/P18：安全审计员退出凭据查询（领数据口径统一）
+    "credential.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     # F5 凭据三语调用样例渲染 — 收敛到 credential 自然生命周期角色（principle of least privilege；
     # 样例含 app_secret 明文，审计角色 BUSIAUDIT / SECURITY_AUDIT 通过 credential.query 元数据
     # + audit_event 验证签发，不需要 copy-paste 样例）。MANAGER 通过 ROLE_HIERARCHY 继承获得。
@@ -204,15 +216,16 @@ PERMISSION_ROLES = {
 
     # 目录/模型 upsert（J2 主线）
     # PR #60 后修复：BUSIAUDIT 主管部门作为平台运营方，需要直接管理目录（特别是审计/合规视角的目录管理）
-    "catalog.manage_entry.execute": {"ROLE_ORGAN_OPERATER", "ROLE_BUSIAUDIT"},
+    "catalog.manage_entry.execute": {"ROLE_ORGAN_OPERATER"},
     "catalog.model.upsert.execute": {"ROLE_ORGAN_OPERATER"},
     "catalog.schema.mapping.upsert.execute": {"ROLE_ORGAN_OPERATER"},
     "metadata.schema.snapshot.upsert.execute": {"ROLE_ORGAN_OPERATER"},
     "metadata.gather.evidence.upsert.execute": {"ROLE_ORGAN_OPERATER"},
-    "metadata.lineage.upsert.execute": {"ROLE_ORGAN_OPERATER", "ROLE_SECURITY_AUDIT"},
-    "ops.catalog.quality.upsert.execute": {"ROLE_ORGAN_OPERATER", "ROLE_SECURITY_AUDIT"},
+    # D55/P22：安全审计员收敛纯只读，移除谱系/质量 upsert 写权（保留 OPERATER 编制侧）。
+    "metadata.lineage.upsert.execute": {"ROLE_ORGAN_OPERATER"},
+    "ops.catalog.quality.upsert.execute": {"ROLE_ORGAN_OPERATER"},
     # PR #60 后修复：BUSIAUDIT 主管部门需要直接管理资产
-    "resource.manage_asset.execute": {"ROLE_ORGAN_OPERATER", "ROLE_BUSIAUDIT"},
+    "resource.manage_asset.execute": {"ROLE_ORGAN_OPERATER"},
 
     # 共享专题/能力包
     # 专题包退出本期（D55/P6），保留 capability 注册与数据，仅去角色授权与入口。
@@ -232,31 +245,31 @@ PERMISSION_ROLES = {
     "package.apply_tenant_policy.execute": {"ROLE_BUSIAUDIT"},
     "package.configure_exposure.execute": {"ROLE_BUSIAUDIT"},
 
-    # E3 Wave-2 三引擎 — 审批流模板入库（项目级管理员）
-    "approval_flow.schema.commit.execute": {"ROLE_ORGAN_MANAGER"},
-    # E3 Wave-2 三引擎 — 审批流 NL 草稿 + 三步流程（项目级管理员）
-    "approval_flow.nl_draft.execute": {"ROLE_ORGAN_MANAGER"},
-    "approval_flow.schema.promote_to_preview.execute": {"ROLE_ORGAN_MANAGER"},
-    "approval_flow.schema.revert_to_draft.execute": {"ROLE_ORGAN_MANAGER"},
-    # E3 Wave-2 三引擎 — 表单模板入库（项目级管理员）
-    "form_schema.commit.execute": {"ROLE_ORGAN_MANAGER"},
-    # E3 Wave-2 三引擎 — 表单 NL 草稿 + 三步流程（项目级管理员）
-    "form_schema.nl_draft.execute": {"ROLE_ORGAN_MANAGER"},
-    "form_schema.promote_to_preview.execute": {"ROLE_ORGAN_MANAGER"},
-    "form_schema.revert_to_draft.execute": {"ROLE_ORGAN_MANAGER"},
-    # E3 Wave-2 三引擎 — 推荐规则入库（项目级管理员）+ J1 申请前置目录推荐（用户面）
-    "recommendation.rule.commit.execute": {"ROLE_ORGAN_MANAGER"},
+    # E3 Wave-2 三引擎 — 审批流模板入库（平台运维员；D55/P3 反转 D49 配置角色：项目级管理员→平台运维员）
+    "approval_flow.schema.commit.execute": {"ROLE_SYSTEM"},
+    # E3 Wave-2 三引擎 — 审批流 NL 草稿 + 三步流程（平台运维员）
+    "approval_flow.nl_draft.execute": {"ROLE_SYSTEM"},
+    "approval_flow.schema.promote_to_preview.execute": {"ROLE_SYSTEM"},
+    "approval_flow.schema.revert_to_draft.execute": {"ROLE_SYSTEM"},
+    # E3 Wave-2 三引擎 — 表单模板入库（平台运维员）
+    "form_schema.commit.execute": {"ROLE_SYSTEM"},
+    # E3 Wave-2 三引擎 — 表单 NL 草稿 + 三步流程（平台运维员）
+    "form_schema.nl_draft.execute": {"ROLE_SYSTEM"},
+    "form_schema.promote_to_preview.execute": {"ROLE_SYSTEM"},
+    "form_schema.revert_to_draft.execute": {"ROLE_SYSTEM"},
+    # E3 Wave-2 三引擎 — 推荐规则入库（平台运维员）+ J1 申请前置目录推荐（用户面）
+    "recommendation.rule.commit.execute": {"ROLE_SYSTEM"},
     "recommendation.similar_catalog.suggest.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
 
-    # 合规 / 风险事件（SECURITY_AUDIT 主面）
-    "compliance.investigate_case.execute": {"ROLE_SECURITY_AUDIT"},
-    "compliance.signal.ingest.execute": {"ROLE_SECURITY_AUDIT"},
-    "risk.event.ingest.execute": {"ROLE_SECURITY_AUDIT"},
-    "compliance.rule.configure.execute": {"ROLE_SECURITY_AUDIT"},
-    "compliance.case.open.execute": {"ROLE_SECURITY_AUDIT"},
-    "compliance.case.assign.execute": {"ROLE_SECURITY_AUDIT"},
-    "compliance.case.resolve.execute": {"ROLE_SECURITY_AUDIT"},
-    "compliance.case.close.execute": {"ROLE_SECURITY_AUDIT"},
+    # 合规 / 风险事件 — 合规调查/风险处置写权随安全管理员退役 + 安全审计员收敛纯只读而本期退役
+    # （D55/P22）。这些写 capability 原 {SECURITY_AUDIT} 独有；安全审计员转纯只读后无人承做，
+    # 按 Wave 0 topic.package 模式退役：PERMISSION_ROLES 移除该 key + manifest product_scope.status
+    # 置 deferred → enforce_manifest_policy 对全角色 fail-closed（无人可调），保注册保数据待
+    # 数据安全中心立项恢复。retired keys（PERMISSION_ROLES 不再授予任何角色）：
+    #   compliance.investigate_case / compliance.signal.ingest / risk.event.ingest /
+    #   compliance.rule.configure / compliance.case.open / compliance.case.assign /
+    #   compliance.case.resolve / compliance.case.close
+    # 保留只读（安全审计员可读合规态，不动）：compliance.case.query / compliance.metric.query。
     "compliance.case.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "compliance.metric.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
 
@@ -264,23 +277,26 @@ PERMISSION_ROLES = {
     # PR #60 后修复：SECURITY_AUDIT 审计读取数据标准建议是合规场景刚需
     # standard.asset.recommend：去 SECURITY_ADMIN 后仍剩 MANAGER+BUSIAUDIT+SECURITY_AUDIT，未变空。
     "standard.asset.recommend.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    # security.scan.result.sync：去 SECURITY_ADMIN 后留 SECURITY_AUDIT（P22 后续 Wave 再校正），未变空。
-    "security.scan.result.sync.execute": {"ROLE_SECURITY_AUDIT"},
+    # security.scan.result.sync：原 {SECURITY_AUDIT}；D55/P22 安全审计员收敛纯只读后无人承做，
+    # 随数据安全中心退役（PERMISSION_ROLES 移除 key + manifest 置 deferred，全角色 fail-closed）。
 
     # adapter 健康
     "adapter.health.probe.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
 
-    # 异议（合规 + 部门 + 平台）
-    "objection.case.create.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "objection.case.submit.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "objection.case.accept.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "objection.case.reject.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "objection.case.assign.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "objection.case.reply.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "objection.case.review.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "objection.case.evaluate.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "objection.case.escalate.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "objection.case.close.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # 异议（业务运营员 + 部门管理员/操作员）
+    # D55/P22：安全审计员收敛纯只读，移除异议全部写动作（create/submit/accept/reject/assign/
+    # reply/review/evaluate/escalate/close 各去 SECURITY_AUDIT，去后非空）；保留 objection.case.query
+    # / objection.process.query / objection.metric.query 只读（审计可读异议态，不动）。
+    "objection.case.create.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "objection.case.submit.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "objection.case.accept.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "objection.case.reject.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "objection.case.assign.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "objection.case.reply.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "objection.case.review.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "objection.case.evaluate.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "objection.case.escalate.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "objection.case.close.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "objection.case.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "demand.register.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "demand.phase.advance.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
@@ -305,33 +321,35 @@ PERMISSION_ROLES = {
     "application.escalate_national.execute": {"ROLE_BUSIAUDIT"},
 
     # adapter 级联消费
-    "adapter.cascade.consume.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "adapter.cascade.replay.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "adapter.cascade.health.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "adapter.external.mapping.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "adapter.cascade.consume.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},
+    "adapter.cascade.replay.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},
+    "adapter.cascade.health.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},
+    "adapter.external.mapping.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},
 
     # 租户策略
-    "tenant.policy.evaluate.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    "tenant.policy.evaluate.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"},
 
     # 组织/Actor projection（IAM 同步）
-    "org.projection.sync.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "actor.projection.sync.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "system"},
+    # D55/P22：安全审计员收敛纯只读，移除 projection 同步写权（保留 BUSIAUDIT / system）。
+    "org.projection.sync.execute": {"ROLE_BUSIAUDIT"},
+    "actor.projection.sync.execute": {"ROLE_BUSIAUDIT", "system"},
 
     # 旧 BSP / sharezone 映射导入
-    "legacy.bsp.mapping.import.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "legacy.sharezone.mapping.import.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # D55/P22：安全审计员收敛纯只读，移除 legacy 映射导入写权（保留 BUSIAUDIT）。
+    "legacy.bsp.mapping.import.execute": {"ROLE_BUSIAUDIT"},
+    "legacy.sharezone.mapping.import.execute": {"ROLE_BUSIAUDIT"},
 
     # M0 实施工程师专用（admin 主用；BUSIAUDIT/SECURITY_AUDIT 验收日代看）
     "legacy.migration.status.query.execute": {"admin", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
 
-    # 反向编目（J2）— ROLE_ORGAN_MANAGER + ROLE_BUSIAUDIT 主导（OPERATER 通过 ROLE_HIERARCHY 隐式获得 suggest/create）
-    "catalog.entry.reverse_draft.suggest.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    "catalog.entry.reverse_draft.create.execute": {"ROLE_ORGAN_MANAGER"},
+    # 反向编目（J2）— 部门操作员 + 部门管理员发起，BUSIAUDIT 审核（v5 旧平台口径，D55/P14）
+    "catalog.entry.reverse_draft.suggest.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "catalog.entry.reverse_draft.create.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
     "catalog.entry.reverse_draft.confirm.execute": {"ROLE_BUSIAUDIT"},
     "catalog.entry.reverse_draft.reject.execute": {"ROLE_BUSIAUDIT"},
 
-    # schema 发现 — 反向编目入口；提供方部门管理员 + 平台主管部门可拉取候选 schema
-    "metadata.schema.discover.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    # schema 发现 — 反向编目入口；操作员 + 管理员 + 业务运营员可拉取候选 schema（D55/P14）
+    "metadata.schema.discover.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
 
     # 质量规则与任务（D27 #14：仅旁路；不进 J1/J2 主线）
     "quality.rule.upsert.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
@@ -348,7 +366,8 @@ PERMISSION_ROLES = {
 
     # 交付替换/取消 / 订阅终止
     "delivery.replace_or_cancel.execute": {"ROLE_ORGAN_MANAGER"},
-    "subscription.terminate.execute": {"ROLE_ORGAN_MANAGER"},
+    # D55/P13：订阅终止加操作员（领数据回归操作员+管理员）
+    "subscription.terminate.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
 
     # 专题包（共享专区）退出本期（D55/P6）：保留 capability 注册与数据，仅去角色授权与入口。
     # 各 manifest 仍声明对应 permission，但 PERMISSION_ROLES 不再授予任何角色 →
@@ -386,10 +405,11 @@ PERMISSION_ROLES = {
     # 服务评价
     "service.rating.submit.execute": {"ROLE_ORGAN_OPERATER"},
 
-    # 工单（合规/督查侧）
-    "ops.ticket.create.execute": {"ROLE_SECURITY_AUDIT"},
-    "ops.ticket.close.execute": {"ROLE_SECURITY_AUDIT"},
-    "ops.shift_handover.submit.execute": {"ROLE_SECURITY_AUDIT"},
+    # 工单 / 巡检（运维侧）
+    # D55/P22·P23：安全审计员收敛纯只读，工单创建/关闭与值班巡检改派平台运维员（ROLE_SYSTEM）。
+    "ops.ticket.create.execute": {"ROLE_SYSTEM"},
+    "ops.ticket.close.execute": {"ROLE_SYSTEM"},
+    "ops.shift_handover.submit.execute": {"ROLE_SYSTEM"},
 
     # 需求登记（D27 #6 智能推荐前置，下期实施）
     "require.intent.submit.execute": {"ROLE_ORGAN_OPERATER"},
@@ -398,8 +418,10 @@ PERMISSION_ROLES = {
     "require.resource.match.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
 
     # 订阅管理 / 应急熔断
-    "delivery.subscription.manage.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    "system.toggle_outage.execute": {"ROLE_SYSTEM", "ROLE_SECURITY_AUDIT"},
+    # D55/P13：订阅管理回归操作员+管理员（去 BUSIAUDIT，加 OPERATER，Wave1-S4）
+    "delivery.subscription.manage.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    # D55/P22：应急熔断为写操作，安全审计员收敛纯只读后退出，归平台运维员（Wave1-S5）。
+    "system.toggle_outage.execute": {"ROLE_SYSTEM"},
 
     # 标签位（依附 ORGAN_MANAGER + tag_lead_dept）— D27 #11 处置
     "catalog.lead_dept_topic_review.execute": {"ROLE_ORGAN_MANAGER"},  # 运行时再校验 tag_lead_dept

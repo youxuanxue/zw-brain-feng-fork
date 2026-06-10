@@ -53,7 +53,7 @@ def test_list_policy_candidates_filters_by_status() -> None:
 
         listed = service.invoke_skill(
             "governance.policy_candidate.list",
-            {"candidate_status": "pending_review", "role": "ROLE_BUSIAUDIT"},
+            {"candidate_status": "pending_review", "role": "ROLE_SYSTEM"},
         )
         assert listed["summary"]["total"] == 1
         assert listed["items"][0]["legacy_permission_ref"] == "FUNC_A"
@@ -93,14 +93,19 @@ def test_approve_alone_does_not_enable_tenant_policy() -> None:
                 ],
                 "confirmed": True,
             },
-            role="ROLE_BUSIAUDIT",
+            role="ROLE_SYSTEM",
         )
         assert reviewed["result"]["summary"]["success_count"] == 1
         assert reviewed["audit_id"]
 
         denied = service.invoke_skill(
             "tenant.policy.evaluate",
-            {"capability_id": "zone.publish_topic_projection", "surface": "webui", "role": "ROLE_BUSIAUDIT"},
+            {
+                "capability_id": "zone.publish_topic_projection",
+                "surface": "webui",
+                "role": "ROLE_SYSTEM",
+                "role_code": "ROLE_BUSIAUDIT",
+            },
         )
         assert denied["allowed"] is False
         assert denied["decision_reason"] == "missing_tenant_policy"
@@ -139,7 +144,7 @@ def test_approve_and_apply_enables_tenant_policy_with_audit() -> None:
                 ],
                 "confirmed": True,
             },
-            role="ROLE_BUSIAUDIT",
+            role="ROLE_SYSTEM",
         )
         assert reviewed["audit_id"]
         assert reviewed["result"]["summary"]["applied_policy_count"] == 1
@@ -147,7 +152,12 @@ def test_approve_and_apply_enables_tenant_policy_with_audit() -> None:
 
         allowed = service.invoke_skill(
             "tenant.policy.evaluate",
-            {"capability_id": "zone.publish_topic_projection", "surface": "webui", "role": "ROLE_BUSIAUDIT"},
+            {
+                "capability_id": "zone.publish_topic_projection",
+                "surface": "webui",
+                "role": "ROLE_SYSTEM",
+                "role_code": "ROLE_BUSIAUDIT",
+            },
         )
         assert allowed["allowed"] is True
         assert allowed["source"] == "tenant_capability_policy"
@@ -165,7 +175,7 @@ def test_review_requires_confirmation() -> None:
                     "items": [{"legacy_permission_ref": "X", "capability_id": "audit.list"}],
                     "confirmed": False,
                 },
-                role="ROLE_BUSIAUDIT",
+                role="ROLE_SYSTEM",
             )
 
 
@@ -197,7 +207,7 @@ def test_reject_blocks_apply() -> None:
                 "items": [{"legacy_permission_ref": "dsp-bsp:deny", "capability_id": "audit.list"}],
                 "confirmed": True,
             },
-            role="ROLE_BUSIAUDIT",
+            role="ROLE_SYSTEM",
         )
         applied = invoke_trusted(
             service,
@@ -207,7 +217,7 @@ def test_reject_blocks_apply() -> None:
                 "items": [{"legacy_permission_ref": "dsp-bsp:deny", "capability_id": "audit.list"}],
                 "confirmed": True,
             },
-            role="ROLE_BUSIAUDIT",
+            role="ROLE_SYSTEM",
         )
         assert applied["result"]["items"][0]["result"] == "failed"
         assert applied["result"]["items"][0]["reason"] == "candidate_not_approved"

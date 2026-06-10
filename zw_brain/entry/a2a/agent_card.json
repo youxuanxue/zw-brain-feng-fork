@@ -1554,126 +1554,6 @@
       ]
     },
     {
-      "id": "compliance.case.assign",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-critical",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "blockchain_anchor"
-      ]
-    },
-    {
-      "id": "compliance.case.close",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-critical",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "blockchain_anchor"
-      ]
-    },
-    {
-      "id": "compliance.case.open",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-critical",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "blockchain_anchor"
-      ]
-    },
-    {
-      "id": "compliance.case.resolve",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-critical",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "blockchain_anchor"
-      ]
-    },
-    {
-      "id": "compliance.investigate_case",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-critical",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "state_machine_transition",
-        "blockchain_anchor"
-      ]
-    },
-    {
-      "id": "compliance.rule.configure",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-critical",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "blockchain_anchor"
-      ]
-    },
-    {
-      "id": "compliance.signal.ingest",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-normal",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "blockchain_anchor"
-      ]
-    },
-    {
       "id": "credential.issue",
       "mode": "write",
       "humanConfirmationRequired": false,
@@ -2864,23 +2744,6 @@
       ]
     },
     {
-      "id": "risk.event.ingest",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-normal",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "blockchain_anchor"
-      ]
-    },
-    {
       "id": "search.intent.parse",
       "mode": "write",
       "humanConfirmationRequired": false,
@@ -2893,23 +2756,6 @@
       ],
       "sideEffects": [
         "audit"
-      ]
-    },
-    {
-      "id": "security.scan.result.sync",
-      "mode": "write",
-      "humanConfirmationRequired": true,
-      "auditClass": "write-normal",
-      "surfaces": [
-        "webui",
-        "api",
-        "cli",
-        "a2a"
-      ],
-      "sideEffects": [
-        "audit",
-        "db_write",
-        "blockchain_anchor"
       ]
     },
     {

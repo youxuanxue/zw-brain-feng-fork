@@ -25,12 +25,13 @@ const PAGE_MATRIX: Array<{ role: string; hash: string; note: string }> = [
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/request-flow/objection', note: '我的异议' },
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/request-flow/supply-demand', note: '登记需求' },
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/delivery-exchange', note: '交付任务（渠道/更新/名称）' },
-  { role: 'ROLE_ORGAN_OPERATER', hash: '#/zones-pack', note: '专题包（描述占位）' },
+  // #/zones-pack 专题包整面退出本期（D55/P6，#235）：路由已下线，移除死链行避免导航到已删路由。
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider', note: '提供方管理' },
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider/inbox/objection', note: '异议响应收件箱' },
   { role: 'ROLE_BUSIAUDIT', hash: '#/provider/inbox/field-decision', note: '反向编目审核收件箱（原字段审核/字段裁决）' },
   { role: 'ROLE_SECURITY_AUDIT', hash: '#/compliance-ops', note: '合规与运营' },
-  { role: 'ROLE_BUSIAUDIT', hash: '#/integration-admin', note: '外部系统' },
+  // D55/P2：外部系统归平台运维员独有（业务运营员退出）。
+  { role: 'ROLE_SYSTEM', hash: '#/integration-admin', note: '外部系统' },
 ];
 
 test.describe('R12 渲染层无工程语言泄漏', () => {

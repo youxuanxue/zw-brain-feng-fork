@@ -36,7 +36,8 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     navDesc: '搜索可申请的政务数据资源',
     to: '/discovery',
     group: 'use',
-    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+    // 安全审计员非数据使用方（v5 无找数据），Wave 1/S5 收敛纯只读监督者后退出找数据（D55/P17）。
+    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   },
   {
     key: 'request-flow',
@@ -54,9 +55,8 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     navDesc: '领取访问凭据、核对交付回执',
     to: '/delivery-exchange',
     group: 'use',
-    // F1（6.4#15）：交付回执收窄到「部门管理员」（查看本部门申请通过资源的授权）+ 审计只读。
-    // 业务运营员（BUSIAUDIT）无该场景、部门操作员（OPERATER）经管理员承接，均不再进入领数据。
-    roles: ['ROLE_ORGAN_MANAGER', 'ROLE_SECURITY_AUDIT'],
+    // D55/P13：领数据回归部门操作员+部门管理员（反转 D53/F1）；P18 安全审计员退出领数据导航。
+    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
   },
   // 专题包导航项退出本期（D55/P6）：下线整面，保数据不删库；待复活时恢复 zones-pack 导航。
   {
@@ -69,12 +69,26 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   },
   {
+    // 查审计拆分（D55/P8·P9，Wave1-S3）：审计日志 / 证据回放 / 审计事件面收窄到
+    // 业务运营员 + 安全审计员。部门管理员退审计日志（P9）、平台运维员退审计日志（P8），
+    // 二者均不再看到本导航项（无权 = 不可见，非"可见但禁用"）。
+    // 服务调用监控独立为下方 service-ops 导航项（平台运维员 / 业务运营员 + 管理员/审计只读）。
     key: 'compliance-ops',
     navLabel: '查审计',
     navDesc: '审计证据回放与合规核查',
     to: '/compliance-ops',
     group: 'admin',
-    // ROLE_SECURITY_ADMIN 随安全管理员本期退役而移除（D55/P16）。
+    roles: ['ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
+  },
+  {
+    // 服务调用监控（D55/P8）：网关运行 / 服务调用统计只读面，从查审计中拆出独立导航。
+    // 平台运维员保留服务调用监控（v5 服务调用日志 = 平台运维员 + 业务运营员）；
+    // 部门管理员 / 安全审计员保留只读。角色门与后端 ops.service.report.query.execute 一致。
+    key: 'service-ops',
+    navLabel: '服务调用监控',
+    navDesc: '网关运行与服务调用统计只读',
+    to: '/service-ops',
+    group: 'admin',
     roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT', 'ROLE_SYSTEM'],
   },
   {
@@ -85,7 +99,7 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     navDesc: '外来系统接入审批、信任评估与启停',
     to: '/integration-admin',
     group: 'admin',
-    roles: ['ROLE_BUSIAUDIT', 'ROLE_SYSTEM'],
+    roles: ['ROLE_SYSTEM'],
   },
   {
     // 流程与表单配置独立为导航模块（第一轮 ruled-but-staged「配置轴升独立主导航」兑现）。
@@ -95,7 +109,8 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     navDesc: '审批流程、申请表单与智能推荐配置',
     to: '/integration-admin/engines',
     group: 'admin',
-    roles: ['ROLE_BUSIAUDIT', 'ROLE_SYSTEM'],
+    // D55/P3 反转 D49 配置角色：流程表单配置 = 平台级系统配置 = 平台运维员独有，部门管理员/业务运营员退出。
+    roles: ['ROLE_SYSTEM'],
   },
   {
     // 身份治理独立为左侧导航项（负责人 2026-06-05 裁 Q1）。
@@ -105,7 +120,7 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     navDesc: '旧权限映射候选审核与租户策略',
     to: '/integration-admin/iam-governance',
     group: 'admin',
-    roles: ['ROLE_BUSIAUDIT', 'ROLE_SYSTEM'],
+    roles: ['ROLE_SYSTEM'],
   },
 ];
 
@@ -136,6 +151,7 @@ export function activeShellKey(path: string): string {
   if (p.startsWith('/delivery-exchange')) return 'delivery-exchange';
   if (p.startsWith('/provider')) return 'provider';
   if (p.startsWith('/compliance-ops')) return 'compliance-ops';
+  if (p.startsWith('/service-ops')) return 'service-ops';
   // /zones-pack 专题包路由退出本期（D55/P6）：路由已下线，不再映射 shell key。
   // 身份治理 / 流程表单 独立导航项：须在 /integration-admin 前缀判断之前命中，否则被吸附回外部系统高亮。
   if (p.startsWith('/integration-admin/iam-governance')) return 'iam-governance';
