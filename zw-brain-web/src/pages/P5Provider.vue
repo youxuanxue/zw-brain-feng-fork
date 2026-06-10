@@ -84,7 +84,9 @@ const collabCards = computed(() => {
   ];
 });
 
-// 按当前 role 过滤协作待办卡：OPERATER 见不到 field-decision/hookup-review/objection（无权进）。
+// 按当前 role 过滤协作待办卡（单源 = isRouteAllowedForRole，与路由守卫同口径）：
+// 挂接审核归部门管理员（G1 照 v5 校正）；反向编目审核归业务运营员；异议响应部门管理员 + 业务运营员（G6）。
+// 部门操作员对协作待办全不可见（无权进）。
 const visibleStatCards = computed(() =>
   filterByRouteAccess(collabCards.value, (c) => c.href, role.value),
 );

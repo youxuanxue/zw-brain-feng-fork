@@ -4,7 +4,7 @@
 > 的 `compatibility` 含 `webui` + `product_scope.status == "live"` 表示「该能力声称在
 > WebUI 大堂供应」，但 `export_agent_contract.py --check` 只校验契约投影一致，**不校验
 > 真有 `.vue`/`.ts` 渲染消费者**。普查全量 manifest：当前
-> <!-- stat:zwbrain.webui-render-debt -->82<!-- /stat --> 个 live+webui 能力在
+> <!-- stat:zwbrain.webui-render-debt -->81<!-- /stat --> 个 live+webui 能力在
 > `zw-brain-web/src` 下无任何字面量渲染落点——契约全绿，但没人在产品里看得见。
 
 ## 一、这是什么债
@@ -13,7 +13,7 @@
   但人类在 WebUI 里看不到它。运营/审计 persona 的「felt experience」缺位。
 - 网关运行状态（`ops.service.report.query`）原本是这 107 个之一；PR #161 收尾时给它接了
   B1.1「网关运行」只读面板（`B11ComplianceOps.vue`），从台账移出 → 现存
-  <!-- stat:zwbrain.webui-render-debt -->82<!-- /stat --> 个。
+  <!-- stat:zwbrain.webui-render-debt -->81<!-- /stat --> 个。
 
 ## 二、机械守卫（段 52，baseline 棘轮）
 

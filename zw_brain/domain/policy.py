@@ -126,8 +126,10 @@ PERMISSION_ROLES = {
     "service.publish_or_suspend.execute": {"ROLE_ORGAN_MANAGER"},
 
     # 运维侧网关/调用监控
-    "ops.gateway.heartbeat.ingest.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},
-    "ops.gateway.log.anchor.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},
+    # D55/G2（安全审计员纯只读收尾）：网关心跳上报 / 日志存证是写动作，归平台运维员
+    # （v5 网关节点管理 = 平台运维员）；安全审计员退出全部写键。
+    "ops.gateway.heartbeat.ingest.execute": {"ROLE_SYSTEM"},
+    "ops.gateway.log.anchor.execute": {"ROLE_SYSTEM"},
     # 服务调用监控（D55/P8，Wave1-S3）：平台运维员保留服务调用监控（v5 服务调用日志 = 平台运维员 +
     # 业务运营员），故补 ROLE_SYSTEM；部门管理员 / 安全审计员保留只读（v5 监控只读）。
     "ops.service.invocation.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"},
@@ -184,9 +186,11 @@ PERMISSION_ROLES = {
     # 库表 / 文件 物化资源挂接（提交侧）— OPERATER 创建草稿；复核/发布沿用 resource.asset.* 角色门
     "resource.mount.table.prepare.execute": {"ROLE_ORGAN_OPERATER"},
     "resource.mount.file.prepare.execute": {"ROLE_ORGAN_OPERATER"},
-    # R-007 fix: 审核类权限保留交叉审（仅 BUSIAUDIT）
-    "resource.asset.review.execute": {"ROLE_BUSIAUDIT"},
-    # R-001 fix: r6 (映射到 ROLE_ORGAN_MANAGER) 是提供方部门管理员，应保留对自家资源的发布权
+    # D55/G1（撤回 R-007 交叉审）：照旧平台角色菜单 v5「资源挂接审核 / 资源审核 = 部门管理员」校正，
+    # 挂接资产审核归部门管理员（docx 部门管理员待办明文含「资源发布审核」）。
+    "resource.asset.review.execute": {"ROLE_ORGAN_MANAGER"},
+    # R-001：r6 (映射到 ROLE_ORGAN_MANAGER) 是提供方部门管理员，保留对自家资源的发布权；
+    # 发布主权属业务运营员（v5 资源发布 = 业务运营员），故二者并存、本次不动。
     "resource.asset.publish.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
 
     # 申请受理（资源端）
@@ -322,16 +326,17 @@ PERMISSION_ROLES = {
     "objection.metric.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
 
     # 国家平台 adapter
-    "adapter.national.catalog.pull.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "adapter.national.resource.pull.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "adapter.national.catalog.report.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "adapter.national.resource.report.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "adapter.national.application.submit.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "adapter.national.application.receive.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "adapter.national.application.reconcile.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "adapter.national.delivery.receipt.sync.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "adapter.national.objection.sync.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
-    "adapter.national.topic.report.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # D55/G2：安全审计员从全部 adapter.national.* 退出（纯只读；这批 deferred 不可调，移除残留授权防回潮，manifest status 不动）。
+    "adapter.national.catalog.pull.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "adapter.national.resource.pull.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "adapter.national.catalog.report.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "adapter.national.resource.report.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "adapter.national.application.submit.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "adapter.national.application.receive.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "adapter.national.application.reconcile.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "adapter.national.delivery.receipt.sync.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "adapter.national.objection.sync.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "adapter.national.topic.report.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     # 国家扩展要素编制（D50/C5，J2 子旅程）：部门管理员编制 + 业务运营员主管审核（SPEC 角色）。
     "catalog.national_ext_elem.compile.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     # 国家直达转报（D50/C6，J1 子旅程）：仅业务运营员转报本级申请到国家平台（SPEC 角色）。
@@ -402,7 +407,8 @@ PERMISSION_ROLES = {
     # "topic.package.metric.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},  # 退出本期（D55/P6）
 
     # 交付回执 / exchange
-    "delivery.receipt.ingest.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
+    # D55/G2：回执登记是写动作，安全审计员退出（纯只读）。
+    "delivery.receipt.ingest.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "ops.exchange.statistics.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "ops.exchange.diagnose.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "delivery.exchange.plan.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},

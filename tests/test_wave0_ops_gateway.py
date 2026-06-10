@@ -2,7 +2,7 @@
 # Journey: B1.1
 # Capability: ops.gateway.heartbeat.ingest
 # Consumer-faces: API / CLI / A2A
-# Roles: ROLE_ORGAN_MANAGER, ROLE_SECURITY_AUDIT
+# Roles: ROLE_SYSTEM
 # Trace:
 #   .testing/waves/wave-0-golden-path/features/ops-gateway-heartbeat.feature
 #   docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md §3.3 / §3.5
@@ -134,7 +134,7 @@ def test_first_heartbeat_creates_projection_row(brain: BrainService) -> None:
         brain,
         SKILL,
         _heartbeat_payload("gw-zone-a-001"),
-        role="ROLE_ORGAN_MANAGER",
+        role="ROLE_SYSTEM",
     )
 
     rows = _list_rows()
@@ -155,10 +155,10 @@ def test_first_heartbeat_creates_projection_row(brain: BrainService) -> None:
 
 def test_same_instance_id_upserts_in_place(brain: BrainService) -> None:
     invoke_trusted(brain, SKILL, _heartbeat_payload("gw-zone-a-001"),
-                   role="ROLE_ORGAN_MANAGER")
+                   role="ROLE_SYSTEM")
     later = _heartbeat_payload("gw-zone-a-001", status="warning",
                                last_reported_at="2026-05-29T12:34:56+00:00")
-    invoke_trusted(brain, SKILL, later, role="ROLE_ORGAN_MANAGER")
+    invoke_trusted(brain, SKILL, later, role="ROLE_SYSTEM")
 
     rows = _list_rows()
     assert len(rows) == 1, "幂等 upsert 应保持单行，而不是 append"
@@ -198,10 +198,10 @@ def test_stale_heartbeat_derives_offline_on_report_query(brain: BrainService) ->
     invoke_trusted(
         brain, SKILL,
         _heartbeat_payload("gw-zone-b-002", status="online", last_reported_at=stale_ts),
-        role="ROLE_ORGAN_MANAGER",
+        role="ROLE_SYSTEM",
     )
 
-    report = invoke_trusted(brain, REPORT_SKILL, {}, role="ROLE_ORGAN_MANAGER")
+    report = invoke_trusted(brain, REPORT_SKILL, {}, role="ROLE_SYSTEM")
     seen = {g["gateway_instance_id"]: g["status"] for g in report["gateways"]}
     assert seen.get("gw-zone-b-002") == "offline", \
         f"read-side stale 派生失败：{seen!r}"
@@ -224,7 +224,7 @@ def test_cross_tenant_same_instance_id_is_isolated(brain: BrainService) -> None:
     跨租户经 invoke_skill 的回归归 wave-3 multi-tenant-policy.feature。
     """
     invoke_trusted(brain, SKILL, _heartbeat_payload("gw-zone-shared-01", status="online"),
-                   role="ROLE_ORGAN_MANAGER")
+                   role="ROLE_SYSTEM")
 
     other_repo = GatewayRuntimeRepository()
     other_repo.upsert_heartbeat(
@@ -261,7 +261,7 @@ def test_missing_required_field_rejected(brain: BrainService) -> None:
     bad = _heartbeat_payload("placeholder")
     bad.pop("gateway_instance_id")
     with pytest.raises(BrainServiceError) as exc:
-        invoke_trusted(brain, SKILL, bad, role="ROLE_ORGAN_MANAGER")
+        invoke_trusted(brain, SKILL, bad, role="ROLE_SYSTEM")
     assert "gateway_instance_id" in str(exc.value)
 
 
@@ -290,7 +290,7 @@ def test_unauthorized_role_is_denied(brain: BrainService) -> None:
 def test_heartbeat_emits_audit_feed_and_envelope(brain: BrainService) -> None:
     result = invoke_trusted(
         brain, SKILL, _heartbeat_payload("gw-zone-a-001"),
-        role="ROLE_ORGAN_MANAGER",
+        role="ROLE_SYSTEM",
     )
 
     assert set(result.keys()) >= {"ok", "result", "audit_id"}

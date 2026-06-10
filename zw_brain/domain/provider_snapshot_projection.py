@@ -16,6 +16,7 @@ from zw_brain.domain.repositories.objection import ObjectionRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.repositories.supply_demand import SupplyDemandRepository
 from zw_brain.domain.repositories.topic_package import TopicPackageRepository
+from zw_brain.domain.resource_kind import canonical_resource_kind
 from zw_brain.domain.supply_demand_phase import (
     PHASE_MANUAL_REGISTERED,
     PHASE_RECOMMEND_FAILED,
@@ -125,9 +126,14 @@ def project_provider_inbox(*, tenant_id: str | None = None) -> dict[str, list[di
             tenant_id=tenant_id, lifecycle_status="approved_pending_publish"
         )
     ]
+    # G4：挂接审核收件箱按 resource_kind 分流——API/service 资产走独立向导页（行内注册审核），
+    # 其余（库表/文件，**含 kind 缺失的脏行**）都进挂接收件箱：审核正是兜住脏数据的环节，
+    # kind 缺失行若被过滤会静默卡死在 pending_review（违诚实呈现），故用「排除 API」而非
+    # 「白名单 table/file」；canonical_resource_kind 折叠 legacy 值（service→api、folder→file）。
     hookup_reviews = [
         _asset_to_hookup_review(record)
         for record in resource_repo.list_assets(tenant_id=tenant_id, lifecycle_status="pending_review")
+        if canonical_resource_kind(getattr(record, "resource_kind", None)) != "api"
     ]
     demand_matches = [
         _demand_to_match(item)

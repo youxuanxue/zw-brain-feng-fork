@@ -50,10 +50,18 @@ export const ROUTE_ROLE_OVERRIDES: ReadonlyArray<{
   { prefix: '/provider/wizard/reverse-catalog', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_ORGAN_OPERATER'] },
   // 反向编目审核（pages/P5FieldDecisionDetail.vue → canDecide；路由 slug 仍 field-decision）
   { prefix: '/provider/inbox/field-decision', roles: ['ROLE_BUSIAUDIT'] },
-  // 挂接审核（pages/P5HookupReviewInbox.vue → canApprove）
-  { prefix: '/provider/inbox/hookup-review', roles: ['ROLE_BUSIAUDIT'] },
-  // 异议响应（pages/P5ObjectionDetail.vue → role: ROLE_ORGAN_MANAGER）
-  { prefix: '/provider/inbox/objection', roles: ['ROLE_ORGAN_MANAGER'] },
+  // G3：资源挂接向导（pages/P5HookupSubmitWizard.vue）—— 提交侧是供数维护动作
+  // （resource.mount.*.prepare = 部门操作员；管理员经 hierarchy 隐式获得）。业务运营员退出供数注册。
+  { prefix: '/provider/wizard/hookup-submit', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'] },
+  // G3：代理服务注册向导（pages/P5ApiServiceWizard.vue）—— 注册口径同 resource.api.register（D54）：
+  // 部门操作员 + 部门管理员；业务运营员退出 API 注册。
+  { prefix: '/provider/wizard/api-service', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'] },
+  // G1：挂接审核（pages/P5HookupReviewInbox.vue → canApprove）—— 照 v5「资源挂接审核 = 部门管理员」
+  // 校正（撤回 R-007 交叉审），与后端 resource.asset.review={ROLE_ORGAN_MANAGER} set-equal。
+  { prefix: '/provider/inbox/hookup-review', roles: ['ROLE_ORGAN_MANAGER'] },
+  // G6：异议响应（pages/P5ObjectionDetail.vue）—— v5「异议核查 = 业务运营员 + 部门管理员」，
+  // 业务运营员可受理；与后端 objection.case.accept/assign/reply/review/close（含 BUSIAUDIT）一致。
+  { prefix: '/provider/inbox/objection', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'] },
   // C5（D50）国家扩展要素编制（pages/P5NationalExtElem.vue → canCompileNationalExtElem）。
   // 角色门：MANAGER+BUSIAUDIT；flag 门（snapshot.webui.nationalChannel.enabled）在 hub/页内另把守。
   { prefix: '/provider/national-ext-elem', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'] },
@@ -125,7 +133,8 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   'catalog.entry.submit_review': ['ROLE_ORGAN_OPERATER'],
   'catalog.entry.review': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   // P5 反向 / API / 质量 wizard
-  'resource.asset.review': ['ROLE_BUSIAUDIT'],
+  // G1：挂接资产审核照 v5 校正归部门管理员（撤回 R-007），与后端 resource.asset.review set-equal。
+  'resource.asset.review': ['ROLE_ORGAN_MANAGER'],
   // 代理服务（API）注册口径 D54 GATE-1（业务方 2026-06-08 sign-off）：注册/提交审核 = 部门操作员 + 部门管理员；
   // 审核/发布 = 部门管理员；业务运营员退出 API 生命周期。须与后端 policy.PERMISSION_ROLES set-equal
   // （test_action_role_gates_aligned_with_backend_policy 守）。

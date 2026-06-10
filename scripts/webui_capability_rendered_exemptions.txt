@@ -57,7 +57,6 @@ metadata.gather.evidence.query
 metadata.gather.evidence.upsert
 metadata.schema.discover
 metadata.schema.snapshot.upsert
-objection.case.accept
 objection.case.assign
 objection.case.reject
 objection.metric.query

@@ -25,12 +25,15 @@ const role = getProductRole();
 // 审核发布/下线 = 部门管理员。无权岗位（业务运营员）整段注册表单 + 行内操作均不渲染（守「无权 = 不可见」）。
 const canRegisterApi = computed(() => canPerformAction('resource.api.register', role.value));
 const canSubmitReviewApi = computed(() => canPerformAction('resource.api.submit_review', role.value));
+// G4：服务注册审核（pending_review → 待发布）按 resource.api.review 动作键判，与后端
+// policy.resource.api.review={ROLE_ORGAN_MANAGER} set-equal。补此行内动作，让「待审核服务」深链可办理。
+const canReviewApi = computed(() => canPerformAction('resource.api.review', role.value));
 const canPublishApi = computed(() => canPerformAction('resource.api.publish', role.value));
 // 下线（withdraw→retired）按自身动作键判，与后端 policy.resource.api.withdraw set-equal（归部门管理员）。
 const canWithdrawApi = computed(() => canPerformAction('resource.api.withdraw', role.value));
 // 列表是否需要「操作」列：任一生命周期动作对当前岗位可见才出列（无权岗位列表保持只读）。
 const showServiceActions = computed(
-  () => canSubmitReviewApi.value || canPublishApi.value || canWithdrawApi.value,
+  () => canSubmitReviewApi.value || canReviewApi.value || canPublishApi.value || canWithdrawApi.value,
 );
 
 // —— 已注册 API 服务列表（真实数据，注册产出即时可见）——
@@ -220,6 +223,23 @@ async function submitReviewRow(code: string) {
   }
 }
 
+async function reviewRow(code: string) {
+  // G4：服务注册审核通过（pending_review → approved_pending_publish），与挂接资产审核同后端转换。
+  if (!code || rowBusy.value) return;
+  rowBusy.value = code;
+  try {
+    await invokeActionStub({
+      skillId: 'resource.api.review',
+      payload: { resource_code: code, decision: 'approve' },
+      successTitle: '服务注册已审核通过，待发布',
+      role: role.value,
+      refreshSnapshotAfter: true,
+    });
+  } finally {
+    rowBusy.value = '';
+  }
+}
+
 async function publishRow(code: string) {
   if (!code || rowBusy.value) return;
   rowBusy.value = code;
@@ -310,6 +330,12 @@ function resetForm() {
                   type="button" class="gov-btn gov-btn-link" :disabled="Boolean(rowBusy)"
                   @click="submitReviewRow(s.id)"
                 >提交审核</button>
+                <!-- 待审核：审核通过（部门管理员）。G4：补齐 pending_review 的审核动作。 -->
+                <button
+                  v-if="s.lifecycleStatus === 'pending_review' && canReviewApi"
+                  type="button" class="gov-btn gov-btn-link" :disabled="Boolean(rowBusy)"
+                  @click="reviewRow(s.id)"
+                >审核通过</button>
                 <!-- 待发布：发布（部门管理员）。 -->
                 <button
                   v-if="s.lifecycleStatus === 'approved_pending_publish' && canPublishApi"
@@ -324,7 +350,7 @@ function resetForm() {
                 >下线</button>
                 <!-- 当前态对本岗位无可执行动作时，诚实显短横（不伪造按钮）。 -->
                 <span
-                  v-if="!((s.lifecycleStatus === 'draft' && canSubmitReviewApi) || (s.lifecycleStatus === 'approved_pending_publish' && canPublishApi) || (s.lifecycleStatus === 'active' && canWithdrawApi))"
+                  v-if="!((s.lifecycleStatus === 'draft' && canSubmitReviewApi) || (s.lifecycleStatus === 'pending_review' && canReviewApi) || (s.lifecycleStatus === 'approved_pending_publish' && canPublishApi) || (s.lifecycleStatus === 'active' && canWithdrawApi))"
                   class="row-actions-none"
                 >—</span>
               </td>

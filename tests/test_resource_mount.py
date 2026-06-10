@@ -122,7 +122,7 @@ def test_table_prepare_creates_draft_asset(brain: BrainService) -> None:
 def test_table_full_state_machine_to_active(brain: BrainService) -> None:
     invoke_trusted(brain, "resource.mount.table.prepare", _table_payload("res-tbl-2"), role=OPERATER)
     invoke_trusted(brain, "resource.asset.submit_review", {"resource_code": "res-tbl-2", "confirmed": True}, role=OPERATER)
-    invoke_trusted(brain, "resource.asset.review", {"resource_code": "res-tbl-2", "decision": "approve", "confirmed": True}, role=BUSIAUDIT)
+    invoke_trusted(brain, "resource.asset.review", {"resource_code": "res-tbl-2", "decision": "approve", "confirmed": True}, role=MANAGER)
     res = invoke_trusted(brain, "resource.asset.publish", {"resource_code": "res-tbl-2", "confirmed": True}, role=MANAGER)
     assert res["result"]["lifecycle_status"] == "active"
 
@@ -146,7 +146,7 @@ def test_file_prepare_captures_fingerprint(brain: BrainService) -> None:
 def test_file_full_state_machine_to_active(brain: BrainService) -> None:
     invoke_trusted(brain, "resource.mount.file.prepare", _file_payload("res-file-2"), role=OPERATER)
     invoke_trusted(brain, "resource.asset.submit_review", {"resource_code": "res-file-2", "confirmed": True}, role=OPERATER)
-    invoke_trusted(brain, "resource.asset.review", {"resource_code": "res-file-2", "decision": "approve", "confirmed": True}, role=BUSIAUDIT)
+    invoke_trusted(brain, "resource.asset.review", {"resource_code": "res-file-2", "decision": "approve", "confirmed": True}, role=MANAGER)
     res = invoke_trusted(brain, "resource.asset.publish", {"resource_code": "res-file-2", "confirmed": True}, role=MANAGER)
     assert res["result"]["lifecycle_status"] == "active"
 

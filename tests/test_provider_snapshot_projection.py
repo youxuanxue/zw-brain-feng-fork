@@ -84,6 +84,9 @@ def _seed_inbox_rows() -> None:
         {
             "resource_code": "res-proj-hookup-001",
             "title": "挂接待审资源",
+            # G4 分流后 kind 有语义：挂接收件箱=非 API 类；upsert_asset 缺省 kind 默认 "api"
+            # （仓库历史默认）会把本行误归 API 注册审核侧，故 fixture 显式声明库表资产。
+            "resource_kind": "table",
             "lifecycle_status": "pending_review",
             "owner_org_id": "11370000MB284651XL",
         },

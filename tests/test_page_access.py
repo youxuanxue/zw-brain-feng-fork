@@ -77,9 +77,14 @@ _ROUTE_ROLE_OVERRIDES: list[tuple[str, frozenset[str], str | None]] = [
         "/provider/wizard/inline-catalog",
     ),
     ("/provider/wizard/reverse-catalog", frozenset({"ROLE_ORGAN_MANAGER", "ROLE_ORGAN_OPERATER"}), None),
+    # G3：资源挂接向导 / 代理服务注册向导 = 部门操作员 + 部门管理员（供数维护 / API 注册），业务运营员退出。
+    ("/provider/wizard/hookup-submit", frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"}), None),
+    ("/provider/wizard/api-service", frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"}), None),
     ("/provider/inbox/field-decision", frozenset({"ROLE_BUSIAUDIT"}), None),
-    ("/provider/inbox/hookup-review", frozenset({"ROLE_BUSIAUDIT"}), None),
-    ("/provider/inbox/objection", frozenset({"ROLE_ORGAN_MANAGER"}), None),
+    # G1：挂接审核照 v5「资源挂接审核 = 部门管理员」校正（撤回 R-007 交叉审）。
+    ("/provider/inbox/hookup-review", frozenset({"ROLE_ORGAN_MANAGER"}), None),
+    # G6：异议响应 = 部门管理员 + 业务运营员（v5「异议核查」），翻转 wave1.5 P20 的 MANAGER-only 锁定。
+    ("/provider/inbox/objection", frozenset({"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}), None),
     # C5（D50）国家扩展要素编制（角色门；flag 门在前端 hub/页内另把守）。
     ("/provider/national-ext-elem", frozenset({"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}), None),
 ]
@@ -189,11 +194,21 @@ def test_catalog_review_inbox_dual_layer() -> None:
     )
 
 
-def test_hookup_review_only_busiaudit() -> None:
-    assert _is_route_allowed("/provider/inbox/hookup-review", "ROLE_BUSIAUDIT")
+def test_hookup_review_only_manager() -> None:
+    # G1（D55 查缺补漏）：挂接审核照 v5「资源挂接审核 = 部门管理员」校正（撤回 R-007 交叉审）。
+    assert _is_route_allowed("/provider/inbox/hookup-review", "ROLE_ORGAN_MANAGER")
+    # 业务运营员退出挂接审核（其职责是发布 / 受理，不是审挂接）。
     assert not _is_route_allowed(
-        "/provider/inbox/hookup-review", "ROLE_ORGAN_MANAGER"
+        "/provider/inbox/hookup-review", "ROLE_BUSIAUDIT"
     )
+
+
+def test_supply_wizards_operater_and_manager_only() -> None:
+    # G3：资源挂接向导 / 代理服务注册向导 = 部门操作员 + 部门管理员；业务运营员退出供数注册。
+    for route in ("/provider/wizard/hookup-submit", "/provider/wizard/api-service"):
+        assert _is_route_allowed(route, "ROLE_ORGAN_OPERATER")
+        assert _is_route_allowed(route, "ROLE_ORGAN_MANAGER")
+        assert not _is_route_allowed(route, "ROLE_BUSIAUDIT")
 
 
 def test_field_decision_only_busiaudit() -> None:
@@ -205,12 +220,18 @@ def test_field_decision_only_busiaudit() -> None:
     )
 
 
-def test_provider_inbox_objection_manager_only() -> None:
+def test_provider_inbox_objection_manager_and_busiaudit() -> None:
+    # G6（D55 查缺补漏）：异议响应 = 部门管理员 + 业务运营员（v5「异议核查」）。
+    # 翻转 wave1.5 P20 故意锁定的 MANAGER-only 断言 —— 口径校准时它本就是为此存在。
     assert _is_route_allowed(
         "/provider/inbox/objection/xyz", "ROLE_ORGAN_MANAGER"
     )
-    assert not _is_route_allowed(
+    assert _is_route_allowed(
         "/provider/inbox/objection/xyz", "ROLE_BUSIAUDIT"
+    )
+    # 部门操作员仍不可进（不办异议）。
+    assert not _is_route_allowed(
+        "/provider/inbox/objection/xyz", "ROLE_ORGAN_OPERATER"
     )
 
 
@@ -448,10 +469,9 @@ _PROJECTION_DEEPLINKS: dict[str, frozenset[str]] = {
             "/request-flow",               # 待受理申请 backlog
             "/provider",                   # 待发布目录/资源 backlog
             "/provider/inbox/demand-match",  # 待汇总需求 backlog
-            # 注：「待受理异议」深链 /provider/inbox/objection 现 ROUTE_ROLE_OVERRIDES=
-            # [ROLE_ORGAN_MANAGER]，对 BUSIAUDIT 不可达——属 D28 GATE 既有债（异议受理人角色
-            # 口径待裁，见 workbench.py 注释 + 下方 known-debt 断言），不纳入本守卫的 must-pass
-            # 集合，但用专门断言锁定其当前为「不可达」状态，口径一旦校准本断言会主动 FAIL 提醒移回。
+            # G6（D55 查缺补漏）：异议收件箱按 v5「异议核查 = 业务运营员 + 部门管理员」开放
+            # BUSIAUDIT 后深链激活，移入 must-pass（原 known-debt 锁定断言随校准删除）。
+            "/provider/inbox/objection",   # 待受理异议 backlog
         }
     ),
     # 部门管理员（部门审核 + 供数侧目录审核）
@@ -487,14 +507,10 @@ def test_workbench_projection_deeplinks_route_allowed_for_role() -> None:
     assert not failures, "工作台投影深链存在角色不可达的死链：\n" + "\n".join(failures)
 
 
-def test_busiaudit_objection_inbox_known_debt_unreachable() -> None:
-    """D28 GATE 既有债锁定：业务运营员「待受理异议」backlog 深链 /provider/inbox/objection
-    现对 BUSIAUDIT 不可达（异议受理人角色口径待裁，inbox 仅授权 MANAGER）。
+def test_busiaudit_objection_inbox_reachable() -> None:
+    """G6（D55 查缺补漏）：异议收件箱对业务运营员可达（v5 异议核查 = 业务运营员 + 部门管理员）。
 
-    本断言把该「不可达」状态钉死——一旦口径校准（把 objection inbox 开放给 BUSIAUDIT，或把
-    backlog 深链改到 BUSIAUDIT 可达落点），此断言会主动 FAIL，提醒把该链移回上面 must-pass 集合。
+    原 known-debt 锁定断言（钉死「不可达」等口径校准）已随 G6 校准翻转为正向可达守卫。
     """
-    assert not _is_route_allowed("/provider/inbox/objection", "ROLE_BUSIAUDIT"), (
-        "业务运营员异议 inbox 已变可达——请把 /provider/inbox/objection 移回 "
-        "_PROJECTION_DEEPLINKS['ROLE_BUSIAUDIT'] must-pass 集合并删除本 known-debt 断言"
-    )
+    assert _is_route_allowed("/provider/inbox/objection", "ROLE_BUSIAUDIT")
+    assert _is_route_allowed("/provider/inbox/objection", "ROLE_ORGAN_MANAGER")

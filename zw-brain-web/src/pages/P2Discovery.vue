@@ -8,6 +8,8 @@ import { useDiscoverySearch } from '@/composables/useDiscoverySearch';
 import ResourceCard from '@/components/ResourceCard.vue';
 import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
 import type { StructuredAction } from '@/composables/useNLAccelerator';
+import { getProductRole } from '@/composables/useProductRole';
+import { canPerformAction } from '@/lib/pageAccess';
 
 const NL_PRESETS_P2 = ['查省营商环境相关数据', '近 7 天高使用资源', '关联水电气交叉数据'];
 
@@ -76,6 +78,24 @@ const headerMeta = computed(() => {
   return '正在加载资源目录……';
 });
 
+// G5：申请是申请人（部门操作员）动作。request.create 仅 OPERATER（与 P2 详情页 canApply、后端
+// policy.request.create set-equal）；业务运营员 / 管理员等在发现页不渲染「申请资源」CTA（无权=不可见，
+// 纵深防御叠加 ResourceCard 的 active-only 机器值门）。
+const canApply = computed(() => canPerformAction('request.create', getProductRole().value));
+
+// G5：「我的申请」是申请人入口。业务运营员（受理人，非申请人）不应有此入口——按路由可达性过滤
+// （单源 isRouteAllowedForRole）。注意 request-flow 对业务运营员路由可达（受理工作台），故此处用
+// 动作语义而非路由可达判定：仅申请人（可 request.create）保留「我的申请」链接。
+const headerLinks = computed(() => {
+  const links = [
+    { label: '目录浏览', href: '#/discovery/catalog-browse' },
+    { label: '我的申请', href: '#/request-flow', applicantOnly: true },
+  ];
+  return links
+    .filter((l) => (l.applicantOnly ? canApply.value : true))
+    .map(({ label, href }) => ({ label, href }));
+});
+
 async function applyTo(id: string) {
   // 采草稿流（0605#8）：生成草稿 → 跳详情确认 → 用户手动提交才进审批。
   const result = await invokeActionStub({
@@ -94,10 +114,7 @@ async function applyTo(id: string) {
       <PageFocusHeader
         title="可申请资源"
         :meta="headerMeta"
-        :links="[
-          { label: '目录浏览', href: '#/discovery/catalog-browse' },
-          { label: '我的申请', href: '#/request-flow' },
-        ]"
+        :links="headerLinks"
       >
         <template #aside>
           <NLAcceleratorPanel page-anchor="P2" :presets="NL_PRESETS_P2" @action="consumeNLAction" />
@@ -132,7 +149,7 @@ async function applyTo(id: string) {
           v-for="r in displayed"
           :key="String((r as Record<string, unknown>).id ?? '')"
           :resource="(r as Record<string, unknown>)"
-          show-action
+          :show-action="canApply"
           @apply="applyTo"
         />
       </div>

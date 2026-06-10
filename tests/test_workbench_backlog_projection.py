@@ -76,8 +76,14 @@ def _seed_backlog() -> None:
         {"resource_code": "res-pub-1", "title": "待发布资源甲", "lifecycle_status": "approved_pending_publish", "owner_org_id": "11370000MB284651XL"},
         tenant_id=TENANT,
     )
+    # 挂接审核口径：库表 / 文件资产 pending_review（G4，深链 hookup-review）。
     resource.upsert_asset(
-        {"resource_code": "res-rev-1", "title": "待审核资源甲", "lifecycle_status": "pending_review", "owner_org_id": "11370000MB284651XL"},
+        {"resource_code": "res-rev-1", "title": "待审核挂接资源甲", "resource_kind": "table", "lifecycle_status": "pending_review", "owner_org_id": "11370000MB284651XL"},
+        tenant_id=TENANT,
+    )
+    # 服务注册审核口径：API 资产 pending_review（G4，深链 API 服务向导行内审核）。
+    resource.upsert_asset(
+        {"resource_code": "api-rev-1", "title": "待审核服务甲", "resource_kind": "api", "lifecycle_status": "pending_review", "owner_org_id": "11370000MB284651XL"},
         tenant_id=TENANT,
     )
 
