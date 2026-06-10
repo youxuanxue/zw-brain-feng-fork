@@ -18,7 +18,8 @@ _DISCOVERY = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIA
 # 申请列表/详情空（lookupRequest → 未找到该申请），合规撤回入口不可达。
 _REQUEST = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"})
 # D55/P18：安全审计员退出领数据（delivery_tasks 快照裁剪对齐）
-_DELIVERY = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"})
+# 0605 复审收口：交付面=操作员+管理员（D53⑥ 业务运营员无交付场景；D55/P13 加操作员、P18 去审计员）。
+_DELIVERY = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"})
 # provider snapshot 是 "shell + sub-key" 两层鉴权：
 #   _PROVIDER_FULL：见全部 sub-keys（catalogs + 各 reviewer/responder 待办）。
 #   _PROVIDER_PARTIAL：只看 _PROVIDER_PARTIAL_KEYS 列出的 sub-keys（J2 在线编制 OPERATER 视角）。

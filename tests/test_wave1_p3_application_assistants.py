@@ -2,7 +2,7 @@
 # Journey: J1
 # Pages: P3 申请草拟 + 审批（减摩组件）
 # Consumer-faces: API (brain.invoke_skill)
-# Roles: ROLE_ORGAN_OPERATER (申请人) | ROLE_ORGAN_MANAGER (审批人) | ROLE_BUSIAUDIT
+# Roles: ROLE_ORGAN_OPERATER (申请人) | ROLE_ORGAN_MANAGER (审批人)
 # Trace:
 #   zw_brain/command/handlers/j1/application_assistants.py
 #   docs/approved/zw-brain-architecture.md §5.4.4 (减摩组件反约束)

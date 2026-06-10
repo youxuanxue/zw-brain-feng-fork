@@ -43,8 +43,9 @@ PERMISSION_ROLES = {
     # 平台文档问答（内置 zw-platform-guide Agent）
     "platform.docs.search.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"},
     "platform.docs.read.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"},
-    # F7 P3 申请草拟助手 — 申请人 read，便于草稿阶段获取建议
-    "application.draft.suggest.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    # F7 P3 申请草拟助手 — 申请人侧 read（草稿阶段建议）。0605 复审：业务运营员退申请人
+    # 身份（D55/P7）后不再草拟申请，去 BUSIAUDIT。
+    "application.draft.suggest.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
     # F7 P3 审批依据助手 — 审批人 + 主管部门 + 审计员 read
     "approval.evidence.summarize.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     # F8 P4 状态解释助手 — 同 delivery.view 口径（D55/P13：领数据回归操作员+管理员）
@@ -118,10 +119,11 @@ PERMISSION_ROLES = {
     "supplement.submit.execute": {"ROLE_ORGAN_OPERATER"},
     "summary.confirm.execute": {"ROLE_ORGAN_MANAGER"},
     "backflow.confirm.execute": {"ROLE_ORGAN_MANAGER"},
-    # D55/P18：安全审计员退领数据，对账/下载收窄到操作员+管理员+业务运营员
-    "delivery.reconcile_receipt.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    # F4 文件资源下载：与对账同口径（D55/P18 去 SECURITY_AUDIT）
-    "delivery.file.download.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    # 0605 复审收口：交付对账/下载 = 领数据动作，口径同 delivery.list/view（操作员+管理员）。
+    # 业务运营员无交付场景（D53⑥ 原话）且已退申请人身份（D55/P7），去 BUSIAUDIT 残留；
+    # 安全审计员已退（D55/P18）。
+    "delivery.reconcile_receipt.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    "delivery.file.download.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
     "delivery.trigger_recovery.execute": {"ROLE_ORGAN_MANAGER"},
     "service.publish_or_suspend.execute": {"ROLE_ORGAN_MANAGER"},
 
