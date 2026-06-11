@@ -259,6 +259,9 @@ class RequestService:
         status = item["status"]
         if status == "pending":
             return {"applicant": "审批中", "reviewer": "待审批", "filler": "等待审批", "summarizer": "等待审批"}.get(perspective, "待审批")
+        if status == "submitted":
+            # D55/P21 受理两级入口态（有条件直提/提交单，状态词汇桥接方案 B）。
+            return {"applicant": "已提交待受理", "reviewer": "待受理", "filler": "已提交待受理", "summarizer": "已提交待受理"}.get(perspective, "待受理")
         if status == "supplementing":
             return {"applicant": "补录中", "reviewer": "补录中", "filler": "待补录", "summarizer": "补录中"}.get(perspective, "补录中")
         if status == "summary-pending":
@@ -592,6 +595,22 @@ class RequestService:
         delivery = self.brain._get_handler_deps().services.delivery.task_from_record(request_id, store)
         if delivery is None:
             raise NotFoundError(request_id)
+        # D55/P21 状态机挡板：有条件共享 (shared_type=2) 须走受理两级
+        # （application.platform_approve 受理 → application.dept_approve 部门审核，
+        # 后者承 R11 方向 + self-approval guard）。本单步路径无这两道 guard，
+        # 放行即绕过已裁状态机——payload 显式值优先，缺位按资源 access_policy 回源
+        # （与申请卡投影同源；legacy 导入单 payload 常缺 shared_type）。
+        from zw_brain.domain.discovery_snapshot_projection import (  # noqa: PLC0415
+            _share_type_by_resource,
+            _shared_type_for,
+        )
+        record = store.application_repo.get_record(request_id, tenant_id=_DEFAULT_TENANT_ID)
+        record_payload = (record.payload_json or {}) if record is not None else {}
+        if _shared_type_for(record_payload, _share_type_by_resource(_DEFAULT_TENANT_ID)) == 2:
+            raise InvalidStateError(
+                "有条件共享申请须走受理两级（application.platform_approve 受理 → "
+                "application.dept_approve 部门审核），不支持单步受理"
+            )
         existing_review = delivery.get("r2Review") if isinstance(delivery.get("r2Review"), dict) else {}
         if request["status"] != "pending" and existing_review.get("decision"):
             raise InvalidStateError("request is not pending approval")

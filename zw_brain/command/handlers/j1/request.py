@@ -64,6 +64,52 @@ def _extract_shared_type(options: dict[str, Any], resource: dict[str, Any]) -> A
     return None
 
 
+def _resolved_shared_type(options: dict[str, Any], resource: dict[str, Any]) -> int | None:
+    """共享方式整型解析：payload/resource 显式值优先，否则按资源 access_policy 回源
+    （与申请卡投影 `_shared_type_for` 同源口径）。取不到返 None（按无条件兜底）。
+
+    状态词汇桥接（j1-runtime-write-path-dual-track 方案 B，负责人 2026-06-11 裁）：
+    有条件 (2) 直提/提交单须落 status='submitted' 进 D55/P21 受理两级队列——此前 UI 单
+    一律落旧词汇 'pending'，受理两级状态机（只认 submitted）对其无可办动作，单据卡死。
+    """
+    raw = _extract_shared_type(options, resource)
+    # canonical 资源行（resolve_resource_for_application 产物）把共享方式放 accessPolicy 块。
+    if raw is None and isinstance(resource, dict):
+        access = resource.get("accessPolicy")
+        if isinstance(access, dict):
+            for key in ("shared_type", "share_type", "sharedType", "shareType"):
+                value = access.get(key)
+                if value is not None:
+                    raw = value
+                    break
+    # 末级回源 resource_asset.access_policy_json：canonical id 是旧资源码（与 asset 键不同名），
+    # 先试 focusedResourceCode（=asset.resource_code）再试 id。
+    if raw is None and isinstance(resource, dict):
+        from zw_brain.domain.discovery_snapshot_projection import shared_type_for_resource  # noqa: PLC0415
+
+        for rid in (resource.get("focusedResourceCode"), resource.get("id")):
+            if rid:
+                raw = shared_type_for_resource(str(rid), _DEFAULT_TENANT_ID)
+                if raw is not None:
+                    break
+    try:
+        return int(raw) if raw is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _owner_org_code_from_resource(resource: dict[str, Any]) -> str:
+    """资源提供方机构码（R11 方向 guard 的 owner 源）；取不到返 ''（guard fail-closed）。"""
+    if not isinstance(resource, dict):
+        return ""
+    return str(
+        (resource.get("repository") or {}).get("ownerOrgId")
+        or resource.get("providerOrgId")
+        or resource.get("ownerOrgId")
+        or ""
+    )
+
+
 def _extract_project_code(options: dict[str, Any], resource: dict[str, Any]) -> str | None:
     """抽 project_code（项目级审批 schema 选择用）；不存在返 None → 通配/回落 baseline。"""
     for key in ("project_code", "projectCode", "project_id", "projectId"):
@@ -188,12 +234,13 @@ def _create_request(
             "status": existing_draft["status"],
             "reused_draft": True,
         }
-    # 已提交在办的申请（pending/补录/汇总中）仍拦——不允许对同资源重复发起在办申请。
+    # 已提交在办的申请（待受理/审批中/补录/汇总中）仍拦——不允许对同资源重复发起在办申请。
+    # 状态词汇桥接后有条件直提单落 'submitted'（受理两级入口态），一并计入在办。
     existing = next(
         (
             item
             for item in deps.view.requests.list_all()
-            if item.get("resourceId") == canonical_id and item["status"] in {"pending", "supplementing", "summary-pending"}
+            if item.get("resourceId") == canonical_id and item["status"] in {"pending", "submitted", "supplementing", "summary-pending"}
         ),
         None,
     )
@@ -212,11 +259,24 @@ def _create_request(
         purpose = str(options.get("purpose") or query_text or f"复用 {resource['name']}，只申请本次确需字段。")
         review_note = f"围绕 {resource['name']} 发起最小必要申请：{', '.join(item['title'] for item in fields) or '待确认字段'}；缺口：{', '.join(gap_fields) or '暂无'}。"
         # G2：草稿态 vs 直提态——request.create 走查路径落「草稿」，application.resource.submit 直提落「审批中」。
-        initial_status = "draft" if as_draft else "pending"
+        # 状态词汇桥接（方案 B）：有条件共享 (shared_type=2) 直提单落 'submitted' 进受理两级队列
+        # （D55/P21：业务运营员受理 → 部门管理员审核）；无条件保持 'pending'（单步受理即终路径）。
+        shared_type_int = _resolved_shared_type(options, resource)
+        if as_draft:
+            initial_status = "draft"
+        elif shared_type_int == 2:
+            initial_status = "submitted"
+        else:
+            initial_status = "pending"
         request = {
             "id": request_id,
             "resourceId": canonical_id,
             "resourceName": resource["name"],
+            # 共享方式随单存档（申请卡投影 _shared_type_for 显式值优先；access_policy 回源兜底）。
+            "sharedType": shared_type_int,
+            # 提供方机构码随单存档（R11 方向 guard 的 owner 源——guard 对空 owner fail-closed，
+            # 不落此键则有条件二级部门审核对任何管理员都 403、单据永卡 dept_approved）。
+            "owner_org_code": _owner_org_code_from_resource(resource),
             # R-006 fix: 部门名称由 applicantDept 字段单独表达；不再在 actor 文本里拼接（折叠后无法靠 role 判断身份）
             "applicant": actor,
             "applicantDept": "市营商环境专班",
@@ -409,13 +469,15 @@ def _create_request(
         deps.append_audit_feed(skill_id, request_id, "ok", actor)
 
         # E3 Wave-2 F2 hook：优先项目级自定义 live schema 驱动，否则回落 baseline（不破业务主路径）。
-        # G2：草稿不触发审批工作流——审批在用户手动 submit（draft→pending）时才启动。
+        # G2：草稿不触发审批工作流——审批在用户手动 submit（draft→提交态）时才启动。
+        # 工作流与 initial_status 共用同一解析值（access_policy 回源兜底）——此前裸 payload 抽取
+        # 在 UI 不传 shared_type 时给 None，工作流被当无条件起，与受理两级口径漂移。
         approval_case_id = None
         if not as_draft:
             approval_case_id = _maybe_start_approval_workflow(
                 application_code=request_id,
                 tenant_id=_DEFAULT_TENANT_ID,
-                shared_type=_extract_shared_type(options, resource),
+                shared_type=shared_type_int,
                 project_code=_extract_project_code(options, resource),
                 submitted_by=actor,
             )
@@ -447,8 +509,31 @@ def _submit_request(brain, deps, ctx, request_id: str, role: str, confirmed: boo
     # G2：草稿首次提交 vs 退回补正后重提，文案区分（语义诚实）。
     is_draft_submit = from_status == "draft"
 
+    # 状态词汇桥接（方案 B）：解析共享方式——随单存档值优先（创建时已落 sharedType），
+    # 缺位则解析资源回源（best-effort，与下方审批 hook 共用；资源已下线时按无条件兜底，
+    # 不让陈旧草稿因资源消失而无法提交——同 D4「不破业务主路径」契约）。
+    resolved_resource: dict[str, Any] | None = None
+    try:
+        resolved_resource = deps.services.catalog.resolve_resource_for_application(
+            request.get("resourceId") or request_id
+        )
+    except Exception as exc:  # noqa: BLE001 — 解析失败旁路，不破提交主路径
+        _logger.warning(
+            "request_submit.resource_resolve.failed",
+            extra={"application_code": request_id, "error_msg": str(exc)[:500]},
+        )
+    shared_type_int = _resolved_shared_type(
+        {"shared_type": request.get("sharedType")}, resolved_resource or {}
+    )
+    # 有条件 (2) → 'submitted' 进受理两级队列；无条件/未知 → 'pending'（单步受理即终路径）。
+    target_status = "submitted" if shared_type_int == 2 else "pending"
+
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        request["status"] = "pending"
+        request["status"] = target_status
+        # 旧草稿补漏：创建早于 owner_org_code 存档的单，提交时从资源回填（R11 方向 guard 的
+        # owner 源；guard 对空 owner fail-closed，缺位则二级部门审核永 403）。
+        if not request.get("owner_org_code") and resolved_resource is not None:
+            request["owner_org_code"] = _owner_org_code_from_resource(resolved_resource)
         request["submittedAt"] = clock.now_datetime()
         request["auditId"] = audit_id
         request["chainAnchor"] = "pending"
@@ -503,29 +588,16 @@ def _submit_request(brain, deps, ctx, request_id: str, role: str, confirmed: boo
             "request.submit" if is_draft_submit else "request.resubmit", request_id, "ok", actor
         )
         # G2：草稿确认提交 → 此刻才启动审批工作流（承接 _create_request 草稿不触发的搬移）。
-        # 解析资源用于抽 shared_type/project_code；best-effort——资源若已下线/移除，
-        # 审批 hook 跳过即可（同 _maybe_start_approval_workflow 的 D4「不破业务主路径」契约），
-        # 不让一张陈旧草稿因资源消失而无法提交。
+        # 资源解析已提前到状态判定处共用（best-effort 契约不变）：资源缺位仅跳过审批 hook。
         approval_case_id = None
-        if is_draft_submit:
-            resource = None
-            try:
-                resource = deps.services.catalog.resolve_resource_for_application(
-                    request.get("resourceId") or request_id
-                )
-            except Exception as exc:  # noqa: BLE001 — 审批 hook 旁路，解析失败不破提交主路径
-                _logger.warning(
-                    "approval_flow.resource_resolve.failed.skip_workflow",
-                    extra={"application_code": request_id, "error_msg": str(exc)[:500]},
-                )
-            if resource is not None:
-                approval_case_id = _maybe_start_approval_workflow(
-                    application_code=request_id,
-                    tenant_id=_DEFAULT_TENANT_ID,
-                    shared_type=_extract_shared_type({}, resource),
-                    project_code=_extract_project_code({}, resource),
-                    submitted_by=actor,
-                )
+        if is_draft_submit and resolved_resource is not None:
+            approval_case_id = _maybe_start_approval_workflow(
+                application_code=request_id,
+                tenant_id=_DEFAULT_TENANT_ID,
+                shared_type=shared_type_int,
+                project_code=_extract_project_code({}, resolved_resource),
+                submitted_by=actor,
+            )
         out: dict[str, Any] = {"request_id": request_id, "status": request["status"]}
         if approval_case_id is not None:
             out["approval_case_id"] = approval_case_id

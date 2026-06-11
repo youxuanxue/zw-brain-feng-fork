@@ -1,28 +1,32 @@
 slug: j1-runtime-write-path-dual-track
-title: "运行时申请写路径仍走演示时代双轨（内存快照 dict + 状态词汇 pending）→ 新建有条件申请进不了受理两级"
+title: "运行时申请写路径仍走演示时代双轨（内存快照 dict escape hatch）→ Action D 写路径单源化待立项"
 date: 2026-06-11
-severity: high
+severity: medium
 owner: 产品研发负责人
-# permission-matrix-0610（PR #245）走查中实锤。演示**数据**已随 C-1/D47 删净（seed_snapshot.json
-# requests/approvals/delivery_tasks=0、快照列表无条件从 application_record 现算、凭据停捏造），
-# 但演示时代的**写路径**仍在：request.create / application.resource.submit 先写 BrainService
-# 内存快照 dict（铸 REQ-NNN 编号），再经 PersistMiddleware → sync_reference_tables 镜像 upsert 进
-# application_record（application_code=REQ-*，主键 uuid）。代码注释自记为「Action C escape hatch /
-# in-memory snapshot dict elimination is Action D scope」（handlers/j1/request.py:404-406），
-# 账面挂 brainservice-2（external）但该条只盖 middleware 抽象，未盖业务后果。
+# permission-matrix-0610（PR #245）走查实锤；负责人 2026-06-11 裁「B 先 A 后」。
 #
-# 业务后果（本条独立成账的原因）：**状态词汇双轨**——运行时直提/提交单落 status='pending'
-# （旧 J1 词汇 pending/supplementing/…），而 D55/P21 受理两级状态机只认 'submitted'
-# （submitted→dept_approved→granted）。结果：UI 新建的**有条件共享**申请，受理按钮不渲染
-# （P3ReviewDetail showAcceptActions 要求 status==='submitted'）+ 后端 platform_approve 拒
-# pending（conditional_approval.py:227 InvalidStateError）→ 受理岗对其无任何可办动作，
-# 单据卡死。无条件单不受影响（application.resource.review 单步路径认 pending）。
-# wave1.5 验收（两级走查）以预铸 status='submitted' 真实库单驱动，恰好绕开了本缺口；
-# permission_matrix_walkthrough.spec.ts 同样以 legacy 存量单驱动（注释已注明本债 slug）。
-trigger: "Action D 立项（运行时写路径单源化：request.create/submit 直写 application_record、状态词汇统一进 conditional_approval 迁移表、消灭内存快照 dict）或最小修复（直提单 shared_type=2 时落 status='submitted' 进受理队列）。属架构门，方案须负责人审批后实施；落地后 e2e 须补「UI 新建有条件申请 → 受理 → 审核」全链（不再依赖预铸单）。"
+# 【方案 B 已兑现 · fix/j1-conditional-accept-bridge】状态词汇桥接 + 二级可办修复：
+#   1. 有条件 (shared_type=2) 直提/草稿提交单落 status='submitted' 进 D55/P21 受理两级队列
+#      （解析链：payload 显式值 → resource.accessPolicy → resource_asset access_policy 回源）；
+#      无条件保持 'pending' 单步受理即终。
+#   2. 运行时单随单存档 owner_org_code（R11 方向 guard 对空 owner fail-closed——此前所有
+#      运行时/legacy 单 owner 均空 → 二级部门审核对任何管理员 403、单据永卡 dept_approved，
+#      旧 e2e「审核通过」断言被按钮自身文案假绿遮蔽）。
+#   3. 条件状态机迁移回写内存快照行（_sync_snapshot_request_status）——否则凭据自动签发
+#      hook 读陈旧态把已成功的终审响应炸成 409、管理员工作台待办不投影。
+#   4. dev-bypass 会话 org 可配置（ZW_BRAIN_DEV_IAM_BYPASS_ORG，start-local 默认省大数据局），
+#      方向 guard 语义不变、dev 走查可走通二级。
+#   验证：tests/test_j1_conditional_status_bridge.py（5 用例）+ permission_matrix_walkthrough
+#   业务流 1 全链自铸真 UI（不再依赖预铸单）。
+#
+# 【方案 A 残留 · 本债继续盯】演示时代写路径本体未消灭：request.create /
+# application.resource.submit 仍先写 BrainService 内存快照 dict（铸 REQ-NNN），再经
+# PersistMiddleware → sync_reference_tables 镜像 upsert 进 application_record；读写双轨由
+# 桥接与回写勉力同步（_sync_snapshot_request_status 即 Action D 落地后应退役的过渡件）。
+trigger: "Action D 立项（运行时写路径单源化：request.create/submit 直写 application_record、消灭内存快照 dict 与 REQ-* 编号序列、退役 _sync_snapshot_request_status 过渡件与 sync_reference_tables 申请镜像）。属架构门，方案须负责人审批后实施。"
 assert:
-  # 机械锚点：直提路径仍落 'pending'（initial_status 词汇未与受理两级统一）。修复后该行消失/改写，
-  # 本断言转 stale-fixed 提醒收账。
+  # 机械锚点：创建路径仍写内存快照 dict（Action C escape hatch 注释行）。Action D 落地
+  # 删除该写法后本断言转 stale-fixed 提醒收账。
   kind: grep_present
   file: zw_brain/command/handlers/j1/request.py
-  pattern: 'initial_status = "draft" if as_draft else "pending"'
+  pattern: '_snapshot\["requests"\]\.insert\(0, request\)'

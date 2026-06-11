@@ -95,6 +95,20 @@ def _share_type_by_resource(tenant_id: str) -> dict[str, int]:
     return out
 
 
+def shared_type_for_resource(resource_id: str, tenant_id: str | None = None) -> int | None:
+    """单资源共享方式回源（access_policy_json.share_type，与申请卡投影同源口径）。
+
+    供写路径（request.create / submit 直提）判定有条件 (2) / 无条件 (1)——状态词汇桥接
+    （j1-runtime-write-path-dual-track 方案 B）：有条件单须落 'submitted' 进受理两级队列。
+    取不到返 None（调用方按无条件兜底，不虚构口径）。
+    """
+    rid = str(resource_id or "")
+    if not rid:
+        return None
+    tid = tenant_id or get_runtime_tenant_id()
+    return _share_type_by_resource(tid).get(rid)
+
+
 def _record_to_request_card(record: Any, share_type_by_resource: dict[str, int] | None = None) -> dict[str, Any]:
     """application_record → 轻量申请卡（snake→camel；applicant PII 走 mask_default）。
 

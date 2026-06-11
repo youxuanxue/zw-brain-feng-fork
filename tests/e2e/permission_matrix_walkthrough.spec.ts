@@ -44,20 +44,31 @@ async function invoke(
   return (body.result ?? body) as Record<string, unknown>;
 }
 
-/** 两级受理状态机（D55/P21）只认 status='submitted'；而运行时直提单（REQ-*，经内存快照
- *  镜像进 application_record）落旧词汇 'pending' → 有条件新单进不了受理两级（状态词汇双轨，
- *  记债 j1-runtime-write-path-dual-track）。故走查单从快照动态选取真实库
- *  「有条件共享 (sharedType=2) + submitted」存量单；干净 seed 自带数条，耗尽则诚实 skip。 */
-async function pickConditionalSubmitted(
+/** 状态词汇桥接（方案 B，j1-runtime-write-path-dual-track）后，运行时直提的有条件单
+ *  直接落 'submitted' 进受理两级队列——本走查**自铸**直提单（刻意不传 shared_type，
+ *  验证 access_policy 回源解析），不再依赖预铸/legacy 存量单。同资源已有在办申请会被
+ *  拦（重复跑 / 脏 DB），逐个候选有条件资源试到成功；铸出非 submitted 即桥接回归，返
+ *  特殊标记令断言失败而非静默 skip。 */
+async function mintConditionalDirectSubmit(
   api: import('@playwright/test').APIRequestContext,
-): Promise<string> {
-  const snap = await api.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_BUSIAUDIT`);
+): Promise<{ reqId: string; status: string } | null> {
+  const snap = await api.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
   const body = (await snap.json().catch(() => ({}))) as Record<string, unknown>;
-  const requests = (body.requests ?? []) as Array<Record<string, unknown>>;
-  const cand = requests.find(
-    (r) => String(r.status ?? '') === 'submitted' && Number(r.sharedType ?? 0) === 2,
-  );
-  return String(cand?.id ?? '');
+  const discovery = (body.discovery ?? {}) as Record<string, unknown>;
+  const resources = (discovery.resources ?? []) as Array<Record<string, unknown>>;
+  const conditional = resources.filter((r) => String(r.shareType ?? '') === '有条件共享');
+  for (const r of conditional.slice(0, 12)) {
+    const created = await invoke(api, 'application.resource.submit', {
+      resource_id: String(r.id ?? ''),
+      role: 'ROLE_ORGAN_OPERATER',
+      confirmed: true,
+      purpose: 'e2e 受理两级全链走查：有条件直提',
+      query: 'e2e two-stage chain',
+    });
+    const reqId = String(created.request_id ?? '');
+    if (reqId) return { reqId, status: String(created.status ?? '') };
+  }
+  return null;
 }
 
 test.describe('权限矩阵走查（permission-matrix-0610）', () => {
@@ -130,17 +141,20 @@ test.describe('权限矩阵走查（permission-matrix-0610）', () => {
     await expect(page.getByRole('button', { name: '归档关闭' })).toHaveCount(0);
   });
 
-  test('业务流 1（D55/P21 受理两级）：运营员受理 → 管理员审核 → 已授权；操作员无审批按钮', async ({ page, playwright }) => {
+  test('业务流 1（D55/P21 受理两级全链）：自铸有条件直提单 → 运营员受理 → 管理员审核 → 已授权；操作员无审批按钮', async ({ page, playwright }) => {
     test.setTimeout(180_000);
-    // 从真实库选取「有条件 + submitted」走查单（见 pickConditionalSubmitted 注释）。
+    // 自铸（不依赖预铸/legacy 单）——方案 B 后直提即落 submitted。
     const api = await playwright.request.newContext();
-    let reqId = '';
+    let minted: { reqId: string; status: string } | null = null;
     try {
-      reqId = await pickConditionalSubmitted(api);
+      minted = await mintConditionalDirectSubmit(api);
     } finally {
       await api.dispose();
     }
-    test.skip(!reqId, '真实库无「有条件共享 + submitted」可走查单（干净 seed 重建后自带）');
+    test.skip(!minted, '真实库无可用「有条件共享」资源（候选 12 个均有在办申请）');
+    const { reqId, status } = minted!;
+    // 桥接回归锚：直提即受理两级入口态（铸出 pending = 状态词汇双轨回潮，必须红）。
+    expect(status, '有条件直提单应落 submitted（j1-runtime-write-path-dual-track 方案 B）').toBe('submitted');
 
     // 申请人（操作员）打开同一单：受理/审核按钮不渲染（状态机动作无权=不可见）。
     await setRole(page, 'ROLE_ORGAN_OPERATER');
@@ -148,23 +162,27 @@ test.describe('权限矩阵走查（permission-matrix-0610）', () => {
     await expect(page.getByRole('button', { name: '受理', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: '审核通过', exact: true })).toHaveCount(0);
 
-    // 第一级：业务运营员受理。
+    // 第一级：业务运营员受理。断言以**按钮消失 + 状态文案**为准——不可断 body 含按钮自身
+    // 文字（点击失败时按钮仍在，body 文案恒真 → 假绿，旧 spec 即栽在这里）。
     await setRole(page, 'ROLE_BUSIAUDIT');
     await gotoHash(page, `#/request-flow/review/${reqId}`);
     const acceptBtn = page.getByRole('button', { name: '受理', exact: true });
     await expect(acceptBtn).toBeVisible({ timeout: 15_000 });
     await page.screenshot({ path: `${SHOTS}/flow1-busiaudit-before-accept.png`, fullPage: true });
     await acceptBtn.click();
-    await expect(page.locator('body')).toContainText(/已受理|待部门审核|受理通过/, { timeout: 15_000 });
+    await expect(acceptBtn).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.locator('body')).toContainText('已受理待审核', { timeout: 15_000 });
     await page.screenshot({ path: `${SHOTS}/flow1-busiaudit-accepted.png`, fullPage: true });
 
-    // 第二级：部门管理员审核通过 → 已授权。
+    // 第二级：部门管理员审核通过 → 已授权（dev 会话 org 经 ZW_BRAIN_DEV_IAM_BYPASS_ORG
+    // 对齐资源提供方，R11 方向 guard 真放行——start-local.sh 已默认省大数据局）。
     await setRole(page, 'ROLE_ORGAN_MANAGER');
     await gotoHash(page, `#/request-flow/review/${reqId}`);
     const deptBtn = page.getByRole('button', { name: '审核通过', exact: true });
     await expect(deptBtn).toBeVisible({ timeout: 15_000 });
     await deptBtn.click();
-    await expect(page.locator('body')).toContainText(/已授权|审核通过/, { timeout: 15_000 });
+    await expect(deptBtn).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.locator('body')).toContainText('已授权', { timeout: 15_000 });
     await page.screenshot({ path: `${SHOTS}/flow1-manager-granted.png`, fullPage: true });
   });
 

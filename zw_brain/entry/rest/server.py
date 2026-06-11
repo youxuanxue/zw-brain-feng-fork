@@ -148,21 +148,33 @@ def _iaf_client_id() -> str:
     return (os.environ.get("ZW_BRAIN_IAF_RESOURCE") or os.environ.get("ZW_BRAIN_IAF_CLIENT_ID") or DEFAULT_IAF_CLIENT_ID).strip() or DEFAULT_IAF_CLIENT_ID
 
 
+def _dev_iam_bypass_org_code() -> str:
+    """dev-bypass 会话所属机构码（仅 dev 档生效）。
+
+    默认 'dev'；可经 ZW_BRAIN_DEV_IAM_BYPASS_ORG 指为真实机构码（如省大数据局
+    11370000MB284651XL），使带 R11 方向 guard 的动作（有条件二级部门审核
+    application.dept_approve）在 dev 走查 / e2e 中可走通——guard 对 owner_org_code
+    fail-closed，会话 org 须与资源提供方一致才放行（与真 IAM 会话同语义，不开后门）。
+    """
+    return (os.environ.get("ZW_BRAIN_DEV_IAM_BYPASS_ORG") or "dev").strip() or "dev"
+
+
 def _dev_iam_bypass_user_profile() -> dict[str, Any]:
     from zw_brain.shared.session_context import apply_runtime_context, contexts_from_role_codes
 
     role_codes = _dev_iam_bypass_role_codes()
+    org_code = _dev_iam_bypass_org_code()
     snapshot = {
         "subject": _DEV_IAM_BYPASS_SUBJECT,
         "username": _DEV_IAM_BYPASS_USERNAME,
         "display_name": _DEV_IAM_BYPASS_DISPLAY_NAME,
         "tenant_id": "sd-default",
-        "org_code": "dev",
+        "org_code": org_code,
         "role_codes": role_codes,
     }
-    contexts = contexts_from_role_codes(role_codes, org_code="dev")
+    contexts = contexts_from_role_codes(role_codes, org_code=org_code)
     preferred_role = "ROLE_ORGAN_OPERATER" if "ROLE_ORGAN_OPERATER" in role_codes else (role_codes[0] if role_codes else None)
-    return apply_runtime_context(snapshot, contexts, preferred_org_code="dev", preferred_role_code=preferred_role)
+    return apply_runtime_context(snapshot, contexts, preferred_org_code=org_code, preferred_role_code=preferred_role)
 
 
 def _dev_iam_bypass_claims() -> dict[str, Any]:
@@ -171,7 +183,7 @@ def _dev_iam_bypass_claims() -> dict[str, Any]:
         "sub": _DEV_IAM_BYPASS_SUBJECT,
         "preferred_username": _DEV_IAM_BYPASS_USERNAME,
         "project_id": "sd-default",
-        "org_code": "dev",
+        "org_code": _dev_iam_bypass_org_code(),
         "realm_access": {"roles": ["DEV_IAM_BYPASS"]},
         "resource_access": {client_id: {"roles": _dev_iam_bypass_role_codes()}},
         "development_iam_bypass": True,

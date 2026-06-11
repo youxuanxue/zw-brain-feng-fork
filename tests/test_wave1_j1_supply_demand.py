@@ -33,8 +33,10 @@ require_real_seed({"application_record": 100})
 
 @pytest.fixture(scope="module", autouse=True)
 def _shadow_db() -> None:
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
+    # WAL 模式下 -wal/-shm 是库的一部分：只 unlink 主文件会让上次被杀进程留下的陈旧
+    # WAL 残件重放进新拷贝 → "database disk image is malformed"。glob 清三件套再拷。
+    for stale in SHADOW_DB.parent.glob(f"{SHADOW_DB.name}*"):
+        stale.unlink()
     shutil.copy(SEED_DB, SHADOW_DB)
     os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
     os.environ.pop("ZW_BRAIN_DATABASE_URL", None)

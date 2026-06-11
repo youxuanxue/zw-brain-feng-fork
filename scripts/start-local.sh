@@ -53,6 +53,10 @@ if [[ -z "${ZW_BRAIN_IAF_AUTH_SERVER_URL:-}" ]]; then
     export ZW_BRAIN_DEV_IAM_BYPASS="${ZW_BRAIN_DEV_IAM_BYPASS:-1}"
     export ZW_BRAIN_DEV_IAM_BYPASS_ACK="${ZW_BRAIN_DEV_IAM_BYPASS_ACK:-development-only}"
     export ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH="${ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH:-1}"
+    # dev 走查会话所属机构默认 = 省大数据局（sd-default 枢纽机构、seed 资源主提供方）。
+    # R11 方向 guard 对 owner_org_code fail-closed：会话 org 与资源提供方一致，
+    # 有条件二级部门审核（application.dept_approve）在本机走查 / e2e 才可走通。
+    export ZW_BRAIN_DEV_IAM_BYPASS_ORG="${ZW_BRAIN_DEV_IAM_BYPASS_ORG:-11370000MB284651XL}"
 fi
 
 REST_PID=""

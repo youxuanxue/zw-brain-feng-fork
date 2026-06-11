@@ -58,7 +58,7 @@
   - assert: external → external — owner=产品研发负责人; trigger=Wave1 立项条件审批运行时（dept_approve→platform_approve handler + P3 两步 UI + decision_mode 暴露）→ 走查两步真跑 → 追加 covers → 翻 Done
 - j1-legacy-record-actionability [medium] (2026-06-01) — M0 导入的真实申请缺运行时实体图（无 delivery task / 不在内存快照）→ 凭据页 422、动作面半残
   - assert: external → external — owner=产品研发负责人; trigger=业务/架构裁决历史导入申请的可动作性 → 若需在线动作则回填 delivery task / grant snapshot 等运行时实体（或建 application_record→delivery 的解析回源）；若定性只读则 UI 对历史导入申请隐藏撤回/暂停/凭据入口（无权/不适用=不可见）。裁决落 D-编号后据此收口。
-- j1-runtime-write-path-dual-track [high] (2026-06-11) — 运行时申请写路径仍走演示时代双轨（内存快照 dict + 状态词汇 pending）→ 新建有条件申请进不了受理两级
+- j1-runtime-write-path-dual-track [medium] (2026-06-11) — 运行时申请写路径仍走演示时代双轨（内存快照 dict escape hatch）→ Action D 写路径单源化待立项
   - assert: grep_present → pattern present in zw_brain/command/handlers/j1/request.py
 - j2-4 [medium] (2026-05-27) — J2-4 资源挂接 OPERATER 提交侧 wizard 立项延后
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务方提出"在线提交挂接"演示需求 → 走 product-dev.mdc
