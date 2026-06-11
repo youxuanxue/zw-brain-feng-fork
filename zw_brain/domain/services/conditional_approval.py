@@ -319,10 +319,19 @@ class ConditionalApprovalService:
     def _persist_payload(self, store: Any, request_id: str, payload: dict[str, Any], status: str) -> None:
         """Persist both status and payload back to the application record.
 
-        Goes through ``upsert_from_request`` (ORM upsert, no raw SQL) so the
-        round / dept_approver_id payload fields survive; falls back to a plain
-        status update when the payload lacks the upsert-required applicant fields.
+        Action D：运行时单优先走 CardSession 登记卡（状态机增记字段合入卡、
+        写括号末尾 flush 落库；同 dispatch 内后续读取——如终审后嵌套的凭据
+        自动签发——拿到的就是新态，无陈旧可言）。legacy 导入单不进会话，
+        保持直接 ``upsert_from_request``（ORM upsert，无裸 SQL），round /
+        dept_approver_id 等 payload 字段随之存续。
         """
+        card = self.brain._card_session.get_request(request_id)
+        if card is not None:
+            for key, value in payload.items():
+                if key not in {"id", "status"}:
+                    card[key] = value
+            card["status"] = status
+            return
         record = store.application_repo.get_record(request_id, tenant_id=_DEFAULT_TENANT_ID)
         request_shaped = {
             "id": request_id,
@@ -332,31 +341,3 @@ class ConditionalApprovalService:
             **{k: v for k, v in payload.items() if k not in {"id", "status", "applicant", "applicantDept"}},
         }
         store.application_repo.upsert_from_request(request_shaped, tenant_id=_DEFAULT_TENANT_ID)
-        self._sync_snapshot_request_status(request_id, status, payload)
-
-    def _sync_snapshot_request_status(self, request_id: str, status: str, payload: dict[str, Any]) -> None:
-        """运行时单（REQ-*）内存快照行随迁移回写（best-effort，状态 + 状态机增记字段）。
-
-        状态词汇桥接（j1-runtime-write-path-dual-track 方案 B）：两级状态机权威态在
-        application_record，但运行时单在内存快照仍留同 id 旧行——不回写则读内存行的下游
-        拿到陈旧态（凭据自动签发 hook 误判「未审批」把已成功的终审响应炸成 409、管理员
-        工作台待办不投影）；且写后镜像（sync_reference_tables 按内存行 upsert）会把
-        payload_json 盖回旧形，故状态机增记字段须一并合入内存行，镜像才不丢。
-        legacy 导入单不在内存快照，安静跳过。内存双轨整体由 Action D
-        （j1-runtime-write-path-dual-track）消灭后本方法随之退役。
-        """
-        _machine_keys = (
-            "round",
-            "platform_reviewer_id", "platform_decision", "platform_decision_note",
-            "dept_approver_id", "dept_decision", "dept_decision_note",
-        )
-        try:
-            for item in self.brain._snapshot.get("requests", []):
-                if str(item.get("id")) == str(request_id):
-                    item["status"] = status
-                    for key in _machine_keys:
-                        if key in payload:
-                            item[key] = payload[key]
-                    break
-        except Exception:  # noqa: BLE001 — 内存视图回写旁路，失败不破审批主路径
-            return

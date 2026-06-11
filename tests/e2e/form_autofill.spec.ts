@@ -49,10 +49,10 @@ test.describe('表单填报 · 自动填充 + 原地修订锁定', () => {
     await expect(applyBtn).toBeVisible();
     await applyBtn.click();
 
-    // 落到草稿详情。
+    // 落到草稿详情（Action D：新铸申请编码为 32 位 hex）。
     await expect
       .poll(async () => page.evaluate(() => window.location.hash), { timeout: 8_000 })
-      .toMatch(/#\/request-flow\/request\/REQ-/);
+      .toMatch(/#\/request-flow\/request\/(REQ-|[0-9a-f]{32})/);
 
     // 可编辑申请表单面板出现。
     const panel = page.locator('section.ff-panel');

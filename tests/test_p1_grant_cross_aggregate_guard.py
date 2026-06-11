@@ -50,8 +50,8 @@ def brain(tmp_path, monkeypatch):
 
 
 def _inject_grantable_task(brain, *, task_id: str, application_code: str) -> None:
-    """Put a delivery task in a grantable status bound to `application_code`."""
-    brain._snapshot["delivery_tasks"].append(
+    """Put a delivery task in a grantable status bound to `application_code`（Action D：直写 DB）。"""
+    brain._state_store.database_store.delivery_repo.upsert_from_delivery(
         {
             "id": task_id,
             "requestId": application_code,
@@ -62,7 +62,8 @@ def _inject_grantable_task(brain, *, task_id: str, application_code: str) -> Non
             "backflow": {},
             "aiSummary": {"summary": "", "nextAction": ""},
             "access": {},
-        }
+        },
+        tenant_id=TENANT,
     )
 
 

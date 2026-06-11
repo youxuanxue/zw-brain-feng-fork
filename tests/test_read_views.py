@@ -5,28 +5,34 @@ behave differently. These tests pin down the contract so future refactors
 can't silently flip semantics:
 
 A. **Bulk / deepcopy reads** (``list_all``, ``get``, ``list_*``, ``get_*``):
-   return a ``copy.deepcopy`` of the underlying snapshot slice — handler-side
-   mutation must NOT propagate to the live snapshot. The two per-entity
-   ``get_*_by_id`` lookups (``DisputesView.get_dispute_by_id`` and
+   return copies — handler-side mutation must NOT propagate to the live
+   snapshot（或 DB，Action D 后申请/审批/交付列表态从库现算）。The two
+   per-entity ``get_*_by_id`` lookups (``DisputesView.get_dispute_by_id`` and
    ``ResourcesView.get_api_resource``) also live here — the ``get_`` prefix
    signals deepcopy semantics even though the surface is a single entity.
 
 B. **Per-entity live lookups** (``find_by_id`` on RequestsView /
    PackagesView / DeliveryView; ``find_by_request_id`` on DeliveryView):
-   return a live reference to the snapshot entry — handler-side mutation
-   IS visible to PersistMiddleware on the next sync.
+   return a per-dispatch live card — handler-side mutation IS persisted by
+   the write bracket（Action D：CardSession identity map + flush 落库；
+   PackagesView 仍是快照活引用）。
 
-C. **NotFoundError contract**: the three live lookup helpers that wrap
-   ``BrainService._<entity>_by_id`` (requests / packages / delivery#find_by_id)
-   raise NotFoundError on miss; ``find_by_request_id`` /
-   ``get_dispute_by_id`` / ``get_api_resource`` return ``None``.
+C. **NotFoundError contract**: the three live lookup helpers
+   (requests / packages / delivery#find_by_id) raise NotFoundError on miss;
+   ``find_by_request_id`` / ``get_dispute_by_id`` / ``get_api_resource``
+   return ``None``.
 """
 from __future__ import annotations
+
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pytest
 
 from zw_brain.command.brain import BrainService, NotFoundError
 from zw_brain.command.views import ReadViews
+
+TENANT = "sd-default"
 
 
 @pytest.fixture(scope="module")
@@ -40,19 +46,51 @@ def views(brain: BrainService) -> ReadViews:
     return ReadViews.from_brain(brain)
 
 
+@pytest.fixture()
+def db_brain(monkeypatch: pytest.MonkeyPatch):
+    """Fresh temp-DB brain（Action D：申请/交付 find_by_id 走 CardSession + DB）。"""
+    from zw_brain.shared import db as db_module
+    from zw_brain.shared.migrate import ensure_runtime_schema
+
+    with TemporaryDirectory() as tmp:
+        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(Path(tmp) / "read_views.db"))
+        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
+        with db_module._CACHE_LOCK:
+            db_module._ENGINE_CACHE.clear()
+        ensure_runtime_schema()
+
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.state_store import StateStore
+
+        store = DatabaseStore()
+        store.application_repo.upsert_from_request(
+            {"id": "appRV001", "status": "pending", "applicant": "张三", "applicantDept": "测试单位", "resourceName": "读视图测试资源"},
+            tenant_id=TENANT,
+        )
+        store.delivery_repo.upsert_from_delivery(
+            {"id": "DLV-appRV001", "requestId": "appRV001", "status": "pending", "channel": "api_gateway"},
+            tenant_id=TENANT,
+        )
+        yield BrainService(state_store=StateStore(database_store=store))
+        with db_module._CACHE_LOCK:
+            db_module._ENGINE_CACHE.clear()
+
+
 # ── §A bulk reads: deepcopy isolation ──────────────────────────────────────
 
 
-def test_requests_list_all_returns_deepcopy(brain: BrainService, views: ReadViews) -> None:
-    listed = views.requests.list_all()
-    if not listed:
-        pytest.skip("seed snapshot has no requests")
-    sentinel = "view_test_should_not_propagate"
-    listed[0]["__view_sentinel"] = sentinel
-    # Snapshot must remain untouched.
-    assert all("__view_sentinel" not in r for r in brain._snapshot["requests"]), (
-        "RequestsView.list_all leaked a mutable reference into brain._snapshot"
-    )
+def test_requests_list_all_returns_deepcopy(db_brain: BrainService) -> None:
+    """Action D：list_all 从 DB 现算只读副本——变更副本不得落库、不得进会话。"""
+    db_views = ReadViews.from_brain(db_brain)
+    listed = db_views.requests.list_all()
+    assert listed, "db_brain fixture seeds one request"
+    listed[0]["__view_sentinel"] = "view_test_should_not_propagate"
+    listed[0]["status"] = "granted"
+    db_brain._card_session.flush()
+    store = db_brain._state_store.database_store
+    rec = store.application_repo.get_record("appRV001", tenant_id=TENANT)
+    assert rec.status == "pending", "list_all 副本变更不得经会话落库"
+    assert "__view_sentinel" not in (rec.payload_json or {})
 
 
 def test_packages_list_all_returns_deepcopy(brain: BrainService, views: ReadViews) -> None:
@@ -109,20 +147,20 @@ def test_resources_list_api_resources_returns_deepcopy(brain: BrainService, view
 # ── §B per-entity lookups: live reference ──────────────────────────────────
 
 
-def test_requests_find_by_id_returns_live_reference(brain: BrainService, views: ReadViews) -> None:
-    requests = brain._snapshot["requests"]
-    if not requests:
-        pytest.skip("seed snapshot has no requests")
-    rid = requests[0]["id"]
-    record = views.requests.find_by_id(rid)
-    assert record is requests[0], (
-        "RequestsView.find_by_id must return a live reference (mutation closures depend on this)"
+def test_requests_find_by_id_returns_live_reference(db_brain: BrainService) -> None:
+    """Action D：find_by_id 返回 per-dispatch 会话卡——同会话同一实例，变更经 flush 落库。"""
+    db_views = ReadViews.from_brain(db_brain)
+    card = db_views.requests.find_by_id("appRV001")
+    again = db_views.requests.find_by_id("appRV001")
+    assert card is again, (
+        "RequestsView.find_by_id must return the same per-dispatch card (mutation closures depend on this)"
     )
-    # mutation propagates:
-    record["__view_live_sentinel"] = "alive"
-    assert brain._snapshot["requests"][0].get("__view_live_sentinel") == "alive"
-    # cleanup
-    del record["__view_live_sentinel"]
+    card["status"] = "need-fix"
+    db_brain._card_session.flush()
+    store = db_brain._state_store.database_store
+    assert store.application_repo.get_record("appRV001", tenant_id=TENANT).status == "need-fix", (
+        "会话卡变更必须经 flush 持久化（写括号语义）"
+    )
 
 
 def test_packages_find_by_id_returns_live_reference(brain: BrainService, views: ReadViews) -> None:
@@ -136,28 +174,27 @@ def test_packages_find_by_id_returns_live_reference(brain: BrainService, views: 
     )
 
 
-def test_delivery_find_by_id_returns_live_reference(brain: BrainService, views: ReadViews) -> None:
-    tasks = brain._snapshot["delivery_tasks"]
-    if not tasks:
-        pytest.skip("seed snapshot has no delivery_tasks")
-    tid = tasks[0]["id"]
-    record = views.delivery.find_by_id(tid)
-    assert record is tasks[0], (
-        "DeliveryView.find_by_id must return a live reference"
-    )
+def test_delivery_find_by_id_returns_live_reference(db_brain: BrainService) -> None:
+    """Action D：交付卡同会话同一实例，变更经 flush 落库（state 列权威同步）。"""
+    db_views = ReadViews.from_brain(db_brain)
+    card = db_views.delivery.find_by_id("DLV-appRV001")
+    again = db_views.delivery.find_by_id("DLV-appRV001")
+    assert card is again, "DeliveryView.find_by_id must return the same per-dispatch card"
+    card["status"] = "granted"
+    db_brain._card_session.flush()
+    store = db_brain._state_store.database_store
+    assert store.delivery_repo.get_task("DLV-appRV001", tenant_id=TENANT).state == "granted"
 
 
-def test_delivery_find_by_request_id_returns_live_or_none(brain: BrainService, views: ReadViews) -> None:
-    """find_by_request_id returns live ref on hit, None on miss."""
-    tasks = brain._snapshot["delivery_tasks"]
-    if not tasks:
-        pytest.skip("seed snapshot has no delivery_tasks")
-    rid = tasks[0]["requestId"]
-    record = views.delivery.find_by_request_id(rid)
-    assert record is tasks[0], "hit must be live reference"
+def test_delivery_find_by_request_id_returns_live_or_none(db_brain: BrainService) -> None:
+    """find_by_request_id returns the per-dispatch card on hit, None on miss."""
+    db_views = ReadViews.from_brain(db_brain)
+    record = db_views.delivery.find_by_request_id("appRV001")
+    assert record is not None and record["id"] == "DLV-appRV001"
+    assert record is db_views.delivery.find_by_id("DLV-appRV001"), "两种索引须命中同一会话卡"
 
     # miss returns None
-    miss = views.delivery.find_by_request_id("REQ-DOES-NOT-EXIST")
+    miss = db_views.delivery.find_by_request_id("REQ-DOES-NOT-EXIST")
     assert miss is None, "miss must return None (not raise)"
 
 
@@ -264,10 +301,11 @@ def test_read_views_is_frozen() -> None:
     )
 
 
-def test_read_views_exposes_all_14_facets(views: ReadViews) -> None:
-    """All 14 snapshot keys named in views.py docstring have a corresponding facet."""
+def test_read_views_exposes_all_facets(views: ReadViews) -> None:
+    """ReadViews facet 集合钉死（Action D：approvals 视图因零消费者删除——
+    审批卡读取走 services.request.approval_by_id + enrich_approvals_snapshot）。"""
     expected = {
-        "workbench", "discovery", "requests", "approvals", "delivery",
+        "workbench", "discovery", "requests", "delivery",
         "resources", "provider", "disputes", "audit_events", "zones",
         "packages", "tickets", "knowledge", "alerts", "audit_ai",
     }

@@ -60,7 +60,17 @@ def brain(tmp_path, monkeypatch):
 def _create_draft(brain, payload_extra: dict[str, Any] | None = None) -> dict[str, Any]:
     payload = {"resource_id": _RESOURCE_ID, "confirmed": True, **(payload_extra or {})}
     out = _unwrap(invoke_trusted(brain, "request.create", payload, role=_OPERATER))
-    return next(r for r in brain._snapshot["requests"] if r["id"] == out["request_id"])
+    # Action D：申请单一事实源在 application_record，读 DB payload 卡。
+    return _record_card(brain, out["request_id"])
+
+
+def _record_card(brain, rid: str) -> dict[str, Any]:
+    store = brain._state_store.database_store
+    record = store.application_repo.get_record(rid, tenant_id="sd-default")
+    assert record is not None, f"application_record {rid} 应已直写落库"
+    card = dict(record.payload_json or {})
+    card["status"] = record.status
+    return card
 
 
 def _projected_request(rid: str) -> dict[str, Any]:
@@ -158,7 +168,7 @@ def test_submit_records_provenance_audit(brain) -> None:
     req = _create_draft(brain, {"ai_suggested_fields": {"purpose": "AI 拟", "use_reason": "AI 因"}})
     rid = req["id"]
     invoke_trusted(brain, "request.submit", {"request_id": rid, "confirmed": True}, role=_OPERATER)
-    req2 = next(r for r in brain._snapshot["requests"] if r["id"] == rid)
+    req2 = _record_card(brain, rid)
     audit = req2.get("submitProvenanceAudit") or {}
     assert "purpose" in audit.get("ai_suggested_fields", [])
     assert audit.get("ai_unconfirmed_count", 0) >= 1  # 未经人确认的 AI 字段计数（不阻断）

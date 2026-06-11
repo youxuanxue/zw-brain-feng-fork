@@ -354,12 +354,19 @@ class PersistMiddleware:
     def __call__(self, pctx: PipelineContext, next_: NextFn) -> dict[str, Any]:
         result = next_(pctx)
         if pctx.is_write:
+            # Action D：先 flush 卡片会话（申请/审批/交付脏卡落库），再做
+            # 工作台待办投影（投影读库现算，flush 在前才看得到本次写的新态）。
+            self._brain._card_session.flush()
             # Action H: call sync module-level fns with explicit deps; the
             # legacy shims on BrainService still work but going through them
             # would defeat the point of the decoupling.
             from zw_brain.command import sync as state_sync  # noqa: PLC0415
             status_text = self._brain._get_handler_deps().services.request.status_text
-            state_sync.sync_state_views(self._brain._snapshot, status_text)
+            state_sync.sync_state_views(
+                self._brain._snapshot,
+                self._brain._state_store.database_store,
+                status_text,
+            )
             state_sync.persist(
                 self._brain._state_store,
                 self._brain._snapshot,

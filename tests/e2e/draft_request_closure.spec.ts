@@ -60,10 +60,11 @@ test.describe('起草复用申请 · 直达草稿详情闭环', () => {
     await expect(applyBtn).toBeVisible();
     await applyBtn.click();
 
-    // 起草成功后应离开资源详情、落到申请详情路由 #/request-flow/request/REQ-...
+    // 起草成功后应离开资源详情、落到申请详情路由（Action D：新铸申请编码为 32 位 hex，
+    // 与导入单同形；存量 REQ-* 历史编号兼容）。
     await expect
       .poll(async () => page.evaluate(() => window.location.hash), { timeout: 8_000 })
-      .toMatch(/#\/request-flow\/request\/REQ-\d{4}-\d{2}-\d{2}-\d{4}/);
+      .toMatch(/#\/request-flow\/request\/(REQ-\d{4}-\d{2}-\d{2}-\d{4}|[0-9a-f]{32})/);
 
     const hash = await page.evaluate(() => window.location.hash);
     const reqId = hash.split('/').pop() as string;

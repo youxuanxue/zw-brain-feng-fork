@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from zw_brain.command.brain import BrainService
 from zw_brain.shared.state_store import StateStore
@@ -12,6 +14,22 @@ _SLUG = re.compile(r"^[a-z][a-z0-9_-]*$")
 
 def _brain() -> BrainService:
     return BrainService(state_store=StateStore())
+
+
+def _db_brain(tmpdir: str) -> BrainService:
+    """临时库 brain（Action D：待办投影按 application_record 现算，需真库）。"""
+    import os
+
+    from zw_brain.shared import db as db_module
+    from zw_brain.shared.database_store import DatabaseStore
+    from zw_brain.shared.migrate import ensure_runtime_schema
+
+    os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmpdir) / "wb_labels.db")
+    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
+    with db_module._CACHE_LOCK:
+        db_module._ENGINE_CACHE.clear()
+    ensure_runtime_schema()
+    return BrainService(state_store=StateStore(database_store=DatabaseStore()))
 
 
 def test_request_status_text_maps_delivery_states() -> None:
@@ -25,17 +43,24 @@ def test_request_status_text_maps_delivery_states() -> None:
 
 
 def test_workbench_todos_never_expose_raw_request_slugs() -> None:
-    brain = _brain()
     # C-1 删演示单后 seed 无演示申请；本测试关注 todo status 必须中文化（非 slug 泄漏），
     # 自注入合成申请（非 demo-id）使 _sync_request_todos 产出 todos 再校验本意。
-    brain._snapshot["requests"] = [
-        {"id": "REQ-TEST-WB-1", "status": "approved", "resourceName": "测试资源甲"},
-        {"id": "REQ-TEST-WB-2", "status": "pending", "resourceName": "测试资源乙"},
-        {"id": "REQ-TEST-WB-3", "status": "in_delivery", "resourceName": "测试资源丙"},
-    ]
-    brain._sync_request_todos()
-    wb = brain._snapshot["workbench"]["ROLE_ORGAN_OPERATER"]
-    statuses = [str(t["status"]) for t in wb["todos"]]
-    assert statuses, "expected synced todos for organ operater"
-    leaked = [s for s in statuses if _SLUG.match(s)]
-    assert not leaked, f"workbench todo status must be localized, got slugs: {leaked}"
+    # Action D：待办投影按 application_record 现算——注入走 DB upsert。
+    with TemporaryDirectory() as tmp:
+        brain = _db_brain(tmp)
+        store = brain._state_store.database_store
+        for rid, status, name in (
+            ("REQ-TEST-WB-1", "approved", "测试资源甲"),
+            ("REQ-TEST-WB-2", "pending", "测试资源乙"),
+            ("REQ-TEST-WB-3", "in_delivery", "测试资源丙"),
+        ):
+            store.application_repo.upsert_from_request(
+                {"id": rid, "status": status, "resourceName": name, "applicant": "测试人", "applicantDept": "测试单位"},
+                tenant_id="sd-default",
+            )
+        brain._sync_request_todos()
+        wb = brain._snapshot["workbench"]["ROLE_ORGAN_OPERATER"]
+        statuses = [str(t["status"]) for t in wb["todos"]]
+        assert statuses, "expected synced todos for organ operater"
+        leaked = [s for s in statuses if _SLUG.match(s)]
+        assert not leaked, f"workbench todo status must be localized, got slugs: {leaked}"

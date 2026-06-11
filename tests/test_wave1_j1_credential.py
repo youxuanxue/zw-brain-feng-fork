@@ -70,15 +70,11 @@ def brain():
 
 
 def _inject_approved_request(brain, request_id: str, real_resource: dict) -> None:
-    """注入一个 approved 申请 + pending delivery_task，让 credential.issue 能签发."""
-    brain._snapshot.setdefault("requests", [])
-    brain._snapshot.setdefault("delivery_tasks", [])
+    """注入一个 approved 申请 + granted delivery_task，让 credential.issue 能签发.
 
-    # 移除可能的旧记录（idempotent）
-    brain._snapshot["requests"] = [r for r in brain._snapshot["requests"] if r.get("id") != request_id]
-    brain._snapshot["delivery_tasks"] = [t for t in brain._snapshot["delivery_tasks"] if t.get("requestId") != request_id]
-
-    brain._snapshot["requests"].append({
+    Action D：申请/交付单一事实源在 DB——直接 upsert 注入（幂等，同 code 覆盖）。"""
+    store = brain._state_store.database_store
+    store.application_repo.upsert_from_request({
         "id": request_id,
         "status": "approved",
         "applicant": "U_OP_F5",
@@ -87,8 +83,8 @@ def _inject_approved_request(brain, request_id: str, real_resource: dict) -> Non
         "resourceName": real_resource["resource_name"],
         "purpose": "F5 凭据样例验证",
         "auditId": "AE-F5-test",
-    })
-    brain._snapshot["delivery_tasks"].append({
+    }, tenant_id="sd-default")
+    store.delivery_repo.upsert_from_delivery({
         "id": f"DT-{request_id}",
         "requestId": request_id,
         "resourceId": real_resource["resource_id"],
@@ -99,7 +95,7 @@ def _inject_approved_request(brain, request_id: str, real_resource: dict) -> Non
         "channel": "api",
         "accessGrantSnapshot": {},
         "history": [],
-    })
+    }, tenant_id="sd-default")
 
 
 def _invoke(brain, skill_id: str, payload: dict) -> dict:

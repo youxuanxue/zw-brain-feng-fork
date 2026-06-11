@@ -140,7 +140,8 @@ def _record_to_request_card(record: Any, share_type_by_resource: dict[str, int] 
         # 用途脏值诚实信号（data_quality 单源；前端 dataQuality.ts 镜像降级渲染）。
         "purposeQuality": classify_purpose(raw_purpose),
         "purposeDirty": is_dirty_purpose(raw_purpose),
-        "status": payload.get("status") or "",
+        # Action D：status 列权威（update_status 类写者只写列，payload 可能滞后）。
+        "status": record.status or payload.get("status") or "",
         # 来源诚实标识（缺陷 3）：旧平台导入 vs 在产单视觉区分。
         "isLegacyImport": is_legacy_import,
         # 国家通道指示（C9）：channel_class=='national' 标识「请求国家级数据」的申请，

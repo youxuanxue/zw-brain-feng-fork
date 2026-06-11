@@ -99,9 +99,8 @@ def test_wave3_observability_credential_quota_exposed_via_query(tmp_path: Path, 
     brain = BrainService(state_store=StateStore(database_store=store))
     resource = {"resource_id": "res-quota-obs", "resource_name": "quota观测目录"}
     request_id = "REQ-W3-QUOTA-OBS"
-    brain._snapshot.setdefault("requests", [])
-    brain._snapshot.setdefault("delivery_tasks", [])
-    brain._snapshot["requests"].append(
+    # Action D：申请/交付单一事实源在 DB——直接 upsert 注入。
+    store.application_repo.upsert_from_request(
         {
             "id": request_id,
             "status": "approved",
@@ -111,9 +110,10 @@ def test_wave3_observability_credential_quota_exposed_via_query(tmp_path: Path, 
             "resourceName": resource["resource_name"],
             "purpose": "wave3 observability",
             "auditId": "AE-W3-test",
-        }
+        },
+        tenant_id="sd-default",
     )
-    brain._snapshot["delivery_tasks"].append(
+    store.delivery_repo.upsert_from_delivery(
         {
             "id": f"DT-{request_id}",
             "requestId": request_id,
@@ -124,7 +124,8 @@ def test_wave3_observability_credential_quota_exposed_via_query(tmp_path: Path, 
             "channel": "api",
             "accessGrantSnapshot": {},
             "history": [],
-        }
+        },
+        tenant_id="sd-default",
     )
     invoke_trusted(
         brain,

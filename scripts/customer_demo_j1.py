@@ -86,11 +86,10 @@ def _find_target_catalog(shadow_db: Path) -> list[dict[str, str]]:
 
 
 def _inject_approved_request(brain, request_id: str, resource_id: str, resource_name: str) -> None:
-    brain._snapshot.setdefault("requests", [])
-    brain._snapshot.setdefault("delivery_tasks", [])
-    brain._snapshot["requests"] = [r for r in brain._snapshot["requests"] if r.get("id") != request_id]
-    brain._snapshot["delivery_tasks"] = [t for t in brain._snapshot["delivery_tasks"] if t.get("requestId") != request_id]
-    brain._snapshot["requests"].append({
+    # Action D：申请/交付单一事实源在 DB——演示前置单直接 upsert 进
+    # application_record / delivery_task（幂等，同 code 覆盖），不再写内存快照。
+    store = brain._state_store.database_store
+    store.application_repo.upsert_from_request({
         "id": request_id,
         "status": "approved",
         "applicant": "U_BUSIAUDIT_DEMO",
@@ -100,7 +99,7 @@ def _inject_approved_request(brain, request_id: str, resource_id: str, resource_
         "purpose": "F9 客户演示 — 医疗救助数据查询",
         "auditId": "AE-DEMO-F9",
     })
-    brain._snapshot["delivery_tasks"].append({
+    store.delivery_repo.upsert_from_delivery({
         "id": f"DT-{request_id}",
         "requestId": request_id,
         "resourceId": resource_id,

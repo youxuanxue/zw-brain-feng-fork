@@ -4,9 +4,10 @@
 # Roles: ROLE_ORGAN_OPERATER (申请人) | ROLE_BUSIAUDIT (受理第一级) | ROLE_ORGAN_MANAGER (部门审核第二级)
 # Trace:
 #   zw_brain/command/handlers/j1/request.py (_resolved_shared_type / _create_request / _submit_request)
-#   zw_brain/domain/services/conditional_approval.py (_sync_snapshot_request_status)
-#   .testing/debt/j1-runtime-write-path-dual-track.debt.yaml (方案 B，负责人 2026-06-11 裁)
-"""状态词汇桥接（j1-runtime-write-path-dual-track 方案 B）运行时 pytest.
+#   zw_brain/command/card_session.py (Action D 写路径单源化)
+#   zw_brain/domain/services/conditional_approval.py (_persist_payload)
+#   .testing/debt/j1-runtime-write-path-dual-track.debt.yaml (方案 B 2026-06-11 → Action D 收账)
+"""状态词汇桥接（方案 B）+ 写路径单源化（Action D）运行时 pytest.
 
 此前运行时直提/提交单一律落旧词汇 'pending'，而 D55/P21 受理两级状态机只认
 'submitted' → UI 新建的有条件共享申请受理岗无任何可办动作（单据卡死）。方案 B：
@@ -17,8 +18,8 @@
      access_policy 回源（与申请卡投影同源口径）。
   3. 运行时单随单存档 owner_org_code（R11 方向 guard 对空 owner fail-closed，
      缺位则二级部门审核对任何管理员 403、单据永卡 dept_approved）。
-  4. 状态机迁移回写内存快照行（_sync_snapshot_request_status）——否则凭据自动签发
-     hook 读到陈旧 'submitted' 把已成功的终审响应炸成 409。
+  4. （Action D 收账）内存快照行整体退役——application_record 即唯一真相，
+     状态机迁移直接落库，凭据自动签发 hook / 待办投影读库无陈旧态。
 
 数据隔离：临时 DB + ensure_runtime_schema()；资源行直接注入内存 discovery（
 resolve_resource_for_application 的读源），不触真实 seed 库。
@@ -89,8 +90,16 @@ def _record_status(code: str) -> str:
     from zw_brain.domain.repositories.application import ApplicationRepository
 
     rec = ApplicationRepository().get_record(code, tenant_id=TENANT)
-    assert rec is not None, f"application_record {code} 应存在（运行时单经镜像落库）"
+    assert rec is not None, f"application_record {code} 应存在（运行时单直写落库）"
     return rec.status
+
+
+def _record_payload(code: str) -> dict[str, Any]:
+    from zw_brain.domain.repositories.application import ApplicationRepository
+
+    rec = ApplicationRepository().get_record(code, tenant_id=TENANT)
+    assert rec is not None, f"application_record {code} 应存在（运行时单直写落库）"
+    return dict(rec.payload_json or {})
 
 
 def _direct_submit(brain: Any, rid: str) -> dict[str, Any]:
@@ -122,9 +131,9 @@ def test_conditional_request_carries_owner_org_code(brain: Any) -> None:
     """运行时单随单存档 owner_org_code（R11 方向 guard 的 owner 源，空则二级永 403）。"""
     _inject_resource(brain, "RES-COND-2", "2")
     res = _direct_submit(brain, "RES-COND-2")
-    row = next(r for r in brain._snapshot["requests"] if r["id"] == res["request_id"])
-    assert row.get("owner_org_code") == ORG_PROVIDER
-    assert row.get("sharedType") == 2
+    payload = _record_payload(res["request_id"])
+    assert payload.get("owner_org_code") == ORG_PROVIDER
+    assert payload.get("sharedType") == 2
 
 
 def test_conditional_draft_submit_lands_submitted(brain: Any) -> None:
@@ -172,8 +181,8 @@ def test_single_step_review_rejects_conditional(brain: Any) -> None:
 def test_two_stage_chain_on_runtime_minted_request(brain: Any) -> None:
     """UI 新建有条件单全链：直提(submitted) → 受理(dept_approved) → 部门审核(granted)。
 
-    终审响应必须干净返回（凭据自动签发 hook 此前读陈旧内存行把响应炸成 409——
-    _sync_snapshot_request_status 回写后 hook 读到 granted 正常签发）。
+    终审响应必须干净返回（Action D：application_record 即唯一真相，凭据自动签发
+    hook 与待办投影读库，不存在陈旧内存行可炸 409）。
     """
     _inject_resource(brain, "RES-COND-4", "2")
     res = _direct_submit(brain, "RES-COND-4")
@@ -187,9 +196,8 @@ def test_two_stage_chain_on_runtime_minted_request(brain: Any) -> None:
     )
     ares = accepted["result"] if "result" in accepted else accepted
     assert ares["status"] == "dept_approved"
-    # 内存行随迁移回写（管理员待办投影 / 凭据 hook 的读源）。
-    row = next(r for r in brain._snapshot["requests"] if r["id"] == req_id)
-    assert row["status"] == "dept_approved"
+    # DB 即时同态（管理员待办投影 / 凭据 hook 的读源）。
+    assert _record_status(req_id) == "dept_approved"
 
     granted = invoke_trusted(
         brain,
@@ -201,12 +209,19 @@ def test_two_stage_chain_on_runtime_minted_request(brain: Any) -> None:
     gres = granted["result"] if "result" in granted else granted
     assert gres["status"] == "granted"
     assert _record_status(req_id) == "granted"
-    row = next(r for r in brain._snapshot["requests"] if r["id"] == req_id)
-    assert row["status"] == "granted"
     # 凭据自动签发 hook 全链兑现（终审即签，AK-SELF 自签口径）。
-    delivery = next(
-        (d for d in brain._snapshot["delivery_tasks"] if d.get("requestId") == req_id or d.get("request_id") == req_id),
-        None,
+    # Action D：secret 不落库——DB 只存签发事实，凭据本体读时确定性重导出；
+    # 经真实消费面 credential.query 验证（与 P4 凭据领取页同源）。
+    from zw_brain.domain.repositories.delivery import DeliveryRepository
+
+    task = DeliveryRepository().get_task_by_application_code(req_id, tenant_id=TENANT)
+    assert task is not None
+    grant_snapshot = (task.payload_json or {}).get("accessGrantSnapshot") or {}
+    assert grant_snapshot.get("issued_audit_id"), "终审后应留有签发事实"
+    assert not grant_snapshot.get("credential"), "secret 不得落库（safe_json 剥除）"
+    queried = invoke_trusted(
+        brain, "credential.query", {"request_id": req_id}, role="ROLE_ORGAN_OPERATER"
     )
-    assert delivery is not None
-    assert (delivery.get("accessGrantSnapshot") or {}).get("credential"), "终审后应自动签发凭据"
+    qres = queried["result"] if "result" in queried else queried
+    assert qres.get("status") == "issued"
+    assert (qres.get("credential") or {}).get("app_key", "").startswith("AK-SELF"), "读时应重导出 AK-SELF 凭据"

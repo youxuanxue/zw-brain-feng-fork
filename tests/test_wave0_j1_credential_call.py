@@ -291,7 +291,8 @@ def test_runtime_delivery_issue_contract():
         "history": [],
         "aiSummary": {},
     }
-    svc._snapshot["delivery_tasks"].append(task)
+    # Action D：交付单一事实源在 DB——直接 upsert 注入。
+    svc._state_store.database_store.delivery_repo.upsert_from_delivery(task, tenant_id="sd-default")
     svc.grant_delivery_access(task["id"], "ROLE_ORGAN_MANAGER", True)
     conn = sqlite3.connect(SHADOW_DB)
     try:

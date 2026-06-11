@@ -219,28 +219,29 @@ def _new_brain_and_seed():
     with SessionLocal() as s:
         ApprovalFlowBaselineSeeder(s).seed_all(tenant_id="sd-default")
     brain = BrainService(state_store=ss)
-    # 清空 seed snapshot 中的 pending requests，避免与新建申请冲突
-    brain._snapshot["requests"] = []
     # C-1 删演示单后 seed 无演示资源；本测试关注审批基线（shared_type→条件/无条件），
     # 资源只是载体——注入一个**自包含**的合成可解析资源（不依赖已删的 res-jbxx-ledger）。
+    # Action D：申请单一事实源在共享 DB（在办去重检查读库）——每次注入唯一资源 id，
+    # 不再靠「清空内存快照 requests」隔离（快照三键已退役）。
+    resource_id = _next_resource_id()
     brain._snapshot.setdefault("discovery", {})["resources"] = [
         {
-            "id": _TEST_RESOURCE_ID,
+            "id": resource_id,
             "name": "审批基线测试资源",
             "coverage": "—",
-            "repository": {"catalogCode": _TEST_RESOURCE_ID},
+            "repository": {"catalogCode": resource_id},
         }
     ]
-    return brain, audit_bus
+    return brain, audit_bus, resource_id
 
 
-_TEST_RESOURCE_ID = "res-test-approval-baseline"
+_TEST_RESOURCE_SEQ = iter(range(1, 10_000))
 
 
 def _next_resource_id() -> str:
-    # 自包含合成资源（由 _new_brain_and_seed 注入 discovery.resources），
-    # 不依赖 seed 演示资源；先清 snapshot.requests 避免 "active request already exists" 冲突。
-    return _TEST_RESOURCE_ID
+    # 自包含合成资源（由 _new_brain_and_seed 注入 discovery.resources）；
+    # 唯一化避免共享 DB 的「active request already exists」在办去重命中。
+    return f"res-test-approval-baseline-{next(_TEST_RESOURCE_SEQ):04d}"
 
 
 def _submit_and_get_case(brain, shared_type, resource_id: str | None = None):
@@ -266,9 +267,9 @@ def test_j1_application_submit_with_shared_type_1_triggers_conditional_baseline(
     from zw_brain.shared import audit as audit_bus
     from zw_brain.shared.db import create_session_factory
 
-    brain, _ = _new_brain_and_seed()
+    brain, _, rid = _new_brain_and_seed()
     try:
-        result = _submit_and_get_case(brain, 1)
+        result = _submit_and_get_case(brain, 1, rid)
     finally:
         audit_bus.clear_sink()
     assert result["ok"] is True
@@ -292,9 +293,9 @@ def test_j1_application_submit_with_shared_type_2_triggers_unconditional_baselin
     from zw_brain.shared import audit as audit_bus
     from zw_brain.shared.db import create_session_factory
 
-    brain, _ = _new_brain_and_seed()
+    brain, _, rid = _new_brain_and_seed()
     try:
-        result = _submit_and_get_case(brain, 2)
+        result = _submit_and_get_case(brain, 2, rid)
     finally:
         audit_bus.clear_sink()
     case_id = result["result"].get("approval_case_id")
@@ -310,13 +311,13 @@ def test_j1_application_submit_with_shared_type_2_triggers_unconditional_baselin
 def test_j1_application_submit_with_no_shared_type_succeeds_without_baseline():
     from zw_brain.shared import audit as audit_bus
 
-    brain, _ = _new_brain_and_seed()
+    brain, _, rid = _new_brain_and_seed()
     try:
         result = invoke_trusted(
                      brain,
                      "application.resource.submit",
                      {
-                "resource_id": _next_resource_id(),
+                "resource_id": rid,
                 "confirmed": True,
                 "purpose": "F2 no-shared-type",
                 # 不传 shared_type
@@ -344,14 +345,14 @@ def test_j1_application_submit_continues_if_baseline_hook_fails(monkeypatch, cap
         request_handler, "start_approval_workflow_from_baseline", _raising
     )
 
-    brain, _ = _new_brain_and_seed()
+    brain, _, rid = _new_brain_and_seed()
     try:
         with caplog.at_level(logging.WARNING, logger="zw_brain.command.handlers.j1.request"):
             result = invoke_trusted(
                          brain,
                          "application.resource.submit",
                          {
-                    "resource_id": _next_resource_id(),
+                    "resource_id": rid,
                     "confirmed": True,
                     "purpose": "F2 hook fail defensive",
                     "shared_type": 1,

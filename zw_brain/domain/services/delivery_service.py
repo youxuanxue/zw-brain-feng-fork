@@ -1,7 +1,8 @@
 """DeliveryService — delivery task lifecycle + projection helpers.
 
 Owns: delivery task projection from records, grant evidence, due hints,
-attempt recording, task id derivation, by-id / by-request snapshot lookups.
+attempt recording, task id derivation, by-id / by-request card lookups
+（Action D：DB 单一事实源，经 CardSession）。
 
 """
 from __future__ import annotations
@@ -284,21 +285,28 @@ class DeliveryService:
 
         return self.brain._mutate(skill_id, role, confirmed, payload, mutation)
 
-    # --- Snapshot lookups ---
+    # --- Card lookups (Action D: DB 单一事实源，经 CardSession) ---
 
     def task_id_for_request(self, request_id: str) -> str:
-        """Derive delivery task id from request id (REQ- → DLV-)."""
-        return request_id.replace("REQ-", "DLV-", 1)
+        """Derive delivery task id from request id（``DLV-`` 前缀）。
+
+        Action D：申请 id 收敛为不透明 hex，``REQ-``→``DLV-`` 文本替换不再适用；
+        统一前缀派生（存量 ``REQ-*`` 单沿用历史 ``DLV-REQ-…`` 不受影响——本函数
+        只在新建交付时铸号）。
+        """
+        return f"DLV-{request_id}"
 
     def by_id(self, task_id: str) -> dict[str, Any]:
         """Delivery task by task_id; raises NotFoundError when absent.
 
-        快照命中优先；未命中回 DB（task_from_record 按 delivery_code 索引）。C-1 单一事实源：
-        真实导入的交付任务（M0 dump granted）不在内存快照基底里，需回 DB 才读得到。
+        运行时交付卡经 CardSession 载入（payload_json 卡 + 权威 state 列覆盖，
+        闭包就地变更由 flush 落库）；legacy 导入交付走 task_from_record
+        只读合成投影（不进会话、不被回写——与退役前「DB 单变更丢失」语义
+        一致，历史导入交付的在线动作由 UI 门控）。
         """
-        for item in self.brain._snapshot["delivery_tasks"]:
-            if item["id"] == task_id:
-                return item
+        card = self.brain._card_session.get_delivery(task_id)
+        if card is not None:
+            return card
         store = getattr(getattr(self.brain, "_state_store", None), "database_store", None)
         if store is not None:
             task = self.task_from_record(task_id, store)
@@ -316,14 +324,12 @@ class DeliveryService:
     def by_request_id(self, request_id: str) -> dict[str, Any] | None:
         """Delivery task by application/request id; None when absent.
 
-        先查内存快照（demo/seed 即时态），未命中再回 DB（task_from_record）。
-        修真 bug：DB 导入的交付（如 M0 dump 的 granted 授权）不在内存快照基底里，
-        旧实现只读 brain._snapshot 漏查 → credential.query 抛 NotFoundError → P4 凭据页 422。
-        DB 是真相（system.snapshot 也用 brain.list_delivery_tasks() 回源），与之同源。
+        运行时交付卡经 CardSession（按 application_code 索引）；legacy 导入
+        交付回 task_from_record 只读合成。DB 是唯一真相。
         """
-        for item in self.brain._snapshot["delivery_tasks"]:
-            if item["requestId"] == request_id:
-                return item
+        card = self.brain._card_session.get_delivery_by_request(request_id)
+        if card is not None:
+            return card
         store = getattr(getattr(self.brain, "_state_store", None), "database_store", None)
         if store is not None:
             return self.task_from_record(request_id, store)

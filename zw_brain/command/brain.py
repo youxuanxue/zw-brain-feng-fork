@@ -16,6 +16,7 @@ from typing import Any
 import zw_brain.shared.audit as audit_bus
 import zw_brain.shared.clock as clock
 from zw_brain.capability_registry.runtime import get_manifest, load_manifests
+from zw_brain.command.card_session import is_runtime_delivery_payload, is_runtime_request_payload
 from zw_brain.command.serializers import metadata as metadata_ser
 from zw_brain.domain import policy
 from zw_brain.domain.errors import AccessDeniedError as AccessDeniedError  # R-016 re-export
@@ -34,6 +35,9 @@ from zw_brain.domain.repositories.governance_projection import GovernanceProject
 from zw_brain.domain.repositories.topic_package import TopicPackageRepository
 from zw_brain.domain.services.delivery_service import (
     RETIRED_RESOURCE_KINDS as _RETIRED_RESOURCE_KINDS,
+)
+from zw_brain.domain.services.delivery_service import (
+    _delivery_resource_kind,
 )
 from zw_brain.domain.services.delivery_service import (
     delivery_record_hidden_from_consumer as _delivery_record_hidden_from_consumer,
@@ -180,6 +184,15 @@ class BrainService:
     def __init__(self, state_store: StateStore | None = None) -> None:
         self._state_store = state_store or StateStore()
         self._snapshot = self._state_store.load()
+        # Action D：申请/审批/交付三聚合 DB 单一事实源——per-dispatch 卡片会话
+        # （identity map + 指纹脏检），PersistMiddleware 写括号末尾 flush 落库。
+        from zw_brain.command.card_session import CardSession  # noqa: PLC0415
+        self._card_session = CardSession(
+            lambda: getattr(self._state_store, "database_store", None)
+        )
+        # 顶层 dispatch 计数：invoke_skill 进入 0→1 时清会话纪元（防跨 dispatch 陈旧卡）；
+        # 嵌套 dispatch（审批后自动签发凭据等）复用同一会话。
+        self._dispatch_depth = 0
         # Cached HandlerDeps built lazily on first invoke_skill (Action A); the
         # container is process-wide stable except for `brain_legacy=self`, so a
         # one-time build is correct. Declared here (not as class attr) so each
@@ -366,7 +379,19 @@ class BrainService:
     def invoke_skill(
         self, skill_id: str, payload: dict[str, Any] | None = None, *, source: str | None = None
     ) -> Any:
-        payload = payload or {}
+        # Action D：顶层 dispatch 进入清卡片会话纪元（嵌套 dispatch 复用，
+        # 由写括号 flush 落库后自清）。try/finally 保证深度计数异常安全。
+        if self._dispatch_depth == 0:
+            self._card_session.clear()
+        self._dispatch_depth += 1
+        try:
+            return self._invoke_skill_inner(skill_id, payload or {}, source=source)
+        finally:
+            self._dispatch_depth -= 1
+
+    def _invoke_skill_inner(
+        self, skill_id: str, payload: dict[str, Any], *, source: str | None = None
+    ) -> Any:
         try:
             manifest = get_manifest(skill_id)
         except KeyError as exc:
@@ -485,20 +510,29 @@ class BrainService:
 
 
     def list_requests(self) -> list[dict[str, Any]]:
-        items = copy.deepcopy(self._snapshot["requests"])
+        """全部申请（运行时卡 + legacy 导入 apply 单）——Action D：DB 单一事实源。
+
+        运行时单 = payload 卡（权威 status 列覆盖）+ ``record_to_request`` 增益
+        覆盖（与退役前「快照行 + overlay」语义逐位一致：增益键覆盖、卡片特有键
+        —— sharedType / fieldValues / timeline / aiDraft 等——存续），创建时间倒序；
+        legacy 导入单走只读合成投影，随后追加。
+        """
         store = self._state_store.database_store
         if store is None:
-            return items
+            return []
         # D-9 perf: prefetch four indices once, share via context to eliminate
         # ~5N full-table scans inside _application_record_to_request helpers.
         all_records = list(store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID))
-        records = {record.application_code: record for record in all_records}
         context = self._build_request_batch_context(store, all_records)
-        for item in items:
-            record = records.pop(item["id"], None)
-            if record is not None:
-                self._overlay_application_record(item, record, store, context=context)
-        for record in records.values():
+        runtime_records = [r for r in all_records if is_runtime_request_payload(r.payload_json)]
+        runtime_records.sort(key=lambda r: str(r.created_at or ""), reverse=True)
+        items: list[dict[str, Any]] = []
+        for record in runtime_records:
+            item = copy.deepcopy(record.payload_json)
+            item["status"] = record.status
+            self._overlay_application_record(item, record, store, context=context)
+            items.append(item)
+        for record in all_records:
             if (record.payload_json or {}).get("kind") == "apply":
                 items.append(self._application_record_to_request(record, store, context=context))
         return items
@@ -515,11 +549,15 @@ class BrainService:
         return f"{target}:{decision}" if decision else target
 
     def list_delivery_tasks(self) -> list[dict[str, Any]]:
-        snapshot_tasks = copy.deepcopy(self._snapshot["delivery_tasks"])
+        """全部交付任务（运行时卡 + legacy 导入合成投影）——Action D：DB 单一事实源。
+
+        运行时卡 = payload 卡（权威 state 列覆盖）+ repository/receipts 增益
+        （与退役前「快照行 + overlay」语义一致），创建时间倒序；legacy 导入
+        交付走 ``_delivery_task_from_record`` 只读合成，随后追加。
+        """
         store = self._state_store.database_store
         if store is None:
-            return snapshot_tasks
-        records = {record.delivery_code: record for record in store.delivery_repo.list_tasks(tenant_id=_DEFAULT_TENANT_ID)}
+            return []
         # 消费视图隐藏：退役类型（folder/url/link）来源 + 草稿态（存量交换流水线残留，未激活、含
         # hex 缺名/重复/测试噪声）。详见 delivery_record_hidden_from_consumer。先一次性建退役码集合。
         retired_codes = {
@@ -527,29 +565,37 @@ class BrainService:
             for asset in store.resource_api_repo.list_assets(tenant_id=_DEFAULT_TENANT_ID)
             if str(asset.resource_kind).strip().lower() in _RETIRED_RESOURCE_KINDS
         }
-        tasks: list[dict[str, Any]] = []
-        # N+1 消除：旧实现逐 task 调 self.get_delivery_task(task_id)（每次重建整张 task
-        # dict + 重扫内存快照）只为取 receipts。改成直接 list_receipts（已按 delivery_code
-        # 索引）+ 复用上面已预取的 records，不再每条重建任务。
-        for task in snapshot_tasks:
-            record = records.pop(task["id"], None)
-            if record is not None:
-                if _delivery_record_hidden_from_consumer(record, retired_codes):
-                    continue  # 退役类型 / 草稿态残留：不进消费视图
-                task["status"] = record.state
-                task["repository"] = {
-                    "deliveryCode": record.delivery_code,
-                    "applicationCode": record.application_code,
-                    "channel": record.channel,
-                }
-                task["receipts"] = self._get_handler_deps().services.delivery.receipts_for(
-                    store.delivery_repo, task["id"]
-                )
-            tasks.append(task)
-        # DB-only 交付（M0 dump granted，不在内存快照里）：直传已预取的 record，不再全表扫。
-        for record in records.values():
+        runtime_records: list[Any] = []
+        legacy_records: list[Any] = []
+        for record in store.delivery_repo.list_tasks(tenant_id=_DEFAULT_TENANT_ID):
             if _delivery_record_hidden_from_consumer(record, retired_codes):
                 continue  # 退役类型 / 草稿态残留：不进消费视图
+            if is_runtime_delivery_payload(record.payload_json):
+                runtime_records.append(record)
+            else:
+                legacy_records.append(record)
+        runtime_records.sort(key=lambda r: str(r.created_at or ""), reverse=True)
+        tasks: list[dict[str, Any]] = []
+        for record in runtime_records:
+            task = copy.deepcopy(record.payload_json)
+            task["status"] = record.state
+            if not task.get("resourceKind"):
+                # 与 legacy 合成投影同口径兜底（F3/F4 操作分流依赖此键；直写
+                # 注入的运行时卡可能只带 snake resource_kind）。
+                task["resourceKind"] = _delivery_resource_kind(
+                    task.get("resource_kind") or (task.get("access_grant") or {}).get("res_type"),
+                    record.channel,
+                )
+            task["repository"] = {
+                "deliveryCode": record.delivery_code,
+                "applicationCode": record.application_code,
+                "channel": record.channel,
+            }
+            task["receipts"] = self._get_handler_deps().services.delivery.receipts_for(
+                store.delivery_repo, record.delivery_code
+            )
+            tasks.append(task)
+        for record in legacy_records:
             task = self._delivery_task_from_record(record.delivery_code, store, record=record)
             if task is not None:
                 tasks.append(task)
@@ -1185,7 +1231,11 @@ class BrainService:
         inside the sync module.
         """
         from zw_brain.command import sync as state_sync  # noqa: PLC0415
-        state_sync.sync_state_views(self._snapshot, self._get_handler_deps().services.request.status_text)
+        state_sync.sync_state_views(
+            self._snapshot,
+            self._state_store.database_store,
+            self._get_handler_deps().services.request.status_text,
+        )
 
     # R-005 fix: 折叠后多个旧角色映射到同一 ROLE_*，原本不同语境（申请进度 vs 差异补录 vs 现场补录 vs 汇总）
     # 的同 item_id 待办若仅按 (role, item_id) 去重会互相覆盖。引入 category 作为第二维度。
@@ -1249,7 +1299,11 @@ class BrainService:
         reference required inside the sync module.
         """
         from zw_brain.command import sync as state_sync  # noqa: PLC0415
-        state_sync.sync_request_todos(self._snapshot, self._get_handler_deps().services.request.status_text)
+        state_sync.sync_request_todos(
+            self._snapshot,
+            self._state_store.database_store,
+            self._get_handler_deps().services.request.status_text,
+        )
 
     def _new_request_id(self) -> str:
         return self._get_handler_deps().services.request.new_request_id()
@@ -1281,7 +1335,10 @@ class BrainService:
         delivery = self._get_handler_deps().services.delivery.by_request_id(request_id)
         if delivery is None:
             return
-        if (delivery.get("accessGrantSnapshot") or {}).get("credential"):
+        # Action D：secret 不落库——已签发与否看签发事实（issued_audit_id），
+        # 不看 credential 键（持久化后必缺）。
+        grant_snapshot = delivery.get("accessGrantSnapshot") or {}
+        if grant_snapshot.get("credential") or grant_snapshot.get("issued_audit_id"):
             return
         # 通过 invoke_skill 路径触发；权限/审计/锚定一气呵成
         self.invoke_skill("credential.issue", {

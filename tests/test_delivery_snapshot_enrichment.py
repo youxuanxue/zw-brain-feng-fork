@@ -33,8 +33,12 @@ def test_system_snapshot_delivery_tasks_matches_list_delivery_tasks() -> None:
     from tests._handler_call import call_handler
     from zw_brain.command.brain import BrainService
     from zw_brain.command.handlers.b1.system_ops import handler_system_snapshot
+    from zw_brain.shared.database_store import DatabaseStore
+    from zw_brain.shared.state_store import StateStore
 
-    brain = BrainService()
+    # Action D：交付单一事实源在 DB——本测试须 DB-backed brain（file-mode 无库
+    # 即诚实空列表，比较失去意义）。
+    brain = BrainService(state_store=StateStore(database_store=DatabaseStore()))
     listed = brain.list_delivery_tasks()
     snap = call_handler(handler_system_snapshot, brain=brain, skill_id="system.snapshot", payload={"role": "ROLE_ORGAN_OPERATER"})
     snap_tasks = snap.get("delivery_tasks") or []

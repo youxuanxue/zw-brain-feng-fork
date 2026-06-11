@@ -43,16 +43,18 @@ A. **Bulk / aggregate reads** — ``list_all()``, ``get()``, ``get_for_role()``,
 B. **Per-entity live lookups** — ``find_by_id(...)`` (on RequestsView /
    PackagesView / DeliveryView), ``find_by_request_id(...)`` (DeliveryView).
 
-   These return a **live reference** into ``brain._snapshot[...]`` (no
-   deepcopy). The caller MAY mutate the returned dict in place, and the
-   mutation will be visible to the next write-path ``_sync_state_views``
-   tick (this is intentional — the 36 ``mutation(audit_id, actor)``
-   closures in handlers depend on it).
+   These return a **mutable per-dispatch card**. The caller MAY mutate the
+   returned dict in place, and the mutation persists (this is intentional —
+   the ``mutation(audit_id, actor)`` closures in handlers depend on it).
+
+   Action D（写路径单源化）：申请 / 审批 / 交付三聚合的卡来自
+   ``brain._card_session``（DB 载入 + identity map），写括号末尾
+   ``PersistMiddleware`` flush 落库；legacy 导入实体返回只读合成卡（变更
+   不落库，历史导入动作由 UI 门控）。PackagesView 仍是快照活引用。
 
    ``find_by_id`` (RequestsView / PackagesView / DeliveryView) raises
-   ``NotFoundError`` when the entity is absent (delegating to
-   ``BrainService._<entity>_by_id``); ``find_by_request_id`` returns
-   ``None`` on miss. See per-method annotations.
+   ``NotFoundError`` when the entity is absent; ``find_by_request_id``
+   returns ``None`` on miss. See per-method annotations.
 
    Two related lookups deliberately return **deepcopy / fresh dict** and
    therefore live under §A naming convention instead:
@@ -62,15 +64,13 @@ B. **Per-entity live lookups** — ``find_by_id(...)`` (on RequestsView /
    that mutation does NOT propagate.
 
 The naming convention is "the method itself describes its semantics":
-``list_all`` / ``get*`` ⇒ deepcopy; ``find_*`` ⇒ live reference. A future
-clarifier rename (``X_ref_by_id``) is Action D scope when ``BrainService``
-read helpers retire.
+``list_all`` / ``get*`` ⇒ read-only copies; ``find_*`` ⇒ mutable card.
 
 What stays the same
 -------------------
-- ``BrainService._sync_state_views`` still runs after every mutation (PersistMiddleware).
-- ``_snapshot`` dict is still loaded at startup from ``brain_state.json``.
-- ``database_store`` is still the authoritative SQL persistence.
+- ``sync_state_views`` still runs after every mutation (PersistMiddleware)。
+- ``database_store`` is still the authoritative SQL persistence —— Action D
+  后申请/审批/交付三聚合**只**在 DB（快照三键退役）。
 
 What changes
 ------------
@@ -99,9 +99,8 @@ if TYPE_CHECKING:
 
 
 # ───────────────────────────────────────────────────────────────────────────
-# Snapshot-backed views (read from brain._snapshot[X] today; Action D
-# retires _snapshot dict and reads database_store directly. Caller-facing
-# API stays stable across that work.)
+# Views：申请 / 审批 / 交付走 DB（Action D 单一事实源，经 CardSession）；
+# 其余切片仍读 brain._snapshot[X]。Caller-facing API stable.
 # ───────────────────────────────────────────────────────────────────────────
 
 
@@ -157,43 +156,46 @@ class DiscoveryView(SnapshotView):
 
 @dataclass(frozen=True)
 class RequestsView(SnapshotView):
-    """申请单视图 (P3 application)."""
+    """申请单视图 (P3 application) — Action D：DB 单一事实源。"""
     def list_all(self) -> list[dict[str, Any]]:
-        """Return a deepcopy of all requests (read-only — see module docstring §A)."""
-        return copy.deepcopy(self._read("requests", []))
+        """Return read-only copies of all runtime request cards（创建时间倒序）。
+
+        Action D：从 ``application_record`` 现算（payload 卡 + 权威 status 列），
+        legacy 导入单不在此面（在办去重 / 草稿重入检查只针对运行时单，
+        与退役前快照语义一致）。
+        """
+        return self.brain._card_session.list_runtime_requests()
 
     def find_by_id(self, request_id: str) -> dict[str, Any]:
-        """Return the live snapshot reference for a request (mutable — see module docstring §B).
+        """Return the per-dispatch card for a request (mutable — CardSession 落库).
 
         Raises ``NotFoundError`` if no request matches.
         """
         return self.brain._get_handler_deps().services.request.by_id(request_id)
 
 
-@dataclass(frozen=True)
-class ApprovalsView(SnapshotView):
-    """审批视图 (P3 review)."""
-    def list_all(self) -> list[dict[str, Any]]:
-        return copy.deepcopy(self._read("approvals", []))
+# ApprovalsView（仅 list_all）随 Action D 删除：zw_brain 与 tests 零消费者——
+# 审批卡读取走 services.request.approval_by_id（单卡）与 enrich_approvals_snapshot
+# （WebUI 列表投影），不留无人使用的读面。
 
 
 @dataclass(frozen=True)
 class DeliveryView(SnapshotView):
-    """交付任务视图 (P4 delivery)."""
-    def list_all(self) -> list[dict[str, Any]]:
-        """Return a deepcopy of all delivery tasks (read-only — see module docstring §A)."""
-        return copy.deepcopy(self._read("delivery_tasks", []))
+    """交付任务视图 (P4 delivery) — Action D：DB 单一事实源。
 
+    列表态读取走 ``brain.list_delivery_tasks()``（system.snapshot 投影同源）；
+    本视图只承载 per-entity 卡查找。
+    """
     def find_by_id(self, task_id: str) -> dict[str, Any]:
-        """Return the live snapshot reference for a delivery task (mutable — see module docstring §B).
+        """Return the per-dispatch card for a delivery task (mutable — CardSession 落库).
 
         Raises ``NotFoundError`` if no task matches.
         """
         return self.brain._get_handler_deps().services.delivery.by_id(task_id)
 
     def find_by_request_id(self, request_id: str) -> dict[str, Any] | None:
-        """Return the live snapshot reference for the delivery task of a given request,
-        or ``None`` if no delivery is bound to that request (see module docstring §B).
+        """Return the per-dispatch card for the delivery task of a given request,
+        or ``None`` if no delivery is bound to that request.
         """
         return self.brain._get_handler_deps().services.delivery.by_request_id(request_id)
 
@@ -341,16 +343,13 @@ class ReadViews:
     """Read-path facade exposed as ``deps.view``.
 
     Constructed once per HandlerDeps build (``HandlerDeps.from_brain``).
-    Adds one view per snapshot top-level key (14 keys verified at Action C
-    commit 1 — provider/disputes/discovery/workbench/tickets/requests/
-    knowledge_articles/zones/delivery_tasks/capability_packages/audit_events/
-    audit_ai/approvals/alerts/resources).
+    One view per读面（Action C baseline 为 14 个快照键；Action D 后
+    requests/delivery 走 DB 卡会话，approvals 视图因零消费者删除）。
     """
 
     workbench: WorkbenchView
     discovery: DiscoveryView
     requests: RequestsView
-    approvals: ApprovalsView
     delivery: DeliveryView
     resources: ResourcesView
     provider: ProviderView
@@ -365,18 +364,11 @@ class ReadViews:
 
     @classmethod
     def from_brain(cls, brain: BrainService) -> ReadViews:
-        """Build ReadViews wired to a BrainService.
-
-        All 14 views currently read ``brain._snapshot`` / ``brain._<entity>_by_id``
-        directly. When Action D moves reads off the in-memory snapshot, individual
-        view classes will gain repo parameters; the single-caller (``HandlerDeps``)
-        signature is cheap to change then.
-        """
+        """Build ReadViews wired to a BrainService."""
         return cls(
             workbench=WorkbenchView(brain=brain),
             discovery=DiscoveryView(brain=brain),
             requests=RequestsView(brain=brain),
-            approvals=ApprovalsView(brain=brain),
             delivery=DeliveryView(brain=brain),
             resources=ResourcesView(brain=brain),
             provider=ProviderView(brain=brain),

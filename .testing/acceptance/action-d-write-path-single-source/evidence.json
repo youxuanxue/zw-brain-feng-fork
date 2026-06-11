@@ -1,0 +1,27 @@
+{
+  "scope": "action-d-write-path-single-source",
+  "deliverable": "Action D 写路径单源化：申请/审批/交付三聚合 DB 单一事实源（CardSession 直写），内存快照三键退役、REQ-* 序列退役（新铸 hex 编码）、凭据 secret 不落库读时重导出、回写过渡件/镜像循环删除；D55 受理两级与方案 B 语义零变更",
+  "git_sha": "a1fbf7ed317f48df57462d7bd9f235f0505cb3f3",
+  "captured_at": "2026-06-11T06:00:49Z",
+  "captured_by": "薛娇（产品研发负责人）",
+  "checks": [
+    {
+      "name": "5 消费面投影一致",
+      "kind": "contract",
+      "result": "pass",
+      "detail": "[contract] OK: docs/agent_integration.md in sync with discovered entries (REST=189 CLI=1 MCP=64 A2A=1 Skills=180)"
+    },
+    {
+      "name": "后端 / 契约测试套",
+      "kind": "pytest",
+      "result": "pass",
+      "detail": "exit 0（本仓 summary 抑制,以退出码为准）"
+    },
+    {
+      "name": "WebUI 活跑验收（permission_matrix_walkthrough + draft_request_closure + form_autofill + j1_credential_revoke_monitoring（真 UI，:8800 干净真库栈））",
+      "kind": "e2e",
+      "result": "pass",
+      "detail": "8 passed / 0 failed / 1 skipped"
+    }
+  ]
+}

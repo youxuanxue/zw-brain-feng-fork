@@ -107,7 +107,14 @@ class DatabaseStore:
             if record is None:
                 snapshot = clone_seed_snapshot()
                 return snapshot, dict(DEFAULT_PERSISTABLE_UI_STATE)
-            return dict(record.snapshot_json), dict(record.ui_state_json)
+            snapshot = dict(record.snapshot_json)
+            # Action D 一次性迁移：存量已部署库的 snapshot_json 仍带演示时代
+            # requests / approvals / delivery_tasks 切片（权威数据早已镜像在
+            # application_record / approval_case / delivery_task）——加载即剥离，
+            # 防退役切片以幽灵行复活；下次 save 后自然消失。
+            for retired_key in ("requests", "approvals", "delivery_tasks"):
+                snapshot.pop(retired_key, None)
+            return snapshot, dict(record.ui_state_json)
 
     def save_runtime_state(self, snapshot: dict[str, Any], ui_state: dict[str, Any]) -> None:
         SessionLocal = self._session_factory()
@@ -446,28 +453,9 @@ class DatabaseStore:
             for item in snapshot.get("catalog_items", []) + snapshot.get("discovery", {}).get("catalog_items", []) + snapshot.get("provider", {}).get("catalog_items", []):
                 self.catalog_repo.upsert_item(item, tenant_id=tenant_id)
 
-        # Per-write hot loops — fingerprint-gated delta when not a full sync.
-        # ``application_record`` + ``approval`` share the request dict (approval
-        # upsert keys off the same request id), so their fingerprint spans both
-        # request and approval payloads; skipping requires *both* unchanged.
-        approvals = {item["id"]: item for item in snapshot.get("approvals", [])}
-        for request in snapshot.get("requests", []):
-            approval = approvals.get(request["id"], {})
-            changed = self._aggregate_changed(
-                "request_approval", str(request["id"]),
-                _content_fingerprint(request, approval), tenant_id=tenant_id,
-            )
-            if full or changed:
-                self.application_repo.upsert_from_request(request, tenant_id=tenant_id)
-                self.approval_repo.upsert_from_request_and_approval(request, approval, tenant_id=tenant_id)
-
-        for delivery in snapshot.get("delivery_tasks", []):
-            changed = self._aggregate_changed(
-                "delivery", str(delivery.get("id") or delivery.get("deliveryCode") or id(delivery)),
-                _content_fingerprint(delivery), tenant_id=tenant_id,
-            )
-            if full or changed:
-                self.delivery_repo.upsert_from_delivery(delivery, tenant_id=tenant_id)
+        # Action D：申请 / 审批 / 交付三聚合不再走快照镜像——运行时写经
+        # CardSession 直落 application_record / approval_case / delivery_task
+        # （PersistMiddleware flush），快照三键已退役。
 
         for resource in snapshot.get("api_resources", []):
             existing_asset = self.resource_api_repo.get_asset(resource["resource_code"], tenant_id=tenant_id)

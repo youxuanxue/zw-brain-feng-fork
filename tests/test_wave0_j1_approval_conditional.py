@@ -76,7 +76,7 @@ def dept_steps():
             """,
             (TENANT,),
         )
-        return [
+        rows = [
             {
                 "step_id": r[0],
                 "application_code": r[1],
@@ -88,6 +88,16 @@ def dept_steps():
                 "approver_scope_json": r[7],
             }
             for r in c.fetchall()
+        ]
+        # 本底座断言只看 ExchangeMapper 导入步——运行时条件引擎落的步带
+        # approver_scope_json.audit_id 锚（append_conditional_step），按此剔除，
+        # 否则真实运行时单（UI 走查/在产）合法累积会把精确计数断言打脆（D44 精神：
+        # 禁拿运行时累积当底座门槛）。
+        import json as _json
+
+        return [
+            row for row in rows
+            if not (_json.loads(row["approver_scope_json"] or "{}")).get("audit_id")
         ]
     finally:
         conn.close()
@@ -141,12 +151,15 @@ def test_j1_conditional_two_step_workflow_case_has_dept_and_single(dept_steps):
     conn = sqlite3.connect(SHADOW_DB)
     try:
         c = conn.cursor()
-        # 找到 dept 步骤所属 case
+        # 找到 dept 步骤所属 case——只看 ExchangeMapper 导入步（剔运行时条件引擎
+        # 落的步，其 approver_scope_json 带 audit_id 锚；D44 精神：底座断言不拿
+        # 运行时累积当门槛）。
         dept_case_ids = sorted({
             r[0] for r in c.execute(
                 """SELECT s.approval_case_id FROM approval_step s
                    JOIN approval_case c ON s.approval_case_id=c.id
-                   WHERE s.decision_mode='department' AND c.tenant_id=?""",
+                   WHERE s.decision_mode='department' AND c.tenant_id=?
+                     AND s.approver_scope_json NOT LIKE '%"audit_id"%'""",
                 (TENANT,),
             )
         })

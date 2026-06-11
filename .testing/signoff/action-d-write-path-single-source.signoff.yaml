@@ -1,0 +1,12 @@
+scope: action-d-write-path-single-source
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-11
+kind: 决策签字
+evidence: D56 决策包 docs/decisions/action-d-write-path-single-source-D56.md / .testing/acceptance/action-d-write-path-single-source/evidence.json / 全量 pytest 绿 + 测量重采 --with-e2e + 隔离栈真 UI Playwright 走查（部门操作员建申请→有条件受理两级→凭据签发→工作台待办，D55 角色矩阵口径）
+decision_only: true
+covers: []
+# 注：Action D 写路径单源化属架构门（D28 架构决策，承 D46/D48 先例由产品研发负责人签）。
+# 流程/状态机语义零变更（D55 受理两级 / D49 schema 驱动 / 方案 B 状态词汇全原样），
+# 不触业务方签字面；covers 留空——受影响 feature（j1-application-draft / j1-approval-*
+# 等）本就 Done，测量重采后指纹刷新、状态由函数现算，不重复抬状态。
+# 债 j1-runtime-write-path-dual-track 随本签收账（debt yaml 删除，修复史归 git）。

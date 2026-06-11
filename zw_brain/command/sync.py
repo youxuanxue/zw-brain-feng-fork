@@ -13,11 +13,9 @@ Before Action E, the 5 state-sync helpers (``_persist`` /
    These are pure functions of ``(state_store, snapshot, ui_state_view)`` —
    no implicit ``self.brain`` backref needed.
 
-2. **In-memory snapshot projection** — ``_sync_state_views`` cascades into
-   ``demo_state_sync.sync_demo_state_views`` which reads ~6 snapshot keys
-   (provider / zones / workbench / requests / etc.) and writes via
-   ``set_todo_status`` / ``upsert_todo``. ``_sync_request_todos`` similarly
-   walks ``snapshot["requests"]`` and writes via ``upsert_todo``.
+2. **Workbench todo projection** — ``sync_request_todos`` 按库现算
+   （Action D：走 ``application_record`` 运行时卡，demo cascade 已删），
+   写 ``snapshot["workbench"]`` via ``upsert_todo``。
 
 Action E lifted (1) into module-level functions (``persist`` /
 ``sync_reference_tables`` / ``sync_database_aggregates``); Action H now lifts
@@ -36,8 +34,8 @@ What lives here
 - ``persist`` — state_store.save(snapshot, ui_state_view).
 - ``sync_reference_tables`` — store.sync_reference_tables(snapshot).
 - ``sync_database_aggregates`` — store.sync_aggregate_tables(snapshot).
-- ``sync_request_todos`` — projects request workbench todos for 2 roles.
-- ``sync_state_views`` — composite: sync_request_todos + demo_state_sync cascade.
+- ``sync_request_todos`` — 按 application_record 现算工作台待办（Action D）。
+- ``sync_state_views`` — 同上的组合入口（demo cascade 已随 Action D 删除）。
 
 What stays on BrainService
 --------------------------
@@ -113,16 +111,18 @@ def sync_database_aggregates(state_store: StateStore, snapshot: dict[str, Any], 
 
 def sync_request_todos(
     snapshot: dict[str, Any],
+    store: Any,
     status_text: Callable[[dict[str, Any], str], str],
 ) -> None:
     """Project request workbench todos per role（受理/审核两级对齐，D55/P21·P21b·P10）.
 
-    Replaces ``BrainService._sync_request_todos``. Action H: takes the
-    ``snapshot`` dict directly + a pure ``status_text`` callback (typically
-    ``request_service.status_text``). No BrainService reference required.
+    Action D：申请单一事实源在 ``application_record``——本投影按库现算
+    （运行时卡 payload + 权威 status 列；legacy 导入单不投待办，与退役前
+    快照语义一致），写进 snapshot["workbench"]。``store`` 为 None（无库
+    模式）时安静跳过。
 
     R-002/R-005 fix: perspective + category 双维度（perspective 决定文案，
-    category 区分同 REQ 在同 role 下的多个待办语境）.
+    category 区分同申请在同 role 下的多个待办语境）.
 
     D55/P21·P21b：受理/审核两级——业务运营员（ROLE_BUSIAUDIT）受理第一级（submitted）、部门管理员
     （ROLE_ORGAN_MANAGER）部门审核第二级（dept_approved）。MANAGER 审核待办由「每单恒投」收敛为
@@ -131,8 +131,17 @@ def sync_request_todos(
     覆盖（待受理申请/异议/需求 + 供数发布），此处对 BUSIAUDIT 的受理待办投影供 P3 受理队列等
     workbench.todos 读侧消费、并与 enrich 口径一致（enrich 仍是 BUSIAUDIT P1 单一事实源）。
     """
+    if store is None:
+        return
+    from zw_brain.command.card_session import is_runtime_request_payload  # noqa: PLC0415
+    from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID  # noqa: PLC0415
+
     _accept_statuses = {"submitted", "pending"}
-    for request in snapshot["requests"]:
+    for record in store.application_repo.list_records(tenant_id=DEFAULT_TENANT_ID):
+        if not is_runtime_request_payload(record.payload_json):
+            continue
+        request = dict(record.payload_json)
+        request["status"] = record.status
         request_id = request["id"]
         resource_name = request.get("resourceName", request_id)
         status = request["status"]
@@ -194,14 +203,13 @@ def sync_request_todos(
 
 def sync_state_views(
     snapshot: dict[str, Any],
+    store: Any,
     status_text: Callable[[dict[str, Any], str], str],
 ) -> None:
-    """Composite snapshot projection — request todos + demo cascade.
+    """Composite projection — request workbench todos（Action D：按库现算）.
 
-    Replaces ``BrainService._sync_state_views``. Action H: takes the
-    ``snapshot`` dict directly + a pure ``status_text`` callback; the demo
-    cascade (``demo_state_sync.sync_demo_state_views``) is now fully
-    decoupled from the BrainService instance.
+    Replaces ``BrainService._sync_state_views``. ``store`` 是
+    ``state_store.database_store``（None = 无库模式，跳过投影）。demo
+    cascade 已退役（C-1），不再级联。
     """
-    sync_request_todos(snapshot, status_text)
-    demo_state_sync.sync_demo_state_views(snapshot, status_text)
+    sync_request_todos(snapshot, store, status_text)

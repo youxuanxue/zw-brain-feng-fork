@@ -310,20 +310,18 @@ class RequestService:
             return "待处理"
         return str(status)
 
-    # --- Snapshot lookups ---
+    # --- Card lookups (Action D: DB 单一事实源，经 CardSession) ---
 
     def by_id(self, request_id: str) -> dict[str, Any]:
         """Request by id; raises NotFoundError when absent.
 
-        先查内存快照（demo/seed 即时态），未命中再回 DB
-        （application_repo.get_record → record_to_request）。修真 bug：M0 dump 导入的
-        申请不在内存快照基底里，旧实现只读 brain._snapshot 漏查 → credential.issue 路径
-        NotFoundError → P3 凭据签发 422。与 delivery_service.by_request_id 同范式
-        （Fix B），DB 是真相。
+        运行时单经 CardSession 载入（payload_json 卡 + 权威 status 列覆盖，
+        同 dispatch 内同一实例——处理器闭包就地变更由写括号末尾 flush 落库）；
+        legacy 导入单走 record_to_request 只读合成投影（不进会话、不被回写）。
         """
-        for item in self.brain._snapshot["requests"]:
-            if item["id"] == request_id:
-                return item
+        card = self.brain._card_session.get_request(request_id)
+        if card is not None:
+            return card
         store = getattr(getattr(self.brain, "_state_store", None), "database_store", None)
         if store is not None:
             record = store.application_repo.get_record(request_id, tenant_id=_DEFAULT_TENANT_ID)
@@ -342,14 +340,14 @@ class RequestService:
     def approval_by_id(self, request_id: str) -> dict[str, Any]:
         """Approval row by request id; raises NotFoundError when absent.
 
-        快照命中（demo-shaped / 新建在产申请的富审批卡）优先；未命中回 DB approval_case
-        现算一张**只读展示卡**（C-1 单一事实源：真实导入审批不再因不在内存快照而读不到）。
+        运行时审批卡经 CardSession 载入（approval_case.decision_payload_json，
+        闭包就地变更由 flush 落库）；legacy 导入 case 现算一张**只读展示卡**。
         DB 展示卡只供详情/收件箱显示——真实导入审批的两步流转动作由 UI 按运行时实体可解析性
         门控（历史导入=只读），不走这里 mutate。
         """
-        for item in self.brain._snapshot["approvals"]:
-            if item["id"] == request_id:
-                return item
+        card = self.brain._card_session.get_approval(request_id)
+        if card is not None:
+            return card
         store = getattr(getattr(self.brain, "_state_store", None), "database_store", None)
         if store is not None:
             case = store.approval_repo.get_case(request_id, tenant_id=_DEFAULT_TENANT_ID)
@@ -371,8 +369,8 @@ class RequestService:
             return None
 
     def new_request_id(self) -> str:
-        """Mint a new request id following the REQ-NNN sequence."""
-        return ids.next_request_id(str(item.get("id", "")) for item in self.brain._snapshot["requests"])
+        """Mint a new application code（Action D：不透明 uuid4().hex，与导入单同形）。"""
+        return ids.new_application_code()
 
     # --- Approval flow (write path) ---
 

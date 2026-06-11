@@ -4,7 +4,9 @@
 import { postSkill, newRequestId } from '@/composables/useApiClient';
 import type { NLAcceleratorParseResult, StructuredAction } from '@/fixtures/nl-accelerator-fixture';
 
-const REQ_PATTERN = /REQ-[A-Z0-9-]+/i;
+// 申请编号提取：Action D 后新铸申请编码为 32 位 hex（与导入单同形）；
+// 存量 REQ-* 历史编号继续可解析（用户粘贴旧单号的场景）。
+const REQ_PATTERN = /(?:REQ-[A-Z0-9-]+|\b[0-9a-f]{32}\b)/i;
 
 // NL 查询一律用会话当前岗位：原 ANCHOR_ROLE 表把 B1.1/B1.2 强制覆写为
 // SECURITY_AUDIT/BUSIAUDIT，D55 收权后会让真实单岗位会话（如平台运维员在外部系统页）
@@ -136,7 +138,9 @@ function isStaleRejectQuery(q: string): boolean {
 
 function extractReqId(q: string): string | null {
   const m = q.match(REQ_PATTERN);
-  return m ? m[0].toUpperCase() : null;
+  if (!m) return null;
+  // REQ-* 历史编号归一大写；hex 编码保持小写（大写会查不到）。
+  return m[0].toUpperCase().startsWith('REQ-') ? m[0].toUpperCase() : m[0].toLowerCase();
 }
 
 async function parseP3(query: string, role: string): Promise<NLAcceleratorParseResult> {

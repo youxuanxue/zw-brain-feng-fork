@@ -592,241 +592,12 @@ def _augment_workbench(workbench: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# A4 — requests / approvals / delivery_tasks / disputes (3 happy + 1 objection)
+# A4 — disputes（1 objection；申请三键拼接已随 Action D 退役）
 # ---------------------------------------------------------------------------
 
-# Existing parking storyline (REQ-2026-04-25-0011) is preserved in the seed
-# already — we ADD 3 new real chains alongside it.
-
-NEW_REQUESTS: list[dict] = [
-    {
-        "id": "REQ-2026-04-26-0006",
-        "resourceId": "res-tp-婚姻登记qstb",
-        "resourceName": "婚姻登记“全省通办”",
-        "applicant": "李科长（省民政厅婚姻登记处）",
-        "applicantDept": "省民政厅婚姻登记处",
-        "purpose": "为本季度婚姻登记“全省通办”改造，复用省级真案例已有字段定义，只补区县窗口接口差异。",
-        "range": "民生保障专区 · 婚姻登记跨地区",
-        "expectedBy": "2026-05-12",
-        "status": "approved",
-        "submittedAt": "2026-04-26 10:08",
-        "auditId": "AE-2026-04-26-1015",
-        "chainAnchor": "pending",
-        "templateCoverage": "真案例：dsp_example/e3e35d4d",
-        "prefilledFields": [
-            {"label": "案例标题", "value": "婚姻登记“全省通办”", "source": "dsp_example.data_example / e3e35d4d1b96477baf9f1255a0ce7ea3", "state": "已预填"},
-            {"label": "责任单位", "value": "省大数据局", "source": "org_projection / 11370000MB284651XL", "state": "已预填"},
-            {"label": "行政区划", "value": "山东省", "source": "region_projection / 370000000000", "state": "已预填"},
-            {"label": "field_type", "value": "11（婚育）", "source": "dsp_example.display.field_type", "state": "已预填"},
-        ],
-        "diffFields": [
-            {"label": "区县窗口接口端点", "value": "待区县确认", "reason": "各区县部署不一致", "owner": "镇街填报人 补录"},
-            {"label": "异地办理标识", "value": "待补录", "reason": "省民政厅口径仍在对齐", "owner": "基层填报人 补录"},
-        ],
-        "reviewFocus": ["跨地区窗口口径是否一致", "异地办理流程是否走原审批链", "回流到真案例是否更新版本"],
-        "summaryResult": {"totalEntities": 16, "autoMerged": 14, "exceptions": 2, "note": "16 个区县窗口接口已自动对齐 14 个，2 个待人工核对。"},
-        "returnFlow": ["通过后自动同步至民政厅区县协同任务", "对接事件回流至 dsp_example 案例版本"],
-        "timeline": [
-            {"time": "04-26 10:08", "label": "省民政厅提交"},
-            {"time": "04-26 10:15", "label": "进入资源审核"},
-            {"time": "04-27 16:42", "label": "审批通过 → 进入协同推送"},
-        ],
-        "aiDraft": "建议将本申请并入民政条线“一件事”看板，避免单独发起新增采集；区县窗口接口差异以补录方式收口。",
-        "aiStatus": {
-            "summary": "婚姻登记“全省通办”改造已对齐 14/16 区县窗口接口；剩余 2 项可补录闭环。",
-            "nextAction": "建议把待人工核对的 2 个区县纳入下周联审议题，避免阻塞 happy path。",
-            "evidence": [
-                "命中真案例 e3e35d4d（婚姻登记“全省通办”，published）",
-                "省民政厅与省大数据局责任口径一致",
-                "16 区县窗口接口 14 个已自动对齐",
-            ],
-        },
-    },
-    {
-        "id": "REQ-2026-04-27-0003",
-        "resourceId": "res-tp-出生yjs",
-        "resourceName": "出生一件事",
-        "applicant": "孙主任（省卫健委信息处）",
-        "applicantDept": "省卫健委信息处",
-        "purpose": "复用“出生一件事”真案例的跨域字段定义，构造新生儿户籍-医保-学籍同步链。",
-        "range": "民生保障专区 · 一件事跨域同步",
-        "expectedBy": "2026-05-15",
-        "status": "in_delivery",
-        "submittedAt": "2026-04-27 08:42",
-        "auditId": "AE-2026-04-27-0903",
-        "chainAnchor": "anchored",
-        "templateCoverage": "真案例：dsp_example/a1264ad8",
-        "prefilledFields": [
-            {"label": "案例标题", "value": "出生一件事", "source": "dsp_example.data_example / a1264ad84745455db58c52a9fd30f21f", "state": "已预填"},
-            {"label": "责任单位", "value": "省大数据局", "source": "org_projection / 11370000MB284651XL", "state": "已预填"},
-            {"label": "field_type", "value": "11,16（人口/教育）", "source": "dsp_example.display.field_type", "state": "已预填"},
-        ],
-        "diffFields": [
-            {"label": "母婴档案电子化标识", "value": "待补录", "reason": "卫健委系统化进度差异", "owner": "镇街填报人 补录"},
-            {"label": "学籍同步窗口", "value": "待补录", "reason": "省教育厅接口尚未稳定", "owner": "村社区填报人 补录"},
-        ],
-        "reviewFocus": ["三方接口稳定性", "学籍同步是否需要二次回流"],
-        "summaryResult": {"totalEntities": 24, "autoMerged": 22, "exceptions": 2, "note": "24 项跨域字段中 22 项已自动对齐，2 项学籍同步差异留待教育厅补录。"},
-        "returnFlow": ["接入民生保障“一件事”专题包", "异常自动派单至教育厅业务对接人"],
-        "timeline": [
-            {"time": "04-27 08:42", "label": "省卫健委提交"},
-            {"time": "04-27 09:03", "label": "审批通过 → 进入协同推送（已锚定）"},
-            {"time": "04-27 11:48", "label": "通道 1（NIFI）执行 START_EXCHANGE_TABLE_JOB"},
-        ],
-        "aiDraft": "建议把母婴档案电子化标识和学籍同步窗口合并到“一件事”补录任务，避免重复要数。",
-        "aiStatus": {
-            "summary": "出生一件事跨域同步首执已通过，跨域字段对齐 22/24，仅余 2 项学籍同步差异等待补录。",
-            "nextAction": "建议为学籍同步窗口建立独立补录任务，母婴档案电子化交卫健委统一推进。",
-            "evidence": [
-                "命中真案例 a1264ad8（出生一件事，published+approved）",
-                "通道 1（NIFI）执行 START_EXCHANGE_TABLE_JOB 成功",
-                "audit_event AE-2026-04-27-0903 已锚定",
-            ],
-        },
-    },
-    {
-        "id": "REQ-2026-04-27-0021",
-        "resourceId": "res-tp-小微企业一次性创业岗",
-        "resourceName": "小微企业一次性创业岗位开发补贴申领",
-        "applicant": "赵处（省人力资源社会保障厅就业促进处）",
-        "applicantDept": "省人社厅就业促进处",
-        "purpose": "复用“小微企业一次性创业岗位开发补贴申领”真案例，构造惠企政策直达链路。",
-        "range": "营商环境专区 · 惠企政策直达",
-        "expectedBy": "2026-05-18",
-        "status": "pending",
-        "submittedAt": "2026-04-27 14:51",
-        "auditId": "AE-2026-04-27-1530",
-        "chainAnchor": "pending",
-        "templateCoverage": "真案例：dsp_example/a82e0ea6",
-        "prefilledFields": [
-            {"label": "案例标题", "value": "小微企业一次性创业岗位开发补贴申领", "source": "dsp_example.data_example / a82e0ea6fffa4f3895cad681a0f5f14b", "state": "已预填"},
-            {"label": "责任单位", "value": "省大数据局", "source": "org_projection / 11370000MB284651XL", "state": "已预填"},
-            {"label": "field_type", "value": "05（创业就业）", "source": "dsp_example.display.field_type", "state": "已预填"},
-        ],
-        "diffFields": [
-            {"label": "新增岗位核验口径", "value": "待人社厅与税务对接", "reason": "存量与新增定义不同", "owner": "镇街填报人 补录"},
-            {"label": "补贴金额计算公式", "value": "待补录", "reason": "区县实际执行差异较大", "owner": "村社区填报人 补录"},
-        ],
-        "reviewFocus": ["新增岗位口径是否双方一致", "补贴金额是否走自动计算"],
-        "summaryResult": {"totalEntities": 12, "autoMerged": 10, "exceptions": 2, "note": "12 个核心字段已对齐 10 个，新增岗位与补贴公式留待补录。"},
-        "returnFlow": ["进入营商环境惠企专题", "异常自动派单至税务对接窗口"],
-        "timeline": [
-            {"time": "04-27 14:51", "label": "省人社厅提交"},
-            {"time": "04-27 15:30", "label": "进入资源审核（业务对接人确认）"},
-        ],
-        "aiDraft": "建议先与税务对接岗位核验口径，再开补贴公式补录；可参考“一件事”补录任务模板。",
-        "aiStatus": {
-            "summary": "小微企业补贴申领已对齐 10/12 核心字段，2 项岗位口径与补贴公式需补录。",
-            "nextAction": "建议先与税务对接岗位核验口径，再开补贴公式补录；可参考“一件事”补录任务模板。",
-            "evidence": [
-                "命中真案例 a82e0ea6（小微企业一次性创业岗位开发补贴申领，submitted）",
-                "省人社厅就业促进处提交，与税务对接岗位口径建立窗口",
-                "补贴金额计算公式区县差异较大",
-            ],
-        },
-    },
-]
-
-
-NEW_APPROVALS: list[dict] = [
-    {
-        "id": "REQ-2026-04-26-0006",
-        "suggestion": "建议通过",
-        "confidence": 0.91,
-        "reason": "命中真案例 e3e35d4d；省民政厅与省大数据局责任口径一致；区县差异仅 2 项可通过补录闭环。",
-        "risk": "区县窗口接口未稳定",
-        "counterfactual": "若不复用真案例，需重新发起整省接口对齐，预计多 6 个工作日。",
-        "impact": "可减少 14 个区县重复对接；婚姻登记跨地区办理时长预计下降 30%。",
-        "actions": ["通过", "驳回（要求重新对齐）", "搁置"],
-        "draftNote": "已基于真案例字段对齐 14/16 项，剩余 2 项以补录方式闭环。",
-        "exceptionItems": ["区县窗口端点", "异地办理标识"],
-        "autoSummary": "建议通过：婚姻登记跨地区接口已对齐 14/16，剩余 2 项可补录闭环。",
-    },
-    {
-        "id": "REQ-2026-04-27-0003",
-        "suggestion": "已通过 → 进入协同推送",
-        "confidence": 0.94,
-        "reason": "出生一件事真案例已 published+approved；24 项跨域字段对齐 22 项；通道 1 已成功执行 START_EXCHANGE_TABLE_JOB。",
-        "risk": "学籍同步接口稳定性",
-        "counterfactual": "若不接入真案例，需重新构造跨域字段列表，预计多 8 个工作日。",
-        "impact": "新生儿户籍-医保-学籍同步链路时延从天级降到分钟级。",
-        "actions": ["确认推送", "暂停（等学籍接口稳定）", "回退到草稿"],
-        "draftNote": "已锚定到 audit_event AE-2026-04-27-0903，学籍同步差异交教育厅补录。",
-        "exceptionItems": ["母婴档案电子化", "学籍同步窗口"],
-        "autoSummary": "已通过并完成首次执行（NIFI 通道 1）；2 项跨域差异留待补录。",
-    },
-    {
-        "id": "REQ-2026-04-27-0021",
-        "suggestion": "建议待补录后通过",
-        "confidence": 0.78,
-        "reason": "命中惠企政策真案例；新增岗位核验口径与税务尚未对齐；建议先补录再通过。",
-        "risk": "新增岗位/存量岗位定义差异",
-        "counterfactual": "若直接通过，区县执行可能产生补贴金额计算偏差。",
-        "impact": "惠企政策直达链路覆盖小微企业可显著提速；前提是岗位口径达成共识。",
-        "actions": ["要求补录", "驳回", "暂存"],
-        "draftNote": "已与税务岗位核验口径建立对接窗口，等待第一轮补录结果。",
-        "exceptionItems": ["新增岗位核验口径", "补贴金额计算公式"],
-        "autoSummary": "建议待补录后通过：新增岗位口径与补贴公式需补录闭环。",
-    },
-]
-
-
-NEW_DELIVERY_TASKS: list[dict] = [
-    {
-        "id": "DLV-2026-04-27-0003",
-        "requestId": "REQ-2026-04-27-0003",
-        "name": "出生一件事跨域同步链",
-        "channel": "预填下发 + 汇总回流",
-        "status": "reconciling",
-        "owner": "省大数据局协同岗 → 卫健委 → 教育厅 → 公安户籍",
-        "updatedAt": "2026-04-27 11:48",
-        "note": "通道 1（NIFI）执行 START_EXCHANGE_TABLE_JOB；母婴档案/学籍同步留待补录。",
-        "history": [
-            {"time": "09:03", "state": "审批通过", "detail": "命中真案例 a1264ad8（出生一件事），自动锚定 audit_event AE-2026-04-27-0903"},
-            {"time": "11:48", "state": "首次执行成功", "detail": "NIFI 通道 1 完成 START_EXCHANGE_TABLE_JOB；新生儿户籍/医保 22 项字段已对齐"},
-            {"time": "12:30", "state": "学籍补录派单", "detail": "2 项学籍同步差异自动派单至省教育厅业务对接人"},
-        ],
-        "aiSummary": {
-            "summary": "出生一件事跨域同步首执已通过，跨域字段对齐 22/24，仅余 2 项学籍同步差异等待教育厅补录。",
-            "nextAction": "建议为学籍同步窗口建立独立补录任务，母婴档案电子化交卫健委统一推进。",
-            "cause": "卫健委系统化与教育厅接口稳定性不一致，造成跨域差异聚集在学籍侧。",
-            "impact": "若学籍补录在本周完成，新生儿户籍-医保-学籍同步链路可正式投产。",
-        },
-        "backflow": {
-            "candidateObject": "出生一件事真案例（dsp_example/a1264ad8）回流候选",
-            "candidateFields": ["母婴档案电子化标识", "学籍同步窗口"],
-            "status": "待确认",
-            "note": "学籍同步差异较稳定，建议作为出生一件事真案例下一版字段纳入候选。",
-        },
-    },
-    {
-        "id": "DLV-2026-04-26-0006",
-        "requestId": "REQ-2026-04-26-0006",
-        "name": "婚姻登记跨地区窗口对齐",
-        "channel": "预填下发 + 汇总回流",
-        "status": "reconciling",
-        "owner": "省民政厅业务对接人 → 16 区县协同员",
-        "updatedAt": "2026-04-27 16:42",
-        "note": "16 区县窗口接口已自动对齐 14 个，2 个待人工核对。",
-        "history": [
-            {"time": "10:15", "state": "进入资源审核", "detail": "命中真案例 e3e35d4d（婚姻登记“全省通办”）"},
-            {"time": "16:42", "state": "审批通过 → 派单", "detail": "16 区县已自动对齐 14 个，2 区县待人工核对"},
-        ],
-        "aiSummary": {
-            "summary": "婚姻登记跨地区窗口对齐已完成 14/16，剩余 2 个区县需人工对接。",
-            "nextAction": "建议把待人工核对的 2 个区县纳入下周联审议题。",
-            "cause": "区县窗口接口部署进度不齐。",
-            "impact": "完成后异地办理时长预计下降 30%。",
-        },
-        "backflow": {
-            "candidateObject": "婚姻登记真案例（dsp_example/e3e35d4d）回流候选",
-            "candidateFields": ["区县窗口接口端点", "异地办理标识"],
-            "status": "待确认",
-            "note": "对齐结果稳定后回流民政条线“一件事”专题。",
-        },
-    },
-]
-
+# Action D + C-1：演示单拼接退役——requests / approvals / delivery_tasks 快照键已随
+# 写路径单源化整体退役（运行时单一律真实创建、经 CardSession 直落 DB），seed 不再
+# 携带、本生成器不再拼接捏造演示链（D47 删演示单口径）。disputes 快照键仍 live。
 
 NEW_DISPUTES: list[dict] = [
     {
@@ -878,7 +649,7 @@ def _wire_provider_legacy_resources(snapshot: dict) -> None:
 
 
 def _wire_new_chains(snapshot: dict) -> None:
-    """Splice 3 happy + 1 objection chains into existing arrays.
+    """Splice the objection dispute chain into the disputes array.
 
     Idempotent: if entries with the same id already exist, replace them.
     """
@@ -893,11 +664,8 @@ def _wire_new_chains(snapshot: dict) -> None:
                 out.append(it)
         return out
 
-    snapshot["requests"] = _upsert_by_id(snapshot.get("requests", []), NEW_REQUESTS)
-    snapshot["approvals"] = _upsert_by_id(snapshot.get("approvals", []), NEW_APPROVALS)
-    snapshot["delivery_tasks"] = _upsert_by_id(
-        snapshot.get("delivery_tasks", []), NEW_DELIVERY_TASKS
-    )
+    # Action D：requests / approvals / delivery_tasks 快照键退役，不再拼接；
+    # 申请链路一律运行时真实创建（CardSession 直落 DB）。
     snapshot["disputes"] = _upsert_by_id(snapshot.get("disputes", []), NEW_DISPUTES)
 
 
@@ -933,9 +701,6 @@ def main() -> int:
         f"catalogTree={len(snapshot['discovery']['catalogTree'])} "
         f"recallDictionary.sample_titles={len(snapshot['discovery']['recallDictionary']['sample_titles'])} "
         f"audit_events={len(snapshot['audit_events'])} "
-        f"requests={len(snapshot['requests'])} "
-        f"approvals={len(snapshot['approvals'])} "
-        f"delivery_tasks={len(snapshot['delivery_tasks'])} "
         f"disputes={len(snapshot['disputes'])}"
     )
     return 0

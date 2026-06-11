@@ -52,6 +52,9 @@ ALLOWED_SKILL_IDENTIFIERS: frozenset[str] = frozenset({
     "SkillPipeline",
     # command/brain — envelope contract 主入口（BrainService.invoke_skill）
     "invoke_skill",
+    # Action D：invoke_skill 的内部拆分体（顶层 dispatch 清卡片会话纪元的
+    # try/finally 括号 + 原函数体）——同一 envelope contract surface 的私有跟随名。
+    "_invoke_skill_inner",
     "_build_skill_context",
     "_dispatch_skill",
     "_adapter_operation_from_skill",

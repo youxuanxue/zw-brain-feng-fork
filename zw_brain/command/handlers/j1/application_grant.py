@@ -86,11 +86,9 @@ def _suspend_application_grant(brain, deps, ctx, payload: dict[str, Any]) -> dic
         # （恢复/resume 能力待后续 PR；本次先消除假成功，暂停态可被 revoke 终结。）
         request.setdefault("grant", {})["suspended"] = True
         request["status"] = "suspended"
-        # R-004 fix: 真实库申请（M0 导入、hex id）不在内存快照里 → find_by_id 返回 DB
-        # 派生的一次性副本，PersistMiddleware 只回写 brain._snapshot["requests"] → 副本
-        # 改动落不了库（返回 ok 却 DB 不变 = 假成功，且不可逆守卫永不触发可无限点）。
-        # 直接经 application_repo 把 status 写回 application_record（demo REQ-* 同有 DB 行，
-        # update_status 按 application_code 命中，双写一致；纯内存 demo 无行则 no-op）。
+        # R-004 fix（Action D 后仍需）：legacy 导入申请 find_by_id 返回只读合成卡
+        # （不进 CardSession、变更不落库）→ 必须直接经 application_repo 写 status 列；
+        # 运行时卡经会话 flush 落库，update_status 同值幂等、双写一致。
         deps.repos.application.update_status(request_id, "suspended")
         request.setdefault("timeline", []).append({"label": "授权已暂停", "time": clock.now_datetime(), "note": str(payload.get("reason", "业务运营员 临时暂停以核实使用边界。"))})
         deps.append_audit_feed("application.grant.suspend", request_id, "ok", actor)
@@ -129,8 +127,8 @@ def _revoke_application_grant(brain, deps, ctx, payload: dict[str, Any]) -> dict
         request.setdefault("grant", {})["revoked"] = True
         request["grant"]["initiated_by"] = initiated_by
         request["status"] = "revoked"
-        # R-004 fix: 真实库申请经 application_repo 落库，否则副本改动丢失、返回 revoked:true 却
-        # DB 不变（假成功），不可逆守卫拿 DB 现状判定永远放行可重复撤回。
+        # R-004 fix（Action D 后仍需）：legacy 导入申请是只读合成卡，须直写 status 列；
+        # 运行时卡经会话 flush 落库，update_status 同值幂等。
         deps.repos.application.update_status(request_id, "revoked")
         note = (
             str(payload["reason"]) if payload.get("reason")

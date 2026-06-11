@@ -460,12 +460,11 @@ def _create_request(
         request["fieldValues"] = ff_values
         request["fieldProvenance"] = ff_prov
 
-        # Action C — snapshot mutations stay via brain_legacy escape hatch;
-        # in-memory snapshot dict elimination is Action D scope. Reading still
-        # goes through deps.view.* facades above.
-        deps.brain_legacy._snapshot["requests"].insert(0, request)
-        deps.brain_legacy._snapshot["approvals"].insert(0, approval)
-        deps.brain_legacy._snapshot["delivery_tasks"].insert(0, delivery)
+        # Action D — 直写单源：三张卡登记进 CardSession（必脏），写括号末尾
+        # flush 落 application_record / approval_case / delivery_task。
+        deps.brain_legacy._card_session.add_request(request)
+        deps.brain_legacy._card_session.add_approval(approval)
+        deps.brain_legacy._card_session.add_delivery(delivery)
         deps.append_audit_feed(skill_id, request_id, "ok", actor)
 
         # E3 Wave-2 F2 hook：优先项目级自定义 live schema 驱动，否则回落 baseline（不破业务主路径）。

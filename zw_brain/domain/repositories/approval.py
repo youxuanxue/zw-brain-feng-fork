@@ -362,6 +362,18 @@ class ApprovalRepository:
                 session.add(record)
                 session.flush()
             else:
+                # 条件两级引擎（append_conditional_step）已对本 case 落过真实审步
+                # （步带 audit_id 锚）→ 本投影写者只同步状态与审批卡，**绝不**删除
+                # 重建 steps——否则违反 SPEC Scenario 4「部门审通过的记录仍保留」
+                # （Action D 前该破坏仅因镜像与引擎写不同 case 而未暴露）。
+                conditional_steps_present = session.execute(
+                    select(ApprovalStepRecord).where(ApprovalStepRecord.approval_case_id == record.id)
+                ).scalars().all()
+                if any((s.approver_scope_json or {}).get("audit_id") for s in conditional_steps_present):
+                    record.current_status = request["status"]
+                    record.decision_payload_json = approval
+                    session.commit()
+                    return
                 record.current_status = request["status"]
                 record.current_step = self._current_step_no(request["status"])
                 record.decision_payload_json = approval

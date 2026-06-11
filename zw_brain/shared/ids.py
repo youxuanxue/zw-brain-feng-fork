@@ -1,34 +1,26 @@
-"""Project ID generators — request IDs + audit event IDs.
-
-Extracted from ``BrainService._new_audit_id`` / ``_new_request_id`` (Phase 1.2b).
+"""Project ID generators — application codes + audit event IDs.
 
 - ``new_audit_id()``: stateless — date + HHMMSS + microsecond suffix. The
   microsecond resolution keeps audit events within a millisecond burst unique.
-- ``next_request_id(existing_ids)``: takes the existing snapshot's request IDs
-  and returns ``REQ-YYYY-MM-DD-NNNN`` with the next 4-digit sequence for today.
-  The snapshot scan stays at the caller — keeps this module dependency-free.
+- ``new_application_code()``: opaque ``uuid4().hex`` — Action D 写路径单源化
+  后，运行时申请与 legacy 导入申请共用同一 id 形态（``application_record.
+  application_code`` 不透明编码）。演示时代的 ``REQ-YYYY-MM-DD-NNNN`` 序列
+  （靠扫描内存快照取当日最大号）随快照一并退役；存量 REQ-* 行作为历史
+  application_code 继续可读，不再新铸。
 
-ID format contracts are baked into J1/J2 e2e demos + audit feed UI:
-- ``REQ-`` prefix is what `_delivery_task_id_for_request` rewrites to ``DLV-``;
+ID format contracts baked into audit feed UI:
 - ``AE-`` prefix is what audit-feed grep filters expect.
+- 交付任务 id 由 ``delivery_service.task_id_for_request`` 派生（``DLV-`` 前缀）。
 """
 from __future__ import annotations
 
-from collections.abc import Iterable
 from datetime import datetime
+from uuid import uuid4
 
 
 def new_audit_id() -> str:
     return f"AE-{datetime.now():%Y-%m-%d-%H%M%S%f}"
 
 
-def next_request_id(existing_ids: Iterable[str]) -> str:
-    prefix = f"REQ-{datetime.now():%Y-%m-%d}-"
-    seq = 1
-    for item_id in existing_ids:
-        if item_id.startswith(prefix):
-            try:
-                seq = max(seq, int(item_id.rsplit("-", 1)[-1]) + 1)
-            except ValueError:
-                continue
-    return f"{prefix}{seq:04d}"
+def new_application_code() -> str:
+    return uuid4().hex

@@ -63,6 +63,24 @@ def _credential_unissued_hint(kind: str | None) -> str:
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
+def _issued_credential(deps, request_id: str, grant_snapshot: dict[str, Any]) -> dict[str, Any] | None:
+    """已签发凭据现算（Action D：secret 永不落库，按签发事实确定性重导出）。
+
+    DB 持久化经 ``safe_json`` 剥除一切 ``credential`` 键——交付卡只存**签发事实**
+    （issued_audit_id / issued_at / issued_by / credential_seed）。凭据本体由
+    ``credential_for_request(request_id, seed)`` 确定性导出（同 (request_id, seed)
+    永生同一凭据），读时现算，不存 secret。legacy granted 无签发事实 → None
+    （D47 不捏造，credential=not_issued 口径不变）。
+    """
+    if grant_snapshot.get("credential"):
+        return grant_snapshot["credential"]  # 同 dispatch 内刚签发的卡（未过持久化）
+    if not grant_snapshot.get("issued_audit_id"):
+        return None
+    return deps.services.request.credential_for_request(
+        request_id, seed=grant_snapshot.get("credential_seed")
+    )
+
+
 def _issue_credential(brain, deps, ctx, request_id: str, role: str, confirmed: bool, *, reissue: bool = False) -> dict[str, Any]:
     """签发凭据 — 审批通过自动触发，或审批人/主管部门手工补签。"""
     request = deps.view.requests.find_by_id(request_id)
@@ -76,7 +94,7 @@ def _issue_credential(brain, deps, ctx, request_id: str, role: str, confirmed: b
     if request.get("status") not in approved_states:
         raise InvalidStateError(f"request {request_id} not approved yet; current status={request.get('status')}")
 
-    existing = (delivery.get("accessGrantSnapshot") or {}).get("credential")
+    existing = _issued_credential(deps, request_id, delivery.get("accessGrantSnapshot") or {})
     if existing and not reissue:
         return {
             "request_id": request_id,
@@ -91,6 +109,10 @@ def _issue_credential(brain, deps, ctx, request_id: str, role: str, confirmed: b
         credential = deps.services.request.credential_for_request(request_id, seed=seed)
         grant_snapshot = copy.deepcopy(delivery.get("accessGrantSnapshot") or {})
         grant_snapshot["credential"] = credential
+        # Action D：credential 键过持久化即被 safe_json 剥除（secret 不落库）；
+        # credential_seed（None=首签 / audit_id=重签）是非密签发事实，落库供读时
+        # 确定性重导出同一凭据。
+        grant_snapshot["credential_seed"] = seed
         grant_snapshot["issued_audit_id"] = audit_id
         grant_snapshot["issued_at"] = clock.now_datetime()
         grant_snapshot["issued_by"] = actor
@@ -117,7 +139,7 @@ def _get_credential(brain, deps, ctx, request_id: str, role: str) -> dict[str, A
     if delivery is None:
         raise NotFoundError(request_id)
     snapshot = delivery.get("accessGrantSnapshot") or {}
-    credential = snapshot.get("credential")
+    credential = _issued_credential(deps, request_id, snapshot)
     if not credential:
         kind = _credential_resource_kind(deps, delivery)
         return {

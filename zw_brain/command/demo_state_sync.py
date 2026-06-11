@@ -1,24 +1,20 @@
 """Snapshot state-sync primitives, decoupled from BrainService (Action H).
 
-General, reusable helpers over the ``snapshot`` dict — ``maybe_*`` lookups,
-``set_todo_status`` / ``upsert_todo`` workbench mutators, ``resource_by_id`` /
-``zone_by_id`` / ``package_status_text`` — used by the write-path state sync
+General, reusable helpers over the ``snapshot`` dict — ``set_todo_status`` /
+``upsert_todo`` workbench mutators, ``resource_by_id`` / ``zone_by_id`` /
+``package_status_text`` — used by the write-path state sync
 (``command/sync.py``) and compliance handlers. These take the snapshot dict
 directly so callers never reach into a BrainService instance (Action H).
 
-The legacy demo-seed cascade (``sync_demo_state_views``) is **retired** (C-1
-删演示单, 2026-06-02): the hardcoded demo 演示单 it projected
-(``requests``/``delivery_tasks``/``capability_packages`` 等) are gone from
-``seed_snapshot.json`` and reads are single-sourced from DB (#191), so the
-cascade had no inputs and was a runtime no-op. Its body was removed so
-``scripts/check_no_demo_id_literals.py`` (段36) can forbid demo-id literals
-**everywhere** (zero allow-list). The signature is kept as a no-op for the
-PersistMiddleware call site (``command/sync.py::sync_state_views``).
+History: the demo-seed cascade ``sync_demo_state_views`` was retired (C-1
+删演示单, 2026-06-02) and deleted outright by Action D（写路径单源化）；
+``maybe_request`` / ``maybe_delivery`` 随 ``requests`` / ``delivery_tasks``
+快照键一并退役——申请/审批/交付的单一事实源在 DB（CardSession / service
+``by_id`` 读取）。
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import Any
 
 from zw_brain.domain.errors import NotFoundError
@@ -29,22 +25,6 @@ from zw_brain.domain.errors import NotFoundError
 # pure functions over the snapshot dict so demo_state_sync (and sync.py)
 # never need to reach back into a BrainService instance.
 # ─────────────────────────────────────────────────────────────────────────────
-
-
-def maybe_request(snapshot: dict[str, Any], request_id: str) -> dict[str, Any] | None:
-    """Snapshot request by id; returns None when absent."""
-    for item in snapshot["requests"]:
-        if item["id"] == request_id:
-            return item
-    return None
-
-
-def maybe_delivery(snapshot: dict[str, Any], task_id: str) -> dict[str, Any] | None:
-    """Snapshot delivery task by id; returns None when absent."""
-    for item in snapshot["delivery_tasks"]:
-        if item["id"] == task_id:
-            return item
-    return None
 
 
 def maybe_package(snapshot: dict[str, Any], package_id: str) -> dict[str, Any] | None:
@@ -145,28 +125,7 @@ def package_status_text(item: dict[str, Any]) -> str:
     return str(status)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Demo cascade — main entry. Takes snapshot dict + a pure request status_text
-# callback; no BrainService reference.
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-def sync_demo_state_views(
-    snapshot: dict[str, Any],
-    status_text: Callable[[dict[str, Any], str], str],
-) -> None:
-    """Retired no-op (C-1 删演示单, 2026-06-02).
-
-    Previously cascaded hardcoded demo-seed 演示单 confirmation state onto
-    provider / discovery / zone snapshot slices for the WebUI demo. The demo
-    records are gone from ``seed_snapshot.json`` and reads are single-sourced
-    from DB (#191), so the cascade had no inputs and was already a runtime
-    no-op. Body removed so ``check_no_demo_id_literals.py`` (段36) can forbid
-    demo-id literals everywhere (zero allow-list). Signature kept for the
-    PersistMiddleware call site (``command/sync.py::sync_state_views``); the
-    general helpers above (``set_todo_status`` / ``upsert_todo`` / ``maybe_*`` /
-    ``resource_by_id`` / ``zone_by_id``) remain and are used by sync.py /
-    compliance handlers.
-    """
-    _ = (snapshot, status_text)  # retired: no demo cascade
-    return None
+# Demo cascade（C-1 退役 no-op）已随 Action D 整体删除：唯一调用方
+# ``sync.sync_state_views`` 不再级联；``maybe_request`` / ``maybe_delivery``
+# 快照查找原语随 requests / delivery_tasks 快照键退役（DB 单一事实源，经
+# CardSession / 各 service by_id）。

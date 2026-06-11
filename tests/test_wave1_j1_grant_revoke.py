@@ -75,13 +75,11 @@ def brain():
     return BrainService(state_store=ss)
 
 
-def _inject_granted_request(brain, request_id: str, real_resource: dict) -> None:
-    """注入一个已授权（status=granted）的申请，让撤回 / 暂停有真实主体可操作。"""
-    brain._snapshot.setdefault("requests", [])
-    brain._snapshot["requests"] = [
-        r for r in brain._snapshot["requests"] if r.get("id") != request_id
-    ]
-    brain._snapshot["requests"].append({
+def _inject_granted_request(brain, request_id: str, real_resource: dict, **overrides) -> None:
+    """注入一个已授权（status=granted）的申请，让撤回 / 暂停有真实主体可操作。
+
+    Action D：申请单一事实源在 application_record——直接 upsert 注入（幂等覆盖）。"""
+    brain._state_store.database_store.application_repo.upsert_from_request({
         "id": request_id,
         "status": "granted",
         "applicant": "U_OP_H4",
@@ -91,7 +89,16 @@ def _inject_granted_request(brain, request_id: str, real_resource: dict) -> None
         "purpose": "H4 撤回回归",
         "grant": {},
         "timeline": [],
-    })
+        **overrides,
+    }, tenant_id=TENANT)
+
+
+def _record_card(brain, request_id: str) -> dict:
+    rec = brain._state_store.database_store.application_repo.get_record(request_id, tenant_id=TENANT)
+    assert rec is not None, f"application_record {request_id} 应存在"
+    card = dict(rec.payload_json or {})
+    card["status"] = rec.status
+    return card
 
 
 def _invoke(brain, skill_id: str, payload: dict) -> dict:
@@ -116,7 +123,7 @@ def test_revoke_existing_grant_marks_revoked(brain, real_resource):
         "reason": "近期对该资源调用合规风险高",
     })
     assert result["revoked"] is True
-    target = next(r for r in brain._snapshot["requests"] if r["id"] == "REQ-H4-REV")
+    target = _record_card(brain, "REQ-H4-REV")
     assert target["status"] == "revoked"
     assert target["grant"]["revoked"] is True
 
@@ -130,7 +137,7 @@ def test_suspend_existing_grant_marks_suspended(brain, real_resource):
         "reason": "临时暂停以核实使用边界",
     })
     assert result["suspended"] is True
-    target = next(r for r in brain._snapshot["requests"] if r["id"] == "REQ-H4-SUS")
+    target = _record_card(brain, "REQ-H4-SUS")
     assert target["grant"]["suspended"] is True
     # R-001 回归：暂停必须落到 status（持久化的真值源），否则只置 grant 子字典是
     # 假成功——返回 ok 但 PersistMiddleware 不回写 grant、刷新即消失。
@@ -287,15 +294,14 @@ def test_applicant_self_withdraw_own_grant(brain, real_resource):
     from zw_brain.domain import policy
 
     operater_actor = policy.actor_for_role("ROLE_ORGAN_OPERATER")
-    _inject_granted_request(brain, "REQ-A-SELF", real_resource)
     # 把 applicant 设为操作员 actor（request.create 时即 applicant=actor）→ owner 校验通过。
-    next(r for r in brain._snapshot["requests"] if r["id"] == "REQ-A-SELF")["applicant"] = operater_actor
+    _inject_granted_request(brain, "REQ-A-SELF", real_resource, applicant=operater_actor)
     result = _invoke(brain, "application.grant.revoke", {
         "request_id": "REQ-A-SELF", "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     assert result["revoked"] is True
     assert result["initiated_by"] == "applicant"
-    target = next(r for r in brain._snapshot["requests"] if r["id"] == "REQ-A-SELF")
+    target = _record_card(brain, "REQ-A-SELF")
     assert target["status"] == "revoked"
 
 

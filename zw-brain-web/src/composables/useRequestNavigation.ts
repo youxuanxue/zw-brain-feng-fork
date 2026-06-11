@@ -14,8 +14,10 @@ export function resolveRequestIdFromAction(result: {
       rec.result && typeof rec.result === 'object' ? (rec.result as Record<string, unknown>) : rec;
     const direct = inner.id ?? inner.request_id ?? rec.id ?? rec.request_id;
     if (direct) return String(direct);
+    // invalid_state「在办申请已存在」detail 尾部携带既有申请编号——Action D 后新铸
+    // 申请编码为 32 位 hex（与导入单同形）；存量 REQ-* 历史编号继续可解析。
     const detail = String(rec.detail ?? '');
-    const match = detail.match(/REQ-\d{4}-\d{2}-\d{2}-\d{4}/);
+    const match = detail.match(/(?:REQ-\d{4}-\d{2}-\d{2}-\d{4}|\b[0-9a-f]{32}\b)/i);
     if (match) return match[0];
   }
   return null;

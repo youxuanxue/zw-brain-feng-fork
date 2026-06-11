@@ -68,9 +68,10 @@ def test_request_create_lands_draft_no_approval(brain) -> None:
     assert out["status"] == "draft", out
     # 草稿不触发审批工作流。
     assert "approval_case_id" not in out
-    # in-memory 快照里申请单确为 draft。
-    req = next(r for r in brain._snapshot["requests"] if r["id"] == out["request_id"])
-    assert req["status"] == "draft"
+    # Action D：application_record 单一事实源里申请单确为 draft。
+    store = brain._state_store.database_store
+    rec = store.application_repo.get_record(out["request_id"], tenant_id="sd-default")
+    assert rec is not None and rec.status == "draft"
 
 
 def test_repeat_create_reuses_existing_draft(brain) -> None:
@@ -78,8 +79,12 @@ def test_repeat_create_reuses_existing_draft(brain) -> None:
     second = _unwrap(invoke_trusted(brain, "request.create", {"resource_id": _RESOURCE_ID, "confirmed": True}, role=_OPERATER))
     assert second.get("reused_draft") is True
     assert second["request_id"] == first["request_id"]
-    # 只有一张草稿单（没有刷出第二张）。
-    drafts = [r for r in brain._snapshot["requests"] if r["resourceId"] == _RESOURCE_ID and r["status"] == "draft"]
+    # 只有一张草稿单（没有刷出第二张）——DB 现算。
+    store = brain._state_store.database_store
+    drafts = [
+        r for r in store.application_repo.list_records(tenant_id="sd-default")
+        if (r.payload_json or {}).get("resourceId") == _RESOURCE_ID and r.status == "draft"
+    ]
     assert len(drafts) == 1
 
 
@@ -88,10 +93,11 @@ def test_draft_submit_transitions_to_pending(brain) -> None:
     rid = created["request_id"]
     submitted = _unwrap(invoke_trusted(brain, "request.submit", {"request_id": rid, "confirmed": True}, role=_OPERATER))
     assert submitted["status"] == "pending", submitted
-    req = next(r for r in brain._snapshot["requests"] if r["id"] == rid)
-    assert req["status"] == "pending"
-    # 提交后时间线含「已提交申请」。
-    labels = [t.get("label") for t in req.get("timeline", [])]
+    store = brain._state_store.database_store
+    rec = store.application_repo.get_record(rid, tenant_id="sd-default")
+    assert rec is not None and rec.status == "pending"
+    # 提交后时间线含「已提交申请」（payload 卡随写落库）。
+    labels = [t.get("label") for t in (rec.payload_json or {}).get("timeline", [])]
     assert "已提交申请" in labels
 
 
