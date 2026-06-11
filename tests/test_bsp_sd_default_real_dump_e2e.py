@@ -203,7 +203,9 @@ def test_sd_default_real_dump_iaf_to_role_policy_e2e() -> None:
                         "legacy_system": sample.legacy_system,
                     }
                 ],
-                "role": "ROLE_BUSIAUDIT",
+                # D55/P4：身份治理收归平台运维员（governance.policy_candidate.review={ROLE_SYSTEM}）。
+                # permission-matrix-0610 清残留：原 BUSIAUDIT 自 wave1 起 403、本测试 pre-existing 失败。
+                "role": "ROLE_SYSTEM",
                 "confirmed": True,
             },
         )

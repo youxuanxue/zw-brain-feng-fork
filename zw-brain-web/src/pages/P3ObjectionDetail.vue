@@ -8,6 +8,7 @@ import { authFetch } from '@/composables/useAuth';
 import { invokeActionStub } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { mapDetailRows } from '@/lib/detailDisplay';
+import { canPerformAction } from '@/lib/pageAccess';
 import { formatTodoStatus } from '@/lib/statusLabels';
 import { formatObjectionType, objectionTargetHref } from '@/lib/objectionLabels';
 import { apiUrl } from '@/composables/useApiBase';
@@ -66,12 +67,16 @@ const headerMeta = computed(() => {
   return `当前：${formatTodoStatus(status.value)}`;
 });
 
-const canSubmit = computed(() => status.value === 'draft');
-const canEvaluate = computed(() => status.value === 'resolved');
+// 三个写按钮统一走 action gate（与后端 policy set-equal，守卫强制）；
+// 状态门 ∧ 角色门，无权 = 不可见（业务运营员对草稿单无提交权、安全审计员纯只读）。
+const canSubmit = computed(
+  () => status.value === 'draft' && canPerformAction('objection.case.submit', role.value),
+);
+const canEvaluate = computed(
+  () => status.value === 'resolved' && canPerformAction('objection.case.evaluate', role.value),
+);
 const canClose = computed(
-  () =>
-    status.value === 'resolved' &&
-    ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'].includes(role.value),
+  () => status.value === 'resolved' && canPerformAction('objection.case.close', role.value),
 );
 
 async function submitCase() {

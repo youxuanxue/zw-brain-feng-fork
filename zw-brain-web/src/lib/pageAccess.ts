@@ -160,6 +160,14 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   'catalog.national_ext_elem.compile': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   // C6（D50）P3 国家直达转报 — 与后端 policy application.escalate_national.execute set-equal。
   'application.escalate_national': ['ROLE_BUSIAUDIT'],
+  // P3ObjectionDetail 提交 / 评价（permission-matrix-0610）：提交=异议提出方（操作员/管理员，
+  // v5「异议提出 = 部门操作员、部门管理员」）；评价=三岗位。与后端 set-equal。
+  'objection.case.submit': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
+  'objection.case.evaluate': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
+  // P4Credential 调用记录段（permission-matrix-0610）：此前未注册 → canPerformAction 默认放行，
+  // 操作员（delivery shell 含 OPERATER）看到调用监控入口但后端 403。与 policy.py set-equal
+  // （D55/P8：平台运维员+业务运营员保服务调用监控，管理员/审计员只读）。
+  'ops.service.invocation.query': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT', 'ROLE_SYSTEM'],
 };
 
 export function canPerformAction(action: keyof typeof ACTION_ROLE_GATES | string, role: string): boolean {

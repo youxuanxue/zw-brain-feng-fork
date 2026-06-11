@@ -1,0 +1,27 @@
+{
+  "scope": "permission-matrix-0610",
+  "deliverable": "权限矩阵上帝视角复审：5角色×10壳导航矩阵 + 写按钮 action-gate + 受理两级/目录发布两业务流真 UI 走查（对照 重构平台权限梳理-0609.docx + 平台系统角色菜单梳理v5.xlsx）",
+  "git_sha": "ef1a786557ddc61891f5c5d42030ccc08b9dac72",
+  "captured_at": "2026-06-10T16:13:53Z",
+  "captured_by": "薛娇（产品研发负责人）",
+  "checks": [
+    {
+      "name": "5 消费面投影一致",
+      "kind": "contract",
+      "result": "pass",
+      "detail": "[contract] OK: docs/agent_integration.md in sync with discovered entries (REST=189 CLI=1 MCP=64 A2A=1 Skills=180)"
+    },
+    {
+      "name": "后端 / 契约测试套",
+      "kind": "pytest",
+      "result": "pass",
+      "detail": "exit 0（本仓 summary 抑制,以退出码为准）"
+    },
+    {
+      "name": "WebUI 活跑验收（permission_matrix_walkthrough）",
+      "kind": "e2e",
+      "result": "pass",
+      "detail": "4 passed / 0 failed / 0 skipped"
+    }
+  ]
+}

@@ -18,23 +18,23 @@ _SHELL_ROLES: dict[str, frozenset[str]] = {
             "ROLE_SYSTEM",
         }
     ),
+    # D55/P17：安全审计员非数据使用方，退出找数据（permission-matrix-0610 复审清掉镜像漂移；
+    # 本镜像由 test_shell_roles_mirror_matches_ts 机械守卫与 TS 真值 set-equal）。
     "discovery": frozenset(
         {
             "ROLE_ORGAN_OPERATER",
             "ROLE_ORGAN_MANAGER",
             "ROLE_BUSIAUDIT",
-            "ROLE_SECURITY_AUDIT",
         }
     ),
     # D55/P21·P7：业务运营员（受理岗）在 request-flow shell 内办受理 + 决策A 收回/暂停
     # （与 productShellNav.ts request-flow.roles 一致，含 BUSIAUDIT）。
     "request-flow": frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}),
+    # D55/P13 领数据回归操作员+管理员（反转 F1）+ P18 审计员退出 + D53⑥ 运营员无交付场景。
     "delivery-exchange": frozenset(
         {
             "ROLE_ORGAN_OPERATER",
             "ROLE_ORGAN_MANAGER",
-            "ROLE_BUSIAUDIT",
-            "ROLE_SECURITY_AUDIT",
         }
     ),
     # provider shell 含 OPERATER（roles §66 / J2 §166 在线编制属操作员职责）
@@ -60,7 +60,12 @@ _SHELL_ROLES: dict[str, frozenset[str]] = {
         }
     ),
     # zones-pack（专题包）shell 退出本期（D55/P6）：路由下线，不再有 shell 角色门。
-    "integration-admin": frozenset({"ROLE_BUSIAUDIT", "ROLE_SYSTEM"}),
+    # D55/P2：外部系统收归平台运维员（业务运营员退出）。
+    "integration-admin": frozenset({"ROLE_SYSTEM"}),
+    # D55/P3 反转 D49：流程表单配置 = 平台级系统配置 = 平台运维员独有。
+    "engines": frozenset({"ROLE_SYSTEM"}),
+    # D55/P4：身份治理收归平台运维员。
+    "iam-governance": frozenset({"ROLE_SYSTEM"}),
 }
 
 # 与 pageAccess.ts ROUTE_ROLE_OVERRIDES 同步（顺序敏感，长前缀优先）。
@@ -105,6 +110,11 @@ def _active_shell_key(path: str) -> str:
     if p.startswith("/service-ops"):
         return "service-ops"
     # /zones-pack 专题包路由退出本期（D55/P6）：不再映射 shell key。
+    # 身份治理 / 流程表单独立导航键须在 /integration-admin 前缀之前命中（与 TS activeShellKey 一致）。
+    if p.startswith("/integration-admin/iam-governance"):
+        return "iam-governance"
+    if p.startswith("/integration-admin/engines"):
+        return "engines"
     if p.startswith("/integration-admin"):
         return "integration-admin"
     return "workbench"
@@ -143,7 +153,8 @@ def _default_route_for_role(role: str, from_path: str | None = None) -> str:
             return shell_top
     # 否则回落到 role 第一个可见 shell（按 PRODUCT_SHELL_NAV 顺序）
     for sk in ("workbench", "discovery", "request-flow", "delivery-exchange",
-               "provider", "compliance-ops", "service-ops", "zones-pack", "integration-admin"):
+               "provider", "compliance-ops", "service-ops", "integration-admin",
+               "engines", "iam-governance"):
         if role in _SHELL_ROLES.get(sk, frozenset()):
             return f"/{sk}"
     return "/workbench"
@@ -514,3 +525,88 @@ def test_busiaudit_objection_inbox_reachable() -> None:
     """
     assert _is_route_allowed("/provider/inbox/objection", "ROLE_BUSIAUDIT")
     assert _is_route_allowed("/provider/inbox/objection", "ROLE_ORGAN_MANAGER")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# permission-matrix-0610 守卫硬化（升级原则 §5：把本轮缺陷类机械封死）
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _web_src_root():
+    from pathlib import Path
+
+    return Path(__file__).resolve().parent.parent / "zw-brain-web" / "src"
+
+
+def test_shell_roles_mirror_matches_ts() -> None:
+    """本文件 _SHELL_ROLES 镜像必须与 productShellNav.ts 真值 set-equal。
+
+    背景（permission-matrix-0610）：D55 wave1 改了 TS 真值（discovery/delivery 去审计员、
+    integration-admin 收 SYSTEM、新增 engines/iam-governance 键），但本镜像漂移未跟——
+    镜像比真值宽 = 守卫弱化（放过真 UI 已拒绝的角色）。本测试把「与 productShellNav.ts 同步」
+    的注释承诺机械化，漂移即 FAIL。
+    """
+    import re
+
+    src = (_web_src_root() / "config" / "productShellNav.ts").read_text(encoding="utf-8")
+    ts_shells: dict[str, frozenset[str]] = {}
+    for m in re.finditer(r"key:\s*'([^']+)'.*?roles:\s*\[([^\]]+)\]", src, re.DOTALL):
+        ts_shells[m.group(1)] = frozenset(re.findall(r"'(ROLE_[A-Z_]+)'", m.group(2)))
+    assert ts_shells, "productShellNav.ts 解析不到任何 shell（解析器或文件结构变了）"
+    assert set(ts_shells) == set(_SHELL_ROLES), (
+        f"shell 键集漂移：TS={sorted(ts_shells)} vs 镜像={sorted(_SHELL_ROLES)}"
+    )
+    for key, ts_roles in ts_shells.items():
+        assert _SHELL_ROLES[key] == ts_roles, (
+            f"_SHELL_ROLES[{key!r}]={sorted(_SHELL_ROLES[key])} 与 TS 真值 "
+            f"{sorted(ts_roles)} 漂移；真值源是 productShellNav.ts，请同步镜像"
+        )
+
+
+def test_all_canperformaction_ids_registered() -> None:
+    """src 内每个 canPerformAction('<literal>') 必须已注册进 ACTION_ROLE_GATES。
+
+    背景（permission-matrix-0610）：canPerformAction 对未注册 action 默认放行
+    （pageAccess.ts「未注册的 action 默认不拦」），ops.service.invocation.query 因此
+    对操作员渲染了入口但后端 403。本测试封死「用了 gate 函数却没登记 gate」的缺陷类。
+    """
+    import re
+
+    src_root = _web_src_root()
+    gates_src = (src_root / "lib" / "pageAccess.ts").read_text(encoding="utf-8")
+    m = re.search(r"ACTION_ROLE_GATES\b[^=]*=\s*\{(.*?)\n\};", gates_src, re.DOTALL)
+    assert m, "pageAccess.ts 缺 ACTION_ROLE_GATES 表"
+    registered = set(re.findall(r"'([^']+)'\s*:\s*\[", m.group(1)))
+
+    unregistered: list[str] = []
+    for path in sorted(src_root.rglob("*")):
+        if path.suffix not in {".vue", ".ts"} or path.name == "pageAccess.ts":
+            continue
+        text = path.read_text(encoding="utf-8")
+        for am in re.finditer(r"canPerformAction\(\s*'([^']+)'", text):
+            if am.group(1) not in registered:
+                unregistered.append(f"{path.relative_to(src_root)}: {am.group(1)}")
+    assert not unregistered, (
+        "以下 canPerformAction 调用的 action 未注册进 ACTION_ROLE_GATES"
+        "（未注册=默认放行，会渲染无权入口）：\n" + "\n".join(unregistered)
+    )
+
+
+def test_no_hardcoded_role_arrays_in_pages() -> None:
+    """src/pages/*.vue 禁止硬编码 ['ROLE_…'] 角色数组——角色门一律走
+    pageAccess（canPerformAction/filterByRouteAccess）或 requestFlowRoles 常量。
+
+    背景（permission-matrix-0610）：P3ObjectionDetail canClose 硬编码含安全审计员，
+    与后端 objection.case.close={MANAGER,BUSIAUDIT} 漂移（D55/P22 违例）。
+    """
+    import re
+
+    pages = _web_src_root() / "pages"
+    hits: list[str] = []
+    for path in sorted(pages.glob("*.vue")):
+        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if re.search(r"\[\s*'ROLE_[A-Z_]+'", line):
+                hits.append(f"{path.name}:{i}: {line.strip()[:100]}")
+    assert not hits, (
+        "pages 内发现硬编码角色数组（应走 pageAccess/requestFlowRoles chokepoint）：\n"
+        + "\n".join(hits)
+    )

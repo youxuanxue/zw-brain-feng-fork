@@ -13,10 +13,12 @@ import {
  * 背景：该能力（ops.service.invocation.query）的唯一前端面是 P4Credential.vue 的
  * 「调用记录」段，受 `v-if="hasCredential && canViewInvocations"` 双门：
  *   - hasCredential：该申请须有已签发凭据；real-only 导入单 D47 诚实化为 not_issued，
- *     故本 spec **自给自足**——setup 走真实 J1 流程（request.create → application.resource.review
- *     approve → credential.issue 平台自签 AK-SELF）铸一个新单凭据，不依赖 seed 预置、不塞假数据。
- *   - canViewInvocations = canPerformAction('ops.service.invocation.query')，仅
- *     MANAGER + BUSIAUDIT + SECURITY_AUDIT；与后端 policy 同源（OPERATER 后端 403）。
+ *     故本 spec **自给自足**——setup 走真实 J1 流程（application.resource.submit 直提 →
+ *     application.resource.review 业务运营员受理 approve → credential.issue 平台自签 AK-SELF）
+ *     铸一个新单凭据，不依赖 seed 预置、不塞假数据。
+ *   - canViewInvocations = canPerformAction('ops.service.invocation.query')，gate 注册为
+ *     MANAGER + BUSIAUDIT + SECURITY_AUDIT + SYSTEM（与后端 policy set-equal，守卫强制）；
+ *     申请人 OPERATER 不在集合（后端 403）。
  *
  * 断言：授权岗位「调用记录」段渲染；申请人 OPERATER 整段从 DOM 消失（toHaveCount(0)，
  * 非「可见但禁用」、非「可见点后 403」）。
@@ -38,29 +40,38 @@ async function mintIssuedCredential(api: APIRequestContext): Promise<string | nu
   const body = (await snap.json()) as Record<string, unknown>;
   const discovery = (body.discovery ?? {}) as Record<string, unknown>;
   const resources = (discovery.resources ?? []) as Array<Record<string, unknown>>;
-  const resourceId = String(resources[0]?.id ?? '');
-  if (!resourceId) return null;
 
   const post = async (slug: string, payload: Record<string, unknown>) => {
     const r = await api.post(`${E2E_BASE_URL}/api/skills/${slug}`, { data: payload });
     return (await r.json().catch(() => ({}))) as Record<string, unknown>;
   };
 
-  const created = await post('request.create', {
-    resource_id: resourceId,
-    confirmed: true,
-    role: 'ROLE_ORGAN_OPERATER',
-    query: 'e2e ops 可见性验收',
-  });
-  const result = (created.result ?? created) as Record<string, unknown>;
-  const reqId = String(result.request_id ?? result.id ?? '');
+  // permission-matrix-0610 修：request.create 自 G2 起落「草稿」不进审批，改走
+  // application.resource.submit 直提（落 pending 即进受理队列）；无条件 shared_type=1。
+  // 同资源已有在办申请会被拦（重复跑 / 脏 DB），逐个候选资源试到成功。
+  let reqId = '';
+  for (const r of resources.slice(0, 12)) {
+    const created = await post('application.resource.submit', {
+      resource_id: String(r.id ?? ''),
+      confirmed: true,
+      role: 'ROLE_ORGAN_OPERATER',
+      shared_type: 1,
+      purpose: 'e2e ops 可见性验收：调用记录段权限走查',
+      query: 'e2e ops 可见性验收',
+    });
+    const result = (created.result ?? created) as Record<string, unknown>;
+    reqId = String(result.request_id ?? result.id ?? '');
+    if (reqId) break;
+  }
   if (!reqId) return null;
 
+  // D55/P21：无条件共享受理即终 = 业务运营员（application.resource.review={BUSIAUDIT}）。
+  // 原 role=MANAGER 自 D55 起 403 → 铸单永败 → 本 spec perma-skip（假 skip 曾遮蔽 gate 回归）。
   await post('application.resource.review', {
     request_id: reqId,
     decision: 'approve',
     confirmed: true,
-    role: 'ROLE_ORGAN_MANAGER',
+    role: 'ROLE_BUSIAUDIT',
   });
   await post('credential.issue', {
     request_id: reqId,

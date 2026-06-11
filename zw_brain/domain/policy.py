@@ -348,11 +348,15 @@ PERMISSION_ROLES = {
     # 国家直达转报（D50/C6，J1 子旅程）：仅业务运营员转报本级申请到国家平台（SPEC 角色）。
     "application.escalate_national.execute": {"ROLE_BUSIAUDIT"},
 
-    # adapter 级联消费
-    "adapter.cascade.consume.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},
-    "adapter.cascade.replay.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},
-    "adapter.cascade.health.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},
-    "adapter.external.mapping.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},
+    # adapter 级联消费 / 外部映射（permission-matrix-0610 复审收归）：
+    # 外部系统类能力照 D55/P2 收归平台运维员（integration-admin shell 已仅 SYSTEM）；
+    # consume/replay 是写动作，安全审计员纯只读（D55/P22）不得持有。
+    # cascade.* manifest=deferred:wave-3（不可调，移除残留授权防回潮，照 D55/G2 先例
+    # manifest status 不动）；external.mapping.query=live，无前端 CTA、调用面在后台。
+    "adapter.cascade.consume.execute": {"ROLE_SYSTEM"},
+    "adapter.cascade.replay.execute": {"ROLE_SYSTEM"},
+    "adapter.cascade.health.query.execute": {"ROLE_SYSTEM"},
+    "adapter.external.mapping.query.execute": {"ROLE_SYSTEM"},
 
     # 租户策略
     "tenant.policy.evaluate.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"},

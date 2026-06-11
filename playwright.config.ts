@@ -33,6 +33,7 @@ export default defineConfig({
     'perf_loading.spec.ts',
     'form_autofill.spec.ts',
     'wave15_two_stage_walkthrough.spec.ts',
+    'permission_matrix_walkthrough.spec.ts',
   ],
   fullyParallel: false,
   workers: 1,
