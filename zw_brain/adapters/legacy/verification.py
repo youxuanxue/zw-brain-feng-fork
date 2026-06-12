@@ -110,6 +110,7 @@ def _canonical_ref_resolvers(tenant_id: str) -> dict[str, set[str]]:
         "RegionProjectionRecord": {item.region_code for item in governance.list_regions(tenant_id=tenant_id)},
         "ActorProjectionRecord": {item.external_actor_id for item in governance.list_actors(tenant_id=tenant_id)},
         "RoleProjectionRecord": {item.role_code for item in governance.list_roles(tenant_id=tenant_id)},
+        "DictProjectionRecord": _dict_projection_refs(tenant_id),
         "catalog_model": {item.model_code for item in catalog.list_models(tenant_id=tenant_id)},
         "catalog_model_field": {f"{item.model_code}:{item.field_code}" for item in catalog.list_model_fields_all(tenant_id=tenant_id)},
         "catalog_entry": {item.catalog_code for item in catalog.list_entries(tenant_id=tenant_id)},
@@ -166,6 +167,22 @@ def _topic_package_item_refs(tenant_id: str) -> set[str]:
     for package in repo.list_packages(tenant_id=tenant_id):
         refs.update(f"{package.package_code}:{item.item_code}" for item in repo.list_items(package.package_code, tenant_id=tenant_id))
     return refs
+
+
+def _dict_projection_refs(tenant_id: str) -> set[str]:
+    from sqlalchemy import select
+
+    from zw_brain.domain.models import DictProjectionRecord
+    from zw_brain.shared.db import create_session_factory
+
+    SessionLocal = create_session_factory()
+    with SessionLocal() as session:
+        return {
+            f"{item.dict_type}:{item.code}"
+            for item in session.execute(
+                select(DictProjectionRecord).where(DictProjectionRecord.tenant_id == tenant_id)
+            ).scalars()
+        }
 
 
 def _approval_step_refs(tenant_id: str) -> set[str]:

@@ -127,3 +127,31 @@ def test_search_orgs_keyword_pagination() -> None:
         # 空 keyword + 空区划 → 仍返回首页 + total（不退化）。
         r0, t0 = gov.search_orgs(limit=5, tenant_id="sd-default")
         assert t0 >= len(r0) >= 1
+
+
+@pytest.mark.skipif(not REAL_DUMP.exists(), reason="real BSP dump absent on this checkout")
+def test_dict_projection_mappings_resolve_in_strict_verify() -> None:
+    """回归钉死：mapper 写 DictProjectionRecord legacy mapping，verify 注册表必须能解析。
+
+    #232 引入 pub_dict 真导入后 verification 类型注册表未同步，802 条映射全量
+    unknown_type → customer_acceptance_up.sh 在 main 上全新重建必失败（strict verify 段）。
+    """
+    from zw_brain.adapters.legacy.mappers.governance import GovernanceMapper
+    from zw_brain.adapters.legacy.verification import verify_legacy_migration
+
+    with TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        _bootstrap(tmp)
+
+        dump_dir = tmp / "dumps"
+        dump_dir.mkdir(parents=True, exist_ok=True)
+        dump = dump_dir / "dump-dsp_bsp-202604271139.sql"
+        dump.write_text(REAL_DUMP.read_text(encoding="utf-8"), encoding="utf-8")
+        GovernanceMapper().import_dump(dump, dry_run=False)
+
+        report = verify_legacy_migration(tenant_id="sd-default", require_zero_conflicts=True)
+        dict_rows = [r for r in report["by_type"] if r["canonical_type"] == "DictProjectionRecord"]
+        assert dict_rows, "导入后应存在 DictProjectionRecord 映射行"
+        row = dict_rows[0]
+        assert row["unknown_type"] is False, "DictProjectionRecord 不在 verify 注册表（#232 缺口回潮）"
+        assert row["unresolved"] == 0, f"字典映射应全部可解析，实得 unresolved={row['unresolved']}"
