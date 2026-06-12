@@ -1,7 +1,6 @@
 {
   "workbench": {
     "ROLE_ORGAN_OPERATER": {
-      "greeting": "周处长，上午好（省大数据局 · 山东省）",
       "subtitle": "",
       "todos": [],
       "highlights": [],
@@ -12,7 +11,6 @@
       }
     },
     "ROLE_ORGAN_MANAGER": {
-      "greeting": "刘主任，上午好",
       "subtitle": "",
       "todos": [],
       "highlights": [],
@@ -23,7 +21,6 @@
       }
     },
     "ROLE_BUSIAUDIT": {
-      "greeting": "高主任，上午好",
       "subtitle": "",
       "todos": [],
       "highlights": [],
@@ -34,7 +31,6 @@
       }
     },
     "ROLE_SECURITY_AUDIT": {
-      "greeting": "林督查，上午好",
       "subtitle": "",
       "todos": [],
       "highlights": [],
@@ -45,7 +41,6 @@
       }
     },
     "ROLE_SYSTEM": {
-      "greeting": "平台运维员，上午好",
       "subtitle": "",
       "todos": [],
       "highlights": [],

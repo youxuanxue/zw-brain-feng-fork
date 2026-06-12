@@ -3,7 +3,9 @@ import { gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
 
 /** 6 worker 主路径页面：不得出现「功能建设中」占位。 */
 const PAGE_MATRIX: Array<{ role: string; hash: string; heading: RegExp | string }> = [
-  { role: 'ROLE_ORGAN_OPERATER', hash: '#/workbench', heading: /工作台|上午好|下午好/ },
+  // 问候语随 R-004 修复改真实会话身份现算（display_name + 时段问候；dev-bypass=「本地调试」），
+  // 三时段全覆盖，不再钉死 seed 虚构人物的「上午好」二段。
+  { role: 'ROLE_ORGAN_OPERATER', hash: '#/workbench', heading: /上午好|下午好|晚上好/ },
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/discovery', heading: '可申请资源' },
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/discovery/catalog-browse', heading: '目录浏览' },
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/request-flow', heading: '办共享申请' },

@@ -84,3 +84,23 @@ def test_enforce_manifest_policy_denies_underprivileged_read_without_role_payloa
     }
     with pytest.raises(DomainAccessDeniedError):
         enforce_manifest_policy("audit.event.query", manifest, "ROLE_ORGAN_OPERATER", {})
+
+
+def test_reverse_draft_suggest_dead_read_revoked_for_busiaudit() -> None:
+    # D57⑧ 收尾（#259 未尽清单第 3 项）：suggest（智能预填）唯一消费面是反向编目向导
+    # （路由仅 OPERATER/MANAGER）；BUSIAUDIT 退出 draft 阶段审核后该读权成死权 → 回收钉死。
+    perm = "catalog.entry.reverse_draft.suggest.execute"
+    assert perm in permissions_for_role("ROLE_ORGAN_OPERATER")
+    assert perm in permissions_for_role("ROLE_ORGAN_MANAGER")
+    assert perm not in permissions_for_role("ROLE_BUSIAUDIT")
+    manifest = {
+        "tenant_scope": "tenant",
+        "side_effects": [],
+        "human_confirmation_required": False,
+        "permissions": [perm],
+    }
+    with pytest.raises(DomainAccessDeniedError):
+        enforce_manifest_policy("catalog.entry.reverse_draft.suggest", manifest, "ROLE_BUSIAUDIT", {})
+    # 正向双面：向导双角色仍可用（防止回收误伤活权）。
+    enforce_manifest_policy("catalog.entry.reverse_draft.suggest", manifest, "ROLE_ORGAN_OPERATER", {})
+    enforce_manifest_policy("catalog.entry.reverse_draft.suggest", manifest, "ROLE_ORGAN_MANAGER", {})

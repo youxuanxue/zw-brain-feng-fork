@@ -565,26 +565,28 @@ def _build_a3_audit_events() -> list[dict]:
 
 
 def _augment_workbench(workbench: dict) -> dict:
-    """Inject real-org context into role greetings (idempotent rewrite).
+    """Strip fabricated greetings (idempotent rewrite); keep subtitle real-org context.
 
-    Keeps todos/highlights structures untouched; only updates greeting text
-    and aiSummary.basis to reference real Shandong orgs.
+    #258 复审 R-004：问候语里的 seed 虚构人物名（周处长/区县协同员/审计员…）违 D11
+    真实库精神，已整体退役——greeting 不再入 seed，由 workbench.view handler 按当前
+    会话身份现算（actor_snapshot.display_name + 时段问候，取不到诚实回落纯时段问候）。
+    todos/highlights 结构保持不动。
     """
     new_wb = json.loads(json.dumps(workbench))  # deep copy
     # 2026-05-19 retrofit (D23): workbench bucket keys 对齐新 ROLE_* 6 角色
+    for bucket in new_wb.values():
+        if isinstance(bucket, dict):
+            bucket.pop("greeting", None)
     if "ROLE_ORGAN_OPERATER" in new_wb:
-        new_wb["ROLE_ORGAN_OPERATER"]["greeting"] = "周处长，上午好（省大数据局 · 山东省）"
         new_wb["ROLE_ORGAN_OPERATER"]["subtitle"] = (
             "你有 1 条停车场信息复用申请待看进度；本周共有 10 条来自 dsp_example 的真政务案例可被订阅；"
             "1 条减负提示来自约 1.8 万条 pub_organ projection。"
         )
     if "ROLE_ORGAN_MANAGER" in new_wb:  # 旧 r3 镇街/区县协同员 → ORGAN_MANAGER 部门管理员
-        new_wb["ROLE_ORGAN_MANAGER"]["greeting"] = "区县协同员，上午好（济南市大数据局 · 区县代办）"
         new_wb["ROLE_ORGAN_MANAGER"]["subtitle"] = (
             "本周 2 条由省大数据局发起的婚姻登记/出生一件事流转任务等你确认；停车场信息已通过基础目录审核。"
         )
     if "ROLE_SECURITY_AUDIT" in new_wb:  # 旧 r5 审计员 → SECURITY_AUDIT
-        new_wb["ROLE_SECURITY_AUDIT"]["greeting"] = "审计员，上午好（省纪检审计联络办）"
         new_wb["ROLE_SECURITY_AUDIT"]["subtitle"] = (
             "本周 8 条审计事件已锚定（2 条 anchored / 6 pending）；其中 1 条与省公安厅发起的目录异议相关。"
         )

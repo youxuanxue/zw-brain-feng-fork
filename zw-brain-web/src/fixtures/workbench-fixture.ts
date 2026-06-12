@@ -25,7 +25,9 @@ export interface WorkbenchView {
 }
 
 export const WORKBENCH_FIXTURE: WorkbenchView = {
-  greeting: '周处长，上午好（省大数据局 · 山东省）',
+  // R-004（#258 复审）：虚构人物名退役。离线 fixture 无会话身份可带出 → 通用问候，
+  // 不捏造姓名头衔；live 路径问候语由后端按 actor_snapshot.display_name 现算。
+  greeting: '您好',
   subtitle:
     '你有 1 条停车场信息复用申请待看进度；本周共有 10 条真实政务案例可被订阅；1 条减负提示来自约 1.8 万条 组织表数据。',
   todos: [

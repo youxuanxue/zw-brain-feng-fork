@@ -390,7 +390,9 @@ PERMISSION_ROLES = {
     # confirm/reject = 部门管理员部门审（draft 阶段，含字段口径裁决 field_decisions），
     # 通过后落 pending_platform_review 汇入正向目录审核平台档（catalog.entry.review，
     # BUSIAUDIT），替换原「仅 BUSIAUDIT 一级」；操作员无任何反向审核权（做的人不审自己）。
-    "catalog.entry.reverse_draft.suggest.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    # suggest（智能预填）唯一消费面 = 反向编目向导（路由仅 OPERATER/MANAGER）；D57⑧ 后
+    # BUSIAUDIT 退出 draft 阶段审核，其 suggest 读权成死权 → 回收（#259 未尽清单第 3 项）。
+    "catalog.entry.reverse_draft.suggest.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
     "catalog.entry.reverse_draft.create.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
     "catalog.entry.reverse_draft.confirm.execute": {"ROLE_ORGAN_MANAGER"},
     "catalog.entry.reverse_draft.reject.execute": {"ROLE_ORGAN_MANAGER"},

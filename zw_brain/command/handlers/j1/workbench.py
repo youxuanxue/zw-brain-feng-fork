@@ -19,7 +19,32 @@ from zw_brain.domain.workbench_backlog_projection import enrich_workbench_backlo
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
-def _get_workbench(brain, deps, ctx, role: str) -> dict[str, Any]:
+def _session_greeting(payload: dict[str, Any]) -> str:
+    """问候语 = 真实会话身份带出（#258 复审 R-004，D11 真实库精神）。
+
+    seed 虚构人物名（周处长/刘主任/高主任/林督查）已随本修复从 seed_snapshot 整体退役；
+    问候语不再来自 seed，而是按当前会话现算：
+    - 经 BFF trust-stamp 路径（REST/IAM 与 dev-bypass 同路）payload 携带 actor_snapshot，
+      display_name 取自 actor_projection（IAM 登录）或会话身份标签（dev-bypass=「本地调试」）；
+    - 取不到（in-process / 测试 / 离线）诚实回落纯时段问候，不捏造姓名头衔（R12 业务用语）。
+    """
+    from datetime import datetime  # noqa: PLC0415
+
+    snapshot = payload.get("actor_snapshot")
+    name = ""
+    if isinstance(snapshot, dict):
+        name = str(snapshot.get("display_name") or "").strip()
+    hour = datetime.now().hour
+    if 5 <= hour < 12:
+        tod = "上午好"
+    elif 12 <= hour < 18:
+        tod = "下午好"
+    else:
+        tod = "晚上好"
+    return f"{name}，{tod}" if name else tod
+
+
+def _get_workbench(brain, deps, ctx, role: str, payload: dict[str, Any]) -> dict[str, Any]:
     # Action C — WorkbenchView.get_for_role defaults to {"todos": []} for missing
     # roles; we need explicit NotFoundError, so go through brain_legacy escape
     # hatch to keep the existence check. (Will retire with snapshot dict in Action D.)
@@ -32,7 +57,9 @@ def _get_workbench(brain, deps, ctx, role: str) -> dict[str, Any]:
     # 「待受理异议」深链 /provider/inbox/objection 已随 D57① 接通受理面（submitted 纳入
     # 收件箱 + objection.case.accept 可点），原「待裁决后校准」注记已闭合。
     # 投影口径单一事实源见 workbench_backlog_projection.enrich_workbench_backlog。
-    return enrich_workbench_backlog(view, role)
+    enriched = enrich_workbench_backlog(view, role)
+    enriched["greeting"] = _session_greeting(payload)
+    return enriched
 
 def _submit_service_rating(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     """申请人 完成交付后为本次共享服务打分（写入审计供 安全审计员 督查可见）。"""
@@ -95,7 +122,7 @@ def _terminate_subscription(brain, deps, ctx, payload: dict[str, Any]) -> dict[s
 def handler_workbench_view(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _get_workbench(brain, deps, ctx, str(payload.get("role", ctx.role)))
+    return _get_workbench(brain, deps, ctx, str(payload.get("role", ctx.role)), payload)
 
 def handler_service_rating_submit(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.

@@ -1,0 +1,21 @@
+slug: reverse-draft-revision-surface
+title: "反向编目草稿被平台审退回（return_for_fix→draft）后，操作员缺「修订草稿再提交」编辑面——现状=重新走向导覆盖创建"
+date: 2026-06-13
+severity: low
+owner: 产品研发负责人
+# Where：D57⑧ 两级管线（#259）平台审 BUSIAUDIT return_for_fix → draft（source=reverse 保留，
+#   回部门审收件箱口径）。退回单管理员可在收件箱再审，但创建者（操作员/管理员）没有针对
+#   既有退回草稿的「修订再提交」独立编辑页——P5ReverseCatalogWizard 只有 create 形态，
+#   修订只能重新走向导覆盖创建（丢失退回上下文与字段裁决痕迹的连续性）。
+# Implication：体验缺口非功能死路（覆盖创建可走通全链）；属体验增强，不在裁决⑧字面内，
+#   #259 未尽清单第 2 项原话「属体验增强，不在本 PR 扩做」——本条把它从 PR body 散落提及
+#   转成正式记账（0611 收尾批次）。
+# Why deferred：与 api-service-row-inline-edit 同构——edit 模式需向导预填既有草稿
+#   （summary_json/field_decisions 富集回表单）+ 区分修订与覆盖语义，半截编辑会 clobber；
+#   乔布斯口径「不出半截功能」，宁缺编辑、不出会丢上下文的编辑。
+# Why external（无机械 assert）：修订面尚未立项，未来落点（向导 edit 模式 vs 独立修订页）
+#   与其将调用的能力 token 均未定——预钉一个不存在的标识符做 grep 锚即虚构约束
+#   （同 D48 amendment 拒纳 objection_case 无 live deref 边之理）。立项后改 grep_absent 锚。
+trigger: "业务方反馈退回草稿修订体验，或反向编目向导下一轮迭代立项 → P5ReverseCatalogWizard 加 edit 模式（既有 draft 预填 + 修订再提交），关债；落点定型时把本条 assert 升级为 grep_absent 机械锚。指针：PR #259 未尽清单第 2 项。"
+assert:
+  kind: external

@@ -2,7 +2,7 @@
 
 # Preflight Debt Status (computed)
 
-## open (41)
+## open (42)
 - ac7 [medium] (2026-05-25) — 客户机房部署 + 监控对接未落地（E6 AC7）
   - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
 - agentruntime [medium] (2026-05-24) — AgentRuntime runtime 触发式延后（D30 retrofit）
@@ -71,6 +71,8 @@
   - assert: external → external — owner=产品研发负责人; trigger=(a) CI 上该用例**非负载场景**稳定超 1000ms（=真实 perf 回归，立即 P0 查
 - resource-schema-keying-reconcile [medium] (2026-06-02) — 字段数据模型视图覆盖率残留：read-path bridge 已把 2%→27%，余 73% 资源源 dump 无 schema 映射（上游数据缺供）
   - assert: external → external — owner=产品研发负责人; trigger=数据/业务侧在上游补齐 138 个无 schema 映射资源的 dsp_metaresource→catalog 资源列级 link（或补 dump 后重导），使 resource_schema_mapping 覆盖更多 resource_asset；补齐后桥接自动放大覆盖率（读路径已就绪，无需再改代码）。届时把本 assert 从 external 升级为现算（如 SQL join 命中率门槛）并按实际覆盖率关债或降级。
+- reverse-draft-revision-surface [low] (2026-06-13) — 反向编目草稿被平台审退回（return_for_fix→draft）后，操作员缺「修订草稿再提交」编辑面——现状=重新走向导覆盖创建
+  - assert: external → external — owner=产品研发负责人; trigger=业务方反馈退回草稿修订体验，或反向编目向导下一轮迭代立项 → P5ReverseCatalogWizard 加 edit 模式（既有 draft 预填 + 修订再提交），关债；落点定型时把本条 assert 升级为 grep_absent 机械锚。指针：PR #259 未尽清单第 2 项。
 - security-admin-retired-d55 [medium] (2026-06-09) — 安全管理员（ROLE_SECURITY_ADMIN）+ 数据安全中心本期退役，待立项恢复（D55/P16）
   - assert: external → external — owner=产品研发负责人; trigger=数据安全中心立项（分类分级 / 敏感识别 / 脱敏 / 密钥 / 风险处置 / 资产透视五大模块）→ 恢复 ROLE_SECURITY_ADMIN：重新加入 role_codes.BUSINESS_ROLE_CODES + 显示名 + 各 PERMISSION_ROLES 条目 + 前端四副本 + role-mapping-manifest（ROLE_SECURITY_MANAGER/ROLE_SECRET 从显式不映射段恢复）+ 重生成 agent 契约；security.scan.result.sync / package.* 等本期散权移除项一并校正（P22 Wave 后续）。
 - security-audit-readonly-d55 [medium] (2026-06-09) — 合规调查/风险处置写权随安全管理员退役 + 安全审计员只读化本期退役（D55/P22）

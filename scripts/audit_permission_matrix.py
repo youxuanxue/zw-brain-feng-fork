@@ -128,7 +128,7 @@ CAP_TARGET: dict[str, tuple[frozenset[str], str]] = {
     # P11/P14 供数增权
     "catalog.entry.create.execute": (frozenset({OP}), "D55/P11（MGR 经 hierarchy）"),
     "catalog.entry.reverse_draft.create.execute": (frozenset({OP, MGR}), "D55/P14"),
-    "catalog.entry.reverse_draft.suggest.execute": (frozenset({OP, MGR, BUSI}), "D55/P14"),
+    "catalog.entry.reverse_draft.suggest.execute": (frozenset({OP, MGR}), "D55/P14 + D57⑧ 死读权回收（0611 收尾：唯一消费面=向导，BUSIAUDIT 退 draft 审后无 UI 面）"),
     # D57⑧ 反向编目审核两级管线：部门审（confirm/reject）= 部门管理员；平台审汇入
     # catalog.entry.review（pending_platform_review + BUSIAUDIT）。拒下放操作员。
     "catalog.entry.reverse_draft.confirm.execute": (frozenset({MGR}), "D57⑧ 部门审"),
