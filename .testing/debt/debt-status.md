@@ -2,7 +2,7 @@
 
 # Preflight Debt Status (computed)
 
-## open (41)
+## open (40)
 - ac7 [medium] (2026-05-25) — 客户机房部署 + 监控对接未落地（E6 AC7）
   - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
 - agentruntime [medium] (2026-05-24) — AgentRuntime runtime 触发式延后（D30 retrofit）
@@ -14,8 +14,6 @@
 
 - b1-1-a [medium] (2026-05-27) — B1.1-A 长期无人申请目录诊断立项延后
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务方 sign-off Wave-2 ready 时优先考虑；
-- b2-field-metadata-10col [medium] (2026-06-06) — B2 库表资源字段元数据 10 列分期：ResourceSchemaMapping 仅承载源→目标 2 列映射，缺字段级元数据 10 列（对标 dc_resource_table_column）→ 下期补
-  - assert: script → scripts/check_b2_field_metadata_columns.py:field_metadata_debt_open()
 - bff [medium] (2026-05-26) — BFF session Redis backend（P0-E 关闭）
   - assert: external → external — owner=产品研发负责人; trigger=见 docs/preflight-debt.md 历史归档
 - brain-invoke-skill [medium] (2026-05-23) — 集成测试用 `brain.invoke_skill()` 直调，绕过 trust-stamp 路径

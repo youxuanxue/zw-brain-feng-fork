@@ -96,6 +96,12 @@ trigger 关闭即可删除字段。
     字段级 metadata 承载 + 表单/向导补录 + 对标 `dc_resource_table_column` 10 列）→ 现算列数 ≥10 → 关债。
   - **现算锚点**：assert=script `check_b2_field_metadata_columns.field_metadata_debt_open()` ⇒
     `ResourceSchemaMappingRecord` 承载的字段级元数据列数 < 10 即 open（覆盖 ≥10 列 → stale-fixed）。
+  - **[2026-06-12 已关债]** 0611 核查（§四 6.5#5.2）裁决「提前立项」（客户三轮重提=P0 信号），负责人
+    确认提前本期（`old/问题反馈/字段级元数据10列-本期立项草案.md`），PR #257 落地：
+    方案 A 注册逐列写 `ResourceSchemaSnapshotRecord`（与 legacy 导入同源同形、register: 来源覆盖式
+    upsert），10 列写读键单源 `FIELD_METADATA_SNAPSHOT_KEYS` + 键对齐 pytest；现算守卫锚点同步迁到
+    实际承载常量块（债 yaml 自述「同义命中即关债」口径，非绕守卫）→ predicate 10/10 stale-fixed，
+    债 yaml 按先例移除（守卫脚本保留，受 tests/test_resource_mount.py 引用作回潮守卫）。
 
 - **G4 过期维度（核查 + 记债）** — debt `g4-acceptance-overdue-dimension`（script 现算）：
   - **Where（真库核查结论）**：`zw_brain/domain/models.py` `ApplicationRecord` 字段 =

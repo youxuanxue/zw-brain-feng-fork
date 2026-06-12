@@ -1,6 +1,7 @@
 import { computed, ref, watch } from 'vue';
 import { authFetch } from './useAuth';
 import { apiUrl } from './useApiBase';
+import { itemTypeLabel } from '@/lib/catalogCompileFields';
 
 /**
  * 资源「字段数据模型」只读视图 — 接通 `metadata.schema.query` 能力。
@@ -19,13 +20,25 @@ export interface SchemaColumn {
   column: string;
   /** 中文注释/释义 */
   comment: string;
-  /** 数据格式（varchar / int 等） */
+  /** 数据格式（legacy 原始类型 varchar/int 等；注册类型码经 itemTypeLabel 映射成业务标签） */
   format: string;
   /** 长度（无则空串） */
   length: string;
   isPrimaryKey: boolean;
   nullable: boolean;
   needEncrypt: boolean;
+  // B2 字段级元数据扩展 3 列（键与写端 FIELD_METADATA_SNAPSHOT_KEYS 同名；
+  // legacy 导入快照无这些键 → 空值，详情端按「有数据才显示列」处理，存量展示不回归）。
+  /** 关联目录信息项（schema_json.catalog_item_id） */
+  catalogItem: string;
+  /** 是否更新主键（schema_json.is_up_id） */
+  isUpdatePk: boolean;
+  /** 是否更新时间（schema_json.is_up_time） */
+  isUpdateTime: boolean;
+  /** 数据标准（schema_json.meta_standard；legacy 兼回 meta_standard_cn） */
+  metaStandard: string;
+  /** 数据字典（schema_json.data_dict） */
+  dataDict: string;
 }
 
 interface RawSnapshot {
@@ -48,20 +61,28 @@ export function normalizeSchemaColumns(items: readonly RawSnapshot[]): SchemaCol
   for (const it of items) {
     const sj = it?.schema_json;
     if (!sj || typeof sj !== 'object') continue;
-    const column = _str((sj as Record<string, unknown>).column_name);
+    const rec = sj as Record<string, unknown>;
+    const column = _str(rec.column_name);
     if (!column) continue;
-    const order = Number((sj as Record<string, unknown>).order_id ?? 0) || 0;
+    const order = Number(rec.order_id ?? 0) || 0;
     rows.push({
       order,
       col: {
         column,
-        comment: _str((sj as Record<string, unknown>).comment) || _str((sj as Record<string, unknown>).remark),
-        format: _str((sj as Record<string, unknown>).format),
-        length: _str((sj as Record<string, unknown>).length),
-        isPrimaryKey: _bool((sj as Record<string, unknown>).is_pk),
+        comment: _str(rec.comment) || _str(rec.remark),
+        // 注册写入的是类型码（C/N/D/T）→ 映射成与注册输入同词的业务标签；
+        // legacy 原始类型字符串（varchar 等）无码表命中、原样透出（不改写存量展示）。
+        format: itemTypeLabel(_str(rec.format)),
+        length: _str(rec.length),
+        isPrimaryKey: _bool(rec.is_pk),
         // is_null=1 → 可空；is_null=0 → 必填（模板对 !nullable 显示「必填」）。
-        nullable: _bool((sj as Record<string, unknown>).is_null),
-        needEncrypt: _bool((sj as Record<string, unknown>).need_encrypt),
+        nullable: _bool(rec.is_null),
+        needEncrypt: _bool(rec.need_encrypt),
+        catalogItem: _str(rec.catalog_item_id),
+        isUpdatePk: _bool(rec.is_up_id),
+        isUpdateTime: _bool(rec.is_up_time),
+        metaStandard: _str(rec.meta_standard) || _str(rec.meta_standard_cn),
+        dataDict: _str(rec.data_dict),
       },
     });
   }

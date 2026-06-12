@@ -35,6 +35,7 @@ export default defineConfig({
     'wave15_two_stage_walkthrough.spec.ts',
     'permission_matrix_walkthrough.spec.ts',
     'p0_feedback_0611_chain.spec.ts',
+    'b2_field_metadata_10col.spec.ts',
   ],
   fullyParallel: false,
   workers: 1,

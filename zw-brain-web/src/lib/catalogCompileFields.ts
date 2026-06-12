@@ -171,6 +171,82 @@ export function missingRequiredBasicFields(values: Record<string, unknown>): str
   return missing;
 }
 
+/** 字段类型码 → 业务标签（详情「字段数据模型」回显与注册输入同词；未知码原样透出——
+ * legacy 导入快照的原始类型字符串如 varchar 不被改写）。 */
+export function itemTypeLabel(code: string): string {
+  if (!code) return '';
+  return ITEM_TYPE_OPTIONS.find((o) => o.value === code)?.label ?? code;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// B2 字段级元数据 10 列（库表/文件资源注册向导字段表，债 b2-field-metadata-10col）
+//
+// 写读键单源：resourceFieldColumnToPayload 产出的 snake 键与后端写端字典
+// zw_brain/command/handlers/j1/resource_mount.py `FIELD_METADATA_SNAPSHOT_KEYS`
+// 及读端 useResourceSchema.normalizeSchemaColumns 严格同名（吸取 #251 share_type
+// 键漂移教训；tests/test_resource_mount.py 键对齐守卫，漂移即红）。
+// ──────────────────────────────────────────────────────────────────────────
+
+/** 单条字段级元数据行（资源注册向导字段表，对标旧平台 dc_resource_table_column 10 列）。 */
+export interface ResourceFieldColumnDraft {
+  /** 字段名（英文，必填） */
+  columnName: string;
+  /** 释义（中文名） */
+  comment: string;
+  /** 关联目录信息项 */
+  catalogItemId: string;
+  /** 字段类型（ITEM_TYPE_OPTIONS 码） */
+  format: string;
+  /** 长度精度 */
+  length: string;
+  /** 是否主键 */
+  isPk: boolean;
+  /** 是否可空 */
+  isNull: boolean;
+  /** 是否更新主键 */
+  isUpId: boolean;
+  /** 是否更新时间 */
+  isUpTime: boolean;
+  /** 数据标准 */
+  metaStandard: string;
+  /** 数据字典 */
+  dataDict: string;
+}
+
+export function blankResourceFieldColumn(): ResourceFieldColumnDraft {
+  return {
+    columnName: '',
+    comment: '',
+    catalogItemId: '',
+    format: 'C',
+    length: '',
+    isPk: false,
+    isNull: true,
+    isUpId: false,
+    isUpTime: false,
+    metaStandard: '',
+    dataDict: '',
+  };
+}
+
+/** 字段行草稿 → payload.field_columns[] 行（后端 _normalize_field_columns 入快照 schema_json）。
+ * 标志列 0/1（旧平台口径）；空文本传 null，详情端诚实「—」。 */
+export function resourceFieldColumnToPayload(col: ResourceFieldColumnDraft): Record<string, unknown> {
+  return {
+    column_name: col.columnName.trim(),
+    comment: col.comment.trim() || null,
+    catalog_item_id: col.catalogItemId.trim() || null,
+    format: col.format || null,
+    length: col.length.trim() || null,
+    is_pk: col.isPk ? 1 : 0,
+    is_null: col.isNull ? 1 : 0,
+    is_up_id: col.isUpId ? 1 : 0,
+    is_up_time: col.isUpTime ? 1 : 0,
+    meta_standard: col.metaStandard.trim() || null,
+    data_dict: col.dataDict.trim() || null,
+  };
+}
+
 /** 单条信息项（catalog item，写入 payload.items[]）。 */
 export interface CatalogItemDraft {
   title: string;

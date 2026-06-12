@@ -61,7 +61,7 @@ def _submit_api_resource_review(brain, deps, ctx, resource_code: str, role: str,
         summary = asset.get("summary_json") or {}
         if not summary.get("mapping_ready"):
             raise InvalidStateError(
-                f"库表资源 {resource_code} 字段映射未就绪，不能提交复核（请先补全字段映射）"
+                f"库表资源 {resource_code} 字段登记未就绪，不能提交复核（请先补全字段登记）"
             )
     # 直连 _transition_api_resource（real ctx），不走 brain.transition_api_resource 委托 shim：
     # 该 shim 建 skill_id="" 的 stub ctx，经 pipeline emit_audit → get_manifest("") → KeyError

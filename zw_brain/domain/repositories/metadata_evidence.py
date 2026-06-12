@@ -28,6 +28,17 @@ def _stable_hash(payload: dict[str, Any]) -> str:
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
+_SNAPSHOT_REF_MAX = 128  # models.py ResourceSchemaSnapshotRecord.snapshot_ref = String(128)
+
+
+def _cap_snapshot_ref(ref: str) -> str:
+    """列名来自用户输入无上限；超长 ref 截前缀 + 全文短哈希，保 String(128) 契约与确定性唯一。"""
+    if len(ref) <= _SNAPSHOT_REF_MAX:
+        return ref
+    digest = hashlib.sha256(ref.encode("utf-8")).hexdigest()[:12]
+    return f"{ref[: _SNAPSHOT_REF_MAX - 13]}~{digest}"
+
+
 class MetadataEvidenceRepository:
     def upsert_schema_mapping(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> ResourceSchemaMappingRecord:
         SessionLocal = create_session_factory()
@@ -241,6 +252,63 @@ class MetadataEvidenceRepository:
             session.commit()
             session.refresh(record)
             return record
+
+    def replace_registered_schema_snapshots(
+        self,
+        resource_code: str,
+        columns: list[dict[str, Any]],
+        *,
+        binding_code: str | None = None,
+        tenant_id: str = "sd-default",
+    ) -> list[ResourceSchemaSnapshotRecord]:
+        """注册向导字段级元数据 → 字段快照（B2 方案 A：与 legacy 导入同源同形，读路径零改动）。
+
+        覆盖式：先删本资源**注册来源**旧行（source_ref == ``register:<resource_code>``）再逐列
+        插入——重复提交（re-prepare）不产生重复行；legacy 导入快照（source_ref =
+        ``<legacy_system>:<table>:<id>``）source_ref 永不命中、绝不触碰（存量不回归）。
+        不写 legacy_mapping（provenance 是注册采集，非旧平台迁移证据）。
+        """
+        SessionLocal = create_session_factory()
+        now = _now()
+        source_ref = f"register:{resource_code}"
+        with SessionLocal() as session:
+            stale = session.execute(
+                select(ResourceSchemaSnapshotRecord).where(
+                    ResourceSchemaSnapshotRecord.tenant_id == tenant_id,
+                    ResourceSchemaSnapshotRecord.resource_code == str(resource_code),
+                    ResourceSchemaSnapshotRecord.source_ref == source_ref,
+                )
+            ).scalars().all()
+            for record in stale:
+                session.delete(record)
+            # 同 snapshot_ref 先删后插：flush 删除先行，避免与 UNIQUE(tenant_id, snapshot_ref) 撞约束。
+            session.flush()
+            records: list[ResourceSchemaSnapshotRecord] = []
+            seen: set[str] = set()
+            for idx, col in enumerate(columns):
+                schema_json = safe_json(col)
+                # 先截断再去重：seen 存的是截断后的 ref，必须用同一形态查重，
+                # 否则重复的超长列名会截成同一 ref 撞 UNIQUE（事务回滚）。
+                base_ref = _cap_snapshot_ref(f"{resource_code}:register_column:{col.get('column_name') or idx + 1}")
+                snapshot_ref = base_ref if base_ref not in seen else _cap_snapshot_ref(f"{base_ref}#{idx + 1}")
+                seen.add(snapshot_ref)
+                record = ResourceSchemaSnapshotRecord(
+                    tenant_id=tenant_id,
+                    snapshot_ref=snapshot_ref,
+                    resource_code=str(resource_code),
+                    binding_code=binding_code,
+                    schema_json=schema_json,
+                    source_ref=source_ref,
+                    schema_hash=_stable_hash(schema_json),
+                    captured_at=now,
+                    created_at=now,
+                )
+                session.add(record)
+                records.append(record)
+            session.commit()
+            for record in records:
+                session.refresh(record)
+            return records
 
     def upsert_gather_evidence(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> MetadataGatherEvidenceProjectionRecord:
         SessionLocal = create_session_factory()

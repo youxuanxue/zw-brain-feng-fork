@@ -6,13 +6,21 @@
 # Trace: 基线 §3.3 3 物化形式 (data_resource_table / file / api), §10.2 J2 资源挂接, 旧 xlsx 行 [57..61] 资源注册 (库表/链接/文件/文件夹/库表-视图) + [66] 目录物化
 # Priority: P1
 # Owner: e2
-# Pytest: tests/test_resource_mount.py
+# Pytest: tests/test_resource_mount.py, tests/e2e/b2_field_metadata_10col.spec.ts
 # Landing-Note: PR #200 (2026-06-03 wave-residuals) — OPERATER 提交侧库表/文件挂接落地：
 #   resource.mount.{table,file}.prepare 能力 + handlers/j1/resource_mount.py（诚实结构校验
 #   mapping_ready/connectivity=not_probed/库口令去敏）+ P5HookupSubmitWizard.vue（仅 table/file，砍 api tab）
 #   + P2CatalogDetail 物化形式选择尾巴（闭合挂数→用数）。复用 kind-agnostic 资产状态机
 #   submit_review→review→publish（顺带修空 skill_id audit 潜伏 bug）。本地真栈走查：挂接→发布→J1 可发现
 #   全链路 + 跨 org/省略 owner 拒。api 物化沿用既有「API 服务化」入口（不重复造，故本 feature 聚焦 table/file）。
+# Landing-Note-2: 2026-06-12 B2 字段级元数据 10 列（债 b2-field-metadata-10col 提前本期，0611 核查
+#   §四 6.5#5.2 裁决）——注册向导字段区从「源→目标」两列映射升级为字段级元数据表（10 列，对标旧
+#   dc_resource_table_column：字段名/释义/关联目录信息项/类型/长度精度/主键/可空/更新主键/更新时间/
+#   数据标准·数据字典）；方案 A 数据通路：prepare 逐列写 ResourceSchemaSnapshotRecord（与 legacy 导入
+#   同源同形，register: 来源标记覆盖式 upsert、绝不触碰 legacy 行），详情 metadata.schema.query 读路径
+#   零改动直接命中——修「UI 新注册资源字段数据模型恒为空」断点。写读键单源 FIELD_METADATA_SNAPSHOT_KEYS
+#   + 键对齐 pytest（#251 share_type 漂移教训）。文件资源字段登记可选同走；详情扩展 3 列按需出列
+#   （legacy 无扩展键 → 存量展示不回归）。旧 field_mappings API surface 保留不破坏。
 
 Feature: J2 资源挂接（3 物化形式：table / file / api）
   As a 部门操作员 ROLE_ORGAN_OPERATER
@@ -25,11 +33,21 @@ Feature: J2 资源挂接（3 物化形式：table / file / api）
 
   Scenario: 正向 — 挂接库表资源（data_resource_table）
     When 我在 P5 资源管理 → "为 C1101 挂接资源" → 选择 "库表"
-    And 填写：数据库连接 / 表名 / 字段映射（catalog 信息项 → 表字段）
+    And 填写：数据库连接 / 表名 / 字段数据模型（逐列字段级元数据表）
     And 点击 "保存"
     Then 创建 resource R1101，materialization=table，status=待审
     And 自动校验数据库连接 + 字段类型一致性
-    And UI 显示字段映射的完整性 ✓ / ✗
+    And UI 显示字段登记的完整性 ✓ / ✗
+
+  Scenario: 正向 — 字段级元数据 10 列逐列登记 → 详情逐列回显（B2，债 b2-field-metadata-10col）
+    When 我在挂接向导字段数据模型表逐列填写 10 列字段级元数据
+      | 字段名 | 释义 | 关联目录信息项 | 字段类型 | 长度精度 | 主键 | 可空 | 更新主键 | 更新时间 | 数据标准·数据字典 |
+    And 提交复核 → 部门管理员审核通过 → 业务运营员发布
+    Then 字段级元数据逐列落 ResourceSchemaSnapshotRecord（与存量旧平台导入快照同源同形）
+    And 资源详情「字段数据模型」逐列回显与注册输入一致（10 列全比，不抽样）
+    And 重复提交（re-prepare）覆盖式更新、不产生重复行
+    And 同资源的 legacy 导入快照行绝不被注册写触碰（存量展示不回归）
+    And 写读键同名单源（后端 FIELD_METADATA_SNAPSHOT_KEYS = 前端写端 payload 键 ⊆ 前端读端消费键）
 
   Scenario: 正向 — 挂接接口资源（data_resource_api）
     When 我选择 "接口"

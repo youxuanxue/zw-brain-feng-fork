@@ -43,11 +43,15 @@ const resourceKind = computed(() =>
   ),
 );
 const isTable = computed(() => resourceKind.value === 'table');
+const isFile = computed(() => resourceKind.value === 'file');
 
 // 字段数据模型（只读）：metadata.schema.query → MANAGER / BUSIAUDIT / SECURITY_AUDIT。
-// 无权岗位（OPERATER）整块不渲染（无权=不可见），也不发请求。叠加 kind==='table' 门控：
-// 非库表资源既不渲染也不发 schema 请求（T4 消除文件类错显）。
-const canViewSchema = computed(() => canPerformAction('metadata.schema.query', getProductRole().value) && isTable.value);
+// 无权岗位（OPERATER）整块不渲染（无权=不可见），也不发请求。kind 门控：库表 + 文件
+// （B2 字段级元数据 10 列后，注册向导对结构化文件也可登记字段，T4 的「文件无字段模型」
+// 前提不再成立——文件资源有快照则真展示、无快照走诚实空态；接口资源仍不渲染）。
+const canViewSchema = computed(
+  () => canPerformAction('metadata.schema.query', getProductRole().value) && (isTable.value || isFile.value),
+);
 // T1（6.5#2）：该块默认折叠——把异步加载推迟到用户点击展开时才发起，从根上消除「与主详情并发
 // 竞速、先渲染加载态再切成表格」的二次撑高（仅有权且库表岗位会渲染本块，正是验收看到跳跃的角色）。
 // enabled 同时门控「有权 ∧ 库表 ∧ 已展开」：折叠态零请求，展开即按需加载。
@@ -62,6 +66,16 @@ const {
   () => canViewSchema.value && showSchema.value,
   () => getProductRole().value,
 );
+
+// B2 扩展 3 列（关联目录信息项 / 更新标识 / 数据标准·数据字典）按需出列：任一行有值才出
+// 表头——legacy 导入快照没有这些键，存量资源的字段数据模型展示保持原 5 列不回归；
+// 注册向导登记过扩展元数据的资源才出全列（列替谁说话答不上就不出，避免整列「—」噪声）。
+const schemaHasExtended = computed(() =>
+  schemaColumns.value.some((c) => c.catalogItem || c.isUpdatePk || c.isUpdateTime || c.metaStandard || c.dataDict),
+);
+function schemaStandardDict(col: { metaStandard: string; dataDict: string }): string {
+  return [col.metaStandard, col.dataDict].filter(Boolean).join(' · ');
+}
 
 const displayName = computed(() => {
   const r = resource.value;
@@ -162,8 +176,8 @@ async function apply() {
         data-testid="typed-detail-block"
       />
 
-      <!-- 字段清单 / 字段数据模型仅对库表资源渲染（T4）：文件 / 接口资源无字段模型概念，
-           带 kind==='table' 门控消除文件类错显。 -->
+      <!-- 字段清单仅对库表资源渲染（T4）；字段数据模型块对 库表+文件 渲染（B2：注册可登记
+           文件字段，无快照走诚实空态）；接口资源两块均不渲染。 -->
       <section v-if="isTable && fields.length" class="detail-block">
         <h2 class="detail-block-title">{{ fields.length > 12 ? `字段清单（前 12 项，共 ${fields.length} 项）` : `字段清单（${fields.length} 项）` }}</h2>
         <ul class="chip-list">
@@ -196,6 +210,12 @@ async function apply() {
               <th>格式</th>
               <th>长度</th>
               <th>约束</th>
+              <!-- B2 扩展 3 列：任一行有值才出列（legacy 无扩展键 → 存量展示原样不回归） -->
+              <template v-if="schemaHasExtended">
+                <th>关联目录信息项</th>
+                <th>更新标识</th>
+                <th>数据标准·数据字典</th>
+              </template>
             </tr>
           </thead>
           <tbody>
@@ -209,6 +229,15 @@ async function apply() {
                 <span v-if="!col.nullable" class="schema-tag">必填</span>
                 <span v-if="col.needEncrypt" class="schema-tag schema-tag-enc">需加密</span>
               </td>
+              <template v-if="schemaHasExtended">
+                <td>{{ col.catalogItem || '—' }}</td>
+                <td>
+                  <span v-if="col.isUpdatePk" class="schema-tag">更新主键</span>
+                  <span v-if="col.isUpdateTime" class="schema-tag">更新时间</span>
+                  <template v-if="!col.isUpdatePk && !col.isUpdateTime">—</template>
+                </td>
+                <td>{{ schemaStandardDict(col) || '—' }}</td>
+              </template>
             </tr>
           </tbody>
         </table>

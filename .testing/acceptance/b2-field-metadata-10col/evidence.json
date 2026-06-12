@@ -1,0 +1,27 @@
+{
+  "scope": "b2-field-metadata-10col",
+  "deliverable": "B2 字段级元数据 10 列：注册向导逐列录入 + 方案 A 注册写字段快照（与 legacy 导入同源同形）+ 详情逐列回显，债 b2-field-metadata-10col 收口",
+  "git_sha": "d6ef1f9ecad165f2988dd688c84a8888d7bd2a5f",
+  "captured_at": "2026-06-12T10:38:56Z",
+  "captured_by": "Claude（b2 批次执行者，worktree 干净 seed）",
+  "checks": [
+    {
+      "name": "5 消费面投影一致",
+      "kind": "contract",
+      "result": "pass",
+      "detail": "[contract] OK: docs/agent_integration.md in sync with discovered entries (REST=189 CLI=1 MCP=64 A2A=1 Skills=180)"
+    },
+    {
+      "name": "后端 / 契约测试套",
+      "kind": "pytest",
+      "result": "pass",
+      "detail": "exit 0（本仓 summary 抑制,以退出码为准）"
+    },
+    {
+      "name": "WebUI 活跑验收（b2_field_metadata_10col 全链 + 存量不回归）",
+      "kind": "e2e",
+      "result": "pass",
+      "detail": "2 passed / 0 failed / 0 skipped"
+    }
+  ]
+}

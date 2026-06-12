@@ -85,8 +85,9 @@ test('链路1：UI 新编目→挂接有条件资源→发布→申请→受理�
   await page.getByPlaceholder('本资源的唯一标识').fill(RES_CODE);
   await page.getByPlaceholder('例如：养老资源信息').fill(RES_TITLE);
   await page.getByPlaceholder('须与目标目录归属一致（否则挂接被拒）').fill(ORG);
-  await page.getByPlaceholder('源字段').first().fill('name');
-  await page.getByPlaceholder('目标字段').first().fill('name');
+  // B2 字段数据模型逐列登记（旧「源→目标」两列映射已升级为字段级元数据表；字段名必填）。
+  await page.getByPlaceholder('例如：xm').first().fill('name');
+  await page.getByPlaceholder('例如：姓名').first().fill('姓名');
   await page.getByRole('button', { name: '提交复核' }).click();
   await expect(page.locator('.toast-stack')).toContainText('已提交复核', { timeout: 15_000 });
 

@@ -30,6 +30,59 @@ from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_
 # 库连接配置里属敏感、禁入库的键（去敏后只留结构信息）。
 _CONNECTION_SECRET_KEYS = {"password", "passwd", "secret", "token", "ak", "sk", "access_key", "secret_key"}
 
+# B2 字段级元数据 10 列（债 b2-field-metadata-10col，对标旧平台 dc_resource_table_column）。
+# 方案 A 单一来源：注册采集的逐字段元数据落 ResourceSchemaSnapshotRecord.schema_json
+# （逐列一行，与存量旧平台导入快照同源同形），详情读路径 metadata.schema.query 零改动。
+#
+# **写读键单源**（吸取 #251 share_type 键漂移教训）：本常量是写端 schema_json 键的唯一字典，
+# 读端两处逐键同名消费——后端 metadata.py/_query_metadata_schema（schema_json 透传）与前端
+# useResourceSchema.normalizeSchemaColumns / catalogCompileFields.resourceFieldColumnToPayload。
+# 键对齐由 tests/test_resource_mount.py::test_field_metadata_write_read_keys_aligned 机械钉死
+# （漂移即红）；债现算守卫 scripts/check_b2_field_metadata_columns.py 锚定本常量块。
+FIELD_METADATA_SNAPSHOT_KEYS = (
+    "column_name",      # 字段名（英文；旧 name_en，与 legacy db_meta_column 快照同键）
+    "comment",          # 释义（中文名；旧 name_cn，legacy 快照同键）
+    "catalog_item_id",  # 关联目录信息项（旧 catalog_item_id，非必填）
+    "format",           # 字段类型（旧 type 枚举码 C/N/D/T；legacy 快照同键）
+    "length",           # 长度精度（旧 length）
+    "is_pk",            # 是否主键 0/1（旧 is_pk）
+    "is_null",          # 是否可空 0/1（旧 is_null）
+    "is_up_id",         # 是否更新主键 0/1（旧 is_up_id）
+    "is_up_time",       # 是否更新时间 0/1（旧 is_up_time）
+    "meta_standard",    # 数据标准（legacy 快照同键）
+    "data_dict",        # 数据字典
+)
+
+# 0/1 业务标志列（旧平台口径：0 否 / 1 是）。
+_FIELD_METADATA_FLAG_KEYS = {"is_pk", "is_null", "is_up_id", "is_up_time"}
+
+
+def _normalize_field_columns(raw: Any) -> list[dict[str, Any]]:
+    """注册向导 field_columns → 规范化逐列行（只认 FIELD_METADATA_SNAPSHOT_KEYS 字典内的键）。
+
+    字段名（column_name）必填——无字段名的行不落快照（与 UI 必填门一致）；标志列归一 0/1；
+    其余文本列空值落 None（详情端诚实「—」，不造假）。order_id 按行序派生（读端排序键）。
+    """
+    if not isinstance(raw, list):
+        return []
+    columns: list[dict[str, Any]] = []
+    for row in raw:
+        if not isinstance(row, dict):
+            continue
+        col: dict[str, Any] = {}
+        for key in FIELD_METADATA_SNAPSHOT_KEYS:
+            value = row.get(key)
+            if key in _FIELD_METADATA_FLAG_KEYS:
+                col[key] = 1 if value in (1, "1", True) else 0
+            else:
+                text = str(value).strip() if value is not None else ""
+                col[key] = text or None
+        if not col["column_name"]:
+            continue
+        col["order_id"] = len(columns) + 1
+        columns.append(col)
+    return columns
+
 
 def _access_policy(payload: dict[str, Any]) -> dict[str, Any]:
     """共享/开放属性 → access_policy_json（B2，与 resource 详情 accessPolicy 同口径）。
@@ -137,8 +190,24 @@ def _guard_catalog_same_org(deps: HandlerDeps, asset: dict[str, Any]) -> None:
 
 def _prepare_table(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> dict[str, Any]:
     resource_code = str(payload["resource_code"])
-    field_mappings = payload.get("field_mappings") or []
-    mapping_ready = _mappings_ready(field_mappings)
+    # B2 字段级元数据 10 列：field_columns（新，富字段表）优先；键缺省回落 field_mappings
+    # （旧两列映射 API surface，REST/CLI 既有调用方不破坏）。键**显式传入**（含空列表）即视为
+    # 本次登记的全量真相——re-prepare 清空字段行后保存须把 register 来源快照一并清掉，
+    # 不残留陈旧字段模型（诚实呈现）；键缺省（legacy 调用方）则不触碰快照。
+    field_columns_explicit = "field_columns" in payload
+    field_columns = _normalize_field_columns(payload.get("field_columns"))
+    if field_columns:
+        # 就绪 = 至少一条带字段名的逐列登记（normalize 已滤无字段名行）；
+        # field_mappings 兼容键由「字段 → 关联目录信息项」派生（无关联项的行不捏造映射）。
+        mapping_ready = True
+        field_mappings = [
+            {"source": col["column_name"], "target": col["catalog_item_id"]}
+            for col in field_columns
+            if col["catalog_item_id"]
+        ]
+    else:
+        field_mappings = payload.get("field_mappings") or []
+        mapping_ready = _mappings_ready(field_mappings)
     summary = {
         "title": payload.get("title", resource_code),
         "materialization": "table",
@@ -146,6 +215,8 @@ def _prepare_table(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]
         "connection_ref": _redact_connection(payload.get("connection")),
         "field_mappings": field_mappings,
         "mapping_ready": mapping_ready,
+        # 字段名清单与 legacy 导入资源 summary_json.fields 同形（详情「字段清单」块同源回显）。
+        **({"fields": [col["column_name"] for col in field_columns]} if field_columns else {}),
         # 诚实：provider 真实库连通性属上游缺供，发布激活时校验，不在挂接期伪造成功。
         "connectivity": "not_probed",
         # B2：资源注册业务信息（资源描述/来源系统/版本号/技术联系人/联系方式）。
@@ -176,11 +247,22 @@ def _prepare_table(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]
         result = deps.services.provider.upsert_api_resource(asset)
         # 写库表分型 binding，让资源详情「库表信息」（typed_resource_detail._table_section）有值。
         deps.services.provider.upsert_api_binding(binding)
+        # B2 方案 A：逐列字段元数据落字段快照（与 legacy 导入同源同形），详情
+        # 「字段数据模型」读路径（metadata.schema.query → snapshot）零改动直接命中。
+        # 显式空列表同样覆盖写（清掉 register 旧行）；键缺省不触碰。
+        if field_columns_explicit:
+            deps.repos.metadata_evidence.replace_registered_schema_snapshots(
+                resource_code,
+                field_columns,
+                binding_code=binding["binding_code"],
+                tenant_id=_DEFAULT_TENANT_ID,
+            )
         deps.append_audit_feed("resource.mount.table.prepare", resource_code, "ok", actor)
         return result | {
             "audit_id": audit_id,
             "mapping_ready": mapping_ready,
             "connectivity": "not_probed",
+            "field_metadata_count": len(field_columns),
         }
 
     return deps.write(ctx, asset, mutation)
@@ -189,6 +271,11 @@ def _prepare_table(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]
 def _prepare_file(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> dict[str, Any]:
     resource_code = str(payload["resource_code"])
     fingerprint = _file_fingerprint(payload)
+    # B2：结构化文件（csv/表格类）可选登记字段级元数据，同走快照通路（无就绪门——
+    # 文件资源历来无字段映射门，登记纯增量、不登记不拦提交）。显式空列表 = 清空登记
+    # （与库表同口径）；键缺省不触碰快照。
+    field_columns_explicit = "field_columns" in payload
+    field_columns = _normalize_field_columns(payload.get("field_columns"))
     summary = {
         "title": payload.get("title", resource_code),
         "materialization": "file",
@@ -196,6 +283,7 @@ def _prepare_file(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any])
         "access_path": payload.get("access_path"),
         "content_fingerprint": fingerprint,
         "update_frequency": payload.get("update_frequency"),
+        **({"fields": [col["column_name"] for col in field_columns]} if field_columns else {}),
         # B2：文件采集端补 格式/大小/存储类型 → 与详情端 _file_section 对齐（采集→展示同字段）。
         "file_format": payload.get("file_format"),
         "file_size": payload.get("file_size"),
@@ -231,8 +319,19 @@ def _prepare_file(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any])
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         result = deps.services.provider.upsert_api_resource(asset)
         deps.services.provider.upsert_api_binding(binding)
+        if field_columns_explicit:
+            deps.repos.metadata_evidence.replace_registered_schema_snapshots(
+                resource_code,
+                field_columns,
+                binding_code=binding["binding_code"],
+                tenant_id=_DEFAULT_TENANT_ID,
+            )
         deps.append_audit_feed("resource.mount.file.prepare", resource_code, "ok", actor)
-        return result | {"audit_id": audit_id, "content_fingerprint": fingerprint}
+        return result | {
+            "audit_id": audit_id,
+            "content_fingerprint": fingerprint,
+            "field_metadata_count": len(field_columns),
+        }
 
     return deps.write(ctx, asset, mutation)
 
