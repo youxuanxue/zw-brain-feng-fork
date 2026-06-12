@@ -21,7 +21,7 @@ set -e
 # ==========================================
 IMAGE_TAG="${IMAGE_TAG:-zw-brain:1.0.1}"
 CONTAINER_NAME="${CONTAINER_NAME:-zw-brain-rest}"
-HOST_PORT="${HOST_PORT:-9900}"
+HOST_PORT="${HOST_PORT:-8800}"
 ENV_FILE="${ENV_FILE:-.env}"
 
 OS_PATCH_LOCAL_TAG="zw-brain-os-patch:3.12-slim"

@@ -14,8 +14,8 @@ RUN npm ci
 COPY zw-brain-web/ ./
 RUN npm run build
 
-FROM python:3.12-slim AS builder
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+FROM zw-brain-os-patch:3.12-slim AS builder
+# uv 已在基础镜像 zw-brain-os-patch 中预置。
 
 ARG AGENT_RUNTIME_TARBALL=vendor/agent-runtime/release/v0.1/agent-runtime-0.1.0-py312-pyc-only.tar.gz
 ARG AGENT_RUNTIME_EXTRACT_DIR=agent-runtime-0.1.0-py312-pyc-only
@@ -53,7 +53,7 @@ RUN uv build --wheel --out-dir /dist
 #  已存在（先构建上面命令，或用 scripts/start-docker.sh 自动 ensure 该基础镜像）。
 # ============================================
 FROM zw-brain-os-patch:3.12-slim AS runtime
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# uv 已在基础镜像 zw-brain-os-patch 中预置，此处不再重复 COPY。
 
 ARG AGENT_RUNTIME_TARBALL=vendor/agent-runtime/release/v0.1/agent-runtime-0.1.0-py312-pyc-only.tar.gz
 ARG AGENT_RUNTIME_EXTRACT_DIR=agent-runtime-0.1.0-py312-pyc-only
