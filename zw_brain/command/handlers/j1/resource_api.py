@@ -68,15 +68,22 @@ def _submit_api_resource_review(brain, deps, ctx, resource_code: str, role: str,
     # （潜伏 bug，submit_review/review 此前无 end-to-end 测试故未暴露；publish 本就直连 ctx 正确）。
     return _transition_api_resource(brain, deps, ctx, resource_code, "pending_review", skill_id, role, confirmed)
 
-def _review_api_resource(brain, deps, ctx, resource_code: str, decision: str, role: str, confirmed: bool, skill_id: str = "resource.api.review") -> dict[str, Any]:
+def _review_api_resource(brain, deps, ctx, resource_code: str, decision: str, role: str, confirmed: bool, skill_id: str = "resource.api.review", reason: str | None = None) -> dict[str, Any]:
     # 同 _submit_api_resource_review：直连 _transition_api_resource（real ctx）修空 skill_id 潜伏 bug。
     if decision == "approve":
-        return _transition_api_resource(brain, deps, ctx, resource_code, "approved_pending_publish", skill_id, role, confirmed)
+        # 通过时清掉历史驳回理由（陈旧整改依据不再展示）。
+        return _transition_api_resource(brain, deps, ctx, resource_code, "approved_pending_publish", skill_id, role, confirmed, review_note="")
     if decision == "return_for_fix":
-        return _transition_api_resource(brain, deps, ctx, resource_code, "draft", skill_id, role, confirmed)
+        # D57⑨/R10：驳回（退回整改）带理由——落 summary_json.review_return_reason，
+        # 提交方在资源管理清单看到整改依据。挂接审核（resource.asset.review）理由后端
+        # 必填 fail-closed：REST/CLI 直调不带理由同样拦（前端 toast 只是第一道）；
+        # 代理服务审核（resource.api.review）的退回历来无理由字段，口径不在 D57⑨ 内、不动。
+        if skill_id == "resource.asset.review" and not (reason or "").strip():
+            raise InvalidStateError("挂接驳回须填写驳回理由（退回提交方整改的依据）")
+        return _transition_api_resource(brain, deps, ctx, resource_code, "draft", skill_id, role, confirmed, review_note=reason)
     raise BrainServiceError(f"unsupported api resource review decision: {decision}")
 
-def _transition_api_resource(brain, deps, ctx, resource_code: str, status: str, skill_id: str, role: str, confirmed: bool) -> dict[str, Any]:
+def _transition_api_resource(brain, deps, ctx, resource_code: str, status: str, skill_id: str, role: str, confirmed: bool, review_note: str | None = None) -> dict[str, Any]:
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         store = deps.state_store.database_store
         if store is None:
@@ -87,7 +94,7 @@ def _transition_api_resource(brain, deps, ctx, resource_code: str, status: str, 
             resource["updated_at"] = clock.now_datetime()
             result = deps.services.provider.upsert_api_resource(resource)
         else:
-            record = deps.repos.resource_api.transition_asset(resource_code, status)
+            record = deps.repos.resource_api.transition_asset(resource_code, status, review_note=review_note)
             if record is None:
                 raise NotFoundError(resource_code)
             if status == "active" and record.catalog_code:
@@ -301,12 +308,14 @@ def handler_resource_asset_submit_review(deps: HandlerDeps, ctx: SkillContext, p
 def handler_resource_api_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _review_api_resource(brain, deps, ctx, str(payload["resource_code"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    reason = payload.get("reason")
+    return _review_api_resource(brain, deps, ctx, str(payload["resource_code"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), reason=str(reason) if reason is not None else None)
 
 def handler_resource_asset_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _review_api_resource(brain, deps, ctx, str(payload["resource_code"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "resource.asset.review")
+    reason = payload.get("reason")
+    return _review_api_resource(brain, deps, ctx, str(payload["resource_code"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "resource.asset.review", reason=str(reason) if reason is not None else None)
 
 def handler_resource_api_publish(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.

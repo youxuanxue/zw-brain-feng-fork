@@ -20,7 +20,7 @@ const { source } = useSnapshot();
 const item = computed(() =>
   deriveDemandMatches(provider.value as Record<string, unknown>).find((d) => d.id === id.value),
 );
-// request.create 仅 OPERATER；MANAGER/BUSIAUDIT 见不到「受理并起草申请」
+// request.create = OPERATER + MANAGER（D57④ 管理员申请人身份照 v5 保留）；BUSIAUDIT 见不到「受理并起草申请」
 const canAcceptDemand = computed(() => canPerformAction('request.create', getProductRole().value));
 
 // 需求记录本身不携带「已匹配的本地资源」——必须先检索目录命中一条真实资源，

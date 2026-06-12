@@ -78,9 +78,9 @@ const headerMeta = computed(() => {
   return '正在加载资源目录……';
 });
 
-// G5：申请是申请人（部门操作员）动作。request.create 仅 OPERATER（与 P2 详情页 canApply、后端
-// policy.request.create set-equal）；业务运营员 / 管理员等在发现页不渲染「申请资源」CTA（无权=不可见，
-// 纵深防御叠加 ResourceCard 的 active-only 机器值门）。
+// G5：申请是申请人动作。request.create = 部门操作员 + 部门管理员（D57④ 管理员申请人身份照 v5
+// 保留，与 P2 详情页 canApply、后端 policy set-equal）；业务运营员 / 审计员在发现页不渲染
+// 「申请资源」CTA（无权=不可见，纵深防御叠加 ResourceCard 的 active-only 机器值门）。
 const canApply = computed(() => canPerformAction('request.create', getProductRole().value));
 
 // G5：「我的申请」是申请人入口。业务运营员（受理人，非申请人）不应有此入口——按路由可达性过滤

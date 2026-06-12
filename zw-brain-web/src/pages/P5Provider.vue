@@ -93,14 +93,12 @@ const visibleStatCards = computed(() =>
   filterByRouteAccess(collabCards.value, (c) => c.href, role.value),
 );
 
+// D57⑤：目录/资源发布权均回收仅业务运营员（严格 v5），管理员发布卡整卡不渲染（无权=不可见）。
 const canPublishCatalog = computed(() => canPerformAction('catalog.entry.publish', role.value));
 
-// 0611 断点 B（R3）：库表/文件资源审核通过后死在「待发布」——resource.asset.publish 后端
-// 能力在，但全前端零调用面（工作台「待发布资源」深链到本页却无发布区）。复用目录发布卡
-// 交互形态补「待发布资源」队列。UI 门控 = 仅业务运营员（旧平台 v5 口径：资源发布=业务
-// 运营员）；后端 policy 还含部门管理员，其去留属 GATE 签字包范围、本期不动 policy，
-// UI 端从严不放（无权=不可见）。
-const canPublishResource = computed(() => role.value === 'ROLE_BUSIAUDIT');
+// 0611 断点 B（R3）补「待发布资源」队列；D57⑤ 后 policy 已收窄到仅业务运营员，
+// 原硬比对 BUSIAUDIT 的临时门改回 ACTION_ROLE_GATES chokepoint（与后端 set-equal 守卫兜底）。
+const canPublishResource = computed(() => canPerformAction('resource.asset.publish', role.value));
 // 与工作台「待发布资源」计数同源同口径：真实库 resource_asset.lifecycle_status ==
 // 'approved_pending_publish'（snapshot enrich 的 provider.resources 投影）。
 const resourcePublishQueue = computed(() => {

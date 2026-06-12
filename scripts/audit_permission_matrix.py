@@ -59,7 +59,7 @@ NAV_TARGET: dict[str, tuple[frozenset[str], str]] = {
     "delivery-exchange": (frozenset({OP, MGR}), "D55/P13 反转F1 + P18 审计员退出"),
     "provider": (frozenset({OP, MGR, BUSI}), "v5 供数三岗位"),
     "compliance-ops": (frozenset({BUSI, SEC}), "D55/P8·P9 审计日志收窄"),
-    "service-ops": (frozenset({MGR, BUSI, SEC, SYS}), "D55/P8 服务调用监控拆分"),
+    "service-ops": (frozenset({BUSI, SYS}), "D57⑥ 管理员+审计员退全局服务调用监控（v5 服务调用日志口径）"),
     "integration-admin": (frozenset({SYS}), "D55/P2 外部系统收归运维员"),
     "engines": (frozenset({SYS}), "D55/P3 反转D49 流程表单配置归运维员"),
     "iam-governance": (frozenset({SYS}), "D55/P4 身份治理收归运维员"),
@@ -91,8 +91,10 @@ CAP_TARGET: dict[str, tuple[frozenset[str], str]] = {
     "audit.list.execute": (frozenset({BUSI, SEC}), "D55/P8·P9"),
     "audit.replay_evidence_chain.execute": (frozenset({BUSI, SEC}), "D55/P8·P9"),
     "audit.event.query.execute": (frozenset({BUSI, SEC}), "D55/P8·P9"),
-    "ops.service.invocation.query.execute": (frozenset({MGR, BUSI, SEC, SYS}), "D55/P8 裁决注释 policy.py:138"),
-    "ops.service.report.query.execute": (frozenset({MGR, BUSI, SEC, SYS}), "D55/P8"),
+    # D57⑥：审计员退两面；管理员退全局 report 面，invocation.query 保留 MANAGER =
+    # 「自家资源被调用情况」唯一读面在 P4Credential 凭据门内（裁决六明文保留）。
+    "ops.service.invocation.query.execute": (frozenset({MGR, BUSI, SYS}), "D57⑥ + P4 凭据门窄读面"),
+    "ops.service.report.query.execute": (frozenset({BUSI, SYS}), "D57⑥"),
     # P13/P18/#240 领数据
     "delivery.list.execute": (frozenset({OP, MGR}), "D55/P13+P18"),
     "delivery.view.execute": (frozenset({OP, MGR}), "D55/P13+P18"),
@@ -117,9 +119,9 @@ CAP_TARGET: dict[str, tuple[frozenset[str], str]] = {
     "system.toggle_outage.execute": (frozenset({SYS}), "D55/P22"),
     "metadata.lineage.upsert.execute": (frozenset({OP}), "D55/P22③"),
     "ops.catalog.quality.upsert.execute": (frozenset({OP}), "D55/P22③"),
-    # P7 运营员退申请人身份
-    "request.create.execute": (frozenset({OP}), "D55/P5·P7"),
-    "request.submit.execute": (frozenset({OP}), "D55/P7"),
+    # P7 运营员退申请人身份；D57④ 管理员申请人身份照 v5 保留（显式登记，收口前后端劈叉）
+    "request.create.execute": (frozenset({OP, MGR}), "D55/P7 + D57④"),
+    "request.submit.execute": (frozenset({OP, MGR}), "D55/P7 + D57④"),
     "demand.register.execute": (frozenset({OP, MGR}), "D55/P7"),
     "objection.case.create.execute": (frozenset({OP, MGR}), "D55/P7"),
     "application.draft.suggest.execute": (frozenset({OP, MGR}), "PR#240 P7"),
@@ -129,6 +131,9 @@ CAP_TARGET: dict[str, tuple[frozenset[str], str]] = {
     "catalog.entry.reverse_draft.suggest.execute": (frozenset({OP, MGR, BUSI}), "D55/P14"),
     # G1 挂接审核照 v5
     "resource.asset.review.execute": (frozenset({MGR}), "D55/G1"),
+    # D57⑤ 发布权回收仅业务运营员（目录 + 资源同口径，严格 v5）
+    "catalog.entry.publish.execute": (frozenset({BUSI}), "D57⑤"),
+    "resource.asset.publish.execute": (frozenset({BUSI}), "D57⑤ 机械延伸"),
     # D54 GATE-1 代理服务注册角色
     "resource.api.register.execute": (frozenset({OP, MGR}), "D54/GATE-1"),
     "resource.api.submit_review.execute": (frozenset({OP, MGR}), "D54/GATE-1"),

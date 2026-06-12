@@ -51,6 +51,12 @@ driven_by:
 
 - 测试与列覆盖等事实计数由 evidence.json / 测量产物承载，prose 不裸写易漂移数字。
 
+## Provenance 注记
+
+- evidence.json 采于 #257 基线 sha；其后两处后续修复（#257 复审 info：mount manifest
+  input_schema 补登 `field_columns`、b2 包本注记）不改运行行为，由下一轮全量重采
+  （capture --with-e2e）覆盖核验。
+
 ## 落盘（验收通过后 — D46.b/d，账本是唯一权威源）
 
 - [ ] **A**：vehicle PR 加 label `signoff:b2-field-metadata-10col` + PR body `<!-- signoff ... -->` 机读块（kind: 效果验收 / covers: j2-resource-mount.feature / decision_only: false）。

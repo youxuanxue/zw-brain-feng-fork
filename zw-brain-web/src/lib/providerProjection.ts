@@ -9,6 +9,15 @@ export interface ProviderRow {
   catalog: string;
   status: string;
   source: 'projection' | 'derived';
+  /** D57⑨/R10：挂接审核被审登记信息（去盲批）——真实登记字段，缺省诚实留空。 */
+  detail?: {
+    kindLabel: string;
+    owner: string;
+    sourceRef: string;
+    desc: string;
+    shareTypeLabel: string;
+    fieldCount: number;
+  };
 }
 
 function asRecord(v: unknown): Record<string, unknown> {
@@ -75,10 +84,21 @@ export function deriveHookupReviews(provider: Record<string, unknown>): Provider
       const it = asRecord(row);
       return {
         id: String(it.id ?? it.review_id ?? ''),
-        title: safeRecordTitle(it.title ?? it.summary, it.id ?? it.review_id, '挂接审核'),
-        catalog: safeCatalogName(it.resource_name, it.catalog_name),
+        // title=被审资源名（「关联资源」列）；catalog=所属目录名（D57⑨/R10 投影补
+        // catalog_name 后不再恒「—」，仍缺时回落 resource_name 再兜「—」）。
+        title: safeRecordTitle(it.title ?? it.resource_name ?? it.summary, it.id ?? it.review_id, '挂接审核'),
+        catalog: safeCatalogName(it.catalog_name, it.resource_name),
         status: String(it.status ?? 'pending'),
         source: 'projection' as const,
+        // D57⑨/R10：被审登记信息透传（后端 _asset_to_hookup_review 单源），审核者行内可见。
+        detail: {
+          kindLabel: String(it.kind_label ?? ''),
+          owner: String(it.owner ?? ''),
+          sourceRef: String(it.source_ref ?? ''),
+          desc: String(it.desc ?? ''),
+          shareTypeLabel: String(it.share_type_label ?? ''),
+          fieldCount: Number(it.field_count ?? 0) || 0,
+        },
       };
     });
   }
@@ -260,6 +280,8 @@ export interface ProviderAssetRow {
   owner: string;
   /** 中文生命周期态。 */
   status: string;
+  /** 状态附注（D57⑨/R-10：审核驳回理由回显——提交方整改依据；无则空）。 */
+  statusNote?: string;
   /** 资源物化形态中文标签（仅资源行）。 */
   kind?: string;
   /** 行内「查看」跳转（复用既有详情路由）。 */
@@ -298,6 +320,8 @@ export function providerResourceRows(provider: Record<string, unknown>): Provide
       code: String(it.catalog_code ?? '—'),
       owner: String(it.owner ?? it.owner_org_id ?? '—'),
       status: _statusLabel(it.lifecycle_status ?? it.status),
+      // D57⑨/R-10：驳回理由回显（return_for_fix 落 summary → 投影 review_return_reason）。
+      statusNote: String(it.review_return_reason ?? '') ? `驳回理由：${String(it.review_return_reason)}` : '',
       kind: _KIND_LABEL[kind] || (kind || '—'),
       viewHref: id ? `#/discovery/resource/${encodeURIComponent(id)}` : '',
     };

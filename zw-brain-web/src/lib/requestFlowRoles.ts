@@ -38,6 +38,21 @@ export const CATALOG_PLATFORM_REVIEWER_ROLES = ['ROLE_BUSIAUDIT'] as const;
  *  与 policy application.platform_approve.execute / application.resource.review.execute 对齐。 */
 export const REQUEST_FLOW_PLATFORM_REVIEWER_ROLES = ['ROLE_BUSIAUDIT'] as const;
 
+/** D57②/R8：纯只读监督岗（安全审计员，D55/P22「无任何写操作权限」）——工作台无写待办，
+ *  语境=监督概览，不再被「非审核岗即申请人」二分误归为申请人。 */
+export const READONLY_SUPERVISOR_ROLES = ['ROLE_SECURITY_AUDIT'] as const;
+
+export function isReadonlySupervisor(role: string): boolean {
+  return (READONLY_SUPERVISOR_ROLES as readonly string[]).includes(role);
+}
+
+/** D57②/R8：平台运维员——工作台语境=运维核查（同样不归申请人）。 */
+export const PLATFORM_OPS_ROLES = ['ROLE_SYSTEM'] as const;
+
+export function isPlatformOps(role: string): boolean {
+  return (PLATFORM_OPS_ROLES as readonly string[]).includes(role);
+}
+
 export function canReviewRequests(role: string): boolean {
   return (REQUEST_FLOW_REVIEWER_ROLES as readonly string[]).includes(role);
 }

@@ -62,7 +62,7 @@ const headerMeta = computed(() => {
 });
 
 const rawStatus = computed(() => String(req.value?.status ?? '').trim());
-// request.submit 仅 OPERATER；MANAGER 进申请详情时不渲染「确认提交 / 重新提交」按钮
+// request.submit = OPERATER + MANAGER（D57④）；BUSIAUDIT（受理岗）进申请详情时不渲染「确认提交 / 重新提交」
 const canSubmitRequest = computed(() => canPerformAction('request.submit', getProductRole().value));
 // 草稿态（0605#8）：从 P2「申请资源」生成的草稿单，用户在此查看无误后「确认提交申请」才进审批。
 const isDraft = computed(() => rawStatus.value === 'draft');

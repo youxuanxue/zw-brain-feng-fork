@@ -105,3 +105,69 @@ def test_objection_reply_then_review_resolve_updates_provider_inbox(brain: Brain
     after = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_ORGAN_MANAGER"}, role="ROLE_ORGAN_MANAGER")
     inbox_ids = {row["id"] for row in after["provider"]["objection_cases"]}
     assert case_id not in inbox_ids
+
+
+# ──────────────────────────────────────────────────────────────────────
+# D57①（R-6）：异议受理面接通——收件箱纳入 submitted 态 + objection.case.accept 点到底
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _seed_submitted_case(target_type: str = "catalog", target_id: str = "cat-obj-accept-001") -> str:
+    created = ObjectionRepository().create_case(
+        {
+            "objection_kind": "catalog_quality",
+            "target_type": target_type,
+            "target_id": target_id,
+            "title": "待受理异议",
+            "complainant_org_id": "ORG-A",
+            "provider_org_id": "ORG-B",
+            "status": "submitted",
+        },
+        tenant_id=TENANT,
+    )
+    return created.id
+
+
+def test_submitted_case_enters_provider_objection_inbox(brain: BrainService) -> None:
+    """D57①：submitted 态案件进入异议收件箱（此前只列 provider_investigating，待受理
+    案件在唯一工作面不可见=「有待办、点不到可办理处」的病根）。"""
+    case_id = _seed_submitted_case()
+    snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_BUSIAUDIT"}, role="ROLE_BUSIAUDIT")
+    rows = snap["provider"]["objection_cases"]
+    row = next((item for item in rows if item["id"] == case_id), None)
+    assert row is not None, "submitted 态案件应出现在异议收件箱"
+    assert row["status"] == "submitted"
+
+
+def test_busiaudit_accept_transitions_to_platform_investigating(brain: BrainService) -> None:
+    """D57①：业务运营员受理 submitted 案件——5 业务维度（catalog）按维度状态机走既有合法边
+    submitted → platform_investigating（受理即进入平台核查；维度表无 accepted 态），
+    受理后案件仍在收件箱（不消失成新死端）。"""
+    case_id = _seed_submitted_case()
+    out = invoke_trusted(
+        brain,
+        "objection.case.accept",
+        {"objection_id": case_id, "confirmed": True},
+        role="ROLE_BUSIAUDIT",
+    )["result"]
+    assert out["status"] == "platform_investigating"
+
+    snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_BUSIAUDIT"}, role="ROLE_BUSIAUDIT")
+    rows = snap["provider"]["objection_cases"]
+    row = next((item for item in rows if item["id"] == case_id), None)
+    assert row is not None, "受理后案件应保留在收件箱（platform_investigating 在办态）"
+    assert row["status"] == "platform_investigating"
+
+
+def test_operater_denied_objection_accept(brain: BrainService) -> None:
+    """双面验证负向半：部门操作员无受理权（objection.case.accept={MANAGER,BUSIAUDIT}）。"""
+    from zw_brain.command.brain import AccessDeniedError
+
+    case_id = _seed_submitted_case(target_id="cat-obj-accept-002")
+    with pytest.raises(AccessDeniedError):
+        invoke_trusted(
+            brain,
+            "objection.case.accept",
+            {"objection_id": case_id, "confirmed": True},
+            role="ROLE_ORGAN_OPERATER",
+        )

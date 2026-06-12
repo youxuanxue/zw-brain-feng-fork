@@ -8,11 +8,14 @@ import DetailActions from '@/components/DetailActions.vue';
 import { useDisputes, useSnapshot } from '@/composables/useSnapshot';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import { formatTodoStatus } from '@/lib/statusLabels';
+import { getProductRole } from '@/composables/useProductRole';
+import { canPerformAction } from '@/lib/pageAccess';
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
 const disputes = useDisputes();
 const { source } = useSnapshot();
+const role = getProductRole();
 const opinion = ref('已核实，准备修正相关描述');
 
 const dispute = computed(() => {
@@ -43,11 +46,31 @@ const rows = computed(() => {
   ]);
 });
 
+// D57①（R6）：submitted 态先受理（objection.case.accept，受理即进入平台核查）；
+// 受理前不渲染回复/解决动作（submitted → resolved 非法迁移，渲染=必 409 死按钮）。
+const rawStatus = computed(() => {
+  const d = dispute.value;
+  if (!d) return '';
+  const repo = (d.repository as Record<string, unknown> | undefined) ?? {};
+  return String(repo.status ?? d.status ?? '');
+});
+const isPendingAccept = computed(() => rawStatus.value === 'submitted');
+const canAccept = computed(() => canPerformAction('objection.case.accept', role.value));
+
 const headerMeta = computed(() => {
-  if (dispute.value) return '提交回复后进入复核环节';
+  if (dispute.value) return isPendingAccept.value ? '受理后进入核查环节' : '提交回复后进入复核环节';
   if (source.value === 'live') return '当前列表中无此异议';
   return '正在加载……';
 });
+
+async function acceptCase() {
+  await invokeActionStub({
+    skillId: 'objection.case.accept',
+    payload: { objection_id: id.value },
+    successTitle: '异议已受理，进入核查',
+    refreshSnapshotAfter: true,
+  });
+}
 
 async function submitReply() {
   await invokeActionStub({
@@ -83,14 +106,25 @@ async function markResolved() {
     <section class="panel">
       <PageFocusHeader :title="`异议 ${id}`" :meta="headerMeta" />
       <DetailPanel title="基本信息" :rows="rows" />
-      <div class="opinion-box">
-        <label for="opinion">回复意见</label>
-        <textarea id="opinion" v-model="opinion" rows="4" />
-      </div>
-      <DetailActions>
-        <button type="button" class="gov-btn gov-btn-primary" @click="submitReply">提交回复</button>
-        <button type="button" class="gov-btn" @click="markResolved">标记已解决</button>
+      <DetailActions v-if="isPendingAccept">
+        <button
+          v-if="canAccept"
+          type="button"
+          class="gov-btn gov-btn-primary"
+          data-testid="objection-detail-accept-btn"
+          @click="acceptCase"
+        >受理</button>
       </DetailActions>
+      <template v-if="dispute && !isPendingAccept">
+        <div class="opinion-box">
+          <label for="opinion">回复意见</label>
+          <textarea id="opinion" v-model="opinion" rows="4" />
+        </div>
+        <DetailActions>
+          <button type="button" class="gov-btn gov-btn-primary" @click="submitReply">提交回复</button>
+          <button type="button" class="gov-btn" @click="markResolved">标记已解决</button>
+        </DetailActions>
+      </template>
     </section>
   </main>
 </template>

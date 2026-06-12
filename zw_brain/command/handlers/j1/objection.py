@@ -286,7 +286,24 @@ def handler_objection_case_create(deps: HandlerDeps, ctx: SkillContext, payload:
 def handler_objection_case_accept(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _transition_objection_case(brain, deps, ctx, str(payload["objection_id"]), "accepted", "accept", "受理异议", payload)
+    # D57①（R-6，接通受理面）：受理落点态按维度状态机取既有合法迁移——5 业务维度
+    # （catalog/content/use/resource/authz）的共享迁移表无 "accepted" 态（真实数据态集），
+    # 其受理语义 = submitted → platform_investigating（受理即进入平台核查）；generic 兜底维度
+    # 保持原 submitted → accepted。只选既有合法边、不增删任何迁移（非状态机变更，D28 安全）。
+    # 此前硬编码 "accepted" 对 5 维度案件必 409（这正是该能力一直无 UI 消费面的暗病）。
+    from zw_brain.domain.objection_state import (  # noqa: PLC0415
+        ALLOWED_TRANSITIONS_BY_DIMENSION,
+        dimension_of,
+    )
+
+    objection_id = str(payload["objection_id"])
+    record = deps.repos.objection.get_case(objection_id, tenant_id=_DEFAULT_TENANT_ID)
+    next_status = "accepted"
+    if record is not None:
+        evidences = deps.repos.objection.list_evidence(objection_id)
+        if dimension_of(record, evidences) in ALLOWED_TRANSITIONS_BY_DIMENSION:
+            next_status = "platform_investigating"
+    return _transition_objection_case(brain, deps, ctx, objection_id, next_status, "accept", "受理异议", payload)
 
 def handler_objection_case_assign(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.

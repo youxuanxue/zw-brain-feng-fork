@@ -2,86 +2,58 @@
   "workbench": {
     "ROLE_ORGAN_OPERATER": {
       "greeting": "周处长，上午好（省大数据局 · 山东省）",
-      "subtitle": "你有 1 条停车场信息复用申请待看进度；本周共有 10 条真实政务案例可被订阅；1 条减负提示来自约 1.8 万条 组织表数据。",
-      "todos": [],
-      "highlights": [],
-      "aiSummary": {
-        "summary": "建议你先跟进“停车场信息共享目录复用申请”，因为这条链已经具备真实目录、审批口径清楚，最快能验证“先复用后补录”的黄金旅程。",
-        "actions": [
-          "查看模板覆盖率",
-          "查看差异字段清单",
-          "进入申请进度"
-        ],
-        "basis": [
-          "当前需求命中涉企基础信息高频字段",
-          "模板已被多个专题包复用",
-          "差异字段只剩现场经营状态与走访备注"
-        ]
-      }
-    },
-    "ROLE_ORGAN_MANAGER": {
-      "greeting": "刘主任，上午好",
-      "subtitle": "你有 2 条涉企采集准入待判定，其中 1 条可直接复用模板、1 条需要退回补正。",
+      "subtitle": "",
       "todos": [],
       "highlights": [],
       "aiSummary": {
         "summary": "",
-        "actions": [
-          "查看复用依据",
-          "查看退回草案",
-          "查看回流要求"
-        ],
-        "basis": [
-          "停车场信息共享目录已覆盖基础资源字段",
-          "新增采集申请未证明现有模板不足",
-          "通过后可直接进入预填任务"
-        ]
+        "actions": [],
+        "basis": []
+      }
+    },
+    "ROLE_ORGAN_MANAGER": {
+      "greeting": "刘主任，上午好",
+      "subtitle": "",
+      "todos": [],
+      "highlights": [],
+      "aiSummary": {
+        "summary": "",
+        "actions": [],
+        "basis": []
       }
     },
     "ROLE_BUSIAUDIT": {
       "greeting": "高主任，上午好",
-      "subtitle": "你有 1 个 zw-brain 前台专题资产待更新，1 个能力注册包待审核。",
+      "subtitle": "",
       "todos": [],
       "highlights": [],
       "aiSummary": {
-        "summary": "建议先把“停车场信息共享目录”挂到城市运行专区，让申请人先找到目录再发起申请；再放开它的只读查看范围，办事人当天就能查到这份数据。",
-        "actions": [
-          "整理专区目录",
-          "设置查看范围",
-          "确认开放部门"
-        ],
-        "basis": [
-          "申请人是先在专区里找到目录、再发起申请的，目录挂错位置会让他们找不到",
-          "只读查看不改动原始数据，先放开能加快办事、又不增加风险",
-          "这份目录的填报模板已经准备好更新"
-        ]
+        "summary": "",
+        "actions": [],
+        "basis": []
       }
     },
     "ROLE_SECURITY_AUDIT": {
       "greeting": "林督查，上午好",
-      "subtitle": "你有 1 条重复要数告警、1 条减负指标异常待复核。",
+      "subtitle": "",
       "todos": [],
       "highlights": [],
       "aiSummary": {
-        "summary": "建议先看“绕开模板重复采集”这条告警，它直接影响减负成效；其次查看经营状态字段为何仍被频繁补录，决定是否推动模板升级。",
-        "actions": [
-          "查看减负指标",
-          "查看绕行证据",
-          "查看字段热区"
-        ],
-        "basis": [
-          "重复要数直接触发基层负担反弹",
-          "差异补录热区可反向指导模板治理",
-          "本周趋势已具备治理闭环价值"
-        ]
+        "summary": "",
+        "actions": [],
+        "basis": []
       }
     },
     "ROLE_SYSTEM": {
       "greeting": "平台运维员，上午好",
-      "subtitle": "运维面 — 组织 / 用户 / 网关 / 消息 / 拨测 / 告警。",
+      "subtitle": "",
       "todos": [],
       "highlights": [],
-      "aiSummary": {}
+      "aiSummary": {
+        "summary": "",
+        "actions": [],
+        "basis": []
+      }
     }
   },
   "discovery": {

@@ -101,7 +101,7 @@ export function filterByRouteAccess<T>(items: readonly T[], getHref: (it: T) => 
 
 /**
  * Action 级权限闸门（不是路由级）。仅放"页面已开放但其中某个 action 仅限部分角色"的场景，
- * 例如 P5Provider 对所有 provider shell 角色开放，但「发布目录」action 仅 MANAGER+BUSIAUDIT。
+ * 例如 P5Provider 对所有 provider shell 角色开放，但「发布目录」action 仅 BUSIAUDIT（D57⑤）。
  *
  * 权威源在后端 zw_brain/domain/policy.py PERMISSION_ROLES；本表只列前端会渲染 CTA / 入口链接的子集。
  * tests/test_role_codes_alignment.py 守住"本表中的每个 action 必须与后端 policy 一致"，
@@ -112,16 +112,22 @@ export function filterByRouteAccess<T>(items: readonly T[], getHref: (it: T) => 
  *   - 仅当后端 policy 角色集 ⊂ 该路由 shell 角色集时才需要在此声明（否则路由层已挡住）。
  */
 export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
-  // P5Provider / P5InlineCatalogWizard 发布
-  'catalog.entry.publish': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
+  // P5Provider 发布目录。D57⑤：目录发布权回收仅业务运营员（严格 v5「目录发布=业务运营员」，
+  // R-001 给 MANAGER 的保留无签字且「仅自家」未实现）；管理员发布卡整卡不渲染（无权=不可见）。
+  'catalog.entry.publish': ['ROLE_BUSIAUDIT'],
+  // P5Provider 发布资源（#251 R3 队列）。D57⑤ 同口径机械延伸：v5 资源发布=业务运营员；
+  // 原 canPublishResource 硬比对 BUSIAUDIT（刻意窄于旧 policy），本次 policy 对齐后注册回
+  // set-equal 表，消除机械审计雷达外的分歧。
+  'resource.asset.publish': ['ROLE_BUSIAUDIT'],
   // P4Credential 重新签发
   'credential.issue': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   // P3ReviewDetail 无条件共享受理即终（D55/P21：受理=业务运营员初级审核单步即终）。
   // 与后端 policy.approval.case.decide.execute={ROLE_BUSIAUDIT} set-equal。
   'approval.case.decide': ['ROLE_BUSIAUDIT'],
-  // P2ResourceDetail / P3RequestDetail
-  'request.create': ['ROLE_ORGAN_OPERATER'],
-  'request.submit': ['ROLE_ORGAN_OPERATER'],
+  // P2ResourceDetail / P3RequestDetail。D57④：管理员申请人身份照 v5 保留（「我的申请=管理员+
+  // 操作员」），补回 MANAGER 发起/提交入口、收口前后端劈叉（后端 hierarchy 本就放行 200）。
+  'request.create': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
+  'request.submit': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
   // P3RequestDetail 撤回 / 暂停授权（write-critical）。j1-credential-revoke 决策 A（已签字）：
   // 撤回 = 业务运营员合规驱动 + 申请人本人主动放弃（owner 校验在后端）；暂停 = 业务运营员。
   // 与后端 policy.py 严格 set-equal（test_role_codes_alignment 守）。
@@ -156,6 +162,9 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   // 仅业务运营员 + 部门管理员可见，与后端 objection.case.escalate/close set-equal。
   'objection.case.escalate': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   'objection.case.close': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
+  // P5ObjectionInbox/Detail 受理（D57①，R6）：异议收件箱纳入 submitted 态 + 接通受理动作，
+  // v5 异议受理=业务运营员（+管理员），与后端 objection.case.accept set-equal。
+  'objection.case.accept': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   // C5（D50）P5 国家扩展要素编制 — 与后端 policy catalog.national_ext_elem.compile.execute set-equal。
   'catalog.national_ext_elem.compile': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   // C6（D50）P3 国家直达转报 — 与后端 policy application.escalate_national.execute set-equal。
@@ -164,10 +173,9 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   // v5「异议提出 = 部门操作员、部门管理员」）；评价=三岗位。与后端 set-equal。
   'objection.case.submit': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
   'objection.case.evaluate': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
-  // P4Credential 调用记录段（permission-matrix-0610）：此前未注册 → canPerformAction 默认放行，
-  // 操作员（delivery shell 含 OPERATER）看到调用监控入口但后端 403。与 policy.py set-equal
-  // （D55/P8：平台运维员+业务运营员保服务调用监控，管理员/审计员只读）。
-  'ops.service.invocation.query': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT', 'ROLE_SYSTEM'],
+  // P4Credential 调用记录段。D57⑥：安全审计员退服务调用监控（全局面随 service-ops 导航一并收窄）；
+  // MANAGER 保留=「自家资源被调用情况」留在 P4 凭据门内（hasCredential 双门），与 policy set-equal。
+  'ops.service.invocation.query': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SYSTEM'],
 };
 
 export function canPerformAction(action: keyof typeof ACTION_ROLE_GATES | string, role: string): boolean {

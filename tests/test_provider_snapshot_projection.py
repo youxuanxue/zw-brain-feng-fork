@@ -382,3 +382,111 @@ def test_provider_resources_replaced_with_live_rows_when_db_nonempty(temp_db: Pa
     row = next(r for r in rows if r["id"] == "res-live-table-001")
     assert row["resource_kind"] == "table"
     assert row["catalog_code"] == "j2-inline-live-001"
+
+
+# ──────────────────────────────────────────────────────────────────────
+# D57⑨（R10）：挂接审核收件箱去盲批——被审登记信息 + 关联资源/目录名 + 驳回带理由
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_hookup_review_row_carries_registration_detail(brain: BrainService) -> None:
+    """收件箱行带被审内容：resource_name/catalog_name（前端「关联资源/所属目录」列不再恒「—」）
+    + 登记信息（形态/提供方/挂接位置/描述/共享类型/字段数），全部真实登记字段。"""
+    CatalogRepository().upsert_from_resource(
+        {
+            "id": "cat-proj-hookup-parent",
+            "name": "挂接所属目录甲",
+            "status": "active",
+            "provider": "11370000MB284651XL",
+        },
+        tenant_id=TENANT,
+    )
+    ResourceApiRepository().upsert_asset(
+        {
+            "resource_code": "res-proj-hookup-d57",
+            "title": "挂接待审资源（带登记信息）",
+            "resource_kind": "table",
+            "lifecycle_status": "pending_review",
+            "owner_org_id": "11370000MB284651XL",
+            "catalog_code": "cat-proj-hookup-parent",
+            "source_ref": "db:dsp_meta.t_parking_info",
+            "access_policy_json": {"share_type": "2", "share_condition": "仅政务部门"},
+            "summary_json": {"desc": "停车场基础信息库表", "fields": ["lot_id", "lot_name", "capacity"]},
+        },
+        tenant_id=TENANT,
+    )
+    snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_ORGAN_MANAGER"}, role="ROLE_ORGAN_MANAGER")
+    row = next(r for r in snap["provider"]["hookup_reviews"] if r["id"] == "res-proj-hookup-d57")
+    assert row["resource_name"] == "挂接待审资源（带登记信息）"
+    assert row["catalog_name"] == "挂接所属目录甲"
+    assert row["kind_label"] == "库表"
+    assert row["source_ref"] == "db:dsp_meta.t_parking_info"
+    assert row["desc"] == "停车场基础信息库表"
+    assert row["share_type_label"] == "有条件共享"
+    assert row["field_count"] == 3
+
+
+def test_hookup_review_reject_with_reason_returns_to_draft(brain: BrainService) -> None:
+    """驳回（decision=return_for_fix）带理由：资产退回 draft、理由落 summary_json
+    （提交方整改依据），收件箱行随之消失。"""
+    ResourceApiRepository().upsert_asset(
+        {
+            "resource_code": "res-proj-hookup-reject",
+            "title": "将被驳回的挂接资源",
+            "resource_kind": "file",
+            "lifecycle_status": "pending_review",
+            "owner_org_id": "11370000MB284651XL",
+        },
+        tenant_id=TENANT,
+    )
+    out = invoke_trusted(
+        brain,
+        "resource.asset.review",
+        {
+            "resource_code": "res-proj-hookup-reject",
+            "decision": "return_for_fix",
+            "reason": "登记信息缺少数据来源说明，请补全后重新提交",
+            "confirmed": True,
+        },
+        role="ROLE_ORGAN_MANAGER",
+    )["result"]
+    assert out["lifecycle_status"] == "draft"
+
+    record = next(
+        r
+        for r in ResourceApiRepository().list_assets(tenant_id=TENANT)
+        if r.resource_code == "res-proj-hookup-reject"
+    )
+    assert record.summary_json.get("review_return_reason") == "登记信息缺少数据来源说明，请补全后重新提交"
+
+    snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_ORGAN_MANAGER"}, role="ROLE_ORGAN_MANAGER")
+    assert all(r["id"] != "res-proj-hookup-reject" for r in snap["provider"]["hookup_reviews"])
+
+    # 驳回理由闭环（写了就必须有读面）：提交方在「资源管理清单」（provider.resources 投影）
+    # 看到整改依据——操作员 snapshot 带 resources partial key（_PROVIDER_PARTIAL_KEYS）。
+    op_snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_ORGAN_OPERATER"}, role="ROLE_ORGAN_OPERATER")
+    row = next(r for r in op_snap["provider"]["resources"] if r["id"] == "res-proj-hookup-reject")
+    assert row["review_return_reason"] == "登记信息缺少数据来源说明，请补全后重新提交"
+    assert row["lifecycle_status"] == "draft"
+
+
+def test_hookup_review_reject_requires_reason_fail_closed(brain: BrainService) -> None:
+    """D57⑨ 后端 fail-closed：挂接驳回不带/空理由经任何消费面直调一律拦（前端 toast 只是第一道）。"""
+    from zw_brain.command.brain import InvalidStateError
+
+    ResourceApiRepository().upsert_asset(
+        {
+            "resource_code": "res-proj-hookup-no-reason",
+            "title": "无理由驳回应被拦",
+            "resource_kind": "table",
+            "lifecycle_status": "pending_review",
+            "owner_org_id": "11370000MB284651XL",
+        },
+        tenant_id=TENANT,
+    )
+    for payload in (
+        {"resource_code": "res-proj-hookup-no-reason", "decision": "return_for_fix", "confirmed": True},
+        {"resource_code": "res-proj-hookup-no-reason", "decision": "return_for_fix", "reason": "  ", "confirmed": True},
+    ):
+        with pytest.raises(InvalidStateError):
+            invoke_trusted(brain, "resource.asset.review", payload, role="ROLE_ORGAN_MANAGER")

@@ -41,8 +41,9 @@ test.describe('权限不可见 共性回归', () => {
     await expect(page.getByRole('button', { name: '重新签发' })).toBeVisible();
   });
 
-  test('P2ResourceDetail 申请资源：OPERATER 可见 / MANAGER 不渲染', async ({ page }) => {
-    // P2 shell 含 OPERATER/MANAGER/BUSIAUDIT/SECURITY_AUDIT；但 request.create 仅 OPERATER。
+  test('P2ResourceDetail 申请资源：OPERATER/MANAGER 可见 / BUSIAUDIT 不渲染', async ({ page }) => {
+    // P2 shell 含 OPERATER/MANAGER/BUSIAUDIT；request.create = OPERATER+MANAGER
+    // （D57④ 管理员申请人身份照 v5 保留）；业务运营员（受理岗，已退申请人身份 D55/P7）不渲染。
     // 从 snapshot.discovery.resources 直接取第一条真实 id（同 firstDeliveryRequestId 的 GET 路径，避开
     // page.request.post 在某些代理设置下被吞的边角情况）。
     const snap = await page.request.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
@@ -57,13 +58,18 @@ test.describe('权限不可见 共性回归', () => {
     await gotoHash(page, `#/discovery/resource/${resId}`);
     await expect(page.getByRole('button', { name: '申请资源' })).toBeVisible();
 
+    // D57④ 双面验证正向半：管理员补回发起入口（后端 hierarchy 本就 200，收口前后端劈叉）。
     await setRole(page, 'ROLE_ORGAN_MANAGER');
+    await gotoHash(page, `#/discovery/resource/${resId}`);
+    await expect(page.getByRole('button', { name: '申请资源' })).toBeVisible();
+
+    await setRole(page, 'ROLE_BUSIAUDIT');
     await gotoHash(page, `#/discovery/resource/${resId}`);
     await expect(page.getByRole('button', { name: '申请资源' })).toHaveCount(0);
   });
 
-  test('P3RequestDetail 补件/重新提交：OPERATER 可见 / MANAGER 不渲染', async ({ page }) => {
-    // request-flow shell 含 OPERATER+MANAGER；request.submit 仅 OPERATER。
+  test('P3RequestDetail 补件/重新提交：OPERATER/MANAGER 可见 / BUSIAUDIT 不渲染', async ({ page }) => {
+    // request-flow shell 含 OPERATER+MANAGER+BUSIAUDIT；request.submit = OPERATER+MANAGER（D57④）。
     const snap = await page.request.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
     test.skip(!snap.ok(), 'snapshot not reachable');
     const snapBody = (await snap.json()) as Record<string, unknown>;
@@ -77,11 +83,15 @@ test.describe('权限不可见 共性回归', () => {
 
     await setRole(page, 'ROLE_ORGAN_MANAGER');
     await gotoHash(page, `#/request-flow/request/${reqId}`);
+    await expect(page.getByRole('button', { name: '补件 / 重新提交' })).toBeVisible();
+
+    await setRole(page, 'ROLE_BUSIAUDIT');
+    await gotoHash(page, `#/request-flow/request/${reqId}`);
     await expect(page.getByRole('button', { name: '补件 / 重新提交' })).toHaveCount(0);
   });
 
-  test('P5DemandMatchDetail 受理并起草申请：OPERATER 可见 / MANAGER 不渲染', async ({ page }) => {
-    // P5 shell 含 OPERATER/MANAGER/BUSIAUDIT；request.create 仅 OPERATER。
+  test('P5DemandMatchDetail 受理并起草申请：OPERATER/MANAGER 可见 / BUSIAUDIT 不渲染', async ({ page }) => {
+    // P5 shell 含 OPERATER/MANAGER/BUSIAUDIT；request.create = OPERATER+MANAGER（D57④）。
     const snap = await page.request.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
     test.skip(!snap.ok(), 'snapshot not reachable');
     const snapBody = (await snap.json()) as Record<string, unknown>;
@@ -95,6 +105,10 @@ test.describe('权限不可见 共性回归', () => {
     await expect(page.getByRole('button', { name: '受理并起草申请' })).toBeVisible();
 
     await setRole(page, 'ROLE_ORGAN_MANAGER');
+    await gotoHash(page, `#/provider/inbox/demand-match/${dmId}`);
+    await expect(page.getByRole('button', { name: '受理并起草申请' })).toBeVisible();
+
+    await setRole(page, 'ROLE_BUSIAUDIT');
     await gotoHash(page, `#/provider/inbox/demand-match/${dmId}`);
     await expect(page.getByRole('button', { name: '受理并起草申请' })).toHaveCount(0);
   });

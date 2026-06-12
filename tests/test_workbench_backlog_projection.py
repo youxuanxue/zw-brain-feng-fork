@@ -159,12 +159,51 @@ def test_busiaudit_empty_backlog_is_honest_empty(temp_db: Path) -> None:
     assert "没有待办积压" in out["aiSummary"]["summary"]
 
 
-def test_operater_view_untouched(temp_db: Path) -> None:
-    """部门操作员（申请人）view 原样返回——待办由 sync_request_todos 真投影，enrich 不动。"""
+def test_operater_keeps_progress_todos_with_honest_advice(temp_db: Path) -> None:
+    """部门操作员（D57②/R-8）：todos 由 sync_request_todos 真投影、enrich 不动其内容；
+    subtitle/办理建议改为真实进度现算（不再漏出 seed 虚构「停车场…黄金旅程」叙事）。"""
     _seed_backlog()
-    base = {"todos": [{"id": "REQ-x", "title": "申请进度跟踪", "href": "#/request-flow/request/REQ-x"}], "subtitle": "s"}
+    base = {
+        "todos": [
+            {"id": "REQ-x", "title": "申请进度跟踪", "href": "#/request-flow/request/REQ-x", "category": "apply-progress"},
+            {"id": "REQ-x-sup", "title": "差异补录任务", "href": "#/request-flow/request/REQ-x", "category": "supplement-township"},
+        ],
+        "subtitle": "停车场信息复用申请待看进度（seed 虚构）",
+        "aiSummary": {"summary": "黄金旅程（seed 虚构）"},
+    }
     out = enrich_workbench_backlog(base, "ROLE_ORGAN_OPERATER", tenant_id=TENANT)
-    assert out is base
+    assert [t["id"] for t in out["todos"]] == ["REQ-x", "REQ-x-sup"], "操作员 todos 不被改写"
+    assert "停车场" not in out["subtitle"] and "虚构" not in out["subtitle"]
+    assert "1 条申请在办" in out["aiSummary"]["summary"]
+    assert "1 项补录任务待完成" in out["aiSummary"]["summary"]
+
+
+def test_operater_empty_progress_is_honest_empty(temp_db: Path) -> None:
+    base = {"todos": [], "subtitle": "seed 旧文案", "aiSummary": {"summary": "旧"}}
+    out = enrich_workbench_backlog(base, "ROLE_ORGAN_OPERATER", tenant_id=TENANT)
+    assert out["todos"] == []
+    assert "没有进行中的申请" in out["subtitle"]
+    assert "没有进行中的申请" in out["aiSummary"]["summary"]
+
+
+def test_security_audit_is_readonly_supervisor_view(temp_db: Path) -> None:
+    """安全审计员（D57②/R-8）：纯只读监督岗——todos 恒空（不投写待办、不造仪表盘），
+    办理建议为指向查审计的诚实指引（清除 seed 虚构「绕开模板重复采集告警」叙事）。"""
+    _seed_backlog()
+    base = {"todos": [{"id": "stale", "title": "旧告警"}], "subtitle": "绕开模板重复采集（seed 虚构）", "aiSummary": {"summary": "旧"}}
+    out = enrich_workbench_backlog(base, "ROLE_SECURITY_AUDIT", tenant_id=TENANT)
+    assert out["todos"] == []
+    assert "只读监督" in out["subtitle"]
+    assert "查审计" in out["aiSummary"]["summary"]
+    assert "绕开模板" not in out["subtitle"]
+
+
+def test_system_ops_view_is_honest(temp_db: Path) -> None:
+    """平台运维员（D57②/R-8）：运维核查语境，零积压给诚实空态。"""
+    out = enrich_workbench_backlog({"todos": [], "subtitle": "x", "aiSummary": {}}, "ROLE_SYSTEM", tenant_id=TENANT)
+    assert out["todos"] == []
+    assert "没有运维待办积压" in out["subtitle"]
+    assert "服务调用监控" in str(out["aiSummary"]["basis"])
 
 
 def test_manager_gets_provider_review_backlog_prepended(temp_db: Path) -> None:
@@ -187,12 +226,15 @@ def test_manager_gets_provider_review_backlog_prepended(temp_db: Path) -> None:
     assert out["todos"][0]["id"] == "backlog-catalog-dept-review"
 
 
-def test_manager_zero_review_backlog_untouched(temp_db: Path) -> None:
-    """D55/P10：无 pending_review 目录时部门管理员 view 原样返回（零积压不投，无空死链）。"""
+def test_manager_zero_review_backlog_keeps_todos_rewrites_advice(temp_db: Path) -> None:
+    """D55/P10 + D57②/R-8：无 pending_review 时不投供数审核待办（零积压无空死链），
+    既有待办保留；subtitle/办理建议仍重写为真实现算（不再漏出 seed 虚构叙事）。"""
     # 不 seed → 零 pending_review
-    base = {"todos": [{"id": "REQ-y", "title": "x", "href": "#/request-flow/review/REQ-y"}], "subtitle": "s"}
+    base = {"todos": [{"id": "REQ-y", "title": "资源申请待审核", "href": "#/request-flow/review/REQ-y"}], "subtitle": "涉企采集准入待判定（seed 虚构）"}
     out = enrich_workbench_backlog(base, "ROLE_ORGAN_MANAGER", tenant_id=TENANT)
-    assert out is base
+    assert [t["id"] for t in out["todos"]] == ["REQ-y"]
+    assert "涉企采集" not in out["subtitle"]
+    assert "1 条申请审批/汇总待办" in out["aiSummary"]["summary"]
 
 
 def test_backlog_todos_count_matches_repo(temp_db: Path) -> None:

@@ -52,10 +52,11 @@ _ZONES = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT
 _CAPABILITY = frozenset({"ROLE_SYSTEM"})
 # api_resources 预载（外部系统 / 代理服务 API 面）——本流不动。
 _OPS = frozenset({"ROLE_BUSIAUDIT", "ROLE_SYSTEM"})
-# 服务调用监控（gateway_runtime_statuses / service_invocation_metrics）—— 查审计拆分（D55/P8）：
-# 平台运维员保留服务调用监控（v5），管理员 / 审计只读。与后端 ops.service.report.query.execute +
-# service-ops nav 角色门一致。
-_SERVICE_OPS = frozenset({"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"})
+# 服务调用监控（gateway_runtime_statuses / service_invocation_metrics）—— D55/P8 拆分 → D57⑥ 收窄：
+# 仅平台运维员 + 业务运营员（v5 服务调用日志口径）；部门管理员 / 安全审计员退全局监控预载
+# （管理员自家资源调用记录走 P4 凭据门内 REST 现查，不经 snapshot 预载）。
+# 与后端 ops.service.report.query.execute + service-ops nav 角色门一致。
+_SERVICE_OPS = frozenset({"ROLE_BUSIAUDIT", "ROLE_SYSTEM"})
 
 _EMPTY_DISCOVERY: dict[str, Any] = {
     "zones": [],

@@ -4,7 +4,12 @@ import { useWorkbench } from '@/composables/useWorkbench';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 import { humanizeTitle } from '@/lib/userLanguage';
 import { getProductRole } from '@/composables/useProductRole';
-import { canReviewRequests, canPlatformReviewRequests } from '@/lib/requestFlowRoles';
+import {
+  canPlatformReviewRequests,
+  canReviewRequests,
+  isPlatformOps,
+  isReadonlySupervisor,
+} from '@/lib/requestFlowRoles';
 
 // 缺陷 2（业务方试用反馈）：业务运营员待办「不对路」。机制单源 = 后端 workbench_backlog_projection
 // （真实库现算、每条带深链，第二组）；角色 → 待办语义（白话类目，第四组）已下沉到该
@@ -13,15 +18,38 @@ import { canReviewRequests, canPlatformReviewRequests } from '@/lib/requestFlowR
 const { data, source, error, refresh } = useWorkbench();
 const role = getProductRole();
 
-// P12：部门操作员是申请人（无审批/受理待办），工作台「待办」语境改为「申请进度」——标题/空态/
-// 计数名对齐申请人视角。审批/受理岗（部门管理员/业务运营员）保留「待办」语境。
-const isApplicantOnly = computed(
-  () => !canReviewRequests(role.value) && !canPlatformReviewRequests(role.value),
+// 工作台语境按岗位职责四分（D57②/R8，修正原「非审核岗即申请人」二分把安全审计员/
+// 平台运维员误归申请人「我的申请进度」的错配）：
+//   applicant  部门操作员 —— 申请进度（P12 / 0609 docx：不显待办、换申请进度）
+//   reviewer   部门管理员 / 业务运营员 —— 今日待办（审批/受理岗）
+//   supervisor 安全审计员 —— 监督概览（已签纯只读口径：无写待办，指引去查审计）
+//   ops        平台运维员 —— 运维核查
+const contextVariant = computed(() => {
+  if (isReadonlySupervisor(role.value)) return 'supervisor' as const;
+  if (isPlatformOps(role.value)) return 'ops' as const;
+  if (!canReviewRequests(role.value) && !canPlatformReviewRequests(role.value)) {
+    return 'applicant' as const;
+  }
+  return 'reviewer' as const;
+});
+const itemNoun = computed(() => (contextVariant.value === 'applicant' ? '进度' : '待办'));
+const blockTitle = computed(
+  () =>
+    ({
+      applicant: '我的申请进度',
+      reviewer: '今日待办',
+      supervisor: '监督概览',
+      ops: '运维核查',
+    })[contextVariant.value],
 );
-const itemNoun = computed(() => (isApplicantOnly.value ? '进度' : '待办'));
-const blockTitle = computed(() => (isApplicantOnly.value ? '我的申请进度' : '今日待办'));
-const emptyText = computed(() =>
-  isApplicantOnly.value ? '暂无进行中的申请。' : '当前岗位暂无待办事项。',
+const emptyText = computed(
+  () =>
+    ({
+      applicant: '暂无进行中的申请。',
+      reviewer: '当前岗位暂无待办事项。',
+      supervisor: '安全审计员为纯只读监督岗，无办理待办；审计动态请前往「查审计」。',
+      ops: '当前没有运维核查事项。',
+    })[contextVariant.value],
 );
 
 const todoCount = computed(() => data.value?.todos.length ?? 0);

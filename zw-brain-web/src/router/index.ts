@@ -101,8 +101,8 @@ const routes: RouteRecordRaw[] = [
   { path: '/compliance-ops', name: 'B1.1-compliance', component: B11ComplianceOps, meta: { page: 'B1.1', title: 'B1.1 合规与运营' } },
   { path: '/compliance-ops/dispute/:id', component: B11DisputeDetail, meta: { page: 'B1.1', title: 'B1.1 异议详情' } },
 
-  // B1.3 服务调用监控（后台）——查审计拆分（D55/P8）：网关运行 / 服务调用只读面，
-  // 平台运维员保留服务调用监控；管理员 / 审计只读。与 ops.service.report.query.execute 角色门一致。
+  // B1.3 服务调用监控（后台）——查审计拆分（D55/P8）→ D57⑥ 收窄：网关运行 / 服务调用只读面，
+  // 仅平台运维员 + 业务运营员；管理员/审计员退出。与 ops.service.report.query.execute 角色门一致。
   { path: '/service-ops', name: 'B1.3-service-ops', component: B13ServiceOps, meta: { page: 'B1.3', title: '服务调用监控' } },
 
   // 后台四模块（「接入扩展中心」容器解体，2026-06-05 负责人裁）：外部系统 / 流程与表单配置 / 身份治理

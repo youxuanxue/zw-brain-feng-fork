@@ -46,7 +46,11 @@ defineProps<{
           <tr v-for="r in rows" :key="r.id">
             <td v-for="c in columns" :key="c.key">
               <code v-if="c.mono" class="code-cell" :title="String(r[c.key] ?? '')">{{ r[c.key] }}</code>
-              <span v-else-if="c.pill" class="status-pill">{{ r[c.key] }}</span>
+              <template v-else-if="c.pill">
+                <span class="status-pill">{{ r[c.key] }}</span>
+                <!-- D57⑨/R-10：审核驳回理由随生命周期态回显（提交方整改依据，无则不渲染）。 -->
+                <span v-if="r.statusNote" class="status-note" data-testid="row-status-note">{{ r.statusNote }}</span>
+              </template>
               <template v-else>{{ r[c.key] }}</template>
             </td>
             <td>
@@ -66,5 +70,6 @@ defineProps<{
 .code-cell { font-size: 12px; color: var(--b-muted, #5c6370); word-break: break-all; }
 .row-link { color: var(--b-primary, #006be6); text-decoration: underline; font-size: 13px; }
 .status-pill { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; background: #eef3fb; color: var(--b-text, #1f2733); }
+.status-note { display: block; margin-top: 4px; font-size: 12px; color: #b42318; }
 .muted { color: #9aa5b1; }
 </style>

@@ -30,6 +30,12 @@
           "type": "object"
         }
       },
+      "field_columns": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
       "role": {
         "type": "string"
       },

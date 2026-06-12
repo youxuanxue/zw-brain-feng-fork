@@ -291,7 +291,7 @@ def test_cross_tenant_metrics_isolated(fresh_db: ServiceInvocationMetricReposito
 # 故此处只断言「deny 抛错 + 响应体不含 projection 数据」，不假断言 deny 审计事件。
 # WebUI 不渲染入口已在 P4Credential.vue 正确实现（`<section v-if="canViewInvocations">`，
 # canViewInvocations=canPerformAction('ops.service.invocation.query') 仅 MANAGER+BUSIAUDIT+
-# SECURITY_AUDIT，无权岗位整段真不渲染 = no-permission=invisible）；其可见性 e2e 尚未编写，
+# SYSTEM（D57⑥ 安全审计员退出），无权岗位整段真不渲染 = no-permission=invisible）；其可见性 e2e 尚未编写，
 # 自动化覆盖缺口归 webui e2e 轴（tests/e2e/*.spec.ts，债见 .testing/debt/e2e.debt.yaml）。
 # 本文件覆盖 invoke 侧 policy=deny。
 # ──────────────────────────────────────────────────────────────────────
@@ -313,10 +313,17 @@ def test_unauthorized_role_denied_no_data_leak(brain: BrainService) -> None:
 
 
 def test_authorized_roles_can_query(brain: BrainService) -> None:
-    """ROLE_BUSIAUDIT / ROLE_ORGAN_MANAGER / ROLE_SECURITY_AUDIT 在 execute 集合 → 可读。"""
-    for role in ("ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"):
+    """D57⑥ 后授权集 = {MANAGER, BUSIAUDIT, SYSTEM}：MANAGER 保留（P4 凭据门内自家资源
+    调用记录读面），安全审计员退出服务调用监控（连带全局面收窄）。"""
+    for role in ("ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SYSTEM"):
         res = invoke_trusted(brain, SKILL, {"resource_code": RESOURCE}, role=role)
         assert set(res.keys()) >= {"items", "summary"}, f"{role} 应可读取 {res!r}"
+
+
+def test_security_audit_denied_after_d57(brain: BrainService) -> None:
+    """D57⑥：安全审计员退出服务调用监控 → invocation.query 必拒（双面验证的负向半）。"""
+    with pytest.raises(AccessDeniedError):
+        invoke_trusted(brain, SKILL, {"resource_code": RESOURCE}, role="ROLE_SECURITY_AUDIT")
 
 
 def test_authorized_read_emits_audit(brain: BrainService) -> None:
@@ -503,3 +510,77 @@ def test_metric_summary_aggregation_matches_rows(fresh_db: ServiceInvocationMetr
     assert summary["invokeCount"] == 6
     assert summary["successCount"] == 5
     assert summary["failedCount"] == 1
+
+
+# ──────────────────────────────────────────────────────────────────────
+# D57⑥ 服务端 scope：部门管理员仅见「自家资源被调用情况」（系统机制，非注释承诺）
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _seed_owned_asset(resource_code: str, owner_org: str) -> None:
+    from zw_brain.domain.repositories.resource_api import ResourceApiRepository  # noqa: PLC0415
+
+    ResourceApiRepository().upsert_asset(
+        {
+            "resource_code": resource_code,
+            "title": f"{resource_code} 库表",
+            "resource_kind": "table",
+            "lifecycle_status": "active",
+            "owner_org_id": owner_org,
+        },
+        tenant_id=TENANT,
+    )
+
+
+def test_manager_scoped_to_own_org_rows_only(brain: BrainService) -> None:
+    """管理员无参直调（REST 一等消费面）只得自家行：provider_org 匹配 或 资源属本机构注册资产；
+    summary 也按过滤后计算（不经聚合数泄漏全平台量）。"""
+    repo = ServiceInvocationMetricRepository()
+    # 自家行 ×2：provider_org 直接匹配 / provider_org 缺省但资源注册在本机构名下
+    repo.upsert_metric(_metric(provider_org_id="ORG-A", time_bucket="2026-06-03T10:01"), tenant_id=TENANT)
+    _seed_owned_asset("R-OWNED", "ORG-A")
+    repo.upsert_metric(
+        _metric(resource_code="R-OWNED", provider_org_id="", time_bucket="2026-06-03T10:02"), tenant_id=TENANT
+    )
+    # 别家行 ×1
+    repo.upsert_metric(
+        _metric(resource_code="R-FOREIGN", provider_org_id="ORG-B", time_bucket="2026-06-03T10:03"), tenant_id=TENANT
+    )
+
+    res = invoke_trusted(brain, SKILL, {}, role="ROLE_ORGAN_MANAGER")  # 默认会话 org=ORG-A
+    rows = res["items"]
+    assert rows, "自家行应可见"
+    assert all(
+        r.get("provider_org_id") == "ORG-A" or r.get("resource_code") == "R-OWNED" for r in rows
+    ), f"管理员不得见别家行：{rows!r}"
+    assert all(r.get("resource_code") != "R-FOREIGN" for r in rows)
+    assert res["summary"]["invokeCount"] == sum(int(r.get("invoke_count") or 0) for r in rows)
+
+
+def test_manager_explicit_foreign_owned_resource_denied(brain: BrainService) -> None:
+    """显式查询别家注册资产的调用记录 → 403（明确拒绝，非静默空列表）。"""
+    _seed_owned_asset("R-FOREIGN-OWNED", "ORG-B")
+    ServiceInvocationMetricRepository().upsert_metric(
+        _metric(resource_code="R-FOREIGN-OWNED", provider_org_id="ORG-B"), tenant_id=TENANT
+    )
+    with pytest.raises(AccessDeniedError):
+        invoke_trusted(brain, SKILL, {"resource_code": "R-FOREIGN-OWNED"}, role="ROLE_ORGAN_MANAGER")
+
+
+def test_manager_without_org_context_denied(brain: BrainService) -> None:
+    """无机构上下文的管理员会话（bearer/CLI 无 BFF org）→ fail-closed 拒，不给全平台数据。"""
+    from tests._trusted_payload import actor_snapshot  # noqa: PLC0415
+
+    snap = actor_snapshot("ROLE_ORGAN_MANAGER", org_code="")
+    with pytest.raises(AccessDeniedError):
+        invoke_trusted(brain, SKILL, {}, role="ROLE_ORGAN_MANAGER", snapshot=snap)
+
+
+def test_global_roles_not_scoped(brain: BrainService) -> None:
+    """业务运营员 / 平台运维员保持全局口径（v5 服务调用日志），不受 MANAGER scope 影响。"""
+    ServiceInvocationMetricRepository().upsert_metric(
+        _metric(resource_code="R-ANY", provider_org_id="ORG-B"), tenant_id=TENANT
+    )
+    for role in ("ROLE_BUSIAUDIT", "ROLE_SYSTEM"):
+        res = invoke_trusted(brain, SKILL, {}, role=role)
+        assert any(r.get("resource_code") == "R-ANY" for r in res["items"]), f"{role} 应见全局行"

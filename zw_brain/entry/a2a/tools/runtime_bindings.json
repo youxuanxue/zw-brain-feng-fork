@@ -9921,6 +9921,12 @@
         },
         "confirmed": {
           "type": "boolean"
+        },
+        "field_columns": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
         }
       },
       "required": [
@@ -9983,6 +9989,12 @@
           "type": "object"
         },
         "field_mappings": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "field_columns": {
           "type": "array",
           "items": {
             "type": "object"

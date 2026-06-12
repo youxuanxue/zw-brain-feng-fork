@@ -26,13 +26,12 @@ def _get_workbench(brain, deps, ctx, role: str) -> dict[str, Any]:
     if role not in deps.brain_legacy._snapshot["workbench"]:
         raise NotFoundError(role)
     view = deps.view.workbench.get_for_role(role)
-    # 业务运营员（ROLE_BUSIAUDIT）待办从真实库现算——D53⑤ 收敛为「发布类」五项：待发布目录 /
-    # 待发布资源 / 待受理申请 / 待受理异议 / 待汇总需求（已去错配的「审核类」）；每条带既有办理页
-    # 深链，DB 有积压才生成（无空死链），并清掉删演示单后遗留的陈旧 subtitle/aiSummary。
-    # 待校准：「待受理异议」深链指向的 objection inbox 现仅授权部门管理员（pageAccess），业务运营员
-    # 落点经岗位门重定向——异议受理人角色口径属 D28 GATE，待裁决后校准（投影 or 路由门，二选一）。
-    # 其它角色 view 原样（待办由 sync_request_todos 真投影）。投影口径单一事实源见
-    # workbench_backlog_projection.enrich_workbench_backlog。
+    # 工作台 enrich 覆盖全部 5 角色（D57②/R-8）：业务运营员待办整体替换为真实积压（D53⑤
+    # 发布类五项，每条深链既有办理页、零积压不投）；管理员叠加供数审核待办；操作员维持
+    # 「申请进度」形态、办理建议真实现算；安全审计员=纯只读监督概览；运维员=运维核查。
+    # 「待受理异议」深链 /provider/inbox/objection 已随 D57① 接通受理面（submitted 纳入
+    # 收件箱 + objection.case.accept 可点），原「待裁决后校准」注记已闭合。
+    # 投影口径单一事实源见 workbench_backlog_projection.enrich_workbench_backlog。
     return enrich_workbench_backlog(view, role)
 
 def _submit_service_rating(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:

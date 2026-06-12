@@ -49,13 +49,11 @@ _SHELL_ROLES: dict[str, frozenset[str]] = {
             "ROLE_SECURITY_AUDIT",
         }
     ),
-    # 服务调用监控（D55/P8）：网关运行 / 服务调用统计只读面，从查审计拆出。
-    # 平台运维员保留服务调用监控（v5），管理员 / 审计只读。
+    # 服务调用监控（D55/P8 拆分 → D57⑥ 收窄）：仅平台运维员 + 业务运营员（v5 服务调用日志口径）。
+    # 部门管理员、安全审计员退出全局监控；管理员自家资源调用留 P4 凭据门内。
     "service-ops": frozenset(
         {
-            "ROLE_ORGAN_MANAGER",
             "ROLE_BUSIAUDIT",
-            "ROLE_SECURITY_AUDIT",
             "ROLE_SYSTEM",
         }
     ),

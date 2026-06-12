@@ -168,6 +168,10 @@ export function shortId(raw: unknown): string {
   if (!text) return '—';
   if (HEX_32_RE.test(text) || HEX_24PLUS_RE.test(text) || LONG_CODE_RE.test(text))
     return `…${text.slice(-6)}`;
+  // 复合长编号（前缀 + ≥24 位 hex token，如 DLV-<uuid4hex>：D56 新铸单的派生交付码）：
+  // 整段渲染等于把裸 hex 当主文本（R12 hex-32 泄漏），同样缩末 6 位；full 值由调用方
+  // :title / :href 保全（详情可达性不受影响）。
+  if (HEX_TOKEN_RE.test(text)) return `…${text.slice(-6)}`;
   return text;
 }
 

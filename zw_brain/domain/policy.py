@@ -104,8 +104,11 @@ PERMISSION_ROLES = {
     "package.trust_level.update.execute": {"ROLE_SYSTEM"},
 
     # J1 申请：发起 → 审 → 授权
-    "request.create.execute": {"ROLE_ORGAN_OPERATER"},
-    "request.submit.execute": {"ROLE_ORGAN_OPERATER"},
+    # D57④（feedback-0611-gate）：管理员申请人身份照 v5 保留（「我的申请 = 管理员 + 操作员」）。
+    # MANAGER 此前经 ROLE_HIERARCHY 隐式放行（REST 200）而前端 gate 已砍 → 口径漂移；
+    # 收口劈叉：显式登记 MANAGER，与前端 ACTION_ROLE_GATES set-equal（行为零变更，hierarchy 本就放行）。
+    "request.create.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    "request.submit.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
     # 表单填报（form-autofill）：原地修订与创建同口径（操作员发起/编辑草稿）；
     # 参照选择器为只读带出，放开给填表/审查角色（同 catalog 只读类口径）。
     "request.field.update.execute": {"ROLE_ORGAN_OPERATER"},
@@ -135,10 +138,16 @@ PERMISSION_ROLES = {
     # （v5 网关节点管理 = 平台运维员）；安全审计员退出全部写键。
     "ops.gateway.heartbeat.ingest.execute": {"ROLE_SYSTEM"},
     "ops.gateway.log.anchor.execute": {"ROLE_SYSTEM"},
-    # 服务调用监控（D55/P8，Wave1-S3）：平台运维员保留服务调用监控（v5 服务调用日志 = 平台运维员 +
-    # 业务运营员），故补 ROLE_SYSTEM；部门管理员 / 安全审计员保留只读（v5 监控只读）。
-    "ops.service.invocation.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"},
-    "ops.service.report.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"},
+    # 服务调用监控（D55/P8 拆分 → D57⑥ 收窄）：全局监控面（service-ops 导航 + report.query）=
+    # 平台运维员 + 业务运营员（v5 服务调用日志口径）；部门管理员、安全审计员退出全局监控
+    # （shipped「管理员/审计只读保留」注释是无签字孤证，按已签矩阵收窄）。
+    # invocation.query 保留 MANAGER：D57⑥ 明文「管理员看自家资源被调用情况保留在 P4Credential
+    # 凭据门内」（v5 资源订阅含任务监控=操作员+管理员），该能力唯一前端面即 P4 凭据页调用记录段。
+    # 「自家」是系统机制非注释承诺：handler 侧按会话机构 server-side scope（provider_org 匹配 ∨
+    # 资源属本机构注册资产；无机构上下文/查别家资产 fail-closed 拒），REST/CLI 直调同受限——
+    # 见 handlers/b1/ops_service._scope_invocations_for_manager。
+    "ops.service.invocation.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SYSTEM"},
+    "ops.service.report.query.execute": {"ROLE_BUSIAUDIT", "ROLE_SYSTEM"},
 
     # API 资源全生命周期 —— 角色口径以旧平台角色菜单 v5 + D54 GATE-1 为准（产品研发负责人 2026-06-08 sign-off，
     # .testing/signoff/feedback-0605-acceptance-gate.signoff.yaml）：
@@ -176,8 +185,10 @@ PERMISSION_ROLES = {
     # （旧单步直达 pending_review→approved_pending_publish 作为兼容路径暂留）。
     # 评审流引擎（D25）上线后由节点定义角色，届时整体收回到 PERMISSION_ROLES 显式映射。
     "catalog.entry.review.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    # R-001 fix: r6 (映射到 ROLE_ORGAN_MANAGER) 是提供方部门管理员，应保留对自家目录的发布权
-    "catalog.entry.publish.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    # D57⑤（feedback-0611-gate，回收 R-001 保留）：目录发布权严格 v5「目录发布 = 业务运营员」。
+    # R-001 当时给 MANAGER 的「仅自家目录发布权」无签字背书、且"仅自家"限定后端从未实现——
+    # 既偏离 v5 又未兑现自身限定的中间态，按 D57⑤ 回收；管理员职责定格在「审核」一级（部门审）。
+    "catalog.entry.publish.execute": {"ROLE_BUSIAUDIT"},
     "catalog.entry.withdraw.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "catalog.resource.bind.execute": {"ROLE_ORGAN_OPERATER"},
     # F3 (E2 J2)：发布前重复率检测，read-only 非硬拦。发布链路上 OPERATER 编目 / MANAGER
@@ -194,9 +205,10 @@ PERMISSION_ROLES = {
     # D55/G1（撤回 R-007 交叉审）：照旧平台角色菜单 v5「资源挂接审核 / 资源审核 = 部门管理员」校正，
     # 挂接资产审核归部门管理员（docx 部门管理员待办明文含「资源发布审核」）。
     "resource.asset.review.execute": {"ROLE_ORGAN_MANAGER"},
-    # R-001：r6 (映射到 ROLE_ORGAN_MANAGER) 是提供方部门管理员，保留对自家资源的发布权；
-    # 发布主权属业务运营员（v5 资源发布 = 业务运营员），故二者并存、本次不动。
-    "resource.asset.publish.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    # D57⑤ 同口径机械延伸（feedback-0611-gate）：v5「资源发布 = 业务运营员」，与目录发布同构——
+    # R-001 给 MANAGER 的资源发布保留同样无签字且"仅自家"未实现，一并回收（#251 R3 发布队列 UI
+    # 已门控仅 BUSIAUDIT，本次把 policy 对齐到同口径、收口 UI 窄于 policy 的分歧）。
+    "resource.asset.publish.execute": {"ROLE_BUSIAUDIT"},
 
     # 申请受理（资源端）
     "application.resource.submit.execute": {"ROLE_ORGAN_OPERATER"},

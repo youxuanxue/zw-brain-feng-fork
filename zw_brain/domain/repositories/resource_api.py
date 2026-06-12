@@ -136,7 +136,14 @@ class ResourceApiRepository:
             session.refresh(record)
             return record
 
-    def transition_asset(self, resource_code: str, status: str, *, tenant_id: str = "sd-default") -> ResourceAssetRecord | None:
+    def transition_asset(
+        self,
+        resource_code: str,
+        status: str,
+        *,
+        tenant_id: str = "sd-default",
+        review_note: str | None = None,
+    ) -> ResourceAssetRecord | None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
             record = session.execute(
@@ -148,6 +155,15 @@ class ResourceApiRepository:
             if record is None:
                 return None
             record.lifecycle_status = status
+            if review_note is not None:
+                # D57⑨/R10：审核驳回理由落 summary_json（提交方在向导/详情可见整改依据）；
+                # 同事务原子落库，空串不写（诚实留白）。
+                summary = dict(record.summary_json or {})
+                if review_note.strip():
+                    summary["review_return_reason"] = review_note.strip()
+                else:
+                    summary.pop("review_return_reason", None)
+                record.summary_json = summary
             record.updated_at = _now()
             session.commit()
             session.refresh(record)

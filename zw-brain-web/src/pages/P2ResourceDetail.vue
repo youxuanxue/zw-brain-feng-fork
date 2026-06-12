@@ -24,7 +24,8 @@ import { ref } from 'vue';
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
 const { resource, loading, fetchError } = useResourceDetail(() => id.value);
-// request.create 仅 OPERATER；MANAGER/BUSIAUDIT/SECURITY_AUDIT 在 P2 详情页不渲染「申请资源」。
+// request.create = OPERATER + MANAGER（D57④ 管理员申请人身份照 v5 保留）；BUSIAUDIT/SECURITY_AUDIT
+// 在 P2 详情页不渲染「申请资源」。
 // A1（0605#1）：详情页对「待发布」资源仍可达，但只有「已发布（机器值 active）」才可申请——
 // 叠加状态门控（比对机器值 lifecycleStatus 而非中文展示词，单一事实源），非 active 一律拦下。
 const canApply = computed(

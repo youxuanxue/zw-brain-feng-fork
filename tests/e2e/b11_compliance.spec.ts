@@ -125,9 +125,9 @@ test.describe('B1.1 合规与运营 smoke', () => {
   });
 });
 
-// 服务调用监控（D55/P8）：网关运行只读面拆出独立页 /service-ops。
-// 平台运维员保留服务调用监控（v5），管理员 / 审计只读；审计日志角色（仅安全审计员/业务运营员）
-// 仍可见服务调用监控只读，但「查审计」与「服务调用监控」已是两个独立导航。
+// 服务调用监控（D55/P8 拆分 → D57⑥ 收窄）：网关运行只读面独立页 /service-ops，
+// 仅平台运维员 + 业务运营员（v5 服务调用日志口径）；部门管理员、安全审计员退出全局监控
+// （管理员自家资源被调用情况留 P4 凭据门内）。
 test.describe('B1.3 服务调用监控 smoke', () => {
   test.beforeEach(async ({ page }, testInfo) => {
     await skipUnlessBackend(page, testInfo);
@@ -146,6 +146,22 @@ test.describe('B1.3 服务调用监控 smoke', () => {
   // 无权限即不可见（路由级）：部门操作员既无审计日志权也无服务调用监控权 → 无权进 /service-ops。
   test('ROLE_ORGAN_OPERATER 无权静默进入服务调用监控页', async ({ page }) => {
     await setRole(page, 'ROLE_ORGAN_OPERATER');
+    await gotoHash(page, '#/workbench');
+    await gotoHash(page, '#/service-ops');
+    await expect.poll(() => page.url(), { timeout: 10_000 }).not.toMatch(/#\/service-ops/);
+  });
+
+  // D57⑥：部门管理员退全局服务调用监控（自家资源被调用情况留 P4 凭据门内）→ 深链被路由层弹走。
+  test('ROLE_ORGAN_MANAGER 退服务调用监控：无权静默进入', async ({ page }) => {
+    await setRole(page, 'ROLE_ORGAN_MANAGER');
+    await gotoHash(page, '#/workbench');
+    await gotoHash(page, '#/service-ops');
+    await expect.poll(() => page.url(), { timeout: 10_000 }).not.toMatch(/#\/service-ops/);
+  });
+
+  // D57⑥：安全审计员退服务调用监控（连带 ops.service.* 能力收窄）→ 深链被路由层弹走。
+  test('ROLE_SECURITY_AUDIT 退服务调用监控：无权静默进入', async ({ page }) => {
+    await setRole(page, 'ROLE_SECURITY_AUDIT');
     await gotoHash(page, '#/workbench');
     await gotoHash(page, '#/service-ops');
     await expect.poll(() => page.url(), { timeout: 10_000 }).not.toMatch(/#\/service-ops/);

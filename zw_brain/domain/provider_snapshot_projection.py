@@ -38,12 +38,51 @@ def _entry_to_field_decision(record: Any) -> dict[str, Any]:
     }
 
 
-def _asset_to_hookup_review(record: Any) -> dict[str, Any]:
+# 共享类型机器值 → 政务白话（与 discovery 投影同口径；缺省诚实留空）。
+_SHARE_TYPE_LABELS = {"1": "无条件共享", "2": "有条件共享", "3": "不予共享"}
+
+# 资源物化形态 → 中文标签（挂接审核收件箱被审内容用；canonical 折叠后仅 table/file 进收件箱）。
+_HOOKUP_KIND_LABELS = {"table": "库表", "file": "文件"}
+
+
+def _asset_to_hookup_review(
+    record: Any,
+    *,
+    catalog_title: str = "",
+    owner_name: str = "",
+) -> dict[str, Any]:
+    """挂接资产 → 审核收件箱行（D57⑨/R10 去盲批：带被审登记信息，审核者看得到被审内容）。
+
+    resource_name/catalog_name 喂前端「关联资源」列（此前两键缺失 → safeCatalogName 恒「—」）；
+    kind/owner/source_ref/desc/share_type/field_count 喂行内被审详情（挂接登记信息），
+    全部取真实登记字段、缺省诚实留空（D11，不造假）。
+    """
+    summary = record.summary_json if isinstance(record.summary_json, dict) else {}
+    policy = record.access_policy_json if isinstance(record.access_policy_json, dict) else {}
+    kind = canonical_resource_kind(getattr(record, "resource_kind", None))
+    fields = summary.get("fields")
+    # 挂接位置：legacy 导入走 source_ref 列；UI 新挂接（resource_mount）落 summary（文件
+    # access_path / 库表 table_name），按此回落链取，仍缺则诚实留空。
+    mount_ref = (
+        str(record.source_ref or "")
+        or str(summary.get("access_path") or "")
+        or str(summary.get("table_name") or "")
+    )
     return {
         "id": record.resource_code,
         "title": record.title,
         "status": record.lifecycle_status,
         "catalog_code": record.catalog_code,
+        "resource_name": record.title or "",
+        "catalog_name": catalog_title,
+        "resource_kind": kind,
+        "kind_label": _HOOKUP_KIND_LABELS.get(kind, ""),
+        "owner": owner_name or str(record.owner_org_id or ""),
+        "source_ref": mount_ref,
+        # 资源描述：挂接向导业务块键 resource_desc；legacy/api 同义键 desc/description 回落。
+        "desc": str(summary.get("resource_desc") or summary.get("desc") or summary.get("description") or ""),
+        "share_type_label": _SHARE_TYPE_LABELS.get(str(policy.get("share_type") or ""), ""),
+        "field_count": len(fields) if isinstance(fields, list) else 0,
     }
 
 
@@ -207,6 +246,7 @@ def project_provider_resources(*, tenant_id: str | None = None) -> list[dict[str
     for rec in repo.list_assets(tenant_id=tenant_id):
         if rec.lifecycle_status == "retired":
             continue
+        summary = rec.summary_json if isinstance(rec.summary_json, dict) else {}
         rows.append(
             {
                 "id": rec.resource_code,
@@ -218,6 +258,9 @@ def project_provider_resources(*, tenant_id: str | None = None) -> list[dict[str
                 "owner_org_id": rec.owner_org_id,
                 "owner": org_name(rec.owner_org_id) or str(rec.owner_org_id or ""),
                 "source_ref": rec.source_ref,
+                # D57⑨/R-10 闭环：审核驳回理由（return_for_fix 落 summary）随清单行回显，
+                # 提交方在「资源管理清单」看到整改依据（写了就必须有读面）；无驳回则空。
+                "review_return_reason": str(summary.get("review_return_reason") or ""),
             }
         )
     return rows
@@ -251,19 +294,47 @@ def project_provider_inbox(*, tenant_id: str | None = None) -> dict[str, list[di
     # 其余（库表/文件，**含 kind 缺失的脏行**）都进挂接收件箱：审核正是兜住脏数据的环节，
     # kind 缺失行若被过滤会静默卡死在 pending_review（违诚实呈现），故用「排除 API」而非
     # 「白名单 table/file」；canonical_resource_kind 折叠 legacy 值（service→api、folder→file）。
-    hookup_reviews = [
-        _asset_to_hookup_review(record)
+    # D57⑨/R10 去盲批：行内补被审登记信息——所属目录名（catalog_entry 解析）+ 提供方
+    # 机构名（ReferenceService）+ 登记字段（形态/挂接位置/描述/共享类型/字段数）。
+    hookup_assets = [
+        record
         for record in resource_repo.list_assets(tenant_id=tenant_id, lifecycle_status="pending_review")
         if canonical_resource_kind(getattr(record, "resource_kind", None)) != "api"
+    ]
+    org_name = _org_name_resolver(tenant_id)
+    catalog_title_cache: dict[str, str] = {}
+
+    def _catalog_title(code: Any) -> str:
+        key = str(code or "")
+        if not key:
+            return ""
+        if key not in catalog_title_cache:
+            entry = catalog_repo.get_entry(key, tenant_id=tenant_id)
+            catalog_title_cache[key] = str(entry.title) if entry is not None and entry.title else ""
+        return catalog_title_cache[key]
+
+    hookup_reviews = [
+        _asset_to_hookup_review(
+            record,
+            catalog_title=_catalog_title(record.catalog_code),
+            owner_name=org_name(record.owner_org_id),
+        )
+        for record in hookup_assets
     ]
     demand_matches = [
         _demand_to_match(item)
         for item in supply_repo.list_demands(tenant_id=tenant_id)
         if item.get("demand_phase") in _DEMAND_PROVIDER_PHASES
     ]
+    # 异议收件箱（D57①，R-6）：纳入在办全态——submitted（待受理，接 objection.case.accept）、
+    # platform_investigating（受理后平台核查中，受理动作的落点态，不纳则案件受理即从唯一
+    # 工作面消失=新死端）、provider_investigating（部门核查中，原有口径）。终态
+    # （resolved/rejected/closed）与 draft（未提交）不进收件箱。
+    _OBJECTION_INBOX_STATUSES = ("submitted", "platform_investigating", "provider_investigating")
     objection_cases = [
         _case_to_objection_inbox(record)
-        for record in objection_repo.list_cases(tenant_id=tenant_id, status="provider_investigating")
+        for status in _OBJECTION_INBOX_STATUSES
+        for record in objection_repo.list_cases(tenant_id=tenant_id, status=status)
     ]
     return {
         "field_decisions": field_decisions,

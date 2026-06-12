@@ -228,39 +228,151 @@ def _enrich_manager_backlog(view: dict[str, Any], tenant_id: str) -> dict[str, A
 
     保留 ``sync_request_todos`` 已投的 dept_approved 部门审核待办（可点深链），把现算的供数侧
     审核待办**前插**（去重 by id）。零积压不投供数审核待办（无空死链）。
+    subtitle/aiSummary 同步重写为诚实信号（D57②/R-8：此前管理员一直漏出 seed 虚构
+    「涉企采集准入待判定」叙事）。
     """
-    review_todos = _manager_review_todos(tenant_id)
-    if not review_todos:
-        return view
     out = copy.deepcopy(view)
+    review_todos = _manager_review_todos(tenant_id)
     existing = out.get("todos") or []
     existing_ids = {t.get("id") for t in existing}
     prepended = [t for t in review_todos if t["id"] not in existing_ids]
-    out["todos"] = prepended + existing
+    todos = prepended + existing
+    out["todos"] = todos
+    review_clauses = [str(t["action"]) for t in prepended if t.get("action")]
+    other_count = len(existing)
+    if other_count:
+        review_clauses.append(f"{other_count} 条申请审批/汇总待办")
+    _rewrite_advice(
+        out,
+        clauses=review_clauses,
+        action_titles=[str(t.get("title", "")) for t in todos],
+        empty_summary="当前没有审核待办积压。",
+        basis="待办数据从真实库现算（目录/挂接资源/服务审核态 + 申请单审批态）",
+    )
+    return out
+
+
+def _rewrite_advice(
+    out: dict[str, Any],
+    *,
+    clauses: list[str],
+    action_titles: list[str],
+    empty_summary: str,
+    basis: str,
+) -> None:
+    """subtitle / aiSummary / highlights 重写为真实库现算的诚实信号（D57②/R-8）。
+
+    seed_snapshot.json 的工作台叙事（「停车场…黄金旅程」「绕开模板重复采集」等）是
+    C-1 前的演示虚构文案，违 D11 精神——所有角色的办理建议一律从真实积压现算，
+    零积压给诚实空态，不回退 seed 叙事。
+    """
+    if clauses:
+        out["subtitle"] = f"你有 {len(action_titles)} 条待办：{'、'.join(clauses)}。"
+        out["aiSummary"] = {
+            "summary": f"有{('、'.join(clauses))}，请尽快处理。",
+            "actions": [t for t in action_titles if t],
+            "basis": [basis],
+        }
+    else:
+        out["subtitle"] = empty_summary
+        out["aiSummary"] = {"summary": empty_summary, "actions": [], "basis": [basis]}
+    out["highlights"] = []
+
+
+def _enrich_operator_backlog(view: dict[str, Any]) -> dict[str, Any]:
+    """部门操作员（D57②/R-8）：维持「申请进度」形态（0609 docx 明文，拒协作待办）。
+
+    todos 由 ``sync_request_todos`` 真投影、此处不动；只把 subtitle / 办理建议从 seed
+    虚构叙事改为真实进度现算（分类型：申请在办 / 补录任务），零进度给诚实空态。
+    """
+    out = copy.deepcopy(view)
+    todos = out.get("todos") or []
+    progress = sum(1 for t in todos if str(t.get("category", "")) == "apply-progress")
+    supplements = sum(1 for t in todos if str(t.get("category", "")).startswith("supplement"))
+    other = len(todos) - progress - supplements
+    clauses: list[str] = []
+    if progress:
+        clauses.append(f"{progress} 条申请在办")
+    if supplements:
+        clauses.append(f"{supplements} 项补录任务待完成")
+    if other:
+        clauses.append(f"{other} 项其他进度在跟踪")
+    _rewrite_advice(
+        out,
+        clauses=clauses,
+        action_titles=[str(t.get("title", "")) for t in todos],
+        empty_summary="当前没有进行中的申请。",
+        basis="申请进度从真实库现算（申请单状态 + 补录任务）",
+    )
+    return out
+
+
+def _enrich_supervisor_view(view: dict[str, Any]) -> dict[str, Any]:
+    """安全审计员（D57②/R-8）：纯只读监督岗（D55/P22「无任何写操作权限」）。
+
+    工作台不投写动作待办（todos 恒空、不造监督仪表盘），办理建议改为诚实的只读监督
+    指引——把人引向真正的监督面（查审计），替换 seed 虚构「绕开模板重复采集告警」叙事。
+    P1Workbench.vue 同步把该角色从「申请人」误归类中拆出（监督概览语境）。
+    """
+    out = copy.deepcopy(view)
+    out["todos"] = []
+    out["subtitle"] = "安全审计员为纯只读监督岗，无办理待办。"
+    out["aiSummary"] = {
+        "summary": "如需开展监督核查，请前往「查审计」查看审计事件、证据回放与合规态势。",
+        "actions": [],
+        "basis": ["安全审计员收敛纯只读（D55/P22）：工作台不投写动作待办"],
+    }
+    out["highlights"] = []
+    return out
+
+
+def _enrich_ops_view(view: dict[str, Any]) -> dict[str, Any]:
+    """平台运维员（D57②/R-8 核查）：工作台为运维核查语境，办理建议诚实现算。
+
+    本期运维写待办（工单/巡检）无 UI 收件箱深链可达 → 不投（无空死链，同 G4 口径）；
+    指引指向真实可达的运维面（服务调用监控 / 后台模块）。
+    """
+    out = copy.deepcopy(view)
+    todos = out.get("todos") or []
+    _rewrite_advice(
+        out,
+        clauses=[f"{len(todos)} 项运维事项待处理"] if todos else [],
+        action_titles=[str(t.get("title", "")) for t in todos],
+        empty_summary="当前没有运维待办积压。",
+        basis="运维例行核查面：网关运行与服务调用统计见「服务调用监控」，外部系统/流程表单/身份治理见后台模块",
+    )
     return out
 
 
 def enrich_workbench_backlog(
     view: dict[str, Any], role: str, *, tenant_id: str | None = None
 ) -> dict[str, Any]:
-    """工作台 todos 从真实库现算（业务运营员整体替换；部门管理员叠加供数审核待办）.
+    """工作台 todos / 办理建议从真实库现算，enrich 覆盖全部 5 角色（D57②/R-8）.
 
     与 ``discovery_snapshot_projection`` 同模式：**无条件以 DB 现算为准**——有积压给真实
     待办，零积压给诚实空列表（不回退陈旧 seed 文案）。subtitle/aiSummary 也据现算积压
-    重写为诚实信号，消除 C-1 删演示单后遗留的陈旧引用。
+    重写为诚实信号，消除 C-1 删演示单后遗留的虚构叙事（R-8）。
 
     - 业务运营员（ROLE_BUSIAUDIT）：todos **整体替换**为真实库积压（受理/发布/汇总，单一事实源）。
     - 部门管理员（ROLE_ORGAN_MANAGER）：在 ``sync_request_todos`` 已投的「部门审核待办（dept_approved）」
-      之上**叠加供数侧审核待办**（目录 / 挂接资源 / 服务注册待部门审 pending_review，分别深链
-      catalog-review 收件箱 / hookup-review 收件箱 / API 服务向导，D55/P10·G4），零积压不投。
-      其余角色（部门操作员）待办由 ``sync_request_todos`` 真投影，不在此重算。
+      之上**叠加供数侧审核待办**（目录 / 挂接资源 / 服务注册待部门审 pending_review，D55/P10·G4），
+      零积压不投；办理建议重写。
+    - 部门操作员（ROLE_ORGAN_OPERATER）：维持「申请进度」形态（0609 docx，拒协作待办），
+      todos 由 sync 投影不动，办理建议从真实进度现算。
+    - 安全审计员（ROLE_SECURITY_AUDIT）：纯只读监督岗，todos 恒空 + 只读监督指引。
+    - 平台运维员（ROLE_SYSTEM）：运维核查语境，诚实空态/积压计数。
     """
-    tid_for_manager = tenant_id or get_runtime_tenant_id()
+    tid = tenant_id or get_runtime_tenant_id()
     if role == _MANAGER_ROLE:
-        return _enrich_manager_backlog(view, tid_for_manager)
+        return _enrich_manager_backlog(view, tid)
+    if role == "ROLE_ORGAN_OPERATER":
+        return _enrich_operator_backlog(view)
+    if role == "ROLE_SECURITY_AUDIT":
+        return _enrich_supervisor_view(view)
+    if role == "ROLE_SYSTEM":
+        return _enrich_ops_view(view)
     if role != _BUSIAUDIT_ROLE:
         return view
-    tid = tenant_id or get_runtime_tenant_id()
     out = copy.deepcopy(view)
     todos = _backlog_todos(tid)
     out["todos"] = todos

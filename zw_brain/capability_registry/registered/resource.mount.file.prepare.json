@@ -35,6 +35,12 @@
       },
       "confirmed": {
         "type": "boolean"
+      },
+      "field_columns": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
       }
     },
     "required": [

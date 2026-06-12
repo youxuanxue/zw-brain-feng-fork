@@ -81,15 +81,16 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     roles: ['ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
   },
   {
-    // 服务调用监控（D55/P8）：网关运行 / 服务调用统计只读面，从查审计中拆出独立导航。
-    // 平台运维员保留服务调用监控（v5 服务调用日志 = 平台运维员 + 业务运营员）；
-    // 部门管理员 / 安全审计员保留只读。角色门与后端 ops.service.report.query.execute 一致。
+    // 服务调用监控（D55/P8 拆分 → D57⑥ 收窄）：网关运行 / 服务调用统计只读面。
+    // 仅平台运维员 + 业务运营员（v5 服务调用日志口径）；部门管理员、安全审计员退出全局监控
+    // （管理员「自家资源被调用情况」保留在领数据 P4 凭据门内，不在此导航）。
+    // 角色门与后端 ops.service.report.query.execute 一致。
     key: 'service-ops',
     navLabel: '服务调用监控',
     navDesc: '网关运行与服务调用统计只读',
     to: '/service-ops',
     group: 'admin',
-    roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT', 'ROLE_SYSTEM'],
+    roles: ['ROLE_BUSIAUDIT', 'ROLE_SYSTEM'],
   },
   {
     // 「接入扩展中心」容器解体（负责人 2026-06-05 裁）：后台四模块各自独立成导航——

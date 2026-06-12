@@ -6340,6 +6340,11 @@
           "type": "string"
         },
         {
+          "name": "field_columns",
+          "required": false,
+          "type": "array"
+        },
+        {
           "name": "file_name",
           "required": false,
           "type": "string"
@@ -6393,6 +6398,11 @@
           "name": "connection",
           "required": false,
           "type": "object"
+        },
+        {
+          "name": "field_columns",
+          "required": false,
+          "type": "array"
         },
         {
           "name": "field_mappings",
