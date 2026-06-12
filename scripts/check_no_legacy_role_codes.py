@@ -122,6 +122,9 @@ ALLOWED_FILES = (
     # 旧 xlsx 50 条不复刻清单引用旧角色 + 架构 R1 反 SPA 反模式
     # 与已退役 R1-R8 用户角色码完全不同 namespace（讨论的是旧平台/架构约束），整文件白名单
     "docs/legacy-not-reproduce-signoff.md",
+    # D57 决策包引用 0611 核查报告修复清单 R-编号（R1–R15，old/问题反馈/问题反馈-0611-核查报告与修复清单.md）
+    # 与已退役 R1-R8 用户角色码完全不同 namespace（修复任务编号），R-编号密集，整文件白名单
+    "docs/decisions/feedback-0611-gate-D57.md",
 )
 
 
