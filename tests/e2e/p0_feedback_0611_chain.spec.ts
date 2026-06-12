@@ -2,10 +2,11 @@
 //   链路 1（R1+R2+R3）：UI 在线编目 → 部门审 → 平台审 → 发布队列可见+发布（R2）→
 //     挂接有条件(共享类型=2)库表资源 → 挂接审核 → 待发布资源队列发布（R3）→
 //     申请（resourceId=资源码）→ 业务运营员受理 → **部门管理员二级审核可见可操作**（R1，D55④）。
-//   链路 2（R4）：反向编目审核收件箱只列可办草稿（source=reverse ∧ lifecycle=draft），
-//     行内「通过审核」真能通过（修复前列 pending_review 全集、行行 409）。
-// 全部写动作经真实 UI 点击；唯一 API 介入 = 读侧 glue（按标题查内部目录码）与
-// 链路 2 的反向草稿预铸（precondition，与 wave15 预铸单同模式）。
+//   链路 2（D57⑧，改写原 R4 单级链）：反向编目两级审核全链——操作员经供数首屏主卡（B2 同级展示）
+//     UI 创建两条反向草稿 → 部门管理员部门审（通过/驳回各一）→ 业务运营员平台审（目录审核收件箱
+//     平台档，BUSIAUDIT 落 field-decision 路由时对位跳转）→ 发布；双面权限（操作员/运营员
+//     无部门审入口）一并钉死。替换原「仅 BUSIAUDIT 一级 confirm」路径的旧断言。
+// 全部写动作经真实 UI 点击；唯一 API 介入 = 读侧 glue（按标题查内部目录码 / 终态校验）。
 import { expect, test, type Page } from '@playwright/test';
 import { E2E_BASE_URL, gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
 
@@ -139,39 +140,111 @@ test('链路1：UI 新编目→挂接有条件资源→发布→申请→受理�
   await expect(page.locator('body')).toContainText(/已授权|审核通过/, { timeout: 15_000 });
 });
 
-test('链路2：反向编目审核收件箱列可办草稿且通过审核不再 409（R4）', async ({ page, request }, testInfo) => {
-  test.setTimeout(120_000);
-
-  // 预铸一条反向编目草稿（precondition，与 wave15 预铸单同模式；request fixture 无 cookie 免
-  // CSRF）。**先铸后登录**：收件箱读 snapshot 投影，登录时取一次——铸单须发生在快照拉取之前。
-  const draftCode = `rev-e2e-0611-${TS}`;
-  const draftTitle = `反向编目验证草稿${TS}`;
-  const minted = await request.post(`${E2E_BASE_URL}/api/skills/catalog.entry.reverse_draft.create`, {
-    data: {
-      role: 'ROLE_ORGAN_MANAGER',
-      catalog_code: draftCode,
-      title: draftTitle,
-      owner_org_id: ORG,
-      schema_ref: `schema:${draftCode}`,
-      confirmed: true,
-    },
-  });
-  expect(minted.ok(), `reverse_draft.create HTTP ${minted.status()}`).toBeTruthy();
-
+test('链路2：反向编目两级审核全链——操作员UI创建→管理员部门审(通过/驳回)→运营员平台审→发布（D57⑧）', async ({ page, request }, testInfo) => {
+  test.setTimeout(300_000);
   await page.goto(E2E_BASE_URL);
   await skipUnlessBackend(page, testInfo);
   await waitAppReady(page);
 
-  // 业务运营员：收件箱应列出该草稿（修复前收件箱列 pending_review 全集，待审草稿永不出现）。
-  await setRole(page, 'ROLE_BUSIAUDIT');
-  await gotoHash(page, '#/provider/inbox/field-decision');
-  const row = page.locator('tr', { hasText: draftTitle });
-  await expect(row).toHaveCount(1, { timeout: 15_000 });
-  await row.getByRole('link', { name: '处理' }).click();
+  // 1) 部门操作员：B2 同级展示——供数首屏主卡「反向编目」与「在线编制目录」并列，点卡进向导。
+  await setRole(page, 'ROLE_ORGAN_OPERATER');
+  await gotoHash(page, '#/provider');
+  const reverseCard = page.locator('a.supply-card', { hasText: '反向编目' });
+  await expect(reverseCard).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('a.supply-card', { hasText: '在线编制目录' })).toHaveCount(1);
+  await reverseCard.click();
+  await expect(page.locator('body')).toContainText('反向编目向导', { timeout: 15_000 });
 
-  // 详情页「通过审核」必须真通过（修复前行行 409 invalid_state 死循环）。
+  // 2) 操作员经真实 UI 创建两条反向草稿（产品语义=对既有带 schema 目录反查重编）：
+  //    A 走「部门审通过→平台审→发布」，B 走「部门审驳回」。
+  const select = page.locator('select.gov-select');
+  await expect(select).toBeVisible({ timeout: 15_000 });
+  const optionCount = await select.locator('option:not([disabled])').count();
+  expect(optionCount, '反向编目向导应至少列出 2 个可发起目录').toBeGreaterThanOrEqual(2);
+  const mintDraft = async (index: number): Promise<{ code: string; name: string }> => {
+    const opt = select.locator('option:not([disabled])').nth(index);
+    const code = String(await opt.getAttribute('value'));
+    await select.selectOption(code);
+    const label = String(await opt.textContent()).trim();
+    const name = label.replace(/（[^）]*）\s*$/, ''); // 去掉「（状态）」尾注得目录名
+    await page.getByRole('button', { name: '创建反向编目草稿' }).click();
+    await expect(page.locator('.toast-stack')).toContainText('反向编目草稿已创建', { timeout: 15_000 });
+    return { code, name };
+  };
+  const draftA = await mintDraft(0);
+  const draftB = await mintDraft(1);
+
+  // 3) 双面验证（操作员无任何反向审核权，做的人不审自己）：
+  //    深链部门审收件箱被弹走（无权=不可达），供数页协作待办无「反向编目审核」卡。
+  await gotoHash(page, '#/provider/inbox/field-decision');
+  await expect(page).not.toHaveURL(/field-decision/, { timeout: 15_000 });
+  await gotoHash(page, '#/provider');
+  await expect(page.locator('.stat-card', { hasText: '反向编目审核' })).toHaveCount(0);
+
+  // 4) 部门管理员：第一级部门审。协作待办卡可见 → 收件箱列出两条草稿。
+  // 收件箱读 snapshot 投影；同会话切岗位可能命中登录期预取的「铸单前」兄弟岗位快照
+  // （#126 CQRS/SSE 架构门刻意延后，跨会话陈旧属已知边界）——审核人以新加载会话进入
+  // （reload + 重登录），快照必取于铸单之后，与真实「管理员打开系统办审核」同形。
+  await setRole(page, 'ROLE_ORGAN_MANAGER');
+  await page.reload();
+  await waitAppReady(page);
+  await setRole(page, 'ROLE_ORGAN_MANAGER');
+  await gotoHash(page, '#/provider');
+  await expect(page.locator('.stat-card', { hasText: '反向编目审核' })).toHaveCount(1, { timeout: 15_000 });
+  await gotoHash(page, '#/provider/inbox/field-decision');
+  const detailLink = (code: string) =>
+    page.locator(`a[href="#/provider/inbox/field-decision/${encodeURIComponent(code)}"]`);
+  await expect(detailLink(draftA.code)).toHaveCount(1, { timeout: 30_000 });
+  await expect(detailLink(draftB.code)).toHaveCount(1);
+
+  // 4a) 草稿 A 部门审通过 → 转平台审。
+  await detailLink(draftA.code).click();
   const approveBtn = page.getByRole('button', { name: '通过审核' });
   await expect(approveBtn).toBeVisible({ timeout: 15_000 });
   await approveBtn.click();
-  await expect(page.locator('.toast-stack')).toContainText('已通过', { timeout: 15_000 });
+  await expect(page.locator('.toast-stack')).toContainText('已通过部门审', { timeout: 15_000 });
+
+  // 4b) 草稿 B 部门审驳回 → rejected 终态（部门审驳回不进平台审）。
+  await gotoHash(page, '#/provider/inbox/field-decision');
+  await detailLink(draftB.code).click();
+  const rejectBtn = page.getByRole('button', { name: '驳回' });
+  await expect(rejectBtn).toBeVisible({ timeout: 15_000 });
+  await rejectBtn.click();
+  await expect(page.locator('.toast-stack')).toContainText('已驳回', { timeout: 15_000 });
+
+  // 5) 业务运营员：落到旧部门审路由应对位跳转目录审核收件箱（BUSIAUDIT 退出 draft 阶段确认，
+  //    其反向审核=平台审，双面验证）。
+  await setRole(page, 'ROLE_BUSIAUDIT');
+  await gotoHash(page, '#/provider/inbox/field-decision');
+  await expect(page).toHaveURL(/catalog-review/, { timeout: 15_000 });
+
+  // 5a) 平台审：目录审核收件箱平台档列出草稿 A（汇入正向管线，不另造第二套审核），通过。
+  const platformRow = page.locator('tr', { hasText: draftA.code }).first();
+  await expect(platformRow).toBeVisible({ timeout: 15_000 });
+  await platformRow.getByTestId('catalog-review-approve-btn').click();
+  await expect(page.locator('tr', { hasText: draftA.code })).toHaveCount(0, { timeout: 15_000 });
+
+  // 6) 发布：草稿 A 进入待发布队列并由业务运营员发布（与正向编制同终点）。
+  //    行锚定用 code[title=<目录码>]（full 码在 :title 保全），避免同名标题误中他行。
+  await gotoHash(page, '#/provider');
+  const catQueue = page.locator('section[aria-label="待发布目录"]');
+  const pubRow = catQueue
+    .locator('li.publish-row')
+    .filter({ has: page.locator(`code[title="${draftA.code}"]`) });
+  await expect(pubRow).toHaveCount(1, { timeout: 15_000 });
+  await pubRow.getByTestId('publish-catalog-btn').click();
+  await expect(page.locator('.toast-stack')).toContainText('目录已提交发布', { timeout: 15_000 });
+
+  // 7) 终态校验（读侧 glue）：A=active（已发布）、B=rejected（部门审驳回终态）。
+  const verify = await request.post(`${E2E_BASE_URL}/api/skills/catalog.entry.query`, {
+    data: { role: 'ROLE_BUSIAUDIT', catalog_code: draftA.code },
+  });
+  expect(verify.ok()).toBeTruthy();
+  const verifyBody = (await verify.json()) as { items?: Array<{ lifecycle_status?: string }> };
+  expect(verifyBody.items?.[0]?.lifecycle_status).toBe('active');
+  const verifyB = await request.post(`${E2E_BASE_URL}/api/skills/catalog.entry.query`, {
+    data: { role: 'ROLE_BUSIAUDIT', catalog_code: draftB.code },
+  });
+  const verifyBodyB = (await verifyB.json()) as { items?: Array<{ lifecycle_status?: string }> };
+  expect(verifyBodyB.items?.[0]?.lifecycle_status).toBe('rejected');
 });

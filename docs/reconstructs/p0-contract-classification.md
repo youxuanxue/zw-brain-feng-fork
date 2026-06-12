@@ -73,9 +73,9 @@ sources:
 | 35 | catalog.entry.create | builtin/internal | j2 | live | 保留 | J2 编目 |
 | 36 | catalog.entry.publish | builtin/internal | j2 | live | 保留 | J2 发布 |
 | 37 | catalog.entry.query | builtin/internal | j1 | live | 保留 | P2 条目查询 |
-| 38 | catalog.entry.reverse_draft.confirm | builtin/internal | j2 | live | 保留 | J2 反向编目（ROLE_BUSIAUDIT） |
+| 38 | catalog.entry.reverse_draft.confirm | builtin/internal | j2 | live | 保留 | J2 反向编目（ROLE_ORGAN_MANAGER 部门审，D57⑧） |
 | 39 | catalog.entry.reverse_draft.create | builtin/internal | j2 | live | 保留 | J2 反向编目（ROLE_ORGAN_MANAGER） |
-| 40 | catalog.entry.reverse_draft.reject | builtin/internal | j2 | live | 保留 | J2 反向编目（ROLE_BUSIAUDIT） |
+| 40 | catalog.entry.reverse_draft.reject | builtin/internal | j2 | live | 保留 | J2 反向编目（ROLE_ORGAN_MANAGER 部门审，D57⑧） |
 | 41 | catalog.entry.reverse_draft.suggest | builtin/internal | j2 | live | 保留 | J2 反向编目（suggest） |
 | 42 | catalog.entry.review | builtin/internal | j2 | live | 保留 | J2 平台复核 |
 | 43 | catalog.entry.submit_review | builtin/internal | j2 | live | 保留 | J2 提交复核 |

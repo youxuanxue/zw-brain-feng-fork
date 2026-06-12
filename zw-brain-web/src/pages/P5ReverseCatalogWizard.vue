@@ -76,7 +76,7 @@ async function createDraft() {
     pushToast({
       kind: 'info',
       title: '暂无创建权限',
-      detail: '创建反向编目草稿由部门操作员、部门管理员办理；业务运营员请在反向编目审核收件箱审核草稿。',
+      detail: '创建反向编目草稿由部门操作员、部门管理员办理；草稿经部门管理员部门审、业务运营员平台审后发布。',
     });
     return;
   }
@@ -119,11 +119,6 @@ async function suggestFields() {
 
         <DetailPanel v-if="selected" title="编目前预览" :rows="previewRows" />
 
-        <p v-if="selected && !canCreateDraft" class="role-hint">
-          业务运营员可生成字段建议；创建草稿请切换为部门管理员，或到
-          <a href="#/provider/inbox/field-decision">反向编目审核收件箱</a> 审核已有草稿。
-        </p>
-
         <DetailActions v-if="selected">
           <button type="button" class="gov-btn gov-btn-secondary" @click="suggestFields">生成字段建议</button>
           <button v-if="canCreateDraft" type="button" class="gov-btn gov-btn-primary" @click="createDraft">
@@ -144,6 +139,4 @@ async function suggestFields() {
 .gov-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; }
 .gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
 .gov-btn-secondary { background: #fff; border-color: var(--b-border, #d4e2f4); }
-.role-hint { font-size: 13px; color: var(--b-muted, #5c6370); margin: 0 0 12px; line-height: 1.5; }
-.role-hint a { color: var(--b-primary, #006be6); }
 </style>

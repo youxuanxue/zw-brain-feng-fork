@@ -1,7 +1,7 @@
 {
   "slug": "catalog.entry.reverse_draft.reject",
   "title": "反向编目草稿驳回",
-  "description": "业务运营员 对反向编目草稿做不予通过裁决；catalog_entry.lifecycle_status 退回 rejected 并写明驳回理由，等待 提供方部门 补充 schema 证据后重新提交。",
+  "description": "部门管理员 部门审驳回反向编目草稿（D57⑧ 两级管线第一级）；catalog_entry.lifecycle_status 退回 rejected 并写明驳回理由，等待 提供方部门 补充 schema 证据后重新提交。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",
@@ -66,7 +66,7 @@
   "tags": [
     "catalog",
     "reverse_draft",
-    "ROLE_BUSIAUDIT",
+    "ROLE_ORGAN_MANAGER",
     "write"
   ],
   "product_scope": {

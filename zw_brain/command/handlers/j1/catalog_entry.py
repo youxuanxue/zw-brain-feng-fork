@@ -375,6 +375,14 @@ def _create_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any
     return deps.write(ctx, payload, mutation)
 
 def _confirm_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
+    """反向编目部门审通过（D57⑧ 两级管线第一级，部门管理员）。
+
+    字段口径裁决（field_decisions）随部门审落 summary（语义保留在部门审级）。通过后
+    直接落 ``pending_platform_review`` 汇入正向目录审核的**平台档**——由业务运营员在
+    目录审核收件箱经既有 ``catalog.entry.review``（pending_platform_review + BUSIAUDIT
+    → approved_pending_publish）复核，不另造第二套审核状态机。不落 ``pending_review``：
+    那是正向编制的部门档，落它会让同一管理员对同一草稿部门审两遍（三级化）。
+    """
     role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     catalog_code = str(payload["catalog_code"])
@@ -389,17 +397,18 @@ def _confirm_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, An
             raise InvalidStateError(f"catalog_entry {catalog_code} is not a reverse draft (source={summary.get('source')!r})")
         if existing.lifecycle_status != "draft":
             raise InvalidStateError(f"catalog_entry {catalog_code} is not in draft (current={existing.lifecycle_status})")
-        summary["status"] = "pending_review"
+        summary["status"] = "pending_platform_review"
         summary["field_decisions"] = payload.get("field_decisions") or []
         summary["confirmation_comment"] = payload.get("comment")
         summary["confirmed_by_audit"] = audit_id
         repo.upsert_from_resource(summary, tenant_id=_DEFAULT_TENANT_ID)
         deps.append_audit_feed("catalog.entry.reverse_draft.confirm", catalog_code, "ok", actor)
-        return with_lifecycle_label({"catalog_code": catalog_code, "lifecycle_status": "pending_review", "audit_id": audit_id})
+        return with_lifecycle_label({"catalog_code": catalog_code, "lifecycle_status": "pending_platform_review", "audit_id": audit_id})
 
     return deps.write(ctx, payload, mutation)
 
 def _reject_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
+    """反向编目部门审驳回（D57⑧ 两级管线第一级，部门管理员；理由必填）。"""
     role = str(payload.get("role", ctx.role))
     confirmed = bool(payload.get("confirmed"))
     catalog_code = str(payload["catalog_code"])
@@ -426,6 +435,9 @@ def _review_catalog_entry(brain, deps, ctx, catalog_code: str, decision: str, ro
     # F1 (E2 J2 3-layer): stage-aware approval.
     #   pending_review            ← 部门待审（MANAGER 审）
     #   pending_platform_review   ← 平台待审（BUSIAUDIT 复核；F1 新增运行时态，不入 CATALOG_STATUS_TO_LIFECYCLE）
+    # D57⑧：反向编目草稿经部门审（reverse_draft.confirm，MANAGER）后直接落
+    # pending_platform_review 汇入本管线平台档；BUSIAUDIT 在此复核即两级闭环。
+    # return_for_fix 对反向单回 draft = 回部门审收件箱（source=reverse ∧ draft 口径）。
     # 旧单步兼容路径：state=pending_review + role=BUSIAUDIT → 直达 approved_pending_publish。
     # 留作渐进迁移，待全部调用方迁到 3 层后再决策是否移除（见 F1 review skeleton 决策点②）。
     if decision == "approve":

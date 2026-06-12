@@ -83,7 +83,13 @@ _ROUTE_ROLE_OVERRIDES: list[tuple[str, frozenset[str], str | None]] = [
     # G3：资源挂接向导 / 代理服务注册向导 = 部门操作员 + 部门管理员（供数维护 / API 注册），业务运营员退出。
     ("/provider/wizard/hookup-submit", frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"}), None),
     ("/provider/wizard/api-service", frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"}), None),
-    ("/provider/inbox/field-decision", frozenset({"ROLE_BUSIAUDIT"}), None),
+    # D57⑧：反向编目审核两级管线第一级（部门审）= 部门管理员；业务运营员对位下一站 =
+    # 目录审核收件箱（平台审档）；操作员无任何反向审核权（做的人不审自己）。
+    (
+        "/provider/inbox/field-decision",
+        frozenset({"ROLE_ORGAN_MANAGER"}),
+        "/provider/inbox/catalog-review",
+    ),
     # G1：挂接审核照 v5「资源挂接审核 = 部门管理员」校正（撤回 R-007 交叉审）。
     ("/provider/inbox/hookup-review", frozenset({"ROLE_ORGAN_MANAGER"}), None),
     # G6：异议响应 = 部门管理员 + 业务运营员（v5「异议核查」），翻转 wave1.5 P20 的 MANAGER-only 锁定。
@@ -220,12 +226,25 @@ def test_supply_wizards_operater_and_manager_only() -> None:
         assert not _is_route_allowed(route, "ROLE_BUSIAUDIT")
 
 
-def test_field_decision_only_busiaudit() -> None:
+def test_field_decision_only_manager() -> None:
+    # D57⑧：反向编目部门审 = 部门管理员；业务运营员退出 draft 阶段审核（其反向审核
+    # 在目录审核收件箱平台档）；操作员双面均不可达（做的人不审自己）。
     assert _is_route_allowed(
+        "/provider/inbox/field-decision/abc", "ROLE_ORGAN_MANAGER"
+    )
+    assert not _is_route_allowed(
         "/provider/inbox/field-decision/abc", "ROLE_BUSIAUDIT"
     )
     assert not _is_route_allowed(
         "/provider/inbox/field-decision/abc", "ROLE_ORGAN_OPERATER"
+    )
+
+
+def test_field_decision_busiaudit_redirects_to_platform_review() -> None:
+    """D57⑧ 对位下一站：业务运营员落在反向编目审核（部门审）→ 跳目录审核收件箱（平台审档）。"""
+    assert (
+        _default_route_for_role("ROLE_BUSIAUDIT", "/provider/inbox/field-decision")
+        == "/provider/inbox/catalog-review"
     )
 
 
@@ -471,7 +490,7 @@ def _href_to_path(href: str) -> str:
 # 工作台投影的角色 → 深链目标集合（与 zw_brain/domain/workbench_backlog_projection.py +
 # zw_brain/command/sync.py sync_request_todos 的 href 单源对齐）。
 _PROJECTION_DEEPLINKS: dict[str, frozenset[str]] = {
-    # 业务运营员（受理岗 + 发布/汇总积压）
+    # 业务运营员（受理岗 + 发布/汇总积压 + 平台审）
     "ROLE_BUSIAUDIT": frozenset(
         {
             "/request-flow/review",        # 受理待办（sync_request_todos accept）
@@ -481,13 +500,16 @@ _PROJECTION_DEEPLINKS: dict[str, frozenset[str]] = {
             # G6（D55 查缺补漏）：异议收件箱按 v5「异议核查 = 业务运营员 + 部门管理员」开放
             # BUSIAUDIT 后深链激活，移入 must-pass（原 known-debt 锁定断言随校准删除）。
             "/provider/inbox/objection",   # 待受理异议 backlog
+            # D57⑧：待平台审核目录 backlog（正向部门审通过 + 反向部门审通过共用平台档）。
+            "/provider/inbox/catalog-review",
         }
     ),
-    # 部门管理员（部门审核 + 供数侧目录审核）
+    # 部门管理员（部门审核 + 供数侧目录审核 + 反向编目部门审）
     "ROLE_ORGAN_MANAGER": frozenset(
         {
             "/request-flow/review",                # 部门审核待办（dept_approved）
             "/provider/inbox/catalog-review",      # 目录待部门审 backlog（P10）
+            "/provider/inbox/field-decision",      # 待审核反向编目草稿 backlog（D57⑧ 部门审）
         }
     ),
     # 部门操作员（申请进度）

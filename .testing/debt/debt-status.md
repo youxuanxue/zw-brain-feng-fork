@@ -2,7 +2,7 @@
 
 # Preflight Debt Status (computed)
 
-## open (40)
+## open (41)
 - ac7 [medium] (2026-05-25) — 客户机房部署 + 监控对接未落地（E6 AC7）
   - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
 - agentruntime [medium] (2026-05-24) — AgentRuntime runtime 触发式延后（D30 retrofit）
@@ -28,6 +28,9 @@
   - assert: grep_absent → pattern absent in zw_brain/adapters/legacy/mappers/catalog_metadata.py
 - catalog-entry [medium] (2026-05-30) — F9 专题包引用目录未录入 catalog_entry 主表（不可检索 / 无详情页）
   - assert: external → external — owner=产品研发负责人; trigger=见 docs/preflight-debt.md 历史归档
+- catalog-review-negative-stage-guard [low] (2026-06-13) — catalog.entry.review 负向边（reject/return_for_fix）缺阶段×角色阶梯守卫
+  - assert: external → external — owner=产品研发负责人; trigger=(a) 出现一次 MANAGER 对 pending_platform_review 单驳回/退回的真实越级操作（审计可查）； 或 (b) F1 决策点②「旧单步兼容路径移除」窗口期，连同负向边一并补阶梯。
+
 - commit-to-live [medium] (2026-05-28) — 三引擎 commit_to_live A 方案 hack（版本号膨胀）
   - assert: external → external — owner=产品研发负责人; trigger=见 docs/preflight-debt.md 历史归档
 - concept-b-supply-contract [medium] (2026-05-30) — 概念 B「部门级数据供给契约」（真业务订阅）待立项

@@ -70,6 +70,15 @@ def _seed_backlog() -> None:
             {"id": f"cat-rev-{i}", "name": f"待审核目录{i}", "status": "pending_review", "provider": "11370000MB284651XL"},
             tenant_id=TENANT,
         )
+    # D57⑧ 两级各自入账：反向编目草稿（部门审，MANAGER）+ 平台审档目录（BUSIAUDIT）。
+    catalog.upsert_from_resource(
+        {"id": "cat-reverse-draft-1", "name": "反向编目草稿甲", "status": "draft", "source": "reverse", "provider": "11370000MB284651XL"},
+        tenant_id=TENANT,
+    )
+    catalog.upsert_from_resource(
+        {"id": "cat-platform-1", "name": "待平台审目录甲", "status": "pending_platform_review", "provider": "11370000MB284651XL"},
+        tenant_id=TENANT,
+    )
 
     resource = ResourceApiRepository()
     resource.upsert_asset(
@@ -116,10 +125,16 @@ def test_busiaudit_workbench_todos_are_operator_duties(temp_db: Path) -> None:
     assert todos["backlog-application"]["title"] == "待受理申请 1 条"
     assert todos["backlog-objection"]["title"] == "待受理异议 1 条"
     assert todos["backlog-demand"]["title"] == "待汇总需求 1 条"
+    # D57⑧：平台审待办归业务运营员（正向部门审通过 + 反向部门审通过共用平台档），
+    # 深链目录审核收件箱（BUSIAUDIT 档=平台审）。
+    assert todos["backlog-catalog-platform-review"]["title"] == "待平台审核目录 1 条"
+    assert todos["backlog-catalog-platform-review"]["href"] == "#/provider/inbox/catalog-review"
 
     assert "backlog-catalog-review" not in todos
     assert "backlog-resource-review" not in todos
     assert "backlog-purpose-quality" not in todos
+    # 部门审类（含反向编目部门审）不入业务运营员工作台（D57⑧ 部门审归 MANAGER）。
+    assert "backlog-reverse-draft-review" not in todos
 
     assert "陈旧" not in out["subtitle"]
     assert out["highlights"] == []
@@ -221,6 +236,11 @@ def test_manager_gets_provider_review_backlog_prepended(temp_db: Path) -> None:
     assert "backlog-catalog-dept-review" in todos
     assert todos["backlog-catalog-dept-review"]["title"] == "待审核目录 2 条"
     assert todos["backlog-catalog-dept-review"]["href"] == "#/provider/inbox/catalog-review"
+    # D57⑧：反向编目部门审待办归部门管理员，深链反向编目审核收件箱（与收件箱口径
+    # source=reverse ∧ draft 同源）；平台审待办不入管理员工作台。
+    assert todos["backlog-reverse-draft-review"]["title"] == "待审核反向编目草稿 1 条"
+    assert todos["backlog-reverse-draft-review"]["href"] == "#/provider/inbox/field-decision"
+    assert "backlog-catalog-platform-review" not in todos
     assert "REQ-x" in todos, "原有部门审核待办应保留"
     # 前插顺序：供数审核待办在原有待办之前
     assert out["todos"][0]["id"] == "backlog-catalog-dept-review"

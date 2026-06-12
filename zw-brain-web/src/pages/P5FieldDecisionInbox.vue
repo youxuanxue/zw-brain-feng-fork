@@ -34,7 +34,7 @@ const headerMeta = computed(() => {
 
       <table v-if="source === 'live' && items.length" class="focus-table">
         <thead>
-          <tr><th>编号</th><th>关联目录</th><th>待审核事项</th><th>状态</th><th>操作</th></tr>
+          <tr><th>编号</th><th>责任单位</th><th>待审核事项</th><th>状态</th><th>操作</th></tr>
         </thead>
         <tbody>
           <tr v-for="it in items" :key="it.id">

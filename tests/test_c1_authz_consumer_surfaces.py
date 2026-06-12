@@ -12,9 +12,10 @@ three consumer surfaces #183 missed:
   * C1 (read): a low-privilege identity forging ``ROLE_SECURITY_AUDIT`` cannot read
     ``audit.event.query`` — the request degrades to its real role, which lacks audit-read
     permission, so it is denied.
-  * N1 (write): the same identity forging ``ROLE_BUSIAUDIT`` on a *write* capability
-    (``catalog.entry.reverse_draft.confirm``) is denied outright (not silently degraded to
-    a role that would execute with a forged actor / corrupt audit attribution).
+  * N1 (write): the same identity forging ``ROLE_ORGAN_MANAGER`` on a *write* capability
+    (``catalog.entry.reverse_draft.confirm``, held only by ROLE_ORGAN_MANAGER per D57⑧
+    两级管线部门审) is denied outright (not silently degraded to a role that would execute
+    with a forged actor / corrupt audit attribution).
 
 The daemons start only under dev-IAM-bypass, whose synthetic identity normally holds every
 role (resolver is then a no-op). These tests narrow that identity via
@@ -30,7 +31,7 @@ from zw_brain.domain.errors import AccessDeniedError
 
 # A read capability the operator role does NOT hold (SECURITY_AUDIT/BUSIAUDIT/SYSTEM only).
 READ_CAP = "audit.event.query"
-# A write capability (side_effects) held only by ROLE_BUSIAUDIT.
+# A write capability (side_effects) held only by ROLE_ORGAN_MANAGER (D57⑧ 部门审).
 WRITE_CAP = "catalog.entry.reverse_draft.confirm"
 
 
@@ -102,26 +103,26 @@ def test_cli_low_priv_cannot_forge_audit_read(low_priv_dev_identity: None) -> No
 
 
 def test_mcp_low_priv_write_forge_is_denied(low_priv_dev_identity: None) -> None:
-    """N1: forging ROLE_BUSIAUDIT on a write capability must be denied outright — the
+    """N1: forging ROLE_ORGAN_MANAGER on a write capability must be denied outright — the
     request is NOT degraded to a role that could execute the write with a forged actor."""
     from zw_brain.entry.mcp.server import call_tool
 
     with pytest.raises(AccessDeniedError):
-        call_tool(WRITE_CAP, {"role": "ROLE_BUSIAUDIT", "catalog_code": "cat-x", "confirmed": True})
+        call_tool(WRITE_CAP, {"role": "ROLE_ORGAN_MANAGER", "catalog_code": "cat-x", "confirmed": True})
 
 
 def test_a2a_low_priv_write_forge_is_denied(low_priv_dev_identity: None) -> None:
     from zw_brain.entry.a2a.server import invoke
 
     with pytest.raises(AccessDeniedError):
-        invoke(WRITE_CAP, {"role": "ROLE_BUSIAUDIT", "catalog_code": "cat-x", "confirmed": True})
+        invoke(WRITE_CAP, {"role": "ROLE_ORGAN_MANAGER", "catalog_code": "cat-x", "confirmed": True})
 
 
 def test_cli_low_priv_write_forge_is_denied(low_priv_dev_identity: None) -> None:
     from zw_brain.entry.cli.main import _invoke_inprocess
 
     code, result = _invoke_inprocess(
-        WRITE_CAP, {"role": "ROLE_BUSIAUDIT", "catalog_code": "cat-x", "confirmed": True}
+        WRITE_CAP, {"role": "ROLE_ORGAN_MANAGER", "catalog_code": "cat-x", "confirmed": True}
     )
     assert code != 0, result
     assert "AccessDenied" in str(result.get("error", "")), result

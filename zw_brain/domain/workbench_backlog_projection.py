@@ -51,9 +51,12 @@ _MANAGER_ROLE = "ROLE_ORGAN_MANAGER"
 # D55/P10 部门管理员供数侧审核 stage：目录审核 = catalog_entry 处于部门待审 pending_review。
 # G4（D55 查缺补漏）：照旧平台 v5「资源挂接审核 / 资源审核 = 部门管理员」校正后，挂接审核
 # /provider/inbox/hookup-review 与服务注册审核（API 服务向导页行内）对部门管理员深链可达，
-# 一并补投。反向编目审核 /provider/inbox/field-decision 仍归业务运营员（field-decision roles=
-# [BUSIAUDIT]），MANAGER 深链不可达 → 不投（无空死链）。
+# 一并补投。D57⑧：反向编目审核改两级管线后，部门审（draft 阶段 confirm/reject）归部门
+# 管理员（field-decision roles=[MANAGER]）→ MANAGER 补投「待审核反向编目草稿」；平台审
+# （pending_platform_review）归业务运营员 → BUSIAUDIT 补投「待平台审核目录」，两级各自入账。
 _DEPT_REVIEW_STATUS = "pending_review"
+# 平台审档（正向编制部门审通过 + 反向编目部门审通过共用一个队列态，D57⑧ 汇入正向管线）。
+_PLATFORM_REVIEW_STATUS = "pending_platform_review"
 # 物化资源挂接审核口径 = 非 API 类（含 kind 缺失脏行——审核是兜脏数据的环节，不藏行）；
 # 服务注册审核口径 = API 类。canonical_resource_kind 折叠 legacy 值（service→api、folder→file），
 # 与 provider_snapshot_projection 的收件箱分流同语义（同口径不串数）。
@@ -93,6 +96,11 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
     pending_publish = catalog_repo.count_entries(
         tenant_id=tenant_id, lifecycle_status="approved_pending_publish"
     )
+    # D57⑧ 两级各自入账：平台审待办（正向部门审通过 + 反向部门审通过共用此态）归业务运营员，
+    # 深链目录审核收件箱（BUSIAUDIT 档即平台审），零积压不投。
+    pending_platform_review = catalog_repo.count_entries(
+        tenant_id=tenant_id, lifecycle_status=_PLATFORM_REVIEW_STATUS
+    )
     pending_resource_publish = len(
         resource_repo.list_assets(tenant_id=tenant_id, lifecycle_status="approved_pending_publish")
     )
@@ -108,6 +116,14 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
     # 行动句模板（G4，0605 反馈 6.4#10）：按类型给「N 条 X 待办」的自然动作分句，
     # 供 aiSummary 拼成「有 N 条申请待受理、M 条资源尚未发布，请尽快处理」式的分类型行动建议。
     candidates: list[tuple[str, str, int, str, str, str]] = [
+        (
+            "backlog-catalog-platform-review",
+            "待平台审核目录",
+            pending_platform_review,
+            "待审核",
+            "#/provider/inbox/catalog-review",
+            "{n} 个目录待平台审核",
+        ),
         ("backlog-catalog-publish", "待发布目录", pending_publish, "待发布", "#/provider", "{n} 个目录待发布"),
         ("backlog-resource-publish", "待发布资源", pending_resource_publish, "待发布", "#/provider", "{n} 个资源待发布"),
         ("backlog-application", "待受理申请", pending_applications, "待受理", "#/request-flow", "{n} 条申请待受理"),
@@ -166,17 +182,24 @@ def _count_assets_pending_review(tenant_id: str, *, api_side: bool) -> int:
 def _manager_review_todos(tenant_id: str) -> list[dict[str, Any]]:
     """G4（D55 查缺补漏）：部门管理员供数侧审核 stage 待办（真实库现算，零积压不投，深链既有页）。
 
-    照旧平台 v5「资源挂接审核 / 资源审核 = 部门管理员」校正后，部门管理员供数审核待办含三条
+    照旧平台 v5「资源挂接审核 / 资源审核 = 部门管理员」校正后，部门管理员供数审核待办含四条
     （均深链 MANAGER 可达页，零积压不投，无空死链）：
       - 待审核目录 = catalog_entry.lifecycle_status==pending_review → /provider/inbox/catalog-review
+      - 待审核反向编目草稿 = catalog_entry(source=reverse).draft → /provider/inbox/field-decision
+        （D57⑧ 两级管线第一级部门审；口径与 confirm/reject 可办前置严格一致）
       - 待审核挂接资源 = resource_asset(kind∈{table,file}).pending_review → /provider/inbox/hookup-review
       - 待审核服务 = resource_asset(kind∈{api,service}).pending_review → /provider/wizard/api-service（行内审核）
-    反向编目审核 /provider/inbox/field-decision 仍归业务运营员（roles=[BUSIAUDIT]），MANAGER 深链
-    不可达 → 不投。需求校核 / 目录撤销·变更·迁移审核本期无 MANAGER 可办理的 UI 收件箱 → 不投。
+    需求校核 / 目录撤销·变更·迁移审核本期无 MANAGER 可办理的 UI 收件箱 → 不投。
     """
     catalog_repo = CatalogRepository()
     pending_catalog_review = catalog_repo.count_entries(
         tenant_id=tenant_id, lifecycle_status=_DEPT_REVIEW_STATUS
+    )
+    # 与 provider_snapshot_projection 反向编目审核收件箱同口径（source=reverse ∧ draft）。
+    pending_reverse_review = sum(
+        1
+        for record in catalog_repo.list_entries(tenant_id=tenant_id, lifecycle_status="draft")
+        if isinstance(record.summary_json, dict) and record.summary_json.get("source") == "reverse"
     )
     pending_hookup_review = _count_assets_pending_review(tenant_id, api_side=False)
     pending_api_review = _count_assets_pending_review(tenant_id, api_side=True)
@@ -188,6 +211,14 @@ def _manager_review_todos(tenant_id: str) -> list[dict[str, Any]]:
             "待审核",
             "#/provider/inbox/catalog-review",
             "{n} 个目录待部门审核",
+        ),
+        (
+            "backlog-reverse-draft-review",
+            "待审核反向编目草稿",
+            pending_reverse_review,
+            "待审核",
+            "#/provider/inbox/field-decision",
+            "{n} 个反向编目草稿待部门审核",
         ),
         (
             "backlog-hookup-review",

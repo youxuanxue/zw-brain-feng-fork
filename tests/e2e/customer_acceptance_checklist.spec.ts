@@ -142,18 +142,20 @@ test.describe('客户验收 — 部门管理员 J2', () => {
     await setRole(page, 'ROLE_ORGAN_MANAGER');
   });
 
-  test('P5 J2 可见待办卡非零且可点', async ({ page }) => {
-    // J2-7 chokepoint：MANAGER 在 P5Provider 仅可见自己有权进的待办卡（demand-match + objection），
-    // 不再固定四卡 — 数量由 filterByRouteAccess 决定。
+  test('P5 J2 可见待办卡计数真实且可点', async ({ page }) => {
+    // J2-7 chokepoint：MANAGER 在 P5Provider 仅可见自己有权进的待办卡，数量由
+    // filterByRouteAccess 决定。D57⑧ 后含「反向编目审核」（部门审入口卡）——
+    // 入口卡零积压也渲染（深链到诚实空态收件箱，非死链），故计数断言为合法数字 ≥0。
     await gotoHash(page, '#/provider');
     await expect(page.getByRole('heading', { name: '提供方管理' })).toBeVisible();
     const cards = page.locator('.stat-card');
     const count = await cards.count();
     expect(count).toBeGreaterThan(0);
+    await expect(page.locator('.stat-card', { hasText: '反向编目审核' })).toHaveCount(1);
     for (let i = 0; i < count; i++) {
       const card = cards.nth(i);
       const n = await card.locator('strong').textContent();
-      expect(Number(n ?? 0)).toBeGreaterThan(0);
+      expect(Number(n ?? -1)).toBeGreaterThanOrEqual(0);
     }
     await cards.first().click();
     await expect(page).toHaveURL(/#\/provider\/inbox\//);

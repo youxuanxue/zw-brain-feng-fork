@@ -25,7 +25,9 @@ _DELIVERY = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"})
 #   _PROVIDER_PARTIAL：只看 _PROVIDER_PARTIAL_KEYS 列出的 sub-keys（J2 在线编制 OPERATER 视角）。
 #   其他 role：整个 provider dict empty。
 # 与 zw-brain-web/src/lib/pageAccess.ts ROUTE_ROLE_OVERRIDES 对齐：
-# MANAGER/BUSIAUDIT 进所有 /provider/inbox/*；MANAGER 也可进 /provider/wizard/inline-catalog + reverse-catalog（D55/P11·P14）；
+# MANAGER/BUSIAUDIT 进 /provider/inbox/*（D57⑧ 后 field-decision=MANAGER 部门审、
+# catalog-review 平台档=BUSIAUDIT，二者仍各需 provider 全量 sub-keys）；
+# MANAGER 也可进 /provider/wizard/inline-catalog + reverse-catalog（D55/P11·P14）；
 # OPERATER 进 /provider + /provider/wizard/inline-catalog（D55/P11）
 # + /provider/wizard/api-service，wizard 提交后 P5Provider/列表展示「我的目录」「我的 API 服务」，
 # 故 OPERATER 需 catalogs + services（D54 GATE-1：代理服务注册 = 部门操作员 + 部门管理员；

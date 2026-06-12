@@ -1,0 +1,21 @@
+slug: catalog-review-negative-stage-guard
+title: "catalog.entry.review 负向边（reject/return_for_fix）缺阶段×角色阶梯守卫"
+date: 2026-06-13
+severity: low
+owner: 产品研发负责人
+trigger: >
+  (a) 出现一次 MANAGER 对 pending_platform_review 单驳回/退回的真实越级操作（审计可查）；
+  或 (b) F1 决策点②「旧单步兼容路径移除」窗口期，连同负向边一并补阶梯。
+# Where: zw_brain/command/handlers/j1/catalog_entry.py::_review_catalog_entry —— approve 有
+#   stage-aware 阶梯（pending_review+MANAGER / pending_platform_review+BUSIAUDIT，错位拒），
+#   但 reject / return_for_fix 直接 _transition，无源状态校验、无角色×阶段对位：MANAGER 可对
+#   平台档（pending_platform_review）单方驳回/退回。
+# Implication: D57⑧/正向管线「MANAGER 仅部门档、BUSIAUDIT 仅平台档」的阶段错位拒实际只在
+#   approve 边成立；负向边越级在 policy 角色集内（review={MANAGER,BUSIAUDIT}）不构成提权，
+#   但属阶梯语义缺口（PR #259 复审 R-002 记账，既有代码、非该 PR 引入）。
+# Why deferred: 补负向阶梯触及既有六个回归测试与旧单步兼容路径语义，与 F1 决策点②（兼容路径
+#   去留）耦合，宜独立小 PR 一并裁决，不在 D57⑧ 实施 PR 内扩边。
+# No mechanical assert: 「缺阶梯」无稳定 grep 锚（需语义判断 decision 分支内的状态校验覆盖），
+#   external 跟踪。
+assert:
+  kind: external

@@ -2,7 +2,7 @@
 # Journey: J2
 # Pages: P5
 # Consumer-faces: WebUI
-# Roles: ROLE_ORGAN_OPERATER | ROLE_ORGAN_MANAGER (含 tag_lead_dept — 牵头标签依附 MANAGER，per docs/approved/zw-brain-roles.md §三)
+# Roles: ROLE_ORGAN_OPERATER | ROLE_ORGAN_MANAGER (含 tag_lead_dept — 牵头标签依附 MANAGER，per docs/approved/zw-brain-roles.md §三) | ROLE_BUSIAUDIT (仅反向编目平台审，D57⑧)
 # Trace: 基线 §3.2 目录管理 23 页, §3.3 CatalogModel 双轨编制, §10.2 J2 在线编制, 旧 xlsx 行 [35..38] 反向编目+在线编制+导入+编辑 (45-53 国家目录治理 ⏸ Wave 3)
 # Priority: P1
 # Owner: e2
@@ -29,12 +29,25 @@ Feature: J2 在线编制目录（含国家扩展要素双轨）
 
   Scenario: 正向 — 反向编目（基于已有 schema 生成草稿）
     Given 我已上传库表 schema（CSV / DDL 形式）
-    When 我点击 "反向编目"
+    When 我点击 "反向编目"（供数首屏主卡入口，与 "在线编制目录" 并列，D57⑧ 同级展示）
     Then 系统解析 schema，自动生成信息项清单候选
     And 候选含字段名 / 类型 / 是否敏感等，**等待人工确认**（不自动入库）
     When 我修订并点击 "确认入库"
     Then catalog C1002 创建，status=0 草稿
     And 反向编目工具产生的 metadata 标记 origin=reverse-compile
+
+  Scenario: 正向 — 反向编目两级审核（D57⑧：管理员部门审 → 业务运营员平台审）
+    Given 反向编目草稿 C1002 处于 0 草稿（source=reverse）
+    When 部门管理员在 "反向编目审核" 收件箱对 C1002 部门审 → 通过（字段口径裁决随部门审落账）
+    Then C1002 进入平台待审 pending_platform_review，汇入正向 "目录审核" 平台档（不另造第二套审核状态机；命名与 "目录审核" 并存不撞名，D54 GATE-2）
+    When 业务运营员在 "目录审核" 收件箱平台档对 C1002 审核 → 通过
+    Then C1002 进入待发布队列，由业务运营员发布后 status=4
+    And 平台审退回（return_for_fix）时 C1002 回 0 草稿、重新出现在 "反向编目审核" 收件箱（source=reverse ∧ draft 口径）
+
+  Scenario: 负向 — 反向编目审核拒下放操作员（做的人不审自己，D57⑧）
+    When 部门操作员尝试对反向编目草稿 confirm / reject
+    Then 拒绝（AccessDenied），且 "反向编目审核" 收件箱入口对操作员不可见（无权=不可见）
+    And 业务运营员不再持有 draft 阶段确认权（替换原仅 BUSIAUDIT 一级）；其落到反向编目审核路由时跳转 "目录审核" 收件箱（平台审对位下一站）
 
   Scenario: 正向 — 国家扩展要素目录双轨编制（基线 §3.3 双轨）
     When 我新建目录时选择模板 "国家扩展要素目录模板"

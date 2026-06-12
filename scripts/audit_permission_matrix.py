@@ -129,6 +129,10 @@ CAP_TARGET: dict[str, tuple[frozenset[str], str]] = {
     "catalog.entry.create.execute": (frozenset({OP}), "D55/P11（MGR 经 hierarchy）"),
     "catalog.entry.reverse_draft.create.execute": (frozenset({OP, MGR}), "D55/P14"),
     "catalog.entry.reverse_draft.suggest.execute": (frozenset({OP, MGR, BUSI}), "D55/P14"),
+    # D57⑧ 反向编目审核两级管线：部门审（confirm/reject）= 部门管理员；平台审汇入
+    # catalog.entry.review（pending_platform_review + BUSIAUDIT）。拒下放操作员。
+    "catalog.entry.reverse_draft.confirm.execute": (frozenset({MGR}), "D57⑧ 部门审"),
+    "catalog.entry.reverse_draft.reject.execute": (frozenset({MGR}), "D57⑧ 部门审"),
     # G1 挂接审核照 v5
     "resource.asset.review.execute": (frozenset({MGR}), "D55/G1"),
     # D57⑤ 发布权回收仅业务运营员（目录 + 资源同口径，严格 v5）

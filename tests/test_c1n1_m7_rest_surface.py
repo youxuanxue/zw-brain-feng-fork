@@ -20,12 +20,12 @@ from tests._iaf_rest_http import (
     stop_server,
 )
 
-# Write capability (side_effects) held only by ROLE_BUSIAUDIT.
+# Write capability (side_effects) held only by ROLE_ORGAN_MANAGER (D57⑧ 反向编目部门审).
 WRITE_CAP = "catalog.entry.reverse_draft.confirm"
 
 
 def test_rest_bearer_low_priv_write_forge_is_denied() -> None:
-    """N1: operator-only bearer forging ROLE_BUSIAUDIT on a write cap → 403 (not degrade)."""
+    """N1: operator-only bearer forging ROLE_ORGAN_MANAGER on a write cap → 403 (not degrade)."""
     with TemporaryDirectory() as tmp, bootstrap_iaf_runtime(tmp):
         keys = KeyFixture()
         server, thread, port = run_server()
@@ -34,7 +34,7 @@ def test_rest_bearer_low_priv_write_forge_is_denied() -> None:
             status, _, body = http_request(
                 "POST",
                 f"http://127.0.0.1:{port}/api/skills/{WRITE_CAP}",
-                body={"role": "ROLE_BUSIAUDIT", "catalog_code": "cat-x", "confirmed": True},
+                body={"role": "ROLE_ORGAN_MANAGER", "catalog_code": "cat-x", "confirmed": True},
                 headers={"Authorization": f"Bearer {token}"},
             )
             assert status == 403, body
@@ -44,18 +44,18 @@ def test_rest_bearer_low_priv_write_forge_is_denied() -> None:
 
 
 def test_rest_bearer_authorized_identity_write_passes_authz() -> None:
-    """A BUSIAUDIT bearer requesting the same write role passes the authz boundary (the
+    """A MANAGER bearer requesting the same write role passes the authz boundary (the
     fix denies only the *forge*, not a legitimately-held write role). Business-layer
     failures (missing draft etc.) are acceptable as long as it is NOT a 403 authz deny."""
     with TemporaryDirectory() as tmp, bootstrap_iaf_runtime(tmp):
         keys = KeyFixture()
         server, thread, port = run_server()
         try:
-            token = mint_bearer(keys, roles=["ROLE_BUSIAUDIT"])
+            token = mint_bearer(keys, roles=["ROLE_ORGAN_MANAGER"])
             status, _, body = http_request(
                 "POST",
                 f"http://127.0.0.1:{port}/api/skills/{WRITE_CAP}",
-                body={"role": "ROLE_BUSIAUDIT", "catalog_code": "cat-x", "confirmed": True},
+                body={"role": "ROLE_ORGAN_MANAGER", "catalog_code": "cat-x", "confirmed": True},
                 headers={"Authorization": f"Bearer {token}"},
             )
             # Not a role-authorization denial: the held role cleared the boundary.

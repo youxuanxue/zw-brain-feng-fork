@@ -33,7 +33,8 @@ const publishQueueLoading = ref(false);
 const counts = computed(() => providerTodoCounts(provider.value as Record<string, unknown>));
 
 // 供数 IA 重排（0605#8 方案 a）：进「供数据」第一眼看到「怎么编目 / 挂接 / 发布」，
-// 而非协作待办。供数主线三动作升为首屏主卡，按角色权限渲染（无权=不可见）。
+// 而非协作待办。供数主线动作升为首屏主卡，按角色权限渲染（无权=不可见）。
+// D57⑧ 同级展示：反向编目从页头药丸升为首屏主卡，与「在线编制目录」并列（6.10#17）。
 const supplyActions = computed(() => {
   const items = [
     {
@@ -42,6 +43,13 @@ const supplyActions = computed(() => {
       hint: '新建数据目录，登记来源、领域、共享方式等编制信息',
       href: '#/provider/wizard/inline-catalog',
       route: '/provider/wizard/inline-catalog',
+    },
+    {
+      key: 'reverse-catalog',
+      title: '反向编目',
+      hint: '从已有库表字段结构反推生成目录草稿，确认后进入审核',
+      href: '#/provider/wizard/reverse-catalog',
+      route: '/provider/wizard/reverse-catalog',
     },
     {
       key: 'hookup-submit',
@@ -75,10 +83,10 @@ const resourceSummary = computed(() => providerResourceSummary(provider.value as
 const collabCards = computed(() => {
   const c = counts.value;
   return [
-    // E3（6.4#16）：去工程黑话「字段审核/字段裁决」。该收件箱办理的是「反向编目草稿」的口径审核
-    // （动作 catalog.entry.reverse_draft.confirm/reject），与页头「目录审核」(catalog-review 正向编目
-    // 部门审/平台审) 是不同工作流——故按操作实体命名「反向编目审核」，与「反向编目向导」同词、不与
-    // 「目录审核」撞名（一词一概念）。
+    // E3（6.4#16）：去工程黑话「字段审核/字段裁决」。该收件箱办理的是「反向编目草稿」的部门审
+    // （动作 catalog.entry.reverse_draft.confirm/reject，D57⑧ 第一级=部门管理员；通过后汇入
+    // 「目录审核」catalog-review 平台档由业务运营员复核）——按操作实体命名「反向编目审核」，
+    // 与「反向编目向导」同词、不与「目录审核」撞名（一词一概念，0608 命名 GATE-2）。
     { key: 'field-decision', label: '反向编目审核', value: c.fieldDec, href: '#/provider/inbox/field-decision' },
     { key: 'hookup-review', label: '挂接审核', value: c.hookup, href: '#/provider/inbox/hookup-review' },
     { key: 'demand-match', label: '供需对接', value: c.demand, href: '#/provider/inbox/demand-match' },
@@ -87,8 +95,8 @@ const collabCards = computed(() => {
 });
 
 // 按当前 role 过滤协作待办卡（单源 = isRouteAllowedForRole，与路由守卫同口径）：
-// 挂接审核归部门管理员（G1 照 v5 校正）；反向编目审核归业务运营员；异议响应部门管理员 + 业务运营员（G6）。
-// 部门操作员对协作待办全不可见（无权进）。
+// 挂接审核归部门管理员（G1 照 v5 校正）；反向编目审核（部门审）归部门管理员（D57⑧）；
+// 异议响应部门管理员 + 业务运营员（G6）。部门操作员对协作待办全不可见（无权进）。
 const visibleStatCards = computed(() =>
   filterByRouteAccess(collabCards.value, (c) => c.href, role.value),
 );
@@ -206,7 +214,6 @@ async function publishDraft(catalogCode: string) {
         title="提供方管理"
         :meta="headerMeta"
         :links="[
-          { label: '反向编目', href: '#/provider/wizard/reverse-catalog' },
           { label: '质量规则', href: '#/provider/wizard/quality-rule' },
         ]"
       />

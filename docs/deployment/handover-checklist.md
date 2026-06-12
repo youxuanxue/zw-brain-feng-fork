@@ -87,7 +87,7 @@
 | --- | --- | --- | --- | --- |
 | 24 | M0 验收 status query | pytest test_01 | pass | M0 验收契约断 → 客户无法证明迁移完成 |
 | 25 | ROLE_ORGAN_OPERATER 需求登记 | pytest test_02 | pass | ROLE_ORGAN_OPERATER 主旅程断 → 业务专班无法在生产里发起复用申请 |
-| 26 | 提供方部门→业务运营员 反向编目闭环 | pytest test_03 | pass，lifecycle_status=pending_review | 提供方部门→业务运营员 反向编目断 → 新资源进不了目录候选池 |
+| 26 | 提供方部门→部门管理员部门审→业务运营员平台审 反向编目两级闭环（D57⑧） | pytest tests/test_wave1_j2_pipeline.py -k reverse_two_level | pass，confirm 后 lifecycle_status=pending_platform_review、平台审后 approved_pending_publish | 反向编目两级审核断 → 新资源进不了目录候选池 |
 | 27 | 审批人 分级授权审批 | pytest test_04 | pass | 审批人 审批断 → 申请进了系统但永远 pending，无法授权交付 |
 | 28 | 提供方部门 检测规则 + 任务 | pytest test_05 | pass | 检测规则断 → 字段质量问题无法被发现 |
 | 29 | ROLE_ORGAN_OPERATER 接派发任务（基层补差场景） | pytest test_06 | pass | 基层补差派单断 → 基层归口部门拿不到预填任务，基层补录走不通 |

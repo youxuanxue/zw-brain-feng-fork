@@ -48,8 +48,14 @@ export const ROUTE_ROLE_OVERRIDES: ReadonlyArray<{
   },
   // 反向编目（pages/P5ReverseCatalogWizard.vue → canCreateDraft）D55/P14 操作员也可进
   { prefix: '/provider/wizard/reverse-catalog', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_ORGAN_OPERATER'] },
-  // 反向编目审核（pages/P5FieldDecisionDetail.vue → canDecide；路由 slug 仍 field-decision）
-  { prefix: '/provider/inbox/field-decision', roles: ['ROLE_BUSIAUDIT'] },
+  // 反向编目审核（D57⑧ 两级管线第一级部门审 = 部门管理员；路由 slug 仍 field-decision）。
+  // 业务运营员的反向审核在第二级平台审（目录审核收件箱平台档）→ 对位下一站 catalog-review；
+  // 操作员无任何反向审核权（做的人不审自己）。
+  {
+    prefix: '/provider/inbox/field-decision',
+    roles: ['ROLE_ORGAN_MANAGER'],
+    redirectIfDenied: '/provider/inbox/catalog-review',
+  },
   // G3：资源挂接向导（pages/P5HookupSubmitWizard.vue）—— 提交侧是供数维护动作
   // （resource.mount.*.prepare = 部门操作员；管理员经 hierarchy 隐式获得）。业务运营员退出供数注册。
   { prefix: '/provider/wizard/hookup-submit', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'] },
@@ -138,6 +144,11 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   'catalog.entry.update': ['ROLE_ORGAN_OPERATER'],
   'catalog.entry.submit_review': ['ROLE_ORGAN_OPERATER'],
   'catalog.entry.review': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
+  // 反向编目部门审（D57⑧ 两级管线第一级）：confirm/reject = 部门管理员；平台审走上面的
+  // catalog.entry.review（pending_platform_review 档，BUSIAUDIT）。操作员无反向审核权
+  // （做的人不审自己）。与后端 policy set-equal（test_action_role_gates… 守）。
+  'catalog.entry.reverse_draft.confirm': ['ROLE_ORGAN_MANAGER'],
+  'catalog.entry.reverse_draft.reject': ['ROLE_ORGAN_MANAGER'],
   // P5 反向 / API / 质量 wizard
   // G1：挂接资产审核照 v5 校正归部门管理员（撤回 R-007），与后端 resource.asset.review set-equal。
   'resource.asset.review': ['ROLE_ORGAN_MANAGER'],

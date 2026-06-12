@@ -87,14 +87,16 @@ test.describe('角色投影三视图 + 数据呈现规范化', () => {
     // 业务运营员待办注册表类目（计数 0 的不渲染，故用「出现的都属正确类目」+「错配内容不出现」双断言）。
     const todoTitles = await page.locator('.p1-row-title').allInnerTexts();
     // 错配内容必须不在工作台待办出现：①工程黑话（业务方原话「不对路」示例）；
-    // ②审核类（目录/资源审批属部门管理员职责，E2 已从业务运营员台移除）。
-    for (const wrong of ['ledger.entity.base.read', 'capability', 'projection', '待审核', '审核']) {
+    // ②部门审核类（目录/资源部门审批属部门管理员职责，E2 已从业务运营员台移除——其待办
+    // 统一以「待审核…」开头；D57⑧ 后业务运营员新增的「待平台审核目录」是平台审职责本职，
+    // 不在错配之列，故黑名单收敛到「待审核」前缀而非泛「审核」字）。
+    for (const wrong of ['ledger.entity.base.read', 'capability', 'projection', '待审核']) {
       expect(todoTitles.join(' ')).not.toContain(wrong);
     }
-    // 出现的待办标题应落在业务运营员真实职责词表内（发布 / 受理 / 汇总，白话动宾）。
+    // 出现的待办标题应落在业务运营员真实职责词表内（发布 / 受理 / 汇总 + 平台审，白话动宾）。
     // 机制单源 = 后端 workbench_backlog_projection（真实库现算）：待发布目录/资源、待受理申请/异议、
-    // 待汇总需求（E2 / 0605 反馈 6.4#11 + D53——审核类已剔除，归部门管理员）。
-    const allowed = ['待发布', '待受理', '待汇总'];
+    // 待汇总需求（E2 / 0605 反馈 6.4#11 + D53）+ 待平台审核目录（D57⑧ 两级各自入账）。
+    const allowed = ['待发布', '待受理', '待汇总', '待平台审核'];
     for (const title of todoTitles) {
       expect(allowed.some((a) => title.includes(a)), `工作台待办「${title}」应属发布/受理/汇总职责`).toBeTruthy();
     }

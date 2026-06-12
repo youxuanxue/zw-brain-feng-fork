@@ -29,12 +29,21 @@ _DEMAND_PROVIDER_PHASES = frozenset(
 )
 
 
-def _entry_to_field_decision(record: Any) -> dict[str, Any]:
+def _entry_to_field_decision(record: Any, *, owner_name: str = "") -> dict[str, Any]:
+    """反向编目草稿 → 部门审收件箱/详情行（D57⑧）。
+
+    带被审内容（去盲批，同 D57⑨/R10 口径）：责任单位中文名（缺则回落 org id 诚实展示）
+    + 字段建议数（向导生成的 draft_field_suggestions 条数，缺省 0）。
+    """
+    summary = record.summary_json if isinstance(record.summary_json, dict) else {}
+    suggestions = summary.get("draft_field_suggestions")
     return {
         "id": record.catalog_code,
         "title": record.title,
         "status": record.lifecycle_status,
         "owner_org_id": record.owner_org_id,
+        "owner": owner_name or str(record.owner_org_id or ""),
+        "field_count": len(suggestions) if isinstance(suggestions, list) else 0,
     }
 
 
@@ -273,13 +282,16 @@ def project_provider_inbox(*, tenant_id: str | None = None) -> dict[str, list[di
     supply_repo = SupplyDemandRepository()
     objection_repo = ObjectionRepository()
 
-    # 反向编目审核收件箱（0611 修复项 R-4 / 6.9#6）：口径 = source=reverse ∧ lifecycle=draft，
-    # 与 confirm/reject handler 的可办前置严格一致（catalog_entry.py 要求 source=='reverse'
-    # 且 lifecycle=='draft'）。此前列 pending_review 全集——既含正向编制在审单、又含已确认
-    # 的反向单，待审草稿反而不出现，收件箱里每行点「通过审核」必 409 死循环。
-    # source 在 summary_json（无列），lifecycle 先在 SQL 收窄、source 在 python 收口。
+    org_name = _org_name_resolver(tenant_id)
+
+    # 反向编目审核收件箱（0611 修复项 R-4 / 6.9#6；D57⑧ 后=部门审收件箱）：口径 =
+    # source=reverse ∧ lifecycle=draft，与 confirm/reject handler 的可办前置严格一致
+    # （catalog_entry.py 要求 source=='reverse' 且 lifecycle=='draft'）。此前列 pending_review
+    # 全集——既含正向编制在审单、又含已确认的反向单，待审草稿反而不出现，收件箱里每行点
+    # 「通过审核」必 409 死循环。source 在 summary_json（无列），lifecycle 先在 SQL 收窄、
+    # source 在 python 收口。
     field_decisions = [
-        _entry_to_field_decision(record)
+        _entry_to_field_decision(record, owner_name=org_name(record.owner_org_id))
         for record in catalog_repo.list_entries(tenant_id=tenant_id, lifecycle_status="draft")
         if isinstance(record.summary_json, dict) and record.summary_json.get("source") == "reverse"
     ]
@@ -301,7 +313,6 @@ def project_provider_inbox(*, tenant_id: str | None = None) -> dict[str, list[di
         for record in resource_repo.list_assets(tenant_id=tenant_id, lifecycle_status="pending_review")
         if canonical_resource_kind(getattr(record, "resource_kind", None)) != "api"
     ]
-    org_name = _org_name_resolver(tenant_id)
     catalog_title_cache: dict[str, str] = {}
 
     def _catalog_title(code: Any) -> str:

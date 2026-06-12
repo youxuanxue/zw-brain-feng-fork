@@ -80,6 +80,7 @@ def _seed_inbox_rows() -> None:
             "source": "reverse",
             "schema_ref": "schema:cat-proj-field-001",
             "provider": "11370000MB284651XL",
+            "draft_field_suggestions": [{"field": "xm"}, {"field": "sfzh"}],
         },
         tenant_id=TENANT,
     )
@@ -171,6 +172,10 @@ def test_field_decision_projection_item_shape_for_inbox_ui(brain: BrainService) 
     assert row["id"] == "cat-proj-field-001"
     assert row["title"]
     assert row["status"] == "draft"
+    # D57⑧ 部门审去盲批：被审内容随行下发——责任单位（中文名缺则回落 org id 诚实展示）
+    # + 字段建议数（向导 draft_field_suggestions 条数）。
+    assert row["owner"], "责任单位缺位（盲批回潮）"
+    assert row["field_count"] == 2
 
 
 def test_field_decision_inbox_lists_only_actionable_reverse_drafts(brain: BrainService) -> None:

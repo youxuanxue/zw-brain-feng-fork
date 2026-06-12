@@ -661,6 +661,115 @@ def test_j2_three_layer_audit_chain_records_both_review_events(brain):
 
 
 # ============================================================================
+# D57⑧ 反向编目审核两级管线：
+#   OPERATER/MANAGER create（draft, source=reverse）
+#   → MANAGER reverse_draft.confirm（部门审，含 field_decisions）→ pending_platform_review
+#   → BUSIAUDIT catalog.entry.review approve（平台审，复用正向平台档）→ approved_pending_publish
+#   → BUSIAUDIT publish → active
+# 替换原「仅 BUSIAUDIT 一级 confirm」；操作员双面无审核权（做的人不审自己）。
+# ============================================================================
+
+
+def _mint_reverse_draft(brain, prefix: str, *, creator_role: str = "ROLE_ORGAN_OPERATER") -> str:
+    code = _unique_catalog_code(prefix)
+    _call(brain, "catalog.entry.reverse_draft.create", {
+        "catalog_code": code, "title": f"反向编目草稿 {code}",
+        "schema_ref": f"schema:{code}", "owner_org_id": "dept_a_test",
+        "role": creator_role, "confirmed": True,
+    })
+    return code
+
+
+def test_reverse_two_level_happy_path_manager_dept_then_busiaudit_platform(brain, catalog_repo):
+    """正向 — 操作员铸反向草稿 → MANAGER 部门审 confirm → 平台档 → BUSIAUDIT 平台审 → 发布。"""
+    code = _mint_reverse_draft(brain, "J2-REVERSE-2L")
+    entry = catalog_repo.get_entry(code, tenant_id=TENANT)
+    assert entry.lifecycle_status == "draft"
+    assert entry.summary_json.get("source") == "reverse"
+
+    # 第一级：部门管理员部门审（字段口径裁决随部门审落账）
+    confirm = _call(brain, "catalog.entry.reverse_draft.confirm", {
+        "catalog_code": code, "role": MANAGER_ROLE, "confirmed": True,
+        "field_decisions": [{"field": "name", "decision": "keep"}],
+        "comment": "部门审通过",
+    })
+    assert confirm["lifecycle_status"] == "pending_platform_review", confirm
+    mid = catalog_repo.get_entry(code, tenant_id=TENANT)
+    assert mid.lifecycle_status == "pending_platform_review"
+    # 字段裁决语义保留在部门审级（落 summary，平台审/详情可读）
+    assert mid.summary_json.get("field_decisions") == [{"field": "name", "decision": "keep"}]
+    assert mid.summary_json.get("source") == "reverse"
+
+    # 第二级：业务运营员平台审（复用正向 catalog.entry.review 平台档，不造第二套状态机）
+    platform = _call(brain, "catalog.entry.review", {
+        "catalog_code": code, "decision": "approve",
+        "role": PLATFORM_ROLE, "confirmed": True,
+    })
+    assert platform["lifecycle_status"] == "approved_pending_publish", platform
+
+    publish = _call(brain, "catalog.entry.publish", {
+        "catalog_code": code, "role": "ROLE_BUSIAUDIT", "confirmed": True,
+    })
+    assert publish["lifecycle_status"] == "active", publish
+
+
+def test_reverse_dept_reject_terminal_and_platform_return_back_to_dept_inbox(brain, catalog_repo):
+    """负向/回流 — 部门审驳回 → rejected；平台审 return_for_fix → 回 draft（即回部门审收件箱口径）。"""
+    # 部门审驳回
+    code_a = _mint_reverse_draft(brain, "J2-REVERSE-REJ")
+    rejected = _call(brain, "catalog.entry.reverse_draft.reject", {
+        "catalog_code": code_a, "reject_reason": "口径需补充证据",
+        "role": MANAGER_ROLE, "confirmed": True,
+    })
+    assert rejected["lifecycle_status"] == "rejected", rejected
+
+    # 平台审退回 → draft（source=reverse 保留 → 重新出现在部门审收件箱口径 source=reverse ∧ draft）
+    code_b = _mint_reverse_draft(brain, "J2-REVERSE-RET")
+    _call(brain, "catalog.entry.reverse_draft.confirm", {
+        "catalog_code": code_b, "role": MANAGER_ROLE, "confirmed": True,
+    })
+    returned = _call(brain, "catalog.entry.review", {
+        "catalog_code": code_b, "decision": "return_for_fix",
+        "role": PLATFORM_ROLE, "confirmed": True,
+    })
+    assert returned["lifecycle_status"] == "draft", returned
+    back = catalog_repo.get_entry(code_b, tenant_id=TENANT)
+    assert back.summary_json.get("source") == "reverse", "退回后仍是反向单，须回部门审收件箱口径"
+
+
+def test_reverse_confirm_denied_for_operater_and_busiaudit(brain):
+    """负向双面 — 操作员（做的人不审自己）与业务运营员（已退 draft 阶段）均无部门审权。"""
+    from zw_brain.command.brain import AccessDeniedError
+
+    code = _mint_reverse_draft(brain, "J2-REVERSE-DENY")
+    for forbidden_role in ("ROLE_ORGAN_OPERATER", "ROLE_BUSIAUDIT"):
+        with pytest.raises(AccessDeniedError):
+            _call(brain, "catalog.entry.reverse_draft.confirm", {
+                "catalog_code": code, "role": forbidden_role, "confirmed": True,
+            })
+        with pytest.raises(AccessDeniedError):
+            _call(brain, "catalog.entry.reverse_draft.reject", {
+                "catalog_code": code, "reject_reason": "无权驳回",
+                "role": forbidden_role, "confirmed": True,
+            })
+
+
+def test_reverse_platform_stage_manager_approve_rejected(brain):
+    """负向 — 平台档（pending_platform_review）MANAGER 不能再 approve（阶段错位，与正向一致）。"""
+    from zw_brain.command.brain import InvalidStateError
+
+    code = _mint_reverse_draft(brain, "J2-REVERSE-STAGE")
+    _call(brain, "catalog.entry.reverse_draft.confirm", {
+        "catalog_code": code, "role": MANAGER_ROLE, "confirmed": True,
+    })
+    with pytest.raises(InvalidStateError, match="cannot be approved"):
+        _call(brain, "catalog.entry.review", {
+            "catalog_code": code, "decision": "approve",
+            "role": MANAGER_ROLE, "confirmed": True,
+        })
+
+
+# ============================================================================
 # F2 (E2 J2)：3 物化 (table/file/api) 字段绑定完整性 — 覆盖 AC2 上半
 # 每物化各 1 条真实 sd-default 资源端到端：
 #   编制 → 部门审 → 平台审 → publish active → catalog.resource.bind

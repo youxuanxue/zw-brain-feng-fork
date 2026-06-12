@@ -2,9 +2,6 @@
  *  有条件共享受理→部门审核两级：本队列 = 第二级。无条件共享无本级（业务运营员受理即终）。 */
 export const REQUEST_FLOW_REVIEWER_ROLES = ['ROLE_ORGAN_MANAGER'] as const;
 
-/** 业务运营员在 P5 反向编目审核收件箱办理反向编目草稿。 */
-export const FIELD_DECISION_ROLES = ['ROLE_BUSIAUDIT'] as const;
-
 /** 挂接审核通过（D55/G1 照 v5「资源挂接审核 = 部门管理员」校正，与后端
  *  resource.asset.review={ROLE_ORGAN_MANAGER} 及路由 /provider/inbox/hookup-review set-equal）。 */
 export const HOOKUP_REVIEW_ROLES = ['ROLE_ORGAN_MANAGER'] as const;
@@ -60,10 +57,6 @@ export function canReviewRequests(role: string): boolean {
 /** J1 受理队列（第一级，业务运营员）= 省大数据局业务运营员（与 policy 受理类 key 对齐）。 */
 export function canPlatformReviewRequests(role: string): boolean {
   return (REQUEST_FLOW_PLATFORM_REVIEWER_ROLES as readonly string[]).includes(role);
-}
-
-export function canDecideFieldDrafts(role: string): boolean {
-  return (FIELD_DECISION_ROLES as readonly string[]).includes(role);
 }
 
 export function canApproveHookup(role: string): boolean {

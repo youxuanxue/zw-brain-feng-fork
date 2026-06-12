@@ -386,11 +386,14 @@ PERMISSION_ROLES = {
     # M0 实施工程师专用（admin 主用；BUSIAUDIT/SECURITY_AUDIT 验收日代看）
     "legacy.migration.status.query.execute": {"admin", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
 
-    # 反向编目（J2）— 部门操作员 + 部门管理员发起，BUSIAUDIT 审核（v5 旧平台口径，D55/P14）
+    # 反向编目（J2）— 部门操作员 + 部门管理员发起（D55/P14）；审核两级管线（D57⑧）：
+    # confirm/reject = 部门管理员部门审（draft 阶段，含字段口径裁决 field_decisions），
+    # 通过后落 pending_platform_review 汇入正向目录审核平台档（catalog.entry.review，
+    # BUSIAUDIT），替换原「仅 BUSIAUDIT 一级」；操作员无任何反向审核权（做的人不审自己）。
     "catalog.entry.reverse_draft.suggest.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "catalog.entry.reverse_draft.create.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
-    "catalog.entry.reverse_draft.confirm.execute": {"ROLE_BUSIAUDIT"},
-    "catalog.entry.reverse_draft.reject.execute": {"ROLE_BUSIAUDIT"},
+    "catalog.entry.reverse_draft.confirm.execute": {"ROLE_ORGAN_MANAGER"},
+    "catalog.entry.reverse_draft.reject.execute": {"ROLE_ORGAN_MANAGER"},
 
     # schema 发现 — 反向编目入口；操作员 + 管理员 + 业务运营员可拉取候选 schema（D55/P14）
     "metadata.schema.discover.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},

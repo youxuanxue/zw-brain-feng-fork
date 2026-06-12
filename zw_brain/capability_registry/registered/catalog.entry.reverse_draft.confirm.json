@@ -1,7 +1,7 @@
 {
   "slug": "catalog.entry.reverse_draft.confirm",
   "title": "反向编目字段确认",
-  "description": "业务运营员 半边：对反向编目草稿做字段口径裁决（中英文/敏感等级/类型）。通过后 catalog_entry.lifecycle_status 从 draft 推进到 pending_review；提供方部门 再做正式挂接。",
+  "description": "部门管理员 部门审通过反向编目草稿（D57⑧ 两级管线第一级）：随部门审落字段口径裁决（中英文/敏感等级/类型）。通过后 catalog_entry.lifecycle_status 从 draft 推进到 pending_platform_review，汇入正向目录审核平台档由 业务运营员 复核。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",
@@ -71,7 +71,7 @@
   "tags": [
     "catalog",
     "reverse_draft",
-    "ROLE_BUSIAUDIT",
+    "ROLE_ORGAN_MANAGER",
     "write"
   ],
   "product_scope": {

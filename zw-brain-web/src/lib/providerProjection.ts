@@ -58,9 +58,19 @@ export function deriveFieldDecisions(provider: Record<string, unknown>): Provide
       return {
         id: String(it.id ?? ''),
         title: safeRecordTitle(it.title ?? it.field_name ?? it.summary, it.id, '反向编目审核'),
-        catalog: safeCatalogName(it.catalog_name, it.catalog_id),
+        // 部门审被审内容（D57⑧ 去盲批）：责任单位中文名（后端 ReferenceService 解析，
+        // 缺则回落 org id 诚实展示）；旧 catalog_name 键保留兜底。
+        catalog: safeCatalogName(it.owner, it.catalog_name, it.catalog_id),
         status: String(it.status ?? 'pending'),
         source: 'projection' as const,
+        detail: {
+          kindLabel: '',
+          owner: String(it.owner ?? it.owner_org_id ?? ''),
+          sourceRef: '',
+          desc: '',
+          shareTypeLabel: '',
+          fieldCount: Number(it.field_count ?? 0) || 0,
+        },
       };
     });
   }

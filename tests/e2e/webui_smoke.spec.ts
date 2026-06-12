@@ -109,12 +109,14 @@ test('P5 反向编目：部门管理员可生成字段建议', async ({ page }) 
   await expect(page.locator('body')).not.toContainText('missing required input field');
 });
 
-test('P5 反向编目：业务运营员不显示创建草稿按钮', async ({ page }) => {
+test('P5 反向编目：业务运营员进不了向导与部门审收件箱（D57⑧ 双面）', async ({ page }) => {
+  // 反向编目创建=操作员/管理员（D55/P14）、部门审=管理员（D57⑧）；业务运营员的反向审核
+  // 在目录审核收件箱平台档——向导与 field-decision 路由对其均不可达（无权=不可见）。
   await setRole(page, 'ROLE_BUSIAUDIT');
   await gotoHash(page, '#/provider/wizard/reverse-catalog');
-  await page.locator('.gov-select').selectOption({ index: 1 });
-  await expect(page.getByRole('button', { name: '创建反向编目草稿' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '生成字段建议' })).toBeVisible();
+  await expect(page).not.toHaveURL(/reverse-catalog/);
+  await gotoHash(page, '#/provider/inbox/field-decision');
+  await expect(page).toHaveURL(/catalog-review/);
 });
 
 test('P3 撤回申请不再误调目录 withdraw', async ({ page }) => {
