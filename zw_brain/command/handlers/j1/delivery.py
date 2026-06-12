@@ -90,15 +90,15 @@ def _reconcile_delivery_receipt(brain, deps, ctx, task_id: str, role: str, confi
         task["receiptStatus"] = "reconciled"
         task["receiptNo"] = f"RCPT-{task_id.split('-')[-1]}"
         task["updatedAt"] = clock.now_datetime()
-        task["note"] = "交付回执已对账确认，当前可继续等待回流或治理动作。"
+        task["note"] = "交换结果已核对确认，当前可继续等待回流或治理动作。"
         task["history"].append(
             {
                 "time": clock.now_short_time(),
-                "state": "回执已对账",
-                "detail": "平台已完成交付回执核对并保留审计留痕。",
+                "state": "交换结果已核对",
+                "detail": "平台已完成本次交换明细与结果的核对并保留审计留痕。",
             }
         )
-        task["aiSummary"]["summary"] = "交付回执已完成对账，当前链路事实与外部回执保持一致。"
+        task["aiSummary"]["summary"] = "本次交换结果已完成核对，当前链路事实与外部回执保持一致。"
         task["aiSummary"]["nextAction"] = "如已满足业务门槛，可继续执行回流确认或供给侧治理动作。"
         deps.append_audit_feed("delivery.reconcile-receipt", task_id, "ok", actor)
         return {"task_id": task_id, "receipt_status": task["receiptStatus"]}
@@ -170,7 +170,7 @@ def _trigger_delivery_recovery(brain, deps, ctx, task_id: str, role: str, confir
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         task["status"] = "warning"
         task["updatedAt"] = clock.now_datetime()
-        task["note"] = "已触发恢复流程，等待审计链修复后重新对账。"
+        task["note"] = "已触发恢复流程，等待审计链修复后重新核对交换结果。"
         task["history"].append(
             {
                 "time": clock.now_short_time(),
@@ -179,7 +179,7 @@ def _trigger_delivery_recovery(brain, deps, ctx, task_id: str, role: str, confir
             }
         )
         task["aiSummary"]["summary"] = "恢复动作已被显式触发，当前任务从失败态回到可追踪处理中间态。"
-        task["aiSummary"]["nextAction"] = "请先修复审计链路，再重新执行补投和回执对账。"
+        task["aiSummary"]["nextAction"] = "请先修复审计链路，再重新执行补投和交换结果核对。"
         deps.append_audit_feed("delivery.trigger-recovery", task_id, "ok", actor)
         return {"task_id": task_id, "status": task["status"]}
 

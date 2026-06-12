@@ -13,6 +13,8 @@ import {
   RESOURCE_FORMAT_OPTIONS,
   ITEM_TYPE_OPTIONS,
   DATA_LEVEL_OPTIONS,
+  basicFieldRequired,
+  missingRequiredBasicFields,
   blankCatalogItem,
   catalogItemToPayload,
   type CatalogItemDraft,
@@ -71,6 +73,23 @@ function _newCatalogCode(): string {
   const ts = Date.now().toString(36);
   const rnd = Math.random().toString(36).slice(2, 6);
   return `j2-inline-${ts}-${rnd}`;
+}
+
+// 必填红星单源派生（0611 口径确认单 §A）：组件内不二次硬编码必填位；
+// 共享条件的星随「共享类型 = 有条件共享」联动。
+const req = (key: string): boolean => basicFieldRequired(key, shareType.value);
+
+// 提交前预检：基本信息必填项缺失 → 中文提示并拦下（与后端 catalog.entry.submit_review
+// 校验同一字典口径；本表单字段在创建草稿后锁定，故创建与提交两处都预检）。
+function basicInfoPrecheckPassed(): boolean {
+  const missing = missingRequiredBasicFields({ title: title.value.trim(), ...baseSummary() });
+  if (missing.length === 0) return true;
+  pushToast({
+    kind: 'warn',
+    title: '基本信息未填全',
+    detail: `请补全必填项：${missing.join('、')}。`,
+  });
+  return false;
 }
 
 const submitted = computed(() => stage.value === 'submitted');
@@ -132,6 +151,7 @@ function moveItem(i: number, dir: -1 | 1) {
 
 async function createDraft() {
   if (!canRunStep1.value || busy.value) return;
+  if (!basicInfoPrecheckPassed()) return;
   busy.value = true;
   try {
     const code = _newCatalogCode();
@@ -189,6 +209,7 @@ async function saveMetadata() {
 
 async function submitForReview() {
   if (!canRunStep3.value || busy.value) return;
+  if (!basicInfoPrecheckPassed()) return;
   busy.value = true;
   try {
     const result = await invokeActionStub({
@@ -259,7 +280,7 @@ function startAnother() {
         <h3 class="step-title">第 1 步 · 基本信息维护</h3>
         <div class="grid2">
           <div class="form-row span2">
-            <label class="field-label">数据资源目录名称<span class="req">*</span></label>
+            <label class="field-label">数据资源目录名称<span v-if="req('title')" class="req">*</span></label>
             <input
               v-model="title"
               class="gov-input"
@@ -281,67 +302,67 @@ function startAnother() {
             </p>
           </div>
           <div class="form-row">
-            <label class="field-label">数据资源分类</label>
+            <label class="field-label">数据资源分类<span v-if="req('catalog_type')" class="req">*</span></label>
             <input v-model="catalogType" class="gov-input" type="text" placeholder="例如：民政服务" :disabled="!canAuthor || Boolean(catalogCode)" />
           </div>
           <div class="form-row">
-            <label class="field-label">来源系统</label>
+            <label class="field-label">来源系统<span v-if="req('source_system')" class="req">*</span></label>
             <input v-model="sourceSystem" class="gov-input" type="text" placeholder="例如：医疗救助建模系统" :disabled="!canAuthor || Boolean(catalogCode)" />
           </div>
           <div class="form-row">
-            <label class="field-label">内部部门</label>
+            <label class="field-label">内部部门<span v-if="req('internal_org_name')" class="req">*</span></label>
             <input v-model="internalDept" class="gov-input" type="text" placeholder="例如：社会救助科" :disabled="!canAuthor || Boolean(catalogCode)" />
           </div>
           <div class="form-row">
-            <label class="field-label">所属领域</label>
+            <label class="field-label">所属领域<span v-if="req('domain')" class="req">*</span></label>
             <input v-model="domain" class="gov-input" type="text" placeholder="例如：社会保障" :disabled="!canAuthor || Boolean(catalogCode)" />
           </div>
           <div class="form-row span2">
-            <label class="field-label">应用场景</label>
+            <label class="field-label">应用场景<span v-if="req('application_scenario')" class="req">*</span></label>
             <input v-model="applicationScenario" class="gov-input" type="text" placeholder="例如：用于医疗救助资格审核与待遇核算" :disabled="!canAuthor || Boolean(catalogCode)" />
           </div>
           <div class="form-row">
-            <label class="field-label">信息资源格式</label>
+            <label class="field-label">信息资源格式<span v-if="req('resource_format')" class="req">*</span></label>
             <select v-model="resourceFormat" class="gov-input" :disabled="!canAuthor || Boolean(catalogCode)">
               <option v-for="o in RESOURCE_FORMAT_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
             </select>
           </div>
           <div class="form-row">
-            <label class="field-label">共享方式</label>
+            <label class="field-label">共享方式<span v-if="req('shared_way')" class="req">*</span></label>
             <select v-model="shareWay" class="gov-input" :disabled="!canAuthor || Boolean(catalogCode)">
               <option v-for="o in SHARE_WAY_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
             </select>
           </div>
           <div class="form-row">
-            <label class="field-label">业务更新周期</label>
+            <label class="field-label">业务更新周期<span v-if="req('business_update_cycle')" class="req">*</span></label>
             <select v-model="businessUpdateCycle" class="gov-input" :disabled="!canAuthor || Boolean(catalogCode)">
               <option v-for="o in UPDATE_CYCLE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
             </select>
           </div>
           <div class="form-row">
-            <label class="field-label">数据更新周期</label>
+            <label class="field-label">数据更新周期<span v-if="req('data_update_cycle')" class="req">*</span></label>
             <select v-model="dataUpdateCycle" class="gov-input" :disabled="!canAuthor || Boolean(catalogCode)">
               <option v-for="o in UPDATE_CYCLE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
             </select>
           </div>
           <div class="form-row">
-            <label class="field-label">共享类型</label>
+            <label class="field-label">共享类型<span v-if="req('shared_type')" class="req">*</span></label>
             <select v-model="shareType" class="gov-input" :disabled="!canAuthor || Boolean(catalogCode)">
               <option v-for="o in SHARE_TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
             </select>
           </div>
           <div class="form-row">
-            <label class="field-label">开放类型</label>
+            <label class="field-label">开放类型<span v-if="req('open_type')" class="req">*</span></label>
             <select v-model="openType" class="gov-input" :disabled="!canAuthor || Boolean(catalogCode)">
               <option v-for="o in OPEN_TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
             </select>
           </div>
           <div class="form-row span2">
-            <label class="field-label">共享条件</label>
+            <label class="field-label">共享条件<span v-if="req('shared_condition')" class="req">*</span></label>
             <input v-model="shareCondition" class="gov-input" type="text" placeholder="例如：根据个人信息保护要求，按授权范围共享" :disabled="!canAuthor || Boolean(catalogCode)" />
           </div>
           <div class="form-row span2">
-            <label class="field-label">数据资源摘要</label>
+            <label class="field-label">数据资源摘要<span v-if="req('description')" class="req">*</span></label>
             <textarea v-model="description" class="gov-textarea" rows="3" placeholder="一句话说明本目录覆盖的数据范围与用途。" :disabled="!canAuthor || Boolean(catalogCode)"></textarea>
           </div>
         </div>

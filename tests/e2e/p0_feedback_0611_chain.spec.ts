@@ -44,6 +44,14 @@ test('链路1：UI 新编目→挂接有条件资源→发布→申请→受理�
   await setRole(page, 'ROLE_ORGAN_OPERATER');
   await gotoHash(page, '#/provider/wizard/inline-catalog');
   await page.getByPlaceholder('例如：医疗救助申请人信息').fill(CAT_TITLE);
+  // 基本信息必填全集（0611 口径确认单 §A：创建/提交均强校验）。下拉项均有默认值，
+  // 只需补 6 个自由文本必填项；共享类型默认 2（有条件）→ 共享条件转必填。
+  await page.getByPlaceholder('例如：民政服务').fill('营商环境');
+  await page.getByPlaceholder('例如：医疗救助建模系统').fill('链路验证来源系统');
+  await page.getByPlaceholder('例如：社会保障').fill('市场监管');
+  await page.getByPlaceholder('例如：用于医疗救助资格审核与待遇核算').fill('0611 主链 e2e 链路验证');
+  await page.getByPlaceholder('例如：根据个人信息保护要求，按授权范围共享').fill('按授权范围共享，需符合个人信息保护要求');
+  await page.getByPlaceholder('一句话说明本目录覆盖的数据范围与用途。').fill('覆盖 0611 主链 e2e 链路验证目录的数据范围。');
   await page.getByTestId('inline-catalog-create-btn').click();
   await expect(page.locator('body')).toContainText('已生成目录草稿', { timeout: 15_000 });
   await page.getByTestId('inline-catalog-update-btn').click();

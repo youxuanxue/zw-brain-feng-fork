@@ -296,7 +296,7 @@ class RequestService:
         _fallback = {
             "draft": "草稿",
             "open": "待处理",
-            "reconciling": "待对账",
+            "reconciling": "待核对",
             "warning": "需关注",
             "failed": "失败",
             "online": "在线",

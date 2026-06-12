@@ -86,26 +86,33 @@ test.describe('客户验收 — 部门操作员 J1', () => {
     await expect(page.getByText(/已提交|阶段/i).first()).toBeVisible({ timeout: 8_000 });
   });
 
-  test('P4 任务详情 → 领凭据跳转', async ({ page }) => {
-    // D53⑥（F1/6.4#15）：交付回执收窄到「部门管理员」——P4 交付 / 领凭据归 MANAGER，
+  test('P4 任务详情 → 按资源类型分流操作（0611 §B 方案 B）', async ({ page }) => {
+    // D53⑥（F1/6.4#15）：交付回执收窄到「部门管理员」——P4 交付归 MANAGER，
     // OPERATER 已无访问（路由层重定向）。此处切到 MANAGER 走真实交付旅程。
+    // 0611 业务口径确认单 §B（2026-06-12 方案 B 终裁）：详情页操作按资源类型分流——
+    // API/未知=「查看授权」、文件=「下载」、库表=「核对交换结果」（交换任务语系）。
     await setRole(page, 'ROLE_ORGAN_MANAGER');
     await gotoHash(page, '#/delivery-exchange');
     await expect(page.getByRole('heading', { name: '交付任务' })).toBeVisible();
-    const taskLink = page.locator('a[href*="#/delivery-exchange/"]').first();
+    const taskLink = page.locator('a[href*="#/delivery-exchange/task/"]').first();
     await expect(taskLink).toBeVisible({ timeout: 8_000 });
     const href = await taskLink.getAttribute('href');
-    expect(href).toMatch(/#\/delivery-exchange\//);
+    expect(href).toMatch(/#\/delivery-exchange\/task\//);
     await taskLink.click();
-    await expect(page.getByRole('heading', { name: /交付任务/ })).toBeVisible();
-    const credBtn = page.getByRole('button', { name: '领凭据' });
+    // 标题随资源类型分语系：库表=「交换任务」、其余=「交付任务」。
+    // level:1 锁页头 h1（库表详情还有 h2「交换任务详情」面板标题，同 regex 会双命中触发 strict mode）。
+    await expect(page.getByRole('heading', { name: /交付任务|交换任务/, level: 1 })).toBeVisible();
+    // 分流后操作区只渲染当前类型可执行的单一动作（不再领凭据+对账回执双按钮混排）。
+    const actionBtn = page.getByRole('button', { name: /^(查看授权|下载|核对交换结果)$/ });
+    await expect(actionBtn).toHaveCount(1);
+    const credBtn = page.getByRole('button', { name: '查看授权' });
     if (await credBtn.isVisible()) {
       await credBtn.click();
-      // 凭据跳转需交付任务有 requestId（legacy hash-id 交付可能为空 → openCredential no-op）。
+      // 授权跳转需交付任务有 requestId（legacy hash-id 交付可能为空 → openCredential no-op）。
       // 跳转成功则断言凭据页诚实呈现：curl/Python 样例 或 未签发提示（C-1 凭据诚实化）。
       if (/#\/delivery-exchange\/credential\//.test(page.url())) {
         await expect(
-          page.getByRole('heading', { name: /凭据|调用/i }).or(page.getByText(/未签发|尚未签发|凭据尚未/)),
+          page.getByRole('heading', { name: /凭据|授权|调用/i }).or(page.getByText(/未签发|尚未签发|凭据尚未/)),
         ).toBeVisible({ timeout: 8_000 });
       }
     }

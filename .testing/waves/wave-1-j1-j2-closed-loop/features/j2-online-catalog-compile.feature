@@ -6,7 +6,7 @@
 # Trace: 基线 §3.2 目录管理 23 页, §3.3 CatalogModel 双轨编制, §10.2 J2 在线编制, 旧 xlsx 行 [35..38] 反向编目+在线编制+导入+编辑 (45-53 国家目录治理 ⏸ Wave 3)
 # Priority: P1
 # Owner: e2
-# Pytest: tests/test_wave1_j2_pipeline.py
+# Pytest: tests/test_wave1_j2_pipeline.py tests/test_inline_catalog_required_fields.py
 
 Feature: J2 在线编制目录（含国家扩展要素双轨）
   As a 部门操作员 ROLE_ORGAN_OPERATER（编目员）
@@ -56,9 +56,12 @@ Feature: J2 在线编制目录（含国家扩展要素双轨）
     Then 拒绝
     And R11：方向由 actor.current_org_code 决定
 
-  Scenario: 负向 — 草稿必填字段不全不能提交审核
-    When 我尝试 "提交审核" 但 信息项清单为空
-    Then 拒绝 + UI 列出具体缺字段
+  Scenario: 负向 — 基本信息必填项不全不能提交审核（0611 口径确认单 §A，2026-06-12 确认）
+    When 我尝试 "提交审核" 但 数据资源分类 / 来源系统 / 所属领域 / 应用场景 / 数据资源摘要 等必填项未填
+    Then 拒绝 + 中文提示列出具体缺失的必填项名
+    And 共享类型为 "有条件共享" 时 共享条件 同为必填（其余共享类型选填）
+    And 内部部门 为选填，不出现在缺失清单
+    And 存量导入目录（非在线编制新铸）不回溯此校验，流转不受影响
     And catalog 仍处于 0 草稿
 
   Scenario: 回归 — 编制阶段不发布到 P2（基线 §3.3 6 态约束）

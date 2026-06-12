@@ -128,6 +128,32 @@ def _unique_catalog_code(prefix: str = "TEST-J2") -> str:
     return f"{prefix}-{uuid.uuid4().hex[:12]}"
 
 
+def _required_summary(**overrides) -> dict:
+    """在线编制基本信息必填全集（0611 业务口径确认单 §A，D57）。
+
+    经 catalog.entry.create_draft 新铸的目录提交审核前必须填全必填基本信息
+    （catalog_entry.py::_missing_inline_required_basic_fields）；本文件聚焦状态机，
+    凡走到 submit_review 的草稿统一带该完整集（shared_type=1 无条件共享，
+    避免连带共享条件的条件必填）。必填校验本身的三向用例见
+    tests/test_inline_catalog_required_fields.py。
+    """
+    base = {
+        "catalog_type": "测试分类",
+        "source_system": "G2.2 测试来源系统",
+        "domain": "测试领域",
+        "application_scenario": "G2.2 状态机回归",
+        "resource_format": "0200",
+        "business_update_cycle": "2",
+        "data_update_cycle": "2",
+        "shared_way": "api",
+        "shared_type": "1",
+        "open_type": "3",
+        "description": "G2.2 状态机回归测试目录",
+    }
+    base.update(overrides)
+    return base
+
+
 def _call(brain, skill: str, payload: dict) -> dict:
     """invoke_skill wraps the inner mutation in {'ok', 'skill_id', 'audit_id', 'result'};
     helper returns just `result` dict so scenario assertions stay terse.
@@ -254,7 +280,7 @@ def test_j2_dept_review_approve_transitions_to_approved_pending_publish(brain, c
     """正向 — submit_review → pending_review；MANAGER approve → approved_pending_publish."""
     code = _unique_catalog_code("J2-REV-APPROVE")
     _call(brain, "catalog.entry.create_draft", {
-        "catalog_code": code, "title": "待审目录", "owner_org_id": "dept_a_test",
+        "catalog_code": code, "title": "待审目录", "summary_json": _required_summary(), "owner_org_id": "dept_a_test",
         "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     submit = _call(brain, "catalog.entry.submit_review", {
@@ -274,7 +300,7 @@ def test_j2_dept_review_return_for_fix_transitions_to_draft(brain, catalog_repo)
     """正向 — MANAGER return_for_fix → 回到 draft（编目员补件再提交）."""
     code = _unique_catalog_code("J2-REV-RETURN")
     _call(brain, "catalog.entry.create_draft", {
-        "catalog_code": code, "title": "需补件目录", "owner_org_id": "dept_a_test",
+        "catalog_code": code, "title": "需补件目录", "summary_json": _required_summary(), "owner_org_id": "dept_a_test",
         "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     _call(brain, "catalog.entry.submit_review", {
@@ -293,7 +319,7 @@ def test_j2_dept_review_reject_terminal(brain, catalog_repo):
     """正向 — MANAGER reject → rejected 终态（编目员看到驳回理由，需新建草稿重提）."""
     code = _unique_catalog_code("J2-REV-REJECT")
     _call(brain, "catalog.entry.create_draft", {
-        "catalog_code": code, "title": "将被驳回目录", "owner_org_id": "dept_a_test",
+        "catalog_code": code, "title": "将被驳回目录", "summary_json": _required_summary(), "owner_org_id": "dept_a_test",
         "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     _call(brain, "catalog.entry.submit_review", {
@@ -311,7 +337,7 @@ def test_j2_dept_review_unsupported_decision_rejected(brain):
     from zw_brain.command.brain import BrainServiceError
     code = _unique_catalog_code("J2-REV-BAD")
     _call(brain, "catalog.entry.create_draft", {
-        "catalog_code": code, "title": "异常 decision 目录",
+        "catalog_code": code, "title": "异常 decision 目录", "summary_json": _required_summary(),
         "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     _call(brain, "catalog.entry.submit_review", {
@@ -334,7 +360,7 @@ def test_j2_platform_publish_activates_and_creates_version(brain, catalog_repo):
     code = _unique_catalog_code("J2-PUB")
     # 走全链路 draft → pending_review → approved_pending_publish
     _call(brain, "catalog.entry.create_draft", {
-        "catalog_code": code, "title": "G2.2 准备发布的目录",
+        "catalog_code": code, "title": "G2.2 准备发布的目录", "summary_json": _required_summary(),
         "owner_org_id": "dept_a_test", "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     _call(brain, "catalog.entry.submit_review", {
@@ -369,7 +395,7 @@ def test_j2_platform_withdraw_transitions_to_retired(brain, catalog_repo):
     code = _unique_catalog_code("J2-WITHDRAW")
     # full chain to active
     _call(brain, "catalog.entry.create_draft", {
-        "catalog_code": code, "title": "G2.2 将被下线的目录",
+        "catalog_code": code, "title": "G2.2 将被下线的目录", "summary_json": _required_summary(),
         "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     _call(brain, "catalog.entry.submit_review", {
@@ -439,7 +465,7 @@ def test_j2_three_layer_happy_path_full_chain(brain, catalog_repo):
     """
     code = _unique_catalog_code("J2-3L-HAPPY")
     _call(brain, "catalog.entry.create_draft", {
-        "catalog_code": code, "title": "G2.2 3 层流程目录",
+        "catalog_code": code, "title": "G2.2 3 层流程目录", "summary_json": _required_summary(),
         "owner_org_id": "dept_a_test", "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     _call(brain, "catalog.entry.submit_review", {
@@ -494,7 +520,7 @@ def test_j2_three_layer_manager_return_for_fix_back_to_draft(brain, catalog_repo
     """正向 — MANAGER 阶段 return_for_fix → 回 draft（编目员补件再提）."""
     code = _unique_catalog_code("J2-3L-MGR-RETURN")
     _call(brain, "catalog.entry.create_draft", {
-        "catalog_code": code, "title": "MANAGER 退回目录",
+        "catalog_code": code, "title": "MANAGER 退回目录", "summary_json": _required_summary(),
         "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     _call(brain, "catalog.entry.submit_review", {
@@ -513,7 +539,7 @@ def test_j2_three_layer_manager_reject_terminal(brain, catalog_repo):
     """正向 — MANAGER 阶段 reject → rejected 终态."""
     code = _unique_catalog_code("J2-3L-MGR-REJECT")
     _call(brain, "catalog.entry.create_draft", {
-        "catalog_code": code, "title": "MANAGER 驳回目录",
+        "catalog_code": code, "title": "MANAGER 驳回目录", "summary_json": _required_summary(),
         "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     _call(brain, "catalog.entry.submit_review", {
@@ -530,7 +556,7 @@ def test_j2_three_layer_platform_return_for_fix_back_to_draft(brain, catalog_rep
     """正向 — 平台 stage BUSIAUDIT return_for_fix → 回 draft."""
     code = _unique_catalog_code("J2-3L-PLT-RETURN")
     _call(brain, "catalog.entry.create_draft", {
-        "catalog_code": code, "title": "平台退回目录",
+        "catalog_code": code, "title": "平台退回目录", "summary_json": _required_summary(),
         "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     _call(brain, "catalog.entry.submit_review", {
@@ -553,7 +579,7 @@ def test_j2_three_layer_platform_reject_terminal(brain, catalog_repo):
     """正向 — 平台 stage BUSIAUDIT reject → rejected 终态."""
     code = _unique_catalog_code("J2-3L-PLT-REJECT")
     _call(brain, "catalog.entry.create_draft", {
-        "catalog_code": code, "title": "平台驳回目录",
+        "catalog_code": code, "title": "平台驳回目录", "summary_json": _required_summary(),
         "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     _call(brain, "catalog.entry.submit_review", {
@@ -575,7 +601,7 @@ def test_j2_three_layer_stage_mismatch_rejected(brain):
     from zw_brain.command.brain import InvalidStateError
     code = _unique_catalog_code("J2-3L-STAGE-MIS")
     _call(brain, "catalog.entry.create_draft", {
-        "catalog_code": code, "title": "阶段错位目录",
+        "catalog_code": code, "title": "阶段错位目录", "summary_json": _required_summary(),
         "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     _call(brain, "catalog.entry.submit_review", {
@@ -597,7 +623,7 @@ def test_j2_three_layer_audit_chain_records_both_review_events(brain):
     """端到端 — 3 层完整链路落 5+ capability_call + 2 次 review audit_event."""
     code = _unique_catalog_code("J2-3L-AUDIT")
     _call(brain, "catalog.entry.create_draft", {
-        "catalog_code": code, "title": "3 层审计链",
+        "catalog_code": code, "title": "3 层审计链", "summary_json": _required_summary(),
         "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     _call(brain, "catalog.entry.submit_review", {
@@ -660,7 +686,7 @@ def test_j2_mount_per_materialization_end_to_end(brain, catalog_repo, provider_s
     code = _unique_catalog_code(f"J2-MOUNT-{kind.upper()}")
     # F1 链路：编制 → 部门审 → 平台审 → publish
     _call(brain, "catalog.entry.create_draft", {
-        "catalog_code": code, "title": f"G2.2-F2 {kind} 物化资源挂接目录",
+        "catalog_code": code, "title": f"G2.2-F2 {kind} 物化资源挂接目录", "summary_json": _required_summary(),
         "owner_org_id": "dept_a_test", "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     _call(brain, "catalog.entry.submit_review", {
@@ -766,6 +792,7 @@ def _publish_to_active(brain_, code: str, title: str, *, owner_org_id: str = "de
     _call(brain_, "catalog.entry.create_draft", {
         "catalog_code": code, "title": title,
         "owner_org_id": owner_org_id, "region_code": region_code,
+        "summary_json": _required_summary(),
         "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     _call(brain_, "catalog.entry.submit_review", {
@@ -884,7 +911,7 @@ def test_j2_audit_chain_records_lifecycle_transitions(brain, baseline_counts):
     code = _unique_catalog_code("J2-AUDIT")
     # 5 stages
     _call(brain, "catalog.entry.create_draft", {
-        "catalog_code": code, "title": "G2.2 审计链测试",
+        "catalog_code": code, "title": "G2.2 审计链测试", "summary_json": _required_summary(),
         "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     _call(brain, "catalog.entry.submit_review", {

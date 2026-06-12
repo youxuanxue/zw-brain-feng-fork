@@ -1000,7 +1000,7 @@ class BrainService:
                     "detail": "核心审批后的授权交付已完成，并保留审计锚定。",
                 }
             )
-            task["aiSummary"]["summary"] = "访问授权已生效，当前可进入使用监测、回执对账或模板回流确认。"
+            task["aiSummary"]["summary"] = "访问授权已生效，当前可进入使用监测、交换结果核对或模板回流确认。"
             task["aiSummary"]["nextAction"] = "继续监测调用与回执，如存在高频差异字段再进入供给侧治理。"
             store = self._state_store.database_store
             if store is not None:

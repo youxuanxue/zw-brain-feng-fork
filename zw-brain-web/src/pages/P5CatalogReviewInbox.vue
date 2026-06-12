@@ -66,10 +66,13 @@ async function loadInbox(): Promise<void> {
     const resp = await authFetch(apiUrl('/api/skills/catalog.entry.query'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      // 0611 断点 A 同株（#251 复审 R004）：全量（去 limit:20 截断）+ 按提交/更新时间倒序——
+      // 缺省 catalog_code 升序时新提交 j2-* 目录排存量数字码之后、配合截断永不可见，
+      // 且收件箱条数与工作台待审计数（同口径全量 count）自相矛盾。行多时容器内滚动。
       body: JSON.stringify({
         role: role.value,
         lifecycle_status: targetLifecycleStatus.value,
-        limit: 20,
+        order: 'updated_desc',
       }),
     });
     if (!resp.ok) {
@@ -145,7 +148,8 @@ const headerMeta = computed(() => {
       <div v-else>
         <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
 
-        <table v-if="items.length" class="focus-table">
+        <div v-if="items.length" class="inbox-scroll">
+        <table class="focus-table">
           <thead>
             <tr>
               <th>目录编号</th>
@@ -193,6 +197,7 @@ const headerMeta = computed(() => {
             </tr>
           </tbody>
         </table>
+        </div>
         <p v-else-if="!loading" class="focus-empty">暂无{{ stageLabel }}待办。</p>
       </div>
     </section>
@@ -200,6 +205,8 @@ const headerMeta = computed(() => {
 </template>
 
 <style scoped>
+/* 收件箱全量呈现（同 0611 断点 A：去 limit 截断）；行多时容器内滚动，不无限撑长页面。 */
+.inbox-scroll { max-height: 560px; overflow-y: auto; }
 .row-link-btn { background: none; border: 0; cursor: pointer; font-size: 13px; text-decoration: underline; margin-right: 12px; padding: 0; }
 .catalog-link { color: var(--b-primary, #006be6); text-decoration: none; }
 .catalog-link:hover { text-decoration: underline; }

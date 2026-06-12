@@ -25,7 +25,8 @@ def _delivery_resource_kind(res_type: Any, channel: Any = None) -> str | None:
 
     存量 data_apply_authrization 多无 per-grant res_type → 用交付渠道 channel 兜底推导
     （channel 即编码了交付形态：table/db/exchange→库表、file/folder→文件、service/api→接口），
-    否则 resourceKind=None、F3「领凭据 vs 查看授权」/F4「下载」永不分流。仍推不出→None（默认双按钮）。
+    否则 resourceKind=None、前端「查看授权 / 下载 / 交换任务」永不分流。仍推不出→None
+    （前端回落「查看授权」通用入口，0611 业务口径确认单 §B 方案 B）。
     """
     for raw in (res_type, channel):
         if not raw:
@@ -125,8 +126,8 @@ class DeliveryService:
             # 拼进名称（编号列已单独展示 id），避免「<hex> 交付任务」的乱码观感（2026-06-09 走查）。
             "name": payload.get("resource_name") or _delivery_fallback_name(payload),
             "channel": record.channel,
-            # F3（6.5#9）+ F4：交付侧资源类型，供前端按类型分流操作——API 交付无「对账回执」概念、
-            # 其凭据语义是「查看授权」，文件类显「下载」。收敛口径同 D53（folder/url→file、service→api）；
+            # F3（6.5#9）+ F4：交付侧资源类型，供前端按类型分流操作——API=「查看授权」、
+            # 文件=「下载」、库表=「交换任务」语系（0611 §B 方案 B）。收敛口径同 D53（folder/url→file、service→api）；
             # 优先 payload.resource_kind（F4 导入时已落），回落 access_grant.res_type，再以 channel 兜底推导
             # （见 _delivery_resource_kind）。（渠道/时间/编号白话化由前端 formatChannel/formatTime/shortId 承接。）
             "resourceKind": _delivery_resource_kind(payload.get("resource_kind") or grant.get("res_type"), record.channel),

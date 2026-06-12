@@ -418,9 +418,10 @@ def _create_request(
             "resourceId": canonical_id,
             "resourceName": resource["name"],
             "name": f"{resource['name']} 交付任务",
-            # T12（6.5#9）：新建交付单按资源类型分流（API=查看授权、文件=下载、库表=领凭据/对账回执）。
-            # discovery.resources 行已带规范化 kind（canonical_resource_kind 投影），此处随交付单落字段，
-            # 与 legacy 导入单（delivery_service._delivery_resource_kind）口径统一；缺类型→None（默认双按钮）。
+            # T12（6.5#9）+ 0611 §B 方案 B：新建交付单按资源类型分流（API=查看授权、文件=下载、
+            # 库表=「交换任务」单一入口）。discovery.resources 行已带规范化 kind（canonical_resource_kind
+            # 投影），此处随交付单落字段，与 legacy 导入单（delivery_service._delivery_resource_kind）
+            # 口径统一；缺类型→None（UI 回落「查看授权」单按钮）。
             "resourceKind": canonical_resource_kind(resource.get("kind")),
             "channel": "受控交付 + 审计回执",
             "status": "pending",

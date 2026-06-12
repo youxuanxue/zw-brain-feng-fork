@@ -200,7 +200,20 @@ test.describe('权限矩阵走查（permission-matrix-0610）', () => {
         title,
         owner_org_id: '11370000MB284651XL',
         region_code: '370100',
-        summary_json: { catalog_type: '业务目录', domain: '营商环境' },
+        // 基本信息必填全集（0611 口径确认单 §A：submit_review 对在线编制目录强校验）
+        summary_json: {
+          catalog_type: '业务目录',
+          domain: '营商环境',
+          source_system: 'e2e 权限矩阵来源系统',
+          application_scenario: 'e2e 权限矩阵走查',
+          resource_format: '0200',
+          business_update_cycle: '2',
+          data_update_cycle: '2',
+          shared_way: 'api',
+          shared_type: '1',
+          open_type: '3',
+          description: 'e2e 权限矩阵走查目录种子',
+        },
         role: 'ROLE_ORGAN_OPERATER',
         confirmed: true,
       });

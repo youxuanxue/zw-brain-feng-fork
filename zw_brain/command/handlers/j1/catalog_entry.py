@@ -19,6 +19,60 @@ from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_
 from zw_brain.shared.sanitization import safe_json
 
 # ──────────────────────────────────────────────────────────────────────────
+# 在线编制「基本信息」必填口径（提交审核时校验）
+#
+# 口径单源 = 《问题反馈-0611 业务口径确认单》§A（16 字段），负责人薛娇 2026-06-12 确认
+# （草案建议全采纳，含 内部部门=选填、数据资源摘要=必填）。
+# 前端字典权威 = zw-brain-web/src/lib/catalogCompileFields.ts `BASIC_INFO_FIELDS`；
+# 本表为后端镜像（无现成生成物同步机制，两表改动必须同步；新增/调整必填位先改前端字典）。
+#
+# 校验范围：仅经 catalog.entry.create_draft 新铸的在线编制目录（其 summary_json 顶层
+# 必有本 handler 注入的 data_catalog_code 业务码）。存量导入目录（旧平台迁移，约 1200+
+# 条，大量缺字段）与反向编目草稿无此键 → 不回溯，避免必填校验卡死存量流转（fail-closed 误伤）。
+# ──────────────────────────────────────────────────────────────────────────
+
+_INLINE_BASIC_REQUIRED_FIELDS: tuple[tuple[str, str], ...] = (
+    ("catalog_type", "数据资源分类"),
+    ("source_system", "来源系统"),
+    ("domain", "所属领域"),
+    ("application_scenario", "应用场景"),
+    ("resource_format", "信息资源格式"),
+    ("business_update_cycle", "业务更新周期"),
+    ("data_update_cycle", "数据更新周期"),
+    ("shared_way", "共享方式"),
+    ("shared_type", "共享类型"),
+    ("open_type", "开放类型"),
+    ("description", "数据资源摘要"),
+)
+# 「有条件共享」码（dsp_catalog shared_type=2）→ 共享条件转必填；其余共享类型选填。
+_CONDITIONAL_SHARE_TYPE = "2"
+
+
+def _is_blank(value: Any) -> bool:
+    return value is None or (isinstance(value, str) and not value.strip())
+
+
+def _missing_inline_required_basic_fields(existing: Any) -> list[str]:
+    """返回在线编制目录缺失的必填基本信息中文名；存量导入/反向编目目录恒返回 []。
+
+    字段读取口径：create_draft 把表单基本信息嵌在 summary_json["summary_json"]，
+    update 则展开到顶层（既有行为）——两处合并后取顶层优先，覆盖「创建即提交」与
+    「保存元数据后提交」两条路径。
+    """
+    summary = existing.summary_json if isinstance(existing.summary_json, dict) else {}
+    if "data_catalog_code" not in summary:
+        return []
+    nested = summary.get("summary_json")
+    merged = {**(nested if isinstance(nested, dict) else {}), **summary}
+    missing = [label for key, label in _INLINE_BASIC_REQUIRED_FIELDS if _is_blank(merged.get(key))]
+    if not str(existing.title or "").strip():
+        missing.insert(0, "数据资源目录名称")
+    if str(merged.get("shared_type") or "") == _CONDITIONAL_SHARE_TYPE and _is_blank(merged.get("shared_condition")):
+        missing.append("共享条件")
+    return missing
+
+
+# ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
 
@@ -400,6 +454,14 @@ def _review_catalog_entry(brain, deps, ctx, catalog_code: str, decision: str, ro
     raise BrainServiceError(f"unsupported catalog entry review decision: {decision}")
 
 def _submit_catalog_entry_review(brain, deps, ctx, catalog_code: str, role: str, confirmed: bool) -> dict[str, Any]:
+    # 在线编制目录提交审核前的必填校验（0611 口径确认单 §A）。目录不存在时不在此抛错，
+    # 交给 _transition_catalog_entry 统一抛 NotFoundError（错误语义单一）。
+    repo = deps.repos.catalog
+    existing = repo.get_entry(catalog_code, tenant_id=_DEFAULT_TENANT_ID)
+    if existing is not None:
+        missing = _missing_inline_required_basic_fields(existing)
+        if missing:
+            raise InvalidStateError(f"基本信息未填全，暂不能提交审核。请补全必填项：{'、'.join(missing)}。")
     return _transition_catalog_entry(brain, deps, ctx, catalog_code, "pending_review", "catalog.entry.submit_review", role, confirmed)
 
 def _update_catalog_entry(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:

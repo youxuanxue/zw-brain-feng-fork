@@ -85,7 +85,7 @@
   4. 执行：`... --apply`（删薄行→把存量行 rekey 到 sub，单行收口）。脚本删除经 `delete_actor_row(source_ref_guard='iaf:claims')` 守卫，只能删登录薄行、永不误删 legacy 行。
   5. 复核：再跑一次 `--dry-run`，期望 `thin_rows=0 planned_rekey=0`（幂等）；并核对 `actor_projection` 行数下降量 == `deleted_thin`、被认领行的 `external_actor_id` 已是真实 sub 且 `binding` 完整。
   > unmatched/ambiguous 不阻断已成功合并的行；它们只是需要人工跟进的尾巴，处理完再单独重跑即可。
-- **导出缺表或缺字段**：停止导入该批次，输出缺口清单；不猜测旧结构，也不手工补造来源。
+- **长寿库存量 `access_policy_json` 旧键 `shared_type`（历史脏数据修复）**：0611 断点 C 修复前，挂接/代理服务注册向导写 `access_policy_json` 用过旧键 `shared_type`，读端只认 `share_type` → 这些资源被误判无条件共享、受理即终。代码侧写端已统一 `share_type`；修复前部署且有过 UI 挂接写入的长寿库需一次性 sweep 存量行（全新重建 / 纯导入库不受影响——legacy seed 本就落 `share_type`）：`SELECT id FROM resource_asset WHERE access_policy_json LIKE '%"shared_type"%';` 命中行把键改名 `shared_type`→`share_type`（值不动），改完复查命中数为 0。停止导入该批次，输出缺口清单；不猜测旧结构，也不手工补造来源。
 - **字段枚举无法识别**：保留原始枚举摘要，进入迁移待核验，不直接映射为 active 状态。
 - **schema 冲突**：同一旧资源多版本字段不一致时，保留版本快照，默认只激活通过核验的稳定版本。
 - **旧对象重复**：生成候选合并关系，交给 `ROLE_BUSIAUDIT`（业务运营员）做目录合并或专题入口整理，不在迁移脚本里静默去重。

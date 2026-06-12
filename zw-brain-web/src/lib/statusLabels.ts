@@ -13,7 +13,7 @@ const REQUEST_STATUS_ZH: Record<string, string> = {
   revoked: '已撤销',
   suspended: '已暂停',
   draft: '草稿',
-  reconciling: '待对账',
+  reconciling: '待核对',
   issued: '已签发',
   not_issued: '未签发',
   // 交付任务

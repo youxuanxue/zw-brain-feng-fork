@@ -113,6 +113,20 @@ def run() -> int:
                 "title": CATALOG_TITLE,
                 "summary": "G2.1 业务运营员 点击审核 e2e 目录种子",
                 "provider_org_code": "ORG_SHANDONG_BIGDATA",
+                # 基本信息必填全集（0611 口径确认单 §A：submit_review 对在线编制目录强校验）
+                "summary_json": {
+                    "catalog_type": "业务目录",
+                    "source_system": "G2.1 e2e 来源系统",
+                    "domain": "营商环境",
+                    "application_scenario": "G2.1 业务运营员点击审核走查",
+                    "resource_format": "0200",
+                    "business_update_cycle": "2",
+                    "data_update_cycle": "2",
+                    "shared_way": "api",
+                    "shared_type": "1",
+                    "open_type": "3",
+                    "description": "G2.1 业务运营员 点击审核 e2e 目录种子",
+                },
                 "confirmed": True,
             })
             submit = api_post(page, "catalog.entry.submit_review", {

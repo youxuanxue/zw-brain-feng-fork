@@ -140,7 +140,7 @@ onMounted(() => { void load(); });
 
 const cred = computed(() => credentialView.value?.credential ?? null);
 
-// F5（0605#9）：API 资源把「领凭据/凭据」按「查看授权/授权码」呈现——网关 App Key/Secret
+// F5（0605#9）：API 资源把凭据按「查看授权/授权码」呈现——网关 App Key/Secret
 // 即调用授权要素，curl/Python/Java 样例就是授权后的调用方式。非 API（库表/文件）或未知
 // 形态保持「凭据」通用词（诚实不臆断）。
 const isApiResource = computed(() => String(credentialView.value?.resource_kind ?? '').toLowerCase() === 'api');

@@ -128,7 +128,22 @@ def run_demo(seed_db: Path, shadow_db: Path) -> dict[str, Any]:
         "title": f"F6 J2 demo 目录 — {table_resource['title']} (补元)",
         "owner_org_id": provider_org,
         "region_code": "370100",
-        "summary_json": {"demo": True, "stage": "metadata_filled"},
+        # 基本信息必填全集（0611 口径确认单 §A：submit_review 对在线编制目录强校验）
+        "summary_json": {
+            "demo": True,
+            "stage": "metadata_filled",
+            "catalog_type": "演示目录",
+            "source_system": "F6 J2 演示来源系统",
+            "domain": "营商环境",
+            "application_scenario": "F6 J2 全链演示",
+            "resource_format": "0200",
+            "business_update_cycle": "2",
+            "data_update_cycle": "2",
+            "shared_way": "table",
+            "shared_type": "1",
+            "open_type": "3",
+            "description": "F6 J2 demo 目录（table 物化真数据挂接演示）",
+        },
         "role": "ROLE_ORGAN_OPERATER",
         "confirmed": True,
     })
