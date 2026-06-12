@@ -55,7 +55,7 @@
 
 ## `zw_brain/domain/repositories/catalog.py`
 
-### `zw_brain/domain/repositories/catalog.py:189`
+### `zw_brain/domain/repositories/catalog.py:199`
 
 **Reason**: builder 基座仅 tenant；调用方须传 lifecycle/owner/prefix/limit（PR #113 修复路径）
 
@@ -65,7 +65,7 @@
         # trigger: list_entries 默认全 None 且无 limit 时等同 #113 全扫 — 见 preflight-debt §2026-05-26
 ```
 
-### `zw_brain/domain/repositories/catalog.py:387`
+### `zw_brain/domain/repositories/catalog.py:399`
 
 **Reason**: catalog_code 可选；None 时 tenant-only 全量 item；当前单租户 <1k
 
@@ -75,7 +75,7 @@
         # trigger: catalog 万级或多租户时改必填 catalog_code 或 paged list_items
 ```
 
-### `zw_brain/domain/repositories/catalog.py:397`
+### `zw_brain/domain/repositories/catalog.py:409`
 
 **Reason**: legacy verification 一次性 count/set-membership 用途；method 名带 _all
 

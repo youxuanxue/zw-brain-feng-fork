@@ -129,10 +129,12 @@ ALLOWED_FILES = (
 
 
 def should_skip_path(path: Path) -> bool:
-    s = str(path)
-    if any(frag in s for frag in SKIP_PATH_FRAGMENTS):
-        return True
+    # 用 REPO 相对路径匹配 skip fragment：仓库根自身位于 .claude/worktrees/ 等目录下时
+    # （git worktree 副本），绝对路径匹配会把**全仓**误跳过 → 本地全绿、CI 红的假信号。
+    # 相对化后 CI（仓库根不在任何 fragment 下）行为不变，worktree 本地跑与 CI 同语义。
     rel = path.relative_to(REPO).as_posix()
+    if any(frag in f"/{rel}" for frag in SKIP_PATH_FRAGMENTS):
+        return True
     return rel in ALLOWED_FILES
 
 

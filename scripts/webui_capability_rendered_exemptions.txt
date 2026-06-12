@@ -84,7 +84,6 @@ require.task.handoff
 resource.api.change
 resource.api.policy.update
 resource.api.revoke
-resource.asset.publish
 resource.manage_asset
 service.rating.submit
 subscription.terminate

@@ -93,11 +93,23 @@ def test_catalog_browse_default_filters_active_real_only(brain: BrainService) ->
 
 
 def test_provider_inbox_projection_uses_status_filters(brain: BrainService) -> None:
+    # 反向编目审核收件箱口径（0611 修复项 R-4）= source=reverse ∧ lifecycle=draft：
+    # 与 confirm/reject handler 可办前置一致；正向在审单/已发布单均不混入。
     repo = CatalogRepository()
     repo.upsert_from_resource(
         {
+            "id": "cat-reverse-draft-001",
+            "name": "反向编目待审核草稿",
+            "status": "draft",
+            "source": "reverse",
+            "provider": "11370000MB284651XL",
+        },
+        tenant_id=TENANT,
+    )
+    repo.upsert_from_resource(
+        {
             "id": "cat-pending-review-001",
-            "name": "待审目录",
+            "name": "正向在审目录",
             "status": "pending_review",
             "provider": "11370000MB284651XL",
         },
@@ -114,7 +126,8 @@ def test_provider_inbox_projection_uses_status_filters(brain: BrainService) -> N
     )
     inbox = project_provider_inbox(tenant_id=TENANT)
     ids = {item["id"] for item in inbox["field_decisions"]}
-    assert "cat-pending-review-001" in ids
+    assert "cat-reverse-draft-001" in ids
+    assert "cat-pending-review-001" not in ids
     assert "cat-active-only-001" not in ids
 
 

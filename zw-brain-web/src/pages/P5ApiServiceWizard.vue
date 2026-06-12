@@ -126,8 +126,11 @@ function buildPayload(): Record<string, unknown> {
     title: serviceName.value.trim(),
     catalog_code: relatedCatalog.value || undefined,
     // 数据分级/共享/授权落 access_policy_json（无需新表）。
+    // 存储键 = share_type（0611 断点 C 同决策：写读键统一，与 legacy seed 及共享方式
+    // 回源读端 discovery_snapshot_projection 同键；此前写 shared_type，有条件 API
+    // 资源会被误判无条件、旁路受理两级）。
     access_policy_json: {
-      shared_type: shareType.value,
+      share_type: shareType.value,
       open_type: openType.value,
       auth_mode: authMode.value,
       data_grade: dataGrade.value,

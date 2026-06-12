@@ -6,7 +6,7 @@
 # Trace: R10 / R11, 基线 §10.1（有条件共享审批分支）, 旧 xlsx 行 [86..90] 服务审核 + [91] 申请变更复用主审批流, 业务反馈 #4, D55/P21（受理/审核两级，改 D49 关联）
 # Priority: P0
 # Owner: e1
-# Pytest: tests/test_wave0_j1_approval.py + tests/test_wave0_j1_approval_conditional.py + tests/test_wave0_j1_approval_conditional_runtime.py
+# Pytest: tests/test_wave0_j1_approval.py + tests/test_wave0_j1_approval_conditional.py + tests/test_wave0_j1_approval_conditional_runtime.py + tests/e2e/p0_feedback_0611_chain.spec.ts
 # Unfreeze-Note: D55/P21 受理/审核两级运行时已落地（受理在前、部门审核在后，与旧序对调）——
 #   platform_approve(受理,业务运营员)→dept_approve(部门审核,部门管理员) handler
 #   + ConditionalApprovalService 状态机（submitted→dept_approved 受理通过待审→granted/rejected,
@@ -16,7 +16,10 @@
 #   ExchangeMapper.data_apply_dept_approve 灌入 sd-default 真实 department step（数据底座层）。
 #   pytest 覆盖：test_wave0_j1_approval_conditional_runtime.py 驱动真实 handler 真写库断言
 #   状态迁移 / step / decision / 审计；test_wave0_j1_approval_conditional.py 断数据底座。
-#   留债：e2e 两级点击穿透（P3 受理队列→部门审核队列）超本次成本，未覆盖。
+#   [0611 收债] e2e 两级点击穿透已由 tests/e2e/p0_feedback_0611_chain.spec.ts 覆盖：
+#   全新链路（UI 在线编目→挂接有条件资源→发布→申请）→ 业务运营员受理 → 部门管理员
+#   二级审核真 UI 点击到 granted——并钉死 0611 断点 C（access_policy 写读键漂移 +
+#   申请单 resourceId 落目录码）不再旁路 D55④ 两级。
 
 Feature: J1 有条件共享分支 — 受理（业务运营员）+ 部门审核（部门管理员）两级
   As a 业务运营员 (ROLE_BUSIAUDIT 省大数据局，受理第一级) + 部门管理员 (ROLE_ORGAN_MANAGER 提供方部门，审核第二级)

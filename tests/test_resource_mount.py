@@ -159,9 +159,12 @@ def test_table_business_fields_land_in_policy_and_summary(brain: BrainService) -
     invoke_trusted(brain, "resource.mount.table.prepare", payload, role=OPERATER)
     asset = invoke_trusted(brain, "resource.asset.query", {"resource_code": "res-tbl-biz"}, role=OPERATER)["items"][0]
     policy = asset["access_policy_json"]
-    assert policy["shared_type"] == "2"
+    # 存储键 = share_type / share_condition（0611 断点 C：写读键统一，与 legacy seed 及
+    # 发现/共享方式回源读端 discovery_snapshot_projection 同键；payload 入参键不变）。
+    assert policy["share_type"] == "2"
     assert policy["open_type"] == "3"
-    assert policy["shared_condition"] == "按授权范围共享"
+    assert policy["share_condition"] == "按授权范围共享"
+    assert "shared_type" not in policy  # 漂移键禁回潮（读端只认 share_type）
     summary = asset["summary_json"]
     assert summary["source_system"] == "养老保险建模系统"
     assert summary["resource_version"] == "V2.0"

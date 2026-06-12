@@ -230,9 +230,15 @@ def project_provider_inbox(*, tenant_id: str | None = None) -> dict[str, list[di
     supply_repo = SupplyDemandRepository()
     objection_repo = ObjectionRepository()
 
+    # 反向编目审核收件箱（0611 修复项 R-4 / 6.9#6）：口径 = source=reverse ∧ lifecycle=draft，
+    # 与 confirm/reject handler 的可办前置严格一致（catalog_entry.py 要求 source=='reverse'
+    # 且 lifecycle=='draft'）。此前列 pending_review 全集——既含正向编制在审单、又含已确认
+    # 的反向单，待审草稿反而不出现，收件箱里每行点「通过审核」必 409 死循环。
+    # source 在 summary_json（无列），lifecycle 先在 SQL 收窄、source 在 python 收口。
     field_decisions = [
         _entry_to_field_decision(record)
-        for record in catalog_repo.list_entries(tenant_id=tenant_id, lifecycle_status="pending_review")
+        for record in catalog_repo.list_entries(tenant_id=tenant_id, lifecycle_status="draft")
+        if isinstance(record.summary_json, dict) and record.summary_json.get("source") == "reverse"
     ]
     # 待发布目录（业务运营员待办，业务方原话锚点）：已审过待发布的目录。
     publish_queue = [

@@ -77,7 +77,9 @@ def main() -> int:
     for path in REPO.rglob("*"):
         if not path.is_file():
             continue
-        if any(frag in str(path) for frag in SKIP_PATH_FRAGMENTS):
+        # 相对路径匹配（同 check_no_legacy_role_codes.should_skip_path）：仓库根在
+        # worktree 副本下时，绝对路径匹配会把全仓误跳过（本地假绿）。
+        if any(frag in f"/{path.relative_to(REPO).as_posix()}" for frag in SKIP_PATH_FRAGMENTS):
             continue
         if path.suffix not in EXTENSIONS:
             continue

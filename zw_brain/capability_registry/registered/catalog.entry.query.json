@@ -30,6 +30,13 @@
         "minimum": 0,
         "description": "skip rows before applying limit"
       },
+      "order": {
+        "type": "string",
+        "enum": [
+          "updated_desc"
+        ],
+        "description": "result ordering: 'updated_desc' = newest updated first (work-queue view); default = catalog_code ascending (stable browse order)"
+      },
       "role": {
         "type": "string"
       }

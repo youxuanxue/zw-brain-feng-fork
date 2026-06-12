@@ -99,3 +99,49 @@ def test_catalog_entry_query_rejects_invalid_limit(brain: BrainService) -> None:
             },
             role="ROLE_BUSIAUDIT",
         )
+
+
+def test_catalog_entry_query_order_updated_desc_surfaces_newest(brain: BrainService) -> None:
+    """0611 断点 A：发布队列默认 catalog_code 升序时，新审结目录（j2-* 前缀 ASCII 排在
+    存量数字码后）配合截断永不可见。order=updated_desc 让最新提交的目录排最前。"""
+    repo = CatalogRepository()
+    # 存量数字码目录（ASCII 序排前）
+    for idx in range(3):
+        repo.upsert_from_resource(
+            {
+                "id": f"30701337000030800200000/00004{idx}",
+                "name": f"存量待发布目录 {idx}",
+                "status": "approved_pending_publish",
+                "provider": "11370000MB284651XL",
+            },
+            tenant_id=TENANT,
+        )
+    # 新审结目录（j2-inline-* 前缀，ASCII 序排最后；updated_at 最新）
+    repo.upsert_from_resource(
+        {
+            "id": "j2-inline-9999-newest",
+            "name": "新审结目录（最新提交）",
+            "status": "approved_pending_publish",
+            "provider": "11370000MB284651XL",
+        },
+        tenant_id=TENANT,
+    )
+
+    # 默认序（catalog_code 升序）：j2-* 排最后 —— 截断队列下永不可见的根因。
+    default_order = invoke_trusted(
+        brain,
+        "catalog.entry.query",
+        {"lifecycle_status": "approved_pending_publish"},
+        role="ROLE_BUSIAUDIT",
+    )
+    assert default_order["items"][-1]["catalog_code"] == "j2-inline-9999-newest"
+
+    # updated_desc：最新提交的目录排最前（发布队列工作序）。
+    recency = invoke_trusted(
+        brain,
+        "catalog.entry.query",
+        {"lifecycle_status": "approved_pending_publish", "order": "updated_desc"},
+        role="ROLE_BUSIAUDIT",
+    )
+    assert recency["items"][0]["catalog_code"] == "j2-inline-9999-newest"
+    assert recency["total"] == default_order["total"]

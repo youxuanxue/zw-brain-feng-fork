@@ -95,6 +95,36 @@ const visibleStatCards = computed(() =>
 
 const canPublishCatalog = computed(() => canPerformAction('catalog.entry.publish', role.value));
 
+// 0611 断点 B（R3）：库表/文件资源审核通过后死在「待发布」——resource.asset.publish 后端
+// 能力在，但全前端零调用面（工作台「待发布资源」深链到本页却无发布区）。复用目录发布卡
+// 交互形态补「待发布资源」队列。UI 门控 = 仅业务运营员（旧平台 v5 口径：资源发布=业务
+// 运营员）；后端 policy 还含部门管理员，其去留属 GATE 签字包范围、本期不动 policy，
+// UI 端从严不放（无权=不可见）。
+const canPublishResource = computed(() => role.value === 'ROLE_BUSIAUDIT');
+// 与工作台「待发布资源」计数同源同口径：真实库 resource_asset.lifecycle_status ==
+// 'approved_pending_publish'（snapshot enrich 的 provider.resources 投影）。
+const resourcePublishQueue = computed(() => {
+  const rows = (provider.value as Record<string, unknown>).resources;
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .map((r) => (r && typeof r === 'object' ? (r as Record<string, unknown>) : {}))
+    .filter((r) => String(r.lifecycle_status ?? '') === 'approved_pending_publish')
+    .map((r) => {
+      const code = String(r.id ?? '');
+      return { resource_code: code, title: deriveRecordName(r.name, code, '数据资源') };
+    })
+    .filter((r) => r.resource_code);
+});
+
+async function publishResource(resourceCode: string) {
+  await invokeActionStub({
+    skillId: 'resource.asset.publish',
+    payload: { resource_code: resourceCode },
+    successTitle: '资源已发布',
+    refreshSnapshotAfter: true,
+  });
+}
+
 // 国家扩展要素编制入口：角色门（MANAGER+BUSIAUDIT）∧ flag 门
 // （snapshot.webui.nationalChannel.enabled）。flag-off / 无权 → 入口完全不渲染（无权=不可见）。
 const webui = useWebUiConfig();
@@ -116,10 +146,13 @@ async function loadPublishQueue(): Promise<void> {
   publishQueueLoading.value = true;
   try {
     const role = getProductRole().value;
+    // 0611 断点 A 修复：全量（不截断）+ 按提交/更新时间倒序——此前 limit:5 + 默认
+    // catalog_code 升序让新审结目录（j2-* 前缀 ASCII 排在存量数字码后）永不可见，
+    // 且队列条数与工作台「待发布目录」计数（同口径全量 count）自相矛盾。
     const resp = await authFetch(apiUrl('/api/skills/catalog.entry.query'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ role, lifecycle_status: 'approved_pending_publish', limit: 5 }),
+      body: JSON.stringify({ role, lifecycle_status: 'approved_pending_publish', order: 'updated_desc' }),
     });
     if (!resp.ok) {
       publishQueue.value = [];
@@ -253,6 +286,35 @@ async function publishDraft(catalogCode: string) {
         </div>
       </section>
 
+      <!-- 0611 断点 B（R3）：待发布资源队列——资源审核通过后在此发布，不再死在「待发布」。
+           门控仅业务运营员（v5：资源发布=业务运营员），无权角色整块不渲染。 -->
+      <section
+        v-if="source === 'live' && canPublishResource"
+        class="publish-card"
+        aria-label="待发布资源"
+        data-testid="resource-publish-queue"
+      >
+        <header class="publish-card-head">
+          <h3 class="section-title">待发布资源</h3>
+          <span v-if="resourcePublishQueue.length" class="publish-count">{{ resourcePublishQueue.length }} 项</span>
+        </header>
+        <p v-if="!resourcePublishQueue.length" class="focus-empty">暂无待发布资源（资源审核通过后会出现在这里）</p>
+        <ul v-else class="publish-list">
+          <li v-for="item in resourcePublishQueue" :key="item.resource_code" class="publish-row">
+            <div class="publish-row-meta">
+              <span class="publish-row-title" :title="item.title">{{ item.title }}</span>
+              <code class="publish-row-code" :title="item.resource_code">{{ shortId(item.resource_code) }}</code>
+            </div>
+            <button
+              type="button"
+              class="gov-btn gov-btn-primary publish-row-btn"
+              data-testid="publish-resource-btn"
+              @click="publishResource(item.resource_code)"
+            >发布</button>
+          </li>
+        </ul>
+      </section>
+
       <a
         v-if="showNationalExtElem"
         href="#/provider/national-ext-elem"
@@ -332,7 +394,8 @@ async function publishDraft(catalogCode: string) {
 .publish-card-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
 .section-title { margin: 0; font-size: 14px; font-weight: 600; }
 .publish-count { font-size: 12px; color: var(--b-muted, #5c6370); }
-.publish-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+/* 队列全量呈现（0611 断点 A：去 limit 截断）；行多时容器内滚动，不无限撑长页面。 */
+.publish-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 420px; overflow-y: auto; }
 .publish-row + .publish-row { margin-top: 8px; }
 .publish-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 6px; background: var(--b-bg-subtle, #f5f9fe); }
 .publish-row-meta { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }

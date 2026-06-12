@@ -2704,6 +2704,19 @@
             "description": "skip rows before applying limit"
           },
           {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "updated_desc"
+              ],
+              "description": "result ordering: 'updated_desc' = newest updated first (work-queue view); default = catalog_code ascending (stable browse order)"
+            },
+            "description": "result ordering: 'updated_desc' = newest updated first (work-queue view); default = catalog_code ascending (stable browse order)"
+          },
+          {
             "name": "query",
             "in": "query",
             "required": false,

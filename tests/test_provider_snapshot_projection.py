@@ -70,10 +70,23 @@ def brain(temp_db: Path) -> BrainService:
 
 def _seed_inbox_rows() -> None:
     catalog = CatalogRepository()
+    # 反向编目审核收件箱口径（0611 修复项 R-4）= source=reverse ∧ lifecycle=draft（与 confirm/reject
+    # handler 可办前置一致）；正向编制在审单（pending_review、无 source）不得混入。
     catalog.upsert_from_resource(
         {
             "id": "cat-proj-field-001",
-            "name": "字段裁决待办目录",
+            "name": "反向编目待审核草稿",
+            "status": "draft",
+            "source": "reverse",
+            "schema_ref": "schema:cat-proj-field-001",
+            "provider": "11370000MB284651XL",
+        },
+        tenant_id=TENANT,
+    )
+    catalog.upsert_from_resource(
+        {
+            "id": "cat-proj-forward-001",
+            "name": "正向编制在审目录（不进反向编目审核收件箱）",
             "status": "pending_review",
             "provider": "11370000MB284651XL",
         },
@@ -157,7 +170,31 @@ def test_field_decision_projection_item_shape_for_inbox_ui(brain: BrainService) 
     row = snap["provider"]["field_decisions"][0]
     assert row["id"] == "cat-proj-field-001"
     assert row["title"]
-    assert row["status"] == "pending_review"
+    assert row["status"] == "draft"
+
+
+def test_field_decision_inbox_lists_only_actionable_reverse_drafts(brain: BrainService) -> None:
+    """0611 修复项 R-4（6.9#6）：收件箱口径 = source=reverse ∧ lifecycle=draft，与 confirm/reject
+    handler 可办前置一致。此前列 pending_review 全集——正向在审单/已确认反向单混入，
+    每行点「通过审核」必 409；待审草稿反而不出现。"""
+    _seed_inbox_rows()
+    catalog = CatalogRepository()
+    # 已确认的反向单（lifecycle=pending_review）：已离开可办态，不得再出现在收件箱。
+    catalog.upsert_from_resource(
+        {
+            "id": "cat-proj-reverse-confirmed-001",
+            "name": "已确认反向草稿（已进入正向审核流）",
+            "status": "pending_review",
+            "source": "reverse",
+            "provider": "11370000MB284651XL",
+        },
+        tenant_id=TENANT,
+    )
+    snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_BUSIAUDIT"}, role="ROLE_BUSIAUDIT")
+    ids = [row["id"] for row in snap["provider"]["field_decisions"]]
+    assert "cat-proj-field-001" in ids  # 待审反向草稿（可办）必须出现
+    assert "cat-proj-forward-001" not in ids  # 正向在审单不混入
+    assert "cat-proj-reverse-confirmed-001" not in ids  # 已确认反向单不再可办
 
 
 def test_hookup_and_demand_projection_shapes(brain: BrainService) -> None:

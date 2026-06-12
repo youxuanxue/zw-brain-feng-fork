@@ -168,11 +168,21 @@ class CatalogRepository:
         catalog_code_prefix: str | None = None,
         exclude_catalog_code_prefix: str | None = None,
         exclude_catalog_code: str | None = None,
+        order_by_recency: bool = False,
     ):
+        # 默认按 catalog_code 升序（稳定浏览序）；order_by_recency=True 按 updated_at 倒序
+        # （0611 断点 A：发布队列等「最新提交在前」的工作队列——新审结目录 j2-* 前缀在
+        # ASCII 序里永远排在存量数字码之后，配合 limit 截断就永不可见）。updated_at 同刻
+        # 并列时以 catalog_code 兜底，保证分页序稳定。
+        order = (
+            (CatalogEntryRecord.updated_at.desc(), CatalogEntryRecord.catalog_code)
+            if order_by_recency
+            else (CatalogEntryRecord.catalog_code,)
+        )
         statement = (
             select(CatalogEntryRecord)
             .where(CatalogEntryRecord.tenant_id == tenant_id)
-            .order_by(CatalogEntryRecord.catalog_code)
+            .order_by(*order)
         )
         if lifecycle_status:
             statement = statement.where(CatalogEntryRecord.lifecycle_status == lifecycle_status)
@@ -271,6 +281,7 @@ class CatalogRepository:
         exclude_catalog_code_prefix: str | None = None,
         limit: int | None = None,
         offset: int = 0,
+        order_by_recency: bool = False,
     ) -> list[CatalogEntryRecord]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
@@ -281,6 +292,7 @@ class CatalogRepository:
                 owner_org_id=owner_org_id,
                 catalog_code_prefix=catalog_code_prefix,
                 exclude_catalog_code_prefix=exclude_catalog_code_prefix,
+                order_by_recency=order_by_recency,
             )
             if offset:
                 statement = statement.offset(offset)

@@ -225,3 +225,107 @@ def test_two_stage_chain_on_runtime_minted_request(brain: Any) -> None:
     qres = queried["result"] if "result" in queried else queried
     assert qres.get("status") == "issued"
     assert (qres.get("credential") or {}).get("app_key", "").startswith("AK-SELF"), "读时应重导出 AK-SELF 凭据"
+
+
+# ── 0611 断点 C（修复项 R-1）：UI 新编目→挂接有条件资源→申请 全新链路两级不旁路 ──────────────
+
+
+def test_ui_new_mounted_conditional_resource_full_two_stage_chain(brain: Any) -> None:
+    """0611 断点 C 回归（违 D55④ 修复）：**全新链路**（在线编目→挂接有条件资源→发布→申请）
+    上受理→部门审核两级不得被旁路。双根因双 pin：
+
+      1. 写读键漂移——挂接写 access_policy_json 此前用 'shared_type'，回源读端只认
+         'share_type' → 有条件资源被判无条件、受理即终；
+      2. 申请单 resourceId 此前落父目录码（j2-inline-*）而非资源码 → 共享方式按
+         resourceId 回源 resource_asset 全失败。
+
+    本测试不注入内存 discovery 行——走与 UI 完全相同的 DB 回源解析链。
+    """
+    org = "11370000MB284651XL"
+    catalog_code = "j2-inline-0611-chain"
+    resource_code = "res-0611-chain-tbl"
+
+    from zw_brain.domain.repositories.catalog import CatalogRepository
+
+    CatalogRepository().upsert_from_resource(
+        {
+            "id": catalog_code,
+            "name": "0611 全新链路编目目录",
+            "status": "active",
+            "provider": org,
+        },
+        tenant_id=TENANT,
+    )
+
+    # 挂接有条件（shared_type=2）库表资源 → 审核 → 发布（active）。
+    invoke_trusted(
+        brain,
+        "resource.mount.table.prepare",
+        {
+            "resource_code": resource_code,
+            "catalog_code": catalog_code,
+            "title": "0611 全新链路库表资源",
+            "owner_org_id": org,
+            "table_name": "t_chain_0611",
+            "connection": {"host": "db.internal", "database": "biz"},
+            "field_mappings": [{"source": "name", "target": "name"}],
+            "shared_type": "2",
+            "shared_condition": "按授权范围共享",
+            "confirmed": True,
+        },
+        role="ROLE_ORGAN_OPERATER",
+    )
+    # 写读键统一 pin：落库即用读端认的 share_type 键。
+    from zw_brain.domain.repositories.resource_api import ResourceApiRepository
+
+    asset = ResourceApiRepository().get_asset(resource_code, tenant_id=TENANT)
+    assert (asset.access_policy_json or {}).get("share_type") == "2"
+    assert "shared_type" not in (asset.access_policy_json or {})
+
+    invoke_trusted(brain, "resource.asset.submit_review", {"resource_code": resource_code, "confirmed": True}, role="ROLE_ORGAN_OPERATER")
+    invoke_trusted(brain, "resource.asset.review", {"resource_code": resource_code, "decision": "approve", "confirmed": True}, role="ROLE_ORGAN_MANAGER")
+    invoke_trusted(brain, "resource.asset.publish", {"resource_code": resource_code, "confirmed": True}, role="ROLE_BUSIAUDIT")
+
+    # 申请（与发现页 applyTo 同口径：resource_id=资源码）→ 草稿 → 提交。
+    created = invoke_trusted(
+        brain,
+        "request.create",
+        {"resource_id": resource_code, "confirmed": True, "purpose": "全新链路验证"},
+        role="ROLE_ORGAN_OPERATER",
+    )
+    cres = created["result"] if "result" in created else created
+    req_id = cres["request_id"]
+
+    payload = _record_payload(req_id)
+    # 申请单必须绑定资源码（非父目录码）——共享方式回源按 resourceId 查 resource_asset。
+    assert payload.get("resourceId") == resource_code
+    assert payload.get("sharedType") == 2
+    assert payload.get("owner_org_code") == org
+
+    submitted = invoke_trusted(
+        brain, "request.submit", {"request_id": req_id, "confirmed": True}, role="ROLE_ORGAN_OPERATER"
+    )
+    sres = submitted["result"] if "result" in submitted else submitted
+    # 有条件单必须进受理两级队列（submitted），不得被判无条件受理即终（pending）。
+    assert sres["status"] == "submitted"
+
+    # 两级走查：受理（业务运营员）→ 部门审核（部门管理员，org=提供方）。
+    accepted = invoke_trusted(
+        brain,
+        "application.platform_approve",
+        {"request_id": req_id, "decision": "approve", "confirmed": True},
+        role="ROLE_BUSIAUDIT",
+    )
+    ares = accepted["result"] if "result" in accepted else accepted
+    assert ares["status"] == "dept_approved"
+
+    granted = invoke_trusted(
+        brain,
+        "application.dept_approve",
+        {"request_id": req_id, "decision": "approve", "confirmed": True},
+        role="ROLE_ORGAN_MANAGER",
+        snapshot=actor_snapshot("ROLE_ORGAN_MANAGER", org_code=org),
+    )
+    gres = granted["result"] if "result" in granted else granted
+    assert gres["status"] == "granted"
+    assert _record_status(req_id) == "granted"

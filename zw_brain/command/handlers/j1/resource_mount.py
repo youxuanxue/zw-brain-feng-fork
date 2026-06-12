@@ -36,10 +36,17 @@ def _access_policy(payload: dict[str, Any]) -> dict[str, Any]:
 
     旧平台资源注册必填 共享类型/共享条件/开放类型/开放条件；落 access_policy_json 供
     资源详情/发现读路径回显。缺省值不伪造——None 由前端诚实空态承载。
+
+    存储键 = ``share_type`` / ``share_condition``（0611 断点 C 修复，写读键统一）：
+    与 legacy 导入 seed（adapters/legacy/mappers/catalog_metadata.py）和读端
+    （discovery_snapshot_projection._share_type_by_resource / shared_type_for_resource）
+    同键。此前写 ``shared_type`` 导致 UI 新挂的有条件资源回源失败、一律被判无条件，
+    D55④ 受理→部门管理员审核两级在全新链路上永不触发。payload 入参键
+    （``shared_type``/``shared_condition``）是挂接向导 API surface，保持不变。
     """
     return {
-        "shared_type": payload.get("shared_type"),
-        "shared_condition": payload.get("shared_condition"),
+        "share_type": payload.get("shared_type"),
+        "share_condition": payload.get("shared_condition"),
         "open_type": payload.get("open_type"),
         "open_condition": payload.get("open_condition"),
     }

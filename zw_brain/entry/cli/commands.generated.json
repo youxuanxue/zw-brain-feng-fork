@@ -397,6 +397,11 @@
           "type": "integer"
         },
         {
+          "name": "order",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "query",
           "required": false,
           "type": "string"

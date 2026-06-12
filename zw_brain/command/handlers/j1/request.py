@@ -215,7 +215,12 @@ def _create_request(
     并即时触发审批工作流（行为零变化）。"""
     options = options or {}
     resource = deps.services.catalog.resolve_resource_for_application(resource_id)
-    canonical_id = resource["id"]
+    # 申请单绑定资源码（0611 断点 C 修复）：按资源码申请时，解析出的 canonical 行是其父目录
+    # 详情卡（id=目录码，如 j2-inline-*）+ focusedResourceCode=被申请的资源码。申请单
+    # resourceId 必须落资源码——否则共享方式回源（_shared_type_for / shared_type_for_resource
+    # 按 resourceId 查 resource_asset.access_policy_json）全失败，有条件单被误判无条件、
+    # 受理即终，D55④ 受理→部门管理员审核两级被旁路。目录码直申（无 focused 资源）保持原语义。
+    canonical_id = str(resource.get("focusedResourceCode") or resource["id"])
     # G2：已存在同资源「草稿」→ 直接重入该草稿（幂等，避免重复点「申请」刷出一堆草稿单），
     # 不报错；用户回到既有草稿继续编辑/确认提交。
     existing_draft = next(

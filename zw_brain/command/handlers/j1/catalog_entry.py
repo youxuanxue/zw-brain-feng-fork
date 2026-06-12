@@ -164,6 +164,7 @@ def _query_catalog_entries(
     lifecycle_status: Any = None,
     limit: Any = None,
     offset: Any = None,
+    order: Any = None,
 ) -> dict[str, Any]:
     """Query catalog entries with optional structural filters.
 
@@ -171,11 +172,17 @@ def _query_catalog_entries(
     reverse-cataloging drafts). `lifecycle_status` matches the column
     directly. Together they let the 业务运营员 inbox list "pending reverse
     draft" entries without an extra skill.
+
+    ``order='updated_desc'`` 按 updated_at 倒序（工作队列「最新提交在前」口径，
+    0611 断点 A：缺省 catalog_code 升序时新审结 j2-* 目录永排存量数字码之后、
+    配合截断就永不可见）。缺省保持 catalog_code 升序（稳定浏览序）。仅结构化
+    列表路径生效（query 检索路径按相关性返回）。
     """
     repo = deps.repos.catalog  # Action C — deps.repos always wired (DB or in-memory fallback)
     limit_value = _parse_query_limit(limit)
     offset_value = _parse_query_offset(offset)
     wanted_lc = str(lifecycle_status) if lifecycle_status else None
+    order_by_recency = str(order or "") == "updated_desc"
 
     if query:
         records = repo.search_entries(str(query), tenant_id=_DEFAULT_TENANT_ID)
@@ -191,6 +198,7 @@ def _query_catalog_entries(
             lifecycle_status=wanted_lc,
             limit=limit_value,
             offset=offset_value,
+            order_by_recency=order_by_recency,
         )
         records = _filter_entries_by_source(records, source)
         if source:
@@ -484,6 +492,7 @@ def handler_catalog_entry_query(deps: HandlerDeps, ctx: SkillContext, payload: d
         lifecycle_status=payload.get("lifecycle_status"),
         limit=payload.get("limit"),
         offset=payload.get("offset"),
+        order=payload.get("order"),
     )
 
 def handler_catalog_entry_reverse_draft_suggest(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
