@@ -45,11 +45,15 @@ RUN uv build --wheel --out-dir /dist
 #   （Docker Hub 持续滚动 3.12.x patch）；应用层另已在 stdlib http.server 去版本化 Server banner。
 # - 下面 runtime 阶段加一次性 OS 包安全升级，拉平基础镜像里 openssl/zlib 等系统库 CVE。
 # - 容器非 root 化（USER）与 /data 卷首启建 schema 的权限耦合，列为后续债（docs/preflight-debt.md），本期不引入。
-FROM python:3.12-slim AS runtime
+# ============================================
+#  OS 安全补丁层（独立构建，按需更新）
+#  命令：docker build -t zw-brain-os-patch:3.12-slim -f Dockerfile.os-patch .
+#  日常开发构建不再重复 apt-get upgrade，依赖此层即可。
+#  注意：本 Dockerfile 不再自包含——裸 `docker build .` 需 zw-brain-os-patch:3.12-slim
+#  已存在（先构建上面命令，或用 scripts/start-docker.sh 自动 ensure 该基础镜像）。
+# ============================================
+FROM zw-brain-os-patch:3.12-slim AS runtime
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
-# 拉取基础镜像 OS 库安全补丁（确定性：构建即固化当时最新补丁层）。
-RUN apt-get update && apt-get upgrade -y && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ARG AGENT_RUNTIME_TARBALL=vendor/agent-runtime/release/v0.1/agent-runtime-0.1.0-py312-pyc-only.tar.gz
 ARG AGENT_RUNTIME_EXTRACT_DIR=agent-runtime-0.1.0-py312-pyc-only

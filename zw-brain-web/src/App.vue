@@ -80,7 +80,14 @@ async function refreshAll() {
     //（P1Workbench 挂载时缓存已热 → 命中即时，消除 #126「串行等 2 个 API」那截）。
     // FU-4 兄弟岗位预取不在此显式触发——快照变 'live' 的 watch（见下）是唯一触发器，
     //   天然覆盖本路径与 PLogin 开发免登录路径。
+    // 注：loadSnapshot / prefetchWorkbench 内部会因 HTTP 401 经 authFetch 清除会话；
+    //   Promise.all 不抛出（两者各自 catch），但 user 此时已变 null——须补一次重定向检查，
+    //   否则用户将卡在非登录页看到「数据暂不可达」横幅与工作台 fixture 出错提示。
     await Promise.all([loadSnapshot(currentRole.value), prefetchWorkbench(currentRole.value)]);
+    if (!user.value && !isLoginRoute.value) {
+      await router.replace('/login');
+      return;
+    }
   } catch (e) {
     const detail = e instanceof Error ? e.message : String(e);
     initError.value = detail;
@@ -266,7 +273,7 @@ watch(
             v-if="!isLoginRoute && snapSource === 'loading' && !roleSwitchBusy"
             class="boot-banner boot-banner-info"
           >正在加载数据……</div>
-          <div v-else-if="snapSource === 'error'" class="boot-banner boot-banner-warn">
+          <div v-else-if="!isLoginRoute && snapSource === 'error'" class="boot-banner boot-banner-warn">
             数据暂不可达。请确认 brain REST（8800）已启动后刷新。
           </div>
           <div v-if="authLoading && !isLoginRoute" class="boot-banner boot-banner-info">正在完成登录…</div>

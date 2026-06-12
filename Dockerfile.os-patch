@@ -1,0 +1,30 @@
+# ============================================
+#  OS 安全补丁基础镜像
+#  将 `apt-get upgrade` 固化为一个独立层，业务 Dockerfile 直接 FROM 此层，
+#  避免每次构建重复拉取 OS 安全补丁。
+#
+#  使用方式：
+#    1. 首次 / 需要更新 OS 补丁时：
+#         docker build -t zw-brain-os-patch:3.12-slim \
+#           --build-arg BUILD_DATE="$(date -u +%Y-%m-%d)" -f Dockerfile.os-patch .
+#         docker push <registry>/zw-brain-os-patch:3.12-slim  # (可选，推仓库)
+#    2. 日常构建正常执行 docker build . ，apt-get upgrade 只跑一次。
+#
+#  更新频率建议：每周一次或发现重要 CVE 时重新构建此层。
+# ============================================
+FROM python:3.12-slim
+
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# 补丁日期由构建时注入（Dockerfile LABEL 不做 $(...) shell 替换，须经 ARG）。
+# 未传 --build-arg 时回落 "unknown"，不写入误导性的字面 "$(date ...)"。
+ARG BUILD_DATE=unknown
+
+# 此镜像仅提供 OS 补丁层，无任何应用内容
+LABEL maintainer="zw-brain" \
+      description="Python 3.12-slim base with OS security patches pre-applied" \
+      source-image="python:3.12-slim" \
+      os-patch-date="${BUILD_DATE}"
