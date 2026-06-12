@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
 
 test.beforeEach(async ({ page }, testInfo) => {
@@ -7,10 +7,26 @@ test.beforeEach(async ({ page }, testInfo) => {
   await waitAppReady(page);
 });
 
-test('P1 工作台装载 live 待办', async ({ page }) => {
+/**
+ * 从「我的申请」列表打开第一条真实申请详情，返回单号。
+ * D56.b（#247）：REQ-* 序列退役（新铸单号 = uuid hex），用例禁硬编码单号。
+ */
+async function openFirstRequestDetail(page: Page): Promise<string> {
+  await gotoHash(page, '#/request-flow');
+  await page.getByRole('button', { name: '查看' }).first().click();
+  await page.waitForTimeout(600);
+  const m = page.url().match(/#\/request-flow\/request\/([^/?#]+)/);
+  expect(m).not.toBeNull();
+  return m![1];
+}
+
+test('P1 工作台装载 live 申请进度（操作员）', async ({ page }) => {
+  // D57②（#258）：操作员（申请人岗）工作台 = 「我的申请进度」，不显「待办」（0609 docx 口径）。
   await setRole(page, 'ROLE_ORGAN_OPERATER');
   await gotoHash(page, '#/workbench');
-  await expect(page.locator('.p1-hero-title')).toContainText('待办');
+  await expect(page.locator('.p1-hero-title')).toContainText('进度');
+  await expect(page.locator('.p1-hero-title')).not.toContainText('待办');
+  await expect(page.getByRole('heading', { name: '我的申请进度' })).toBeVisible();
 });
 
 test('P2 搜索即时筛选列表', async ({ page }) => {
@@ -25,12 +41,14 @@ test('P2 搜索即时筛选列表', async ({ page }) => {
   await expect(page.locator('.focus-head, .panel').first()).toContainText('命中');
 });
 
-test('P3 审批中申请点击补件给出中文提示', async ({ page }) => {
+test('P3 申请详情点击补件给出中文提示', async ({ page }) => {
+  // 意图：真实在途单详情点补件得到中文业务提示
+  // （在途=「暂不可重新提交」/ 待补正=「已重新提交」），绝不漏工程字段名。
   await setRole(page, 'ROLE_ORGAN_OPERATER');
-  await gotoHash(page, '#/request-flow/request/REQ-2026-05-25-0002');
+  await openFirstRequestDetail(page);
   await page.getByRole('button', { name: '补件 / 重新提交' }).click();
   await page.waitForTimeout(800);
-  await expect(page.locator('body')).toContainText('暂不可重新提交');
+  await expect(page.locator('body')).toContainText(/(已|暂不可)重新提交/);
   await expect(page.locator('body')).not.toContainText('resource_id');
 });
 
@@ -55,10 +73,12 @@ test('P3 部门操作员查看在途申请不进审批页', async ({ page }) => 
 });
 
 test('P3 部门操作员直达审批路由会回到申请详情', async ({ page }) => {
+  // 先从列表解析一条真实单号，再深链审批路由验证回弹到申请详情。
   await setRole(page, 'ROLE_ORGAN_OPERATER');
-  await gotoHash(page, '#/request-flow/review/REQ-2026-05-25-0002');
+  const id = await openFirstRequestDetail(page);
+  await gotoHash(page, `#/request-flow/review/${id}`);
   await page.waitForTimeout(600);
-  expect(page.url()).toMatch(/#\/request-flow\/request\/REQ-2026-05-25-0002/);
+  expect(page.url()).toContain(`#/request-flow/request/${id}`);
   await expect(page.getByRole('button', { name: '通过' })).toHaveCount(0);
 });
 
@@ -80,8 +100,14 @@ test('P4 交付任务页可达', async ({ page }) => {
   expect(body).not.toMatch(/\bissued\b/i);
 });
 
-test('岗位切换：业务运营员无权进提供方页', async ({ page }) => {
+test('岗位切换：供数页可达性随岗位（操作员可进、安全审计员被弹走）', async ({ page }) => {
+  // 旧期望「业务运营员无权进提供方页」已过时（且原用例 setRole 的实为部门操作员，角色口径错）：
+  // D53⑤/D55⑥ 后供数 shell 角色 = 操作员+管理员+业务运营员；
+  // 「无权=被弹走」的原意图改由安全审计员承接（D55⑦ 纯只读、无供数职责）。
   await setRole(page, 'ROLE_ORGAN_OPERATER');
+  await gotoHash(page, '#/provider');
+  await expect(page.getByRole('heading', { name: '提供方管理' })).toBeVisible();
+  await setRole(page, 'ROLE_SECURITY_AUDIT');
   await gotoHash(page, '#/provider');
   await page.waitForTimeout(1000);
   expect(page.url()).not.toMatch(/#\/provider/);
@@ -119,12 +145,13 @@ test('P5 反向编目：业务运营员进不了向导与部门审收件箱（D5
   await expect(page).toHaveURL(/catalog-review/);
 });
 
-test('P3 撤回申请不再误调目录 withdraw', async ({ page }) => {
+test('P3 申请详情「撤回申请」入口已退役（授权域操作替代）', async ({ page }) => {
+  // 退役不变量：j1-credential-revoke 决策 A（已签字，D55 承接）——「撤回申请」改版为授权域操作
+  // （业务运营员「收回授权」/ 申请人「我不再需要」，仅 granted/in_delivery/suspended 态渲染）。
+  // 在途申请详情不再有「撤回申请」按钮，旧「误调目录 withdraw（catalog_code 漏出）」缺陷类随入口一并退役。
   await setRole(page, 'ROLE_ORGAN_OPERATER');
-  await gotoHash(page, '#/request-flow/request/REQ-2026-05-25-0002');
-  await page.getByRole('button', { name: '撤回申请' }).click();
-  await page.waitForTimeout(600);
-  await expect(page.locator('body')).toContainText('暂不可撤回');
+  await openFirstRequestDetail(page);
+  await expect(page.getByRole('button', { name: '撤回申请' })).toHaveCount(0);
   await expect(page.locator('body')).not.toContainText('catalog_code');
 });
 
