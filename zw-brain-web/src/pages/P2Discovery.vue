@@ -10,21 +10,17 @@ import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
 import type { StructuredAction } from '@/composables/useNLAccelerator';
 import { getProductRole } from '@/composables/useProductRole';
 import { canPerformAction } from '@/lib/pageAccess';
+import { resourceKindLabel } from '@/lib/resourceKind';
 
 const NL_PRESETS_P2 = ['查省营商环境相关数据', '近 7 天高使用资源', '关联水电气交叉数据'];
 
-// 物化形态 kind → 中文（与 ResourceCard 徽标 / 资源详情分型同口径）。
-// 资源类型收敛为「库表 / 文件 / API」——文件夹/链接退役。
-const KIND_FILTER_LABELS: Record<string, string> = {
-  table: '库表',
-  file: '文件',
-  api: '接口',
-};
+// 物化形态 kind → 中文经单源 resourceKindLabel（lib/resourceKind.ts），与 ResourceCard / 资源详情同口径。
 
 function consumeNLAction(action: StructuredAction) {
   if (action.kind === 'filter' && action.payload) {
     // NL 解析出的资源类型 / 提供部门也落入同一筛选状态（与三件套共存不打架）。
-    if (typeof action.payload.kind === 'string' && KIND_FILTER_LABELS[action.payload.kind]) {
+    // resourceKindLabel 非空 = 该 kind 为已知 canonical 类型，过滤掉 NL 误解析的杂值。
+    if (typeof action.payload.kind === 'string' && resourceKindLabel(action.payload.kind)) {
       filters.kind = action.payload.kind;
     }
     if (typeof action.payload.provider === 'string' && action.payload.provider.trim()) {
@@ -133,7 +129,7 @@ async function applyTo(id: string) {
           <label class="sr-only" for="p2-kind">按资源类型筛选</label>
           <select id="p2-kind" v-model="filters.kind" class="focus-filter" data-testid="filter-kind">
             <option value="">全部资源类型</option>
-            <option v-for="k in kindOptions" :key="k" :value="k">{{ KIND_FILTER_LABELS[k] ?? k }}</option>
+            <option v-for="k in kindOptions" :key="k" :value="k">{{ resourceKindLabel(k) || k }}</option>
           </select>
           <!-- 反馈 7：提供部门筛选（真实库 distinct 提供方，不写死） -->
           <label class="sr-only" for="p2-provider">按提供部门筛选</label>

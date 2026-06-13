@@ -1,3 +1,15 @@
+---
+title: 测试充分度收敛 — 诚实账（D46 后续）
+scope: test-sufficiency-convergence
+kind: 工程诚实账记录（非 GATE 决策；D46 现算 status 飞轮的收敛实践）
+status: informational  # 工程交付侧收敛记录，无独立业务签字；D46 架构门见 feature-status-as-function-architecture.md
+date: 2026-05-30
+authors: 工程交付（D46 现算飞轮收敛）
+related_docs:
+  - docs/decisions/feature-status-as-function-architecture.md   # D46 本体
+  - CLAUDE.md D46 决策索引
+---
+
 # 测试充分度收敛 — 诚实账（D46 后续，PR chore/converge-undertested-unsigned）
 
 ## 背景

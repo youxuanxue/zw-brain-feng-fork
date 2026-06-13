@@ -45,6 +45,24 @@ from check_trace_triangle import (  # noqa: E402
 MEASUREMENT_DIR = REPO / ".testing" / "status" / "measurement"
 LADDER = ("Draft", "InTest", "Ready", "Done")  # 排序用；Backlog 单列
 
+# 全局共享盐文件（D46.g 强化，R-009）：每个 feature 的指纹除了 `.feature`+直接引用测试文件
+# 外，还纳入这批**全测试套公用的底层 helper**。理由：直接引用列表里看不到这些文件，但它们
+# 是绝大多数测试的真实行为载体（conftest fixture / handler-call 薄壳 / e2e DOM helper /
+# R12 黑名单 / IAF over-HTTP harness / seed 守卫）。若不入哈希，弱化任一 helper（改 seed
+# 守卫放水、改 handler-call 吞断言、改 e2e helper 让断言空跑）可在指纹"新鲜"假象下保住所有
+# 绿——正是 D46.g 信任锚要堵的洞。列表里文件缺失 → fail-closed 计入 `<missing-shared-salt>`
+# → 指纹变 → 非绿（删 helper 不能悄悄留住旧 pass）。新增公用 helper 须同步登记此列表。
+GLOBAL_SALT_FILES: tuple[str, ...] = (
+    "tests/conftest.py",
+    "tests/_handler_call.py",
+    "tests/_iaf_a2a_http.py",
+    "tests/_iaf_rest_http.py",
+    "tests/_seed_guard.py",
+    "tests/_trusted_payload.py",
+    "tests/e2e/helpers.ts",
+    "tests/e2e/r12-forbidden-patterns.ts",
+)
+
 
 def all_features() -> list[Path]:
     return sorted(TESTING_DIR.rglob("*.feature"))
@@ -92,24 +110,36 @@ def test_refs(pytest_val: str | None) -> list[str]:
 
 
 def feature_fingerprint(path: Path) -> str:
-    """内容指纹 = sha256(`.feature` 规格 + 其引用的每个测试文件内容)。
+    """内容指纹 = sha256(`.feature` 规格 + 其引用的每个测试文件内容 + 全局共享盐文件)。
 
     信任锚（D46.g）：与 git 历史无关 → **squash-merge 免疫**（squash 改写历史不动文件内容，
     指纹不变）；测试或规格**真的变了**才变（→ green() 自动失效，逼重采）。缺失的测试文件也计入
     （→ 指纹变 → 非绿），所以删测试不会悄悄留住旧 pass。refs 排序后入哈希，结果确定、与克隆深度无关。
+
+    R-009：除直接引用测试文件外，再纳入 GLOBAL_SALT_FILES（全测试套公用的底层 helper，
+    见其旁注）。否则弱化共享 helper 可在指纹"新鲜"假象下保住所有绿，违背 D46.g 承诺。盐文件
+    缺失同样 fail-closed（计入 `<missing-shared-salt>` → 指纹变 → 非绿），列表里文件不存在
+    不静默放过。
     """
     h = hashlib.sha256()
     try:
         h.update(path.read_bytes())
     except OSError:
         h.update(b"<missing-feature-spec>")
-    _, pytest_val, _ = _parse_feature_header(path)
-    for ref in sorted(test_refs(pytest_val)):
+    for ref in sorted(test_refs(_parse_feature_header(path)[1])):
         h.update(b"\x00" + ref.encode("utf-8") + b"\x00")
         try:
             h.update((REPO / ref).read_bytes())
         except OSError:
             h.update(b"<missing-test-file>")
+    # 全局共享盐：固定顺序（GLOBAL_SALT_FILES 已显式有序）入哈希，与 feature 的直接 refs
+    # 用不同分隔域名隔开，避免与某 feature 恰好引用同名文件产生哈希前缀混淆。
+    for salt in GLOBAL_SALT_FILES:
+        h.update(b"\x01salt\x00" + salt.encode("utf-8") + b"\x00")
+        try:
+            h.update((REPO / salt).read_bytes())
+        except OSError:
+            h.update(b"<missing-shared-salt>")
     return h.hexdigest()
 
 

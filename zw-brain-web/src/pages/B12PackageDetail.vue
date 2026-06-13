@@ -7,7 +7,7 @@ import DataSourceBadge from '@/components/DataSourceBadge.vue';
 import { getProductRole } from '@/composables/useProductRole';
 import { postSkill } from '@/composables/useApiClient';
 import { mapDetailRows } from '@/lib/detailDisplay';
-import { trustPillClass } from '@/lib/packageDisplay';
+import { trustPillClass, TRUST_LABELS } from '@/lib/packageDisplay';
 import { PRODUCT_ROLE_LABELS } from '@/composables/useAuth';
 import type { PanelSource } from '@/composables/usePackageLifecycle';
 
@@ -16,13 +16,6 @@ const id = computed(() => String(route.params.id ?? ''));
 const pkg = ref<Record<string, unknown> | null>(null);
 const source = ref<PanelSource>('idle');
 const error = ref<string | null>(null);
-
-const TRUST_LABELS: Record<string, string> = {
-  baseline: '基线（默认）',
-  reviewed: '已审',
-  restricted: '严管',
-  revoked: '撤回',
-};
 
 // 消费面（5 投影）人话化——与 productShellNav / 暴露矩阵口径一致。
 const SURFACE_LABELS: Record<string, string> = {

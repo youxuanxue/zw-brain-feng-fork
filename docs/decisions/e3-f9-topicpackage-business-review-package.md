@@ -15,6 +15,8 @@ driven_by:
 
 # F9 业务方 review 材料包 — P7 共享专区 / TopicPackage 启动准入
 
+> **[2026-06-09 退役横幅]** 专题包整面已随 **D55①** 下线（数据安全中心未立项侧的连带专题包创建下放争议消解）；本材料包内容**不删，保留审计链**，但其落地的专题包能力面当前不在产品形态内。记债待恢复：见 feature-status 三个 topic-package Backlog 条目。详见 `docs/decisions/permission-realignment-0609-D55.md`。
+>
 > **目的**：F9 启动前的 R13 元规则硬门 — 业务方对 4 项业务决策点逐条 sign-off
 > 后，F9（Wave 2 P7 共享专区 / TopicPackage 落地：schema + capability + 5 消费面
 > 投影 + fixture + e2e）才能进入 D-编号并启动。

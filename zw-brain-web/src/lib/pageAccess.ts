@@ -62,6 +62,11 @@ export const ROUTE_ROLE_OVERRIDES: ReadonlyArray<{
   // G3：代理服务注册向导（pages/P5ApiServiceWizard.vue）—— 注册口径同 resource.api.register（D54）：
   // 部门操作员 + 部门管理员；业务运营员退出 API 注册。
   { prefix: '/provider/wizard/api-service', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'] },
+  // R-004：质量规则向导（pages/P5QualityRuleWizard.vue）—— 此前无 override，回落 provider shell
+  // 角色门（含 OPERATER），但页内唯一写动作 quality.rule.upsert 后端只授 MANAGER+BUSIAUDIT，
+  // 操作员看得到入口、进得了页、提交吃 403。收口到 quality.rule.upsert 的角色集（与
+  // ACTION_ROLE_GATES['quality.rule.upsert'] / 后端 policy set-equal），无权岗位路由 + 入口链均不可见。
+  { prefix: '/provider/wizard/quality-rule', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'] },
   // G1：挂接审核（pages/P5HookupReviewInbox.vue → canApprove）—— 照 v5「资源挂接审核 = 部门管理员」
   // 校正（撤回 R-007 交叉审），与后端 resource.asset.review={ROLE_ORGAN_MANAGER} set-equal。
   { prefix: '/provider/inbox/hookup-review', roles: ['ROLE_ORGAN_MANAGER'] },
@@ -187,12 +192,33 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   // P4Credential 调用记录段。D57⑥：安全审计员退服务调用监控（全局面随 service-ops 导航一并收窄）；
   // MANAGER 保留=「自家资源被调用情况」留在 P4 凭据门内（hasCredential 双门），与 policy set-equal。
   'ops.service.invocation.query': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SYSTEM'],
+  // 反向编目草稿发起（pages/P5ReverseCatalogWizard.vue → canCreateDraft，skillId
+  // catalog.entry.reverse_draft.create）—— v5 操作员+管理员，与后端 policy
+  // catalog.entry.reverse_draft.create.execute set-equal（R-014 收硬编码角色比对）。
+  'catalog.entry.reverse_draft.create': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
+  // 供方数据质量待办可见（pages/P5Provider.vue → canSeeDataQuality）—— 用途脏值的
+  // 真实导入单是供方数据质量 owner（业务运营员）的待办，其余岗位不可见（无权=不渲染）。
+  // 视图级可见门，无对应写 capability；R-014 收硬编码 role.value==='ROLE_BUSIAUDIT'。
+  'provider.data_quality.view': ['ROLE_BUSIAUDIT'],
 };
 
 export function canPerformAction(action: keyof typeof ACTION_ROLE_GATES | string, role: string): boolean {
   const allowed = ACTION_ROLE_GATES[action];
   if (!allowed) return true; // 未注册的 action 默认不拦（后端仍兜底）
   return allowed.includes(role);
+}
+
+/**
+ * 角色身份判定 chokepoint —— 当 UI 需要按「当前岗位是谁」区分**同一动作的不同变体**
+ * （非纯权限门）时用本函数，不在 page 里散落 `role === 'ROLE_…'` 硬比对。
+ *
+ * 典型场景：application.grant.revoke 同时授予 BUSIAUDIT（合规收回）与 OPERATER
+ * （申请人主动放弃），但两条路径渲染不同按钮/文案——用 canPerformAction 判「能不能」、
+ * 用 hasRole 判「是哪条身份分支」。集中在此便于 R-014 守卫把 page 内硬编码角色比对
+ * 钉死（pages/*.vue 不得出现 === 'ROLE_'），真值仍是单一来源。
+ */
+export function hasRole(role: string, target: string): boolean {
+  return role === target;
 }
 
 export function isRouteAllowedForRole(path: string, role: string): boolean {

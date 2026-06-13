@@ -6,7 +6,7 @@
 # Trace: 基线 §10.2, R10/R11
 # Priority: P1
 # Owner: e1
-# Pytest: tests/test_wave1_j1_credential.py + tests/test_wave0_j1_credential_call.py
+# Pytest: tests/test_wave1_j1_credential.py + tests/test_wave0_j1_credential_call.py + tests/test_wave1_j1_grant_revoke.py
 
 Feature: J1 凭据撤回 / 暂停
   As a 业务运营员 ROLE_BUSIAUDIT 或 申请人本人
@@ -26,12 +26,24 @@ Feature: J1 凭据撤回 / 暂停
     And 审计 capability_call=application.revoke + credential.revoke 两条
     And 申请人侧 P1 工作台红色通知 + 原因
 
-  Scenario: 正向 — BUSIAUDIT 暂停授权（短期措施，可恢复）
-    When 我点击 "暂停授权 + 设置恢复时间 = 7 天后"
-    Then application.status 6 → 已暂停（应用层计算态）
-    And 凭据 K_A1501 临时 disabled（不删，到时间自动恢复）
+  Scenario: 正向 — BUSIAUDIT 暂停授权（短期措施，状态可被 revoke 终结）
+    # 诚实边界（R-008）：定时自动恢复（resume）当前未实现——application_grant.py:86 明写
+    # "恢复/resume 能力待后续 PR"，全仓零 resume 测试。本场景只断言**已实装**的暂停语义
+    # （落 status、调用期内 403、可被 revoke 终结），不再声称 "7 天后自动恢复"，避免 Done
+    # 覆盖未实现承诺。自动恢复见下方 Deferred 占位场景。
+    When 我点击 "暂停授权"
+    Then application.status 6 → 已暂停（应用层计算态，真落 status 列）
+    And 凭据 K_A1501 临时 disabled（不删）
     And 调用方在暂停期内调用返回 403 + reason="credential_suspended"
-    And 7 天后自动恢复，凭据重新可用 + 通知申请人
+    And 该暂停态可被后续 revoke 终结（不可静默复活）
+
+  Scenario: 占位（Deferred）— 暂停后定时自动恢复
+    # Deferred-Scenario：触发=排期实装 resume 能力（定时器 / 到期扫描）→ 暂停设恢复时间 +
+    # 到点自动解 disabled + 通知申请人。当前 application_grant.py:86 明写待后续 PR，
+    # 不在测量轴覆盖（无 resume 测试），故本场景仅作意图占位、不参与绿判定。
+    Given resume 能力本期未实装（待后续 PR）
+    When 排期实装后设置 "恢复时间 = 7 天后"
+    Then 7 天后凭据自动重新可用 + 通知申请人（本期不验证）
 
   Scenario: 正向 — 申请人主动放弃授权
     Given 我以 申请人 ROLE_ORGAN_OPERATER (A1501 申请人) 登录

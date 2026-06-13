@@ -5,12 +5,20 @@ import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub } from '@/composables/useActionStub';
+import { getProductRole } from '@/composables/useProductRole';
+import { canPerformAction } from '@/lib/pageAccess';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import { buildQualityRuleUpsertPayload, mapProviderCatalog } from '@/lib/providerActionPayload';
 
 const provider = useProvider();
 const { source } = useSnapshot();
+const role = getProductRole();
 const selectedId = ref('');
+
+// R-004 角色门：质量规则配置唯一写动作 quality.rule.upsert = 部门管理员 + 业务运营员
+// （与 ACTION_ROLE_GATES / 后端 policy set-equal）。无权岗位（操作员）即使深链进页也不渲染
+// 写区（守「无权 = 不可见」）；路由层 ROUTE_ROLE_OVERRIDES 另把守入口链 + 直达拦截。
+const canUpsertRule = computed(() => canPerformAction('quality.rule.upsert', role.value));
 
 const catalogs = computed(() => {
   const list = (provider.value.catalogs as unknown[] | undefined) ?? [];
@@ -62,7 +70,7 @@ async function upsertRule() {
         :links="[{ label: '反向编目向导', href: '#/provider/wizard/reverse-catalog' }]"
       />
 
-      <template v-if="source === 'live' && catalogs.length">
+      <template v-if="source === 'live' && canUpsertRule && catalogs.length">
         <label class="field-label">选择待配置目录</label>
         <select v-model="selectedId" class="gov-select">
           <option value="" disabled>请选择目录</option>
@@ -73,6 +81,7 @@ async function upsertRule() {
           <button type="button" class="gov-btn gov-btn-primary" @click="upsertRule">保存质量规则</button>
         </DetailActions>
       </template>
+      <p v-else-if="source === 'live' && !canUpsertRule" class="focus-empty">当前岗位无质量规则配置权限。</p>
       <p v-else-if="source === 'live'" class="focus-empty">暂无目录数据。</p>
       <p v-else class="focus-empty">等待数据装载……</p>
     </section>

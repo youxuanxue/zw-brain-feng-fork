@@ -96,7 +96,7 @@ phase_after_approval: Wave 0（先打通 Catalog → Application → Approval �
 
 ## 二、核心旅程、页面与五消费面覆盖矩阵
 
-> 信息架构对齐：J1 找数→用数 / J2 挂数→维数 两条核心旅程 + B1 看全局→处异常 后台支撑面（B1.1 合规与运营 / B1.2 接入扩展中心）。详见 `docs/approved/zw-brain-architecture.md` §5.1。
+> 信息架构对齐：J1 找数→用数 / J2 挂数→维数 两条核心旅程 + B1 看全局→处异常 后台支撑面（B1.1 合规与运营 / B1.2 接入扩展中心——**已随 D52(2026-06-05) 解体为后台四独立模块**：查审计/外部系统/流程表单/身份治理，见 `docs/decisions/integration-admin-governance-axis-refactor.md`）。详见 `docs/approved/zw-brain-architecture.md` §5.1。
 
 ### 2.1 旅程 / 后台面 → 聚合 → 页面覆盖
 
@@ -105,7 +105,7 @@ phase_after_approval: Wave 0（先打通 Catalog → Application → Approval �
 | **J1 找数→用数** | P1 工作台、P2 资源发现、P3 申请/审批/跟踪、P4 交付/交换、P7 共享专区 | `catalog_entry`, `catalog_item`, `resource_asset`, `application_record`, `application_attachment`, `approval_case`, `approval_step`, `approval_decision`, `delivery_task`, `delivery_receipt`, `delivery_notice_projection`, `audit_receipt`（Wave 0 必选）；`delivery_attempt`, `delivery_subscription`（Wave 1 补齐，见 §11.1-11.2） | 用户视角的"找 → 申请 → 拿"5 步骨干合并为一条核心旅程；含异议子流程 + 供需对接子流程；含有条件 / 无条件 / 不予共享 3 种 `share_type`（详见 architecture.md §3.3） |
 | **J2 挂数→维数** | P1 工作台、P5 提供方管理、P7 共享专区 | `catalog_model`, `catalog_entry`, `catalog_entry_version`, `resource_asset`, `objection_*`（Wave 2） | 提供方编目 / 资源挂接 / 部门审 / 平台发布 / 异议处理 |
 | **B1.1 合规与运营** | B1.1 合规与运营、P1 工作台 | `capability_call`, `audit_event`, `audit_receipt`, `anchor_outbox`, `service_invocation_metric_projection`, `gateway_runtime_status_projection` | 仅管理员/审计员；面向审计、统计、异常、追责，读的是审计事实和审计派生投影；不是消息通知；运行监控由集团统一运维监控平台承担（外部依赖） |
-| **B1.2 接入扩展中心** | B1.2 接入扩展中心 | `capability_package`, `capability_version`, `capability_exposure`, `capability_review_record`, `tenant_capability_policy` | 仅管理员；后台支撑面；不进入普通用户主导航心智 |
+| **B1.2 后台治理面**（原「接入扩展中心」，**D52 已解体**[^integration-admin-d52]） | 外部系统 / 流程表单 / 身份治理 / 查审计 四独立模块 | `capability_package`, `capability_version`, `capability_exposure`, `capability_review_record`, `tenant_capability_policy` | 仅管理员；后台支撑面；不进入普通用户主导航心智 |
 
 > 网关与调用统计投影（`gateway_runtime_status_projection` / `service_invocation_metric_projection`）由 B1.1 合规与运营消费。
 
@@ -130,7 +130,7 @@ phase_after_approval: Wave 0（先打通 Catalog → Application → Approval �
 | P5 提供方管理 | `catalog_model`、`catalog_entry`、`resource_asset`、`objection_*` | 是 | 编目、发布、下线、异议处理都属于强状态域 |
 | P7 共享专区/专题包 | 专题 projection、目录/资源投影 | 否 | 主题化聚合，不长新状态机 |
 | **B1.1 合规与运营** | `capability_call`、`audit_event`、`audit_receipt`、统计投影 | 否 | 仅管理员/审计员；以读为主，结论必须回指证据 |
-| **B1.2 接入扩展中心** | `capability_package`、`capability_version`、`capability_exposure`、`tenant_capability_policy` | 是 | 仅管理员；后台治理面 |
+| **B1.2 后台治理面**（原「接入扩展中心」，**D52 已解体**[^integration-admin-d52]） | `capability_package`、`capability_version`、`capability_exposure`、`tenant_capability_policy` | 是 | 仅管理员；后台治理面 |
 
 ### 2.4 什么进入 canonical model，什么不进入
 
@@ -1629,3 +1629,5 @@ resolved  → closed
 - 若架构基线的聚合边界、Capability 最小契约、物理存储分层发生变化，本文必须同步修订。
 - 若后续实现决定拆分物理库，只允许调整部署层，不允许反向破坏本文的领域边界。
 - 若新增 legacy 迁移来源，必须补充到 `legacy_adapter_source` / `legacy_object_mapping` 规则，而不是直接扩散旧表命名进 domain。
+
+[^integration-admin-d52]: 「接入扩展中心」容器已随 **D52（2026-06-05）解体**为后台四独立左导航模块（查审计 / 外部系统 / 流程表单 / 身份治理），不再是单一容器；数据依赖不变，仅导航/页面形态变化。全文 `docs/decisions/integration-admin-governance-axis-refactor.md`。

@@ -103,6 +103,8 @@ const sortedAnomalies = computed(() => {
 });
 
 const accountabilityEmptyText = computed(() => {
+  // R-007：故障态不复用「无拒绝记录」这类正向空态文案（会误导成"查到了、没问题"）。
+  if (accountability.source.value === 'error') return '数据暂不可用，请稍后重试。';
   const total = accountability.data.value?.total ?? 0;
   return formatDeniedChainCount(total);
 });
@@ -172,6 +174,7 @@ const accountabilityEmptyText = computed(() => {
             <span v-for="t in statisticsTotalRow" :key="t.key" class="status-pill">{{ t.key }}: {{ t.value }}</span>
           </div>
         </div>
+        <p v-else-if="statistics.source.value === 'error'" class="focus-prose focus-prose--muted">数据暂不可用，请稍后重试。</p>
         <p v-else class="focus-prose focus-prose--muted">等待装载……</p>
       </section>
 
@@ -180,13 +183,17 @@ const accountabilityEmptyText = computed(() => {
           <h2 class="focus-section-title">异常与督查</h2>
           <DataSourceBadge :source="anomaly.source.value" />
         </header>
+        <!-- R12：用户可见正文须为业务语言。原文直出工程术语（Wave-2/panel/read-sensitive/
+             preflight-debt.md）。规划债指针见下方代码注释，不上屏。
+             债指针（不上屏）：长期无人申请目录诊断 = B1.1 旁路抽查能力的另一面，按「发布时长 ×
+             申请数」二维识别"发布了但 180/365 天 0 申请"的目录，分级建议下线/推广/继续观察并通知
+             部门管理员；建设中。详见 docs/preflight-debt.md 2026-05-27 B1.1-A 条目。 -->
         <aside class="backlog-strip" role="note">
-          <strong>⏳ 长期无人申请目录诊断（Wave-2 已立项）</strong>
+          <strong>⏳ 长期无人申请目录诊断（规划中，暂未上线）</strong>
           <p>
-            B1.1 旁路抽查能力的另一面 —— 按「发布时长 × 申请数」二维识别"发布了但 180 天 / 365 天
-            0 申请"的目录，分级建议 <em>下线 / 推广 / 继续观察</em>，并通知 owner_org 部门管理员。
-            该 panel 待 Wave-2 落地；当前下方展示的是审计异常（read-sensitive 反复触发、写入告警等），
-            不含目录使用度诊断。详见 <code>preflight-debt.md</code> 2026-05-27 B1.1-A 条目。
+            后续将按「发布时长 × 申请数」识别"已发布但长期无人申请"的目录，给出下线 / 推广 / 继续观察建议，
+            并通知所属部门管理员。该能力尚在规划；当前下方展示的是审计异常（敏感数据反复访问、异常写入告警等），
+            暂不含目录使用度诊断。
           </p>
         </aside>
         <div v-if="anomaly.data.value && anomaly.data.value.anomalies.length">
@@ -213,6 +220,7 @@ const accountabilityEmptyText = computed(() => {
             </li>
           </ul>
         </div>
+        <p v-else-if="anomaly.source.value === 'error'" class="focus-prose focus-prose--muted">数据暂不可用，请稍后重试。</p>
         <p v-else class="focus-prose focus-prose--muted">当前窗口无异常。</p>
       </section>
 
@@ -286,6 +294,7 @@ const accountabilityEmptyText = computed(() => {
             </li>
           </ol>
         </div>
+        <p v-else-if="replay.source.value === 'error'" class="focus-prose focus-prose--muted">数据暂不可用，请稍后重试。</p>
         <p v-else class="focus-prose focus-prose--muted">等待装载……</p>
       </section>
 

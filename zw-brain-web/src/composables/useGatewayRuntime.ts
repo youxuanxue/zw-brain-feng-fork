@@ -9,6 +9,7 @@
 import { ref, type Ref } from 'vue';
 import { newRequestId, postSkill } from './useApiClient';
 import type { PanelSource } from './useAuditPanels';
+import { applyPanelFallback } from '@/lib/panelFallback';
 import { GATEWAY_RUNTIME_FIXTURE, type GatewayRuntimeResult } from '@/fixtures/b11-fixture';
 
 export interface UseGatewayRuntimeResult {
@@ -40,8 +41,7 @@ export function useGatewayRuntime(): UseGatewayRuntimeResult {
       source.value = 'live';
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);
-      data.value = GATEWAY_RUNTIME_FIXTURE;
-      source.value = 'fixture';
+      applyPanelFallback({ data, source }, GATEWAY_RUNTIME_FIXTURE, null);
     }
   }
 

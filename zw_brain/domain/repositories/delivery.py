@@ -184,6 +184,38 @@ class DeliveryRepository:
             session.refresh(record)
             return record
 
+    def terminate_subscription(
+        self, subscription_code: str, *, reason: str, actor: str, audit_id: str, tenant_id: str = "sd-default"
+    ) -> DeliverySubscriptionRecord:
+        """终止订阅：status→terminated + legacy_status_snapshot 追加终止记录。
+
+        D56 写路径单源：订阅是非三聚合表（不进 CardSession 卡会话），由 domain repo
+        承担持久化语义——替代 handler 自开 SQLAlchemy session 直 commit（绕过写禁区
+        段 25 边界、与三聚合直写同款 lost-update 隐患）。不存在即 NotFoundError。
+        """
+        from zw_brain.domain.errors import NotFoundError  # noqa: PLC0415
+
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            record = session.execute(
+                select(DeliverySubscriptionRecord).where(
+                    DeliverySubscriptionRecord.tenant_id == tenant_id,
+                    DeliverySubscriptionRecord.subscription_code == subscription_code,
+                )
+            ).scalar_one_or_none()
+            if record is None:
+                raise NotFoundError(subscription_code)
+            record.status = "terminated"
+            snapshot = dict(record.legacy_status_snapshot_json or {})
+            snapshot.setdefault("terminations", []).append(
+                {"audit_id": audit_id, "reason": reason, "actor": actor}
+            )
+            record.legacy_status_snapshot_json = safe_json(snapshot)
+            record.updated_at = _now()
+            session.commit()
+            session.refresh(record)
+            return record
+
     def upsert_attempt(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> DeliveryAttemptRecord:
         attempt_code = str(payload.get("attempt_code") or payload.get("attempt_id") or f"ATT-{payload['delivery_code']}-{payload.get('attempt_kind', 'exchange')}")
         started_at = payload.get("started_at")

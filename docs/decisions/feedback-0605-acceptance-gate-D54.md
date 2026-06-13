@@ -1,3 +1,14 @@
+---
+title: 0605 验收回合 GATE（代理服务注册角色口径 + 反向编目审核命名）
+scope: feedback-0605-acceptance-gate
+status: approved  # 角色/权限口径 + 一词一概念（D28 GATE，decision_only）：产品研发负责人 2026-06-08 sign-off（账本 .testing/signoff/feedback-0605-acceptance-gate.signoff.yaml）
+date: 2026-06-08
+deciders: 海若产品部产品研发负责人（GATE 决策门）
+related_docs:
+  - docs/approved/zw-brain-roles.md
+  - CLAUDE.md D54 决策索引（承 D53/D52.a）
+---
+
 # D54 — 0605 验收回合 GATE（代理服务注册角色口径 + 反向编目审核命名）
 
 > **类型**：角色/权限口径变更 + 一词一概念命名（D28 GATE，decision_only）

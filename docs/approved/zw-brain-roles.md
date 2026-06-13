@@ -1,10 +1,12 @@
 ---
 status: approved
 driven_by: docs/approved/zw-brain-architecture.md
-fact_source: old/20260519/平台系统角色菜单梳理v5.xlsx
+fact_source: old/20260519/平台系统角色菜单梳理v5.xlsx  # 注：old/ 为本机 mirror，已 .gitignore，不入库、CI 不可见
 ---
 
 # zw-brain 角色规范：7 角色 + 牵头标签
+
+> **[2026-06-09 起 现行口径]** 安全管理员（`ROLE_SECURITY_ADMIN`）已随 D55① 本期退役，现行业务角色为 **5 个**（部门操作员 / 部门管理员 / 业务运营员 / 安全审计员 / 平台运维员）+ 2 系统角色，代码事实源 `zw_brain/domain/role_codes.py`。本文标题「7 角色」保留为历史设计基线措辞；**权限现行口径以 CLAUDE.md D-索引（D53/D54/D55/D57）+ `zw_brain/domain/policy.py` 为准**，本文 §三权限清单若与之冲突以代码 + D-索引为准。详见文末「修订记录」。
 
 ## 一、设计原则
 
@@ -18,12 +20,12 @@ fact_source: old/20260519/平台系统角色菜单梳理v5.xlsx
 
 | 角色码 | 中文名 | 旧平台菜单数 | 主要参与面 | 颁发主体 |
 |---|---|---|---|---|
-| `ROLE_SYSTEM` | 平台运维员 | 49 | 不在 J1/J2 主面；B1.2 接入扩展中心（按需） + 运维专属页 | 平台承建方 |
-| `ROLE_BUSIAUDIT` | 业务运营员 | 132 | J1 审批 / J2 复核 / B1.1 合规与运营 / B1.2 接入扩展中心（按需） | 数据主管部门 |
+| `ROLE_SYSTEM` | 平台运维员 | 49 | 不在 J1/J2 主面；后台治理（按需）[^integration-admin-d52] + 运维专属页 | 平台承建方 |
+| `ROLE_BUSIAUDIT` | 业务运营员 | 132 | J1 审批 / J2 复核 / B1.1 合规与运营 / 后台治理（按需）[^integration-admin-d52] | 数据主管部门 |
 | `ROLE_ORGAN_MANAGER` | 部门管理员 | 138 | J1 申请审批 / J2 资源管理审核 | 各业务部门 |
 | `ROLE_ORGAN_OPERATER` | 部门操作员 | 78 | J1 申请发起 / J2 资源编目挂接 | 各业务部门 |
-| `ROLE_SECURITY_ADMIN` | 安全管理员 | 17 | B1.1 合规与运营（数据安全独立模块） | 数据主管部门 / 安全部门 |
-| `ROLE_SECURITY_AUDIT` | 安全审计员 | 11 | B1.1 合规与运营（审计督查段） | 数据主管部门 / 审计部门 |
+| ~~`ROLE_SECURITY_ADMIN`~~ | ~~安全管理员~~ | 17 | **本期退役（D55①，2026-06-09）**——数据安全中心未立项，连同其专属工作面一并恢复时再启用；记债 `docs/preflight-debt.md`（slug `security-admin-retired-d55`） | 数据主管部门 / 安全部门 |
+| `ROLE_SECURITY_AUDIT` | 安全审计员 | 11 | B1.1 合规与运营（审计督查段，**D55⑦ 后收敛为纯只读，无任何写操作权**） | 数据主管部门 / 审计部门 |
 | tag `tag_lead_dept` | 牵头部门标签 | 2 | 依附 ORGAN_MANAGER；仅基础主题分类审核 | 数据主管部门标定 |
 
 ## 三、各角色权限清单（xlsx 严格对照）
@@ -183,7 +185,7 @@ fact_source: old/20260519/平台系统角色菜单梳理v5.xlsx
 | J2 挂数→维数 | **目录发布 / 资源发布**（主管部门最终发布权）、字段口径裁决、挂接审核驳回复核 | 高 |
 | J1/J2 国家通道（Wave 3 延后） | 数据直达申请审核、**开放目录发布**、开放资源发布 | 低（基线 §10.4 延后） |
 | B1.1 合规与运营 | 目录质量人工检测、自动检测任务管理、统计分析、关系图谱 | 中 |
-| B1.2 接入扩展中心 | 共享专题与能力包注册（仅管理员后台） | 低 |
+| 后台治理（原 B1.2 接入扩展中心）[^integration-admin-d52] | 共享专题与能力包注册（仅管理员后台；专题包整面已随 D55① 下线） | 低 |
 
 ### `ROLE_SECURITY_ADMIN` 安全管理员
 
@@ -216,3 +218,22 @@ fact_source: old/20260519/平台系统角色菜单梳理v5.xlsx
 - 任何代码中出现 r1-r8 字面值由 `policy.assert_no_legacy_role_codes()` 启动检查 + `scripts/check_no_legacy_role_codes.py` preflight 段（`no-legacy-role-codes`）双层兜底
 - IAM 同步：组织上若需 IAM 端调整 realm_roles 列表，必须先在本文新增角色码并 sign-off
 - 跨文件角色码一致性由 `tests/test_role_codes_alignment.py` 机械验证
+
+## 九、修订记录（已签 GATE 回写）
+
+> 本段把已签 GATE 决策的权限重排要点回写进权威全文（消解「索引新、全文旧」单向漂移）。**完整 Why/How 见各 D 全文指针；本段只记要点 + 对本文的影响。**
+
+- **D53 [2026-06-06] feedback-0605-gate**：找数据只展示已发布 active；资源类型只支持库表/文件/API；业务运营员待办改发布类（待发布目录/资源 + 待受理申请/异议 + 待汇总需求）；交付回执角色收窄到部门管理员。全文 `docs/decisions/feedback-0605-gate-D57.md` 同目录 `feedback-0605-gate-signoff-business-review-package.md`；签字 `.testing/signoff/feedback-0605-gate.signoff.yaml`。
+- **D54 [2026-06-08] feedback-0605-acceptance-gate**：代理服务注册角色口径纠正——注册（`resource.api.register`/`submit_review`）= 部门操作员 + 部门管理员（业务运营员退出注册）；审核发布（review/publish/withdraw）= 部门管理员。纠正 `policy.py` 把注册权错配业务运营员的口径错。全文 `docs/decisions/feedback-0605-acceptance-gate-D54.md`；签字 `.testing/signoff/feedback-0605-acceptance-gate.signoff.yaml`。
+- **D55 [2026-06-09] permission-realignment-0609**（业务方权限专项梳理，6 角色 × 21 条）要点：
+  - ① **安全管理员角色本期退役**（数据安全中心未立项，记债待恢复，slug `security-admin-retired-d55`）；专题包整面下线（消解 ⊥D34）。
+  - ② 领数据回归 **部门操作员 + 部门管理员**（v5 资源订阅口径，反转 D53/F1）。
+  - ③ 业务运营员保留受理（初级审核）、退申请人身份。
+  - ④ 受理/审核两级：无条件 = 业务运营员受理即终；有条件 = 受理 → 部门管理员审核（改 D49 关联）。
+  - ⑤ 流程表单配置归 **平台运维员**（平台级，反转 D49 管理员项目级）。
+  - ⑥ A 档照 v5 校正（业务运营员退供数维护/外部系统/身份治理；管理员 + 运维员退审计日志保服务调用监控；安全审计员退找数据/领数据；操作员补反向编目）。
+  - ⑦ **安全审计员收敛为纯只读**（无任何写操作权，清异议/合规/工单/谱系/熔断写权；工单巡检归运维员）。
+  - 全文 `docs/decisions/permission-realignment-0609-D55.md`；签字 `.testing/signoff/permission-realignment-0609.signoff.yaml`。
+
+[^integration-admin-d52]: 「接入扩展中心」容器已随 **D52（2026-06-05）解体**为后台四独立左导航模块（查审计 / 外部系统 / 流程表单 / 身份治理），不再是单一容器。全文 `docs/decisions/integration-admin-governance-axis-refactor.md`。
+- **D57 [2026-06-12] feedback-0611-gate**（0611 核查 9 项）要点：业务运营员「待受理异议」补受理面（接通 `objection.case.accept`）；操作员工作台维持申请进度；管理员领数据维持 D55②；管理员申请人身份照 v5 保留（前端 `pageAccess` 补回 MANAGER 发起入口）；目录发布权回收仅 BUSIAUDIT（严格 v5）；管理员 + 安全审计员退全局服务调用监控（自家资源调用留凭据门内）；业务运营员保留查审计（D57.a：docx 0609 措辞优先于 v5 0519 行）；**反向编目审核改两级管线**（管理员部门审 → 运营员平台审，状态机变更）；挂接审核角色按 v5 关闭（现状正确）。全文 `docs/decisions/feedback-0611-gate-D57.md`；签字 `.testing/signoff/feedback-0611-gate.signoff.yaml`。

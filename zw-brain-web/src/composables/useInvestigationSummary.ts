@@ -1,5 +1,6 @@
 import { ref, type Ref } from 'vue';
 import { newRequestId, postSkill } from './useApiClient';
+import { applyPanelFallback } from '@/lib/panelFallback';
 import { SUMMARY_FIXTURE, type InvestigationSummaryResult } from '@/fixtures/b11-fixture';
 
 // 调查摘要助手封装：调 assistant.investigation_summary（PR #91 58d5587 已 land
@@ -7,7 +8,8 @@ import { SUMMARY_FIXTURE, type InvestigationSummaryResult } from '@/fixtures/b11
 // 脱敏后再送推理。UI 上助手摘要与原始 panel 数据**并列展示**，不替代原始证据
 // （架构 D14 不覆盖原始审计证据约束）。共享 BFF 客户端见 useApiClient.ts。
 
-export type AssistantSource = 'idle' | 'loading' | 'live' | 'fixture';
+// 'error' = 生产构建下 API 失败的诚实不可用态（R-007）。
+export type AssistantSource = 'idle' | 'loading' | 'live' | 'fixture' | 'error';
 
 export interface UseSummaryResult {
   data: Ref<InvestigationSummaryResult | null>;
@@ -47,8 +49,7 @@ export function useInvestigationSummary(): UseSummaryResult {
       source.value = payload.model === 'rule-fallback' ? 'fixture' : 'live';
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);
-      data.value = SUMMARY_FIXTURE;
-      source.value = 'fixture';
+      applyPanelFallback({ data, source }, SUMMARY_FIXTURE, null);
     }
   }
 

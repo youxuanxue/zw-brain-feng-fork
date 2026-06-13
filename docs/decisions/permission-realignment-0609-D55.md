@@ -1,3 +1,14 @@
+---
+title: 重构平台权限梳理-0609 角色↔权限边界重对齐（多点 GATE）
+scope: permission-realignment-0609
+status: approved  # 角色/权限/状态机多点裁决（D28 GATE，decision_only）：产品研发负责人 2026-06-09 两轮 sign-off（账本 .testing/signoff/permission-realignment-0609.signoff.yaml）
+date: 2026-06-09
+deciders: 海若产品部产品研发负责人（GATE 决策门）
+related_docs:
+  - docs/approved/zw-brain-roles.md
+  - CLAUDE.md D55 决策索引（承 D54/D52/D34/j1-credential-revoke 决策A）
+---
+
 # D55 — 重构平台权限梳理-0609 角色↔权限边界重对齐（多点 GATE）
 
 > **类型**：角色/权限/状态机多点裁决 + 一词一概念（D28 GATE，decision_only）

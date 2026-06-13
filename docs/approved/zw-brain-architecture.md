@@ -67,7 +67,7 @@ phase_after_approval: Phase 0（先打通首条黄金链路 J1 找数→用数�
 | Wave 0（机械守卫 + J1 黄金链路） | `shipped` | 工程交付（preflight 全段绿 + tests/test_wave0_* 套件存在） | — |
 | Wave 1（J1 闭环深化 + J2 挂数→维数） | `partially-shipped` | 工程交付 PR #90 / #98 / #103-#106 / #108 / #109；AgentRuntime 子项触发式延后；**J2 库表/文件资源挂接（提交侧 wizard + P3 物化选择）代码本 PR 落地（见 §2026-06-03 wave-residuals）** | **真残差 = j2-resource-mount（此前灰禁、挂数旅程缺一半）：本 PR 补 resource.mount.{table,file}.prepare + P5HookupSubmitWizard + P2 物化选择尾巴；本地全栈 e2e 走查 + 测量重采（--with-e2e）已做 → j2-resource-mount **翻 InTest**（绿/未签），待业务 sign-off 翻 Done**；AgentRuntime runtime 子项：[preflight-debt §2026-05-24 AgentRuntime](../preflight-debt.md)（T1/T2/T3 任一触发即升级 P0） |
 | Wave 2（三引擎 + B1 合规 + 共享专区） | `shipped` | 真人 sign-off 已闭合 —— 三引擎 E3.F8 [SIGNOFF-CLOSED 2026-05-28] PR #151、B1.1/B1.2 E4.F8 双签 [SIGNOFF-CLOSED 2026-05-28] PR #147、共享专区/专题包 E3.F9 效果验收 [SIGNOFF-CLOSED 2026-05-30] PR #170（D34/D42）；**审批引擎执行深度补齐（自定义 live schema 真正驱动 J1，串行版）本 PR 落地** | **执行层缝已补**：committed 自定义 schema 此前驱动不了 J1（只跑 2 baseline）→ 本 PR 补 approval_flow_walker（always/on_decision 串行，expression fail-closed）+ find_live_for_scope（项目级选择），baseline 零改动；条件求值器按零业务需求 deliberately 不做。borderline 5 capability：[preflight-debt §2026-05-23 5 个 B1 业务报表](../preflight-debt.md)；目录休眠诊断为 Wave 2 后续独立立项 |
-| Wave 3（协议硬化 + 多租户 + 国家通道） | `barely-started` | mcp-hardening 已 Done；**A2A 线级 over-socket 端到端测试 + trust 旋钮本 PR 落地** | **校正**：原 `not-started` 不实 —— MCP 硬化早 Done、本 PR 补 A2A 5 消费面零线级覆盖（discover→invoke / 多轮 audit 链 / trust 裁剪 / 投影一致性），a2a-hardening **翻 InTest**（线级核心 4 场景绿/未签）。仍 trigger-deferred：国家通道 / 多租户（[§2026-05-24 反 per-tenant fork](../preflight-debt.md)）/ 观测告警 / A2A 跨租户隔离(2nd-tenant) + anp 门控(AgentRuntime D30) |
+| Wave 3（协议硬化 + 多租户 + 国家通道） | `barely-started` | mcp-hardening 已 Done；**A2A 线级 over-socket 端到端测试 + trust 旋钮本 PR 落地** | **校正**：原 `not-started` 不实 —— MCP 硬化早 Done、本 PR 补 A2A 5 消费面零线级覆盖（discover→invoke / 多轮 audit 链 / trust 裁剪 / 投影一致性），a2a-hardening **翻 InTest**（线级核心 4 场景绿/未签）。**国家通道已 D50（2026-06-04）立项实施落码**（默认 off 三态运行门，详见 `docs/decisions/national-platform-access-D50.md`），不再 trigger-deferred。仍 trigger-deferred：多租户（[§2026-05-24 反 per-tenant fork](../preflight-debt.md)）/ 观测告警 / A2A 跨租户隔离(2nd-tenant) + anp 门控(AgentRuntime D30) |
 | Wave 4（legacy 退役） | `not-started` | — | 阻塞 = Wave 3 多协议硬化 + 真数据回归进 CI：[preflight-debt §2026-05-25 真数据](../preflight-debt.md) / [§2026-05-25 推理 mock](../preflight-debt.md) / [§2026-05-25 客户机房部署](../preflight-debt.md)；附录 C 4 项触发式 pending：[preflight-debt §2026-05-24 附录 C 4 项](../preflight-debt.md) |
 
 **单一权威路径声明**：当本表与 §十路线图 / `docs/preflight-debt.md` 任一处冲突时，**以本表为准**——本表是当前真相的统一索引面。
@@ -483,7 +483,7 @@ Capability、Registry、Policy、Audit 等实现都必须回落到这套代码�
 | 通用服务 / 融合服务编排 / 代理服务 | independent + 部分 app-center-web | 24 + 部分 | **D31/D32 修订**：业务方 PR #129 A 类复活 20/21 → 按 `docs/reconstructs/dsp-dataservice-reconstruction-plan-v1.md` 落地 | ⏸ 按 plan 落地 |
 | 基础主题库（basesubject） | dsp-basesubject | 81 表 | **§5.6 #13 不进 IA**（基于旧库 81 表事实） | ❌ 不复造 |
 | 消息中心 / 工单管理 | message-center | 3 | **§3.4 外部依赖**（消息独立 + 工单走异议） | ❌ 不复造 |
-| 平台运维配置 | dsp_bsp 后台 | （后台） | **B1.2 接入扩展中心**（仅管理员） | ✅ 后台 |
+| 平台运维配置 | dsp_bsp 后台 | （后台） | **后台治理面**（仅管理员；原「B1.2 接入扩展中心」已随 D52(2026-06-05) 解体为四独立模块——查审计/外部系统/流程表单/身份治理，见 `docs/decisions/integration-admin-governance-axis-refactor.md`） | ✅ 后台 |
 | 合规督查 / 审计 | independent | 18 | **B1.1 合规与运营**（仅管理员/审计员） | ✅ 后台 |
 | 搜索结果页（search-result） | portal-vue `/search-result` | （并入资源发现） | **合并入 P2 资源发现的搜索结果区** | ✅ 合并 |
 | 知识中心 | portal-vue `/knowledge-center` | （并入合规） | **合并入 B1.1 合规与运营的工单/知识 panel** | ✅ 合并 |
@@ -492,7 +492,7 @@ Capability、Registry、Policy、Audit 等实现都必须回落到这套代码�
 
 - ✅ **保留**（进 8 主入口 P1-P5/P7 或 B1.1/B1.2，含合并）：10 项
 - ❌ **不复造**（外部依赖或不进 IA）：8 项
-- ⏸️ **占位延后**：2 项（国家通道）
+- 🟢 **D50 已立项实施**：2 项（国家通道——数据直达 + 扩展要素编制；原占位延后已反转，默认 off 三态运行门，详见 `docs/decisions/national-platform-access-D50.md`）
 
 **Jobs 式判断**：旧平台 18 项一级目录 + 7 个独立 SPA → zw-brain 8 主入口 + 单一 WebUI，**真实减法 56%**。客户日常用的就是 J1+J2 这两条链。
 
@@ -598,8 +598,8 @@ legacy 门户的信息架构只能作为遗留能力索引，不再作为新 Web
 | 5 | API 白名单 / 限流配置 | 独立"运行参数维护"页面（运维角色），**非审批依据** | 业务反馈 #9 |
 | 6 | 牵头 / 关联部门授权耦合 | 改为目录元数据字段 + `tag_lead_dept` 标签位（仅 2 项菜单），与授权链解耦 | 业务反馈 #11 |
 | 7 | 数据采集质量检测 | 仅留 B1 后台旁路抽查（"长期无人申请的目录"诊断）；数据治理不进本产品 | 业务反馈 #14 |
-| 8 | 国家数据直达独立流程 | 独立子旅程（本期不实施，IA 占位；优先级 P2） | 业务反馈 #13 |
-| 9 | 国家扩展要素目录编制 | 独立子旅程（本期不实施；优先级 P2） | 业务反馈 #18 |
+| 8 | 国家数据直达独立流程 | 独立子旅程，**D50（2026-06-04）已立项实施落码**（默认 off 三态运行门，详见 `docs/decisions/national-platform-access-D50.md`） | 业务反馈 #13 |
+| 9 | 国家扩展要素目录编制 | 独立子旅程，**D50（2026-06-04）已立项实施落码**（独立 `data_catalog` 主线，详见 `docs/decisions/national-platform-access-D50.md`） | 业务反馈 #18 |
 | 10 | 工单管理（旧 `dsp_handling` 10 表） | 不长工单子系统；异议走 J1 异议子流程 / 补差走 J2 | 旧平台真实归属对照 §3.4 |
 | 11 | **数据资源库**（主题库/专题库/数购车）| **D31/D32 修订**：业务方 PR #129 复活 D 类 4 条，按 `docs/reconstructs/dsp-sharezone-topic-package-reconstruction-plan-v1.md` 落地 Wave 2 P7；不复刻旧 BSP 形态 | 立项会议 + PR #129 + D32 |
 | 11.a | 人口库 / 法人库（线下建库类） | 仍不复造；由各部门线下建库 + 数据治理中心治理 | 立项会议业务方 02:06:36 |
@@ -872,7 +872,7 @@ L5 Data / External
 **触发条件 → 立即升级为产品需求并机械化：**
 - **T1**：出现首个真实外部 Agent 接入需求（无论来自 ANP / Cursor / 第三方 IDE）→ 立即新增 Registry schema 字段 `runtime_spec_version` / `agent_yaml_ref` / `trust_level` / `workspace_required`；实现 `scripts/agentruntime_validate.py` + `scripts/agentruntime_doctor.py`；preflight 加段强制约束
 - **T2**：客户要求 zw-brain 内置 Agent 以 `AGENT.yaml` 形态对外暴露 → 选 1 个低风险 builtin Agent 转 `AGENT.yaml` 形态作为 reference
-- **T3**：B1.2 接入扩展中心 UI 立项（Wave 2 范围）→ §8.4 7 步流水线 UI 化
+- **T3**：B1.2 接入扩展中心 UI 立项（Wave 2 范围）→ §8.4 7 步流水线 UI 化（注：「接入扩展中心」容器已随 **D52(2026-06-05)** 解体为后台四独立模块，外部系统/能力包注册面承接此 UI）
 
 **绝不预先盖楼**：在 T1/T2/T3 任一触发前，主仓库不引入未被消费的 schema 字段、不写空跑的 validate/doctor 脚本、不在测试夹具里维护 AGENT.yaml 样本。
 
@@ -969,7 +969,7 @@ zw-brain 是**全新项目**，没有历史客户、没有存量数据需要迁�
 或带豁免注释 `# full-scan-ok: <reason>`：
 
 - `zw_brain/domain/repositories/catalog.py`（PR #113 教训：目录列表查询全表扫触发性能事故）
-- `zw_brain/domain/repositories/resource.py` / `application.py` / `approval.py` /
+- `zw_brain/domain/repositories/resource_api.py` / `application.py` / `approval.py` /
   `delivery.py` / `supply_demand.py`
 - `zw_brain/command/handlers/j2/metadata.py`
 
@@ -1083,7 +1083,7 @@ PR #110 之后（数据基于 `zw_brain/shared/auth_session.py` + `zw_brain/entr
 
 **Wave 2 其他内容**：
 - B1.1 合规与运营最小可用（异常发现 + 抽查 + 督查三段）
-- B1.2 接入扩展中心（外部 Agent 经 AgentRuntime AGENT.yaml 注册、启停、回滚；含 trust_level 升降级、§8.4 流水线 UI 化）
+- B1.2 接入扩展中心（外部 Agent 经 AgentRuntime AGENT.yaml 注册、启停、回滚；含 trust_level 升降级、§8.4 流水线 UI 化）——容器已随 **D52(2026-06-05)** 解体为后台四独立模块（查审计/外部系统/流程表单/身份治理），见 `docs/decisions/integration-admin-governance-axis-refactor.md`
 - 共享专区 / 专题包（P7）
 - 一表通可选预填 adapter（**降级路径**，不默认；详见 §3.4 C）
 

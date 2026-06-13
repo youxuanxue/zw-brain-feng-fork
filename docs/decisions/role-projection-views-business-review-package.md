@@ -109,3 +109,5 @@ driven_by:
   PR 加 label `signoff:p1-data-presentation-role-projection` + body 机读块，合并自动落
   `.testing/signoff/p1-data-presentation-role-projection.signoff.yaml`（D46.d）。
 - 在此之前 feature 状态如实保持**未 Done**（无签字不翻 Done，D46）。
+
+> **[实际落账更正]** 本材料包对应的签字账本实际落在 **`.testing/signoff/j1-role-projection-views.signoff.yaml`**（薛娇 2026-06-13 效果验收 sign-off，`covers` 含 `j1-role-projection-views.feature`）；非上行所述 `p1-data-presentation-role-projection.signoff.yaml`（该文件不存在）。

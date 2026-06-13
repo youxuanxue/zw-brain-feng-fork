@@ -1,5 +1,6 @@
 import { ref, type Ref } from 'vue';
 import { newRequestId, postSkill } from './useApiClient';
+import { applyPanelFallback } from '@/lib/panelFallback';
 import {
   ACCOUNTABILITY_FIXTURE,
   ANOMALY_FIXTURE,
@@ -17,7 +18,8 @@ import {
 // b11-fixture.ts（同 sd-default 切片，与 P1Workbench useWorkbench 同 pattern）。
 // 共享 BFF 客户端（postSkill / newRequestId）抽到 useApiClient.ts。
 
-export type PanelSource = 'idle' | 'loading' | 'live' | 'fixture';
+// 'error' = 生产构建下 API 失败的诚实不可用态（R-007）：不渲染 fixture，徽标显「不可用」。
+export type PanelSource = 'idle' | 'loading' | 'live' | 'fixture' | 'error';
 
 // ---- replay ----
 
@@ -47,8 +49,7 @@ request_id: requestId,
       source.value = 'live';
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);
-      data.value = REPLAY_FIXTURE;
-      source.value = 'fixture';
+      applyPanelFallback({ data, source }, REPLAY_FIXTURE, null);
     }
   }
   return { data, source, error, load };
@@ -88,8 +89,7 @@ bucket,
       source.value = 'live';
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);
-      data.value = STATISTICS_FIXTURE;
-      source.value = 'fixture';
+      applyPanelFallback({ data, source }, STATISTICS_FIXTURE, null);
     }
   }
   return { data, source, error, load };
@@ -125,8 +125,7 @@ tenant_id: 'sd-default',
       source.value = 'live';
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);
-      data.value = ANOMALY_FIXTURE;
-      source.value = 'fixture';
+      applyPanelFallback({ data, source }, ANOMALY_FIXTURE, null);
     }
   }
   return { data, source, error, load };
@@ -161,8 +160,7 @@ actor,
       source.value = 'live';
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);
-      data.value = ACCOUNTABILITY_FIXTURE;
-      source.value = 'fixture';
+      applyPanelFallback({ data, source }, ACCOUNTABILITY_FIXTURE, null);
     }
   }
   return { data, source, error, load };
@@ -197,11 +195,12 @@ tenant_id: 'sd-default',
       source.value = 'live';
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);
-      data.value = { items: [], summary: {
+      // 此面板无捏造 fixture（回退即空查询结果）；两档共用同一空值，仅来源标识 dev=fixture / prod=error。
+      const emptyQuery: AuditQueryResult = { items: [], summary: {
         total: 0, by_audit_class: {}, by_skill: {}, by_actor: {},
         first_occurred_at: null, last_occurred_at: null,
       } };
-      source.value = 'fixture';
+      applyPanelFallback({ data, source }, emptyQuery, emptyQuery);
     }
   }
   return { data, source, error, load };

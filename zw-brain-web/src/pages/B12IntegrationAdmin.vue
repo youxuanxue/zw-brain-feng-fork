@@ -12,7 +12,7 @@ import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DataSourceBadge from '@/components/DataSourceBadge.vue';
 import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
 import type { StructuredAction } from '@/composables/useNLAccelerator';
-import { trustPillClass } from '@/lib/packageDisplay';
+import { trustPillClass, TRUST_LABELS, PKG_STATUS_LABELS } from '@/lib/packageDisplay';
 
 // 外部系统 —— 外来系统接入治理的独立模块（「接入扩展中心」容器已解体，负责人 2026-06-05 裁）。
 // 一页到底，无内部 tab：账目行（诚实能力计数）→ 系统表（审批 / 启停 / 信任级）。
@@ -108,23 +108,8 @@ async function onTrustLevelChange(pkgId: string): Promise<void> {
   if (r.ok) await packages.load();
 }
 
-// ---- 人话标签映射（避免把工程串糊用户脸；R12 段24/24b）----
-const PKG_STATUS_LABELS: Record<string, string> = {
-  pending: '待审',
-  'pending-fix': '退回补充',
-  approved: '已批准',
-  active: '已启用',
-  'rolled-back': '已回滚',
-  suspended: '已停用',
-  rejected: '已驳回',
-  revoked: '已撤销',
-};
-const TRUST_LABELS: Record<string, string> = {
-  baseline: '基线（默认）',
-  reviewed: '已审',
-  restricted: '严管',
-  revoked: '撤回',
-};
+// 人话标签映射（PKG_STATUS_LABELS / TRUST_LABELS）已收口到 lib/packageDisplay.ts 单源
+// （R-019④），本页直接 import 复用，避免逐字副本分叉（R12 段24/24b）。
 
 </script>
 

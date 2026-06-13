@@ -14,12 +14,6 @@ from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 # R-008: ACTOR_NAMES 从 role_codes.ROLE_DISPLAY_NAMES_ZH 派生，不再手维护
 ACTOR_NAMES: dict[str, str] = dict(ROLE_DISPLAY_NAMES_ZH)
 
-# R-014 fix: 标签位运行时校验在 enforce_manifest_policy 实现；集合定义在 LEAD_DEPT_TAG_PERMISSIONS
-LEAD_DEPT_TAG_PERMISSIONS: frozenset[str] = frozenset({
-    "catalog.lead_dept_topic_review.execute",
-    "catalog.lead_dept_topic_revoke.execute",
-})
-
 # 权限分配规则（D23 retrofit 后）：
 # - 发现/查看类  → ORGAN_OPERATER + ORGAN_MANAGER + BUSIAUDIT + SECURITY_AUDIT（只读放开）
 # - 编制/提交类  → ORGAN_OPERATER（MANAGER 通过 ROLE_HIERARCHY 隐式获得）
@@ -472,10 +466,6 @@ PERMISSION_ROLES = {
     "delivery.subscription.manage.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
     # D55/P22：应急熔断为写操作，安全审计员收敛纯只读后退出，归平台运维员（Wave1-S5）。
     "system.toggle_outage.execute": {"ROLE_SYSTEM"},
-
-    # 标签位（依附 ORGAN_MANAGER + tag_lead_dept）— D27 #11 处置
-    "catalog.lead_dept_topic_review.execute": {"ROLE_ORGAN_MANAGER"},  # 运行时再校验 tag_lead_dept
-    "catalog.lead_dept_topic_revoke.execute": {"ROLE_ORGAN_MANAGER"},
 }
 
 
@@ -577,23 +567,12 @@ def enforce_manifest_policy(skill_id: str, manifest: dict[str, Any], role: str, 
     # be denied (403), never handed a "needs confirmation" envelope it could use to probe
     # capability existence. Authorized-but-unconfirmed writes still short-circuit here so
     # the confirmation round-trip (→ 409 ConfirmationRequired) is preserved for them.
+    # （R-005：D27 #11 的 tag_lead_dept 运行时标签门 + 两条 catalog.lead_dept_topic_*
+    #  权限随 D55 专题包整面下线退役——交集恒空、机制空转，整段删除使 403/409 短路顺序
+    #  不再有后置标签校验绕过隐患；新增交叉守卫 check_permission_roles_subset 钉死
+    #  PERMISSION_ROLES keys ⊆ manifest 权限并集，回潮即 FAIL。）
     if manifest.get("human_confirmation_required") and not bool(payload.get("confirmed")):
         return
-
-    # R-014 fix: 标签位运行时校验 — tag_lead_dept 标记的权限只允许持有该标签的 actor 调用。
-    # actor.tags 通过 payload.actor_tags 传入（IAM session 或上层注入）；未传时默认无标签。
-    # F1 fix: actor_tags 必须是 dict；非 dict 类型（str/list/None/...）等同于"无标签"，拒绝。
-    # F2 fix: 严格只接受 bool True 作为"持有标签"；字符串 "true"/"1"/"false" 等都不算（避免 IAM
-    # 误传字符串造成 Python truthiness 误判）。
-    tagged_permissions = required_permissions & LEAD_DEPT_TAG_PERMISSIONS
-    if tagged_permissions:
-        raw_tags = payload.get("actor_tags")
-        actor_tags = raw_tags if isinstance(raw_tags, dict) else {}
-        if actor_tags.get("tag_lead_dept") is not True:
-            raise DomainAccessDeniedError(
-                f"skill {skill_id} requires tag_lead_dept=True (bool); "
-                f"actor lacks the tag — needed for permissions: {', '.join(sorted(tagged_permissions))}"
-            )
 
 
 class SelfApprovalNotAllowedError(DomainAccessDeniedError):

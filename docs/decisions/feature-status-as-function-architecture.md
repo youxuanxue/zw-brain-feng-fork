@@ -1,9 +1,15 @@
 ---
 title: D46 — feature status 不存储、由 SPEC+MEASUREMENT+SIGN-OFF 现算
 scope: feature-status-as-function
-status: pending
+status: approved
+gate: 架构决策门（D28）
 date: 2026-05-30
 deciders: 海若产品部产品研发负责人（架构决策门）
+signed_off_by: 海若产品部产品研发负责人
+signed_off_at: 2026-05-30
+# D46 系架构门决策，产品研发负责人 2026-05-30 sign-off（CLAUDE.md D-索引权威记录）。
+# 注：D46 自身引入「.testing/signoff/ 账本单源」约定，本架构决策本体早于该约定落地，无独立 signoff 账本文件；
+# 签字事实以 CLAUDE.md D-索引「D46（架构门，产品研发负责人 sign-off）」为权威源。
 ---
 
 # D46 · status 不是事实，是函数（单一事实源 + 三角闭环飞轮 + 极致确定性）

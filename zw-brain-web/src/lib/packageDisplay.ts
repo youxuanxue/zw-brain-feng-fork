@@ -41,6 +41,32 @@ export function normalizePackageRow(raw: Record<string, unknown>): PackageRow {
   };
 }
 
+/**
+ * 信任档中文标签（R-019④ 单源）——此前 B12PackageDetail / B12IntegrationAdmin 各抄一份逐字副本。
+ * 收口到此，两页统一 import。
+ */
+export const TRUST_LABELS: Readonly<Record<string, string>> = {
+  baseline: '基线（默认）',
+  reviewed: '已审',
+  restricted: '严管',
+  revoked: '撤回',
+};
+
+/**
+ * 能力包生命周期态中文标签（R12 段24：禁工程串糊用户脸）。与 PackageRow.status 枚举对齐，
+ * 与 TRUST_LABELS 同处 package 显示单源，避免再散落到页面。
+ */
+export const PKG_STATUS_LABELS: Readonly<Record<string, string>> = {
+  pending: '待审',
+  'pending-fix': '退回补充',
+  approved: '已批准',
+  active: '已启用',
+  'rolled-back': '已回滚',
+  suspended: '已停用',
+  rejected: '已驳回',
+  revoked: '已撤销',
+};
+
 export function trustPillClass(level: string): string {
   switch (normalizeTrustLevel(level)) {
     case 'reviewed':

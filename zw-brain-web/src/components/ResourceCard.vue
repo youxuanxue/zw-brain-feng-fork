@@ -1,19 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { resourceKindLabel } from '@/lib/resourceKind';
 
 const props = defineProps<{
   resource: Record<string, unknown>;
   showAction?: boolean;
 }>();
-
-// resource_kind → 中文物化形态徽标。资源类型收敛为「库表 / 文件 / API」——
-// 文件夹/链接已退役（归一化阶段 folder→file、移除 link/url）。service = API 的历史别名，保留。
-const KIND_LABELS: Record<string, string> = {
-  table: '库表',
-  file: '文件',
-  api: '接口',
-  service: '服务',
-};
 
 const item = computed(() => {
   const r = props.resource as Record<string, unknown>;
@@ -33,7 +25,8 @@ const item = computed(() => {
     subscribers: r.subscribers,
     coverage: r.coverage,
     kind,
-    kindLabel: KIND_LABELS[kind] ?? '',
+    // 单源 resourceKindLabel（lib/resourceKind.ts）：service→接口、folder/url/link→file，未知→空。
+    kindLabel: resourceKindLabel(kind),
     updatedAt: String(r.updatedAt ?? r.updated_at ?? ''),
     shareType: String(r.shareType ?? ''),
     shareLevel: String(r.shareLevel ?? ''),

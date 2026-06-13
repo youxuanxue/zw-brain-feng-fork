@@ -57,8 +57,13 @@ run_check() {
     else
         script_args=""
     fi
+    # R-012：CHECKS 表全是 zw-brain 仓内自带项目段（scripts/check_*.py），随仓库分发、
+    # 必然存在——缺失即守卫被静默摘除（"skip+PASS" 把真问题伪装成绿）。改 FAIL。
+    # （vendored 可选段——dev-rules/scripts/ 包装检查、submodule/sync 段——的 skip 语义
+    #  在 preflight_common.sh 内独立保留，不受本改动影响；那是「未检出 dev-rules 时合法
+    #  缺席」，与项目段「应在却不在」是两类。）
     if [ ! -f "$script_path" ]; then
-        echo "  skip: $script_path not present (see docs/preflight-debt.md)"
+        fail_proj "$desc — 项目段守卫脚本缺失：$script_path（项目段必须随仓库存在，不得静默 skip；见 docs/preflight-debt.md）"
         return
     fi
     if [ ! -x "$script_path" ]; then
@@ -104,14 +109,14 @@ done <<'CHECKS'
 段 16	scripts/check_legacy_mappers.py	legacy-mappers (D7+D4)
 段 17	scripts/check_iam_doc_freshness.py	iam-doc-freshness (R-002)
 段 18	scripts/check_db_bloat.py	db-bloat-check (canonical DB ≤ 2GB hard, 500MB soft)
-段 19	scripts/check_no_legacy_role_codes.py	no-legacy-role-codes (D23 retrofit)
-段 20	scripts/check_no_retired_features.py	no-retired-features (alembic 删除 + K12 dashboard 退役)
-段 21	scripts/check_no_numbered_routes.py	no-numbered-routes (route de-identify guardrail)
+段 19-21	scripts/check_grep_guards_batch.py	grep-guards-batch (段19 no-legacy-role-codes D23 + 段20 no-retired-features alembic/K12退役 + 段21 no-numbered-routes — guard_lib 合并遍历，三段共享一次 git ls-files，逐字保留各段报错语义；单段调试用各 shim check_no_legacy_role_codes.py / check_no_retired_features.py / check_no_numbered_routes.py)
 段 22	scripts/check_capability_boundary.py	capability-boundary (P0-05 §1.3 forbidden-zone live+builtin)
 段 23	scripts/check_iam_prod_guard.py	iam-prod-guard (G1.4 — dev-iam-bypass 不得入生产部署清单)
-段 24	scripts/check_ui_term_blacklist.py	ui-term-blacklist (R12 工程术语不进 UI — 9 词黑名单)
+段 24	scripts/check_ui_term_blacklist.py	ui-term-blacklist (R12 工程术语不进 UI — 9 词黑名单；R-012/R12 扩面含 .vue/.ts，.vue 模板走 HTML 文本扫描 + Vue mustache 剥离，.ts 赋值字面值不误剥 attr)
 段 24b	scripts/check_webui_user_facing_en.py	webui user-facing EN leak (页面模板禁裸枚举)
-段 25	scripts/check_adapter_write_ban.py	adapter-write-ban (§9.5 adapter 禁止成为新写入口)
+段 25	scripts/check_adapter_write_ban.py	adapter-write-ban (§9.5/R-013 — 受控写层之外不得自开 session 直写；去接收者名锚定 + 扫全 zw_brain/ + 显式白名单)
+段 26	scripts/check_permission_roles_subset.py	permission-roles-subset (R-005 交叉守卫 — PERMISSION_ROLES keys ⊆ manifest 权限并集，孤儿=死权限门门禁到 0)
+段 26b	scripts/check_guard_scan_surface.py	guard-scan-surface (元守卫 §5 升级原则 — 守卫面漂移防御：grep 类守卫声明的 (roots,extensions) vs git ls-files 实际主流源码扩展名分布对账，未覆盖即 FAIL；R12 漏 57 个 .vue 假绿是设立动因；当前盯 ui-term/no-direct-llm)
 段 27	scripts/check_ruff.py	ruff (与 CI lint job 对齐，F821/F401/I001/E402)
 段 28	scripts/check_capability_registration.py	capability-registration (DISPATCH_TABLE + handlers + _CATEGORIZATION.md 三处一致)
 段 29	scripts/check_no_hand_maintained_projection.py	no-hand-maintained-projection (F4 5 消费面投影派生自单一 Registry)

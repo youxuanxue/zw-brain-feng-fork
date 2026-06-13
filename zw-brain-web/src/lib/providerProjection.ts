@@ -2,6 +2,7 @@
  *  未 land 时，从 catalogs / resources / directAccess 派生可点通列表（仍属真实 seed 数据）。 */
 
 import { containsBareHexId, deriveRecordName, isBareHexId } from './userLanguage';
+import { resourceKindLabel } from './resourceKind';
 
 export interface ProviderRow {
   id: string;
@@ -279,8 +280,6 @@ function _statusLabel(raw: unknown): string {
   return _INACTIVE_LABEL[s.toLowerCase()] ?? (s || '—');
 }
 
-const _KIND_LABEL: Record<string, string> = { table: '库表', file: '文件', api: '接口', service: '接口' };
-
 export interface ProviderAssetRow {
   id: string;
   name: string;
@@ -332,7 +331,8 @@ export function providerResourceRows(provider: Record<string, unknown>): Provide
       status: _statusLabel(it.lifecycle_status ?? it.status),
       // D57⑨/R-10：驳回理由回显（return_for_fix 落 summary → 投影 review_return_reason）。
       statusNote: String(it.review_return_reason ?? '') ? `驳回理由：${String(it.review_return_reason)}` : '',
-      kind: _KIND_LABEL[kind] || (kind || '—'),
+      // 单源 resourceKindLabel（lib/resourceKind.ts）；未知/空 → '—'（管理清单保留占位）。
+      kind: resourceKindLabel(kind) || '—',
       viewHref: id ? `#/discovery/resource/${encodeURIComponent(id)}` : '',
     };
   });

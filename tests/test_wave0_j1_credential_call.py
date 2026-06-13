@@ -534,64 +534,32 @@ def test_j1_api_monitoring_status_distribution_real_data(_runtime_capability_cal
     assert dist.get("succeeded", 0) >= 1, f"应至少 1 条 succeeded；got {dist!r}"
 
 
-@pytest.mark.skip(
-    reason=(
-        "R12 工程术语黑名单是**用户可见输出层**约束（P4 API 调用监控页面对用户的展示文本），"
-        "非 capability_call 内部 canonical skill_id（如 register-version / apply-tenant-policy）"
-        "的命名约束。真数据探测显示：capability_call.skill_id 合法地含 register-version、"
-        "package、projection、apply-tenant-policy 4 个 canonical 名（这是正确的内部命名），"
-        "但 R12 关切的是 UI 层不直出这些字符串。归 W0-07 浏览器侧验收"
-        "（P_API_CALL_MONITORING 渲染断言）。"
-    )
-)
-def test_j1_api_monitoring_engineering_term_blacklist():
-    """回归 — 监控段输出无工程术语（Scenario 7 / R12，UI 层约束 → W0-07）。"""
-
-
 # ============================================================================
-# Skip — UI / curl 实际调用 / 配额引擎 / 加密展示等 W0-07/W0-08 范围
+# R-017：移除 10 个空体 @pytest.mark.skip 桩（原顶着场景名常驻 Done feature 的 ref 模块，
+# 制造"有测试覆盖"的错觉，但实为零断言占位）。诚实化处置——三类去向，全部在 .feature 侧
+# 显式化、不再靠空桩占位：
+#
+#   A) 真有 e2e 浏览器覆盖 → 删桩（浏览器面真实存在）：
+#      - test_j1_credential_non_owner_forbidden（P4 凭据/调用记录段 无权不可见）
+#        浏览器覆盖 = tests/e2e/j1_credential_revoke_monitoring.spec.ts §「P4 调用记录段：
+#        授权岗位可见 / 申请人 OPERATER 不渲染」。**刻意不挂进 .feature 硬 refs**：该 spec 的
+#        MANAGER「调用记录」段可见断言受 hasCredential 门控（D47：真库 legacy granted
+#        credential=not_issued → UI 暗），干净 seed 下需测内真流程铸新凭据才绿，本 spec 未铸
+#        → 干净 seed 上非确定性绿。挂为硬 ref 会让 Done 的 j1-credential-revoke 误红（实为
+#        测试造数缺口非产品缺陷）。撤回/暂停的**确定性**覆盖已由 test_wave1_j1_grant_revoke.py
+#        承担（已挂 refs）；本浏览器面留作走查证据、不进绿判定，避免假红/逼镀金。
+#
+#   B) 归属 feature 已 Backlog（# Deferred:），桩本就不影响绿判定，纯删错觉：
+#      - test_j1_api_monitoring_engineering_term_blacklist / _curl_call_appears /
+#        _quota_exhaust_429 / _peak_rate_limit / _expired_or_scope_mismatch /
+#        _ai_not_overriding_timeline → 均属 j1-api-call-monitoring.feature（整 feature
+#        # Deferred: 触发=首次真实生产部署 + 网关供 res→api_id 映射 + 真实 API 流量），
+#        配额/限流引擎本期不实现。feature 头已诚实记延后，无需空桩。
+#
+#   C) 归属 feature InTest，UI 层场景延后浏览器验收，feature # InTest-Scope 已诚实记：
+#      - test_j1_credential_p4_four_section_layout / _cli_consumer_face /
+#        _first_show_then_masked → 属 j1-credential-issue.feature，其 # InTest-Scope 明记
+#        「P4 前端四件套 / CLI 消费面 / 首次明文后续脱敏 / 非 owner 403 归 W0-07 浏览器验收」。
+#
+# 删桩后：本模块只保留真有断言的数据层用例；UI/延后场景的真实状态由 .feature 头单源承载。
 # ============================================================================
-
-@pytest.mark.skip(reason="P4 凭据领取页四件套（API Key + curl/Python/Java + 配额 + 监控入口）属 P4 前端组装，归 W0-07 浏览器验收")
-def test_j1_credential_p4_four_section_layout():
-    """正向 — P4 凭据领取页四件套齐全（Scenario 2）。"""
-
-
-@pytest.mark.skip(reason="CLI 消费面 zw-brain-cli credential get 属 entry/cli surface，归 W0-07 一致性验收（5 消费面）")
-def test_j1_credential_cli_consumer_face():
-    """正向 — CLI 消费面获取凭据（Scenario 3）。"""
-
-
-@pytest.mark.skip(reason="首次明文/后续脱敏 是 P4 前端展示态 + session 标记，归 W0-07 浏览器验收")
-def test_j1_credential_first_show_then_masked():
-    """负向 — 凭据首次复制后再次访问不显示明文（Scenario 4）。"""
-
-
-@pytest.mark.skip(reason="非 owner 403 依赖 entry/rest auth + session/user 绑定，归 W0-07")
-def test_j1_credential_non_owner_forbidden():
-    """负向 — 非申请人本人不能查看凭据（Scenario 5）。"""
-
-
-@pytest.mark.skip(reason="curl 实调 → API 200 → 监控显示 是端到端浏览器+API 联跑，归 W0-07")
-def test_j1_api_monitoring_curl_call_appears():
-    """正向 — 调用 1 次后能在 P4 看到记录（Scenario 1）。"""
-
-
-@pytest.mark.skip(reason="日配额 500 / 峰值 100/分 阈值引擎本期不实现（属 Wave 1+ 配额引擎），归 W0-08")
-def test_j1_api_monitoring_quota_exhaust_429():
-    """正向 — 配额耗尽返回 429（Scenario 2）。"""
-
-
-@pytest.mark.skip(reason="QPS 限流 同上，本期不实现")
-def test_j1_api_monitoring_peak_rate_limit():
-    """正向 — 峰值频次超限触发限流（Scenario 3）。"""
-
-
-@pytest.mark.skip(reason="凭据过期 401 / scope 不匹配 403 属 entry/rest 鉴权中间件，归 W0-07")
-def test_j1_api_monitoring_expired_or_scope_mismatch():
-    """负向 — 凭据过期 / scope 不匹配（Scenarios 4 + 5）。"""
-
-
-@pytest.mark.skip(reason="AI 助手不替代时间线 / 视觉权重 属 P4 前端布局，归 W0-07")
-def test_j1_api_monitoring_ai_not_overriding_timeline():
-    """回归 — AI 不替代时间线（Scenario 7 后半）。"""

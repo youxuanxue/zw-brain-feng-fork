@@ -8,10 +8,8 @@ if TYPE_CHECKING:
     pass
 
 
-import copy
-
 import zw_brain.shared.clock as clock
-from zw_brain.command.brain import _DEFAULT_TENANT_ID, NotFoundError
+from zw_brain.command.brain import NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.workbench_backlog_projection import enrich_workbench_backlog
 
@@ -90,25 +88,12 @@ def _terminate_subscription(brain, deps, ctx, payload: dict[str, Any]) -> dict[s
     reason = str(payload["reason"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        from sqlalchemy import select  # noqa: PLC0415
-
-        from zw_brain.domain.models import DeliverySubscriptionRecord  # noqa: PLC0415
-        from zw_brain.shared.db import create_session_factory  # noqa: PLC0415
-
-        SessionLocal = create_session_factory()
-        with SessionLocal() as session:
-            rec = session.execute(
-                select(DeliverySubscriptionRecord)
-                .where(DeliverySubscriptionRecord.tenant_id == _DEFAULT_TENANT_ID)
-                .where(DeliverySubscriptionRecord.subscription_code == subscription_code)
-            ).scalar_one_or_none()
-            if rec is None:
-                raise NotFoundError(subscription_code)
-            rec.status = "terminated"
-            snapshot = copy.deepcopy(rec.legacy_status_snapshot_json or {})
-            snapshot.setdefault("terminations", []).append({"audit_id": audit_id, "reason": reason, "actor": actor})
-            rec.legacy_status_snapshot_json = snapshot
-            session.commit()
+        # D56 写路径单源：订阅是非三聚合表，下沉 domain repo 方法承担持久化语义，
+        # 不再 handler 内自开 SQLAlchemy session 直 commit（绕过写禁区段 25 边界、
+        # 与三聚合直写同款 lost-update 隐患）。不存在即 NotFoundError。
+        deps.repos.delivery.terminate_subscription(
+            subscription_code, reason=reason, actor=actor, audit_id=audit_id
+        )
         deps.append_audit_feed("subscription.terminate", subscription_code, "ok", actor)
         return {"subscription_code": subscription_code, "status": "terminated", "audit_id": audit_id}
 

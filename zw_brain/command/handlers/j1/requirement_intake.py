@@ -7,12 +7,9 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     pass
 
-import copy
-
 import zw_brain.shared.clock as clock
-from zw_brain.command.brain import DEFAULT_DISCOVERY_QUERY, InvalidStateError, NotFoundError
+from zw_brain.command.brain import DEFAULT_DISCOVERY_QUERY, InvalidStateError
 from zw_brain.command.deps import HandlerDeps, SkillContext
-from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 from zw_brain.shared.sanitization import safe_json
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -46,27 +43,19 @@ def _dispatch_require_resource(brain, deps, ctx, payload: dict[str, Any]) -> dic
     application_code = str(payload["application_code"])
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        from sqlalchemy import select  # noqa: PLC0415
-
-        from zw_brain.domain.models import ApplicationRecord  # noqa: PLC0415
-        from zw_brain.shared.db import create_session_factory  # noqa: PLC0415
-
-        SessionLocal = create_session_factory()
-        with SessionLocal() as session:
-            rec = session.execute(
-                select(ApplicationRecord)
-                .where(ApplicationRecord.tenant_id == _DEFAULT_TENANT_ID)
-                .where(ApplicationRecord.application_code == application_code)
-            ).scalar_one_or_none()
-            if rec is None:
-                raise NotFoundError(application_code)
-            merged = copy.deepcopy(rec.payload_json or {})
-            merged["dispatch_payload"] = payload.get("dispatch_payload_json") or {}
-            merged["dispatch_target_region_codes"] = payload.get("target_region_codes") or []
-            merged["dispatched_by_audit"] = audit_id
-            rec.payload_json = merged
-            rec.status = "dispatched"
-            session.commit()
+        # D56 写路径单源：经 CardSession 取卡改卡，不再自开 session 直写
+        # （直写绕过 identity map + 指纹脏检，PersistMiddleware 后置 flush 会用
+        #  陈旧卡覆盖直写，潜伏 lost-update）。find_by_id 抛 NotFoundError（不存在）。
+        request = deps.view.requests.find_by_id(application_code)
+        # 运行时卡：闭包内就地改 payload，flush 落库；merged 子字典随卡持久化。
+        request["dispatch_payload"] = payload.get("dispatch_payload_json") or {}
+        request["dispatch_target_region_codes"] = payload.get("target_region_codes") or []
+        request["dispatched_by_audit"] = audit_id
+        request["status"] = "dispatched"
+        # legacy 导入申请 find_by_id 返回只读合成卡（不进 CardSession、变更不落库）
+        # → 直接经 application_repo 写 status 列（与 application_grant.py 对称）；
+        # 运行时卡经会话 flush 落库，update_status 同值幂等、双写一致。
+        deps.repos.application.update_status(application_code, "dispatched")
         deps.append_audit_feed("require.resource.dispatch", application_code, "ok", actor)
         return {"application_code": application_code, "status": "dispatched", "audit_id": audit_id}
 

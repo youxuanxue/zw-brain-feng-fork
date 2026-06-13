@@ -16,6 +16,8 @@ driven_by:
 > **本文是 D35 决策签字材料包**（协议硬化，触及 §5.4.5 反约束 + trust ladder）。
 > 通过 preflight 段 53/54 守卫。**本文不写 signed_by**——签字事实由 PR 合并时
 > GitHub approvers 自动落 `.testing/signoff/mcp-hardening.signoff.yaml` 账本（D46.d）。
+>
+> **[实际落账更正]** 本材料包对应的签字账本实际落在 **`.testing/signoff/intest-conditional-mcp.signoff.yaml`**（产品研发负责人 2026-06-03 sign-off，与 j1-approval-conditional 合签，`covers` 含 mcp-hardening.feature）；非上行所述 `mcp-hardening.signoff.yaml`（该文件不存在）。
 
 ## 0. 背景速览（开会前先读）
 

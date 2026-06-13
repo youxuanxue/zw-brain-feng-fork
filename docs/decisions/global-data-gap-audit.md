@@ -1,3 +1,14 @@
+---
+title: 全局数据缺位审计 — snapshot 字段 seed 精选 vs 真实库
+scope: global-data-gap-audit
+kind: 工程审计记录（非 GATE 决策；backlog 已由 D45 处置）
+status: resolved  # 审计 backlog 已由 D45（2026-05-30）穿透代码事实处置，详见正文「状态」段
+date: 2026-05-30
+authors: 工程交付（产品研发负责人审阅）
+related_docs:
+  - CLAUDE.md D45 决策索引
+---
+
 # 全局数据缺位审计 — snapshot 字段 seed 精选 vs 真实库
 
 > **状态（2026-05-30 D45 更新）**：本审计 backlog 已由 **D45** 处置——穿透代码事实把 5 项缺位

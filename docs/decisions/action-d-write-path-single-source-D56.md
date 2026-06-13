@@ -1,3 +1,14 @@
+---
+title: Action D 写路径单源化（申请/审批/交付三聚合唯一事实源收口 DB）
+scope: action-d-write-path-single-source
+status: approved  # 架构门：产品研发负责人 sign-off（D56，账本 .testing/signoff/action-d-write-path-single-source.signoff.yaml，2026-06-11）
+date: 2026-06-11
+deciders: 海若产品部产品研发负责人（架构决策门）
+related_docs:
+  - docs/approved/zw-brain-architecture.md   # §9.5 adapter 写禁区 / §九 数据模型
+  - CLAUDE.md D56 决策索引（承 D47/D55/D49/方案B）
+---
+
 # D56 — Action D 写路径单源化（j1-runtime-write-path-dual-track 收账）
 
 - **日期**：2026-06-11

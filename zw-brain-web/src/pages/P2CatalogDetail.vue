@@ -8,6 +8,7 @@ import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import ResourceCard from '@/components/ResourceCard.vue';
 import { decisionRows, compilationRows, catalogSummary, DECISION_SECTION_TITLE } from '@/lib/typedDetailDisplay';
+import { resourceKindLabel } from '@/lib/resourceKind';
 
 const route = useRoute();
 const code = computed(() => String(route.params.code ?? ''));
@@ -17,8 +18,7 @@ const { catalog, resources, total, loading, fetchError, source } = useCatalogRes
   role.value,
 );
 
-// 物化形式（resource_kind）中文标签 —— 与 ResourceCard 徽标同源。
-const KIND_LABELS: Record<string, string> = { table: '库表', file: '文件', api: '接口' };
+// 物化形式中文标签经单源 resourceKindLabel（lib/resourceKind.ts）—— 与 ResourceCard 徽标同口径。
 
 // 申请人选用哪种物化形式：当一个目录挂了多种形态资源（库表/文件/接口），
 // 让申请人按物化形式筛选再申请（闭合 J2 挂数 → J1 用数 端到端最后一格）。
@@ -100,7 +100,7 @@ const showCompilation = ref(false);
           class="kind-chip"
           :class="{ active: selectedKind === k }"
           @click="selectedKind = k"
-        >{{ KIND_LABELS[k] ?? k }}</button>
+        >{{ resourceKindLabel(k) || k }}</button>
       </div>
       <div v-if="filteredResources.length" class="card-grid">
         <ResourceCard v-for="r in filteredResources" :key="String(r.id ?? '')" :resource="r" />

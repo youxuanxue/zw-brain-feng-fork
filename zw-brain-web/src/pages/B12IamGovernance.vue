@@ -129,6 +129,10 @@ onMounted(() => {
       <div v-if="panel.error.value && panel.source.value === 'fixture'" class="boot-banner boot-banner-warn">
         后端暂不可达，展示结构样例。请确认 REST 已启动且当前岗位具备 list 权限。
       </div>
+      <!-- R-007：生产构建 API 失败不渲染样例，诚实提示不可用。 -->
+      <div v-else-if="panel.source.value === 'error'" class="boot-banner boot-banner-warn">
+        数据暂不可用，请稍后重试。
+      </div>
 
       <table v-if="visibleItems.length" class="pkg-table">
         <thead>

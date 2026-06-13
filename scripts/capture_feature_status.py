@@ -11,6 +11,14 @@
 再把结果回填到每个 feature（feature 绿 = 其全部 ref 都 pass）。任一 ref 未跑/未绿 → feature 非绿
 （fail-closed：e2e 未实跑绝不算绿，杜绝伪造）。
 
+**R-001 vacuous-skip 守卫**：退出码 0 ≠ 真跑过。pytest 全 skip / Playwright 全 skip 退出码也是 0，
+旧实现只看退出码 → 被记 pass（实证：national_channel.spec.ts 4 用例因起栈未开 flag 全 skip 冒绿，
+撑起 national-direct/national-ext-elements 两个 Done）。现在解析 runner 汇总，**passed==0 一律记
+vacuous-skip**（按非绿 fail-closed）。故起栈跑 e2e 时须把会 skip 的前置 flag 打开，否则相关
+feature 自动掉绿——尤其 `ZW_BRAIN_NATIONAL_CHANNEL_ENABLED=1`（让 national_channel.spec.ts 真跑，
+flag-on 未配置即 ON_UNPROVISIONED 真实态，不需 provisioning 凭据；见
+docs/decisions/national-platform-access-D50.md env 契约）。
+
 为什么纳入 e2e：webui 类 feature 只有 .spec.ts、pytest 轴看不到，旧版把 .ts 记 `web-skip`
 导致它们永远非绿、即便签字也卡死 Ready。现在 green() 信任产物里的聚合 result，与 runner 无关。
 
@@ -28,6 +36,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import UTC, datetime
@@ -73,22 +82,81 @@ def _py() -> str:
 _MODULE_TIMEOUT_S = 900
 _E2E_TIMEOUT_S = 600
 
+# R-001（vacuous-skip 假绿修复）：退出码 0 ≠ 真跑过。pytest 全 skip / Playwright 全 skip 都
+# 退 0；旧实现只看退出码 → 被记 pass，撑起 Done 的 e2e 轴（实证：national_channel.spec.ts
+# 4 用例因起栈未开 flag 全 skip 被记 pass）。修法：解析 runner 汇总，**passed==0 一律记
+# 非 pass**（标 vacuous-skip，green() 按非绿 fail-closed），不让"测试根本没跑"冒充绿。
+_VACUOUS_SKIP = "vacuous-skip"
+
+# pytest 末行汇总：如 "5 passed, 2 skipped in 1.2s" / "3 skipped in 0.4s" /
+# "1 failed, 2 passed in ..." / "no tests ran in 0.01s"。逐 outcome 抓计数。
+# （注：不能用 `-q`——叠 addopts 的 `-q` 双静默会吞掉此汇总行，见 _run_module 旁注。）
+_PYTEST_COUNT_RE = re.compile(r"(\d+)\s+(passed|failed|error|errors|skipped|xfailed|xpassed|deselected)")
+# Playwright list reporter 末段汇总：如 "5 passed (3.2s)" / "4 skipped" /
+# "2 failed" / "1 flaky"。逐 outcome 抓计数。
+_PW_COUNT_RE = re.compile(r"(\d+)\s+(passed|failed|skipped|flaky|interrupted|did not run)")
+
+
+def _pytest_counts(out: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for n, kind in _PYTEST_COUNT_RE.findall(out):
+        counts[kind] = counts.get(kind, 0) + int(n)
+    return counts
+
+
+def _classify_pytest(returncode: int, out: str) -> tuple[str, str]:
+    """退出码 + 汇总联合判定。passed==0 → vacuous-skip（fail-closed，绝不冒绿）。"""
+    counts = _pytest_counts(out)
+    summary = ", ".join(f"{v} {k}" for k, v in counts.items()) or f"exit {returncode}"
+    if returncode != 0:
+        return "fail", summary
+    passed = counts.get("passed", 0) + counts.get("xpassed", 0)
+    if passed == 0:
+        # 退 0 但零通过（全 skip / no tests ran / 仅 deselected）→ 测试未真跑，不算绿。
+        return _VACUOUS_SKIP, f"退 0 但 passed==0（{summary}）— 未真跑，fail-closed"
+    return "pass", summary
+
+
+def _classify_e2e(returncode: int, out: str) -> tuple[str, str]:
+    """Playwright list reporter 同理：passed==0 → vacuous-skip。"""
+    counts: dict[str, int] = {}
+    for n, kind in _PW_COUNT_RE.findall(out):
+        counts[kind] = counts.get(kind, 0) + int(n)
+    summary = ", ".join(f"{v} {k}" for k, v in counts.items()) or f"exit {returncode}"
+    if returncode != 0:
+        return "fail", summary
+    if counts.get("passed", 0) == 0:
+        return _VACUOUS_SKIP, f"退 0 但 passed==0（{summary}）— e2e 未真跑，fail-closed"
+    return "pass", summary
+
 
 def _run_module(module: str) -> tuple[str, str]:
-    """跑单个 pytest 模块；返回 (pass|fail, detail)。退出码即事实；超时→fail-closed。"""
+    """跑单个 pytest 模块；返回 (pass|fail|vacuous-skip, detail)。
+
+    退出码 + 汇总联合判定（R-001）：退 0 但 passed==0（全 skip / no tests ran）→ vacuous-skip，
+    green() 按非绿处理，绝不让"没真跑"冒充绿。超时→fail-closed。
+    """
     try:
+        # 关键（R-001）：**不传 `-q`**。pyproject addopts 已含 `-q`，再叠一个 `-q`（双静默）
+        # 会让 pytest 在"快速全绿"短跑时**吞掉末行汇总**（输出只剩进度点 `....[100%]`、无
+        # "N passed"），导致 _classify_pytest 抓不到 passed 计数 → 误判 vacuous-skip。去掉显式
+        # `-q` 后汇总恒打印（"12 passed in 0.8s"）。`--tb=no` 压掉 traceback 保持输出紧凑，
+        # 但保留汇总行（失败计数仍在）。`-rN` 不加（无额外摘要需求）。
         p = subprocess.run(
-            [_py(), "-m", "pytest", module, "-q", "-p", "no:cacheprovider"],
+            [_py(), "-m", "pytest", module, "--tb=no", "-p", "no:cacheprovider"],
             cwd=REPO, capture_output=True, text=True, timeout=_MODULE_TIMEOUT_S,
         )
     except subprocess.TimeoutExpired:
         return "fail", f"timeout >{_MODULE_TIMEOUT_S}s（疑挂死，fail-closed）"
-    tail = (p.stdout + p.stderr).strip().splitlines()
-    return ("pass" if p.returncode == 0 else "fail"), (tail[-1] if tail else f"exit {p.returncode}")
+    return _classify_pytest(p.returncode, p.stdout + p.stderr)
 
 
 def _run_e2e_spec(spec: str) -> tuple[str, str]:
-    """跑单个 Playwright e2e spec（需 :8800 全栈在跑）；返回 (pass|fail, detail)。超时→fail-closed。"""
+    """跑单个 Playwright e2e spec（需 :8800 全栈在跑）；返回 (pass|fail|vacuous-skip, detail)。
+
+    退出码 + 汇总联合判定（R-001）：退 0 但 passed==0（全 skip，如 flag 未开）→ vacuous-skip。
+    超时→fail-closed。
+    """
     try:
         p = subprocess.run(
             ["npx", "playwright", "test", spec, "--reporter=list"],
@@ -96,8 +164,7 @@ def _run_e2e_spec(spec: str) -> tuple[str, str]:
         )
     except subprocess.TimeoutExpired:
         return "fail", f"timeout >{_E2E_TIMEOUT_S}s（疑挂死，fail-closed）"
-    tail = (p.stdout + p.stderr).strip().splitlines()
-    return ("pass" if p.returncode == 0 else "fail"), (tail[-1] if tail else f"exit {p.returncode}")
+    return _classify_e2e(p.returncode, p.stdout + p.stderr)
 
 
 def main() -> int:
@@ -162,7 +229,12 @@ def main() -> int:
             elif any(s == "fail" for s in statuses):
                 result = "fail"
                 detail = f"未绿 ref {[r for r, s in zip(refs, statuses, strict=True) if s == 'fail']}"
-            else:  # 无 fail，但有 e2e-not-run
+            elif any(s == _VACUOUS_SKIP for s in statuses):
+                # R-001：任一 ref 全 skip（退 0 但 passed==0）→ 整 feature 非绿，fail-closed。
+                # 与 fail 同级（不冒绿），但单列状态名以便 PR/审计区分"红"与"没真跑"。
+                result = _VACUOUS_SKIP
+                detail = f"测试未真跑（全 skip）{[r for r, s in zip(refs, statuses, strict=True) if s == _VACUOUS_SKIP]}"
+            else:  # 无 fail / vacuous，但有 e2e-not-run
                 result = "e2e-not-run"
                 detail = f"e2e 未实跑 {[r for r, s in zip(refs, statuses, strict=True) if s == 'e2e-not-run']}"
         features[rel] = {"test_refs": refs, "result": result, "detail": detail,
@@ -193,12 +265,15 @@ def main() -> int:
     out.write_text(json.dumps(artifact, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     mod_fail = sum(1 for r, _ in module_result.values() if r == "fail")
+    mod_vacuous = sum(1 for r, _ in module_result.values() if r == _VACUOUS_SKIP)
     not_run = sum(1 for r, _ in module_result.values() if r == "e2e-not-run")
     feat_pass = sum(1 for f in features.values() if f["result"] == "pass")
     print(f"[capture-feature-status] wrote {out.relative_to(REPO)} — "
-          f"{len(py_modules)} pytest + {len(ts_specs)} e2e（{mod_fail} fail, {not_run} e2e-not-run），"
+          f"{len(py_modules)} pytest + {len(ts_specs)} e2e"
+          f"（{mod_fail} fail, {mod_vacuous} vacuous-skip, {not_run} e2e-not-run），"
           f"{feat_pass}/{len(features)} feature 绿")
-    return 1 if mod_fail else 0
+    # R-001：vacuous-skip 与 fail 同样属"未真跑/未真绿"，退非零让 CI/调用方知晓。
+    return 1 if (mod_fail or mod_vacuous) else 0
 
 
 if __name__ == "__main__":

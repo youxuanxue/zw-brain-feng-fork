@@ -114,31 +114,26 @@ def _replace_or_cancel_delivery(brain, deps, ctx, payload: dict[str, Any]) -> di
         raise BrainServiceError(f"unsupported delivery.replace_or_cancel action: {action}")
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
-        from sqlalchemy import select  # noqa: PLC0415
-
-        from zw_brain.domain.models import DeliveryTaskRecord  # noqa: PLC0415
-        from zw_brain.shared.db import create_session_factory  # noqa: PLC0415
-
-        SessionLocal = create_session_factory()
-        with SessionLocal() as session:
-            rec = session.execute(
-                select(DeliveryTaskRecord)
-                .where(DeliveryTaskRecord.tenant_id == _DEFAULT_TENANT_ID)
-                .where(DeliveryTaskRecord.delivery_code == delivery_code)
-            ).scalar_one_or_none()
-            if rec is None:
-                raise NotFoundError(delivery_code)
-            merged = copy.deepcopy(rec.payload_json or {})
-            merged["withdrawal_handling"] = {
-                "action": action,
-                "replacement_resource_id": payload.get("replacement_resource_id"),
-                "reason": payload.get("reason"),
-                "audit_id": audit_id,
-            }
-            rec.payload_json = merged
-            new_state = "replaced" if action == "replace" else "cancelled"
-            rec.state = new_state
-            session.commit()
+        new_state = "replaced" if action == "replace" else "cancelled"
+        withdrawal = {
+            "action": action,
+            "replacement_resource_id": payload.get("replacement_resource_id"),
+            "reason": payload.get("reason"),
+            "audit_id": audit_id,
+        }
+        # D56 写路径单源：经 CardSession 取卡改卡，不再自开 session 直写（直写绕过
+        # identity map + 指纹脏检，PersistMiddleware 后置 flush 会用陈旧卡覆盖直写，
+        # 潜伏 lost-update）。find_by_id 抛 NotFoundError（不存在）。
+        task = deps.view.delivery.find_by_id(delivery_code)
+        # 运行时卡：闭包内就地改卡（card["status"] = state 列权威映射），flush 落库。
+        task["withdrawal_handling"] = withdrawal
+        task["status"] = new_state
+        # legacy 导入交付 find_by_id 返回只读合成卡（不进 CardSession、变更不落库）
+        # → 经 delivery_repo.update_task_payload 写 state 列 + 合并 payload；运行时卡
+        #   经会话 flush 落库，同值幂等、双写一致（与 application_grant.py 对称）。
+        deps.repos.delivery.update_task_payload(
+            delivery_code, state=new_state, payload_patch={"withdrawal_handling": withdrawal}
+        )
         deps.append_audit_feed("delivery.replace_or_cancel", delivery_code, "ok", actor)
         return {"delivery_code": delivery_code, "action": action, "state": new_state, "audit_id": audit_id}
 

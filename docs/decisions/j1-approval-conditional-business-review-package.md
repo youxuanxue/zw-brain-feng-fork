@@ -18,6 +18,8 @@ driven_by:
 > **本文是 D35 决策签字材料包**（D28 GATE 元规则：状态机决策须业务方 sign-off）。
 > 通过 preflight 段 53/54 守卫。**本文不写 signed_by**——签字事实由 PR 合并时
 > GitHub approvers 自动落 `.testing/signoff/j1-approval-conditional.signoff.yaml` 账本（D46.d）。
+>
+> **[实际落账更正]** 本材料包对应的签字账本实际落在 **`.testing/signoff/intest-conditional-mcp.signoff.yaml`**（产品研发负责人 2026-06-03 sign-off，与 mcp-hardening 合签，`covers` 含 `j1-approval-conditional.feature`）；非上行所述 `j1-approval-conditional.signoff.yaml`（该文件不存在）。后续受理/审核两级实施面的 D37 效果验收另落 `.testing/signoff/j1-conditional-accept-bridge.signoff.yaml`（薛娇 2026-06-13）。
 
 ## 0. 背景速览（开会前先读）
 

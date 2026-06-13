@@ -217,7 +217,7 @@ uv run python scripts/customer_acceptance_checklist.py
 
 | 项 | 原因 |
 |----|------|
-| `scripts/validate_bsp_permission_pipeline.py` | PR #74 review 删除；由 pytest e2e 取代 |
+| `scripts/validate_bsp_permission_pipeline.py` | **已退役**：PR #74 review 删除（仓内不存在），由 pytest e2e 取代 |
 | 岗位下拉「全展示 + disabled 无权项」 | Vue 改为只展示有权岗位；功能等价，UX 不同 |
 | M0 浏览器实施面 | by design CLI；见 `m0-site-migration.md` |
 

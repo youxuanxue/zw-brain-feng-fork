@@ -79,6 +79,7 @@ const gatewayCounts = computed(() => {
             </tr>
           </tbody>
         </table>
+        <p v-else-if="gateway.source.value === 'error'" class="focus-prose focus-prose--muted">数据暂不可用，请稍后重试。</p>
         <p v-else class="focus-prose focus-prose--muted">暂无网关上报。</p>
       </section>
     </section>

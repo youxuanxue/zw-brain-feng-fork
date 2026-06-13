@@ -22,7 +22,9 @@ const role = getProductRole();
 
 // 缺陷 3：用途脏值的真实导入单 = 供方数据质量待办（不是需方噪音）。
 // 仅业务运营员（数据质量 owner）可见；其余岗位完全不渲染（无权=不可见）。
-const canSeeDataQuality = computed(() => role.value === 'ROLE_BUSIAUDIT');
+// R-014：走 canPerformAction chokepoint（provider.data_quality.view gate），不在
+// page 内硬编码 role 比对。
+const canSeeDataQuality = computed(() => canPerformAction('provider.data_quality.view', role.value));
 const dataQualityRows = computed(() =>
   canSeeDataQuality.value ? supplierDataQualityRows(snapshot.value) : [],
 );

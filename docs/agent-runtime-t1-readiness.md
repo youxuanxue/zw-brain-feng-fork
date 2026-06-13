@@ -15,6 +15,8 @@
 
 ---
 
+> **[2026-06-03 工具链失效声明 — D46.e]** 本预案原依赖的 spike 工具链已随 **`.twin/` 整体退役**（D46.e）。下文逐条引用的 `spike/` 目录、`fixtures/agentruntime/`（agentruntime 专用样本）、`scripts/check_external_register_metadata.py`、`.twin/e4-b1-agentruntime/spike/*` 在当前仓库**均已不存在**（仅可从 git 历史 `cf9dd10^` 考古）。因此**原「1 天可 land」承诺不再成立**——T1/T2/T3 触发时需先**重建**这套工具链（validate/doctor 骨架、fixture、schema diff、preflight 段），再走下文清单，估时须重新评估。现存可用脚手架仅 `scripts/agentruntime_validate.py` 与 `scripts/agentruntime_doctor.py`（已 land，见 §1 T1 当日动作）。下文 §2 工作清单各步引用的失效文件已就地标注 `[失效]`。
+
 ## 1. 触发条件（T1 / T2 / T3）
 
 | 编号 | 触发事件 | 来源 | 当日动作 |
@@ -36,12 +38,12 @@
 | # | 步骤 | 命令 / 文件 | 估时 |
 |---|---|---|---|
 | 1 | 开分支 | `git checkout -b agentruntime-t1-fire` from `main` | 0.1 |
-| 2 | 拷贝 spike 到 main | spike 文件原在 git 历史 cf9dd10^ 的 `.twin/e4-b1-agentruntime/spike/`，需从 git 历史 cf9dd10^ 取 `agentruntime_validate.py.skeleton` → `scripts/agentruntime_validate.py` + `chmod +x`；同理 `doctor` | 0.2 |
+| 2 | 拷贝 spike 到 main | **[失效]** spike 目录 `.twin/e4-b1-agentruntime/spike/` 已随 D46.e 退役、仓内不存在（仅 git 历史 cf9dd10^ 可考古）；`scripts/agentruntime_validate.py` / `agentruntime_doctor.py` 现已 land（无需再从骨架拷贝），但其真实校验规则仍需按 §3 补齐 | — |
 | 3 | 在 spike 骨架基础上补真实校验 | 解开 `# === T1 fire 时实装 ===` 注释，加 `import yaml` + 真实 `safe_load`；补 `Optional[str]` → `str` 严格化；补 5 条 validate_rules（见 §3）；运行 `python scripts/agentruntime_validate.py spike/sample_AGENT.yaml --json` 单步验证 | 1.5 |
-| 4 | 加 Registry 4 字段到 schema | edit `zw_brain/capability_registry/runtime.py::validate_manifest()`：source_type='external-register' 分支强制 4 字段（diff 见 `spike/registry_schema_diff.json`（git 历史 cf9dd10^ 的 spike/ 取）） | 0.5 |
+| 4 | 加 Registry 4 字段到 schema | edit `zw_brain/capability_registry/runtime.py::validate_manifest()`：source_type='external-register' 分支强制 4 字段（**[失效]** diff 参考 `spike/registry_schema_diff.json` 已不存在，仅 git 历史 cf9dd10^ 可考古，须重新生成 diff） | 0.5 |
 | 5 | 加 source_type 字段到现有 manifest schema | 把 `source_type: builtin` 缺省填充到现有 209 manifest（一次性 patch；export_agent_contract.py 可加 `--migrate-source-type` flag） | 0.5 |
-| 6 | 第一个 AGENT.yaml fixture 入库 | 从 git 历史 cf9dd10^ 取 `.twin/e4-b1-agentruntime/spike/sample_AGENT.yaml` → `fixtures/agentruntime/sample-builtin.AGENT.yaml`；**移除** `_spike_marker` 段；真实 builtin Agent 业务名 + 真 capability 列表 | 1.0 |
-| 7 | 加 preflight 新段 30 | `scripts/check_external_register_metadata.py`：对 source_type=external-register 强制 4 字段就位；接入 `scripts/preflight.sh`；详见 §5 反提前盖楼护栏 | 1.0 |
+| 6 | 第一个 AGENT.yaml fixture 入库 | **[失效]** 源 `.twin/e4-b1-agentruntime/spike/sample_AGENT.yaml` 与目标 `fixtures/agentruntime/` 均不存在（仅 git 历史 cf9dd10^ 可考古），fixture 须从零重建：真实 builtin Agent 业务名 + 真 capability 列表 | 1.0 |
+| 7 | 加 preflight 新段 30 | **[失效]** `scripts/check_external_register_metadata.py` 不存在（从未 land，需新建）：对 source_type=external-register 强制 4 字段就位；接入 `scripts/preflight.sh`；详见 §5 反提前盖楼护栏 | 1.0 |
 | 8 | 跑 preflight 全段 | `bash scripts/preflight.sh`：21 段 + 段 30 共 22 段全绿 | 0.3 |
 | 9 | 跑 pytest 全量 | `pytest --tb=short`：baseline 157 + agentruntime 单测 不退化 | 0.3 |
 | 10 | export_agent_contract.py --check | 5 投影面同步；209 → 209+N (N=新 external manifest 数) | 0.2 |

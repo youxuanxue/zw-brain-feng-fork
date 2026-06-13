@@ -62,8 +62,9 @@ onMounted(() => {
       <header class="guide-head">
         <strong>平台指南</strong>
         <p class="guide-hint">按你的岗位回答找数、申请、办理与查看进度等使用问题。</p>
+        <!-- R12：引擎内部名（AgentRuntime）不上屏；「平台管理员」非产品 7 角色，改「平台运维员」。 -->
         <p v-if="runtimeEnabled === false" class="guide-warn">
-          AgentRuntime 未启用，问答不可用。请联系平台管理员开启。
+          智能问答暂未开启，请联系平台运维员开启后使用。
         </p>
       </header>
 

@@ -21,7 +21,7 @@
 
 ## 当前实施口径
 
-- **2 旅程 + 1 后台支撑面**：J1 找数→用数 / J2 挂数→维数 / B1 看全局→处异常（B1.1 合规运营 / B1.2 接入扩展中心）。详见 [docs/approved/zw-brain-architecture.md §5.1](../approved/zw-brain-architecture.md)
+- **2 旅程 + 1 后台支撑面**：J1 找数→用数 / J2 挂数→维数 / B1 看全局→处异常（B1.1 合规运营 / B1.2 接入扩展中心——**已随 D52(2026-06-05) 解体为后台四独立模块**：查审计/外部系统/流程表单/身份治理，见 [docs/decisions/integration-admin-governance-axis-refactor.md](../decisions/integration-admin-governance-axis-refactor.md)）。详见 [docs/approved/zw-brain-architecture.md §5.1](../approved/zw-brain-architecture.md)
 - **大屏 / 指挥中心 / 演示页面不进产品形态**（基线 §1.3）；如未来有客户重启此类需求，按 Wave 3+ 独立产品立项
 - **7 角色码 + tag_lead_dept 标签**（沿用旧平台 ROLE_* 码，基线 §11 R10/R11）。详见 [docs/approved/zw-brain-roles.md](../approved/zw-brain-roles.md)
 - **schema 全新创建（drop_all + create_all）**：不维护 alembic 迁移链；新功能 drop & recreate 替代。详见 [架构基线 §9.6](../approved/zw-brain-architecture.md)

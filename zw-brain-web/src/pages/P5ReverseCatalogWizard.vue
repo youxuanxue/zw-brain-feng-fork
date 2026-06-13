@@ -6,6 +6,7 @@ import DetailActions from '@/components/DetailActions.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
+import { canPerformAction } from '@/lib/pageAccess';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import {
   buildReverseDraftCreatePayload,
@@ -21,8 +22,10 @@ const role = getProductRole();
 const selectedCatalogId = ref('');
 
 // 操作员 + 管理员均可发起反向编目草稿（v5 旧平台口径，permission-realignment）
+// R-014：走 canPerformAction chokepoint（catalog.entry.reverse_draft.create gate），
+// 不在 page 内硬编码 role 比对；与后端 policy set-equal。
 const canCreateDraft = computed(() =>
-  role.value === 'ROLE_ORGAN_OPERATER' || role.value === 'ROLE_ORGAN_MANAGER',
+  canPerformAction('catalog.entry.reverse_draft.create', role.value),
 );
 
 const catalogs = computed(() => {

@@ -83,6 +83,9 @@ _ROUTE_ROLE_OVERRIDES: list[tuple[str, frozenset[str], str | None]] = [
     # G3：资源挂接向导 / 代理服务注册向导 = 部门操作员 + 部门管理员（供数维护 / API 注册），业务运营员退出。
     ("/provider/wizard/hookup-submit", frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"}), None),
     ("/provider/wizard/api-service", frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"}), None),
+    # R-004：质量规则向导 = 部门管理员 + 业务运营员（与 quality.rule.upsert / 后端 policy set-equal）。
+    # 操作员退出（此前无 override 回落 provider shell 误含操作员，看得到入口提交吃 403）。
+    ("/provider/wizard/quality-rule", frozenset({"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}), None),
     # D57⑧：反向编目审核两级管线第一级（部门审）= 部门管理员；业务运营员对位下一站 =
     # 目录审核收件箱（平台审档）；操作员无任何反向审核权（做的人不审自己）。
     (
@@ -224,6 +227,16 @@ def test_supply_wizards_operater_and_manager_only() -> None:
         assert _is_route_allowed(route, "ROLE_ORGAN_OPERATER")
         assert _is_route_allowed(route, "ROLE_ORGAN_MANAGER")
         assert not _is_route_allowed(route, "ROLE_BUSIAUDIT")
+
+
+def test_quality_rule_wizard_manager_and_busiaudit_only() -> None:
+    # R-004：质量规则向导 = 部门管理员 + 业务运营员（quality.rule.upsert 口径）。
+    # 操作员退出（此前回落 provider shell 误含操作员，看得到入口 → 提交吃后端 403）。
+    assert _is_route_allowed("/provider/wizard/quality-rule", "ROLE_ORGAN_MANAGER")
+    assert _is_route_allowed("/provider/wizard/quality-rule", "ROLE_BUSIAUDIT")
+    assert not _is_route_allowed(
+        "/provider/wizard/quality-rule", "ROLE_ORGAN_OPERATER"
+    )
 
 
 def test_field_decision_only_manager() -> None:
@@ -582,6 +595,51 @@ def test_shell_roles_mirror_matches_ts() -> None:
         )
 
 
+def test_route_role_overrides_mirror_matches_ts() -> None:
+    """本文件 _ROUTE_ROLE_OVERRIDES 镜像必须与 pageAccess.ts ROUTE_ROLE_OVERRIDES
+    的 (prefix → roles) 映射 set-equal（R-014）。
+
+    背景（permission-matrix-0610 / R-014）：_SHELL_ROLES 有 set-equal 守卫
+    （test_shell_roles_mirror_matches_ts），但子路由级 _ROUTE_ROLE_OVERRIDES 手抄镜像
+    此前无对账——TS 改了某 override 的 roles 而镜像漏跟，守卫会按陈旧角色集放行/误拒，
+    与真 UI 漂移却全绿。本测试解析 TS 真值（仿 _SHELL_ROLES 的解析驱动做法），把
+    「与 pageAccess.ts 同步」的注释承诺机械化。
+
+    解析驱动（非逐条手列）→ 路B 给 pageAccess.ts 增删 quality-rule override 条目时
+    天然兼容：只要 Python 镜像同步，prefix 集 + 每 prefix 角色集 set-equal 即通过。
+    redirectIfDenied 不纳入对账（fallback 跳转是 UX 细节，非授权边界）。
+    """
+    import re
+
+    src = (_web_src_root() / "lib" / "pageAccess.ts").read_text(encoding="utf-8")
+    m = re.search(r"ROUTE_ROLE_OVERRIDES\b[^=]*=\s*\[(.*?)\n\];", src, re.DOTALL)
+    assert m, "pageAccess.ts 必须显式声明 ROUTE_ROLE_OVERRIDES 数组"
+    body = m.group(1)
+
+    # 每个 override 对象：{ prefix: '...', roles: [...], redirectIfDenied?: '...' }
+    ts_overrides: dict[str, frozenset[str]] = {}
+    for om in re.finditer(
+        r"prefix:\s*'([^']+)'.*?roles:\s*\[([^\]]*)\]", body, re.DOTALL
+    ):
+        prefix = om.group(1)
+        roles = frozenset(re.findall(r"'(ROLE_[A-Z_]+)'", om.group(2)))
+        ts_overrides[prefix] = roles
+    assert ts_overrides, "ROUTE_ROLE_OVERRIDES 解析不到任何 override（解析器或文件结构变了）"
+
+    mirror = {prefix: roles for prefix, roles, _redirect in _ROUTE_ROLE_OVERRIDES}
+    assert set(ts_overrides) == set(mirror), (
+        "ROUTE_ROLE_OVERRIDES prefix 集漂移：\n"
+        f"  TS only={sorted(set(ts_overrides) - set(mirror))}\n"
+        f"  镜像 only={sorted(set(mirror) - set(ts_overrides))}\n"
+        "真值源是 pageAccess.ts，请同步 _ROUTE_ROLE_OVERRIDES 镜像"
+    )
+    for prefix, ts_roles in ts_overrides.items():
+        assert mirror[prefix] == ts_roles, (
+            f"_ROUTE_ROLE_OVERRIDES[{prefix!r}]={sorted(mirror[prefix])} 与 TS 真值 "
+            f"{sorted(ts_roles)} 漂移；真值源是 pageAccess.ts，请同步镜像"
+        )
+
+
 def test_all_canperformaction_ids_registered() -> None:
     """src 内每个 canPerformAction('<literal>') 必须已注册进 ACTION_ROLE_GATES。
 
@@ -612,21 +670,29 @@ def test_all_canperformaction_ids_registered() -> None:
 
 
 def test_no_hardcoded_role_arrays_in_pages() -> None:
-    """src/pages/*.vue 禁止硬编码 ['ROLE_…'] 角色数组——角色门一律走
-    pageAccess（canPerformAction/filterByRouteAccess）或 requestFlowRoles 常量。
+    """src/pages/*.vue 禁止硬编码角色——既禁 ['ROLE_…'] 角色数组，也禁
+    ``=== 'ROLE_…'`` / ``!== 'ROLE_…'`` 角色比对（R-014 扩拦）。角色门一律走
+    pageAccess chokepoint：canPerformAction（能不能）/ hasRole（是哪条身份分支）/
+    filterByRouteAccess / requestFlowRoles 常量。
 
     背景（permission-matrix-0610）：P3ObjectionDetail canClose 硬编码含安全审计员，
     与后端 objection.case.close={MANAGER,BUSIAUDIT} 漂移（D55/P22 违例）。
+    R-014 扩拦动机：``role.value === 'ROLE_…'`` 直接比对与数组字面量同样会与后端
+    policy 漂移、且散落难收口——既存 3 处（P5ReverseCatalogWizard / P5Provider /
+    P3RequestDetail）已改走 canPerformAction / hasRole chokepoint。
     """
     import re
 
+    # 数组字面量 ['ROLE_…'] 或 ===/!== 'ROLE_…' 比对，均视为硬编码角色门。
+    pattern = re.compile(r"\[\s*'ROLE_[A-Z_]+'|[!=]==\s*'ROLE_[A-Z_]+'")
     pages = _web_src_root() / "pages"
     hits: list[str] = []
     for path in sorted(pages.glob("*.vue")):
         for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if re.search(r"\[\s*'ROLE_[A-Z_]+'", line):
+            if pattern.search(line):
                 hits.append(f"{path.name}:{i}: {line.strip()[:100]}")
     assert not hits, (
-        "pages 内发现硬编码角色数组（应走 pageAccess/requestFlowRoles chokepoint）：\n"
+        "pages 内发现硬编码角色门（数组字面量或 === 'ROLE_' 比对；应走 pageAccess "
+        "canPerformAction / hasRole / requestFlowRoles chokepoint）：\n"
         + "\n".join(hits)
     )

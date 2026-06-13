@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 import { lookupRequest, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
-import { canPerformAction } from '@/lib/pageAccess';
+import { canPerformAction, hasRole } from '@/lib/pageAccess';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
@@ -73,8 +73,10 @@ const canResubmit = computed(() => rawStatus.value === 'need-fix');
 // 暂停 = 业务运营员。MANAGER 已收回该权限,「无权 = 不可见」整段不渲染。
 // 仅对已授权（granted）/ 交付中 / 暂停（suspended）的申请显示,避免对草稿/审批中误操作。
 const productRole = computed(() => getProductRole().value);
-const isBusiAudit = computed(() => productRole.value === 'ROLE_BUSIAUDIT');
-const isApplicant = computed(() => productRole.value === 'ROLE_ORGAN_OPERATER');
+// R-014：身份分支走 hasRole chokepoint（区分同一 grant 动作的合规收回 vs 申请人放弃
+// 两个按钮变体），不在 page 内硬编码 role 比对；「能不能」仍由 canPerformAction 判。
+const isBusiAudit = computed(() => hasRole(productRole.value, 'ROLE_BUSIAUDIT'));
+const isApplicant = computed(() => hasRole(productRole.value, 'ROLE_ORGAN_OPERATER'));
 const canRevokeGrant = computed(() => canPerformAction('application.grant.revoke', productRole.value));
 const canSuspendGrant = computed(() => canPerformAction('application.grant.suspend', productRole.value));
 const grantActive = computed(() => ['granted', 'in_delivery', 'suspended'].includes(rawStatus.value));

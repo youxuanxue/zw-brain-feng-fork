@@ -1,3 +1,14 @@
+---
+title: 0611 反馈核查 GATE（9 项角色/流程/状态机/IA 裁决）
+scope: feedback-0611-gate
+status: approved  # 角色/流程/状态机/IA 多点裁决（D28 GATE，decision_only）：产品研发负责人 2026-06-12 sign-off（账本 .testing/signoff/feedback-0611-gate.signoff.yaml）
+date: 2026-06-12
+deciders: 海若产品部产品研发负责人（GATE 决策门）
+related_docs:
+  - docs/approved/zw-brain-roles.md
+  - CLAUDE.md D57 决策索引（承 D55/D54/v5）
+---
+
 # D57 — 0611 反馈核查 GATE（9 项角色/流程/状态机/IA 裁决）
 
 > **类型**：角色/流程/状态机/IA 多点裁决（D28 GATE，decision_only）

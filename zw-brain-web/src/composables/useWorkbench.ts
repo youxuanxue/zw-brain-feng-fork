@@ -3,8 +3,10 @@ import { WORKBENCH_FIXTURE, type WorkbenchView } from '@/fixtures/workbench-fixt
 import { authFetch, getSession, hasAllowedProductRoles } from './useAuth';
 import { getProductRole } from './useProductRole';
 import { apiUrl } from './useApiBase';
+import { applyPanelFallback } from '@/lib/panelFallback';
 
-export type WorkbenchSource = 'live' | 'fixture' | 'loading';
+// 'error' = 生产构建下 API 失败的诚实不可用态（R-007）。
+export type WorkbenchSource = 'live' | 'fixture' | 'loading' | 'error';
 
 export interface UseWorkbenchResult {
   data: Ref<WorkbenchView | null>;
@@ -106,10 +108,10 @@ export function useWorkbench(roleOverride?: string): UseWorkbenchResult {
       source.value = 'live';
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);
-      // 仅在无缓存可显时回落 fixture；有缓存则保留 SWR 旧值不闪 fixture。
+      // 仅在无缓存可显时回落：dev=fixture（演示数据徽标）/ prod=诚实不可用态（R-007，
+      // 政务工作台故障时不渲染捏造待办）；有缓存则保留 SWR 旧值不闪。
       if (!cached) {
-        data.value = WORKBENCH_FIXTURE;
-        source.value = 'fixture';
+        applyPanelFallback({ data, source }, WORKBENCH_FIXTURE, null);
       }
     }
   }

@@ -72,7 +72,7 @@ write-critical / write-normal / read-sensitive
 
 D4 写得很清楚：「审计写入失败必须熔断」。但「audit_class 取值不在白名单」属于**契约层**问题，不是「写失败」。store 入口对不识别值做防御性归一 + 原值留底 + warning 是更稳的处理；如果直接 raise，会把所有未对齐的旧 capability 全部打挂，业务侧无法 incremental 修复。
 
-如果将来 manifest 收敛完成（10 → 3），可以在 `scripts/check_audit_class_enum.py`（不在本 F1 scope）里把 store 入口收紧为 raise。
+如果将来 manifest 收敛完成（10 → 3），可以在 `scripts/check_audit_class_enum.py`（**该脚本尚未创建——本 F1 scope 之外的未来工件**，非现存死引用）里把 store 入口收紧为 raise。
 
 ## 落地点
 

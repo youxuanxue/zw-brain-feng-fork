@@ -56,8 +56,13 @@ test.describe('国家通道 角色门 + flag 门', () => {
     await setRole(page, 'ROLE_BUSIAUDIT');
     await gotoHash(page, '#/request-flow');
     await expect(page.getByTestId('p3-tab-national')).toBeVisible();
-    // 主流程入口 = 「我的申请」视图 tab（三视图重构后；国家通道为独立 tab 共存）。
-    await expect(page.getByTestId('p3-view-mine')).toBeVisible();
+    // 主流程入口 = 受理岗的「待我办理」视图 tab（国家通道为独立 tab 共存）。
+    // R-001 修复后此断言真跑：业务运营员 BUSIAUDIT 自 D55③/D57 退申请人身份，
+    // 「我的申请」(p3-view-mine, v-if=isApplicantRole) 对其**不渲染**（承「无权=不可见」）；
+    // 旧断言写 p3-view-mine 可见是 D50 落地时口径、被 D55/D57 推翻，属测试陈旧而非产品缺陷。
+    // 改断言受理岗真有的「待我办理」tab 存在，且不误断已退役的申请人 tab。
+    await expect(page.getByTestId('p3-view-todo')).toBeVisible();
+    await expect(page.getByTestId('p3-view-mine')).toHaveCount(0);
 
     await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, '#/request-flow');

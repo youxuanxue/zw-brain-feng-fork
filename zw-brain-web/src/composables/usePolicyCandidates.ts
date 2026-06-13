@@ -1,13 +1,15 @@
 import { ref, type Ref } from 'vue';
 import { authFetch } from './useAuth';
 import { newRequestId, postSkill } from './useApiClient';
+import { applyPanelFallback } from '@/lib/panelFallback';
 import {
   POLICY_CANDIDATE_LIST_FIXTURE,
   type PolicyCandidateItem,
   type PolicyCandidateListResult,
 } from '@/fixtures/b12-iam-fixture';
 
-export type PanelSource = 'idle' | 'loading' | 'live' | 'fixture';
+// 'error' = 生产构建下 API 失败的诚实不可用态（R-007）。
+export type PanelSource = 'idle' | 'loading' | 'live' | 'fixture' | 'error';
 
 export interface ReviewCandidatesResult {
   ok: boolean;
@@ -55,8 +57,7 @@ export function usePolicyCandidates(): UsePolicyCandidatesResult {
       source.value = 'live';
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);
-      data.value = POLICY_CANDIDATE_LIST_FIXTURE;
-      source.value = 'fixture';
+      applyPanelFallback({ data, source }, POLICY_CANDIDATE_LIST_FIXTURE, null);
     }
   }
 

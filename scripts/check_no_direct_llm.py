@@ -80,6 +80,22 @@ WHITELIST_DIRS = {
 # ── 白名单：唯一合法的 LLM 出口模块（D14 → D6 内部实现）────────────────
 ALLOWED_LLM_GATEWAY = "zw_brain.shared.inference.client"
 
+# ── 守卫面注册（供元守卫 check_guard_scan_surface 对账）─────────────────
+# D6 守卫扫主源码 + 前端 + scripts/tests/.testing（R-003 后含 zw-brain-web/src）。
+# 声明的 extensions 是「会承载第三方 LLM SDK import / host 的源码扩展名」全集。
+_D6_TARGET_EXTENSIONS = (".py", ".ts", ".tsx", ".js", ".jsx", ".vue", ".json", ".yaml", ".yml", ".md")
+try:
+    from guard_lib import register_grep_guard
+
+    register_grep_guard(
+        "no-direct-llm",
+        roots=("zw_brain", "scripts", "tests", ".testing", "zw-brain-web/src"),
+        extensions=_D6_TARGET_EXTENSIONS,
+        note="D6 模型调用收口集团推理平台",
+    )
+except ImportError:
+    pass
+
 # ── 白名单：反向定义"禁止 host"的防御性代码（D6 校验器自身）────────────
 # 这些文件持有 BLACKLIST 字面量是用于拒绝 AGENT.yaml manifest 引用第三方 LLM，
 # 不是真实调用。豁免它们以避免反向引用被误判为违规。
@@ -189,7 +205,15 @@ def main() -> int:
     else:
         scan_roots = [main_src]
         # 同时也扫描 scripts/ 和 tests/（如果存在）
-        for extra in (repo_root / "scripts", repo_root / "tests", repo_root / ".testing"):
+        # R-003：前端 zw-brain-web/src 也是 D6 守卫面——.vue/.ts 已在 target_extensions、
+        # node_modules 已在 WHITELIST_DIRS；前端直连第三方 LLM SDK / host 同样违 D6
+        # （5 消费面共享同一推理出口口径）。
+        for extra in (
+            repo_root / "scripts",
+            repo_root / "tests",
+            repo_root / ".testing",
+            repo_root / "zw-brain-web" / "src",
+        ):
             if extra.exists():
                 scan_roots.append(extra)
 

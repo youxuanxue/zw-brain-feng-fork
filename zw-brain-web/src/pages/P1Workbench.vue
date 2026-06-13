@@ -72,6 +72,11 @@ const urgentCount = computed(
       </h1>
     </header>
     <p v-else-if="source === 'loading'" class="focus-empty">正在加载工作台……</p>
+    <!-- R-007：生产构建后端故障时不渲染 fixture 假待办，诚实提示不可用 + 重试。 -->
+    <div v-else-if="source === 'error'" class="panel p1-warn">
+      工作台数据暂不可用，请稍后重试。
+      <button type="button" @click="refresh">重试</button>
+    </div>
 
     <div v-if="source === 'fixture'" class="panel p1-warn">
       未连接后端：{{ error }}

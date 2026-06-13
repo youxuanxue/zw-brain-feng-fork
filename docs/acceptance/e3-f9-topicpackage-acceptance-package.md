@@ -18,6 +18,8 @@ driven_by:
 
 # e3.F9 效果验收材料包 — P7 共享专区 / 专题包 TopicPackage 真端到端
 
+> **[2026-06-09 退役横幅]** 专题包整面已随 **D55①** 下线；本验收材料包内容**不删，保留审计链**，但其验收的专题包能力面当前不在产品形态内。记债待恢复：见 feature-status 三个 topic-package Backlog 条目。详见 `docs/decisions/permission-realignment-0609-D55.md`。
+>
 > **D37 效果验收**（"做完的东西真能跑"），与 F9 **启动准入**签字（D34，PR #162，查"该不该做"）区分。
 > 本包查"功能真跑过没"：每个验收点挂 `.testing/acceptance/e3.F9/evidence.json` 里某条 check，
 > 由 `capture_acceptance_evidence.py` 现场跑出（contract / pytest / e2e），段 55 校验 result=pass。

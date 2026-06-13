@@ -62,7 +62,21 @@ SKIP_PATH_FRAGMENTS = (
     "/build/",
 )
 
-EXTENSIONS = (".html", ".js", ".css")
+EXTENSIONS = (".html", ".js", ".css", ".vue", ".ts")
+
+# 守卫面注册（供元守卫 check_guard_scan_surface 对账）：R12 扫 zw-brain-web/ 用户面。
+# R-012/R12 扩面：.vue/.ts 已纳入（沿用「非 ASCII 字符串字面值才算 UI 文本」判定）。
+try:
+    from guard_lib import register_grep_guard
+
+    register_grep_guard(
+        "ui-term-blacklist",
+        roots=("zw-brain-web",),
+        extensions=EXTENSIONS,
+        note="R12 工程术语不进 UI（§5.5）",
+    )
+except ImportError:  # guard_lib 不在 path（独立打包场景）——注册仅供元守卫消费，缺失不致命
+    pass
 
 
 def has_non_ascii(s: str) -> bool:
@@ -97,18 +111,28 @@ HTML_TEXT_RE = re.compile(r">([^<]+)<")
 
 # 剥掉模板字符串占位符 ${...}（支持嵌套一层），避免把 JS 表达式当 UI
 TEMPLATE_EXPR_RE = re.compile(r"\$\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}")
+# 剥掉 Vue mustache 插值 {{ ... }}：插值里是 JS 表达式（packageCode / packages.source
+# 等标识符），不是 UI 文本——不剥会把 `>{{ z.packageCode }}<` 当 UI 文本误报。
+#（仅命中含非 ASCII 的引号字面值才是 UI，故插值里的中文字符串字面值仍可能漏报；但本守卫
+# 判定基线就是「非 ASCII 字符串字面值」，插值里的中文 UI 文案应放进字面值，与现有口径一致。）
+VUE_MUSTACHE_RE = re.compile(r"\{\{.*?\}\}")
 # 剥掉 HTML / JSX 属性值 `attr="..."` / `attr='...'`
 HTML_ATTR_RE = re.compile(r"\s[\w:-]+\s*=\s*(['\"])(?:(?!\1).)*\1")
 
 
-def _strip_noise(line: str) -> str:
+def _strip_noise(line: str, *, strip_attrs: bool = True) -> str:
     line = TEMPLATE_EXPR_RE.sub(" ", line)
-    line = HTML_ATTR_RE.sub(" ", line)
+    line = VUE_MUSTACHE_RE.sub(" ", line)
+    if strip_attrs:
+        # HTML/JSX 属性值剥离仅用于 HTML 文本扫描路径——纯 .ts/.js 里 `label = '中文'`
+        # 是 JS 赋值（潜在 UI 字面值），不该被 attr 正则误剥（否则 .ts UI 字符串漏报）。
+        line = HTML_ATTR_RE.sub(" ", line)
     return line
 
 
 def scan_js_or_css(line: str) -> list[str]:
-    cleaned = _strip_noise(line)
+    # .ts/.js/.css：不剥 attr（赋值字符串字面值可能是 UI 文案）。
+    cleaned = _strip_noise(line, strip_attrs=False)
     hits: list[str] = []
     for term, pat in BLACKLIST_PATTERNS:
         for match in pat.finditer(cleaned):
@@ -153,7 +177,10 @@ def scan_file(path: Path) -> list[str]:
     except UnicodeDecodeError:
         return []
     findings: list[str] = []
-    is_html = path.suffix == ".html"
+    # .vue 的 <template> 段 UI 文本住在 `>text<`（与 .html 同形），故 .vue 也走 HTML
+    # 文本扫描器；其 <script> 段的字符串字面值由 scan_html_line 的 inline 字面值分支兜底
+    # （同 has_non_ascii 判定）。纯 .ts/.js/.css 走 scan_js_or_css。
+    is_html = path.suffix in (".html", ".vue")
     in_block_comment = False
     for lineno, line in enumerate(text.splitlines(), start=1):
         if "/*" in line and "*/" not in line:
