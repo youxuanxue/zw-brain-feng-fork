@@ -21,6 +21,8 @@ interface CredentialQueryView {
   resource_id?: string;
   resource_name?: string;
   resource_kind?: string;
+  // debt j1-legacy-record-actionability：历史导入只读迁移记录标识。
+  legacy_import?: boolean;
 }
 
 interface SampleRenderView {
@@ -59,8 +61,14 @@ const error = ref<string | null>(null);
 const invocationView = ref<InvocationQueryView | null>(null);
 const invocationLoading = ref(false);
 const invocationError = ref<string | null>(null);
-// 共性「无权 = 不可见」：credential.issue 仅 MANAGER+BUSIAUDIT，OPERATER 不应看到「重新签发」按钮
-const canReissue = computed(() => canPerformAction('credential.issue', getProductRole().value));
+// debt j1-legacy-record-actionability：历史导入 = 只读迁移记录，后端对其签发抛 InvalidStateError
+// （无在线交付实体）。「不可动作 = 不可见」——历史导入单不渲染「重新签发」入口（非可见+失败）。
+const isLegacyImport = computed(() => Boolean(credentialView.value?.legacy_import));
+// 共性「无权 = 不可见」：credential.issue 仅 MANAGER+BUSIAUDIT，OPERATER 不应看到「重新签发」按钮；
+// 叠加历史导入门控（运行时专属动作对只读迁移记录不可见）。
+const canReissue = computed(
+  () => !isLegacyImport.value && canPerformAction('credential.issue', getProductRole().value),
+);
 // R-003「无权 = 不可见」：ops.service.invocation.query = MANAGER+BUSIAUDIT+SYSTEM（D57⑥ 审计员
 // 退出；MANAGER 由后端按会话机构 scope 到自家资源）；操作员无权，整段「调用记录」不渲染。
 const canViewInvocations = computed(() => canPerformAction('ops.service.invocation.query', getProductRole().value));

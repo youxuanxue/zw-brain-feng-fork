@@ -1,0 +1,33 @@
+{
+  "scope": "j1-legacy-record-actionability",
+  "deliverable": "历史导入申请凭据面 422 修复——只读合成卡模式延伸至凭据面：credential.query/sample.render 对无运行时 delivery 实体的历史导入申请返回诚实空态（status=not_issued + legacy_import）而非 NotFoundError→HTTP 422；credential.issue 对历史导入抛 InvalidStateError（只读迁移记录无在线交付实体）；前端 P3RequestDetail/P4Credential 对历史导入隐藏运行时专属动作入口（撤回/暂停/重新签发），无权/不可动作=不可见，诚实展示「历史导入」来源 + 凭据空态。不回填假 delivery/grant/凭据（守 D11/D47/D56）。真实在产单凭据流原行为不变。",
+  "git_sha": "393886eed895760b2445add5545d157231de6361",
+  "captured_at": "2026-06-13T09:57:55Z",
+  "captured_by": "claude-opus(legacy-cred-422)",
+  "checks": [
+    {
+      "name": "历史导入凭据面只读回归测试",
+      "kind": "pytest",
+      "result": "pass",
+      "detail": "tests/test_credential_legacy_import_readonly.py: 5 passed — 复现 422 根因 + 守住 credential.query 历史导入诚实 not_issued/legacy_import（非 422）、sample.render 诚实空态、credential.issue 拒为 InvalidStateError、真正不存在申请仍 NotFoundError、record_to_request 投影标 legacyImport"
+    },
+    {
+      "name": "既有凭据/授权流无回归",
+      "kind": "pytest",
+      "result": "pass",
+      "detail": "tests/test_wave1_j1_credential.py: 10 passed · tests/test_wave0_j1_credential_call.py: 11 passed · tests/test_wave1_j1_grant_revoke.py: 12 passed · tests/test_credential_honesty_legacy_granted.py: 1 passed（真实在产单凭据签发/查询/撤回原行为不变）"
+    },
+    {
+      "name": "全量 feature 测量（pytest + e2e，py312 venv，e2e 经真实 UI :8801 隔离栈）",
+      "kind": "pytest+e2e",
+      "result": "pass",
+      "detail": "capture_feature_status.py --with-e2e：39 pytest 模块全 pass + 8 backed e2e spec（7 pass + national_channel vacuous-skip：国家通道 flag 默认 off，by design）；0 fail；44/51 feature 绿；指纹新鲜。e2e 走查 P4 凭据页/P3 申请详情页经真实浏览器（Playwright，ZW_E2E_BASE_URL=:8801 干净 seed + mock 推理隔离栈）。j1-credential-issue/revoke、infra-agentruntime-embedded 均 result=pass。"
+    },
+    {
+      "name": "前端类型检查",
+      "kind": "typecheck",
+      "result": "pass",
+      "detail": "zw-brain-web: vue-tsc --noEmit exit 0（P3RequestDetail.vue / P4Credential.vue legacyImport 门控类型安全）"
+    }
+  ]
+}

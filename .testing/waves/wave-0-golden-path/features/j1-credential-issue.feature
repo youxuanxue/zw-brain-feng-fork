@@ -6,7 +6,7 @@
 # Trace: R1, 基线 §5.2 P4「必含凭据领取页（授权码 / API Key + curl/Python/Java 调用样例 + 配额 + 监控入口）」
 # Priority: P0
 # Owner: e1
-# Pytest: tests/test_wave0_j1_credential_call.py + tests/test_wave1_j1_credential.py
+# Pytest: tests/test_wave0_j1_credential_call.py + tests/test_wave1_j1_credential.py + tests/test_credential_legacy_import_readonly.py
 # InTest-Scope: 5 个 Scenario 由 tests/test_wave0_j1_credential_call.py 覆盖（凭据签发幂等 /
 #   撤销 / expires_at 携带 / 签发后状态机 / payload 工程术语黑名单——以 delivery_repo.upsert_from_delivery
 #   合成数据走 canonical runtime contract）；
@@ -84,3 +84,11 @@ Feature: J1 凭据领取（P4 交付/交换/直达页）
     When 我对 A201 重复触发凭据签发 3 次
     Then 仅签发 1 条有效凭据（idempotency_key = application_id）
     And 审计总线 2 条 credential.issue duplicate 标记
+
+  Scenario: 负向 — 历史导入申请凭据面诚实只读（不报错、不可签发）
+    Given 一条历史导入（M0 一次性迁移）申请，无运行时交付实体
+    When 我打开该申请的 P4 凭据领取页
+    Then 页面诚实显示「历史导入·凭据未签发」空态，而非报错
+    And 不渲染「重新签发」入口（历史导入是只读迁移记录，运行时动作不可见）
+    And 对该申请触发凭据签发被拒为无效状态（只读迁移记录无在线交付实体）
+    And 真正不存在的申请查询仍诚实报「未找到」

@@ -79,7 +79,13 @@ const isBusiAudit = computed(() => hasRole(productRole.value, 'ROLE_BUSIAUDIT'))
 const isApplicant = computed(() => hasRole(productRole.value, 'ROLE_ORGAN_OPERATER'));
 const canRevokeGrant = computed(() => canPerformAction('application.grant.revoke', productRole.value));
 const canSuspendGrant = computed(() => canPerformAction('application.grant.suspend', productRole.value));
-const grantActive = computed(() => ['granted', 'in_delivery', 'suspended'].includes(rawStatus.value));
+// debt j1-legacy-record-actionability：历史导入申请 = 只读迁移记录，无运行时交付实体，
+// 撤回/暂停是运行时专属动作（后端只读卡无 delivery 不可 mutate）。「不可动作 = 不可见」——
+// 历史导入单整组动作入口不渲染（非可见+失败），避免点了报错的半截功能。
+const isLegacyImport = computed(() => Boolean(req.value?.legacyImport));
+const grantActive = computed(
+  () => !isLegacyImport.value && ['granted', 'in_delivery', 'suspended'].includes(rawStatus.value),
+);
 const alreadySuspended = computed(() => rawStatus.value === 'suspended');
 
 // 业务运营员合规收回：destructive,成功后给 warn 级红色提示（申请人侧工作台亦显示已撤销红态）。
@@ -176,6 +182,9 @@ async function supplement() {
     <nav class="crumbs"><a href="#/request-flow">← 申请列表</a></nav>
     <section class="panel">
       <PageFocusHeader :title="id" :meta="headerMeta" />
+      <p v-if="isLegacyImport" class="legacy-note">
+        历史导入记录 · 仅供查看，在线办理动作不适用于历史迁移申请。
+      </p>
       <DetailPanel v-if="rows.length" title="基本信息" :rows="rows" />
       <EditableFormPanel
         v-if="(isDraft || canResubmit) && formFields.length"
@@ -244,6 +253,7 @@ async function supplement() {
 .gov-btn-secondary { background: #fff; border-color: var(--b-border, #d4e2f4); color: var(--b-neutral-text, #1a1d21); }
 .gov-btn-danger { background: #fff; border-color: var(--b-danger, #d4380d); color: var(--b-danger, #d4380d); }
 .gov-btn-danger:hover { background: var(--b-danger, #d4380d); color: #fff; }
+.legacy-note { margin: 0 0 12px; padding: 8px 12px; font-size: 13px; color: var(--b-muted, #5c6370); background: #f5f7fa; border-radius: 6px; }
 .aux-links { margin: 12px 0; font-size: 13px; }
 .aux-links a { color: var(--b-primary, #006be6); text-decoration: none; }
 .aux-links a:hover { text-decoration: underline; }

@@ -59,6 +59,37 @@ def _credential_unissued_hint(kind: str | None) -> str:
     noun = "授权" if kind == "api" else "凭据"
     return f"{noun}尚未签发；请等待审批通过或联系审批人手工签发。"
 
+
+def _legacy_import_unissued_hint(kind: str | None) -> str:
+    """历史导入申请凭据空态文案 — 历史迁移记录无运行时签发事实，诚实说明来源 + 未签发，
+    不臆造交付/凭据（D11/D47）。与运行时未签发态区分：明确「历史导入」来源叙事。"""
+    noun = "授权" if kind == "api" else "凭据"
+    return f"历史导入·{noun}未签发；该申请为历史迁移记录，无在线{noun}信息。"
+
+
+def _legacy_import_credential_view(deps, request: dict[str, Any], request_id: str) -> dict[str, Any]:
+    """历史导入申请（无运行时 delivery 实体）凭据查询的只读合成视图（R-004 模式延伸至凭据面）。
+
+    debt j1-legacy-record-actionability：历史导入申请 = 一次性迁移的**只读卡**，无 delivery
+    task / grant snapshot / 凭据。旧实现凭据面 find_by_request_id→None→NotFoundError→HTTP 422
+    是 bug（只读卡踩到了运行时路径）。改诚实空态：status=not_issued + legacy_import=True，
+    不抛 422、不进 CardSession、不落库、不捏造任何 delivery / grant / 凭据。
+    """
+    # 资源类型从只读申请卡取（record_to_request 已投影 resourceId/Name）；
+    # 无 delivery 故不查交付侧 resourceKind，按资源主表 canonical 折叠，查不到 → None。
+    resource_id = request.get("resourceId")
+    kind = _resolve_resource_kind(deps, resource_id)
+    return {
+        "request_id": request_id,
+        "credential": None,
+        "status": "not_issued",
+        "legacy_import": True,
+        "resource_kind": kind,
+        "resource_id": resource_id,
+        "resource_name": request.get("resourceName"),
+        "hint": _legacy_import_unissued_hint(kind),
+    }
+
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
 # ──────────────────────────────────────────────────────────────────────────
@@ -86,6 +117,14 @@ def _issue_credential(brain, deps, ctx, request_id: str, role: str, confirmed: b
     request = deps.view.requests.find_by_id(request_id)
     delivery = deps.view.delivery.find_by_request_id(request_id)
     if delivery is None:
+        # debt j1-legacy-record-actionability：历史导入申请 = 只读迁移记录，无运行时
+        # delivery 实体；运行时签发是无效状态转换 → 诚实 InvalidStateError（非 422），
+        # 不半截落库、不回填假 delivery / grant（D11/D47）。前端按「不可动作 = 不可见」
+        # 隐藏「重新签发」入口（见 P4Credential.vue legacy_import 门控）。
+        if deps.services.request.is_legacy_import(request_id):
+            raise InvalidStateError(
+                f"申请 {request_id} 为历史导入迁移记录（只读），无在线交付实体，不支持签发凭据。"
+            )
         raise NotFoundError(request_id)
     # 仅审批通过的 request 才能签发（前置守卫）。
     # 覆盖所有"审批已通过"语义的状态：approved（同步落库即时态）/ supplementing（基层补差中）
@@ -137,7 +176,24 @@ def _get_credential(brain, deps, ctx, request_id: str, role: str) -> dict[str, A
     # 权限校验由 manifest + enforce_manifest_policy 走 invoke_skill 路径处理
     delivery = deps.view.delivery.find_by_request_id(request_id)
     if delivery is None:
-        raise NotFoundError(request_id)
+        # debt j1-legacy-record-actionability：历史导入申请无运行时 delivery 实体。
+        # 旧实现一律抛 NotFoundError→HTTP 422 是 bug（只读卡踩到运行时路径）。
+        # find_by_id 对真正不存在的申请仍抛 NotFoundError（保 404/422 语义）；存在则：
+        # 历史导入 → 只读合成凭据空态（不 422）；运行时单（尚未到交付态）→ 同样诚实
+        # not_issued（读查询不该因 delivery 未绑定就 422）。
+        request = deps.view.requests.find_by_id(request_id)
+        if deps.services.request.is_legacy_import(request_id):
+            return _legacy_import_credential_view(deps, request, request_id)
+        kind = _resolve_resource_kind(deps, request.get("resourceId"))
+        return {
+            "request_id": request_id,
+            "credential": None,
+            "status": "not_issued",
+            "resource_kind": kind,
+            "resource_id": request.get("resourceId"),
+            "resource_name": request.get("resourceName"),
+            "hint": _credential_unissued_hint(kind),
+        }
     snapshot = delivery.get("accessGrantSnapshot") or {}
     credential = _issued_credential(deps, request_id, snapshot)
     if not credential:

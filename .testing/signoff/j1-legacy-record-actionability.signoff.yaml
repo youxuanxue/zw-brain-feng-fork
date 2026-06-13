@@ -1,0 +1,27 @@
+scope: j1-legacy-record-actionability
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-13
+kind: 决策签字
+evidence: >-
+  debt j1-legacy-record-actionability 的产品/架构裁决经负责人认可（2026-06-13 对话内 sign-off），
+  执行既有宪法（D11 禁 Mock / D47 凭据诚实化 / D56 写路径单源 + memory「legacy import = migration-only」），
+  无需新 D-编号：① 历史导入（M0 一次性迁移）申请定性为「只读迁移记录」，非运行时实体——不回填假的
+  delivery task / grant snapshot / 凭据让它「看起来能动作」；② 凭据面 422 是纯 bug（只读合成卡踩到了
+  运行时路径 delivery.find_by_request_id→None→NotFoundError→HTTP 422），修法 = 把 R-004 只读合成卡
+  模式延伸到凭据面：credential.query / sample.render 对历史导入返回诚实空态 status=not_issued +
+  legacy_import + 「历史导入·凭据未签发」文案（不抛 422、不进 CardSession、不落库），credential.issue
+  对历史导入抛 InvalidStateError（只读迁移记录无在线交付实体，非半截落库）；③ 前端按「无权/不可动作 =
+  不可见」隐藏历史导入申请的运行时专属动作入口（P3 撤回/暂停/我不再需要、P4 重新签发），并诚实展示
+  「历史导入记录·仅供查看」来源；④ 真实在产单（运行时卡 + delivery）凭据流原行为不变。
+  证据：tests/test_credential_legacy_import_readonly.py 5 测全绿（复现 422 + 钉死诚实空态/拒签/真正不存在仍
+  NotFound/legacyImport 投影）+ 既有 tests/test_wave1_j1_credential.py(10)/test_wave0_j1_credential_call.py(11)/
+  test_wave1_j1_grant_revoke.py(12)/test_credential_honesty_legacy_granted.py(1) 无回归 + 全量 capture
+  --with-e2e（py312 venv，e2e 经真实 UI :8801 干净 seed + mock 推理隔离栈）0 fail / 44 feature 绿 /
+  指纹新鲜。验收证据 .testing/acceptance/j1-legacy-record-actionability/evidence.json。
+decision_only: true
+covers: []
+# 注：本条记产品研发负责人 2026-06-13 决策认可（历史导入只读 / 凭据诚实空态 / 运行时动作不可见），
+# 属在既有宪法（D11/D47/D56 + legacy import = migration-only）内对一条 debt 的裁决兑现，非新增 GATE 决策。
+# j1-credential-issue.feature 本就 Done 且由 wave0-j1-golden.signoff.yaml 覆盖；本次新增 1 scenario +
+# backing test（tests/test_credential_legacy_import_readonly.py）仍属同一凭据领取 feature 边界，
+# covers 留空不重复抬状态（纯记决策史，遵 iam-identity-claim / wave-residuals-approval-depth 先例）。

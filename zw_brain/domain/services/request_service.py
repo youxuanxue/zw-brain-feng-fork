@@ -337,6 +337,27 @@ class RequestService:
         except NotFoundError:
             return None
 
+    def is_legacy_import(self, request_id: str) -> bool:
+        """该申请是否为历史导入（M0 一次性迁移）记录 = 只读迁移卡，非运行时实体。
+
+        判别口径同 ``card_session.is_runtime_request_payload`` 的反面（legacy 导入 payload
+        一律带 ``kind``，运行时卡从不带）——此处在 domain 层内联该一行判别（``"kind" in
+        payload``），不反向 import command 层（4 层 entry→command→domain→shared）。
+        已进会话的运行时卡 → False；申请不存在 → False（交由调用方按 NotFound 处理）。
+
+        用于凭据/动作面把历史导入识别为只读：无 delivery 实体时不抛 422，改诚实空态。
+        """
+        if self.brain._card_session.get_request(request_id) is not None:
+            return False  # 已进会话的运行时卡
+        store = getattr(getattr(self.brain, "_state_store", None), "database_store", None)
+        if store is None:
+            return False
+        record = store.application_repo.get_record(request_id, tenant_id=_DEFAULT_TENANT_ID)
+        if record is None:
+            return False
+        payload = record.payload_json or {}
+        return bool(payload) and "kind" in payload
+
     def approval_by_id(self, request_id: str) -> dict[str, Any]:
         """Approval row by request id; raises NotFoundError when absent.
 
