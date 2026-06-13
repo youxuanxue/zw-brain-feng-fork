@@ -310,17 +310,6 @@ class BrainService:
                             confirmed=False, manifest={})
         return _review_request(self, deps, ctx, *args, **kwargs)
 
-    def transition_api_resource(self, *args: Any, **kwargs: Any) -> Any:
-        from zw_brain.command.deps import SkillContext  # noqa: PLC0415
-        from zw_brain.command.handlers.j1.resource_api import _transition_api_resource  # noqa: PLC0415
-        deps = self._get_handler_deps()
-        # Delegate-shim ctx is a stub: callers may not have a skill_id in scope.
-        # Helper body's ctx use is for ctx.role fallback (handled via payload.get) and
-        # pipeline.write skill_id (which gets routed through brain._mutate adapter anyway).
-        ctx = SkillContext(skill_id="", role=self._ui_state.get("role", ""), actor="",
-                            confirmed=False, manifest={})
-        return _transition_api_resource(self, deps, ctx, *args, **kwargs)
-
     def get_dispute(self, *args: Any, **kwargs: Any) -> Any:
         from zw_brain.command.deps import SkillContext  # noqa: PLC0415
         from zw_brain.command.handlers.j1.governance_dispute import _get_dispute  # noqa: PLC0415
@@ -479,35 +468,11 @@ class BrainService:
             tenant_id=tenant_id, capability_filter=capability_filter, actor_filter=actor_filter,
         )
 
-    # --- Action D commit 2: topic_package methods migrated to TopicPackageService ---
-
-    def _topic_package_list_projection(self, item: Any) -> dict[str, Any]:
-        return self._get_handler_deps().services.topic_package.list_projection(item)
-
+    # Aggregate view (orchestrates topic_package repo, not a pure record→dict
+    # mapper); kept on BrainService as the allow-listed exemption to the
+    # check_brain_no_record_to_dict guard (段 37) and its regression test.
     def _topic_package_detail_to_dict(self, item: Any) -> dict[str, Any]:
         return self._get_handler_deps().services.topic_package.detail_to_dict(item)
-
-    # --- Action D commit 2: catalog methods migrated to CatalogService ---
-    # Body lives in zw_brain/domain/services/catalog_service.py; these are one-line
-    # delegation shims so existing callers (test fixtures, sibling helpers) keep
-    # working. Commit 5 retires the shims after the handler sweep is complete.
-
-    def _catalog_is_discoverable(self, record: Any, store: Any) -> bool:
-        return self._get_handler_deps().services.catalog.is_discoverable(record, store)
-
-    # Action H commit 4: bodies lifted to zw_brain.command.adapter_routing.
-    def _adapter_operation_from_skill(self, skill_id: str, payload: dict[str, Any]) -> tuple[str, str, str]:
-        from zw_brain.command.adapter_routing import adapter_operation_from_skill  # noqa: PLC0415
-        return adapter_operation_from_skill(skill_id, payload)
-
-    def _aggregate_type_from_skill(self, skill_id: str) -> str:
-        from zw_brain.command.adapter_routing import aggregate_type_from_skill  # noqa: PLC0415
-        return aggregate_type_from_skill(skill_id)
-
-    def _adapter_idempotency_key(self, skill_id: str, payload: dict[str, Any]) -> str:
-        from zw_brain.command.adapter_routing import adapter_idempotency_key  # noqa: PLC0415
-        return adapter_idempotency_key(skill_id, payload)
-
 
     def list_requests(self) -> list[dict[str, Any]]:
         """全部申请（运行时卡 + legacy 导入 apply 单）——Action D：DB 单一事实源。
@@ -635,19 +600,6 @@ class BrainService:
         record: Any | None = None,
     ) -> dict[str, Any] | None:
         return self._get_handler_deps().services.delivery.task_from_record(request_id, store, context=context, record=record)
-
-    def _mask_actor_payload(self, value: Any) -> Any:
-        """Legacy shim — Action H commit 4 lifted to shared.sensitive_mask.mask_actor_payload."""
-        from zw_brain.shared.sensitive_mask import mask_actor_payload  # noqa: PLC0415
-        return mask_actor_payload(value)
-
-    def _approval_recommendation(self, approval: dict[str, Any], request: dict[str, Any], delivery: dict[str, Any] | None) -> dict[str, Any]:
-        """Legacy shim — Action H commit 3 lifted to request_service.approval_recommendation."""
-        return self._get_handler_deps().services.request.approval_recommendation(approval, request, delivery)
-
-    def _approval_business_defaults(self, request: dict[str, Any], delivery: dict[str, Any] | None) -> dict[str, Any]:
-        """Legacy shim — Action H commit 3 lifted to request_service.approval_business_defaults."""
-        return self._get_handler_deps().services.request.approval_business_defaults(request, delivery)
 
     def _delivery_repo(self) -> DeliveryRepository:
         store = self._state_store.database_store

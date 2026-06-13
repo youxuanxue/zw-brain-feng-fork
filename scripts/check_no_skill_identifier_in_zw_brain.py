@@ -57,8 +57,6 @@ ALLOWED_SKILL_IDENTIFIERS: frozenset[str] = frozenset({
     "_invoke_skill_inner",
     "_build_skill_context",
     "_dispatch_skill",
-    "_adapter_operation_from_skill",
-    "_aggregate_type_from_skill",
     # domain/errors — envelope error 类型
     "UnknownSkillError",
 })
