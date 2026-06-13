@@ -17,8 +17,6 @@ exposure/enable/disable/policy/list/view），本模块只补 3 个 F4 新 cap�
 """
 from __future__ import annotations
 
-import hashlib
-import json
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -34,10 +32,7 @@ from zw_brain.capability_registry.runtime import (
 )
 from zw_brain.command.brain import BrainServiceError, InvalidStateError
 from zw_brain.command.deps import HandlerDeps, SkillContext
-from zw_brain.domain.policy import DomainAccessDeniedError, tenant_for_role
-from zw_brain.shared.runtime_tenant import (
-    get_runtime_tenant_id,
-)
+from zw_brain.command.handlers.b1._meta import enforce_tenant_scope, param_fingerprint
 
 # ──────────────────────────────────────────────────────────────────────────
 # package.rollback —— 写敏感，走 deps.write（自动 audit_required=true）
@@ -152,26 +147,6 @@ def handler_package_trust_level_update(deps: HandlerDeps, ctx: SkillContext, pay
 # ──────────────────────────────────────────────────────────────────────────
 
 
-def _enforce_tenant_scope(payload: dict[str, Any]) -> str:
-    role = payload.get("role")
-    runtime_tenant = tenant_for_role(str(role)) if role else get_runtime_tenant_id()
-    requested = payload.get("tenant_id")
-    if requested is None or requested == "":
-        return runtime_tenant
-    requested_str = str(requested)
-    if requested_str != runtime_tenant:
-        raise DomainAccessDeniedError(
-            f"tenant scope violation for package.exposure.matrix.query: requested={requested_str}, runtime={runtime_tenant}"
-        )
-    return requested_str
-
-
-def _param_hash(params: dict[str, Any]) -> str:
-    serializable = {k: v for k, v in sorted(params.items()) if v is not None and v != ""}
-    body = json.dumps(serializable, ensure_ascii=False, sort_keys=True, default=str)
-    return hashlib.sha1(body.encode("utf-8")).hexdigest()
-
-
 def _emit_meta_audit(
     *,
     skill_id: str,
@@ -229,7 +204,7 @@ def handler_package_exposure_matrix_query(deps: HandlerDeps, ctx: SkillContext, 
     投影派生自 zw_brain/capability_registry/registered/*.json，不复制 manifest
     内容；handler 自身写 sanitized meta-audit（与 F2/F3 同 pattern）。
     """
-    tenant_id = _enforce_tenant_scope(payload)
+    tenant_id = enforce_tenant_scope(payload, capability="package.exposure.matrix.query")
     journey = payload.get("journey")
     status = payload.get("status")
     execution_binding = payload.get("execution_binding")
@@ -265,7 +240,7 @@ def handler_package_exposure_matrix_query(deps: HandlerDeps, ctx: SkillContext, 
     if limit and limit > 0:
         rows = rows[:limit]
 
-    fingerprint = _param_hash(
+    fingerprint = param_fingerprint(
         {
             "tenant_id": tenant_id,
             "journey": journey,

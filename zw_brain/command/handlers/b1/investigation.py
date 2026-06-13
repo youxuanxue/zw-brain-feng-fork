@@ -20,10 +20,9 @@ if TYPE_CHECKING:
 
 import zw_brain.shared.audit as audit_bus
 from zw_brain.command.deps import HandlerDeps, SkillContext
-from zw_brain.domain.policy import DomainAccessDeniedError, tenant_for_role
+from zw_brain.command.handlers.b1._meta import enforce_tenant_scope
 from zw_brain.shared.inference import client as inference_client
 from zw_brain.shared.inference.client import ChatMessage, InferenceError
-from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 _SENSITIVE_KEYS = (
     "actor",
@@ -69,20 +68,6 @@ def _sanitize_value(value: Any) -> Any:
             return "sha1:" + hashlib.sha1(value.encode("utf-8")).hexdigest()[:16]
         return value
     return value
-
-
-def _enforce_tenant_scope(payload: dict[str, Any]) -> str:
-    role = payload.get("role")
-    runtime_tenant = tenant_for_role(str(role)) if role else get_runtime_tenant_id()
-    requested = payload.get("tenant_id")
-    if requested is None or requested == "":
-        return runtime_tenant
-    requested_str = str(requested)
-    if requested_str != runtime_tenant:
-        raise DomainAccessDeniedError(
-            f"tenant scope violation for assistant.investigation_summary: requested={requested_str}, runtime={runtime_tenant}"
-        )
-    return requested_str
 
 
 def _emit_meta_audit(
@@ -154,7 +139,7 @@ def handler_assistant_investigation_summary(deps: HandlerDeps, ctx: SkillContext
     成功路径：返回 {summary, model, sanitized_input_digest, usage}。
     推理失败：回落规则摘要（仍走脱敏输入，不直连第三方 LLM 以外路径）。
     """
-    tenant_id = _enforce_tenant_scope(payload)
+    tenant_id = enforce_tenant_scope(payload, capability="assistant.investigation_summary")
     panel = str(payload["panel"]).strip()
     if panel not in {"statistics", "anomaly", "accountability"}:
         raise ValueError(f"unknown panel kind: {panel!r}")

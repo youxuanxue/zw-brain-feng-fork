@@ -21,13 +21,10 @@ if TYPE_CHECKING:
 
 import zw_brain.shared.audit as audit_bus
 from zw_brain.command.deps import HandlerDeps, SkillContext
-from zw_brain.domain.policy import DomainAccessDeniedError, tenant_for_role
+from zw_brain.command.handlers.b1._meta import enforce_tenant_scope, param_fingerprint
 from zw_brain.shared.audit import index as audit_index
 from zw_brain.shared.runtime_tenant import (
     DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID,
-)
-from zw_brain.shared.runtime_tenant import (
-    get_runtime_tenant_id,
 )
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -137,35 +134,6 @@ def _parse_iso(raw: Any) -> datetime | None:
     return datetime.fromisoformat(str(raw))
 
 
-def _enforce_tenant_scope(payload: dict[str, Any]) -> str:
-    """单租户 sd-default 模式下 cross-tenant 读必须被拦下。
-
-    若 payload["role"] 给出，从 role 推 runtime tenant；否则用全局 runtime
-    tenant。无论哪一种，payload 显式声明的 tenant_id 必须与之相等，否则
-    raise DomainAccessDeniedError（preflight enforce_manifest_policy 同步
-    做一次；这里是第二道防线，handler 被未走 invoke_skill 的路径直接调用
-    时也守得住）。
-    """
-    role = payload.get("role")
-    runtime_tenant = tenant_for_role(str(role)) if role else get_runtime_tenant_id()
-    requested = payload.get("tenant_id")
-    if requested is None or requested == "":
-        return runtime_tenant
-    requested_str = str(requested)
-    if requested_str != runtime_tenant:
-        raise DomainAccessDeniedError(
-            f"tenant scope violation for audit.event.*: requested={requested_str}, runtime={runtime_tenant}"
-        )
-    return requested_str
-
-
-def _param_hash(params: dict[str, Any]) -> str:
-    """payload 参数指纹（SHA-1 of canonical JSON），用于元审计；缺省字段不入 hash。"""
-    serializable = {k: v for k, v in sorted(params.items()) if v is not None and v != ""}
-    body = json.dumps(serializable, ensure_ascii=False, sort_keys=True, default=str)
-    return hashlib.sha1(body.encode("utf-8")).hexdigest()
-
-
 def _emit_meta_audit(
     *,
     skill_id: str,
@@ -221,7 +189,7 @@ def handler_audit_event_query(deps: HandlerDeps, ctx: SkillContext, payload: dic
     强制单租户 tenant_scope；不外泄 payload 原文（output items 只含 metadata）。
     handler 自身写一条元审计，记录 param_hash + result_count。
     """
-    tenant_id = _enforce_tenant_scope(payload)
+    tenant_id = enforce_tenant_scope(payload, capability="audit.event.*")
     since = _parse_iso(payload.get("since"))
     until = _parse_iso(payload.get("until"))
     limit_raw = payload.get("limit")
@@ -244,7 +212,7 @@ def handler_audit_event_query(deps: HandlerDeps, ctx: SkillContext, payload: dic
     items = [_event_to_dict(ev, include_payload=False) for ev in events]
     summary = audit_index.summarize(events)
 
-    fingerprint = _param_hash(
+    fingerprint = param_fingerprint(
         {
             "actor": actor_filter,
             "skill_id": skill_filter,
@@ -274,7 +242,7 @@ def handler_audit_event_replay(deps: HandlerDeps, ctx: SkillContext, payload: di
     与 query 不同：replay 把 payload 透传给 caller（安全审计员需要看原文复盘），
     但元审计仍只记录 request_id + count。
     """
-    tenant_id = _enforce_tenant_scope(payload)
+    tenant_id = enforce_tenant_scope(payload, capability="audit.event.*")
     request_id = str(payload["request_id"]).strip()
     if not request_id:
         raise ValueError("audit.event.replay requires non-empty request_id")
@@ -286,7 +254,7 @@ def handler_audit_event_replay(deps: HandlerDeps, ctx: SkillContext, payload: di
     items = [_event_to_dict(ev, include_payload=True) for ev in chain]
     summary = audit_index.summarize(chain)
 
-    fingerprint = _param_hash(
+    fingerprint = param_fingerprint(
         {
             "request_id": request_id,
             "tenant_id": tenant_id,
@@ -341,7 +309,7 @@ def handler_audit_event_statistics(deps: HandlerDeps, ctx: SkillContext, payload
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
     """F3 audit.event.statistics — 按时间桶 + 维度聚合事件计数。"""
-    tenant_id = _enforce_tenant_scope(payload)
+    tenant_id = enforce_tenant_scope(payload, capability="audit.event.*")
     bucket = str(payload.get("bucket") or "day")
     dimension = str(payload.get("dimension") or "audit_class")
     since = _parse_iso(payload.get("since"))
@@ -374,7 +342,7 @@ def handler_audit_event_statistics(deps: HandlerDeps, ctx: SkillContext, payload
         for key, dim_counts in sorted(buckets_map.items())
     ]
 
-    fingerprint = _param_hash(
+    fingerprint = param_fingerprint(
         {
             "tenant_id": tenant_id,
             "bucket": bucket,
@@ -499,7 +467,7 @@ def handler_audit_event_anomaly(deps: HandlerDeps, ctx: SkillContext, payload: d
 
     输出按 severity (high→medium→low) + occurrence_count 倒序，截断到 top_n。
     """
-    tenant_id = _enforce_tenant_scope(payload)
+    tenant_id = enforce_tenant_scope(payload, capability="audit.event.*")
     since = _parse_iso(payload.get("since"))
     until = _parse_iso(payload.get("until"))
     top_n = int(payload.get("top_n") or 20)
@@ -525,7 +493,7 @@ def handler_audit_event_anomaly(deps: HandlerDeps, ctx: SkillContext, payload: d
     )
     anomalies = anomalies[:top_n]
 
-    fingerprint = _param_hash(
+    fingerprint = param_fingerprint(
         {
             "tenant_id": tenant_id,
             "since": since.isoformat() if since else None,
@@ -576,7 +544,7 @@ def handler_audit_event_accountability(deps: HandlerDeps, ctx: SkillContext, pay
 
     返回 sanitized 链路（敏感字段 hash 化）；按 denied_at 倒序。
     """
-    tenant_id = _enforce_tenant_scope(payload)
+    tenant_id = enforce_tenant_scope(payload, capability="audit.event.*")
     actor = str(payload["actor"]).strip()
     if not actor:
         raise ValueError("audit.event.accountability requires non-empty actor")
@@ -624,7 +592,7 @@ def handler_audit_event_accountability(deps: HandlerDeps, ctx: SkillContext, pay
 
     denied_chains.sort(key=lambda c: c["denied_at"], reverse=True)
 
-    fingerprint = _param_hash(
+    fingerprint = param_fingerprint(
         {
             "actor": actor,
             "tenant_id": tenant_id,
