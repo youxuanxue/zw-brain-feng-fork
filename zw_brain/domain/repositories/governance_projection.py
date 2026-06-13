@@ -458,6 +458,19 @@ class GovernanceProjectionRepository:
         )
         return items[0] if items else None
 
+    def list_orgs_by_name(self, org_name: str, *, tenant_id: str = "sd-default") -> list[OrgProjectionRecord]:
+        """按机构名**精确**点查（大小写不敏感、去首尾空白）。返回 list 以暴露重名歧义——
+        调用方（名/码归一）对多命中必须 fail-closed，不得擅自取第一条。"""
+        name = str(org_name or "").strip()
+        if not name:
+            return []
+        return self._list(
+            select(OrgProjectionRecord).where(
+                OrgProjectionRecord.tenant_id == tenant_id,
+                func.lower(OrgProjectionRecord.org_name) == name.lower(),
+            )
+        )
+
     def get_actor_by_external_id(self, external_actor_id: str, *, tenant_id: str = "sd-default") -> ActorProjectionRecord | None:
         """身份带出用：按 external_actor_id 点查 actor 投影（含 org_code）。未命中返 None。"""
         if not external_actor_id:

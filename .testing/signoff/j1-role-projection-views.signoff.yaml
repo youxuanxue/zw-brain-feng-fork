@@ -1,0 +1,15 @@
+scope: j1-role-projection-views
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-13
+kind: 效果验收
+evidence: 实施 PR #213（0604 反馈四组并行集成·角色投影）→ #222（运营员待办口径）→ #259（D57⑧ 同级展示）；e2e tests/e2e/role_projection_views.spec.ts 于测量基线 2026-06-12T22:11:37Z 内容指纹新鲜绿（40/40）；2026-06-13 干净重建真实库（customer_acceptance_up 全过）本地部署 :8800 验收回合，负责人对话确认「B 签字同意」
+decision_only: false
+covers:
+  - .testing/waves/wave-1-j1-j2-closed-loop/features/j1-role-projection-views.feature
+# 0604 客户试用反馈三缺陷修复的角色投影面（D28 角色/投影类）：
+#   缺陷1 三视图拆分——「我的申请 / 待我办理 / 我的授权」一视图一问题，
+#     纯需方岗位（部门操作员）「待我办理」入口不入 DOM（无权=不可见）；
+#   缺陷2 业务运营员待办语义对路——roleTodoRegistry 数据驱动，
+#     落「待受理 / 待发布目录 / 待发布资源 / 数据质量」语义（D53⑤ 口径）；
+#   缺陷3 脏值治理——用途列「测试」「167」类脏值不裸奔，历史导入单与在产单区分。
+# 签字后该 feature InTest→Done，全仓 Ready/InTest 清零（Done 39→40）。

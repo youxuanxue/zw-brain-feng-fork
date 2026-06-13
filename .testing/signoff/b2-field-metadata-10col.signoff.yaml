@@ -1,0 +1,17 @@
+scope: b2-field-metadata-10col
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-13
+kind: 效果验收
+evidence: PR #257 / .testing/acceptance/b2-field-metadata-10col/evidence.json / docs/acceptance/b2-field-metadata-10col-acceptance-package.md / old/问题反馈/字段级元数据10列-本期立项草案.md
+decision_only: true
+covers: []
+# 注：债 b2-field-metadata-10col 提前本期（0611 核查 §四 6.5#5.2 裁决 + 负责人确认）。
+# 方案 A：注册采集字段级元数据 10 列逐列写 ResourceSchemaSnapshotRecord（与 legacy 导入
+# 同源同形），详情读路径零改动；修复「UI 新注册资源字段数据模型恒为空」数据通路断点。
+# 承载 feature j2-resource-mount 本就已签 Done（wave1-j2 账本），本次重采保持其绿、
+# 不抬不掉，故 covers 留空（沿 c1-demo-removal 先例）。
+# 验收三点均 pass：①真 UI 全链 10 列录入→审核→发布→详情逐列回显 + 文件同走 + 存量基线
+# 照常（e2e b2_field_metadata_10col 全链）；②写读/幂等/legacy 不触碰/键对齐/债关账
+# （pytest 全量 exit 0）；③5 消费面投影一致。债 yaml 已删、debt-status 现算关账。
+# 签字渠道：负责人 2026-06-13 对话确认「b2 签字」（验收包与独立复审 #257 merge-ready 审阅后）。
+# 复审遗留 R-001/R-002 已于合并前修净（snapshot_ref 截断后去重 + 文案一词一概念）。

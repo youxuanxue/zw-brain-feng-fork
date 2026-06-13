@@ -182,9 +182,17 @@ def _guard_catalog_same_org(deps: HandlerDeps, asset: dict[str, Any]) -> None:
         return  # 目录无归属 org（不可解析）→ 跳过
     owner = asset.get("owner_org_id")
     if owner != cat_owner:
+        # legacy 导入目录的 owner_org 存机构名、资源侧用机构码（债 legacy-catalog-owner-org-
+        # name-mismatch）——比对前两侧经参照主数据归一到码；归一不出（未知/重名歧义）仍拒。
+        from zw_brain.domain.services.reference_service import ReferenceService  # noqa: PLC0415
+
+        ref = ReferenceService()
+        owner_code = ref.resolve_org_code(owner)
+        if owner_code is not None and owner_code == ref.resolve_org_code(cat_owner):
+            return
         raise AccessDeniedError(
             f"挂接资源 owner_org={owner!r} 必须与目标目录 {catalog_code} 的 owner_org={cat_owner!r} "
-            f"一致（跨 org 或未声明归属一律拒）"
+            f"一致（跨 org 或未声明归属一律拒；名/码已经参照主数据归一后仍不一致）"
         )
 
 

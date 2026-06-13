@@ -1,0 +1,9 @@
+scope: j1-conditional-accept-bridge
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-13
+kind: 效果验收
+evidence: 实施 PR #246（方案B 状态词汇桥接）；.testing/acceptance/j1-conditional-accept-bridge/evidence.json（2026-06-11 采，UI 新建有条件申请直提 → 运营员受理 → 管理员审核（R11 方向 guard 真放行）→ 已授权 + 凭据自动签发全链真 UI 自铸走查 + 单步受理对有条件单 fail-closed）；2026-06-13 验收回合 permission_matrix_walkthrough 业务流 1 同链路在干净重建真实库重跑通过；负责人对话确认「全部签字」
+decision_only: true
+covers: []
+# D55④（受理/审核两级）实施面的 D37 落账（证据随 #246 入库时未落签字，本次补齐）。
+# covers 留空：j1-approval-conditional.feature 已签 Done，不重复抬状态。

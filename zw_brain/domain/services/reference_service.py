@@ -39,6 +39,24 @@ class ReferenceService:
             "source_ref": rec.source_ref,
         }
 
+    def resolve_org_code(self, value: str | None, *, tenant_id: str = _DEFAULT_TENANT_ID) -> str | None:
+        """机构名/码归一到**码**：投影命中码 → 直通；按名精确唯一命中 → 翻码；
+        未知/重名歧义 → None（fail-soft，由调用方决定 fail-closed 后果）。
+
+        背景（债 legacy-catalog-owner-org-name-mismatch）：legacy 导入的目录 owner_org_id
+        存机构名（如「省大数据局」），资源侧用统一社会信用代码——同机构裸字符串比对必然不等。
+        归一只认参照主数据（org_projection），不做模糊匹配。
+        """
+        v = str(value or "").strip()
+        if not v:
+            return None
+        if self.repo.get_org_by_code(v, tenant_id=tenant_id) is not None:
+            return v
+        rows = self.repo.list_orgs_by_name(v, tenant_id=tenant_id)
+        if len(rows) == 1:
+            return rows[0].org_code
+        return None
+
     def region(self, region_code: str, *, tenant_id: str = _DEFAULT_TENANT_ID) -> dict[str, Any] | None:
         if not region_code:
             return None

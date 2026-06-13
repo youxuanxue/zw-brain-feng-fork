@@ -1,0 +1,13 @@
+scope: feedback-0611-acceptance
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-13
+kind: 效果验收
+evidence: 实施 PR #258（裁决①②④⑤⑥⑨）+ #259（裁决⑧两级状态机）；.testing/acceptance/feedback-0611-acceptance/evidence.json（contract + pytest 全量 + e2e d57_permission_batch/p0_feedback_0611_chain/permission_matrix_walkthrough/wave15_two_stage_walkthrough）；docs/acceptance/feedback-0611-acceptance-package.md；2026-06-13 干净重建真实库本地部署 :8800 验收回合，负责人对话确认「全部签字」
+decision_only: true
+covers: []
+# D57 GATE（feedback-0611-gate，decision_only）的实施面效果验收。covers 留空不重复抬状态：
+# 批次触达的 feature（工作台/反向编目/挂接审核等）均已在各自 scope 签过、测量指纹新鲜绿。
+# 诚实记载：A6 真库 skip 根因 = 存量目录 owner_org 名/码不归一——已在同 PR 内端到端修复
+# （守卫归一比对 + resolve_org_code + 回归测试，修复后 A6 真库全套通过不再 skip），
+# 债 legacy-catalog-owner-org-name-mismatch 同 PR 关账。
+# wave15 两级链路 skip 由 permission_matrix 业务流 1 自铸全链等价覆盖。

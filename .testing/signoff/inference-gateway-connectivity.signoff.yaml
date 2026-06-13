@@ -1,0 +1,9 @@
+scope: inference-gateway-connectivity
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-13
+kind: 效果验收
+evidence: .testing/acceptance/inference-gateway-connectivity/evidence.json（2026-05-31 负责人亲采，platform 模式真凭据真请求连通集团推理网关，证据脱敏只留可复现元信号；ac2 维度闭合，补 infra-inference-gateway 签字时未覆盖的真网关链路）；负责人对话确认「全部签字」
+decision_only: true
+covers: []
+# 归档口径落账：该证据 2026-05-31 采集时未落签字账本，本次验收回合补齐。
+# covers 留空：infra-inference-gateway.feature 已签 Done（wave0-infra），不重复抬状态。

@@ -1,0 +1,27 @@
+{
+  "scope": "feedback-0611-acceptance",
+  "deliverable": "D57 0611 批次效果验收（#258 权限/可达性 + #259 反向编目两级管线）：九裁决落地走查——工作台语境/管理员申请人/目录发布收口/调用监控收窄/挂接审核去盲批/反向编目两级状态机",
+  "git_sha": "743bc90d10b0076ba9fe3de4e8d42db6b632bcb5",
+  "captured_at": "2026-06-13T00:51:49Z",
+  "captured_by": "Claude（0611 验收回合采集,干净重建真实库 :8800;负责人对话确认签字）",
+  "checks": [
+    {
+      "name": "5 消费面投影一致",
+      "kind": "contract",
+      "result": "pass",
+      "detail": "[contract] OK: docs/agent_integration.md in sync with discovered entries (REST=189 CLI=1 MCP=64 A2A=1 Skills=180)"
+    },
+    {
+      "name": "后端 / 契约测试套",
+      "kind": "pytest",
+      "result": "pass",
+      "detail": "exit 0（本仓 summary 抑制,以退出码为准）"
+    },
+    {
+      "name": "WebUI 活跑验收（d57_permission_batch + p0_feedback_0611_chain + permission_matrix_walkthrough + wave15_two_stage_walkthrough（10 passed/2 skipped,A6 无 catalog_code 路径补采 1 passed））",
+      "kind": "e2e",
+      "result": "pass",
+      "detail": "10 passed / 0 failed / 2 skipped"
+    }
+  ]
+}

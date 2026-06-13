@@ -9,7 +9,7 @@
 
 > 测量基线：captured_at=`2026-06-12T22:11:37Z` · 指纹新鲜绿 40/40（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
 
-> 合计 51：Done 39 / Ready 0 / InTest 1 / Draft 0 / Backlog 11
+> 合计 51：Done 40 / Ready 0 / InTest 0 / Draft 0 / Backlog 11
 
 
 ## Wave 0 · 机械守卫 + J1 黄金链路  （Done 13 · Backlog 1）
@@ -31,7 +31,7 @@
 | ops-gateway-heartbeat.feature | **Done** | 测量=绿 / 签字=已签 |
 | ops-service-invocation.feature | **Done** | 测量=绿 / 签字=已签 |
 
-## Wave 1 · J1 闭环 + J2 挂数  （Done 14 · InTest 1 · Backlog 1）
+## Wave 1 · J1 闭环 + J2 挂数  （Done 15 · Backlog 1）
 
 | feature | status | 依据 |
 |---|---|---|
@@ -42,7 +42,7 @@
 | j1-objection-content.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-objection-resource.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-objection-use.feature | **Done** | 测量=绿 / 签字=已签 |
-| j1-role-projection-views.feature | **InTest** | 测量=绿 / 签字=未签 |
+| j1-role-projection-views.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-supply-demand-meta-merge.feature | **Done** | 测量=绿 / 签字=已签 |
 | j2-department-review.feature | **Done** | 测量=绿 / 签字=已签 |
 | j2-online-catalog-compile.feature | **Done** | 测量=绿 / 签字=已签 |

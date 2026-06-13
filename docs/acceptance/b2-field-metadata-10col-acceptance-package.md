@@ -1,9 +1,11 @@
 ---
 doc_id: b2-field-metadata-10col-acceptance-package
-status: awaiting-signoff
-gate: pending
+status: approved
+gate: signed
 scope: b2-field-metadata-10col
 evidence: .testing/acceptance/b2-field-metadata-10col/evidence.json
+signed_off_by: 薛娇（产品研发负责人）
+signed_off_at: 2026-06-13
 sign_off_required:
   - 产品研发负责人
 vehicle_pr: 257
@@ -35,9 +37,9 @@ driven_by:
 
 | 验收点 | evidence（机读证据） | 结果 | 业务方判定 |
 |---|---|---|---|
-| 真 UI 全链：逐列填 10 列→审核→发布→详情逐列回显一致 + 文件同走 + 存量基线照常渲染 | `WebUI 活跑验收（b2_field_metadata_10col 全链 + 存量不回归）`（e2e passed） | pass | ☐ 通过 / ☐ 打回 |
-| 写入/读出/幂等覆盖/legacy 不触碰/键对齐/债关账（pytest 全量） | `后端 / 契约测试套`（pytest exit 0） | pass | ☐ 通过 / ☐ 打回 |
-| 5 消费面投影一致（payload 新键不破契约） | `5 消费面投影一致`（contract） | pass | ☐ 通过 / ☐ 打回 |
+| 真 UI 全链：逐列填 10 列→审核→发布→详情逐列回显一致 + 文件同走 + 存量基线照常渲染 | `WebUI 活跑验收（b2_field_metadata_10col 全链 + 存量不回归）`（e2e passed） | pass | ☑ 通过 |
+| 写入/读出/幂等覆盖/legacy 不触碰/键对齐/债关账（pytest 全量） | `后端 / 契约测试套`（pytest exit 0） | pass | ☑ 通过 |
+| 5 消费面投影一致（payload 新键不破契约） | `5 消费面投影一致`（contract） | pass | ☑ 通过 |
 
 ## 业务方眼见为实（人验，机器测不了的）
 

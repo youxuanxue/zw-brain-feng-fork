@@ -123,7 +123,7 @@ done <<'CHECKS'
 段 33	scripts/check_live_builtin_budget.py	live-builtin-budget (架构约束 R7 单 prefix > 25 触发 review)
 段 34	scripts/check_wave_snapshot_sync.py	wave-snapshot-sync (E1 — §〇.1 反向链接锚点解析 + debt 反向覆盖)
 段 35	scripts/check_brain_no_request_state_singleton.py	brain-no-request-state-singleton (per-request role 必走 ContextVar，不得 seed 到 _ui_state 单例)
-段 36	scripts/check_no_demo_id_literals.py	no-demo-id-literals (REQ-/DLV-/PKG- demo id 限 demo_state_sync.py，不得入 brain.py/handlers)
+段 36	scripts/check_no_demo_id_literals.py	no-demo-id-literals (REQ-/DLV-/PKG- demo id 不得入 brain.py/handlers，也不得硬编码进 e2e spec 深链——退役单号空转假绿，#260 教训机械化)
 段 37	scripts/check_brain_no_record_to_dict.py	brain-no-record-to-dict (record_to_dict 纯函数住 command/serializers/，不得回潮到 BrainService — Phase 1.1)
 段 38	scripts/check_trace_triangle.py	trace-triangle (飞轮 §四 — .feature # Owner/# Pytest ←→ tests 连接守卫；.twin 退役后收敛为 SPEC↔test 双边 D46.e)
 段 39	scripts/check_legacy_smoke_row_numbers.py	legacy-smoke-rows (飞轮 §三.2 — .feature 引用旧 xlsx 行号必须在 mapping doc 出现)

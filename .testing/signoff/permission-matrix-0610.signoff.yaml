@@ -1,0 +1,11 @@
+scope: permission-matrix-0610
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-13
+kind: 效果验收
+evidence: .testing/acceptance/permission-matrix-0610/evidence.json（2026-06-10 采，5角色×10壳导航矩阵 + 写按钮 action-gate + 受理两级/目录发布两业务流，对照 重构平台权限梳理-0609.docx + 角色菜单v5.xlsx）+ .testing/acceptance/wave15-two-stage-walkthrough/ 走查截图（随 #237）；2026-06-13 验收回合 permission_matrix_walkthrough e2e 全部用例在干净重建真实库重跑通过；负责人对话确认「全部签字」
+decision_only: true
+covers: []
+# D55（permission-realignment-0609）账本注明「各修复任务落地后各带测量与 D37」——本账本即
+# 权限矩阵复审维度的 D37 落账（证据随 #258 入库时未落签字，本次补齐）。
+# wave15-two-stage-walkthrough 截图证据并入本 scope（同一受理两级链路走查，不另立账本）。
+# covers 留空：触达 feature 均已各自签过，不重复抬状态。
