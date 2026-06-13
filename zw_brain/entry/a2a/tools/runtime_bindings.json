@@ -38,7 +38,6 @@
       "audit_required": true,
       "audit_class": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -648,7 +647,6 @@
       "audit_required": true,
       "audit_class": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -798,7 +796,6 @@
       "audit_required": true,
       "audit_class": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -842,7 +839,6 @@
       "audit_required": true,
       "audit_class": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -882,7 +878,6 @@
       "audit_required": true,
       "audit_class": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -1017,7 +1012,6 @@
       "audit_required": true,
       "audit_class": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -1067,7 +1061,6 @@
       "audit_required": true,
       "audit_class": "read-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1110,7 +1103,6 @@
       "audit_required": true,
       "audit_class": "read-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1271,7 +1263,6 @@
       "audit_required": true,
       "audit_class": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -1346,7 +1337,6 @@
       "audit_required": true,
       "audit_class": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -1387,7 +1377,6 @@
       "audit_required": true,
       "audit_class": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -1561,7 +1550,6 @@
       "audit_required": true,
       "audit_class": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -1604,7 +1592,6 @@
       "audit_required": true,
       "audit_class": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -1647,7 +1634,6 @@
       "audit_required": true,
       "audit_class": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -1691,7 +1677,6 @@
       "audit_required": true,
       "audit_class": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -1828,7 +1813,6 @@
       "audit_required": true,
       "audit_class": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -1877,7 +1861,6 @@
       "audit_required": true,
       "audit_class": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -1914,7 +1897,6 @@
       "audit_required": true,
       "audit_class": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -1961,7 +1943,6 @@
       "audit_required": true,
       "audit_class": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -2126,7 +2107,6 @@
       "audit_required": false,
       "audit_class": "read-sensitive",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -2346,7 +2326,6 @@
       "audit_required": true,
       "audit_class": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -2379,7 +2358,6 @@
       "audit_required": true,
       "audit_class": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -2553,7 +2531,6 @@
       "audit_required": true,
       "audit_class": "read-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2626,7 +2603,6 @@
       "audit_required": true,
       "audit_class": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -2699,7 +2675,6 @@
       "audit_required": true,
       "audit_class": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -2898,7 +2873,6 @@
       "audit_required": true,
       "audit_class": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -2939,7 +2913,6 @@
       "audit_required": true,
       "audit_class": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -3010,7 +2983,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -3068,7 +3040,6 @@
       "audit_required": true,
       "audit_class": "write-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -3377,7 +3348,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -3676,7 +3646,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -3850,7 +3819,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -4130,7 +4098,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -4191,7 +4158,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -4265,7 +4231,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -4380,7 +4345,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -5003,7 +4967,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -5063,7 +5026,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -5139,7 +5101,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -5276,7 +5237,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -5366,7 +5326,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -5517,7 +5476,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -5575,7 +5533,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -5626,7 +5583,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -5687,7 +5643,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -5741,7 +5696,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -5866,7 +5820,6 @@
       "audit_required": true,
       "audit_class": "write-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -5984,7 +5937,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -6035,7 +5987,6 @@
       "audit_required": true,
       "audit_class": "read",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -6105,7 +6056,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -6657,7 +6607,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -6793,7 +6742,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -6870,7 +6818,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -6940,7 +6887,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -7083,7 +7029,6 @@
       "audit_required": true,
       "audit_class": "write-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -7467,7 +7412,6 @@
       "audit_required": true,
       "audit_class": "write-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -7764,7 +7708,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -7816,7 +7759,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -7876,7 +7818,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -7928,7 +7869,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -8236,7 +8176,6 @@
       "audit_required": true,
       "audit_class": "read-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -8505,7 +8444,6 @@
       "audit_required": true,
       "audit_class": "write-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -8568,7 +8506,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -8634,7 +8571,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -8696,7 +8632,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -8759,7 +8694,6 @@
       "audit_required": true,
       "audit_class": "write-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -8817,7 +8751,6 @@
       "audit_required": true,
       "audit_class": "write-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -8917,7 +8850,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -9006,7 +8938,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -9368,7 +9299,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -9868,7 +9798,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -10197,7 +10126,6 @@
       "audit_required": true,
       "audit_class": "write-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -10253,7 +10181,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -10307,7 +10234,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -10360,7 +10286,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -10405,7 +10330,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"

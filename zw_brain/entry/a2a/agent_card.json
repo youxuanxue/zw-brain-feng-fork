@@ -14,7 +14,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -168,7 +167,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -209,7 +207,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -223,7 +220,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -237,7 +233,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -279,7 +274,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -293,7 +287,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -306,7 +299,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -360,7 +352,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -387,7 +378,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -401,7 +391,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -443,7 +432,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -457,7 +445,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -471,7 +458,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -485,7 +471,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -527,7 +512,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -541,7 +525,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -555,7 +538,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -569,7 +551,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -611,7 +592,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-sensitive",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -681,7 +661,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-trace",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -695,7 +674,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -751,7 +729,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -778,7 +755,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -806,7 +782,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -862,7 +837,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -876,7 +850,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -890,7 +863,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -907,7 +879,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -991,7 +962,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1079,7 +1049,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1129,7 +1098,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1213,7 +1181,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1232,7 +1199,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1249,7 +1215,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1283,7 +1248,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1456,7 +1420,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1474,7 +1437,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1492,7 +1454,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1525,7 +1486,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1542,7 +1502,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1591,7 +1550,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1609,7 +1567,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1627,7 +1584,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1645,7 +1601,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1663,7 +1618,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1697,7 +1651,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1732,7 +1685,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -1749,7 +1701,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1764,7 +1715,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1914,7 +1864,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1931,7 +1880,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1948,7 +1896,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1965,7 +1912,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -1999,7 +1945,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2084,7 +2029,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2152,7 +2096,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2169,7 +2112,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2187,7 +2129,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2205,7 +2146,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2291,7 +2231,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2376,7 +2315,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2393,7 +2331,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2411,7 +2348,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2429,7 +2365,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -2446,7 +2381,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2463,7 +2397,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-default",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -2479,7 +2412,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2497,7 +2429,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2569,7 +2500,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2695,7 +2625,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2782,7 +2711,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-normal",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2798,7 +2726,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -2815,7 +2742,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2834,7 +2760,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"
@@ -2853,7 +2778,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"

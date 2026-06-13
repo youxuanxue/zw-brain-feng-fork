@@ -10,6 +10,40 @@
 Outstanding items intentionally deferred from the current preflight gate set. Each entry must list
 the symptom, the deferred decision, and the trigger that forces a re-evaluation.
 
+## 2026-06-13 — render-debt 守卫 slug-grep 判据升级（上帝视角复核 #273 暴露的守卫设计缺陷）
+
+> #273 渲染债分诊清账过程中，上帝视角二次复核（67-agent 对抗式审计 + 人工 trace-to-consumer）
+> 暴露 render-debt 守卫的「已渲染」判据是纯 slug 字面量 grep，对 zw-brain「单一 system.snapshot
+> 读路径 + 注册表/NL 派发」架构系统性假阴性。现算状态见 `.testing/debt/debt-status.md`。
+
+- **render-debt 守卫 slug-grep 判据假阴性** — debt `render-guard-slug-grep-false-negative`（external，owner+trigger 跟踪）：
+  - **Where**：`scripts/check_webui_capability_rendered.py` —— 判「已渲染」用 `zw-brain-web/src`
+    下 capability slug **字面量 grep**。
+  - **Implication**：前端经**单一 `system.snapshot` 胖快照**（`/api/snapshot`，~32 文件）读数 +
+    `pages.generated.ts` 注册表派发 + a2a/NL 工具绑定触达的能力，前端无写死 slug → 守卫一律判
+    「未渲染」=系统性假阴性。本期 79 降级里 **`system.snapshot`（全站唯一读路径）即被误判降级**，
+    靠人工 trace 才接住；当前 5 条「假阴性/派发可达/读路径」豁免本质就是该缺陷的人工工作量。
+    `pages.generated.ts` 从 manifest webui 标志**生成**，当 webui 证据是循环论证——这次 67-agent
+    workflow 初报「35 误降」即被此循环信号污染，trace 后真值=1。
+  - **Why deferred**：升级判据属**可机械化**（解析 `useSnapshot→/api/snapshot` 端点映射反查 +
+    区分 pages.generated.ts 真实派发 vs 纯生成 + a2a/NL 绑定作渲染信号），但 ROI 待评估——当前
+    手工豁免成本低、缺陷已文档化（`docs/webui-capability-render-triage.md` 纠偏注记）；本 PR 是
+    分诊清账非工具重构，不扩边。
+  - **立项指针**：升级 `check_webui_capability_rendered.py` 把「已渲染」从 slug 字面量升级为
+    「webui 可达」——① `/api/snapshot` 读路径反查 ② pages.generated.ts 真实派发 vs 纯生成区分
+    （消除循环信号）③ a2a/NL 工具绑定作渲染信号；并在守卫文档固化「pages.generated.ts=生成物、
+    非独立证据」警示。
+  - **Trigger to re-evaluate**：(a) 再出现一次 webui-critical 能力被 slug-grep 误降、靠人工接住；
+    或 (b) 渲染/能力面工具化迭代立项窗口 → 升级判据，消除系统性假阴性，关债。
+  - **[2026-06-13 已关债·本 PR 实现]**：`check_webui_capability_rendered.py` 判据从纯 slug
+    字面量(LIT) 升级为 **webui 可达并集 LIT ∪ ROUTE ∪ PINNED**——ROUTE 专属 REST 路由（openapi
+    `x-zwbrain-skill-id` 现取 slug→路由，路由串在 src 即可达，自动认 system.snapshot 经
+    `/api/snapshot`）+ PINNED 契约测试钉死 webui（注册表派发/D2 基础能力的非循环人工锚，自动认
+    governance.iam_overview / tenant.policy.evaluate）。3 个架构假阴性由守卫**自动识别**、已从
+    手工豁免移除；台账只剩 NL/内置 Agent 工具可达（platform.docs.*）= 守卫**设计内**合理豁免。
+    回潮锁 `tests/test_webui_capability_render_guard.py`（5 测，防退回纯 slug-grep）。
+    `.debt.yaml` 现算 stale-fixed 已移除，本条留作审计链。
+
 ## 2026-06-08 — 0605 验收回合批次 2（T5 目录详情字段核账 / T7 行内编辑暂缓）
 
 > 批次 2 = T6 代理服务注册角色口径纠正（D54 GATE-1，已实现）+ T7 已注册 API 服务操作列（已实现）
@@ -1004,3 +1038,29 @@ trigger 关闭即可删除字段。
   覆盖前端取数口径正确性即可，真实基数缺口由 trigger 触发。
 - **Trigger to re-evaluate**: 上游（旧平台/客户）补「请求国家级数据」标记位，或国家平台上线后据真实
   转报流程产生 channel_class=national 申请 → 去 seed、真库直接出待转报单。
+
+## 2026-06-13 — WebUI 渲染债务分诊：borderline 真需求转债
+
+> 来源 = chore/webui-capability-render-triage（全文 `docs/webui-capability-render-triage.md`）。
+> 81 个「契约声称大堂供应、实际没渲染」能力逐个分诊后，2 个 NL 可达留台账、79 个诚实降级
+> （manifest `compatibility` 去 `webui`，能力+seed 保留、仍 live 在 REST/CLI/MCP/A2A）。
+> 「接大堂」本批 = 0：IA 已 freeze ≤10 页（D1/D8），无用户刚需面板缺位。以下 borderline
+> 能力**已降级（去 webui）**，但其用户侧需求若业务确认刚需，可另立项接面板复活——**复活前
+> 不预先占 IA 页位**，须走 product-dev 原型→审批，并把 manifest `compatibility` 补回 `webui`、
+> 接真实面板后从渲染台账除名。
+
+- **订阅/交付生命周期用户侧中断面**（`delivery.replace_or_cancel` / `subscription.terminate`
+  / `delivery.subscription.manage`）：撤回引发的替代-取消、订阅显式终止、持续订阅管理。
+  当前由后端编排触发（D56 写路径单源），无独立用户面板。
+  - **立项指针**：若 P4 交付域要给申请人/订阅方「自助中断/续订」用户面，立项接入 P4Delivery
+    子面板（非新顶级页）；当前 deliberately 不接，交付中断以后端编排 + 通知为准。
+- **目录条目撤回用户侧治理面**（`catalog.entry.withdraw`）：目录撤回治理动作当前由编目管理
+  流程承接，未独立成面板。
+  - **立项指针**：若 J2 编目管理要给部门管理员「条目撤回」显式操作面，立项接入 P5CatalogManageList
+    行内操作（受 policy 角色门控）；当前 deliberately 不接。
+- **服务评价面**（`service.rating.submit`）：交付完成后的可选服务评价环节，当前未接面板。
+  - **立项指针**：若产品要闭环「交付满意度」，立项接入 P4 交付完成后评价入口；当前 deliberately 不接。
+- **No mechanical check**：本条是「方向延后 + 立项指针」，非可 grep 的代码债——不建 `.debt.yaml`
+  assert（避免 §77 过度机械化误报）。渲染缺位本身由段 52 守卫覆盖（去 webui 后已退出 live+webui 集合）。
+- **Trigger to re-evaluate**：业务方确认上述任一为用户刚需 → 走 product-dev 立项，补 manifest
+  `webui` + 接面板，渲染台账据实更新。

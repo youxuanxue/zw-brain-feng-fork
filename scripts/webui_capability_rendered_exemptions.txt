@@ -7,91 +7,26 @@
 # 规则：
 #   - 守卫只拦【净新增】：新加的 live+webui 能力若无渲染消费者且不在本清单 → 红灯。
 #   - 还债 = 给它接真实面板渲染（接好后从本清单删除，否则守卫报「台账过期」），
-#     或确认其经 NL 加速器/通用派发可达 → 在该行 # 后标注 "NL 可达" 理由。
+#     或确认其经 NL 加速器/通用派发可达 → 在该行 # 后标注 "NL 可达" 理由，
+#     或诚实降级（manifest compatibility 去 webui，能力+seed 保留）→ 退出 live+webui 集合后从本清单删除。
 #   - 字面量 grep 有假阴性：本清单是「疑似未渲染」，不是「铁定死能力」。
 #
 # 禁止：为了消红灯把新能力随手塞进本清单而不写理由。新增豁免须 PR 描述说明。
 #
 # baseline 生成于 2026-05-29（god's-eye retrofit）。每行：slug  # 理由/待办（可选）
+#
+# 2026-06-13 分诊清账（chore/webui-capability-render-triage，详见 docs/webui-capability-render-triage.md）：
+#   原 81 行逐个分诊 → 经 NL/Agent 工具可达留台账（下方），77 个降 status/真死「去 webui」
+#   退出 live+webui 集合（manifest compatibility 移除 webui，能力本体与 seed 保留，仍 live 在
+#   REST/CLI/MCP/A2A）。净存量债务 81 → 0。
+#
+# 2026-06-13 守卫判据升级（根治 debt render-guard-slug-grep-false-negative，本 PR 实现）：
+#   守卫从纯 slug 字面量(LIT) 升级为 webui 可达并集 LIT ∪ ROUTE(专属路由) ∪ PINNED(契约测试钉死)。
+#   故以下 3 条**不再需要手工豁免**，由守卫自动识别（留此处记审计链，已从生效豁免移除）：
+#     - system.snapshot      → ROUTE：openapi /api/snapshot(x-zwbrain-skill-id) 经 useSnapshot.ts 消费
+#     - governance.iam_overview → PINNED：test_contract_projection 钉死 5 面 webui
+#     - tenant.policy.evaluate  → PINNED：test_contract_projection 钉死 5 面 webui
+#   本台账只剩**NL/内置 Agent 工具可达**这一守卫设计内的合理长期豁免（无专属路由/契约锚）。
 
-actor.projection.sync
-adapter.external.mapping.query
-adapter.health.probe
-application.grant.renew
-application.resource.submit
-approval.review_decide
-backflow.confirm
-capability.exposure.configure
-capability.package.register
-capability.version.submit
-catalog.duplicate.check
-catalog.entry.withdraw
-catalog.group.query
-catalog.manage_entry
-catalog.model.field.query
-catalog.model.query
-catalog.model.upsert
-catalog.resource.bind
-catalog.schema.mapping.upsert
-catalog.share_zone.query
-compliance.case.query
-compliance.metric.query
-delivery.access.grant
-delivery.exchange.plan
-delivery.exchange.publish
-delivery.exchange.start
-delivery.exchange.stop
-delivery.receipt.ingest
-delivery.replace_or_cancel
-delivery.status.explain
-delivery.subscription.manage
-delivery.view
-governance.dispute_list
-governance.dispute_view
-governance.iam_overview
-legacy.bsp.mapping.import
-legacy.migration.status.query
-legacy.sharezone.mapping.import
-metadata.catalog_item.query
-metadata.gather.evidence.query
-metadata.gather.evidence.upsert
-metadata.schema.discover
-metadata.schema.snapshot.upsert
-objection.case.assign
-objection.case.reject
-objection.metric.query
-objection.process.query
-ops.catalog.statistics.query  # 运营投影读能力，待 B1.1 后续面板承接
-ops.exchange.statistics.query  # 运营投影读能力，待 B1.1 后续面板承接
-org.projection.sync
-package.apply_tenant_policy
-package.configure_exposure
-package.exposure.matrix.query  # UI 查询面随 D52.c 退役（接入中心瘦身），能力保留给协议面（MCP/CLI）；复活须先有 owner 面板
-package.register_version
-platform.docs.read
-platform.docs.search
-projection.status.query
-provider.view
-recommendation.similar_catalog.suggest
-registry.artifact.export
-request.view
-require.intent.refine
-require.intent.review
-require.intent.submit
-require.resource.dispatch
-require.resource.match
-require.task.handoff
-resource.api.change
-resource.api.policy.update
-resource.api.revoke
-resource.manage_asset
-service.rating.submit
-subscription.terminate
-summary.confirm
-supplement.submit
-system.schema_info
-system.snapshot
-system.toggle_outage
-tenant.policy.evaluate
-zone.list
-zone.view
+platform.docs.read  # NL 可达 — PlatformGuideChatPanel.vue 经 AgentRuntime(内置 zw-platform-guide Agent) 把本 cap 作工具调用；入口=平台向导问答面板
+platform.docs.search  # NL 可达 — 同上，平台向导问答检索工具；入口=平台向导问答面板

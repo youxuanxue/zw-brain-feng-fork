@@ -77,7 +77,6 @@
   "execution_binding": "builtin",
   "config_change_class": "live",
   "compatibility": [
-    "webui",
     "api",
     "cli",
     "mcp",

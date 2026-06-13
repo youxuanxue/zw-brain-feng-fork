@@ -27,7 +27,6 @@
   "x-zwbrain-side-effects": [],
   "x-zwbrain-audit-class": "read-trace",
   "x-zwbrain-surfaces": [
-    "webui",
     "api",
     "cli",
     "mcp",

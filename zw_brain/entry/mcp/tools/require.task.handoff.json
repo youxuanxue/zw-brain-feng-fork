@@ -39,7 +39,6 @@
   ],
   "x-zwbrain-audit-class": "write-default",
   "x-zwbrain-surfaces": [
-    "webui",
     "api",
     "cli",
     "mcp",

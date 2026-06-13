@@ -43,7 +43,6 @@
   ],
   "x-zwbrain-audit-class": "write-critical",
   "x-zwbrain-surfaces": [
-    "webui",
     "api",
     "cli",
     "mcp",
