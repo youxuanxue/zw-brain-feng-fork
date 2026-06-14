@@ -1,0 +1,19 @@
+scope: alembic-migration-reintroduction
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-14
+kind: 决策签字
+evidence: >-
+  D58 — alembic 迁移回归 + 冷启动不再 DROP（反转 D23「alembic 整体删除 / drop_all+create_all」）。
+  架构 + 数据安全门：ensure_runtime_schema() 改为 alembic forward-migration 四态分支（空库→upgrade head 建全表 /
+  已纳管→upgrade head 续迁 / 存量库→stamp baseline 零 DDL 保数据后 upgrade head / 真漂移→raise SchemaDriftError 拒启），
+  **绝不再 drop_all**；reset_and_upgrade() 闸在 ZW_BRAIN_ALLOW_SCHEMA_RESET=1 之后（M5 fail-closed，仿 DevBypassInProductionError）。
+  alembic 工件随 wheel 打包到 zw_brain/_migrations/，开发态/wheel 安装态/迁移批 --reset-db 三态都能定位。
+  全文 docs/decisions/alembic-migration-reintroduction-D58.md。证据：tests/test_alembic_migration_d58.py 7 测全绿
+  （隔离临时库逐条钉死：空库建全部 75 表 + 存量库 stamp 后数据仍在不 DROP + prod reset 无 ALLOW env raise + upgrade head 幂等
+  + 真漂移 raise 数据原封不动）；wheel 实测含 zw_brain/_migrations/{alembic.ini,alembic/env.py,versions/*_baseline.py}。
+decision_only: true
+covers: []
+# 属架构 + 数据安全门（反转 D23 二次升级的 schema 生命周期决策）。本账本记产品研发负责人决策认可，
+# covers 留空：本条不抬任何 .feature 状态，是 schema 生命周期 / 数据安全的产品判断（无对应 InTest feature）。
+# 单作者 PR 走 Method B 手工补账本：signed_by + date 已由产品研发负责人填妥（薛娇 2026-06-14，
+# 随 PR 入库即签 D58 决策本体，非 PENDING）；merge 仍人工。

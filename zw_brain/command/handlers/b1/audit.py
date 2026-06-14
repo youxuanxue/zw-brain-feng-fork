@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 import zw_brain.shared.audit as audit_bus
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.handlers.b1._meta import enforce_tenant_scope, param_fingerprint
+from zw_brain.command.pipeline_ops import derive_audit_chain, derive_audit_result
 from zw_brain.shared.audit import index as audit_index
 from zw_brain.shared.runtime_tenant import (
     DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID,
@@ -44,18 +45,24 @@ def _list_audit_events(brain, deps, ctx) -> list[dict[str, Any]]:
         return deps.view.audit_events.list_all()  # Action C — read facade
     # 默认拉最近 500 条；早期是 SELECT * 拉 2000+ 行（含大 payload_json），
     # audit.list 与 compliance.case.query 撞 14-30s 慢。
-    events = [
-        {
-            "id": item.request_id,
-            "time": item.occurred_at.strftime("%m-%d %H:%M"),
-            "actor": item.actor,
-            "type": f"{item.skill_id}.{item.phase}",
-            "target": brain._audit_event_target(item),
-            "result": "ok",
-            "chain": "pending",
-        }
-        for item in store.list_audit_events(limit=500)
-    ]
+    # result/chain 由 item.phase + payload_json(decision/outcome/error) 现算，复用
+    # pipeline_ops.derive_audit_result/chain 的单一 口径（与 audit.event.anomaly 的
+    # 失败判据一致），不再对每行硬编码 result='ok'/chain='pending' —— 那会让审批驳回 /
+    # 熔断 denied / phase=error 的事件在 B1 时间线上一律被粉饰成成功（审计不诚实）。
+    events = []
+    for item in store.list_audit_events(limit=500):
+        result = derive_audit_result(item.phase, item.payload_json)
+        events.append(
+            {
+                "id": item.request_id,
+                "time": item.occurred_at.strftime("%m-%d %H:%M"),
+                "actor": item.actor,
+                "type": f"{item.skill_id}.{item.phase}",
+                "target": brain._audit_event_target(item),
+                "result": result,
+                "chain": derive_audit_chain(result),
+            }
+        )
     # Push filter into SQL: 不要拉 54K mappings 全部到 Python 再过滤；只取 audit-relevant 三类 + cap 200。
     for mapping in deps.repos.legacy_mapping.list_mappings(
         tenant_id=_DEFAULT_TENANT_ID,
@@ -85,9 +92,17 @@ def _replay_evidence_chain(brain, deps, ctx, dispute_id: str) -> dict[str, Any]:
         }
         for step in dispute.get("timeline", [])
     ]
-    # Related requests are declared on the dispute record (data-driven), not
-    # hardcoded — a real dispute carries its own linked request ids.
+    # Related requests / tickets / knowledge articles are all declared on the
+    # dispute record (data-driven), not hardcoded — a real dispute carries its
+    # own linked ids. The previous code pinned 2 demo TK-* and 2 demo KB-* ids
+    # ({TK-2026-04-25-014/015}, {KB-REDUCE-BURDEN-02/...}) that C-1 删演示单后
+    # match nothing in the real seed (zero disputes / zero TK·KB) —— a real
+    # dispute would never surface its evidence, a demo one would resurrect ids
+    # that no longer exist. Drive from the dispute's own relatedTicketIds /
+    # relatedKnowledgeArticleIds (mirrors relatedRequestIds); none → 诚实空态.
     related_request_ids = dispute.get("relatedRequestIds") or []
+    related_ticket_ids = dispute.get("relatedTicketIds") or []
+    related_article_ids = dispute.get("relatedKnowledgeArticleIds") or []
     audit_events = [
         item
         for item in brain.list_audit_events()
@@ -98,8 +113,8 @@ def _replay_evidence_chain(brain, deps, ctx, dispute_id: str) -> dict[str, Any]:
         "summary": dispute.get("aiSummary"),
         "evidenceChain": evidence,
         "auditEvents": audit_events,
-        "tickets": [item for item in deps.view.tickets.list_all() if item["id"] in {"TK-2026-04-25-014", "TK-2026-04-25-015"}],
-        "knowledgeArticles": [item for item in deps.view.knowledge.list_articles() if item["id"] in {"KB-REDUCE-BURDEN-02", "KB-TEMPLATE-BACKFLOW-01"}],
+        "tickets": [item for item in deps.view.tickets.list_all() if item["id"] in set(related_ticket_ids)],
+        "knowledgeArticles": [item for item in deps.view.knowledge.list_articles() if item["id"] in set(related_article_ids)],
     }
 
 

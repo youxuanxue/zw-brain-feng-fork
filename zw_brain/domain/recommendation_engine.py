@@ -19,11 +19,18 @@ from zw_brain.domain.models import (
     RecommendationRuleClauseRecord,
     RequirementHistoryRecord,
     RequirementSubmissionRecord,
+    ResourceAssetRecord,
 )
 from zw_brain.domain.recommendation_rule import RecommendationRuleRepo
 
 DEFAULT_SCORE_THRESHOLD = 0.1
 DEFAULT_TOP_K = 5
+
+# 不予共享码（access_policy_json.share_type=3，与 discovery_snapshot_projection 同源口径
+# + 源表 dc_resource_base_info DDL「1：无条件 2：有条件 3：不予共享」）。推荐安全边界：
+# shared_type=3 资源**结构性**排除出候选池，避免跨部门暴露不予共享数据
+# （engine-recommend-prefer.feature:50-55 负向场景 C_2499 类）。
+_NO_SHARE_TYPE = 3
 
 
 @dataclass
@@ -104,6 +111,9 @@ class RecommendationEngine:
                 select(CatalogItemRecord).where(CatalogItemRecord.tenant_id == tenant_id)
             ).scalars()
         )
+        # 推荐安全边界：shared_type=3（不予共享）资源对应的 catalog 在源头排除，
+        # 不进候选池——避免跨部门暴露不予共享数据（结构性，非评分降权）。
+        no_share_resource_codes = self._no_share_resource_codes(tenant_id)
         histories = list(
             self._session.execute(
                 select(RequirementHistoryRecord).where(
@@ -122,15 +132,33 @@ class RecommendationEngine:
         intent_tokens = _tokenize(intent_text)
         intent_org_value = (intent_org or "").strip()
 
+        # 结构性排除不予共享资源（shared_type=3）：先把「映射到不予共享资源」的 catalog
+        # 候选键全部算出来，两条入池路径（catalog_item / history fallback）一并排除。
+        # 候选键口径：catalog_item 用 catalog_code or id；history fallback 用 catalog_id。
+        # 不予共享资源经 resource_code（catalog_item.resource_code）或 resource_id（history）关联。
+        excluded_catalog_ids: set[str] = set()
+        if no_share_resource_codes:
+            for item in catalog_items:
+                if item.resource_code and item.resource_code in no_share_resource_codes:
+                    excluded_catalog_ids.add(item.catalog_code or item.id)
+            for h in histories:
+                rid = str(getattr(h, "resource_id", "") or "")
+                if h.catalog_id and rid and rid in no_share_resource_codes:
+                    excluded_catalog_ids.add(h.catalog_id)
+
         # 推荐候选池：CatalogItem ∪ history.catalog_id（fixture 场景下 catalog_item 可能没建，但 history 有 catalog_id）
         catalog_by_id: dict[str, dict[str, Any]] = {}
         for item in catalog_items:
             catalog_id_key = item.catalog_code or item.id
+            if catalog_id_key in excluded_catalog_ids:
+                continue  # 不予共享数据不跨部门暴露
             catalog_by_id[catalog_id_key] = {
                 "catalog_id": catalog_id_key,
                 "title": item.title or item.catalog_code,
             }
         for cid in history_count_by_catalog:
+            if cid in excluded_catalog_ids:
+                continue  # 同上：history fallback 也不得把不予共享 catalog 拉回候选
             if cid not in catalog_by_id:
                 # 用历史申请的 name 作为 catalog 标题占位（fixture 场景）
                 for h in histories:
@@ -164,6 +192,27 @@ class RecommendationEngine:
         if not ranked or ranked[0].score < self._score_threshold:
             return []
         return ranked[:top_k]
+
+    def _no_share_resource_codes(self, tenant_id: str) -> set[str]:
+        """tenant 内 access_policy_json.share_type==3（不予共享）的 resource_code 集合。
+
+        与 discovery_snapshot_projection._share_type_by_resource 同源口径（资源侧
+        access_policy_json.share_type），但只取「不予共享」一档供推荐排除用。返回 set
+        以便 catalog.resource_code 成员判定（O(1)）。
+        """
+        out: set[str] = set()
+        for asset in self._session.execute(
+            select(ResourceAssetRecord).where(ResourceAssetRecord.tenant_id == tenant_id)
+        ).scalars():
+            access = asset.access_policy_json or {}
+            raw = access.get("share_type")
+            try:
+                st = int(raw) if raw is not None else None
+            except (TypeError, ValueError):
+                st = None
+            if st == _NO_SHARE_TYPE and asset.resource_code:
+                out.add(str(asset.resource_code))
+        return out
 
     def register_manual_requirement(
         self,

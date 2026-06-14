@@ -8,6 +8,7 @@ license = { text = "Proprietary" }
 readme = "docs/deployment/sd-default-onboarding.md"
 dependencies = [
   "SQLAlchemy>=2.0",
+  "alembic>=1.13",  # D58 — forward-migration 取代冷启动 drop&recreate（反转 D23），存量库 baseline-stamp 不 DROP
   "PyJWT[crypto]>=2.10",
   "PyYAML>=6.0",
 ]
@@ -58,12 +59,19 @@ include = [
 
 [tool.hatch.build.targets.wheel.force-include]
 "zw-brain-web" = "zw_brain/_assets/zw-brain-web"
+# D58：alembic 迁移工件随 wheel 打包到 zw_brain/_migrations/，使生产 docker（pip-install wheel、
+# 从 site-packages 运行 zw-brain-rest）的 run_migrations()/ensure_runtime_schema() 能定位 alembic.ini
+# + alembic/（开发态仍用仓根 alembic.ini / alembic/ 跑 alembic CLI；migrate.py 两路径都解析）。
+"alembic.ini" = "zw_brain/_migrations/alembic.ini"
+"alembic" = "zw_brain/_migrations/alembic"
 
 [tool.ruff]
 line-length = 200          # Chinese-text codebase — 110 too tight, 200 keeps docstrings + JSON literals readable
 target-version = "py311"
 force-exclude = true
-extend-exclude = ["zw-brain-web/js/pages.js"]
+# alembic/versions/*：autogenerate 机生迁移文件，保留 alembic 自有格式（import 顺序 / mako 模板尾随空格），
+#   不纳入 ruff isort/whitespace 规则（标准做法；D58）。env.py / script.py.mako 仍受检（手写）。
+extend-exclude = ["zw-brain-web/js/pages.js", "alembic/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]

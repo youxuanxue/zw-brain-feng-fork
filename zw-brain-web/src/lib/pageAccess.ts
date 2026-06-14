@@ -139,6 +139,12 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   // 操作员」），补回 MANAGER 发起/提交入口、收口前后端劈叉（后端 hierarchy 本就放行 200）。
   'request.create': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
   'request.submit': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
+  // P3RequestDetail 有条件驳回（rejected）补件重提：复用 application.dept_approve.execute key
+  // （decision='resubmit'，conditional_approval.applicant_resubmit），申请人 OPERATER/MANAGER 发起。
+  // 与后端 policy.application.dept_approve.execute={ROLE_ORGAN_MANAGER,ROLE_ORGAN_OPERATER} set-equal
+  // （test_action_role_gates_aligned_with_backend_policy 守）；部门审核（approve/reject）路径在后端
+  // 另按 ctx.role==MANAGER 二次门控，前端 P3ReviewDetail 审批面承接，不在本详情页发审批决定。
+  'application.dept_approve': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
   // P3RequestDetail 撤回 / 暂停授权（write-critical）。j1-credential-revoke 决策 A（已签字）：
   // 撤回 = 业务运营员合规驱动 + 申请人本人主动放弃（owner 校验在后端）；暂停 = 业务运营员。
   // 与后端 policy.py 严格 set-equal（test_role_codes_alignment 守）。

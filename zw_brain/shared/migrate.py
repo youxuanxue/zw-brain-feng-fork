@@ -1,12 +1,31 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 from sqlalchemy import create_engine, inspect, text
 
-from zw_brain.domain.models import Base
+import zw_brain.domain.models  # noqa: F401 — 副作用：注册全部 ORM 表到 Base.metadata（alembic env.py / 反射对账依赖）
 from zw_brain.shared.db import get_database_url
 
-# alembic 删除（D23 二次升级）；schema 用 SQLAlchemy Base.metadata 管理（drop_all + create_all）。
-# REQUIRED_TABLES / REQUIRED_COLUMNS 保留为运行时自检清单（独立于 Base 的反射式校验）。
+# ════════════════════════════════════════════════════════════════════════════
+# Schema 演进 = alembic forward-migration（D58，反转 D23 二次升级）
+# ════════════════════════════════════════════════════════════════════════════
+# D23 当年把 alembic 整体删除、冷启动走 drop_all+create_all：任何 schema 漂移都
+# DROP 全表重建。这对**生产试用库**是数据丢失风险（一次列名漂移 = 整库清空）。
+# D58 反转：用 alembic 向前迁移取代「漂移即 DROP」。
+#   - 空库          → run_migrations()（upgrade head）建全部 75 表；
+#   - 有 alembic_version → run_migrations()（upgrade head）幂等续迁；
+#   - 有数据但无版本表（存量库）→ stamp baseline（零 DDL、保数据）再 upgrade head；
+#   - prod 下检测真漂移且无迁移可上 → raise 拒启（绝不 DROP）。
+# reset_and_upgrade() 保留但闸在 ZW_BRAIN_ALLOW_SCHEMA_RESET=1 之后（M5 fail-closed）。
+#
+# REQUIRED_TABLES / REQUIRED_COLUMNS 保留为运行时自检清单（独立于 Base 的反射式校验），
+# 用来在 ensure_runtime_schema 里判断「存量库 schema 是否与当前模型一致」从而决定 stamp/迁移分支。
+
+# alembic baseline revision（alembic/versions/*_baseline.py 的 revision id）。
+# upgrade=建全部 75 表（== Base.metadata.create_all），downgrade=drop 全部。
+BASELINE_REVISION = "77da8251e66d"
 
 REQUIRED_TABLES = {
     "runtime_state",
@@ -127,37 +146,193 @@ REQUIRED_COLUMNS = {
     "exchange_metric_projection": {"metric_scope", "delivery_code", "exchange_count", "success_count", "failed_count", "summary_json"},
 }
 
+def _resolve_alembic_paths() -> tuple[Path, Path]:
+    """定位 alembic.ini + alembic/ —— 兼容开发态（仓根）与 wheel 安装态（打包进 package）。
+
+    两种部署形态：
+      - 开发态：migrate.py 在 <repo>/zw_brain/shared/ → parents[2] = 仓根，alembic.ini/alembic/ 在仓根；
+      - 生产 wheel：force-include 把它们打到 zw_brain/_migrations/（与本模块同 package），
+        site-packages 里没有仓根 alembic.ini —— 故优先解析 package 内的 _migrations/。
+    优先 package 内（生产路径），回落仓根（开发路径），保证两端 run_migrations 都能定位。
+    """
+    pkg_migrations = Path(__file__).resolve().parents[1] / "_migrations"  # zw_brain/_migrations/
+    repo_root = Path(__file__).resolve().parents[2]                       # 仓根
+    for base in (pkg_migrations, repo_root):
+        ini = base / "alembic.ini"
+        script_dir = base / "alembic"
+        if ini.is_file() and script_dir.is_dir():
+            return ini, script_dir
+    # 都不存在 → 回落仓根（让 alembic 报清晰的 FileNotFoundError，而非静默走错路径）。
+    return repo_root / "alembic.ini", repo_root / "alembic"
+
+
+_ALEMBIC_INI, _ALEMBIC_DIR = _resolve_alembic_paths()
+
+_ALLOW_SCHEMA_RESET_ENV = "ZW_BRAIN_ALLOW_SCHEMA_RESET"
+_PROD_DEPLOY_MODES = {"prod", "production"}
+
+
+class SchemaDriftError(RuntimeError):
+    """生产模式检测到真实 schema 漂移、且无迁移可向前应用 → 拒启（绝不 DROP）。
+
+    D58 fail-closed：drop_all 是数据丢失风险。生产试用库若出现与当前模型不一致的
+    schema，正确做法是写一条向前迁移再 upgrade，而不是清库。在没有可上迁移时直接
+    拒绝启动，把问题暴露给运维（要么补迁移、要么显式 ALLOW_SCHEMA_RESET 走重置）。
+    """
+
+
+class SchemaResetForbiddenError(RuntimeError):
+    """reset_and_upgrade()（drop_all+create_all）在未显式开 ALLOW_SCHEMA_RESET 时被调 → 拒绝。
+
+    M5 fail-closed 姿态（仿 DevBypassInProductionError）：破坏性重置必须显式承认。
+    """
+
+
+def _is_prod_deploy_mode() -> bool:
+    # 复用既有 deploy-mode 信号（ZW_BRAIN_DEPLOY_MODE），不另造平行 prod flag。
+    return os.environ.get("ZW_BRAIN_DEPLOY_MODE", "").strip().lower() in _PROD_DEPLOY_MODES
+
+
+def _schema_reset_allowed() -> bool:
+    return os.environ.get(_ALLOW_SCHEMA_RESET_ENV, "").strip() == "1"
+
+
+def _alembic_config():
+    """构造指向本仓 alembic.ini / alembic/ + 真实 DB URL 的 alembic Config（编程式调用）。"""
+    from alembic.config import Config
+
+    cfg = Config(str(_ALEMBIC_INI))
+    cfg.set_main_option("script_location", str(_ALEMBIC_DIR))
+    cfg.set_main_option("sqlalchemy.url", get_database_url())
+    return cfg
+
+
+def _current_db_revision() -> str | None:
+    """读 alembic_version 表里的当前 revision；无版本表 → None。"""
+    engine = create_engine(get_database_url(), future=True)
+    try:
+        inspector = inspect(engine)
+        if "alembic_version" not in inspector.get_table_names():
+            return None
+        with engine.connect() as conn:
+            row = conn.execute(text("SELECT version_num FROM alembic_version")).fetchone()
+            return row[0] if row else None
+    finally:
+        engine.dispose()
+
+
+def _schema_matches_baseline() -> bool:
+    """存量库 schema 是否与当前模型一致（REQUIRED_TABLES/COLUMNS 全满足）。
+
+    一致 → 可安全 stamp baseline（零 DDL）；不一致 → 真漂移，需迁移而非 stamp。
+    """
+    engine = create_engine(get_database_url(), future=True)
+    try:
+        inspector = inspect(engine)
+        tables = set(inspector.get_table_names())
+        if not REQUIRED_TABLES.issubset(tables):
+            return False
+        for table_name, required_columns in REQUIRED_COLUMNS.items():
+            columns = {column["name"] for column in inspector.get_columns(table_name)}
+            if not required_columns.issubset(columns):
+                return False
+        return True
+    finally:
+        engine.dispose()
+
+
+def _db_is_empty() -> bool:
+    """库里除 alembic_version 外没有任何业务表 → 视作空库。"""
+    engine = create_engine(get_database_url(), future=True)
+    try:
+        tables = set(inspect(engine).get_table_names())
+        tables.discard("alembic_version")
+        return not tables
+    finally:
+        engine.dispose()
+
+
+def run_migrations() -> None:
+    """alembic upgrade head（编程式）。建表 / 向前迁移的唯一入口（D58）。"""
+    from alembic import command
+
+    command.upgrade(_alembic_config(), "head")
+
+
+def stamp_baseline_if_legacy() -> bool:
+    """存量库（非空 + 无 alembic_version + schema 与模型一致）→ stamp baseline（零 DDL、保数据）。
+
+    返回 True 表示执行了 stamp；False 表示不适用（空库 / 已有版本表 / schema 不一致）。
+    """
+    from alembic import command
+
+    if _current_db_revision() is not None:
+        return False  # 已纳管
+    if _db_is_empty():
+        return False  # 空库，走 run_migrations 建表，不 stamp
+    if not _schema_matches_baseline():
+        return False  # 真漂移，不能假装 baseline
+    command.stamp(_alembic_config(), BASELINE_REVISION)
+    return True
+
 
 def upgrade() -> None:
-    """Create all tables defined on Base.metadata. Replaces alembic upgrade (alembic 删除, D23 二次升级)."""
-    engine = create_engine(get_database_url(), future=True)
-    Base.metadata.create_all(bind=engine)
+    """建表入口（保留旧名兼容历史调用）。空库直接 run_migrations。
+
+    历史上 upgrade() = create_all；现收口到 alembic（upgrade head 对空库等价建全部 75 表）。
+    """
+    run_migrations()
 
 
 def reset_and_upgrade() -> None:
-    """Drop all existing tables and recreate from Base.metadata. Drop & recreate (alembic 删除, D23 二次升级)."""
+    """Drop 全表后重建（破坏性）。仅在 ZW_BRAIN_ALLOW_SCHEMA_RESET=1 时可调，否则 raise（M5）。
+
+    保留供「显式重置」路径（migration_batch.py --reset-db / 开发态 rebuild），绝不在
+    ensure_runtime_schema 自动路径里被调（D58：漂移即 DROP 已退役）。
+    """
+    if not _schema_reset_allowed():
+        raise SchemaResetForbiddenError(
+            "reset_and_upgrade() drops all tables (data loss). 显式破坏性重置必须设置 "
+            f"{_ALLOW_SCHEMA_RESET_ENV}=1 才能调用（M5 fail-closed，D58）。"
+            "生产/试用库严禁此路径；正确演进 schema 应写 alembic 向前迁移后 upgrade head。"
+        )
     engine = create_engine(get_database_url(), future=True)
     with engine.begin() as conn:
         inspector = inspect(conn)
         for table_name in inspector.get_table_names():
             conn.execute(text(f'DROP TABLE IF EXISTS "{table_name}"'))
     engine.dispose()
-    upgrade()
+    run_migrations()
 
 
 def ensure_runtime_schema() -> None:
-    """Verify required tables/columns exist; reset if not (drop & recreate)."""
-    engine = create_engine(get_database_url(), future=True)
-    inspector = inspect(engine)
-    tables = set(inspector.get_table_names())
-    if not REQUIRED_TABLES.issubset(tables):
-        engine.dispose()
-        reset_and_upgrade()
+    """冷启动 schema 收敛（D58：forward-migration，绝不 DROP）。
+
+    分支：
+      - 有 alembic_version → run_migrations()（幂等 upgrade head，续迁）；
+      - 无版本表 + 空库     → run_migrations()（建全部 75 表）；
+      - 无版本表 + 有数据 + schema 与模型一致（存量库）→ stamp baseline（零 DDL、保数据）后 upgrade head；
+      - 无版本表 + 有数据 + schema 真漂移 → 生产模式 raise SchemaDriftError 拒启（绝不 DROP）；
+        非生产模式同样 raise（开发者应显式 ALLOW_SCHEMA_RESET 走 reset，或补迁移），不再静默 DROP。
+    """
+    if _current_db_revision() is not None:
+        run_migrations()
         return
-    for table_name, required_columns in REQUIRED_COLUMNS.items():
-        columns = {column["name"] for column in inspector.get_columns(table_name)}
-        if not required_columns.issubset(columns):
-            engine.dispose()
-            reset_and_upgrade()
-            return
-    engine.dispose()
+
+    if _db_is_empty():
+        run_migrations()
+        return
+
+    # 有数据但无 alembic_version：存量库或真漂移。
+    if _schema_matches_baseline():
+        stamp_baseline_if_legacy()
+        run_migrations()
+        return
+
+    # 有数据 + schema 与当前模型不一致 = 真漂移，无迁移可上 → 拒启（绝不 DROP，D58）。
+    mode = "production" if _is_prod_deploy_mode() else "non-production"
+    raise SchemaDriftError(
+        f"DB 非空、无 alembic_version、且 schema 与当前模型不一致（真实漂移，{mode}）。"
+        "D58：绝不 drop_all 重建（数据丢失风险）。请补一条 alembic 向前迁移后 upgrade head；"
+        f"如确认可丢弃数据，显式设置 {_ALLOW_SCHEMA_RESET_ENV}=1 走 reset_and_upgrade()。"
+    )

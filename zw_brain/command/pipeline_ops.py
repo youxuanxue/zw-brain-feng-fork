@@ -249,6 +249,44 @@ def enqueue_anchor(
 # ───────────────────────────────────────────────────────────────────────────
 
 
+def derive_audit_result(
+    phase: str | None,
+    payload: dict[str, Any] | None = None,
+) -> str:
+    """Derive an audit-row ``result`` from event phase + payload — single 口径.
+
+    Mirrors the failure predicate that ``AuditStore.query_outcome_rows`` /
+    ``audit.event.anomaly`` use (``phase == 'error' or outcome == 'denied' or
+    has_error``), so the B1 audit timeline (audit.list) reports the *same*
+    success/failure verdict the anomaly scanner would. ``decision == 'reject'``
+    is also treated as a failure so审批驳回 surfaces honestly. Returns
+    ``"failed"`` for a failed/denied event, otherwise ``"ok"`` —— 不再硬编码
+    常量 ``"ok"``。
+    """
+    pl = payload or {}
+    if str(phase or "") == "error":
+        return "failed"
+    if pl.get("error") is not None:
+        return "failed"
+    outcome = pl.get("outcome")
+    if isinstance(outcome, str) and outcome == "denied":
+        return "failed"
+    decision = pl.get("decision")
+    if isinstance(decision, str) and decision in {"reject", "rejected", "deny", "denied"}:
+        return "failed"
+    return "ok"
+
+
+def derive_audit_chain(result: str) -> str:
+    """锚定链占位态由 ``result`` 现算 —— 单一 口径（pending / n/a）。
+
+    与 ``append_audit_feed`` 历来的 ``"pending" if result != "failed" else
+    "n/a"`` 完全一致，提取为函数让 DB 时间线（audit.py）复用同一派生，不再硬编码
+    常量 ``"pending"``。
+    """
+    return "pending" if result != "failed" else "n/a"
+
+
 def append_audit_feed(
     snapshot: dict[str, Any],
     event_type: str,
@@ -274,7 +312,7 @@ def append_audit_feed(
             "type": event_type,
             "target": target,
             "result": result,
-            "chain": "pending" if result != "failed" else "n/a",
+            "chain": derive_audit_chain(result),
         }
     )
 

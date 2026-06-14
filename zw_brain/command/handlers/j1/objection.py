@@ -305,21 +305,100 @@ def handler_objection_case_accept(deps: HandlerDeps, ctx: SkillContext, payload:
             next_status = "platform_investigating"
     return _transition_objection_case(brain, deps, ctx, objection_id, next_status, "accept", "受理异议", payload)
 
+def _legal_assign_target(deps: HandlerDeps, objection_id: str) -> str:
+    """按维度 + 当前态派生 assign 的**合法**落点态（仿 D57 accept 的维度分支）.
+
+    分发核查（assign）在真实流里走两段：submitted → platform_investigating（平台受理转
+    核查）、platform_investigating → provider_investigating（分发到部门）。此前 assign
+    硬编码默认 provider_investigating，对一个 submitted 的 5 维度 case 是**非法跳转**
+    （submitted 只允许 → platform_investigating / rejected），必 409 —— 与 escalate
+    旧硬编码 "escalated" 同一类暗病。这里只在既有合法迁移表里取一条合法边，不增删任何
+    迁移（非状态机变更，D28 安全）。generic 兜底维度也按其迁移表取合法边。
+    """
+    from zw_brain.domain.objection_state import (  # noqa: PLC0415
+        ALLOWED_TRANSITIONS_BY_DIMENSION,
+        dimension_of,
+    )
+    from zw_brain.domain.repositories.objection import ObjectionRepository  # noqa: PLC0415
+
+    record = deps.repos.objection.get_case(objection_id, tenant_id=_DEFAULT_TENANT_ID)
+    if record is None:
+        # 不存在的 case 交给下游 transition 抛 NotFoundError，这里保持原默认形态。
+        return "provider_investigating"
+    evidences = deps.repos.objection.list_evidence(objection_id)
+    dimension = dimension_of(record, evidences)
+    table = ALLOWED_TRANSITIONS_BY_DIMENSION.get(dimension) or ObjectionRepository.TRANSITIONS
+    raw_allowed = table.get(record.status, frozenset())
+    allowed = set(raw_allowed)
+    # 分发核查的偏好落点：优先「分发到部门」，其次「平台受理转核查」（与真实两段流一致）。
+    for preferred in ("provider_investigating", "platform_investigating"):
+        if preferred in allowed:
+            return preferred
+    # 无核查类合法边（如 resolved / 终态）→ 回落原默认，让 transition 走既有拒绝口径。
+    return "provider_investigating"
+
+
 def handler_objection_case_assign(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    target_status = str(payload.get("target_status", "provider_investigating"))
-    return _transition_objection_case(brain, deps, ctx, str(payload["objection_id"]), target_status, "assign", "分发核查", payload)
+    objection_id = str(payload["objection_id"])
+    # 显式 target_status 优先（既有调用方按段传 platform/provider）；未传则按维度+当前态
+    # 派生**合法**目标，不再默认非法的 provider_investigating（D57 accept 同款机械修）。
+    explicit = payload.get("target_status")
+    target_status = str(explicit) if explicit else _legal_assign_target(deps, objection_id)
+    return _transition_objection_case(brain, deps, ctx, objection_id, target_status, "assign", "分发核查", payload)
 
 def handler_objection_case_close(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
     return _transition_objection_case(brain, deps, ctx, str(payload["objection_id"]), "closed", "close", "关闭异议", payload)
 
+def _escalate_objection_case(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
+    """事件式升级督办 —— emit 一条 escalate 过程事件 + 进 业务运营员督办队列，**不改 status**.
+
+    对齐已签 j1-objection-authz.feature:46「O501 升级到 BUSIAUDIT 督查队列（不是改 status
+    而是新增 escalate 事件）」。此前 escalate 走 _transition_objection_case(...,"escalated")
+    —— 对 5 业务维度 case 必 409（escalated 不在 5 维度迁移表里），且即便对 generic 维度成功
+    也是**状态式**升级（污染主 status，与签字语义相悖）。
+    改为事件式：repo.add_process(action_type=escalate) 落库一条督办事件（不触 status），督办
+    标记由该事件存在性现算（list_supervised_cases / is_supervised），业务运营员工作台「待督办」
+    队列据此可见。无新 case 列、无 schema 变更、状态机语义零变更。
+    """
+    deps = brain._get_handler_deps()  # Action A commit 3: bridge helper to deps.repos
+    role = str(payload.get("role", ctx.role))
+    objection_id = str(payload["objection_id"])
+
+    def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+        repo = deps.repos.objection
+        try:
+            record = repo.add_process(
+                objection_id,
+                node_name=str(payload.get("node_name", "升级督办")),
+                action_type=repo.ESCALATE_ACTION_TYPE,
+                action_result=str(payload.get("action_result", "escalated")),
+                handler_org_id=payload.get("handler_org_id"),
+                handler_snapshot_json={"actor": actor, "role": role}
+                | safe_json(payload.get("handler_snapshot_json") or {}),
+                opinion=payload.get("opinion") or payload.get("escalate_reason"),
+                evidence=payload.get("evidence") or [],
+            )
+        except KeyError as exc:
+            raise NotFoundError(objection_id) from exc
+        # 审计 feed 记一条升级事件（事件式闭环可回放），不改 case.status。
+        deps.append_audit_feed("objection.case.escalate", objection_id, "ok", actor)
+        return objection_ser.case_to_dict(record) | {
+            "audit_id": audit_id,
+            "supervised": True,
+            "escalated": True,
+        }
+
+    return deps.write(ctx, {"objection_id": objection_id} | payload, mutation)
+
+
 def handler_objection_case_escalate(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _transition_objection_case(brain, deps, ctx, str(payload["objection_id"]), "escalated", "escalate", "升级督办", {"action_result": "escalated"} | payload)
+    return _escalate_objection_case(brain, deps, ctx, payload)
 
 def handler_objection_case_reject(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.

@@ -1,5 +1,41 @@
 import { test, expect, type Page } from '@playwright/test';
-import { gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
+import { E2E_BASE_URL, gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
+
+/**
+ * 经 API 链铸一条 rejected（legacy 3 驳回）申请，返回 request_id（或 null）。
+ *  request.create(草稿) → request.submit(submitted) → application.platform_approve(受理驳回 → rejected)
+ * 用于驱动 P3 有条件驳回→重提腿（j1-approval-conditional.feature:55-62）。失败返 null 让用例 skip，
+ * 不把环境噪声当断言失败。
+ */
+async function mintRejectedRequest(page: Page): Promise<string | null> {
+  // 取一条可申请的真实资源 id（P2 发现页 discovery.resources 只列已发布 active，r.id 即申请入参）。
+  const snapResp = await page.request.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
+  if (!snapResp.ok()) return null;
+  const snap = (await snapResp.json()) as { discovery?: { resources?: Array<Record<string, unknown>> } };
+  const list = snap.discovery?.resources ?? [];
+  const resourceId = String(list[0]?.id ?? '');
+  if (!resourceId) return null;
+
+  const createResp = await page.request.post(`${E2E_BASE_URL}/api/skills/request.create`, {
+    data: { role: 'ROLE_ORGAN_OPERATER', resource_id: resourceId, purpose: 'e2e 有条件驳回重提链路', confirmed: true },
+  });
+  if (!createResp.ok()) return null;
+  const created = (await createResp.json()) as Record<string, unknown>;
+  const requestId = String(created.requestId ?? created.request_id ?? created.id ?? '');
+  if (!requestId) return null;
+
+  const submitResp = await page.request.post(`${E2E_BASE_URL}/api/skills/request.submit`, {
+    data: { role: 'ROLE_ORGAN_OPERATER', request_id: requestId, confirmed: true },
+  });
+  if (!submitResp.ok()) return null;
+
+  // 受理驳回（业务运营员）：submitted → rejected。
+  const rejectResp = await page.request.post(`${E2E_BASE_URL}/api/skills/application.platform_approve`, {
+    data: { role: 'ROLE_BUSIAUDIT', request_id: requestId, decision: 'reject', note: 'e2e 受理驳回', confirmed: true },
+  });
+  if (!rejectResp.ok()) return null;
+  return requestId;
+}
 
 test.beforeEach(async ({ page }, testInfo) => {
   await skipUnlessBackend(page, testInfo);
@@ -133,6 +169,45 @@ test('P5 反向编目：部门管理员可生成字段建议', async ({ page }) 
   await page.waitForTimeout(800);
   await expect(page.locator('body')).toContainText('字段建议已生成');
   await expect(page.locator('body')).not.toContainText('missing required input field');
+});
+
+test('P5 反向编目：字段候选被接住并渲染成可勾选/可改的候选表（j2 修订→确认入库）', async ({ page }) => {
+  // 接缝诚实化 A：suggestFields 接住 res.data.fields，渲染候选表（含敏感级），
+  // 确认后随 create 发 draft_field_suggestions。本用例钉死「候选被接住」这一断点
+  // （此前 res.data 被丢弃，字段链断在前端）。
+  await setRole(page, 'ROLE_ORGAN_MANAGER');
+  await gotoHash(page, '#/provider/wizard/reverse-catalog');
+  await page.locator('.gov-select').selectOption({ index: 1 });
+  await page.getByTestId('reverse-suggest-btn').click();
+  await page.waitForTimeout(800);
+  await expect(page.locator('body')).toContainText('字段建议已生成');
+  // 候选表出现 + 至少一行字段（含勾选框 / 中文名输入框 / 敏感级下拉）。
+  const candidates = page.getByTestId('reverse-field-candidates');
+  await expect(candidates).toBeVisible();
+  const rows = candidates.locator('tbody tr');
+  expect(await rows.count()).toBeGreaterThan(0);
+  await expect(rows.first().locator('input[type="checkbox"]')).toBeVisible();
+  await expect(candidates.locator('select')).not.toHaveCount(0);
+});
+
+test('P3 有条件驳回 → 申请人重提腿可点（rejected 不再死按钮）', async ({ page }) => {
+  // 接缝诚实化 B：rejected（受理/审核驳回）态下「补件 / 重新提交」可点，
+  // 走 application.dept_approve {decision:'resubmit'}（applicant_resubmit: rejected → submitted）。
+  // 此前 canResubmit 仅覆盖 need-fix，rejected 态按钮哑火。
+  await setRole(page, 'ROLE_ORGAN_OPERATER');
+  const requestId = await mintRejectedRequest(page);
+  test.skip(!requestId, '无法铸 rejected 申请（缺可申请资源或链路未通），跳过腿断言');
+  await gotoHash(page, `#/request-flow/request/${requestId}`);
+  await page.waitForTimeout(600);
+  // 详情头显示「已驳回」，重提按钮可见可点。
+  await expect(page.locator('body')).toContainText('已驳回');
+  const resubmitBtn = page.getByTestId('resubmit-btn');
+  await expect(resubmitBtn).toBeVisible();
+  await resubmitBtn.click();
+  await page.waitForTimeout(800);
+  // 不漏工程字段名 + 给出已重新提交的业务提示（非「当前状态不支持」）。
+  await expect(page.locator('body')).not.toContainText('request_id');
+  await expect(page.locator('body')).toContainText(/已重新提交|已提交/);
 });
 
 test('P5 反向编目：业务运营员进不了向导与部门审收件箱（D57⑧ 双面）', async ({ page }) => {

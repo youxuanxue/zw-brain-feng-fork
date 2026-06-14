@@ -106,6 +106,9 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
     )
     pending_applications = _count_pending_applications(application_repo, tenant_id)
     pending_objections = len(objection_repo.list_cases(tenant_id=tenant_id, status="submitted"))
+    # 待督办异议 = 有 escalate 督办事件且未终结的 case（事件式升级闭环，j1-objection-authz.feature:46）。
+    # 督办标记由 objection_process 现算（不改 case.status），零积压不投（无空死链）。
+    pending_supervised = len(objection_repo.list_supervised_cases(tenant_id=tenant_id))
     pending_demands = sum(
         1
         for item in supply_repo.list_demands(tenant_id=tenant_id)
@@ -134,6 +137,16 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
             "待受理",
             "#/provider/inbox/objection",
             "{n} 条异议待受理",
+        ),
+        (
+            # 事件式升级闭环（j1-objection-authz.feature:46）：escalate 事件把 case 推进
+            # 业务运营员督办队列，不改 status。深链既有异议收件箱（同收件箱按督办标记筛）。
+            "backlog-objection-supervised",
+            "待督办异议",
+            pending_supervised,
+            "待督办",
+            "#/provider/inbox/objection",
+            "{n} 条异议待督办抓办",
         ),
         (
             "backlog-demand",

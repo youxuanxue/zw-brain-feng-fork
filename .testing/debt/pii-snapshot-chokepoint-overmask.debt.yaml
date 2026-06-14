@@ -1,0 +1,17 @@
+slug: pii-snapshot-chokepoint-overmask
+title: "WebUI snapshot PII 兜底 chokepoint 因过度脱敏回退——盲 mask_default 把展示用 name 键也脱了"
+date: 2026-06-14
+severity: low
+owner: 产品研发负责人
+trigger: >
+  推荐安全边界 PR 的 PII 兜底 chokepoint（redact_webui_snapshot 末端整树过 mask_default）
+  把**展示用**裸 `name` 键（资源/目录发布队列标题、字段元数据字段名）当 PII 脱敏
+  （'链路验证库表资源123' → '链**********'），破坏 publish_queue 按标题定位 + B2 字段回显，
+  e2e 实证 3 feature 掉绿（b2_field_metadata / p0_feedback_0611 链路1·链路2 资源队列）。
+  根因：裸 `name` 键在本仓既是 PII 人名又是展示标题，整树盲脱敏无法区分；per-projection
+  脱敏（main 既有）才有上下文。本 PR 回退盲兜底（return out），PII 仍由各投影 mask 覆盖。
+  若要安全网，须设计**可区分 PII name 与展示 name** 的方案（如按 projection 子树白名单 /
+  字段语义标注），非整树 mask_default。属语义设计，待立项。
+assert:
+  # 是否需要、以及如何做一个不误伤展示字段的 PII 安全网，属语义设计裁决，非可机械化判定。
+  kind: external

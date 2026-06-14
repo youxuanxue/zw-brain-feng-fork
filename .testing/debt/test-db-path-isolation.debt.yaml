@@ -9,6 +9,13 @@ trigger: >
   级 autouse 隔离 fixture 统一兜底；同时把依赖"环境默认 seed DB"的消费测试 pin 到 SEED_DB
   （已对 test_provider_snapshot_projection 的 2 条做了示范修法）。触发时机：再有 leak 受害
   测试在全套 pytest 暴露，或专项测试健壮性立项。
+note: >
+  核账 2026-06-14：#194 已落地 tests/conftest.py 级 function-scoped autouse 隔离 fixture
+  （_isolate_db_env + _shadow_db，post-test 还原 env + dispose/clear zw_brain.shared.db._ENGINE_CACHE），
+  即 trigger 中「加 tests/conftest.py 级 autouse 隔离 fixture 统一兜底」分支已实现，跨模块 DB
+  泄漏的实际风险已由该兜底大幅收口。残留为各 fixture 自身仍裸改 ZW_BRAIN_DB_PATH（未逐个补
+  post-yield 还原），autouse 是事后兜底而非源头修复。severity 未擅自降级——是否据兜底已落地
+  下调由 owner 判（建议下次接触测试隔离时一并评估降级或关账）。
 assert:
   # 现算无法廉价精确判定（"fixture 是否还原"需 AST 级分析，裸 grep 会误判——如 _iaf_rest_http.py
   # 实际用 saved_env+finally 还原却被字符串启发式误标）。external：owner+trigger 触发即升级。

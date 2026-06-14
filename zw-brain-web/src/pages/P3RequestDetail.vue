@@ -66,7 +66,13 @@ const rawStatus = computed(() => String(req.value?.status ?? '').trim());
 const canSubmitRequest = computed(() => canPerformAction('request.submit', getProductRole().value));
 // 草稿态（0605#8）：从 P2「申请资源」生成的草稿单，用户在此查看无误后「确认提交申请」才进审批。
 const isDraft = computed(() => rawStatus.value === 'draft');
-const canResubmit = computed(() => rawStatus.value === 'need-fix');
+// 两条「申请人重提」腿（j1-approval-conditional.feature:55-62）：
+//   need-fix（退回补正）→ request.submit；
+//   rejected（受理/审核驳回，legacy 3 驳回）→ application.dept_approve {decision:'resubmit'}
+//     （conditional_approval.applicant_resubmit：rejected → submitted, round+1）。
+// 两态都让申请人原地编辑字段后重提，故 canResubmit 同时覆盖。
+const isRejected = computed(() => rawStatus.value === 'rejected');
+const canResubmit = computed(() => isRejected.value || rawStatus.value === 'need-fix');
 
 // 撤回 / 暂停授权：write-critical。j1-credential-revoke 决策 A（已签字）——
 // 撤回 = 业务运营员合规收回（收回授权）+ 申请人本人主动放弃（我不再需要,owner 校验在后端）；
@@ -169,6 +175,17 @@ async function supplement() {
     });
     return;
   }
+  // rejected（受理/审核驳回）→ application.dept_approve {decision:'resubmit'}
+  //   （conditional_approval.applicant_resubmit：rejected → submitted, round+1）。
+  // need-fix（退回补正）→ request.submit（既有补件腿不变）。
+  if (isRejected.value) {
+    await invokeActionStub({
+      skillId: 'application.dept_approve',
+      payload: { request_id: id.value, decision: 'resubmit' },
+      successTitle: '已重新提交',
+    });
+    return;
+  }
   await invokeActionStub({
     skillId: 'request.submit',
     payload: { request_id: id.value },
@@ -213,6 +230,7 @@ async function supplement() {
           v-if="canSubmitRequest && !isDraft"
           type="button"
           class="gov-btn gov-btn-primary"
+          data-testid="resubmit-btn"
           @click="supplement"
         >
           补件 / 重新提交

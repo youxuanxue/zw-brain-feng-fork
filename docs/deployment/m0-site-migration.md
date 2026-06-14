@@ -6,7 +6,7 @@
 
 ## 前置假设（基线对齐）
 
-- **schema 全新创建**：M0 在 `Base.metadata.drop_all + create_all` 重建后的空 canonical 上跑（基线 §9.6）；alembic 不进入产品基线。如客户现场上一轮迁移留有持久化目录，需经客户授权清空后再启 M0 迁移。
+- **schema 全新创建**（D58，反转 D23）：M0 在空 canonical 上跑——schema 由 **alembic baseline → upgrade head** 建（迁移批 `--reset-db` 路径会显式 `ZW_BRAIN_ALLOW_SCHEMA_RESET=1` 走破坏性 `drop_all + alembic upgrade`；不带 `--reset-db` 则走 `ensure_runtime_schema()` 的 alembic 向前迁移，**存量库不 DROP**）。如客户现场上一轮迁移留有持久化目录，需经客户授权清空后再启 M0 迁移（清空属显式破坏性重置，绝不在自动路径里发生）。
 - **单租户**：所有 record 注入 `tenant_id="sd-default"`（基线 §8.2）。
 - **模型调用边界**：M0 不调用 LLM；若 mapper 后续启用 schema 描述补全等 AI 能力，必须走 `shared/inference/client` 经集团推理平台（基线 §3.4 / preflight 段 10）。
 - **外部依赖**：IAF IAM（认证）/ 集团数据治理中心 / 集团数据安全中心 / 集团运维监控 / 区块链 adapter 均为外部依赖；M0 不复造（基线 §3.4）。

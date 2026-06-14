@@ -24,11 +24,41 @@ def test_r1_dedicated_route_map_includes_system_snapshot() -> None:
     assert all(not p.startswith("/api/skills/") for p in routes.values())
 
 
-def test_r4_contract_pinned_includes_registry_dispatch_and_base_caps() -> None:
-    """PINNED：手写契约测试钉死 5 面 webui 的能力被识别（非循环人工锚）。"""
+def test_r4_pinned_requires_real_frontend_surface_not_manifest_assertion() -> None:
+    """PINNED 只认「手写测试钉死真实前端 surface 文件」的能力，**拒绝循环锚**。
+
+    旧实现把「测试断言 manifest 的 compatibility 含 webui」当 PINNED——但 discover_skills()
+    读的就是 manifest，断言 manifest=循环信号(等同 pages.generated.ts)。2026-06-14 上帝视角
+    trace 坐实 governance.iam_overview / tenant.policy.evaluate 在 web/src 下**无真实 surface**
+    （仅出现在生成产物 pages.generated.ts），故**不得**被 PINNED 误判可达。
+    """
     pinned = guard.contract_pinned_webui()
-    assert "governance.iam_overview" in pinned
-    assert "tenant.policy.evaluate" in pinned
+    # 真实 surface 锚（test_iam_governance_web_surface 钉死 .vue/composable）→ 应在 PINNED。
+    assert "governance.policy_candidate.list" in pinned
+    assert "governance.policy_candidate.review" in pinned
+    # 纯 manifest-compatibility 断言的两能力无真实前端落点 → 必须 OUT（消除循环假可达）。
+    assert "governance.iam_overview" not in pinned
+    assert "tenant.policy.evaluate" not in pinned
+
+
+def test_pinned_rejects_manifest_reads_manifest_circular_anchor() -> None:
+    """回潮锁：PINNED 不接受「manifest-读-manifest」循环锚。
+
+    手工合成一段「断言 discover_skills 的 compatibility 含 webui」(无真实 surface 文件) 不应
+    使任意 slug 被 PINNED——否则等于把 manifest 当自身证据，掏空棘轮。这里直接验证 surface 锚
+    正则不命中 manifest 路径/生成产物，且 compatibility 断言不构成 surface。
+    """
+    # manifest 注册目录 / 生成产物路径不算真实 surface。
+    assert guard._REAL_SURFACE_ANCHOR.search("registry/pages.generated.ts") is None or \
+        guard._GENERATED_PATH_HINT.search("registry/pages.generated.ts") is not None
+    assert guard._GENERATED_PATH_HINT.search("zw-brain-web/src/registry/pages.generated.ts") is not None
+    # 纯 compatibility 断言行（无 web/src 前端文件）不构成 surface 锚。
+    compat_line = 'assert set(skill["compatibility"]) == {"webui", "api", "cli", "mcp", "a2a"}'
+    assert guard._REAL_SURFACE_ANCHOR.search(compat_line) is None
+    # 真实 .vue surface 锚行命中（且非生成产物）。
+    surface_line = '''page = (REPO / "zw-brain-web" / "src" / "pages" / "B12IamGovernance.vue").read_text()'''
+    assert guard._REAL_SURFACE_ANCHOR.search(surface_line) is not None
+    assert guard._GENERATED_PATH_HINT.search(surface_line) is None
 
 
 def test_system_snapshot_is_reachable_via_r1_not_slug_literal() -> None:

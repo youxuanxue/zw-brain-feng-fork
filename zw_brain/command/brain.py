@@ -1189,21 +1189,8 @@ class BrainService:
             self._get_handler_deps().services.request.status_text,
         )
 
-    # R-005 fix: 折叠后多个旧角色映射到同一 ROLE_*，原本不同语境（申请进度 vs 差异补录 vs 现场补录 vs 汇总）
-    # 的同 item_id 待办若仅按 (role, item_id) 去重会互相覆盖。引入 category 作为第二维度。
-    # Action H: thin delegate to demo_state_sync module-level helper; remaining
-    # call sites in handlers/j2/compliance.py + demo cascade are unchanged.
-    def _set_todo_status(self, role: str, item_id: str, status: str, *, category: str = "") -> None:
-        from zw_brain.command import demo_state_sync  # noqa: PLC0415
-        demo_state_sync.set_todo_status(self._snapshot, role, item_id, status, category=category)
-
     def _request_status_text(self, item: dict[str, Any], perspective: str = "reviewer") -> str:
         return self._get_handler_deps().services.request.status_text(item, perspective)
-
-    def _package_status_text(self, item: dict[str, Any]) -> str:
-        """Legacy shim — delegates to demo_state_sync.package_status_text (Action H)."""
-        from zw_brain.command import demo_state_sync  # noqa: PLC0415
-        return demo_state_sync.package_status_text(item)
 
     def _actor_for_role(self, role: str) -> str:
         try:
@@ -1221,28 +1208,11 @@ class BrainService:
     # Action E: _request_by_id / _delivery_by_id / _delivery_by_request_id /
     # _find_api_resource retired — call deps.services.{request,delivery,provider}.X
     # or deps.view.<entity>.find_by_id directly. _maybe_* helpers kept because
-    # demo_state_sync / brain.py internal call sites tolerate None on miss.
-
-    def _resource_by_id(self, resource_id: str) -> dict[str, Any]:
-        """Legacy shim — delegates to demo_state_sync.resource_by_id (Action H)."""
-        from zw_brain.command import demo_state_sync  # noqa: PLC0415
-        return demo_state_sync.resource_by_id(self._snapshot, resource_id)
-
-    def _resolve_resource_for_application(self, resource_id: str) -> dict[str, Any]:
-        """Legacy shim — Action H commit 4 lifted to catalog_service.resolve_resource_for_application."""
-        return self._get_handler_deps().services.catalog.resolve_resource_for_application(resource_id)
-
-    def _zone_by_id(self, zone_id: str) -> dict[str, Any]:
-        """Legacy shim — delegates to demo_state_sync.zone_by_id (Action H)."""
-        from zw_brain.command import demo_state_sync  # noqa: PLC0415
-        return demo_state_sync.zone_by_id(self._snapshot, zone_id)
-
-
-    # R-005 fix: 同 R-005 — 待办按 (role, item_id, category) 唯一；折叠后多个语境的同 item_id 可共存。
-    # Action H: thin delegate to demo_state_sync module-level helper.
-    def _upsert_todo(self, role: str, item_id: str, title: str, status: str, href: str, *, category: str = "") -> None:
-        from zw_brain.command import demo_state_sync  # noqa: PLC0415
-        demo_state_sync.upsert_todo(self._snapshot, role, item_id, title, status, href, category=category)
+    # brain.py internal call sites tolerate None on miss.
+    # 死代码清账：_resource_by_id / _resolve_resource_for_application / _zone_by_id /
+    # _set_todo_status / _upsert_todo / _package_status_text / _new_request_id /
+    # _delivery_task_id_for_request / _credential_for_request 九个零调用 shim 已删除
+    # （调用方直接走 deps.services.* / demo_state_sync.* module-level helper）。
 
     def _sync_request_todos(self) -> None:
         """Legacy shim — delegates to ``sync.sync_request_todos``.
@@ -1257,17 +1227,7 @@ class BrainService:
             self._get_handler_deps().services.request.status_text,
         )
 
-    def _new_request_id(self) -> str:
-        return self._get_handler_deps().services.request.new_request_id()
-
-    def _delivery_task_id_for_request(self, request_id: str) -> str:
-        return self._get_handler_deps().services.delivery.task_id_for_request(request_id)
-
     # ============== J1 凭据签发与查询（D27/U-3 处置承诺的凭据领取闭环） ==============
-
-    def _credential_for_request(self, request_id: str, seed: str | None = None) -> dict[str, Any]:
-        """Legacy shim — Action H commit 4 lifted to request_service.credential_for_request."""
-        return self._get_handler_deps().services.request.credential_for_request(request_id, seed=seed)
 
     def _auto_issue_credential_on_approval(self, request_id: str, role: str, actor: str) -> None:
         """审批通过路径的内部钩子 — 通过 credential.issue skill 完成签发.

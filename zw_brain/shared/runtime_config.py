@@ -162,6 +162,36 @@ def get_iaf_insecure_tls_dev_ack() -> bool:
     return os.environ.get("ZW_BRAIN_IAF_INSECURE_TLS_DEV_ACK", "").strip() == _DEV_BYPASS_ACK_VALUE
 
 
+class InsecureIafTlsInProductionError(RuntimeError):
+    """IAF insecure-TLS dev-ack present while the deploy mode is prod/production.
+
+    M5-class fail-closed guard, symmetric with DevBypassInProductionError. Disabling IAM
+    TLS certificate + hostname verification opens a man-in-the-middle surface on the auth
+    token exchange (the root of the authentication trust chain). Rather than silently
+    honoring the insecure-TLS env in prod, refuse at the point of evaluation so the process
+    fails closed (verifying TLS) instead of fails open.
+    """
+
+
+def get_iaf_insecure_tls_enabled() -> bool:
+    """True when IAF TLS verification is intentionally disabled (verify off + dev-ack).
+
+    Fails closed in prod: raises InsecureIafTlsInProductionError when that combination would
+    leak into a prod deploy mode (mirrors get_dev_iam_bypass_enabled / M5). Both env signals
+    are required so a single typo cannot disable TLS verification.
+    """
+    insecure = (not get_iaf_verify_ssl()) and get_iaf_insecure_tls_dev_ack()
+    if insecure and _is_prod_deploy_mode():
+        raise InsecureIafTlsInProductionError(
+            "ZW_BRAIN_IAF_VERIFY_SSL=false + ZW_BRAIN_IAF_INSECURE_TLS_DEV_ACK=development-only "
+            "is set while ZW_BRAIN_DEPLOY_MODE is prod/production. Disabling IAM TLS certificate/"
+            "hostname verification opens a man-in-the-middle surface on the auth token exchange and "
+            "is forbidden in production. Restore TLS verification (unset the insecure-TLS env) or use "
+            "a non-prod ZW_BRAIN_DEPLOY_MODE."
+        )
+    return insecure
+
+
 def get_iaf_iam_config() -> IafIamConfig:
     return IafIamConfig.from_env()
 

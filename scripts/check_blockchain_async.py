@@ -7,8 +7,8 @@ check_blockchain_async.py — preflight 段 7b
     blockchain adapter；外链 down 不应阻塞业务流（异步 + 告警 + 重试）。
 
 扫描黑名单模式：
-    1. 主业务路径（zw_brain/orchestrator/、zw_brain/agents/、zw_brain/entry/）
-       中的 .py 文件
+    1. 主业务路径（zw_brain/entry/）中的 .py 文件
+       （zw_brain/orchestrator/、zw_brain/agents/ 空壳包随死代码清账删除，已移除）
     2. 出现 `await blockchain` / `await chain.anchor` / `await *.adapter.anchor`
        等同步等待区块链 adapter 的语句 → fail
 
@@ -34,10 +34,9 @@ from pathlib import Path
 BLOCKCHAIN_TOKENS = ("blockchain", "chain_anchor", "anchor_to_chain", ".anchor(", "blockchain_adapter")
 
 # 主业务路径前缀（命中即扫描）。zw_brain/skills/ 已随 D33 目录退役删除（blockchain_adapter
-# 迁 adapters/、见白名单），不再列为业务路径。
+# 迁 adapters/、见白名单），不再列为业务路径。zw_brain/orchestrator/ 与 zw_brain/agents/
+# 空壳包（仅 docstring、零真导入）随死代码清账删除，一并从扫描前缀移除。
 BUSINESS_PATH_PREFIXES = (
-    "zw_brain/orchestrator/",
-    "zw_brain/agents/",
     "zw_brain/entry/",  # API 入口
 )
 

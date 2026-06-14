@@ -59,6 +59,13 @@ import pytest
 
 from zw_brain.shared import db as _db
 
+# D58: reset_and_upgrade()（drop_all + alembic upgrade）在生产路径被 M5 fail-closed 闸在
+# ZW_BRAIN_ALLOW_SCHEMA_RESET=1 之后（否则 raise SchemaResetForbiddenError）。测试跑在**一次性
+# shadow 临时库**上、19 个模块的 fixture 合法地 reset_and_upgrade() 建新 schema —— 测试环境
+# 整体就是"显式允许重置"的上下文，故进程级开此 env。生产绝不设置该 env（拒启/拒重置语义不变）。
+# 单测里要验「无 env → raise」的用例用 monkeypatch.delenv 在该测内移除即可（per-test 覆盖）。
+os.environ.setdefault("ZW_BRAIN_ALLOW_SCHEMA_RESET", "1")
+
 
 def _reset_engine_cache() -> None:
     """Drop every cached engine, disposing it to free SQLite file handles.

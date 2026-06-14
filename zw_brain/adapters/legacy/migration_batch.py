@@ -121,6 +121,10 @@ def run_migration(options: MigrationOptions) -> dict[str, Any]:
     if not options.dry_run:
         ensure_parent_dir()
         if options.reset_db:
+            # --reset-db = 显式破坏性重置（drop_all+create_all）。D58 起 reset_and_upgrade()
+            # 闸在 ZW_BRAIN_ALLOW_SCHEMA_RESET=1 之后（M5 fail-closed），这条迁移批路径是
+            # 唯一仍合法的显式重置入口 → 在此显式承认后调用。
+            os.environ["ZW_BRAIN_ALLOW_SCHEMA_RESET"] = "1"
             reset_and_upgrade()
         else:
             ensure_runtime_schema()

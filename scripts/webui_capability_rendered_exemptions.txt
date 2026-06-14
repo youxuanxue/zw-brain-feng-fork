@@ -20,13 +20,25 @@
 #   退出 live+webui 集合（manifest compatibility 移除 webui，能力本体与 seed 保留，仍 live 在
 #   REST/CLI/MCP/A2A）。净存量债务 81 → 0。
 #
-# 2026-06-13 守卫判据升级（根治 debt render-guard-slug-grep-false-negative，本 PR 实现）：
-#   守卫从纯 slug 字面量(LIT) 升级为 webui 可达并集 LIT ∪ ROUTE(专属路由) ∪ PINNED(契约测试钉死)。
-#   故以下 3 条**不再需要手工豁免**，由守卫自动识别（留此处记审计链，已从生效豁免移除）：
-#     - system.snapshot      → ROUTE：openapi /api/snapshot(x-zwbrain-skill-id) 经 useSnapshot.ts 消费
-#     - governance.iam_overview → PINNED：test_contract_projection 钉死 5 面 webui
-#     - tenant.policy.evaluate  → PINNED：test_contract_projection 钉死 5 面 webui
-#   本台账只剩**NL/内置 Agent 工具可达**这一守卫设计内的合理长期豁免（无专属路由/契约锚）。
+# 2026-06-13 守卫判据升级（根治 debt render-guard-slug-grep-false-negative）：
+#   守卫从纯 slug 字面量(LIT) 升级为 webui 可达并集 LIT ∪ ROUTE(专属路由) ∪ PINNED。
+#   - system.snapshot → ROUTE：openapi /api/snapshot(x-zwbrain-skill-id) 经 useSnapshot.ts 消费（自动识别，已从生效豁免移除）。
+#
+# 2026-06-14 PINNED 循环判据根治（PR fix/pr5-guard-meta，本 PR 实现）：
+#   旧 PINNED 把「手写测试断言 manifest 的 compatibility 含 webui」当可达锚——但 discover_skills()
+#   读的就是 manifest，断言 manifest = 等同 pages.generated.ts(由 manifest 生成)，是**循环信号**，
+#   证明不了任何真实前端落点。新 PINNED 只认「手写测试钉死 zw-brain-web/src 下非生成前端文件」的真实 surface 锚。
+#   上帝视角 trace 坐实：下列两能力在 zw-brain-web/src 下**无任何真实前端 surface**
+#   （仅出现在 registry/pages.generated.ts 这一 manifest 生成产物里），原 PINNED 是循环假可达：
+#     - governance.iam_overview：B1.2 身份治理页(B12IamGovernance.vue)实际消费的是
+#       governance.policy_candidate.list/review(已 LIT 可达)，从不调用 iam_overview。
+#     - tenant.policy.evaluate：纯后端策略评估能力，无专属路由、无 .vue 消费者；页面 disclaimer
+#       仅在文案层提「租户策略评估」概念，无任何前端调用。
+#   降为诚实债务（exempted），等 owner 裁决：接真实面板渲染 OR 诚实降级(manifest compatibility 去 webui，
+#   能力+seed 保留、仍 live 在 REST/CLI/MCP/A2A)。**降级涉及业务面**，由产品研发负责人定夺（见本 PR residual）。
+#   本台账除此 2 条待裁债务外，只剩 NL/内置 Agent 工具可达这一守卫设计内的合理长期豁免。
 
 platform.docs.read  # NL 可达 — PlatformGuideChatPanel.vue 经 AgentRuntime(内置 zw-platform-guide Agent) 把本 cap 作工具调用；入口=平台向导问答面板
 platform.docs.search  # NL 可达 — 同上，平台向导问答检索工具；入口=平台向导问答面板
+governance.iam_overview  # 待裁债务(2026-06-14) — 无真实前端 surface(仅 pages.generated.ts 循环)；B1.2 页实际用 policy_candidate.*。owner 裁：接面板 or 诚实降级(去 webui)。
+tenant.policy.evaluate  # 待裁债务(2026-06-14) — 纯后端策略评估，无 .vue 消费者/专属路由。owner 裁：接面板 or 诚实降级(去 webui)。

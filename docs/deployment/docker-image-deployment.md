@@ -2,7 +2,7 @@
 
 > **权威源对齐**（基线 `docs/approved/zw-brain-architecture.md`）：
 > - 单租户：`tenant_id=sd-default`（不启用 multi-tenant；基线 §8.2 + MEMORY sd-default）
-> - schema：SQLAlchemy `Base.metadata.drop_all + create_all` 容器首次启动自动重建（基线 §9.6），alembic 不进入产品基线
+> - schema：**alembic baseline stamp → upgrade head**（D58，反转 D23）。容器首次启动 `ensure_runtime_schema()`：空库 → 建全部表；存量库（无版本表、schema 与模型一致）→ baseline-stamp（零 DDL、**不 DROP**）后向前迁移；真实漂移无迁移可上 → 拒启（绝不清库）。破坏性重置仅 `ZW_BRAIN_ALLOW_SCHEMA_RESET=1` 显式开关下可走
 > - 模型调用：必须经集团推理平台，禁止直连第三方 LLM（基线 §3.4 / preflight 段 10）
 > - 外部依赖：IAF IAM / 集团推理平台 / 区块链 adapter / 集团数据治理中心 / 集团数据安全中心 / 集团运维监控（基线 §3.4）
 > - WebUI 页面：P1-P5/P7 + B1.1/B1.2 共 8 页面（基线 §5.2 硬上限 ≤8）；本镜像不构建大屏 / 指挥中心 / 演示页面（基线 §1.3）
@@ -56,7 +56,13 @@ docker images zw-brain
 
 ## 3. 准备持久化目录
 
-> Schema 生命周期：容器启动时 `zw_brain.shared.migrate.ensure_runtime_schema()` 校验必需表/列是否齐全——**齐全则跳过**，**缺失列/表时执行 `drop_all + create_all`**（**会清空所有数据**，基线 §9.6）。挂载持久化目录可用于跨升级保留数据；**当模型 schema 发生不向后兼容变更时（缺列触发 reset），数据将被清空**——升级前必须由运维评估是否备份。首客户上线 + 首次生产 schema 变更后再启 alembic baseline。
+> Schema 生命周期（D58，反转 D23）：容器启动 `zw_brain.shared.migrate.ensure_runtime_schema()` 走 **alembic forward-migration**，**绝不再 `drop_all`**：
+> - **空库** → `alembic upgrade head` 建全部表；
+> - **存量库**（有数据、无 `alembic_version`、schema 与当前模型一致）→ `alembic stamp <baseline>`（**零 DDL、保数据**）后 `upgrade head`；
+> - **已纳管库**（有 `alembic_version`）→ `upgrade head` 幂等续迁；
+> - **真实漂移**（有数据、无版本表、schema 与模型不一致、且无迁移可向前应用）→ **拒启**（`SchemaDriftError`，绝不清库）。正确演进路径是补一条 alembic 向前迁移再 `upgrade head`。
+>
+> 破坏性重置（`drop_all + create_all`）已退役出自动路径，仅在**显式**设置 `ZW_BRAIN_ALLOW_SCHEMA_RESET=1` 时可走（M5 fail-closed）；生产/试用库严禁。挂载持久化目录跨升级保留数据，升级前由运维评估是否备份。
 
 SQLite 数据库默认建议挂载到宿主机目录，避免容器重建导致数据丢失：
 
@@ -165,12 +171,13 @@ location /zw-brain/ {
 | `ZW_BRAIN_INFERENCE_GATEWAY_URL` | 集团推理平台 gateway URL；所有 LLM / Embedding / ASR / Rerank / OCR 调用必须经此入口（基线 §3.4 + preflight 段 10） | 必填（生产环境） |
 | `ZW_BRAIN_INFERENCE_API_KEY_REF` | 集团推理平台 API key 引用（密钥引用，非明文）；密钥材料不进入镜像；部署层解析后注入字面 `ZW_BRAIN_INFERENCE_API_KEY` 供运行时读取 | 必填（生产环境） |
 | `ZW_BRAIN_IAF_CA_FILE` | IAF HTTPS 自定义 CA 证书文件路径（容器内路径），用于挂载内部 CA bundle | 未设置（使用系统默认信任链） |
-| `ZW_BRAIN_IAF_VERIFY_SSL` | 设为 `false` 时完全跳过 IAF 端点 SSL 验证（仅限测试/内网无证书环境） | `true` |
+| `ZW_BRAIN_IAF_VERIFY_SSL` | 设为 `false` 时跳过 IAF 端点 SSL 验证（仅限测试/内网无证书环境）；须与 `ZW_BRAIN_IAF_INSECURE_TLS_DEV_ACK=development-only` 联用才生效。**`ZW_BRAIN_DEPLOY_MODE=prod` 下二者联用会 fail-closed 拒绝启动（M5：关闭 IAM TLS 校验=MITM 面）** | `true` |
+| `ZW_BRAIN_IAF_INSECURE_TLS_DEV_ACK` | 关闭 IAF TLS 校验的双因子确认字；仅 `development-only` 与 `ZW_BRAIN_IAF_VERIFY_SSL=false` 联用；prod 部署不得设置 | 未设置 |
 | `ZW_BRAIN_DEV_IAM_BYPASS` | 研发期 IAM 网络不可达时临时跳过登录与 token-healthz；须与 `ZW_BRAIN_DEV_IAM_BYPASS_ACK=development-only` 同时设置才生效；生产部署不得设置 | 未设置 |
 | `ZW_BRAIN_DEV_IAM_BYPASS_ACK` | bypass 双因子确认字；仅 `development-only` 与 `ZW_BRAIN_DEV_IAM_BYPASS=1` 联用 | 未设置 |
 | `ZW_BRAIN_SESSION_REDIS_URL` | BFF 会话 Redis URL；**多 REST 副本 / 生产必填**（例如 `redis://redis:6379/0`） | 未设置（单 worker 内存会话） |
 | `ZW_BRAIN_SESSION_REDIS_KEY_PREFIX` | Redis session key 前缀 | `zw-brain:session:` |
-| `ZW_BRAIN_DEPLOY_MODE` | 设为 `prod` / `production` 时强制要求 `ZW_BRAIN_SESSION_REDIS_URL` | 未设置 |
+| `ZW_BRAIN_DEPLOY_MODE` | **镜像默认 `prod`**（生产姿态：M5 fail-closed 守卫激活——拒 dev-iam-bypass、拒 insecure-TLS；并强制要求 `ZW_BRAIN_SESSION_REDIS_URL`）。本地/演示部署须在 env-file 显式覆盖为 `dev`（或非 prod 值）才能用 dev bypass | **`prod`（镜像 ENV 默认；env-file 可覆盖）** |
 | `ZW_BRAIN_AGENT_RUNTIME_ENABLED` | 启用 Embedded AgentRuntime 与 `/api/agent-runtime/*` 任务接口 | 未设置（关闭） |
 | `ZW_BRAIN_AGENT_RUNTIME_PROFILE` | `local_dev` 或 `embedded_single_tenant` | 镜像内按环境配置 |
 | `ZW_BRAIN_AGENT_RUNTIME_CONFIG` | `agent-runtime.yaml` 路径 | 镜像内 `/app/agent-runtime.yaml` |
@@ -227,7 +234,7 @@ docker run --rm \
     --report /data/zw-brain/migration-acceptance-report.json
 ```
 
-如需清空并重建目标库，可在确认数据可丢弃后追加 `--reset-db`。
+如需清空并重建目标库，可在确认数据可丢弃后追加 `--reset-db`（该路径会自动设置 `ZW_BRAIN_ALLOW_SCHEMA_RESET=1` 走显式破坏性重置；不带 `--reset-db` 时迁移批走 `ensure_runtime_schema()` 的 alembic 向前迁移、**不 DROP**，D58）。
 
 ## 7. 运维命令
 

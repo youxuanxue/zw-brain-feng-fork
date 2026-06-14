@@ -18,7 +18,7 @@
 >
 > **权威源对齐**（基线 `docs/approved/zw-brain-architecture.md`）：
 > - 单租户：`tenant_id=sd-default`（不启用 multi-tenant；基线 §8.2）
-> - schema：SQLAlchemy `Base.metadata.drop_all + create_all`；**alembic 不进入产品基线**（基线 §9.6）
+> - schema：**alembic baseline stamp → upgrade head**（D58，反转 D23）；存量库不 DROP，破坏性重置仅 `ZW_BRAIN_ALLOW_SCHEMA_RESET=1` 显式开关
 > - 模型调用：必须经集团推理平台；mock client 仅限研发态，不可用于客户验收（基线 §3.4 + preflight 段 10）
 > - 外部依赖：IAF IAM / 集团推理平台 / 区块链 adapter / 集团数据治理中心 / 集团数据安全中心 / 集团运维监控（基线 §3.4）
 > - WebUI 页面：P1-P5/P7 + B1.1/B1.2 共 8 页面（基线 §5.2 硬上限 ≤8）；B1.1 合规与运营的 literal 路由为 `#/compliance-ops`
@@ -41,7 +41,7 @@
 | MySQL 客户端 | 5.7+ / 8.0+ | 仅在客户机房现场跑 `customer_export.sh` 时需要 |
 | bash | 4+ | 运行 `scripts/*.sh` |
 
-> **注**：alembic 不在上表内——zw-brain 不维护迁移链（基线 §9.6）。容器启动通过 `ensure_runtime_schema()` 校验，缺列/表时执行 `drop_all + create_all`；首客户上线 + 首次生产 schema 变更后再启 alembic baseline。
+> **注**（D58，反转 D23）：zw-brain 用 **alembic forward-migration** 维护 schema。容器启动 `ensure_runtime_schema()`：空库 → `alembic upgrade head` 建表；存量库（无版本表、schema 与模型一致）→ `alembic stamp <baseline>`（**零 DDL、不 DROP**）后 `upgrade head`；真实漂移无迁移可上 → 拒启。破坏性重置已退役出自动路径，仅 `ZW_BRAIN_ALLOW_SCHEMA_RESET=1` 显式开关下可走。`alembic` 已是运行时依赖（`pyproject.toml`），随 wheel 打包到 `zw_brain/_migrations/`。
 
 或者用 Docker 镜像（详见 `docker-image-deployment.md`），跳过 Python / SQLite 单独安装。
 
@@ -83,7 +83,7 @@ uv venv && uv pip install -e .
 
 ## 2. 数据库初始化
 
-### 2.1 创建数据目录 + 初始化 schema（drop & recreate，不用 alembic）
+### 2.1 创建数据目录 + 初始化 schema（alembic baseline stamp → upgrade head，存量库不 DROP）
 
 ```bash
 export ZW_BRAIN_DB_PATH=/data/zw-brain/runtime.db
@@ -91,7 +91,7 @@ mkdir -p $(dirname $ZW_BRAIN_DB_PATH)
 .venv/bin/python -c "from zw_brain.shared.migrate import ensure_runtime_schema; ensure_runtime_schema()"
 ```
 
-**说明**：zw-brain 是全新项目，schema 用 SQLAlchemy `Base.metadata.drop_all` + `create_all` 一步重建；不维护 alembic 迁移链。第一个真实客户上线 + 第一次生产 schema 变更时再启动 alembic baseline（详见架构基线 §9.6）。
+**说明**（D58，反转 D23）：schema 由 **alembic forward-migration** 维护。`ensure_runtime_schema()` 对**空库** `alembic upgrade head` 建全部表；对**存量库**（已有数据、无 `alembic_version`、schema 与当前模型一致）先 `alembic stamp <baseline>`（**零 DDL、保数据、绝不 DROP**）再 `upgrade head`；检测**真实漂移**且无迁移可向前应用 → 拒启（`SchemaDriftError`），正确做法是补一条 alembic 迁移再 `upgrade head`。需要从零重建可显式 `ZW_BRAIN_ALLOW_SCHEMA_RESET=1` 后调 `reset_and_upgrade()`（破坏性、清库；M5 fail-closed，生产试用库严禁）。
 
 **验证**：
 ```bash

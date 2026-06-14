@@ -189,6 +189,7 @@ Background:
 - pytest 实现入口 → `tests/`（19 个 wave PR 已 land + Wave 2/3 接力）
 - Playwright e2e → `zw-brain-web/tests/e2e/`（12 spec / 62 passed）
 - SIGN-OFF 账本（业务签字唯一权威源，D46.b）→ `.testing/signoff/<scope>.signoff.yaml`（`covers` 列被签 feature）
+- 对抗式复核留档（批次 / 高风险 PR 的裁决 + 回归根因 provenance，按需非每 PR）→ `.testing/review/<scope>-verdicts.md`
 - 不复刻清单（已签字 PR #129）→ `docs/legacy-not-reproduce-signoff.md`
 - Wave 4 SLI 看板 → `docs/customer-readiness/wave4-cutoff-criteria.md`
 - 一次性档案 → `cleanup-plan.md`（merge 后 30 天可删）

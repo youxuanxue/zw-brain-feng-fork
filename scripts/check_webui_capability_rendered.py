@@ -17,9 +17,13 @@
          被前端消费——从 openapi `x-zwbrain-skill-id` 现取 slug→路由映射，路由串出现在 src
          即可达。WebUI 经单一 system.snapshot 胖快照(/api/snapshot)读数即此类，前端无 slug
          字面量 → LIT 看不到，但 ROUTE 认。
-      PINNED 契约测试钉死 webui：有手写契约测试断言该 slug 的 compatibility 含 webui
-         （注册表派发/D2 基础能力的**非循环**「故意 webui 声明」——slug-grep 看不到、
-         pages.generated.ts 是 manifest 生成的循环信号不算证据，唯手写测试是权威人工锚）。
+      PINNED 手写测试钉死**真实前端 surface**：有手写测试既出现该 slug、又在同窗口内
+         断言一个 **zw-brain-web/src 下的非生成前端文件**（.vue 组件 / 路由 / composable，
+         如 `... .vue").read_text` 或 `'@/pages/X.vue'`）——证明确有渲染消费者，
+         slug-grep 因走专属路由/动态拼串看不到字面量、但人工测试钉死了真实 surface。
+         **「测试断言 manifest 自身 compatibility 含 webui」不算 PINNED**（discover_skills()
+         读的就是 manifest，断言 manifest=循环信号，等同 pages.generated.ts 由 manifest 生成，
+         证明不了任何真实前端落点 — 2026-06-14 上帝视角复核坐实并根治该循环判据）。
   - 读豁免清单 scripts/webui_capability_rendered_exemptions.txt（净存量债务台账）：留作
     **NL 加速器 / 内置 Agent 工具可达**这一类——经通用 NL 派发触达、无 slug 字面量、亦无专属
     路由/契约测试锚（如 platform.docs.* 经内置 zw-platform-guide Agent）。这是守卫**设计内**
@@ -53,9 +57,26 @@ TESTS_DIR = REPO / "tests"
 GENERATED_EXCLUDES = ("pages.generated.ts",)
 # 通用能力调用路由前缀；专属路由（如 /api/snapshot）才是 ROUTE 的非循环可达信号。
 GENERIC_SKILL_PREFIX = "/api/skills/"
-# 契约测试里「5 面共享含 webui」断言的特征（compatibility == {"webui", ...}）。
-_WEBUI_SET_ASSERT = re.compile(r"==\s*\{\s*[\"']webui[\"']")
-_SKILLS_REF = re.compile(r"skills\[[\"']([\w.]+)[\"']\]")
+# 真实前端 surface 锚：手写测试里断言一个 zw-brain-web/src 下的**非生成**前端文件
+# （.vue 组件 / 路由 / composable），证明确有渲染消费者。这是 PINNED 的**非循环**判据。
+# 反例（不算 surface）：pages.generated.ts、registry/*.generated.* 等 manifest 生成产物。
+_REAL_SURFACE_ANCHOR = re.compile(
+    r"""zw-brain-web[/"'].*?src.*?\.(?:vue|ts)        # web/src 下的 .vue/.ts 文件路径
+        | @/(?:pages|components|composables)/[\w/]+\.vue  # 形如 '@/pages/X.vue'
+    """,
+    re.VERBOSE,
+)
+# 生成产物路径出现在锚行里时不计为真实 surface（manifest→生成=循环信号）。
+_GENERATED_PATH_HINT = re.compile(r"\.generated\.|pages\.generated|registry/")
+# slug 字面量引用：测试里以字符串字面量提到某能力 slug（含点的能力 id，蛇形小写段）。
+# 排除文件名样式（.ts/.vue/.spec.ts 等扩展名段，含驼峰）——只认能力 slug 形态。
+_FILE_EXT_SEGMENTS = frozenset({"ts", "tsx", "vue", "js", "jsx", "py", "json", "md", "css", "spec"})
+_SLUG_LITERAL = re.compile(r"[\"']([a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+)[\"']")
+
+
+def _looks_like_capability_slug(token: str) -> bool:
+    """含点 token 是能力 slug 形态（非文件名）：末段不是源码扩展名。"""
+    return token.rsplit(".", 1)[-1] not in _FILE_EXT_SEGMENTS
 
 
 def live_webui_slugs() -> list[str]:
@@ -105,24 +126,42 @@ def dedicated_routes() -> dict[str, str]:
 
 
 def contract_pinned_webui() -> set[str]:
-    """有手写契约测试断言 compatibility 含 webui 的 slug（PINNED）。
+    """有手写测试钉死该 slug 的**真实前端 surface** 的能力（PINNED，非循环判据）。
 
-    注册表派发可达 / D2 基础能力等无 slug 字面量、无专属路由的能力，其 webui 在场的**唯一
-    非循环权威锚**=手写契约测试（pages.generated.ts 从 manifest 生成是循环信号，不算）。
-    扫 tests/*.py：文件含 5 面 webui 断言、且某 `skills["X"]` 引用窗口内出现该断言 → X 钉死。
+    走专属路由/动态拼串的能力前端无 slug 字面量（LIT 看不到），但若有手写测试**既**提到
+    该 slug **又**在同窗口断言一个 zw-brain-web/src 下的非生成前端文件（.vue/路由/composable），
+    即证明确有渲染消费者 → 钉死。
+
+    **拒绝循环锚**：旧实现把「测试断言 manifest 的 compatibility 含 webui」当 PINNED——
+    但 discover_skills() 读的就是 manifest，断言 manifest 等同 pages.generated.ts（由 manifest
+    生成），证明不了任何真实前端落点（2026-06-14 上帝视角复核坐实）。本实现只认**真实 surface
+    文件**锚，不认 compatibility 断言。
+
+    判定：扫 tests/*.py 每个含真实 surface 锚行的文件——某 slug 字面量在锚行 ±N 行窗口内出现 → 钉死。
+    surface 锚行若同时命中生成产物路径（.generated/registry）则不计（循环信号）。
     """
     if not TESTS_DIR.is_dir():
         return set()
     pinned: set[str] = set()
+    window = 12
     for f in TESTS_DIR.glob("*.py"):
-        text = f.read_text(encoding="utf-8")
-        if not _WEBUI_SET_ASSERT.search(text):
+        # 守卫自测/回潮锁文件本身不当证据来源（避免「测守卫的测试」反向喂养 PINNED）。
+        if f.name == "test_webui_capability_render_guard.py":
             continue
-        lines = text.splitlines()
-        for i, line in enumerate(lines):
-            m = _SKILLS_REF.search(line)
-            if m and _WEBUI_SET_ASSERT.search("\n".join(lines[i : i + 10])):
-                pinned.add(m.group(1))
+        lines = f.read_text(encoding="utf-8").splitlines()
+        anchor_rows = [
+            i
+            for i, line in enumerate(lines)
+            if _REAL_SURFACE_ANCHOR.search(line) and not _GENERATED_PATH_HINT.search(line)
+        ]
+        if not anchor_rows:
+            continue
+        for row in anchor_rows:
+            lo = max(0, row - window)
+            hi = min(len(lines), row + window + 1)
+            for slug in _SLUG_LITERAL.findall("\n".join(lines[lo:hi])):
+                if _looks_like_capability_slug(slug):
+                    pinned.add(slug)
     return pinned
 
 

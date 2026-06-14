@@ -1,0 +1,30 @@
+scope: objection-escalate-event-semantics
+signed_by: （待产品研发负责人签字）
+date: 2026-06-14
+kind: 决策签字
+evidence: >-
+  异议升级（objection.case.escalate）语义由「状态式」改为「事件式」——对齐已签
+  j1-objection-authz.feature:46「O501 升级到 BUSIAUDIT 督查队列（不是改 status 而是新增
+  escalate 事件）」，无新 SPEC、无新 .feature。
+  改动要点：
+  ① escalate handler（zw_brain/command/handlers/j1/objection.py）不再 _transition_objection_case
+     到 "escalated"——旧实现对 catalog/content/use/resource/authz 五业务维度必 409
+     （escalated 不在 5 维度迁移表里），即便对 generic 维度成功也是状态式升级（污染主 status，
+     与签字语义相悖）；改为 repo.add_process(action_type=escalate) emit 一条督办事件
+     （不触 case.status）+ append_audit_feed 记 objection.case.escalate 事件。
+  ② 督办标记由 objection_process 现算（list_supervised_cases / is_supervised），不新增 case 列、
+     无 schema 变更；业务运营员（ROLE_BUSIAUDIT）工作台「待督办」队列据此可见
+     （workbench_backlog_projection，深链既有异议收件箱 #/provider/inbox/objection，零积压不投）。
+  ③ assign handler 同款机械修：未传 target_status 时按维度+当前态派生**合法**落点
+     （submitted→platform_investigating / platform_investigating→provider_investigating，仿 D57
+     accept 分支），不再默认非法的 provider_investigating（从 submitted 必 409）；显式 target_status 仍优先。
+  ④ objection_state.py 的 5 维度 status 迁移表**不动**（不塞 escalated；状态式升级已否决）。
+  证据：tests/test_objection_escalate_event_d57b.py 28 测全绿（escalate × 5 维度不 409 / status 不变 /
+  督办事件落库 / 督办队列可见 / 终态排除 / audit feed 事件；assign × 5 维度合法目标 + 显式优先）；
+  既有 tests/test_wave1_objection_lifecycle.py / test_wave1_objection_5dim_state.py /
+  test_objection_provider_response.py 全绿（assign 默认值变更无回归）。
+decision_only: true
+covers: []
+# 属 D28 GATE（状态机/流程语义变更：异议升级由状态式→事件式）。实现对齐已签
+# j1-objection-authz.feature:46，无新 SPEC，故 covers 留空、不抬 feature 状态。
+# signed_by 待产品研发负责人最终 sign-off（Method B 手工落账；本文件先随实现 PR 入库）。

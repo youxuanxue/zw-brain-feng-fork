@@ -58,8 +58,13 @@ FROM zw-brain-os-patch:3.12-slim AS runtime
 ARG AGENT_RUNTIME_TARBALL=vendor/agent-runtime/release/v0.1/agent-runtime-0.1.0-py312-pyc-only.tar.gz
 ARG AGENT_RUNTIME_EXTRACT_DIR=agent-runtime-0.1.0-py312-pyc-only
 
+# ZW_BRAIN_DEPLOY_MODE=prod: the shipped image self-identifies as production so the M5
+# fail-closed guards are ACTIVE by default (dev IAM bypass refused, insecure IAF TLS refused,
+# prod-mode schema-drift refuses to boot). Local/staging usage that needs a dev safety bypass
+# must override this with a non-prod value (e.g. -e ZW_BRAIN_DEPLOY_MODE=dev).
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    ZW_BRAIN_DEPLOY_MODE=prod \
     ZW_BRAIN_DB_PATH=/data/zw-brain/zw_brain.db \
     ZW_BRAIN_AGENTS_DIR=/app/agents \
     ZW_BRAIN_AGENT_RUNTIME_CONFIG=/app/agent-runtime.yaml \

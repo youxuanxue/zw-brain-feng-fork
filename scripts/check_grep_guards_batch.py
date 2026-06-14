@@ -44,6 +44,7 @@ LEGACY_ALLOWED_FILES = (
     "docs/reconstructs/README.md",
     "scripts/check_no_legacy_role_codes.py",
     "scripts/check_grep_guards_batch.py",  # 本批量器自身含 r1-r8 正则字面
+    "scripts/check_guard_scan_surface.py",  # 元守卫豁免理由含 R1-R8 架构锚点示例字面
     "zw_brain/domain/policy.py",
     "zw_brain/domain/role_codes.py",
     "CLAUDE.md",
@@ -69,8 +70,11 @@ def _legacy_matcher(line: str) -> tuple[bool, str]:
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# 段 20 — no-retired-features (K12 dashboard 退役 + alembic 删除)
+# 段 20 — no-retired-features (K12 dashboard 退役)
 # ════════════════════════════════════════════════════════════════════════════
+# 注：alembic 退役模式（from/import alembic、alembic upgrade/config/command）已于 D58
+# **整体移除** —— 反转 D23 二次升级，alembic forward-migration 回归取代冷启动 drop&recreate
+# （全文 docs/decisions/alembic-migration-reintroduction-D58.md）。本段只剩 K12 dashboard 退役守卫。
 RETIRED_PATTERNS = (
     (re.compile(r"\bzw-brain-dashboard\b"), "K12 dashboard 目录已退役 (D15 二次反转)"),
     (re.compile(r"\bdashboard_bff\b"), "K12 dashboard BFF 已退役 (D15 二次反转)"),
@@ -80,15 +84,14 @@ RETIRED_PATTERNS = (
     (re.compile(r"\bget_dashboard_bff_port\b"), "K12 dashboard BFF port 函数已退役 (D15 二次反转)"),
     (re.compile(r"\bdashboard\.render_command_center\b"), "dashboard.render_command_center Skill 已退役 (D15 二次反转)"),
     (re.compile(r"\bdashboard\.compliance\.query\b"), "dashboard.compliance.query Skill 已退役 (D15 二次反转)"),
-    (re.compile(r"\bfrom alembic\b"), "alembic import 已退役 (D23 二次升级)"),
-    (re.compile(r"\bimport alembic\b"), "alembic import 已退役 (D23 二次升级)"),
-    (re.compile(r"\balembic upgrade\b"), "alembic upgrade 命令已退役 (D23 二次升级)"),
-    (re.compile(r"\balembic\.config\b"), "alembic.config 已退役 (D23 二次升级)"),
-    (re.compile(r"\balembic\.command\b"), "alembic.command 已退役 (D23 二次升级)"),
 )
 
-RETIRED_EXTENSIONS = (".py", ".sh", ".toml", ".ini", ".yml", ".yaml", ".json", ".js", ".md")
-RETIRED_SKIP = _SHARED_SKIP + ("/.testing/",)
+# .ts/.vue 纳入（2026-06-14 元守卫自发现补面）：dashboard.* 退役 token（K12 大屏）同样可能
+# 在前端代码回潮（如 .vue 误调 dashboard.compliance.query）——干净树 0 命中，无误报负债。
+RETIRED_EXTENSIONS = (".py", ".sh", ".toml", ".ini", ".yml", ".yaml", ".json", ".js", ".ts", ".vue", ".md")
+# /alembic/ 豁免：D58 起 alembic/ 目录（env.py + versions/*_baseline.py）是合法迁移工件，
+# alembic 已非退役 token（段 20 反正则随 D58 移除），跳过该目录避免任何残留 token 误扫。
+RETIRED_SKIP = _SHARED_SKIP + ("/.testing/", "/alembic/")
 
 RETIRED_ALLOWED_FILES = (
     "docs/approved/zw-brain-architecture.md",
@@ -133,7 +136,9 @@ def _retired_matcher(line: str) -> tuple[bool, str]:
 # ════════════════════════════════════════════════════════════════════════════
 NUMBERED_PATTERN = re.compile(r"#/p[0-9]+-[a-z]")
 
-NUMBERED_EXTENSIONS = (".py", ".js", ".html", ".sh", ".md")
+# .ts/.vue 纳入（2026-06-14 元守卫自发现补面）：编号化路由 `#/p<N>-` 最可能出现在前端
+# Vue router(.ts)/模板(.vue) 的链接里——这是该守卫**最该**覆盖的面，干净树 0 命中。
+NUMBERED_EXTENSIONS = (".py", ".js", ".ts", ".vue", ".html", ".sh", ".md")
 NUMBERED_SKIP = _SHARED_SKIP + ("/.testing/",)
 
 NUMBERED_ALLOWED_FILES = (
@@ -180,7 +185,7 @@ SPECS: dict[str, GuardSpec] = {
 register_grep_guard("no-legacy-role-codes", roots=(), extensions=LEGACY_EXTENSIONS,
                     note="D23 retrofit — R1-R8 字面值")
 register_grep_guard("no-retired-features", roots=(), extensions=RETIRED_EXTENSIONS,
-                    note="K12 dashboard / alembic 退役 token")
+                    note="K12 dashboard 退役 token（alembic 退役模式 D58 移除）")
 register_grep_guard("no-numbered-routes", roots=(), extensions=NUMBERED_EXTENSIONS,
                     note="#/p<N>- 编号化路由")
 
@@ -188,7 +193,7 @@ register_grep_guard("no-numbered-routes", roots=(), extensions=NUMBERED_EXTENSIO
 # 每段失败时的 hint（与原脚本逐字一致）
 _HINTS = {
     "no-legacy-role-codes": "R1-R8 用户角色码已退役（D23）；如需引用历史，加 retrofit 注脚或在 ALLOWED_LINE_MARKERS 中补充。",
-    "no-retired-features": "K12 dashboard 退役（D15 二次反转）/ alembic 删除（D23 二次升级）；如需引用历史，加退役注脚或在 ALLOWED_LINE_MARKERS / ALLOWED_FILES 补充。",
+    "no-retired-features": "K12 dashboard 退役（D15 二次反转）token 不得回潮；如需引用历史，加退役注脚或在 ALLOWED_LINE_MARKERS / ALLOWED_FILES 补充。（alembic 退役模式已于 D58 移除，alembic 回归取代冷启动 drop&recreate。）",
     "no-numbered-routes": "路由去编号化基线：URL 必须用纯语义路径（#/compliance-ops 而非 #/p6-compliance-ops）。编号化是反模式 — IA 一动就全栈改、新增页无处插、URL 对用户不透明。",
 }
 

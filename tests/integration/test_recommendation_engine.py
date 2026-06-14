@@ -352,6 +352,85 @@ def test_engine_suggest_via_keyword_rule(session):
     assert any(c.catalog_id == "cat-disabled-info-001" for c in candidates)
 
 
+def _seed_resource_asset_share_type(
+    session, resource_code: str, share_type: int, *, tenant_id: str = "sd-default"
+) -> None:
+    """Seed 一个 ResourceAssetRecord，access_policy_json.share_type=share_type（幂等）。
+
+    推荐安全边界负向回归用：把某 catalog 挂接的资源标为 shared_type=3（不予共享），
+    断言该 catalog 被结构性排除出推荐候选。
+    """
+    from sqlalchemy import select
+
+    from zw_brain.domain.models import ResourceAssetRecord
+
+    existing = session.execute(
+        select(ResourceAssetRecord).where(
+            ResourceAssetRecord.tenant_id == tenant_id,
+            ResourceAssetRecord.resource_code == resource_code,
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        existing.access_policy_json = {"share_type": share_type}
+    else:
+        session.add(
+            ResourceAssetRecord(
+                tenant_id=tenant_id,
+                resource_code=resource_code,
+                resource_kind="db_table",
+                title=f"asset {resource_code}",
+                lifecycle_status="published",
+                owner_org_snapshot_json={},
+                access_policy_json={"share_type": share_type},
+                qos_policy_json={},
+                summary_json={},
+            )
+        )
+    session.commit()
+
+
+def test_engine_excludes_no_share_type3_catalog_from_candidates(session):
+    """负向回归（engine-recommend-prefer.feature:50-55，C_2499 类）：
+
+    shared_type=3（不予共享）资源对应的 catalog 不进推荐结果——跨部门暴露零容忍。
+    基线：cat-disabled-info-001（残疾人，resource_code=res-disabled-info-001）命中关键词；
+    把其资源标为 share_type=3 后，命中 catalog 须被结构性排除。
+    """
+    from zw_brain.domain.recommendation_engine import RecommendationEngine
+
+    _seed_history_and_catalog(session)
+    _seed_jinzhou_rules(session)
+
+    # 前置确认：未标不予共享前，该 catalog 命中（否则负向断言空转）。
+    pre = RecommendationEngine(session).suggest("sd-default", intent_text="残疾人证补办", top_k=5)
+    assert any(c.catalog_id == "cat-disabled-info-001" for c in pre), "前置：残疾人 catalog 应命中"
+
+    # 把该 catalog 挂接的资源标为 shared_type=3 不予共享。
+    _seed_resource_asset_share_type(session, "res-disabled-info-001", 3)
+
+    post = RecommendationEngine(session).suggest("sd-default", intent_text="残疾人证补办", top_k=5)
+    assert all(c.catalog_id != "cat-disabled-info-001" for c in post), (
+        "shared_type=3 不予共享资源对应 catalog 必须被结构性排除出推荐候选（跨部门暴露风险）"
+    )
+
+
+def test_engine_keeps_shareable_catalog_when_resource_not_no_share(session):
+    """对照：shared_type=1/2（可共享）资源对应 catalog 不被排除（守边界不误杀）。"""
+    from zw_brain.domain.recommendation_engine import RecommendationEngine
+
+    _seed_history_and_catalog(session)
+    _seed_jinzhou_rules(session)
+    # 显式标无条件共享（1），断言仍在候选内。
+    _seed_resource_asset_share_type(session, "res-disabled-info-001", 1)
+
+    candidates = RecommendationEngine(session).suggest(
+        "sd-default", intent_text="残疾人证补办", top_k=5
+    )
+    assert any(c.catalog_id == "cat-disabled-info-001" for c in candidates), (
+        "无条件共享(1)资源对应 catalog 不应被排除（排除只针对不予共享=3）"
+    )
+
+
 def test_engine_returns_empty_when_below_threshold(session):
     from zw_brain.domain.recommendation_engine import RecommendationEngine
 

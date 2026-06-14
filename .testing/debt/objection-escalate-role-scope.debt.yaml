@@ -1,0 +1,16 @@
+slug: objection-escalate-role-scope
+title: "异议升级督办授权多授一角：escalate 现授 ORGAN_MANAGER+BUSIAUDIT，v5 督办应仅业务运营员(BUSIAUDIT)"
+date: 2026-06-14
+severity: low
+owner: 产品研发负责人
+trigger: >
+  权限专项收口时核定：policy.py 现把 objection.case.escalate.execute 授给
+  {ROLE_ORGAN_MANAGER, ROLE_BUSIAUDIT}，但 v5 角色菜单「异议督办」归业务运营员
+  (ROLE_BUSIAUDIT) only。是否收窄到 BUSIAUDIT 仅一角属角色/权限口径裁决（须业务方
+  sign-off，参 D55/D57 异议受理-督办归属），不在死代码清账范围内机械改。届时若裁定收窄，
+  从 ALLOW 集合移除 ROLE_ORGAN_MANAGER 并补回归测试。
+assert:
+  # 是否多授属业务口径裁决（v5 菜单 vs D57① 业务运营员受理面扩展），非可机械化判定——
+  # 强行 grep_present 断言 ORGAN_MANAGER 在集合内会把「待裁决」误标成「确定的 bug」。
+  # external：owner+trigger（权限专项）触发即升级。
+  kind: external

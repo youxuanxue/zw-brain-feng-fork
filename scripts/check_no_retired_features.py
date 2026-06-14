@@ -6,8 +6,9 @@ R-019⑤/R-020 库化：与段 19/21 同构守卫已迁到 ``check_grep_guards_b
 独立可运行入口；逐字语义、退役 token 正则、ALLOWED_FILES / ALLOWED_LINE_MARKERS
 见批量器中该段的常量定义。
 
-强约束：K12 dashboard 退役（D15 二次反转）+ alembic 删除（D23 二次升级）相关
-token 不得回潮。
+强约束：K12 dashboard 退役（D15 二次反转）相关 token 不得回潮。
+（alembic 退役模式已于 D58 移除——alembic forward-migration 回归取代冷启动 drop&recreate，
+反转 D23 二次升级；全文 docs/decisions/alembic-migration-reintroduction-D58.md。）
 
 使用：
     ./scripts/check_no_retired_features.py

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
@@ -56,7 +56,13 @@ async function approve() {
   });
 }
 
-async function reject() {
+// 驳回带理由：先点「驳回」展开理由框，填写后确认提交（仿挂接审核 P5HookupReviewInbox）。
+// 此前 reject_reason 硬编码常量「目录口径需补充证据后重新提交」——每一笔驳回都贴同一句
+// 套话，提交方拿不到真正的整改依据。后端 catalog_entry.py 已读 reject_reason，缺的是
+// 前端真实输入面。
+const rejecting = ref(false);
+const rejectReason = ref('');
+function startReject() {
   if (!canDecide.value) {
     pushToast({
       kind: 'info',
@@ -65,11 +71,25 @@ async function reject() {
     });
     return;
   }
+  rejecting.value = true;
+  rejectReason.value = '';
+}
+function cancelReject() {
+  rejecting.value = false;
+  rejectReason.value = '';
+}
+
+async function confirmReject() {
+  if (!rejectReason.value.trim()) {
+    pushToast({ kind: 'warn', title: '请填写驳回理由', detail: '驳回会把草稿退回提交方重新补证，需要说明依据。' });
+    return;
+  }
   await invokeActionStub({
     skillId: 'catalog.entry.reverse_draft.reject',
-    payload: { catalog_code: id.value, reject_reason: '目录口径需补充证据后重新提交' },
+    payload: { catalog_code: id.value, reject_reason: rejectReason.value.trim() },
     successTitle: '已驳回',
   });
+  cancelReject();
 }
 </script>
 
@@ -80,10 +100,23 @@ async function reject() {
       <PageFocusHeader :title="`反向编目审核 ${shortId(id)}`" meta="部门审通过后转业务运营员平台审；提交后进入审计链，不可静默撤销" />
       <DetailPanel title="被审反向编目草稿" :rows="rows" />
       <p v-if="!canDecide" class="role-hint">当前岗位无权在此审核；反向编目草稿的部门审由部门管理员办理。</p>
-      <DetailActions v-if="canDecide">
+      <DetailActions v-if="canDecide && !rejecting">
         <button type="button" class="gov-btn gov-btn-primary" @click="approve">通过审核</button>
-        <button type="button" class="gov-btn gov-btn-danger" @click="reject">驳回</button>
+        <button type="button" class="gov-btn gov-btn-danger" data-testid="field-decision-reject-btn" @click="startReject">驳回</button>
       </DetailActions>
+      <div v-if="canDecide && rejecting" class="reject-box" data-testid="field-decision-reject-panel">
+        <label for="field-decision-reject-reason">驳回理由（退回提交方补证后重新提交）</label>
+        <textarea
+          id="field-decision-reject-reason"
+          v-model="rejectReason"
+          rows="3"
+          placeholder="请说明目录口径 / 字段需要补充的证据"
+        />
+        <div class="reject-actions">
+          <button type="button" class="gov-btn gov-btn-danger" data-testid="field-decision-reject-confirm-btn" @click="confirmReject">确认驳回</button>
+          <button type="button" class="gov-btn" @click="cancelReject">取消</button>
+        </div>
+      </div>
     </section>
   </main>
 </template>
@@ -93,4 +126,8 @@ async function reject() {
 .gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
 .gov-btn-danger { background: #fff; border-color: #cf1322; color: #cf1322; }
 .role-hint { font-size: 13px; color: var(--b-muted, #5c6370); margin: 8px 0 12px; }
+.reject-box { display: grid; gap: 8px; max-width: 640px; padding: 8px 0 4px; }
+.reject-box label { font-size: 13px; color: var(--b-muted, #5c6370); }
+.reject-box textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 6px; font-size: 13px; }
+.reject-actions { display: flex; gap: 10px; }
 </style>

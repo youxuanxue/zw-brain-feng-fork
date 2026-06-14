@@ -21,7 +21,9 @@ from zw_brain.shared.auth_context import (
 )
 from zw_brain.shared.runtime_config import (
     DevBypassInProductionError,
+    InsecureIafTlsInProductionError,
     get_dev_iam_bypass_enabled,
+    get_iaf_insecure_tls_enabled,
 )
 
 
@@ -113,3 +115,37 @@ def test_m5_no_bypass_env_in_prod_is_fine(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.delenv("ZW_BRAIN_DEV_IAM_BYPASS", raising=False)
     monkeypatch.setenv("ZW_BRAIN_DEPLOY_MODE", "prod")
     assert get_dev_iam_bypass_enabled() is False
+
+
+# ─── M5-class: insecure IAF TLS prod guard ───────────────────────────────────
+
+
+def test_iaf_insecure_tls_allowed_in_non_prod(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ZW_BRAIN_IAF_VERIFY_SSL", "false")
+    monkeypatch.setenv("ZW_BRAIN_IAF_INSECURE_TLS_DEV_ACK", "development-only")
+    monkeypatch.delenv("ZW_BRAIN_DEPLOY_MODE", raising=False)
+    assert get_iaf_insecure_tls_enabled() is True
+    monkeypatch.setenv("ZW_BRAIN_DEPLOY_MODE", "dev")
+    assert get_iaf_insecure_tls_enabled() is True
+
+
+def test_iaf_insecure_tls_fails_closed_in_prod(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ZW_BRAIN_IAF_VERIFY_SSL", "false")
+    monkeypatch.setenv("ZW_BRAIN_IAF_INSECURE_TLS_DEV_ACK", "development-only")
+    for mode in ("prod", "production", "PROD", "Production"):
+        monkeypatch.setenv("ZW_BRAIN_DEPLOY_MODE", mode)
+        with pytest.raises(InsecureIafTlsInProductionError):
+            get_iaf_insecure_tls_enabled()
+
+
+def test_iaf_insecure_tls_requires_both_signals(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A single env (verify=false OR ack) must not disable TLS — both required, fail-safe ON."""
+    monkeypatch.setenv("ZW_BRAIN_DEPLOY_MODE", "prod")
+    # verify off but ack missing → TLS stays verifying, no raise (guard only fires on the pair)
+    monkeypatch.setenv("ZW_BRAIN_IAF_VERIFY_SSL", "false")
+    monkeypatch.delenv("ZW_BRAIN_IAF_INSECURE_TLS_DEV_ACK", raising=False)
+    assert get_iaf_insecure_tls_enabled() is False
+    # ack present but verify on (default) → still verifying
+    monkeypatch.setenv("ZW_BRAIN_IAF_INSECURE_TLS_DEV_ACK", "development-only")
+    monkeypatch.delenv("ZW_BRAIN_IAF_VERIFY_SSL", raising=False)
+    assert get_iaf_insecure_tls_enabled() is False

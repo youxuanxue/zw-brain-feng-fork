@@ -21,18 +21,11 @@ from zw_brain.domain.errors import NotFoundError
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Snapshot lookup primitives — take snapshot dict, no BrainService instance.
-# These mirror the BrainService ``_maybe_*`` / ``_*_by_id`` shape but are
-# pure functions over the snapshot dict so demo_state_sync (and sync.py)
-# never need to reach back into a BrainService instance.
+# Pure functions over the snapshot dict so demo_state_sync (and sync.py) never
+# need to reach back into a BrainService instance. The former BrainService
+# ``_resource_by_id`` / ``_zone_by_id`` shims that delegated here were零调用 and
+# deleted in 死代码清账; callers reach these module-level helpers directly.
 # ─────────────────────────────────────────────────────────────────────────────
-
-
-def maybe_package(snapshot: dict[str, Any], package_id: str) -> dict[str, Any] | None:
-    """Snapshot capability package by id; returns None when absent."""
-    for item in snapshot.get("packages", []):
-        if item.get("id") == package_id:
-            return item
-    return None
 
 
 def resource_by_id(snapshot: dict[str, Any], resource_id: str) -> dict[str, Any]:

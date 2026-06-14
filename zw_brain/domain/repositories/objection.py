@@ -60,6 +60,54 @@ class ObjectionRepository:
                 statement = statement.where(ObjectionCaseRecord.status == status)
             return list(session.execute(statement).scalars())
 
+    # 督办标记 = case 自带一条 escalate 过程事件（事件式升级，不改 case.status；对齐
+    # 已签 j1-objection-authz.feature:46「不是改 status 而是新增 escalate 事件」）。
+    ESCALATE_ACTION_TYPE = "escalate"
+
+    def list_supervised_cases(
+        self, *, tenant_id: str = "sd-default"
+    ) -> list[ObjectionCaseRecord]:
+        """业务运营员（ROLE_BUSIAUDIT）「待督办」队列 = 有 escalate 事件 且 未终结的 case.
+
+        督办标记由 objection_process 现算（action_type=escalate 的存在性），不新增
+        case 列、不改 status —— 升级是事件式的（escalate 事件入库 + 督办派生），状态机
+        语义零变更。已 closed/rejected 的终态 case 不再回督办队列（督办是「待抓办」信号）。
+        """
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            supervised_ids = session.execute(
+                select(ObjectionProcessRecord.objection_id).where(
+                    ObjectionProcessRecord.action_type == self.ESCALATE_ACTION_TYPE
+                )
+            ).scalars()
+            wanted = set(supervised_ids)
+            if not wanted:
+                return []
+            statement = (
+                select(ObjectionCaseRecord)
+                .where(
+                    ObjectionCaseRecord.tenant_id == tenant_id,
+                    ObjectionCaseRecord.id.in_(wanted),
+                    ObjectionCaseRecord.status.notin_(("closed", "rejected")),
+                )
+                .order_by(ObjectionCaseRecord.created_at)
+            )
+            return list(session.execute(statement).scalars())
+
+    def is_supervised(self, objection_id: str) -> bool:
+        """True 当 case 有 escalate 督办事件（派生自 objection_process，无 case 列）。"""
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            hit = session.execute(
+                select(ObjectionProcessRecord.id)
+                .where(
+                    ObjectionProcessRecord.objection_id == objection_id,
+                    ObjectionProcessRecord.action_type == self.ESCALATE_ACTION_TYPE,
+                )
+                .limit(1)
+            ).first()
+            return hit is not None
+
     def get_case(self, objection_id: str, *, tenant_id: str = "sd-default") -> ObjectionCaseRecord | None:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:

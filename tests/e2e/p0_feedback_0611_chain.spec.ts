@@ -205,11 +205,17 @@ test('链路2：反向编目两级审核全链——操作员UI创建→管理�
   await expect(page.locator('.toast-stack')).toContainText('已通过部门审', { timeout: 15_000 });
 
   // 4b) 草稿 B 部门审驳回 → rejected 终态（部门审驳回不进平台审）。
+  //     驳回两步：点「驳回」展开理由框 → 填写真实理由 → 「确认驳回」提交
+  //     （reject_reason 硬编码常量已退役，理由必填非空，见 P5FieldDecisionDetail）。
   await gotoHash(page, '#/provider/inbox/field-decision');
   await detailLink(draftB.code).click();
-  const rejectBtn = page.getByRole('button', { name: '驳回' });
+  const rejectBtn = page.getByTestId('field-decision-reject-btn');
   await expect(rejectBtn).toBeVisible({ timeout: 15_000 });
   await rejectBtn.click();
+  const rejectPanel = page.getByTestId('field-decision-reject-panel');
+  await expect(rejectPanel).toBeVisible({ timeout: 15_000 });
+  await rejectPanel.locator('textarea').fill('e2e 链路验证：目录口径需补充证据后重新提交');
+  await page.getByTestId('field-decision-reject-confirm-btn').click();
   await expect(page.locator('.toast-stack')).toContainText('已驳回', { timeout: 15_000 });
 
   // 5) 业务运营员：落到旧部门审路由应对位跳转目录审核收件箱（BUSIAUDIT 退出 draft 阶段确认，

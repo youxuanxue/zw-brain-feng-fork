@@ -1,0 +1,16 @@
+slug: schema-lifecycle-dry
+title: "approval_flow_schema / form_schema 两套生命周期工厂近乎整体复制（draft→preview→commit_to_live + tenant 校验 + 审计）未收口共享工厂"
+date: 2026-06-14
+severity: low
+owner: 产品研发负责人
+trigger: >
+  下次同步改 tenant 校验 / 审计语义时收口工厂：approval_flow_schema（b1/approval_flow_schema.py
+  handler + domain/approval_flow_baseline.py / approval_flow_nl_draft.py）与 form_schema
+  （domain/form_schema.py FormSchemaRepository.create_draft / promote_to_preview /
+  revert_to_draft / commit_to_live + form_fill_service.py）实现两套近乎同构的「草稿→预览→
+  上线」状态机、各自独立的 (tenant_id, *_code) 唯一性校验与 append_audit_feed。任一侧改 tenant
+  归属校验或审计语义时，须把两套生命周期收口到共享工厂，避免单边漂移。
+assert:
+  # 去重是结构性重构判断，非可机械化 grep 断言（两套状态机字段名不同、抽象边界需人判）。
+  # external：owner+trigger 触发即升级（下次同步改 tenant 校验/审计语义时收口）。
+  kind: external

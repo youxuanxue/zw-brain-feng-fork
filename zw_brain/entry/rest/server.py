@@ -61,9 +61,11 @@ from zw_brain.shared.logkit import (
 )
 from zw_brain.shared.runtime_config import (
     DevBypassInProductionError,
+    InsecureIafTlsInProductionError,
     get_dev_iam_bypass_enabled,
     get_dev_iam_bypass_role_codes,
     get_iaf_insecure_tls_dev_ack,
+    get_iaf_insecure_tls_enabled,
     get_iaf_verify_ssl,
     get_rest_host,
     get_rest_port,
@@ -217,7 +219,9 @@ def _iaf_ssl_context() -> ssl.SSLContext:
     # ZW_BRAIN_IAF_VERIFY_SSL=false only takes effect when paired with
     # ZW_BRAIN_IAF_INSECURE_TLS_DEV_ACK=development-only — otherwise the value is silently ignored and
     # a default-verifying context is returned. Prevents a single env typo from disabling TLS in prod.
-    if not get_iaf_verify_ssl() and get_iaf_insecure_tls_dev_ack():
+    # M5 fail-closed: get_iaf_insecure_tls_enabled() raises InsecureIafTlsInProductionError if that
+    # combination would leak into a prod deploy mode (caught at startup in main()).
+    if get_iaf_insecure_tls_enabled():
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
@@ -1185,12 +1189,15 @@ def log_iaf_runtime_warnings() -> None:
 def main(host: str | None = None, port: int | None = None) -> None:
     setup_logging("rest")
     validate_session_store_for_deploy()
-    # M5: fail-closed at startup if the dev IAM bypass env leaks into a prod deploy mode.
-    # get_dev_iam_bypass_enabled() raises DevBypassInProductionError in that case; surface it
-    # as a clean non-zero exit (refuse to boot) rather than running with auth fully open.
+    # M5: fail-closed at startup if a dev safety-bypass env leaks into a prod deploy mode.
+    # get_dev_iam_bypass_enabled() raises DevBypassInProductionError (auth fully open) and
+    # get_iaf_insecure_tls_enabled() raises InsecureIafTlsInProductionError (IAM TLS verification
+    # off → MITM surface). Surface either as a clean non-zero exit (refuse to boot) rather than
+    # running with a production safety guard silently disabled.
     try:
         get_dev_iam_bypass_enabled()
-    except DevBypassInProductionError as exc:
+        get_iaf_insecure_tls_enabled()
+    except (DevBypassInProductionError, InsecureIafTlsInProductionError) as exc:
         raise SystemExit(str(exc)) from exc
     log_iaf_runtime_warnings()
     # H2: bring up the in-process blockchain-anchor worker as part of the service

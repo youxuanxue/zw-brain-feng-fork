@@ -2,7 +2,7 @@
 
 # Preflight Debt Status (computed)
 
-## open (41)
+## open (45)
 - ac7 [medium] (2026-05-25) — 客户机房部署 + 监控对接未落地（E6 AC7）
   - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
 - agentruntime [medium] (2026-05-24) — AgentRuntime runtime 触发式延后（D30 retrofit）
@@ -45,6 +45,8 @@
   - assert: external → external — owner=产品研发负责人; trigger=见 docs/preflight-debt.md 历史归档
 - data-search [medium] (2026-05-30) — data.search typed query 返回目录而非资源（P2Discovery 资源中心语义不一致）
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务确认 P2Discovery 搜索应搜资源 → 立项搜索语义重构；
+- demo-state-sync-rename [low] (2026-06-14) — 模块名 command/demo_state_sync.py 已名实不符（demo 级联 C-1 退役、Action D 删除），但 6 处导入高 churn 改名延后
+  - assert: grep_present → pattern present in zw_brain/command/demo_state_sync.py
 - env [medium] (2026-05-29) — 验收证据 CI 化采集（消除人工采集 env 依赖）
   - assert: external → external — owner=推理平台（集团）; trigger=见 docs/preflight-debt.md 历史归档
 - f4-file-download-source-bytes [medium] (2026-06-07) — F4 文件资源真实字节交付依赖外部源存储底座（本期只做受控下载请求登记 + 下载日志）
@@ -59,18 +61,27 @@
   - assert: external → external — owner=产品研发负责人; trigger=Wave1 立项条件审批运行时（dept_approve→platform_approve handler + P3 两步 UI + decision_mode 暴露）→ 走查两步真跑 → 追加 covers → 翻 Done
 - j2-4 [medium] (2026-05-27) — J2-4 资源挂接 OPERATER 提交侧 wizard 立项延后
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务方提出"在线提交挂接"演示需求 → 走 product-dev.mdc
+- objection-escalate-role-scope [low] (2026-06-14) — 异议升级督办授权多授一角：escalate 现授 ORGAN_MANAGER+BUSIAUDIT，v5 督办应仅业务运营员(BUSIAUDIT)
+  - assert: external → external — owner=产品研发负责人; trigger=权限专项收口时核定：policy.py 现把 objection.case.escalate.execute 授给 {ROLE_ORGAN_MANAGER, ROLE_BUSIAUDIT}，但 v5 角色菜单「异议督办」归业务运营员 (ROLE_BUSIAUDIT) only。是否收窄到 BUSIAUDIT 仅一角属角色/权限口径裁决（须业务方 sign-off，参 D55/D57 异议受理-督办归属），不在死代码清账范围内机械改。届时若裁定收窄， 从 ALLOW 集合移除 ROLE_ORGAN_MANAGER 并补回归测试。
+
 - openssh-version-residual [medium] (2026-06-10) — 宿主 OpenSSH 8.9p1 版本匹配类漏扫发现无法靠 apt 升级清除（漏扫 0610 复扫残留）
   - assert: external → external — owner=产品研发负责人; trigger=三选一即可关账：(a) 扫描方接受发行版 backport 证明（apt changelog CVE 条目 + 0610 报告 strict-kex 在场实证）将版本匹配类列入豁免；(b) 宿主 OS 大版本升级（OpenSSH ≥9.6）后复扫清零；(c) 安全基线评审明确接受。任一发生 → 关债并在 docs/deployment/security-hardening-0610-rescan.md §2.3 落判定。
 - ops-deny-audit [medium] (2026-06-03) — policy deny 审计化：发射半已落（decision=deny），剩熔断语义 + 业务方 sign-off
   - assert: external → external — owner=产品研发负责人; trigger=业务方对「deny 审计写失败是否熔断」最终语义 sign-off → 据裁决（非阻塞保留 / 升级熔断）固化 + 落 .testing/signoff/，关本债。
 - p3requestdetail [medium] (2026-05-30) — P3RequestDetail 真实申请详情缺 prefilledFields（D45 轻量卡的 by-design 取舍）
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务反馈真实申请详情页「预填字段」缺失影响验收；
+- pii-snapshot-chokepoint-overmask [low] (2026-06-14) — WebUI snapshot PII 兜底 chokepoint 因过度脱敏回退——盲 mask_default 把展示用 name 键也脱了
+  - assert: external → external — owner=产品研发负责人; trigger=推荐安全边界 PR 的 PII 兜底 chokepoint（redact_webui_snapshot 末端整树过 mask_default） 把**展示用**裸 `name` 键（资源/目录发布队列标题、字段元数据字段名）当 PII 脱敏 （'链路验证库表资源123' → '链**********'），破坏 publish_queue 按标题定位 + B2 字段回显， e2e 实证 3 feature 掉绿（b2_field_metadata / p0_feedback_0611 链路1·链路2 资源队列）。 根因：裸 `name` 键在本仓既是 PII 人名又是展示标题，整树盲脱敏无法区分；per-projection 脱敏（main 既有）才有上下文。本 PR 回退盲兜底（return out），PII 仍由各投影 mask 覆盖。 若要安全网，须设计**可区分 PII name 与展示 name** 的方案（如按 projection 子树白名单 / 字段语义标注），非整树 mask_default。属语义设计，待立项。
+
 - request-list [medium] (2026-05-29) — request.list 性能基准断言负载敏感（间歇 flaky）
   - assert: external → external — owner=产品研发负责人; trigger=(a) CI 上该用例**非负载场景**稳定超 1000ms（=真实 perf 回归，立即 P0 查
 - resource-schema-keying-reconcile [medium] (2026-06-02) — 字段数据模型视图覆盖率残留：read-path bridge 已把 2%→27%，余 73% 资源源 dump 无 schema 映射（上游数据缺供）
   - assert: external → external — owner=产品研发负责人; trigger=数据/业务侧在上游补齐 138 个无 schema 映射资源的 dsp_metaresource→catalog 资源列级 link（或补 dump 后重导），使 resource_schema_mapping 覆盖更多 resource_asset；补齐后桥接自动放大覆盖率（读路径已就绪，无需再改代码）。届时把本 assert 从 external 升级为现算（如 SQL join 命中率门槛）并按实际覆盖率关债或降级。
 - reverse-draft-revision-surface [low] (2026-06-13) — 反向编目草稿被平台审退回（return_for_fix→draft）后，操作员缺「修订草稿再提交」编辑面——现状=重新走向导覆盖创建
   - assert: external → external — owner=产品研发负责人; trigger=业务方反馈退回草稿修订体验，或反向编目向导下一轮迭代立项 → P5ReverseCatalogWizard 加 edit 模式（既有 draft 预填 + 修订再提交），关债；落点定型时把本条 assert 升级为 grep_absent 机械锚。指针：PR #259 未尽清单第 2 项。
+- schema-lifecycle-dry [low] (2026-06-14) — approval_flow_schema / form_schema 两套生命周期工厂近乎整体复制（draft→preview→commit_to_live + tenant 校验 + 审计）未收口共享工厂
+  - assert: external → external — owner=产品研发负责人; trigger=下次同步改 tenant 校验 / 审计语义时收口工厂：approval_flow_schema（b1/approval_flow_schema.py handler + domain/approval_flow_baseline.py / approval_flow_nl_draft.py）与 form_schema （domain/form_schema.py FormSchemaRepository.create_draft / promote_to_preview / revert_to_draft / commit_to_live + form_fill_service.py）实现两套近乎同构的「草稿→预览→ 上线」状态机、各自独立的 (tenant_id, *_code) 唯一性校验与 append_audit_feed。任一侧改 tenant 归属校验或审计语义时，须把两套生命周期收口到共享工厂，避免单边漂移。
+
 - security-admin-retired-d55 [medium] (2026-06-09) — 安全管理员（ROLE_SECURITY_ADMIN）+ 数据安全中心本期退役，待立项恢复（D55/P16）
   - assert: external → external — owner=产品研发负责人; trigger=数据安全中心立项（分类分级 / 敏感识别 / 脱敏 / 密钥 / 风险处置 / 资产透视五大模块）→ 恢复 ROLE_SECURITY_ADMIN：重新加入 role_codes.BUSINESS_ROLE_CODES + 显示名 + 各 PERMISSION_ROLES 条目 + 前端四副本 + role-mapping-manifest（ROLE_SECURITY_MANAGER/ROLE_SECRET 从显式不映射段恢复）+ 重生成 agent 契约；security.scan.result.sync / package.* 等本期散权移除项一并校正（P22 Wave 后续）。
 - security-audit-readonly-d55 [medium] (2026-06-09) — 合规调查/风险处置写权随安全管理员退役 + 安全审计员只读化本期退役（D55/P22）

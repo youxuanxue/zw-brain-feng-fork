@@ -1,0 +1,17 @@
+slug: demo-state-sync-rename
+title: "模块名 command/demo_state_sync.py 已名实不符（demo 级联 C-1 退役、Action D 删除），但 6 处导入高 churn 改名延后"
+date: 2026-06-14
+severity: low
+owner: 产品研发负责人
+trigger: >
+  下次该模块迭代时一并改名：demo_state_sync.py 现仅承载通用 snapshot 查找原语
+  （resource_by_id/zone_by_id）+ workbench todo 写入器（set_todo_status/upsert_todo）+
+  package_status_text，已无任何 demo-seed 级联（sync_demo_state_views / maybe_request /
+  maybe_delivery / maybe_package 均已退役删除）。模块名残留 "demo_" 前缀名实不符。改名
+  （如 snapshot_state.py）牵动 6 处导入（brain.py/sync.py/pipeline.py/handlers/j2/compliance.py/
+  catalog_service.py），属高 churn 重命名，与下次该模块功能迭代合并以摊销 churn。
+assert:
+  # open ⇔ 模块仍叫 demo_state_sync（文件存在即名实不符债成立）；改名/删除该文件 → stale-fixed。
+  kind: grep_present
+  file: zw_brain/command/demo_state_sync.py
+  pattern: "Snapshot state-sync primitives"

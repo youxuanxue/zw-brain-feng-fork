@@ -14,8 +14,11 @@ root 下存在**主流源码扩展名**（.vue/.ts/.py 等）却**不在**该守
 设计取舍（务实）：
 - 只盯**主流源码扩展名**（``TRACKED_SOURCE_EXTS``）——守卫漏掉这些才是真风险；
   .json/.md/.yaml 等数据/文档扩展名不强制每个守卫都覆盖（覆盖与否是守卫语义选择）。
-- 先对两个高价值守卫生效（R12 ui-term / D6 no-direct-llm）；新增 grep 守卫
-  ``register_grep_guard`` 后自动纳入对账（``GUARDS_UNDER_META`` 登记）。
+- **机械自发现**（2026-06-14，名实相符根治）：rglob ``scripts/*.py`` 找出**所有**调用
+  ``register_grep_guard(`` 的守卫模块并 import，不再硬编码 2 个白名单。新增 grep 守卫
+  ``register_grep_guard`` 后**自动纳入**对账——无需任何手工登记。此前硬编码只覆盖 2/8 个
+  register_grep_guard 调用方（check_grep_guards_batch 的 3 段 / check_adapter_write_ban
+  从未被元守卫看过），是「元守卫自身扫描面漂移」——守卫漏掉守卫，与本元守卫立设动因同构。
 - 豁免须带理由文本（``SURFACE_EXEMPTIONS`` 值非空），防「一豁免了之」。
 
 退出码：0 = 无未覆盖主流扩展名；1 = 存在守卫面漂移。
@@ -24,27 +27,60 @@ root 下存在**主流源码扩展名**（.vue/.ts/.py 等）却**不在**该守
 from __future__ import annotations
 
 import importlib
+import re
 import sys
 
 from guard_lib import iter_files, registered_surfaces, repo_root
 
 REPO = repo_root()
+SCRIPTS_DIR = REPO / "scripts"
 
-# 触发各守卫的 register_grep_guard（import 即注册）。新增受元守卫监管的 grep 守卫
-# 在此登记其模块名即可。
-GUARDS_UNDER_META = (
-    "check_ui_term_blacklist",   # R12
-    "check_no_direct_llm",       # D6
-)
+# 机械自发现的排除项：本元守卫自身 + 库（只定义 register_grep_guard，不是守卫）。
+_DISCOVERY_EXCLUDE = frozenset({"check_guard_scan_surface", "guard_lib"})
+# 实际**调用** register_grep_guard(...) 的特征（排除 import / 定义行）。
+_REGISTER_CALL = re.compile(r"register_grep_guard\s*\(")
+
+
+def discover_meta_guards() -> tuple[str, ...]:
+    """rglob scripts/*.py，机械找出所有调用 register_grep_guard(...) 的守卫模块名。
+
+    名实相符：守卫一旦 ``register_grep_guard`` 即自动纳入元守卫对账，无需手工登记
+    （旧硬编码白名单只覆盖 2/8，是元守卫自身的扫描面漂移）。
+    """
+    found: list[str] = []
+    for path in sorted(SCRIPTS_DIR.glob("*.py")):
+        stem = path.stem
+        if stem in _DISCOVERY_EXCLUDE:
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        # 必须有真实调用行（非仅 `from guard_lib import register_grep_guard` / 注释提及）。
+        for line in text.splitlines():
+            stripped = line.lstrip()
+            if stripped.startswith("#") or stripped.startswith("from ") or stripped.startswith("import "):
+                continue
+            if _REGISTER_CALL.search(line):
+                found.append(stem)
+                break
+    return tuple(found)
+
+
+# import 即注册：自动发现的全部 register_grep_guard 调用方（机械、非硬编码）。
+GUARDS_UNDER_META = discover_meta_guards()
 
 # 主流源码扩展名——守卫漏掉这些才构成真风险（UI/逻辑/后端代码都在这几类里）。
 TRACKED_SOURCE_EXTS = (".py", ".ts", ".tsx", ".vue", ".js", ".jsx")
 
 # 显式豁免表：{(guard_name, ext): "理由"}。某守卫**故意**不覆盖某 root 下的某扩展名时
-# 在此带理由登记（值必须非空）。当前为空——两个高价值守卫已覆盖其 root 下全部主流扩展名。
+# 在此带理由登记（值必须非空）。
 SURFACE_EXEMPTIONS: dict[tuple[str, str], str] = {
-    # 例：("ui-term-blacklist", ".py"): "R12 只管前端用户面，后端 .py 不在 zw-brain-web/ root"
-    # （注：root 限定已天然排除——zw-brain-web/ 下本就没有 .py；此处仅示范豁免写法）
+    # no-legacy-role-codes 的正则 `\b[rR][1-8]\b` 在 .ts/.vue 里命中的 22 处全是**架构 R-约束 /
+    # D-决策子锚点**引用（如 `D57②/R8`、`链路1（R1/R2/R3）`），与已退役的旧**用户角色码** R1-R8
+    # 同名异 namespace。该守卫在 .py/.md 上靠 LEGACY_ALLOWED_LINE_MARKERS 逐条标注消解此歧义；
+    # 强扩到前端会引入 22 条纯架构引用误报、要逐行加 marker 维护——属过度机械化误报负债（§77）。
+    # 前端不承载旧用户角色码字面（角色经 policy.py 7 码 + role_codes.py，前端只引 ROLE_* 常量名），
+    # 故 .ts/.vue 故意不纳入本守卫面。
+    ("no-legacy-role-codes", ".ts"): "R[1-8] 在前端=架构 R-约束/D-决策锚点(非旧用户角色码)，同名异 namespace；强扫=22 条纯引用误报负债(§77)",
+    ("no-legacy-role-codes", ".vue"): "R[1-8] 在前端=架构 R-约束/D-决策锚点(非旧用户角色码)，同名异 namespace；强扫=22 条纯引用误报负债(§77)",
 }
 
 

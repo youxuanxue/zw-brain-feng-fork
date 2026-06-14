@@ -10,6 +10,51 @@ export interface ReverseDraftCatalog {
   issue?: string;
 }
 
+/** suggest 后端（reverse_draft_suggest.build_field_suggestions）逐字段输出行。 */
+export interface ReverseFieldSuggestion {
+  field_en: string;
+  field_cn: string;
+  confidence: string; // green | yellow | orange
+  source: string; // data-standard | comment | pii-pattern | llm-stub
+  data_type: string;
+  sensitive_level: string; // '1'..'4'，PII 定密由后端 reverse_draft_suggest.py:124-128 给出
+}
+
+/** 用户在候选表勾选/修订后、随 create 入库的确认行（含人改后的中文名/敏感级）。 */
+export interface ReverseFieldDecision {
+  field_en: string;
+  field_cn: string;
+  sensitive_level: string;
+  source: string;
+  selected: boolean;
+}
+
+/** 把 invokeActionStub 返回的 res.data 解析成可勾选/可改的候选表。 */
+export function parseFieldSuggestions(data: unknown): ReverseFieldSuggestion[] {
+  if (!data || typeof data !== 'object') return [];
+  const raw = (data as Record<string, unknown>).fields;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((r): r is Record<string, unknown> => Boolean(r) && typeof r === 'object')
+    .map((r) => ({
+      field_en: String(r.field_en ?? ''),
+      field_cn: String(r.field_cn ?? ''),
+      confidence: String(r.confidence ?? 'orange'),
+      source: String(r.source ?? 'llm-stub'),
+      data_type: String(r.data_type ?? ''),
+      sensitive_level: String(r.sensitive_level ?? '1'),
+    }))
+    .filter((r) => r.field_en);
+}
+
+/** 标题建议（title_suggestion.title），suggest 返回时回填到目录名草稿。 */
+export function parseTitleSuggestion(data: unknown): string {
+  if (!data || typeof data !== 'object') return '';
+  const ts = (data as Record<string, unknown>).title_suggestion;
+  if (!ts || typeof ts !== 'object') return '';
+  return String((ts as Record<string, unknown>).title ?? '').trim();
+}
+
 export function mapReverseDraftCatalog(raw: Record<string, unknown>): ReverseDraftCatalog {
   const id = String(raw.id ?? '');
   const name = String(raw.name ?? raw.title ?? id);
@@ -28,12 +73,26 @@ export function buildReverseDraftSuggestPayload(catalog: ReverseDraftCatalog): R
   return { schema_ref: catalog.schema_ref };
 }
 
-export function buildReverseDraftCreatePayload(catalog: ReverseDraftCatalog): Record<string, unknown> {
+export function buildReverseDraftCreatePayload(
+  catalog: ReverseDraftCatalog,
+  decisions?: ReverseFieldDecision[],
+): Record<string, unknown> {
+  // 仅把用户确认勾选的候选随 create 持久化（catalog_entry.py:367 接收为
+  // draft_field_suggestions；未勾选的不入库，避免把噪声字段写进草稿）。
+  const draft_field_suggestions = (decisions ?? [])
+    .filter((d) => d.selected && d.field_en.trim())
+    .map((d) => ({
+      field_en: d.field_en,
+      field_cn: d.field_cn,
+      sensitive_level: d.sensitive_level,
+      source: d.source,
+    }));
   return {
     catalog_code: catalog.catalog_code,
     title: catalog.name,
     schema_ref: catalog.schema_ref,
     owner_org_id: catalog.owner || undefined,
+    draft_field_suggestions,
   };
 }
 
