@@ -56,6 +56,8 @@ const rawStatus = computed(() => {
 });
 const isPendingAccept = computed(() => rawStatus.value === 'submitted');
 const canAccept = computed(() => canPerformAction('objection.case.accept', role.value));
+// 原 B11 督办孤儿页（零入口）折叠：升级督办归位异议处理方面，角色门与原 B11 一致（决策见 route-table）。
+const canEscalate = computed(() => canPerformAction('objection.case.escalate', role.value));
 
 const headerMeta = computed(() => {
   if (dispute.value) return isPendingAccept.value ? '受理后进入核查环节' : '提交回复后进入复核环节';
@@ -98,6 +100,16 @@ async function markResolved() {
     refreshSnapshotAfter: true,
   });
 }
+
+// 升级督办——事件式过程标记，不改 case.status（objection.case.escalate 后端零改动）。
+async function escalate() {
+  await invokeActionStub({
+    skillId: 'objection.case.escalate',
+    payload: { objection_id: id.value, opinion: '已核实，升级督办' },
+    successTitle: '已升级督办',
+    refreshSnapshotAfter: true,
+  });
+}
 </script>
 
 <template>
@@ -123,6 +135,7 @@ async function markResolved() {
         <DetailActions>
           <button type="button" class="gov-btn gov-btn-primary" @click="submitReply">提交回复</button>
           <button type="button" class="gov-btn" @click="markResolved">标记已解决</button>
+          <button v-if="canEscalate" type="button" class="gov-btn gov-btn-secondary" @click="escalate">升级督办</button>
         </DetailActions>
       </template>
     </section>

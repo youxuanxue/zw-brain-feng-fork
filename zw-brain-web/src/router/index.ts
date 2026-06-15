@@ -36,7 +36,6 @@ import P5ObjectionInbox from '@/pages/P5ObjectionInbox.vue';
 import P5ObjectionDetail from '@/pages/P5ObjectionDetail.vue';
 // 专题包页面（P7ZonesPack / P7ZoneDetail）退出本期（D55/P6）：路由下线，组件保留于 src/pages 待复活。
 import B11ComplianceOps from '@/pages/B11ComplianceOps.vue';
-import B11DisputeDetail from '@/pages/B11DisputeDetail.vue';
 import B13ServiceOps from '@/pages/B13ServiceOps.vue';
 import B12IntegrationAdmin from '@/pages/B12IntegrationAdmin.vue';
 import B12IamGovernance from '@/pages/B12IamGovernance.vue';
@@ -99,7 +98,8 @@ const routes: RouteRecordRaw[] = [
 
   // B1.1 合规与运营（后台）——查审计：审计日志 / 证据回放 / 审计事件面（D55/P8·P9，业务运营员 + 安全审计员）。
   { path: '/compliance-ops', name: 'B1.1-compliance', component: B11ComplianceOps, meta: { page: 'B1.1', title: 'B1.1 合规与运营' } },
-  { path: '/compliance-ops/dispute/:id', component: B11DisputeDetail, meta: { page: 'B1.1', title: 'B1.1 异议详情' } },
+  // H（D59）：B1.1 异议详情(B11DisputeDetail) 是零入口孤儿页(全站无 link/push/href 指向)，已删；
+  // 唯一独占动作「升级督办」(objection.case.escalate) 归位 P5ObjectionDetail 处理方面。
 
   // B1.3 服务调用监控（后台）——查审计拆分（D55/P8）→ D57⑥ 收窄：网关运行 / 服务调用只读面，
   // 仅平台运维员 + 业务运营员；管理员/审计员退出。与 ops.service.report.query.execute 角色门一致。

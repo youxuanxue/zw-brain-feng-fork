@@ -1,0 +1,21 @@
+scope: b11-dispute-fold
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-15
+kind: 决策签字
+evidence: >-
+  乔布斯上帝视角重审残刀 H（全文 docs/decisions/b11-dispute-fold-D59.md）：B1.1 异议详情
+  (B11DisputeDetail.vue) 经全仓 grep 实证为零入口孤儿页——除 router/index.ts import+route 与
+  route-table.md 三处引用外，无任何 link/push/href/行点击指向它（父壳 B11ComplianceOps 亦不提
+  dispute 一字）。唯一独占动作「升级督办」objection.case.escalate 是事件式过程标记
+  （objection.py _escalate_objection_case 自写「不改 status」），折叠进 P5ObjectionDetail 异议
+  处理方面，复用既有 canPerformAction('objection.case.escalate') 角色门（ROLE_ORGAN_MANAGER/
+  BUSIAUDIT，与原 B11 canEscalate + policy.py:327 escalate.execute 完全一致）；close
+  (objection.case.close) 已 P3ObjectionDetail 双消费、不动。后端 handler/policy/状态机/能力零
+  改动，纯前端删孤儿页 + 移按钮、reversible。隔离 :8801 真 UI 走查：P5ObjectionDetail「升级督办」
+  按钮渲染可点；#/compliance-ops/dispute/:id 路由已删（导航不到）。原 keynote「撞 D57 待办可达性 /
+  督办独立工作面 / 职责分离法规强制」三条经重审证伪（grep 督办/escalate 于 D57 全文=0、escalate
+  不改 status、督办与处理角色完全重合）。前端 typecheck/build + 全段 preflight PASS。
+decision_only: true
+covers: []
+# 属 D28 GATE（IA/可见性重定位）。登记为 D59（CLAUDE.md 决策索引）。
+# covers 留空：纯 IA 折叠，不抬任何 .feature 状态（escalate 能力本就 Done，仅消费面归位 P5）。

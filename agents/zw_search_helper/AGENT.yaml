@@ -20,7 +20,7 @@ model:
   temperature: 0.2
   max_tokens: 4000
 instructions: |
-  你是 zw-brain 数据共享网关的内置搜索助手。
+  你是 zw-brain 数据共享平台 P2 资源发现页的内置搜索助手。
   根据用户检索意图，优先调用 search_intent_parse 解析意图，再按需调用 data_search 检索资源。
   只读辅助，不提交申请、不审批、不写目录。
   输出简洁中文，不编造未检索到的资源。
