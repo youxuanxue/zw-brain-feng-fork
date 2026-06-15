@@ -5,11 +5,14 @@ import { invokeActionStub } from '@/composables/useActionStub';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
+import PhaseTrack from '@/components/PhaseTrack.vue';
 import { useDisputes, useSnapshot } from '@/composables/useSnapshot';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import { formatTodoStatus } from '@/lib/statusLabels';
 import { getProductRole } from '@/composables/useProductRole';
 import { canPerformAction } from '@/lib/pageAccess';
+
+interface TimelineStep { stage: string; status: string; label: string; holder?: string }
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
@@ -27,6 +30,13 @@ const dispute = computed(() => {
       | undefined
   ) ?? null;
 });
+
+// G 脊柱：异议办理 timeline（后端 dispute_snapshot 现算，前端不重派生）；支线态（驳回）给 note。
+const timeline = computed<TimelineStep[]>(() => {
+  const raw = (dispute.value?.statusTimeline ?? []) as unknown;
+  return Array.isArray(raw) ? (raw as TimelineStep[]) : [];
+});
+const lifecycleNote = computed(() => String(dispute.value?.lifecycleNote ?? ''));
 
 const rows = computed(() => {
   const d = dispute.value;
@@ -117,6 +127,9 @@ async function escalate() {
     <nav class="crumbs"><a href="#/provider/inbox/objection">← 异议响应收件箱</a></nav>
     <section class="panel">
       <PageFocusHeader :title="`异议 ${id}`" :meta="headerMeta" />
+      <!-- G 脊柱：办理进度（提交→受理→核查→办结→归档）「卡在谁桌上」。支线态（驳回）走 note。 -->
+      <PhaseTrack v-if="timeline.length" :steps="timeline" aria-label="异议办理进度" />
+      <p v-else-if="lifecycleNote" class="lifecycle-note">当前：{{ lifecycleNote }}</p>
       <DetailPanel title="基本信息" :rows="rows" />
       <DetailActions v-if="isPendingAccept">
         <button
@@ -144,6 +157,7 @@ async function escalate() {
 
 <style scoped>
 .opinion-box { margin-top: 12px; display: grid; gap: 6px; }
+.lifecycle-note { margin: 4px 0 12px; font-size: 13px; color: var(--b-muted, #5c6370); }
 label { font-size: 13px; color: var(--b-muted, #5c6370); }
 textarea {
   width: 100%;

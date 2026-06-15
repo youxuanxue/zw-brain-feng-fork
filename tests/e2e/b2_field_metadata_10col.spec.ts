@@ -10,12 +10,11 @@ import { expect, test, type Page } from '@playwright/test';
 import { E2E_BASE_URL, gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
 
 const TS = Date.now();
-const ORG = '11370000MB284651XL';
 const CAT_TITLE = `字段元数据验证目录${TS}`;
-const RES_CODE = `res-b2-10col-${TS}`;
 const RES_TITLE = `字段元数据验证库表${TS}`;
-const FILE_CODE = `res-b2-file-${TS}`;
 const FILE_TITLE = `字段元数据验证文件${TS}`;
+// 资源标识 = 挂接向导系统自动生成（不再手敲）；从只读字段读出供详情页深链用。
+// 归属机构 = 选中目录自动带出（不再手填，否则跨 org 校验拒）。
 
 /** 读侧 glue：按标题查内部目录码（与 p0_feedback_0611_chain 同模式，免 CSRF）。 */
 async function findCatalogCodeByTitle(requestCtx: any, title: string): Promise<string> {
@@ -139,10 +138,11 @@ test('B2 链路：注册逐列填 10 列 → 审核发布 → 详情逐列回显
   // ── 库表：挂接向导逐列填 10 列（两行字段，行 1 含全部低频列） ────────────────
   await setRole(page, 'ROLE_ORGAN_OPERATER');
   await gotoHash(page, '#/provider/wizard/hookup-submit');
-  await page.getByPlaceholder('挂接到哪个已发布目录').fill(catalogCode);
-  await page.getByPlaceholder('本资源的唯一标识').fill(RES_CODE);
+  // 所属目录走下拉（选已发布目录，归属随之带出）；资源标识系统自动生成，读出供后续详情深链。
+  await page.getByTestId('hookup-catalog-select').selectOption(catalogCode);
+  const RES_CODE = (await page.getByTestId('hookup-resource-code').textContent())?.trim() ?? '';
+  expect(RES_CODE, '资源标识应自动生成').toBeTruthy();
   await page.getByPlaceholder('例如：养老资源信息').fill(RES_TITLE);
-  await page.getByPlaceholder('须与目标目录归属一致（否则挂接被拒）').fill(ORG);
   await page.getByPlaceholder('t_xxx').fill('t_b2_field_demo');
 
   const fieldTable = page.getByTestId('hookup-field-table');
@@ -203,10 +203,10 @@ test('B2 链路：注册逐列填 10 列 → 审核发布 → 详情逐列回显
   await setRole(page, 'ROLE_ORGAN_OPERATER');
   await gotoHash(page, '#/provider/wizard/hookup-submit');
   await page.getByRole('button', { name: '文件' }).click();
-  await page.getByPlaceholder('挂接到哪个已发布目录').fill(catalogCode);
-  await page.getByPlaceholder('本资源的唯一标识').fill(FILE_CODE);
+  await page.getByTestId('hookup-catalog-select').selectOption(catalogCode);
+  const FILE_CODE = (await page.getByTestId('hookup-resource-code').textContent())?.trim() ?? '';
+  expect(FILE_CODE, '文件资源标识应自动生成').toBeTruthy();
   await page.getByPlaceholder('例如：养老资源信息').fill(FILE_TITLE);
-  await page.getByPlaceholder('须与目标目录归属一致（否则挂接被拒）').fill(ORG);
   await page.getByPlaceholder('students.csv').fill('persons.csv');
   await page.getByPlaceholder('/data/xxx.csv').fill('/data/persons.csv');
   await page.getByPlaceholder('例如：xm').nth(0).fill('sfzh');

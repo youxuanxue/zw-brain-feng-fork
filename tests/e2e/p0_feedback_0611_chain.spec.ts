@@ -11,10 +11,9 @@ import { expect, test, type Page } from '@playwright/test';
 import { E2E_BASE_URL, gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
 
 const TS = Date.now();
-const ORG = '11370000MB284651XL';
 const CAT_TITLE = `链路验证目录${TS}`;
-const RES_CODE = `res-e2e-0611-${TS}`;
 const RES_TITLE = `链路验证库表资源${TS}`;
+// 资源标识 = 挂接向导系统自动生成；归属随选中目录带出（不再手填）。
 
 /** 读侧 glue：按标题查内部目录码（j2-inline-…）。request fixture 无浏览器 cookie，免 CSRF。 */
 async function findCatalogCodeByTitle(requestCtx: any, title: string): Promise<string> {
@@ -82,10 +81,11 @@ test('链路1：UI 新编目→挂接有条件资源→发布→申请→受理�
   // 5) 部门操作员：挂接有条件（共享类型=2 默认）库表资源到新目录。
   await setRole(page, 'ROLE_ORGAN_OPERATER');
   await gotoHash(page, '#/provider/wizard/hookup-submit');
-  await page.getByPlaceholder('挂接到哪个已发布目录').fill(catalogCode);
-  await page.getByPlaceholder('本资源的唯一标识').fill(RES_CODE);
+  // 所属目录走下拉（归属随之带出）；资源标识系统自动生成，读出供详情深链。
+  await page.getByTestId('hookup-catalog-select').selectOption(catalogCode);
+  const RES_CODE = (await page.getByTestId('hookup-resource-code').textContent())?.trim() ?? '';
+  expect(RES_CODE, '资源标识应自动生成').toBeTruthy();
   await page.getByPlaceholder('例如：养老资源信息').fill(RES_TITLE);
-  await page.getByPlaceholder('须与目标目录归属一致（否则挂接被拒）').fill(ORG);
   // B2 字段数据模型逐列登记（旧「源→目标」两列映射已升级为字段级元数据表；字段名必填）。
   await page.getByPlaceholder('例如：xm').first().fill('name');
   await page.getByPlaceholder('例如：姓名').first().fill('姓名');

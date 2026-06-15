@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from zw_brain.domain.lifecycle_timeline import objection_sideline_note, objection_timeline
 from zw_brain.domain.repositories.objection import ObjectionRepository
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
@@ -20,6 +21,10 @@ def _case_to_dispute_item(record: Any) -> dict[str, Any]:
         "targetId": record.target_id,
         "owner": record.provider_org_id or record.complainant_org_id,
         "createdAt": record.created_at.isoformat() if getattr(record, "created_at", None) else "",
+        # G 脊柱（申请/复议方侧）：异议办理 timeline（提交→受理→核查→办结→归档）现算，
+        # 双侧详情（P3/P5 ObjectionDetail）共用 PhaseTrack 渲「卡在谁桌上」。读侧、不改状态机。
+        "statusTimeline": objection_timeline(record.status),
+        "lifecycleNote": objection_sideline_note(record.status),
         "repository": {
             "objectionKind": record.objection_kind,
             "targetType": record.target_type,

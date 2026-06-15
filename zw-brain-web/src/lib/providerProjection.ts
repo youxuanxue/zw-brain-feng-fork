@@ -211,7 +211,15 @@ export interface AssetStatusSummary {
 }
 
 const _DRAFT = new Set(['draft', '草稿']);
-const _REVIEWING = new Set(['pending_review', '审核中', '待审核']);
+// pending_platform_review（平台审核中，反向编目部门审过/正向编制平台档）也是「审核中」桶——
+// 漏它会让该态泄漏英文裸串（破 R12）且被误计进 inactive 桶（与「本部门 N 项」配不上）。
+const _REVIEWING = new Set([
+  'pending_review',
+  'pending_platform_review',
+  '审核中',
+  '待审核',
+  '平台审核中',
+]);
 const _PENDING_PUBLISH = new Set(['approved_pending_publish', '待发布']);
 const _PUBLISHED = new Set(['active', '已发布', '已上线', 'published']);
 
@@ -261,6 +269,11 @@ const _BUCKET_LABEL: Record<_ActiveBucket, string> = {
   pendingPublish: '待发布',
   published: '已发布',
 };
+// 与桶标签同义但更具体的机器态 → 中文（pending_platform_review 桶=审核中，但展示词
+// 要区分「平台审核中」，与后端 resource_lifecycle.lifecycle_label 同口径，前端零词表对齐）。
+const _SPECIFIC_LABEL: Record<string, string> = {
+  pending_platform_review: '平台审核中',
+};
 // 非四态机器值 → 中文（已是中文则原样透传；都不命中诚实回落原值/「—」）。
 const _INACTIVE_LABEL: Record<string, string> = {
   suspended: '已停用',
@@ -274,10 +287,28 @@ const _INACTIVE_LABEL: Record<string, string> = {
 /** 生命周期态 → 中文展示标签（R12 前端零词表口径，与概览卡分桶同源）。 */
 function _statusLabel(raw: unknown): string {
   const s = String(raw ?? '').trim();
+  // 具体态优先（平台审核中 vs 审核中），再回落桶标签。
+  if (_SPECIFIC_LABEL[s]) return _SPECIFIC_LABEL[s];
   const bucket = _bucketStatus(s);
   if (bucket) return _BUCKET_LABEL[bucket];
   if (/[一-鿿]/.test(s)) return s; // 已是中文（snapshot 部分行直接落中文态）
   return _INACTIVE_LABEL[s.toLowerCase()] ?? (s || '—');
+}
+
+/** 行内动作（C：草稿续编/提交审核）。href=跳转链接；actionId=点击调能力（由页面承接）。 */
+export interface ProviderRowAction {
+  label: string;
+  href?: string;
+  actionId?: string;
+  danger?: boolean;
+}
+
+/** J2 供数脊柱 timeline 段（F；与 PhaseTrack TimelineStep 同形，后端现算）。 */
+export interface ProviderTimelineStep {
+  stage: string;
+  status: string;
+  label: string;
+  holder?: string;
 }
 
 export interface ProviderAssetRow {
@@ -295,6 +326,25 @@ export interface ProviderAssetRow {
   kind?: string;
   /** 行内「查看」跳转（复用既有详情路由）。 */
   viewHref: string;
+  /** 行内动作（C：草稿行加「继续编辑」+「提交审核」；非草稿行为空）。 */
+  actions?: ProviderRowAction[];
+  /** J2 供数脊柱（F）：生命周期 timeline 段（后端现算；支线态/未知为空数组）。 */
+  timeline?: ProviderTimelineStep[];
+  /** 支线态（驳回/退役）中文标注——无 stepper 时诚实说明（F）。 */
+  lifecycleNote?: string;
+}
+
+function asTimeline(raw: unknown): ProviderTimelineStep[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((s) => {
+    const it = asRecord(s);
+    return {
+      stage: String(it.stage ?? ''),
+      status: String(it.status ?? ''),
+      label: String(it.label ?? ''),
+      holder: String(it.holder ?? ''),
+    };
+  });
 }
 
 /** 本部门「已编目目录」管理清单（按生命周期浏览全部，T9）。 */
@@ -305,13 +355,27 @@ export function providerCatalogRows(provider: Record<string, unknown>): Provider
     const code = String(it.catalog_code ?? it.id ?? '');
     // 展示码优先业务码（数据资源目录代码 DRC-…，T3②），缺则回落内部码；跳转仍用内部码（路由键）。
     const displayCode = String(it.data_catalog_code ?? '') || code;
+    // C：草稿行（lifecycle=draft）给行内「继续编辑」（带 ?code= 续编向导）+「提交审核」（调能力）。
+    // 后端 _update_catalog_entry / submit_review 早已支持续编，原本纯 UI 缺入口（draft 行只读「查看」）。
+    const isDraft = String(it.lifecycle_status ?? it.status ?? '') === 'draft';
+    const actions: ProviderRowAction[] = isDraft && code
+      ? [
+          { label: '继续编辑', href: `#/provider/wizard/inline-catalog?code=${encodeURIComponent(code)}` },
+          { label: '提交审核', actionId: code },
+        ]
+      : [];
     return {
       id: String(it.id ?? ''),
       name: safeRecordTitle(it.name ?? it.title, it.id, '目录'),
       code: displayCode || '—',
       owner: String(it.owner ?? it.owner_org_id ?? '—'),
       status: _statusLabel(it.status ?? it.lifecycle_status),
+      // D57⑨/R-10：审核退回/驳回理由回显（return_for_fix/reject 落 summary → 投影 review_return_reason）。
+      statusNote: String(it.review_return_reason ?? '') ? `驳回理由：${String(it.review_return_reason)}` : '',
       viewHref: code ? `#/discovery/catalog/${encodeURIComponent(code)}` : '',
+      actions,
+      timeline: asTimeline(it.statusTimeline),
+      lifecycleNote: String(it.lifecycleNote ?? ''),
     };
   });
 }
@@ -334,6 +398,8 @@ export function providerResourceRows(provider: Record<string, unknown>): Provide
       // 单源 resourceKindLabel（lib/resourceKind.ts）；未知/空 → '—'（管理清单保留占位）。
       kind: resourceKindLabel(kind) || '—',
       viewHref: id ? `#/discovery/resource/${encodeURIComponent(id)}` : '',
+      timeline: asTimeline(it.statusTimeline),
+      lifecycleNote: String(it.lifecycleNote ?? ''),
     };
   });
 }

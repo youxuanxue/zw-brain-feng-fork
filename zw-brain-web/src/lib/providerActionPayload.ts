@@ -6,6 +6,16 @@ export function catalogCodeFromItem(raw: Record<string, unknown>): string {
   return String(raw.catalog_code ?? raw.legacy_object_ref ?? raw.id ?? '');
 }
 
+/** 新铸一个本地系统生成的资源/目录标识（j2-<prefix>-<时间戳36>-<随机4>）。
+ *  原本散落在 P5ApiServiceWizard / P5InlineCatalogWizard 各写一份同形 `_newXxxCode()`，
+ *  抽到此处单源——挂接向导也复用，资源码不再让用户手敲（手敲易与目录归属脱钩、被
+ *  后端跨 org 校验拒）。技术 id / 路由键，不是国家登记码，不伪造业务码语义。 */
+export function mintResourceCode(prefix: string): string {
+  const ts = Date.now().toString(36);
+  const rnd = Math.random().toString(36).slice(2, 6);
+  return `j2-${prefix}-${ts}-${rnd}`;
+}
+
 export function mapProviderCatalog(raw: Record<string, unknown>) {
   return mapReverseDraftCatalog(raw);
 }

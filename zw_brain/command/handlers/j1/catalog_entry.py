@@ -128,15 +128,25 @@ def _create_catalog_entry_draft(brain, deps, ctx, payload: dict[str, Any]) -> di
 
     return deps.write(ctx, payload, mutation)
 
-def _transition_catalog_entry(brain, deps, ctx, catalog_code: str, status: str, skill_id: str, role: str, confirmed: bool) -> dict[str, Any]:
+def _transition_catalog_entry(brain, deps, ctx, catalog_code: str, status: str, skill_id: str, role: str, confirmed: bool, review_note: str | None = None) -> dict[str, Any]:
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         repo = deps.repos.catalog  # Action C — deps.repos always wired (DB or in-memory fallback)
         existing = repo.get_entry(catalog_code, tenant_id=_DEFAULT_TENANT_ID)
         if existing is None:
             raise NotFoundError(catalog_code)
+        summary = copy.deepcopy(existing.summary_json)
+        # D57⑨/R10：审核退回/驳回理由落 summary_json.review_return_reason（与资源侧同键，
+        # 供数方在「目录管理清单」看到整改依据）。退回/驳回写理由；通过则清掉陈旧理由
+        # （review_note 显式传入；通过路径传 "" 清除，其余路径 None 不触碰已存理由）。
+        if review_note is not None:
+            note = str(review_note).strip()
+            if note:
+                summary["review_return_reason"] = note
+            else:
+                summary.pop("review_return_reason", None)
         repo.upsert_from_resource(
             {
-                **copy.deepcopy(existing.summary_json),
+                **summary,
                 "id": existing.catalog_code,
                 "name": existing.title,
                 "status": status,
@@ -431,7 +441,7 @@ def _reject_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any
 
     return deps.write(ctx, payload, mutation)
 
-def _review_catalog_entry(brain, deps, ctx, catalog_code: str, decision: str, role: str, confirmed: bool) -> dict[str, Any]:
+def _review_catalog_entry(brain, deps, ctx, catalog_code: str, decision: str, role: str, confirmed: bool, reason: str | None = None) -> dict[str, Any]:
     # F1 (E2 J2 3-layer): stage-aware approval.
     #   pending_review            ← 部门待审（MANAGER 审）
     #   pending_platform_review   ← 平台待审（BUSIAUDIT 复核；F1 新增运行时态，不入 CATALOG_STATUS_TO_LIFECYCLE）
@@ -458,11 +468,15 @@ def _review_catalog_entry(brain, deps, ctx, catalog_code: str, decision: str, ro
                 f"catalog_entry {catalog_code} cannot be approved from state={state} by role={role}; "
                 "expected pending_review+MANAGER, pending_platform_review+BUSIAUDIT, or pending_review+BUSIAUDIT (legacy single-step)"
             )
-        return _transition_catalog_entry(brain, deps, ctx, catalog_code, target, "catalog.entry.review", role, confirmed)
-    if decision == "return_for_fix":
-        return _transition_catalog_entry(brain, deps, ctx, catalog_code, "draft", "catalog.entry.review", role, confirmed)
-    if decision == "reject":
-        return _transition_catalog_entry(brain, deps, ctx, catalog_code, "rejected", "catalog.entry.review", role, confirmed)
+        # 通过：清掉历史驳回理由（陈旧整改依据不再展示）——传 review_note="" 触发清除。
+        return _transition_catalog_entry(brain, deps, ctx, catalog_code, target, "catalog.entry.review", role, confirmed, review_note="")
+    # D57⑨/R10：退回/驳回须带理由（fail-closed）——REST/CLI 直调不带理由同样拦（前端 toast
+    # 只是第一道），让供数方拿到整改依据。落 summary_json.review_return_reason。
+    if decision in {"return_for_fix", "reject"}:
+        if not (reason or "").strip():
+            raise InvalidStateError("目录审核退回/驳回须填写理由（退回提交方整改的依据）")
+        target = "draft" if decision == "return_for_fix" else "rejected"
+        return _transition_catalog_entry(brain, deps, ctx, catalog_code, target, "catalog.entry.review", role, confirmed, review_note=reason)
     raise BrainServiceError(f"unsupported catalog entry review decision: {decision}")
 
 def _submit_catalog_entry_review(brain, deps, ctx, catalog_code: str, role: str, confirmed: bool) -> dict[str, Any]:
@@ -592,7 +606,11 @@ def handler_catalog_entry_reverse_draft_reject(deps: HandlerDeps, ctx: SkillCont
 def handler_catalog_entry_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _review_catalog_entry(brain, deps, ctx, str(payload["catalog_code"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    # reason / review_note 同义键（前端传 reason；与资源侧 review_note 命名各自历史，此处两收）。
+    reason = payload.get("reason")
+    if reason is None:
+        reason = payload.get("review_note")
+    return _review_catalog_entry(brain, deps, ctx, str(payload["catalog_code"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), reason=reason)
 
 def handler_catalog_entry_submit_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.

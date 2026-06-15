@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailActions from '@/components/DetailActions.vue';
+import { authFetch } from '@/composables/useAuth';
+import { apiUrl } from '@/composables/useApiBase';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
+import { mintResourceCode } from '@/lib/providerActionPayload';
 import { canAuthorInlineCatalog } from '@/lib/requestFlowRoles';
 import {
   SHARE_TYPE_OPTIONS,
@@ -69,11 +73,6 @@ const stage = ref<Stage>('draft_unsubmitted');
 const lifecycleLabel = ref<string>('');
 const busy = ref(false);
 
-function _newCatalogCode(): string {
-  const ts = Date.now().toString(36);
-  const rnd = Math.random().toString(36).slice(2, 6);
-  return `j2-inline-${ts}-${rnd}`;
-}
 
 // 必填红星单源派生（0611 口径确认单 §A）：组件内不二次硬编码必填位；
 // 共享条件的星随「共享类型 = 有条件共享」联动。
@@ -154,7 +153,7 @@ async function createDraft() {
   if (!basicInfoPrecheckPassed()) return;
   busy.value = true;
   try {
-    const code = _newCatalogCode();
+    const code = mintResourceCode('inline');
     const result = await invokeActionStub({
       skillId: 'catalog.entry.create_draft',
       payload: {
@@ -256,6 +255,81 @@ function startAnother() {
   lifecycleLabel.value = '';
   stage.value = 'draft_unsubmitted';
 }
+
+// ── 续编已存草稿（C：刷新即丢 + 清单 draft 行只读「查看」→ 接 ?code= 路由参续编）──
+// 后端 _update_catalog_entry / submit_review 完全支持续编，原本纯 UI 缺入口（向导
+// catalogCode/stage 是内存 ref、无路由参，刷新丢失；清单 draft 行无「继续编辑」）。
+const route = useRoute();
+const resuming = ref(false);
+const resumeError = ref('');
+
+function _str(v: unknown): string {
+  return v === null || v === undefined ? '' : String(v);
+}
+
+async function hydrateDraft(code: string): Promise<void> {
+  resuming.value = true;
+  resumeError.value = '';
+  try {
+    const resp = await authFetch(apiUrl('/api/skills/catalog.entry.query'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ role: role.value, confirmed: true, catalog_code: code }),
+    });
+    if (!resp.ok) throw new Error('暂时无法加载该草稿，请稍后再试。');
+    const payload = (await resp.json()) as { items?: Record<string, unknown>[] };
+    const entry = (payload.items ?? []).find((it) => _str(it.catalog_code) === code);
+    if (!entry) {
+      resumeError.value = '未找到该目录草稿（可能已提交或被删除）。';
+      return;
+    }
+    const life = _str(entry.lifecycle_status);
+    if (life !== 'draft') {
+      // 仅 draft 可续编（与后端 submit_review 要求 draft 一致）；非草稿态诚实拦下。
+      resumeError.value = `该目录当前为「${_str(entry.lifecycle_label) || life}」，仅草稿态可续编。`;
+      return;
+    }
+    // summary 取顶层 + 内层（create_draft 嵌 summary_json.summary_json，update 展开到顶层；
+    // 与后端 _missing_inline_required_basic_fields 同一合并口径）。
+    const summary = (entry.summary_json ?? {}) as Record<string, unknown>;
+    const nested = (summary.summary_json ?? {}) as Record<string, unknown>;
+    const m = { ...nested, ...summary };
+    title.value = _str(entry.title);
+    catalogType.value = _str(m.catalog_type);
+    sourceSystem.value = _str(m.source_system);
+    internalDept.value = _str(m.internal_org_name);
+    domain.value = _str(m.domain);
+    applicationScenario.value = _str(m.application_scenario);
+    if (_str(m.resource_format)) resourceFormat.value = _str(m.resource_format);
+    if (_str(m.business_update_cycle)) businessUpdateCycle.value = _str(m.business_update_cycle);
+    if (_str(m.data_update_cycle)) dataUpdateCycle.value = _str(m.data_update_cycle);
+    if (_str(m.shared_way)) shareWay.value = _str(m.shared_way);
+    if (_str(m.shared_type)) shareType.value = _str(m.shared_type);
+    shareCondition.value = _str(m.shared_condition);
+    if (_str(m.open_type)) openType.value = _str(m.open_type);
+    description.value = _str(m.description);
+    contactName.value = _str(m.contact_name);
+    contactPhone.value = _str(m.contact_phone);
+    contactEmail.value = _str(m.contact_email);
+    officePhone.value = _str(m.office_phone);
+    isHandlingResult.value = m.is_handling_result === true ? 'true' : 'false';
+    isEcert.value = m.is_ecert === true ? 'true' : 'false';
+    dataCatalogCode.value = _str(m.data_catalog_code);
+    catalogCode.value = code;
+    lifecycleLabel.value = _str(entry.lifecycle_label) || '草稿';
+    // 续编态：step-1 已锁（同 create 后），可在 step-2/3 改信息项/元数据并提交审核。
+    stage.value = 'draft_unsubmitted';
+  } catch (e) {
+    resumeError.value = e instanceof Error ? e.message : String(e);
+  } finally {
+    resuming.value = false;
+  }
+}
+
+onMounted(() => {
+  const code = String((route.query.code ?? '') as string).trim();
+  if (code) void hydrateDraft(code);
+});
 </script>
 
 <template>
@@ -273,6 +347,13 @@ function startAnother() {
 
       <p v-if="!canAuthor" class="role-hint">
         在线编制由部门操作员、部门管理员办理。当前岗位暂无编制权限，请切换岗位后再来此新建目录。
+      </p>
+
+      <!-- C：续编态横幅（?code= 进入）。加载中 / 加载失败 / 已载入草稿三态诚实呈现。 -->
+      <p v-if="resuming" class="resume-banner" data-testid="inline-catalog-resume-loading">正在载入草稿……</p>
+      <p v-else-if="resumeError" class="resume-banner resume-error" data-testid="inline-catalog-resume-error">{{ resumeError }}</p>
+      <p v-else-if="catalogCode && route.query.code" class="resume-banner resume-ok" data-testid="inline-catalog-resume-ok">
+        已载入草稿「{{ title || catalogCode }}」续编，可修改信息项与元数据后提交审核。
       </p>
 
       <!-- Step 1：基本信息维护 -->
@@ -542,6 +623,9 @@ function startAnother() {
 .gov-btn-secondary { background: #fff; border-color: var(--b-border, #d4e2f4); color: var(--b-text, #1f2733); }
 .gov-btn-secondary[disabled] { color: #9aa5b1; cursor: not-allowed; }
 .role-hint { font-size: 13px; color: var(--b-muted, #5c6370); margin: 0 0 12px; line-height: 1.5; }
+.resume-banner { font-size: 13px; margin: 0 0 12px; padding: 8px 12px; border-radius: 6px; background: #eef3fb; color: var(--b-text, #1f2733); }
+.resume-banner.resume-ok { background: #eaf5ea; color: #2c7a2c; }
+.resume-banner.resume-error { background: #fdecea; color: #b42318; }
 .link-btn { background: none; border: 0; color: var(--b-primary, #006be6); cursor: pointer; padding: 0; font-size: 13px; text-decoration: underline; }
 .link-btn:disabled { color: #9aa5b1; cursor: not-allowed; text-decoration: none; }
 .link-btn.danger { color: #c0392b; }

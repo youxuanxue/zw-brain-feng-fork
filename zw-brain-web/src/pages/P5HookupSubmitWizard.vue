@@ -3,6 +3,8 @@ import { computed, ref } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { invokeActionStub } from '@/composables/useActionStub';
+import { useProvider, useSnapshot } from '@/composables/useSnapshot';
+import { mintResourceCode } from '@/lib/providerActionPayload';
 import {
   SHARE_TYPE_OPTIONS,
   OPEN_TYPE_OPTIONS,
@@ -19,13 +21,46 @@ import {
 // 只做 table / file 两形态；接口资源走「代理服务注册向导」入口（不重复造）。
 // 调 resource.mount.{table,file}.prepare 建草稿 → resource.asset.submit_review 提交复核。
 
+const provider = useProvider();
+const { source } = useSnapshot();
+
 type Kind = 'table' | 'file';
 const kind = ref<Kind>('table');
 
+// 所属数据目录 = 下拉选已发布目录（姊妹页 P5ApiServiceWizard 同范式），选中即带出
+// 归属机构（灰色只读）+ 自动生成资源标识——手敲裸 input 会让归属与目录脱钩，被后端
+// _guard_catalog_same_org 跨 org 校验 100% 拒（seed 目录全有 owner）。
 const catalogCode = ref('');
-const resourceCode = ref('');
+const resourceCode = ref(mintResourceCode('resource'));
 const title = ref('');
-const ownerOrgId = ref('');
+
+// 可挂接的数据目录（来自 provider 目录列表，真实 snapshot）。携带 owner_org_id + 机构中文名。
+interface CatalogOption {
+  code: string;
+  title: string;
+  ownerOrgId: string;
+  ownerName: string;
+}
+const catalogOptions = computed<CatalogOption[]>(() => {
+  const list = (provider.value.catalogs as unknown[] | undefined) ?? [];
+  return list
+    .map((c) => c as Record<string, unknown>)
+    // 页头口径「为已发布目录补挂」：只列已发布（active）目录——挂草稿/在审目录无意义。
+    .filter((c) => String(c.lifecycle_status ?? c.status ?? '') === 'active')
+    .map((c) => ({
+      code: String(c.catalog_code ?? c.id ?? ''),
+      title: String(c.name ?? c.title ?? c.catalog_code ?? c.id ?? ''),
+      ownerOrgId: String(c.owner_org_id ?? ''),
+      ownerName: String(c.owner ?? c.owner_org_id ?? ''),
+    }))
+    .filter((c) => c.code);
+});
+const selectedCatalog = computed<CatalogOption | undefined>(() =>
+  catalogOptions.value.find((c) => c.code === catalogCode.value),
+);
+// 归属机构 = 选中目录的 owner（机器侧 owner_org_id 上送、中文名只读回显），不让用户手填。
+const ownerOrgId = computed(() => selectedCatalog.value?.ownerOrgId ?? '');
+const ownerName = computed(() => selectedCatalog.value?.ownerName ?? '');
 
 // B2：资源注册业务信息（对标旧平台资源「基本信息」标签页，table/file 共用）。
 // 注：旧平台库表资源注册第一屏只有「开放类型」无「开放条件」（T4 已删 openCondition）。
@@ -72,13 +107,24 @@ const fileSize = ref('');
 const fileStoreType = ref('centerStore');
 
 const submitting = ref(false);
+// 后端失败 detail 回显（B：透传后端人话，不再被「岗位无权」误译）。挂接失败时（多为
+// 归属/目录不一致的业务校验）把后端 detail 显示在归属字段旁，告诉用户到底卡哪。
+const mountError = ref('');
 
 // 字段登记完整性 —— 操作员责任面，红/绿实时回显（库表必填：每行需有字段名；文件可选）。
 const fieldReady = computed(
   () => fieldRows.value.length > 0 && fieldRows.value.every((row) => row.columnName.trim()),
 );
 
+// 可提交 = 选了目录（带出归属）+ 有资源标识（自动生成，非空）。归属由目录派生、无需校验手填。
 const canPrepare = computed(() => Boolean(catalogCode.value.trim() && resourceCode.value.trim()));
+
+function _detailOf(res: { data?: unknown }): string {
+  const data = res.data;
+  return data && typeof data === 'object' && 'detail' in (data as object)
+    ? String((data as Record<string, unknown>).detail ?? '')
+    : '';
+}
 
 function addFieldRow() {
   fieldRows.value.push(blankFieldRow());
@@ -104,7 +150,8 @@ function buildPayload(): Record<string, unknown> {
     resource_code: resourceCode.value.trim(),
     catalog_code: catalogCode.value.trim(),
     title: title.value.trim() || resourceCode.value.trim(),
-    owner_org_id: ownerOrgId.value.trim() || undefined,
+    // 归属由选中目录派生（与目录 owner 一致），不再让用户手填导致跨 org 拒。
+    owner_org_id: ownerOrgId.value || undefined,
     ...business,
   };
   // B2：字段级元数据 10 列 → 后端 field_columns（写入字段快照，与存量导入同源同形，
@@ -142,12 +189,15 @@ function buildPayload(): Record<string, unknown> {
 async function saveDraft() {
   if (!canPrepare.value) return;
   submitting.value = true;
+  mountError.value = '';
   try {
-    await invokeActionStub({
+    const res = await invokeActionStub({
       skillId: kind.value === 'table' ? 'resource.mount.table.prepare' : 'resource.mount.file.prepare',
       payload: buildPayload(),
       successTitle: '已保存挂接草稿',
     });
+    // 失败分支不再静默 return：把后端人话 detail 回显到归属字段旁（B 配套）。
+    if (!res.ok) mountError.value = _detailOf(res) || '挂接草稿保存未成功，请检查所选目录与归属。';
   } finally {
     submitting.value = false;
   }
@@ -156,6 +206,7 @@ async function saveDraft() {
 async function submitReview() {
   if (!canPrepare.value) return;
   submitting.value = true;
+  mountError.value = '';
   try {
     const prepared = await invokeActionStub({
       skillId: kind.value === 'table' ? 'resource.mount.table.prepare' : 'resource.mount.file.prepare',
@@ -163,12 +214,16 @@ async function submitReview() {
       successTitle: '挂接草稿已保存',
       refreshSnapshotAfter: false,
     });
-    if (!prepared.ok) return;
-    await invokeActionStub({
+    if (!prepared.ok) {
+      mountError.value = _detailOf(prepared) || '挂接草稿保存未成功，请检查所选目录与归属。';
+      return;
+    }
+    const reviewed = await invokeActionStub({
       skillId: 'resource.asset.submit_review',
       payload: { resource_code: resourceCode.value.trim() },
       successTitle: '已提交复核',
     });
+    if (!reviewed.ok) mountError.value = _detailOf(reviewed) || '提交复核未成功，请稍后重试。';
   } finally {
     submitting.value = false;
   }
@@ -192,10 +247,29 @@ async function submitReview() {
       </div>
 
       <div class="grid2">
-        <div><label class="field-label">所属数据目录 *</label><input v-model="catalogCode" class="gov-input" placeholder="挂接到哪个已发布目录" /></div>
-        <div><label class="field-label">资源标识 *</label><input v-model="resourceCode" class="gov-input" placeholder="本资源的唯一标识" /></div>
+        <div>
+          <label class="field-label">所属数据目录 *</label>
+          <select v-model="catalogCode" class="gov-input" data-testid="hookup-catalog-select">
+            <option value="" disabled>请选择已发布目录</option>
+            <option v-for="c in catalogOptions" :key="c.code" :value="c.code">{{ c.title }}</option>
+          </select>
+          <p v-if="source === 'live' && !catalogOptions.length" class="field-hint">
+            本部门暂无已发布目录，请先在线编制并发布目录后再来挂接资源。
+          </p>
+        </div>
+        <div>
+          <label class="field-label">资源标识<span class="auto-tag">系统自动生成</span></label>
+          <p class="readonly-value" data-testid="hookup-resource-code">{{ resourceCode }}</p>
+        </div>
         <div><label class="field-label">资源名称</label><input v-model="title" class="gov-input" placeholder="例如：养老资源信息" /></div>
-        <div><label class="field-label">归属机构</label><input v-model="ownerOrgId" class="gov-input" placeholder="须与目标目录归属一致（否则挂接被拒）" /></div>
+        <div>
+          <label class="field-label">归属机构<span class="auto-tag">随目录带出</span></label>
+          <p class="readonly-value" data-testid="hookup-owner">
+            {{ ownerName || (catalogCode ? '—' : '请先选择数据目录') }}
+          </p>
+          <!-- B 配套：挂接失败时后端人话 detail 在归属旁回显（多为归属/目录不一致的业务校验）。 -->
+          <p v-if="mountError" class="field-error" data-testid="hookup-mount-error">{{ mountError }}</p>
+        </div>
       </div>
 
       <!-- B2 资源基本信息（对标旧平台资源注册「基本信息」标签页，库表/文件共用） -->
@@ -369,6 +443,10 @@ async function submitReview() {
 <style scoped>
 .field-label { display: block; font-size: 13px; margin-bottom: 6px; color: var(--b-muted, #5c6370); }
 .gov-input { width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--b-border, #d4e2f4); box-sizing: border-box; }
+.readonly-value { margin: 0; padding: 6px 10px; border: 1px dashed var(--b-border, #d4e2f4); border-radius: 6px; font-size: 13px; color: var(--b-text, #1f2733); background: #f6f9fe; min-height: 20px; box-sizing: border-box; }
+.auto-tag { margin-left: 6px; font-size: 11px; color: #6b7888; background: #eef3fb; border-radius: 4px; padding: 1px 6px; font-weight: 400; }
+.field-hint { margin: 6px 0 0; font-size: 12px; color: var(--b-muted, #5c6370); }
+.field-error { margin: 6px 0 0; font-size: 12px; color: #b42318; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 .grid2 .span2 { grid-column: 1 / -1; }
 .block-title { margin: 16px 0 10px; font-size: 14px; font-weight: 600; color: var(--b-text, #1f2733); }

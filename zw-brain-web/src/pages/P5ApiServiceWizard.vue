@@ -6,6 +6,7 @@ import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { canPerformAction } from '@/lib/pageAccess';
+import { mintResourceCode } from '@/lib/providerActionPayload';
 import {
   SHARE_TYPE_OPTIONS,
   OPEN_TYPE_OPTIONS,
@@ -108,18 +109,12 @@ const newResourceCode = ref('');
 // 用 v-show 保留已填内容（折叠不清空）。
 const showRegisterForm = ref(false);
 
-function _newResourceCode(): string {
-  const ts = Date.now().toString(36);
-  const rnd = Math.random().toString(36).slice(2, 6);
-  return `j2-api-proxy-${ts}-${rnd}`;
-}
-
 const canRegister = computed(
   () => serviceName.value.trim().length >= 3 && originalUrl.value.trim().length > 0 && description.value.trim().length >= 30,
 );
 
 function buildPayload(): Record<string, unknown> {
-  const code = _newResourceCode();
+  const code = mintResourceCode('api-proxy');
   return {
     resource_code: code,
     resource_kind: 'api',

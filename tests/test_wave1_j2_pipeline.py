@@ -308,15 +308,18 @@ def test_j2_dept_review_return_for_fix_transitions_to_draft(brain, catalog_repo)
     })
     review = _call(brain, "catalog.entry.review", {
         "catalog_code": code, "decision": "return_for_fix",
+        "reason": "信息项缺主键，请补全后重提",
         "role": REVIEWER_ROLE, "confirmed": True,
     })
     assert review["lifecycle_status"] == "draft"
     entry = catalog_repo.get_entry(code, tenant_id=TENANT)
     assert entry.lifecycle_status == "draft"
+    # D57⑨/R10：退回理由落 summary.review_return_reason（供数方整改依据）。
+    assert entry.summary_json.get("review_return_reason") == "信息项缺主键，请补全后重提"
 
 
 def test_j2_dept_review_reject_terminal(brain, catalog_repo):
-    """正向 — MANAGER reject → rejected 终态（编目员看到驳回理由，需新建草稿重提）."""
+    """正向 — MANAGER reject（带理由）→ rejected 终态（编目员看到驳回理由，需新建草稿重提）."""
     code = _unique_catalog_code("J2-REV-REJECT")
     _call(brain, "catalog.entry.create_draft", {
         "catalog_code": code, "title": "将被驳回目录", "summary_json": _required_summary(), "owner_org_id": "dept_a_test",
@@ -327,9 +330,58 @@ def test_j2_dept_review_reject_terminal(brain, catalog_repo):
     })
     review = _call(brain, "catalog.entry.review", {
         "catalog_code": code, "decision": "reject",
+        "reason": "口径不符合编目规范",
         "role": REVIEWER_ROLE, "confirmed": True,
     })
     assert review["lifecycle_status"] == "rejected"
+    entry = catalog_repo.get_entry(code, tenant_id=TENANT)
+    assert entry.summary_json.get("review_return_reason") == "口径不符合编目规范"
+
+
+def test_j2_dept_review_reject_without_reason_fail_closed(brain, catalog_repo):
+    """负向（D57⑨/R10 fail-closed）— 退回/驳回不带理由 → InvalidStateError，态不变。
+
+    REST/CLI 直调不带理由同样拦（前端 toast 只是第一道），保证供数方一定拿到整改依据。
+    """
+    from zw_brain.command.brain import InvalidStateError
+    code = _unique_catalog_code("J2-REV-NOREASON")
+    _call(brain, "catalog.entry.create_draft", {
+        "catalog_code": code, "title": "无理由驳回目录", "summary_json": _required_summary(), "owner_org_id": "dept_a_test",
+        "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
+    })
+    _call(brain, "catalog.entry.submit_review", {
+        "catalog_code": code, "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
+    })
+    for decision in ("reject", "return_for_fix"):
+        with pytest.raises(InvalidStateError):
+            _call(brain, "catalog.entry.review", {
+                "catalog_code": code, "decision": decision, "reason": "   ",  # 空白理由同样拦
+                "role": REVIEWER_ROLE, "confirmed": True,
+            })
+        # 守卫在转换前 fail-closed：态停在 pending_review（未被改写）。
+        entry = catalog_repo.get_entry(code, tenant_id=TENANT)
+        assert entry.lifecycle_status == "pending_review"
+
+
+def test_j2_dept_review_approve_clears_stale_reject_reason(brain, catalog_repo):
+    """通过审核清掉历史驳回理由（陈旧整改依据不再展示）——退回带理由→补件重提→通过后理由清空。"""
+    code = _unique_catalog_code("J2-REV-CLEAR")
+    _call(brain, "catalog.entry.create_draft", {
+        "catalog_code": code, "title": "清理由目录", "summary_json": _required_summary(), "owner_org_id": "dept_a_test",
+        "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
+    })
+    _call(brain, "catalog.entry.submit_review", {"catalog_code": code, "role": "ROLE_ORGAN_OPERATER", "confirmed": True})
+    _call(brain, "catalog.entry.review", {
+        "catalog_code": code, "decision": "return_for_fix", "reason": "先补件",
+        "role": REVIEWER_ROLE, "confirmed": True,
+    })
+    assert catalog_repo.get_entry(code, tenant_id=TENANT).summary_json.get("review_return_reason") == "先补件"
+    _call(brain, "catalog.entry.submit_review", {"catalog_code": code, "role": "ROLE_ORGAN_OPERATER", "confirmed": True})
+    _call(brain, "catalog.entry.review", {
+        "catalog_code": code, "decision": "approve",
+        "role": REVIEWER_ROLE, "confirmed": True,
+    })
+    assert not catalog_repo.get_entry(code, tenant_id=TENANT).summary_json.get("review_return_reason")
 
 
 def test_j2_dept_review_unsupported_decision_rejected(brain):
@@ -527,7 +579,7 @@ def test_j2_three_layer_manager_return_for_fix_back_to_draft(brain, catalog_repo
         "catalog_code": code, "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     review = _call(brain, "catalog.entry.review", {
-        "catalog_code": code, "decision": "return_for_fix",
+        "catalog_code": code, "decision": "return_for_fix", "reason": "部门审退回补件",
         "role": MANAGER_ROLE, "confirmed": True,
     })
     assert review["lifecycle_status"] == "draft"
@@ -546,7 +598,7 @@ def test_j2_three_layer_manager_reject_terminal(brain, catalog_repo):
         "catalog_code": code, "role": "ROLE_ORGAN_OPERATER", "confirmed": True,
     })
     review = _call(brain, "catalog.entry.review", {
-        "catalog_code": code, "decision": "reject",
+        "catalog_code": code, "decision": "reject", "reason": "部门审驳回",
         "role": MANAGER_ROLE, "confirmed": True,
     })
     assert review["lifecycle_status"] == "rejected"
@@ -569,7 +621,7 @@ def test_j2_three_layer_platform_return_for_fix_back_to_draft(brain, catalog_rep
     })
     # 平台 stage BUSIAUDIT return_for_fix
     review = _call(brain, "catalog.entry.review", {
-        "catalog_code": code, "decision": "return_for_fix",
+        "catalog_code": code, "decision": "return_for_fix", "reason": "平台审退回补件",
         "role": PLATFORM_ROLE, "confirmed": True,
     })
     assert review["lifecycle_status"] == "draft"
@@ -590,7 +642,7 @@ def test_j2_three_layer_platform_reject_terminal(brain, catalog_repo):
         "role": MANAGER_ROLE, "confirmed": True,
     })
     review = _call(brain, "catalog.entry.review", {
-        "catalog_code": code, "decision": "reject",
+        "catalog_code": code, "decision": "reject", "reason": "平台审驳回",
         "role": PLATFORM_ROLE, "confirmed": True,
     })
     assert review["lifecycle_status"] == "rejected"
@@ -729,7 +781,7 @@ def test_reverse_dept_reject_terminal_and_platform_return_back_to_dept_inbox(bra
         "catalog_code": code_b, "role": MANAGER_ROLE, "confirmed": True,
     })
     returned = _call(brain, "catalog.entry.review", {
-        "catalog_code": code_b, "decision": "return_for_fix",
+        "catalog_code": code_b, "decision": "return_for_fix", "reason": "平台审退回部门补件",
         "role": PLATFORM_ROLE, "confirmed": True,
     })
     assert returned["lifecycle_status"] == "draft", returned

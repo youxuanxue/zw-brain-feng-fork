@@ -109,14 +109,44 @@ watch(role, () => {
   void loadInbox();
 });
 
-async function decide(catalogCode: string, decision: 'approve' | 'reject') {
+// D57⑨/R10：驳回须带理由——展开行内理由框，无理由不可提交（按钮禁用）。
+// 通过无须理由，直接处置。后端同样硬拦无理由的退回/驳回（前端只是第一道）。
+const rejectingCode = ref('');
+const rejectReason = ref('');
+
+function startReject(catalogCode: string) {
+  rejectingCode.value = catalogCode;
+  rejectReason.value = '';
+}
+
+function cancelReject() {
+  rejectingCode.value = '';
+  rejectReason.value = '';
+}
+
+async function approve(catalogCode: string) {
   const result = await invokeActionStub({
     skillId: 'catalog.entry.review',
-    payload: { catalog_code: catalogCode, decision },
-    successTitle: decision === 'approve' ? '已通过审核' : '已驳回',
+    payload: { catalog_code: catalogCode, decision: 'approve' },
+    successTitle: '已通过审核',
     refreshSnapshotAfter: true,
   });
   if (!result.ok) return;
+  await loadInbox();
+}
+
+async function confirmReject() {
+  const code = rejectingCode.value;
+  const reason = rejectReason.value.trim();
+  if (!code || !reason) return; // 无理由不提交（按钮已禁用，此处兜底）
+  const result = await invokeActionStub({
+    skillId: 'catalog.entry.review',
+    payload: { catalog_code: code, decision: 'reject', reason },
+    successTitle: '已驳回',
+    refreshSnapshotAfter: true,
+  });
+  if (!result.ok) return;
+  cancelReject();
   await loadInbox();
 }
 
@@ -161,7 +191,8 @@ const headerMeta = computed(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="it in items" :key="it.catalog_code">
+            <template v-for="it in items" :key="it.catalog_code">
+            <tr>
               <!-- T10（6.5#8）：编号/名称跳目录详情，审核人看全貌再判通过/驳回（复用 P2 目录详情页）。 -->
               <td>
                 <a
@@ -181,7 +212,7 @@ const headerMeta = computed(() => {
                   type="button"
                   class="row-link-btn approve"
                   data-testid="catalog-review-approve-btn"
-                  @click="decide(it.catalog_code, 'approve')"
+                  @click="approve(it.catalog_code)"
                 >
                   通过
                 </button>
@@ -189,12 +220,38 @@ const headerMeta = computed(() => {
                   type="button"
                   class="row-link-btn reject"
                   data-testid="catalog-review-reject-btn"
-                  @click="decide(it.catalog_code, 'reject')"
+                  @click="startReject(it.catalog_code)"
                 >
                   驳回
                 </button>
               </td>
             </tr>
+            <!-- D57⑨/R10：驳回理由行（无理由不可提交）——展开在被驳回行下方。 -->
+            <tr v-if="rejectingCode === it.catalog_code" class="reject-row">
+              <td :colspan="6">
+                <div class="reject-box">
+                  <label class="reject-label">驳回理由（退回供数方整改的依据，必填）</label>
+                  <textarea
+                    v-model="rejectReason"
+                    class="reject-input"
+                    rows="2"
+                    placeholder="例如：信息项缺少主键标识，请补全后重新提交。"
+                    data-testid="catalog-review-reject-reason"
+                  ></textarea>
+                  <div class="reject-actions">
+                    <button
+                      type="button"
+                      class="gov-btn gov-btn-danger"
+                      :disabled="!rejectReason.trim()"
+                      data-testid="catalog-review-reject-confirm-btn"
+                      @click="confirmReject"
+                    >确认驳回</button>
+                    <button type="button" class="gov-btn gov-btn-plain" @click="cancelReject">取消</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            </template>
           </tbody>
         </table>
         </div>
@@ -216,4 +273,13 @@ const headerMeta = computed(() => {
 .role-hint { font-size: 13px; color: var(--b-muted, #5c6370); margin: 0 0 12px; line-height: 1.5; }
 .status-pill { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #eef4fb; color: var(--b-primary, #006be6); font-size: 12px; }
 .error-msg { font-size: 13px; color: #c0392b; margin: 0 0 10px; }
+.reject-row td { background: #fdf6f4; border-top: 0; }
+.reject-box { display: flex; flex-direction: column; gap: 6px; padding: 4px 2px 8px; }
+.reject-label { font-size: 12px; color: var(--b-muted, #5c6370); }
+.reject-input { width: 100%; max-width: 640px; padding: 6px 10px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 6px; font-size: 13px; resize: vertical; font-family: inherit; box-sizing: border-box; }
+.reject-actions { display: flex; gap: 10px; }
+.gov-btn { padding: 5px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid var(--b-border, #d4e2f4); background: #fff; }
+.gov-btn-danger { background: #c0392b; color: #fff; border-color: transparent; }
+.gov-btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+.gov-btn-plain { background: #fff; }
 </style>

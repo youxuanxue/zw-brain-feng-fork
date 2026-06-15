@@ -84,12 +84,20 @@ export async function invokeActionStub(opts: ActionStubOptions): Promise<{ ok: b
         data && typeof data === 'object' && 'detail' in (data as object)
           ? String((data as Record<string, unknown>).detail ?? '')
           : '';
-      let detail = bodyDetail || '请检查当前岗位权限或稍后重试。';
+      // 后端人话 detail 优先透传（不被通用文案覆盖）。后端 AccessDeniedError 是两义的：
+      // 既可能是真权限失败，也可能是业务校验（如挂接归属与目录不一致）伪装成 403——把
+      // detail 当作纯权限问题改写会把「你填错/没填归属」误译成「岗位无权」（误导）。
+      // 故：detail 非空就回显它；只有 detail 为空（后端没给人话）才按状态码回落通用文案。
+      let detail: string;
       const missing = bodyDetail.match(/missing required input field\(s\):\s*(.+?)\s*\(skill:/i);
       if (missing) {
         detail = `缺少必填信息：${missing[1]}。请重新选择目录或联系管理员补全 schema 引用。`;
+      } else if (bodyDetail) {
+        detail = bodyDetail;
       } else if (resp.status === 403) {
         detail = '当前岗位无权执行此操作，请切换岗位或联系管理员。';
+      } else {
+        detail = '请检查当前岗位权限或稍后重试。';
       }
       pushToast({ kind: 'info', title: '操作未完成', detail });
     }

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type APIRequestContext } from '@playwright/test';
 import {
   firstDeliveryRequestId,
   gotoHash,
@@ -7,6 +7,64 @@ import {
   waitAppReady,
   E2E_BASE_URL,
 } from './helpers';
+
+/**
+ * 经 API 链**自铸**一条 need-fix（已退回补正）申请，返回 request_id（或 null 让用例 skip）。
+ *   request.create(草稿, OPERATER) → request.submit(→ pending, OPERATER)
+ *   → approval.review_decide(decision=return_for_fix, BUSIAUDIT → status=need-fix)
+ * 用于驱动「补件 / 重新提交」action-gate 断言（need-fix 态下 OPERATER/MANAGER 可见、BUSIAUDIT 不渲染），
+ * 不再假定 snapshot.requests[0] 是 need-fix 运行时单——干净 seed 的 requests[0] 是已暂停的导入单，
+ * 会让 P3 详情页落到「在途/暂不可重提」分支、按钮不渲染 → 这条用例本属 seed-brittle。自供其前置消除脆性。
+ *
+ * 选 **无条件**（shareType≠有条件共享）资源：submit 后落 'pending'，return_for_fix 的前置正是
+ * status∈{pending,summary-pending}（request_service.return_for_fix）。同资源已有在办申请会被
+ * InvalidStateError 拦（重复跑 / 脏 DB），逐个候选试到成功；铸态走**无 cookie** 独立 APIRequestContext
+ * 避开服务端 CSRF（dev 仅无 cookie 请求豁免）。
+ */
+async function mintNeedFixRequest(api: APIRequestContext): Promise<string | null> {
+  const invoke = async (skill: string, data: Record<string, unknown>): Promise<Record<string, unknown>> => {
+    const resp = await api.post(`${E2E_BASE_URL}/api/skills/${skill}`, { data });
+    const body = (await resp.json().catch(() => ({}))) as Record<string, unknown>;
+    return (body.result ?? body) as Record<string, unknown>;
+  };
+
+  const snap = await api.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
+  if (!snap.ok()) return null;
+  const snapBody = (await snap.json().catch(() => ({}))) as Record<string, unknown>;
+  const discovery = (snapBody.discovery ?? {}) as Record<string, unknown>;
+  const resources = (discovery.resources ?? []) as Array<Record<string, unknown>>;
+  // 无条件共享资源：submit→'pending'（有条件落 'submitted'，return_for_fix 前置不满足）。
+  const unconditional = resources.filter((r) => String(r.shareType ?? '') !== '有条件共享');
+
+  for (const r of unconditional.slice(0, 12)) {
+    const resourceId = String(r.id ?? '');
+    if (!resourceId) continue;
+    const created = await invoke('request.create', {
+      role: 'ROLE_ORGAN_OPERATER',
+      resource_id: resourceId,
+      purpose: 'e2e 权限不可见：need-fix 补件按钮 action-gate',
+      confirmed: true,
+    });
+    const requestId = String(created.request_id ?? created.requestId ?? created.id ?? '');
+    if (!requestId) continue; // 该资源已有在办申请 → 试下一个候选
+
+    const submitted = await invoke('request.submit', {
+      role: 'ROLE_ORGAN_OPERATER',
+      request_id: requestId,
+      confirmed: true,
+    });
+    if (String(submitted.status ?? '') !== 'pending') continue; // 非 pending（如有条件落 submitted）→ 换候选
+
+    const returned = await invoke('approval.review_decide', {
+      role: 'ROLE_BUSIAUDIT',
+      request_id: requestId,
+      decision: 'return_for_fix',
+      confirmed: true,
+    });
+    if (String(returned.status ?? '') === 'need-fix') return requestId;
+  }
+  return null;
+}
 
 /**
  * 「无权 = 不可见」共性回归。
@@ -68,14 +126,20 @@ test.describe('权限不可见 共性回归', () => {
     await expect(page.getByRole('button', { name: '申请资源' })).toHaveCount(0);
   });
 
-  test('P3RequestDetail 补件/重新提交：OPERATER/MANAGER 可见 / BUSIAUDIT 不渲染', async ({ page }) => {
+  test('P3RequestDetail 补件/重新提交：OPERATER/MANAGER 可见 / BUSIAUDIT 不渲染', async ({ page, playwright }) => {
     // request-flow shell 含 OPERATER+MANAGER+BUSIAUDIT；request.submit = OPERATER+MANAGER（D57④）。
-    const snap = await page.request.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
-    test.skip(!snap.ok(), 'snapshot not reachable');
-    const snapBody = (await snap.json()) as Record<string, unknown>;
-    const reqs = (snapBody.requests ?? []) as Array<Record<string, unknown>>;
-    const reqId = String(reqs[0]?.id ?? '');
-    test.skip(!reqId, 'no request row available');
+    // 「补件 / 重新提交」按钮仅在 need-fix（已退回补正）/ rejected 态渲染（P3RequestDetail.vue canResubmit）。
+    // 自供前置：铸一条真实 need-fix 单驱动断言，不假定 requests[0] 是 need-fix（干净 seed 的 requests[0]
+    // 是已暂停导入单 → 按钮本就不渲染，旧用例据此假定属 seed-brittle）。
+    test.setTimeout(120_000);
+    const api = await playwright.request.newContext();
+    let reqId: string | null = null;
+    try {
+      reqId = await mintNeedFixRequest(api);
+    } finally {
+      await api.dispose();
+    }
+    test.skip(!reqId, '无法铸 need-fix 申请（缺无条件可申请资源或链路未通），跳过 action-gate 断言');
 
     await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, `#/request-flow/request/${reqId}`);

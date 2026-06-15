@@ -10,6 +10,13 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from zw_brain.domain.lifecycle_timeline import (
+    catalog_lifecycle_timeline,
+    lifecycle_sideline_note,
+    objection_sideline_note,
+    objection_timeline,
+    resource_lifecycle_timeline,
+)
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.domain.repositories.objection import ObjectionRepository
@@ -105,12 +112,28 @@ def _demand_to_match(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _case_to_objection_inbox(record: Any) -> dict[str, Any]:
+    """供方异议收件箱行（G：补回必要字段——此前只产 5 字段，列表比详情还薄）。
+
+    补 objection_kind（异议类型）+ complainant/provider org（target_org_id 滤器原是死代码：
+    列表无此字段无法按机构筛）+ created_at（提交时间排序/展示）+ basis/expected（一句话诉求摘要，
+    审办人列表即可判轻重，不必每行进详情）+ status timeline（办理脊柱「卡在谁桌上」现算）。
+    全部取真实记录字段、缺省诚实留空（D11，不造假）。
+    """
     return {
         "id": record.id,
         "title": record.title,
         "status": record.status,
+        "objection_kind": getattr(record, "objection_kind", ""),
         "target_type": record.target_type,
         "target_id": record.target_id,
+        "complainant_org_id": getattr(record, "complainant_org_id", "") or "",
+        "provider_org_id": getattr(record, "provider_org_id", "") or "",
+        "basis_text": getattr(record, "basis_text", "") or "",
+        "expected_result": getattr(record, "expected_result", "") or "",
+        "created_at": record.created_at.isoformat() if getattr(record, "created_at", None) else "",
+        # G 脊柱：异议办理 timeline（提交→受理→核查→办结→归档）现算 + 支线态（驳回）标注。
+        "statusTimeline": objection_timeline(record.status),
+        "lifecycleNote": objection_sideline_note(record.status),
     }
 
 
@@ -237,6 +260,14 @@ def project_provider_catalogs(*, tenant_id: str | None = None) -> list[dict[str,
                 # 与 _attach_reverse_catalog_fields 同回落链：表快照 > 任一快照 > source_ref；
                 # 都没有则诚实留空（反向编目向导 validate 会拦「缺 schema 引用」）。
                 "schema_ref": schema_by_code.get(code, "") or source_ref,
+                # D57⑨/R-10 闭环（目录侧）：审核退回/驳回理由随清单行回显（return_for_fix /
+                # reject 落 summary.review_return_reason）。供数方在目录管理清单看到整改依据；
+                # 与资源侧 project_provider_resources 同键。无驳回则空。
+                "review_return_reason": str(summary.get("review_return_reason") or ""),
+                # J2 供数脊柱（F）：生命周期 timeline 现算（草稿→部门审→平台审→待发布→已发布），
+                # 前端 PhaseTrack 渲「卡在谁桌上」。支线态（驳回/退役）无 stepper、给中文标注。
+                "statusTimeline": catalog_lifecycle_timeline(rec.lifecycle_status),
+                "lifecycleNote": lifecycle_sideline_note(rec.lifecycle_status),
             }
         )
     return rows
@@ -270,6 +301,9 @@ def project_provider_resources(*, tenant_id: str | None = None) -> list[dict[str
                 # D57⑨/R-10 闭环：审核驳回理由（return_for_fix 落 summary）随清单行回显，
                 # 提交方在「资源管理清单」看到整改依据（写了就必须有读面）；无驳回则空。
                 "review_return_reason": str(summary.get("review_return_reason") or ""),
+                # J2 供数脊柱（F）：资源生命周期 timeline 现算（草稿→挂接审核→待发布→已发布）。
+                "statusTimeline": resource_lifecycle_timeline(rec.lifecycle_status),
+                "lifecycleNote": lifecycle_sideline_note(rec.lifecycle_status),
             }
         )
     return rows

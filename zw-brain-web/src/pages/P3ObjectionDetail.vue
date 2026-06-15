@@ -4,14 +4,18 @@ import { useRoute } from 'vue-router';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
+import PhaseTrack from '@/components/PhaseTrack.vue';
 import { authFetch } from '@/composables/useAuth';
 import { invokeActionStub } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
+import { useDisputes } from '@/composables/useSnapshot';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import { canPerformAction } from '@/lib/pageAccess';
 import { formatTodoStatus } from '@/lib/statusLabels';
 import { formatObjectionType, objectionTargetHref } from '@/lib/objectionLabels';
 import { apiUrl } from '@/composables/useApiBase';
+
+interface TimelineStep { stage: string; status: string; label: string; holder?: string }
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
@@ -45,6 +49,27 @@ async function loadCase() {
 onMounted(() => { void loadCase(); });
 
 const status = computed(() => String(caseRow.value?.status ?? ''));
+
+// G 脊柱：异议办理 timeline 取自 disputes 快照（后端现算，单一事实源，前端不重派生）。
+// 本页详情经 objection.case.query 拉取以求最新；timeline 走 snapshot 现算的同一条记录。
+const disputes = useDisputes();
+const timeline = computed<TimelineStep[]>(() => {
+  const list = disputes.value;
+  if (!Array.isArray(list)) return [];
+  const row = list.find((r) => String((r as Record<string, unknown>).id ?? '') === id.value) as
+    | Record<string, unknown>
+    | undefined;
+  const raw = (row?.statusTimeline ?? []) as unknown;
+  return Array.isArray(raw) ? (raw as TimelineStep[]) : [];
+});
+const lifecycleNote = computed(() => {
+  const list = disputes.value;
+  if (!Array.isArray(list)) return '';
+  const row = list.find((r) => String((r as Record<string, unknown>).id ?? '') === id.value) as
+    | Record<string, unknown>
+    | undefined;
+  return String(row?.lifecycleNote ?? '');
+});
 
 const rows = computed(() => {
   const c = caseRow.value;
@@ -120,6 +145,9 @@ async function closeCase() {
     <nav class="crumbs"><a href="#/request-flow/objection">← 我的异议</a></nav>
     <section class="panel">
       <PageFocusHeader :title="`异议 ${id}`" :meta="headerMeta" />
+      <!-- G 脊柱：办理进度（提交→受理→核查→办结→归档）「卡在谁桌上」。支线态（驳回）走 note。 -->
+      <PhaseTrack v-if="timeline.length" :steps="timeline" aria-label="异议办理进度" />
+      <p v-else-if="lifecycleNote" class="lifecycle-note">当前：{{ lifecycleNote }}</p>
       <DetailPanel title="基本信息" :rows="rows" />
       <div v-if="canEvaluate" class="opinion-box">
         <label for="score">满意度（1-5）</label>
@@ -138,6 +166,7 @@ async function closeCase() {
 
 <style scoped>
 .opinion-box { margin-top: 12px; display: grid; gap: 6px; max-width: 560px; }
+.lifecycle-note { margin: 4px 0 12px; font-size: 13px; color: var(--b-muted, #5c6370); }
 label { font-size: 13px; color: var(--b-muted, #5c6370); }
 textarea, input { padding: 8px 10px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 6px; }
 .gov-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid var(--b-border, #d4e2f4); background: #fff; margin-right: 8px; }
