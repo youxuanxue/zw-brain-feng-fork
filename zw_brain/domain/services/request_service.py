@@ -240,9 +240,10 @@ class RequestService:
     # 申请权威 status → 当前所处里程碑指针（1 待受理 / 2 审核 / 3 审批结论 / 4 交付 / 5 已完成）。
     # 单一事实源：4 段进度只读这张表 + status，前端 stepper 不重派生（D56 读侧呈现）。
     _TIMELINE_POINTER: ClassVar[dict[str, int]] = {
-        "submitted": 2, "pending": 2, "need-fix": 2, "supplementing": 2,
+        "submitted": 2, "pending": 2, "need-fix": 2,
         "dept_approved": 3, "rejected": 3,
-        "approved": 4, "summary-pending": 4, "in_delivery": 4,
+        # supplementing（已审批·下发基层差异补录）属交付段——此前误标 2 让已审批单退回「审核中」。
+        "approved": 4, "summary-pending": 4, "in_delivery": 4, "supplementing": 4,
         "granted": 5, "completed": 5, "revoked": 5, "suspended": 5,
     }
 
@@ -280,6 +281,10 @@ class RequestService:
         else:
             decision_label = "待审批结论"
         deliver_label = {"done": "已交付", "current": "交付中", "pending": "待交付"}[_seg(4)]
+        if status == "supplementing":
+            deliver_label = "补录中"  # 已审批·下发基层差异补录（交付段细分文案，非泛「交付中」）
+        elif status == "summary-pending":
+            deliver_label = "待汇总确认"  # 补录已回·待汇总确认（同补录态：交付段细分，非泛「交付中」）
         # 「卡在谁桌上」——holder 只挂在当前段（status=='current'），状态驱动、诚实、不捏造。
         holder = self._holder_for(str(status), request, delivery)
         steps = [
@@ -298,16 +303,23 @@ class RequestService:
         """当前段「在谁桌上」——只由 status（+真实 delivery 态）现算，取不到诚实留空，绝不捏造。
 
         受理/审核两关是申请真正卡住处，holder 确证可答（业务运营员受理 / 部门管理员审核+提供方部门）；
-        交付/终态仅当真有补录态 delivery 才答基层填报人，否则空（不假设一表通补录）。
+        退回补正在申请人手里；补录态（supplementing）在基层填报人手里。其余/终态留空（不捏造）。
         """
-        if status in {"submitted", "pending", "need-fix", "supplementing"}:
+        if status in {"submitted", "pending"}:
             return "业务运营员（受理）"
+        if status == "need-fix":
+            return "申请人（待补正）"  # 退回补正：球在申请人手里，非受理台
         if status == "dept_approved":
             prov = str(request.get("providerOrgName") or request.get("provider_org_name") or "").strip()
             return f"部门管理员·{prov}" if prov else "部门管理员（部门审核）"
-        if status in {"approved", "in_delivery"} and delivery is not None and str(
-            delivery.get("status") or delivery.get("state") or ""
-        ) in {"pending", "supplementing", "reconciling", "warning"}:
+        # 补录态：已审批下发基层差异补录，在镇街/村社区填报人桌上。运行时审批写 status='supplementing'
+        # ——此前只锁在 approved/in_delivery+delivery 态分支，对运行时是死码、且把已审批单误指回受理台。
+        if status == "supplementing" or (
+            status in {"approved", "in_delivery"}
+            and delivery is not None
+            and str(delivery.get("status") or delivery.get("state") or "")
+            in {"pending", "supplementing", "reconciling", "warning"}
+        ):
             return "镇街/村社区填报人（补录）"
         return ""
 
