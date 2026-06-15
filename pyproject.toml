@@ -11,6 +11,8 @@ dependencies = [
   "alembic>=1.13",  # D58 — forward-migration 取代冷启动 drop&recreate（反转 D23），存量库 baseline-stamp 不 DROP
   "PyJWT[crypto]>=2.10",
   "PyYAML>=6.0",
+  "httpx>=0.27",  # 核心推理客户端 shared/inference/client.py 用 httpx（替 urllib，连接池复用 + 异步）；
+                  # 此前仅作为 mcp/openai 等的传递依赖，最小装会 ImportError，故声明为直接依赖
 ]
 
 [project.scripts]

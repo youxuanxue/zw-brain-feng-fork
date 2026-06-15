@@ -2,7 +2,7 @@
 
 # Preflight Debt Status (computed)
 
-## open (45)
+## open (46)
 - ac7 [medium] (2026-05-25) — 客户机房部署 + 监控对接未落地（E6 AC7）
   - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
 - agentruntime [medium] (2026-05-24) — AgentRuntime runtime 触发式延后（D30 retrofit）
@@ -73,6 +73,8 @@
 - pii-snapshot-chokepoint-overmask [low] (2026-06-14) — WebUI snapshot PII 兜底 chokepoint 因过度脱敏回退——盲 mask_default 把展示用 name 键也脱了
   - assert: external → external — owner=产品研发负责人; trigger=推荐安全边界 PR 的 PII 兜底 chokepoint（redact_webui_snapshot 末端整树过 mask_default） 把**展示用**裸 `name` 键（资源/目录发布队列标题、字段元数据字段名）当 PII 脱敏 （'链路验证库表资源123' → '链**********'），破坏 publish_queue 按标题定位 + B2 字段回显， e2e 实证 3 feature 掉绿（b2_field_metadata / p0_feedback_0611 链路1·链路2 资源队列）。 根因：裸 `name` 键在本仓既是 PII 人名又是展示标题，整树盲脱敏无法区分；per-projection 脱敏（main 既有）才有上下文。本 PR 回退盲兜底（return out），PII 仍由各投影 mask 覆盖。 若要安全网，须设计**可区分 PII name 与展示 name** 的方案（如按 projection 子树白名单 / 字段语义标注），非整树 mask_default。属语义设计，待立项。
 
+- platform-guide-internal-docs-exposure [medium] (2026-06-15) — 「平台指南」面向用户 Agent 解禁 approved/ + reconstructs/ 内部研发产物（PR #279 / R-002，决策 C 暂放全量，记债待收窄）
+  - assert: grep_present → pattern present in zw_brain/shared/platform_docs.py
 - request-list [medium] (2026-05-29) — request.list 性能基准断言负载敏感（间歇 flaky）
   - assert: external → external — owner=产品研发负责人; trigger=(a) CI 上该用例**非负载场景**稳定超 1000ms（=真实 perf 回归，立即 P0 查
 - resource-schema-keying-reconcile [medium] (2026-06-02) — 字段数据模型视图覆盖率残留：read-path bridge 已把 2%→27%，余 73% 资源源 dump 无 schema 映射（上游数据缺供）

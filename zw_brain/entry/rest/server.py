@@ -395,6 +395,11 @@ class RestHandler(BaseHTTPRequestHandler):
         if path == "/api/agent-runtime/status":
             self._json(200, _agent_runtime_bridge().runtime_status())
             return
+        # 非阻塞任务轮询：GET /api/agent-runtime/tasks/{task_id}（排除 /resume 后缀）
+        if path.startswith("/api/agent-runtime/tasks/") and not path.endswith("/resume"):
+            # 注意：先匹配 /api/agent-runtime/tasks/{task_id}，避免与 POST /api/agent-runtime/tasks 冲突
+            self._with_authenticated_request(lambda claims: self._handle_agent_runtime_task_get(path, claims))
+            return
         if path == "/openapi.json":
             self._serve_file(OPENAPI_PATH)
             return
@@ -445,7 +450,11 @@ class RestHandler(BaseHTTPRequestHandler):
             self._with_authenticated_request(lambda claims: self._handle_api_skill_post(parsed, claims))
             return
         if path == "/api/agent-runtime/tasks":
-            self._with_authenticated_request(lambda claims: self._handle_agent_runtime_task_post(claims))
+            self._with_authenticated_request(lambda claims: self._handle_agent_runtime_task_post(parsed, claims))
+            return
+        # Resume task: POST /api/agent-runtime/tasks/{task_id}/resume
+        if path.startswith("/api/agent-runtime/tasks/") and path.endswith("/resume"):
+            self._with_authenticated_request(lambda claims: self._handle_agent_runtime_task_resume(path, claims))
             return
         self.close_connection = True  # POST body 未消费，防 keep-alive 残留字节毒化下一请求
         self._json(404, {"error": "not_found", "path": parsed.path})
@@ -456,7 +465,13 @@ class RestHandler(BaseHTTPRequestHandler):
         except Exception as exc:  # noqa: BLE001
             self._handle_error(exc)
 
-    def _handle_agent_runtime_task_post(self, _claims: dict[str, Any]) -> None:
+    def _handle_agent_runtime_task_post(self, parsed: Any, claims: dict[str, Any]) -> None:
+        """POST /api/agent-runtime/tasks — 启动 Agent 任务。
+
+        默认使用非阻塞模式（立即返回 task_id, status=pending），
+        客户端通过 GET /api/agent-runtime/tasks/{task_id} 轮询结果。
+        若查询参数 ?mode=block 则使用阻塞模式（等待任务完成）。
+        """
         bridge = _agent_runtime_bridge()
         try:
             payload = self._read_json_body()
@@ -465,6 +480,7 @@ class RestHandler(BaseHTTPRequestHandler):
             if not agent_id or not user_input:
                 self._json(400, {"error": "agent_id and input are required"})
                 return
+
             session = self._get_cookie_session()
             requested_role = str(payload.get("role") or "")
             if session is not None:
@@ -472,31 +488,102 @@ class RestHandler(BaseHTTPRequestHandler):
                 role = str(trusted.get("role") or "")
                 payload = trusted
             else:
-                # No cookie session (Bearer / dev-bypass): the authorization role MUST come
-                # from the verified identity, never the request body — otherwise any
-                # authenticated caller could claim ROLE_SYSTEM. Honor a requested role only
-                # if the token actually grants it.
                 role = self._role_from_verified_identity(requested_role)
             if not role:
                 self._json(403, {"error": "no_product_role_for_identity"})
                 return
-            result = bridge.start_agent_task(
-                brain=get_service(),
-                role=role,
-                agent_id=agent_id,
-                user_input=user_input,
-                request_id=str(payload.get("request_id") or "") or None,
-                metadata={
-                    k: v
-                    for k, v in payload.items()
-                    if k not in {"agent_id", "input", "role"}
-                },
-            )
+
+            task_metadata = {
+                k: v
+                for k, v in payload.items()
+                if k not in {"agent_id", "input", "role"}
+            }
+            qs = parse_qs(parsed.query)
+            mode = (qs.get("mode") or [""])[-1].strip().lower()
+
+            if mode == "block":
+                # 阻塞模式：等待任务完成（兼容旧客户端）
+                result = bridge.start_agent_task(
+                    brain=get_service(),
+                    role=role,
+                    agent_id=agent_id,
+                    user_input=user_input,
+                    request_id=str(payload.get("request_id") or "") or None,
+                    metadata=task_metadata,
+                )
+            else:
+                # 非阻塞模式（默认）：立即返回 task_id，客户端轮询
+                result = bridge.start_agent_task_background(
+                    brain=get_service(),
+                    role=role,
+                    agent_id=agent_id,
+                    user_input=user_input,
+                    request_id=str(payload.get("request_id") or "") or None,
+                    metadata=task_metadata,
+                )
             self._json(200, result)
         except bridge.AgentRuntimeNotEnabledError as exc:
             self._json(503, {"error": "agent_runtime_disabled", "detail": str(exc)})
         except bridge.AgentRuntimeNotFoundError as exc:
             self._json(404, {"error": "agent_not_found", "detail": str(exc)})
+        except Exception as exc:  # noqa: BLE001
+            self._handle_error(exc)
+
+    def _handle_agent_runtime_task_get(self, path: str, _claims: dict[str, Any]) -> None:
+        """GET /api/agent-runtime/tasks/{task_id} — 轮询非阻塞任务状态。"""
+        bridge = _agent_runtime_bridge()
+        # 提取 task_id: path = "/api/agent-runtime/tasks/{task_id}"
+        parts = path.strip("/").split("/")
+        if len(parts) != 4 or parts[-2] != "tasks" or parts[0] != "api":
+            self._json(400, {"error": "invalid_task_path", "detail": f"expected /api/agent-runtime/tasks/<task_id>, got {path}"})
+            return
+        task_id = parts[-1]
+        if not task_id:
+            self._json(400, {"error": "task_id_required"})
+            return
+
+        try:
+            result = bridge.poll_agent_task(task_id)
+            self._json(200, result)
+        except bridge.AgentRuntimeNotFoundError as exc:
+            self._json(404, {"error": "task_not_found", "detail": str(exc)})
+        except Exception as exc:  # noqa: BLE001
+            self._handle_error(exc)
+
+    def _handle_agent_runtime_task_resume(self, path: str, _claims: dict[str, Any]) -> None:
+        """POST /api/agent-runtime/tasks/{task_id}/resume — 恢复等待中的 Agent 任务。"""
+        bridge = _agent_runtime_bridge()
+        # 提取 task_id: path = "/api/agent-runtime/tasks/{task_id}/resume"
+        base = path.strip("/")
+        # Remove the "/resume" suffix
+        if not base.endswith("/resume"):
+            self._json(400, {"error": "invalid_resume_path", "detail": f"expected .../tasks/<task_id>/resume, got {path}"})
+            return
+        task_path = base[:-7]  # strip "/resume"
+        parts = task_path.split("/")
+        if len(parts) != 4 or parts[-2] != "tasks" or parts[0] != "api":
+            self._json(400, {"error": "invalid_resume_path", "detail": f"expected .../tasks/<task_id>/resume, got {path}"})
+            return
+        task_id = parts[-1]
+        if not task_id:
+            self._json(400, {"error": "task_id_required"})
+            return
+
+        try:
+            payload = self._read_json_body()
+            input_data = payload.get("input")
+            if input_data is None:
+                self._json(400, {"error": "input_required", "detail": "resume payload must contain 'input'"})
+                return
+            result = bridge.resume_agent_task(
+                task_id=task_id,
+                input_data=input_data,
+            )
+            self._json(200, result)
+        except bridge.AgentRuntimeNotEnabledError as exc:
+            self._json(503, {"error": "agent_runtime_disabled", "detail": str(exc)})
+        except bridge.AgentRuntimeNotFoundError as exc:
+            self._json(404, {"error": "task_not_found", "detail": str(exc)})
         except Exception as exc:  # noqa: BLE001
             self._handle_error(exc)
 
@@ -1007,38 +1094,41 @@ class RestHandler(BaseHTTPRequestHandler):
         return urlunparse((current.scheme, current.netloc, path, "", parsed.query, parsed.fragment))
 
     def _serve_file(self, path: Path, *, enforce_web_root: bool = False) -> None:
-        if enforce_web_root:
-            try:
-                resolved = path.resolve()
-                for root in (WEB_ROOT.resolve(), WEB_PUBLIC_ROOT.resolve()):
-                    try:
-                        resolved.relative_to(root)
-                        break
-                    except ValueError:
-                        continue
-                else:
-                    raise ValueError("outside web roots")
-            except (ValueError, FileNotFoundError):
+        try:
+            if enforce_web_root:
+                try:
+                    resolved = path.resolve()
+                    for root in (WEB_ROOT.resolve(), WEB_PUBLIC_ROOT.resolve()):
+                        try:
+                            resolved.relative_to(root)
+                            break
+                        except ValueError:
+                            continue
+                    else:
+                        raise ValueError("outside web roots")
+                except (ValueError, FileNotFoundError):
+                    self._json(404, {"error": "not_found", "path": str(path)})
+                    return
+            if not path.exists() or not path.is_file():
                 self._json(404, {"error": "not_found", "path": str(path)})
                 return
-        if not path.exists() or not path.is_file():
-            self._json(404, {"error": "not_found", "path": str(path)})
-            return
-        payload = path.read_bytes()
-        content_type, _ = mimetypes.guess_type(path.name)
-        self.send_response(200)
-        self.send_header("Content-Type", content_type or "application/octet-stream")
-        try:
-            _ = path.resolve().relative_to(WEB_ROOT.resolve())
-        except ValueError:
-            pass
-        else:
-            suf = path.suffix.lower()
-            if suf in {".js", ".css"} or path.name.lower() == "index.html":
-                self.send_header("Cache-Control", "no-cache")
-        self.send_header("Content-Length", str(len(payload)))
-        self.end_headers()
-        self.wfile.write(payload)
+            payload = path.read_bytes()
+            content_type, _ = mimetypes.guess_type(path.name)
+            self.send_response(200)
+            self.send_header("Content-Type", content_type or "application/octet-stream")
+            try:
+                _ = path.resolve().relative_to(WEB_ROOT.resolve())
+            except ValueError:
+                pass
+            else:
+                suf = path.suffix.lower()
+                if suf in {".js", ".css"} or path.name.lower() == "index.html":
+                    self.send_header("Cache-Control", "no-cache")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # client disconnected — nothing to do
 
     def _read_json_body(self) -> dict:
         length = int(self.headers.get("Content-Length", "0"))
@@ -1134,12 +1224,15 @@ class RestHandler(BaseHTTPRequestHandler):
         self._json(500, {"error": exc.__class__.__name__, "detail": str(exc)})
 
     def _json(self, status: int, body: dict | list) -> None:
-        payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(payload)))
-        self.end_headers()
-        self.wfile.write(payload)
+        try:
+            payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # client disconnected — nothing to do
 
     def _redirect(self, location: str) -> None:
         self.send_response(302)

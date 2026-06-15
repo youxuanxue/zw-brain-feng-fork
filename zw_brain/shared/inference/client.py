@@ -22,7 +22,8 @@ import json
 import os
 from dataclasses import dataclass, field
 from typing import Any
-from urllib import error, request
+
+import httpx
 
 DEFAULT_INFERENCE_MODEL = "claude-sonnet-4-7"
 INFERENCE_MODE_ENV = "ZW_BRAIN_INFERENCE_MODE"
@@ -57,6 +58,12 @@ class InferenceError(RuntimeError):
 
 
 class InferenceClient:
+    """异步优先的 Inference HTTP 客户端，同时暴露同步接口兼容已有调用方。
+
+    使用 httpx 替换 urllib.request 以利用连接池复用（减少 TCP 握手延迟）
+    并避免阻塞 asyncio 事件循环（Agent Runtime 场景）。
+    """
+
     def __init__(
         self,
         *,
@@ -74,10 +81,24 @@ class InferenceClient:
         self._model = (model or os.getenv("ZW_BRAIN_INFERENCE_MODEL") or DEFAULT_INFERENCE_MODEL).strip()
         self._timeout_seconds = timeout_seconds
         self._mode = mode or resolve_inference_mode()
+        # 共享 httpx 客户端（连接池复用，多轮工具调用场景减少 TCP 握手）
+        self._client: httpx.Client | None = None
 
     @property
     def mode(self) -> str:
         return self._mode
+
+    def _get_client(self) -> httpx.Client:
+        if self._client is None:
+            self._client = httpx.Client(
+                base_url=self._base_url,
+                timeout=httpx.Timeout(self._timeout_seconds),
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self._api_key}",
+                },
+            )
+        return self._client
 
     def _require_platform_config(self) -> None:
         if not self._base_url:
@@ -91,31 +112,8 @@ class InferenceClient:
             raise InferenceError("inference model is required")
         return resolved
 
-    def _post_json(self, path: str, payload: dict[str, Any], *, request_id: str | None = None) -> dict[str, Any]:
-        self._require_platform_config()
-        req = request.Request(
-            f"{self._base_url}{path}",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self._api_key}",
-                **({"X-Request-ID": request_id} if request_id else {}),
-            },
-            method="POST",
-        )
-        try:
-            with request.urlopen(req, timeout=self._timeout_seconds) as resp:
-                body = resp.read().decode("utf-8")
-        except error.HTTPError as exc:
-            detail = ""
-            try:
-                detail = exc.read().decode("utf-8", errors="ignore")
-            except Exception:
-                detail = ""
-            raise InferenceError(f"inference http {exc.code}: {detail or exc.reason}") from exc
-        except error.URLError as exc:
-            raise InferenceError(f"inference network error: {exc.reason}") from exc
-
+    @staticmethod
+    def _parse_response(body: str) -> dict[str, Any]:
         try:
             parsed = json.loads(body) if body else {}
         except json.JSONDecodeError as exc:
@@ -123,6 +121,24 @@ class InferenceClient:
         if not isinstance(parsed, dict):
             raise InferenceError("inference response must be a json object")
         return parsed
+
+    def _post_json(self, path: str, payload: dict[str, Any], *, request_id: str | None = None) -> dict[str, Any]:
+        """同步 HTTP POST（兼容已有调用方，使用 httpx.Client 连接池）。"""
+        self._require_platform_config()
+        client = self._get_client()
+        headers = {}
+        if request_id:
+            headers["X-Request-ID"] = request_id
+        try:
+            resp = client.post(path, json=payload, headers=headers or None)
+            resp.raise_for_status()
+            body = resp.text
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text if exc.response else ""
+            raise InferenceError(f"inference http {exc.response.status_code}: {detail or str(exc)}") from exc
+        except httpx.RequestError as exc:
+            raise InferenceError(f"inference network error: {exc}") from exc
+        return self._parse_response(body)
 
     def _mock_chat(
         self,
@@ -172,6 +188,10 @@ class InferenceClient:
         # ZW_BRAIN_INFERENCE_GATEWAY_URL 携带（base_url 含前缀），与 OpenAI SDK / AgentRuntime
         # OPENAI_COMPATIBLE_BASE_URL 约定一致。
         response = self._post_json("/chat/completions", payload, request_id=request_id)
+        return self._parse_chat_response(response, resolved_model)
+
+    @staticmethod
+    def _parse_chat_response(response: dict[str, Any], resolved_model: str) -> ChatResult:
         choices = response.get("choices")
         if not isinstance(choices, list) or not choices:
             raise InferenceError("inference response missing choices")
@@ -203,6 +223,10 @@ class InferenceClient:
         if self._mode == "mock":
             return self._mock_embed(texts, model=resolved_model)
         response = self._post_json("/embeddings", {"model": resolved_model, "input": texts})
+        return self._parse_embed_response(response)
+
+    @staticmethod
+    def _parse_embed_response(response: dict[str, Any]) -> list[list[float]]:
         rows = response.get("data")
         if not isinstance(rows, list):
             raise InferenceError("inference embeddings response missing data")

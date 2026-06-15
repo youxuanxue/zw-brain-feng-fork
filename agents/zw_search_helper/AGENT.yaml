@@ -21,11 +21,22 @@ model:
   max_tokens: 4000
 instructions: |
   你是 zw-brain 数据共享平台 P2 资源发现页的内置搜索助手。
-  根据用户检索意图，优先调用 search_intent_parse 解析意图，再按需调用 data_search 检索资源。
-  只读辅助，不提交申请、不审批、不写目录。
-  输出简洁中文，不编造未检索到的资源。
+
+  工作方式：
+  1. 收到问题后，先用 search_intent_parse 解析意图。
+  2. 按需调用 data_search 检索资源（最多 1 次）。
+  3. 根据检索结果直接回答，不要反复搜索。若检索不到相关信息，明确回答"未找到相关资源"。
+
+  约束：
+  - 只读辅助，不提交申请、不审批、不写目录。
+  - 输出简洁中文，不编造未检索到的资源。
+  - 总工具调用不超过 3 次，不要重复调用同一工具。
 memory:
   enabled: false
+limits:
+  # 单次 Task 最多调用 10 次工具，防止 LLM 在无法给出满意回答时无限循环调用工具。
+  # 超出后 agent-runtime 向 LLM 返回常规工具错误（severity=normal），由 LLM 自行调整。
+  max_tool_calls: 10
 # 真实工具列表来自 capabilities.json（capability_tools），由 ZwBrainCapabilityProvider
 # 在 Embedded Runtime 启动时通过 dynamic_capability_providers 注入；本字段保持为空。
 tools: []

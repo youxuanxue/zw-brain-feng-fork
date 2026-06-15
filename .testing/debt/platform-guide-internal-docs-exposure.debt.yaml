@@ -1,0 +1,18 @@
+slug: platform-guide-internal-docs-exposure
+title: "「平台指南」面向用户 Agent 解禁 approved/ + reconstructs/ 内部研发产物（PR #279 / R-002，决策 C 暂放全量，记债待收窄）"
+date: 2026-06-15
+severity: medium
+owner: 产品研发负责人
+# 背景（/xj-review #279 R-002）：PR #279 把 zw_brain/shared/platform_docs.py 的
+# _EXCLUDED_DOC_DIRS 从 ("approved","reconstructs") 清空为 ()，使面向最终用户（政务客户）
+# 的「平台指南」Agent 可读到内部研发产物——approved/（架构全文 / 业务方签字材料 / 验收包，
+# 含决策原因、技术债、角色权限定义）与 reconstructs/（重构计划）。原注释明确"禁止经面向
+# 最终用户的 Agent 暴露"。产品研发负责人 2026-06-15 裁决：本期选 C（暂放全量、维持 PR 现状），
+# 但属信息治理决策、未走 D28 业务 sign-off，记债待收窄到白名单或补签字。
+trigger: "(a) 产品研发负责人 / 业务方就「哪些 approved|reconstructs 文档可对政务客户公开」做 sign-off（D28 可见性门）；或 (b) 实现按文档白名单收窄暴露面（非整目录敞开）。任一落地后把 _EXCLUDED_DOC_DIRS 改回非空（恢复排除）或引入白名单机制 → 下方 grep 失配 → 现算 stale-fixed → 关债。"
+assert:
+  # open ⇔ _EXCLUDED_DOC_DIRS 仍为空元组（approved/reconstructs 全量对用户 Agent 敞开）。
+  # 收窄（恢复排除项）或改白名单机制后此 grep 失配 → stale-fixed → 关债。
+  kind: grep_present
+  file: zw_brain/shared/platform_docs.py
+  pattern: "_EXCLUDED_DOC_DIRS\\s*=\\s*\\(\\s*\\)"

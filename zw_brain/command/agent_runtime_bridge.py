@@ -14,13 +14,13 @@ from zw_brain.shared.agent_runtime.capability_provider import (
 )
 from zw_brain.shared.agent_runtime.config import agents_dir, is_agent_runtime_enabled
 
-
-class AgentRuntimeNotEnabledError(RuntimeError):
-    pass
-
-
-class AgentRuntimeNotFoundError(LookupError):
-    pass
+# 异常类住 shared 层（service.py 在 shared，不得反向 import command）；此处重导出，
+# 保持 `bridge.AgentRuntimeNotEnabledError` / `bridge.AgentRuntimeNotFoundError`
+# 既有引用有效，且与 service.py raise 的是同一个类对象（except 能接住）。
+from zw_brain.shared.agent_runtime.errors import (  # noqa: F401  (re-export)
+    AgentRuntimeNotEnabledError,
+    AgentRuntimeNotFoundError,
+)
 
 
 def runtime_status() -> dict[str, Any]:
@@ -51,18 +51,26 @@ def list_builtin_agents() -> list[dict[str, Any]]:
     return items
 
 
-def start_agent_task(
+def _resolve_task_metadata(
     *,
-    brain: BrainService,
     role: str,
-    agent_id: str,
-    user_input: str,
     request_id: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    if not is_agent_runtime_enabled():
-        raise AgentRuntimeNotEnabledError("ZW_BRAIN_AGENT_RUNTIME_ENABLED is not set")
+    """统一构建传递给 AgentRuntime 的 task_metadata。"""
+    task_metadata = dict(metadata or {})
+    if request_id:
+        task_metadata["request_id"] = request_id
+    task_metadata["caller_role"] = role
+    return task_metadata
 
+
+def _verify_agent_and_policy(
+    *,
+    agent_id: str,
+    role: str,
+) -> None:
+    """鉴权：验证 agent 存在且调用方有权限访问其绑定的所有 skill。"""
     agent_path = _resolve_agent_dir(agent_id)
     if agent_path is None:
         raise AgentRuntimeNotFoundError(agent_id)
@@ -84,10 +92,27 @@ def start_agent_task(
         except policy.DomainAccessDeniedError as exc:
             raise AccessDeniedError(str(exc)) from exc
 
-    task_metadata = dict(metadata or {})
-    if request_id:
-        task_metadata["request_id"] = request_id
-    task_metadata["caller_role"] = role
+
+def start_agent_task(
+    *,
+    brain: BrainService,
+    role: str,
+    agent_id: str,
+    user_input: str,
+    request_id: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """阻塞模式：启动 Agent 任务并等待完成。
+
+    当 HTTP 客户端超时较短（浏览器 ~15 秒）而 Agent 多轮工具调用可能超时时，
+    建议改用 start_agent_task_background() + poll_agent_task() 的非阻塞模式。
+    """
+    if not is_agent_runtime_enabled():
+        raise AgentRuntimeNotEnabledError("ZW_BRAIN_AGENT_RUNTIME_ENABLED is not set")
+
+    _verify_agent_and_policy(agent_id=agent_id, role=role)
+
+    task_metadata = _resolve_task_metadata(role=role, request_id=request_id, metadata=metadata)
 
     from zw_brain.shared.agent_runtime.service import run_agent_task_sync
 
@@ -96,6 +121,75 @@ def start_agent_task(
         user_input=user_input,
         metadata=task_metadata,
         brain=brain,
+    )
+
+
+def start_agent_task_background(
+    *,
+    brain: BrainService,
+    role: str,
+    agent_id: str,
+    user_input: str,
+    request_id: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """非阻塞模式：启动 Agent 任务后立即返回 task_id，客户端轮询结果。
+
+    返回 ``{"task_id": ..., "status": "pending"}``。
+    调用方随后可用 ``poll_agent_task(task_id)`` 获取最终结果。
+
+    解决浏览器 HTTP 客户端超时（~15 秒）导致 (canceled) 的问题。
+    """
+    if not is_agent_runtime_enabled():
+        raise AgentRuntimeNotEnabledError("ZW_BRAIN_AGENT_RUNTIME_ENABLED is not set")
+
+    _verify_agent_and_policy(agent_id=agent_id, role=role)
+
+    task_metadata = _resolve_task_metadata(role=role, request_id=request_id, metadata=metadata)
+
+    from zw_brain.shared.agent_runtime.service import start_agent_task_background as _start_bg
+
+    return _start_bg(
+        agent_id=agent_id,
+        user_input=user_input,
+        metadata=task_metadata,
+    )
+
+
+def poll_agent_task(task_id: str) -> dict[str, Any]:
+    """轮询 Agent 任务状态。返回与 start_agent_task() 相同的结构。"""
+    from zw_brain.shared.agent_runtime.service import poll_agent_task as _poll
+
+    return _poll(task_id)
+
+
+def resume_agent_task(
+    *,
+    task_id: str,
+    input_data: str | dict[str, Any],
+    brain: BrainService | None = None,
+) -> dict[str, Any]:
+    """恢复处于 waiting 状态的 Agent 任务（ask_user 等待用户输入后继续）。
+
+    同步函数（可在同步 HTTP handler 中直接调用）。
+    返回 ``{"task_id": ..., "status": "resumed"}``。
+    调用方随后用 ``poll_agent_task(task_id)`` 轮询最终结果。
+    """
+    if not is_agent_runtime_enabled():
+        raise AgentRuntimeNotEnabledError("ZW_BRAIN_AGENT_RUNTIME_ENABLED is not set")
+
+    from zw_brain.shared.agent_runtime.service import (
+        _run_async_in_background_loop,
+    )
+    from zw_brain.shared.agent_runtime.service import (
+        resume_agent_task as _resume,
+    )
+
+    return _run_async_in_background_loop(
+        _resume(
+            task_id=task_id,
+            input_data=input_data,
+        )
     )
 
 

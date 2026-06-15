@@ -34,20 +34,34 @@ def test_read_doc_rejects_traversal(docs_root: None) -> None:
         platform_docs.read_doc(rel_path="../secret.md")
 
 
-def test_default_doc_roots_exclude_internal_dirs(monkeypatch: pytest.MonkeyPatch) -> None:
-    """R-005 — 默认根下 docs/approved/、docs/reconstructs/、docs/preflight-debt.md 不可经平台指南检索/读取。"""
+def test_default_doc_roots_exclude_preflight_debt_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """R-005 — 默认根下 docs/preflight-debt.md 不可经平台指南检索/读取。
+
+    docs/approved/ 和 docs/reconstructs/ 现已解禁（经审批的架构/角色/数据模型/
+    重构计划对用户有参考价值），只排除 preflight-debt.md 内部债务产物。
+    """
     monkeypatch.delenv("ZW_BRAIN_PLATFORM_DOCS_ROOTS", raising=False)
     files = platform_docs._iter_markdown_files()
-    leaked = [f for f in files if "/docs/approved/" in str(f) or "/docs/reconstructs/" in str(f) or f.name == "preflight-debt.md"]
-    assert leaked == [], f"internal docs leaked via default doc_roots: {leaked}"
-    with pytest.raises(FileNotFoundError):
-        platform_docs._safe_resolve("approved/zw-brain-architecture.md")
+    # approved/ 和 reconstructs/ 不再视为内部产物排除
+    leaked_preflight = [f for f in files if f.name == "preflight-debt.md"]
+    assert leaked_preflight == [], f"preflight-debt.md leaked via default doc_roots: {leaked_preflight}"
+    # approved/ 和 reconstructs/ 应可检索
+    approved = [f for f in files if "/docs/approved/" in str(f)]
+    reconstructs = [f for f in files if "/docs/reconstructs/" in str(f)]
+    assert len(approved) > 0, "approved/ should be searchable (unblocked)"
+    assert len(reconstructs) > 0, "reconstructs/ should be searchable (unblocked)"
+    # preflight-debt.md 仍不可用
     with pytest.raises(FileNotFoundError):
         platform_docs._safe_resolve("preflight-debt.md")
+    # approved 和 reconstructs 中的文档应可读取
+    approved_doc = platform_docs._safe_resolve("approved/zw-brain-architecture.md")
+    assert approved_doc.exists()
+    reconstructs_doc = platform_docs._safe_resolve("reconstructs/dsp-exchange-reconstruction-plan-v1.md")
+    assert reconstructs_doc.exists()
 
 
-def test_explicit_doc_roots_still_exclude_internal_dirs(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """R-001 — ZW_BRAIN_PLATFORM_DOCS_ROOTS 显式设置（Docker 生产 /app/docs）时仍排除内部产物。
+def test_explicit_doc_roots_still_exclude_preflight_only(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """R-001 — ZW_BRAIN_PLATFORM_DOCS_ROOTS 显式设置（Docker 生产 /app/docs）时只排除 preflight-debt.md。
 
     覆盖 wheel-install 场景：_REPO_ROOT 指向 site-packages，与 docs 根不在同一前缀；
     _is_excluded 需对每个 doc_roots() 分别 relative_to 才不被 ValueError 静默吞掉。
@@ -55,22 +69,24 @@ def test_explicit_doc_roots_still_exclude_internal_dirs(tmp_path, monkeypatch: p
     docs = tmp_path / "docs"
     (docs / "approved").mkdir(parents=True)
     (docs / "reconstructs").mkdir()
-    (docs / "approved" / "secret.md").write_text("# Secret\n业务决策\n", encoding="utf-8")
-    (docs / "reconstructs" / "plan.md").write_text("# Plan\n重构\n", encoding="utf-8")
+    (docs / "approved" / "public.md").write_text("# Approved public doc\n业务决策\n", encoding="utf-8")
+    (docs / "reconstructs" / "plan.md").write_text("# Reconstruct plan\n重构\n", encoding="utf-8")
     (docs / "preflight-debt.md").write_text("# Debt\n技术债\n", encoding="utf-8")
-    (docs / "public.md").write_text("# Public\n用户面向\n", encoding="utf-8")
+    (docs / "misc.md").write_text("# Misc\n用户面向\n", encoding="utf-8")
     monkeypatch.setenv("ZW_BRAIN_PLATFORM_DOCS_ROOTS", str(docs))
 
     files = platform_docs._iter_markdown_files()
     names = {f.name for f in files}
-    assert "public.md" in names
-    assert "secret.md" not in names
-    assert "plan.md" not in names
+    assert "misc.md" in names
+    assert "public.md" in names  # approved/ 已解禁
+    assert "plan.md" in names  # reconstructs/ 已解禁
     assert "preflight-debt.md" not in names
 
-    with pytest.raises(FileNotFoundError):
-        platform_docs._safe_resolve("approved/secret.md")
-    with pytest.raises(FileNotFoundError):
-        platform_docs._safe_resolve("reconstructs/plan.md")
+    # approved/ 和 reconstructs/ 中的文档现在可读取
+    approved_body = platform_docs.read_doc(rel_path="approved/public.md")
+    assert "Approved public doc" in approved_body["content"]
+    reconstructs_body = platform_docs.read_doc(rel_path="reconstructs/plan.md")
+    assert "Reconstruct plan" in reconstructs_body["content"]
+    # preflight-debt.md 仍被排除
     with pytest.raises(FileNotFoundError):
         platform_docs._safe_resolve("preflight-debt.md")
