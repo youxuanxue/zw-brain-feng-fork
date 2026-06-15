@@ -39,9 +39,7 @@ from zw_brain.capability_registry.runtime import (
 )
 from zw_brain.command.runtime import get_service
 from zw_brain.domain.errors import (
-    AccessDeniedError,
     ConfirmationRequiredError,
-    NotFoundError,
     QuotaExceededError,
     TrustLevelInsufficientError,
 )
@@ -57,6 +55,7 @@ from zw_brain.shared.runtime_config import (
     get_mcp_caller_trust_level,
     mcp_trust_level_allows_write,
 )
+from zw_brain.shared.surface_errors import classify_domain_error
 
 TOOLS_DIR = Path(__file__).with_name("tools")
 
@@ -283,50 +282,45 @@ def _handle_tools_list(id_: Any) -> dict[str, Any]:
 # classes. The IDE/Agent reads ``error.data.reason`` to branch deterministically instead
 # of treating every failure as an opaque -32000 / HTTP 500. -326xx are protocol-reserved;
 # the application errors use the -320xx server-error band with distinct ``data.reason``.
+# The code↔domain-class mapping itself lives in the shared classifier
+# (zw_brain.shared.surface_errors) so REST/MCP/A2A stay single-sourced (D2 parity);
+# these two protocol-reserved codes are MCP-only and not in the shared map.
 _RPC_TOOL_NOT_FOUND = -32601  # protocol: method/tool not found (also S5 exposure cut)
 _RPC_INVALID_PARAMS = -32602  # protocol: invalid params
-_RPC_TRUST_DENIED = -32003    # app: trust_level_insufficient (S6)
-_RPC_ACCESS_DENIED = -32004   # app: role / permission / tenant policy denial
-_RPC_QUOTA_EXCEEDED = -32005  # app: quota_exceeded (+ retry_after) (S4)
-_RPC_NOT_FOUND = -32006       # app: referenced domain entity missing
 _RPC_INTERNAL = -32000        # app: unclassified server error (last resort)
 
 
 def _structured_invocation_error(id_: Any, name: str, exc: Exception) -> dict[str, Any]:
     """Map a known capability-invocation exception to a structured JSON-RPC error (S4).
 
-    Every branch carries ``data.reason`` so the client can dispatch on a stable code;
-    quota additionally carries ``retry_after``. Unknown exceptions fall through to a
-    classified-as-internal error that still names the type (never a bare black box).
+    Classification (which domain exception → which stable code + reason) is delegated
+    to the shared ``classify_domain_error`` so the MCP, REST and A2A faces project the
+    *same* meaning (D2 parity); this function only translates that classification into
+    the JSON-RPC envelope. Every branch carries ``data.reason`` so the client can
+    dispatch on a stable code; quota additionally carries ``retry_after``. Unknown
+    exceptions fall through to a classified-as-internal error that still names the type
+    (never a bare black box).
     """
-    if isinstance(exc, QuotaExceededError):
+    cls = classify_domain_error(exc)
+    if cls is None:
         return _err(
-            id_, _RPC_QUOTA_EXCEEDED, f"quota exceeded for tool {name}",
-            {"tool": name, "reason": "quota_exceeded", "retry_after": exc.retry_after,
-             "scope": exc.scope or "mcp_tool_call"},
+            id_, _RPC_INTERNAL, f"{type(exc).__name__}: {exc}",
+            {"tool": name, "reason": "internal_error"},
         )
-    if isinstance(exc, TrustLevelInsufficientError):
-        # Subclass of AccessDeniedError; checked first so it gets the trust-specific code.
+    if cls.reason == "quota_exceeded":
+        # Quota keeps its bespoke human message + echoes retry_after / scope.
         return _err(
-            id_, _RPC_TRUST_DENIED, f"{type(exc).__name__}: {exc}",
-            {"tool": name, "reason": exc.reason, "trust_level": exc.trust_level},
+            id_, cls.rpc_code, f"quota exceeded for tool {name}",
+            {"tool": name, "reason": cls.reason, "retry_after": cls.data["retry_after"],
+             "scope": cls.data["scope"]},
         )
-    if isinstance(exc, NotFoundError):
-        return _err(
-            id_, _RPC_NOT_FOUND, f"{type(exc).__name__}: {exc}",
-            {"tool": name, "reason": "entity_not_found"},
-        )
-    if isinstance(exc, AccessDeniedError):
-        # Message keeps the type-name prefix so existing consumer-surface assertions
-        # (e.g. C1/N1 suite) that branch on 'AccessDenied' still hold; the machine-
-        # actionable signal is the stable ``data.reason``.
-        return _err(
-            id_, _RPC_ACCESS_DENIED, f"{type(exc).__name__}: {exc}",
-            {"tool": name, "reason": "access_denied"},
-        )
+    # All other classified domain errors: message keeps the type-name prefix so existing
+    # consumer-surface assertions (e.g. C1/N1 suite branching on 'AccessDenied') still
+    # hold; the machine-actionable signal is the stable ``data.reason`` + code. ``data``
+    # also carries any extra structured fields (e.g. trust_level) from the classifier.
     return _err(
-        id_, _RPC_INTERNAL, f"{type(exc).__name__}: {exc}",
-        {"tool": name, "reason": "internal_error"},
+        id_, cls.rpc_code, f"{type(exc).__name__}: {exc}",
+        {"tool": name, "reason": cls.reason, **cls.data},
     )
 
 

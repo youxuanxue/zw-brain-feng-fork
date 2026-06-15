@@ -55,6 +55,7 @@ from zw_brain.shared.runtime_config import (
     get_dev_iam_bypass_enabled,
     mcp_trust_level_allows_write,
 )
+from zw_brain.shared.surface_errors import classify_domain_error
 
 CARD_PATH = Path(__file__).with_name("agent_card.json")
 BINDINGS_PATH = Path(__file__).with_name("tools") / "runtime_bindings.json"
@@ -263,8 +264,26 @@ class _A2AHandler(BaseHTTPRequestHandler):
             return
         try:
             result = _invoke_under_dev_identity(skill_id, payload)
-        except Exception as e:  # noqa: BLE001
-            self._json(500, {"error": type(e).__name__, "detail": str(e), "skill_id": skill_id})
+        except Exception as e:  # noqa: BLE001 — classified into shared surface-error map
+            # D2 contract parity: a domain refusal (AccessDenied/NotFound/InvalidState/
+            # Confirmation) is a deterministic, do-not-retry signal — it must NOT collapse
+            # into an indistinguishable HTTP 500. Project it through the shared classifier
+            # (same map REST/MCP consume); only a genuinely unclassified exception falls
+            # through to 500, and even then the type name is named (never a black box).
+            cls = classify_domain_error(e)
+            if cls is None:
+                self._json(500, {"error": type(e).__name__, "detail": str(e), "skill_id": skill_id})
+                return
+            self._json(
+                cls.http_status,
+                {
+                    "error": type(e).__name__,
+                    "reason": cls.reason,
+                    "detail": str(e),
+                    "skill_id": skill_id,
+                    **cls.data,
+                },
+            )
             return
         self._json(200, {"skill_id": skill_id, "result": result})
 

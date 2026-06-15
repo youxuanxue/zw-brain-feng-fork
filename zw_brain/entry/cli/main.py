@@ -1,4 +1,4 @@
-"""zw-brain-cli — 159 capability headless 调用入口。
+"""zw-brain-cli — capability headless 调用入口。
 
 设计：
 - 单一 console_script entry point（pyproject.toml `zw-brain-cli`），不引 rich/click 等花哨依赖。
@@ -7,7 +7,7 @@
 - 失败语义清晰：unknown skill = 2 / bad payload = 3 / invoke failure = 4。
 
 使用示例：
-    zw-brain-cli --list                                   # 159 commands
+    zw-brain-cli --list                                   # 列出全部 capability（计数见输出行尾）
     zw-brain-cli --list catalog                           # 前缀过滤
     zw-brain-cli --describe workbench.view                # description + roles + args
     zw-brain-cli workbench.view --role ROLE_ORGAN_OPERATER
@@ -229,7 +229,7 @@ def cmd_invoke(skill_id: str, payload_str: str, role: str, endpoint: str | None,
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="zw-brain-cli",
-        description="zw-brain headless CLI — 159 capability via single entry. See --list / --describe.",
+        description="zw-brain headless CLI — capability via single entry. See --list / --describe.",
     )
     p.add_argument("skill_id", nargs="?", help="registered skill id (e.g. workbench.view)")
     p.add_argument("--payload", default="", help="JSON payload (default: {})")

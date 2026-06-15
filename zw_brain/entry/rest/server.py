@@ -23,8 +23,6 @@ from zw_brain.command.brain import (
     AccessDeniedError,
     BrainServiceError,
     ConfirmationRequiredError,
-    InvalidStateError,
-    NotFoundError,
     UnknownSkillError,
 )
 from zw_brain.command.runtime import get_service
@@ -71,6 +69,7 @@ from zw_brain.shared.runtime_config import (
     get_rest_port,
 )
 from zw_brain.shared.session_context import build_trusted_skill_payload
+from zw_brain.shared.surface_errors import classify_domain_error
 
 _LOGGER = logging.getLogger(__name__)
 _ACCESS_LOGGER = logging.getLogger("zw_brain.entry.rest.access")
@@ -1185,7 +1184,10 @@ class RestHandler(BaseHTTPRequestHandler):
         if isinstance(exc, SurfaceNotEnabledError):
             self._json(404, {"error": "surface_not_enabled", "detail": str(exc)})
             return
-        if isinstance(exc, (AccessDeniedError, DomainAccessDeniedError)):
+        if isinstance(exc, DomainAccessDeniedError):
+            # Domain policy denial surfaced directly at the REST layer (e.g. AgentRuntime
+            # bridge) — not a BrainServiceError, so it bypasses the shared classifier; map
+            # it to the same access_denied envelope by hand.
             self._json(403, {"error": "access_denied", "detail": str(exc)})
             return
         if isinstance(exc, ActorMatchError):
@@ -1194,16 +1196,30 @@ class RestHandler(BaseHTTPRequestHandler):
             self._json(403, {"error": "actor_identity_ambiguous", "detail": str(exc)})
             return
         if isinstance(exc, ConfirmationRequiredError):
-            self._json(409, {"error": "confirmation_required", "skill_id": str(exc)})
-            return
-        if isinstance(exc, NotFoundError):
-            self._json(422, {"error": "entity_not_found", "detail": str(exc)})
+            # Special body shape: the exception message *is* the skill_id (pipeline raises
+            # ConfirmationRequiredError(skill_id)). Status comes from the shared classifier
+            # (409) so the REST/A2A confirmation status stays single-sourced.
+            cls = classify_domain_error(exc)
+            self._json(cls.http_status, {"error": cls.reason, "skill_id": str(exc)})
             return
         if isinstance(exc, UnknownSkillError):
             self._json(404, {"error": exc.__class__.__name__, "detail": str(exc)})
             return
-        if isinstance(exc, InvalidStateError):
-            self._json(409, {"error": "invalid_state", "detail": str(exc)})
+        # AccessDenied / NotFound / InvalidState share one envelope shape
+        # ({"error": <reason>, "detail": ...}); their status code is single-sourced
+        # from the shared classifier (D2 parity with MCP / A2A). UnknownSkillError is
+        # handled above (404) before this generic branch because it would otherwise
+        # match AccessDeniedError's sibling band differently — keep its order.
+        cls = classify_domain_error(exc)
+        if cls is not None:
+            # ``**cls.data`` echoes the classifier's extra structured fields so they
+            # surface on REST too (D2 parity with MCP / A2A) — quota's
+            # ``retry_after`` / ``scope`` become first-class body fields. For
+            # AccessDenied / NotFound / InvalidState the classifier ``data`` is ``{}``
+            # so no new fields appear (their {"error", "detail"} envelope is unchanged);
+            # trust-level on REST stays a dead path (HTTP faces never reach the
+            # trust-specific branch — its 403 lands here only via AccessDenied).
+            self._json(cls.http_status, {"error": cls.reason, "detail": str(exc), **cls.data})
             return
         if isinstance(exc, IafOidcStateError):
             self._json(400, {"error": "iaf_state_error", "detail": str(exc)})

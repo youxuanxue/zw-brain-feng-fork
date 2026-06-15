@@ -159,6 +159,7 @@ done <<'CHECKS'
 段 64	scripts/check_debt_status.py	debt-status (debt-as-function 单一事实源 — .testing/debt/*.debt.yaml schema 合法 + 每条 assert 现算；invalid→FAIL、stale-fixed→WARN（PREFLIGHT_DEBT_STRICT=1 转 FAIL）；空账本绿)
 段 65	scripts/gen_debt_status.py --check	debt-status-gen (debt-as-function 单一事实源 — .testing/debt/debt-status.md 须与各 debt assert 现算字节一致，禁手改)
 段 68	scripts/check_d_index_entry_size.py	d-index-entry-size (全局宪法 §5 软规则硬化 — CLAUDE.md 决策记录每条 D-索引 ≤900 字符，防 essay 回潮膨胀；每会话整份入上下文、膨胀=持续烧 token；超长→移 Why/How 到 docs/decisions 全文、索引只留锚点，参照 #202)
+段 69	scripts/check_cli_no_bare_capability_count.py	cli-no-bare-capability-count (D2 契约一致性 — CLI entry docstring/帮助文本禁裸能力计数字面量「N capability/commands」，会随注册表漂移撒谎；现算见 --list 输出 / export_agent_contract 派生，或 <!-- stat:... --> 包裹；可机械化项=正则对账承 CLAUDE.md 可机械化边界)
 CHECKS
 
 echo ""
