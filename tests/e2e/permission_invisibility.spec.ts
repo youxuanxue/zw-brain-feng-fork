@@ -99,6 +99,16 @@ test.describe('权限不可见 共性回归', () => {
     await expect(page.getByRole('button', { name: '重新签发' })).toBeVisible();
   });
 
+  test('P2Discovery 页头文案：BUSIAUDIT 不出现「申请资源」字样', async ({ page }) => {
+    // 找数据发现页对非申请人岗位（业务运营员=受理岗；request.create=OPERATER+MANAGER，D57④）
+    // 中性化页头：标题「数据资源」而非「可申请资源」、不出现「申请资源」字样（无权=不可见）。
+    await setRole(page, 'ROLE_BUSIAUDIT');
+    await gotoHash(page, '#/discovery');
+    await expect(page.getByRole('heading', { name: '数据资源' })).toBeVisible();
+    await expect(page.getByText('可申请资源')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '申请资源' })).toHaveCount(0);
+  });
+
   test('P2ResourceDetail 申请资源：OPERATER/MANAGER 可见 / BUSIAUDIT 不渲染', async ({ page }) => {
     // P2 shell 含 OPERATER/MANAGER/BUSIAUDIT；request.create = OPERATER+MANAGER
     // （D57④ 管理员申请人身份照 v5 保留）；业务运营员（受理岗，已退申请人身份 D55/P7）不渲染。

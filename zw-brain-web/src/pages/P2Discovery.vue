@@ -65,19 +65,25 @@ onMounted(() => {
   }
 });
 
+// G5：申请是申请人动作。request.create = 部门操作员 + 部门管理员（D57④ 管理员申请人身份照 v5
+// 保留，与 P2 详情页 canApply、后端 policy.request.create set-equal）；业务运营员 / 审计员在发现页
+// 不渲染「申请资源」CTA（无权=不可见，纵深防御叠加 ResourceCard 的 active-only 机器值门）。
+const canApply = computed(() => canPerformAction('request.create', getProductRole().value));
+
+// 非申请人岗位（含业务运营员）浏览找数据时不出现「申请资源」字样——页头标题与命中统计同步中性化。
+const pageTitle = computed(() => (canApply.value ? '可申请资源' : '数据资源'));
+
 const headerMeta = computed(() => {
   if (searching.value) return '正在检索……';
   if (searchError.value && isSearchMode.value) return `检索失败：${searchError.value}`;
   if (source.value === 'live') {
-    return displayed.value.length ? `命中 ${displayed.value.length} 条可申请资源` : '未命中，可换关键词或浏览专题包';
+    if (!displayed.value.length) return '未命中，可换关键词或浏览专题包';
+    return canApply.value
+      ? `命中 ${displayed.value.length} 条可申请资源`
+      : `命中 ${displayed.value.length} 条数据资源`;
   }
   return '正在加载资源目录……';
 });
-
-// G5：申请是申请人动作。request.create = 部门操作员 + 部门管理员（D57④ 管理员申请人身份照 v5
-// 保留，与 P2 详情页 canApply、后端 policy set-equal）；业务运营员 / 审计员在发现页不渲染
-// 「申请资源」CTA（无权=不可见，纵深防御叠加 ResourceCard 的 active-only 机器值门）。
-const canApply = computed(() => canPerformAction('request.create', getProductRole().value));
 
 // G5：「我的申请」是申请人入口。业务运营员（受理人，非申请人）不应有此入口——按路由可达性过滤
 // （单源 isRouteAllowedForRole）。注意 request-flow 对业务运营员路由可达（受理工作台），故此处用
@@ -110,7 +116,7 @@ async function applyTo(id: string) {
   <main class="focus-page">
     <section class="panel">
       <PageFocusHeader
-        title="可申请资源"
+        :title="pageTitle"
         :meta="headerMeta"
         :links="headerLinks"
       >

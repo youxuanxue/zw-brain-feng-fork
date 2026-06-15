@@ -433,8 +433,28 @@ def test_p5_provider_filters_stat_cards_and_publish_action() -> None:
     assert 'v-for="c in visibleStatCards"' in src, (
         "模板 v-for 必须基于 visibleStatCards，OPERATER 才看不到无权 inbox 卡"
     )
-    assert 'v-if="source === \'live\' && canPublishCatalog"' in src, (
-        "publish-section 必须 v-if 闸在 canPublishCatalog，OPERATER 才看不到发布按钮"
+    # D57⑧ 两级目录审核管线 → 同页两张目录队列卡（pending_review 部门审 / approved_pending_publish
+    # 平台审发布），各自 v-if 闸在 *能力派生* 布尔（showReviewQueue / showPublishQueue），而非 page 内
+    # role 字面比对。两布尔均由 canPerformAction 能力 ∧ CATALOG_QUEUE_STAGE 单源阶段表派生（capability
+    # chokepoint 不被绕过；OPERATER 既无 review 也无 publish 能力 → 两卡皆不渲染）。
+    assert "showPublishQueue" in src and "canPublishCatalog" in src, (
+        "publish-section 须闸在能力派生的 showPublishQueue（含 canPublishCatalog 能力门），"
+        "不得用 page 内 role 字面比对"
+    )
+    assert "v-if=\"source === 'live' && showPublishQueue\"" in src, (
+        "publish-section 必须 v-if 闸在 showPublishQueue（capability∧stage 派生），OPERATER 看不到发布按钮"
+    )
+    assert "showReviewQueue" in src and "canReviewCatalog" in src, (
+        "review-section（D57⑧ 部门审一站）须闸在能力派生的 showReviewQueue（含 catalog.entry.review 能力门）"
+    )
+    assert "v-if=\"source === 'live' && showReviewQueue\"" in src, (
+        "review-section 必须 v-if 闸在 showReviewQueue（capability∧stage 派生），无权角色看不到审核队列"
+    )
+    # 纵深守卫：P5Provider.vue 模板/JS 不得出现 page 内 role 字面比对（一律走能力 chokepoint，
+    # 阶段判定走 CATALOG_QUEUE_STAGE 单源表）。
+    assert "role.value === 'ROLE_" not in src and "role === 'ROLE_" not in src, (
+        "P5Provider.vue 禁出现 role 字面比对（role === 'ROLE_...'）——一律走 canPerformAction 能力 chokepoint "
+        "+ CATALOG_QUEUE_STAGE 单源阶段表"
     )
 
 
