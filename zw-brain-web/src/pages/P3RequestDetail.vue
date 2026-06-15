@@ -9,6 +9,7 @@ import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import EditableFormPanel from '@/components/EditableFormPanel.vue';
+import PhaseTrack from '@/components/PhaseTrack.vue';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import type { FormField } from '@/lib/formFields';
 import { formatTodoStatus } from '@/lib/statusLabels';
@@ -67,16 +68,11 @@ const rawStatus = computed(() => String(req.value?.status ?? '').trim());
 
 // 申请进度（申请人视角）：后端 status_timeline 是单一事实源，快照申请卡已带 statusTimeline；
 // 前端只渲染、不在此重新派生 4 段逻辑（避免第二事实源）。未提交草稿 → 后端返空 → 不渲染。
-interface TimelineStep { stage: string; status: string; label: string }
+interface TimelineStep { stage: string; status: string; label: string; holder?: string }
 const timeline = computed<TimelineStep[]>(() => {
   const arr = req.value?.statusTimeline;
   return Array.isArray(arr) ? (arr as unknown as TimelineStep[]) : [];
 });
-function stepClass(status: string): string {
-  if (status === 'done') return 'phase-step phase-step-done';
-  if (status === 'current') return 'phase-step phase-step-current';
-  return 'phase-step';
-}
 // request.submit = OPERATER + MANAGER（D57④）；BUSIAUDIT（受理岗）进申请详情时不渲染「确认提交 / 重新提交」
 const canSubmitRequest = computed(() => canPerformAction('request.submit', getProductRole().value));
 // 草稿态（0605#8）：从 P2「申请资源」生成的草稿单，用户在此查看无误后「确认提交申请」才进审批。
@@ -220,15 +216,7 @@ async function supplement() {
       <p v-if="isLegacyImport" class="legacy-note">
         历史导入记录 · 仅供查看，在线办理动作不适用于历史迁移申请。
       </p>
-      <div v-if="timeline.length" class="phase-track-vertical" aria-label="申请进度">
-        <div v-for="(step, i) in timeline" :key="i" :class="stepClass(step.status)">
-          <span class="phase-dot">{{ i + 1 }}</span>
-          <span class="phase-step-body">
-            <span class="phase-stage">{{ step.stage }}</span>
-            <span class="phase-label">{{ formatTodoStatus(step.label) }}</span>
-          </span>
-        </div>
-      </div>
+      <PhaseTrack :steps="timeline" aria-label="申请进度" />
       <DetailPanel v-if="rows.length" title="基本信息" :rows="rows" />
       <EditableFormPanel
         v-if="(isDraft || canResubmit) && formFields.length"
@@ -302,16 +290,4 @@ async function supplement() {
 .aux-links { margin: 12px 0; font-size: 13px; }
 .aux-links a { color: var(--b-primary, #006be6); text-decoration: none; }
 .aux-links a:hover { text-decoration: underline; }
-/* 申请进度 stepper（竖向、左侧导轨自上而下读「卡在谁桌上」；调色对齐 P3SupplyDemand phase-track）。 */
-.phase-track-vertical { display: flex; flex-direction: column; gap: 0; margin: 4px 0 16px; padding-left: 18px; border-left: 2px solid var(--b-border, #d4e2f4); }
-.phase-step { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; color: var(--b-muted, #5c6370); }
-.phase-step-current { color: var(--b-primary, #006be6); }
-.phase-step-current .phase-stage { font-weight: 600; }
-.phase-step-done { color: #2d6a2d; }
-.phase-dot { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: #9aa3b2; color: #fff; font-size: 10px; font-weight: 700; flex: 0 0 auto; margin-left: -28px; }
-.phase-step-current .phase-dot { background: var(--b-primary, #006be6); }
-.phase-step-done .phase-dot { background: #3d8b40; }
-.phase-step-body { display: flex; flex-direction: column; line-height: 1.4; }
-.phase-stage { font-size: 13px; }
-.phase-label { font-size: 12px; color: var(--b-muted, #5c6370); }
 </style>

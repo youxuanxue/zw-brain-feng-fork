@@ -7,11 +7,11 @@ import {
   updatePackageTrustLevel,
   usePackageList,
 } from '@/composables/usePackageLifecycle';
-import { invokeActionStub, pushToast } from '@/composables/useActionStub';
+import { pushToast } from '@/composables/useActionStub';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DataSourceBadge from '@/components/DataSourceBadge.vue';
 import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
-import type { StructuredAction } from '@/composables/useNLAccelerator';
+import { consumeNLAction } from '@/lib/consumeNLAction';
 import { trustPillClass, TRUST_LABELS, PKG_STATUS_LABELS } from '@/lib/packageDisplay';
 
 // 外部系统 —— 外来系统接入治理的独立模块（「接入扩展中心」容器已解体，负责人 2026-06-05 裁）。
@@ -42,17 +42,6 @@ async function refreshAll(): Promise<void> {
   await packages.load();
 }
 
-function consumeNLAction(action: StructuredAction): void {
-  if (action.kind === 'invoke' && action.target) {
-    void invokeActionStub({
-      skillId: action.target,
-      payload: action.payload,
-      successTitle: action.label,
-    });
-  } else if (action.kind === 'filter' || action.kind === 'draft') {
-    pushToast({ kind: 'info', title: '已应用', detail: action.label });
-  }
-}
 
 async function onReview(pkgId: string, decision: 'approve' | 'return_for_fix' | 'reject'): Promise<void> {
   const label = decision === 'approve' ? '批准上线' : decision === 'return_for_fix' ? '退回补充' : '驳回';

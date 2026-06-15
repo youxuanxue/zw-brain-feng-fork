@@ -280,12 +280,36 @@ class RequestService:
         else:
             decision_label = "待审批结论"
         deliver_label = {"done": "已交付", "current": "交付中", "pending": "待交付"}[_seg(4)]
-        return [
-            {"stage": "待受理", "status": _seg(1), "ref": rid, "label": "申请已提交"},
-            {"stage": "审核中", "status": _seg(2), "ref": rid, "label": review_label},
-            {"stage": "审批结论", "status": _seg(3), "ref": rid, "label": decision_label},
-            {"stage": "交付", "status": _seg(4), "ref": delivery.get("id") if delivery else None, "label": deliver_label},
+        # 「卡在谁桌上」——holder 只挂在当前段（status=='current'），状态驱动、诚实、不捏造。
+        holder = self._holder_for(str(status), request, delivery)
+        steps = [
+            {"stage": "待受理", "status": _seg(1), "ref": rid, "label": "申请已提交", "holder": ""},
+            {"stage": "审核中", "status": _seg(2), "ref": rid, "label": review_label, "holder": ""},
+            {"stage": "审批结论", "status": _seg(3), "ref": rid, "label": decision_label, "holder": ""},
+            {"stage": "交付", "status": _seg(4), "ref": delivery.get("id") if delivery else None, "label": deliver_label, "holder": ""},
         ]
+        for step in steps:
+            if step["status"] == "current":
+                step["holder"] = holder
+        return steps
+
+    @staticmethod
+    def _holder_for(status: str, request: dict[str, Any], delivery: dict[str, Any] | None) -> str:
+        """当前段「在谁桌上」——只由 status（+真实 delivery 态）现算，取不到诚实留空，绝不捏造。
+
+        受理/审核两关是申请真正卡住处，holder 确证可答（业务运营员受理 / 部门管理员审核+提供方部门）；
+        交付/终态仅当真有补录态 delivery 才答基层填报人，否则空（不假设一表通补录）。
+        """
+        if status in {"submitted", "pending", "need-fix", "supplementing"}:
+            return "业务运营员（受理）"
+        if status == "dept_approved":
+            prov = str(request.get("providerOrgName") or request.get("provider_org_name") or "").strip()
+            return f"部门管理员·{prov}" if prov else "部门管理员（部门审核）"
+        if status in {"approved", "in_delivery"} and delivery is not None and str(
+            delivery.get("status") or delivery.get("state") or ""
+        ) in {"pending", "supplementing", "reconciling", "warning"}:
+            return "镇街/村社区填报人（补录）"
+        return ""
 
     def status_text(self, item: dict[str, Any], perspective: str = "reviewer") -> str:
         """Localized status text per perspective (applicant / reviewer / filler / summarizer).

@@ -5,7 +5,7 @@ import { useRequests, useApprovals, useSnapshot, useWebUiConfig } from '@/compos
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
-import type { StructuredAction } from '@/composables/useNLAccelerator';
+import { consumeNLAction } from '@/lib/consumeNLAction';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 import { canReviewRequests, canPlatformReviewRequests, canViewNationalChannel } from '@/lib/requestFlowRoles';
 import { shortId } from '@/lib/userLanguage';
@@ -13,14 +13,6 @@ import { myRequests, myGrants } from '@/lib/roleProjection';
 import { filterByRouteAccess } from '@/lib/pageAccess';
 
 const NL_PRESETS_P3 = ['我待审的有几条', '催办昨天提交的申请', '驳回所有 30 天未跟进'];
-
-function consumeNLAction(action: StructuredAction) {
-  if (action.kind === 'invoke' && action.target) {
-    void invokeActionStub({ skillId: action.target, payload: action.payload, successTitle: action.label });
-  } else if (action.kind === 'filter' || action.kind === 'draft') {
-    pushToast({ kind: 'info', title: '已应用', detail: action.label });
-  }
-}
 
 const requests = useRequests();
 const approvals = useApprovals();

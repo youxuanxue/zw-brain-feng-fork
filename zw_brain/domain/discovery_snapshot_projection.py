@@ -194,6 +194,30 @@ def enrich_requests_snapshot(
     return out
 
 
+def enrich_delivery_tasks_snapshot(
+    tasks: list[dict[str, Any]],
+    *,
+    request_service: Any = None,
+    request_map: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """交付卡读侧 enrich：把后端权威 status_timeline 接到交付任务卡（P4 交付页脊柱）。
+
+    按 ``requestId`` 从 request_map（O(1)、避 N+1）取申请卡喂 status_timeline；取不到则跳过
+    （诚实空，不破 P4 现渲染）。delivery=task 供交付段 ref 回链与「补录态」holder 现算。
+    单一事实源：同 #277 申请卡，复用 status_timeline 不在前端重派生。
+    """
+    if request_service is None or not request_map:
+        return tasks
+    out: list[dict[str, Any]] = []
+    for task in tasks:
+        card = dict(task)
+        req = request_map.get(str(card.get("requestId") or ""))
+        if req is not None:
+            card["statusTimeline"] = request_service.status_timeline(req, card, perspective="reviewer")
+        out.append(card)
+    return out
+
+
 # ───────────────────────────────────────────────────────────────────────────
 # approvals — P3RequestFlow 审批人收件箱（按 id 交叉引用 requests 取状态/资源名）
 # ───────────────────────────────────────────────────────────────────────────

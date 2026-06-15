@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.discovery_snapshot_projection import (
     enrich_approvals_snapshot,
+    enrich_delivery_tasks_snapshot,
     enrich_discovery_resources_snapshot,
     enrich_requests_snapshot,
 )
@@ -64,10 +65,17 @@ def handler_system_snapshot(deps: HandlerDeps, ctx: SkillContext, payload: dict[
         enriched, tenant_id=tenant_id,
         request_service=deps.services.request if deps is not None else None,
     )
+    # 交叉引用图（O(1)、避 N+1）：交付页脊柱复用同一条已挂好的申请 timeline。
+    request_map = {str(r.get("id")): r for r in (enriched.get("requests") or [])}
     enriched = enrich_approvals_snapshot(enriched, tenant_id=tenant_id)
     enriched = enrich_discovery_resources_snapshot(enriched, tenant_id=tenant_id)
     if role in {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"}:
-        enriched["delivery_tasks"] = brain.list_delivery_tasks()
+        # 交付脊柱：把后端权威 status_timeline 接到交付任务卡（P4 第一次看见整单进度）。
+        enriched["delivery_tasks"] = enrich_delivery_tasks_snapshot(
+            brain.list_delivery_tasks(),
+            request_service=deps.services.request if deps is not None else None,
+            request_map=request_map,
+        )
     return redact_webui_snapshot(enriched, role)
 
 def handler_system_schema_info(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:

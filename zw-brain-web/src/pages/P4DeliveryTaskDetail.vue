@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
+import PhaseTrack from '@/components/PhaseTrack.vue';
 import { lookupDeliveryTask, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub } from '@/composables/useActionStub';
 import { downloadDeliveryFile } from '@/composables/useDeliveryDownload';
@@ -14,6 +15,12 @@ const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
 const taskRef = lookupDeliveryTask(id.value);
 const { source } = useSnapshot();
+
+// 三角色脊柱：交付员也看见整单进度（后端 enrich_delivery_tasks_snapshot 已挂同一条 timeline）。
+const timeline = computed(() => {
+  const arr = (taskRef.value as Record<string, unknown> | null)?.statusTimeline;
+  return Array.isArray(arr) ? (arr as Array<{ stage: string; status: string; label: string; holder?: string }>) : [];
+});
 
 // 按资源类型分流（0611 业务口径确认单 §B，2026-06-12 方案 B 终裁）：
 // API=查看授权、文件=下载、库表=交换任务语系（标题「交换任务」+ 按钮「核对交换结果」）；
@@ -77,6 +84,7 @@ async function downloadFile() {
         :meta="headerMeta"
         :links="[{ label: '提异议', href: objectionLink }]"
       />
+      <PhaseTrack :steps="timeline" aria-label="交付进度" />
       <DetailPanel v-if="rows.length" :title="isTable ? '交换任务详情' : '任务详情'" :rows="rows" />
       <p v-else-if="source === 'live'" class="focus-empty">{{ isTable ? '未找到该交换任务。' : '未找到该交付任务。' }}</p>
       <p v-else class="focus-empty">等待数据装载……</p>

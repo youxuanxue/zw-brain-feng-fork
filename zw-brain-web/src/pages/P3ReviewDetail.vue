@@ -7,6 +7,7 @@ import { getProductRole } from '@/composables/useProductRole';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
+import PhaseTrack from '@/components/PhaseTrack.vue';
 import { formatTodoStatus } from '@/lib/statusLabels';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import { canReviewRequests, canPlatformReviewRequests } from '@/lib/requestFlowRoles';
@@ -23,6 +24,13 @@ watchEffect(() => {
 });
 const req = lookupRequest(id.value);
 const { source } = useSnapshot();
+
+// 三角色脊柱：审批人也看见整单「卡在哪、轮没轮到我」。复用后端已挂在申请卡上的同一条
+// status_timeline（#277 单一事实源，含 holder），无需后端——P3ReviewDetail 走 lookupRequest。
+const timeline = computed(() => {
+  const arr = (req.value as Record<string, unknown> | null)?.statusTimeline;
+  return Array.isArray(arr) ? (arr as Array<{ stage: string; status: string; label: string; holder?: string }>) : [];
+});
 
 const status = computed(() => String(req.value?.status ?? '').trim().toLowerCase());
 const sharedType = computed(() => {
@@ -138,6 +146,7 @@ async function fix() {
     <nav class="crumbs"><a href="#/request-flow">← 申请列表</a></nav>
     <section class="panel">
       <PageFocusHeader title="审批详情" :meta="headerMeta" />
+      <PhaseTrack :steps="timeline" aria-label="审批进度" />
       <DetailPanel v-if="rows.length" title="审批要点" :rows="rows" />
       <DetailActions v-if="showAcceptActions">
         <button type="button" class="gov-btn gov-btn-primary" @click="accept">受理</button>

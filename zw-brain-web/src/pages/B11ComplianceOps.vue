@@ -5,8 +5,8 @@ import { useInvestigationSummary } from '@/composables/useInvestigationSummary';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DataSourceBadge from '@/components/DataSourceBadge.vue';
 import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
-import type { StructuredAction } from '@/composables/useNLAccelerator';
-import { invokeActionStub, pushToast } from '@/composables/useActionStub';
+import { consumeNLAction } from '@/lib/consumeNLAction';
+import { pushToast } from '@/composables/useActionStub';
 import {
   formatActorLabel,
   formatDeniedChainCount,
@@ -74,17 +74,6 @@ async function runSummary(): Promise<void> {
   );
 }
 
-function consumeNLAction(action: StructuredAction): void {
-  if (action.kind === 'invoke' && action.target) {
-    void invokeActionStub({
-      skillId: action.target,
-      payload: action.payload,
-      successTitle: action.label,
-    });
-  } else if (action.kind === 'filter' || action.kind === 'draft') {
-    pushToast({ kind: 'info', title: '已应用', detail: action.label });
-  }
-}
 
 const statisticsTotalRow = computed(() => {
   const t = statistics.data.value?.totals ?? {};
