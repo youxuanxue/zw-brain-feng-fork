@@ -58,7 +58,7 @@ async function resolve() {
   <main class="focus-page focus-detail">
     <nav class="crumbs"><a href="#/compliance-ops">← 合规与运营</a></nav>
     <section class="panel">
-      <PageFocusHeader :title="id" :meta="headerMeta" />
+      <PageFocusHeader :title="`工单 ${id}`" :meta="headerMeta" />
       <DetailPanel title="基本信息" :rows="rows" />
       <DetailActions v-if="canEscalate || canResolve">
         <button v-if="canEscalate" type="button" class="gov-btn gov-btn-secondary" @click="escalate">升级</button>

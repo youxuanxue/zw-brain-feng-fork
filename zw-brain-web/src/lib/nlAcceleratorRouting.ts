@@ -258,14 +258,10 @@ async function parseP3(query: string, role: string): Promise<NLAcceleratorParseR
     request_id: newRequestId('UI-NL-P3-DRAFT'),
   });
   const actions: StructuredAction[] = [];
-  if (draft.suggested_fields && Object.keys(draft.suggested_fields).length) {
-    actions.push({
-      kind: 'draft',
-      label: '预填申请草拟字段',
-      target: 'request.create',
-      payload: draft.suggested_fields,
-    });
-  }
+  // 去掉「预填申请草拟字段」假动作：它只有 inferResourceName 字符串猜的资源名、无 resource_id，
+  // request.create 调不动；旧 consumeNLAction 只弹「已应用」却什么都没填（撒谎 toast）。真预填是
+  // 草稿表单内「✨ AI 建议填充」按钮（request.draft.ai_suggest）。此处仅留 summary（reasoning+风险带）
+  // 与缺口提示，NL 面板回归诚实——只摘要、不假装已预填。
   if (draft.missing_fields?.length) {
     actions.push({
       kind: 'filter',

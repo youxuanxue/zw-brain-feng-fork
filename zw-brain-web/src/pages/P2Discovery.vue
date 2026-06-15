@@ -94,9 +94,11 @@ const headerLinks = computed(() => {
 
 async function applyTo(id: string) {
   // 采草稿流（0605#8）：生成草稿 → 跳详情确认 → 用户手动提交才进审批。
+  // 去掉前端硬塞的零内容用途「通过资源发现页申请资源」（描述 UI 路径≠用户诉求，掩耳盗铃）：
+  // 与 P2ResourceDetail.apply 一致只传 resource_id，用途由用户在详情页确认/修订。
   const result = await invokeActionStub({
     skillId: 'request.create',
-    payload: { resource_id: id, purpose: '通过资源发现页申请资源' },
+    payload: { resource_id: id },
     successTitle: '申请草稿已生成，请在详情页确认后提交',
   });
   const requestId = resolveRequestIdFromAction(result);
