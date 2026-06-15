@@ -59,7 +59,11 @@ def handler_system_snapshot(deps: HandlerDeps, ctx: SkillContext, payload: dict[
     enriched = enrich_zones_snapshot(enriched, tenant_id=tenant_id)
     enriched = enrich_disputes_snapshot(enriched, tenant_id=tenant_id)
     # D45 — J1 列表字段全量真实库投影（DB 有行替换 / 空库保留 seed）
-    enriched = enrich_requests_snapshot(enriched, tenant_id=tenant_id)
+    # 申请人进度 stepper：把后端权威 status_timeline 接到申请卡（读侧 enrich，单一事实源）。
+    enriched = enrich_requests_snapshot(
+        enriched, tenant_id=tenant_id,
+        request_service=deps.services.request if deps is not None else None,
+    )
     enriched = enrich_approvals_snapshot(enriched, tenant_id=tenant_id)
     enriched = enrich_discovery_resources_snapshot(enriched, tenant_id=tenant_id)
     if role in {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"}:

@@ -109,7 +109,7 @@ def shared_type_for_resource(resource_id: str, tenant_id: str | None = None) -> 
     return _share_type_by_resource(tid).get(rid)
 
 
-def _record_to_request_card(record: Any, share_type_by_resource: dict[str, int] | None = None) -> dict[str, Any]:
+def _record_to_request_card(record: Any, share_type_by_resource: dict[str, int] | None = None, request_service: Any = None) -> dict[str, Any]:
     """application_record → 轻量申请卡（snake→camel；applicant PII 走 mask_default）。
 
     本组（数据呈现规范化 + 角色投影）追加 3 个**诚实信号**，供前端三视图 / 供方质量队列：
@@ -125,7 +125,7 @@ def _record_to_request_card(record: Any, share_type_by_resource: dict[str, int] 
     )
     raw_purpose = purpose_from_payload(payload)
     is_legacy_import = bool(payload.get("source_ref") or payload.get("legacy_object_ref"))
-    return {
+    card: dict[str, Any] = {
         "id": payload.get("id") or record.application_code,
         "resourceId": payload.get("resourceId") or payload.get("resource_id") or "",
         "resourceName": payload.get("resource_name") or payload.get("resourceName") or "",
@@ -165,9 +165,18 @@ def _record_to_request_card(record: Any, share_type_by_resource: dict[str, int] 
         ),
         "fieldProvenance": payload.get("fieldProvenance") or {},
     }
+    # 读侧 enrich：把后端权威 status_timeline 接到申请卡（申请人视角进度 stepper 单一事实源）。
+    # delivery=None → 交付段由权威 status 推断，无 DB/delivery join（D56 读侧呈现，不开架构门）。
+    # 仅运行时申请有「卡在谁桌上」的活旅程；历史导入单是只读迁移记录、用旧平台态词汇
+    # （under_review/effective/…），不属运行时 4 段旅程 → 不发 stepper（与 isLegacyImport 诚实降级一致）。
+    if request_service is not None and not is_legacy_import:
+        card["statusTimeline"] = request_service.status_timeline(card, None, perspective="applicant")
+    return card
 
 
-def enrich_requests_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None = None) -> dict[str, Any]:
+def enrich_requests_snapshot(
+    snapshot: dict[str, Any], *, tenant_id: str | None = None, request_service: Any = None
+) -> dict[str, Any]:
     """Project snapshot['requests'] from the real **application** table (DB single SoT).
 
     只取申请类（kind ∉ _DEMAND_KINDS）；需求类记录无 resource_name、属 J2 供需线，
@@ -181,7 +190,7 @@ def enrich_requests_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None 
         if (r.payload_json or {}).get("kind") not in _DEMAND_KINDS
     ]
     share_map = _share_type_by_resource(tid)
-    out["requests"] = [_record_to_request_card(r, share_map) for r in records]
+    out["requests"] = [_record_to_request_card(r, share_map, request_service) for r in records]
     return out
 
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from zw_brain.domain.errors import InvalidStateError, NotFoundError, _RequestBatchContext
 from zw_brain.shared import ids
@@ -237,17 +237,54 @@ class RequestService:
 
     # --- Status timeline / text ---
 
+    # 申请权威 status → 当前所处里程碑指针（1 待受理 / 2 审核 / 3 审批结论 / 4 交付 / 5 已完成）。
+    # 单一事实源：4 段进度只读这张表 + status，前端 stepper 不重派生（D56 读侧呈现）。
+    _TIMELINE_POINTER: ClassVar[dict[str, int]] = {
+        "submitted": 2, "pending": 2, "need-fix": 2, "supplementing": 2,
+        "dept_approved": 3, "rejected": 3,
+        "approved": 4, "summary-pending": 4, "in_delivery": 4,
+        "granted": 5, "completed": 5, "revoked": 5, "suspended": 5,
+    }
+
     def status_timeline(
-        self, request: dict[str, Any], delivery: dict[str, Any] | None
+        self, request: dict[str, Any], delivery: dict[str, Any] | None, *, perspective: str = "reviewer"
     ) -> list[dict[str, Any]]:
-        """Compute status timeline rows for a request + its delivery."""
-        decision = "已通过" if request.get("status") in {"supplementing", "summary-pending", "completed"} else "待审批结论"
-        delivery_state = delivery.get("status") if delivery else "pending"
+        """Compute the applicant-facing 4-stage progress timeline for a request.
+
+        待受理 → 审核中 → 审批结论 → 交付，各段 done/current/pending 由申请权威 ``status``
+        单调现算（单一事实源；不在前端重新派生）。``delivery`` 仅用于交付段 ``ref`` 回链——
+        缺省 ``None`` 时交付段亦由 ``status`` 推断，供快照读侧 enrich（无 delivery join）。
+        ``perspective`` 决定文案视角（applicant / reviewer / …，PII-safe，见 ``status_text``）。
+        未提交草稿无流转 → 返回空列表（stepper 不渲染）。
+        """
+        status = request.get("status")
+        if status in (None, "", "draft"):
+            return []
+        ptr = self._TIMELINE_POINTER.get(str(status))
+        if ptr is None:
+            return []  # 非运行时旅程词汇（含 legacy 旧平台态 under_review/effective/…）→ 不渲染 stepper
+        rid = request.get("id")
+
+        def _seg(i: int) -> str:
+            return "done" if ptr > i else ("current" if ptr == i else "pending")
+
+        # 每段标签描述「该段自身」状态，不把整单 status 泄漏到已过去的段：
+        # 审核中——当前段给视角文案（审批中/已提交待受理/待补正…），已过给「已受理」。
+        review_label = self.status_text(request, perspective) if ptr == 2 else "已受理"
+        if ptr > 3:
+            decision_label = "已通过"
+        elif status in {"rejected", "need-fix"}:
+            decision_label = self.status_text(request, perspective)  # 「已驳回」/「待补正」
+        elif ptr == 3:
+            decision_label = "审核中"
+        else:
+            decision_label = "待审批结论"
+        deliver_label = {"done": "已交付", "current": "交付中", "pending": "待交付"}[_seg(4)]
         return [
-            {"stage": "待受理", "status": "done", "ref": request.get("id"), "label": "申请已提交"},
-            {"stage": "审核中", "status": "done" if request.get("status") != "pending" else "current", "ref": request.get("id"), "label": self.status_text(request, "reviewer")},
-            {"stage": "审批结论", "status": "done" if decision == "已通过" else "pending", "ref": request.get("id"), "label": decision},
-            {"stage": "delivery_task", "status": delivery_state, "ref": delivery.get("id") if delivery else None, "label": delivery_state},
+            {"stage": "待受理", "status": _seg(1), "ref": rid, "label": "申请已提交"},
+            {"stage": "审核中", "status": _seg(2), "ref": rid, "label": review_label},
+            {"stage": "审批结论", "status": _seg(3), "ref": rid, "label": decision_label},
+            {"stage": "交付", "status": _seg(4), "ref": delivery.get("id") if delivery else None, "label": deliver_label},
         ]
 
     def status_text(self, item: dict[str, Any], perspective: str = "reviewer") -> str:
