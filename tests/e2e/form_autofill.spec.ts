@@ -87,14 +87,14 @@ test.describe('表单填报 · 自动填充 + 原地修订锁定', () => {
     await expect(organSearch).toBeVisible();
     await organSearch.fill('局'); // 政府机构普遍含「局」，保证有命中
     await expect(page.locator('[data-testid="ff-organ_code-list"] .rp-item').first()).toBeVisible({ timeout: 8_000 });
-    await page.locator('.rp-backdrop').click(); // 点外部关闭 picker（避免遮罩残留挡后续操作）
+    await page.locator('.rp-backdrop').click({ position: { x: 5, y: 5 } }); // 点遮罩角落关闭 picker（中心可能被向下展开的弹层覆盖）
 
     // 区划选择器：逐级下钻 picker —— 打开 → 顶级区划列表可见（省级）。
     const regionTrigger = panel.locator('[data-testid="ff-region_code"]');
     await expect(regionTrigger).toBeVisible();
     await regionTrigger.click();
     await expect(page.locator('[data-testid="ff-region_code-list"] .rp-item').first()).toBeVisible({ timeout: 8_000 });
-    await page.locator('.rp-backdrop').click(); // 点外部关闭 picker（避免遮罩残留挡后续操作）
+    await page.locator('.rp-backdrop').click({ position: { x: 5, y: 5 } }); // 点遮罩角落关闭 picker（中心可能被向下展开的弹层覆盖）
 
     // AI 建议填充：点按钮 → 空可建议字段转「AI建议·待确认」；人填的 purpose 不被覆盖；草稿不自动提交。
     const aiBtn = panel.locator('[data-testid="ff-ai-suggest"]');

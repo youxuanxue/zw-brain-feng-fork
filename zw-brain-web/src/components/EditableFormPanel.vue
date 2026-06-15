@@ -45,6 +45,13 @@ function nameFor(key: string): string {
   return nameKey ? currentValue(nameKey) : '';
 }
 
+// 整句型字段（用途/理由/范围）用多行 textarea，单行框写不下一句话。
+// 后端 kind 统一为 text（不区分长短），故按 key 在前端判定。
+const MULTILINE_KEYS = new Set(['purpose', 'use_reason', 'scope']);
+function isMultiline(f: FormField): boolean {
+  return f.kind === 'text' && MULTILINE_KEYS.has(f.key);
+}
+
 onMounted(async () => {
   // 枚举字段 options（pub_dict 字典带出）；机构/区划选项由 ReferencePicker 自取（搜索/下钻）。
   for (const f of fields.value) {
@@ -96,8 +103,7 @@ async function commit(field: FormField, raw: string): Promise<void> {
       <div>
         <h2 class="detail-block-title">申请表单</h2>
         <p class="detail-block-sub">
-          系统已按机构/区划/字典自动带出；可点「AI 建议填充」对空字段给出待确认建议。逐项核对修订即可，
-          改过的字段会锁定、不再被自动覆盖；AI 建议永不自动提交，需你确认提交。
+          字段已自动带出，逐项核对修订即可（改过即锁定）；空字段可用 AI 建议填充，确认后再提交。
         </p>
       </div>
       <button
@@ -114,6 +120,7 @@ async function commit(field: FormField, raw: string): Promise<void> {
       <template v-for="f in fields" :key="f.key">
         <dt>{{ f.label }}</dt>
         <dd>
+          <div class="ff-field">
           <!-- 派生：只读自动带出 -->
           <template v-if="!f.editable">
             <span class="detail-value ff-readonly">{{ f.value || '—' }}</span>
@@ -156,7 +163,19 @@ async function commit(field: FormField, raw: string): Promise<void> {
               @update:model-value="(code: string) => commit(f, code)"
             />
           </template>
-          <!-- 文本 / 机构码 / 区划码：输入框（失焦提交，触发带出/锁定） -->
+          <!-- 整句型文本（用途/理由/范围）：多行 textarea -->
+          <template v-else-if="isMultiline(f)">
+            <textarea
+              class="ff-input ff-textarea"
+              :data-testid="`ff-${f.key}`"
+              :disabled="saving === f.key"
+              :value="f.value"
+              :placeholder="f.source === 'empty' ? '请填写' : ''"
+              rows="3"
+              @change="commit(f, ($event.target as HTMLTextAreaElement).value)"
+            />
+          </template>
+          <!-- 文本 / 机构码 / 区划码：单行输入框（失焦提交，触发带出/锁定） -->
           <template v-else>
             <input
               class="ff-input"
@@ -171,6 +190,7 @@ async function commit(field: FormField, raw: string): Promise<void> {
             {{ f.stateLabel }}
           </span>
           <span v-if="f.locked" class="ff-lock" title="人工填写已锁定">🔒</span>
+          </div>
         </dd>
       </template>
     </dl>
@@ -192,16 +212,50 @@ async function commit(field: FormField, raw: string): Promise<void> {
 }
 .ff-ai-btn:hover:not(:disabled) { background: var(--b-primary, #006be6); color: #fff; }
 .ff-ai-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.ff-list dd { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* 全局 .detail-list dd 是 flex-direction:column（只读 DetailPanel 用，值在上、副文本在下）。
+   表单复用了同一栅格，若把控件直接放进列向 dd，控件的 flex-basis 会被当成「行高」
+   —— .ff-input 的 220px 基线会把每个输入框撑成 220px 高的巨框、状态 pill 被挤到下方漂浮。
+   解法：把「控件 + 状态 pill + 锁」收进一行 .ff-field，让列向 dd 只含这一个子元素，
+   控件回到自然行高、pill 与控件同行。 */
+.ff-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+}
 .ff-input {
-  flex: 1 1 220px;
-  min-width: 180px;
+  flex: 0 1 360px;
+  min-width: 200px;
+  max-width: 360px;
+  height: 32px;
+  box-sizing: border-box;
   padding: 5px 9px;
   border: 1px solid var(--b-border, #d4e2f4);
   border-radius: 6px;
   font-size: 13px;
 }
+select.ff-input { padding-right: 6px; cursor: pointer; }
+.ff-list :deep(.ref-picker) { flex: 0 1 360px; }
 .ff-input:disabled { background: #f4f7fb; }
+/* 整句型字段：多行 textarea，比单行框宽一点、可纵向拉伸。 */
+.ff-textarea {
+  flex: 0 1 420px;
+  max-width: 420px;
+  height: auto;
+  min-height: 66px;
+  padding: 6px 9px;
+  line-height: 1.5;
+  resize: vertical;
+  font-family: inherit;
+}
+/* 标签右对齐、统一冒号，控件左缘对齐成一条竖线。 */
+.ff-list dt {
+  text-align: right;
+}
+.ff-list dt::after {
+  content: '：';
+}
 .ff-readonly { color: var(--b-neutral-text, #1a1d21); font-weight: 500; }
 .ff-pill {
   font-size: 12px;
