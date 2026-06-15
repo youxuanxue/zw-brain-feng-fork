@@ -273,6 +273,11 @@ def _create_request(
             initial_status = "submitted"
         else:
             initial_status = "pending"
+        # 提供方局名：owner_org_code → ReferenceService 组织投影取 org_name（单一事实源、不另造表）。
+        # #280 holder「部门管理员·{局名}」靠它；取不到诚实留空、holder 退「部门管理员（部门审核）」。
+        _provider_code = _owner_org_code_from_resource(resource)
+        _provider_organ = _reference().organ(_provider_code) if _provider_code else None
+        provider_org_name = str((_provider_organ or {}).get("org_name") or "").strip()
         request = {
             "id": request_id,
             "resourceId": canonical_id,
@@ -281,7 +286,9 @@ def _create_request(
             "sharedType": shared_type_int,
             # 提供方机构码随单存档（R11 方向 guard 的 owner 源——guard 对空 owner fail-closed，
             # 不落此键则有条件二级部门审核对任何管理员都 403、单据永卡 dept_approved）。
-            "owner_org_code": _owner_org_code_from_resource(resource),
+            "owner_org_code": _provider_code,
+            # 提供方局名随单存档（卡 providerOrgName←payload.provider_org_name；#280 holder 局名源）。
+            "provider_org_name": provider_org_name,
             # R-006 fix: 部门名称由 applicantDept 字段单独表达；不再在 actor 文本里拼接（折叠后无法靠 role 判断身份）
             "applicant": actor,
             "applicantDept": "市营商环境专班",
@@ -539,6 +546,11 @@ def _submit_request(brain, deps, ctx, request_id: str, role: str, confirmed: boo
         # owner 源；guard 对空 owner fail-closed，缺位则二级部门审核永 403）。
         if not request.get("owner_org_code") and resolved_resource is not None:
             request["owner_org_code"] = _owner_org_code_from_resource(resolved_resource)
+        # 同上：存量草稿补提供方局名（#280 holder 局名源；owner_org_code→organ→org_name）。
+        if not request.get("provider_org_name") and resolved_resource is not None:
+            _pc = _owner_org_code_from_resource(resolved_resource)
+            _po = _reference().organ(_pc) if _pc else None
+            request["provider_org_name"] = str((_po or {}).get("org_name") or "").strip()
         request["submittedAt"] = clock.now_datetime()
         request["auditId"] = audit_id
         request["chainAnchor"] = "pending"
