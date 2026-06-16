@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from tests._trusted_payload import invoke_trusted
+from tests._trusted_payload import actor_snapshot, invoke_trusted
 from zw_brain.command.brain import BrainService
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.repositories.objection import ObjectionRepository
@@ -23,6 +23,20 @@ from zw_brain.shared.state_store import StateStore
 
 TENANT = "sd-default"
 SEED_DB = Path(__file__).resolve().parent.parent / ".data" / "zw_brain.db"
+
+# 供数面 fixture 全用此机构作 owner_org_id（省大数据局）。M4 部门数据可见域收口后，
+# 部门角色（MANAGER/OPERATER）snapshot 只见本机构(+下级) provider 行——故 system.snapshot
+# 调用须携带与 seed 同机构的会话上下文（invoke_trusted 默认 ORG-A 与 seed 不符会被收口为空）。
+# 全局角色（BUSIAUDIT）visible_org_codes=None 放行全量，无需带机构。
+SEED_ORG = "11370000MB284651XL"
+
+
+def _dept_snapshot(brain: BrainService, role: str) -> dict:
+    """部门角色 system.snapshot：携带与 fixture 同机构的会话（M4 收口后才看得到自家 provider 行）。"""
+    return invoke_trusted(
+        brain, "system.snapshot", {"role": role}, role=role,
+        snapshot=actor_snapshot(role, org_code=SEED_ORG),
+    )
 
 
 @pytest.fixture()
@@ -119,7 +133,7 @@ def _seed_inbox_rows() -> None:
 
 def test_manager_snapshot_includes_provider_inbox_arrays(brain: BrainService) -> None:
     _seed_inbox_rows()
-    snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_ORGAN_MANAGER"}, role="ROLE_ORGAN_MANAGER")
+    snap = _dept_snapshot(brain, "ROLE_ORGAN_MANAGER")
     provider = snap["provider"]
     assert isinstance(provider.get("field_decisions"), list)
     assert isinstance(provider.get("hookup_reviews"), list)
@@ -157,7 +171,7 @@ def test_operater_snapshot_includes_registered_api_services(brain: BrainService)
         },
         tenant_id=TENANT,
     )
-    snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_ORGAN_OPERATER"}, role="ROLE_ORGAN_OPERATER")
+    snap = _dept_snapshot(brain, "ROLE_ORGAN_OPERATER")
     services = snap["provider"]["services"]
     svc = next((s for s in services if s["id"] == "res-api-op-001"), None)
     assert svc is not None, "操作员应能看到自己注册的 API 服务（services 未被 redact）"
@@ -167,7 +181,7 @@ def test_operater_snapshot_includes_registered_api_services(brain: BrainService)
 
 def test_field_decision_projection_item_shape_for_inbox_ui(brain: BrainService) -> None:
     _seed_inbox_rows()
-    snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_ORGAN_MANAGER"}, role="ROLE_ORGAN_MANAGER")
+    snap = _dept_snapshot(brain, "ROLE_ORGAN_MANAGER")
     row = snap["provider"]["field_decisions"][0]
     assert row["id"] == "cat-proj-field-001"
     assert row["title"]
@@ -204,7 +218,7 @@ def test_field_decision_inbox_lists_only_actionable_reverse_drafts(brain: BrainS
 
 def test_hookup_and_demand_projection_shapes(brain: BrainService) -> None:
     _seed_inbox_rows()
-    snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_ORGAN_MANAGER"}, role="ROLE_ORGAN_MANAGER")
+    snap = _dept_snapshot(brain, "ROLE_ORGAN_MANAGER")
     hookup = snap["provider"]["hookup_reviews"][0]
     demand = snap["provider"]["demand_matches"][0]
     assert hookup["id"] == "res-proj-hookup-001"
@@ -420,7 +434,7 @@ def test_hookup_review_row_carries_registration_detail(brain: BrainService) -> N
         },
         tenant_id=TENANT,
     )
-    snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_ORGAN_MANAGER"}, role="ROLE_ORGAN_MANAGER")
+    snap = _dept_snapshot(brain, "ROLE_ORGAN_MANAGER")
     row = next(r for r in snap["provider"]["hookup_reviews"] if r["id"] == "res-proj-hookup-d57")
     assert row["resource_name"] == "挂接待审资源（带登记信息）"
     assert row["catalog_name"] == "挂接所属目录甲"
@@ -464,12 +478,12 @@ def test_hookup_review_reject_with_reason_returns_to_draft(brain: BrainService) 
     )
     assert record.summary_json.get("review_return_reason") == "登记信息缺少数据来源说明，请补全后重新提交"
 
-    snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_ORGAN_MANAGER"}, role="ROLE_ORGAN_MANAGER")
+    snap = _dept_snapshot(brain, "ROLE_ORGAN_MANAGER")
     assert all(r["id"] != "res-proj-hookup-reject" for r in snap["provider"]["hookup_reviews"])
 
     # 驳回理由闭环（写了就必须有读面）：提交方在「资源管理清单」（provider.resources 投影）
     # 看到整改依据——操作员 snapshot 带 resources partial key（_PROVIDER_PARTIAL_KEYS）。
-    op_snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_ORGAN_OPERATER"}, role="ROLE_ORGAN_OPERATER")
+    op_snap = _dept_snapshot(brain, "ROLE_ORGAN_OPERATER")
     row = next(r for r in op_snap["provider"]["resources"] if r["id"] == "res-proj-hookup-reject")
     assert row["review_return_reason"] == "登记信息缺少数据来源说明，请补全后重新提交"
     assert row["lifecycle_status"] == "draft"

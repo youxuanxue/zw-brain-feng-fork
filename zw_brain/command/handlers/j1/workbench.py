@@ -11,7 +11,10 @@ if TYPE_CHECKING:
 import zw_brain.shared.clock as clock
 from zw_brain.command.brain import NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
+from zw_brain.domain.services.reference_service import ReferenceService
 from zw_brain.domain.workbench_backlog_projection import enrich_workbench_backlog
+from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
+from zw_brain.shared.session_context import caller_org_code
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -55,7 +58,12 @@ def _get_workbench(brain, deps, ctx, role: str, payload: dict[str, Any]) -> dict
     # 「待受理异议」深链 /provider/inbox/objection 已随 D57① 接通受理面（submitted 纳入
     # 收件箱 + objection.case.accept 可点），原「待裁决后校准」注记已闭合。
     # 投影口径单一事实源见 workbench_backlog_projection.enrich_workbench_backlog。
-    enriched = enrich_workbench_backlog(view, role)
+    # 部门数据可见域：管理员待办按本机构(+下级)收口（M8 落），全局角色 None 放行平台待办。
+    tenant_id = str(payload.get("tenant_id") or get_runtime_tenant_id())
+    visible_org_codes = ReferenceService().visible_org_codes(
+        caller_org_code(payload), role, tenant_id=tenant_id
+    )
+    enriched = enrich_workbench_backlog(view, role, tenant_id=tenant_id, visible_org_codes=visible_org_codes)
     enriched["greeting"] = _session_greeting(payload)
     return enriched
 

@@ -17,6 +17,7 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import ops_metrics as ops_metrics_ser
 from zw_brain.domain.errors import AccessDeniedError
 from zw_brain.domain.serializers.ops_metrics import metric_summary as _metric_summary
+from zw_brain.shared.session_context import caller_org_code as _caller_org_code_from_payload
 
 _MANAGER_ROLE = "ROLE_ORGAN_MANAGER"
 
@@ -26,16 +27,8 @@ _MANAGER_ROLE = "ROLE_ORGAN_MANAGER"
 
 
 def _caller_org_code(ctx: SkillContext, payload: dict[str, Any]) -> str:
-    """会话机构解析（同 j1/approval._actor_org_code 口径）：BFF build_trusted_skill_payload
-    把 current_org_code 钉进 payload['org_code']；bearer/CLI 等无机构上下文路径取不到则空。"""
-    snapshot = payload.get("actor_snapshot") if isinstance(payload.get("actor_snapshot"), dict) else {}
-    return str(
-        payload.get("org_code")
-        or payload.get("current_org_code")
-        or snapshot.get("current_org_code")
-        or snapshot.get("org_code")
-        or ""
-    )
+    """会话机构解析（委托 session_context.caller_org_code 单源）。"""
+    return _caller_org_code_from_payload(payload)
 
 
 def _scope_invocations_for_manager(

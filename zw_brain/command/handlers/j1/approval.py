@@ -13,6 +13,7 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.errors import AccessDeniedError
 from zw_brain.domain.serializers.legacy_mapping import legacy_mapping_refs
 from zw_brain.shared.sensitive_mask import mask_actor_payload
+from zw_brain.shared.session_context import caller_org_code as _caller_org_code_from_payload
 
 # j1-approval-conditional 第二级部门审核的可信角色门控（R-001 fix；D55/P21 后为第二级）：
 # application.dept_approve.execute 的 PERMISSION_ROLES 含 OPERATER 仅为 resubmit（申请人补件
@@ -130,20 +131,10 @@ def handler_approval_review_decide(deps: HandlerDeps, ctx: SkillContext, payload
 
 
 def _actor_org_code(ctx: SkillContext, payload: dict[str, Any]) -> str:
-    """Resolve the acting org_code from the trusted payload (BFF current_org_code).
-
-    build_trusted_skill_payload stamps current_org_code → payload['org_code']; the
-    actor_snapshot is also available for the multi-context case. R11 direction +
-    self_approval guard both read this org.
-    """
-    snapshot = payload.get("actor_snapshot") if isinstance(payload.get("actor_snapshot"), dict) else {}
-    return str(
-        payload.get("org_code")
-        or payload.get("current_org_code")
-        or snapshot.get("current_org_code")
-        or snapshot.get("org_code")
-        or ""
-    )
+    """Resolve the acting org_code from the trusted payload (delegates to the single
+    source ``session_context.caller_org_code``). R11 direction + self_approval guard
+    both read this org."""
+    return _caller_org_code_from_payload(payload)
 
 
 def handler_application_dept_approve(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:

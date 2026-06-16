@@ -25,6 +25,7 @@ from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.resource_kind import canonical_resource_kind
 from zw_brain.domain.resource_lifecycle import lifecycle_label
 from zw_brain.domain.services import form_fill_service
+from zw_brain.domain.services.reference_service import ReferenceService
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.shared.sensitive_mask import mask_default
 
@@ -109,7 +110,22 @@ def shared_type_for_resource(resource_id: str, tenant_id: str | None = None) -> 
     return _share_type_by_resource(tid).get(rid)
 
 
-def _record_to_request_card(record: Any, share_type_by_resource: dict[str, int] | None = None, request_service: Any = None) -> dict[str, Any]:
+def _provider_org_from_payload(payload: dict[str, Any]) -> str:
+    """请求 payload 里提供方机构**码**的单一取法（申请卡 providerOrgCode 与 requests 部门收口
+    同源，避免两处各写一遍漂移）：运行时铸单存 owner_org_code（request.py），legacy 导入单存
+    provider_org_id（exchange mapper）。两源都可能存名/码，调用方按需经 org_in_scope 归一；
+    展示名 provider_org_name 不能做机构成员判定，故不取。"""
+    p = payload if isinstance(payload, dict) else {}
+    return str(p.get("owner_org_code") or p.get("provider_org_id") or "")
+
+
+def _record_to_request_card(
+    record: Any,
+    share_type_by_resource: dict[str, int] | None = None,
+    request_service: Any = None,
+    *,
+    caller_actor: str | None = None,
+) -> dict[str, Any]:
     """application_record → 轻量申请卡（snake→camel；applicant PII 走 mask_default）。
 
     本组（数据呈现规范化 + 角色投影）追加 3 个**诚实信号**，供前端三视图 / 供方质量队列：
@@ -118,8 +134,16 @@ def _record_to_request_card(record: Any, share_type_by_resource: dict[str, int] 
         D47.b：历史导入单的**在线动作混合门控**是已记账债，本组只做呈现层区分、不做动作门控。
       - ``purposeQuality`` / ``purposeDirty``：用途脏值机械化判定（data_quality 单源）；
         前端据此降级显示「未填写用途」，脏单计入供方数据质量队列（缺陷 3）。
+
+    ``mine``（M5「我的申请」标记，按**个人** id 判定）：申请人个人 id 落在
+    ``payload['applicant']``（运行时铸单 request.py ~293 行存 actor）。判定必须取**未脱敏**
+    的原始 payload（``record.payload_json``）—— ``applicant`` 显示字段已经 mask_default 脱敏，
+    拿它比对会恒不等。caller_actor 空/None → 一律 mine=False（未登录态不主张任何单是「我的」）；
+    legacy 导入单 payload.applicant ≠ caller_actor 自然得 mine=False（迁移记录非当前个人在产单）。
     """
     payload = copy.deepcopy(record.payload_json or {})
+    # mine 取**未脱敏**原始 payload 的 applicant 个人 id（不可用脱敏后的显示字段比对）。
+    mine = bool(caller_actor) and str(payload.get("applicant") or "") == str(caller_actor or "")
     applicant = mask_default(
         {"applicant_name": record.applicant_name, "applicant_org": record.applicant_org}
     )
@@ -135,7 +159,12 @@ def _record_to_request_card(record: Any, share_type_by_resource: dict[str, int] 
         or payload.get("applicant_org_name")
         or applicant["applicant_org"],
         "providerOrgId": payload.get("provider_org_id") or "",
+        # 提供方机构**码**（审批 R11 收口的 owner 源 + requests 部门收口同源，单一取法见
+        # _provider_org_from_payload）。取码不取展示名 providerOrgName（名无法做行级机构成员判定）。
+        "providerOrgCode": _provider_org_from_payload(payload),
         "providerOrgName": payload.get("provider_org_name") or "",
+        # M5「我的申请」标记（按个人 id；取未脱敏 payload.applicant，见函数 docstring）。
+        "mine": mine,
         "purpose": raw_purpose,
         # 用途脏值诚实信号（data_quality 单源；前端 dataQuality.ts 镜像降级渲染）。
         "purposeQuality": classify_purpose(raw_purpose),
@@ -175,22 +204,55 @@ def _record_to_request_card(record: Any, share_type_by_resource: dict[str, int] 
 
 
 def enrich_requests_snapshot(
-    snapshot: dict[str, Any], *, tenant_id: str | None = None, request_service: Any = None
+    snapshot: dict[str, Any],
+    *,
+    tenant_id: str | None = None,
+    request_service: Any = None,
+    visible_org_codes: set[str] | None = None,
+    caller_actor: str | None = None,
 ) -> dict[str, Any]:
     """Project snapshot['requests'] from the real **application** table (DB single SoT).
 
     只取申请类（kind ∉ _DEMAND_KINDS）；需求类记录无 resource_name、属 J2 供需线，
     不进 P3「在途申请」收件箱。**无条件替换**：空库 → 空列表（诚实空，不回退 seed 演示单）。
+
+    ``visible_org_codes`` 部门数据可见域（M5 行级收口）：None=全局放行全量 / 集=本机构(+下级)、
+    仅保留**本部门作为申请方或提供方参与**的单（applicant_org∈集 OR provider_org∈集）/
+    空集=fail-closed 给空列表。``caller_actor`` 当前登录个人 id，算「我的申请」mine 标记
+    （payload['applicant'] == caller_actor）。
+
+    **为何 applicant OR provider 两侧都收**（集成期复核修正）：只按 applicant 收口会漏掉
+    「别部门申请本部门数据」的单——而那正是供方部门管理员必须看见、去办理的单（供方审批
+    队列 R11，见 enrich_approvals_snapshot：审批卡的 owner 机构正是从这份 requests 映出来的，
+    若申请卡被漏掉则对应审批单无从映射→被误判 fail-closed 丢弃，部门管理员永远批不了进来的单）。
+
+    **mine 与部门过滤正交**：mine 是逐卡按个人 id 现算的诚实信号，dept 过滤只决定哪些 record
+    成卡。管理员自己提的单既是 mine 又在本机构域内（两者同时为真，不互相抑制）。
     """
     out = copy.deepcopy(snapshot)
     tid = tenant_id or get_runtime_tenant_id()
+    ref = ReferenceService()
+
+    def _party_in_scope(rec: Any) -> bool:
+        # 申请方在域内即留；否则看提供方是否在域内（本部门数据被别部门申请的入站单）。
+        # None→org_in_scope 恒 True（全局放行）；空集→恒 False（fail-closed）。
+        if ref.org_in_scope(rec.applicant_org, visible_org_codes, tenant_id=tid):
+            return True
+        # provider 机构码源同申请卡 providerOrgCode（_provider_org_from_payload 单一取法）。
+        provider_org = _provider_org_from_payload(rec.payload_json or {})
+        return ref.org_in_scope(provider_org, visible_org_codes, tenant_id=tid)
+
     records = [
         r
         for r in ApplicationRepository().list_records(tenant_id=tid)
         if (r.payload_json or {}).get("kind") not in _DEMAND_KINDS
+        and _party_in_scope(r)
     ]
     share_map = _share_type_by_resource(tid)
-    out["requests"] = [_record_to_request_card(r, share_map, request_service) for r in records]
+    out["requests"] = [
+        _record_to_request_card(r, share_map, request_service, caller_actor=caller_actor)
+        for r in records
+    ]
     return out
 
 
@@ -227,15 +289,47 @@ def _case_to_approval_card(record: Any) -> dict[str, Any]:
     return {"id": record.application_code, "suggestion": "待审"}
 
 
-def enrich_approvals_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None = None) -> dict[str, Any]:
+def enrich_approvals_snapshot(
+    snapshot: dict[str, Any], *, tenant_id: str | None = None, visible_org_codes: set[str] | None = None
+) -> dict[str, Any]:
     """Project snapshot['approvals'] from the real approval_case table (DB single SoT).
 
     **无条件替换**：空库 → 空列表（诚实空，不回退 seed）。legacy 导入的 approval_case
     经此现算投影，不再陈旧（关 approval-case-projection-stale）。
+
+    R11 部门收口（M6）：部门审批人只见**自家机构作为提供方**的审批单。审批卡本身不带 owner
+    机构，故 owner 取自同一 snapshot 里**已先于 approvals 被 enrich** 的 requests 列表
+    （handler 顺序保证）——按 application_code(=审批卡 id) 映到申请卡的 ``providerOrgCode``
+    （提供方机构码，非展示名），再走 ReferenceService.org_in_scope 做行级机构成员判定。
+
+    三态（与 org_in_scope 语义一致 + fail-closed 兜底）：
+      - ``visible_org_codes is None``  → 全局放行（不过滤），保留全量；
+      - 非 None 集（含空集）            → 仅保留 provider org ∈ 可见域的审批单；
+        映射缺失（requests 里找不到该 application_code）→ **drop**（无法证明归属即 fail-closed，
+        不能让一张证不出 owner 的审批单泄漏给部门角色）。
     """
     out = copy.deepcopy(snapshot)
     cases = ApprovalRepository().list_cases(tenant_id=tenant_id or get_runtime_tenant_id())
-    out["approvals"] = [_case_to_approval_card(c) for c in cases]
+    cards = [_case_to_approval_card(c) for c in cases]
+
+    if visible_org_codes is not None:
+        tid = tenant_id or get_runtime_tenant_id()
+        ref = ReferenceService()
+        # application_code → providerOrgCode（取自已先行 enrich 的 requests 申请卡，避免重查 DB）。
+        provider_by_app: dict[str, str] = {
+            str(req.get("id") or ""): str(req.get("providerOrgCode") or "")
+            for req in (out.get("requests") or [])
+        }
+        kept: list[dict[str, Any]] = []
+        for card in cards:
+            app_code = str(card.get("id") or "")
+            if app_code not in provider_by_app:
+                continue  # 证不出 owner 归属 → fail-closed drop。
+            if ref.org_in_scope(provider_by_app[app_code], visible_org_codes, tenant_id=tid):
+                kept.append(card)
+        cards = kept
+
+    out["approvals"] = cards
     return out
 
 

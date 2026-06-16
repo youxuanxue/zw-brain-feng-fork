@@ -490,6 +490,19 @@ class GovernanceProjectionRepository:
             .order_by(RegionProjectionRecord.region_code)
         )
 
+    def list_org_children(self, parent_org_code: str, *, tenant_id: str = "sd-default") -> list[OrgProjectionRecord]:
+        """某机构的直接下级机构（索引命中 parent_org_code）——部门可见域「本机构+下级」
+        递归下钻用。当前 org_projection.parent_org_code 全空（legacy pub_organ_tree.PARENT_CODE
+        尚未导入），故恒返 0 行、O(1)；父子树后续填充后下级自动生效，调用方零改动。"""
+        code = str(parent_org_code or "")
+        if not code:
+            return []
+        return self._list(
+            select(OrgProjectionRecord)
+            .where(OrgProjectionRecord.tenant_id == tenant_id, OrgProjectionRecord.parent_org_code == code)
+            .order_by(OrgProjectionRecord.org_code)
+        )
+
     def list_orgs_by_region(self, region_code: str, *, tenant_id: str = "sd-default", limit: int = 200) -> list[OrgProjectionRecord]:
         """选择器用：按区划在 DB 层过滤 + limit（避免 list_orgs 捞全 ~1.8 万行再内存切片）。
 

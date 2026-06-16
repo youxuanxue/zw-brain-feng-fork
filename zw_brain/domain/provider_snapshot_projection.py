@@ -24,6 +24,7 @@ from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.repositories.supply_demand import SupplyDemandRepository
 from zw_brain.domain.repositories.topic_package import TopicPackageRepository
 from zw_brain.domain.resource_kind import canonical_resource_kind
+from zw_brain.domain.services.reference_service import ReferenceService
 from zw_brain.domain.supply_demand_phase import (
     PHASE_MANUAL_REGISTERED,
     PHASE_RECOMMEND_FAILED,
@@ -168,14 +169,22 @@ def _api_asset_to_service(record: Any) -> dict[str, Any]:
     }
 
 
-def project_api_services(*, tenant_id: str | None = None) -> list[dict[str, Any]]:
-    """真实 resource_asset(kind=api) → API 服务列表（D2）。无则空（不回退演示 seed）。"""
+def project_api_services(
+    *, tenant_id: str | None = None, visible_org_codes: set[str] | None = None
+) -> list[dict[str, Any]]:
+    """真实 resource_asset(kind=api) → API 服务列表（D2）。无则空（不回退演示 seed）。
+
+    部门数据可见域收口（M4）：按资产 owner_org_id 过滤——visible_org_codes=None 全量放行
+    （全局角色），集=仅本机构(+下级)，空集=fail-closed 返空。org_in_scope 三态 + 名/码归一。
+    """
     tenant_id = tenant_id or get_runtime_tenant_id()
     repo = ResourceApiRepository()
+    ref = ReferenceService()
     return [
         _api_asset_to_service(record)
         for record in repo.list_assets(tenant_id=tenant_id)
         if str(getattr(record, "resource_kind", "")) in {"api", "service"}
+        and ref.org_in_scope(record.owner_org_id, visible_org_codes, tenant_id=tenant_id)
     ]
 
 
@@ -206,7 +215,9 @@ def _org_name_resolver(tenant_id: str):
     return resolve
 
 
-def project_provider_catalogs(*, tenant_id: str | None = None) -> list[dict[str, Any]]:
+def project_provider_catalogs(
+    *, tenant_id: str | None = None, visible_org_codes: set[str] | None = None
+) -> list[dict[str, Any]]:
     """真实 catalog_entry → 供数侧「目录管理」清单/概览行（T9 诚实化，承 #191 读路径单源）。
 
     口径：政务数据目录主线（排除前缀见 _MANAGE_EXCLUDED_CATALOG_PREFIXES）+ 排除已退役行
@@ -214,9 +225,13 @@ def project_provider_catalogs(*, tenant_id: str | None = None) -> list[dict[str,
     seed 视图（与其他 enrich_* 的 replace-when-DB-nonempty 同模式）。
     schema_ref 批量预解析（list_schema_snapshots(resource_codes=…) 单查），保持与
     _attach_reverse_catalog_fields 同一回落链，反向编目向导零行级 N+1。
+
+    部门数据可见域收口（M4）：按 catalog rec.owner_org_id 过滤——visible_org_codes=None 全量
+    放行（全局角色），集=仅本机构(+下级)，空集=fail-closed 返空。org_in_scope 三态 + 名/码归一。
     """
     tenant_id = tenant_id or get_runtime_tenant_id()
     repo = CatalogRepository()
+    ref = ReferenceService()
     records = [
         rec
         # api-group:* 占行最大（近千行）→ SQL 侧先排，其余 python 侧收口。
@@ -242,6 +257,9 @@ def project_provider_catalogs(*, tenant_id: str | None = None) -> list[dict[str,
     org_name = _org_name_resolver(tenant_id)
     rows: list[dict[str, Any]] = []
     for rec in records:
+        # 部门数据可见域行级过滤（M4）：按目录责任单位收口本机构(+下级)。
+        if not ref.org_in_scope(rec.owner_org_id, visible_org_codes, tenant_id=tenant_id):
+            continue
         summary = rec.summary_json if isinstance(rec.summary_json, dict) else {}
         code = str(rec.catalog_code)
         source_ref = str(summary.get("source_ref") or "")
@@ -273,18 +291,27 @@ def project_provider_catalogs(*, tenant_id: str | None = None) -> list[dict[str,
     return rows
 
 
-def project_provider_resources(*, tenant_id: str | None = None) -> list[dict[str, Any]]:
+def project_provider_resources(
+    *, tenant_id: str | None = None, visible_org_codes: set[str] | None = None
+) -> list[dict[str, Any]]:
     """真实 resource_asset → 供数侧「资源管理」清单/概览行（T9 诚实化）。
 
     全物化形态（库表/文件/接口）一并呈现、kind 标签区分；排除已退役行。无行返回 []
     （enrich 回落 seed 视图）。
+
+    部门数据可见域收口（M4）：按资源 rec.owner_org_id 过滤——visible_org_codes=None 全量
+    放行（全局角色），集=仅本机构(+下级)，空集=fail-closed 返空。org_in_scope 三态 + 名/码归一。
     """
     tenant_id = tenant_id or get_runtime_tenant_id()
     repo = ResourceApiRepository()
+    ref = ReferenceService()
     org_name = _org_name_resolver(tenant_id)
     rows: list[dict[str, Any]] = []
     for rec in repo.list_assets(tenant_id=tenant_id):
         if rec.lifecycle_status == "retired":
+            continue
+        # 部门数据可见域行级过滤（M4）：按资源责任单位收口本机构(+下级)。
+        if not ref.org_in_scope(rec.owner_org_id, visible_org_codes, tenant_id=tenant_id):
             continue
         summary = rec.summary_json if isinstance(rec.summary_json, dict) else {}
         rows.append(
@@ -309,12 +336,20 @@ def project_provider_resources(*, tenant_id: str | None = None) -> list[dict[str
     return rows
 
 
-def project_provider_inbox(*, tenant_id: str | None = None) -> dict[str, list[dict[str, Any]]]:
+def project_provider_inbox(
+    *, tenant_id: str | None = None, visible_org_codes: set[str] | None = None
+) -> dict[str, list[dict[str, Any]]]:
+    """供数侧收件箱投影（部门审/挂接审/待发布/供需/异议）。
+
+    部门数据可见域收口（M4）：仅 field_decisions（反向编目部门审）与 hookup_reviews（挂接审核）
+    按其底层记录 owner_org_id 过滤本机构(+下级)。其余三键保持全量、不按部门收口（见各自落点注释）。
+    """
     tenant_id = tenant_id or get_runtime_tenant_id()
     catalog_repo = CatalogRepository()
     resource_repo = ResourceApiRepository()
     supply_repo = SupplyDemandRepository()
     objection_repo = ObjectionRepository()
+    ref = ReferenceService()
 
     org_name = _org_name_resolver(tenant_id)
 
@@ -328,8 +363,11 @@ def project_provider_inbox(*, tenant_id: str | None = None) -> dict[str, list[di
         _entry_to_field_decision(record, owner_name=org_name(record.owner_org_id))
         for record in catalog_repo.list_entries(tenant_id=tenant_id, lifecycle_status="draft")
         if isinstance(record.summary_json, dict) and record.summary_json.get("source") == "reverse"
+        # 部门数据可见域行级过滤（M4）：部门审收件箱仅见本机构(+下级)目录。
+        and ref.org_in_scope(record.owner_org_id, visible_org_codes, tenant_id=tenant_id)
     ]
     # 待发布目录（业务运营员待办，业务方原话锚点）：已审过待发布的目录。
+    # M4 不按部门收口：待发布是平台级发布动作（BUSIAUDIT 业务运营员全局待办），非部门管理面。
     publish_queue = [
         _entry_to_field_decision(record)
         for record in catalog_repo.list_entries(
@@ -346,6 +384,8 @@ def project_provider_inbox(*, tenant_id: str | None = None) -> dict[str, list[di
         record
         for record in resource_repo.list_assets(tenant_id=tenant_id, lifecycle_status="pending_review")
         if canonical_resource_kind(getattr(record, "resource_kind", None)) != "api"
+        # 部门数据可见域行级过滤（M4）：挂接审核收件箱仅见本机构(+下级)资源。
+        and ref.org_in_scope(record.owner_org_id, visible_org_codes, tenant_id=tenant_id)
     ]
     catalog_title_cache: dict[str, str] = {}
 
@@ -366,6 +406,7 @@ def project_provider_inbox(*, tenant_id: str | None = None) -> dict[str, list[di
         )
         for record in hookup_assets
     ]
+    # M4 不按部门收口：供需对接属 J2 供需脊柱（需求侧驱动），非供数方部门管理面，本切片不纳入。
     demand_matches = [
         _demand_to_match(item)
         for item in supply_repo.list_demands(tenant_id=tenant_id)
@@ -375,6 +416,7 @@ def project_provider_inbox(*, tenant_id: str | None = None) -> dict[str, list[di
     # platform_investigating（受理后平台核查中，受理动作的落点态，不纳则案件受理即从唯一
     # 工作面消失=新死端）、provider_investigating（部门核查中，原有口径）。终态
     # （resolved/rejected/closed）与 draft（未提交）不进收件箱。
+    # M4 不按部门收口：异议收件箱的部门可见域由独立切片（M7 disputes）按 complainant/provider org 收口，本切片不重复过滤。
     _OBJECTION_INBOX_STATUSES = ("submitted", "platform_investigating", "provider_investigating")
     objection_cases = [
         _case_to_objection_inbox(record)
@@ -437,12 +479,18 @@ def enrich_zones_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None = N
     return out
 
 
-def enrich_provider_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None = None) -> dict[str, Any]:
-    """Merge live inbox projection into *snapshot*['provider'] (deep copy)."""
+def enrich_provider_snapshot(
+    snapshot: dict[str, Any], *, tenant_id: str | None = None, visible_org_codes: set[str] | None = None
+) -> dict[str, Any]:
+    """Merge live inbox projection into *snapshot*['provider'] (deep copy).
+
+    ``visible_org_codes`` 部门数据可见域（M3 接入，M4 落过滤）：None=全局放行 / 集=按
+    owner_org_id 收口本机构(+下级) / 空集=fail-closed 返空。见 ReferenceService.visible_org_codes。
+    """
     tenant_id = tenant_id or get_runtime_tenant_id()
     out = copy.deepcopy(snapshot)
     provider = out.setdefault("provider", {})
-    inbox = project_provider_inbox(tenant_id=tenant_id)
+    inbox = project_provider_inbox(tenant_id=tenant_id, visible_org_codes=visible_org_codes)
     provider["field_decisions"] = inbox["field_decisions"]
     provider["publish_queue"] = inbox["publish_queue"]
     provider["hookup_reviews"] = inbox["hookup_reviews"]
@@ -450,22 +498,29 @@ def enrich_provider_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None 
     provider["objection_cases"] = inbox["objection_cases"]
     # D2：API 服务列表来自真实 resource_asset(kind=api)，不再读 seed 写死的演示 services
     # （承 D47 演示诚实化）。注册产出（resource.api.register）即时在此可见。
-    provider["services"] = project_api_services(tenant_id=tenant_id)
+    provider["services"] = project_api_services(tenant_id=tenant_id, visible_org_codes=visible_org_codes)
     # T9 诚实化（承 #191 读路径单源 / D11）：目录·资源管理清单与概览读真实库现算，
     # 不再停留在 seed 演示行——新编目录/新挂资源即时可见。DB 空时回落 seed 视图
     # （replace-when-DB-nonempty，与 discovery/requests 等 enrich 同模式）。
-    live_catalogs = project_provider_catalogs(tenant_id=tenant_id)
+    live_catalogs = project_provider_catalogs(tenant_id=tenant_id, visible_org_codes=visible_org_codes)
     if live_catalogs:
         # schema_ref 已在投影内批量预解析（同回落链），不再走行级 _attach（防 N+1）。
         provider["catalogs"] = live_catalogs
-    else:
+    elif visible_org_codes is None:
+        # 仅**全局视角**（未部门收口）下 DB 真空才回落 seed 视图；部门收口下的空=权威空，
+        # 绝不回落——否则 fail-closed（无机构上下文）/ 零目录部门会漏看 seed 演示目录，
+        # 既破坏部门隔离、又违 D47 演示诚实化（回潮被删的演示单）。
         catalogs = provider.get("catalogs")
         if isinstance(catalogs, list):
             provider["catalogs"] = [
                 _attach_reverse_catalog_fields(item, tenant_id=tenant_id) if isinstance(item, dict) else item
                 for item in catalogs
             ]
-    live_resources = project_provider_resources(tenant_id=tenant_id)
+    else:
+        provider["catalogs"] = []  # 部门收口空 = 权威空（不回落 seed）
+    live_resources = project_provider_resources(tenant_id=tenant_id, visible_org_codes=visible_org_codes)
     if live_resources:
         provider["resources"] = live_resources
+    elif visible_org_codes is not None:
+        provider["resources"] = []  # 部门收口空 = 权威空（同 catalogs，不保留 seed resources）
     return out

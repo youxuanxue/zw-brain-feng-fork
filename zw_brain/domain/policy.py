@@ -613,13 +613,10 @@ def enforce_dept_approval_direction(owner_org_code: object, actor_org_code: obje
         )
 
 
-def can_dept_manager_see_request(owner_org_code: object, actor_org_code: object) -> bool:
-    """R11 visibility: a department manager only sees requests for resources their
-    org provides. Used by the '我作为提供方' queue filter (no-permission = invisible).
-    """
-    owner = str(owner_org_code or "")
-    actor = str(actor_org_code or "")
-    return bool(owner) and owner == actor
+# R11「我作为提供方」可见性谓词 can_dept_manager_see_request 已退役（D-dept-data-isolation/M10）：
+# 长期零调用方的死代码，且只做单机构 owner==actor 比对（无下级、无 fail-closed 语义），
+# 被 ReferenceService.visible_org_codes 取代（统一三态收口 + 本机构+下级 + 行级 org_in_scope）。
+# 留着易被误接成「单机构」口径，故删；部门可见域收口一律走解析器。
 
 
 # 模块加载时立即检查；任何 r1-r8 残留导致 import 失败（fail-fast）

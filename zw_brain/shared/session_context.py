@@ -157,3 +157,23 @@ def build_trusted_skill_payload(client_payload: dict[str, Any] | None, *, actor_
     return merged
 
 
+def caller_org_code(payload: dict[str, Any]) -> str:
+    """从可信 payload 解析调用者机构 org_code（单一事实源）。
+
+    build_trusted_skill_payload 把会话 current_org_code 钉进 payload['org_code']；
+    actor_snapshot 兜底多上下文情形。bearer/CLI/A2A 等无机构上下文路径取不到则返空——
+    调用方据空值 fail-closed（R11 审批方向门 / 部门数据可见性收口）。
+
+    历史上 ops_service._caller_org_code 与 j1/approval._actor_org_code 各自复制了一份
+    相同逻辑；二者现委托此处单源，新增的部门收口（visible_org_codes）亦从这里取机构。
+    """
+    snapshot = payload.get("actor_snapshot") if isinstance(payload.get("actor_snapshot"), dict) else {}
+    return str(
+        payload.get("org_code")
+        or payload.get("current_org_code")
+        or snapshot.get("current_org_code")
+        or snapshot.get("org_code")
+        or ""
+    )
+
+

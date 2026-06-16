@@ -2,7 +2,7 @@
 
 # Preflight Debt Status (computed)
 
-## open (46)
+## open (47)
 - ac7 [medium] (2026-05-25) — 客户机房部署 + 监控对接未落地（E6 AC7）
   - assert: external → external — owner=产品研发负责人; trigger=首个客户机房部署立项 → 落地 `scripts/deploy_*.sh` + 监控对接 + dry-run sign-off；
 - agentruntime [medium] (2026-05-24) — AgentRuntime runtime 触发式延后（D30 retrofit）
@@ -47,6 +47,8 @@
   - assert: external → external — owner=产品研发负责人; trigger=(a) 业务确认 P2Discovery 搜索应搜资源 → 立项搜索语义重构；
 - demo-state-sync-rename [low] (2026-06-14) — 模块名 command/demo_state_sync.py 已名实不符（demo 级联 C-1 退役、Action D 删除），但 6 处导入高 churn 改名延后
   - assert: grep_present → pattern present in zw_brain/command/demo_state_sync.py
+- dept-isolation-subordinate-org [medium] (2026-06-16) — 部门数据隔离「下级」未生效：org_projection.parent_org_code 全空，部门管理员实际仅见本机构
+  - assert: external → external — owner=产品研发负责人; trigger=导入 legacy pub_organ_tree.PARENT_CODE 填充 org_projection.parent_org_code（adapters/legacy 机构映射补 parent + 重建种子库）→ ReferenceService.visible_org_codes 子树递归自动展开「本机构+下级」（解析器 / list_org_children 零改动设计）；填充后跑 test_visible_org_codes_resolver 下级前向兼容用例 + 真库抽验部门管理员能见下级机构目录/资源。
 - env [medium] (2026-05-29) — 验收证据 CI 化采集（消除人工采集 env 依赖）
   - assert: external → external — owner=推理平台（集团）; trigger=见 docs/preflight-debt.md 历史归档
 - f4-file-download-source-bytes [medium] (2026-06-07) — F4 文件资源真实字节交付依赖外部源存储底座（本期只做受控下载请求登记 + 下载日志）

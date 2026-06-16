@@ -50,6 +50,9 @@ export interface RequestCard {
   status: string;
   submittedAt: string;
   isLegacyImport: boolean;
+  // 「我的申请」按个人 id 判定（后端 enrich_requests_snapshot 现算：payload.applicant ==
+  // 当前登录个人 → mine=true）。前端只读此诚实信号、不自算身份。详见后端 _record_to_request_card。
+  mine: boolean;
 }
 
 export type RequestBucket = 'draft' | 'inflight' | 'closed' | 'grant' | 'other';
@@ -79,6 +82,7 @@ export function toRequestCard(raw: unknown): RequestCard {
     // 裸 ISO（含微秒）→ 本地化 YYYY-MM-DD HH:mm（第一组渲染规则）。
     submittedAt: formatTime(it.submittedAt),
     isLegacyImport: Boolean(it.isLegacyImport),
+    mine: Boolean(it.mine),
   };
 }
 
@@ -97,10 +101,15 @@ function requests(snapshot: Snapshot | null): unknown[] {
 }
 
 // ── 视图 1：我的申请 ─────────────────────────────────────────────────────
-/** 我作为需方发起的全部申请（draft/inflight/closed），授权态归「我的授权」不重复出现。 */
+/** 我**本人提交**的申请（draft/inflight/closed），授权态归「我的授权」不重复出现。
+ *
+ * mine 由后端按个人 id 现算（payload.applicant == 当前登录个人，M5）。修此前 myRequests 只按
+ * 状态分桶、不按人过滤——任何角色「我的申请」里都躺着全部门的单（客户 0604 反馈的下半截）。
+ * 现按 mine 收口到本人。注意：快照 requests 经后端部门收口后，含「本部门作为提供方的入站单」
+ * （别部门申请本部门数据），那些 mine=false、不属「我的申请」，归审批/受理队列。 */
 export function myRequests(snapshot: Snapshot | null): RequestCard[] {
   return requests(snapshot)
-    .filter((r) => bucketForRequest(r) !== 'grant')
+    .filter((r) => asRecord(r).mine === true && bucketForRequest(r) !== 'grant')
     .map(toRequestCard);
 }
 

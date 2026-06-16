@@ -14,6 +14,13 @@ from typing import Any
 from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
+# 部门数据可见域角色划分（D55/D52 角色码；与 ops_service._scope_invocations_for_manager 同口径）：
+# 全局角色不受部门收口（业务运营员/平台运维员/安全审计员 = v5 平台级口径，见全量）；
+# 仅部门管理员 / 部门操作员按机构收口。其余未知角色按最小权限当部门角色处理（仅本机构）。
+_GLOBAL_SCOPE_ROLES = frozenset({"ROLE_BUSIAUDIT", "ROLE_SYSTEM", "ROLE_SECURITY_AUDIT"})
+_DEPT_MANAGER_ROLE = "ROLE_ORGAN_MANAGER"
+_MAX_ORG_TREE_DEPTH = 64  # 下级递归保险栓：父链脏数据成环时兜底，避免无限下钻。
+
 
 @dataclass
 class ReferenceService:
@@ -56,6 +63,66 @@ class ReferenceService:
         if len(rows) == 1:
             return rows[0].org_code
         return None
+
+    def visible_org_codes(
+        self, actor_org_code: str, role: str, *, tenant_id: str = _DEFAULT_TENANT_ID
+    ) -> set[str] | None:
+        """部门数据可见机构集（「本机构 + 下级」），三态返回，调用方据此 fail-closed：
+
+        - ``None``           → 全局角色（业务运营员/平台运维员/安全审计员）：不限定，放行全量。
+        - ``{actor_org, …}`` → 部门角色且有机构上下文：本机构 +（管理员才有的）下级机构。
+        - ``set()``（空集）   → 部门角色但缺机构上下文：fail-closed 信号，调用方返空列表/0 计数。
+
+        下级语义：部门管理员见本机构子树（list_org_children 递归），部门操作员仅本机构。
+        当前 org_projection.parent_org_code 全空（legacy pub_organ_tree.PARENT_CODE 未导入），
+        故子树恒为 {actor_org}；待父子树填充后下级自动展开，本方法与所有调用方零改动。
+        与 ops_service._scope_invocations_for_manager（D57⑥）同一收口范式。
+        """
+        role_code = str(role or "")
+        if role_code in _GLOBAL_SCOPE_ROLES:
+            return None
+        org = str(actor_org_code or "")
+        if not org:
+            return set()
+        visible: set[str] = {org}
+        if role_code == _DEPT_MANAGER_ROLE:
+            frontier = [org]
+            depth = 0
+            while frontier and depth < _MAX_ORG_TREE_DEPTH:
+                children: list[str] = []
+                for parent in frontier:
+                    for child in self.repo.list_org_children(parent, tenant_id=tenant_id):
+                        code = str(child.org_code or "")
+                        if code and code not in visible:
+                            visible.add(code)
+                            children.append(code)
+                frontier = children
+                depth += 1
+        return visible
+
+    def org_in_scope(
+        self, owner_value: str | None, visible_org_codes: set[str] | None, *, tenant_id: str = _DEFAULT_TENANT_ID
+    ) -> bool:
+        """行级成员判定：某行的 owner（机构码或机构名）是否落在部门可见域内。
+
+        visible_org_codes 语义同 :meth:`visible_org_codes` 返回值：
+          - None  → 全局放行（不过滤），恒 True；
+          - 空集  → fail-closed，恒 False；
+          - 非空集 → 行 owner 归一到码后判成员。
+
+        owner 归一（债 legacy-catalog-owner-org-name-mismatch）：legacy 行 owner 可能存
+        机构**名**而资源侧存统一社会信用**代码**，裸比对必不等。先走「裸值命中」快路径
+        （绝大多数行 owner 本就是码、零 DB），未命中再 resolve_org_code 归一到码兜底。
+        """
+        if visible_org_codes is None:
+            return True
+        if not visible_org_codes:
+            return False
+        raw = str(owner_value or "")
+        if raw and raw in visible_org_codes:
+            return True
+        code = self.resolve_org_code(raw, tenant_id=tenant_id)
+        return bool(code) and code in visible_org_codes
 
     def region(self, region_code: str, *, tenant_id: str = _DEFAULT_TENANT_ID) -> dict[str, Any] | None:
         if not region_code:

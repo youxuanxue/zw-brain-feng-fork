@@ -1,0 +1,10 @@
+slug: dept-isolation-subordinate-org
+title: "部门数据隔离「下级」未生效：org_projection.parent_org_code 全空，部门管理员实际仅见本机构"
+date: 2026-06-16
+severity: medium
+owner: 产品研发负责人
+trigger: "导入 legacy pub_organ_tree.PARENT_CODE 填充 org_projection.parent_org_code（adapters/legacy 机构映射补 parent + 重建种子库）→ ReferenceService.visible_org_codes 子树递归自动展开「本机构+下级」（解析器 / list_org_children 零改动设计）；填充后跑 test_visible_org_codes_resolver 下级前向兼容用例 + 真库抽验部门管理员能见下级机构目录/资源。"
+assert:
+  # 数据导入任务，无静态 code 条件可断言——parent_org_code 是运行时真库状态，preflight 不连真库。
+  # external：owner+trigger 触发即升级；导入落地后 rm 本文件关债。承 D-dept-data-isolation 决策②。
+  kind: external

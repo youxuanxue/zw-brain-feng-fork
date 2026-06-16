@@ -37,6 +37,7 @@ export default defineConfig({
     'p0_feedback_0611_chain.spec.ts',
     'b2_field_metadata_10col.spec.ts',
     'd57_permission_batch.spec.ts',
+    'dept_isolation_two_account.spec.ts',
   ],
   fullyParallel: false,
   workers: 1,

@@ -36,6 +36,7 @@ from zw_brain.domain.repositories.objection import ObjectionRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.repositories.supply_demand import SupplyDemandRepository
 from zw_brain.domain.resource_kind import canonical_resource_kind
+from zw_brain.domain.services.reference_service import ReferenceService
 from zw_brain.domain.supply_demand_phase import (
     PHASE_MANUAL_REGISTERED,
     PHASE_RECOMMEND_FAILED,
@@ -176,23 +177,33 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
     return todos
 
 
-def _count_assets_pending_review(tenant_id: str, *, api_side: bool) -> int:
+def _count_assets_pending_review(
+    tenant_id: str, *, api_side: bool, visible_org_codes: set[str] | None = None
+) -> int:
     """待审核资产数（lifecycle_status==pending_review），按 canonical kind 分流两条审核口径。
 
     api_side=True 数服务注册审核（canonical kind==api）；False 数挂接审核（其余，含 kind
     缺失脏行——藏行会让资产静默卡死在 pending_review）。两侧互斥不串数。
+
+    M8 部门隔离：部门管理员只数 owner_org 落在本机构可见域内的资产（list-then-filter-count，
+    量小可全扫）。visible_org_codes 三态同 ReferenceService.org_in_scope：None=全局计全量、
+    空集=fail-closed 计 0、非空集=只计在域内行。
     """
     resource_repo = ResourceApiRepository()
+    ref = ReferenceService()
     return sum(
         1
         for record in resource_repo.list_assets(
             tenant_id=tenant_id, lifecycle_status=_DEPT_REVIEW_STATUS
         )
         if (canonical_resource_kind(getattr(record, "resource_kind", None)) == _API_CANONICAL_KIND) is api_side
+        and ref.org_in_scope(getattr(record, "owner_org_id", None), visible_org_codes, tenant_id=tenant_id)
     )
 
 
-def _manager_review_todos(tenant_id: str) -> list[dict[str, Any]]:
+def _manager_review_todos(
+    tenant_id: str, *, visible_org_codes: set[str] | None = None
+) -> list[dict[str, Any]]:
     """G4（D55 查缺补漏）：部门管理员供数侧审核 stage 待办（真实库现算，零积压不投，深链既有页）。
 
     照旧平台 v5「资源挂接审核 / 资源审核 = 部门管理员」校正后，部门管理员供数审核待办含四条
@@ -203,19 +214,35 @@ def _manager_review_todos(tenant_id: str) -> list[dict[str, Any]]:
       - 待审核挂接资源 = resource_asset(kind∈{table,file}).pending_review → /provider/inbox/hookup-review
       - 待审核服务 = resource_asset(kind∈{api,service}).pending_review → /provider/wizard/api-service（行内审核）
     需求校核 / 目录撤销·变更·迁移审核本期无 MANAGER 可办理的 UI 收件箱 → 不投。
+
+    M8 部门隔离：四类审核计数只数 owner_org 落在本机构可见域内的行（list-then-filter-count，
+    量小可全扫）。visible_org_codes 三态：None=全局计全量（上帝视角/未限定）、空集=fail-closed
+    计 0、非空集=只计在域内行（owner∈本机构 + 下级）。bare count_entries 已改为 list-then-filter。
     """
     catalog_repo = CatalogRepository()
-    pending_catalog_review = catalog_repo.count_entries(
-        tenant_id=tenant_id, lifecycle_status=_DEPT_REVIEW_STATUS
+    ref = ReferenceService()
+    # 待审核目录：原 bare count_entries 无法行级过滤 owner_org → 改 list-then-filter-count（量小）。
+    pending_catalog_review = sum(
+        1
+        for record in catalog_repo.list_entries(
+            tenant_id=tenant_id, lifecycle_status=_DEPT_REVIEW_STATUS
+        )
+        if ref.org_in_scope(record.owner_org_id, visible_org_codes, tenant_id=tenant_id)
     )
     # 与 provider_snapshot_projection 反向编目审核收件箱同口径（source=reverse ∧ draft）。
     pending_reverse_review = sum(
         1
         for record in catalog_repo.list_entries(tenant_id=tenant_id, lifecycle_status="draft")
-        if isinstance(record.summary_json, dict) and record.summary_json.get("source") == "reverse"
+        if isinstance(record.summary_json, dict)
+        and record.summary_json.get("source") == "reverse"
+        and ref.org_in_scope(record.owner_org_id, visible_org_codes, tenant_id=tenant_id)
     )
-    pending_hookup_review = _count_assets_pending_review(tenant_id, api_side=False)
-    pending_api_review = _count_assets_pending_review(tenant_id, api_side=True)
+    pending_hookup_review = _count_assets_pending_review(
+        tenant_id, api_side=False, visible_org_codes=visible_org_codes
+    )
+    pending_api_review = _count_assets_pending_review(
+        tenant_id, api_side=True, visible_org_codes=visible_org_codes
+    )
     candidates: list[tuple[str, str, int, str, str, str]] = [
         (
             "backlog-catalog-dept-review",
@@ -267,16 +294,20 @@ def _manager_review_todos(tenant_id: str) -> list[dict[str, Any]]:
     return todos
 
 
-def _enrich_manager_backlog(view: dict[str, Any], tenant_id: str) -> dict[str, Any]:
+def _enrich_manager_backlog(
+    view: dict[str, Any], tenant_id: str, *, visible_org_codes: set[str] | None = None
+) -> dict[str, Any]:
     """部门管理员（D55/P10·G4）：在既投部门审核待办上叠加供数侧审核待办（目录/挂接/服务审核）。
 
     保留 ``sync_request_todos`` 已投的 dept_approved 部门审核待办（可点深链），把现算的供数侧
     审核待办**前插**（去重 by id）。零积压不投供数审核待办（无空死链）。
     subtitle/aiSummary 同步重写为诚实信号（D57②/R-8：此前管理员一直漏出 seed 虚构
     「涉企采集准入待判定」叙事）。
+
+    M8 部门隔离：供数侧审核待办计数按 visible_org_codes 收口到本机构可见域（None=全局）。
     """
     out = copy.deepcopy(view)
-    review_todos = _manager_review_todos(tenant_id)
+    review_todos = _manager_review_todos(tenant_id, visible_org_codes=visible_org_codes)
     existing = out.get("todos") or []
     existing_ids = {t.get("id") for t in existing}
     prepended = [t for t in review_todos if t["id"] not in existing_ids]
@@ -389,7 +420,7 @@ def _enrich_ops_view(view: dict[str, Any]) -> dict[str, Any]:
 
 
 def enrich_workbench_backlog(
-    view: dict[str, Any], role: str, *, tenant_id: str | None = None
+    view: dict[str, Any], role: str, *, tenant_id: str | None = None, visible_org_codes: set[str] | None = None
 ) -> dict[str, Any]:
     """工作台 todos / 办理建议从真实库现算，enrich 覆盖全部 5 角色（D57②/R-8）.
 
@@ -400,15 +431,19 @@ def enrich_workbench_backlog(
     - 业务运营员（ROLE_BUSIAUDIT）：todos **整体替换**为真实库积压（受理/发布/汇总，单一事实源）。
     - 部门管理员（ROLE_ORGAN_MANAGER）：在 ``sync_request_todos`` 已投的「部门审核待办（dept_approved）」
       之上**叠加供数侧审核待办**（目录 / 挂接资源 / 服务注册待部门审 pending_review，D55/P10·G4），
-      零积压不投；办理建议重写。
+      零积压不投；办理建议重写。**M8 部门隔离：仅此路径消费 visible_org_codes**——审核待办计数
+      只数 owner_org 落在本机构可见域内的行（None=全局 / 空集=fail-closed 计 0 / 非空集=域内）。
+      平台队列（BUSIAUDIT 待平台审核/发布/受理/汇总）刻意保持全局，不消费 visible_org_codes。
     - 部门操作员（ROLE_ORGAN_OPERATER）：维持「申请进度」形态（0609 docx，拒协作待办），
       todos 由 sync 投影不动，办理建议从真实进度现算。
     - 安全审计员（ROLE_SECURITY_AUDIT）：纯只读监督岗，todos 恒空 + 只读监督指引。
     - 平台运维员（ROLE_SYSTEM）：运维核查语境，诚实空态/积压计数。
     """
     tid = tenant_id or get_runtime_tenant_id()
+    # M8 部门隔离：仅部门管理员审核待办计数按 visible_org_codes 收口到本机构可见域；
+    # 平台队列（BUSIAUDIT 待平台审核/待发布/待受理/待汇总）保持全局，不消费 visible_org_codes。
     if role == _MANAGER_ROLE:
-        return _enrich_manager_backlog(view, tid)
+        return _enrich_manager_backlog(view, tid, visible_org_codes=visible_org_codes)
     if role == "ROLE_ORGAN_OPERATER":
         return _enrich_operator_backlog(view)
     if role == "ROLE_SECURITY_AUDIT":

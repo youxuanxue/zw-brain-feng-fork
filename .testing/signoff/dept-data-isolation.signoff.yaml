@@ -1,0 +1,35 @@
+scope: dept-data-isolation
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-16
+kind: 决策签字
+evidence: >-
+  docs/decisions/dept-data-isolation-design.md（产品研发负责人 2026-06-16 本会话四问裁决 + 计划审批）：
+  根因——所有读路径只按 tenant_id（固定 sd-default）+ 角色 redaction 过滤，从不按调用者所属部门过滤行，
+  虽记录皆带 owner_org_id/applicant_org/complainant_org_id/provider_org_id、会话也已带出 org_code，
+  导致不同部门用户登录后看到的资源/目录/申请完全相同（用户反馈）。四问裁决——
+  ①发现面/找数据永久全局（D60/D53① 跨部门共享市场，discovery 投影 + data_search 不收口）；
+  ②部门管理员见「本机构+下级」，本期落「本机构」（org_projection.parent_org_code 实测全空、平表；
+  解析器按本机构+下级设计、父树空时恒返本机构，待 pub_organ_tree.PARENT_CODE 导入后下级零代码自动生效；
+  部门操作员=本机构无下级）；
+  ③「我的申请」按个人/本人提交（mine = payload.applicant == 当前登录个人，前端 myRequests 过滤 mine）；
+  ④全局角色保持全局（业务运营员/平台运维员/安全审计员见全量；仅部门管理员/操作员受收口；平台级待办
+  待平台审核/待发布/待受理/待汇总即便管理员也全局）。
+  实现复用 ops_service._scope_invocations_for_manager（D57⑥）已验证范式：ReferenceService
+  .visible_org_codes 三态契约（None 全局/集本机构+下级/空集 fail-closed）+ org_in_scope 行级名码归一；
+  system_ops/workbench 一次算 visible 透传各 enrich，供数/申请/审批(R11)/异议/工作台五面收口、发现面不动。
+  集成期复核修正：申请收口改 applicant_org∈域 OR provider_org∈域（只按 applicant 会漏掉别部门申请本
+  部门数据的入站单——而那正是供方审批队列 R11 必须办理的单）。
+  验证：test_visible_org_codes_resolver（14 例三态/下级前向兼容/名码归一）+ 五面单测 + 端到端两 actor
+  test_dept_isolation_snapshot_two_actor（两不同部门管理员经全 system.snapshot 看到目录/申请不同、各为
+  自机构子集、全局角色见全量，直证「都一样」缺陷已修）+ 真·双账号浏览器 e2e
+  tests/e2e/dept_isolation_two_account.spec.ts（Playwright 真浏览器，单栈两个钉不同机构 cookie 会话，
+  使能改动 dev-bypass-login 接受 ?org= 覆盖仅 dev 档；12 机构真实库实测 orgA 121 目录/orgB 20 目录互不相交，
+  passed）；既有回归全绿、每 commit 全套 preflight PASS。
+  本签字为角色/可见性方向裁决（decision_only，不抬 .feature 状态）；实现已落、读可见性变更，
+  写路径授权不动；下级待 org 层级导入另立任务（记债）。
+decision_only: true
+covers: []
+# 属 D28 GATE（角色/可见性变更）。已登记为 D61（CLAUDE.md 决策索引，产品研发负责人 2026-06-16 确认编号）。
+# 承 D60/D53①（发现面全局）、D57⑥（ops_service 部门 scope 范式）、D55（角色全局/部门口径划分）。
+# covers 留空：方向裁决 + 读可见性实现已落并由测试/preflight 验证，未抬既有 .feature 状态、未新建 .feature。
+# 下级降级：parent_org_code 全空 → 管理员实际仅见本机构；解析器就绪、数据待 pub_organ_tree.PARENT_CODE 导入。

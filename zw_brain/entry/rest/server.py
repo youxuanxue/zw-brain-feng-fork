@@ -160,11 +160,12 @@ def _dev_iam_bypass_org_code() -> str:
     return (os.environ.get("ZW_BRAIN_DEV_IAM_BYPASS_ORG") or "dev").strip() or "dev"
 
 
-def _dev_iam_bypass_user_profile() -> dict[str, Any]:
+def _dev_iam_bypass_user_profile(org_code: str | None = None) -> dict[str, Any]:
     from zw_brain.shared.session_context import apply_runtime_context, contexts_from_role_codes
 
     role_codes = _dev_iam_bypass_role_codes()
-    org_code = _dev_iam_bypass_org_code()
+    # org_code 显式覆盖（dev-bypass-login ?org=… 多机构会话，仅 dev 档）优先；缺省回落 env / 'dev'。
+    org_code = (str(org_code).strip() if org_code else "") or _dev_iam_bypass_org_code()
     snapshot = {
         "subject": _DEV_IAM_BYPASS_SUBJECT,
         "username": _DEV_IAM_BYPASS_USERNAME,
@@ -178,13 +179,13 @@ def _dev_iam_bypass_user_profile() -> dict[str, Any]:
     return apply_runtime_context(snapshot, contexts, preferred_org_code=org_code, preferred_role_code=preferred_role)
 
 
-def _dev_iam_bypass_claims() -> dict[str, Any]:
+def _dev_iam_bypass_claims(org_code: str | None = None) -> dict[str, Any]:
     client_id = _iaf_client_id()
     return {
         "sub": _DEV_IAM_BYPASS_SUBJECT,
         "preferred_username": _DEV_IAM_BYPASS_USERNAME,
         "project_id": "sd-default",
-        "org_code": _dev_iam_bypass_org_code(),
+        "org_code": (str(org_code).strip() if org_code else "") or _dev_iam_bypass_org_code(),
         "realm_access": {"roles": ["DEV_IAM_BYPASS"]},
         "resource_access": {client_id: {"roles": _dev_iam_bypass_role_codes()}},
         "development_iam_bypass": True,
@@ -443,7 +444,7 @@ class RestHandler(BaseHTTPRequestHandler):
             self._handle_iaf_refresh()
             return
         if path == "/auth/iaf/dev-bypass-login":
-            self._handle_iaf_dev_bypass_login()
+            self._handle_iaf_dev_bypass_login(parsed)
             return
         if path.startswith("/api/skills/"):
             self._with_authenticated_request(lambda claims: self._handle_api_skill_post(parsed, claims))
@@ -893,17 +894,21 @@ class RestHandler(BaseHTTPRequestHandler):
         except Exception as exc:  # noqa: BLE001
             self._handle_error(exc)
 
-    def _handle_iaf_dev_bypass_login(self) -> None:
+    def _handle_iaf_dev_bypass_login(self, parsed) -> None:  # type: ignore[no-untyped-def]
         try:
             if not get_dev_iam_bypass_enabled():
                 # 404 mirrors the response for unknown routes so a production server doesn't reveal
                 # that this dev-only endpoint exists at all.
                 self._json(404, {"error": "not_found", "path": "/auth/iaf/dev-bypass-login"})
                 return
-            claims = _dev_iam_bypass_claims()
+            # 可选 ?org=<机构码> 覆盖会话所属机构（仅 dev-bypass 档生效，本分支已 fail-closed 于
+            # get_dev_iam_bypass_enabled）：供「真·双账号」浏览器 e2e 单栈起两个不同部门会话，
+            # 验部门数据隔离。缺省回落 ZW_BRAIN_DEV_IAM_BYPASS_ORG / 'dev'，不改既有行为。
+            org_override = (parse_qs(parsed.query).get("org", [""])[-1] or "").strip() or None
+            claims = _dev_iam_bypass_claims(org_override)
             # Bypass mode skips actor.projection.sync — the synthetic identity is not a real user and
             # has no IAM-issued exp / iat. The session still carries enough actor info for the WebUI.
-            actor_snapshot = _dev_iam_bypass_user_profile()
+            actor_snapshot = _dev_iam_bypass_user_profile(org_override)
             token_payload = {"access_token": "", "expires_in": 24 * 60 * 60, "refresh_expires_in": 24 * 60 * 60}
             session = _AUTH_SESSION_STORE.create(
                 token_payload=token_payload,
