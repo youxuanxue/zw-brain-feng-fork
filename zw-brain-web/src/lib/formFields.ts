@@ -43,20 +43,22 @@ function unwrap<T>(env: SkillEnvelope<T> | T): T {
 }
 
 /** 人原地修订一个字段 → 返回重算后的最新 formFields。 */
-export async function updateField(requestId: string, field: string, value: string): Promise<FormField[]> {
+export async function updateField(requestId: string, field: string, value: string, role?: string): Promise<FormField[]> {
   const env = await postSkill<SkillEnvelope<{ formFields: FormField[] }>>('request.field.update', {
     request_id: requestId,
     field,
     value,
+    role: role ?? '',
     request_id_meta: newRequestId('UI-FIELD'),
   });
   return unwrap(env).formFields ?? [];
 }
 
 /** 对草稿空字段生成 AI 建议（标 ai_suggested·待确认）→ 返回最新 formFields。永不自动提交。 */
-export async function aiSuggestDraft(requestId: string): Promise<FormField[]> {
+export async function aiSuggestDraft(requestId: string, role?: string): Promise<FormField[]> {
   const env = await postSkill<SkillEnvelope<{ formFields: FormField[] }>>('request.draft.ai_suggest', {
     request_id: requestId,
+    role: role ?? '',
     request_id_meta: newRequestId('UI-AISUGGEST'),
   });
   return unwrap(env).formFields ?? [];

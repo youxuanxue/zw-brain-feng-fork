@@ -20,8 +20,10 @@ import {
 import ReferencePicker from '@/components/ReferencePicker.vue';
 import { pushToast } from '@/composables/useActionStub';
 import { invalidateSnapshot } from '@/composables/useSnapshot';
+import { getProductRole } from '@/composables/useProductRole';
 
 const props = defineProps<{ requestId: string; modelFields: FormField[] }>();
+const productRole = getProductRole();
 
 const fields = ref<FormField[]>([]);
 const dictOptions = ref<Record<string, RefOption[]>>({});
@@ -69,7 +71,7 @@ const aiSuggesting = ref(false);
 async function aiSuggest(): Promise<void> {
   aiSuggesting.value = true;
   try {
-    const next = await aiSuggestDraft(props.requestId);
+    const next = await aiSuggestDraft(props.requestId, productRole.value);
     if (next.length) fields.value = next.map((f) => ({ ...f }));
     invalidateSnapshot();
     pushToast({ kind: 'ok', title: 'AI 已给出建议', detail: '空字段已填入「AI建议·待确认」，请逐项核对修订后再提交。' });
@@ -85,7 +87,7 @@ async function commit(field: FormField, raw: string): Promise<void> {
   if (value === field.value) return;
   saving.value = field.key;
   try {
-    const next = await updateField(props.requestId, field.key, value);
+    const next = await updateField(props.requestId, field.key, value, productRole.value);
     if (next.length) fields.value = next.map((f) => ({ ...f }));
     invalidateSnapshot();
     pushToast({ kind: 'ok', title: '已保存', detail: `「${field.label}」已记为人工填写并锁定。` });
