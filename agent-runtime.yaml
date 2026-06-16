@@ -1,5 +1,5 @@
 # zw-brain Embedded AgentRuntime（架构 §8.2 Phase 1）
-# 安装：解压 vendor/agent-runtime/release/v0.1/*.tar.gz 后执行 ./install.sh（见 vendor/agent-runtime/README.md）
+# 安装：解压 vendor/agent-runtime/release/v1.1.2.2/*.tar.gz 后执行 ./install.sh（见 vendor/agent-runtime/README.md）
 product_name: zw-brain
 profile: embedded_single_tenant
 context_mode: minimal

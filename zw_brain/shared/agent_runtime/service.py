@@ -142,7 +142,7 @@ def _require_agent_runtime():
     except ImportError as exc:  # pragma: no cover - optional extra
         raise RuntimeError(
             "agent-runtime package is not installed; install offline package from "
-            "vendor/agent-runtime/release/v0.1/ (see vendor/agent-runtime/README.md)"
+            "vendor/agent-runtime/release/v1.1.2.2/ (see vendor/agent-runtime/README.md)"
         ) from exc
     return RuntimeService, ProductRuntimeConfig, load_product_runtime_config
 
@@ -280,7 +280,7 @@ async def _drain_until_terminal(
 
     async def _drain() -> None:
         nonlocal final_status, final_output, event_count
-        async for event in runtime._task_runner.stream_task(task_id):  # noqa: SLF001
+        async for event in runtime.stream_task(task_id):
             event_count += 1
 
             # 增强日志：记录每个事件的 payload 详细信息

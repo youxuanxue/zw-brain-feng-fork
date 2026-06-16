@@ -5,19 +5,19 @@ zw-brain Docker 镜像与本地 Embedded 开发均使用此目录下的 **pyc-on
 ## 包位置
 
 ```text
-release/v0.1/agent-runtime-0.1.0-py312-pyc-only.tar.gz
+release/v1.1.2.2/agent-runtime-1.1.2.2-py312-pyc-only.tar.gz
 ```
 
 - Python：**3.12**（minor 须与构建机一致）
-- 版本：**0.1.0**
+- 版本：**1.1.2.2**
 
 ## 本地安装（当前 Python 环境）
 
 ```bash
-cd /path/to/zw-brain/vendor/agent-runtime/release/v0.1
-sha256sum -c agent-runtime-0.1.0-py312-pyc-only.tar.gz.sha256  # 校验失败必须停止安装
-tar -xzf agent-runtime-0.1.0-py312-pyc-only.tar.gz
-cd agent-runtime-0.1.0-py312-pyc-only
+cd /path/to/zw-brain/vendor/agent-runtime/release/v1.1.2.2
+sha256sum -c agent-runtime-1.1.2.2-py312-pyc-only.tar.gz.sha256  # 校验失败必须停止安装
+tar -xzf agent-runtime-1.1.2.2-py312-pyc-only.tar.gz
+cd agent-runtime-1.1.2.2-py312-pyc-only
 uv pip install -r requirements.txt -r ../../../requirements-deepagents.txt
 ./install.sh
 python -c "from agent_runtime import RuntimeService; print('ok')"
@@ -28,13 +28,13 @@ API 与接入指南见 [`docs/agent-runtime/`](../../docs/agent-runtime/)（单�
 
 ## 升级
 
-替换 `release/v0.1/` 下 tar.gz 后必须同步更新 `*.tar.gz.sha256`：
+替换 `release/v1.1.2.2/` 下 tar.gz 后必须同步更新 `*.tar.gz.sha256`：
 
 ```bash
-cd vendor/agent-runtime/release/v0.1
-shasum -a 256 agent-runtime-0.1.0-py312-pyc-only.tar.gz \
-  | awk '{print $1"  agent-runtime-0.1.0-py312-pyc-only.tar.gz"}' \
-  > agent-runtime-0.1.0-py312-pyc-only.tar.gz.sha256
+cd vendor/agent-runtime/release/v1.1.2.2
+shasum -a 256 agent-runtime-1.1.2.2-py312-pyc-only.tar.gz \
+  | awk '{print $1"  agent-runtime-1.1.2.2-py312-pyc-only.tar.gz"}' \
+  > agent-runtime-1.1.2.2-py312-pyc-only.tar.gz.sha256
 ```
 
 同步更新 `schemas/agent.schema.json`，并调整 `Dockerfile` 中的 `AGENT_RUNTIME_EXTRACT_DIR`（若目录名变更）。

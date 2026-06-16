@@ -29,7 +29,7 @@ redis = [
 # vendor 离线包是唯一交付路径（见 vendor/agent-runtime/README.md）；extra 严格 pin 到 tarball 同版本
 # 防 `pip install zw-brain[agentruntime]` 拉到不兼容的上游版本
 agentruntime = [
-  "agent-runtime==0.1.0",
+  "agent-runtime==1.1.2.2",
 ]
 dev = [
   "pytest>=9.0.3",      # CVE-2025-71176 fixed in 9.0.3

@@ -11,7 +11,7 @@
 
 ## 1. 构建镜像
 
-镜像默认内置 **agent-runtime**（Embedded SDK 依赖，来自 `vendor/agent-runtime/release/v0.1/` 离线包）与 `agents/`。在 **zw-brain 仓库根目录** 构建即可，**无需**同级 `agent-runtime` 源码仓库：
+镜像默认内置 **agent-runtime**（Embedded SDK 依赖，来自 `vendor/agent-runtime/release/v1.1.2.2/` 离线包）与 `agents/`。在 **zw-brain 仓库根目录** 构建即可，**无需**同级 `agent-runtime` 源码仓库：
 
 ```bash
 cd /path/to/zw-brain

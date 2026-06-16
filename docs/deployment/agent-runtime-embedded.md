@@ -32,10 +32,10 @@ bash scripts/setup-py312-venv.sh --force   # 强制删旧重建
 在 zw-brain 仓库根目录安装 **vendor 离线包**（Python 3.12），再安装 zw-brain：
 
 ```bash
-cd /path/to/zw-brain/vendor/agent-runtime/release/v0.1
-sha256sum -c agent-runtime-0.1.0-py312-pyc-only.tar.gz.sha256  # 完整性校验必须通过
-tar -xzf agent-runtime-0.1.0-py312-pyc-only.tar.gz
-cd agent-runtime-0.1.0-py312-pyc-only
+cd /path/to/zw-brain/vendor/agent-runtime/release/v1.1.2.2
+sha256sum -c agent-runtime-1.1.2.2-py312-pyc-only.tar.gz.sha256  # 完整性校验必须通过
+tar -xzf agent-runtime-1.1.2.2-py312-pyc-only.tar.gz
+cd agent-runtime-1.1.2.2-py312-pyc-only
 uv pip install -r requirements.txt -r ../../../requirements-deepagents.txt
 ./install.sh
 cd /path/to/zw-brain

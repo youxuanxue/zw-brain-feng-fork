@@ -4,7 +4,7 @@
 #
 # WebUI：web-builder 阶段自动 npm ci + npm run build → zw-brain-web/dist-vite/
 # AgentRuntime 来自 vendor 离线包：
-#   vendor/agent-runtime/release/v0.1/agent-runtime-0.1.0-py312-pyc-only.tar.gz
+#   vendor/agent-runtime/release/v1.1.2.2/agent-runtime-1.1.2.2-py312-pyc-only.tar.gz
 
 FROM node:20-bookworm-slim AS web-builder
 
@@ -17,8 +17,8 @@ RUN npm run build
 FROM zw-brain-os-patch:3.12-slim AS builder
 # uv 已在基础镜像 zw-brain-os-patch 中预置。
 
-ARG AGENT_RUNTIME_TARBALL=vendor/agent-runtime/release/v0.1/agent-runtime-0.1.0-py312-pyc-only.tar.gz
-ARG AGENT_RUNTIME_EXTRACT_DIR=agent-runtime-0.1.0-py312-pyc-only
+ARG AGENT_RUNTIME_TARBALL=vendor/agent-runtime/release/v1.1.2.2/agent-runtime-1.1.2.2-py312-pyc-only.tar.gz
+ARG AGENT_RUNTIME_EXTRACT_DIR=agent-runtime-1.1.2.2-py312-pyc-only
 
 WORKDIR /build
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -55,8 +55,8 @@ RUN uv build --wheel --out-dir /dist
 FROM zw-brain-os-patch:3.12-slim AS runtime
 # uv 已在基础镜像 zw-brain-os-patch 中预置，此处不再重复 COPY。
 
-ARG AGENT_RUNTIME_TARBALL=vendor/agent-runtime/release/v0.1/agent-runtime-0.1.0-py312-pyc-only.tar.gz
-ARG AGENT_RUNTIME_EXTRACT_DIR=agent-runtime-0.1.0-py312-pyc-only
+ARG AGENT_RUNTIME_TARBALL=vendor/agent-runtime/release/v1.1.2.2/agent-runtime-1.1.2.2-py312-pyc-only.tar.gz
+ARG AGENT_RUNTIME_EXTRACT_DIR=agent-runtime-1.1.2.2-py312-pyc-only
 
 # ZW_BRAIN_DEPLOY_MODE=prod: the shipped image self-identifies as production so the M5
 # fail-closed guards are ACTIVE by default (dev IAM bypass refused, insecure IAF TLS refused,
