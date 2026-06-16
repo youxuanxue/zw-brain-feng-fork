@@ -34,7 +34,8 @@ import P5DemandMatchInbox from '@/pages/P5DemandMatchInbox.vue';
 import P5DemandMatchDetail from '@/pages/P5DemandMatchDetail.vue';
 import P5ObjectionInbox from '@/pages/P5ObjectionInbox.vue';
 import P5ObjectionDetail from '@/pages/P5ObjectionDetail.vue';
-// 专题包页面（P7ZonesPack / P7ZoneDetail）退出本期（D55/P6）：路由下线，组件保留于 src/pages 待复活。
+// 专题包页面（原 P7ZonesPack / P7ZoneDetail）随专题包整面退出本期（D55/P6）：路由早已下线，
+// 零入口孤儿组件已删；后端 topic_package 数据 / handler / repo 保留不动，待立项复活时重建前端面。
 import B11ComplianceOps from '@/pages/B11ComplianceOps.vue';
 import B13ServiceOps from '@/pages/B13ServiceOps.vue';
 import B12IntegrationAdmin from '@/pages/B12IntegrationAdmin.vue';

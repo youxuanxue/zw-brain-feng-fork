@@ -2165,11 +2165,6 @@
       "audit_required": true,
       "args": [
         {
-          "name": "created_by",
-          "required": true,
-          "type": "string"
-        },
-        {
           "name": "deterministic_only",
           "required": false,
           "type": "boolean"
@@ -3749,11 +3744,6 @@
       "human_confirmation_required": false,
       "audit_required": true,
       "args": [
-        {
-          "name": "created_by",
-          "required": true,
-          "type": "string"
-        },
         {
           "name": "deterministic_only",
           "required": false,

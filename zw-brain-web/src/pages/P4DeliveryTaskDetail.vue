@@ -22,6 +22,9 @@ const timeline = computed(() => {
   return Array.isArray(arr) ? (arr as Array<{ stage: string; status: string; label: string; holder?: string }>) : [];
 });
 
+// 交付说明（后端 task.note）：让交付方看见「在等谁、补什么」——脊柱旁直出，缺则不渲染（诚实空）。
+const note = computed(() => String((taskRef.value as Record<string, unknown> | null)?.note ?? '').trim());
+
 // 按资源类型分流（0611 业务口径确认单 §B，2026-06-12 方案 B 终裁）：
 // API=查看授权、文件=下载、库表=交换任务语系（标题「交换任务」+ 按钮「核对交换结果」）；
 // 类型推不出时回落「查看授权」（与列表页同一回落口径）。
@@ -85,6 +88,7 @@ async function downloadFile() {
         :links="[{ label: '提异议', href: objectionLink }]"
       />
       <PhaseTrack :steps="timeline" aria-label="交付进度" />
+      <p v-if="note" class="delivery-note">{{ note }}</p>
       <DetailPanel v-if="rows.length" :title="isTable ? '交换任务详情' : '任务详情'" :rows="rows" />
       <p v-else-if="source === 'live'" class="focus-empty">{{ isTable ? '未找到该交换任务。' : '未找到该交付任务。' }}</p>
       <p v-else class="focus-empty">等待数据装载……</p>
@@ -105,4 +109,15 @@ async function downloadFile() {
 .gov-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; margin-right: 8px; }
 .gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
 .gov-btn-secondary { background: #fff; border-color: var(--b-border, #d4e2f4); }
+.delivery-note {
+  margin: 12px 0 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f2f7ff;
+  border: 1px solid var(--b-border, #d4e2f4);
+  border-left: 3px solid var(--b-primary, #006be6);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--b-text, #1a1a1a);
+}
 </style>

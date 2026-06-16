@@ -31,8 +31,8 @@
 | `#/provider/inbox/hookup-review`         | `PAGES.providerInboxHookupReview`         | P5 挂接审核收件箱  | J2 |
 | `#/provider/inbox/demand-match`          | `PAGES.providerInboxDemandMatch`          | P5 供需对接收件箱  | J2 |
 | `#/provider/inbox/demand-match/:id`      | `PAGES.providerInboxDemandMatchDetail`    | P5 供需对接详情   | J2 |
-| ~~`#/zones-pack`~~                | ~~`PAGES.zonesPack`~~                     | ~~P7 共享专区/专题包~~（**已随 D55①/P6 下线待复活**，2026-06-09） | J1 + J2 |
-| ~~`#/zones-pack/zone/:id`~~       | ~~`PAGES.zoneDetail`~~                    | ~~P7 专题包详情~~（**已随 D55①/P6 下线待复活**） | J1 + J2 |
+| ~~`#/zones-pack`~~                | ~~`PAGES.zonesPack`~~                     | ~~P7 共享专区/专题包~~（**已随 D55①/P6 下线；零入口孤儿组件已删，待立项复活时重建**） | J1 + J2 |
+| ~~`#/zones-pack/zone/:id`~~       | ~~`PAGES.zoneDetail`~~                    | ~~P7 专题包详情~~（**已随 D55①/P6 下线；组件已删，待复活重建**） | J1 + J2 |
 
 ## 后台支撑面（仅管理员 / 审计员）
 

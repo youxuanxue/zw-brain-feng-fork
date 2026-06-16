@@ -55,11 +55,12 @@ def _nl_draft(brain, deps, ctx: BrainService, skill_id: str, payload: dict[str, 
     form_code = str(payload.get("form_code") or "")
     title = str(payload.get("title") or "")
     intent_text = str(payload.get("intent_text") or "")
-    created_by = str(payload.get("created_by") or "")
     deterministic_only = bool(payload.get("deterministic_only", False))
-    if not (tenant_id and form_code and title and intent_text and created_by):
+    # created_by 出处永不从客户端 payload 取（可伪造、违 D11/D47），由 pipeline
+    # Identity 中间件在 freeze 后解析的真实 actor 充当——照 recommendation_rule.py 口径。
+    if not (tenant_id and form_code and title and intent_text):
         raise FormSchemaDraftSourceError(
-            "tenant_id / form_code / title / intent_text / created_by are required"
+            "tenant_id / form_code / title / intent_text are required"
         )
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
@@ -72,7 +73,7 @@ def _nl_draft(brain, deps, ctx: BrainService, skill_id: str, payload: dict[str, 
                 form_code=form_code,
                 title=title,
                 intent_text=intent_text,
-                created_by=created_by,
+                created_by=actor,
                 deterministic_only=deterministic_only,
                 request_id=audit_id,
             )

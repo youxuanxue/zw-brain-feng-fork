@@ -81,13 +81,14 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     roles: ['ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
   },
   {
-    // 服务调用监控（D55/P8 拆分 → D57⑥ 收窄）：网关运行 / 服务调用统计只读面。
-    // 仅平台运维员 + 业务运营员（v5 服务调用日志口径）；部门管理员、安全审计员退出全局监控
-    // （管理员「自家资源被调用情况」保留在领数据 P4 凭据门内，不在此导航）。
+    // 服务调用监控（D55/P8 拆分 → D57⑥ 收窄）：网关运行只读面。
+    // D57⑥ 收窄后全局服务调用统计退役——per-resource 调用记录保留在领数据 P4 凭据门内
+    // （ops.service.invocation.query），本面只承接网关运行只读，不再展示全局调用统计空壳。
+    // 仅平台运维员 + 业务运营员（v5 服务调用日志口径）；部门管理员、安全审计员退出全局监控。
     // 角色门与后端 ops.service.report.query.execute 一致。
     key: 'service-ops',
     navLabel: '服务调用监控',
-    navDesc: '网关运行与服务调用统计只读',
+    navDesc: '网关运行只读',
     to: '/service-ops',
     group: 'admin',
     roles: ['ROLE_BUSIAUDIT', 'ROLE_SYSTEM'],

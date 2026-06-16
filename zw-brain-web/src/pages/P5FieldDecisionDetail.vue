@@ -17,11 +17,11 @@ const route = useRoute();
 const role = getProductRole();
 const provider = useProvider();
 const id = computed(() => String(route.params.id ?? ''));
-// D57⑧ 两级管线第一级：反向编目草稿的部门审（confirm/reject）= 部门管理员；
-// 与后端 policy set-equal（ACTION_ROLE_GATES 单源）。平台审在目录审核收件箱（BUSIAUDIT）。
+// 两级管线第一级：反向编目草稿的部门审（confirm/reject）= 部门管理员；
+// 与后端 policy set-equal（ACTION_ROLE_GATES 单源）。平台审在目录审核收件箱（业务运营员）。
 const canDecide = computed(() => canPerformAction('catalog.entry.reverse_draft.confirm', role.value));
 
-// 被审内容来自部门审收件箱同一投影（D57⑧ 去盲批，同 D57⑨/R10 口径）：
+// 被审内容来自部门审收件箱同一投影（去盲批，同审核口径）：
 // 目录名 / 责任单位 / 当前状态 / 字段建议数全取真实登记，缺省诚实「—」，不再捏造
 // 「范围/处理时限」虚构行。
 const inboxRow = computed(() =>
@@ -56,10 +56,10 @@ async function approve() {
   });
 }
 
-// 驳回带理由：先点「驳回」展开理由框，填写后确认提交（仿挂接审核 P5HookupReviewInbox）。
-// 此前 reject_reason 硬编码常量「目录口径需补充证据后重新提交」——每一笔驳回都贴同一句
-// 套话，提交方拿不到真正的整改依据。后端 catalog_entry.py 已读 reject_reason，缺的是
-// 前端真实输入面。
+// 驳回带理由：先点「驳回」展开理由框，填写后确认提交。
+// 注意：反向编目「驳回」= 草稿终态枪毙（后端 catalog_entry.py reverse_draft.reject
+// 落 rejected，无回 draft 路径），不是退回补证重提；理由仅作终止凭据，
+// 文案不得承诺「重新提交」。要退回补证应走另一语义的挂接审核 return_for_fix，不在此页。
 const rejecting = ref(false);
 const rejectReason = ref('');
 function startReject() {
@@ -81,7 +81,7 @@ function cancelReject() {
 
 async function confirmReject() {
   if (!rejectReason.value.trim()) {
-    pushToast({ kind: 'warn', title: '请填写驳回理由', detail: '驳回会把草稿退回提交方重新补证，需要说明依据。' });
+    pushToast({ kind: 'warn', title: '请填写驳回理由', detail: '驳回将终止本反向编目草稿（不可重提），需要说明依据。' });
     return;
   }
   await invokeActionStub({
@@ -105,12 +105,12 @@ async function confirmReject() {
         <button type="button" class="gov-btn gov-btn-danger" data-testid="field-decision-reject-btn" @click="startReject">驳回</button>
       </DetailActions>
       <div v-if="canDecide && rejecting" class="reject-box" data-testid="field-decision-reject-panel">
-        <label for="field-decision-reject-reason">驳回理由（退回提交方补证后重新提交）</label>
+        <label for="field-decision-reject-reason">驳回理由（草稿终止受理，不可重提）</label>
         <textarea
           id="field-decision-reject-reason"
           v-model="rejectReason"
           rows="3"
-          placeholder="请说明目录口径 / 字段需要补充的证据"
+          placeholder="请说明目录口径 / 字段不成立的依据，作为终止受理的凭据"
         />
         <div class="reject-actions">
           <button type="button" class="gov-btn gov-btn-danger" data-testid="field-decision-reject-confirm-btn" @click="confirmReject">确认驳回</button>

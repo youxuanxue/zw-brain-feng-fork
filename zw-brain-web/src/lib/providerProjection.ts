@@ -320,7 +320,7 @@ export interface ProviderAssetRow {
   owner: string;
   /** 中文生命周期态。 */
   status: string;
-  /** 状态附注（D57⑨/R-10：审核驳回理由回显——提交方整改依据；无则空）。 */
+  /** 状态附注（审核理由回显：退回补证理由或驳回终止理由；驳回为终态，无则空）。 */
   statusNote?: string;
   /** 资源物化形态中文标签（仅资源行）。 */
   kind?: string;
@@ -370,7 +370,8 @@ export function providerCatalogRows(provider: Record<string, unknown>): Provider
       code: displayCode || '—',
       owner: String(it.owner ?? it.owner_org_id ?? '—'),
       status: _statusLabel(it.status ?? it.lifecycle_status),
-      // D57⑨/R-10：审核退回/驳回理由回显（return_for_fix/reject 落 summary → 投影 review_return_reason）。
+      // 审核理由回显（return_for_fix/reject 落 summary → 投影 review_return_reason）；
+      // 目录「驳回」为终态枪毙、无重提路径，理由作终止凭据展示。
       statusNote: String(it.review_return_reason ?? '') ? `驳回理由：${String(it.review_return_reason)}` : '',
       viewHref: code ? `#/discovery/catalog/${encodeURIComponent(code)}` : '',
       actions,
@@ -393,7 +394,7 @@ export function providerResourceRows(provider: Record<string, unknown>): Provide
       code: String(it.catalog_code ?? '—'),
       owner: String(it.owner ?? it.owner_org_id ?? '—'),
       status: _statusLabel(it.lifecycle_status ?? it.status),
-      // D57⑨/R-10：驳回理由回显（return_for_fix 落 summary → 投影 review_return_reason）。
+      // 审核理由回显（return_for_fix 落 summary → 投影 review_return_reason）。
       statusNote: String(it.review_return_reason ?? '') ? `驳回理由：${String(it.review_return_reason)}` : '',
       // 单源 resourceKindLabel（lib/resourceKind.ts）；未知/空 → '—'（管理清单保留占位）。
       kind: resourceKindLabel(kind) || '—',

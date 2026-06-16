@@ -48,7 +48,7 @@ const gatewayCounts = computed(() => {
 <template>
   <main class="focus-page">
     <section class="panel panel-stack">
-      <PageFocusHeader title="服务调用监控" meta="网关运行 · 服务调用统计（只读）" />
+      <PageFocusHeader title="服务调用监控" meta="网关运行只读面" />
 
       <div class="focus-tab-row">
         <span class="focus-tab active" role="tab" aria-selected="true">网关运行</span>

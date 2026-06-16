@@ -95,6 +95,7 @@ onMounted(async () => {
       <section class="login-gate-card" aria-labelledby="login-gate-title">
         <header class="login-gate-card-header">
           <h1 id="login-gate-title" class="login-gate-card-title">登录政务数据大脑</h1>
+          <p class="login-gate-promise">要数据，不用再跑窗口、不用再问我是哪个角色、拿到就能调用。</p>
           <p class="login-gate-card-sub">使用统一身份认证进入系统，岗位与权限由 IAM 与治理策略共同决定。</p>
         </header>
         <div class="login-gate-card-body">
@@ -182,5 +183,12 @@ onMounted(async () => {
   display: block;
   margin-top: 8px;
   color: #8a4b00;
+}
+.login-gate-promise {
+  margin: 6px 0 4px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--b-primary, #006be6);
+  font-weight: 500;
 }
 </style>

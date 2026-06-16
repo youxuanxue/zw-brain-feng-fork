@@ -172,19 +172,6 @@ const accountabilityEmptyText = computed(() => {
           <h2 class="focus-section-title">异常与督查</h2>
           <DataSourceBadge :source="anomaly.source.value" />
         </header>
-        <!-- R12：用户可见正文须为业务语言。原文直出工程术语（Wave-2/panel/read-sensitive/
-             preflight-debt.md）。规划债指针见下方代码注释，不上屏。
-             债指针（不上屏）：长期无人申请目录诊断 = B1.1 旁路抽查能力的另一面，按「发布时长 ×
-             申请数」二维识别"发布了但 180/365 天 0 申请"的目录，分级建议下线/推广/继续观察并通知
-             部门管理员；建设中。详见 docs/preflight-debt.md 2026-05-27 B1.1-A 条目。 -->
-        <aside class="backlog-strip" role="note">
-          <strong>⏳ 长期无人申请目录诊断（规划中，暂未上线）</strong>
-          <p>
-            后续将按「发布时长 × 申请数」识别"已发布但长期无人申请"的目录，给出下线 / 推广 / 继续观察建议，
-            并通知所属部门管理员。该能力尚在规划；当前下方展示的是审计异常（敏感数据反复访问、异常写入告警等），
-            暂不含目录使用度诊断。
-          </p>
-        </aside>
         <div v-if="anomaly.data.value && anomaly.data.value.anomalies.length">
           <p class="focus-prose">
             扫描事件 <strong>{{ anomaly.data.value.scanned }}</strong> 条；命中
@@ -359,17 +346,4 @@ const accountabilityEmptyText = computed(() => {
 .assistant-meta { font-size: 12px; color: var(--b-muted, #5c6370); margin: 8px 0 0; line-height: 1.5; }
 .gov-btn { padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; }
 .gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
-.backlog-strip {
-  margin: 12px 0;
-  padding: 10px 14px;
-  border-radius: 6px;
-  border: 1px dashed #c4cad6;
-  background: #f5f7fb;
-  font-size: 13px;
-  color: var(--b-muted, #5c6370);
-}
-.backlog-strip strong { color: var(--b-neutral-text, #1a1d21); font-size: 13px; }
-.backlog-strip p { margin: 6px 0 0; line-height: 1.55; }
-.backlog-strip code { font-family: ui-monospace, 'SF Mono', monospace; font-size: 12px; background: #fff; padding: 1px 5px; border-radius: 3px; border: 1px solid #e4e8ef; }
-.backlog-strip em { font-style: normal; color: var(--b-primary, #006be6); }
 </style>

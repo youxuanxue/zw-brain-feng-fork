@@ -157,7 +157,10 @@ async function applyTo(id: string) {
           @apply="applyTo"
         />
       </div>
-      <p v-else-if="source === 'live'" class="focus-empty">未命中资源。</p>
+      <div v-else-if="source === 'live'" class="focus-empty discovery-empty">
+        <p class="discovery-empty-line">未命中资源。</p>
+        <p class="discovery-empty-promise">要数据，不用再跑窗口、不用再问我是哪个角色、拿到就能调用。</p>
+      </div>
       <p v-else class="focus-empty">等待数据装载……</p>
     </section>
   </main>
@@ -169,4 +172,7 @@ async function applyTo(id: string) {
 .discovery-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .discovery-filters .focus-search { flex: 1 1 240px; min-width: 200px; }
 .focus-filter { flex: 0 0 auto; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--b-border, #d4e2f4); background: #fff; font-size: 13px; color: var(--b-neutral-text, #1a1d21); cursor: pointer; }
+.discovery-empty { display: flex; flex-direction: column; gap: 6px; }
+.discovery-empty-line { margin: 0; }
+.discovery-empty-promise { margin: 0; font-size: 13px; color: var(--b-muted, #5c6370); }
 </style>

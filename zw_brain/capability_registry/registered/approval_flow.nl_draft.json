@@ -9,8 +9,7 @@
       "tenant_id",
       "schema_code",
       "title",
-      "intent_text",
-      "created_by"
+      "intent_text"
     ],
     "properties": {
       "tenant_id": {
@@ -23,9 +22,6 @@
         "type": "string"
       },
       "intent_text": {
-        "type": "string"
-      },
-      "created_by": {
         "type": "string"
       },
       "deterministic_only": {

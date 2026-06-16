@@ -109,8 +109,10 @@ watch(role, () => {
   void loadInbox();
 });
 
-// D57⑨/R10：驳回须带理由——展开行内理由框，无理由不可提交（按钮禁用）。
-// 通过无须理由，直接处置。后端同样硬拦无理由的退回/驳回（前端只是第一道）。
+// 驳回须带理由——展开行内理由框，无理由不可提交（按钮禁用）。
+// 通过无须理由，直接处置。后端同样硬拦无理由的驳回（前端只是第一道）。
+// 注意：本页「驳回」= 目录终态枪毙（后端落 rejected，无回 draft 路径），
+// 不是退回整改；理由仅作终止凭据，文案不得承诺「整改/重提」（诚实化）。
 const rejectingCode = ref('');
 const rejectReason = ref('');
 
@@ -226,16 +228,16 @@ const headerMeta = computed(() => {
                 </button>
               </td>
             </tr>
-            <!-- D57⑨/R10：驳回理由行（无理由不可提交）——展开在被驳回行下方。 -->
+            <!-- 驳回理由行（无理由不可提交）——展开在被驳回行下方；驳回为终态。 -->
             <tr v-if="rejectingCode === it.catalog_code" class="reject-row">
               <td :colspan="6">
                 <div class="reject-box">
-                  <label class="reject-label">驳回理由（退回供数方整改的依据，必填）</label>
+                  <label class="reject-label">驳回理由（目录终止受理，不可重提；必填）</label>
                   <textarea
                     v-model="rejectReason"
                     class="reject-input"
                     rows="2"
-                    placeholder="例如：信息项缺少主键标识，请补全后重新提交。"
+                    placeholder="例如：信息项缺少主键标识，目录口径不成立，予以终止受理。"
                     data-testid="catalog-review-reject-reason"
                   ></textarea>
                   <div class="reject-actions">

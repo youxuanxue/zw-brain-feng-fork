@@ -193,10 +193,10 @@ async function onGenerateDraft() {
     pushToast({ kind: 'warn', title: '请补齐三项', detail: `${engine.schemaCodeLabel} / ${engine.titleLabel} / ${engine.intentLabel}` });
     return;
   }
+  // 出处（created_by）由后端从已 resolve 的真实 actor 取定，客户端不再硬串伪造身份。
   const payload: Record<string, unknown> = {
     tenant_id: tenantId.value,
     intent_text: intent,
-    created_by: 'user:gov:ROLE_ORGAN_MANAGER:webui',
   };
   if (k === 'approval_flow') {
     payload.schema_code = code;

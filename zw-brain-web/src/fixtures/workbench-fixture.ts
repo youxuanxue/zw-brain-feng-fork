@@ -16,7 +16,6 @@ export interface WorkbenchView {
   greeting: string;
   subtitle: string;
   todos: WorkbenchTodo[];
-  highlights: string[];
   aiSummary: {
     summary: string;
     actions?: string[];
@@ -44,13 +43,6 @@ export const WORKBENCH_FIXTURE: WorkbenchView = {
       status: '待修改',
       href: '#/request-flow/request/REQ-2026-04-24-0007',
     },
-  ],
-  highlights: [
-    '本周 3 条涉企需求被拦截为「先复用模板再补差异字段」',
-    '停车场信息共享目录已覆盖库表 / 文件资源',
-    '营商环境专题建议先用共享底座再发起差异采集',
-    '本次任务已自动带出企业基础字段 12 项',
-    '仅需补录 3 项现场差异字段',
   ],
   aiSummary: {
     summary:

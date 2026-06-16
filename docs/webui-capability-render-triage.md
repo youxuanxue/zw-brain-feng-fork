@@ -119,13 +119,13 @@ manifest `compatibility` 已去 `webui`（故已退出守卫的 live+webui 集�
 | `system.snapshot` | infra | 降 status | 系统快照由 /api/snapshot REST 基建路由供 WebUI 初始化，非大堂能力面板 |
 | `application.resource.submit` | j1 | 真死 | 申请提交由 P3RequestFlow(request.create) 承接，本 slug 无消费者 |
 | `catalog.group.query` | j1 | 真死 | 目录分组属发现页内部投影，非独立用户操作 |
-| `catalog.share_zone.query` | j1 | 真死 | 专区投影查询属内部导航元数据，非独立用户操作（P7 用 zone 读路径） |
+| `catalog.share_zone.query` | j1 | 真死 | 专区投影查询属内部导航元数据，非独立用户操作（原 P7 专题包面随 D55①/P6 下线，组件已删） |
 | `delivery.view` | j1 | 真死 | 交付详情由 P4Delivery(delivery.list) 行内承接，本 slug 无独立消费者 |
 | `objection.metric.query` | j1 | 真死 | 无页面消费异议指标（B 端用 audit.* 家族） |
 | `objection.process.query` | j1 | 真死 | 异议过程由 P3/P5ObjectionDetail(案件详情)承接，本 slug 无独立消费者 |
 | `request.view` | j1 | 真死 | 申请详情由 P3RequestDetail(request.list) 承接，本 slug 无独立消费者 |
-| `zone.list` | j1 | 真死 | 专区列表由 P7ZonesPack 以读路径承接，本 slug 无字面消费者 |
-| `zone.view` | j1 | 真死 | 专区详情由 P7ZoneDetail 以读路径承接，本 slug 无字面消费者 |
+| `zone.list` | j1 | 真死 | 原 P7 专题包列表面随 D55①/P6 下线、零入口孤儿组件已删；本 slug 无字面消费者 |
+| `zone.view` | j1 | 真死 | 原 P7 专题包详情面随 D55①/P6 下线、组件已删；本 slug 无字面消费者 |
 | `application.grant.renew` | j1 | 降 status | 授权续期属交付生命周期编排，非独立用户面板 |
 | `approval.review_decide` | j1 | 降 status | 审批裁决嵌在 P3ReviewDetail(approval.case.decide) 流程，非独立面板 |
 | `delivery.access.grant` | j1 | 降 status | 交付访问授权属履约编排，非用户面板 |

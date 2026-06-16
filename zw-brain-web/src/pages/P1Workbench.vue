@@ -121,13 +121,6 @@ const urgentCount = computed(
           </ul>
         </details>
       </aside>
-
-      <section v-if="data.highlights.length" class="panel p1-card p1-card--span">
-        <h2 class="p1-block-title">本周亮点</h2>
-        <ul class="p1-list p1-list--bullets">
-          <li v-for="(h, i) in data.highlights" :key="i" class="p1-row p1-row--bullet">{{ h }}</li>
-        </ul>
-      </section>
     </div>
   </main>
 </template>
@@ -179,9 +172,6 @@ const urgentCount = computed(
   gap: 20px;
   align-items: start;
 }
-.p1-card--span {
-  grid-column: 1 / 2;
-}
 .p1-side {
   grid-column: 2 / 3;
   grid-row: 1 / span 2;
@@ -198,10 +188,6 @@ const urgentCount = computed(
   list-style: none;
   margin: 0;
   padding: 0;
-}
-.p1-list--bullets {
-  list-style: disc;
-  padding-left: 1.25rem;
 }
 .p1-empty {
   margin: 0;
@@ -223,14 +209,6 @@ const urgentCount = computed(
 .p1-row:last-child {
   border-bottom: 0;
   padding-bottom: 2px;
-}
-.p1-row--bullet {
-  display: list-item;
-  padding: 8px 0;
-  border-bottom: 0;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--b-neutral-text, #1a1d21);
 }
 .p1-row-main {
   flex: 1;

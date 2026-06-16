@@ -195,6 +195,7 @@ watch(
           <div class="brand-subtitle">一脑通数智，万事惠民生</div>
         </div>
       </RouterLink>
+      <p v-if="!isLoginRoute" class="header-promise">要数据，不用再跑窗口、不用再问角色，拿到就能调用。</p>
       <div v-if="deploymentLabel" class="deployment-label">{{ deploymentLabel }}</div>
       <nav v-if="!isLoginRoute" class="helper-links" aria-label="顶部辅助入口">
         <button
@@ -386,5 +387,18 @@ watch(
 }
 .no-product-role-hint {
   color: var(--b-muted, #5c6370);
+}
+/* 客户面体验承诺：页头短句呈现，窄屏隐藏避免挤压品牌区。 */
+.header-promise {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--b-muted, #5c6370);
+  white-space: nowrap;
+}
+@media (max-width: 1100px) {
+  .header-promise {
+    display: none;
+  }
 }
 </style>
