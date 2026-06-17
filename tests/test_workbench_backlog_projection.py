@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Any
 
 import pytest
 
@@ -24,7 +25,7 @@ from zw_brain.domain.repositories.objection import ObjectionRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.repositories.supply_demand import SupplyDemandRepository
 from zw_brain.domain.supply_demand_phase import PHASE_REGISTERED
-from zw_brain.domain.workbench_backlog_projection import enrich_workbench_backlog
+from zw_brain.domain.workbench_backlog_projection import _backlog_todos, enrich_workbench_backlog
 from zw_brain.shared import db as db_module
 from zw_brain.shared.migrate import ensure_runtime_schema
 
@@ -113,16 +114,40 @@ def _seed_backlog() -> None:
     )
 
 
+# 模拟 sync_request_todos 已投进 view 的「逐单受理待办」（携行内决策 action）。
+# enrich_workbench_backlog 现增量保留它们、不再整体替换（workbench inline action）。
+def _accept_todo(request_id: str, *, conditional: bool = False) -> dict[str, Any]:
+    cap = "application.platform_approve" if conditional else "approval.case.decide"
+    return {
+        "id": request_id,
+        "title": f"{request_id}资源申请待受理",
+        "status": "待受理",
+        "href": f"#/request-flow/review/{request_id}",
+        "category": "accept",
+        "action": {"kind": "decision", "capability": cap, "gate": cap, "basePayload": {"request_id": request_id}, "context": [], "decisions": []},
+    }
+
+
 def test_busiaudit_workbench_todos_are_operator_duties(temp_db: Path) -> None:
     _seed_backlog()
-    base = {"todos": [], "subtitle": "陈旧 seed 文案", "aiSummary": {"summary": "旧"}, "highlights": ["旧亮点"]}
+    # sync 已投的逐单受理待办（携 action）在 view 里——enrich 增量保留，不整体替换。
+    base = {
+        "todos": [_accept_todo("app-sub-1")],
+        "subtitle": "陈旧 seed 文案",
+        "aiSummary": {"summary": "旧"},
+        "highlights": ["旧亮点"],
+    }
     out = enrich_workbench_backlog(base, "ROLE_BUSIAUDIT", tenant_id=TENANT)
     todos = {t["id"]: t for t in out["todos"]}
 
     assert todos["backlog-catalog-publish"]["title"] == "待发布目录 1 条"
     assert todos["backlog-catalog-publish"]["href"].startswith("#/")
     assert todos["backlog-resource-publish"]["title"] == "待发布资源 1 条"
-    assert todos["backlog-application"]["title"] == "待受理申请 1 条"
+    # 逐单受理待办（携行内决策 action）被增量保留，不被聚合替换掉。
+    assert todos["app-sub-1"]["category"] == "accept"
+    assert todos["app-sub-1"]["action"]["kind"] == "decision"
+    # 聚合「待受理申请」候选被剔除——逐单受理待办已逐条覆盖，避免双算。
+    assert "backlog-application" not in todos
     assert todos["backlog-objection"]["title"] == "待受理异议 1 条"
     assert todos["backlog-demand"]["title"] == "待汇总需求 1 条"
     # D57⑧：平台审待办归业务运营员（正向部门审通过 + 反向部门审通过共用平台档），
@@ -142,7 +167,8 @@ def test_busiaudit_workbench_todos_are_operator_duties(temp_db: Path) -> None:
 
 def test_g4_action_summary_is_typed_action_sentence(temp_db: Path) -> None:
     _seed_backlog()
-    out = enrich_workbench_backlog({"todos": []}, "ROLE_BUSIAUDIT", tenant_id=TENANT)
+    # 含一条逐单受理待办 → 办理建议应拼出「N 条申请待受理」分句。
+    out = enrich_workbench_backlog({"todos": [_accept_todo("app-sub-1")]}, "ROLE_BUSIAUDIT", tenant_id=TENANT)
     summary = out["aiSummary"]["summary"]
     assert "条申请待受理" in summary
     assert "个目录待发布" in summary
@@ -167,11 +193,38 @@ def test_demand_not_miscounted_as_application(temp_db: Path) -> None:
 
 
 def test_busiaudit_empty_backlog_is_honest_empty(temp_db: Path) -> None:
-    base = {"todos": [{"id": "stale", "title": "陈旧待办"}], "subtitle": "x", "aiSummary": {}, "highlights": []}
+    # 无 sync 受理待办（todos 空）+ 空库 → 增量后仍为空，诚实空态。
+    base: dict[str, Any] = {"todos": [], "subtitle": "x", "aiSummary": {}, "highlights": []}
     out = enrich_workbench_backlog(base, "ROLE_BUSIAUDIT", tenant_id=TENANT)
     assert out["todos"] == []
     assert "没有待办积压" in out["subtitle"]
     assert "没有待办积压" in out["aiSummary"]["summary"]
+
+
+def test_busiaudit_augments_keeps_accept_todos_no_application_double(temp_db: Path) -> None:
+    """BUSIAUDIT enrich 改增量：逐单受理待办（携 action）存活、聚合「待受理申请」不重复双算，
+    其余聚合候选（发布/异议/督办/需求/平台审）作深链待办保留。"""
+    _seed_backlog()  # 1 条 submitted 申请 → 聚合「待受理申请」count=1
+    # sync 已逐单投 2 条受理待办（携行内决策 action）。
+    base: dict[str, Any] = {
+        "todos": [_accept_todo("app-sub-1", conditional=True), _accept_todo("app-sub-2")],
+        "subtitle": "陈旧",
+    }
+    out = enrich_workbench_backlog(base, "ROLE_BUSIAUDIT", tenant_id=TENANT)
+    todos = {t["id"]: t for t in out["todos"]}
+    # 逐单受理待办存活且仍携 action（行内可办理的唯一载体）。
+    assert todos["app-sub-1"]["action"]["capability"] == "application.platform_approve"
+    assert todos["app-sub-2"]["action"]["capability"] == "approval.case.decide"
+    # 聚合「待受理申请」候选被剔除——避免与逐单受理待办双算。
+    assert "backlog-application" not in todos
+    # 其余聚合候选保留（category=backlog）。异议受理经 M5 re-grain 为行内 decision-list（经 BUSIAUDIT
+    # 增量 enrich 存活）；督办/需求汇总未 re-grain（多步）仍为深链、不带 action。G4 行动分句叫 actionClause。
+    assert todos["backlog-objection"]["category"] == "backlog"
+    assert todos["backlog-demand"]["category"] == "backlog"
+    assert todos["backlog-objection"]["action"]["kind"] == "decision-list"
+    assert todos["backlog-objection"]["action"]["items"][0]["capability"] == "objection.case.accept"
+    assert "action" not in todos["backlog-demand"]
+    assert isinstance(todos["backlog-demand"]["actionClause"], str)
 
 
 def test_operater_keeps_progress_todos_with_honest_advice(temp_db: Path) -> None:
@@ -267,3 +320,174 @@ def test_backlog_todos_count_matches_repo(temp_db: Path) -> None:
     assert str(n_res_pub) in todos["backlog-resource-publish"]["title"]
     n_obj = len(ObjectionRepository().list_cases(tenant_id=TENANT, status="submitted"))
     assert str(n_obj) in todos["backlog-objection"]["title"]
+
+
+# ── M5 行内决策（decision-list 载荷）守卫 ─────────────────────────────────────
+# 每条 re-grain 待办 = count 头条（title/href/actionClause 不变）+ action.kind=="decision-list"，
+# items 逐条枚举真实实体（非计数），每项带正确 capability/gate/basePayload/decisions。
+# 不 re-grain 的三类（督办/需求/服务审核）保 count + href、**无** action。零积压不投。
+
+_SEED_OWNER = "11370000MB284651XL"
+
+
+def _decision_labels(item: dict) -> list[str]:
+    return [d["label"] for d in item["decisions"]]
+
+
+def test_busiaudit_publish_todos_carry_decision_list_action(temp_db: Path) -> None:
+    """待发布目录 / 待发布资源 re-grain 为 decision-list：逐实体 + 发布单决策。"""
+    _seed_backlog()
+    out = enrich_workbench_backlog({"todos": []}, "ROLE_BUSIAUDIT", tenant_id=TENANT)
+    todos = {t["id"]: t for t in out["todos"]}
+
+    cat = todos["backlog-catalog-publish"]
+    assert cat["title"] == "待发布目录 1 条"  # count 头条不变
+    assert cat["href"].startswith("#/")  # href 兜底保留
+    assert cat["action"]["kind"] == "decision-list"
+    items = cat["action"]["items"]
+    assert [i["id"] for i in items] == ["cat-pub-1"]  # 枚举真实体而非计数
+    assert items[0]["capability"] == "catalog.entry.publish"
+    assert items[0]["gate"] == "catalog.entry.publish"
+    assert items[0]["basePayload"] == {"catalog_code": "cat-pub-1"}
+    assert _decision_labels(items[0]) == ["发布"]
+    assert items[0]["label"] == "待发布目录甲"
+    assert items[0]["context"] == [{"label": "目录", "value": "待发布目录甲"}]
+
+    res = todos["backlog-resource-publish"]
+    res_item = res["action"]["items"][0]
+    assert res_item["capability"] == "resource.asset.publish"
+    assert res_item["basePayload"] == {"resource_code": "res-pub-1"}
+    assert _decision_labels(res_item) == ["发布"]
+
+
+def test_busiaudit_platform_review_todo_carries_approve_reject(temp_db: Path) -> None:
+    """待平台审核目录 re-grain：通过(approve)/驳回(reject+reason) 双决策，capability=catalog.entry.review。"""
+    _seed_backlog()
+    out = enrich_workbench_backlog({"todos": []}, "ROLE_BUSIAUDIT", tenant_id=TENANT)
+    todos = {t["id"]: t for t in out["todos"]}
+    action = todos["backlog-catalog-platform-review"]["action"]
+    assert action["kind"] == "decision-list"
+    item = action["items"][0]
+    assert item["id"] == "cat-platform-1"
+    assert item["capability"] == "catalog.entry.review"
+    assert item["basePayload"] == {"catalog_code": "cat-platform-1"}
+    approve, reject = item["decisions"]
+    assert approve["payload"] == {"decision": "approve"} and approve["tone"] == "primary"
+    assert reject["payload"] == {"decision": "reject"} and reject["tone"] == "danger"
+    assert reject["needsReason"] is True and reject["reasonKey"] == "reason"
+
+
+def test_busiaudit_objection_todo_carries_accept_decision(temp_db: Path) -> None:
+    """待受理异议 re-grain：受理单决策，capability=objection.case.accept，basePayload.objection_id。"""
+    _seed_backlog()
+    out = enrich_workbench_backlog({"todos": []}, "ROLE_BUSIAUDIT", tenant_id=TENANT)
+    todos = {t["id"]: t for t in out["todos"]}
+    item = todos["backlog-objection"]["action"]["items"][0]
+    assert item["capability"] == "objection.case.accept"
+    assert set(item["basePayload"]) == {"objection_id"}
+    assert item["basePayload"]["objection_id"]  # 真实 case id（uuid）
+    assert _decision_labels(item) == ["受理"]
+    # context 用 case 暴露字段（责任单位/事项），缺失跳过——此处 provider/target 均有值。
+    ctx_labels = [r["label"] for r in item["context"]]
+    assert "责任单位" in ctx_labels
+
+
+def test_busiaudit_non_regrained_todos_have_no_action(temp_db: Path) -> None:
+    """督办/需求汇总不 re-grain：保 count + href，**无** action（多步，留兜底深链）。"""
+    _seed_backlog()
+    # 事件式督办：在非终态 case 上加 escalate 过程事件即进督办队列（不改 case.status）。
+    obj = ObjectionRepository()
+    case = obj.list_cases(tenant_id=TENANT, status="submitted")[0]
+    obj.add_process(case.id, node_name="升级督办", action_type="escalate", action_result="pass")
+    out = enrich_workbench_backlog({"todos": []}, "ROLE_BUSIAUDIT", tenant_id=TENANT)
+    todos = {t["id"]: t for t in out["todos"]}
+    assert "action" not in todos["backlog-objection-supervised"]
+    assert todos["backlog-objection-supervised"]["href"]
+    assert "action" not in todos["backlog-demand"]
+    assert todos["backlog-demand"]["href"]
+
+
+def test_application_aggregate_not_regrained(temp_db: Path) -> None:
+    """待受理申请不 re-grain（受理面跨多角色 + 申请单一事实源在 sync）：原始聚合保 count + href、无 action。
+    注：BUSIAUDIT enrich 会进一步**剔除**该聚合项（逐单受理待办已覆盖，见
+    test_busiaudit_augments_keeps_accept_todos_no_application_double），故在 _backlog_todos 原始层断言。"""
+    _seed_backlog()
+    todos = {t["id"]: t for t in _backlog_todos(TENANT)}
+    assert "action" not in todos["backlog-application"]
+    assert todos["backlog-application"]["href"]
+
+
+def test_zero_count_regrained_types_emit_nothing(temp_db: Path) -> None:
+    """零积压不投待办（含 re-grain 类型）——空库下 BUSIAUDIT todos 全空，无空死链/空 decision-list。"""
+    out = enrich_workbench_backlog({"todos": []}, "ROLE_BUSIAUDIT", tenant_id=TENANT)
+    assert out["todos"] == []
+
+
+def test_manager_review_todos_carry_decision_list_with_right_caps(temp_db: Path) -> None:
+    """MANAGER 三类审核 re-grain：目录审核(approve/reject) / 反向草稿(confirm·reject 覆盖) /
+    挂接资源(approve/return_for_fix)，capability/gate/basePayload/reasonKey 与 CTA 页一致。"""
+    _seed_backlog()
+    out = enrich_workbench_backlog({"todos": []}, "ROLE_ORGAN_MANAGER", tenant_id=TENANT)
+    todos = {t["id"]: t for t in out["todos"]}
+
+    # 待审核目录
+    cat = todos["backlog-catalog-dept-review"]["action"]
+    assert cat["kind"] == "decision-list"
+    assert {i["id"] for i in cat["items"]} == {"cat-rev-1", "cat-rev-2"}
+    assert all(i["capability"] == "catalog.entry.review" for i in cat["items"])
+    assert _decision_labels(cat["items"][0]) == ["通过", "驳回"]
+
+    # 待审核反向编目草稿（item 级 capability=confirm，决策逐项覆盖 confirm/reject）
+    rev = todos["backlog-reverse-draft-review"]["action"]
+    rev_item = rev["items"][0]
+    assert rev_item["id"] == "cat-reverse-draft-1"
+    assert rev_item["capability"] == "catalog.entry.reverse_draft.confirm"
+    confirm, reject = rev_item["decisions"]
+    assert confirm["capability"] == "catalog.entry.reverse_draft.confirm"
+    assert reject["capability"] == "catalog.entry.reverse_draft.reject"
+    assert reject["reasonKey"] == "reject_reason" and reject["needsReason"] is True
+
+    # 待审核挂接资源（resource.asset.review，驳回 = return_for_fix + reason）
+    hk = todos["backlog-hookup-review"]["action"]
+    hk_item = hk["items"][0]
+    assert hk_item["id"] == "res-rev-1"
+    assert hk_item["capability"] == "resource.asset.review"
+    assert hk_item["basePayload"] == {"resource_code": "res-rev-1"}
+    _, hk_reject = hk_item["decisions"]
+    assert hk_reject["payload"] == {"decision": "return_for_fix"}
+    assert hk_reject["reasonKey"] == "reason" and hk_reject["needsReason"] is True
+
+
+def test_manager_service_review_todo_has_no_action(temp_db: Path) -> None:
+    """待审核服务不 re-grain（向导多步）：保 count + href、无 action。"""
+    _seed_backlog()
+    out = enrich_workbench_backlog({"todos": []}, "ROLE_ORGAN_MANAGER", tenant_id=TENANT)
+    todos = {t["id"]: t for t in out["todos"]}
+    assert "action" not in todos["backlog-api-review"]
+    assert todos["backlog-api-review"]["href"]
+
+
+def test_manager_m8_filter_applies_to_decision_list_items(temp_db: Path) -> None:
+    """M8 部门隔离对**行内 item 列表**生效（不只对计数）——越界实体不漏进 decision-list。
+
+    seed owner=_SEED_OWNER；visible_org_codes 不含它（非空集，fail-closed 到域外）→ 三类
+    审核待办全部不投（count=0、无空死链）。含它时 → 正常 re-grain 出实体。
+    """
+    _seed_backlog()
+    out_of_scope = {"only-other-org"}
+    out = enrich_workbench_backlog(
+        {"todos": []}, "ROLE_ORGAN_MANAGER", tenant_id=TENANT, visible_org_codes=out_of_scope
+    )
+    ids = {t["id"] for t in out["todos"]}
+    assert "backlog-catalog-dept-review" not in ids
+    assert "backlog-reverse-draft-review" not in ids
+    assert "backlog-hookup-review" not in ids
+
+    in_scope = {_SEED_OWNER}
+    out2 = enrich_workbench_backlog(
+        {"todos": []}, "ROLE_ORGAN_MANAGER", tenant_id=TENANT, visible_org_codes=in_scope
+    )
+    todos2 = {t["id"]: t for t in out2["todos"]}
+    cat_items = todos2["backlog-catalog-dept-review"]["action"]["items"]
+    assert {i["id"] for i in cat_items} == {"cat-rev-1", "cat-rev-2"}
+    assert all(i["basePayload"]["catalog_code"] in {"cat-rev-1", "cat-rev-2"} for i in cat_items)

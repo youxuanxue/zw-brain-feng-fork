@@ -93,7 +93,11 @@ test.describe('客户验收 — 部门操作员 J1', () => {
     // API/未知=「查看授权」、文件=「下载」、库表=「核对交换结果」（交换任务语系）。
     await setRole(page, 'ROLE_ORGAN_MANAGER');
     await gotoHash(page, '#/delivery-exchange');
-    await expect(page.getByRole('heading', { name: '交付任务' })).toBeVisible();
+    // IA 重构（拆「办申请」）：P4Delivery 升级为「领数据」一站入口——页头 h1=「领数据」，
+    // 「交付任务」由独立页降为页内视图 tab（p4-view-tasks / p4-pane-tasks）。先切到交付任务视图。
+    await expect(page.getByRole('heading', { name: '领数据' })).toBeVisible();
+    await page.getByTestId('p4-view-tasks').click();
+    await expect(page.getByTestId('p4-pane-tasks')).toBeVisible();
     const taskLink = page.locator('a[href*="#/delivery-exchange/task/"]').first();
     await expect(taskLink).toBeVisible({ timeout: 8_000 });
     const href = await taskLink.getAttribute('href');
@@ -181,9 +185,18 @@ test.describe('客户验收 — 业务运营 P5 发布', () => {
     await setRole(page, 'ROLE_BUSIAUDIT');
   });
 
-  test('P5 待发布目录发布 + duplicate_warnings 字段', async ({ page }) => {
-    await gotoHash(page, '#/provider');
-    const btn = page.getByTestId('publish-catalog-btn').first();
+  test('工作台待发布目录行内发布 + duplicate_warnings 字段', async ({ page }) => {
+    // 发布统一收口工作台行内（供数据页旧发布队列退役）；契约不变：响应含 duplicate_warnings。
+    await gotoHash(page, '#/workbench');
+    const todo = page.getByTestId('workbench-todo').filter({ hasText: '待发布目录' });
+    await expect(todo).toHaveCount(1, { timeout: 12_000 });
+    await todo.getByTestId('workbench-todo-expand').click();
+    const btn = page
+      .getByTestId('workbench-decision-item')
+      .first()
+      .getByTestId('workbench-todo-decision')
+      .filter({ hasText: '发布' })
+      .first();
     await expect(btn).toBeVisible({ timeout: 12_000 });
     const respPromise = page.waitForResponse(
       (r) => r.url().includes('/api/skills/catalog.entry.publish') && r.ok(),

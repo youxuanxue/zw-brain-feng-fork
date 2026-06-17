@@ -13,9 +13,11 @@ from typing import Any
 # 角色码（D55/P16 安全管理员退役后 5 业务角色）：ROLE_ORGAN_OPERATER / ROLE_ORGAN_MANAGER / ROLE_BUSIAUDIT / ROLE_SECURITY_AUDIT / ROLE_SYSTEM
 # D55/P17：安全审计员非数据使用方（v5 无找数据），收敛纯只读监督者后退出找数据预载。
 _DISCOVERY = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"})
-# ROLE_BUSIAUDIT：j1-credential-revoke 决策 A —— 业务运营员合规收回/暂停授权需在 P3 申请详情
-# 操作，故须能预载 requests（与 productShellNav「办共享申请」shell 对齐）；否则 shell 进得去但
-# 申请列表/详情空（lookupRequest → 未找到该申请），合规撤回入口不可达。
+# 「办申请」独立导航解体（IA 重构）：我的申请 / 我的授权并入「领数据」(P4Delivery)，
+# 受理/审核详情等子路由保留为深链目标。requests/approvals 预载随之跟随新归属——
+# 领数据消费方（操作员 + 管理员）需预载我的申请/我的授权；ROLE_BUSIAUDIT 仍需预载
+# requests：①受理详情(P3ReviewDetail，子路由深链)；②j1-credential-revoke 决策 A
+# 合规收回/暂停授权（P3RequestDetail）。否则 shell/深链进得去但申请列表空、入口不可达。
 _REQUEST = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"})
 # D55/P18：安全审计员退出领数据（delivery_tasks 快照裁剪对齐）
 # 0605 复审收口：交付面=操作员+管理员（D53⑥ 业务运营员无交付场景；D55/P13 加操作员、P18 去审计员）。

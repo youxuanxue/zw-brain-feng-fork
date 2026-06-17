@@ -7,7 +7,6 @@ import P2Discovery from '@/pages/P2Discovery.vue';
 import P2ResourceDetail from '@/pages/P2ResourceDetail.vue';
 import P2CatalogBrowse from '@/pages/P2CatalogBrowse.vue';
 import P2CatalogDetail from '@/pages/P2CatalogDetail.vue';
-import P3RequestFlow from '@/pages/P3RequestFlow.vue';
 import P3RequestDetail from '@/pages/P3RequestDetail.vue';
 import P3ReviewDetail from '@/pages/P3ReviewDetail.vue';
 import P3ObjectionInbox from '@/pages/P3ObjectionInbox.vue';
@@ -61,7 +60,10 @@ const routes: RouteRecordRaw[] = [
   { path: '/discovery/catalog/:code', component: P2CatalogDetail, meta: { page: 'P2', title: 'P2 目录详情' } },
 
   // P3 申请 / 审批 / 跟踪
-  { path: '/request-flow', name: 'P3-request-flow', component: P3RequestFlow, meta: { page: 'P3', title: 'P3 申请 · 审批 · 跟踪' } },
+  // 「办申请」列表页与导航项解体（IA 重构）：列表根重定向到「领数据」（消费方「我的数据」一站式入口，
+  // 我的申请 / 我的授权已并入 P4Delivery）；子路由保留为深链目标（详情 / 受理审核 / 异议 / 供需），
+  // 角色门见 pageAccess.ts ROUTE_ROLE_OVERRIDES。
+  { path: '/request-flow', redirect: '/delivery-exchange' },
   { path: '/request-flow/request/:id', component: P3RequestDetail, meta: { page: 'P3', title: 'P3 申请详情' } },
   { path: '/request-flow/review/:id', component: P3ReviewDetail, meta: { page: 'P3', title: 'P3 审批详情' } },
   { path: '/request-flow/objection', component: P3ObjectionInbox, meta: { page: 'P3', title: 'P3 我的异议' } },

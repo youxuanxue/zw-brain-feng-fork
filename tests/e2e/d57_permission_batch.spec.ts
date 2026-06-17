@@ -115,9 +115,11 @@ test.describe('D57 权限批次走查', () => {
     const reqId = decodeURIComponent(page.url().split('/request-flow/request/')[1] ?? '').split('?')[0];
     expect(reqId, '管理员发起申请应落草稿并跳详情').toBeTruthy();
 
-    // 三分栏不混：办申请页对管理员有「我的申请」与审核队列的清晰分栏（不把待审件混进我的申请）。
-    await gotoHash(page, '#/request-flow');
-    await expect(page.locator('body')).toContainText('我的申请', { timeout: 15_000 });
+    // IA 重构（拆「办申请」）：消费方「我的申请」归并领数据（#/delivery-exchange）；管理员作为申请人
+    // 在领数据见「我的申请」视图（视图只回答一个问题，受理/审核已迁工作台行内、不混进我的申请）。
+    await gotoHash(page, '#/delivery-exchange');
+    await expect(page.getByTestId('p4-view-mine')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('p4-pane-mine')).toBeVisible();
   });
 
   test('A6 挂接审核去盲批：被审详情可见、关联资源/目录名非「—」、驳回带理由点到底', async ({ page, playwright }) => {

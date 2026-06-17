@@ -25,8 +25,11 @@ export async function waitAppReady(page: Page): Promise<void> {
   if (await loginBtn.isVisible().catch(() => false)) {
     await loginBtn.click();
   }
-  await page.waitForSelector('.user-menu-button', { timeout: 30_000 });
-  await page.waitForSelector('#role-switch', { timeout: 30_000 });
+  // 每个用例 = 新浏览器上下文 → 冷启动一次会话装载（dev-bypass-login + 首拉 snapshot）；
+  // 真库副本（134MB）+ 同步审计写在慢环境（worktree）偶尔 >30s 致 #role-switch 迟显、setup 假超时。
+  // 抬到 60s 给冷启动余量（快环境/CI 仍秒级返回，不拖慢正常路径），消除 session-init 计时脆性。
+  await page.waitForSelector('.user-menu-button', { timeout: 60_000 });
+  await page.waitForSelector('#role-switch', { timeout: 60_000 });
 }
 
 export async function setRole(page: Page, role: string): Promise<void> {
@@ -58,6 +61,26 @@ export async function gotoHash(page: Page, hash: string): Promise<void> {
   // differ by design. Callers assert on the resulting DOM / url. Detail views
   // fetch on mount; let the route's data settle (bounded).
   await page.waitForLoadState('networkidle', { timeout: 4_000 }).catch(() => undefined);
+}
+
+/** 工作台行内发布（业务运营员）：切 BUSIAUDIT → #/workbench → 展开积压卡 → 点该条记录「发布」→ 验「已发布」toast。
+ *  backlogTitle: '待发布目录' | '待发布资源'；itemTitle: 该记录标题（须唯一可定位）。
+ *  发布/审核等"点一下就办"的简单动作已统一收口工作台行内办理——供数据页旧办理队列已退役，
+ *  各链路的发布步骤改走本 helper（详情/多步流仍留各自收件箱）。 */
+export async function publishViaWorkbench(
+  page: Page,
+  backlogTitle: '待发布目录' | '待发布资源',
+  itemTitle: string,
+): Promise<void> {
+  await setRole(page, 'ROLE_BUSIAUDIT');
+  await gotoHash(page, '#/workbench');
+  const todo = page.getByTestId('workbench-todo').filter({ hasText: backlogTitle });
+  await expect(todo).toHaveCount(1, { timeout: 15_000 });
+  await todo.getByTestId('workbench-todo-expand').click();
+  const item = page.getByTestId('workbench-decision-item').filter({ hasText: itemTitle });
+  await expect(item.first()).toBeVisible({ timeout: 15_000 });
+  await item.first().getByTestId('workbench-todo-decision').filter({ hasText: '发布' }).first().click();
+  await expect(page.locator('.toast-stack')).toContainText('已发布', { timeout: 15_000 });
 }
 
 /** 取第一条真实存在的 catalog_code（用于异议 spec 等需要真值 ID 的场景）。 */

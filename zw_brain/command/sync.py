@@ -104,6 +104,80 @@ def sync_database_aggregates(state_store: StateStore, snapshot: dict[str, Any], 
 
 
 # ───────────────────────────────────────────────────────────────────────────
+# Inline-action payload builders — 给「简单是/否型审核待办」挂自描述决策载荷
+# （workbench inline action contract）。capability/gate 均为既有 skillId
+# （dispatch.py 已注册），不新铸标识符。
+# ───────────────────────────────────────────────────────────────────────────
+
+# 有条件共享码：dsp_catalog shared_type==2（与 catalog_entry / request handler 同源口径）。
+_CONDITIONAL_SHARE_TYPE = 2
+
+
+def _decision_context(request: dict[str, Any], shared_type: int) -> list[dict[str, str]]:
+    """组装行内决策面板的上下文行（<=6 行，源值缺失/空则跳过该行——不渲染「—」空行）。"""
+    rows: list[tuple[str, Any]] = [
+        ("资源", request.get("resourceName")),
+        ("申请人", request.get("applicant")),
+        ("用途", request.get("purpose")),
+        ("共享方式", "有条件共享" if shared_type == _CONDITIONAL_SHARE_TYPE else "无条件共享"),
+    ]
+    return [{"label": label, "value": str(value)} for label, value in rows if value]
+
+
+def _dept_approve_action(request: dict[str, Any], request_id: str) -> dict[str, Any]:
+    """部门管理员申请部门审核（dept_approved）的行内决策载荷（通过 / 驳回）。
+
+    dept_approved 仅出现在有条件共享（shared_type==2，受理后转部门审）链路，故要点行
+    照 ``_decision_context`` 现算（资源/申请人/用途/共享方式）——审批人展开即见「在审什么」，
+    不必跳详情页读六行字。
+    """
+    capability = "application.dept_approve"
+    shared_type = int(request.get("shared_type", request.get("sharedType", 0)) or 0)
+    return {
+        "kind": "decision",
+        "capability": capability,
+        "gate": capability,
+        "basePayload": {"request_id": request_id},
+        "context": _decision_context(request, shared_type),
+        "decisions": [
+            {"label": "审核通过", "tone": "primary", "success": "审核通过（已授权）", "payload": {"decision": "approve"}},
+            {"label": "驳回", "tone": "danger", "success": "部门审核驳回", "payload": {"decision": "reject"}},
+        ],
+    }
+
+
+def _accept_action(request: dict[str, Any], request_id: str) -> dict[str, Any]:
+    """业务运营员申请受理的行内决策载荷，按 shared_type 选 capability 与决策集.
+
+    有条件共享（shared_type==2，受理后待部门审）→ application.platform_approve（受理/驳回）；
+    无条件共享（受理即终）→ approval.case.decide（受理通过/退回补正/驳回）。
+    """
+    shared_type = int(request.get("shared_type", request.get("sharedType", 0)) or 0)
+    context = _decision_context(request, shared_type)
+    if shared_type == _CONDITIONAL_SHARE_TYPE:
+        capability = "application.platform_approve"
+        decisions = [
+            {"label": "受理", "tone": "primary", "success": "已受理（待部门审核）", "payload": {"decision": "approve"}},
+            {"label": "驳回", "tone": "danger", "success": "受理驳回", "payload": {"decision": "reject"}},
+        ]
+    else:
+        capability = "approval.case.decide"
+        decisions = [
+            {"label": "受理通过", "tone": "primary", "success": "已通过", "payload": {"decision": "approve"}},
+            {"label": "退回补正", "tone": "secondary", "success": "已退回补正", "payload": {"decision": "return_for_fix"}},
+            {"label": "驳回", "tone": "danger", "success": "已驳回", "payload": {"decision": "reject"}},
+        ]
+    return {
+        "kind": "decision",
+        "capability": capability,
+        "gate": capability,
+        "basePayload": {"request_id": request_id},
+        "context": context,
+        "decisions": decisions,
+    }
+
+
+# ───────────────────────────────────────────────────────────────────────────
 # Projection sync helpers — Action H: snapshot dict + status_text callback,
 # no BrainService reference.
 # ───────────────────────────────────────────────────────────────────────────
@@ -154,6 +228,9 @@ def sync_request_todos(
             category="apply-progress",
         )
         # 第一级受理（业务运营员）：申请进入受理态（submitted/pending）→ 受理待办，深链受理详情。
+        # 挂行内决策载荷（受理/驳回，按 shared_type 选 capability），供前端展开成内联受理面板。
+        # upsert-only 会让状态流转后旧待办滞留：单据离开受理态（如已受理转 dept_approved）须**剔除**
+        # BUSIAUDIT accept 待办，否则行内 action 仍可点 → 对已流转单据再发 platform_approve 报错。
         if status in _accept_statuses:
             demo_state_sync.upsert_todo(
                 snapshot,
@@ -162,8 +239,12 @@ def sync_request_todos(
                 status_text(request, "reviewer"),
                 f"#/request-flow/review/{request_id}",
                 category="accept",
+                action=_accept_action(request, request_id),
             )
+        else:
+            demo_state_sync.remove_todo(snapshot, "ROLE_BUSIAUDIT", request_id, category="accept")
         # 第二级部门审核（部门管理员）：仅受理通过待部门审（dept_approved）才投，深链审核详情。
+        # 挂行内决策载荷（审核通过/驳回），供前端展开成内联部门审核面板；离开 dept_approved 须剔除。
         if status == "dept_approved":
             demo_state_sync.upsert_todo(
                 snapshot,
@@ -172,7 +253,10 @@ def sync_request_todos(
                 status_text(request, "reviewer"),
                 f"#/request-flow/review/{request_id}",
                 category="review",
+                action=_dept_approve_action(request, request_id),
             )
+        else:
+            demo_state_sync.remove_todo(snapshot, "ROLE_ORGAN_MANAGER", request_id, category="review")
         if request["status"] in {"supplementing", "summary-pending", "completed", "need-fix"}:
             demo_state_sync.upsert_todo(
                 snapshot,
@@ -190,6 +274,9 @@ def sync_request_todos(
                 f"#/request-flow/request/{request_id}",
                 category="supplement-village",
             )
+        else:
+            demo_state_sync.remove_todo(snapshot, "ROLE_ORGAN_OPERATER", request_id, category="supplement-township")
+            demo_state_sync.remove_todo(snapshot, "ROLE_ORGAN_OPERATER", request_id, category="supplement-village")
         if request["status"] in {"pending", "summary-pending", "completed", "need-fix", "rejected"}:
             demo_state_sync.upsert_todo(
                 snapshot,
@@ -199,6 +286,8 @@ def sync_request_todos(
                 f"#/request-flow/review/{request_id}",
                 category="summary",
             )
+        else:
+            demo_state_sync.remove_todo(snapshot, "ROLE_ORGAN_MANAGER", request_id, category="summary")
 
 
 def sync_state_views(

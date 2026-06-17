@@ -2,21 +2,27 @@ import { test, expect } from '@playwright/test';
 import { gotoHash, setRole, skipUnlessBackend, waitAppReady, E2E_BASE_URL } from './helpers';
 
 /**
- * 缺陷 2（0604 客户试用反馈）守卫：业务运营员工作台「今日待办」零死端 + 真实库现算.
+ * 业务运营员工作台 · 待办零死端 + 真实库现算（行内办理收口后更新）.
  *
  * 守护点：
- *   - 业务运营员（ROLE_BUSIAUDIT）的每条待办都是**可点的深链**（<a href>，非纯文本死项）。
- *   - 点击任一待办**落到可办理页面**（非 404、非原地不动；目标 shell 渲染出来）。
- *   - 待办数据**从真实库现算**（待发布目录/资源 + 待受理申请/异议 + 待汇总需求），与
- *     catalog.entry.query / resource.asset.query / 申请态的真实积压一致，而非 seed 写死文案。
- *   - 业务运营员真实职责 = **发布 / 受理 / 汇总**；审核（目录/资源审批）属部门管理员，
- *     **不**进业务运营员工作台（E2，0605 反馈 6.4#11 + D53）。
+ *   - 每条待办**或为可点深链**（聚合背包，<a href>）**或为行内可办**（per-application 受理，
+ *     携 `action` 决策载荷 → 展开就地办、不跳出 #/workbench）——不存在「有标题无去处」死项。
+ *   - 深链待办点击**落到可办理页面**（非 404、非原地不动；目标 shell 渲染出来）。
+ *   - 行内待办展开出**决策面板**、**仍停在 #/workbench**（就地办、不跳走）——工作台收口
+ *     受理/审核动作后的核心契约（反转旧「待办必跳走」断言）。
+ *   - 待办数据**从真实库现算**；审核（目录/资源审批）属部门管理员，不进业务运营员工作台（E2，D53）。
  */
 
 interface WorkbenchTodo {
   id: string;
   title: string;
   href?: string;
+  // 行内自描述决策载荷（per-application 受理待办携带）；聚合背包待办无此字段。
+  action?: { capability?: string } | null;
+}
+
+function isInline(t: WorkbenchTodo): boolean {
+  return !!t.action && typeof t.action === 'object';
 }
 
 async function fetchWorkbench(
@@ -44,48 +50,69 @@ async function countCatalog(
   return Number(body.total ?? -1);
 }
 
-test.describe('业务运营员工作台 · 待办零死端 + 真实库现算', () => {
+test.describe('业务运营员工作台 · 待办零死端（行内办理 + 深链）+ 真实库现算', () => {
   test.beforeEach(async ({ page }, testInfo) => {
     await skipUnlessBackend(page, testInfo);
     await page.goto('/');
     await waitAppReady(page);
   });
 
-  test('每条待办可点深链 + 落到可办理页面', async ({ page }) => {
+  test('每条待办或深链或行内可办 + 落到可办理处 / 就地展开', async ({ page }) => {
     const wb = await fetchWorkbench(page, 'ROLE_BUSIAUDIT');
     test.skip(!wb, 'workbench.view unreachable');
     const todos = wb!.todos ?? [];
     test.skip(todos.length === 0, 'no real backlog todos for business operator in this DB');
 
-    // 每条待办都必须带深链（href），不存在「有标题无去处」的死项。
-    for (const t of todos) {
-      expect(t.href, `todo ${t.title} must carry a deep link`).toBeTruthy();
+    const inline = todos.filter(isInline);
+    const linked = todos.filter((t) => !isInline(t));
+
+    // 无死项：深链待办带 hash 深链；行内待办带决策能力。
+    for (const t of linked) {
+      expect(t.href, `linked todo ${t.title} must carry a deep link`).toBeTruthy();
       expect(String(t.href).startsWith('#/'), `todo href is a hash route: ${t.href}`).toBeTruthy();
     }
+    for (const t of inline) {
+      expect(t.action!.capability, `inline todo ${t.title} must carry a decision capability`).toBeTruthy();
+    }
 
-    // UI 侧：业务运营员工作台每条待办渲染为可点 <a>。
     await setRole(page, 'ROLE_BUSIAUDIT');
     await gotoHash(page, '#/workbench');
-    const links = page.locator('[data-testid="workbench-todo-link"]');
-    await expect(links.first()).toBeVisible();
-    expect(await links.count()).toBe(todos.length);
 
-    // 遍历每条待办：点进去落到可办理页（shell 渲染、非 404 空壳、非停在工作台）。
-    for (let i = 0; i < todos.length; i++) {
-      const todo = todos[i];
+    // 深链待办渲染为可点链接；行内待办渲染为「展开办理」按钮。计数对齐分区（无遗漏、无错配）。
+    const links = page.locator('[data-testid="workbench-todo-link"]');
+    const expanders = page.locator('[data-testid="workbench-todo-expand"]');
+    if (linked.length) await expect(links.first()).toBeVisible();
+    expect(await links.count()).toBe(linked.length);
+    expect(await expanders.count()).toBe(inline.length);
+
+    // 深链待办：逐条点进去落到可办理页（路由真的变、main 渲染、非 404 空壳）。
+    for (let i = 0; i < linked.length; i++) {
+      const todo = linked[i];
       await setRole(page, 'ROLE_BUSIAUDIT');
       await gotoHash(page, '#/workbench');
       const link = page.locator('[data-testid="workbench-todo-link"]').nth(i);
       await expect(link).toBeVisible();
       await link.click();
-      // 目标页是 provider / request-flow shell——断言路由真的变了（非原地不动）
-      // 且页面主区渲染出来（main.focus-page 存在、非 404 文案）。
       await page.waitForLoadState('networkidle', { timeout: 4_000 }).catch(() => undefined);
       const hash = await page.evaluate(() => window.location.hash);
-      expect(hash, `todo "${todo.title}" navigated away from workbench`).not.toBe('#/workbench');
+      expect(hash, `linked todo "${todo.title}" navigated away from workbench`).not.toBe('#/workbench');
       expect(hash.startsWith(String(todo.href).split('?')[0])).toBeTruthy();
       await expect(page.locator('main.focus-page')).toBeVisible();
       await expect(page.getByText('not_found')).toHaveCount(0);
+    }
+
+    // 行内待办（若有）：展开出决策面板、仍停在 #/workbench（就地办、不跳出工作台）。
+    if (inline.length) {
+      await setRole(page, 'ROLE_BUSIAUDIT');
+      await gotoHash(page, '#/workbench');
+      const expander = page.locator('[data-testid="workbench-todo-expand"]').first();
+      await expect(expander).toBeVisible();
+      await expander.click();
+      await expect(
+        page.locator('[data-testid="workbench-todo-action-panel"]').first(),
+      ).toBeVisible();
+      const hash = await page.evaluate(() => window.location.hash);
+      expect(hash, '行内待办展开不应跳出 #/workbench（就地办理契约）').toBe('#/workbench');
     }
   });
 

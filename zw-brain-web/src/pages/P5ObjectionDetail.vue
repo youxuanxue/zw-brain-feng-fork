@@ -11,6 +11,7 @@ import { mapDetailRows } from '@/lib/detailDisplay';
 import { formatTodoStatus } from '@/lib/statusLabels';
 import { getProductRole } from '@/composables/useProductRole';
 import { canPerformAction } from '@/lib/pageAccess';
+import { acceptObjectionCase } from '@/lib/objectionActions';
 
 interface TimelineStep { stage: string; status: string; label: string; holder?: string }
 
@@ -76,12 +77,7 @@ const headerMeta = computed(() => {
 });
 
 async function acceptCase() {
-  await invokeActionStub({
-    skillId: 'objection.case.accept',
-    payload: { objection_id: id.value },
-    successTitle: '异议已受理，进入核查',
-    refreshSnapshotAfter: true,
-  });
+  await acceptObjectionCase(id.value);
 }
 
 async function submitReply() {

@@ -1,0 +1,7 @@
+scope: workbench-inline-and-request-flow-dissolution
+signed_by: 产品研发负责人（薛娇）
+date: 2026-06-16
+kind: 决策签字
+evidence: 会话内 GATE 批准（2026-06-16，「两件一起、本轮全做完」）—— 拆「办申请」旅程级 IA 变更（删导航/列表页、我的申请/授权归并领数据、子路由保深链）+ 工作台行内决策（受理/审核就地办，反转 workbench_backlog_projection「无新页面、无新流转」投影契约）；全文 docs/decisions/workbench-inline-action-and-request-flow-dissolution-impl.md / workbench-action-inline-consolidation-analysis.md
+decision_only: true
+covers: []

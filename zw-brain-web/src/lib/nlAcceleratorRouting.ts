@@ -73,7 +73,8 @@ async function parseP2(query: string, role: string): Promise<NLAcceleratorParseR
   const searchQ = deriveP2SearchQuery(query, data);
 
   if (data.intent === 'query_application') {
-    actions.push({ kind: 'navigate', label: '查看在途申请', target: '#/request-flow' });
+    // 「办申请」导航解体后「我的申请」并入领数据（P4Delivery「我的申请」tab）。
+    actions.push({ kind: 'navigate', label: '查看在途申请', target: '#/delivery-exchange' });
   } else if (data.intent === 'register_demand') {
     actions.push({ kind: 'navigate', label: '登记找不到的数据', target: '#/request-flow/supply-demand' });
   } else if (searchQ) {

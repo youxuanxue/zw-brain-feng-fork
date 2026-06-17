@@ -2,11 +2,11 @@
 import { computed } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
-import { invokeActionStub } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { canPerformAction } from '@/lib/pageAccess';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 import { formatObjectionType } from '@/lib/objectionLabels';
+import { acceptObjectionCase } from '@/lib/objectionActions';
 import { shortId } from '@/lib/userLanguage';
 
 interface TimelineStep { stage: string; status: string; label: string; holder?: string }
@@ -52,12 +52,7 @@ const headerMeta = computed(() => {
 });
 
 async function accept(objectionId: string) {
-  await invokeActionStub({
-    skillId: 'objection.case.accept',
-    payload: { objection_id: objectionId },
-    successTitle: '异议已受理，进入核查',
-    refreshSnapshotAfter: true,
-  });
+  await acceptObjectionCase(objectionId);
 }
 </script>
 

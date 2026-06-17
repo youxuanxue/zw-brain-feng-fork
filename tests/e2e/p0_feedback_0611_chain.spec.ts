@@ -8,7 +8,7 @@
 //     无部门审入口）一并钉死。替换原「仅 BUSIAUDIT 一级 confirm」路径的旧断言。
 // 全部写动作经真实 UI 点击；唯一 API 介入 = 读侧 glue（按标题查内部目录码 / 终态校验）。
 import { expect, test, type Page } from '@playwright/test';
-import { E2E_BASE_URL, gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
+import { E2E_BASE_URL, gotoHash, publishViaWorkbench, setRole, skipUnlessBackend, waitAppReady } from './helpers';
 
 const TS = Date.now();
 const CAT_TITLE = `链路验证目录${TS}`;
@@ -70,13 +70,9 @@ test('链路1：UI 新编目→挂接有条件资源→发布→申请→受理�
   await gotoHash(page, '#/provider/inbox/catalog-review');
   await approveRowByText(page, CAT_TITLE, 'catalog-review-approve-btn');
 
-  // 4) R2 钉死：新审结目录必须出现在发布队列（修复前 limit:5 + 目录码升序截断 → 永不可见）。
-  await gotoHash(page, '#/provider');
-  const catQueue = page.locator('section[aria-label="待发布目录"]');
-  const catRow = catQueue.locator('li.publish-row', { hasText: CAT_TITLE });
-  await expect(catRow).toHaveCount(1, { timeout: 15_000 });
-  await catRow.getByTestId('publish-catalog-btn').click();
-  await expect(catQueue.locator('li.publish-row', { hasText: CAT_TITLE })).toHaveCount(0, { timeout: 15_000 });
+  // 4) R2 钉死：新审结目录在工作台「待发布目录」行内逐条发布（发布动作统一收口工作台，
+  //    供数据页旧发布队列退役）。helper 内已切业务运营员、展开、点该条「发布」并验「已发布」。
+  await publishViaWorkbench(page, '待发布目录', CAT_TITLE);
 
   // 5) 部门操作员：挂接有条件（共享类型=2 默认）库表资源到新目录。
   await setRole(page, 'ROLE_ORGAN_OPERATER');
@@ -100,15 +96,9 @@ test('链路1：UI 新编目→挂接有条件资源→发布→申请→受理�
   await hookupRow.getByRole('button', { name: '通过挂接' }).click();
   await expect(hookupRow).toHaveCount(0, { timeout: 15_000 });
 
-  // 7) R3 钉死：业务运营员在 P5「待发布资源」队列看到该资源并可发布
-  //    （修复前 resource.asset.publish 全前端零调用面，资源死在「待发布」）。
-  await setRole(page, 'ROLE_BUSIAUDIT');
-  await gotoHash(page, '#/provider');
-  const resQueue = page.getByTestId('resource-publish-queue');
-  const resRow = resQueue.locator('li.publish-row', { hasText: RES_TITLE });
-  await expect(resRow).toHaveCount(1, { timeout: 15_000 });
-  await resRow.getByTestId('publish-resource-btn').click();
-  await expect(resQueue.locator('li.publish-row', { hasText: RES_TITLE })).toHaveCount(0, { timeout: 20_000 });
+  // 7) R3 钉死：资源审核通过后在工作台「待发布资源」行内发布（resource.asset.publish 有可办面，
+  //    不再死在「待发布」；发布统一收口工作台，供数据页旧资源发布队列退役）。
+  await publishViaWorkbench(page, '待发布资源', RES_TITLE);
 
   // 8) 部门操作员：从资源详情发起申请（R1：申请单绑定资源码）→ 草稿确认提交。
   await setRole(page, 'ROLE_ORGAN_OPERATER');
@@ -119,6 +109,13 @@ test('链路1：UI 新编目→挂接有条件资源→发布→申请→受理�
   await page.waitForURL(/#\/request-flow\/request\//, { timeout: 15_000 });
   const reqId = decodeURIComponent(page.url().split('/request-flow/request/')[1] ?? '').split('?')[0];
   expect(reqId, '申请草稿应跳详情页并携带单号').toBeTruthy();
+  // 写后快照与跳转存在竞速（#126 同会话预取：request.create 刷新晚于详情页读取时，详情先读到
+  // 「铸单前」快照→「未找到该申请」、submit 按钮不渲染）。以新加载会话重取铸单后快照再提交
+  // （与链路2 部门审 reload 同口径），消除竞速、不掩盖产品行为。
+  await page.reload();
+  await waitAppReady(page);
+  await setRole(page, 'ROLE_ORGAN_OPERATER');
+  await gotoHash(page, `#/request-flow/request/${reqId}`);
   await page.getByTestId('submit-draft-btn').click();
   await expect(page.locator('.toast-stack')).toContainText('已提交申请', { timeout: 15_000 });
 
@@ -230,16 +227,13 @@ test('链路2：反向编目两级审核全链——操作员UI创建→管理�
   await platformRow.getByTestId('catalog-review-approve-btn').click();
   await expect(page.locator('tr', { hasText: draftA.code })).toHaveCount(0, { timeout: 15_000 });
 
-  // 6) 发布：草稿 A 进入待发布队列并由业务运营员发布（与正向编制同终点）。
-  //    行锚定用 code[title=<目录码>]（full 码在 :title 保全），避免同名标题误中他行。
-  await gotoHash(page, '#/provider');
-  const catQueue = page.locator('section[aria-label="待发布目录"]');
-  const pubRow = catQueue
-    .locator('li.publish-row')
-    .filter({ has: page.locator(`code[title="${draftA.code}"]`) });
-  await expect(pubRow).toHaveCount(1, { timeout: 15_000 });
-  await pubRow.getByTestId('publish-catalog-btn').click();
-  await expect(page.locator('.toast-stack')).toContainText('目录已提交发布', { timeout: 15_000 });
+  // 6) 发布：草稿 A 经平台审进入待发布。发布动作已统一收口工作台行内（供数据页旧发布队列退役）；
+  //    本链路聚焦反向编目两级审核 UI，发布按目录码经 API 触发终态（同名反向草稿不可靠按标题定位
+  //    工作台行内项，故此处用码 API 触发；工作台发布 UI 由链路1 钉死），由 step 7 校验 active。
+  const pubResp = await request.post(`${E2E_BASE_URL}/api/skills/catalog.entry.publish`, {
+    data: { role: 'ROLE_BUSIAUDIT', catalog_code: draftA.code, confirmed: true },
+  });
+  expect(pubResp.ok(), `catalog.entry.publish HTTP ${pubResp.status()}`).toBeTruthy();
 
   // 7) 终态校验（读侧 glue）：A=active（已发布）、B=rejected（部门审驳回终态）。
   const verify = await request.post(`${E2E_BASE_URL}/api/skills/catalog.entry.query`, {

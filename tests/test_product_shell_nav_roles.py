@@ -30,4 +30,5 @@ def test_role_system_sees_platform_ops_nav() -> None:
     # 保服务调用监控：平台运维员看到「服务调用监控」导航（v5 服务调用日志 = 平台运维员）。
     assert "ROLE_SYSTEM" in _roles_for_key("service-ops")
     assert "ROLE_SYSTEM" in _roles_for_key("integration-admin")
-    assert "ROLE_SYSTEM" not in _roles_for_key("request-flow")
+    # 「办申请」(request-flow) 导航项已随 IA 重构整体删除（我的申请/授权并入领数据、
+    # 受理/审核迁工作台），不再有 request-flow 导航键——平台运维员自然不可见。

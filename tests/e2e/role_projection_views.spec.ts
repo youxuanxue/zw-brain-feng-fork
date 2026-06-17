@@ -5,11 +5,16 @@ import { gotoHash, setRole, skipUnlessBackend, waitAppReady, E2E_BASE_URL } from
  * 第四组：真实导入数据呈现规范化 + 角色投影拆分（客户试用反馈 11/14 + 截图实证）。
  *
  * 守护点：
- *   - 缺陷 1：P3「办共享申请」拆三视图（我的申请 / 待我办理 / 我的授权）；待我办理无权角色不渲染。
+ *   - 缺陷 1：消费方「我的数据」拆视图（我的申请 / 我的授权）；申请人岗位（操作员/管理员）恒在，
+ *     受理岗（业务运营员）退申请人身份故不渲染。受理/审核「待我办理」已迁工作台行内办理
+ *     （IA 重构拆「办申请」），故领数据页**无**审核待办 tab——该行为由 workbench_todo_closure 覆盖，
+ *     本组只断言领数据无受理/审核 tab、不重测行内办理。
  *   - 缺陷 2：业务运营员工作台待办 = 待发布目录/资源 + 待受理申请/异议 + 待汇总需求（发布/受理/汇总
  *     真实职责；审核类属部门管理员、不入此台 — E2 / 0605 反馈 6.4#11 + D53）。
  *   - 缺陷 3：用途脏值（测试 / 167）不裸奔在需方视图；供方数据质量队列计数正确。
  *
+ * IA 重构（拆「办申请」）：消费方「我的申请 / 我的授权」由原 P3「办共享申请」列表页归并到
+ *   领数据 P4Delivery（#/delivery-exchange，testid 由 p3-* 迁 p4-*）；列表根 #/request-flow 重定向至此。
  * 投影源：zw-brain-web/src/lib/{roleProjection,dataQuality}.ts + 后端 workbench_backlog_projection.py（待办语义机制单源）
  *        + 后端 discovery_snapshot_projection / provider_snapshot_projection。
  */
@@ -21,39 +26,41 @@ test.describe('角色投影三视图 + 数据呈现规范化', () => {
     await waitAppReady(page);
   });
 
-  test('缺陷1 — 三视图分栏：我的申请/我的授权恒在；待我办理仅审批角色渲染', async ({ page }) => {
-    // 操作员（纯需方）：有「我的申请」「我的授权」，无「待我办理」（无权=不可见）。
+  test('缺陷1 — 视图分栏：申请人岗位见我的申请/我的授权；受理岗退申请人身份不渲染；领数据无审核 tab', async ({ page }) => {
+    // 操作员（申请人）：领数据见「我的申请」「我的授权」。受理/审核已迁工作台行内，本页无审核 tab。
     await setRole(page, 'ROLE_ORGAN_OPERATER');
-    await gotoHash(page, '#/request-flow');
-    await expect(page.getByTestId('p3-view-mine')).toBeVisible();
-    await expect(page.getByTestId('p3-view-grants')).toBeVisible();
-    await expect(page.getByTestId('p3-view-todo')).toHaveCount(0);
+    await gotoHash(page, '#/delivery-exchange');
+    await expect(page.getByTestId('p4-view-mine')).toBeVisible();
+    await expect(page.getByTestId('p4-view-grants')).toBeVisible();
 
-    // 部门管理员（审批人）：待我办理出现。
+    // 部门管理员（也是申请人，D55②领数据回归操作员+管理员）：同样见我的申请/我的授权。
     await setRole(page, 'ROLE_ORGAN_MANAGER');
-    await gotoHash(page, '#/request-flow');
-    await expect(page.getByTestId('p3-view-todo')).toBeVisible();
+    await gotoHash(page, '#/delivery-exchange');
+    await expect(page.getByTestId('p4-view-mine')).toBeVisible();
+    await expect(page.getByTestId('p4-view-grants')).toBeVisible();
 
-    // 业务运营员（平台复核）：待我办理出现。
+    // 业务运营员（受理岗）：D55③/D57 退申请人身份——领数据「我的申请」「我的授权」对其不渲染
+    //（无权=不可见）；其受理动作走工作台行内（workbench_todo_closure 覆盖，本页不出审核 tab）。
     await setRole(page, 'ROLE_BUSIAUDIT');
-    await gotoHash(page, '#/request-flow');
-    await expect(page.getByTestId('p3-view-todo')).toBeVisible();
+    await gotoHash(page, '#/delivery-exchange');
+    await expect(page.getByTestId('p4-view-mine')).toHaveCount(0);
+    await expect(page.getByTestId('p4-view-grants')).toHaveCount(0);
   });
 
   test('缺陷1 — 我的申请 vs 我的授权数据分流（一视图回答一问题）', async ({ page }) => {
     await setRole(page, 'ROLE_ORGAN_OPERATER');
-    await gotoHash(page, '#/request-flow');
+    await gotoHash(page, '#/delivery-exchange');
     // 默认「我的申请」pane 可见，「我的授权」pane 隐藏。
-    await expect(page.getByTestId('p3-pane-mine')).toBeVisible();
+    await expect(page.getByTestId('p4-pane-mine')).toBeVisible();
     // 切到「我的授权」。
-    await page.getByTestId('p3-view-grants').click();
-    await expect(page.getByTestId('p3-pane-grants')).toBeVisible();
+    await page.getByTestId('p4-view-grants').click();
+    await expect(page.getByTestId('p4-pane-grants')).toBeVisible();
   });
 
   test('缺陷3 — 脏用途值不裸奔在需方列表（测试/167 降级为「未填写用途」）', async ({ page }) => {
     await setRole(page, 'ROLE_ORGAN_OPERATER');
-    await gotoHash(page, '#/request-flow');
-    const minePane = page.getByTestId('p3-pane-mine');
+    await gotoHash(page, '#/delivery-exchange');
+    const minePane = page.getByTestId('p4-pane-mine');
     await expect(minePane).toBeVisible();
     // 「用途」是表格第 3 列；脏值在该列降级为「未填写用途」，原文不得出现。
     // （注意：脏串可能合法出现在「资源」名里——如「代理服务测试-1」——故只断言用途列。）
@@ -67,13 +74,20 @@ test.describe('角色投影三视图 + 数据呈现规范化', () => {
         expect(trimmed).not.toBe(lit);
       }
     }
-    // 降级文案存在性：若后端有脏单，需方用途列应见「未填写用途」（截图实证集合非空时成立）。
+    // 降级文案存在性：若**本人**有脏单，需方用途列应见「未填写用途」（截图实证集合非空时成立）。
+    // 守门口径须与「我的申请」pane 实际过滤一致（roleProjection.myRequests = mine===true ∧ 非授权桶）：
+    // 脏单若非本人发起（mine=false，如别部门入站待办 / 已撤回），不进本人 mine pane，不应据此断言
+    // 该 pane 必现降级文案——否则 clean 库下「全部脏单皆 mine=false、本人 pane 为空」时假阳性。
     const snap = await page.request.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
     if (snap.ok()) {
       const body = (await snap.json()) as Record<string, unknown>;
       const reqs = (body.requests ?? []) as Array<Record<string, unknown>>;
       const dirtyInMine = reqs.filter(
-        (r) => r.purposeDirty === true && r.status !== 'granted' && r.status !== 'effective',
+        (r) =>
+          r.purposeDirty === true &&
+          r.mine === true &&
+          r.status !== 'granted' &&
+          r.status !== 'effective',
       ).length;
       if (dirtyInMine > 0) {
         await expect(purposeCells.filter({ hasText: '未填写用途' }).first()).toBeVisible();

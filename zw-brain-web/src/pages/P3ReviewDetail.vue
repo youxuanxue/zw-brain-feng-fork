@@ -143,7 +143,7 @@ async function fix() {
 
 <template>
   <main class="focus-page focus-detail">
-    <nav class="crumbs"><a href="#/request-flow">← 申请列表</a></nav>
+    <nav class="crumbs"><a href="#/workbench">← 工作台</a></nav>
     <section class="panel">
       <PageFocusHeader title="审批详情" :meta="headerMeta" />
       <PhaseTrack :steps="timeline" aria-label="审批进度" />

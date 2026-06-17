@@ -14,20 +14,22 @@ import { E2E_BASE_URL, gotoHash, setRole, skipUnlessBackend, waitAppReady } from
 const SHOTS = '.testing/acceptance/permission-matrix-0610';
 
 const ALL_NAV_LABELS = [
-  '工作台', '找数据', '办申请', '领数据', '供数据',
+  // 「办申请」导航项随拆解退役（列表/受理归领数据/工作台，子路由保深链）。
+  '工作台', '找数据', '领数据', '供数据',
   '查审计', '服务调用监控', '外部系统', '流程表单', '身份治理',
 ] as const;
 
 // 独立 oracle：v5 菜单矩阵 + D55 §四 目标态（P17/P18/P13/P2/P3/P4/P8/P9 收权后）
 // + D57⑥（管理员、安全审计员退全局服务调用监控）。
 const NAV_MATRIX: Record<string, readonly string[]> = {
-  // 部门操作员（做）：用数 4 壳 + 供数（在线编制 v5 §166）。
-  ROLE_ORGAN_OPERATER: ['工作台', '找数据', '办申请', '领数据', '供数据'],
+  // 部门操作员（做）：用数 3 壳（办申请拆解，发起在找数据/进度在领数据）+ 供数（在线编制 v5 §166）。
+  ROLE_ORGAN_OPERATER: ['工作台', '找数据', '领数据', '供数据'],
   // 部门管理员（审）：操作员面；退审计日志（P9）、退全局服务调用监控（D57⑥，
   // 自家资源被调用情况留 P4 凭据门内）。
-  ROLE_ORGAN_MANAGER: ['工作台', '找数据', '办申请', '领数据', '供数据'],
-  // 业务运营员（管/发布/受理）：退领数据（D53⑥/P13）、保查审计 + 服务调用监控。
-  ROLE_BUSIAUDIT: ['工作台', '找数据', '办申请', '供数据', '查审计', '服务调用监控'],
+  ROLE_ORGAN_MANAGER: ['工作台', '找数据', '领数据', '供数据'],
+  // 业务运营员（管/发布/受理）：退领数据（D53⑥/P13）、保查审计 + 服务调用监控；
+  // 受理移工作台行内（办申请导航退役）。
+  ROLE_BUSIAUDIT: ['工作台', '找数据', '供数据', '查审计', '服务调用监控'],
   // 安全审计员（查，纯只读）：仅查审计（P17/P18 退找数/领数；D57⑥ 退服务调用监控）。
   ROLE_SECURITY_AUDIT: ['工作台', '查审计'],
   // 平台运维员（维）：后台四模块中的运维三面 + 服务调用监控（P2/P3/P4/P8）。
@@ -253,19 +255,19 @@ test.describe('权限矩阵走查（permission-matrix-0610）', () => {
     await platRow.getByTestId('catalog-review-approve-btn').click();
     await expect(platRow).toHaveCount(0, { timeout: 15_000 });
 
-    // 发布队列：发布卡仅发布岗（D57⑤ catalog.entry.publish={BUSIAUDIT}）可见；
-    // 操作员、部门管理员（D57⑤ 回收 R-001 保留）均不渲染。
-    const publishCard = page.getByRole('region', { name: '待发布目录' });
-    await gotoHash(page, '#/provider');
-    await expect(publishCard).toBeVisible({ timeout: 15_000 });
-    await page.screenshot({ path: `${SHOTS}/flow2-busiaudit-publish-card.png`, fullPage: true });
+    // 发布动作已统一收口工作台行内（供数据页旧发布卡退役）；发布权仍仅业务运营员（D57⑤
+    // catalog.entry.publish={BUSIAUDIT}）：工作台「待发布目录」行内发布项对业务运营员可见、
+    // 对操作员/部门管理员不渲染（部门管理员经手「待审核目录」而非「待发布目录」，发布非其职）。
+    const publishTodo = () => page.getByTestId('workbench-todo').filter({ hasText: '待发布目录' });
+    await gotoHash(page, '#/workbench');
+    await expect(publishTodo()).toHaveCount(1, { timeout: 15_000 });
+    await page.screenshot({ path: `${SHOTS}/flow2-busiaudit-publish-todo.png`, fullPage: true });
     await setRole(page, 'ROLE_ORGAN_OPERATER');
-    await gotoHash(page, '#/provider');
-    await expect(publishCard).toHaveCount(0);
+    await gotoHash(page, '#/workbench');
+    await expect(publishTodo()).toHaveCount(0);
     await setRole(page, 'ROLE_ORGAN_MANAGER');
-    await gotoHash(page, '#/provider');
-    await expect(publishCard, 'D57⑤：管理员发布卡完全不渲染（无权=不可见）').toHaveCount(0);
-    await expect(page.getByTestId('resource-publish-queue'), 'D57⑤：管理员资源发布队列同样不渲染').toHaveCount(0);
-    await page.screenshot({ path: `${SHOTS}/flow2-manager-no-publish-card.png`, fullPage: true });
+    await gotoHash(page, '#/workbench');
+    await expect(publishTodo(), 'D57⑤：管理员工作台无目录发布行内项（发布仅业务运营员）').toHaveCount(0);
+    await page.screenshot({ path: `${SHOTS}/flow2-manager-no-publish-todo.png`, fullPage: true });
   });
 });

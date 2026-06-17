@@ -107,7 +107,8 @@ test.describe('perf: 加载与切角色读路径', () => {
     metrics.roleSwitch = switchMetrics;
 
     // ---------- 阶段 D：同岗位各页首屏（本地缓存渲染，应无 API）----------
-    const pages = ['#/discovery', '#/request-flow', '#/delivery', '#/provider'];
+    // 办申请已拆解归并领数据（#/request-flow 重定向 /delivery-exchange）：用数侧首屏取 4 壳现态。
+    const pages = ['#/discovery', '#/delivery-exchange', '#/provider', '#/workbench'];
     const pageMetrics: Array<Record<string, unknown>> = [];
     for (const hash of pages) {
       const beforeAll = [...byRole.values()].reduce(

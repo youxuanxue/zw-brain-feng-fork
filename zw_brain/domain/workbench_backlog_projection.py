@@ -23,6 +23,19 @@ enrich（``discovery_snapshot_projection``）同源同模式：DB 有积压则�
 
 这不改任何角色/流程/状态机语义——只把**既有的真实积压**按业务运营员真实职责投影成
 **可点的待办**，深链目标全是**已存在**的路由与收件箱（无新页面、无新流转）。
+
+M5 行内决策（供数侧待办彻底行内）：把 7 类**聚合计数**待办 re-grain 成携带
+``action.kind=="decision-list"`` 的**行内载荷**——除了 count 头条（``title``=「待发布资源 4 条」、
+``href`` 兜底深链、``actionClause`` 供 aiSummary 分句）外，再**逐条枚举**真实积压实体
+（不止计数），每条带可办决策（发布/审核通过·驳回/异议受理），前端 count-row → 展开 →
+逐条行内办理（直接打 capability，无需跳页）。能力/门禁与各 CTA 页严格一致：
+  - 待发布目录/资源 → catalog.entry.publish / resource.asset.publish（发布）
+  - 待平台审核目录 / 待审核目录 → catalog.entry.review（通过 approve / 驳回 reject+理由）
+  - 待审核挂接资源 → resource.asset.review（通过 approve / 驳回 return_for_fix+理由）
+  - 待审核反向编目草稿 → catalog.entry.reverse_draft.confirm / .reject（通过 / 驳回+理由）
+  - 待受理异议 → objection.case.accept（受理）
+督办（多步）/ 需求汇总（多步）/ 服务审核（向导）三类仍保 count + href 兜底（不 re-grain）。
+MANAGER 三类审核待办枚举时**仍套 M8 visible_org_codes 行级过滤**（不把越界实体漏进行内列表）。
 """
 
 from __future__ import annotations
@@ -30,6 +43,11 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from zw_brain.domain.models import (
+    CatalogEntryRecord,
+    ObjectionCaseRecord,
+    ResourceAssetRecord,
+)
 from zw_brain.domain.repositories.application import ApplicationRepository
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.repositories.objection import ObjectionRepository
@@ -72,6 +90,187 @@ _DEMAND_PROVIDER_PHASES = frozenset(
 )
 
 
+# ── M5 行内决策载荷构造（contract: action.kind=="decision-list"）───────────────
+# 每个 item = 一个真实积压实体（枚举非计数）：id/label 给前端展示，capability/gate 为
+# 默认能力门、basePayload 携实体码，decisions 逐项给可办决策（payload 合并到 basePayload，
+# capability/gate 可逐决策覆盖，needsReason+reasonKey 标记驳回须填理由）。能力/门禁与各
+# CTA 页严格一致（见模块 docstring）；前端 count-row 展开后逐条行内打 capability。
+
+
+def _decision_list_action(items: list[dict[str, Any]]) -> dict[str, Any]:
+    """构造 ``action.kind=="decision-list"`` 行内载荷（contract 锁定形状）。
+
+    ``items`` 为逐实体决策项列表；空列表理论上不会到这里（零积压不投待办），
+    但容错返回空 items 的合法结构（前端展开即空、不崩）。
+    """
+    return {"kind": "decision-list", "items": items}
+
+
+def _ctx_row(label: str, value: Any) -> dict[str, str] | None:
+    """一行 context 元组（label/value）；value 为空（None/空串）则返回 None 由调用方跳过。"""
+    text = str(value).strip() if value is not None else ""
+    if not text:
+        return None
+    return {"label": label, "value": text}
+
+
+def _context(*rows: dict[str, str] | None) -> list[dict[str, str]]:
+    """汇拢非空 context 行（≤3 行由调用方控制；此处只过滤 None/空）。"""
+    return [row for row in rows if row]
+
+
+def _publish_decision() -> list[dict[str, Any]]:
+    """发布类单决策：发布（primary，无附加 payload，门禁=item.capability）。"""
+    return [{"label": "发布", "tone": "primary", "success": "已发布", "payload": {}}]
+
+
+def _review_decisions() -> list[dict[str, Any]]:
+    """目录审核双决策：通过（approve）/ 驳回（reject，须填理由 reason）。"""
+    return [
+        {"label": "通过", "tone": "primary", "success": "已通过", "payload": {"decision": "approve"}},
+        {
+            "label": "驳回",
+            "tone": "danger",
+            "success": "已驳回",
+            "payload": {"decision": "reject"},
+            "needsReason": True,
+            "reasonKey": "reason",
+        },
+    ]
+
+
+def _hookup_review_decisions() -> list[dict[str, Any]]:
+    """挂接资源审核双决策：通过（approve）/ 驳回（return_for_fix，须填理由 reason）。"""
+    return [
+        {"label": "通过", "tone": "primary", "success": "已通过", "payload": {"decision": "approve"}},
+        {
+            "label": "驳回",
+            "tone": "danger",
+            "success": "已驳回",
+            "payload": {"decision": "return_for_fix"},
+            "needsReason": True,
+            "reasonKey": "reason",
+        },
+    ]
+
+
+def _reverse_draft_decisions() -> list[dict[str, Any]]:
+    """反向编目草稿审核双决策：通过 / 驳回——能力逐决策覆盖到 reverse_draft 专用门
+    （confirm / reject），与正向 catalog.entry.review 区分（D57⑧ 两级管线第一级部门审）。
+    驳回理由键=reject_reason（与 reverse_draft.reject handler 入参一致）。
+    """
+    return [
+        {
+            "label": "通过",
+            "tone": "primary",
+            "success": "已通过",
+            "payload": {},
+            "capability": "catalog.entry.reverse_draft.confirm",
+            "gate": "catalog.entry.reverse_draft.confirm",
+        },
+        {
+            "label": "驳回",
+            "tone": "danger",
+            "success": "已驳回",
+            "payload": {},
+            "capability": "catalog.entry.reverse_draft.reject",
+            "gate": "catalog.entry.reverse_draft.reject",
+            "needsReason": True,
+            "reasonKey": "reject_reason",
+        },
+    ]
+
+
+def _catalog_publish_item(entry: CatalogEntryRecord) -> dict[str, Any]:
+    """待发布目录行内项：发布（catalog.entry.publish，basePayload.catalog_code）。"""
+    return {
+        "id": entry.catalog_code,
+        "label": entry.title or entry.catalog_code,
+        "context": _context(_ctx_row("目录", entry.title or entry.catalog_code)),
+        "capability": "catalog.entry.publish",
+        "gate": "catalog.entry.publish",
+        "basePayload": {"catalog_code": entry.catalog_code},
+        "decisions": _publish_decision(),
+    }
+
+
+def _resource_publish_item(asset: ResourceAssetRecord) -> dict[str, Any]:
+    """待发布资源行内项：发布（resource.asset.publish，basePayload.resource_code）。"""
+    return {
+        "id": asset.resource_code,
+        "label": asset.title or asset.resource_code,
+        "context": _context(_ctx_row("资源", asset.title or asset.resource_code)),
+        "capability": "resource.asset.publish",
+        "gate": "resource.asset.publish",
+        "basePayload": {"resource_code": asset.resource_code},
+        "decisions": _publish_decision(),
+    }
+
+
+def _catalog_review_item(entry: CatalogEntryRecord) -> dict[str, Any]:
+    """目录审核行内项（平台审 / 部门审共用）：通过·驳回（catalog.entry.review）。"""
+    return {
+        "id": entry.catalog_code,
+        "label": entry.title or entry.catalog_code,
+        "context": _context(_ctx_row("目录", entry.title or entry.catalog_code)),
+        "capability": "catalog.entry.review",
+        "gate": "catalog.entry.review",
+        "basePayload": {"catalog_code": entry.catalog_code},
+        "decisions": _review_decisions(),
+    }
+
+
+def _hookup_review_item(asset: ResourceAssetRecord) -> dict[str, Any]:
+    """挂接资源审核行内项：通过·驳回（resource.asset.review）。"""
+    return {
+        "id": asset.resource_code,
+        "label": asset.title or asset.resource_code,
+        "context": _context(_ctx_row("资源", asset.title or asset.resource_code)),
+        "capability": "resource.asset.review",
+        "gate": "resource.asset.review",
+        "basePayload": {"resource_code": asset.resource_code},
+        "decisions": _hookup_review_decisions(),
+    }
+
+
+def _reverse_draft_review_item(entry: CatalogEntryRecord) -> dict[str, Any]:
+    """反向编目草稿审核行内项：item 级能力取 confirm（默认门），决策逐项覆盖 confirm/reject。"""
+    return {
+        "id": entry.catalog_code,
+        "label": entry.title or entry.catalog_code,
+        "context": _context(_ctx_row("目录", entry.title or entry.catalog_code)),
+        "capability": "catalog.entry.reverse_draft.confirm",
+        "gate": "catalog.entry.reverse_draft.confirm",
+        "basePayload": {"catalog_code": entry.catalog_code},
+        "decisions": _reverse_draft_decisions(),
+    }
+
+
+def _objection_item(case: ObjectionCaseRecord) -> dict[str, Any]:
+    """待受理异议行内项：受理（objection.case.accept，basePayload.objection_id）。
+
+    context 取 case 暴露字段：责任单位（provider_org_id）+ 事项（target_type:target_id），
+    缺失字段由 ``_ctx_row`` 跳过（诚实留白，不造空行）。
+    """
+    target = ""
+    if case.target_id:
+        target = f"{case.target_type}:{case.target_id}" if case.target_type else str(case.target_id)
+    return {
+        "id": case.id,
+        "label": case.title or case.id,
+        "context": _context(
+            _ctx_row("责任单位", case.provider_org_id),
+            _ctx_row("事项", target),
+        ),
+        "capability": "objection.case.accept",
+        "gate": "objection.case.accept",
+        "basePayload": {"objection_id": case.id},
+        "decisions": [
+            {"label": "受理", "tone": "primary", "success": "已受理", "payload": {}}
+        ],
+    }
+
+
 def _count_pending_applications(application_repo: ApplicationRepository, tenant_id: str) -> int:
     """待受理申请 = kind=apply 且 status∈受理态的申请单数。
 
@@ -86,27 +285,66 @@ def _count_pending_applications(application_repo: ApplicationRepository, tenant_
     )
 
 
+def _emit_backlog_todo(
+    *,
+    item_id: str,
+    label: str,
+    count: int,
+    status: str,
+    href: str,
+    action_clause: str,
+    action: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """构造一条 count 头条待办（count<=0 返回 None，零积压不投）；M5 行内项挂 ``action``。
+
+    ``title`` 仍是计数头条（「待发布资源 4 条」）、``href`` 兜底深链、``actionClause`` 供
+    aiSummary 分句（原 ``action`` 字符串字段更名 actionClause，腾出 ``action`` 给 decision-list
+    dict）。``action`` 非空时为 :func:`_decision_list_action` 产物，前端 count-row 展开逐条办理。
+    """
+    if count <= 0:
+        return None
+    todo: dict[str, Any] = {
+        "id": item_id,
+        "title": f"{label} {count} 条",
+        "status": status,
+        "href": href,
+        "category": "backlog",
+        # G4：分类型行动分句（已带 count），aiSummary 据此拼分类型行动句。
+        "actionClause": action_clause,
+    }
+    if action is not None:
+        todo["action"] = action
+    return todo
+
+
 def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
-    """从真实库现算业务运营员待办；每条 = 一类有积压（count>0）的待办，深链到既有办理页。"""
+    """从真实库现算业务运营员待办；每条 = 一类有积压（count>0）的待办，深链到既有办理页。
+
+    M5：发布/平台审/异议受理三类（catalog-publish / resource-publish / catalog-platform-review /
+    objection）re-grain 成 decision-list 行内载荷——**枚举**真实积压实体（不止计数）逐条挂决策。
+    申请受理（多角色受理面）/ 督办（多步）/ 需求汇总（多步）保留 count + href 兜底（不 re-grain）。
+    """
     catalog_repo = CatalogRepository()
     resource_repo = ResourceApiRepository()
     application_repo = ApplicationRepository()
     objection_repo = ObjectionRepository()
     supply_repo = SupplyDemandRepository()
 
-    pending_publish = catalog_repo.count_entries(
+    # M5 枚举（非计数）：发布/平台审/异议受理三类 list-then-build 行内项，count = len(实体表)。
+    publish_entries = catalog_repo.list_entries(
         tenant_id=tenant_id, lifecycle_status="approved_pending_publish"
     )
     # D57⑧ 两级各自入账：平台审待办（正向部门审通过 + 反向部门审通过共用此态）归业务运营员，
     # 深链目录审核收件箱（BUSIAUDIT 档即平台审），零积压不投。
-    pending_platform_review = catalog_repo.count_entries(
+    platform_review_entries = catalog_repo.list_entries(
         tenant_id=tenant_id, lifecycle_status=_PLATFORM_REVIEW_STATUS
     )
-    pending_resource_publish = len(
-        resource_repo.list_assets(tenant_id=tenant_id, lifecycle_status="approved_pending_publish")
+    publish_assets = resource_repo.list_assets(
+        tenant_id=tenant_id, lifecycle_status="approved_pending_publish"
     )
+    objection_cases = objection_repo.list_cases(tenant_id=tenant_id, status="submitted")
+
     pending_applications = _count_pending_applications(application_repo, tenant_id)
-    pending_objections = len(objection_repo.list_cases(tenant_id=tenant_id, status="submitted"))
     # 待督办异议 = 有 escalate 督办事件且未终结的 case（事件式升级闭环，j1-objection-authz.feature:46）。
     # 督办标记由 objection_process 现算（不改 case.status），零积压不投（无空死链）。
     pending_supervised = len(objection_repo.list_supervised_cases(tenant_id=tenant_id))
@@ -116,89 +354,115 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
         if item.get("demand_phase") in _DEMAND_PROVIDER_PHASES
     )
 
-    # (item_id, 文案前缀, count, 后缀状态, 深链, 行动句模板) — count==0 的不生成（无空死链）。
-    # 行动句模板（G4，0605 反馈 6.4#10）：按类型给「N 条 X 待办」的自然动作分句，
-    # 供 aiSummary 拼成「有 N 条申请待受理、M 条资源尚未发布，请尽快处理」式的分类型行动建议。
-    candidates: list[tuple[str, str, int, str, str, str]] = [
-        (
-            "backlog-catalog-platform-review",
-            "待平台审核目录",
-            pending_platform_review,
-            "待审核",
-            "#/provider/inbox/catalog-review",
-            "{n} 个目录待平台审核",
-        ),
-        ("backlog-catalog-publish", "待发布目录", pending_publish, "待发布", "#/provider", "{n} 个目录待发布"),
-        ("backlog-resource-publish", "待发布资源", pending_resource_publish, "待发布", "#/provider", "{n} 个资源待发布"),
-        ("backlog-application", "待受理申请", pending_applications, "待受理", "#/request-flow", "{n} 条申请待受理"),
-        (
-            "backlog-objection",
-            "待受理异议",
-            pending_objections,
-            "待受理",
-            "#/provider/inbox/objection",
-            "{n} 条异议待受理",
-        ),
-        (
+    todos: list[dict[str, Any]] = [
+        t
+        for t in (
+            # 待平台审核目录（M5 行内：通过/驳回）
+            _emit_backlog_todo(
+                item_id="backlog-catalog-platform-review",
+                label="待平台审核目录",
+                count=len(platform_review_entries),
+                status="待审核",
+                href="#/provider/inbox/catalog-review",
+                action_clause=f"{len(platform_review_entries)} 个目录待平台审核",
+                action=_decision_list_action(
+                    [_catalog_review_item(e) for e in platform_review_entries]
+                ),
+            ),
+            # 待发布目录（M5 行内：发布）
+            _emit_backlog_todo(
+                item_id="backlog-catalog-publish",
+                label="待发布目录",
+                count=len(publish_entries),
+                status="待发布",
+                href="#/provider",
+                action_clause=f"{len(publish_entries)} 个目录待发布",
+                action=_decision_list_action(
+                    [_catalog_publish_item(e) for e in publish_entries]
+                ),
+            ),
+            # 待发布资源（M5 行内：发布）
+            _emit_backlog_todo(
+                item_id="backlog-resource-publish",
+                label="待发布资源",
+                count=len(publish_assets),
+                status="待发布",
+                href="#/provider",
+                action_clause=f"{len(publish_assets)} 个资源待发布",
+                action=_decision_list_action(
+                    [_resource_publish_item(a) for a in publish_assets]
+                ),
+            ),
+            # 待受理申请（不 re-grain：受理面跨多角色 + 申请单一事实源在 sync 投影；保 count+href 兜底）。
+            _emit_backlog_todo(
+                item_id="backlog-application",
+                label="待受理申请",
+                count=pending_applications,
+                status="待受理",
+                href="#/request-flow",
+                action_clause=f"{pending_applications} 条申请待受理",
+            ),
+            # 待受理异议（M5 行内：受理）
+            _emit_backlog_todo(
+                item_id="backlog-objection",
+                label="待受理异议",
+                count=len(objection_cases),
+                status="待受理",
+                href="#/provider/inbox/objection",
+                action_clause=f"{len(objection_cases)} 条异议待受理",
+                action=_decision_list_action(
+                    [_objection_item(c) for c in objection_cases]
+                ),
+            ),
+            # 待督办异议（不 re-grain：督办多步，保 count+href 兜底）。
             # 事件式升级闭环（j1-objection-authz.feature:46）：escalate 事件把 case 推进
             # 业务运营员督办队列，不改 status。深链既有异议收件箱（同收件箱按督办标记筛）。
-            "backlog-objection-supervised",
-            "待督办异议",
-            pending_supervised,
-            "待督办",
-            "#/provider/inbox/objection",
-            "{n} 条异议待督办抓办",
-        ),
-        (
-            "backlog-demand",
-            "待汇总需求",
-            pending_demands,
-            "待汇总",
-            "#/provider/inbox/demand-match",
-            "{n} 项需求待汇总",
-        ),
-    ]
-
-    todos: list[dict[str, Any]] = []
-    for item_id, label, count, status, href, action_tmpl in candidates:
-        if count <= 0:
-            continue
-        todos.append(
-            {
-                "id": item_id,
-                "title": f"{label} {count} 条",
-                "status": status,
-                "href": href,
-                "category": "backlog",
-                # G4：分类型行动分句（已带 count），aiSummary 据此拼分类型行动句。
-                "action": action_tmpl.format(n=count),
-            }
+            _emit_backlog_todo(
+                item_id="backlog-objection-supervised",
+                label="待督办异议",
+                count=pending_supervised,
+                status="待督办",
+                href="#/provider/inbox/objection",
+                action_clause=f"{pending_supervised} 条异议待督办抓办",
+            ),
+            # 待汇总需求（不 re-grain：汇总多步，保 count+href 兜底）。
+            _emit_backlog_todo(
+                item_id="backlog-demand",
+                label="待汇总需求",
+                count=pending_demands,
+                status="待汇总",
+                href="#/provider/inbox/demand-match",
+                action_clause=f"{pending_demands} 项需求待汇总",
+            ),
         )
+        if t is not None
+    ]
     return todos
 
 
-def _count_assets_pending_review(
+def _list_assets_pending_review(
     tenant_id: str, *, api_side: bool, visible_org_codes: set[str] | None = None
-) -> int:
-    """待审核资产数（lifecycle_status==pending_review），按 canonical kind 分流两条审核口径。
+) -> list[ResourceAssetRecord]:
+    """待审核资产列表（lifecycle_status==pending_review），按 canonical kind 分流两条审核口径。
 
-    api_side=True 数服务注册审核（canonical kind==api）；False 数挂接审核（其余，含 kind
-    缺失脏行——藏行会让资产静默卡死在 pending_review）。两侧互斥不串数。
+    api_side=True 取服务注册审核（canonical kind==api）；False 取挂接审核（其余，含 kind
+    缺失脏行——藏行会让资产静默卡死在 pending_review）。两侧互斥不串。
 
-    M8 部门隔离：部门管理员只数 owner_org 落在本机构可见域内的资产（list-then-filter-count，
-    量小可全扫）。visible_org_codes 三态同 ReferenceService.org_in_scope：None=全局计全量、
-    空集=fail-closed 计 0、非空集=只计在域内行。
+    M8 部门隔离：部门管理员只取 owner_org 落在本机构可见域内的资产（list-then-filter，量小
+    可全扫）。visible_org_codes 三态同 ReferenceService.org_in_scope：None=全局取全量、空集=
+    fail-closed 取空、非空集=只取在域内行。M5 行内枚举与计数同源——返回**实体列表**供
+    decision-list 逐条构造，count=len(列表)，过滤口径单一不漂移。
     """
     resource_repo = ResourceApiRepository()
     ref = ReferenceService()
-    return sum(
-        1
+    return [
+        record
         for record in resource_repo.list_assets(
             tenant_id=tenant_id, lifecycle_status=_DEPT_REVIEW_STATUS
         )
         if (canonical_resource_kind(getattr(record, "resource_kind", None)) == _API_CANONICAL_KIND) is api_side
         and ref.org_in_scope(getattr(record, "owner_org_id", None), visible_org_codes, tenant_id=tenant_id)
-    )
+    ]
 
 
 def _manager_review_todos(
@@ -221,77 +485,126 @@ def _manager_review_todos(
     """
     catalog_repo = CatalogRepository()
     ref = ReferenceService()
-    # 待审核目录：原 bare count_entries 无法行级过滤 owner_org → 改 list-then-filter-count（量小）。
-    pending_catalog_review = sum(
-        1
+    # M5 行内枚举：三类审核待办 list-then-filter 取在域实体（与计数同源、口径不漂移），
+    # decision-list 逐条挂决策；M8 行级过滤在枚举处套牢，不把越界实体漏进行内列表。
+    # 待审核目录：原 bare count_entries 无法行级过滤 owner_org → 改 list-then-filter（量小）。
+    catalog_review_entries = [
+        record
         for record in catalog_repo.list_entries(
             tenant_id=tenant_id, lifecycle_status=_DEPT_REVIEW_STATUS
         )
         if ref.org_in_scope(record.owner_org_id, visible_org_codes, tenant_id=tenant_id)
-    )
+    ]
     # 与 provider_snapshot_projection 反向编目审核收件箱同口径（source=reverse ∧ draft）。
-    pending_reverse_review = sum(
-        1
+    reverse_review_entries = [
+        record
         for record in catalog_repo.list_entries(tenant_id=tenant_id, lifecycle_status="draft")
         if isinstance(record.summary_json, dict)
         and record.summary_json.get("source") == "reverse"
         and ref.org_in_scope(record.owner_org_id, visible_org_codes, tenant_id=tenant_id)
-    )
-    pending_hookup_review = _count_assets_pending_review(
+    ]
+    hookup_review_assets = _list_assets_pending_review(
         tenant_id, api_side=False, visible_org_codes=visible_org_codes
     )
-    pending_api_review = _count_assets_pending_review(
-        tenant_id, api_side=True, visible_org_codes=visible_org_codes
-    )
-    candidates: list[tuple[str, str, int, str, str, str]] = [
-        (
-            "backlog-catalog-dept-review",
-            "待审核目录",
-            pending_catalog_review,
-            "待审核",
-            "#/provider/inbox/catalog-review",
-            "{n} 个目录待部门审核",
-        ),
-        (
-            "backlog-reverse-draft-review",
-            "待审核反向编目草稿",
-            pending_reverse_review,
-            "待审核",
-            "#/provider/inbox/field-decision",
-            "{n} 个反向编目草稿待部门审核",
-        ),
-        (
-            "backlog-hookup-review",
-            "待审核挂接资源",
-            pending_hookup_review,
-            "待审核",
-            "#/provider/inbox/hookup-review",
-            "{n} 个挂接资源待审核",
-        ),
-        (
-            "backlog-api-review",
-            "待审核服务",
-            pending_api_review,
-            "待审核",
-            "#/provider/wizard/api-service",
-            "{n} 个服务待审核",
-        ),
-    ]
-    todos: list[dict[str, Any]] = []
-    for item_id, label, count, status, href, action_tmpl in candidates:
-        if count <= 0:
-            continue
-        todos.append(
-            {
-                "id": item_id,
-                "title": f"{label} {count} 条",
-                "status": status,
-                "href": href,
-                "category": "backlog",
-                "action": action_tmpl.format(n=count),
-            }
+    pending_api_review = len(
+        _list_assets_pending_review(
+            tenant_id, api_side=True, visible_org_codes=visible_org_codes
         )
+    )
+    todos: list[dict[str, Any]] = [
+        t
+        for t in (
+            # 待审核目录（M5 行内：通过/驳回，同平台审 catalog.entry.review）
+            _emit_backlog_todo(
+                item_id="backlog-catalog-dept-review",
+                label="待审核目录",
+                count=len(catalog_review_entries),
+                status="待审核",
+                href="#/provider/inbox/catalog-review",
+                action_clause=f"{len(catalog_review_entries)} 个目录待部门审核",
+                action=_decision_list_action(
+                    [_catalog_review_item(e) for e in catalog_review_entries]
+                ),
+            ),
+            # 待审核反向编目草稿（M5 行内：通过/驳回，reverse_draft.confirm/reject）
+            _emit_backlog_todo(
+                item_id="backlog-reverse-draft-review",
+                label="待审核反向编目草稿",
+                count=len(reverse_review_entries),
+                status="待审核",
+                href="#/provider/inbox/field-decision",
+                action_clause=f"{len(reverse_review_entries)} 个反向编目草稿待部门审核",
+                action=_decision_list_action(
+                    [_reverse_draft_review_item(e) for e in reverse_review_entries]
+                ),
+            ),
+            # 待审核挂接资源（M5 行内：通过/驳回 return_for_fix，resource.asset.review）
+            _emit_backlog_todo(
+                item_id="backlog-hookup-review",
+                label="待审核挂接资源",
+                count=len(hookup_review_assets),
+                status="待审核",
+                href="#/provider/inbox/hookup-review",
+                action_clause=f"{len(hookup_review_assets)} 个挂接资源待审核",
+                action=_decision_list_action(
+                    [_hookup_review_item(a) for a in hookup_review_assets]
+                ),
+            ),
+            # 待审核服务（不 re-grain：服务审核走向导多步，保 count+href 兜底）。
+            _emit_backlog_todo(
+                item_id="backlog-api-review",
+                label="待审核服务",
+                count=pending_api_review,
+                status="待审核",
+                href="#/provider/wizard/api-service",
+                action_clause=f"{pending_api_review} 个服务待审核",
+            ),
+        )
+        if t is not None
+    ]
     return todos
+
+
+def _enrich_busiaudit_backlog(view: dict[str, Any], tenant_id: str) -> dict[str, Any]:
+    """业务运营员（ROLE_BUSIAUDIT）：在 ``sync_request_todos`` 已投的「逐单受理待办」上
+    **叠加**真实库聚合积压（发布/异议/督办/需求/平台审），而非整体替换.
+
+    历史上本分支整体 ``out["todos"] = _backlog_todos(tid)``，会丢弃 sync 逐单投的
+    ``category="accept"`` 受理待办——那些待办现已携带行内决策载荷（``action``），是
+    「申请受理」可内联办理的唯一载体。改为增量：保留逐单受理待办（携 action），把聚合
+    积压**前插**（去重 by id），并**剔除聚合里的「待受理申请」候选**（id
+    ``backlog-application``）——逐单受理待办已逐条覆盖它，避免与聚合计数重复双算。
+    其余聚合候选（发布/异议/督办/需求/平台审）原样保留为深链待办。
+
+    subtitle/aiSummary 按**合并后**列表现算，计数诚实（不再回退陈旧 seed 叙事）。
+    """
+    out = copy.deepcopy(view)
+    existing = out.get("todos") or []
+    existing_ids = {t.get("id") for t in existing}
+    # 聚合积压剔「待受理申请」（逐单受理待办已覆盖）+ 去重（id 已在逐单待办里的不前插）。
+    aggregate = [
+        t
+        for t in _backlog_todos(tenant_id)
+        if t["id"] != "backlog-application" and t["id"] not in existing_ids
+    ]
+    todos = aggregate + existing
+    out["todos"] = todos
+    # 分类型行动分句（G4）：聚合候选用其 action 模板分句；逐单受理待办合成一条受理分句。
+    clauses = [str(t["actionClause"]) for t in aggregate if t.get("actionClause")]
+    accept_count = sum(1 for t in existing if str(t.get("category", "")) == "accept")
+    if accept_count:
+        clauses.append(f"{accept_count} 条申请待受理")
+    other_count = len(existing) - accept_count
+    if other_count:
+        clauses.append(f"{other_count} 条其他待办")
+    _rewrite_advice(
+        out,
+        clauses=clauses,
+        action_titles=[str(t.get("title", "")) for t in todos],
+        empty_summary="当前没有待办积压。",
+        basis="待办数据从真实库现算（目录/资源发布态 + 申请受理/异议/督办 + 需求汇总相位）",
+    )
+    return out
 
 
 def _enrich_manager_backlog(
@@ -313,7 +626,7 @@ def _enrich_manager_backlog(
     prepended = [t for t in review_todos if t["id"] not in existing_ids]
     todos = prepended + existing
     out["todos"] = todos
-    review_clauses = [str(t["action"]) for t in prepended if t.get("action")]
+    review_clauses = [str(t["actionClause"]) for t in prepended if t.get("actionClause")]
     other_count = len(existing)
     if other_count:
         review_clauses.append(f"{other_count} 条申请审批/汇总待办")
@@ -428,7 +741,9 @@ def enrich_workbench_backlog(
     待办，零积压给诚实空列表（不回退陈旧 seed 文案）。subtitle/aiSummary 也据现算积压
     重写为诚实信号，消除 C-1 删演示单后遗留的虚构叙事（R-8）。
 
-    - 业务运营员（ROLE_BUSIAUDIT）：todos **整体替换**为真实库积压（受理/发布/汇总，单一事实源）。
+    - 业务运营员（ROLE_BUSIAUDIT）：在 ``sync_request_todos`` 已投的「逐单受理待办（携行内
+      决策 action）」之上**叠加**真实库聚合积压（发布/异议/督办/需求/平台审，剔重复的「待受理
+      申请」聚合，去重 by id），办理建议据合并列表现算。
     - 部门管理员（ROLE_ORGAN_MANAGER）：在 ``sync_request_todos`` 已投的「部门审核待办（dept_approved）」
       之上**叠加供数侧审核待办**（目录 / 挂接资源 / 服务注册待部门审 pending_review，D55/P10·G4），
       零积压不投；办理建议重写。**M8 部门隔离：仅此路径消费 visible_org_codes**——审核待办计数
@@ -452,27 +767,4 @@ def enrich_workbench_backlog(
         return _enrich_ops_view(view)
     if role != _BUSIAUDIT_ROLE:
         return view
-    out = copy.deepcopy(view)
-    todos = _backlog_todos(tid)
-    out["todos"] = todos
-    total = sum(int(t["title"].split()[1]) for t in todos) if todos else 0
-    if todos:
-        parts = "、".join(t["title"] for t in todos)
-        out["subtitle"] = f"你有 {total} 条真实积压待办：{parts}。"
-    else:
-        out["subtitle"] = "当前没有待办积压。"
-    # G4（0605 反馈 6.4#10）：办理建议从笼统总数改为**分类型行动句**——按真实积压类型给
-    # 「有 N 条申请待受理、M 个资源待发布……，请尽快处理」的具体动作建议，而非「共 N 条积压」。
-    # 各分句已带 count（单源 = _backlog_todos 的 action 字段），零积压给诚实空态。
-    action_clauses = [str(t["action"]) for t in todos if t.get("action")]
-    out["aiSummary"] = {
-        "summary": (
-            f"有{('、'.join(action_clauses))}，请尽快处理。"
-            if action_clauses
-            else "当前没有待办积压，发布与受理队列均已清空。"
-        ),
-        "actions": [t["title"] for t in todos],
-        "basis": ["待办数据从真实库现算（目录/资源发布态 + 申请/异议受理态 + 需求汇总相位）"],
-    }
-    out["highlights"] = []
-    return out
+    return _enrich_busiaudit_backlog(view, tid)

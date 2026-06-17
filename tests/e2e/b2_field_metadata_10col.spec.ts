@@ -7,7 +7,7 @@
 //   链路 2（存量不回归）：legacy 导入快照资源的字段数据模型基线 5 列照常渲染。
 // 全部写动作经真实 UI 点击；唯一 API 介入 = 读侧 glue（按标题查目录码 / 探测 legacy schema 资源）。
 import { expect, test, type Page } from '@playwright/test';
-import { E2E_BASE_URL, gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
+import { E2E_BASE_URL, gotoHash, publishViaWorkbench, setRole, skipUnlessBackend, waitAppReady } from './helpers';
 
 const TS = Date.now();
 const CAT_TITLE = `字段元数据验证目录${TS}`;
@@ -87,12 +87,8 @@ async function publishFreshCatalog(page: Page, request: any): Promise<string> {
   await setRole(page, 'ROLE_BUSIAUDIT');
   await gotoHash(page, '#/provider/inbox/catalog-review');
   await approveRowByText(page, CAT_TITLE, 'catalog-review-approve-btn');
-  await gotoHash(page, '#/provider');
-  const catQueue = page.locator('section[aria-label="待发布目录"]');
-  const catRow = catQueue.locator('li.publish-row', { hasText: CAT_TITLE });
-  await expect(catRow).toHaveCount(1, { timeout: 15_000 });
-  await catRow.getByTestId('publish-catalog-btn').click();
-  await expect(catQueue.locator('li.publish-row', { hasText: CAT_TITLE })).toHaveCount(0, { timeout: 15_000 });
+  // 发布统一收口工作台行内（供数据页旧发布队列退役）。
+  await publishViaWorkbench(page, '待发布目录', CAT_TITLE);
   return catalogCode;
 }
 
@@ -106,13 +102,8 @@ async function reviewAndPublishResource(page: Page, resTitle: string): Promise<v
   await expect(hookupRow).toHaveCount(0, { timeout: 15_000 });
   await settleAfterWrite(page);
 
-  await setRole(page, 'ROLE_BUSIAUDIT');
-  await gotoHash(page, '#/provider');
-  const resQueue = page.getByTestId('resource-publish-queue');
-  const resRow = resQueue.locator('li.publish-row', { hasText: resTitle });
-  await expectRowWithReloadFallback(page, '#/provider', () => resRow);
-  await resRow.getByTestId('publish-resource-btn').click();
-  await expect(resQueue.locator('li.publish-row', { hasText: resTitle })).toHaveCount(0, { timeout: 20_000 });
+  // 资源发布统一收口工作台行内（供数据页旧资源发布队列退役）。
+  await publishViaWorkbench(page, '待发布资源', resTitle);
   await settleAfterWrite(page);
 }
 

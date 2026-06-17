@@ -10,11 +10,20 @@ import { invokeActionStub } from '@/composables/useActionStub';
 import { downloadDeliveryFile } from '@/composables/useDeliveryDownload';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import { formatTodoStatus } from '@/lib/statusLabels';
+import { getProductRole } from '@/composables/useProductRole';
+import { canPerformAction } from '@/lib/pageAccess';
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
 const taskRef = lookupDeliveryTask(id.value);
 const { source } = useSnapshot();
+const role = getProductRole();
+
+// 失败态恢复（delivery.trigger_recovery，部门管理员）：交付任务投递失败时此前**无任何 UI 入口**——
+// 后端 capability/policy/契约俱全却成孤儿门。归位到任务详情失败态：状态=failed 且有权时渲染「触发恢复」，
+// 无权岗位不可见（GatedAction 同口径 canPerformAction 自门控）。恢复把 failed→warning（等审计链修复后重核）。
+const isFailed = computed(() => String((taskRef.value as Record<string, unknown> | null)?.status ?? '') === 'failed');
+const canRecover = computed(() => isFailed.value && canPerformAction('delivery.trigger_recovery', role.value));
 
 // 三角色脊柱：交付员也看见整单进度（后端 enrich_delivery_tasks_snapshot 已挂同一条 timeline）。
 const timeline = computed(() => {
@@ -71,6 +80,14 @@ async function reconcile() {
   });
 }
 
+async function triggerRecovery() {
+  await invokeActionStub({
+    skillId: 'delivery.trigger_recovery',
+    payload: { task_id: id.value },
+    successTitle: '已触发恢复流程',
+  });
+}
+
 // 文件资源受控下载（与列表页 F4 同一语义）：语义与文案单源在 useDeliveryDownload。
 async function downloadFile() {
   const t = taskRef.value as Record<string, unknown> | null;
@@ -93,6 +110,10 @@ async function downloadFile() {
       <p v-else-if="source === 'live'" class="focus-empty">{{ isTable ? '未找到该交换任务。' : '未找到该交付任务。' }}</p>
       <p v-else class="focus-empty">等待数据装载……</p>
       <DetailActions v-if="taskRef">
+        <!-- 失败态恢复优先（写关键，部门管理员）：归位的孤儿 CTA，无权/非失败态不渲染。 -->
+        <button v-if="canRecover" type="button" class="gov-btn gov-btn-primary" @click="triggerRecovery">
+          触发恢复
+        </button>
         <button v-if="resourceKind === 'file'" type="button" class="gov-btn gov-btn-primary" @click="downloadFile">
           下载
         </button>

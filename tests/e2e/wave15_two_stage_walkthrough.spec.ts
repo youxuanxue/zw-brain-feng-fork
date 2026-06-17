@@ -1,6 +1,8 @@
 // 受理/审核两级链路真 UI 点击穿透走查（Wave 1.5 验收证据采集；评审走查用，可独立重跑）。
-// 链路：操作员发起有条件申请（API 铸单）→ 业务运营员「待我办理」受理 → 部门管理员「待我办理」
-// 审核通过 → 已授权。另验：业务运营员无「我的申请/我的授权」入口；操作员工作台为「申请进度」语境。
+// 链路：操作员发起有条件申请（API 铸单）→ 业务运营员受理 → 部门管理员审核通过 → 已授权。
+// 受理/审核动作经审批详情深链 #/request-flow/review/:id（KEPT，决策组件双宿主之一）真 UI 点击。
+// 另验：业务运营员（受理岗，退申请人身份）领数据无「我的申请/我的授权」视图；操作员工作台为「申请进度」语境。
+// IA 重构（拆「办申请」）：受理/审核也可在工作台行内办理（workbench_todo_closure 覆盖）；本走查走深链宿主。
 // 证据截图落 .testing/acceptance/wave15-two-stage-walkthrough/。
 import { expect, test, type Page } from '@playwright/test';
 import { E2E_BASE_URL, gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
@@ -24,11 +26,12 @@ test('两级链路：受理(业务运营员)→审核(部门管理员)→已授�
   const reqId = process.env.WALK_REQ_ID ?? '';
   test.skip(!reqId, '需 WALK_REQ_ID（预铸的有条件 submitted 单）');
 
-  // 1) 业务运营员：办申请 = 受理工作台（无「我的申请/我的授权」tab，落「待我办理」）。
+  // 1) 业务运营员（受理岗）：D55③/D57 退申请人身份——领数据「我的申请/我的授权」视图对其不渲染。
+  //    （列表根 #/request-flow 已重定向领数据；受理动作走下方审批详情深链宿主。）
   await setRole(page, 'ROLE_BUSIAUDIT');
-  await gotoHash(page, '#/request-flow');
-  await expect(page.getByRole('button', { name: '我的申请' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '我的授权' })).toHaveCount(0);
+  await gotoHash(page, '#/delivery-exchange');
+  await expect(page.getByTestId('p4-view-mine')).toHaveCount(0);
+  await expect(page.getByTestId('p4-view-grants')).toHaveCount(0);
   await page.screenshot({ path: `${SHOTS}/1-busiaudit-acceptance-workbench.png`, fullPage: true });
 
   // 2) 业务运营员受理（第一级）：进详情点「受理」。

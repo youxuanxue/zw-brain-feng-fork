@@ -81,8 +81,15 @@ def upsert_todo(
     href: str,
     *,
     category: str = "",
+    action: dict[str, Any] | None = None,
 ) -> None:
-    """Insert or update a todo under (role, item_id, category)."""
+    """Insert or update a todo under (role, item_id, category).
+
+    ``action`` 为可选的「行内自描述决策载荷」（contract：kind=decision 的
+    capability/gate/basePayload/context/decisions），仅在简单是/否型审核待办上挂载，
+    供前端展开成内联审批面板。``action is None`` 时**完全不写** ``action`` 键——
+    向后兼容，与挂载前的待办形状逐字一致（既存读侧不感知新字段）。
+    """
     bucket = snapshot["workbench"].get(role)
     if not bucket:
         return
@@ -91,10 +98,44 @@ def upsert_todo(
             todo["title"] = title
             todo["status"] = status
             todo["href"] = href
+            if action is not None:
+                todo["action"] = action
             return
-    bucket["todos"].insert(
-        0, {"id": item_id, "title": title, "status": status, "href": href, "category": category}
-    )
+    todo: dict[str, Any] = {
+        "id": item_id,
+        "title": title,
+        "status": status,
+        "href": href,
+        "category": category,
+    }
+    if action is not None:
+        todo["action"] = action
+    bucket["todos"].insert(0, todo)
+
+
+def remove_todo(
+    snapshot: dict[str, Any],
+    role: str,
+    item_id: str,
+    *,
+    category: str = "",
+) -> None:
+    """Remove the todo under (role, item_id, category); no-op if absent.
+
+    ``sync_request_todos`` 是 upsert-only——单据状态流转后旧类目待办会**滞留**
+    （如受理通过后 BUSIAUDIT 的 ``accept`` 待办仍在、且现挂行内决策 action 可点，
+    误点会对已流转单据再发 platform_approve 而报错）。本 helper 让 sync 在某类目条件
+    不再成立时**显式剔除**该单此类目待办，保证每单待办只反映当前态（identity 同
+    upsert：``(role, item_id, category)``）。
+    """
+    bucket = snapshot["workbench"].get(role)
+    if not bucket:
+        return
+    bucket["todos"] = [
+        todo
+        for todo in bucket["todos"]
+        if not (todo["id"] == item_id and todo.get("category", "") == category)
+    ]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

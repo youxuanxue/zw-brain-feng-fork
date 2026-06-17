@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, reactive } from 'vue';
 import { useWorkbench } from '@/composables/useWorkbench';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 import { humanizeTitle } from '@/lib/userLanguage';
 import { getProductRole } from '@/composables/useProductRole';
+import { canPerformAction } from '@/lib/pageAccess';
+import WorkbenchTodoActionPanel from '@/components/WorkbenchTodoActionPanel.vue';
+import type { WorkbenchTodo } from '@/fixtures/workbench-fixture';
 import {
   canPlatformReviewRequests,
   canReviewRequests,
@@ -17,6 +20,28 @@ import {
 // 前端只渲染、不自算（避免两套口径漂移）。
 const { data, source, error, refresh } = useWorkbench();
 const role = getProductRole();
+
+// 行内办理：仅当待办带 action 且当前岗位对其 gate 有权时，才让该行可就地展开办理
+// （承自门控纪律——无权岗位连「展开办理」按钮都不渲染，回落原 href 深链）。
+//   - decision（单条）：判该 action 的 gate。
+//   - decision-list（聚合）：只要至少一条记录的 gate 有权即可展开（无权的记录由面内
+//     GatedAction 各自不渲染按钮）。
+function isActionable(todo: WorkbenchTodo): boolean {
+  const action = todo.action;
+  if (!action) return false;
+  if (action.kind === 'decision-list') {
+    return action.items.some((it) =>
+      it.decisions.some((d) => canPerformAction(d.gate || it.gate, role.value))
+    );
+  }
+  return canPerformAction(action.gate, role.value);
+}
+// 按行 key 记展开态（默认收起）。invokeActionStub 办结后会重拉工作台、该行自行消失，
+// 无需手动清理展开态。
+const expanded = reactive<Record<string, boolean>>({});
+function toggle(key: string): void {
+  expanded[key] = !expanded[key];
+}
 
 // 工作台语境按岗位职责四分（D57②/R8，修正原「非审核岗即申请人」二分把安全审计员/
 // 平台运维员误归申请人「我的申请进度」的错配）：
@@ -91,21 +116,45 @@ const urgentCount = computed(
             v-for="(todo, idx) in data.todos"
             :key="`${todo.id}-${idx}`"
             class="p1-row"
+            :class="{ 'p1-row--expanded': isActionable(todo) && expanded[`${todo.id}-${idx}`] }"
             data-testid="workbench-todo"
           >
-            <div class="p1-row-main">
-              <a
-                v-if="todo.href"
-                :href="todo.href"
-                class="p1-row-title"
-                data-testid="workbench-todo-link"
-                >{{ humanizeTitle(todo.title) }}</a
-              >
-              <span v-else class="p1-row-title">{{ humanizeTitle(todo.title) }}</span>
+            <div class="p1-row-head">
+              <div class="p1-row-main">
+                <!-- 可行内办理：标题保留为文本 + 展开/收起切换。 -->
+                <template v-if="isActionable(todo) && todo.action">
+                  <span class="p1-row-title">{{ humanizeTitle(todo.title) }}</span>
+                  <button
+                    type="button"
+                    class="p1-row-toggle"
+                    data-testid="workbench-todo-expand"
+                    :aria-expanded="!!expanded[`${todo.id}-${idx}`]"
+                    @click="toggle(`${todo.id}-${idx}`)"
+                  >
+                    {{ expanded[`${todo.id}-${idx}`] ? '收起' : '展开办理' }}
+                  </button>
+                </template>
+                <!-- 否则（无 action 或无权）：照旧渲染深链 / 纯文本标题。 -->
+                <template v-else>
+                  <a
+                    v-if="todo.href"
+                    :href="todo.href"
+                    class="p1-row-title"
+                    data-testid="workbench-todo-link"
+                    >{{ humanizeTitle(todo.title) }}</a
+                  >
+                  <span v-else class="p1-row-title">{{ humanizeTitle(todo.title) }}</span>
+                </template>
+              </div>
+              <span class="p1-status" :class="todoStatusTone(String(todo.status))">
+                {{ formatTodoStatus(String(todo.status)) }}
+              </span>
             </div>
-            <span class="p1-status" :class="todoStatusTone(String(todo.status))">
-              {{ formatTodoStatus(String(todo.status)) }}
-            </span>
+            <WorkbenchTodoActionPanel
+              v-if="isActionable(todo) && todo.action && expanded[`${todo.id}-${idx}`]"
+              :action="todo.action"
+              :role="role"
+            />
           </li>
         </ul>
         <p v-else class="p1-empty">{{ emptyText }}</p>
@@ -196,9 +245,7 @@ const urgentCount = computed(
 }
 .p1-row {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
+  flex-direction: column;
   padding: 14px 0;
   margin: 0;
   border-bottom: 1px solid var(--b-border, #d4e2f4);
@@ -210,9 +257,33 @@ const urgentCount = computed(
   border-bottom: 0;
   padding-bottom: 2px;
 }
+.p1-row-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
 .p1-row-main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+.p1-row-toggle {
+  flex-shrink: 0;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--b-primary, #006be6);
+  cursor: pointer;
+}
+.p1-row-toggle:hover {
+  text-decoration: underline;
 }
 .p1-row-title {
   display: block;

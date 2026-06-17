@@ -34,6 +34,36 @@ export const ROUTE_ROLE_OVERRIDES: ReadonlyArray<{
   roles: readonly string[];
   redirectIfDenied?: string;
 }> = [
+  // 「办申请」导航解体（IA 重构）后，/request-flow 列表页与导航项已删；以下子路由
+  // 保留为深链目标，但 activeShellKey('/request-flow/*') 现回落 delivery-exchange shell
+  // （roles=[OPERATER,MANAGER]），会错误地把 reviewer 挡在审核详情外。故各子路由在此显式
+  // 声明自己页面本就允许的角色集，覆盖 shell 默认。前缀匹配 → 子路径（objection/new、
+  // objection/:id、request/:id、review/:id）自动落入对应前缀，无需逐 :id 列举。
+  // /request-flow/review：reviewer 决策详情（P3ReviewDetail）—— BUSIAUDIT 受理、MANAGER 审核。
+  // 无权岗位（含申请人）跳工作台（受理/审核工作已迁工作台）。
+  {
+    prefix: '/request-flow/review',
+    roles: ['ROLE_BUSIAUDIT', 'ROLE_ORGAN_MANAGER'],
+    redirectIfDenied: '/workbench',
+  },
+  // /request-flow/request：申请人申请详情 + 补录（P3RequestDetail）—— 申请人=操作员/管理员。
+  { prefix: '/request-flow/request', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'], redirectIfDenied: '/delivery-exchange' },
+  // /request-flow/objection：消费方「我的异议」收件箱/详情/发起（P3ObjectionInbox/Detail/New）。
+  // 页面不在路由层 gate（仅 page 内 canSubmit/canEvaluate/canClose 按 action 门控写动作），
+  // 沿用原 request-flow shell 消费方角色集 [OPERATER,MANAGER,BUSIAUDIT]——三者皆可查看自己的
+  // 异议（evaluate 含三者；submit=操作员/管理员；close=管理员/业务运营员）。
+  {
+    prefix: '/request-flow/objection',
+    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
+    redirectIfDenied: '/delivery-exchange',
+  },
+  // /request-flow/supply-demand：消费方「供需对接 / 登记需求」（P3SupplyDemand）。
+  // demand.register 是消费方登记数据缺口，沿用原 request-flow shell 消费方角色集。
+  {
+    prefix: '/request-flow/supply-demand',
+    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
+    redirectIfDenied: '/delivery-exchange',
+  },
   // J2 在线编制 ↔ 目录审核收件箱（OPERATER 提交后切到 reviewer 应直接看到待办）
   // D55/P11：管理员也可直接进在线编制（经 hierarchy 有 create 权，加入后不再被踢到 inbox）
   {
@@ -145,6 +175,10 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   // （test_action_role_gates_aligned_with_backend_policy 守）；部门审核（approve/reject）路径在后端
   // 另按 ctx.role==MANAGER 二次门控，前端 P3ReviewDetail 审批面承接，不在本详情页发审批决定。
   'application.dept_approve': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
+  // P3ReviewDetail 第一级受理（submitted → dept_approved/rejected），M1 工作台行内受理亦依赖它。
+  // 此前漏注册 → canPerformAction 默认放行，行内按钮对无权岗位也渲染（破「无权=不可见」）。
+  // 与后端 policy.application.platform_approve.execute={ROLE_BUSIAUDIT} set-equal。
+  'application.platform_approve': ['ROLE_BUSIAUDIT'],
   // P3RequestDetail 撤回 / 暂停授权（write-critical）。j1-credential-revoke 决策 A（已签字）：
   // 撤回 = 业务运营员合规驱动 + 申请人本人主动放弃（owner 校验在后端）；暂停 = 业务运营员。
   // 与后端 policy.py 严格 set-equal（test_role_codes_alignment 守）。
@@ -177,7 +211,9 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   'quality.rule.upsert': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   // P3 供需 / 交付
   'delivery.trigger_recovery': ['ROLE_ORGAN_MANAGER'],
-  'service.publish_or_suspend': ['ROLE_ORGAN_MANAGER'],
+  // 'service.publish_or_suspend' 已删（减法）：全 zw-brain-web/src 无任何 CTA/skillId 调用它
+  // （仅 registry/pages.generated.ts 自动清单列入），UI 上线/暂停服务统一走 resource.api.withdraw。
+  // 留空门只是给机械审计添噪，无可见入口可门控，故移除。
   // P2ResourceDetail 字段数据模型（只读）— metadata.schema.query.execute
   'metadata.schema.query': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT'],
   // B1.1 异议详情（查审计 shell 含安全审计员，D55/P22 审计纯只读）——升级/解决写动作

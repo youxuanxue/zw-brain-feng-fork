@@ -210,7 +210,7 @@ async function supplement() {
 
 <template>
   <main class="focus-page focus-detail">
-    <nav class="crumbs"><a href="#/request-flow">← 申请列表</a></nav>
+    <nav class="crumbs"><a href="#/delivery-exchange">← 我的申请</a></nav>
     <section class="panel">
       <PageFocusHeader :title="id" :meta="headerMeta" />
       <p v-if="isLegacyImport" class="legacy-note">

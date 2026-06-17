@@ -39,20 +39,14 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     // 安全审计员非数据使用方（v5 无找数据），Wave 1/S5 收敛纯只读监督者后退出找数据（D55/P17）。
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   },
-  {
-    key: 'request-flow',
-    navLabel: '办申请',
-    navDesc: '发起、跟进与审批共享申请',
-    to: '/request-flow',
-    group: 'use',
-    // ROLE_BUSIAUDIT：j1-credential-revoke 决策 A —— 业务运营员在 P3 申请详情合规收回/暂停授权。
-    // 审批等 action 仍由 action-gate 限 MANAGER（无权不可见），BUSIAUDIT 只多出收回/暂停。
-    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
-  },
+  // 「办申请」独立导航解体（IA 重构）：发起申请已在「找数据」；受理/审核归「工作台」；
+  // 我的申请 / 我的授权归并「领数据」，使领数据成为消费方「我的数据」一站式入口。
+  // 申请详情 / 受理审核详情 / 异议 / 供需 等子路由保留为深链目标，角色门见
+  // pageAccess.ts ROUTE_ROLE_OVERRIDES（/request-flow/* 不再回落 delivery-exchange shell 角色）。
   {
     key: 'delivery-exchange',
     navLabel: '领数据',
-    navDesc: '领取访问凭据、核对交付回执',
+    navDesc: '申请进度、凭据领取与交付回执',
     to: '/delivery-exchange',
     group: 'use',
     // D55/P13：领数据回归部门操作员+部门管理员（反转 D53/F1）；P18 安全审计员退出领数据导航。
@@ -149,7 +143,10 @@ export function visibleShellNavByGroup(
 export function activeShellKey(path: string): string {
   const p = path.startsWith('/') ? path : `/${path}`;
   if (p.startsWith('/discovery')) return 'discovery';
-  if (p.startsWith('/request-flow')) return 'request-flow';
+  // 「办申请」导航解体后，/request-flow/* 子路由（保留为深链目标）归属领数据 shell，
+  // 由 PRODUCT_SHELL_NAV 高亮/授权落在 delivery-exchange；具体子路由角色门见
+  // pageAccess.ts ROUTE_ROLE_OVERRIDES（reviewer 详情等比 delivery shell 更宽/不同）。
+  if (p.startsWith('/request-flow')) return 'delivery-exchange';
   if (p.startsWith('/delivery-exchange')) return 'delivery-exchange';
   if (p.startsWith('/provider')) return 'provider';
   if (p.startsWith('/compliance-ops')) return 'compliance-ops';

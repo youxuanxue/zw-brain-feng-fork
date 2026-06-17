@@ -8,10 +8,12 @@ const PAGE_MATRIX: Array<{ role: string; hash: string; heading: RegExp | string 
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/workbench', heading: /上午好|下午好|晚上好/ },
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/discovery', heading: '可申请资源' },
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/discovery/catalog-browse', heading: '目录浏览' },
-  { role: 'ROLE_ORGAN_OPERATER', hash: '#/request-flow', heading: '办共享申请' },
+  // 办申请已拆解归并领数据：列表根 #/request-flow 重定向 /delivery-exchange（页头「领数据」一站办理
+  // 我的申请/授权/交付）；异议/登记需求子路由保留独立可达，页头不变。
+  { role: 'ROLE_ORGAN_OPERATER', hash: '#/delivery-exchange', heading: '领数据' },
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/request-flow/objection', heading: '我的异议' },
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/request-flow/supply-demand', heading: '找不到数据 · 登记需求' },
-  { role: 'ROLE_ORGAN_MANAGER', hash: '#/delivery-exchange', heading: '交付任务' },
+  { role: 'ROLE_ORGAN_MANAGER', hash: '#/delivery-exchange', heading: '领数据' },
   // #/zones-pack（专题包页）随专题包整面退出本期而下线（D55/P6，F0-B）：路由/导航已删，
   // 此处同步移除矩阵行，避免导航到已删路由触发 dead-link 失败（本 feature 即「不留 dead link」）。
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider', heading: '提供方管理' },

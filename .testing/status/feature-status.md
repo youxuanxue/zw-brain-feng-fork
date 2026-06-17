@@ -7,16 +7,16 @@
 > status = f(SPEC, MEASUREMENT, SIGN-OFF)，每次 preflight 现算，不手敲、不存第二份。
 > **Done** = 测试真绿 ∧ 业务签字；**Ready** = 已签未绿；**InTest** = 绿/在测但未签（代码完成待签字）；**Draft** = 纯意图；**Backlog** = 排期外（`# Deferred:`）。
 
-> 测量基线：captured_at=`2026-06-15T15:27:03Z` · 指纹新鲜绿 38/40（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
+> 测量基线：captured_at=`2026-06-17T04:10:35Z` · 指纹新鲜绿 37/40（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
 
-> 合计 51：Done 38 / Ready 2 / InTest 0 / Draft 0 / Backlog 11
+> 合计 51：Done 37 / Ready 3 / InTest 0 / Draft 0 / Backlog 11
 
 
-## Wave 0 · 机械守卫 + J1 黄金链路  （Done 13 · Backlog 1）
+## Wave 0 · 机械守卫 + J1 黄金链路  （Done 12 · Ready 1 · Backlog 1）
 
 | feature | status | 依据 |
 |---|---|---|
-| infra-agentruntime-embedded.feature | **Done** | 测量=绿 / 签字=已签 |
+| infra-agentruntime-embedded.feature | **Ready** | 测量=未绿 / 签字=已签 |
 | infra-audit-bus.feature | **Done** | 测量=绿 / 签字=已签 |
 | infra-contract-projection.feature | **Done** | 测量=绿 / 签字=已签 |
 | infra-iam-session.feature | **Done** | 测量=绿 / 签字=已签 |

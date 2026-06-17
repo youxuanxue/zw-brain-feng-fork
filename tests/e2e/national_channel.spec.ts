@@ -28,8 +28,14 @@ function seedNationalEscalateFixture(): void {
  * 即"已上线未接入"真实态）。flag 未开时本 suite skip（不假装）；flag-off→不渲染 面
  * 由 tests/test_national_channel_webui_snapshot.py + tests/test_page_access.py 单测覆盖。
  *
- * 守护点：
- *   - P3 国家通道 tab：requestFlowRoles.canViewNationalChannel(仅 BUSIAUDIT) ∧ nationalChannel.enabled
+ * IA 重构（拆「办申请」）影响：原 P3「国家通道」tab + 待转报队列 + 转报按钮（p3-tab-national /
+ *   p3-national-pane / p3-escalate-btn）随 P3RequestFlow.vue 列表页整面退役，本期**无新前端宿主**
+ *   （escalate 后端 capability application.escalate_national 保留、角色门 canViewNationalChannel 保留）。
+ *   故下列「P3 国家通道 tab」与「待转报队列」两条 UI 走查暂无可断言的真实 UI 面，honest skip（不假装）；
+ *   该 UI 的重新归家是后续项（national-direct.feature 仍 Ready/未绿，本迁移不据此打绿）。flag-off→
+ *   不渲染 与角色门由 test_national_channel_gate.py / test_national_channel_webui_snapshot.py 单测覆盖。
+ *
+ * 仍真跑的守护点（P5 国家扩展要素编制面在新 IA 下原样保留）：
  *   - P5 国家扩展要素入口：canCompileNationalExtElem(MANAGER+BUSIAUDIT) ∧ enabled
  *   - 未配置：P5 发布按钮 disabled，草拟可用
  */
@@ -52,21 +58,9 @@ test.describe('国家通道 角色门 + flag 门', () => {
 
   test('P3 国家通道 tab：BUSIAUDIT 可见 / OPERATER 不渲染', async ({ page }) => {
     test.skip(!(await nationalChannelEnabled(page)), '国家通道 flag 未开（起栈需 ZW_BRAIN_NATIONAL_CHANNEL_ENABLED=1）');
-
-    await setRole(page, 'ROLE_BUSIAUDIT');
-    await gotoHash(page, '#/request-flow');
-    await expect(page.getByTestId('p3-tab-national')).toBeVisible();
-    // 主流程入口 = 受理岗的「待我办理」视图 tab（国家通道为独立 tab 共存）。
-    // R-001 修复后此断言真跑：业务运营员 BUSIAUDIT 自 D55③/D57 退申请人身份，
-    // 「我的申请」(p3-view-mine, v-if=isApplicantRole) 对其**不渲染**（承「无权=不可见」）；
-    // 旧断言写 p3-view-mine 可见是 D50 落地时口径、被 D55/D57 推翻，属测试陈旧而非产品缺陷。
-    // 改断言受理岗真有的「待我办理」tab 存在，且不误断已退役的申请人 tab。
-    await expect(page.getByTestId('p3-view-todo')).toBeVisible();
-    await expect(page.getByTestId('p3-view-mine')).toHaveCount(0);
-
-    await setRole(page, 'ROLE_ORGAN_OPERATER');
-    await gotoHash(page, '#/request-flow');
-    await expect(page.getByTestId('p3-tab-national')).toHaveCount(0);
+    // IA 重构后无 P3 国家通道 tab 前端宿主（见文件头）——本走查暂无可断言的真实 UI 面。
+    // 角色门 canViewNationalChannel 仍由 test_national_channel_gate.py 单测覆盖（不假装有 UI）。
+    test.skip(true, '国家通道 P3 tab 随拆「办申请」退役、无新前端宿主（IA 重构）；待 UI 重新归家后恢复');
   });
 
   test('P5 国家扩展要素入口：MANAGER 可见 / OPERATER 不渲染', async ({ page }) => {
@@ -85,36 +79,12 @@ test.describe('国家通道 角色门 + flag 门', () => {
     page,
   }) => {
     test.skip(!(await nationalChannelEnabled(page)), '国家通道 flag 未开');
-
-    // 造一条 channel_class=national 的 dept_approved 待转报申请（真实 DB apply 记录）。
-    seedNationalEscalateFixture();
-
-    // 后端口径自证：snapshot.requests 含该单且 channelClass=='national' / status=='dept_approved'。
-    const snap = await page.request.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_BUSIAUDIT`);
-    expect(snap.ok()).toBeTruthy();
-    const body = (await snap.json()) as { requests?: Array<Record<string, unknown>> };
-    const seeded = (body.requests ?? []).find((r) => String(r.id ?? '') === NATIONAL_APPLY_CODE);
-    expect(seeded, '造数申请应进入 snapshot.requests').toBeTruthy();
-    expect(String(seeded?.channelClass ?? '')).toBe('national');
-    expect(String(seeded?.status ?? '')).toBe('dept_approved');
-
-    await setRole(page, 'ROLE_BUSIAUDIT');
-    await gotoHash(page, '#/request-flow');
-
-    // 切到「国家通道」tab，待转报队列里看得到该单（不再因 own-items 为空而点不到）。
-    await page.getByTestId('p3-tab-national').click();
-    const pane = page.getByTestId('p3-national-pane');
-    await expect(pane).toBeVisible();
-    const row = pane.locator('tr', { hasText: NATIONAL_APPLY_CODE });
-    await expect(row, '国家通道待转报队列应含该 national dept_approved 单').toBeVisible();
-
-    // 点「审核通过 + 转报国家平台」→ 未配置(provisioned=false)下诚实 pending（非 404/非报错），
-    // 计算态 overlay 显「国家通道转报中」。
-    await row.getByTestId('p3-escalate-btn').click();
-    await expect(
-      row.locator('.status-pill.warn'),
-      '转报后行内显示计算态「国家通道转报中」（诚实 pending、非报错）',
-    ).toHaveText(/国家通道转报中/);
+    // IA 重构后无 P3「待转报队列」+ 转报按钮前端宿主（见文件头）——后端口径自证（snapshot.requests
+    // 含该 national dept_approved 单）与 escalate 诚实 pending 由 test_national_escalate.py 单测覆盖；
+    // 本走查暂无可点击的真实 UI 面，honest skip（不假装）。
+    test.skip(true, '国家通道待转报队列/转报按钮随拆「办申请」退役、无新前端宿主（IA 重构）；待 UI 重新归家后恢复');
+    void seedNationalEscalateFixture;
+    void NATIONAL_APPLY_CODE;
   });
 
   test('未配置(provisioned=false)：P5 发布按钮置灰、草拟编制可达', async ({ page }) => {

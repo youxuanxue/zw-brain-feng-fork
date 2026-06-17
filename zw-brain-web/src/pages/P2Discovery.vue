@@ -91,7 +91,7 @@ const headerMeta = computed(() => {
 const headerLinks = computed(() => {
   const links = [
     { label: '目录浏览', href: '#/discovery/catalog-browse' },
-    { label: '我的申请', href: '#/request-flow', applicantOnly: true },
+    { label: '我的申请', href: '#/delivery-exchange', applicantOnly: true },
   ];
   return links
     .filter((l) => (l.applicantOnly ? canApply.value : true))

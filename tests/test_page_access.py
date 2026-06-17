@@ -27,9 +27,10 @@ _SHELL_ROLES: dict[str, frozenset[str]] = {
             "ROLE_BUSIAUDIT",
         }
     ),
-    # D55/P21·P7：业务运营员（受理岗）在 request-flow shell 内办受理 + 决策A 收回/暂停
-    # （与 productShellNav.ts request-flow.roles 一致，含 BUSIAUDIT）。
-    "request-flow": frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}),
+    # 「办申请」(request-flow) 导航项已随 IA 重构整体删除：我的申请/授权并入领数据，
+    # 受理/审核迁工作台，子路由保留为深链目标（角色门见 _ROUTE_ROLE_OVERRIDES）。
+    # 故 request-flow 不再是 shell 键；/request-flow/* 子路由由 override 治理，
+    # 列表根 /request-flow（无子段）回落 delivery-exchange shell（见 _active_shell_key）。
     # D55/P13 领数据回归操作员+管理员（反转 F1）+ P18 审计员退出 + D53⑥ 运营员无交付场景。
     "delivery-exchange": frozenset(
         {
@@ -69,6 +70,24 @@ _SHELL_ROLES: dict[str, frozenset[str]] = {
 # 与 pageAccess.ts ROUTE_ROLE_OVERRIDES 同步（顺序敏感，长前缀优先）。
 # 第三列 redirectIfDenied 用于 fallback：拒绝当前 role 时优先跳的"业务对位下一站"。
 _ROUTE_ROLE_OVERRIDES: list[tuple[str, frozenset[str], str | None]] = [
+    # 「办申请」导航解体后，/request-flow/* 子路由保留为深链目标；activeShellKey 现回落
+    # delivery-exchange shell（[OPERATER,MANAGER]），故各子路由显式声明本页角色集覆盖 shell 默认。
+    ("/request-flow/review", frozenset({"ROLE_BUSIAUDIT", "ROLE_ORGAN_MANAGER"}), "/workbench"),
+    (
+        "/request-flow/request",
+        frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"}),
+        "/delivery-exchange",
+    ),
+    (
+        "/request-flow/objection",
+        frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}),
+        "/delivery-exchange",
+    ),
+    (
+        "/request-flow/supply-demand",
+        frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}),
+        "/delivery-exchange",
+    ),
     (
         "/provider/wizard/inline-catalog",
         frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"}),
@@ -106,8 +125,10 @@ def _active_shell_key(path: str) -> str:
     p = path if path.startswith("/") else f"/{path}"
     if p.startswith("/discovery"):
         return "discovery"
+    # 「办申请」导航解体后 /request-flow/* 子路由归属领数据 shell（与 TS activeShellKey 一致）；
+    # 具体子路由角色门由 _ROUTE_ROLE_OVERRIDES 覆盖（reviewer 详情等比 delivery shell 不同/更宽）。
     if p.startswith("/request-flow"):
-        return "request-flow"
+        return "delivery-exchange"
     if p.startswith("/delivery-exchange"):
         return "delivery-exchange"
     if p.startswith("/provider"):
@@ -158,8 +179,8 @@ def _default_route_for_role(role: str, from_path: str | None = None) -> str:
         shell_top = f"/{shell_key}"
         if role in shell_roles and from_path != shell_top:
             return shell_top
-    # 否则回落到 role 第一个可见 shell（按 PRODUCT_SHELL_NAV 顺序）
-    for sk in ("workbench", "discovery", "request-flow", "delivery-exchange",
+    # 否则回落到 role 第一个可见 shell（按 PRODUCT_SHELL_NAV 顺序；request-flow 已删）
+    for sk in ("workbench", "discovery", "delivery-exchange",
                "provider", "compliance-ops", "service-ops", "integration-admin",
                "engines", "iam-governance"):
         if role in _SHELL_ROLES.get(sk, frozenset()):
@@ -403,17 +424,18 @@ def test_page_focus_header_filters_links_by_role() -> None:
     )
 
 
-def test_p5_provider_filters_stat_cards_and_publish_action() -> None:
-    """P5Provider.vue 必须按 role 过滤 inbox 计数卡 + 按 action 闸 publish 按钮。
+def test_p5_provider_is_management_surface_no_action_queues() -> None:
+    """P5Provider.vue = 管理面，不再承载"逐条清积压"的办理队列。
 
-    背景：J2-7 OPERATER 看到「字段审核/挂接审核/供需对接/异议响应」4 张待办卡 +
-    3 个「发布「xxx」」按钮全亮（点击只弹 toast）。前 3 张卡 href 指向无权 inbox 路由；
-    发布按钮走 catalog.entry.publish action（后端 policy.py 限 MANAGER+BUSIAUDIT）。
-    chokepoint：
-      1) 待办卡 → pageAccess.filterByRouteAccess（route-based，同 PageFocusHeader）；
-      2) 发布按钮 → pageAccess.canPerformAction('catalog.entry.publish', role)
-         （action-based，与后端 policy 对齐）。
-    新增类似页面 CTA 应统一走这两个 chokepoint，禁止在 page 内自己实现 role 比对。
+    背景（2026-06-17 收口）：工作台行内化后，供数据页仍重复留着「待审核目录/待发布目录/
+    待发布资源」三张逐条带按钮的办理队列卡——同一简单是/否两处维护。本轮删三张队列、供数据
+    页定位收敛为管理面（编目/挂接/注册向导 + 目录/资源管理概览 + 协作待办导航 + 数据质量）；
+    发布/审核等"点一下就办"统一收口工作台行内办理（P1Workbench 的 decision-list）。
+    chokepoint 守卫（保留）：
+      1) 协作待办卡 → pageAccess.filterByRouteAccess（route-based，无权 inbox 不可见）；
+      2) 数据质量门 → pageAccess.canPerformAction（action-based，与后端 policy 对齐）；
+      3) 禁 page 内 role 字面比对（一律走能力 chokepoint）。
+    退役防回潮：发布/审核办理队列不得重现于本页（避免与工作台两处维护）。
     """
     from pathlib import Path
 
@@ -421,40 +443,25 @@ def test_p5_provider_filters_stat_cards_and_publish_action() -> None:
         Path(__file__).resolve().parent.parent
         / "zw-brain-web" / "src" / "pages" / "P5Provider.vue"
     ).read_text(encoding="utf-8")
+    # 保留的 chokepoint：协作待办卡过滤 + 能力门 + 禁 role 字面比对。
     assert "filterByRouteAccess" in src and "canPerformAction" in src, (
         "P5Provider.vue 必须 import filterByRouteAccess + canPerformAction 两个 chokepoint"
     )
-    assert "visibleStatCards" in src, (
-        "P5Provider.vue 必须用 visibleStatCards 计算属性过滤待办卡"
+    assert "visibleStatCards" in src and 'v-for="c in visibleStatCards"' in src, (
+        "协作待办卡须经 visibleStatCards（filterByRouteAccess 派生）过滤，无权 inbox 卡不渲染"
     )
-    assert "canPublishCatalog" in src, (
-        "P5Provider.vue 必须用 canPublishCatalog 计算属性闸 publish 按钮区"
-    )
-    assert 'v-for="c in visibleStatCards"' in src, (
-        "模板 v-for 必须基于 visibleStatCards，OPERATER 才看不到无权 inbox 卡"
-    )
-    # D57⑧ 两级目录审核管线 → 同页两张目录队列卡（pending_review 部门审 / approved_pending_publish
-    # 平台审发布），各自 v-if 闸在 *能力派生* 布尔（showReviewQueue / showPublishQueue），而非 page 内
-    # role 字面比对。两布尔均由 canPerformAction 能力 ∧ CATALOG_QUEUE_STAGE 单源阶段表派生（capability
-    # chokepoint 不被绕过；OPERATER 既无 review 也无 publish 能力 → 两卡皆不渲染）。
-    assert "showPublishQueue" in src and "canPublishCatalog" in src, (
-        "publish-section 须闸在能力派生的 showPublishQueue（含 canPublishCatalog 能力门），"
-        "不得用 page 内 role 字面比对"
-    )
-    assert "v-if=\"source === 'live' && showPublishQueue\"" in src, (
-        "publish-section 必须 v-if 闸在 showPublishQueue（capability∧stage 派生），OPERATER 看不到发布按钮"
-    )
-    assert "showReviewQueue" in src and "canReviewCatalog" in src, (
-        "review-section（D57⑧ 部门审一站）须闸在能力派生的 showReviewQueue（含 catalog.entry.review 能力门）"
-    )
-    assert "v-if=\"source === 'live' && showReviewQueue\"" in src, (
-        "review-section 必须 v-if 闸在 showReviewQueue（capability∧stage 派生），无权角色看不到审核队列"
-    )
-    # 纵深守卫：P5Provider.vue 模板/JS 不得出现 page 内 role 字面比对（一律走能力 chokepoint，
-    # 阶段判定走 CATALOG_QUEUE_STAGE 单源表）。
+    # 退役防回潮：三张办理队列 + 其发布/审核动作不得重现（已收口工作台行内，禁两处维护）。
+    for gone in (
+        "showPublishQueue", "showReviewQueue", "canPublishCatalog", "canReviewCatalog",
+        "canPublishResource", "publishDraft", "publishResource", "navigateToReview",
+        "publish-catalog-btn", "publish-resource-btn", "review-catalog-btn", "resource-publish-queue",
+    ):
+        assert gone not in src, (
+            f"P5Provider.vue 不得重现办理队列残留「{gone}」——发布/审核已统一收口工作台行内办理"
+        )
+    # 纵深守卫：P5Provider.vue 模板/JS 不得出现 page 内 role 字面比对（一律走能力 chokepoint）。
     assert "role.value === 'ROLE_" not in src and "role === 'ROLE_" not in src, (
-        "P5Provider.vue 禁出现 role 字面比对（role === 'ROLE_...'）——一律走 canPerformAction 能力 chokepoint "
-        "+ CATALOG_QUEUE_STAGE 单源阶段表"
+        "P5Provider.vue 禁出现 role 字面比对（role === 'ROLE_...'）——一律走 canPerformAction 能力 chokepoint"
     )
 
 
@@ -477,8 +484,11 @@ def test_action_role_gates_aligned_with_backend_policy() -> None:
         / "zw-brain-web" / "src" / "lib" / "pageAccess.ts"
     ).read_text(encoding="utf-8")
 
-    # 提取 ACTION_ROLE_GATES 字面量块（吃 Readonly<Record<...>> 嵌套泛型）
-    m = re.search(r"ACTION_ROLE_GATES\b[^=]*=\s*\{([^}]+)\}", src, re.DOTALL)
+    # 提取 ACTION_ROLE_GATES 字面量块。锚到 `export const`（避开同名注释命中）+ 以列首 `\n};`
+    # 收尾——**不能**用 `\{([^}]+)\}`：注释里的 `={ROLE_X}` 会成为第一个 `}` 把 body 截断到仅 3/36
+    # 条（静默假绿，application.platform_approve/objection.case.accept 等核心门全漏查）。块内值
+    # 皆为数组无嵌套对象，`.*?` 非贪婪到首个列首 `};` 即整块。
+    m = re.search(r"export const ACTION_ROLE_GATES\b[^=]*=\s*\{(.*?)\n\};", src, re.DOTALL)
     assert m, "pageAccess.ts 必须显式声明 ACTION_ROLE_GATES 表"
     body = m.group(1)
     # 每行形如 `'action.id': ['ROLE_X', 'ROLE_Y'],`
@@ -496,6 +506,15 @@ def test_action_role_gates_aligned_with_backend_policy() -> None:
         # 后端 policy 用 `<action>.execute` 形式登记
         be_key = f"{action}.execute"
         be_roles = policy.PERMISSION_ROLES.get(be_key)
+        if action.endswith(".view"):
+            # 纯视图可见门（无对应写 capability，如 provider.data_quality.view）：仅控卡片/CTA 是否
+            # 渲染、不发起 capability 调用，故后端无 `.execute` 权威可对账。断言它**确无**后端写
+            # capability（写门误打 .view 后缀会被这条逮住），并跳过 set-equal。
+            assert be_roles is None, (
+                f"前端 ACTION_ROLE_GATES['{action}'] 以 .view 结尾（约定为纯视图门），却在后端 "
+                f"policy 命中 '{be_key}' 写 capability；要么去掉 .view 后缀走 set-equal，要么改名"
+            )
+            continue
         assert be_roles is not None, (
             f"前端 ACTION_ROLE_GATES['{action}'] 在后端 policy.PERMISSION_ROLES 找不到 "
             f"'{be_key}'；若 action 名变化，请两侧同步"
@@ -526,8 +545,13 @@ _PROJECTION_DEEPLINKS: dict[str, frozenset[str]] = {
     # 业务运营员（受理岗 + 发布/汇总积压 + 平台审）
     "ROLE_BUSIAUDIT": frozenset(
         {
-            "/request-flow/review",        # 受理待办（sync_request_todos accept）
-            "/request-flow",               # 待受理申请 backlog
+            # 受理待办（sync_request_todos accept）+ 待受理申请 backlog。
+            # 「办申请」导航解体后列表根 /request-flow 重定向到领数据（BUSIAUDIT 不可达），
+            # 故受理 backlog 深链单一目标收敛到 /request-flow/review（reviewer 决策详情，
+            # BUSIAUDIT 经 ROUTE_ROLE_OVERRIDES 可达）。workbench_backlog_projection.py 的
+            # backlog-application href 须同步从裸 #/request-flow 改为 BUSIAUDIT 可达目标
+            # （受理工作迁工作台，由工作台 agent 重定向）。
+            "/request-flow/review",
             "/provider",                   # 待发布目录/资源 backlog
             "/provider/inbox/demand-match",  # 待汇总需求 backlog
             # G6（D55 查缺补漏）：异议收件箱按 v5「异议核查 = 业务运营员 + 部门管理员」开放

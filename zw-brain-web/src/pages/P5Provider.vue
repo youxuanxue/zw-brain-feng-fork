@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { useProvider, useSnapshot, useWebUiConfig } from '@/composables/useSnapshot';
-import { authFetch } from '@/composables/useAuth';
-import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import {
   providerTodoCounts,
@@ -13,8 +11,6 @@ import {
 import { supplierDataQualityRows } from '@/lib/roleProjection';
 import { canPerformAction, filterByRouteAccess, isRouteAllowedForRole } from '@/lib/pageAccess';
 import { canCompileNationalExtElem, canViewProviderAssets } from '@/lib/requestFlowRoles';
-import { apiUrl } from '@/composables/useApiBase';
-import { deriveRecordName, shortId } from '@/lib/userLanguage';
 
 const provider = useProvider();
 const { source, data: snapshot } = useSnapshot();
@@ -28,16 +24,10 @@ const canSeeDataQuality = computed(() => canPerformAction('provider.data_quality
 const dataQualityRows = computed(() =>
   canSeeDataQuality.value ? supplierDataQualityRows(snapshot.value) : [],
 );
-const publishWarnings = ref<Array<Record<string, unknown>>>([]);
-const publishQueue = ref<Array<{ catalog_code: string; title: string }>>([]);
-const publishQueueLoading = ref(false);
-// 待审核目录（pending_review）队列——部门管理员的目录部门审一站（D57⑧ 两级管线第一级）。
-const reviewQueue = ref<Array<{ catalog_code: string; title: string }>>([]);
-const reviewQueueLoading = ref(false);
 
 const counts = computed(() => providerTodoCounts(provider.value as Record<string, unknown>));
 
-// 供数 IA 重排（0605#8 方案 a）：进「供数据」第一眼看到「怎么编目 / 挂接 / 发布」，
+// 供数 IA 重排（0605#8 方案 a）：进「供数据」第一眼看到「怎么编目 / 挂接 / 注册」，
 // 而非协作待办。供数主线动作升为首屏主卡，按角色权限渲染（无权=不可见）。
 // D57⑧ 同级展示：反向编目从页头药丸升为首屏主卡，与「在线编制目录」并列（6.10#17）。
 const supplyActions = computed(() => {
@@ -84,7 +74,9 @@ const canViewAssetOverview = computed(() => canViewProviderAssets(role.value));
 const catalogSummary = computed(() => providerCatalogSummary(provider.value as Record<string, unknown>));
 const resourceSummary = computed(() => providerResourceSummary(provider.value as Record<string, unknown>));
 
-// 协作待办（次区）：审核 / 供需对接 / 异议从首屏主视觉降为次级一行待办。
+// 协作待办（次区）：审核 / 供需对接 / 异议——计数 + 进**详情收件箱**的导航入口（收件箱办的是
+// 工作台不收的多步/长列表流：反向草稿逐字核、异议回复评价、供需撮合）；逐条"点一下就办"的
+// 简单是/否（发布/审核/受理）已统一收口到工作台行内办理，本页不再重复承载办理队列。
 const collabCards = computed(() => {
   const c = counts.value;
   return [
@@ -106,55 +98,6 @@ const visibleStatCards = computed(() =>
   filterByRouteAccess(collabCards.value, (c) => c.href, role.value),
 );
 
-// D57⑧ 两级目录审核管线 → 同页两张目录队列卡，各自走能力门（无权=不可见）：
-//   · 待审核目录（pending_review）= 部门审一站（部门管理员）。门 = catalog.entry.review 能力。
-//   · 待发布目录（approved_pending_publish）= 平台审/发布站（业务运营员）。门 = catalog.entry.publish 能力。
-// 两阶段→角色由后端 policy 决定（review={MANAGER,BUSIAUDIT}、publish={BUSIAUDIT}），故 review 能力对
-// 两角色均真——单凭能力分不开「在哪一阶段办」。CATALOG_QUEUE_STAGE 单源声明每角色对应的目录队列阶段
-// （状态 + 文案 + 跳转动作），模板与加载只读此表，不在各处散落 role==='STRING' 字面比对（R-003）。
-// D57⑤：目录/资源发布权均回收仅业务运营员（严格 v5），管理员目录无 publish 能力 → 发布卡不渲染。
-const canReviewCatalog = computed(() => canPerformAction('catalog.entry.review', role.value));
-const canPublishCatalog = computed(() => canPerformAction('catalog.entry.publish', role.value));
-
-type CatalogQueueStage = 'review' | 'publish';
-// 角色 → 该角色在 D57⑧ 管线上经手的目录队列阶段（单源，模板/加载共用；缺席=该角色无目录队列卡）。
-// 业务运营员（平台审/发布）→ publish 站；部门管理员（部门审）→ review 站；操作员（编制者）无审核/发布队列。
-const CATALOG_QUEUE_STAGE: Readonly<Record<string, CatalogQueueStage>> = {
-  ROLE_ORGAN_MANAGER: 'review',
-  ROLE_BUSIAUDIT: 'publish',
-};
-const catalogQueueStage = computed<CatalogQueueStage | null>(() => CATALOG_QUEUE_STAGE[role.value] ?? null);
-// 两张卡各自的「能力门 ∧ 当前角色处在该阶段」——模板用派生布尔，不写 role 字面。
-const showReviewQueue = computed(() => canReviewCatalog.value && catalogQueueStage.value === 'review');
-const showPublishQueue = computed(() => canPublishCatalog.value && catalogQueueStage.value === 'publish');
-
-// 0611 断点 B（R3）补「待发布资源」队列；D57⑤ 后 policy 已收窄到仅业务运营员，
-// 原硬比对 BUSIAUDIT 的临时门改回 ACTION_ROLE_GATES chokepoint（与后端 set-equal 守卫兜底）。
-const canPublishResource = computed(() => canPerformAction('resource.asset.publish', role.value));
-// 与工作台「待发布资源」计数同源同口径：真实库 resource_asset.lifecycle_status ==
-// 'approved_pending_publish'（snapshot enrich 的 provider.resources 投影）。
-const resourcePublishQueue = computed(() => {
-  const rows = (provider.value as Record<string, unknown>).resources;
-  if (!Array.isArray(rows)) return [];
-  return rows
-    .map((r) => (r && typeof r === 'object' ? (r as Record<string, unknown>) : {}))
-    .filter((r) => String(r.lifecycle_status ?? '') === 'approved_pending_publish')
-    .map((r) => {
-      const code = String(r.id ?? '');
-      return { resource_code: code, title: deriveRecordName(r.name, code, '数据资源') };
-    })
-    .filter((r) => r.resource_code);
-});
-
-async function publishResource(resourceCode: string) {
-  await invokeActionStub({
-    skillId: 'resource.asset.publish',
-    payload: { resource_code: resourceCode },
-    successTitle: '资源已发布',
-    refreshSnapshotAfter: true,
-  });
-}
-
 // 国家扩展要素编制入口：角色门（MANAGER+BUSIAUDIT）∧ flag 门
 // （snapshot.webui.nationalChannel.enabled）。flag-off / 无权 → 入口完全不渲染（无权=不可见）。
 const webui = useWebUiConfig();
@@ -167,88 +110,9 @@ const showNationalExtElem = computed(
 
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
-  if (supplyActions.value.length) return '从这里编目、挂接、发布你的数据';
+  if (supplyActions.value.length) return '从这里编目、挂接、注册你对外提供的数据（发布/审核去工作台办理）';
   return '查看本部门目录与资源、处理协作待办';
 });
-
-// 目录队列通用加载器（D57⑧ 两阶段共用）：按生命周期状态拉本部门目录，写入对应队列 ref。
-// 0611 断点 A 修复保留：全量（不截断）+ 按提交/更新时间倒序——此前 limit:5 + 默认 catalog_code
-// 升序让新审结目录（j2-* 前缀 ASCII 排在存量数字码后）永不可见，且队列条数与工作台计数自相矛盾。
-async function loadCatalogQueue(
-  status: string,
-  targetRef: typeof publishQueue,
-  loadingRef: typeof publishQueueLoading,
-): Promise<void> {
-  if (source.value !== 'live') return;
-  loadingRef.value = true;
-  try {
-    const role = getProductRole().value;
-    const resp = await authFetch(apiUrl('/api/skills/catalog.entry.query'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ role, lifecycle_status: status, order: 'updated_desc' }),
-    });
-    if (!resp.ok) {
-      targetRef.value = [];
-      return;
-    }
-    const body = (await resp.json()) as { items?: Array<Record<string, unknown>> };
-    targetRef.value = (body.items ?? [])
-      .map((item) => {
-        const code = String(item.catalog_code ?? '');
-        return {
-          catalog_code: code,
-          // 名缺失时不裸出目录编码当标题 → 派生「数据目录 …末6位」。
-          title: deriveRecordName(item.title, code, '数据目录'),
-        };
-      })
-      .filter((item) => item.catalog_code);
-  } finally {
-    loadingRef.value = false;
-  }
-}
-
-async function loadPublishQueue(): Promise<void> {
-  return loadCatalogQueue('approved_pending_publish', publishQueue, publishQueueLoading);
-}
-
-async function loadReviewQueue(): Promise<void> {
-  return loadCatalogQueue('pending_review', reviewQueue, reviewQueueLoading);
-}
-
-// 进 live 后只加载当前角色所处阶段的目录队列（CATALOG_QUEUE_STAGE 单源派生，不写 role 字面）。
-watch(source, (live) => {
-  if (live !== 'live') return;
-  if (catalogQueueStage.value === 'review') void loadReviewQueue();
-  else if (catalogQueueStage.value === 'publish') void loadPublishQueue();
-}, { immediate: true });
-
-async function publishDraft(catalogCode: string) {
-  const result = await invokeActionStub({
-    skillId: 'catalog.entry.publish',
-    payload: { catalog_code: catalogCode },
-    successTitle: '目录已提交发布',
-    refreshSnapshotAfter: true,
-  });
-  if (!result.ok) return;
-  const root = (result.data ?? {}) as Record<string, unknown>;
-  const inner = (root.result ?? root) as Record<string, unknown>;
-  const warnings = (inner.duplicate_warnings ?? []) as Array<Record<string, unknown>>;
-  publishWarnings.value = warnings;
-  await loadPublishQueue();
-  if (warnings.length) {
-    pushToast({
-      kind: 'warn',
-      title: '发布成功 · 重复率提醒',
-      detail: `检测到 ${warnings.length} 条可能重复（不阻断发布，请核对后再推广）`,
-    });
-  }
-}
-
-// 待审核目录「审核」按钮 → 目录审核收件箱（D57⑧ 部门审一站），带 catalog_code 直达该目录。
-function navigateToReview(catalogCode: string) {
-  window.location.hash = `#/provider/inbox/catalog-review?catalog_code=${encodeURIComponent(catalogCode)}`;
-}
 </script>
 
 <template>
@@ -262,7 +126,7 @@ function navigateToReview(catalogCode: string) {
         ]"
       />
 
-      <!-- 供数主线（首屏主卡，0605#8 方案 a）：进页第一眼 = 怎么编目 / 挂接 / 发布 -->
+      <!-- 供数主线（首屏主卡，0605#8 方案 a）：进页第一眼 = 怎么编目 / 挂接 / 注册 -->
       <div v-if="source === 'live' && supplyActions.length" class="supply-grid">
         <a v-for="a in supplyActions" :key="a.key" :href="a.href" class="supply-card">
           <strong>{{ a.title }}</strong>
@@ -273,7 +137,8 @@ function navigateToReview(catalogCode: string) {
       <!-- 目录 / 资源管理概览（负责人加注）：本部门目录 / 资源的管理态全局感（只读现算）。
            T9：概览卡标题做成可点入口 → 进 provider 子路由清单页（/provider/catalogs、
            /provider/resources），按生命周期浏览本部门全部目录/资源（名称/代码/提供方/生命周期/查看）。
-           子路由不进 PRODUCT_SHELL_NAV、不增左导航项（守左导航场景页 ≤10 约束）。 -->
+           子路由不进 PRODUCT_SHELL_NAV、不增左导航项（守左导航场景页 ≤10 约束）。
+           待发布 / 审核中等计数在此只读呈现；逐条"发布/审核"办理已统一到工作台行内。 -->
       <section v-if="source === 'live' && canViewAssetOverview" class="manage-grid" aria-label="目录与资源管理概览">
         <div class="manage-card" data-testid="catalog-manage-summary">
           <header class="manage-head">
@@ -303,94 +168,6 @@ function navigateToReview(catalogCode: string) {
         </div>
       </section>
 
-      <!-- 待审核目录（D57⑧ 部门审一站，部门管理员）：pending_review → 「审核」跳目录审核收件箱。
-           门 = showReviewQueue（catalog.entry.review 能力 ∧ 当前角色处在 review 阶段，无权=不可见）。 -->
-      <section v-if="source === 'live' && showReviewQueue" class="publish-card" aria-label="待审核目录">
-        <header class="publish-card-head">
-          <h3 class="section-title">待审核目录</h3>
-          <span v-if="reviewQueue.length" class="publish-count">{{ reviewQueue.length }} 项</span>
-        </header>
-        <p v-if="reviewQueueLoading" class="focus-empty">正在加载待审核队列……</p>
-        <p v-else-if="!reviewQueue.length" class="focus-empty">暂无待审核目录</p>
-        <ul v-else class="publish-list">
-          <li v-for="item in reviewQueue" :key="item.catalog_code" class="publish-row">
-            <div class="publish-row-meta">
-              <span class="publish-row-title" :title="item.title">{{ item.title }}</span>
-              <code class="publish-row-code" :title="item.catalog_code">{{ shortId(item.catalog_code) }}</code>
-            </div>
-            <button
-              type="button"
-              class="gov-btn gov-btn-primary publish-row-btn"
-              data-testid="review-catalog-btn"
-              @click="navigateToReview(item.catalog_code)"
-            >审核</button>
-          </li>
-        </ul>
-      </section>
-
-      <!-- 待发布目录（D57⑧ 平台审/发布站，业务运营员）。门 = showPublishQueue（catalog.entry.publish
-           能力 ∧ 当前角色处在 publish 阶段，无权=不可见）。 -->
-      <section v-if="source === 'live' && showPublishQueue" class="publish-card" aria-label="待发布目录">
-        <header class="publish-card-head">
-          <h3 class="section-title">待发布目录</h3>
-          <span v-if="publishQueue.length" class="publish-count">{{ publishQueue.length }} 项</span>
-        </header>
-        <p v-if="publishQueueLoading" class="focus-empty">正在加载待发布队列……</p>
-        <p v-else-if="!publishQueue.length" class="focus-empty">暂无待发布目录（需先完成平台复核）</p>
-        <ul v-else class="publish-list">
-          <li v-for="item in publishQueue" :key="item.catalog_code" class="publish-row">
-            <div class="publish-row-meta">
-              <span class="publish-row-title" :title="item.title">{{ item.title }}</span>
-              <code class="publish-row-code" :title="item.catalog_code">{{ shortId(item.catalog_code) }}</code>
-            </div>
-            <button
-              type="button"
-              class="gov-btn gov-btn-primary publish-row-btn"
-              data-testid="publish-catalog-btn"
-              @click="publishDraft(item.catalog_code)"
-            >发布</button>
-          </li>
-        </ul>
-        <div v-if="publishWarnings.length" class="warn-panel" data-testid="duplicate-warnings">
-          <h4 class="warn-title">重复率提醒 · {{ publishWarnings.length }} 条</h4>
-          <ul>
-            <li v-for="(w, idx) in publishWarnings" :key="idx">
-              {{ deriveRecordName(w.title, w.catalog_code ?? w.code, '数据目录') }}
-              <span v-if="w.similarity_score"> · 相似度 {{ w.similarity_score }}</span>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <!-- 0611 断点 B（R3）：待发布资源队列——资源审核通过后在此发布，不再死在「待发布」。
-           门控仅业务运营员（v5：资源发布=业务运营员），无权角色整块不渲染。 -->
-      <section
-        v-if="source === 'live' && canPublishResource"
-        class="publish-card"
-        aria-label="待发布资源"
-        data-testid="resource-publish-queue"
-      >
-        <header class="publish-card-head">
-          <h3 class="section-title">待发布资源</h3>
-          <span v-if="resourcePublishQueue.length" class="publish-count">{{ resourcePublishQueue.length }} 项</span>
-        </header>
-        <p v-if="!resourcePublishQueue.length" class="focus-empty">暂无待发布资源（资源审核通过后会出现在这里）</p>
-        <ul v-else class="publish-list">
-          <li v-for="item in resourcePublishQueue" :key="item.resource_code" class="publish-row">
-            <div class="publish-row-meta">
-              <span class="publish-row-title" :title="item.title">{{ item.title }}</span>
-              <code class="publish-row-code" :title="item.resource_code">{{ shortId(item.resource_code) }}</code>
-            </div>
-            <button
-              type="button"
-              class="gov-btn gov-btn-primary publish-row-btn"
-              data-testid="publish-resource-btn"
-              @click="publishResource(item.resource_code)"
-            >发布</button>
-          </li>
-        </ul>
-      </section>
-
       <a
         v-if="showNationalExtElem"
         href="#/provider/national-ext-elem"
@@ -401,7 +178,8 @@ function navigateToReview(catalogCode: string) {
         <em>与政务目录编制双轨独立，走业务部门→主管部门审核后同步国家平台</em>
       </a>
 
-      <!-- 协作待办（次区，0605#8）：审核 / 供需对接 / 异议从首屏主视觉降为次级一行 -->
+      <!-- 协作待办（次区，0605#8）：审核 / 供需对接 / 异议从首屏主视觉降为次级一行；
+           进详情收件箱办多步/长列表流。简单发布/审核/受理已收口工作台行内。 -->
       <section v-if="source === 'live' && visibleStatCards.length" class="collab-zone" aria-label="协作待办">
         <h3 class="section-title collab-title">协作待办</h3>
         <div class="stat-grid">
@@ -464,23 +242,16 @@ function navigateToReview(catalogCode: string) {
 .nat-ext-entry { display: grid; gap: 4px; margin-top: 20px; padding: 14px 16px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; text-decoration: none; color: inherit; background: #f5f9fe; }
 .nat-ext-entry strong { font-size: 14px; color: var(--b-primary, #006be6); }
 .nat-ext-entry em { font-style: normal; font-size: 12px; color: var(--b-muted, #5c6370); }
-.gov-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; }
-.gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
 .publish-card { margin-top: 28px; padding: 16px 18px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; background: #fff; }
 .publish-card-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
 .section-title { margin: 0; font-size: 14px; font-weight: 600; }
 .publish-count { font-size: 12px; color: var(--b-muted, #5c6370); }
-/* 队列全量呈现（0611 断点 A：去 limit 截断）；行多时容器内滚动，不无限撑长页面。 */
+/* 列表全量呈现；行多时容器内滚动，不无限撑长页面。 */
 .publish-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 420px; overflow-y: auto; }
 .publish-row + .publish-row { margin-top: 8px; }
 .publish-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 6px; background: var(--b-bg-subtle, #f5f9fe); }
 .publish-row-meta { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
 .publish-row-title { font-size: 13px; color: var(--b-neutral-text, #1a1d21); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.publish-row-code { font-size: 11px; color: var(--b-muted, #5c6370); font-family: ui-monospace, 'SF Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.publish-row-btn { flex-shrink: 0; }
-.warn-panel { margin-top: 12px; padding: 10px 12px; border-radius: 6px; border: 1px solid #f0d080; background: #fff8e6; font-size: 13px; }
-.warn-title { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #6b4e00; }
-.warn-panel ul { margin: 0; padding-left: 18px; }
 .dq-hint { font-size: 12px; color: var(--b-muted, #5c6370); margin: 0 0 10px; }
 .dq-missing { font-size: 12px; color: var(--b-muted, #9aa0a6); font-style: italic; }
 .row-link { color: var(--b-primary, #006be6); font-size: 13px; text-decoration: none; font-weight: 500; flex-shrink: 0; }
