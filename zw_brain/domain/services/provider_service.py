@@ -20,6 +20,7 @@ from zw_brain.domain.serializers import quality as quality_ser
 from zw_brain.domain.serializers import resource_api as resource_api_ser
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 from zw_brain.shared.sanitization import safe_json
+from zw_brain.shared.session_context import caller_org_code
 
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
@@ -77,7 +78,11 @@ class ProviderService:
             "resource_kind": kind,
             "title": str(payload.get("title", resource_code)),
             "lifecycle_status": str(payload.get("lifecycle_status", default_status)),
-            "owner_org_id": payload.get("owner_org_id"),
+            # owner（供数面 org_in_scope 行级过滤源）：显式 owner_org_id 优先（挂接 resource_mount
+            # 设为目标目录 owner、_guard_catalog_same_org 强制一致，须保留），回落可信会话当前机构
+            # caller_org_code。否则向导注册的 API/库表资产 owner_org_id=None（org_in_scope(None)
+            # 恒 False）→ 注册方本人及所有部门角色在资源列表/挂接审核里看不到刚注册的服务。
+            "owner_org_id": payload.get("owner_org_id") or caller_org_code(payload),
             "owner_org_snapshot_json": safe_json(payload.get("owner_org_snapshot_json") or {}),
             "region_code": payload.get("region_code"),
             "catalog_code": payload.get("catalog_code"),

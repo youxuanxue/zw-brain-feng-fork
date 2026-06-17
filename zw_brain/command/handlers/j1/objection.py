@@ -22,6 +22,7 @@ from zw_brain.domain.models import (
 from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 from zw_brain.shared.sanitization import safe_json
+from zw_brain.shared.session_context import caller_org_code
 
 # Target types that must reference an existing entity. authorization/alert are
 # auto-issued by upstream events and not enumerable through a clean lookup;
@@ -110,11 +111,16 @@ def _create_objection_case(brain, deps, ctx, payload: dict[str, Any]) -> dict[st
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         repo = deps.repos.objection
+        # 申诉方机构（异议面 org_in_scope 行级过滤源）取可信会话当前机构优先、回落客户端自报；
+        # 否则 UI 创建恒落 'unknown'（前端不传），部门角色 org_in_scope 两侧全 False→申诉人
+        # 自己在异议列表里看不到刚提的异议。承 Fix B 写侧 org 收口同口径。
+        complainant_org_id = caller_org_code(payload) or str(payload.get("complainant_org_id") or "") or "unknown"
         record = repo.create_case(
             payload
             | {
                 "actor_snapshot_json": {"actor": actor, "role": role},
                 "status": str(payload.get("status", "draft")),
+                "complainant_org_id": complainant_org_id,
             },
             tenant_id=_DEFAULT_TENANT_ID,
         )

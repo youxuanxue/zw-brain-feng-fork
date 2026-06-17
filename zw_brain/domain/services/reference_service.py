@@ -27,6 +27,13 @@ class ReferenceService:
     """机构/区划/字典参照查询（只读）。"""
 
     repo: GovernanceProjectionRepository = field(default_factory=GovernanceProjectionRepository)
+    # 实例级 resolve memo（消 N+1）：参照主数据（org_projection）在单次只读快照内稳定不变，
+    # 同一机构名/码被 N 行×多个面反复 resolve_org_code（每次最多 2 次 DB 点查）是部门角色快照
+    # ~5x 慢的主因。实例短命（每次 enrich / 每个快照新建），memo 仅在该实例生命周期内复用、
+    # 不跨快照/不跨 DB，故无陈旧风险；重名→None 的 fail-closed 结果照常缓存。键=(tenant_id, 原值)。
+    _resolve_memo: dict[tuple[str, str], str | None] = field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
 
     def organ(self, org_code: str, *, tenant_id: str = _DEFAULT_TENANT_ID) -> dict[str, Any] | None:
         """选机构 → 带出名称 + 所属区划（带出核心）。未命中返回 None（fail-soft）。"""
@@ -53,16 +60,24 @@ class ReferenceService:
         背景（债 legacy-catalog-owner-org-name-mismatch）：legacy 导入的目录 owner_org_id
         存机构名（如「省大数据局」），资源侧用统一社会信用代码——同机构裸字符串比对必然不等。
         归一只认参照主数据（org_projection），不做模糊匹配。
+
+        实例级 memo（见 _resolve_memo 注释）：同一 (tenant_id, 原值) 在本实例生命周期内只查一次
+        DB，消除部门隔离行级过滤的 N+1。
         """
         v = str(value or "").strip()
         if not v:
             return None
+        key = (str(tenant_id), v)
+        memo = self._resolve_memo
+        if key in memo:
+            return memo[key]
         if self.repo.get_org_by_code(v, tenant_id=tenant_id) is not None:
-            return v
-        rows = self.repo.list_orgs_by_name(v, tenant_id=tenant_id)
-        if len(rows) == 1:
-            return rows[0].org_code
-        return None
+            result: str | None = v
+        else:
+            rows = self.repo.list_orgs_by_name(v, tenant_id=tenant_id)
+            result = rows[0].org_code if len(rows) == 1 else None
+        memo[key] = result
+        return result
 
     def visible_org_codes(
         self, actor_org_code: str, role: str, *, tenant_id: str = _DEFAULT_TENANT_ID

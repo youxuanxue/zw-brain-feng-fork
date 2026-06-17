@@ -159,7 +159,8 @@ async function createDraft() {
       payload: {
         catalog_code: code,
         title: title.value.trim(),
-        owner_org_id: defaultOwnerOrg,
+        // owner_org_id 不再前端硬编码——由后端按可信会话当前机构(caller_org_code)注入，
+        // 否则非省大数据局操作员建的目录 owner 恒为省大数据局码、在自己「目录管理」清单不可见。
         region_code: defaultRegion,
         summary_json: baseSummary(),
       },
@@ -188,7 +189,7 @@ async function saveMetadata() {
       payload: {
         catalog_code: catalogCode.value,
         title: title.value.trim(),
-        owner_org_id: defaultOwnerOrg,
+        // owner_org_id 由后端按可信会话当前机构注入（见 create_draft 注释），不前端硬编码。
         region_code: defaultRegion,
         summary_json: { ...baseSummary(), ...otherSummary(), stage: 'metadata_filled' },
         items: itemPayloads(),

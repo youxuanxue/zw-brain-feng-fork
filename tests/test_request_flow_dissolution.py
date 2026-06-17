@@ -139,6 +139,11 @@ def test_p3_request_flow_page_deleted() -> None:
     assert not (_WEB_SRC / "pages" / "P3RequestFlow.vue").exists(), (
         "P3RequestFlow.vue（被解体的列表页）必须删除"
     )
+    # 行为断言（非仅文件存在，守 test-philosophy §3）：解体后 router 不得残留对该组件的
+    # import/挂载——文件删了但 router 仍引用会 build 失败/留死引用，故一并验路由侧已收口。
+    assert "P3RequestFlow" not in _read("router/index.ts"), (
+        "router 不得残留 P3RequestFlow import/挂载（列表页已解体）"
+    )
 
 
 def test_p4_delivery_rehomes_mine_and_grants_sections() -> None:

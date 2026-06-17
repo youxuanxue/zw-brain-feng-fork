@@ -76,12 +76,14 @@ def _seed_application(
     applicant: str | None = None,
     owner_org_code: str | None = None,
     provider_org_id: str | None = None,
+    applicant_org_code: str | None = None,
     kind: str | None = "apply",
     resource_name: str = "人口库接口",
     status: str = "submitted",
 ) -> None:
     """落一张申请单：applicantDept→applicant_org（部门过滤源）、applicant→mine 源、
-    owner_org_code/provider_org_id→providerOrgCode（R11 owner 源）。"""
+    owner_org_code/provider_org_id→providerOrgCode（R11 owner 源）；applicant_org_code=运行时单
+    会话机构码（request_party_in_scope 优先读它走快路径）。"""
     request: dict[str, object] = {
         "id": app_id,
         "status": status,
@@ -96,6 +98,8 @@ def _seed_application(
         request["owner_org_code"] = owner_org_code
     if provider_org_id is not None:
         request["provider_org_id"] = provider_org_id
+    if applicant_org_code is not None:
+        request["applicant_org_code"] = applicant_org_code
     ApplicationRepository().upsert_from_request(request, tenant_id=TENANT)
 
 
@@ -282,3 +286,47 @@ def test_approvals_r11_unrelated_request_fail_closed_drop(temp_db: Path) -> None
     assert "APP-UNREL" not in {r["id"] for r in snap["requests"]}, "前提：与 orgA 无关 → 申请卡被过滤"
     out = enrich_approvals_snapshot(snap, tenant_id=TENANT, visible_org_codes={ORG_A})
     assert out["approvals"] == [], "无关审批单 → fail-closed drop"
+
+
+# ── Part 1c — 「我的申请按个人」mine 逃生口（D61③；草稿不可见回归 PR#298）─────────────
+# 根因：org 过滤抢在 mine 之前把申请人自己的单整条 drop（applicant_org 旧硬编码恒不在域内）。
+# 修复：本人提的单（applicant==caller_actor）恒可见、绕过 org 过滤；空集 fail-closed 仍不放行。
+
+def test_mine_request_escapes_dept_scope(temp_db: Path) -> None:
+    """本人提的单即使 applicant_org 与 provider 都不在会话机构域内，也恒可见（绕过 org 过滤）。"""
+    _seed_orgs()
+    # 本人(ACTOR_ME)提的单，applicant_org=orgB、provider=orgB（都不在会话 {orgA} 域）——典型跨机构申请
+    _seed_application("APP-MINE-CROSS", applicant_dept=ORG_B, applicant=ACTOR_ME, owner_org_code=ORG_B)
+    # 别人(ACTOR_OTHER)提的同样跨域单 → 仍被 org 过滤排除（mine 不放行别人的）
+    _seed_application("APP-OTHER-CROSS", applicant_dept=ORG_B, applicant=ACTOR_OTHER, owner_org_code=ORG_B)
+    out = enrich_requests_snapshot(
+        {"requests": []}, tenant_id=TENANT, visible_org_codes={ORG_A}, caller_actor=ACTOR_ME
+    )
+    ids = {r["id"] for r in out["requests"]}
+    assert "APP-MINE-CROSS" in ids, "本人提的跨域单恒可见（mine 逃生口，绕过 org 过滤）—— 草稿不可见修复"
+    assert "APP-OTHER-CROSS" not in ids, "别人提的跨域单仍被 org 过滤排除（mine 只放行本人的）"
+
+
+def test_mine_escape_respects_empty_set_fail_closed(temp_db: Path) -> None:
+    """空集 fail-closed（部门角色无机构上下文）→ 连本人的单也不放行（保 D61 空集防御语义）。"""
+    _seed_orgs()
+    _seed_application("APP-MINE", applicant_dept=ORG_A, applicant=ACTOR_ME)
+    out = enrich_requests_snapshot(
+        {"requests": []}, tenant_id=TENANT, visible_org_codes=set(), caller_actor=ACTOR_ME
+    )
+    assert out["requests"] == [], "空集=fail-closed → 连 mine 也不放行（mine 逃生口仅 None/非空集生效）"
+
+
+# ── Part 1d — applicant_org_code 快路径优先（Fix B 写侧落码，request_party_in_scope 优先读码）──
+
+def test_requests_prefers_applicant_org_code_over_name_column(temp_db: Path) -> None:
+    """运行时单：payload.applicant_org_code（码）优先于 applicant_org 列（可能存名）做行级过滤。"""
+    _seed_orgs()
+    # applicant_org 列存“别家单位”名（不在 {orgA}），但 applicant_org_code=orgA 码 → 应判在域内
+    _seed_application(
+        "APP-CODE", applicant_dept=ORG_B_NAME, applicant=ACTOR_OTHER, applicant_org_code=ORG_A
+    )
+    out = enrich_requests_snapshot(
+        {"requests": []}, tenant_id=TENANT, visible_org_codes={ORG_A}, caller_actor=ACTOR_ME
+    )
+    assert "APP-CODE" in {r["id"] for r in out["requests"]}, "applicant_org_code=orgA 码优先 → 判在域内"

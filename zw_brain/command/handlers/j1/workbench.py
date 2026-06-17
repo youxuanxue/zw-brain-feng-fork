@@ -63,7 +63,9 @@ def _get_workbench(brain, deps, ctx, role: str, payload: dict[str, Any]) -> dict
     visible_org_codes = ReferenceService().visible_org_codes(
         caller_org_code(payload), role, tenant_id=tenant_id
     )
-    enriched = enrich_workbench_backlog(view, role, tenant_id=tenant_id, visible_org_codes=visible_org_codes)
+    enriched = enrich_workbench_backlog(
+        view, role, tenant_id=tenant_id, visible_org_codes=visible_org_codes, caller_actor=ctx.actor
+    )
     enriched["greeting"] = _session_greeting(payload)
     return enriched
 

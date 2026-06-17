@@ -29,6 +29,7 @@ from zw_brain.domain.services import field_derivation, form_fill_service
 from zw_brain.domain.services.reference_service import ReferenceService
 from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
+from zw_brain.shared.session_context import caller_org_code
 
 _logger = logging.getLogger(__name__)
 
@@ -278,6 +279,14 @@ def _create_request(
         _provider_code = _owner_org_code_from_resource(resource)
         _provider_organ = _reference().organ(_provider_code) if _provider_code else None
         provider_org_name = str((_provider_organ or {}).get("org_name") or "").strip()
+        # 申请方机构：取可信会话当前机构（caller_org_code 单一事实源），替代旧硬编码展示常量
+        # "市营商环境专班"。硬编码使 applicant_org 列对所有运行时单恒为同一无关机构名，部门数据
+        # 隔离按 applicant_org 行级过滤(request_party_in_scope)时把申请人自己的单也滤掉（用户看
+        # 不到自己刚提的草稿即此根因），且与登录人/会话机构全无关。applicant_org_code（码）供隔离
+        # 走快路径、applicantDept（名）供展示；取不到诚实留空、不捏造（D47）。
+        _applicant_org_code = caller_org_code(options)
+        _applicant_organ = _reference().organ(_applicant_org_code) if _applicant_org_code else None
+        _applicant_org_name = str((_applicant_organ or {}).get("org_name") or "").strip()
         request = {
             "id": request_id,
             "resourceId": canonical_id,
@@ -291,7 +300,10 @@ def _create_request(
             "provider_org_name": provider_org_name,
             # R-006 fix: 部门名称由 applicantDept 字段单独表达；不再在 actor 文本里拼接（折叠后无法靠 role 判断身份）
             "applicant": actor,
-            "applicantDept": "市营商环境专班",
+            # 申请方机构码（隔离行级过滤快路径源，同 owner_org_code 之于提供方；request_party_in_scope
+            # 优先读它）；applicantDept 落真实机构名供展示（替代旧硬编码"市营商环境专班"）。
+            "applicant_org_code": _applicant_org_code,
+            "applicantDept": _applicant_org_name or _applicant_org_code,
             "purpose": purpose,
             "range": scope,
             "timeWindow": time_window,

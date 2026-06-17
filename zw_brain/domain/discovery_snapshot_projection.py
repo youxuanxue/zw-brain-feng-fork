@@ -204,7 +204,11 @@ def _record_to_request_card(
 
 
 def request_party_in_scope(
-    record: Any, visible_org_codes: set[str] | None, *, tenant_id: str | None = None
+    record: Any,
+    visible_org_codes: set[str] | None,
+    *,
+    tenant_id: str | None = None,
+    ref: ReferenceService | None = None,
 ) -> bool:
     """申请单是否落在调用者部门可见域内（D61 裁决②，applicant∨provider）.
 
@@ -212,11 +216,17 @@ def request_party_in_scope(
     别部门申请的入站单 R11）。``None``=全局放行（org_in_scope 恒 True）、空集=fail-closed
     （恒 False）。语义全在 ReferenceService.org_in_scope（含 legacy 名/码归一），不在调用方
     重复实现。被 enrich_requests_snapshot 与 workbench_backlog_projection 工作台申请待办收口
-    共用，避免两处口径漂移。"""
-    ref = ReferenceService()
+    共用，避免两处口径漂移。
+
+    ``ref`` 可由调用方传入共享 ReferenceService 实例（带 resolve memo）——逐行过滤时复用同一
+    实例消 N+1（同一批 org 只查一次 DB）；缺省每行新建则退化为原 per-record 查询。"""
+    ref = ref or ReferenceService()
     tid = tenant_id or get_runtime_tenant_id()
     payload = record.payload_json or {}
-    if ref.org_in_scope(record.applicant_org, visible_org_codes, tenant_id=tid):
+    # 申请方机构：运行时单优先取 payload['applicant_org_code']（会话真实机构码，request.py 落，
+    # org_in_scope 快路径零 DB）；legacy 导入单回落 applicant_org 列（可能存机构名，resolve 归一到码）。
+    applicant_owner = str(payload.get("applicant_org_code") or "") or record.applicant_org
+    if ref.org_in_scope(applicant_owner, visible_org_codes, tenant_id=tid):
         return True
     # provider 机构码源同申请卡 providerOrgCode（_provider_org_from_payload 单一取法）。
     return ref.org_in_scope(_provider_org_from_payload(payload), visible_org_codes, tenant_id=tid)
@@ -251,11 +261,27 @@ def enrich_requests_snapshot(
     out = copy.deepcopy(snapshot)
     tid = tenant_id or get_runtime_tenant_id()
 
+    # 空集=fail-closed（部门角色但无机构上下文）：连「我的」也不放行，保 D61 空集防御语义不被
+    # mine 逃生口削弱（真实 IAM 登录的部门用户恒有机构=非空集，空集只在畸形/无机构会话出现）。
+    _fail_closed = visible_org_codes is not None and not visible_org_codes
+
+    def _is_mine(rec: Any) -> bool:
+        # 「我的申请按个人」(D61③) 逃生口：本人提的单恒可见、绕过部门 org 过滤——org-scope
+        # 过滤只服务供方审批/受理队列，不应遮蔽申请人自己的单（部门用户看不到自己刚提的草稿
+        # 即此根因：草稿 applicant_org/provider 都不在会话机构域内被整条 drop）。仅 None(全局)/
+        # 非空集(有效部门上下文) 下生效；取未脱敏 payload.applicant（同 _record_to_request_card
+        # mine 现算口径）；caller_actor 空→恒 False。
+        if _fail_closed:
+            return False
+        return bool(caller_actor) and str((rec.payload_json or {}).get("applicant") or "") == str(caller_actor or "")
+
+    # 共享一个 ReferenceService（带 resolve memo）逐行过滤，消 per-record N+1（同批 org 只查一次）。
+    _scope_ref = ReferenceService()
     records = [
         r
         for r in ApplicationRepository().list_records(tenant_id=tid)
         if (r.payload_json or {}).get("kind") not in _DEMAND_KINDS
-        and request_party_in_scope(r, visible_org_codes, tenant_id=tid)
+        and (_is_mine(r) or request_party_in_scope(r, visible_org_codes, tenant_id=tid, ref=_scope_ref))
     ]
     share_map = _share_type_by_resource(tid)
     out["requests"] = [

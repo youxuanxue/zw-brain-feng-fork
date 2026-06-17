@@ -17,6 +17,7 @@ from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.resource_lifecycle import with_lifecycle_label
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 from zw_brain.shared.sanitization import safe_json
+from zw_brain.shared.session_context import caller_org_code
 
 # ──────────────────────────────────────────────────────────────────────────
 # 在线编制「基本信息」必填口径（提交审核时校验）
@@ -105,7 +106,11 @@ def _create_catalog_entry_draft(brain, deps, ctx, payload: dict[str, Any]) -> di
             "id": catalog_code,
             "name": str(payload.get("title", catalog_code)),
             "status": "draft",
-            "provider": payload.get("owner_org_id", ""),
+            # owner（供数面 org_in_scope 行级过滤源）：显式 owner_org_id 优先、回落可信会话当前
+            # 机构 caller_org_code。前端在线编制向导原硬编码常量 owner_org_id=省大数据局码（已删），
+            # 故现回落到 caller_org_code——否则非省大数据局操作员建目录后在自己「目录管理」清单
+            # 看不到刚建草稿（owner 恒省大数据局，不在自己机构域内被 org_in_scope 过滤掉）。
+            "provider": payload.get("owner_org_id") or caller_org_code(payload) or "",
             "region_code": payload.get("region_code"),
             "source_ref": payload.get("source_ref"),
             "legacy_object_ref": payload.get("legacy_object_ref") or catalog_code,

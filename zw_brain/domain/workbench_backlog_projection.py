@@ -107,14 +107,29 @@ _OPERATER_REQUEST_CATEGORIES = frozenset(
 )
 
 
-def _org_visible_request_ids(tenant_id: str, visible_org_codes: set[str] | None) -> set[str]:
+def _org_visible_request_ids(
+    tenant_id: str, visible_org_codes: set[str] | None, *, caller_actor: str | None = None
+) -> set[str]:
     """一次扫 application_record，现算本机构可见域内的 request-id 集合（payload['id'] 口径同
     sync_request_todos）。谓词单一事实源 request_party_in_scope（None=全量、空集=空、
-    否则本机构可见域），与快照 requests 面同源、不在工作台层重复实现。"""
+    否则本机构可见域），与快照 requests 面同源、不在工作台层重复实现。
+
+    ``caller_actor`` 非空时并入「我的申请按个人」逃生口（D61③，同 requests 面）：本人提的单
+    （payload['applicant']==caller_actor）恒进集合、不被部门 org 过滤丢弃——仅部门操作员申请
+    进度路径传入（管理员审核待办是供方 org-scope、不传，本人申请归其「我的申请」非审核待办）；
+    空集 fail-closed 时连 mine 也不放行（保 D61 空集防御语义，同 requests 面）。"""
+    fail_closed = visible_org_codes is not None and not visible_org_codes
+    # 共享一个 ReferenceService（带 resolve memo）逐行过滤，消 per-record N+1（同 requests 面）。
+    scope_ref = ReferenceService()
     visible: set[str] = set()
     for record in ApplicationRepository().list_records(tenant_id=tenant_id):
-        rid = str((record.payload_json or {}).get("id") or "")
-        if rid and request_party_in_scope(record, visible_org_codes, tenant_id=tenant_id):
+        payload = record.payload_json or {}
+        rid = str(payload.get("id") or "")
+        if not rid:
+            continue
+        if request_party_in_scope(record, visible_org_codes, tenant_id=tenant_id, ref=scope_ref):
+            visible.add(rid)
+        elif caller_actor and not fail_closed and str(payload.get("applicant") or "") == str(caller_actor):
             visible.add(rid)
     return visible
 
@@ -809,6 +824,7 @@ def enrich_workbench_backlog(
     *,
     tenant_id: str | None = None,
     visible_org_codes: set[str] | None = None,
+    caller_actor: str | None = None,
 ) -> dict[str, Any]:
     """工作台 todos / 办理建议从真实库现算，enrich 覆盖全部 5 角色（D57②/R-8）.
 
@@ -840,8 +856,13 @@ def enrich_workbench_backlog(
             org_visible_request_ids=_org_visible_request_ids(tid, visible_org_codes),
         )
     if role == "ROLE_ORGAN_OPERATER":
+        # 操作员申请进度=个人视图：并入 caller_actor 的「我的申请」逃生口（D61③），本人提的单
+        # 恒进待办、不被部门 org 过滤丢弃。管理员审核路径不传 caller_actor（审核是供方 org-scope）。
         return _enrich_operator_backlog(
-            view, org_visible_request_ids=_org_visible_request_ids(tid, visible_org_codes)
+            view,
+            org_visible_request_ids=_org_visible_request_ids(
+                tid, visible_org_codes, caller_actor=caller_actor
+            ),
         )
     if role == "ROLE_SECURITY_AUDIT":
         return _enrich_supervisor_view(view)
