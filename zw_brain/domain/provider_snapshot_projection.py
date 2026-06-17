@@ -36,6 +36,15 @@ _DEMAND_PROVIDER_PHASES = frozenset(
     {PHASE_REGISTERED, PHASE_MANUAL_REGISTERED, PHASE_RECOMMEND_FAILED}
 )
 
+# 模块级深拷贝引用：enrich_* 的 ``copy: bool`` 形参会在函数体内遮蔽 ``copy`` 模块名，
+# 故经此别名调用 deepcopy，不受形参遮蔽影响（S3 deepcopy 开关）。
+_deepcopy = copy.deepcopy
+
+
+def _copy_snapshot(snapshot: dict[str, Any], do_copy: bool) -> dict[str, Any]:
+    """``do_copy=True`` → deepcopy（默认纯函数语义）；False → 原样返回供原地写（handler 已统一拷过）。"""
+    return _deepcopy(snapshot) if do_copy else snapshot
+
 
 def _entry_to_field_decision(record: Any, *, owner_name: str = "") -> dict[str, Any]:
     """反向编目草稿 → 部门审收件箱/详情行（D57⑧）。
@@ -170,19 +179,25 @@ def _api_asset_to_service(record: Any) -> dict[str, Any]:
 
 
 def project_api_services(
-    *, tenant_id: str | None = None, visible_org_codes: set[str] | None = None
+    *, tenant_id: str | None = None, visible_org_codes: set[str] | None = None,
+    assets: list[Any] | None = None,
 ) -> list[dict[str, Any]]:
     """真实 resource_asset(kind=api) → API 服务列表（D2）。无则空（不回退演示 seed）。
 
     部门数据可见域收口（M4）：按资产 owner_org_id 过滤——visible_org_codes=None 全量放行
     （全局角色），集=仅本机构(+下级)，空集=fail-closed 返空。org_in_scope 三态 + 名/码归一。
+
+    ``assets`` 万级规模性能（S3）：调用方（handler_system_snapshot）可一次性预取全量
+    resource_asset 传入，避免一次 system.snapshot 内 resource_asset 全表被各投影各扫一遍。
+    行级 kind/owner 过滤在内存做。``None``=回落自查（保函数独立可测/独立调用方不变）。
     """
     tenant_id = tenant_id or get_runtime_tenant_id()
     repo = ResourceApiRepository()
     ref = ReferenceService()
+    rows = assets if assets is not None else repo.list_assets(tenant_id=tenant_id)
     return [
         _api_asset_to_service(record)
-        for record in repo.list_assets(tenant_id=tenant_id)
+        for record in rows
         if str(getattr(record, "resource_kind", "")) in {"api", "service"}
         and ref.org_in_scope(record.owner_org_id, visible_org_codes, tenant_id=tenant_id)
     ]
@@ -292,7 +307,8 @@ def project_provider_catalogs(
 
 
 def project_provider_resources(
-    *, tenant_id: str | None = None, visible_org_codes: set[str] | None = None
+    *, tenant_id: str | None = None, visible_org_codes: set[str] | None = None,
+    assets: list[Any] | None = None,
 ) -> list[dict[str, Any]]:
     """真实 resource_asset → 供数侧「资源管理」清单/概览行（T9 诚实化）。
 
@@ -301,13 +317,17 @@ def project_provider_resources(
 
     部门数据可见域收口（M4）：按资源 rec.owner_org_id 过滤——visible_org_codes=None 全量
     放行（全局角色），集=仅本机构(+下级)，空集=fail-closed 返空。org_in_scope 三态 + 名/码归一。
+
+    ``assets`` 万级规模性能（S3）：调用方可预取全量 resource_asset 传入，避免重复全扫；
+    行级 lifecycle/owner 过滤在内存做。``None``=回落自查（保函数独立可测/独立调用方不变）。
     """
     tenant_id = tenant_id or get_runtime_tenant_id()
     repo = ResourceApiRepository()
     ref = ReferenceService()
     org_name = _org_name_resolver(tenant_id)
     rows: list[dict[str, Any]] = []
-    for rec in repo.list_assets(tenant_id=tenant_id):
+    source = assets if assets is not None else repo.list_assets(tenant_id=tenant_id)
+    for rec in source:
         if rec.lifecycle_status == "retired":
             continue
         # 部门数据可见域行级过滤（M4）：按资源责任单位收口本机构(+下级)。
@@ -458,10 +478,15 @@ def _attach_reverse_catalog_fields(catalog: dict[str, Any], *, tenant_id: str) -
     return out
 
 
-def enrich_zones_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None = None) -> dict[str, Any]:
-    """Attach subscribe-ready package_code to P7 zone cards."""
+def enrich_zones_snapshot(
+    snapshot: dict[str, Any], *, tenant_id: str | None = None, copy: bool = True
+) -> dict[str, Any]:
+    """Attach subscribe-ready package_code to P7 zone cards.
+
+    ``copy`` 万级规模性能（S3）：默认 True 深拷（纯函数语义）；handler 链路传 ``copy=False`` 原地写。
+    """
     tenant_id = tenant_id or get_runtime_tenant_id()
-    out = copy.deepcopy(snapshot)
+    out = _copy_snapshot(snapshot, copy)
     zones = out.get("zones")
     if not isinstance(zones, list):
         return out
@@ -480,15 +505,21 @@ def enrich_zones_snapshot(snapshot: dict[str, Any], *, tenant_id: str | None = N
 
 
 def enrich_provider_snapshot(
-    snapshot: dict[str, Any], *, tenant_id: str | None = None, visible_org_codes: set[str] | None = None
+    snapshot: dict[str, Any], *, tenant_id: str | None = None,
+    visible_org_codes: set[str] | None = None,
+    assets: list[Any] | None = None, copy: bool = True,
 ) -> dict[str, Any]:
-    """Merge live inbox projection into *snapshot*['provider'] (deep copy).
+    """Merge live inbox projection into *snapshot*['provider'].
 
     ``visible_org_codes`` 部门数据可见域（M3 接入，M4 落过滤）：None=全局放行 / 集=按
     owner_org_id 收口本机构(+下级) / 空集=fail-closed 返空。见 ReferenceService.visible_org_codes。
+
+    ``copy``/``assets`` 万级规模性能（S3）：``copy`` 默认 True 深拷快照（纯函数语义，独立测试
+    不变异入参）；handler 链路传 ``copy=False`` 原地写。``assets`` 预取的 resource_asset 供
+    project_api_services/project_provider_resources 复用，避免重复全扫；``None``=回落各自自查。
     """
     tenant_id = tenant_id or get_runtime_tenant_id()
-    out = copy.deepcopy(snapshot)
+    out = _copy_snapshot(snapshot, copy)
     provider = out.setdefault("provider", {})
     inbox = project_provider_inbox(tenant_id=tenant_id, visible_org_codes=visible_org_codes)
     provider["field_decisions"] = inbox["field_decisions"]
@@ -498,7 +529,9 @@ def enrich_provider_snapshot(
     provider["objection_cases"] = inbox["objection_cases"]
     # D2：API 服务列表来自真实 resource_asset(kind=api)，不再读 seed 写死的演示 services
     # （承 D47 演示诚实化）。注册产出（resource.api.register）即时在此可见。
-    provider["services"] = project_api_services(tenant_id=tenant_id, visible_org_codes=visible_org_codes)
+    provider["services"] = project_api_services(
+        tenant_id=tenant_id, visible_org_codes=visible_org_codes, assets=assets
+    )
     # T9 诚实化（承 #191 读路径单源 / D11）：目录·资源管理清单与概览读真实库现算，
     # 不再停留在 seed 演示行——新编目录/新挂资源即时可见。DB 空时回落 seed 视图
     # （replace-when-DB-nonempty，与 discovery/requests 等 enrich 同模式）。
@@ -518,7 +551,9 @@ def enrich_provider_snapshot(
             ]
     else:
         provider["catalogs"] = []  # 部门收口空 = 权威空（不回落 seed）
-    live_resources = project_provider_resources(tenant_id=tenant_id, visible_org_codes=visible_org_codes)
+    live_resources = project_provider_resources(
+        tenant_id=tenant_id, visible_org_codes=visible_org_codes, assets=assets
+    )
     if live_resources:
         provider["resources"] = live_resources
     elif visible_org_codes is not None:

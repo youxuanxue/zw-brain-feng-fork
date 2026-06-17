@@ -7,6 +7,7 @@ import { authFetch } from '@/composables/useAuth';
 import { apiUrl } from '@/composables/useApiBase';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
+import { getCurrentOrgDisplay } from '@/composables/useCurrentOrg';
 import { mintResourceCode } from '@/lib/providerActionPayload';
 import { canAuthorInlineCatalog } from '@/lib/requestFlowRoles';
 import {
@@ -29,13 +30,12 @@ const canAuthor = computed(() => canAuthorInlineCatalog(role.value));
 
 type Stage = 'draft_unsubmitted' | 'metadata_filled' | 'submitted';
 
-// 默认归属与脚本 scripts/customer_demo_j2.py 对齐：sd-default / 区划 370100。
+// 默认区划与脚本 scripts/customer_demo_j2.py 对齐：sd-default / 区划 370100。
 // 归属/区划是机器侧绑定值（owner_org_id / region_code），R12：不作为表单可见字段暴露，
-// 由系统按登录岗位部门注入（此处沿用 demo 默认，业务方现场以真实部门覆盖）。
-// 提供方名称只读回显（T11）：按 seed 真值 11370000MB284651XL → 省大数据局，与 P5ApiServiceWizard
-// 灰色只读部门同模式；无映射时诚实回落 owner_org_id。
-const defaultOwnerOrg = '11370000MB284651XL';
-const defaultOwnerOrgName = '省大数据局';
+// owner_org_id 由后端按可信会话当前机构（caller_org_code，#298）派生，前端不硬编码。
+// 提供方名称只读回显：取会话当前机构名（useCurrentOrg 单源）——替代旧硬编码常量「省大数据局」，
+// 否则非省大数据局部门用户看到的提供方显示恒为省大数据局、与真实 owner 不符；取不到诚实回落机构码。
+const providerOrgDisplay = getCurrentOrgDisplay();
 const defaultRegion = '370100';
 
 // —— 第 1 步：基本信息（编制规范全集，summary_json 键与 catalog_service.catalog_meta() 同字典）——
@@ -380,7 +380,7 @@ onMounted(() => {
           <div class="form-row">
             <label class="field-label">数据资源提供方</label>
             <p class="readonly-value" data-testid="inline-catalog-provider">
-              {{ defaultOwnerOrgName || defaultOwnerOrg }}
+              {{ providerOrgDisplay || '—' }}
             </p>
           </div>
           <div class="form-row">

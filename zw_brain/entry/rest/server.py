@@ -192,6 +192,48 @@ def _dev_iam_bypass_claims(org_code: str | None = None) -> dict[str, Any]:
     }
 
 
+def _session_current_org_code(session: AuthSession) -> str:
+    """会话「当前机构码」单一事实源（与写侧 caller_org_code 同优先级）：
+
+    actor_snapshot.current_org_code（apply_runtime_context 钉的当前岗位机构）
+    → actor_snapshot.org_code → claims.org_code。取不到诚实返回空串。
+    """
+    actor = session.actor_snapshot if isinstance(session.actor_snapshot, dict) else {}
+    claims = session.claims if isinstance(session.claims, dict) else {}
+    return str(
+        actor.get("current_org_code")
+        or actor.get("org_code")
+        or claims.get("org_code")
+        or ""
+    ).strip()
+
+
+def _session_public_payload(session: AuthSession) -> dict[str, Any]:
+    """在 AuthSession.public_payload() 之上额外注入 `current_org_name`（会话当前机构名）。
+
+    auth_session.py 属 shared 域、本流不动；故在 entry 层组装响应时补名——前端两个供数向导
+    （目录/API 代理注册）的「提供方/所属部门」只读回显据此显示真实会话机构，替代旧硬编码常量
+    「省大数据局」（非省大数据局部门用户原先看到的提供方显示是错的，#298 已让后端按
+    caller_org_code 写 owner、功能正确，仅显示骗人）。机构名经 ReferenceService 组织投影
+    （单一事实源、不另造表）解析；取不到诚实留空，前端回落机构码。
+    """
+    payload = session.public_payload()
+    org_code = _session_current_org_code(session)
+    org_name = ""
+    if org_code:
+        try:
+            from zw_brain.domain.services.reference_service import ReferenceService
+
+            organ = ReferenceService().organ(org_code)
+            org_name = str((organ or {}).get("org_name") or "").strip()
+        except Exception:  # noqa: BLE001
+            # 参照查询失败不应阻断会话读取——诚实留空名、回落码，登录/会话流不受影响。
+            org_name = ""
+    payload["current_org_code"] = org_code
+    payload["current_org_name"] = org_name
+    return payload
+
+
 def configure_iaf_auth_runtime(
     *,
     transport: Callable[[HttpRequest], HttpResponse] | None = None,
@@ -885,7 +927,7 @@ class RestHandler(BaseHTTPRequestHandler):
             if session is None:
                 self._json(401, {"error": "session_missing"})
                 return
-            payload = json.dumps(session.public_payload(), ensure_ascii=False).encode("utf-8")
+            payload = json.dumps(_session_public_payload(session), ensure_ascii=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(payload)))
@@ -922,7 +964,7 @@ class RestHandler(BaseHTTPRequestHandler):
             self._handle_error(exc)
 
     def _respond_with_session(self, session: AuthSession) -> None:
-        payload = json.dumps(session.public_payload(), ensure_ascii=False).encode("utf-8")
+        payload = json.dumps(_session_public_payload(session), ensure_ascii=False).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))

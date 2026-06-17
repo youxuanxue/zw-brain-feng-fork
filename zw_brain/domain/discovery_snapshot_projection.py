@@ -29,6 +29,16 @@ from zw_brain.domain.services.reference_service import ReferenceService
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.shared.sensitive_mask import mask_default
 
+# 模块级深拷贝引用：enrich_* 的 ``copy: bool`` 形参会在函数体内遮蔽 ``copy`` 模块名，
+# 故经此别名调用 copy.deepcopy，不受形参遮蔽影响（S3 deepcopy 开关）。
+_deepcopy = copy.deepcopy
+
+
+def _copy_snapshot(snapshot: dict[str, Any], do_copy: bool) -> dict[str, Any]:
+    """``do_copy=True`` → deepcopy（默认纯函数语义）；False → 原样返回供原地写（handler 已统一拷过）。"""
+    return _deepcopy(snapshot) if do_copy else snapshot
+
+
 # application_record.payload_json.kind：apply / None = 申请（有 resource_name，进 P3 在途申请）；
 # require / original_require = 需求（无 resource_name，属 J2 供需匹配线，不进 P3 申请收件箱）。
 _DEMAND_KINDS = frozenset({"require", "original_require"})
@@ -78,10 +88,16 @@ def _shared_type_for(payload: dict[str, Any], share_type_by_resource: dict[str, 
     return None
 
 
-def _share_type_by_resource(tenant_id: str) -> dict[str, int]:
-    """resource_asset(id/resource_code) → access_policy_json.share_type 一次性预载（避免 N+1）。"""
+def _share_type_by_resource(tenant_id: str, assets: list[Any] | None = None) -> dict[str, int]:
+    """resource_asset(id/resource_code) → access_policy_json.share_type 一次性预载（避免 N+1）。
+
+    ``assets`` 万级规模性能：调用方（handler_system_snapshot）可一次性预取全量 resource_asset
+    传入，避免一次 system.snapshot 内 resource_asset 全表被各投影各扫一遍（S3）。``None``=回落
+    自查（保持本函数独立可测 / 独立调用方 request_service.shared_type_for_resource 不变）。
+    """
     out: dict[str, int] = {}
-    for asset in ResourceApiRepository().list_assets(tenant_id=tenant_id):
+    rows = assets if assets is not None else ResourceApiRepository().list_assets(tenant_id=tenant_id)
+    for asset in rows:
         access = asset.access_policy_json or {}
         raw = access.get("share_type")
         try:
@@ -239,6 +255,8 @@ def enrich_requests_snapshot(
     request_service: Any = None,
     visible_org_codes: set[str] | None = None,
     caller_actor: str | None = None,
+    assets: list[Any] | None = None,
+    copy: bool = True,
 ) -> dict[str, Any]:
     """Project snapshot['requests'] from the real **application** table (DB single SoT).
 
@@ -257,8 +275,12 @@ def enrich_requests_snapshot(
 
     **mine 与部门过滤正交**：mine 是逐卡按个人 id 现算的诚实信号，dept 过滤只决定哪些 record
     成卡。管理员自己提的单既是 mine 又在本机构域内（两者同时为真，不互相抑制）。
+
+    ``copy``/``assets`` 万级规模性能（S3）：``copy`` 默认 True 深拷快照（纯函数语义，独立测试
+    不变异入参）；handler 链路传 ``copy=False`` 原地写。``assets`` 预取的 resource_asset 供
+    _share_type_by_resource 复用，避免重复全扫；``None``=回落自查。
     """
-    out = copy.deepcopy(snapshot)
+    out = _copy_snapshot(snapshot, copy)
     tid = tenant_id or get_runtime_tenant_id()
 
     # 空集=fail-closed（部门角色但无机构上下文）：连「我的」也不放行，保 D61 空集防御语义不被
@@ -283,7 +305,7 @@ def enrich_requests_snapshot(
         if (r.payload_json or {}).get("kind") not in _DEMAND_KINDS
         and (_is_mine(r) or request_party_in_scope(r, visible_org_codes, tenant_id=tid, ref=_scope_ref))
     ]
-    share_map = _share_type_by_resource(tid)
+    share_map = _share_type_by_resource(tid, assets)
     out["requests"] = [
         _record_to_request_card(r, share_map, request_service, caller_actor=caller_actor)
         for r in records
@@ -335,7 +357,8 @@ def _case_to_approval_card(record: Any) -> dict[str, Any]:
 
 
 def enrich_approvals_snapshot(
-    snapshot: dict[str, Any], *, tenant_id: str | None = None, visible_org_codes: set[str] | None = None
+    snapshot: dict[str, Any], *, tenant_id: str | None = None,
+    visible_org_codes: set[str] | None = None, copy: bool = True,
 ) -> dict[str, Any]:
     """Project snapshot['approvals'] from the real approval_case table (DB single SoT).
 
@@ -352,8 +375,10 @@ def enrich_approvals_snapshot(
       - 非 None 集（含空集）            → 仅保留 provider org ∈ 可见域的审批单；
         映射缺失（requests 里找不到该 application_code）→ **drop**（无法证明归属即 fail-closed，
         不能让一张证不出 owner 的审批单泄漏给部门角色）。
+
+    ``copy`` 万级规模性能（S3）：默认 True 深拷（纯函数语义）；handler 链路传 ``copy=False`` 原地写。
     """
-    out = copy.deepcopy(snapshot)
+    out = _copy_snapshot(snapshot, copy)
     cases = ApprovalRepository().list_cases(tenant_id=tenant_id or get_runtime_tenant_id())
     cards = [_case_to_approval_card(c) for c in cases]
 
@@ -410,13 +435,21 @@ def _asset_to_resource_card(record: Any) -> dict[str, Any]:
     }
 
 
-def project_resource_cards(*, tenant_id: str | None = None) -> list[dict[str, Any]]:
+def project_resource_cards(
+    *, tenant_id: str | None = None, assets: list[Any] | None = None
+) -> list[dict[str, Any]]:
     """发现页「可复用资源」卡片 — 共享给 snapshot enrich + data.search 空 query。
 
     只投影**已发布**资源（D53①，反转 D45.b：仅 active）；待发布/草稿/审核中/已暂停/
     已下线/已过期不进默认发现视图。
+
+    ``assets`` 万级规模性能（S3）：调用方可预取全量 resource_asset 传入，避免 system.snapshot
+    内 resource_asset 全表重复全扫。``None``=回落自查（保 data_search 等独立调用方不变）。
     """
-    records = ResourceApiRepository().list_assets(tenant_id=tenant_id or get_runtime_tenant_id())
+    records = (
+        assets if assets is not None
+        else ResourceApiRepository().list_assets(tenant_id=tenant_id or get_runtime_tenant_id())
+    )
     return [
         _asset_to_resource_card(r)
         for r in records
@@ -425,11 +458,17 @@ def project_resource_cards(*, tenant_id: str | None = None) -> list[dict[str, An
 
 
 def enrich_discovery_resources_snapshot(
-    snapshot: dict[str, Any], *, tenant_id: str | None = None
+    snapshot: dict[str, Any], *, tenant_id: str | None = None,
+    assets: list[Any] | None = None, copy: bool = True,
 ) -> dict[str, Any]:
-    """Replace snapshot['discovery']['resources'] with the full real resource_asset list (deep copy)."""
-    out = copy.deepcopy(snapshot)
-    cards = project_resource_cards(tenant_id=tenant_id)
+    """Replace snapshot['discovery']['resources'] with the full real resource_asset list.
+
+    ``copy`` 万级规模性能（S3）：默认 True 深拷贝传入快照（保持纯函数语义 / 独立测试不变异
+    入参）；handler 链路上一次性深拷过后传 ``copy=False`` 原地写、消重复深拷。
+    ``assets`` 预取的 resource_asset（见 project_resource_cards）；``None``=回落自查。
+    """
+    out = _copy_snapshot(snapshot, copy)
+    cards = project_resource_cards(tenant_id=tenant_id, assets=assets)
     # DB single SoT: 无条件替换（空库 → 空发现列表，不回退 seed 演示资源）。
     discovery = out.setdefault("discovery", {})
     discovery["resources"] = cards

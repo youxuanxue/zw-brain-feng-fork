@@ -5,6 +5,7 @@ import DetailActions from '@/components/DetailActions.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
+import { getCurrentOrgDisplay } from '@/composables/useCurrentOrg';
 import { canPerformAction } from '@/lib/pageAccess';
 import { mintResourceCode } from '@/lib/providerActionPayload';
 import {
@@ -79,7 +80,10 @@ const headerMeta = computed(() => {
 // ① 服务基本信息
 const serviceName = ref('');
 const relatedCatalog = ref('');
-const ownerDept = ref('省大数据局'); // 灰色只读（按登录岗位部门，demo 默认）
+// 所属部门：灰色只读，取会话当前机构名（useCurrentOrg 单源）——替代旧硬编码 demo 默认「省大数据局」，
+// 否则非省大数据局部门用户看到的所属部门恒为省大数据局。owner 由后端按 caller_org_code 派生(#298)；
+// 此处仅作只读回显 + summary_json.internal_org_name 展示元数据。取不到诚实留空。
+const ownerDept = getCurrentOrgDisplay();
 const sourceSystem = ref('');
 const shareType = ref('2');
 const openType = ref('3');

@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue';
 import { setProductRole } from './useProductRole';
+import { setCurrentOrg } from './useCurrentOrg';
 import { apiUrl, appOrigin } from './useApiBase';
 
 // 与旧 js/auth.js BFF 模型对齐：
@@ -50,6 +51,10 @@ export interface AuthSnapshot {
   actor_snapshot: Record<string, unknown>;
   claims: Record<string, unknown>;
   user: AuthUser | null;
+  // 会话当前机构（后端 /auth/iaf/session 顶层注入）：码 + 名。供数向导只读回显消费，
+  // 持久化随快照以便 sessionStorage 重水化后仍可同步 useCurrentOrg。
+  current_org_code: string;
+  current_org_name: string;
 }
 
 const _state = ref<AuthSnapshot | null>(null);
@@ -97,12 +102,16 @@ function _writeSnapshot(body: Record<string, unknown>): AuthSnapshot {
     actor_snapshot: actor,
     claims,
     user: _userFromActor(actor, claims),
+    // 顶层 current_org_code/name 由后端注入；缺省回落 claims.org_code（名诚实留空）。
+    current_org_code: String(body.current_org_code ?? claims.org_code ?? actor.org_code ?? ''),
+    current_org_name: String(body.current_org_name ?? ''),
   };
   try {
     window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
   } catch (_) { /* ignore */ }
   _state.value = snapshot;
   syncProductRoleFromSession();
+  syncCurrentOrgFromSession();
   return snapshot;
 }
 
@@ -370,6 +379,10 @@ async function _runBootstrap(): Promise<AuthSnapshot | null> {
     let snapshot = _readLocalSnapshot();
     if (snapshot && (snapshot.expires_at === 0 || snapshot.expires_at * 1000 > Date.now())) {
       _state.value = snapshot;
+      // 重水化路径（页面刷新走本地快照、不重打 /session）：同步顶栏岗位 + 会话当前机构，
+      // 否则供数向导在刷新后首渲染拿不到机构名、回显空白直到下一次 refresh。
+      syncProductRoleFromSession();
+      syncCurrentOrgFromSession();
       _startRefreshTimer();
       return snapshot;
     }
@@ -476,6 +489,22 @@ export function syncProductRoleFromSession(): void {
     return;
   }
   if (roles.length) setProductRole(roles[0]);
+}
+
+/** 登录 / 会话刷新 / 重水化后把会话当前机构（码 + 名）同步进 useCurrentOrg 单源。 */
+export function syncCurrentOrgFromSession(): void {
+  const snapshot = _state.value;
+  if (!snapshot?.authenticated) return;
+  const actor = snapshot.actor_snapshot ?? {};
+  // 顶层 current_org_* 优先；旧快照（无顶层字段）回落 actor/claims org_code，名诚实留空。
+  const code = String(
+    snapshot.current_org_code
+      || (actor as { current_org_code?: string }).current_org_code
+      || (actor as { org_code?: string }).org_code
+      || snapshot.user?.orgCode
+      || '',
+  );
+  setCurrentOrg(code, String(snapshot.current_org_name ?? ''));
 }
 
 export function isAuthLoading() {

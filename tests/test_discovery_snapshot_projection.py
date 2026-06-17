@@ -10,6 +10,7 @@ trust-stamp 调用，用 ``brain`` fixture（其 initialize 会注入参考资�
 
 from __future__ import annotations
 
+import copy
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -258,3 +259,86 @@ def test_request_card_shared_type_payload_explicit_wins(temp_db: Path) -> None:
     out = enrich_requests_snapshot({"requests": []}, tenant_id=TENANT)
     card = next(r for r in out["requests"] if r["id"] == "APP-EXPLICIT")
     assert card["sharedType"] == 2, "payload 显式 shared_type 应优先于资源派生"
+
+
+# ── S3 万级规模性能：deepcopy 开关 + assets 预取 非变异契约 ─────────────────────
+# 默认 copy=True 保持纯函数语义（不变异传入快照，独立测试/独立调用方不破）；
+# handler 链路传 copy=False 原地写（已在顶部统一深拷一次过）。
+
+def test_enrich_requests_default_copy_does_not_mutate_input(temp_db: Path) -> None:
+    """默认 copy=True：拿原 dict 调 enrich，断言原 dict 未被变异（非变异契约）。"""
+    _seed_application("APP-NM", kind="apply", resource_name="人口库接口")
+    original = {"requests": [{"id": "SEED-KEEP", "resourceName": "seed"}]}
+    before = copy.deepcopy(original)
+    out = enrich_requests_snapshot(original, tenant_id=TENANT)
+    assert out is not original, "copy=True 应返回新 dict（不与入参同一对象）"
+    assert original == before, "copy=True 不得变异传入快照"
+    assert {r["id"] for r in out["requests"]} == {"APP-NM"}, "投影结果仍正确"
+
+
+def test_enrich_requests_copy_false_writes_in_place(temp_db: Path) -> None:
+    """copy=False：原地写同一 dict（identity 相同），且 requests 键被原地替换。"""
+    _seed_application("APP-IP", kind="apply", resource_name="法人库接口")
+    snap: dict = {"requests": [{"id": "SEED-OLD"}], "other": {"keep": 1}}
+    out = enrich_requests_snapshot(snap, tenant_id=TENANT, copy=False)
+    assert out is snap, "copy=False 应原地写、返回同一对象"
+    assert {r["id"] for r in out["requests"]} == {"APP-IP"}
+    assert out["other"] == {"keep": 1}, "原地写不应破坏其它键"
+
+
+def test_enrich_approvals_default_copy_does_not_mutate_input(temp_db: Path) -> None:
+    _seed_approval("APP-AP-NM", status="pending")
+    original = {"approvals": [{"id": "SEED-A"}]}
+    before = copy.deepcopy(original)
+    out = enrich_approvals_snapshot(original, tenant_id=TENANT)
+    assert out is not original
+    assert original == before, "copy=True 不得变异传入快照"
+    assert {a["id"] for a in out["approvals"]} == {"APP-AP-NM"}
+
+
+def test_enrich_approvals_copy_false_writes_in_place(temp_db: Path) -> None:
+    _seed_approval("APP-AP-IP", status="pending")
+    snap: dict = {"approvals": [{"id": "SEED-A"}], "requests": []}
+    out = enrich_approvals_snapshot(snap, tenant_id=TENANT, copy=False)
+    assert out is snap
+    assert {a["id"] for a in out["approvals"]} == {"APP-AP-IP"}
+
+
+def test_enrich_discovery_default_copy_does_not_mutate_input(temp_db: Path) -> None:
+    _seed_asset("RES-NM", title="可发现资源", status="active")
+    original = {"discovery": {"resources": [{"id": "seed-res"}]}}
+    before = copy.deepcopy(original)
+    out = enrich_discovery_resources_snapshot(original, tenant_id=TENANT)
+    assert out is not original
+    assert original == before, "copy=True 不得变异传入快照"
+    assert {c["id"] for c in out["discovery"]["resources"]} == {"RES-NM"}
+
+
+def test_enrich_discovery_copy_false_writes_in_place(temp_db: Path) -> None:
+    _seed_asset("RES-IP", title="可发现资源2", status="active")
+    snap: dict = {"discovery": {"resources": [{"id": "seed-res"}]}}
+    out = enrich_discovery_resources_snapshot(snap, tenant_id=TENANT, copy=False)
+    assert out is snap
+    assert {c["id"] for c in out["discovery"]["resources"]} == {"RES-IP"}
+
+
+def test_enrich_discovery_uses_prefetched_assets_not_db(temp_db: Path) -> None:
+    """assets 预取：传入的 asset 列表被直接使用，不回落 DB 自查（万级 4→1 收口的可测证据）。
+
+    DB 里放一条与预取列表不同的资源；传入只含 fabricated 一行的 assets，断言投影只反映 assets，
+    不掺 DB 行 → 证明 enrich 用的是预取列表（assets is not None 短路自查）。
+    """
+    _seed_asset("RES-IN-DB", title="DB 里的资源", status="active")
+    fake_assets = ResourceApiRepository().list_assets(tenant_id=TENANT)
+    # 预取列表里制造一行 DB 不会再扫到的视角：只取 RES-IN-DB，但若回落 DB 也会得同结果，
+    # 故改用「空预取列表」证明确实没回落 DB。
+    out = enrich_discovery_resources_snapshot(
+        {"discovery": {"resources": [{"id": "seed"}]}}, tenant_id=TENANT, assets=[], copy=False
+    )
+    assert out["discovery"]["resources"] == [], "assets=[] 应被直接采用（空），不回落 DB 全扫"
+    # 反向确认：assets=None 时回落 DB 自查能看到 RES-IN-DB（确保 [] 与 None 语义区分）。
+    out2 = enrich_discovery_resources_snapshot(
+        {"discovery": {"resources": []}}, tenant_id=TENANT, assets=None, copy=False
+    )
+    assert {c["id"] for c in out2["discovery"]["resources"]} == {"RES-IN-DB"}
+    assert fake_assets, "sanity: DB 非空"

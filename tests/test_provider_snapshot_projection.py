@@ -509,3 +509,102 @@ def test_hookup_review_reject_requires_reason_fail_closed(brain: BrainService) -
     ):
         with pytest.raises(InvalidStateError):
             invoke_trusted(brain, "resource.asset.review", payload, role="ROLE_ORGAN_MANAGER")
+
+
+# ──────────────────────────────────────────────────────────────────────
+# S3 万级规模性能：enrich_provider / enrich_zones deepcopy 开关 + assets 预取
+# 默认 copy=True 保持纯函数语义（不变异入参）；handler 链路传 copy=False 原地写。
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_enrich_provider_default_copy_does_not_mutate_input(temp_db: Path) -> None:
+    """默认 copy=True：拿原 dict 调 enrich，断言原 dict 未被变异（非变异契约）。"""
+    import copy as _copy
+
+    from zw_brain.domain.provider_snapshot_projection import enrich_provider_snapshot
+
+    ResourceApiRepository().upsert_asset(
+        {
+            "resource_code": "res-prov-nm-001",
+            "title": "供数资源",
+            "resource_kind": "table",
+            "lifecycle_status": "pending_review",
+            "owner_org_id": "11370000MB284651XL",
+        },
+        tenant_id=TENANT,
+    )
+    original = {"provider": {"resources": [{"id": "seed-res-demo", "name": "seed"}]}}
+    before = _copy.deepcopy(original)
+    out = enrich_provider_snapshot(original, tenant_id=TENANT)
+    assert out is not original, "copy=True 应返回新 dict"
+    assert original == before, "copy=True 不得变异传入快照"
+    assert "res-prov-nm-001" in {r["id"] for r in out["provider"]["resources"]}
+
+
+def test_enrich_provider_copy_false_writes_in_place(temp_db: Path) -> None:
+    """copy=False：原地写同一 dict（identity 相同）。"""
+    from zw_brain.domain.provider_snapshot_projection import enrich_provider_snapshot
+
+    ResourceApiRepository().upsert_asset(
+        {
+            "resource_code": "res-prov-ip-001",
+            "title": "供数资源2",
+            "resource_kind": "table",
+            "lifecycle_status": "pending_review",
+            "owner_org_id": "11370000MB284651XL",
+        },
+        tenant_id=TENANT,
+    )
+    snap: dict = {"provider": {"resources": [{"id": "seed-res-demo"}]}, "keep": 1}
+    out = enrich_provider_snapshot(snap, tenant_id=TENANT, copy=False)
+    assert out is snap, "copy=False 应原地写、返回同一对象"
+    assert "res-prov-ip-001" in {r["id"] for r in out["provider"]["resources"]}
+    assert out["keep"] == 1, "原地写不应破坏其它键"
+
+
+def test_enrich_provider_uses_prefetched_assets(temp_db: Path) -> None:
+    """assets 预取：services/resources 投影直接吃传入列表，不回落 DB（万级 4→1 收口可测证据）。
+
+    assets=[] 时应得空 services/resources（不回落 DB 全扫）；assets=None 才回落自查。
+    """
+    from zw_brain.domain.provider_snapshot_projection import enrich_provider_snapshot
+
+    ResourceApiRepository().upsert_asset(
+        {
+            "resource_code": "res-prefetch-db",
+            "title": "DB 资源",
+            "resource_kind": "api",
+            "lifecycle_status": "active",
+            "owner_org_id": "11370000MB284651XL",
+        },
+        tenant_id=TENANT,
+    )
+    out_empty = enrich_provider_snapshot({"provider": {}}, tenant_id=TENANT, assets=[], copy=False)
+    assert out_empty["provider"]["services"] == [], "assets=[] 应被采用，services 空（不回落 DB）"
+    out_db = enrich_provider_snapshot({"provider": {}}, tenant_id=TENANT, assets=None, copy=False)
+    assert "res-prefetch-db" in {s["id"] for s in out_db["provider"]["services"]}, (
+        "assets=None 回落 DB 自查应看到 DB 资源（区分 [] 与 None 语义）"
+    )
+
+
+def test_enrich_zones_default_copy_does_not_mutate_input(seed_db: Path) -> None:
+    """默认 copy=True：zones 投影不变异传入快照。"""
+    import copy as _copy
+
+    from zw_brain.domain.provider_snapshot_projection import enrich_zones_snapshot
+
+    original = {"zones": [{"id": "business", "name": "城市运行专区"}]}
+    before = _copy.deepcopy(original)
+    out = enrich_zones_snapshot(original, tenant_id=TENANT)
+    assert out is not original
+    assert original == before, "copy=True 不得变异传入快照（zone 不应被加 package_code）"
+    assert out["zones"][0].get("package_code"), "投影结果仍挂上 package_code"
+
+
+def test_enrich_zones_copy_false_writes_in_place(seed_db: Path) -> None:
+    from zw_brain.domain.provider_snapshot_projection import enrich_zones_snapshot
+
+    snap: dict = {"zones": [{"id": "business", "name": "城市运行专区"}]}
+    out = enrich_zones_snapshot(snap, tenant_id=TENANT, copy=False)
+    assert out is snap, "copy=False 应原地写、返回同一对象"
+    assert out["zones"][0].get("package_code")

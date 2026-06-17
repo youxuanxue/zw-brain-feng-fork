@@ -20,6 +20,7 @@ from zw_brain.domain.discovery_snapshot_projection import (
 )
 from zw_brain.domain.dispute_snapshot_projection import enrich_disputes_snapshot
 from zw_brain.domain.provider_snapshot_projection import enrich_provider_snapshot, enrich_zones_snapshot
+from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.schemas import describe_schemas
 from zw_brain.domain.services.reference_service import ReferenceService
 from zw_brain.domain.web_snapshot_redaction import redact_webui_snapshot
@@ -65,8 +66,18 @@ def handler_system_snapshot(deps: HandlerDeps, ctx: SkillContext, payload: dict[
     visible_org_codes = ReferenceService().visible_org_codes(
         caller_org_code(payload), role, tenant_id=tenant_id
     )
-    enriched = enrich_provider_snapshot(brain.snapshot(), tenant_id=tenant_id, visible_org_codes=visible_org_codes)
-    enriched = enrich_zones_snapshot(enriched, tenant_id=tenant_id)
+    # 万级规模性能（S3）：一次 system.snapshot 内 resource_asset 全表此前被 api_services /
+    # resources / share_map / discovery_cards 各无 where 全扫一遍——资源迈向万级前收口为单次
+    # 预取，行级 kind/lifecycle/owner 过滤在各投影内存做（assets=None 时各函数仍回落自查、保独立可测）。
+    prefetched_assets = ResourceApiRepository().list_assets(tenant_id=tenant_id)
+    # deepcopy 收口（S3）：brain.snapshot() 已返回新鲜深拷贝（copy.deepcopy(self._snapshot)），
+    # 故链上第一个 enrich 即可 copy=False 原地写、各 enrich 不再各自深拷整个胖快照（纯 CPU 浪费）；
+    # enrich_disputes_snapshot（他流文件、无 copy 形参）自带一次深拷，其后各 enrich 原地写其产物安全。
+    enriched = enrich_provider_snapshot(
+        brain.snapshot(), tenant_id=tenant_id, visible_org_codes=visible_org_codes,
+        assets=prefetched_assets, copy=False,
+    )
+    enriched = enrich_zones_snapshot(enriched, tenant_id=tenant_id, copy=False)
     enriched = enrich_disputes_snapshot(enriched, tenant_id=tenant_id, visible_org_codes=visible_org_codes)
     # D45 — J1 列表字段全量真实库投影（DB 有行替换 / 空库保留 seed）
     # 申请人进度 stepper：把后端权威 status_timeline 接到申请卡（读侧 enrich，单一事实源）。
@@ -74,11 +85,16 @@ def handler_system_snapshot(deps: HandlerDeps, ctx: SkillContext, payload: dict[
         enriched, tenant_id=tenant_id,
         request_service=deps.services.request if deps is not None else None,
         visible_org_codes=visible_org_codes, caller_actor=caller_actor,
+        assets=prefetched_assets, copy=False,
     )
     # 交叉引用图（O(1)、避 N+1）：交付页脊柱复用同一条已挂好的申请 timeline。
     request_map = {str(r.get("id")): r for r in (enriched.get("requests") or [])}
-    enriched = enrich_approvals_snapshot(enriched, tenant_id=tenant_id, visible_org_codes=visible_org_codes)
-    enriched = enrich_discovery_resources_snapshot(enriched, tenant_id=tenant_id)
+    enriched = enrich_approvals_snapshot(
+        enriched, tenant_id=tenant_id, visible_org_codes=visible_org_codes, copy=False
+    )
+    enriched = enrich_discovery_resources_snapshot(
+        enriched, tenant_id=tenant_id, assets=prefetched_assets, copy=False
+    )
     if role in {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"}:
         # 交付脊柱：把后端权威 status_timeline 接到交付任务卡（P4 第一次看见整单进度）。
         # 部门数据可见域收口（#294 集成期遗漏补口）：交付任务随其申请单收口——dept 角色
