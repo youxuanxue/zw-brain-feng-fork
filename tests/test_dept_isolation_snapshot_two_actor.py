@@ -70,6 +70,19 @@ def _seed() -> None:
          "kind": "apply", "resource_name": "B申请", "resourceId": "res-app-b"},
         tenant_id=TENANT,
     )
+    # 两部门各一张「待部门审核」运行时申请卡（无 legacy kind → sync_request_todos 投 MANAGER
+    # review 待办）——验「第七面」工作台申请待办随机构隔离（#294/#296 同类遗漏补口）。
+    # owner_org_code 落各自机构（dept_approve 审批方=提供方部门，request_party_in_scope 命中）。
+    app.upsert_from_request(
+        {"id": "REV-A", "status": "dept_approved", "applicant": "actor-a", "applicantDept": ORG_A,
+         "owner_org_code": ORG_A, "resource_name": "A待审", "resourceId": "res-rev-a"},
+        tenant_id=TENANT,
+    )
+    app.upsert_from_request(
+        {"id": "REV-B", "status": "dept_approved", "applicant": "actor-b", "applicantDept": ORG_B,
+         "owner_org_code": ORG_B, "resource_name": "B待审", "resourceId": "res-rev-b"},
+        tenant_id=TENANT,
+    )
     # 两部门各一张交付任务（requestId 映各自申请，运行时卡形态：有 requestId、无 legacy kind）——
     # 验 delivery_tasks 随申请单按机构隔离（#294 集成期遗漏补口）。
     dlv = DeliveryRepository()
@@ -111,6 +124,14 @@ def _delivery_request_ids(snap: dict) -> set[str]:
     return {str(t.get("requestId")) for t in snap.get("delivery_tasks", [])}
 
 
+def _workbench_review_ids(brain: BrainService, org: str) -> set[str]:
+    out = invoke_trusted(
+        brain, "workbench.view", {"role": MANAGER}, role=MANAGER,
+        snapshot=actor_snapshot(MANAGER, org_code=org),
+    )
+    return {str(t.get("id")) for t in out.get("todos", []) if t.get("category") == "review"}
+
+
 # ── 核心证据：两部门管理员看到的目录不同、各为自机构子集 ──────────────────────────
 def test_two_dept_managers_see_disjoint_catalogs(brain: BrainService) -> None:
     a = _catalog_ids(_snapshot_for(brain, MANAGER, ORG_A))
@@ -137,6 +158,18 @@ def test_two_dept_managers_see_disjoint_delivery_tasks(brain: BrainService) -> N
     assert "APP-B" not in a, "B 部门的交付任务对 A 管理员**不**可见（随申请单隔离）"
     assert "APP-B" in b, "B 部门申请的交付任务对 B 管理员可见"
     assert "APP-A" not in b, "A 部门的交付任务对 B 管理员**不**可见（随申请单隔离）"
+
+
+def test_two_dept_managers_see_disjoint_workbench_review_todos(brain: BrainService) -> None:
+    # 「第七面」（#294/#296 同类遗漏补口）：工作台申请审核待办（sync_request_todos 平行路径，
+    # #295 行内办理建其上）随机构隔离。此前两部门管理员工作台都能看见并行内审核别部门的单
+    # （写侧 enforce_dept_approval_direction 兜底 → 点了 403，即「可见+点了报错」反模式）。
+    a = _workbench_review_ids(brain, ORG_A)
+    b = _workbench_review_ids(brain, ORG_B)
+    assert "REV-A" in a, "A 部门待审单对 A 管理员工作台可见"
+    assert "REV-B" not in a, "B 部门待审单对 A 管理员**不**可见（隔离，不再可见+点了403）"
+    assert "REV-B" in b, "B 部门待审单对 B 管理员工作台可见"
+    assert "REV-A" not in b, "A 部门待审单对 B 管理员**不**可见（隔离）"
 
 
 # ── 全局角色（业务运营员）见全量——发现/全局口径不被部门收口 ─────────────────────

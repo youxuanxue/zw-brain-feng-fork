@@ -203,6 +203,25 @@ def _record_to_request_card(
     return card
 
 
+def request_party_in_scope(
+    record: Any, visible_org_codes: set[str] | None, *, tenant_id: str | None = None
+) -> bool:
+    """申请单是否落在调用者部门可见域内（D61 裁决②，applicant∨provider）.
+
+    单一事实源：申请收口口径（申请方在域内即留，否则看提供方是否在域内——本部门数据被
+    别部门申请的入站单 R11）。``None``=全局放行（org_in_scope 恒 True）、空集=fail-closed
+    （恒 False）。语义全在 ReferenceService.org_in_scope（含 legacy 名/码归一），不在调用方
+    重复实现。被 enrich_requests_snapshot 与 workbench_backlog_projection 工作台申请待办收口
+    共用，避免两处口径漂移。"""
+    ref = ReferenceService()
+    tid = tenant_id or get_runtime_tenant_id()
+    payload = record.payload_json or {}
+    if ref.org_in_scope(record.applicant_org, visible_org_codes, tenant_id=tid):
+        return True
+    # provider 机构码源同申请卡 providerOrgCode（_provider_org_from_payload 单一取法）。
+    return ref.org_in_scope(_provider_org_from_payload(payload), visible_org_codes, tenant_id=tid)
+
+
 def enrich_requests_snapshot(
     snapshot: dict[str, Any],
     *,
@@ -231,22 +250,12 @@ def enrich_requests_snapshot(
     """
     out = copy.deepcopy(snapshot)
     tid = tenant_id or get_runtime_tenant_id()
-    ref = ReferenceService()
-
-    def _party_in_scope(rec: Any) -> bool:
-        # 申请方在域内即留；否则看提供方是否在域内（本部门数据被别部门申请的入站单）。
-        # None→org_in_scope 恒 True（全局放行）；空集→恒 False（fail-closed）。
-        if ref.org_in_scope(rec.applicant_org, visible_org_codes, tenant_id=tid):
-            return True
-        # provider 机构码源同申请卡 providerOrgCode（_provider_org_from_payload 单一取法）。
-        provider_org = _provider_org_from_payload(rec.payload_json or {})
-        return ref.org_in_scope(provider_org, visible_org_codes, tenant_id=tid)
 
     records = [
         r
         for r in ApplicationRepository().list_records(tenant_id=tid)
         if (r.payload_json or {}).get("kind") not in _DEMAND_KINDS
-        and _party_in_scope(r)
+        and request_party_in_scope(r, visible_org_codes, tenant_id=tid)
     ]
     share_map = _share_type_by_resource(tid)
     out["requests"] = [

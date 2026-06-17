@@ -228,19 +228,28 @@ def test_busiaudit_augments_keeps_accept_todos_no_application_double(temp_db: Pa
 
 
 def test_operater_keeps_progress_todos_with_honest_advice(temp_db: Path) -> None:
-    """部门操作员（D57②/R-8）：todos 由 sync_request_todos 真投影、enrich 不动其内容；
-    subtitle/办理建议改为真实进度现算（不再漏出 seed 虚构「停车场…黄金旅程」叙事）。"""
+    """部门操作员（D57②/R-8）：申请进度待办内容不被改写；subtitle/办理建议改为真实进度
+    现算（不再漏出 seed 虚构「停车场…黄金旅程」叙事）。
+
+    「第七面」收口：apply-progress/supplement 待办按本机构可见域收口；本测试不传
+    visible_org_codes（默认 None=全局视角），两条待办均有真实在产单背书（id=request_id）故全部
+    保留——验「内容不改写」与「办理建议现算」（dept-scope 行级守卫见 test_workbench_request_todo_dept_scope）。
+    """
     _seed_backlog()
+    # 在产单背书两条待办（id 即 request_id，与 sync_request_todos 口径一致；生产中待办恒有库背书）。
+    app_repo = ApplicationRepository()
+    _seed_application(app_repo, "REQ-x", "pending")
+    _seed_application(app_repo, "REQ-x-sup", "supplementing")
     base = {
         "todos": [
             {"id": "REQ-x", "title": "申请进度跟踪", "href": "#/request-flow/request/REQ-x", "category": "apply-progress"},
-            {"id": "REQ-x-sup", "title": "差异补录任务", "href": "#/request-flow/request/REQ-x", "category": "supplement-township"},
+            {"id": "REQ-x-sup", "title": "差异补录任务", "href": "#/request-flow/request/REQ-x-sup", "category": "supplement-township"},
         ],
         "subtitle": "停车场信息复用申请待看进度（seed 虚构）",
         "aiSummary": {"summary": "黄金旅程（seed 虚构）"},
     }
     out = enrich_workbench_backlog(base, "ROLE_ORGAN_OPERATER", tenant_id=TENANT)
-    assert [t["id"] for t in out["todos"]] == ["REQ-x", "REQ-x-sup"], "操作员 todos 不被改写"
+    assert [t["id"] for t in out["todos"]] == ["REQ-x", "REQ-x-sup"], "全局视角下申请待办保留、内容不改写"
     assert "停车场" not in out["subtitle"] and "虚构" not in out["subtitle"]
     assert "1 条申请在办" in out["aiSummary"]["summary"]
     assert "1 项补录任务待完成" in out["aiSummary"]["summary"]

@@ -56,7 +56,8 @@
 | 我的申请 mine | `payload.applicant == caller_actor` | 与部门过滤正交 |
 | 审批 approvals(R11) | provider org ∈ visible（按 application_code 映 requests.providerOrgCode） | 映射缺失 fail-closed drop |
 | 异议 disputes | `complainant_org_id ∈ visible OR provider_org_id ∈ visible` | 双向利益相关方 |
-| 工作台 管理员审核待办计数 | `owner_org_id ∈ visible` | 仅 MANAGER 路径；平台待办全局 |
+| 工作台 管理员供数侧审核待办计数 | `owner_org_id ∈ visible` | 仅 MANAGER 路径；平台待办全局 |
+| 工作台 申请审核/汇总/进度待办 | `request_party_in_scope`（MANAGER review/summary + OPERATER apply-progress/supplement 同口径 dept-scope） | `sync_request_todos` 平行路径；见下「集成期遗漏补口（工作台申请待办第七面）」 |
 | 交付 delivery_tasks | `requestId ∈ 收口后 request_map` | 随申请单可见性收口；见下「集成期遗漏补口（交付面）」 |
 
 **fail-closed 姿态**：聚合快照 projection 中途 raise 会清空整页、对 UI 敌对 → 部门角色缺机构
@@ -86,6 +87,45 @@ payload `owner_org_code`/`provider_org_id`，与申请卡 providerOrgCode 同源
 （applicant_org∨provider_org∈visible）过滤 `requestId`，命中不到 fail-closed drop。
 验证：`test_delivery_dept_scope`（三态单测）+ `test_dept_isolation_snapshot_two_actor`
 （两 actor 看到 disjoint delivery_tasks）+ 既有泄漏断言改写为 fail-closed 闭合断言。
+
+## 四点六、集成期遗漏补口（工作台申请待办「第七面」，post-merge erratum）
+
+上帝视角复核 #294→#296→#295 这一簇 PR 时发现：#294/#296 收口的是 6 个**快照面**
+（`system.snapshot` 经各 `enrich_*` 收口），但工作台待办还有一条**平行投影路径**
+`sync_request_todos`（`zw_brain/command/sync.py`）——#294 从没碰过它，而 #295 的**行内办理**
+（申请受理/审核 M1）正建在其上。它遍历 `application_record` **全租户运行时卡**（无 legacy
+`kind`），按角色逐条投 workbench todo，**零机构/个人过滤**：
+
+- **MANAGER** `category=review`（`dept_approved` 单）挂 `application.dept_approve` 行内
+  「审核通过/驳回」面板（context 含资源/申请人/用途）→ 部门管理员在工作台看见**别部门**申请并
+  能点「通过」。写侧 `enforce_dept_approval_direction`（`conditional_approval.py:155`）兜底 →
+  点击 403，正是被硬禁的「**可见 + 点了报错/失败**」反模式（违「无权即不可见」），且泄漏跨部门
+  resourceName/申请人/用途。`category=summary`（汇总/准入）同类泄漏。
+- **OPERATER** `category=apply-progress`/`supplement-*`：**每个操作员看到全租户每张运行时申请的
+  进度** → 跨部门泄漏（应随本机构收口）。
+- **BUSIAUDIT** `category=accept`（受理）：裁决④ 全局，**正确，不动**。
+
+设计 §三表只收口了 MANAGER **供数侧审核待办计数**（`_manager_review_todos`），`sync_request_todos`
+的申请待办整条被漏。**盲区与 #294 漏 `delivery_tasks` 同源**：`test_workbench_dept_scope.py` 与
+`test_dept_isolation_snapshot_two_actor.py` 都**零** `application_record` 种子，故该泄漏无任何
+测试覆盖。
+
+补口**不引入新产品裁决**——是裁决②对工作台申请待办面的直接推论，与 #296 同构。实现：读时
+（per-caller，`enrich_workbench_backlog`）按**本机构可见域**收口——谓词单一事实源
+`discovery_snapshot_projection.request_party_in_scope`（applicant∨provider∈visible）从
+`enrich_requests_snapshot` 闭包提升为模块级复用，避免两处口径漂移。MANAGER review/summary 与
+OPERATER apply-progress/supplement **同口径** dept-scope（None=全局 / 空集=fail-closed）；BUSIAUDIT
+accept 不在收口集、保持全局。
+
+**为何 OPERATER 也走 dept-scope 而非「按个人」（裁决③）**：当前运行时 `actor` 是 **role 级**
+合成身份（`policy.actor_for_role` → `user:gov:<role>:*`，无 org/个人维度，承 actor_projection IAM
+身份补全债），`payload.applicant` 在铸单时存的也是该 role-actor。故「按 `payload.applicant ==
+当前 actor` drop」对**跨部门操作员之间无任何隔离效果**（所有操作员共享同一 actor id），dept-scope
+才是真隔离。裁决③「我的申请按个人」与 #294 一致由 requests 面 **mine 标记**承载（读侧逐卡现算、
+不 drop 数据）；真·per-person 收敛待 IAM 身份补全后另立。验证：`test_workbench_request_todo_dept_scope`
+（MANAGER + OPERATER 各三态 + busiaudit 全局 + 幽灵单 fail-closed）+ `test_dept_isolation_snapshot_two_actor`
+扩两 actor 工作台 review 待办 disjoint（真 `workbench.view` BFF 路径）+ 既有
+`test_operater_keeps_progress_todos_with_honest_advice` 改写为在产单背书的留存断言。
 
 ## 五、不在范围
 

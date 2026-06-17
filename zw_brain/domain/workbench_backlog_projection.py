@@ -43,6 +43,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from zw_brain.domain.discovery_snapshot_projection import request_party_in_scope
 from zw_brain.domain.models import (
     CatalogEntryRecord,
     ObjectionCaseRecord,
@@ -88,6 +89,48 @@ _APPLICATION_BACKLOG_STATUSES = frozenset({"submitted", "under_review"})
 _DEMAND_PROVIDER_PHASES = frozenset(
     {PHASE_REGISTERED, PHASE_MANUAL_REGISTERED, PHASE_RECOMMEND_FAILED}
 )
+
+# 部门隔离「第七面」（#294/#296 同类遗漏补口）：sync_request_todos 平行路径按角色逐条投的
+# **申请待办**（id=payload['id'] 即 request_id），#294 只收口了快照 requests/approvals 面，
+# 这条平行路径整条漏。读时（per-caller）按本机构可见域收口——谓词单一事实源
+# request_party_in_scope（applicant∨provider∈visible；None=全量 / 空集=fail-closed），
+# 与快照 requests/approvals/delivery 面同源，不在工作台层重复实现：
+#   MANAGER 申请审核/汇总待办（办别人的单，category review/summary）；
+#   OPERATER 申请进度/补录待办（category apply-progress/supplement-*）。
+# 二者皆按 owner/applicant 机构收口（D61 裁决②；裁决③「我的申请按个人」由 requests 面 mine
+# 标记承载，与 #294 一致——当前 actor 为 role 级身份[user:gov:<role>:*]，按个人 drop 在跨部门
+# 操作员间无隔离效果，dept-scope 才真隔离；per-person 收敛属 IAM 身份补全后另立，见 actor 身份债）。
+# BUSIAUDIT 受理待办（category=accept）保持全局（D61 裁决④），不在此收口集内。
+_MANAGER_REQUEST_CATEGORIES = frozenset({"review", "summary"})
+_OPERATER_REQUEST_CATEGORIES = frozenset(
+    {"apply-progress", "supplement-township", "supplement-village"}
+)
+
+
+def _org_visible_request_ids(tenant_id: str, visible_org_codes: set[str] | None) -> set[str]:
+    """一次扫 application_record，现算本机构可见域内的 request-id 集合（payload['id'] 口径同
+    sync_request_todos）。谓词单一事实源 request_party_in_scope（None=全量、空集=空、
+    否则本机构可见域），与快照 requests 面同源、不在工作台层重复实现。"""
+    visible: set[str] = set()
+    for record in ApplicationRepository().list_records(tenant_id=tenant_id):
+        rid = str((record.payload_json or {}).get("id") or "")
+        if rid and request_party_in_scope(record, visible_org_codes, tenant_id=tenant_id):
+            visible.add(rid)
+    return visible
+
+
+def _drop_unscoped_request_todos(
+    todos: list[dict[str, Any]], *, categories: frozenset[str], scoped_ids: set[str]
+) -> list[dict[str, Any]]:
+    """剔除越界的申请待办：category 命中收口集且 id(=request_id) 不在可见集 → drop.
+
+    非申请待办（category 不在收口集，如供数侧 prepend 的 backlog-* 审核待办）原样放行。"""
+    return [
+        t
+        for t in todos
+        if str(t.get("category", "")) not in categories
+        or str(t.get("id", "")) in scoped_ids
+    ]
 
 
 # ── M5 行内决策载荷构造（contract: action.kind=="decision-list"）───────────────
@@ -608,7 +651,11 @@ def _enrich_busiaudit_backlog(view: dict[str, Any], tenant_id: str) -> dict[str,
 
 
 def _enrich_manager_backlog(
-    view: dict[str, Any], tenant_id: str, *, visible_org_codes: set[str] | None = None
+    view: dict[str, Any],
+    tenant_id: str,
+    *,
+    visible_org_codes: set[str] | None = None,
+    org_visible_request_ids: set[str] | None = None,
 ) -> dict[str, Any]:
     """部门管理员（D55/P10·G4）：在既投部门审核待办上叠加供数侧审核待办（目录/挂接/服务审核）。
 
@@ -618,10 +665,19 @@ def _enrich_manager_backlog(
     「涉企采集准入待判定」叙事）。
 
     M8 部门隔离：供数侧审核待办计数按 visible_org_codes 收口到本机构可见域（None=全局）。
+    「第七面」收口：``sync_request_todos`` 已投的申请审核/汇总待办（category review/summary，
+    办别部门的单）按 ``org_visible_request_ids`` 收口到本机构可见域——None=全量放行（全局视角）、
+    传集即只留域内单，剔除越界单（消除「看见别部门待办 + 行内审核按钮点了 403」反模式）。
     """
     out = copy.deepcopy(view)
     review_todos = _manager_review_todos(tenant_id, visible_org_codes=visible_org_codes)
     existing = out.get("todos") or []
+    if org_visible_request_ids is not None:
+        existing = _drop_unscoped_request_todos(
+            existing,
+            categories=_MANAGER_REQUEST_CATEGORIES,
+            scoped_ids=org_visible_request_ids,
+        )
     existing_ids = {t.get("id") for t in existing}
     prepended = [t for t in review_todos if t["id"] not in existing_ids]
     todos = prepended + existing
@@ -667,14 +723,29 @@ def _rewrite_advice(
     out["highlights"] = []
 
 
-def _enrich_operator_backlog(view: dict[str, Any]) -> dict[str, Any]:
+def _enrich_operator_backlog(
+    view: dict[str, Any], *, org_visible_request_ids: set[str] | None = None
+) -> dict[str, Any]:
     """部门操作员（D57②/R-8）：维持「申请进度」形态（0609 docx 明文，拒协作待办）。
 
-    todos 由 ``sync_request_todos`` 真投影、此处不动；只把 subtitle / 办理建议从 seed
-    虚构叙事改为真实进度现算（分类型：申请在办 / 补录任务），零进度给诚实空态。
+    todos 由 ``sync_request_todos`` 真投影；只把 subtitle / 办理建议从 seed 虚构叙事改为
+    真实进度现算（分类型：申请在办 / 补录任务），零进度给诚实空态。
+
+    「第七面」收口：``sync_request_todos`` 把申请进度/补录待办（category apply-progress/
+    supplement-*）投给了**全租户每张运行时单**——按 ``org_visible_request_ids``（本机构可见域，
+    同 MANAGER + 快照 requests 面口径）收口到本机构申请。None=全量放行（全局视角）；空集=
+    fail-closed 全丢；传集即只留域内单（裁决③「按个人」由 requests 面 mine 标记承载、非此处 drop）。
     """
     out = copy.deepcopy(view)
     todos = out.get("todos") or []
+    if org_visible_request_ids is not None:
+        todos = _drop_unscoped_request_todos(
+            todos,
+            categories=_OPERATER_REQUEST_CATEGORIES,
+            scoped_ids=org_visible_request_ids,
+        )
+        # 写回过滤后列表（操作员路径原不重写 out["todos"]，收口后必须落回，否则前端仍收全量）。
+        out["todos"] = todos
     progress = sum(1 for t in todos if str(t.get("category", "")) == "apply-progress")
     supplements = sum(1 for t in todos if str(t.get("category", "")).startswith("supplement"))
     other = len(todos) - progress - supplements
@@ -733,7 +804,11 @@ def _enrich_ops_view(view: dict[str, Any]) -> dict[str, Any]:
 
 
 def enrich_workbench_backlog(
-    view: dict[str, Any], role: str, *, tenant_id: str | None = None, visible_org_codes: set[str] | None = None
+    view: dict[str, Any],
+    role: str,
+    *,
+    tenant_id: str | None = None,
+    visible_org_codes: set[str] | None = None,
 ) -> dict[str, Any]:
     """工作台 todos / 办理建议从真实库现算，enrich 覆盖全部 5 角色（D57②/R-8）.
 
@@ -750,17 +825,24 @@ def enrich_workbench_backlog(
       只数 owner_org 落在本机构可见域内的行（None=全局 / 空集=fail-closed 计 0 / 非空集=域内）。
       平台队列（BUSIAUDIT 待平台审核/发布/受理/汇总）刻意保持全局，不消费 visible_org_codes。
     - 部门操作员（ROLE_ORGAN_OPERATER）：维持「申请进度」形态（0609 docx，拒协作待办），
-      todos 由 sync 投影不动，办理建议从真实进度现算。
+      办理建议从真实进度现算；申请进度/补录待办按本机构可见域收口（「第七面」，同 MANAGER）。
     - 安全审计员（ROLE_SECURITY_AUDIT）：纯只读监督岗，todos 恒空 + 只读监督指引。
     - 平台运维员（ROLE_SYSTEM）：运维核查语境，诚实空态/积压计数。
     """
     tid = tenant_id or get_runtime_tenant_id()
     # M8 部门隔离：仅部门管理员审核待办计数按 visible_org_codes 收口到本机构可见域；
     # 平台队列（BUSIAUDIT 待平台审核/待发布/待受理/待汇总）保持全局，不消费 visible_org_codes。
+    # 「第七面」收口：部门管理员/操作员的申请待办（sync_request_todos 平行路径）按本机构可见域
+    # 收口——现算一次域内 request-id 集合，二者同口径（D61 裁决②；同快照 requests 面）。
     if role == _MANAGER_ROLE:
-        return _enrich_manager_backlog(view, tid, visible_org_codes=visible_org_codes)
+        return _enrich_manager_backlog(
+            view, tid, visible_org_codes=visible_org_codes,
+            org_visible_request_ids=_org_visible_request_ids(tid, visible_org_codes),
+        )
     if role == "ROLE_ORGAN_OPERATER":
-        return _enrich_operator_backlog(view)
+        return _enrich_operator_backlog(
+            view, org_visible_request_ids=_org_visible_request_ids(tid, visible_org_codes)
+        )
     if role == "ROLE_SECURITY_AUDIT":
         return _enrich_supervisor_view(view)
     if role == "ROLE_SYSTEM":
