@@ -261,20 +261,30 @@ def enrich_delivery_tasks_snapshot(
     *,
     request_service: Any = None,
     request_map: dict[str, Any] | None = None,
+    dept_scoped: bool = False,
 ) -> list[dict[str, Any]]:
     """交付卡读侧 enrich：把后端权威 status_timeline 接到交付任务卡（P4 交付页脊柱）。
 
     按 ``requestId`` 从 request_map（O(1)、避 N+1）取申请卡喂 status_timeline；取不到则跳过
     （诚实空，不破 P4 现渲染）。delivery=task 供交付段 ref 回链与「补录态」holder 现算。
     单一事实源：同 #277 申请卡，复用 status_timeline 不在前端重派生。
+
+    ``dept_scoped`` 部门数据可见域行级收口（#294 集成期遗漏补口）：交付任务**随其申请单可见性
+    收口**——交付面唯一消费者是部门角色（redaction `_DELIVERY`={操作员,管理员}，全局角色一律清空），
+    本就应永远按部门隔离。``request_map`` 已是上游 `enrich_requests_snapshot` 按 applicant_org∨
+    provider_org 收口后的申请卡集合（同 approvals R11 收口范式），故 dept_scoped=True 时只保留
+    requestId 命中该域内申请的交付卡；命中不到 → fail-closed drop（无法证明归属即不泄漏，与
+    enrich_approvals_snapshot 一致）。dept_scoped=False（全局视角/未收口）保留全量、不丢任务。
     """
-    if request_service is None or not request_map:
-        return tasks
+    rmap = request_map or {}
     out: list[dict[str, Any]] = []
     for task in tasks:
+        req = rmap.get(str(task.get("requestId") or ""))
+        # 部门收口：申请单不在可见域（request_map 已收口）→ 其交付卡一并 fail-closed drop。
+        if dept_scoped and req is None:
+            continue
         card = dict(task)
-        req = request_map.get(str(card.get("requestId") or ""))
-        if req is not None:
+        if request_service is not None and req is not None:
             card["statusTimeline"] = request_service.status_timeline(req, card, perspective="reviewer")
         out.append(card)
     return out

@@ -57,6 +57,7 @@
 | 审批 approvals(R11) | provider org ∈ visible（按 application_code 映 requests.providerOrgCode） | 映射缺失 fail-closed drop |
 | 异议 disputes | `complainant_org_id ∈ visible OR provider_org_id ∈ visible` | 双向利益相关方 |
 | 工作台 管理员审核待办计数 | `owner_org_id ∈ visible` | 仅 MANAGER 路径；平台待办全局 |
+| 交付 delivery_tasks | `requestId ∈ 收口后 request_map` | 随申请单可见性收口；见下「集成期遗漏补口（交付面）」 |
 
 **fail-closed 姿态**：聚合快照 projection 中途 raise 会清空整页、对 UI 敌对 → 部门角色缺机构
 上下文返空列表/0；`ops_service` 定向查询保留 raise 403。两者同等无泄漏。
@@ -69,6 +70,22 @@
 R11 供方队列形同虚设。修正：申请收口改 **applicant_org∈域 OR provider_org∈域**（provider 取
 payload `owner_org_code`/`provider_org_id`，与申请卡 providerOrgCode 同源）。`test_discovery_dept_scope`
 新增三测锁定正确语义（入站单留存 / 供方 R11 审批可见 / 真·无关单才 fail-closed drop）。
+
+## 四点五、集成期遗漏补口（交付面，post-merge erratum）
+
+#294 五面收口**漏掉了第六面**：`delivery_tasks`（P4 领数据交付任务）。交付面唯一消费者就是
+部门角色——`web_snapshot_redaction._DELIVERY = {ROLE_ORGAN_OPERATER, ROLE_ORGAN_MANAGER}`，
+全局角色一律清空——本就应**永远按部门隔离**；却在 `system_ops.handler_system_snapshot` 装配时
+未传 `visible_org_codes`，部门角色看到**全部门**交付任务（与 requests 同类跨部门泄漏）。更甚：
+既有单测 `test_system_snapshot_delivery_tasks_matches_list_delivery_tasks` 以操作员无机构上下文
+断言 `snap==list`（全量），把泄漏**固化为"正确"**，正是该面被整体漏掉的铁证。
+
+补口**不引入新产品裁决**——交付任务是申请单的履约视图，「看不到申请单就不应看到其交付」是
+§二·裁决 4「部门角色收口」对交付面的直接推论。实现复用 approvals R11 同范式：
+`enrich_delivery_tasks_snapshot(dept_scoped=visible≠None)`，按上游已收口的 `request_map`
+（applicant_org∨provider_org∈visible）过滤 `requestId`，命中不到 fail-closed drop。
+验证：`test_delivery_dept_scope`（三态单测）+ `test_dept_isolation_snapshot_two_actor`
+（两 actor 看到 disjoint delivery_tasks）+ 既有泄漏断言改写为 fail-closed 闭合断言。
 
 ## 五、不在范围
 

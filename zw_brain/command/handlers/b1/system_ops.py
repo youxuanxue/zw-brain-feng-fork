@@ -81,10 +81,13 @@ def handler_system_snapshot(deps: HandlerDeps, ctx: SkillContext, payload: dict[
     enriched = enrich_discovery_resources_snapshot(enriched, tenant_id=tenant_id)
     if role in {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"}:
         # 交付脊柱：把后端权威 status_timeline 接到交付任务卡（P4 第一次看见整单进度）。
+        # 部门数据可见域收口（#294 集成期遗漏补口）：交付任务随其申请单收口——dept 角色
+        # （visible≠None）只见 request_map（已按机构收口）内申请对应的交付卡；全局视角(None)全量。
         enriched["delivery_tasks"] = enrich_delivery_tasks_snapshot(
             brain.list_delivery_tasks(),
             request_service=deps.services.request if deps is not None else None,
             request_map=request_map,
+            dept_scoped=visible_org_codes is not None,
         )
     return redact_webui_snapshot(enriched, role)
 

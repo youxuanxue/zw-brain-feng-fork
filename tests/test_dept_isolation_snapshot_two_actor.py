@@ -20,6 +20,7 @@ from tests._trusted_payload import actor_snapshot, invoke_trusted
 from zw_brain.command.brain import BrainService
 from zw_brain.domain.repositories.application import ApplicationRepository
 from zw_brain.domain.repositories.catalog import CatalogRepository
+from zw_brain.domain.repositories.delivery import DeliveryRepository
 from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.shared import audit as audit_bus
 from zw_brain.shared import db as db_module
@@ -57,10 +58,27 @@ def _seed() -> None:
     cat.upsert_from_resource({"id": "cat-a-1", "name": "A部门目录甲", "status": "active", "provider": ORG_A}, tenant_id=TENANT)
     cat.upsert_from_resource({"id": "cat-a-2", "name": "A部门目录乙", "status": "active", "provider": ORG_A}, tenant_id=TENANT)
     cat.upsert_from_resource({"id": "cat-b-1", "name": "B部门目录甲", "status": "active", "provider": ORG_B}, tenant_id=TENANT)
-    # 一张 A 部门发起的申请（applicant_org=A）——验 requests 也按机构隔离。
-    ApplicationRepository().upsert_from_request(
+    # 两部门各一张申请（applicant_org 由 applicantDept 落）——验 requests 也按机构隔离。
+    app = ApplicationRepository()
+    app.upsert_from_request(
         {"id": "APP-A", "status": "submitted", "applicant": "actor-a", "applicantDept": ORG_A,
          "kind": "apply", "resource_name": "A申请", "resourceId": "res-app-a"},
+        tenant_id=TENANT,
+    )
+    app.upsert_from_request(
+        {"id": "APP-B", "status": "submitted", "applicant": "actor-b", "applicantDept": ORG_B,
+         "kind": "apply", "resource_name": "B申请", "resourceId": "res-app-b"},
+        tenant_id=TENANT,
+    )
+    # 两部门各一张交付任务（requestId 映各自申请，运行时卡形态：有 requestId、无 legacy kind）——
+    # 验 delivery_tasks 随申请单按机构隔离（#294 集成期遗漏补口）。
+    dlv = DeliveryRepository()
+    dlv.upsert_from_delivery(
+        {"id": "DLV-A", "requestId": "APP-A", "status": "completed", "channel": "内部修复"},
+        tenant_id=TENANT,
+    )
+    dlv.upsert_from_delivery(
+        {"id": "DLV-B", "requestId": "APP-B", "status": "completed", "channel": "内部修复"},
         tenant_id=TENANT,
     )
 
@@ -89,6 +107,10 @@ def _request_ids(snap: dict) -> set[str]:
     return {str(r.get("id")) for r in snap.get("requests", [])}
 
 
+def _delivery_request_ids(snap: dict) -> set[str]:
+    return {str(t.get("requestId")) for t in snap.get("delivery_tasks", [])}
+
+
 # ── 核心证据：两部门管理员看到的目录不同、各为自机构子集 ──────────────────────────
 def test_two_dept_managers_see_disjoint_catalogs(brain: BrainService) -> None:
     a = _catalog_ids(_snapshot_for(brain, MANAGER, ORG_A))
@@ -105,6 +127,16 @@ def test_two_dept_managers_see_disjoint_requests(brain: BrainService) -> None:
     b = _request_ids(_snapshot_for(brain, MANAGER, ORG_B))
     assert "APP-A" in a, "A 部门发起的申请对 A 管理员可见"
     assert "APP-A" not in b, "A 部门的申请对 B 管理员不可见（applicant_org 隔离）"
+
+
+def test_two_dept_managers_see_disjoint_delivery_tasks(brain: BrainService) -> None:
+    # #294 集成期遗漏补口：交付任务随申请单按机构隔离（此前 delivery_tasks 全量泄漏给部门角色）。
+    a = _delivery_request_ids(_snapshot_for(brain, MANAGER, ORG_A))
+    b = _delivery_request_ids(_snapshot_for(brain, MANAGER, ORG_B))
+    assert "APP-A" in a, "A 部门申请的交付任务对 A 管理员可见"
+    assert "APP-B" not in a, "B 部门的交付任务对 A 管理员**不**可见（随申请单隔离）"
+    assert "APP-B" in b, "B 部门申请的交付任务对 B 管理员可见"
+    assert "APP-A" not in b, "A 部门的交付任务对 B 管理员**不**可见（随申请单隔离）"
 
 
 # ── 全局角色（业务运营员）见全量——发现/全局口径不被部门收口 ─────────────────────
