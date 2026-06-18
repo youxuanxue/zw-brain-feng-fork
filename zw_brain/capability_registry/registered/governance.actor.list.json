@@ -1,0 +1,88 @@
+{
+  "slug": "governance.actor.list",
+  "title": "用户与角色清单",
+  "description": "列出本租户的身份 actor（用户）及其有效角色绑定、IAF 认领状态、停用状态，供身份治理管理面检索（按机构/角色/状态/关键字过滤）。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "q": {
+        "type": "string"
+      },
+      "org_filter": {
+        "type": "string"
+      },
+      "role_code": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "total": {
+        "type": "integer"
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "summary": {
+        "type": "object"
+      }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-sensitive",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "governance.actor.list"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [
+    "governance.actor.list.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "governance",
+    "iam",
+    "actor",
+    "read"
+  ],
+  "product_scope": {
+    "journey": "b1",
+    "status": "live"
+  }
+}

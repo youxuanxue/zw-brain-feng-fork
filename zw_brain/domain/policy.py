@@ -64,6 +64,12 @@ PERMISSION_ROLES = {
     "governance.iam_overview.execute": {"ROLE_SYSTEM"},
     "governance.policy_candidate.list.execute": {"ROLE_SYSTEM"},
     "governance.policy_candidate.review.execute": {"ROLE_SYSTEM"},
+    # D62 角色分派与角色治理（zw-brain 自建授权）：分派/撤销/停用/清单/矩阵 = 平台运维员独有。
+    "governance.actor.list.execute": {"ROLE_SYSTEM"},
+    "governance.access_matrix.execute": {"ROLE_SYSTEM"},
+    "governance.actor.role.assign.execute": {"ROLE_SYSTEM"},
+    "governance.actor.role.revoke.execute": {"ROLE_SYSTEM"},
+    "governance.actor.status.set.execute": {"ROLE_SYSTEM"},
     # 查审计拆分（D55/P8·P9，Wave1-S3）：审计日志/证据回放面收窄到「业务运营员 + 安全审计员」。
     # 部门管理员（MANAGER）退审计日志（P9）；平台运维员（SYSTEM）退审计日志、保服务调用监控（P8）。
     "audit.replay_evidence_chain.execute": {"ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},

@@ -108,6 +108,11 @@ C_CLASS_EDGES: list[tuple] = [
     # 引用 resource_asset.resource_code，无 FK（M2 honest 降级），本守卫兜底。NULL 跳过。
     ("catalog_item", "resource_code", "resource_asset", "resource_code"),
     ("delivery_subscription", "resource_code", "resource_asset", "resource_code"),
+    # D62 D1/D2: 角色绑定不得指向不存在的 actor。external_actor_id 在身份认领时会被 rekey
+    # （claim_legacy_actor_by_iaf 同事务搬移 binding），单列对 actor_projection 复合唯一键
+    # (tenant_id, external_actor_id) 做硬 FK+CASCADE 在 SQLite 上时序受限——按 D48 §2.5
+    # honest-downgrade 走 C 类守卫兜底（枚举孤儿=0），与 delivery/catalog 软引用边同范式。
+    ("actor_org_role_binding", "external_actor_id", "actor_projection", "external_actor_id"),
 ]
 
 # 已落地 FK 列数下限（A 类 14 单列 + B 类 5 复合×2 列 = 24）。

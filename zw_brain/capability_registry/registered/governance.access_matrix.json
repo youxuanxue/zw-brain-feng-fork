@@ -1,0 +1,73 @@
+{
+  "slug": "governance.access_matrix",
+  "title": "谁能访问什么（角色能力矩阵）",
+  "description": "只读派生 角色→能力 授权矩阵（来源 policy.PERMISSION_ROLES 单一事实源）+ 固定角色目录（role_codes），供身份治理可审计性查看，不做任何菜单授权写。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "roles": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "capabilities": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-sensitive",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "governance.access_matrix"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": [
+    "governance.access_matrix.execute"
+  ],
+  "author": {
+    "org": "inspur-cloud",
+    "contact": "zw-brain@inspur.com"
+  },
+  "registry_source": "internal",
+  "tags": [
+    "governance",
+    "iam",
+    "access-matrix",
+    "read"
+  ],
+  "product_scope": {
+    "journey": "b1",
+    "status": "live"
+  }
+}

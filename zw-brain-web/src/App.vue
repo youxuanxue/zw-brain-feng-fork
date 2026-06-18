@@ -245,7 +245,7 @@ watch(
           <header class="login-gate-card-header">
             <h1 id="no-product-role-title" class="login-gate-card-title">暂无可用岗位权限</h1>
             <p class="login-gate-card-sub">
-              您的账号已登录，但尚未分配政务数据大脑的产品岗位。请联系系统管理员在身份治理中为您的账号添加用户角色权限后，再重新登录使用。
+              您的账号已登录，但尚未分配政务数据大脑的产品岗位。请联系平台运维员，在「身份治理 · 用户与角色」中为您的账号分派对应角色后，再重新登录使用。
             </p>
           </header>
           <div class="login-gate-card-body">

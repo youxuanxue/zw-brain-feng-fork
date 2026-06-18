@@ -69,6 +69,33 @@ def actor_projection_to_dict(item: Any) -> dict[str, Any]:
     })
 
 
+def actor_binding_to_dict(item: Any) -> dict[str, Any]:
+    """A single (org, role) binding row for the actor-governance management surface (D62)."""
+    return {
+        "org_code": item.org_code,
+        "role_code": item.role_code,
+        "binding_status": item.binding_status,
+        "granted_by": item.granted_by,
+        "batch_no": item.batch_no,
+        "source_ref": item.source_ref,
+    }
+
+
+def actor_with_bindings_to_dict(item: Any, bindings: list[Any] | None = None) -> dict[str, Any]:
+    """Actor + its active (org, role) bindings — the row shape consumed by 身份治理
+    用户与角色 management view. `role_codes` is the ACTUAL effective roles from bindings
+    (zw-brain's authoritative source), not the legacy token snapshot."""
+    base = actor_projection_to_dict(item)
+    binding_dicts = [actor_binding_to_dict(b) for b in (bindings or [])]
+    raw_profile = item.profile_json if isinstance(item.profile_json, dict) else {}
+    return base | {
+        "iaf_bound": bool(raw_profile.get("iaf_sub")) or str(item.source_ref or "") == "iaf:claims",
+        "binding_status": raw_profile.get("binding_status"),
+        "bindings": binding_dicts,
+        "role_codes": sorted({b["role_code"] for b in binding_dicts}),
+    }
+
+
 def legacy_policy_candidate_to_dict(item: Any) -> dict[str, Any]:
     return {
         "legacy_system": item.legacy_system,

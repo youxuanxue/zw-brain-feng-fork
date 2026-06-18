@@ -1,0 +1,27 @@
+{
+  "scope": "iam-role-governance",
+  "deliverable": "D62 角色分派与角色治理 zw-brain 自建（IAM 只认证）— 授权事实源收口 binding=SoT + 身份治理 actor 管理面（分派/撤销/停用/谁能访问什么/旧权限映射审核）+ A0 堵停用洞 + 全程审计",
+  "git_sha": "96411b735d329166c4d8f6f2ede23825f336acb5",
+  "captured_at": "2026-06-18T00:00:00Z",
+  "captured_by": "identity-governance-audit worktree（隔离全栈 :8801 真 UI 走查）",
+  "checks": [
+    {
+      "name": "5 消费面契约一致",
+      "kind": "contract",
+      "result": "pass",
+      "detail": "export_agent_contract.py --check OK（REST/CLI/MCP/A2A/agent_integration 同步；新 5 能力契约在内）"
+    },
+    {
+      "name": "后端/授权收口单测 + 回归簇",
+      "kind": "pytest",
+      "result": "pass",
+      "detail": "tests/test_iam_role_governance.py 10 测全绿（仓储写/A0 停用门/角色门 403/能力端到端带审计/A4 回填）+ test_iam_identity_claim/test_c1_read_authz_bypass/test_trusted_session_context/test_c1n1_m7_rest_surface 等 auth/identity/governance/permission/session/rest 簇 ~370 测全绿"
+    },
+    {
+      "name": "身份治理 actor 管理面 真 UI 走查（b12_iam_governance.spec.ts）",
+      "kind": "e2e",
+      "result": "pass",
+      "detail": "9 passed / 0 failed（隔离全栈 :8801 + 真库注入 actor）：3-tab 渲染、分派角色(写 binding+审计)、撤销角色、停用用户(生命周期)、谁能访问什么(角色能力矩阵)、旧权限映射审核 tab、左导航入口、部门操作员/业务运营员越权被拒(D55/P4)"
+    }
+  ]
+}

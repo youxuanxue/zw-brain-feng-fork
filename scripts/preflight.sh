@@ -161,6 +161,7 @@ done <<'CHECKS'
 段 68	scripts/check_d_index_entry_size.py	d-index-entry-size (全局宪法 §5 软规则硬化 — CLAUDE.md 决策记录每条 D-索引 ≤900 字符，防 essay 回潮膨胀；每会话整份入上下文、膨胀=持续烧 token；超长→移 Why/How 到 docs/decisions 全文、索引只留锚点，参照 #202)
 段 69	scripts/check_cli_no_bare_capability_count.py	cli-no-bare-capability-count (D2 契约一致性 — CLI entry docstring/帮助文本禁裸能力计数字面量「N capability/commands」，会随注册表漂移撒谎；现算见 --list 输出 / export_agent_contract 派生，或 <!-- stat:... --> 包裹；可机械化项=正则对账承 CLAUDE.md 可机械化边界)
 段 70	scripts/check_no_hardcoded_org_literal.py	no-hardcoded-org-literal (部门数据隔离防回归 承 #298/D61 — 后端写路径 zw_brain/command/handlers/** + zw_brain/domain/services/** 禁硬编码 18 位统一社会信用代码字面量；机构字段须取可信会话 caller_org_code、取不到诚实留空 fail-closed，不得钉死成一个具体机构致 applicant_org/owner 对所有登录人恒同、隔离把自己的单也滤掉；allowlist=tests/fixtures/seed/adapters/legacy + # org-literal-ok: 行注释；前端 zw-brain-web/src 18 位码只列 review 非致命——展示常量合法、payload 硬编码才是复发面、判据难精确机械化故不硬拦)
+段 73	scripts/check_no_token_role_authz.py	no-token-role-authz (D62 A3 — IAM/IAF token 角色绝不作为产品授权事实源；REST _bind_auth 非 bypass 须用 binding 派生 role_codes 覆盖、binding helper 读 actor_org_role_binding 不读 token、resolve_role_from_identity 不调 role_codes_from_claims；防 token 角色授权两主人回潮)
 CHECKS
 
 echo ""

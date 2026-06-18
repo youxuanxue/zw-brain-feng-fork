@@ -1,0 +1,46 @@
+{
+  "name": "governance.actor.list",
+  "description": "列出本租户的身份 actor（用户）及其有效角色绑定、IAF 认领状态、停用状态，供身份治理管理面检索（按机构/角色/状态/关键字过滤）。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      },
+      "q": {
+        "type": "string"
+      },
+      "org_filter": {
+        "type": "string"
+      },
+      "role_code": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-audit-class": "read-sensitive",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "governance.actor.list.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

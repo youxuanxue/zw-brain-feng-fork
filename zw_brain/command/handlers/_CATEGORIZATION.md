@@ -146,6 +146,11 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `compliance.investigate_case` | j2 | `investigate_dispute` | 6551 |
 | `compliance.metric.query` | j2 | `query_compliance_metrics` | 971 |
 | `compliance.rule.configure` | j2 | `configure_compliance_rule` | 878 |
+| `governance.access_matrix` | j2 | `access_matrix` | 0 |
+| `governance.actor.list` | j2 | `list_actors` | 0 |
+| `governance.actor.role.assign` | j2 | `assign_actor_role` | 0 |
+| `governance.actor.role.revoke` | j2 | `revoke_actor_role` | 0 |
+| `governance.actor.status.set` | j2 | `set_actor_status` | 0 |
 | `governance.iam_overview` | j2 | `get_governance_iam_overview` | 1028 |
 | `governance.policy_candidate.list` | j2 | `list_policy_mapping_candidates` | 1103 |
 | `governance.policy_candidate.review` | j2 | `review_policy_mapping_candidates` | 1138 |

@@ -158,6 +158,37 @@ def cookie_cleared(set_cookie: str, name: str) -> bool:
     return f"{name.lower()}=" in lowered and "max-age=0" in lowered
 
 
+def seed_identity_bindings(
+    sub: str, roles: list[str], *, org_code: str = "ORG-A", tenant_id: str = "sd-default"
+) -> None:
+    """D62 A2: product roles are zw-brain's authoritative actor_org_role_binding, NOT the IAM
+    token. So a test identity that "holds role X" must hold it as a BINDING. This seeds an
+    active actor + (org, role) bindings for the given sub so the binding-authoritative bearer
+    and cookie gates grant exactly those roles. (The minted token still carries the same roles
+    for signature/identity, but they are ignored for product authz.)"""
+    from zw_brain.domain.policy import filter_product_role_codes
+    from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
+
+    repo = GovernanceProjectionRepository()
+    repo.upsert_actor(
+        {
+            "external_actor_id": sub,
+            "display_name": sub,
+            "org_code": org_code,
+            "role_codes": [],
+            "status": "active",
+            "source_ref": "iaf:claims",
+            "profile_json": {"iaf_sub": sub},
+        },
+        tenant_id=tenant_id,
+    )
+    for role_code in filter_product_role_codes(list(roles)):
+        repo.assign_actor_role(
+            external_actor_id=sub, org_code=org_code, role_code=role_code,
+            tenant_id=tenant_id, granted_by="test-harness",
+        )
+
+
 def establish_session(port: int, keys: KeyFixture, *, extra_roles: list[str] | None = None) -> tuple[str, str]:
     status, _, login_body = http_request(
         "GET",
@@ -196,6 +227,9 @@ def establish_session(port: int, keys: KeyFixture, *, extra_roles: list[str] | N
     )
     assert status == 200, body
     session_id = extract_cookie(headers.get("set-cookie", ""), SESSION_COOKIE_NAME)
+    # D62 A2: bind the cookie identity's product roles as authoritative bindings (the token
+    # roles are identity-only now). Re-enrich on the next skill call picks these up.
+    seed_identity_bindings("trusted-user", extra_roles or ["ROLE_ORGAN_OPERATER"])
     return session_id, body["csrf_token"]  # type: ignore[index]
 
 
@@ -222,6 +256,9 @@ def mint_bearer(keys: KeyFixture, *, roles: list[str], sub: str = "bearer-user")
         "realm_access": {"roles": list(roles)},
         "resource_access": {"zw-brain": {"roles": list(roles)}},
     }
+    # D62 A2: the bearer identity "holds" its roles as authoritative bindings, not via the
+    # token. Seed them so the binding-based bearer gate grants exactly these product roles.
+    seed_identity_bindings(sub, list(roles))
     return keys.encode(claims)
 
 

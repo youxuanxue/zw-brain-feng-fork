@@ -12,6 +12,7 @@ from tests._iaf_rest_http import (
     establish_session,
     http_request,
     run_server,
+    seed_identity_bindings,
     stop_server,
     valid_claims,
 )
@@ -100,6 +101,9 @@ def test_bearer_path_rejects_smuggled_trusted_session_context_key() -> None:
             claims = valid_claims(nonce="bearer-smuggle")
             claims["resource_access"]["zw-brain"]["roles"] = ["ROLE_ORGAN_OPERATER"]
             access_token = keys.encode(claims)
+            # D62 A2: the bearer identity's product role is authoritative as a binding, not a
+            # token claim — seed it so the binding-based gate grants ROLE_ORGAN_OPERATER.
+            seed_identity_bindings("trusted-user", ["ROLE_ORGAN_OPERATER"])
 
             def transport(request: HttpRequest) -> HttpResponse:
                 return HttpResponse(

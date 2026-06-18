@@ -713,6 +713,66 @@
       ]
     },
     {
+      "skill_id": "governance.access_matrix",
+      "title": "谁能访问什么（角色能力矩阵）",
+      "description": "只读派生 角色→能力 授权矩阵（来源 policy.PERMISSION_ROLES 单一事实源）+ 固定角色目录（role_codes），供身份治理可审计性查看，不做任何菜单授权写。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "governance.actor.list",
+      "title": "用户与角色清单",
+      "description": "列出本租户的身份 actor（用户）及其有效角色绑定、IAF 认领状态、停用状态，供身份治理管理面检索（按机构/角色/状态/关键字过滤）。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "org_filter",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "q",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
       "skill_id": "governance.dispute_list",
       "title": "查看治理争议列表",
       "description": "查看重复要数、字段口径和补录异常相关争议，以及关联告警、工单与知识建议。",
@@ -3837,6 +3897,136 @@
         {
           "name": "tenant_id",
           "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "governance.actor.role.assign",
+      "title": "分派用户角色",
+      "description": "给某 actor 在某机构授予一个产品角色，写 actor_org_role_binding（zw-brain 自有授权事实源）；带审计、须人工确认。角色目录固定为 role_codes 的 5 业务角色+系统。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "external_actor_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "note",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "target_org_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "governance.actor.role.revoke",
+      "title": "撤销用户角色",
+      "description": "撤销某 actor 在某机构的一个产品角色（置 actor_org_role_binding 为 disabled）；带审计、须人工确认。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "external_actor_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "note",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role_code",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "target_org_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "governance.actor.status.set",
+      "title": "停用/启用用户",
+      "description": "设置 actor 生命周期状态（active/disabled）。停用后该 actor 在认证边界 fail-closed（再登录不再被复活为 active），其角色绑定保留以便启用即恢复。带审计、须人工确认。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "external_actor_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "note",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
           "type": "string"
         }
       ]

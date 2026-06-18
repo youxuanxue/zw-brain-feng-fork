@@ -48,6 +48,12 @@ class ActorMatchError(ValueError):
     pass
 
 
+class ActorDisabledError(ActorMatchError):
+    """Raised when an IAF login resolves to a `disabled` actor row. A disabled identity must
+    never be re-activated or handed a fresh active row at login (D62 A0 — disable enforced at
+    the auth boundary). Surfaces map this to 403, like its ActorMatchError parent."""
+
+
 class GovernanceProjectionRepository:
     def upsert_tenant(self, payload: dict[str, Any], *, tenant_id: str = "sd-default") -> TenantProjectionRecord:
         data = {
@@ -144,8 +150,11 @@ class GovernanceProjectionRepository:
             "profile_json": profile,
         }
         record = self._upsert(ActorProjectionRecord, [ActorProjectionRecord.tenant_id == tenant_id, ActorProjectionRecord.external_actor_id == data["external_actor_id"]], data)
-        # IAM 首登/换票同步：Token 无 ROLE_* 时角色由本地治理投影承担，不得清空 BSP 导入的 binding。
-        if str(data.get("source_ref") or "") == "iaf:claims" and not (data["role_codes_json"] or []):
+        # D62 A1: login / re-token (iaf:claims) NEVER derives bindings from token roles —
+        # bindings are zw-brain's authoritative source, written only by legacy import +
+        # in-product assign/revoke. Non-iaf upserts (legacy import) still seed bindings from
+        # role_codes_json (that is how import populates the authoritative source).
+        if str(data.get("source_ref") or "") == "iaf:claims":
             pass
         else:
             self._sync_actor_role_bindings(record)
@@ -195,6 +204,11 @@ class GovernanceProjectionRepository:
                 )
             ).scalar_one_or_none()
             if current is not None:
+                # D62 A0: a disabled identity must never be re-activated by re-login.
+                # Before this guard `_apply_claim_to_actor` set status='active' on every
+                # claim, silently resurrecting a disabled account on the next SSO login.
+                if current.status == "disabled":
+                    raise ActorDisabledError("actor_disabled")
                 self._apply_claim_to_actor(
                     current,
                     iaf_sub=iaf_sub,
@@ -241,7 +255,14 @@ class GovernanceProjectionRepository:
                 session.refresh(legacy)
                 return legacy, "rekeyed_legacy"
 
-            # 3. no claimable legacy twin (none found, or only a disabled row) → fresh sub-keyed row.
+            # D62 A0: a disabled legacy row matched by sub/aux claims must fail closed — do
+            # NOT mint a fresh active row for a deliberately disabled identity (that both
+            # bypassed the disable and re-created the D51 duplicate it was meant to prevent).
+            if legacy is not None and legacy.status == "disabled":
+                raise ActorDisabledError("actor_disabled")
+
+            # 3. no claimable legacy twin (none found, or only a non-disabled non-claimable
+            #    row) → fresh sub-keyed row.
             record = self._insert_fresh_iaf_actor(
                 session,
                 iaf_sub=iaf_sub,
@@ -301,10 +322,9 @@ class GovernanceProjectionRepository:
             merged["legacy_actor_ref"] = record.external_actor_id
         record.profile_json = _profile_without_unsafe_auth_fields(merged)
         record.status = "active"
-        # Only overwrite role_codes_json when the IAM token actually carried product roles;
-        # otherwise keep the imported value (roles flow from actor_org_role_binding either way).
-        if token_role_codes:
-            record.role_codes_json = safe_json(token_role_codes)
+        # D62 A1: login NEVER stamps token roles into role_codes_json — product roles are
+        # zw-brain's authoritative actor_org_role_binding, not the generic shared IAM token.
+        # The imported/assigned value is preserved untouched; token_role_codes is identity-only.
         if display_name:
             record.display_name = str(display_name)
         if org_code:
@@ -829,6 +849,155 @@ class GovernanceProjectionRepository:
 
     def _sync_actor_role_bindings(self, actor: ActorProjectionRecord) -> None:
         self.sync_actor_bindings(actor)
+
+    # ──────────────────────────────────────────────────────────────────────
+    # In-product role governance writes (D62): single-edge assign/revoke +
+    # actor lifecycle. zw-brain owns authorization — these are the only
+    # admin-initiated writers to actor_org_role_binding / actor status.
+    # ──────────────────────────────────────────────────────────────────────
+    def get_actor(self, external_actor_id: str, *, tenant_id: str = "sd-default") -> ActorProjectionRecord | None:
+        """Public accessor — handlers resolve an actor by external id."""
+        return self._get_actor(external_actor_id, tenant_id=tenant_id)
+
+    def assign_actor_role(
+        self,
+        *,
+        external_actor_id: str,
+        org_code: str,
+        role_code: str,
+        tenant_id: str = "sd-default",
+        granted_by: str | None = None,
+        note: str | None = None,
+        tags_json: dict[str, Any] | None = None,
+    ) -> ActorOrgRoleBindingRecord:
+        """Grant (or re-activate) a single (actor, org, role) binding — idempotent on the
+        unique key. This is zw-brain's authoritative role-assignment write."""
+        external_actor_id = str(external_actor_id or "")
+        org_code = str(org_code or "")
+        role_code = str(role_code or "")
+        if not external_actor_id or not org_code or not role_code:
+            raise ActorMatchError("external_actor_id, org_code, role_code are required")
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            record = session.execute(
+                select(ActorOrgRoleBindingRecord).where(
+                    ActorOrgRoleBindingRecord.tenant_id == tenant_id,
+                    ActorOrgRoleBindingRecord.external_actor_id == external_actor_id,
+                    ActorOrgRoleBindingRecord.org_code == org_code,
+                    ActorOrgRoleBindingRecord.role_code == role_code,
+                )
+            ).scalar_one_or_none()
+            evidence = safe_json({"action": "assign", "granted_by": granted_by, "note": note or None})
+            if record is None:
+                record = ActorOrgRoleBindingRecord(
+                    tenant_id=tenant_id,
+                    external_actor_id=external_actor_id,
+                    org_code=org_code,
+                    role_code=role_code,
+                    binding_status="active",
+                    tags_json=safe_json(tags_json if isinstance(tags_json, dict) else {}),
+                    granted_by=granted_by,
+                    source_ref="governance.actor.role.assign",
+                    evidence_json=evidence,
+                )
+                session.add(record)
+                session.flush()
+            else:
+                record.binding_status = "active"
+                record.granted_by = granted_by
+                if tags_json is not None:
+                    record.tags_json = safe_json(tags_json if isinstance(tags_json, dict) else {})
+                record.source_ref = "governance.actor.role.assign"
+                record.evidence_json = evidence
+                record.updated_at = _now()
+            record_id = record.id
+            self._refresh_actor_role_codes_in_session(session, tenant_id=tenant_id, external_actor_id=external_actor_id)
+            session.commit()
+            return session.execute(select(ActorOrgRoleBindingRecord).where(ActorOrgRoleBindingRecord.id == record_id)).scalar_one()
+
+    def revoke_actor_role(
+        self,
+        *,
+        external_actor_id: str,
+        org_code: str,
+        role_code: str,
+        tenant_id: str = "sd-default",
+    ) -> bool:
+        """Disable a single (actor, org, role) binding. Returns True if an active binding
+        was found and disabled, False otherwise (idempotent)."""
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            record = session.execute(
+                select(ActorOrgRoleBindingRecord).where(
+                    ActorOrgRoleBindingRecord.tenant_id == tenant_id,
+                    ActorOrgRoleBindingRecord.external_actor_id == str(external_actor_id or ""),
+                    ActorOrgRoleBindingRecord.org_code == str(org_code or ""),
+                    ActorOrgRoleBindingRecord.role_code == str(role_code or ""),
+                )
+            ).scalar_one_or_none()
+            if record is None or record.binding_status != "active":
+                return False
+            record.binding_status = "disabled"
+            record.updated_at = _now()
+            self._refresh_actor_role_codes_in_session(session, tenant_id=tenant_id, external_actor_id=str(external_actor_id or ""))
+            session.commit()
+            return True
+
+    def set_actor_status(
+        self,
+        *,
+        external_actor_id: str,
+        status: str,
+        tenant_id: str = "sd-default",
+    ) -> ActorProjectionRecord | None:
+        """Set actor lifecycle status (active/disabled). Bindings are left intact so that
+        re-enabling restores prior access; the auth gates fail closed on `disabled`."""
+        status = str(status or "")
+        if status not in {"active", "disabled"}:
+            raise ActorMatchError(f"unsupported actor status: {status!r}")
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            record = session.execute(
+                select(ActorProjectionRecord).where(
+                    ActorProjectionRecord.tenant_id == tenant_id,
+                    ActorProjectionRecord.external_actor_id == str(external_actor_id or ""),
+                )
+            ).scalar_one_or_none()
+            if record is None:
+                return None
+            record.status = status
+            record.updated_at = _now()
+            record_id = record.id
+            session.commit()
+            return session.execute(select(ActorProjectionRecord).where(ActorProjectionRecord.id == record_id)).scalar_one()
+
+    def _refresh_actor_role_codes_in_session(self, session: Session, *, tenant_id: str, external_actor_id: str) -> None:
+        """Keep actor_projection.role_codes_json mirrored to the actor's ACTIVE bindings so the
+        (now vestigial) snapshot fallback never disagrees with the authoritative binding source
+        (D62 A1c). Roles are read from bindings everywhere that matters; this just stops a stale
+        role_codes_json from resurrecting a revoked role via the browser no-binding fallback."""
+        # R-002: callers mutate binding_status (revoke→disabled / re-activate→active) but the
+        # session is autoflush=False, so the ACTIVE-binding SELECT below would read STALE
+        # pre-mutation rows (revoke would re-add the role, re-activate would miss it). Flush
+        # the pending mutation first so the mirror reflects the post-mutation truth.
+        session.flush()
+        active = session.execute(
+            select(ActorOrgRoleBindingRecord).where(
+                ActorOrgRoleBindingRecord.tenant_id == tenant_id,
+                ActorOrgRoleBindingRecord.external_actor_id == external_actor_id,
+                ActorOrgRoleBindingRecord.binding_status == "active",
+            )
+        ).scalars()
+        role_codes = sorted({item.role_code for item in active})
+        actor = session.execute(
+            select(ActorProjectionRecord).where(
+                ActorProjectionRecord.tenant_id == tenant_id,
+                ActorProjectionRecord.external_actor_id == external_actor_id,
+            )
+        ).scalar_one_or_none()
+        if actor is not None:
+            actor.role_codes_json = safe_json(role_codes)
+            actor.updated_at = _now()
 
     def _get_actor(self, external_actor_id: str, *, tenant_id: str = "sd-default") -> ActorProjectionRecord | None:
         SessionLocal = create_session_factory()

@@ -99,6 +99,11 @@
 | POST | `/api/skills/form_schema.nl_draft` | 用一句话生成表单 schema 草稿 | `post_form_schema_nl_draft` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/form_schema.promote_to_preview` | 表单模板：草稿提级到预览 | `post_form_schema_promote_to_preview` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/form_schema.revert_to_draft` | 表单模板：预览回退到草稿 | `post_form_schema_revert_to_draft` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/governance.access_matrix` | 谁能访问什么（角色能力矩阵） | `get_governance_access_matrix` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/governance.actor.list` | 用户与角色清单 | `get_governance_actor_list` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/governance.actor.role.assign` | 分派用户角色 | `post_governance_actor_role_assign` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/governance.actor.role.revoke` | 撤销用户角色 | `post_governance_actor_role_revoke` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/governance.actor.status.set` | 停用/启用用户 | `post_governance_actor_status_set` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/governance.dispute_list` | 查看治理争议列表 | `get_governance_dispute_list` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/governance.dispute_view` | 查看治理争议详情 | `get_governance_dispute_view` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/governance.iam_overview` | 查看 IAM 治理总览 | `get_governance_iam_overview` | `zw_brain/entry/rest/openapi.json` |
@@ -237,6 +242,8 @@
 | `data.search` | read | False | 按关键词 / 部门 / 主题域检索共享数据资源目录，返回命中清单与结构化摘要。 | True | `zw_brain/entry/mcp/tools/data.search.json` |
 | `delivery.list` | read | False | 查看预填下发、自动汇总、回流候选和异常交付任务列表。 | True | `zw_brain/entry/mcp/tools/delivery.list.json` |
 | `delivery.view` | read | False | 查看预填下发、自动汇总和回流候选的交付任务详情。 | True | `zw_brain/entry/mcp/tools/delivery.view.json` |
+| `governance.access_matrix` | read | False | 只读派生 角色→能力 授权矩阵（来源 policy.PERMISSION_ROLES 单一事实源）+ 固定角色目录（role_codes），供身份治理可审计性查看，不做任何菜单授权写。 | True | `zw_brain/entry/mcp/tools/governance.access_matrix.json` |
+| `governance.actor.list` | read | False | 列出本租户的身份 actor（用户）及其有效角色绑定、IAF 认领状态、停用状态，供身份治理管理面检索（按机构/角色/状态/关键字过滤）。 | True | `zw_brain/entry/mcp/tools/governance.actor.list.json` |
 | `governance.dispute_list` | read | False | 查看重复要数、字段口径和补录异常相关争议，以及关联告警、工单与知识建议。 | True | `zw_brain/entry/mcp/tools/governance.dispute_list.json` |
 | `governance.dispute_view` | read | False | 查看单条治理争议的时间线和 AI 调查摘要。 | True | `zw_brain/entry/mcp/tools/governance.dispute_view.json` |
 | `governance.iam_overview` | read | False | 查看 IAF 绑定状态、投影、租户能力策略、旧 BSP 导入问题、审计证据和策略裁决结果。 | True | `zw_brain/entry/mcp/tools/governance.iam_overview.json` |
@@ -284,7 +291,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 180 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 185 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -378,6 +385,11 @@
 | `form_schema.nl_draft` | 用一句话生成表单 schema 草稿 | 1.0.0 | audit, db_write, external_inference | `zw_brain/capability_registry/registered/form_schema.nl_draft.json` |
 | `form_schema.promote_to_preview` | 表单模板：草稿提级到预览 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/form_schema.promote_to_preview.json` |
 | `form_schema.revert_to_draft` | 表单模板：预览回退到草稿 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/form_schema.revert_to_draft.json` |
+| `governance.access_matrix` | 谁能访问什么（角色能力矩阵） | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/governance.access_matrix.json` |
+| `governance.actor.list` | 用户与角色清单 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/governance.actor.list.json` |
+| `governance.actor.role.assign` | 分派用户角色 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/governance.actor.role.assign.json` |
+| `governance.actor.role.revoke` | 撤销用户角色 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/governance.actor.role.revoke.json` |
+| `governance.actor.status.set` | 停用/启用用户 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/governance.actor.status.set.json` |
 | `governance.dispute_list` | 查看治理争议列表 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/governance.dispute_list.json` |
 | `governance.dispute_view` | 查看治理争议详情 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/governance.dispute_view.json` |
 | `governance.iam_overview` | 查看 IAM 治理总览 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/governance.iam_overview.json` |
@@ -475,9 +487,9 @@
 
 ## Statistics
 
-- REST endpoints: 189
+- REST endpoints: 194
 - CLI entries: 1
-- MCP tools: 64
+- MCP tools: 66
 - A2A agent cards: 1
-- Registered Skills (live): 180 / 244 on-disk
+- Registered Skills (live): 185 / 249 on-disk
 

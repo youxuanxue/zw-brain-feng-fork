@@ -373,6 +373,34 @@
       "sideEffects": []
     },
     {
+      "id": "governance.access_matrix",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
+      "id": "governance.actor.list",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-sensitive",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
       "id": "governance.dispute_list",
       "mode": "read",
       "humanConfirmationRequired": false,
@@ -1830,6 +1858,54 @@
       "mode": "write",
       "humanConfirmationRequired": true,
       "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "governance.actor.role.assign",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "governance.actor.role.revoke",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "governance.actor.status.set",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
       "surfaces": [
         "webui",
         "api",

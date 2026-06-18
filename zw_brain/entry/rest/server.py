@@ -192,6 +192,35 @@ def _dev_iam_bypass_claims(org_code: str | None = None) -> dict[str, Any]:
     }
 
 
+def _binding_role_codes_for_subject(subject: str, tenant_id: str) -> tuple[str, ...]:
+    """D62 A2: resolve a verified identity's product roles from zw-brain's AUTHORITATIVE
+    actor_org_role_binding (looked up by sub), never from the generic shared IAM token.
+
+    - disabled actor → no roles (A0 bearer-gate enforcement of stop-on-disable);
+    - unknown actor / no active bindings → role-less (the user must be assigned a role in
+      身份治理 — login does not grant roles);
+    - store unavailable → fail closed to role-less (deny), never to token roles.
+    """
+    if not subject:
+        return ()
+    try:
+        from zw_brain.domain.policy import filter_product_role_codes
+        from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
+
+        repo = GovernanceProjectionRepository()
+        actor = repo.get_actor(subject, tenant_id=tenant_id)
+        if actor is not None and actor.status == "disabled":
+            return ()
+        contexts = repo.list_active_actor_contexts(tenant_id=tenant_id, external_actor_id=subject)
+        return tuple(sorted(set(filter_product_role_codes([str(c.get("role_code")) for c in contexts]))))
+    except Exception:  # noqa: BLE001 — authz fails closed (role-less = deny), never to token roles
+        # R-008: keep fail-closed, but make an infra/config outage (DB unreachable / schema
+        # drift) OBSERVABLE — otherwise it silently strips every verified user's roles and
+        # looks identical to a legitimately unassigned account.
+        _LOGGER.exception("binding role resolution failed (failing closed to role-less): subject=%s tenant=%s", subject, tenant_id)
+        return ()
+
+
 def _session_current_org_code(session: AuthSession) -> str:
     """会话「当前机构码」单一事实源（与写侧 caller_org_code 同优先级）：
 
@@ -775,12 +804,16 @@ class RestHandler(BaseHTTPRequestHandler):
         return allowed[0] if allowed else ""
 
     def _trusted_skill_payload(self, session: AuthSession, client_payload: dict[str, Any] | None) -> dict[str, Any]:
-        snapshot = dict(session.actor_snapshot)
-        if not snapshot.get("available_contexts"):
-            snapshot = get_service().enrich_actor_snapshot_for_session(snapshot)
-            updated = _AUTH_SESSION_STORE.update_actor_snapshot(session.session_id, snapshot)
-            if updated is not None:
-                snapshot = dict(updated.actor_snapshot)
+        # R-001: re-derive the snapshot LIVE per skill call (current actor.status + active
+        # bindings) — not just a one-time backfill when available_contexts is empty. Otherwise
+        # a mid-session disable/revoke would not take effect on the browser BFF until the cookie
+        # session expires, while the bearer gate is already live. This makes both surfaces honor
+        # the single writable source per request (D62), at the cost of one binding read per call
+        # (the bearer gate already pays the same).
+        snapshot = get_service().enrich_actor_snapshot_for_session(dict(session.actor_snapshot))
+        updated = _AUTH_SESSION_STORE.update_actor_snapshot(session.session_id, snapshot)
+        if updated is not None:
+            snapshot = dict(updated.actor_snapshot)
         return build_trusted_skill_payload(client_payload, actor_snapshot=snapshot)
 
     def _bind_auth(
@@ -790,6 +823,16 @@ class RestHandler(BaseHTTPRequestHandler):
         context = auth_context_from_claims(
             claims, client_id=client_id, development_iam_bypass=development_iam_bypass
         )
+        if not development_iam_bypass:
+            # D62 A2: a real verified identity's product roles come from zw-brain's
+            # authoritative actor_org_role_binding (by sub), NOT the generic shared IAM token.
+            # dev-bypass keeps its synthetic full-role identity (else local/MCP/CLI lock out).
+            from dataclasses import replace as _replace
+
+            context = _replace(
+                context,
+                role_codes=_binding_role_codes_for_subject(context.subject, context.tenant_id),
+            )
         set_log_actor(context.username)
         return set_auth_context(context)
 

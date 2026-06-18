@@ -1,0 +1,21 @@
+scope: iam-role-governance
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-18
+kind: 决策签字
+evidence: >-
+  角色分派与角色治理 zw-brain 自建（IAM 只认证）经产品研发负责人裁定（2026-06-18 plan-mode 计划批准）：
+  ① 架构门——授权事实源收口 zw-brain（actor_org_role_binding），IAM 仅认证，依据旧平台 BSP 数据结构与
+  IAM 对接设计文档实读（IAF token「标准字段全为身份，无业务角色/权限/菜单」；BSP 自拥 pub_role/pub_user_role
+  4187 边/pub_role_resource，「完全掌控用户数据」为其优点，IAM 是 BSP 下游）；② 范围——做 用户管理 + 角色
+  分派/撤销(按机构) + 停用/启用 + 谁能访问什么(只读) + 全程审计 + 事实源收口，不做角色目录 CRUD/树/权重、
+  APP 多产品域、菜单授权引擎、区划直授(乔布斯 say-no)；③ A0 修订 D51——disabled 行登录 fail-closed
+  (ActorDisabledError)，不复活/不新插 active，再启用是显式管理动作；④ 分派/撤销/停用/清单/矩阵角色门
+  ROLE_SYSTEM 独占(承 D55)。阶段一已落地并测试：B 五能力 + 仓储单边写 + A0 双门 + C 身份治理 UI(3 tab)；
+  证据 tests/test_iam_role_governance.py 9 测全绿 + tests/test_iam_identity_claim.py(A0 修订)全绿 + 身份/治理
+  回归簇 ~280 测全绿 + preflight 段26 绿 + 契约 5 面同步 + webui build 绿/vitest 18-18。阶段二(A1/A2 bearer
+  门读 binding + A4 回填 + A3 不变量守卫 + D1 FK 迁移 + 非-bypass 窄身份 e2e + capture --with-e2e 重采)
+  安全敏感、原子上线，落地后补 D37 效果验收并正式补签。全文 docs/decisions/iam-role-governance-self-build-D62.md。
+decision_only: true
+covers: []
+# 注：属 D28 架构 + 角色/状态机门。本账本记产品研发负责人 2026-06-18 计划批准为决策起点（decision_only，
+# 不抬 .feature 状态）。阶段二深度授权收口 + D37 效果验收落地后补签、并补登 CLAUDE.md D62 索引。

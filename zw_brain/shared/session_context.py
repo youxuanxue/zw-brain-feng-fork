@@ -108,6 +108,10 @@ def apply_runtime_context(
 
 
 def resolve_trusted_role(payload: dict[str, Any], *, actor_snapshot: dict[str, Any]) -> str:
+    # D62 A0 (browser BFF gate, defense in depth): a disabled actor must never resolve a
+    # product role for a skill call, even if a stale session snapshot still carries bindings.
+    if str(actor_snapshot.get("status") or "") == "disabled":
+        raise DomainAccessDeniedError("actor disabled")
     contexts = actor_snapshot.get("available_contexts")
     if isinstance(contexts, list) and contexts:
         allowed_roles = {str(item["role_code"]) for item in contexts if item.get("role_code")}

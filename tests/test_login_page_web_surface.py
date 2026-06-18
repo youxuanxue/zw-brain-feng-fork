@@ -87,7 +87,9 @@ def test_app_blocks_home_when_no_product_role() -> None:
     auth = (REPO / "zw-brain-web" / "src" / "composables" / "useAuth.ts").read_text(encoding="utf-8")
     assert "missingProductRole" in app
     assert "hasAllowedProductRoles" in app
-    assert "联系系统管理员" in app or "联系管理员" in app
+    # D62: onboarding copy now names 平台运维员 (ROLE_SYSTEM owns role assignment) and points
+    # to 身份治理 where roles are actually assignable — honest, actionable remediation path.
+    assert "联系平台运维员" in app or "联系系统管理员" in app or "联系管理员" in app
     assert 'id="no-product-role-logout"' in app
     assert "@click=\"logout\"" in app
     assert "export function hasAllowedProductRoles()" in auth

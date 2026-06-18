@@ -764,9 +764,17 @@ class BrainService:
         tenant_id = str(actor_snapshot.get("tenant_id") or "sd-default")
         if not subject:
             return actor_snapshot
-        bindings = self._governance_projection_repo().list_active_actor_contexts(tenant_id=tenant_id, external_actor_id=subject)
-        contexts = contexts_from_bindings(bindings, fallback_org_code=str(actor_snapshot.get("org_code") or "") or None)
-        return apply_runtime_context(actor_snapshot, contexts, preferred_org_code=str(actor_snapshot.get("org_code") or "") or None)
+        repo = self._governance_projection_repo()
+        enriched = dict(actor_snapshot)
+        # R-001: refresh the LIVE actor.status so a mid-session disable is honored by the browser
+        # BFF gate (resolve_trusted_role rejects status=='disabled'); the login-time snapshot
+        # status would otherwise stay 'active' until session expiry.
+        actor = repo.get_actor(subject, tenant_id=tenant_id)
+        if actor is not None:
+            enriched["status"] = actor.status
+        bindings = repo.list_active_actor_contexts(tenant_id=tenant_id, external_actor_id=subject)
+        contexts = contexts_from_bindings(bindings, fallback_org_code=str(enriched.get("org_code") or "") or None)
+        return apply_runtime_context(enriched, contexts, preferred_org_code=str(enriched.get("org_code") or "") or None)
 
     def _catalog_record_to_card_dict(self, record: Any) -> dict[str, Any]:
         return self._get_handler_deps().services.catalog.record_to_card_dict(record)

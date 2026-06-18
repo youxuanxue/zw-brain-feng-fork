@@ -383,6 +383,204 @@ def _review_policy_mapping_candidates(brain, deps, ctx, payload: dict[str, Any])
 
 
 # ──────────────────────────────────────────────────────────────────────────
+# D62 — In-product role governance (actor list / assign / revoke / status / matrix).
+# zw-brain owns authorization; these are the admin-facing read + write surfaces.
+# ──────────────────────────────────────────────────────────────────────────
+
+def _list_actors(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()
+    tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
+    q = str(payload.get("q") or "").strip().lower()
+    # org_filter (NOT org_code): the trusted BFF path overwrites payload.org_code with the
+    # caller's own org, which would silently restrict a ROLE_SYSTEM admin to only their own org's
+    # actors. Read the explicit, non-clobbered filter field instead.
+    org_filter = str(payload.get("org_filter") or "").strip()
+    role_filter = str(payload.get("role_code") or "").strip()
+    status_filter = str(payload.get("status") or "").strip()
+    repo = deps.repos.governance_projection
+    actors = repo.list_actors(tenant_id=tenant_id)
+    active_bindings = repo.list_actor_org_role_bindings(tenant_id=tenant_id, binding_status="active")
+    bindings_by_actor: dict[str, list[Any]] = {}
+    for binding in active_bindings:
+        bindings_by_actor.setdefault(binding.external_actor_id, []).append(binding)
+    status_counts: dict[str, int] = {}
+    items: list[dict[str, Any]] = []
+    for actor in actors:
+        status_counts[actor.status] = status_counts.get(actor.status, 0) + 1
+        item = governance_ser.actor_with_bindings_to_dict(actor, bindings_by_actor.get(actor.external_actor_id, []))
+        if status_filter and item.get("status") != status_filter:
+            continue
+        binding_orgs = {bd.get("org_code") for bd in item.get("bindings", [])}
+        binding_roles = {bd.get("role_code") for bd in item.get("bindings", [])}
+        if org_filter and item.get("org_code") != org_filter and org_filter not in binding_orgs:
+            continue
+        if role_filter and role_filter not in binding_roles:
+            continue
+        if q:
+            # R-004: match against the RAW (unmasked) record fields — item.display_name is
+            # mask()'d ('张三'→'张*'), so a real-name query would never hit. The predicate runs
+            # server-side where the raw value is available; only masked rows egress.
+            profile = actor.profile_json if isinstance(actor.profile_json, dict) else {}
+            haystack = " ".join(
+                str(v or "")
+                for v in (actor.display_name, actor.external_actor_id, actor.org_code, profile.get("account"))
+            ).lower()
+            if q not in haystack:
+                continue
+        items.append(item)
+    return {
+        "tenant_id": tenant_id,
+        "total": len(items),
+        "items": items,
+        "summary": {"total": len(actors), "status_counts": status_counts},
+    }
+
+
+def _access_matrix(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
+    from zw_brain.domain import role_codes as _role_codes
+
+    def _cap(permission: str) -> str:
+        return permission[: -len(".execute")] if permission.endswith(".execute") else permission
+
+    roles: list[dict[str, Any]] = []
+    cap_to_roles: dict[str, set[str]] = {}
+    for role_code, display_name in _role_codes.ROLE_DISPLAY_NAMES_ZH.items():
+        capabilities = sorted({_cap(perm) for perm in policy.permissions_for_role(role_code)})
+        roles.append(
+            {
+                "role_code": role_code,
+                "display_name": display_name,
+                "capability_count": len(capabilities),
+                "capabilities": capabilities,
+            }
+        )
+        for capability_id in capabilities:
+            cap_to_roles.setdefault(capability_id, set()).add(role_code)
+    capabilities = [
+        {"capability_id": capability_id, "roles": sorted(role_set)}
+        for capability_id, role_set in sorted(cap_to_roles.items())
+    ]
+    return {"roles": roles, "capabilities": capabilities}
+
+
+def _assign_actor_role(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()
+
+    def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+        tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
+        external_actor_id = str(payload.get("external_actor_id") or "").strip()
+        # Target binding org: use the dedicated `target_org_code` field, NOT `org_code` —
+        # the trusted-session BFF path overwrites payload["org_code"] with the CALLER's session
+        # org (D61 caller-context), which would silently bind the role in the admin's own org
+        # instead of the target's. Fall back to the target actor's home org when unspecified.
+        target_org_code = str(payload.get("target_org_code") or "").strip()
+        role_code = str(payload.get("role_code") or "").strip()
+        note = str(payload.get("note") or "")
+        from zw_brain.domain import role_codes as _role_codes
+
+        if not external_actor_id or not role_code:
+            raise BrainServiceError("external_actor_id, role_code are required")
+        # R-003: only the fixed product role catalog (5 业务角色 + ROLE_SYSTEM) is assignable;
+        # internal SYSTEM_ROLE_CODES (admin/system) are never granted to people (D62). The UI
+        # constrains this, but the backend is the security boundary for direct REST/CLI/A2A.
+        if role_code not in _role_codes.BUSINESS_ROLE_CODES:
+            raise BrainServiceError(f"role_code not assignable: {role_code}")
+        repo = deps.repos.governance_projection
+        target = repo.get_actor(external_actor_id, tenant_id=tenant_id)
+        if target is None:
+            raise BrainServiceError(f"unknown actor: {external_actor_id}")
+        if target.status == "disabled":
+            raise BrainServiceError("cannot assign a role to a disabled actor; enable it first")
+        org_code = target_org_code or str(target.org_code or "")
+        if not org_code:
+            raise BrainServiceError("target_org_code is required (target actor has no home org)")
+        # R-005: defense-in-depth — don't write a binding to a dangling org_code (no FK on the
+        # column by D48 §2.5 honest-downgrade). Mirrors the unknown-actor guard above.
+        if repo.get_org_by_code(org_code, tenant_id=tenant_id) is None:
+            raise BrainServiceError(f"unknown org_code: {org_code}")
+        binding = repo.assign_actor_role(
+            external_actor_id=external_actor_id,
+            org_code=org_code,
+            role_code=role_code,
+            tenant_id=tenant_id,
+            granted_by=actor,
+            note=note,
+        )
+        deps.append_audit_feed("governance.actor.role.assign", external_actor_id, "ok", actor)
+        return {
+            "ok": True,
+            "audit_id": audit_id,
+            "external_actor_id": external_actor_id,
+            "org_code": org_code,
+            "role_code": role_code,
+            "binding_status": binding.binding_status,
+        }
+
+    return deps.write(ctx, payload, mutation)
+
+
+def _revoke_actor_role(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()
+
+    def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+        tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
+        external_actor_id = str(payload.get("external_actor_id") or "").strip()
+        # See assign: `org_code` is clobbered by the trusted BFF path with the caller's org, so a
+        # revoke keyed on it would target the wrong (admin's) org and silently miss. Use the
+        # dedicated target_org_code (the binding's own org from the UI chip), fall back to the
+        # target actor's home org.
+        target_org_code = str(payload.get("target_org_code") or "").strip()
+        role_code = str(payload.get("role_code") or "").strip()
+        if not external_actor_id or not role_code:
+            raise BrainServiceError("external_actor_id, role_code are required")
+        repo = deps.repos.governance_projection
+        org_code = target_org_code
+        if not org_code:
+            target = repo.get_actor(external_actor_id, tenant_id=tenant_id)
+            org_code = str(target.org_code or "") if target is not None else ""
+        if not org_code:
+            raise BrainServiceError("target_org_code is required (target actor has no home org)")
+        revoked = repo.revoke_actor_role(
+            external_actor_id=external_actor_id,
+            org_code=org_code,
+            role_code=role_code,
+            tenant_id=tenant_id,
+        )
+        deps.append_audit_feed("governance.actor.role.revoke", external_actor_id, "ok" if revoked else "warning", actor)
+        return {
+            "ok": True,
+            "audit_id": audit_id,
+            "revoked": revoked,
+            "external_actor_id": external_actor_id,
+            "org_code": org_code,
+            "role_code": role_code,
+        }
+
+    return deps.write(ctx, payload, mutation)
+
+
+def _set_actor_status(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
+    deps = brain._get_handler_deps()
+
+    def mutation(audit_id: str, actor: str) -> dict[str, Any]:
+        tenant_id = str(payload.get("tenant_id", _DEFAULT_TENANT_ID))
+        external_actor_id = str(payload.get("external_actor_id") or "").strip()
+        status = str(payload.get("status") or "").strip()
+        if not external_actor_id:
+            raise BrainServiceError("external_actor_id is required")
+        if status not in {"active", "disabled"}:
+            raise BrainServiceError(f"unsupported actor status: {status!r}")
+        repo = deps.repos.governance_projection
+        record = repo.set_actor_status(external_actor_id=external_actor_id, status=status, tenant_id=tenant_id)
+        if record is None:
+            raise BrainServiceError(f"unknown actor: {external_actor_id}")
+        deps.append_audit_feed("governance.actor.status.set", external_actor_id, "ok", actor)
+        return {"ok": True, "audit_id": audit_id, "external_actor_id": external_actor_id, "status": record.status}
+
+    return deps.write(ctx, payload, mutation)
+
+
+# ──────────────────────────────────────────────────────────────────────────
 # Handler entrypoints
 # ──────────────────────────────────────────────────────────────────────────
 
@@ -400,4 +598,24 @@ def handler_governance_policy_candidate_review(deps: HandlerDeps, ctx: SkillCont
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
     return _review_policy_mapping_candidates(brain, deps, ctx, payload)
+
+def handler_governance_actor_list(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None
+    return _list_actors(brain, deps, ctx, payload)
+
+def handler_governance_access_matrix(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None
+    return _access_matrix(brain, deps, ctx, payload)
+
+def handler_governance_actor_role_assign(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None
+    return _assign_actor_role(brain, deps, ctx, payload)
+
+def handler_governance_actor_role_revoke(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None
+    return _revoke_actor_role(brain, deps, ctx, payload)
+
+def handler_governance_actor_status_set(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
+    brain = deps.brain_legacy if deps is not None else None
+    return _set_actor_status(brain, deps, ctx, payload)
 

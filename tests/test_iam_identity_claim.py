@@ -15,6 +15,7 @@ from sqlalchemy import select
 from tests._iaf_rest_http import bootstrap_iaf_runtime
 from zw_brain.domain.models import LegacyObjectMappingRecord
 from zw_brain.domain.repositories.governance_projection import (
+    ActorDisabledError,
     ActorMatchError,
     GovernanceProjectionRepository,
 )
@@ -166,26 +167,28 @@ def test_ambiguous_auxiliary_match_fails_closed_without_writing() -> None:
         assert after == before  # no new row, no rekey
 
 
-def test_disabled_legacy_row_is_not_claimed() -> None:
-    """disabled 存量行不被认领（不继承其角色）→ 登录落为全新 sub 键行，disabled 行原样保留。"""
+def test_disabled_legacy_row_login_fails_closed() -> None:
+    """D62 A0 amends D51: a disabled identity logging in fails closed (ActorDisabledError) —
+    it is NOT claimed AND no fresh active row is minted. Previously the disabled row fell
+    through to an `inserted_fresh` active row, which both bypassed the disable and re-created
+    the duplicate D51 was meant to prevent. Re-enabling is an explicit admin action
+    (governance.actor.status.set), not a silent side effect of login."""
     with TemporaryDirectory() as tmp, bootstrap_iaf_runtime(tmp):
         repo = GovernanceProjectionRepository()
         disabled = _seed_legacy_actor(repo, external="USER4", account="banned", status="disabled")
 
-        record, outcome = repo.claim_legacy_actor_by_iaf(
-            iaf_sub="iam-sub-4",
-            match_claims={"preferred_username": "banned"},
-            claims_profile={"username": "banned"},
-            tenant_id=TENANT,
-        )
+        with pytest.raises(ActorDisabledError):
+            repo.claim_legacy_actor_by_iaf(
+                iaf_sub="iam-sub-4",
+                match_claims={"preferred_username": "banned"},
+                claims_profile={"username": "banned"},
+                tenant_id=TENANT,
+            )
 
-        assert outcome == "inserted_fresh"
-        assert record.external_actor_id == "iam-sub-4"
-        # disabled legacy row untouched
+        # disabled legacy row untouched; NO fresh active row minted (still exactly one row).
         kept = repo._get_actor("USER4", tenant_id=TENANT)
         assert kept is not None and kept.id == disabled.id and kept.status == "disabled"
-        # two distinct rows now (the disabled legacy + the fresh login identity)
-        assert len(repo.list_actors(tenant_id=TENANT)) == 2
+        assert len(repo.list_actors(tenant_id=TENANT)) == 1
 
 
 def test_second_login_same_sub_is_idempotent() -> None:
@@ -218,8 +221,11 @@ def test_second_login_same_sub_is_idempotent() -> None:
         assert {(b.org_code, b.role_code) for b in active} == {("ORG-A", "ROLE_ORGAN_OPERATER")}
 
 
-def test_token_roles_overwrite_role_codes_but_legacy_with_no_token_roles_preserved() -> None:
-    """token 带产品角色 → 写入 role_codes_json；token 无角色 → 保留导入值（角色仍由 binding 现算）。"""
+def test_login_never_stamps_token_roles_into_role_codes() -> None:
+    """D62 A1: login NEVER writes token roles into role_codes_json — product roles are
+    zw-brain's authoritative actor_org_role_binding, not the generic IAM token. A claim
+    carrying token_role_codes leaves role_codes_json untouched (here: empty, since the
+    legacy seed had none and no in-product role was assigned)."""
     with TemporaryDirectory() as tmp, bootstrap_iaf_runtime(tmp):
         repo = GovernanceProjectionRepository()
         _seed_legacy_actor(repo, external="USER6", account="zhao", org_code="ORG-A")
@@ -228,7 +234,9 @@ def test_token_roles_overwrite_role_codes_but_legacy_with_no_token_roles_preserv
             iaf_sub="iam-sub-6",
             match_claims={"preferred_username": "zhao"},
             claims_profile={"username": "zhao"},
-            token_role_codes=["ROLE_ORGAN_MANAGER"],
+            token_role_codes=["ROLE_ORGAN_MANAGER"],  # token carries a role → must be ignored
             tenant_id=TENANT,
         )
-        assert list(record.role_codes_json or []) == ["ROLE_ORGAN_MANAGER"]
+        # token role did NOT leak into the actor's roles; bindings remain the only source.
+        assert list(record.role_codes_json or []) == []
+        assert repo.list_actor_org_role_bindings(tenant_id=TENANT, external_actor_id="iam-sub-6", binding_status="active") == []

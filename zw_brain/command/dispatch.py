@@ -142,7 +142,12 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "compliance.metric.query": compliance.handler_compliance_metric_query,
     "compliance.rule.configure": compliance.handler_compliance_rule_configure,
     "compliance.investigate_case": compliance.handler_compliance_investigate_case,
-    # turn 4: J2 — governance (3 cap)
+    # turn 4: J2 — governance (3 cap) + D62 actor/role governance (5 cap)
+    "governance.access_matrix": governance.handler_governance_access_matrix,
+    "governance.actor.list": governance.handler_governance_actor_list,
+    "governance.actor.role.assign": governance.handler_governance_actor_role_assign,
+    "governance.actor.role.revoke": governance.handler_governance_actor_role_revoke,
+    "governance.actor.status.set": governance.handler_governance_actor_status_set,
     "governance.iam_overview": governance.handler_governance_iam_overview,
     "governance.policy_candidate.list": governance.handler_governance_policy_candidate_list,
     "governance.policy_candidate.review": governance.handler_governance_policy_candidate_review,
