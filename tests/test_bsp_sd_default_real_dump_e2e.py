@@ -155,6 +155,22 @@ def test_sd_default_real_dump_iaf_to_role_policy_e2e() -> None:
         # 真实 dump 有 'ROLE_DATA_LEADER#ROLE_MGMT_LEADER' 类多角色串：拆分后某 actor 应同时挂 2+ 角色。
         assert multi_role_actors, "应至少有 1 actor 经 # 拆分获得 2+ 角色 binding（防多角色拆分回归）"
 
+        # ---- D63 回归：pub_user_role 真实角色被 materialize（旧 importer 只读 organ_role 会判错）----
+        # gaodaliang 在 pub_user_role 持 ROLE_SUPER 等（organ-only 旧口径只给 ROLE_ORGAN_OPERATER）；
+        # 修复后应拿到经映射的完整产品角色集，含 ROLE_SYSTEM(←ROLE_SUPER) 与 ROLE_BUSIAUDIT。
+        import json as _json
+
+        def _account(a) -> str:
+            pj = a.profile_json if isinstance(a.profile_json, dict) else (_json.loads(a.profile_json) if a.profile_json else {})
+            return pj.get("account") or ""
+
+        gao = next((a for a in actors if _account(a) == "gaodaliang"), None)
+        assert gao is not None, "real dump 应含 account=gaodaliang"
+        gao_roles = actor_to_roles.get(gao.external_actor_id, set())
+        assert {"ROLE_SYSTEM", "ROLE_BUSIAUDIT", "ROLE_ORGAN_MANAGER"} <= gao_roles, (
+            f"gaodaliang 应经 pub_user_role 拿到 SUPER→SYSTEM + BUSIAUDIT + MANAGER，实得 {sorted(gao_roles)}"
+        )
+
         # ---- 4. legacy_policy_mapping_candidate 下接 role policy ----
         candidates = gov.list_policy_candidates(tenant_id="sd-default")
         assert candidates, "应有 pub_role_resource × capability_mapping 命中的 candidate"

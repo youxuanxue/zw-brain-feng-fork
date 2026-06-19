@@ -325,6 +325,14 @@
       "rationale": "基层区域管理员"
     },
     {
+      "legacy_role_ref": "ROLE_REFION_ADMIN",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "区域管理员（旧库 REGION 拼写变体 REFION，D63 增补）"
+    },
+    {
       "legacy_role_ref": "ROLE_REGION_ALL",
       "target_type": "role",
       "target_role_code": "ROLE_ORGAN_MANAGER",
@@ -491,6 +499,30 @@
       "target_tag": null,
       "confidence": "confirmed",
       "rationale": "系统运维人员（开放）"
+    },
+    {
+      "legacy_role_ref": "ROLE_SUPER",
+      "target_type": "role",
+      "target_role_code": "ROLE_SYSTEM",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "平台超级管理员（D63 →平台运维员）"
+    },
+    {
+      "legacy_role_ref": "ROLE_SUPER_ADMIN",
+      "target_type": "role",
+      "target_role_code": "ROLE_SYSTEM",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "超级管理员（D63 →平台运维员）"
+    },
+    {
+      "legacy_role_ref": "TENANT_ADMIN",
+      "target_type": "role",
+      "target_role_code": "ROLE_ORGAN_MANAGER",
+      "target_tag": null,
+      "confidence": "confirmed",
+      "rationale": "租户管理员（D63 →部门管理员）"
     }
   ]
 }

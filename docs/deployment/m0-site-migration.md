@@ -121,3 +121,16 @@
 | 国家目录通道 | `legacy_object_mapping` + 外部通道 adapter 摘要 | 上级通道目录与本地目录的对接记录可回放 |
 | 开放目录 / 资源开放配置 | `legacy_object_mapping` 覆盖 `catalog-front /open/catalog-config`、`/open/catalog-publish`、`/open/resource-config`、`/open/resource-config-examine`、`/open/resource-publish`、`/open/relative-desensitize-data`、`/open/desensitize-data-examine` | 开放与脱敏审核记录都纳入验收，不留运行时双轨 |
 | 安全前端策略 | `legacy_object_mapping` 覆盖 `datasecurity-front` 的脱敏 / 加密 / 敏感识别 / 风险规则等关键策略对象 | 验收时确认字段安全证据被新平台承接 |
+
+## D63：用户角色从 `pub_user_role` 恢复（重导入，不是手派）
+
+存量用户的真实角色事实在旧库 `pub_user_role`（按 APP 域记，比 `pub_user_organ_role` 密 ~30x，词汇为 `ROLE_BUSIAUDIT/ROLE_BUSINESS_MANAGER/ROLE_SUPER...`）。D63 起导入器把它并入产品角色来源——**恢复角色靠重导入，不是在身份治理页一个个手派**。
+
+正确序列（依赖 IAM 已回填真实 sub）：
+
+1. **生产 `role_mapping_manifest` 含本期 4 条新映射**：`ROLE_SUPER/ROLE_SUPER_ADMIN→ROLE_SYSTEM`、`TENANT_ADMIN→ROLE_ORGAN_MANAGER`、`ROLE_REFION_ADMIN→ROLE_ORGAN_MANAGER`。DBA/M0 把同套映射并入 dump 的 `role_mapping_manifest` 表（单一源 = `scripts/build_m0_sd_default_fixtures.py` 的 `ROLE_MAPPING`，可重生 `tests/fixtures/m0-sd-default/role-mapping-manifest.json` 对账）。
+2. **回填真 sub**：`python scripts/ingest_iam_sub_backfill.py --manifest <iaf-binding-manifest>`（**整批、全或无 fail-closed**：残留任何 `iaf-sd-*` 占位即拒写、退码 2；单用户回填须把其余显式标 missing）。
+3. **重导入**：`python scripts/import_legacy_dumps.py import dsp_bsp`（原地 rekey、不产生重复行，承 D51）。无真 sub 的用户仍 `iam_account_missing`、0 binding（fail-closed，不捏造）。
+4. **重导入后复核 `ROLE_SYSTEM` 持有者**：导入回执含 `system_role_from_user_role` warn 清单（哪些 actor 因 `pub_user_role`/`ROLE_SUPER` 拿到平台运维员）。在**身份治理页**逐一核验、撤销非预期者（用 D62 工具复核，导入器不建 APP 过滤机器）。
+
+判断点：只在「角色映射不到 5 产品角色的 legacy 码」或「本就无任何 BSP 角色的用户」时才在身份治理页手派——其余一律走重导入（可审计、幂等、原地 rekey）。全文见 `docs/decisions/iam-pub-user-role-materialization-D63.md`。

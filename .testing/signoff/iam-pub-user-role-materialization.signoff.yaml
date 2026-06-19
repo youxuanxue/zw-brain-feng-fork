@@ -1,0 +1,29 @@
+scope: iam-pub-user-role-materialization
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-19
+kind: 决策签字
+evidence: >-
+  导入器 materialize pub_user_role 修复存量用户角色错配（承 D62 binding=SoT / D7 写禁区 / D11 真数据 /
+  D51 重导入认领），产品研发负责人 2026-06-19 裁定（plan-mode 计划批准 + 对话内两业务输入签字）：
+  ① 根因——旧导入器只读 pub_user_organ_role（136 行/多 ROLE_WORKER）喂角色映射，pub_user_role
+  （旧平台真实角色事实表 4187 行，产品角色词汇）只 stats.bump 不落 binding；role-mapping-manifest 本就照
+  pub_user_role 词汇所建（冒烟证据：ROLE_RESOURCEPUB/PUBAUDIT/BUSIOPER 几乎只现于 pub_user_role）。
+  生产 dump 用户级实测（MysqldumpParser，合并 organ∪pub_user_role）：organ-only 给到角色 106 人 → 合并
+  139 人；仅 pub_user_role 有的 31 人被旧导入器给 0；51 人会丢角色；合计 82/137（60%）有角色用户被判错。
+  ② 裁决——pub_user_role 并入产品角色主源（与 organ 合并去重、经映射落 5 角色、受同一 iaf_sub+active
+  fail-closed 门），落点取用户主机构 pub_user.ORG_CODE（与 ROLE_VALUE 兜底同口径），join 按 pub_user.ID
+  规避 USER_CODE='0' 漏配；只改导入路径，产品 5 角色集/policy/状态机/前端零变更。
+  ③ app 范围 = 全 union（已签）——不建 APP_CODE allowlist 过滤机器：DSP-only vs union 合并后仅差 6 人
+  （唯一安全敏感=3 人非 DSP 来源 ROLE_SYSTEM，BUSIAUDIT 非 DSP 增量=0），SYSTEM 授予改记
+  system_role_from_user_role warn 信号入回执、重导入后用 D62 身份治理页复核撤销（用工具复核，不建机器）。
+  ④ 角色映射增补（已签）——ROLE_SUPER/ROLE_SUPER_ADMIN→ROLE_SYSTEM（57 人，平台超管=平台运维员）、
+  TENANT_ADMIN→ROLE_ORGAN_MANAGER、ROLE_REFION_ADMIN→ROLE_ORGAN_MANAGER（REGION 拼写变体）；显式不映射
+  ROLE_APP_DEVELOPER/TENANT_DEVELOPER/ROLE_SITE_MESSAGE_RECEIVER/ROLE_GDRP_BUSINESS_TAG/ROLE_SECURITY_MANAGER。
+  ⑤ 边界——只惠及重导入，登录认领不写 binding（守 D62 A1）。
+  证据 tests/test_pub_user_role_materialization.py 5 测全绿 + pipeline/real-dump 回归（gaodaliang 真 dump
+  重导入得 SYSTEM+BUSIAUDIT+MANAGER+OPERATER，有角色 actor 106→129，幂等，无 sub fail-closed）。
+decision_only: true
+covers: []
+# 注：属 D28 架构 + 角色映射门。本账本记产品研发负责人 2026-06-19 决策签字（decision_only，不抬 .feature
+# 状态——本期未新增 .feature，导入修复落在既有 infra-iam-session / legacy-import 边界）。CLAUDE.md D63 索引已补登。
+# 生产重导入恢复角色属运维动作（依赖 IAM 回填真 sub），不在本 PR 执行；runbook 见 docs/deployment/m0-site-migration.md D63 段。

@@ -83,6 +83,19 @@ INSERT INTO `pub_user_organ_role` VALUES \
 ('UOR2','ORG-A','ROLE_ORGAN_OPERATER','U002','1'),\
 ('UOR3','ORG-B','ROLE_ORGAN_OPERATER','U002','1');
 
+DROP TABLE IF EXISTS `pub_user_role`;
+CREATE TABLE `pub_user_role` (
+  `ROLE_CODE` varchar(36) NOT NULL,
+  `USER_CODE` varchar(36) NOT NULL,
+  `APP_CODE` varchar(36) NOT NULL,
+  `HMAC` varchar(5000) DEFAULT NULL,
+  PRIMARY KEY (`ROLE_CODE`,`USER_CODE`,`APP_CODE`)
+) ENGINE=InnoDB;
+
+-- D63：U001 在 pub_user_role 另有 ROLE_BUSIAUDIT（按 APP 域记，无 ORG）→ 应 materialize 到主机构。
+INSERT INTO `pub_user_role` VALUES \
+('ROLE_BUSIAUDIT','U001','DSP-CATALOG',NULL);
+
 DROP TABLE IF EXISTS `iaf_binding_manifest`;
 CREATE TABLE `iaf_binding_manifest` (
   `LEGACY_USER_ID` varchar(36) NOT NULL,
@@ -105,6 +118,7 @@ CREATE TABLE `role_mapping_manifest` (
 INSERT INTO `role_mapping_manifest` VALUES \
 ('ROLE_ORGAN_MANAGER','role','ROLE_ORGAN_MANAGER',NULL),\
 ('ROLE_ORGAN_OPERATER','role','ROLE_ORGAN_OPERATER',NULL),\
+('ROLE_BUSIAUDIT','role','ROLE_BUSIAUDIT',NULL),\
 ('LEGACY_ROLE_X01','role',NULL,NULL);
 """
 
@@ -189,6 +203,15 @@ def test_pipeline_dry_run_then_apply_review_and_tenant_policy() -> None:
 
         applied = _import_pipeline_dump(tmp, dry_run=False)
         assert applied["mode"] == "apply"
+
+        # D63：U001 的产品角色 = organ(ROLE_ORGAN_MANAGER) ∪ pub_user_role(ROLE_BUSIAUDIT)，
+        # 证明 pub_user_role 经 pipeline 流程也被 materialize（按主机构落点、与 organ 合并去重）。
+        u001_roles = {
+            b.role_code
+            for b in gov.list_actor_org_role_bindings(tenant_id="sd-default", binding_status="active")
+            if b.external_actor_id == "iaf-sub-a"
+        }
+        assert u001_roles == {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}, u001_roles
 
         candidates = gov.list_policy_candidates(tenant_id="sd-default")
         audit_candidates = [item for item in candidates if item.capability_id == "audit.list"]

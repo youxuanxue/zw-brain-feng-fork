@@ -80,6 +80,7 @@ ROLE_MAPPING: list[tuple[str, str, str, str | None, str]] = [
     # —— 区域 ——
     ("ROLE_REGION", "role", "ROLE_ORGAN_MANAGER", None, "地市管理员"),
     ("ROLE_REGION_ADMIN", "role", "ROLE_ORGAN_MANAGER", None, "基层区域管理员"),
+    ("ROLE_REFION_ADMIN", "role", "ROLE_ORGAN_MANAGER", None, "区域管理员（旧库 REGION 拼写变体 REFION，D63 增补）"),
     ("ROLE_REGION_ALL", "role", "ROLE_ORGAN_MANAGER", None, "区域管理员（本级及以下）"),
     ("ROLE_REGION_SELF", "role", "ROLE_ORGAN_MANAGER", None, "区域管理员（本级）"),
     ("ROLE_COUNTRY_ADMIN", "role", "ROLE_ORGAN_MANAGER", None, "区县管理员"),
@@ -103,10 +104,15 @@ ROLE_MAPPING: list[tuple[str, str, str, str | None, str]] = [
     ("ROLE_OPEN_OPERATOR", "role", "ROLE_ORGAN_OPERATER", None, "部门操作员（开放）"),
     ("ROLE_OPEN_REGIONADMIN", "role", "ROLE_ORGAN_MANAGER", None, "地市管理员（开放）"),
     ("ROLE_OPEN_SYSTEM", "role", "ROLE_SYSTEM", None, "系统运维人员（开放）"),
+    # —— 超管 / 租户管理（D63 增补，负责人 2026-06-19 sign-off）——
+    # 实测生产 pub_user_role：ROLE_SUPER 57 人为平台超管，旧只 stats.bump 不落 binding → 重导入丢角色。
+    # ROLE_SUPER→ROLE_SYSTEM 已签；租户管理员归部门管理员（zw-brain 单租户，无独立租户轴）。
+    ("ROLE_SUPER", "role", "ROLE_SYSTEM", None, "平台超级管理员（D63 →平台运维员）"),
+    ("ROLE_SUPER_ADMIN", "role", "ROLE_SYSTEM", None, "超级管理员（D63 →平台运维员）"),
+    ("TENANT_ADMIN", "role", "ROLE_ORGAN_MANAGER", None, "租户管理员（D63 →部门管理员）"),
     # —— 显式不映射（business decision，非技术问题）——
     # 旧平台技术角色 / 多租户 / 工单系统遗留，未在 zw-brain 7 角色矩阵承接：
-    #   ROLE_APP_DEVELOPER / ROLE_SUPER / ROLE_SUPER_ADMIN — 技术/超管
-    #   TENANT_ADMIN / TENANT_DEVELOPER — 多租户残留
+    #   ROLE_APP_DEVELOPER / TENANT_DEVELOPER — 开发者/多租户残留（非政务业务角色）
     #   ROLE_INTEGRATION_ACCEPTER/CREATOR/EXECUTOR — 工单系统（zw-brain 用异议替代）
     #   ROLE_SITE_MESSAGE_RECEIVER — 站内信（外部消息中心）
     #   ROLE_GDRP_BUSINESS_TAG — 数据治理标签管理（外部数据治理中心）

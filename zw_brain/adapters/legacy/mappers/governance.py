@@ -409,7 +409,15 @@ class GovernanceMapper:
                 user_org_roles.setdefault(user_code, []).append(row)
             stats.bump("pub_user_organ_role")
 
-        for _row in rows_by_table.get("pub_user_role", []):
+        # D63：pub_user_role 是旧平台真实角色事实表（按 APP 域记，比 organ_role 密 ~30x），
+        # 早期只 stats.bump 不落 binding → 重导入丢掉用户真实角色。现索引为产品角色来源之一。
+        # join: pub_user_role.USER_CODE 是 → pub_user.ID 的外键（非 pub_user.USER_CODE），
+        # 故按其 USER_CODE 建索引、下方按 user_id 查，避开 pub_user.USER_CODE='0' 的漏配。
+        user_roles: dict[str, list[dict[str, Any]]] = {}
+        for row in rows_by_table.get("pub_user_role", []):
+            ukey = _string_value(row, "USER_CODE")
+            if ukey:
+                user_roles.setdefault(ukey, []).append(row)
             stats.bump("pub_user_role")
         for _row in rows_by_table.get("pub_user_organ", []):
             stats.bump("pub_user_organ")
@@ -446,6 +454,42 @@ class GovernanceMapper:
                                 "tags_json": tags_json,
                                 "source_priority": "pub_user_organ_role",
                             }
+                # D63：pub_user_role 角色并入同一 binding_by_key。该表无 ORG_CODE，按用户主机构
+                # (pub_user.ORG_CODE) 落点——5 个产品角色绑主机构语义正确（BUSIAUDIT/SYSTEM 全局、
+                # MANAGER/OPERATER 部门级取主机构），与下方 ROLE_VALUE 兜底同口径。app 范围取全 union
+                # （不建 APP_CODE 过滤机器：实测 DSP-only vs union 合并后仅差 6 人，不值，承计划裁决）。
+                pubrole_org = _string_value(row, "ORG_CODE")
+                if pubrole_org:
+                    for rel in user_roles.get(user_id, []):
+                        raw_role_code = _string_value(rel, "ROLE_CODE", "ROLE_VALUE")
+                        app_code = _string_value(rel, "APP_CODE")
+                        if not raw_role_code:
+                            continue
+                        for legacy_role in _split_pub_organ_role_codes(raw_role_code):
+                            normalized = _normalize_legacy_role(legacy_role, role_mapping, stats, table="pub_user_role", legacy_ref=f"{user_id}:{app_code}:{legacy_role}")
+                            if normalized is None:
+                                continue
+                            key = (pubrole_org, normalized["role_code"])
+                            tags_json = normalized.get("tags_json") or {}
+                            if key in binding_by_key:
+                                binding_by_key[key]["tags_json"] = {**binding_by_key[key].get("tags_json", {}), **tags_json}
+                                continue
+                            binding_by_key[key] = {
+                                "org_code": pubrole_org,
+                                "role_code": normalized["role_code"],
+                                "tags_json": tags_json,
+                                "source_priority": "pub_user_role",
+                            }
+                            # D63：SYSTEM 来自 pub_user_role（含已签 ROLE_SUPER→SYSTEM）→ 记可复核 warn，
+                            # 供运维重导入后用身份治理页核验/撤销非预期者（用工具复核，不在代码里建过滤机器）。
+                            if normalized["role_code"] == "ROLE_SYSTEM":
+                                stats.add_issue(
+                                    "system_role_from_user_role",
+                                    "pub_user_role",
+                                    user_id,
+                                    {"account": account, "app_code": app_code, "legacy_role": legacy_role, "org_code": pubrole_org},
+                                    severity="warn",
+                                )
                 binding_specs = list(binding_by_key.values())
                 if not binding_specs:
                     fallback_roles = _normalize_role_list(_split_role_codes(row.get("ROLE_VALUE") or row.get("ROLE_CODE")), role_mapping, stats, table="pub_user", legacy_ref=user_id)
