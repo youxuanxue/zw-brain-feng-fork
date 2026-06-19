@@ -1,27 +1,45 @@
 {
   "scope": "iam-role-governance",
-  "deliverable": "D62 角色分派与角色治理 zw-brain 自建（IAM 只认证）— 授权事实源收口 binding=SoT + 身份治理 actor 管理面（分派/撤销/停用/谁能访问什么/旧权限映射审核）+ A0 堵停用洞 + 全程审计",
-  "git_sha": "96411b735d329166c4d8f6f2ede23825f336acb5",
-  "captured_at": "2026-06-18T00:00:00Z",
-  "captured_by": "identity-governance-audit worktree（隔离全栈 :8801 真 UI 走查）",
+  "deliverable": "D62 角色分派与角色治理 zw-brain 自建（IAM 只认证）— 授权事实源收口 binding=SoT + 身份治理 actor 管理面（分派/撤销/停用/谁能访问什么/旧权限映射审核）+ A0 堵停用洞 + 全程审计；PR #303 已合并 main（squash a272ec83）",
+  "git_sha": "a272ec83",
+  "captured_at": "2026-06-18T12:30:00Z",
+  "captured_by": "薛娇（产品研发负责人）",
   "checks": [
     {
       "name": "5 消费面契约一致",
       "kind": "contract",
       "result": "pass",
-      "detail": "export_agent_contract.py --check OK（REST/CLI/MCP/A2A/agent_integration 同步；新 5 能力契约在内）"
+      "detail": "export_agent_contract.py --check OK（REST/CLI/MCP/A2A/agent_integration 同步；5 新 governance.actor.* 契约在内）"
     },
     {
       "name": "后端/授权收口单测 + 回归簇",
       "kind": "pytest",
       "result": "pass",
-      "detail": "tests/test_iam_role_governance.py 10 测全绿（仓储写/A0 停用门/角色门 403/能力端到端带审计/A4 回填）+ test_iam_identity_claim/test_c1_read_authz_bypass/test_trusted_session_context/test_c1n1_m7_rest_surface 等 auth/identity/governance/permission/session/rest 簇 ~370 测全绿"
+      "detail": "tests/test_iam_role_governance.py 17 测全绿（仓储单边写/A0 停用门/A2 binding 权威/角色门 403/审计/回填/token-roles-ignored/disable-at-bearer/read-gate 负向）+ 全 auth/identity/governance/permission/session/rest 簇 ~370 pytest 全绿；CI test(py3.12) green"
     },
     {
-      "name": "身份治理 actor 管理面 真 UI 走查（b12_iam_governance.spec.ts）",
+      "name": "身份治理 actor 管理面 e2e（b12_iam_governance + customer_acceptance + twin_browser）",
       "kind": "e2e",
       "result": "pass",
-      "detail": "9 passed / 0 failed（隔离全栈 :8801 + 真库注入 actor）：3-tab 渲染、分派角色(写 binding+审计)、撤销角色、停用用户(生命周期)、谁能访问什么(角色能力矩阵)、旧权限映射审核 tab、左导航入口、部门操作员/业务运营员越权被拒(D55/P4)"
+      "detail": "b12_iam_governance.spec.ts 9 passed + customer_acceptance_checklist 身份治理项 passed + twin_browser_pages 13 passed；全真种子库(713 actor)隔离全栈走查"
+    },
+    {
+      "name": "Playwright 全旅程真 UI 走查（0 断点）",
+      "kind": "e2e",
+      "result": "pass",
+      "detail": "本地 :8800 全真种子库逐页点击走查：身份治理(713 actor 渲染 + 分派/撤销/停用 200+DB 双证 + 矩阵 + 政策 tab)、角色门、找数据/用数据、供数/挂数、各角色——0 断点、0 console/page/请求错误"
+    },
+    {
+      "name": "xj-review 对抗式代码审查（修复闭环）",
+      "kind": "review",
+      "result": "pass",
+      "detail": "22-agent 对抗审查确认 10 条真 bug（R-001..R-009 + org_code 覆写）全部修复 + 7 条行为测试；fix 提交 28f6ea88，全 preflight 绿"
+    },
+    {
+      "name": "CI 全绿（合并提交）",
+      "kind": "ci",
+      "result": "pass",
+      "detail": "PR #303：test(py3.12)/e2e+feature-measurement(seed-light)/lint(ruff)/legacy-import-smoke/secret-scan(gitleaks)/dep-vulnerabilities(pip-audit) 6 项全 pass；mergeStateStatus=CLEAN"
     }
   ]
 }

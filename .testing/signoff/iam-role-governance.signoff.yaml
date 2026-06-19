@@ -17,5 +17,9 @@ evidence: >-
   安全敏感、原子上线，落地后补 D37 效果验收并正式补签。全文 docs/decisions/iam-role-governance-self-build-D62.md。
 decision_only: true
 covers: []
-# 注：属 D28 架构 + 角色/状态机门。本账本记产品研发负责人 2026-06-18 计划批准为决策起点（decision_only，
-# 不抬 .feature 状态）。阶段二深度授权收口 + D37 效果验收落地后补签、并补登 CLAUDE.md D62 索引。
+# 注：属 D28 架构 + 角色/状态机门。本账本记产品研发负责人 2026-06-18 决策签字（decision_only，不抬 .feature
+# 状态——本期未新增 .feature，授权收口落在既有 infra-iam-session 边界）。CLAUDE.md D62 索引已补登。
+# [2026-06-18 完结] 阶段二（A1/A2 bearer 门读 binding + A4 回填 + A3 守卫段73 + 完整性守卫）全部落地并测试；
+# 经 xj-review 对抗式审查（10 条真问题修复闭环）+ CI 全绿，PR #303 squash 合并 main（a272ec83）。
+# D37 效果验收已正式签字：docs/acceptance/iam-role-governance-acceptance-package.md（薛娇 2026-06-18，
+# 证据 .testing/acceptance/iam-role-governance/evidence.json 6 项 result=pass）。本决策门 + 效果验收双闭合。
