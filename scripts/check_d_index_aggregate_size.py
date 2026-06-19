@@ -35,7 +35,11 @@ CLAUDE_MD = REPO / "CLAUDE.md"
 # [2026-06-19] 17527→18361：上游 #303（D62 iam-role-governance，已签 GATE）合法新增一条 D-条目
 # 入 main 决策段（净增 834），属上游签字决策的合理增长，棘轮随之上调到 post-#303 实值；本 PR（D63
 # 供数详情路由）自身的 CLAUDE.md 索引行仍按 D63 §六 deferred、不在此计入。
-MAX_AGGREGATE_CHARS = 18361
+# [2026-06-19] 18361→19229：#305（D63 iam-pub-user-role-materialization，已签 D28 GATE，decision_only）
+# 合法新增一条 D-条目（净增 868）。#305 的基线（a272ec83）早于本守卫落地，故其 preflight/CI 未跑段72、
+# 棘轮漏调 → main 一度红；本 docs PR 据既定协议（合法签字决策→人工显式上调+说明缘由）补齐到 post-#305 实值，
+# 同时修复 main 的段72 红。长期解仍是 D-索引「活跃/归档分层」重构提案（届时聚合应回落、棘轮下调）。
+MAX_AGGREGATE_CHARS = 19229
 
 # 段边界锚——与 check_d_index_entry_size.py 完全一致（照搬，保两守卫口径同源不漂移）。
 SECTION_ANCHOR = "## 决策记录"

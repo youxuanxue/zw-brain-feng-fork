@@ -126,11 +126,48 @@
 
 存量用户的真实角色事实在旧库 `pub_user_role`（按 APP 域记，比 `pub_user_organ_role` 密 ~30x，词汇为 `ROLE_BUSIAUDIT/ROLE_BUSINESS_MANAGER/ROLE_SUPER...`）。D63 起导入器把它并入产品角色来源——**恢复角色靠重导入，不是在身份治理页一个个手派**。
 
-正确序列（依赖 IAM 已回填真实 sub）：
+> **头号硬阻塞 = 上游 IAM。** 700+ 用户现状全是 `iam_account_missing / 0 角色`，因为缺真实 IAF `sub`。zw-brain **不能自己造 sub**——必须 IAM 团队把账号注入 IAF 目录后回一份 `legacy_user_id→iaf_sub` CSV，整条恢复才走得动。
 
-1. **生产 `role_mapping_manifest` 含本期 4 条新映射**：`ROLE_SUPER/ROLE_SUPER_ADMIN→ROLE_SYSTEM`、`TENANT_ADMIN→ROLE_ORGAN_MANAGER`、`ROLE_REFION_ADMIN→ROLE_ORGAN_MANAGER`。DBA/M0 把同套映射并入 dump 的 `role_mapping_manifest` 表（单一源 = `scripts/build_m0_sd_default_fixtures.py` 的 `ROLE_MAPPING`，可重生 `tests/fixtures/m0-sd-default/role-mapping-manifest.json` 对账）。
-2. **回填真 sub**：`python scripts/ingest_iam_sub_backfill.py --manifest <iaf-binding-manifest>`（**整批、全或无 fail-closed**：残留任何 `iaf-sd-*` 占位即拒写、退码 2；单用户回填须把其余显式标 missing）。
-3. **重导入**：`python scripts/import_legacy_dumps.py import dsp_bsp`（原地 rekey、不产生重复行，承 D51）。无真 sub 的用户仍 `iam_account_missing`、0 binding（fail-closed，不捏造）。
-4. **重导入后复核 `ROLE_SYSTEM` 持有者**：导入回执含 `system_role_from_user_role` warn 清单（哪些 actor 因 `pub_user_role`/`ROLE_SUPER` 拿到平台运维员）。在**身份治理页**逐一核验、撤销非预期者（用 D62 工具复核，导入器不建 APP 过滤机器）。
+### 🚫 红线（绝不在生产执行）
 
-判断点：只在「角色映射不到 5 产品角色的 legacy 码」或「本就无任何 BSP 角色的用户」时才在身份治理页手派——其余一律走重导入（可审计、幂等、原地 rekey）。全文见 `docs/decisions/iam-pub-user-role-materialization-D63.md`。
+| 命令 | 真实后果（已核实） |
+| --- | --- |
+| `ZW_BRAIN_ALLOW_SCHEMA_RESET=1` + 任何 reset | **DROP 所有表**（`zw_brain/shared/migrate.py:287-305`）——全仓唯一 drop 闸 |
+| `migration_batch --reset-db` | 自动置位上面那个闸 → DROP（`zw_brain/adapters/legacy/migration_batch.py:123-128`） |
+| `scripts/customer_acceptance_up.sh` | **不 drop，但**灌入 6 套 seed schema + 跑 runtime smoke **改写库** → 污染/混入生产数据 |
+
+安全底座：`ensure_runtime_schema()` 是 **D58 四态、永不 DROP**（存量库有数据无版本表 → `stamp baseline` 保数据后 `upgrade`；真漂移 → `raise SchemaDriftError` 拒启，不偷偷 drop）。该保证与 `ZW_BRAIN_DEPLOY_MODE` 无关，只有 `ALLOW_SCHEMA_RESET` 能开 drop。
+
+### 正确序列
+
+0. **备份**：`sqlite3 "$ZW_BRAIN_DB_PATH" 'PRAGMA wal_checkpoint(TRUNCATE);'` → `cp -p` 冷拷（pre-d63 还原点）。【负责人审批迁移窗口 + 确认 reset 闸未置位】
+1. **导出供数请求**（脱敏 CSV 给 IAM）：`python scripts/export_iam_provisioning_request.py --dump <生产dump> --out <req.csv>`。明文花名册由实施工程师**线下**交 IAM，不过仓库。
+2. **【IAM 门】** IAM 注入 IAF 目录，回 `legacy_user_id→iaf_sub` CSV。
+3. **回填真 sub**：`python scripts/ingest_iam_sub_backfill.py <iam回执.csv> --manifest <iaf-binding-manifest> --dry-run` 先预览 → 去掉 `--dry-run` 落（**整批、全或无 fail-closed**：残留任何 `iaf-sd-*` 占位即拒写、退码 2；单用户回填须把其余显式标 missing）。`marked_missing` 须为 0 或客户接受。
+4. **角色映射表补全**：重生 `tests/fixtures/m0-sd-default/role-mapping-manifest.json`（单一源 = `scripts/build_m0_sd_default_fixtures.py` 的 `ROLE_MAPPING`，D63 已含 4 新映射 `ROLE_SUPER/ROLE_SUPER_ADMIN→ROLE_SYSTEM`、`TENANT_ADMIN/ROLE_REFION_ADMIN→ROLE_ORGAN_MANAGER`）；DBA 把**完整全集**嵌进生产 dump 的 `role_mapping_manifest` 表。
+5. **重导入**：`python scripts/import_legacy_dumps.py import dsp_bsp --json`（原地 rekey、不产生重复行，承 D51）。无真 sub 的用户仍 `iam_account_missing`、0 binding（fail-closed，不捏造）。
+6. **强校验**：`python scripts/import_legacy_dumps.py verify --tenant sd-default --strict`。
+7. **角色真落库计数硬门**（见下 G1）+ 抽查 `gaodaliang`。
+8. **复核 `ROLE_SYSTEM` 持有者**：导入回执含 `system_role_from_user_role` warn 清单。在**身份治理页**逐一核验、撤销非预期者（`governance.actor.role.revoke` 用该 binding 自己的 `target_org_code`；用 D62 工具复核，导入器不建 APP 过滤机器）。【负责人逐一签字最终 SYSTEM 名册】
+9. **凭据诚实核查（D47）**：legacy granted = `not_issued`/`credential=None`，secret 不落库；在产单 `credential.query` 读时按 `(request_id, seed)` 确定性重导出 AK-SELF/SK-SELF，不持久化。
+10. **post-d63 备份**：再 checkpoint + `cp -p`（新还原点）。
+
+判断点：只在「角色映射不到 5 产品角色的 legacy 码」或「本就无任何 BSP 角色的用户」时才在身份治理页手派——其余一律走重导入（可审计、幂等、原地 rekey）。
+
+### ⚠️ 5 道必卡的「静默失败」门（不卡就会"看着成功实则零角色恢复"）
+
+- **G1 `succeeded` ≠ 角色恢复**：导入 CLI 返回 0/`succeeded` 只代表"无技术错误"。映射表缺/错时角色全 0 也照样 `succeeded`（warn-only，`_common.py:177`）。**第 7 步设硬门**：`SELECT count(*) FROM actor_org_role_binding WHERE tenant_id='sd-default' AND binding_status='active'` 须 ≥ 预期地板（D63 实测口径 ~active binding 数、~65 个 `ROLE_SYSTEM`）；≈0 立即停（多半是映射表被抹/缺或 IAM 回填没落地）。`verify --strict` **不读 `actor_org_role_binding`**，挡不住零角色回归——必须本门兜底。
+- **G2 映射表是「整表替换」不是追加**：序列化器 `_emit_role_mapping_manifest_sql` 走 `DROP+CREATE+INSERT` 全表替换。DBA 若只放 4 条新行 → 原 ~61 条（`ROLE_RESOURCEPUB/PUBAUDIT/BUSIOPER`…）被**抹掉** → 大批角色映射不到 → 0 binding 还报成功。第 4 步必须嵌**完整全集**（从重生的 JSON 渲染）；嵌后断言 dump 表行数 == JSON 行数。
+- **G3 导入只认一个 dump**：`import dsp_bsp` 在有多个 `dump-dsp_bsp-*.sql` 时**静默取排序最后一个**（`schema_index.py:54` `paths[-1]`，无重复报错；重复保护只在不走的 `migration_batch` 路径）。第 5 步前硬卡 `ls dump-dsp_bsp-*.sql | wc -l` 必须 == 1。
+- **G4 逐用户提交 → 可能半截恢复**：`claim_legacy_actor_by_iaf` **每用户独立 commit、无导入级事务**（`governance_projection.py`）。若两个 `iam_account_missing` 行共享 phone/email，重导入触发 `ActorMatchError` 会在第 N 个用户中断，前 N-1 个**已提交** = 部分恢复。**重导入前**先扫 `iam_account_missing` 行的 phone/email 重复（必要时先跑 `scripts/repair_actor_identity_duplicates.py`）；遇 traceback（非 `SchemaDriftError`）中断 = 部分完成，按回滚处理。
+- **G5 无主机构 → 静默 0 角色**：`pub_user_role` 角色按主机构 `pub_user.ORG_CODE` 落点，该列为空的用户即使有角色也 0 binding（`governance.py` `if pubrole_org:`）。重导入前统计这批人数，作为已知"按设计跳过"集报负责人确认。
+
+### 回滚 / 中止
+
+- **回填 exit 1/2** / **verify --strict exit 2**：未写/未接受、无残留 → 修了重跑（扫描+退码检查在写之前，无部分状态）。
+- **重导入中途 traceback（非 `SchemaDriftError`）**：可能部分提交 → 还原 pre-d63 备份，或解决 aux 重复后幂等重跑，**不要假定干净**。
+- **`SchemaDriftError`**：无写无 drop → 写 forward 迁移 `upgrade head`；**绝不**用 reset 闸"修"漂移。
+- **角色错授**：身份治理页逐条 `revoke`（审计留痕），无需还原库。
+- **整库回滚**：停服 → `cp -p` 还原 pre-d63 备份 → 重启（回到 D62 基线：全员 `iam_account_missing`/0 角色）。
+
+全文见 `docs/decisions/iam-pub-user-role-materialization-D63.md`。
