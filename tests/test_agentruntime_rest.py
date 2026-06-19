@@ -43,7 +43,7 @@ def test_list_builtin_agents_includes_capabilities() -> None:
     assert "platform.docs.read" in guide["capability_skills"]
 
 
-def test_start_agent_task_requires_enable_flag(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_start_agent_task_requires_enable_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("ZW_BRAIN_AGENT_RUNTIME_ENABLED", raising=False)
     reset_service()
     brain = get_service()
@@ -56,11 +56,10 @@ def test_start_agent_task_requires_enable_flag(tmp_path: Path, monkeypatch: pyte
         )
 
 
-def test_start_agent_task_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_start_agent_task_smoke() -> None:
     from zw_brain.shared.agent_runtime.service import reset_agent_runtime
 
-    db_path = tmp_path / "brain.db"
-    monkeypatch.setenv("ZW_BRAIN_DATABASE_URL", f"sqlite:///{db_path}")
+    # DB isolation comes from conftest's autouse empty-PG-clone (_isolate_db_env).
     reset_service()
     reset_agent_runtime()
     brain = get_service()

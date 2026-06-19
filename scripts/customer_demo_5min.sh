@@ -20,7 +20,9 @@ export no_proxy="$NO_PROXY"
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PYTHON="$REPO_ROOT/.venv/bin/python"
-DB_PATH="${ZW_BRAIN_DB_PATH:-$REPO_ROOT/.data/zw_brain.db}"
+# Backend = PostgreSQL only. Target DB = resolved ZW_BRAIN_DATABASE_URL (defaults to
+# local dev PG `postgresql+psycopg://zw_brain:zw_brain@127.0.0.1:5432/zw_brain`);
+# start one with `docker compose up -d postgres`.
 REST_HOST="${ZW_BRAIN_REST_HOST:-127.0.0.1}"
 REST_PORT="${ZW_BRAIN_REST_PORT:-8800}"
 LOG_DIR="$REPO_ROOT/.data/customer-demo"
@@ -79,13 +81,27 @@ ok "port $REST_HOST:$REST_PORT free"
 
 # ---------- M0 真数据 acceptance bootstrap (idempotent) ----------
 step "M0 真数据 acceptance bootstrap"
-if [[ -s "$DB_PATH" ]] && [[ $(stat -f%z "$DB_PATH" 2>/dev/null || stat -c%s "$DB_PATH") -ge 1000000 ]]; then
-  ok "已有 canonical db: $DB_PATH ($(du -h "$DB_PATH" | cut -f1))"
+# PG-only: probe whether the resolved DB already holds real catalog rows. A
+# populated catalog → skip the import; empty / fresh schema → run the importer.
+# (No SQLite file-size heuristic — the backend is PostgreSQL.)
+if "$PYTHON" - <<'PY' >/dev/null 2>&1
+import sys
+from sqlalchemy import text
+from zw_brain.shared.db import create_session_factory
+try:
+    with create_session_factory()() as s:
+        n = s.execute(text("SELECT COUNT(*) FROM catalog_entry")).scalar() or 0
+except Exception:
+    sys.exit(1)
+sys.exit(0 if n > 0 else 1)
+PY
+then
+  ok "已有 canonical db（catalog 非空，resolved ZW_BRAIN_DATABASE_URL）"
 else
-  note "未发现 canonical db；调用 scripts/customer_acceptance_up.sh 导入真数据"
+  note "canonical db 为空 / 未就绪；调用 scripts/customer_acceptance_up.sh 导入真数据"
   bash "$REPO_ROOT/scripts/customer_acceptance_up.sh" \
     || fail "customer_acceptance_up.sh 失败" \
-       "请按其错误提示修复（缺 dump / 缺 datastructure / venv 依赖），再重跑本脚本"
+       "请按其错误提示修复（缺 dump / 缺 datastructure / venv 依赖 / PG 未起），再重跑本脚本"
   ok "acceptance 完成"
 fi
 
@@ -93,7 +109,6 @@ fi
 step "启动 REST (dev-iam-bypass，仅本机演示)"
 export ZW_BRAIN_DEV_IAM_BYPASS=1
 export ZW_BRAIN_DEV_IAM_BYPASS_ACK=development-only
-export ZW_BRAIN_DB_PATH="$DB_PATH"
 export ZW_BRAIN_REST_HOST="$REST_HOST"
 export ZW_BRAIN_REST_PORT="$REST_PORT"
 

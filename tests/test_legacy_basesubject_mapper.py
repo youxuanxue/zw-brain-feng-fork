@@ -28,13 +28,11 @@ from zw_brain.shared.migrate import ensure_runtime_schema
 
 
 @pytest.fixture
-def temp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    db_path = tmp_path / "basesubject.db"
-    monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
+def temp_db(tmp_path: Path) -> Path:
     ensure_runtime_schema()
     # Construct DatabaseStore so audit/external_adapter writes have a sink
     DatabaseStore()
-    return db_path
+    return tmp_path
 
 
 def _write_dump(tmp_path: Path, *, with_subject: bool = True, with_resource: bool = True, with_schema: bool = True, broken_subject: bool = False) -> Path:

@@ -12,9 +12,9 @@
 #   历史 W0-02-counts.txt stat 文件已删除（详见 test_j1_application_draft_baseline_seed_present + D44）。
 """W0-03 J1 资源发现 + 申请草稿 pytest（真数据，sd-default）
 
-数据隔离策略（shadow DB）：
-    .data/zw_brain.db -> .data/test_W0-03_shadow.db（session 级一次性 copy）
-    ZW_BRAIN_DB_PATH 在 import zw_brain.* 之前设置到 shadow，writes 不污染 W0-02 基线。
+数据隔离策略：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
+模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义），writes 落克隆库、
+不污染真实模板。
 
 跳过的 Scenario 全部带 reason，证据指向 W0-08 deferred 候选清单。
 UI / AI 草拟助手 / 鉴权拒绝走 W0-07 浏览器验收，不在本 wave pytest 范围。
@@ -22,68 +22,50 @@ UI / AI 草拟助手 / 鉴权拒绝走 W0-07 浏览器验收，不在本 wave py
 from __future__ import annotations
 
 import json
-import os
-import shutil
 from pathlib import Path
 
+import psycopg
 import pytest
+from sqlalchemy.engine import make_url
 
-from tests._seed_guard import require_real_seed
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (fixture)
+from zw_brain.shared.db import get_database_url
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_W0-03_shadow.db"
 TENANT = "sd-default"
 
-# 稳健 floor（CLAUDE.md D44）：稳定态 catalog_entry=1222，floor 取 1000（约 82%，
-# 与 test_wave1_j2_pipeline 同），容忍真实库行数漂移，仍能区分全量真实库 vs 空/部分库。
-require_real_seed({"catalog_entry": 1000})
+# 稳健 floor（CLAUDE.md D44）：稳定态 catalog_entry=1222，floor 取 1000（约 82%）。
+# 门槛语义由 realistic_pg_module 的 skip-when-absent 承接。
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _shadow_db() -> None:
-    """Copy seed DB to shadow once; writes during tests stay in shadow."""
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    # Required env vars must be set BEFORE any zw_brain.* import that uses db.py.
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    # Clear cached engines created earlier in this process (paranoid: tests may
-    # be re-run interactively).
-    from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
-    # Keep shadow on disk for post-mortem inspection; session-end cleanup is
-    # not required (shadow is gitignored under .data/).
+def _pg_read(sql: str, params: tuple = ()):
+    """Read against the cloned realistic PG (app read-path's DB), never a file."""
+    url = make_url(get_database_url())
+    with psycopg.connect(
+        host=url.host, port=url.port, user=url.username,
+        password=url.password, dbname=url.database,
+    ) as conn:
+        return conn.execute(sql, params).fetchall()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def catalog_repo():
     from zw_brain.domain.repositories.catalog import CatalogRepository
     return CatalogRepository()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def application_repo():
     from zw_brain.domain.repositories.application import ApplicationRepository
     return ApplicationRepository()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def baseline_counts():
-    import sqlite3
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute("SELECT COUNT(*) FROM catalog_entry WHERE tenant_id=?", (TENANT,))
-        catalog_n = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM application_record WHERE tenant_id=?", (TENANT,))
-        app_n = c.fetchone()[0]
-        return {"catalog_entry": catalog_n, "application_record": app_n}
-    finally:
-        conn.close()
+    catalog_n = _pg_read("SELECT COUNT(*) FROM catalog_entry WHERE tenant_id=%s", (TENANT,))[0][0]
+    app_n = _pg_read("SELECT COUNT(*) FROM application_record WHERE tenant_id=%s", (TENANT,))[0][0]
+    return {"catalog_entry": catalog_n, "application_record": app_n}
 
 
 # Engineering-term blacklist from .feature R12 / 基线 §5.5
@@ -137,7 +119,7 @@ def test_j1_resource_discovery_natural_language_recall(catalog_repo):
     """
     long_query = "我要给公安做查询接口用的人口基础信息"
     # search_entries 内置 token 触发器 "法人" / "企业" 等；对于该 query，回退到
-    # 子串匹配的 SQLite scan。最低期望：query.lower() in title 或 summary_json
+    # 子串匹配的 DB 扫描。最低期望：query.lower() in title 或 summary_json
     # 文本时命中；若整句不命中则降级为关键词命中。
     rows = catalog_repo.search_entries(long_query, tenant_id=TENANT)
     # 整句通常不会命中（口语长串），但分词 fallback "人口" / "公安" 应能召回。

@@ -11,32 +11,22 @@ SPEC：.testing/waves/wave-3-protocol-tenant-national/features/national-ext-elem
 
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 import pytest
 from sqlalchemy import text
 
 from zw_brain.domain import national_ext_elem_walker as walker
 from zw_brain.domain.repositories.national_ext_elem import NationalExtElemRepository
 from zw_brain.shared import db as db_module
-from zw_brain.shared.migrate import ensure_runtime_schema
 
 TENANT = "sd-default"
 
 
 @pytest.fixture()
-def temp_db(monkeypatch: pytest.MonkeyPatch) -> Path:
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "national_ext_elem.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        yield db_path
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+def temp_db() -> None:
+    """The conftest autouse fixture already supplies a clean, migrated empty PG
+    clone per test (schema + isolation). This fixture stays as an explicit
+    dependency marker for tests that exercise the DB write path."""
+    yield None
 
 
 # ---- 走查器：状态机 + 2 级审核复用 -----------------------------------------
@@ -80,7 +70,7 @@ def test_illegal_transition_rejected() -> None:
 # ---- 仓储：DB 生命周期 + 父子 FK -------------------------------------------
 
 
-def test_repo_full_lifecycle_to_published(temp_db: Path) -> None:
+def test_repo_full_lifecycle_to_published(temp_db: None) -> None:
     repo = NationalExtElemRepository()
     repo.create_task({"task_code": "C_NAT_001", "title": "国家扩展要素A"}, tenant_id=TENANT)
     assert repo.get_task("C_NAT_001", tenant_id=TENANT)["compile_status"] == walker.DRAFT
@@ -94,14 +84,14 @@ def test_repo_full_lifecycle_to_published(temp_db: Path) -> None:
     assert t["current_review_step"] is None
 
 
-def test_repo_rejects_illegal_status(temp_db: Path) -> None:
+def test_repo_rejects_illegal_status(temp_db: None) -> None:
     repo = NationalExtElemRepository()
     repo.create_task({"task_code": "C_NAT_002", "title": "B"}, tenant_id=TENANT)
     with pytest.raises(walker.NationalExtElemTransitionError):
         repo.set_status("C_NAT_002", walker.PUBLISHED, tenant_id=TENANT)
 
 
-def test_basic_elem_fk_cascade(temp_db: Path) -> None:
+def test_basic_elem_fk_cascade(temp_db: None) -> None:
     """删基本要素目录 → 级联删其编制任务（FK ON DELETE CASCADE）。"""
     repo = NationalExtElemRepository()
     basic = repo.upsert_basic_elem_catalog({"cata_id": "BASE-1", "cata_title": "基本要素1"}, tenant_id=TENANT)
@@ -123,7 +113,7 @@ def test_basic_elem_fk_cascade(temp_db: Path) -> None:
 # ---- 场景4 负向：双轨硬隔离，绝不写政务目录主线 ----------------------------
 
 
-def test_compile_never_writes_data_catalog(temp_db: Path) -> None:
+def test_compile_never_writes_data_catalog(temp_db: None) -> None:
     """编制任务推进全程不在政务目录主线（catalog_entry/catalog_item）落任何行。"""
     SessionLocal = db_module.create_session_factory()
     with SessionLocal() as s:

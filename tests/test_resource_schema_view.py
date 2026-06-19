@@ -16,39 +16,42 @@
 """
 from __future__ import annotations
 
-import os
-import shutil
-import sqlite3
-from pathlib import Path
+import contextlib
 
+import psycopg
 import pytest
+from sqlalchemy.engine import make_url
 
-from tests._seed_guard import require_real_seed
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (module fixture)
 from tests._trusted_payload import invoke_trusted
+from zw_brain.shared import db as _db
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_resource_schema_view_shadow.db"
-
-require_real_seed({"resource_schema_snapshot": 100})
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _shadow_db() -> None:
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
+# 真实数据回归：克隆 zw_realistic_tmpl（含真实旧平台数据）；模板缺位时整模块 skip
+# （CI 无 dump），承接旧 require_real_seed({"resource_schema_snapshot": 100}) 跳过语义。
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
-@pytest.fixture(scope="module")
+@contextlib.contextmanager
+def _read_conn() -> psycopg.Connection:
+    """只读 psycopg 连接，连当前测试库（realistic 克隆）。绝不开文件。"""
+    url = make_url(_db.get_database_url())
+    conn = psycopg.connect(
+        host=url.host,
+        port=url.port,
+        user=url.username,
+        password=url.password,
+        dbname=url.database,
+    )
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+@pytest.fixture()
 def brain():
+    # function-scoped：realistic_pg_module 模块级钉住真灌库克隆，但根 conftest 的 hands-off
+    # 分支仍每测试重置 audit 全局（清 sink）；故 store + 审计 sink 必须每测试对同一克隆重挂。
     import zw_brain.shared.audit as audit_bus
     from zw_brain.command.brain import BrainService
     from zw_brain.shared.database_store import DatabaseStore
@@ -62,16 +65,13 @@ def brain():
 @pytest.fixture(scope="module")
 def resource_code_with_schema() -> str:
     """真实库里挑一个列数最多、且确实是 resource_asset 的资源（即 P2 详情页可达的 id）。"""
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
+    with _read_conn() as conn:
         row = conn.execute(
             "select s.resource_code, count(*) c "
             "from resource_schema_snapshot s "
             "join resource_asset ra on ra.resource_code = s.resource_code "
             "group by s.resource_code order by c desc limit 1"
         ).fetchone()
-    finally:
-        conn.close()
     assert row is not None, "seed 库缺少带 schema 快照的 resource_asset，无法做真数据回归"
     return row[0]
 
@@ -84,8 +84,7 @@ def resource_code_bridged_only() -> str:
     resource_asset.resource_code 不同键，只能经 resource_schema_mapping.binding_code 桥接到
     resource_schema_snapshot.binding_code。无此类资源则跳过（seed 形态变化时不误失败）。
     """
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
+    with _read_conn() as conn:
         row = conn.execute(
             "select ra.resource_code, count(*) c "
             "from resource_asset ra "
@@ -94,8 +93,6 @@ def resource_code_bridged_only() -> str:
             "where ra.resource_code not in (select distinct resource_code from resource_schema_snapshot) "
             "group by ra.resource_code order by c desc limit 1"
         ).fetchone()
-    finally:
-        conn.close()
     if row is None:
         pytest.skip("seed 库无「直查空但可经 binding 桥接」的资源（数据形态变化）")
     return row[0]
@@ -136,14 +133,11 @@ def test_bridge_resolves_schema_via_mapping_binding_code(brain, resource_code_br
     """键对齐 bridge：resource_code 直查 schema_snapshot 命中=0 的资源，经 schema_mapping
     的 binding_code 桥接后应能查到真实列级 schema（2%→27% 覆盖率提升的核心路径）。"""
     # 前提：该资源直查确实为空（否则测的不是 bridge 路径）。
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
+    with _read_conn() as conn:
         direct = conn.execute(
-            "select count(*) from resource_schema_snapshot where resource_code = ?",
+            "select count(*) from resource_schema_snapshot where resource_code = %s",
             (resource_code_bridged_only,),
         ).fetchone()[0]
-    finally:
-        conn.close()
     assert direct == 0, "fixture 应挑选直查为空的资源，才能验证 bridge"
 
     out = invoke_trusted(

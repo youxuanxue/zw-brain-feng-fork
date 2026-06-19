@@ -4,20 +4,15 @@
 # Not covered: NL 草稿 (F3) / J1 基线 (F2) / UI (F7)
 """F1 — 审批流模板数据模型 + 状态机 + commit skill dispatch 端到端。
 
-数据隔离：用独立 shadow DB（ZW_BRAIN_DB_PATH 切到 tests/.data/test_F1_shadow.db），
-不污染 sd-default 主库；session 级 reset_and_upgrade() 从空库重建 schema。
+数据隔离：root conftest 的 autouse function-scoped fixture 给每个测试一个空 PG 克隆库
+（自迁移模板 CREATE DATABASE … TEMPLATE），不污染 sd-default 主库；每测试一份隔离 schema，
+不依赖真实旧平台数据。
 """
 from __future__ import annotations
-
-import os
-from pathlib import Path
 
 import pytest
 
 from tests._trusted_payload import invoke_trusted
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-SHADOW_DB = REPO_ROOT / ".data" / "test_F1_approval_flow_shadow.db"
 
 
 def _build_payload() -> dict:
@@ -44,22 +39,6 @@ def _build_payload() -> dict:
             {"from_node_code": "dept_review", "to_node_code": "end", "condition_kind": "on_decision"},
         ],
     }
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _shadow_db() -> None:
-    SHADOW_DB.parent.mkdir(parents=True, exist_ok=True)
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-
-    from zw_brain.shared import db as _db
-    _db.reset_engine_cache()
-
-    from zw_brain.shared.migrate import reset_and_upgrade
-    reset_and_upgrade()
-    yield
 
 
 @pytest.fixture()

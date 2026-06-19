@@ -11,36 +11,24 @@
 (3) golden 回归：无自定义 schema 时 baseline 步骤输出与改前一致；
 (4) 无效/环 schema fail-closed 回落 baseline。
 
-数据隔离：独立 shadow DB，不污染 sd-default 主库。
+数据隔离：root conftest 的 autouse function-scoped fixture 给每个测试一个空 PG 克隆库，
+不污染 sd-default 主库；本模块的 function-scoped autouse fixture 把 baseline 两条 live schema
+seed 进每个测试自己的克隆（与生产启动同构），不依赖真实旧平台数据。
 """
 from __future__ import annotations
 
-import os
-from pathlib import Path
-
 import pytest
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-SHADOW_DB = REPO_ROOT / ".data" / "test_F2_schema_drives_j1_shadow.db"
 
 TENANT = "sd-default"
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _shadow_db() -> None:
-    SHADOW_DB.parent.mkdir(parents=True, exist_ok=True)
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
+@pytest.fixture(autouse=True)
+def _seed_baseline() -> None:
+    """每个测试在其隔离克隆里 seed baseline 两条 live schema（与生产启动同构）。
 
-    from zw_brain.shared import db as _db
-    _db.reset_engine_cache()
-
-    from zw_brain.shared.migrate import reset_and_upgrade
-    reset_and_upgrade()
-
-    # baseline 两条 live schema 入库（与生产启动同构）
+    root conftest 的 function-scoped 克隆已建好空 schema 并指向本测试克隆；本 fixture 只
+    在该克隆里灌 baseline 数据，故每测试自含、互不可见，替代旧 session 级一次性 seed。
+    """
     from zw_brain.domain.approval_flow_baseline import seed_runtime_data
     from zw_brain.shared.db import create_session_factory
 

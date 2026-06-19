@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """联调：为已知 IAF sub 写入 actor_projection + actor_org_role_binding（不依赖 IAF 配角色 API）。
 
-用法（宿主机，与 Docker 共用同一 DB 文件）::
+用法（连到目标 PG，由 ZW_BRAIN_DATABASE_URL 指定）::
 
-  export ZW_BRAIN_DB_PATH=/data/duwei05/zw-brain/.data/zw_brain.db
+  export ZW_BRAIN_DATABASE_URL='postgresql+psycopg://zw_brain:zw_brain@127.0.0.1:5432/zw_brain'
   python3 scripts/dev/seed_iaf_actor.py \\
     --iaf-sub '<你的IAF sub>' \\
     --username zhangsan \\
@@ -13,16 +13,16 @@
 
 或在容器内（需把本脚本拷入容器或挂载仓库）::
 
-  docker exec -e ZW_BRAIN_DB_PATH=/data/zw-brain/zw_brain.db zw-brain-rest \\
+  docker exec -e ZW_BRAIN_DATABASE_URL='postgresql+psycopg://...' zw-brain-rest \\
     python3 /path/to/seed_iaf_actor.py --iaf-sub '...' ...
 
 写入后：用户重新走 IAF 登录；需已部署「IAM 无 ROLE_* 时保留本地 binding」修复。
 
 ⚠️ 数据风险：本脚本调用 ensure_runtime_schema()。若目标 DB 的 actor_org_role_binding
 表缺少 PR #74 新增列（tags_json / batch_no / source_priority / valid_from / valid_to /
-granted_by），ensure_runtime_schema 会触发 drop & recreate（alembic 删除决策，详见 D23 二次升级），**整库内
-所有已写入数据将丢失**。请先确认 DB 已升至 PR #74 schema 或目标 DB 内无需保留的数据。
-脚本在主流程前会探测一次，若发现要 reset 则要求显式 --allow-schema-reset。
+granted_by），存量库会被识别为真漂移；带 --allow-schema-reset 时才走 reset_and_upgrade()
+（drop & recreate，**整库内所有已写入数据将丢失**）。请先确认 DB 已升至 PR #74 schema 或
+目标 DB 内无需保留的数据。脚本在主流程前会探测一次，若发现要 reset 则要求显式 --allow-schema-reset。
 """
 from __future__ import annotations
 
@@ -71,9 +71,9 @@ def main() -> int:
         help="会话默认角色（须在 --roles 内）；默认取 --roles 第一个",
     )
     parser.add_argument(
-        "--db-path",
+        "--database-url",
         default="",
-        help="覆盖 ZW_BRAIN_DB_PATH，如 /data/duwei05/zw-brain/.data/zw_brain.db",
+        help="覆盖 ZW_BRAIN_DATABASE_URL，如 postgresql+psycopg://zw_brain:zw_brain@127.0.0.1:5432/zw_brain",
     )
     parser.add_argument("--dry-run", action="store_true", help="只打印将写入的数据，不写库")
     parser.add_argument(
@@ -83,16 +83,12 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if args.db_path:
-        os.environ["ZW_BRAIN_DB_PATH"] = str(Path(args.db_path).resolve())
+    if args.database_url:
+        os.environ["ZW_BRAIN_DATABASE_URL"] = str(args.database_url).strip()
 
-    db_path = os.environ.get("ZW_BRAIN_DB_PATH", "")
-    if not db_path:
-        print("请设置 ZW_BRAIN_DB_PATH 或 --db-path", file=sys.stderr)
-        return 1
-    if not Path(db_path).exists():
-        print(f"数据库文件不存在: {db_path}", file=sys.stderr)
-        print("提示: Docker 卷挂载后宿主机路径常为 .../.data/zw_brain.db", file=sys.stderr)
+    database_url = os.environ.get("ZW_BRAIN_DATABASE_URL", "")
+    if not database_url:
+        print("请设置 ZW_BRAIN_DATABASE_URL 或 --database-url", file=sys.stderr)
         return 1
 
     iaf_sub = str(args.iaf_sub).strip()
@@ -131,7 +127,7 @@ def main() -> int:
     }
 
     plan = {
-        "db_path": db_path,
+        "database_url": database_url,
         "tenant_id": tenant_id,
         "org": {"org_code": org_code, "org_name": org_name},
         "actor": actor_payload,

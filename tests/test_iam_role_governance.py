@@ -9,10 +9,6 @@
 """
 from __future__ import annotations
 
-import os
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 import pytest
 
 from tests._iaf_rest_http import (
@@ -40,8 +36,8 @@ from zw_brain.shared.state_store import StateStore
 TENANT = "sd-default"
 
 
-def _service(tmp: str) -> BrainService:
-    os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
+def _service() -> BrainService:
+    # conftest autouse fixture already supplies an isolated empty PG clone.
     ensure_runtime_schema()
     database_store = DatabaseStore()
     audit_bus.configure_sink(database_store.append_audit_event)
@@ -78,82 +74,77 @@ def _seed_actor(repo, *, external, account, status="active", org_code="ORG-A", a
 
 # ── 仓储单边写 ────────────────────────────────────────────────────────────
 def test_assign_then_revoke_binding_idempotent() -> None:
-    with TemporaryDirectory() as tmp:
-        _service(tmp)
-        repo = GovernanceProjectionRepository()
-        _seed_actor(repo, external="iaf-1", account="zhangsan")
+    _service()
+    repo = GovernanceProjectionRepository()
+    _seed_actor(repo, external="iaf-1", account="zhangsan")
 
-        b = repo.assign_actor_role(external_actor_id="iaf-1", org_code="ORG-A", role_code="ROLE_ORGAN_OPERATER", tenant_id=TENANT, granted_by="ops")
-        assert b.binding_status == "active"
-        # 幂等：再 assign 不重复建行
-        repo.assign_actor_role(external_actor_id="iaf-1", org_code="ORG-A", role_code="ROLE_ORGAN_OPERATER", tenant_id=TENANT, granted_by="ops")
-        active = [x for x in repo.list_actor_org_role_bindings(tenant_id=TENANT, external_actor_id="iaf-1") if x.binding_status == "active"]
-        assert len(active) == 1
+    b = repo.assign_actor_role(external_actor_id="iaf-1", org_code="ORG-A", role_code="ROLE_ORGAN_OPERATER", tenant_id=TENANT, granted_by="ops")
+    assert b.binding_status == "active"
+    # 幂等：再 assign 不重复建行
+    repo.assign_actor_role(external_actor_id="iaf-1", org_code="ORG-A", role_code="ROLE_ORGAN_OPERATER", tenant_id=TENANT, granted_by="ops")
+    active = [x for x in repo.list_actor_org_role_bindings(tenant_id=TENANT, external_actor_id="iaf-1") if x.binding_status == "active"]
+    assert len(active) == 1
 
-        assert repo.revoke_actor_role(external_actor_id="iaf-1", org_code="ORG-A", role_code="ROLE_ORGAN_OPERATER", tenant_id=TENANT) is True
-        active = [x for x in repo.list_actor_org_role_bindings(tenant_id=TENANT, external_actor_id="iaf-1") if x.binding_status == "active"]
-        assert active == []
-        # 再 revoke 幂等返回 False
-        assert repo.revoke_actor_role(external_actor_id="iaf-1", org_code="ORG-A", role_code="ROLE_ORGAN_OPERATER", tenant_id=TENANT) is False
+    assert repo.revoke_actor_role(external_actor_id="iaf-1", org_code="ORG-A", role_code="ROLE_ORGAN_OPERATER", tenant_id=TENANT) is True
+    active = [x for x in repo.list_actor_org_role_bindings(tenant_id=TENANT, external_actor_id="iaf-1") if x.binding_status == "active"]
+    assert active == []
+    # 再 revoke 幂等返回 False
+    assert repo.revoke_actor_role(external_actor_id="iaf-1", org_code="ORG-A", role_code="ROLE_ORGAN_OPERATER", tenant_id=TENANT) is False
 
 
 def test_set_actor_status_disable_enable_keeps_bindings() -> None:
-    with TemporaryDirectory() as tmp:
-        _service(tmp)
-        repo = GovernanceProjectionRepository()
-        _seed_actor(repo, external="iaf-2", account="lisi")
-        repo.assign_actor_role(external_actor_id="iaf-2", org_code="ORG-A", role_code="ROLE_ORGAN_MANAGER", tenant_id=TENANT, granted_by="ops")
+    _service()
+    repo = GovernanceProjectionRepository()
+    _seed_actor(repo, external="iaf-2", account="lisi")
+    repo.assign_actor_role(external_actor_id="iaf-2", org_code="ORG-A", role_code="ROLE_ORGAN_MANAGER", tenant_id=TENANT, granted_by="ops")
 
-        repo.set_actor_status(external_actor_id="iaf-2", status="disabled", tenant_id=TENANT)
-        assert repo.get_actor("iaf-2", tenant_id=TENANT).status == "disabled"
-        # 绑定保留，启用即恢复
-        assert [x.role_code for x in repo.list_actor_org_role_bindings(tenant_id=TENANT, external_actor_id="iaf-2", binding_status="active")] == ["ROLE_ORGAN_MANAGER"]
-        repo.set_actor_status(external_actor_id="iaf-2", status="active", tenant_id=TENANT)
-        assert repo.get_actor("iaf-2", tenant_id=TENANT).status == "active"
+    repo.set_actor_status(external_actor_id="iaf-2", status="disabled", tenant_id=TENANT)
+    assert repo.get_actor("iaf-2", tenant_id=TENANT).status == "disabled"
+    # 绑定保留，启用即恢复
+    assert [x.role_code for x in repo.list_actor_org_role_bindings(tenant_id=TENANT, external_actor_id="iaf-2", binding_status="active")] == ["ROLE_ORGAN_MANAGER"]
+    repo.set_actor_status(external_actor_id="iaf-2", status="active", tenant_id=TENANT)
+    assert repo.get_actor("iaf-2", tenant_id=TENANT).status == "active"
 
 
 # ── A0 堵停用洞 ──────────────────────────────────────────────────────────
 def test_disabled_existing_sub_relogin_fails_closed() -> None:
-    with TemporaryDirectory() as tmp:
-        _service(tmp)
-        repo = GovernanceProjectionRepository()
-        _seed_actor(repo, external="iaf-existing", account="wangwu", status="disabled", as_iaf=True)
-        with pytest.raises(ActorDisabledError):
-            repo.claim_legacy_actor_by_iaf(iaf_sub="iaf-existing", match_claims={"sub": "iaf-existing"}, tenant_id=TENANT)
-        # 仍是 disabled，未被复活成 active
-        assert repo.get_actor("iaf-existing", tenant_id=TENANT).status == "disabled"
+    _service()
+    repo = GovernanceProjectionRepository()
+    _seed_actor(repo, external="iaf-existing", account="wangwu", status="disabled", as_iaf=True)
+    with pytest.raises(ActorDisabledError):
+        repo.claim_legacy_actor_by_iaf(iaf_sub="iaf-existing", match_claims={"sub": "iaf-existing"}, tenant_id=TENANT)
+    # 仍是 disabled，未被复活成 active
+    assert repo.get_actor("iaf-existing", tenant_id=TENANT).status == "disabled"
 
 
 def test_disabled_legacy_match_does_not_mint_fresh_active() -> None:
-    with TemporaryDirectory() as tmp:
-        _service(tmp)
-        repo = GovernanceProjectionRepository()
-        _seed_actor(repo, external="LEGACY-1", account="zhaoliu", status="disabled", as_iaf=False)
-        before = len(repo.list_actors(tenant_id=TENANT))
-        with pytest.raises(ActorDisabledError):
-            repo.claim_legacy_actor_by_iaf(
-                iaf_sub="iaf-new",
-                match_claims={"preferred_username": "zhaoliu"},
-                claims_profile={"username": "zhaoliu"},
-                tenant_id=TENANT,
-            )
-        # 没有新插一行 active
-        assert len(repo.list_actors(tenant_id=TENANT)) == before
+    _service()
+    repo = GovernanceProjectionRepository()
+    _seed_actor(repo, external="LEGACY-1", account="zhaoliu", status="disabled", as_iaf=False)
+    before = len(repo.list_actors(tenant_id=TENANT))
+    with pytest.raises(ActorDisabledError):
+        repo.claim_legacy_actor_by_iaf(
+            iaf_sub="iaf-new",
+            match_claims={"preferred_username": "zhaoliu"},
+            claims_profile={"username": "zhaoliu"},
+            tenant_id=TENANT,
+        )
+    # 没有新插一行 active
+    assert len(repo.list_actors(tenant_id=TENANT)) == before
 
 
 def test_iam_account_missing_still_claims() -> None:
-    with TemporaryDirectory() as tmp:
-        _service(tmp)
-        repo = GovernanceProjectionRepository()
-        _seed_actor(repo, external="LEGACY-2", account="sunqi", status="iam_account_missing", as_iaf=False)
-        record, outcome = repo.claim_legacy_actor_by_iaf(
-            iaf_sub="iaf-sun",
-            match_claims={"preferred_username": "sunqi"},
-            claims_profile={"username": "sunqi"},
-            tenant_id=TENANT,
-        )
-        assert outcome == "rekeyed_legacy"
-        assert record.status == "active"
+    _service()
+    repo = GovernanceProjectionRepository()
+    _seed_actor(repo, external="LEGACY-2", account="sunqi", status="iam_account_missing", as_iaf=False)
+    record, outcome = repo.claim_legacy_actor_by_iaf(
+        iaf_sub="iaf-sun",
+        match_claims={"preferred_username": "sunqi"},
+        claims_profile={"username": "sunqi"},
+        tenant_id=TENANT,
+    )
+    assert outcome == "rekeyed_legacy"
+    assert record.status == "active"
 
 
 def test_resolve_trusted_role_rejects_disabled_snapshot() -> None:
@@ -169,201 +160,192 @@ def test_resolve_trusted_role_rejects_disabled_snapshot() -> None:
 
 # ── 能力端到端 + 角色门 ──────────────────────────────────────────────────
 def test_assign_list_revoke_e2e_with_audit_and_role_gate() -> None:
-    with TemporaryDirectory() as tmp:
-        service = _service(tmp)
-        repo = GovernanceProjectionRepository()
-        _seed_actor(repo, external="iaf-9", account="qianba")
+    service = _service()
+    repo = GovernanceProjectionRepository()
+    _seed_actor(repo, external="iaf-9", account="qianba")
 
-        # 非平台运维员被拒（角色门）—— brain 将 policy 的 DomainAccessDeniedError 包成 AccessDeniedError
-        with pytest.raises(AccessDeniedError):
-            invoke_trusted(
-                service,
-                "governance.actor.role.assign",
-                {"external_actor_id": "iaf-9", "org_code": "ORG-A", "role_code": "ROLE_ORGAN_OPERATER", "confirmed": True},
-                role="ROLE_ORGAN_OPERATER",
-            )
-
-        # 平台运维员分派成功，带 audit_id
-        assigned = invoke_trusted(
+    # 非平台运维员被拒（角色门）—— brain 将 policy 的 DomainAccessDeniedError 包成 AccessDeniedError
+    with pytest.raises(AccessDeniedError):
+        invoke_trusted(
             service,
             "governance.actor.role.assign",
             {"external_actor_id": "iaf-9", "org_code": "ORG-A", "role_code": "ROLE_ORGAN_OPERATER", "confirmed": True},
-            role="ROLE_SYSTEM",
+            role="ROLE_ORGAN_OPERATER",
         )
-        assert assigned["result"]["ok"] is True
-        assert assigned["audit_id"]
 
-        # 列表反映新角色（来自 binding，非 token）
-        listed = service.invoke_skill("governance.actor.list", {"role": "ROLE_SYSTEM"})
-        item = next(it for it in listed["items"] if it["external_actor_id"] == "iaf-9")
-        assert "ROLE_ORGAN_OPERATER" in item["role_codes"]
+    # 平台运维员分派成功，带 audit_id
+    assigned = invoke_trusted(
+        service,
+        "governance.actor.role.assign",
+        {"external_actor_id": "iaf-9", "org_code": "ORG-A", "role_code": "ROLE_ORGAN_OPERATER", "confirmed": True},
+        role="ROLE_SYSTEM",
+    )
+    assert assigned["result"]["ok"] is True
+    assert assigned["audit_id"]
 
-        # 撤销
-        revoked = invoke_trusted(
-            service,
-            "governance.actor.role.revoke",
-            {"external_actor_id": "iaf-9", "org_code": "ORG-A", "role_code": "ROLE_ORGAN_OPERATER", "confirmed": True},
-            role="ROLE_SYSTEM",
-        )
-        assert revoked["result"]["revoked"] is True
-        listed2 = service.invoke_skill("governance.actor.list", {"role": "ROLE_SYSTEM"})
-        item2 = next(it for it in listed2["items"] if it["external_actor_id"] == "iaf-9")
-        assert "ROLE_ORGAN_OPERATER" not in item2["role_codes"]
+    # 列表反映新角色（来自 binding，非 token）
+    listed = service.invoke_skill("governance.actor.list", {"role": "ROLE_SYSTEM"})
+    item = next(it for it in listed["items"] if it["external_actor_id"] == "iaf-9")
+    assert "ROLE_ORGAN_OPERATER" in item["role_codes"]
+
+    # 撤销
+    revoked = invoke_trusted(
+        service,
+        "governance.actor.role.revoke",
+        {"external_actor_id": "iaf-9", "org_code": "ORG-A", "role_code": "ROLE_ORGAN_OPERATER", "confirmed": True},
+        role="ROLE_SYSTEM",
+    )
+    assert revoked["result"]["revoked"] is True
+    listed2 = service.invoke_skill("governance.actor.list", {"role": "ROLE_SYSTEM"})
+    item2 = next(it for it in listed2["items"] if it["external_actor_id"] == "iaf-9")
+    assert "ROLE_ORGAN_OPERATER" not in item2["role_codes"]
 
 
 def test_assign_to_disabled_actor_rejected_e2e() -> None:
-    with TemporaryDirectory() as tmp:
-        service = _service(tmp)
-        repo = GovernanceProjectionRepository()
-        _seed_actor(repo, external="iaf-dis", account="zhoujiu", status="disabled")
-        with pytest.raises(BrainServiceError):
-            invoke_trusted(
-                service,
-                "governance.actor.role.assign",
-                {"external_actor_id": "iaf-dis", "org_code": "ORG-A", "role_code": "ROLE_ORGAN_OPERATER", "confirmed": True},
-                role="ROLE_SYSTEM",
-            )
+    service = _service()
+    repo = GovernanceProjectionRepository()
+    _seed_actor(repo, external="iaf-dis", account="zhoujiu", status="disabled")
+    with pytest.raises(BrainServiceError):
+        invoke_trusted(
+            service,
+            "governance.actor.role.assign",
+            {"external_actor_id": "iaf-dis", "org_code": "ORG-A", "role_code": "ROLE_ORGAN_OPERATER", "confirmed": True},
+            role="ROLE_SYSTEM",
+        )
 
 
 def test_backfill_creates_missing_bindings_from_role_codes() -> None:
     """D62 A4: an actor whose roles only live in role_codes_json (pre-D62 token-derived
     snapshot, no binding) gets active bindings backfilled so the binding-authoritative
     gates keep granting them after the cutover. Idempotent."""
-    with TemporaryDirectory() as tmp:
-        _service(tmp)
-        repo = GovernanceProjectionRepository()
-        # iaf:claims upsert with role_codes but (per A1b) no binding sync → roles only in snapshot
-        repo.upsert_actor(
-            {
-                "external_actor_id": "iaf-bf",
-                "display_name": "bf",
-                "org_code": "ORG-A",
-                "role_codes": ["ROLE_BUSIAUDIT"],
-                "status": "active",
-                "source_ref": "iaf:claims",
-                "profile_json": {"iaf_sub": "iaf-bf"},
-            },
-            tenant_id=TENANT,
-        )
-        assert repo.list_actor_org_role_bindings(tenant_id=TENANT, external_actor_id="iaf-bf", binding_status="active") == []
+    _service()
+    repo = GovernanceProjectionRepository()
+    # iaf:claims upsert with role_codes but (per A1b) no binding sync → roles only in snapshot
+    repo.upsert_actor(
+        {
+            "external_actor_id": "iaf-bf",
+            "display_name": "bf",
+            "org_code": "ORG-A",
+            "role_codes": ["ROLE_BUSIAUDIT"],
+            "status": "active",
+            "source_ref": "iaf:claims",
+            "profile_json": {"iaf_sub": "iaf-bf"},
+        },
+        tenant_id=TENANT,
+    )
+    assert repo.list_actor_org_role_bindings(tenant_id=TENANT, external_actor_id="iaf-bf", binding_status="active") == []
 
-        from scripts.backfill_actor_bindings import main as backfill
+    from scripts.backfill_actor_bindings import main as backfill
 
-        assert backfill(["--tenant-id", TENANT, "--apply"]) == 0
-        roles = [b.role_code for b in repo.list_actor_org_role_bindings(tenant_id=TENANT, external_actor_id="iaf-bf", binding_status="active")]
-        assert roles == ["ROLE_BUSIAUDIT"]
-        # idempotent re-run
-        assert backfill(["--tenant-id", TENANT, "--apply"]) == 0
-        roles2 = [b.role_code for b in repo.list_actor_org_role_bindings(tenant_id=TENANT, external_actor_id="iaf-bf", binding_status="active")]
-        assert roles2 == ["ROLE_BUSIAUDIT"]
+    assert backfill(["--tenant-id", TENANT, "--apply"]) == 0
+    roles = [b.role_code for b in repo.list_actor_org_role_bindings(tenant_id=TENANT, external_actor_id="iaf-bf", binding_status="active")]
+    assert roles == ["ROLE_BUSIAUDIT"]
+    # idempotent re-run
+    assert backfill(["--tenant-id", TENANT, "--apply"]) == 0
+    roles2 = [b.role_code for b in repo.list_actor_org_role_bindings(tenant_id=TENANT, external_actor_id="iaf-bf", binding_status="active")]
+    assert roles2 == ["ROLE_BUSIAUDIT"]
 
 
 def test_status_set_and_access_matrix_e2e() -> None:
-    with TemporaryDirectory() as tmp:
-        service = _service(tmp)
-        repo = GovernanceProjectionRepository()
-        _seed_actor(repo, external="iaf-st", account="status-user")
+    service = _service()
+    repo = GovernanceProjectionRepository()
+    _seed_actor(repo, external="iaf-st", account="status-user")
 
-        disabled = invoke_trusted(
-            service,
-            "governance.actor.status.set",
-            {"external_actor_id": "iaf-st", "status": "disabled", "confirmed": True},
-            role="ROLE_SYSTEM",
-        )
-        assert disabled["result"]["status"] == "disabled"
-        assert repo.get_actor("iaf-st", tenant_id=TENANT).status == "disabled"
+    disabled = invoke_trusted(
+        service,
+        "governance.actor.status.set",
+        {"external_actor_id": "iaf-st", "status": "disabled", "confirmed": True},
+        role="ROLE_SYSTEM",
+    )
+    assert disabled["result"]["status"] == "disabled"
+    assert repo.get_actor("iaf-st", tenant_id=TENANT).status == "disabled"
 
-        matrix = service.invoke_skill("governance.access_matrix", {"role": "ROLE_SYSTEM"})
-        role_codes = {r["role_code"] for r in matrix["roles"]}
-        assert "ROLE_SYSTEM" in role_codes
-        # 矩阵从 policy 派生：ROLE_SYSTEM 至少持有身份治理能力
-        sys_caps = next(r["capabilities"] for r in matrix["roles"] if r["role_code"] == "ROLE_SYSTEM")
-        assert any(c.startswith("governance.actor.role") for c in sys_caps)
+    matrix = service.invoke_skill("governance.access_matrix", {"role": "ROLE_SYSTEM"})
+    role_codes = {r["role_code"] for r in matrix["roles"]}
+    assert "ROLE_SYSTEM" in role_codes
+    # 矩阵从 policy 派生：ROLE_SYSTEM 至少持有身份治理能力
+    sys_caps = next(r["capabilities"] for r in matrix["roles"] if r["role_code"] == "ROLE_SYSTEM")
+    assert any(c.startswith("governance.actor.role") for c in sys_caps)
 
 
 # ── xj-review #303 fix-loop regressions ──────────────────────────────────────
 def test_revoke_updates_role_codes_mirror_R002() -> None:
     """R-002: role_codes_json mirror must reflect POST-mutation active bindings (flush-before-read).
     revoke removes the role from the mirror; re-activate (assign of a disabled binding) restores it."""
-    with TemporaryDirectory() as tmp:
-        _service(tmp)
-        repo = GovernanceProjectionRepository()
-        _seed_actor(repo, external="iaf-m", account="mirror")
-        repo.assign_actor_role(external_actor_id="iaf-m", org_code="ORG-A", role_code="ROLE_ORGAN_OPERATER", tenant_id=TENANT, granted_by="t")
-        repo.assign_actor_role(external_actor_id="iaf-m", org_code="ORG-A", role_code="ROLE_BUSIAUDIT", tenant_id=TENANT, granted_by="t")
-        assert sorted(repo.get_actor("iaf-m", tenant_id=TENANT).role_codes_json) == ["ROLE_BUSIAUDIT", "ROLE_ORGAN_OPERATER"]
-        repo.revoke_actor_role(external_actor_id="iaf-m", org_code="ORG-A", role_code="ROLE_ORGAN_OPERATER", tenant_id=TENANT)
-        # revoked role must be GONE from the mirror (the bug left it in)
-        assert repo.get_actor("iaf-m", tenant_id=TENANT).role_codes_json == ["ROLE_BUSIAUDIT"]
-        # re-activate the disabled binding → role restored in the mirror
-        repo.assign_actor_role(external_actor_id="iaf-m", org_code="ORG-A", role_code="ROLE_ORGAN_OPERATER", tenant_id=TENANT, granted_by="t")
-        assert sorted(repo.get_actor("iaf-m", tenant_id=TENANT).role_codes_json) == ["ROLE_BUSIAUDIT", "ROLE_ORGAN_OPERATER"]
+    _service()
+    repo = GovernanceProjectionRepository()
+    _seed_actor(repo, external="iaf-m", account="mirror")
+    repo.assign_actor_role(external_actor_id="iaf-m", org_code="ORG-A", role_code="ROLE_ORGAN_OPERATER", tenant_id=TENANT, granted_by="t")
+    repo.assign_actor_role(external_actor_id="iaf-m", org_code="ORG-A", role_code="ROLE_BUSIAUDIT", tenant_id=TENANT, granted_by="t")
+    assert sorted(repo.get_actor("iaf-m", tenant_id=TENANT).role_codes_json) == ["ROLE_BUSIAUDIT", "ROLE_ORGAN_OPERATER"]
+    repo.revoke_actor_role(external_actor_id="iaf-m", org_code="ORG-A", role_code="ROLE_ORGAN_OPERATER", tenant_id=TENANT)
+    # revoked role must be GONE from the mirror (the bug left it in)
+    assert repo.get_actor("iaf-m", tenant_id=TENANT).role_codes_json == ["ROLE_BUSIAUDIT"]
+    # re-activate the disabled binding → role restored in the mirror
+    repo.assign_actor_role(external_actor_id="iaf-m", org_code="ORG-A", role_code="ROLE_ORGAN_OPERATER", tenant_id=TENANT, granted_by="t")
+    assert sorted(repo.get_actor("iaf-m", tenant_id=TENANT).role_codes_json) == ["ROLE_BUSIAUDIT", "ROLE_ORGAN_OPERATER"]
 
 
 def test_assign_rejects_system_roles_R003() -> None:
     """R-003: backend only assigns the fixed product catalog (BUSINESS_ROLE_CODES); internal
     SYSTEM_ROLE_CODES (admin/system) are rejected even though they're in ACTOR_NAMES."""
-    with TemporaryDirectory() as tmp:
-        service = _service(tmp)
-        repo = GovernanceProjectionRepository()
-        _seed_actor(repo, external="iaf-sys", account="sysrole")
-        for bad in ("admin", "system"):
-            with pytest.raises(BrainServiceError):
-                invoke_trusted(
-                    service, "governance.actor.role.assign",
-                    {"external_actor_id": "iaf-sys", "org_code": "ORG-A", "role_code": bad, "confirmed": True},
-                    role="ROLE_SYSTEM",
-                )
-
-
-def test_assign_rejects_unknown_org_R005() -> None:
-    """R-005: assign refuses a dangling org_code (no FK on the column; handler guards)."""
-    with TemporaryDirectory() as tmp:
-        service = _service(tmp)
-        repo = GovernanceProjectionRepository()
-        _seed_actor(repo, external="iaf-o", account="orgcheck")
+    service = _service()
+    repo = GovernanceProjectionRepository()
+    _seed_actor(repo, external="iaf-sys", account="sysrole")
+    for bad in ("admin", "system"):
         with pytest.raises(BrainServiceError):
             invoke_trusted(
                 service, "governance.actor.role.assign",
-                {"external_actor_id": "iaf-o", "target_org_code": "NO-SUCH-ORG", "role_code": "ROLE_BUSIAUDIT", "confirmed": True},
+                {"external_actor_id": "iaf-sys", "org_code": "ORG-A", "role_code": bad, "confirmed": True},
                 role="ROLE_SYSTEM",
             )
 
 
+def test_assign_rejects_unknown_org_R005() -> None:
+    """R-005: assign refuses a dangling org_code (no FK on the column; handler guards)."""
+    service = _service()
+    repo = GovernanceProjectionRepository()
+    _seed_actor(repo, external="iaf-o", account="orgcheck")
+    with pytest.raises(BrainServiceError):
+        invoke_trusted(
+            service, "governance.actor.role.assign",
+            {"external_actor_id": "iaf-o", "target_org_code": "NO-SUCH-ORG", "role_code": "ROLE_BUSIAUDIT", "confirmed": True},
+            role="ROLE_SYSTEM",
+        )
+
+
 def test_read_caps_deny_non_system_role_R009() -> None:
     """R-009: governance.actor.list / access_matrix are ROLE_SYSTEM-only — non-SYSTEM denied."""
-    with TemporaryDirectory() as tmp:
-        service = _service(tmp)
-        for cap in ("governance.actor.list", "governance.access_matrix"):
-            with pytest.raises((AccessDeniedError, DomainAccessDeniedError)):
-                service.invoke_skill(cap, {"role": "ROLE_ORGAN_OPERATER"})
+    service = _service()
+    for cap in ("governance.actor.list", "governance.access_matrix"):
+        with pytest.raises((AccessDeniedError, DomainAccessDeniedError)):
+            service.invoke_skill(cap, {"role": "ROLE_ORGAN_OPERATER"})
 
 
 def test_browser_session_live_disable_R001() -> None:
     """R-001: enrich_actor_snapshot_for_session refreshes LIVE actor.status, so a mid-session
     disable is honored by the browser BFF gate (resolve_trusted_role rejects disabled)."""
-    with TemporaryDirectory() as tmp:
-        service = _service(tmp)
-        repo = GovernanceProjectionRepository()
-        _seed_actor(repo, external="iaf-live", account="live")
-        repo.assign_actor_role(external_actor_id="iaf-live", org_code="ORG-A", role_code="ROLE_ORGAN_OPERATER", tenant_id=TENANT, granted_by="t")
-        base = {"subject": "iaf-live", "tenant_id": TENANT, "org_code": "ORG-A", "status": "active"}
-        # active → enrich keeps active, role resolvable
-        snap = service.enrich_actor_snapshot_for_session(dict(base))
-        assert snap["status"] == "active"
-        assert resolve_trusted_role({}, actor_snapshot=snap) == "ROLE_ORGAN_OPERATER"
-        # disable mid-session → re-enrich reflects disabled → gate denies
-        repo.set_actor_status(external_actor_id="iaf-live", status="disabled", tenant_id=TENANT)
-        snap2 = service.enrich_actor_snapshot_for_session(dict(base))
-        assert snap2["status"] == "disabled"
-        with pytest.raises(DomainAccessDeniedError):
-            resolve_trusted_role({}, actor_snapshot=snap2)
+    service = _service()
+    repo = GovernanceProjectionRepository()
+    _seed_actor(repo, external="iaf-live", account="live")
+    repo.assign_actor_role(external_actor_id="iaf-live", org_code="ORG-A", role_code="ROLE_ORGAN_OPERATER", tenant_id=TENANT, granted_by="t")
+    base = {"subject": "iaf-live", "tenant_id": TENANT, "org_code": "ORG-A", "status": "active"}
+    # active → enrich keeps active, role resolvable
+    snap = service.enrich_actor_snapshot_for_session(dict(base))
+    assert snap["status"] == "active"
+    assert resolve_trusted_role({}, actor_snapshot=snap) == "ROLE_ORGAN_OPERATER"
+    # disable mid-session → re-enrich reflects disabled → gate denies
+    repo.set_actor_status(external_actor_id="iaf-live", status="disabled", tenant_id=TENANT)
+    snap2 = service.enrich_actor_snapshot_for_session(dict(base))
+    assert snap2["status"] == "disabled"
+    with pytest.raises(DomainAccessDeniedError):
+        resolve_trusted_role({}, actor_snapshot=snap2)
 
 
 def test_token_roles_ignored_binding_is_authority_R006() -> None:
     """R-006: product authz roles come from actor_org_role_binding, NOT the IAM token.
     (a) token carries a role but NO active binding → denied; (b) token role X, binding role Y → Y wins."""
-    with TemporaryDirectory() as tmp, bootstrap_iaf_runtime(tmp):
+    with bootstrap_iaf_runtime(""):
         keys = KeyFixture()
         server, thread, port = run_server()
         try:
@@ -388,7 +370,7 @@ def test_token_roles_ignored_binding_is_authority_R006() -> None:
 def test_disabled_actor_denied_at_bearer_gate_R007() -> None:
     """R-007: a logged-in actor disabled mid-session is denied on the live bearer gate
     (bindings stay intact by design; the status short-circuit drops roles)."""
-    with TemporaryDirectory() as tmp, bootstrap_iaf_runtime(tmp):
+    with bootstrap_iaf_runtime(""):
         keys = KeyFixture()
         server, thread, port = run_server()
         try:

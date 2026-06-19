@@ -27,9 +27,7 @@ from zw_brain.shared.state_store import StateStore
 
 
 @pytest.fixture
-def brain(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> BrainService:
-    db_path = tmp_path / "projection_status.db"
-    monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
+def brain() -> BrainService:
     ensure_runtime_schema()
     store = DatabaseStore()
     audit_bus.configure_sink(store.append_audit_event)

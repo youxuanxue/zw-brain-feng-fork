@@ -20,24 +20,22 @@
   4. 这些目录被 topic_package 以 ref_type=catalog_entry / ref_id=basic-elem:... 引用，
      且 ref_id 能解析回真实 catalog_entry（D42.b 引用可达）。
 
-真灌库缺位时（worktree 隔离环境 / CI clean build）经 require_real_seed 优雅 skip。
+真灌库缺位时（worktree 隔离环境 / CI clean build）经 realistic_pg_module 优雅 skip。
 D11：医保目录 catalog_code 不硬编码，由 catalog.browse 按真实 title 动态解析（守 D18）。
 """
 from __future__ import annotations
 
-import os
-import shutil
-from pathlib import Path
-
 import pytest
 
-from tests._seed_guard import require_real_seed
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (module fixture)
 from tests._trusted_payload import invoke_trusted
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_j1_medical_catalog_drilldown_shadow.db"
 TENANT = "sd-default"
+
+# 真灌库经 realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据）注入
+# ZW_BRAIN_DATABASE_URL；模板缺位（CI 无 dump）整模块 skip，承接旧
+# require_real_seed({"catalog_entry": 100}) 跳过语义。
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 # 已核实事实（D43.b）：5 个医保 basic-elem 目录已作 catalog_entry 主表实体录入真灌库。
 # 用 title 集合而非硬编码 catalog_code 锚定（D11/D18），运行时从 catalog.browse 解析码。
@@ -51,30 +49,10 @@ MEDICAL_TITLES = frozenset(
     }
 )
 
-require_real_seed({"catalog_entry": 100})
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _shadow_db() -> None:
-    """对真灌库做只读语义的影子拷贝，所有断言走影子库，绝不污染真灌库。"""
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-
-
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def brain():
+    # function-scoped：realistic_pg_module 模块级钉住真灌库克隆，但根 conftest 的 hands-off
+    # 分支仍每测试重置 audit 全局（清 sink）；故 store + 审计 sink 必须每测试对同一克隆重挂。
     import zw_brain.shared.audit as audit_bus
     from zw_brain.command.brain import BrainService
     from zw_brain.shared.database_store import DatabaseStore
@@ -106,7 +84,7 @@ def _browse_all(brain) -> dict[str, str]:
     return found
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def medical_codes(brain) -> dict[str, str]:
     """从 catalog.browse 动态解析 5 个医保目录的真实 catalog_code（不硬编码）。"""
     by_code = _browse_all(brain)

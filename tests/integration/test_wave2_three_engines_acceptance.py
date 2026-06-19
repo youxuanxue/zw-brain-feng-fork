@@ -20,7 +20,6 @@ reviewer 看证据：(a) plan.yaml F8.actual_evidence；(b) 本地跑本 test �
 from __future__ import annotations
 
 import json
-import os
 import time
 import uuid
 from pathlib import Path
@@ -29,39 +28,19 @@ import pytest
 
 from tests._trusted_payload import invoke_trusted
 
+# 每个测试由 root conftest 的 autouse function-scoped fixture 分到一个空 PG 克隆库；
+# 三引擎 e2e 把数据写进各自隔离克隆，测试自带 fixture 幂等 seed，不依赖真实旧平台数据。
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SHADOW_DB = REPO_ROOT / ".data" / "test_F8_wave2_acceptance_shadow.db"
 # 2026-05-28 重构：SIGN_OFF.md 与 consolidated.json 同入 .data/（artifact，
 # gitignored）；权威 sign-off 住 .testing/signoff/e3-engines.signoff.yaml 账本（D46.b）。
 ACCEPTANCE_DIR = REPO_ROOT / ".data" / "wave2-acceptance"
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
 
 
-def _remove_shadow_db_files() -> None:
-    # WAL 模式（db.py PRAGMA journal_mode=WAL）会留 `-wal` / `-shm` 旁路文件。
-    # 只删 `.db` 而留下旧 WAL，会让新建的 `.db` 重挂不匹配的 WAL → SQLite 间歇报
-    # "database disk image is malformed"（取决于上次 run / 被 kill 的 run 是否留下旁路）。
-    # 必须三件一起删；调用前须先 dispose 引擎，释放可能仍持旧 inode 的连接。
-    for suffix in ("", "-wal", "-shm"):
-        (SHADOW_DB.parent / f"{SHADOW_DB.name}{suffix}").unlink(missing_ok=True)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _shadow_db() -> None:
-    SHADOW_DB.parent.mkdir(parents=True, exist_ok=True)
+@pytest.fixture(autouse=True)
+def _acceptance_dir() -> None:
+    """证据产物目录（artifact，gitignored）——DB 隔离由 root conftest 的克隆 fixture 承接。"""
     ACCEPTANCE_DIR.mkdir(parents=True, exist_ok=True)
-    from zw_brain.shared import db as _db
-    _db.reset_engine_cache()  # 先释放旧连接，再删文件（含 WAL/SHM 旁路）
-    _remove_shadow_db_files()
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    _db.reset_engine_cache()
-    from zw_brain.shared.migrate import reset_and_upgrade
-    reset_and_upgrade()
-    yield
-    # 收尾：释放引擎并清掉 shadow DB 三件套，不给后续 run 留脏 WAL
-    _db.reset_engine_cache()
-    _remove_shadow_db_files()
 
 
 def _new_brain():

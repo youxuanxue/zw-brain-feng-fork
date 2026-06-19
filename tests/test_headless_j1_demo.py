@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (module fixture)
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "headless_j1_demo.sh"
 
@@ -17,14 +19,11 @@ def _dev_iam(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS_ACK", "development-only")
 
 
-def test_headless_j1_demo_exits_zero() -> None:
+def test_headless_j1_demo_exits_zero(realistic_pg_module: str) -> None:  # noqa: F811  (pytest fixture request)
     # C-1 删演示单后 headless J1 全链路需真实资源（resolve_resource_for_application 经
-    # resource_asset DB 解析）。无 M0 真灌库（如 CI 空库）→ 脚本动态发现无资源会优雅跳过，
-    # 本测试同步 skip（一切围绕真实导入，不再有演示资源兜底）。
-    from tests._seed_guard import SEED_DB
-    if not SEED_DB.exists():
-        pytest.skip("M0 真灌库缺位；headless J1 demo 需真实资源（C-1 删演示单后无演示兜底）")
-
+    # resource_asset DB 解析）。真灌库经 realistic_pg_module 克隆（含真实旧平台数据）注入
+    # ZW_BRAIN_DATABASE_URL，子进程脚本继承该 env 连克隆库；模板缺位（CI 无 dump）→ fixture
+    # 整模块 skip，承接旧 SEED_DB.exists() 跳过语义（一切围绕真实导入，无演示资源兜底）。
     assert SCRIPT.is_file(), f"missing {SCRIPT}"
     env = {**os.environ, "ZW_BRAIN_DEV_IAM_BYPASS": "1", "ZW_BRAIN_DEV_IAM_BYPASS_ACK": "development-only"}
     proc = subprocess.run(["bash", str(SCRIPT)], cwd=REPO_ROOT, env=env, capture_output=True, text=True)

@@ -8,7 +8,8 @@
 ``submitted``→``dept_approved``），故此处直接 upsert 一条确定性 DB apply 记录，
 口径与 record_to_request 透出的 ``channelClass`` 完全一致（payload_json["channel_class"]）。
 
-幂等：同 application_code 重复执行只更新。针对 ``ZW_BRAIN_DB_PATH`` 指向的库。
+幂等：同 application_code 重复执行只更新。针对 resolved ``ZW_BRAIN_DATABASE_URL``
+指向的 PostgreSQL 库（默认本地 dev PG）。
 """
 from __future__ import annotations
 

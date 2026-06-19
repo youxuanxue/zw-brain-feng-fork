@@ -7,9 +7,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 import pytest
 
 from tests._trusted_payload import invoke_trusted
@@ -39,17 +36,15 @@ OPERATER = "ROLE_ORGAN_OPERATER"
 
 
 @pytest.fixture()
-def temp_db(monkeypatch: pytest.MonkeyPatch) -> Path:
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "mount_org_norm.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        yield db_path
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+def temp_db():
+    """Fresh, migrated per-test DB. The autouse conftest fixture supplies an isolated
+    empty PostgreSQL clone; here we just ensure runtime tables are present."""
+    with db_module._CACHE_LOCK:
+        db_module._ENGINE_CACHE.clear()
+    ensure_runtime_schema()
+    yield
+    with db_module._CACHE_LOCK:
+        db_module._ENGINE_CACHE.clear()
 
 
 def _seed() -> None:
@@ -74,7 +69,7 @@ def _seed() -> None:
 
 
 @pytest.fixture()
-def brain(temp_db: Path) -> BrainService:
+def brain(temp_db) -> BrainService:
     ds = DatabaseStore()
     ds.initialize()
     audit_bus.configure_sink(ds.append_audit_event)

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Regenerate the WebUI demo seed (zw_brain/domain/seed_snapshot.json) from
-real legacy data already imported into .data/zw_brain.db.
+real legacy data already imported into the PostgreSQL DB resolved by
+ZW_BRAIN_DATABASE_URL (sd-default tenant).
 
 Covers four surfaces (A1-A4 of docs/reconstructs/legacy-import-mapping-v1.md §五):
 
@@ -20,11 +21,15 @@ Usage:
 from __future__ import annotations
 
 import json
-import sqlite3
 from pathlib import Path
 
+import psycopg
+from psycopg.rows import dict_row
+from sqlalchemy.engine import make_url
+
+from zw_brain.shared.db import get_database_url
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DB_PATH = REPO_ROOT / ".data" / "zw_brain.db"
 SEED_PATH = REPO_ROOT / "zw_brain" / "domain" / "seed_snapshot.json"
 
 
@@ -32,17 +37,31 @@ SEED_PATH = REPO_ROOT / "zw_brain" / "domain" / "seed_snapshot.json"
 # helpers
 # ---------------------------------------------------------------------------
 
-def _connect() -> sqlite3.Connection:
-    if not DB_PATH.exists():
-        raise SystemExit(
-            f"DB not found at {DB_PATH}; run scripts/import_legacy_dumps.py import <schema> first"
+def _connect() -> psycopg.Connection:
+    """Connection to the PostgreSQL DB resolved by ZW_BRAIN_DATABASE_URL.
+
+    Backend is PG-only; the imported legacy dataset lives in the database named
+    by the resolved URL (M0 import). dict_row gives name-keyed rows so callers
+    can use ``row["col"]`` / ``dict(row)`` (name-keyed access).
+    """
+    url = make_url(get_database_url())
+    try:
+        return psycopg.connect(
+            host=url.host,
+            port=url.port,
+            user=url.username,
+            password=url.password,
+            dbname=url.database,
+            row_factory=dict_row,
         )
-    con = sqlite3.connect(DB_PATH)
-    con.row_factory = sqlite3.Row
-    return con
+    except Exception as exc:  # noqa: BLE001
+        raise SystemExit(
+            "PostgreSQL 未就绪或无法连接；先 'docker compose up -d postgres' 并跑 "
+            f"'scripts/import_legacy_dumps.py import <schema>' 灌真数据（{exc}）"
+        ) from exc
 
 
-def _load_topic_packages(con: sqlite3.Connection) -> list[dict]:
+def _load_topic_packages(con: psycopg.Connection) -> list[dict]:
     """Return the 10 real topic packages with parsed JSON snapshots."""
     rows = con.execute(
         "SELECT package_code, title, status, scenario, owner_org_snapshot_json, "
@@ -51,10 +70,19 @@ def _load_topic_packages(con: sqlite3.Connection) -> list[dict]:
     out = []
     for r in rows:
         d = dict(r)
-        d["owner"] = json.loads(d.pop("owner_org_snapshot_json"))
-        d["display"] = json.loads(d.pop("display_snapshot_json"))
+        # PG JSON/JSONB columns are auto-decoded by psycopg; only json.loads when
+        # the value is still a raw string (defensive across column types).
+        d["owner"] = _as_obj(d.pop("owner_org_snapshot_json"))
+        d["display"] = _as_obj(d.pop("display_snapshot_json"))
         out.append(d)
     return out
+
+
+def _as_obj(val):
+    """Return a decoded JSON object whether the DB handed us a str or a dict."""
+    if isinstance(val, str):
+        return json.loads(val)
+    return val
 
 
 # ---------------------------------------------------------------------------
@@ -388,15 +416,16 @@ BASESUBJECT_CATEGORIES = [
 ]
 
 
-def _build_a2_catalog_tree(con: sqlite3.Connection, total_topic_packages: int) -> list[dict]:
+def _build_a2_catalog_tree(con: psycopg.Connection, total_topic_packages: int) -> list[dict]:
     """Real-distribution catalogTree: counts come from the imported DB."""
+    # dict_row yields name-keyed rows; alias COUNT(*) so we read by name.
     catalog_total = con.execute(
-        "SELECT COUNT(*) FROM catalog_entry"
-    ).fetchone()[0]
-    org_total = con.execute("SELECT COUNT(*) FROM org_projection").fetchone()[0]
+        "SELECT COUNT(*) AS n FROM catalog_entry"
+    ).fetchone()["n"]
+    org_total = con.execute("SELECT COUNT(*) AS n FROM org_projection").fetchone()["n"]
     region_total = con.execute(
-        "SELECT COUNT(*) FROM region_projection"
-    ).fetchone()[0]
+        "SELECT COUNT(*) AS n FROM region_projection"
+    ).fetchone()["n"]
     return [
         {"name": "真政务案例（dsp_example）", "count": total_topic_packages},
         {"name": "共享目录条目（dsp_catalog）", "count": catalog_total},
@@ -419,7 +448,7 @@ PRIORITY_RECALL_TITLES = [
 ]
 
 
-def _build_a2_recall_dictionary(con: sqlite3.Connection) -> dict:
+def _build_a2_recall_dictionary(con: psycopg.Connection) -> dict:
     """NL-skill recall dictionary: top categories + sample titles.
 
     Only `active` and `approved_pending_publish` catalogs feed the dictionary —
@@ -434,7 +463,7 @@ def _build_a2_recall_dictionary(con: sqlite3.Connection) -> dict:
     for title in PRIORITY_RECALL_TITLES:
         row = con.execute(
             "SELECT title, owner_org_id, lifecycle_status FROM catalog_entry "
-            "WHERE title = ? AND lifecycle_status IN ('active', 'approved_pending_publish') "
+            "WHERE title = %s AND lifecycle_status IN ('active', 'approved_pending_publish') "
             "LIMIT 1",
             (title,),
         ).fetchone()

@@ -10,13 +10,10 @@ from __future__ import annotations
 
 import asyncio
 import threading
-from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
 
 from zw_brain.command.brain import BrainService, _UIStateProxy
-from zw_brain.shared import db as db_module
 from zw_brain.shared.database_store import DatabaseStore
 from zw_brain.shared.migrate import ensure_runtime_schema
 from zw_brain.shared.state_store import StateStore
@@ -76,17 +73,10 @@ def test_dict_materialization_reflects_current_contextvar() -> None:
 
 
 @pytest.fixture()
-def temp_db(monkeypatch: pytest.MonkeyPatch) -> Path:
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "ui_request_context_isolation.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        yield db_path
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+def temp_db() -> None:
+    # Per-test isolation is provided by the conftest autouse fixture (a fresh
+    # empty PG clone via ZW_BRAIN_DATABASE_URL); just ensure the schema is built.
+    ensure_runtime_schema()
 
 
 def test_persistable_view_excludes_per_request_role() -> None:
@@ -101,7 +91,7 @@ def test_persistable_view_excludes_per_request_role() -> None:
     assert proxy["discoveryQuery"] == "q"
 
 
-def test_persist_excludes_per_request_role_from_db(temp_db: Path) -> None:
+def test_persist_excludes_per_request_role_from_db(temp_db: None) -> None:
     """BrainService._persist must write process-wide ui_state only."""
     ds = DatabaseStore()
     ds.initialize()

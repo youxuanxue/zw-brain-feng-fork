@@ -19,17 +19,15 @@ S4 schema / audit / envelope + S7 5 消费面回归）。新增「B1.1 网关运
 S8/S9 由 preflight 段 24/25 机械守卫。读侧 ②→③ 闭合见 B11ComplianceOps.vue
 「网关运行」tab（消费 ops.service.report.query）。
 
-数据隔离：每个测试用例创建独立 TemporaryDirectory + 切 ZW_BRAIN_DB_PATH，
-ensure_runtime_schema() drop & recreate，零依赖 .data/zw_brain.db seed。
+数据隔离：每个测试用例由 conftest autouse fixture 注入独立的空 PG 克隆库，
+ensure_runtime_schema() 建表，零依赖任何持久化 seed。
 """
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Any
 
 import pytest
@@ -45,7 +43,7 @@ from zw_brain.domain.serializers.ops_metrics import (
 )
 from zw_brain.shared import audit as audit_bus
 from zw_brain.shared.database_store import DatabaseStore
-from zw_brain.shared.db import _CACHE_LOCK, _ENGINE_CACHE, create_session_factory
+from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.migrate import ensure_runtime_schema
 from zw_brain.shared.state_store import StateStore
 
@@ -57,34 +55,16 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 @pytest.fixture
 def brain():
-    """Per-test BrainService bound to a fresh SQLite DB.
+    """Per-test BrainService bound to the empty PG clone.
 
-    Each test gets its own temp DB so cross-test state never leaks; the
-    Wave 0 first cut is verified in isolation, not as a chained scenario.
+    Each test gets its own isolated clone DB (provided by the conftest autouse
+    fixture) so cross-test state never leaks; the Wave 0 first cut is verified in
+    isolation, not as a chained scenario.
     """
-    with TemporaryDirectory() as tmp:
-        db_path = os.path.join(tmp, "gateway.db")
-        prev_path = os.environ.get("ZW_BRAIN_DB_PATH")
-        prev_url = os.environ.get("ZW_BRAIN_DATABASE_URL")
-        os.environ["ZW_BRAIN_DB_PATH"] = db_path
-        os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-        with _CACHE_LOCK:
-            _ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        database_store = DatabaseStore()
-        audit_bus.configure_sink(database_store.append_audit_event)
-        service = BrainService(state_store=StateStore(database_store=database_store))
-        try:
-            yield service
-        finally:
-            with _CACHE_LOCK:
-                _ENGINE_CACHE.clear()
-            if prev_path is None:
-                os.environ.pop("ZW_BRAIN_DB_PATH", None)
-            else:
-                os.environ["ZW_BRAIN_DB_PATH"] = prev_path
-            if prev_url is not None:
-                os.environ["ZW_BRAIN_DATABASE_URL"] = prev_url
+    ensure_runtime_schema()
+    database_store = DatabaseStore()
+    audit_bus.configure_sink(database_store.append_audit_event)
+    return BrainService(state_store=StateStore(database_store=database_store))
 
 
 def _heartbeat_payload(instance_id: str, *, status: str = "online", **extra: Any) -> dict[str, Any]:

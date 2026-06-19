@@ -7,7 +7,9 @@
   B1.2 能力包 lifecycle (review → enable → exposure_matrix → trust_level → rollback)
 
 实际执行不依赖 REST server，直接通过 BrainService.invoke_skill 驱动 dispatch；
-真实数据来自 .data/zw_brain.db (sd-default tenant)，需先跑 M0 acceptance。
+真实数据来自 ZW_BRAIN_DATABASE_URL 指向的 PostgreSQL 库 (sd-default tenant)，
+需先用 scripts.build_realistic_pg_template 灌入真实旧平台数据（或 pytest 下由
+realistic_pg_module 克隆 zw_realistic_tmpl）。
 
 B1.2 写类 skill 走 build_trusted_skill_payload trust-stamp 路径（生产 BFF 行为）。
 B1.1 投影读 skill 直接 invoke（payload 带 role 即可）。
@@ -18,19 +20,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
-import shutil
-import sqlite3
 import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import psycopg
+from sqlalchemy.engine import make_url
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB_DEFAULT = REPO_ROOT / ".data" / "customer-demo-b1-shadow.db"
-SHADOW_AUDIT_DB_DEFAULT = REPO_ROOT / ".data" / "customer-demo-b1-audit.db"
 TENANT = "sd-default"
 
 DEFAULT_BUDGET_SECONDS = 30 * 60
@@ -44,21 +43,20 @@ def _log(step: str, msg: str = "", **kv) -> None:
     print(f"[demo-b1] {step:<32s} {msg} {extras}".rstrip(), flush=True)
 
 
-def _prepare_shadow_db(seed_db: Path, shadow_db: Path, shadow_audit_db: Path) -> None:
-    if not seed_db.exists():
-        raise RuntimeError(f"seed db not found: {seed_db} — 请先跑 M0 acceptance")
-    if shadow_db.exists():
-        shadow_db.unlink()
-    if shadow_audit_db.exists():
-        shadow_audit_db.unlink()
-    shadow_db.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(seed_db, shadow_db)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(shadow_db)
-    os.environ["ZW_BRAIN_AUDIT_DB_PATH"] = str(shadow_audit_db)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
+def _prepare_db() -> str:
+    """Resolve the PG database the demo runs against and clear stale engines.
+
+    Full-PG migration: runtime + audit both live in the single
+    ``ZW_BRAIN_DATABASE_URL`` database (per-test clone under pytest, or a库
+    seeded by scripts.build_realistic_pg_template for ops/demo). No file copy,
+    no shadow DB, no ZW_BRAIN_DB_PATH/AUDIT_DB_PATH — those SQLite-era knobs are
+    retired. Returns the resolved URL for downstream coverage verification.
+    """
     from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
+
+    url = _db.get_database_url()  # fail-closed if it ever resolves to sqlite
+    _db.reset_engine_cache()
+    return url
 
 
 def _build_brain():
@@ -183,12 +181,11 @@ def _seed_demo_package(brain) -> None:
 # ──────────────────────────────────────────────────────────────────────
 
 
-def run_demo(seed_db: Path, shadow_db: Path, shadow_audit_db: Path) -> dict[str, Any]:
+def run_demo() -> dict[str, Any]:
 
     started = time.monotonic()
-    _log("STEP-0", "准备 shadow DB", seed=str(seed_db), shadow=str(shadow_db),
-         audit=str(shadow_audit_db))
-    _prepare_shadow_db(seed_db, shadow_db, shadow_audit_db)
+    db_url = _prepare_db()
+    _log("STEP-0", "准备 PG 库", database=make_url(db_url).render_as_string(hide_password=True))
     brain = _build_brain()
 
     # ── B1.1 SEGMENT — 审计 4 panel ────────────────────────────────────
@@ -322,16 +319,32 @@ def run_demo(seed_db: Path, shadow_db: Path, shadow_audit_db: Path) -> dict[str,
     }
     required_caps = write_caps | read_caps
 
+    # Runtime (public.capability_call) + audit (<schema>.audit_event) tables both
+    # live in the single PG database now — one read-only psycopg connection
+    # covers both. The audit store owns its own schema (default ``audit``, env
+    # ZW_BRAIN_AUDIT_DB_PATH overrides the schema *name*), so the audit_event read
+    # is schema-qualified from the store's own resolver — the unqualified
+    # public.audit_event is a separate legacy runtime table without tenant_id.
+    from zw_brain.shared.audit.store import _default_audit_schema
+
+    audit_schema = _default_audit_schema()
+    su = make_url(db_url)
     capability_call_skills: set[str] = set()
     capability_call_total = 0
-    with sqlite3.connect(f"file:{shadow_db}?mode=ro", uri=True) as conn:
-        for row in conn.execute("SELECT skill_id FROM capability_call WHERE tenant_id=?", (TENANT,)):
+    audit_event_skills: set[str] = set()
+    with psycopg.connect(
+        host=su.host, port=su.port, user=su.username,
+        password=su.password, dbname=su.database,
+    ) as conn:
+        for row in conn.execute("SELECT skill_id FROM public.capability_call WHERE tenant_id=%s", (TENANT,)):
             capability_call_total += 1
             capability_call_skills.add(row[0])
-
-    audit_event_skills: set[str] = set()
-    with sqlite3.connect(f"file:{shadow_audit_db}?mode=ro", uri=True) as conn:
-        for row in conn.execute("SELECT DISTINCT skill_id FROM audit_event WHERE tenant_id=?", (TENANT,)):
+        audit_q = (
+            'SELECT DISTINCT skill_id FROM "'
+            + audit_schema.replace('"', '""')
+            + '".audit_event WHERE tenant_id=%s'
+        )
+        for row in conn.execute(audit_q, (TENANT,)):
             audit_event_skills.add(row[0])
 
     missing_writes = sorted(write_caps - capability_call_skills)
@@ -373,14 +386,14 @@ def run_demo(seed_db: Path, shadow_db: Path, shadow_audit_db: Path) -> dict[str,
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="F8 B1 30 分钟客户演示验收脚本")
-    parser.add_argument("--seed-db", type=Path, default=DEFAULT_DB)
-    parser.add_argument("--shadow-db", type=Path, default=SHADOW_DB_DEFAULT)
-    parser.add_argument("--shadow-audit-db", type=Path, default=SHADOW_AUDIT_DB_DEFAULT)
-    parser.add_argument("--report", type=Path)
+    parser.add_argument(
+        "--report", type=Path,
+        help="可选报告输出路径；演示库由 ZW_BRAIN_DATABASE_URL 指定（PG）",
+    )
     args = parser.parse_args()
 
     try:
-        result = run_demo(args.seed_db, args.shadow_db, args.shadow_audit_db)
+        result = run_demo()
     except Exception as exc:
         _log("FAIL", f"{type(exc).__name__}: {exc}")
         return 1

@@ -1,11 +1,13 @@
 """alembic env — D58（反转 D23；docs/decisions/alembic-migration-reintroduction-D58.md）.
 
 target_metadata = Base.metadata（zw_brain.shared.db.Base）；URL 取
-zw_brain.shared.db.get_database_url()（ZW_BRAIN_DATABASE_URL / ZW_BRAIN_DB_PATH 注入），
+zw_brain.shared.db.get_database_url()（ZW_BRAIN_DATABASE_URL 注入），
 绝不从 alembic.ini 读硬编码连接串（配置走环境变量）。offline + online 都配。
 
 注意：导入 zw_brain.domain.models 是**必需副作用** —— 它把全部 75 张表注册到
 Base.metadata，否则 autogenerate / create_all 只看到空 metadata。
+
+后端 PG-only：alembic 直接对 PostgreSQL 跑原生 ALTER，不需要 SQLite 的 batch 重建模式。
 """
 from __future__ import annotations
 
@@ -33,10 +35,6 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
-def _is_sqlite() -> bool:
-    return get_database_url().startswith("sqlite")
-
-
 def run_migrations_offline() -> None:
     """以 URL（不建连接）方式生成 SQL —— offline 模式。"""
     url = config.get_main_option("sqlalchemy.url")
@@ -45,8 +43,6 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        # SQLite 无原生 ALTER；batch 模式让未来列级迁移可在 SQLite 上重建表。
-        render_as_batch=_is_sqlite(),
         compare_type=True,
     )
     with context.begin_transaction():
@@ -64,7 +60,6 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            render_as_batch=_is_sqlite(),
             compare_type=True,
         )
         with context.begin_transaction():

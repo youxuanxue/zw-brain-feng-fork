@@ -26,8 +26,6 @@ resolve_resource_for_application 的读源），不触真实 seed 库。
 """
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Any
 
 import pytest
@@ -41,27 +39,24 @@ ORG_PROVIDER = "ORG-B-MARKET-REG"
 
 
 @pytest.fixture()
-def brain(monkeypatch: pytest.MonkeyPatch):
-    """Fresh temp DB + brain bound to it（同 test_wave0_j1_approval_conditional_runtime 模式）。"""
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "conditional_status_bridge.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
+def brain():
+    """Fresh brain on the conftest-supplied isolated empty PG clone
+    （同 test_wave0_j1_approval_conditional_runtime 模式）。"""
+    with db_module._CACHE_LOCK:
+        db_module._ENGINE_CACHE.clear()
+    ensure_runtime_schema()
 
-        import zw_brain.shared.audit as audit_bus
-        from zw_brain.command.brain import BrainService
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared.state_store import StateStore
+    import zw_brain.shared.audit as audit_bus
+    from zw_brain.command.brain import BrainService
+    from zw_brain.shared.database_store import DatabaseStore
+    from zw_brain.shared.state_store import StateStore
 
-        ds = DatabaseStore()
-        audit_bus.configure_sink(ds.append_audit_event)
-        ss = StateStore(database_store=ds)
-        yield BrainService(state_store=ss)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+    ds = DatabaseStore()
+    audit_bus.configure_sink(ds.append_audit_event)
+    ss = StateStore(database_store=ds)
+    yield BrainService(state_store=ss)
+    with db_module._CACHE_LOCK:
+        db_module._ENGINE_CACHE.clear()
 
 
 def _inject_resource(brain: Any, rid: str, share_type: str) -> None:

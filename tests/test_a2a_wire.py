@@ -14,8 +14,6 @@ trigger-deferred 记债，本期不抬全 SPEC 状态（D46.f）。
 from __future__ import annotations
 
 import os
-from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
 from sqlalchemy import select
@@ -25,33 +23,23 @@ from tests._iaf_a2a_http import a2a_request, run_a2a_server, stop_a2a_server
 
 @pytest.fixture()
 def wire(monkeypatch: pytest.MonkeyPatch):
-    """temp DB + dev bypass + 起线级 A2A daemon；get_service 懒建于 temp DB。"""
+    """隔离 PG 克隆 + dev bypass + 起线级 A2A daemon；get_service 懒建于克隆库。"""
     monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS", "1")
     monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS_ACK", "development-only")
     monkeypatch.delenv("ZW_BRAIN_A2A_CALLER_TRUST_LEVEL", raising=False)
 
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "a2a_wire.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
+    from zw_brain.command import runtime as cmd_runtime
+    from zw_brain.shared.migrate import ensure_runtime_schema
 
-        from zw_brain.command import runtime as cmd_runtime
-        from zw_brain.shared import db as db_module
+    ensure_runtime_schema()
+    cmd_runtime._service = None  # 强制 get_service 在隔离克隆库上重建（含 initialize 种子）
 
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        ensure_runtime_schema()
-        cmd_runtime._service = None  # 强制 get_service 在 temp DB 上重建（含 initialize 种子）
-
-        server, thread, port = run_a2a_server()
-        try:
-            yield f"http://127.0.0.1:{port}"
-        finally:
-            stop_a2a_server(server, thread)
-            cmd_runtime._service = None
-            with db_module._CACHE_LOCK:
-                db_module._ENGINE_CACHE.clear()
+    server, thread, port = run_a2a_server()
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        stop_a2a_server(server, thread)
+        cmd_runtime._service = None
 
 
 def _audit_rows(skill_id: str):

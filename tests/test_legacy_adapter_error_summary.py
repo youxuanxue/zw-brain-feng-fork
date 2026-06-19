@@ -26,11 +26,9 @@ from zw_brain.shared.migrate import ensure_runtime_schema
 
 
 @pytest.fixture
-def temp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    db_path = tmp_path / "adapter_error_summary.db"
-    monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
+def temp_db(tmp_path: Path) -> Path:
     ensure_runtime_schema()
-    return db_path
+    return tmp_path
 
 
 def _make_stats(dump: str) -> ImportStats:

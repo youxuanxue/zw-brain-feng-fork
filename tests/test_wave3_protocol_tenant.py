@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 import zw_brain.shared.audit as audit_bus
 from tests._trusted_payload import invoke_trusted
 from zw_brain.command.brain import BrainService
@@ -46,10 +44,8 @@ def test_wave3_mcp_hardening_live_skills_match_openapi_and_tool_files() -> None:
         assert desc.get("inputSchema")
 
 
-def test_wave3_multi_tenant_policy_catalog_entries_isolated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_wave3_multi_tenant_policy_catalog_entries_isolated() -> None:
     """multi-tenant-policy.feature: 两 tenant catalog 完全隔离（repo 层）。"""
-    db_path = tmp_path / "multi_tenant.db"
-    monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
     ensure_runtime_schema()
 
     repo = CatalogRepository()
@@ -88,10 +84,8 @@ def test_wave3_observability_cost_quota_no_in_repo_alerting() -> None:
             assert "prometheus/alert" not in text, path
 
 
-def test_wave3_observability_credential_quota_exposed_via_query(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_wave3_observability_credential_quota_exposed_via_query() -> None:
     """observability-cost-quota.feature：凭据 quota_per_day 在 credential.query 可观测。"""
-    db_path = tmp_path / "quota_obs.db"
-    monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
     ensure_runtime_schema()
 
     store = DatabaseStore()

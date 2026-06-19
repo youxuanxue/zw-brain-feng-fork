@@ -2,31 +2,13 @@
 
 from __future__ import annotations
 
-import os
-import shutil
-from pathlib import Path
-
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_delivery_snapshot_shadow.db"
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (fixture)
 
-
-@pytest.fixture(scope="module", autouse=True)
-def _shadow_db() -> None:
-    if not SEED_DB.is_file():
-        pytest.skip("seed db missing")
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
+# 需真实旧平台数据（交付任务 ≥1）：克隆 realistic 模板库；无模板（CI 无 dump）则 skip，
+# 承接旧 SEED_DB-missing → require_real_seed 跳过语义。
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
 def test_system_snapshot_delivery_tasks_dept_scoped_fail_closed() -> None:

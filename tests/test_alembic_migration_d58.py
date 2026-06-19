@@ -9,17 +9,25 @@
   (d) upgrade head / ensure_runtime_schema 幂等（重复调用不报错、表数不变）。
 另补：真漂移（无版本表 + 有数据 + schema 不一致）→ raise SchemaDriftError（绝不 DROP）。
 
-库隔离：每个测试用 tmp_path 下独立 sqlite + monkeypatch ZW_BRAIN_DATABASE_URL，
-配合 root conftest 的 per-test env snapshot + engine-cache reset。
+库隔离：每个测试拿一个**全新空 PostgreSQL 库**（在 PG 服务器上 CREATE DATABASE，测后
+DROP WITH FORCE）+ monkeypatch ZW_BRAIN_DATABASE_URL，配合 root conftest 的 per-test env
+snapshot + engine-cache reset。这里不复用 conftest 的 per-test 克隆——本测要的是「空库」
+（自己建表/stamp/drop 逐态钉死），而 conftest 的克隆已带全 schema。conftest 的
+_isolate_db_env 先跑、建好它自己的克隆后不再回写 env，本 fixture 随后把
+ZW_BRAIN_DATABASE_URL 指向这只空库、并自管它的 CREATE/DROP 生命周期。
 """
 from __future__ import annotations
 
-from pathlib import Path
+import os
+import uuid
 
+import psycopg
 import pytest
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.engine import make_url
 
 import zw_brain.domain.models  # noqa: F401 — 注册全部 ORM 表到 Base.metadata
+from zw_brain.shared import db as _db
 from zw_brain.shared.db import Base, reset_engine_cache
 from zw_brain.shared.migrate import (
     REQUIRED_TABLES,
@@ -31,15 +39,45 @@ from zw_brain.shared.migrate import (
 )
 
 
+def _maintenance_connect(server_url) -> psycopg.Connection:
+    """Autocommit conn to the maintenance DB for CREATE/DROP DATABASE (same
+    resolution as conftest: reuse the server DSN, optional maintenance-db name)."""
+    maint_db = os.environ.get("ZW_BRAIN_TEST_PG_MAINTENANCE_DB", "postgres")
+    return psycopg.connect(
+        host=server_url.host,
+        port=server_url.port,
+        user=server_url.username,
+        password=server_url.password,
+        dbname=maint_db,
+        autocommit=True,
+    )
+
+
 @pytest.fixture
-def isolated_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
-    """指向 tmp_path 下独立 sqlite 文件的 DB URL（每测独立、引擎缓存清掉）。"""
-    db_path = tmp_path / "d58.db"
-    url = f"sqlite:///{db_path}"
+def isolated_db(monkeypatch: pytest.MonkeyPatch) -> str:
+    """全新空 PG 库的 DB URL（每测独立 CREATE→DROP、引擎缓存清掉）。
+
+    本测验证空库/存量库/漂移库三态迁移，必须从**空库**起步，因此不用 conftest 的
+    带全 schema 克隆，而是在同一 PG 服务器上现建一只空库。
+    """
+    server_url = make_url(os.environ.get("ZW_BRAIN_DATABASE_URL") or _db.DEFAULT_PG_URL)
+    db_name = f"zw_d58_{uuid.uuid4().hex}"
+    maint = _maintenance_connect(server_url)
+    maint.execute(f'DROP DATABASE IF EXISTS "{db_name}" WITH (FORCE)')
+    maint.execute(f'CREATE DATABASE "{db_name}" OWNER "{server_url.username}"')
+    url = server_url.set(database=db_name).render_as_string(hide_password=False)
+    # conftest's autouse _isolate_db_env runs *before* this fixture and creates
+    # its own empty clone; it never re-asserts ZW_BRAIN_DATABASE_URL after yield,
+    # so overriding it here makes the test body read our empty DB. conftest drops
+    # its (separate) clone on teardown; we own this one's CREATE/DROP.
     monkeypatch.setenv("ZW_BRAIN_DATABASE_URL", url)
     reset_engine_cache()
-    yield url
-    reset_engine_cache()
+    try:
+        yield url
+    finally:
+        reset_engine_cache()
+        maint.execute(f'DROP DATABASE IF EXISTS "{db_name}" WITH (FORCE)')
+        maint.close()
 
 
 def _table_names(url: str) -> set[str]:

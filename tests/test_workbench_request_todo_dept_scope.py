@@ -16,14 +16,10 @@ owner 用机构**码**作 applicantDept，命中 org_in_scope 裸值快路径（
 
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 import pytest
 
 from zw_brain.domain.repositories.application import ApplicationRepository
 from zw_brain.domain.workbench_backlog_projection import enrich_workbench_backlog
-from zw_brain.shared import db as db_module
 from zw_brain.shared.migrate import ensure_runtime_schema
 
 TENANT = "sd-default"
@@ -35,17 +31,10 @@ BUSIAUDIT = "ROLE_BUSIAUDIT"
 
 
 @pytest.fixture()
-def temp_db(monkeypatch: pytest.MonkeyPatch) -> Path:
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "workbench_request_todo_scope.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        yield db_path
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+def temp_db() -> None:
+    # Per-test isolation is provided by the conftest autouse fixture (a fresh
+    # empty PG clone via ZW_BRAIN_DATABASE_URL); just ensure the schema is built.
+    ensure_runtime_schema()
 
 
 def _seed_app(code: str, *, org: str, applicant: str, status: str) -> None:
@@ -86,7 +75,7 @@ def _seed_two_org_apps() -> None:
     _seed_app("APP-B", org=ORG_B, applicant="mgr-b", status="dept_approved")
 
 
-def test_manager_review_todos_scoped_to_visible_org(temp_db: Path) -> None:
+def test_manager_review_todos_scoped_to_visible_org(temp_db: None) -> None:
     _seed_two_org_apps()
     out = enrich_workbench_backlog(_manager_view(), MANAGER, tenant_id=TENANT, visible_org_codes={ORG_A})
     ids = _ids(out)
@@ -94,20 +83,20 @@ def test_manager_review_todos_scoped_to_visible_org(temp_db: Path) -> None:
     assert "APP-B" not in ids, "别部门申请审核待办剔除（消除可见+点了403反模式）"
 
 
-def test_manager_review_todos_fail_closed_on_empty_visible(temp_db: Path) -> None:
+def test_manager_review_todos_fail_closed_on_empty_visible(temp_db: None) -> None:
     _seed_two_org_apps()
     out = enrich_workbench_backlog(_manager_view(), MANAGER, tenant_id=TENANT, visible_org_codes=set())
     assert _ids(out) == [], "空集 fail-closed：申请审核/汇总待办全丢"
 
 
-def test_manager_review_todos_global_when_visible_none(temp_db: Path) -> None:
+def test_manager_review_todos_global_when_visible_none(temp_db: None) -> None:
     _seed_two_org_apps()
     out = enrich_workbench_backlog(_manager_view(), MANAGER, tenant_id=TENANT, visible_org_codes=None)
     ids = _ids(out)
     assert {"APP-A", "APP-B"} <= set(ids), "全局视角（None）保留全量，不收口"
 
 
-def test_manager_unbacked_review_todo_dropped(temp_db: Path) -> None:
+def test_manager_unbacked_review_todo_dropped(temp_db: None) -> None:
     # 无 application_record 背书的申请审核待办（id 不在任何可见集）→ 被剔除（fail-closed）。
     _seed_two_org_apps()
     view = {"todos": [_todo("APP-GHOST", "review")]}
@@ -133,7 +122,7 @@ def _seed_two_org_progress_apps() -> None:
     _seed_app("APP-OTHER", org=ORG_B, applicant="bob", status="pending")
 
 
-def test_operator_progress_todos_scoped_to_visible_org(temp_db: Path) -> None:
+def test_operator_progress_todos_scoped_to_visible_org(temp_db: None) -> None:
     _seed_two_org_progress_apps()
     out = enrich_workbench_backlog(_operator_view(), OPERATER, tenant_id=TENANT, visible_org_codes={ORG_A})
     ids = _ids(out)
@@ -141,20 +130,20 @@ def test_operator_progress_todos_scoped_to_visible_org(temp_db: Path) -> None:
     assert "APP-OTHER" not in ids, "别部门申请进度待办不可见（部门收口，D61②）"
 
 
-def test_operator_progress_todos_fail_closed_on_empty_visible(temp_db: Path) -> None:
+def test_operator_progress_todos_fail_closed_on_empty_visible(temp_db: None) -> None:
     _seed_two_org_progress_apps()
     out = enrich_workbench_backlog(_operator_view(), OPERATER, tenant_id=TENANT, visible_org_codes=set())
     assert _ids(out) == [], "空集 fail-closed：申请进度/补录待办全丢"
 
 
-def test_operator_progress_todos_global_when_visible_none(temp_db: Path) -> None:
+def test_operator_progress_todos_global_when_visible_none(temp_db: None) -> None:
     _seed_two_org_progress_apps()
     out = enrich_workbench_backlog(_operator_view(), OPERATER, tenant_id=TENANT, visible_org_codes=None)
     assert {"APP-MINE", "APP-OTHER"} <= set(_ids(out)), "全局视角（None）保留全量，不收口"
 
 
 # ── 业务运营员：受理待办（accept）保持全局，不受 visible_org_codes 影响（D61 裁决④）──────
-def test_busiaudit_accept_todo_stays_global(temp_db: Path) -> None:
+def test_busiaudit_accept_todo_stays_global(temp_db: None) -> None:
     _seed_app("APP-SUB", org=ORG_B, applicant="op-b", status="submitted")
     view = {"todos": [_todo("APP-SUB", "accept")]}
     # 传一个**与 APP-SUB 机构无关**的 visible 集，受理待办仍须保留（业务运营员全局受理）。

@@ -185,7 +185,6 @@ def test_apply_human_edit_on_trigger_rederives() -> None:
 
 
 # ---- 真数据集成：ReferenceService + derive 在真导入库上跑通 ----
-import os  # noqa: E402
 from pathlib import Path  # noqa: E402
 from tempfile import TemporaryDirectory  # noqa: E402
 
@@ -205,7 +204,7 @@ def test_derive_on_real_imported_org() -> None:
 
     with TemporaryDirectory() as tmp_str:
         tmp = Path(tmp_str)
-        os.environ["ZW_BRAIN_DB_PATH"] = str(tmp / "sd_default.db")
+        # conftest autouse fixture already supplies an isolated empty PG clone.
         ensure_runtime_schema()
         dump_dir = tmp / "dumps"
         dump_dir.mkdir(parents=True, exist_ok=True)

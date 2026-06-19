@@ -22,11 +22,12 @@ import pytest
 
 
 @pytest.fixture()
-def temp_store(tmp_path, monkeypatch):
-    """Isolated empty DB store (no seed) — pure store/service-layer coverage."""
-    db_path = tmp_path / "p1_governance.db"
-    monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-    monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
+def temp_store():
+    """Isolated empty DB store (no seed) — pure store/service-layer coverage.
+
+    The autouse conftest fixture already points the runtime at a fresh, migrated
+    per-test PostgreSQL clone; this fixture just wires the store/runtime tables.
+    """
     from zw_brain.shared import db as _db
     with _db._CACHE_LOCK:
         _db._ENGINE_CACHE.clear()

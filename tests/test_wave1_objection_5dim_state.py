@@ -8,8 +8,9 @@
 #   zw_brain/domain/objection_state.py
 """F1 + F2: 异议 5 维度状态机闭环 — 真实数据可达性 + sd-default e2e + 跨维度路由.
 
-数据隔离策略 (与 W0 系列一致): .data/zw_brain.db -> shadow copy, ZW_BRAIN_DB_PATH
-设到 shadow，writes 不污染 W0 / F1 基线。
+数据隔离策略：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
+模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义），writes 落克隆库、
+不污染真实模板。
 
 5 维度共享同一 transition 形状（catalog 真实派生 + 4 维度真实数据子集校验，详见
 objection_state.py 头注释）。当业务方提供 content/resource 真实异议样本或 F3
@@ -17,34 +18,36 @@ evaluate/process 引入分化需求时，由 objection_state.py split。
 """
 from __future__ import annotations
 
-import os
-import shutil
-import sqlite3
 from pathlib import Path
 
+import psycopg
 import pytest
+from sqlalchemy.engine import make_url
 
-from tests._seed_guard import require_real_seed
+from tests import _pg_realistic
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (fixture)
+from zw_brain.shared.db import get_database_url
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_objection_shadow.db"
 TENANT = "sd-default"
 
-require_real_seed({"objection_case": 20})
+# 门槛语义（objection_case≥20）由 realistic_pg_module 的 skip-when-absent 承接。
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _shadow_db() -> None:
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
+def _pg_read(sql: str, params: tuple = (), *, dbname: str | None = None):
+    """Read against the cloned realistic PG (app read-path's DB), never a file.
+
+    Pass ``dbname`` to target the pristine template DB (read-only) — needed by the
+    "raw dump count == 0" test, whose invariant must not see this module's
+    synthetic probe writes that accumulate in the per-module clone.
+    """
+    url = make_url(get_database_url())
+    with psycopg.connect(
+        host=url.host, port=url.port, user=url.username,
+        password=url.password, dbname=dbname or url.database,
+    ) as conn:
+        return conn.execute(sql, params).fetchall()
 
 
 @pytest.fixture(scope="module")
@@ -228,15 +231,14 @@ def test_dimension_rejected_is_terminal(repo, dimension):
 
 def _pick_real_case(evidence_type: str, status: str) -> str | None:
     """Return a real sd-default objection_case.id matching (evidence_type, status), or None."""
-    with sqlite3.connect(f"file:{SHADOW_DB}?mode=rw", uri=True) as conn:
-        row = conn.execute(
-            "SELECT c.id FROM objection_case c "
-            "JOIN objection_evidence e ON e.objection_id = c.id "
-            "WHERE c.tenant_id = ? AND e.evidence_type = ? AND c.status = ? "
-            "LIMIT 1",
-            (TENANT, evidence_type, status),
-        ).fetchone()
-    return row[0] if row else None
+    rows = _pg_read(
+        "SELECT c.id FROM objection_case c "
+        "JOIN objection_evidence e ON e.objection_id = c.id "
+        "WHERE c.tenant_id = %s AND e.evidence_type = %s AND c.status = %s "
+        "LIMIT 1",
+        (TENANT, evidence_type, status),
+    )
+    return rows[0][0] if rows else None
 
 
 def test_catalog_real_dump_e2e_close_resolved(repo):
@@ -343,16 +345,20 @@ def test_content_resource_no_real_dump_data():
     `test_dimension_state_reachability` 与 `test_dimension_rejects_illegal_jump`
     覆盖（参数化已含 content/resource）。
     """
-    # Inspect SEED_DB (raw M0 dump), not SHADOW (polluted by synthetic probes above)
-    with sqlite3.connect(f"file:{SEED_DB}?mode=ro", uri=True) as conn:
-        for evidence_type in ("quality", "resource"):
-            cnt = conn.execute(
-                "SELECT COUNT(*) FROM objection_evidence e "
-                "JOIN objection_case c ON c.id = e.objection_id "
-                "WHERE c.tenant_id = ? AND e.evidence_type = ?",
-                (TENANT, evidence_type),
-            ).fetchone()[0]
-            assert cnt == 0, f"unexpected {evidence_type} evidence in raw dump: {cnt}"
+    # Inspect the pristine realistic TEMPLATE DB (raw M0 dump), not this module's
+    # per-test clone (polluted by the synthetic probes above, which inject
+    # quality/resource evidence). The template is the PG analogue of the old raw
+    # seed-database read.
+    template_db = _pg_realistic.REALISTIC_TEMPLATE_DB
+    for evidence_type in ("quality", "resource"):
+        cnt = _pg_read(
+            "SELECT COUNT(*) FROM objection_evidence e "
+            "JOIN objection_case c ON c.id = e.objection_id "
+            "WHERE c.tenant_id = %s AND e.evidence_type = %s",
+            (TENANT, evidence_type),
+            dbname=template_db,
+        )[0][0]
+        assert cnt == 0, f"unexpected {evidence_type} evidence in raw dump: {cnt}"
 
 
 # ──────────────────────────────────────────────────────────────────────

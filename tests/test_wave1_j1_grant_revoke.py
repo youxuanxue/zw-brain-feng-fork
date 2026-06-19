@@ -16,55 +16,53 @@ H4 旧 bug：_suspend / _revoke 仅当 request_id 以 "REQ-" 开头时才 find_b
   3) 缺省申请号 → 抛 InvalidStateError；
   4) 已撤回再撤回（撤回不可逆）→ 抛 InvalidStateError。
 
-数据隔离：shadow DB（与 W0/F1-F5 一致），真实 sd-default 资源作锚。
+数据隔离：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
+模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义），真实 sd-default 资源作锚。
 """
 from __future__ import annotations
 
-import os
-import shutil
-import sqlite3
 from pathlib import Path
 
+import psycopg
 import pytest
+from sqlalchemy.engine import make_url
 
-from tests._seed_guard import require_real_seed
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (fixture)
 from tests._trusted_payload import invoke_trusted
+from zw_brain.shared.db import get_database_url
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_grant_revoke_shadow.db"
 TENANT = "sd-default"
 
-require_real_seed({"catalog_entry": 100})
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _shadow_db() -> None:
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
+def _pg_read(sql: str, params: tuple = ()):
+    """Read against the cloned realistic PG (app read-path's DB), never a file."""
+    url = make_url(get_database_url())
+    with psycopg.connect(
+        host=url.host, port=url.port, user=url.username,
+        password=url.password, dbname=url.database,
+    ) as conn:
+        return conn.execute(sql, params).fetchall()
 
 
 @pytest.fixture(scope="module")
 def real_resource() -> dict:
-    with sqlite3.connect(f"file:{SHADOW_DB}?mode=ro", uri=True) as conn:
-        row = conn.execute(
-            "SELECT catalog_code, title FROM catalog_entry "
-            "WHERE tenant_id=? ORDER BY catalog_code LIMIT 1",
-            (TENANT,),
-        ).fetchone()
-    assert row is not None
+    rows = _pg_read(
+        "SELECT catalog_code, title FROM catalog_entry "
+        "WHERE tenant_id=%s ORDER BY catalog_code LIMIT 1",
+        (TENANT,),
+    )
+    assert rows, "realistic PG 应含 catalog_entry"
+    row = rows[0]
     return {"resource_id": row[0], "resource_name": row[1]}
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def brain():
+    # Function-scoped: conftest._isolate_db_env resets the audit-bus sink before
+    # every test, so the sink must be (re)configured per test.
     import zw_brain.shared.audit as audit_bus
     from zw_brain.command.brain import BrainService
     from zw_brain.shared.database_store import DatabaseStore
@@ -223,25 +221,23 @@ def test_revoke_already_revoked_raises_invalid_state(brain, real_resource):
 @pytest.fixture(scope="module")
 def real_db_request() -> str:
     """从真实库取一条 hex-id（非 REQ- 演示）、处于可操作态的申请 application_code。"""
-    with sqlite3.connect(f"file:{SHADOW_DB}?mode=ro", uri=True) as conn:
-        row = conn.execute(
-            "SELECT application_code FROM application_record "
-            "WHERE tenant_id=? AND application_code NOT LIKE 'REQ-%' "
-            "AND status IN ('approved','effective','in_delivery','granted','suspended') "
-            "ORDER BY application_code LIMIT 1",
-            (TENANT,),
-        ).fetchone()
-    assert row is not None, "真实库无可操作态的非演示申请，无法守 R-004"
-    return str(row[0])
+    rows = _pg_read(
+        "SELECT application_code FROM application_record "
+        "WHERE tenant_id=%s AND application_code NOT LIKE 'REQ-%%' "
+        "AND status IN ('approved','effective','in_delivery','granted','suspended') "
+        "ORDER BY application_code LIMIT 1",
+        (TENANT,),
+    )
+    assert rows, "真实库无可操作态的非演示申请，无法守 R-004"
+    return str(rows[0][0])
 
 
 def _db_status(application_code: str) -> str | None:
-    with sqlite3.connect(f"file:{SHADOW_DB}?mode=ro", uri=True) as conn:
-        row = conn.execute(
-            "SELECT status FROM application_record WHERE tenant_id=? AND application_code=?",
-            (TENANT, application_code),
-        ).fetchone()
-    return row[0] if row else None
+    rows = _pg_read(
+        "SELECT status FROM application_record WHERE tenant_id=%s AND application_code=%s",
+        (TENANT, application_code),
+    )
+    return rows[0][0] if rows else None
 
 
 def test_revoke_real_db_request_persists_and_guards(brain, real_db_request):

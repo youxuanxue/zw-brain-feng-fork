@@ -9,37 +9,16 @@
 """
 from __future__ import annotations
 
-import os
-from pathlib import Path
-
-import pytest
-
 from tests._trusted_payload import invoke_trusted
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-SHADOW_DB = REPO_ROOT / ".data" / "test_engine_created_by_actor_shadow.db"
+# 每个测试由 root conftest 的 autouse function-scoped fixture 分到一个空 PG 克隆库；
+# 草稿落库写进各自隔离克隆，不依赖真实旧平台数据。
 
 # 客户端伪造的出处——后端必须忽略它。后缀 :webui 与服务端 actor_for_role 的
 # :{ACTOR_NAMES[role]} 后缀不同，使断言可判别。
 FORGED_CREATED_BY = "user:gov:ROLE_ORGAN_MANAGER:webui"
 # 配置引擎草稿的合法角色 = 平台运维员（D55⑤）。
 CONFIG_ROLE = "ROLE_SYSTEM"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _shadow_db() -> None:
-    SHADOW_DB.parent.mkdir(parents=True, exist_ok=True)
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-
-    _db.reset_engine_cache()
-    from zw_brain.shared.migrate import reset_and_upgrade
-
-    reset_and_upgrade()
-    yield
 
 
 def _new_brain():

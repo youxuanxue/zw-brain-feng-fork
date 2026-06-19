@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
+import os
+import uuid
 
 import pytest
+from sqlalchemy.engine import make_url
 
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (module fixture)
 from tests._trusted_payload import actor_snapshot, invoke_trusted
 from zw_brain.command.brain import BrainService
 from zw_brain.domain.repositories.catalog import CatalogRepository
@@ -18,11 +20,9 @@ from zw_brain.domain.web_snapshot_redaction import redact_webui_snapshot
 from zw_brain.shared import audit as audit_bus
 from zw_brain.shared import db as db_module
 from zw_brain.shared.database_store import DatabaseStore
-from zw_brain.shared.migrate import ensure_runtime_schema
 from zw_brain.shared.state_store import StateStore
 
 TENANT = "sd-default"
-SEED_DB = Path(__file__).resolve().parent.parent / ".data" / "zw_brain.db"
 
 # 供数面 fixture 全用此机构作 owner_org_id（省大数据局）。M4 部门数据可见域收口后，
 # 部门角色（MANAGER/OPERATER）snapshot 只见本机构(+下级) provider 行——故 system.snapshot
@@ -40,42 +40,68 @@ def _dept_snapshot(brain: BrainService, role: str) -> dict:
 
 
 @pytest.fixture()
-def seed_db(monkeypatch: pytest.MonkeyPatch) -> Path:
-    """显式钉到真实 seed DB + 隔离 engine cache。
+def seed_db(realistic_pg_module: str) -> str:  # noqa: F811  (pytest fixture request, not a redef)
+    """真灌库（含已发布专题包/反向草稿字段）依赖声明。
 
-    这两条 enrich 断言依赖真实库的已发布专题包/反向草稿字段。它们原先靠"环境里
-    ZW_BRAIN_DB_PATH 默认指向 .data/zw_brain.db"的隐式约定——但仓内约 30 个 fixture
-    用裸 os.environ 改 ZW_BRAIN_DB_PATH 且无 teardown（见 .testing/debt 登记），上游某条
-    real-data 测试泄漏后会把这里指向空库 → "no such table"。pin + monkeypatch 自动还原
-    使其对上游泄漏免疫，并声明真实依赖（与同模块 temp_db / 邻居 _shadow_db 同模式）。
+    这几条 enrich 断言依赖真实库数据。PG 迁移后真灌库由 realistic_pg_module 克隆
+    zw_realistic_tmpl 注入 ZW_BRAIN_DATABASE_URL；模板缺位（CI 无 dump）整模块 skip，
+    承接旧真灌库缺位跳过语义。无需手开文件 / 拷贝 / 旧文件路径环境变量。
     """
-    if not SEED_DB.is_file():
-        pytest.skip("seed db missing — 跑 scripts/customer_acceptance_up.sh 重建")
-    monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(SEED_DB))
-    monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
-    yield SEED_DB
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    return realistic_pg_module
 
 
 @pytest.fixture()
-def temp_db(monkeypatch: pytest.MonkeyPatch) -> Path:
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "provider_projection.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        yield db_path
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+def temp_db(_pg_template) -> str:
+    """纯 schema 测试：显式克隆会话级空模板（已 alembic upgrade head 建全表）为一个
+    一次性空库并指向它，测试体自行灌入所需行。
+
+    不直接复用根 conftest 的 function-scoped 空克隆，是因为本模块还有 seed_db 测试经
+    module-scoped realistic_pg_module 设了 ZW_BRAIN_TEST_REALISTIC_DB——一旦该 env 在位，
+    conftest 的 _isolate_db_env 会整模块「让位、不克隆」。故 temp_db 自建空克隆，与
+    realistic 数据彻底隔离、不受测试执行顺序影响。无真灌库文件 / 临时文件 / 单机文件库。
+    """
+    template, server_url, maint = _pg_template
+    clone = f"zw_provproj_{uuid.uuid4().hex}"
+    maint.execute(f'DROP DATABASE IF EXISTS "{clone}" WITH (FORCE)')
+    maint.execute(f'CREATE DATABASE "{clone}" TEMPLATE "{template}"')
+    saved_url = os.environ.get("ZW_BRAIN_DATABASE_URL")
+    saved_realistic = os.environ.get("ZW_BRAIN_TEST_REALISTIC_DB")
+    saved_default = db_module.DEFAULT_PG_URL
+    clone_url = make_url(
+        server_url.set(database=clone).render_as_string(hide_password=False)
+    ).render_as_string(hide_password=False)
+    # 关键：本测试期间临时撤掉 realistic 标记，否则 _isolate_db_env 已让位、且其它路径
+    # 可能据该标记回落 realistic 库；此处明确钉到空克隆。
+    os.environ.pop("ZW_BRAIN_TEST_REALISTIC_DB", None)
+    os.environ["ZW_BRAIN_DATABASE_URL"] = clone_url
+    db_module.DEFAULT_PG_URL = clone_url
+    db_module.reset_engine_cache()
+    try:
+        yield clone
+    finally:
+        db_module.DEFAULT_PG_URL = saved_default
+        db_module.reset_engine_cache()
+        # 关闭进程级 audit store（D4：独立 psycopg 连接，不在 ORM 引擎缓存里），否则其
+        # 连接会钉住即将 DROP 的克隆库。set_default_store(None) 关旧 store。
+        from zw_brain.shared.audit import store as _audit_store
+
+        closer = getattr(_audit_store, "set_default_store", None)
+        if callable(closer):
+            try:
+                closer(None)
+            except Exception:  # noqa: BLE001 — best-effort cleanup
+                pass
+        if saved_url is None:
+            os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
+        else:
+            os.environ["ZW_BRAIN_DATABASE_URL"] = saved_url
+        if saved_realistic is not None:
+            os.environ["ZW_BRAIN_TEST_REALISTIC_DB"] = saved_realistic
+        maint.execute(f'DROP DATABASE IF EXISTS "{clone}" WITH (FORCE)')
 
 
 @pytest.fixture()
-def brain(temp_db: Path) -> BrainService:
+def brain(temp_db: str) -> BrainService:
     ds = DatabaseStore()
     ds.initialize()
     audit_bus.configure_sink(ds.append_audit_event)
@@ -275,7 +301,7 @@ def test_redact_empty_provider_includes_inbox_keys() -> None:
     assert redacted["provider"] == _EMPTY_PROVIDER
 
 
-def test_enrich_zones_snapshot_attaches_package_code(seed_db: Path) -> None:
+def test_enrich_zones_snapshot_attaches_package_code(seed_db: str) -> None:
     from zw_brain.domain.provider_snapshot_projection import enrich_zones_snapshot
 
     snap = enrich_zones_snapshot(
@@ -286,7 +312,7 @@ def test_enrich_zones_snapshot_attaches_package_code(seed_db: Path) -> None:
     assert zone.get("package_code"), "P7 订阅应拿到 DB 中已发布专题包的 package_code"
 
 
-def test_enrich_provider_catalogs_attach_reverse_draft_fields(temp_db: Path) -> None:
+def test_enrich_provider_catalogs_attach_reverse_draft_fields(temp_db: str) -> None:
     """seed 回落路径（DB 无 catalog_entry 行时保留传入 catalogs 并补反向编目字段）。
 
     T9 诚实化后 DB 非空即整体替换为 live 投影（见下两条测试），本断言只覆盖空库回落。"""
@@ -312,7 +338,7 @@ def test_enrich_provider_catalogs_attach_reverse_draft_fields(temp_db: Path) -> 
     assert cat["schema_ref"] == "res-jbxx-ledger:legacy:370000308004000000/000001"
 
 
-def test_provider_catalogs_replaced_with_live_rows_when_db_nonempty(temp_db: Path) -> None:
+def test_provider_catalogs_replaced_with_live_rows_when_db_nonempty(temp_db: str) -> None:
     """T9 诚实化（承 #191 读路径单源）：DB 有目录行时，provider.catalogs 整体替换为真实库
     现算行——新编目录即时可见；api-group:*（API 分组）、basic-elem:*（国家基本要素）、
     retired（历史版本尾巴）不进目录管理清单。owner 经 ReferenceService 解析机构中文名。"""
@@ -362,7 +388,7 @@ def test_provider_catalogs_replaced_with_live_rows_when_db_nonempty(temp_db: Pat
     assert row["status"] == "draft"
 
 
-def test_provider_resources_replaced_with_live_rows_when_db_nonempty(temp_db: Path) -> None:
+def test_provider_resources_replaced_with_live_rows_when_db_nonempty(temp_db: str) -> None:
     """T9 诚实化：DB 有资源行时 provider.resources 整体替换为真实库现算行（排除 retired）。"""
     from zw_brain.domain.provider_snapshot_projection import enrich_provider_snapshot
 
@@ -517,7 +543,7 @@ def test_hookup_review_reject_requires_reason_fail_closed(brain: BrainService) -
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_enrich_provider_default_copy_does_not_mutate_input(temp_db: Path) -> None:
+def test_enrich_provider_default_copy_does_not_mutate_input(temp_db: str) -> None:
     """默认 copy=True：拿原 dict 调 enrich，断言原 dict 未被变异（非变异契约）。"""
     import copy as _copy
 
@@ -541,7 +567,7 @@ def test_enrich_provider_default_copy_does_not_mutate_input(temp_db: Path) -> No
     assert "res-prov-nm-001" in {r["id"] for r in out["provider"]["resources"]}
 
 
-def test_enrich_provider_copy_false_writes_in_place(temp_db: Path) -> None:
+def test_enrich_provider_copy_false_writes_in_place(temp_db: str) -> None:
     """copy=False：原地写同一 dict（identity 相同）。"""
     from zw_brain.domain.provider_snapshot_projection import enrich_provider_snapshot
 
@@ -562,7 +588,7 @@ def test_enrich_provider_copy_false_writes_in_place(temp_db: Path) -> None:
     assert out["keep"] == 1, "原地写不应破坏其它键"
 
 
-def test_enrich_provider_uses_prefetched_assets(temp_db: Path) -> None:
+def test_enrich_provider_uses_prefetched_assets(temp_db: str) -> None:
     """assets 预取：services/resources 投影直接吃传入列表，不回落 DB（万级 4→1 收口可测证据）。
 
     assets=[] 时应得空 services/resources（不回落 DB 全扫）；assets=None 才回落自查。
@@ -587,7 +613,7 @@ def test_enrich_provider_uses_prefetched_assets(temp_db: Path) -> None:
     )
 
 
-def test_enrich_zones_default_copy_does_not_mutate_input(seed_db: Path) -> None:
+def test_enrich_zones_default_copy_does_not_mutate_input(seed_db: str) -> None:
     """默认 copy=True：zones 投影不变异传入快照。"""
     import copy as _copy
 
@@ -601,7 +627,7 @@ def test_enrich_zones_default_copy_does_not_mutate_input(seed_db: Path) -> None:
     assert out["zones"][0].get("package_code"), "投影结果仍挂上 package_code"
 
 
-def test_enrich_zones_copy_false_writes_in_place(seed_db: Path) -> None:
+def test_enrich_zones_copy_false_writes_in_place(seed_db: str) -> None:
     from zw_brain.domain.provider_snapshot_projection import enrich_zones_snapshot
 
     snap: dict = {"zones": [{"id": "business", "name": "城市运行专区"}]}

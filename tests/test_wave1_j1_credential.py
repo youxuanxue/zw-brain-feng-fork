@@ -8,57 +8,56 @@
 #   zw_brain/capability_registry/registered/credential.sample.render.json
 """F5: P4 凭据领取生产化 — credential.issue → query → sample.render 三语样例 + audit chain.
 
-数据隔离：shadow DB（与 W0/F1-F4 一致）。
+数据隔离：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
+模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义）。
 真实 sd-default 资源：从 catalog_entry / resource_asset 取一条作 resource_id 锚。
 """
 from __future__ import annotations
 
-import os
-import shutil
-import sqlite3
 from pathlib import Path
 
+import psycopg
 import pytest
+from sqlalchemy.engine import make_url
 
-from tests._seed_guard import require_real_seed
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (fixture)
 from tests._trusted_payload import invoke_trusted
+from zw_brain.shared.db import get_database_url
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_credential_shadow.db"
 TENANT = "sd-default"
 
-require_real_seed({"catalog_entry": 100})
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _shadow_db() -> None:
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
+def _pg_read(sql: str, params: tuple = ()):
+    """Read against the cloned realistic PG (app read-path's DB), never a file."""
+    url = make_url(get_database_url())
+    with psycopg.connect(
+        host=url.host, port=url.port, user=url.username,
+        password=url.password, dbname=url.database,
+    ) as conn:
+        return conn.execute(sql, params).fetchall()
 
 
 @pytest.fixture(scope="module")
 def real_resource() -> dict:
     """从真实 sd-default 取一条 catalog_entry 作 resource 锚."""
-    with sqlite3.connect(f"file:{SHADOW_DB}?mode=ro", uri=True) as conn:
-        row = conn.execute(
-            "SELECT catalog_code, title FROM catalog_entry "
-            "WHERE tenant_id=? ORDER BY catalog_code LIMIT 1",
-            (TENANT,),
-        ).fetchone()
-    assert row is not None
+    rows = _pg_read(
+        "SELECT catalog_code, title FROM catalog_entry "
+        "WHERE tenant_id=%s ORDER BY catalog_code LIMIT 1",
+        (TENANT,),
+    )
+    assert rows, "realistic PG 应含 catalog_entry"
+    row = rows[0]
     return {"resource_id": row[0], "resource_name": row[1]}
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def brain():
+    # Function-scoped: conftest._isolate_db_env resets the audit-bus sink before
+    # every test (PG isolation hygiene), so the sink must be (re)configured per
+    # test — a module-scoped brain would wire it once and lose it on test #2.
     import zw_brain.shared.audit as audit_bus
     from zw_brain.command.brain import BrainService
     from zw_brain.shared.database_store import DatabaseStore

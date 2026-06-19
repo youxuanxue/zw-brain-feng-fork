@@ -6,7 +6,12 @@
 # Trace:
 #   scripts/customer_demo_j1.py
 #   docs/customer-demo-j1.md
-"""F9 客户演示集成测试 — 通过 Python driver 跑全链路 + 断言 audit 覆盖 + 时长预算."""
+"""F9 客户演示集成测试 — 通过 Python driver 跑全链路 + 断言 audit 覆盖 + 时长预算.
+
+数据隔离：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
+模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义）。driver 自身经
+get_database_url() 读克隆库，无 seed/shadow 文件参数（PG 化后 run_demo() 无参）。
+"""
 from __future__ import annotations
 
 import json
@@ -14,16 +19,14 @@ import os
 import sys
 from pathlib import Path
 
-from tests._seed_guard import require_real_seed
+import pytest
+
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (fixture)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_customer_demo_j1_shadow.db"
 TENANT = "sd-default"
 
-require_real_seed(
-    {"catalog_entry": 100, "application_record": 100, "delivery_task": 50, "objection_case": 20}
-)
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
 # 把 scripts/ 加入 sys.path 以便 import customer_demo_j1
@@ -36,8 +39,7 @@ def test_customer_demo_j1_full_chain_exits_clean(tmp_path):
     """直接 import driver 跑全链路，断言 result.ok + 全 audit 覆盖 + 时长 < 30 分钟."""
     import customer_demo_j1 as demo  # noqa: PLC0415
 
-    shadow = tmp_path / "shadow-full.db"
-    result = demo.run_demo(SEED_DB, shadow)
+    result = demo.run_demo()
     assert result["ok"] is True
     assert result["catalog_targets_hit"] == 3, "3 个 core_goal catalog (医疗救助/医保码/异地就医) 必须全命中"
     assert result["audit_event_types_covered"] >= 13, "P2/P3/P4 + 异议 7 步 cap 类型必须全覆盖"
@@ -49,11 +51,9 @@ def test_customer_demo_j1_writes_json_report(tmp_path):
     """通过 main() 跑脚本，验证 --report 参数能写 JSON 报告."""
     import customer_demo_j1 as demo  # noqa: PLC0415
 
-    shadow = tmp_path / "shadow-report.db"
     report_path = tmp_path / "demo-test.json"
     argv = sys.argv
-    sys.argv = ["customer_demo_j1.py", "--seed-db", str(SEED_DB),
-                "--shadow-db", str(shadow), "--report", str(report_path)]
+    sys.argv = ["customer_demo_j1.py", "--report", str(report_path)]
     try:
         rc = demo.main()
     finally:
@@ -71,8 +71,7 @@ def test_customer_demo_j1_audit_chain_contains_all_steps(tmp_path):
     """全链路 audit_event 类型必须包含 13 个关键 cap."""
     import customer_demo_j1 as demo  # noqa: PLC0415
 
-    shadow = tmp_path / "shadow-audit.db"
-    result = demo.run_demo(SEED_DB, shadow)
+    result = demo.run_demo()
     assert result["audit_event_types_covered"] >= 13
     assert result["audit_event_total"] > result["audit_event_types_covered"], (
         "同 cap 多步骤应产生多 audit_event（如 objection.case.assign 出现 2 次）"

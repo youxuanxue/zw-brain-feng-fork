@@ -15,36 +15,15 @@ record_to_request）。与 delivery_service.by_request_id 同范式。
 """
 from __future__ import annotations
 
-import os
-import shutil
-from pathlib import Path
-
 import pytest
 
-from tests._seed_guard import require_real_seed
-
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_request_db_fallback_shadow.db"
 TENANT = "sd-default"
 
-require_real_seed({"catalog_entry": 100})
+# 本测试自写 DB-only 申请（catalog 缺位回落 "CAT-FALLBACK"），不读真实 seed——由根 conftest
+# 的 function-scoped 空 PG 克隆（已 alembic upgrade head）供给，跨测试天然隔离，无需真灌库。
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _shadow_db() -> None:
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
-
-
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def brain():
     import zw_brain.shared.audit as audit_bus
     from zw_brain.command.brain import BrainService

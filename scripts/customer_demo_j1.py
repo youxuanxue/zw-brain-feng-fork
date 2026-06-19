@@ -5,7 +5,8 @@
 P2 搜索 → P3 草拟+审批 → P4 凭据+样例+解释 → 异议 5 维度任一全闭环。
 
 实际执行不依赖 REST server，直接通过 BrainService.invoke_skill 驱动 dispatch；
-真实数据来自 .data/zw_brain.db (sd-default tenant)，需先跑 M0 acceptance。
+真实数据来自 PostgreSQL（ZW_BRAIN_DATABASE_URL 解析的库，sd-default tenant），
+需先 docker compose up -d postgres + 跑 M0 导入（scripts/customer_acceptance_up.sh）。
 
 Exit code: 0 = 全链路成功；非 0 = 任一步失败。
 """
@@ -13,17 +14,17 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
-import shutil
-import sqlite3
 import sys
 import time
 from pathlib import Path
 from typing import Any
 
+import psycopg
+from sqlalchemy.engine import make_url
+
+from zw_brain.shared.db import get_database_url
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB_DEFAULT = REPO_ROOT / ".data" / "customer-demo-j1-shadow.db"
 TENANT = "sd-default"
 
 # 30 minute budget — 演示验收脚本上限
@@ -38,18 +39,39 @@ def _log(step: str, msg: str = "", **kv) -> None:
     print(f"[demo-j1] {step:<32s} {msg} {extras}".rstrip(), flush=True)
 
 
-def _prepare_shadow_db(seed_db: Path, shadow_db: Path) -> None:
-    if not seed_db.exists():
-        raise RuntimeError(f"seed db not found: {seed_db} — 请先跑 M0 acceptance (uv run python -m zw_brain.entry.legacy_migration.main ...)")
-    if shadow_db.exists():
-        shadow_db.unlink()
-    shadow_db.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(seed_db, shadow_db)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(shadow_db)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
+def _pg_connect() -> psycopg.Connection:
+    """Read-only psycopg connection to the resolved PostgreSQL DB.
+
+    Backend is PG-only; the realistic dataset lives in the database named by
+    ZW_BRAIN_DATABASE_URL (M0 import / realistic PG template). No file copy.
+    """
+    url = make_url(get_database_url())
+    return psycopg.connect(
+        host=url.host,
+        port=url.port,
+        user=url.username,
+        password=url.password,
+        dbname=url.database,
+    )
+
+
+def _require_real_data() -> None:
+    """Fail fast if the resolved PG DB has no real catalog (preserves the old
+    'seed db not found → run M0' guard, now PG-shaped)."""
+    try:
+        with _pg_connect() as conn:
+            n = conn.execute(
+                "SELECT COUNT(*) FROM catalog_entry WHERE tenant_id=%s", (TENANT,)
+            ).fetchone()[0]
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(
+            "PostgreSQL 未就绪或无法连接 — 先 'docker compose up -d postgres' 并跑 "
+            f"'bash scripts/customer_acceptance_up.sh' 灌 M0 真数据（{exc}）"
+        ) from exc
+    if n == 0:
+        raise RuntimeError(
+            "解析到的 PG 库无 sd-default catalog_entry — 请先跑 M0 acceptance 导入真数据"
+        )
 
 
 def _build_brain():
@@ -70,14 +92,14 @@ def _invoke(brain, skill_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def _find_target_catalog(shadow_db: Path) -> list[dict[str, str]]:
+def _find_target_catalog() -> list[dict[str, str]]:
     """从真实 sd-default 找到 core_goal 要求的 3 个 catalog."""
     found: list[dict[str, str]] = []
-    with sqlite3.connect(f"file:{shadow_db}?mode=ro", uri=True) as conn:
+    with _pg_connect() as conn:
         for title_kw in TARGET_CATALOG_TITLES:
             row = conn.execute(
                 "SELECT catalog_code, title FROM catalog_entry "
-                "WHERE tenant_id=? AND title LIKE ? LIMIT 1",
+                "WHERE tenant_id=%s AND title LIKE %s LIMIT 1",
                 (TENANT, f"%{title_kw}%"),
             ).fetchone()
             if row:
@@ -112,22 +134,16 @@ def _inject_approved_request(brain, request_id: str, resource_id: str, resource_
     })
 
 
-def _inject_objection_catalog_target(shadow_db: Path, catalog_code: str) -> None:
-    """让 catalog_code 在 catalog_entry 中可解析（M0 已导入，no-op）."""
-    # M0 dump 已含真实 catalog_entry，无需额外操作
-    return None
-
-
 # ──────────────────────────────────────────────────────────────────────
 # Demo 链路
 # ──────────────────────────────────────────────────────────────────────
 
 
-def run_demo(seed_db: Path, shadow_db: Path, *, dry_run: bool = False) -> dict[str, Any]:
+def run_demo(*, dry_run: bool = False) -> dict[str, Any]:
     started = time.monotonic()
-    _log("STEP-0", "准备 shadow DB", seed=str(seed_db), shadow=str(shadow_db))
-    _prepare_shadow_db(seed_db, shadow_db)
-    targets = _find_target_catalog(shadow_db)
+    _log("STEP-0", "校验 PostgreSQL 真数据就绪", db=get_database_url())
+    _require_real_data()
+    targets = _find_target_catalog()
     if len(targets) < 1:
         raise RuntimeError("sd-default 中找不到 医疗救助/医保码/异地就医统筹区开通 任一 catalog；请检查 M0 导入完整性")
     _log("STEP-0", f"M0 真实 catalog 命中 {len(targets)}/3", titles=[t["title"] for t in targets])
@@ -164,10 +180,10 @@ def run_demo(seed_db: Path, shadow_db: Path, *, dry_run: bool = False) -> dict[s
     # ── P3 approval.evidence.summarize ────────────────────────────────
     # evidence helper 期望 application_id 在 application_record 表中（_load_application 查表）
     # 用真实 approved apply 作 evidence 锚（任选 1 条）
-    with sqlite3.connect(f"file:{shadow_db}?mode=ro", uri=True) as conn:
+    with _pg_connect() as conn:
         row = conn.execute(
-            "SELECT application_code FROM application_record WHERE tenant_id=? "
-            " AND json_extract(payload_json,'$.kind')='apply' AND status='approved' LIMIT 1",
+            "SELECT application_code FROM application_record WHERE tenant_id=%s "
+            " AND payload_json->>'kind'='apply' AND status='approved' LIMIT 1",
             (TENANT,),
         ).fetchone()
     if row is None:
@@ -201,10 +217,10 @@ def run_demo(seed_db: Path, shadow_db: Path, *, dry_run: bool = False) -> dict[s
 
     # ── P4 delivery.status.explain ────────────────────────────────────
     _log("STEP-6.P4", "状态解释 (granted)")
-    # 注入的 delivery_task 在 in-memory snapshot；explain cap 查 DB 表，所以用真实 sd-default delivery 作锚
-    with sqlite3.connect(f"file:{shadow_db}?mode=ro", uri=True) as conn:
+    # explain cap 查 DB 表，所以用真实 sd-default delivery 作锚
+    with _pg_connect() as conn:
         row = conn.execute(
-            "SELECT delivery_code FROM delivery_task WHERE tenant_id=? LIMIT 1", (TENANT,)
+            "SELECT delivery_code FROM delivery_task WHERE tenant_id=%s LIMIT 1", (TENANT,)
         ).fetchone()
     assert row is not None
     real_delivery = row[0]
@@ -294,16 +310,12 @@ def run_demo(seed_db: Path, shadow_db: Path, *, dry_run: bool = False) -> dict[s
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="F9 J1 30 分钟客户演示验收脚本")
-    parser.add_argument("--seed-db", type=Path, default=DEFAULT_DB,
-                        help="M0 已灌库 sd-default seed DB (default: .data/zw_brain.db)")
-    parser.add_argument("--shadow-db", type=Path, default=SHADOW_DB_DEFAULT,
-                        help="shadow DB 路径 (default: .data/customer-demo-j1-shadow.db)")
     parser.add_argument("--report", type=Path,
                         help="演示完成后写入 JSON 报告")
     args = parser.parse_args()
 
     try:
-        result = run_demo(args.seed_db, args.shadow_db)
+        result = run_demo()
     except AssertionError as exc:
         _log("FAIL", f"assertion: {exc}")
         return 2

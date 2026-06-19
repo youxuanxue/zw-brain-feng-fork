@@ -33,12 +33,12 @@ ROLE_SECURITY_AUDIT 跑 B1.1 审计 4 panel；ROLE_SYSTEM（平台运维员）�
 ## 依赖
 
 1. `uv sync --extra dev` — 安装 .venv 与 pytest
-2. `.data/zw_brain.db` 存在（跑一次 M0 acceptance）：
+2. PostgreSQL 已就绪、`ZW_BRAIN_DATABASE_URL` 指向已灌真实数据的库（跑一次 M0 acceptance）：
 
 ```bash
+export ZW_BRAIN_DATABASE_URL=postgresql+psycopg://zw_brain:zw_brain@127.0.0.1:5432/zw_brain
 uv run python -m zw_brain.entry.legacy_migration.main \
   --dumps-dir /Users/xuejiao/Desktop/History/inspur/cowork/zw/zw-brain/old/10示例数据 \
-  --db-path .data/zw_brain.db \
   --reset-db \
   --report .data/m0-report.json \
   --acceptance
@@ -81,14 +81,8 @@ JSON 报告字段：
 
 ## 回滚
 
-演示用 shadow DB (`.data/customer-demo-b1-shadow.db`)；每次 sh 启动会 unlink 重建，
-不污染 seed DB。**无需手工回滚**。
-
-如要保留某次 shadow DB 作故障回溯：
-
-```bash
-cp .data/customer-demo-b1-shadow.db .data/customer-demo-b1-backup-<reason>.db
-```
+演示跑在 `ZW_BRAIN_DATABASE_URL` 指向的一次性克隆库上（从 PG 模板克隆、用完即丢），
+**不写 canonical 库、无需手工回滚**。如要故障回溯，对该 PG 实例做标准 `pg_dump`/快照即可。
 
 ## sign-off 流程（双签）
 

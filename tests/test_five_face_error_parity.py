@@ -27,8 +27,6 @@ real envelopes, so any face drifting back to a bare 500 / -32000 fails here.
 """
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Any
 
 import pytest
@@ -201,36 +199,32 @@ def test_mcp_projects_domain_errors_not_internal() -> None:
 
 @pytest.fixture()
 def a2a_wire(monkeypatch: pytest.MonkeyPatch):
-    """Real A2A daemon on an ephemeral port over a temp DB (mirrors test_a2a_wire)."""
+    """Real A2A daemon on an ephemeral port over the conftest-supplied isolated
+    empty PG clone (mirrors test_a2a_wire)."""
     monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS", "1")
     monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS_ACK", "development-only")
     monkeypatch.delenv("ZW_BRAIN_A2A_CALLER_TRUST_LEVEL", raising=False)
 
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "a2a_parity.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
+    from zw_brain.command import runtime as cmd_runtime
+    from zw_brain.shared import db as db_module
 
-        from zw_brain.command import runtime as cmd_runtime
-        from zw_brain.shared import db as db_module
+    with db_module._CACHE_LOCK:
+        db_module._ENGINE_CACHE.clear()
+    from zw_brain.shared.migrate import ensure_runtime_schema
 
+    ensure_runtime_schema()
+    cmd_runtime._service = None
+
+    from tests._iaf_a2a_http import run_a2a_server, stop_a2a_server
+
+    server, thread, port = run_a2a_server()
+    try:
+        yield f"http://127.0.0.1:{port}", monkeypatch
+    finally:
+        stop_a2a_server(server, thread)
+        cmd_runtime._service = None
         with db_module._CACHE_LOCK:
             db_module._ENGINE_CACHE.clear()
-        from zw_brain.shared.migrate import ensure_runtime_schema
-
-        ensure_runtime_schema()
-        cmd_runtime._service = None
-
-        from tests._iaf_a2a_http import run_a2a_server, stop_a2a_server
-
-        server, thread, port = run_a2a_server()
-        try:
-            yield f"http://127.0.0.1:{port}", monkeypatch
-        finally:
-            stop_a2a_server(server, thread)
-            cmd_runtime._service = None
-            with db_module._CACHE_LOCK:
-                db_module._ENGINE_CACHE.clear()
 
 
 # A live, A2A-exposed read capability with no required input — its surface check

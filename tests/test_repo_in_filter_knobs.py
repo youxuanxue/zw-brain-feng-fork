@@ -17,46 +17,25 @@ list_* 方法加可选复数 *_codes / target_refs 参数，把过滤下推到 S
   (b) codes=[] → [] 且不发查询；
   (c) codes=None → 与改前一致（整租户全量、同 order_by）。
 
-自建小规模 shadow DB（仿 test_read_path_perf_batch.py：reset_and_upgrade + repository 真灌库），
-不耦合 seed snapshot。
+自建小规模真库（经 repository 真灌库），不耦合 seed snapshot。
+
+PG 迁移后：DB 由根 conftest 的 function-scoped 空 PG 克隆（已 alembic upgrade head 建表）
+供给，本模块只把小规模 fixture 数据灌进每个测试自己的空克隆。无需影子库 /
+旧库路径环境变量 / reset_and_upgrade —— schema 已就绪、跨测试天然隔离。
 """
 from __future__ import annotations
 
-import os
-from pathlib import Path
-
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-SHADOW_DB = REPO_ROOT / ".data" / "test_repo_in_filter_knobs_shadow.db"
 TENANT = "sd-default"
 
 RESOURCE_CODES = [f"res-k-{i:04d}" for i in range(6)]
 
 
-def _remove_shadow_db_files() -> None:
-    for suffix in ("", "-wal", "-shm"):
-        (SHADOW_DB.parent / f"{SHADOW_DB.name}{suffix}").unlink(missing_ok=True)
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _shadow_db():
-    SHADOW_DB.parent.mkdir(parents=True, exist_ok=True)
-    from zw_brain.shared import db as _db
-
-    _db.reset_engine_cache()
-    _remove_shadow_db_files()
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    _db.reset_engine_cache()
-    from zw_brain.shared.migrate import reset_and_upgrade
-
-    reset_and_upgrade()
+@pytest.fixture(autouse=True)
+def _seed_db():
     _seed()
     yield
-    _db.reset_engine_cache()
-    _remove_shadow_db_files()
-    os.environ.pop("ZW_BRAIN_DB_PATH", None)
 
 
 def _seed() -> None:

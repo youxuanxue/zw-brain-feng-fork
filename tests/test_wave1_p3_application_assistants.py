@@ -6,52 +6,52 @@
 # Trace:
 #   zw_brain/command/handlers/j1/application_assistants.py
 #   docs/approved/zw-brain-architecture.md §5.4.4 (减摩组件反约束)
-"""F7: P3 申请双助手 — 草拟 + 审批依据 + 推理降级 + 不替人提交/决策守卫."""
+"""F7: P3 申请双助手 — 草拟 + 审批依据 + 推理降级 + 不替人提交/决策守卫.
+
+数据隔离：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
+模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义），writes 落克隆库、
+不污染真实模板。
+"""
 from __future__ import annotations
 
 import json
-import os
-import shutil
-import sqlite3
 from pathlib import Path
 
+import psycopg
 import pytest
+from sqlalchemy.engine import make_url
 
-from tests._seed_guard import require_real_seed
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (fixture)
 from tests._trusted_payload import invoke_trusted
+from zw_brain.shared.db import get_database_url
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_p3_assistants_shadow.db"
 TENANT = "sd-default"
 
-require_real_seed({"application_record": 100})
+# 门槛语义（application_record≥100）由 realistic_pg_module 的 skip-when-absent 承接。
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _shadow_db() -> None:
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
+def _pg_read(sql: str, params: tuple = ()):
+    """Read against the cloned realistic PG (app read-path's DB), never a file."""
+    url = make_url(get_database_url())
+    with psycopg.connect(
+        host=url.host, port=url.port, user=url.username,
+        password=url.password, dbname=url.database,
+    ) as conn:
+        return conn.execute(sql, params).fetchall()
 
 
 @pytest.fixture(scope="module")
 def real_apply_samples() -> list[dict]:
     """从真实 sd-default 取 5 条 kind=apply, status=approved 的申请."""
-    with sqlite3.connect(f"file:{SHADOW_DB}?mode=ro", uri=True) as conn:
-        rows = conn.execute(
-            "SELECT application_code, status, payload_json "
-            "FROM application_record WHERE tenant_id=? "
-            "  AND json_extract(payload_json,'$.kind')='apply' "
-            "  AND status='approved' LIMIT 5",
-            (TENANT,),
-        ).fetchall()
+    rows = _pg_read(
+        "SELECT application_code, status, payload_json "
+        "FROM application_record WHERE tenant_id=%s "
+        "  AND payload_json->>'kind'='apply' "
+        "  AND status='approved' LIMIT 5",
+        (TENANT,),
+    )
     out = []
     for code, status, pj in rows:
         payload = json.loads(pj) if isinstance(pj, str) else pj
@@ -67,8 +67,10 @@ def real_apply_samples() -> list[dict]:
     return out
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def brain():
+    # Function-scoped: conftest._isolate_db_env clears the audit-bus sink before
+    # every test, so the sink must be (re)configured per test.
     import zw_brain.shared.audit as audit_bus
     from zw_brain.command.brain import BrainService
     from zw_brain.shared.database_store import DatabaseStore

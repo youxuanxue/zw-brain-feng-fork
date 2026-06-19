@@ -26,6 +26,12 @@ zw-brain-migrate-legacy = "zw_brain.entry.legacy_migration.main:main"
 redis = [
   "redis>=5.0",
 ]
+# 默认运行时后端 = PostgreSQL（psycopg v3，URL 前缀 postgresql+psycopg://）。
+# 刻意留 optional extra 不进核心依赖：SQLite-only 安装（CI / 本地快速档）不应被迫
+# 拉 psycopg/libpq。PG 部署：pip install 'zw-brain[postgres]'；本地 PG 开发：'.[dev,postgres]'。
+postgres = [
+  "psycopg[binary]>=3.2",
+]
 # vendor 离线包是唯一交付路径（见 vendor/agent-runtime/README.md）；extra 严格 pin 到 tarball 同版本
 # 防 `pip install zw-brain[agentruntime]` 拉到不兼容的上游版本
 agentruntime = [

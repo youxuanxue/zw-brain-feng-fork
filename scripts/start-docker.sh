@@ -10,6 +10,8 @@ set -e
 #    CONTAINER_NAME         容器名                      默认 zw-brain-rest
 #    HOST_PORT             宿主机映射端口（→容器 8800）  默认 9900
 #    ENV_FILE              传给容器的 --env-file（应用 env）默认 .env
+#    ZW_BRAIN_DATABASE_URL PostgreSQL SQLAlchemy URL（容器内连得到的 PG，须用宿主机/内网可达
+#                          地址，不能是 127.0.0.1）；留空=由 ENV_FILE 内的同名变量提供
 #    OS_PATCH_REMOTE_IMAGE OS 补丁层远端镜像（内网 registry，不入库）  默认空=本地构建
 #    EXTRA_HOSTS           容器 --add-host 映射，空格分隔 host:ip（内网 IP 不入库）默认空
 #  ⚠ 迁移提醒：旧版曾硬编码 iaf-jn-rgzn / portal.inspur.com 的 hosts 映射，
@@ -23,6 +25,11 @@ IMAGE_TAG="${IMAGE_TAG:-zw-brain:1.0.1}"
 CONTAINER_NAME="${CONTAINER_NAME:-zw-brain-rest}"
 HOST_PORT="${HOST_PORT:-8800}"
 ENV_FILE="${ENV_FILE:-.env}"
+# PostgreSQL connection URL for the container. Default backend is PG (zw_brain[postgres]).
+# Leave empty to let ENV_FILE carry ZW_BRAIN_DATABASE_URL; set here to override per-run.
+# Must be reachable from inside the container — 127.0.0.1 won't work; use the host/intranet
+# PG address (e.g. postgresql+psycopg://zw_brain:***@db.intranet:5432/zw_brain).
+ZW_BRAIN_DATABASE_URL="${ZW_BRAIN_DATABASE_URL:-}"
 
 OS_PATCH_LOCAL_TAG="zw-brain-os-patch:3.12-slim"
 # 内网 registry 因主机不入库：通过 OS_PATCH_REMOTE_IMAGE 注入（如
@@ -85,15 +92,21 @@ add_host_args=()
 for hp in $EXTRA_HOSTS; do
   add_host_args+=(--add-host "$hp")
 done
+# PG-only: pass ZW_BRAIN_DATABASE_URL through only if set here (otherwise ENV_FILE
+# supplies it). No SQLite file path / data volume — PG persistence lives in the PG
+# instance (managed externally), not a container-local file.
+db_url_args=()
+if [[ -n "$ZW_BRAIN_DATABASE_URL" ]]; then
+  db_url_args+=(-e "ZW_BRAIN_DATABASE_URL=$ZW_BRAIN_DATABASE_URL")
+fi
 docker run -d \
   --name "$CONTAINER_NAME" \
   --restart unless-stopped \
   "${add_host_args[@]}" \
-  -v ./.data:/data/zw-brain \
   -v ./docs:/app/docs \
   -p "${HOST_PORT}:8800" \
   --env-file "./${ENV_FILE}" \
-  -e ZW_BRAIN_DB_PATH=/data/zw-brain/zw_brain.db \
+  "${db_url_args[@]}" \
   "$IMAGE_TAG"
 
 # ---- Done ----

@@ -28,8 +28,21 @@ if [ ! -x "$PYTHON" ]; then
     exit 1
 fi
 
-if [ ! -f "$REPO_ROOT/.data/zw_brain.db" ]; then
-    echo "[demo-j2] .data/zw_brain.db 不存在；先跑 'bash scripts/customer_acceptance_up.sh' 灌 M0 真数据" >&2
+# Backend = PostgreSQL only. Verify the resolved ZW_BRAIN_DATABASE_URL has real
+# catalog rows; if empty/unreachable, point to the importer (no SQLite file check).
+if ! "$PYTHON" - <<'PY' >/dev/null 2>&1
+import sys
+from sqlalchemy import text
+from zw_brain.shared.db import create_session_factory
+try:
+    with create_session_factory()() as s:
+        n = s.execute(text("SELECT COUNT(*) FROM catalog_entry")).scalar() or 0
+except Exception:
+    sys.exit(1)
+sys.exit(0 if n > 0 else 1)
+PY
+then
+    echo "[demo-j2] PostgreSQL 未就绪或无真数据；先起库 'docker compose up -d postgres' 并跑 'bash scripts/customer_acceptance_up.sh' 灌 M0 真数据" >&2
     exit 1
 fi
 

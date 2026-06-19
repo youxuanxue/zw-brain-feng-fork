@@ -1,0 +1,25 @@
+# 本地开发 PostgreSQL —— zw-brain 默认运行时后端（见 zw_brain/shared/db.py DEFAULT_PG_URL）。
+#   docker compose up -d postgres   # 起库，等 healthcheck 绿
+#   bash scripts/start-local.sh      # 无 env 即默认连本库
+# db/user/password/port 与 DEFAULT_PG_URL 完全对齐，故无需任何 env 配置。
+# 想换库：设 ZW_BRAIN_DATABASE_URL（唯一覆盖旋钮）；想用 SQLite：设 ZW_BRAIN_DB_PATH。
+services:
+  postgres:
+    image: postgres:16
+    container_name: zw-brain-pg
+    environment:
+      POSTGRES_DB: zw_brain
+      POSTGRES_USER: zw_brain
+      POSTGRES_PASSWORD: zw_brain
+    ports:
+      - "5432:5432"
+    volumes:
+      - zw_brain_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zw_brain -d zw_brain"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  zw_brain_pgdata:

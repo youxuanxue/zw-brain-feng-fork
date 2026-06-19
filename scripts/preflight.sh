@@ -108,7 +108,6 @@ done <<'CHECKS'
 段 15	scripts/check_ui_spec_b.py	ui-spec-b (Spec B single theme)
 段 16	scripts/check_legacy_mappers.py	legacy-mappers (D7+D4)
 段 17	scripts/check_iam_doc_freshness.py	iam-doc-freshness (R-002)
-段 18	scripts/check_db_bloat.py	db-bloat-check (canonical DB ≤ 2GB hard, 500MB soft)
 段 19-21	scripts/check_grep_guards_batch.py	grep-guards-batch (段19 no-legacy-role-codes D23 + 段20 no-retired-features alembic/K12退役 + 段21 no-numbered-routes — guard_lib 合并遍历，三段共享一次 git ls-files，逐字保留各段报错语义；单段调试用各 shim check_no_legacy_role_codes.py / check_no_retired_features.py / check_no_numbered_routes.py)
 段 22	scripts/check_capability_boundary.py	capability-boundary (P0-05 §1.3 forbidden-zone live+builtin)
 段 23	scripts/check_iam_prod_guard.py	iam-prod-guard (G1.4 — dev-iam-bypass 不得入生产部署清单)
@@ -162,6 +161,7 @@ done <<'CHECKS'
 段 70	scripts/check_no_hardcoded_org_literal.py	no-hardcoded-org-literal (部门数据隔离防回归 承 #298/D61 — 后端写路径 zw_brain/command/handlers/** + zw_brain/domain/services/** 禁硬编码 18 位统一社会信用代码字面量；机构字段须取可信会话 caller_org_code、取不到诚实留空 fail-closed，不得钉死成一个具体机构致 applicant_org/owner 对所有登录人恒同、隔离把自己的单也滤掉；allowlist=tests/fixtures/seed/adapters/legacy + # org-literal-ok: 行注释；前端 zw-brain-web/src 18 位码只列 review 非致命——展示常量合法、payload 硬编码才是复发面、判据难精确机械化故不硬拦)
 段 71	scripts/check_dept_scope_enrichment.py	dept-scope-enrichment (部门数据收口完整性防回归 承 D61/#296/#297 — 部门隔离靠逐面手工把收口 kwarg(visible_org_codes/dept_scoped) 透传给 enrich_* 投影；本守卫机械保两件事：①MUST_SCOPE_ENRICH 清单(GATE 人审记录)内每个收口面的每个调用点都显式带其收口 kwarg，漏传即 FAIL(=#296 漏 delivery_tasks/#297 漏工作台待办的复发面)；②签名带收口形参的 org-capable enrich 面必须登记进 must-scope 或 GLOBAL_BY_DESIGN 豁免，新增能按机构过滤却没登记即 FAIL→强制人来 GATE 定收口口径；「该不该收口」是语义判断留人，本守卫只做「带没带 kwarg + 是否都登记」的可机械化项(CLAUDE.md 可机械化边界))
 段 73	scripts/check_no_token_role_authz.py	no-token-role-authz (D62 A3 — IAM/IAF token 角色绝不作为产品授权事实源；REST _bind_auth 非 bypass 须用 binding 派生 role_codes 覆盖、binding helper 读 actor_org_role_binding 不读 token、resolve_role_from_identity 不调 role_codes_from_claims；防 token 角色授权两主人回潮)
+段 74	scripts/check_no_sqlite.py	no-sqlite (全盘 PG 防回潮 — 受跟踪代码禁 import sqlite3 / sqlite:// URL / 设 ZW_BRAIN_DB_PATH / 拷贝 .db 文件；db.py 运行时已对 sqlite URL 与 ZW_BRAIN_DB_PATH fail-closed raise，本守卫在静态层兜底防 SQLite 旋钮悄悄写回；故意提及加 # sqlite-allow:)
 CHECKS
 
 echo ""

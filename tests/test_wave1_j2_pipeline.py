@@ -19,45 +19,46 @@
 测试范式：每个 scenario 走 brain.invoke_skill 真分发 + 真 DB（shadow），断言
 状态机转换 + audit_event 落账 + capability_call 审计。不 mock 业务数据。
 
-数据隔离：ZW_BRAIN_DB_PATH 切到 shadow，写不污染 .data/zw_brain.db。
+数据隔离：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
+模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义），写不污染真实模板。
 """
 from __future__ import annotations
 
-import os
-import shutil
-import sqlite3
 import uuid
 from pathlib import Path
 
+import psycopg
 import pytest
+from sqlalchemy.engine import make_url
 
-from tests._seed_guard import require_real_seed
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (fixture)
 from tests._trusted_payload import invoke_trusted
+from zw_brain.shared.db import get_database_url
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_j2_shadow.db"
 TENANT = "sd-default"
 
-require_real_seed({"catalog_entry": 1000})
+# 门槛语义（catalog_entry≥1000）由 realistic_pg_module 的 skip-when-absent 承接。
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _shadow_db() -> None:
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
+def _pg_read(sql: str, params: tuple = ()):
+    """Read against the cloned realistic PG (app read-path's DB), never a file."""
+    url = make_url(get_database_url())
+    with psycopg.connect(
+        host=url.host, port=url.port, user=url.username,
+        password=url.password, dbname=url.database,
+    ) as conn:
+        return conn.execute(sql, params).fetchall()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def brain():
-    """G2.2 用 BrainService.invoke_skill 真分发；audit_bus 挂 DatabaseStore.append_audit_event。"""
+    """G2.2 用 BrainService.invoke_skill 真分发；audit_bus 挂 DatabaseStore.append_audit_event。
+
+    Function-scoped：conftest._isolate_db_env 在每个测试前清 audit-bus sink（PG 隔离卫生），
+    故 sink 必须每测试重配——module-scoped 只配一次、test #2 起丢失。realistic_pg_module
+    保证 DB 跨测试持久（hands-off 不重克隆），状态可累积。"""
     import zw_brain.shared.audit as audit_bus
     from zw_brain.command.brain import BrainService
     from zw_brain.shared.database_store import DatabaseStore
@@ -68,24 +69,19 @@ def brain():
     return BrainService(state_store=ss)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def catalog_repo():
     from zw_brain.domain.repositories.catalog import CatalogRepository
     return CatalogRepository()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def baseline_counts():
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute(
-            "SELECT lifecycle_status, COUNT(*) FROM catalog_entry WHERE tenant_id=? GROUP BY lifecycle_status",
-            (TENANT,),
-        )
-        return dict(c.fetchall())
-    finally:
-        conn.close()
+    return dict(_pg_read(
+        "SELECT lifecycle_status, COUNT(*) FROM catalog_entry "
+        "WHERE tenant_id=%s GROUP BY lifecycle_status",
+        (TENANT,),
+    ))
 
 
 # F2 (E2 J2)：3 物化（table/file/api）真实样本探针。
@@ -93,34 +89,34 @@ def baseline_counts():
 # resource_channel_binding + resource_schema_mapping，挑各 1 条真实 (resource_code,
 # binding_code, catalog_item_code, catalog_code) 组合作为 bind 入参，让 F2 用例
 # 不造数据。缺位 → 对应物化 pytest.skip，由 supervisor 决定提 M0 PR 还是 F2 部分交付。
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def provider_samples():
     samples: dict[str, dict | None] = {}
-    with sqlite3.connect(f"file:{SHADOW_DB}?mode=ro", uri=True) as conn:
-        for kind in ("table", "file", "api"):
-            row = conn.execute(
-                """SELECT ra.resource_code, rcb.binding_code, rsm.catalog_item_code,
-                          rsm.catalog_code
-                   FROM resource_asset ra
-                   JOIN resource_channel_binding rcb
-                     ON rcb.tenant_id = ra.tenant_id AND rcb.resource_code = ra.resource_code
-                   JOIN resource_schema_mapping rsm
-                     ON rsm.tenant_id = ra.tenant_id AND rsm.resource_code = ra.resource_code
-                    AND rsm.status = 'active' AND rsm.catalog_item_code != ''
-                   WHERE ra.tenant_id = ? AND ra.resource_kind = ?
-                   LIMIT 1""",
-                (TENANT, kind),
-            ).fetchone()
-            samples[kind] = (
-                None
-                if row is None
-                else {
-                    "resource_code": row[0],
-                    "binding_code": row[1],
-                    "catalog_item_code": row[2],
-                    "catalog_code": row[3],
-                }
-            )
+    for kind in ("table", "file", "api"):
+        rows = _pg_read(
+            """SELECT ra.resource_code, rcb.binding_code, rsm.catalog_item_code,
+                      rsm.catalog_code
+               FROM resource_asset ra
+               JOIN resource_channel_binding rcb
+                 ON rcb.tenant_id = ra.tenant_id AND rcb.resource_code = ra.resource_code
+               JOIN resource_schema_mapping rsm
+                 ON rsm.tenant_id = ra.tenant_id AND rsm.resource_code = ra.resource_code
+                AND rsm.status = 'active' AND rsm.catalog_item_code != ''
+               WHERE ra.tenant_id = %s AND ra.resource_kind = %s
+               LIMIT 1""",
+            (TENANT, kind),
+        )
+        row = rows[0] if rows else None
+        samples[kind] = (
+            None
+            if row is None
+            else {
+                "resource_code": row[0],
+                "binding_code": row[1],
+                "catalog_item_code": row[2],
+                "catalog_code": row[3],
+            }
+        )
     return samples
 
 
@@ -429,17 +425,11 @@ def test_j2_platform_publish_activates_and_creates_version(brain, catalog_repo):
     entry = catalog_repo.get_entry(code, tenant_id=TENANT)
     assert entry.lifecycle_status == "active"
     # 验证 entry_version 落库（active 状态触发 create_entry_version）
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute(
-            "SELECT COUNT(*) FROM catalog_entry_version WHERE catalog_code=?",
-            (code,),
-        )
-        version_count = c.fetchone()[0]
-        assert version_count >= 1, f"publish 应触发 entry_version 创建；count={version_count}"
-    finally:
-        conn.close()
+    version_count = _pg_read(
+        "SELECT COUNT(*) FROM catalog_entry_version WHERE catalog_code=%s",
+        (code,),
+    )[0][0]
+    assert version_count >= 1, f"publish 应触发 entry_version 创建；count={version_count}"
 
 
 def test_j2_platform_withdraw_transitions_to_retired(brain, catalog_repo):
@@ -546,26 +536,22 @@ def test_j2_three_layer_happy_path_full_chain(brain, catalog_repo):
     assert publish["lifecycle_status"] == "active", publish
 
     # capability_call 链 + audit_event 序列
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute(
-            "SELECT skill_id FROM capability_call WHERE input_json LIKE ? ORDER BY id",
+    skills = [
+        r[0] for r in _pg_read(
+            "SELECT skill_id FROM capability_call WHERE input_json::text LIKE %s ORDER BY id",
             (f"%{code}%",),
         )
-        skills = [r[0] for r in c.fetchall()]
-        expected = {
-            "catalog.entry.create_draft",
-            "catalog.entry.submit_review",
-            "catalog.entry.review",
-            "catalog.entry.publish",
-        }
-        assert expected <= set(skills), f"3 层链路 capability_call 缺漏：expected={expected}, got={skills}"
-        # 两次 review 都要落到 capability_call（同一 skill_id 两次执行）
-        review_count = sum(1 for s in skills if s == "catalog.entry.review")
-        assert review_count >= 2, f"3 层流程应记录两次 catalog.entry.review，实际={review_count}"
-    finally:
-        conn.close()
+    ]
+    expected = {
+        "catalog.entry.create_draft",
+        "catalog.entry.submit_review",
+        "catalog.entry.review",
+        "catalog.entry.publish",
+    }
+    assert expected <= set(skills), f"3 层链路 capability_call 缺漏：expected={expected}, got={skills}"
+    # 两次 review 都要落到 capability_call（同一 skill_id 两次执行）
+    review_count = sum(1 for s in skills if s == "catalog.entry.review")
+    assert review_count >= 2, f"3 层流程应记录两次 catalog.entry.review，实际={review_count}"
 
 
 def test_j2_three_layer_manager_return_for_fix_back_to_draft(brain, catalog_repo):
@@ -692,24 +678,18 @@ def test_j2_three_layer_audit_chain_records_both_review_events(brain):
     _call(brain, "catalog.entry.publish", {
         "catalog_code": code, "role": "ROLE_BUSIAUDIT", "confirmed": True,
     })
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute(
-            """SELECT skill_id, role_code FROM capability_call
-               WHERE input_json LIKE ? ORDER BY id""",
-            (f"%{code}%",),
-        )
-        rows = c.fetchall()
-        skills = [r[0] for r in rows]
-        # 两次 review 分别由 MANAGER 与 BUSIAUDIT 触发
-        review_roles = [role for skill, role in rows if skill == "catalog.entry.review"]
-        assert len(review_roles) == 2, f"应记录 2 次 review，实际 roles={review_roles}"
-        assert "ROLE_ORGAN_MANAGER" in review_roles, review_roles
-        assert "ROLE_BUSIAUDIT" in review_roles, review_roles
-        assert skills.count("catalog.entry.review") == 2
-    finally:
-        conn.close()
+    rows = _pg_read(
+        """SELECT skill_id, role_code FROM capability_call
+           WHERE input_json::text LIKE %s ORDER BY id""",
+        (f"%{code}%",),
+    )
+    skills = [r[0] for r in rows]
+    # 两次 review 分别由 MANAGER 与 BUSIAUDIT 触发
+    review_roles = [role for skill, role in rows if skill == "catalog.entry.review"]
+    assert len(review_roles) == 2, f"应记录 2 次 review，实际 roles={review_roles}"
+    assert "ROLE_ORGAN_MANAGER" in review_roles, review_roles
+    assert "ROLE_BUSIAUDIT" in review_roles, review_roles
+    assert skills.count("catalog.entry.review") == 2
 
 
 # ============================================================================
@@ -888,57 +868,51 @@ def test_j2_mount_per_materialization_end_to_end(brain, catalog_repo, provider_s
 
     # canonical 校验：mapping 落库 + 字段映射保留 + capability_call 可反推
     import json as _json
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute(
-            """SELECT mapping_code, status, catalog_item_code, resource_code,
-                      mapping_rule_json, source_schema_ref
-               FROM resource_schema_mapping
-               WHERE tenant_id=? AND catalog_code=?""",
-            (TENANT, code),
-        )
-        rows = c.fetchall()
-        assert len(rows) == 1, f"F2 应落 1 条 mapping；got {len(rows)}"
-        _mp_code, mp_status, mp_item, mp_res, mp_rule_raw, mp_src_raw = rows[0]
-        assert mp_status == "active"
-        assert mp_res == sample["resource_code"]
-        assert mp_item == sample["catalog_item_code"]
-        # field_mapping_json 入参等价：repo 只持久 mapping_rule_json + source_schema_ref，
-        # 物化形式在两个 JSON 中均非空
-        mp_rule = _json.loads(mp_rule_raw) if isinstance(mp_rule_raw, str) else mp_rule_raw
-        mp_src = _json.loads(mp_src_raw) if isinstance(mp_src_raw, str) else mp_src_raw
-        assert mp_rule.get("materialization") == kind, mp_rule
-        assert mp_src.get("materialization") == kind, mp_src
+    rows = _pg_read(
+        """SELECT mapping_code, status, catalog_item_code, resource_code,
+                  mapping_rule_json, source_schema_ref
+           FROM resource_schema_mapping
+           WHERE tenant_id=%s AND catalog_code=%s""",
+        (TENANT, code),
+    )
+    assert len(rows) == 1, f"F2 应落 1 条 mapping；got {len(rows)}"
+    _mp_code, mp_status, mp_item, mp_res, mp_rule_raw, mp_src_raw = rows[0]
+    assert mp_status == "active"
+    assert mp_res == sample["resource_code"]
+    assert mp_item == sample["catalog_item_code"]
+    # field_mapping_json 入参等价：repo 只持久 mapping_rule_json + source_schema_ref，
+    # 物化形式在两个 JSON 中均非空
+    mp_rule = _json.loads(mp_rule_raw) if isinstance(mp_rule_raw, str) else mp_rule_raw
+    mp_src = _json.loads(mp_src_raw) if isinstance(mp_src_raw, str) else mp_src_raw
+    assert mp_rule.get("materialization") == kind, mp_rule
+    assert mp_src.get("materialization") == kind, mp_src
 
-        # capability_call.input_json 反推物化形式
-        c.execute(
-            """SELECT input_json FROM capability_call
-               WHERE skill_id='catalog.resource.bind' AND input_json LIKE ?
-               ORDER BY id DESC LIMIT 1""",
-            (f"%{code}%",),
-        )
-        cc_row = c.fetchone()
-        assert cc_row is not None, "catalog.resource.bind capability_call 未落账"
-        cc_input = _json.loads(cc_row[0]) if isinstance(cc_row[0], str) else cc_row[0]
-        assert cc_input.get("materialization_kind") == kind, cc_input
+    # capability_call.input_json 反推物化形式
+    cc_rows = _pg_read(
+        """SELECT input_json FROM capability_call
+           WHERE skill_id='catalog.resource.bind' AND input_json::text LIKE %s
+           ORDER BY id DESC LIMIT 1""",
+        (f"%{code}%",),
+    )
+    cc_row = cc_rows[0] if cc_rows else None
+    assert cc_row is not None, "catalog.resource.bind capability_call 未落账"
+    cc_input = _json.loads(cc_row[0]) if isinstance(cc_row[0], str) else cc_row[0]
+    assert cc_input.get("materialization_kind") == kind, cc_input
 
-        # resource_schema_snapshot 含字段映射（M0 已迁的真实资源才有 snapshot）
-        c.execute(
-            """SELECT snapshot_ref, schema_json FROM resource_schema_snapshot
-               WHERE tenant_id=? AND resource_code=? LIMIT 1""",
-            (TENANT, sample["resource_code"]),
+    # resource_schema_snapshot 含字段映射（M0 已迁的真实资源才有 snapshot）
+    snap_rows = _pg_read(
+        """SELECT snapshot_ref, schema_json FROM resource_schema_snapshot
+           WHERE tenant_id=%s AND resource_code=%s LIMIT 1""",
+        (TENANT, sample["resource_code"]),
+    )
+    snap = snap_rows[0] if snap_rows else None
+    if snap is None:
+        pytest.skip(
+            f"sd-default canonical 缺 {kind} 物化资源 {sample['resource_code']} 的 schema_snapshot；"
+            f"需 M0 PR 把 meta_table_column / meta_baseinfo 迁入 resource_schema_snapshot"
         )
-        snap = c.fetchone()
-        if snap is None:
-            pytest.skip(
-                f"sd-default canonical 缺 {kind} 物化资源 {sample['resource_code']} 的 schema_snapshot；"
-                f"需 M0 PR 把 meta_table_column / meta_baseinfo 迁入 resource_schema_snapshot"
-            )
-        snap_schema = _json.loads(snap[1]) if isinstance(snap[1], str) else snap[1]
-        assert snap_schema, f"snapshot.schema_json 不应为空：{snap[1]!r}"
-    finally:
-        conn.close()
+    snap_schema = _json.loads(snap[1]) if isinstance(snap[1], str) else snap[1]
+    assert snap_schema, f"snapshot.schema_json 不应为空：{snap[1]!r}"
 
 
 # ============================================================================
@@ -1005,20 +979,14 @@ def test_j2_publish_duplicate_warns_does_not_block(brain, catalog_repo):
     # F3 evidence_plan: 提醒事件 audit — duplicate.check capability_call 应独立落账。
     # publish 路径走 brain.invoke_skill('catalog.duplicate.check', ...)，capability_call 表
     # 应能查到 skill_id='catalog.duplicate.check' + input_json 含 code_b 的记录。
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute(
-            """SELECT COUNT(*) FROM capability_call
-               WHERE skill_id='catalog.duplicate.check' AND input_json LIKE ?""",
-            (f"%{code_b}%",),
-        )
-        dup_call_count = c.fetchone()[0]
-        assert dup_call_count >= 1, (
-            f"F3：publish 路径应触发 catalog.duplicate.check capability_call，实际 count={dup_call_count}"
-        )
-    finally:
-        conn.close()
+    dup_call_count = _pg_read(
+        """SELECT COUNT(*) FROM capability_call
+           WHERE skill_id='catalog.duplicate.check' AND input_json::text LIKE %s""",
+        (f"%{code_b}%",),
+    )[0][0]
+    assert dup_call_count >= 1, (
+        f"F3：publish 路径应触发 catalog.duplicate.check capability_call，实际 count={dup_call_count}"
+    )
 
 
 def test_j2_publish_no_duplicate_clean(brain):
@@ -1053,18 +1021,12 @@ def test_j2_duplicate_check_skill_direct_invoke(brain):
     assert result["catalog_code"] == code
     assert result["duplicate_warnings"] == []
     # capability_call 落账（_invoke_traced_read）
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute(
-            """SELECT COUNT(*) FROM capability_call
-               WHERE skill_id='catalog.duplicate.check' AND input_json LIKE ?""",
-            (f"%{code}%",),
-        )
-        n = c.fetchone()[0]
-        assert n >= 1, "F3 read-only skill 应落 capability_call（_invoke_traced_read 路径）"
-    finally:
-        conn.close()
+    n = _pg_read(
+        """SELECT COUNT(*) FROM capability_call
+           WHERE skill_id='catalog.duplicate.check' AND input_json::text LIKE %s""",
+        (f"%{code}%",),
+    )[0][0]
+    assert n >= 1, "F3 read-only skill 应落 capability_call（_invoke_traced_read 路径）"
 
 
 def test_j2_audit_chain_records_lifecycle_transitions(brain, baseline_counts):
@@ -1086,30 +1048,24 @@ def test_j2_audit_chain_records_lifecycle_transitions(brain, baseline_counts):
         "catalog_code": code, "role": "ROLE_BUSIAUDIT", "confirmed": True,
     })
     # 查 capability_call
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute(
-            """SELECT skill_id, status FROM capability_call
-               WHERE input_json LIKE ? ORDER BY id""",
-            (f'%{code}%',),
-        )
-        calls = c.fetchall()
-        skill_ids = [r[0] for r in calls]
-        # 至少有 4 个 J2 skill 的 capability_call 记录
-        expected_skills = {
-            "catalog.entry.create_draft",
-            "catalog.entry.submit_review",
-            "catalog.entry.review",
-            "catalog.entry.publish",
-        }
-        recorded_skills = set(skill_ids)
-        missing = expected_skills - recorded_skills
-        assert not missing, (
-            f"缺失 capability_call skill 记录：{missing}；recorded={skill_ids}"
-        )
-    finally:
-        conn.close()
+    calls = _pg_read(
+        """SELECT skill_id, status FROM capability_call
+           WHERE input_json::text LIKE %s ORDER BY id""",
+        (f'%{code}%',),
+    )
+    skill_ids = [r[0] for r in calls]
+    # 至少有 4 个 J2 skill 的 capability_call 记录
+    expected_skills = {
+        "catalog.entry.create_draft",
+        "catalog.entry.submit_review",
+        "catalog.entry.review",
+        "catalog.entry.publish",
+    }
+    recorded_skills = set(skill_ids)
+    missing = expected_skills - recorded_skills
+    assert not missing, (
+        f"缺失 capability_call skill 记录：{missing}；recorded={skill_ids}"
+    )
 
 
 # ============================================================================
@@ -1121,20 +1077,20 @@ def test_j2_audit_chain_records_lifecycle_transitions(brain, baseline_counts):
 # ============================================================================
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def provider_catalog_sample():
     """从 sd-default canonical 找一个 owner_org_id 非空 + lifecycle=active 的 catalog 作为 F4 fixture。
     缺位 → skip（不造数据）。"""
-    with sqlite3.connect(f"file:{SHADOW_DB}?mode=ro", uri=True) as conn:
-        row = conn.execute(
-            """SELECT catalog_code, owner_org_id, title FROM catalog_entry
-               WHERE tenant_id=? AND lifecycle_status='active'
-                 AND owner_org_id IS NOT NULL AND owner_org_id != ''
-               LIMIT 1""",
-            (TENANT,),
-        ).fetchone()
-    if row is None:
+    rows = _pg_read(
+        """SELECT catalog_code, owner_org_id, title FROM catalog_entry
+           WHERE tenant_id=%s AND lifecycle_status='active'
+             AND owner_org_id IS NOT NULL AND owner_org_id != ''
+           LIMIT 1""",
+        (TENANT,),
+    )
+    if not rows:
         return None
+    row = rows[0]
     return {"catalog_code": row[0], "owner_org_id": row[1], "title": row[2]}
 
 
@@ -1255,22 +1211,19 @@ def test_j2_provider_objection_response_full_chain(brain, provider_catalog_sampl
 
     # capability_call 持久化：subsequent ops 全部以 objection_id 入参，create 不带（流出值），
     # 至少 7 条非-create capability_call 落账（submit+assign×2+reply+review+evaluate+close = 7）。
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute(
+    # psycopg3：带参数时查询里的字面 % 需写成 %% 转义。
+    non_create_skills = [
+        r[0] for r in _pg_read(
             """SELECT skill_id FROM capability_call
-               WHERE input_json LIKE ? AND skill_id LIKE 'objection.case.%'
+               WHERE input_json::text LIKE %s AND skill_id LIKE 'objection.case.%%'
                ORDER BY id""",
             (f"%{objection_id}%",),
         )
-        non_create_skills = [r[0] for r in c.fetchall()]
-        assert len(non_create_skills) >= 7, (
-            f"F4 J2 提供方链 capability_call 至少 7 条（不含 create）；got={non_create_skills}"
-        )
-        assert non_create_skills.count("objection.case.assign") >= 2, non_create_skills
-    finally:
-        conn.close()
+    ]
+    assert len(non_create_skills) >= 7, (
+        f"F4 J2 提供方链 capability_call 至少 7 条（不含 create）；got={non_create_skills}"
+    )
+    assert non_create_skills.count("objection.case.assign") >= 2, non_create_skills
 
 
 def test_j2_objection_reply_rejected_for_operater_role(brain, provider_catalog_sample):

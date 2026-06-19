@@ -17,16 +17,16 @@
 
 自建小规模真库（reset_and_upgrade + 经 repository 真灌库），不依赖客户 dump seed；
 业务正确性回归仍由 tests/integration/test_wave2_topic_package_* 在 3 标杆真数据上守。
+
+PG 迁移后：DB 由根 conftest 的 function-scoped 空 PG 克隆（已 alembic upgrade head 建表）
+供给，本模块只把小规模 fixture 数据灌进每个测试自己的空克隆。无需影子库 /
+旧库路径环境变量 / reset_and_upgrade —— schema 已就绪、跨测试天然隔离。session 计数器
+只罩在被测查询临界区内，灌库在临界区外，不影响计数。
 """
 from __future__ import annotations
 
-import os
-from pathlib import Path
-
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-SHADOW_DB = REPO_ROOT / ".data" / "test_read_path_perf_batch_shadow.db"
 TENANT = "sd-default"
 
 # Expected list-projection contract field set (the keys topic.package.query list
@@ -51,42 +51,10 @@ LIST_PROJECTION_KEYS = {
 }
 
 
-def _remove_shadow_db_files() -> None:
-    for suffix in ("", "-wal", "-shm"):
-        (SHADOW_DB.parent / f"{SHADOW_DB.name}{suffix}").unlink(missing_ok=True)
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _shadow_db():
-    SHADOW_DB.parent.mkdir(parents=True, exist_ok=True)
-    from zw_brain.shared import db as _db
-
-    # Save prior env so teardown RESTORES it (not blindly pops) — keeps this
-    # module from polluting later tests that rely on the default seed DB or on
-    # an outer fixture's ZW_BRAIN_DB_PATH (test-db-path-isolation debt).
-    prior_db_path = os.environ.get("ZW_BRAIN_DB_PATH")
-    prior_db_url = os.environ.get("ZW_BRAIN_DATABASE_URL")
-
-    _db.reset_engine_cache()
-    _remove_shadow_db_files()
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    _db.reset_engine_cache()
-    from zw_brain.shared.migrate import reset_and_upgrade
-
-    reset_and_upgrade()
+@pytest.fixture(autouse=True)
+def _seed_db():
     _seed(packages=24, catalogs=40)
     yield
-    _remove_shadow_db_files()
-    # Restore env to its prior state, THEN reset the cache last so the next
-    # consumer rebuilds the engine against the restored path.
-    if prior_db_path is None:
-        os.environ.pop("ZW_BRAIN_DB_PATH", None)
-    else:
-        os.environ["ZW_BRAIN_DB_PATH"] = prior_db_path
-    if prior_db_url is not None:
-        os.environ["ZW_BRAIN_DATABASE_URL"] = prior_db_url
-    _db.reset_engine_cache()
 
 
 def _seed(*, packages: int, catalogs: int) -> None:

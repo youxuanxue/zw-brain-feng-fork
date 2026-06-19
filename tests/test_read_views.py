@@ -24,9 +24,6 @@ C. **NotFoundError contract**: the three live lookup helpers
 """
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 import pytest
 
 from zw_brain.command.brain import BrainService, NotFoundError
@@ -47,33 +44,32 @@ def views(brain: BrainService) -> ReadViews:
 
 
 @pytest.fixture()
-def db_brain(monkeypatch: pytest.MonkeyPatch):
-    """Fresh temp-DB brain（Action D：申请/交付 find_by_id 走 CardSession + DB）。"""
+def db_brain():
+    """Fresh DB-backed brain（Action D：申请/交付 find_by_id 走 CardSession + DB）。
+
+    The autouse conftest fixture supplies a fresh, migrated per-test PostgreSQL clone."""
     from zw_brain.shared import db as db_module
     from zw_brain.shared.migrate import ensure_runtime_schema
 
-    with TemporaryDirectory() as tmp:
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(Path(tmp) / "read_views.db"))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
+    with db_module._CACHE_LOCK:
+        db_module._ENGINE_CACHE.clear()
+    ensure_runtime_schema()
 
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared.state_store import StateStore
+    from zw_brain.shared.database_store import DatabaseStore
+    from zw_brain.shared.state_store import StateStore
 
-        store = DatabaseStore()
-        store.application_repo.upsert_from_request(
-            {"id": "appRV001", "status": "pending", "applicant": "张三", "applicantDept": "测试单位", "resourceName": "读视图测试资源"},
-            tenant_id=TENANT,
-        )
-        store.delivery_repo.upsert_from_delivery(
-            {"id": "DLV-appRV001", "requestId": "appRV001", "status": "pending", "channel": "api_gateway"},
-            tenant_id=TENANT,
-        )
-        yield BrainService(state_store=StateStore(database_store=store))
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+    store = DatabaseStore()
+    store.application_repo.upsert_from_request(
+        {"id": "appRV001", "status": "pending", "applicant": "张三", "applicantDept": "测试单位", "resourceName": "读视图测试资源"},
+        tenant_id=TENANT,
+    )
+    store.delivery_repo.upsert_from_delivery(
+        {"id": "DLV-appRV001", "requestId": "appRV001", "status": "pending", "channel": "api_gateway"},
+        tenant_id=TENANT,
+    )
+    yield BrainService(state_store=StateStore(database_store=store))
+    with db_module._CACHE_LOCK:
+        db_module._ENGINE_CACHE.clear()
 
 
 # ── §A bulk reads: deepcopy isolation ──────────────────────────────────────

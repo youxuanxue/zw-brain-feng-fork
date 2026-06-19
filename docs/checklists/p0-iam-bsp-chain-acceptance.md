@@ -136,13 +136,14 @@ uv run pytest tests/test_auth_session_redis.py -q
 | ID | 触发条件 | 验收口径 | 状态 |
 |----|----------|----------|------|
 | F-01 | 首个客户上线前 | CI job 从 git-track 轻量 seed 或对象存储拉 dump 子集，跑 `test_bsp_*` / `test_wave*` **不 skip** | □ CI 当前 skip |
-| F-02 | 本地对照 | 有 `.data/zw_brain.db` 时：`uv run pytest tests/test_bsp_sd_default_real_dump_e2e.py tests/test_bsp_permission_pipeline_e2e.py -q` 全绿 | □ 本地 |
+| F-02 | 本地对照 | `ZW_BRAIN_DATABASE_URL` 指向已灌真实数据的 PG 库时：`uv run pytest tests/test_bsp_sd_default_real_dump_e2e.py tests/test_bsp_permission_pipeline_e2e.py -q` 全绿 | □ 本地 |
 
 **重建 seed 提示**（schema 漂移时）：
 
 ```bash
+export ZW_BRAIN_DATABASE_URL=postgresql+psycopg://zw_brain:zw_brain@127.0.0.1:5432/zw_brain
 .venv/bin/python -m zw_brain.entry.legacy_migration.main \
-  --dumps-dir "old/10示例数据" --db-path .data/zw_brain.db --reset-db \
+  --dumps-dir "old/10示例数据" --reset-db \
   --report /tmp/migration-report.json
 ```
 

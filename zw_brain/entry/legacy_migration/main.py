@@ -10,9 +10,14 @@ from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="One-shot legacy dump migration into zw-brain canonical DB")
+    parser = argparse.ArgumentParser(
+        description=(
+            "One-shot legacy dump migration into the zw-brain canonical DB. "
+            "The target PostgreSQL connection is taken from the ZW_BRAIN_DATABASE_URL "
+            "environment variable (no per-run DB path/URL flag)."
+        )
+    )
     parser.add_argument("--dumps-dir", required=True, help="Directory containing dump-<schema>-<timestamp>.sql files")
-    parser.add_argument("--db-path", required=True, help="SQLite DB path to create/update")
     parser.add_argument("--tenant", default=DEFAULT_TENANT, help=f"Tenant id (default: {DEFAULT_TENANT})")
     parser.add_argument("--profile", default="customer-core-v1", help="Versioned migration profile")
     parser.add_argument("--reset-db", action="store_true", help="Drop and recreate the target DB before importing")
@@ -25,7 +30,6 @@ def main(argv: list[str] | None = None) -> int:
 
     options = MigrationOptions(
         dumps_dir=Path(args.dumps_dir),
-        db_path=Path(args.db_path),
         tenant_id=args.tenant,
         profile=args.profile,
         reset_db=args.reset_db,

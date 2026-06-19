@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 import pytest
 
 from tests._trusted_payload import invoke_trusted
 from zw_brain.command.brain import BrainService
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.shared import audit as audit_bus
-from zw_brain.shared import db as db_module
 from zw_brain.shared.database_store import DatabaseStore
 from zw_brain.shared.migrate import ensure_runtime_schema
 from zw_brain.shared.state_store import StateStore
@@ -20,21 +16,13 @@ TENANT = "sd-default"
 
 
 @pytest.fixture()
-def temp_db(monkeypatch: pytest.MonkeyPatch) -> Path:
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "catalog_entry_query.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        yield db_path
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+def temp_db() -> None:
+    ensure_runtime_schema()
+    yield None
 
 
 @pytest.fixture()
-def brain(temp_db: Path) -> BrainService:
+def brain(temp_db: None) -> BrainService:
     ds = DatabaseStore()
     ds.initialize()
     audit_bus.configure_sink(ds.append_audit_event)

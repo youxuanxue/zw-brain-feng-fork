@@ -15,40 +15,30 @@
 - 推理失败降级路径（monkeypatch chat 抛 InferenceError）
 - enabled=false 关闭路径
 - audit chain：search.intent.parse 写入 audit feed
+
+数据隔离：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
+模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义），writes 落克隆库、
+不污染真实模板。
 """
 from __future__ import annotations
 
-import os
-import shutil
 from pathlib import Path
 
 import pytest
 
-from tests._seed_guard import require_real_seed
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (fixture)
 from tests._trusted_payload import invoke_trusted
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_p2_search_shadow.db"
 
-require_real_seed({"catalog_entry": 100})
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _shadow_db() -> None:
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
+# 门槛语义（catalog_entry≥100）由 realistic_pg_module 的 skip-when-absent 承接。
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def brain():
+    # Function-scoped: conftest._isolate_db_env clears the audit-bus sink before
+    # every test, so the sink must be (re)configured per test.
     import zw_brain.shared.audit as audit_bus
     from zw_brain.command.brain import BrainService
     from zw_brain.shared.database_store import DatabaseStore

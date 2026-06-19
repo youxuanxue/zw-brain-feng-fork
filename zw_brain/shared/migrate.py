@@ -299,8 +299,11 @@ def reset_and_upgrade() -> None:
     engine = create_engine(get_database_url(), future=True)
     with engine.begin() as conn:
         inspector = inspect(conn)
+        # CASCADE 必需：D48 起表间有 17 条 FK 边，PG 严格执行 FK，按反射顺序
+        # 裸 DROP 会因被引用而 raise。CASCADE 连带 drop 依赖约束（单 PG 后端，
+        # 不再需要兼容 SQLite 的「无 FK、任意顺序可删」假设）。
         for table_name in inspector.get_table_names():
-            conn.execute(text(f'DROP TABLE IF EXISTS "{table_name}"'))
+            conn.execute(text(f'DROP TABLE IF EXISTS "{table_name}" CASCADE'))
     engine.dispose()
     run_migrations()
 

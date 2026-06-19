@@ -17,77 +17,64 @@ ExchangeMapper.data_apply_dept_approve 未处理）。本文件**只**覆盖
 j1-approval-unconditional.feature 中可由 repo 层断言的场景；
 UI / 鉴权 / SLA 排序 / 凭据签发触发归 W0-07 浏览器验收 + W0-05/06。
 
-数据隔离策略：与 W0-03 同——ZW_BRAIN_DB_PATH 切到 shadow DB，
-session 级 copy 一份基线，写入不污染 .data/zw_brain.db。
+数据隔离策略：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
+模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义），
+写入落在克隆库、不污染真实模板。
 """
 from __future__ import annotations
 
-import os
-import shutil
-import sqlite3
 from pathlib import Path
 
+import psycopg
 import pytest
+from sqlalchemy.engine import make_url
 
-from tests._seed_guard import require_real_seed
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (fixture)
+from zw_brain.shared.db import get_database_url
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_W0-04_shadow.db"
 TENANT = "sd-default"
 
 # 稳健 floor（CLAUDE.md D44）：稳定态 approval_case=267，floor 取 200（约 75%），
-# 容忍真实库行数漂移，仍能区分全量真实库 vs 空/部分库。
-require_real_seed({"approval_case": 200})
+# 容忍真实库行数漂移，仍能区分全量真实库 vs 空/部分库。门槛语义由
+# realistic_pg_module 的 skip-when-absent 承接。
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _shadow_db() -> None:
-    """Copy seed DB to shadow once; writes during tests stay in shadow."""
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
+def _pg_read(sql: str, params: tuple = ()):
+    """Read against the cloned realistic PG (app read-path's DB), never a file."""
+    url = make_url(get_database_url())
+    with psycopg.connect(
+        host=url.host, port=url.port, user=url.username,
+        password=url.password, dbname=url.database,
+    ) as conn:
+        return conn.execute(sql, params).fetchall()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def application_repo():
     from zw_brain.domain.repositories.application import ApplicationRepository
     return ApplicationRepository()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def approval_repo():
     from zw_brain.domain.repositories.approval import ApprovalRepository
     return ApprovalRepository()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def baseline_counts():
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute("SELECT COUNT(*) FROM approval_case WHERE tenant_id=?", (TENANT,))
-        case_n = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM approval_step")
-        step_n = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM approval_decision")
-        dec_n = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM audit_event")
-        audit_n = c.fetchone()[0]
-        return {
-            "approval_case": case_n,
-            "approval_step": step_n,
-            "approval_decision": dec_n,
-            "audit_event": audit_n,
-        }
-    finally:
-        conn.close()
+    case_n = _pg_read("SELECT COUNT(*) FROM approval_case WHERE tenant_id=%s", (TENANT,))[0][0]
+    step_n = _pg_read("SELECT COUNT(*) FROM approval_step")[0][0]
+    dec_n = _pg_read("SELECT COUNT(*) FROM approval_decision")[0][0]
+    audit_n = _pg_read("SELECT COUNT(*) FROM audit_event")[0][0]
+    return {
+        "approval_case": case_n,
+        "approval_step": step_n,
+        "approval_decision": dec_n,
+        "audit_event": audit_n,
+    }
 
 
 # ============================================================================
@@ -121,17 +108,14 @@ def test_j1_approval_decision_modes_present():
     (ExchangeMapper.data_apply_dept_approve)，反转为同时存在；conditional pytest
     (tests/test_wave0_j1_approval_conditional.py) 从这里开始有数据可断。
     """
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute("SELECT decision_mode, COUNT(*) FROM approval_step GROUP BY decision_mode ORDER BY decision_mode")
-        modes = dict(c.fetchall())
-        assert "single" in modes, f"single 步骤应存在；got={modes!r}"
-        assert "department" in modes and modes["department"] >= 4, (
-            f"department 步骤应 ≥4（G1.5 D-1 mapper 灌入 4 行）；got={modes!r}"
-        )
-    finally:
-        conn.close()
+    modes = dict(_pg_read(
+        "SELECT decision_mode, COUNT(*) FROM approval_step "
+        "GROUP BY decision_mode ORDER BY decision_mode"
+    ))
+    assert "single" in modes, f"single 步骤应存在；got={modes!r}"
+    assert "department" in modes and modes["department"] >= 4, (
+        f"department 步骤应 ≥4（G1.5 D-1 mapper 灌入 4 行）；got={modes!r}"
+    )
 
 
 # ============================================================================
@@ -232,15 +216,10 @@ def test_j1_approval_unconditional_real_distribution_has_approve_and_reject():
     这条用真数据兜底证明：approval_decision 表确实包含审批通过/驳回两侧的
     历史决策，给前端"我的待审 / 我的发起 / 我的受理"队列提供基础数据。
     """
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute(
-            "SELECT decision, COUNT(*) FROM approval_decision GROUP BY decision"
-        )
-        dist = {row[0]: row[1] for row in c.fetchall()}
-    finally:
-        conn.close()
+    dist = {
+        row[0]: row[1]
+        for row in _pg_read("SELECT decision, COUNT(*) FROM approval_decision GROUP BY decision")
+    }
     # 真数据：approve(5) + approved(829) + rejected(17) + request_correction(34) + return(1)
     assert dist.get("approve", 0) + dist.get("approved", 0) >= 1, (
         f"approval_decision 必含至少 1 条 approve 类决策；got {dist!r}"
@@ -272,14 +251,31 @@ def test_j1_approval_unconditional_case_step_join_consistent(approval_repo):
         assert isinstance(decisions, list)
 
 
-def test_j1_approval_unconditional_audit_chain_has_application_events(baseline_counts):
+def test_j1_approval_unconditional_audit_chain_has_application_events():
     """回归 — 审计事件链存在（.feature Scenario 7 数据层底座）。
 
     具体的 "submit → approve → credential.issue 顺序" 断言归 W0-05 凭据 +
-    W0-06 监控 wave；本 W0-04 只断言 audit_event 已有记录可供后续链路构造。
+    W0-06 监控 wave；本 W0-04 只断言 audit_event 可承载后续链路构造。
+
+    D44：audit_event 是**运行时遥测**（pipeline 每次 invoke 经 record_capability_call /
+    audit sink 落库），**不来自 legacy import**——fresh PG 模板 audit_event=0。故本测试
+    自产一次真实只读 invoke（catalog.browse，audit_required、无副作用）让链路底座有真实
+    运行时事件，再断言 ≥1（旧本地文件库非零仅因本机历史累积，非 seed 语义）。
     """
-    assert baseline_counts["audit_event"] >= 1, (
-        f"audit_event seed should have at least 1 row from W0-02; got {baseline_counts['audit_event']}"
+    import zw_brain.shared.audit as audit_bus
+    from zw_brain.command.brain import BrainService
+    from zw_brain.shared.database_store import DatabaseStore
+    from zw_brain.shared.state_store import StateStore
+
+    ds = DatabaseStore()
+    audit_bus.configure_sink(ds.append_audit_event)
+    brain = BrainService(state_store=StateStore(database_store=ds))
+    from tests._trusted_payload import invoke_trusted
+
+    invoke_trusted(brain, "catalog.browse", {"tenant_id": TENANT}, role="ROLE_ORGAN_OPERATER")
+    audit_n = _pg_read("SELECT COUNT(*) FROM audit_event")[0][0]
+    assert audit_n >= 1, (
+        f"自产真实运行时 invoke 后 audit_event 应 ≥1（运行时遥测底座）；got {audit_n}"
     )
 
 

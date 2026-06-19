@@ -5,15 +5,12 @@
 """F4 — 表单 schema 数据模型 + 状态机 + commit skill dispatch 端到端。"""
 from __future__ import annotations
 
-import os
-from pathlib import Path
-
 import pytest
 
 from tests._trusted_payload import invoke_trusted
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-SHADOW_DB = REPO_ROOT / ".data" / "test_F4_form_schema_shadow.db"
+# 每个测试由 root conftest 的 autouse function-scoped fixture 分到一个空 PG 克隆库；
+# 表单 schema 落库写进各自隔离克隆，不依赖真实旧平台数据。
 
 
 def _build_payload() -> dict:
@@ -77,22 +74,6 @@ def _build_payload() -> dict:
             },
         ],
     }
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _shadow_db() -> None:
-    SHADOW_DB.parent.mkdir(parents=True, exist_ok=True)
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-
-    from zw_brain.shared import db as _db
-    _db.reset_engine_cache()
-
-    from zw_brain.shared.migrate import reset_and_upgrade
-    reset_and_upgrade()
-    yield
 
 
 @pytest.fixture()

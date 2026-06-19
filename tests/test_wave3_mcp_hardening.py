@@ -40,16 +40,14 @@ NON_MCP_CAP = "request.submit"
 
 
 @pytest.fixture
-def mcp_env(tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch):
-    """Fresh DB + dev-IAM-bypass + clean global service for one MCP test.
+def mcp_env(monkeypatch: pytest.MonkeyPatch):
+    """dev-IAM-bypass + clean global service for one MCP test.
 
-    Builds the global ``get_service()`` on a throwaway DB so audit / capability_call
-    rows written through the real pipeline are inspectable and isolated. Resets the
+    Builds the global ``get_service()`` against the per-test empty PG clone
+    (provided by the conftest autouse fixture) so audit / capability_call rows
+    written through the real pipeline are inspectable and isolated. Resets the
     in-process MCP quota window so the S4 test is deterministic.
     """
-    db_path = tmp_path / "mcp_hardening.db"
-    monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-    monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
     monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS", "1")
     monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS_ACK", "development-only")
     monkeypatch.delenv("ZW_BRAIN_DEV_IAM_BYPASS_ROLES", raising=False)
@@ -58,10 +56,7 @@ def mcp_env(tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch):
 
     from zw_brain.command import runtime as cmd_runtime
     from zw_brain.entry.mcp import server as mcp_server
-    from zw_brain.shared import db as _db
 
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
     cmd_runtime.reset_service()
     mcp_server.reset_mcp_quota()
     try:
@@ -69,8 +64,6 @@ def mcp_env(tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch):
     finally:
         cmd_runtime.reset_service()
         mcp_server.reset_mcp_quota()
-        with _db._CACHE_LOCK:
-            _db._ENGINE_CACHE.clear()
 
 
 def _db_store(service):

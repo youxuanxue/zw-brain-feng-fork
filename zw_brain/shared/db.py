@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import os
 import threading
-from pathlib import Path
 
-from sqlalchemy import create_engine, event
-from sqlalchemy.engine import Engine
+from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-DEFAULT_DB_PATH = Path(__file__).resolve().parents[2] / ".data" / "zw_brain.db"
+# Default runtime backend = local PostgreSQL (psycopg v3). Credentials/port match
+# docker-compose.yml so `docker compose up -d postgres` + bare start-local.sh
+# connect with zero env config. Override the whole URL via ZW_BRAIN_DATABASE_URL
+# (single knob; tests/CI point this at a per-test PG database).
+DEFAULT_PG_URL = "postgresql+psycopg://zw_brain:zw_brain@127.0.0.1:5432/zw_brain"
 
 
 class Base(DeclarativeBase):
@@ -16,8 +19,29 @@ class Base(DeclarativeBase):
 
 
 def get_database_url() -> str:
-    db_path = Path(os.environ.get("ZW_BRAIN_DB_PATH", DEFAULT_DB_PATH))
-    return os.environ.get("ZW_BRAIN_DATABASE_URL", f"sqlite:///{db_path}")
+    # ZW_BRAIN_DB_PATH was the legacy SQLite file knob — permanently retired by the
+    # full-PG migration. Setting it now is a stale SQLite assumption; rather than
+    # silently ignore it (and route the caller to PG while they think they're on a
+    # file DB), fail closed so the mistake surfaces immediately.
+    if os.environ.get("ZW_BRAIN_DB_PATH"):
+        raise RuntimeError(
+            "ZW_BRAIN_DB_PATH is no longer supported — 全盘 PG 迁移已删 SQLite 分支。"
+            "用 ZW_BRAIN_DATABASE_URL 指向 PostgreSQL（postgresql+psycopg://…）。"
+        )
+    # ① explicit URL wins — tests/CI/demos that need a specific PG database.
+    url = os.environ.get("ZW_BRAIN_DATABASE_URL")
+    if not url:
+        # ② no env → default to local PostgreSQL (see DEFAULT_PG_URL).
+        url = DEFAULT_PG_URL
+    # SQLite is permanently retired (full-PG migration). A sqlite URL — whether
+    # injected via env or a stale default — would silently route writes off the
+    # PG-only audit/runtime path, so fail closed rather than degrade.
+    if make_url(url).get_backend_name() == "sqlite":
+        raise RuntimeError(
+            "SQLite is no longer supported — ZW_BRAIN_DATABASE_URL must name a "
+            "PostgreSQL database (postgresql+psycopg://…). 全盘 PG 迁移已删 SQLite 分支。"
+        )
+    return url
 
 
 # Engine cache: 1 engine + 1 sessionmaker per (url) — creating a new engine on
@@ -29,24 +53,8 @@ _CACHE_LOCK = threading.Lock()
 
 
 def _build_engine(url: str) -> Engine:
-    # check_same_thread=False is safe under sessionmaker (sessions don't share
-    # connections across threads). pool_pre_ping handles stale connections.
-    connect_args: dict[str, object] = {}
-    if url.startswith("sqlite"):
-        connect_args["check_same_thread"] = False
-    engine = create_engine(url, future=True, pool_pre_ping=True, connect_args=connect_args)
-    if url.startswith("sqlite"):
-        @event.listens_for(engine, "connect")
-        def _sqlite_tune(dbapi_conn, _record):  # noqa: ANN001
-            cur = dbapi_conn.cursor()
-            try:
-                cur.execute("PRAGMA journal_mode=WAL")
-                cur.execute("PRAGMA busy_timeout=10000")
-                cur.execute("PRAGMA synchronous=NORMAL")
-                cur.execute("PRAGMA foreign_keys=ON")
-            finally:
-                cur.close()
-    return engine
+    # pool_pre_ping handles stale connections (server restart, idle timeout).
+    return create_engine(url, future=True, pool_pre_ping=True)
 
 
 def _get_cached(url: str) -> sessionmaker[Session]:
@@ -83,5 +91,11 @@ def reset_engine_cache() -> None:
 
 
 def ensure_parent_dir() -> None:
-    if get_database_url().startswith("sqlite:///"):
-        Path(get_database_url().removeprefix("sqlite:///")) .parent.mkdir(parents=True, exist_ok=True)
+    """No-op under PostgreSQL.
+
+    Historically created the parent directory for a SQLite file before opening
+    it. The runtime is PG-only now — the server owns its storage and there is no
+    local file to pre-create. Kept as a no-op so existing call sites
+    (database_store / migration_batch / seed fixtures) need no change.
+    """
+    return None

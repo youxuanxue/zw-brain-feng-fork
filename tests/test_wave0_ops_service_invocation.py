@@ -26,9 +26,9 @@
   S9  R12 工程术语黑名单                → test_r12_engineering_term_blacklist_in_user_facing_text
   S10 source_event_ref 可解释来源        → test_source_event_ref_explainable_provenance
 
-数据隔离：每个用例切独立 TemporaryDirectory + ZW_BRAIN_DB_PATH，ensure_runtime_schema()
-drop & recreate，零依赖 .data/zw_brain.db seed。真实 repository / 真实派生逻辑，
-非 mock（D11）。
+数据隔离：每个用例由 conftest 的 autouse `_isolate_db_env` 自动拿到一个空的、已迁移的
+per-test PG 克隆库（CREATE DATABASE … TEMPLATE 空模板），零依赖真实 seed。真实 repository /
+真实派生逻辑，非 mock（D11）。本模块只需 schema、不需真实数据，故不挂 realistic 夹具。
 
 honesty 残差（.feature S6 末句「审计总线记录一条 policy decision=deny」）：当前 policy
 门在 `enforce_manifest_policy` 抛 AccessDeniedError 发生在任何审计发射之前（read cap 经
@@ -39,11 +39,9 @@ run_traced_read，deny 在其前），故 deny 不产生 policy-decision 审计�
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Any
 
 import pytest
@@ -57,8 +55,7 @@ from zw_brain.domain.repositories.service_invocation import (
 from zw_brain.domain.serializers.ops_metrics import metric_summary
 from zw_brain.shared import audit as audit_bus
 from zw_brain.shared.database_store import DatabaseStore
-from zw_brain.shared.db import _CACHE_LOCK, _ENGINE_CACHE
-from zw_brain.shared.migrate import ensure_runtime_schema
+from zw_brain.shared.db import get_database_url
 from zw_brain.shared.state_store import StateStore
 
 SKILL = "ops.service.invocation.query"
@@ -78,54 +75,19 @@ T0_MINUTE = "2026-06-03T10:00"
 
 
 @pytest.fixture
-def fresh_db():
-    """Per-test fresh SQLite DB（drop & recreate）；repository 直驱，无 BrainService 引导预种。"""
-    with TemporaryDirectory() as tmp:
-        prev_path = os.environ.get("ZW_BRAIN_DB_PATH")
-        prev_url = os.environ.get("ZW_BRAIN_DATABASE_URL")
-        os.environ["ZW_BRAIN_DB_PATH"] = os.path.join(tmp, "ops_invocation.db")
-        os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-        with _CACHE_LOCK:
-            _ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        try:
-            yield ServiceInvocationMetricRepository()
-        finally:
-            with _CACHE_LOCK:
-                _ENGINE_CACHE.clear()
-            if prev_path is None:
-                os.environ.pop("ZW_BRAIN_DB_PATH", None)
-            else:
-                os.environ["ZW_BRAIN_DB_PATH"] = prev_path
-            if prev_url is not None:
-                os.environ["ZW_BRAIN_DATABASE_URL"] = prev_url
+def fresh_db() -> ServiceInvocationMetricRepository:
+    """Per-test empty PG（conftest autouse `_isolate_db_env` 已给本测试一个空的已迁移
+    克隆库）；repository 直驱，无 BrainService 引导预种。"""
+    return ServiceInvocationMetricRepository()
 
 
 @pytest.fixture
-def brain():
-    """Per-test BrainService bound to a fresh DB（用于经 invoke_skill 的 read/policy 切面）。"""
-    with TemporaryDirectory() as tmp:
-        prev_path = os.environ.get("ZW_BRAIN_DB_PATH")
-        prev_url = os.environ.get("ZW_BRAIN_DATABASE_URL")
-        os.environ["ZW_BRAIN_DB_PATH"] = os.path.join(tmp, "ops_invocation_brain.db")
-        os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-        with _CACHE_LOCK:
-            _ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        database_store = DatabaseStore()
-        audit_bus.configure_sink(database_store.append_audit_event)
-        service = BrainService(state_store=StateStore(database_store=database_store))
-        try:
-            yield service
-        finally:
-            with _CACHE_LOCK:
-                _ENGINE_CACHE.clear()
-            if prev_path is None:
-                os.environ.pop("ZW_BRAIN_DB_PATH", None)
-            else:
-                os.environ["ZW_BRAIN_DB_PATH"] = prev_path
-            if prev_url is not None:
-                os.environ["ZW_BRAIN_DATABASE_URL"] = prev_url
+def brain() -> BrainService:
+    """Per-test BrainService bound to the autouse empty PG clone（经 invoke_skill 的
+    read/policy 切面）。审计 sink 每测试重配（conftest 在每测试前清 audit 全局）。"""
+    database_store = DatabaseStore()
+    audit_bus.configure_sink(database_store.append_audit_event)
+    return BrainService(state_store=StateStore(database_store=database_store))
 
 
 def _metric(**overrides: Any) -> dict[str, Any]:
@@ -329,17 +291,18 @@ def test_security_audit_denied_after_d57(brain: BrainService) -> None:
 def test_authorized_read_emits_audit(brain: BrainService) -> None:
     """B1.1 读侧查询 → 审计总线记录一条 capability_call=ops.service.invocation.query（audit_class=read-default）。"""
     invoke_trusted(brain, SKILL, {"resource_code": RESOURCE}, role="ROLE_BUSIAUDIT")
-    import sqlite3
+    import psycopg
+    from sqlalchemy.engine import make_url
 
-    db_path = os.environ["ZW_BRAIN_DB_PATH"]
-    conn = sqlite3.connect(db_path)
-    try:
+    url = make_url(get_database_url())
+    with psycopg.connect(
+        host=url.host, port=url.port, user=url.username,
+        password=url.password, dbname=url.database,
+    ) as conn:
         rows = conn.execute(
-            "SELECT skill_id, status, role_code FROM capability_call WHERE skill_id=?",
+            "SELECT skill_id, status, role_code FROM capability_call WHERE skill_id=%s",
             (SKILL,),
         ).fetchall()
-    finally:
-        conn.close()
     assert rows, "授权读必须落一条 capability_call 审计行"
     assert any(r[1] == "succeeded" and r[2] == "ROLE_BUSIAUDIT" for r in rows), \
         f"capability_call 应记录 succeeded + actor 角色，got {rows!r}"

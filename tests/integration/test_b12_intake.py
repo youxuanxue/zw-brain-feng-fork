@@ -30,16 +30,13 @@ TENANT = "sd-default"
 
 
 @pytest.fixture
-def brain_with_audit(tmp_path, monkeypatch):
-    """Bootstrap full brain service with audit sink wired to a temp AuditStore.
+def brain_with_audit():
+    """Bootstrap full brain service with audit sink wired to the per-test store.
 
-    Each test gets its own SQLite for runtime + audit；不污染主 .data/zw_brain.db。
+    Each test runs against its own per-test PG clone (conftest); audit lands in
+    that clone's isolated ``audit`` schema, so no DB-path env is set 且不污染主库。
     """
-    db_path = tmp_path / "runtime.db"
-    monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-    monkeypatch.setenv("ZW_BRAIN_AUDIT_DB_PATH", str(tmp_path / "audit.db"))
-
-    # Force singletons re-init so monkeypatched env paths take effect
+    # Force singletons re-init so the per-test clone's URL takes effect
     from zw_brain.command import runtime as runtime_mod
     from zw_brain.shared import audit as audit_bus
     from zw_brain.shared.audit import store as audit_store_mod

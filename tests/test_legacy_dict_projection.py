@@ -8,7 +8,6 @@ pub_dict 此前是 customer_core_v1_coverage 的 AUDIT_ONLY_SKIP（bsp_static_di
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -18,11 +17,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 REAL_DUMP = REPO_ROOT / "old/10示例数据/dump-dsp_bsp-202604271139.sql"
 
 
-def _bootstrap(tmp: Path):
+def _bootstrap():
     from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
     from zw_brain.shared.migrate import ensure_runtime_schema
 
-    os.environ["ZW_BRAIN_DB_PATH"] = str(tmp / "sd_default.db")
+    # conftest autouse fixture already supplies an isolated empty PG clone.
     ensure_runtime_schema()
     return GovernanceProjectionRepository()
 
@@ -34,7 +33,7 @@ def test_pub_dict_imports_into_dict_projection() -> None:
 
     with TemporaryDirectory() as tmp_str:
         tmp = Path(tmp_str)
-        gov = _bootstrap(tmp)
+        gov = _bootstrap()
 
         dump_dir = tmp / "dumps"
         dump_dir.mkdir(parents=True, exist_ok=True)
@@ -61,7 +60,7 @@ def test_org_and_region_point_lookup_for_derivation() -> None:
 
     with TemporaryDirectory() as tmp_str:
         tmp = Path(tmp_str)
-        gov = _bootstrap(tmp)
+        gov = _bootstrap()
 
         dump_dir = tmp / "dumps"
         dump_dir.mkdir(parents=True, exist_ok=True)
@@ -90,7 +89,7 @@ def test_search_orgs_keyword_pagination() -> None:
 
     with TemporaryDirectory() as tmp_str:
         tmp = Path(tmp_str)
-        gov = _bootstrap(tmp)
+        gov = _bootstrap()
         dump_dir = tmp / "dumps"
         dump_dir.mkdir(parents=True, exist_ok=True)
         dump = dump_dir / "dump-dsp_bsp-202604271139.sql"
@@ -141,7 +140,7 @@ def test_dict_projection_mappings_resolve_in_strict_verify() -> None:
 
     with TemporaryDirectory() as tmp_str:
         tmp = Path(tmp_str)
-        _bootstrap(tmp)
+        _bootstrap()
 
         dump_dir = tmp / "dumps"
         dump_dir.mkdir(parents=True, exist_ok=True)

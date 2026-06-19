@@ -22,47 +22,61 @@ D-1 mapper (ExchangeMapper._map_data_apply_dept_approve) 上线后，sd-default
 本文件 7 scenarios 映射 .feature 7 Scenario，全部 repo / DB 层断言；UI 路径归
 tests/e2e/wave0_j1_golden_path_conditional.py。
 
-数据隔离同 W0-04：ZW_BRAIN_DB_PATH 切到 shadow，写不污染 .data/zw_brain.db。
+数据隔离同 W0-04：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
+模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义），写不污染真实模板。
 """
 from __future__ import annotations
 
-import os
-import shutil
-import sqlite3
+import json as _json
 from pathlib import Path
 
+import psycopg
 import pytest
+from sqlalchemy.engine import make_url
 
-from tests._seed_guard import require_real_seed
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (fixture)
+from zw_brain.shared.db import get_database_url
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_W0-04_conditional_shadow.db"
 TENANT = "sd-default"
 
-require_real_seed(("approval_step", 4, "decision_mode='department'"))
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _shadow_db() -> None:
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
+def _pg_read(sql: str, params: tuple = ()):
+    """Read against the cloned realistic PG (app read-path's DB), never a file."""
+    url = make_url(get_database_url())
+    with psycopg.connect(
+        host=url.host, port=url.port, user=url.username,
+        password=url.password, dbname=url.database,
+    ) as conn:
+        return conn.execute(sql, params).fetchall()
 
 
-@pytest.fixture(scope="session")
+def _coerce_json(value):
+    """approver_scope_json / evidence_json may come back as dict (jsonb) or str."""
+    if value is None:
+        return {}
+    if isinstance(value, (dict, list)):
+        return value
+    return _json.loads(value or "{}")
+
+
+@pytest.fixture(scope="module")
 def dept_steps():
     """全部 4 条 department 步骤的快照（id, application_code, status, decision）。"""
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute(
+    rows = [
+        {
+            "step_id": r[0],
+            "application_code": r[1],
+            "status": r[2],
+            "step_name": r[3],
+            "decision": r[4],
+            "decision_reason": r[5],
+            "evidence_json": r[6],
+            "approver_scope_json": r[7],
+        }
+        for r in _pg_read(
             """
             SELECT s.id, c.application_code, s.status, s.step_name,
                    d.decision, d.decision_reason, d.evidence_json,
@@ -71,36 +85,20 @@ def dept_steps():
             JOIN approval_case c ON s.approval_case_id = c.id
             LEFT JOIN approval_decision d ON d.step_id = s.id
             WHERE s.decision_mode='department'
-              AND c.tenant_id=?
+              AND c.tenant_id=%s
             ORDER BY c.application_code
             """,
             (TENANT,),
         )
-        rows = [
-            {
-                "step_id": r[0],
-                "application_code": r[1],
-                "status": r[2],
-                "step_name": r[3],
-                "decision": r[4],
-                "decision_reason": r[5],
-                "evidence_json": r[6],
-                "approver_scope_json": r[7],
-            }
-            for r in c.fetchall()
-        ]
-        # 本底座断言只看 ExchangeMapper 导入步——运行时条件引擎落的步带
-        # approver_scope_json.audit_id 锚（append_conditional_step），按此剔除，
-        # 否则真实运行时单（UI 走查/在产）合法累积会把精确计数断言打脆（D44 精神：
-        # 禁拿运行时累积当底座门槛）。
-        import json as _json
-
-        return [
-            row for row in rows
-            if not (_json.loads(row["approver_scope_json"] or "{}")).get("audit_id")
-        ]
-    finally:
-        conn.close()
+    ]
+    # 本底座断言只看 ExchangeMapper 导入步——运行时条件引擎落的步带
+    # approver_scope_json.audit_id 锚（append_conditional_step），按此剔除，
+    # 否则真实运行时单（UI 走查/在产）合法累积会把精确计数断言打脆（D44 精神：
+    # 禁拿运行时累积当底座门槛）。
+    return [
+        row for row in rows
+        if not _coerce_json(row["approver_scope_json"]).get("audit_id")
+    ]
 
 
 # ============================================================================
@@ -130,11 +128,10 @@ def test_j1_conditional_dept_approve_records_decision_and_actor(dept_steps):
     sample = next(s for s in dept_steps if s["application_code"] == "a531c4dd598b4cefbf1eb223330eb551")
     assert sample["decision"] == "approved", sample
     assert sample["status"] == "completed", sample
-    import json
-    scope = json.loads(sample["approver_scope_json"] or "{}")
+    scope = _coerce_json(sample["approver_scope_json"])
     assert scope.get("approve_org_code") == "11370000MB284651XL", scope
     assert scope.get("approve_org_name") == "省大数据局", scope
-    evidence = json.loads(sample["evidence_json"] or "{}")
+    evidence = _coerce_json(sample["evidence_json"])
     assert evidence.get("dept_approve_id"), evidence
     assert evidence.get("legacy_status") == 1, evidence
 
@@ -148,49 +145,42 @@ def test_j1_conditional_two_step_workflow_case_has_dept_and_single(dept_steps):
     """conditional 完整 workflow：approval_case 同时含 department 和 single 步骤，
     audit chain 拥有 application.submit → application.dept_approve → application.platform_approve
     （审计事件链由运行时驱动；此处断言数据底座支持两步骤共存）。"""
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        # 找到 dept 步骤所属 case——只看 ExchangeMapper 导入步（剔运行时条件引擎
-        # 落的步，其 approver_scope_json 带 audit_id 锚；D44 精神：底座断言不拿
-        # 运行时累积当门槛）。
-        dept_case_ids = sorted({
-            r[0] for r in c.execute(
-                """SELECT s.approval_case_id FROM approval_step s
-                   JOIN approval_case c ON s.approval_case_id=c.id
-                   WHERE s.decision_mode='department' AND c.tenant_id=?
-                     AND s.approver_scope_json NOT LIKE '%"audit_id"%'""",
-                (TENANT,),
-            )
-        })
-        assert len(dept_case_ids) == 4
-        # 这些 case 的 step 总数（dept + single 混合）应 ≥ dept 步数
-        placeholders = ",".join("?" * len(dept_case_ids))
-        c.execute(
-            f"SELECT approval_case_id, COUNT(*) FROM approval_step "
-            f"WHERE approval_case_id IN ({placeholders}) GROUP BY approval_case_id",
-            dept_case_ids,
+    # 找到 dept 步骤所属 case——只看 ExchangeMapper 导入步（剔运行时条件引擎
+    # 落的步，其 approver_scope_json 带 audit_id 锚；D44 精神：底座断言不拿
+    # 运行时累积当门槛）。approver_scope_json 在 PG 为 jsonb，转 text 后做子串排除。
+    dept_case_ids = sorted({
+        r[0] for r in _pg_read(
+            """SELECT s.approval_case_id FROM approval_step s
+               JOIN approval_case c ON s.approval_case_id=c.id
+               WHERE s.decision_mode='department' AND c.tenant_id=%s
+                 AND s.approver_scope_json::text NOT LIKE %s""",
+            (TENANT, '%"audit_id"%'),
         )
-        counts = dict(c.fetchall())
-        # 真数据：至少有一个 case 含两类步骤共存（dept + single 混合 workflow）
-        c.execute(
-            f"""SELECT s1.approval_case_id
-                FROM approval_step s1
-                WHERE s1.approval_case_id IN ({placeholders})
-                  AND s1.decision_mode='department'
-                  AND EXISTS (
-                    SELECT 1 FROM approval_step s2
-                    WHERE s2.approval_case_id = s1.approval_case_id
-                      AND s2.decision_mode='single'
-                  )""",
-            dept_case_ids,
-        )
-        mixed_cases = c.fetchall()
-        # NOTE: 真数据 4 个 dept apply_id 中只有部分有对应 course 步骤；
-        # 至少断言「混合存在」是允许的，不强制每个 case 都混合。
-        assert isinstance(mixed_cases, list)
-    finally:
-        conn.close()
+    })
+    assert len(dept_case_ids) == 4
+    # 这些 case 的 step 总数（dept + single 混合）应 ≥ dept 步数
+    placeholders = ",".join(["%s"] * len(dept_case_ids))
+    counts = dict(_pg_read(
+        f"SELECT approval_case_id, COUNT(*) FROM approval_step "
+        f"WHERE approval_case_id IN ({placeholders}) GROUP BY approval_case_id",
+        tuple(dept_case_ids),
+    ))
+    # 真数据：至少有一个 case 含两类步骤共存（dept + single 混合 workflow）
+    mixed_cases = _pg_read(
+        f"""SELECT s1.approval_case_id
+            FROM approval_step s1
+            WHERE s1.approval_case_id IN ({placeholders})
+              AND s1.decision_mode='department'
+              AND EXISTS (
+                SELECT 1 FROM approval_step s2
+                WHERE s2.approval_case_id = s1.approval_case_id
+                  AND s2.decision_mode='single'
+              )""",
+        tuple(dept_case_ids),
+    )
+    # NOTE: 真数据 4 个 dept apply_id 中只有部分有对应 course 步骤；
+    # 至少断言「混合存在」是允许的，不强制每个 case 都混合。
+    assert isinstance(mixed_cases, list)
 
 
 # ============================================================================
@@ -204,7 +194,7 @@ def test_j1_conditional_dept_reject_carries_reason_and_legacy_status(dept_steps)
     sample = next(s for s in dept_steps if s["application_code"] == "81dcca0f5d0742f6aa23e34ccdf6e992")
     assert sample["decision"] == "rejected", sample
     assert sample["status"] == "completed", sample
-    assert '"legacy_status": 2' in (sample["evidence_json"] or ""), sample
+    assert _coerce_json(sample["evidence_json"]).get("legacy_status") == 2, sample
 
 
 # ============================================================================
@@ -233,29 +223,22 @@ def test_j1_conditional_r11_direction_by_approver_org_code(dept_steps):
     """R11 方向计算：approver_scope_json.approve_org_code 是审批权归属的唯一来源，
     跨 org_code 的 MANAGER 看不到此申请（policy 层用该字段做路由）。"""
     # 4 条全部由 approve_org_code='11370000MB284651XL'(省大数据局) 经手
-    import json
     approver_orgs = sorted({
-        json.loads(s["approver_scope_json"])["approve_org_code"] for s in dept_steps
+        _coerce_json(s["approver_scope_json"])["approve_org_code"] for s in dept_steps
     })
     assert approver_orgs == ["11370000MB284651XL"], (
         f"真数据 4 行 dept approver 应统一 approve_org_code；got={approver_orgs}"
     )
-    # 异 org_code 的 MANAGER 查这些 case 应得空
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute(
-            """SELECT COUNT(*) FROM approval_step s
-               JOIN approval_case c ON s.approval_case_id=c.id
-               WHERE s.decision_mode='department'
-                 AND c.tenant_id=?
-                 AND s.approver_scope_json NOT LIKE '%11370000MB284651XL%'""",
-            (TENANT,),
-        )
-        cross_org = c.fetchone()[0]
-        assert cross_org == 0, f"cross-org dept step 应为 0；got={cross_org}"
-    finally:
-        conn.close()
+    # 异 org_code 的 MANAGER 查这些 case 应得空（approver_scope_json 在 PG 为 jsonb，转 text）
+    cross_org = _pg_read(
+        """SELECT COUNT(*) FROM approval_step s
+           JOIN approval_case c ON s.approval_case_id=c.id
+           WHERE s.decision_mode='department'
+             AND c.tenant_id=%s
+             AND s.approver_scope_json::text NOT LIKE %s""",
+        (TENANT, "%11370000MB284651XL%"),
+    )[0][0]
+    assert cross_org == 0, f"cross-org dept step 应为 0；got={cross_org}"
 
 
 # ============================================================================
@@ -276,33 +259,27 @@ def test_j1_conditional_self_approval_legacy_anomaly_documented(dept_steps):
     Trace: 这是 .feature Scenario 6 的「数据底座查找」而非「运行时拦截」断言；
     运行时拦截属于 policy.py 未来增强，归 Wave 1 issue tracker。
     """
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        import json
-        self_approval_count = 0
-        for s in dept_steps:
-            c.execute(
-                "SELECT applicant_org FROM application_record WHERE application_code=? AND tenant_id=?",
-                (s["application_code"], TENANT),
-            )
-            row = c.fetchone()
-            if row is None or not row[0]:
-                continue
-            applicant_org = row[0]
-            scope = json.loads(s["approver_scope_json"] or "{}")
-            if applicant_org == scope.get("approve_org_name"):
-                self_approval_count += 1
-        # 真数据 baseline：4 条 dept 步骤全部为 self-approval（省大数据局 既是 applicant_org
-        # 又是 approve_org_name）。这是 legacy 系统的设计选择——平台运营单位本身的内部
-        # 用数申请，由其自身完成 dept 审。新大脑应在 policy.enforce 层增强：
-        # 若 actor.org_code == applicant.org_code 且 step.decision_mode='department'，则拒绝。
-        assert self_approval_count == 4, (
-            f"legacy self-approval baseline anomaly should be 4 (省大数据局 内部自审 × 4); "
-            f"got {self_approval_count} — baseline 异动须 ack；policy 层 guard 是 Wave 1 增强"
+    self_approval_count = 0
+    for s in dept_steps:
+        rows = _pg_read(
+            "SELECT applicant_org FROM application_record "
+            "WHERE application_code=%s AND tenant_id=%s",
+            (s["application_code"], TENANT),
         )
-    finally:
-        conn.close()
+        if not rows or not rows[0][0]:
+            continue
+        applicant_org = rows[0][0]
+        scope = _coerce_json(s["approver_scope_json"])
+        if applicant_org == scope.get("approve_org_name"):
+            self_approval_count += 1
+    # 真数据 baseline：4 条 dept 步骤全部为 self-approval（省大数据局 既是 applicant_org
+    # 又是 approve_org_name）。这是 legacy 系统的设计选择——平台运营单位本身的内部
+    # 用数申请，由其自身完成 dept 审。新大脑应在 policy.enforce 层增强：
+    # 若 actor.org_code == applicant.org_code 且 step.decision_mode='department'，则拒绝。
+    assert self_approval_count == 4, (
+        f"legacy self-approval baseline anomaly should be 4 (省大数据局 内部自审 × 4); "
+        f"got {self_approval_count} — baseline 异动须 ack；policy 层 guard 是 Wave 1 增强"
+    )
 
 
 # ============================================================================

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
 
@@ -50,27 +49,21 @@ def test_session_greeting_falls_back_honestly_without_identity() -> None:
 # ─── handler 端到端（invoke_skill 真分发） ───────────────────────────────────
 
 @pytest.fixture()
-def brain(monkeypatch: pytest.MonkeyPatch):
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "workbench_greeting.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        from zw_brain.shared import db as db_module
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        from zw_brain.shared.migrate import ensure_runtime_schema
-        ensure_runtime_schema()
+def brain():
+    # Brain bound to the per-test empty PG clone (provided by the conftest
+    # autouse fixture); ensure_runtime_schema() makes the schema present.
+    from zw_brain.shared.migrate import ensure_runtime_schema
 
-        import zw_brain.shared.audit as audit_bus
-        from zw_brain.command.brain import BrainService
-        from zw_brain.shared.database_store import DatabaseStore
-        from zw_brain.shared.state_store import StateStore
+    ensure_runtime_schema()
 
-        ds = DatabaseStore()
-        audit_bus.configure_sink(ds.append_audit_event)
-        yield BrainService(state_store=StateStore(database_store=ds))
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+    import zw_brain.shared.audit as audit_bus
+    from zw_brain.command.brain import BrainService
+    from zw_brain.shared.database_store import DatabaseStore
+    from zw_brain.shared.state_store import StateStore
+
+    ds = DatabaseStore()
+    audit_bus.configure_sink(ds.append_audit_event)
+    return BrainService(state_store=StateStore(database_store=ds))
 
 
 def test_workbench_view_greeting_from_session_display_name(brain) -> None:

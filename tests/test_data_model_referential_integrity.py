@@ -6,18 +6,21 @@
 产品保证：「zw-brain 永不留孤儿行——删父级联或拒绝，由系统机制强制」。
 本测试核实：
   - A 类 12 条父-PK 边 + B 类 5 条 topic_package 复合边均已建 FK + ON DELETE CASCADE；
-  - 干净库 PRAGMA foreign_keys=ON 下，删父级联删子（孤儿=0）；
+  - 干净库 FK 强制下，删父级联删子（孤儿=0）；
   - 引用不存在父行的子写入被 DB 拒绝；
   - check_orphan_rows.py 对全部父子边（含 FK 覆盖不到的 C 类降级边）扫孤儿。
+
+PG-only：库由根 conftest 的 autouse fixture 提供（每测一个 CREATE DATABASE …
+TEMPLATE 克隆的、已 alembic upgrade head 的空 PG 库）。FK 元数据走方言无关的
+SQLAlchemy inspect()；孤儿守卫对同一个克隆库跑 check_orphan_rows.py --db-url。
+PostgreSQL 真实强制 FK——A/B 类有 FK+CASCADE 的边构造不出孤儿，只能在无 FK 的
+C 类边造孤儿，这正是 M3 守卫的兜底职责（D48）。库供给与隔离全由 conftest 接管。
 """
 
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 import pytest
-from sqlalchemy import text
+from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 
 from zw_brain.domain.models import (
@@ -28,7 +31,6 @@ from zw_brain.domain.models import (
     TopicPackageRecord,
 )
 from zw_brain.shared import db as db_module
-from zw_brain.shared.migrate import ensure_runtime_schema
 
 # A 类 12 条边：子表 → (引用列, 父表, 父列)。与设计 §1.2 A 类表一致。
 A_CLASS_EDGES = {
@@ -56,30 +58,27 @@ B_CLASS_TABLES = (
 )
 
 
-@pytest.fixture()
-def temp_db(monkeypatch: pytest.MonkeyPatch) -> Path:
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "referential_integrity.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        yield db_path
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-
-
 def _fk_targets(table_name: str) -> list[tuple[str, str, str, str]]:
-    """(parent_table, child_col, parent_col, on_delete) via PRAGMA foreign_key_list."""
-    SessionLocal = db_module.create_session_factory()
-    with SessionLocal() as s:
-        rows = list(s.execute(text(f"PRAGMA foreign_key_list({table_name})")))
-    # PRAGMA cols: id, seq, table, from, to, on_update, on_delete, match
-    return [(r[2], r[3], r[4], r[6]) for r in rows]
+    """(parent_table, child_col, parent_col, on_delete) via dialect-agnostic inspect.
+
+    SQLAlchemy ``get_foreign_keys`` returns, per FK,
+    ``{'constrained_columns','referred_table','referred_columns','options':{'ondelete':..}}``.
+    Expand each (possibly composite) FK into one tuple per (child_col, parent_col)
+    pair so callers can match on a single column — one tuple per FK column.
+    """
+    engine = db_module.create_session_factory().kw["bind"]
+    out: list[tuple[str, str, str, str]] = []
+    for fk in inspect(engine).get_foreign_keys(table_name):
+        ondelete = (fk.get("options") or {}).get("ondelete")
+        parent = fk["referred_table"]
+        for child_col, parent_col in zip(
+            fk["constrained_columns"], fk["referred_columns"], strict=False
+        ):
+            out.append((parent, child_col, parent_col, ondelete))
+    return out
 
 
-def test_a_class_edges_have_fk_cascade(temp_db: Path) -> None:
+def test_a_class_edges_have_fk_cascade() -> None:
     for child, (col, parent, parent_col) in A_CLASS_EDGES.items():
         targets = _fk_targets(child)
         match = [t for t in targets if t[0] == parent and t[1] == col]
@@ -88,7 +87,7 @@ def test_a_class_edges_have_fk_cascade(temp_db: Path) -> None:
         assert match[0][3] == "CASCADE", f"{child}.{col} FK 应 ON DELETE CASCADE，实测 {match[0][3]}"
 
 
-def test_b_class_topic_package_composite_fk_cascade(temp_db: Path) -> None:
+def test_b_class_topic_package_composite_fk_cascade() -> None:
     for child in B_CLASS_TABLES:
         targets = _fk_targets(child)
         tenant = [t for t in targets if t[0] == "topic_package" and t[1] == "tenant_id"]
@@ -97,7 +96,7 @@ def test_b_class_topic_package_composite_fk_cascade(temp_db: Path) -> None:
         assert tenant[0][3] == "CASCADE" and pkg[0][3] == "CASCADE", f"{child} 复合 FK 应 CASCADE"
 
 
-def test_fk_rejects_ghost_parent(temp_db: Path) -> None:
+def test_fk_rejects_ghost_parent() -> None:
     """插入引用不存在父行的子记录 → DB 拒绝（参照完整性 DB 强制）。"""
     SessionLocal = db_module.create_session_factory()
     with SessionLocal() as s:
@@ -112,7 +111,7 @@ def test_fk_rejects_ghost_parent(temp_db: Path) -> None:
             s.commit()
 
 
-def test_delete_parent_cascades_children_a_class(temp_db: Path) -> None:
+def test_delete_parent_cascades_children_a_class() -> None:
     SessionLocal = db_module.create_session_factory()
     with SessionLocal() as s:
         case = ApprovalCaseRecord(
@@ -147,7 +146,7 @@ def test_delete_parent_cascades_children_a_class(temp_db: Path) -> None:
         assert orphans == [], f"删父后应无孤儿 approval_step，实得 {len(orphans)}"
 
 
-def test_delete_parent_cascades_children_b_class(temp_db: Path) -> None:
+def test_delete_parent_cascades_children_b_class() -> None:
     SessionLocal = db_module.create_session_factory()
     with SessionLocal() as s:
         pkg = TopicPackageRecord(
@@ -198,29 +197,34 @@ def test_metadata_fk_floor() -> None:
 
 # --- M3 孤儿守卫（check_orphan_rows.py）行为核实 -----------------------------
 
-def _run_orphan_guard(db_path: Path) -> int:
-    """对指定库跑 scripts/check_orphan_rows.py --db-path，返回退出码。"""
+def _run_orphan_guard() -> int:
+    """对当前测试克隆库（get_database_url）跑 check_orphan_rows.py --db-url，返回退出码。
+
+    传 --db-url 让守卫体检*这一个* PG 克隆库（M5 体检模式，只读不动）——即测试刚
+    写过孤儿的同一个隔离库，而非守卫默认自建的另一个干净一次性库。
+    """
     import subprocess
     import sys
+    from pathlib import Path
 
     script = Path(__file__).resolve().parent.parent / "scripts" / "check_orphan_rows.py"
     proc = subprocess.run(
-        [sys.executable, str(script), "--db-path", str(db_path)],
+        [sys.executable, str(script), "--db-url", db_module.get_database_url()],
         capture_output=True,
         text=True,
     )
     return proc.returncode
 
 
-def test_orphan_guard_clean_seed_passes(temp_db: Path) -> None:
+def test_orphan_guard_clean_seed_passes() -> None:
     """干净 seed 库（标准 initialize 后）孤儿守卫应 PASS。"""
     from zw_brain.shared.database_store import DatabaseStore
 
     DatabaseStore().initialize()
-    assert _run_orphan_guard(temp_db) == 0, "干净 seed 库孤儿守卫应 PASS（孤儿=0）"
+    assert _run_orphan_guard() == 0, "干净 seed 库孤儿守卫应 PASS（孤儿=0）"
 
 
-def test_orphan_guard_detects_c_class_orphan(temp_db: Path) -> None:
+def test_orphan_guard_detects_c_class_orphan() -> None:
     """C 类边（无 FK）注入孤儿子行 → 孤儿守卫 FAIL（M3 是 C 类唯一兜底）。
 
     delivery_receipt.delivery_code 引用一个不存在的 delivery_task（C 类边无 FK，
@@ -239,10 +243,10 @@ def test_orphan_guard_detects_c_class_orphan(temp_db: Path) -> None:
         ))
         s.commit()  # C 类无 FK，DB 不拦（证明降级现实）
 
-    assert _run_orphan_guard(temp_db) == 1, "C 类孤儿子行应被 M3 守卫查出 FAIL"
+    assert _run_orphan_guard() == 1, "C 类孤儿子行应被 M3 守卫查出 FAIL"
 
 
-def test_orphan_guard_detects_dangling_catalog_ref(temp_db: Path) -> None:
+def test_orphan_guard_detects_dangling_catalog_ref() -> None:
     """topic_package_item 引用未录入 catalog_entry 的目录 → 可达性守卫 FAIL（§六.3）。"""
     from zw_brain.domain.models import TopicPackageItemRecord, TopicPackageRecord
     from zw_brain.shared import db as db_module
@@ -269,7 +273,7 @@ def test_orphan_guard_detects_dangling_catalog_ref(temp_db: Path) -> None:
         ))
         s.commit()
 
-    assert _run_orphan_guard(temp_db) == 1, "悬挂 catalog_entry 引用应被守卫 FAIL"
+    assert _run_orphan_guard() == 1, "悬挂 catalog_entry 引用应被守卫 FAIL"
 
 
 # --- M4 缺陷 4 ref 完整性·悬挂引用诚实信号（只读派生，不写库） -----------------
@@ -292,7 +296,7 @@ def test_effective_ref_status_dangling_signal() -> None:
     assert effective_ref_status("catalog_entry", "cat-missing", "active", present_catalog_codes=None) == "active"
 
 
-def test_topic_item_to_dict_surfaces_dangling(temp_db: Path) -> None:
+def test_topic_item_to_dict_surfaces_dangling() -> None:
     """topic_item_to_dict 带 present_catalog_codes 时悬挂 item 降级 + ref_resolvable=False。"""
     from zw_brain.domain.models import TopicPackageItemRecord
     from zw_brain.domain.serializers.topic_package import topic_item_to_dict
@@ -313,8 +317,10 @@ def test_topic_item_to_dict_surfaces_dangling(temp_db: Path) -> None:
 
 # --- M5 legacy executor 延迟写守门（父缺位不造孤儿，幂等无写-后-删） ----------
 
-def test_pipelines_executor_skips_when_parent_absent(temp_db: Path) -> None:
+def test_pipelines_executor_skips_when_parent_absent() -> None:
     """_map_exchange_executor：父 DeliveryTask 缺位 → 跳过写 attempt + warn 审计，不造孤儿。"""
+    from pathlib import Path
+
     from zw_brain.adapters.legacy._common import ImportStats
     from zw_brain.adapters.legacy.mappers.pipelines import PipelinesMapper
     from zw_brain.domain.models import DeliveryAttemptRecord, DeliveryTaskRecord
@@ -326,7 +332,7 @@ def test_pipelines_executor_skips_when_parent_absent(temp_db: Path) -> None:
         s.commit()
 
     mapper = PipelinesMapper(tenant_id="sd-default")
-    stats = ImportStats(schema="dsp_pipelines", dump_path=temp_db)
+    stats = ImportStats(schema="dsp_pipelines", dump_path=Path("dsp_pipelines"))
     # 父存在 → 建 attempt
     mapper._map_exchange_executor({"executor_id": "EX-OK", "obj_id": "SUB-OK", "obj_type": 1}, "dsp", stats)
     # 父缺位 → 跳过（不造孤儿）

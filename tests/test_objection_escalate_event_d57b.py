@@ -21,14 +21,9 @@ provider_investigating，按维度+当前态派生合法落点（仿 D57 accept 
 """
 from __future__ import annotations
 
-from collections.abc import Iterator
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 import pytest
 
 from tests._trusted_payload import invoke_trusted
-from zw_brain.shared import db as db_module
 
 DIMENSIONS = ("catalog", "content", "use", "resource", "authz")
 
@@ -59,23 +54,14 @@ TENANT = "sd-default"
 
 
 @pytest.fixture()
-def temp_db(monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
-    from zw_brain.shared.migrate import ensure_runtime_schema
-
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "objection_escalate.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        yield db_path
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+def temp_db() -> None:
+    """conftest autouse 已为每个测试提供干净、已迁移的空 PG 克隆库（建表 + 隔离）。
+    本 fixture 保留为显式依赖标记，验事件机制、无 seed。"""
+    yield None
 
 
 @pytest.fixture()
-def brain(temp_db: Path):
+def brain(temp_db: None):
     import zw_brain.shared.audit as audit_bus
     from zw_brain.command.brain import BrainService
     from zw_brain.shared.database_store import DatabaseStore

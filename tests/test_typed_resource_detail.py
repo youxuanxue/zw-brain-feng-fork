@@ -19,41 +19,45 @@
 """
 from __future__ import annotations
 
-import os
-import shutil
-import sqlite3
-from pathlib import Path
+import contextlib
 
+import psycopg
 import pytest
+from sqlalchemy.engine import make_url
 
-from tests._seed_guard import require_real_seed
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (module fixture)
 from tests._trusted_payload import invoke_trusted
 from zw_brain.domain.serializers.typed_resource_detail import typed_resource_detail
+from zw_brain.shared import db as _db
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_typed_resource_detail_shadow.db"
 TENANT = "sd-default"
 
-require_real_seed({"resource_asset": 50, "resource_channel_binding": 20})
+# 真实数据回归：克隆 zw_realistic_tmpl；模板缺位整模块 skip（CI 无 dump），承接旧
+# require_real_seed({"resource_asset": 50, "resource_channel_binding": 20}) 跳过语义。
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _shadow_db() -> None:
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
+@contextlib.contextmanager
+def _read_conn() -> psycopg.Connection:
+    """只读 psycopg 连接，连当前测试库（realistic 克隆）。绝不开文件。"""
+    url = make_url(_db.get_database_url())
+    conn = psycopg.connect(
+        host=url.host,
+        port=url.port,
+        user=url.username,
+        password=url.password,
+        dbname=url.database,
+    )
+    try:
+        yield conn
+    finally:
+        conn.close()
 
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
 
-
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def brain():
+    # function-scoped：realistic_pg_module 模块级钉住真灌库克隆，但根 conftest 的 hands-off
+    # 分支仍每测试重置 audit 全局（清 sink）；故 store + 审计 sink 必须每测试对同一克隆重挂。
     import zw_brain.shared.audit as audit_bus
     from zw_brain.command.brain import BrainService
     from zw_brain.shared.database_store import DatabaseStore
@@ -73,17 +77,15 @@ def _result(out: object) -> dict:
 
 def _resource_with_binding(kind: str, channel_kind: str) -> str | None:
     """挑一个指定 resource_kind 且确有对应 channel binding 的真实资源（分型字段有值的锚）。"""
-    conn = sqlite3.connect(f"file:{SHADOW_DB}?mode=ro", uri=True)
-    try:
+    with _read_conn() as conn:
         row = conn.execute(
             "select a.resource_code from resource_asset a "
             "join resource_channel_binding b "
             "  on a.resource_code = b.resource_code and a.tenant_id = b.tenant_id "
-            "where a.tenant_id = ? and a.resource_kind = ? and b.channel_kind = ? limit 1",
+            "where a.tenant_id = %s and a.resource_kind = %s and b.channel_kind = %s "
+            "order by a.resource_code limit 1",
             (TENANT, kind, channel_kind),
         ).fetchone()
-    finally:
-        conn.close()
     return row[0] if row else None
 
 
@@ -149,17 +151,19 @@ def test_api_resource_template_present_even_when_data_thin(brain) -> None:
 
     分型模板仍渲染「接口信息」块，缺值诚实空态（None），绝不造假（D11）。
     """
-    conn = sqlite3.connect(f"file:{SHADOW_DB}?mode=ro", uri=True)
-    try:
+    # 取一个 api/service 类资源，且其挂接目录在 catalog_entry 主表可达——这正是 P2 资源详情页
+    # 可达（catalog.resource_view 经 asset.catalog_code 解析）的接口资源；PG 下 limit 无序，
+    # 故显式 join + order_by 钉死，避免取到 catalog_code 悬空、resource_view 必 404 的孤儿行。
+    with _read_conn() as conn:
         row = conn.execute(
-            "select resource_code from resource_asset "
-            "where tenant_id = ? and resource_kind in ('service', 'api') limit 1",
+            "select a.resource_code from resource_asset a "
+            "join catalog_entry c on c.catalog_code = a.catalog_code and c.tenant_id = a.tenant_id "
+            "where a.tenant_id = %s and a.resource_kind in ('service', 'api') "
+            "order by a.resource_code limit 1",
             (TENANT,),
         ).fetchone()
-    finally:
-        conn.close()
     if not row:
-        pytest.skip("seed 库无接口类资源")
+        pytest.skip("seed 库无可达（挂接目录主表可解析）的接口类资源")
     detail = _view(brain, row[0])
     typed = detail.get("typedDetail")
     assert typed and typed["kind"] == "api"
@@ -172,18 +176,15 @@ def test_api_resource_template_present_even_when_data_thin(brain) -> None:
 def test_catalog_meta_carries_compilation_spec_fields(brain) -> None:
     """目录详情 catalogMeta 投影出旧平台编制规范字段全集，关键字段真值非空。"""
     # 挑一个真实业务目录（含中文标题 + 有 summary 描述），其下挂资源
-    conn = sqlite3.connect(f"file:{SHADOW_DB}?mode=ro", uri=True)
-    try:
+    with _read_conn() as conn:
         row = conn.execute(
             "select a.resource_code from resource_asset a "
             "join catalog_entry c on c.catalog_code = a.catalog_code and c.tenant_id = a.tenant_id "
-            "where a.tenant_id = ? and c.title is not null and length(c.title) >= 4 "
-            "and c.summary_json like '%description%' "
+            "where a.tenant_id = %s and c.title is not null and length(c.title) >= 4 "
+            "and c.summary_json::text like '%%description%%' "
             "order by a.resource_code limit 1",
             (TENANT,),
         ).fetchone()
-    finally:
-        conn.close()
     assert row, "seed 库应有挂资源且带描述的真实目录"
     detail = _view(brain, row[0])
     meta = detail.get("catalogMeta")
@@ -233,17 +234,14 @@ def test_discovery_card_carries_materialization_kind(brain) -> None:
 
 def test_catalog_access_policy_share_open_semantics(brain) -> None:
     """共享方式 / 共享类型 / 开放类型为首屏决策字段，真实目录应携带（accessPolicy）。"""
-    conn = sqlite3.connect(f"file:{SHADOW_DB}?mode=ro", uri=True)
-    try:
+    with _read_conn() as conn:
         row = conn.execute(
             "select a.resource_code from resource_asset a "
             "join catalog_entry c on c.catalog_code = a.catalog_code and c.tenant_id = a.tenant_id "
-            "where a.tenant_id = ? and c.summary_json like '%shared_type%' "
+            "where a.tenant_id = %s and c.summary_json::text like '%%shared_type%%' "
             "order by a.resource_code limit 1",
             (TENANT,),
         ).fetchone()
-    finally:
-        conn.close()
     if not row:
         pytest.skip("seed 库无带 shared_type 的目录")
     detail = _view(brain, row[0])

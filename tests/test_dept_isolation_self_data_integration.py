@@ -48,15 +48,13 @@ def _unwrap(result: Any) -> dict[str, Any]:
 
 
 @pytest.fixture()
-def brain(tmp_path, monkeypatch):
-    """全功能 brain（写路径需 durable audit sink + 运行时 DB），temp SQLite 隔离不污染主库。
+def brain():
+    """全功能 brain（写路径需 durable audit sink + 运行时 DB）。
 
     复用 G2 草稿流测试的真实栈搭法（runtime.get_service + 注入可申请资源），但额外 seed 两个
     **非默认**机构投影，供 caller_org_code 解析会话机构名 + 部门隔离 org_in_scope 成员判定。
+    运行时库与审计 schema 的隔离由 conftest 的 per-test PG 克隆承接，无需设 DB 路径 env、不污染主库。
     """
-    monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(tmp_path / "runtime.db"))
-    monkeypatch.setenv("ZW_BRAIN_AUDIT_DB_PATH", str(tmp_path / "audit.db"))
-
     from zw_brain.command import runtime as runtime_mod
     from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
     from zw_brain.shared import audit as audit_bus

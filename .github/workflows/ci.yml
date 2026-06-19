@@ -37,6 +37,23 @@ jobs:
         # 3.11 = pyproject.toml's requires-python floor; 3.12 = stable.
         # Coverage + slow_infra tests run only on push-to-main, not on PR (saves ~6 min PR-side).
         python: ${{ (github.event_name == 'pull_request') && fromJSON('["3.12"]') || fromJSON('["3.11", "3.12"]') }}
+    # 全盘 PG 后单测在真 PostgreSQL 上跑（不再 sqlite 临时文件）。模板克隆 fixture 连这台
+    # service（CREATE DATABASE ... TEMPLATE 派生 per-test/per-worker 库），凭据/端口与
+    # DEFAULT_PG_URL 一致。py3.11 / py3.12 矩阵两道都挂同一 service。
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: zw_brain
+          POSTGRES_USER: zw_brain
+          POSTGRES_PASSWORD: zw_brain
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U zw_brain -d zw_brain"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,14 +68,31 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
       - name: install
-        run: uv pip install -e '.[dev]' build coverage
+        # '.[dev,postgres]' 拉 psycopg v3，单测才能连真 PG。
+        run: uv pip install -e '.[dev,postgres]' build coverage
       - name: preflight
+        # preflight 不碰 DB，但同 job 有 PG service 无妨。
         if: matrix.python == '3.12'
         run: bash scripts/preflight.sh
+      - name: pg smoke (ensure_runtime_schema + seed on real PG)
+        # 折并自原独立 pg-smoke job：全盘 PG 后 test 已跑在真 postgres:16 上，单独再起一道
+        # 冗余。这里在 py3.12 一道补一个轻量冒烟——ensure_runtime_schema() → alembic
+        # upgrade head 建全部 ORM 表、反射校验、seed 落库——保留「发布运行的 PG 路径被独立
+        # 触达、不靠测试 fixture 间接覆盖」的诚实测量信号。跑在与单测同一 service 的 base
+        # 库上、先于 pytest（fixture 用模板克隆派生独立库，不与此 base 库争用）。
+        if: matrix.python == '3.12'
+        env:
+          ZW_BRAIN_DATABASE_URL: postgresql+psycopg://zw_brain:zw_brain@127.0.0.1:5432/zw_brain
+        run: |
+          set -o pipefail
+          python scripts/pg_smoke.py
       - name: pytest
         # PR: default markers (slow_infra excluded by pyproject.toml addopts), no coverage.
         # Push-to-main: explicit -m to include slow_infra; py3.12 also runs under coverage.
         # --durations=10 keeps slow-test drift visible in CI logs so future regressions surface early.
+        # ZW_BRAIN_DATABASE_URL 指向 service：测试 fixture 据此 server 连接做模板克隆。
+        env:
+          ZW_BRAIN_DATABASE_URL: postgresql+psycopg://zw_brain:zw_brain@127.0.0.1:5432/zw_brain
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             python -m pytest --durations=10
@@ -87,8 +121,24 @@ jobs:
     # Spins up the import CLI on a synthetic dump produced inside the runner —
     # catches drift in MysqldumpParser / mapper dispatch / verify subcommand
     # without needing the real ~445 MB dump corpus in CI.
+    # 全盘 PG 后导入也灌真 PostgreSQL（不再 sqlite 临时文件）：import_legacy_dumps.py
+    # 经 ORM 落库，方言无关，但要在真 PG 上验证建表/约束/CASCADE 不漂移。
     name: legacy-import-smoke
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: zw_brain
+          POSTGRES_USER: zw_brain
+          POSTGRES_PASSWORD: zw_brain
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U zw_brain -d zw_brain"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -96,7 +146,7 @@ jobs:
           python-version: '3.12'
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
-      - run: uv pip install -e '.[dev]'
+      - run: uv pip install -e '.[dev,postgres]'
       - name: write tiny synthetic dump
         run: |
           mkdir -p .ci-dumps
@@ -126,7 +176,8 @@ jobs:
       - name: parse-stats + import + verify
         env:
           ZW_BRAIN_LEGACY_DUMPS_DIR: ${{ github.workspace }}/.ci-dumps
-          ZW_BRAIN_DB_PATH: ${{ runner.temp }}/smoke.db
+          # 导入目标库 = 真 postgres:16 service（凭据/端口同 DEFAULT_PG_URL）。
+          ZW_BRAIN_DATABASE_URL: postgresql+psycopg://zw_brain:zw_brain@127.0.0.1:5432/zw_brain
           ZW_BRAIN_LEGACY_CACHE_DIR: ${{ runner.temp }}/legacy-cache
         run: |
           python scripts/import_legacy_dumps.py list
@@ -153,6 +204,22 @@ jobs:
     name: e2e + feature measurement (seed-light)
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    # 全盘 PG 后 e2e 真栈也跑在真 PostgreSQL 上（不再钉回 sqlite）：seed_snapshot 经
+    # ensure_runtime_schema() 落进空 PG 库，REST server 直连 service。
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: zw_brain
+          POSTGRES_USER: zw_brain
+          POSTGRES_PASSWORD: zw_brain
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U zw_brain -d zw_brain"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -160,7 +227,7 @@ jobs:
           python-version: '3.12'
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
-      - run: uv pip install -e '.[dev]'
+      - run: uv pip install -e '.[dev,postgres]'
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -173,6 +240,9 @@ jobs:
           ZW_BRAIN_INFERENCE_MODE: mock
           ZW_BRAIN_DEV_IAM_BYPASS: '1'
           ZW_BRAIN_DEV_IAM_BYPASS_ACK: development-only
+          # 全盘 PG：REST 直连 postgres:16 service（凭据/端口同 DEFAULT_PG_URL）；空库由
+          # ensure_runtime_schema() 建表 + seed_snapshot 落种，seed-light e2e 在真 PG 上跑。
+          ZW_BRAIN_DATABASE_URL: postgresql+psycopg://zw_brain:zw_brain@127.0.0.1:5432/zw_brain
         run: |
           set -o pipefail
           nohup python -m zw_brain.entry.rest.server > "${{ runner.temp }}/rest.log" 2>&1 &

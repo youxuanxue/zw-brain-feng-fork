@@ -6,7 +6,12 @@
 # Trace:
 #   scripts/customer_demo_j2.py
 #   docs/customer-demo-j2.md
-"""F6 J2 客户演示集成测试 — 通过 Python driver 跑全链路 + 断言 audit 覆盖 + 时长预算."""
+"""F6 J2 客户演示集成测试 — 通过 Python driver 跑全链路 + 断言 audit 覆盖 + 时长预算.
+
+数据隔离：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
+模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义）。driver 自身经
+get_database_url() 读克隆库，无 seed/shadow 文件参数（PG 化后 run_demo() 无参）。
+"""
 from __future__ import annotations
 
 import json
@@ -14,18 +19,14 @@ import os
 import sys
 from pathlib import Path
 
-from tests._seed_guard import require_real_seed
+import pytest
+
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (fixture)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
 TENANT = "sd-default"
 
-# F6 demo 仅依赖：catalog_entry (≥1000) + resource_asset.resource_kind=table (≥1)
-require_real_seed([
-    ("catalog_entry", 1000),
-    ("resource_asset", 1, "tenant_id = 'sd-default' AND resource_kind='table' "
-     "AND owner_org_id IS NOT NULL AND owner_org_id != ''"),
-])
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
 # 把 scripts/ 加入 sys.path 以便 import customer_demo_j2
@@ -38,8 +39,7 @@ def test_customer_demo_j2_full_chain_exits_clean(tmp_path):
     """直接 import driver 跑 J2 全链路，断言 result.ok + 14 类 audit 覆盖 + 时长 < 30 分钟."""
     import customer_demo_j2 as demo  # noqa: PLC0415
 
-    shadow = tmp_path / "shadow-full.db"
-    result = demo.run_demo(SEED_DB, shadow)
+    result = demo.run_demo()
     assert result["ok"] is True
     assert result["catalog_code"].startswith("DEMO-J2-")
     assert result["resource_code"]
@@ -61,11 +61,9 @@ def test_customer_demo_j2_writes_json_report(tmp_path):
     """通过 main() 跑脚本，验证 --report 参数能写 JSON 报告."""
     import customer_demo_j2 as demo  # noqa: PLC0415
 
-    shadow = tmp_path / "shadow-report.db"
     report_path = tmp_path / "demo-test.json"
     argv = sys.argv
-    sys.argv = ["customer_demo_j2.py", "--seed-db", str(SEED_DB),
-                "--shadow-db", str(shadow), "--report", str(report_path)]
+    sys.argv = ["customer_demo_j2.py", "--report", str(report_path)]
     try:
         rc = demo.main()
     finally:
@@ -89,8 +87,7 @@ def test_customer_demo_j2_capability_call_core_coverage(tmp_path):
     """capability_call 持久化 SoT 必须覆盖 F1+F2+F3+F4 9 个核心 skill（core_missing 应为空）."""
     import customer_demo_j2 as demo  # noqa: PLC0415
 
-    shadow = tmp_path / "shadow-cap.db"
-    result = demo.run_demo(SEED_DB, shadow)
+    result = demo.run_demo()
     assert result["capability_call_total"] > 0
     assert result["capability_call_core_missing"] == [], (
         f"F6 demo 核心 skill capability_call 缺漏：{result['capability_call_core_missing']}"

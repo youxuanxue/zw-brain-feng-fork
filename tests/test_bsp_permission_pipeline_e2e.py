@@ -1,7 +1,6 @@
 """阶段 F：BSP 权限样本链路集成验收（dry-run → apply → review → tenant 策略）。"""
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -168,9 +167,7 @@ def _pipeline_dump() -> str:
     return _PUB_BATCH_GOVERNANCE_DUMP + _PIPELINE_DUMP_SUFFIX
 
 
-def _bootstrap_service(tmp: str) -> tuple[BrainService, GovernanceProjectionRepository]:
-    db_path = Path(tmp) / "pipeline.db"
-    os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
+def _bootstrap_service() -> tuple[BrainService, GovernanceProjectionRepository]:
     ensure_runtime_schema()
     database_store = DatabaseStore()
     audit_bus.configure_sink(database_store.append_audit_event)
@@ -194,7 +191,7 @@ def test_pipeline_dry_run_then_apply_review_and_tenant_policy() -> None:
     policy.assert_no_legacy_role_codes()
 
     with TemporaryDirectory() as tmp:
-        service, gov = _bootstrap_service(tmp)
+        service, gov = _bootstrap_service()
 
         dry = _import_pipeline_dump(tmp, dry_run=True)
         assert dry["mode"] == "dry-run"
@@ -284,7 +281,7 @@ def test_pipeline_dry_run_then_apply_review_and_tenant_policy() -> None:
 
 def test_pipeline_reimport_is_idempotent_for_bindings_and_candidates() -> None:
     with TemporaryDirectory() as tmp:
-        _bootstrap_service(tmp)
+        _bootstrap_service()
         _import_pipeline_dump(tmp, dry_run=False)
         gov = GovernanceProjectionRepository()
         bindings_before = len(gov.list_actor_org_role_bindings(tenant_id="sd-default", binding_status="active"))
@@ -300,7 +297,7 @@ def test_pipeline_reimport_is_idempotent_for_bindings_and_candidates() -> None:
 
 def test_iam_missing_actor_fail_closed_on_policy_evaluate() -> None:
     with TemporaryDirectory() as tmp:
-        service, gov = _bootstrap_service(tmp)
+        service, gov = _bootstrap_service()
         _import_pipeline_dump(tmp, dry_run=False)
         missing = next(item for item in gov.list_actors(tenant_id="sd-default") if item.external_actor_id == "U003")
         assert missing.status == "iam_account_missing"

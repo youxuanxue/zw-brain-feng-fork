@@ -17,23 +17,15 @@ import pytest
 
 
 @pytest.fixture()
-def fresh_runtime(tmp_path, monkeypatch):
-    db_path = tmp_path / "p1_coldstart.db"
-    monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-    monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
+def fresh_runtime(monkeypatch):
     monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS", "1")
     monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS_ACK", "development-only")
     monkeypatch.delenv("ZW_BRAIN_DEPLOY_MODE", raising=False)
-    from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
     from zw_brain.command import runtime
 
     runtime.reset_service()
     yield runtime
     runtime.reset_service()
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
 
 
 def test_concurrent_first_requests_init_once(fresh_runtime, monkeypatch):

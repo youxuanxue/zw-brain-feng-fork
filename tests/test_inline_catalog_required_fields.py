@@ -18,45 +18,27 @@
 口径单源：前端字典 zw-brain-web/src/lib/catalogCompileFields.ts BASIC_INFO_FIELDS；
 后端镜像 zw_brain/command/handlers/j1/catalog_entry.py _INLINE_BASIC_REQUIRED_FIELDS。
 
-数据隔离：ZW_BRAIN_DB_PATH 切到 shadow，写不污染 .data/zw_brain.db。
+数据隔离：本测试只新铸草稿目录（不读真实 seed），由根 conftest 的 function-scoped
+空 PG 克隆（已 alembic upgrade head 建表）供给，跨测试天然隔离——无需真灌库 / shadow。
 """
 from __future__ import annotations
 
-import os
 import re
-import shutil
 import uuid
 from pathlib import Path
 
 import pytest
 
-from tests._seed_guard import require_real_seed
 from tests._trusted_payload import invoke_trusted
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_inline_required_shadow.db"
 TENANT = "sd-default"
 
-require_real_seed({"catalog_entry": 1000})
 
-
-@pytest.fixture(scope="session", autouse=True)
-def _shadow_db() -> None:
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
-
-
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def brain():
+    # function-scoped：根 conftest 每个测试克隆一个新空 PG 库并重置 engine/audit 全局，
+    # 故 store + 审计 sink 必须每测试重建并对当前克隆库重新挂载（session 级会绑到已 DROP 的库）。
     import zw_brain.shared.audit as audit_bus
     from zw_brain.command.brain import BrainService
     from zw_brain.shared.database_store import DatabaseStore
@@ -68,7 +50,7 @@ def brain():
     return BrainService(state_store=ss)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def catalog_repo():
     from zw_brain.domain.repositories.catalog import CatalogRepository
 

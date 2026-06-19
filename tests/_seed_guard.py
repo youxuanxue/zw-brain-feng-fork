@@ -1,112 +1,58 @@
-"""Shared guard for M0 真灌库 (real-data seed) tests.
+"""Shared guard for the real-data (M0 真灌库) tests — PostgreSQL edition.
 
-14 test modules each copy-pasted a `_seed_ready()` that checked only row COUNT,
-not whether the seed's schema matched the current ORM models. A populated-but-
-stale seed (e.g. after a model adds a column) therefore slipped past the guard
-and produced cryptic `no such column` ERRORs at fixture setup instead of a
-clean skip. This helper checks BOTH schema currency and data presence, and
-skips cleanly with a rebuild hint when either fails.
+ORIGIN
+------
+14 test modules each copy-pasted a ``_seed_ready()`` that gated on a SQLite seed
+file (``.data/zw_brain.db``): existence + row COUNT + schema currency. After the
+full-PG migration there is no SQLite seed file and no per-file shadow copy: the
+realistic legacy dataset lives once in a **persistent PG template database**
+(``zw_realistic_tmpl``, built by ``scripts/build_realistic_pg_template``) and each
+module that needs it clones the template via the ``realistic_pg_module`` fixture
+(``tests/_pg_realistic.py``).
+
+WHAT ``require_real_seed`` MEANS NOW
+------------------------------------
+The two responsibilities the SQLite guard carried are now owned elsewhere:
+
+* **"real data present, else skip"** → the ``realistic_pg_module`` fixture
+  ``pytest.skip``s the whole module when the template DB is absent (CI without
+  the legacy dump corpus), exactly reproducing the old skip-when-missing
+  semantics.
+* **schema currency** → the template is built by running
+  ``ensure_runtime_schema()`` (alembic upgrade head) against fresh ORM models, so
+  a stale-schema seed is structurally impossible — no per-test PRAGMA diff needed.
+
+So ``require_real_seed`` is a **no-op** retained only to keep the ~24 caller
+modules compiling unchanged while their migration to the ``realistic_pg_module``
+fixture lands incrementally (a separate slice owns flipping each caller to the
+fixture). It never opens a file and never references SQLite. The ``checks`` arg
+(row thresholds) is accepted and ignored: D44's rule that runtime-accumulated
+tables must never gate a module is still enforced statically by preflight 段 57
+(``check_require_real_seed_sanity.py``), independent of this body.
 """
 from __future__ import annotations
 
-import sqlite3
-from collections.abc import Iterable
 from pathlib import Path
 
-import pytest
-
-from zw_brain.domain.models import Base
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
 DEFAULT_TENANT = "sd-default"
 
+# Build/refresh the realistic PG template that the realistic_pg_module fixture
+# clones. Replaces the retired SQLite legacy-import-to-file recipe.
 REBUILD_HINT = (
-    "重建真灌库（M0 一次性迁移路径，含审计证据写入）："
-    '.venv/bin/python -m zw_brain.entry.legacy_migration.main '
-    '--dumps-dir "old/10示例数据" --db-path .data/zw_brain.db --reset-db '
-    "--report /tmp/migration-report.json"
+    "重建真灌库（PG realistic 模板，realistic_pg_module 克隆它）："
+    ".venv/bin/python -m scripts.build_realistic_pg_template "
+    '--dumps-dir "old/10示例数据"  # 灌进 PG 模板库 zw_realistic_tmpl（含审计证据写入）'
 )
 
 
-def schema_drift_reason() -> str | None:
-    """Reason the seed schema is behind the current ORM models, else None.
-
-    For every model table that exists in the seed, every model column must be
-    present. Extra seed columns are ignored — the seed may legitimately predate
-    a column drop. This is exactly the check the old per-file `_seed_ready()`
-    lacked.
-    """
-    with sqlite3.connect(f"file:{SEED_DB}?mode=ro", uri=True) as conn:
-        seeded = {
-            r[0]
-            for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        }
-        for table in Base.metadata.sorted_tables:
-            if table.name not in seeded:
-                continue
-            cols = {r[1] for r in conn.execute(f'PRAGMA table_info("{table.name}")')}
-            missing = {c.name for c in table.columns} - cols
-            if missing:
-                return f"{table.name} 缺列 {sorted(missing)}"
-    return None
-
-
-def _normalize(checks: object, tenant: str) -> list[tuple[str, int, str, tuple]]:
-    if checks is None:
-        return []
-    if isinstance(checks, dict):
-        items: Iterable = list(checks.items())
-    elif isinstance(checks, tuple) and checks and isinstance(checks[0], str):
-        items = [checks]
-    else:
-        items = list(checks)  # type: ignore[arg-type]
-    out: list[tuple[str, int, str, tuple]] = []
-    for it in items:
-        if len(it) == 3:
-            table, min_rows, where = it
-            out.append((table, min_rows, where, ()))
-        else:
-            table, min_rows = it
-            out.append((table, min_rows, "tenant_id = ?", (tenant,)))
-    return out
-
-
 def require_real_seed(checks: object = None, *, tenant: str = DEFAULT_TENANT) -> None:
-    """Skip the calling module cleanly unless the M0 真灌库 seed exists, matches
-    the current model schema, and meets row thresholds. Call at module top level.
+    """No-op under PostgreSQL — kept for source compatibility.
 
-    `checks` accepts:
-      - dict  {table: min_rows}              — tenant-scoped count
-      - tuple (table, min_rows)              — tenant-scoped count
-      - tuple (table, min_rows, where_sql)   — custom WHERE (no auto tenant filter)
-      - an iterable of the above tuples
+    The real-data presence gate (skip when absent) now lives in the
+    ``realistic_pg_module`` fixture, and schema currency is guaranteed by the
+    migrated template. Modules still calling this should depend on
+    ``realistic_pg_module`` for their data; this call no longer touches any file
+    or database. ``checks`` / ``tenant`` are accepted and ignored.
     """
-    if not SEED_DB.exists():
-        pytest.skip(
-            f"M0 真灌库缺位（无 {SEED_DB.name}）；{REBUILD_HINT}",
-            allow_module_level=True,
-        )
-    drift = schema_drift_reason()
-    if drift is not None:
-        pytest.skip(
-            f"M0 真灌库 schema 落后于模型（{drift}）；{REBUILD_HINT}",
-            allow_module_level=True,
-        )
-    for table, min_rows, where, params in _normalize(checks, tenant):
-        with sqlite3.connect(f"file:{SEED_DB}?mode=ro", uri=True) as conn:
-            try:
-                row = conn.execute(
-                    f"SELECT COUNT(*) FROM {table} WHERE {where}", params
-                ).fetchone()
-            except sqlite3.OperationalError as exc:
-                pytest.skip(
-                    f"M0 真灌库表 {table} 不可用（{exc}）；{REBUILD_HINT}",
-                    allow_module_level=True,
-                )
-            got = row[0] if row else 0
-            if got < min_rows:
-                pytest.skip(
-                    f"M0 真灌库 {table} 行数不足（需 ≥{min_rows}，实 {got}）；{REBUILD_HINT}",
-                    allow_module_level=True,
-                )
+    return None

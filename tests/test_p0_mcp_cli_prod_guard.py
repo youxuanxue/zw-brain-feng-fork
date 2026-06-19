@@ -24,27 +24,19 @@ def _set_bypass(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture()
-def isolated_runtime(tmp_path, monkeypatch):
-    """Isolate the CLI in-process invoke so it neither reads the ambient dev DB nor leaves
-    the runtime module-global / engine cache populated for later tests (the real CLI
-    in-process path builds a BrainService via runtime.get_service()).
+def isolated_runtime():
+    """Isolate the CLI in-process invoke so it doesn't leave the runtime module-global
+    populated for later tests (the real CLI in-process path builds a BrainService via
+    runtime.get_service()).
 
-    Without this, the ok-test would cache a service against one DB and a downstream test
-    reusing the global would see a mismatched schema. Point at a fresh per-test DB and reset
-    runtime state on the way in and out."""
-    db_path = tmp_path / "p0_cli.db"
-    monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-    monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
+    The conftest autouse fixture already supplies a fresh per-test PG clone and resets the
+    engine cache; this just additionally resets the cached BrainService on the way in/out so
+    a service built here against this test's clone doesn't leak into the next test."""
     from zw_brain.command import runtime
-    from zw_brain.shared import db as _db
 
     runtime.reset_service()
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
     yield
     runtime.reset_service()
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
 
 
 # ─── MCP serve_stdio ────────────────────────────────────────────────────────

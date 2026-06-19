@@ -52,40 +52,63 @@ def test_wheel_build_and_install_smoke() -> None:
         bin_dir = venv_dir / ("Scripts" if os.name == "nt" else "bin")
         python = bin_dir / "python"
         env = os.environ.copy()
-        env["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "installed.db")
-        subprocess.run([str(python), "-m", "pip", "install", str(wheels[0])], cwd=tmp, env=env, text=True, capture_output=True, check=True)
+        # 全盘 PG：wheel 核心不含 psycopg，安装时带 [postgres] extra；installed wheel 的
+        # ensure_runtime_schema/CLI 都连一个一次性真 PG 库（用完即 DROP）。
+        import uuid as _uuid
 
-        subprocess.run(
-            [str(python), "-c", "from zw_brain.shared.migrate import ensure_runtime_schema; ensure_runtime_schema(); print('ok')"],
-            cwd=tmp,
-            env=env,
-            text=True,
-            capture_output=True,
-            check=True,
+        import psycopg
+        from sqlalchemy.engine import make_url
+
+        from zw_brain.shared.db import DEFAULT_PG_URL
+
+        server = make_url(os.environ.get("ZW_BRAIN_DATABASE_URL") or DEFAULT_PG_URL)
+        pkg_db = f"zw_pkg_smoke_{_uuid.uuid4().hex}"
+        maint = psycopg.connect(
+            host=server.host, port=server.port, user=server.username,
+            password=server.password, dbname="postgres", autocommit=True,
         )
+        try:
+            maint.execute(f'CREATE DATABASE "{pkg_db}"')
+            env.pop("ZW_BRAIN_DB_PATH", None)
+            env["ZW_BRAIN_DATABASE_URL"] = server.set(database=pkg_db).render_as_string(hide_password=False)
+            subprocess.run([str(python), "-m", "pip", "install", f"{wheels[0]}[postgres]"], cwd=tmp, env=env, text=True, capture_output=True, check=True)
 
-        cli = subprocess.run(
-            [str(python), "-m", "zw_brain.entry.cli.main", "data.search", "--payload", '{\"query\":\"法人\",\"role\":\"ROLE_ORGAN_OPERATER\"}'],
-            cwd=tmp,
-            env=env,
-            text=True,
-            capture_output=True,
-            check=True,
-        )
-        assert "results" in cli.stdout
+            subprocess.run(
+                [str(python), "-c", "from zw_brain.shared.migrate import ensure_runtime_schema; ensure_runtime_schema(); print('ok')"],
+                cwd=tmp,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
 
-        site_root = next((p for p in python.parent.parent.glob("lib/python*/site-packages")), None)
-        assert site_root is not None
-        assert (site_root / "zw_brain" / "entry" / "rest" / "openapi.json").exists()
-        assert (site_root / "zw_brain" / "entry" / "a2a" / "agent_card.json").exists()
-        assert (site_root / "zw_brain" / "_assets" / "zw-brain-web" / "index.html").exists()
+            cli = subprocess.run(
+                [str(python), "-m", "zw_brain.entry.cli.main", "data.search", "--payload", '{\"query\":\"法人\",\"role\":\"ROLE_ORGAN_OPERATER\"}'],
+                cwd=tmp,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            assert "results" in cli.stdout
 
-        migrate = subprocess.run(
-            [str(bin_dir / "zw-brain-migrate-legacy"), "--help"],
-            cwd=tmp,
-            env=env,
-            text=True,
-            capture_output=True,
-            check=True,
-        )
-        assert "One-shot legacy dump migration" in migrate.stdout
+            site_root = next((p for p in python.parent.parent.glob("lib/python*/site-packages")), None)
+            assert site_root is not None
+            assert (site_root / "zw_brain" / "entry" / "rest" / "openapi.json").exists()
+            assert (site_root / "zw_brain" / "entry" / "a2a" / "agent_card.json").exists()
+            assert (site_root / "zw_brain" / "_assets" / "zw-brain-web" / "index.html").exists()
+
+            migrate = subprocess.run(
+                [str(bin_dir / "zw-brain-migrate-legacy"), "--help"],
+                cwd=tmp,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            assert "One-shot legacy dump migration" in migrate.stdout
+        finally:
+            try:
+                maint.execute(f'DROP DATABASE IF EXISTS "{pkg_db}" WITH (FORCE)')
+            finally:
+                maint.close()

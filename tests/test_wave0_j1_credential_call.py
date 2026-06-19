@@ -28,25 +28,35 @@ cross-wave check （W0-04 → W0-05 闭合）:
     作为正向阈，低于此阈意味着 W0-02 灌库与 J1 凭据流之间存在数据缺口
     （legacy `data_apply_authrization`=2 行 → canonical delivery 仅 68 → 244 approved 失配）。
 
-数据隔离：与 W0-03/W0-04 同——shadow DB + ZW_BRAIN_DB_PATH + engine cache clear。
+数据隔离：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
+模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义）；运行时遥测自产、
+写入落克隆库、不污染真实模板。
 """
 from __future__ import annotations
 
 import json
-import os
 import random
-import shutil
-import sqlite3
 from pathlib import Path
 
+import psycopg
 import pytest
+from sqlalchemy.engine import make_url
 
-from tests._seed_guard import require_real_seed
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (fixture)
+from zw_brain.shared.db import get_database_url
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_W0-05_shadow.db"
 TENANT = "sd-default"
+
+
+def _pg_read(sql: str, params: tuple = ()):
+    """Read against the cloned realistic PG (app read-path's DB), never a file."""
+    url = make_url(get_database_url())
+    with psycopg.connect(
+        host=url.host, port=url.port, user=url.username,
+        password=url.password, dbname=url.database,
+    ) as conn:
+        return conn.execute(sql, params).fetchall()
 
 CROSS_WAVE_SAMPLE = 10  # N=10 per supervisor instruction
 # user signed off path (b): legacy 218/244 已审批未发凭据是旧平台业务现实（非新系统 bug）；
@@ -63,7 +73,8 @@ CROSS_WAVE_MIN_COVERAGE_PCT = 1
 # 旧门槛 ≥744 把"某次累积运行后的量"当 seed 门槛 → CI 无 DB skip、本地 clean 也 skip，
 # **整 module 永久不跑**。改为：不 gate capability_call，由 _runtime_capability_calls fixture
 # **自产真实运行时遥测**（genuine invoke catalog.browse，跑过真实调用流），监控类断言据此校验。
-require_real_seed({"delivery_task": 50, "approval_case": 200})
+# 门槛语义（delivery_task≥50 / approval_case≥200）由 realistic_pg_module 的 skip-when-absent 承接。
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 # 自产运行时遥测的确定性条数：2 角色 × 3 次 genuine invoke = 6 行 succeeded capability_call。
 SELF_PRODUCED_CALLS = 6
@@ -71,21 +82,8 @@ _SELF_PRODUCE_ROLES = ("ROLE_ORGAN_OPERATER", "ROLE_BUSIAUDIT")
 _SELF_PRODUCE_REPEATS = 3
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _shadow_db() -> None:
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _runtime_capability_calls(_shadow_db) -> int:
+@pytest.fixture(scope="module", autouse=True)
+def _runtime_capability_calls(realistic_pg_module) -> int:  # noqa: F811  (pytest fixture used as arg)
     """自产运行时 capability_call 遥测——A 类设计修正（CLAUDE.md D44）。
 
     capability_call 由 pipeline 在每次 invoke 时经 ``record_capability_call`` 落库，
@@ -95,7 +93,7 @@ def _runtime_capability_calls(_shadow_db) -> int:
     而非依赖"某次本机累积"。这是真正"跑过真实调用流"，非 mock 业务数据（D11 不冲突——
     capability_call 是运行时遥测，非业务实体）。
 
-    依赖 ``_shadow_db`` 保证写入 shadow DB；返回本次确定性自产条数。
+    依赖 ``realistic_pg_module`` 保证写入克隆库；返回本次确定性自产条数。
     """
     from zw_brain.command.runtime import get_service, reset_service
     reset_service()
@@ -109,40 +107,31 @@ def _runtime_capability_calls(_shadow_db) -> int:
     return produced
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def delivery_repo():
     from zw_brain.domain.repositories.delivery import DeliveryRepository
     return DeliveryRepository()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def baseline_counts(_runtime_capability_calls):
     # _runtime_capability_calls 先行：capability_call 计数读到的是自产遥测之后的态。
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute("SELECT COUNT(*) FROM delivery_task WHERE tenant_id=?", (TENANT,))
-        d_n = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM capability_call WHERE tenant_id=?", (TENANT,))
-        cap_n = c.fetchone()[0]
-        c.execute(
-            "SELECT COUNT(*) FROM application_record WHERE tenant_id=? AND status='approved'",
-            (TENANT,),
-        )
-        approved_app_n = c.fetchone()[0]
-        c.execute(
-            "SELECT COUNT(*) FROM approval_case WHERE tenant_id=? AND current_status='approved'",
-            (TENANT,),
-        )
-        approved_case_n = c.fetchone()[0]
-        return {
-            "delivery_task": d_n,
-            "capability_call": cap_n,
-            "application_approved": approved_app_n,
-            "approval_case_approved": approved_case_n,
-        }
-    finally:
-        conn.close()
+    d_n = _pg_read("SELECT COUNT(*) FROM delivery_task WHERE tenant_id=%s", (TENANT,))[0][0]
+    cap_n = _pg_read("SELECT COUNT(*) FROM capability_call WHERE tenant_id=%s", (TENANT,))[0][0]
+    approved_app_n = _pg_read(
+        "SELECT COUNT(*) FROM application_record WHERE tenant_id=%s AND status='approved'",
+        (TENANT,),
+    )[0][0]
+    approved_case_n = _pg_read(
+        "SELECT COUNT(*) FROM approval_case WHERE tenant_id=%s AND current_status='approved'",
+        (TENANT,),
+    )[0][0]
+    return {
+        "delivery_task": d_n,
+        "capability_call": cap_n,
+        "application_approved": approved_app_n,
+        "approval_case_approved": approved_case_n,
+    }
 
 
 TERM_BLACKLIST = (
@@ -190,55 +179,51 @@ def test_cross_wave_approval_to_delivery_consistency():
     需求实测如不达阈，pytest.fail 抛出结构性裂痕信号（supervisor 不要求
     worker 自行修复，触发 needs_human）。
     """
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute(
+    approved = [
+        row[0] for row in _pg_read(
             "SELECT a.application_code FROM approval_case a "
-            "WHERE a.tenant_id=? AND a.current_status='approved' "
+            "WHERE a.tenant_id=%s AND a.current_status='approved' "
             "ORDER BY a.application_code",
             (TENANT,),
         )
-        approved = [row[0] for row in c.fetchall()]
-        assert approved, "前置：approved approval_case 应非空"
+    ]
+    assert approved, "前置：approved approval_case 应非空"
 
-        # 固定种子，可复现采样
-        rng = random.Random(0)
-        sample = rng.sample(approved, min(CROSS_WAVE_SAMPLE, len(approved)))
+    # 固定种子，可复现采样
+    rng = random.Random(0)
+    sample = rng.sample(approved, min(CROSS_WAVE_SAMPLE, len(approved)))
 
-        placeholders = ",".join("?" * len(sample))
-        c.execute(
+    placeholders = ",".join(["%s"] * len(sample))
+    with_any_delivery = {
+        row[0] for row in _pg_read(
             "SELECT application_code FROM delivery_task "
-            f"WHERE tenant_id=? AND application_code IN ({placeholders})",
+            f"WHERE tenant_id=%s AND application_code IN ({placeholders})",
             (TENANT, *sample),
         )
-        with_any_delivery = {row[0] for row in c.fetchall()}
+    }
 
-        c.execute(
+    with_granted_active = {
+        row[0] for row in _pg_read(
             "SELECT application_code FROM delivery_task "
-            "WHERE tenant_id=? AND state IN ('granted','active') "
+            "WHERE tenant_id=%s AND state IN ('granted','active') "
             f"AND application_code IN ({placeholders})",
             (TENANT, *sample),
         )
-        with_granted_active = {row[0] for row in c.fetchall()}
+    }
 
-        # 全量统计 — 用于诊断输出
-        c.execute(
-            "SELECT COUNT(*) FROM approval_case "
-            "WHERE tenant_id=? AND current_status='approved'",
-            (TENANT,),
-        )
-        total_approved = c.fetchone()[0]
-        c.execute(
-            "SELECT COUNT(DISTINCT a.application_code) FROM approval_case a "
-            "JOIN delivery_task d ON d.tenant_id=a.tenant_id "
-            "    AND d.application_code=a.application_code "
-            "WHERE a.tenant_id=? AND a.current_status='approved'",
-            (TENANT,),
-        )
-        total_approved_with_delivery = c.fetchone()[0]
-    finally:
-        conn.close()
+    # 全量统计 — 用于诊断输出
+    total_approved = _pg_read(
+        "SELECT COUNT(*) FROM approval_case "
+        "WHERE tenant_id=%s AND current_status='approved'",
+        (TENANT,),
+    )[0][0]
+    total_approved_with_delivery = _pg_read(
+        "SELECT COUNT(DISTINCT a.application_code) FROM approval_case a "
+        "JOIN delivery_task d ON d.tenant_id=a.tenant_id "
+        "    AND d.application_code=a.application_code "
+        "WHERE a.tenant_id=%s AND a.current_status='approved'",
+        (TENANT,),
+    )[0][0]
 
     sample_any_pct = 100 * len(with_any_delivery) / len(sample)
     sample_grt_pct = 100 * len(with_granted_active) / len(sample)
@@ -294,15 +279,12 @@ def test_runtime_delivery_issue_contract():
     # Action D：交付单一事实源在 DB——直接 upsert 注入。
     svc._state_store.database_store.delivery_repo.upsert_from_delivery(task, tenant_id="sd-default")
     svc.grant_delivery_access(task["id"], "ROLE_ORGAN_MANAGER", True)
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        row = conn.execute(
-            "SELECT application_code, state, tenant_id FROM delivery_task "
-            "WHERE delivery_code=? AND tenant_id=?",
-            (task["id"], TENANT),
-        ).fetchone()
-    finally:
-        conn.close()
+    rows = _pg_read(
+        "SELECT application_code, state, tenant_id FROM delivery_task "
+        "WHERE delivery_code=%s AND tenant_id=%s",
+        (task["id"], TENANT),
+    )
+    row = rows[0] if rows else None
     assert row is not None, "forward grant 后 delivery_task 行应存在"
     assert row[0] == task.get("requestId"), "application_code 应与申请单一致"
     assert row[1] in ("granted", "active", "completed"), f"state 应为已签发终态，got {row[1]}"
@@ -463,51 +445,44 @@ def test_j1_api_monitoring_capability_call_filterable_by_actor():
     断言：capability_call 表能按 actor 字段过滤；同一 actor 的记录 ≥ 0，
     且按 actor 过滤后不含其他 actor 行。
     """
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute(
-            "SELECT actor, COUNT(*) FROM capability_call WHERE tenant_id=? "
-            "GROUP BY actor ORDER BY 2 DESC LIMIT 5",
-            (TENANT,),
-        )
-        actor_dist = c.fetchall()
-        assert actor_dist, "capability_call 应至少含 1 个 actor"
-        top_actor = actor_dist[0][0]
+    actor_dist = _pg_read(
+        "SELECT actor, COUNT(*) FROM capability_call WHERE tenant_id=%s "
+        "GROUP BY actor ORDER BY 2 DESC LIMIT 5",
+        (TENANT,),
+    )
+    assert actor_dist, "capability_call 应至少含 1 个 actor"
+    top_actor = actor_dist[0][0]
 
-        c.execute(
-            "SELECT DISTINCT actor FROM capability_call WHERE tenant_id=? AND actor=?",
+    filtered = [
+        row[0] for row in _pg_read(
+            "SELECT DISTINCT actor FROM capability_call WHERE tenant_id=%s AND actor=%s",
             (TENANT, top_actor),
         )
-        filtered = [row[0] for row in c.fetchall()]
-        assert filtered == [top_actor], (
-            f"按 actor='{top_actor}' 过滤后应只含该 actor；got {filtered!r}"
-        )
-    finally:
-        conn.close()
+    ]
+    assert filtered == [top_actor], (
+        f"按 actor='{top_actor}' 过滤后应只含该 actor；got {filtered!r}"
+    )
 
 
 def test_j1_api_monitoring_capability_call_has_minimum_required_fields():
     """正向 — 调用记录至少含 input / output / completed_at / status / actor / role_code
     （Scenario 1 监控段"时间 / 请求 ID / 调用结果 / 响应字节数" 数据底座）。"""
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute("PRAGMA table_info(capability_call)")
-        columns = {row[1] for row in c.fetchall()}
-        required = {"skill_id", "actor", "role_code", "status", "started_at", "completed_at", "input_json", "output_json"}
-        assert required.issubset(columns), (
-            f"capability_call 缺字段：{required - columns}"
+    columns = {
+        row[0] for row in _pg_read(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name='capability_call'"
         )
-        # 真数据：至少 1 条 succeeded
-        c.execute(
-            "SELECT COUNT(*) FROM capability_call WHERE tenant_id=? AND status='succeeded'",
-            (TENANT,),
-        )
-        ok_n = c.fetchone()[0]
-        assert ok_n >= 1, f"capability_call 应至少含 1 条 status='succeeded' 记录；got {ok_n}"
-    finally:
-        conn.close()
+    }
+    required = {"skill_id", "actor", "role_code", "status", "started_at", "completed_at", "input_json", "output_json"}
+    assert required.issubset(columns), (
+        f"capability_call 缺字段：{required - columns}"
+    )
+    # 真数据：至少 1 条 succeeded
+    ok_n = _pg_read(
+        "SELECT COUNT(*) FROM capability_call WHERE tenant_id=%s AND status='succeeded'",
+        (TENANT,),
+    )[0][0]
+    assert ok_n >= 1, f"capability_call 应至少含 1 条 status='succeeded' 记录；got {ok_n}"
 
 
 def test_j1_api_monitoring_status_distribution_real_data(_runtime_capability_calls):
@@ -517,16 +492,13 @@ def test_j1_api_monitoring_status_distribution_real_data(_runtime_capability_cal
     具体 429 / 401 / 限流 Scenario 落地在 W0-07 浏览器侧 + Wave 1+ 配额引擎。
     数据由 _runtime_capability_calls 自产（真实 invoke 落库），非依赖本机累积量。
     """
-    conn = sqlite3.connect(SHADOW_DB)
-    try:
-        c = conn.cursor()
-        c.execute(
-            "SELECT status, COUNT(*) FROM capability_call WHERE tenant_id=? GROUP BY status",
+    dist = {
+        row[0]: row[1]
+        for row in _pg_read(
+            "SELECT status, COUNT(*) FROM capability_call WHERE tenant_id=%s GROUP BY status",
             (TENANT,),
         )
-        dist = {row[0]: row[1] for row in c.fetchall()}
-    finally:
-        conn.close()
+    }
     # 自产 ≥SELF_PRODUCED_CALLS 条 succeeded 遥测；监控页面据此渲染状态分布。
     assert sum(dist.values()) >= SELF_PRODUCED_CALLS, (
         f"capability_call 总数 ≥{SELF_PRODUCED_CALLS}；got {dist!r}"

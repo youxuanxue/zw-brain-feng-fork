@@ -13,8 +13,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Any
 
 import pytest
@@ -26,24 +24,16 @@ from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.repositories.supply_demand import SupplyDemandRepository
 from zw_brain.domain.supply_demand_phase import PHASE_REGISTERED
 from zw_brain.domain.workbench_backlog_projection import _backlog_todos, enrich_workbench_backlog
-from zw_brain.shared import db as db_module
 from zw_brain.shared.migrate import ensure_runtime_schema
 
 TENANT = "sd-default"
 
 
 @pytest.fixture()
-def temp_db(monkeypatch: pytest.MonkeyPatch) -> Path:
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "workbench_backlog.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        yield db_path
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+def temp_db() -> None:
+    # Per-test isolation is provided by the conftest autouse fixture (a fresh
+    # empty PG clone via ZW_BRAIN_DATABASE_URL); just ensure the schema is built.
+    ensure_runtime_schema()
 
 
 def _seed_application(app_repo: ApplicationRepository, code: str, status: str) -> None:
@@ -128,7 +118,7 @@ def _accept_todo(request_id: str, *, conditional: bool = False) -> dict[str, Any
     }
 
 
-def test_busiaudit_workbench_todos_are_operator_duties(temp_db: Path) -> None:
+def test_busiaudit_workbench_todos_are_operator_duties(temp_db: None) -> None:
     _seed_backlog()
     # sync 已投的逐单受理待办（携 action）在 view 里——enrich 增量保留，不整体替换。
     base = {
@@ -165,7 +155,7 @@ def test_busiaudit_workbench_todos_are_operator_duties(temp_db: Path) -> None:
     assert out["highlights"] == []
 
 
-def test_g4_action_summary_is_typed_action_sentence(temp_db: Path) -> None:
+def test_g4_action_summary_is_typed_action_sentence(temp_db: None) -> None:
     _seed_backlog()
     # 含一条逐单受理待办 → 办理建议应拼出「N 条申请待受理」分句。
     out = enrich_workbench_backlog({"todos": [_accept_todo("app-sub-1")]}, "ROLE_BUSIAUDIT", tenant_id=TENANT)
@@ -176,7 +166,7 @@ def test_g4_action_summary_is_typed_action_sentence(temp_db: Path) -> None:
     assert "真实积压" not in summary
 
 
-def test_demand_not_miscounted_as_application(temp_db: Path) -> None:
+def test_demand_not_miscounted_as_application(temp_db: None) -> None:
     """表混存申请/需求时，登记需求只进「待汇总需求」、不串进「待受理申请」。"""
     SupplyDemandRepository().register_demand(
         demand_id="dmd-only",
@@ -192,7 +182,7 @@ def test_demand_not_miscounted_as_application(temp_db: Path) -> None:
     assert "backlog-application" not in todos
 
 
-def test_busiaudit_empty_backlog_is_honest_empty(temp_db: Path) -> None:
+def test_busiaudit_empty_backlog_is_honest_empty(temp_db: None) -> None:
     # 无 sync 受理待办（todos 空）+ 空库 → 增量后仍为空，诚实空态。
     base: dict[str, Any] = {"todos": [], "subtitle": "x", "aiSummary": {}, "highlights": []}
     out = enrich_workbench_backlog(base, "ROLE_BUSIAUDIT", tenant_id=TENANT)
@@ -201,7 +191,7 @@ def test_busiaudit_empty_backlog_is_honest_empty(temp_db: Path) -> None:
     assert "没有待办积压" in out["aiSummary"]["summary"]
 
 
-def test_busiaudit_augments_keeps_accept_todos_no_application_double(temp_db: Path) -> None:
+def test_busiaudit_augments_keeps_accept_todos_no_application_double(temp_db: None) -> None:
     """BUSIAUDIT enrich 改增量：逐单受理待办（携 action）存活、聚合「待受理申请」不重复双算，
     其余聚合候选（发布/异议/督办/需求/平台审）作深链待办保留。"""
     _seed_backlog()  # 1 条 submitted 申请 → 聚合「待受理申请」count=1
@@ -227,7 +217,7 @@ def test_busiaudit_augments_keeps_accept_todos_no_application_double(temp_db: Pa
     assert isinstance(todos["backlog-demand"]["actionClause"], str)
 
 
-def test_operater_keeps_progress_todos_with_honest_advice(temp_db: Path) -> None:
+def test_operater_keeps_progress_todos_with_honest_advice(temp_db: None) -> None:
     """部门操作员（D57②/R-8）：申请进度待办内容不被改写；subtitle/办理建议改为真实进度
     现算（不再漏出 seed 虚构「停车场…黄金旅程」叙事）。
 
@@ -255,7 +245,7 @@ def test_operater_keeps_progress_todos_with_honest_advice(temp_db: Path) -> None
     assert "1 项补录任务待完成" in out["aiSummary"]["summary"]
 
 
-def test_operater_empty_progress_is_honest_empty(temp_db: Path) -> None:
+def test_operater_empty_progress_is_honest_empty(temp_db: None) -> None:
     base = {"todos": [], "subtitle": "seed 旧文案", "aiSummary": {"summary": "旧"}}
     out = enrich_workbench_backlog(base, "ROLE_ORGAN_OPERATER", tenant_id=TENANT)
     assert out["todos"] == []
@@ -263,7 +253,7 @@ def test_operater_empty_progress_is_honest_empty(temp_db: Path) -> None:
     assert "没有进行中的申请" in out["aiSummary"]["summary"]
 
 
-def test_security_audit_is_readonly_supervisor_view(temp_db: Path) -> None:
+def test_security_audit_is_readonly_supervisor_view(temp_db: None) -> None:
     """安全审计员（D57②/R-8）：纯只读监督岗——todos 恒空（不投写待办、不造仪表盘），
     办理建议为指向查审计的诚实指引（清除 seed 虚构「绕开模板重复采集告警」叙事）。"""
     _seed_backlog()
@@ -275,7 +265,7 @@ def test_security_audit_is_readonly_supervisor_view(temp_db: Path) -> None:
     assert "绕开模板" not in out["subtitle"]
 
 
-def test_system_ops_view_is_honest(temp_db: Path) -> None:
+def test_system_ops_view_is_honest(temp_db: None) -> None:
     """平台运维员（D57②/R-8）：运维核查语境，零积压给诚实空态。"""
     out = enrich_workbench_backlog({"todos": [], "subtitle": "x", "aiSummary": {}}, "ROLE_SYSTEM", tenant_id=TENANT)
     assert out["todos"] == []
@@ -283,7 +273,7 @@ def test_system_ops_view_is_honest(temp_db: Path) -> None:
     assert "服务调用监控" in str(out["aiSummary"]["basis"])
 
 
-def test_manager_gets_provider_review_backlog_prepended(temp_db: Path) -> None:
+def test_manager_gets_provider_review_backlog_prepended(temp_db: None) -> None:
     """D55/P10：部门管理员在既有待办上叠加供数侧目录审核待办（pending_review），深链 catalog-review。"""
     _seed_backlog()  # 2 条 pending_review catalog
     base = {
@@ -308,7 +298,7 @@ def test_manager_gets_provider_review_backlog_prepended(temp_db: Path) -> None:
     assert out["todos"][0]["id"] == "backlog-catalog-dept-review"
 
 
-def test_manager_zero_review_backlog_keeps_todos_rewrites_advice(temp_db: Path) -> None:
+def test_manager_zero_review_backlog_keeps_todos_rewrites_advice(temp_db: None) -> None:
     """D55/P10 + D57②/R-8：无 pending_review 时不投供数审核待办（零积压无空死链），
     既有待办保留；subtitle/办理建议仍重写为真实现算（不再漏出 seed 虚构叙事）。"""
     # 不 seed → 零 pending_review
@@ -319,7 +309,7 @@ def test_manager_zero_review_backlog_keeps_todos_rewrites_advice(temp_db: Path) 
     assert "1 条申请审批/汇总待办" in out["aiSummary"]["summary"]
 
 
-def test_backlog_todos_count_matches_repo(temp_db: Path) -> None:
+def test_backlog_todos_count_matches_repo(temp_db: None) -> None:
     _seed_backlog()
     out = enrich_workbench_backlog({"todos": []}, "ROLE_BUSIAUDIT", tenant_id=TENANT)
     todos = {t["id"]: t for t in out["todos"]}
@@ -343,7 +333,7 @@ def _decision_labels(item: dict) -> list[str]:
     return [d["label"] for d in item["decisions"]]
 
 
-def test_busiaudit_publish_todos_carry_decision_list_action(temp_db: Path) -> None:
+def test_busiaudit_publish_todos_carry_decision_list_action(temp_db: None) -> None:
     """待发布目录 / 待发布资源 re-grain 为 decision-list：逐实体 + 发布单决策。"""
     _seed_backlog()
     out = enrich_workbench_backlog({"todos": []}, "ROLE_BUSIAUDIT", tenant_id=TENANT)
@@ -369,7 +359,7 @@ def test_busiaudit_publish_todos_carry_decision_list_action(temp_db: Path) -> No
     assert _decision_labels(res_item) == ["发布"]
 
 
-def test_busiaudit_platform_review_todo_carries_approve_reject(temp_db: Path) -> None:
+def test_busiaudit_platform_review_todo_carries_approve_reject(temp_db: None) -> None:
     """待平台审核目录 re-grain：通过(approve)/驳回(reject+reason) 双决策，capability=catalog.entry.review。"""
     _seed_backlog()
     out = enrich_workbench_backlog({"todos": []}, "ROLE_BUSIAUDIT", tenant_id=TENANT)
@@ -386,7 +376,7 @@ def test_busiaudit_platform_review_todo_carries_approve_reject(temp_db: Path) ->
     assert reject["needsReason"] is True and reject["reasonKey"] == "reason"
 
 
-def test_busiaudit_objection_todo_carries_accept_decision(temp_db: Path) -> None:
+def test_busiaudit_objection_todo_carries_accept_decision(temp_db: None) -> None:
     """待受理异议 re-grain：受理单决策，capability=objection.case.accept，basePayload.objection_id。"""
     _seed_backlog()
     out = enrich_workbench_backlog({"todos": []}, "ROLE_BUSIAUDIT", tenant_id=TENANT)
@@ -401,7 +391,7 @@ def test_busiaudit_objection_todo_carries_accept_decision(temp_db: Path) -> None
     assert "责任单位" in ctx_labels
 
 
-def test_busiaudit_non_regrained_todos_have_no_action(temp_db: Path) -> None:
+def test_busiaudit_non_regrained_todos_have_no_action(temp_db: None) -> None:
     """督办/需求汇总不 re-grain：保 count + href，**无** action（多步，留兜底深链）。"""
     _seed_backlog()
     # 事件式督办：在非终态 case 上加 escalate 过程事件即进督办队列（不改 case.status）。
@@ -416,7 +406,7 @@ def test_busiaudit_non_regrained_todos_have_no_action(temp_db: Path) -> None:
     assert todos["backlog-demand"]["href"]
 
 
-def test_application_aggregate_not_regrained(temp_db: Path) -> None:
+def test_application_aggregate_not_regrained(temp_db: None) -> None:
     """待受理申请不 re-grain（受理面跨多角色 + 申请单一事实源在 sync）：原始聚合保 count + href、无 action。
     注：BUSIAUDIT enrich 会进一步**剔除**该聚合项（逐单受理待办已覆盖，见
     test_busiaudit_augments_keeps_accept_todos_no_application_double），故在 _backlog_todos 原始层断言。"""
@@ -426,13 +416,13 @@ def test_application_aggregate_not_regrained(temp_db: Path) -> None:
     assert todos["backlog-application"]["href"]
 
 
-def test_zero_count_regrained_types_emit_nothing(temp_db: Path) -> None:
+def test_zero_count_regrained_types_emit_nothing(temp_db: None) -> None:
     """零积压不投待办（含 re-grain 类型）——空库下 BUSIAUDIT todos 全空，无空死链/空 decision-list。"""
     out = enrich_workbench_backlog({"todos": []}, "ROLE_BUSIAUDIT", tenant_id=TENANT)
     assert out["todos"] == []
 
 
-def test_manager_review_todos_carry_decision_list_with_right_caps(temp_db: Path) -> None:
+def test_manager_review_todos_carry_decision_list_with_right_caps(temp_db: None) -> None:
     """MANAGER 三类审核 re-grain：目录审核(approve/reject) / 反向草稿(confirm·reject 覆盖) /
     挂接资源(approve/return_for_fix)，capability/gate/basePayload/reasonKey 与 CTA 页一致。"""
     _seed_backlog()
@@ -467,7 +457,7 @@ def test_manager_review_todos_carry_decision_list_with_right_caps(temp_db: Path)
     assert hk_reject["reasonKey"] == "reason" and hk_reject["needsReason"] is True
 
 
-def test_manager_service_review_todo_has_no_action(temp_db: Path) -> None:
+def test_manager_service_review_todo_has_no_action(temp_db: None) -> None:
     """待审核服务不 re-grain（向导多步）：保 count + href、无 action。"""
     _seed_backlog()
     out = enrich_workbench_backlog({"todos": []}, "ROLE_ORGAN_MANAGER", tenant_id=TENANT)
@@ -476,7 +466,7 @@ def test_manager_service_review_todo_has_no_action(temp_db: Path) -> None:
     assert todos["backlog-api-review"]["href"]
 
 
-def test_manager_m8_filter_applies_to_decision_list_items(temp_db: Path) -> None:
+def test_manager_m8_filter_applies_to_decision_list_items(temp_db: None) -> None:
     """M8 部门隔离对**行内 item 列表**生效（不只对计数）——越界实体不漏进 decision-list。
 
     seed owner=_SEED_OWNER；visible_org_codes 不含它（非空集，fail-closed 到域外）→ 三类

@@ -23,38 +23,11 @@ identity map + load 指纹脏检）直落 DB，写成本由构造即 O(本次写
 """
 from __future__ import annotations
 
-import os
-from pathlib import Path
-
-import pytest
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
-SHADOW_DB = REPO_ROOT / ".data" / "test_write_path_aggregate_delta_shadow.db"
 TENANT = "sd-default"
 
-
-def _remove_shadow_db_files() -> None:
-    for suffix in ("", "-wal", "-shm"):
-        (SHADOW_DB.parent / f"{SHADOW_DB.name}{suffix}").unlink(missing_ok=True)
-
-
-@pytest.fixture(scope="function", autouse=True)
-def _shadow_db():
-    SHADOW_DB.parent.mkdir(parents=True, exist_ok=True)
-    from zw_brain.shared import db as _db
-
-    _db.reset_engine_cache()
-    _remove_shadow_db_files()
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    _db.reset_engine_cache()
-    from zw_brain.shared.migrate import reset_and_upgrade
-
-    reset_and_upgrade()
-    yield
-    _db.reset_engine_cache()
-    _remove_shadow_db_files()
-    os.environ.pop("ZW_BRAIN_DB_PATH", None)
+# PG 迁移后：每个测试自己的空 PG 克隆（已 alembic upgrade head 建表）由根 conftest 的
+# function-scoped autouse fixture 供给，跨测试天然隔离。测试体经 CardSession / repo 直写。
+# 无需影子库 / 旧库路径环境变量 / reset_and_upgrade —— schema 已就绪。
 
 
 def _new_store():

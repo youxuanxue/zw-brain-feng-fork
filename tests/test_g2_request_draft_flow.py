@@ -30,11 +30,12 @@ def _unwrap(result: Any) -> dict[str, Any]:
 
 
 @pytest.fixture()
-def brain(tmp_path, monkeypatch):
-    """全功能 brain（写路径需 durable audit sink + 运行时 DB），temp SQLite 隔离不污染主库。"""
-    monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(tmp_path / "runtime.db"))
-    monkeypatch.setenv("ZW_BRAIN_AUDIT_DB_PATH", str(tmp_path / "audit.db"))
+def brain():
+    """全功能 brain（写路径需 durable audit sink + 运行时 DB）。
 
+    运行时库与审计 schema 的隔离由 conftest 的 per-test PG 克隆承接（审计落该克隆库的
+    独立 ``audit`` schema），无需再设 DB 路径 env、不污染主库。
+    """
     from zw_brain.command import runtime as runtime_mod
     from zw_brain.shared import audit as audit_bus
     from zw_brain.shared.audit import store as audit_store_mod

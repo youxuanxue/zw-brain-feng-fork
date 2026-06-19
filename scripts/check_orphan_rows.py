@@ -18,14 +18,16 @@
   3. **catalog_entry 可达性**：`topic_package_item(ref_type=catalog_entry)` 的 `ref_id`
      须都在 `catalog_entry`（按 tenant_id+catalog_code）命中；悬挂引用 → FAIL（§六.3）。
 
-**自建干净 seed 库**：默认在临时目录 drop&recreate schema + 跑标准 seed
-（`DatabaseStore().initialize()`），扫完即弃——CI 可跑、便宜、不需真库、不污染本地库。
-传 `--db-path <path>` 可对指定库（如真实 seed 库）做一次性体检（M5 用）。
+**自建干净 seed 库**（PostgreSQL）：默认在运行中的 PG 实例上 `CREATE DATABASE` 一个
+随机命名的一次性库（连接服务器来自 resolved `ZW_BRAIN_DATABASE_URL`，默认本地 dev PG），
+alembic upgrade head 建表 + 跑标准 seed（`DatabaseStore().initialize()`），扫完即
+`DROP DATABASE`——CI 可跑、便宜、绝不污染 canonical 库。
+传 `--db-url <url>` 可对指定库（如真实 seed 库）做一次性体检（M5 用，只读不动）。
 
 Exit：0 = 干净（无孤儿 + FK 未退化 + 无悬挂目录引用）；1 = 有违规。
 Usage:
-    ./scripts/check_orphan_rows.py            # 自建干净 seed 库扫
-    ./scripts/check_orphan_rows.py --db-path .data/zw_brain.db   # 体检指定库
+    ./scripts/check_orphan_rows.py            # 自建干净一次性 PG 库扫
+    ./scripts/check_orphan_rows.py --db-url postgresql+psycopg://u:p@h:5432/zw_brain   # 体检指定库
     ./scripts/check_orphan_rows.py --verbose
 接入：scripts/preflight.sh 段 67
 """
@@ -33,7 +35,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -185,40 +186,127 @@ def _check_fk_floor() -> tuple[bool, int]:
     return (len(fk_cols) >= FK_FLOOR, len(fk_cols))
 
 
-def _build_clean_seed_session(tmp_path: Path):
-    """drop&recreate schema + 标准 seed，返回 (SessionLocal, cleanup)。"""
+def _split_pg_url(url: str) -> tuple[str, str]:
+    """把 SQLAlchemy PG URL 拆成 (admin_url_to_postgres_db, dbname)。
+
+    admin_url 指向同服务器的 `postgres` 维护库，用于 CREATE/DROP DATABASE（这两条
+    DDL 不能在目标库自身的连接里跑）。
+    """
+    from sqlalchemy.engine import make_url
+
+    parsed = make_url(url)
+    dbname = parsed.database or ""
+    admin = parsed.set(database="postgres")
+    return (admin.render_as_string(hide_password=False), dbname)
+
+
+class _CleanSeedPgDb:
+    """在运行中的 PG 上建一个一次性库、建表 + seed，扫完即 DROP（context manager）。"""
+
+    def __init__(self) -> None:
+        import os
+        import secrets
+
+        from zw_brain.shared.db import get_database_url
+
+        base_url = get_database_url()
+        if not base_url.startswith(("postgresql://", "postgresql+")):
+            raise SystemExit(
+                f"[orphan-rows] FAIL: 解析出的 DB URL 不是 PostgreSQL：{base_url.split('@')[-1]}"
+                "\n  hint: 设 ZW_BRAIN_DATABASE_URL 指向 PG，或本地 docker compose up -d postgres 后留空 env"
+            )
+        from sqlalchemy.engine import make_url
+
+        self._scan_dbname = f"zw_orphan_scan_{secrets.token_hex(6)}"
+        self._admin_url, _ = _split_pg_url(base_url)
+        self._scan_url = make_url(base_url).set(database=self._scan_dbname).render_as_string(hide_password=False)
+        self._created = False
+        self._os = os
+        self._prev_url = os.environ.get("ZW_BRAIN_DATABASE_URL")
+
+    def _admin_exec(self, sql: str) -> None:
+        from sqlalchemy import create_engine, text
+
+        engine = create_engine(self._admin_url, future=True, isolation_level="AUTOCOMMIT")
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(sql))
+        finally:
+            engine.dispose()
+
+    def __enter__(self):
+        from zw_brain.shared import db as db_module
+        from zw_brain.shared.database_store import DatabaseStore
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        self._admin_exec(f'CREATE DATABASE "{self._scan_dbname}"')
+        self._created = True
+        # 把后续 get_database_url() 指向一次性库，重置引擎缓存后建表 + seed。
+        self._os.environ["ZW_BRAIN_DATABASE_URL"] = self._scan_url
+        db_module.reset_engine_cache()
+        ensure_runtime_schema()
+        DatabaseStore().initialize()  # 标准 seed（与运行时同源）
+        return db_module.create_session_factory()
+
+    def __exit__(self, *exc) -> None:
+        from zw_brain.shared import db as db_module
+
+        # 先放掉对一次性库的连接，再恢复 env，最后 DROP。
+        db_module.reset_engine_cache()
+        if self._prev_url is None:
+            self._os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
+        else:
+            self._os.environ["ZW_BRAIN_DATABASE_URL"] = self._prev_url
+        if self._created:
+            # WITH (FORCE) 踢掉残留连接（PG ≥ 13）。
+            self._admin_exec(f'DROP DATABASE IF EXISTS "{self._scan_dbname}" WITH (FORCE)')
+
+
+def _open_session_for_url(db_url: str):
     import os
 
-    os.environ["ZW_BRAIN_DB_PATH"] = str(tmp_path / "orphan_scan_seed.db")
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
+    os.environ["ZW_BRAIN_DATABASE_URL"] = db_url
     from zw_brain.shared import db as db_module
-    from zw_brain.shared.database_store import DatabaseStore
-    from zw_brain.shared.migrate import ensure_runtime_schema
 
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
-    ensure_runtime_schema()
-    DatabaseStore().initialize()  # 标准 seed（与运行时同源）
+    db_module.reset_engine_cache()
     return db_module.create_session_factory()
 
 
-def _open_session_for_path(db_path: str):
-    import os
+def _scan_session(session, violations: list[str], verbose: bool) -> None:
+    """对一个已就绪的库会话跑全部孤儿 + catalog 可达性检查，违规追加进 violations。"""
+    for edge in list(A_CLASS_EDGES) + C_CLASS_EDGES:
+        child, ccol, parent, pcol = edge[0], edge[1], edge[2], edge[3]
+        excl = edge[4] if len(edge) > 4 else ()
+        n = _orphan_count_single(session, child, ccol, parent, pcol, excl)
+        excl_note = f"（豁免前缀 {','.join(excl)}）" if excl else ""
+        if n > 0:
+            violations.append(f"孤儿: {child}.{ccol} → {parent}.{pcol}{excl_note}: {n} 行无父")
+        elif verbose:
+            print(f"  ok: {child}.{ccol} → {parent}.{pcol}{excl_note}: 0 孤儿")
+    for child, ccols, parent, pcols in B_CLASS_EDGES:
+        n = _orphan_count_composite(session, child, ccols, parent, pcols)
+        if n > 0:
+            violations.append(
+                f"孤儿: {child}.{'+'.join(ccols)} → {parent}.{'+'.join(pcols)}: {n} 行无父"
+            )
+        elif verbose:
+            print(f"  ok: {child}.({'+'.join(ccols)}) → {parent}: 0 孤儿")
 
-    os.environ["ZW_BRAIN_DB_PATH"] = db_path
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as db_module
-
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
-    return db_module.create_session_factory()
+    dangling = _catalog_entry_dangling(session)
+    if dangling > 0:
+        violations.append(
+            f"catalog 可达性: topic_package_item(ref_type=catalog_entry) "
+            f"有 {dangling} 条 ref_id 未录入 catalog_entry 主表（§六.3 悬挂引用）"
+        )
+    elif verbose:
+        print("  ok: catalog_entry 可达性: 无悬挂引用")
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="孤儿行 + FK 回潮 + catalog 可达性守卫（段 67）")
     ap.add_argument(
-        "--db-path",
-        help="对指定库做体检（M5 真实 seed 库）；默认自建干净 seed 库扫",
+        "--db-url",
+        help="对指定库做体检（M5 真实 seed 库，只读不动）；默认在 PG 上自建一次性 seed 库扫",
     )
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
@@ -226,49 +314,15 @@ def main() -> int:
     violations: list[str] = []
 
     # (1+3) 孤儿 + catalog 可达性：需要一个库
-    tmpdir: tempfile.TemporaryDirectory | None = None
-    if args.db_path:
-        if not Path(args.db_path).exists():
-            print(f"[orphan-rows] FAIL: --db-path 不存在：{args.db_path}", file=sys.stderr)
-            return 1
-        SessionLocal = _open_session_for_path(args.db_path)
-        scope = f"指定库 {args.db_path}"
-    else:
-        tmpdir = tempfile.TemporaryDirectory()
-        SessionLocal = _build_clean_seed_session(Path(tmpdir.name))
-        scope = "自建干净 seed 库"
-
-    try:
+    if args.db_url:
+        SessionLocal = _open_session_for_url(args.db_url)
+        scope = f"指定库 {args.db_url.split('@')[-1]}"
         with SessionLocal() as session:
-            for edge in list(A_CLASS_EDGES) + C_CLASS_EDGES:
-                child, ccol, parent, pcol = edge[0], edge[1], edge[2], edge[3]
-                excl = edge[4] if len(edge) > 4 else ()
-                n = _orphan_count_single(session, child, ccol, parent, pcol, excl)
-                excl_note = f"（豁免前缀 {','.join(excl)}）" if excl else ""
-                if n > 0:
-                    violations.append(f"孤儿: {child}.{ccol} → {parent}.{pcol}{excl_note}: {n} 行无父")
-                elif args.verbose:
-                    print(f"  ok: {child}.{ccol} → {parent}.{pcol}{excl_note}: 0 孤儿")
-            for child, ccols, parent, pcols in B_CLASS_EDGES:
-                n = _orphan_count_composite(session, child, ccols, parent, pcols)
-                if n > 0:
-                    violations.append(
-                        f"孤儿: {child}.{'+'.join(ccols)} → {parent}.{'+'.join(pcols)}: {n} 行无父"
-                    )
-                elif args.verbose:
-                    print(f"  ok: {child}.({'+'.join(ccols)}) → {parent}: 0 孤儿")
-
-            dangling = _catalog_entry_dangling(session)
-            if dangling > 0:
-                violations.append(
-                    f"catalog 可达性: topic_package_item(ref_type=catalog_entry) "
-                    f"有 {dangling} 条 ref_id 未录入 catalog_entry 主表（§六.3 悬挂引用）"
-                )
-            elif args.verbose:
-                print("  ok: catalog_entry 可达性: 无悬挂引用")
-    finally:
-        if tmpdir is not None:
-            tmpdir.cleanup()
+            _scan_session(session, violations, args.verbose)
+    else:
+        scope = "自建干净 seed 库（一次性 PG）"
+        with _CleanSeedPgDb() as SessionLocal, SessionLocal() as session:
+            _scan_session(session, violations, args.verbose)
 
     # (2) FK 回潮断言（不需库，读 metadata）
     fk_ok, fk_n = _check_fk_floor()

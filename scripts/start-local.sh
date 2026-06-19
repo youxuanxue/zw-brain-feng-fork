@@ -23,10 +23,11 @@ fi
 # （例如本机要跑 AgentRuntime 全链路时切到 .venv-py312/bin/python — vendor wheel 是 py312-only）
 PYTHON_BIN="${ZW_BRAIN_PYTHON_BIN:-$REPO_ROOT/.venv/bin/python}"
 
-# 单一 canonical DB：`.data/zw_brain.db`。M0 一键导入（customer_acceptance_up.sh）
-# 与日常 REST 写读用同一份；不再分裂为 customer_acceptance.db。
-# 历史 customer_acceptance.db / 多次会话累积的 zw_brain.db 由 scripts/db-vacuum.sh
-# 清理，由 preflight 段 18 监测膨胀。
+# 运行时后端 = PostgreSQL（zw_brain/shared/db.py DEFAULT_PG_URL；已全盘 PG）。
+#   docker compose up -d postgres   # 起库（凭据/端口与默认 URL 对齐，零 env）
+#   bash scripts/start-local.sh      # 无 env 即默认连本库
+# 想连别的库：export ZW_BRAIN_DATABASE_URL=...（唯一覆盖旋钮，须为 PostgreSQL）。
+# 设 ZW_BRAIN_LOCAL_PG_AUTOUP=1 让本脚本自动 docker compose up。
 
 REST_HOST="${ZW_BRAIN_REST_HOST:-127.0.0.1}"
 REST_PORT="${ZW_BRAIN_REST_PORT:-8800}"
@@ -81,6 +82,54 @@ require_python() {
 
 check_dependency() {
     "$PYTHON_BIN" -c "import sqlalchemy" >/dev/null
+    # PostgreSQL 后端需 psycopg 驱动。
+    if [[ "$DB_URL" == postgresql* ]]; then
+        if ! "$PYTHON_BIN" -c "import psycopg" >/dev/null 2>&1; then
+            echo "[start-local] FAIL: 后端是 PostgreSQL，但缺 psycopg 驱动" >&2
+            echo "[start-local] Hint: uv pip install -e '.[postgres]'" >&2
+            exit 1
+        fi
+    fi
+}
+
+# 解析 get_database_url() 的真实结果（含 env 覆盖优先级），供下游分支判断后端类型。
+resolve_db_url() {
+    DB_URL="$("$PYTHON_BIN" -c 'from zw_brain.shared.db import get_database_url; print(get_database_url())')"
+}
+
+# 默认 PG 路径：探活 host:port；不通则 fail-fast 给确切命令。设 AUTOUP=1 自动 compose up。
+ensure_postgres_ready() {
+    [[ "$DB_URL" == postgresql* ]] || return 0
+    local hostport
+    hostport="$("$PYTHON_BIN" - "$DB_URL" <<'PY'
+import sys
+from urllib.parse import urlsplit
+u = urlsplit(sys.argv[1])
+print(f"{u.hostname or '127.0.0.1'} {u.port or 5432}")
+PY
+)"
+    local pg_host pg_port
+    read -r pg_host pg_port <<<"$hostport"
+    if check_port_free "$pg_host" "$pg_port"; then
+        # 端口空 = PG 没在监听
+        if [[ "${ZW_BRAIN_LOCAL_PG_AUTOUP:-0}" == "1" ]] && command -v docker >/dev/null 2>&1; then
+            echo "[start-local] PG 未就绪，ZW_BRAIN_LOCAL_PG_AUTOUP=1 → docker compose up -d postgres"
+            (cd "$REPO_ROOT" && docker compose up -d postgres)
+        else
+            echo "[start-local] FAIL: 默认后端 PostgreSQL 未就绪（$pg_host:$pg_port 无监听）" >&2
+            echo "[start-local] Hint: docker compose up -d postgres" >&2
+            echo "[start-local] Hint: 自动起库可设 ZW_BRAIN_LOCAL_PG_AUTOUP=1 重跑本脚本" >&2
+            exit 1
+        fi
+    fi
+    # 等到能连上（compose 刚拉起需等 healthcheck）。
+    local i
+    for ((i=1; i<=40; i++)); do
+        check_port_free "$pg_host" "$pg_port" || { echo "[start-local] ok: PG 就绪 $pg_host:$pg_port"; return 0; }
+        sleep 0.5
+    done
+    echo "[start-local] FAIL: PG 在 $pg_host:$pg_port 未在超时内就绪" >&2
+    exit 1
 }
 
 check_port_free() {
@@ -178,12 +227,21 @@ echo "[start-local] repo: $REPO_ROOT"
 echo "[start-local] python: $PYTHON_BIN"
 
 require_python
+resolve_db_url
 check_dependency
+# 打印时剥掉 user:pass@（凭据不进日志），只留方言 + host/库。
+if [[ "$DB_URL" == *@* ]]; then
+    echo "[start-local] db: ${DB_URL%%://*}://${DB_URL##*@}"
+else
+    echo "[start-local] db: $DB_URL"
+fi
 
 if ! check_port_free "$REST_HOST" "$REST_PORT"; then
     show_port_conflict "$REST_PORT"
     exit 1
 fi
+
+ensure_postgres_ready
 
 # F2：本机 dev 默认 mock 推理（须在 REST 子进程启动前 export）
 if [[ -z "${ZW_BRAIN_INFERENCE_MODE:-}" ]]; then

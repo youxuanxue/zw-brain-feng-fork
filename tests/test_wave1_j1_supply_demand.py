@@ -9,41 +9,36 @@
 #   zw_brain/domain/repositories/supply_demand.py
 """F4: J1 供需对接子流程 6 步实装 + meta 合并 + sd-default 真实需求历史回归.
 
-数据隔离：与 W0/F1/F2/F3 一致 shadow DB 模式。
+数据隔离：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
+模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义），写不污染真实模板。
 """
 from __future__ import annotations
 
 import json
-import os
-import shutil
-import sqlite3
 from pathlib import Path
 
+import psycopg
 import pytest
+from sqlalchemy.engine import make_url
 
-from tests._seed_guard import require_real_seed
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (fixture)
+from zw_brain.shared.db import get_database_url
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_supply_demand_shadow.db"
 TENANT = "sd-default"
 
-require_real_seed({"application_record": 100})
+# 门槛语义（application_record≥100）由 realistic_pg_module 的 skip-when-absent 承接。
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _shadow_db() -> None:
-    # WAL 模式下 -wal/-shm 是库的一部分：只 unlink 主文件会让上次被杀进程留下的陈旧
-    # WAL 残件重放进新拷贝 → "database disk image is malformed"。glob 清三件套再拷。
-    for stale in SHADOW_DB.parent.glob(f"{SHADOW_DB.name}*"):
-        stale.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
+def _pg_read(sql: str, params: tuple = ()):
+    """Read against the cloned realistic PG (app read-path's DB), never a file."""
+    url = make_url(get_database_url())
+    with psycopg.connect(
+        host=url.host, port=url.port, user=url.username,
+        password=url.password, dbname=url.database,
+    ) as conn:
+        return conn.execute(sql, params).fetchall()
 
 
 @pytest.fixture(scope="module")
@@ -300,41 +295,39 @@ def test_find_resource_match_returns_hit(repo):
 
 def test_real_dump_require_demand_distribution_present():
     """sd-default 真实数据：require + original_require 共 ≥150 条；apply 与之独立."""
-    with sqlite3.connect(f"file:{SHADOW_DB}?mode=ro", uri=True) as conn:
-        require_cnt = 0
-        original_cnt = 0
-        apply_cnt = 0
-        for (pj,) in conn.execute(
-            "SELECT payload_json FROM application_record WHERE tenant_id=?", (TENANT,)
-        ):
-            try:
-                p = json.loads(pj) if isinstance(pj, str) else pj
-            except Exception:
-                continue
-            kind = p.get("kind")
-            if kind == "require":
-                require_cnt += 1
-            elif kind == "original_require":
-                original_cnt += 1
-            elif kind == "apply":
-                apply_cnt += 1
-        assert require_cnt + original_cnt >= 150, f"require+original_require {require_cnt+original_cnt}"
-        assert apply_cnt >= 50, f"apply {apply_cnt}"
+    require_cnt = 0
+    original_cnt = 0
+    apply_cnt = 0
+    for (pj,) in _pg_read(
+        "SELECT payload_json FROM application_record WHERE tenant_id=%s", (TENANT,)
+    ):
+        try:
+            p = json.loads(pj) if isinstance(pj, str) else pj
+        except Exception:
+            continue
+        kind = (p or {}).get("kind")
+        if kind == "require":
+            require_cnt += 1
+        elif kind == "original_require":
+            original_cnt += 1
+        elif kind == "apply":
+            apply_cnt += 1
+    assert require_cnt + original_cnt >= 150, f"require+original_require {require_cnt+original_cnt}"
+    assert apply_cnt >= 50, f"apply {apply_cnt}"
 
 
 def test_real_dump_cluster_top_5_titles_have_dupes(repo):
     """规则聚类：真实数据中 ≥1 簇 size ≥ 4（佐证 BR 合并的业务必要性）."""
-    with sqlite3.connect(f"file:{SHADOW_DB}?mode=ro", uri=True) as conn:
-        demands: list[dict] = []
-        for (pj,) in conn.execute(
-            "SELECT payload_json FROM application_record WHERE tenant_id=?", (TENANT,)
-        ):
-            try:
-                p = json.loads(pj) if isinstance(pj, str) else pj
-            except Exception:
-                continue
-            if p.get("kind") in ("require", "original_require"):
-                demands.append({"title": p.get("title") or "", "target_resource_hint": ""})
+    demands: list[dict] = []
+    for (pj,) in _pg_read(
+        "SELECT payload_json FROM application_record WHERE tenant_id=%s", (TENANT,)
+    ):
+        try:
+            p = json.loads(pj) if isinstance(pj, str) else pj
+        except Exception:
+            continue
+        if (p or {}).get("kind") in ("require", "original_require"):
+            demands.append({"title": (p or {}).get("title") or "", "target_resource_hint": ""})
     clusters = repo.cluster_similar_demands(demands, title_prefix_len=6)
     largest = max((len(c) for c in clusters), default=0)
     assert largest >= 4, f"expected ≥1 cluster size >=4, got max={largest}"

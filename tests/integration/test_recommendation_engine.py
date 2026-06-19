@@ -6,15 +6,16 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 import pytest
 
 from tests._trusted_payload import invoke_trusted
 
+# 每个测试由 root conftest 的 autouse function-scoped fixture 分到一个空 PG 克隆库；
+# 测试自带的 dsp_require / jinzhou 规则 fixture 幂等 seed 进各自隔离克隆，
+# 与真实旧平台数据无关，故不挂 realistic_pg_module。
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SHADOW_DB = REPO_ROOT / ".data" / "test_F6_recommendation_shadow.db"
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
 
 
@@ -37,20 +38,6 @@ def _build_rule_payload() -> dict:
             },
         ]
     }
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _shadow_db() -> None:
-    SHADOW_DB.parent.mkdir(parents=True, exist_ok=True)
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-    _db.reset_engine_cache()
-    from zw_brain.shared.migrate import reset_and_upgrade
-    reset_and_upgrade()
-    yield
 
 
 @pytest.fixture()

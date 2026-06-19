@@ -14,10 +14,6 @@ temp_db 模式同 test_visible_org_codes_resolver.py；seed 同 test_provider_sn
 
 from __future__ import annotations
 
-import os
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 import pytest
 
 from zw_brain.domain.provider_snapshot_projection import (
@@ -40,27 +36,17 @@ ORG_B = "360002222211"         # 别家机构
 
 
 @pytest.fixture()
-def temp_db() -> Path:
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "provider_dept_scope.db"
-        old = os.environ.get("ZW_BRAIN_DB_PATH")
-        old_url = os.environ.get("ZW_BRAIN_DATABASE_URL")
-        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
-        os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
+def temp_db():
+    """Fresh, migrated per-test DB. The autouse conftest fixture already supplies an
+    isolated empty PostgreSQL clone; here we just ensure runtime tables are present."""
+    with db_module._CACHE_LOCK:
+        db_module._ENGINE_CACHE.clear()
+    ensure_runtime_schema()
+    try:
+        yield
+    finally:
         with db_module._CACHE_LOCK:
             db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        try:
-            yield db_path
-        finally:
-            if old is None:
-                os.environ.pop("ZW_BRAIN_DB_PATH", None)
-            else:
-                os.environ["ZW_BRAIN_DB_PATH"] = old
-            if old_url is not None:
-                os.environ["ZW_BRAIN_DATABASE_URL"] = old_url
-            with db_module._CACHE_LOCK:
-                db_module._ENGINE_CACHE.clear()
 
 
 def _seed() -> None:
@@ -149,7 +135,7 @@ def _seed() -> None:
 
 
 # ── 1. 集 → 仅 orgA 行 ─────────────────────────────────────────────────────────
-def test_catalogs_scoped_to_org_a(temp_db: Path) -> None:
+def test_catalogs_scoped_to_org_a(temp_db) -> None:
     _seed()
     codes = {c["catalog_code"] for c in project_provider_catalogs(tenant_id=TENANT, visible_org_codes={ORG_A})}
     assert "cat-a-001" in codes
@@ -157,21 +143,21 @@ def test_catalogs_scoped_to_org_a(temp_db: Path) -> None:
     assert "cat-b-001" not in codes
 
 
-def test_resources_scoped_to_org_a(temp_db: Path) -> None:
+def test_resources_scoped_to_org_a(temp_db) -> None:
     _seed()
     ids = {r["id"] for r in project_provider_resources(tenant_id=TENANT, visible_org_codes={ORG_A})}
     assert "res-a-001" in ids
     assert "res-b-001" not in ids
 
 
-def test_api_services_scoped_to_org_a(temp_db: Path) -> None:
+def test_api_services_scoped_to_org_a(temp_db) -> None:
     _seed()
     ids = {s["id"] for s in project_api_services(tenant_id=TENANT, visible_org_codes={ORG_A})}
     assert "api-a-001" in ids
     assert "api-b-001" not in ids
 
 
-def test_inbox_field_decisions_and_hookups_scoped_to_org_a(temp_db: Path) -> None:
+def test_inbox_field_decisions_and_hookups_scoped_to_org_a(temp_db) -> None:
     _seed()
     inbox = project_provider_inbox(tenant_id=TENANT, visible_org_codes={ORG_A})
     field_ids = {r["id"] for r in inbox["field_decisions"]}
@@ -183,7 +169,7 @@ def test_inbox_field_decisions_and_hookups_scoped_to_org_a(temp_db: Path) -> Non
 
 
 # ── 2. None → 全量放行 ─────────────────────────────────────────────────────────
-def test_none_passes_through_all_rows(temp_db: Path) -> None:
+def test_none_passes_through_all_rows(temp_db) -> None:
     _seed()
     cat_codes = {c["catalog_code"] for c in project_provider_catalogs(tenant_id=TENANT, visible_org_codes=None)}
     res_ids = {r["id"] for r in project_provider_resources(tenant_id=TENANT, visible_org_codes=None)}
@@ -200,7 +186,7 @@ def test_none_passes_through_all_rows(temp_db: Path) -> None:
 
 
 # ── 3. 空集 → fail-closed（全部丢弃）──────────────────────────────────────────
-def test_empty_set_fail_closed_drops_all(temp_db: Path) -> None:
+def test_empty_set_fail_closed_drops_all(temp_db) -> None:
     _seed()
     assert project_provider_catalogs(tenant_id=TENANT, visible_org_codes=set()) == []
     assert project_provider_resources(tenant_id=TENANT, visible_org_codes=set()) == []
@@ -211,7 +197,7 @@ def test_empty_set_fail_closed_drops_all(temp_db: Path) -> None:
 
 
 # ── 4. publish_queue 不按部门收口 ─────────────────────────────────────────────
-def test_publish_queue_not_dept_filtered(temp_db: Path) -> None:
+def test_publish_queue_not_dept_filtered(temp_db) -> None:
     _seed()
     # 即便收口到 orgA，待发布平台级待办仍含两机构（不被部门过滤）。
     scoped = project_provider_inbox(tenant_id=TENANT, visible_org_codes={ORG_A})
@@ -224,7 +210,7 @@ def test_publish_queue_not_dept_filtered(temp_db: Path) -> None:
 
 
 # ── 5. legacy owner 存机构名（非码）→ 归一后仍保留 ─────────────────────────────
-def test_legacy_name_owner_catalog_kept_when_org_in_scope(temp_db: Path) -> None:
+def test_legacy_name_owner_catalog_kept_when_org_in_scope(temp_db) -> None:
     _seed()
     # cat-a-legacy-name 的 owner 存机构**名** ORG_A_NAME，可见集存的是**码** ORG_A；
     # org_in_scope 名/码归一后该行应保留（证明归一生效，非裸字符串比对漏判）。
@@ -247,7 +233,7 @@ _SEED_PROVIDER = {
 }
 
 
-def test_enrich_provider_fail_closed_does_not_fall_back_to_seed(temp_db: Path) -> None:
+def test_enrich_provider_fail_closed_does_not_fall_back_to_seed(temp_db) -> None:
     import copy as _copy
 
     out = enrich_provider_snapshot(_copy.deepcopy(_SEED_PROVIDER), tenant_id=TENANT, visible_org_codes=set())
@@ -255,7 +241,7 @@ def test_enrich_provider_fail_closed_does_not_fall_back_to_seed(temp_db: Path) -
     assert out["provider"]["resources"] == [], "fail-closed（空集）不回落 seed 演示资源"
 
 
-def test_enrich_provider_dept_with_no_owned_rows_is_authoritative_empty(temp_db: Path) -> None:
+def test_enrich_provider_dept_with_no_owned_rows_is_authoritative_empty(temp_db) -> None:
     import copy as _copy
 
     # 部门收口到一个本库无任何目录的机构 → live 空 → 权威空（不回落 seed）。
@@ -264,7 +250,7 @@ def test_enrich_provider_dept_with_no_owned_rows_is_authoritative_empty(temp_db:
     assert out["provider"]["resources"] == []
 
 
-def test_enrich_provider_global_empty_db_still_keeps_seed(temp_db: Path) -> None:
+def test_enrich_provider_global_empty_db_still_keeps_seed(temp_db) -> None:
     import copy as _copy
 
     # 对照（不回归）：全局视角 visible=None + DB 空 → 保留 seed 视图（既有 replace-when-nonempty 行为）。

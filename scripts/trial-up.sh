@@ -4,8 +4,12 @@
 # 确定性自动化运营和运维杠杆点： every internal walkthrough, real-data regression, or
 # trial dry-run goes through this script instead of being rebuilt by hand.
 #
+# Backend = PostgreSQL only. The target DB is whatever ZW_BRAIN_DATABASE_URL
+# resolves to (defaults to local dev PG `postgresql+psycopg://zw_brain:zw_brain@127.0.0.1:5432/zw_brain`);
+# start one with `docker compose up -d postgres`.
+#
 # Default flow:
-#   1. clean SQLite DB at .data/zw_brain.db
+#   1. reset the PostgreSQL schema (drop + alembic upgrade head)
 #   2. legacy import for J1+J2+J3 schemas (skipping any whose dump is absent)
 #   3. regenerate seed_snapshot.json from imported DB
 #   4. start REST in background, wait for /health
@@ -15,10 +19,10 @@
 #   8. stop REST on exit
 #
 # Flags:
-#   --no-reset      don't wipe DB before importing — exposes mapper-level
+#   --no-reset      don't reset the schema before importing — exposes mapper-level
 #                   non-idempotency by stacking imports onto existing rows.
 #                   trial-up.sh itself stays repeatable; this is the probe.
-#   --reset-cache   also wipe .legacy_cache/ on top of DB
+#   --reset-cache   also wipe .legacy_cache/ (dump parse cache) on top of the schema reset
 #   --skip-import   reuse existing DB, just start + smoke
 #   --skip-health   skip step 6 (all-skill health check)
 #   -h, --help      this help
@@ -27,8 +31,6 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PYTHON="$REPO_ROOT/.venv/bin/python"
-DB_PATH="$REPO_ROOT/.data/zw_brain.db"
-STATE_PATH="$REPO_ROOT/.data/brain_state.json"
 REPORT_PATH="$REPO_ROOT/.data/trial-up-report.json"
 REST_LOG="$REPO_ROOT/.data/trial-up-rest.log"
 REST_HOST="${ZW_BRAIN_REST_HOST:-127.0.0.1}"
@@ -54,7 +56,7 @@ while [[ $# -gt 0 ]]; do
         --skip-import)  DO_IMPORT=0; shift ;;
         --skip-health)  DO_HEALTH=0; shift ;;
         -h|--help)
-            sed -n '2,30p' "$0" | sed 's/^# \?//'
+            sed -n '2,34p' "$0" | sed 's/^# \?//'
             exit 0 ;;
         *)
             echo "[trial-up] unknown arg: $1" >&2
@@ -84,22 +86,33 @@ fail() { printf '[trial-up] FAIL: %s\n' "$1" >&2; exit 1; }
 # ---------------------------------------------------------------------------
 
 if [[ ! -x "$PYTHON" ]]; then
-    fail "missing virtualenv python at $PYTHON (create .venv and install deps first)"
+    fail "missing virtualenv python at $PYTHON (create .venv and install deps: .venv/bin/pip install -e '.[postgres]')"
 fi
 mkdir -p "$REPO_ROOT/.data"
 
 # ---------------------------------------------------------------------------
-# step 1/6 clean
+# step 1/6 reset PostgreSQL schema
 # ---------------------------------------------------------------------------
 
-step "step 1/6 clean DB"
+step "step 1/6 reset PostgreSQL schema"
 if [[ "$DO_IMPORT" == 0 ]]; then
-    warn "--skip-import: leaving DB as-is (clean step skipped to avoid empty DB)"
+    warn "--skip-import: leaving DB as-is (reset step skipped to avoid empty DB)"
 elif [[ "$DO_RESET" == 1 ]]; then
-    rm -f "$DB_PATH" "$STATE_PATH"
-    ok "removed $DB_PATH and $STATE_PATH"
+    # PG-only: drop + alembic upgrade head on the resolved ZW_BRAIN_DATABASE_URL.
+    # reset_and_upgrade is gated by ZW_BRAIN_ALLOW_SCHEMA_RESET (D58); a trial
+    # rebuild is data-disposable by definition.
+    ZW_BRAIN_ALLOW_SCHEMA_RESET=1 "$PYTHON" - <<'PY' \
+        || fail "schema reset failed — confirm PostgreSQL is up (docker compose up -d postgres) and ZW_BRAIN_DATABASE_URL reachable"
+from zw_brain.shared.db import get_database_url, reset_engine_cache
+from zw_brain.shared.migrate import reset_and_upgrade
+
+reset_engine_cache()
+reset_and_upgrade()
+print(f"[trial-up] schema rebuilt on {get_database_url()}")
+PY
+    ok "schema rebuilt on resolved ZW_BRAIN_DATABASE_URL"
 else
-    warn "--no-reset: keeping existing DB (probes mapper idempotency)"
+    warn "--no-reset: keeping existing schema/rows (probes mapper idempotency)"
 fi
 if [[ "$RESET_CACHE" == 1 ]]; then
     rm -rf "$REPO_ROOT/.legacy_cache"
@@ -138,13 +151,9 @@ fi
 # ---------------------------------------------------------------------------
 
 step "step 3/6 regenerate seed_snapshot.json"
-if [[ -f "$DB_PATH" ]]; then
-    "$PYTHON" "$REPO_ROOT/scripts/build_true_data_seed.py" \
-        || fail "seed regeneration failed"
-    ok "seed regenerated"
-else
-    warn "no DB to seed from — skipping (ui will fall back to hand-authored snapshot)"
-fi
+"$PYTHON" "$REPO_ROOT/scripts/build_true_data_seed.py" \
+    || fail "seed regeneration failed"
+ok "seed regenerated"
 
 # ---------------------------------------------------------------------------
 # step 4/6 start REST

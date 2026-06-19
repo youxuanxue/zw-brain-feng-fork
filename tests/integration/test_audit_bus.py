@@ -15,11 +15,11 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import psycopg
 import pytest
 
 from zw_brain.shared import audit as audit_bus
@@ -65,10 +65,13 @@ def _store_sink(store: AuditStore):
 
 
 @pytest.fixture
-def store(tmp_path) -> AuditStore:
-    """每个测试一个干净的 SQLite 文件 store。"""
-    db = tmp_path / "audit.db"
-    s = AuditStore(path=db)
+def store() -> AuditStore:
+    """每个测试一个干净的 PG audit schema。
+
+    隔离不再靠 per-store 派生 schema，而是 conftest 的 per-test PG 库克隆
+    （CREATE DATABASE TEMPLATE）——每个测试拿到一条全新的库、其中 audit
+    schema 为空，store 按需建表。"""
+    s = AuditStore()
     yield s
     s.close()
 
@@ -214,14 +217,14 @@ def test_summarize_aggregates(store: AuditStore) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_store_write_failure_circuit_breaks(tmp_path) -> None:
-    """sqlite IntegrityError / OperationalError / DiskFull 都必须升级为 AuditWriteError 上抛。"""
+def test_store_write_failure_circuit_breaks() -> None:
+    """底层 DB 写失败（psycopg.OperationalError 等）必须升级为 AuditWriteError 上抛（D4）。"""
 
     class _BrokenStore(AuditStore):
         def append(self, event):  # type: ignore[override]
-            raise sqlite3.OperationalError("disk full")
+            raise psycopg.OperationalError("connection terminated")
 
-    broken = _BrokenStore(path=tmp_path / "broken.db")
+    broken = _BrokenStore()
 
     def _sink_via_broken(rid, actor, sid, phase, payload):
         broken.append(
@@ -406,13 +409,34 @@ def test_sd_default_real_role_mapping_audit_roundtrip(store: AuditStore) -> None
 # ---------------------------------------------------------------------------
 
 
-def test_default_store_lazy_init(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("ZW_BRAIN_AUDIT_DB_PATH", str(tmp_path / "default.db"))
+def test_default_store_lazy_init(monkeypatch) -> None:
+    """default store lazy 初始化：env 显式覆盖 audit schema 名，store 在 PG 里
+    真正建出该 schema + audit_event 表（PG 后端不落文件，落 schema）。"""
+    monkeypatch.setenv("ZW_BRAIN_AUDIT_DB_PATH", "audit_lazy_init")
     from zw_brain.shared.audit import store as audit_store_mod
 
     # 强制重新初始化 default store
     audit_store_mod.set_default_store(None)
     s = audit_store_mod.get_default_store()
-    assert Path(s.path) == tmp_path / "default.db"
-    assert (tmp_path / "default.db").exists()
-    audit_store_mod.set_default_store(None)
+    try:
+        assert s.schema == "audit_lazy_init"
+        # PG 语义：审计落 schema 而非文件——断言 schema + 表真实存在且可回读。
+        with psycopg.connect(audit_store_mod._audit_dsn()) as conn:
+            row = conn.execute(
+                "SELECT 1 FROM information_schema.tables "
+                "WHERE table_schema = %s AND table_name = 'audit_event'",
+                ("audit_lazy_init",),
+            ).fetchone()
+            assert row is not None, "audit schema/table must exist after lazy init"
+        # 写一条后能查回（schema 真正可用，不只是 DDL 成功）
+        s.append(
+            StoredAuditEvent(
+                request_id="REQ-LAZY-1", actor="a", skill_id="audit.list",
+                tenant_id="sd-default", audit_class="read-sensitive",
+                event_type="capability_call", phase="commit",
+                occurred_at=datetime.now(UTC), payload={},
+            )
+        )
+        assert s.count() == 1
+    finally:
+        audit_store_mod.set_default_store(None)

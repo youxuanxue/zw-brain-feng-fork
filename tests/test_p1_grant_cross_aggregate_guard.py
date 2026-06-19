@@ -19,12 +19,10 @@ TENANT = "sd-default"
 
 
 @pytest.fixture()
-def brain(tmp_path, monkeypatch):
+def brain(monkeypatch):
     """BrainService on an isolated empty DB (no seed); we inject exactly the delivery task
-    + bound application the test needs."""
-    db_path = tmp_path / "p1_grant.db"
-    monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-    monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
+    + bound application the test needs. The autouse conftest fixture supplies a fresh,
+    migrated per-test PostgreSQL clone."""
     monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS", "1")
     monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS_ACK", "development-only")
     monkeypatch.delenv("ZW_BRAIN_DEPLOY_MODE", raising=False)

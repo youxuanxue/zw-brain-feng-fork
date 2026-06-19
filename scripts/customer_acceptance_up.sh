@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# Rebuilds .data/zw_brain.db from real customer dumps + datastructure XMLs.
+# Rebuilds the canonical PostgreSQL DB from real customer dumps + datastructure XMLs.
+#
+# Backend = PostgreSQL only. The target DB is whatever `ZW_BRAIN_DATABASE_URL`
+# resolves to (defaults to the local dev PG `postgresql+psycopg://zw_brain:zw_brain@127.0.0.1:5432/zw_brain`);
+# bring one up with `docker compose up -d postgres`. Schema is built/migrated by
+# `ensure_runtime_schema()` (alembic forward-migration, D58) before the import runs.
 #
 # Default mode is **non-strict**: missing-manifest rows in dsp_bsp governance
 # (~15% of 52241) are business-level fail-closed (D6/D14 IAF baseline absent)
@@ -16,7 +21,6 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PYTHON="$REPO_ROOT/.venv/bin/python"
 DUMPS_DIR="${ZW_BRAIN_LEGACY_DUMPS_DIR:-$REPO_ROOT/old/10示例数据}"
 DATASTRUCTURE_DIR="${ZW_BRAIN_LEGACY_DATASTRUCTURE_DIR:-$REPO_ROOT/old/12-datastructure}"
-DB_PATH="${ZW_BRAIN_DB_PATH:-$REPO_ROOT/.data/zw_brain.db}"
 REPORT_DIR="${ZW_BRAIN_ACCEPTANCE_REPORT_DIR:-$REPO_ROOT/.data/customer-acceptance}"
 
 STRICT=0
@@ -28,13 +32,16 @@ for arg in "$@"; do
     --strict) STRICT=1 ;;
     --help|-h)
       cat <<'USAGE'
-customer_acceptance_up.sh — rebuild seed DB from real customer dumps
+customer_acceptance_up.sh — rebuild PostgreSQL seed DB from real customer dumps
 
 Usage: bash scripts/customer_acceptance_up.sh [--strict]
 
   --strict    Fail on any partial_failure adapter run (synthetic-dump mode).
               Default is non-strict: warn-level business fail-closed allowed,
               technical errors still fail. Canonical verify is always strict.
+
+DB target: ZW_BRAIN_DATABASE_URL (defaults to local dev PostgreSQL).
+           Start it with `docker compose up -d postgres`.
 USAGE
       exit 0
       ;;
@@ -56,25 +63,24 @@ fail() {
 }
 
 [[ -x "$PYTHON" ]] || fail "missing virtualenv python at $PYTHON" \
-  "run: python3 -m venv .venv && .venv/bin/pip install -e ."
+  "run: python3 -m venv .venv && .venv/bin/pip install -e '.[postgres]'"
 mkdir -p "$REPORT_DIR"
 
-step "validate input artifacts"
-[[ -d "$DUMPS_DIR" ]] || fail "legacy dumps dir not found: $DUMPS_DIR" \
-  "set ZW_BRAIN_LEGACY_DUMPS_DIR or place dumps under old/10示例数据/"
-[[ -d "$DATASTRUCTURE_DIR" ]] || fail "legacy datastructure dir not found: $DATASTRUCTURE_DIR" \
-  "set ZW_BRAIN_LEGACY_DATASTRUCTURE_DIR or place xmls under old/12-datastructure/"
-for schema in "${REQUIRED_SCHEMAS[@]}"; do
-  compgen -G "$DUMPS_DIR/dump-${schema}-*.sql" >/dev/null || fail \
-    "missing dump for schema ${schema} under $DUMPS_DIR" \
-    "客户机房 DBA 用 mysqldump 拉 dsp_${schema}.sql 放入 $DUMPS_DIR；样例见 old/10示例数据/"
-done
-for xml in "${REQUIRED_XMLS[@]}"; do
-  [[ -f "$DATASTRUCTURE_DIR/$xml" ]] || fail \
-    "missing datastructure file: $DATASTRUCTURE_DIR/$xml" \
-    "从 dev-rules 仓 sync 最新 12-datastructure 或客户 IT 部门提供"
-done
-ok "required dumps + datastructure files are present"
+step "resolve + reset target PostgreSQL schema"
+# PG-only: build/reset the schema on the resolved ZW_BRAIN_DATABASE_URL before
+# importing. A full rebuild needs a clean schema, so we go through the explicit
+# destructive reset path (reset_and_upgrade gated by ZW_BRAIN_ALLOW_SCHEMA_RESET,
+# D58). The acceptance rebuild is by definition data-disposable.
+ZW_BRAIN_ALLOW_SCHEMA_RESET=1 "$PYTHON" - <<'PY' || fail "schema reset failed" \
+  "确认 PostgreSQL 已起（docker compose up -d postgres）且 ZW_BRAIN_DATABASE_URL 可连"
+from zw_brain.shared.db import get_database_url, reset_engine_cache
+from zw_brain.shared.migrate import reset_and_upgrade
+
+reset_engine_cache()
+reset_and_upgrade()  # drop + alembic upgrade head (gated by ZW_BRAIN_ALLOW_SCHEMA_RESET)
+print(f"[customer-acceptance] schema rebuilt on {get_database_url()}")
+PY
+ok "target schema rebuilt on resolved ZW_BRAIN_DATABASE_URL"
 
 step "collect parse stats"
 ZW_BRAIN_LEGACY_DUMPS_DIR="$DUMPS_DIR" \
@@ -87,7 +93,7 @@ if [[ $STRICT -eq 1 ]]; then
 else
   step "run acceptance migration (warn-only partial_failure allowed; technical errors fail)"
 fi
-ZW_BRAIN_LEGACY_DUMPS_DIR="$DUMPS_DIR" ZW_BRAIN_DB_PATH="$DB_PATH" \
+ZW_BRAIN_LEGACY_DUMPS_DIR="$DUMPS_DIR" \
   REPORT_PATH="$REPORT_DIR/migration-report.json" \
   ZW_BRAIN_ACCEPTANCE_STRICT="$STRICT" \
   "$PYTHON" - <<'PY'
@@ -98,16 +104,19 @@ from pathlib import Path
 from zw_brain.adapters.legacy.migration_batch import MigrationOptions, run_acceptance_migration
 
 dumps_dir = Path(os.environ["ZW_BRAIN_LEGACY_DUMPS_DIR"])
-db_path = Path(os.environ["ZW_BRAIN_DB_PATH"])
 report_path = Path(os.environ["REPORT_PATH"])
 strict = os.environ.get("ZW_BRAIN_ACCEPTANCE_STRICT") == "1"
 
+# PG-only: do not pin db_path (that was the SQLite file knob). Leaving it None
+# makes the migration honor the resolved ZW_BRAIN_DATABASE_URL. The schema was
+# already (re)built above, so the import targets a clean PG schema.
+#
 # Non-strict mode runs `run_acceptance_migration(strict=False)` so the outer
 # wrapper doesn't raise MigrationError. Each stage internally still uses
 # strict=True (hardcoded in migration_batch._run_stage) — its MigrationError
 # is caught and folded into stage["errors"]. We classify those errors below.
 report = run_acceptance_migration(
-    MigrationOptions(dumps_dir=dumps_dir, db_path=db_path, strict=strict)
+    MigrationOptions(dumps_dir=dumps_dir, strict=strict)
 )
 report_path.write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
 
@@ -184,15 +193,14 @@ else
 fi
 
 step "verify canonical mapping integrity"
-ZW_BRAIN_DB_PATH="$DB_PATH" \
-  "$PYTHON" "$REPO_ROOT/scripts/import_legacy_dumps.py" verify --strict --require-zero-conflicts --json \
+"$PYTHON" "$REPO_ROOT/scripts/import_legacy_dumps.py" verify --strict --require-zero-conflicts --json \
   > "$REPORT_DIR/verify-report.json"
 ok "verification report saved to $REPORT_DIR/verify-report.json"
 
 step "runtime smoke on imported DB with offline legacy source"
 OFFLINE_SOURCE="$REPORT_DIR/legacy-source-offline"
 mkdir -p "$OFFLINE_SOURCE"
-ZW_BRAIN_DB_PATH="$DB_PATH" ZW_BRAIN_LEGACY_DUMPS_DIR="$OFFLINE_SOURCE" \
+ZW_BRAIN_LEGACY_DUMPS_DIR="$OFFLINE_SOURCE" \
   "$PYTHON" - <<'PY' > "$REPORT_DIR/runtime-smoke.json"
 import json
 from zw_brain.command.runtime import get_service, reset_service
@@ -232,9 +240,9 @@ PY
 ok "runtime smoke passed with offline legacy source"
 
 step "done"
-ok "db:      $DB_PATH"
+ok "db:      resolved ZW_BRAIN_DATABASE_URL (PostgreSQL)"
 ok "reports: $REPORT_DIR"
 printf '\n[customer-acceptance] 下一步：\n'
 printf '  - 跑 5 分钟客户演示：bash scripts/customer_demo_5min.sh\n'
 printf '  - 详细验收 41 项：docs/deployment/handover-checklist.md\n'
-printf '  - 启动完整服务（含 dashboard）：bash scripts/start-local.sh\n'
+printf '  - 启动完整服务：bash scripts/start-local.sh\n'

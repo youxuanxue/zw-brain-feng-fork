@@ -29,7 +29,7 @@
 - 默认 `--dry-run`，只报告不写盘；`--apply` 才落库。
 - 删除只经 `delete_actor_row(..., source_ref_guard='iaf:claims')`，守卫保证只能删登录薄行、
   永不误删 legacy/import 行。
-- 远端试用库用 `--db-url`（如 `sqlite:////abs/path/zw_brain.db` 或 postgres URL）指定。
+- 远端试用库用 `--db-url`（PG SQLAlchemy URL，如 `postgresql+psycopg://u:p@h:5432/zw_brain`）指定。
 - **跑前务必备份库**（见 docs/deployment/m0-site-migration.md 修复 runbook）。
 
 退出码
@@ -124,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--dry-run", action="store_true", help="只报告不写盘（默认）")
     mode.add_argument("--apply", action="store_true", help="实际执行合并")
     parser.add_argument("--db-url", default=None,
-                        help="覆盖 ZW_BRAIN_DATABASE_URL（如 sqlite:////abs/zw_brain.db）。不传则用环境默认库")
+                        help="覆盖 ZW_BRAIN_DATABASE_URL（PG URL，如 postgresql+psycopg://u:p@h:5432/zw_brain）。不传则用环境默认库")
     parser.add_argument("--json-report", type=Path, default=None, help="把完整报告写到该 json 文件")
     args = parser.parse_args(argv)
 

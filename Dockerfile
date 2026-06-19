@@ -62,10 +62,11 @@ ARG AGENT_RUNTIME_EXTRACT_DIR=agent-runtime-1.1.2.2-py312-pyc-only
 # fail-closed guards are ACTIVE by default (dev IAM bypass refused, insecure IAF TLS refused,
 # prod-mode schema-drift refuses to boot). Local/staging usage that needs a dev safety bypass
 # must override this with a non-prod value (e.g. -e ZW_BRAIN_DEPLOY_MODE=dev).
+# 全盘 PostgreSQL：DB 连接经 ZW_BRAIN_DATABASE_URL 注入指向托管 PG 实例（运行时
+# 部署时 -e 注入），镜像不预置库路径；db.py 对未配置/sqlite 旋钮 fail-closed。
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     ZW_BRAIN_DEPLOY_MODE=prod \
-    ZW_BRAIN_DB_PATH=/data/zw-brain/zw_brain.db \
     ZW_BRAIN_AGENTS_DIR=/app/agents \
     ZW_BRAIN_AGENT_RUNTIME_CONFIG=/app/agent-runtime.yaml \
     ZW_BRAIN_AGENT_RUNTIME_SCHEMA=/app/schemas/agent.schema.json \
@@ -91,8 +92,8 @@ COPY docs /app/docs
 COPY agent-runtime.yaml /app/agent-runtime.yaml
 COPY --from=builder /dist/*.whl /tmp/
 
-RUN uv pip install --system /tmp/*.whl && uv pip install --system 'redis>=5.0' && rm -f /tmp/*.whl
-
-VOLUME ["/data/zw-brain"]
+# psycopg：运行时后端 = PostgreSQL（db.py DEFAULT_PG_URL），镜像须自带 v3 驱动，
+# 否则容器起栈即 ImportError。与 redis 同为「extra 不随 wheel 核心装、显式补」。
+RUN uv pip install --system /tmp/*.whl && uv pip install --system 'redis>=5.0' 'psycopg[binary]>=3.2' && rm -f /tmp/*.whl
 EXPOSE 8800 8801
 CMD ["zw-brain-rest"]

@@ -4,21 +4,22 @@ WHY THIS EXISTS
 ---------------
 The function-scoped autouse fixture ``_isolate_db_env`` in ``tests/conftest.py``
 is the single global safety net against the historical cross-module leak: ~30
-fixtures nakedly set ``os.environ["ZW_BRAIN_DB_PATH"] = ...`` (often at
-session/module scope) with **no teardown**, and the process-wide
-``zw_brain.shared.db._ENGINE_CACHE`` then bleeds a stale engine into a later
-test. The net is invisible when green, so a future edit that removes
-``autouse=True`` or breaks the snapshot/restore would silently re-open the leak
-without any test going red.
+fixtures nakedly mutated a process-wide env var (historically the DB-path knob)
+with **no teardown**, and the process-wide ``zw_brain.shared.db._ENGINE_CACHE``
+then bled a stale engine into a later test. The net is invisible when green, so a
+future edit that removes ``autouse=True`` or breaks the snapshot/restore would
+silently re-open the leak without any test going red.
 
-This module pins the contract explicitly so such a regression is caught:
+This module pins the contract explicitly so such a regression is caught, using a
+neutral throwaway env var as the canary (the contract is dialect-agnostic — it is
+about os.environ snapshot/restore, not any specific knob):
 
 1. ``test_naked_env_mutation_is_undone_between_tests`` — a test that nakedly
-   mutates ``ZW_BRAIN_DB_PATH`` (exactly the leak pattern) must NOT bleed into
-   the next test; the autouse fixture restores the env after every test.
+   mutates the canary env var (exactly the leak pattern) must NOT bleed into the
+   next test; the autouse fixture restores the env after every test.
 2. ``test_engine_cache_reset_around_each_test`` — the engine cache is reset
    before each test, so a stale cached engine from a prior test cannot serve a
-   connection to the wrong/vanished file.
+   connection to the wrong/vanished database.
 
 These are pure environmental-hygiene assertions — no Mocks, no business
 behaviour, no DB rows. The two tests are intentionally order-coupled (test 1
@@ -31,26 +32,28 @@ import os
 
 from zw_brain.shared import db as _db
 
-_SENTINEL = "/tmp/zw-brain-conftest-isolation-sentinel.db"
+# Neutral throwaway canary — any env key works; the contract under test is
+# os.environ snapshot/restore by the conftest autouse fixture.
+_CANARY_ENV = "ZW_BRAIN_TEST_ISOLATION_CANARY"
+_SENTINEL = "isolation-sentinel-value"
 
 
 def test_naked_env_mutation_is_undone_between_tests() -> None:
     # Precondition: a prior test's naked mutation must already have been undone
     # by the autouse fixture before this test started.
-    assert os.environ.get("ZW_BRAIN_DB_PATH") != _SENTINEL, (
-        "ZW_BRAIN_DB_PATH leaked into this test — the conftest autouse "
-        "isolation fixture (_isolate_db_env) is not restoring os.environ. "
-        "See tests/conftest.py."
+    assert os.environ.get(_CANARY_ENV) != _SENTINEL, (
+        f"{_CANARY_ENV} leaked into this test — the conftest autouse isolation "
+        "fixture (_isolate_db_env) is not restoring os.environ. See tests/conftest.py."
     )
     # Reproduce the historical leak pattern: naked assignment, no teardown.
-    os.environ["ZW_BRAIN_DB_PATH"] = _SENTINEL
+    os.environ[_CANARY_ENV] = _SENTINEL
 
 
 def test_env_restored_after_prior_naked_mutation() -> None:
     # The prior test leaked _SENTINEL with no teardown of its own. If the
     # autouse fixture is doing its job, this test never sees it.
-    assert os.environ.get("ZW_BRAIN_DB_PATH") != _SENTINEL, (
-        "Naked ZW_BRAIN_DB_PATH mutation from a prior test bled through — the "
+    assert os.environ.get(_CANARY_ENV) != _SENTINEL, (
+        f"Naked {_CANARY_ENV} mutation from a prior test bled through — the "
         "conftest autouse isolation fixture is broken (autouse removed or "
         "snapshot/restore regressed). See tests/conftest.py."
     )

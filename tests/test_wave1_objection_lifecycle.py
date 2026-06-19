@@ -14,38 +14,24 @@
     × 5 维度，断言 process records 链 + evaluation 表 + 状态机联动
   - brain 层：1 条 brain.invoke_skill 端到端 (catalog), 断言 _snapshot["audit_events"] 链
 
-数据隔离：与 W0 / F1 / F2 一致的 shadow DB 模式。
+数据隔离：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
+模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义），writes 落克隆库、
+不污染真实模板。
 """
 from __future__ import annotations
 
-import os
-import shutil
 from pathlib import Path
 
 import pytest
 
-from tests._seed_guard import require_real_seed
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (fixture)
 from tests._trusted_payload import invoke_trusted
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_objection_lifecycle_shadow.db"
 TENANT = "sd-default"
 
-require_real_seed({"objection_case": 20})
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _shadow_db() -> None:
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
+# 门槛语义（objection_case≥20）由 realistic_pg_module 的 skip-when-absent 承接。
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
 @pytest.fixture(scope="module")
@@ -340,8 +326,10 @@ def test_reply_does_not_change_status_and_records_process(repo):
 # ──────────────────────────────────────────────────────────────────────
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def brain():
+    # Function-scoped: conftest._isolate_db_env clears the audit-bus sink before
+    # every test, so the sink must be (re)configured per test.
     import zw_brain.shared.audit as audit_bus
     from zw_brain.command.brain import BrainService
     from zw_brain.shared.database_store import DatabaseStore
@@ -360,7 +348,7 @@ def _invoke(brain, skill_id: str, payload: dict) -> dict:
 def test_brain_dispatch_catalog_lifecycle_audit_chain(repo, brain):
     """通过 brain.invoke_skill 跑 catalog 维度 lifecycle，断言 snapshot audit_events 链含 7 节点.
 
-    target_id 必须取 SHADOW_DB 内真实 catalog_code — handler `_create_objection_case`
+    target_id 必须取克隆 PG 库内真实 catalog_code — handler `_create_objection_case`
     新校验拒绝凭空 ID（PR #134 R-002 修），避免回潮到 "C-LIFE" 类 fake fixture。
     """
     from zw_brain.domain.models import CatalogEntryRecord

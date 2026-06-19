@@ -6,56 +6,58 @@
 # Trace:
 #   zw_brain/command/handlers/j1/delivery_explain.py
 #   docs/approved/zw-brain-architecture.md §5.4.4 (减摩组件反约束)
-"""F8: P4 交付状态解释助手 — 5 真实 sd-default 交付任务 + 推理降级 + §5.4.4 反约束守卫."""
+"""F8: P4 交付状态解释助手 — 5 真实 sd-default 交付任务 + 推理降级 + §5.4.4 反约束守卫.
+
+数据隔离：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
+模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义），writes 落克隆库、
+不污染真实模板。
+"""
 from __future__ import annotations
 
-import os
-import shutil
-import sqlite3
 from pathlib import Path
 
+import psycopg
 import pytest
+from sqlalchemy.engine import make_url
 
-from tests._seed_guard import require_real_seed
+from tests._pg_realistic import realistic_pg_module  # noqa: F401  (fixture)
 from tests._trusted_payload import invoke_trusted
+from zw_brain.shared.db import get_database_url
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SEED_DB = REPO_ROOT / ".data" / "zw_brain.db"
-SHADOW_DB = REPO_ROOT / ".data" / "test_wave1_p4_explain_shadow.db"
 TENANT = "sd-default"
 
-require_real_seed({"delivery_task": 50})
+# 门槛语义（delivery_task≥50）由 realistic_pg_module 的 skip-when-absent 承接。
+pytestmark = pytest.mark.usefixtures("realistic_pg_module")
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _shadow_db() -> None:
-    if SHADOW_DB.exists():
-        SHADOW_DB.unlink()
-    shutil.copy(SEED_DB, SHADOW_DB)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(SHADOW_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-    from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
-    yield
+def _pg_read(sql: str, params: tuple = ()):
+    """Read against the cloned realistic PG (app read-path's DB), never a file."""
+    url = make_url(get_database_url())
+    with psycopg.connect(
+        host=url.host, port=url.port, user=url.username,
+        password=url.password, dbname=url.database,
+    ) as conn:
+        return conn.execute(sql, params).fetchall()
 
 
 @pytest.fixture(scope="module")
 def real_tasks() -> list[dict]:
     """从真实 sd-default 取 5 条 delivery_task（覆盖 ≥2 个不同 state）."""
-    with sqlite3.connect(f"file:{SHADOW_DB}?mode=ro", uri=True) as conn:
-        rows = conn.execute(
-            "SELECT delivery_code, application_code, state, channel "
-            "FROM delivery_task WHERE tenant_id=? LIMIT 5",
-            (TENANT,),
-        ).fetchall()
+    rows = _pg_read(
+        "SELECT delivery_code, application_code, state, channel "
+        "FROM delivery_task WHERE tenant_id=%s LIMIT 5",
+        (TENANT,),
+    )
     out = [{"delivery_code": r[0], "application_code": r[1], "state": r[2], "channel": r[3]} for r in rows]
     assert len(out) == 5
     return out
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def brain():
+    # Function-scoped: conftest._isolate_db_env clears the audit-bus sink before
+    # every test, so the sink must be (re)configured per test.
     import zw_brain.shared.audit as audit_bus
     from zw_brain.command.brain import BrainService
     from zw_brain.shared.database_store import DatabaseStore
@@ -101,21 +103,18 @@ def test_explain_by_application_code_also_works(brain, real_tasks):
     """支持用 application_code 反查；当 app_code 对应多条 delivery 时，handler 按
     created_at desc 取最新一条（R-002 fix —— 稳定 UX）。本测试验证返回的
     delivery_code 隶属同 application_code，且当存在多条时确实是 created_at 最新者。"""
-    import sqlite3
-
     sample = real_tasks[0]
     out = _invoke(brain, {
         "application_code": sample["application_code"],
         "role": "ROLE_ORGAN_OPERATER",
         "enabled": False,
     })
-    # 用同 application_code 在原 seed DB 找全部 delivery_code，断言返回值在其中
-    with sqlite3.connect(f"file:{SHADOW_DB}?mode=ro", uri=True) as conn:
-        rows = conn.execute(
-            "SELECT delivery_code FROM delivery_task WHERE tenant_id=? AND application_code=? "
-            "ORDER BY created_at DESC",
-            (TENANT, sample["application_code"]),
-        ).fetchall()
+    # 用同 application_code 在克隆库找全部 delivery_code，断言返回值在其中
+    rows = _pg_read(
+        "SELECT delivery_code FROM delivery_task WHERE tenant_id=%s AND application_code=%s "
+        "ORDER BY created_at DESC",
+        (TENANT, sample["application_code"]),
+    )
     candidates = [r[0] for r in rows]
     assert candidates, "fixture 期望至少一条 delivery"
     assert out["delivery_code"] in candidates

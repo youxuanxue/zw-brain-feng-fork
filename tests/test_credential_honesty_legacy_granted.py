@@ -10,31 +10,19 @@ dsp_service.api_service_app.SECRET、与 apply_id 无绑定供数）。旧实现
 
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 import pytest
 
 from zw_brain.adapters.legacy.mappers.exchange import ExchangeMapper
 from zw_brain.domain.repositories.delivery import DeliveryRepository
-from zw_brain.shared import db as db_module
 from zw_brain.shared.migrate import ensure_runtime_schema
 
 TENANT = "sd-default"
 
 
 @pytest.fixture()
-def temp_db(monkeypatch: pytest.MonkeyPatch) -> Path:
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "credential_honesty.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        yield db_path
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+def temp_db() -> None:
+    ensure_runtime_schema()
+    yield None
 
 
 def _granted_authz_row(apply_id: str) -> dict[str, object]:
@@ -54,7 +42,7 @@ def _granted_authz_row(apply_id: str) -> dict[str, object]:
     }
 
 
-def test_legacy_granted_import_does_not_fabricate_credential(temp_db: Path) -> None:
+def test_legacy_granted_import_does_not_fabricate_credential(temp_db: None) -> None:
     mapper = ExchangeMapper(tenant_id=TENANT)
     mapper._map_data_apply_authrization(_granted_authz_row("APPLY-GRANTED-1"), "dsp_catalog")
 

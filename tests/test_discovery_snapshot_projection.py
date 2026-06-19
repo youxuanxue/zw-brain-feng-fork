@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
 
@@ -36,18 +35,14 @@ TENANT = "sd-default"
 
 
 @pytest.fixture()
-def temp_db(monkeypatch: pytest.MonkeyPatch) -> Path:
-    """空 schema、无参考数据注入 —— enrich 真空起点。"""
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "discovery_projection.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        yield db_path
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+def temp_db() -> None:
+    """空 schema、无参考数据注入 —— enrich 真空起点（conftest autouse 已供隔离空 PG 克隆）。"""
+    with db_module._CACHE_LOCK:
+        db_module._ENGINE_CACHE.clear()
+    ensure_runtime_schema()
+    yield None
+    with db_module._CACHE_LOCK:
+        db_module._ENGINE_CACHE.clear()
 
 
 @pytest.fixture()

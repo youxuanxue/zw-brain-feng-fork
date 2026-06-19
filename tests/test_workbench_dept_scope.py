@@ -16,15 +16,11 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 import pytest
 
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.workbench_backlog_projection import enrich_workbench_backlog
-from zw_brain.shared import db as db_module
 from zw_brain.shared.migrate import ensure_runtime_schema
 
 TENANT = "sd-default"
@@ -35,17 +31,10 @@ BUSIAUDIT = "ROLE_BUSIAUDIT"
 
 
 @pytest.fixture()
-def temp_db(monkeypatch: pytest.MonkeyPatch) -> Path:
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "workbench_dept_scope.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        yield db_path
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+def temp_db() -> None:
+    # Per-test isolation is provided by the conftest autouse fixture (a fresh
+    # empty PG clone via ZW_BRAIN_DATABASE_URL); just ensure the schema is built.
+    ensure_runtime_schema()
 
 
 def _seed_two_org_review_backlog() -> None:
@@ -119,7 +108,7 @@ def _manager_todo_counts(visible_org_codes: set[str] | None) -> dict[str, str]:
     return {t["id"]: t["title"] for t in out["todos"]}
 
 
-def test_manager_review_counts_scoped_to_visible_orgA_only(temp_db: Path) -> None:
+def test_manager_review_counts_scoped_to_visible_orgA_only(temp_db: None) -> None:
     """visible={orgA}：四类审核计数只反映 orgA（各 2 条），不含 orgB（各 1 条）。"""
     _seed_two_org_review_backlog()
     titles = _manager_todo_counts({ORG_A})
@@ -130,7 +119,7 @@ def test_manager_review_counts_scoped_to_visible_orgA_only(temp_db: Path) -> Non
     assert titles["backlog-api-review"] == "待审核服务 2 条"
 
 
-def test_manager_review_counts_global_when_visible_none(temp_db: Path) -> None:
+def test_manager_review_counts_global_when_visible_none(temp_db: None) -> None:
     """visible=None（全局/上帝视角）：四类审核计数为全量（orgA 2 + orgB 1 = 3），下界守卫。"""
     _seed_two_org_review_backlog()
     titles = _manager_todo_counts(None)
@@ -140,7 +129,7 @@ def test_manager_review_counts_global_when_visible_none(temp_db: Path) -> None:
     assert titles["backlog-api-review"] == "待审核服务 3 条"
 
 
-def test_manager_review_counts_fail_closed_empty_visible(temp_db: Path) -> None:
+def test_manager_review_counts_fail_closed_empty_visible(temp_db: None) -> None:
     """visible=set()（fail-closed）：四类审核计数全为 0 → 零积压不投待办（无空死链）。"""
     _seed_two_org_review_backlog()
     titles = _manager_todo_counts(set())
@@ -150,7 +139,7 @@ def test_manager_review_counts_fail_closed_empty_visible(temp_db: Path) -> None:
     assert "backlog-api-review" not in titles
 
 
-def test_busiaudit_platform_todos_unaffected_by_visible_org_codes(temp_db: Path) -> None:
+def test_busiaudit_platform_todos_unaffected_by_visible_org_codes(temp_db: None) -> None:
     """平台队列（BUSIAUDIT _backlog_todos）保持全局：传 {orgA} / set() / None 平台计数一致。
 
     平台队列含跨 orgA/orgB 的行（待发布目录×2、待平台审核目录×2、待发布资源×2），

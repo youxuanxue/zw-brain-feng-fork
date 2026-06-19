@@ -22,7 +22,6 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -89,7 +88,7 @@ def _prepare_merged_dump(tmp: Path) -> Path:
     return merged
 
 
-def _bootstrap_service(tmp: Path) -> tuple[Any, Any]:
+def _bootstrap_service() -> tuple[Any, Any]:
     from zw_brain.command.brain import BrainService
     from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
     from zw_brain.shared import audit as audit_bus
@@ -97,7 +96,6 @@ def _bootstrap_service(tmp: Path) -> tuple[Any, Any]:
     from zw_brain.shared.migrate import ensure_runtime_schema
     from zw_brain.shared.state_store import StateStore
 
-    os.environ["ZW_BRAIN_DB_PATH"] = str(tmp / "sd_default.db")
     ensure_runtime_schema()
     database_store = DatabaseStore()
     audit_bus.configure_sink(database_store.append_audit_event)
@@ -115,7 +113,7 @@ def test_sd_default_real_dump_iaf_to_role_policy_e2e() -> None:
 
     with TemporaryDirectory() as tmp_str:
         tmp = Path(tmp_str)
-        service, gov = _bootstrap_service(tmp)
+        service, gov = _bootstrap_service()
         dump = _prepare_merged_dump(tmp)
 
         # ---- 1. apply 导入 ----
@@ -251,7 +249,7 @@ def test_sd_default_real_dump_fail_closed_without_manifest() -> None:
 
     with TemporaryDirectory() as tmp_str:
         tmp = Path(tmp_str)
-        _bootstrap_service(tmp)
+        _bootstrap_service()
         dump_dir = tmp / "dumps"
         dump_dir.mkdir(parents=True, exist_ok=True)
         merged = dump_dir / "dump-dsp_bsp-202604271139-no-manifest.sql"
@@ -291,7 +289,7 @@ def test_sd_default_real_dump_fail_closed_on_placeholder_sub() -> None:
 
     with TemporaryDirectory() as tmp_str:
         tmp = Path(tmp_str)
-        _bootstrap_service(tmp)
+        _bootstrap_service()
         dump_dir = tmp / "dumps"
         dump_dir.mkdir(parents=True, exist_ok=True)
         merged = dump_dir / "dump-dsp_bsp-202604271139-placeholder-sub.sql"

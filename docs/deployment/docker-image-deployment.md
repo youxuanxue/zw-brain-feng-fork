@@ -62,19 +62,14 @@ docker images zw-brain
 > - **已纳管库**（有 `alembic_version`）→ `upgrade head` 幂等续迁；
 > - **真实漂移**（有数据、无版本表、schema 与模型不一致、且无迁移可向前应用）→ **拒启**（`SchemaDriftError`，绝不清库）。正确演进路径是补一条 alembic 向前迁移再 `upgrade head`。
 >
-> 破坏性重置（`drop_all + create_all`）已退役出自动路径，仅在**显式**设置 `ZW_BRAIN_ALLOW_SCHEMA_RESET=1` 时可走（M5 fail-closed）；生产/试用库严禁。挂载持久化目录跨升级保留数据，升级前由运维评估是否备份。
+> 破坏性重置（`drop_all + create_all`）已退役出自动路径，仅在**显式**设置 `ZW_BRAIN_ALLOW_SCHEMA_RESET=1` 时可走（M5 fail-closed）；生产/试用库严禁。后端 PG-only，数据持久化在 PG 实例侧（卷 / 备份），容器本身无状态；升级前由运维评估是否备份 PG。
 
-SQLite 数据库默认建议挂载到宿主机目录，避免容器重建导致数据丢失：
+**后端 = PostgreSQL only**（`postgresql+psycopg://...`，镜像须含 `zw-brain[postgres]`；SQLite 已退役）：
+经 `ZW_BRAIN_DATABASE_URL` 指向托管 PG 实例，数据持久化由 PG 侧负责（卷 / 备份），容器本身无状态。
+镜像不自带 PG，本地开发用仓库根 `docker-compose.yml` 起一个；生产指向运维托管的 PG 实例。
 
-```bash
-sudo mkdir -p /opt/zw-brain/data
-```
-
-容器内固定数据目录为 `/data/zw-brain`，默认数据库路径为：
-
-```text
-/data/zw-brain/zw_brain.db
-```
+> 容器内连 PG 须用宿主机 / 内网可达地址（`127.0.0.1` 在容器内指向容器自身）；用 `--add-host`
+> 或内网 DNS 解析 PG host。
 
 ## 4. 启动 REST WebUI/API
 
@@ -89,22 +84,21 @@ docker run -d \
   --name zw-brain-rest \
   --restart unless-stopped \
   -p 8800:8800 \
-  -v /opt/zw-brain/data:/data/zw-brain \
   --env-file /opt/zw-brain/.env \
   zw-brain:1.0.0
 ```
 
-> `.env` 里至少填：`ZW_BRAIN_INFERENCE_GATEWAY_URL` / `ZW_BRAIN_INFERENCE_API_KEY`(或 `_REF`) /
+> `.env` 里至少填：`ZW_BRAIN_DATABASE_URL`（指向托管 PG，须容器内可达） +
+> `ZW_BRAIN_INFERENCE_GATEWAY_URL` / `ZW_BRAIN_INFERENCE_API_KEY`(或 `_REF`) /
 > `ZW_BRAIN_INFERENCE_MODEL` + IAF 一组 + 生产的 `ZW_BRAIN_SESSION_REDIS_URL`；清单见 `.env.example`。
-> 单条覆盖可继续追加 `-e KEY=VALUE`（`-e` 优先于 `--env-file`）。
+> 单条覆盖可继续追加 `-e KEY=VALUE`（`-e` 优先于 `--env-file`）。后端 PG-only，容器无本地数据卷。
 
 个别变量临时覆盖示例（在 `--env-file` 基础上追加）：
 
 ```bash
 docker run -d --name zw-brain-rest -p 8800:8800 \
-  -v /opt/zw-brain/data:/data/zw-brain \
   --env-file /opt/zw-brain/.env \
-  -e ZW_BRAIN_DB_PATH=/data/zw-brain/zw_brain.db \
+  -e ZW_BRAIN_DATABASE_URL=postgresql+psycopg://zw_brain:***@db.intranet:5432/zw_brain \
   zw-brain:1.0.0
 ```
 
@@ -162,8 +156,7 @@ location /zw-brain/ {
 | `ZW_BRAIN_IAF_REALM` | IAF realm，例如 `replace-me-realm` | 按运行配置解析 |
 | `ZW_BRAIN_IAF_CLIENT_ID` | IAF client id，例如 `replace-me-client-id` | 按运行配置解析 |
 | `ZW_BRAIN_IAF_CLIENT_SECRET` | IAF client secret；只允许通过运行时环境变量注入，示例中使用 `replace-me-client-secret` 占位 | 未设置 |
-| `ZW_BRAIN_DB_PATH` | SQLite 数据库文件路径 | `/data/zw-brain/zw_brain.db` |
-| `ZW_BRAIN_DATABASE_URL` | SQLAlchemy 数据库 URL；设置后优先于 `ZW_BRAIN_DB_PATH` | 未设置 |
+| `ZW_BRAIN_DATABASE_URL` | PostgreSQL SQLAlchemy URL（**唯一 DB 旋钮**，后端 PG-only）；不设时默认本地 PostgreSQL `postgresql+psycopg://zw_brain:zw_brain@127.0.0.1:5432/zw_brain`，须装 `zw-brain[postgres]`（psycopg v3）。容器内须用宿主机/内网可达地址（非 `127.0.0.1`） | 默认本地 PG |
 | `ZW_BRAIN_REST_HOST` | REST 监听地址 | `0.0.0.0` |
 | `ZW_BRAIN_REST_PORT` | REST 监听端口 | `8800` |
 | `ZW_BRAIN_REST_BASE_URL` | REST 对外基础 URL，用于契约投影等场景 | `http://127.0.0.1:<REST端口>` |
@@ -217,21 +210,21 @@ REST WebUI 登录采用 **IAM 授权码 + BFF 会话**（详见 `docs/iam-login-
 
 ## 6. 旧平台数据迁移
 
-如果需要在部署后导入脱敏旧平台 dump，可将 dump 目录挂载到容器中运行迁移命令：
+如果需要在部署后导入脱敏旧平台 dump，可将 dump 目录挂载到容器中运行迁移命令（目标库经
+`ZW_BRAIN_DATABASE_URL` 指向托管 PG，报告落到挂载的卷或经 stdout 收集）：
 
 ```bash
 docker run --rm \
-  -v /opt/zw-brain/data:/data/zw-brain \
   -v /path/to/desensitized-legacy-dumps:/legacy-dumps:ro \
-  -e ZW_BRAIN_DB_PATH=/data/zw-brain/zw_brain.db \
+  -v /opt/zw-brain/reports:/reports \
+  -e ZW_BRAIN_DATABASE_URL=postgresql+psycopg://zw_brain:***@db.intranet:5432/zw_brain \
   zw-brain:1.0.0 \
   zw-brain-migrate-legacy \
     --dumps-dir /legacy-dumps \
-    --db-path /data/zw-brain/zw_brain.db \
     --profile customer-core-v1 \
     --strict \
     --acceptance \
-    --report /data/zw-brain/migration-acceptance-report.json
+    --report /reports/migration-acceptance-report.json
 ```
 
 如需清空并重建目标库，可在确认数据可丢弃后追加 `--reset-db`（该路径会自动设置 `ZW_BRAIN_ALLOW_SCHEMA_RESET=1` 走显式破坏性重置；不带 `--reset-db` 时迁移批走 `ensure_runtime_schema()` 的 alembic 向前迁移、**不 DROP**，D58）。
@@ -256,19 +249,19 @@ docker stop zw-brain-rest
 docker rm zw-brain-rest
 ```
 
-升级镜像时，先导入新镜像，再停止并重建容器；保留 `/opt/zw-brain/data` 数据目录即可复用数据库。
+升级镜像时，先导入新镜像，再停止并重建容器；数据在托管 PG 实例侧，容器无状态，重建不丢数据（升级前按需备份 PG）。
 
 ## 8. 构建后自检命令
 
 ```bash
 docker run --rm zw-brain:1.0.0 zw-brain-cli --help
 
-mkdir -p /tmp/zw-brain-docker-data
-
+# 自检需一个可达的 PG（本地用 docker compose up -d postgres，再用 host-gateway 让容器连到宿主机）
 docker run -d \
   --name zw-brain-rest-test \
   -p 8800:8800 \
-  -v /tmp/zw-brain-docker-data:/data/zw-brain \
+  --add-host host.docker.internal:host-gateway \
+  -e ZW_BRAIN_DATABASE_URL=postgresql+psycopg://zw_brain:zw_brain@host.docker.internal:5432/zw_brain \
   zw-brain:1.0.0
 curl http://127.0.0.1:8800/health
 docker rm -f zw-brain-rest-test

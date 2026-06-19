@@ -14,7 +14,7 @@ from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT
 from zw_brain.adapters.legacy.verification import verify_legacy_migration
 from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
 from zw_brain.domain.repositories.legacy_mapping import LegacyObjectMappingRepository
-from zw_brain.shared.db import create_session_factory, ensure_parent_dir, get_database_url, reset_engine_cache
+from zw_brain.shared.db import create_session_factory, ensure_parent_dir, reset_engine_cache
 from zw_brain.shared.migrate import ensure_runtime_schema, reset_and_upgrade
 from zw_brain.shared.sanitization import safe_json
 
@@ -37,7 +37,6 @@ PROFILE_SCHEMAS = {"customer-core-v1": CUSTOMER_CORE_V1_SCHEMAS}
 @dataclass(frozen=True)
 class MigrationOptions:
     dumps_dir: Path
-    db_path: Path | None = None
     tenant_id: str = DEFAULT_TENANT
     profile: str = "customer-core-v1"
     reset_db: bool = False
@@ -68,7 +67,6 @@ def run_acceptance_migration(options: MigrationOptions) -> dict[str, Any]:
             "profile": options.profile,
             "tenant_id": options.tenant_id,
             "dumps_dir": str(options.dumps_dir),
-            "db_path": str(options.db_path) if options.db_path else None,
             "status": "pending",
             "stages": {"dry_run": dry_run, "apply": apply, "repeat_apply": repeat_apply},
             "acceptance": _acceptance_summary(dry_run, apply, repeat_apply),
@@ -98,8 +96,6 @@ def run_migration(options: MigrationOptions) -> dict[str, Any]:
     if options.profile not in PROFILE_SCHEMAS:
         report = _base_report(options) | {"status": "failed", "errors": [f"unknown profile: {options.profile}"]}
         raise MigrationError(report)
-    if options.db_path is not None:
-        os.environ["ZW_BRAIN_DB_PATH"] = str(options.db_path)
     os.environ["ZW_BRAIN_LEGACY_DUMPS_DIR"] = str(options.dumps_dir)
     schemas = list(PROFILE_SCHEMAS[options.profile])
     report = _base_report(options)
@@ -204,31 +200,16 @@ def run_migration(options: MigrationOptions) -> dict[str, Any]:
 
 
 def _checkpoint_seed_file() -> None:
-    """Merge the WAL into the main DB file so the built seed is self-contained.
+    """Dispose cached engines after the import so the built seed is connection-safe.
 
-    SQLite runs in WAL mode (shared/db.py), so writes land in a side `-wal` file
-    that is only folded into the main `.db` on checkpoint. The cached engines
-    hold connections open, so without this the migration would exit leaving a
-    stray `-wal`. Anything that copies only the main file then sees a stale
-    snapshot — e.g. the real-data test fixtures' `shutil.copy(SEED_DB, ...)`,
-    whose first run after a rebuild missed freshly-imported rows, or an ops file
-    transfer of a customer migration. Dispose engines (closes their connections)
-    then TRUNCATE-checkpoint via a fresh connection so the `-wal` is removed.
+    On PostgreSQL — the only backend `get_database_url()` resolves — there is no
+    file-level seed to fold: the seed is propagated by `CREATE DATABASE ...
+    TEMPLATE`, a server-side operation. So the body is a deliberate no-op beyond
+    `reset_engine_cache()`, which closes the connections the import opened (a
+    `CREATE DATABASE ... TEMPLATE` against this DB needs no other session holding
+    it open). Called at the end of a non-dry-run import.
     """
-    url = get_database_url()
     reset_engine_cache()
-    if not url.startswith("sqlite:///"):
-        return
-    import sqlite3
-
-    db_path = url.removeprefix("sqlite:///")
-    if not Path(db_path).exists():
-        return
-    conn = sqlite3.connect(db_path)
-    try:
-        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-    finally:
-        conn.close()
 
 
 def write_report(report: dict[str, Any], path: Path) -> None:
@@ -325,7 +306,6 @@ def _base_report(options: MigrationOptions) -> dict[str, Any]:
         "profile": options.profile,
         "tenant_id": options.tenant_id,
         "dumps_dir": str(options.dumps_dir),
-        "db_path": str(options.db_path) if options.db_path else None,
         "reset_db": options.reset_db,
         "strict": options.strict,
         "require_zero_conflicts": options.require_zero_conflicts,

@@ -9,7 +9,6 @@ import socket
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from threading import Thread
 from typing import Any
 from urllib.parse import urlparse
@@ -30,7 +29,6 @@ from zw_brain.shared.migrate import ensure_runtime_schema
 from zw_brain.shared.state_store import StateStore
 
 _IAF_ENV_KEYS = (
-    "ZW_BRAIN_DB_PATH",
     "ZW_BRAIN_IAF_AUTH_SERVER_URL",
     "ZW_BRAIN_IAF_ISSUER",
     "ZW_BRAIN_IAF_AUDIENCE",
@@ -69,11 +67,15 @@ def valid_claims(nonce: str) -> dict[str, Any]:
 
 @contextmanager
 def bootstrap_iaf_runtime(tmp: str) -> Iterator[None]:
-    # 不用 monkeypatch（测试未走 pytest fixture）；在出口手工还原 env / runtime / engine cache，
-    # 否则 ZW_BRAIN_DB_PATH 会指向已被 TemporaryDirectory 删除的路径，污染后续测试。
+    # DB 供给由根 conftest 的 _isolate_db_env fixture 集中负责：每个测试已被指向一个
+    # 独立的 per-test PostgreSQL 克隆库（ZW_BRAIN_DATABASE_URL）。这里不再写
+    # ZW_BRAIN_DB_PATH（PG-only 下该变量已失效），只在那条已配置好的克隆库上拉起
+    # runtime + audit sink。测试进程与后台 REST 线程共用同一 PG 库，committed 写跨连接
+    # 天然可见（比旧的 SQLite 临时文件更稳，无文件句柄/WAL 可见性问题）。
+    # 仍不用 monkeypatch（调用方未走 pytest fixture），在出口手工还原 IAF env / runtime
+    # / engine cache。tmp 参数保留以兼容既有调用点（PG 下不再用于选库）。
     saved_env = {key: os.environ.get(key) for key in _IAF_ENV_KEYS}
     saved_service = runtime._service
-    os.environ["ZW_BRAIN_DB_PATH"] = str(Path(tmp) / "zw_brain.db")
     os.environ["ZW_BRAIN_IAF_AUTH_SERVER_URL"] = "https://iaf.example/auth"
     os.environ["ZW_BRAIN_IAF_ISSUER"] = "https://iaf.example/auth/realms/picp"
     os.environ["ZW_BRAIN_IAF_AUDIENCE"] = "zw-brain"

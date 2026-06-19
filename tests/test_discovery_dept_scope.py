@@ -20,9 +20,6 @@ payload['provider_org_id']（两源都覆盖）。机构投影 seed 平表（复
 
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 import pytest
 
 from zw_brain.domain.discovery_snapshot_projection import (
@@ -32,7 +29,6 @@ from zw_brain.domain.discovery_snapshot_projection import (
 from zw_brain.domain.repositories.application import ApplicationRepository
 from zw_brain.domain.repositories.approval import ApprovalRepository
 from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
-from zw_brain.shared import db as db_module
 from zw_brain.shared.migrate import ensure_runtime_schema
 
 TENANT = "sd-default"
@@ -48,18 +44,10 @@ ACTOR_OTHER = "lisi-002"    # 另一个人
 
 
 @pytest.fixture()
-def temp_db(monkeypatch: pytest.MonkeyPatch) -> Path:
+def temp_db() -> None:
     """空 schema、无参考数据注入 —— enrich 真空起点（同 test_discovery_snapshot_projection）。"""
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "dept_scope.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        yield db_path
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+    ensure_runtime_schema()
+    yield None
 
 
 def _seed_orgs() -> None:
@@ -112,7 +100,7 @@ def _seed_approval_case(app_id: str, status: str = "pending") -> None:
 
 # ── Part 1a — mine 标记（按个人 id；取未脱敏 payload.applicant）─────────────────
 
-def test_mine_true_when_applicant_matches_caller(temp_db: Path) -> None:
+def test_mine_true_when_applicant_matches_caller(temp_db: None) -> None:
     _seed_orgs()
     _seed_application("APP-MINE", applicant_dept=ORG_A, applicant=ACTOR_ME)
     _seed_application("APP-OTHER", applicant_dept=ORG_A, applicant=ACTOR_OTHER)
@@ -123,7 +111,7 @@ def test_mine_true_when_applicant_matches_caller(temp_db: Path) -> None:
     assert by_id["APP-OTHER"]["mine"] is False, "别人提的单 → 非 mine"
 
 
-def test_mine_reads_unmasked_payload_not_display_field(temp_db: Path) -> None:
+def test_mine_reads_unmasked_payload_not_display_field(temp_db: None) -> None:
     """mine 必须比对未脱敏的 payload.applicant —— applicant 显示字段已 mask_default 脱敏。"""
     _seed_orgs()
     _seed_application("APP-MASK", applicant_dept=ORG_A, applicant=ACTOR_ME)
@@ -134,7 +122,7 @@ def test_mine_reads_unmasked_payload_not_display_field(temp_db: Path) -> None:
     assert card["applicant"] != ACTOR_ME, "applicant 显示字段应已脱敏，证明 mine 没读它"
 
 
-def test_mine_all_false_when_caller_actor_empty(temp_db: Path) -> None:
+def test_mine_all_false_when_caller_actor_empty(temp_db: None) -> None:
     _seed_orgs()
     _seed_application("APP-1", applicant_dept=ORG_A, applicant=ACTOR_ME)
     _seed_application("APP-2", applicant_dept=ORG_A, applicant=ACTOR_OTHER)
@@ -147,7 +135,7 @@ def test_mine_all_false_when_caller_actor_empty(temp_db: Path) -> None:
 
 # ── Part 1b — requests 部门收口（applicant_org ∈ visible）───────────────────────
 
-def test_requests_dept_scope_set_keeps_only_in_org(temp_db: Path) -> None:
+def test_requests_dept_scope_set_keeps_only_in_org(temp_db: None) -> None:
     _seed_orgs()
     _seed_application("APP-A1", applicant_dept=ORG_A, applicant=ACTOR_ME)
     _seed_application("APP-A2", applicant_dept=ORG_A_NAME, applicant=ACTOR_OTHER)  # 存名 → 归一到码
@@ -161,7 +149,7 @@ def test_requests_dept_scope_set_keeps_only_in_org(temp_db: Path) -> None:
     assert "APP-B1" not in ids, "orgB 的单被部门过滤排除"
 
 
-def test_requests_dept_scope_none_keeps_all(temp_db: Path) -> None:
+def test_requests_dept_scope_none_keeps_all(temp_db: None) -> None:
     _seed_orgs()
     _seed_application("APP-A1", applicant_dept=ORG_A, applicant=ACTOR_ME)
     _seed_application("APP-B1", applicant_dept=ORG_B, applicant=ACTOR_OTHER)
@@ -171,7 +159,7 @@ def test_requests_dept_scope_none_keeps_all(temp_db: Path) -> None:
     assert {r["id"] for r in out["requests"]} == {"APP-A1", "APP-B1"}, "None=全局放行全量"
 
 
-def test_requests_dept_scope_empty_set_keeps_none(temp_db: Path) -> None:
+def test_requests_dept_scope_empty_set_keeps_none(temp_db: None) -> None:
     _seed_orgs()
     _seed_application("APP-A1", applicant_dept=ORG_A, applicant=ACTOR_ME)
     _seed_application("APP-B1", applicant_dept=ORG_B, applicant=ACTOR_OTHER)
@@ -181,7 +169,7 @@ def test_requests_dept_scope_empty_set_keeps_none(temp_db: Path) -> None:
     assert out["requests"] == [], "空集=fail-closed → 空列表"
 
 
-def test_mine_independent_of_dept_filter(temp_db: Path) -> None:
+def test_mine_independent_of_dept_filter(temp_db: None) -> None:
     """正交性：管理员自家单既 mine 又在本机构域内（两者同时为真，不互相抑制）。"""
     _seed_orgs()
     _seed_application("APP-OWN", applicant_dept=ORG_A, applicant=ACTOR_ME)
@@ -219,7 +207,7 @@ def _seed_apps_and_approvals_two_providers() -> None:
     _seed_approval_case("APP-PB")
 
 
-def test_approvals_r11_set_keeps_only_own_provider_org(temp_db: Path) -> None:
+def test_approvals_r11_set_keeps_only_own_provider_org(temp_db: None) -> None:
     _seed_orgs()
     _seed_apps_and_approvals_two_providers()
     # requests 在 None 域下 enrich（保留两张申请卡，让 approvals 能映到 provider）；
@@ -230,7 +218,7 @@ def test_approvals_r11_set_keeps_only_own_provider_org(temp_db: Path) -> None:
     assert ids == {"APP-PA"}, "仅提供方=orgA 的审批单存活（orgB 提供方被 R11 排除）"
 
 
-def test_approvals_r11_none_keeps_all(temp_db: Path) -> None:
+def test_approvals_r11_none_keeps_all(temp_db: None) -> None:
     _seed_orgs()
     _seed_apps_and_approvals_two_providers()
     snap = _build_snapshot_with_requests(visible_org_codes=None)
@@ -238,7 +226,7 @@ def test_approvals_r11_none_keeps_all(temp_db: Path) -> None:
     assert {a["id"] for a in out["approvals"]} == {"APP-PA", "APP-PB"}, "None=全局放行全量"
 
 
-def test_approvals_r11_empty_set_keeps_none(temp_db: Path) -> None:
+def test_approvals_r11_empty_set_keeps_none(temp_db: None) -> None:
     _seed_orgs()
     _seed_apps_and_approvals_two_providers()
     snap = _build_snapshot_with_requests(visible_org_codes=None)
@@ -251,7 +239,7 @@ def test_approvals_r11_empty_set_keeps_none(temp_db: Path) -> None:
 # 当成 fail-closed 正解，实为缺陷：orgA 是**提供方**、必须在审批队列看见并办理这张入站单。
 # 修法 = requests 收口改 applicant OR provider 两侧；下列三测锁定修正后的正确语义。
 
-def test_requests_dept_scope_keeps_provider_side_inbound(temp_db: Path) -> None:
+def test_requests_dept_scope_keeps_provider_side_inbound(temp_db: None) -> None:
     """别部门(orgB)申请本部门(orgA)数据的入站单：applicant_org=orgB 不在域内，但 provider=orgA
     在域内 → 对 orgA 部门角色必须保留（供方审批必须看得到）。mine=False（别人提的）。"""
     _seed_orgs()
@@ -264,7 +252,7 @@ def test_requests_dept_scope_keeps_provider_side_inbound(temp_db: Path) -> None:
     assert card["mine"] is False, "别人提的入站单非 mine"
 
 
-def test_approvals_r11_provider_sees_inbound_request_approval(temp_db: Path) -> None:
+def test_approvals_r11_provider_sees_inbound_request_approval(temp_db: None) -> None:
     """供方 R11 正路：orgB 申请 orgA 数据 → orgA 部门管理员在审批队列看得到、能办。
     与 requests 两侧收口配套：申请卡留住 → 审批可映射 provider=orgA → 留存。"""
     _seed_orgs()
@@ -276,7 +264,7 @@ def test_approvals_r11_provider_sees_inbound_request_approval(temp_db: Path) -> 
     assert {a["id"] for a in out["approvals"]} == {"APP-IN"}, "供方=orgA 的审批单 orgA 看得到"
 
 
-def test_approvals_r11_unrelated_request_fail_closed_drop(temp_db: Path) -> None:
+def test_approvals_r11_unrelated_request_fail_closed_drop(temp_db: None) -> None:
     """真·fail-closed：申请与本部门毫无关系（applicant=orgB 且 provider=orgB）→ 申请卡被
     requests 两侧收口都排除 → 审批映射缺失 → drop（不泄漏与本部门无关的审批单）。"""
     _seed_orgs()
@@ -292,7 +280,7 @@ def test_approvals_r11_unrelated_request_fail_closed_drop(temp_db: Path) -> None
 # 根因：org 过滤抢在 mine 之前把申请人自己的单整条 drop（applicant_org 旧硬编码恒不在域内）。
 # 修复：本人提的单（applicant==caller_actor）恒可见、绕过 org 过滤；空集 fail-closed 仍不放行。
 
-def test_mine_request_escapes_dept_scope(temp_db: Path) -> None:
+def test_mine_request_escapes_dept_scope(temp_db: None) -> None:
     """本人提的单即使 applicant_org 与 provider 都不在会话机构域内，也恒可见（绕过 org 过滤）。"""
     _seed_orgs()
     # 本人(ACTOR_ME)提的单，applicant_org=orgB、provider=orgB（都不在会话 {orgA} 域）——典型跨机构申请
@@ -307,7 +295,7 @@ def test_mine_request_escapes_dept_scope(temp_db: Path) -> None:
     assert "APP-OTHER-CROSS" not in ids, "别人提的跨域单仍被 org 过滤排除（mine 只放行本人的）"
 
 
-def test_mine_escape_respects_empty_set_fail_closed(temp_db: Path) -> None:
+def test_mine_escape_respects_empty_set_fail_closed(temp_db: None) -> None:
     """空集 fail-closed（部门角色无机构上下文）→ 连本人的单也不放行（保 D61 空集防御语义）。"""
     _seed_orgs()
     _seed_application("APP-MINE", applicant_dept=ORG_A, applicant=ACTOR_ME)
@@ -319,7 +307,7 @@ def test_mine_escape_respects_empty_set_fail_closed(temp_db: Path) -> None:
 
 # ── Part 1d — applicant_org_code 快路径优先（Fix B 写侧落码，request_party_in_scope 优先读码）──
 
-def test_requests_prefers_applicant_org_code_over_name_column(temp_db: Path) -> None:
+def test_requests_prefers_applicant_org_code_over_name_column(temp_db: None) -> None:
     """运行时单：payload.applicant_org_code（码）优先于 applicant_org 列（可能存名）做行级过滤。"""
     _seed_orgs()
     # applicant_org 列存“别家单位”名（不在 {orgA}），但 applicant_org_code=orgA 码 → 应判在域内

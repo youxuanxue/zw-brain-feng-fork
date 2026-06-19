@@ -17,26 +17,23 @@ shapes and code paths exercised are the production read paths.
 Usage:
     .venv/bin/python scripts/bench_read_path.py [--packages N] [--catalogs M]
 
-Env: writes to a throwaway DB under .data/bench_read_path.db (removed first).
+Env: writes to the PG database named by ``ZW_BRAIN_DATABASE_URL`` — point it at a
+throwaway/scratch database, because the schema is reset (drop + recreate) before
+seeding. The reset requires ``ZW_BRAIN_ALLOW_SCHEMA_RESET=1`` (set here for you).
 """
 from __future__ import annotations
 
 import argparse
 import os
 import time
-from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-BENCH_DB = REPO_ROOT / ".data" / "bench_read_path.db"
 TENANT = "sd-default"
 
 
 def _reset_db() -> None:
-    for suffix in ("", "-wal", "-shm"):
-        (BENCH_DB.parent / f"{BENCH_DB.name}{suffix}").unlink(missing_ok=True)
-    BENCH_DB.parent.mkdir(parents=True, exist_ok=True)
-    os.environ["ZW_BRAIN_DB_PATH"] = str(BENCH_DB)
-    os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
+    # Destructive schema reset on the configured PG database (drop + recreate),
+    # so the bench always starts from an empty representative-scale build.
+    os.environ.setdefault("ZW_BRAIN_ALLOW_SCHEMA_RESET", "1")
     from zw_brain.shared import db as _db
     _db.reset_engine_cache()
     from zw_brain.shared.migrate import reset_and_upgrade

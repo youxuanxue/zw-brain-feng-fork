@@ -2,39 +2,26 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 import pytest
 
 from tests._trusted_payload import invoke_trusted
 from zw_brain.command.brain import BrainService
 from zw_brain.domain.repositories.objection import ObjectionRepository
 from zw_brain.shared import audit as audit_bus
-from zw_brain.shared import db as db_module
 from zw_brain.shared.database_store import DatabaseStore
-from zw_brain.shared.migrate import ensure_runtime_schema
 from zw_brain.shared.state_store import StateStore
 
 TENANT = "sd-default"
 
 
 @pytest.fixture()
-def temp_db(monkeypatch: pytest.MonkeyPatch) -> Path:
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "objection_provider.db"
-        monkeypatch.setenv("ZW_BRAIN_DB_PATH", str(db_path))
-        monkeypatch.delenv("ZW_BRAIN_DATABASE_URL", raising=False)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        yield db_path
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+def temp_db() -> None:
+    """conftest autouse 已为每个测试提供干净、已迁移的空 PG 克隆库。本 fixture 保留为显式依赖标记。"""
+    yield None
 
 
 @pytest.fixture()
-def brain(temp_db: Path) -> BrainService:
+def brain(temp_db: None) -> BrainService:
     ds = DatabaseStore()
     ds.initialize()
     audit_bus.configure_sink(ds.append_audit_event)

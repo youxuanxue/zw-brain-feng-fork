@@ -71,12 +71,12 @@ def test_agentruntime_validate_rejects_wrong_spec_version(tmp_path: Path) -> Non
     assert "anp-agent/v1.2" in (proc.stderr + proc.stdout)
 
 
-def test_zw_brain_capability_provider_invokes_skill(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_zw_brain_capability_provider_invokes_skill() -> None:
     from zw_brain.command.runtime import get_service, reset_service
     from zw_brain.shared.agent_runtime.capability_provider import ZwBrainCapabilityProvider
 
-    db_path = tmp_path / "brain.db"
-    monkeypatch.setenv("ZW_BRAIN_DATABASE_URL", f"sqlite:///{db_path}")
+    # DB isolation comes from conftest's autouse empty-PG-clone (_isolate_db_env);
+    # no per-test DB URL needed — just rebuild the service against the clone.
     reset_service()
     brain = get_service()
     provider = ZwBrainCapabilityProvider(brain, agent_dir=AGENT_YAML.parent)
@@ -121,8 +121,7 @@ async def test_embedded_sdk_task_with_fake_core(tmp_path: Path, monkeypatch: pyt
     from zw_brain.shared.agent_runtime.config import zw_brain_repo_root
     from zw_brain.shared.agent_runtime.service import get_agent_runtime, reset_agent_runtime
 
-    db_path = tmp_path / "brain.db"
-    monkeypatch.setenv("ZW_BRAIN_DATABASE_URL", f"sqlite:///{db_path}")
+    # DB isolation comes from conftest's autouse empty-PG-clone (_isolate_db_env).
     monkeypatch.setenv("ZW_BRAIN_AGENT_RUNTIME_PROFILE", "local_dev")
     reset_service()
     reset_agent_runtime()

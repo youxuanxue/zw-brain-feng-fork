@@ -8,14 +8,10 @@ legacy-catalog-owner-org-name-mismatch）。这是 M4–M8 各消费面收口共
 
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 import pytest
 
 from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.domain.services.reference_service import ReferenceService
-from zw_brain.shared import db as db_module
 from zw_brain.shared.migrate import ensure_runtime_schema
 
 TENANT = "sd-default"
@@ -34,29 +30,10 @@ SECURITY_AUDIT = "ROLE_SECURITY_AUDIT"
 
 
 @pytest.fixture()
-def temp_db() -> Path:
-    with TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "visible_org.db"
-        import os
-
-        old = os.environ.get("ZW_BRAIN_DB_PATH")
-        old_url = os.environ.get("ZW_BRAIN_DATABASE_URL")
-        os.environ["ZW_BRAIN_DB_PATH"] = str(db_path)
-        os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
-        ensure_runtime_schema()
-        try:
-            yield db_path
-        finally:
-            if old is None:
-                os.environ.pop("ZW_BRAIN_DB_PATH", None)
-            else:
-                os.environ["ZW_BRAIN_DB_PATH"] = old
-            if old_url is not None:
-                os.environ["ZW_BRAIN_DATABASE_URL"] = old_url
-            with db_module._CACHE_LOCK:
-                db_module._ENGINE_CACHE.clear()
+def temp_db() -> None:
+    # Per-test isolation is provided by the conftest autouse fixture (a fresh
+    # empty PG clone via ZW_BRAIN_DATABASE_URL); just ensure the schema is built.
+    ensure_runtime_schema()
 
 
 def _seed_flat() -> None:
@@ -81,14 +58,14 @@ def _seed_tree() -> None:
 
 # ── 三态契约 ────────────────────────────────────────────────────────────────
 @pytest.mark.parametrize("role", [BUSIAUDIT, SYSTEM, SECURITY_AUDIT])
-def test_global_roles_return_none(temp_db: Path, role: str) -> None:
+def test_global_roles_return_none(temp_db: None, role: str) -> None:
     _seed_flat()
     assert ReferenceService().visible_org_codes(ORG_PARENT, role, tenant_id=TENANT) is None
     # 全局角色即便无 org 也是 None（不限定）。
     assert ReferenceService().visible_org_codes("", role, tenant_id=TENANT) is None
 
 
-def test_dept_roles_with_org_flat_tree_return_self_only(temp_db: Path) -> None:
+def test_dept_roles_with_org_flat_tree_return_self_only(temp_db: None) -> None:
     _seed_flat()
     ref = ReferenceService()
     assert ref.visible_org_codes(ORG_PARENT, MANAGER, tenant_id=TENANT) == {ORG_PARENT}
@@ -96,12 +73,12 @@ def test_dept_roles_with_org_flat_tree_return_self_only(temp_db: Path) -> None:
 
 
 @pytest.mark.parametrize("role", [MANAGER, OPERATER])
-def test_dept_roles_without_org_fail_closed_empty_set(temp_db: Path, role: str) -> None:
+def test_dept_roles_without_org_fail_closed_empty_set(temp_db: None, role: str) -> None:
     _seed_flat()
     assert ReferenceService().visible_org_codes("", role, tenant_id=TENANT) == set()
 
 
-def test_unknown_role_least_privilege_self_only(temp_db: Path) -> None:
+def test_unknown_role_least_privilege_self_only(temp_db: None) -> None:
     _seed_flat()
     # 未知角色按最小权限当部门角色：有 org → 仅本机构（无下级）；无 org → fail-closed。
     ref = ReferenceService()
@@ -110,7 +87,7 @@ def test_unknown_role_least_privilege_self_only(temp_db: Path) -> None:
 
 
 # ── 下级前向兼容 ──────────────────────────────────────────────────────────────
-def test_manager_sees_subtree_when_hierarchy_populated(temp_db: Path) -> None:
+def test_manager_sees_subtree_when_hierarchy_populated(temp_db: None) -> None:
     _seed_tree()
     visible = ReferenceService().visible_org_codes(ORG_PARENT, MANAGER, tenant_id=TENANT)
     # 管理员见本机构 + 直接下级 + 递归下下级。
@@ -118,13 +95,13 @@ def test_manager_sees_subtree_when_hierarchy_populated(temp_db: Path) -> None:
     assert ORG_OTHER not in visible
 
 
-def test_operater_never_sees_subtree(temp_db: Path) -> None:
+def test_operater_never_sees_subtree(temp_db: None) -> None:
     _seed_tree()
     # 操作员仅本机构，即使父子树已填充也不含下级。
     assert ReferenceService().visible_org_codes(ORG_PARENT, OPERATER, tenant_id=TENANT) == {ORG_PARENT}
 
 
-def test_list_org_children_flat_vs_tree(temp_db: Path) -> None:
+def test_list_org_children_flat_vs_tree(temp_db: None) -> None:
     _seed_flat()
     gov = GovernanceProjectionRepository()
     assert gov.list_org_children(ORG_PARENT, tenant_id=TENANT) == []  # 平表无子
@@ -135,14 +112,14 @@ def test_list_org_children_flat_vs_tree(temp_db: Path) -> None:
 
 
 # ── 行级成员判定 org_in_scope（名/码归一）──────────────────────────────────────
-def test_org_in_scope_none_and_empty(temp_db: Path) -> None:
+def test_org_in_scope_none_and_empty(temp_db: None) -> None:
     _seed_flat()
     ref = ReferenceService()
     assert ref.org_in_scope(ORG_OTHER, None, tenant_id=TENANT) is True   # 全局放行
     assert ref.org_in_scope(ORG_PARENT, set(), tenant_id=TENANT) is False  # fail-closed
 
 
-def test_org_in_scope_code_fast_path(temp_db: Path) -> None:
+def test_org_in_scope_code_fast_path(temp_db: None) -> None:
     _seed_flat()
     ref = ReferenceService()
     visible = {ORG_PARENT}
@@ -150,7 +127,7 @@ def test_org_in_scope_code_fast_path(temp_db: Path) -> None:
     assert ref.org_in_scope(ORG_OTHER, visible, tenant_id=TENANT) is False
 
 
-def test_org_in_scope_legacy_name_normalized_to_code(temp_db: Path) -> None:
+def test_org_in_scope_legacy_name_normalized_to_code(temp_db: None) -> None:
     _seed_flat()
     ref = ReferenceService()
     visible = {ORG_PARENT}  # 集合存的是码
@@ -158,7 +135,7 @@ def test_org_in_scope_legacy_name_normalized_to_code(temp_db: Path) -> None:
     assert ref.org_in_scope(ORG_NAME_PARENT, visible, tenant_id=TENANT) is True
 
 
-def test_org_in_scope_ambiguous_name_fail_closed(temp_db: Path) -> None:
+def test_org_in_scope_ambiguous_name_fail_closed(temp_db: None) -> None:
     _seed_flat()
     ref = ReferenceService()
     # 重名机构名无法唯一归一 → resolve 返 None → 不放行（fail-closed，不擅自取一条）。

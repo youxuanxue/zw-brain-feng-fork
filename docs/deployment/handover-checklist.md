@@ -52,13 +52,13 @@
 | 12 | Blockchain anchor 端点配置（可选） | `echo $ZW_BRAIN_BLOCKCHAIN_ENDPOINT` | 非空 或 显式留 mock-chain | 未显式 mock-chain → audit 异步锚定无目标，安全审计员 督查证据链断 |
 | 13 | 无明文密钥泄露到代码库 | `grep -rE '(password\|api_key)=.{8,}' --include="*.py" --include="*.json" /opt/zw-brain` | 仅命中 `*_REF` 引用、不出现真实值 | 明文密钥 → 立即合规高危事件，必须 rotation + 强制下架，签收作废 |
 
-## 四、preflight 20 段全过（1 项 — 这一项覆盖整个机械规约层）
+## 四、preflight 全段全过（1 项 — 这一项覆盖整个机械规约层）
 
 | # | 检查项 | 怎么验证 | 预期 | 业务影响（不过=客户用不了什么） |
 | --- | --- | --- | --- | --- |
 | 14 | preflight 全段通过 | `bash scripts/preflight.sh 2>&1 \| tail -3` | `=== preflight: PASS (common + project stages) ===` | 机械规约层断 → 任何 PR 不能 merge，hotfix 链路瘫痪 |
 
-子段以 `scripts/preflight.sh` 实际执行为准（当前 20 段），含：branch naming / dev-rules 同步 / agent contract drift / user-story alignment / approved-doc invariants / doc stats sync / audit-must-block / blockchain-async / fixture-pii / no-direct-llm / external-refs / ui-spec-b / legacy-mappers / iam-doc-freshness / db-bloat-check / no-legacy-role-codes / no-retired-features 等。子段编号与覆盖项随脚本演进，以脚本输出为准。
+子段以 `scripts/preflight.sh` 实际执行为准（段号有跳号/子段，不以固定计数承诺，运行 `bash scripts/preflight.sh` 看实际输出）。代表性子段含：branch naming / dev-rules 同步 / agent contract drift / user-story alignment / approved-doc invariants / doc stats sync / audit-must-block / blockchain-async / fixture-pii / no-direct-llm / external-refs / ui-spec-b / legacy-mappers / iam-doc-freshness / no-legacy-role-codes / no-retired-features 等。子段编号与覆盖项随脚本演进，以脚本输出为准。
 
 ## 五、客户现场一键导出（4 项）
 
@@ -132,7 +132,7 @@
 □ verify-report.json
 □ `pytest tests/ -q` 输出（26 passed + 1 deselected）+ `.testing/waves/wave-{0,1}/features/` 现场人工 walkthrough 记录
 □ WebUI M0 + 7 角色浏览验收截图（每岗位 ≥ 1 张）
-□ preflight 输出（21 段 PASS）
+□ preflight 全段 PASS（段数以 `bash scripts/preflight.sh` 实际输出为准）
 ```
 
 ---
