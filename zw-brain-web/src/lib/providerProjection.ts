@@ -373,7 +373,9 @@ export function providerCatalogRows(provider: Record<string, unknown>): Provider
       // 审核理由回显（return_for_fix/reject 落 summary → 投影 review_return_reason）；
       // 目录「驳回」为终态枪毙、无重提路径，理由作终止凭据展示。
       statusNote: String(it.review_return_reason ?? '') ? `驳回理由：${String(it.review_return_reason)}` : '',
-      viewHref: code ? `#/discovery/catalog/${encodeURIComponent(code)}` : '',
+      // D63 档 B：供数侧「查看」指向独立供数详情路由（供数管理视角，复用消费组件、route.path 判模式；
+      // 走供数 shell 角色门，业务运营员不再被弹回工作台）。
+      viewHref: code ? `#/provider/catalog/${encodeURIComponent(code)}` : '',
       actions,
       timeline: asTimeline(it.statusTimeline),
       lifecycleNote: String(it.lifecycleNote ?? ''),
@@ -398,7 +400,9 @@ export function providerResourceRows(provider: Record<string, unknown>): Provide
       statusNote: String(it.review_return_reason ?? '') ? `驳回理由：${String(it.review_return_reason)}` : '',
       // 单源 resourceKindLabel（lib/resourceKind.ts）；未知/空 → '—'（管理清单保留占位）。
       kind: resourceKindLabel(kind) || '—',
-      viewHref: id ? `#/discovery/resource/${encodeURIComponent(id)}` : '',
+      // D63 档 B：供数侧「查看」指向独立供数详情路由 /provider/resource/:id（供数管理视角，复用消费
+      // 组件、route.path 判模式）；走供数 shell 角色门，消除心智错配 + 业务运营员被弹回工作台的断点。
+      viewHref: id ? `#/provider/resource/${encodeURIComponent(id)}` : '',
       timeline: asTimeline(it.statusTimeline),
       lifecycleNote: String(it.lifecycleNote ?? ''),
     };

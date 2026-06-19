@@ -1,0 +1,23 @@
+scope: d-index-active-archive-restructure
+# 待签：本文件随提案一并提交，签字前为 draft 模板。
+# 负责人裁决并批准方案档（N 取值 / §七叠加 / D48 例外）后，把 signed_by 改为真实签字人 +
+# date 改实际签字日，本提案方落地（实施切片才搬运 CLAUDE.md + 下调聚合守卫阈值）。
+status: draft
+signed_by: 待产品研发负责人签字（pending）
+date: 2026-06-18
+kind: 决策签字
+evidence: >-
+  提案全文 docs/decisions/d-index-active-archive-restructure-proposal.md。
+  治理决策：CLAUDE.md「## 决策记录」段 D-索引「活跃 / 归档」分层重构——把已落地、Why/How
+  已在外部全文（docs/decisions/*、docs/acceptance/*、docs/approved §十四）的决策下沉为一行
+  指针，让索引回到段头「日期+scope+一句裁决+全文指针」契约本意。现状实测：61 条 D-决策、
+  D-条目行聚合 14,760 字符、6 条逼近段 68 的 900 上限（D61=873/D50=855/D55=757/D46=756/
+  D51=754/D58=738）。切分判据全机械（元规则 D28 + 被全仓 Dxx.y 引用的父条 13 个 + 近期
+  N=12）；归档落 docs/decisions/d-index-archive.md、不进每会话上下文、不计聚合守卫。
+  推荐方案 C（N=12，−924 字符）叠加 §七大条指针化瘦身（再 −2,300），合计 ~−3,200 字符
+  （−22%）、信息零丢失。属 D28 GATE 元规则（格式契约修订），登记 D-编号待负责人定。
+decision_only: true
+covers: []
+# decision_only=true → covers 必须为空（纯治理/格式契约决策，不抬任何 .feature 状态、对运行产品零行为影响）。
+# 段 63 守卫要求 signed_by/evidence 非空（禁空签）；本模板用 pending 占位串合法表达「待签」，
+# 负责人签字时改 signed_by 为真实姓名（参照 narrative-positioning-downgrade.signoff.yaml）。

@@ -199,12 +199,12 @@ const headerMeta = computed(() => {
               <td>
                 <a
                   class="catalog-link"
-                  :href="`#/discovery/catalog/${encodeURIComponent(it.catalog_code)}`"
+                  :href="`#/provider/catalog/${encodeURIComponent(it.catalog_code)}`"
                   data-testid="catalog-review-detail-link"
                 ><code>{{ it.display_code }}</code></a>
               </td>
               <td>
-                <a class="catalog-link" :href="`#/discovery/catalog/${encodeURIComponent(it.catalog_code)}`">{{ it.title }}</a>
+                <a class="catalog-link" :href="`#/provider/catalog/${encodeURIComponent(it.catalog_code)}`">{{ it.title }}</a>
               </td>
               <td>{{ it.owner || '—' }}</td>
               <td>{{ it.region || '—' }}</td>

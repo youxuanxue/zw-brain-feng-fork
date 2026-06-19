@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import json
 import re
 from pathlib import Path
@@ -64,7 +65,19 @@ class SurfaceNotEnabledError(PermissionError):
     pass
 
 
+@functools.lru_cache(maxsize=1)
 def load_manifests() -> dict[str, dict[str, Any]]:
+    """加载并校验全部已注册 manifest（slug → manifest）。
+
+    ``registered/*.json`` 是运行期只读的静态资产，而本函数处于五消费面
+    （WebUI / REST / CLI / MCP / A2A）最热路径上——``get_manifest`` 每次调用、
+    brain.py invoke 校验、每条审计 phase、snapshot 全量投影都会触达。每次重新
+    glob + read + json.loads + validate 全部 manifest 是无谓的重复磁盘 I/O，
+    故用进程级 ``lru_cache(maxsize=1)`` 一次性填充缓存。
+
+    需要热替换 manifest 的测试（写入临时 manifest 后期望重新读取）必须先调用
+    ``load_manifests.cache_clear()`` 使缓存失效，否则会拿到旧快照。
+    """
     manifests: dict[str, dict[str, Any]] = {}
     for path in sorted(REGISTRY_DIR.glob("*.json")):
         data = json.loads(path.read_text(encoding="utf-8"))

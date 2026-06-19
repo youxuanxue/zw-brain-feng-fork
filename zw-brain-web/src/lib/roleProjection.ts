@@ -114,10 +114,14 @@ export function myRequests(snapshot: Snapshot | null): RequestCard[] {
 }
 
 // ── 视图 3：我的授权 ─────────────────────────────────────────────────────
-/** 我已获得的授权（granted/effective/suspended/expired），含凭据态（凭据诚实化承 D47）。 */
+/** 我已获得的授权（granted/effective/suspended/expired），含凭据态（凭据诚实化承 D47）。
+ *
+ * 与 myRequests 对称按 mine 收口到本人：快照 requests 经后端部门收口后，含同部门他人的授权与
+ * 「本部门作为提供方的入站单」（别部门申请本部门数据），那些 mine=false、不属「我的授权」，否则
+ * 用户点「查看凭据」会进到不属于自己的页面 = 越权可见（客户 0604 反馈下半截，承 myRequests 口径）。 */
 export function myGrants(snapshot: Snapshot | null): RequestCard[] {
   return requests(snapshot)
-    .filter((r) => bucketForRequest(r) === 'grant')
+    .filter((r) => asRecord(r).mine === true && bucketForRequest(r) === 'grant')
     .map(toRequestCard);
 }
 

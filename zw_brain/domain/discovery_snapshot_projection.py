@@ -49,6 +49,11 @@ _DEMAND_KINDS = frozenset({"require", "original_require"})
 # 均不进发现视图（资源详情/目录线仍可达，仅不在「找数据」列表 + 不可申请）。
 _DISCOVERABLE_STATUSES = frozenset({"active"})
 
+# 单一事实源公共别名：关键词搜索（data_search）与本快照发现路径必须同口径放行——只展示
+# 已发布 active 资源（D53①）。搜索侧 import 此常量，杜绝两处各写一套生命周期白名单而漂移
+# （历史漏洞：搜索曾只 continue 掉 draft/revoked，放行了待发布/审核中/暂停/过期资源）。
+DISCOVERABLE_STATUSES = _DISCOVERABLE_STATUSES
+
 # 无意义 desc 占位值（真实库 res_desc 82% 是空/「无」/标题复读 → 卡片不渲染噪声）
 _DESC_NOISE = frozenset({"", "无", "-", "暂无", "无。"})
 

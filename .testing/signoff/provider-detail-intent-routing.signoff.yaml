@@ -1,0 +1,26 @@
+scope: provider-detail-intent-routing
+# 已签：负责人 2026-06-18 — 初定档 A，真浏览器走查证伪档 A（route.query 不可靠 + 业务运营员被弹）
+# 后**改定档 B**（独立供数详情路由 /provider/resource|catalog）。本签字覆盖 IA 决策本身（decision_only）。
+status: signed
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-18
+kind: 决策签字
+evidence: >-
+  决策全文 docs/decisions/provider-detail-intent-routing-D63.md。负责人 2026-06-18 定档 B
+  （独立供数详情路由 /provider/resource/:id、/provider/catalog/:code，按 route.path 判供数视角，
+  走供数 shell 角色门；初定档 A 经真浏览器走查证伪——route.query.from 在带参 hash 路由不可靠 +
+  业务运营员被弹回工作台——故改 B 根治）。IA 意图错配修复：供数据
+  「资源管理清单」每行「查看」链接写死成 #/discovery/resource/:id（消费方详情 P2ResourceDetail，
+  providerProjection.ts:401），目录孪生 :376 + P5CatalogReviewInbox.vue:202/207 同病；供数侧无
+  自有详情路由（router/index.ts:59 唯一资源详情归 P2），部门操作员/管理员同具 request.create 权
+  （policy.py:104 / pageAccess.ts:170）→ 点自己未发布资源落 P2ResourceDetail 的「暂不可申请」
+  （showNotPublishedNote，lifecycleStatus≠active 触发）=供数方/消费方两旅程在 IA 上的意图错配
+  （承 D39 2 旅程分界 + D53④ 供数 IA 重排）。裁决：把供数侧「查看」从消费申请详情重定位到
+  供数方管理语境（三档 A 轻量分流/B 新建供数详情路由/C mode-aware 详情，待负责人定档），消除落到
+  消费方「暂不可申请」页的错配；目录孪生一并纳入修复面。属 D28 GATE（IA/可见性重定位），
+  D-编号拟 D63、签字时坐实（受段72 聚合棘轮约束，CLAUDE.md 索引行需净零/随 B1 归档腾额度）。
+decision_only: true
+covers: []
+# decision_only=true → covers 必须为空（check_signoff_ledger.py：纯 IA/路由重定位，不抬任何
+# .feature 状态）。段63 守卫要求 signed_by/date/evidence 非空（禁空签）；本模板用 pending 占位串
+# 合法表达「待签」，负责人签字时仅改 signed_by + date 两字段（不动 decision_only/covers/kind）。

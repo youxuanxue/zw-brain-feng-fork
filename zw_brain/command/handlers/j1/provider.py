@@ -32,7 +32,11 @@ def _get_provider_view(brain, deps, ctx) -> dict[str, Any]:
     delivery = deps.services.provider.focus_delivery()
     resource_id = deps.services.provider.primary_resource_id()
     resource = brain.get_resource(resource_id) if resource_id else {}
-    provider["overview"][2]["value"] = str(len(delivery.get("backflow", {}).get("candidateFields", [])))
+    # 按 label 定位卡片（抗 overview 列表顺序漂移），现算真实回流候选字段数。
+    for card in provider.get("overview", []):
+        if card.get("label") == "回流候选字段":
+            card["value"] = str(len(delivery.get("backflow", {}).get("candidateFields", [])))
+            break
     if provider.get("resources"):
         provider["resources"][0]["status"] = resource.get("status", provider["resources"][0].get("status"))
         provider["resources"][0]["updatedAt"] = resource.get("updatedAt", provider["resources"][0].get("updatedAt"))

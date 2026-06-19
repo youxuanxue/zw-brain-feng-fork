@@ -13,6 +13,10 @@ import { resourceKindLabel } from '@/lib/resourceKind';
 const route = useRoute();
 const code = computed(() => String(route.params.code ?? ''));
 const role = getProductRole();
+// 档 B（供数管理视角）：供数侧（资源管理/目录管理/目录审核收件箱）「查看」走独立路由
+// /provider/catalog/:code（复用本组件），按 route.path 前缀判供数视角（route.path 可靠，不用 route.query）。
+// 供数方是来「管理/审核」自己的目录、非来「申请」，加一句管理视角横幅 + 回目录管理回链（目录无申请，故仅定向）。
+const providerView = computed(() => route.path.startsWith('/provider/'));
 const { catalog, resources, total, loading, fetchError, source } = useCatalogResources(
   () => code.value,
   role.value,
@@ -59,9 +63,18 @@ const showCompilation = ref(false);
 
 <template>
   <main class="focus-page focus-detail">
-    <nav class="crumbs"><a href="#/discovery/catalog-browse">← 目录浏览</a></nav>
+    <!-- 档 B：供数视角面包屑回目录管理，消费视角回目录浏览。 -->
+    <nav class="crumbs">
+      <a v-if="providerView" href="#/provider/catalogs">← 目录管理</a>
+      <a v-else href="#/discovery/catalog-browse">← 目录浏览</a>
+    </nav>
     <section class="panel">
       <PageFocusHeader :title="headerTitle" :meta="headerMeta" />
+
+      <!-- 档 B（供数管理视角）横幅（/provider/catalog/:code）——供数方看自己的目录，给「回目录管理」定向。 -->
+      <p v-if="providerView" class="provider-manage-banner" data-testid="catalog-provider-manage-note">
+        本部门目录（管理视角）。<a href="#/provider/catalogs" class="row-link">← 回目录管理</a>
+      </p>
 
       <!-- 反馈 5 首屏：决策字段（共享/更新/提供方）+ 数据资源摘要 -->
       <DetailPanel
@@ -112,6 +125,8 @@ const showCompilation = ref(false);
 </template>
 
 <style scoped>
+.provider-manage-banner { margin: 8px 0 0; font-size: 13px; color: var(--b-text-muted, #5b6b7f); }
+.provider-manage-banner .row-link { color: var(--b-primary, #006be6); text-decoration: underline; margin-left: 4px; }
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; margin-top: 8px; }
 .focus-empty { font-size: 14px; color: var(--b-muted, #5c6370); margin: 16px 0 0; }
 .kind-filter { display: flex; align-items: center; gap: 8px; margin: 12px 0 4px; flex-wrap: wrap; }

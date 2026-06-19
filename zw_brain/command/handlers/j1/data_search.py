@@ -9,7 +9,10 @@ if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
 from zw_brain.command.deps import HandlerDeps, SkillContext
-from zw_brain.domain.discovery_snapshot_projection import project_resource_cards
+from zw_brain.domain.discovery_snapshot_projection import (
+    DISCOVERABLE_STATUSES,
+    project_resource_cards,
+)
 from zw_brain.domain.resource_kind import canonical_resource_kind
 from zw_brain.domain.resource_lifecycle import lifecycle_label
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
@@ -98,7 +101,10 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
             if not haystack or haystack in text:
                 resources.append(copy.deepcopy(item))
         for api_res in deps.view.resources.list_api_resources():
-            if api_res.get("lifecycle_status") in {"draft", "revoked"}:
+            # 发现/找数据只展示已发布 active（D53①，与快照发现路径同口径——单一事实源
+            # DISCOVERABLE_STATUSES）。待发布/审核中/暂停/过期/草稿/下线一律不进搜索结果，
+            # 杜绝搜出未发布资源点进去却不可申请的断头路。
+            if api_res.get("lifecycle_status") not in DISCOVERABLE_STATUSES:
                 continue
             summary = api_res.get("summary_json") or {}
             text = " ".join(
@@ -175,7 +181,10 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
                 existing_ids.add(item["id"])
                 resources.append(copy.deepcopy(item))
             for api_res in deps.view.resources.list_api_resources():
-                if api_res.get("lifecycle_status") in {"draft", "revoked"}:
+                # 发现/找数据只展示已发布 active（D53①，与快照发现路径同口径——单一事实源
+                # DISCOVERABLE_STATUSES）。待发布/审核中/暂停/过期/草稿/下线一律不进搜索结果，
+                # 杜绝搜出未发布资源点进去却不可申请的断头路。
+                if api_res.get("lifecycle_status") not in DISCOVERABLE_STATUSES:
                     continue
                 summary = api_res.get("summary_json") or {}
                 text = " ".join(

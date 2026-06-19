@@ -84,6 +84,11 @@ const routes: RouteRecordRaw[] = [
   // 不增左导航项（守左导航场景页 ≤10 约束）；activeShellKey('/provider/*')='provider' → 沿用供数 shell 角色门。
   { path: '/provider/catalogs', component: P5CatalogManageList, meta: { page: 'P5', title: 'P5 目录管理清单' } },
   { path: '/provider/resources', component: P5ResourceManageList, meta: { page: 'P5', title: 'P5 资源管理清单' } },
+  // D63 档 B：供数侧资源/目录详情=独立路由（供数管理视角），复用消费详情组件但走供数 shell
+  // 角色门（activeShellKey('/provider/*')='provider'：操作员/管理员/业务运营员均可达，不像消费
+  // /discovery 详情会把业务运营员弹回工作台）。组件按 route.path 前缀判供数视角（可靠，非 route.query）。
+  { path: '/provider/resource/:id', component: P2ResourceDetail, meta: { page: 'P5', title: 'P5 资源详情（供数管理视角）' } },
+  { path: '/provider/catalog/:code', component: P2CatalogDetail, meta: { page: 'P5', title: 'P5 目录详情（供数管理视角）' } },
   { path: '/provider/inbox/catalog-review', component: P5CatalogReviewInbox, meta: { page: 'P5', title: 'P5 目录审核收件箱' } },
   { path: '/provider/wizard/reverse-catalog', component: P5ReverseCatalogWizard, meta: { page: 'P5', title: 'P5 反向编目向导' } },
   { path: '/provider/wizard/api-service', component: P5ApiServiceWizard, meta: { page: 'P5', title: 'P5 API 服务化向导' } },

@@ -19,9 +19,9 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 # ──────────────────────────────────────────────────────────────────────────
 
 def _publish_or_suspend_service(brain, deps, ctx, service_id: str, action: str, role: str, confirmed: bool) -> dict[str, Any]:
-    # Action C — provider is read-then-mutated (service["status"] = ...,
-    # provider["overview"][3]["value"] = ...); use brain_legacy escape hatch
-    # to keep in-place semantics until Action D retires the snapshot dict.
+    # Action C — provider is read-then-mutated (service["status"] = ...);
+    # use brain_legacy escape hatch to keep in-place semantics until Action D
+    # retires the snapshot dict.
     provider = deps.brain_legacy._snapshot["provider"]
     service = next((item for item in provider["services"] if item["id"] == service_id), None)
     if service is None:
@@ -42,7 +42,6 @@ def _publish_or_suspend_service(brain, deps, ctx, service_id: str, action: str, 
             provider["aiGovernance"]["summary"] = "供给侧关键服务已暂停，需先完成核查后再重新发布。"
             event_type = "service.suspend"
             result = "suspended"
-        provider["overview"][3]["value"] = str(sum(1 for item in provider["services"] if item["status"] != "在线"))
         deps.append_audit_feed(event_type, service_id, "ok", actor)
         return {"service_id": service_id, "status": service["status"], "result": result}
 

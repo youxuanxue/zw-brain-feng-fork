@@ -28,10 +28,29 @@ const { resource, loading, fetchError } = useResourceDetail(() => id.value);
 // 在 P2 详情页不渲染「申请资源」。
 // A1（0605#1）：详情页对「待发布」资源仍可达，但只有「已发布（机器值 active）」才可申请——
 // 叠加状态门控（比对机器值 lifecycleStatus 而非中文展示词，单一事实源），非 active 一律拦下。
+// 档 B（供数管理视角）：供数侧详情走独立路由 /provider/resource/:id（复用本组件），按 route.path
+// 前缀判供数视角——**用 route.path 不用 route.query**（hash 模式下带参路由的 route.query 不可靠，
+// 实测 ?from=provider 取不到；route.path/params 才稳）。供数方是来「管理」自己的数据、不是来「申请」，
+// 故抑制消费框架（不显申请按钮、不显「暂不可申请」），改给「回供数管理」回链，消除心智错配
+// （负责人定档 B，全文见决策档）。
+const providerView = computed(() => route.path.startsWith('/provider/'));
 const canApply = computed(
   () =>
+    !providerView.value &&
     canPerformAction('request.create', getProductRole().value) &&
     String(resource.value?.lifecycleStatus ?? '') === 'active',
+);
+
+// A1（0605#1）诚实兜底：资源已加载、用户有申请权限但资源**未发布**（机器值非 active）时，
+// 申请按钮静默消失会成断头路——用户点进来不知为何不能申请。此时渲染一句白话说明，
+// 把「为何不可申请」讲清楚（只比机器值，不比中文展示词）。无申请权限的角色不在此列
+// （他们本就不该看到申请入口，按 canPerformAction 静默即可，不需多此一句解释）。
+const showNotPublishedNote = computed(
+  () =>
+    !!resource.value &&
+    !providerView.value &&
+    canPerformAction('request.create', getProductRole().value) &&
+    String(resource.value?.lifecycleStatus ?? '') !== 'active',
 );
 
 // 资源物化形态（canonical kind，T4）：字段清单 / 字段数据模型仅对「库表」资源有意义；
@@ -147,7 +166,11 @@ async function apply() {
 
 <template>
   <main class="focus-page focus-detail">
-    <nav class="crumbs"><a href="#/discovery">← 资源发现</a></nav>
+    <!-- 档 B：供数视角面包屑回供数资源管理，消费视角回资源发现（route.path 判，与详情壳同源）。 -->
+    <nav class="crumbs">
+      <a v-if="providerView" href="#/provider/resources">← 资源管理</a>
+      <a v-else href="#/discovery">← 资源发现</a>
+    </nav>
     <section class="panel">
       <PageFocusHeader :title="headerTitle" :meta="headerMeta">
         <template v-if="kindLabel" #aside>
@@ -267,6 +290,14 @@ async function apply() {
 
       <DetailActions>
         <button v-if="canApply" type="button" class="gov-btn gov-btn-primary" data-skill="request.create" @click="apply">申请资源</button>
+        <!-- 档 B（供数管理视角，/provider/resource/:id）——供数方看自己的数据，给「回供数管理」而非消费「申请」框架。 -->
+        <p v-else-if="providerView" class="apply-note" data-testid="resource-provider-manage-note">
+          本部门提供的资源（管理视角）。<a href="#/provider/resources" class="row-link">← 回供数管理</a>
+        </p>
+        <!-- A1 诚实兜底：未发布资源不给空动作区，明确告知为何暂不可申请（消除断头路）。 -->
+        <p v-else-if="showNotPublishedNote" class="apply-note" data-testid="resource-not-published-note">
+          该资源尚未发布，暂不可申请。待提供方发布后即可申请使用。
+        </p>
         <!-- 「看专题」深链随专题包下线而移除，避免空死链。 -->
       </DetailActions>
     </section>
@@ -292,4 +323,6 @@ async function apply() {
 .summary-text { margin: 8px 0 0; font-size: 14px; line-height: 1.7; color: var(--b-neutral-text, #1a1d21); }
 .collapse-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 0; background: none; border: none; cursor: pointer; font-size: 15px; font-weight: 600; color: var(--b-neutral-text, #1a1d21); }
 .collapse-arrow { font-size: 13px; font-weight: 400; color: var(--b-primary, #006be6); }
+.apply-note { margin: 0; font-size: 13px; color: var(--b-text-muted, #5b6b7f); }
+.apply-note .row-link { color: var(--b-primary, #006be6); text-decoration: underline; margin-left: 4px; }
 </style>
