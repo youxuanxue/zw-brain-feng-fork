@@ -132,7 +132,7 @@ related_docs:
 - D57 [06-12] **feedback-0611-gate**（角色/流程/状态机/IA 多点裁决，D28 GATE；产品研发负责人 sign-off，decision_only）：0611 核查 9 项逐裁——①业务运营员「待受理异议」不删、补受理面（接通 objection.case.accept，拒 6.9#3 删待办）；②操作员工作台维持申请进度、拒协作待办（0609 docx 明文），seed 虚构「办理建议」清理(R8)；③管理员领数据驳回 6.10#8、维持 D55②；④管理员申请人身份照 v5 保留，前端 pageAccess 补回 MANAGER 发起入口（收口前后端劈叉）；⑤目录发布权回收仅 BUSIAUDIT（R-001 保留无签字且「仅自家目录」未实现，严格 v5）；⑥管理员+安全审计员退全局服务调用监控（自家资源调用留 P4Credential 凭据门内）；⑦业务运营员保留查审计、驳回 6.10#13（D57.a：docx 0609 措辞 > v5 0519 行，新近业务输入优先）；⑧反向编目审核改两级管线（管理员部门审→运营员平台审，替换仅 BUSIAUDIT 一级，拒下放操作员；同级展示升供数首屏主卡）——唯一改已签口径项，状态机变更；⑨挂接审核角色错位按 v5 关闭（现状正确），管理员收件箱盲批补详情+驳回(R10)。签字 .testing/signoff/feedback-0611-gate.signoff.yaml；全文 docs/decisions/feedback-0611-gate-D57.md。
 ```
 
-（已按 preflight 段 68 自检 ≤900 字符。）
+（撰写时按 preflight 段 68 自检 ≤900 字符；段 68/72 两道 D-索引字符守卫已于 D65 随 D-索引移出 CLAUDE.md 而退役——新 D 条目改写入 `docs/decisions/decision-log.md`，无字符上限、仍遵格式契约。）
 
 ## 附录 B ｜ready-to-sign 签字账本（负责人签字后随签字落账，**本 PR 不入 `.testing/signoff/`**）
 

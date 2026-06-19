@@ -29,7 +29,8 @@ REPO = Path(__file__).resolve().parent.parent
 NEEDLE = "INSPUR_INFERENCE_"
 ALLOWLIST: frozenset[str] = frozenset(
     {
-        "CLAUDE.md",  # D36 决策记录：记录 "INSPUR_INFERENCE_* → ZW_BRAIN_INFERENCE_*" 改名
+        "CLAUDE.md",  # D36 决策记录速查：记录 "INSPUR_INFERENCE_* → ZW_BRAIN_INFERENCE_*" 改名
+        "docs/decisions/decision-log.md",  # D64 — D36 全量条目（原 CLAUDE.md 内）随 D-索引移出，仍记旧前缀改名史
         "tests/integration/test_inference_client.py",  # D36 负向守卫：set 旧名证明被忽略
         "scripts/check_no_legacy_inference_env.py",  # 本守卫自身：needle 定义 + docstring 必含该字面量
     }

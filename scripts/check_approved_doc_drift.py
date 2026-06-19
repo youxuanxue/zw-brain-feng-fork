@@ -17,7 +17,8 @@ plan**（dsp-dataservice / dsp-sharezone-topic-package）。这种"D-编号网�
 -----------
 1. **仅在 PR-mode 下启用**（PREFLIGHT_BASE 指向 origin/main 等基线分支时）；
    本地 main 分支或 worktree 头 == base 时直接 skip（无新 D-编号需要校验）。
-2. **从 CLAUDE.md diff 提取本分支新增的 D-编号决策段**（形如 `- [date] DXX:`）。
+2. **从 decision-log.md diff 提取本分支新增的 D-编号决策段**（形如 `- [date] DXX:`）。
+   （D64 起 D-编号索引从 CLAUDE.md 移出到 docs/decisions/decision-log.md，diff 源随之 repoint。）
 3. **提取每段决策内的"关键引用"**（启发式四类）：
      (a) 反引号包围的 markdown 路径（`docs/.../*.md`）
      (b) "A 类 / D 类 / B 类" 等业务方分类代号
@@ -81,6 +82,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 CLAUDE_MD = REPO / "CLAUDE.md"
+# D64（2026-06-19）起 D-编号索引从 CLAUDE.md 移出到 decision-log.md；本守卫的 diff 源
+# 随之 repoint 到 decision-log.md（新 D-编号现落此文件），不静默降级 WARN 守卫。
+DECISION_LOG = REPO / "docs" / "decisions" / "decision-log.md"
 
 # 仓内回灌真值源范围（哪些目录下的文件需要校验"D-编号是否被引用"）
 SCAN_ROOTS = [
@@ -88,13 +92,17 @@ SCAN_ROOTS = [
     REPO / ".testing",
     REPO / "tests" / "fixtures",
 ]
-# CLAUDE.md 本身也算回灌目标
+# CLAUDE.md 本身也算回灌目标（速查段仍引用 D-编号）；decision-log.md 已在 SCAN_ROOTS(docs/) 内。
 SCAN_FILES = [CLAUDE_MD]
 
-# D-编号决策段头匹配：- [2026-MM-DD] DXX[.suffix]: ...
-# 兼容形态：D32 / D32.a / D32.d / D31 / D30
+# D-编号决策段头匹配：实际索引格式是「D 号在前」，非日期在前。覆盖三形态：
+#   - D1：…                       （早期 GATE-1/1.1，无日期括注）
+#   - D30 [05-24]：…              （Retrofit 起，D 号 + [MM-DD]）
+#   - D46 [05-30] **scope**（…）：…（D 号 + 日期 + **scope** + 括注）
+# 只需可靠识别行首 D-编号（group 1），不必解析到冒号；lookahead 确保 D 号后是分隔符。
+# 兼容子编号 D32.a / D46.g。（修：旧正则匹配「日期在前」格式，与真实索引永不匹配 → 静默 no-op。）
 D_NUM_HEADER_RE = re.compile(
-    r"^[-*]\s*\[\d{4}-\d{2}-\d{2}\]\s+(D\d+(?:\.[a-z])?)[:：]",
+    r"^[-*]\s*(D\d+(?:\.[a-z])?)(?=[\s：:\[])",
 )
 # 段内反引号路径
 BACKTICK_PATH_RE = re.compile(r"`([^`]+\.md)`")
@@ -160,14 +168,15 @@ def _resolve_base_from_env() -> str | None:
     return os.environ.get("ZW_BRAIN_DRIFT_BASE") or os.environ.get("PREFLIGHT_BASE")
 
 
-def _diff_claude_md(base: str) -> str:
-    """返回 CLAUDE.md 的 unified diff（base...HEAD）。
+def _diff_decision_log(base: str) -> str:
+    """返回 decision-log.md 的 unified diff（base...HEAD）。
 
-    不静默吞错：CalledProcessError 会向上传播由 main() 显式处理；
-    若 base 已通过 _validate_base 校验，此处仅可能因 IO 异常失败。
+    D64 起 D-编号索引落 docs/decisions/decision-log.md（原在 CLAUDE.md）；本守卫从此
+    文件的 diff 提取新增 D-编号。不静默吞错：CalledProcessError 会向上传播由 main()
+    显式处理；若 base 已通过 _validate_base 校验，此处仅可能因 IO 异常失败。
     """
     return subprocess.check_output(
-        ["git", "diff", f"{base}...HEAD", "--", "CLAUDE.md"],
+        ["git", "diff", f"{base}...HEAD", "--", "docs/decisions/decision-log.md"],
         cwd=REPO,
     ).decode()
 
@@ -377,8 +386,8 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if not CLAUDE_MD.is_file():
-        print("[approved-doc-drift] skip: CLAUDE.md not present")
+    if not DECISION_LOG.is_file():
+        print("[approved-doc-drift] skip: docs/decisions/decision-log.md not present")
         return 0
 
     base = args.base or _resolve_base_from_env()
@@ -396,15 +405,15 @@ def main() -> int:
         print(f"[approved-doc-drift] skip: HEAD == {base}（本分支无新增 commit）")
         return 0
 
-    diff_text = _diff_claude_md(base)
+    diff_text = _diff_decision_log(base)
     if not diff_text.strip():
-        print(f"[approved-doc-drift] OK: CLAUDE.md 自 {base} 起无 diff")
+        print(f"[approved-doc-drift] OK: decision-log.md 自 {base} 起无 diff")
         return 0
 
     new_blocks = _extract_new_d_numbers(diff_text)
     if not new_blocks:
         print(
-            f"[approved-doc-drift] OK: CLAUDE.md 自 {base} 起有 diff 但未新增 D-编号决策段"
+            f"[approved-doc-drift] OK: decision-log.md 自 {base} 起有 diff 但未新增 D-编号决策段"
         )
         return 0
 

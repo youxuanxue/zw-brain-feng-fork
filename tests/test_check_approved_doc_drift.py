@@ -89,19 +89,26 @@ def test_head_equals_base_skips() -> None:
 @pytest.mark.parametrize(
     "line,expected",
     [
-        ("- [2026-05-27] D32：内容", "D32"),
-        ("- [2026-05-27] D32.a：内容", "D32.a"),
-        ("- [2026-05-27] D32.d：内容", "D32.d"),
-        ("* [2026-05-27] D33：星号 bullet 也合法", "D33"),
-        ("- [2026-05-27] D32:含半角冒号", "D32"),
-        # 负向：不是 D-编号
+        # 真实索引格式 = D 号在前（D64 起索引在 docs/decisions/decision-log.md）：
+        # 早期无日期括注 / Retrofit 起带 [MM-DD] / 后期带 **scope** 加粗，冒号半/全角皆可。
+        ("- D1：产品形态 = 精简 WebUI", "D1"),
+        ("- D29：R 编号空间区分", "D29"),
+        ("- D30 [05-24]：AgentRuntime 触发式落地", "D30"),
+        ("- D32.a [05-27]：子编号也合法", "D32.a"),
+        ("- D32.d [05-27]：子编号也合法", "D32.d"),
+        ("* D33 [05-28]：星号 bullet 也合法", "D33"),
+        ("- D32 [05-27]:含半角冒号", "D32"),
+        ("- D46 [05-30] **feature-status-as-function**（架构门）：带 scope 加粗", "D46"),
+        # 负向：不是 D-编号段头
+        ("- [06-13] **可机械化边界**：方法论 bullet（日期在前、无 D 号）", None),
         ("- [2026-05-27] 普通条目：不算", None),
-        ("### [2026-05-27] D34 retrofit：标题不是段头", None),
+        ("### GATE-1 设计基线（2026-04-18，D1–D22）：章节标题含 D 号但不是段头", None),
         ("非 bullet 起始 D32", None),
     ],
 )
 def test_d_number_header_regex(line: str, expected: str | None) -> None:
-    """D-编号段头正则覆盖 D32 / D32.a / 半角/全角冒号 / 星号 bullet 等。"""
+    """D-编号段头正则覆盖真实「D 号在前」格式：无日期 / 带 [MM-DD] / 带 **scope**、
+    子编号 D32.a、半/全角冒号、星号 bullet；拒方法论 bullet（日期在前无 D 号）与章节标题。"""
     sys.path.insert(0, str(REPO_ROOT / "scripts"))
     try:
         import importlib.util

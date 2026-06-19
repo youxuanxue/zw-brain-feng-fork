@@ -1,0 +1,23 @@
+scope: decision-log-extraction
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-19
+kind: 决策签字
+evidence: >-
+  D65 治理基建元决策（登记 docs/decisions/decision-log.md D65；原拟 D64，因 main #305 占 D63、
+  provider-detail 让号 D64 而本条顺延 D65；产品研发负责人 2026-06-19「同意你精简 CLAUDE.md。
+  现在就砍。」）：D-编号索引（D1–D64）从 CLAUDE.md 每会话热路径移出
+  → docs/decisions/decision-log.md 全量权威副本；CLAUDE.md「## 决策记录」段只留「现行硬约束
+  速查」(per-session 必备) + 格式契约 + D28 GATE 元规则 + 指向 decision-log.md 的指针。根因＝
+  CLAUDE.md 每会话整份入上下文、~1.8 万字符 D-索引一路只增不减＝持续稀释/烧 token（§6 净零）；
+  移出热路径后该烧 token 的根因消失。随此退役 preflight 段68 check_d_index_entry_size（单条
+  ≤900）+ 段72 check_d_index_aggregate_size（聚合棘轮）两守卫——唯一立论（每会话烧 token）随
+  索引离开热路径蒸发，留着＝政策一个不存在的问题（§77 过度机械化反模式）。check_approved_doc_drift
+  的 D-编号 diff 源 repoint 到 decision-log.md（不静默降级该 WARN 守卫）；decision-log.md 加入
+  三道 allowlist（grep-guards LEGACY/RETIRED + no-legacy-inference-env，含 R1-R8/K12/INSPUR_
+  INFERENCE_ 退役史字面）。取代/作废 d-index-active-archive-restructure-proposal（B1 active/
+  archive 拆分提案，status:draft 未签）——全量移出比部分归档更彻底、B1 问题消解，提案 doc +
+  pending 账本一并删除。纯文档/治理，对运行产品零行为影响。
+decision_only: true
+covers: []
+# 属 D28 GATE（治理基建/格式契约元决策）。登记为 D65（docs/decisions/decision-log.md）。
+# covers 留空：纯治理/文档，不抬任何 .feature 状态、对运行产品零行为影响。

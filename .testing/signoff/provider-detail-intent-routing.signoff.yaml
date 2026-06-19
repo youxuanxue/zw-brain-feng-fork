@@ -6,7 +6,7 @@ signed_by: 薛娇（产品研发负责人）
 date: 2026-06-18
 kind: 决策签字
 evidence: >-
-  决策全文 docs/decisions/provider-detail-intent-routing-D63.md。负责人 2026-06-18 定档 B
+  决策全文 docs/decisions/provider-detail-intent-routing-D64.md。负责人 2026-06-18 定档 B
   （独立供数详情路由 /provider/resource/:id、/provider/catalog/:code，按 route.path 判供数视角，
   走供数 shell 角色门；初定档 A 经真浏览器走查证伪——route.query.from 在带参 hash 路由不可靠 +
   业务运营员被弹回工作台——故改 B 根治）。IA 意图错配修复：供数据
@@ -18,7 +18,9 @@ evidence: >-
   （承 D39 2 旅程分界 + D53④ 供数 IA 重排）。裁决：把供数侧「查看」从消费申请详情重定位到
   供数方管理语境（三档 A 轻量分流/B 新建供数详情路由/C mode-aware 详情，待负责人定档），消除落到
   消费方「暂不可申请」页的错配；目录孪生一并纳入修复面。属 D28 GATE（IA/可见性重定位），
-  D-编号拟 D63、签字时坐实（受段72 聚合棘轮约束，CLAUDE.md 索引行需净零/随 B1 归档腾额度）。
+  D-编号 D64 已坐实（原拟 D63，因 main #305 iam-pub-user-role-materialization 先入索引占 D63 而让号至
+  D64），索引行随 D65（2026-06-19）落 docs/decisions/decision-log.md——D-索引整体移出 CLAUDE.md 热路径、
+  段68/72 字符守卫退役，原「受段72 约束/随 B1 归档腾额度」约束已消解。
 decision_only: true
 covers: []
 # decision_only=true → covers 必须为空（check_signoff_ledger.py：纯 IA/路由重定位，不抬任何

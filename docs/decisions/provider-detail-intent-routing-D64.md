@@ -1,10 +1,10 @@
-# D63 · 供数侧资源/目录详情路由错配修复（IA 重定位，D28 GATE）
+# D64 · 供数侧资源/目录详情路由错配修复（IA 重定位，D28 GATE）
 
 > **类别**：IA / 可见性重定位 · **D28 GATE**（旅程边界 / 角色心智）· `decision_only`
 > **签字**：薛娇（产品研发负责人）2026-06-18 — **已签**；初定档 A，**真浏览器走查证伪档 A 后改定档 B（独立供数详情路由）**（见 §四）。
 > **签字账本**：`.testing/signoff/provider-detail-intent-routing.signoff.yaml`
 > **来源**：乔布斯军团审查 #300 落地后，负责人发现「供数据点未发布资源跳到找数据消费详情」错乱，要求核验并出 GATE 方案。
-> **D-编号**：D63（决策已签）；CLAUDE.md「## 决策记录」索引行**待段72 腾额度后追加**（见 §六）。
+> **D-编号**：D64（决策已签；原拟 D63，因 main #305 iam-pub-user-role-materialization 先入索引占 D63，本条让号至 D64）；索引行已随 **D65**（2026-06-19）落 `docs/decisions/decision-log.md`——D-索引整体移出 CLAUDE.md 热路径、段68/72 字符守卫退役，原「待腾额度」约束消解（见 §六）。
 
 ---
 
@@ -64,8 +64,8 @@
 
 ## 六、落地约束（必读）
 
-1. **段72 聚合棘轮 headroom = 0**（`check_d_index_aggregate_size.py`：17527 == 上限）。**现在往 CLAUDE.md「## 决策记录」加 D63 索引行会使聚合 > 上限 → preflight FAIL**。两条合规出路：(A) 加 D63 行前按 §6 净零下架等量老条目；(B) 先落 B1 归档提案（`d-index-active-archive-restructure`，签字后下调上限重开 headroom），再加 D63。**本决策文档与 signoff yaml 不入 CLAUDE.md 段、不受段72 约束，可立即落盘**；仅"CLAUDE.md 加 D63 索引行"这一步撞棘轮、留签字落地切片处理。
-2. D-编号在**负责人 sign-off 时才坐实**；签字动作同步：signoff yaml `signed_by`/`date` 改实，并（按出路 A/B 腾出额度后）在 CLAUDE.md 加 D63 一行（≤900 字符，段68）。
+1. ~~**段72 聚合棘轮 headroom = 0**……加索引行会使聚合 > 上限 → preflight FAIL；两条出路 (A) 净零下架 / (B) 先落 B1 归档提案。~~ **【已消解 · D65 2026-06-19】** D-编号索引整体从 CLAUDE.md 移出到 `docs/decisions/decision-log.md`，段68/72 两道字符守卫随之退役；本条（D64）索引行直接写入 decision-log.md，不再撞任何棘轮。B1 归档提案（`d-index-active-archive-restructure`，未签 draft）被 D65「全量移出」取代、已删除。
+2. D-编号在**负责人 sign-off 时已坐实**（薛娇 2026-06-18，本条 D64——原拟 D63，让号给 main #305 的 iam D63）；索引行落 `docs/decisions/decision-log.md`（D65 移出后无字符上限，仍遵格式契约）。
 
 ## 七、验证（档 B 已实现并实测，2026-06-18）
 

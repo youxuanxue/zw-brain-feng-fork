@@ -53,6 +53,7 @@ LEGACY_ALLOWED_FILES = (
     "docs/approved/zw-brain-flywheel.md",
     "docs/legacy-not-reproduce-signoff.md",
     "docs/decisions/feedback-0611-gate-D57.md",
+    "docs/decisions/decision-log.md",  # D64 — D-索引全量副本（原 CLAUDE.md 内，含 R1-R8 退役史）
 )
 
 LEGACY_ALLOWED_LINE_MARKERS = (
@@ -105,6 +106,7 @@ RETIRED_ALLOWED_FILES = (
     "scripts/check_no_legacy_role_codes.py",
     "scripts/check_grep_guards_batch.py",  # 本批量器自身含退役 token 正则字面
     "CLAUDE.md",
+    "docs/decisions/decision-log.md",  # D64 — D-索引全量副本（原 CLAUDE.md 内，含 K12/D15 二次反转退役史）
 )
 
 RETIRED_ALLOWED_LINE_MARKERS = (
