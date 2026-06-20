@@ -119,14 +119,16 @@ test('P3 部门操作员查看在途申请不进审批页', async ({ page }) => 
   await expect(page.getByRole('button', { name: '通过' })).toHaveCount(0);
 });
 
-test('P3 部门操作员直达审批路由会回到申请详情', async ({ page }) => {
-  // 先从列表解析一条真实单号，再深链审批路由验证回弹到申请详情。
+test('P3 部门操作员直达审批路由被弹回工作台（无权=被弹走，#295 IA）', async ({ page }) => {
+  // #295（pageAccess redirectIfDenied:'/workbench'）：/request-flow/review 仅审批岗
+  // （BUSIAUDIT/ORGAN_MANAGER）可达；操作员（申请人岗）深链该路由 → router guard 弹回工作台。
+  // 旧断言「回到申请详情」是 #260 时代陈旧口径（#295 加了 test.skip 漏改断言行）。
   await setRole(page, 'ROLE_ORGAN_OPERATER');
   const id = await openFirstRequestDetail(page);
   test.skip(!id, '当前登录身份无本人发起的申请（clean 库诚实空，非缺陷）');
   await gotoHash(page, `#/request-flow/review/${id}`);
   await page.waitForTimeout(600);
-  expect(page.url()).toContain(`#/request-flow/request/${id}`);
+  expect(page.url()).toContain('#/workbench');
   await expect(page.getByRole('button', { name: '通过' })).toHaveCount(0);
 });
 

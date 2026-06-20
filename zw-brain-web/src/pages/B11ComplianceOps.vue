@@ -9,7 +9,12 @@ import { consumeNLAction } from '@/lib/consumeNLAction';
 import { pushToast } from '@/composables/useActionStub';
 import {
   formatActorLabel,
+  formatAuditClass,
+  formatCapabilityName,
   formatDeniedChainCount,
+  formatDimension,
+  formatPhase,
+  formatRule,
   formatSeverity,
 } from '@/lib/auditDisplay';
 
@@ -144,7 +149,7 @@ const accountabilityEmptyText = computed(() => {
         <div v-if="statistics.data.value" class="stat-block">
           <p class="focus-prose">
             扫描事件 <strong>{{ statistics.data.value.scanned }}</strong> 条；按
-            <span class="tech-id">{{ statistics.data.value.dimension }}</span> 维度聚合。
+            <span class="tech-id">{{ formatDimension(statistics.data.value.dimension) }}</span> 维度聚合。
           </p>
           <table class="focus-ops-table">
             <thead><tr><th>时间桶</th><th>总数</th><th>分布</th></tr></thead>
@@ -153,14 +158,14 @@ const accountabilityEmptyText = computed(() => {
                 <td><span class="tech-id">{{ b.bucket_key }}</span></td>
                 <td>{{ b.total }}</td>
                 <td>
-                  <span v-for="(v, k) in b.by_dimension" :key="k" class="status-pill">{{ k }}: {{ v }}</span>
+                  <span v-for="(v, k) in b.by_dimension" :key="k" class="status-pill">{{ formatAuditClass(String(k)) }}: {{ v }}</span>
                 </td>
               </tr>
             </tbody>
           </table>
           <div class="totals-row">
             <strong>累计：</strong>
-            <span v-for="t in statisticsTotalRow" :key="t.key" class="status-pill">{{ t.key }}: {{ t.value }}</span>
+            <span v-for="t in statisticsTotalRow" :key="t.key" class="status-pill">{{ formatAuditClass(t.key) }}: {{ t.value }}</span>
           </div>
         </div>
         <p v-else-if="statistics.source.value === 'error'" class="focus-prose focus-prose--muted">数据暂不可用，请稍后重试。</p>
@@ -180,14 +185,14 @@ const accountabilityEmptyText = computed(() => {
           <ul class="anom-list">
             <li v-for="(a, idx) in sortedAnomalies" :key="idx" :class="['anom-item', `severity-${a.severity}`]">
               <header>
-                <span class="rule-tag">{{ a.rule }}</span>
+                <span class="rule-tag">{{ formatRule(a.rule) }}</span>
                 <span class="severity-tag">{{ formatSeverity(a.severity) }}</span>
                 <span class="occ">{{ a.occurrence_count }} 次</span>
               </header>
               <p class="anom-summary">{{ a.summary }}</p>
               <p class="anom-meta">
                 关注对象：<span class="tech-id">{{ formatActorLabel(a.actor) }}</span>
-                <template v-if="a.skill_id"> · 能力 <span class="tech-id">{{ a.skill_id }}</span></template>
+                <template v-if="a.skill_id"> · 能力 <span class="tech-id" :title="a.skill_id">{{ formatCapabilityName(a.skill_id) }}</span></template>
               </p>
               <p class="anom-meta">
                 关联请求：
@@ -224,12 +229,12 @@ const accountabilityEmptyText = computed(() => {
             <li v-for="chain in accountability.data.value.denied_chains" :key="chain.request_id" class="chain-item">
               <header>
                 <span class="tech-id chain-rid">{{ chain.request_id }}</span>
-                <span class="status-pill">{{ chain.skill_id }}</span>
+                <span class="status-pill" :title="chain.skill_id">{{ formatCapabilityName(chain.skill_id) }}</span>
                 <time>{{ chain.denied_at }}</time>
               </header>
               <ol class="chain-events">
                 <li v-for="(ev, i) in chain.events" :key="i">
-                  <span class="phase">{{ ev.phase }}</span>
+                  <span class="phase">{{ formatPhase(ev.phase) }}</span>
                   <time>{{ ev.occurred_at }}</time>
                   <pre class="sanitized">{{ JSON.stringify(ev.sanitized_payload, null, 2) }}</pre>
                 </li>
@@ -258,13 +263,13 @@ const accountabilityEmptyText = computed(() => {
           <ol class="replay-list">
             <li v-for="(ev, i) in replay.data.value.items" :key="i" class="replay-item">
               <header>
-                <span class="phase">{{ ev.phase }}</span>
+                <span class="phase">{{ formatPhase(ev.phase) }}</span>
                 <time>{{ ev.occurred_at }}</time>
-                <span class="status-pill">{{ ev.audit_class }}</span>
+                <span class="status-pill">{{ formatAuditClass(ev.audit_class) }}</span>
               </header>
               <p class="replay-actor">
-                <span class="tech-id">{{ ev.actor }}</span>
-                <template v-if="ev.skill_id"> · <span class="tech-id">{{ ev.skill_id }}</span></template>
+                <span class="tech-id">{{ formatActorLabel(ev.actor) }}</span>
+                <template v-if="ev.skill_id"> · <span class="tech-id" :title="ev.skill_id">{{ formatCapabilityName(ev.skill_id) }}</span></template>
               </p>
               <pre class="replay-payload">{{ JSON.stringify(ev.payload, null, 2) }}</pre>
             </li>

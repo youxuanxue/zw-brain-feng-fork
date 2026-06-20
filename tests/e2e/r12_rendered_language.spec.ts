@@ -17,7 +17,9 @@ import { scanForbidden } from './r12-forbidden-patterns';
 // 全部场景页 × 有权角色。覆盖反馈点中泄漏过的页：工作台（待办/办理建议/亮点）、
 // 交付任务（渠道/时间/hex）、在途申请（hex/时间）、专题包（projection 占位）、
 // 资源详情（HTTP 404）、目录浏览（裸编码标题）。
-const PAGE_MATRIX: Array<{ role: string; hash: string; note: string }> = [
+// exempt：该页内「合法保留工程原文」的 region 选择器（其 innerText 在扫描前剔除）。
+// 唯一用例 = B11 合规面审计取证原文块（见下方 R12 取证豁免说明）。
+const PAGE_MATRIX: Array<{ role: string; hash: string; note: string; exempt?: string[] }> = [
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/workbench', note: '工作台待办/办理建议/本周亮点' },
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/discovery', note: '资源发现' },
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/discovery/catalog-browse', note: '目录浏览（待发布标题）' },
@@ -31,7 +33,17 @@ const PAGE_MATRIX: Array<{ role: string; hash: string; note: string }> = [
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider/inbox/objection', note: '异议响应收件箱' },
   // D57⑧：反向编目审核（部门审）归部门管理员；扫描随角色门同步，否则路由守卫弹走、扫的是别页。
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider/inbox/field-decision', note: '反向编目审核收件箱（原字段审核/字段裁决）' },
-  { role: 'ROLE_SECURITY_AUDIT', hash: '#/compliance-ops', note: '合规与运营' },
+  // 合规面：审计取证原文 <pre> 块（脱敏 payload / 回放 payload）按负责人批准的
+  // 「R12 取证豁免」显式 scope 排除——这些是回放/追责的合法取证视图，须按原文保留
+  // snake_case 键（如 legacy_role_ref / role_lacks_permission），不 label 化、不还原。
+  // 其余 status-pill 类枚举（audit_class/dimension/phase/rule）与点分 skill_id 仍受 R12 管，
+  // 已在 B11ComplianceOps.vue 经 auditDisplay 中文化 / 隐 id 到 title。
+  {
+    role: 'ROLE_SECURITY_AUDIT',
+    hash: '#/compliance-ops',
+    note: '合规与运营',
+    exempt: ['#app-router pre.sanitized', '#app-router pre.replay-payload'],
+  },
   // D55/P2：外部系统归平台运维员独有（业务运营员退出）。
   { role: 'ROLE_SYSTEM', hash: '#/integration-admin', note: '外部系统' },
 ];
@@ -52,7 +64,15 @@ test.describe('R12 渲染层无工程语言泄漏', () => {
 
       // 只扫主内容区可见文本（不含导航 chrome 之外的脚本/属性）。
       const region = page.locator('#app-router');
-      const text = (await region.innerText().catch(() => '')) || '';
+      let text = (await region.innerText().catch(() => '')) || '';
+      // R12 取证豁免：把显式登记的 exempt region（审计取证 <pre> 原文块）的文本
+      // 从扫描文本里剔除——这些工程原文按负责人批准合法保留，不应触发渲染层守卫。
+      for (const sel of row.exempt ?? []) {
+        const blocks = await page.locator(sel).allInnerTexts().catch(() => [] as string[]);
+        for (const b of blocks) {
+          if (b) text = text.split(b).join(' ');
+        }
+      }
       const hits = scanForbidden(text);
 
       if (hits.length) {
