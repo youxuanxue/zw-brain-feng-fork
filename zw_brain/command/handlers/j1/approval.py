@@ -88,21 +88,26 @@ def _get_approval(brain, deps, ctx, request_id: str) -> dict[str, Any]:
         approval.setdefault(key, value)
     return approval
 
-def _review_request(brain, deps, ctx, request_id: str, decision: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide") -> dict[str, Any]:
+def _review_request(brain, deps, ctx, request_id: str, decision: str, role: str, confirmed: bool, skill_id: str = "approval.review_decide", *, note: str = "") -> dict[str, Any]:
     normalized = {"approve": "approve_reuse", "reject": "reject_duplicate"}.get(decision, decision)
     if normalized in {"approve_reuse", "approve_with_supplement", "return_for_fix", "reject_duplicate", "route_to_provider_or_catalog_admin"}:
         store = deps.state_store.database_store
         if store is not None and deps.services.application.request_from_record(request_id, store) is not None:
-            return deps.services.request.review_application_record(request_id, normalized, role, confirmed, skill_id)
+            return deps.services.request.review_application_record(request_id, normalized, role, confirmed, skill_id, note=note)
     if normalized in {"approve_reuse", "approve_with_supplement"}:
         return deps.services.request.approve(request_id, role, confirmed, skill_id, decision=normalized)
     if normalized == "return_for_fix":
-        return deps.services.request.return_for_fix(request_id, role, confirmed, skill_id, decision=normalized)
+        return deps.services.request.return_for_fix(request_id, role, confirmed, skill_id, decision=normalized, note=note)
     if normalized == "reject_duplicate":
-        return deps.services.request.reject(request_id, role, confirmed, skill_id, decision=normalized)
+        return deps.services.request.reject(request_id, role, confirmed, skill_id, decision=normalized, note=note)
     if normalized == "route_to_provider_or_catalog_admin":
         return deps.services.request.route_for_catalog_confirmation(request_id, role, confirmed, skill_id)
     raise BrainServiceError(f"unsupported review decision: {decision}")
+
+
+def _review_note(payload: dict[str, Any]) -> str:
+    """审批理由取法（与受理两级 handler 同源 note/reason 取法）：驳回 / 退回的真实理由文本。"""
+    return str(payload.get("note") or payload.get("reason") or "")
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -117,17 +122,17 @@ def handler_approval_view(deps: HandlerDeps, ctx: SkillContext, payload: dict[st
 def handler_application_resource_review(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _review_request(brain, deps, ctx, str(payload["request_id"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "application.resource.review")
+    return _review_request(brain, deps, ctx, str(payload["request_id"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "application.resource.review", note=_review_note(payload))
 
 def handler_approval_case_decide(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _review_request(brain, deps, ctx, str(payload["request_id"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "approval.case.decide")
+    return _review_request(brain, deps, ctx, str(payload["request_id"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), "approval.case.decide", note=_review_note(payload))
 
 def handler_approval_review_decide(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    return _review_request(brain, deps, ctx, str(payload["request_id"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")))
+    return _review_request(brain, deps, ctx, str(payload["request_id"]), str(payload["decision"]), str(payload.get("role", ctx.role)), bool(payload.get("confirmed")), note=_review_note(payload))
 
 
 def _actor_org_code(ctx: SkillContext, payload: dict[str, Any]) -> str:

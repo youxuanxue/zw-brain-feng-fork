@@ -533,8 +533,13 @@ class RequestService:
         skill_id: str = "approval.review_decide",
         *,
         decision: str = "return_for_fix",
+        note: str = "",
     ) -> dict[str, Any]:
-        """Return a request for fix; delivery transitions to warning state."""
+        """Return a request for fix; delivery transitions to warning state.
+
+        ``note`` 为审批人填写的退回理由（前端必填门）；提供时落库为真实文本，缺省时回落
+        既有「补齐差异字段说明」中性提示（系统不预判退回原因）。
+        """
         from zw_brain.shared import clock  # noqa: PLC0415
 
         request = self.by_id(request_id)
@@ -542,18 +547,21 @@ class RequestService:
         delivery = self.brain._get_handler_deps().services.delivery.by_request_id(request_id)
         if request["status"] not in {"pending", "summary-pending"}:
             raise InvalidStateError("current request cannot be returned for fix")
+        reason = (note or "").strip()
+        timeline_note = reason or "请补齐说明后重新提交。"
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             request["status"] = "need-fix"
+            request["rejectReason"] = reason
             request["timeline"].append(
                 {
                     "label": "已退回补正",
                     "time": clock.now_datetime(),
-                    "note": "要求重新说明差异字段责任边界或补齐异常项说明。",
+                    "note": timeline_note,
                 }
             )
             request["aiStatus"]["summary"] = "申请已退回补正，当前不进入下一状态。"
-            request["aiStatus"]["nextAction"] = "请补齐差异字段说明后重新提交。"
+            request["aiStatus"]["nextAction"] = "请查看退回理由，补齐后重新提交。"
             approval["suggestion"] = "建议补正"
             approval["impact"] = "退回补正后，补录与汇总链路暂停，不继续向前推进。"
             if delivery:
@@ -564,7 +572,7 @@ class RequestService:
                     {
                         "time": clock.now_short_time(),
                         "state": "退回补正",
-                        "detail": "因责任边界或异常项说明不足，链路暂停。",
+                        "detail": timeline_note,
                     }
                 )
                 delivery["aiSummary"]["summary"] = "这不是执行失败，而是人工决定链路回退补正。"
@@ -574,7 +582,7 @@ class RequestService:
             self.brain._append_audit_feed("request.return-for-fix", request_id, "warning", actor)
             return {"request_id": request_id, "status": request["status"]}
 
-        return self.brain._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision}, mutation)
+        return self.brain._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision, "reason": reason}, mutation)
 
     def reject(
         self,
@@ -583,27 +591,35 @@ class RequestService:
         confirmed: bool,
         skill_id: str = "approval.review_decide",
         *,
-        decision: str = "reject_duplicate",
+        decision: str = "reject",
+        note: str = "",
     ) -> dict[str, Any]:
-        """Reject a request; delivery transitions to warning state."""
+        """Reject a request; delivery transitions to warning state.
+
+        驳回理由 ``note`` 由审批人填写（前端必填门），落库为申请时间线 / 交付备注的真实文本，
+        并回显给申请人（rejectReason 投影）。不再写死「因重复要数或越界采集风险」套话——
+        驳回原因由审批人当次判断，系统不预判。
+        """
         from zw_brain.shared import clock  # noqa: PLC0415
 
         request = self.by_id(request_id)
         delivery = self.brain._get_handler_deps().services.delivery.by_request_id(request_id)
         if request["status"] not in {"pending", "summary-pending"}:
             raise InvalidStateError("current request cannot be rejected")
+        reason = (note or "").strip()
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             request["status"] = "rejected"
+            request["rejectReason"] = reason
             request["timeline"].append(
                 {
                     "label": "已驳回申请",
                     "time": clock.now_datetime(),
-                    "note": "因重复要数或越界采集风险被终止。",
+                    "note": reason,
                 }
             )
-            request["aiStatus"]["summary"] = "该申请已被明确驳回，不再继续进入补录和汇总链路。"
-            request["aiStatus"]["nextAction"] = "如需继续，请改为模板复用 + 差异补录模式重新发起。"
+            request["aiStatus"]["summary"] = "该申请已被驳回，不再继续进入补录和汇总链路。"
+            request["aiStatus"]["nextAction"] = "请查看驳回理由，按需调整后重新发起申请。"
             if delivery:
                 delivery["status"] = "warning"
                 delivery["updatedAt"] = clock.now_datetime()
@@ -612,17 +628,17 @@ class RequestService:
                     {
                         "time": clock.now_short_time(),
                         "state": "申请驳回",
-                        "detail": "因重复要数或越界采集风险，任务未继续推进。",
+                        "detail": reason,
                     }
                 )
                 delivery["aiSummary"]["summary"] = "这是一次被明确终止的链路，不应伪装成业务成功。"
-                delivery["aiSummary"]["nextAction"] = "如需重启，请先回到模板复用起点重新收敛需求。"
+                delivery["aiSummary"]["nextAction"] = "请查看驳回理由后再决定是否重新发起。"
                 delivery["backflow"]["status"] = "不适用"
                 delivery["backflow"]["note"] = "驳回后不生成回流候选。"
             self.brain._append_audit_feed("request.reject", request_id, "warning", actor)
-            return {"request_id": request_id, "status": request["status"]}
+            return {"request_id": request_id, "status": request["status"], "reject_reason": reason}
 
-        return self.brain._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision}, mutation)
+        return self.brain._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision, "reason": reason}, mutation)
 
     def route_for_catalog_confirmation(
         self,
@@ -678,8 +694,15 @@ class RequestService:
         role: str,
         confirmed: bool,
         skill_id: str,
+        *,
+        note: str = "",
     ) -> dict[str, Any]:
-        """Persist review decision + delivery payload patch (full review flow)."""
+        """Persist review decision + delivery payload patch (full review flow).
+
+        ``note`` 为审批人填写的驳回 / 退回理由（前端必填门）。驳回 / 退回路径下，理由取
+        审批人真实文本（不再用 ``_r2_review_reason`` 写死套话），并经运行时申请卡 ``rejectReason``
+        回显给申请人。通过 / 转办路径仍用中性结论文案。
+        """
         store = self.brain._state_store.database_store
         if store is None:
             raise NotFoundError(request_id)
@@ -706,7 +729,11 @@ class RequestService:
         existing_review = delivery.get("r2Review") if isinstance(delivery.get("r2Review"), dict) else {}
         if request["status"] != "pending" and existing_review.get("decision"):
             raise InvalidStateError("request is not pending approval")
-        reason = self.brain._r2_review_reason(decision, request)
+        # 驳回 / 退回：理由取审批人真实文本（必填门已在前端把空理由挡下）；缺省（旧调用方未传）
+        # 才回落中性结论文案，绝不写死「重复要数 / 越界采集」预判。通过 / 转办仍用结论文案。
+        operator_reason = (note or "").strip()
+        is_negative = decision in {"reject_duplicate", "return_for_fix"}
+        reason = operator_reason if (is_negative and operator_reason) else self.brain._r2_review_reason(decision, request)
         evidence = self.brain._r2_review_evidence(decision, request, delivery)
         result_status = {
             "approve_reuse": "granted",
@@ -767,6 +794,8 @@ class RequestService:
             snapshot_request = self.maybe_by_id(request_id)
             if snapshot_request is not None:
                 snapshot_request["status"] = result_status
+                if is_negative and reason:
+                    snapshot_request["rejectReason"] = reason
             snapshot_delivery = self.brain._get_handler_deps().services.delivery.by_request_id(request_id)
             if snapshot_delivery is not None:
                 snapshot_delivery["status"] = delivery_state
@@ -784,6 +813,14 @@ class RequestService:
                     snapshot_delivery["non_grant_boundary"] = copy.deepcopy(payload_patch["non_grant_boundary"])
                     snapshot_delivery["nonGrantBoundary"] = copy.deepcopy(payload_patch["non_grant_boundary"])
             store.application_repo.update_status(request_id, result_status, tenant_id=_DEFAULT_TENANT_ID)
+            # 驳回 / 退回理由回显单源：把真实理由写进运行时申请卡 payload（CardSession flush 落库），
+            # 供申请人侧 _record_to_request_card 现算 rejectReason，闭环到 P3RequestDetail。
+            # update_status 只写 status 列，理由不随之入库——必须挂卡。非运行时（legacy 导入单）取不到
+            # 登记卡则跳过（只读迁移记录无运行时回显需求）。
+            if is_negative and reason:
+                runtime_card = self.brain._card_session.get_request(request_id)
+                if runtime_card is not None:
+                    runtime_card["reject_reason"] = reason
             store.delivery_repo.update_task_payload(delivery["id"], state=delivery_state, payload_patch=payload_patch, tenant_id=_DEFAULT_TENANT_ID)
             self.brain._append_audit_feed("application.resource.review", f"{request_id}:{decision}", "ok" if decision.startswith("approve") else "warning", actor)
             return {

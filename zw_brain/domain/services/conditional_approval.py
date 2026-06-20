@@ -184,6 +184,9 @@ class ConditionalApprovalService:
             new_payload["dept_decided_at"] = audit_id  # audit_id is timestamp-derived in pipeline; kept as decision marker
             new_payload["dept_decision"] = decision
             new_payload["dept_decision_note"] = note
+            # 部门审核驳回理由回显单源（与无条件路径同字段名 reject_reason）：供申请人侧申请卡现算。
+            if decision == "reject" and note:
+                new_payload["reject_reason"] = note
             self._persist_payload(store, request_id, new_payload, target)
             self.brain._append_audit_feed(skill_id, f"{request_id}:{decision}", "ok" if decision == "approve" else "warning", actor)
             return {
@@ -257,6 +260,9 @@ class ConditionalApprovalService:
             new_payload["platform_reviewer_id"] = actor
             new_payload["platform_decision"] = decision
             new_payload["platform_decision_note"] = note
+            # 受理驳回理由回显单源（与无条件 / 部门审核同字段名 reject_reason）：供申请人侧申请卡现算。
+            if decision == "reject" and note:
+                new_payload["reject_reason"] = note
             self._persist_payload(store, request_id, new_payload, target)
             self.brain._append_audit_feed(skill_id, f"{request_id}:{decision}", "ok" if decision == "approve" else "warning", actor)
             return {

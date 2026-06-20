@@ -66,6 +66,11 @@ const headerMeta = computed(() => {
 
 const rawStatus = computed(() => String(req.value?.status ?? '').trim());
 
+// 驳回 / 退回理由回显（J1 闭环）：审批人填写的真实理由经后端 rejectReason 投影带出
+// （无条件 review_application_record + 有条件受理/部门审核三路径同源），申请人在此看到「驳回理由：…」。
+// 空（未驳回/退回，或历史导入单无运行时理由）则不渲染。
+const rejectReason = computed(() => String((req.value as Record<string, unknown> | null)?.rejectReason ?? '').trim());
+
 // 申请进度（申请人视角）：后端 status_timeline 是单一事实源，快照申请卡已带 statusTimeline；
 // 前端只渲染、不在此重新派生 4 段逻辑（避免第二事实源）。未提交草稿 → 后端返空 → 不渲染。
 interface TimelineStep { stage: string; status: string; label: string; holder?: string }
@@ -217,6 +222,9 @@ async function supplement() {
         历史导入记录 · 仅供查看，在线办理动作不适用于历史迁移申请。
       </p>
       <PhaseTrack :steps="timeline" aria-label="申请进度" />
+      <p v-if="rejectReason" class="reject-reason" data-testid="applicant-reject-reason">
+        <span class="reject-reason-label">驳回理由：</span>{{ rejectReason }}
+      </p>
       <DetailPanel v-if="rows.length" title="基本信息" :rows="rows" />
       <EditableFormPanel
         v-if="(isDraft || canResubmit) && formFields.length"
@@ -287,6 +295,8 @@ async function supplement() {
 .gov-btn-danger { background: #fff; border-color: var(--b-danger, #d4380d); color: var(--b-danger, #d4380d); }
 .gov-btn-danger:hover { background: var(--b-danger, #d4380d); color: #fff; }
 .legacy-note { margin: 0 0 12px; padding: 8px 12px; font-size: 13px; color: var(--b-muted, #5c6370); background: #f5f7fa; border-radius: 6px; }
+.reject-reason { margin: 0 0 14px; padding: 10px 12px; font-size: 13px; line-height: 1.55; color: var(--b-danger, #d4380d); background: #fff2f0; border: 1px solid #ffccc7; border-radius: 6px; word-break: break-word; }
+.reject-reason-label { font-weight: 600; }
 .aux-links { margin: 12px 0; font-size: 13px; }
 .aux-links a { color: var(--b-primary, #006be6); text-decoration: none; }
 .aux-links a:hover { text-decoration: underline; }

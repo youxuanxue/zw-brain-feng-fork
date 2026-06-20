@@ -19,7 +19,7 @@ import {
 } from '@/config/productShellNav';
 
 /** 不参与 shell 权限判定的辅助路由（登录 / 个人中心等）。 */
-const PUBLIC_ROUTE_PREFIXES = ['/login', '/profile', '/migration-acceptance'] as const;
+const PUBLIC_ROUTE_PREFIXES = ['/login', '/migration-acceptance'] as const;
 
 /**
  * 子路由级 role 白名单覆盖（比 shell 更严格）。

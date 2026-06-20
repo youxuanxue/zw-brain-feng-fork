@@ -192,6 +192,10 @@ def _record_to_request_card(
         "purposeDirty": is_dirty_purpose(raw_purpose),
         # Action D：status 列权威（update_status 类写者只写列，payload 可能滞后）。
         "status": record.status or payload.get("status") or "",
+        # 驳回 / 退回理由回显（J1 闭环）：审批人填写的真实理由经 payload.reject_reason 落库
+        # （无条件 review_application_record + 有条件受理/部门审核三路径同字段名），申请人侧
+        # P3RequestDetail 现算显示「驳回理由：…」。无驳回/退回则为空串（诚实空，不渲染）。
+        "rejectReason": str(payload.get("reject_reason") or ""),
         # 来源诚实标识（缺陷 3）：旧平台导入 vs 在产单视觉区分。
         "isLegacyImport": is_legacy_import,
         # 国家通道指示（C9）：channel_class=='national' 标识「请求国家级数据」的申请，

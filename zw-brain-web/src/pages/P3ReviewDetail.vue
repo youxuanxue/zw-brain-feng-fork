@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, watchEffect } from 'vue';
+import { computed, reactive, watchEffect } from 'vue';
 import { useRoute } from 'vue-router';
 import { lookupRequest, useSnapshot } from '@/composables/useSnapshot';
-import { invokeActionStub } from '@/composables/useActionStub';
+import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
@@ -85,6 +85,39 @@ const headerMeta = computed(() => {
   return '正在加载……';
 });
 
+// --- 驳回 / 退回理由门（业务决策：驳回理由必填，空理由不能下发）---
+// 范式同 WorkbenchTodoActionPanel：第一次点「驳回 / 退回」只展开行内理由框，填写后「确认」才
+// 真正下发；理由经 payload.note 一路透传到后端落库（handler 取 note||reason），并回显给申请人。
+// 同一时刻仅一处理由框展开（key = 该决策的下发函数标识）。
+type RejectKind = 'accept-reject' | 'dept-reject' | 'reject' | 'fix';
+const reasonGate = reactive<{ kind: RejectKind | ''; text: string }>({ kind: '', text: '' });
+const reasonLabel = computed(() => (reasonGate.kind === 'fix' ? '退回补正理由' : '驳回理由'));
+
+function openReason(kind: RejectKind): void {
+  reasonGate.kind = kind;
+  reasonGate.text = '';
+}
+function cancelReason(): void {
+  reasonGate.kind = '';
+  reasonGate.text = '';
+}
+// 必填门：空理由（去空白后为空）不下发——确认按钮 disabled 兜底拦截 + 二次校验提示。
+const reasonEmpty = computed(() => !reasonGate.text.trim());
+
+async function dispatchReject(skillId: string, decision: string, successTitle: string): Promise<void> {
+  const note = reasonGate.text.trim();
+  if (!note) {
+    pushToast({ kind: 'warn', title: '请先填写理由', detail: '驳回 / 退回需向申请人说明依据，理由不能为空。' });
+    return;
+  }
+  const res = await invokeActionStub({
+    skillId,
+    payload: { request_id: id.value, decision, note },
+    successTitle,
+  });
+  if (res.ok) cancelReason();
+}
+
 // --- 第一级：受理（业务运营员）有条件共享 submitted → dept_approved ---
 async function accept() {
   await invokeActionStub({
@@ -93,12 +126,8 @@ async function accept() {
     successTitle: '已受理（待部门审核）',
   });
 }
-async function acceptReject() {
-  await invokeActionStub({
-    skillId: 'application.platform_approve',
-    payload: { request_id: id.value, decision: 'reject' },
-    successTitle: '受理驳回',
-  });
+function confirmAcceptReject() {
+  return dispatchReject('application.platform_approve', 'reject', '受理驳回');
 }
 
 // --- 第二级：部门审核（提供方部门管理员）dept_approved → granted ---
@@ -109,12 +138,8 @@ async function deptReview() {
     successTitle: '审核通过（已授权）',
   });
 }
-async function deptReviewReject() {
-  await invokeActionStub({
-    skillId: 'application.dept_approve',
-    payload: { request_id: id.value, decision: 'reject' },
-    successTitle: '部门审核驳回',
-  });
+function confirmDeptReviewReject() {
+  return dispatchReject('application.dept_approve', 'reject', '部门审核驳回');
 }
 
 // --- 无条件共享：业务运营员受理即终（单步）---
@@ -125,19 +150,11 @@ async function approve() {
     successTitle: '已通过',
   });
 }
-async function reject() {
-  await invokeActionStub({
-    skillId: 'approval.case.decide',
-    payload: { request_id: id.value, decision: 'reject' },
-    successTitle: '已驳回',
-  });
+function confirmReject() {
+  return dispatchReject('approval.case.decide', 'reject', '已驳回');
 }
-async function fix() {
-  await invokeActionStub({
-    skillId: 'approval.case.decide',
-    payload: { request_id: id.value, decision: 'return_for_fix' },
-    successTitle: '已退回补正',
-  });
+function confirmFix() {
+  return dispatchReject('approval.case.decide', 'return_for_fix', '已退回补正');
 }
 </script>
 
@@ -150,17 +167,103 @@ async function fix() {
       <DetailPanel v-if="rows.length" title="审批要点" :rows="rows" />
       <DetailActions v-if="showAcceptActions">
         <button type="button" class="gov-btn gov-btn-primary" @click="accept">受理</button>
-        <button type="button" class="gov-btn gov-btn-danger" @click="acceptReject">驳回</button>
+        <button type="button" class="gov-btn gov-btn-danger" data-testid="review-reject-btn" @click="openReason('accept-reject')">驳回</button>
       </DetailActions>
       <DetailActions v-else-if="showDeptReviewActions">
         <button type="button" class="gov-btn gov-btn-primary" @click="deptReview">审核通过</button>
-        <button type="button" class="gov-btn gov-btn-danger" @click="deptReviewReject">驳回</button>
+        <button type="button" class="gov-btn gov-btn-danger" data-testid="review-reject-btn" @click="openReason('dept-reject')">驳回</button>
       </DetailActions>
       <DetailActions v-else-if="showUnconditionalAcceptActions">
         <button type="button" class="gov-btn gov-btn-primary" @click="approve">受理通过</button>
-        <button type="button" class="gov-btn gov-btn-secondary" @click="fix">退回补正</button>
-        <button type="button" class="gov-btn gov-btn-danger" @click="reject">驳回</button>
+        <button type="button" class="gov-btn gov-btn-secondary" data-testid="review-fix-btn" @click="openReason('fix')">退回补正</button>
+        <button type="button" class="gov-btn gov-btn-danger" data-testid="review-reject-btn" @click="openReason('reject')">驳回</button>
       </DetailActions>
+
+      <!-- 行内必填理由门（驳回 / 退回）：填写后「确认」才真正下发，空理由确认按钮 disabled。 -->
+      <div v-if="reasonGate.kind" class="review-reason-box" data-testid="review-reason-box">
+        <label for="review-reason">{{ reasonLabel }}（必填，将告知申请人）</label>
+        <textarea
+          id="review-reason"
+          v-model="reasonGate.text"
+          rows="3"
+          placeholder="请说明依据，便于申请人理解结论或按需调整后重新发起"
+          data-testid="review-reason-input"
+        />
+        <div class="review-reason-actions">
+          <button
+            v-if="reasonGate.kind === 'accept-reject'"
+            type="button"
+            class="gov-btn gov-btn-danger"
+            :disabled="reasonEmpty"
+            data-testid="review-reason-confirm"
+            @click="confirmAcceptReject"
+          >
+            确认驳回
+          </button>
+          <button
+            v-else-if="reasonGate.kind === 'dept-reject'"
+            type="button"
+            class="gov-btn gov-btn-danger"
+            :disabled="reasonEmpty"
+            data-testid="review-reason-confirm"
+            @click="confirmDeptReviewReject"
+          >
+            确认驳回
+          </button>
+          <button
+            v-else-if="reasonGate.kind === 'fix'"
+            type="button"
+            class="gov-btn gov-btn-secondary"
+            :disabled="reasonEmpty"
+            data-testid="review-reason-confirm"
+            @click="confirmFix"
+          >
+            确认退回
+          </button>
+          <button
+            v-else
+            type="button"
+            class="gov-btn gov-btn-danger"
+            :disabled="reasonEmpty"
+            data-testid="review-reason-confirm"
+            @click="confirmReject"
+          >
+            确认驳回
+          </button>
+          <button type="button" class="gov-btn gov-btn-secondary" @click="cancelReason">取消</button>
+        </div>
+      </div>
     </section>
   </main>
 </template>
+
+<style scoped>
+.review-reason-box {
+  display: grid;
+  gap: 8px;
+  max-width: 640px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--b-border, #d4e2f4);
+}
+.review-reason-box label {
+  font-size: 13px;
+  color: var(--b-muted, #5c6370);
+}
+.review-reason-box textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--b-border, #d4e2f4);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.review-reason-actions {
+  display: flex;
+  gap: 10px;
+}
+.review-reason-actions .gov-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+</style>

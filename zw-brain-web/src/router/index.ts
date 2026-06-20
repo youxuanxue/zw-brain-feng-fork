@@ -122,8 +122,7 @@ const routes: RouteRecordRaw[] = [
 
   // 辅助页
   { path: '/login', component: PLogin, meta: { title: '登录' } },
-  { path: '/profile', component: PagePlaceholder, meta: { title: '个人中心' } },
-  { path: '/migration-acceptance', component: PagePlaceholder, meta: { title: 'M0 迁移验收（实施工程师）' } },
+  { path: '/migration-acceptance', component: PagePlaceholder, meta: { title: 'M0 迁移验收（实施工程师）', note: '该模块按交付计划推进，当前暂未开放。' } },
 ];
 
 const router = createRouter({

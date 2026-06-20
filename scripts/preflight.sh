@@ -162,6 +162,7 @@ done <<'CHECKS'
 段 71	scripts/check_dept_scope_enrichment.py	dept-scope-enrichment (部门数据收口完整性防回归 承 D61/#296/#297 — 部门隔离靠逐面手工把收口 kwarg(visible_org_codes/dept_scoped) 透传给 enrich_* 投影；本守卫机械保两件事：①MUST_SCOPE_ENRICH 清单(GATE 人审记录)内每个收口面的每个调用点都显式带其收口 kwarg，漏传即 FAIL(=#296 漏 delivery_tasks/#297 漏工作台待办的复发面)；②签名带收口形参的 org-capable enrich 面必须登记进 must-scope 或 GLOBAL_BY_DESIGN 豁免，新增能按机构过滤却没登记即 FAIL→强制人来 GATE 定收口口径；「该不该收口」是语义判断留人，本守卫只做「带没带 kwarg + 是否都登记」的可机械化项(CLAUDE.md 可机械化边界))
 段 73	scripts/check_no_token_role_authz.py	no-token-role-authz (D62 A3 — IAM/IAF token 角色绝不作为产品授权事实源；REST _bind_auth 非 bypass 须用 binding 派生 role_codes 覆盖、binding helper 读 actor_org_role_binding 不读 token、resolve_role_from_identity 不调 role_codes_from_claims；防 token 角色授权两主人回潮)
 段 74	scripts/check_no_sqlite.py	no-sqlite (全盘 PG 防回潮 — 受跟踪代码禁 import sqlite3 / sqlite:// URL / 设 ZW_BRAIN_DB_PATH / 拷贝 .db 文件；db.py 运行时已对 sqlite URL 与 ZW_BRAIN_DB_PATH fail-closed raise，本守卫在静态层兜底防 SQLite 旋钮悄悄写回；故意提及加 # sqlite-allow:)
+段 75	scripts/check_no_placeholder_word.py	no-placeholder-word (占位套话源码级兜底 — 扫 zw-brain-web/src/** 的 .vue/.ts，禁「功能建设中/建设中/敬请期待/即将上线/coming soon」等占位文案；不依赖路由/页面白名单，覆盖 jobs_page_audit / customer_acceptance_checklist / twin_browser_pages 固定 PAGE 白名单漏掉的 URL-only 死路由；行注释加 placeholder-word-exempt 豁免)
 CHECKS
 
 echo ""

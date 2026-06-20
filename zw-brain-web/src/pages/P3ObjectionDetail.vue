@@ -6,7 +6,7 @@ import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import PhaseTrack from '@/components/PhaseTrack.vue';
 import { authFetch } from '@/composables/useAuth';
-import { invokeActionStub } from '@/composables/useActionStub';
+import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { useDisputes } from '@/composables/useSnapshot';
 import { mapDetailRows } from '@/lib/detailDisplay';
@@ -22,8 +22,10 @@ const id = computed(() => String(route.params.id ?? ''));
 const caseRow = ref<Record<string, unknown> | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
-const score = ref(5);
-const comment = ref('处理及时，结果满意');
+// 满意度评价是最需要真实表态的环节：默认未选（null=输入框空白显 placeholder）、评价说明空白，
+// 等用户亲自表态；不预置满分/成品口径。
+const score = ref<number | null>(null);
+const comment = ref('');
 const role = getProductRole();
 
 async function loadCase() {
@@ -115,13 +117,22 @@ async function submitCase() {
 }
 
 async function evaluateCase() {
+  const chosen = score.value;
+  if (chosen == null || !Number.isInteger(chosen) || chosen < 1 || chosen > 5) {
+    pushToast({ kind: 'warn', title: '请先选择满意度', detail: '满意度需在 1-5 之间打分后才能提交评价。' });
+    return;
+  }
+  if (!comment.value.trim()) {
+    pushToast({ kind: 'warn', title: '请填写评价说明', detail: '需要写明评价理由后才能提交。' });
+    return;
+  }
   await invokeActionStub({
     skillId: 'objection.case.evaluate',
     payload: {
       objection_id: id.value,
       solved_flag: true,
-      overall_score: score.value,
-      comment: comment.value,
+      overall_score: chosen,
+      comment: comment.value.trim(),
     },
     successTitle: '评价已提交',
     refreshSnapshotAfter: true,
@@ -151,9 +162,21 @@ async function closeCase() {
       <DetailPanel title="基本信息" :rows="rows" />
       <div v-if="canEvaluate" class="opinion-box">
         <label for="score">满意度（1-5）</label>
-        <input id="score" v-model.number="score" type="number" min="1" max="5" />
+        <input
+          id="score"
+          v-model.number="score"
+          type="number"
+          min="1"
+          max="5"
+          placeholder="请打分 1-5"
+        />
         <label for="comment">评价说明</label>
-        <textarea id="comment" v-model="comment" rows="3" />
+        <textarea
+          id="comment"
+          v-model="comment"
+          rows="3"
+          placeholder="请填写评价理由（如办理时效、结果是否解决问题）"
+        />
       </div>
       <DetailActions>
         <button v-if="canSubmit" type="button" class="gov-btn gov-btn-primary" @click="submitCase">提交至平台</button>

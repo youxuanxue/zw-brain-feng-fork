@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { invokeActionStub } from '@/composables/useActionStub';
+import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
@@ -20,7 +20,14 @@ const id = computed(() => String(route.params.id ?? ''));
 const disputes = useDisputes();
 const { source } = useSnapshot();
 const role = getProductRole();
-const opinion = ref('已核实，准备修正相关描述');
+// 异议办理是最需要真实表态的环节，默认空白、等待办理人亲笔填写；不预置成品口径。
+const opinion = ref('');
+
+function requireOpinion(): boolean {
+  if (opinion.value.trim()) return true;
+  pushToast({ kind: 'warn', title: '请填写回复意见', detail: '需要写明核实结论与处理意见后才能提交。' });
+  return false;
+}
 
 const dispute = computed(() => {
   const list = disputes.value;
@@ -81,12 +88,13 @@ async function acceptCase() {
 }
 
 async function submitReply() {
+  if (!requireOpinion()) return;
   await invokeActionStub({
     skillId: 'objection.case.reply',
     payload: {
       objection_id: id.value,
       node_name: '提供方部门核查回复',
-      opinion: opinion.value,
+      opinion: opinion.value.trim(),
       action_result: 'submitted',
     },
     successTitle: '已提交提供方回复',
@@ -95,12 +103,13 @@ async function submitReply() {
 }
 
 async function markResolved() {
+  if (!requireOpinion()) return;
   await invokeActionStub({
     skillId: 'objection.case.review',
     payload: {
       objection_id: id.value,
       decision: 'resolve',
-      resolved_summary: opinion.value,
+      resolved_summary: opinion.value.trim(),
     },
     successTitle: '异议已标记为已解决',
     refreshSnapshotAfter: true,
@@ -108,10 +117,12 @@ async function markResolved() {
 }
 
 // 升级督办——事件式过程标记，不改 case.status（objection.case.escalate 后端零改动）。
+// 升级复用主回复意见（同一份核实结论），不另设独立理由框、不写死成品口径；空则拦截。
 async function escalate() {
+  if (!requireOpinion()) return;
   await invokeActionStub({
     skillId: 'objection.case.escalate',
-    payload: { objection_id: id.value, opinion: '已核实，升级督办' },
+    payload: { objection_id: id.value, opinion: opinion.value.trim() },
     successTitle: '已升级督办',
     refreshSnapshotAfter: true,
   });
@@ -139,7 +150,12 @@ async function escalate() {
       <template v-if="dispute && !isPendingAccept">
         <div class="opinion-box">
           <label for="opinion">回复意见</label>
-          <textarea id="opinion" v-model="opinion" rows="4" />
+          <textarea
+            id="opinion"
+            v-model="opinion"
+            rows="4"
+            placeholder="请填写核实结论与处理意见"
+          />
         </div>
         <DetailActions>
           <button type="button" class="gov-btn gov-btn-primary" @click="submitReply">提交回复</button>

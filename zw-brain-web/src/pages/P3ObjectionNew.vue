@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { authFetch } from '@/composables/useAuth';
-import { invokeActionStub } from '@/composables/useActionStub';
+import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { OBJECTION_TYPE_ZH } from '@/lib/objectionLabels';
 import { apiUrl } from '@/composables/useApiBase';
@@ -43,7 +43,8 @@ const validQueryType = TARGET_TYPES.some((t) => t.value === queryType) ? queryTy
 const title = ref(String(route.query.title ?? ''));
 const targetType = ref<string>(validQueryType);
 const targetId = ref(String(route.query.id ?? ''));
-const basis = ref('字段描述与底册不一致');
+// 异议依据须用户亲笔填写真实理由；默认空白、用 placeholder 提示该填什么，不预置成品口径。
+const basis = ref('');
 const creating = ref(false);
 
 const candidates = ref<CandidateOption[]>([]);
@@ -112,6 +113,10 @@ onMounted(() => { void loadCandidates(); });
 
 async function createObjection() {
   if (!title.value.trim() || !targetId.value.trim()) return;
+  if (!basis.value.trim()) {
+    pushToast({ kind: 'warn', title: '请填写异议依据', detail: '需要写明异议理由后才能创建。' });
+    return;
+  }
   creating.value = true;
   try {
     // complainant_org_id 不传，后端 create_case 缺省落 "unknown"（真实投诉方机构待身份集成后补）。
@@ -184,13 +189,18 @@ async function createObjection() {
         </template>
 
         <label for="basis">异议依据</label>
-        <textarea id="basis" v-model="basis" rows="4" />
+        <textarea
+          id="basis"
+          v-model="basis"
+          rows="4"
+          placeholder="例如：字段描述与底册不一致"
+        />
       </div>
       <DetailActions>
         <button
           type="button"
           class="gov-btn gov-btn-primary"
-          :disabled="creating || !title.trim() || !targetId.trim()"
+          :disabled="creating || !title.trim() || !targetId.trim() || !basis.trim()"
           @click="createObjection"
         >
           创建异议
