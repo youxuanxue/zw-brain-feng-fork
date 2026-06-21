@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import { E2E_BASE_URL, gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
 
 /**
@@ -7,16 +7,18 @@ import { E2E_BASE_URL, gotoHash, setRole, skipUnlessBackend, waitAppReady } from
  * 用于驱动 P3 有条件驳回→重提腿（j1-approval-conditional.feature:55-62）。失败返 null 让用例 skip，
  * 不把环境噪声当断言失败。
  */
-async function mintRejectedRequest(page: Page): Promise<string | null> {
+// 铸态一律走**无 cookie** 的独立 APIRequestContext：带 cookie 的 page.request POST 会命中
+// 服务端 CSRF 双提交拦截（dev 仅无 cookie 请求豁免，role 走 body）。同 permission_matrix 走查范式。
+async function mintRejectedRequest(api: APIRequestContext): Promise<string | null> {
   // 取一条可申请的真实资源 id（P2 发现页 discovery.resources 只列已发布 active，r.id 即申请入参）。
-  const snapResp = await page.request.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
+  const snapResp = await api.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
   if (!snapResp.ok()) return null;
   const snap = (await snapResp.json()) as { discovery?: { resources?: Array<Record<string, unknown>> } };
   const list = snap.discovery?.resources ?? [];
   const resourceId = String(list[0]?.id ?? '');
   if (!resourceId) return null;
 
-  const createResp = await page.request.post(`${E2E_BASE_URL}/api/skills/request.create`, {
+  const createResp = await api.post(`${E2E_BASE_URL}/api/skills/request.create`, {
     data: { role: 'ROLE_ORGAN_OPERATER', resource_id: resourceId, purpose: 'e2e 有条件驳回重提链路', confirmed: true },
   });
   if (!createResp.ok()) return null;
@@ -24,13 +26,13 @@ async function mintRejectedRequest(page: Page): Promise<string | null> {
   const requestId = String(created.requestId ?? created.request_id ?? created.id ?? '');
   if (!requestId) return null;
 
-  const submitResp = await page.request.post(`${E2E_BASE_URL}/api/skills/request.submit`, {
+  const submitResp = await api.post(`${E2E_BASE_URL}/api/skills/request.submit`, {
     data: { role: 'ROLE_ORGAN_OPERATER', request_id: requestId, confirmed: true },
   });
   if (!submitResp.ok()) return null;
 
   // 受理驳回（业务运营员）：submitted → rejected。
-  const rejectResp = await page.request.post(`${E2E_BASE_URL}/api/skills/application.platform_approve`, {
+  const rejectResp = await api.post(`${E2E_BASE_URL}/api/skills/application.platform_approve`, {
     data: { role: 'ROLE_BUSIAUDIT', request_id: requestId, decision: 'reject', note: 'e2e 受理驳回', confirmed: true },
   });
   if (!rejectResp.ok()) return null;
@@ -220,12 +222,14 @@ test('P5 反向编目：字段候选被接住并渲染成可勾选/可改的候�
   await expect(candidates.locator('select')).not.toHaveCount(0);
 });
 
-test('P3 有条件驳回 → 申请人重提腿可点（rejected 不再死按钮）', async ({ page }) => {
+test('P3 有条件驳回 → 申请人重提腿可点（rejected 不再死按钮）', async ({ page, playwright }) => {
   // 接缝诚实化 B：rejected（受理/审核驳回）态下「补件 / 重新提交」可点，
   // 走 application.dept_approve {decision:'resubmit'}（applicant_resubmit: rejected → submitted）。
   // 此前 canResubmit 仅覆盖 need-fix，rejected 态按钮哑火。
   await setRole(page, 'ROLE_ORGAN_OPERATER');
-  const requestId = await mintRejectedRequest(page);
+  const api = await playwright.request.newContext();
+  const requestId = await mintRejectedRequest(api);
+  await api.dispose();
   test.skip(!requestId, '无法铸 rejected 申请（缺可申请资源或链路未通），跳过腿断言');
   await gotoHash(page, `#/request-flow/request/${requestId}`);
   await page.waitForTimeout(600);

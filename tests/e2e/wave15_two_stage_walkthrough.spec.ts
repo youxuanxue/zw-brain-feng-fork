@@ -4,16 +4,10 @@
 // 另验：业务运营员（受理岗，退申请人身份）领数据无「我的申请/我的授权」视图；操作员工作台为「申请进度」语境。
 // IA 重构（拆「办申请」）：受理/审核也可在工作台行内办理（workbench_todo_closure 覆盖）；本走查走深链宿主。
 // 证据截图落 .testing/acceptance/wave15-two-stage-walkthrough/。
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { E2E_BASE_URL, gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
 
 const SHOTS = '.testing/acceptance/wave15-two-stage-walkthrough';
-
-async function invoke(page: Page, skill: string, data: Record<string, unknown>): Promise<any> {
-  const resp = await page.request.post(`${E2E_BASE_URL}/api/skills/${skill}`, { data });
-  expect(resp.ok(), `${skill} HTTP ${resp.status()}`).toBeTruthy();
-  return resp.json();
-}
 
 test('两级链路：受理(业务运营员)→审核(部门管理员)→已授权', async ({ page }, testInfo) => {
   test.setTimeout(180_000);

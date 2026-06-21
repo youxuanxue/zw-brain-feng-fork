@@ -4,9 +4,11 @@ import { ensurePublishQueue, gotoHash, setRole, skipUnlessBackend, waitAppReady 
 // 发布动作已统一收口工作台行内办理（供数据页旧发布队列退役）。本用例验后端契约：
 // catalog.entry.publish 响应含 duplicate_warnings 字段（不论由哪个 UI 触发，重复率由后端现算）。
 test.describe('工作台发布重复率提醒', () => {
-  test.beforeEach(async ({ page }, testInfo) => {
+  test.beforeEach(async ({ page, playwright }, testInfo) => {
     await skipUnlessBackend(page, testInfo);
-    const ready = await ensurePublishQueue(page);
+    const api = await playwright.request.newContext();
+    const ready = await ensurePublishQueue(api);
+    await api.dispose();
     if (!ready) testInfo.skip(true, 'cannot seed approved_pending_publish queue');
     await page.goto('/');
     await waitAppReady(page);

@@ -163,6 +163,7 @@ done <<'CHECKS'
 段 73	scripts/check_no_token_role_authz.py	no-token-role-authz (D62 A3 — IAM/IAF token 角色绝不作为产品授权事实源；REST _bind_auth 非 bypass 须用 binding 派生 role_codes 覆盖、binding helper 读 actor_org_role_binding 不读 token、resolve_role_from_identity 不调 role_codes_from_claims；防 token 角色授权两主人回潮)
 段 74	scripts/check_no_sqlite.py	no-sqlite (全盘 PG 防回潮 — 受跟踪代码禁 import sqlite3 / sqlite:// URL / 设 ZW_BRAIN_DB_PATH / 拷贝 .db 文件；db.py 运行时已对 sqlite URL 与 ZW_BRAIN_DB_PATH fail-closed raise，本守卫在静态层兜底防 SQLite 旋钮悄悄写回；故意提及加 # sqlite-allow:)
 段 75	scripts/check_no_placeholder_word.py	no-placeholder-word (占位套话源码级兜底 — 扫 zw-brain-web/src/** 的 .vue/.ts，禁「功能建设中/建设中/敬请期待/即将上线/coming soon」等占位文案；不依赖路由/页面白名单，覆盖 jobs_page_audit / customer_acceptance_checklist / twin_browser_pages 固定 PAGE 白名单漏掉的 URL-only 死路由；行注释加 placeholder-word-exempt 豁免)
+段 76	scripts/check_e2e_no_cookie_write.py	no-e2e-cookie-write (P2 测试桩债止血 — e2e 禁带 cookie 的 page.request.(post|put|patch|delete) 写 /api/skills：后端 CSRF 双提交按 HTTP 方法门控（server.py _method_requires_csrf），cookie 上下文写必 403 csrf_token_invalid → setup 假失败/假覆盖；须走无 cookie 独立 APIRequestContext（playwright.request.newContext，role 走 body，命中 dev-bypass Path 2）；白名单 page.request.get（读），行注释 // csrf-ok: 豁免；范式参照 permission_matrix_walkthrough.spec.ts）
 CHECKS
 
 echo ""

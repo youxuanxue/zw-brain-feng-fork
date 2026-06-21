@@ -1,4 +1,4 @@
-import { expect, type Page, type TestInfo } from '@playwright/test';
+import { expect, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
 
 export const E2E_BASE_URL = process.env.ZW_E2E_BASE_URL ?? 'http://127.0.0.1:8800';
 
@@ -83,9 +83,11 @@ export async function publishViaWorkbench(
   await expect(page.locator('.toast-stack')).toContainText('已发布', { timeout: 15_000 });
 }
 
-/** 取第一条真实存在的 catalog_code（用于异议 spec 等需要真值 ID 的场景）。 */
-export async function firstCatalogCode(page: Page): Promise<string | null> {
-  const resp = await page.request.post(`${E2E_BASE_URL}/api/skills/catalog.entry.query`, {
+/** 取第一条真实存在的 catalog_code（用于异议 spec 等需要真值 ID 的场景）。
+ *  查询走**无 cookie** 的独立 APIRequestContext：带 cookie 的 page.request POST 会命中服务端
+ *  CSRF 双提交拦截（dev 仅无 cookie 请求豁免，role 走 body）——同 permission_matrix 走查范式。 */
+export async function firstCatalogCode(api: APIRequestContext): Promise<string | null> {
+  const resp = await api.post(`${E2E_BASE_URL}/api/skills/catalog.entry.query`, {
     data: { role: 'ROLE_ORGAN_OPERATER', limit: 1, confirmed: true },
   });
   if (!resp.ok()) return null;
@@ -110,9 +112,10 @@ export async function firstDeliveryRequestId(
   return null;
 }
 
-/** 确保至少一条待发布目录；多轮 e2e 发布后队列为空时自动从 pending_review 补一条。 */
-export async function ensurePublishQueue(page: Page): Promise<boolean> {
-  const queueResp = await page.request.post(`${E2E_BASE_URL}/api/skills/catalog.entry.query`, {
+/** 确保至少一条待发布目录；多轮 e2e 发布后队列为空时自动从 pending_review 补一条。
+ *  写/查询走无 cookie 独立 APIRequestContext（带 cookie POST 命中 CSRF，见 firstCatalogCode）。 */
+export async function ensurePublishQueue(api: APIRequestContext): Promise<boolean> {
+  const queueResp = await api.post(`${E2E_BASE_URL}/api/skills/catalog.entry.query`, {
     data: { role: 'ROLE_BUSIAUDIT', lifecycle_status: 'approved_pending_publish', limit: 1 },
   });
   if (queueResp.ok()) {
@@ -120,7 +123,7 @@ export async function ensurePublishQueue(page: Page): Promise<boolean> {
     if (body.items?.length) return true;
   }
 
-  const pendingResp = await page.request.post(`${E2E_BASE_URL}/api/skills/catalog.entry.query`, {
+  const pendingResp = await api.post(`${E2E_BASE_URL}/api/skills/catalog.entry.query`, {
     data: { role: 'ROLE_BUSIAUDIT', lifecycle_status: 'pending_review', limit: 1 },
   });
   if (!pendingResp.ok()) return false;
@@ -130,7 +133,7 @@ export async function ensurePublishQueue(page: Page): Promise<boolean> {
   const code = pending.items?.[0]?.catalog_code ?? pending.items?.[0]?.id;
   if (!code) return false;
 
-  const reviewResp = await page.request.post(`${E2E_BASE_URL}/api/skills/catalog.entry.review`, {
+  const reviewResp = await api.post(`${E2E_BASE_URL}/api/skills/catalog.entry.review`, {
     data: {
       role: 'ROLE_BUSIAUDIT',
       catalog_code: code,
@@ -140,7 +143,7 @@ export async function ensurePublishQueue(page: Page): Promise<boolean> {
   });
   if (!reviewResp.ok()) return false;
 
-  const after = await page.request.post(`${E2E_BASE_URL}/api/skills/catalog.entry.query`, {
+  const after = await api.post(`${E2E_BASE_URL}/api/skills/catalog.entry.query`, {
     data: { role: 'ROLE_BUSIAUDIT', lifecycle_status: 'approved_pending_publish', limit: 1 },
   });
   if (!after.ok()) return false;

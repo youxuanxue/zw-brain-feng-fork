@@ -54,14 +54,18 @@ test.describe('客户验收 — 部门操作员 J1', () => {
     await expect(page.getByText(/命中 \d+ 条可申请资源|未命中/).first()).toBeVisible({ timeout: 10_000 });
   });
 
-  test('P3 异议：新建 → 详情 → 提交至平台', async ({ page }) => {
+  test('P3 异议：新建 → 详情 → 提交至平台', async ({ page, playwright }) => {
     // D11：target_id 必须存在于库内；动态取第一条真实 catalog_code，禁止硬编码 fixture id
-    const code = await firstCatalogCode(page);
+    const api = await playwright.request.newContext();
+    const code = await firstCatalogCode(api);
+    await api.dispose();
     test.skip(!code, 'no catalog row available in DB to anchor objection');
     const title = `验收异议-${Date.now()}`;
     await gotoHash(page, '#/request-flow/objection/new');
     await page.locator('#title').fill(title);
     await page.locator('#target').fill(code!);
+    // 「创建异议」需 title+target+basis(异议依据) 三字段齐才启用（P3ObjectionNew.vue 行内校验）。
+    await page.locator('#basis').fill('验收走查：字段描述与底册不一致');
     await page.getByRole('button', { name: '创建异议' }).click();
     await expect(page).toHaveURL(/#\/request-flow\/objection\/[^/]+$/, { timeout: 10_000 });
     await expect(page.getByRole('button', { name: '提交至平台' })).toBeVisible();
@@ -176,9 +180,11 @@ test.describe('客户验收 — 部门管理员 J2', () => {
 });
 
 test.describe('客户验收 — 业务运营 P5 发布', () => {
-  test.beforeEach(async ({ page }, testInfo) => {
+  test.beforeEach(async ({ page, playwright }, testInfo) => {
     await skipUnlessBackend(page, testInfo);
-    const ready = await ensurePublishQueue(page);
+    const api = await playwright.request.newContext();
+    const ready = await ensurePublishQueue(api);
+    await api.dispose();
     if (!ready) testInfo.skip(true, 'cannot seed approved_pending_publish queue');
     await page.goto('/');
     await waitAppReady(page);
