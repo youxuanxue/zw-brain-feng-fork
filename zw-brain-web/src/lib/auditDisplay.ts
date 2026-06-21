@@ -52,18 +52,11 @@ export function formatActorLabel(actor: string): string {
 // ---------------------------------------------------------------------------
 
 const AUDIT_CLASS_LABELS: Record<string, string> = {
-  // 3 \u7ea7\u6b63\u89c4\u5316\uff08\u540e\u7aef CANONICAL_AUDIT_CLASSES\uff09
+  // 仅 3 个 canonical——后端 normalize_audit_class 在两条写路径(AuditStore.append/audit_bus.emit)
+  // 强制收敛后才落库，别名永不以原形回读；意外值由 `?? raw` 兜底 + r12 渲染层守卫拦截。
   'write-critical': '\u5173\u952e\u5199\u64cd\u4f5c',
   'write-normal': '\u5e38\u89c4\u5199\u64cd\u4f5c',
   'read-sensitive': '\u654f\u611f\u8bfb\u64cd\u4f5c',
-  // \u5386\u53f2\u522b\u540d\uff08_AUDIT_CLASS_MAP\uff09\u9632\u5fa1\u515c\u5e95\uff0c\u907f\u514d\u5b58\u91cf\u4e8b\u4ef6\u56de\u8bfb\u65f6\u88f8\u51fa
-  'write-default': '\u5e38\u89c4\u5199\u64cd\u4f5c',
-  'adapter-write': '\u5173\u952e\u5199\u64cd\u4f5c',
-  'external-execution': '\u5173\u952e\u5199\u64cd\u4f5c',
-  'read-default': '\u654f\u611f\u8bfb\u64cd\u4f5c',
-  'read-normal': '\u654f\u611f\u8bfb\u64cd\u4f5c',
-  'read-trace': '\u654f\u611f\u8bfb\u64cd\u4f5c',
-  read: '\u654f\u611f\u8bfb\u64cd\u4f5c',
 };
 
 export function formatAuditClass(value: string): string {
