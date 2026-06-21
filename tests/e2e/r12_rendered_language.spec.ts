@@ -19,7 +19,10 @@ import { scanForbidden } from './r12-forbidden-patterns';
 // 资源详情（HTTP 404）、目录浏览（裸编码标题）。
 // exempt：该页内「合法保留工程原文」的 region 选择器（其 innerText 在扫描前剔除）。
 // 唯一用例 = B11 合规面审计取证原文块（见下方 R12 取证豁免说明）。
-const PAGE_MATRIX: Array<{ role: string; hash: string; note: string; exempt?: string[] }> = [
+// tabs：本页是 v-show 多 tab 面（如 B11 合规面的 统计/异常/追责/回放），默认面之外的 tab
+// DOM 被 v-show 隐藏、innerText 取不到 → 静态单扫只覆盖默认面（盲区①）。置 true 时扫描循环
+// 逐个点 nav.focus-tabs 的 role="tab" 按钮，把每个 tab 渲染后的文本累加进扫描文本。
+const PAGE_MATRIX: Array<{ role: string; hash: string; note: string; exempt?: string[]; tabs?: boolean }> = [
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/workbench', note: '工作台待办/办理建议/本周亮点' },
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/discovery', note: '资源发现' },
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/discovery/catalog-browse', note: '目录浏览（待发布标题）' },
@@ -38,14 +41,22 @@ const PAGE_MATRIX: Array<{ role: string; hash: string; note: string; exempt?: st
   // snake_case 键（如 legacy_role_ref / role_lacks_permission），不 label 化、不还原。
   // 其余 status-pill 类枚举（audit_class/dimension/phase/rule）与点分 skill_id 仍受 R12 管，
   // 已在 B11ComplianceOps.vue 经 auditDisplay 中文化 / 隐 id 到 title。
+  // tabs:true → 遍历 统计/异常/追责/回放 四个 v-show tab 后再扫（堵盲区①：回放/追责面
+  // 的裸 ISO 时间戳 occurred_at/denied_at 此前藏在隐藏 DOM 里逃过单扫）。
   {
     role: 'ROLE_SECURITY_AUDIT',
     hash: '#/compliance-ops',
-    note: '合规与运营',
+    note: '合规与运营（统计/异常/追责/回放四 tab）',
     exempt: ['#app-router pre.sanitized', '#app-router pre.replay-payload'],
+    tabs: true,
   },
   // D55/P2：外部系统归平台运维员独有（业务运营员退出）。
   { role: 'ROLE_SYSTEM', hash: '#/integration-admin', note: '外部系统' },
+  // B1.3 服务调用监控整页（堵盲区②：#/service-ops 此前不在 PAGE_MATRIX，整页裸 ISO
+  // 时间戳 last_reported_at 无人扫）。role 取 ROLE_SYSTEM（平台运维员）——productShellNav
+  // service-ops.roles = ['ROLE_BUSIAUDIT','ROLE_SYSTEM']，且无 ROUTE_ROLE_OVERRIDE 覆盖，
+  // 故平台运维员可达本页（与上方 ROLE_SYSTEM #/integration-admin 行同源角色门）。
+  { role: 'ROLE_SYSTEM', hash: '#/service-ops', note: '服务调用监控' },
 ];
 
 test.describe('R12 渲染层无工程语言泄漏', () => {
@@ -65,13 +76,34 @@ test.describe('R12 渲染层无工程语言泄漏', () => {
       // 只扫主内容区可见文本（不含导航 chrome 之外的脚本/属性）。
       const region = page.locator('#app-router');
       let text = (await region.innerText().catch(() => '')) || '';
+      // 取证豁免块文本须在「其所在 tab 可见时」抓取——v-show 隐藏面的 allInnerTexts() 返回空，
+      // 故 exempt 文本随各 tab 累加收集，最后统一剔除（否则隐藏 tab 的取证 <pre> 漏剔 → 误命中）。
+      const exemptTexts: string[] = [];
+      const collectExempt = async (): Promise<void> => {
+        for (const sel of row.exempt ?? []) {
+          const blocks = await page.locator(sel).allInnerTexts().catch(() => [] as string[]);
+          for (const b of blocks) if (b) exemptTexts.push(b);
+        }
+      };
+      await collectExempt();
+
+      // 盲区①：v-show 多 tab 面（B11 统计/异常/追责/回放）默认面之外的 DOM 隐藏，
+      // innerText 取不到 → 逐个点 tab 让其渲染后把文本（及其 exempt 取证块）累加。
+      if (row.tabs) {
+        const tabBtns = page.locator('#app-router nav.focus-tabs button[role="tab"]');
+        const tabCount = await tabBtns.count().catch(() => 0);
+        for (let t = 0; t < tabCount; t += 1) {
+          await tabBtns.nth(t).click().catch(() => undefined);
+          await page.waitForTimeout(400); // 让该 tab 的 v-show 面渲染 + 数据 settle 一拍
+          const tabText = (await region.innerText().catch(() => '')) || '';
+          text = `${text}\n${tabText}`;
+          await collectExempt(); // 该 tab 可见时收集其取证 <pre> 原文（隐藏后取不到）
+        }
+      }
       // R12 取证豁免：把显式登记的 exempt region（审计取证 <pre> 原文块）的文本
       // 从扫描文本里剔除——这些工程原文按负责人批准合法保留，不应触发渲染层守卫。
-      for (const sel of row.exempt ?? []) {
-        const blocks = await page.locator(sel).allInnerTexts().catch(() => [] as string[]);
-        for (const b of blocks) {
-          if (b) text = text.split(b).join(' ');
-        }
+      for (const b of exemptTexts) {
+        if (b) text = text.split(b).join(' ');
       }
       const hits = scanForbidden(text);
 

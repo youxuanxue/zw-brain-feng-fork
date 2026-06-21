@@ -7,6 +7,7 @@ import DataSourceBadge from '@/components/DataSourceBadge.vue';
 import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
 import { consumeNLAction } from '@/lib/consumeNLAction';
 import { pushToast } from '@/composables/useActionStub';
+import { formatTime } from '@/lib/userLanguage';
 import {
   formatActorLabel,
   formatAuditClass,
@@ -230,12 +231,12 @@ const accountabilityEmptyText = computed(() => {
               <header>
                 <span class="tech-id chain-rid">{{ chain.request_id }}</span>
                 <span class="status-pill" :title="chain.skill_id">{{ formatCapabilityName(chain.skill_id) }}</span>
-                <time>{{ chain.denied_at }}</time>
+                <time>{{ formatTime(chain.denied_at) }}</time>
               </header>
               <ol class="chain-events">
                 <li v-for="(ev, i) in chain.events" :key="i">
                   <span class="phase">{{ formatPhase(ev.phase) }}</span>
-                  <time>{{ ev.occurred_at }}</time>
+                  <time>{{ formatTime(ev.occurred_at) }}</time>
                   <pre class="sanitized">{{ JSON.stringify(ev.sanitized_payload, null, 2) }}</pre>
                 </li>
               </ol>
@@ -264,7 +265,7 @@ const accountabilityEmptyText = computed(() => {
             <li v-for="(ev, i) in replay.data.value.items" :key="i" class="replay-item">
               <header>
                 <span class="phase">{{ formatPhase(ev.phase) }}</span>
-                <time>{{ ev.occurred_at }}</time>
+                <time>{{ formatTime(ev.occurred_at) }}</time>
                 <span class="status-pill">{{ formatAuditClass(ev.audit_class) }}</span>
               </header>
               <p class="replay-actor">

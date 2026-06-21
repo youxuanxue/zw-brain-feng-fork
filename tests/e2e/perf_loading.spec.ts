@@ -107,8 +107,12 @@ test.describe('perf: 加载与切角色读路径', () => {
     metrics.roleSwitch = switchMetrics;
 
     // ---------- 阶段 D：同岗位各页首屏（本地缓存渲染，应无 API）----------
-    // 办申请已拆解归并领数据（#/request-flow 重定向 /delivery-exchange）：用数侧首屏取 4 壳现态。
-    const pages = ['#/discovery', '#/delivery-exchange', '#/provider', '#/workbench'];
+    // 办申请已拆解归并领数据（#/request-flow 重定向 /delivery-exchange）：用数侧首屏取 3 壳现态。
+    // #/workbench 故意不入列：其组件挂 useWorkbench，重挂载时做一次 SWR 后台校验（先显缓存=0
+    // loading 闪烁、后台静默刷新待办新鲜度）为 #215 设计内，workbenchViewDelta=1 是那次校验 API、
+    // 非「同岗位重拉」缺陷。本不变量只对不挂 useWorkbench 的非工作台页成立（#215 原始页表即不含工作台，
+    // #295 路由改名时误加，撞 delta===0 断言）。
+    const pages = ['#/discovery', '#/delivery-exchange', '#/provider'];
     const pageMetrics: Array<Record<string, unknown>> = [];
     for (const hash of pages) {
       const beforeAll = [...byRole.values()].reduce(

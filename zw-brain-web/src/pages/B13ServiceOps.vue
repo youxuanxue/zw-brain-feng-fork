@@ -4,6 +4,7 @@ import { useGatewayRuntime } from '@/composables/useGatewayRuntime';
 import { getProductRole } from '@/composables/useProductRole';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DataSourceBadge from '@/components/DataSourceBadge.vue';
+import { formatTime } from '@/lib/userLanguage';
 
 // 服务调用监控（P8，Wave1-S3）：从「查审计」拆出的网关运行 / 服务调用只读面。
 // 平台运维员保留服务调用监控（v5 服务调用日志 = 平台运维员 + 业务运营员）；
@@ -72,9 +73,12 @@ const gatewayCounts = computed(() => {
           <tbody>
             <tr v-for="g in gatewayRows" :key="g.gateway_instance_id">
               <td><span class="tech-id">{{ g.gateway_instance_id }}</span></td>
+              <!-- runtime_profile / source_ref 的 R12 判定延期下一轮（本轮只去裸时间戳）：
+                   二者带 .tech-id 样式、可能是刻意保留的合法原始技术标识（同审计取证原文块的豁免精神），
+                   留下一轮判定，避免误伤业务方要看的原始 ID。本轮不动。 -->
               <td>{{ g.runtime_profile }}</td>
               <td><span :class="['gw-status', `gw-status--${g.status}`]">{{ gatewayStatusLabel(g.status) }}</span></td>
-              <td>{{ g.last_reported_at }}</td>
+              <td>{{ formatTime(g.last_reported_at) }}</td>
               <td><span class="tech-id">{{ g.source_ref }}</span></td>
             </tr>
           </tbody>
