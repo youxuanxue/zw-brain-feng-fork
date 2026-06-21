@@ -4,6 +4,7 @@ import { pushToast } from '@/composables/useActionStub';
 import { defaultRouteForRole, isRouteAllowedForRole } from '@/lib/pageAccess';
 import P1Workbench from '@/pages/P1Workbench.vue';
 import P2Discovery from '@/pages/P2Discovery.vue';
+import DataApps from '@/pages/DataApps.vue';
 import P2ResourceDetail from '@/pages/P2ResourceDetail.vue';
 import P2CatalogBrowse from '@/pages/P2CatalogBrowse.vue';
 import P2CatalogDetail from '@/pages/P2CatalogDetail.vue';
@@ -58,6 +59,9 @@ const routes: RouteRecordRaw[] = [
   { path: '/discovery/catalog-browse', component: P2CatalogBrowse, meta: { page: 'P2', title: 'P2 目录浏览' } },
   { path: '/discovery/resource/:id', component: P2ResourceDetail, meta: { page: 'P2', title: 'P2 资源详情' } },
   { path: '/discovery/catalog/:code', component: P2CatalogDetail, meta: { page: 'P2', title: 'P2 目录详情' } },
+
+  // 数据应用（Data Apps）：基于政务共享数据构建的独立应用画廊
+  { path: '/data-apps', name: 'data-apps', component: DataApps, meta: { page: 'DA', title: '数据应用' } },
 
   // P3 申请 / 审批 / 跟踪
   // 「办申请」列表页与导航项解体（IA 重构）：列表根重定向到「领数据」（消费方「我的数据」一站式入口，

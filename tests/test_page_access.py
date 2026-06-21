@@ -27,6 +27,15 @@ _SHELL_ROLES: dict[str, frozenset[str]] = {
             "ROLE_BUSIAUDIT",
         }
     ),
+    # 数据应用画廊（B 类场景智能体的家）：roles = 本期所有 data-app 可用角色并集。
+    # 唯一 data-app（法人信用画像核验）绑定 metadata.catalog_item.query → 仅
+    # {部门管理员, 业务运营员}（部门操作员无权 → 不渲染入口，no-permission=invisible）。
+    "data-apps": frozenset(
+        {
+            "ROLE_ORGAN_MANAGER",
+            "ROLE_BUSIAUDIT",
+        }
+    ),
     # 「办申请」(request-flow) 导航项已随 IA 重构整体删除：我的申请/授权并入领数据，
     # 受理/审核迁工作台，子路由保留为深链目标（角色门见 _ROUTE_ROLE_OVERRIDES）。
     # 故 request-flow 不再是 shell 键；/request-flow/* 子路由由 override 治理，
@@ -125,6 +134,8 @@ def _active_shell_key(path: str) -> str:
     p = path if path.startswith("/") else f"/{path}"
     if p.startswith("/discovery"):
         return "discovery"
+    if p.startswith("/data-apps"):
+        return "data-apps"
     # 「办申请」导航解体后 /request-flow/* 子路由归属领数据 shell（与 TS activeShellKey 一致）；
     # 具体子路由角色门由 _ROUTE_ROLE_OVERRIDES 覆盖（reviewer 详情等比 delivery shell 不同/更宽）。
     if p.startswith("/request-flow"):
@@ -186,6 +197,17 @@ def _default_route_for_role(role: str, from_path: str | None = None) -> str:
         if role in _SHELL_ROLES.get(sk, frozenset()):
             return f"/{sk}"
     return "/workbench"
+
+
+def test_data_apps_route_gated_to_usable_roles_only() -> None:
+    """数据应用画廊：仅当前唯一 data-app（法人信用画像核验）可用角色 {部门管理员, 业务运营员}
+    可达——它绑定 metadata.catalog_item.query（部门操作员/安全审计员无权）。无权角色路由不可达
+    （no-permission=invisible：不留「看得到入口、点开撞 403」死胡同；后端卡片级 allowed_roles
+    过滤兜底同口径）。"""
+    assert _is_route_allowed("/data-apps", "ROLE_ORGAN_MANAGER")
+    assert _is_route_allowed("/data-apps", "ROLE_BUSIAUDIT")
+    assert not _is_route_allowed("/data-apps", "ROLE_ORGAN_OPERATER")
+    assert not _is_route_allowed("/data-apps", "ROLE_SECURITY_AUDIT")
 
 
 def test_operater_cannot_access_integration_admin() -> None:

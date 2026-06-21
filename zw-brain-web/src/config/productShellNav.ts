@@ -52,6 +52,20 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     // D55/P13：领数据回归部门操作员+部门管理员（反转 D53/F1）；P18 安全审计员退出领数据导航。
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
   },
+  {
+    // 数据应用：基于政务共享数据构建的独立应用画廊（B 类场景智能体的家）。
+    // 与「找数据」副驾区分——副驾是助手（嵌在工作流里），数据应用是独立目的地。
+    // roles = 本期所有 data-app「可用角色并集」（no-permission=invisible：无权角色不应看到入口）。
+    //   当前唯一 data-app（法人信用画像核验）绑定 metadata.catalog_item.query，仅
+    //   {部门管理员, 业务运营员} 可用（部门操作员无该敏感字段映射权 → 进来必 403 死胡同）。
+    //   新增更宽角色可用的 data-app 时，把对应角色并进来，并保持卡片级 allowed_roles 过滤兜底。
+    key: 'data-apps',
+    navLabel: '数据应用',
+    navDesc: '基于政务共享数据构建的应用与服务',
+    to: '/data-apps',
+    group: 'use',
+    roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
+  },
   // 专题包导航项退出本期（D55/P6）：下线整面，保数据不删库；待复活时恢复 zones-pack 导航。
   {
     key: 'provider',
@@ -143,6 +157,7 @@ export function visibleShellNavByGroup(
 export function activeShellKey(path: string): string {
   const p = path.startsWith('/') ? path : `/${path}`;
   if (p.startsWith('/discovery')) return 'discovery';
+  if (p.startsWith('/data-apps')) return 'data-apps';
   // 「办申请」导航解体后，/request-flow/* 子路由（保留为深链目标）归属领数据 shell，
   // 由 PRODUCT_SHELL_NAV 高亮/授权落在 delivery-exchange；具体子路由角色门见
   // pageAccess.ts ROUTE_ROLE_OVERRIDES（reviewer 详情等比 delivery shell 更宽/不同）。

@@ -8,6 +8,7 @@ import yaml
 
 from zw_brain.command.brain import AccessDeniedError, BrainService
 from zw_brain.domain import policy
+from zw_brain.domain.role_codes import BUSINESS_ROLE_CODES, ROLE_DISPLAY_NAMES_ZH
 from zw_brain.shared.agent_runtime.capability_provider import (
     agent_directory_for_id,
     load_capability_bindings,
@@ -29,6 +30,33 @@ def runtime_status() -> dict[str, Any]:
     return {"enabled": is_agent_runtime_enabled()}
 
 
+def _roles_that_can_use(bindings: list[dict[str, Any]]) -> list[str]:
+    """返回能通过该 Agent **全部**绑定 skill policy 的角色集——与 _verify_agent_and_policy
+    完全同口径（同一 enforce_manifest_policy 链）。这是 UI 落位的单一事实源：
+
+      - 数据应用画廊只渲染 caller 角色 ∈ 该集合的卡片（no-permission=invisible，
+        不再「可见+403」死胡同，见 #294/#296/#297 反复诉讼的反模式）；
+      - 403 文案据此列出「可切换到」的具体岗位名。
+
+    返回 [] 表示无任何角色可用（视为对所有人不可见）。"""
+    from zw_brain.capability_registry.runtime import get_manifest
+
+    allowed: list[str] = []
+    for role in BUSINESS_ROLE_CODES:
+        ok = True
+        for binding in bindings:
+            skill_id = binding["skill_id"]
+            try:
+                manifest = get_manifest(skill_id)
+                policy.enforce_manifest_policy(skill_id, manifest, role, {})
+            except (KeyError, policy.DomainAccessDeniedError):
+                ok = False
+                break
+        if ok:
+            allowed.append(role)
+    return allowed
+
+
 def list_builtin_agents() -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     for agent_yaml in sorted(agents_dir().glob("*/AGENT.yaml")):
@@ -37,7 +65,15 @@ def list_builtin_agents() -> list[dict[str, Any]]:
         agent_id = str(metadata.get("id") or "")
         if not agent_id:
             continue
+        # UI 落位的单一事实源：labels.surface 显式声明该 Agent 属哪种产品对象——
+        #   'copilot'  = 嵌在工作流里的副驾（找数副驾等），不进【数据应用】列表；
+        #   'data-app' = 独立数据应用，进【数据应用】画廊。
+        # 缺省回落 copilot（保守：未声明的不会误入数据应用页）。
+        labels = metadata.get("labels") if isinstance(metadata.get("labels"), dict) else {}
+        surface = str(labels.get("surface") or "").strip().lower()
+        category = "data-app" if surface == "data-app" else "copilot"
         bindings = load_capability_bindings(agent_yaml.parent)
+        allowed_roles = _roles_that_can_use(bindings)
         items.append(
             {
                 "agent_id": agent_id,
@@ -46,6 +82,11 @@ def list_builtin_agents() -> list[dict[str, Any]]:
                 "trust_level": metadata.get("trust_level") or sidecar.get("trust_level"),
                 "description": metadata.get("description"),
                 "capability_skills": [b["skill_id"] for b in bindings],
+                "category": category,
+                # 调用方角色须 ∈ allowed_roles 才可用本 Agent（与 task 启动鉴权同口径）。
+                # 前端据此过滤卡片（无权不渲染）+ 渲染 403「可切换到」岗位名。
+                "allowed_roles": allowed_roles,
+                "allowed_role_names": [ROLE_DISPLAY_NAMES_ZH.get(r, r) for r in allowed_roles],
             }
         )
     return items

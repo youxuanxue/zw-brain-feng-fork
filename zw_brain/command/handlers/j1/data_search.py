@@ -76,7 +76,10 @@ def handler(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> An
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
     query = str(payload.get("query", ""))
-    page = int(payload.get("page", 1))
+    # LLM 工具编排常把可选字段显式填 null（page: null）；get("page", 1) 只在键缺失时回落，
+    # 键存在为 None 时不回落 → int(None) 崩。用 `or 1` 对齐全仓既有惯例
+    # （request.py / recommendation_suggest.py / direct_access.py / audit.py 同款），None 安全。
+    page = int(payload.get("page") or 1)
     return search_resources(brain, query, page)
 
 

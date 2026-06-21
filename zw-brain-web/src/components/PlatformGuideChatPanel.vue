@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { usePlatformGuideChat } from '@/composables/usePlatformGuideChat';
 import { getProductRole } from '@/composables/useProductRole';
 
@@ -19,7 +19,7 @@ const presets = computed(() => ROLE_PRESETS[getProductRole().value] ?? DEFAULT_P
 
 const open = ref(false);
 const draft = ref('');
-const { messages, loading, error, runtimeEnabled, probeRuntime, ask, clear } = usePlatformGuideChat();
+const { messages, loading, error, runtimeEnabled, probeRuntime, ask, clear, stop } = usePlatformGuideChat();
 
 function toggle() {
   open.value = !open.value;
@@ -37,12 +37,16 @@ async function submit() {
 }
 
 function applyPreset(text: string) {
-  draft.value = text;
+  draft.value = '';
   void ask(text);
 }
 
 onMounted(() => {
   void probeRuntime();
+});
+// 卸载即停掉后台轮询，避免悬浮指南关闭后仍有游离请求循环。
+onUnmounted(() => {
+  stop();
 });
 </script>
 
