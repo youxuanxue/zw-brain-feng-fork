@@ -98,3 +98,50 @@ def test_rest_empty_actor_snapshots_guarded_against_index_error() -> None:
     assert "if not snapshots:" in src and "snapshots[0]" in src, (
         "token-exchange path must guard empty actor_snapshots before indexing (M7)"
     )
+
+
+# ── Bug1 (application-flow) 回归：无 cookie 路径把会话机构码注入 payload ──────────
+# 根因：cookie BFF 路径经 build_trusted_skill_payload 把会话 org_code 钉进 payload，写侧
+# caller_org_code 解析得到机构 → 草稿 applicant_org_code 非空 → 详情/快照 in-scope 腿稳定可见。
+# bearer / dev-bypass 无 cookie 路径此前只盖 role、不盖 org_code → 草稿 applicant_org_code=''
+# → 切岗位后从快照消失（「未找到该申请」）。修复 = _apply_verified_identity_role 两支均经
+# _stamp_identity_org_code 从已验证身份补 org_code（永不信任客户端传值）。
+
+
+def test_no_cookie_path_stamps_identity_org_code() -> None:
+    """无 cookie 路径用已验证身份的机构码盖 payload['org_code']，caller_org_code 可解析。"""
+    from zw_brain.entry.rest.server import RestHandler
+    from zw_brain.shared.auth_context import AuthContext, reset_auth_context, set_auth_context
+    from zw_brain.shared.session_context import caller_org_code
+
+    ctx = AuthContext(
+        subject="bearer-user", username="u", tenant_id="sd-default",
+        org_code="ORG-A", role_codes=("ROLE_ORGAN_OPERATER",), claims={},
+    )
+    tok = set_auth_context(ctx)
+    try:
+        stamped = RestHandler._stamp_identity_org_code({"role": "ROLE_ORGAN_OPERATER", "resource_id": "x"})
+        assert stamped["org_code"] == "ORG-A"
+        assert caller_org_code(stamped) == "ORG-A", "写侧 caller_org_code 应能解析出会话机构"
+        # 客户端传入的 org_code 一律被已验证身份覆盖（与 role 同款不信任客户端）。
+        forged = RestHandler._stamp_identity_org_code({"org_code": "ORG-EVIL", "role": "x"})
+        assert forged["org_code"] == "ORG-A"
+    finally:
+        reset_auth_context(tok)
+
+
+def test_no_cookie_path_leaves_org_empty_without_identity_org() -> None:
+    """身份无机构上下文（CLI/A2A）时不捏造 org_code，诚实留空 → 下游 fail-closed。"""
+    from zw_brain.entry.rest.server import RestHandler
+    from zw_brain.shared.auth_context import AuthContext, reset_auth_context, set_auth_context
+
+    ctx = AuthContext(
+        subject="cli", username="u", tenant_id="sd-default",
+        org_code=None, role_codes=("ROLE_BUSIAUDIT",), claims={},
+    )
+    tok = set_auth_context(ctx)
+    try:
+        stamped = RestHandler._stamp_identity_org_code({"role": "ROLE_BUSIAUDIT"})
+        assert "org_code" not in stamped, "无身份机构时不应注入 org_code 键（诚实空）"
+    finally:
+        reset_auth_context(tok)

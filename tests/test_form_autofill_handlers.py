@@ -195,3 +195,35 @@ def test_reference_organ_options_shape(brain) -> None:
 def test_reference_region_options_shape(brain) -> None:
     out = _unwrap(invoke_trusted(brain, "reference.region.options", {"parent_code": "000000000000"}, role=_OPERATER))
     assert out["kind"] == "region" and isinstance(out["options"], list)
+
+
+# ── Bug2 回归：「申请单位」从可信会话机构自动带出（不再「待填写」） ──────────────
+# 根因：旧路径 actor_org 只走 _resolve_actor_org(actor) 查用户记录；dev-bypass / 无用户
+# 记录的合成身份查不到 → applicant_org 字段空 → 前端「申请单位 — 待填写」。修复后优先取
+# 可信会话当前机构（caller_org_code，与 applicant_org_code 同源），回落查表。
+
+
+def test_create_applicant_org_from_session_org(brain) -> None:
+    """request.create 草稿的「申请单位」字段从会话机构带出，而非「待填写」（Bug2）。"""
+    req = _create_draft(brain)  # invoke_trusted 默认 org_code=ORG-A
+    # 卡上申请方机构码随单存档（隔离行级过滤快路径源）。
+    assert req.get("applicant_org_code") == "ORG-A"
+    # 前端 formFields「申请单位」derived 字段自动带出会话机构，非空。
+    by_key = {f["key"]: f for f in _projected_request(req["id"])["formFields"]}
+    applicant_org = by_key["applicant_org"]
+    assert applicant_org["value"] == "ORG-A", "申请单位应从会话机构带出，非「待填写」"
+    assert applicant_org["source"] == "derived"  # 自动带出（非 human / 非 empty）
+
+
+def test_create_applicant_org_empty_when_no_session_org(brain, monkeypatch) -> None:
+    """无会话机构上下文（caller_org_code 取不到）时诚实留空、不捏造（fail-closed）。
+
+    锁定 Bug2 修复的诚实边界：不是无条件钉死一个机构，而是「有会话机构则带出、没有则空」。
+    """
+    from zw_brain.command.handlers.j1 import request as _reqmod
+
+    monkeypatch.setattr(_reqmod, "caller_org_code", lambda options: "")
+    req = _create_draft(brain)
+    assert req.get("applicant_org_code") == ""
+    by_key = {f["key"]: f for f in _projected_request(req["id"])["formFields"]}
+    assert by_key["applicant_org"]["value"] == ""  # 诚实空，不捏造

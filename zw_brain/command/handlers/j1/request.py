@@ -473,7 +473,14 @@ def _create_request(
         # 用户在表单实填的字段=human（此后 autofill/AI 不覆盖）。AI 建议字段经
         # payload.ai_suggested_fields 显式传入（与用户实填分离，诚实区分来源），缺省 {}。
         ref = _reference()
-        actor_org = _resolve_actor_org(actor, ref)
+        # 申请单位（applicant_org）从可信会话机构带出（caller_org_code 单一事实源，与 :287 同源），
+        # 使 dev-bypass / 无用户记录场景也能自动带出，避免「申请单位 — 待填写」死字段；
+        # 仍 best-effort 回落 actor 查表（_resolve_actor_org）以兼容有用户记录的真实身份。
+        actor_org: dict[str, Any] | None = None
+        if _applicant_org_code:
+            actor_org = {"org_code": _applicant_org_code, "org_name": _applicant_org_name or _applicant_org_code}
+        if actor_org is None:
+            actor_org = _resolve_actor_org(actor, ref)
         ai_suggestions = options.get("ai_suggested_fields")
         ai_suggestions = ai_suggestions if isinstance(ai_suggestions, dict) else {}
         user_values = {k: options.get(k) for k in form_fill_service.FIELD_KEYS if options.get(k) not in (None, "")}

@@ -30,7 +30,9 @@ export async function postSkill<T>(skill: string, payload: Record<string, unknow
     body: JSON.stringify(payload),
   });
   if (!resp.ok) {
-    throw Object.assign(new Error(`HTTP ${resp.status} from ${skill}`), { requestId });
+    // 附 HTTP status（除既有 requestId）：调用方可据此优雅降级（如 NL 加速器对
+    // 无权限岗位的 403 回落纯关键词搜索，而非把任何失败统统报「解析未命中」）。
+    throw Object.assign(new Error(`HTTP ${resp.status} from ${skill}`), { requestId, status: resp.status });
   }
   return (await resp.json()) as T;
 }

@@ -768,7 +768,7 @@ class RestHandler(BaseHTTPRequestHandler):
                 raise AccessDeniedError("no_product_role_for_identity")
             stamped = dict(payload)
             stamped["role"] = requested_role
-            return stamped
+            return self._stamp_identity_org_code(stamped)
         role = self._role_from_verified_identity(requested_role)
         if not role:
             # 403 via _handle_error mapping — identity authenticated but holds no product role.
@@ -776,7 +776,32 @@ class RestHandler(BaseHTTPRequestHandler):
         stamped = dict(payload)
         # Overwrite (never trust) the client-supplied role with the identity-derived one.
         stamped["role"] = role
-        return stamped
+        return self._stamp_identity_org_code(stamped)
+
+    @staticmethod
+    def _stamp_identity_org_code(payload: dict[str, Any]) -> dict[str, Any]:
+        """Inject the verified identity's机构码 into a no-cookie-session payload.
+
+        Application-flow fix. The cookie BFF path stamps ``org_code`` from the session
+        snapshot (``build_trusted_skill_payload``), so writes carry the caller机构 and
+        ``caller_org_code`` resolves it. The bearer / dev-bypass no-cookie path stamped
+        only ``role`` — leaving ``org_code`` empty — so a draft created via that path got
+        ``applicant_org_code=''`` and then vanished from the discovery snapshot
+        (``request_party_in_scope`` applicant-leg fails on empty org, and ``_is_mine``
+        keys off the role-actor which differs once岗位 switches → 「未找到该申请」).
+
+        We never trust a client-supplied ``org_code`` here (same posture as ``role``):
+        the verified auth context (``AuthContext.org_code``, from claims / dev-bypass env)
+        is the single source. Absent an identity机构 (e.g. CLI/A2A with no org context) we
+        leave the payload untouched so downstream stays honestly empty / fail-closed.
+        """
+        from zw_brain.shared.auth_context import get_auth_context
+
+        ctx = get_auth_context()
+        org_code = str((ctx.org_code if ctx is not None else "") or "").strip()
+        if org_code:
+            payload["org_code"] = org_code
+        return payload
 
     @staticmethod
     def _capability_has_side_effects(skill_id: str) -> bool:

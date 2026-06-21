@@ -62,13 +62,61 @@ function resolveZoneTopic(searchQuery: string, rawQuery: string): string | null 
   return null;
 }
 
+// 把一段（智能解析后的或原始的）查询词投影成「搜索」结构化动作。智能解析 200 与
+// 降级回落两条路径共用，保证降级路径仍给得出可执行的关键词搜索动作。
+function buildP2SearchAction(searchQ: string, rawQuery: string): StructuredAction | null {
+  if (!searchQ) return null;
+  const zone = resolveZoneTopic(searchQ, rawQuery);
+  if (zone) {
+    return {
+      kind: 'filter',
+      label: `搜索：${zone.replace(/专区$/, '')}`,
+      target: 'zone',
+      payload: { zone, query: zone.replace(/专区$/, '') },
+    };
+  }
+  return {
+    kind: 'filter',
+    label: `搜索：${searchQ}`,
+    target: 'query',
+    payload: { query: searchQ },
+  };
+}
+
+// 智能解析失败时的优雅降级：search.intent.parse 只是「意图增强」，搜索本身不依赖它。
+// 当前岗位无该 cap（403）或调用本身失败时，不再把任何错误统统报「解析未命中」，而是
+// 直接用用户原始输入产出一个可执行的关键词搜索动作（搜索面始终可用）。403 额外给出
+// 「当前岗位无智能检索增强」的诚实提示，区分「无权限」与「真的没解析出动作」。
+function degradeP2(query: string, isForbidden: boolean): NLAcceleratorParseResult {
+  const raw = query.trim();
+  const action = buildP2SearchAction(raw, query);
+  const actions = action ? [action] : [];
+  const summary = isForbidden
+    ? `当前岗位无「智能检索」增强能力；已按关键词「${raw || '（空）'}」直接搜索。`
+    : `智能解析暂不可用；已按关键词「${raw || '（空）'}」直接搜索。`;
+  return {
+    summary,
+    // 有可执行搜索动作即 partial（仍可操作、只是少了意图增强）；连查询词都为空才 pending。
+    parse_status: actions.length ? 'partial' : 'pending',
+    actions,
+  };
+}
+
 async function parseP2(query: string, role: string): Promise<NLAcceleratorParseResult> {
-  const data = await postSkill<SearchIntentParse>('search.intent.parse', {
-    role,
-    query,
-    enabled: true,
-    request_id: newRequestId('UI-NL-P2'),
-  });
+  let data: SearchIntentParse;
+  try {
+    data = await postSkill<SearchIntentParse>('search.intent.parse', {
+      role,
+      query,
+      enabled: true,
+      request_id: newRequestId('UI-NL-P2'),
+    });
+  } catch (e) {
+    // 无权限岗位（ROLE_SECURITY_AUDIT / 平台运维 / 系统 等）返 403，以及任何其它
+    // 调用失败：优雅降级到纯关键词搜索，避免「解析未命中」误导（Bug3）。
+    const status = (e as { status?: number } | null)?.status;
+    return degradeP2(query, status === 403);
+  }
   const actions: StructuredAction[] = [];
   const searchQ = deriveP2SearchQuery(query, data);
 
@@ -77,23 +125,9 @@ async function parseP2(query: string, role: string): Promise<NLAcceleratorParseR
     actions.push({ kind: 'navigate', label: '查看在途申请', target: '#/delivery-exchange' });
   } else if (data.intent === 'register_demand') {
     actions.push({ kind: 'navigate', label: '登记找不到的数据', target: '#/request-flow/supply-demand' });
-  } else if (searchQ) {
-    const zone = resolveZoneTopic(searchQ, query);
-    if (zone) {
-      actions.push({
-        kind: 'filter',
-        label: `搜索：${zone.replace(/专区$/, '')}`,
-        target: 'zone',
-        payload: { zone, query: zone.replace(/专区$/, '') },
-      });
-    } else {
-      actions.push({
-        kind: 'filter',
-        label: `搜索：${searchQ}`,
-        target: 'query',
-        payload: { query: searchQ },
-      });
-    }
+  } else {
+    const action = buildP2SearchAction(searchQ, query);
+    if (action) actions.push(action);
   }
 
   const partial = (data.missing_fields?.length ?? 0) > 0;

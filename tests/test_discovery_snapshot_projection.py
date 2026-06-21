@@ -337,3 +337,56 @@ def test_enrich_discovery_uses_prefetched_assets_not_db(temp_db: Path) -> None:
     )
     assert {c["id"] for c in out2["discovery"]["resources"]} == {"RES-IN-DB"}
     assert fake_assets, "sanity: DB 非空"
+
+
+# ── Bug1 回归：草稿按机构在域内则跨岗位切换仍可见（修复申请详情「未找到该申请」） ──
+# 根因链：详情页从 /api/snapshot 客户端快照按 id 找草稿；快照 requests 行级过滤 =
+#   _is_mine(r) OR request_party_in_scope(r, visible_org_codes)。
+# _is_mine 比对 payload['applicant'] == caller_actor，而 actor 随**岗位**变（actor_for_role），
+# 切岗位即失配；此时只剩 applicant-in-scope 腿。当草稿 applicant_org_code='' 时该腿也失效
+# → 草稿被整条 drop（用户切岗位后「未找到该申请」）。真正修复在写侧（server.py 无 cookie
+# 路径补 org_code 注入 + request.py 从会话机构带出 applicant_org_code），使草稿恒带机构、
+# 靠 in-scope 腿稳定可见而不依赖易变的 role-actor。本组测试锁定该读侧不变量。
+
+_OP_ACTOR = "user:gov:ROLE_ORGAN_OPERATER:操作员"
+_MG_ACTOR = "user:gov:ROLE_ORGAN_MANAGER:管理员"
+_SCOPE_ORG = "11370000MB284651XL"
+
+
+def _seed_draft_with_org(app_id: str, *, applicant: str, applicant_org_code: str) -> None:
+    ApplicationRepository().upsert_from_request(
+        {
+            "id": app_id,
+            "status": "draft",
+            "applicant": applicant,
+            "applicantDept": "省大数据局",
+            "applicant_org_code": applicant_org_code,
+            "kind": "apply",
+            "resource_name": "人口库接口",
+            "resourceId": f"res-{app_id}",
+        },
+        tenant_id=TENANT,
+    )
+
+
+def _visible_ids(caller_actor: str) -> set[str]:
+    out = enrich_requests_snapshot(
+        {"requests": []}, tenant_id=TENANT, visible_org_codes={_SCOPE_ORG}, caller_actor=caller_actor
+    )
+    return {r["id"] for r in out["requests"]}
+
+
+def test_draft_with_org_visible_across_role_switch(temp_db: Path) -> None:
+    """机构在域内的草稿：切岗位（caller_actor 变）后仍可见——靠 applicant-in-scope 腿，
+    不依赖随岗位漂移的 role-actor（修复后写侧恒带 org 即落此稳定路径）。"""
+    _seed_draft_with_org("WITH-ORG", applicant=_OP_ACTOR, applicant_org_code=_SCOPE_ORG)
+    assert "WITH-ORG" in _visible_ids(_OP_ACTOR), "创建岗位应可见"
+    assert "WITH-ORG" in _visible_ids(_MG_ACTOR), "切岗位后仍应可见（in-scope 腿稳定）"
+
+
+def test_draft_without_org_drops_on_role_switch(temp_db: Path) -> None:
+    """空机构草稿：创建岗位靠 _is_mine 勉强可见，一旦切岗位 actor 失配即被整条 drop
+    ——这正是「未找到该申请」的根因，故写侧必须带出机构（见上方 docstring）。"""
+    _seed_draft_with_org("NO-ORG", applicant=_OP_ACTOR, applicant_org_code="")
+    assert "NO-ORG" in _visible_ids(_OP_ACTOR), "创建岗位 _is_mine 命中可见"
+    assert "NO-ORG" not in _visible_ids(_MG_ACTOR), "切岗位后 actor 失配 + 无 org 腿 → 消失（根因）"
