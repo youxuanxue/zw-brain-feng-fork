@@ -60,6 +60,7 @@ from zw_brain.shared.logkit import (
 from zw_brain.shared.runtime_config import (
     DevBypassInProductionError,
     InsecureIafTlsInProductionError,
+    _is_prod_deploy_mode,
     get_dev_iam_bypass_enabled,
     get_dev_iam_bypass_role_codes,
     get_iaf_insecure_tls_dev_ack,
@@ -118,6 +119,48 @@ def _web_public_root(web_root: Path | None = None) -> Path:
     if (built / "index.html").is_file():
         return built
     return root
+
+
+def _spa_index_path() -> Path:
+    """Live path to the SPA shell (index.html) the REST process would serve right now.
+
+    Computed fresh from _web_root()/_web_public_root() on every call — NEVER from the
+    module-level WEB_PUBLIC_ROOT constant. That constant is pinned at import time; if the
+    bundle is built (or removed) after import, a stale pin makes /health report green while
+    the shell that ships to the browser is missing. The whole point of this helper is to
+    read the filesystem live.
+    """
+    return _web_public_root(_web_root()) / "index.html"
+
+
+def _webui_index_readable() -> bool:
+    """True when the live SPA shell exists and is a regular file; False on absence or OSError."""
+    try:
+        return _spa_index_path().is_file()
+    except OSError:
+        return False
+
+
+def _validate_webui_shell() -> None:
+    """Startup gate (extracted from main() for testability; aligned with the M5 fail-closed block).
+
+    When the live SPA shell is missing, loudly log; under a prod/production deploy mode also
+    refuse to boot. Non-prod (dev / test / pure-API) logs and continues — the API answers
+    without a built bundle, so only prod treats a missing shell as fatal.
+    """
+    if _webui_index_readable():
+        return
+    _LOGGER.error(
+        "WebUI shell missing: %s does not exist. The REST API will answer but the browser "
+        "gets a blank page. Build the bundle with `npm run build` in zw-brain-web/ (produces "
+        "dist-vite/index.html), or run the Vite dev server on :5173 for the dev shell.",
+        _spa_index_path(),
+    )
+    if _is_prod_deploy_mode():
+        raise SystemExit(
+            "WebUI shell missing under a prod/production deploy mode — refusing to boot. "
+            f"Build the production bundle so {_spa_index_path()} exists before deploying."
+        )
 
 
 WEB_ROOT = _web_root()
@@ -456,9 +499,17 @@ class RestHandler(BaseHTTPRequestHandler):
             self._handle_iaf_session()
             return
         if path == "/health":
-            body: dict[str, Any] = {"status": "ok", "service": "zw-brain-rest"}
+            webui_ok = _webui_index_readable()
+            body: dict[str, Any] = {
+                "status": "ok" if webui_ok else "degraded",
+                "service": "zw-brain-rest",
+            }
             body["agent_runtime"] = _agent_runtime_bridge().runtime_status()
-            self._json(200, body)
+            # The SPA shell is part of the served surface: if it's missing the process can
+            # still answer the API but the browser gets a blank page. Report that honestly
+            # (webui:false + degraded + 503) instead of a false-green 200/ok.
+            body["webui"] = webui_ok
+            self._json(200 if webui_ok else 503, body)
             return
         if path == "/api/agent-runtime/agents":
             self._with_authenticated_request(lambda claims: self._handle_agent_runtime_agents(claims))
@@ -484,7 +535,9 @@ class RestHandler(BaseHTTPRequestHandler):
             self._with_authenticated_request(lambda claims: self._handle_api_skill_get(parsed, claims))
             return
         if path in {"/", "/index.html"}:
-            self._serve_file(WEB_PUBLIC_ROOT / "index.html")
+            # Resolve the serve root LIVE (not the import-time WEB_PUBLIC_ROOT pin) so a bundle
+            # built after process start is served, and a removed bundle yields an honest 404.
+            self._serve_file(_web_public_root(_web_root()) / "index.html")
             return
         if (
             path.startswith("/css/")
@@ -494,7 +547,9 @@ class RestHandler(BaseHTTPRequestHandler):
         ):
             rel = path.lstrip("/")
             # Dev index references /src/*.ts — only resolvable from source tree, not dist-vite.
-            serve_root = WEB_ROOT if rel.startswith("src/") else WEB_PUBLIC_ROOT
+            # Recompute roots live per request (see shell branch above re: stale import-time pin).
+            web_root = _web_root()
+            serve_root = web_root if rel.startswith("src/") else _web_public_root(web_root)
             self._serve_file(serve_root / rel, enforce_web_root=True)
             return
         self._json(404, {"error": "not_found", "path": parsed.path})
@@ -1423,6 +1478,9 @@ def main(host: str | None = None, port: int | None = None) -> None:
         get_iaf_insecure_tls_enabled()
     except (DevBypassInProductionError, InsecureIafTlsInProductionError) as exc:
         raise SystemExit(str(exc)) from exc
+    # SPA-shell startup validation (extracted to _validate_webui_shell for testability; aligned
+    # with the M5 fail-closed block above): prod refuses to boot on a missing shell, dev just logs.
+    _validate_webui_shell()
     log_iaf_runtime_warnings()
     # H2: bring up the in-process blockchain-anchor worker as part of the service
     # lifecycle so the durable anchor_outbox table is drained into audit_receipt.

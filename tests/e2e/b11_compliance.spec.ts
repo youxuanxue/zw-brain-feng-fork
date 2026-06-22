@@ -141,6 +141,10 @@ test.describe('B1.3 服务调用监控 smoke', () => {
     await gotoHash(page, '#/service-ops');
     await expect(page.getByRole('heading', { name: '服务调用监控' })).toBeVisible();
     await expect(page.getByRole('group', { name: '网关运行状态汇总' })).toBeVisible();
+    // 加载完成后数据源徽标落到「实时数据」（不再停在「加载中」）。
+    await expect
+      .poll(() => page.locator('.data-source-badge').first().textContent(), { timeout: 10_000 })
+      .toBe('实时数据');
   });
 
   // 无权限即不可见（路由级）：部门操作员既无审计日志权也无服务调用监控权 → 无权进 /service-ops。

@@ -738,13 +738,130 @@ def _rewrite_advice(
     out["highlights"] = []
 
 
+# 部门操作员申请进度待办的本地化态文案（与 request_service.status_text("draft") 一致）：
+# sync_request_todos 给每张运行时单投一条 apply-progress 待办，其 status 字段即本地化态文案；
+# 草稿单的态文案恒为「草稿」（status_text 的 draft 兜底），据此把草稿与在办分开聚合。
+# R-003（已知约束 / 后续）：此处以**展示文案**判草稿，受限于 sync todo 仅携带本地化 status、
+# 丢了 raw status_code；若 status_text 的 draft 文案改写（i18n/视角），草稿会静默落入「在办」桶
+# （非崩溃，仅误分类）。彻底修需 sync_request_todos 在 todo 上多带 raw status_code、下游按码判，
+# 属 sync todo 形状变更，建议独立小改，本处不扩大改面。
+_OPERATOR_DRAFT_STATUS_TEXT = "草稿"
+# apply-progress 待办标题尾缀的**单一事实源**（R-002）：sync.py 投
+# ``{resourceName}{APPLY_PROGRESS_TODO_TITLE_SUFFIX}``，本模块反向剥同一常量现算出 resourceName
+# 当行内 label。标题模板与 P3 读侧共享、不在 sync 改名；只把尾缀字面量收敛为本常量，
+# producer(sync.py)/consumer(本模块) 同源，杜绝两处硬编码漂移致 label 静默退化。
+APPLY_PROGRESS_TODO_TITLE_SUFFIX = "资源申请进度跟踪"
+
+# 操作员首屏聚合卡稳定 id（前端展开态/理由框按此定位；与 backlog-* 同命名风格但属操作员个人视图）。
+_OP_CARD_DRAFT = "my-draft-applications"
+_OP_CARD_ACTIVE = "my-active-applications"
+_OP_CARD_SUPPLEMENT = "my-supplement-tasks"
+
+
+def _operator_resource_name(todo: dict[str, Any]) -> str:
+    """从 apply-progress 待办标题反推 resourceName（行内 label）。
+
+    sync_request_todos 的标题模板 = ``{resourceName}资源申请进度跟踪``（与 P3 读侧共享、
+    不在 sync 改名）；剥掉固定尾缀即真实资源名。标题不含尾缀（异常/历史形状）时回落整标题，
+    再不济回落申请单号（id），绝不留空 label。"""
+    title = str(todo.get("title", "")).strip()
+    if title.endswith(APPLY_PROGRESS_TODO_TITLE_SUFFIX):
+        name = title[: -len(APPLY_PROGRESS_TODO_TITLE_SUFFIX)].strip()
+        if name:
+            return name
+    return title or str(todo.get("id", ""))
+
+
+def _operator_draft_item(todo: dict[str, Any]) -> dict[str, Any]:
+    """草稿单行内项：提交申请（request.submit，basePayload.request_id）。
+
+    context 取真实可得字段——资源名 + 当前态文案（草稿）；申请单创建时间不在 sync 投影的待办
+    载荷里（标题/态/深链三字段，无时间字段），故不造时间行（诚实留白，不捏 created_at）。"""
+    request_id = str(todo.get("id", ""))
+    resource_name = _operator_resource_name(todo)
+    return {
+        "id": request_id,
+        "label": resource_name,
+        "context": _context(
+            _ctx_row("资源", resource_name),
+            _ctx_row("状态", todo.get("status")),
+        ),
+        "capability": "request.submit",
+        "gate": "request.submit",
+        "basePayload": {"request_id": request_id},
+        "decisions": [
+            {"label": "提交申请", "tone": "primary", "success": "已提交", "payload": {}}
+        ],
+    }
+
+
+def _operator_aggregate_todos(todos: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """把部门操作员申请进度待办（逐单一行）聚合成 ≤3 张诚实摘要卡（纯函数，单测友好）。
+
+    输入 = ``sync_request_todos`` 投影、已套 dept-scope 收口的逐单待办列表（每张运行时单一条
+    apply-progress + 若干 supplement-* 待办）。首屏不再铺 N 行草稿墙，按职责聚合成计数头条卡：
+      - 「草稿待提交」= status 文案为草稿的 apply-progress → 计数头条 + decision-list（逐条草稿挂
+        「提交申请」，request.submit，basePayload.request_id）；href 兜底 #/request-flow。
+      - 「申请在办」= 非草稿 apply-progress（已提交/审批中/受理中/补录中…）→ 计数头条 + href 兜底。
+      - 「补录任务待完成」= supplement-* 类（镇街/现场补录）→ 计数头条 + href 兜底。
+    每张卡复用 ``_emit_backlog_todo``/``_decision_list_action`` 模式（与 MANAGER 审核卡同源），
+    零积压不投该卡（无空死链）。卡序：草稿 → 在办 → 补录。"""
+    drafts: list[dict[str, Any]] = []
+    active = 0
+    supplements = 0
+    for todo in todos:
+        category = str(todo.get("category", ""))
+        if category == "apply-progress":
+            if str(todo.get("status", "")) == _OPERATOR_DRAFT_STATUS_TEXT:
+                drafts.append(todo)
+            else:
+                active += 1
+        elif category.startswith("supplement"):
+            supplements += 1
+    cards: list[dict[str, Any]] = [
+        card
+        for card in (
+            _emit_backlog_todo(
+                item_id=_OP_CARD_DRAFT,
+                label="草稿待提交",
+                count=len(drafts),
+                status="待提交",
+                href="#/request-flow",
+                action_clause=f"{len(drafts)} 张草稿可继续提交",
+                action=_decision_list_action([_operator_draft_item(t) for t in drafts]),
+            ),
+            _emit_backlog_todo(
+                item_id=_OP_CARD_ACTIVE,
+                label="申请在办",
+                count=active,
+                status="在办",
+                href="#/request-flow",
+                action_clause=f"{active} 条申请在办",
+            ),
+            _emit_backlog_todo(
+                item_id=_OP_CARD_SUPPLEMENT,
+                label="补录任务待完成",
+                count=supplements,
+                status="待完成",
+                href="#/request-flow",
+                action_clause=f"{supplements} 项补录任务待完成",
+            ),
+        )
+        if card is not None
+    ]
+    return cards
+
+
 def _enrich_operator_backlog(
     view: dict[str, Any], *, org_visible_request_ids: set[str] | None = None
 ) -> dict[str, Any]:
-    """部门操作员（D57②/R-8）：维持「申请进度」形态（0609 docx 明文，拒协作待办）。
+    """部门操作员（D57②/R-8）：申请进度首屏聚合成 ≤3 张诚实摘要卡（不再铺逐单草稿墙）。
 
-    todos 由 ``sync_request_todos`` 真投影；只把 subtitle / 办理建议从 seed 虚构叙事改为
-    真实进度现算（分类型：申请在办 / 补录任务），零进度给诚实空态。
+    todos 由 ``sync_request_todos`` 真投影（每张运行时单一行 apply-progress + 补录）；本层先套
+    dept-scope 收口，再 :func:`_operator_aggregate_todos` 聚合成「草稿待提交 / 申请在办 / 补录任务
+    待完成」三卡（草稿卡带逐条 request.submit 行内决策，其余两卡 count + href 兜底）。subtitle /
+    办理建议从 seed 虚构叙事改为真实进度现算（草稿≠在办，给可提交/在办/待完成指引、非计数复读），
+    零进度给诚实空态。
 
     「第七面」收口：``sync_request_todos`` 把申请进度/补录待办（category apply-progress/
     supplement-*）投给了**全租户每张运行时单**——按 ``org_visible_request_ids``（本机构可见域，
@@ -759,24 +876,18 @@ def _enrich_operator_backlog(
             categories=_OPERATER_REQUEST_CATEGORIES,
             scoped_ids=org_visible_request_ids,
         )
-        # 写回过滤后列表（操作员路径原不重写 out["todos"]，收口后必须落回，否则前端仍收全量）。
-        out["todos"] = todos
-    progress = sum(1 for t in todos if str(t.get("category", "")) == "apply-progress")
-    supplements = sum(1 for t in todos if str(t.get("category", "")).startswith("supplement"))
-    other = len(todos) - progress - supplements
-    clauses: list[str] = []
-    if progress:
-        clauses.append(f"{progress} 条申请在办")
-    if supplements:
-        clauses.append(f"{supplements} 项补录任务待完成")
-    if other:
-        clauses.append(f"{other} 项其他进度在跟踪")
+    # dept-scope 收口在**聚合之前**：先剔越界逐单待办，再按职责聚合成首屏摘要卡。
+    cards = _operator_aggregate_todos(todos)
+    out["todos"] = cards
+    # 办理建议为诚实进度指引（草稿≠在办，非计数复读）：草稿给「可继续提交」、在办/补录各一句，
+    # 用每卡的 actionClause 现算（如「3 张草稿可继续提交」「2 条申请在办」）。
+    clauses = [str(c["actionClause"]) for c in cards if c.get("actionClause")]
     _rewrite_advice(
         out,
         clauses=clauses,
-        action_titles=[str(t.get("title", "")) for t in todos],
+        action_titles=[str(c.get("title", "")) for c in cards],
         empty_summary="当前没有进行中的申请。",
-        basis="申请进度从真实库现算（申请单状态 + 补录任务）",
+        basis="申请进度从真实库现算（草稿/在办申请单状态 + 补录任务）",
     )
     return out
 

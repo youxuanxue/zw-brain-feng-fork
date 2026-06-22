@@ -217,32 +217,87 @@ def test_busiaudit_augments_keeps_accept_todos_no_application_double(temp_db: No
     assert isinstance(todos["backlog-demand"]["actionClause"], str)
 
 
-def test_operater_keeps_progress_todos_with_honest_advice(temp_db: None) -> None:
-    """部门操作员（D57②/R-8）：申请进度待办内容不被改写；subtitle/办理建议改为真实进度
-    现算（不再漏出 seed 虚构「停车场…黄金旅程」叙事）。
+def test_operater_aggregates_into_summary_cards_with_honest_advice(temp_db: None) -> None:
+    """部门操作员（P1-#2）：申请进度首屏**聚合**成 ≤3 张摘要卡（不再铺逐单草稿墙），
+    草稿卡带逐条 request.submit 行内决策；subtitle/办理建议改为真实进度现算且草稿≠在办
+    （不再漏出 seed 虚构「停车场…黄金旅程」叙事、也非计数复读）。
 
     「第七面」收口：apply-progress/supplement 待办按本机构可见域收口；本测试不传
-    visible_org_codes（默认 None=全局视角），两条待办均有真实在产单背书（id=request_id）故全部
-    保留——验「内容不改写」与「办理建议现算」（dept-scope 行级守卫见 test_workbench_request_todo_dept_scope）。
+    visible_org_codes（默认 None=全局视角），三类待办均有真实在产单背书（id=request_id）故全部
+    入聚合——验「聚合成卡」与「办理建议草稿/在办分句」（dept-scope 行级守卫见
+    test_workbench_request_todo_dept_scope）。
     """
     _seed_backlog()
-    # 在产单背书两条待办（id 即 request_id，与 sync_request_todos 口径一致；生产中待办恒有库背书）。
     app_repo = ApplicationRepository()
+    _seed_application(app_repo, "REQ-draft", "draft")
     _seed_application(app_repo, "REQ-x", "pending")
     _seed_application(app_repo, "REQ-x-sup", "supplementing")
     base = {
         "todos": [
-            {"id": "REQ-x", "title": "申请进度跟踪", "href": "#/request-flow/request/REQ-x", "category": "apply-progress"},
-            {"id": "REQ-x-sup", "title": "差异补录任务", "href": "#/request-flow/request/REQ-x-sup", "category": "supplement-township"},
+            # 草稿单进度待办（status 文案=草稿）→ 草稿卡。
+            {"id": "REQ-draft", "title": "停车场资源申请进度跟踪", "status": "草稿", "href": "#/request-flow/request/REQ-draft", "category": "apply-progress"},
+            # 在办单进度待办（非草稿态）→ 在办卡。
+            {"id": "REQ-x", "title": "户籍资源申请进度跟踪", "status": "审批中", "href": "#/request-flow/request/REQ-x", "category": "apply-progress"},
+            # 补录任务 → 补录卡。
+            {"id": "REQ-x-sup", "title": "户籍差异补录任务", "status": "待补录", "href": "#/request-flow/request/REQ-x-sup", "category": "supplement-township"},
         ],
         "subtitle": "停车场信息复用申请待看进度（seed 虚构）",
         "aiSummary": {"summary": "黄金旅程（seed 虚构）"},
     }
     out = enrich_workbench_backlog(base, "ROLE_ORGAN_OPERATER", tenant_id=TENANT)
-    assert [t["id"] for t in out["todos"]] == ["REQ-x", "REQ-x-sup"], "全局视角下申请待办保留、内容不改写"
+    cards = {c["id"]: c for c in out["todos"]}
+    # 不再是逐单 id 列表（无 56 行墙），而是稳定 id 的聚合摘要卡。
+    assert set(cards) == {"my-draft-applications", "my-active-applications", "my-supplement-tasks"}
+    assert "REQ-draft" not in cards and "REQ-x" not in cards, "首屏不再逐单铺行，聚合成卡"
+    # 草稿卡：计数头条 + 逐条 request.submit 行内决策。
+    draft = cards["my-draft-applications"]
+    assert draft["title"] == "草稿待提交 1 条"
+    assert draft["href"] == "#/request-flow"
+    assert draft["action"]["kind"] == "decision-list"
+    draft_item = draft["action"]["items"][0]
+    assert draft_item["id"] == "REQ-draft"
+    assert draft_item["label"] == "停车场", "label=resourceName（剥进度跟踪尾缀）"
+    assert draft_item["capability"] == "request.submit" and draft_item["gate"] == "request.submit"
+    assert draft_item["basePayload"] == {"request_id": "REQ-draft"}
+    assert [d["label"] for d in draft_item["decisions"]] == ["提交申请"]
+    # 在办 / 补录卡：计数头条 + href 兜底，无行内决策（不 re-grain）。
+    assert cards["my-active-applications"]["title"] == "申请在办 1 条"
+    assert "action" not in cards["my-active-applications"]
+    assert cards["my-supplement-tasks"]["title"] == "补录任务待完成 1 条"
+    # 办理建议：草稿≠在办，给「可继续提交 / 在办 / 待完成」诚实分句，非计数复读。
     assert "停车场" not in out["subtitle"] and "虚构" not in out["subtitle"]
-    assert "1 条申请在办" in out["aiSummary"]["summary"]
-    assert "1 项补录任务待完成" in out["aiSummary"]["summary"]
+    summary = out["aiSummary"]["summary"]
+    assert "1 张草稿可继续提交" in summary
+    assert "1 条申请在办" in summary
+    assert "1 项补录任务待完成" in summary
+
+
+def test_operater_n_drafts_aggregate_to_one_card_count_n(temp_db: None) -> None:
+    """N 张草稿单聚合成**一张**草稿卡，计数==N、行内决策逐条枚举（不再 N 行草稿墙）。"""
+    n = 5
+    # 在产单背书 N 条 apply-progress 待办（id=request_id，过 dept-scope 收口；同 sync 口径）。
+    app_repo = ApplicationRepository()
+    for i in range(n):
+        _seed_application(app_repo, f"REQ-d{i}", "draft")
+    todos = [
+        {
+            "id": f"REQ-d{i}",
+            "title": f"资源{i}资源申请进度跟踪",
+            "status": "草稿",
+            "href": f"#/request-flow/request/REQ-d{i}",
+            "category": "apply-progress",
+        }
+        for i in range(n)
+    ]
+    base = {"todos": todos, "subtitle": "x", "aiSummary": {"summary": "旧"}}
+    out = enrich_workbench_backlog(base, "ROLE_ORGAN_OPERATER", tenant_id=TENANT)
+    # N 张草稿 → 单卡（首屏只一行草稿摘要，非 N 行）。
+    assert [c["id"] for c in out["todos"]] == ["my-draft-applications"]
+    draft = out["todos"][0]
+    assert draft["title"] == f"草稿待提交 {n} 条"
+    assert len(draft["action"]["items"]) == n
+    assert {it["id"] for it in draft["action"]["items"]} == {f"REQ-d{i}" for i in range(n)}
+    assert f"{n} 张草稿可继续提交" in out["aiSummary"]["summary"]
 
 
 def test_operater_empty_progress_is_honest_empty(temp_db: None) -> None:

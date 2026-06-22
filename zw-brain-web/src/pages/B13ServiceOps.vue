@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue';
 import { useGatewayRuntime } from '@/composables/useGatewayRuntime';
 import { getProductRole } from '@/composables/useProductRole';
+import { waitForAuthBootstrap } from '@/composables/useAuth';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DataSourceBadge from '@/components/DataSourceBadge.vue';
 import { formatTime } from '@/lib/userLanguage';
@@ -13,8 +14,11 @@ import { formatTime } from '@/lib/userLanguage';
 const currentRole = getProductRole();
 const gateway = useGatewayRuntime();
 
-onMounted(() => {
-  void gateway.load(currentRole.value);
+onMounted(async () => {
+  // 先等认证 bootstrap 完成：本页若在 bootstrap 落地前挂载，gateway.load 的
+  // fetch 会卡在 bootstrap promise 上，徽标停在「加载中」。等齐再发请求。
+  await waitForAuthBootstrap();
+  await gateway.load(currentRole.value);
 });
 
 async function refresh(): Promise<void> {

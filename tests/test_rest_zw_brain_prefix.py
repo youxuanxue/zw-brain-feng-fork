@@ -36,13 +36,17 @@ class TestStripAppPrefix:
 
 
 def test_health_routes_with_and_without_prefix() -> None:
+    # /health 在前缀剥离两条路径下都路由到同一 handler。状态码与 status 取决于 WebUI shell
+    # 是否就绪（built bundle 在 → 200/ok；缺失 → 503/degraded），故这里只断不变量形状，不再
+    # 硬钉 200/"ok"——是否构建过 dist-vite 不影响「前缀路由命中且服务身份正确」这条被测属性。
     server, thread, port = run_server()
     try:
         for path in ("/health", "/zw-brain/health"):
             status, _, body = http_request("GET", f"http://127.0.0.1:{port}{path}")
-            assert status == 200, (path, body)
-            assert body["status"] == "ok"  # type: ignore[index]
+            assert status in (200, 503), (path, status, body)
             assert body["service"] == "zw-brain-rest"  # type: ignore[index]
+            assert "webui" in body, (path, body)  # type: ignore[operator]
+            assert body["status"] in {"ok", "degraded"}, (path, body)  # type: ignore[index]
     finally:
         stop_server(server, thread)
 

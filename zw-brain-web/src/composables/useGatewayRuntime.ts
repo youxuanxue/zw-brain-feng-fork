@@ -42,6 +42,10 @@ export function useGatewayRuntime(): UseGatewayRuntimeResult {
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);
       applyPanelFallback({ data, source }, GATEWAY_RUNTIME_FIXTURE, null);
+    } finally {
+      // 兜底：source 永不停在 'loading'（徽标永久「加载中」）。仅在仍为 'loading'
+      // 时翻 'error'——成功路径已置 'live'、回退已置 'fixture'/'error'，不覆盖。
+      if (source.value === 'loading') source.value = 'error';
     }
   }
 

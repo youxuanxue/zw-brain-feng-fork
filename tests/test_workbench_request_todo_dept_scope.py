@@ -59,6 +59,16 @@ def _ids(out: dict) -> list[str]:
     return [str(t.get("id")) for t in out.get("todos", [])]
 
 
+def _card(out: dict, card_id: str) -> dict | None:
+    """部门操作员首屏申请待办聚合成摘要卡（my-draft/active/supplement-applications）后，
+    按稳定 card id 取卡——断言其计数（标题尾「N 条」）以验证 dept-scope 收口仍生效
+    （收口在聚合之前，越界单不计入卡计数）。"""
+    for t in out.get("todos", []):
+        if str(t.get("id")) == card_id:
+            return t
+    return None
+
+
 # ── 部门管理员：申请审核/汇总待办按本机构可见域收口（D61 裁决②）───────────────────────
 def _manager_view() -> dict:
     return {
@@ -123,11 +133,14 @@ def _seed_two_org_progress_apps() -> None:
 
 
 def test_operator_progress_todos_scoped_to_visible_org(temp_db: None) -> None:
+    # 操作员首屏聚合成摘要卡（在办/补录），收口在聚合之前：visible={ORG_A} 时「申请在办」卡
+    # 只计本机构 APP-MINE（1 条，非 2）——APP-OTHER(ORG_B) 被部门收口剔除、不计入卡计数；
+    # 本机构补录待办（APP-MINE）保留为补录卡。
     _seed_two_org_progress_apps()
     out = enrich_workbench_backlog(_operator_view(), OPERATER, tenant_id=TENANT, visible_org_codes={ORG_A})
-    ids = _ids(out)
-    assert "APP-MINE" in ids, "本机构申请进度/补录待办保留"
-    assert "APP-OTHER" not in ids, "别部门申请进度待办不可见（部门收口，D61②）"
+    active = _card(out, "my-active-applications")
+    assert active is not None and active["title"] == "申请在办 1 条", "本机构申请在办计入、别部门收口剔除（D61②）"
+    assert _card(out, "my-supplement-tasks") is not None, "本机构补录待办保留"
 
 
 def test_operator_progress_todos_fail_closed_on_empty_visible(temp_db: None) -> None:
@@ -137,9 +150,11 @@ def test_operator_progress_todos_fail_closed_on_empty_visible(temp_db: None) -> 
 
 
 def test_operator_progress_todos_global_when_visible_none(temp_db: None) -> None:
+    # 全局视角（None）不收口：APP-MINE + APP-OTHER 两张在办单都计入「申请在办」卡（2 条）。
     _seed_two_org_progress_apps()
     out = enrich_workbench_backlog(_operator_view(), OPERATER, tenant_id=TENANT, visible_org_codes=None)
-    assert {"APP-MINE", "APP-OTHER"} <= set(_ids(out)), "全局视角（None）保留全量，不收口"
+    active = _card(out, "my-active-applications")
+    assert active is not None and active["title"] == "申请在办 2 条", "全局视角（None）保留全量，不收口"
 
 
 # ── 业务运营员：受理待办（accept）保持全局，不受 visible_org_codes 影响（D61 裁决④）──────

@@ -208,6 +208,9 @@ def sync_request_todos(
     if store is None:
         return
     from zw_brain.command.card_session import is_runtime_request_payload  # noqa: PLC0415
+    from zw_brain.domain.workbench_backlog_projection import (  # noqa: PLC0415
+        APPLY_PROGRESS_TODO_TITLE_SUFFIX,
+    )
     from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID  # noqa: PLC0415
 
     _accept_statuses = {"submitted", "pending"}
@@ -222,7 +225,7 @@ def sync_request_todos(
         demo_state_sync.upsert_todo(
             snapshot,
             "ROLE_ORGAN_OPERATER", request_id,
-            f"{resource_name}资源申请进度跟踪",
+            f"{resource_name}{APPLY_PROGRESS_TODO_TITLE_SUFFIX}",
             status_text(request, "applicant"),
             f"#/request-flow/request/{request_id}",
             category="apply-progress",

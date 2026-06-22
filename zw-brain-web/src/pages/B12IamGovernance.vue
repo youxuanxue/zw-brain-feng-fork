@@ -62,6 +62,28 @@ const canWrite = computed(() => gov.actorSource.value === 'live');
 
 const actorItems = computed<ActorItem[]>(() => gov.actorData.value?.items ?? []);
 
+// 客户端分页：后端已返回筛选后的全集，前端按页切片渲染，避免一次性铺开数百行。
+const ACTOR_PAGE_SIZE = 20;
+const actorPage = ref(1);
+const actorPageCount = computed(() => Math.max(1, Math.ceil(actorItems.value.length / ACTOR_PAGE_SIZE)));
+const actorPageSafe = computed(() => Math.min(Math.max(actorPage.value, 1), actorPageCount.value));
+const pagedActorItems = computed<ActorItem[]>(() => {
+  const start = (actorPageSafe.value - 1) * ACTOR_PAGE_SIZE;
+  return actorItems.value.slice(start, start + ACTOR_PAGE_SIZE);
+});
+const actorPageStart = computed(() =>
+  actorItems.value.length ? (actorPageSafe.value - 1) * ACTOR_PAGE_SIZE + 1 : 0,
+);
+const actorPageEnd = computed(() =>
+  Math.min(actorPageSafe.value * ACTOR_PAGE_SIZE, actorItems.value.length),
+);
+function turnActorPage(delta: number): void {
+  const next = actorPageSafe.value + delta;
+  if (next < 1 || next > actorPageCount.value) return;
+  cancelAssign(); // 翻页时收起任何已展开的行内分派表单，避免它悬挂在不可见的行上。
+  actorPage.value = next;
+}
+
 const actorSummaryText = computed(() => {
   const summary = gov.actorData.value?.summary;
   if (!summary) return '—';
@@ -94,6 +116,7 @@ async function reloadActors(): Promise<void> {
     roleCode: actorRoleFilter.value || undefined,
     status: actorStatusFilter.value || undefined,
   });
+  actorPage.value = 1; // 所有筛选/搜索/刷新都经此重置到首页（单一重置点）。
 }
 
 function guardWrite(): boolean {
@@ -331,7 +354,7 @@ onMounted(() => {
           数据暂不可用，请稍后重试。
         </div>
 
-        <table v-if="actorItems.length" class="focus-table">
+        <table v-if="pagedActorItems.length" class="focus-table">
           <thead>
             <tr>
               <th>用户</th>
@@ -343,7 +366,7 @@ onMounted(() => {
             </tr>
           </thead>
           <tbody>
-            <template v-for="item in actorItems" :key="item.external_actor_id">
+            <template v-for="item in pagedActorItems" :key="item.external_actor_id">
               <tr>
                 <td>
                   <div class="actor-name">{{ item.display_name }}</div>
@@ -402,6 +425,14 @@ onMounted(() => {
         <p v-else-if="gov.actorSource.value === 'live'" class="empty-hint">当前筛选下暂无用户（可能尚未导入存量用户）。</p>
         <p v-else-if="gov.actorSource.value === 'error'" class="empty-hint">后端不可用，暂无法加载用户列表。</p>
         <p v-else class="empty-hint">正在加载……</p>
+        <footer v-if="pagedActorItems.length && actorPageCount > 1" class="actor-pager">
+          <span class="actor-pager-range">第 {{ actorPageStart }}–{{ actorPageEnd }} 条 / 共 {{ actorItems.length }} 条</span>
+          <span class="actor-pager-nav">
+            <button type="button" class="row-link-btn" :disabled="actorPageSafe <= 1" @click="turnActorPage(-1)">‹ 上一页</button>
+            <span class="actor-pager-no">第 {{ actorPageSafe }}/{{ actorPageCount }} 页</span>
+            <button type="button" class="row-link-btn" :disabled="actorPageSafe >= actorPageCount" @click="turnActorPage(1)">下一页 ›</button>
+          </span>
+        </footer>
       </div>
 
       <!-- ════ Tab ② 谁能访问什么 ════ -->
@@ -650,6 +681,26 @@ onMounted(() => {
 .assign-actions {
   display: flex;
   gap: 10px;
+}
+.actor-pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  font-size: 13px;
+}
+.actor-pager-range {
+  color: #6b7280;
+}
+.actor-pager-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.actor-pager-no {
+  color: #6b7280;
 }
 
 /* 角色 → 能力矩阵 */
