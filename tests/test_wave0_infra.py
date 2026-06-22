@@ -1,7 +1,6 @@
 # Wave: 0
 # Journey: Cross (infrastructure)
 # Covers: infra-contract-projection / infra-audit-bus / infra-inference-gateway / infra-iam-session
-# infra-agentruntime-embedded：见 tests/test_agentruntime_embedded.py
 """Wave 0 基础设施横切 .feature 的数据层 / 单元层验收。
 
 仅断言**已实现**的 infra 行为；UI 渲染 / 未实现的富字段场景 skip 并注明归属。
@@ -367,18 +366,3 @@ def test_start_local_defaults_inference_mock_and_documents_mode():
     mock_block = script.find('if [[ -z "${ZW_BRAIN_INFERENCE_MODE:-}" ]]; then')
     start_call = script.find("\nstart_rest\n")
     assert mock_block != -1 and start_call != -1 and mock_block < start_call
-
-
-# ======================================================================
-# infra-agentruntime-embedded —— 实现见 tests/test_agentruntime_embedded.py
-# ======================================================================
-
-def test_infra_agentruntime_embedded_validate_and_doctor():
-    """薄封装：wave-0 feature 文件引用同一验收。"""
-    from tests.test_agentruntime_embedded import (
-        test_agentruntime_doctor_dev_target,
-        test_agentruntime_validate_zw_search_helper,
-    )
-
-    test_agentruntime_validate_zw_search_helper()
-    test_agentruntime_doctor_dev_target()

@@ -9,8 +9,10 @@ that belong one direction up. This guard scans both ``zw_brain/domain/`` and
 ``zw_brain.entry`` (TYPE_CHECKING-only imports are allowed).
 
 shared/ scan added 2026-06 after ``shared/agent_runtime/{service,capability_provider}.py``
-were caught eager-importing ``zw_brain.command``; the fix uses IoC
-(``register_brain_provider``) + a TYPE_CHECKING-only annotation, with **no whitelist**.
+were caught eager-importing ``zw_brain.command``; the fix used IoC (a provider
+registered from the upper layer) + a TYPE_CHECKING-only annotation, with **no
+whitelist**. (That IoC wiring was later removed in D68 once the http-form facade
+stopped needing an in-process brain — shared/agent_runtime now imports no command.)
 
 Action D (#142) introduced ``zw_brain/domain/errors.py`` to retire
 ``from zw_brain.command.brain import NotFoundError`` reverse imports inside
@@ -140,8 +142,8 @@ def main() -> int:
     )
     print(
         "  fix: inline the helper, move pure logic down a layer, or invert the "
-        "dependency (let the upper layer register a provider — see "
-        "shared/agent_runtime register_brain_provider). TYPE_CHECKING-only imports are fine."
+        "dependency (let the upper layer register a provider via IoC). "
+        "TYPE_CHECKING-only imports are fine."
     )
     return 1
 

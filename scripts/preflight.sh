@@ -164,6 +164,8 @@ done <<'CHECKS'
 段 74	scripts/check_no_sqlite.py	no-sqlite (全盘 PG 防回潮 — 受跟踪代码禁 import sqlite3 / sqlite:// URL / 设 ZW_BRAIN_DB_PATH / 拷贝 .db 文件；db.py 运行时已对 sqlite URL 与 ZW_BRAIN_DB_PATH fail-closed raise，本守卫在静态层兜底防 SQLite 旋钮悄悄写回；故意提及加 # sqlite-allow:)
 段 75	scripts/check_no_placeholder_word.py	no-placeholder-word (占位套话源码级兜底 — 扫 zw-brain-web/src/** 的 .vue/.ts，禁「功能建设中/建设中/敬请期待/即将上线/coming soon」等占位文案；不依赖路由/页面白名单，覆盖 jobs_page_audit / customer_acceptance_checklist / twin_browser_pages 固定 PAGE 白名单漏掉的 URL-only 死路由；行注释加 placeholder-word-exempt 豁免)
 段 76	scripts/check_e2e_no_cookie_write.py	no-e2e-cookie-write (P2 测试桩债止血 — e2e 禁带 cookie 的 page.request.(post|put|patch|delete) 写 /api/skills：后端 CSRF 双提交按 HTTP 方法门控（server.py _method_requires_csrf），cookie 上下文写必 403 csrf_token_invalid → setup 假失败/假覆盖；须走无 cookie 独立 APIRequestContext（playwright.request.newContext，role 走 body，命中 dev-bypass Path 2）；白名单 page.request.get（读），行注释 // csrf-ok: 豁免；范式参照 permission_matrix_walkthrough.spec.ts）
+段 77	scripts/check_agent_runtime_import_confinement.py	ar-import-confinement (D68 单一模型 — zw_brain/ 下零 `from agent_runtime` SDK import（ALLOWED_SDK_IMPORTERS 为空，embedded 退役）；防 embedded→http 形态切换把 SDK 符号泄漏进业务/entry 层重新紧耦合；上层只调 facade，接缝若需扩面须改 ALLOWED_SDK_IMPORTERS + PR 说明)
+段 30	scripts/check_external_register_metadata.py	external-register-metadata (D68 T1 — 外部 Agent source_type=external-register 强制 4 字段 runtime_spec_version/agent_yaml_ref/agent_trust_level/workspace_required 且合法；非 external-register 禁带这 4 字段防污染；GATE D33.d agent_trust_level 与 F4 包级 trust_level 区分)
 CHECKS
 
 echo ""

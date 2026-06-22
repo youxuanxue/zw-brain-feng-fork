@@ -44,14 +44,3 @@ def test_rest_server_health_agent_runtime_disabled(monkeypatch: pytest.MonkeyPat
     from zw_brain.entry.rest.server import _agent_runtime_bridge
 
     assert _agent_runtime_bridge().runtime_status() == {"enabled": False}
-
-
-def test_dynamic_provider_tool_capability_matches_sdk() -> None:
-    """SDK rename 时 zw-brain 副本必须同步——避免动态 tool 静默失配。"""
-    pytest.importorskip("agent_runtime")
-
-    from agent_runtime.runtime.dynamic_capabilities import DYNAMIC_PROVIDER_TOOL_CAPABILITY
-
-    from zw_brain.shared.agent_runtime.capability_provider import _DYNAMIC_PROVIDER_TOOL_CAPABILITY
-
-    assert _DYNAMIC_PROVIDER_TOOL_CAPABILITY == DYNAMIC_PROVIDER_TOOL_CAPABILITY

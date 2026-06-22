@@ -1,5 +1,8 @@
-# zw-brain Embedded AgentRuntime（架构 §8.2 Phase 1）
-# 安装：解压 vendor/agent-runtime/release/v1.1.2.2/*.tar.gz 后执行 ./install.sh（见 vendor/agent-runtime/README.md）
+# zw-brain 独立 AgentRuntime 服务 · 生产 serve 配置（D68 单一模型，非 embedded）
+# 用法：agent-runtime serve --config agent-runtime.yaml --product（trusted_gateway 鉴权）
+# 本地 dev/联调用 agent-runtime.dev.yaml（auth none）。安装独立 AR 见 vendor/agent-runtime/README.md。
+# profile=embedded_single_tenant 是 AR 的「单租户/内存存储」profile 名（控制 store/auth，
+# 与进程拓扑无关）；zw-brain 进程内不再内嵌 AR（见 zw_brain/shared/agent_runtime/）。
 product_name: zw-brain
 profile: embedded_single_tenant
 context_mode: minimal

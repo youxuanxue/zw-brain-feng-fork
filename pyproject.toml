@@ -32,14 +32,12 @@ redis = [
 postgres = [
   "psycopg[binary]>=3.2",
 ]
-# vendor 离线包是唯一交付路径（见 vendor/agent-runtime/README.md）；extra 严格 pin 到 tarball 同版本
-# 防 `pip install zw-brain[agentruntime]` 拉到不兼容的上游版本
-agentruntime = [
-  "agent-runtime==1.1.2.2",
-]
+# D68 单一模型（embedded 退役）：zw-brain 进程内**不依赖** AgentRuntime SDK——AR 是独立
+# 进程服务，经 HTTP 驱动（http_client）。故此处不再声明 agent-runtime 依赖/extra。
+# 独立 AR 自身从 vendor 离线包安装（见 vendor/agent-runtime/README.md + Dockerfile.agent-runtime）。
 dev = [
   "pytest>=9.0.3",      # CVE-2025-71176 fixed in 9.0.3
-  "pytest-asyncio>=0.24",  # 仓内唯一异步测试 tests/test_agentruntime_embedded.py（Embedded SDK 进程内能力调用）需此插件才真跑；不装→该用例 fail
+  "pytest-asyncio>=0.24",  # 异步测试插件（仓内异步 fixture/用例需）
   "ruff>=0.5",
   "fakeredis>=2.0",
   "PyYAML>=6.0",        # preflight 段 26 cross-field check（PR #117）

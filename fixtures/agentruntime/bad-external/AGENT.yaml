@@ -1,0 +1,19 @@
+# T1 负向样本：故意违规的外部 AGENT.yaml，用于证明 agentruntime_validate 真命中违规
+# （旧 spec / 禁区 scope / auth none / 直连模型 provider / 多租户）。validate 应 FAIL。
+schema_version: anp-agent/v1            # 违规①：旧 spec（须 v1.1/v1.2）
+kind: Agent
+metadata:
+  id: external.bad-agent
+  name: 违规外部 agent
+  # 违规②：缺 version
+  trust_level: untrusted
+model:
+  provider: openai                     # 违规③：直连 provider（非集团 gateway）
+  model: gpt-4o
+  base_url: https://api.openai.com/v1
+auth:
+  mode: none                           # 违规④：禁用 none
+tenant_mode: multi                     # 违规⑤：多租户（须 sd-default 单租户）
+tools:
+  - kind: skill                        # 违规⑥：历史 kind:skill
+    name: x

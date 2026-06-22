@@ -1,5 +1,13 @@
 # AgentRuntime T1 Readiness 预案
 
+> ✅ **T1 已 land（D68 Item·2026-06-22，产品研发负责人决定触发）**：本预案描述的工具链已实装——
+> `agentruntime_validate`（10 规则）/ `agentruntime_doctor`（8 维）+ Registry `external-register`
+> 4 字段（来源信任级字段更名 **`agent_trust_level`**，与 F4 包级 `trust_level` 区分，GATE D33.d）+
+> preflight **段30** `check_external_register_metadata` + 外部隔离实例 `agent-runtime.external.yaml`
+> （untrusted / 无 Daytona）+ fixtures + `tests/test_agentruntime_t1_onboarding.py`。验：平台指南 agent
+> + hello-agent 样本 validate/doctor 绿、违规样本 FAIL。下方 §2 的「1-day land」清单与本次实装对应
+> （§3.1 F4 护栏测试因更名无需删除、保留有效）。决策见 decision-log D68。
+
 > 原 e4-b1 agentruntime F6 deliverable 预案（执行计划已随 D46.e 退役）；本预案不 land
 > 主仓 Registry schema 字段，按架构 §8.6「触发式实现」原则准备好工具链
 > spike，让 T1/T2/T3 任一触发当日 1 天内可 land。

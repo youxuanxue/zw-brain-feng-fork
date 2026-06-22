@@ -11,7 +11,7 @@
 
 ## 1. 构建镜像
 
-镜像默认内置 **agent-runtime**（Embedded SDK 依赖，来自 `vendor/agent-runtime/release/v1.1.2.2/` 离线包）与 `agents/`。在 **zw-brain 仓库根目录** 构建即可，**无需**同级 `agent-runtime` 源码仓库：
+**D68 单一模型**：zw-brain 镜像**不再内置 agent-runtime**（embedded 退役，进程内零 SDK），只含 `agents/`（供能力列出）。AgentRuntime 是**独立服务**——单独构建 `Dockerfile.agent-runtime`（来自 `vendor/agent-runtime/release/v1.1.3/` 离线包）或用 `docker-compose` 的 `agent-runtime` 服务；zw-brain 运行时设 `ZW_BRAIN_AGENT_RUNTIME_MODE=http` + `ZW_BRAIN_AGENT_RUNTIME_URL` 指向它。zw-brain 镜像在仓库根构建即可：
 
 ```bash
 cd /path/to/zw-brain
@@ -31,8 +31,36 @@ docker build -t zw-brain:1.0.0 .
 - `zw-brain-a2a`：A2A 入口
 - `zw-brain-migrate-legacy`：旧平台数据迁移入口
 
-> 外部 Agent 接入不需独立容器入口：通过 `AGENT.yaml` 经 AgentRuntime 内核运行（基线 §8.1 / R15），协议规范以 `docs/agent-runtime/*` 为准；如未来出 Standalone HTTP 形态再扩入口。  
-> Embedded 启用与环境变量见 [`agent-runtime-embedded.md`](agent-runtime-embedded.md)（勿直接 `source` 旧环境 `agent-runtime/.env.local` 中的路径项）。
+> 外部 Agent 接入不需独立容器入口：`AGENT.yaml` 由**独立的 AgentRuntime 服务**运行（D68 单一模型），协议规范以 `docs/agent-runtime/*` 为准。  
+> AgentRuntime 镜像单独构建：`docker build -f Dockerfile.agent-runtime -t zw-brain-agent-runtime:1.1.3 .`（离线包 + `agents/` + entrypoint 渲染 openapi servers）。两服务**一起部署**最简路径见 §1.1（`docker-compose`）。embedded（进程内 SDK）形态已随 D68 退役（决策见 decision-log D68 + `docs/decisions/agentruntime-formfactor-proposal.md`）。
+
+## 1.1 docker-compose：一起部署 pg + agent-runtime + zw-brain（dev/演示推荐）
+
+D68 单一模型下，**两个服务一起部署**：仓库根 `docker-compose.yml` 已含三件套——`postgres`（库）、
+`agent-runtime`（独立 AR 服务，:8001）、`zw-brain`（REST + WebUI，:8800，经 HTTP 驱动 AR）。一条命令同起：
+
+```bash
+cd /path/to/zw-brain
+cp .env.example .env          # 填集团推理网关（决定 Agent 是否“真的会思考”），其余用默认
+docker compose up -d          # 起 postgres → agent-runtime（healthy）→ zw-brain（depends_on healthy）
+docker compose ps             # 三个容器 healthy
+curl http://127.0.0.1:8800/health        # zw-brain REST
+curl http://127.0.0.1:8001/runtime/health # 独立 AR
+```
+
+> ⚠️ compose 的 `zw-brain` 服务是 **dev/演示姿态**（`ZW_BRAIN_DEPLOY_MODE=dev` + IAM 免登录），仅本地看效果。
+> 生产用 §4 的 `docker run --env-file`（真 IAF/OIDC + Redis 会话 + prod fail-closed 守卫）。
+
+**agents 单一源（一处维护，两服务共读）**：`agents/*/AGENT.yaml` 已纳入 zw-brain git，是被两边共读的**单一事实源**——
+AR 用它**跑** Agent，zw-brain 用它**列** Agent。compose 把 `./agents` 以**只读卷**挂进两个服务（`./agents:/app/agents:ro`
+给 zw-brain 列、`./agents:/srv/agents-src:ro` 给 AR 跑），加一个 Agent 两边即时同步、无需重建镜像。
+
+- **AR 容器 entrypoint** 把只读源拷到可写 `/app/agents`，再按 `ZW_BRAIN_REST_BASE_URL`（compose 内 = `http://zw-brain:8800`）
+  渲染各 `*.openapi.yaml` 的 `servers.url`——因为 AgentRuntime **不解析** spec 内 `${env:}`，跨容器回调地址须在部署期落成字面量（见 `scripts/render-agent-specs.sh`）。本地 start-local 用 committed 默认 `http://127.0.0.1:8800`，无需渲染。
+- **数据应用页自动派生**：WebUI【数据应用】画廊从 `/api/agent-runtime/agents` 的 `category`（由 `AGENT.yaml labels.surface` 派生：`data-app`/`copilot`）渲染——给新 Agent 打 `labels.surface: data-app` 即自动进画廊并可跳转对话，**零前端改动**。
+
+> 渲染只在 **AR 容器**发生（跨容器服务名不同）；zw-brain 容器只「列」不回调，无需渲染。生产把 `agent-runtime` 服务的
+> `command` 切回默认 CMD（`agent-runtime.yaml` / `trusted_gateway`，而非 compose 默认的 `agent-runtime.dev.yaml` / `auth none`）。
 
 ## 2. 导出与导入镜像文件
 
@@ -171,36 +199,39 @@ location /zw-brain/ {
 | `ZW_BRAIN_SESSION_REDIS_URL` | BFF 会话 Redis URL；**多 REST 副本 / 生产必填**（例如 `redis://redis:6379/0`） | 未设置（单 worker 内存会话） |
 | `ZW_BRAIN_SESSION_REDIS_KEY_PREFIX` | Redis session key 前缀 | `zw-brain:session:` |
 | `ZW_BRAIN_DEPLOY_MODE` | **镜像默认 `prod`**（生产姿态：M5 fail-closed 守卫激活——拒 dev-iam-bypass、拒 insecure-TLS；并强制要求 `ZW_BRAIN_SESSION_REDIS_URL`）。本地/演示部署须在 env-file 显式覆盖为 `dev`（或非 prod 值）才能用 dev bypass | **`prod`（镜像 ENV 默认；env-file 可覆盖）** |
-| `ZW_BRAIN_AGENT_RUNTIME_ENABLED` | 启用 Embedded AgentRuntime 与 `/api/agent-runtime/*` 任务接口 | 未设置（关闭） |
-| `ZW_BRAIN_AGENT_RUNTIME_PROFILE` | `local_dev` 或 `embedded_single_tenant` | 镜像内按环境配置 |
-| `ZW_BRAIN_AGENT_RUNTIME_CONFIG` | `agent-runtime.yaml` 路径 | 镜像内 `/app/agent-runtime.yaml` |
-| `ZW_BRAIN_AGENTS_DIR` | 内置 Agent 清单目录 | 镜像内 `/app/agents` |
-| `ZW_BRAIN_AGENT_RUNTIME_SCHEMA` | `agent.schema.json` 路径 | 镜像内 `/app/schemas/agent.schema.json` |
-| `ZW_BRAIN_INFERENCE_GATEWAY_URL` | Embedded Agent 经集团推理网关（与 zw-brain LLM 同一约束） | 启用 AgentRuntime 时必填 |
-| `ZW_BRAIN_INFERENCE_MODEL` | 推理模型名 | 启用 AgentRuntime 时必填 |
-| `ZW_BRAIN_INFERENCE_API_KEY` | 集团推理网关 API Key；Embedded 启动时写入 `OPENAI_COMPATIBLE_API_KEY` | 网关需鉴权时必填；不鉴权可设任意非空占位（如 `unused`）或配合 `ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL=1` |
-| `ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL` | `1` 表示网关不要求 API Key，自动使用占位 `unused` | 未设置 |
-| `ZW_BRAIN_PLATFORM_DOCS_ROOTS` | 平台指南 Agent 可读文档根目录（`os.pathsep` 分隔）；Docker 默认 `/app/docs` | 未设置时为本机仓库 `docs/` |
+| `ZW_BRAIN_AGENT_RUNTIME_ENABLED` | 启用 `/api/agent-runtime/*` 任务接口（zw-brain → 独立 AR） | 未设置（关闭） |
+| `ZW_BRAIN_AGENT_RUNTIME_URL` | **独立 AgentRuntime 服务地址**，zw-brain 经 HTTP 驱动它；compose 内 = `http://agent-runtime:8001` | 启用时必填（单一模型） |
+| `ZW_BRAIN_AGENTS_DIR` | Agent 清单目录（**单一源**：zw-brain 用它「列」、AR 用它「跑」） | 镜像内 `/app/agents` |
+
+> D68 单一模型：`ZW_BRAIN_AGENT_RUNTIME_PROFILE` / `_CONFIG` / `_SCHEMA` 等 **embedded（进程内 SDK）配置已退役**（zw-brain 进程不再读）。
+> Agent 的**推理凭据**（`ZW_BRAIN_INFERENCE_*` → 桥接 `OPENAI_COMPATIBLE_*`）配在**独立 AR 服务**（`agent-runtime` 容器 / `Dockerfile.agent-runtime`），不在 zw-brain 容器；平台指南 Agent 的文档根 `ZW_BRAIN_PLATFORM_DOCS_ROOTS` 同样配在 AR 服务侧（compose 已注入）。
 
 如需接入 IAF/OIDC、外部数据库或集团推理平台，应通过环境变量注入对应配置，不要把密钥、连接串或证书写入镜像。内网部署若 IAF 使用自签名证书，优先挂载 CA bundle（`ZW_BRAIN_IAF_CA_FILE`）；仅在无法提供证书时才使用 `ZW_BRAIN_IAF_VERIFY_SSL=false`。
 
-启用 Embedded AgentRuntime 示例（在 §4 `docker run` 基础上追加）：
+启用 AgentRuntime（D68 单一模型，独立 AR 服务）示例——zw-brain 容器只需指向独立 AR：
 
 ```bash
+# (a) 先起独立 AgentRuntime 服务（:8001）；推理凭据配在 AR 侧（桥接 OPENAI_COMPATIBLE_*）
+docker run -d --name zw-brain-agent-runtime -p 8001:8001 \
+  -e OPENAI_COMPATIBLE_BASE_URL=https://<集团推理网关>/api/v3 \
+  -e OPENAI_COMPATIBLE_API_KEY=<网关密钥或 unused> \
+  -e ZW_BRAIN_INFERENCE_MODEL=<模型名> \
+  -e ZW_BRAIN_REST_BASE_URL=http://<zw-brain 容器可达地址>:8800 \
+  zw-brain-agent-runtime:1.1.3
+  # 注意：docker -e 用 VAR=value，不要写 VAR=='value'（会把引号传入容器）
+
+# (b) zw-brain 容器经 HTTP 驱动它（在 §4 docker run 基础上追加）
 docker run -d \
   ... \
   -e ZW_BRAIN_AGENT_RUNTIME_ENABLED=1 \
-  -e ZW_BRAIN_AGENT_RUNTIME_PROFILE=embedded_single_tenant \
-  -e ZW_BRAIN_INFERENCE_GATEWAY_URL=https://<集团推理网关>/v1 \
-  -e ZW_BRAIN_INFERENCE_MODEL=<模型名> \
-  -e ZW_BRAIN_INFERENCE_API_KEY=unused \
-  # 或网关需鉴权：-e ZW_BRAIN_INFERENCE_API_KEY=<真实密钥>
-  # 或不鉴权且不想传 Key：-e ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL=1
-  # 注意：docker -e 用 VAR=value，不要写 VAR=='value'（会把引号传入容器）
+  -e ZW_BRAIN_AGENT_RUNTIME_URL=http://<AR 容器可达地址>:8001 \
   zw-brain:1.0.0
 ```
 
-校验：`curl http://127.0.0.1:8800/health` 的 `agent_runtime.enabled` 应为 `true`；`curl http://127.0.0.1:8800/api/agent-runtime/status` 列出内置 Agent（需 IAM 会话或 dev bypass，见 [`agent-runtime-embedded.md`](agent-runtime-embedded.md)）。
+> 两容器互达地址按部署网络解析（同 host 用 `--add-host host.docker.internal:host-gateway` 或共用一个 docker 网络）；
+> dev/演示直接用 §1.1 的 `docker compose up`（服务名 `agent-runtime` / `zw-brain` 自动互达，免手配地址）。
+
+校验：`curl http://127.0.0.1:8800/health` 的 `agent_runtime.enabled` 应为 `true`；`curl http://127.0.0.1:8800/api/agent-runtime/agents` 列出 Agent（需 IAM 会话或 dev bypass）。
 
 REST WebUI 登录采用 **IAM 授权码 + BFF 会话**（详见 `docs/iam-login-logout-implementation.md`）：前端 URL 无 `code` 且后端 `/auth/iaf/session` 未返回有效会话时会跳转到 IAM 授权端点；回跳后由后端 `/auth/iaf/token` 代理 code 换取 IAM token 并写入服务端 session。浏览器仅通过 `zw_brain_session` HttpOnly cookie 携带不透明 session id；前端 JavaScript 只保存公开会话摘要与 CSRF token，**不接收、不保存、不发送** IAM access token 或 refresh token。前端每 5 分钟请求 `/auth/iaf/refresh` 由后端刷新 session 内 token；所有 `/api/*` 浏览器请求使用同源 cookie 鉴权，写请求额外携带 `X-CSRF-Token`，后端仍透传 session 内 access token 到 `{ZW_BRAIN_IAF_AUTH_SERVER_URL}/v1/token-healthz` 校验并本地 RS256 验签，校验不可用时按 503 失败关闭。退出登录会清理服务端 session 与 HttpOnly cookie，再跳转 IAM `/protocol/openid-connect/logout?redirect_uri=...` 清除 SSO 会话。
 

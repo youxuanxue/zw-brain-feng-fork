@@ -1,0 +1,38 @@
+scope: agentruntime-formfactor
+signed_by: 薛娇（产品研发负责人）
+date: 2026-06-22
+kind: 决策签字
+evidence: >-
+  AgentRuntime 接入形态二次决策——重评架构 §8.2「Phase 1 默认 Embedded SDK；Standalone
+  HTTP 留 Wave 3+」，改单一模型（架构+接入形态门，D28 GATE；全文
+  docs/decisions/agentruntime-formfactor-proposal.md，记 D68）。本会话内负责人 plan-mode
+  逐版批准方案、并两次纠偏收敛：①「两条道」矛盾 → 收敛单一模型（AgentRuntime = 独立进程
+  服务被 zw-brain 调用，所有团队编写 Agent 经 zw-brain 已发布认证 API 消费能力/数据，A/B
+  只差信任级/策略）；②近路 vs T1 的轴从「A 类/B 类域」更正为「内部团队编写 vs 外部第三方
+  onboarding」（A/B 智能体未来一周一起突增，团队写的都走近路）。根因＝两产品快迭代下嵌入
+  三轴耦合（依赖 py3.12.12 pyc + langchain/langgraph 闭包压进 zw-brain 镜像 / 版本锁步 /
+  同进程故障域）+ 后台线程非真隔离（跑飞 agent 拖垮 REST）。
+  本轮交付（地基 + spike，零行为变更）：①§8.2 line 810 改写单一模型 + 更正 R4 归因
+  （R4 约束控制面范围、非进程拓扑）；②preflight 段77 接缝导入守卫
+  scripts/check_agent_runtime_import_confinement.py（`from agent_runtime` 只许接缝两文件
+  service.py+capability_provider.py）+ 真命中测试 tests/test_check_agent_runtime_import_confinement.py
+  （防 guard 假绿：真实 SDK import 样本逐条命中、封装包/软探测/注释不误报、临时树越界真抓）；
+  ③ZW_BRAIN_AGENT_RUNTIME_MODE 占位管线（config.py agent_runtime_mode()/base_url()，默认
+  embedded 零行为变更；service.py http 分支 NotImplementedError 占位，挂点就位不静默启用）；
+  ④decision-log D68；⑤spike 报告 docs/agent-runtime/copilot-out-of-process-spike.md。
+  spike 结论（身份传递原生可行）：AR `${user_credential:REF}` 按 (subject_user_id, ref)
+  解析 per-user 凭据注入出站工具调用（pyc 探针证实 UserCredentialProvider /
+  StoreBackedUserCredentialProvider / resolve_manifest_refs），无需 AR 改造、无死路；
+  优先 kind:api→已 per-user 的 /api/skills，不优先改造 stdio-only+dev-bypass 的 zw-brain MCP。
+  验证：guard 真命中测试 5/5 通过；现有 agentruntime 单测 10/10 不退化（mode 默认 embedded）；
+  mode=http 占位正确 raise NotImplementedError；preflight 段77 ok（接缝收口 2 文件）。
+  GATE D33.d 命名筛查：trust_level 双命名空间（T1 须 rename 一方）/ skill→capability（AR
+  skill_id 留协议字符串）/ anp-agent v1.2 钉死。
+  搬运行时全量（AgentRuntimeClient HTTP adapter / A 类 manifest 改 api-tools / co-located
+  serve / A① cutover）属 spike-gated 下一轮，本轮不动任何形态切换运行时代码。合并到 main
+  仍人工（main 分支保护 require-CI-green）。须负责人 sign-off，本条即是。
+decision_only: true
+covers: []
+# 属架构+接入形态门（D28 GATE），登记为 D68（docs/decisions/decision-log.md）。
+# covers 留空：本轮纯地基+spike（文档/守卫/占位/决策记录），不抬任何 .feature 状态
+# （形态切换运行时代码留 spike-gated 下一轮，届时另签 covers 实际能力）。

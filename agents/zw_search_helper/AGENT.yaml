@@ -50,6 +50,26 @@ limits:
   # 单次 Task 最多调用 10 次工具，防止 LLM 在无法给出满意回答时无限循环调用工具。
   # 升级后链路最多 4 类工具调用，instructions 软上限 6 次，硬上限保持 10。
   max_tool_calls: 10
-# 真实工具列表来自 capabilities.json（capability_tools），由 ZwBrainCapabilityProvider
-# 在 Embedded Runtime 启动时通过 dynamic_capability_providers 注入；本字段保持为空。
-tools: []
+# D68 单一模型：A① 在独立 AR 进程内运行，经 OpenAPI 把 zw-brain 已发布的只读能力
+# 声明为 kind:api 工具，回调 zw-brain REST /api/skills/*（取代进程内 ZwBrainCapabilityProvider）。
+# 服务地址 = openapi spec 内 servers 字面量（AR 不解析 spec 内 ${env:}）；非默认端口/生产须
+# deploy-time 重生成 spec。dev-bypass 下只读能力自动解析角色，
+# 生产经 ${user_credential:} per-user on-behalf-of（见 docs/agent-runtime/copilot-out-of-process-spike.md）。
+tools:
+  # 每个 api 工具对应 OpenAPI 一个 operationId（AR 约束）。
+  - kind: api
+    name: search_intent_parse
+    description: P2 搜索意图解析：自然语言 → 结构化检索辅助字段（只读）。
+    spec_url: ./zw-brain-capabilities.openapi.yaml
+  - kind: api
+    name: data_search
+    description: 按关键词检索共享数据资源目录，返回命中清单与结构化摘要（只读）。
+    spec_url: ./zw-brain-capabilities.openapi.yaml
+  - kind: api
+    name: catalog_browse
+    description: 按 lifecycle/kind/owner/关键词分页浏览 canonical 真目录条目（只读）。
+    spec_url: ./zw-brain-capabilities.openapi.yaml
+  - kind: api
+    name: catalog_entry_query
+    description: 查询已进入 canonical 聚合的目录条目详情与列表（只读，术语对齐）。
+    spec_url: ./zw-brain-capabilities.openapi.yaml

@@ -1,0 +1,44 @@
+# 独立 AgentRuntime 服务镜像（D68 单一模型）。
+# zw-brain REST 经 ZW_BRAIN_AGENT_RUNTIME_URL → 本服务 HTTP 调用（zw-brain 镜像本身零 AR SDK）。
+# 构建：docker build -f Dockerfile.agent-runtime -t zw-brain-agent-runtime:1.1.3 .
+#
+# 注：本镜像配方与已实测的本地 `agent-runtime serve`（start-local.sh / setup-py312-venv.sh）
+#     同源——离线包 install.sh + requirements-deepagents。Docker 构建本身未在当前环境验证
+#     （docker daemon 不可用）；本地进程级链路已端到端实测（见 docs/agent-runtime/copilot-out-of-process-spike.md §6）。
+FROM python:3.12-slim AS agent-runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+ARG AR_TARBALL=vendor/agent-runtime/release/v1.1.3/agent-runtime-1.1.3-py312-pyc-only.tar.gz
+ARG AR_EXTRACT=agent-runtime-1.1.3-py312-pyc-only
+
+RUN pip install --no-cache-dir uv
+COPY vendor/agent-runtime/requirements-deepagents.txt /tmp/ar-deepagents.txt
+COPY ${AR_TARBALL} /tmp/ar.tar.gz
+COPY ${AR_TARBALL}.sha256 /tmp/ar.tar.gz.sha256
+RUN cd /tmp && \
+    sed 's|  .*|  ar.tar.gz|' ar.tar.gz.sha256 | sha256sum -c - && \
+    mkdir -p /tmp/ar-pkg && tar -xzf ar.tar.gz -C /tmp/ar-pkg && \
+    cd "/tmp/ar-pkg/${AR_EXTRACT}" && \
+    uv pip install --system -r requirements.txt -r /tmp/ar-deepagents.txt && \
+    ./install.sh && \
+    rm -rf /tmp/ar-pkg /tmp/ar.tar.gz /tmp/ar.tar.gz.sha256 /tmp/ar-deepagents.txt
+
+WORKDIR /app
+# agents/ + schema：独立 AR 运行 zw-brain 的内置 Agent（A①/平台指南/法人画像）需要。
+# compose 把 git ./agents 以只读卷挂在 /srv/agents-src（单一源），entrypoint 拷到 /app/agents 再渲染。
+COPY agents /app/agents
+COPY schemas /app/schemas
+COPY agent-runtime.yaml /app/agent-runtime.yaml
+COPY agent-runtime.dev.yaml /app/agent-runtime.dev.yaml
+# deploy-time 渲染 openapi servers（AR 内 agent kind:api 回调 zw-brain 的真实地址）+ entrypoint。
+COPY scripts/render-agent-specs.sh /usr/local/bin/render-agent-specs.sh
+COPY scripts/docker-entrypoint-agent-runtime.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/render-agent-specs.sh /usr/local/bin/docker-entrypoint.sh
+
+# openai_compatible 适配器读 OPENAI_COMPATIBLE_*（部署时 -e 从 ZW_BRAIN_INFERENCE_* 桥接）。
+# 生产用 agent-runtime.yaml（trusted_gateway）；dev/联调用 agent-runtime.dev.yaml（auth none，compose 默认）。
+EXPOSE 8001
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["agent-runtime", "serve", "--config", "/app/agent-runtime.yaml", "--product", "--host", "0.0.0.0", "--port", "8001"]

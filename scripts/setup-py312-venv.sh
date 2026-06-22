@@ -20,7 +20,7 @@
 # 不做：
 #   * 不动 .venv（py3.13 主 venv 保持原样，pytest / preflight 走它）
 #   * 不写 shell profile（用户自己决定怎么持久化 ZW_BRAIN_PYTHON_BIN）
-#   * 不装集团推理网关 secrets（见 docs/deployment/agent-runtime-embedded.md §3.2）
+#   * 不装集团推理网关 secrets（见 .env.example 的 ZW_BRAIN_INFERENCE_* 段）
 
 set -euo pipefail
 
@@ -30,10 +30,10 @@ cd "$REPO_ROOT"
 VENV_DIR=".venv-py312"
 PYTHON_TARGET_MINOR="3.12"
 VENDOR_DIR="vendor/agent-runtime"
-VENDOR_RELEASE_DIR="$VENDOR_DIR/release/v1.1.2.2"
-VENDOR_TARBALL="$VENDOR_RELEASE_DIR/agent-runtime-1.1.2.2-py312-pyc-only.tar.gz"
+VENDOR_RELEASE_DIR="$VENDOR_DIR/release/v1.1.3"
+VENDOR_TARBALL="$VENDOR_RELEASE_DIR/agent-runtime-1.1.3-py312-pyc-only.tar.gz"
 VENDOR_SHA256="$VENDOR_TARBALL.sha256"
-VENDOR_EXTRACT_DIRNAME="agent-runtime-1.1.2.2-py312-pyc-only"
+VENDOR_EXTRACT_DIRNAME="agent-runtime-1.1.3-py312-pyc-only"
 VENDOR_EXTRACT_DIR="$VENDOR_RELEASE_DIR/$VENDOR_EXTRACT_DIRNAME"
 DEEPAGENTS_REQS="$VENDOR_DIR/requirements-deepagents.txt"
 
@@ -244,10 +244,10 @@ section "完成"
 cat <<EOF
   AgentRuntime 全链路本机回放就绪。
 
-  下一步（启动 REST + WebUI + AgentRuntime 全链路）：
+  下一步（启动 REST + WebUI + 独立 AgentRuntime 全链路）：
     export ZW_BRAIN_PYTHON_BIN="$REPO_ROOT/$VENV_DIR/bin/python"
-    export ZW_BRAIN_AGENT_RUNTIME_ENABLED=1
-    # 集团推理网关 secrets 见 docs/deployment/agent-runtime-embedded.md §3.2
+    export ZW_BRAIN_AGENT_RUNTIME_MODE=http ZW_BRAIN_AGENT_RUNTIME_ENABLED=1
+    # 集团推理网关 secrets 见 .env.example 的 ZW_BRAIN_INFERENCE_* 段
     bash scripts/start-local.sh
 
   日常 pytest / preflight 继续走主 .venv（py3.13），无需切换。

@@ -1,0 +1,30 @@
+# T1 参考样本：外部第三方「用数方」Agent（D68 单一模型 · T1 onboarding fixture）
+# 由 ANP/Cursor/三方 IDE 产出、经 agentruntime_validate/doctor + Registry external-register
+# 注册进 zw-brain。trust_level=untrusted（外部默认），经凭据/已发布 API 消费已编目数据，
+# 不碰 §8.5 禁区、不跑 code-exec（无 Daytona）。供 validate/doctor + preflight 段30 测试。
+schema_version: anp-agent/v1.2
+kind: Agent
+metadata:
+  id: external-data-consumer
+  name: 外部用数方·企业信用研判
+  version: "1.0.0"
+  trust_level: untrusted          # AR 协议字段（来源信任）；Registry 侧映射为 agent_trust_level
+model:
+  provider: openai_compatible      # 必须指向集团推理平台 gateway（D6）
+  model: ${env:ZW_BRAIN_INFERENCE_MODEL}
+  base_url_env: ZW_BRAIN_INFERENCE_GATEWAY_URL
+auth:
+  mode: trusted_gateway            # 禁 none
+tools:
+  # 外部 agent 经 zw-brain 已发布认证 API 消费已编目数据（kind:api），不碰 canonical 写。
+  - kind: api
+    name: data_search
+    description: 检索可申请的共享数据资源目录（只读）。
+    spec_url: ./zw-brain-capabilities.openapi.yaml
+context:
+  memory_mode: regulated_minimal
+memory:
+  enabled: false
+instructions: |
+  你是外部用数方智能体：仅消费 zw-brain 已编目的共享数据完成下游研判，
+  绝不提交/审批/写目录、不读租户/策略/审计，结果以工具返回真实数据为准。

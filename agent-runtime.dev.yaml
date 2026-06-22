@@ -1,0 +1,15 @@
+# zw-brain standalone AgentRuntime — 本地 dev/联调 ProductRuntimeConfig（D68 单一模型）
+# 用法：agent-runtime serve --config agent-runtime.dev.yaml --product --host 127.0.0.1 --port 8001
+# 仅 dev/联调：auth_mode=none（AR 固定 dev principal）。生产用 agent-runtime.yaml（trusted_gateway）。
+# AR 独立进程：openai_compatible 适配器读 OPENAI_COMPATIBLE_*（由启动脚本从 ZW_BRAIN_INFERENCE_* 桥接）。
+product_name: zw-brain
+profile: embedded_single_tenant   # memory store / 无 DB / 无 Daytona（本地最轻）
+context_mode: minimal
+tenant_mode: single
+auth_mode: none                   # 仅 dev：固定 dev principal，全 scope（含 tasks:start:any_user）
+agents_dir: agents
+schema_path: schemas/agent.schema.json
+workspace_root: .data/agent-runtime/workspaces
+log_dir: .data/agent-runtime/logs
+default_model_provider: openai_compatible
+default_model: ${env:ZW_BRAIN_INFERENCE_MODEL}

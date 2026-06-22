@@ -29,7 +29,7 @@
 - **tier-3a 工具执行层**（`tests/test_scenario_agents_pilot_e2e.py`）：A① 注入恰好 4 个只读工具；经 provider 真实调用 `data.search` 只命中 active（draft 被过滤，D53① 口径）；`catalog.browse`/`catalog.entry.query` 返回真实结构化目录条目；`search.intent.parse` 规则回落返回结构化意图（无需 LLM）；全程 `api_resources` 快照不变（只读）。B 试点注入恰好 3 个只读工具；**授权 manager 角色**经 provider 真实消费已编目法人画像目录全链路通；快照不变（只读）。
 - **tier-3b 运行时生命周期层**（`tests/test_scenario_agents_runtime_e2e.py`）：两 agent 经**真实 AgentRuntime SDK**（vendor pyc-only 包，`runtime_core=fake` / local_dev profile）的完整 Task 生命周期跑到 `completed` 终态、产出非空，且 runtime 加载的是升级后的 manifest（A① 4 工具 / B 3 工具）。SDK 缺席环境（CI / 主仓 `.venv`）按既有 `importorskip` 语义整体 skip。
 
-> **vendor SDK 本机安装**（复现）：解压 `vendor/agent-runtime/release/v1.1.2.2/*.tar.gz` →
+> **vendor SDK 本机安装**（复现）：解压 `vendor/agent-runtime/release/v1.1.3/*.tar.gz` →
 > `uv pip install --find-links wheelhouse -r requirements.txt`（uv venv 无 pip，不能直接 `./install.sh`）
 > → 把 `python/agent_runtime` + `dist-info` 拷进 site-packages → `from agent_runtime import RuntimeService` 验通。
 

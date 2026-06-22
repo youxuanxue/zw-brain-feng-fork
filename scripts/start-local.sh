@@ -61,12 +61,24 @@ if [[ -z "${ZW_BRAIN_IAF_AUTH_SERVER_URL:-}" ]]; then
 fi
 
 REST_PID=""
+AR_PID=""
+
+# D68 单一模型（embedded 已退役）：ZW_BRAIN_AGENT_RUNTIME_MODE=http 时，本脚本额外起一个
+# **独立进程**的 agent-runtime serve（co-located），REST 经 HTTP 驱动它。默认 off：不起第二
+# 进程、AR 接入关闭（zw-brain 进程内已零 SDK，不存在 in-process 形态可回退）。
+AR_MODE="${ZW_BRAIN_AGENT_RUNTIME_MODE:-off}"
+AR_HOST="${ZW_BRAIN_AGENT_RUNTIME_HOST:-127.0.0.1}"
+AR_PORT="${ZW_BRAIN_AGENT_RUNTIME_PORT:-8001}"
 
 cleanup() {
     local status=$?
     if [[ -n "$REST_PID" ]] && kill -0 "$REST_PID" 2>/dev/null; then
         kill "$REST_PID" 2>/dev/null || true
         wait "$REST_PID" 2>/dev/null || true
+    fi
+    if [[ -n "$AR_PID" ]] && kill -0 "$AR_PID" 2>/dev/null; then
+        kill "$AR_PID" 2>/dev/null || true
+        wait "$AR_PID" 2>/dev/null || true
     fi
     exit "$status"
 }
@@ -225,6 +237,26 @@ start_rest() {
     REST_PID=$!
 }
 
+# D68：起独立 agent-runtime serve（http 形态）。AR CLI 取 PYTHON_BIN 同目录的
+# agent-runtime（须 py312 venv 装了离线包；见 vendor/agent-runtime/README.md）。
+# AR 独立进程的 openai_compatible 适配器读 OPENAI_COMPATIBLE_*（从 ZW_BRAIN_INFERENCE_* 桥接）。
+start_agent_runtime() {
+    local ar_cli
+    ar_cli="$(dirname "$PYTHON_BIN")/agent-runtime"
+    if [[ ! -x "$ar_cli" ]]; then
+        echo "[start-local] FAIL: http 形态需独立 AgentRuntime CLI，但 $ar_cli 不存在" >&2
+        echo "[start-local] Hint: 设 ZW_BRAIN_PYTHON_BIN 指向装了 agent-runtime 的 py312 venv（vendor/agent-runtime/README.md）" >&2
+        exit 1
+    fi
+    export OPENAI_COMPATIBLE_BASE_URL="${OPENAI_COMPATIBLE_BASE_URL:-${ZW_BRAIN_INFERENCE_GATEWAY_URL:-}}"
+    export OPENAI_COMPATIBLE_API_KEY="${OPENAI_COMPATIBLE_API_KEY:-${ZW_BRAIN_INFERENCE_API_KEY:-}}"
+    (
+        cd "$REPO_ROOT"
+        exec "$ar_cli" serve --config agent-runtime.dev.yaml --product --host "$AR_HOST" --port "$AR_PORT"
+    ) &
+    AR_PID=$!
+}
+
 echo "=== zw-brain local startup ==="
 echo "[start-local] repo: $REPO_ROOT"
 echo "[start-local] python: $PYTHON_BIN"
@@ -257,6 +289,21 @@ export ZW_BRAIN_LOG_DIR="${ZW_BRAIN_LOG_DIR:-$REPO_ROOT/.data/logs}"
 mkdir -p "$ZW_BRAIN_LOG_DIR"
 
 ensure_webui_build
+
+# D68 单一模型：http 形态先起独立 AR（co-located），REST 经 HTTP 驱动它。
+if [[ "$AR_MODE" == "http" ]]; then
+    if ! check_port_free "$AR_HOST" "$AR_PORT"; then
+        show_port_conflict "$AR_PORT"
+        exit 1
+    fi
+    echo "[start-local] AgentRuntime 形态=http：起独立 agent-runtime serve（D68 单一模型，进程隔离）"
+    start_agent_runtime
+    wait_for_health "http://$AR_HOST:$AR_PORT/runtime/health" "AgentRuntime"
+    export ZW_BRAIN_AGENT_RUNTIME_MODE=http
+    export ZW_BRAIN_AGENT_RUNTIME_URL="http://$AR_HOST:$AR_PORT"
+    export ZW_BRAIN_AGENT_RUNTIME_ENABLED=1
+    echo "[start-local] AR URL: http://$AR_HOST:$AR_PORT (PID $AR_PID) — REST 经此驱动 Agent 任务"
+fi
 
 start_rest
 

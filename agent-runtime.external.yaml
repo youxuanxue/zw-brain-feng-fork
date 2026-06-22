@@ -1,0 +1,19 @@
+# zw-brain 独立 AgentRuntime — **外部第三方 Agent** 隔离实例配置（D68 T1）
+# 与内部副驾实例（agent-runtime.yaml）分开部署：外部 Agent 默认 untrusted、经凭据 + 已发布
+# 认证 API 消费已编目数据，**不跑 code-exec（无 Daytona）**（决策：只消费数据）。
+# 用法：agent-runtime serve --config agent-runtime.external.yaml --product
+# 接入流水线：AGENT.yaml → agentruntime_validate/doctor → Registry(source_type=external-register
+#   + 4 字段, agent_trust_level=untrusted) → preflight 段30 → B1.2 审核升 verified → 投影 → 调用 → 审计。
+product_name: zw-brain-external
+profile: embedded_single_tenant   # 单租户 sd-default / 内存存储 / 无 DB；外部实例同样不连 PG
+context_mode: minimal
+tenant_mode: single
+auth_mode: trusted_gateway        # 外部实例禁 none；zw-brain 作可信网关注入 principal
+agents_dir: agents                # 外部 Agent 注册到此（source_type=external-register）
+schema_path: schemas/agent.schema.json
+workspace_root: .data/agent-runtime/external-workspaces   # 与内部实例隔离的 workspace
+log_dir: .data/agent-runtime/external-logs
+default_model_provider: openai_compatible
+default_model: ${env:ZW_BRAIN_INFERENCE_MODEL}
+# 注：本期外部 Agent 只消费数据、无 code-exec → 不配 Daytona 沙箱后端（决策起步）。
+# 若将来外部 Agent 需跑沙箱代码，再按 runtime policy 配 daytona 执行后端（触发式）。

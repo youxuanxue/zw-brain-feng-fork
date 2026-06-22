@@ -1,28 +1,26 @@
-"""Embedded AgentRuntime integration for zw-brain (architecture §8, Phase 1 SDK)."""
+"""AgentRuntime 接入（D68 单一模型 · standalone-only）。
+
+embedded（in-process SDK）已退役：zw-brain 经 HTTP 驱动独立 AgentRuntime 服务，
+本进程内不 import AgentRuntime SDK。facade 见 ``service`` / ``http_client``。
+"""
 
 from __future__ import annotations
 
 from typing import Any
 
 from zw_brain.shared.agent_runtime.config import (
-    agent_runtime_config_path,
     agents_dir,
-    embedded_runtime_env,
     is_agent_runtime_enabled,
     zw_brain_repo_root,
 )
 
 _LAZY_EXPORTS = {
-    "get_agent_runtime",
     "reset_agent_runtime",
     "run_agent_task_sync",
 }
 
 __all__ = [
-    "agent_runtime_config_path",
     "agents_dir",
-    "embedded_runtime_env",
-    "get_agent_runtime",
     "is_agent_runtime_enabled",
     "reset_agent_runtime",
     "run_agent_task_sync",

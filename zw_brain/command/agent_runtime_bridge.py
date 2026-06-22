@@ -220,18 +220,11 @@ def resume_agent_task(
         raise AgentRuntimeNotEnabledError("ZW_BRAIN_AGENT_RUNTIME_ENABLED is not set")
 
     from zw_brain.shared.agent_runtime.service import (
-        _run_async_in_background_loop,
-    )
-    from zw_brain.shared.agent_runtime.service import (
         resume_agent_task as _resume,
     )
 
-    return _run_async_in_background_loop(
-        _resume(
-            task_id=task_id,
-            input_data=input_data,
-        )
-    )
+    # 单一模型：resume 为同步 HTTP（独立 AR），无需后台事件循环包裹（embedded 退役）。
+    return _resume(task_id=task_id, input_data=input_data)
 
 
 def _resolve_agent_dir(agent_id: str) -> Path | None:

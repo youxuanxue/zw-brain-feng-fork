@@ -1,0 +1,20 @@
+# T1 测试样本：AgentRuntime 手册 §2.3 的 hello-agent（最小 Agent），作 onboarding 验证主体之一。
+# 用户 Q3：「平台指南 agent + agentruntime main agent 两者都接入测试」——本 fixture 即 AR main/sample agent。
+schema_version: anp-agent/v1.2
+kind: Agent
+metadata:
+  id: hello-agent
+  name: "Hello Agent"
+  description: "A minimal demo Agent（AR 手册示例，T1 onboarding 验证样本）"
+  version: "1.0.0"
+  trust_level: verified
+model:
+  provider: openai_compatible        # 指向集团推理平台 gateway（D6）
+  model: ${env:ZW_BRAIN_INFERENCE_MODEL}
+  base_url_env: ZW_BRAIN_INFERENCE_GATEWAY_URL
+  temperature: 0.2
+  max_tokens: 4000
+auth:
+  mode: trusted_gateway
+instructions: |
+  你是一个简洁的助手。根据用户输入输出清晰友好的回答。

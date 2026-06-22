@@ -21,14 +21,14 @@ docker compose up -d postgres            # 起库（端口/凭据与默认 URL �
 #     文档路径见 vendor/agent-runtime/README.md；若 uv venv 无 pip，用下面这套等效装法：
 uv venv --python 3.12 .venv-py312
 uv pip install --python .venv-py312/bin/python -e '.[dev,postgres]'
-cd vendor/agent-runtime/release/v1.1.2.2
-shasum -a 256 -c agent-runtime-1.1.2.2-py312-pyc-only.tar.gz.sha256   # 校验失败必停
-tar -xzf agent-runtime-1.1.2.2-py312-pyc-only.tar.gz
-cd agent-runtime-1.1.2.2-py312-pyc-only
+cd vendor/agent-runtime/release/v1.1.3
+shasum -a 256 -c agent-runtime-1.1.3-py312-pyc-only.tar.gz.sha256   # 校验失败必停
+tar -xzf agent-runtime-1.1.3-py312-pyc-only.tar.gz
+cd agent-runtime-1.1.3-py312-pyc-only
 uv pip install --python ../../../../.venv-py312/bin/python --find-links wheelhouse -r requirements.txt
 SP=$(../../../../.venv-py312/bin/python -c "import sysconfig;print(sysconfig.get_paths()['purelib'])")
 cp -R python/agent_runtime "$SP/agent_runtime"
-cp -R dist-info/agent_runtime-1.1.2.2.dist-info "$SP/"
+cp -R dist-info/agent_runtime-1.1.3.dist-info "$SP/"
 ../../../../.venv-py312/bin/python -c "from agent_runtime import RuntimeService; print('SDK OK')"
 cd <zw-brain 仓库根>
 
@@ -51,16 +51,24 @@ cp .env.example .env
 
 ```bash
 cd <zw-brain 仓库根>
+# D68 单一模型：MODE=http → start-local 起独立 agent-runtime serve（:8001）+ REST（:8800），REST 经 HTTP 驱动 AR。
+ZW_BRAIN_AGENT_RUNTIME_MODE=http \
 ZW_BRAIN_AGENT_RUNTIME_ENABLED=1 \
 ZW_BRAIN_PYTHON_BIN=$PWD/.venv-py312/bin/python \
 bash scripts/start-local.sh
-# 等到日志出现：[start-local] ok: REST healthy at http://127.0.0.1:8800/health
+# 等到日志出现：[start-local] ok: AgentRuntime healthy at http://127.0.0.1:8001/runtime/health
+#               [start-local] ok: REST healthy at http://127.0.0.1:8800/health
 # 并确认：[start-local] inference: ZW_BRAIN_INFERENCE_MODE=platform   ← 这行是 platform 才是真 LLM
 ```
 
 - REST + WebUI 监听 `http://127.0.0.1:8800`。
 - dev 模式自动免登录（IAM bypass），默认会话机构 = 省大数据局。
 - 若本机设了 http(s)_proxy 导致 curl 返回 502：`export NO_PROXY=127.0.0.1,localhost`。
+
+> **更省事（容器一把起三件套）**：装好 docker 后，`cp .env.example .env`（填推理网关）→ `docker compose up -d`
+> 即同起 `postgres` + 独立 `agent-runtime`（:8001）+ `zw-brain`（:8800），免手装 py312 venv / 离线 SDK。
+> `agents/` 以只读卷挂进两服务（**单一源**：AR 跑 + zw-brain 列），加 Agent 两边即时同步。详见
+> `docs/deployment/docker-image-deployment.md` §1.1。⚠️ Docker **build** 需 registry 可达的环境。
 
 ---
 

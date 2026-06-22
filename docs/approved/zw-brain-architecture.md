@@ -807,7 +807,7 @@ L5 Data / External
 | 声明形态 | `anp-agent/v1.2` `AGENT.yaml`（唯一） | 不接受其它 schema |
 | `trust_level` 默认 | 外部 Agent = `untrusted`；`verified` 由 B1.2 管理员审核升级；`platform` 仅限 zw-brain 内置 Agent | 政务场景默认收紧；Registry 可覆盖收紧、不可放宽 |
 | 模型 provider | 必须指向 zw-brain 集团推理平台 gateway | preflight 段 10 强制 |
-| 运行形态 | Phase 1 默认 Embedded SDK；Standalone HTTP 留 Wave 3+ 评估 | 与 R4「控制面纤薄」一致 |
+| 运行形态（D68 单一模型） | AgentRuntime = 独立进程服务，被 zw-brain 调用（API/HTTP/CLI）；团队编写 Agent（A 类副驾 + B 类用数方）统一在该服务内运行，经 zw-brain 已发布认证 API 消费能力/数据（A 类平台角色 on-behalf-of `${user_credential:}`、B 类签发凭据）；**Embedded SDK 已退役**（D68 Item4：zw-brain 进程内零 `from agent_runtime`，段77 守卫）；外部第三方 AGENT.yaml onboarding 延 T1 further-isolated 实例 | 低耦合于依赖/版本/故障域三轴 + 进程隔离（跑飞 agent 不拖垮 REST，已实证）；R4 仅约束控制面**范围**、不约束进程拓扑（原"与 R4 一致"归因更正）；全文见 docs/decisions/agentruntime-formfactor-proposal.md |
 | 鉴权模式 | `static_api_key` 或 `trusted_gateway`；禁用 `none` | 生产 readiness gate 阻断 |
 | 多租户模式 | `tenant_id="sd-default"` 单租户；不启用 `tenant_mode=multi` | 与默认租户模型对齐 |
 | Context / Memory | `regulated_minimal` 或 `session_memory`；默认禁用 memory write | 合规优先 |

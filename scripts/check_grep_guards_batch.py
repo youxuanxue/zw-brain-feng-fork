@@ -54,6 +54,8 @@ LEGACY_ALLOWED_FILES = (
     "docs/legacy-not-reproduce-signoff.md",
     "docs/decisions/feedback-0611-gate-D57.md",
     "docs/decisions/decision-log.md",  # D64 — D-索引全量副本（原 CLAUDE.md 内，含 R1-R8 退役史）
+    "docs/decisions/agentruntime-formfactor-proposal.md",  # D68 — 引用架构原则 R4（控制面纤薄，归因更正）+ R1 作风险标号，与退役 R1-R8 角色码同名异 namespace（同 decision-log.md 豁免理由）
+    "docs/agent-runtime/copilot-out-of-process-spike.md",  # D68 spike — R1 作 linchpin 风险标号，与退役 R1-R8 角色码同名异 namespace
 )
 
 LEGACY_ALLOWED_LINE_MARKERS = (

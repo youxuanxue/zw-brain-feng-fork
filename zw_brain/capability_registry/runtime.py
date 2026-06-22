@@ -15,6 +15,18 @@ STATUS_DEFERRED_RE = re.compile(r"^deferred:wave-[1-4]$")
 # 默认 'live'；preview / draft 仅在 Wave 2 三引擎走"草稿→预览→入库"流时合法。
 CONFIG_CHANGE_CLASSES = {"live", "preview", "draft"}
 
+# F6 T1（D68）：外部第三方 Agent 经 source_type=external-register 注册时强制的 4 字段。
+# agent_trust_level = 外部 Agent **来源信任级**——GATE D33.d 决议把 Registry 侧字段命名为
+# agent_trust_level（与 F4 包级 trust_level / PACKAGE_TRUST_LEVELS 区分，消除同名异义）。
+EXTERNAL_REGISTER_SPEC_VERSIONS = {"anp-agent/v1.1", "anp-agent/v1.2"}
+EXTERNAL_REGISTER_TRUST_LEVELS = {"verified", "untrusted"}  # platform 仅限 builtin，外部不可得
+EXTERNAL_REGISTER_REQUIRED_FIELDS = (
+    "runtime_spec_version",
+    "agent_yaml_ref",
+    "agent_trust_level",
+    "workspace_required",
+)
+
 # F4 — 能力包内置 trust_level（manifest / capability_package 表字段）。
 # **不要与 F6 T1 触发的 AgentRuntime Registry trust_level 混淆**：前者由 BUSIAUDIT
 # 评估（原 SECURITY_ADMIN 共评，已随安全管理员本期退役而收口，D55/P16），决定能力包能否
@@ -152,3 +164,32 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
         raise ValueError(
             f"{slug} config_change_class must be one of {sorted(CONFIG_CHANGE_CLASSES)}, got {config_change_class!r}"
         )
+    if manifest.get("source_type") == "external-register":
+        _validate_external_register_fields(slug, manifest)
+
+
+def _validate_external_register_fields(slug: str, manifest: dict[str, Any]) -> None:
+    """F6 T1（D68）：source_type=external-register 的 manifest 强制 4 字段并校验取值。
+
+    与 F4 包级 trust_level 严格区分：来源信任级字段名为 ``agent_trust_level``（GATE D33.d）。
+    """
+    missing = [f for f in EXTERNAL_REGISTER_REQUIRED_FIELDS if f not in manifest]
+    if missing:
+        raise ValueError(
+            f"{slug} source_type=external-register requires fields: {', '.join(missing)}"
+        )
+    spec = manifest.get("runtime_spec_version")
+    if spec not in EXTERNAL_REGISTER_SPEC_VERSIONS:
+        raise ValueError(
+            f"{slug} runtime_spec_version must be in {sorted(EXTERNAL_REGISTER_SPEC_VERSIONS)}, got {spec!r}"
+        )
+    if not str(manifest.get("agent_yaml_ref") or "").strip():
+        raise ValueError(f"{slug} agent_yaml_ref must be a non-empty reference")
+    trust = manifest.get("agent_trust_level")
+    if trust not in EXTERNAL_REGISTER_TRUST_LEVELS:
+        raise ValueError(
+            f"{slug} agent_trust_level must be in {sorted(EXTERNAL_REGISTER_TRUST_LEVELS)} "
+            f"(platform 仅限 builtin), got {trust!r}"
+        )
+    if not isinstance(manifest.get("workspace_required"), bool):
+        raise ValueError(f"{slug} workspace_required must be a boolean")
