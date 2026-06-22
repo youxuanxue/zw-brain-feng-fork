@@ -157,7 +157,18 @@ const urgentCount = computed(
             />
           </li>
         </ul>
-        <p v-else class="p1-empty">{{ emptyText }}</p>
+        <div v-else class="p1-empty-state">
+          <p class="p1-empty">{{ emptyText }}</p>
+          <!-- 申请人空态主行动：与「领数据 / 供需」空态一致，给出「去找数据 →」主 CTA
+               （而非只留次要「查看依据」链接）。其余岗位空态无可发起的申请动作，不出 CTA。 -->
+          <a
+            v-if="contextVariant === 'applicant'"
+            href="#/discovery"
+            class="p1-empty-cta"
+            data-testid="workbench-empty-cta"
+            >去找数据 →</a
+          >
+        </div>
       </section>
 
       <aside class="panel p1-side">
@@ -242,6 +253,25 @@ const urgentCount = computed(
   margin: 0;
   font-size: 14px;
   color: var(--b-muted, #5c6370);
+}
+.p1-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+.p1-empty-cta {
+  display: inline-block;
+  padding: 8px 18px;
+  border-radius: 6px;
+  background: var(--b-primary, #006be6);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.p1-empty-cta:hover {
+  filter: brightness(0.95);
 }
 .p1-row {
   display: flex;

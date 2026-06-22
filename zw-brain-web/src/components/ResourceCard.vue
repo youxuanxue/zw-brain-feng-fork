@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { resourceKindLabel } from '@/lib/resourceKind';
+import { displayRecordName, stripKindSuffix } from '@/lib/userLanguage';
 
 const props = defineProps<{
   resource: Record<string, unknown>;
@@ -41,6 +42,13 @@ const isRecallCandidate = computed(
   () => item.value.kind === 'recall_dictionary' || item.value.id.startsWith('recall:'),
 );
 
+// R12：卡片标题用真实业务名（displayRecordName 优先真实名，名缺失/为裸 id 时降级为
+// 「未命名资源（编码 …末6位）」），再剥工程后缀（_库表资源 等，类型已由徽标承载）——
+// 绝不把裸资源 id 当标题直出。
+const displayTitle = computed(() =>
+  stripKindSuffix(displayRecordName(item.value.name, item.value.id, '资源')),
+);
+
 const emit = defineEmits<{
   (e: 'apply', id: string): void;
 }>();
@@ -55,7 +63,7 @@ const emit = defineEmits<{
         class="res-title"
       >
         <span v-if="item.kindLabel" class="res-kind">{{ item.kindLabel }}</span>
-        <strong>{{ item.name || item.id }}</strong>
+        <strong>{{ displayTitle }}</strong>
         <!-- 反馈4（试用反馈）：默认发现视图本就只展示已发布（D53① active-only），
              「已发布」标签是同义反复——抑制之（比对机器值，不比中文）；非默认态（待发布等）有信息量，保留。 -->
         <span v-if="item.status && item.lifecycleStatus !== 'active'" class="res-status">{{ item.status }}</span>

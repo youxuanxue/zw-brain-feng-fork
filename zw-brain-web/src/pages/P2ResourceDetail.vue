@@ -11,7 +11,7 @@ import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { mapDetailRows } from '@/lib/detailDisplay';
-import { deriveRecordName, formatTime } from '@/lib/userLanguage';
+import { displayRecordName, stripKindSuffix, formatTime } from '@/lib/userLanguage';
 import {
   typedSectionsToRows,
   decisionRows,
@@ -124,8 +124,14 @@ const explain = computed(() => (Array.isArray(resource.value?.explain) ? (resour
 const typedSections = computed(() =>
   typedSectionsToRows(resource.value?.typedDetail as Parameters<typeof typedSectionsToRows>[0]),
 );
+// R12 + 角色视角：「库表信息」块含 DBA 物理字段（物理表名/所属库/表版本/资源所处位置），
+// 是供数方运维/管理关注点，对申请人（消费视角，route.path 以 /discovery 开头）无信息量且暴露
+// 库表实现细节——消费视角整块隐藏；供数管理视角（/provider）保留。
+const consumerView = computed(() => route.path.startsWith('/discovery'));
 const typedDetailRows = computed(() =>
-  typedSections.value.map((sec) => ({ title: sec.title, rows: mapDetailRows(sec.rows) })),
+  typedSections.value
+    .filter((sec) => !(consumerView.value && sec.title === '库表信息'))
+    .map((sec) => ({ title: sec.title, rows: mapDetailRows(sec.rows) })),
 );
 const kindLabel = computed(() => String((resource.value?.typedDetail as Record<string, unknown> | undefined)?.kindLabel ?? ''));
 
@@ -135,14 +141,19 @@ const catalogMeta = computed(() => (resource.value?.catalogMeta as Record<string
 const decisionDetailRows = computed(() => decisionRows(accessPolicy.value, catalogMeta.value));
 const compilationDetailRows = computed(() => compilationRows(catalogMeta.value));
 const summaryText = computed(() => catalogSummary(catalogMeta.value));
+// 摘要为空、或摘要==标题（重复标题不带新信息）时整块隐藏，不在标题下重复一遍标题。
+const showSummary = computed(() => {
+  const s = summaryText.value.trim();
+  return !!s && s !== headerTitle.value.trim();
+});
 
 // 编目字段默认折叠（不抢首屏决策视野），点击展开看全量编制规范字段。
 const showCompilation = ref(false);
 
 const headerTitle = computed(() => {
-  if (resource.value) return deriveRecordName(displayName.value, id.value, '数据资源');
+  if (resource.value) return stripKindSuffix(displayRecordName(displayName.value, id.value, '资源'));
   if (loading.value) return '正在加载……';
-  return deriveRecordName('', id.value, '数据资源');
+  return displayRecordName('', id.value, '资源');
 });
 const headerMeta = computed(() => {
   if (loading.value) return '正在加载资源详情……';
@@ -186,7 +197,7 @@ async function apply() {
         :rows="decisionDetailRows"
         data-testid="decision-block"
       />
-      <section v-if="summaryText" class="detail-block" data-testid="summary-block">
+      <section v-if="showSummary" class="detail-block" data-testid="summary-block">
         <h2 class="detail-block-title">数据资源摘要</h2>
         <p class="summary-text">{{ summaryText }}</p>
       </section>

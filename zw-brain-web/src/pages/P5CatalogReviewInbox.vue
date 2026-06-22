@@ -7,6 +7,7 @@ import { invokeActionStub } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { canReviewCatalogDept, canReviewCatalogPlatform } from '@/lib/requestFlowRoles';
 import { apiUrl } from '@/composables/useApiBase';
+import { displayRecordName } from '@/lib/userLanguage';
 
 const { source } = useSnapshot();
 const role = getProductRole();
@@ -87,7 +88,8 @@ async function loadInbox(): Promise<void> {
         return {
           catalog_code: String(it.catalog_code ?? ''),
           display_code: String(summary.data_catalog_code ?? '') || String(it.catalog_code ?? ''),
-          title: String(it.title ?? it.catalog_code ?? '—'),
+          // 名缺失 / 名==catalog_code / 名是裸编码 → 「未命名目录（编码 …）」，不把目录码当名直出（R12）。
+          title: displayRecordName(it.title, it.catalog_code, '目录'),
           owner: String(it.owner_org_name ?? '') || String(it.owner_org_id ?? ''),
           region: String(it.region_name ?? '') || String(it.region_code ?? ''),
           // 展示态取后端下发的中文 lifecycle_label（前端零词表，R12），不直出机器 slug。

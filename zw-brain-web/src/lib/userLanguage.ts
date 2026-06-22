@@ -198,6 +198,78 @@ export function deriveRecordName(
   return stripped || category;
 }
 
+// 长裸编码（≥18 位、无空格/中文的标识符：纯 hex / 全数字目录码 / 大小写数字混编的
+// 统一社会信用代码+流水号，如 "11370000MB284651XL2001610030503001"）。isBareHexId
+// 只识别纯 hex，识别不出含大写字母的机构编码——这里补齐：名字若长得像这种裸编码，
+// 等同于「拿编码当名字」，不能直出。
+const LONG_BARE_CODE_RE = /^[0-9A-Za-z]{18,}$/;
+
+/** 一段文本是否「就是」一个裸长编码（hex / 机构信用代码+流水号 / 全数字目录码）。 */
+export function looksLikeBareCode(raw: unknown): boolean {
+  const text = String(raw ?? '').trim();
+  if (!text) return false;
+  if (isBareHexId(text)) return true;
+  // 无中文、无空格、≥18 位的字母数字串 = 裸编码（真实业务名总会有中文或空格）。
+  return LONG_BARE_CODE_RE.test(text) && !/[一-鿿\s]/.test(text);
+}
+
+/**
+ * 详情/列表的「记录显示名」单一口径（Theme 1 收口）：
+ *  - 有真实业务名（含中文/空格、且不等于编码、不是裸 id/编码）→ 直接用真实名；
+ *  - 名缺失 / 名==编码 / 名是裸 id / 名是裸编码 → 「未命名{类别}（编码 …末6位）」；
+ *  - 连编码都没有 → 「未命名{类别}」。
+ * 绝不把 32 位 hex / 机构信用代码 当标题主文本（R12）。
+ *
+ * @param name 记录真实名（可能为空 / 为编码 / 为 hex）
+ * @param code 记录编码或 id（catalog_code / resource id / request id …）
+ * @param category 业务类别词（「目录」「资源」「申请」「交付任务」「异议」…）
+ */
+export function displayRecordName(
+  name: unknown,
+  code: unknown,
+  category = '记录',
+): string {
+  const n = String(name ?? '').trim();
+  const c = String(code ?? '').trim();
+  const isRealName = !!n && !containsBareHexId(n) && !looksLikeBareCode(n) && (!c || n !== c);
+  if (isRealName) return n;
+  if (c) return `未命名${category}（编码 ${shortId(c)}）`;
+  if (n) {
+    const stripped = n.replace(HEX_TOKEN_RE, '').trim();
+    return stripped || `未命名${category}`;
+  }
+  return `未命名${category}`;
+}
+
+// 资源名里夹带的物化形态后缀（"_库表资源" "_文件资源" "_接口资源"）= 工程命名，
+// 类型已由独立标签呈现，列表/卡片标题里抹掉这段冗余后缀（R12 精品）。
+const KIND_SUFFIX_RE = /[_\-—]?(库表|文件|接口|API)资源$/;
+
+/** 去掉资源名末尾的「_库表资源/_文件资源/_接口资源」工程后缀；无则原样。 */
+export function stripKindSuffix(raw: unknown): string {
+  const text = String(raw ?? '').trim();
+  const cleaned = text.replace(KIND_SUFFIX_RE, '').trim();
+  return cleaned || text;
+}
+
+// 演示/测试脏数据标记（Theme 3）：保守命中，宁漏勿误——只过滤"名字本身明确是
+// 测试占位/乱码"的行（真实政务名总含具体业务词，不会整名就是"测试"/乱敲键盘）。
+// 命中规则：① 名以 测试/复测/调测/test/demo 起头的占位（"测试资源-5""复测sxl服务"）；
+// ② 全是重复字符的乱码（"dhdhdjjjjjjjjjj""hdhhdhvtest01"）；③ 纯数字短码（"11111"）。
+const TEST_PREFIX_RE = /^(测试|复测|调测|联调|test|demo|样例测试)[\s\-_]?/i;
+const KEYBOARD_JUNK_RE = /(.)\1{5,}/; // 任一字符连续≥6（真实业务名不会有，"dhdhdjjjjjjjj" 类乱码）
+const PURE_SHORT_DIGITS_RE = /^\d{1,6}$/;
+
+/** 该记录名是否为明显的测试/占位/乱码脏数据（保守判定，供读层过滤，命中须 log）。 */
+export function isTestMarkerName(raw: unknown): boolean {
+  const text = String(raw ?? '').trim();
+  if (!text) return false;
+  if (TEST_PREFIX_RE.test(text)) return true;
+  if (KEYBOARD_JUNK_RE.test(text)) return true;
+  if (PURE_SHORT_DIGITS_RE.test(text)) return true;
+  return false;
+}
+
 // ── 错误文案诚实化 ───────────────────────────────────────────────────────
 const HTTP_STATUS_RE = /\bHTTP\s+\d{3}\b/i;
 

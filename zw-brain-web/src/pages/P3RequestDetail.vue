@@ -13,6 +13,7 @@ import PhaseTrack from '@/components/PhaseTrack.vue';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import type { FormField } from '@/lib/formFields';
 import { formatTodoStatus } from '@/lib/statusLabels';
+import { displayRecordName, shortId } from '@/lib/userLanguage';
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
@@ -65,6 +66,12 @@ const headerMeta = computed(() => {
 });
 
 const rawStatus = computed(() => String(req.value?.status ?? '').trim());
+
+// R12：H1 用申请所涉资源名（displayRecordName 优先真实名；名缺失/为裸 id 时降级为
+// 「未命名申请（编码 …末6位）」），不把 32 位 hex 申请 id 当主标题直出；原 id 降级为「编号」次行。
+const headerTitle = computed(() =>
+  displayRecordName(req.value?.resourceName, id.value, '申请'),
+);
 
 // 驳回 / 退回理由回显（J1 闭环）：审批人填写的真实理由经后端 rejectReason 投影带出
 // （无条件 review_application_record + 有条件受理/部门审核三路径同源），申请人在此看到「驳回理由：…」。
@@ -217,7 +224,9 @@ async function supplement() {
   <main class="focus-page focus-detail">
     <nav class="crumbs"><a href="#/delivery-exchange">← 我的申请</a></nav>
     <section class="panel">
-      <PageFocusHeader :title="id" :meta="headerMeta" />
+      <PageFocusHeader :title="headerTitle" :meta="headerMeta">
+        <p v-if="id" class="record-code">编号 <span :title="id">{{ shortId(id) }}</span></p>
+      </PageFocusHeader>
       <p v-if="isLegacyImport" class="legacy-note">
         历史导入记录 · 仅供查看，在线办理动作不适用于历史迁移申请。
       </p>
@@ -300,4 +309,6 @@ async function supplement() {
 .aux-links { margin: 12px 0; font-size: 13px; }
 .aux-links a { color: var(--b-primary, #006be6); text-decoration: none; }
 .aux-links a:hover { text-decoration: underline; }
+.record-code { margin: 0; font-size: 12px; color: var(--b-muted, #5c6370); }
+.record-code span { font-family: var(--b-mono, ui-monospace, SFMono-Regular, Menlo, monospace); cursor: help; }
 </style>

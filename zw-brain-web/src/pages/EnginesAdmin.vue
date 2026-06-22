@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 
@@ -117,6 +117,11 @@ const ENGINES: EngineConfig[] = [
 
 const activeKey = ref<EngineKey>('approval_flow');
 const tenantId = ref<string>('sd-default');
+// 租户对用户显示为业务名（默认单租户场景 sd-default → 系统默认租户）；
+// 原始 slug 保留在 title 悬浮里，payload 仍用 tenantId 原值（不污染后端契约）。
+const tenantDisplay = computed(() =>
+  tenantId.value === 'sd-default' ? '系统默认租户' : tenantId.value,
+);
 const schemaCodeInput = ref<Record<EngineKey, string>>({
   approval_flow: '',
   form_schema: '',
@@ -373,7 +378,13 @@ function lastResultText(): string {
         <div class="form-grid">
           <label class="form-row">
             <span class="form-label">租户</span>
-            <input v-model="tenantId" type="text" class="form-input" />
+            <input
+              :value="tenantDisplay"
+              type="text"
+              class="form-input"
+              readonly
+              :title="tenantId"
+            />
           </label>
           <label class="form-row">
             <span class="form-label">{{ activeEngine().schemaCodeLabel }}</span>

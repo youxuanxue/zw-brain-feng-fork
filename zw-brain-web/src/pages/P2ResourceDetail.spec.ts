@@ -107,3 +107,51 @@ describe('P2ResourceDetail 未发布资源诚实兜底', () => {
     expect(providerManageNote(w).exists()).toBe(true);
   });
 });
+
+// R12 防回归（xj-review R-001）：消费视角（/discovery）必须隐藏含 DBA 物理字段的
+// 「库表信息」块；供数管理视角（/provider）保留。守卫消费侧 物理表名 等实现细节不回潮泄漏
+// ——此前该收口仅靠组件内 `sec.title === '库表信息'` 字符串耦合、无测试兜底，串名漂移会静默失守。
+describe('P2ResourceDetail 库表信息（DBA 字段）消费视角隐藏', () => {
+  // 暴露 title 的 DetailPanel 桩：默认桩 <div/> 吞掉 title，无法断言；这里把收到的
+  // section title 写进 data-title，使「消费侧不应渲染 库表信息」可被真实断言（非空洞）。
+  const titleStubs = {
+    PageFocusHeader: { template: '<div/>' },
+    DetailActions: { template: '<div><slot/></div>' },
+    DetailPanel: { props: ['title', 'rows'], template: '<div class="dp" :data-title="title"></div>' },
+  };
+  const tableResource = {
+    name: '历年GDP信息',
+    id: 'res-1',
+    status: '已发布',
+    lifecycleStatus: 'active',
+    typedDetail: {
+      kind: 'table',
+      kindLabel: '库表',
+      sections: [{ title: '库表信息', rows: [{ label: '物理表名', value: 'lngdpxx' }] }],
+    },
+  };
+  const sectionTitles = (w: ReturnType<typeof mount>) =>
+    w.findAll('.dp').map((d) => d.attributes('data-title'));
+
+  beforeEach(() => {
+    resourceRef.value = null;
+    loadingRef.value = false;
+    fetchErrorRef.value = null;
+    setProductRole('ROLE_ORGAN_OPERATER');
+  });
+
+  it('消费视角（/discovery）隐藏「库表信息」DBA 块', () => {
+    routeState.path = '/discovery/resource/res-1';
+    resourceRef.value = { ...tableResource };
+    const w = mount(P2ResourceDetail, { global: { stubs: titleStubs } });
+    expect(sectionTitles(w)).not.toContain('库表信息');
+    expect(w.html()).not.toContain('物理表名');
+  });
+
+  it('供数管理视角（/provider）保留「库表信息」DBA 块', () => {
+    routeState.path = '/provider/resource/res-1';
+    resourceRef.value = { ...tableResource };
+    const w = mount(P2ResourceDetail, { global: { stubs: titleStubs } });
+    expect(sectionTitles(w)).toContain('库表信息');
+  });
+});

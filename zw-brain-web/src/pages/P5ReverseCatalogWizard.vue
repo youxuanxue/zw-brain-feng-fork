@@ -8,6 +8,7 @@ import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { canPerformAction } from '@/lib/pageAccess';
 import { mapDetailRows } from '@/lib/detailDisplay';
+import { displayRecordName } from '@/lib/userLanguage';
 import {
   buildReverseDraftCreatePayload,
   buildReverseDraftSuggestPayload,
@@ -75,7 +76,8 @@ const previewRows = computed(() => {
   const c = selected.value;
   if (!c) return [];
   return mapDetailRows([
-    { label: '目录名称', value: c.name },
+    // 名==编码 / 名是裸编码 → 「未命名目录（编码 …）」，不把目录码当名直出（R12）。
+    { label: '目录名称', value: displayRecordName(c.name, c.catalog_code, '目录') },
     { label: '目录编码', value: c.catalog_code },
     { label: '当前状态', value: c.status || '—' },
     { label: '责任单位', value: c.owner || '—' },
@@ -167,7 +169,7 @@ const selectedCount = computed(() => fieldCandidates.value.filter((c) => c.selec
         <label class="field-label">选择待编目目录</label>
         <select v-model="selectedCatalogId" class="gov-select">
           <option value="" disabled>请选择目录</option>
-          <option v-for="c in catalogs" :key="c.id" :value="c.id">{{ c.name }}（{{ c.status }}）</option>
+          <option v-for="c in catalogs" :key="c.id" :value="c.id">{{ displayRecordName(c.name, c.catalog_code, '目录') }}（{{ c.status }}）</option>
         </select>
 
         <DetailPanel v-if="selected" title="编目前预览" :rows="previewRows" />

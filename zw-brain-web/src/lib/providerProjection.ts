@@ -1,7 +1,7 @@
 /** P5 提供方 snapshot 投影辅助：正式 field_decisions/hookup_reviews/demand_matches
  *  未 land 时，从 catalogs / resources / directAccess 派生可点通列表（仍属真实 seed 数据）。 */
 
-import { containsBareHexId, deriveRecordName, isBareHexId } from './userLanguage';
+import { displayRecordName, isBareHexId } from './userLanguage';
 import { resourceKindLabel } from './resourceKind';
 
 export interface ProviderRow {
@@ -25,30 +25,22 @@ function asRecord(v: unknown): Record<string, unknown> {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 }
 
-/** 关联目录名兜底：名缺失或本身是裸 hex id → 「—」，不把 hex id 当目录名展示。 */
+/** 关联目录名兜底：取首个真实业务名；候选本身是裸 hex / 裸编码 → 经 displayRecordName
+ *  降级为「未命名目录（编码 …末6位）」，不把 hex id / org-code 当目录名直出（R12）。 */
 function safeCatalogName(...candidates: unknown[]): string {
   for (const c of candidates) {
     const s = String(c ?? '').trim();
-    if (s && !isBareHexId(s)) return s;
+    if (s && !isBareHexId(s)) return displayRecordName(s, s, '目录');
   }
   return '—';
 }
 
-// 一段文本是否「就是一个长裸编号」（≥20 位、无中文/空格的标识符——hex 或大小写
-// 混编目录码），即把编码当标题。
-const LONG_BARE_CODE_RE = /^[0-9A-Za-z][0-9A-Za-z/_-]{19,}$/;
-function isBareCode(s: string): boolean {
-  return LONG_BARE_CODE_RE.test(s) && !/[一-鿿]/.test(s);
-}
-
 /**
- * 列表标题兜底：真实业务名优先；标题缺失 / 含 hex / 本身是长裸编号 → 用 id
- * 派生「<类别> …末6位」，绝不把编码或 hex 当标题主文本。
+ * 列表标题兜底：真实业务名优先；标题缺失 / 名==编码 / 含 hex / 本身是裸 id / 裸机构编码
+ * → 经 displayRecordName 降级为「未命名{类别}（编码 …末6位）」，绝不把编码或 hex 当标题主文本。
  */
 function safeRecordTitle(rawTitle: unknown, id: unknown, category: string): string {
-  const t = String(rawTitle ?? '').trim();
-  if (t && !containsBareHexId(t) && !isBareCode(t)) return t;
-  return deriveRecordName('', id, category);
+  return displayRecordName(rawTitle, id, category);
 }
 
 export function deriveFieldDecisions(provider: Record<string, unknown>): ProviderRow[] {

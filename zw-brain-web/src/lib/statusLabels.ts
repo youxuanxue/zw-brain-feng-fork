@@ -11,6 +11,7 @@ const REQUEST_STATUS_ZH: Record<string, string> = {
   in_delivery: '交付中',
   granted: '已授权',
   revoked: '已撤销',
+  expired: '已过期',
   suspended: '已暂停',
   draft: '草稿',
   reconciling: '待核对',
@@ -59,6 +60,6 @@ export function todoStatusTone(raw: string): string {
   if (key === 'approved' || key === '已通过' || key === '可查看' || key === 'granted' || key === '已授权' || key === 'issued' || key === '已签发')
     return 'tone-ok';
   if (key === 'in_delivery' || key === '交付中' || key === '补录中') return 'tone-info';
-  if (key === 'rejected' || key === '已驳回' || key === 'revoked' || key === '已撤销') return 'tone-danger';
+  if (key === 'rejected' || key === '已驳回' || key === 'revoked' || key === '已撤销' || key === 'expired' || key === '已过期') return 'tone-danger';
   return 'tone-neutral';
 }

@@ -10,6 +10,7 @@ import { invokeActionStub } from '@/composables/useActionStub';
 import { downloadDeliveryFile } from '@/composables/useDeliveryDownload';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import { formatTodoStatus } from '@/lib/statusLabels';
+import { displayRecordName, formatChannel, shortId } from '@/lib/userLanguage';
 import { getProductRole } from '@/composables/useProductRole';
 import { canPerformAction } from '@/lib/pageAccess';
 
@@ -39,18 +40,26 @@ const note = computed(() => String((taskRef.value as Record<string, unknown> | n
 // 类型推不出时回落「查看授权」（与列表页同一回落口径）。
 const resourceKind = computed(() => String((taskRef.value as Record<string, unknown> | null)?.resourceKind ?? ''));
 const isTable = computed(() => resourceKind.value === 'table');
-const pageTitle = computed(() => `${isTable.value ? '交换任务' : '交付任务'} ${id.value}`);
+// R12：标题用任务真实名（task.name；displayRecordName 优先真实名，名缺失/为裸 id 时降级为
+// 「未命名{交换/交付任务}（编码 …末6位）」），不再硬编码「交付任务/交换任务 <hex id>」直出 id。
+const taskCategory = computed(() => (isTable.value ? '交换任务' : '交付任务'));
+const pageTitle = computed(() =>
+  displayRecordName((taskRef.value as Record<string, unknown> | null)?.name, id.value, taskCategory.value),
+);
 
 const rows = computed(() => {
   const t = taskRef.value;
   if (!t) return [];
   const repo = (t.repository as Record<string, unknown> | undefined) ?? {};
+  const rawReqId = String(t.requestId ?? repo.application_code ?? '');
   return mapDetailRows([
-    { label: '任务编号', value: id.value },
+    // R12：编号类字段缩成末 6 位短码展示（避免裸长 id 撑列）；'状态' 经 formatTodoStatus 中文化
+    // （DetailPanel 亦按「状态」标签自动归一，此处显式同口径）；'渠道' 经 formatChannel 译为业务用语。
+    { label: '任务编号', value: shortId(id.value) },
     { label: '名称', value: String(t.name ?? '—') },
     { label: '状态', value: formatTodoStatus(String(t.status ?? '')) },
-    { label: '渠道', value: String(t.channel ?? repo.channel ?? '—') },
-    { label: '关联申请', value: String(t.requestId ?? repo.application_code ?? '—') },
+    { label: '渠道', value: formatChannel(t.channel ?? repo.channel) },
+    { label: '关联申请', value: rawReqId ? shortId(rawReqId) : '—' },
     { label: '更新时间', value: String(t.updatedAt ?? '—') },
   ]);
 });
@@ -103,7 +112,9 @@ async function downloadFile() {
         :title="pageTitle"
         :meta="headerMeta"
         :links="[{ label: '提异议', href: objectionLink }]"
-      />
+      >
+        <p v-if="id" class="record-code">编号 <span :title="id">{{ shortId(id) }}</span></p>
+      </PageFocusHeader>
       <PhaseTrack :steps="timeline" aria-label="交付进度" />
       <p v-if="note" class="delivery-note">{{ note }}</p>
       <DetailPanel v-if="rows.length" :title="isTable ? '交换任务详情' : '任务详情'" :rows="rows" />
@@ -141,4 +152,6 @@ async function downloadFile() {
   line-height: 1.7;
   color: var(--b-text, #1a1a1a);
 }
+.record-code { margin: 0; font-size: 12px; color: var(--b-muted, #5c6370); }
+.record-code span { font-family: var(--b-mono, ui-monospace, SFMono-Regular, Menlo, monospace); cursor: help; }
 </style>

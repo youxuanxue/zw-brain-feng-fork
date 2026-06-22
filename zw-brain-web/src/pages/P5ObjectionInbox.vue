@@ -7,7 +7,7 @@ import { canPerformAction } from '@/lib/pageAccess';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 import { formatObjectionType } from '@/lib/objectionLabels';
 import { acceptObjectionCase } from '@/lib/objectionActions';
-import { shortId } from '@/lib/userLanguage';
+import { shortId, displayRecordName, isTestMarkerName } from '@/lib/userLanguage';
 
 interface TimelineStep { stage: string; status: string; label: string; holder?: string }
 
@@ -31,11 +31,19 @@ function _currentHolder(raw: unknown): string {
 const items = computed((): InboxRow[] => {
   const raw = (provider.value as { objection_cases?: unknown[] }).objection_cases;
   if (!Array.isArray(raw)) return [];
-  return raw.map((row) => {
+  // 过滤明显的测试/样例/乱码异议行（保守判定，命中须 log，不静默吞行）。
+  const kept = raw.filter((row) => !isTestMarkerName(String((row as Record<string, unknown>).title ?? '')));
+  const filteredCount = raw.length - kept.length;
+  if (filteredCount > 0) {
+    console.debug(`[P5ObjectionInbox] 过滤测试样例异议行 ${filteredCount} 条（共 ${raw.length} 条）`);
+  }
+  return kept.map((row) => {
     const it = row as Record<string, unknown>;
+    const id = String(it.id ?? '');
     return {
-      id: String(it.id ?? ''),
-      title: String(it.title ?? it.id ?? ''),
+      id,
+      // 名缺失 / 名==id / 名是裸 id → 「未命名异议（编码 …）」，不把 id 当标题直出（R12）。
+      title: displayRecordName(it.title, id, '异议'),
       status: String(it.status ?? ''),
       kind: String(it.objection_kind ?? ''),
       holder: _currentHolder(it.statusTimeline),

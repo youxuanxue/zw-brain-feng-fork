@@ -8,6 +8,8 @@ import { getProductRole } from '@/composables/useProductRole';
 import { getCurrentOrgDisplay } from '@/composables/useCurrentOrg';
 import { canPerformAction } from '@/lib/pageAccess';
 import { mintResourceCode } from '@/lib/providerActionPayload';
+import { formatTodoStatus } from '@/lib/statusLabels';
+import { displayRecordName, shortId } from '@/lib/userLanguage';
 import {
   SHARE_TYPE_OPTIONS,
   OPEN_TYPE_OPTIONS,
@@ -43,6 +45,8 @@ const services = computed(() => {
   const list = (provider.value.services as unknown[] | undefined) ?? [];
   return list.map((s) => {
     const it = s as Record<string, unknown>;
+    const catalogCode = String(it.catalog_code ?? '');
+    const catalogName = String(it.catalog_name ?? it.catalog_title ?? '');
     return {
       id: String(it.id ?? ''),
       name: String(it.name ?? ''),
@@ -50,7 +54,12 @@ const services = computed(() => {
       // 原始生命周期码（draft/pending_review/approved_pending_publish/active…）驱动行内操作分流；
       // status 是白话标签仅供展示，不参与判定。
       lifecycleStatus: String(it.lifecycle_status ?? ''),
-      catalogCode: String(it.catalog_code ?? ''),
+      catalogCode,
+      // 关联目录展示名：有目录名 → 经 displayRecordName 取真实名（名==码也会降级）；
+      // 无目录名 → 列里只缩末 6 位（full 码留在 title 悬浮），不把目录码当名直出（R12）。
+      catalogLabel: catalogName
+        ? displayRecordName(catalogName, catalogCode, '目录')
+        : (catalogCode ? shortId(catalogCode) : ''),
       note: String(it.note ?? ''),
     };
   });
@@ -322,8 +331,8 @@ function resetForm() {
           <tbody>
             <tr v-for="s in services" :key="s.id">
               <td>{{ s.name }}</td>
-              <td>{{ s.status }}</td>
-              <td>{{ s.catalogCode || '未关联' }}</td>
+              <td>{{ formatTodoStatus(s.status) }}</td>
+              <td :title="s.catalogCode || ''">{{ s.catalogLabel || '未关联' }}</td>
               <td>{{ s.note || '未提供' }}</td>
               <td v-if="showServiceActions" class="row-actions">
                 <!-- 草稿：提交审核（操作员/管理员）。 -->

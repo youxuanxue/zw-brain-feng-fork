@@ -5,7 +5,7 @@ import { useSnapshot } from '@/composables/useSnapshot';
 import { authFetch } from '@/composables/useAuth';
 import { getProductRole } from '@/composables/useProductRole';
 import { apiUrl } from '@/composables/useApiBase';
-import { deriveRecordName } from '@/lib/userLanguage';
+import { displayRecordName, isTestMarkerName } from '@/lib/userLanguage';
 
 // 目录浏览：真接 catalog.browse 列真 catalog_entry，每行可钻取到目录详情（看目录下资源）。
 const { source } = useSnapshot();
@@ -39,21 +39,30 @@ async function load(): Promise<void> {
       return;
     }
     const body = (await resp.json()) as { items?: Array<Record<string, unknown>>; total?: number };
-    rows.value = (body.items ?? [])
-      .map((it) => {
-        const catalogCode = String(it.catalog_code ?? '');
-        // 名缺失时不裸出目录编码当标题 → 派生「数据目录 …末6位」。
-        const rawTitle = String(it.title ?? '');
-        return {
-          catalogCode,
-          title: rawTitle || deriveRecordName('', catalogCode, '数据目录'),
-          resourceCount: Number(it.resourceCount ?? 0),
-          // owner 名缺失时回落部门 id 也不直出，统一显示「—」。
-          owner: String(it.ownerName ?? '') || '—',
-          description: String(it.description ?? ''),
-        };
-      })
-      .filter((it) => it.catalogCode);
+    const rawItems = (body.items ?? []).filter((it) => String(it.catalog_code ?? ''));
+    // (b) 先剔除明显的测试/样例/乱码目录行（按原始标题判定），被过滤条数经 console.debug 记录。
+    const kept = rawItems.filter((it) => !isTestMarkerName(String(it.title ?? '')));
+    const filtered = rawItems.length - kept.length;
+    if (filtered > 0) {
+      console.debug(`[P2CatalogBrowse] 过滤 ${filtered} 条测试/样例目录（共 ${rawItems.length} 条）`);
+    }
+    rows.value = kept.map((it) => {
+      const catalogCode = String(it.catalog_code ?? '');
+      const rawTitle = String(it.title ?? '');
+      const rawDesc = String(it.description ?? '').trim();
+      // (c) 说明 == 名称 / 是测试样例 → 留空（模板渲染「—」），不重复堆名或冒出脏样例。
+      const description =
+        !rawDesc || rawDesc === rawTitle || isTestMarkerName(rawDesc) ? '' : rawDesc;
+      return {
+        catalogCode,
+        // (a) 名缺失 / 名==编码 / 名是裸 id 编码 → 派生「未命名目录（编码 …末6位）」，不裸出目录编码。
+        title: displayRecordName(rawTitle, catalogCode, '目录'),
+        resourceCount: Number(it.resourceCount ?? 0),
+        // owner 名缺失时回落部门 id 也不直出，统一显示「—」。
+        owner: String(it.ownerName ?? '') || '—',
+        description,
+      };
+    });
     total.value = Number(body.total ?? rows.value.length);
   } finally {
     loading.value = false;

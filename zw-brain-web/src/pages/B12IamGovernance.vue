@@ -9,6 +9,7 @@ import type { ActorItem } from '@/fixtures/actor-governance-fixture';
 import { pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { PRODUCT_ROLE_LABELS } from '@/composables/useAuth';
+import { shortId } from '@/lib/userLanguage';
 
 const role = getProductRole();
 
@@ -34,7 +35,7 @@ function roleLabel(code: string): string {
 
 const ACTOR_STATUS_LABELS: Record<string, string> = {
   active: '已启用',
-  iam_account_missing: '待绑定 IAM',
+  iam_account_missing: '待绑定身份',
   unmatched: '未匹配',
   disabled: '已停用',
 };
@@ -307,14 +308,14 @@ onMounted(() => {
       <!-- ════ Tab ① 用户与角色 ════ -->
       <div v-show="activeTab === 'actors'" class="tab-panel" role="tabpanel">
         <p class="disclaimer">
-          管理本租户用户的角色分派与启停。角色按机构（org_code）分派；停用后用户不再继承任何角色权限。
+          管理本租户用户的角色分派与启停。角色按所属机构分派；停用后用户不再继承任何角色权限。
           所有写操作均写审计；当前数据源非实时（live）时写操作禁用。
         </p>
 
         <div class="focus-tab-row">
           <label class="filter-row">
             <span>搜索</span>
-            <input v-model="actorQ" class="text-input" type="search" placeholder="姓名 / 账号 / actor id" @keyup.enter="reloadActors" />
+            <input v-model="actorQ" class="text-input" type="search" placeholder="姓名 / 账号 / 用户编号" @keyup.enter="reloadActors" />
           </label>
           <label class="filter-row">
             <span>机构</span>
@@ -332,7 +333,7 @@ onMounted(() => {
             <select v-model="actorStatusFilter" class="role-select" @change="reloadActors">
               <option value="">全部</option>
               <option value="active">已启用</option>
-              <option value="iam_account_missing">待绑定 IAM</option>
+              <option value="iam_account_missing">待绑定身份</option>
               <option value="unmatched">未匹配</option>
               <option value="disabled">已停用</option>
             </select>
@@ -370,9 +371,12 @@ onMounted(() => {
               <tr>
                 <td>
                   <div class="actor-name">{{ item.display_name }}</div>
-                  <code class="tech-id">{{ item.external_actor_id }}</code>
+                  <code class="tech-id" :title="item.external_actor_id">编号 {{ shortId(item.external_actor_id) }}</code>
                 </td>
-                <td>{{ item.org_code || '—' }}</td>
+                <td>
+                  <span v-if="item.org_code" :title="item.org_code">{{ shortId(item.org_code) }}</span>
+                  <span v-else>—</span>
+                </td>
                 <td><span class="status-pill" :class="actorStatusTone(item.status)">{{ actorStatusLabel(item.status) }}</span></td>
                 <td>{{ item.iaf_bound ? '已绑定' : '未绑定' }}</td>
                 <td>

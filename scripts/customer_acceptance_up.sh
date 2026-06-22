@@ -239,6 +239,17 @@ print(json.dumps(results, ensure_ascii=False))
 PY
 ok "runtime smoke passed with offline legacy source"
 
+# 演示可达性兜底（Theme 4a）：M0 导入的 granted 交付单全是历史只读迁移记录，
+# credential.issue 对其 fail-closed（无在线交付实体），导致"拿到就能调用 + 三语样例"
+# 在纯种子库上不可达。这里幂等注入一条 approved 申请并签发凭据（REQ-DEMO-F9-MEDICAL-AID
+# → AK-SELF-*），让凭据领取页能真实渲染 curl/python/java 样例。非致命：失败只告警。
+step "seed demo reachability (issued credential for 三语样例 walkthrough)"
+if "$PYTHON" "$REPO_ROOT/scripts/customer_demo_j1.py" >/dev/null 2>&1; then
+  ok "demo J1 凭据已种子（REQ-DEMO-F9-MEDICAL-AID, AK-SELF），凭据领取页三语样例可达"
+else
+  warn "demo J1 凭据种子跳过（非致命）；可手动跑 bash scripts/customer_demo_j1.sh 补"
+fi
+
 step "done"
 ok "db:      resolved ZW_BRAIN_DATABASE_URL (PostgreSQL)"
 ok "reports: $REPORT_DIR"

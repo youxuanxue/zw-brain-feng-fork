@@ -9,6 +9,7 @@ import DetailPanel from '@/components/DetailPanel.vue';
 import ResourceCard from '@/components/ResourceCard.vue';
 import { decisionRows, compilationRows, catalogSummary, DECISION_SECTION_TITLE } from '@/lib/typedDetailDisplay';
 import { resourceKindLabel } from '@/lib/resourceKind';
+import { displayRecordName } from '@/lib/userLanguage';
 
 const route = useRoute();
 const code = computed(() => String(route.params.code ?? ''));
@@ -41,9 +42,10 @@ const filteredResources = computed(() => {
 });
 
 const headerTitle = computed(() => {
-  if (catalog.value?.title) return String(catalog.value.title);
-  if (loading.value) return '正在加载……';
-  return code.value;
+  if (loading.value && !catalog.value?.title) return '正在加载……';
+  // R12：标题经 displayRecordName 收口——真实业务名直出；标题缺失/标题==编码/标题是
+  // 机构区划长编码串时统一降级为「未命名目录（编码 …末6位）」，绝不把编码当主标题。
+  return displayRecordName(catalog.value?.title, code.value, '目录');
 });
 
 const headerMeta = computed(() => {

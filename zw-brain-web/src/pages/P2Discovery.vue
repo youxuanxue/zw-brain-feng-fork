@@ -11,6 +11,7 @@ import type { StructuredAction } from '@/composables/useNLAccelerator';
 import { getProductRole } from '@/composables/useProductRole';
 import { canPerformAction } from '@/lib/pageAccess';
 import { resourceKindLabel } from '@/lib/resourceKind';
+import { isTestMarkerName } from '@/lib/userLanguage';
 
 const NL_PRESETS_P2 = ['查省营商环境相关数据', '近 7 天高使用资源', '关联水电气交叉数据'];
 
@@ -57,6 +58,18 @@ const {
   providerOptions,
   kindOptions,
 } = useDiscoverySearch();
+
+// Theme 3：过滤明显的测试/样例/乱码资源行（isTestMarkerName 保守判定），不让脏数据
+// 进发现页卡片网格；被过滤条数经 console.debug 记录（无静默截断）。
+const visibleResources = computed(() => {
+  const all = displayed.value as Array<Record<string, unknown>>;
+  const kept = all.filter((r) => !isTestMarkerName(String(r.name ?? '')));
+  const filtered = all.length - kept.length;
+  if (filtered > 0) {
+    console.debug(`[P2Discovery] 过滤 ${filtered} 条测试/样例资源（共 ${all.length} 条）`);
+  }
+  return kept;
+});
 
 onMounted(() => {
   const fromQuery = route.query.q ?? route.query.catalog;
@@ -148,9 +161,9 @@ async function applyTo(id: string) {
         </form>
       </PageFocusHeader>
 
-      <div v-if="source === 'live' && displayed.length" class="card-grid">
+      <div v-if="source === 'live' && visibleResources.length" class="card-grid">
         <ResourceCard
-          v-for="r in displayed"
+          v-for="r in visibleResources"
           :key="String((r as Record<string, unknown>).id ?? '')"
           :resource="(r as Record<string, unknown>)"
           :show-action="canApply"

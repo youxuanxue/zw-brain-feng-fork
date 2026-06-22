@@ -4,7 +4,7 @@ import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { authFetch } from '@/composables/useAuth';
 import { getProductRole } from '@/composables/useProductRole';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
-import { shortId } from '@/lib/userLanguage';
+import { shortId, displayRecordName, isTestMarkerName } from '@/lib/userLanguage';
 import { OBJECTION_TYPE_ZH, formatObjectionType } from '@/lib/objectionLabels';
 import { apiUrl } from '@/composables/useApiBase';
 
@@ -59,15 +59,27 @@ async function load() {
     });
     if (!resp.ok) throw new Error('暂时无法加载异议列表，请稍后再试。');
     const payload = (await resp.json()) as { items?: Record<string, unknown>[] };
-    items.value = (payload.items ?? []).map((row) => ({
-      id: String(row.id ?? ''),
-      title: String(row.title ?? row.topic ?? '—'),
-      status: String(row.status ?? ''),
-      targetType: String(row.target_type ?? row.targetType ?? '—'),
-      targetId: String(row.target_id ?? row.targetId ?? '—'),
-      createdAt: String(row.created_at ?? row.createdAt ?? ''),
-      updatedAt: String(row.updated_at ?? row.updatedAt ?? ''),
-    }));
+    const raw = payload.items ?? [];
+    // 过滤明显的测试/样例/乱码异议行（保守判定，命中须 log，不静默吞行）。
+    const kept = raw.filter((row) => !isTestMarkerName(String(row.title ?? row.topic ?? '')));
+    const filteredCount = raw.length - kept.length;
+    if (filteredCount > 0) {
+      console.debug(`[P3ObjectionInbox] 过滤测试样例异议行 ${filteredCount} 条（共 ${raw.length} 条）`);
+    }
+    items.value = kept.map((row) => {
+      const rawTitle = String(row.title ?? row.topic ?? '');
+      const id = String(row.id ?? '');
+      return {
+        id,
+        // 名缺失 / 名==id / 名是裸 id → 「未命名异议（编码 …）」，不把 id 当标题直出（R12）。
+        title: displayRecordName(rawTitle, id, '异议'),
+        status: String(row.status ?? ''),
+        targetType: String(row.target_type ?? row.targetType ?? '—'),
+        targetId: String(row.target_id ?? row.targetId ?? '—'),
+        createdAt: String(row.created_at ?? row.createdAt ?? ''),
+        updatedAt: String(row.updated_at ?? row.updatedAt ?? ''),
+      };
+    });
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e);
   } finally {

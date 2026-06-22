@@ -10,6 +10,7 @@ import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import { apiUrl } from '@/composables/useApiBase';
+import { displayRecordName, shortId } from '@/lib/userLanguage';
 
 interface CredentialQueryView {
   request_id: string;
@@ -155,6 +156,11 @@ const isApiResource = computed(() => String(credentialView.value?.resource_kind 
 const authNoun = computed(() => (isApiResource.value ? '授权' : '凭据'));
 const authPanelTitle = computed(() => (isApiResource.value ? '授权要素（网关授权码）' : '凭据要素'));
 const headerNoun = computed(() => (isApiResource.value ? '授权' : '凭据'));
+// R12：H1 用真实资源/数据集名（displayRecordName 优先真实名；名缺失/为裸 id 时降级为
+// 「未命名{授权/凭据}（编码 …末6位）」），绝不把 32 位 hex request id 当主标题直出。
+const headerTitle = computed(() =>
+  `${displayRecordName(credentialView.value?.resource_name, credentialView.value?.request_id ?? reqId.value, headerNoun.value)} ${headerNoun.value}`,
+);
 const headerSubMeta = computed(() =>
   isApiResource.value ? '网关授权码（App Key / Secret）· 调用样例 · 配额与监控' : 'App Key · 调用样例 · 配额与监控',
 );
@@ -221,10 +227,12 @@ async function reissue() {
     <nav class="crumbs"><a href="#/delivery-exchange">← 交付任务</a></nav>
     <section class="panel">
       <PageFocusHeader
-        :title="`${reqId} ${headerNoun}`"
+        :title="headerTitle"
         :meta="headerSubMeta"
         :links="objectionLinks"
-      />
+      >
+        <p v-if="reqId" class="record-code">编号 <span :title="reqId">{{ shortId(reqId) }}</span></p>
+      </PageFocusHeader>
       <p v-if="error" class="focus-empty">{{ error }}</p>
       <DetailPanel v-if="rows.length" :title="authPanelTitle" :rows="rows" />
 
@@ -303,4 +311,6 @@ async function reissue() {
 .cell-danger { color: var(--b-danger, #d4380d); font-weight: 600; }
 .gov-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; }
 .gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
+.record-code { margin: 0; font-size: 12px; color: var(--b-muted, #5c6370); }
+.record-code span { font-family: var(--b-mono, ui-monospace, SFMono-Regular, Menlo, monospace); cursor: help; }
 </style>
