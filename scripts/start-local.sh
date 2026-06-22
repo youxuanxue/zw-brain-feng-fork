@@ -215,6 +215,9 @@ ensure_webui_build() {
 }
 
 start_rest() {
+    # 导出端口/host 让 Python get_rest_port() 读到，否则起在默认 8800 与 health check 不一致
+    export ZW_BRAIN_REST_HOST="$REST_HOST"
+    export ZW_BRAIN_REST_PORT="$REST_PORT"
     (
         cd "$REPO_ROOT"
         exec "$PYTHON_BIN" -m zw_brain.entry.rest.server
